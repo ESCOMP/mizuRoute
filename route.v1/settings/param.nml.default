@@ -1,0 +1,8 @@
+&ST_VENANT_UH
+  velo	=   1.5
+  diff	=   800.0
+/
+&PRTCL_TRCK
+  mann_n	    =   0.01
+  width_scale	=   0.001
+/
