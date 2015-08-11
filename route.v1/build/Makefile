@@ -3,16 +3,18 @@
 #========================================================================
 #
 #
+# Define compiler
+FC  = ifort
 #
 #========================================================================
 # PART 1: Define directory paths and compiler
 #========================================================================
 
 # Define core directory below which everything resides
-F_MASTER = /home/mizukami/hydro_nm/nHRU_routing/route.v1/
+F_MASTER = /home/mizukami/mizuRoute/route.v1/
 
 # Core directory that contains source code
-F_KORE_DIR = $(F_MASTER)build/
+F_KORE_DIR = $(F_MASTER)build/src/
 
 # Location of the compiled modules
 MOD_PATH = $(F_MASTER)build/
@@ -20,9 +22,6 @@ MOD_PATH = $(F_MASTER)build/
 # Define the directory for the executables
 EXE_PATH = $(F_MASTER)bin
 #
-# Define compiler
-FC  = ifort
-
 #========================================================================
 # PART 2: Assemble all of the sub-routines
 #========================================================================
@@ -61,8 +60,8 @@ IO = \
 # perform model routing
 QROUTE = \
 		qtimedelay.f90 \
-		network_route.f90 \
-		vic_route.f90
+		kwt_route.f90 \
+		irf_route.f90
 
 # concatanate model subroutines
 TEMP_MODSUB = $(DATATYPES) $(UTILS) $(NUMREC) $(IO) $(QROUTE)
@@ -133,6 +132,7 @@ compile:
 clean:
 						rm -f *.o
 						rm -f *.mod
+						rm -f *__genmod.f90
 #
 # Copy the executable to the bin directory
 install:

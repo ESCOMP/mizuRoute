@@ -9,9 +9,9 @@
 ! ****************************************************************************************************************************
 ! PART 1: DEFINE DIRECTORIES 
 ! --------------------------
-<ancil_dir>    /home/mizukami/hydro_nm/nHRU_routing/route.v1/ancillary_data/  ! directory containing ancillary data
-<input_dir>    /home/mizukami/hydro_nm/nHRU_routing/route.v1/input/           ! directory containing input data
-<output_dir>   /home/mizukami/hydro_nm/nHRU_routing/route.v1/output/          ! directory containing output data
+<ancil_dir>    /home/mizukami/mizuRoute/route.v1/ancillary_data/  ! directory containing ancillary data
+<input_dir>    /home/mizukami/mizuRoute/route.v1/input/           ! directory containing input data
+<output_dir>   /home/mizukami/mizuRoute/route.v1/output/          ! directory containing output data
 ! ****************************************************************************************************************************
 ! PART 2: DEFINE FINE NAME AND DIMENSIONS
 ! ---------------------------------------
@@ -36,7 +36,7 @@
 ! ****************************************************************************************************************************
 ! PART 6: Namelist file name 
 ! ---------------------------
-<param_nml>    /home/mizukami/hydro_nm/nHRU_routing/route.v1/settings/param.nml.default ! directory containing ancillary data1.0     
+<param_nml>    /home/mizukami/mizuRoute/route.v1/settings/param.nml.default ! directory containing ancillary data1.0     
 ! ****************************************************************************************************************************
 ! ****************************************************************************************************************************
 ! ****************************************************************************************************************************
