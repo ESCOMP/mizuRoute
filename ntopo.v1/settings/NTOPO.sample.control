@@ -14,7 +14,7 @@
 ! ****************************************************************************************************************************
 ! PART 2: DEFINE FINE NAME AND DIMENSIONS
 ! ---------------------------------------
-<fname_sseg>         NTOPO_sample.nc                                      ! name of file containing stream segment information
+<fname_sseg>         NTOPO_sample.nc                                       ! name of file containing stream segment information
 <dname_nhru>         hruid                                                 ! dimension name of the HRUs
 <dname_sseg>         seg_id                                                ! dimension name of the stream segments
 ! ****************************************************************************************************************************

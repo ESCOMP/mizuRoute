@@ -1,4 +1,4 @@
-SUBROUTINE QTIMEDELAY(dt, scale_time, IERR, MESSAGE)
+SUBROUTINE QTIMEDELAY(dt, fshape, tscale, IERR, MESSAGE)
 ! ---------------------------------------------------------------------------------------
 ! Creator:
 ! --------
@@ -18,14 +18,14 @@ USE nr, ONLY : gammp                                  ! interface for the incomp
 USE reach_flux                                        ! reach fluxes
 IMPLICIT NONE
 ! input
-REAL(DP), INTENT(IN)                   :: DT          ! model time step
-REAL(DP), INTENT(IN)                   :: SCALE_TIME  ! time parameter
+REAL(DP), INTENT(IN)                   :: dt          ! model time step
+REAL(SP), INTENT(IN)                   :: fshape      ! shapef parameter in gamma distribution
+REAL(DP), INTENT(IN)                   :: tscale      ! time scale parameter 
 ! output
 INTEGER(I4B), INTENT(OUT)              :: IERR        ! error code
 CHARACTER(*), INTENT(OUT)              :: MESSAGE     ! error message
 ! locals
-REAL(SP)                               :: ALPHA       ! shape parameter
-REAL(SP)                               :: ALAMB       ! scale parameter
+REAL(SP)                               :: alamb       ! scale parameter
 REAL(DP)                               :: ntdh_min    ! minimum number of time delay points
 REAL(DP)                               :: ntdh_max    ! maximum number of time delay points
 REAL(DP)                               :: ntdh_try    ! trial number of time delay points
@@ -38,17 +38,16 @@ REAL(SP)                               :: X_VALUE     ! xvalue to evaluate using
 REAL(SP)                               :: CUMPROB     ! cumulative probability at JTIM
 REAL(SP)                               :: PSAVE       ! cumulative probability at JTIM-1
 ! ---------------------------------------------------------------------------------------
-! use a Gamma distribution with shape parameter = 2.5, and time parameter input
-ALPHA = 2.5_SP                                             ! shape parameter
-ALAMB = ALPHA/REAL(SCALE_TIME, kind(sp))                   ! scale parameter
+! use a Gamma distribution with shape parameter, fsahep = 2.5, and time parameter, tscale, input
+alamb = fshape/REAL(tscale, kind(sp))                   ! scale parameter
 ! find the desired number of future time steps
 ntdh_min = 1._dp
 ntdh_max = 1000._dp
 ntdh_try = 0.5_dp*(ntdh_min + ntdh_max)
 do itry=1,maxtry
  x_value = alamb*real(dt*ntdh_try, kind(sp))
- cumprob = gammp(alpha, x_value)
- !print*, scale_time, ntdh_try, cumprob
+ cumprob = gammp(fshape, x_value)
+ !print*, tscale, ntdh_try, cumprob
  if(cumprob < 0.99_dp)  ntdh_min = ntdh_try
  if(cumprob > 0.999_dp) ntdh_max = ntdh_try
  if(cumprob > 0.99_dp .and. cumprob < 0.999_dp) exit
@@ -63,7 +62,7 @@ if(ierr/=0)then; message=trim(message)//'unable to allocate space for the time d
 PSAVE = 0.                                                 ! cumulative probability at JTIM-1
 DO JTIM=1,NTDH
  TFUTURE            = real(REAL(JTIM, kind(dp))*DT, kind(sp))       ! future time
- CUMPROB            = GAMMP(ALPHA,ALAMB*TFUTURE)    ! cumulative probability at JTIM
+ CUMPROB            = gammp(fshape,alamb*TFUTURE)    ! cumulative probability at JTIM
  FRAC_FUTURE(JTIM)  = MAX(0._DP, CUMPROB-PSAVE)     ! probability between JTIM-1 and JTIM
  PSAVE              = CUMPROB                       ! cumulative probability at JTIM-1
  !WRITE(*,'(I5,1X,F20.5,1X,2(F11.5))') JTIM, TFUTURE, FRAC_FUTURE(JTIM), CUMPROB

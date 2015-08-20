@@ -129,7 +129,8 @@ integer(i4b)               :: nDrain              ! number of HRUs that drain in
 integer(i4b)               :: ix                  ! index of the HRU assigned to a given basin
 real(dp), allocatable      :: qsim_basin(:)       ! simulated runoff at the basins
 ! route simulated runoff through the local basin
-real(dp)                   :: scale_time          ! scaling factor for the time delay histogram (seconds)
+real(sp)                   :: fshape              ! shape parameter in time delay histogram (=gamma distribution) [-]
+real(dp)                   :: tscale              ! scaling factor for the time delay histogram [sec]
 integer(i4b)               :: jtim                ! index of the time delay vectors
 integer(i4b)               :: ntdh                ! number of elements in the time delay histogram
 ! route delaied runoff through river network with St.Venant UH
@@ -144,7 +145,7 @@ integer(i4b), parameter    :: nens=1              ! number of ensemble members
 integer(i4b)               :: iens                ! index of ensemble member
 real(dp)                   :: T0,T1               ! start and end of the time step (seconds)
 real(dp)                   :: mann_n              ! manning's roughness coefficient [unitless]  added by NM
-real(dp)                   :: width_scale         ! scaling factor for river width [-] added by NM
+real(dp)                   :: wscale              ! scaling factor for river width [-] added by NM
 integer(i4b)               :: LAKEFLAG            ! >0 if processing lakes
 ! desired variables when printing progress
 real(dp)                   :: qDomain_hru         ! domain: total runoff at the HRUs (mm/s)
@@ -152,8 +153,9 @@ real(dp)                   :: qDomain_basin       ! domain: total instantaneous 
 real(dp)                   :: qDomain_reach       ! domain: total instantaneous reach runoff (mm/s)
 real(dp)                   :: qDesire_instant     ! desire: sum of instantaneous runoff for all basins upstream of the desired reach (mm/s)
 real(dp)                   :: qDesire_routed      ! desire: routed runoff for the desired reach (mm/s)
-namelist /ST_VENANT_UH/velo,diff
-namelist /PRTCL_TRCK/mann_n,width_scale
+namelist /HSLOPE/fshape,tscale
+namelist /IRF_UH/velo,diff
+namelist /KWT/mann_n,wscale
 
 ! *****
 ! (0) Read control file...
@@ -233,8 +235,9 @@ endselect
 ! ************************
 call file_open(trim(param_nml),iunit,ierr,cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
-read(iunit, nml=ST_VENANT_UH)
-read(iunit, nml=PRTCL_TRCK)
+read(iunit, nml=HSLOPE)
+read(iunit, nml=IRF_UH)
+read(iunit, nml=KWT)
 
 ! get the number of stream segments (needed for allocate statements)
 call get_vec_dim(trim(ancil_dir)//trim(fname_ntop), &
@@ -497,8 +500,7 @@ else ! if the entire river network routing is selected
 endif ! outlet segment choice
 
 ! compute the time-delay histogram (to route runoff within basins)
-scale_time = 1._dp*dt
-call qtimedelay(dt,scale_time,ierr,cmessage)
+call qtimedelay(dt, fshape, tscale, ierr, cmessage)
 call handle_err(ierr, cmessage)
 
 if (doKWTroute) then
@@ -818,7 +820,7 @@ do iTime=1,nTime
   ! **************************************************
   if (doKWTroute) then
     ! specify some additional parameters (temporary "fix")
-    RPARAM(:)%R_WIDTH =  width_scale * sqrt(RPARAM(:)%TOTAREA)    ! channel width (m)
+    RPARAM(:)%R_WIDTH =  wscale * sqrt(RPARAM(:)%TOTAREA)    ! channel width (m)
     RPARAM(:)%R_MAN_N =  mann_n  ! Manning's "n" paramater (unitless)
 
     ! route streamflow through the river network
