@@ -1,0 +1,52 @@
+! ****************************************************************************************************************************
+! ****************************************************************************************************************************
+! ***** DEFINITION OF MODEL CONTROL INFORMATION ******************************************************************************
+! ****************************************************************************************************************************
+! ****************************************************************************************************************************
+! Note: lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines.
+!       lines starting with <xxx> are read till "!"
+!
+! ****************************************************************************************************************************
+! PART 1: DEFINE DIRECTORIES 
+! --------------------------
+<input_dir>          /home/mizukami/mizuRoute/ntopo.v1/ancillary_data/    ! directory containing input data
+<output_dir>         /home/mizukami/mizuRoute/ntopo.v1/ancillary_data/    ! directory containing output data
+! ****************************************************************************************************************************
+! PART 2: DEFINE FINE NAME AND DIMENSIONS
+! ---------------------------------------
+<fname_sseg>         NTOPO_sample.nc                                       ! name of file containing stream segment information
+<dname_nhru>         hruid                                                 ! dimension name of the HRUs
+<dname_sseg>         seg_id                                                ! dimension name of the stream segments
+! ****************************************************************************************************************************
+! PART 3: DEFINE DESIRED VARIABLES FOR THE HRUs
+! ---------------------------------------------
+<HRUname_xLon>       Lon_Centro                                            ! name of variable holding longitude
+<HRUname_yLat>       Lat_Centro                                            ! name of variable holding latitude
+<HRUname_elev>       Elev_Avg                                              ! name of variable holding elevation
+<HRUname_area>       Basin_Area                                            ! name of variable holding basin area
+! ****************************************************************************************************************************
+! PART 4: DEFINE DESIRED VARIABLES FOR THE STREAM SEGMENTS
+! --------------------------------------------------------
+<SEGname_bLon>       start_lon                                             ! name of variable holding start longitude
+<SEGname_bLat>       start_lat                                             ! name of variable holding start latitude
+<SEGname_eLon>       end_lon                                               ! name of variable holding end longitude
+<SEGname_eLat>       end_lat                                               ! name of variable holding end latitude
+<SEGname_length>     Length                                                ! name of variable holding segment length
+<SEGname_slope>      Slope                                                 ! name of variable holding segment slope
+! ****************************************************************************************************************************
+! PART 5: DEFINE DESIRED VARIABLES FOR THE HRU-2-BASIN MAPPING
+! ------------------------------------------------------------
+<HRUname_HRUid>      hruid                                                 ! name of variable holding HRU id
+<HRUname_segHRUid>   seg_hru_id                                            ! name of variable holding the stream segment below each HRU     
+! ****************************************************************************************************************************
+! PART 6: DEFINE DESIRED VARIABLES FOR THE NETWORK TOPOLOGY
+! ---------------------------------------------------------
+<SEGname_segid>      seg_id                                                ! name of variable holding the ID of each stream segment   
+<SEGname_toSegment>  tosegment                                             ! name of variable holding the ID of the next downstream segment
+! ****************************************************************************************************************************
+! PART 7: DEFINE OUTPUT FILE
+! ---------------------------
+<fname_output> NTOPO_sample_mod.bkup.nc                                         ! filename for the model output
+! ****************************************************************************************************************************
+! ****************************************************************************************************************************
+! ****************************************************************************************************************************
