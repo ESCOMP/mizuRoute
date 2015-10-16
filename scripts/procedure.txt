@@ -1,0 +1,40 @@
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Processing scripts - Getting runoff input data for routing 
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Assumptions
+1. You have already runoff netCDF with each elements (e.g. grid box) having hru_id 
+2. You have two shapefiles - hydro model elements and cHRU 
+3. You have python installed in your machine
+4. You have python gdal library installed in your machine https://pypi.python.org/pypi/GDAL/
+
+------
+1. Compute areal weight to map hydrologic model grid box to cHRU polygon
+------------------------------------------------------------
+> ./map_poly2poly.py <cHRU_Poly.sh> <FieldName1> <overlayPoly.sh> <FieldName2>
+ <cHRU_Poly.sh>   -> cHRU Polygon Shapefile  
+ <FieldName1>     -> Polygon identifier 
+ <overlayPoly.sh> -> overlaying polygon shapefile
+ <FieldName2>     -> overlaying Polygon identifier
+
+e.g.
+./map_poly2poly.py test_data/nhru_cameo.shp hru_id2 test_data/conus12k.shp hru_id
+ 
+This create nhru_cameo.nc as weight_netCDF
+
+------
+2.Map gridded RUNOFF to HRU
+------------------------------------------------------------
+./Upscale.nc.sh <weight_netCDF> <input_netCDF> <variable_name_in_input_netCDF> <unit> <output_netCDF>
+ <weight_netCDF>                 -> Areal weight netcdf name (output from map_poly2poly.py)
+ <input_netCDF>                  -> LSM/hydro model runoff netCDF 
+ <variable_name_in_input_netCDF> -> Variable name in Runoff netCDf
+ <unit>                          -> unit of above Variable 
+ <output_netCDF>                 -> Output (i.e. hru averaged runoff) netCDF name
+
+e.g.
+ ./Upscale.nc.sh test_data/nhru_cameo.nc test_data/RUNOFF_sample.nc RUNOFF mm/s runoff_in.nc
+
+
+Updated on 12/12/14
+
