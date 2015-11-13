@@ -1,0 +1,21 @@
+seg,read,start_x,    f8, X value of segment upstream point,           -
+seg,read,end_x,      f8, X value of segment downstream point,         -
+seg,read,start_y,    f8, Y coordinate of segment upstream point,      -
+seg,read,end_y,      f8, Y coordinate of segment downstream point,    -
+seg,read,start_lon,  f8, Longitude of segment upstream point,         degree-east
+seg,read,end_lon,    f8, Longitude of segment downstream point,       degree-east
+seg,read,start_lat,  f8, Latitude of segment upstream point,          degree-north
+seg,read,end_lat,    f8, Latitude of segment downstream point,        degree-north
+seg,read,Length,     f8, Segment length,                              meter
+seg,read,tosegment,  i4, ID of downstream segment,                    -
+seg,read,TopElev,    f8, Elevation of segment upstream point,         meter
+seg,read,BotElev,    f8, Elevation of segment downstream point,       meter
+seg,comp,Drop,       f8, Elevation drop from up- to downstream point, meter
+seg,comp,Slope,      f8, Slope of segment,                            -
+hru,read,X_Centroid, f8, X coordinate of hru centroid,                - 
+hru,read,Y_Centroid, f8, Y coordinate of hru centroid,                -
+hru,read,Lon_Centro, f8, Longitude of hru centroid,                   degree-east
+hru,read,Lat_Centro, f8, Latitude of hru centroid,                    degree-north 
+hru,read,seg_hru_id, i4, ID of segment that hru pour,                 - 
+hru,read,Basin_Area, f8, hru area,                                    suqre-meter
+hru,read,Elev_Avg,   f8, Average elevation over hru,                  meter
