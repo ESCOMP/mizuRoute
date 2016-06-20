@@ -1,15 +1,23 @@
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-Processing scripts - Getting runoff input data for routing 
+Processing scripts - 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Assumptions
-1. You have already runoff netCDF with each elements (e.g. grid box) having hru_id 
-2. You have two shapefiles - hydro model elements and cHRU 
-3. You have python installed in your machine
-4. You have python gdal library installed in your machine https://pypi.python.org/pypi/GDAL/
+This set of scripts can be used for two purpses-
+1) To obtain hru mean runoff in netCDF (runoff input of mizuRoute)
+2) To obtain river network topology in netcdf from two shapefiles 
+   (river segment line and hru basin polygon) 
 
+Assumptions
+1. You have already runoff netCDF with each elements (e.g. grid box) having hru_id (e.g.UNOFF_sample.nc)
+2. You have two shapefiles - hydro model elements and HRU (e.g. nhru_seg_cameo.shp and nhru_cameo.shp )
+3. You have python installed in your machine (we use python2.7)
+4. You have python gdal library installed in your machine https://pypi.python.org/pypi/GDAL/
+4. You have python netcdf4 installed in your machine 
+
+
+1. To get hru mean runoff
 ------
-1. Compute areal weight to map hydrologic model grid box to cHRU polygon
+1.1. Compute areal weight to map hydrologic model grid box to cHRU polygon
 ------------------------------------------------------------
 > ./map_poly2poly.py <cHRU_Poly.sh> <FieldName1> <overlayPoly.sh> <FieldName2>
  <cHRU_Poly.sh>   -> cHRU Polygon Shapefile  
@@ -18,23 +26,37 @@ Assumptions
  <FieldName2>     -> overlaying Polygon identifier
 
 e.g.
-./map_poly2poly.py test_data/nhru_cameo.shp hru_id2 test_data/conus12k.shp hru_id
+./map_poly2poly.py test_data/nhru_cameo.shp hruid test_data/conus12k.shp hru_id
  
 This create nhru_cameo.nc as weight_netCDF
 
 ------
-2.Map gridded RUNOFF to HRU
+1.2. Map gridded RUNOFF to HRU
 ------------------------------------------------------------
 ./Upscale.nc.sh <weight_netCDF> <input_netCDF> <variable_name_in_input_netCDF> <unit> <output_netCDF>
  <weight_netCDF>                 -> Areal weight netcdf name (output from map_poly2poly.py)
+ <hrudim>                        -> Name of hru dimension in weight netCDF"
  <input_netCDF>                  -> LSM/hydro model runoff netCDF 
  <variable_name_in_input_netCDF> -> Variable name in Runoff netCDf
  <unit>                          -> unit of above Variable 
  <output_netCDF>                 -> Output (i.e. hru averaged runoff) netCDF name
 
 e.g.
- ./Upscale.nc.sh test_data/nhru_cameo.nc test_data/RUNOFF_sample.nc RUNOFF mm/s runoff_in.nc
+ ./Upscale.nc.sh test_data/nhru_cameo.nc hruid test_data/RUNOFF_sample.nc RUNOFF mm/s runoff_in.nc
 
 
-Updated on 12/12/14
+2.To get river network topology netcdf 
+------------------------------------------------------------
+./Gen_ntopo_nc.py -[h] -c<in_hru_shp> -s<in_seg_shp> -a<att_meta> -o<outnc>
 
+  <in_hru_shp>     -> input hru catchment shapefle 
+  <in_seg_shp>     -> input segment shapefile 
+  <att_meta>       -> metadata for attributes in netCDF output
+  <outnc>          -> output netcdf
+
+e.g. ./Gen_ntopo_nc.py -c test_data/nhru_cameo.shp -s test_data/nhru_seg_cameo.shp -a ntopo.meta -o NTOPO_sample.nc
+
+You need to prepare river segemnt shapefile and hru shapefile both geometory and attributes in GIS
+You likely need high resolution DEM to obtain elevation of stream segment end points.
+
+Updated on 11/01/15

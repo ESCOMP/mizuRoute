@@ -3,16 +3,55 @@
 #========================================================================
 #
 #
-# Define compiler
-FC  = ifort
 #
 #========================================================================
-# PART 1: Define directory paths and compiler
+# PART 0: User configure part 
 #========================================================================
+# Define fortran compiler - gfortran, ifort or pgf90
+FC  = COMPILERNAME
 
 # Define core directory below which everything resides
-F_MASTER = /home/mizukami/mizuRoute/route.v1/
+# parent directory of the 'build' directory
+# do not put space at the end of path
+F_MASTER = PARENTDIRECTORY 
 
+# Define the NetCDF libraries and path to include files
+ifeq "$(FC)" "gfortran"
+  NCDF_PATH=/opt/netcdf4-gcc
+  LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
+  		-L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
+  INCNETCDF = -I$(NCDF_PATH)/include
+endif
+ifeq "$(FC)" "ifort"
+ NCDF_PATH = /opt/netcdf4-intel
+ LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
+		-L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
+ INCNETCDF = -I$(NCDF_PATH)/include
+endif
+ifeq "$(FC)" "pgf90"
+ NCDF_PATH = /opt/netcdf4-pgf90
+ LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
+ INCNETCDF = -I$(NCDF_PATH)/include
+endif
+
+# Define flags
+ifeq "$(FC)" "gfortran"
+ FLAGS = -Wall -g -ffree-line-length-none
+endif
+ifeq "$(FC)" "ifort"
+ FLAGS1 = -warn all -noerror_limit -FR -O0 -auto -WB -traceback -g -fltconsistency
+# FLAGS = -static -debug -warn all -check all,noarg_temp_created -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
+ FLAGS = -warn all -check all,noarg_temp_created -FR -O2 -auto -WB -traceback -g -fltconsistency -fpe0
+# FLAGS = -debug -warn all -check all,noarg_temp_created -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
+endif
+ifeq "$(FC)" "pgf90"
+ FLAGS1 = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -Mprof=lines,time
+ FLAGS = -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv
+endif
+
+#========================================================================
+# PART 1: Define directory paths
+#========================================================================
 # Core directory that contains source code
 F_KORE_DIR = $(F_MASTER)build/src/
 
@@ -21,7 +60,7 @@ MOD_PATH = $(F_MASTER)build/
 
 # Define the directory for the executables
 EXE_PATH = $(F_MASTER)bin
-#
+
 #========================================================================
 # PART 2: Assemble all of the sub-routines
 #========================================================================
@@ -70,27 +109,8 @@ TEMP_MODSUB = $(DATATYPES) $(UTILS) $(NUMREC) $(IO) $(QROUTE)
 MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
 
 #========================================================================
-# PART 3: Define the libraries, driver programs, and executables
+# PART 2: Define driver programs, and executables
 #========================================================================
-
-# Define the NetCDF libraries and path to include files
-ifeq "$(FC)" "gfortran"
-  NCDF_PATH=/opt/netcdf-4.3.0+gcc-4.7.2
-  LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
-  		-L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
-  INCNETCDF = -I$(NCDF_PATH)/include
-endif
-ifeq "$(FC)" "ifort"
- NCDF_PATH = /usr/local/netcdf-4.3.0+ifort-12.1
- LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
-		-L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
- INCNETCDF = -I$(NCDF_PATH)/include
-endif
-ifeq "$(FC)" "pgf90"
- LIBNETCDF = -L/usr/local/netcdf-4.3.0+pgi-13.4/lib -lnetcdff -lnetcdf
- INCNETCDF = -I/usr/local/netcdf-4.3.0+pgi-13.4/include
-endif
-
 # Define the driver routine
 DRIVER = $(F_KORE_DIR)route_runoff.f90
 
@@ -100,26 +120,6 @@ EXE = route_runoff.exe
 #========================================================================
 # PART 4: Compile the puppy
 #========================================================================
-
-# Define flags
-ifeq "$(FC)" "gfortran"
- FLAGS = -Wall -g -ffree-line-length-none
-endif
-ifeq "$(FC)" "ifort"
- FLAGS1 = -warn all -noerror_limit -FR -O0 -auto -WB -traceback -g -fltconsistency
-# FLAGS = -static -debug -warn all -check all,noarg_temp_created -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
- FLAGS = -warn all -check all,noarg_temp_created -FR -O2 -auto -WB -traceback -g -fltconsistency -fpe0
-# FLAGS = -debug -warn all -check all,noarg_temp_created -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
-endif
-ifeq "$(FC)" "pgf90"
- FLAGS1 = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -Mprof=lines,time
- FLAGS = -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv
-endif
-
-#FLAGS = -O3 -W -v
-
-#.SUFFIXES: .f .o .f90
-
 # tasks
 all: compile install clean
 

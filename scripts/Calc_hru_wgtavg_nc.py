@@ -19,6 +19,17 @@ import math
 import netCDF4 as nc4
 
 ############################################ 
+#         hardcoded variables              #
+############################################
+# Name of netCDF variable for polygon ID in input data
+IDNM='hru_id'               
+# Name of netCDF variable for weight in weight data
+WGTNM='weight'
+OVRPLYNM='overlapPolyId'
+LATNM='latitude'
+LONNM='longitude'
+OVRNM='overlaps'
+############################################ 
 #              Class                       #
 ############################################
 class wgtnc:
@@ -29,11 +40,11 @@ class wgtnc:
 
     def getWgtHru(self,hru):
         """For given hru id, get weight of the intersected polygons and associated ID and lat/lon"""
-        wgtAll        = getNetCDFData(self.ncName, 'weight') 
-        overlapsIdAll = getNetCDFData(self.ncName, 'overlapPolyId') 
-        latAll        = getNetCDFData(self.ncName, 'latitude')
-        lonAll        = getNetCDFData(self.ncName, 'longitude')
-        overlapsAll   = getNetCDFData(self.ncName, 'overlaps')
+        wgtAll        = getNetCDFData(self.ncName, WGTNM) 
+        overlapsIdAll = getNetCDFData(self.ncName, OVRPLYNM) 
+        latAll        = getNetCDFData(self.ncName, LATNM)
+        lonAll        = getNetCDFData(self.ncName, LONNM)
+        overlapsAll   = getNetCDFData(self.ncName, OVRNM)
 
         self.hruList = self.getHruID()            # get hru id list
         idx=self.hruList.index(hru)               # get indix in array corresponding hru
@@ -46,7 +57,8 @@ class wgtnc:
         return (self.wgt, self.overlapsId, self.lat, self.lon, self.overlaps)
 
     def getHruIdName(self):
-        """ get Name of hru ID """
+        """ get Name of hru ID 
+            it must be the 1st dimension """
         f = nc4.Dataset(self.ncName,'r')
         self.dim = f.dimensions
         self.dimName = self.dim.keys()
@@ -109,7 +121,7 @@ def compAvgVal(nc_wgt,nc_in,varname):
 
   dataVal  = getNetCDFData(nc_in,varname) # Get data value 
   FillVal  = getNetCDFAtt(nc_in,varname,'_FillValue') # Get data value 
-  IdVal    = getNetCDFData(nc_in,'hru_id') 
+  IdVal    = getNetCDFData(nc_in,IDNM) 
   dim1size = dataVal.shape[0]
 
   #Initialize wgtVal[ntime,nhru] 
@@ -146,7 +158,6 @@ def compAvgVal(nc_wgt,nc_in,varname):
     Val2 = np.zeros((dim1size))
     if np.nansum(wgtArray) > 0.0:
     #  print (np.nansum(wgtArray) > 0.0)
-    #  print (overlaps != 0.0)
       # Adjust weight value if valid weight value (> 0) exist in list
       newWgtArray = [x/np.nansum(wgtArray) for x in wgtArray]
     #  print "%d invalid polygons out of %d polygons" %(numvoid,overlaps)

@@ -9,34 +9,34 @@
 ! ****************************************************************************************************************************
 ! PART 1: DEFINE DIRECTORIES 
 ! --------------------------
-<ancil_dir>    /home/mizukami/mizuRoute/route.v1/ancillary_data/  ! directory containing ancillary data
-<input_dir>    /home/mizukami/mizuRoute/route.v1/input/           ! directory containing input data
-<output_dir>   /home/mizukami/mizuRoute/route.v1/output/          ! directory containing output data
+<ancil_dir>    /home/mizukami/mizuRoute/route/ancillary_data/  ! directory containing ancillary data
+<input_dir>    /home/mizukami/mizuRoute/route/input/           ! directory containing input data
+<output_dir>   /home/mizukami/mizuRoute/route/output/          ! directory containing output data
 ! ****************************************************************************************************************************
 ! PART 2: DEFINE FINE NAME AND DIMENSIONS
 ! ---------------------------------------
-<fname_ntop>  NTOPO_sample_mod.nc                                             ! dimension name of the stream segments
+<fname_ntop>  NTOPO_sample_mod.nc                                        ! dimension name of the stream segments
 ! ****************************************************************************************************************************
 ! PART 3: DEFINE DESIRED VARIABLES FOR THE NETWORK TOPOLOGY
 ! ---------------------------------------------------------
-<seg_outlet>   14000645                                                       ! seg_id of outlet streamflow segment -9999 for all segments 
+<seg_outlet>   14000645                                                  ! seg_id of outlet streamflow segment -9999 for all segments 
 ! ****************************************************************************************************************************
 ! PART 4: DEFINE RUNOFF FILE
 ! ----------------------------------
-<fname_qsim>   runoff_in.nc                                                   ! name of file containing the HRU runoff
-<vname_qsim>   RUNOFF                                                         ! name of HRU runoff variable
-<vname_time>   time                                                           ! name of time variable in the HRU runoff file
-<vname_hruid>  hru_id2                                                        ! name of the HRU id
-<units_qsim>   mm/s                                                           ! units of runoff
-<dt_qsim>      86400                                                          ! time interval of the runoff
+<fname_qsim>   runoff_in.nc                                              ! name of file containing the HRU runoff
+<vname_qsim>   RUNOFF                                                    ! name of HRU runoff variable
+<vname_time>   time                                                      ! name of time variable in the HRU runoff file
+<vname_hruid>  hruid                                                     ! name of the HRU id
+<units_qsim>   mm/s                                                      ! units of runoff
+<dt_qsim>      86400                                                     ! time interval of the runoff
 ! ****************************************************************************************************************************
 ! PART 5: DEFINE OUTPUT FILE
 ! ---------------------------
-<fname_output> q_out.nc                                                       ! filename for the model output 1730
+<fname_output> q_out.nc                                                  ! filename for the model output 1730
 ! ****************************************************************************************************************************
 ! PART 6: Namelist file name 
 ! ---------------------------
-<param_nml>    /home/mizukami/mizuRoute/route.v1/settings/param.nml.default ! directory containing ancillary data1.0     
+<param_nml>    /home/mizukami/mizuRoute/route/settings/param.nml.default ! directory containing ancillary data1.0     
 ! ****************************************************************************************************************************
 ! ****************************************************************************************************************************
 ! ****************************************************************************************************************************
