@@ -394,9 +394,6 @@ if ( iSegOut /= -9999 ) then
   
       enddo ! looping through the immediate upstream reaches
     endif  ! if not a headwater
-    !print*,'NETOPO(iSeg)%UREACHI(:) = ',NETOPO(iSeg)%UREACHI(:)
-    !print*,'NETOPO(iSeg)%REACHID = ',NETOPO(iSeg)%REACHID
-    !print*,'NETOPO(iSeg)%UREACHK(:) = ',NETOPO(iSeg)%UREACHK(:)
     
     ! sHrus dimension 
     call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'upHruStart', iUpHruStart, upStrmRchList(iSeg), ierr, cmessage); call handle_err(ierr,cmessage)
@@ -410,7 +407,6 @@ if ( iSegOut /= -9999 ) then
       call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_area',  h2b(iSeg)%cHRU(:)%hru_area,iUpHruStart,nUpHruCount,ierr,cmessage); call handle_err(ierr,cmessage)
       call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_weight',h2b(iSeg)%cHRU(:)%wght,    iUpHruStart,nUpHruCount,ierr,cmessage); call handle_err(ierr,cmessage)
     endif
-    !print*,'h2b(iSeg)%cHRU(:)%hru_id = ',h2b(iSeg)%cHRU(:)%hru_id
   enddo  ! looping through the stream segments within the model domain
   nSegRoute => nRchCount
 
@@ -511,7 +507,6 @@ if (doKWTroute) then
   ! jRch = NETOPO(iRch)%RHORDER
   ! write(*,'(a,1x,2(i4,1x),f20.2)') 'iRch, NETOPO(jRch)%DREACHI, RPARAM(jRch)%TOTAREA/1000000._dp  = ', iRch, NETOPO(jRch)%DREACHI, RPARAM(jRch)%TOTAREA/1000000._dp
   !end do 
-  !pause ' check reachorder'
 end if
 
 ! identify the stream segment with the largest upstream area
@@ -524,9 +519,7 @@ NETOPO(ixDesire)%DREACHI = -9999
 
 if (doIRFroute) then
   ! For IRF routing scheme
-  ! Compute total length from the bottom of segment to each upstream segment
-  !  call upstrm_length(nSeg, ierr, cmessage);
-  ! Compute total length from the bottom of segment to each upstream segment
+  ! Compute unit hydrograph for each segment 
   call make_uh(nSegRoute, dt, velo, diff, ierr, cmessage); call handle_err(ierr, cmessage)
   !check
  ! !do iSeg=1949,1949
@@ -624,7 +617,6 @@ do iSeg=1,nSegRoute
  ! update the start index
  iStart = iStart + nUpstream
 end do
-
 ! write reach parameters
 call write_dVec(trim(output_dir)//trim(fname_output), 'basinArea',    RPARAM(:)%BASAREA, (/1/), (/nSegRoute/), ierr, cmessage); call handle_err(ierr,cmessage)
 call write_dVec(trim(output_dir)//trim(fname_output), 'upstreamArea', RPARAM(:)%TOTAREA, (/1/), (/nSegRoute/), ierr, cmessage); call handle_err(ierr,cmessage)
@@ -737,7 +729,6 @@ do iTime=1,nTime
    ! convert runoff to m3/s
    RCHFLX(iens,ibas)%BASIN_QI = qsim_basin(ibas)*RPARAM(ibas)%BASAREA
   end do  ! (looping through basins)
-  !print*,'RCHFLX(iens,:)%BASIN_QI = ',RCHFLX(iens,:)%BASIN_QI
 
   ! write instantaneous local runoff in each stream segment (m3/s)
   call write_dVec(trim(output_dir)//trim(fname_output), 'instBasinRunoff', RCHFLX(iens,:)%BASIN_QI, (/1,iTime/), (/nSegRoute,1/), ierr, cmessage)
@@ -819,7 +810,7 @@ do iTime=1,nTime
   ! (5f) Route streamflow through the river network...
   ! **************************************************
   if (doKWTroute) then
-    ! specify some additional parameters (temporary "fix")
+    ! specify some additional parameters (temporary "fix") should be moved outside time loop!
     RPARAM(:)%R_WIDTH =  wscale * sqrt(RPARAM(:)%TOTAREA)    ! channel width (m)
     RPARAM(:)%R_MAN_N =  mann_n  ! Manning's "n" paramater (unitless)
 
@@ -827,8 +818,6 @@ do iTime=1,nTime
     do iSeg=1,nSegRoute
       ! identify reach to process
       irch = NETOPO(iSeg)%RHORDER
-      !print*, 'irch, ixDesire = ', irch, ixDesire
-
       ! route kinematic waves through the river network
       CALL QROUTE_RCH(IENS,irch,    & ! input: array indices
                       ixDesire,     & ! input: index of the outlet reach
@@ -836,10 +825,8 @@ do iTime=1,nTime
                       LAKEFLAG,     & ! input: flag if lakes are to be processed
                       ierr,cmessage)  ! output: error control
       call handle_err(ierr,cmessage)
-      !if(iRch==5) pause 'finished stream segment'
     end do  ! (looping through stream segments)
-    !pause 'first time step'
-    
+
     ! write routed runoff (m3/s)
     call write_dVec(trim(output_dir)//trim(fname_output), 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,iTime/), (/nSegRoute,1/), ierr, cmessage)
     call handle_err(ierr,cmessage)
@@ -865,7 +852,6 @@ do iTime=1,nTime
  T0 = T0 + dt
  T1 = T0 + dt
 
- !pause 'finished time step'
 end do  ! (looping through time)
 
 stop
