@@ -640,14 +640,14 @@ RCHFLX(:,:)%BASIN_QR_IRF(1) = 0._dp
 ! initialize the time-delay histogram
 do iens=1,nens
  do ibas=1,nSegRoute
-  ! allocate space for the delayed runoff
+  ! allocate space for the delayed runoff for Hillslope routing
   allocate(RCHFLX(iens,ibas)%QFUTURE(size(FRAC_FUTURE)), stat=ierr)
   call handle_err(ierr, 'problem allocating space for QFUTURE element')
   ! initialize to zeroes
   RCHFLX(iens,ibas)%QFUTURE(:) = 0._dp
   
+ ! allocate space for the delayed runoff for IRF routing
   if (doIRFroute) then
-    ! allocate space for the delayed runoff
     nUpstream = size(NETOPO(ibas)%RCHLIST) ! size of upstream segment 
     nUH_DATA_MAX=0
     upstrms_loop: do iUps=1,nUpstream
@@ -735,24 +735,24 @@ do iTime=1,nTime
   call handle_err(ierr,cmessage)
   
   ! *****
-  ! (5c) Delay runoff within local basins...
+  ! (5c) Delay runoff within local basins (hill-slope routing) ...
   ! ****************************************
   ! identify the number of future time steps for a given basin
   ntdh = size(FRAC_FUTURE)
 
   ! route streamflow through the basin
   do ibas=1,nSegRoute ! place a fraction of runoff in future time steps
-    do JTIM=1,NTDH
+    do JTIM=1,ntdh
      RCHFLX(iens,ibas)%QFUTURE(JTIM) = RCHFLX(iens,ibas)%QFUTURE(JTIM) + FRAC_FUTURE(JTIM)*RCHFLX(iens,ibas)%BASIN_QI
     end do
     ! save the routed runoff
     RCHFLX(iens,ibas)%BASIN_QR(0) = RCHFLX(iens,ibas)%BASIN_QR(1)  ! (save the runoff from the previous time step)
     RCHFLX(iens,ibas)%BASIN_QR(1) = RCHFLX(iens,ibas)%QFUTURE(1)
     ! move array back
-    do JTIM=2,NTDH
+    do JTIM=2,ntdh
      RCHFLX(iens,ibas)%QFUTURE(JTIM-1) = RCHFLX(iens,ibas)%QFUTURE(JTIM)
     end do 
-    RCHFLX(iens,ibas)%QFUTURE(NTDH)    = 0._dp
+    RCHFLX(iens,ibas)%QFUTURE(ntdh)    = 0._dp
   end do  ! (looping through basins)
 
   ! write routed local runoff in each stream segment (m3/s)
@@ -760,7 +760,7 @@ do iTime=1,nTime
   call handle_err(ierr,cmessage)
  
   ! *****
-  ! (5d) Route streamflow for each upstream segment through the river network...
+  ! (5d) Route streamflow for each upstream segment through the river network with "IRF routing scheme"...
   ! **************************************************
   if (doIRFroute) then
     ! Get upstreme routed runoff depth at top of each segment for IRF routing 
@@ -790,7 +790,7 @@ do iTime=1,nTime
     ! get streamflow for all reaches upstream
     qUpstream = RCHFLX(iens,iUpstream(1:nUpstream))%BASIN_QR(1)
     ! get mean streamflow 
-    RCHFLX(IENS,iSeg)%UPSTREAM_QI = sum(qUpstream)
+    RCHFLX(iens,iSeg)%UPSTREAM_QI = sum(qUpstream)
     ! test
     if(NETOPO(iSeg)%REACHID == ixPrint)then
      print*, 'ixUpstream = ', NETOPO(iUpstream(1:nUpstream))%REACHIX
@@ -807,7 +807,7 @@ do iTime=1,nTime
   call handle_err(ierr,cmessage)
 
   ! *****
-  ! (5f) Route streamflow through the river network...
+  ! (5f) Route streamflow through the river network with "Kinematic Wave Routing scheme" ...
   ! **************************************************
   if (doKWTroute) then
     ! specify some additional parameters (temporary "fix") should be moved outside time loop!
@@ -819,7 +819,7 @@ do iTime=1,nTime
       ! identify reach to process
       irch = NETOPO(iSeg)%RHORDER
       ! route kinematic waves through the river network
-      CALL QROUTE_RCH(IENS,irch,    & ! input: array indices
+      CALL QROUTE_RCH(iens,irch,    & ! input: array indices
                       ixDesire,     & ! input: index of the outlet reach
                       T0,T1,        & ! input: start and end of the time step
                       LAKEFLAG,     & ! input: flag if lakes are to be processed
