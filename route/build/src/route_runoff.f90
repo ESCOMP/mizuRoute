@@ -500,6 +500,10 @@ call qtimedelay(dt, fshape, tscale, ierr, cmessage)
 call handle_err(ierr, cmessage)
 
 if (doKWTroute) then
+  ! specify some additional parameters (temporary "fix")
+  RPARAM(:)%R_WIDTH = wscale * sqrt(RPARAM(:)%TOTAREA)  ! channel width (m)
+  RPARAM(:)%R_MAN_N = mann_n                            ! Manning's "n" paramater (unitless)
+
   ! define processing order of the reaches
   call reachorder(nSegRoute, ierr, cmessage); call handle_err(ierr, cmessage)
   !! check
@@ -522,7 +526,6 @@ if (doIRFroute) then
   ! Compute unit hydrograph for each segment 
   call make_uh(nSegRoute, dt, velo, diff, ierr, cmessage); call handle_err(ierr, cmessage)
   !check
- ! !do iSeg=1949,1949
  ! do iSeg=9,9
  !   nUpstream = size(NETOPO(iSeg)%RCHLIST) ! size of upstream segment 
  !   do iUps=1,nUpstream
@@ -579,9 +582,7 @@ do iSeg=1,nSegRoute ! (loop through stream segments)
     ! Assign hru index  
     iSelect = minloc(abs(qsimHRUid - h2b(iSeg)%cHRU(iHRU)%hru_id))
     h2b(iSeg)%cHRU(iHRU)%hru_ix=iSelect(1)
-    if(h2b(iSeg)%cHRU(iHRU)%hru_id /= qsimHRUid(h2b(iSeg)%cHRU(iHRU)%hru_ix))then
-      call handle_err(20,'mis-match in HRUs')
-    endif
+    if(h2b(iSeg)%cHRU(iHRU)%hru_id /= qsimHRUid(h2b(iSeg)%cHRU(iHRU)%hru_ix)) call handle_err(20,'mismatch in HRUs')
     qsimHRUid_mask(iSelect(1)) = .true. 
     qsimHRUarea(iSelect(1)) = h2b(iSeg)%cHRU(iHRU)%hru_area
   end do  ! (loop through HRUs that drain into a given stream segment) 
@@ -621,7 +622,6 @@ end do
 call write_dVec(trim(output_dir)//trim(fname_output), 'basinArea',    RPARAM(:)%BASAREA, (/1/), (/nSegRoute/), ierr, cmessage); call handle_err(ierr,cmessage)
 call write_dVec(trim(output_dir)//trim(fname_output), 'upstreamArea', RPARAM(:)%TOTAREA, (/1/), (/nSegRoute/), ierr, cmessage); call handle_err(ierr,cmessage)
 
-
 ! *****
 ! (4) Prepare for the routing simulations...
 ! *******************************************
@@ -639,27 +639,27 @@ RCHFLX(:,:)%BASIN_QR_IRF(1) = 0._dp
 
 ! initialize the time-delay histogram
 do iens=1,nens
- do ibas=1,nSegRoute
-  ! allocate space for the delayed runoff for Hillslope routing
-  allocate(RCHFLX(iens,ibas)%QFUTURE(size(FRAC_FUTURE)), stat=ierr)
-  call handle_err(ierr, 'problem allocating space for QFUTURE element')
-  ! initialize to zeroes
-  RCHFLX(iens,ibas)%QFUTURE(:) = 0._dp
-  
- ! allocate space for the delayed runoff for IRF routing
-  if (doIRFroute) then
-    nUpstream = size(NETOPO(ibas)%RCHLIST) ! size of upstream segment 
-    nUH_DATA_MAX=0
-    upstrms_loop: do iUps=1,nUpstream
-      nUH_DATA_MAX= max(nUH_DATA_MAX ,size(NETOPO(ibas)%UH(iUps)%UH_DATA))
-    enddo upstrms_loop 
-    allocate(RCHFLX(iens,ibas)%QFUTURE_IRF(nUH_DATA_MAX), stat=ierr)
-    call handle_err(ierr, 'problem allocating space for QFUTURE_IRF element')
+  do ibas=1,nSegRoute
+    ! allocate space for the delayed runoff for Hillslope routing
+    allocate(RCHFLX(iens,ibas)%QFUTURE(size(FRAC_FUTURE)), stat=ierr)
+    call handle_err(ierr, 'problem allocating space for QFUTURE element')
     ! initialize to zeroes
-    RCHFLX(iens,ibas)%QFUTURE_IRF(:) = 0._dp
-  end if
+    RCHFLX(iens,ibas)%QFUTURE(:) = 0._dp
+    
+  !  allocate space for the delayed runoff for IRF routing
+    if (doIRFroute) then
+      nUpstream = size(NETOPO(ibas)%RCHLIST) ! size of upstream segment 
+      nUH_DATA_MAX=0
+      upstrms_loop: do iUps=1,nUpstream
+        nUH_DATA_MAX= max(nUH_DATA_MAX ,size(NETOPO(ibas)%UH(iUps)%UH_DATA))
+      enddo upstrms_loop 
+      allocate(RCHFLX(iens,ibas)%QFUTURE_IRF(nUH_DATA_MAX), stat=ierr)
+      call handle_err(ierr, 'problem allocating space for QFUTURE_IRF element')
+      ! initialize to zeroes
+      RCHFLX(iens,ibas)%QFUTURE_IRF(:) = 0._dp
+    end if
 
- end do
+  end do
 end do
 
 ! define flags
@@ -810,10 +810,6 @@ do iTime=1,nTime
   ! (5f) Route streamflow through the river network with "Kinematic Wave Routing scheme" ...
   ! **************************************************
   if (doKWTroute) then
-    ! specify some additional parameters (temporary "fix") should be moved outside time loop!
-    RPARAM(:)%R_WIDTH =  wscale * sqrt(RPARAM(:)%TOTAREA)    ! channel width (m)
-    RPARAM(:)%R_MAN_N =  mann_n  ! Manning's "n" paramater (unitless)
-
     ! route streamflow through the river network
     do iSeg=1,nSegRoute
       ! identify reach to process
@@ -869,21 +865,4 @@ contains
  endif
  end subroutine handle_err
 
-
- subroutine findix(scl,vec,iSelect)
-  ! Find vec index where the value match up with scl  
-  implicit none
-      
-  integer(i4b),intent(in)              :: scl 
-  integer(i4b),intent(in),allocatable  :: vec(:)
-  integer(i4b),intent(out)             :: iSelect
- 
-  integer(i4b)                         :: i(1)
-  i = minloc(abs(vec - scl))
-  iSelect = i(1)  ! de-vectorize the desired stream segment
-  if(vec(iSelect) /= scl)&
-   call handle_err(20,'unable to find matched value')
- end subroutine findix 
-
-end
-
+end program route_runoff
