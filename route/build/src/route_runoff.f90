@@ -25,6 +25,7 @@ USE read_ntopo,only:get_scl_dvar              ! get the data from the ntopo file
 USE read_ntopo,only:get_vec_dvar              ! get the data from the ntopo file
 USE read_ntopo,only:get_Vec_dim               ! get the data from the ntopo file
 USE write_simoutput,only:defineFile           ! define output file
+USE write_simoutput,only:defineStateFile      ! write a hillslope routing state at a time 
 USE write_simoutput,only:write_iVec           ! write an integer vector
 USE write_simoutput,only:write_dVec           ! write a double precision vector
 USE kwt_route,only:reachorder                 ! define the processing order for the stream segments
@@ -43,8 +44,6 @@ integer(i4b),parameter     :: ixPrint = -9999     ! index for printing
 ! useful constants
 real(dp),parameter         :: secprhour=3600._dp  ! number of seconds in an hour
 real(dp),parameter         :: secprday=86400._dp  ! number of seconds in a day
-logical(lgt),parameter     :: doIRFroute=.True.  ! switch to turn off/on IRF routing added by NM
-logical(lgt),parameter     :: doKWTroute=.True.
 real(dp),parameter         :: verySmall=tiny(1.0_dp)  ! a very small number 
 ! general guff
 integer(i4b),parameter     :: strLen=256          ! length of character string
@@ -63,9 +62,12 @@ integer(i4b)               :: ibeg_name           ! start index of variable name
 integer(i4b)               :: iend_name           ! end index of variable name in string cLines(iLine)
 integer(i4b)               :: iend_data           ! end index of data in string cLines(iLine)
 character(len=strLen)      :: cName,cData         ! name and data from cLines(iLine)
+logical(lgt)               :: isRestart=.true.
 ! define output file
 character(len=strLen)      :: fname_output        ! name of output file
+character(len=strLen)      :: fname_state         ! name of state file
 integer(i4b),parameter     :: outunit=31          ! unit for output file
+integer(i4b)               :: routOpt=1           ! routing scheme options  0-> both, 1->IRF, 2->KWT otherwise error
 ! define directories
 character(len=strLen)      :: ancil_dir           ! directory containing ancillary data
 character(len=strLen)      :: input_dir           ! directory containing input data
@@ -137,6 +139,7 @@ integer(i4b)               :: ntdh                ! number of elements in the ti
 real(dp)                   :: velo                ! velocity [m/s] for Saint-Venant equation   added by NM
 real(dp)                   :: diff                ! diffusivity [m2/s] for Saint-Venant equation   added by NM
 integer(i4b)               :: nUH_DATA_MAX        ! maximum number of elements in the UH data among all the upstreamfs for a segment 
+integer(i4b),allocatable   :: irfsize(:,:)        ! maximum number of elements in the UH data for all the segments 
 ! compute total instantaneous runoff upstream of each reach
 integer(i4b),allocatable   :: iUpstream(:)        ! indices for all reaches upstream
 real(dp),allocatable       :: qUpstream(:)        ! streamflow for all reaches upstream
@@ -146,6 +149,9 @@ integer(i4b)               :: iens                ! index of ensemble member
 real(dp)                   :: T0,T1               ! start and end of the time step (seconds)
 real(dp)                   :: mann_n              ! manning's roughness coefficient [unitless]  added by NM
 real(dp)                   :: wscale              ! scaling factor for river width [-] added by NM
+integer(I4b), parameter    :: MAXQPAR=20          ! maximum number of particles
+integer(i4b),allocatable   :: wavesize(:,:)       ! number of wave for segments 
+integer(i4b),allocatable   :: wavesize_state(:,:) ! number of wave for segments saved in state file
 integer(i4b)               :: LAKEFLAG            ! >0 if processing lakes
 ! desired variables when printing progress
 real(dp)                   :: qDomain_hru         ! domain: total runoff at the HRUs (mm/s)
@@ -193,20 +199,21 @@ do iLine=1,size(cLines)
     case('<output_dir>');   output_dir   = trim(cData)           ! directory containing output data
     ! define variables for the network topology
     case('<fname_ntop>');   fname_ntop   = trim(cData)           ! name of file containing stream network topology information
-    case('<seg_outlet>'   ); read(cData,*,iostat=ierr) iSegOut                ! seg_id of outlet streamflow segment 
+    case('<seg_outlet>'   ); read(cData,*,iostat=ierr) iSegOut   ! seg_id of outlet streamflow segment 
       if(ierr/=0) call handle_err(70,'problem with internal read of iSegOut info, read from control file')
     ! define the file and variable name for runoff netCDF 
-    case('<fname_qsim>');   fname_qsim   = trim(cData)    ! name of file containing the runoff
-    case('<vname_qsim>');   vname_qsim   = trim(cData)    ! name of runoff variable
-    case('<vname_hruid>');  vname_hruid  = trim(cData)    ! name of the HRU id
-    case('<vname_time>');   vname_time   = trim(cData)    ! name of time variable in the runoff file
-    case('<units_qsim>');   units_qsim   = trim(cData)    ! units of runoff
-    case('<dt_qsim>');      read(cData,*,iostat=ierr) dt  ! time interval of the gridded runoff
+    case('<fname_qsim>');   fname_qsim   = trim(cData)           ! name of file containing the runoff
+    case('<vname_qsim>');   vname_qsim   = trim(cData)           ! name of runoff variable
+    case('<vname_hruid>');  vname_hruid  = trim(cData)           ! name of the HRU id
+    case('<vname_time>');   vname_time   = trim(cData)           ! name of time variable in the runoff file
+    case('<units_qsim>');   units_qsim   = trim(cData)           ! units of runoff
+    case('<dt_qsim>');      read(cData,*,iostat=ierr) dt         ! time interval of the gridded runoff
       if(ierr/=0) call handle_err(70,'problem with internal read of dt info, read from control file')
     ! define the output filename
-    case('<fname_output>'); fname_output = trim(cData)    ! filename for the model output
+    case('<fname_output>'); fname_output = trim(cData)           ! filename for the model output
+    case('<fname_state>');  fname_state  = trim(cData)           ! filename for the channel states 
     ! define namelist name for routing parameters
-    case('<param_nml>');    param_nml    = trim(cData)     ! name of namelist including routing parameter value 
+    case('<param_nml>');    param_nml    = trim(cData)           ! name of namelist including routing parameter value 
   end select
 end do  ! looping through lines in the control file
 
@@ -231,7 +238,7 @@ select case(trim(cTime))
 endselect
 
 ! *****
-! (0.b) Read Namelist...
+! (0.b) Read parameter Namelist...
 ! ************************
 call file_open(trim(param_nml),iunit,ierr,cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
@@ -277,7 +284,7 @@ print*,'Number of nSeg in Network topology: ', nSeg
 
 ! Read global reach id  (input = filename, variable name, variable vector, start index; output = error control)
 allocate(REACHIDGV(nSeg), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for REACHIDGV')
-call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop), 'reachID', REACHIDGV, 1, nSeg, ierr, cmessage); call handle_err(ierr,cmessage)
+call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop), 'reachID', REACHIDGV, (/1/), (/nSeg/), ierr, cmessage); call handle_err(ierr,cmessage)
 
 if ( iSegOut /= -9999 ) then
   print*, 'Outlet segment = ', iSegOut
@@ -295,7 +302,7 @@ if ( iSegOut /= -9999 ) then
   
   ! Read reach list of index from global segments (all the upstream reachs for each segment) 
   allocate(upStrmRchList(nRchCount), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for upStrmRchList')
-  call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop), 'reachList', upStrmRchList, iRchStart,nRchCount, ierr, cmessage); call handle_err(ierr,cmessage)
+  call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop), 'reachList', upStrmRchList, (/iRchStart/),(/nRchCount/), ierr, cmessage); call handle_err(ierr,cmessage)
   
   ! Reach upstream segment and associated HRU infor from non-ragged vector 
   allocate(NETOPO(nRchCount), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for NETOPO')
@@ -350,8 +357,8 @@ if ( iSegOut /= -9999 ) then
     allocate(NETOPO(iSeg)%RCHLIST(nRchCount1), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for NETOPO%RCHLIST')
     allocate(RCHIXLIST(nRchCount1), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for RCHIXLIST(nRchCount)')
   
-    call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'reachList'         ,RCHIXLIST,iRchStart1,nRchCount1,ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'upReachTotalLength',NETOPO(iSeg)%UPSLENG(:),iRchStart1,nRchCount1,ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'reachList'         ,RCHIXLIST,(/iRchStart1/),(/nRchCount1/),ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'upReachTotalLength',NETOPO(iSeg)%UPSLENG(:),(/iRchStart1/),(/nRchCount1/),ierr,cmessage); call handle_err(ierr,cmessage)
   
     ! Recompute all the upstream segment indices as local segment list = NETOPO(:)%REACHID
     nTotal = nTotal + nRchCount1
@@ -372,7 +379,7 @@ if ( iSegOut /= -9999 ) then
     allocate(NETOPO(iSeg)%goodBas(nUpRchCount), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for NETOPO%goodBas')
     if (nUpRchCount > 0) then
   
-      call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'upReachID'   ,NETOPO(iSeg)%UREACHK(:),iUpRchStart,nUpRchCount,ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'upReachID'   ,NETOPO(iSeg)%UREACHK(:),(/iUpRchStart/),(/nUpRchCount/),ierr,cmessage); call handle_err(ierr,cmessage)
       do jSeg=1,nUpRchCount
         ! Identify the index of the desired stream segment from reachID vector (dimension size: nSeg)
         iSelect = minloc(abs(NETOPO(:)%REACHID - NETOPO(iSeg)%UREACHK(jSeg)))
@@ -400,12 +407,12 @@ if ( iSegOut /= -9999 ) then
     call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'upHruCount', nUpHruCount, upStrmRchList(iSeg), ierr, cmessage); call handle_err(ierr,cmessage)
     allocate(h2b(iSeg)%cHRU(nUpHruCount), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for h2b(iSeg)%cHRU(nUpHruCount)')
     if (nUpHrucount /= 0) then
-      call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'hru_id',    h2b(iSeg)%cHRU(:)%hru_id,  iUpHruStart,nUpHruCount,ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_lon',   h2b(iSeg)%cHRU(:)%hru_lon, iUpHruStart,nUpHruCount,ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_lat',   h2b(iSeg)%cHRU(:)%hru_lat, iUpHruStart,nUpHruCount,ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_elev',  h2b(iSeg)%cHRU(:)%hru_elev,iUpHruStart,nUpHruCount,ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_area',  h2b(iSeg)%cHRU(:)%hru_area,iUpHruStart,nUpHruCount,ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_weight',h2b(iSeg)%cHRU(:)%wght,    iUpHruStart,nUpHruCount,ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'hru_id',    h2b(iSeg)%cHRU(:)%hru_id,  (/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_lon',   h2b(iSeg)%cHRU(:)%hru_lon, (/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_lat',   h2b(iSeg)%cHRU(:)%hru_lat, (/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_elev',  h2b(iSeg)%cHRU(:)%hru_elev,(/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_area',  h2b(iSeg)%cHRU(:)%hru_area,(/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_weight',h2b(iSeg)%cHRU(:)%wght,    (/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
     endif
   enddo  ! looping through the stream segments within the model domain
   nSegRoute => nRchCount
@@ -442,8 +449,8 @@ else ! if the entire river network routing is selected
     allocate(NETOPO(iSeg)%UPSLENG(nRchCount1), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for NETOPO%UPSLENG')
     allocate(NETOPO(iSeg)%RCHLIST(nRchCount1), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for NETOPO%RCHLIST')
   
-    call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'upReachTotalLength',NETOPO(iSeg)%UPSLENG(:),iRchStart1,nRchCount1,ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'reachList',NETOPO(iSeg)%RCHLIST(:),iRchStart1,nRchCount1,ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'upReachTotalLength',NETOPO(iSeg)%UPSLENG(:),(/iRchStart1/),(/nRchCount1/),ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'reachList',NETOPO(iSeg)%RCHLIST(:),(/iRchStart1/),(/nRchCount1/),ierr,cmessage); call handle_err(ierr,cmessage)
     nTotal = nTotal + nRchCount1
   enddo 
   ! Populate sUps dimensioned variable 
@@ -457,8 +464,8 @@ else ! if the entire river network routing is selected
     allocate(NETOPO(iSeg)%UREACHK(nUpRchCount), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for NETOPO%UREACHK')
     allocate(NETOPO(iSeg)%goodBas(nUpRchCount), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for NETOPO%goodBas')
     if (nUpRchCount > 0) then
-      call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'upReachID'   ,NETOPO(iSeg)%UREACHK(:),iUpRchStart,nUpRchCount,ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'upReachIndex',NETOPO(iSeg)%UREACHI(:),iUpRchStart,nUpRchCount,ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'upReachID'   ,NETOPO(iSeg)%UREACHK(:),(/iUpRchStart/),(/nUpRchCount/),ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'upReachIndex',NETOPO(iSeg)%UREACHI(:),(/iUpRchStart/),(/nUpRchCount/),ierr,cmessage); call handle_err(ierr,cmessage)
       do jSeg=1,nUpRchCount
         ! check that we identify the correct upstream reach
         if (NETOPO(NETOPO(iSeg)%UREACHI(jSeg))%REACHID /= NETOPO(iSeg)%UREACHK(jSeg)) then 
@@ -484,12 +491,12 @@ else ! if the entire river network routing is selected
 
     allocate(h2b(iSeg)%cHRU(nUpHruCount), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for h2b(iSeg)%cHRU(nUpHruCount)')
     if (nUpHrucount /= 0) then
-      call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'hru_id',    h2b(iSeg)%cHRU(:)%hru_id,  iUpHruStart,nUpHruCount,ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_lon',   h2b(iSeg)%cHRU(:)%hru_lon, iUpHruStart,nUpHruCount,ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_lat',   h2b(iSeg)%cHRU(:)%hru_lat, iUpHruStart,nUpHruCount,ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_elev',  h2b(iSeg)%cHRU(:)%hru_elev,iUpHruStart,nUpHruCount,ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_area',  h2b(iSeg)%cHRU(:)%hru_area,iUpHruStart,nUpHruCount,ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_weight',h2b(iSeg)%cHRU(:)%wght,    iUpHruStart,nUpHruCount,ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'hru_id',    h2b(iSeg)%cHRU(:)%hru_id,  (/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_lon',   h2b(iSeg)%cHRU(:)%hru_lon, (/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_lat',   h2b(iSeg)%cHRU(:)%hru_lat, (/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_elev',  h2b(iSeg)%cHRU(:)%hru_elev,(/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_area',  h2b(iSeg)%cHRU(:)%hru_area,(/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_weight',h2b(iSeg)%cHRU(:)%wght,    (/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
     endif
   enddo
   nSegRoute => nSeg
@@ -499,7 +506,7 @@ endif ! outlet segment choice
 call qtimedelay(dt, fshape, tscale, ierr, cmessage)
 call handle_err(ierr, cmessage)
 
-if (doKWTroute) then
+if (routOpt==0 .or. routOpt==2) then
   ! specify some additional parameters (temporary "fix")
   RPARAM(:)%R_WIDTH = wscale * sqrt(RPARAM(:)%TOTAREA)  ! channel width (m)
   RPARAM(:)%R_MAN_N = mann_n                            ! Manning's "n" paramater (unitless)
@@ -521,7 +528,7 @@ print*, 'maximum upstream area = ', RPARAM(ixDesire)%TOTAREA, size(NETOPO(ixDesi
 ! set the downstream index of the outlet reach to negative (the outlet reach does not flow into anything)
 NETOPO(ixDesire)%DREACHI = -9999
 
-if (doIRFroute) then
+if (routOpt==0 .or. routOpt==1) then
   ! For IRF routing scheme
   ! Compute unit hydrograph for each segment 
   call make_uh(nSegRoute, dt, velo, diff, ierr, cmessage); call handle_err(ierr, cmessage)
@@ -601,8 +608,8 @@ call defineFile(trim(output_dir)//trim(fname_output),  &  ! input: file name
 call handle_err(ierr, cmessage)
 
 ! write network toplogy (input = filename, variable name, variable vector, start index; output = error control)
-call write_iVec(trim(output_dir)//trim(fname_output), 'reachID',    NETOPO(:)%REACHID, 1,  ierr, cmessage); call handle_err(ierr,cmessage)
-call write_iVec(trim(output_dir)//trim(fname_output), 'reachOrder', NETOPO(:)%RHORDER, 1,  ierr, cmessage); call handle_err(ierr,cmessage)
+call write_iVec(trim(output_dir)//trim(fname_output), 'reachID',    NETOPO(:)%REACHID, (/1/), (/size(NETOPO)/), ierr, cmessage); call handle_err(ierr,cmessage)
+call write_iVec(trim(output_dir)//trim(fname_output), 'reachOrder', NETOPO(:)%RHORDER, (/1/), (/size(NETOPO)/), ierr, cmessage); call handle_err(ierr,cmessage)
 
 iStart=1  ! initialize the start index of the ragged array
 ! write list of reaches upstream of each reach (ragged array)
@@ -610,11 +617,11 @@ do iSeg=1,nSegRoute
  ! get the number of reaches
  nUpstream = size(NETOPO(iSeg)%RCHLIST)
  ! write the vector to the ragged array
- call write_iVec(trim(output_dir)//trim(fname_output), 'reachList', NETOPO(iSeg)%RCHLIST(:), iStart, ierr, cmessage)
+ call write_iVec(trim(output_dir)//trim(fname_output), 'reachList', NETOPO(iSeg)%RCHLIST(:), (/iStart/), (/size(NETOPO(iSeg)%RCHLIST)/), ierr, cmessage)
  call handle_err(ierr,cmessage)
  ! write the start index and the count (NOTE: pass as a vector)
- call write_iVec(trim(output_dir)//trim(fname_output), 'listStart', (/iStart/),    iSeg, ierr, cmessage); call handle_err(ierr,cmessage)
- call write_iVec(trim(output_dir)//trim(fname_output), 'listCount', (/nUpstream/), iSeg, ierr, cmessage); call handle_err(ierr,cmessage)
+ call write_iVec(trim(output_dir)//trim(fname_output), 'listStart', (/iStart/),    (/iSeg/), (/1/), ierr, cmessage); call handle_err(ierr,cmessage)
+ call write_iVec(trim(output_dir)//trim(fname_output), 'listCount', (/nUpstream/), (/iSeg/), (/1/), ierr, cmessage); call handle_err(ierr,cmessage)
  ! update the start index
  iStart = iStart + nUpstream
 end do
@@ -633,21 +640,26 @@ if(ierr/=0) call handle_err(ierr,'problem allocating space for simulated runoff 
 allocate(qsim_basin(nSegRoute),RCHFLX(nens,nSegRoute), KROUTE(nens,nSegRoute), stat=ierr)
 if(ierr/=0) call handle_err(ierr,'problem allocating space for simulated runoff at the basins')
 
+allocate(irfsize(nens,nSegRoute), wavesize(nens,nSegRoute), stat=ierr)
+if(ierr/=0) call handle_err(ierr,'problem allocating space for simulated runoff at the basins')
+
 ! initialize the routed elements
 RCHFLX(:,:)%BASIN_QR(1) = 0._dp
 RCHFLX(:,:)%BASIN_QR_IRF(1) = 0._dp 
 
 ! initialize the time-delay histogram
+! identify the number of future time steps for a given basin
+ntdh = size(FRAC_FUTURE)
 do iens=1,nens
   do ibas=1,nSegRoute
     ! allocate space for the delayed runoff for Hillslope routing
-    allocate(RCHFLX(iens,ibas)%QFUTURE(size(FRAC_FUTURE)), stat=ierr)
+    allocate(RCHFLX(iens,ibas)%QFUTURE(ntdh), stat=ierr)
     call handle_err(ierr, 'problem allocating space for QFUTURE element')
     ! initialize to zeroes
     RCHFLX(iens,ibas)%QFUTURE(:) = 0._dp
     
   !  allocate space for the delayed runoff for IRF routing
-    if (doIRFroute) then
+    if ((routOpt==0 .or. routOpt==1) .and. .not.(isRestart)) then
       nUpstream = size(NETOPO(ibas)%RCHLIST) ! size of upstream segment 
       nUH_DATA_MAX=0
       upstrms_loop: do iUps=1,nUpstream
@@ -657,10 +669,38 @@ do iens=1,nens
       call handle_err(ierr, 'problem allocating space for QFUTURE_IRF element')
       ! initialize to zeroes
       RCHFLX(iens,ibas)%QFUTURE_IRF(:) = 0._dp
+      irfsize(iens,ibas)=nUH_DATA_MAX
     end if
 
   end do
 end do
+
+!read restart 
+if (isRestart) then
+  allocate(wavesize_state(nens,nSegRoute), stat=ierr)
+  do iens=1,nens
+    if (routOpt==0 .or. routOpt==1) then
+      call get_vec_ivar(trim(output_dir)//trim(fname_state),'irfsize',irfsize(iens,:),(/1,iens/),(/nSegRoute,1/),ierr,cmessage); call handle_err(ierr,cmessage)
+    endif
+    if (routOpt==0 .or. routOpt==2) then
+      call get_vec_ivar(trim(output_dir)//trim(fname_state),'wavesize',wavesize_state(iens,:), (/1,iens/), (/nSegRoute,1/), ierr, cmessage); call handle_err(ierr,cmessage)
+    endif
+    do iSeg=1,nSegRoute ! (loop through stream segments)
+      call get_vec_dvar(trim(output_dir)//trim(fname_state),'QFUTURE',RCHFLX(iens,iSeg)%QFUTURE(:), (/iSeg,1,iens/),(/1,ntdh,1/), ierr, cmessage); call handle_err(ierr,cmessage)
+      if (routOpt==0 .or. routOpt==1) then
+        allocate(RCHFLX(iens,iSeg)%QFUTURE_IRF(irfsize(iens,iSeg)), stat=ierr)
+        call get_vec_dvar(trim(output_dir)//trim(fname_state),'QFUTURE_IRF',RCHFLX(iens,iSeg)%QFUTURE_IRF(:), (/iSeg,1,iens/), (/1,irfsize(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
+      endif
+      if (routOpt==0 .or. routOpt==2) then
+        allocate(KROUTE(iens,iSeg)%KWAVE(wavesize_state(iens,iSeg)), stat=ierr)
+        call get_vec_dvar(trim(output_dir)//trim(fname_state),'QF',KROUTE(iens,iSeg)%KWAVE(:)%QF, (/iSeg,1,iens/),(/1,wavesize_state(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
+        call get_vec_dvar(trim(output_dir)//trim(fname_state),'QM',KROUTE(iens,iSeg)%KWAVE(:)%QM, (/iSeg,1,iens/),(/1,wavesize_state(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
+        call get_vec_dvar(trim(output_dir)//trim(fname_state),'TI',KROUTE(iens,iSeg)%KWAVE(:)%TI, (/iSeg,1,iens/),(/1,wavesize_state(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
+        call get_vec_dvar(trim(output_dir)//trim(fname_state),'TR',KROUTE(iens,iSeg)%KWAVE(:)%TR, (/iSeg,1,iens/),(/1,wavesize_state(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
+      endif
+    enddo
+  enddo
+endif
 
 ! define flags
 LAKEFLAG=0  ! no lakes in the river network
@@ -737,20 +777,18 @@ do iTime=1,nTime
   ! *****
   ! (5c) Delay runoff within local basins (hill-slope routing) ...
   ! ****************************************
-  ! identify the number of future time steps for a given basin
-  ntdh = size(FRAC_FUTURE)
 
   ! route streamflow through the basin
   do ibas=1,nSegRoute ! place a fraction of runoff in future time steps
-    do JTIM=1,ntdh
-     RCHFLX(iens,ibas)%QFUTURE(JTIM) = RCHFLX(iens,ibas)%QFUTURE(JTIM) + FRAC_FUTURE(JTIM)*RCHFLX(iens,ibas)%BASIN_QI
+    do jtim=1,ntdh
+     RCHFLX(iens,ibas)%QFUTURE(jtim) = RCHFLX(iens,ibas)%QFUTURE(jtim) + FRAC_FUTURE(jtim)*RCHFLX(iens,ibas)%BASIN_QI
     end do
     ! save the routed runoff
     RCHFLX(iens,ibas)%BASIN_QR(0) = RCHFLX(iens,ibas)%BASIN_QR(1)  ! (save the runoff from the previous time step)
     RCHFLX(iens,ibas)%BASIN_QR(1) = RCHFLX(iens,ibas)%QFUTURE(1)
     ! move array back
-    do JTIM=2,ntdh
-     RCHFLX(iens,ibas)%QFUTURE(JTIM-1) = RCHFLX(iens,ibas)%QFUTURE(JTIM)
+    do jtim=2,ntdh
+     RCHFLX(iens,ibas)%QFUTURE(jtim-1) = RCHFLX(iens,ibas)%QFUTURE(jtim)
     end do 
     RCHFLX(iens,ibas)%QFUTURE(ntdh)    = 0._dp
   end do  ! (looping through basins)
@@ -758,11 +796,11 @@ do iTime=1,nTime
   ! write routed local runoff in each stream segment (m3/s)
   call write_dVec(trim(output_dir)//trim(fname_output), 'dlayBasinRunoff', RCHFLX(iens,:)%BASIN_QR(1), (/1,iTime/), (/nSegRoute,1/), ierr, cmessage)
   call handle_err(ierr,cmessage)
- 
+
   ! *****
   ! (5d) Route streamflow for each upstream segment through the river network with "IRF routing scheme"...
   ! **************************************************
-  if (doIRFroute) then
+  if (routOpt==0 .or. routOpt==1) then
     ! Get upstreme routed runoff depth at top of each segment for IRF routing 
     call get_upsbas_qr(nSegRoute,iens,ierr,cmessage)
     ! write routed runoff (m3/s)
@@ -809,16 +847,18 @@ do iTime=1,nTime
   ! *****
   ! (5f) Route streamflow through the river network with "Kinematic Wave Routing scheme" ...
   ! **************************************************
-  if (doKWTroute) then
+  if (routOpt==0 .or. routOpt==2) then
     ! route streamflow through the river network
     do iSeg=1,nSegRoute
       ! identify reach to process
       irch = NETOPO(iSeg)%RHORDER
       ! route kinematic waves through the river network
-      CALL QROUTE_RCH(iens,irch,    & ! input: array indices
-                      ixDesire,     & ! input: index of the outlet reach
-                      T0,T1,        & ! input: start and end of the time step
-                      LAKEFLAG,     & ! input: flag if lakes are to be processed
+      call QROUTE_RCH(iens,irch,           & ! input: array indices
+                      ixDesire,            & ! input: index of the outlet reach
+                      T0,T1,               & ! input: start and end of the time step
+                      MAXQPAR,             & ! input: maximum number of particle in a reach 
+                      LAKEFLAG,            & ! input: flag if lakes are to be processed
+                      wavesize(iens,irch), & ! output: number of waves in irch-th reach
                       ierr,cmessage)  ! output: error control
       call handle_err(ierr,cmessage)
     end do  ! (looping through stream segments)
@@ -826,6 +866,7 @@ do iTime=1,nTime
     ! write routed runoff (m3/s)
     call write_dVec(trim(output_dir)//trim(fname_output), 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,iTime/), (/nSegRoute,1/), ierr, cmessage)
     call handle_err(ierr,cmessage)
+
   end if
 
   ! *****
@@ -849,6 +890,50 @@ do iTime=1,nTime
  T1 = T0 + dt
 
 end do  ! (looping through time)
+
+! *****
+! (6) write state variable 
+! **********************
+! create States NetCDF file
+call defineStateFile(trim(output_dir)//trim(fname_state),  &  ! input: file name
+                     nEns,                                 &  ! input: number of ensembles 
+                     nSegRoute,                            &  ! input: number of stream segments
+                     ntdh,                                 &  ! input: number of future time steps for hill slope UH routing
+                     maxval(irfsize),                      &  ! input: number of future time steps for irf UH routing
+                     maxval(wavesize),                     &  ! input: total number of upstream reaches for all reaches
+                     routOpt,                              &
+                     ierr, cmessage)                          ! output: error control
+call handle_err(ierr, cmessage)
+call write_iVec(trim(output_dir)//trim(fname_state), 'reachID', NETOPO(:)%REACHID, (/1/), (/size(NETOPO)/), ierr, cmessage); call handle_err(ierr,cmessage)
+do iens=1,nens
+  ! write hill-slope routing state
+  do iSeg=1,nSegRoute
+    call write_dVec(trim(output_dir)//trim(fname_state), 'QFUTURE', RCHFLX(iens,iSeg)%QFUTURE(:), (/iSeg,1,iens/), (/1,ntdh,1/), ierr, cmessage)
+    call handle_err(ierr,cmessage)
+    ! write IRF routing  state for restart
+    if (routOpt==0 .or. routOpt==1) then
+      call write_iVec(trim(output_dir)//trim(fname_state), 'irfsize', (/irfsize(iens,iSeg)/), (/iSeg,iens/), (/1,1/), ierr, cmessage)
+      call handle_err(ierr,cmessage)
+      call write_dVec(trim(output_dir)//trim(fname_state), 'QFUTURE_IRF', RCHFLX(iens,iSeg)%QFUTURE_IRF(:), (/iSeg,1,iens/), (/1,irfsize(iens,iSeg),1/), ierr, cmessage)
+      call handle_err(ierr,cmessage)
+    end if
+    !write KWT routing state for restart
+    if (routOpt==0 .or. routOpt==2) then
+      call write_iVec(trim(output_dir)//trim(fname_state), 'wavesize', (/wavesize(iens,iSeg)/), (/iSeg,iens/),   (/1,1/), ierr, cmessage)
+      call handle_err(ierr,cmessage)                                                                  
+      call write_dVec(trim(output_dir)//trim(fname_state), 'QF', KROUTE(iens,iSeg)%KWAVE(:)%QF, (/iSeg,1,iens/), (/1,wavesize(iens,iSeg),1/), ierr, cmessage)
+      call handle_err(ierr,cmessage)                                                                  
+      call write_dVec(trim(output_dir)//trim(fname_state), 'QM', KROUTE(iens,iSeg)%KWAVE(:)%QM, (/iSeg,1,iens/), (/1,wavesize(iens,iSeg),1/), ierr, cmessage)
+      call handle_err(ierr,cmessage)                                                                  
+      call write_dVec(trim(output_dir)//trim(fname_state), 'TI', KROUTE(iens,iSeg)%KWAVE(:)%TI, (/iSeg,1,iens/), (/1,wavesize(iens,iSeg),1/), ierr, cmessage)
+      call handle_err(ierr,cmessage)                                                                  
+      call write_dVec(trim(output_dir)//trim(fname_state), 'TR', KROUTE(iens,iSeg)%KWAVE(:)%TR, (/iSeg,1,iens/), (/1,wavesize(iens,iSeg),1/), ierr, cmessage)
+      call handle_err(ierr,cmessage)
+  !    call write_iVec(trim(output_dir)//trim(fname_state), 'RF', KROUTE(iens,iSeg)%KWAVE(:)%RF, (/iSeg,1/), (/1,wavesize(iens,iSeg)/), ierr, cmessage)
+  !    call handle_err(ierr,cmessage)
+    end if
+  enddo
+enddo
 
 stop
 
