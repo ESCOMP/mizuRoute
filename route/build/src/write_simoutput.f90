@@ -20,6 +20,7 @@ character(len=32),parameter :: sEns_DimName     ='sEns'     ! dimension name for
 character(len=32),parameter :: sWav_DimName     ='sWav'     ! dimension name for number of waves in stream segments 
 character(len=32),parameter :: sTdh_DimName     ='sTdh'     ! dimension name for number of uh routed future overland flow in a stream segment 
 character(len=32),parameter :: sTdh_irf_DimName ='sTdh_irf' ! dimension name for number of uh routed future channel flow in a stream segment
+character(len=32),parameter :: sTB_DimName      ='sTB'      ! dimension name for number of time bound 
 contains
 
  ! *********************************************************************
@@ -188,6 +189,10 @@ contains
  ierr = nf90_def_dim(ncid, trim(sSeg_DimName), nSeg, idimId)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
+ ! create time bound dimension
+ ierr = nf90_def_dim(ncid, trim(sTB_DimName), 2, idimId)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
  ! create dimension for all upstream stream segments
  ierr = nf90_def_dim(ncid, trim(sTdh_DimName), ntdh, idimId)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
@@ -205,6 +210,8 @@ contains
 
  ! define segment id
  call defvar('reachID',    'reach ID',                                    '-',   (/sSeg_DimName/),                              nf90_int,    ierr, cmessage)
+ ! define time bound 
+ call defvar('time_bound', 'time bound at last time step',                'sec', (/sTB_DimName/),                               nf90_double, ierr, cmessage)
  ! Hill-Slope 
  call defvar('QFUTURE',    'Hill slope convoluted flow',                  'm3/s',(/sSeg_DimName,sTdh_DimName,sEns_dimName/),    nf90_double, ierr, cmessage)
  ! IRF 

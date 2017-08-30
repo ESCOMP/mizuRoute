@@ -304,7 +304,6 @@ contains
                        T0,T1,        & ! input: start and end of the time step
                        MAXQPAR,      & ! input: maximum number of particle in a reach 
                        LAKEFLAG,     & ! input: flag if lakes are to be processed
-                       wavesize,     & ! output: number of wave in a reach 
                        ierr,message, & ! output: error control
                        RSTEP)          ! optional input: retrospective time step offset
  ! ----------------------------------------------------------------------------------------
@@ -423,7 +422,6 @@ contains
    INTEGER(I4B), INTENT(IN)                    :: LAKEFLAG      ! >0 if processing lakes
    INTEGER(I4B), INTENT(IN), OPTIONAL          :: RSTEP         ! retrospective time step offset
    ! output variables
-   integer(i4b), intent(out)                   :: wavesize      ! number of wave in a reach 
    integer(i4b), intent(out)                   :: ierr          ! error code
    character(*), intent(out)                   :: message       ! error message
    ! (1) extract flow from upstream reaches and append to the non-routed flow in JRCH
@@ -486,14 +484,13 @@ contains
         deallocate(KROUTE(IENS,JRCH)%KWAVE,STAT=IERR)
         if(ierr/=0)then; message=trim(message)//'problem deallocating space for KROUTE'; return; endif
       endif
-      allocate(KROUTE(IENS,JRCH)%KWAVE(1),STAT=ierr)     
+      allocate(KROUTE(IENS,JRCH)%KWAVE(0:0),STAT=ierr)     
       if(ierr/=0)then; message=trim(message)//'problem allocating space for KROUTE(IENS,JRCH)%KWAVE(1)'; return; endif
-      KROUTE(IENS,JRCH)%KWAVE(1)%QF=-9999; 
-      KROUTE(IENS,JRCH)%KWAVE(1)%TI=-9999; 
-      KROUTE(IENS,JRCH)%KWAVE(1)%TR=-9999; 
-      KROUTE(IENS,JRCH)%KWAVE(1)%RF=-9999; 
-      KROUTE(IENS,JRCH)%KWAVE(1)%QM=-9999
-      wavesize=1
+      KROUTE(IENS,JRCH)%KWAVE(0)%QF=-9999 
+      KROUTE(IENS,JRCH)%KWAVE(0)%TI=-9999 
+      KROUTE(IENS,JRCH)%KWAVE(0)%TR=-9999 
+      KROUTE(IENS,JRCH)%KWAVE(0)%RF=.False. 
+      KROUTE(IENS,JRCH)%KWAVE(0)%QM=-9999
       return  ! no upstream reaches (routing for sub-basins done using time-delay histogram)
     endif
     ! ----------------------------------------------------------------------------------------
@@ -617,7 +614,6 @@ contains
       if(ierr/=0)then; message=trim(message)//'problem deallocating space for NEW_WAVE'; return; endif
     endif  ! (if JRCH is the last reach)
     ! get size of wave number for a reach
-    wavesize=size(KROUTE(IENS,JRCH)%KWAVE)
     return
   end subroutine
 
