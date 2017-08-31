@@ -30,11 +30,16 @@
 <units_qsim>   mm/s                                                      ! units of runoff
 <dt_qsim>      86400                                                     ! time interval of the runoff
 ! ****************************************************************************************************************************
-! PART 5: DEFINE OUTPUT FILE
+! PART 5: DEFINE RUN CONTROL 
+! ---------------------------
+<restart_opt> F                                                          ! option to use saved flow states T->yes, F->No (start with empty channels) 
+<route_opt>   0                                                          ! option for routing schemes 0-> both, 1->IRF, 2->KWT otherwise error 
+! ****************************************************************************************************************************
+! PART 6: DEFINE OUTPUT FILE
 ! ---------------------------
 <fname_output> q_out.nc                                                  ! filename for the model output 1730
 ! ****************************************************************************************************************************
-! PART 6: Namelist file name 
+! PART 7: Namelist file name 
 ! ---------------------------
 <param_nml>    /home/mizukami/mizuRoute/route/settings/param.nml.default ! directory containing ancillary data1.0     
 ! ****************************************************************************************************************************
