@@ -213,7 +213,8 @@ contains
  ! define time bound 
  call defvar('time_bound', 'time bound at last time step',                'sec', (/sTB_DimName/),                               nf90_double, ierr, cmessage)
  ! Hill-Slope 
- call defvar('QFUTURE',    'Hill slope convoluted flow',                  'm3/s',(/sSeg_DimName,sTdh_DimName,sEns_dimName/),    nf90_double, ierr, cmessage)
+ call defvar('QFUTURE',    'Hill slope routed future flow',    'm3/s',(/sSeg_DimName,sTdh_DimName,sEns_dimName/),    nf90_double, ierr, cmessage)
+ call defvar('BASIN_QR',   'Hill slope routed flow',           '-',   (/sSeg_DimName,sEns_dimName/),                 nf90_double, ierr, cmessage)
  ! IRF 
  if (routOpt==0 .or. routOpt==1)then
    call defvar('irfsize',    'number of future flow time step',           '-',   (/sSeg_DimName,sEns_dimName/),                 nf90_int,    ierr, cmessage)

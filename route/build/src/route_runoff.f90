@@ -66,7 +66,7 @@ logical(lgt)               :: isRestart=.true.
 character(len=strLen)      :: fname_output        ! name of output file
 character(len=strLen)      :: fname_state         ! name of state file
 integer(i4b),parameter     :: outunit=31          ! unit for output file
-integer(i4b)               :: routOpt=1           ! routing scheme options  0-> both, 1->IRF, 2->KWT otherwise error
+integer(i4b)               :: routOpt=2           ! routing scheme options  0-> both, 1->IRF, 2->KWT otherwise error
 ! define directories
 character(len=strLen)      :: ancil_dir           ! directory containing ancillary data
 character(len=strLen)      :: input_dir           ! directory containing input data
@@ -694,6 +694,7 @@ if (isRestart) then
     if (routOpt==0 .or. routOpt==2) then
       call get_vec_ivar(trim(output_dir)//trim(fname_state),'wavesize',wavesize(iens,:), (/1,iens/), (/nSegRoute,1/), ierr, cmessage); call handle_err(ierr,cmessage)
     endif
+    call get_vec_dvar(trim(output_dir)//trim(fname_state),'BASIN_QR',RCHFLX(iens,:)%BASIN_QR(1), (/1,iens/),(/nSegRoute,1/), ierr, cmessage); call handle_err(ierr,cmessage)
     do iSeg=1,nSegRoute ! (loop through stream segments)
       call get_vec_dvar(trim(output_dir)//trim(fname_state),'QFUTURE',RCHFLX(iens,iSeg)%QFUTURE(:), (/iSeg,1,iens/),(/1,ntdh,1/), ierr, cmessage); call handle_err(ierr,cmessage)
       if (routOpt==0 .or. routOpt==1) then
@@ -923,6 +924,8 @@ do iens=1,nens
   ! write hill-slope routing state
   do iSeg=1,nSegRoute
     call write_dVec(trim(output_dir)//trim(fname_state), 'QFUTURE', RCHFLX(iens,iSeg)%QFUTURE(:), (/iSeg,1,iens/), (/1,ntdh,1/), ierr, cmessage)
+    if(ierr/=0) call handle_err(ierr,cmessage)
+    call write_dVec(trim(output_dir)//trim(fname_state),'BASIN_QR',(/RCHFLX(iens,iSeg)%BASIN_QR(1)/),  (/iSeg,iens/), (/1,1/),     ierr, cmessage) 
     if(ierr/=0) call handle_err(ierr,cmessage)
     ! write IRF routing  state for restart
     if (routOpt==0 .or. routOpt==1) then
