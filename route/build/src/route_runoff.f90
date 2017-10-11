@@ -797,7 +797,7 @@ do iTime=1,nTime
     ! get indices for all reaches upstream
     iUpstream = NETOPO(iSeg)%RCHLIST(1:nUpstream)
     ! get streamflow for all reaches upstream
-    qUpstream = RCHFLX(iens,iUpstream(1:nUpstream))%BASIN_QR(1)
+    qUpstream(1:nUpstream) = RCHFLX(iens,iUpstream(1:nUpstream))%BASIN_QR(1)
     ! get mean streamflow 
     RCHFLX(IENS,iSeg)%UPSTREAM_QI = sum(qUpstream)
     ! test
