@@ -5,11 +5,6 @@
 #no one involved in creating or distributing this script has any
 #responsibility for its function or output.
 
-# Created 
-# 1/15/14 
-# Updated 
-# 2/25/14  
-
 import sys
 import os
 import time 
@@ -154,22 +149,16 @@ def compAvgVal(nc_wgt,nc_in,varname):
             numvoid = numvoid+1
             wgtArray[j] = 0 
     
-    #Initialize Val2[ntime] 
     Val2 = np.zeros((dim1size))
     if np.nansum(wgtArray) > 0.0:
-    #  print (np.nansum(wgtArray) > 0.0)
       # Adjust weight value if valid weight value (> 0) exist in list
       newWgtArray = [x/np.nansum(wgtArray) for x in wgtArray]
-    #  print "%d invalid polygons out of %d polygons" %(numvoid,overlaps)
-    #  print "sum of original weights is %f" %np.nansum(wgtArray)
-    #  print "sum of new weights is %f" %np.nansum(newWgtArray)
-    #  print newWgtArray
       # Go through each overlapping polygon
       c=0
       for j in range(len(newWgtArray)): 
         if overlapsId[j] >= 0: # if there is at least one intersecting polygon
 
-          ij=np.where(IdVal==overlapsId[j]) # ij is tuple e.g., ij=(array[i1],array[i2]) 
+          ij=np.where(IdVal==overlapsId[j])  
           yj = ij[0]
           xi = ij[1]
           Val1=newWgtArray[j]*dataVal[:,yj,xi]
