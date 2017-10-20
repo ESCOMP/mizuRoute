@@ -5,11 +5,6 @@
 #no one involved in creating or distributing this script has any
 #responsibility for its function or output.
 
-# Created 
-# 1/15/14 
-# Updated 
-# 2/25/14  
-
 import sys
 import os
 import time 
@@ -26,8 +21,6 @@ IDNM='hru_id'
 # Name of netCDF variable for weight in weight data
 WGTNM='weight'
 OVRPLYNM='overlapPolyId'
-LATNM='latitude'
-LONNM='longitude'
 OVRNM='overlaps'
 ############################################ 
 #              Class                       #
@@ -42,19 +35,15 @@ class wgtnc:
         """For given hru id, get weight of the intersected polygons and associated ID and lat/lon"""
         wgtAll        = getNetCDFData(self.ncName, WGTNM) 
         overlapsIdAll = getNetCDFData(self.ncName, OVRPLYNM) 
-        latAll        = getNetCDFData(self.ncName, LATNM)
-        lonAll        = getNetCDFData(self.ncName, LONNM)
         overlapsAll   = getNetCDFData(self.ncName, OVRNM)
 
         self.hruList = self.getHruID()            # get hru id list
         idx=self.hruList.index(hru)               # get indix in array corresponding hru
         self.wgt        = list(wgtAll[idx])       # Get overlapping poly's wgt list for hru 
         self.overlapsId = list(overlapsIdAll[idx])# Get overlapping poly's wgt list for hru 
-        self.lat        = list(latAll[idx])       # Get overlapping poly's lat list for hru
-        self.lon        = list(lonAll[idx])       # Get overlapping poly's lon list for hru
         self.overlaps   = overlapsAll[idx]        # Get number of overlapping polys
         
-        return (self.wgt, self.overlapsId, self.lat, self.lon, self.overlaps)
+        return (self.wgt, self.overlapsId, self.overlaps)
 
     def getHruIdName(self):
         """ get Name of hru ID 
@@ -99,7 +88,6 @@ def writeNetCDFData(fn, var, varname):
  
   dim_1 = ncfile.createDimension('dim1',dim1size )  # hru axis
   dim_2 = ncfile.createDimension('dim2',dim2size )  # hru axis
-#  dim_1 = ncfile.createDimension('time',None )  # time axis - record dimension
 
   # Define a 2D variable to hold the var
   val = ncfile.createVariable(varname,'f4',('dim1','dim2'))
@@ -130,7 +118,7 @@ def compAvgVal(nc_wgt,nc_in,varname):
   for i in range(len(hruIDs)):
     print "Computing weighted values over hru%d" %hruIDs[i]
     # Get list of wgt, lat, and lon for corresponding hru
-    (wgtval, overlapsId, lat, lon, overlaps)=wgt.getWgtHru(hruIDs[i])
+    (wgtval, overlapsId, overlaps)=wgt.getWgtHru(hruIDs[i])
     wgtArray = np.asarray(wgtval)
     
     #Count missing cells (No values in original input polygon) and valid cells
@@ -142,34 +130,28 @@ def compAvgVal(nc_wgt,nc_in,varname):
 
       if overlapsId[j] >= 0:              # if there is at least one overlapping polygon
         # find index of grid cell that match up with hru id of overlapsId[j] 
-        ij=np.where(IdVal==overlapsId[j])
+        ij=np.column_stack(np.where(IdVal==overlapsId[j]))    
         # if nc_in netCDF does not cover nc_wgt domain - case2  
         if len(ij[0]) == 0:
           numvoid = numvoid+1
           wgtArray[j]=0
         else:
-          a = dataVal[10,ij[0][0],ij[1][0]].tolist()
+          a = dataVal[10,ij[0,0],ij[0,1]].tolist()
           #if value of overlapping polygon is missing data -case1
           if a == None: 
             numvoid = numvoid+1
             wgtArray[j] = 0 
     
-    #Initialize Val2[ntime] 
     Val2 = np.zeros((dim1size))
     if np.nansum(wgtArray) > 0.0:
-    #  print (np.nansum(wgtArray) > 0.0)
       # Adjust weight value if valid weight value (> 0) exist in list
       newWgtArray = [x/np.nansum(wgtArray) for x in wgtArray]
-    #  print "%d invalid polygons out of %d polygons" %(numvoid,overlaps)
-    #  print "sum of original weights is %f" %np.nansum(wgtArray)
-    #  print "sum of new weights is %f" %np.nansum(newWgtArray)
-    #  print newWgtArray
       # Go through each overlapping polygon
       c=0
       for j in range(len(newWgtArray)): 
         if overlapsId[j] >= 0: # if there is at least one intersecting polygon
 
-          ij=np.where(IdVal==overlapsId[j]) # ij is tuple e.g., ij=(array[i1],array[i2]) 
+          ij=np.where(IdVal==overlapsId[j])  
           yj = ij[0]
           xi = ij[1]
           Val1=newWgtArray[j]*dataVal[:,yj,xi]
