@@ -17,7 +17,8 @@ import netCDF4 as nc4
 #         hardcoded variables              #
 ############################################
 # Name of netCDF variable for polygon ID in input data
-IDNM='hru_id'               
+HDIM='hru_id'               
+TDIM='Time'               
 # Name of netCDF variable for weight in weight data
 WGTNM='weight'
 OVRPLYNM='overlapPolyId'
@@ -86,11 +87,11 @@ def writeNetCDFData(fn, var, varname):
   dim1size=var.shape[0]
   dim2size=var.shape[1]
  
-  dim_1 = ncfile.createDimension('dim1',dim1size )  # hru axis
-  dim_2 = ncfile.createDimension('dim2',dim2size )  # hru axis
+  dim_1 = ncfile.createDimension(TDIM,dim1size )  # time axis
+  dim_2 = ncfile.createDimension(HDIM,dim2size )  # hru axis
 
   # Define a 2D variable to hold the var
-  val = ncfile.createVariable(varname,'f4',('dim1','dim2'))
+  val = ncfile.createVariable(varname,'f4',(TDIM,HDIM),zlib=True,complevel=1)
   
   # Write grid 
   val[:,:]=var
@@ -109,7 +110,7 @@ def compAvgVal(nc_wgt,nc_in,varname):
 
   dataVal  = getNetCDFData(nc_in,varname) # Get data value 
   FillVal  = getNetCDFAtt(nc_in,varname,'_FillValue') # Get data value 
-  IdVal    = getNetCDFData(nc_in,IDNM) 
+  IdVal    = getNetCDFData(nc_in,HDIM) 
   dim1size = dataVal.shape[0]
 
   #Initialize wgtVal[ntime,nhru] 
@@ -117,7 +118,7 @@ def compAvgVal(nc_wgt,nc_in,varname):
   #Loop through each hru polygon 
   for i in range(len(hruIDs)):
     print "Computing weighted values over hru%d" %hruIDs[i]
-    # Get list of wgt, lat, and lon for corresponding hru
+    # Get list of wgt for corresponding hru
     (wgtval, overlapsId, overlaps)=wgt.getWgtHru(hruIDs[i])
     wgtArray = np.asarray(wgtval)
     
