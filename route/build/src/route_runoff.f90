@@ -757,7 +757,7 @@ do iTime=1,nTime
     allocate(iUpstream(nUpstream), qUpstream(nUpstream), stat=ierr)
     if(ierr/=0) call handle_err(ierr,'problem allocating vectors for all upstream basins')
     ! get indices for all reaches upstream
-    iUpstream = NETOPO(iSeg)%RCHLIST(1:nUpstream)
+    iUpstream(1:nUpstream) = NETOPO(iSeg)%RCHLIST(1:nUpstream)
     ! get streamflow for all reaches upstream
     qUpstream(1:nUpstream) = RCHFLX(iens,iUpstream(1:nUpstream))%BASIN_QR(1)
     ! get mean streamflow 
