@@ -611,30 +611,30 @@ T1 = dt
 
 !read restart 
 if (isRestart) then
-  call get_vec_dvar(trim(output_dir)//trim(fname_state),'time_bound',TB(:), (/1/),(/2/), ierr, cmessage); call handle_err(ierr,cmessage)
+  call get_vec_dvar(trim(output_dir)//trim(fname_state_in),'time_bound',TB(:), (/1/),(/2/), ierr, cmessage); call handle_err(ierr,cmessage)
   T0=TB(1); T1=TB(2)
   do iens=1,nens
     if (routOpt==0 .or. routOpt==1) then
-      call get_vec_ivar(trim(output_dir)//trim(fname_state),'irfsize',irfsize(iens,:),(/1,iens/),(/nSegRoute,1/),ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_vec_ivar(trim(output_dir)//trim(fname_state_in),'irfsize',irfsize(iens,:),(/1,iens/),(/nSegRoute,1/),ierr,cmessage); call handle_err(ierr,cmessage)
     endif
     if (routOpt==0 .or. routOpt==2) then
-      call get_vec_ivar(trim(output_dir)//trim(fname_state),'wavesize',wavesize(iens,:), (/1,iens/), (/nSegRoute,1/), ierr, cmessage); call handle_err(ierr,cmessage)
+      call get_vec_ivar(trim(output_dir)//trim(fname_state_in),'wavesize',wavesize(iens,:), (/1,iens/), (/nSegRoute,1/), ierr, cmessage); call handle_err(ierr,cmessage)
     endif
-    call get_vec_dvar(trim(output_dir)//trim(fname_state),'BASIN_QR',RCHFLX(iens,:)%BASIN_QR(1), (/1,iens/),(/nSegRoute,1/), ierr, cmessage); call handle_err(ierr,cmessage)
+    call get_vec_dvar(trim(output_dir)//trim(fname_state_in),'BASIN_QR',RCHFLX(iens,:)%BASIN_QR(1), (/1,iens/),(/nSegRoute,1/), ierr, cmessage); call handle_err(ierr,cmessage)
     do iSeg=1,nSegRoute ! (loop through stream segments)
-      call get_vec_dvar(trim(output_dir)//trim(fname_state),'QFUTURE',RCHFLX(iens,iSeg)%QFUTURE(:), (/iSeg,1,iens/),(/1,ntdh,1/), ierr, cmessage); call handle_err(ierr,cmessage)
+      call get_vec_dvar(trim(output_dir)//trim(fname_state_in),'QFUTURE',RCHFLX(iens,iSeg)%QFUTURE(:), (/iSeg,1,iens/),(/1,ntdh,1/), ierr, cmessage); call handle_err(ierr,cmessage)
       if (routOpt==0 .or. routOpt==1) then
         allocate(RCHFLX(iens,iSeg)%QFUTURE_IRF(irfsize(iens,iSeg)), stat=ierr)
-        call get_vec_dvar(trim(output_dir)//trim(fname_state),'QFUTURE_IRF',RCHFLX(iens,iSeg)%QFUTURE_IRF(:), (/iSeg,1,iens/), (/1,irfsize(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
+        call get_vec_dvar(trim(output_dir)//trim(fname_state_in),'QFUTURE_IRF',RCHFLX(iens,iSeg)%QFUTURE_IRF(:), (/iSeg,1,iens/), (/1,irfsize(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
       endif
       if (routOpt==0 .or. routOpt==2) then
         allocate(KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1), stat=ierr)
         allocate(RFvec(0:size(KROUTE(iens,iSeg)%KWAVE)-1),stat=ierr)
-        call get_vec_dvar(trim(output_dir)//trim(fname_state),'QF',KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%QF, (/iSeg,1,iens/),(/1,wavesize(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
-        call get_vec_dvar(trim(output_dir)//trim(fname_state),'QM',KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%QM, (/iSeg,1,iens/),(/1,wavesize(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
-        call get_vec_dvar(trim(output_dir)//trim(fname_state),'TI',KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%TI, (/iSeg,1,iens/),(/1,wavesize(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
-        call get_vec_dvar(trim(output_dir)//trim(fname_state),'TR',KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%TR, (/iSeg,1,iens/),(/1,wavesize(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
-        call get_vec_ivar(trim(output_dir)//trim(fname_state),'RF',RFvec, (/iSeg,1,iens/),(/1,wavesize(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
+        call get_vec_dvar(trim(output_dir)//trim(fname_state_in),'QF',KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%QF, (/iSeg,1,iens/),(/1,wavesize(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
+        call get_vec_dvar(trim(output_dir)//trim(fname_state_in),'QM',KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%QM, (/iSeg,1,iens/),(/1,wavesize(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
+        call get_vec_dvar(trim(output_dir)//trim(fname_state_in),'TI',KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%TI, (/iSeg,1,iens/),(/1,wavesize(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
+        call get_vec_dvar(trim(output_dir)//trim(fname_state_in),'TR',KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%TR, (/iSeg,1,iens/),(/1,wavesize(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
+        call get_vec_ivar(trim(output_dir)//trim(fname_state_in),'RF',RFvec, (/iSeg,1,iens/),(/1,wavesize(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
         KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%RF=.False.
         where (RFvec==1_i4b) KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%RF=.True.
       endif
@@ -831,7 +831,7 @@ end do  ! (looping through time)
 ! (6) write state variable 
 ! **********************
 ! create States NetCDF file
-call defineStateFile(trim(output_dir)//trim(fname_state),  &  ! input: file name
+call defineStateFile(trim(output_dir)//trim(fname_state_out),  &  ! input: file name
                      nEns,                                 &  ! input: dimension size: number of ensembles 
                      nSegRoute,                            &  ! input: dimension size: number of stream segments
                      ntdh,                                 &  ! input: dimension size: number of future time steps for hillslope UH routing
@@ -840,22 +840,22 @@ call defineStateFile(trim(output_dir)//trim(fname_state),  &  ! input: file name
                      routOpt,                              &  ! input: routing scheme options
                      ierr, cmessage)                          ! output: error control
 if(ierr/=0) call handle_err(ierr, cmessage)
-call write_iVec(trim(output_dir)//trim(fname_state),'reachID',   NETOPO(:)%REACHID, (/1/), (/size(NETOPO)/), ierr, cmessage); 
+call write_iVec(trim(output_dir)//trim(fname_state_out),'reachID',   NETOPO(:)%REACHID, (/1/), (/size(NETOPO)/), ierr, cmessage); 
 if(ierr/=0) call handle_err(ierr,cmessage)
-call write_dVec(trim(output_dir)//trim(fname_state),'time_bound',(/T0,T1/),         (/1/), (/2/),   ierr, cmessage)
+call write_dVec(trim(output_dir)//trim(fname_state_out),'time_bound',(/T0,T1/),         (/1/), (/2/),   ierr, cmessage)
 if(ierr/=0) call handle_err(ierr,cmessage)
 do iens=1,nens
   ! write hill-slope routing state
   do iSeg=1,nSegRoute
-    call write_dVec(trim(output_dir)//trim(fname_state), 'QFUTURE', RCHFLX(iens,iSeg)%QFUTURE(:), (/iSeg,1,iens/), (/1,ntdh,1/), ierr, cmessage)
+    call write_dVec(trim(output_dir)//trim(fname_state_out), 'QFUTURE', RCHFLX(iens,iSeg)%QFUTURE(:), (/iSeg,1,iens/), (/1,ntdh,1/), ierr, cmessage)
     if(ierr/=0) call handle_err(ierr,cmessage)
-    call write_dVec(trim(output_dir)//trim(fname_state),'BASIN_QR',(/RCHFLX(iens,iSeg)%BASIN_QR(1)/),  (/iSeg,iens/), (/1,1/),     ierr, cmessage) 
+    call write_dVec(trim(output_dir)//trim(fname_state_out),'BASIN_QR',(/RCHFLX(iens,iSeg)%BASIN_QR(1)/),  (/iSeg,iens/), (/1,1/),     ierr, cmessage) 
     if(ierr/=0) call handle_err(ierr,cmessage)
     ! write IRF routing  state for restart
     if (routOpt==0 .or. routOpt==1) then
-      call write_iVec(trim(output_dir)//trim(fname_state), 'irfsize', (/irfsize(iens,iSeg)/), (/iSeg,iens/), (/1,1/), ierr, cmessage)
+      call write_iVec(trim(output_dir)//trim(fname_state_out), 'irfsize', (/irfsize(iens,iSeg)/), (/iSeg,iens/), (/1,1/), ierr, cmessage)
       if(ierr/=0) call handle_err(ierr,cmessage)
-      call write_dVec(trim(output_dir)//trim(fname_state), 'QFUTURE_IRF', RCHFLX(iens,iSeg)%QFUTURE_IRF(:), (/iSeg,1,iens/), (/1,irfsize(iens,iSeg),1/), ierr, cmessage)
+      call write_dVec(trim(output_dir)//trim(fname_state_out), 'QFUTURE_IRF', RCHFLX(iens,iSeg)%QFUTURE_IRF(:), (/iSeg,1,iens/), (/1,irfsize(iens,iSeg),1/), ierr, cmessage)
       if(ierr/=0) call handle_err(ierr,cmessage)
     end if
     !write KWT routing state for restart
@@ -864,17 +864,17 @@ do iens=1,nens
       allocate(RFvec(wavesize(iens,iSeg)),stat=ierr)
       RFvec=0_i4b
       where (wavestate(iens,iSeg)%KWAVE(:)%RF) RFvec=1_i4b
-      call write_iVec(trim(output_dir)//trim(fname_state), 'wavesize',   (/wavesize(iens,iSeg)/), (/iSeg,iens/),  (/1,1/), ierr, cmessage)
+      call write_iVec(trim(output_dir)//trim(fname_state_out), 'wavesize',   (/wavesize(iens,iSeg)/), (/iSeg,iens/),  (/1,1/), ierr, cmessage)
       if(ierr/=0) call handle_err(ierr,cmessage)                                                                  
-      call write_dVec(trim(output_dir)//trim(fname_state), 'QF', wavestate(iens,iSeg)%KWAVE(:)%QF, (/iSeg,1,iens/), (/1,wavesize(iens,iSeg),1/), ierr, cmessage)
+      call write_dVec(trim(output_dir)//trim(fname_state_out), 'QF', wavestate(iens,iSeg)%KWAVE(:)%QF, (/iSeg,1,iens/), (/1,wavesize(iens,iSeg),1/), ierr, cmessage)
       if(ierr/=0) call handle_err(ierr,cmessage)                                                                 
-      call write_dVec(trim(output_dir)//trim(fname_state), 'QM', wavestate(iens,iSeg)%KWAVE(:)%QM, (/iSeg,1,iens/), (/1,wavesize(iens,iSeg),1/), ierr, cmessage)
+      call write_dVec(trim(output_dir)//trim(fname_state_out), 'QM', wavestate(iens,iSeg)%KWAVE(:)%QM, (/iSeg,1,iens/), (/1,wavesize(iens,iSeg),1/), ierr, cmessage)
       if(ierr/=0) call handle_err(ierr,cmessage)                                                                  
-      call write_dVec(trim(output_dir)//trim(fname_state), 'TI', wavestate(iens,iSeg)%KWAVE(:)%TI, (/iSeg,1,iens/), (/1,wavesize(iens,iSeg),1/), ierr, cmessage)
+      call write_dVec(trim(output_dir)//trim(fname_state_out), 'TI', wavestate(iens,iSeg)%KWAVE(:)%TI, (/iSeg,1,iens/), (/1,wavesize(iens,iSeg),1/), ierr, cmessage)
       if(ierr/=0) call handle_err(ierr,cmessage)                                                                  
-      call write_dVec(trim(output_dir)//trim(fname_state), 'TR', wavestate(iens,iSeg)%KWAVE(:)%TR, (/iSeg,1,iens/), (/1,wavesize(iens,iSeg),1/), ierr, cmessage)
+      call write_dVec(trim(output_dir)//trim(fname_state_out), 'TR', wavestate(iens,iSeg)%KWAVE(:)%TR, (/iSeg,1,iens/), (/1,wavesize(iens,iSeg),1/), ierr, cmessage)
       if(ierr/=0) call handle_err(ierr,cmessage)
-      call write_iVec(trim(output_dir)//trim(fname_state), 'RF', RFvec, (/iSeg,1,iens/), (/1,wavesize(iens,iSeg),1/), ierr, cmessage)
+      call write_iVec(trim(output_dir)//trim(fname_state_out), 'RF', RFvec, (/iSeg,1,iens/), (/1,wavesize(iens,iSeg),1/), ierr, cmessage)
       if(ierr/=0) call handle_err(ierr,cmessage)
     end if
   enddo
@@ -948,10 +948,11 @@ contains
        case('<dt_qsim>');      read(cData,*,iostat=err) dt         ! time interval of the gridded runoff
          if(err/=0)then; message=trim(message)//'problem with internal read of dt info, read from control file'; return;endif
        ! define the output filename
-       case('<fname_output>'); fname_output = trim(cData)           ! filename for the model output
-       case('<fname_state>');  fname_state  = trim(cData)           ! filename for the channel states 
+       case('<fname_output>');    fname_output    = trim(cData)           ! filename for the model output
+       case('<fname_state_in>');  fname_state_in  = trim(cData)           ! filename for the channel states 
+       case('<fname_state_out>'); fname_state_out = trim(cData)           ! filename for the channel states 
        ! define namelist name for routing parameters
-       case('<param_nml>');    param_nml    = trim(cData)           ! name of namelist including routing parameter value 
+       case('<param_nml>');       param_nml       = trim(cData)           ! name of namelist including routing parameter value 
      end select
    end do  ! looping through lines in the control file
    

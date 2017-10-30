@@ -30,7 +30,8 @@ module public_var
   character(len=strLen),public    :: units_time             ! time units
   character(len=strLen),public    :: fname_ntop             ! filename containing stream network topology information
   character(len=strLen),public    :: fname_output           ! name of output file
-  character(len=strLen),public    :: fname_state            ! name of state file
+  character(len=strLen),public    :: fname_state_in         ! name of state file
+  character(len=strLen),public    :: fname_state_out        ! name of state file
   character(len=strLen),public    :: param_nml              ! name of the namelist file
   real(dp)             ,public    :: dt                     ! time step (seconds)
   integer(i4b)         ,public    :: iSegOut                ! index of outlet stream segment

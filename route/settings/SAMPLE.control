@@ -37,8 +37,9 @@
 ! ****************************************************************************************************************************
 ! PART 6: DEFINE OUTPUT FILE
 ! ---------------------------
-<fname_output> q_out.nc                                                  ! filename for the model output 1730
-<fname_state>  state.nc                                                  ! filename for the channel states 
+<fname_output>     q_out.nc                                              ! filename for the model output 1730
+<fname_state_in>   state.in.nc                                           ! filename for the channel states 
+<fname_state_out>  state.out.nc                                          ! filename for the channel states 
 ! ****************************************************************************************************************************
 ! PART 7: Namelist file name 
 ! ---------------------------
