@@ -64,18 +64,18 @@ class wgtnc:
 
 def get_netCDF_data(fn, varname):
     """Read <varname> variables from NetCDF <fn> """
-    f = nc4.Dataset(fn, 'r')
-    data = f.variables[varname][:]
-    f.close()
+    fid = nc4.Dataset(fn, 'r')
+    data = fid.variables[varname][:]
+    fid.close()
     return data
 
 
 def get_netCDF_attr(fn, varname, attName):
     """Read attribute of <varname> variables from NetCDF <fn> """
-    f = nc4.Dataset(fn, 'r')
-    var = f.variables[varname]
-    attData = getattr(var, attName)
-    return attData
+    fid = nc4.Dataset(fn, 'r')
+    var = fid.variables[varname]
+    att_data = getattr(var, attName)
+    return att_data
 
 
 def comp_agv_val(nc_wgt, nc_in, varname, chunk):
@@ -83,23 +83,23 @@ def comp_agv_val(nc_wgt, nc_in, varname, chunk):
        for each of <chunk> hrus based on hru's weight in <nc_wgt>
     """
     wgt = wgtnc(nc_wgt)
-    hruIDs = wgt.getHruID()
-    hrudata = split(hruIDs, NPROC)
-    hrulist = hrudata[chunk]
+    hru_ids = wgt.getHruID()
+    hru_data = split(hru_ids, NPROC)
+    hru_list = hru_data[chunk]
 
-    dataVal = get_netCDF_data(nc_in, varname)
-    FillVal = get_netCDF_attr(nc_in, varname, '_FillValue')
+    data_val = get_netCDF_data(nc_in, varname)
+    fill_val = get_netCDF_attr(nc_in, varname, '_FillValue')
     ghruid = get_netCDF_data(nc_in, GRID_ID_NAME)
-    dim1size = dataVal.shape[0]
+    dim1size = data_val.shape[0]
     # Initialize wgt_ave_val[ntime,nhru]
-    wgt_ave_val = np.full((dim1size, len(hrulist)), FILL_VALUE)
-    for i in range(len(hrulist)):
-        print hrulist[i]  # Get list of wgt for corresponding hru
-        (wgt_array, overlap_ids) = wgt.getWgtHru(hrulist[i])
+    wgt_ave_val = np.full((dim1size, len(hru_list)), FILL_VALUE)
+    for i in range(len(hru_list)):
+        print hru_list[i]  # Get list of wgt for corresponding hru
+        (wgt_array, overlap_ids) = wgt.getWgtHru(hru_list[i])
         # Go through wgt list and replace value with zero for following cases
         # where overlapping polygon has missing value - case1
         # where overlapping polygon is outside nc_wgt domain - case2
-        a = np.zeros((dim1size, len(wgt_array)))
+        sub_data = np.zeros((dim1size, len(wgt_array)))
         for j, overlap_id in enumerate(overlap_ids):
             # find index of grid cell that match up with hru id of overlap_ids
             row, col = np.where(ghruid == overlap_id)
@@ -107,30 +107,30 @@ def comp_agv_val(nc_wgt, nc_in, varname, chunk):
             if not (np.size(row) and np.size(col)):
                 wgt_array[j] = 0.0
             else:
-                a[:, j] = np.squeeze(dataVal[:, row, col])
+                sub_data[:, j] = np.squeeze(data_val[:, row, col])
                 # if value of overlapping polygon is missing data -case1
-                if any(a[:, j] == FillVal):
+                if any(sub_data[:, j] == fill_val):
                     wgt_array[j] = 0.0
         sum_wgt = np.sum(wgt_array)
         if sum_wgt > 0.0:
             # Adjust weight value if valid weight value (> 0) exist in list
             wgt_array = wgt_array/sum_wgt
             wgt_array = np.where(np.isnan(wgt_array), 0, wgt_array)
-            wgt_ave_val[:, i] = np.dot(a, wgt_array.T).T
+            wgt_ave_val[:, i] = np.dot(sub_data, wgt_array.T).T
 
     return wgt_ave_val
 
 
-def split(hrulist, n):
-    subsize = len(hrulist)/n
+def split(hru_list, n):
+    subsize = len(hru_list)/n
     idx1 = 0
-    hrudata = []
+    hru_data = []
     for _ in range(n-1):
         idx2 = idx1+subsize
-        hrudata.append(hrulist[idx1:idx2])
+        hru_data.append(hru_list[idx1:idx2])
         idx1 = idx2
-    hrudata.append(hrulist[idx1:])
-    return hrudata
+    hru_data.append(hru_list[idx1:])
+    return hru_data
 
 
 # ----
@@ -178,12 +178,12 @@ if __name__ == '__main__':
         with xr.open_dataset(nc_in) as ds:
             timedata = ds[TIME_VAR_NAME]
         with xr.open_dataset(nc_wgt) as ds:
-            hrudata = ds[HRU_ID_NAME]
+            hru_data = ds[HRU_ID_NAME]
 
         encoding = {varname: {'dtype': 'float32', '_FillValue': FILL_VALUE},
                     TIME_VAR_NAME: {'dtype': 'int32'}}
         foo = xr.DataArray(result,
-                           coords=[(TIME_VAR_NAME, timedata), ('hru', hrudata)],
+                           coords=[(TIME_VAR_NAME, timedata), ('hru', hru_data)],
                            name=varname)
         foo.encoding = encoding[varname]
         foo[TIME_VAR_NAME].encoding = encoding[TIME_VAR_NAME]
