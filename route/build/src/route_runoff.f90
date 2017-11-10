@@ -28,6 +28,10 @@ USE write_simoutput,only:defineFile           ! define output file
 USE write_simoutput,only:defineStateFile      ! write a hillslope routing state at a time 
 USE write_simoutput,only:write_iVec           ! write an integer vector
 USE write_simoutput,only:write_dVec           ! write a double precision vector
+USE write_simoutput,only:write_2d_darray      ! write a double precision 2D array 
+USE write_simoutput,only:write_2d_iarray      ! write an integer 3D array
+USE write_simoutput,only:write_3d_darray      ! write a double precision 3D array 
+USE write_simoutput,only:write_3d_iarray      ! write a double precision 3D array 
 USE kwt_route,only:reachorder                 ! define the processing order for the stream segments
 USE kwt_route,only:qroute_rch                 ! route kinematic waves through the river network
 USE irf_route,only:make_uh                    ! Compute upstream segment UH for segment NM
@@ -121,6 +125,15 @@ integer(I4b),allocatable   :: RFvec(:)            ! temporal vector to hold 1 or
 type(KREACH),allocatable   :: wavestate(:,:)      ! wave states for all upstream segments at one time step
 integer(i4b),allocatable   :: wavesize(:,:)       ! number of wave for segments 
 integer(i4b)               :: LAKEFLAG            ! >0 if processing lakes
+! restart state variables
+real(dp),allocatable       :: qfuture_array(:,:,:)
+real(dp),allocatable       :: basin_qr_array(:,:)
+real(dp),allocatable       :: qfuture_irf_array(:,:,:)
+real(dp),allocatable       :: qf_array(:,:,:)
+real(dp),allocatable       :: qm_array(:,:,:)
+real(dp),allocatable       :: ti_array(:,:,:)
+real(dp),allocatable       :: tr_array(:,:,:)
+integer(i4b),allocatable   :: rf_array(:,:,:)
 ! desired variables when printing progress
 real(dp)                   :: qDomain_hru         ! domain: total runoff at the HRUs (mm/s)
 real(dp)                   :: qDomain_basin       ! domain: total instantaneous basin runoff (mm/s)
@@ -831,54 +844,85 @@ end do  ! (looping through time)
 ! (6) write state variable 
 ! **********************
 ! create States NetCDF file
-call defineStateFile(trim(output_dir)//trim(fname_state_out),  &  ! input: file name
-                     nEns,                                 &  ! input: dimension size: number of ensembles 
-                     nSegRoute,                            &  ! input: dimension size: number of stream segments
-                     ntdh,                                 &  ! input: dimension size: number of future time steps for hillslope UH routing
-                     maxval(irfsize),                      &  ! input: dimension size: number of future time steps for irf UH routing (max. of all the segments)
-                     maxval(wavesize),                     &  ! input: dimension size: number of waves (max. of all the segments)
-                     routOpt,                              &  ! input: routing scheme options
-                     ierr, cmessage)                          ! output: error control
+call defineStateFile(trim(output_dir)//trim(fname_state_out), &  ! input: file name
+                     nEns,                                    &  ! input: dimension size: number of ensembles 
+                     nSegRoute,                               &  ! input: dimension size: number of stream segments
+                     ntdh,                                    &  ! input: dimension size: number of future time steps for hillslope UH routing
+                     maxval(irfsize),                         &  ! input: dimension size: number of future time steps for irf UH routing (max. of all the segments)
+                     maxval(wavesize),                        &  ! input: dimension size: number of waves (max. of all the segments)
+                     routOpt,                                 &  ! input: routing scheme options
+                     ierr, cmessage)                             ! output: error control
 if(ierr/=0) call handle_err(ierr, cmessage)
-call write_iVec(trim(output_dir)//trim(fname_state_out),'reachID',   NETOPO(:)%REACHID, (/1/), (/size(NETOPO)/), ierr, cmessage); 
+call write_iVec(trim(output_dir)//trim(fname_state_out),'reachID', NETOPO(:)%REACHID, (/1/), (/size(NETOPO)/), ierr, cmessage); 
 if(ierr/=0) call handle_err(ierr,cmessage)
-call write_dVec(trim(output_dir)//trim(fname_state_out),'time_bound',(/T0,T1/),         (/1/), (/2/),   ierr, cmessage)
+call write_dVec(trim(output_dir)//trim(fname_state_out),'time_bound', (/T0,T1/), (/1/), (/2/), ierr, cmessage)
 if(ierr/=0) call handle_err(ierr,cmessage)
+
+allocate(qfuture_array(nSegRoute,ntdh,nens),stat=ierr)
+if(ierr/=0) call handle_err(ierr,'problem allocating qfuture_array')
+allocate(basin_qr_array(nSegRoute,nens),stat=ierr)
+if(ierr/=0) call handle_err(ierr,'problem allocating basin_qr_array')
+allocate(qfuture_irf_array(nSegRoute,maxval(irfsize),nens),stat=ierr)
+if(ierr/=0) call handle_err(ierr,'problem allocating qfuture_irf_array')
+allocate(qf_array(nSegRoute,maxval(wavesize),nens),stat=ierr)
+if(ierr/=0) call handle_err(ierr,'problem allocating qf_array')
+allocate(qm_array(nSegRoute,maxval(wavesize),nens),stat=ierr)
+if(ierr/=0) call handle_err(ierr,'problem allocating qm_array')
+allocate(ti_array(nSegRoute,maxval(wavesize),nens),stat=ierr)
+if(ierr/=0) call handle_err(ierr,'problem allocating ti_array')
+allocate(tr_array(nSegRoute,maxval(wavesize),nens),stat=ierr)
+if(ierr/=0) call handle_err(ierr,'problem allocating tr_array')
+allocate(rf_array(nSegRoute,maxval(wavesize),nens),stat=ierr)
+if(ierr/=0) call handle_err(ierr,'problem allocating rf_array')
+
 do iens=1,nens
-  ! write hill-slope routing state
   do iSeg=1,nSegRoute
-    call write_dVec(trim(output_dir)//trim(fname_state_out), 'QFUTURE', RCHFLX(iens,iSeg)%QFUTURE(:), (/iSeg,1,iens/), (/1,ntdh,1/), ierr, cmessage)
-    if(ierr/=0) call handle_err(ierr,cmessage)
-    call write_dVec(trim(output_dir)//trim(fname_state_out),'BASIN_QR',(/RCHFLX(iens,iSeg)%BASIN_QR(1)/),  (/iSeg,iens/), (/1,1/),     ierr, cmessage) 
-    if(ierr/=0) call handle_err(ierr,cmessage)
-    ! write IRF routing  state for restart
+    qfuture_array(iSeg,1:ntdh,iens) = RCHFLX(iens,iSeg)%QFUTURE(:)
+    basin_qr_array(iSeg,iens) = RCHFLX(iens,iSeg)%BASIN_QR(1)
     if (routOpt==0 .or. routOpt==1) then
-      call write_iVec(trim(output_dir)//trim(fname_state_out), 'irfsize', (/irfsize(iens,iSeg)/), (/iSeg,iens/), (/1,1/), ierr, cmessage)
-      if(ierr/=0) call handle_err(ierr,cmessage)
-      call write_dVec(trim(output_dir)//trim(fname_state_out), 'QFUTURE_IRF', RCHFLX(iens,iSeg)%QFUTURE_IRF(:), (/iSeg,1,iens/), (/1,irfsize(iens,iSeg),1/), ierr, cmessage)
-      if(ierr/=0) call handle_err(ierr,cmessage)
+      qfuture_irf_array(iSeg,1:irfsize(iens,iSeg),iens) = RCHFLX(iens,iSeg)%QFUTURE_IRF(:)
     end if
-    !write KWT routing state for restart
     if (routOpt==0 .or. routOpt==2) then
       if (allocated(RFvec)) deallocate(RFvec,stat=ierr)
       allocate(RFvec(wavesize(iens,iSeg)),stat=ierr)
       RFvec=0_i4b
       where (wavestate(iens,iSeg)%KWAVE(:)%RF) RFvec=1_i4b
-      call write_iVec(trim(output_dir)//trim(fname_state_out), 'wavesize',   (/wavesize(iens,iSeg)/), (/iSeg,iens/),  (/1,1/), ierr, cmessage)
-      if(ierr/=0) call handle_err(ierr,cmessage)                                                                  
-      call write_dVec(trim(output_dir)//trim(fname_state_out), 'QF', wavestate(iens,iSeg)%KWAVE(:)%QF, (/iSeg,1,iens/), (/1,wavesize(iens,iSeg),1/), ierr, cmessage)
-      if(ierr/=0) call handle_err(ierr,cmessage)                                                                 
-      call write_dVec(trim(output_dir)//trim(fname_state_out), 'QM', wavestate(iens,iSeg)%KWAVE(:)%QM, (/iSeg,1,iens/), (/1,wavesize(iens,iSeg),1/), ierr, cmessage)
-      if(ierr/=0) call handle_err(ierr,cmessage)                                                                  
-      call write_dVec(trim(output_dir)//trim(fname_state_out), 'TI', wavestate(iens,iSeg)%KWAVE(:)%TI, (/iSeg,1,iens/), (/1,wavesize(iens,iSeg),1/), ierr, cmessage)
-      if(ierr/=0) call handle_err(ierr,cmessage)                                                                  
-      call write_dVec(trim(output_dir)//trim(fname_state_out), 'TR', wavestate(iens,iSeg)%KWAVE(:)%TR, (/iSeg,1,iens/), (/1,wavesize(iens,iSeg),1/), ierr, cmessage)
-      if(ierr/=0) call handle_err(ierr,cmessage)
-      call write_iVec(trim(output_dir)//trim(fname_state_out), 'RF', RFvec, (/iSeg,1,iens/), (/1,wavesize(iens,iSeg),1/), ierr, cmessage)
-      if(ierr/=0) call handle_err(ierr,cmessage)
+      qf_array(iSeg,1:wavesize(iens,iSeg),iens) = wavestate(iens,iSeg)%KWAVE(:)%QF
+      qm_array(iSeg,1:wavesize(iens,iSeg),iens) = wavestate(iens,iSeg)%KWAVE(:)%QM
+      ti_array(iSeg,1:wavesize(iens,iSeg),iens) = wavestate(iens,iSeg)%KWAVE(:)%TI
+      tr_array(iSeg,1:wavesize(iens,iSeg),iens) = wavestate(iens,iSeg)%KWAVE(:)%TR
+      rf_array(iSeg,1:wavesize(iens,iSeg),iens) = RFvec
     end if
   enddo
 enddo
+
+! write hill-slope routing state
+call write_3d_darray(trim(output_dir)//trim(fname_state_out), 'QFUTURE',qfuture_array, (/1,1,1/), (/nSegRoute,ntdh,nens/), ierr, cmessage)
+if(ierr/=0) call handle_err(ierr,cmessage)
+call write_2d_darray(trim(output_dir)//trim(fname_state_out),'BASIN_QR',BASIN_QR_array, (/1,1/), (/nSegRoute,nens/), ierr, cmessage)
+if(ierr/=0) call handle_err(ierr,cmessage)
+! write IRF routing  state for restart
+if (routOpt==0 .or. routOpt==1) then
+  call write_2d_iarray(trim(output_dir)//trim(fname_state_out), 'irfsize', irfsize, (/1,1/), (/nSegRoute,nens/), ierr, cmessage)
+  if(ierr/=0) call handle_err(ierr,cmessage)
+  call write_3d_darray(trim(output_dir)//trim(fname_state_out), 'QFUTURE_IRF', qfuture_irf_array, (/1,1,1/), (/nSegRoute,maxval(irfsize),nens/), ierr, cmessage)
+  if(ierr/=0) call handle_err(ierr,cmessage)
+end if
+!write KWT routing state for restart
+if (routOpt==0 .or. routOpt==2) then
+  call write_2d_iarray(trim(output_dir)//trim(fname_state_out), 'wavesize', wavesize, (/1,1/), (/nSegRoute,nens/), ierr, cmessage)
+  if(ierr/=0) call handle_err(ierr,cmessage)                                                                  
+  call write_3d_darray(trim(output_dir)//trim(fname_state_out), 'QF', QF_array, (/1,1,1/), (/nSegRoute,maxval(wavesize),nens/), ierr, cmessage)
+  if(ierr/=0) call handle_err(ierr,cmessage)
+  call write_3d_darray(trim(output_dir)//trim(fname_state_out), 'QM', QM_array, (/1,1,1/), (/nSegRoute,maxval(wavesize),nens/), ierr, cmessage)
+  if(ierr/=0) call handle_err(ierr,cmessage)
+  call write_3d_darray(trim(output_dir)//trim(fname_state_out), 'TI', TI_array, (/1,1,1/), (/nSegRoute,maxval(wavesize),nens/), ierr, cmessage)
+  if(ierr/=0) call handle_err(ierr,cmessage)
+  call write_3d_darray(trim(output_dir)//trim(fname_state_out), 'TR', TR_array, (/1,1,1/), (/nSegRoute,maxval(wavesize),nens/), ierr, cmessage)
+  if(ierr/=0) call handle_err(ierr,cmessage)
+  call write_3d_iarray(trim(output_dir)//trim(fname_state_out), 'RF', rf_array, (/1,1,1/), (/nSegRoute,maxval(wavesize),nens/), ierr, cmessage)
+  if(ierr/=0) call handle_err(ierr,cmessage)
+end if
 
 stop
 
