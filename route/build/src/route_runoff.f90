@@ -26,12 +26,7 @@ USE read_ntopo,only:get_vec_dvar              ! get the data from the ntopo file
 USE read_ntopo,only:get_Vec_dim               ! get the data from the ntopo file
 USE write_simoutput,only:defineFile           ! define output file
 USE write_simoutput,only:defineStateFile      ! write a hillslope routing state at a time 
-USE write_simoutput,only:write_iVec           ! write an integer vector
-USE write_simoutput,only:write_dVec           ! write a double precision vector
-USE write_simoutput,only:write_2d_darray      ! write a double precision 2D array 
-USE write_simoutput,only:write_2d_iarray      ! write an integer 3D array
-USE write_simoutput,only:write_3d_darray      ! write a double precision 3D array 
-USE write_simoutput,only:write_3d_iarray      ! write a double precision 3D array 
+USE write_netcdf,only:write_nc                ! write output in netcdf 
 USE kwt_route,only:reachorder                 ! define the processing order for the stream segments
 USE kwt_route,only:qroute_rch                 ! route kinematic waves through the river network
 USE irf_route,only:make_uh                    ! Compute upstream segment UH for segment NM
@@ -548,8 +543,8 @@ call defineFile(trim(output_dir)//trim(fname_output),  &  ! input: file name
 call handle_err(ierr, cmessage)
 
 ! write network toplogy (input = filename, variable name, variable vector, start index; output = error control)
-call write_iVec(trim(output_dir)//trim(fname_output), 'reachID',    NETOPO(:)%REACHID, (/1/), (/size(NETOPO)/), ierr, cmessage); call handle_err(ierr,cmessage)
-call write_iVec(trim(output_dir)//trim(fname_output), 'reachOrder', NETOPO(:)%RHORDER, (/1/), (/size(NETOPO)/), ierr, cmessage); call handle_err(ierr,cmessage)
+call write_nc(trim(output_dir)//trim(fname_output), 'reachID',    NETOPO(:)%REACHID, (/1/), (/size(NETOPO)/), ierr, cmessage); call handle_err(ierr,cmessage)
+call write_nc(trim(output_dir)//trim(fname_output), 'reachOrder', NETOPO(:)%RHORDER, (/1/), (/size(NETOPO)/), ierr, cmessage); call handle_err(ierr,cmessage)
 
 iStart=1  ! initialize the start index of the ragged array
 ! write list of reaches upstream of each reach (ragged array)
@@ -557,17 +552,17 @@ do iSeg=1,nSegRoute
  ! get the number of reaches
  nUpstream = size(NETOPO(iSeg)%RCHLIST)
  ! write the vector to the ragged array
- call write_iVec(trim(output_dir)//trim(fname_output), 'reachList', NETOPO(iSeg)%RCHLIST(:), (/iStart/), (/size(NETOPO(iSeg)%RCHLIST)/), ierr, cmessage)
+ call write_nc(trim(output_dir)//trim(fname_output), 'reachList', NETOPO(iSeg)%RCHLIST(:), (/iStart/), (/size(NETOPO(iSeg)%RCHLIST)/), ierr, cmessage)
  call handle_err(ierr,cmessage)
  ! write the start index and the count (NOTE: pass as a vector)
- call write_iVec(trim(output_dir)//trim(fname_output), 'listStart', (/iStart/),    (/iSeg/), (/1/), ierr, cmessage); call handle_err(ierr,cmessage)
- call write_iVec(trim(output_dir)//trim(fname_output), 'listCount', (/nUpstream/), (/iSeg/), (/1/), ierr, cmessage); call handle_err(ierr,cmessage)
+ call write_nc(trim(output_dir)//trim(fname_output), 'listStart', (/iStart/),    (/iSeg/), (/1/), ierr, cmessage); call handle_err(ierr,cmessage)
+ call write_nc(trim(output_dir)//trim(fname_output), 'listCount', (/nUpstream/), (/iSeg/), (/1/), ierr, cmessage); call handle_err(ierr,cmessage)
  ! update the start index
  iStart = iStart + nUpstream
 end do
 ! write reach parameters
-call write_dVec(trim(output_dir)//trim(fname_output), 'basinArea',    RPARAM(:)%BASAREA, (/1/), (/nSegRoute/), ierr, cmessage); call handle_err(ierr,cmessage)
-call write_dVec(trim(output_dir)//trim(fname_output), 'upstreamArea', RPARAM(:)%TOTAREA, (/1/), (/nSegRoute/), ierr, cmessage); call handle_err(ierr,cmessage)
+call write_nc(trim(output_dir)//trim(fname_output), 'basinArea',    RPARAM(:)%BASAREA, (/1/), (/nSegRoute/), ierr, cmessage); call handle_err(ierr,cmessage)
+call write_nc(trim(output_dir)//trim(fname_output), 'upstreamArea', RPARAM(:)%TOTAREA, (/1/), (/nSegRoute/), ierr, cmessage); call handle_err(ierr,cmessage)
 
 ! *****
 ! (4) Prepare for the routing simulations...
@@ -680,7 +675,7 @@ do iTime=1,nTime
   where(qsim_hru < runoffMin) qsim_hru=runoffMin
 
   ! write time -- note time is just carried across from the input
-  call write_dVec(trim(output_dir)//trim(fname_output), 'time', (/dTime/), (/iTime/), (/1/), ierr, cmessage)
+  call write_nc(trim(output_dir)//trim(fname_output), 'time', (/dTime/), (/iTime/), (/1/), ierr, cmessage)
   call handle_err(ierr,cmessage)
 
   ! *****
@@ -717,7 +712,7 @@ do iTime=1,nTime
   end do  ! (looping through basins)
 
   ! write instantaneous local runoff in each stream segment (m3/s)
-  call write_dVec(trim(output_dir)//trim(fname_output), 'instBasinRunoff', RCHFLX(iens,:)%BASIN_QI, (/1,iTime/), (/nSegRoute,1/), ierr, cmessage)
+  call write_nc(trim(output_dir)//trim(fname_output), 'instBasinRunoff', RCHFLX(iens,:)%BASIN_QI, (/1,iTime/), (/nSegRoute,1/), ierr, cmessage)
   call handle_err(ierr,cmessage)
   
   ! *****
@@ -740,7 +735,7 @@ do iTime=1,nTime
   end do  ! (looping through basins)
 
   ! write routed local runoff in each stream segment (m3/s)
-  call write_dVec(trim(output_dir)//trim(fname_output), 'dlayBasinRunoff', RCHFLX(iens,:)%BASIN_QR(1), (/1,iTime/), (/nSegRoute,1/), ierr, cmessage)
+  call write_nc(trim(output_dir)//trim(fname_output), 'dlayBasinRunoff', RCHFLX(iens,:)%BASIN_QR(1), (/1,iTime/), (/nSegRoute,1/), ierr, cmessage)
   call handle_err(ierr,cmessage)
 
   ! *****
@@ -750,12 +745,12 @@ do iTime=1,nTime
     ! Get upstreme routed runoff depth at top of each segment for IRF routing 
     call get_upsbas_qr(nSegRoute,iens,ierr,cmessage)
     ! write routed runoff (m3/s)
-    call write_dVec(trim(output_dir)//trim(fname_output), 'UpBasRoutedRunoff', RCHFLX(iens,:)%UPSBASIN_QR, (/1,iTime/), (/nSegRoute,1/), ierr, cmessage)
+    call write_nc(trim(output_dir)//trim(fname_output), 'UpBasRoutedRunoff', RCHFLX(iens,:)%UPSBASIN_QR, (/1,iTime/), (/nSegRoute,1/), ierr, cmessage)
     call handle_err(ierr,cmessage)
     ! Get upstreme routed runoff depth at top of each segment for IRF routing 
     call conv_upsbas_qr(nSegRoute,iens,ierr,cmessage)
     ! write routed runoff (m3/s)
-    call write_dVec(trim(output_dir)//trim(fname_output), 'IRFroutedRunoff', RCHFLX(iens,:)%REACH_Q_IRF, (/1,iTime/), (/nSegRoute,1/), ierr, cmessage)
+    call write_nc(trim(output_dir)//trim(fname_output), 'IRFroutedRunoff', RCHFLX(iens,:)%REACH_Q_IRF, (/1,iTime/), (/nSegRoute,1/), ierr, cmessage)
     call handle_err(ierr,cmessage)
   endif
 
@@ -787,7 +782,7 @@ do iTime=1,nTime
   end do  ! looping through stream segments
 
   ! write instantaneous runoff from all upstream basins (m3/s)
-  call write_dVec(trim(output_dir)//trim(fname_output), 'sumUpstreamRunoff', RCHFLX(iens,:)%UPSTREAM_QI, (/1,iTime/), (/nSegRoute,1/), ierr, cmessage)
+  call write_nc(trim(output_dir)//trim(fname_output), 'sumUpstreamRunoff', RCHFLX(iens,:)%UPSTREAM_QI, (/1,iTime/), (/nSegRoute,1/), ierr, cmessage)
   call handle_err(ierr,cmessage)
 
   ! *****
@@ -813,7 +808,7 @@ do iTime=1,nTime
     end do  ! (looping through stream segments)
 
     ! write routed runoff (m3/s)
-    call write_dVec(trim(output_dir)//trim(fname_output), 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,iTime/), (/nSegRoute,1/), ierr, cmessage)
+    call write_nc(trim(output_dir)//trim(fname_output), 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,iTime/), (/nSegRoute,1/), ierr, cmessage)
     call handle_err(ierr,cmessage)
 
   end if
@@ -853,9 +848,9 @@ call defineStateFile(trim(output_dir)//trim(fname_state_out), &  ! input: file n
                      routOpt,                                 &  ! input: routing scheme options
                      ierr, cmessage)                             ! output: error control
 if(ierr/=0) call handle_err(ierr, cmessage)
-call write_iVec(trim(output_dir)//trim(fname_state_out),'reachID', NETOPO(:)%REACHID, (/1/), (/size(NETOPO)/), ierr, cmessage); 
+call write_nc(trim(output_dir)//trim(fname_state_out),'reachID', NETOPO(:)%REACHID, (/1/), (/size(NETOPO)/), ierr, cmessage); 
 if(ierr/=0) call handle_err(ierr,cmessage)
-call write_dVec(trim(output_dir)//trim(fname_state_out),'time_bound', (/T0,T1/), (/1/), (/2/), ierr, cmessage)
+call write_nc(trim(output_dir)//trim(fname_state_out),'time_bound', (/T0,T1/), (/1/), (/2/), ierr, cmessage)
 if(ierr/=0) call handle_err(ierr,cmessage)
 
 allocate(qfuture_array(nSegRoute,ntdh,nens),stat=ierr)
@@ -897,30 +892,30 @@ do iens=1,nens
 enddo
 
 ! write hill-slope routing state
-call write_3d_darray(trim(output_dir)//trim(fname_state_out), 'QFUTURE',qfuture_array, (/1,1,1/), (/nSegRoute,ntdh,nens/), ierr, cmessage)
+call write_nc(trim(output_dir)//trim(fname_state_out), 'QFUTURE',qfuture_array, (/1,1,1/), (/nSegRoute,ntdh,nens/), ierr, cmessage)
 if(ierr/=0) call handle_err(ierr,cmessage)
-call write_2d_darray(trim(output_dir)//trim(fname_state_out),'BASIN_QR',BASIN_QR_array, (/1,1/), (/nSegRoute,nens/), ierr, cmessage)
+call write_nc(trim(output_dir)//trim(fname_state_out),'BASIN_QR',BASIN_QR_array, (/1,1/), (/nSegRoute,nens/), ierr, cmessage)
 if(ierr/=0) call handle_err(ierr,cmessage)
 ! write IRF routing  state for restart
 if (routOpt==0 .or. routOpt==1) then
-  call write_2d_iarray(trim(output_dir)//trim(fname_state_out), 'irfsize', irfsize, (/1,1/), (/nSegRoute,nens/), ierr, cmessage)
+  call write_nc(trim(output_dir)//trim(fname_state_out), 'irfsize', irfsize, (/1,1/), (/nSegRoute,nens/), ierr, cmessage)
   if(ierr/=0) call handle_err(ierr,cmessage)
-  call write_3d_darray(trim(output_dir)//trim(fname_state_out), 'QFUTURE_IRF', qfuture_irf_array, (/1,1,1/), (/nSegRoute,maxval(irfsize),nens/), ierr, cmessage)
+  call write_nc(trim(output_dir)//trim(fname_state_out), 'QFUTURE_IRF', qfuture_irf_array, (/1,1,1/), (/nSegRoute,maxval(irfsize),nens/), ierr, cmessage)
   if(ierr/=0) call handle_err(ierr,cmessage)
 end if
 !write KWT routing state for restart
 if (routOpt==0 .or. routOpt==2) then
-  call write_2d_iarray(trim(output_dir)//trim(fname_state_out), 'wavesize', wavesize, (/1,1/), (/nSegRoute,nens/), ierr, cmessage)
+  call write_nc(trim(output_dir)//trim(fname_state_out), 'wavesize', wavesize, (/1,1/), (/nSegRoute,nens/), ierr, cmessage)
   if(ierr/=0) call handle_err(ierr,cmessage)                                                                  
-  call write_3d_darray(trim(output_dir)//trim(fname_state_out), 'QF', QF_array, (/1,1,1/), (/nSegRoute,maxval(wavesize),nens/), ierr, cmessage)
+  call write_nc(trim(output_dir)//trim(fname_state_out), 'QF', QF_array, (/1,1,1/), (/nSegRoute,maxval(wavesize),nens/), ierr, cmessage)
   if(ierr/=0) call handle_err(ierr,cmessage)
-  call write_3d_darray(trim(output_dir)//trim(fname_state_out), 'QM', QM_array, (/1,1,1/), (/nSegRoute,maxval(wavesize),nens/), ierr, cmessage)
+  call write_nc(trim(output_dir)//trim(fname_state_out), 'QM', QM_array, (/1,1,1/), (/nSegRoute,maxval(wavesize),nens/), ierr, cmessage)
   if(ierr/=0) call handle_err(ierr,cmessage)
-  call write_3d_darray(trim(output_dir)//trim(fname_state_out), 'TI', TI_array, (/1,1,1/), (/nSegRoute,maxval(wavesize),nens/), ierr, cmessage)
+  call write_nc(trim(output_dir)//trim(fname_state_out), 'TI', TI_array, (/1,1,1/), (/nSegRoute,maxval(wavesize),nens/), ierr, cmessage)
   if(ierr/=0) call handle_err(ierr,cmessage)
-  call write_3d_darray(trim(output_dir)//trim(fname_state_out), 'TR', TR_array, (/1,1,1/), (/nSegRoute,maxval(wavesize),nens/), ierr, cmessage)
+  call write_nc(trim(output_dir)//trim(fname_state_out), 'TR', TR_array, (/1,1,1/), (/nSegRoute,maxval(wavesize),nens/), ierr, cmessage)
   if(ierr/=0) call handle_err(ierr,cmessage)
-  call write_3d_iarray(trim(output_dir)//trim(fname_state_out), 'RF', rf_array, (/1,1,1/), (/nSegRoute,maxval(wavesize),nens/), ierr, cmessage)
+  call write_nc(trim(output_dir)//trim(fname_state_out), 'RF', rf_array, (/1,1,1/), (/nSegRoute,maxval(wavesize),nens/), ierr, cmessage)
   if(ierr/=0) call handle_err(ierr,cmessage)
 end if
 
