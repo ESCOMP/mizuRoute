@@ -19,11 +19,8 @@ USE ascii_util_module,only:file_open          ! open file (performs a few checks
 USE read_simoutput,only:get_qDims             ! get the dimensions from the runoff file
 USE read_simoutput,only:get_qMeta             ! get the metadata from the runoff file
 USE read_simoutput,only:getVarQsim            ! get the data from the runoff file
-USE read_ntopo,only:get_vec_ivar              ! get the data from the ntopo file
-USE read_ntopo,only:get_scl_ivar              ! get the data from the ntopo file
-USE read_ntopo,only:get_scl_dvar              ! get the data from the ntopo file
-USE read_ntopo,only:get_vec_dvar              ! get the data from the ntopo file
-USE read_ntopo,only:get_Vec_dim               ! get the data from the ntopo file
+USE read_ntopo,only:get_nc                    ! get the data from the ntopo file
+USE read_ntopo,only:get_nc_dim_len            ! get the data from the ntopo file
 USE write_simoutput,only:defineFile           ! define output file
 USE write_simoutput,only:defineStateFile      ! write a hillslope routing state at a time 
 USE write_netcdf,only:write_nc                ! write output in netcdf 
@@ -182,10 +179,10 @@ read(iunit, nml=IRF_UH)
 read(iunit, nml=KWT)
 
 ! get the number of stream segments (needed for allocate statements)
-call get_vec_dim(trim(ancil_dir)//trim(fname_ntop), &
-                 'sSeg',                            &
-                 nSeg,                              &
-                 ierr, cmessage)
+call get_nc_dim_len(trim(ancil_dir)//trim(fname_ntop), &
+                   'sSeg',                            &
+                   nSeg,                              &
+                   ierr, cmessage)
 call handle_err(ierr,cmessage)
 print*,'Number of nSeg in Network topology: ', nSeg
 
@@ -219,7 +216,7 @@ print*,'Number of nSeg in Network topology: ', nSeg
 
 ! Read global reach id  (input = filename, variable name, variable vector, start index; output = error control)
 allocate(REACHIDGV(nSeg), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for REACHIDGV')
-call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop), 'reachID', REACHIDGV, (/1/), (/nSeg/), ierr, cmessage); call handle_err(ierr,cmessage)
+call get_nc(trim(ancil_dir)//trim(fname_ntop), 'reachID', REACHIDGV, 1, nSeg, ierr, cmessage); call handle_err(ierr,cmessage)
 
 if ( iSegOut /= -9999 ) then
   print*, 'Outlet segment = ', iSegOut
@@ -230,14 +227,14 @@ if ( iSegOut /= -9999 ) then
     call handle_err(20,'unable to find desired stream segment')
 
   ! Read the start index and the count for lagged array - all the upstream segments, immediate upstream segment, immediate upstream HRUs
-  call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'reachStart', iRchStart, iSegDesire, ierr, cmessage); call handle_err(ierr,cmessage)
-  call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'reachCount', nRchCount, iSegDesire, ierr, cmessage); call handle_err(ierr,cmessage)
+  call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachStart', iRchStart, iSegDesire, ierr, cmessage); call handle_err(ierr,cmessage)
+  call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachCount', nRchCount, iSegDesire, ierr, cmessage); call handle_err(ierr,cmessage)
   print*,'iRchStart   = ',iRchStart
   print*,'Number of upstream segment from outlet segment (nRchCount): ',nRchCount
   
   ! Read reach list of index from global segments (all the upstream reachs for each segment) 
   allocate(upStrmRchList(nRchCount), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for upStrmRchList')
-  call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop), 'reachList', upStrmRchList, (/iRchStart/),(/nRchCount/), ierr, cmessage); call handle_err(ierr,cmessage)
+  call get_nc(trim(ancil_dir)//trim(fname_ntop), 'reachList', upStrmRchList, iRchStart, nRchCount, ierr, cmessage); call handle_err(ierr,cmessage)
   
   ! Reach upstream segment and associated HRU infor from non-ragged vector 
   allocate(NETOPO(nRchCount), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for NETOPO')
@@ -249,18 +246,17 @@ if ( iSegOut /= -9999 ) then
   
   do iSeg=1,nRchCount
     ! Reach reach topology and parameters (integer)
-    call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'reachID',     NETOPO(iSeg)%REACHID,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'downReachID', NETOPO(iSeg)%DREACHK,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
-    ! Reach reach topology and parameters (double precision)
-    call get_scl_dvar(trim(ancil_dir)//trim(fname_ntop),'reachSlope',  RPARAM(iSeg)%R_SLOPE,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_scl_dvar(trim(ancil_dir)//trim(fname_ntop),'reachLength', RPARAM(iSeg)%RLENGTH,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_scl_dvar(trim(ancil_dir)//trim(fname_ntop),'basinArea',   RPARAM(iSeg)%BASAREA,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_scl_dvar(trim(ancil_dir)//trim(fname_ntop),'upstreamArea',RPARAM(iSeg)%UPSAREA,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_scl_dvar(trim(ancil_dir)//trim(fname_ntop),'totalArea',   RPARAM(iSeg)%TOTAREA,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_scl_dvar(trim(ancil_dir)//trim(fname_ntop),'reachLat1',   NETOPO(iSeg)%RCHLAT1,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_scl_dvar(trim(ancil_dir)//trim(fname_ntop),'reachLat2',   NETOPO(iSeg)%RCHLAT2,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_scl_dvar(trim(ancil_dir)//trim(fname_ntop),'reachLon1',   NETOPO(iSeg)%RCHLON1,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_scl_dvar(trim(ancil_dir)//trim(fname_ntop),'reachLon2',   NETOPO(iSeg)%RCHLON2,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachID',     NETOPO(iSeg)%REACHID,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'downReachID', NETOPO(iSeg)%DREACHK,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachSlope',  RPARAM(iSeg)%R_SLOPE,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachLength', RPARAM(iSeg)%RLENGTH,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'basinArea',   RPARAM(iSeg)%BASAREA,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'upstreamArea',RPARAM(iSeg)%UPSAREA,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'totalArea',   RPARAM(iSeg)%TOTAREA,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachLat1',   NETOPO(iSeg)%RCHLAT1,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachLat2',   NETOPO(iSeg)%RCHLAT2,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachLon1',   NETOPO(iSeg)%RCHLON1,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachLon2',   NETOPO(iSeg)%RCHLON2,upStrmRchList(iSeg),ierr,cmessage); call handle_err(ierr,cmessage)
   enddo
   
   ! Recompute downstream segment index as local segment list, or NETOPO(:)%REACHID
@@ -285,15 +281,15 @@ if ( iSegOut /= -9999 ) then
   nTotal=0
   do iSeg=1,nRchCount
     ! sAll dimension 
-    call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'reachStart', iRchStart1, upStrmRchList(iSeg), ierr, cmessage); call handle_err(ierr,cmessage)
-    call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'reachCount', nRchCount1, upStrmRchList(iSeg), ierr, cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachStart', iRchStart1, upStrmRchList(iSeg), ierr, cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachCount', nRchCount1, upStrmRchList(iSeg), ierr, cmessage); call handle_err(ierr,cmessage)
   
     allocate(NETOPO(iSeg)%UPSLENG(nRchCount1), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for NETOPO%UPSLENG')
     allocate(NETOPO(iSeg)%RCHLIST(nRchCount1), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for NETOPO%RCHLIST')
     allocate(RCHIXLIST(nRchCount1), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for RCHIXLIST(nRchCount)')
   
-    call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'reachList'         ,RCHIXLIST,(/iRchStart1/),(/nRchCount1/),ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'upReachTotalLength',NETOPO(iSeg)%UPSLENG(:),(/iRchStart1/),(/nRchCount1/),ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachList'         ,RCHIXLIST,iRchStart1,nRchCount1,ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'upReachTotalLength',NETOPO(iSeg)%UPSLENG(:),iRchStart1,nRchCount1,ierr,cmessage); call handle_err(ierr,cmessage)
   
     ! Recompute all the upstream segment indices as local segment list = NETOPO(:)%REACHID
     nTotal = nTotal + nRchCount1
@@ -306,15 +302,15 @@ if ( iSegOut /= -9999 ) then
     deallocate(RCHIXLIST, stat=ierr)
   
     ! sUps dimension 
-    call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'upReachStart', iUpRchStart, upStrmRchList(iSeg), ierr, cmessage); call handle_err(ierr,cmessage)
-    call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'upReachCount', nUpRchCount, upStrmRchList(iSeg), ierr, cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'upReachStart', iUpRchStart, upStrmRchList(iSeg),ierr, cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'upReachCount', nUpRchCount, upStrmRchList(iSeg),ierr, cmessage); call handle_err(ierr,cmessage)
   
     allocate(NETOPO(iSeg)%UREACHI(nUpRchCount), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for NETOPO%UREACHI')
     allocate(NETOPO(iSeg)%UREACHK(nUpRchCount), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for NETOPO%UREACHK')
     allocate(NETOPO(iSeg)%goodBas(nUpRchCount), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for NETOPO%goodBas')
     if (nUpRchCount > 0) then
   
-      call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'upReachID'   ,NETOPO(iSeg)%UREACHK(:),(/iUpRchStart/),(/nUpRchCount/),ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_nc(trim(ancil_dir)//trim(fname_ntop),'upReachID', NETOPO(iSeg)%UREACHK(:),iUpRchStart,nUpRchCount,ierr,cmessage); call handle_err(ierr,cmessage)
       do jSeg=1,nUpRchCount
         ! Identify the index of the desired stream segment from reachID vector (dimension size: nSeg)
         iSelect = minloc(abs(NETOPO(:)%REACHID - NETOPO(iSeg)%UREACHK(jSeg)))
@@ -338,16 +334,16 @@ if ( iSegOut /= -9999 ) then
     endif  ! if not a headwater
     
     ! sHrus dimension 
-    call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'upHruStart', iUpHruStart, upStrmRchList(iSeg), ierr, cmessage); call handle_err(ierr,cmessage)
-    call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'upHruCount', nUpHruCount, upStrmRchList(iSeg), ierr, cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'upHruStart', iUpHruStart, upStrmRchList(iSeg), ierr, cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'upHruCount', nUpHruCount, upStrmRchList(iSeg), ierr, cmessage); call handle_err(ierr,cmessage)
     allocate(h2b(iSeg)%cHRU(nUpHruCount), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for h2b(iSeg)%cHRU(nUpHruCount)')
     if (nUpHrucount /= 0) then
-      call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'hru_id',    h2b(iSeg)%cHRU(:)%hru_id,  (/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_lon',   h2b(iSeg)%cHRU(:)%hru_lon, (/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_lat',   h2b(iSeg)%cHRU(:)%hru_lat, (/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_elev',  h2b(iSeg)%cHRU(:)%hru_elev,(/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_area',  h2b(iSeg)%cHRU(:)%hru_area,(/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_weight',h2b(iSeg)%cHRU(:)%wght,    (/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_nc(trim(ancil_dir)//trim(fname_ntop),'hru_id',    h2b(iSeg)%cHRU(:)%hru_id,  iUpHruStart,nUpHruCount,ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_nc(trim(ancil_dir)//trim(fname_ntop),'hru_lon',   h2b(iSeg)%cHRU(:)%hru_lon, iUpHruStart,nUpHruCount,ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_nc(trim(ancil_dir)//trim(fname_ntop),'hru_lat',   h2b(iSeg)%cHRU(:)%hru_lat, iUpHruStart,nUpHruCount,ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_nc(trim(ancil_dir)//trim(fname_ntop),'hru_elev',  h2b(iSeg)%cHRU(:)%hru_elev,iUpHruStart,nUpHruCount,ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_nc(trim(ancil_dir)//trim(fname_ntop),'hru_area',  h2b(iSeg)%cHRU(:)%hru_area,iUpHruStart,nUpHruCount,ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_nc(trim(ancil_dir)//trim(fname_ntop),'hru_weight',h2b(iSeg)%cHRU(:)%wght,    iUpHruStart,nUpHruCount,ierr,cmessage); call handle_err(ierr,cmessage)
     endif
   enddo  ! looping through the stream segments within the model domain
   nSegRoute => nRchCount
@@ -359,48 +355,47 @@ else ! if the entire river network routing is selected
   allocate(RPARAM(nSeg), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for RPARAM')
   do iSeg=1,nSeg
     ! Reach reach topology and parameters (integer)
-    call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'reachIndex',    NETOPO(iSeg)%REACHIX,iSeg,ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'reachID',       NETOPO(iSeg)%REACHID,iSeg,ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_scl_dvar(trim(ancil_dir)//trim(fname_ntop),'reachLat1',     NETOPO(iSeg)%RCHLAT1,iSeg,ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_scl_dvar(trim(ancil_dir)//trim(fname_ntop),'reachLat2',     NETOPO(iSeg)%RCHLAT2,iSeg,ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_scl_dvar(trim(ancil_dir)//trim(fname_ntop),'reachLon1',     NETOPO(iSeg)%RCHLON1,iSeg,ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_scl_dvar(trim(ancil_dir)//trim(fname_ntop),'reachLon2',     NETOPO(iSeg)%RCHLON2,iSeg,ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'downReachIndex',NETOPO(iSeg)%DREACHI,iSeg,ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'downReachID',   NETOPO(iSeg)%DREACHK,iSeg,ierr,cmessage); call handle_err(ierr,cmessage)
-    ! Reach reach topology and parameters (double precision)
-    call get_scl_dvar(trim(ancil_dir)//trim(fname_ntop),'reachSlope',    RPARAM(iSeg)%R_SLOPE,iSeg,ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_scl_dvar(trim(ancil_dir)//trim(fname_ntop),'reachLength',   RPARAM(iSeg)%RLENGTH,iSeg,ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_scl_dvar(trim(ancil_dir)//trim(fname_ntop),'upstreamArea',  RPARAM(iSeg)%UPSAREA,iSeg,ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_scl_dvar(trim(ancil_dir)//trim(fname_ntop),'basinArea',     RPARAM(iSeg)%BASAREA,iSeg,ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_scl_dvar(trim(ancil_dir)//trim(fname_ntop),'totalArea',     RPARAM(iSeg)%TOTAREA,iSeg,ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachIndex',    NETOPO(iSeg)%REACHIX, iSeg, ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachID',       NETOPO(iSeg)%REACHID, iSeg, ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachLat1',     NETOPO(iSeg)%RCHLAT1, iSeg, ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachLat2',     NETOPO(iSeg)%RCHLAT2, iSeg, ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachLon1',     NETOPO(iSeg)%RCHLON1, iSeg, ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachLon2',     NETOPO(iSeg)%RCHLON2, iSeg, ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'downReachIndex',NETOPO(iSeg)%DREACHI, iSeg, ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'downReachID',   NETOPO(iSeg)%DREACHK, iSeg, ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachSlope',    RPARAM(iSeg)%R_SLOPE, iSeg, ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachLength',   RPARAM(iSeg)%RLENGTH, iSeg, ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'upstreamArea',  RPARAM(iSeg)%UPSAREA, iSeg, ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'basinArea',     RPARAM(iSeg)%BASAREA, iSeg, ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'totalArea',     RPARAM(iSeg)%TOTAREA, iSeg, ierr,cmessage); call handle_err(ierr,cmessage)
   enddo
   ! Populate sAll dimensioned variable 
   ! NETOPO%RCHLIST - upstream reach list
   ! NETOPO%UPSLENG - total upstream reach length 
   nTotal=0
   do iSeg=1,nSeg
-    call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'reachStart', iRchStart1, iSeg, ierr, cmessage); call handle_err(ierr,cmessage)
-    call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'reachCount', nRchCount1, iSeg, ierr, cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachStart', iRchStart1, iSeg, ierr, cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachCount', nRchCount1, iSeg, ierr, cmessage); call handle_err(ierr,cmessage)
     allocate(NETOPO(iSeg)%UPSLENG(nRchCount1), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for NETOPO%UPSLENG')
     allocate(NETOPO(iSeg)%RCHLIST(nRchCount1), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for NETOPO%RCHLIST')
   
-    call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'upReachTotalLength',NETOPO(iSeg)%UPSLENG(:),(/iRchStart1/),(/nRchCount1/),ierr,cmessage); call handle_err(ierr,cmessage)
-    call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'reachList',NETOPO(iSeg)%RCHLIST(:),(/iRchStart1/),(/nRchCount1/),ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'upReachTotalLength',NETOPO(iSeg)%UPSLENG(:),iRchStart1,nRchCount1,ierr,cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'reachList',NETOPO(iSeg)%RCHLIST(:),iRchStart1,nRchCount1,ierr,cmessage); call handle_err(ierr,cmessage)
     nTotal = nTotal + nRchCount1
   enddo 
   ! Populate sUps dimensioned variable 
   ! NETOPO%UREACHI - Immediate upstream reach index list
   ! NETOPO%UREACHK - Immediate upstream reach ID list 
   do iSeg=1,nSeg
-    call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'upReachStart', iUpRchStart, iSeg, ierr, cmessage); call handle_err(ierr,cmessage)
-    call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'upReachCount', nUpRchCount, iSeg, ierr, cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'upReachStart', iUpRchStart, iSeg, ierr, cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'upReachCount', nUpRchCount, iSeg, ierr, cmessage); call handle_err(ierr,cmessage)
 
     allocate(NETOPO(iSeg)%UREACHI(nUpRchCount), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for NETOPO%UREACHI')
     allocate(NETOPO(iSeg)%UREACHK(nUpRchCount), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for NETOPO%UREACHK')
     allocate(NETOPO(iSeg)%goodBas(nUpRchCount), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for NETOPO%goodBas')
     if (nUpRchCount > 0) then
-      call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'upReachID'   ,NETOPO(iSeg)%UREACHK(:),(/iUpRchStart/),(/nUpRchCount/),ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'upReachIndex',NETOPO(iSeg)%UREACHI(:),(/iUpRchStart/),(/nUpRchCount/),ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_nc(trim(ancil_dir)//trim(fname_ntop),'upReachID'   ,NETOPO(iSeg)%UREACHK(:),iUpRchStart,nUpRchCount,ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_nc(trim(ancil_dir)//trim(fname_ntop),'upReachIndex',NETOPO(iSeg)%UREACHI(:),iUpRchStart,nUpRchCount,ierr,cmessage); call handle_err(ierr,cmessage)
       do jSeg=1,nUpRchCount
         ! check that we identify the correct upstream reach
         if (NETOPO(NETOPO(iSeg)%UREACHI(jSeg))%REACHID /= NETOPO(iSeg)%UREACHK(jSeg)) then 
@@ -421,17 +416,17 @@ else ! if the entire river network routing is selected
   ! Populate sHrus dimensioned variable 
   allocate(h2b(nSeg), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for h2b')
   do iSeg=1,nSeg
-    call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'upHruStart', iUpHruStart, iSeg, ierr, cmessage); call handle_err(ierr,cmessage)
-    call get_scl_ivar(trim(ancil_dir)//trim(fname_ntop),'upHruCount', nUpHruCount, iSeg, ierr, cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'upHruStart', iUpHruStart, iSeg, ierr, cmessage); call handle_err(ierr,cmessage)
+    call get_nc(trim(ancil_dir)//trim(fname_ntop),'upHruCount', nUpHruCount, iSeg, ierr, cmessage); call handle_err(ierr,cmessage)
 
     allocate(h2b(iSeg)%cHRU(nUpHruCount), stat=ierr); if(ierr/=0) call handle_err(ierr,'problem allocating space for h2b(iSeg)%cHRU(nUpHruCount)')
     if (nUpHrucount /= 0) then
-      call get_vec_ivar(trim(ancil_dir)//trim(fname_ntop),'hru_id',    h2b(iSeg)%cHRU(:)%hru_id,  (/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_lon',   h2b(iSeg)%cHRU(:)%hru_lon, (/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_lat',   h2b(iSeg)%cHRU(:)%hru_lat, (/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_elev',  h2b(iSeg)%cHRU(:)%hru_elev,(/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_area',  h2b(iSeg)%cHRU(:)%hru_area,(/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
-      call get_vec_dvar(trim(ancil_dir)//trim(fname_ntop),'hru_weight',h2b(iSeg)%cHRU(:)%wght,    (/iUpHruStart/),(/nUpHruCount/),ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_nc(trim(ancil_dir)//trim(fname_ntop),'hru_id',    h2b(iSeg)%cHRU(:)%hru_id,  iUpHruStart, nUpHruCount ,ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_nc(trim(ancil_dir)//trim(fname_ntop),'hru_lon',   h2b(iSeg)%cHRU(:)%hru_lon, iUpHruStart, nUpHruCount ,ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_nc(trim(ancil_dir)//trim(fname_ntop),'hru_lat',   h2b(iSeg)%cHRU(:)%hru_lat, iUpHruStart, nUpHruCount ,ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_nc(trim(ancil_dir)//trim(fname_ntop),'hru_elev',  h2b(iSeg)%cHRU(:)%hru_elev,iUpHruStart, nUpHruCount ,ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_nc(trim(ancil_dir)//trim(fname_ntop),'hru_area',  h2b(iSeg)%cHRU(:)%hru_area,iUpHruStart, nUpHruCount ,ierr,cmessage); call handle_err(ierr,cmessage)
+      call get_nc(trim(ancil_dir)//trim(fname_ntop),'hru_weight',h2b(iSeg)%cHRU(:)%wght,    iUpHruStart, nUpHruCount ,ierr,cmessage); call handle_err(ierr,cmessage)
     endif
   enddo
   nSegRoute => nSeg
@@ -619,35 +614,71 @@ T1 = dt
 
 !read restart 
 if (isRestart) then
-  call get_vec_dvar(trim(output_dir)//trim(fname_state_in),'time_bound',TB(:), (/1/),(/2/), ierr, cmessage); call handle_err(ierr,cmessage)
+  call get_nc(trim(output_dir)//trim(fname_state_in),'time_bound',TB(:), 1, 2, ierr, cmessage); call handle_err(ierr,cmessage)
   T0=TB(1); T1=TB(2)
+  if (routOpt==0 .or. routOpt==1) then
+    call get_nc(trim(output_dir)//trim(fname_state_in),'irfsize',irfsize,(/1,1/),(/nSegRoute,nens/),ierr,cmessage); call handle_err(ierr,cmessage)
+  endif
+  if (routOpt==0 .or. routOpt==2) then
+    call get_nc(trim(output_dir)//trim(fname_state_in),'wavesize',wavesize, (/1,1/), (/nSegRoute,nens/), ierr, cmessage); call handle_err(ierr,cmessage)
+  endif
+  allocate(qfuture_array(nSegRoute,ntdh,nens),stat=ierr)
+  if(ierr/=0) call handle_err(ierr,'problem allocating qfuture_array')
+  allocate(basin_qr_array(nSegRoute,nens),stat=ierr)
+  if(ierr/=0) call handle_err(ierr,'problem allocating basin_qr_array')
+  allocate(qfuture_irf_array(nSegRoute,maxval(irfsize),nens),stat=ierr)
+  if(ierr/=0) call handle_err(ierr,'problem allocating qfuture_irf_array')
+  allocate(qf_array(nSegRoute,maxval(wavesize),nens),stat=ierr)
+  if(ierr/=0) call handle_err(ierr,'problem allocating qf_array')
+  allocate(qm_array(nSegRoute,maxval(wavesize),nens),stat=ierr)
+  if(ierr/=0) call handle_err(ierr,'problem allocating qm_array')
+  allocate(ti_array(nSegRoute,maxval(wavesize),nens),stat=ierr)
+  if(ierr/=0) call handle_err(ierr,'problem allocating ti_array')
+  allocate(tr_array(nSegRoute,maxval(wavesize),nens),stat=ierr)
+  if(ierr/=0) call handle_err(ierr,'problem allocating tr_array')
+  allocate(rf_array(nSegRoute,maxval(wavesize),nens),stat=ierr)
+  if(ierr/=0) call handle_err(ierr,'problem allocating rf_array')
+
+  call get_nc(trim(output_dir)//trim(fname_state_in),'BASIN_QR', basin_qr_array, (/1,1/),(/nSegRoute,nens/), ierr, cmessage); call handle_err(ierr,cmessage)
+  call get_nc(trim(output_dir)//trim(fname_state_in),'QFUTURE', qfuture_array, (/1,1,1/),(/nSegRoute,ntdh,nens/), ierr, cmessage); call handle_err(ierr,cmessage)
+  call get_nc(trim(output_dir)//trim(fname_state_in),'QFUTURE_IRF', qfuture_irf_array, (/1,1,1/), (/nSegRoute,maxval(irfsize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
+  call get_nc(trim(output_dir)//trim(fname_state_in),'QF', qf_array, (/1,1,1/),(/nSegRoute,maxval(wavesize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
+  call get_nc(trim(output_dir)//trim(fname_state_in),'QM', qf_array, (/1,1,1/),(/nSegRoute,maxval(wavesize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
+  call get_nc(trim(output_dir)//trim(fname_state_in),'TI', qf_array, (/1,1,1/),(/nSegRoute,maxval(wavesize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
+  call get_nc(trim(output_dir)//trim(fname_state_in),'TR', qf_array, (/1,1,1/),(/nSegRoute,maxval(wavesize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
+  call get_nc(trim(output_dir)//trim(fname_state_in),'RF', rf_array, (/1,1,1/),(/nSegRoute,maxval(wavesize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
+
   do iens=1,nens
-    if (routOpt==0 .or. routOpt==1) then
-      call get_vec_ivar(trim(output_dir)//trim(fname_state_in),'irfsize',irfsize(iens,:),(/1,iens/),(/nSegRoute,1/),ierr,cmessage); call handle_err(ierr,cmessage)
-    endif
-    if (routOpt==0 .or. routOpt==2) then
-      call get_vec_ivar(trim(output_dir)//trim(fname_state_in),'wavesize',wavesize(iens,:), (/1,iens/), (/nSegRoute,1/), ierr, cmessage); call handle_err(ierr,cmessage)
-    endif
-    call get_vec_dvar(trim(output_dir)//trim(fname_state_in),'BASIN_QR',RCHFLX(iens,:)%BASIN_QR(1), (/1,iens/),(/nSegRoute,1/), ierr, cmessage); call handle_err(ierr,cmessage)
-    do iSeg=1,nSegRoute ! (loop through stream segments)
-      call get_vec_dvar(trim(output_dir)//trim(fname_state_in),'QFUTURE',RCHFLX(iens,iSeg)%QFUTURE(:), (/iSeg,1,iens/),(/1,ntdh,1/), ierr, cmessage); call handle_err(ierr,cmessage)
+    do iSeg=1,nSegRoute
+      RCHFLX(iens,iSeg)%BASIN_QR(1)= basin_qr_array(iSeg,iens)
+      RCHFLX(iens,iSeg)%QFUTURE(:) = qfuture_array(iSeg,1:ntdh,iens)
       if (routOpt==0 .or. routOpt==1) then
         allocate(RCHFLX(iens,iSeg)%QFUTURE_IRF(irfsize(iens,iSeg)), stat=ierr)
-        call get_vec_dvar(trim(output_dir)//trim(fname_state_in),'QFUTURE_IRF',RCHFLX(iens,iSeg)%QFUTURE_IRF(:), (/iSeg,1,iens/), (/1,irfsize(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
+        RCHFLX(iens,iSeg)%QFUTURE_IRF(:) = qfuture_irf_array(iSeg,1:irfsize(iens,iSeg),iens)
       endif
       if (routOpt==0 .or. routOpt==2) then
         allocate(KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1), stat=ierr)
         allocate(RFvec(0:size(KROUTE(iens,iSeg)%KWAVE)-1),stat=ierr)
-        call get_vec_dvar(trim(output_dir)//trim(fname_state_in),'QF',KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%QF, (/iSeg,1,iens/),(/1,wavesize(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
-        call get_vec_dvar(trim(output_dir)//trim(fname_state_in),'QM',KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%QM, (/iSeg,1,iens/),(/1,wavesize(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
-        call get_vec_dvar(trim(output_dir)//trim(fname_state_in),'TI',KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%TI, (/iSeg,1,iens/),(/1,wavesize(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
-        call get_vec_dvar(trim(output_dir)//trim(fname_state_in),'TR',KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%TR, (/iSeg,1,iens/),(/1,wavesize(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
-        call get_vec_ivar(trim(output_dir)//trim(fname_state_in),'RF',RFvec, (/iSeg,1,iens/),(/1,wavesize(iens,iSeg),1/), ierr, cmessage); call handle_err(ierr,cmessage)
+        KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%QF = qf_array(iSeg,1:wavesize(iens,iSeg),iens)
+        KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%QM = qf_array(iSeg,1:wavesize(iens,iSeg),iens)
+        KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%TI = qf_array(iSeg,1:wavesize(iens,iSeg),iens)
+        KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%TR = qf_array(iSeg,1:wavesize(iens,iSeg),iens)
+        RFvec = rf_array(iSeg,1:wavesize(iens,iSeg),iens)
         KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%RF=.False.
         where (RFvec==1_i4b) KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%RF=.True.
       endif
     enddo
   enddo
+
+  deallocate(qfuture_array,stat=ierr); if(ierr/=0) call handle_err(ierr,'problem deallocating qfuture_array')
+  deallocate(basin_qr_array,stat=ierr); if(ierr/=0) call handle_err(ierr,'problem deallocating basin_qr_array')
+  deallocate(qfuture_irf_array,stat=ierr); if(ierr/=0) call handle_err(ierr,'problem deallocating qfuture_irf_array')
+  deallocate(qf_array,stat=ierr); if(ierr/=0) call handle_err(ierr,'problem deallocating qf_array')
+  deallocate(qm_array,stat=ierr); if(ierr/=0) call handle_err(ierr,'problem deallocating qm_array')
+  deallocate(ti_array,stat=ierr); if(ierr/=0) call handle_err(ierr,'problem deallocating ti_array')
+  deallocate(tr_array,stat=ierr); if(ierr/=0) call handle_err(ierr,'problem deallocating tr_array')
+  deallocate(rf_array,stat=ierr); if(ierr/=0) call handle_err(ierr,'problem deallocating rf_array')
+
 endif
 
 ! *****
