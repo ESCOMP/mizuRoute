@@ -30,72 +30,63 @@ OVRNM = 'overlaps'
 FILL_VALUE = -9999.0
 
 
-class wgtnc:
-    """ object of basin netCDF including
-        areal weights and hrus of overlapping polygons
+def get_wgt(nc_name, hru):
+    """For given hru id, get weights of
+       overlapping polygons and their IDs
     """
-    def __init__(self, ncName):
-        """Initialization """
-        self.ncName = ncName
+    wgt_all = get_netCDF_data(nc_name, WGTNM)
+    overlap_id_all = get_netCDF_data(nc_name, OVRPLYNM)
 
-    def getWgtHru(self, hru):
-        """For given hru id, get weights of
-           overlapping polygons and their IDs
-        """
-        wgtAll = get_netCDF_data(self.ncName, WGTNM)
-        overlapsIdAll = get_netCDF_data(self.ncName, OVRPLYNM)
+    hru_list = get_hru_id()
+    idx = hru_list.index(hru)
+    # list of areal weight of overlapping polygons
+    wgt = np.asarray(list(wgt_all[idx]))
+    # list of IDs of overlapping polygons
+    overlap_id = np.asarray(list(overlap_id_all[idx]))
+    overlap_id = overlap_id[~np.isnan(overlap_id)]
+    wgt = wgt[~np.isnan(wgt)]
+    return (wgt, overlap_id)
 
-        self.hruList = self.getHruID()
-        idx = self.hruList.index(hru)  # indix of current hru
-        # list of areal weight of overlapping polygons
-        self.wgt = np.asarray(list(wgtAll[idx]))
-        # list of IDs of overlapping polygons
-        self.overlap_ids = np.asarray(list(overlapsIdAll[idx]))
-        self.overlap_ids = self.overlap_ids[~np.isnan(self.overlap_ids)]
-        self.wgt = self.wgt[~np.isnan(self.wgt)]
 
-        return (self.wgt, self.overlap_ids)
-
-    def getHruID(self):
-        """ get hru ID list of basin"""
-        self.hruid = list(get_netCDF_data(self.ncName, HRU_ID_NAME))
-        return self.hruid
+def get_hru_id(nc_name):
+    """ get hru ID list of basin"""
+    hru_id = list(get_netCDF_data(nc_name, HRU_ID_NAME))
+    return hru_id
 
 
 def get_netCDF_data(fn, varname):
     """Read <varname> variables from NetCDF <fn> """
     f = nc4.Dataset(fn, 'r')
-    data = f.variables[varname][:]
+    var_data = f.variables[varname][:]
     f.close()
-    return data
+    return var_data
 
 
-def get_netCDF_attr(fn, varname, attName):
+def get_netCDF_attr(fn, varname, att_name):
     """Read attribute of <varname> variables from NetCDF <fn> """
     f = nc4.Dataset(fn, 'r')
     var = f.variables[varname]
-    attData = getattr(var, attName)
-    return attData
+    att_data = getattr(var, att_name)
+    return att_data
 
 
 def comp_agv_val(nc_wgt, nc_in, varname, chunk):
     """Compute areal weighted avg value of <varname> in <nc_in>
        for each of <chunk> hrus based on hru's weight in <nc_wgt>
     """
-    wgt = wgtnc(nc_wgt)
-    hruIDs = wgt.getHruID()
-    hrudata = split(hruIDs, NPROC)
-    hrulist = hrudata[chunk]
+    hru_ids = get_hru_id(nc_wgt)
+    hru_data = split(hru_ids, NPROC)
+    hru_list = hru_data[chunk]
 
-    dataVal = get_netCDF_data(nc_in, varname)
-    FillVal = get_netCDF_attr(nc_in, varname, '_FillValue')
+    var_data = get_netCDF_data(nc_in, varname)
+    fill_val = get_netCDF_attr(nc_in, varname, '_FillValue')
     ghruid = get_netCDF_data(nc_in, GRID_ID_NAME)
-    dim1size = dataVal.shape[0]
+    dim1size = var_data.shape[0]
     # Initialize wgt_ave_val[ntime,nhru]
-    wgt_ave_val = np.full((dim1size, len(hrulist)), FILL_VALUE)
-    for i in range(len(hrulist)):
-        print hrulist[i]  # Get list of wgt for corresponding hru
-        (wgt_array, overlap_ids) = wgt.getWgtHru(hrulist[i])
+    wgt_ave_val = np.full((dim1size, len(hru_list)), FILL_VALUE)
+    for i in range(len(hru_list)):
+        print hru_list[i]  # Get list of wgt for corresponding hru
+        (wgt_array, overlap_ids) = get_wgt(nc_wgt, hru_list[i])
         # Go through wgt list and replace value with zero for following cases
         # where overlapping polygon has missing value - case1
         # where overlapping polygon is outside nc_wgt domain - case2
@@ -107,9 +98,9 @@ def comp_agv_val(nc_wgt, nc_in, varname, chunk):
             if not (np.size(row) and np.size(col)):
                 wgt_array[j] = 0.0
             else:
-                a[:, j] = np.squeeze(dataVal[:, row, col])
+                a[:, j] = np.squeeze(var_data[:, row, col])
                 # if value of overlapping polygon is missing data -case1
-                if any(a[:, j] == FillVal):
+                if any(a[:, j] == fill_val):
                     wgt_array[j] = 0.0
         sum_wgt = np.sum(wgt_array)
         if sum_wgt > 0.0:
@@ -121,16 +112,16 @@ def comp_agv_val(nc_wgt, nc_in, varname, chunk):
     return wgt_ave_val
 
 
-def split(hrulist, n):
-    subsize = len(hrulist)/n
+def split(hru_list, n):
+    subsize = len(hru_list)/n
     idx1 = 0
-    hrudata = []
+    hru_data = []
     for _ in range(n-1):
         idx2 = idx1+subsize
-        hrudata.append(hrulist[idx1:idx2])
+        hru_data.append(hru_list[idx1:idx2])
         idx1 = idx2
-    hrudata.append(hrulist[idx1:])
-    return hrudata
+    hru_data.append(hru_list[idx1:])
+    return hru_data
 
 
 # ----
@@ -178,12 +169,12 @@ if __name__ == '__main__':
         with xr.open_dataset(nc_in) as ds:
             timedata = ds[TIME_VAR_NAME]
         with xr.open_dataset(nc_wgt) as ds:
-            hrudata = ds[HRU_ID_NAME]
+            hru_data = ds[HRU_ID_NAME]
 
         encoding = {varname: {'dtype': 'float32', '_FillValue': FILL_VALUE},
                     TIME_VAR_NAME: {'dtype': 'int32'}}
         foo = xr.DataArray(result,
-                           coords=[(TIME_VAR_NAME, timedata), ('hru', hrudata)],
+                           coords=[(TIME_VAR_NAME, timedata), ('hru', hru_data)],
                            name=varname)
         foo.encoding = encoding[varname]
         foo[TIME_VAR_NAME].encoding = encoding[TIME_VAR_NAME]
