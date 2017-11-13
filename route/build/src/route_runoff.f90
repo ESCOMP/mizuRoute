@@ -87,7 +87,7 @@ integer(i4b)               :: iRch                ! index in reach structures
 !integer(i4b)               :: jRch               ! index in reach structures
 ! define simulated runoff data at the HRUs
 real(dp)                   :: dTime               ! time variable (in units units_time)
-real(dp)                   :: TB(2)
+real(dp)                   :: TB(2)               ! Time boundary (T0 and T1) at last time step 
 real(dp), allocatable      :: qsim_hru(:)         ! simulated runoff at the HRUs
 character(len=strLen)      :: cLength,cTime       ! length and time units
 real(dp)                   :: time_conv           ! time conversion factor -- used to convert to mm/s
@@ -440,11 +440,6 @@ if (routOpt==0 .or. routOpt==2) then
 
   ! define processing order of the reaches
   call reachorder(nSegRoute, ierr, cmessage); call handle_err(ierr, cmessage)
-  !! check
-  !do iRch=1,nSegRoute
-  ! jRch = NETOPO(iRch)%RHORDER
-  ! write(*,'(a,1x,2(i4,1x),f20.2)') 'iRch, NETOPO(jRch)%DREACHI, RPARAM(jRch)%TOTAREA/1000000._dp  = ', iRch, NETOPO(jRch)%DREACHI, RPARAM(jRch)%TOTAREA/1000000._dp
-  !end do 
 end if
 
 ! identify the stream segment with the largest upstream area
@@ -459,16 +454,6 @@ if (routOpt==0 .or. routOpt==1) then
   ! For IRF routing scheme
   ! Compute unit hydrograph for each segment 
   call make_uh(nSegRoute, dt, velo, diff, ierr, cmessage); call handle_err(ierr, cmessage)
-  !check
- ! do iSeg=9,9
- !   nUpstream = size(NETOPO(iSeg)%RCHLIST) ! size of upstream segment 
- !   do iUps=1,nUpstream
- !     jUps=NETOPO(iSeg)%RCHLIST(iUps)
- !     nTDH= size(NETOPO(iSeg)%UH(iUps)%UH_DATA) ! size of UH data 
- !     write(*,'(a,1x,i4,1x,i4.1,1x,f10.2)') 'upstrm index, upstrmID,length = ', NETOPO(iSeg)%RCHLIST(iUps), NETOPO(jUps)%REACHID, NETOPO(iSeg)%UPSLENG(iUps)
- !     write(*,'(96f6.3)') (NETOPO(iSeg)%UH(iUps)%UH_DATA(iTDH), iTDH=1,nTDH)
- !   enddo
- ! enddo
 end if
 
 ! *****
@@ -809,7 +794,6 @@ do iTime=1,nTime
   ! (5g) print progress...
   ! **********************
   ! extract desired variables
-  !qDomain_hru     = sum(qsim_hru(:)*nhru_acil(ixHRU%area)%varData(:))/sum(nhru_acil(ixHRU%area)%varData(:)) ! domain: total runoff at the HRUs (mm/s)
   qDomain_hru     = sum(pack(qsim_hru,qsimHRUid_mask)*pack(qsimHRUarea,qsimHRUid_mask))/sum(pack(qsimHRUarea,qsimHRUid_mask)) ! domain: total runoff at the HRUs (mm/s)
   qDomain_basin   = 1000._dp*sum(qsim_basin*RPARAM(:)%BASAREA) / sum(RPARAM(:)%BASAREA)                  ! domain: total instantaneous basin runoff (mm/s)
   qDomain_reach   = 1000._dp*sum(RCHFLX(iens,:)%BASIN_QI)/sum(RPARAM(:)%BASAREA)                            ! domain: total instantaneous reach runoff (mm/s)

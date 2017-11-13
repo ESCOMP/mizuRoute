@@ -83,7 +83,7 @@ UTILS = \
 		nr.f90 \
 		nrutil.f90 \
 		ascii_util.f90\
-    public_var.f90
+		public_var.f90
 #
 # define numerical recipes routines
 NUMREC = \

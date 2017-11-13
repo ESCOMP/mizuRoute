@@ -17,7 +17,7 @@ contains
 
  ! *********************************************************************
  ! subroutine: define processing order for the individual
- !                 stream segments in the river network
+ !             stream segments in the river network
  ! *********************************************************************
  subroutine REACHORDER(NRCH, &           ! input
                        ierr, message)    ! error control
@@ -445,20 +445,12 @@ contains
    REAL(DP)                                    :: Q_END         ! flow at the end of the timestep
    REAL(DP)                                    :: TIMEI         ! entry time at the end of the timestep
    TYPE(FPOINT),allocatable,DIMENSION(:),SAVE  :: NEW_WAVE      ! temporary wave
-   LOGICAL(LGT),SAVE                           :: INIT=.TRUE.   ! used to initialize pointers
    ! random stuff
    CHARACTER(LEN=256)                          :: CMESSAGE      ! error message for downwind routine
 
    ! initialize error control
    ierr=0; message='QROUTE_RCH/'
-   ! ----------------------------------------------------------------------------------------
-   ! (0) INITIALIZE POINTERS
-   ! ----------------------------------------------------------------------------------------
-   if(INIT) then
-     INIT=.false.
-     !NULLIFY(Q_JRCH,TENTRY,T_EXIT,FROUTE,NEW_WAVE)
-     !deallocate(Q_JRCH,TENTRY,T_EXIT,FROUTE,NEW_WAVE)
-   endif
+
    RCHFLX(IENS,JRCH)%TAKE=0.0_dp ! initialize take from this reach
     ! ----------------------------------------------------------------------------------------
     ! (1) EXTRACT FLOW FROM UPSTREAM REACHES & APPEND TO THE NON-ROUTED FLOW PARTICLES IN JRCH
@@ -553,14 +545,11 @@ contains
     if (.not.allocated(KROUTE(IENS,JRCH)%KWAVE)) then
       ierr=20; message=trim(message)//'KROUTE is not associated'; return
     else
-   ! if(allocated(KROUTE(IENS,JRCH)%KWAVE)) then
       deallocate(KROUTE(IENS,JRCH)%KWAVE, STAT=ierr)
-   !   if (ierr.ne.0) then
-   !     print *, '% CANNOT DEALLOCATE SPACE (FOR SOME UNKNOWN REASON)... TRY AND NULLIFY!'
-   !     !NULLIFY(KROUTE(IENS,JRCH)%KWAVE)
-   !     deallocate(KROUTE(IENS,JRCH)%KWAVE)
-   !   endif
-   ! endif
+      if (ierr.ne.0) then
+        print *, '% CANNOT DEALLOCATE SPACE (FOR SOME UNKNOWN REASON)... TRY AND NULLIFY!'
+        deallocate(KROUTE(IENS,JRCH)%KWAVE)
+      endif
       allocate(KROUTE(IENS,JRCH)%KWAVE(0:NQ2+1),STAT=ierr)   ! NQ2 is number of points for kinematic routing
       if(ierr/=0)then; message=trim(message)//'problem allocating space for KROUTE(IENS,JRCH)%KWAVE(0:NQ2+1)'; return; endif
     endif
@@ -574,10 +563,6 @@ contains
     KROUTE(IENS,JRCH)%KWAVE(0:NR)%TR=T_EXIT(0:NR); KROUTE(IENS,JRCH)%KWAVE(NR+2:NQ2+1)%TR=T_EXIT(NR+1:NQ2)
     KROUTE(IENS,JRCH)%KWAVE(0:NR)%RF=FROUTE(0:NR); KROUTE(IENS,JRCH)%KWAVE(NR+2:NQ2+1)%RF=FROUTE(NR+1:NQ2)
     KROUTE(IENS,JRCH)%KWAVE(0:NQ2+1)%QM=-9999
-    ! implement water use
-    !IF (NUSER.GT.0.AND.UCFFLAG.GE.1) THEN
-      !CALL EXTRACT_FROM_RCH(IENS,JRCH,NR,Q_JRCH,T_EXIT,T_END,TNEW)
-    !ENDIF
     ! free up space for the next reach
     deallocate(Q_JRCH,TENTRY,T_EXIT,FROUTE,STAT=IERR)   ! FROUTE defined in this sub-routine
     if(ierr/=0)then; message=trim(message)//'problem deallocating space for [Q_JRCH, TENTRY, T_EXIT, FROUTE]'; return; endif
@@ -613,7 +598,6 @@ contains
       DEALLOCATE(NEW_WAVE,STAT=IERR)
       if(ierr/=0)then; message=trim(message)//'problem deallocating space for NEW_WAVE'; return; endif
     endif  ! (if JRCH is the last reach)
-    ! get size of wave number for a reach
     return
   end subroutine
 
@@ -821,7 +805,6 @@ contains
  INTEGER(I4B)                                :: NR        ! # routed particles in u/s reach
  INTEGER(I4B)                                :: NQ        ! NR+1, if non-routed particle exists 
  TYPE(FPOINT),DIMENSION(:),allocatable,SAVE  :: NEW_WAVE  ! temporary wave
- LOGICAL(LGT),SAVE                           :: INIT=.TRUE. ! used to initialize pointers
  ! Local variables to merge flow
  LOGICAL(LGT), DIMENSION(:), ALLOCATABLE     :: MFLG      ! T = all particles processed
  INTEGER(I4B), DIMENSION(:), ALLOCATABLE     :: ITIM      ! processing point for all u/s segments
@@ -848,14 +831,6 @@ contains
  character(*), intent(out)                   :: message  ! error message
  ! initialize error control
  ierr=0; message='QEXMUL_RCH/'
- ! ----------------------------------------------------------------------------------------
- ! (0) INITIALIZE POINTERS
- ! ----------------------------------------------------------------------------------------
- IF(INIT) THEN
-  INIT=.FALSE.
-  !NULLIFY(USFLOW,NEW_WAVE,QD_TEMP,TD_TEMP)
-  !deallocate(USFLOW,NEW_WAVE,QD_TEMP,TD_TEMP)
- ENDIF
  ! set the retrospective offset
  IF (.NOT.PRESENT(RSTEP)) THEN
    ROFFSET = 0

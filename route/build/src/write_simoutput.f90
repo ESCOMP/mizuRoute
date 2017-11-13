@@ -229,6 +229,13 @@ contains
    call defvar('TR',         'time when a wave is expected to exit reach','sec', (/sSeg_DimName,sWav_DimName,sEns_dimName/),    nf90_double, ierr, cmessage)
    call defvar('RF',         'routing flat (1 if wave has exited reach)', '-',   (/sSeg_DimName,sWav_DimName,sEns_dimName/),    nf90_int,    ierr, cmessage) 
  endif
+
+ ! Add global attributes
+ ierr = nf90_put_att(ncid, nf90_global, "title", "State variables of KWT or/and IRF routing for restart")
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+ ierr = nf90_put_att(ncid, nf90_global, "source", "mizuRoute routing model")
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
  ! end definitions
  ierr = nf90_enddef(ncid)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif

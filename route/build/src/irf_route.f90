@@ -314,17 +314,14 @@ contains
   seg_loop: do iSeg=1,nSeg
     nUpsBas = SIZE(NETOPO(iSeg)%UREACHI)      ! number of upstream basins
     qrTotal=0._dp
-!    print *,'--------------------------'
-!    print *,'Working on iSeg, ID, # of ups. basins= ', iSeg, NETOPO(iSeg)%REACHID, nUpsBas
     if (nUpsBas > 0) then ! if segment is not located in headwater basin
       do iUpsbas=1,nUpsBas
-        jUpsBas = NETOPO(iSeg)%UREACHI(iUpsBas)    ! index of the imediate upstream upstream reach
+        jUpsBas = NETOPO(iSeg)%UREACHI(iUpsBas)    ! index of the immediate upstream upstream reach
         ! Get routed flow from all immediate upstream basins [m3/s] and sum them up 
         area=RPARAM(jUpsBas)%BASAREA
         if ( area > 0) then
           qrTotal = qrTotal + RCHFLX(iEns,jUpsBas)%BASIN_QR(1)!/area   
         endif
-!        write(*,'(a,1x,i4,1x,f20.2,1x,f20.4)') 'IupBas, area, routed flow= ',jUpsBas, area, RCHFLX(iEns,jUpsBas)%BASIN_QR(1)
       enddo !end of upstream basins 
     endif
     RCHFLX(iEns,iSeg)%UPSBASIN_QR = qrTotal   
