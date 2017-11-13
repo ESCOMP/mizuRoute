@@ -37,7 +37,7 @@ def get_wgt(nc_name, hru):
     wgt_all = get_netCDF_data(nc_name, WGTNM)
     overlap_id_all = get_netCDF_data(nc_name, OVRPLYNM)
 
-    hru_list = get_hru_id()
+    hru_list = get_hru_id(nc_name)
     idx = hru_list.index(hru)
     # list of areal weight of overlapping polygons
     wgt = np.asarray(list(wgt_all[idx]))
