@@ -57,16 +57,16 @@ def get_hru_id(nc_name):
 
 def get_netCDF_data(fn, varname):
     """Read <varname> variables from NetCDF <fn> """
-    f = nc4.Dataset(fn, 'r')
-    var_data = f.variables[varname][:]
-    f.close()
+    fid = nc4.Dataset(fn, 'r')
+    var_data = fid.variables[varname][:]
+    fid.close()
     return var_data
 
 
 def get_netCDF_attr(fn, varname, att_name):
     """Read attribute of <varname> variables from NetCDF <fn> """
-    f = nc4.Dataset(fn, 'r')
-    var = f.variables[varname]
+    fid = nc4.Dataset(fn, 'r')
+    var = fid.variables[varname]
     att_data = getattr(var, att_name)
     return att_data
 
@@ -91,7 +91,7 @@ def comp_agv_val(nc_wgt, nc_in, varname, chunk):
         # Go through wgt list and replace value with zero for following cases
         # where overlapping polygon has missing value - case1
         # where overlapping polygon is outside nc_wgt domain - case2
-        a = np.zeros((dim1size, len(wgt_array)))
+        sub_data = np.zeros((dim1size, len(wgt_array)))
         for j, overlap_id in enumerate(overlap_ids):
             # find index of grid cell that match up with hru id of overlap_ids
             row, col = np.where(ghruid == overlap_id)
@@ -99,9 +99,9 @@ def comp_agv_val(nc_wgt, nc_in, varname, chunk):
             if not (np.size(row) and np.size(col)):
                 wgt_array[j] = 0.0
             else:
-                a[:, j] = np.squeeze(var_data[:, row, col])
+                sub_data[:, j] = np.squeeze(var_data[:, row, col])
                 # if value of overlapping polygon is missing data -case1
-                if fill_val in a[:, j]:
+                if fill_val in sub_data[:, j]:
                     wgt_array[j] = 0.0
         sum_wgt = wgt_array.sum()
         if sum_wgt > 0.0:
