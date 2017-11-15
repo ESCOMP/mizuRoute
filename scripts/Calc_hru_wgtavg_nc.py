@@ -10,6 +10,7 @@ import multiprocessing as mp
 from functools import partial
 import getopt
 import xarray as xr
+import pandas as pd
 import numpy as np
 import netCDF4 as nc4
 
@@ -50,7 +51,7 @@ def get_wgt(nc_name, hru):
 
 def get_hru_id(nc_name):
     """ get hru ID list of basin"""
-    hru_id = list(get_netCDF_data(nc_name, HRU_ID_NAME))
+    hru_id = get_netCDF_data(nc_name, HRU_ID_NAME).tolist()
     return hru_id
 
 
@@ -85,8 +86,8 @@ def comp_agv_val(nc_wgt, nc_in, varname, chunk):
     # Initialize wgt_ave_val[ntime,nhru]
     wgt_ave_val = np.full((dim1size, len(hru_list)), FILL_VALUE)
     for i in range(len(hru_list)):
-        print hru_list[i]  # Get list of wgt for corresponding hru
-        (wgt_array, overlap_ids) = get_wgt(nc_wgt, hru_list[i])
+        print(hru_list[i])  # Get list of wgt for corresponding hru
+        wgt_array, overlap_ids = get_wgt(nc_wgt, hru_list[i])
         # Go through wgt list and replace value with zero for following cases
         # where overlapping polygon has missing value - case1
         # where overlapping polygon is outside nc_wgt domain - case2
@@ -100,13 +101,13 @@ def comp_agv_val(nc_wgt, nc_in, varname, chunk):
             else:
                 a[:, j] = np.squeeze(var_data[:, row, col])
                 # if value of overlapping polygon is missing data -case1
-                if any(a[:, j] == fill_val):
+                if fill_val in a[:, j]:
                     wgt_array[j] = 0.0
-        sum_wgt = np.sum(wgt_array)
+        sum_wgt = wgt_array.sum()
         if sum_wgt > 0.0:
             # Adjust weight value if valid weight value (> 0) exist in list
             wgt_array = wgt_array/sum_wgt
-            wgt_array = np.where(np.isnan(wgt_array), 0, wgt_array)
+            wgt_array = np.where(pd.isnull(wgt_array), 0, wgt_array)
             wgt_ave_val[:, i] = np.dot(a, wgt_array.T).T
 
     return wgt_ave_val
@@ -117,7 +118,7 @@ def split(hru_list, n):
     idx1 = 0
     hru_data = []
     for _ in range(n-1):
-        idx2 = idx1+subsize
+        idx2 = idx1 + subsize
         hru_data.append(hru_list[idx1:idx2])
         idx1 = idx2
     hru_data.append(hru_list[idx1:])
@@ -140,12 +141,12 @@ if __name__ == '__main__':
         sys.stderr.write(use % sys.argv[0])
         sys.exit(1)
     try:
-        (opts, args) = getopt.getopt(sys.argv[1:], 'h')
+        opts, args = getopt.getopt(sys.argv[1:], 'h')
     except getopt.error:
         usage()
 
     verbose = False
-    for (opt, val) in opts:
+    for opt, val in opts:
         if opt == '-h':
             usage()
         elif opt == '-v':
