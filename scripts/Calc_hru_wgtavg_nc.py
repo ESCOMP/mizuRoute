@@ -96,7 +96,7 @@ def comp_agv_val(nc_wgt, nc_in, varname, chunk):
             # find index of grid cell that match up with hru id of overlap_ids
             row, col = np.where(ghruid == overlap_id)
             # if nc_in netCDF does not cover nc_wgt domain - case2
-            if not (np.size(row) and np.size(col)):
+            if not (row.size and col.size):
                 wgt_array[j] = 0.0
             else:
                 sub_data[:, j] = np.squeeze(var_data[:, row, col])
