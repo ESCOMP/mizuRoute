@@ -95,6 +95,7 @@ IO = \
     read_ntopo.f90 \
 		read_streamSeg.f90 \
 		read_simoutput.f90 \
+    write_netcdf.f90 \
 		write_simoutput.f90
 
 # perform model routing
