@@ -643,9 +643,9 @@ if (isRestart) then
   call get_nc(trim(output_dir)//trim(fname_state_in),'QFUTURE', qfuture_array, (/1,1,1/),(/nSegRoute,ntdh,nens/), ierr, cmessage); call handle_err(ierr,cmessage)
   call get_nc(trim(output_dir)//trim(fname_state_in),'QFUTURE_IRF', qfuture_irf_array, (/1,1,1/), (/nSegRoute,maxval(irfsize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
   call get_nc(trim(output_dir)//trim(fname_state_in),'QF', qf_array, (/1,1,1/),(/nSegRoute,maxval(wavesize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
-  call get_nc(trim(output_dir)//trim(fname_state_in),'QM', qf_array, (/1,1,1/),(/nSegRoute,maxval(wavesize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
-  call get_nc(trim(output_dir)//trim(fname_state_in),'TI', qf_array, (/1,1,1/),(/nSegRoute,maxval(wavesize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
-  call get_nc(trim(output_dir)//trim(fname_state_in),'TR', qf_array, (/1,1,1/),(/nSegRoute,maxval(wavesize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
+  call get_nc(trim(output_dir)//trim(fname_state_in),'QM', qm_array, (/1,1,1/),(/nSegRoute,maxval(wavesize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
+  call get_nc(trim(output_dir)//trim(fname_state_in),'TI', ti_array, (/1,1,1/),(/nSegRoute,maxval(wavesize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
+  call get_nc(trim(output_dir)//trim(fname_state_in),'TR', tr_array, (/1,1,1/),(/nSegRoute,maxval(wavesize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
   call get_nc(trim(output_dir)//trim(fname_state_in),'RF', rf_array, (/1,1,1/),(/nSegRoute,maxval(wavesize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
 
   do iens=1,nens
@@ -660,9 +660,9 @@ if (isRestart) then
         allocate(KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1), stat=ierr)
         allocate(RFvec(0:size(KROUTE(iens,iSeg)%KWAVE)-1),stat=ierr)
         KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%QF = qf_array(iSeg,1:wavesize(iens,iSeg),iens)
-        KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%QM = qf_array(iSeg,1:wavesize(iens,iSeg),iens)
-        KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%TI = qf_array(iSeg,1:wavesize(iens,iSeg),iens)
-        KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%TR = qf_array(iSeg,1:wavesize(iens,iSeg),iens)
+        KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%QM = qm_array(iSeg,1:wavesize(iens,iSeg),iens)
+        KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%TI = ti_array(iSeg,1:wavesize(iens,iSeg),iens)
+        KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%TR = tr_array(iSeg,1:wavesize(iens,iSeg),iens)
         RFvec = rf_array(iSeg,1:wavesize(iens,iSeg),iens)
         KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%RF=.False.
         where (RFvec==1_i4b) KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%RF=.True.
