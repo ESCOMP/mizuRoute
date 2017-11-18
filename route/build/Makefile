@@ -82,7 +82,8 @@ DATATYPES = \
 UTILS = \
 		nr.f90 \
 		nrutil.f90 \
-		ascii_util.f90
+		ascii_util.f90\
+    public_var.f90
 #
 # define numerical recipes routines
 NUMREC = \
@@ -94,6 +95,7 @@ IO = \
     read_ntopo.f90 \
 		read_streamSeg.f90 \
 		read_simoutput.f90 \
+    write_netcdf.f90 \
 		write_simoutput.f90
 
 # perform model routing
