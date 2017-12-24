@@ -1,4 +1,4 @@
-program process_river_topology 
+program process_river_topology
 
 ! provide access to desired modules
 USE nrtype                                    ! variable types, etc.
@@ -7,11 +7,11 @@ USE var_lookup,only:ixHRU,nVarsHRU            ! index of variables for the HRUs
 USE var_lookup,only:ixSEG,nVarsSEG            ! index of variables for the stream segments
 USE var_lookup,only:ixMAP,nVarsMAP            ! index of variables for the hru2basin mapping
 USE var_lookup,only:ixTOP,nVarsTOP            ! index of variables for the network topology
-USE reachparam                                ! reach parameters 
+USE reachparam                                ! reach parameters
 !USE reachstate                                ! reach states
 USE nhru2basin                                ! data structures holding the nhru2basin correspondence
 USE nrutil,only:arth                          ! use to build vectors with regular increments
-USE ascii_util_module,only:file_open          ! open file (performs a few checks as well) 
+USE ascii_util_module,only:file_open          ! open file (performs a few checks as well)
 USE ascii_util_module,only:get_vlines         ! get a list of character strings from non-comment lines
 USE read_streamSeg,only:getData               ! get the ancillary data
 USE read_streamSeg,only:hru2basin             ! get the mapping between HRUs and basins
@@ -25,7 +25,7 @@ USE network_topo,only:upstrm_length              ! Compute total upstream length
 ! define variables
 implicit none
 integer(i4b),parameter     :: missingInt  = -9999   ! missing value (integer)
-real(dp),parameter         :: missingReal = -9999.0 ! missing value (real)  
+real(dp),parameter         :: missingReal = -9999.0 ! missing value (real)
 ! general guff
 integer(i4b),parameter     :: strLen=256         ! length of character string
 integer(i4b)               :: ierr               ! error code
@@ -34,7 +34,6 @@ character(len=strLen)      :: cmessage           ! error message of downwind rou
 character(len=strLen)      :: cfile_name      ! name of the control file
 integer(i4b)               :: iunit           ! file unit
 character(len=strLen),allocatable :: cLines(:) ! vector of character strings
-!integer(i4b)               :: ipos            ! index of character string
 integer(i4b)               :: iLine               ! index of line in cLines
 integer(i4b)               :: ibeg_name           ! start index of variable name in string cLines(iLine)
 integer(i4b)               :: iend_name           ! end index of variable name in string cLines(iLine)
@@ -62,24 +61,12 @@ type(namepvar)             :: sseg_acil(nVarsSEG) ! ancillary data for stream se
 type(nameivar)             :: imap_acil(nVarsMAP) ! ancillary data for mapping hru2basin
 type(nameivar)             :: ntop_acil(nVarsTOP) ! ancillary data for network toopology
 integer(i4b)               :: iSeg                ! index of stream segment
-integer(i4b)               :: iUps               ! index of upstream stream segment added by NM
+integer(i4b)               :: iUps                ! index of upstream stream segment
 !integer(i4b)               :: jUps               ! index of upstream stream segment added by NM
 integer(i4b)               :: iStartAll           ! start index of the ragged array for all upstream reach vector
 integer(i4b)               :: iStartUps           ! start index of the ragged array for immediate upstream vector
 integer(i4b)               :: iStartHru           ! start index of the ragged array for immediate upstream Hru vector
-!integer(i4b),dimension(1)  :: iDesire         ! index of stream segment with maximum upstream area (vector)
-!integer(i4b)               :: ixDesire        ! index of stream segment with maximum upstream area (scalar)
-! define metadata from model output file
-!character(len=strLen)      :: fname_qsim      ! filename containing simulated runoff
-!character(len=strLen)      :: vname_qsim      ! variable name for simulated runoff
-!character(len=strLen)      :: vname_hruid     ! coordinate name for the HRUid
-!character(len=strLen)      :: vname_time      ! coordinate name for time
-!character(len=strLen)      :: units_qsim      ! units of simulated runoff data
 !integer(i4b)               :: iRch!,jRch       ! index in reach structures
-! define simulated runoff data at the HRUs
-!real(dp)                   :: dt              ! time step (seconds)
-!character(len=strLen)      :: cLength,cTime   ! length and time units
-!real(dp)                   :: length_conv     ! length conversion factor -- used to convert to mm/s
 
 ! *****
 ! (0) Read control file...
@@ -145,7 +132,6 @@ end do  ! looping through lines in the control file
 ! *****
 ! (1) Read in the stream segment information...
 ! *********************************************
-
 ! get the number of HRUs and stream segments (needed for allocate statements)
 call getData(trim(input_dir)//trim(fname_sseg), & ! input: file name
              dname_nhru, &  ! input: dimension name of the HRUs
@@ -155,12 +141,9 @@ call getData(trim(input_dir)//trim(fname_sseg), & ! input: file name
              imap_acil,  &  ! input-output: ancillary data for mapping hru2basin
              ntop_acil,  &  ! input-output: ancillary data for network topology
              nHRU,       &  ! output: number of HRUs
-             nSeg,       &  ! output: number of stream segments  
+             nSeg,       &  ! output: number of stream segments
              ierr,cmessage) ! output: error control
 call handle_err(ierr, cmessage)
-
-!print*, 'HRU id name = ', trim(imap_acil(ixMAP%HRUid)%varName)
-!print*, 'HRU id data = ', imap_acil(ixMAP%HRUid)%varData
 
 ! get the mapping between HRUs and basins
 call hru2basin(nHRU,       &   ! input: number of HRUs
@@ -170,7 +153,7 @@ call hru2basin(nHRU,       &   ! input: number of HRUs
                ntop_acil,  &   ! input: ancillary data for network topology
                ierr, cmessage) ! output: error control
 call handle_err(ierr, cmessage)
- 
+
 ! put data in structures
 call assign_reachparam(nSeg,         & ! input: number of stream segments
                        sseg_acil,    & ! input: ancillary data for stream segments
@@ -182,7 +165,7 @@ call handle_err(ierr, cmessage)
 !do iRch=1,nSeg
 ! jRch = NETOPO(iRch)%RHORDER
 ! write(*,'(a,1x,2(i4,1x),f20.2)') 'iRch, NETOPO(jRch)%DREACHI, RPARAM(jRch)%TOTAREA/1000000._dp  = ', iRch, NETOPO(jRch)%DREACHI, RPARAM(jRch)%TOTAREA/1000000._dp
-!end do 
+!end do
 
 ! identify all reaches upstream of each reach
 call reach_list(nSeg, nTotal, ierr, cmessage); call handle_err(ierr, cmessage)
@@ -193,12 +176,12 @@ do iSeg=1,nSeg
   print*,'NETOPO(iSeg)%REACHID(:)',NETOPO(iSeg)%REACHID
   ! Count how many upstream reaches
   nUps = size(NETOPO(iSeg)%RCHLIST(:))
-  ! Initialize UPSAREA for current segment 
+  ! Initialize UPSAREA for current segment
   RPARAM(iSeg)%UPSAREA = 0._dp
   do iUps = 1,nUps
-    if (NETOPO(NETOPO(iSeg)%RCHLIST(iUps))%REACHID/=NETOPO(iSeg)%REACHID) then 
+    if (NETOPO(NETOPO(iSeg)%RCHLIST(iUps))%REACHID/=NETOPO(iSeg)%REACHID) then
       print*,'RCHLIST(iUps) = ',NETOPO(NETOPO(iSeg)%RCHLIST(iUps))%REACHID
-      RPARAM(iSeg)%UPSAREA = RPARAM(iSeg)%UPSAREA +RPARAM(NETOPO(iSeg)%RCHLIST(iUps))%BASAREA 
+      RPARAM(iSeg)%UPSAREA = RPARAM(iSeg)%UPSAREA +RPARAM(NETOPO(iSeg)%RCHLIST(iUps))%BASAREA
     else
       print*,'local reach,',NETOPO(NETOPO(iSeg)%RCHLIST(iUps))%REACHID
     endif
@@ -211,20 +194,15 @@ RPARAM(:)%TOTAREA = RPARAM(:)%UPSAREA + RPARAM(:)%BASAREA
 !do iSeg=1,nSeg
 !  print*,'------------------------------'
 !  print*,'NETOPO(iSeg)%REACHID = ',NETOPO(iSeg)%REACHID
-!  print*,'NETOPO(iSeg)%UREACHK(:) =',NETOPO(iSeg)%UREACHK(:)  
+!  print*,'NETOPO(iSeg)%UREACHK(:) =',NETOPO(iSeg)%UREACHK(:)
 !  print*,'RPARAM(iSeg)%UPSAREA, RPARAM(iSeg)%TOTAREA =',RPARAM(iSeg)%UPSAREA,RPARAM(iSeg)%TOTAREA
-!end do 
-! identify the stream segment with the largest upstream area
-!iDesire = maxLoc(RPARAM(:)%TOTAREA)
-!ixDesire= iDesire(1)
-!print*, 'maximum upstream area = ', RPARAM(ixDesire)%TOTAREA, size(NETOPO(ixDesire)%RCHLIST)
+!end do
 
-! For VIC routing scheme
 ! Compute total length from the bottom of segment to each upstream segment
 call upstrm_length(nSeg, ierr, cmessage);
 
 !do iSeg=9,9
-!  nUpstream = size(NETOPO(iSeg)%RCHLIST) ! size of upstream segment 
+!  nUpstream = size(NETOPO(iSeg)%RCHLIST) ! size of upstream segment
 !  do iUps=1,nUpstream
 !    jUps=NETOPO(iSeg)%RCHLIST(iUps)
 !    write(*,'(a,1x,i4,1x,i10,1x,f10.2)') 'upstrm index, upstrmID,length = ', NETOPO(iSeg)%RCHLIST(iUps), NETOPO(jUps)%REACHID, NETOPO(iSeg)%UPSLENG(iUps)
@@ -239,7 +217,7 @@ do iSeg=1,nSeg
   if (size(NETOPO(iSeg)%UREACHI)/=0) then
     nUps  = nUps+size(NETOPO(iSeg)%UREACHI)
   endif
-  ! get the number of immediate upstream hru 
+  ! get the number of immediate upstream hru
   if (size(h2b(iSeg)%cHRU)/=0) then
     nHru  = nHru+size(h2b(iSeg)%cHRU)
   endif
@@ -283,11 +261,11 @@ do iSeg=1,nSeg
   nUpstreamAll = size(NETOPO(iSeg)%RCHLIST)
   ! get the number of immediate upstream reaches
   nUpstream    = size(NETOPO(iSeg)%UREACHI)
-  ! get the number of immediate upstream hru 
+  ! get the number of immediate upstream hru
   nUpHRU       = size(h2b(iSeg)%cHRU)
-  
+
   !print*,'NETOPO(iSeg)%REACHID, nUpStream = ',NETOPO(iSeg)%REACHID, nUpstream
-  !print*,'NETOPO(iSeg)%UREACHK(:)=',NETOPO(iSeg)%UREACHK(:)  
+  !print*,'NETOPO(iSeg)%UREACHK(:)=',NETOPO(iSeg)%UREACHK(:)
 
   ! write the vector to the ragged array
   call write_iVec(trim(output_dir)//trim(fname_output),'reachList',         NETOPO(iSeg)%RCHLIST(:),iStartAll,ierr,cmessage)
@@ -301,19 +279,19 @@ do iSeg=1,nSeg
   call handle_err(ierr,cmessage)
 
   ! Write attributes of immediate upstream reaches
-  if ( nUpstream/=0 ) then 
+  if ( nUpstream/=0 ) then
     ! write the vector to the ragged array
-    call write_iVec(trim(output_dir)//trim(fname_output),'upReachIndex',NETOPO(iSeg)%UREACHI(:),iStartUps,ierr,cmessage) 
-    call handle_err(ierr,cmessage) 
-    call write_iVec(trim(output_dir)//trim(fname_output),'upReachID',   NETOPO(iSeg)%UREACHK(:),iStartUps,ierr,cmessage) 
-    call handle_err(ierr,cmessage) 
+    call write_iVec(trim(output_dir)//trim(fname_output),'upReachIndex',NETOPO(iSeg)%UREACHI(:),iStartUps,ierr,cmessage)
+    call handle_err(ierr,cmessage)
+    call write_iVec(trim(output_dir)//trim(fname_output),'upReachID',   NETOPO(iSeg)%UREACHK(:),iStartUps,ierr,cmessage)
+    call handle_err(ierr,cmessage)
 
     ! write the start index and the count (NOTE: pass as a vector)
-    call write_iVec(trim(output_dir)//trim(fname_output),'upReachStart',(/iStartUps/),iSeg,ierr,cmessage) 
-    call handle_err(ierr,cmessage) 
-    call write_iVec(trim(output_dir)//trim(fname_output),'upReachCount',(/nUpstream/),iSeg,ierr,cmessage) 
-    call handle_err(ierr,cmessage) 
-    
+    call write_iVec(trim(output_dir)//trim(fname_output),'upReachStart',(/iStartUps/),iSeg,ierr,cmessage)
+    call handle_err(ierr,cmessage)
+    call write_iVec(trim(output_dir)//trim(fname_output),'upReachCount',(/nUpstream/),iSeg,ierr,cmessage)
+    call handle_err(ierr,cmessage)
+
     iStartUps = iStartUps + nUpstream ! update the start index for immediate upstream array
   else
     ! write the vector to the ragged array
@@ -331,12 +309,12 @@ do iSeg=1,nSeg
     !iStartUps = iStartUps + 1 ! update the start index for immediate upstream array
   endif
 
-  ! Write attributes of immediate upstream HRUs 
-  if ( nUpHRU/=0 ) then 
+  ! Write attributes of immediate upstream HRUs
+  if ( nUpHRU/=0 ) then
     ! write the vector to the ragged array
-    call write_iVec(trim(output_dir)//trim(fname_output),'hruIndex',  h2b(iSeg)%cHRU(:)%hru_ix,iStartHru,ierr,cmessage) 
+    call write_iVec(trim(output_dir)//trim(fname_output),'hruIndex',  h2b(iSeg)%cHRU(:)%hru_ix,iStartHru,ierr,cmessage)
     call handle_err(ierr,cmessage)
-    call write_iVec(trim(output_dir)//trim(fname_output),'hru_id',    h2b(iSeg)%cHRU(:)%hru_id,iStartHru,ierr,cmessage) 
+    call write_iVec(trim(output_dir)//trim(fname_output),'hru_id',    h2b(iSeg)%cHRU(:)%hru_id,iStartHru,ierr,cmessage)
     call handle_err(ierr,cmessage)
     call write_dVec(trim(output_dir)//trim(fname_output),'hru_lon',   h2b(iSeg)%cHRU(:)%hru_lon, (/iStartHru/),(/nUpHru/),ierr,cmessage)
     call handle_err(ierr,cmessage)

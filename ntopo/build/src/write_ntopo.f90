@@ -9,8 +9,8 @@ public::write_dVec
 ! define dimension names
 character(len=32),parameter :: sSeg_DimName='sSeg' ! dimension name for the stream segments
 character(len=32),parameter :: sUps_DimName='sUps' ! dimension name for all upstream stream segments
-character(len=32),parameter :: sAll_DimName='sAll' ! dimension name for total number of upstream reachs for all reaches 
-character(len=32),parameter :: sHru_DimName='sHRU' ! dimension name for total number of upstream reachs for all reaches 
+character(len=32),parameter :: sAll_DimName='sAll' ! dimension name for total number of upstream reachs for all reaches
+character(len=32),parameter :: sHru_DimName='sHRU' ! dimension name for total number of upstream reachs for all reaches
 contains
 
  ! *********************************************************************

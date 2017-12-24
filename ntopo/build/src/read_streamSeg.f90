@@ -19,7 +19,7 @@ contains
                     imap_acil,  &   ! input-output: ancillary data for mapping hru2basin
                     ntop_acil,  &   ! input-output: ancillary data for network topology
                     nHRU,       &   ! output: number of HRUs
-                    nSeg,       &   ! output: number of stream segments  
+                    nSeg,       &   ! output: number of stream segments
                     ierr, message)  ! output: error control
  USE dataTypes,only:namepvar,nameivar    ! provide access to data types
  implicit none
@@ -192,36 +192,36 @@ contains
  ! loop through stream segments
  do iSeg=1,nSeg
 
-  ! define segment id
-  jSeg = ntop_acil(ixTOP%segid)%varData(iSeg)
+   ! define segment id
+   jSeg = ntop_acil(ixTOP%segid)%varData(iSeg)
 
-  ! identify the HRUs that drain into the current segment
-  hFlag=.false. ! initialize flag to denote if HRU drains into the current segment
-  where(iDrain == jSeg) hFlag=.true.
+   ! identify the HRUs that drain into the current segment
+   hFlag=.false. ! initialize flag to denote if HRU drains into the current segment
+   where(iDrain == jSeg) hFlag=.true.
 
-  ! get number of HRUs that drain into the current segment
-  nDrain = count(hFlag)
+   ! get number of HRUs that drain into the current segment
+   nDrain = count(hFlag)
 
-  ! allocate space for the structure component
-  allocate(h2b(iSeg)%cHRU(nDrain), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating space for h2b structure component'; return; endif
+   ! allocate space for the structure component
+   allocate(h2b(iSeg)%cHRU(nDrain), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'problem allocating space for h2b structure component'; return; endif
 
-  ! populate structure components
-  h2b(iSeg)%cHRU(:)%hru_ix   = pack(HRUix,hFlag)
-  h2b(iSeg)%cHRU(:)%hru_id   = pack(imap_acil(ixMAP%HRUid)%varData,hFlag)
-  h2b(iSeg)%cHRU(:)%hru_lon  = pack(nhru_acil(ixHRU%xLon )%varData,hFlag)
-  h2b(iSeg)%cHRU(:)%hru_lat  = pack(nhru_acil(ixHRU%yLat )%varData,hFlag)
-  h2b(iSeg)%cHRU(:)%hru_elev = pack(nhru_acil(ixHRU%elev )%varData,hFlag)
-  h2b(iSeg)%cHRU(:)%hru_area = pack(nhru_acil(ixHRU%area )%varData,hFlag)
+   ! populate structure components
+   h2b(iSeg)%cHRU(:)%hru_ix   = pack(HRUix,hFlag)
+   h2b(iSeg)%cHRU(:)%hru_id   = pack(imap_acil(ixMAP%HRUid)%varData,hFlag)
+   h2b(iSeg)%cHRU(:)%hru_lon  = pack(nhru_acil(ixHRU%xLon )%varData,hFlag)
+   h2b(iSeg)%cHRU(:)%hru_lat  = pack(nhru_acil(ixHRU%yLat )%varData,hFlag)
+   h2b(iSeg)%cHRU(:)%hru_elev = pack(nhru_acil(ixHRU%elev )%varData,hFlag)
+   h2b(iSeg)%cHRU(:)%hru_area = pack(nhru_acil(ixHRU%area )%varData,hFlag)
 
-  ! compute total area of the HRUs draining to the stream segment
-  totarea = sum(h2b(iSeg)%cHRU(:)%hru_area)
- 
-  ! compute the weights
-  h2b(iSeg)%cHRU(:)%wght = h2b(iSeg)%cHRU(:)%hru_area / totarea
+   ! compute total area of the HRUs draining to the stream segment
+   totarea = sum(h2b(iSeg)%cHRU(:)%hru_area)
 
-  ! check
-  !print*, 'jSeg, nDrain, totarea = ', jSeg, nDrain, totarea
+   ! compute the weights
+   h2b(iSeg)%cHRU(:)%wght = h2b(iSeg)%cHRU(:)%hru_area / totarea
+
+   ! check
+   !print*, 'jSeg, nDrain, totarea = ', jSeg, nDrain, totarea
 
  end do  ! (looping thru stream segments)
 
@@ -245,7 +245,7 @@ contains
  implicit none
  ! input variables
  integer(i4b), intent(in)        :: nRch         ! number of reaches
- type(namepvar), intent(in)      :: sseg_acil(:) ! ancillary data for stream segments 
+ type(namepvar), intent(in)      :: sseg_acil(:) ! ancillary data for stream segments
  type(nameivar), intent(in)      :: ntop_acil(:) ! ancillary data for the network topology
  ! output variables
  integer(i4b), intent(out)       :: ierr         ! error code
@@ -268,17 +268,13 @@ contains
  NETOPO(:)%DREACHK = ntop_acil(ixTOP%toSegment)%varData(:)
 
  ! transfer information to the reach structures
- !RPARAM(:)%UPSAREA = sseg_acil(ixSEG%upArea   )%varData(:)
  RPARAM(:)%RLENGTH = sseg_acil(ixSEG%length   )%varData(:)
  RPARAM(:)%R_SLOPE = sseg_acil(ixSEG%slope    )%varData(:)
- 
+
  ! compute area draining to each stream segment
  do iRch=1,nRch
   RPARAM(iRch)%BASAREA = sum(h2b(iRch)%cHRU(:)%hru_area)
  end do
-  
- ! compute total area above the bottom of each reach (m2)
- !RPARAM(:)%TOTAREA = RPARAM(:)%UPSAREA + RPARAM(:)%BASAREA
 
  ! define additional aspects of the network topology
  ! (populates reachparam)
@@ -290,17 +286,12 @@ contains
   if(RPARAM(iRch)%R_SLOPE < min_slope) RPARAM(iRch)%R_SLOPE = min_slope
  end do
 
- !! specify some additional parameters (temporary "fix")
- !RPARAM(:)%R_WIDTH =  widthScale * sqrt(RPARAM(:)%TOTAREA)    ! channel width (m)
- !!RPARAM(:)%R_MAN_N =  0.05_dp  ! Manning's "n" paramater (unitless)
- !RPARAM(:)%R_MAN_N =  0.01_dp  ! Manning's "n" paramater (unitless)
-
  ! just to be safe, specify some things that we should not need
  NETOPO(:)%RCHLAT1 =  huge(kind(dp))    ! Start latitude
  NETOPO(:)%RCHLAT2 =  huge(kind(dp))    ! End latitude
  NETOPO(:)%RCHLON1 =  huge(kind(dp))    ! Start longitude
  NETOPO(:)%RCHLON2 =  huge(kind(dp))    ! End longitude
- NETOPO(:)%LAKE_IX =  -1                ! Lake index (0,1,2,...,nlak-1)    
+ NETOPO(:)%LAKE_IX =  -1                ! Lake index (0,1,2,...,nlak-1)
  NETOPO(:)%LAKE_ID =  -1                ! Lake ID (REC code?)
  NETOPO(:)%BASULAK =   0._dp            ! Area of basin under lake
  NETOPO(:)%RCHULAK =   0._dp            ! Length of reach under lake
@@ -327,29 +318,12 @@ contains
  integer(i4b)                    :: iRch,jRch    ! reach indices
  integer(i4b)                    :: iUps         ! index of upstream reach
  integer(i4b)                    :: nUps         ! number of upstream reaches
- logical(lgt)                    :: uFlag(nRch)  ! flag for upstream reaches
- logical(lgt)                    :: hFlag(nRch)  ! flag for headwater reaches
- real(dp),parameter              :: smallArea=1.e-2_dp  ! very small area (m2)
  ! initialize error control
  ierr=0; message='define_topology/'
 
  ! define reach indices
  NETOPO(:)%REACHIX = arth(1,1,nRch)
- NETOPO(:)%DREACHI = -1 
-
- ! NM - Is this necessary??
- ! ------------------------
- hFlag(:) = .false.
- ! first identify non-headwater basins with no upstream area
- do iRch=1,nRch
-  uFlag(:) = .false.; where(NETOPO(:)%DREACHK == NETOPO(iRch)%REACHID) uFlag(:) = .true.
-  ! remove links where there is no upstream area
-!  if(RPARAM(iRch)%UPSAREA < smallArea .and. count(uFlag) > 0)then
-!   where(uFlag) NETOPO(:)%DREACHK = 0
-!  endif
-!  print*,'NETOPO(iRch)%REACHID, NETOPO(iRch)DREACHK = ',NETOPO(iRch)%REACHID,NETOPO(iRch)%DREACHK
- end do
- ! ------------------------
+ NETOPO(:)%DREACHI = -1
 
  ! define additional indices
  do iRch=1,nRch
@@ -388,6 +362,5 @@ contains
  !endif
 
  end subroutine define_topology
-
 
 end module read_streamSeg
