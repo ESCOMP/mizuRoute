@@ -30,18 +30,26 @@
 <units_qsim>   mm/s                                                      ! units of runoff
 <dt_qsim>      86400                                                     ! time interval of the runoff
 ! ****************************************************************************************************************************
-! PART 5: DEFINE RUN CONTROL 
+! PART 5: DEFINE RUNOFF MAPPING FILE 
+!  ----------------------------------
+<is_mapping>    T                                                        ! logical whether or not runnoff needs to be mapped to river network HRU 
+<fname_mapping>    grid_to_poly.nc                                       ! name of runoff mapping netCDF 
+<vname_weight>     weight                                                ! name of variable contating areal weights of runoff HRUs within each river network HRU 
+<vname_id_runoff_hru> overlapPolyId                                      ! name of variable containing ID of runoff HRU 
+<vname_num_runoff_hru> overlaps                                          ! name of variable containing numbers of runoff HRUs within each river network HRU
+! ****************************************************************************************************************************
+! PART 6 DEFINE RUN CONTROL 
 ! ---------------------------
 <restart_opt> F                                                          ! option to use saved flow states T->yes, F->No (start with empty channels) 
 <route_opt>   0                                                          ! option for routing schemes 0-> both, 1->IRF, 2->KWT otherwise error 
 ! ****************************************************************************************************************************
-! PART 6: DEFINE OUTPUT FILE
+! PART 7: DEFINE OUTPUT FILE
 ! ---------------------------
 <fname_output>     q_out.nc                                              ! filename for the model output 1730
 <fname_state_in>   state.in.nc                                           ! filename for the channel states 
 <fname_state_out>  state.out.nc                                          ! filename for the channel states 
 ! ****************************************************************************************************************************
-! PART 7: Namelist file name 
+! PART 8: Namelist file name 
 ! ---------------------------
 <param_nml>    /home/mizukami/mizuRoute/route/settings/param.nml.default ! directory containing ancillary data1.0     
 ! ****************************************************************************************************************************
