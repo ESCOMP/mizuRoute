@@ -32,11 +32,14 @@
 ! ****************************************************************************************************************************
 ! PART 5: DEFINE RUNOFF MAPPING FILE 
 !  ----------------------------------
-<is_mapping>    T                                                        ! logical whether or not runnoff needs to be mapped to river network HRU 
-<fname_mapping>    grid_to_poly.nc                                       ! name of runoff mapping netCDF 
-<vname_weight>     weight                                                ! name of variable contating areal weights of runoff HRUs within each river network HRU 
-<vname_id_runoff_hru> overlapPolyId                                      ! name of variable containing ID of runoff HRU 
-<vname_num_runoff_hru> overlaps                                          ! name of variable containing numbers of runoff HRUs within each river network HRU
+<is_remap>              T                                                ! logical whether or not runnoff needs to be mapped to river network HRU 
+<fname_remap>           grid_to_poly.nc                                  ! name of runoff mapping netCDF 
+<vname_hruid_in_remap>  polyid                                           ! name of variable contating areal weights of runoff HRUs within each river network HRU 
+<vname_weight>          weight                                           ! name of variable contating areal weights of runoff HRUs within each river network HRU 
+<vname_qhruid>          overlapPolyId                                    ! name of variable containing ID of runoff HRU 
+<vname_num_qhru>        overlaps                                         ! name of variable containing numbers of runoff HRUs within each river network HRU
+<dname_hru_remap>       polyid                                           ! name of hru dimension name 
+<dname_data_remap>      data                                             ! name of data dimension name 
 ! ****************************************************************************************************************************
 ! PART 6 DEFINE RUN CONTROL 
 ! ---------------------------

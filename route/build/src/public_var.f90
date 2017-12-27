@@ -1,7 +1,7 @@
 module public_var
   ! This module include variables that can be accessed from any other modules and values not altered
   ! Examples of variables are physical parameteres, namelist variable, variables in control etc.
-  use nrtype 
+  use nrtype
 
   implicit none
 
@@ -13,12 +13,12 @@ module public_var
   real(dp),    parameter,public   :: dmiss=-999.0_dp        ! missing value for floating value
   real(dp),    parameter,public   :: secprhour=3600._dp     ! number of seconds in an hour
   real(dp),    parameter,public   :: secprday=86400._dp     ! number of seconds in a day
-  real(dp),    parameter,public   :: verySmall=tiny(1.0_dp) ! a very small number 
+  real(dp),    parameter,public   :: verySmall=tiny(1.0_dp) ! a very small number
   real(dp),    parameter,public   :: runoffMin=1.e-15_dp    ! minimum runoff from each basin
   real(dp),    parameter,public   :: MinPosVal=1.e-10_dp    ! minimum value for positive value
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
 
-  ! Control file variables 
+  ! Control file variables
   character(len=strLen),public    :: ancil_dir              ! directory containing ancillary data
   character(len=strLen),public    :: input_dir              ! directory containing input data
   character(len=strLen),public    :: output_dir             ! directory containing output data
@@ -33,9 +33,19 @@ module public_var
   character(len=strLen),public    :: fname_state_in         ! name of state file
   character(len=strLen),public    :: fname_state_out        ! name of state file
   character(len=strLen),public    :: param_nml              ! name of the namelist file
+  ! RUNOFF MAPPING FILE
+  logical(lgt),public             :: is_remap               ! logical whether or not runnoff needs to be mapped to river network HRU
+  character(len=strLen),public    :: fname_remap            ! name of runoff mapping netCDF
+  character(len=strLen),public    :: vname_hruid_in_remap   ! name of variable contating river network hru id
+  character(len=strLen),public    :: vname_weight           ! name of variable contating areal weights of runoff HRUs within each river network
+  character(len=strLen),public    :: vname_qhruid           ! name of variable containing ID of runoff HRU
+  character(len=strLen),public    :: vname_num_qhru         ! name of variable containing numbers of runoff HRUs within each river network HRU
+  character(len=strLen),public    :: dname_hru_remap        ! name of variable containing ID of runoff HRU
+  character(len=strLen),public    :: dname_data_remap       ! name of variable containing numbers of runoff HRUs within each river network HRU
+
   real(dp)             ,public    :: dt                     ! time step (seconds)
   integer(i4b)         ,public    :: iSegOut                ! index of outlet stream segment
   integer(i4b)         ,public    :: routOpt                ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-  logical(lgt)         ,public    :: isRestart              ! restart option: True-> model run with restart, F -> model run with empty channels 
+  logical(lgt)         ,public    :: isRestart              ! restart option: True-> model run with restart, F -> model run with empty channels
 
 end module public_var
