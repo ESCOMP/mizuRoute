@@ -64,8 +64,8 @@ subroutine get_vec_ivar(fname,           &  ! input: filename
  ! input variables
  character(*), intent(in)                           :: fname     ! filename
  character(*), intent(in)                           :: vname     ! variable name
- integer(i4b), intent(in)                           :: iStart    ! start index
- integer(i4b), intent(in)                           :: iCount    ! length of vector to be read in
+ integer(i4b), intent(in)                           :: iStart(:) ! start index
+ integer(i4b), intent(in)                           :: iCount(:) ! length of vector to be read in
  ! output variables
  !integer(i4b), intent(out),dimension(:),allocatable :: iVec      ! output variable data
  integer(i4b), intent(out),dimension(:)             :: iVec      ! output variable data
@@ -90,7 +90,7 @@ subroutine get_vec_ivar(fname,           &  ! input: filename
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  ! get the data
- ierr = nf90_get_var(ncid, ivarID, iVec, start=(/iStart/), count=(/iCount/))
+ ierr = nf90_get_var(ncid, ivarID, iVec, start=iStart, count=iCount)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  ! close output file
@@ -204,8 +204,8 @@ end subroutine get_scl_dvar
  ! input variables
  character(*), intent(in)                           :: fname     ! filename
  character(*), intent(in)                           :: vname     ! variable name
- integer(i4b), intent(in)                           :: iStart    ! start index
- integer(i4b), intent(in)                           :: iCount    ! length of vector to be read in
+ integer(i4b), intent(in)                           :: iStart(:) ! start index
+ integer(i4b), intent(in)                           :: iCount(:) ! length of vector to be read in
  ! output variables
  !real(dp), intent(out), dimension(:), allocatable   :: dVec      ! output variable data
  real(dp), intent(out), dimension(:)                :: dVec      ! output variable data
@@ -231,7 +231,7 @@ end subroutine get_scl_dvar
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  ! get the data
- ierr = nf90_get_var(ncid, ivarID, dVec, start=(/iStart/), count=(/iCount/))
+ ierr = nf90_get_var(ncid, ivarID, dVec, start=iStart, count=iCount)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  ! close output file
