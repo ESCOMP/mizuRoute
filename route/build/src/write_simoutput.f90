@@ -17,10 +17,10 @@ character(len=32),parameter :: sSeg_DimName     ='sSeg'     ! dimension name for
 character(len=32),parameter :: sUps_Dimname     ='sUps'     ! dimension name for all upstream stream segments
 character(len=32),parameter :: time_DimName     ='time'     ! dimension name for time
 character(len=32),parameter :: sEns_DimName     ='sEns'     ! dimension name for ensembles (could be different runoff simululations)
-character(len=32),parameter :: sWav_DimName     ='sWav'     ! dimension name for number of waves in stream segments 
-character(len=32),parameter :: sTdh_DimName     ='sTdh'     ! dimension name for number of uh routed future overland flow in a stream segment 
+character(len=32),parameter :: sWav_DimName     ='sWav'     ! dimension name for number of waves in stream segments
+character(len=32),parameter :: sTdh_DimName     ='sTdh'     ! dimension name for number of uh routed future overland flow in a stream segment
 character(len=32),parameter :: sTdh_irf_DimName ='sTdh_irf' ! dimension name for number of uh routed future channel flow in a stream segment
-character(len=32),parameter :: sTB_DimName      ='sTB'      ! dimension name for number of time bound 
+character(len=32),parameter :: sTB_DimName      ='sTB'      ! dimension name for number of time bound
 contains
 
  ! *********************************************************************
@@ -96,6 +96,12 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
  end do
 
+ ! Write global attributes
+ ierr = nf90_put_att(ncid, nf90_global, "title", "mizuRoute routing model outputs")
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+ ierr = nf90_put_att(ncid, nf90_global, "Source", "mizuRoute routing model")
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
  ! end definitions
  ierr = nf90_enddef(ncid)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
@@ -149,9 +155,9 @@ contains
  subroutine defineStateFile(fname,           &  ! input: filename
                             nEns,            &  ! input: number of ensemble
                             nSeg,            &  ! input: number of stream segments
-                            ntdh,            &  ! input: number of future time steps for hill-slope UH routing 
-                            ntdh_irf,        &  ! input: number of future time steps for irf river UH routing 
-                            nMaxWave,        &  ! input: maixmum number of waves in a stream 
+                            ntdh,            &  ! input: number of future time steps for hill-slope UH routing
+                            ntdh_irf,        &  ! input: number of future time steps for irf river UH routing
+                            nMaxWave,        &  ! input: maixmum number of waves in a stream
                             routOpt,         &  ! input: 0-> Both, 1-> IRF, 2 -> KWT, otherwise error
                             ierr, message)      ! output: error control
  implicit none
@@ -159,10 +165,10 @@ contains
  character(*), intent(in)        :: fname        ! filename
  integer(i4b), intent(in)        :: nEns         ! number of stream segments
  integer(i4b), intent(in)        :: nSeg         ! number of stream segments
- integer(i4b), intent(in)        :: ntdh         ! number of future time steps for hill-slope UH routing 
- integer(i4b), intent(in)        :: ntdh_irf     ! number of future time steps for irf river UH routing 
- integer(i4b), intent(in)        :: nMaxWave     ! maximum number of waves in a stream segment 
- integer(i4b), intent(in)        :: routOpt      ! maximum number of waves in a stream segment 
+ integer(i4b), intent(in)        :: ntdh         ! number of future time steps for hill-slope UH routing
+ integer(i4b), intent(in)        :: ntdh_irf     ! number of future time steps for irf river UH routing
+ integer(i4b), intent(in)        :: nMaxWave     ! maximum number of waves in a stream segment
+ integer(i4b), intent(in)        :: routOpt      ! maximum number of waves in a stream segment
  ! output variables
  integer(i4b), intent(out)       :: ierr         ! error code
  character(*), intent(out)       :: message      ! error message
@@ -202,32 +208,32 @@ contains
    ierr = nf90_def_dim(ncid, trim(sTdh_irf_DimName), ntdh_irf, idimId)
    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
  endif
- ! create dimension for wave number in a reach 
+ ! create dimension for wave number in a reach
  if (routOpt==0 .or. routOpt==2)then
    ierr = nf90_def_dim(ncid, trim(sWav_DimName), nMaxWave, idimId)
    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- endif 
+ endif
 
  ! define segment id
  call defvar('reachID',    'reach ID',                                    '-',   (/sSeg_DimName/),                              nf90_int,    ierr, cmessage)
- ! define time bound 
+ ! define time bound
  call defvar('time_bound', 'time bound at last time step',                'sec', (/sTB_DimName/),                               nf90_double, ierr, cmessage)
- ! Hill-Slope 
+ ! Hill-Slope
  call defvar('QFUTURE',    'Hill slope routed future flow',    'm3/s',(/sSeg_DimName,sTdh_DimName,sEns_dimName/),    nf90_double, ierr, cmessage)
  call defvar('BASIN_QR',   'Hill slope routed flow',           '-',   (/sSeg_DimName,sEns_dimName/),                 nf90_double, ierr, cmessage)
- ! IRF 
+ ! IRF
  if (routOpt==0 .or. routOpt==1)then
    call defvar('irfsize',    'number of future flow time step',           '-',   (/sSeg_DimName,sEns_dimName/),                 nf90_int,    ierr, cmessage)
    call defvar('QFUTURE_IRF','IRF convoluted river flow',                 'm3/s',(/sSeg_DimName,sTdh_irf_DimName,sEns_dimName/),nf90_double, ierr, cmessage)
  endif
- ! KWT 
+ ! KWT
  if (routOpt==0 .or. routOpt==2)then
    call defvar('wavesize',   'number of wave in a reach',                 '-',   (/sSeg_DimName,sEns_dimName/),                 nf90_int,    ierr, cmessage)
    call defvar('QF',         'flow of a wave ',                           'm3/s',(/sSeg_DimName,sWav_DimName,sEns_dimName/),    nf90_double, ierr, cmessage)
    call defvar('QM',         'modified flow of a wave',                   'm3/s',(/sSeg_DimName,sWav_DimName,sEns_dimName/),    nf90_double, ierr, cmessage)
    call defvar('TI',         'entry time of a wave in reach',             'sec', (/sSeg_DimName,sWav_DimName,sEns_dimName/),    nf90_double, ierr, cmessage)
    call defvar('TR',         'time when a wave is expected to exit reach','sec', (/sSeg_DimName,sWav_DimName,sEns_dimName/),    nf90_double, ierr, cmessage)
-   call defvar('RF',         'routing flat (1 if wave has exited reach)', '-',   (/sSeg_DimName,sWav_DimName,sEns_dimName/),    nf90_int,    ierr, cmessage) 
+   call defvar('RF',         'routing flat (1 if wave has exited reach)', '-',   (/sSeg_DimName,sWav_DimName,sEns_dimName/),    nf90_int,    ierr, cmessage)
  endif
 
  ! Add global attributes
