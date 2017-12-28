@@ -9,21 +9,23 @@ module remap
 
   contains
 
-  subroutine remap_runoff(rn_hru_ids, qsim_in, qsim_remapped, err, message)
+  subroutine remap_runoff(rn_hru_ids, runoff_in, runoff_hru_in, qsim_remapped, err, message)
     implicit none
     ! input
     integer(i4b),         intent(in)  :: rn_hru_ids(:)
-    real(dp),             intent(in)  :: qsim_in(:)
+    real(dp),             intent(in)  :: runoff_in(:)
+    integer(i4b),         intent(in)  :: runoff_hru_in(:)
     ! output
     real(dp),             intent(out) :: qsim_remapped(:)
     integer(i4b),         intent(out) :: err
     character(len=strLen),intent(out) :: message
     ! local
-    real(dp),allocatable              :: weight(:)
-    real(dp)                          :: qsim_out
-    integer(i4b),allocatable          :: runoff_hru_id(:)
+    real(dp),allocatable              :: map_weights(:)
+    real(dp),allocatable              :: runoff_sub(:)
+    real(dp)                          :: runoff_out
+    integer(i4b),allocatable          :: map_runoff_hrus(:)
     integer(i4b)                      :: rn_hru_id
-    integer(i4b)                      :: iHru
+    integer(i4b)                      :: iHru,jHru,kHru ! hru loop indices
     integer(i4b)                      :: idx
     integer(i4b)                      :: idx_start
     integer(i4b)                      :: idx_end
@@ -33,31 +35,44 @@ module remap
     err=0; message="remap_runoff/"
 
     do iHru = 1, size(rn_hru_ids)
-      rn_hru_id = rn_hru_ids(iHru)
+      rn_hru_id = rn_hru_ids(iHru) ! river network hru id where average runoff is computed
       call find_index(rn_hru_id, remap_data%hru_id, idx, err, cmessage)
       if(err/=0)then; message=trim(cmessage)//cmessage; return; endif
 
-      nHRU = remap_data%num_qhru(idx)
+      nHRU = remap_data%num_qhru(idx)  ! number of runoff hrus contributing to a river network hru
 
-      allocate(weight(nHRU),stat=err)
-      if(err/=0)then;message=message//'error allocating weight';return;endif
-      allocate(runoff_hru_id(nHRU),stat=err)
+      allocate(map_weights(nHRU),stat=err)
+      if(err/=0)then;message=message//'error allocating map_weights';return;endif
+      allocate(map_runoff_hrus(nHRU),stat=err)
       if(err/=0)then;message=message//'error allocating runoff_hru_id';return;endif
+      allocate(runoff_sub(nHRU), stat=err)
+      if(err/=0)then;message=message//'error allocating runoff_sub';return;endif
 
       idx_end     = sum(remap_data%num_qhru(1:idx));
       idx_start   = idx_end-nHRU+1
 
-      runoff_hru_id = remap_data%qhru_id(idx_start:idx_end) ! ids of runoff hrus overlapping a river network hru
-      weight = remap_data%weight(idx_start:idx_end)   ! weights of runoff hrus
+      map_runoff_hrus = remap_data%qhru_id(idx_start:idx_end) ! ids of runoff hrus overlapping a river network hru
+      map_weights = remap_data%weight(idx_start:idx_end)      ! weights of runoff hrus
 
-      call aggregate_runoff(qsim_in, weight, qsim_out, err, cmessage)
+      do jHru = 1,nHRU
+        do kHru = 1, size(runoff_hru_in)
+          if (runoff_hru_in(kHru) == map_runoff_hrus(jHru)) then
+            runoff_sub(jHru) = runoff_in(kHru)
+          endif
+        end do
+      end do
+
+      call aggregate_runoff(runoff_sub, map_weights, runoff_out, err, cmessage)
       if(err/=0)then;message=trim(message)//trim(cmessage);return;endif
-      qsim_remapped(iHru) = qsim_out
 
-      deallocate(weight,stat=err)
-      if(err/=0)then;message=message//'error deallocating weight';return;endif
-      deallocate(runoff_hru_id,stat=err)
-      if(err/=0)then;message=message//'error deallocating runoff_hru_id';return;endif
+      qsim_remapped(iHru) = runoff_out
+
+      deallocate(map_weights,stat=err)
+      if(err/=0)then;message=message//'error deallocating map_weights';return;endif
+      deallocate(map_runoff_hrus,stat=err)
+      if(err/=0)then;message=message//'error deallocating map_runoff_hrus';return;endif
+      deallocate(runoff_sub,stat=err)
+      if(err/=0)then;message=message//'error deallocating runoff_sub';return;endif
 
     end do
     return

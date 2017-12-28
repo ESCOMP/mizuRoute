@@ -714,7 +714,7 @@ do iTime=1,nTime
   where(runoff_data%qsim < runoffMin) runoff_data%qsim=runoffMin
 
   if (is_remap) then
-    call remap_runoff(rn_hru_id, runoff_data%qsim, qsim_hru, ierr, cmessage)
+    call remap_runoff(rn_hru_id, runoff_data%qsim, runoff_data%hru_id, qsim_hru, ierr, cmessage)
     if(ierr/=0) call handle_err(ierr,cmessage)
   else
     qsim_hru=runoff_data%qsim
