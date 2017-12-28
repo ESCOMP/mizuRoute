@@ -70,6 +70,8 @@ EXE_PATH = $(F_MASTER)bin
 DATATYPES = \
 		nrtype.f90 \
 		dataTypes.f90 \
+		data_hru_remap.f90 \
+		data_runoff.f90 \
 		var_lookup.f90 \
 		nhru2basin.f90 \
 		reachparam.f90 \
@@ -92,9 +94,10 @@ NUMREC = \
 
 # read/write files
 IO = \
+    remap.f90 \
     read_ntopo.f90 \
-		read_streamSeg.f90 \
-		read_simoutput.f90 \
+		read_runoff.f90 \
+		read_remap.f90 \
     write_netcdf.f90 \
 		write_simoutput.f90
 

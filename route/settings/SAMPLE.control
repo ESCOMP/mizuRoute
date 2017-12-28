@@ -26,7 +26,9 @@
 <fname_qsim>   runoff_in.nc                                              ! name of file containing the HRU runoff
 <vname_qsim>   RUNOFF                                                    ! name of HRU runoff variable
 <vname_time>   time                                                      ! name of time variable in the HRU runoff file
-<vname_hruid>  hruid                                                     ! name of the HRU id
+<vname_hruid>  hruid                                                     ! name of HRU id
+<dname_time>   time                                                      ! name of time dimesion 
+<dname_hruid>  hruid                                                     ! name of HRU dimension 
 <units_qsim>   mm/s                                                      ! units of runoff
 <dt_qsim>      86400                                                     ! time interval of the runoff
 ! ****************************************************************************************************************************

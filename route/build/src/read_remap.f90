@@ -2,9 +2,9 @@ module read_remap
 
 use nrtype
 use netcdf
-use data_type
 use public_var
-use read_ntopo, only get_nc
+use read_ntopo, only:get_nc
+use data_remap, only:remap_data
 
 implicit none
 
@@ -18,30 +18,34 @@ contains
   ! public subroutine: get mapping data between runoff hru and river network hru
   ! *********************************************************************
   subroutine get_remap_data(fname,         &   ! input: file name
-                            mapdata,       &   ! input-output: mapping data structure
-                            err, message)       ! output: error control
+                            ierr, message)     ! output: error control
     implicit none
     ! input variables
     character(*), intent(in)           :: fname           ! filename
     ! input-output
-    type(mapvar),intent(inout)         :: mapdata(:)      ! map data container
     ! output variables
-    integer(i4b), intent(out)          :: err             ! error code
+    integer(i4b), intent(out)          :: ierr            ! error code
     character(*), intent(out)          :: message         ! error message
     ! local variables
     integer(i4b)                       :: nHRU            ! number of HRU in mapping files (this should match up with river network hru)
     integer(i4b)                       :: nData           ! number of data (weight, runoff hru id) in mapping files
+    character(len=strLen)              :: cmessage        ! error message from subroutine
 
     ! initialize error control
-    err=0; message='get_remap_data/'
+    ierr=0; message='get_remap_data/'
 
     call get_map_dims(fname, dname_hru_remap, dname_data_remap, nData, nHRU, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmesssage); return; endif
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call get_nc(trim(fname),vname_hruid_in_remap, mapdata%hru_id, (/1/), (/nHRU/), ierr, cmessage);
-    call get_nc(trim(fname),vname_weight, mapdata%weight, (/1/), (/nData/), ierr, cmessage);
-    call get_nc(trim(fname),vname_qhruid, mapdata%qhru_id, (/1/), (/nData/), ierr, cmessage);
-    call get_nc(trim(fname),vname_num_qhru, mapdata%num_qhru, (/1/), (/nHRU/), ierr, cmessage);
+    allocate(remap_data%hru_id(nHRU), stat=ierr)
+    allocate(remap_data%num_qhru(nHRU), stat=ierr)
+    allocate(remap_data%qhru_id(nData), stat=ierr)
+    allocate(remap_data%weight(nData), stat=ierr)
+
+    call get_nc(trim(fname),vname_hruid_in_remap, remap_data%hru_id, 1, nHRU, ierr, cmessage);
+    call get_nc(trim(fname),vname_weight, remap_data%weight, 1, nData, ierr, cmessage);
+    call get_nc(trim(fname),vname_qhruid, remap_data%qhru_id, 1, nData, ierr, cmessage);
+    call get_nc(trim(fname),vname_num_qhru, remap_data%num_qhru, 1, nHRU, ierr, cmessage);
 
     return
   end subroutine

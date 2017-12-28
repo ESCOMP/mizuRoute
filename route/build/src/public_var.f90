@@ -19,33 +19,41 @@ module public_var
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
 
   ! Control file variables
+  ! DIRECTORIES
   character(len=strLen),public    :: ancil_dir              ! directory containing ancillary data
   character(len=strLen),public    :: input_dir              ! directory containing input data
   character(len=strLen),public    :: output_dir             ! directory containing output data
-  character(len=strLen),public    :: fname_qsim             ! filename containing simulated runoff
+  ! RUNOFF FILE
+  character(len=strLen),public    :: fname_qsim             ! simulated runoff netCDF name
   character(len=strLen),public    :: vname_qsim             ! variable name for simulated runoff
-  character(len=strLen),public    :: vname_hruid            ! coordinate name for the HRUid
-  character(len=strLen),public    :: vname_time             ! coordinate name for time
+  character(len=strLen),public    :: vname_time             ! variable name for time
+  character(len=strLen),public    :: vname_hruid            ! variable name for runoff hru id
   character(len=strLen),public    :: units_qsim             ! units of simulated runoff data
+  character(len=strLen),public    :: dname_time             ! dimension name for time
+  character(len=strLen),public    :: dname_hruid            ! dimension name for hru in runoff data
   character(len=strLen),public    :: units_time             ! time units
+  ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntop             ! filename containing stream network topology information
+  ! ROUTED FLOW OUTPUT
   character(len=strLen),public    :: fname_output           ! name of output file
+  ! STATES
+  logical(lgt)         ,public    :: isRestart              ! restart option: True-> model run with restart, F -> model run with empty channels
   character(len=strLen),public    :: fname_state_in         ! name of state file
   character(len=strLen),public    :: fname_state_out        ! name of state file
+  ! PARAMETER
   character(len=strLen),public    :: param_nml              ! name of the namelist file
-  ! RUNOFF MAPPING FILE
+  ! RUNOFF REMAPPING
   logical(lgt),public             :: is_remap               ! logical whether or not runnoff needs to be mapped to river network HRU
-  character(len=strLen),public    :: fname_remap            ! name of runoff mapping netCDF
-  character(len=strLen),public    :: vname_hruid_in_remap   ! name of variable contating river network hru id
-  character(len=strLen),public    :: vname_weight           ! name of variable contating areal weights of runoff HRUs within each river network
-  character(len=strLen),public    :: vname_qhruid           ! name of variable containing ID of runoff HRU
-  character(len=strLen),public    :: vname_num_qhru         ! name of variable containing numbers of runoff HRUs within each river network HRU
-  character(len=strLen),public    :: dname_hru_remap        ! name of variable containing ID of runoff HRU
-  character(len=strLen),public    :: dname_data_remap       ! name of variable containing numbers of runoff HRUs within each river network HRU
-
+  character(len=strLen),public    :: fname_remap            ! runoff mapping netCDF name
+  character(len=strLen),public    :: vname_hruid_in_remap   ! variable name for river network hru id
+  character(len=strLen),public    :: vname_weight           ! variable name for areal weights of runoff HRUs within each river network
+  character(len=strLen),public    :: vname_qhruid           ! variable name for runoff HRU ID
+  character(len=strLen),public    :: vname_num_qhru         ! variable for numbers of runoff HRUs within each river network HRU
+  character(len=strLen),public    :: dname_hru_remap        ! dimension name for river network HRU
+  character(len=strLen),public    :: dname_data_remap       ! dimension name for runoff HRU ID
+  ! MISCELLANEOUS
   real(dp)             ,public    :: dt                     ! time step (seconds)
   integer(i4b)         ,public    :: iSegOut                ! index of outlet stream segment
   integer(i4b)         ,public    :: routOpt                ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-  logical(lgt)         ,public    :: isRestart              ! restart option: True-> model run with restart, F -> model run with empty channels
 
 end module public_var

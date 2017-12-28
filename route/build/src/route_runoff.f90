@@ -5,7 +5,8 @@ program route_runoff
 ! ************************
 USE nrtype                                    ! variable types, etc.
 USE public_var
-USE dataTypes,only:namepvar,nameivar          ! provide access to data types
+use data_remap,only:remap_data
+use data_runoff,only:runoff_data
 USE var_lookup,only:ixHRU,nVarsHRU            ! index of variables for the HRUs
 USE var_lookup,only:ixSEG,nVarsSEG            ! index of variables for the stream segments
 USE var_lookup,only:ixMAP,nVarsMAP            ! index of variables for the hru2basin mapping
@@ -14,12 +15,12 @@ USE reachparam                                ! reach parameters
 USE reachstate                                ! reach states
 USE reach_flux                                ! fluxes in each reach
 USE nhru2basin                                ! data structures holding the nhru2basin correspondence
-USE remap_hru                                 ! data structures holding the remapping runoff hru to river network hru
+USE remap, only:remap_runoff                  ! runoff remapping routine
 USE nrutil,only:arth                          ! use to build vectors with regular increments
 USE ascii_util_module,only:file_open          ! open file (performs a few checks as well)
-USE read_simoutput,only:get_qDims             ! get the dimensions from the runoff file
-USE read_simoutput,only:get_qMeta             ! get the metadata from the runoff file
-USE read_simoutput,only:getVarQsim            ! get the data from the runoff file
+USE read_runoff,only:get_runoff_meta,&        ! get the dimensions from the runoff file
+                     get_runoff_hru, &        ! get runoff hru from the runoff file
+                     get_runoff               ! get runoff from the runoff file
 USE read_ntopo,only:get_nc                    ! get the data from the ntopo file
 USE read_ntopo,only:get_nc_dim_len            ! get the data from the ntopo file
 USE read_remap,only:get_remap_data            ! get the data from the runoff mapping file
@@ -75,19 +76,17 @@ integer(i4b)               :: nUpRchCount
 integer(i4b)               :: iUpHruStart
 integer(i4b)               :: nUpHruCount
 integer(i4b),allocatable   :: upStrmRchList(:)
-integer(i4b),allocatable   :: qsimHRUid(:)        ! vector of HRU ids from simulated runoff file
-logical(lgt),allocatable   :: qsimHRUid_mask(:)   ! vector of HRU mask that is in ustream of outlet
-real(dp),allocatable       :: qsimHRUarea(:)         ! vector of HRU area from simulated runoff file
-!integer(i4b),allocatable   :: HRUix(:)           ! vector of HRU indices
+integer(i4b),allocatable   :: rn_hru_id(:)        ! vector of HRU ids from simulated runoff file
+logical(lgt),allocatable   :: rn_hru_id_mask(:)   ! vector of HRU mask that is in ustream of outlet
+real(dp),allocatable       :: rn_hru_area(:)      ! vector of HRU area from simulated runoff file
 integer(i4b)               :: nTime               ! number of time elements
-integer(i4b)               :: nHRU_data           ! number of HRUs in the data file
+integer(i4b)               :: nHRU_rn             ! number of river network HRUs
 integer(i4b)               :: iRch                ! index in reach structures
 !integer(i4b)               :: jRch               ! index in reach structures
 ! define simulated runoff data at the HRUs
 real(dp)                   :: dTime               ! time variable (in units units_time)
 real(dp)                   :: TB(2)
-real(dp), allocatable      :: qsim(:)             ! simulated runoff read from netcdf
-real(dp), allocatable      :: qsim_hru(:)         ! simulated runoff at the HRUs
+real(dp), allocatable      :: qsim_hru(:)         ! simulated runoff at the river network HRU
 character(len=strLen)      :: cLength,cTime       ! length and time units
 real(dp)                   :: time_conv           ! time conversion factor -- used to convert to mm/s
 real(dp)                   :: length_conv         ! length conversion factor -- used to convert to mm/s
@@ -446,11 +445,6 @@ if (routOpt==0 .or. routOpt==2) then
 
   ! define processing order of the reaches
   call reachorder(nSegRoute, ierr, cmessage); call handle_err(ierr, cmessage)
-  !! check
-  !do iRch=1,nSegRoute
-  ! jRch = NETOPO(iRch)%RHORDER
-  ! write(*,'(a,1x,2(i4,1x),f20.2)') 'iRch, NETOPO(jRch)%DREACHI, RPARAM(jRch)%TOTAREA/1000000._dp  = ', iRch, NETOPO(jRch)%DREACHI, RPARAM(jRch)%TOTAREA/1000000._dp
-  !end do
 end if
 
 ! identify the stream segment with the largest upstream area
@@ -480,33 +474,47 @@ end if
 ! *****
 ! (2) Read in metadata for the runoff file...
 ! *******************************************
-! read in dimensions for the runoff file
-call get_qDims(trim(input_dir)//trim(fname_qsim), &  ! input: filename
-               vname_hruid,                       &  ! input: name of coordinate dimension HRUid
-               vname_time,                        &  ! input: name of coordinate dimension time
-               units_time,                        &  ! output: time units
-               nTime,                             &  ! output: number of time elements
-               nHRU_data,                         &  ! output: number of HRUs in the runoff data file
-               ierr, cmessage)                       ! output: error control
+call get_runoff_meta(trim(input_dir)//trim(fname_qsim), &  ! input: filename
+                     ierr, cmessage,                    &  ! output: error control
+                     n_time=nTime,                      &  ! out: number of time steps in runoff data
+                     t_unit=units_time)                    ! out: time units
+call handle_err(ierr, cmessage)
+call get_runoff_hru(trim(input_dir)//trim(fname_qsim), &  ! input: filename
+                    ierr, cmessage)                       ! output: error control
 call handle_err(ierr, cmessage)
 
-! allocate space for the HRUs
-allocate(qsimHRUid(nHRU_data), stat=ierr)
-if(ierr/=0) call handle_err(ierr,'problem allocating space for qsimHRUid')
-allocate(qsimHRUid_mask(nHRU_data), stat=ierr)
-if(ierr/=0) call handle_err(ierr,'problem allocating space for qsimHRUid_mask')
-qsimHRUid_mask(:)=.false.
-allocate(qsimHRUarea(nHRU_data), stat=ierr)
-if(ierr/=0) call handle_err(ierr,'problem allocating space for qsimHRUarea')
-qsimHRUarea(:)=-999
+! *****
+! (2.option) Read in metadata for the runoff mapping file...
+! *******************************************
+! populate following remap_data components
+! remap_data%hru_id
+!           %qhru_id
+!           %weight
+!           %num_qhru
+if (is_remap) then
+  call get_remap_data(trim(ancil_dir)//trim(fname_remap), &   ! input: file name
+                      ierr,cmessage)                           ! output: error control
+  call handle_err(ierr, cmessage)
+endif
 
-! read in metadata for the runoff file
-call get_qMeta(trim(input_dir)//trim(fname_qsim), &  ! input: filename
-               vname_hruid,                       &  ! input: name of coordinate dimension HRUid
-               qsimHRUid,                         &  ! output: HRUid in the simulations
-               ierr, cmessage)                       ! output: error control
-call handle_err(ierr, cmessage)
-print*,'size(qsimHRUid) = ', size(qsimHRUid)
+! *****
+! (3) get river network hru id
+! *******************************************
+if (is_remap) then
+  allocate(rn_hru_id, source=remap_data%hru_id, stat=ierr)
+  if(ierr/=0) call handle_err(ierr,'problem allocating space for rn_hru_id')
+else
+  allocate(rn_hru_id, source=runoff_data%hru_id, stat=ierr)
+  if(ierr/=0) call handle_err(ierr,'problem allocating space for rn_hru_id')
+endif
+
+nHRU_rn = size(rn_hru_id)
+allocate(rn_hru_id_mask(nHRU_rn), stat=ierr)
+if(ierr/=0) call handle_err(ierr,'problem allocating space for rn_hru_id_mask')
+rn_hru_id_mask(:)=.false.
+allocate(rn_hru_area(nHRU_rn), stat=ierr)
+if(ierr/=0) call handle_err(ierr,'problem allocating space for rn_hru_area')
+rn_hru_area(:)=-999
 
 ! check all the upstream hrus at the desired outlet exist in runoff file
 ! Assign hru_ix based on order of hru in runoff file
@@ -515,30 +523,19 @@ do iSeg=1,nSegRoute ! (loop through stream segments)
   if(nDrain > 0)then
   do iHRU=1,nDrain ! (loop through HRUs that drain into a given stream segment)
     ! check existence of upstream hrus in funoff file
-    if( minval(abs(qsimHRUid - h2b(iSeg)%cHRU(iHRU)%hru_id)) /= 0 )then
+    if( minval(abs(rn_hru_id - h2b(iSeg)%cHRU(iHRU)%hru_id)) /= 0 )then
       write (str,'(I10)') h2b(iSeg)%cHRU(iHRU)%hru_id
       call handle_err(20,'runoff file does not include runoff time series at HRU'//trim(str))
     end if
     ! Assign hru index
-    iSelect = minloc(abs(qsimHRUid - h2b(iSeg)%cHRU(iHRU)%hru_id))
+    iSelect = minloc(abs(rn_hru_id - h2b(iSeg)%cHRU(iHRU)%hru_id))
     h2b(iSeg)%cHRU(iHRU)%hru_ix=iSelect(1)
-    if(h2b(iSeg)%cHRU(iHRU)%hru_id /= qsimHRUid(h2b(iSeg)%cHRU(iHRU)%hru_ix)) call handle_err(20,'mismatch in HRUs')
-    qsimHRUid_mask(iSelect(1)) = .true.
-    qsimHRUarea(iSelect(1)) = h2b(iSeg)%cHRU(iHRU)%hru_area
+    if(h2b(iSeg)%cHRU(iHRU)%hru_id /= rn_hru_id(h2b(iSeg)%cHRU(iHRU)%hru_ix)) call handle_err(20,'mismatch in HRUs')
+    rn_hru_id_mask(iSelect(1)) = .true.
+    rn_hru_area(iSelect(1)) = h2b(iSeg)%cHRU(iHRU)%hru_area
   end do  ! (loop through HRUs that drain into a given stream segment)
  endif  ! (if HRUs drain into the stream segment)
 end do ! (loop through stream segments)
-
-! *****
-! (2.1) Read in metadata for the runoff file...
-! *******************************************
-! read in mapping file
-if (is_remap) then
-  call get_remap_data(trim(ancil_dir)//trim(fname_remap), &   ! input: file name
-                      remap_data,                         &   ! in-out: map data meta
-                      err,cmessage)                           ! output: error control
-    if (err/=0)then; message=trim(message)//cmessage; return; endif
-endif
 
 ! *****
 ! (3) Define NetCDF output file and write ancillary data...
@@ -577,7 +574,7 @@ call write_nc(trim(output_dir)//trim(fname_output), 'upstreamArea', RPARAM(:)%TO
 ! (4) Prepare for the routing simulations...
 ! *******************************************
 ! allocate space for the simulated runoff at the HRUs
-allocate(qsim(nHRU_data), stat=ierr)
+allocate(qsim_hru(nHRU_rn), stat=ierr)
 if(ierr/=0) call handle_err(ierr,'problem allocating space for simulated runoff at the HRUs')
 
 ! allocate space for the simulated runoff at basins and reaches
@@ -708,24 +705,19 @@ do iTime=1,nTime
   ! (5a) Get the simulated runoff for the current time step...
   ! **********************************************************
   ! get the simulated runoff for the current time step
-  call getVarQsim(trim(input_dir)//trim(fname_qsim), & ! input: filename
-                  vname_time,                        & ! input: name of coordinate dimension time
-                  vname_qsim,                        & ! input: name of runoff variable
+  call get_runoff(trim(input_dir)//trim(fname_qsim), & ! input: filename
                   iTime,                             & ! input: time index
                   dTime,                             & ! output: time
-                  qsim,                              & ! output: simulated runoff
                   ierr, cmessage)                      ! output: error control
   call handle_err(ierr, cmessage)
   ! ensure that simulated runoff is non-zero
-  where(qsim < runoffMin) qsim=runoffMin
+  where(runoff_data%qsim < runoffMin) runoff_data%qsim=runoffMin
 
-  if (is_q_remap) then
-    allocate(qsim_hru(nHru), stat=ierr)
-    if(ierr/=0) call handle_err(ierr,'problem allocating qsim_hru')
-    call remap_runoff(qsim, qsim_hru)
+  if (is_remap) then
+    call remap_runoff(rn_hru_id, runoff_data%qsim, qsim_hru, ierr, cmessage)
+    if(ierr/=0) call handle_err(ierr,cmessage)
   else
-    allocate(qsim_hru, source=qsim, stat=ierr)
-    if(ierr/=0) call handle_err(ierr,'problem allocating qsim_hru from qsim')
+    qsim_hru=runoff_data%qsim
   end if
 
   ! write time -- note time is just carried across from the input
@@ -871,8 +863,7 @@ do iTime=1,nTime
   ! (5g) print progress...
   ! **********************
   ! extract desired variables
-  !qDomain_hru     = sum(qsim_hru(:)*nhru_acil(ixHRU%area)%varData(:))/sum(nhru_acil(ixHRU%area)%varData(:)) ! domain: total runoff at the HRUs (mm/s)
-  qDomain_hru     = sum(pack(qsim_hru,qsimHRUid_mask)*pack(qsimHRUarea,qsimHRUid_mask))/sum(pack(qsimHRUarea,qsimHRUid_mask)) ! domain: total runoff at the HRUs (mm/s)
+  qDomain_hru     = sum(pack(qsim_hru,rn_hru_id_mask)*pack(rn_hru_area,rn_hru_id_mask))/sum(pack(rn_hru_area,rn_hru_id_mask)) ! domain: total runoff at the HRUs (mm/s)
   qDomain_basin   = 1000._dp*sum(qsim_basin*RPARAM(:)%BASAREA) / sum(RPARAM(:)%BASAREA)                  ! domain: total instantaneous basin runoff (mm/s)
   qDomain_reach   = 1000._dp*sum(RCHFLX(iens,:)%BASIN_QI)/sum(RPARAM(:)%BASAREA)                            ! domain: total instantaneous reach runoff (mm/s)
   qDesire_instant = 1000._dp*RCHFLX(iens,ixDesire)%UPSTREAM_QI/RPARAM(ixDesire)%TOTAREA                     ! desire: sum of instantaneous runoff for all basins upstream of the desired reach (mm/s)
@@ -1037,13 +1028,15 @@ contains
        case('<vname_qsim>');   vname_qsim   = trim(cData)           ! name of runoff variable
        case('<vname_time>');   vname_time   = trim(cData)           ! name of time variable in the runoff file
        case('<vname_hruid>');  vname_hruid  = trim(cData)           ! name of the HRU id
+       case('<dname_time>');   dname_time   = trim(cData)           ! name of time variable in the runoff file
+       case('<dname_hruid>');  dname_hruid  = trim(cData)           ! name of the HRU id
        case('<units_qsim>');   units_qsim   = trim(cData)           ! units of runoff
        case('<dt_qsim>');      read(cData,*,iostat=err) dt         ! time interval of the gridded runoff
          if(err/=0)then; message=trim(message)//'problem with internal read of dt info, read from control file'; return;endif
        ! define the runoff mapping metadata
        case('<is_remap>');            read(cData,*,iostat=ierr) is_remap   ! logical whether or not runnoff needs to be mapped to river network HRU
          if(ierr/=0) call handle_err(70,'problem with internal read of is_mapping, read from control file')
-       case('<fname_remap>');          fname_map        = trim(cData)      ! name of runoff mapping netCDF
+       case('<fname_remap>');          fname_remap      = trim(cData)      ! name of runoff mapping netCDF
        case('<vname_hruid_in_remap>'); vname_hruid_in_remap  = trim(cData) ! name of variable containing ID of runoff HRU
        case('<vname_weight>');         vname_weight         = trim(cData)  ! name of variable contating areal weights of runoff HRUs within each river network
        case('<vname_qhruid>');         vname_qhruid  = trim(cData)         ! name of variable containing ID of runoff HRU
