@@ -76,12 +76,13 @@ def subset_ntopo(seg_id, in_data):
         if in_data[varname].dims[0] != 'sUps':
             ups_data = ups_data.drop(varname)
 
+    # To get number of all the upstream segments ('reachCount') and starting index in all the upstream segment list array.
     idx_rch_start = in_data['reachStart'].values[idx]-1
     n_rch_count = in_data['reachCount'].values[idx]
     print 'Number of upstream segment from outlet segment (nRchCount) = %d' % n_rch_count
 
     # Read reach list of index from global segments (all the upstream reachs for each segment)
-    idxs_uprch_list = in_data['reachList'].values[idx_rch_start[0]:idx_rch_start[0]+n_rch_count[0]]
+    idxs_uprch_list = in_data['reachList'].isel(sAll=slice(idx_rch_start, idx_rch_start+n_rch_count))
 
     # Reach upstream segment and associated HRU infor from non-ragged vector
     seg_sub_data = seg_data.isel(sSeg = idxs_uprch_list-1)
@@ -109,7 +110,7 @@ def subset_ntopo(seg_id, in_data):
     uprch_idx_list = []
     hru_data_list = []
     ups_data_list = []
-    for idx_uprch in idxs_uprch_list:
+    for idx_uprch in idxs_uprch_list.values:
         idx_uprch -= 1
         idx_rch_start_tmp = in_data['reachStart'].values[idx_uprch]-1
         n_rch_count_tmp = in_data['reachCount'].values[idx_uprch]
