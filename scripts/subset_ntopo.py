@@ -85,7 +85,7 @@ def subset_ntopo(seg_id, in_data):
     idxs_uprch_list = in_data['reachList'].isel(sAll=slice(idx_rch_start, idx_rch_start+n_rch_count))
 
     # Reach upstream segment and associated HRU infor from non-ragged vector
-    seg_sub_data = seg_data.isel(sSeg = idxs_uprch_list-1)
+    seg_sub_data = seg_data.isel(sSeg = idxs_uprch_list.values-1)
     print 'upstream seg id list = ',seg_sub_data['reachID'].values
 
     # Redo index for 'reachIndx' as local segment list
@@ -102,8 +102,8 @@ def subset_ntopo(seg_id, in_data):
     # Assign downstream segment ID = 0 at desired outlet segment
     for iSeg, id_uprch in enumerate(seg_sub_data['reachID'].values):
         if (id_uprch == int(seg_id)):
-            seg_sub_data.data_vars['downReachID'][iSeg] = 0
-            seg_sub_data.data_vars['downReachIndex'][iSeg] = -9999
+            seg_sub_data['downReachID'][iSeg] = 0
+            seg_sub_data['downReachIndex'][iSeg] = -9999
 
     # Reach upstream segment and associated HRU infor from ragged vector
     uprch_len_list = []
