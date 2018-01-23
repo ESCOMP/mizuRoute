@@ -2,7 +2,7 @@ module read_runoff
 use nrtype
 USE netcdf
 use public_var
-use read_ntopo, only:get_nc
+use read_netcdf, only:get_nc
 use data_runoff, only:runoff_data
 
 implicit none

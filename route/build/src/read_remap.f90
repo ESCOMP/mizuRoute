@@ -3,7 +3,7 @@ module read_remap
 use nrtype
 use netcdf
 use public_var
-use read_ntopo, only:get_nc
+use read_netcdf, only:get_nc
 use data_remap, only:remap_data
 
 implicit none

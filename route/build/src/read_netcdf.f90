@@ -1,4 +1,4 @@
-module read_ntopo
+module read_netcdf
 
 USE nrtype
 USE netcdf
@@ -25,11 +25,11 @@ end interface
 contains
 
  ! *********************************************************************
- ! subroutine: get vector dimension from netCDF 
+ ! subroutine: get vector dimension from netCDF
  ! *********************************************************************
  subroutine get_nc_dim_len(fname,           &  ! input: filename
                            dname,           &  ! input: variable name
-                           nDim,            &  ! output: Size of dimension 
+                           nDim,            &  ! output: Size of dimension
                            ierr, message)      ! output: error control
   implicit none
   ! input variables
@@ -52,7 +52,7 @@ contains
   ! get the ID of the time dimension
   ierr = nf90_inq_dimid(ncid, dname, iDimID)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; name='//trim(dname); return; endif
- 
+
   ! get the length of the time dimension
   ierr = nf90_inquire_dimension(ncid, iDimID, len=nDim)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
@@ -86,7 +86,7 @@ contains
 
  ! initialize error control
  ierr=0; message='get_iscalar/'
-  
+
  call get_ivec(fname, vname, array_vec, iStart, 1, ierr, cmessage)
  array = array_vec(1)
 
@@ -115,7 +115,7 @@ contains
 
  ! initialize error control
  ierr=0; message='get_dscalar/'
-  
+
  call get_dvec(fname, vname, array_vec, iStart, 1, ierr, cmessage)
  array = array_vec(1)
 
@@ -202,13 +202,13 @@ contains
   ! get the data
   ierr = nf90_get_var(ncid, iVarID, array, start=(/iStart/), count=(/iCount/))
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! close output file
   ierr = nf90_close(ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  end subroutine
- 
+
  ! *********************************************************************
  ! subroutine: read a double precision 2D array
  ! *********************************************************************
@@ -234,25 +234,25 @@ contains
 
   ! initialize error control
   ierr=0; message='get_2d_iarray/'
- 
+
   ! open NetCDF file
   ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! get variable ID
   ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! read data
   ierr = nf90_get_var(ncid,iVarId,array,start=iStart,count=iCount)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! close output file
   ierr = nf90_close(ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
  end subroutine
- 
+
  ! *********************************************************************
  ! subroutine: read a double precision 3D array
  ! *********************************************************************
@@ -277,23 +277,23 @@ contains
   integer(i4b)                    :: iVarId       ! NetCDF variable ID
   ! initialize error control
   ierr=0; message='get_3d_iarray/'
- 
+
   ! open NetCDF file
   ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! get variable ID
   ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! read data
   ierr = nf90_get_var(ncid,iVarId,array,start=iStart,count=iCount)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! close output file
   ierr = nf90_close(ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
  end subroutine
 
  ! *********************************************************************
@@ -320,25 +320,25 @@ contains
   integer(i4b)                    :: iVarId       ! NetCDF variable ID
   ! initialize error control
   ierr=0; message='get_2d_darray/'
- 
+
   ! open NetCDF file
   ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! get variable ID
   ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! read data
   ierr = nf90_get_var(ncid,iVarId,array,start=iStart,count=iCount)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! close output file
   ierr = nf90_close(ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
  end subroutine
- 
+
  ! *********************************************************************
  ! subroutine: read a double precision 3D array
  ! *********************************************************************
@@ -363,23 +363,23 @@ contains
   integer(i4b)                    :: iVarId        ! NetCDF variable ID
   ! initialize error control
   ierr=0; message='get_3d_darray/'
- 
+
   ! open NetCDF file
   ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! get variable ID
   ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! read data
   ierr = nf90_get_var(ncid,iVarId,array,start=iStart,count=iCount)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! close output file
   ierr = nf90_close(ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
  end subroutine
 
-end module read_ntopo
+end module read_netcdf

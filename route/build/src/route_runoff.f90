@@ -21,8 +21,8 @@ USE ascii_util_module,only:file_open          ! open file (performs a few checks
 USE read_runoff,only:get_runoff_meta,&        ! get the dimensions from the runoff file
                      get_runoff_hru, &        ! get runoff hru from the runoff file
                      get_runoff               ! get runoff from the runoff file
-USE read_ntopo,only:get_nc                    ! get the data from the ntopo file
-USE read_ntopo,only:get_nc_dim_len            ! get the data from the ntopo file
+USE read_netcdf,only:get_nc                   ! get the data from the ntopo file
+USE read_netcdf,only:get_nc_dim_len           ! get the data from the ntopo file
 USE read_remap,only:get_remap_data            ! get the data from the runoff mapping file
 USE write_simoutput,only:defineFile           ! define output file
 USE write_simoutput,only:defineStateFile      ! write a hillslope routing state at a time
