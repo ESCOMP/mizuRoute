@@ -150,7 +150,8 @@ contains
                       imap_acil,  &   ! input: ancillary data for mapping hru2basin
                       ntop_acil,  &   ! input: ancillary data for network topology
                       ierr, message)  ! output: error control
- USE nrutil,only:arth                 ! use to build vectors with regular increments
+ USE nr_utility_module,ONLY: arth     ! Num. Recipies utilities
+ USE nr_utility_module,ONLY: indexx   ! Num. Recipies utilities
  USE dataTypes,only:namepvar,nameivar ! provide access to data types
  USE var_lookup,only:ixHRU,nVarsHRU   ! index of variables for the HRUs
  USE var_lookup,only:ixSEG,nVarsSEG   ! index of variables for the stream segments
@@ -159,60 +160,139 @@ contains
  USE nhru2basin  ! data structures holding the nhru2basin correspondence
  implicit none
  ! input variables
- integer(i4b), intent(in)        :: nHRU         ! number of HRUs
- integer(i4b), intent(in)        :: nSeg         ! number of stream segments
- type(namepvar), intent(in)      :: nhru_acil(:) ! ancillary data for the HRUs
- type(nameivar), intent(in)      :: imap_acil(:) ! ancillary data for the hru2basin mapping
- type(nameivar), intent(in)      :: ntop_acil(:) ! ancillary data for the network topology
+ integer(i4b), intent(in)        :: nHRU              ! number of HRUs
+ integer(i4b), intent(in)        :: nSeg              ! number of stream segments
+ type(namepvar), intent(in)      :: nhru_acil(:)      ! ancillary data for the HRUs
+ type(nameivar), intent(in)      :: imap_acil(:)      ! ancillary data for the hru2basin mapping
+ type(nameivar), intent(in)      :: ntop_acil(:)      ! ancillary data for the network topology
  ! output variables
- integer(i4b), intent(out)       :: ierr         ! error code
- character(*), intent(out)       :: message      ! error message
+ integer(i4b), intent(out)       :: ierr              ! error code
+ character(*), intent(out)       :: message           ! error message
  ! local variables
- integer(i4b)                    :: iSeg         ! index of stream segment
- integer(i4b)                    :: jSeg         ! id of stream segment
- integer(i4b)                    :: HRUix(nHRU)  ! index of HRU in the nHRU vector
- integer(i4b)                    :: iDrain(nHRU) ! id of segment where HRU drains
- logical(lgt)                    :: hFlag(nHRU)  ! flag to denote if HRU drains into the current segment
- integer(i4b)                    :: nDrain       ! number of HRUs that drain into the current segment
- real(dp)                        :: totarea      ! total area of all HRUs feeding into a given stream segment (m2)
+ integer(i4b)                    :: iHRU              ! index of HRU
+ integer(i4b)                    :: iSeg              ! index of stream segment
+ integer(i4b)                    :: jSeg              ! id of stream segment
+ integer(i4b)                    :: mapCOMid          ! COM Id for the hru2seg mapping vector
+ integer(i4b)                    :: segCOMid          ! COM Id for the stream segment
+ integer(i4b)                    :: rankSeg(nSeg)     ! index of segment in the nSeg vector
+ integer(i4b)                    :: rankSegHRU(nHRU)  ! index of segment in the hru2seg mapping vector
+ integer(i4b)                    :: segHRUix(nHRU)    ! index of segment where HRU drains
+ integer(i4b)                    :: nHRU2seg(nSeg)    ! number of HRUs that drain into a given segment
+ logical(lgt),parameter          :: checkMap=.true.   ! flag to check the mapping
+ real(dp)                        :: totarea           ! total area of all HRUs feeding into a given stream segment (m2)
+ integer*8                       :: time0,time1       ! times
 
  ! initialize error control
  ierr=0; message='hru2basin/'
+
+ !print*, 'PAUSE: start of '//trim(message); read(*,*)
+
+ ! initialize timing
+ call system_clock(time0)
 
  ! allocate space for the hru2basin mapping
  allocate(h2b(nSeg),stat=ierr)
  if(ierr/=0)then; message=trim(message)//'problem allocating space for h2b structure'; return; endif
 
- ! define indices for each HRU
- HRUix = arth(1,1,nHRU)
+ ! ---------- get the index of the stream segment that a given HRU drains into ------------------------------
 
- ! define id of segment where HRU drains
- iDrain(:) = imap_acil(ixMAP%segHRUid)%varData(:)
+ ! initialize the HRUs that drain into a given segment
+ nHRU2seg(:) = 0
+
+ ! rank the stream segments
+ call indexx(ntop_acil(ixTOP%segid)%varData, rankSeg)
+
+ ! rank the drainage segment
+ call indexx(imap_acil(ixMAP%segHRUid)%varData, rankSegHRU)
+
+ iSeg=1  ! second counter
+ ! loop through the HRUs
+ do iHRU=1,nHRU
+
+  ! keep going until found the index
+  do jSeg=iSeg,nSeg ! normally a short loop
+
+   ! get the COM Ids for the hru2seg mapping vector and the segments
+   mapCOMid = imap_acil(ixMAP%segHRUid)%varData( rankSegHRU(iHRU) )
+   segCOMid = ntop_acil(ixTOP%segid)%varData( rankSeg(jSeg) )
+   !print*, 'iHRU, iSeg, jSeg, mapCOMid, segCOMid, rankSegHRU(iHRU), rankSeg(jSeg) = ', &
+   !         iHRU, iSeg, jSeg, mapCOMid, segCOMid, rankSegHRU(iHRU), rankSeg(jSeg)
+
+   ! define the index where we have a match
+   if(mapCOMid==segCOMid)then
+    segHRUix( rankSegHRU(iHRU) ) = rankSeg(jSeg)
+    nHRU2seg( rankSeg(jSeg) )    = nHRU2seg( rankSeg(jSeg) ) + 1
+    iSeg=jSeg+1
+    exit
+   endif
+
+  end do  ! skipping segments that have no HRU input
+ end do  ! looping through HRUs
+
+ ! check
+ if(checkMap)then
+  do iHRU=1,nHRU
+   if( imap_acil(ixMAP%segHRUid)%varData(iHRU) /= ntop_acil(ixTOP%segid)%varData( segHRUix(iHRU) ) )then
+    message=trim(message)//'problems identifying the index of the stream segment that a given HRU drains into'
+    ierr=20; return
+   endif
+  end do
+ endif
+
+ ! ---------- allocate space for the mapping structures -----------------------------------------------------
 
  ! loop through stream segments
  do iSeg=1,nSeg
+  ! allocate space
+  allocate(h2b(iSeg)%cHRU( nHRU2seg(iSeg) ), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating space for h2b structure component'; return; endif
+  ! initialize the number of HRUs
+  h2b(iSeg)%nHRU = 0
+ end do
 
-   ! define segment id
-   jSeg = ntop_acil(ixTOP%segid)%varData(iSeg)
+ ! get timing
+ call system_clock(time1)
+ print*, 'timing: allocate space = ', time1-time0
 
-   ! identify the HRUs that drain into the current segment
-   hFlag=.false. ! initialize flag to denote if HRU drains into the current segment
-   where(iDrain == jSeg) hFlag=.true.
+ ! ---------- populate structure components for HRU-2-Segment mapping ---------------------------------------
 
-   ! get number of HRUs that drain into the current segment
-   nDrain = count(hFlag)
+ ! loop through HRUs
+ do iHRU=1,nHRU
 
-   ! allocate space for the structure component
-   allocate(h2b(iSeg)%cHRU(nDrain), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'problem allocating space for h2b structure component'; return; endif
+  ! identify the index of the stream segment that the HRU drains into
+  iSeg = segHRUix(iHRU)
 
-   ! populate structure components
-   h2b(iSeg)%cHRU(:)%hru_ix   = pack(HRUix,hFlag)
-   h2b(iSeg)%cHRU(:)%hru_id   = pack(imap_acil(ixMAP%HRUid)%varData,hFlag)
-   h2b(iSeg)%cHRU(:)%hru_lon  = pack(nhru_acil(ixHRU%xLon )%varData,hFlag)
-   h2b(iSeg)%cHRU(:)%hru_lat  = pack(nhru_acil(ixHRU%yLat )%varData,hFlag)
-   h2b(iSeg)%cHRU(:)%hru_elev = pack(nhru_acil(ixHRU%elev )%varData,hFlag)
-   h2b(iSeg)%cHRU(:)%hru_area = pack(nhru_acil(ixHRU%area )%varData,hFlag)
+  ! increment the HRU counter
+  h2b(iSeg)%nHRU = h2b(iSeg)%nHRU+1
+
+  ! populate structure components
+  h2b(iSeg)%cHRU( h2b(iSeg)%nHRU )%hru_ix   = iHRU
+  h2b(iSeg)%cHRU( h2b(iSeg)%nHRU )%hru_id   = imap_acil(ixMAP%HRUid)%varData(iHRU)
+  h2b(iSeg)%cHRU( h2b(iSeg)%nHRU )%hru_lon  = nhru_acil(ixHRU%xLon )%varData(iHRU)
+  h2b(iSeg)%cHRU( h2b(iSeg)%nHRU )%hru_lat  = nhru_acil(ixHRU%yLat )%varData(iHRU)
+  h2b(iSeg)%cHRU( h2b(iSeg)%nHRU )%hru_elev = nhru_acil(ixHRU%elev )%varData(iHRU)
+  h2b(iSeg)%cHRU( h2b(iSeg)%nHRU )%hru_area = nhru_acil(ixHRU%area )%varData(iHRU)
+
+ end do ! looping through HRUs
+
+ ! check
+ if(checkMap)then
+  do iSeg=1,nSeg
+   if(nHRU2seg(iSeg)/=h2b(iSeg)%nHRU)then
+    message=trim(message)//'problems identifying the HRUs draining into stream segment'
+    ierr=20; return
+   endif
+  end do
+ endif
+
+ ! get timing
+ call system_clock(time1)
+ print*, 'timing: populate structure components = ', time1-time0
+
+ ! ---------- compute HRU weights ---------------------------------------------------------------------------
+
+ ! loop through segments
+ do iSeg=1,nSeg
 
    ! compute total area of the HRUs draining to the stream segment
    totarea = sum(h2b(iSeg)%cHRU(:)%hru_area)
@@ -220,10 +300,12 @@ contains
    ! compute the weights
    h2b(iSeg)%cHRU(:)%wght = h2b(iSeg)%cHRU(:)%hru_area / totarea
 
-   ! check
-   !print*, 'jSeg, nDrain, totarea = ', jSeg, nDrain, totarea
-
  end do  ! (looping thru stream segments)
+
+ ! get timing
+ call system_clock(time1)
+ print*, 'timing: compute HRU weights = ', time1-time0
+ print*, 'PAUSE: end of '//trim(message); read(*,*)
 
  end subroutine hru2basin
 
@@ -306,8 +388,8 @@ contains
  ! *********************************************************************
  subroutine define_topology(nRch, &            ! input
                             ierr, message)     ! output (error control)
- USE nrutil, ONLY: arth       ! Num. Recipies utilities
- USE reachparam               ! reach parameter structure
+ USE nr_utility_module, ONLY: arth             ! Num. Recipies utilities
+ USE reachparam                                ! reach parameter structure
  implicit none
  ! input variables
  integer(i4b), intent(in)        :: nRch         ! number of reaches
