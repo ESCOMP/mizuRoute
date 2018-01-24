@@ -306,8 +306,8 @@ contains
  ! *********************************************************************
  subroutine define_topology(nRch, &            ! input
                             ierr, message)     ! output (error control)
- USE nrutil, ONLY: arth       ! Num. Recipies utilities
- USE reachparam               ! reach parameter structure
+ USE nr_utility_module, ONLY: arth             ! Num. Recipies utilities
+ USE reachparam                                ! reach parameter structure
  implicit none
  ! input variables
  integer(i4b), intent(in)        :: nRch         ! number of reaches
