@@ -150,7 +150,7 @@ contains
                       imap_acil,  &   ! input: ancillary data for mapping hru2basin
                       ntop_acil,  &   ! input: ancillary data for network topology
                       ierr, message)  ! output: error control
- USE nrutil,only:arth                 ! use to build vectors with regular increments
+ USE nr_utility_module, ONLY: arth    ! Num. Recipies utilities
  USE dataTypes,only:namepvar,nameivar ! provide access to data types
  USE var_lookup,only:ixHRU,nVarsHRU   ! index of variables for the HRUs
  USE var_lookup,only:ixSEG,nVarsSEG   ! index of variables for the stream segments
