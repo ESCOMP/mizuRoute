@@ -56,7 +56,7 @@ contains
  ! ----------------------------------------------------------------------------------------
  USE nrtype
  USE reachparam
- USE nrutil, ONLY : arth                                     ! Num. Recipies utilities
+ USE nr_utility_module, ONLY : arth                          ! Num. Recipies utilities
  IMPLICIT NONE
  ! input variables
  INTEGER(I4B),INTENT(IN)                  :: NRCH            ! number of stream segments

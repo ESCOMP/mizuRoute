@@ -123,4 +123,5 @@ clean:
 #
 # Copy the executable to the bin directory
 install:
-		mv $(EXE) $(EXE_PATH)
+	@mkdir -p $(EXE_PATH)
+	@mv $(EXE) $(EXE_PATH)

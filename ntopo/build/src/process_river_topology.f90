@@ -10,7 +10,7 @@ USE var_lookup,only:ixTOP,nVarsTOP            ! index of variables for the netwo
 USE reachparam                                ! reach parameters
 !USE reachstate                                ! reach states
 USE nhru2basin                                ! data structures holding the nhru2basin correspondence
-USE nrutil,only:arth                          ! use to build vectors with regular increments
+USE nr_utility_module,only:arth               ! use to build vectors with regular increments
 USE ascii_util_module,only:file_open          ! open file (performs a few checks as well)
 USE ascii_util_module,only:get_vlines         ! get a list of character strings from non-comment lines
 USE read_streamSeg,only:getData               ! get the ancillary data
