@@ -67,10 +67,14 @@ integer(i4b)               :: iStartAll           ! start index of the ragged ar
 integer(i4b)               :: iStartUps           ! start index of the ragged array for immediate upstream vector
 integer(i4b)               :: iStartHru           ! start index of the ragged array for immediate upstream Hru vector
 !integer(i4b)               :: iRch!,jRch       ! index in reach structures
+integer*8                  :: time0,time1         ! times
 
 ! *****
 ! (0) Read control file...
 ! ************************
+
+! initialize times
+call system_clock(time0)
 
 ! get command-line argument defining the full path to the control file
 call getarg(1,cfile_name)
@@ -145,6 +149,10 @@ call getData(trim(input_dir)//trim(fname_sseg), & ! input: file name
              ierr,cmessage) ! output: error control
 call handle_err(ierr, cmessage)
 
+! get timing
+call system_clock(time1)
+write(*,'(a,1x,i20)') 'after getData: time = ', time1-time0
+
 ! get the mapping between HRUs and basins
 call hru2basin(nHRU,       &   ! input: number of HRUs
                nSeg,       &   ! input: number of stream segments
@@ -154,12 +162,22 @@ call hru2basin(nHRU,       &   ! input: number of HRUs
                ierr, cmessage) ! output: error control
 call handle_err(ierr, cmessage)
 
+! get timing
+call system_clock(time1)
+write(*,'(a,1x,i20)') 'after hru2basin: time = ', time1-time0
+
 ! put data in structures
 call assign_reachparam(nSeg,         & ! input: number of stream segments
                        sseg_acil,    & ! input: ancillary data for stream segments
                        ntop_acil,    & ! input: ancillary data for network topology
                        ierr, cmessage) ! output: error control
 call handle_err(ierr, cmessage)
+
+! get timing
+call system_clock(time1)
+write(*,'(a,1x,i20)') 'after assign_reachparam: time = ', time1-time0
+
+stop
 
 ! check
 !do iRch=1,nSeg
