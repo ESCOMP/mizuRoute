@@ -76,7 +76,7 @@ DATATYPES = \
 # define utilities
 UTILS = \
 		nr.f90 \
-		nrutil.f90 \
+		nr_utility.f90 \
 		ascii_util.f90
 
 # read/write files
