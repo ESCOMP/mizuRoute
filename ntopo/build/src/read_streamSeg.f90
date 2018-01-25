@@ -241,6 +241,7 @@ contains
  ! check
  if(checkMap)then
   do iHRU=1,nHRU
+   if (imap_acil(ixMAP%segHRUid)%varData(iHRU) == 0) cycle
    if( imap_acil(ixMAP%segHRUid)%varData(iHRU) /= ntop_acil(ixTOP%segid)%varData( segHRUix(iHRU) ) )then
     message=trim(message)//'problems identifying the index of the stream segment that a given HRU drains into'
     ierr=20; return
