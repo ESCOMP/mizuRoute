@@ -149,6 +149,7 @@ contains
                       nhru_acil,  &   ! input: ancillary data for HRUs
                       imap_acil,  &   ! input: ancillary data for mapping hru2basin
                       ntop_acil,  &   ! input: ancillary data for network topology
+                      total_hru,  &   ! output: total number of HRUs that drain into any segments
                       ierr, message)  ! output: error control
  USE nr_utility_module,ONLY: arth     ! Num. Recipies utilities
  USE nr_utility_module,ONLY: indexx   ! Num. Recipies utilities
@@ -166,6 +167,7 @@ contains
  type(nameivar), intent(in)      :: imap_acil(:)      ! ancillary data for the hru2basin mapping
  type(nameivar), intent(in)      :: ntop_acil(:)      ! ancillary data for the network topology
  ! output variables
+ integer(i4b), intent(out)       :: total_hru         ! total number of HRUs that drain into any segments (nHRU minus number of HRU not draining int any segments)
  integer(i4b), intent(out)       :: ierr              ! error code
  character(*), intent(out)       :: message           ! error message
  ! local variables
@@ -198,6 +200,10 @@ contains
 
  ! initialize the HRUs that drain into a given segment
  nHRU2seg(:) = 0
+ segHRUix(:) = -999
+
+ ! initialize total number of HRUs that drain into any segments
+ total_hru = 0
 
  ! rank the stream segments
  call indexx(ntop_acil(ixTOP%segid)%varData, rankSeg)
@@ -209,11 +215,13 @@ contains
  ! loop through the HRUs
  do iHRU=1,nHRU
 
+  mapCOMid = imap_acil(ixMAP%segHRUid)%varData( rankSegHRU(iHRU) )
+  if (mapCOMid == 0) cycle
+
   ! keep going until found the index
   do jSeg=iSeg,nSeg ! normally a short loop
 
    ! get the COM Ids for the hru2seg mapping vector and the segments
-   mapCOMid = imap_acil(ixMAP%segHRUid)%varData( rankSegHRU(iHRU) )
    segCOMid = ntop_acil(ixTOP%segid)%varData( rankSeg(jSeg) )
    !print*, 'iHRU, iSeg, jSeg, mapCOMid, segCOMid, rankSegHRU(iHRU), rankSeg(jSeg) = ', &
    !         iHRU, iSeg, jSeg, mapCOMid, segCOMid, rankSegHRU(iHRU), rankSeg(jSeg)
@@ -222,7 +230,8 @@ contains
    if(mapCOMid==segCOMid)then
     segHRUix( rankSegHRU(iHRU) ) = rankSeg(jSeg)
     nHRU2seg( rankSeg(jSeg) )    = nHRU2seg( rankSeg(jSeg) ) + 1
-    iSeg=jSeg+1
+    total_hru = total_hru + 1
+    !iSeg=jSeg+1
     exit
    endif
 
@@ -261,6 +270,9 @@ contains
 
   ! identify the index of the stream segment that the HRU drains into
   iSeg = segHRUix(iHRU)
+
+  ! if there is no stream segment associated with current hru
+  if (iSeg ==-999) cycle
 
   ! increment the HRU counter
   h2b(iSeg)%nHRU = h2b(iSeg)%nHRU+1
@@ -316,6 +328,7 @@ contains
  subroutine assign_reachparam(nRch,         &    ! input: number of stream segments
                               sseg_acil,    &    ! input: stream segment parameters
                               ntop_acil,    &    ! input: network topology
+                              total_upseg,  &    ! output: sum of immediate upstream segments
                               ierr, message)     ! output (error control)
  USE dataTypes,only:namepvar,nameivar ! provide access to data types
  USE var_lookup,only:ixHRU,nVarsHRU   ! index of variables for the HRUs
@@ -330,6 +343,7 @@ contains
  type(namepvar), intent(in)      :: sseg_acil(:) ! ancillary data for stream segments
  type(nameivar), intent(in)      :: ntop_acil(:) ! ancillary data for the network topology
  ! output variables
+ integer(i4b), intent(out)       :: total_upseg  ! sum of immediate upstream segments
  integer(i4b), intent(out)       :: ierr         ! error code
  character(*), intent(out)       :: message      ! error message
  ! local variables
@@ -360,7 +374,7 @@ contains
 
  ! define additional aspects of the network topology
  ! (populates reachparam)
- call define_topology(nrch, ierr, cmessage)
+ call define_topology(nrch, total_upseg, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! ensure that slope exceeds minimum slope
@@ -387,6 +401,7 @@ contains
  ! new subroutine: define additional network topology
  ! *********************************************************************
  subroutine define_topology(nRch, &            ! input
+                            total_upseg, &     ! output: sum of immediate upstream segments
                             ierr, message)     ! output (error control)
  USE nr_utility_module, ONLY: arth             ! Num. Recipies utilities
  USE reachparam                                ! reach parameter structure
@@ -394,6 +409,7 @@ contains
  ! input variables
  integer(i4b), intent(in)        :: nRch         ! number of reaches
  ! output variables
+ integer(i4b), intent(out)       :: total_upseg  ! total number of immediate upstream reaches
  integer(i4b), intent(out)       :: ierr         ! error code
  character(*), intent(out)       :: message      ! error message
  ! local variables
@@ -408,6 +424,7 @@ contains
  NETOPO(:)%DREACHI = -1
 
  ! define additional indices
+ total_upseg = 0
  do iRch=1,nRch
   ! get the number of upstream reaches
   nUps=0
@@ -418,6 +435,7 @@ contains
     nUps = nUps + 1                            ! define the number of upstream reaches
    endif
   end do
+  total_upseg = total_upseg+nUps
   ! allocate space for the number of upstream reaches
   allocate(NETOPO(iRch)%UREACHI(nUps),NETOPO(iRch)%UREACHK(nUps), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating space for upstream reaches'; return; endif
