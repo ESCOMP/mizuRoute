@@ -183,6 +183,8 @@ contains
  logical(lgt),parameter          :: checkMap=.true.   ! flag to check the mapping
  real(dp)                        :: totarea           ! total area of all HRUs feeding into a given stream segment (m2)
  integer*8                       :: time0,time1       ! times
+ integer(i4b),parameter          :: hru2noSegment=0   ! index in the input file if the HRU does not drain to a segment
+ integer(i4b),parameter          :: integerMissing=-999 ! missing value (should really be a global constant)
 
  ! initialize error control
  ierr=0; message='hru2basin/'
@@ -200,7 +202,7 @@ contains
 
  ! initialize the HRUs that drain into a given segment
  nHRU2seg(:) = 0
- segHRUix(:) = -999
+ segHRUix(:) = integerMissing
 
  ! initialize total number of HRUs that drain into any segments
  total_hru = 0
@@ -215,8 +217,9 @@ contains
  ! loop through the HRUs
  do iHRU=1,nHRU
 
+  ! get the COM Ids for the hru2seg mapping vector
   mapCOMid = imap_acil(ixMAP%segHRUid)%varData( rankSegHRU(iHRU) )
-  if (mapCOMid == 0) cycle
+  if (mapCOMid == hru2noSegment) cycle ! HRU does not drain into any stream segment (closed basin or coastal HRU)
 
   ! keep going until found the index
   do jSeg=iSeg,nSeg ! normally a short loop
@@ -228,20 +231,31 @@ contains
 
    ! define the index where we have a match
    if(mapCOMid==segCOMid)then
+
+    ! identify the index of the segment that the HRU drains into
     segHRUix( rankSegHRU(iHRU) ) = rankSeg(jSeg)
     nHRU2seg( rankSeg(jSeg) )    = nHRU2seg( rankSeg(jSeg) ) + 1
     total_hru = total_hru + 1
-    !iSeg=jSeg+1
-    exit
-   endif
 
+    ! check if we should increment the stream segment
+    ! NOTE: we can have multiple HRUs draining into the same segment
+    !        --> in this case, we want to keep the segment the same
+    if(iHRU<nHRU .and. jSeg<nSeg)then
+     if(imap_acil(ixMAP%segHRUid)%varData( rankSegHRU(iHRU+1) ) >= ntop_acil(ixTOP%segid)%varData( rankSeg(jSeg+1) ) ) iSeg=jSeg+1
+    endif
+
+    ! identified the segment so exit the segment loop and evaluate the next HRU
+    exit
+
+   endif  ! match between the HRU drainage segment and  the stream segment
   end do  ! skipping segments that have no HRU input
+
  end do  ! looping through HRUs
 
  ! check
  if(checkMap)then
   do iHRU=1,nHRU
-   if (imap_acil(ixMAP%segHRUid)%varData(iHRU) == 0) cycle
+   if (imap_acil(ixMAP%segHRUid)%varData(iHRU) == hru2noSegment) cycle
    if( imap_acil(ixMAP%segHRUid)%varData(iHRU) /= ntop_acil(ixTOP%segid)%varData( segHRUix(iHRU) ) )then
     message=trim(message)//'problems identifying the index of the stream segment that a given HRU drains into'
     ierr=20; return
@@ -273,7 +287,7 @@ contains
   iSeg = segHRUix(iHRU)
 
   ! if there is no stream segment associated with current hru
-  if (iSeg ==-999) cycle
+  if (iSeg == integerMissing) cycle
 
   ! increment the HRU counter
   h2b(iSeg)%nHRU = h2b(iSeg)%nHRU+1
