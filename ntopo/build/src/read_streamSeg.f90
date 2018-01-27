@@ -2,6 +2,10 @@ module read_streamSeg
 USE nrtype
 USE netcdf
 implicit none
+! define module-level constants
+integer(i4b),parameter  :: down2noSegment=0     ! index in the input file if the HRU does not drain to a segment
+integer(i4b),parameter  :: integerMissing=-999  ! missing value (should really be a global constant)
+! privacy
 private
 public::getData
 public::hru2basin
@@ -171,18 +175,15 @@ contains
  integer(i4b), intent(out)       :: ierr              ! error code
  character(*), intent(out)       :: message           ! error message
  ! local variables
+ logical(lgt),parameter          :: checkMap=.true.   ! flag to check the mapping
+ integer(i4b),parameter          :: strLen=256        ! length of character string
+ character(len=strLen)           :: cmessage          ! error message of downwind routine
  integer(i4b)                    :: iHRU              ! index of HRU
  integer(i4b)                    :: iSeg              ! index of stream segment
- integer(i4b)                    :: jSeg              ! id of stream segment
- integer(i4b)                    :: mapCOMid          ! COM Id for the hru2seg mapping vector
- integer(i4b)                    :: segCOMid          ! COM Id for the stream segment
- integer(i4b)                    :: rankSeg(nSeg)     ! index of segment in the nSeg vector
- integer(i4b)                    :: rankSegHRU(nHRU)  ! index of segment in the hru2seg mapping vector
  integer(i4b)                    :: segHRUix(nHRU)    ! index of segment where HRU drains
  integer(i4b)                    :: nHRU2seg(nSeg)    ! number of HRUs that drain into a given segment
- logical(lgt),parameter          :: checkMap=.true.   ! flag to check the mapping
  real(dp)                        :: totarea           ! total area of all HRUs feeding into a given stream segment (m2)
- integer*8                       :: time0,time1       ! times
+ !integer*8                       :: time0,time1       ! times
 
  ! initialize error control
  ierr=0; message='hru2basin/'
@@ -190,7 +191,7 @@ contains
  !print*, 'PAUSE: start of '//trim(message); read(*,*)
 
  ! initialize timing
- call system_clock(time0)
+ !call system_clock(time0)
 
  ! allocate space for the hru2basin mapping
  allocate(h2b(nSeg),stat=ierr)
@@ -198,56 +199,20 @@ contains
 
  ! ---------- get the index of the stream segment that a given HRU drains into ------------------------------
 
- ! initialize the HRUs that drain into a given segment
- nHRU2seg(:) = 0
- segHRUix(:) = -999
+ call downReachIndex(&
+                     ! input
+                     nHRU,                              & ! number of upstream elements
+                     nSeg,                              & ! number of stream segments
+                     ntop_acil(ixTOP%segid)%varData,    & ! unique identifier of the stream segments
+                     imap_acil(ixMAP%segHRUid)%varData, & ! unique identifier of the segment where water drains
+                     ! output
+                     segHRUix,                          & ! index of downstream stream segment
+                     nHRU2seg,                          & ! number of elements that drain into each segment
+                     ierr,cmessage)                       ! error control
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! initialize total number of HRUs that drain into any segments
- total_hru = 0
-
- ! rank the stream segments
- call indexx(ntop_acil(ixTOP%segid)%varData, rankSeg)
-
- ! rank the drainage segment
- call indexx(imap_acil(ixMAP%segHRUid)%varData, rankSegHRU)
-
- iSeg=1  ! second counter
- ! loop through the HRUs
- do iHRU=1,nHRU
-
-  mapCOMid = imap_acil(ixMAP%segHRUid)%varData( rankSegHRU(iHRU) )
-  if (mapCOMid == 0) cycle
-
-  ! keep going until found the index
-  do jSeg=iSeg,nSeg ! normally a short loop
-
-   ! get the COM Ids for the hru2seg mapping vector and the segments
-   segCOMid = ntop_acil(ixTOP%segid)%varData( rankSeg(jSeg) )
-   !print*, 'iHRU, iSeg, jSeg, mapCOMid, segCOMid, rankSegHRU(iHRU), rankSeg(jSeg) = ', &
-   !         iHRU, iSeg, jSeg, mapCOMid, segCOMid, rankSegHRU(iHRU), rankSeg(jSeg)
-
-   ! define the index where we have a match
-   if(mapCOMid==segCOMid)then
-    segHRUix( rankSegHRU(iHRU) ) = rankSeg(jSeg)
-    nHRU2seg( rankSeg(jSeg) )    = nHRU2seg( rankSeg(jSeg) ) + 1
-    total_hru = total_hru + 1
-    !iSeg=jSeg+1
-    exit
-   endif
-
-  end do  ! skipping segments that have no HRU input
- end do  ! looping through HRUs
-
- ! check
- if(checkMap)then
-  do iHRU=1,nHRU
-   if (imap_acil(ixMAP%segHRUid)%varData(iHRU) == 0) cycle
-   if( imap_acil(ixMAP%segHRUid)%varData(iHRU) /= ntop_acil(ixTOP%segid)%varData( segHRUix(iHRU) ) )then
-    message=trim(message)//'problems identifying the index of the stream segment that a given HRU drains into'
-    ierr=20; return
-   endif
-  end do
- endif
+ ! get the total number of HRUs that drain into any segments
+ total_hru = sum(nHRU2seg)
 
  ! ---------- allocate space for the mapping structures -----------------------------------------------------
 
@@ -261,8 +226,8 @@ contains
  end do
 
  ! get timing
- call system_clock(time1)
- print*, 'timing: allocate space = ', time1-time0
+ !call system_clock(time1)
+ !print*, 'timing: allocate space = ', time1-time0
 
  ! ---------- populate structure components for HRU-2-Segment mapping ---------------------------------------
 
@@ -273,7 +238,7 @@ contains
   iSeg = segHRUix(iHRU)
 
   ! if there is no stream segment associated with current hru
-  if (iSeg ==-999) cycle
+  if (iSeg == integerMissing) cycle
 
   ! increment the HRU counter
   h2b(iSeg)%nHRU = h2b(iSeg)%nHRU+1
@@ -299,8 +264,8 @@ contains
  endif
 
  ! get timing
- call system_clock(time1)
- print*, 'timing: populate structure components = ', time1-time0
+ !call system_clock(time1)
+ !print*, 'timing: populate structure components = ', time1-time0
 
  ! ---------- compute HRU weights ---------------------------------------------------------------------------
 
@@ -316,9 +281,9 @@ contains
  end do  ! (looping thru stream segments)
 
  ! get timing
- call system_clock(time1)
- print*, 'timing: compute HRU weights = ', time1-time0
- print*, 'PAUSE: end of '//trim(message); read(*,*)
+ !call system_clock(time1)
+ !print*, 'timing: compute HRU weights = ', time1-time0
+ !print*, 'PAUSE: end of '//trim(message); read(*,*)
 
  end subroutine hru2basin
 
@@ -331,6 +296,7 @@ contains
                               ntop_acil,    &    ! input: network topology
                               total_upseg,  &    ! output: sum of immediate upstream segments
                               ierr, message)     ! output (error control)
+ USE nr_utility_module, ONLY: indexx  ! Num. Recipies utilities
  USE dataTypes,only:namepvar,nameivar ! provide access to data types
  USE var_lookup,only:ixHRU,nVarsHRU   ! index of variables for the HRUs
  USE var_lookup,only:ixSEG,nVarsSEG   ! index of variables for the stream segments
@@ -348,13 +314,19 @@ contains
  integer(i4b), intent(out)       :: ierr         ! error code
  character(*), intent(out)       :: message      ! error message
  ! local variables
- integer(i4b)                    :: iRch         ! reach index
+ logical(lgt),parameter          :: checkMap=.true.     ! flag to check the mapping
+ integer(i4b),parameter          :: strLen=256          ! length of character string
+ character(len=strLen)           :: cmessage            ! error message of downwind routine
+ integer(i4b)                    :: iRch                ! reach index
+ integer(i4b)                    :: ixDownRch           ! index of the downstream reach
+ integer(i4b)                    :: downIndex(nRch)     ! index of downstream stream segment
+ integer(i4b)                    :: nUpstream(nRch)     ! number of elements that drain into each segment
+ integer(i4b)                    :: mUpstream(nRch)     ! number of elements that drain into each segment
  real(dp),parameter              :: min_slope=1.e-6_dp  ! minimum slope
- integer(i4b),parameter          :: strLen=256   ! length of character string
- character(len=strLen)           :: cmessage     ! error message of downwind routine
-
  ! initialize error control
  ierr=0; message='assign_reachparam/'
+
+ ! ---------- initialization ---------------------------------------------------------------------------------
 
  ! allocate space for the reach parameter structure
  allocate(RPARAM(nRch),NETOPO(nRch),stat=ierr)
@@ -368,20 +340,19 @@ contains
  RPARAM(:)%RLENGTH = sseg_acil(ixSEG%length   )%varData(:)
  RPARAM(:)%R_SLOPE = sseg_acil(ixSEG%slope    )%varData(:)
 
- ! compute area draining to each stream segment
+ ! loop through reaches
  do iRch=1,nRch
+
+  ! compute area draining to each stream segment
   RPARAM(iRch)%BASAREA = sum(h2b(iRch)%cHRU(:)%hru_area)
- end do
 
- ! define additional aspects of the network topology
- ! (populates reachparam)
- call define_topology(nrch, total_upseg, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ! ensure that slope exceeds minimum slope
- do iRch=1,nRch
+  ! ensure that slope exceeds minimum slope
   if(RPARAM(iRch)%R_SLOPE < min_slope) RPARAM(iRch)%R_SLOPE = min_slope
- end do
+
+  ! nullify the reach list (just to be safe)
+  NETOPO(iRch)%RCHLIST => null()            ! List of reaches upstream
+
+ end do  ! looping through reaches
 
  ! just to be safe, specify some things that we should not need
  NETOPO(:)%RCHLAT1 =  huge(kind(dp))    ! Start latitude
@@ -395,73 +366,161 @@ contains
  NETOPO(:)%LAKINLT = .false.            ! .TRUE. if reach is lake inlet, .FALSE. otherwise
  NETOPO(:)%USRTAKE = .false.            ! .TRUE. if user takes from reach, .FALSE. otherwise
 
+ ! ---------- define the index of the downstream reach ID ----------------------------------------------------
+
+ call downReachIndex(&
+                     ! input
+                     nRch,                              & ! number of upstream elements
+                     nRch,                              & ! number of stream segments
+                     ntop_acil(ixTOP%segid)%varData,    & ! unique identifier of the stream segments
+                     ntop_acil(ixTOP%toSegment)%varData,& ! unique identifier of the segment where water drains
+                     ! output
+                     downIndex,                         & ! index of downstream stream segment
+                     nUpstream,                         & ! number of elements that drain into each segment
+                     ierr,cmessage)                       ! error control
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! get the total number of HRUs that drain into any segments
+ total_upseg = sum(nUpstream)
+
+ ! ---------- allocate space for the number of upstream reaches ---------------------------------------------
+
+ ! loop through the reaches
+ do iRch=1,nRch
+  allocate(NETOPO(iRch)%UREACHI(nUpstream(iRch)),NETOPO(iRch)%UREACHK(nUpstream(iRch)), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating space for upstream reaches'; return; endif
+ end do
+
+ ! ---------- populate data structures for the upstream reaches ----------------------------------------------
+
+ ! initialize the number of upstream elements in each reach
+ mUpstream(:)=0
+
+ ! loop through the reaches
+ do iRch=1,nRch
+
+  ! identify the index of the downstream segment
+  ixDownRch = downIndex(iRch)
+  if(ixDownRch == integerMissing) cycle
+
+  ! increment the number of upstream elements in the downstream segment
+  mUpstream(ixDownRch) = mUpstream(ixDownRch)+1
+  if(mUpstream(ixDownRch)>nUpstream(ixDownRch))then
+   message=trim(message)//'upstream index exceeds dimension'
+   ierr=20; return
+  endif
+
+  ! populate the structure components
+  NETOPO(ixDownRch)%UREACHI( mUpstream(ixDownRch) ) = NETOPO(iRch)%REACHIX
+  NETOPO(ixDownRch)%UREACHK( mUpstream(ixDownRch) ) = NETOPO(iRch)%REACHID
+
+ end do  ! looping through reaches
+
+ ! set missing values to -1
+ ! NOTE: check if the -1 is special and if the replacement with integer missing is necessary
+ where(downIndex==integerMissing) downIndex=-1
+
+ ! populate data structures
+ NETOPO(:)%DREACHI = downIndex(:)
+
  end subroutine assign_reachparam
 
-
  ! *********************************************************************
- ! new subroutine: define additional network topology
+ ! new subroutine: define index of downstream reach
  ! *********************************************************************
- subroutine define_topology(nRch, &            ! input
-                            total_upseg, &     ! output: sum of immediate upstream segments
-                            ierr, message)     ! output (error control)
- USE nr_utility_module, ONLY: arth             ! Num. Recipies utilities
- USE reachparam                                ! reach parameter structure
+ subroutine downReachIndex(&
+                           ! input
+                           nUp,          & ! number of upstream elements
+                           nSeg,         & ! number of stream segments
+                           segId,        & ! unique identifier of the stream segments
+                           downId,       & ! unique identifier of the segment where water drains
+                           ! output
+                           downSegIndex, & ! index of downstream stream segment
+                           nElement2Seg, & ! number of elements that drain into each segment
+                           ierr,message)
+ ! external modules
+ USE nr_utility_module, ONLY: indexx  ! Num. Recipies utilities
  implicit none
  ! input variables
- integer(i4b), intent(in)        :: nRch         ! number of reaches
+ integer(i4b), intent(in)        :: nUp             ! number of upstream elements
+ integer(i4b), intent(in)        :: nSeg            ! number of stream segments
+ integer(i4b), intent(in)        :: segId(:)        ! unique identifier of the stream segments
+ integer(i4b), intent(in)        :: downId(:)       ! unique identifier of the segment where water drains
  ! output variables
- integer(i4b), intent(out)       :: total_upseg  ! total number of immediate upstream reaches
- integer(i4b), intent(out)       :: ierr         ! error code
- character(*), intent(out)       :: message      ! error message
+ integer(i4b), intent(out)       :: downSegIndex(:) ! index of downstream stream segment
+ integer(i4b), intent(out)       :: nElement2Seg(:) ! number of elements that drain into each segment
+ integer(i4b), intent(out)       :: ierr            ! error code
+ character(*), intent(out)       :: message         ! error message
  ! local variables
- integer(i4b)                    :: iRch,jRch    ! reach indices
- integer(i4b)                    :: iUps         ! index of upstream reach
- integer(i4b)                    :: nUps         ! number of upstream reaches
+ integer(i4b)                    :: iUp                 ! index of upstream element
+ integer(i4b)                    :: iSeg,jSeg           ! index of stream segment
+ integer(i4b)                    :: rankSegId           ! ranked Id of the stream segment
+ integer(i4b)                    :: rankDownId          ! ranked Id of the downstream stream segment
+ integer(i4b)                    :: rankSeg(nSeg)       ! rank index of each segment in the nRch vector
+ integer(i4b)                    :: rankDownSeg(nUp)    ! rank index of each downstream stream segment
+ logical(lgt),parameter          :: checkMap=.true.     ! flag to check the mapping
  ! initialize error control
- ierr=0; message='define_topology/'
+ ierr=0; message='downReachIndex/'
 
- ! define reach indices
- NETOPO(:)%REACHIX = arth(1,1,nRch)
- NETOPO(:)%DREACHI = -1
+ ! initialize output
+ nElement2Seg(:) = 0
+ downSegIndex(:) = integerMissing
 
- ! define additional indices
- total_upseg = 0
- do iRch=1,nRch
-  ! get the number of upstream reaches
-  nUps=0
-  do jRch=1,nRch
-   ! check if another reach flows into the current reach
-   if(NETOPO(jRch)%DREACHK == NETOPO(iRch)%REACHID)then
-    NETOPO(jRch)%DREACHI=NETOPO(iRch)%REACHIX  ! define indices of the downstream reaches
-    nUps = nUps + 1                            ! define the number of upstream reaches
+ ! rank the stream segments
+ call indexx(segId, rankSeg)
+
+ ! rank the drainage segment
+ call indexx(downId, rankDownSeg)
+
+ iSeg=1  ! second counter
+ ! loop through the upstream elements
+ do iUp=1,nUp
+
+  ! get Ids for the up2seg mapping vector
+  rankDownId = downId( rankDownSeg(iUp) )
+  if (rankDownId == down2noSegment) cycle ! upstream element does not drain into any stream segment (closed basin or coastal HRU)
+
+  ! keep going until found the index
+  do jSeg=iSeg,nSeg ! normally a short loop
+
+   ! get Id of the stream segment
+   rankSegId = segId( rankSeg(jSeg) )
+   !print*, 'iUp, iSeg, jSeg, rankDownId, rankSegId, rankDownSeg(iUp), rankSeg(jSeg) = ', &
+   !         iUp, iSeg, jSeg, rankDownId, rankSegId, rankDownSeg(iUp), rankSeg(jSeg)
+
+   ! define the index where we have a match
+   if(rankDownId==rankSegId)then
+
+    ! identify the index of the segment that the HRU drains into
+    downSegIndex( rankDownSeg(iUp) ) = rankSeg(jSeg)
+    nElement2Seg( rankSeg(jSeg)    ) = nElement2Seg( rankSeg(jSeg) ) + 1
+
+    ! check if we should increment the stream segment
+    ! NOTE: we can have multiple upstream elements draining into the same segment
+    !        --> in this case, we want to keep the segment the same
+    if(iUp<nUp .and. jSeg<nSeg)then
+     if(downId( rankDownSeg(iUp+1) ) >= segId( rankSeg(jSeg+1) ) ) iSeg=jSeg+1
+    endif
+
+    ! identified the segment so exit the segment loop and evaluate the next upstream element
+    exit
+
+   endif  ! match between the upstream drainage segment and the stream segment
+  end do  ! skipping segments that have no input
+
+ end do  ! looping through upstream elements
+
+ ! check
+ if(checkMap)then
+  do iUp=1,nUp
+   if(downId(iUp) == down2noSegment) cycle
+   if(downId(iUp) /= segId( downSegIndex(iUp) ) )then
+    message=trim(message)//'problems identifying the index of the stream segment that a given HRU drains into'
+    ierr=20; return
    endif
   end do
-  total_upseg = total_upseg+nUps
-  ! allocate space for the number of upstream reaches
-  allocate(NETOPO(iRch)%UREACHI(nUps),NETOPO(iRch)%UREACHK(nUps), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating space for upstream reaches'; return; endif
-  ! define the upstream reaches
-  iUps=0
-  do jRch=1,nRch
-   ! check if another reach flows into the current reach
-   if(NETOPO(jRch)%DREACHK == NETOPO(iRch)%REACHID)then
-    iUps = iUps + 1
-    if(iUps > size(NETOPO(iRch)%UREACHI))then; message=trim(message)//'upstream index exceeds dimension'; return; endif
-    NETOPO(iRch)%UREACHI(iUps) = NETOPO(jRch)%REACHIX
-    NETOPO(iRch)%UREACHK(iUps) = NETOPO(jRch)%REACHID
-   endif   ! (if another reach flows into the current reach)
-  end do  ! (looping through all other reaches)
-  ! nullify the reach list (just to be safe)
-  NETOPO(iRch)%RCHLIST => null()            ! List of reaches upstream
-  !print*, irch, NETOPO(iRch)%UREACHK
- end do  ! (looping through reaches)
+ endif
 
- ! check there is only one reach with the index of -1
- !if(count(NETOPO(:)%DREACHI < 0) /= 1)then
- ! print*, 'number of outlets = ', count(NETOPO(:)%DREACHI < 0)
- ! ierr=20; message=trim(message)//'more than one outlet'; return
- !endif
-
- end subroutine define_topology
+ end subroutine downReachIndex
 
 end module read_streamSeg

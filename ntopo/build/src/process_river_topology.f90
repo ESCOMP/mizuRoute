@@ -194,6 +194,7 @@ call handle_err(ierr, cmessage)
 ! get timing
 call system_clock(time1)
 write(*,'(a,1x,i20)') 'after assign_reachparam: time = ', time1-time0
+print*, 'PAUSE: '; read(*,*)
 
 !stop
 
