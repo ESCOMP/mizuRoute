@@ -297,6 +297,7 @@ contains
                               total_upseg,  &    ! output: sum of immediate upstream segments
                               ierr, message)     ! output (error control)
  USE nr_utility_module, ONLY: indexx  ! Num. Recipies utilities
+ USE nr_utility_module, ONLY: arth    ! Num. Recipies utilities
  USE dataTypes,only:namepvar,nameivar ! provide access to data types
  USE var_lookup,only:ixHRU,nVarsHRU   ! index of variables for the HRUs
  USE var_lookup,only:ixSEG,nVarsSEG   ! index of variables for the stream segments
@@ -333,6 +334,7 @@ contains
  if(ierr/=0)then; message=trim(message)//'problem allocating space for reach parameter structures'; return; endif
 
  ! transfer information to the network topology structures
+ NETOPO(:)%REACHIX = arth(1,1,nRch)
  NETOPO(:)%REACHID = ntop_acil(ixTOP%segid    )%varData(:)
  NETOPO(:)%DREACHK = ntop_acil(ixTOP%toSegment)%varData(:)
 
