@@ -42,11 +42,11 @@ module remap
       nHRU = remap_data%num_qhru(idx)  ! number of runoff hrus contributing to a river network hru
 
       allocate(map_weights(nHRU),stat=err)
-      if(err/=0)then;message=message//'error allocating map_weights';return;endif
+      if(err/=0)then;message=trim(message)//'error allocating map_weights';return;endif
       allocate(map_runoff_hrus(nHRU),stat=err)
-      if(err/=0)then;message=message//'error allocating runoff_hru_id';return;endif
+      if(err/=0)then;message=trim(message)//'error allocating runoff_hru_id';return;endif
       allocate(runoff_sub(nHRU), stat=err)
-      if(err/=0)then;message=message//'error allocating runoff_sub';return;endif
+      if(err/=0)then;message=trim(message)//'error allocating runoff_sub';return;endif
 
       idx_end     = sum(remap_data%num_qhru(1:idx));
       idx_start   = idx_end-nHRU+1
@@ -68,11 +68,11 @@ module remap
       qsim_remapped(iHru) = runoff_out
 
       deallocate(map_weights,stat=err)
-      if(err/=0)then;message=message//'error deallocating map_weights';return;endif
+      if(err/=0)then;message=trim(message)//'error deallocating map_weights';return;endif
       deallocate(map_runoff_hrus,stat=err)
-      if(err/=0)then;message=message//'error deallocating map_runoff_hrus';return;endif
+      if(err/=0)then;message=trim(message)//'error deallocating map_runoff_hrus';return;endif
       deallocate(runoff_sub,stat=err)
-      if(err/=0)then;message=message//'error deallocating runoff_sub';return;endif
+      if(err/=0)then;message=trim(message)//'error deallocating runoff_sub';return;endif
 
     end do
     return

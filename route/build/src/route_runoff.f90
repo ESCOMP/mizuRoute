@@ -16,7 +16,7 @@ USE reachstate                                ! reach states
 USE reach_flux                                ! fluxes in each reach
 USE nhru2basin                                ! data structures holding the nhru2basin correspondence
 USE remap, only:remap_runoff                  ! runoff remapping routine
-USE nrutil,only:arth                          ! use to build vectors with regular increments
+USE nr_utility_module,only:arth               ! use to build vectors with regular increments
 USE ascii_util_module,only:file_open          ! open file (performs a few checks as well)
 USE read_runoff,only:get_runoff_meta,&        ! get the dimensions from the runoff file
                      get_runoff_hru, &        ! get runoff hru from the runoff file
@@ -97,7 +97,7 @@ integer(i4b)               :: nDrain              ! number of HRUs that drain in
 integer(i4b)               :: ix                  ! index of the HRU assigned to a given basin
 real(dp), allocatable      :: qsim_basin(:)       ! simulated runoff at the basins
 ! route simulated runoff through the local basin
-real(sp)                   :: fshape              ! shape parameter in time delay histogram (=gamma distribution) [-]
+real(dp)                   :: fshape              ! shape parameter in time delay histogram (=gamma distribution) [-]
 real(dp)                   :: tscale              ! scaling factor for the time delay histogram [sec]
 integer(i4b)               :: jtim                ! index of the time delay vectors
 integer(i4b)               :: ntdh                ! number of elements in the time delay histogram
@@ -500,20 +500,35 @@ endif
 ! *****
 ! (3) get river network hru id
 ! *******************************************
+
+! get the number of HRUs
 if (is_remap) then
-  allocate(rn_hru_id, source=remap_data%hru_id, stat=ierr)
-  if(ierr/=0) call handle_err(ierr,'problem allocating space for rn_hru_id')
+  nHRU_rn = size(remap_data%hru_id)
 else
-  allocate(rn_hru_id, source=runoff_data%hru_id, stat=ierr)
-  if(ierr/=0) call handle_err(ierr,'problem allocating space for rn_hru_id')
+  nHRU_rn = size(runoff_data%hru_id)
 endif
 
-nHRU_rn = size(rn_hru_id)
+! allocate space for the HRUids
+allocate(rn_hru_id(nHRU_rn), stat=ierr)
+if(ierr/=0) call handle_err(ierr,'problem allocating space for rn_hru_id')
+
+! get the HRU ids
+if (is_remap) then
+  rn_hru_id(:) = remap_data%hru_id(:)
+else
+  rn_hru_id(:) = runoff_data%hru_id(:)
+endif
+
+! allocate space for the HRU mask
 allocate(rn_hru_id_mask(nHRU_rn), stat=ierr)
 if(ierr/=0) call handle_err(ierr,'problem allocating space for rn_hru_id_mask')
-rn_hru_id_mask(:)=.false.
+
+! allocate space for the HRU area
 allocate(rn_hru_area(nHRU_rn), stat=ierr)
 if(ierr/=0) call handle_err(ierr,'problem allocating space for rn_hru_area')
+
+! initialize mask and area
+rn_hru_id_mask(:)=.false.
 rn_hru_area(:)=-999
 
 ! check all the upstream hrus at the desired outlet exist in runoff file

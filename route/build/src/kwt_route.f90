@@ -1,7 +1,7 @@
 module kwt_route
 
 use nrtype
-use nrutil, only : arth                                 ! Num. Recipies utilities
+use nr_utility_module, only : arth                                 ! Num. Recipies utilities
 
 implicit none
 private
@@ -87,11 +87,11 @@ contains
     CYCLE
    ENDIF
    ! climb upstream as far as possible
-   JRCH = IRCH    ! the first reach under investigation 
+   JRCH = IRCH    ! the first reach under investigation
    DO  ! do until get to a "most upstream" reach that is not assigned
     NUPS = SIZE(NETOPO(JRCH)%UREACHI)    ! get number of upstream reaches
     IF (NUPS.GE.1) THEN     ! (if NUPS = 0, then it is a first-order basin)
-     KRCH = JRCH   ! the reach under investigation 
+     KRCH = JRCH   ! the reach under investigation
      ! loop through upstream reaches
      DO IUPS=1,NUPS
       UINDEX = NETOPO(JRCH)%UREACHI(IUPS)  ! POSITION of the upstream reach
@@ -108,7 +108,7 @@ contains
       RCHFLAG(JRCH) = .TRUE.
       NETOPO(ICOUNT)%RHORDER = JRCH
       EXIT
-     ENDIF  
+     ENDIF
      CYCLE   ! if jrch changes, keep looping (move upstream)
     ELSE    ! if the reach is a first-order basin
      ! assign JRCH
@@ -200,7 +200,7 @@ contains
   INTLIST(IRCH)%N_URCH = 0       ! initialize the number of upstream reaches
   NULLIFY(INTLIST(IRCH)%HPOINT)  ! set pointer to a linked list to NULL
  END DO ! (irch)
- 
+
  ! build the linked lists for all reaches
  DO KRCH=1,NRCH
   ! ensure take streamflow from surrounding basin (a reach is upstream of itself!)
@@ -236,14 +236,14 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   print*, 'jrch, numups, NETOPO(JRCH)%RCHLIST(:) = ', jrch, numups, NETOPO(JRCH)%RCHLIST(:)
  END DO  ! jrch
- 
+
  ! free up memory
  DEALLOCATE(INTLIST,STAT=IERR)
  if(ierr/=0)then; ierr=20; message=trim(message)//'problem deallocating space for INTLIST'; return; endif
  ! ----------------------------------------------------------------------------------------
  ! ----------------------------------------------------------------------------------------
  contains
- 
+
   ! For a down stream reach, add an upstream reach to its list of upstream reaches
   subroutine ADD2LIST(D_RCH,U_RCH,ierr,message)
     INTEGER(I4B),INTENT(IN)          :: U_RCH    ! upstream reach index
@@ -302,7 +302,7 @@ contains
  subroutine QROUTE_RCH(IENS,JRCH,    & ! input: array indices
                        ixOutlet,     & ! input: index of the outlet reach
                        T0,T1,        & ! input: start and end of the time step
-                       MAXQPAR,      & ! input: maximum number of particle in a reach 
+                       MAXQPAR,      & ! input: maximum number of particle in a reach
                        LAKEFLAG,     & ! input: flag if lakes are to be processed
                        ierr,message, & ! output: error control
                        RSTEP)          ! optional input: retrospective time step offset
@@ -325,7 +325,7 @@ contains
  !      JRCH: index of stream segment
  !        T0: start of the time step (seconds)
  !        T1: end of the time step (seconds)
- !  LAKEFLAG: >0 if processing lakes 
+ !  LAKEFLAG: >0 if processing lakes
  !     RSTEP: retrospective time step offset (optional)
  !
  !   Outputs (in addition to update of data structures):
@@ -389,7 +389,7 @@ contains
  !
  !   Most computations were originally performed within calcts in Topnet ver7, with calls
  !   to subroutines in kinwav_v7.f
- !      
+ !
  ! ----------------------------------------------------------------------------------------
  ! Modifications to Source (mclark@ucar.edu):
  !
@@ -402,7 +402,7 @@ contains
  !   * use of a new data structure (KROUTE) to hold and update the flow particles
  !
  !   * upgrade to F90 (especially structured variables and dynamic memory allocation)
- !   
+ !
  ! ----------------------------------------------------------------------------------------
  ! Future revisions:
  !
@@ -429,7 +429,7 @@ contains
    REAL(DP),DIMENSION(:),allocatable,SAVE      :: Q_JRCH        ! flow in downstream reach JRCH
    REAL(DP),DIMENSION(:),allocatable,SAVE      :: TENTRY        ! entry time to JRCH (exit time u/s)
    INTEGER(I4B)                                :: NQ1           ! # flow particles
-   ! (2) route flow within the current [JRCH] river segment     
+   ! (2) route flow within the current [JRCH] river segment
    INTEGER(I4B)                                :: ROFFSET       ! retrospective offset due to rstep
    REAL(DP)                                    :: T_START       ! start of time step
    REAL(DP)                                    :: T_END         ! end of time step
@@ -476,20 +476,20 @@ contains
       ! check
       if(JRCH==ixPrint)then
        print*, 'JRCH, Q_JRCH = ', JRCH, Q_JRCH
-      endif 
+      endif
     else
       ! set flow in headwater reaches to modelled streamflow from time delay histogram
-      RCHFLX(IENS,JRCH)%REACH_Q = RCHFLX(IENS,JRCH)%BASIN_QR(1) 
+      RCHFLX(IENS,JRCH)%REACH_Q = RCHFLX(IENS,JRCH)%BASIN_QR(1)
       if (allocated(KROUTE(IENS,JRCH)%KWAVE)) THEN
         deallocate(KROUTE(IENS,JRCH)%KWAVE,STAT=IERR)
         if(ierr/=0)then; message=trim(message)//'problem deallocating space for KROUTE'; return; endif
       endif
-      allocate(KROUTE(IENS,JRCH)%KWAVE(0:0),STAT=ierr)     
+      allocate(KROUTE(IENS,JRCH)%KWAVE(0:0),STAT=ierr)
       if(ierr/=0)then; message=trim(message)//'problem allocating space for KROUTE(IENS,JRCH)%KWAVE(1)'; return; endif
-      KROUTE(IENS,JRCH)%KWAVE(0)%QF=-9999 
-      KROUTE(IENS,JRCH)%KWAVE(0)%TI=-9999 
-      KROUTE(IENS,JRCH)%KWAVE(0)%TR=-9999 
-      KROUTE(IENS,JRCH)%KWAVE(0)%RF=.False. 
+      KROUTE(IENS,JRCH)%KWAVE(0)%QF=-9999
+      KROUTE(IENS,JRCH)%KWAVE(0)%TI=-9999
+      KROUTE(IENS,JRCH)%KWAVE(0)%TR=-9999
+      KROUTE(IENS,JRCH)%KWAVE(0)%RF=.False.
       KROUTE(IENS,JRCH)%KWAVE(0)%QM=-9999
       return  ! no upstream reaches (routing for sub-basins done using time-delay histogram)
     endif
@@ -526,14 +526,14 @@ contains
       print*, 'FROUTE = ', FROUTE
       print*, 'TENTRY = ', TENTRY
       print*, 'T_EXIT = ', T_EXIT
-    endif 
+    endif
     ! ----------------------------------------------------------------------------------------
     ! (4) COMPUTE TIME-STEP AVERAGES
     ! ----------------------------------------------------------------------------------------
     NR = COUNT(FROUTE)-1   ! -1 because of the zero element (last routed)
     NN = NQ2-NR            ! number of non-routed points
     TNEW = (/T_START,T_END/)
-    ! (zero position last routed; use of NR+1 instead of NR keeps next expected routed point) 
+    ! (zero position last routed; use of NR+1 instead of NR keeps next expected routed point)
     call INTERP_RCH(T_EXIT(0:NR+1),Q_JRCH(0:NR+1),TNEW,QNEW,IERR,CMESSAGE)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     if(JRCH == ixPrint) print*, 'QNEW(1) = ', QNEW(1)
@@ -697,14 +697,14 @@ contains
    ROFFSET = RSTEP
  END IF
  IF (LAKEFLAG.EQ.1) THEN                      ! lakes are enabled
-  ! get lake outflow and only lake outflow if reach is a lake outlet reach, else do as normal 
+  ! get lake outflow and only lake outflow if reach is a lake outlet reach, else do as normal
   ILAK = NETOPO(JRCH)%LAKE_IX                 ! lake index
   IF (ILAK.GT.0) THEN                         ! part of reach is in lake
    IF (NETOPO(JRCH)%REACHIX.EQ.LKTOPO(ILAK)%DREACHI) THEN  ! we are in a lake outlet reach
     ND = 1
     ALLOCATE(QD(1),TD(1),STAT=IERR)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for QD and TD'; return; endif
-    QD(1) = LAKFLX(IENS,ILAK)%LAKE_Q / RPARAM(JRCH)%R_WIDTH  ! lake outflow per unit reach width           
+    QD(1) = LAKFLX(IENS,ILAK)%LAKE_Q / RPARAM(JRCH)%R_WIDTH  ! lake outflow per unit reach width
     TD(1) = T1 - DT*ROFFSET
    ELSE
     CALL QEXMUL_RCH(IENS,JRCH,T0,T1,ND,QD,TD,ierr,cmessage,RSTEP)        ! do as normal for unsubmerged part of inlet reach
@@ -819,7 +819,7 @@ contains
  INTEGER(I4B)                                :: IR        ! index of the upstream reach
  INTEGER(I4B)                                :: NS        ! size of  the wave
  INTEGER(I4B)                                :: NR        ! # routed particles in u/s reach
- INTEGER(I4B)                                :: NQ        ! NR+1, if non-routed particle exists 
+ INTEGER(I4B)                                :: NQ        ! NR+1, if non-routed particle exists
  TYPE(FPOINT),DIMENSION(:),allocatable,SAVE  :: NEW_WAVE  ! temporary wave
  LOGICAL(LGT),SAVE                           :: INIT=.TRUE. ! used to initialize pointers
  ! Local variables to merge flow
@@ -980,7 +980,7 @@ contains
    if(ierr/=0)then; message=trim(message)//'problem deallocating array NEW_WAVE'; return; endif
   ! NULLIFY(NEW_WAVE)
    ! save the upstream width
-   UWIDTH(NUPB+IUPR) = RPARAM(IR)%R_WIDTH            ! reach, width = parameter 
+   UWIDTH(NUPB+IUPR) = RPARAM(IR)%R_WIDTH            ! reach, width = parameter
    ! save the time for the first particle in each reach
    CTIME(NUPB+IUPR) = USFLOW(NUPB+IUPR)%KWAVE(1)%TR  ! central time
    ! keep track of the total number of points that must be routed downstream
@@ -994,7 +994,7 @@ contains
  !  *other than* x, we need to estimate (interpolate) flow for the *times* associted with
  !  each of the flow particles in reach x.  Then, at a given time, we can sum the flow
  !  (routed in reach x plus interpolated flow in all other reaches).  This needs to be done
- !  for all upstream reaches. 
+ !  for all upstream reaches.
  ! ----------------------------------------------------------------------------------------
  ! We accomplish this as follows.  We define a vector of indices (ITIM), where each
  !  element of ITIM points to a particle in a given upstream reach still to be processed.
@@ -1005,7 +1005,7 @@ contains
  !  reaches by the width of the downstream reach, and sum the flow over all upstream reaches.
  !  We then move the index forward in ITIM (for the upstream reach just processed), get a
  !  new vector CTIME, and process the next earliest particle.  We continue until all
- !  flow particles are processed in all upstream reaches.  
+ !  flow particles are processed in all upstream reaches.
  ! ----------------------------------------------------------------------------------------
  IPRT = 0  ! initialize counter for flow particles in the output array
  ! allocate space for the merged flow at the downstream reach
@@ -1164,7 +1164,7 @@ contains
  INTEGER(I4B)                                :: IPRT     ! loop through flow particles
  REAL(DP), DIMENSION(:), ALLOCATABLE         :: Q,T,Z    ! copies of Q_JRCH and T_JRCH
  LOGICAL(LGT), DIMENSION(:), ALLOCATABLE     :: PARFLG   ! .FALSE. if particle removed
- INTEGER(I4B), DIMENSION(:), ALLOCATABLE     :: INDEX0   ! indices of original vectors  
+ INTEGER(I4B), DIMENSION(:), ALLOCATABLE     :: INDEX0   ! indices of original vectors
  REAL(DP), DIMENSION(:), ALLOCATABLE         :: ABSERR   ! absolute error btw interp and orig
  REAL(DP)                                    :: Q_INTP   ! interpolated particle
  INTEGER(I4B)                                :: MPRT     ! local number of flow particles
@@ -1249,8 +1249,8 @@ contains
  contains
 
   function INTERP(T0,Q1,Q2,T1,T2)
-    REAL(DP),INTENT(IN)                        :: Q1,Q2  ! flow at neighbouring times 
-    REAL(DP),INTENT(IN)                        :: T1,T2  ! neighbouring times 
+    REAL(DP),INTENT(IN)                        :: Q1,Q2  ! flow at neighbouring times
+    REAL(DP),INTENT(IN)                        :: T1,T2  ! neighbouring times
     REAL(DP),INTENT(IN)                        :: T0     ! desired time
     REAL(DP)                                   :: INTERP ! function name
     INTERP = Q1 + ( (Q2-Q1) / (T2-T1) ) * (T0-T1)
@@ -1290,7 +1290,7 @@ contains
  !                                      flow either side of a shock -- thus we may have
  !                                      fewer elements on output if several particles are
  !                                      merged, INTENT(INOUT)
- !    TENTRY: array of time elements -- neighbouring times are merged if a shock forms, 
+ !    TENTRY: array of time elements -- neighbouring times are merged if a shock forms,
  !                                      then merged times are dis-aggregated, one second is
  !                                      added to the time corresponding to the higer merged
  !                                      flow (note also fewer elements), INTENT(INOUT)
@@ -1326,7 +1326,7 @@ contains
  !
  ! ----------------------------------------------------------------------------------------
  ! Source:
- ! 
+ !
  !   This routine is based on the subroutine kinwav, located in kinwav_v7.f
  !
  ! ----------------------------------------------------------------------------------------
@@ -1349,7 +1349,6 @@ contains
  !
  ! ----------------------------------------------------------------------------------------
  USE reachparam
- USE nrutil, ONLY : arth
  IMPLICIT NONE
  ! Input
  INTEGER(I4B), INTENT(IN)                    :: JRCH     ! Reach to process
@@ -1382,7 +1381,7 @@ contains
  REAL(DP)                                    :: XXB      ! wave break
  INTEGER(I4B)                                :: IXB,JXB  ! define position of wave break
  REAL(DP)                                    :: A1,A2    ! stage - different sides of break
- REAL(DP)                                    :: CM       ! merged celerity 
+ REAL(DP)                                    :: CM       ! merged celerity
  REAL(DP)                                    :: TEXIT    ! expected exit time of "current" particle
  REAL(DP)                                    :: TNEXT    ! expected exit time of "next" particle
  REAL(DP)                                    :: TEXIT2   ! exit time of "bottom" of merged element
@@ -1391,7 +1390,7 @@ contains
  INTEGER(I4B)                                :: ICOUNT   ! used to account for merged pts
  character(len=256)                          :: cmessage ! error message of downwind routine
  ! ----------------------------------------------------------------------------------------
- ! NOTE: If merged particles DO NOT exit the reach in the current time step, they are 
+ ! NOTE: If merged particles DO NOT exit the reach in the current time step, they are
  !       disaggregated into the original particles; if the merged particles DO exit the
  !       reach, then we save only the "slowest" and "fastest" particle.
  ! ----------------------------------------------------------------------------------------
@@ -1430,7 +1429,7 @@ contains
  WC(1:NN) = ALFA*K**(1./ALFA)*Q1(1:NN)**((ALFA-1.)/ALFA)
  GT_ONE: IF(NN.GT.1) THEN                     ! no breaking if just one point
   X = 0.                                      ! altered later to describe "closest" shock
-  GOTALL: DO                                  ! keep going until all shocks are merged 
+  GOTALL: DO                                  ! keep going until all shocks are merged
    XB = XMX                                   ! initialized to length of the stream segment
    ! --------------------------------------------------------------------------------------
    ! check for breaking
@@ -1470,7 +1469,7 @@ contains
    IX(IXB:NN) = IX(IXB+1:NN+1)               ! index (minimum index value of each merged particle)
    T1(IXB:NN) = T1(IXB+1:NN+1)               ! entry time
    WC(IXB:NN) = WC(IXB+1:NN+1)               ! wave celerity
-   Q1(IXB:NN) = Q1(IXB+1:NN+1)               ! unmodified flows 
+   Q1(IXB:NN) = Q1(IXB+1:NN+1)               ! unmodified flows
    Q2(IXB:NN) = Q2(IXB+1:NN+1)               ! unmodified flows
    ! update X - already got the "closest shock to start", see if there are any other shocks
    X = XB
@@ -1510,7 +1509,7 @@ contains
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    ELSE                                      ! merged elements have not exited
     ! when a merged element does not exit, need to disaggregate into original particles
-    DO JROUTE=1,NI                           ! loop thru # original inputs    
+    DO JROUTE=1,NI                           ! loop thru # original inputs
      IF(MF(JROUTE).EQ.IROUTE) &
       CALL RUPDATE(Q0(JROUTE),T0(JROUTE),TEXIT,ierr,cmessage)  ! fill arrays w/ Q0, T0, + run checks
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
