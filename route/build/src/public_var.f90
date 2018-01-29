@@ -2,10 +2,11 @@ module public_var
   ! This module include variables that can be accessed from any other modules and values not altered
   ! Examples of variables are physical parameteres, namelist variable, variables in control etc.
   use nrtype
-
   implicit none
 
   save
+
+  ! ---------- common constants ---------------------------------------------------------------------
 
   ! some common constant variables (not likely to change value)
   integer(i4b),parameter,public   :: strLen=256             ! length of character string
@@ -17,6 +18,8 @@ module public_var
   real(dp),    parameter,public   :: runoffMin=1.e-15_dp    ! minimum runoff from each basin
   real(dp),    parameter,public   :: MinPosVal=1.e-10_dp    ! minimum value for positive value
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
+
+  ! ---------- variables in the control file --------------------------------------------------------
 
   ! Control file variables
   ! DIRECTORIES
