@@ -1,7 +1,7 @@
 module remap
   use nrtype
   use public_var
-  use data_remap, only:remap_data            ! data structures holding the data for remapping runoff hru to river network hru
+  use globalData, only:remap_data            ! data structures holding the data for remapping runoff hru to river network hru
 
   implicit none
   private
