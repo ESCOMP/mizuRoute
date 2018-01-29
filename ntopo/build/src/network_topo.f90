@@ -1,6 +1,6 @@
 MODULE network_topo
  ! *********************************************************************
- ! NOTE 
+ ! NOTE
  ! *********************************************************************
  ! This module is copied/edited based on network_route.f90 and vic_route.f90
  ! Removed all subroutines in network_rout.f90 EXCEPT REACH_LIST
@@ -56,7 +56,7 @@ contains
  ! ----------------------------------------------------------------------------------------
  USE nrtype
  USE reachparam
- USE nrutil, ONLY : arth                                     ! Num. Recipies utilities
+ USE nr_utility_module, ONLY : arth                          ! Num. Recipies utilities
  IMPLICIT NONE
  ! input variables
  INTEGER(I4B),INTENT(IN)                  :: NRCH            ! number of stream segments
@@ -92,7 +92,7 @@ contains
   INTLIST(IRCH)%N_URCH = 0       ! initialize the number of upstream reaches
   NULLIFY(INTLIST(IRCH)%HPOINT)  ! set pointer to a linked list to NULL
  END DO ! (irch)
- 
+
  ! build the linked lists for all reaches
  DO KRCH=1,NRCH
   ! ensure take streamflow from surrounding basin (a reach is upstream of itself!)
@@ -107,7 +107,7 @@ contains
     ! jrch is downstream of krch, which means that krch is upstream of jrch
     ! *** therefore, add the krch index to the jrch list of upstream reaches ***
     !print*, 'irch, jrch, krch = ', irch, jrch, krch
-    if (jrch.eq.irch) THEN !  (check that donwstream reach index is the same as current reach index, which means basin w/o reach)  
+    if (jrch.eq.irch) THEN !  (check that donwstream reach index is the same as current reach index, which means basin w/o reach)
       exit
     endif
     CALL ADD2LIST(JRCH,KRCH,ierr,cmessage)
@@ -132,14 +132,14 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   !print*, 'jrch, numups, NETOPO(JRCH)%RCHLIST(:) = ', jrch, numups, NETOPO(JRCH)%RCHLIST(:)
  END DO  ! jrch
- 
+
  ! free up memory
  DEALLOCATE(INTLIST,STAT=IERR)
  if(ierr/=0)then; ierr=20; message=trim(message)//'problem deallocating space for INTLIST'; return; endif
  ! ----------------------------------------------------------------------------------------
  ! ----------------------------------------------------------------------------------------
  CONTAINS
- 
+
   ! For a down stream reach, add an upstream reach to its list of upstream reaches
   SUBROUTINE ADD2LIST(D_RCH,U_RCH,ierr,message)
   INTEGER(I4B),INTENT(IN)          :: U_RCH    ! upstream reach index
@@ -205,7 +205,7 @@ contains
   ! ----------------------------------------------------------------------------------------
   ! Purpose:
   !
-  !   Calculate total length of upstream reach network from each segment 
+  !   Calculate total length of upstream reach network from each segment
   !
   ! ----------------------------------------------------------------------------------------
   ! I/O:
@@ -220,8 +220,8 @@ contains
   !
   ! ----------------------------------------------------------------------------------------
   USE reachparam
-  
-  implicit none 
+
+  implicit none
   ! input variables
   integer(I4B), intent(in)               :: nSeg          ! number of stream segments
   ! output variables
@@ -229,14 +229,14 @@ contains
   character(*), intent(out)              :: message       ! error message
   ! local variables
   integer(I4B)                           :: iSeg          ! index for segment loop
-  integer(I4B)                           :: iUps          ! index for upstream segment loop 
-  integer(I4B)                           :: jUps          ! index for upstream segment loop 
+  integer(I4B)                           :: iUps          ! index for upstream segment loop
+  integer(I4B)                           :: jUps          ! index for upstream segment loop
   INTEGER(I4B)                           :: NASSIGN       ! # reaches currently assigned
   logical(LGT),dimension(:),allocatable  :: RCHFLAG       ! TRUE if reach is processed
   integer(I4B)                           :: nUps          ! number of upstream reaches
   real(DP)                               :: xLocal        ! length of one segement
   real(DP)                               :: xTotal        ! total length of upstream segment
-  
+
   ! initialize error control
   ierr=0; message='strmlength/'
   ! ----------------------------------------------------------------------------------------
@@ -245,10 +245,10 @@ contains
   if(ierr/=0)then; message=trim(message)//'problem allocating space for RCHFLAG'; return; endif
   RCHFLAG(1:nSeg) = .FALSE.
   ! ----------------------------------------------------------------------------------------
-  
+
   seg_loop: do iSeg=1,nSeg !Loop through each segment
-  
-    nUps = size(NETOPO(iSeg)%RCHLIST) ! size of upstream segment 
+
+    nUps = size(NETOPO(iSeg)%RCHLIST) ! size of upstream segment
     allocate(NETOPO(iSeg)%UPSLENG(nUps),stat=ierr)
     !print *,'--------------------------------------------'
     !print *,'Seg ID, Num of upstream', iSeg, nUps
@@ -256,17 +256,17 @@ contains
     upstrms_loop: do iUps=1,nUps !Loop through upstream segments of current segment
       jUps=NETOPO(iSeg)%RCHLIST(iUps) !index of upstreamf segment
       xTotal = 0.0 !Initialize total length of upstream segments
-      do 
+      do
         xLocal=RPARAM(jUps)%RLENGTH ! Get a segment length
-        xTotal=xTotal+xLocal         
-        if (jUps.eq.NETOPO(iSeg)%REACHIX) exit 
-        jUps = NETOPO(jUps)%DREACHI ! Get index of immediate downstream segment 
+        xTotal=xTotal+xLocal
+        if (jUps.eq.NETOPO(iSeg)%REACHIX) exit
+        jUps = NETOPO(jUps)%DREACHI ! Get index of immediate downstream segment
       enddo
       NETOPO(iSeg)%UPSLENG(iUps)=xTotal
-    enddo upstrms_loop 
+    enddo upstrms_loop
     !print*, 'iSeg,  NETOPO(iSeg)%UPSLENG(:) = ', iSeg, NETOPO(iSeg)%UPSLENG(:)
   enddo seg_loop
-  
-  end subroutine upstrm_length 
+
+  end subroutine upstrm_length
 
 end module network_topo

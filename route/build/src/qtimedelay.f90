@@ -14,18 +14,18 @@ SUBROUTINE QTIMEDELAY(dt, fshape, tscale, IERR, MESSAGE)
 ! MODULE reach_flux -- runoff fractions stored in FRAC_FUTURE(:)
 ! ---------------------------------------------------------------------------------------
 USE nrtype                                            ! variable types, etc.
-USE nr, ONLY : gammp                                  ! interface for the incomplete gamma function
+USE gamma_func_module, ONLY : gammp                   ! interface for the incomplete gamma function
 USE reach_flux                                        ! reach fluxes
 IMPLICIT NONE
 ! input
 REAL(DP), INTENT(IN)                   :: dt          ! model time step
-REAL(SP), INTENT(IN)                   :: fshape      ! shapef parameter in gamma distribution
-REAL(DP), INTENT(IN)                   :: tscale      ! time scale parameter 
+REAL(DP), INTENT(IN)                   :: fshape      ! shapef parameter in gamma distribution
+REAL(DP), INTENT(IN)                   :: tscale      ! time scale parameter
 ! output
 INTEGER(I4B), INTENT(OUT)              :: IERR        ! error code
 CHARACTER(*), INTENT(OUT)              :: MESSAGE     ! error message
 ! locals
-REAL(SP)                               :: alamb       ! scale parameter
+REAL(DP)                               :: alamb       ! scale parameter
 REAL(DP)                               :: ntdh_min    ! minimum number of time delay points
 REAL(DP)                               :: ntdh_max    ! maximum number of time delay points
 REAL(DP)                               :: ntdh_try    ! trial number of time delay points
@@ -33,10 +33,10 @@ INTEGER(I4B)                           :: itry        ! index of trial value
 INTEGER(I4B), PARAMETER                :: MAXTRY=100  ! maximum number of trial values
 INTEGER(I4B)                           :: NTDH        ! number of values on the time delay histogram
 INTEGER(I4B)                           :: JTIM        ! (loop through future time steps)
-REAL(SP)                               :: TFUTURE     ! future time (units of dt)
-REAL(SP)                               :: X_VALUE     ! xvalue to evaluate using gammp
-REAL(SP)                               :: CUMPROB     ! cumulative probability at JTIM
-REAL(SP)                               :: PSAVE       ! cumulative probability at JTIM-1
+REAL(DP)                               :: TFUTURE     ! future time (units of dt)
+REAL(DP)                               :: X_VALUE     ! xvalue to evaluate using gammp
+REAL(DP)                               :: CUMPROB     ! cumulative probability at JTIM
+REAL(DP)                               :: PSAVE       ! cumulative probability at JTIM-1
 ! ---------------------------------------------------------------------------------------
 ! use a Gamma distribution with shape parameter, fsahep = 2.5, and time parameter, tscale, input
 alamb = fshape/REAL(tscale, kind(sp))                   ! scale parameter
