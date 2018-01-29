@@ -5,8 +5,8 @@ program route_runoff
 ! ************************
 USE nrtype                                    ! variable types, etc.
 USE public_var
-use data_remap,only:remap_data
-use data_runoff,only:runoff_data
+use globalData, only:remap_data
+use globalData, only:runoff_data
 USE var_lookup,only:ixHRU,nVarsHRU            ! index of variables for the HRUs
 USE var_lookup,only:ixSEG,nVarsSEG            ! index of variables for the stream segments
 USE var_lookup,only:ixMAP,nVarsMAP            ! index of variables for the hru2basin mapping

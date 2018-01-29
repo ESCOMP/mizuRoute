@@ -4,7 +4,7 @@ use nrtype
 use netcdf
 use public_var
 use read_netcdf, only:get_nc
-use data_remap, only:remap_data
+use globalData,  only:remap_data
 
 implicit none
 
