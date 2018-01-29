@@ -76,7 +76,7 @@ DATATYPES = \
 # define utilities
 UTILS = \
 		nr.f90 \
-		nrutil.f90 \
+		nr_utility.f90 \
 		ascii_util.f90
 
 # read/write files
@@ -123,4 +123,5 @@ clean:
 #
 # Copy the executable to the bin directory
 install:
-		mv $(EXE) $(EXE_PATH)
+	@mkdir -p $(EXE_PATH)
+	@mv $(EXE) $(EXE_PATH)

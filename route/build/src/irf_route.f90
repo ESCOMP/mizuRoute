@@ -53,20 +53,12 @@ contains
   integer(I4B)                           :: iSeg          ! index for segment loop
   integer(I4B)                           :: iUps          ! index for upstream segment loop 
   integer(I4B)                           :: jUps          ! index for upstream segment loop 
-  INTEGER(I4B)                           :: NASSIGN       ! # reaches currently assigned
-  logical(LGT),dimension(:),allocatable  :: RCHFLAG       ! TRUE if reach is processed
   integer(I4B)                           :: nUps          ! number of upstream reaches
   real(DP)                               :: xLocal        ! length of one segement
   real(DP)                               :: xTotal        ! total length of upstream segment
   
   ! initialize error control
   ierr=0; message='strmlength/'
-  ! ----------------------------------------------------------------------------------------
-  NASSIGN = 0
-  allocate(RCHFLAG(nSeg),stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating space for RCHFLAG'; return; endif
-  RCHFLAG(1:nSeg) = .FALSE.
-  ! ----------------------------------------------------------------------------------------
   
   seg_loop: do iSeg=1,nSeg !Loop through each segment
   
@@ -88,7 +80,7 @@ contains
     enddo upstrms_loop 
   enddo seg_loop
   
-  end subroutine upstrm_length 
+  end subroutine
 
 ! *********************************************************************
 ! subroutine: compute normalized UH from Saint-Venant Eq. at sim. time step
@@ -138,8 +130,6 @@ contains
   integer(i4b), intent(out)             :: ierr          ! error code
   character(*), intent(out)             :: message       ! error message
   ! local variable
-  INTEGER(I4B)                          :: NASSIGN       ! # reaches currently assigned
-  logical(LGT),dimension(:),allocatable :: RCHFLAG       ! TRUE if reach is processed
   real(dp),dimension(:),allocatable     :: UHM           ! 
   real(dp),dimension(:),allocatable     :: UHQ           ! 
   real(dp),dimension(:),allocatable     :: fr            ! Unit runoff depth evenly distributed over the simulation duration at hourly step 
@@ -167,12 +157,6 @@ contains
   
   ! initialize error control
   ierr=0; message='make_uh/'
-  ! ----------------------------------------------------------------------------------------
-  NASSIGN = 0
-  allocate(RCHFLAG(nSeg),stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating space for RCHFLAG'; return; endif
-  RCHFLAG(1:nSeg) = .FALSE.
-  ! ----------------------------------------------------------------------------------------
 
   ! Memory allocation
   allocate(fr(nTMAX),stat=ierr)
@@ -274,15 +258,11 @@ contains
 
     enddo upstrms_loop
   enddo seg_loop
-
-  deallocate(UHM)
-  deallocate(UHQ)
     
   end subroutine make_uh
 
   ! ********************************************************************************
   ! subroutine: Sum of basin routed runoff from all the immediate upstream basin 
-  !             
   ! *********************************************************************************
   subroutine get_upsbas_qr(nSeg,iEns, &     ! input
                            ierr, message)   ! output=error control
@@ -321,8 +301,6 @@ contains
   integer(i4b), intent(out)              :: ierr        ! error code
   character(*), intent(out)              :: message     ! error message
   ! Local variables 
-  INTEGER(I4B)                           :: NASSIGN       ! # reaches currently assigned
-  logical(LGT),dimension(:),allocatable  :: RCHFLAG       ! TRUE if reach is processed
   INTEGER(I4B)                           :: iUpsBas     ! loop through u/s reaches
   INTEGER(I4B)                           :: jUpsBas     ! loop through u/s reaches
   INTEGER(I4B)                           :: nUpsBas     ! number of immediate upstream basins
@@ -332,12 +310,6 @@ contains
 
   ! initialize error control
   ierr=0; message='get_upsbas_qr/'
-  ! ----------------------------------------------------------------------------------------
-  NASSIGN = 0
-  allocate(RCHFLAG(nSeg),stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating arrays ...'; return; endif
-  RCHFLAG(1:nSeg) = .FALSE.
-  ! ----------------------------------------------------------------------------------------
 
   seg_loop: do iSeg=1,nSeg
     nUpsBas = SIZE(NETOPO(iSeg)%UREACHI)      ! number of upstream basins
@@ -346,7 +318,7 @@ contains
 !    print *,'Working on iSeg, ID, # of ups. basins= ', iSeg, NETOPO(iSeg)%REACHID, nUpsBas
     if (nUpsBas > 0) then ! if segment is not located in headwater basin
       do iUpsbas=1,nUpsBas
-        jUpsBas = NETOPO(iSeg)%UREACHI(iUpsBas)    ! index of the upstream upstream basin
+        jUpsBas = NETOPO(iSeg)%UREACHI(iUpsBas)    ! index of the imediate upstream upstream reach
         ! Get routed flow from all immediate upstream basins [m3/s] and sum them up 
         area=RPARAM(jUpsBas)%BASAREA
         if ( area > 0) then
@@ -359,7 +331,7 @@ contains
 !    write(*,'(a,1x,es14.7)') 'Sum of routed flow = ',RCHFLX(iEns,iSeg)%UPSBASIN_QR
   enddo seg_loop
 
-  end subroutine get_upsbas_qr
+  end subroutine
 
   ! *********************************************************************
   ! subroutine: Compute delayed runoff from all the upstream segments 
@@ -400,8 +372,6 @@ contains
   integer(i4b), intent(out)              :: ierr      ! error code
   character(*), intent(out)              :: message   ! error message
   ! Local variables to 
-  INTEGER(I4B)                           :: NASSIGN   ! # reaches currently assigned
-  logical(LGT),dimension(:),allocatable  :: RCHFLAG   ! TRUE if reach is processed
   INTEGER(I4B)                           :: iUps      ! loop through u/s reaches
   INTEGER(I4B)                           :: jUps      ! 
   INTEGER(I4B)                           :: nUps      ! number of all upstream segment 
@@ -411,12 +381,6 @@ contains
 
   ! initialize error control
   ierr=0; message='conv_upsbas_qr/'
-  ! ----------------------------------------------------------------------------------------
-  NASSIGN = 0
-  allocate(RCHFLAG(nSeg),stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating arrays ...'; return; endif
-  RCHFLAG(1:nSeg) = .FALSE.
-  ! ----------------------------------------------------------------------------------------
 
   ! route one time step routed runoff volue from each up stream basins to segment 
   seg_loop: do iSeg=1,nSeg
@@ -449,6 +413,6 @@ contains
 
   enddo seg_loop
 
-  end subroutine conv_upsbas_qr
+  end subroutine
 
 end module irf_route

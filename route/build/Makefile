@@ -8,24 +8,25 @@
 # PART 0: User configure part 
 #========================================================================
 # Define fortran compiler - gfortran, ifort or pgf90
-FC  = COMPILERNAME
+FC  =
+
+# Define the compiler exe
+FC_EXE =
 
 # Define core directory below which everything resides
 # parent directory of the 'build' directory
 # do not put space at the end of path
-F_MASTER = PARENTDIRECTORY 
+F_MASTER =
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
-  NCDF_PATH=/opt/netcdf4-gcc
-  LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
-  		-L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
-  INCNETCDF = -I$(NCDF_PATH)/include
+ NCDF_PATH = /opt/local
+ LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
+ INCNETCDF = -I$(NCDF_PATH)/include
 endif
 ifeq "$(FC)" "ifort"
  NCDF_PATH = /opt/netcdf4-intel
- LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
-		-L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
+ LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
  INCNETCDF = -I$(NCDF_PATH)/include
 endif
 ifeq "$(FC)" "pgf90"
@@ -36,7 +37,7 @@ endif
 
 # Define flags
 ifeq "$(FC)" "gfortran"
- FLAGS = -Wall -g -ffree-line-length-none
+ FLAGS = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
 endif
 ifeq "$(FC)" "ifort"
  FLAGS1 = -warn all -noerror_limit -FR -O0 -auto -WB -traceback -g -fltconsistency
@@ -70,6 +71,8 @@ EXE_PATH = $(F_MASTER)bin
 DATATYPES = \
 		nrtype.f90 \
 		dataTypes.f90 \
+		data_hru_remap.f90 \
+		data_runoff.f90 \
 		var_lookup.f90 \
 		nhru2basin.f90 \
 		reachparam.f90 \
@@ -80,20 +83,19 @@ DATATYPES = \
 #
 # define utilities
 UTILS = \
-		nr.f90 \
-		nrutil.f90 \
-		ascii_util.f90
+		nr_utility.f90 \
+		ascii_util.f90 \
+		gamma_func.f90 \
+    public_var.f90
 #
-# define numerical recipes routines
-NUMREC = \
-		gammln.f90 \
-		gammp.f90 gcf.f90 gser.f90
-
 # read/write files
 IO = \
+    remap.f90 \
     read_ntopo.f90 \
-		read_streamSeg.f90 \
-		read_simoutput.f90 \
+    read_netcdf.f90 \
+		read_runoff.f90 \
+		read_remap.f90 \
+    write_netcdf.f90 \
 		write_simoutput.f90
 
 # perform model routing
@@ -103,7 +105,7 @@ QROUTE = \
 		irf_route.f90
 
 # concatanate model subroutines
-TEMP_MODSUB = $(DATATYPES) $(UTILS) $(NUMREC) $(IO) $(QROUTE)
+TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(QROUTE)
 
 # insert appropriate directory name
 MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
@@ -125,7 +127,7 @@ all: compile install clean
 
 # compile
 compile:
-	$(FC) $(FLAGS) $(MODSUB) $(DRIVER) \
+	$(FC_EXE) $(FLAGS) $(MODSUB) $(DRIVER) \
 	$(LIBNETCDF) $(INCNETCDF) -o $(EXE)
 
 # Remove object files
@@ -136,4 +138,5 @@ clean:
 #
 # Copy the executable to the bin directory
 install:
-		mv $(EXE) $(EXE_PATH)
+	@mkdir -p $(EXE_PATH)
+	@mv $(EXE) $(EXE_PATH)

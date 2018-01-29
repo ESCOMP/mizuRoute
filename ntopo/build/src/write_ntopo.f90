@@ -4,13 +4,12 @@ USE netcdf
 implicit none
 private
 public::defineFile
-public::write_iVec
-public::write_dVec
+
 ! define dimension names
 character(len=32),parameter :: sSeg_DimName='sSeg' ! dimension name for the stream segments
 character(len=32),parameter :: sUps_DimName='sUps' ! dimension name for all upstream stream segments
-character(len=32),parameter :: sAll_DimName='sAll' ! dimension name for total number of upstream reachs for all reaches 
-character(len=32),parameter :: sHru_DimName='sHRU' ! dimension name for total number of upstream reachs for all reaches 
+character(len=32),parameter :: sAll_DimName='sAll' ! dimension name for total number of upstream reachs for all reaches
+character(len=32),parameter :: sHru_DimName='sHRU' ! dimension name for total number of upstream reachs for all reaches
 contains
 
  ! *********************************************************************
@@ -155,91 +154,5 @@ contains
   end subroutine defvar
 
  end subroutine defineFile
-
- ! *********************************************************************
- ! new subroutine: write an integer vector
- ! *********************************************************************
- subroutine write_iVec(fname,           &  ! input: filename
-                       vname,           &  ! input: variable name
-                       iVec,            &  ! input: variable data
-                       iStart,          &  ! input: start index
-                       ierr, message)      ! output: error control
- implicit none
- ! input variables
- character(*), intent(in)        :: fname        ! filename
- character(*), intent(in)        :: vname        ! variable name
- integer(i4b), intent(in)        :: iVec(:)      ! variable data
- integer(i4b), intent(in)        :: iStart       ! start index
- ! output variables
- integer(i4b), intent(out)       :: ierr         ! error code
- character(*), intent(out)       :: message      ! error message
- ! local variables
- integer(i4b)                    :: ncid         ! NetCDF file ID
- integer(i4b)                    :: iVarId       ! NetCDF variable ID
- ! initialize error control
- ierr=0; message='write_iVec/'
-
- ! open NetCDF file
- ierr = nf90_open(trim(fname),nf90_write,ncid)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
- ! get variable ID
- ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
- ! write data
- ierr = nf90_put_var(ncid,iVarId,iVec,start=(/iStart/),count=(/size(iVec)/))
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
- ! close output file
- ierr = nf90_close(ncid)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
- end subroutine write_iVec
-
-
-
- ! *********************************************************************
- ! new subroutine: write a double precision vector
- ! *********************************************************************
- subroutine write_dVec(fname,           &  ! input: filename
-                       vname,           &  ! input: variable name
-                       dVec,            &  ! input: variable data
-                       iStart,          &  ! input: start index
-                       iCount,          &  ! input: length of vector
-                       ierr, message)      ! output: error control
- implicit none
- ! input variables
- character(*), intent(in)        :: fname        ! filename
- character(*), intent(in)        :: vname        ! variable name
- real(dp), intent(in)            :: dVec(:)      ! variable data
- integer(i4b), intent(in)        :: iStart(:)    ! start indices
- integer(i4b), intent(in)        :: iCount(:)    ! length of vector
- ! output variables
- integer(i4b), intent(out)       :: ierr         ! error code
- character(*), intent(out)       :: message      ! error message
- ! local variables
- integer(i4b)                    :: ncid         ! NetCDF file ID
- integer(i4b)                    :: iVarId       ! NetCDF variable ID
- ! initialize error control
- ierr=0; message='write_dVec/'
-
- ! open NetCDF file
- ierr = nf90_open(trim(fname),nf90_write,ncid)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
- ! get variable ID
- ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
- ! write data
- ierr = nf90_put_var(ncid,iVarId,dVec,start=iStart,count=iCount)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
- ! close output file
- ierr = nf90_close(ncid)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
- end subroutine write_dVec
 
 end module write_ntopo

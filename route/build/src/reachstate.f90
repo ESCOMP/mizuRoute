@@ -15,9 +15,9 @@ MODULE reachstate
  END TYPE FPOINT
  ! Collection of flow points within a given reach
  TYPE KREACH
-  TYPE(FPOINT), DIMENSION(:), POINTER  :: KWAVE => null()
+  TYPE(FPOINT),allocatable             :: KWAVE(:)
  END TYPE KREACH
  ! type kreach for all stream segments
- TYPE(KREACH), DIMENSION(:,:), POINTER :: KROUTE => null()
+ TYPE(KREACH), allocatable             :: KROUTE(:,:)
  ! --------------------------------------------------------------------------------------
 END MODULE reachstate
