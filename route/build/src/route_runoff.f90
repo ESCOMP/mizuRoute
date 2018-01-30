@@ -1026,29 +1026,36 @@ contains
      print*, trim(cName), ' --> ', trim(cData)
      ! populate variables
      select case(trim(cName))
-       ! define directories
-       case('<ancil_dir>');    ancil_dir    = trim(cData)           ! directory containing ancillary data
-       case('<input_dir>');    input_dir    = trim(cData)           ! directory containing input data
-       case('<output_dir>');   output_dir   = trim(cData)           ! directory containing output data
-       ! define variables for the network topology
-       case('<fname_ntop>');   fname_ntop   = trim(cData)           ! name of file containing stream network topology information
+       ! part 1: define directories
+       case('<ancil_dir>');         ancil_dir    = trim(cData)           ! directory containing ancillary data
+       case('<input_dir>');         input_dir    = trim(cData)           ! directory containing input data
+       case('<output_dir>');        output_dir   = trim(cData)           ! directory containing output data
+       ! part 2: Define river network netCDF and its meta
+       case('<fname_ntop>');        fname_ntop   = trim(cData)           ! name of file containing stream network topology information
+       case('<fname_sseg>');        fname_sseg   = trim(cData)           ! name of file containing stream segment information
+       case('<dname_nhru>');        dname_nhru   = trim(cData)           ! dimension name of the HRUs
+       case('<dname_sseg>');        dname_sseg   = trim(cData)           ! dimension name of the stream segments
+       case('<HRUname_area>');      nhru_acil(ixHRU%area     )%varName = trim(cData) ! name of variable holding HRU area
+       case('<SEGname_length>');    sseg_acil(ixSEG%length   )%varName = trim(cData) ! name of variable holding segment length
+       case('<SEGname_slope>' );    sseg_acil(ixSEG%slope    )%varName = trim(cData) ! name of variable holding segment slope
+       case('<HRUname_HRUid>'    ); imap_acil(ixMAP%HRUid    )%varName = trim(cData) ! name of variable holding HRU id
+       case('<HRUname_segHRUid>' ); imap_acil(ixMAP%segHRUid )%varName = trim(cData) ! name of variable holding the stream segment below each HRU
+       case('<SEGname_segid>'    ); ntop_acil(ixTOP%segid    )%varName = trim(cData) ! name of variable holding the ID of each stream segment
+       case('<SEGname_toSegment>'); ntop_acil(ixTOP%toSegment)%varName = trim(cData) ! name of variable holding the ID of the next downstream segment
+       ! part 3: Define desired outlet segment ID (if -9999 --> route over the entire network)
        case('<seg_outlet>'   ); read(cData,*,iostat=err) iSegOut   ! seg_id of outlet streamflow segment
          if(err/=0)then; message=trim(message)//'problem with internal read of iSegOut info, read from control file'; return;endif
-       case('<restart_opt>');   read(cData,*,iostat=err) isRestart ! restart option: True-> model run with restart, F -> model run with empty channels
-         if(err/=0)then; message=trim(message)//'problem with internal read of isRestart info, read from control file'; return;endif
-       case('<route_opt>');     read(cData,*,iostat=err) routOpt   ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-         if(err/=0)then; message=trim(message)//'problem with internal read of routOpt info, read from control file'; return;endif
-       ! define the file and variable name for runoff netCDF
-       case('<fname_qsim>');   fname_qsim   = trim(cData)           ! name of file containing the runoff
-       case('<vname_qsim>');   vname_qsim   = trim(cData)           ! name of runoff variable
-       case('<vname_time>');   vname_time   = trim(cData)           ! name of time variable in the runoff file
-       case('<vname_hruid>');  vname_hruid  = trim(cData)           ! name of the HRU id
-       case('<dname_time>');   dname_time   = trim(cData)           ! name of time variable in the runoff file
-       case('<dname_hruid>');  dname_hruid  = trim(cData)           ! name of the HRU id
-       case('<units_qsim>');   units_qsim   = trim(cData)           ! units of runoff
+       ! Part 4: Define runoff netCDF and its meta
+       case('<fname_qsim>');        fname_qsim   = trim(cData)           ! name of file containing the runoff
+       case('<vname_qsim>');        vname_qsim   = trim(cData)           ! name of runoff variable
+       case('<vname_time>');        vname_time   = trim(cData)           ! name of time variable in the runoff file
+       case('<vname_hruid>');       vname_hruid  = trim(cData)           ! name of the HRU id
+       case('<dname_time>');        dname_time   = trim(cData)           ! name of time variable in the runoff file
+       case('<dname_hruid>');       dname_hruid  = trim(cData)           ! name of the HRU id
+       case('<units_qsim>');        units_qsim   = trim(cData)           ! units of runoff
        case('<dt_qsim>');      read(cData,*,iostat=err) dt         ! time interval of the gridded runoff
          if(err/=0)then; message=trim(message)//'problem with internal read of dt info, read from control file'; return;endif
-       ! define the runoff mapping metadata
+       ! Part 5: Define runoff mapping netCDF and its meta
        case('<is_remap>');            read(cData,*,iostat=ierr) is_remap   ! logical whether or not runnoff needs to be mapped to river network HRU
          if(ierr/=0) call handle_err(70,'problem with internal read of is_mapping, read from control file')
        case('<fname_remap>');          fname_remap      = trim(cData)      ! name of runoff mapping netCDF
@@ -1058,11 +1065,16 @@ contains
        case('<vname_num_qhru>');       vname_num_qhru = trim(cData)        ! name of variable containing numbers of runoff HRUs within each river network HRU
        case('<dname_hru_remap>');      dname_hru_remap  = trim(cData)      ! name of variable containing ID of runoff HRU
        case('<dname_data_remap>');     dname_data_remap  = trim(cData)     ! name of variable containing ID of runoff HRU
-       ! define the output filename
+       ! part 6 Define run control
+       case('<restart_opt>');   read(cData,*,iostat=err) isRestart         ! restart option: True-> model run with restart, F -> model run with empty channels
+         if(err/=0)then; message=trim(message)//'problem with internal read of isRestart info, read from control file'; return;endif
+       case('<route_opt>');     read(cData,*,iostat=err) routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+         if(err/=0)then; message=trim(message)//'problem with internal read of routOpt info, read from control file'; return;endif
+       ! Part 7: Define output filename
        case('<fname_output>');    fname_output    = trim(cData)           ! filename for the model output
        case('<fname_state_in>');  fname_state_in  = trim(cData)           ! filename for the channel states
        case('<fname_state_out>'); fname_state_out = trim(cData)           ! filename for the channel states
-       ! define namelist name for routing parameters
+       ! Part 8: Define namelist name for routing parameters
        case('<param_nml>');       param_nml       = trim(cData)           ! name of namelist including routing parameter value
      end select
    end do  ! looping through lines in the control file
