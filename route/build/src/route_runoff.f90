@@ -5,8 +5,12 @@ program route_runoff
 ! ************************
 USE nrtype                                    ! variable types, etc.
 USE public_var
-use globalData, only:remap_data
-use globalData, only:runoff_data
+USE globalData, only:time_conv,length_conv    ! conversion factors
+USE globalData, only:remap_data
+USE globalData, only:runoff_data
+
+USE process_ntopo, only: ntopo
+
 USE var_lookup,only:ixHRU,nVarsHRU            ! index of variables for the HRUs
 USE var_lookup,only:ixSEG,nVarsSEG            ! index of variables for the stream segments
 USE var_lookup,only:ixMAP,nVarsMAP            ! index of variables for the hru2basin mapping
@@ -47,7 +51,6 @@ character(len=strLen)      :: str                 ! miscellaneous string
 ! read control file
 character(len=strLen)      :: cfile_name          ! name of the control file
 integer(i4b)               :: iunit               ! file unit
-integer(i4b)               :: ipos                ! index of character string
 ! define directories
 ! define stream segment information
 integer(i4b),target        :: nSeg                ! number of all the stream segments
@@ -87,9 +90,6 @@ integer(i4b)               :: iRch                ! index in reach structures
 real(dp)                   :: dTime               ! time variable (in units units_time)
 real(dp)                   :: TB(2)
 real(dp), allocatable      :: qsim_hru(:)         ! simulated runoff at the river network HRU
-character(len=strLen)      :: cLength,cTime       ! length and time units
-real(dp)                   :: time_conv           ! time conversion factor -- used to convert to mm/s
-real(dp)                   :: length_conv         ! length conversion factor -- used to convert to mm/s
 ! interpolate simulated runoff data to the basins
 integer(i4b)               :: ibas                ! index of the basins
 integer(i4b)               :: iHRU                ! index of the HRUs associated to the basin
@@ -138,58 +138,33 @@ namelist /HSLOPE/fshape,tscale
 namelist /IRF_UH/velo,diff
 namelist /KWT/mann_n,wscale
 
+! *****
+! *** Read control files...
+! *************************
+
 ! get command-line argument defining the full path to the control file
 call getarg(1,cfile_name)
 if(len_trim(cfile_name)==0) call handle_err(50,'need to supply name of the control file as a command-line argument')
 
-! *****
-! (0) Read control file...
-! ************************
+! read the control file
 call read_control(trim(cfile_name), ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
-! *****
-! (0) unit conversion
-! ************************
-! find the position of the "/" character
-ipos = index(trim(units_qsim),'/')
-if(ipos==0) call handle_err(80,'expect the character "/" exists in the units string [units='//trim(units_qsim)//']')
-! get the length and time units
-cLength = units_qsim(1:ipos-1)
-cTime   = units_qsim(ipos+1:len_trim(units_qsim))
-! get the conversion factor for length
-select case(trim(cLength))
- case('m');  length_conv = 1._dp
- case('mm'); length_conv = 1._dp/1000._dp
- case default; call handle_err(81,'expect the length units to be "m" or "mm" [units='//trim(cLength)//']')
-endselect
-! get the conversion factor for time
-select case(trim(cTime))
- case('d','day');    time_conv = 1._dp/secprday
- case('h','hour');   time_conv = 1._dp/secprhour
- case('s','second'); time_conv = 1._dp
- case default; call handle_err(81,'cannot identify the time units [time units = '//trim(cTime)//']')
-endselect
-
-! *****
-! (0.b) Read parameter Namelist...
-! ************************
+! read the name list
 call file_open(trim(param_nml),iunit,ierr,cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 read(iunit, nml=HSLOPE)
 read(iunit, nml=IRF_UH)
 read(iunit, nml=KWT)
+close(iunit)
 
-! get the number of stream segments (needed for allocate statements)
-call get_nc_dim_len(trim(ancil_dir)//trim(fname_ntop), &
-                   'sSeg',                            &
-                   nSeg,                              &
-                   ierr, cmessage)
-call handle_err(ierr,cmessage)
-print*,'Number of nSeg in Network topology: ', nSeg
+! get the network topology
+call ntopo(ierr, cmessage)
+if(ierr/=0) call handle_err(ierr, cmessage)
 
+stop
 ! *****
-! (1.2) Read in the network topology information...
+! *** Read in the network topology information...
 ! *********************************************
 ! Data type to be populated
 ! NETOPO(:)%REACHIX       index
@@ -1005,6 +980,7 @@ end program route_runoff
 ! =======================================================================================================
 subroutine read_control(ctl_fname, err, message)
 USE public_var
+USE globalData, only:time_conv,length_conv    ! conversion factors
 USE ascii_util_module,only:file_open          ! open file (performs a few checks as well)
 USE ascii_util_module,only:get_vlines         ! get a list of character strings from non-comment lines
 
@@ -1016,6 +992,8 @@ character(*),intent(out)          :: message        ! error message
 ! Local variables
 character(len=strLen),allocatable :: cLines(:)      ! vector of character strings
 character(len=strLen)             :: cName,cData    ! name and data from cLines(iLine)
+character(len=strLen)             :: cLength,cTime  ! length and time units
+integer(i4b)                      :: ipos           ! index of character string
 integer(i4b)                      :: ibeg_name      ! start index of variable name in string cLines(iLine)
 integer(i4b)                      :: iend_name      ! end index of variable name in string cLines(iLine)
 integer(i4b)                      :: iend_data      ! end index of data in string cLines(iLine)
@@ -1121,5 +1099,37 @@ do iLine=1,size(cLines)
   endif
 
 end do  ! looping through lines in the control file
+
+! ---------- unit conversion --------------------------------------------------------------------------------------------
+
+! find the position of the "/" character
+ipos = index(trim(units_qsim),'/')
+if(ipos==0)then
+ message=trim(message)//'expect the character "/" exists in the units string [units='//trim(units_qsim)//']'
+ err=80; return
+endif
+
+! get the length and time units
+cLength = units_qsim(1:ipos-1)
+cTime   = units_qsim(ipos+1:len_trim(units_qsim))
+
+! get the conversion factor for length
+select case(trim(cLength))
+ case('m');  length_conv = 1._dp
+ case('mm'); length_conv = 1._dp/1000._dp
+ case default
+  message=trim(message)//'expect the length units to be "m" or "mm" [units='//trim(cLength)//']'
+  err=81; return
+end select
+
+! get the conversion factor for time
+select case(trim(cTime))
+ case('d','day');    time_conv = 1._dp/secprday
+ case('h','hour');   time_conv = 1._dp/secprhour
+ case('s','second'); time_conv = 1._dp
+ case default
+  message=trim(message)//'cannot identify the time units [time units = '//trim(cTime)//']'
+  err=81; return
+end select
 
 end subroutine

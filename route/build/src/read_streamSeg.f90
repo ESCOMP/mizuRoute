@@ -9,8 +9,8 @@ integer(i4b),parameter  :: integerMissing=-999  ! missing value (should really b
 ! privacy
 private
 public::getData
-public::hru2basin
-public::assign_reachparam
+public::hru2segment
+public::up2downSegment
 contains
 
  ! *********************************************************************
@@ -21,7 +21,7 @@ contains
                     dname_sseg, &   ! input: dimension name for stream segments
                     nhru_acil,  &   ! input-output: ancillary data for HRUs
                     sseg_acil,  &   ! input-output: ancillary data for stream segments
-                    imap_acil,  &   ! input-output: ancillary data for mapping hru2basin
+                    imap_acil,  &   ! input-output: ancillary data for mapping hru2segment
                     ntop_acil,  &   ! input-output: ancillary data for network topology
                     nHRU,       &   ! output: number of HRUs
                     nSeg,       &   ! output: number of stream segments
@@ -35,7 +35,7 @@ contains
  ! input-output
  type(namepvar), intent(inout)   :: nhru_acil(:) ! ancillary data for the HRUs
  type(namepvar), intent(inout)   :: sseg_acil(:) ! ancillary data for the stream segments
- type(nameivar), intent(inout)   :: imap_acil(:) ! ancillary data for the hru2basin mapping
+ type(nameivar), intent(inout)   :: imap_acil(:) ! ancillary data for the hru2segment mapping
  type(nameivar), intent(inout)   :: ntop_acil(:) ! ancillary data for the network topology
  ! output variables
  integer(i4b), intent(out)       :: nHRU         ! number of HRUs
@@ -53,7 +53,7 @@ contains
 
  ! open file for reading
  ierr = nf90_open(fname, nf90_nowrite, ncid)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; file='//trim(fname); return; endif
 
  ! get the ID of the HRU dimension
  ierr = nf90_inq_dimid(ncid, dname_nhru, idimID_nHRU)
@@ -105,7 +105,7 @@ contains
 
  end do  ! (looping through variables)
 
- ! ** read in hru2basin mapping
+ ! ** read in hru2segment mapping
  do iVar=1,size(imap_acil)
 
   ! allocate space for the structure component
@@ -147,29 +147,29 @@ contains
 
 
  ! *********************************************************************
- ! new subroutine: compute correspondence between HRUs and basins
+ ! new subroutine: compute correspondence between HRUs and segments
  ! *********************************************************************
- subroutine hru2basin(nHRU,       &   ! input: number of HRUs
-                      nSeg,       &   ! input: number of stream segments
-                      nhru_acil,  &   ! input: ancillary data for HRUs
-                      imap_acil,  &   ! input: ancillary data for mapping hru2basin
-                      ntop_acil,  &   ! input: ancillary data for network topology
-                      total_hru,  &   ! output: total number of HRUs that drain into any segments
-                      ierr, message)  ! output: error control
- USE nr_utility_module,ONLY: arth     ! Num. Recipies utilities
- USE nr_utility_module,ONLY: indexx   ! Num. Recipies utilities
- USE dataTypes,only:namepvar,nameivar ! provide access to data types
- USE var_lookup,only:ixHRU,nVarsHRU   ! index of variables for the HRUs
- USE var_lookup,only:ixSEG,nVarsSEG   ! index of variables for the stream segments
- USE var_lookup,only:ixMAP,nVarsMAP   ! index of variables for the hru2basin mapping
- USE var_lookup,only:ixTOP,nVarsTOP   ! index of variables for the network topology
+ subroutine hru2segment(nHRU,       &   ! input: number of HRUs
+                        nSeg,       &   ! input: number of stream segments
+                        nhru_acil,  &   ! input: ancillary data for HRUs
+                        imap_acil,  &   ! input: ancillary data for mapping hru2basin
+                        ntop_acil,  &   ! input: ancillary data for network topology
+                        total_hru,  &   ! output: total number of HRUs that drain into any segments
+                        ierr, message)  ! output: error control
+ USE nr_utility_module,ONLY: arth       ! Num. Recipies utilities
+ USE nr_utility_module,ONLY: indexx     ! Num. Recipies utilities
+ USE dataTypes,only:namepvar,nameivar   ! provide access to data types
+ USE var_lookup,only:ixHRU,nVarsHRU     ! index of variables for the HRUs
+ USE var_lookup,only:ixSEG,nVarsSEG     ! index of variables for the stream segments
+ USE var_lookup,only:ixMAP,nVarsMAP     ! index of variables for the hru2basin mapping
+ USE var_lookup,only:ixTOP,nVarsTOP     ! index of variables for the network topology
  USE nhru2basin  ! data structures holding the nhru2basin correspondence
  implicit none
  ! input variables
  integer(i4b), intent(in)        :: nHRU              ! number of HRUs
  integer(i4b), intent(in)        :: nSeg              ! number of stream segments
  type(namepvar), intent(in)      :: nhru_acil(:)      ! ancillary data for the HRUs
- type(nameivar), intent(in)      :: imap_acil(:)      ! ancillary data for the hru2basin mapping
+ type(nameivar), intent(in)      :: imap_acil(:)      ! ancillary data for the hru2segment mapping
  type(nameivar), intent(in)      :: ntop_acil(:)      ! ancillary data for the network topology
  ! output variables
  integer(i4b), intent(out)       :: total_hru         ! total number of HRUs that drain into any segments (nHRU minus number of HRU not draining int any segments)
@@ -187,14 +187,14 @@ contains
  !integer*8                       :: time0,time1       ! times
 
  ! initialize error control
- ierr=0; message='hru2basin/'
+ ierr=0; message='hru2segment/'
 
  !print*, 'PAUSE: start of '//trim(message); read(*,*)
 
  ! initialize timing
  !call system_clock(time0)
 
- ! allocate space for the hru2basin mapping
+ ! allocate space for the hru2segment mapping
  allocate(h2b(nSeg),stat=ierr)
  if(ierr/=0)then; message=trim(message)//'problem allocating space for h2b structure'; return; endif
 
@@ -247,9 +247,6 @@ contains
   ! populate structure components
   h2b(iSeg)%cHRU( h2b(iSeg)%nHRU )%hru_ix   = iHRU
   h2b(iSeg)%cHRU( h2b(iSeg)%nHRU )%hru_id   = imap_acil(ixMAP%HRUid)%varData(iHRU)
-  h2b(iSeg)%cHRU( h2b(iSeg)%nHRU )%hru_lon  = nhru_acil(ixHRU%xLon )%varData(iHRU)
-  h2b(iSeg)%cHRU( h2b(iSeg)%nHRU )%hru_lat  = nhru_acil(ixHRU%yLat )%varData(iHRU)
-  h2b(iSeg)%cHRU( h2b(iSeg)%nHRU )%hru_elev = nhru_acil(ixHRU%elev )%varData(iHRU)
   h2b(iSeg)%cHRU( h2b(iSeg)%nHRU )%hru_area = nhru_acil(ixHRU%area )%varData(iHRU)
 
  end do ! looping through HRUs
@@ -286,23 +283,23 @@ contains
  !print*, 'timing: compute HRU weights = ', time1-time0
  !print*, 'PAUSE: end of '//trim(message); read(*,*)
 
- end subroutine hru2basin
+ end subroutine hru2segment
 
 
  ! *********************************************************************
- ! new subroutine: assign data to the reach parameter structure
+ ! new subroutine: mapping between upstream and downstream segments
  ! *********************************************************************
- subroutine assign_reachparam(nRch,         &    ! input: number of stream segments
-                              sseg_acil,    &    ! input: stream segment parameters
-                              ntop_acil,    &    ! input: network topology
-                              total_upseg,  &    ! output: sum of immediate upstream segments
-                              ierr, message)     ! output (error control)
+ subroutine up2downSegment(nRch,         &    ! input: number of stream segments
+                           sseg_acil,    &    ! input: stream segment parameters
+                           ntop_acil,    &    ! input: network topology
+                           total_upseg,  &    ! output: sum of immediate upstream segments
+                           ierr, message)     ! output (error control)
  USE nr_utility_module, ONLY: indexx  ! Num. Recipies utilities
  USE nr_utility_module, ONLY: arth    ! Num. Recipies utilities
  USE dataTypes,only:namepvar,nameivar ! provide access to data types
  USE var_lookup,only:ixHRU,nVarsHRU   ! index of variables for the HRUs
  USE var_lookup,only:ixSEG,nVarsSEG   ! index of variables for the stream segments
- USE var_lookup,only:ixMAP,nVarsMAP   ! index of variables for the hru2basin mapping
+ USE var_lookup,only:ixMAP,nVarsMAP   ! index of variables for the hru2segment mapping
  USE var_lookup,only:ixTOP,nVarsTOP   ! index of variables for the network topology
  USE nhru2basin                       ! data structures holding the nhru2basin correspondence
  USE reachparam                       ! reach parameter structure
@@ -325,7 +322,7 @@ contains
  integer(i4b)                    :: mUpstream(nRch)     ! number of elements that drain into each segment
  real(dp),parameter              :: min_slope=1.e-6_dp  ! minimum slope
  ! initialize error control
- ierr=0; message='assign_reachparam/'
+ ierr=0; message='up2downSegment/'
 
  ! ---------- initialization ---------------------------------------------------------------------------------
 
@@ -425,7 +422,7 @@ contains
  ! populate data structures
  NETOPO(:)%DREACHI = downIndex(:)
 
- end subroutine assign_reachparam
+ end subroutine up2downSegment
 
  ! *********************************************************************
  ! new subroutine: define index of downstream reach
@@ -515,7 +512,7 @@ contains
  ! check
  if(checkMap)then
   do iUp=1,nUp
-   if(downId(iUp) == down2noSegment) cycle
+   if(downId(iUp) == down2noSegment .or. downSegIndex(iUp)==integerMissing) cycle
    if(downId(iUp) /= segId( downSegIndex(iUp) ) )then
     message=trim(message)//'problems identifying the index of the stream segment that a given HRU drains into'
     ierr=20; return

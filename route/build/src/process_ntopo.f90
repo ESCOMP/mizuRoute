@@ -21,8 +21,8 @@ contains
  ! 3. RPARAM
 
  use read_streamSeg, only:getData               ! get the ancillary data
- use read_streamSeg, only:hru2basin             ! get the mapping between HRUs and basins
- use read_streamSeg, only:assign_reachparam     ! assign reach parameters
+ use read_streamSeg, only:hru2segment           ! get the mapping between HRUs and segments
+ use read_streamSeg, only:up2downSegment        ! get the mapping between upstream and downstream segments
  use network_topo,   only:reach_list            ! identify all reaches upstream of the each reach
  use network_topo,   only:upstrm_length         ! Compute total upstream length  NM
  use reachparam                                 ! reach parameters
@@ -54,9 +54,8 @@ contains
  ! initialize times
  call system_clock(time0)
 
- ! *****
- ! (1) Read in the stream segment information...
- ! *********************************************
+ ! ---------- read in the stream segment information ---------------------------------------------------------
+
  ! get the number of HRUs and stream segments (needed for allocate statements)
  call getData(trim(ancil_dir)//trim(fname_ntop), & ! input: file name
               dname_nhru, &  ! input: dimension name of the HRUs
@@ -74,25 +73,29 @@ contains
  call system_clock(time1)
  write(*,'(a,1x,i20)') 'after getData: time = ', time1-time0
 
+ ! ---------- get the mapping between HRUs and segments ------------------------------------------------------
+
  ! get the mapping between HRUs and basins
- call hru2basin(nHRU,       &   ! input: number of HRUs
-                nSeg,       &   ! input: number of stream segments
-                nhru_acil,  &   ! input: ancillary data for HRUs
-                imap_acil,  &   ! input: ancillary data for mapping hru2basin
-                ntop_acil,  &   ! input: ancillary data for network topology
-                tot_hru,    &   ! output: total number of all the upstream hrus for all stream segments
-                ierr, cmessage) ! output: error control
+ call hru2segment(nHRU,       &   ! input: number of HRUs
+                  nSeg,       &   ! input: number of stream segments
+                  nhru_acil,  &   ! input: ancillary data for HRUs
+                  imap_acil,  &   ! input: ancillary data for mapping hru2basin
+                  ntop_acil,  &   ! input: ancillary data for network topology
+                  tot_hru,    &   ! output: total number of all the upstream hrus for all stream segments
+                  ierr, cmessage) ! output: error control
 
  ! get timing
  call system_clock(time1)
  write(*,'(a,1x,i20)') 'after hru2basin: time = ', time1-time0
 
- ! put data in structures
- call assign_reachparam(nSeg,         & ! input: number of stream segments
-                        sseg_acil,    & ! input: ancillary data for stream segments
-                        ntop_acil,    & ! input: ancillary data for network topology
-                        tot_upseg,    & ! output: sum of number of immediate upstream reaches
-                        ierr, cmessage) ! output: error control
+ ! ---------- get the mapping between upstream and downstream segments ---------------------------------------
+
+ ! get the mapping between upstream and downstream segments
+ call up2downSegment(nSeg,         & ! input: number of stream segments
+                     sseg_acil,    & ! input: ancillary data for stream segments
+                     ntop_acil,    & ! input: ancillary data for network topology
+                     tot_upseg,    & ! output: sum of number of immediate upstream reaches
+                     ierr, cmessage) ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get timing
@@ -100,7 +103,9 @@ contains
  write(*,'(a,1x,i20)') 'after assign_reachparam: time = ', time1-time0
  print*, 'PAUSE: '; read(*,*)
 
- !stop
+ ! ---------- get all reaches upstream of a given reach ------------------------------------------------------
+
+
 
  ! identify all reaches upstream of each reach
  call reach_list(nSeg, tot_all_upseg, ierr, cmessage)

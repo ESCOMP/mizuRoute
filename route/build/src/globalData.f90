@@ -6,6 +6,11 @@ module globalData
 
   implicit none
 
+  ! ---------- conversion factors -------------------------------------------------------------------
+
+  real(dp)      ,save    ,public  :: time_conv              ! time conversion factor -- used to convert to mm/s
+  real(dp)      ,save    ,public  :: length_conv            ! length conversion factor -- used to convert to mm/s
+
   ! ---------- data structures ----------------------------------------------------------------------
 
   type(remap)   ,save    ,public  :: remap_data             ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
