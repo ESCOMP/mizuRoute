@@ -41,6 +41,7 @@ module public_var
   character(len=strLen),public    :: dname_hruid            ! dimension name for hru in runoff data
   character(len=strLen),public    :: units_time             ! time units
   ! RIVER NETWORK TOPOLOGY
+  character(len=strLen),public    :: fname_sseg             ! filename containing stream network topology information
   character(len=strLen),public    :: fname_ntop             ! filename containing stream network topology information
   character(len=strLen),public    :: dname_sseg             ! dimension name of segment in river network data
   character(len=strLen),public    :: dname_nhru             ! dimension name of hru in river network data
