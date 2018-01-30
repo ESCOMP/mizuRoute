@@ -2,6 +2,11 @@ module public_var
   ! This module include variables that can be accessed from any other modules and values not altered
   ! Examples of variables are physical parameteres, namelist variable, variables in control etc.
   use nrtype
+  use dataTypes, only:namepvar,nameivar          ! provide access to data types
+  use var_lookup,only:ixHRU,nVarsHRU            ! index of variables for the HRUs
+  use var_lookup,only:ixSEG,nVarsSEG            ! index of variables for the stream segments
+  use var_lookup,only:ixMAP,nVarsMAP            ! index of variables for the hru2basin mapping
+  use var_lookup,only:ixTOP,nVarsTOP            ! index of variables for the network topology
   implicit none
 
   save
@@ -37,6 +42,12 @@ module public_var
   character(len=strLen),public    :: units_time             ! time units
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntop             ! filename containing stream network topology information
+  character(len=strLen),public    :: dname_sseg             ! dimension name of segment in river network data
+  character(len=strLen),public    :: dname_nhru             ! dimension name of hru in river network data
+  type(namepvar),public           :: nhru_acil(nVarsHRU)    ! ancillary data for HRUs
+  type(namepvar),public           :: sseg_acil(nVarsSEG)    ! ancillary data for stream segments
+  type(nameivar),public           :: imap_acil(nVarsMAP)    ! ancillary data for mapping hru2basin
+  type(nameivar),public           :: ntop_acil(nVarsTOP)    ! ancillary data for network toopology
   ! ROUTED FLOW OUTPUT
   character(len=strLen),public    :: fname_output           ! name of output file
   ! STATES

@@ -97,7 +97,7 @@ contains
  ! declare local variables
  character(len=256)      :: temp                  ! temporary line of characters
  integer(i4b)            :: iword                 ! loop through words
- integer(i4b),parameter  :: maxWords=100          ! maximum number of words in a line 
+ integer(i4b),parameter  :: maxWords=100          ! maximum number of words in a line
  integer(i4b)            :: i1                    ! index at the start of a given word
  character(len=256)      :: cword                 ! the current word
  integer(i4b)            :: nWords                ! number of words in the character string
@@ -174,7 +174,7 @@ contains
  ! start procedure here
  err=0; message='get_vlines/'
  ! ***** get the valid lines of data from the file and store in linked lists *****
- icount=0  ! initialize the counter for the valid lines 
+ icount=0  ! initialize the counter for the valid lines
  do iline=1,maxLines
   read(unt,'(a)',iostat=iend)temp; if(iend/=0)exit    ! read line of data
   if (temp(1:1)=='!')cycle

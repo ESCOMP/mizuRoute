@@ -2,10 +2,10 @@ MODULE reachparam
  USE nrtype
  IMPLICIT NONE
  SAVE
- ! Data for Unit Hydrograph 
- type TDH 
+ ! Data for Unit Hydrograph
+ type TDH
    real(DP), dimension(:), pointer     :: UH_DATA  ! Data for Unit hydrograph (added by NM)
- end type TDH 
+ end type TDH
 
  ! Reach Parameters
  type RCHPRP
@@ -34,7 +34,7 @@ MODULE reachparam
   integer(I4B),dimension(:),pointer    :: UREACHI  ! Immediate Upstream reach indices
   integer(I4B),dimension(:),pointer    :: UREACHK  ! Immediate Upstream reach IDs
   logical(lgt),dimension(:),pointer    :: goodBas  ! Flag to denote a good basin
-  integer(I4B)                         :: RHORDER  ! Processing sequence 
+  integer(I4B)                         :: RHORDER  ! Processing sequence
   integer(I4B),dimension(:),pointer    :: RCHLIST  ! List of reaches upstream inices
   type(TDH),   dimension(:),pointer    :: UH       ! Unit hydrograph for upstream (added by NM)
   integer(I4B)                         :: LAKE_IX  ! Lake index (0,1,2,...,nlak-1)
