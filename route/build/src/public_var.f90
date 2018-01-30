@@ -42,6 +42,8 @@ module public_var
   character(len=strLen),public    :: units_time             ! time units
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntop             ! filename containing stream network topology information
+  character(len=strLen),public    :: dname_sseg             ! dimension name of segment in river network data
+  character(len=strLen),public    :: dname_nhru             ! dimension name of hru in river network data
   type(namepvar),public           :: nhru_acil(nVarsHRU)    ! ancillary data for HRUs
   type(namepvar),public           :: sseg_acil(nVarsSEG)    ! ancillary data for stream segments
   type(nameivar),public           :: imap_acil(nVarsMAP)    ! ancillary data for mapping hru2basin
