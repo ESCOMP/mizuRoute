@@ -10,7 +10,6 @@ USE nrtype
 implicit none
 private
 public::reach_list
-public::upstrm_length
 
 ! define the desired reach (set to negative to avoid any printing)
 integer(i4b),parameter  :: ixDesire = -9999
@@ -19,7 +18,7 @@ contains
  ! *********************************************************************
  ! new subroutine: identify all reaches above the current reach
  ! *********************************************************************
- SUBROUTINE REACH_LIST(NRCH,NTOTAL,ierr,message)
+ SUBROUTINE REACH_LIST(ixDesire,NETOPO,ixUpstream,ierr,message)
  ! ----------------------------------------------------------------------------------------
  ! Creator(s):
  !   Martyn Clark, 2006
@@ -29,24 +28,24 @@ contains
  ! ----------------------------------------------------------------------------------------
  ! Purpose:
  !
- !   Generates a list of all reaches upstream of each reach (used to compute total runoff
- !     at each point in the river network)
+ !   Generates a list of all reaches upstream of a given reach
  !
  ! ----------------------------------------------------------------------------------------
  ! I/O:
  !
  !   INPUTS:
- !     NRCH: Number of stream segments in the river network (reaches)
+ !     ixDesire:   Index of the desired stream segment
+ !     NETOPO:     Network topology structure
  !
  !  OUTPUTS:
- !   NTOTAL: Total number of upstream reaches for all reaches
- !     ierr: Error code
- !  message: Error message
+ !     ixUpstream: Indices of upstream reaches
+ !     ierr:       Error code
+ !     message:    Error message
  !
  ! ----------------------------------------------------------------------------------------
  ! Structures modified:
  !
- !   Updates structure RCHLIST in module reachparam
+ !   None
  !
  ! ----------------------------------------------------------------------------------------
  ! Future revisions:
@@ -55,13 +54,14 @@ contains
  !
  ! ----------------------------------------------------------------------------------------
  USE nrtype
- USE reachparam
+ USE reachparam, only : RCHTOPO                              ! Network topology structure
  USE nr_utility_module, ONLY : arth                          ! Num. Recipies utilities
  IMPLICIT NONE
  ! input variables
- INTEGER(I4B),INTENT(IN)                  :: NRCH            ! number of stream segments
+ integer(i4b), intent(in)                 :: ixDesire        ! index of the desired reach
+ type(RCHTOPO), intent(in)                :: NETOPO(:)       ! River Network topology
  ! output variables
- integer(i4b), intent(out)                :: NTOTAL          ! total number of upstream reaches for all reaches
+ integer(i4b), intent(out)                :: ixUpstream(:)   ! indices of upstream reaches for reach ixDesire
  integer(i4b), intent(out)                :: ierr            ! error code
  character(*), intent(out)                :: message         ! error message
  ! local variables
@@ -78,20 +78,15 @@ contains
   INTEGER(I4B)                            :: N_URCH          ! Number of upstream reaches
   TYPE(NODE), POINTER                     :: HPOINT          ! Head pointer in linked list
  END TYPE UPSTR_RCH
- TYPE(UPSTR_RCH),DIMENSION(:),ALLOCATABLE :: INTLIST         ! list of reaches u/s of each station
+ TYPE(UPSTR_RCH),ALLOCATABLE              :: INTLIST         ! list of reaches u/s of each station
  INTEGER(I4B)                             :: NUMUPS          ! number of reaches upstream
  integer(i4b),parameter                   :: strLen=256      ! length of character string
  character(len=strLen)                    :: cmessage        ! error message of downwind routine
  ! ----------------------------------------------------------------------------------------
  message='REACH_LIST/'
- ! allocate space for intlist
- ALLOCATE(INTLIST(NRCH),STAT=IERR)
- if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for INTLIST'; return; endif
  ! initialise the reach array
- DO IRCH=1,NRCH  ! loop through selected reaches
-  INTLIST(IRCH)%N_URCH = 0       ! initialize the number of upstream reaches
-  NULLIFY(INTLIST(IRCH)%HPOINT)  ! set pointer to a linked list to NULL
- END DO ! (irch)
+ INTLIST%N_URCH = 0       ! initialize the number of upstream reaches
+ NULLIFY(INTLIST%HPOINT)  ! set pointer to a linked list to NULL
 
  ! build the linked lists for all reaches
  DO KRCH=1,NRCH
@@ -100,20 +95,31 @@ contains
   CALL ADD2LIST(KRCH,KRCH,ierr,cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   ! start with krch and loop reach by reach down through to the outlet
+
+
   IRCH = KRCH
   DO  ! (do-forever)
+
+
    JRCH = NETOPO(IRCH)%DREACHI
    IF (JRCH.GT.0) THEN !  (check that jrch is valid, negative means irch is the outlet)
+
+
     ! jrch is downstream of krch, which means that krch is upstream of jrch
     ! *** therefore, add the krch index to the jrch list of upstream reaches ***
     !print*, 'irch, jrch, krch = ', irch, jrch, krch
     if (jrch.eq.irch) THEN !  (check that donwstream reach index is the same as current reach index, which means basin w/o reach)
       exit
     endif
+
     CALL ADD2LIST(JRCH,KRCH,ierr,cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
     ! move the index downstream
     IRCH = JRCH
+
+
+
    ELSE
     EXIT   ! negative = missing, which means that irch is the outlet
    ENDIF
@@ -123,19 +129,19 @@ contains
  NTOTAL=0 ! total number of upstream reaches for all reaches
  ! extract linked lists to allocated vectors
  DO JRCH=1,NRCH
-  NUMUPS = INTLIST(JRCH)%N_URCH ! should be at least 1 (because reach is upstream of itself)
-  NTOTAL = NTOTAL + NUMUPS
-  ALLOCATE(NETOPO(JRCH)%RCHLIST(NUMUPS),STAT=IERR)
+
+  ! allocate space for the upstream reach indices
+  NUMUPS = INTLIST%N_URCH ! should be at least 1 (because reach is upstream of itself)
+  ALLOCATE(ixUpstream(NUMUPS),STAT=IERR)
   if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for RCHLIST'; return; endif
+
   ! copy list of upstream reaches to structures (and delete the list)
   CALL MOVE_LIST(JRCH,JRCH,NUMUPS,ierr,cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  !print*, 'jrch, numups, NETOPO(JRCH)%RCHLIST(:) = ', jrch, numups, NETOPO(JRCH)%RCHLIST(:)
+  !print*, 'jrch, numups, ixUpstream(:) = ', jrch, numups, ixUpstream(:)
+
  END DO  ! jrch
 
- ! free up memory
- DEALLOCATE(INTLIST,STAT=IERR)
- if(ierr/=0)then; ierr=20; message=trim(message)//'problem deallocating space for INTLIST'; return; endif
  ! ----------------------------------------------------------------------------------------
  ! ----------------------------------------------------------------------------------------
  CONTAINS
@@ -177,7 +183,7 @@ contains
   KRCH = NNODES
   ! copy information in list to relevant structure
   DO WHILE (ASSOCIATED(URCH)) ! while URCH points to something
-   NETOPO(IRCH)%RCHLIST(KRCH) = URCH%IUPS
+   ixUpstream(KRCH) = URCH%IUPS
    ! let urch point to next node in list
    URCH => URCH%NEXT
    ! deallocate the node (clean up)
@@ -191,82 +197,5 @@ contains
   END SUBROUTINE MOVE_LIST
  ! ----------------------------------------------------------------------------------------
  END SUBROUTINE REACH_LIST
-
- ! *********************************************************************
- ! subroutine: Update total stream network length from a each esgment
- ! *********************************************************************
-  subroutine upstrm_length(nSeg, &          ! input
-                           ierr, message)   ! error control
-  ! ----------------------------------------------------------------------------------------
-  ! Creator(s):
-  !
-  !   Naoki Mizukami
-  !
-  ! ----------------------------------------------------------------------------------------
-  ! Purpose:
-  !
-  !   Calculate total length of upstream reach network from each segment
-  !
-  ! ----------------------------------------------------------------------------------------
-  ! I/O:
-  !
-  !   INPUTS:
-  !    nSeg: Number of stream segments in the river network (reaches)
-  !
-  ! ----------------------------------------------------------------------------------------
-  ! Structures modified:
-  !
-  !   Updates structure NETOPO%UPSLENG (module reachparam)
-  !
-  ! ----------------------------------------------------------------------------------------
-  USE reachparam
-
-  implicit none
-  ! input variables
-  integer(I4B), intent(in)               :: nSeg          ! number of stream segments
-  ! output variables
-  integer(i4b), intent(out)              :: ierr          ! error code
-  character(*), intent(out)              :: message       ! error message
-  ! local variables
-  integer(I4B)                           :: iSeg          ! index for segment loop
-  integer(I4B)                           :: iUps          ! index for upstream segment loop
-  integer(I4B)                           :: jUps          ! index for upstream segment loop
-  INTEGER(I4B)                           :: NASSIGN       ! # reaches currently assigned
-  logical(LGT),dimension(:),allocatable  :: RCHFLAG       ! TRUE if reach is processed
-  integer(I4B)                           :: nUps          ! number of upstream reaches
-  real(DP)                               :: xLocal        ! length of one segement
-  real(DP)                               :: xTotal        ! total length of upstream segment
-
-  ! initialize error control
-  ierr=0; message='strmlength/'
-  ! ----------------------------------------------------------------------------------------
-  NASSIGN = 0
-  allocate(RCHFLAG(nSeg),stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating space for RCHFLAG'; return; endif
-  RCHFLAG(1:nSeg) = .FALSE.
-  ! ----------------------------------------------------------------------------------------
-
-  seg_loop: do iSeg=1,nSeg !Loop through each segment
-
-    nUps = size(NETOPO(iSeg)%RCHLIST) ! size of upstream segment
-    allocate(NETOPO(iSeg)%UPSLENG(nUps),stat=ierr)
-    !print *,'--------------------------------------------'
-    !print *,'Seg ID, Num of upstream', iSeg, nUps
-    !print *,'list of upstream index',NETOPO(iSeg)%RCHLIST
-    upstrms_loop: do iUps=1,nUps !Loop through upstream segments of current segment
-      jUps=NETOPO(iSeg)%RCHLIST(iUps) !index of upstreamf segment
-      xTotal = 0.0 !Initialize total length of upstream segments
-      do
-        xLocal=RPARAM(jUps)%RLENGTH ! Get a segment length
-        xTotal=xTotal+xLocal
-        if (jUps.eq.NETOPO(iSeg)%REACHIX) exit
-        jUps = NETOPO(jUps)%DREACHI ! Get index of immediate downstream segment
-      enddo
-      NETOPO(iSeg)%UPSLENG(iUps)=xTotal
-    enddo upstrms_loop
-    !print*, 'iSeg,  NETOPO(iSeg)%UPSLENG(:) = ', iSeg, NETOPO(iSeg)%UPSLENG(:)
-  enddo seg_loop
-
-  end subroutine upstrm_length
 
 end module network_topo
