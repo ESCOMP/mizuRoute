@@ -22,9 +22,9 @@ module public_var
 
   ! ---------- named variables ----------------------------------------------------------------------
 
-  real(dp),    parameter,public   :: compute=1              ! compute given variable
-  real(dp),    parameter,public   :: doNotCompute=0         ! do not compute given variable
-  real(dp),    parameter,public   :: readFromFile=0         ! read given variable from a file
+  integer(i4b), parameter,public  :: compute=1              ! compute given variable
+  integer(i4b), parameter,public  :: doNotCompute=0         ! do not compute given variable
+  integer(i4b), parameter,public  :: readFromFile=0         ! read given variable from a file
 
   ! ---------- variables in the control file --------------------------------------------------------
 
@@ -43,8 +43,8 @@ module public_var
   character(len=strLen),public    :: dname_hruid          = ''              ! dimension name for hru in runoff data
   character(len=strLen),public    :: units_time           = ''              ! time units
   ! RIVER NETWORK TOPOLOGY
-  character(len=strLen),public    :: fname_sseg           = ''              ! filename containing stream network topology information
-  character(len=strLen),public    :: fname_ntop           = ''              ! filename containing stream network topology information
+  character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
+  character(len=strLen),public    :: fname_ntopNew        = ''              ! new filename containing stream network topology information
   character(len=strLen),public    :: dname_sseg           = ''              ! dimension name of segment in river network data
   character(len=strLen),public    :: dname_nhru           = ''              ! dimension name of hru in river network data
   ! ROUTED FLOW OUTPUT

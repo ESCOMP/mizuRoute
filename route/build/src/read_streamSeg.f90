@@ -216,9 +216,8 @@ contains
    end select
 
    ! check need to read the variable
-   if(topoNetworkOption/=readFromFile .and. .not.isVarDesired) cycle
-   print*, 'Reading '//trim(varName)//' into structure '//trim(meta_struct(iStruct)%structName)
-   call flush(6)
+   if(topoNetworkOption==readFromFile) isVarDesired=.true.
+   if(.not.isVarDesired) cycle
 
    ! get the netCDF variable ID
    ierr = nf90_inq_varid(ncid, trim(varName), ivarID)
@@ -237,7 +236,13 @@ contains
                         ierr,cmessage)                 ! error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+   ! skip for cases where te dimension length is zero
+   if(dimLength==0) cycle
+
    ! ---------- read data into temporary structures ----------------------------------------------------------------
+
+   ! print progress
+   print*, 'Reading '//trim(varName)//' into structure '//trim(meta_struct(iStruct)%structName)
 
    ! read data from NetCDF files
    select case(iStruct)

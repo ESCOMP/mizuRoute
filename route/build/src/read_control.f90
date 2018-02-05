@@ -96,10 +96,11 @@ contains
    case('<output_dir>');        output_dir                         = trim(cData) ! directory containing output data
 
    ! part 2: Define river network netCDF and its meta
-   case('<fname_ntop>');        fname_ntop                               = trim(cData) ! name of file containing stream network topology information
-   case('<fname_sseg>');        fname_sseg                               = trim(cData) ! name of file containing stream segment information
+   case('<fname_ntopOld>');     fname_ntopOld                            = trim(cData) ! name of file containing stream network topology information
+   case('<fname_ntopNew>');     fname_ntopNew                            = trim(cData) ! name of file containing stream segment information
    case('<dname_nhru>');        dname_nhru                               = trim(cData) ! dimension name of the HRUs
    case('<dname_sseg>');        dname_sseg                               = trim(cData) ! dimension name of the stream segments
+
    ! part 3: Define desired outlet segment ID (if -9999 --> route over the entire network)
    case('<seg_outlet>'   );     read(cData,*,iostat=io_error) idSegOut           ! seg_id of outlet streamflow segment
 

@@ -42,6 +42,7 @@ contains
  use network_topo,    only:up2downSegment        ! get the mapping between upstream and downstream segments
  use network_topo,    only:reach_list            ! reach list
  use network_topo,    only:reach_mask            ! identify all reaches upstream of a given reach
+ use network_topo,    only:reachOrder            ! define the processing order
  ! This subroutine 1) read river network data and 2) populate river network topology data strucutres
  implicit none
  ! output: model control
@@ -76,7 +77,7 @@ contains
  ! get the number of HRUs and stream segments (needed for allocate statements)
  call getData(&
               ! input
-              trim(ancil_dir)//trim(fname_ntop), & ! input: file name
+              trim(ancil_dir)//trim(fname_ntopOld), & ! input: file name
               dname_nhru,   & ! input: dimension name of the HRUs
               dname_sseg,   & ! input: dimension name of the stream segments
               ! output: model control
@@ -97,43 +98,53 @@ contains
 
  ! ---------- get the mapping between HRUs and segments ------------------------------------------------------
 
- ! get the mapping between HRUs and basins
- call hru2segment(&
-                  ! input
-                  nHRU,          & ! input: number of HRUs
-                  nSeg,          & ! input: number of stream segments
-                  ! input-output: data structures
-                  structHRU,     & ! ancillary data for HRUs
-                  structSeg,     & ! ancillary data for stream segments
-                  structHRU2seg, & ! ancillary data for mapping hru2basin
-                  structNTOPO,   & ! ancillary data for network toopology
-                  ! output
-                  tot_hru,    &   ! output: total number of all the upstream hrus for all stream segments
-                  ierr, cmessage) ! output: error control
+ ! check the need to compute network topology
+ if(topoNetworkOption==compute)then
 
- ! get timing
- call system_clock(time1)
- write(*,'(a,1x,i20)') 'after hru2segment: time = ', time1-time0
+  ! get the mapping between HRUs and basins
+  call hru2segment(&
+                   ! input
+                   nHRU,          & ! input: number of HRUs
+                   nSeg,          & ! input: number of stream segments
+                   ! input-output: data structures
+                   structHRU,     & ! ancillary data for HRUs
+                   structSeg,     & ! ancillary data for stream segments
+                   structHRU2seg, & ! ancillary data for mapping hru2basin
+                   structNTOPO,   & ! ancillary data for network toopology
+                   ! output
+                   tot_hru,    &   ! output: total number of all the upstream hrus for all stream segments
+                   ierr, cmessage) ! output: error control
+
+  ! get timing
+  call system_clock(time1)
+  write(*,'(a,1x,i20)') 'after hru2segment: time = ', time1-time0
+
+ endif  ! if need to compute network topology
 
  ! ---------- get the mapping between upstream and downstream segments ---------------------------------------
 
- ! get the mapping between upstream and downstream segments
- call up2downSegment(&
-                     ! input
-                     nSeg,          & ! input: number of stream segments
-                     ! input-output: data structures
-                     structHRU,     & ! ancillary data for HRUs
-                     structSeg,     & ! ancillary data for stream segments
-                     structHRU2seg, & ! ancillary data for mapping hru2basin
-                     structNTOPO,   & ! ancillary data for network toopology
-                     ! output
-                     tot_upseg,     & ! output: sum of immediate upstream segments
-                     ierr, cmessage)  ! output: error control
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ ! check the need to compute network topology
+ if(topoNetworkOption==compute)then
 
- ! get timing
- call system_clock(time1)
- write(*,'(a,1x,i20)') 'after up2downSegment: time = ', time1-time0
+  ! get the mapping between upstream and downstream segments
+  call up2downSegment(&
+                      ! input
+                      nSeg,          & ! input: number of stream segments
+                      ! input-output: data structures
+                      structHRU,     & ! ancillary data for HRUs
+                      structSeg,     & ! ancillary data for stream segments
+                      structHRU2seg, & ! ancillary data for mapping hru2basin
+                      structNTOPO,   & ! ancillary data for network toopology
+                      ! output
+                      tot_upseg,     & ! output: sum of immediate upstream segments
+                      ierr, cmessage)  ! output: error control
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! get timing
+  call system_clock(time1)
+  write(*,'(a,1x,i20)') 'after up2downSegment: time = ', time1-time0
+
+ endif  ! if need to compute network topology
 
  ! ---------- get the list of all upstream reaches above a given reach ---------------------------------------
 
@@ -178,39 +189,49 @@ contains
 
  print*, 'nDesire = ', size(ixHRU_desired)
 
- ! ---------- write network topology to a netcdf file -------------------------------------------------------
+ ! ---------- get the processing order -----------------------------------------------------------------------
 
- ! write data
- call writeData(&
-                ! input
-                trim(ancil_dir)//trim(fname_output), & ! input: file name
-                dname_nhru,    & ! input: dimension name of the HRUs
-                dname_sseg,    & ! input: dimension name of the stream segments
-                ! input: model control
-                nHRU,          & ! input: number of HRUs
-                nSeg,          & ! input: number of stream segments
-                tot_hru,       & ! input: total number of all the upstream hrus for all stream segments
-                tot_upseg,     & ! input: total number of immediate upstream segments for all  stream segments
-                tot_upstream,  & ! input: total number of all of the upstream stream segments for all stream segments
-                ! input: reach masks
-                ixHRU_desired, & ! input: indices of desired hrus
-                ixSeg_desired, & ! input: indices of desired reaches
-                ! input: data structures
-                structHRU,     & ! input: ancillary data for HRUs
-                structSeg,     & ! input: ancillary data for stream segments
-                structHRU2seg, & ! input: ancillary data for mapping hru2basin
-                structNTOPO,   & ! input: ancillary data for network topology
-                ! output: error control
-                ierr,cmessage) ! output: error control
+ ! defines the processing order for the individual stream segments in the river network
+ call REACHORDER(nSeg,         &   ! input:        number of reaches
+                 structNTOPO,  &   ! input:output: network topology
+                 ierr, cmessage)   ! output:       error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+ ! ---------- write network topology to a netcdf file -------------------------------------------------------
+
+ ! check the need to compute network topology
+ if(topoNetworkOption==compute .or. computeReachList==compute .or. idSegOut>0)then
+
+  ! write data
+  call writeData(&
+                 ! input
+                 trim(ancil_dir)//trim(fname_ntopNew), & ! input: file name
+                 dname_nhru,    & ! input: dimension name of the HRUs
+                 dname_sseg,    & ! input: dimension name of the stream segments
+                 ! input: model control
+                 nHRU,          & ! input: number of HRUs
+                 nSeg,          & ! input: number of stream segments
+                 tot_hru,       & ! input: total number of all the upstream hrus for all stream segments
+                 tot_upseg,     & ! input: total number of immediate upstream segments for all  stream segments
+                 tot_upstream,  & ! input: total number of all of the upstream stream segments for all stream segments
+                 ! input: reach masks
+                 ixHRU_desired, & ! input: indices of desired hrus
+                 ixSeg_desired, & ! input: indices of desired reaches
+                 ! input: data structures
+                 structHRU,     & ! input: ancillary data for HRUs
+                 structSeg,     & ! input: ancillary data for stream segments
+                 structHRU2seg, & ! input: ancillary data for mapping hru2basin
+                 structNTOPO,   & ! input: ancillary data for network topology
+                 ! output: error control
+                 ierr,cmessage) ! output: error control
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ endif  ! if writing the data
 
 
 
 
 
-
- ! ---------- get the processing order -----------------------------------------------------------------------
 
 
 

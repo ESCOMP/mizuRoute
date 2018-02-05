@@ -190,13 +190,13 @@ contains
   ! HRUs and stream segments are not ragged, so cycle
   if(jDim==ixDims%hru .or. jDim==ixDims%seg) cycle
 
-  ! compute the start index
-  ierr = nf90_def_var(ncid,trim(meta_dims(jDim)%dimName)//'_start',nf90_int,(/meta_dims(ixDims%seg)%dimId/),iVarId)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+  ! define the start index
+  call varDefine(ncid, trim(meta_dims(jDim)%dimName)//'_start', 'start index in ragged array', '-', nf90_int, ixDims%seg, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! compute the count
-  ierr = nf90_def_var(ncid,trim(meta_dims(jDim)%dimName)//'_count',nf90_int,(/meta_dims(ixDims%seg)%dimId/),iVarId)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+  ! define the count
+  call varDefine(ncid, trim(meta_dims(jDim)%dimName)//'_count', 'count of spatial element in ragged array', '-', nf90_int, ixDims%seg, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end do  ! looping through dimensions
 
@@ -213,6 +213,7 @@ contains
    case(ixStruct%NTOPO  ); call defineVar(ncid, meta_NTOPO  , nf90_int,    ierr, cmessage)       ! network topology
    case default; ierr=20; message=trim(message)//'unable to identify data structure'; return
   end select
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end do  ! looping through data structures
 
@@ -248,28 +249,70 @@ contains
  character(*)      , intent(out)     :: message   ! error message
  ! ---------------------------------------------------------------------------------------------------------------
  integer(i4b)                        :: iVar      ! variable index
- integer(i4b)                        :: iVarID    ! variable ID
+ character(len=strLen)               :: cmessage  ! error message of downwind routine
  ! ---------------------------------------------------------------------------------------------------------------
  ierr=0; message='defineVar/'
 
  ! loop through variables
  do ivar=1,size(meta)
-
-   ! define variable
-   ierr = nf90_def_var(ncid,trim(meta(ivar)%varName), ivtype, meta_dims(meta(ivar)%varType)%dimId, iVarId)
-   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'name = '//trim(meta(ivar)%varName); return; endif
-
-   ! add variable description
-   ierr = nf90_put_att(ncid,iVarId,'long_name',trim(meta(ivar)%varDesc))
-   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'name = '//trim(meta(ivar)%varName); return; endif
-
-   ! add variable units
-   ierr = nf90_put_att(ncid,iVarId,'units',trim(meta(ivar)%varUnit))
-   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'name = '//trim(meta(ivar)%varName); return; endif
-
- end do  ! looping through variables
+   call varDefine(ncid, & ! NetCDF ID
+                  trim(meta(ivar)%varName), trim(meta(ivar)%varDesc), trim(meta(ivar)%varUnit),&  ! name, description, units
+                  ivtype, meta(ivar)%varType, ierr, cmessage)                                     ! variable type, dimension index
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end do
 
  end subroutine defineVar
+
+ ! *********************************************************************
+ ! new subroutine: define variable in NetCDF file
+ ! *********************************************************************
+ subroutine varDefine(&
+                      ! input
+                      ncid,         & ! input: NetCDF id
+                      varName,      & ! input: variable name
+                      varDesc,      & ! input: variable description
+                      varUnit,      & ! input: variable units
+                      ivtype,       & ! input: variable type
+                      ivdim,        & ! input: variable dimension
+                      ! output: error control
+                      ierr,message)   ! output: error control
+ implicit none
+ ! input variables
+ integer(i4b)      , intent(in)      :: ncid      ! netcdf id
+ character(*)      , intent(in)      :: varName   ! variable name
+ character(*)      , intent(in)      :: varDesc   ! variable description
+ character(*)      , intent(in)      :: varUnit   ! variable units
+ integer(i4b)      , intent(in)      :: ivtype    ! variable type
+ integer(i4b)      , intent(in)      :: ivdim     ! variable dimension
+ ! output: error control
+ integer(i4b)      , intent(out)     :: ierr      ! error code
+ character(*)      , intent(out)     :: message   ! error message
+ ! ---------------------------------------------------------------------------------------------------------------
+ integer(i4b)                        :: iVarID    ! variable ID
+ ! ---------------------------------------------------------------------------------------------------------------
+ ierr=0; message='varDefine/'
+
+ ! define variable
+ ierr = nf90_def_var(ncid,trim(varName), ivtype, meta_dims(ivdim)%dimId, iVarId)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'name = '//trim(varName); return; endif
+
+ ! add variable description
+ ierr = nf90_put_att(ncid,iVarId,'long_name',trim(varDesc))
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'name = '//trim(varName); return; endif
+
+ ! add variable units
+ ierr = nf90_put_att(ncid,iVarId,'units',trim(varUnit))
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'name = '//trim(varName); return; endif
+
+ ! add missing values
+ select case(ivtype)
+  case(nf90_int);    ierr = nf90_put_att(ncid,iVarId,'_FillValue',integerMissing)
+  case(nf90_double); ierr = nf90_put_att(ncid,iVarId,'_FillValue',realMissing)
+  case default; ierr=20; message=trim(message)//'unable to identify variable type'; return
+ endselect
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'name = '//trim(varName); return; endif
+
+ end subroutine varDefine
 
  ! *********************************************************************
  ! new subroutine: write variables to NetCDF file (double precision)
@@ -307,7 +350,7 @@ contains
  character(len=strLen)               :: cmessage         ! error message of downwind routine
  real(dp)          , allocatable     :: tempVec(:)       ! temporary vector
  ! ---------------------------------------------------------------------------------------------------------------
- ierr=0; message='writeVar_i4b/'
+ ierr=0; message='writeVar_dp/'
 
  ! get the size of the spatial subset
  nSubset = size(ixDesired)
@@ -320,6 +363,9 @@ contains
  do ivar=1,size(meta)
 
   ! ---------- get the data vector for a given variable -----------------------------------------------------------
+
+  ! if we created a subset (idSegOut>0) then only write variables where meta(ivar)%varFile = .true.
+  if(idSegOut>0 .and. .not.meta(ivar)%varFile) cycle
 
   ! print progress
   print*, 'Writing '//trim(meta(ivar)%varName)//' to file '//trim(fname)
@@ -446,6 +492,9 @@ contains
  do ivar=1,size(meta)
 
   ! ---------- get the data vector for a given variable -----------------------------------------------------------
+
+  ! if we created a subset (idSegOut>0) then only write variables where meta(ivar)%varFile = .true.
+  if(idSegOut>0 .and. .not.meta(ivar)%varFile) cycle
 
   ! print progress
   print*, 'Writing '//trim(meta(ivar)%varName)//' to file '//trim(fname)
