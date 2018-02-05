@@ -6,9 +6,16 @@ MODULE reach_mask_module
  ! Removed all subroutines in network_rout.f90 EXCEPT REACH_LIST
  ! Added upstrm_length from vic_route.f90
 
+! data types
 USE nrtype
-USE nrtype, only: strLen          ! string length
-USE nrtype, only: integerMissing  ! missing values for integers
+USE nrtype, only : strLen          ! string length
+USE nrtype, only : integerMissing  ! missing values for integers
+USE dataTypes, only : var_ilength  ! integer type:          var(:)%dat
+USE dataTypes, only : var_dlength  ! double precision type: var(:)%dat
+
+! named variables
+USE var_lookup,only:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
+
 implicit none
 private
 public::reach_mask
@@ -18,73 +25,51 @@ contains
  ! *********************************************************************
  ! new subroutine: identify all reaches above the current reach
  ! *********************************************************************
- SUBROUTINE REACH_MASK(desireId,NETOPO,nRch,isDesired,ierr,message)
- ! ----------------------------------------------------------------------------------------
- ! Creator(s):
- !   Martyn Clark, 2006
- !   Einar Ã~Vrn Hreinsson, 2009  -- adapt linked lists and selections of reaches
- !   Martyn Clark, 2014 -- modify to be used as a stand-alone module
- !
+ SUBROUTINE REACH_MASK(desireId,structNTOPO,nRch,isDesired,ierr,message)
  ! ----------------------------------------------------------------------------------------
  ! Purpose:
  !
  !   Generates a list of all reaches upstream of a given reach
  !
  ! ----------------------------------------------------------------------------------------
- ! I/O:
- !
- !   INPUTS:
- !     ixDesire:   Index of the desired stream segment
- !     NETOPO:     Network topology structure
- !
- !  OUTPUTS:
- !     ixUpstream: Indices of upstream reaches
- !     ierr:       Error code
- !     message:    Error message
- !
- ! ----------------------------------------------------------------------------------------
- ! Structures modified:
- !
- !   None
- !
- ! ----------------------------------------------------------------------------------------
- ! Future revisions:
- !
- !   (none planned)
- !
- ! ----------------------------------------------------------------------------------------
  USE nrtype
- USE reachparam, only : RCHTOPO                              ! Network topology structure
- USE nr_utility_module, ONLY : arth                          ! Num. Recipies utilities
+ USE nr_utility_module, ONLY : arth                            ! Num. Recipies utilities
  IMPLICIT NONE
  ! input variables
- integer(i4b), intent(in)                 :: desireId        ! id of the desired reach
- type(RCHTOPO), intent(in)                :: NETOPO(:)       ! River Network topology
- integer(i4b), intent(in)                 :: nRch            ! number of reaches
+ integer(i4b)      , intent(in)           :: desireId          ! id of the desired reach
+ type(var_ilength) , intent(in)           :: structNTOPO(:)    ! network topology structure
+ integer(i4b)      , intent(in)           :: nRch              ! number of reaches
  ! output variables
- logical(lgt), intent(out)                :: isDesired(:)    ! flags to define that the reach is desired
- integer(i4b), intent(out)                :: ierr            ! error code
- character(*), intent(out)                :: message         ! error message
+ logical(lgt)      , intent(out)          :: isDesired(:)      ! flags to define that the reach is desired
+ integer(i4b)      , intent(out)          :: ierr              ! error code
+ character(*)      , intent(out)          :: message           ! error message
+ ! ----------------------------------------------------------------------------------------
  ! general local variables
- integer(i4b)                             :: nDesire         ! num desired reaches
- INTEGER(I4B)                             :: IRCH,JRCH,KRCH  ! loop through reaches
- logical(lgt)                             :: isTested(nRch)  ! flags to define that the reach has been tested
- character(len=strLen)                    :: cmessage        ! error message of downwind routine
+ integer(i4b)                             :: nDesire           ! num desired reaches
+ INTEGER(I4B)                             :: IRCH,JRCH,KRCH    ! loop through reaches
+ logical(lgt)                             :: isTested(nRch)    ! flags to define that the reach has been tested
+ character(len=strLen)                    :: cmessage          ! error message of downwind routine
  ! structure in a linked list
  TYPE NODE_STRUCTURE
-  INTEGER(I4B)                            :: IX              ! index of downstream reach
-  TYPE(NODE_STRUCTURE), POINTER           :: NEXT            ! next node in linked list
+  INTEGER(I4B)                            :: IX                ! index of downstream reach
+  TYPE(NODE_STRUCTURE), POINTER           :: NEXT              ! next node in linked list
  END TYPE NODE_STRUCTURE
  ! a structure object in a linked list
- TYPE(NODE_STRUCTURE), POINTER            :: NODE            ! node in linked list
- TYPE(NODE_STRUCTURE), POINTER            :: HPOINT          ! Head pointer in linked list
+ TYPE(NODE_STRUCTURE), POINTER            :: NODE              ! node in linked list
+ TYPE(NODE_STRUCTURE), POINTER            :: HPOINT            ! Head pointer in linked list
  ! vectors of downstream reaches
- integer(i4b)                             :: nDown           ! number d/s reaches
- integer(i4b)                             :: ixDesire        ! index of desired reach
- integer(i4b),allocatable                 :: ixDownstream(:) ! indices of downstream reaches
+ integer(i4b)                             :: nDown             ! number d/s reaches
+ integer(i4b)                             :: ixDesire          ! index of desired reach
+ integer(i4b),allocatable                 :: ixDownstream(:)   ! indices of downstream reaches
  ! ----------------------------------------------------------------------------------------
  ! initialize error control
  ierr=0; message='REACH_MASK/'
+
+ ! check if we actually want the mask
+ if(desireId<0)then
+  isDesired(:) = .true.
+  return
+ endif
 
  ! initialize logical vectors
  isTested(:)  = .false. ! .true. if we have processed a reach already
@@ -92,6 +77,9 @@ contains
 
  ! loop through all reaches
  DO KRCH=1,nRch
+
+  ! print progress
+  !if(mod(kRch,100000)==0) print*, 'Getting reach subset: kRch, nRch = ', kRch, nRch
 
   ! skip if we have already tested krch
   if(isTested(kRch)) cycle
@@ -112,15 +100,11 @@ contains
   DO  ! (do-forever)
 
    ! index of downstream reach
-   JRCH = NETOPO(IRCH)%DREACHI
+   JRCH = structNTOPO(iRch)%var(ixNTOPO%downSegIndex)%dat(1)
 
    ! check if complete
    if(jRch<=0) exit         ! negative = missing, which means that the reach is the outlet
    if(isTested(jRch)) exit  ! if we have tested jRch then we have also tested all reaches downstream
-
-   ! jrch is downstream of krch, which means that krch is upstream of jrch
-   ! *** therefore, add the krch index to the jrch list of upstream reaches ***
-   if (jrch==irch) exit !  (check that donwstream reach index is the same as current reach index, which means basin w/o reach)
 
    ! add downstream reach to the list
    CALL ADD2LIST(JRCH,ierr,cmessage)
@@ -151,7 +135,7 @@ contains
    ixDownstream(jRch) = node%ix
 
    ! if desired reach is contained in downstream vector, then set the index in downstream vector
-   if(NETOPO(node%ix)%REACHID==desireId) ixDesire=jRch
+   if(structNTOPO(node%ix)%var(ixNTOPO%segId)%dat(1)==desireId) ixDesire=jRch
 
    ! point to the next node
    node=>node%next
@@ -191,7 +175,7 @@ contains
  ! check that the desired reach exists
  nDesire = count(isDesired)
  if(nDesire==0)then
-  message=trim(message)//'desired reach does not exist'
+  message=trim(message)//'desired reach does not exist: NOTE: reach Ids must be >0'
   ierr=20; return
  endif
 

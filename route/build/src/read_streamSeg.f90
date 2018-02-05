@@ -2,43 +2,30 @@ module read_streamSeg
 
 ! data types
 USE nrtype
-USE nrtype,    only : strLen            ! string length
-USE nrtype,    only : integerMissing    ! missing value for integers
-USE dataTypes, only : var_ilength       ! integer type:          var(:)%dat
-USE dataTypes, only : var_dlength       ! double precision type: var(:)%dat
+USE nrtype,    only : strLen               ! string length
+USE nrtype,    only : integerMissing       ! missing value for integers
+USE dataTypes, only : var_ilength          ! integer type:          var(:)%dat
+USE dataTypes, only : var_dlength          ! double precision type: var(:)%dat
+USE dataTypes, only : var_info             ! metadata
 
-! old data structures
-USE nhru2basin, only : all_points        ! derived data types for hru2segment mapping
-USE reachparam, only : RCHTOPO           ! Network topology structure
-USE reachparam, only : RCHPRP            ! Reach Parameter structure
+! global data
+USE public_var
 
 ! metadata on data structures
-USE globalData, only : meta_struct  ! structure information
-USE globalData, only : meta_HRU     ! HRU properties
-USE globalData, only : meta_HRU2SEG ! HRU-to-segment mapping
-USE globalData, only : meta_SEG     ! stream segment properties
-USE globalData, only : meta_NTOPO   ! network topology
-
-! named variables
-USE globalData, only : scalar       ! scalar variable
-USE globalData, only : vector       ! vector variable
+USE globalData, only : meta_struct         ! structure information
+USE globalData, only : meta_dims           ! dimension information
+USE globalData, only : meta_HRU            ! HRU properties
+USE globalData, only : meta_HRU2SEG        ! HRU-to-segment mapping
+USE globalData, only : meta_SEG            ! stream segment properties
+USE globalData, only : meta_NTOPO          ! network topology
 
 ! named variables
 USE var_lookup,only:ixStruct, nStructures  ! index of data structures
+USE var_lookup,only:ixDims,   nDimensions  ! index of dimensions
 USE var_lookup,only:ixHRU,    nVarsHRU     ! index of variables for the HRUs
 USE var_lookup,only:ixSEG,    nVarsSEG     ! index of variables for the stream segments
 USE var_lookup,only:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
 USE var_lookup,only:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
-
-! old named variables
-USE var_lookup,only:ixMAP,nVarsMAP   ! index of variables for the hru2segment mapping
-USE var_lookup,only:ixTOP,nVarsTOP   ! index of variables for the network topology
-
-! old data structures
-USE dataTypes,  only : namepvar,nameivar      ! provide access to data types
-
-! global data
-USE public_var
 
 ! netcdf modules
 USE netcdf
@@ -55,8 +42,6 @@ integer(i4b),parameter  :: down2noSegment=0     ! index in the input file if the
 ! privacy
 private
 public::getData
-public::hru2segment
-public::up2downSegment
 contains
 
  ! *********************************************************************
@@ -111,6 +96,7 @@ contains
  integer(i4b), allocatable           :: iTemp(:)     ! temporary integer vector
  real(dp),     allocatable           :: dTemp(:)     ! temporary double precision vector
  integer(i4b)                        :: dimLength    ! dimension length
+ logical(lgt)                        :: isDimScalar  ! .true. if the dimension is a scalar
  logical(lgt)                        :: isVarDesired ! .true. if the variable is desired
  character(len=strLen)               :: varName      ! variable name
  character(len=strLen)               :: cmessage     ! error message of downwind routine
@@ -185,12 +171,21 @@ contains
    ! loop through the variables
    do iVar=1,meta_struct(iStruct)%nVars
 
+    ! define the need to allocate
+    select case(iStruct)
+     case(ixStruct%HRU    ); isDimScalar = ( meta_HRU(    ivar)%varType==ixDims%hru .or. meta_HRU(    ivar)%varType==ixDims%seg )
+     case(ixStruct%HRU2SEG); isDimScalar = ( meta_HRU2SEG(ivar)%varType==ixDims%hru .or. meta_HRU2SEG(ivar)%varType==ixDims%seg )
+     case(ixStruct%SEG    ); isDimScalar = ( meta_SEG(    ivar)%varType==ixDims%hru .or. meta_SEG(    ivar)%varType==ixDims%seg )
+     case(ixStruct%NTOPO  ); isDimScalar = ( meta_NTOPO(  ivar)%varType==ixDims%hru .or. meta_NTOPO(  ivar)%varType==ixDims%seg )
+     case default; ierr=20; message=trim(message)//'unable to identify data structure'; return
+    end select
+
     ! allocate space for the data
     select case(iStruct)
-     case(ixStruct%HRU    ); if(meta_HRU(    ivar)%varType==scalar) allocate(structHRU(    iSpace)%var(iVar)%dat(1), stat=ierr)
-     case(ixStruct%HRU2SEG); if(meta_HRU2SEG(ivar)%varType==scalar) allocate(structHRU2seg(iSpace)%var(iVar)%dat(1), stat=ierr)
-     case(ixStruct%SEG    ); if(meta_SEG(    ivar)%varType==scalar) allocate(structSeg(    iSpace)%var(iVar)%dat(1), stat=ierr)
-     case(ixStruct%NTOPO  ); if(meta_NTOPO(  ivar)%varType==scalar) allocate(structNTOPO(  iSpace)%var(iVar)%dat(1), stat=ierr)
+     case(ixStruct%HRU    ); if(isDimScalar) allocate(structHRU(    iSpace)%var(iVar)%dat(1), stat=ierr)
+     case(ixStruct%HRU2SEG); if(isDimScalar) allocate(structHRU2seg(iSpace)%var(iVar)%dat(1), stat=ierr)
+     case(ixStruct%SEG    ); if(isDimScalar) allocate(structSeg(    iSpace)%var(iVar)%dat(1), stat=ierr)
+     case(ixStruct%NTOPO  ); if(isDimScalar) allocate(structNTOPO(  iSpace)%var(iVar)%dat(1), stat=ierr)
      case default; ierr=20; message=trim(message)//'unable to identify data structure'; return
     end select
     if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for the data vectors'; return; endif
@@ -221,7 +216,7 @@ contains
    end select
 
    ! check need to read the variable
-   if(topoNetworkOption/=0 .and. .not.isVarDesired) cycle
+   if(topoNetworkOption/=readFromFile .and. .not.isVarDesired) cycle
    print*, 'Reading '//trim(varName)//' into structure '//trim(meta_struct(iStruct)%structName)
    call flush(6)
 
@@ -287,11 +282,12 @@ contains
     jxCount = ixCount(iSpace)
 
     ! allocate space for the data
+    ! NOTE: if dimension length is equal to the size of the structure, then the data is a scalar and already allocated
     select case(iStruct)
-     case(ixStruct%HRU    ); if(meta_HRU(    ivar)%varType/=scalar) allocate(structHRU(    iSpace)%var(iVar)%dat( ixCount(iSpace) ), stat=ierr)
-     case(ixStruct%HRU2SEG); if(meta_HRU2SEG(ivar)%varType/=scalar) allocate(structHRU2seg(iSpace)%var(iVar)%dat( ixCount(iSpace) ), stat=ierr)
-     case(ixStruct%SEG    ); if(meta_SEG(    ivar)%varType/=scalar) allocate(structSeg(    iSpace)%var(iVar)%dat( ixCount(iSpace) ), stat=ierr)
-     case(ixStruct%NTOPO  ); if(meta_NTOPO(  ivar)%varType/=scalar) allocate(structNTOPO(  iSpace)%var(iVar)%dat( ixCount(iSpace) ), stat=ierr)
+     case(ixStruct%HRU    ); if(size(structHRU)    /=dimLength) allocate(structHRU(    iSpace)%var(iVar)%dat( ixCount(iSpace) ), stat=ierr)
+     case(ixStruct%HRU2SEG); if(size(structHRU2seg)/=dimLength) allocate(structHRU2seg(iSpace)%var(iVar)%dat( ixCount(iSpace) ), stat=ierr)
+     case(ixStruct%SEG    ); if(size(structSeg)    /=dimLength) allocate(structSeg(    iSpace)%var(iVar)%dat( ixCount(iSpace) ), stat=ierr)
+     case(ixStruct%NTOPO  ); if(size(structNTOPO)  /=dimLength) allocate(structNTOPO(  iSpace)%var(iVar)%dat( ixCount(iSpace) ), stat=ierr)
      case default; ierr=20; message=trim(message)//'unable to identify data structure'; return
     end select
     if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for the data vectors'; return; endif
@@ -322,7 +318,36 @@ contains
  ierr = nf90_close(ncid)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
+ ! ---------- initialize variables ---------------------------------------------------------------------------
+
+ ! loop through stream segments
+ do iSeg=1,nSeg
+
+  ! initialize variables not yet computed / assigned
+  structSEG(iSeg)%var(ixSEG%width          )%dat(1) = realMissing
+  structSEG(iSeg)%var(ixSEG%man_n          )%dat(1) = realMissing
+  structSEG(iSeg)%var(ixSEG%upsArea        )%dat(1) = realMissing
+  structSEG(iSeg)%var(ixSEG%basUnderLake   )%dat(1) = realMissing
+  structSEG(iSeg)%var(ixSEG%rchUnderLake   )%dat(1) = realMissing
+  structSEG(iSeg)%var(ixSEG%minFlow        )%dat(1) = realMissing
+
+  ! initialize variables not yet computed / assigned
+  structNTOPO(iSeg)%var(ixNTOPO%rchOrder   )%dat(1) = integerMissing
+  structNTOPO(iSeg)%var(ixNTOPO%lakeId     )%dat(1) = integerMissing
+  structNTOPO(iSeg)%var(ixNTOPO%lakeIndex  )%dat(1) = integerMissing
+  structNTOPO(iSeg)%var(ixNTOPO%isLakeInlet)%dat(1) = integerMissing
+  structNTOPO(iSeg)%var(ixNTOPO%userTake   )%dat(1) = integerMissing
+  structNTOPO(iSeg)%var(ixNTOPO%goodBasin  )%dat(1) = integerMissing
+
+ end do  ! looping through stream segments
+
  end subroutine getData
+
+ ! ==========================================================================================================
+ ! ==========================================================================================================
+ ! ==========================================================================================================
+ ! ==========================================================================================================
+ ! ==========================================================================================================
 
  ! *********************************************************************
  ! private subroutine: get start and count vectors
@@ -399,392 +424,5 @@ contains
  endif
 
  end subroutine getSubetIndices
-
-
- ! *********************************************************************
- ! new subroutine: compute correspondence between HRUs and segments
- ! *********************************************************************
- subroutine hru2segment(&
-                        ! input
-                        nHRU,       &   ! input: number of HRUs
-                        nSeg,       &   ! input: number of stream segments
-                        ! input-output: data structures
-                        structHRU,     & ! ancillary data for HRUs
-                        structSeg,     & ! ancillary data for stream segments
-                        structHRU2seg, & ! ancillary data for mapping hru2basin
-                        structNTOPO,   & ! ancillary data for network toopology
-                        ! output
-                        total_hru,  &   ! output: total number of HRUs that drain into any segments
-                        ierr, message)  ! output: error control
- implicit none
- ! input variables
- integer(i4b), intent(in)                      :: nHRU              ! number of HRUs
- integer(i4b), intent(in)                      :: nSeg              ! number of stream segments
- ! input-output: data structures
- type(var_dlength), intent(inout), allocatable :: structHRU(:)      ! HRU properties
- type(var_dlength), intent(inout), allocatable :: structSeg(:)      ! stream segment properties
- type(var_ilength), intent(inout), allocatable :: structHRU2seg(:)  ! HRU-to-segment mapping
- type(var_ilength), intent(inout), allocatable :: structNTOPO(:)    ! network topology
- ! output variables
- integer(i4b), intent(out)                     :: total_hru         ! total number of HRUs that drain into any segments
- integer(i4b), intent(out)                     :: ierr              ! error code
- character(*), intent(out)                     :: message           ! error message
- ! local variables
- logical(lgt),parameter          :: checkMap=.true.   ! flag to check the mapping
- character(len=strLen)           :: cmessage          ! error message of downwind routine
- integer(i4b)                    :: hruIndex          ! index of HRU (from another data structure)
- integer(i4b)                    :: iHRU              ! index of HRU
- integer(i4b)                    :: iSeg              ! index of stream segment
- integer(i4b)                    :: segId(nSeg)       ! unique identifier of the HRU
- integer(i4b)                    :: hruSegId(nHRU)    ! unique identifier of the segment where HRU drains
- integer(i4b)                    :: segHRUix(nHRU)    ! index of segment where HRU drains
- integer(i4b)                    :: nHRU2seg(nSeg)    ! number of HRUs that drain into a given segment
- real(dp)                        :: totarea           ! total area of all HRUs feeding into a given stream segment (m2)
- !integer*8                       :: time0,time1       ! times
-
- ! initialize error control
- ierr=0; message='hru2segment/'
-
- !print*, 'PAUSE: start of '//trim(message); read(*,*)
-
- ! initialize timing
- !call system_clock(time0)
-
- ! ---------- get the index of the stream segment that a given HRU drains into ------------------------------
-
- ! get input vectors
- do iSeg=1,nSeg; segId(iSeg)    = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1); end do
- do iHRU=1,nHRU; hruSegId(iHRU) = structHRU2seg(iHRU)%var(ixHRU2seg%hruSegId)%dat(1); end do
-
- call downReachIndex(&
-                     ! input
-                     nHRU,          & ! number of upstream elements
-                     nSeg,          & ! number of stream segments
-                     segId,         & ! unique identifier of the stream segments
-                     hruSegId,      & ! unique identifier of the segment where water drains
-                     ! output
-                     segHRUix,      & ! index of downstream stream segment
-                     nHRU2seg,      & ! number of elements that drain into each segment
-                     ierr,cmessage)   ! error control
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ! get the total number of HRUs that drain into any segments
- total_hru = sum(nHRU2seg)
-
- ! ---------- allocate space for the mapping structures -----------------------------------------------------
-
- ! loop through stream segments
- do iSeg=1,nSeg
-  ! allocate space (number of elements that drain into each segment)
-  allocate(structNTOPO(iSeg)%var(ixNTOPO%hruContribIx)%dat( nHRU2seg(iSeg) ), &
-           structNTOPO(iSeg)%var(ixNTOPO%hruContribId)%dat( nHRU2seg(iSeg) ), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating space for hru2seg structure component'; return; endif
-  ! initialize the number of HRUs
-  structNTOPO(iSeg)%var(ixNTOPO%nHRU)%dat(1) = 0
- end do
-
- ! get timing
- !call system_clock(time1)
- !print*, 'timing: allocate space = ', time1-time0
-
- ! ---------- populate structure components for HRU-2-Segment mapping ---------------------------------------
-
- ! loop through HRUs
- do iHRU=1,nHRU
-
-  ! identify the index of the stream segment that the HRU drains into
-  iSeg = segHRUix(iHRU)
-
-  ! if there is no stream segment associated with current hru
-  if (iSeg == integerMissing) cycle
-
-  ! associate variables in data structure
-  associate(nContrib       => structNTOPO(iSeg)%var(ixNTOPO%nHRU)%dat(1),      & ! contributing HRUs
-            hruContribIx   => structNTOPO(iSeg)%var(ixNTOPO%hruContribIx)%dat, & ! index of contributing HRU
-            hruContribId   => structNTOPO(iSeg)%var(ixNTOPO%hruContribId)%dat  ) ! unique ids of contributing HRU
-
-  ! increment the HRU counter
-  nContrib = nContrib + 1
-
-  ! populate structure components
-  hruContribIx(nContrib)   = iHRU
-  hruContribId(nContrib)   = structHRU2seg(iHRU)%var(ixHRU2SEG%HRUid)%dat(1)
-
-  ! end associations
-  end associate
-
- end do ! looping through HRUs
-
- ! check
- if(checkMap)then
-  do iSeg=1,nSeg
-   if(nHRU2seg(iSeg)/=structNTOPO(iSeg)%var(ixNTOPO%nHRU)%dat(1))then
-    message=trim(message)//'problems identifying the HRUs draining into stream segment'
-    ierr=20; return
-   endif
-  end do
- endif
-
- ! get timing
- !call system_clock(time1)
- !print*, 'timing: populate structure components = ', time1-time0
-
- ! ---------- compute HRU weights ---------------------------------------------------------------------------
-
- ! loop through segments
- do iSeg=1,nSeg
-
-   ! compute total area of the HRUs draining to the stream segment
-   totarea = 0._dp
-   do iHRU=1,structNTOPO(iSeg)%var(ixNTOPO%nHRU)%dat(1)
-    hruIndex = structNTOPO(iSeg)%var(ixNTOPO%hruContribIx)%dat(iHRU)
-    totarea  = totarea + structHRU(hruIndex)%var(ixHRU%area)%dat(1)
-   end do
-
-   ! compute the weights
-   structHRU(iHRU)%var(ixHRU%weight)%dat(1) = structHRU(iHRU)%var(ixHRU%area)%dat(1) / totarea
-
- end do  ! (looping thru stream segments)
-
- ! get timing
- !call system_clock(time1)
- !print*, 'timing: compute HRU weights = ', time1-time0
- !print*, 'PAUSE: end of '//trim(message); read(*,*)
-
- end subroutine hru2segment
-
-
- ! *********************************************************************
- ! new subroutine: mapping between upstream and downstream segments
- ! *********************************************************************
- subroutine up2downSegment(&
-                           ! input
-                           nRch,         &    ! input: number of stream segments
-                           sseg_acil,    &    ! input: stream segment parameters
-                           ntop_acil,    &    ! input: network topology
-                           hru2seg,      &    ! input: hru-segment mapping structure
-                           ! output
-                           NETOPO,       &    ! output: River Network topology
-                           RPARAM,       &    ! output: Reach Parameters
-                           total_upseg,  &    ! output: sum of immediate upstream segments
-                           ierr, message)     ! output (error control)
- implicit none
- ! input variables
- integer(i4b),   intent(in)                 :: nRch         ! number of reaches
- type(namepvar), intent(in)                 :: sseg_acil(:) ! ancillary data for stream segments
- type(nameivar), intent(in)                 :: ntop_acil(:) ! ancillary data for the network topology
- type(all_points), intent(in)               :: hru2seg(:)   ! hru-segment mapping structure
- ! output variables
- type(RCHTOPO),  intent(out) , allocatable  :: NETOPO(:)    ! River Network topology
- type(RCHPRP),   intent(out) , allocatable  :: RPARAM(:)    ! Reach Parameters
- integer(i4b),   intent(out)                :: total_upseg  ! sum of immediate upstream segments
- integer(i4b),   intent(out)                :: ierr         ! error code
- character(*),   intent(out)                :: message      ! error message
- ! local variables
- logical(lgt),parameter          :: checkMap=.true.     ! flag to check the mapping
- character(len=strLen)           :: cmessage            ! error message of downwind routine
- integer(i4b)                    :: iRch                ! reach index
- integer(i4b)                    :: ixDownRch           ! index of the downstream reach
- integer(i4b)                    :: downIndex(nRch)     ! index of downstream stream segment
- integer(i4b)                    :: nUpstream(nRch)     ! number of elements that drain into each segment
- integer(i4b)                    :: mUpstream(nRch)     ! number of elements that drain into each segment
- real(dp),parameter              :: min_slope=1.e-6_dp  ! minimum slope
- ! initialize error control
- ierr=0; message='up2downSegment/'
-
- ! ---------- initialization ---------------------------------------------------------------------------------
-
- ! allocate space for the reach parameter structure
- allocate(RPARAM(nRch),NETOPO(nRch),stat=ierr)
- if(ierr/=0)then; message=trim(message)//'problem allocating space for reach parameter structures'; return; endif
-
- ! transfer information to the network topology structures
- NETOPO(:)%REACHIX = arth(1,1,nRch)
- NETOPO(:)%REACHID = ntop_acil(ixTOP%segid    )%varData(:)
- NETOPO(:)%DREACHK = ntop_acil(ixTOP%toSegment)%varData(:)
-
- ! transfer information to the reach structures
- RPARAM(:)%RLENGTH = sseg_acil(ixSEG%length   )%varData(:)
- RPARAM(:)%R_SLOPE = sseg_acil(ixSEG%slope    )%varData(:)
-
- ! loop through reaches
- do iRch=1,nRch
-
-  ! compute area draining to each stream segment
-  RPARAM(iRch)%BASAREA = sum(hru2seg(iRch)%cHRU(:)%hru_area)
-
-  ! ensure that slope exceeds minimum slope
-  if(RPARAM(iRch)%R_SLOPE < min_slope) RPARAM(iRch)%R_SLOPE = min_slope
-
- end do  ! looping through reaches
-
- ! just to be safe, specify some things that we should not need
- NETOPO(:)%RCHLAT1 =  huge(kind(dp))    ! Start latitude
- NETOPO(:)%RCHLAT2 =  huge(kind(dp))    ! End latitude
- NETOPO(:)%RCHLON1 =  huge(kind(dp))    ! Start longitude
- NETOPO(:)%RCHLON2 =  huge(kind(dp))    ! End longitude
- NETOPO(:)%LAKE_IX =  -1                ! Lake index (0,1,2,...,nlak-1)
- NETOPO(:)%LAKE_ID =  -1                ! Lake ID (REC code?)
- NETOPO(:)%BASULAK =   0._dp            ! Area of basin under lake
- NETOPO(:)%RCHULAK =   0._dp            ! Length of reach under lake
- NETOPO(:)%LAKINLT = .false.            ! .TRUE. if reach is lake inlet, .FALSE. otherwise
- NETOPO(:)%USRTAKE = .false.            ! .TRUE. if user takes from reach, .FALSE. otherwise
-
- ! ---------- define the index of the downstream reach ID ----------------------------------------------------
-
- call downReachIndex(&
-                     ! input
-                     nRch,                              & ! number of upstream elements
-                     nRch,                              & ! number of stream segments
-                     ntop_acil(ixTOP%segid)%varData,    & ! unique identifier of the stream segments
-                     ntop_acil(ixTOP%toSegment)%varData,& ! unique identifier of the segment where water drains
-                     ! output
-                     downIndex,                         & ! index of downstream stream segment
-                     nUpstream,                         & ! number of elements that drain into each segment
-                     ierr,cmessage)                       ! error control
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ! get the total number of HRUs that drain into any segments
- total_upseg = sum(nUpstream)
-
- ! ---------- allocate space for the number of upstream reaches ---------------------------------------------
-
- ! loop through the reaches
- do iRch=1,nRch
-  allocate(NETOPO(iRch)%UREACHI(nUpstream(iRch)),NETOPO(iRch)%UREACHK(nUpstream(iRch)), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating space for upstream reaches'; return; endif
- end do
-
- ! ---------- populate data structures for the upstream reaches ----------------------------------------------
-
- ! initialize the number of upstream elements in each reach
- mUpstream(:)=0
-
- ! loop through the reaches
- do iRch=1,nRch
-
-  ! identify the index of the downstream segment
-  ixDownRch = downIndex(iRch)
-  if(ixDownRch == integerMissing) cycle
-
-  ! increment the number of upstream elements in the downstream segment
-  mUpstream(ixDownRch) = mUpstream(ixDownRch)+1
-  if(mUpstream(ixDownRch)>nUpstream(ixDownRch))then
-   message=trim(message)//'upstream index exceeds dimension'
-   ierr=20; return
-  endif
-
-  ! populate the structure components
-  NETOPO(ixDownRch)%UREACHI( mUpstream(ixDownRch) ) = NETOPO(iRch)%REACHIX
-  NETOPO(ixDownRch)%UREACHK( mUpstream(ixDownRch) ) = NETOPO(iRch)%REACHID
-
- end do  ! looping through reaches
-
- ! set missing values to -1
- ! NOTE: check if the -1 is special and if the replacement with integer missing is necessary
- where(downIndex==integerMissing) downIndex=-1
-
- ! populate data structures
- NETOPO(:)%DREACHI = downIndex(:)
-
- end subroutine up2downSegment
-
- ! *********************************************************************
- ! new subroutine: define index of downstream reach
- ! *********************************************************************
- subroutine downReachIndex(&
-                           ! input
-                           nUp,          & ! number of upstream elements
-                           nSeg,         & ! number of stream segments
-                           segId,        & ! unique identifier of the stream segments
-                           downId,       & ! unique identifier of the segment where water drains
-                           ! output
-                           downSegIndex, & ! index of downstream stream segment
-                           nElement2Seg, & ! number of elements that drain into each segment
-                           ierr,message)
- ! external modules
- USE nr_utility_module, ONLY: indexx  ! Num. Recipies utilities
- implicit none
- ! input variables
- integer(i4b), intent(in)        :: nUp             ! number of upstream elements
- integer(i4b), intent(in)        :: nSeg            ! number of stream segments
- integer(i4b), intent(in)        :: segId(:)        ! unique identifier of the stream segments
- integer(i4b), intent(in)        :: downId(:)       ! unique identifier of the segment where water drains
- ! output variables
- integer(i4b), intent(out)       :: downSegIndex(:) ! index of downstream stream segment
- integer(i4b), intent(out)       :: nElement2Seg(:) ! number of elements that drain into each segment
- integer(i4b), intent(out)       :: ierr            ! error code
- character(*), intent(out)       :: message         ! error message
- ! local variables
- integer(i4b)                    :: iUp                 ! index of upstream element
- integer(i4b)                    :: iSeg,jSeg           ! index of stream segment
- integer(i4b)                    :: rankSegId           ! ranked Id of the stream segment
- integer(i4b)                    :: rankDownId          ! ranked Id of the downstream stream segment
- integer(i4b)                    :: rankSeg(nSeg)       ! rank index of each segment in the nRch vector
- integer(i4b)                    :: rankDownSeg(nUp)    ! rank index of each downstream stream segment
- logical(lgt),parameter          :: checkMap=.true.     ! flag to check the mapping
- ! initialize error control
- ierr=0; message='downReachIndex/'
-
- ! initialize output
- nElement2Seg(:) = 0
- downSegIndex(:) = integerMissing
-
- ! rank the stream segments
- call indexx(segId, rankSeg)
-
- ! rank the drainage segment
- call indexx(downId, rankDownSeg)
-
- iSeg=1  ! second counter
- ! loop through the upstream elements
- do iUp=1,nUp
-
-  ! get Ids for the up2seg mapping vector
-  rankDownId = downId( rankDownSeg(iUp) )
-  if (rankDownId == down2noSegment) cycle ! upstream element does not drain into any stream segment (closed basin or coastal HRU)
-
-  ! keep going until found the index
-  do jSeg=iSeg,nSeg ! normally a short loop
-
-   ! get Id of the stream segment
-   rankSegId = segId( rankSeg(jSeg) )
-   !print*, 'iUp, iSeg, jSeg, rankDownId, rankSegId, rankDownSeg(iUp), rankSeg(jSeg) = ', &
-   !         iUp, iSeg, jSeg, rankDownId, rankSegId, rankDownSeg(iUp), rankSeg(jSeg)
-
-   ! define the index where we have a match
-   if(rankDownId==rankSegId)then
-
-    ! identify the index of the segment that the HRU drains into
-    downSegIndex( rankDownSeg(iUp) ) = rankSeg(jSeg)
-    nElement2Seg( rankSeg(jSeg)    ) = nElement2Seg( rankSeg(jSeg) ) + 1
-
-    ! check if we should increment the stream segment
-    ! NOTE: we can have multiple upstream elements draining into the same segment
-    !        --> in this case, we want to keep the segment the same
-    if(iUp<nUp .and. jSeg<nSeg)then
-     if(downId( rankDownSeg(iUp+1) ) >= segId( rankSeg(jSeg+1) ) ) iSeg=jSeg+1
-    endif
-
-    ! identified the segment so exit the segment loop and evaluate the next upstream element
-    exit
-
-   endif  ! match between the upstream drainage segment and the stream segment
-  end do  ! skipping segments that have no input
-
- end do  ! looping through upstream elements
-
- ! check
- if(checkMap)then
-  do iUp=1,nUp
-   if(downId(iUp) == down2noSegment .or. downSegIndex(iUp)==integerMissing) cycle
-   if(downId(iUp) /= segId( downSegIndex(iUp) ) )then
-    message=trim(message)//'problems identifying the index of the stream segment that a given HRU drains into'
-    ierr=20; return
-   endif
-  end do
- endif
-
- end subroutine downReachIndex
 
 end module read_streamSeg

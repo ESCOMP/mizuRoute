@@ -20,6 +20,12 @@ module public_var
   real(dp),    parameter,public   :: MinPosVal=1.e-10_dp    ! minimum value for positive value
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
 
+  ! ---------- named variables ----------------------------------------------------------------------
+
+  real(dp),    parameter,public   :: compute=1              ! compute given variable
+  real(dp),    parameter,public   :: doNotCompute=0         ! do not compute given variable
+  real(dp),    parameter,public   :: readFromFile=0         ! read given variable from a file
+
   ! ---------- variables in the control file --------------------------------------------------------
 
   ! Control file variables
@@ -44,8 +50,9 @@ module public_var
   ! ROUTED FLOW OUTPUT
   character(len=strLen),public    :: fname_output         = ''              ! name of output file
   ! USER OPTIONS
-  integer(i4b)         ,public    :: hydGeometryOption    = integerMissing  ! option for hydraulic geometry calculations (0=read from file, 1=compute)
-  integer(i4b)         ,public    :: topoNetworkOption    = integerMissing  ! option for network topology calculations (0=read from file, 1=compute)
+  integer(i4b)         ,public    :: hydGeometryOption    = compute         ! option for hydraulic geometry calculations (0=read from file, 1=compute)
+  integer(i4b)         ,public    :: topoNetworkOption    = compute         ! option for network topology calculations (0=read from file, 1=compute)
+  integer(i4b)         ,public    :: computeReachList     = doNotCompute    ! option to compute list of upstream reaches (0=do not compute, 1=compute)
   ! STATES
   logical(lgt)         ,public    :: isRestart            = .false.         ! restart option: True-> model run with restart, F -> model run with empty channels
   character(len=strLen),public    :: fname_state_in       = ''              ! name of state file

@@ -233,10 +233,6 @@ call ntopo(&
            structSeg,        & ! ancillary data for stream segments
            structHRU2seg,    & ! ancillary data for mapping hru2basin
            structNTOPO,      & ! ancillary data for network toopology
-           ! output: data structures
-           hru2seg,          & ! hru-to-segment mapping structure
-           NETOPO,           & ! network topology structures
-           RPARAM,           & ! reach Parameters
            ! output: error control
            ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)

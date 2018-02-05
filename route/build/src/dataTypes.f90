@@ -18,6 +18,15 @@ implicit none
   integer(i4b)           :: nVars      = integerMissing   ! number of variables in each data structure
  end type struct_info
 
+ ! ---------- information on the dimensions -----------------------------------------------------------------
+
+ ! dimension information
+ type,public :: dim_info
+  character(len=strLen)  :: dimName   = 'empty'          ! name of the data structure
+  integer(i4b)           :: dimId     = integerMissing   ! dimension id
+  integer(i4b)           :: dimLength = integerMissing   ! dim length
+ end type dim_info
+
  ! ---------- metadata structures --------------------------------------------------------------------------
 
  ! define derived type for model variables, including name, description, and units

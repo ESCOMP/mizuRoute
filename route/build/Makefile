@@ -92,16 +92,18 @@ UTILS = \
 IO = \
     remap.f90 \
 	read_control.f90 \
+    write_netcdf.f90 \
     read_streamSeg.f90 \
+    write_streamSeg.f90 \
     read_netcdf.f90 \
 		read_runoff.f90 \
 		read_remap.f90 \
-    write_netcdf.f90 \
 		write_simoutput.f90
 
 # perform model routing
 QROUTE = \
 		reach_mask.f90 \
+		network_topo.f90 \
 		process_ntopo.f90 \
 		qtimedelay.f90 \
 		kwt_route.f90

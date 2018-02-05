@@ -135,6 +135,7 @@ contains
    ! Part 8: Define options to include/skip calculations
    case('<hydGeometryOption>'); read(cData,*,iostat=io_error) hydGeometryOption  ! option for hydraulic geometry calculations (0=read from file, 1=compute)
    case('<topoNetworkOption>'); read(cData,*,iostat=io_error) topoNetworkOption  ! option for network topology calculations (0=read from file, 1=compute)
+   case('<computeReachList>');  read(cData,*,iostat=io_error) computeReachList   ! option to compute list of upstream reaches (0=do not compute, 1=compute)
 
    ! Part 9: Define namelist name for routing parameters
    case('<param_nml>');       param_nml       = trim(cData)                      ! name of namelist including routing parameter value
@@ -143,7 +144,6 @@ contains
 
    ! HRU structure
    case('<varname_area>'         ); meta_HRU    (ixHRU%area            )%varName = trim(cData) ! HRU area
-   case('<varname_weight>'       ); meta_HRU    (ixHRU%weight          )%varName = trim(cData) ! HRU weight
 
    ! Mapping from HRUs to stream segments
    case('<varname_HRUid>'        ); meta_HRU2SEG(ixHRU2SEG%HRUid       )%varName = trim(cData) ! HRU id
@@ -156,11 +156,11 @@ contains
    case('<varname_slope>'        ); meta_SEG    (ixSEG%slope           )%varName =trim(cData)  ! slope of segment   (-)
    case('<varname_width>'        ); meta_SEG    (ixSEG%width           )%varName =trim(cData)  ! width of segment   (m)
    case('<varname_man_n>'        ); meta_SEG    (ixSEG%man_n           )%varName =trim(cData)  ! Manning's n        (weird units)
-   case('<varname_upsArea>'      ); meta_SEG    (ixSEG%upsArea         )%varName =trim(cData)  ! area above the top of the reach -- zero if headwater (m2)
-   case('<varname_basArea>'      ); meta_SEG    (ixSEG%basArea         )%varName =trim(cData)  ! local basin area (m2)
-   case('<varname_totArea>'      ); meta_SEG    (ixSEG%totArea         )%varName =trim(cData)  ! upsArea + basArea (m2)
+   case('<varname_hruArea>'      ); meta_SEG    (ixSEG%hruArea         )%varName =trim(cData)  ! local basin area (m2)
+   case('<varname_weight>'       ); meta_SEG    (ixSEG%weight          )%varName =trim(cData)  ! HRU weight
    case('<varname_timeDelayHist>'); meta_SEG    (ixSEG%timeDelayHist   )%varName =trim(cData)  ! time delay histogram for each reach (s)
    case('<varname_upsLength>'    ); meta_SEG    (ixSEG%upsLength       )%varName =trim(cData)  ! length of the vector of reaches above each reach (m)
+   case('<varname_upsArea>'      ); meta_SEG    (ixSEG%upsArea         )%varName =trim(cData)  ! area above the top of the reach -- zero if headwater (m2)
    case('<varname_basUnderLake>' ); meta_SEG    (ixSEG%basUnderLake    )%varName =trim(cData)  ! Area of basin under lake  (m2)
    case('<varname_rchUnderLake>' ); meta_SEG    (ixSEG%rchUnderLake    )%varName =trim(cData)  ! Length of reach under lake (m)
    case('<varname_minFlow>'      ); meta_SEG    (ixSEG%minFlow         )%varName =trim(cData)  ! minimum environmental flow
