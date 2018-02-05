@@ -13,7 +13,6 @@ USE dataTypes, only : var_dlength             ! double precision type: var(:)%da
 USE public_var
 !USE globalData, only:time_conv,length_conv    ! conversion factors
 
-
 ! general data structures
 !USE globalData, only:remap_data
 !USE globalData, only:runoff_data
@@ -35,27 +34,6 @@ USE ascii_util_module, only : file_open       ! open file (performs a few checks
 USE process_ntopo, only: ntopo                ! process the network topology
 !USE reach_mask_module, only:reach_mask        ! identify all reaches upstream of a given reach
 
-! subroutines: write netcdf file
-!USE write_netcdf, only : write_nc             ! write output in netcdf
-
-    !          USE reachparam                                ! reach parameters
-    !          USE reachstate                                ! reach states
-    !          USE reach_flux                                ! fluxes in each reach
-    !          USE nhru2basin                                ! data structures holding the nhru2basin correspondence
-    !          USE remap, only:remap_runoff                  ! runoff remapping routine
-    !          USE nr_utility_module,only:arth               ! use to build vectors with regular increments
-    !          USE ascii_util_module,only:file_open          ! open file (performs a few checks as well)
-    !          USE read_runoff,only:get_runoff_meta,&        ! get the dimensions from the runoff file
-    !                          get_runoff_hru, &        ! get runoff hru from the runoff file
-    !                          get_runoff               ! get runoff from the runoff file
-    !          USE read_netcdf,only:get_nc                   ! get the data from the ntopo file
-    !          USE read_netcdf,only:get_nc_dim_len           ! get the data from the ntopo file
-    !          USE read_remap,only:get_remap_data            ! get the data from the runoff mapping file
-    !          USE write_simoutput,only:defineFile           ! define output file
-    !          USE write_simoutput,only:defineStateFile      ! write a hillslope routing state at a time
-    !          USE kwt_route,only:reachorder                 ! define the processing order for the stream segments
-    !          USE kwt_route,only:qroute_rch                 ! route kinematic waves through the river network
-
 ! ******
 ! define variables
 ! ************************
@@ -68,7 +46,7 @@ integer(i4b),parameter        :: ixPrint = -9999     ! index for printing
 integer(i4b)                  :: ierr                ! error code
 character(len=strLen)         :: cmessage            ! error message of downwind routine
 
-! data structures
+!  network topology data structures
 type(var_dlength),allocatable :: structHRU(:)        ! HRU properties
 type(var_dlength),allocatable :: structSeg(:)        ! stream segment properties
 type(var_ilength),allocatable :: structHRU2seg(:)    ! HRU-to-segment mapping
@@ -81,91 +59,6 @@ integer(i4b)                  :: iunit               ! file unit
 ! define desired reaches
 integer(i4b)                  :: nHRU                ! number of HRUs
 integer(i4b)                  :: nRch                ! number of desired reaches
-
-    !          ! general local variables
-    !          integer(i4b)               :: iTime               ! loop through time
-    !          character(len=strLen)      :: str                 ! miscellaneous string
-
-
-    !          ! define directories
-    !          ! define stream segment information
-    !          integer(i4b),target        :: nSeg                ! number of all the stream segments
-    !          integer(i4b),pointer       :: nSegRoute           ! number of stream segments to be routed
-    !          integer(i4b)               :: nUpstream           ! number of reaches upstream of each stream segment
-    !          integer(i4b)               :: iSeg                ! index of stream segment
-    !          integer(i4b)               :: jSeg                ! index of stream segment
-    !          integer(i4b)               :: iSelect(1)          ! index of desired stream segment (idSegOut) from the minloc operation
-    !          integer(i4b)               :: iSegDesire          ! index of desired stream segment -- de-vectorized version of iSelect(1)
-    !          integer(i4b)               :: iUps                ! index of upstream stream segment added by NM
-    !          !integer(i4b)               :: jUps               ! index of upstream stream segment added by NM
-    !          integer(i4b)               :: iStart              ! start index of the ragged array
-    !          integer(i4b),dimension(1)  :: iDesire             ! index of stream segment with maximum upstream area (vector)
-    !          integer(i4b)               :: ixDesire            ! index of stream segment with maximum upstream area (scalar)
-    !          !integer(i4b)               :: iTDH               ! index of unit hydrograph data element
-    !          ! define stream network information
-    !          integer(i4b),allocatable   :: REACHIDGV(:)
-    !          integer(i4b),allocatable   :: RCHIXLIST(:)
-    !          integer(i4b)               :: nTotal              ! total number of upstream segments for all stream segments
-    !          integer(i4b)               :: iRchStart
-    !          integer(i4b)               :: iRchStart1
-    !          integer(i4b),target        :: nRchCount
-    !          integer(i4b)               :: nRchCount1
-    !          integer(i4b)               :: iUpRchStart
-    !          integer(i4b)               :: nUpRchCount
-    !          integer(i4b)               :: iUpHruStart
-    !          integer(i4b)               :: nUpHruCount
-    !          integer(i4b),allocatable   :: upStrmRchList(:)
-    !          integer(i4b),allocatable   :: rn_hru_id(:)        ! vector of HRU ids from simulated runoff file
-    !          logical(lgt),allocatable   :: rn_hru_id_mask(:)   ! vector of HRU mask that is in ustream of outlet
-    !          real(dp),allocatable       :: rn_hru_area(:)      ! vector of HRU area from simulated runoff file
-    !          integer(i4b)               :: nTime               ! number of time elements
-    !          integer(i4b)               :: nHRU_rn             ! number of river network HRUs
-    !          integer(i4b)               :: iRch                ! index in reach structures
-    !          !integer(i4b)               :: jRch               ! index in reach structures
-    !          ! define simulated runoff data at the HRUs
-    !          real(dp)                   :: dTime               ! time variable (in units units_time)
-    !          real(dp)                   :: TB(2)
-    !          real(dp), allocatable      :: qsim_hru(:)         ! simulated runoff at the river network HRU
-    !          ! interpolate simulated runoff data to the basins
-    !          integer(i4b)               :: ibas                ! index of the basins
-    !          integer(i4b)               :: iHRU                ! index of the HRUs associated to the basin
-    !          integer(i4b)               :: nDrain              ! number of HRUs that drain into a given stream segment
-    !          integer(i4b)               :: ix                  ! index of the HRU assigned to a given basin
-    !          real(dp), allocatable      :: qsim_basin(:)       ! simulated runoff at the basins
-    !          ! route simulated runoff through the local basin
-    !          integer(i4b)               :: jtim                ! index of the time delay vectors
-    !          integer(i4b)               :: ntdh                ! number of elements in the time delay histogram
-    !          ! route delaied runoff through river network with St.Venant UH
-    !          integer(i4b)               :: nUH_DATA_MAX        ! maximum number of elements in the UH data among all the upstreamfs for a segment
-    !          integer(i4b),allocatable   :: irfsize(:,:)        ! maximum number of elements in the UH data for all the segments
-    !          ! compute total instantaneous runoff upstream of each reach
-    !          integer(i4b),allocatable   :: iUpstream(:)        ! indices for all reaches upstream
-    !          real(dp),allocatable       :: qUpstream(:)        ! streamflow for all reaches upstream
-    !          ! route kinematic waves through the river network
-    !          integer(i4b), parameter    :: nens=1              ! number of ensemble members
-    !          integer(i4b)               :: iens                ! index of ensemble member
-    !          real(dp)                   :: T0,T1               ! start and end of the time step (seconds)
-    !          integer(I4b),allocatable   :: RFvec(:)            ! temporal vector to hold 1 or 0 for logical vector
-    !          type(KREACH),allocatable   :: wavestate(:,:)      ! wave states for all upstream segments at one time step
-    !          integer(i4b),allocatable   :: wavesize(:,:)       ! number of wave for segments
-    !          integer(i4b)               :: LAKEFLAG            ! >0 if processing lakes
-    !          ! restart state variables
-    !          real(dp),allocatable       :: qfuture_array(:,:,:)
-    !          real(dp),allocatable       :: basin_qr_array(:,:)
-    !          real(dp),allocatable       :: qfuture_irf_array(:,:,:)
-    !          real(dp),allocatable       :: qf_array(:,:,:)
-    !          real(dp),allocatable       :: qm_array(:,:,:)
-    !          real(dp),allocatable       :: ti_array(:,:,:)
-    !          real(dp),allocatable       :: tr_array(:,:,:)
-    !          integer(i4b),allocatable   :: rf_array(:,:,:)
-    !          ! desired variables when printing progress
-    !          real(dp)                   :: qDomain_hru         ! domain: total runoff at the HRUs (mm/s)
-    !          real(dp)                   :: qDomain_basin       ! domain: total instantaneous basin runoff (mm/s)
-    !          real(dp)                   :: qDomain_reach       ! domain: total instantaneous reach runoff (mm/s)
-    !          real(dp)                   :: qDesire_instant     ! desire: sum of instantaneous runoff for all basins upstream of the desired reach (mm/s)
-    !          real(dp)                   :: qDesire_routed      ! desire: routed runoff for the desired reach (mm/s)
-    !          real(dp)                   :: velo                ! velocity [m/s] for Saint-Venant equation   added by NM
-
 
 ! namelist parameters
 real(dp)                   :: fshape              ! shape parameter in time delay histogram (=gamma distribution) [-]
@@ -224,205 +117,40 @@ call ntopo(&
            ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
-print*, 'PAUSE: after read control'; read(*,*)
-stop
-    !
-    !          ! compute the time-delay histogram (to route runoff within basins)
-    !          call qtimedelay(dt, fshape, tscale, ierr, cmessage)
-    !          call handle_err(ierr, cmessage)
-    !
-    !          if (routOpt==0 .or. routOpt==2) then
-    !            ! specify some additional parameters (temporary "fix")
-    !            RPARAM(:)%R_WIDTH = wscale * sqrt(RPARAM(:)%TOTAREA)  ! channel width (m)
-    !            RPARAM(:)%R_MAN_N = mann_n                            ! Manning's "n" paramater (unitless)
-    !
-    !            ! define processing order of the reaches
-    !            call reachorder(nSegRoute, ierr, cmessage); call handle_err(ierr, cmessage)
-    !          end if
-    !
-    !          ! identify the stream segment with the largest upstream area
-    !          iDesire = maxLoc(RPARAM(:)%TOTAREA)
-    !          ixDesire= iDesire(1)
-    !          print*, 'maximum upstream area = ', RPARAM(ixDesire)%TOTAREA, size(NETOPO(ixDesire)%RCHLIST)
-    !
-    !          ! set the downstream index of the outlet reach to negative (the outlet reach does not flow into anything)
-    !          NETOPO(ixDesire)%DREACHI = -9999
-    !
-    !          if (routOpt==0 .or. routOpt==1) then
-    !            ! For IRF routing scheme
-    !            ! Compute unit hydrograph for each segment
-    !            call make_uh(nSegRoute, dt, velo, diff, ierr, cmessage); call handle_err(ierr, cmessage)
-    !            !check
-    !           ! do iSeg=9,9
-    !           !   nUpstream = size(NETOPO(iSeg)%RCHLIST) ! size of upstream segment
-    !           !   do iUps=1,nUpstream
-    !           !     jUps=NETOPO(iSeg)%RCHLIST(iUps)
-    !           !     nTDH= size(NETOPO(iSeg)%UH(iUps)%UH_DATA) ! size of UH data
-    !           !     write(*,'(a,1x,i4,1x,i4.1,1x,f10.2)') 'upstrm index, upstrmID,length = ', NETOPO(iSeg)%RCHLIST(iUps), NETOPO(jUps)%REACHID, NETOPO(iSeg)%UPSLENG(iUps)
-    !           !     write(*,'(96f6.3)') (NETOPO(iSeg)%UH(iUps)%UH_DATA(iTDH), iTDH=1,nTDH)
-    !           !   enddo
-    !           ! enddo
-    !          end if
-    !
-    !          ! *****
-    !          ! (2) Read in metadata for the runoff file...
-    !          ! *******************************************
-    !          call get_runoff_meta(trim(input_dir)//trim(fname_qsim), &  ! input: filename
-    !          					 ierr, cmessage,                    &  ! output: error control
-    !          					 n_time=nTime,                      &  ! out: number of time steps in runoff data
-    !          					 t_unit=units_time)                    ! out: time units
-    !          call handle_err(ierr, cmessage)
-    !          call get_runoff_hru(trim(input_dir)//trim(fname_qsim), &  ! input: filename
-    !          					ierr, cmessage)                       ! output: error control
-    !          call handle_err(ierr, cmessage)
-    !
-    !          ! *****
-    !          ! (2.option) Read in metadata for the runoff mapping file...
-    !          ! *******************************************
-    !          ! populate following remap_data components
-    !          ! remap_data%hru_id
-    !          !           %qhru_id
-    !          !           %weight
-    !          !           %num_qhru
-    !          if (is_remap) then
-    !            call get_remap_data(trim(ancil_dir)//trim(fname_remap), &   ! input: file name
-    !          					  ierr,cmessage)                           ! output: error control
-    !            call handle_err(ierr, cmessage)
-    !          endif
-    !
-    !          ! *****
-    !          ! (3) get river network hru id
-    !          ! *******************************************
-    !
-    !          ! get the number of HRUs
-    !          if (is_remap) then
-    !            nHRU_rn = size(remap_data%hru_id)
-    !          else
-    !            nHRU_rn = size(runoff_data%hru_id)
-    !          endif
-    !
-    !          ! allocate space for the HRUids
-    !          allocate(rn_hru_id(nHRU_rn), stat=ierr)
-    !          if(ierr/=0) call handle_err(ierr,'problem allocating space for rn_hru_id')
-    !
-    !          ! get the HRU ids
-    !          if (is_remap) then
-    !            rn_hru_id(:) = remap_data%hru_id(:)
-    !          else
-    !            rn_hru_id(:) = runoff_data%hru_id(:)
-    !          endif
-    !
-    !          ! allocate space for the HRU mask
-    !          allocate(rn_hru_id_mask(nHRU_rn), stat=ierr)
-    !          if(ierr/=0) call handle_err(ierr,'problem allocating space for rn_hru_id_mask')
-    !
-    !          ! allocate space for the HRU area
-    !          allocate(rn_hru_area(nHRU_rn), stat=ierr)
-    !          if(ierr/=0) call handle_err(ierr,'problem allocating space for rn_hru_area')
-    !
-    !          ! initialize mask and area
-    !          rn_hru_id_mask(:)=.false.
-    !          rn_hru_area(:)=-999
-    !
-    !          ! check all the upstream hrus at the desired outlet exist in runoff file
-    !          ! Assign hru_ix based on order of hru in runoff file
-    !          do iSeg=1,nSegRoute ! (loop through stream segments)
-    !            nDrain = size(h2b(iSeg)%cHRU)  ! (number of HRUs that drain into a given stream segment)
-    !            if(nDrain > 0)then
-    !            do iHRU=1,nDrain ! (loop through HRUs that drain into a given stream segment)
-    !          	! check existence of upstream hrus in funoff file
-    !          	if( minval(abs(rn_hru_id - h2b(iSeg)%cHRU(iHRU)%hru_id)) /= 0 )then
-    !          	  write (str,'(I10)') h2b(iSeg)%cHRU(iHRU)%hru_id
-    !          	  call handle_err(20,'runoff file does not include runoff time series at HRU'//trim(str))
-    !          	end if
-    !          	! Assign hru index
-    !          	iSelect = minloc(abs(rn_hru_id - h2b(iSeg)%cHRU(iHRU)%hru_id))
-    !          	h2b(iSeg)%cHRU(iHRU)%hru_ix=iSelect(1)
-    !          	if(h2b(iSeg)%cHRU(iHRU)%hru_id /= rn_hru_id(h2b(iSeg)%cHRU(iHRU)%hru_ix)) call handle_err(20,'mismatch in HRUs')
-    !          	rn_hru_id_mask(iSelect(1)) = .true.
-    !          	rn_hru_area(iSelect(1)) = h2b(iSeg)%cHRU(iHRU)%hru_area
-    !            end do  ! (loop through HRUs that drain into a given stream segment)
-    !           endif  ! (if HRUs drain into the stream segment)
-    !          end do ! (loop through stream segments)
-    !
-    !          ! *****
-    !          ! (3) Define NetCDF output file and write ancillary data...
-    !          ! *********************************************************
-    !          ! create NetCDF file
-    !          call defineFile(trim(output_dir)//trim(fname_output),  &  ! input: file name
-    !          				nSegRoute,                             &  ! input: number of stream segments
-    !          				nTotal,                                &  ! input: total number of upstream reaches for all reaches
-    !          				units_time,                            &  ! input: time units
-    !          				ierr, cmessage)                           ! output: error control
-    !          call handle_err(ierr, cmessage)
-    !
-    !          ! write network toplogy (input = filename, variable name, variable vector, start index; output = error control)
-    !          call write_nc(trim(output_dir)//trim(fname_output), 'reachID',    NETOPO(:)%REACHID, (/1/), (/size(NETOPO)/), ierr, cmessage); call handle_err(ierr,cmessage)
-    !          call write_nc(trim(output_dir)//trim(fname_output), 'reachOrder', NETOPO(:)%RHORDER, (/1/), (/size(NETOPO)/), ierr, cmessage); call handle_err(ierr,cmessage)
-    !
-    !          iStart=1  ! initialize the start index of the ragged array
-    !          ! write list of reaches upstream of each reach (ragged array)
-    !          do iSeg=1,nSegRoute
-    !           ! get the number of reaches
-    !           nUpstream = size(NETOPO(iSeg)%RCHLIST)
-    !           ! write the vector to the ragged array
-    !           call write_nc(trim(output_dir)//trim(fname_output), 'reachList', NETOPO(iSeg)%RCHLIST(:), (/iStart/), (/size(NETOPO(iSeg)%RCHLIST)/), ierr, cmessage)
-    !           call handle_err(ierr,cmessage)
-    !           ! write the start index and the count (NOTE: pass as a vector)
-    !           call write_nc(trim(output_dir)//trim(fname_output), 'listStart', (/iStart/),    (/iSeg/), (/1/), ierr, cmessage); call handle_err(ierr,cmessage)
-    !           call write_nc(trim(output_dir)//trim(fname_output), 'listCount', (/nUpstream/), (/iSeg/), (/1/), ierr, cmessage); call handle_err(ierr,cmessage)
-    !           ! update the start index
-    !           iStart = iStart + nUpstream
-    !          end do
-    !          ! write reach parameters
-    !          call write_nc(trim(output_dir)//trim(fname_output), 'basinArea',    RPARAM(:)%BASAREA, (/1/), (/nSegRoute/), ierr, cmessage); call handle_err(ierr,cmessage)
-    !          call write_nc(trim(output_dir)//trim(fname_output), 'upstreamArea', RPARAM(:)%TOTAREA, (/1/), (/nSegRoute/), ierr, cmessage); call handle_err(ierr,cmessage)
-    !
-    !          ! *****
-    !          ! (4) Prepare for the routing simulations...
-    !          ! *******************************************
-    !          ! allocate space for the simulated runoff at the HRUs
-    !          allocate(qsim_hru(nHRU_rn), stat=ierr)
-    !          if(ierr/=0) call handle_err(ierr,'problem allocating space for simulated runoff at the HRUs')
-    !
-    !          ! allocate space for the simulated runoff at basins and reaches
-    !          allocate(qsim_basin(nSegRoute),RCHFLX(nens,nSegRoute), KROUTE(nens,nSegRoute), wavestate(nens,nSegRoute), stat=ierr)
-    !          if(ierr/=0) call handle_err(ierr,'problem allocating space for simulated runoff at the basins')
-    !
-    !          allocate(irfsize(nens,nSegRoute), wavesize(nens,nSegRoute), stat=ierr)
-    !          if(ierr/=0) call handle_err(ierr,'problem allocating space for simulated runoff at the basins')
-    !
-    !          ! initialize the routed elements
-    !          RCHFLX(:,:)%BASIN_QR(1) = 0._dp
-    !          RCHFLX(:,:)%BASIN_QR_IRF(1) = 0._dp
-    !
-    !          ! initialize the time-delay histogram
-    !          ! identify the number of future time steps for a given basin
-    !          ntdh = size(FRAC_FUTURE)
-    !          do iens=1,nens
-    !            do ibas=1,nSegRoute
-    !          	! allocate space for the delayed runoff for Hillslope routing
-    !          	allocate(RCHFLX(iens,ibas)%QFUTURE(ntdh), stat=ierr)
-    !          	call handle_err(ierr, 'problem allocating space for QFUTURE element')
-    !          	! initialize to zeroes
-    !          	RCHFLX(iens,ibas)%QFUTURE(:) = 0._dp
-    !
-    !            !  allocate space for the delayed runoff for IRF routing
-    !          	if ((routOpt==0 .or. routOpt==1) .and. .not.(isRestart)) then
-    !          	  nUpstream = size(NETOPO(ibas)%RCHLIST) ! size of upstream segment
-    !          	  nUH_DATA_MAX=0
-    !          	  upstrms_loop: do iUps=1,nUpstream
-    !          		nUH_DATA_MAX= max(nUH_DATA_MAX ,size(NETOPO(ibas)%UH(iUps)%UH_DATA))
-    !          	  enddo upstrms_loop
-    !          	  allocate(RCHFLX(iens,ibas)%QFUTURE_IRF(nUH_DATA_MAX), stat=ierr)
-    !          	  call handle_err(ierr, 'problem allocating space for QFUTURE_IRF element')
-    !          	  ! initialize to zeroes
-    !          	  RCHFLX(iens,ibas)%QFUTURE_IRF(:) = 0._dp
-    !          	  irfsize(iens,ibas)=nUH_DATA_MAX
-    !          	end if
-    !
-    !            end do
-    !          end do
+print*, 'PAUSE: after network topology'; read(*,*)
+
+! *****
+! *** Route runoff...
+! *******************
+
+! ---------- temporary code: populate data structures ---------------------------------------
+
+ ! Reach Parameters
+    !    R_SLOPE
+    !    R_MAN_N
+    !    R_WIDTH
+    !    RLENGTH
+    !    UPSAREA  ! upstream area (zero if headwater basin)
+    !    BASAREA  ! local basin area
+    !    TOTAREA  ! UPSAREA + BASAREA
+    !    MINFLOW  ! minimum environmental flow
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     !
     !          ! define flags
     !          LAKEFLAG=0  ! no lakes in the river network
@@ -430,77 +158,6 @@ stop
     !          ! define time
     !          T0 = 0._dp
     !          T1 = dt
-    !
-    !          !read restart
-    !          if (isRestart) then
-    !            call get_nc(trim(output_dir)//trim(fname_state_in),'time_bound',TB(:), 1, 2, ierr, cmessage); call handle_err(ierr,cmessage)
-    !            T0=TB(1); T1=TB(2)
-    !            if (routOpt==0 .or. routOpt==1) then
-    !          	call get_nc(trim(output_dir)//trim(fname_state_in),'irfsize',irfsize,(/1,1/),(/nSegRoute,nens/),ierr,cmessage); call handle_err(ierr,cmessage)
-    !            endif
-    !            if (routOpt==0 .or. routOpt==2) then
-    !          	call get_nc(trim(output_dir)//trim(fname_state_in),'wavesize',wavesize, (/1,1/), (/nSegRoute,nens/), ierr, cmessage); call handle_err(ierr,cmessage)
-    !            endif
-    !            allocate(qfuture_array(nSegRoute,ntdh,nens),stat=ierr)
-    !            if(ierr/=0) call handle_err(ierr,'problem allocating qfuture_array')
-    !            allocate(basin_qr_array(nSegRoute,nens),stat=ierr)
-    !            if(ierr/=0) call handle_err(ierr,'problem allocating basin_qr_array')
-    !            allocate(qfuture_irf_array(nSegRoute,maxval(irfsize),nens),stat=ierr)
-    !            if(ierr/=0) call handle_err(ierr,'problem allocating qfuture_irf_array')
-    !            allocate(qf_array(nSegRoute,maxval(wavesize),nens),stat=ierr)
-    !            if(ierr/=0) call handle_err(ierr,'problem allocating qf_array')
-    !            allocate(qm_array(nSegRoute,maxval(wavesize),nens),stat=ierr)
-    !            if(ierr/=0) call handle_err(ierr,'problem allocating qm_array')
-    !            allocate(ti_array(nSegRoute,maxval(wavesize),nens),stat=ierr)
-    !            if(ierr/=0) call handle_err(ierr,'problem allocating ti_array')
-    !            allocate(tr_array(nSegRoute,maxval(wavesize),nens),stat=ierr)
-    !            if(ierr/=0) call handle_err(ierr,'problem allocating tr_array')
-    !            allocate(rf_array(nSegRoute,maxval(wavesize),nens),stat=ierr)
-    !            if(ierr/=0) call handle_err(ierr,'problem allocating rf_array')
-    !
-    !            call get_nc(trim(output_dir)//trim(fname_state_in),'BASIN_QR', basin_qr_array, (/1,1/),(/nSegRoute,nens/), ierr, cmessage); call handle_err(ierr,cmessage)
-    !            call get_nc(trim(output_dir)//trim(fname_state_in),'QFUTURE', qfuture_array, (/1,1,1/),(/nSegRoute,ntdh,nens/), ierr, cmessage); call handle_err(ierr,cmessage)
-    !            call get_nc(trim(output_dir)//trim(fname_state_in),'QFUTURE_IRF', qfuture_irf_array, (/1,1,1/), (/nSegRoute,maxval(irfsize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
-    !            call get_nc(trim(output_dir)//trim(fname_state_in),'QF', qf_array, (/1,1,1/),(/nSegRoute,maxval(wavesize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
-    !            call get_nc(trim(output_dir)//trim(fname_state_in),'QM', qm_array, (/1,1,1/),(/nSegRoute,maxval(wavesize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
-    !            call get_nc(trim(output_dir)//trim(fname_state_in),'TI', ti_array, (/1,1,1/),(/nSegRoute,maxval(wavesize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
-    !            call get_nc(trim(output_dir)//trim(fname_state_in),'TR', tr_array, (/1,1,1/),(/nSegRoute,maxval(wavesize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
-    !            call get_nc(trim(output_dir)//trim(fname_state_in),'RF', rf_array, (/1,1,1/),(/nSegRoute,maxval(wavesize),nens/), ierr, cmessage); call handle_err(ierr,cmessage)
-    !
-    !            do iens=1,nens
-    !          	do iSeg=1,nSegRoute
-    !          	  RCHFLX(iens,iSeg)%BASIN_QR(1)= basin_qr_array(iSeg,iens)
-    !          	  RCHFLX(iens,iSeg)%QFUTURE(:) = qfuture_array(iSeg,1:ntdh,iens)
-    !          	  if (routOpt==0 .or. routOpt==1) then
-    !          		allocate(RCHFLX(iens,iSeg)%QFUTURE_IRF(irfsize(iens,iSeg)), stat=ierr)
-    !          		RCHFLX(iens,iSeg)%QFUTURE_IRF(:) = qfuture_irf_array(iSeg,1:irfsize(iens,iSeg),iens)
-    !          	  endif
-    !          	  if (routOpt==0 .or. routOpt==2) then
-    !          		allocate(KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1), stat=ierr)
-    !          		allocate(RFvec(0:size(KROUTE(iens,iSeg)%KWAVE)-1),stat=ierr)
-    !          		KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%QF = qf_array(iSeg,1:wavesize(iens,iSeg),iens)
-    !          		KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%QM = qm_array(iSeg,1:wavesize(iens,iSeg),iens)
-    !          		KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%TI = ti_array(iSeg,1:wavesize(iens,iSeg),iens)
-    !          		KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%TR = tr_array(iSeg,1:wavesize(iens,iSeg),iens)
-    !          		RFvec = rf_array(iSeg,1:wavesize(iens,iSeg),iens)
-    !          		KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%RF=.False.
-    !          		where (RFvec==1_i4b) KROUTE(iens,iSeg)%KWAVE(0:wavesize(iens,iSeg)-1)%RF=.True.
-    !          	  endif
-    !          	enddo
-    !            enddo
-    !
-    !            deallocate(qfuture_array,stat=ierr); if(ierr/=0) call handle_err(ierr,'problem deallocating qfuture_array')
-    !            deallocate(basin_qr_array,stat=ierr); if(ierr/=0) call handle_err(ierr,'problem deallocating basin_qr_array')
-    !            deallocate(qfuture_irf_array,stat=ierr); if(ierr/=0) call handle_err(ierr,'problem deallocating qfuture_irf_array')
-    !            deallocate(qf_array,stat=ierr); if(ierr/=0) call handle_err(ierr,'problem deallocating qf_array')
-    !            deallocate(qm_array,stat=ierr); if(ierr/=0) call handle_err(ierr,'problem deallocating qm_array')
-    !            deallocate(ti_array,stat=ierr); if(ierr/=0) call handle_err(ierr,'problem deallocating ti_array')
-    !            deallocate(tr_array,stat=ierr); if(ierr/=0) call handle_err(ierr,'problem deallocating tr_array')
-    !            deallocate(rf_array,stat=ierr); if(ierr/=0) call handle_err(ierr,'problem deallocating rf_array')
-    !
-    !          endif
-    !
-    !          ! *****
     !          ! (5) Perform the routing...
     !          ! **************************
     !          ! loop through time

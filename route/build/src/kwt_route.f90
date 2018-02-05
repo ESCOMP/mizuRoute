@@ -3,6 +3,23 @@ module kwt_route
 use nrtype
 use nr_utility_module, only : arth                                 ! Num. Recipies utilities
 
+! data types
+USE dataTypes,  only : FPOINT     ! particle
+USE dataTypes,  only : KREACH     ! collection of particles in a given reach
+
+! global parameters
+USE globalData, only : RPARAM     ! Reach parameters
+USE globalData, only : NETOPO     ! Network topology
+
+! global routing data
+USE globalData, only : KROUTE     ! routing states
+USE globalData, only : RCHFLX     ! routing fluxes
+
+! global lakes data
+USE globalData, only : LPARAM     ! Lake parameters
+USE globalData, only : LKTOPO     ! Lake topology
+USE globalData, only : LAKFLX     ! Lake fluxes
+
 implicit none
 private
 public::qroute_rch
@@ -50,40 +67,6 @@ contains
  !   message: error message
  !
  ! ----------------------------------------------------------------------------------------
- ! Structures Used/Modified:
- !
- !   (1) MODEL_TIME
- !   --------------
- !   Uses the vector  MODTIM%TBOUNDS(:) to add time information to basin outflows
- !
- !   (2) BASIN_FLUX
- !   --------------
- !   Uses basin outflows [BASFLX(:)%INSTN_Q]
- !
- !   (3) REACHPARAM
- !   --------------
- !   Uses the network topology to process gutters [NETOPO(:)+] and the processing sequence
- !    to identify the reach to process and the last reach in the network [RHRODER(:)]
- !
- !   (4) REACHSTATE
- !   --------------
- !   Uses the data structure KROUTE to track flow particles through the river network.
- !    KROUTE is a data structure that contains the collection of flow points (in the
- !    structure KWAVE) for each stream segment.  Each flow point has attributes QF (flow),
- !    TI (time point entered a stream segment), TR (time point exited the stream segment,
- !    or is expected to exit), and RF (logical routing flag [.TRUE. if point has exited]).
- !    Hence [KROUTE(JRCH)%KWAVE(:)QF] defines the collection of flow points in the JRCH-th
- !    reach. KROUTE must be saved for model re-starts
- !
- !   (5) REACH_FLUX
- !   --------------
- !   Contains timestep-average flow for each stream segment (computed here)
- !
- !   (6) INTERBLOCK
- !   --------------
- !   Includes an explicit interface to the sub-programs
- !
- ! ----------------------------------------------------------------------------------------
  ! Method:
  !
  !   Flow routing is performed using a lagrangian one-dimensional Kinematic routing
@@ -126,9 +109,6 @@ contains
  !   (none planned)
  !
  ! ----------------------------------------------------------------------------------------
-   USE reachparam
-   USE reachstate
-   USE reach_flux
    implicit none
    ! Input
    INTEGER(I4B), INTENT(IN)                    :: IENS          ! ensemble member
@@ -372,11 +352,6 @@ contains
  !   (none planned)
  !
  ! ----------------------------------------------------------------------------------------
- USE reachparam
- USE reachstate
- USE reach_flux
- USE lakes_flux
- USE lake_param
  IMPLICIT NONE
  ! Input
  INTEGER(I4B), INTENT(IN)                    :: IENS     ! ensemble member
@@ -511,9 +486,6 @@ contains
  !   (none planned)
  !
  ! ----------------------------------------------------------------------------------------
- USE reachparam
- USE reachstate
- USE reach_flux
  IMPLICIT NONE
  ! Input
  INTEGER(I4B), INTENT(IN)                    :: IENS      ! ensemble member
@@ -1021,11 +993,6 @@ contains
  !       NQ2: number of particles    -- <= input becuase multiple particles may merge
  !
  ! ----------------------------------------------------------------------------------------
- ! Structures Used:
- !
- !   REACHPARAM:  Use channel slope, width, length, etc.
- !
- ! ----------------------------------------------------------------------------------------
  ! Method:
  !
  !   Flow routing through an individual stream segment is performed using the method
@@ -1065,7 +1032,6 @@ contains
  !   (none planned)
  !
  ! ----------------------------------------------------------------------------------------
- USE reachparam
  IMPLICIT NONE
  ! Input
  INTEGER(I4B), INTENT(IN)                    :: JRCH     ! Reach to process
