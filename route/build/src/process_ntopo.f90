@@ -162,9 +162,9 @@ contains
                  nHRU,          &  ! input: number of HRUs
                  nSeg,          &  ! input: number of reaches
                  ! output: updated dimensions
-                 tot_hru,       &  ! output: total number of all the upstream hrus for all stream segments
-                 tot_upseg,     &  ! output: sum of immediate upstream segments
-                 tot_upstream,  &  ! output: total number of upstream reaches for all reaches
+                 tot_hru,       &  ! input+output: total number of all the upstream hrus for all stream segments
+                 tot_upseg,     &  ! input+output: sum of immediate upstream segments
+                 tot_upstream,  &  ! input+output: total number of upstream reaches for all reaches
                  ! output: dimension masks
                  ixHRU_desired, &  ! output: indices of desired hrus
                  ixSeg_desired, &  ! output: indices of desired reaches

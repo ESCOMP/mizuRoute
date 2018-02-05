@@ -182,7 +182,7 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'name = '//trim(meta_dims(iVar)%dimName); return; endif
  end do  ! looping through dimensions
 
- ! ---------- define stat index and count for the ragged arrays --------------------------------------------------
+ ! ---------- define start index and count for the ragged arrays -------------------------------------------------
 
  ! loop through dimensions
  do jDim=1,size(meta_dims)

@@ -421,9 +421,9 @@ contains
                        nHRU,          &  ! input: number of HRUs
                        nRch,          &  ! input: number of reaches
                        ! output: updated dimensions
-                       tot_hru,       &  ! output: total number of all the upstream hrus for all stream segments
-                       tot_upseg,     &  ! output: sum of immediate upstream segments
-                       tot_upstream,  &  ! output: total number of upstream reaches for all reaches
+                       tot_hru,       &  ! input+output: total number of all the upstream hrus for all stream segments
+                       tot_upseg,     &  ! input+output: sum of immediate upstream segments
+                       tot_upstream,  &  ! input+output: total number of upstream reaches for all reaches
                        ! output: dimension masks
                        ixHRU_desired, &  ! output: indices of desired hrus
                        ixSeg_desired, &  ! output: indices of desired reaches
@@ -443,10 +443,10 @@ contains
  type(var_ilength) , intent(in)                :: structNTOPO(:)    ! network topology structure
  integer(i4b)      , intent(in)                :: nHRU              ! number of HRUs
  integer(i4b)      , intent(in)                :: nRch              ! number of reaches
- ! output: updated dimensions
- integer(i4b)      , intent(out)               :: tot_hru           ! total number of all the upstream hrus for all stream segments
- integer(i4b)      , intent(out)               :: tot_upseg         ! sum of immediate upstream segments
- integer(i4b)      , intent(out)               :: tot_upstream      ! total number of upstream reaches for all reaches
+ ! input+output: updated dimensions
+ integer(i4b)      , intent(inout)             :: tot_hru           ! total number of all the upstream hrus for all stream segments
+ integer(i4b)      , intent(inout)             :: tot_upseg         ! sum of immediate upstream segments
+ integer(i4b)      , intent(inout)             :: tot_upstream      ! total number of upstream reaches for all reaches
  ! output: dimension masks
  integer(i4b)      , intent(out) , allocatable :: ixHRU_desired(:)  ! indices of desired hrus
  integer(i4b)      , intent(out) , allocatable :: ixSeg_desired(:)  ! indices of desired reaches
@@ -485,8 +485,12 @@ contains
 
  ! check if we actually want the mask
  if(desireId<0)then
-  allocate(ixHRU_desired(0), ixSeg_desired(0), stat=ierr)
+  ! allocate space
+  allocate(ixHRU_desired(nHRU), ixSeg_desired(nRch), stat=ierr)
   if(ierr/=0) message=trim(message)//'unable to allocate space for the vectors of desired reaches'
+  ! include every index
+  ixHRU_desired = arth(1,1,nHRU)
+  ixSeg_desired = arth(1,1,nRch)
   return
  endif
 
