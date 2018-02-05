@@ -15,7 +15,7 @@ SUBROUTINE QTIMEDELAY(dt, fshape, tscale, IERR, MESSAGE)
 ! ---------------------------------------------------------------------------------------
 USE nrtype                                            ! variable types, etc.
 USE gamma_func_module, ONLY : gammp                   ! interface for the incomplete gamma function
-USE reach_flux                                        ! reach fluxes
+USE globalData, only : FRAC_FUTURE                    ! fraction of runoff in future time steps
 IMPLICIT NONE
 ! input
 REAL(DP), INTENT(IN)                   :: dt          ! model time step
