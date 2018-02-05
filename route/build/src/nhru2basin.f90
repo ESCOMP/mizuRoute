@@ -17,6 +17,7 @@ MODULE nhru2basin
  END TYPE IPOINT
  ! Collection of HRUs assigned to a given basin
  TYPE ALL_POINTS
+  INTEGER(I4B)                           :: nHRU
   TYPE(IPOINT), DIMENSION(:), POINTER    :: cHRU
  END TYPE ALL_POINTS
  ! the nhru2basin correspondence
