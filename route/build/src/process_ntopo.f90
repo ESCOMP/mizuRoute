@@ -131,9 +131,6 @@ contains
                       ! input
                       nSeg,          & ! input: number of stream segments
                       ! input-output: data structures
-                      structHRU,     & ! ancillary data for HRUs
-                      structSeg,     & ! ancillary data for stream segments
-                      structHRU2seg, & ! ancillary data for mapping hru2basin
                       structNTOPO,   & ! ancillary data for network toopology
                       ! output
                       tot_upseg,     & ! output: sum of immediate upstream segments
@@ -206,11 +203,7 @@ contains
   call writeData(&
                  ! input
                  trim(ancil_dir)//trim(fname_ntopNew), & ! input: file name
-                 dname_nhru,    & ! input: dimension name of the HRUs
-                 dname_sseg,    & ! input: dimension name of the stream segments
                  ! input: model control
-                 nHRU,          & ! input: number of HRUs
-                 nSeg,          & ! input: number of stream segments
                  tot_hru,       & ! input: total number of all the upstream hrus for all stream segments
                  tot_upseg,     & ! input: total number of immediate upstream segments for all  stream segments
                  tot_upstream,  & ! input: total number of all of the upstream stream segments for all stream segments

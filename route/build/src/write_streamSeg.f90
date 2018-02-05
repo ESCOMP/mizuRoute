@@ -51,11 +51,7 @@ contains
  subroutine writeData(&
                       ! input
                       fname,         & ! input: file name
-                      dname_nhru,    & ! input: dimension name of the HRUs
-                      dname_sseg,    & ! input: dimension name of the stream segments
                       ! input: model control
-                      nHRU,          & ! input: number of HRUs
-                      nSeg,          & ! input: number of stream segments
                       tot_hru,       & ! input: total number of all the upstream hrus for all stream segments
                       tot_upseg,     & ! input: total number of immediate upstream segments for all  stream segments
                       tot_upstream,  & ! input: total number of all of the upstream stream segments for all stream segments
@@ -72,11 +68,7 @@ contains
  implicit none
  ! input variables
  character(*)      , intent(in)      :: fname            ! filename
- character(*)      , intent(in)      :: dname_nhru       ! dimension name for HRUs
- character(*)      , intent(in)      :: dname_sseg       ! dimension name for stream segments
  ! input: model control
- integer(i4b)      , intent(in)      :: nHRU             ! number of HRUs
- integer(i4b)      , intent(in)      :: nSeg             ! number of stream segments
  integer(i4b)      , intent(in)      :: tot_hru          ! total number of all the upstream hrus for all stream segments
  integer(i4b)      , intent(in)      :: tot_upseg        ! total number of immediate upstream segments for all  stream segments
  integer(i4b)      , intent(in)      :: tot_upstream     ! total number of all of the upstream stream segments for all stream segments
@@ -93,16 +85,8 @@ contains
  character(*)      , intent(out)     :: message          ! error message
  ! ---------------------------------------------------------------------------------------------------------------
  ! local variables
- integer(i4b)                        :: ncid             ! NetCDF file ID
- integer(i4b)                        :: iVarID           ! variable ID
- integer(i4b)                        :: idimID           ! dimension ID
- integer(i4b)                        :: iVar             ! variable index
- integer(i4b)                        :: jDim             ! dimension index
- integer(i4b)                        :: iSeg             ! stream segment index
- integer(i4b)                        :: iStruct          ! structure index
  integer(i4b)                        :: nSpace           ! number of spatial elements
- integer(i4b),parameter              :: nVars=30         ! number of variables
- integer(i4b),parameter              :: strLen=256       ! length of character string
+ integer(i4b)                        :: iStruct          ! structure index
  character(len=strLen)               :: cmessage         ! error message of downwind routine
  ! initialize error control
  ierr=0; message='writeData/'
@@ -140,8 +124,6 @@ contains
 
  end do  ! looping through data structures
 
- print*, 'PAUSE: '//trim(message); read(*,*)
-
  end subroutine writeData
 
 
@@ -157,9 +139,6 @@ contains
  ! ---------------------------------------------------------------------------------------------------------------
  ! local variables
  integer(i4b)                        :: ncid             ! NetCDF file ID
- integer(i4b)                        :: iVarID           ! variable ID
- integer(i4b)                        :: idimID           ! dimension ID
- integer(i4b)                        :: iVar             ! variable index
  integer(i4b)                        :: jDim             ! dimension index
  integer(i4b)                        :: iStruct          ! structure index
  integer(i4b),parameter              :: nVars=30         ! number of variables
@@ -179,7 +158,7 @@ contains
  ! define dimensions
  do jDim=1,size(meta_dims)
   ierr = nf90_def_dim(ncid, trim(meta_dims(jDim)%dimName), meta_dims(jDim)%dimLength, meta_dims(jDim)%dimId)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'name = '//trim(meta_dims(iVar)%dimName); return; endif
+  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'name = '//trim(meta_dims(jDim)%dimName); return; endif
  end do  ! looping through dimensions
 
  ! ---------- define start index and count for the ragged arrays -------------------------------------------------

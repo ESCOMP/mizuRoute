@@ -214,9 +214,6 @@ contains
                            ! input
                            nRch,         & ! input: number of stream segments
                            ! input-output: data structures
-                           structHRU,    & ! ancillary data for HRUs
-                           structSeg,    & ! ancillary data for stream segments
-                           structHRU2seg,& ! ancillary data for mapping hru2basin
                            structNTOPO,  & ! ancillary data for network toopology
                            ! output
                            total_upseg,  & ! output: sum of immediate upstream segments
@@ -225,9 +222,6 @@ contains
  ! input variables
  integer(i4b)      , intent(in)                 :: nRch             ! number of reaches
  ! input-output: data structures
- type(var_dlength) , intent(inout), allocatable :: structHRU(:)     ! HRU properties
- type(var_dlength) , intent(inout), allocatable :: structSeg(:)     ! stream segment properties
- type(var_ilength) , intent(inout), allocatable :: structHRU2seg(:) ! HRU-to-segment mapping
  type(var_ilength) , intent(inout), allocatable :: structNTOPO(:)   ! network topology
  ! output variables
  integer(i4b)      , intent(out)                :: total_upseg      ! sum of immediate upstream segments
