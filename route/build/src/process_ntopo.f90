@@ -238,6 +238,9 @@ contains
  ! loop through stream segments
  do iSeg=1,nSeg
 
+  ! print progress
+  if(mod(iSeg,100000)==0) print*, 'Copying to the old data structures: iSeg, nSeg = ', iSeg, nSeg
+
   ! ----- reach parameters -----
 
   ! copy data into the reach parameter structure
@@ -277,7 +280,7 @@ contains
    do iUps=1,nUps   ! looping through upstream reaches
     NETOPO(iSeg)%UREACHI(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIndices)%dat(iUps)   ! Immediate Upstream reach indices
     NETOPO(iSeg)%UREACHK(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIds)%dat(iUps)       ! Immediate Upstream reach Ids
-    NETOPO(iSeg)%goodBas(iUps) = (structNTOPO(iSeg)%var(ixNTOPO%goodBasin)%dat(iUps)==1) ! "good" basin
+    NETOPO(iSeg)%goodBas(iUps) = (structNTOPO(iSeg)%var(ixNTOPO%goodBasin)%dat(1)==1)    ! "good" basin
    end do  ! Loop through upstream reaches
   endif
 
@@ -293,10 +296,10 @@ contains
   NETOPO(iSeg)%USRTAKE = .false.         ! .TRUE. if user takes from reach, .FALSE. otherwise
 
   ! NOT USED: Location (available in the input files)
-  NETOPO%RCHLAT1 = realMissing ! Start latitude
-  NETOPO%RCHLAT2 = realMissing ! End latitude
-  NETOPO%RCHLON1 = realMissing ! Start longitude
-  NETOPO%RCHLON2 = realMissing ! End longitude
+  NETOPO(iSeg)%RCHLAT1 = realMissing     ! Start latitude
+  NETOPO(iSeg)%RCHLAT2 = realMissing     ! End latitude
+  NETOPO(iSeg)%RCHLON1 = realMissing     ! Start longitude
+  NETOPO(iSeg)%RCHLON2 = realMissing     ! End longitude
 
   ! NOT USED: time delay histogram
   allocate(NETOPO(iSeg)%UPSLENG(0), NETOPO(iSeg)%UH(0), stat=ierr)
