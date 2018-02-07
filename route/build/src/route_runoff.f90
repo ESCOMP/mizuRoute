@@ -17,6 +17,10 @@ USE public_var
 !USE globalData, only:remap_data
 !USE globalData, only:runoff_data
 
+
+
+
+
 ! metadata
 USE var_lookup, only : ixHRU     , nVarsHRU      ! index of variables for data structure
 USE var_lookup, only : ixHRU2SEG , nVarsHRU2SEG  ! index of variables for data structure
@@ -122,19 +126,6 @@ print*, 'PAUSE: after network topology'; read(*,*)
 ! *****
 ! *** Route runoff...
 ! *******************
-
-! ---------- temporary code: populate data structures ---------------------------------------
-
- ! Reach Parameters
-    !    R_SLOPE
-    !    R_MAN_N
-    !    R_WIDTH
-    !    RLENGTH
-    !    UPSAREA  ! upstream area (zero if headwater basin)
-    !    BASAREA  ! local basin area
-    !    TOTAREA  ! UPSAREA + BASAREA
-    !    MINFLOW  ! minimum environmental flow
-
 
 
 

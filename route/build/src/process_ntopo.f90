@@ -1,16 +1,21 @@
 module process_ntopo
 
 ! data types
-USE nrtype                              ! variable types, etc.
-USE nrtype,    only : integerMissing    ! missing value for integers
-USE dataTypes, only : var_ilength       ! integer type:          var(:)%dat
-USE dataTypes, only : var_dlength       ! double precision type: var(:)%dat
+USE nrtype                             ! variable types, etc.
+USE nrtype,    only : integerMissing   ! missing value for integers
+USE dataTypes, only : var_ilength      ! integer type:          var(:)%dat
+USE dataTypes, only : var_dlength      ! double precision type: var(:)%dat
 
 ! global vars
-USE public_var                                ! public variables
+USE public_var                         ! public variables
+
+! global parameters
+USE globalData, only : RPARAM          ! Reach parameters
+USE globalData, only : NETOPO          ! Network topology
 
 ! named variables
-USE var_lookup,only:ixTOP,nVarsTOP            ! index of variables for the network topology
+USE var_lookup,only:ixSEG              ! index of variables for the stream segments
+USE var_lookup,only:ixNTOPO            ! index of variables for the network topology
 
 implicit none
 
@@ -59,6 +64,9 @@ contains
  ! --------------------------------------------------------------------------------------------------------------
  ! local variables
  character(len=strLen)           :: cmessage           ! error message of downwind routine
+ integer(i4b)                    :: iSeg               ! indices for stream segment
+ integer(i4b)                    :: iUps               ! indices of upstream segments
+ integer(i4b)                    :: nUps               ! number of immediate upstream segments
  integer(i4b)                    :: tot_upstream       ! total number of all of the upstream stream segments for all stream segments
  integer(i4b)                    :: tot_upseg          ! total number of immediate upstream segments for all  stream segments
  integer(i4b)                    :: tot_hru            ! total number of all the upstream hrus for all stream segments
@@ -221,13 +229,83 @@ contains
 
  endif  ! if writing the data
 
+ ! ---------- temporary code: populate old data structures --------------------------------------------------
 
+ ! allocate space
+ allocate(RPARAM(nSeg), NETOPO(nSeg), stat=ierr)
+ if(ierr/=0)then; message=trim(message)//'unable to allocate space for old data structures'; return; endif
 
+ ! loop through stream segments
+ do iSeg=1,nSeg
 
+  ! print progress
+  if(mod(iSeg,100000)==0) print*, 'Copying to the old data structures: iSeg, nSeg = ', iSeg, nSeg
 
+  ! ----- reach parameters -----
 
+  ! copy data into the reach parameter structure
+  RPARAM(iSeg)%RLENGTH = structSEG(iSeg)%var(ixSEG%length)%dat(1)
+  RPARAM(iSeg)%R_SLOPE = structSEG(iSeg)%var(ixSEG%slope)%dat(1)
+  RPARAM(iSeg)%R_MAN_N = structSEG(iSeg)%var(ixSEG%width)%dat(1)
+  RPARAM(iSeg)%R_WIDTH = structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
 
+  ! compute variables
+  RPARAM(iSeg)%BASAREA = sum(structSEG(iSeg)%var(ixSEG%hruArea)%dat)
 
+  ! NOT USED: UPSAREA is not currently used, but could be useful...
+  !        --> can loop through all upstream basins (in reach_list?)
+  RPARAM(iSeg)%UPSAREA = realMissing  ! upstream area (zero if headwater basin)
+  RPARAM(iSeg)%TOTAREA = realMissing  ! UPSAREA + BASAREA
+
+  ! NOT USED: MINFLOW -- minimum environmental flow
+  RPARAM(iSeg)%MINFLOW = structSEG(iSeg)%var(ixSEG%minFlow)%dat(1)
+
+  ! ----- network topology -----
+
+  ! reach indices
+  NETOPO(iSeg)%REACHIX = structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1)     ! reach index (1, 2, 3, ..., nSeg)
+  NETOPO(iSeg)%REACHID = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)        ! reach ID (unique reach identifier)
+
+  ! downstream reach indices
+  NETOPO(iSeg)%DREACHI = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1) ! Immediate Downstream reach index
+  NETOPO(iSeg)%DREACHK = structNTOPO(iSeg)%var(ixNTOPO%downSegId)%dat(1)    ! Immediate Downstream reach ID
+
+  ! allocate space for upstream reach indices
+  nUps = size(structNTOPO(iSeg)%var(ixNTOPO%upSegIds)%dat)
+  allocate(NETOPO(iSeg)%UREACHI(nUps), NETOPO(iSeg)%UREACHK(nUps), NETOPO(iSeg)%goodBas(nUps), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'unable to allocate space for upstream structures'; return; endif
+
+  ! populate upstream data structures
+  if(nUps>0)then
+   do iUps=1,nUps   ! looping through upstream reaches
+    NETOPO(iSeg)%UREACHI(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIndices)%dat(iUps)   ! Immediate Upstream reach indices
+    NETOPO(iSeg)%UREACHK(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIds)%dat(iUps)       ! Immediate Upstream reach Ids
+    NETOPO(iSeg)%goodBas(iUps) = (structNTOPO(iSeg)%var(ixNTOPO%goodBasin)%dat(1)==1)    ! "good" basin
+   end do  ! Loop through upstream reaches
+  endif
+
+  ! define the reach order
+  NETOPO(iSeg)%RHORDER = structNTOPO(iSeg)%var(ixNTOPO%rchOrder)%dat(1)  ! Processing sequence
+
+  ! NOT USED: lake parameters
+  NETOPO(iSeg)%LAKE_IX = integerMissing  ! Lake index (0,1,2,...,nlak-1)
+  NETOPO(iSeg)%LAKE_ID = integerMissing  ! Lake ID (REC code?)
+  NETOPO(iSeg)%BASULAK = realMissing     ! Area of basin under lake
+  NETOPO(iSeg)%RCHULAK = realMissing     ! Length of reach under lake
+  NETOPO(iSeg)%LAKINLT = .false.         ! .TRUE. if reach is lake inlet, .FALSE. otherwise
+  NETOPO(iSeg)%USRTAKE = .false.         ! .TRUE. if user takes from reach, .FALSE. otherwise
+
+  ! NOT USED: Location (available in the input files)
+  NETOPO(iSeg)%RCHLAT1 = realMissing     ! Start latitude
+  NETOPO(iSeg)%RCHLAT2 = realMissing     ! End latitude
+  NETOPO(iSeg)%RCHLON1 = realMissing     ! Start longitude
+  NETOPO(iSeg)%RCHLON2 = realMissing     ! End longitude
+
+  ! NOT USED: time delay histogram
+  allocate(NETOPO(iSeg)%UPSLENG(0), NETOPO(iSeg)%UH(0), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'unable to allocate space for time delay histogram'; return; endif
+
+ end do  ! looping through stream segments
 
  end subroutine ntopo
 
