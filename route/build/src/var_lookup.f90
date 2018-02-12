@@ -57,7 +57,9 @@ MODULE var_lookup
   ! unit hydrograph routing
   integer(i4b)     :: timeDelayHist = integerMissing  ! time delay histogram for each reach (s)
   integer(i4b)     :: upsLength     = integerMissing  ! length of the vector of reaches above each reach (m)
+  integer(i4b)     :: basArea       = integerMissing  ! area of the local HRUs contributing to each reach (m2)
   integer(i4b)     :: upsArea       = integerMissing  ! area above the top of the reach -- zero if headwater (m2)
+  integer(i4b)     :: totalArea     = integerMissing  ! basArea + upsArea -- area at the bottom of the reach (m2)
   ! lakes
   integer(i4b)     :: basUnderLake  = integerMissing  ! Area of basin under lake  (m2)
   integer(i4b)     :: rchUnderLake  = integerMissing  ! Length of reach under lake (m)
@@ -100,7 +102,7 @@ MODULE var_lookup
  type(iLook_dims),    public,parameter :: ixDims    = iLook_dims    (1,2,3,4,5)
  type(iLook_HRU),     public,parameter :: ixHRU     = iLook_HRU     (1)
  type(iLook_HRU2SEG), public,parameter :: ixHRU2SEG = iLook_HRU2SEG (1,2,3,4)
- type(iLook_SEG),     public,parameter :: ixSEG     = iLook_SEG     (1,2,3,4,5,6,7,8,9,10,11,12)
+ type(iLook_SEG),     public,parameter :: ixSEG     = iLook_SEG     (1,2,3,4,5,6,7,8,9,10,11,12,13,14)
  type(iLook_NTOPO)   ,public,parameter :: ixNTOPO   = iLook_NTOPO   (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16)
  ! ***********************************************************************************************************
  ! ** define size of data vectors
@@ -112,37 +114,5 @@ MODULE var_lookup
  integer(i4b),parameter,public    :: nVarsSEG     = storage_size(ixSEG    )/iLength
  integer(i4b),parameter,public    :: nVarsNTOPO   = storage_size(ixNTOPO  )/iLength
  ! ***********************************************************************************************************
-
- ! ***********************************************************************************************************
- ! ***********************************************************************************************************
- ! ***********************************************************************************************************
- ! ***********************************************************************************************************
- ! ***********************************************************************************************************
- ! ***********************************************************************************************************
- ! ***********************************************************************************************************
- ! ***********************************************************************************************************
-
- type, public  ::  iLook_MAP
-  integer(i4b)     :: HRUid     = 1     ! HRU id
-  integer(i4b)     :: segHRUid  = 2     ! id of the stream segment below each HRU
- endtype iLook_MAP
- ! ***********************************************************************************************************
- ! (4) define variables for the network topology
- ! ***********************************************************************************************************
- type, public  ::  iLook_TOP
-  integer(i4b)     :: segid     = 1     ! id of each stream segment
-  integer(i4b)     :: toSegment = 2     ! id of the next downstream segment
- endtype iLook_TOP
- ! ***********************************************************************************************************
- ! (X) define size of data vectors
- ! ***********************************************************************************************************
- integer(i4b),parameter,public    :: nVarsMAP=2
- integer(i4b),parameter,public    :: nVarsTOP=2
- ! ***********************************************************************************************************
- ! (X) define data vectors
- ! ***********************************************************************************************************
- type(iLook_MAP),public,parameter :: ixMAP=iLook_MAP(1,2)
- type(iLook_TOP),public,parameter :: ixTOP=iLook_TOP(1,2)
-
 
 END MODULE var_lookup

@@ -151,24 +151,40 @@ contains
 
  endif  ! if need to compute network topology
 
+ ! ---------- get the processing order -----------------------------------------------------------------------
+
+ ! defines the processing order for the individual stream segments in the river network
+ call REACHORDER(nSeg,         &   ! input:        number of reaches
+                 structNTOPO,  &   ! input:output: network topology
+                 ierr, cmessage)   ! output:       error control
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  ! ---------- get the list of all upstream reaches above a given reach ---------------------------------------
 
  ! get the list of all upstream reaches above a given reach
  call reach_list(&
                  ! input
                  nSeg,                        & ! Number of reaches
-                 structNTOPO,                 & ! Network topology
                  (computeReachList==compute), & ! flag to compute the reach list
+                 structNTOPO,                 & ! Network topology
                  ! output
+                 structSeg,                   & ! input: ancillary data for stream segments
                  tot_upstream,                & ! Total number of upstream reaches for all reaches
                  ierr, cmessage)                ! Error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get timing
  call system_clock(time1)
+ print*, 'tot_upstream = ', tot_upstream
  write(*,'(a,1x,i20)') 'after reach_list: time = ', time1-time0
+ !print*, trim(message)//'PAUSE : '; read(*,*)
 
  ! ---------- get indices of all segments above a prescribed reach ------------------------------------------
+
+ ! disable the dimension containing all upstream reaches
+ ! NOTE: For the CONUS this is 1,872,516,819 reaches !!
+ !        --> it will always be quicker to recompute than read+write
+ tot_upstream = 0
 
  ! identify all reaches upstream of a given reach
  call reach_mask(&
@@ -194,14 +210,6 @@ contains
 
  print*, 'nDesire = ', size(ixHRU_desired)
 
- ! ---------- get the processing order -----------------------------------------------------------------------
-
- ! defines the processing order for the individual stream segments in the river network
- call REACHORDER(nSeg,         &   ! input:        number of reaches
-                 structNTOPO,  &   ! input:output: network topology
-                 ierr, cmessage)   ! output:       error control
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
  ! ---------- write network topology to a netcdf file -------------------------------------------------------
 
  ! check the need to compute network topology
@@ -226,6 +234,14 @@ contains
                  ! output: error control
                  ierr,cmessage) ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! created a subset = sucessful execution: Need to run again with the subset
+  if(idSegOut>0)then
+   write(*,'(a)') 'Running in subsetting mode'
+   write(*,'(a)') 'Created a subset network topology file '//trim(fname_ntopNew)
+   write(*,'(a)') ' --> Run again using the new network topology file '
+   stop 'SUCCESSFUL EXECUTION'
+  endif
 
  endif  ! if writing the data
 
