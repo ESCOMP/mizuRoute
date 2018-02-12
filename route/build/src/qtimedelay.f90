@@ -38,14 +38,14 @@ REAL(DP)                               :: X_VALUE     ! xvalue to evaluate using
 REAL(DP)                               :: CUMPROB     ! cumulative probability at JTIM
 REAL(DP)                               :: PSAVE       ! cumulative probability at JTIM-1
 ! ---------------------------------------------------------------------------------------
-! use a Gamma distribution with shape parameter, fsahep = 2.5, and time parameter, tscale, input
-alamb = fshape/REAL(tscale, kind(sp))                   ! scale parameter
+! use a Gamma distribution with shape parameter, fshape = 2.5, and time parameter, tscale, input
+alamb = fshape/tscale                  ! scale parameter
 ! find the desired number of future time steps
 ntdh_min = 1._dp
 ntdh_max = 1000._dp
 ntdh_try = 0.5_dp*(ntdh_min + ntdh_max)
 do itry=1,maxtry
- x_value = alamb*real(dt*ntdh_try, kind(sp))
+ x_value = alamb*dt*ntdh_try
  cumprob = gammp(fshape, x_value)
  !print*, tscale, ntdh_try, cumprob
  if(cumprob < 0.99_dp)  ntdh_min = ntdh_try
@@ -61,8 +61,8 @@ if(ierr/=0)then; message=trim(message)//'unable to allocate space for the time d
 ! loop through time steps and compute the fraction of runoff in future time steps
 PSAVE = 0.                                                 ! cumulative probability at JTIM-1
 DO JTIM=1,NTDH
- TFUTURE            = real(REAL(JTIM, kind(dp))*DT, kind(sp))       ! future time
- CUMPROB            = gammp(fshape,alamb*TFUTURE)    ! cumulative probability at JTIM
+ TFUTURE            = REAL(JTIM, kind(dp))*DT       ! future time
+ CUMPROB            = gammp(fshape,alamb*TFUTURE)   ! cumulative probability at JTIM
  FRAC_FUTURE(JTIM)  = MAX(0._DP, CUMPROB-PSAVE)     ! probability between JTIM-1 and JTIM
  PSAVE              = CUMPROB                       ! cumulative probability at JTIM-1
  !WRITE(*,'(I5,1X,F20.5,1X,2(F11.5))') JTIM, TFUTURE, FRAC_FUTURE(JTIM), CUMPROB
