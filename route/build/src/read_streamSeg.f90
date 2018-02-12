@@ -198,6 +198,12 @@ contains
  ! ---------- read in data -----------------------------------------------------------------------------------------
  ! -----------------------------------------------------------------------------------------------------------------
 
+ ! set flags if we want to read hdraulic geometry from file
+ if(hydGeometryOption==readFromFile)then
+  meta_SEG(ixSEG%width)%varFile = .true.
+  meta_SEG(ixSEG%man_n)%varFile = .true.
+ endif
+
  ! loop through data structures
  do iStruct=1,nStructures
 
