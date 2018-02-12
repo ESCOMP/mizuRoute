@@ -151,15 +151,27 @@ contains
 
  endif  ! if need to compute network topology
 
+ ! ---------- get the processing order -----------------------------------------------------------------------
+
+ ! defines the processing order for the individual stream segments in the river network
+ call REACHORDER(nSeg,         &   ! input:        number of reaches
+                 structNTOPO,  &   ! input:output: network topology
+                 ierr, cmessage)   ! output:       error control
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  ! ---------- get the list of all upstream reaches above a given reach ---------------------------------------
+
+ ! force compute
+ computeReachList=compute
 
  ! get the list of all upstream reaches above a given reach
  call reach_list(&
                  ! input
                  nSeg,                        & ! Number of reaches
-                 structNTOPO,                 & ! Network topology
                  (computeReachList==compute), & ! flag to compute the reach list
+                 structNTOPO,                 & ! Network topology
                  ! output
+                 structSeg,                   & ! input: ancillary data for stream segments
                  tot_upstream,                & ! Total number of upstream reaches for all reaches
                  ierr, cmessage)                ! Error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -167,6 +179,7 @@ contains
  ! get timing
  call system_clock(time1)
  write(*,'(a,1x,i20)') 'after reach_list: time = ', time1-time0
+ print*, trim(message)//'PAUSE : '; read(*,*)
 
  ! ---------- get indices of all segments above a prescribed reach ------------------------------------------
 
@@ -193,14 +206,6 @@ contains
  write(*,'(a,1x,i20)') 'after reach_mask: time = ', time1-time0
 
  print*, 'nDesire = ', size(ixHRU_desired)
-
- ! ---------- get the processing order -----------------------------------------------------------------------
-
- ! defines the processing order for the individual stream segments in the river network
- call REACHORDER(nSeg,         &   ! input:        number of reaches
-                 structNTOPO,  &   ! input:output: network topology
-                 ierr, cmessage)   ! output:       error control
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! ---------- write network topology to a netcdf file -------------------------------------------------------
 
