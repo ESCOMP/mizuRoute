@@ -161,9 +161,6 @@ contains
 
  ! ---------- get the list of all upstream reaches above a given reach ---------------------------------------
 
- ! force compute
- computeReachList=compute
-
  ! get the list of all upstream reaches above a given reach
  call reach_list(&
                  ! input
@@ -178,10 +175,16 @@ contains
 
  ! get timing
  call system_clock(time1)
+ print*, 'tot_upstream = ', tot_upstream
  write(*,'(a,1x,i20)') 'after reach_list: time = ', time1-time0
- print*, trim(message)//'PAUSE : '; read(*,*)
+ !print*, trim(message)//'PAUSE : '; read(*,*)
 
  ! ---------- get indices of all segments above a prescribed reach ------------------------------------------
+
+ ! disable the dimension containing all upstream reaches
+ ! NOTE: For the CONUS this is 1,872,516,819 reaches !!
+ !        --> it will always be quicker to recompute than read+write
+ tot_upstream = 0
 
  ! identify all reaches upstream of a given reach
  call reach_mask(&
@@ -231,6 +234,14 @@ contains
                  ! output: error control
                  ierr,cmessage) ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! created a subset = sucessful execution: Need to run again with the subset
+  if(idSegOut>0)then
+   write(*,'(a)') 'Running in subsetting mode'
+   write(*,'(a)') 'Created a subset network topology file '//trim(fname_ntopNew)
+   write(*,'(a)') ' --> Run again using the new network topology file '
+   stop 'SUCCESSFUL EXECUTION'
+  endif
 
  endif  ! if writing the data
 
