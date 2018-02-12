@@ -45,9 +45,10 @@ contains
  ! external subroutines : network topology
  use network_topo,    only:hru2segment           ! get the mapping between HRUs and segments
  use network_topo,    only:up2downSegment        ! get the mapping between upstream and downstream segments
+ use network_topo,    only:reachOrder            ! define the processing order
  use network_topo,    only:reach_list            ! reach list
  use network_topo,    only:reach_mask            ! identify all reaches upstream of a given reach
- use network_topo,    only:reachOrder            ! define the processing order
+ !use network_topo,    only:reach_mask_orig            ! identify all reaches upstream of a given reach
  ! This subroutine 1) read river network data and 2) populate river network topology data strucutres
  implicit none
  ! output: model control
@@ -72,6 +73,7 @@ contains
  integer(i4b)                    :: tot_hru            ! total number of all the upstream hrus for all stream segments
  integer(i4b)   , allocatable    :: ixHRU_desired(:)   ! indices of desired hrus
  integer(i4b)   , allocatable    :: ixSeg_desired(:)   ! indices of desired reaches
+ integer(i4b)   , parameter      :: maxUpstreamFile=10000000 ! 10 million: maximum number of upstream reaches to enable writing
  integer*8                       :: time0,time1        ! times
 
  ! initialize error control
@@ -179,14 +181,9 @@ contains
  write(*,'(a,1x,i20)') 'after reach_list: time = ', time1-time0
  !print*, trim(message)//'PAUSE : '; read(*,*)
 
- ! ---------- get indices of all segments above a prescribed reach ------------------------------------------
+ ! ---------- get the mask of all upstream reaches above a given reach ---------------------------------------
 
- ! disable the dimension containing all upstream reaches
- ! NOTE: For the CONUS this is 1,872,516,819 reaches !!
- !        --> it will always be quicker to recompute than read+write
- tot_upstream = 0
-
- ! identify all reaches upstream of a given reach
+ ! get the mask of all upstream reaches above a given reach
  call reach_mask(&
                  ! input
                  idSegOut,      &  ! input: reach index
@@ -201,19 +198,25 @@ contains
                  ixHRU_desired, &  ! output: indices of desired hrus
                  ixSeg_desired, &  ! output: indices of desired reaches
                  ! output: error control
-                 ierr, cmessage )  ! output: error control
+                 ierr, message )   ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get timing
  call system_clock(time1)
+ print*, 'tot_upstream = ', tot_upstream
  write(*,'(a,1x,i20)') 'after reach_mask: time = ', time1-time0
-
- print*, 'nDesire = ', size(ixHRU_desired)
+ !print*, trim(message)//'PAUSE : '; read(*,*)
 
  ! ---------- write network topology to a netcdf file -------------------------------------------------------
 
  ! check the need to compute network topology
  if(topoNetworkOption==compute .or. computeReachList==compute .or. idSegOut>0)then
+
+  ! disable the dimension containing all upstream reaches
+  ! NOTE: For the CONUS this is 1,872,516,819 reaches !!
+  !        --> it will always be quicker to recompute than read+write
+  !        --> users can modify the hard-coded parameter "maxUpstreamFile" if desired
+  if(tot_upstream > maxUpstreamFile) tot_upstream=0
 
   ! write data
   call writeData(&
@@ -266,12 +269,9 @@ contains
   RPARAM(iSeg)%R_WIDTH = structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
 
   ! compute variables
-  RPARAM(iSeg)%BASAREA = sum(structSEG(iSeg)%var(ixSEG%hruArea)%dat)
-
-  ! NOT USED: UPSAREA is not currently used, but could be useful...
-  !        --> can loop through all upstream basins (in reach_list?)
-  RPARAM(iSeg)%UPSAREA = realMissing  ! upstream area (zero if headwater basin)
-  RPARAM(iSeg)%TOTAREA = realMissing  ! UPSAREA + BASAREA
+  RPARAM(iSeg)%BASAREA = structSEG(iSeg)%var(ixSEG%basArea)%dat(1)
+  RPARAM(iSeg)%UPSAREA = structSEG(iSeg)%var(ixSEG%upsArea)%dat(1)
+  RPARAM(iSeg)%TOTAREA = structSEG(iSeg)%var(ixSEG%totalArea)%dat(1)
 
   ! NOT USED: MINFLOW -- minimum environmental flow
   RPARAM(iSeg)%MINFLOW = structSEG(iSeg)%var(ixSEG%minFlow)%dat(1)
@@ -286,12 +286,12 @@ contains
   NETOPO(iSeg)%DREACHI = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1) ! Immediate Downstream reach index
   NETOPO(iSeg)%DREACHK = structNTOPO(iSeg)%var(ixNTOPO%downSegId)%dat(1)    ! Immediate Downstream reach ID
 
-  ! allocate space for upstream reach indices
+  ! allocate space for immediate upstream reach indices
   nUps = size(structNTOPO(iSeg)%var(ixNTOPO%upSegIds)%dat)
   allocate(NETOPO(iSeg)%UREACHI(nUps), NETOPO(iSeg)%UREACHK(nUps), NETOPO(iSeg)%goodBas(nUps), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'unable to allocate space for upstream structures'; return; endif
 
-  ! populate upstream data structures
+  ! populate immediate upstream data structures
   if(nUps>0)then
    do iUps=1,nUps   ! looping through upstream reaches
     NETOPO(iSeg)%UREACHI(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIndices)%dat(iUps)   ! Immediate Upstream reach indices
