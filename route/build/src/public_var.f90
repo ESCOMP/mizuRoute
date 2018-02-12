@@ -22,9 +22,15 @@ module public_var
 
   ! ---------- named variables ----------------------------------------------------------------------
 
+  ! compute versus read from file
   integer(i4b), parameter,public  :: compute=1              ! compute given variable
   integer(i4b), parameter,public  :: doNotCompute=0         ! do not compute given variable
   integer(i4b), parameter,public  :: readFromFile=0         ! read given variable from a file
+
+  ! routing methods
+  integer(i4b), parameter,public  :: allRoutingMethods=0    ! all routing methods
+  integer(i4b), parameter,public  :: impulseResponseFunc=1  ! impulse response function
+  integer(i4b), parameter,public  :: kinematicWave=2        ! kinematic wave
 
   ! ---------- variables in the control file --------------------------------------------------------
 
