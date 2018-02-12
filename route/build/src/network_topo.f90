@@ -704,7 +704,7 @@ contains
                        doReachList, & ! flag to compute the list of upstream reaches
                        structNTOPO, & ! Network topology
                        ! output
-                       structSEG,   & ! Network properties
+                       structSEG,   & ! Reach properties
                        NTOTAL,      & ! Total number of upstream reaches for all reaches
                        ierr,message)  ! Error control
  ! ----------------------------------------------------------------------------------------
@@ -721,7 +721,7 @@ contains
  logical(lgt)      , intent(in)                 :: doReachList     ! flag to compute the list of upstream reaches
  type(var_ilength) , intent(inout), allocatable :: structNTOPO(:)  ! network topology structure
  ! output variables
- type(var_dlength) , intent(inout)              :: structSEG(:)    ! network topology structure
+ type(var_dlength) , intent(inout)              :: structSEG(:)    ! reach properties structure
  integer(i4b)      , intent(out)                :: NTOTAL          ! total number of upstream reaches for all reaches
  integer(i4b)      , intent(out)                :: ierr            ! error code
  character(*)      , intent(out)                :: message         ! error message
