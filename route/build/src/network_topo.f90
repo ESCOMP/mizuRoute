@@ -28,9 +28,6 @@ USE nr_utility_module, ONLY: arth          ! Num. Recipies utilities
 ! privacy
 implicit none
 
-! define module-level constants
-integer(i4b),parameter  :: down2noSegment=0     ! index in the input file if the HRU does not drain to a segment
-
 private
 public :: hru2segment    ! compute correspondence between HRUs and segments
 public :: up2downSegment ! mapping between upstream and downstream segments
@@ -343,6 +340,7 @@ contains
  integer(i4b)                    :: rankDownId          ! ranked Id of the downstream stream segment
  integer(i4b)                    :: rankSeg(nSeg)       ! rank index of each segment in the nRch vector
  integer(i4b)                    :: rankDownSeg(nUp)    ! rank index of each downstream stream segment
+ logical(lgt),parameter          :: checkLink=.false.   ! flag to check the links
  logical(lgt),parameter          :: checkMap=.true.     ! flag to check the mapping
  ! initialize error control
  ierr=0; message='downReachIndex/'
@@ -351,27 +349,42 @@ contains
  nElement2Seg(:) = 0
  downSegIndex(:) = integerMissing
 
- ! rank the stream segments
+ ! rank the ids of the stream segments
  call indexx(segId, rankSeg)
 
- ! rank the drainage segment
+ ! rank the ids of the downstream stream segments
  call indexx(downId, rankDownSeg)
 
  iSeg=1  ! second counter
  ! loop through the upstream elements
  do iUp=1,nUp
 
+  ! print progress
+  !if(mod(iUp,10000)==0) print*, 'Getting downstream link for reach: ', iUp, nUp
+
   ! get Ids for the up2seg mapping vector
   rankDownId = downId( rankDownSeg(iUp) )
-  if (rankDownId == down2noSegment) cycle ! upstream element does not drain into any stream segment (closed basin or coastal HRU)
+
+  ! check if part of the network
+  if (rankDownId<=0) cycle ! upstream element does not drain into any stream segment (closed basin or coastal HRU)
 
   ! keep going until found the index
   do jSeg=iSeg,nSeg ! normally a short loop
 
    ! get Id of the stream segment
    rankSegId = segId( rankSeg(jSeg) )
-   !print*, 'iUp, iSeg, jSeg, rankDownId, rankSegId, rankDownSeg(iUp), rankSeg(jSeg) = ', &
-   !         iUp, iSeg, jSeg, rankDownId, rankSegId, rankDownSeg(iUp), rankSeg(jSeg)
+
+   ! check
+   if(jSeg>iSeg+100 .and. checkLink)then
+    print*, 'iUp, iSeg, jSeg, rankDownId, rankSegId, rankDownSeg(iUp), rankSeg(jSeg) = ', &
+             iUp, iSeg, jSeg, rankDownId, rankSegId, rankDownSeg(iUp), rankSeg(jSeg)
+    if(jSeg>iSeg+200)then
+     print*, trim(message)//'PAUSE : '; read(*,*)
+    endif
+   endif
+
+   ! check if the basin is missing
+   if(rankSegId>rankDownId) exit ! exit the segment loop
 
    ! define the index where we have a match
    if(rankDownId==rankSegId)then
@@ -398,7 +411,7 @@ contains
  ! check
  if(checkMap)then
   do iUp=1,nUp
-   if(downId(iUp) == down2noSegment .or. downSegIndex(iUp)==integerMissing) cycle
+   if(downId(iUp)<=0 .or. downSegIndex(iUp)==integerMissing) cycle
    if(downId(iUp) /= segId( downSegIndex(iUp) ) )then
     message=trim(message)//'problems identifying the index of the stream segment that a given HRU drains into'
     ierr=20; return
@@ -436,6 +449,7 @@ contains
  LOGICAL(LGT),DIMENSION(:),ALLOCATABLE  :: RCHFLAG         ! TRUE if reach is processed
  INTEGER(I4B)                           :: NUPS            ! number of upstream reaches
  INTEGER(I4B)                           :: UINDEX          ! upstream reach index
+ integer(i4b)                           :: jCount          ! counter
  ! initialize error control
  ierr=0; message='reachorder/'
  ! ----------------------------------------------------------------------------------------
@@ -445,9 +459,14 @@ contains
  RCHFLAG(1:NRCH) = .FALSE.
  ! ----------------------------------------------------------------------------------------
  ICOUNT=0
+ jCount=0
  DO  ! do until all reaches are assigned
   NASSIGN = 0
   DO IRCH=1,NRCH
+   ! print progress
+   if(jCount>0)then
+    if(mod(jCount,100000)==0) print*, 'Getting order for reach: ', count(RCHFLAG), nRch
+   endif
    ! check if the reach is assigned yet
    IF(RCHFLAG(IRCH)) THEN
     NASSIGN = NASSIGN + 1
@@ -457,11 +476,14 @@ contains
    JRCH = IRCH    ! the first reach under investigation
    DO  ! do until get to a "most upstream" reach that is not assigned
     nUps = size(structNTOPO(jRch)%var(ixNTOPO%upSegIds)%dat)
+    !print*, 'iRch, nUps = ', iRch, nUps
     IF (NUPS.GE.1) THEN     ! (if NUPS = 0, then it is a first-order basin)
      KRCH = JRCH   ! the reach under investigation
      ! loop through upstream reaches
      DO IUPS=1,NUPS
+      jCount = jCount+1
       uIndex = structNTOPO(jRch)%var(ixNTOPO%upSegIndices)%dat(iUps)  ! index of the upstream reach
+      !print*, 'jRch, uIndex = ', jRch, uIndex, structNTOPO(jRch)%var(ixNTOPO%upSegIds)%dat
       ! check if the reach is NOT assigned
       IF (.NOT.RCHFLAG(UINDEX)) THEN
        JRCH = UINDEX
@@ -667,7 +689,7 @@ contains
  IMPLICIT NONE
  ! input variables
  integer(i4b)      , intent(in)                :: desireId          ! id of the desired reach
- type(var_ilength) , intent(in)                :: structNTOPO(:)    ! network topology structure
+ type(var_ilength) , intent(inout)             :: structNTOPO(:)    ! network topology structure
  integer(i4b)      , intent(in)                :: nHRU              ! number of HRUs
  integer(i4b)      , intent(in)                :: nRch              ! number of reaches
  ! input+output: updated dimensions
@@ -723,6 +745,10 @@ contains
    message=trim(message)//'unable to find index of desired reach id'
    ierr=20; return
   endif
+
+  ! set the downstream reach to missing
+  structNTOPO(ixDesire)%var(ixNTOPO%downSegId)%dat(1)    = integerMissing
+  structNTOPO(ixDesire)%var(ixNTOPO%downSegIndex)%dat(1) = integerMissing
 
   ! allocate space for the number of stream segments
   nRch_desire = size(structNTOPO(ixDesire)%var(ixNTOPO%allUpSegIndices)%dat)

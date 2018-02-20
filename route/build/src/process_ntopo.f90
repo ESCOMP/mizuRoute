@@ -105,6 +105,7 @@ contains
  ! get timing
  call system_clock(time1)
  write(*,'(a,1x,i20)') 'after getData: time = ', time1-time0
+ !print*, trim(message)//'PAUSE : '; read(*,*)
 
  ! ---------- get the mapping between HRUs and segments ------------------------------------------------------
 
@@ -128,6 +129,7 @@ contains
   ! get timing
   call system_clock(time1)
   write(*,'(a,1x,i20)') 'after hru2segment: time = ', time1-time0
+  !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif  ! if need to compute network topology
 
@@ -150,6 +152,7 @@ contains
   ! get timing
   call system_clock(time1)
   write(*,'(a,1x,i20)') 'after up2downSegment: time = ', time1-time0
+  !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif  ! if need to compute network topology
 
@@ -160,6 +163,11 @@ contains
                  structNTOPO,  &   ! input:output: network topology
                  ierr, cmessage)   ! output:       error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! get timing
+ call system_clock(time1)
+ write(*,'(a,1x,i20)') 'after reachOrder: time = ', time1-time0
+ !print*, trim(message)//'PAUSE : '; read(*,*)
 
  ! ---------- get the list of all upstream reaches above a given reach ---------------------------------------
 
