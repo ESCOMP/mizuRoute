@@ -11,6 +11,8 @@ USE dataTypes, only : var_dlength             ! double precision type: var(:)%da
 
 ! global data
 USE public_var
+USE globalData, only : RPARAM                 ! reach parameter structure
+
 !USE globalData, only:time_conv,length_conv    ! conversion factors
 
 ! general data structures
@@ -34,9 +36,13 @@ USE popMetadat_module, only : popMetadat      ! populate metadata
 USE read_control_module, only : read_control  ! read the control file
 USE ascii_util_module, only : file_open       ! open file (performs a few checks as well)
 
-! subroutines: get network topology
-USE process_ntopo, only: ntopo                ! process the network topology
-!USE reach_mask_module, only:reach_mask        ! identify all reaches upstream of a given reach
+! subroutines: model set up
+USE process_ntopo, only : ntopo                ! process the network topology
+USE getAncillary_module, only : getAncillary   ! get ancillary data
+
+! subroutines: unit hydrograps
+USE basinUH_module, only : basinUH             ! basin unit hydrograph
+USE irf_route, only : make_uh                  ! network unit hydrograph
 
 ! ******
 ! define variables
@@ -120,8 +126,39 @@ call ntopo(&
            ! output: error control
            ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
+print*, 'PAUSE: after getting network topology'; read(*,*)
 
-print*, 'PAUSE: after network topology'; read(*,*)
+! specify some additional routing parameters (temporary "fix")
+! NOTE: include here because using namelist parameters
+if(hydGeometryOption==compute)then
+ if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
+  RPARAM(:)%R_WIDTH = wscale * sqrt(RPARAM(:)%TOTAREA)  ! channel width (m)
+  RPARAM(:)%R_MAN_N = mann_n                            ! Manning's "n" paramater (unitless)
+ end if
+endif  ! computing network topology
+
+! *****
+! *** Get ancillary data for routing...
+! *************************************
+
+! compute the time-delay histogram (to route runoff within basins)
+! NOTE: allocates and populates global data FRAC_FUTURE
+call basinUH(dt, fshape, tscale, ierr, cmessage)
+call handle_err(ierr, cmessage)
+
+! For IRF routing scheme: Compute unit hydrograph for each segment
+! NOTE: include here because using namelist parameters
+if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+ call make_uh(nRch, dt, velo, diff, ierr, cmessage)
+ call handle_err(ierr, cmessage)
+end if
+
+! get ancillary data for routing
+call getAncillary(&
+                  ierr, cmessage)
+if(ierr/=0) call handle_err(ierr, cmessage)
+
+print*, 'PAUSE: after getting ancillary data'; read(*,*)
 
 ! *****
 ! *** Route runoff...

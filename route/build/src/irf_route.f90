@@ -78,7 +78,9 @@ contains
   !   for upstream reach network from each segment
   !   Use Saint-Venant equation -see equations (13)-(15) in Lohmann, et al. (1996) Tellus
   ! ----------------------------------------------------------------------------------------
-  USE reachparam
+  USE globalData, only : RPARAM  ! reach properties
+  USE globalData, only : NETOPO  ! network topology
+  USE globalData, only : PI      ! pi
 
   ! Define variables
   implicit none
@@ -225,8 +227,9 @@ contains
   !   Find sum of routed runoff volume [m3/s] from immediate upstream basins of the segment (at top of
   !   the segment). Segment of Headwater basin does not have flow at top of the segment
   ! ----------------------------------------------------------------------------------------
-  USE reachparam
-  USE reach_flux
+  USE globalData, only : NETOPO  ! network topology
+  USE globalData, only : RPARAM  ! reach properties
+  USE globalData, only : RCHFLX  ! reach fluxes
 
   implicit none
   ! Input
@@ -284,8 +287,8 @@ contains
   !                     RCHFLX%REACH_Q_IRF
   !                     RCHFLX%QFUTURE_IRF
   ! ----------------------------------------------------------------------------------------
-  USE reachparam
-  USE reach_flux
+  USE globalData, only : NETOPO  ! network topology
+  USE globalData, only : RCHFLX  ! reach fluxes
   implicit none
   ! Input
   INTEGER(I4B), intent(IN)               :: iens        ! ensemble member

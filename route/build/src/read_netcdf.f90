@@ -10,6 +10,7 @@ private
 
 public::get_nc
 public::get_nc_dim_len
+public::get_units
 
 interface get_nc
   module procedure get_iscalar
@@ -60,6 +61,45 @@ contains
   ! close output file
   ierr = nf90_close(ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ end subroutine
+
+ ! *********************************************************************
+ ! subroutine: get units for a given variable
+ ! *********************************************************************
+ subroutine get_units(fname,           &  ! input: filename
+                      vname,           &  ! input: variable name
+                      units,           &  ! output: units
+                      ierr, message)      ! output: error control
+ implicit none
+ ! input variables
+ character(*), intent(in)        :: fname        ! filename
+ character(*), intent(in)        :: vname        ! variable name
+ ! output variables
+ character(*), intent(out)       :: units        ! units
+ integer(i4b), intent(out)       :: ierr         ! error code
+ character(*), intent(out)       :: message      ! error message
+ ! local variables
+ integer(i4b)                    :: ncid         ! NetCDF file ID
+ integer(i4b)                    :: iVarID       ! variable ID
+ ! initialize error control
+ ierr=0; message='get_units/'
+
+ ! open file for reading
+ ierr = nf90_open(fname, nf90_nowrite, ncid)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; name='//trim(fname); return; endif
+
+ ! get the ID of the time variable
+ ierr = nf90_inq_varid(ncid, trim(vname), ivarID)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ ! get the time units
+ ierr = nf90_get_att(ncid, ivarID, 'units', units)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ ! close the NetCDF file
+ ierr = nf90_close(ncid)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  end subroutine
 
