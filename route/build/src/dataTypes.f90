@@ -79,11 +79,6 @@ implicit none
 
  ! ---------- reach parameters ----------------------------------------------------------------------------
 
- ! Type for Unit Hydrograph
- type, public :: TDH
-   real(DP)   , dimension(:),  allocatable :: UH_DATA     ! Data type for the unit hydrograph (added by NM)
- end type TDH
-
  ! Reach Parameters
  type, public ::  RCHPRP
   real(DP)                                :: R_SLOPE
@@ -111,7 +106,7 @@ implicit none
   integer(I4B),dimension(:),allocatable   :: UREACHK  ! Immediate Upstream reach IDs
   logical(lgt),dimension(:),allocatable   :: goodBas  ! Flag to denote a good basin
   integer(I4B)                            :: RHORDER  ! Processing sequence
-  type(TDH),   dimension(:),allocatable   :: UH       ! Unit hydrograph for upstream (added by NM)
+  real(dp)    ,dimension(:),allocatable   :: UH       ! Unit hydrograph for upstream (added by NM)
   integer(I4B)                            :: LAKE_IX  ! Lake index (0,1,2,...,nlak-1)
   integer(I4B)                            :: LAKE_ID  ! Lake ID (REC code?)
   real(DP)                                :: BASULAK  ! Area of basin under lake
