@@ -48,7 +48,7 @@ contains
 
   ! open NetCDF file
   ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+  if(ierr/=0)then; message=trim(message)//'['//trim(nf90_strerror(ierr))//'; file='//trim(fname)//']'; return; endif
 
   ! get the ID of the time dimension
   ierr = nf90_inq_dimid(ncid, dname, iDimID)

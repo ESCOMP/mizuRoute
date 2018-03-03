@@ -18,42 +18,37 @@ contains
  ! *********************************************************************
  subroutine get_runoff(fname,          &  ! input: filename
                        iTime,          &  ! input: time index
+                       nHRU,           &  ! input:number of HRUs
                        dTime,          &  ! output: time
+                       qSim,           &  ! output: runoff data
                        ierr, message)     ! output: error control
  implicit none
  ! input variables
- character(*), intent(in)        :: fname        ! filename
- integer(i4b), intent(in)        :: iTime        ! index of time element
+ character(*), intent(in)        :: fname         ! filename
+ integer(i4b), intent(in)        :: iTime         ! index of time element
+ integer(i4b), intent(in)        :: nHRU          ! number of HRUs
  ! output variables
- real(dp), intent(out)           :: dTime        ! time
- integer(i4b), intent(out)       :: ierr         ! error code
- character(*), intent(out)       :: message      ! error message
+ real(dp)    , intent(out)       :: dTime         ! time
+ real(dp)    , intent(out)       :: qSim(:)       ! runoff for one time step for all HRUs
+ integer(i4b), intent(out)       :: ierr          ! error code
+ character(*), intent(out)       :: message       ! error message
  ! local variables
- real(dp),allocatable            :: dummy(:,:)   ! dummy 2d array
- integer(i4b)                    :: nHRU         ! number of hrus
- character(len=strLen)           :: cmessage     ! error message from subroutine
+ real(dp)                        :: dummy(nHRU,1) ! data read
+ character(len=strLen)           :: cmessage      ! error message from subroutine
 
  ! initialize error control
  ierr=0; message='get_runoff/'
 
- call get_nc(trim(fname),vname_time, dTime, iTime, ierr, cmessage);
+ ! get the time data
+ call get_nc(trim(fname), vname_time, dtime, iTime, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call get_nc_dim_len(fname, dname_hruid, nHRU, ierr, cmessage)
+ ! get the simulated runoff data
+ call get_nc(trim(fname),vname_qsim, dummy, (/1,iTime/), (/nHRU,1/), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- allocate(dummy(nHRU,1),stat=ierr)
- if(ierr/=0)then; message=trim(message)//'problem allocating dummy'; return; endif
-
- if (.not.(allocated(runoff_data%qsim))) then
-   allocate(runoff_data%qsim(nHRU),stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data%qsim'; return; endif
- endif
-
- call get_nc(trim(fname),vname_qsim, dummy, (/1,iTime/), (/nHRU,1/), ierr, cmessage);
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- runoff_data%qsim = reshape(dummy,(/nHRU/))
+ ! reshape
+ qSim(1:nHRU)=dummy(1:nHRU,1)
 
  end subroutine
 

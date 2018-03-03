@@ -50,6 +50,8 @@ contains
   REAL(DP)                               :: CUMPROB     ! cumulative probability at JTIM
   REAL(DP)                               :: PSAVE       ! cumulative probability at JTIM-1
   ! ---------------------------------------------------------------------------------------
+  ! initialize error control
+  ierr=0; message='basinUH/'
   ! use a Gamma distribution with shape parameter, fshape = 2.5, and time parameter, tscale, input
   alamb = fshape/tscale                  ! scale parameter
   ! find the desired number of future time steps

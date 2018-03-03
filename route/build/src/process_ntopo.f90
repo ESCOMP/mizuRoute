@@ -158,16 +158,21 @@ contains
 
  ! ---------- get the processing order -----------------------------------------------------------------------
 
- ! defines the processing order for the individual stream segments in the river network
- call REACHORDER(nSeg,         &   ! input:        number of reaches
-                 structNTOPO,  &   ! input:output: network topology
-                 ierr, cmessage)   ! output:       error control
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ ! check the need to compute network topology
+ if(topoNetworkOption==compute)then
 
- ! get timing
- call system_clock(time1)
- write(*,'(a,1x,i20)') 'after reachOrder: time = ', time1-time0
- !print*, trim(message)//'PAUSE : '; read(*,*)
+  ! defines the processing order for the individual stream segments in the river network
+  call REACHORDER(nSeg,         &   ! input:        number of reaches
+                  structNTOPO,  &   ! input:output: network topology
+                  ierr, cmessage)   ! output:       error control
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! get timing
+  call system_clock(time1)
+  write(*,'(a,1x,i20)') 'after reachOrder: time = ', time1-time0
+  !print*, trim(message)//'PAUSE : '; read(*,*)
+
+ endif  ! if need to compute network topology
 
  ! ---------- get the list of all upstream reaches above a given reach ---------------------------------------
 
@@ -185,7 +190,6 @@ contains
 
  ! get timing
  call system_clock(time1)
- print*, 'tot_upstream = ', tot_upstream
  write(*,'(a,1x,i20)') 'after reach_list: time = ', time1-time0
  !print*, trim(message)//'PAUSE : '; read(*,*)
 
@@ -206,12 +210,11 @@ contains
                  ixHRU_desired, &  ! output: indices of desired hrus
                  ixSeg_desired, &  ! output: indices of desired reaches
                  ! output: error control
-                 ierr, message )   ! output: error control
+                 ierr, cmessage )  ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get timing
  call system_clock(time1)
- print*, 'tot_upstream = ', tot_upstream
  write(*,'(a,1x,i20)') 'after reach_mask: time = ', time1-time0
  !print*, trim(message)//'PAUSE : '; read(*,*)
 
