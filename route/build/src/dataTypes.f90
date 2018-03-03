@@ -64,17 +64,21 @@ implicit none
 
  ! data to remap runoff hru to river network hrus
  type, public :: remap
-   integer(i4b),dimension(:),  allocatable  :: hru_id    ! Id of hrus associated with river network (="hru")
-   integer(i4b),dimension(:),  allocatable  :: qhru_id   ! id of hrus associated with runoff simulation (="qhru")
-   real(dp),    dimension(:),  allocatable  :: weight    ! area weight of "qhru" intersecting "hru"
-   integer(i4b),dimension(:),  allocatable  :: num_qhru  ! number of "qhru" within "hru"
+   ! information in the mapping file
+   integer(i4b)             , allocatable  :: hru_id(:)    ! Id of hrus associated with river network (="hru")
+   integer(i4b)             , allocatable  :: qhru_id(:)   ! Id of hrus associated with runoff simulation (="qhru")
+   integer(i4b)             , allocatable  :: num_qhru(:)  ! number of "qhru" within "hru"
+   real(dp)                 , allocatable  :: weight(:)    ! area weight of "qhru" intersecting "hru"
+   ! ancillary index vectors
+   integer(i4b)             , allocatable  :: hru_ix(:)    ! Index of hrus associated with river network (="hru")
+   integer(i4b)             , allocatable  :: qhru_ix(:)   ! Index of hrus associated with runoff simulation (="qhru")
  end type remap
 
  ! simulated runoff data
  type, public :: runoff
-   integer(i4b),dimension(:),  allocatable  :: hru_id    ! id of hrus at which runoff is simulated
-   real(dp),    dimension(:),  allocatable  :: time      ! time
-   real(dp),    dimension(:),  allocatable  :: qsim      ! runoff(hru) at one time step
+   real(dp)                                :: time      ! time
+   real(dp)                 , allocatable  :: qsim(:)   ! runoff(hru) at one time step
+   integer(i4b)             , allocatable  :: hru_id(:) ! id of hrus at which runoff is simulated
  end type runoff
 
  ! ---------- reach parameters ----------------------------------------------------------------------------
