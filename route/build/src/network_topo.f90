@@ -21,21 +21,20 @@ USE var_lookup,only:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segm
 USE var_lookup,only:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
 
 ! external utilities
-USE nr_utility_module, ONLY: indexx  ! Num. Recipies utilities
-USE nr_utility_module, ONLY: arth    ! Num. Recipies utilities
+USE nr_utility_module, ONLY: findIndex     ! Num. Recipies utilities
+USE nr_utility_module, ONLY: indexx        ! Num. Recipies utilities
+USE nr_utility_module, ONLY: arth          ! Num. Recipies utilities
 
 ! privacy
 implicit none
 
-! define module-level constants
-integer(i4b),parameter  :: down2noSegment=0     ! index in the input file if the HRU does not drain to a segment
-
 private
 public :: hru2segment    ! compute correspondence between HRUs and segments
 public :: up2downSegment ! mapping between upstream and downstream segments
-public :: reach_mask     ! get a mask that defines all segments above a given segment
-public :: reach_list     ! get a list of reaches above each reach
 public :: reachOrder     ! define the processing order
+public :: reach_list     ! get a list of reaches above each reach
+public :: reach_mask     ! get a mask that defines all segments above a given segment
+public :: reach_mask_orig     ! get a mask that defines all segments above a given segment
 !public::upstrm_length
 
 contains
@@ -341,6 +340,7 @@ contains
  integer(i4b)                    :: rankDownId          ! ranked Id of the downstream stream segment
  integer(i4b)                    :: rankSeg(nSeg)       ! rank index of each segment in the nRch vector
  integer(i4b)                    :: rankDownSeg(nUp)    ! rank index of each downstream stream segment
+ logical(lgt),parameter          :: checkLink=.false.   ! flag to check the links
  logical(lgt),parameter          :: checkMap=.true.     ! flag to check the mapping
  ! initialize error control
  ierr=0; message='downReachIndex/'
@@ -349,27 +349,42 @@ contains
  nElement2Seg(:) = 0
  downSegIndex(:) = integerMissing
 
- ! rank the stream segments
+ ! rank the ids of the stream segments
  call indexx(segId, rankSeg)
 
- ! rank the drainage segment
+ ! rank the ids of the downstream stream segments
  call indexx(downId, rankDownSeg)
 
  iSeg=1  ! second counter
  ! loop through the upstream elements
  do iUp=1,nUp
 
+  ! print progress
+  !if(mod(iUp,10000)==0) print*, 'Getting downstream link for reach: ', iUp, nUp
+
   ! get Ids for the up2seg mapping vector
   rankDownId = downId( rankDownSeg(iUp) )
-  if (rankDownId == down2noSegment) cycle ! upstream element does not drain into any stream segment (closed basin or coastal HRU)
+
+  ! check if part of the network
+  if (rankDownId<=0) cycle ! upstream element does not drain into any stream segment (closed basin or coastal HRU)
 
   ! keep going until found the index
   do jSeg=iSeg,nSeg ! normally a short loop
 
    ! get Id of the stream segment
    rankSegId = segId( rankSeg(jSeg) )
-   !print*, 'iUp, iSeg, jSeg, rankDownId, rankSegId, rankDownSeg(iUp), rankSeg(jSeg) = ', &
-   !         iUp, iSeg, jSeg, rankDownId, rankSegId, rankDownSeg(iUp), rankSeg(jSeg)
+
+   ! check
+   if(jSeg>iSeg+100 .and. checkLink)then
+    print*, 'iUp, iSeg, jSeg, rankDownId, rankSegId, rankDownSeg(iUp), rankSeg(jSeg) = ', &
+             iUp, iSeg, jSeg, rankDownId, rankSegId, rankDownSeg(iUp), rankSeg(jSeg)
+    if(jSeg>iSeg+200)then
+     print*, trim(message)//'PAUSE : '; read(*,*)
+    endif
+   endif
+
+   ! check if the basin is missing
+   if(rankSegId>rankDownId) exit ! exit the segment loop
 
    ! define the index where we have a match
    if(rankDownId==rankSegId)then
@@ -396,7 +411,7 @@ contains
  ! check
  if(checkMap)then
   do iUp=1,nUp
-   if(downId(iUp) == down2noSegment .or. downSegIndex(iUp)==integerMissing) cycle
+   if(downId(iUp)<=0 .or. downSegIndex(iUp)==integerMissing) cycle
    if(downId(iUp) /= segId( downSegIndex(iUp) ) )then
     message=trim(message)//'problems identifying the index of the stream segment that a given HRU drains into'
     ierr=20; return
@@ -405,6 +420,245 @@ contains
  endif
 
  end subroutine downReachIndex
+
+ ! *********************************************************************
+ ! subroutine: define processing order for the individual
+ !                 stream segments in the river network
+ ! *********************************************************************
+ subroutine REACHORDER(NRCH,         &   ! input:        number of reaches
+                       structNTOPO,  &   ! input:output: network topology
+                       ierr, message)    ! output:       error control
+ ! ----------------------------------------------------------------------------------------
+ ! Purpose:
+ !
+ !   Defines the processing order for the individual stream segments in the river network
+ !
+ ! ----------------------------------------------------------------------------------------
+ IMPLICIT NONE
+ ! input variables
+ INTEGER(I4B), INTENT(IN)               :: NRCH            ! number of stream segments
+ type(var_ilength) , intent(inout)      :: structNTOPO(:)  ! network topology structure
+ ! output variables
+ integer(i4b), intent(out)              :: ierr            ! error code
+ character(*), intent(out)              :: message         ! error message
+ ! local variables
+ INTEGER(I4B)                           :: IRCH,JRCH,KRCH  ! loop through reaches
+ INTEGER(I4B)                           :: IUPS            ! loop through upstream reaches
+ INTEGER(I4B)                           :: ICOUNT          ! counter for the gutters
+ INTEGER(I4B)                           :: NASSIGN         ! # reaches currently assigned
+ LOGICAL(LGT),DIMENSION(:),ALLOCATABLE  :: RCHFLAG         ! TRUE if reach is processed
+ INTEGER(I4B)                           :: NUPS            ! number of upstream reaches
+ INTEGER(I4B)                           :: UINDEX          ! upstream reach index
+ integer(i4b)                           :: jCount          ! counter
+ ! initialize error control
+ ierr=0; message='reachorder/'
+ ! ----------------------------------------------------------------------------------------
+ NASSIGN = 0
+ ALLOCATE(RCHFLAG(NRCH),STAT=IERR)
+ if(ierr/=0)then; message=trim(message)//'problem allocating space for RCHFLAG'; return; endif
+ RCHFLAG(1:NRCH) = .FALSE.
+ ! ----------------------------------------------------------------------------------------
+ ICOUNT=0
+ jCount=0
+ DO  ! do until all reaches are assigned
+  NASSIGN = 0
+  DO IRCH=1,NRCH
+   ! print progress
+   if(jCount>0)then
+    if(mod(jCount,100000)==0) print*, 'Getting order for reach: ', count(RCHFLAG), nRch
+   endif
+   ! check if the reach is assigned yet
+   IF(RCHFLAG(IRCH)) THEN
+    NASSIGN = NASSIGN + 1
+    CYCLE
+   ENDIF
+   ! climb upstream as far as possible
+   JRCH = IRCH    ! the first reach under investigation
+   DO  ! do until get to a "most upstream" reach that is not assigned
+    nUps = size(structNTOPO(jRch)%var(ixNTOPO%upSegIds)%dat)
+    !print*, 'iRch, nUps = ', iRch, nUps
+    IF (NUPS.GE.1) THEN     ! (if NUPS = 0, then it is a first-order basin)
+     KRCH = JRCH   ! the reach under investigation
+     ! loop through upstream reaches
+     DO IUPS=1,NUPS
+      jCount = jCount+1
+      uIndex = structNTOPO(jRch)%var(ixNTOPO%upSegIndices)%dat(iUps)  ! index of the upstream reach
+      !print*, 'jRch, uIndex = ', jRch, uIndex, structNTOPO(jRch)%var(ixNTOPO%upSegIds)%dat
+      ! check if the reach is NOT assigned
+      IF (.NOT.RCHFLAG(UINDEX)) THEN
+       JRCH = UINDEX
+       EXIT    ! exit IUPS loop
+      END IF  ! if the reach is assigned
+     END DO  ! (looping through upstream reaches)
+     ! check if all upstream reaches are already assigned (only if KRCH=JRCH)
+     IF (JRCH.EQ.KRCH) THEN
+      ! assign JRCH
+      ICOUNT=ICOUNT+1
+      RCHFLAG(JRCH) = .TRUE.
+      structNTOPO(iCount)%var(ixNTOPO%rchOrder)%dat(1) = jRch
+      EXIT
+     ENDIF
+     CYCLE   ! if jrch changes, keep looping (move upstream)
+    ELSE    ! if the reach is a first-order basin
+     ! assign JRCH
+     ICOUNT=ICOUNT+1
+     RCHFLAG(JRCH) = .TRUE.
+     structNTOPO(iCount)%var(ixNTOPO%rchOrder)%dat(1) = jRch
+     EXIT
+    ENDIF
+   END DO   !  climbing upstream (do-forever)
+  END DO   ! looping through reaches
+  IF (NASSIGN.EQ.NRCH) EXIT
+ END DO  ! do forever (do until all reaches are assigned)
+ DEALLOCATE(RCHFLAG,STAT=IERR)
+ if(ierr/=0)then; message=trim(message)//'problem deallocating space for RCHFLAG'; return; endif
+ ! test
+ !print*, 'reachOrder = ', (structNTOPO(jRch)%var(ixNTOPO%rchOrder)%dat(1), jRch=1,nRch)
+ ! ----------------------------------------------------------------------------------------
+ end subroutine reachOrder
+
+ ! *********************************************************************
+ ! new subroutine: identify all reaches above the current reach
+ ! *********************************************************************
+ SUBROUTINE REACH_LIST(&
+                       ! input
+                       NRCH,        & ! Number of reaches
+                       doReachList, & ! flag to compute the list of upstream reaches
+                       structNTOPO, & ! Network topology
+                       ! output
+                       structSEG,   & ! Reach properties
+                       NTOTAL,      & ! Total number of upstream reaches for all reaches
+                       ierr,message)  ! Error control
+ ! ----------------------------------------------------------------------------------------
+ ! Purpose:
+ !
+ !   Generates a list of all reaches upstream of each reach (used to compute total runoff
+ !     at each point in the river network)
+ !
+ ! ----------------------------------------------------------------------------------------
+ USE nr_utility_module, ONLY : arth                          ! Num. Recipies utilities
+ IMPLICIT NONE
+ ! input variables
+ INTEGER(I4B)      , INTENT(IN)                 :: NRCH            ! number of stream segments
+ logical(lgt)      , intent(in)                 :: doReachList     ! flag to compute the list of upstream reaches
+ type(var_ilength) , intent(inout), allocatable :: structNTOPO(:)  ! network topology structure
+ ! output variables
+ type(var_dlength) , intent(inout)              :: structSEG(:)    ! reach properties structure
+ integer(i4b)      , intent(out)                :: NTOTAL          ! total number of upstream reaches for all reaches
+ integer(i4b)      , intent(out)                :: ierr            ! error code
+ character(*)      , intent(out)                :: message         ! error message
+ ! local variables
+ INTEGER(I4B)                                   :: IRCH,JRCH,KRCH  ! loop through reaches
+ logical(lgt)                                   :: processedReach(nRch)  ! flag to define if reaches are processed
+ integer(i4b)                                   :: nImmediate      ! number of immediate upstream reaches
+ integer(i4b)                                   :: nUpstream       ! total number of upstream reaches
+ integer(i4b)                                   :: iUps            ! index of upstream reaches
+ integer(i4b)                                   :: iPos            ! position in vector
+ ! ----------------------------------------------------------------------------------------
+ message='REACH_LIST/'
+
+ ! check if the list of upstream reaches is desired
+ if(.not.doReachList)then
+  ! allocate zero length vector in each reach
+  do iRch=1,nRch
+   allocate(structNTOPO(iRch)%var(ixNTOPO%allUpSegIndices)%dat(0), stat=ierr)
+   if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for RCHLIST'; return; endif
+  end do
+  ! early retrun
+  NTOTAL=0
+  return
+ endif
+
+ ! initialize
+ nTotal = 0                   ! total number of upstream reaches
+ processedReach(:) = .false.  ! check that we processed the reach already
+
+ ! Loop through reaches
+ do kRch=1,nRch
+
+  ! ---------- identify reach in the ordered vector ----------------------------------------
+
+  ! print progress
+  if(mod(kRch,100000)==0) print*, 'Getting list of all upstream reaches: kRch, nRch = ', kRch, nRch
+
+  ! NOTE: Reaches are ordered
+  !        -->  kRch cannpt be processed until all upstream reaches are processed
+  iRch = structNTOPO(kRch)%var(ixNTOPO%rchOrder)%dat(1)  ! reach index
+  processedReach(iRch)=.true.
+
+  ! ---------- allocate space for the list of all upstream reaches  ------------------------
+
+  ! get the number of upstream reaches
+  nUpstream  = 1  ! count the reach itself
+  nImmediate = size(structNTOPO(iRch)%var(ixNTOPO%upSegIndices)%dat)
+
+  if(nImmediate > 0)then
+   do iUps=1,nImmediate ! get the upsteam segments
+
+    ! get upstream reach
+    jRch = structNTOPO(iRch)%var(ixNTOPO%upSegIndices)%dat(iUps)
+    if(.not.processedReach(jRch))then
+     write(message,'(a,i0,a)') trim(message)//'expect reach index ', jRch, ' to be processed already'
+     ierr=20; return
+    endif
+
+    ! update size
+    nUpstream = nUpstream + size(structNTOPO(jRch)%var(ixNTOPO%allUpSegIndices)%dat)
+
+   end do  ! looping through immediate upstream reaches
+  endif   ! if upstream segments exist
+
+  ! allocate space
+  allocate(structNTOPO(iRch)%var(ixNTOPO%allUpSegIndices)%dat(nUpstream), stat=ierr)
+  if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for RCHLIST'; return; endif
+
+  ! update total upstream
+  nTotal = nTotal + nUpstream
+
+  ! ---------- add the list of upstream reaches to the current reach -----------------------
+
+  ! initialize the upstream area
+  structSEG(iRch)%var(ixSEG%upsArea)%dat(1) = 0._dp
+
+  ! add the current segment
+  iPos=1
+  structNTOPO(iRch)%var(ixNTOPO%allUpSegIndices)%dat(iPos) = iRch
+
+  ! add the upstream segments, if they exist
+  if(nImmediate > 0)then
+   do iUps=1,nImmediate ! get the upstream segments
+
+    ! get the list of reaches
+    jRch      = structNTOPO(iRch)%var(ixNTOPO%upSegIndices)%dat(iUps)
+    nUpstream = size(structNTOPO(jRch)%var(ixNTOPO%allUpSegIndices)%dat)
+    structNTOPO(iRch)%var(ixNTOPO%allUpSegIndices)%dat(iPos+1:iPos+nUpstream) = &
+    structNTOPO(jRch)%var(ixNTOPO%allUpSegIndices)%dat(     1:     nUpstream)
+    iPos = iPos + nUpstream
+
+    ! get the upstream area (above the top of the reach)
+    structSEG(iRch)%var(ixSEG%upsArea)%dat(1) = structSEG(iRch)%var(ixSEG%upsArea)%dat(1) + &
+                                                structSEG(jRch)%var(ixSEG%totalArea)%dat(1)
+
+   end do  ! looping through immediate upstream segments
+  endif   ! if immediate upstream segments exist
+
+  ! ---------- compute the upstream area ---------------------------------------------------
+
+  ! compute the local basin area
+  if(structNTOPO(iRch)%var(ixNTOPO%nHRU)%dat(1) > 0)then
+   structSEG(iRch)%var(ixSEG%basArea)%dat(1) = sum(structSEG(iRch)%var(ixSEG%hruArea)%dat)
+  else
+   structSEG(iRch)%var(ixSEG%basArea)%dat(1) = 0._dp
+  endif
+
+  ! compute the total area
+  structSEG(iRch)%var(ixSEG%totalArea)%dat(1) = structSEG(iRch)%var(ixSEG%basArea)%dat(1) + &
+                                                structSEG(iRch)%var(ixSEG%upsArea)%dat(1)
+
+ end do  ! looping through reaches
+
+
+ END SUBROUTINE REACH_LIST
 
  ! *********************************************************************
  ! new subroutine: identify all reaches above a given reach
@@ -424,6 +678,156 @@ contains
                        ixSeg_desired, &  ! output: indices of desired reaches
                        ! output: error control
                        ierr, message )   ! output: error control
+ ! ----------------------------------------------------------------------------------------
+ ! Purpose:
+ !
+ !   Generates a list of all reaches upstream of a given reach
+ !
+ ! ----------------------------------------------------------------------------------------
+ USE nrtype
+ USE nr_utility_module, ONLY : arth                                 ! Num. Recipies utilities
+ IMPLICIT NONE
+ ! input variables
+ integer(i4b)      , intent(in)                :: desireId          ! id of the desired reach
+ type(var_ilength) , intent(inout)             :: structNTOPO(:)    ! network topology structure
+ integer(i4b)      , intent(in)                :: nHRU              ! number of HRUs
+ integer(i4b)      , intent(in)                :: nRch              ! number of reaches
+ ! input+output: updated dimensions
+ integer(i4b)      , intent(inout)             :: tot_hru           ! total number of all the upstream hrus for all stream segments
+ integer(i4b)      , intent(inout)             :: tot_upseg         ! sum of immediate upstream segments
+ integer(i4b)      , intent(inout)             :: tot_upstream      ! total number of upstream reaches for all reaches
+ ! output: dimension masks
+ integer(i4b)      , intent(out) , allocatable :: ixHRU_desired(:)  ! indices of desired hrus
+ integer(i4b)      , intent(out) , allocatable :: ixSeg_desired(:)  ! indices of desired reaches
+ ! output: error control
+ integer(i4b)      , intent(out)               :: ierr              ! error code
+ character(*)      , intent(out)               :: message           ! error message
+ ! ----------------------------------------------------------------------------------------
+ ! general local variables
+ integer(i4b)                                  :: nHRU_desire       ! num desired HRUs
+ integer(i4b)                                  :: nRch_desire       ! num desired reaches
+ INTEGER(I4B)                                  :: iRch              ! loop through reaches
+ integer(i4b)                                  :: ixHRU_map(nHRU)   ! mapping indices for HRUs
+ integer(i4b)                                  :: idSeg_vec(nRch)   ! unique ids for stream segments
+ integer(i4b)                    , allocatable :: ixRank(:)         ! indices of a sorted vector
+ integer(i4b)                                  :: ixDesire          ! index of desired reach
+ integer(i4b)                                  :: jxDesire          ! index of desired reach
+ ! ----------------------------------------------------------------------------------------
+ ! initialize error control
+ ierr=0; message='REACH_MASK/'
+
+ ! check if we actually want the mask
+ if(desireId<0)then
+
+  ! ---------- case 1: no mask desired ---------------------------------------------------------------------------------------------------
+
+  ! allocate space
+  allocate(ixHRU_desired(nHRU), ixSeg_desired(nRch), stat=ierr)
+  if(ierr/=0) message=trim(message)//'unable to allocate space for the vectors of desired reaches'
+
+  ! include every index
+  ixHRU_desired = arth(1,1,nHRU)
+  ixSeg_desired = arth(1,1,nRch)
+  return
+
+ ! mask is desired
+ else
+
+  ! ---------- case 2: mask desired ------------------------------------------------------------------------------------------------------
+
+  ! initialize the HRU map
+  ixHRU_map(:) = integerMissing
+
+  ! find the index of the reach
+  forall(iRch=1:nRch) idSeg_vec(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
+  ixDesire = findIndex(idSeg_vec,desireId,integerMissing)
+  if(ixDesire==integerMissing)then
+   message=trim(message)//'unable to find index of desired reach id'
+   ierr=20; return
+  endif
+
+  ! set the downstream reach to missing
+  structNTOPO(ixDesire)%var(ixNTOPO%downSegId)%dat(1)    = integerMissing
+  structNTOPO(ixDesire)%var(ixNTOPO%downSegIndex)%dat(1) = integerMissing
+
+  ! allocate space for the number of stream segments
+  nRch_desire = size(structNTOPO(ixDesire)%var(ixNTOPO%allUpSegIndices)%dat)
+  allocate(ixSeg_desired(nRch_desire), ixRank(nRch_desire), stat=ierr)
+  if(ierr/=0) message=trim(message)//'unable to allocate space for the vectors of desired reaches'
+
+  ! sort the list of upstream reaches
+  call indexx(structNTOPO(ixDesire)%var(ixNTOPO%allUpSegIndices)%dat, ixRank)
+
+  ! loop through desired stream segments
+  do iRch=1,nRch_desire
+
+   ! get the desired stream segments
+   ixSeg_desired(iRch) = structNTOPO(ixDesire)%var(ixNTOPO%allUpSegIndices)%dat( ixRank(iRch) )
+
+   ! get the desired HRUs
+   jxDesire = ixSeg_desired(iRch)
+   if(structNTOPO(jxDesire)%var(ixNTOPO%nHRU)%dat(1)>0)then
+    ixHRU_map( structNTOPO(jxDesire)%var(ixNTOPO%hruContribIx)%dat(:) ) = &
+               structNTOPO(jxDesire)%var(ixNTOPO%hruContribIx)%dat(:)
+   endif
+
+  end do  ! looping through desired stream segments
+
+  ! allocate space for the number of HRUs
+  nHRU_desire = count(ixHRU_map/=integerMissing)
+  allocate(ixHRU_desired(nHRU_desire), stat=ierr)
+  if(ierr/=0) message=trim(message)//'unable to allocate space for the vectors of desired HRUs'
+
+  ! pack the desired indices into the HRU vector
+  ixHRU_desired(:) = pack(ixHRU_map, ixHRU_map/=integerMissing)
+
+  tot_hru       = 0  ! total number of all the upstream hrus for all stream segments
+  tot_upseg     = 0  ! sum of immediate upstream segments
+  tot_upstream  = 0  ! total number of upstream reaches for all reaches
+  ! get the updated dimensions
+  do iRch=1,nRch_desire
+   tot_hru      = tot_hru      + structNTOPO( ixSeg_desired(iRch) )%var(ixNTOPO%nHRU)%dat(1)
+   tot_upseg    = tot_upseg    + size(structNTOPO( ixSeg_desired(iRch) )%var(ixNTOPO%upSegIds)%dat)
+   tot_upstream = tot_upstream + size(structNTOPO( ixSeg_desired(iRch) )%var(ixNTOPO%allUpSegIndices)%dat)
+  end do
+
+ endif  ! if the mask is desired
+
+ end subroutine reach_mask
+
+ ! ====================================================================================================
+ ! ====================================================================================================
+ ! ====================================================================================================
+ ! ====================================================================================================
+ ! ====================================================================================================
+ ! ====================================================================================================
+ ! ====================================================================================================
+ ! ====================================================================================================
+ ! ====================================================================================================
+ ! ====================================================================================================
+ ! ====================================================================================================
+
+ ! ROUTINES BELOW HERE ARE NOT USED
+ ! THEY ARE INCLUDED IN THE MODULE SINCE THE CONCEPTS COULD BE USEFUL
+
+ ! *********************************************************************
+ ! new subroutine: identify all reaches above a given reach
+ ! *********************************************************************
+ SUBROUTINE REACH_MASK_ORIG(&
+                            ! input
+                            desireId,      &  ! input: reach index
+                            structNTOPO,   &  ! input: network topology structures
+                            nHRU,          &  ! input: number of HRUs
+                            nRch,          &  ! input: number of reaches
+                            ! output: updated dimensions
+                            tot_hru,       &  ! input+output: total number of all the upstream hrus for all stream segments
+                            tot_upseg,     &  ! input+output: sum of immediate upstream segments
+                            tot_upstream,  &  ! input+output: total number of upstream reaches for all reaches
+                            ! output: dimension masks
+                            ixHRU_desired, &  ! output: indices of desired hrus
+                            ixSeg_desired, &  ! output: indices of desired reaches
+                            ! output: error control
+                            ierr, message )   ! output: error control
  ! ----------------------------------------------------------------------------------------
  ! Purpose:
  !
@@ -460,7 +864,6 @@ contains
  logical(lgt)                                  :: isWithinBasin     ! flag to denote that the reaches are within the basin
  integer(i4b)                                  :: ixHRU_map(nHRU)   ! mapping indices for HRUs
  integer(i4b)                                  :: ixSeg_map(nRch)   ! mapping indices for stream segments
- integer(i4b)                                  :: iExtract          ! index of downstream vector
  character(len=strLen)                         :: cmessage          ! error message of downwind routine
  ! structure in a linked list
  TYPE NODE_STRUCTURE
@@ -595,18 +998,8 @@ contains
 
   ! set the flags to denote the reach is desired
   if(ixDesire/=integerMissing)then
-
-   ! set flags and indices
    isDesired(ixDownstream(1:ixDesire)) = .true.
    ixSeg_map(ixDownstream(1:ixDesire)) = ixDownstream(1:ixDesire)
-
-   ! get the valid HRUs
-   do iExtract=1,ixDesire
-    if(structNTOPO( ixDownstream(iExtract) )%var(ixNTOPO%nHRU)%dat(1)==0) cycle
-    ixHRU_map( structNTOPO( ixDownstream(iExtract) )%var(ixNTOPO%hruContribIx)%dat(:) ) = &
-               structNTOPO( ixDownstream(iExtract) )%var(ixNTOPO%hruContribIx)%dat(:)
-   end do
-
   endif  ! if the reach is desired
 
   ! deallocate space
@@ -615,11 +1008,10 @@ contains
 
  END DO  ! assess each reach
 
- ! get the counts
- nHRU_desire = count(ixHRU_map/=integerMissing)
- nRch_desire = count(isDesired)
-
  ! ---------- check for errors ----------------------------------------------------------------------------------------------------------
+
+ ! get the counts
+ nRch_desire = count(isDesired)
 
  ! check that we processed all reaches
  if(count(isTested)/=nRch)then
@@ -636,12 +1028,31 @@ contains
  ! ---------- get the subset of indices -------------------------------------------------------------------------------------------------
 
  ! allocate space
- allocate(ixSeg_desired(nRch_desire), ixHRU_desired(nHRU_desire), stat=ierr)
+ allocate(ixSeg_desired(nRch_desire), stat=ierr)
  if(ierr/=0) message=trim(message)//'unable to allocate space for the vectors of desired reaches'
 
- ! pack the indices
- ixHRU_desired(:) = pack(ixHRU_map, ixHRU_map/=integerMissing)
+ ! get the desired stream segments
  ixSeg_desired(:) = pack(ixSeg_map, isDesired)
+
+ ! get the desired HRUs
+ do iRch=1,nRch_desire
+  ixDesire = ixSeg_desired(iRch)
+  if(structNTOPO(ixDesire)%var(ixNTOPO%nHRU)%dat(1)>0)then
+   ixHRU_map( structNTOPO(ixDesire)%var(ixNTOPO%hruContribIx)%dat(:) ) = &
+              structNTOPO(ixDesire)%var(ixNTOPO%hruContribIx)%dat(:)
+  endif
+ end do  ! looping through desired stream segments
+
+ ! allocate space for the number of HRUs
+ nHRU_desire = count(ixHRU_map/=integerMissing)
+ allocate(ixHRU_desired(nHRU_desire), stat=ierr)
+ if(ierr/=0) message=trim(message)//'unable to allocate space for the vectors of desired HRUs'
+
+ ! pack the desired indices into the HRU vector
+ ixHRU_desired(:) = pack(ixHRU_map, ixHRU_map/=integerMissing)
+
+ ! --------- update the dimension lengths ---------------------------------------------------------------------------------------------
+
 
  tot_hru       = 0._dp  ! total number of all the upstream hrus for all stream segments
  tot_upseg     = 0._dp  ! sum of immediate upstream segments
@@ -693,400 +1104,170 @@ contains
   END SUBROUTINE ADD2LIST
 
  ! ----------------------------------------------------------------------------------------
- END SUBROUTINE REACH_MASK
-
- ! *********************************************************************
- ! new subroutine: identify all reaches above the current reach
- ! *********************************************************************
- SUBROUTINE REACH_LIST(&
-                       ! input
-                       NRCH,        & ! Number of reaches
-                       doReachList, & ! flag to compute the list of upstream reaches
-                       structNTOPO, & ! Network topology
-                       ! output
-                       structSEG,   & ! Reach properties
-                       NTOTAL,      & ! Total number of upstream reaches for all reaches
-                       ierr,message)  ! Error control
- ! ----------------------------------------------------------------------------------------
- ! Purpose:
- !
- !   Generates a list of all reaches upstream of each reach (used to compute total runoff
- !     at each point in the river network)
- !
- ! ----------------------------------------------------------------------------------------
- USE nr_utility_module, ONLY : arth                          ! Num. Recipies utilities
- IMPLICIT NONE
- ! input variables
- INTEGER(I4B)      , INTENT(IN)                 :: NRCH            ! number of stream segments
- logical(lgt)      , intent(in)                 :: doReachList     ! flag to compute the list of upstream reaches
- type(var_ilength) , intent(inout), allocatable :: structNTOPO(:)  ! network topology structure
- ! output variables
- type(var_dlength) , intent(inout)              :: structSEG(:)    ! reach properties structure
- integer(i4b)      , intent(out)                :: NTOTAL          ! total number of upstream reaches for all reaches
- integer(i4b)      , intent(out)                :: ierr            ! error code
- character(*)      , intent(out)                :: message         ! error message
- ! local variables
- INTEGER(I4B)                                   :: IRCH,JRCH,KRCH  ! loop through reaches
- logical(lgt)                                   :: processedReach(nRch)  ! flag to define if reaches are processed
- integer(i4b)                                   :: nImmediate      ! number of immediate upstream reaches
- integer(i4b)                                   :: nUpstream       ! total number of upstream reaches
- integer(i4b)                                   :: iUps            ! index of upstream reaches
- integer(i4b)                                   :: iPos            ! position in vector
- ! ----------------------------------------------------------------------------------------
- message='REACH_LIST/'
-
- ! check if the list of upstream reaches is desired
- if(.not.doReachList)then
-  ! allocate zero length vector in each reach
-  do iRch=1,nRch
-   allocate(structNTOPO(iRch)%var(ixNTOPO%allUpSegIndices)%dat(0), stat=ierr)
-   if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for RCHLIST'; return; endif
-  end do
-  ! early retrun
-  NTOTAL=0
-  return
- endif
-
- ! initialize
- nTotal = 0                   ! total number of upstream reaches
- processedReach(:) = .false.  ! check that we processed the reach already
-
- ! Loop through reaches
- do kRch=1,nRch
-
-  ! ---------- identify reach in the ordered vector ----------------------------------------
-
-  ! print progress
-  if(mod(kRch,100000)==0) print*, 'Getting linked list for upstream reaches: kRch, nRch = ', kRch, nRch
-
-  ! NOTE: Reaches are ordered
-  !        -->  kRch cannpt be processed until all upstream reaches are processed
-  iRch = structNTOPO(kRch)%var(ixNTOPO%rchOrder)%dat(1)  ! reach index
-  processedReach(iRch)=.true.
-
-  ! ---------- allocate space for the list of all upstream reaches  ------------------------
-
-  ! get the number of upstream reaches
-  nUpstream  = 1  ! count the reach itself
-  nImmediate = size(structNTOPO(iRch)%var(ixNTOPO%upSegIndices)%dat)
-
-  if(nImmediate > 0)then
-   do iUps=1,nImmediate ! get the upsteam segments
-
-    ! get upstream reach
-    jRch = structNTOPO(iRch)%var(ixNTOPO%upSegIndices)%dat(iUps)
-    if(.not.processedReach(jRch))then
-     write(message,'(a,i0,a)') trim(message)//'expect reach index ', jRch, ' to be processed already'
-     ierr=20; return
-    endif
-
-    ! update size
-    nUpstream = nUpstream + size(structNTOPO(jRch)%var(ixNTOPO%allUpSegIndices)%dat)
-
-   end do  ! looping through immediate upstream reaches
-  endif   ! if upstream segments exist
-
-  ! allocate space
-  allocate(structNTOPO(iRch)%var(ixNTOPO%allUpSegIndices)%dat(nUpstream), stat=ierr)
-  if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for RCHLIST'; return; endif
-
-  ! update total upstream
-  nTotal = nTotal + nUpstream
-
-  ! ---------- add the list of upstream reaches to the current reach -----------------------
-
-  ! initialize the upstream area
-  structSEG(iRch)%var(ixSEG%upsArea)%dat(1) = 0._dp
-
-  ! add the current segment
-  iPos=1
-  structNTOPO(iRch)%var(ixNTOPO%allUpSegIndices)%dat(iPos) = iRch
-
-  ! add the upstream segments, if they exist
-  if(nImmediate > 0)then
-   do iUps=1,nImmediate ! get the upstream segments
-
-    ! get the list of reaches
-    jRch      = structNTOPO(iRch)%var(ixNTOPO%upSegIndices)%dat(iUps)
-    nUpstream = size(structNTOPO(jRch)%var(ixNTOPO%allUpSegIndices)%dat)
-    structNTOPO(iRch)%var(ixNTOPO%allUpSegIndices)%dat(iPos+1:iPos+nUpstream) = &
-    structNTOPO(jRch)%var(ixNTOPO%allUpSegIndices)%dat(     1:     nUpstream)
-    iPos = iPos + nUpstream
-
-    ! get the upstream area (above the top of the reach)
-    structSEG(iRch)%var(ixSEG%upsArea)%dat(1) = structSEG(iRch)%var(ixSEG%upsArea)%dat(1) + &
-                                                structSEG(jRch)%var(ixSEG%totalArea)%dat(1)
-
-   end do  ! looping through immediate upstream segments
-  endif   ! if immediate upstream segments exist
-
-  ! ---------- compute the upstream area ---------------------------------------------------
-
-  ! compute the local basin area
-  if(structNTOPO(iRch)%var(ixNTOPO%nHRU)%dat(1) > 0)then
-   structSEG(iRch)%var(ixSEG%basArea)%dat(1) = sum(structSEG(iRch)%var(ixSEG%hruArea)%dat)
-  else
-   structSEG(iRch)%var(ixSEG%basArea)%dat(1) = 0._dp
-  endif
-
-  ! compute the total area
-  structSEG(iRch)%var(ixSEG%totalArea)%dat(1) = structSEG(iRch)%var(ixSEG%basArea)%dat(1) + &
-                                                structSEG(iRch)%var(ixSEG%upsArea)%dat(1)
-
- end do  ! looping through reaches
-
-
- END SUBROUTINE REACH_LIST
-
- ! *********************************************************************
- ! new subroutine: identify all reaches above the current reach
- ! *********************************************************************
- SUBROUTINE REACH_LIST_ORIG(&
-                            ! input
-                            NRCH,        & ! Number of reaches
-                            structNTOPO, & ! Network topology
-                            doReachList, & ! flag to compute the list of upstream reaches
-                            ! output
-                            NTOTAL,      & ! Total number of upstream reaches for all reaches
-                            ierr,message)  ! Error control
- ! ----------------------------------------------------------------------------------------
- ! Purpose:
- !
- !   Generates a list of all reaches upstream of each reach (used to compute total runoff
- !     at each point in the river network)
- !
- ! ----------------------------------------------------------------------------------------
- USE nr_utility_module, ONLY : arth                          ! Num. Recipies utilities
- IMPLICIT NONE
- ! input variables
- INTEGER(I4B)      , INTENT(IN)                 :: NRCH            ! number of stream segments
- type(var_ilength) , intent(inout), allocatable :: structNTOPO(:)  ! network topology structure
- logical(lgt)      , intent(in)                 :: doReachList     ! flag to compute the list of upstream reaches
- ! output variables
- integer(i4b)      , intent(out)                :: NTOTAL          ! total number of upstream reaches for all reaches
- integer(i4b)      , intent(out)                :: ierr            ! error code
- character(*)      , intent(out)                :: message         ! error message
- ! local variables
- INTEGER(I4B)                                   :: IRCH,JRCH,KRCH  ! loop through reaches
- ! structure in a linked list
- TYPE NODE
-  INTEGER(I4B)                                  :: IUPS            ! index of reach u/s of station
-  TYPE(NODE), POINTER                           :: NEXT            ! next node in linked list
- END TYPE NODE
- ! a structure object in a linked list
- TYPE(NODE), POINTER                            :: URCH            ! node in linked list
- ! structure in a array pointing to a linked list of upstream reaches
- TYPE UPSTR_RCH
-  INTEGER(I4B)                                  :: N_URCH          ! Number of upstream reaches
-  TYPE(NODE), POINTER                           :: HPOINT          ! Head pointer in linked list
- END TYPE UPSTR_RCH
- TYPE(UPSTR_RCH),DIMENSION(:),ALLOCATABLE       :: INTLIST         ! list of reaches u/s of each station
- INTEGER(I4B)                                   :: NUMUPS          ! number of reaches upstream
- character(len=strLen)                          :: cmessage        ! error message of downwind routine
- ! ----------------------------------------------------------------------------------------
- message='REACH_LIST/'
-
- ! check if the list of upstream reaches is desired
- if(.not.doReachList)then
-  ! allocate zero length vector in each reach
-  do iRch=1,nRch
-   allocate(structNTOPO(iRch)%var(ixNTOPO%allUpSegIndices)%dat(0), stat=ierr)
-   if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for RCHLIST'; return; endif
-  end do
-  ! early retrun
-  NTOTAL=0
-  return
- endif
-
- ! allocate space for intlist
- ALLOCATE(INTLIST(NRCH),STAT=IERR)
- if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for INTLIST'; return; endif
- ! initialise the reach array
- DO IRCH=1,NRCH  ! loop through selected reaches
-  INTLIST(IRCH)%N_URCH = 0       ! initialize the number of upstream reaches
-  NULLIFY(INTLIST(IRCH)%HPOINT)  ! set pointer to a linked list to NULL
- END DO ! (irch)
-
- ! build the linked lists for all reaches
- DO KRCH=1,NRCH
-  ! ensure take streamflow from surrounding basin (a reach is upstream of itself!)
-  ! but only if reach is one of the selected
-  CALL ADD2LIST(KRCH,KRCH,ierr,cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  ! start with krch and loop reach by reach down through to the outlet
-  IRCH = KRCH
-  DO  ! (do-forever)
-   JRCH = structNTOPO(iRch)%var(ixNTOPO%downSegIndex)%dat(1)
-   IF (JRCH.GT.0) THEN !  (check that jrch is valid, negative means irch is the outlet)
-    ! add kRch to jRch
-    CALL ADD2LIST(JRCH,KRCH,ierr,cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    ! move the index downstream
-    IRCH = JRCH
-   ELSE
-    EXIT   ! negative = missing, which means that irch is the outlet
-   ENDIF
-  END DO  ! do forever (go to the outlet)
- END DO  ! assess each reach
-
- NTOTAL=0 ! total number of upstream reaches for all reaches
- ! extract linked lists to allocated vectors
- DO JRCH=1,NRCH
-  NUMUPS = INTLIST(JRCH)%N_URCH ! should be at least 1 (because reach is upstream of itself)
-  NTOTAL = NTOTAL + NUMUPS
-  ALLOCATE(structNTOPO(jRch)%var(ixNTOPO%allUpSegIndices)%dat(NUMUPS), STAT=IERR)
-  if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for RCHLIST'; return; endif
-  ! copy list of upstream reaches to structures (and delete the list)
-  CALL MOVE_LIST(JRCH,JRCH,NUMUPS,ierr,cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  !print*, 'jrch, numups, RCHLIST = ', jrch, numups, structNTOPO(jRch)%var(ixNTOPO%allUpSegIndices)%dat(:)
- END DO  ! jrch
-
- ! free up memory
- DEALLOCATE(INTLIST,STAT=IERR)
- if(ierr/=0)then; ierr=20; message=trim(message)//'problem deallocating space for INTLIST'; return; endif
- ! ----------------------------------------------------------------------------------------
- ! ----------------------------------------------------------------------------------------
- CONTAINS
-
-  ! For a down stream reach, add an upstream reach to its list of upstream reaches
-  SUBROUTINE ADD2LIST(D_RCH,U_RCH,ierr,message)
-  INTEGER(I4B),INTENT(IN)          :: U_RCH    ! upstream reach index
-  INTEGER(I4B),INTENT(IN)          :: D_RCH    ! downstream reach index
-  integer(i4b), intent(out)        :: ierr     ! error code
-  character(*), intent(out)        :: message  ! error message
-  message='ADD2LIST/'
-  ! increment number of upstream reaches
-  INTLIST(D_RCH)%N_URCH = INTLIST(D_RCH)%N_URCH + 1
-  ! allocate node to be added to the list
-  ALLOCATE(URCH,STAT=IERR)
-  if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for linked list'; return; endif
-  ! add upstream reach index
-  URCH%IUPS = U_RCH
-  ! insert at the beginning of existing list
-  URCH%NEXT => INTLIST(D_RCH)%HPOINT
-  INTLIST(D_RCH)%HPOINT => URCH
-  ! nullify pointer
-  NULLIFY(URCH)
-  END SUBROUTINE ADD2LIST
-
-  ! Copy upstream reaches from linked list to structure and delete the list
-  SUBROUTINE MOVE_LIST(IRCH,JRCH,NNODES,ierr,message)
-  INTEGER(I4B),INTENT(IN)          :: IRCH   ! index in destination structure
-  INTEGER(I4B),INTENT(IN)          :: JRCH   ! index in the intlist array
-  INTEGER(I4B),INTENT(IN)          :: NNODES ! number of nodes in linked list
-  TYPE(NODE), POINTER              :: URCH   ! node in linked list
-  INTEGER(I4B)                     :: KRCH   ! index in structure
-  integer(i4b), intent(out)        :: ierr     ! error code
-  character(*), intent(out)        :: message  ! error message
-  message='MOVE_LIST/'
-  ! set urch to first node in the list of upstream reaches for reach jrch
-  URCH => INTLIST(JRCH)%HPOINT
-  ! set irch to number of upstream reaches
-  KRCH = NNODES
-  ! copy information in list to relevant structure
-  DO WHILE (ASSOCIATED(URCH)) ! while URCH points to something
-   structNTOPO(iRch)%var(ixNTOPO%allUpSegIndices)%dat(kRch) = URCH%IUPS
-   ! let urch point to next node in list
-   URCH => URCH%NEXT
-   ! deallocate the node (clean up)
-   DEALLOCATE(INTLIST(JRCH)%HPOINT,STAT=IERR)
-   if(ierr/=0)then; ierr=20; message=trim(message)//'problem deallocating space for linked list'; return; endif
-   ! let hpoint follow urch along the list
-   INTLIST(JRCH)%HPOINT => URCH
-   ! decrement irch by one
-   KRCH = KRCH - 1
-  END DO
-  END SUBROUTINE MOVE_LIST
- ! ----------------------------------------------------------------------------------------
- END SUBROUTINE REACH_LIST_ORIG
-
- ! *********************************************************************
- ! subroutine: define processing order for the individual
- !                 stream segments in the river network
- ! *********************************************************************
- subroutine REACHORDER(NRCH,         &   ! input:        number of reaches
-                       structNTOPO,  &   ! input:output: network topology
-                       ierr, message)    ! output:       error control
- ! ----------------------------------------------------------------------------------------
- ! Purpose:
- !
- !   Defines the processing order for the individual stream segments in the river network
- !
- ! ----------------------------------------------------------------------------------------
- IMPLICIT NONE
- ! input variables
- INTEGER(I4B), INTENT(IN)               :: NRCH            ! number of stream segments
- type(var_ilength) , intent(inout)      :: structNTOPO(:)  ! network topology structure
- ! output variables
- integer(i4b), intent(out)              :: ierr            ! error code
- character(*), intent(out)              :: message         ! error message
- ! local variables
- INTEGER(I4B)                           :: IRCH,JRCH,KRCH  ! loop through reaches
- INTEGER(I4B)                           :: IUPS            ! loop through upstream reaches
- INTEGER(I4B)                           :: ICOUNT          ! counter for the gutters
- INTEGER(I4B)                           :: NASSIGN         ! # reaches currently assigned
- LOGICAL(LGT),DIMENSION(:),ALLOCATABLE  :: RCHFLAG         ! TRUE if reach is processed
- INTEGER(I4B)                           :: NUPS            ! number of upstream reaches
- INTEGER(I4B)                           :: UINDEX          ! upstream reach index
- ! initialize error control
- ierr=0; message='reachorder/'
- ! ----------------------------------------------------------------------------------------
- NASSIGN = 0
- ALLOCATE(RCHFLAG(NRCH),STAT=IERR)
- if(ierr/=0)then; message=trim(message)//'problem allocating space for RCHFLAG'; return; endif
- RCHFLAG(1:NRCH) = .FALSE.
- ! ----------------------------------------------------------------------------------------
- ICOUNT=0
- DO  ! do until all reaches are assigned
-  NASSIGN = 0
-  DO IRCH=1,NRCH
-   ! check if the reach is assigned yet
-   IF(RCHFLAG(IRCH)) THEN
-    NASSIGN = NASSIGN + 1
-    CYCLE
-   ENDIF
-   ! climb upstream as far as possible
-   JRCH = IRCH    ! the first reach under investigation
-   DO  ! do until get to a "most upstream" reach that is not assigned
-    nUps = size(structNTOPO(jRch)%var(ixNTOPO%upSegIds)%dat)
-    IF (NUPS.GE.1) THEN     ! (if NUPS = 0, then it is a first-order basin)
-     KRCH = JRCH   ! the reach under investigation
-     ! loop through upstream reaches
-     DO IUPS=1,NUPS
-      uIndex = structNTOPO(jRch)%var(ixNTOPO%upSegIndices)%dat(iUps)  ! index of the upstream reach
-      ! check if the reach is NOT assigned
-      IF (.NOT.RCHFLAG(UINDEX)) THEN
-       JRCH = UINDEX
-       EXIT    ! exit IUPS loop
-      END IF  ! if the reach is assigned
-     END DO  ! (looping through upstream reaches)
-     ! check if all upstream reaches are already assigned (only if KRCH=JRCH)
-     IF (JRCH.EQ.KRCH) THEN
-      ! assign JRCH
-      ICOUNT=ICOUNT+1
-      RCHFLAG(JRCH) = .TRUE.
-      structNTOPO(iCount)%var(ixNTOPO%rchOrder)%dat(1) = jRch
-      EXIT
-     ENDIF
-     CYCLE   ! if jrch changes, keep looping (move upstream)
-    ELSE    ! if the reach is a first-order basin
-     ! assign JRCH
-     ICOUNT=ICOUNT+1
-     RCHFLAG(JRCH) = .TRUE.
-     structNTOPO(iCount)%var(ixNTOPO%rchOrder)%dat(1) = jRch
-     EXIT
-    ENDIF
-   END DO   !  climbing upstream (do-forever)
-  END DO   ! looping through reaches
-  IF (NASSIGN.EQ.NRCH) EXIT
- END DO  ! do forever (do until all reaches are assigned)
- DEALLOCATE(RCHFLAG,STAT=IERR)
- if(ierr/=0)then; message=trim(message)//'problem deallocating space for RCHFLAG'; return; endif
- ! test
- !print*, 'reachOrder = ', (structNTOPO(jRch)%var(ixNTOPO%rchOrder)%dat(1), jRch=1,nRch)
- ! ----------------------------------------------------------------------------------------
- end subroutine reachOrder
+ END SUBROUTINE REACH_MASK_ORIG
+          !
+          !          ! *********************************************************************
+          !          ! new subroutine: identify all reaches above the current reach
+          !          ! *********************************************************************
+          !          SUBROUTINE REACH_LIST_ORIG(&
+          !                                     ! input
+          !                                     NRCH,        & ! Number of reaches
+          !                                     structNTOPO, & ! Network topology
+          !                                     doReachList, & ! flag to compute the list of upstream reaches
+          !                                     ! output
+          !                                     NTOTAL,      & ! Total number of upstream reaches for all reaches
+          !                                     ierr,message)  ! Error control
+          !          ! ----------------------------------------------------------------------------------------
+          !          ! Purpose:
+          !          !
+          !          !   Generates a list of all reaches upstream of each reach (used to compute total runoff
+          !          !     at each point in the river network)
+          !          !
+          !          ! ----------------------------------------------------------------------------------------
+          !          USE nr_utility_module, ONLY : arth                          ! Num. Recipies utilities
+          !          IMPLICIT NONE
+          !          ! input variables
+          !          INTEGER(I4B)      , INTENT(IN)                 :: NRCH            ! number of stream segments
+          !          type(var_ilength) , intent(inout), allocatable :: structNTOPO(:)  ! network topology structure
+          !          logical(lgt)      , intent(in)                 :: doReachList     ! flag to compute the list of upstream reaches
+          !          ! output variables
+          !          integer(i4b)      , intent(out)                :: NTOTAL          ! total number of upstream reaches for all reaches
+          !          integer(i4b)      , intent(out)                :: ierr            ! error code
+          !          character(*)      , intent(out)                :: message         ! error message
+          !          ! local variables
+          !          INTEGER(I4B)                                   :: IRCH,JRCH,KRCH  ! loop through reaches
+          !          ! structure in a linked list
+          !          TYPE NODE
+          !           INTEGER(I4B)                                  :: IUPS            ! index of reach u/s of station
+          !           TYPE(NODE), POINTER                           :: NEXT            ! next node in linked list
+          !          END TYPE NODE
+          !          ! a structure object in a linked list
+          !          TYPE(NODE), POINTER                            :: URCH            ! node in linked list
+          !          ! structure in a array pointing to a linked list of upstream reaches
+          !          TYPE UPSTR_RCH
+          !           INTEGER(I4B)                                  :: N_URCH          ! Number of upstream reaches
+          !           TYPE(NODE), POINTER                           :: HPOINT          ! Head pointer in linked list
+          !          END TYPE UPSTR_RCH
+          !          TYPE(UPSTR_RCH),DIMENSION(:),ALLOCATABLE       :: INTLIST         ! list of reaches u/s of each station
+          !          INTEGER(I4B)                                   :: NUMUPS          ! number of reaches upstream
+          !          character(len=strLen)                          :: cmessage        ! error message of downwind routine
+          !          ! ----------------------------------------------------------------------------------------
+          !          message='REACH_LIST/'
+          !
+          !          ! check if the list of upstream reaches is desired
+          !          if(.not.doReachList)then
+          !           ! allocate zero length vector in each reach
+          !           do iRch=1,nRch
+          !            allocate(structNTOPO(iRch)%var(ixNTOPO%allUpSegIndices)%dat(0), stat=ierr)
+          !            if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for RCHLIST'; return; endif
+          !           end do
+          !           ! early retrun
+          !           NTOTAL=0
+          !           return
+          !          endif
+          !
+          !          ! allocate space for intlist
+          !          ALLOCATE(INTLIST(NRCH),STAT=IERR)
+          !          if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for INTLIST'; return; endif
+          !          ! initialise the reach array
+          !          DO IRCH=1,NRCH  ! loop through selected reaches
+          !           INTLIST(IRCH)%N_URCH = 0       ! initialize the number of upstream reaches
+          !           NULLIFY(INTLIST(IRCH)%HPOINT)  ! set pointer to a linked list to NULL
+          !          END DO ! (irch)
+          !
+          !          ! build the linked lists for all reaches
+          !          DO KRCH=1,NRCH
+          !           ! ensure take streamflow from surrounding basin (a reach is upstream of itself!)
+          !           ! but only if reach is one of the selected
+          !           CALL ADD2LIST(KRCH,KRCH,ierr,cmessage)
+          !           if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+          !           ! start with krch and loop reach by reach down through to the outlet
+          !           IRCH = KRCH
+          !           DO  ! (do-forever)
+          !            JRCH = structNTOPO(iRch)%var(ixNTOPO%downSegIndex)%dat(1)
+          !            IF (JRCH.GT.0) THEN !  (check that jrch is valid, negative means irch is the outlet)
+          !             ! add kRch to jRch
+          !             CALL ADD2LIST(JRCH,KRCH,ierr,cmessage)
+          !             if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+          !             ! move the index downstream
+          !             IRCH = JRCH
+          !            ELSE
+          !             EXIT   ! negative = missing, which means that irch is the outlet
+          !            ENDIF
+          !           END DO  ! do forever (go to the outlet)
+          !          END DO  ! assess each reach
+          !
+          !          NTOTAL=0 ! total number of upstream reaches for all reaches
+          !          ! extract linked lists to allocated vectors
+          !          DO JRCH=1,NRCH
+          !           NUMUPS = INTLIST(JRCH)%N_URCH ! should be at least 1 (because reach is upstream of itself)
+          !           NTOTAL = NTOTAL + NUMUPS
+          !           ALLOCATE(structNTOPO(jRch)%var(ixNTOPO%allUpSegIndices)%dat(NUMUPS), STAT=IERR)
+          !           if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for RCHLIST'; return; endif
+          !           ! copy list of upstream reaches to structures (and delete the list)
+          !           CALL MOVE_LIST(JRCH,JRCH,NUMUPS,ierr,cmessage)
+          !           if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+          !           !print*, 'jrch, numups, RCHLIST = ', jrch, numups, structNTOPO(jRch)%var(ixNTOPO%allUpSegIndices)%dat(:)
+          !          END DO  ! jrch
+          !
+          !          ! free up memory
+          !          DEALLOCATE(INTLIST,STAT=IERR)
+          !          if(ierr/=0)then; ierr=20; message=trim(message)//'problem deallocating space for INTLIST'; return; endif
+          !          ! ----------------------------------------------------------------------------------------
+          !          ! ----------------------------------------------------------------------------------------
+          !          CONTAINS
+          !
+          !           ! For a down stream reach, add an upstream reach to its list of upstream reaches
+          !           SUBROUTINE ADD2LIST(D_RCH,U_RCH,ierr,message)
+          !           INTEGER(I4B),INTENT(IN)          :: U_RCH    ! upstream reach index
+          !           INTEGER(I4B),INTENT(IN)          :: D_RCH    ! downstream reach index
+          !           integer(i4b), intent(out)        :: ierr     ! error code
+          !           character(*), intent(out)        :: message  ! error message
+          !           message='ADD2LIST/'
+          !           ! increment number of upstream reaches
+          !           INTLIST(D_RCH)%N_URCH = INTLIST(D_RCH)%N_URCH + 1
+          !           ! allocate node to be added to the list
+          !           ALLOCATE(URCH,STAT=IERR)
+          !           if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for linked list'; return; endif
+          !           ! add upstream reach index
+          !           URCH%IUPS = U_RCH
+          !           ! insert at the beginning of existing list
+          !           URCH%NEXT => INTLIST(D_RCH)%HPOINT
+          !           INTLIST(D_RCH)%HPOINT => URCH
+          !           ! nullify pointer
+          !           NULLIFY(URCH)
+          !           END SUBROUTINE ADD2LIST
+          !
+          !           ! Copy upstream reaches from linked list to structure and delete the list
+          !           SUBROUTINE MOVE_LIST(IRCH,JRCH,NNODES,ierr,message)
+          !           INTEGER(I4B),INTENT(IN)          :: IRCH   ! index in destination structure
+          !           INTEGER(I4B),INTENT(IN)          :: JRCH   ! index in the intlist array
+          !           INTEGER(I4B),INTENT(IN)          :: NNODES ! number of nodes in linked list
+          !           TYPE(NODE), POINTER              :: URCH   ! node in linked list
+          !           INTEGER(I4B)                     :: KRCH   ! index in structure
+          !           integer(i4b), intent(out)        :: ierr     ! error code
+          !           character(*), intent(out)        :: message  ! error message
+          !           message='MOVE_LIST/'
+          !           ! set urch to first node in the list of upstream reaches for reach jrch
+          !           URCH => INTLIST(JRCH)%HPOINT
+          !           ! set irch to number of upstream reaches
+          !           KRCH = NNODES
+          !           ! copy information in list to relevant structure
+          !           DO WHILE (ASSOCIATED(URCH)) ! while URCH points to something
+          !            structNTOPO(iRch)%var(ixNTOPO%allUpSegIndices)%dat(kRch) = URCH%IUPS
+          !            ! let urch point to next node in list
+          !            URCH => URCH%NEXT
+          !            ! deallocate the node (clean up)
+          !            DEALLOCATE(INTLIST(JRCH)%HPOINT,STAT=IERR)
+          !            if(ierr/=0)then; ierr=20; message=trim(message)//'problem deallocating space for linked list'; return; endif
+          !            ! let hpoint follow urch along the list
+          !            INTLIST(JRCH)%HPOINT => URCH
+          !            ! decrement irch by one
+          !            KRCH = KRCH - 1
+          !           END DO
+          !           END SUBROUTINE MOVE_LIST
+          !          ! ----------------------------------------------------------------------------------------
+          !          END SUBROUTINE REACH_LIST_ORIG
 
  ! *********************************************************************
  ! subroutine: Update total stream network length from a each esgment
