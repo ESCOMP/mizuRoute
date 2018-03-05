@@ -1,24 +1,37 @@
 module process_ntopo
 
 ! data types
-USE nrtype                             ! variable types, etc.
-USE nrtype,    only : integerMissing   ! missing value for integers
-USE dataTypes, only : var_ilength      ! integer type:          var(:)%dat
-USE dataTypes, only : var_dlength      ! double precision type: var(:)%dat
+USE nrtype                                ! variable types, etc.
+USE nrtype,    only : integerMissing      ! missing value for integers
+USE dataTypes, only : var_ilength         ! integer type:          var(:)%dat
+USE dataTypes, only : var_dlength         ! double precision type: var(:)%dat
 
 ! global vars
-USE public_var                         ! public variables
+USE public_var, only : min_slope          ! minimum slope
+USE public_var, only : ancil_dir          ! name of the ancillary directory
+USE public_var, only : fname_ntopOld      ! name of the old network topology file
+USE public_var, only : fname_ntopNew      ! name of the new network topology file
+USE public_var, only : dname_nhru         ! dimension name for HRUs
+USE public_var, only : dname_sseg         ! dimension name for stream segments
+USE public_var, only : idSegOut           ! ID for stream segment at the bottom of the subset
+USE public_var, only : topoNetworkOption  ! option to compute network topology
+USE public_var, only : computeReachList   ! option to compute reach list
 
 ! global parameters
-USE globalData, only : RPARAM          ! Reach parameters
-USE globalData, only : NETOPO          ! Network topology
+USE globalData, only : RPARAM             ! Reach parameters
+USE globalData, only : NETOPO             ! Network topology
 
 ! named variables
-USE globalData, only : true,false      ! named integers for true/false
+USE globalData, only : true,false         ! named integers for true/false
 
 ! named variables
-USE var_lookup,only:ixSEG              ! index of variables for the stream segments
-USE var_lookup,only:ixNTOPO            ! index of variables for the network topology
+USE var_lookup,only:ixSEG                 ! index of variables for the stream segments
+USE var_lookup,only:ixNTOPO               ! index of variables for the network topology
+
+! named variables
+USE public_var, only : compute            ! compute given variable
+USE public_var, only : doNotCompute       ! do not compute given variable
+USE public_var, only : readFromFile       ! read given variable from a file
 
 implicit none
 
@@ -68,7 +81,6 @@ contains
  ! --------------------------------------------------------------------------------------------------------------
  ! local variables
  character(len=strLen)           :: cmessage           ! error message of downwind routine
- real(dp), parameter             :: min_slope=1.e-6_dp ! minimum slope
  integer(i4b)                    :: iSeg               ! indices for stream segment
  integer(i4b)                    :: iUps               ! indices of upstream segments
  integer(i4b)                    :: nUps               ! number of immediate upstream segments

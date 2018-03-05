@@ -20,13 +20,15 @@ USE globalData, only : LPARAM     ! Lake parameters
 USE globalData, only : LKTOPO     ! Lake topology
 USE globalData, only : LAKFLX     ! Lake fluxes
 
+! global data
+USE public_var, only : verySmall  ! a very small value
+
 implicit none
 private
 public::qroute_rch
 
 ! common variables
 integer(i4b),save       :: ixPrint = -9999  ! the desired reach (set to negative to avoid any printing)
-real(dp),parameter      :: verySmall=tiny(1.0_dp)  ! a very small number
 
 contains
 
@@ -34,7 +36,7 @@ contains
  ! subroutine: route kinematic waves through the river network
  ! *********************************************************************
  subroutine QROUTE_RCH(IENS,JRCH,    & ! input: array indices
-                       ixDesire,     & ! input: index of the desired reach
+                       ixDesire,     & ! input: index of the reach for verbose output
                        ixOutlet,     & ! input: index of the outlet reach
                        T0,T1,        & ! input: start and end of the time step
                        MAXQPAR,      & ! input: maximum number of particle in a reach
@@ -99,7 +101,7 @@ contains
    ! Input
    INTEGER(I4B), INTENT(IN)                    :: IENS          ! ensemble member
    INTEGER(I4B), INTENT(IN)                    :: JRCH          ! reach to process
-   integer(i4b), intent(in)                    :: ixDesire      ! index of the desired reach
+   integer(i4b), intent(in)                    :: ixDesire      ! index of the reach for verbose output
    integer(i4b), intent(in)                    :: ixOutlet      ! index of the outlet reach
    REAL(DP), INTENT(IN)                        :: T0,T1         ! start and end of the time step (seconds)
    INTEGER(I4B), INTENT(IN)                    :: MAXQPAR       ! maximum number of particles
