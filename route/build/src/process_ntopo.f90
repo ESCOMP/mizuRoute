@@ -14,6 +14,9 @@ USE globalData, only : RPARAM          ! Reach parameters
 USE globalData, only : NETOPO          ! Network topology
 
 ! named variables
+USE globalData, only : true,false      ! named integers for true/false
+
+! named variables
 USE var_lookup,only:ixSEG              ! index of variables for the stream segments
 USE var_lookup,only:ixNTOPO            ! index of variables for the network topology
 
@@ -65,6 +68,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------
  ! local variables
  character(len=strLen)           :: cmessage           ! error message of downwind routine
+ real(dp), parameter             :: min_slope=1.e-6_dp ! minimum slope
  integer(i4b)                    :: iSeg               ! indices for stream segment
  integer(i4b)                    :: iUps               ! indices of upstream segments
  integer(i4b)                    :: nUps               ! number of immediate upstream segments
@@ -269,15 +273,15 @@ contains
  do iSeg=1,nSeg
 
   ! print progress
-  if(mod(iSeg,100000)==0) print*, 'Copying to the old data structures: iSeg, nSeg = ', iSeg, nSeg
+  if(mod(iSeg,1000000)==0) print*, 'Copying to the old data structures: iSeg, nSeg = ', iSeg, nSeg
 
   ! ----- reach parameters -----
 
   ! copy data into the reach parameter structure
-  RPARAM(iSeg)%RLENGTH = structSEG(iSeg)%var(ixSEG%length)%dat(1)
-  RPARAM(iSeg)%R_SLOPE = structSEG(iSeg)%var(ixSEG%slope)%dat(1)
-  RPARAM(iSeg)%R_MAN_N = structSEG(iSeg)%var(ixSEG%width)%dat(1)
-  RPARAM(iSeg)%R_WIDTH = structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
+  RPARAM(iSeg)%RLENGTH =     structSEG(iSeg)%var(ixSEG%length)%dat(1)
+  RPARAM(iSeg)%R_SLOPE = max(structSEG(iSeg)%var(ixSEG%slope)%dat(1), min_slope)
+  RPARAM(iSeg)%R_MAN_N =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
+  RPARAM(iSeg)%R_WIDTH =     structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
 
   ! compute variables
   RPARAM(iSeg)%BASAREA = structSEG(iSeg)%var(ixSEG%basArea)%dat(1)
@@ -305,9 +309,9 @@ contains
   ! populate immediate upstream data structures
   if(nUps>0)then
    do iUps=1,nUps   ! looping through upstream reaches
-    NETOPO(iSeg)%UREACHI(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIndices)%dat(iUps)   ! Immediate Upstream reach indices
-    NETOPO(iSeg)%UREACHK(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIds)%dat(iUps)       ! Immediate Upstream reach Ids
-    NETOPO(iSeg)%goodBas(iUps) = (structNTOPO(iSeg)%var(ixNTOPO%goodBasin)%dat(1)==1)    ! "good" basin
+    NETOPO(iSeg)%UREACHI(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIndices)%dat(iUps)      ! Immediate Upstream reach indices
+    NETOPO(iSeg)%UREACHK(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIds    )%dat(iUps)      ! Immediate Upstream reach Ids
+    NETOPO(iSeg)%goodBas(iUps) = (structNTOPO(iSeg)%var(ixNTOPO%goodBasin)%dat(iUps)==true) ! "good" basin
    end do  ! Loop through upstream reaches
   endif
 

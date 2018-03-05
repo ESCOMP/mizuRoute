@@ -210,7 +210,7 @@ contains
  if(ierr/=0)then; message=trim(message)//'problem allocating space for mapping info'; return; endif
 
  ! allocate space for index vectors
- allocate(remap_data%hru_ix(nData), remap_data%qhru_ix(nData), stat=ierr)
+ allocate(remap_data%hru_ix(nHRU), remap_data%qhru_ix(nData), stat=ierr)
  if(ierr/=0)then; message=trim(message)//'problem allocating space for index vectors'; return; endif
 
  ! get data
