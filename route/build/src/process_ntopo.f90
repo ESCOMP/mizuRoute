@@ -1,21 +1,37 @@
 module process_ntopo
 
 ! data types
-USE nrtype                             ! variable types, etc.
-USE nrtype,    only : integerMissing   ! missing value for integers
-USE dataTypes, only : var_ilength      ! integer type:          var(:)%dat
-USE dataTypes, only : var_dlength      ! double precision type: var(:)%dat
+USE nrtype                                ! variable types, etc.
+USE nrtype,    only : integerMissing      ! missing value for integers
+USE dataTypes, only : var_ilength         ! integer type:          var(:)%dat
+USE dataTypes, only : var_dlength         ! double precision type: var(:)%dat
 
 ! global vars
-USE public_var                         ! public variables
+USE public_var, only : min_slope          ! minimum slope
+USE public_var, only : ancil_dir          ! name of the ancillary directory
+USE public_var, only : fname_ntopOld      ! name of the old network topology file
+USE public_var, only : fname_ntopNew      ! name of the new network topology file
+USE public_var, only : dname_nhru         ! dimension name for HRUs
+USE public_var, only : dname_sseg         ! dimension name for stream segments
+USE public_var, only : idSegOut           ! ID for stream segment at the bottom of the subset
+USE public_var, only : topoNetworkOption  ! option to compute network topology
+USE public_var, only : computeReachList   ! option to compute reach list
 
 ! global parameters
-USE globalData, only : RPARAM          ! Reach parameters
-USE globalData, only : NETOPO          ! Network topology
+USE globalData, only : RPARAM             ! Reach parameters
+USE globalData, only : NETOPO             ! Network topology
 
 ! named variables
-USE var_lookup,only:ixSEG              ! index of variables for the stream segments
-USE var_lookup,only:ixNTOPO            ! index of variables for the network topology
+USE globalData, only : true,false         ! named integers for true/false
+
+! named variables
+USE var_lookup,only:ixSEG                 ! index of variables for the stream segments
+USE var_lookup,only:ixNTOPO               ! index of variables for the network topology
+
+! named variables
+USE public_var, only : compute            ! compute given variable
+USE public_var, only : doNotCompute       ! do not compute given variable
+USE public_var, only : readFromFile       ! read given variable from a file
 
 implicit none
 
@@ -269,15 +285,15 @@ contains
  do iSeg=1,nSeg
 
   ! print progress
-  if(mod(iSeg,100000)==0) print*, 'Copying to the old data structures: iSeg, nSeg = ', iSeg, nSeg
+  if(mod(iSeg,1000000)==0) print*, 'Copying to the old data structures: iSeg, nSeg = ', iSeg, nSeg
 
   ! ----- reach parameters -----
 
   ! copy data into the reach parameter structure
-  RPARAM(iSeg)%RLENGTH = structSEG(iSeg)%var(ixSEG%length)%dat(1)
-  RPARAM(iSeg)%R_SLOPE = structSEG(iSeg)%var(ixSEG%slope)%dat(1)
-  RPARAM(iSeg)%R_MAN_N = structSEG(iSeg)%var(ixSEG%width)%dat(1)
-  RPARAM(iSeg)%R_WIDTH = structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
+  RPARAM(iSeg)%RLENGTH =     structSEG(iSeg)%var(ixSEG%length)%dat(1)
+  RPARAM(iSeg)%R_SLOPE = max(structSEG(iSeg)%var(ixSEG%slope)%dat(1), min_slope)
+  RPARAM(iSeg)%R_MAN_N =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
+  RPARAM(iSeg)%R_WIDTH =     structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
 
   ! compute variables
   RPARAM(iSeg)%BASAREA = structSEG(iSeg)%var(ixSEG%basArea)%dat(1)
@@ -305,9 +321,9 @@ contains
   ! populate immediate upstream data structures
   if(nUps>0)then
    do iUps=1,nUps   ! looping through upstream reaches
-    NETOPO(iSeg)%UREACHI(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIndices)%dat(iUps)   ! Immediate Upstream reach indices
-    NETOPO(iSeg)%UREACHK(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIds)%dat(iUps)       ! Immediate Upstream reach Ids
-    NETOPO(iSeg)%goodBas(iUps) = (structNTOPO(iSeg)%var(ixNTOPO%goodBasin)%dat(1)==1)    ! "good" basin
+    NETOPO(iSeg)%UREACHI(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIndices)%dat(iUps)      ! Immediate Upstream reach indices
+    NETOPO(iSeg)%UREACHK(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIds    )%dat(iUps)      ! Immediate Upstream reach Ids
+    NETOPO(iSeg)%goodBas(iUps) = (structNTOPO(iSeg)%var(ixNTOPO%goodBasin)%dat(iUps)==true) ! "good" basin
    end do  ! Loop through upstream reaches
   endif
 

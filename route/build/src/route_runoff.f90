@@ -1,8 +1,8 @@
 program route_runoff
 
 ! ******
-! provide access to desired modules
-! ************************
+! provide access to desired data types / structures...
+! ****************************************************
 
 ! variable types
 USE nrtype                                    ! variable types, etc.
@@ -15,23 +15,23 @@ USE dataTypes,  only : runoff                 ! runoff data type
 
 ! global data
 USE public_var
+USE globalData, only : NETOPO                 ! network topology structure
 USE globalData, only : RPARAM                 ! reach parameter structure
-
-!USE globalData, only:time_conv,length_conv    ! conversion factors
-
-! general data structures
-!USE globalData, only:remap_data
-!USE globalData, only:runoff_data
-
-
-
-
+USE globalData, only : RCHFLX                 ! reach flux structure
+USE globalData, only : KROUTE                 ! routing states
 
 ! metadata
 USE var_lookup, only : ixHRU     , nVarsHRU      ! index of variables for data structure
 USE var_lookup, only : ixHRU2SEG , nVarsHRU2SEG  ! index of variables for data structure
 USE var_lookup, only : ixSEG     , nVarsSEG      ! index of variables for data structure
 USE var_lookup, only : ixNTOPO   , nVarsNTOPO    ! index of variables for data structure
+
+! ******
+! provide access to desired subroutines...
+! ****************************************
+
+! subroutines: utility
+USE nr_utility_module, only: findIndex        ! find index within a vector
 
 ! subroutines: populate metadata
 USE popMetadat_module, only : popMetadat      ! populate metadata
@@ -54,7 +54,11 @@ USE irf_route, only : make_uh                 ! network unit hydrograph
 
 ! subroutines: get runoff for each basin in the routing layer
 USE read_runoff, only : get_runoff            ! read simulated runoff data
-USE remapping,   only : remap_runoff          ! remap runoff
+USE remapping,   only : remap_runoff          ! remap runoff from input polygons to routing basins
+USE remapping,   only : basin2reach           ! remap runoff from routing basins to routing reaches
+
+! subroutines: routing
+USE kwt_route,   only : QROUTE_RCH            ! kinematic wave routing method
 
 ! ******
 ! define variables
@@ -66,11 +70,15 @@ integer(i4b),parameter        :: ixPrint = -9999     ! index for printing
 
 ! model control
 integer(i4b),parameter        :: nEns=1              ! number of ensemble members
+character(len=strLen)         :: fileout             ! name of the output file
 
 ! index of looping variables
 integer(i4b)                  :: iens                ! ensemble member
-integer(i4b)                  :: iHRU                ! HRU index
-integer(i4b)                  :: itime               ! time
+integer(i4b)                  :: iHRU                ! index for HRU
+integer(i4b)                  :: iRch,jRch           ! index for the stream segment
+integer(i4b)                  :: itime               ! index for time
+integer(i4b)                  :: jtime               ! index for time
+integer(i4b)                  :: iRoute              ! index in routing vector
 
 ! error control
 integer(i4b)                  :: ierr                ! error code
@@ -100,8 +108,15 @@ character(len=strLen)         :: time_units          ! time units
 ! routing variables
 real(dp)                      :: T0,T1               ! entry/exit time for the reach
 integer(i4b), allocatable     :: basinID(:)          ! basin ID
+integer(i4b), allocatable     :: reachID(:)          ! reach ID
 real(dp)    , allocatable     :: basinRunoff(:)      ! basin runoff (m/s)
+real(dp)    , allocatable     :: reachRunoff(:)      ! reach runoff (m/s)
 integer(i4b), parameter       :: lakeFlag=0          ! no lakes
+integer(i4b)                  :: ixDesire            ! desired reach index
+integer(i4b)                  :: ixOutlet            ! outlet reach index
+
+! desired routing ids
+integer(i4b), parameter       :: desireId=integerMissing  ! turn off checks
 
 ! namelist parameters
 real(dp)                      :: fshape              ! shape parameter in time delay histogram (=gamma distribution) [-]
@@ -113,6 +128,15 @@ real(dp)                      :: wscale              ! scaling factor for river 
 namelist /HSLOPE/fshape,tscale  ! route simulated runoff through the local basin
 namelist /IRF_UH/velo,diff      ! route delayed runoff through river network with St.Venant UH
 namelist /KWT/mann_n,wscale     ! route kinematic waves through the river network
+
+! ======================================================================================================
+! ======================================================================================================
+! ======================================================================================================
+! ======================================================================================================
+! ======================================================================================================
+! ======================================================================================================
+
+! start of model/network configuration code
 
 ! *****
 ! *** Populate metadata...
@@ -155,7 +179,7 @@ call ntopo(&
            structHRU,        & ! ancillary data for HRUs
            structSeg,        & ! ancillary data for stream segments
            structHRU2seg,    & ! ancillary data for mapping hru2basin
-           structNTOPO,      & ! ancillary data for network toopology
+           structNTOPO,      & ! ancillary data for network topology
            ! output: error control
            ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
@@ -173,10 +197,6 @@ endif  ! computing network topology
 ! *****
 ! *** Get ancillary data for routing...
 ! *************************************
-
-! allocate space
-allocate(basinID(nHRU), basinRunoff(nHRU), stat=ierr)
-if(ierr/=0) call handle_err(ierr, 'unable to allocate space for basinRunoff')
 
 ! compute the time-delay histogram (to route runoff within basins)
 ! NOTE: allocates and populates global data FRAC_FUTURE
@@ -205,12 +225,52 @@ call getAncillary(&
                   ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
+! ======================================================================================================
+! ======================================================================================================
+! ======================================================================================================
+! ======================================================================================================
+! ======================================================================================================
+! ======================================================================================================
+
+! start of time-stepping simulation code
+
+! *****
+! *** Allocate space...
+! *********************
+
+! allocate space for runoff vectors
+allocate(basinID(nHRU), reachID(nRch), basinRunoff(nHRU), reachRunoff(nRch), stat=ierr)
+if(ierr/=0) call handle_err(ierr, 'unable to allocate space for runoff vectors')
+
+! allocate space for the routing structures
+allocate(RCHFLX(nens,nRch), KROUTE(nens,nRch), stat=ierr)
+if(ierr/=0) call handle_err(ierr, 'unable to allocate space for routing structures')
+
+! initialize flux structures
+RCHFLX(:,:)%BASIN_QI = 0._dp
+forall(iRoute=0:1) RCHFLX(:,:)%BASIN_QR(iRoute) = 0._dp
+
+! initialize time
+T0 = 0._dp
+T1 = dt
+
+! define ensemble member
+iens=1
+
 ! *****
 ! *** Define model output file...
 ! *******************************
 
+! temporary time loop
+do jTime=1,100
+
+! update filename
+fileout=trim(output_dir)
+write(fileout,'(a,i0,a)') trim(fileout)//'temp-', jTime, '.nc'
+print*, 'output file = ', trim(fileout)
+
 ! define output file
-call defineFile(trim(output_dir)//trim(fname_output),  &  ! input: file name
+call defineFile(trim(fileout),                         &  ! input: file name
                 nHRU,                                  &  ! input: number of HRUs
                 nRch,                                  &  ! input: number of stream segments
                 time_units,                            &  ! input: time units
@@ -219,19 +279,23 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 
 ! define basin ID
 forall(iHRU=1:nHRU) basinID(iHRU) = structHRU2seg(iHRU)%var(ixHRU2seg%hruId)%dat(1)
-call write_nc(trim(output_dir)//trim(fname_output), 'basinID', basinID, (/1/), (/nHRU/), ierr, cmessage)
+call write_nc(trim(fileout), 'basinID', basinID, (/1/), (/nHRU/), ierr, cmessage)
 call handle_err(ierr,cmessage)
+
+! define reach ID
+forall(iRch=1:nRch) reachID(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
+call write_nc(trim(fileout), 'reachID', reachID, (/1/), (/nRch/), ierr, cmessage)
+call handle_err(ierr,cmessage)
+
+! find index of desired reach
+ixDesire = findIndex(reachID,desireId,integerMissing)
+
+! find index of desired reach
+ixOutlet = findIndex(reachID,idSegOut,integerMissing)
 
 ! *****
 ! *** Route runoff...
 ! *******************
-
-! define time
-T0 = 0._dp
-T1 = dt
-
-! define ensemble member
-iens=1
 
 ! loop through time
 do iTime=1,nTime
@@ -257,38 +321,89 @@ do iTime=1,nTime
   basinRunoff=runoff_data%qsim
  end if
 
- ! ensure that simulated runoff is non-zero
- where(basinRunoff < runoffMin) basinRunoff=runoffMin
-
  ! write time -- note time is just carried across from the input
- call write_nc(trim(output_dir)//trim(fname_output), 'time', (/runoff_data%time/), (/iTime/), (/1/), ierr, cmessage)
+ call write_nc(trim(fileout), 'time', (/runoff_data%time/), (/iTime/), (/1/), ierr, cmessage)
  call handle_err(ierr,cmessage)
 
  ! write the basin runoff to the netcdf file
- call write_nc(trim(output_dir)//trim(fname_output), 'basRunoff', basinRunoff, (/1,iTime/), (/nHRU,1/), ierr, cmessage)
+ call write_nc(trim(fileout), 'basRunoff', basinRunoff, (/1,iTime/), (/nHRU,1/), ierr, cmessage)
  call handle_err(ierr,cmessage)
 
- print*, 'PAUSE: after getting simulated runoff'; read(*,*)
+ !print*, 'PAUSE: after getting simulated runoff'; read(*,*)
 
  ! *****
  ! * Map the basin runoff to the stream network...
  ! ***********************************************
 
- ! add
+ ! map the basin runoff to the stream network...
+ call basin2reach(&
+                  ! input
+                  basinRunoff,       & ! intent(in):  basin runoff (m/s)
+                  structNTOPO,       & ! intent(in):  Network topology structure
+                  structSEG,         & ! intent(in):  Network attributes structure
+                  ! output
+                  reachRunoff,       & ! intent(out): reach runoff (m/s)
+                  ierr, cmessage)      ! intent(out): error control
+ if(ierr/=0) call handle_err(ierr,cmessage)
 
+ ! convert runoff to m3/s
+ ! NOTE: Use BASIN_QR here because input runoff is already routed
+ RCHFLX(iens,:)%BASIN_QR(0) = RCHFLX(iens,:)%BASIN_QR(1)       ! streamflow from previous step
+ RCHFLX(iens,:)%BASIN_QR(1) = reachRunoff(:)*RPARAM(:)%BASAREA ! streamflow (m3/s)
 
+ ! ensure that routed streamflow is non-zero
+ do iRch=1,nRch
+  if(RCHFLX(iens,iRch)%BASIN_QR(1) < runoffMin) RCHFLX(iens,iRch)%BASIN_QR(1)=runoffMin
+ end do
+
+ ! write routed local runoff in each stream segment (m3/s)
+ call write_nc(trim(fileout), 'dlayRunoff', RCHFLX(iens,:)%BASIN_QR(1), (/1,iTime/), (/nRch,1/), ierr, cmessage)
+ call handle_err(ierr,cmessage)
+
+ !print*, 'PAUSE: after getting reach runoff'; read(*,*)
 
  ! *****
  ! * Perform the routing...
  ! ************************
 
- ! add
+ ! route streamflow through the river network
+ do iRch=1,nRch
 
+  ! identify reach to process
+  jRch = NETOPO(iRch)%RHORDER
 
+  ! check
+  if(reachId(jRch) == desireId)then
+   print*, 'reachRunoff(jRch), RPARAM(jRch)%BASAREA, RCHFLX(iens,jRch)%BASIN_QR(1) = ', &
+            reachRunoff(jRch), RPARAM(jRch)%BASAREA, RCHFLX(iens,jRch)%BASIN_QR(1)
+  endif
 
+  ! route kinematic waves through the river network
+  call QROUTE_RCH(iens,jrch,           & ! input: array indices
+                  ixDesire,            & ! input: index of the desired reach
+                  ixOutlet,            & ! input: index of the outlet reach
+                  T0,T1,               & ! input: start and end of the time step
+                  MAXQPAR,             & ! input: maximum number of particle in a reach
+                  LAKEFLAG,            & ! input: flag if lakes are to be processed
+                  ierr,cmessage)         ! output: error control
+  if (ierr/=0) call handle_err(ierr,cmessage)
 
+ end do  ! (looping through stream segments)
+
+ ! write routed runoff (m3/s)
+ call write_nc(trim(fileout), 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,iTime/), (/nRch,1/), ierr, cmessage)
+ call handle_err(ierr,cmessage)
+
+ ! increment time bounds
+ T0 = T0 + dt
+ T1 = T0 + dt
+
+ print*, 'itime, jtime, ntime = ', itime, jtime, ntime
+ !print*, 'PAUSE: after routing'; read(*,*)
 
 end do  ! looping through time
+
+end do  ! temporary time loop
 
 stop
 

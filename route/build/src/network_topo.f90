@@ -14,6 +14,10 @@ USE globalData, only : meta_SEG     ! stream segment properties
 USE globalData, only : meta_NTOPO   ! network topology
 
 ! named variables
+USE globalData, only : true,false   ! named integers for true/false
+USE public_var, only : verySmall    ! a very small value
+
+! named variables
 USE var_lookup,only:ixStruct, nStructures  ! index of data structures
 USE var_lookup,only:ixHRU,    nVarsHRU     ! index of variables for the HRUs
 USE var_lookup,only:ixSEG,    nVarsSEG     ! index of variables for the stream segments
@@ -236,7 +240,6 @@ contains
  integer(i4b)                    :: downIndex(nRch)     ! index of downstream stream segment
  integer(i4b)                    :: nUpstream(nRch)     ! number of elements that drain into each segment
  integer(i4b)                    :: mUpstream(nRch)     ! number of elements that drain into each segment
- real(dp),parameter              :: min_slope=1.e-6_dp  ! minimum slope
  ! initialize error control
  ierr=0; message='up2downSegment/'
 
@@ -269,7 +272,8 @@ contains
  ! loop through the reaches
  do iRch=1,nRch
   allocate(structNTOPO(iRch)%var(ixNTOPO%upSegIds    )%dat( nUpstream(iRch) ), &
-           structNTOPO(iRch)%var(ixNTOPO%upSegIndices)%dat( nUpstream(iRch) ), stat=ierr)
+           structNTOPO(iRch)%var(ixNTOPO%upSegIndices)%dat( nUpstream(iRch) ), &
+           structNTOPO(iRch)%var(ixNTOPO%goodBasin   )%dat( nUpstream(iRch) ), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating space for upstream reaches'; return; endif
  end do
 
@@ -639,6 +643,7 @@ contains
     structSEG(iRch)%var(ixSEG%upsArea)%dat(1) = structSEG(iRch)%var(ixSEG%upsArea)%dat(1) + &
                                                 structSEG(jRch)%var(ixSEG%totalArea)%dat(1)
 
+
    end do  ! looping through immediate upstream segments
   endif   ! if immediate upstream segments exist
 
@@ -654,6 +659,16 @@ contains
   ! compute the total area
   structSEG(iRch)%var(ixSEG%totalArea)%dat(1) = structSEG(iRch)%var(ixSEG%basArea)%dat(1) + &
                                                 structSEG(iRch)%var(ixSEG%upsArea)%dat(1)
+
+  ! ---------- define good basins ---------------------------------------------------------
+
+  ! "goodBasin" == Drainage area at the bottom of the reach is greater than threshold, "verySmall" value.
+
+  if(nImmediate > 0)then
+   do iUps=1,nImmediate ! get the upstream segments
+    structNTOPO(iRch)%var(ixNTOPO%goodBasin)%dat(iUps) = merge(true, false, structSEG(iRch)%var(ixSEG%totalArea)%dat(1) > verySmall)
+   end do
+  endif
 
  end do  ! looping through reaches
 
