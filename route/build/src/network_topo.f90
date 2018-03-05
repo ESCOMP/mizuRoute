@@ -15,6 +15,7 @@ USE globalData, only : meta_NTOPO   ! network topology
 
 ! named variables
 USE globalData, only : true,false   ! named integers for true/false
+USE public_var, only : verySmall    ! a very small value
 
 ! named variables
 USE var_lookup,only:ixStruct, nStructures  ! index of data structures
@@ -551,7 +552,6 @@ contains
  integer(i4b)      , intent(out)                :: ierr            ! error code
  character(*)      , intent(out)                :: message         ! error message
  ! local variables
- real(dp), parameter                            :: verySmall=tiny(1.0_dp) ! a very small number
  INTEGER(I4B)                                   :: IRCH,JRCH,KRCH  ! loop through reaches
  logical(lgt)                                   :: processedReach(nRch)  ! flag to define if reaches are processed
  integer(i4b)                                   :: nImmediate      ! number of immediate upstream reaches
@@ -661,6 +661,8 @@ contains
                                                 structSEG(iRch)%var(ixSEG%upsArea)%dat(1)
 
   ! ---------- define good basins ---------------------------------------------------------
+
+  ! "goodBasin" == Drainage area at the bottom of the reach is greater than threshold, "verySmall" value.
 
   if(nImmediate > 0)then
    do iUps=1,nImmediate ! get the upstream segments
