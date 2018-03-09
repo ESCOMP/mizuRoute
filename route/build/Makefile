@@ -91,7 +91,6 @@ IO = \
   write_streamSeg.f90 \
   read_netcdf.f90 \
   read_runoff.f90 \
-  read_remap.f90 \
   write_simoutput.f90
 
 # perform model routing

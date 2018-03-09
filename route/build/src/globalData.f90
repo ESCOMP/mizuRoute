@@ -38,7 +38,15 @@ module globalData
 
   save
 
+  ! ---------- physical constants -------------------------------------------------------------------
+
+  real(dp)          , parameter  , public :: pi=3.14159265359_dp        ! pi
+
   ! ---------- constants ----------------------------------------------------------------------------
+
+  ! true/false
+  integer(i4b)      , parameter  , public :: true=1001                  ! true
+  integer(i4b)      , parameter  , public :: false=1002                 ! false
 
   ! variable types
   integer(i4b)      , parameter  , public :: varType_integer = 1001     ! named variable for an integer

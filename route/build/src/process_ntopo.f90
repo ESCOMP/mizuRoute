@@ -1,21 +1,37 @@
 module process_ntopo
 
 ! data types
-USE nrtype                             ! variable types, etc.
-USE nrtype,    only : integerMissing   ! missing value for integers
-USE dataTypes, only : var_ilength      ! integer type:          var(:)%dat
-USE dataTypes, only : var_dlength      ! double precision type: var(:)%dat
+USE nrtype                                ! variable types, etc.
+USE nrtype,    only : integerMissing      ! missing value for integers
+USE dataTypes, only : var_ilength         ! integer type:          var(:)%dat
+USE dataTypes, only : var_dlength         ! double precision type: var(:)%dat
 
 ! global vars
-USE public_var                         ! public variables
+USE public_var, only : min_slope          ! minimum slope
+USE public_var, only : ancil_dir          ! name of the ancillary directory
+USE public_var, only : fname_ntopOld      ! name of the old network topology file
+USE public_var, only : fname_ntopNew      ! name of the new network topology file
+USE public_var, only : dname_nhru         ! dimension name for HRUs
+USE public_var, only : dname_sseg         ! dimension name for stream segments
+USE public_var, only : idSegOut           ! ID for stream segment at the bottom of the subset
+USE public_var, only : topoNetworkOption  ! option to compute network topology
+USE public_var, only : computeReachList   ! option to compute reach list
 
 ! global parameters
-USE globalData, only : RPARAM          ! Reach parameters
-USE globalData, only : NETOPO          ! Network topology
+USE globalData, only : RPARAM             ! Reach parameters
+USE globalData, only : NETOPO             ! Network topology
 
 ! named variables
-USE var_lookup,only:ixSEG              ! index of variables for the stream segments
-USE var_lookup,only:ixNTOPO            ! index of variables for the network topology
+USE globalData, only : true,false         ! named integers for true/false
+
+! named variables
+USE var_lookup,only:ixSEG                 ! index of variables for the stream segments
+USE var_lookup,only:ixNTOPO               ! index of variables for the network topology
+
+! named variables
+USE public_var, only : compute            ! compute given variable
+USE public_var, only : doNotCompute       ! do not compute given variable
+USE public_var, only : readFromFile       ! read given variable from a file
 
 implicit none
 
@@ -45,9 +61,10 @@ contains
  ! external subroutines : network topology
  use network_topo,    only:hru2segment           ! get the mapping between HRUs and segments
  use network_topo,    only:up2downSegment        ! get the mapping between upstream and downstream segments
+ use network_topo,    only:reachOrder            ! define the processing order
  use network_topo,    only:reach_list            ! reach list
  use network_topo,    only:reach_mask            ! identify all reaches upstream of a given reach
- use network_topo,    only:reachOrder            ! define the processing order
+ !use network_topo,    only:reach_mask_orig            ! identify all reaches upstream of a given reach
  ! This subroutine 1) read river network data and 2) populate river network topology data strucutres
  implicit none
  ! output: model control
@@ -72,6 +89,7 @@ contains
  integer(i4b)                    :: tot_hru            ! total number of all the upstream hrus for all stream segments
  integer(i4b)   , allocatable    :: ixHRU_desired(:)   ! indices of desired hrus
  integer(i4b)   , allocatable    :: ixSeg_desired(:)   ! indices of desired reaches
+ integer(i4b)   , parameter      :: maxUpstreamFile=10000000 ! 10 million: maximum number of upstream reaches to enable writing
  integer*8                       :: time0,time1        ! times
 
  ! initialize error control
@@ -103,6 +121,7 @@ contains
  ! get timing
  call system_clock(time1)
  write(*,'(a,1x,i20)') 'after getData: time = ', time1-time0
+ !print*, trim(message)//'PAUSE : '; read(*,*)
 
  ! ---------- get the mapping between HRUs and segments ------------------------------------------------------
 
@@ -126,6 +145,7 @@ contains
   ! get timing
   call system_clock(time1)
   write(*,'(a,1x,i20)') 'after hru2segment: time = ', time1-time0
+  !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif  ! if need to compute network topology
 
@@ -148,16 +168,27 @@ contains
   ! get timing
   call system_clock(time1)
   write(*,'(a,1x,i20)') 'after up2downSegment: time = ', time1-time0
+  !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif  ! if need to compute network topology
 
  ! ---------- get the processing order -----------------------------------------------------------------------
 
- ! defines the processing order for the individual stream segments in the river network
- call REACHORDER(nSeg,         &   ! input:        number of reaches
-                 structNTOPO,  &   ! input:output: network topology
-                 ierr, cmessage)   ! output:       error control
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ ! check the need to compute network topology
+ if(topoNetworkOption==compute)then
+
+  ! defines the processing order for the individual stream segments in the river network
+  call REACHORDER(nSeg,         &   ! input:        number of reaches
+                  structNTOPO,  &   ! input:output: network topology
+                  ierr, cmessage)   ! output:       error control
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! get timing
+  call system_clock(time1)
+  write(*,'(a,1x,i20)') 'after reachOrder: time = ', time1-time0
+  !print*, trim(message)//'PAUSE : '; read(*,*)
+
+ endif  ! if need to compute network topology
 
  ! ---------- get the list of all upstream reaches above a given reach ---------------------------------------
 
@@ -175,18 +206,12 @@ contains
 
  ! get timing
  call system_clock(time1)
- print*, 'tot_upstream = ', tot_upstream
  write(*,'(a,1x,i20)') 'after reach_list: time = ', time1-time0
  !print*, trim(message)//'PAUSE : '; read(*,*)
 
- ! ---------- get indices of all segments above a prescribed reach ------------------------------------------
+ ! ---------- get the mask of all upstream reaches above a given reach ---------------------------------------
 
- ! disable the dimension containing all upstream reaches
- ! NOTE: For the CONUS this is 1,872,516,819 reaches !!
- !        --> it will always be quicker to recompute than read+write
- tot_upstream = 0
-
- ! identify all reaches upstream of a given reach
+ ! get the mask of all upstream reaches above a given reach
  call reach_mask(&
                  ! input
                  idSegOut,      &  ! input: reach index
@@ -207,13 +232,18 @@ contains
  ! get timing
  call system_clock(time1)
  write(*,'(a,1x,i20)') 'after reach_mask: time = ', time1-time0
-
- print*, 'nDesire = ', size(ixHRU_desired)
+ !print*, trim(message)//'PAUSE : '; read(*,*)
 
  ! ---------- write network topology to a netcdf file -------------------------------------------------------
 
  ! check the need to compute network topology
  if(topoNetworkOption==compute .or. computeReachList==compute .or. idSegOut>0)then
+
+  ! disable the dimension containing all upstream reaches
+  ! NOTE: For the CONUS this is 1,872,516,819 reaches !!
+  !        --> it will always be quicker to recompute than read+write
+  !        --> users can modify the hard-coded parameter "maxUpstreamFile" if desired
+  if(tot_upstream > maxUpstreamFile) tot_upstream=0
 
   ! write data
   call writeData(&
@@ -255,23 +285,20 @@ contains
  do iSeg=1,nSeg
 
   ! print progress
-  if(mod(iSeg,100000)==0) print*, 'Copying to the old data structures: iSeg, nSeg = ', iSeg, nSeg
+  if(mod(iSeg,1000000)==0) print*, 'Copying to the old data structures: iSeg, nSeg = ', iSeg, nSeg
 
   ! ----- reach parameters -----
 
   ! copy data into the reach parameter structure
-  RPARAM(iSeg)%RLENGTH = structSEG(iSeg)%var(ixSEG%length)%dat(1)
-  RPARAM(iSeg)%R_SLOPE = structSEG(iSeg)%var(ixSEG%slope)%dat(1)
-  RPARAM(iSeg)%R_MAN_N = structSEG(iSeg)%var(ixSEG%width)%dat(1)
-  RPARAM(iSeg)%R_WIDTH = structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
+  RPARAM(iSeg)%RLENGTH =     structSEG(iSeg)%var(ixSEG%length)%dat(1)
+  RPARAM(iSeg)%R_SLOPE = max(structSEG(iSeg)%var(ixSEG%slope)%dat(1), min_slope)
+  RPARAM(iSeg)%R_MAN_N =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
+  RPARAM(iSeg)%R_WIDTH =     structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
 
   ! compute variables
-  RPARAM(iSeg)%BASAREA = sum(structSEG(iSeg)%var(ixSEG%hruArea)%dat)
-
-  ! NOT USED: UPSAREA is not currently used, but could be useful...
-  !        --> can loop through all upstream basins (in reach_list?)
-  RPARAM(iSeg)%UPSAREA = realMissing  ! upstream area (zero if headwater basin)
-  RPARAM(iSeg)%TOTAREA = realMissing  ! UPSAREA + BASAREA
+  RPARAM(iSeg)%BASAREA = structSEG(iSeg)%var(ixSEG%basArea)%dat(1)
+  RPARAM(iSeg)%UPSAREA = structSEG(iSeg)%var(ixSEG%upsArea)%dat(1)
+  RPARAM(iSeg)%TOTAREA = structSEG(iSeg)%var(ixSEG%totalArea)%dat(1)
 
   ! NOT USED: MINFLOW -- minimum environmental flow
   RPARAM(iSeg)%MINFLOW = structSEG(iSeg)%var(ixSEG%minFlow)%dat(1)
@@ -286,17 +313,17 @@ contains
   NETOPO(iSeg)%DREACHI = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1) ! Immediate Downstream reach index
   NETOPO(iSeg)%DREACHK = structNTOPO(iSeg)%var(ixNTOPO%downSegId)%dat(1)    ! Immediate Downstream reach ID
 
-  ! allocate space for upstream reach indices
+  ! allocate space for immediate upstream reach indices
   nUps = size(structNTOPO(iSeg)%var(ixNTOPO%upSegIds)%dat)
   allocate(NETOPO(iSeg)%UREACHI(nUps), NETOPO(iSeg)%UREACHK(nUps), NETOPO(iSeg)%goodBas(nUps), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'unable to allocate space for upstream structures'; return; endif
 
-  ! populate upstream data structures
+  ! populate immediate upstream data structures
   if(nUps>0)then
    do iUps=1,nUps   ! looping through upstream reaches
-    NETOPO(iSeg)%UREACHI(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIndices)%dat(iUps)   ! Immediate Upstream reach indices
-    NETOPO(iSeg)%UREACHK(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIds)%dat(iUps)       ! Immediate Upstream reach Ids
-    NETOPO(iSeg)%goodBas(iUps) = (structNTOPO(iSeg)%var(ixNTOPO%goodBasin)%dat(1)==1)    ! "good" basin
+    NETOPO(iSeg)%UREACHI(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIndices)%dat(iUps)      ! Immediate Upstream reach indices
+    NETOPO(iSeg)%UREACHK(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIds    )%dat(iUps)      ! Immediate Upstream reach Ids
+    NETOPO(iSeg)%goodBas(iUps) = (structNTOPO(iSeg)%var(ixNTOPO%goodBasin)%dat(iUps)==true) ! "good" basin
    end do  ! Loop through upstream reaches
   endif
 

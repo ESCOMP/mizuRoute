@@ -194,9 +194,37 @@ contains
   end do  ! loop through space
  end do  ! loop through structures
 
+ ! ---------- initialize variables ---------------------------------------------------------------------------
+
+ ! loop through stream segments
+ do iSeg=1,nSeg
+
+  ! initialize variables not yet computed / assigned
+  structSEG(iSeg)%var(ixSEG%width          )%dat(1) = realMissing
+  structSEG(iSeg)%var(ixSEG%man_n          )%dat(1) = realMissing
+  structSEG(iSeg)%var(ixSEG%upsArea        )%dat(1) = realMissing
+  structSEG(iSeg)%var(ixSEG%basUnderLake   )%dat(1) = realMissing
+  structSEG(iSeg)%var(ixSEG%rchUnderLake   )%dat(1) = realMissing
+  structSEG(iSeg)%var(ixSEG%minFlow        )%dat(1) = realMissing
+
+  ! initialize variables not yet computed / assigned
+  structNTOPO(iSeg)%var(ixNTOPO%rchOrder   )%dat(1) = integerMissing
+  structNTOPO(iSeg)%var(ixNTOPO%lakeId     )%dat(1) = integerMissing
+  structNTOPO(iSeg)%var(ixNTOPO%lakeIndex  )%dat(1) = integerMissing
+  structNTOPO(iSeg)%var(ixNTOPO%isLakeInlet)%dat(1) = integerMissing
+  structNTOPO(iSeg)%var(ixNTOPO%userTake   )%dat(1) = integerMissing
+
+ end do  ! looping through stream segments
+
  ! -----------------------------------------------------------------------------------------------------------------
  ! ---------- read in data -----------------------------------------------------------------------------------------
  ! -----------------------------------------------------------------------------------------------------------------
+
+ ! set flags if we want to read hdraulic geometry from file
+ if(hydGeometryOption==readFromFile)then
+  meta_SEG(ixSEG%width)%varFile = .true.
+  meta_SEG(ixSEG%man_n)%varFile = .true.
+ endif
 
  ! loop through data structures
  do iStruct=1,nStructures
@@ -322,29 +350,6 @@ contains
  ! close the NetCDF file
  ierr = nf90_close(ncid)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
- ! ---------- initialize variables ---------------------------------------------------------------------------
-
- ! loop through stream segments
- do iSeg=1,nSeg
-
-  ! initialize variables not yet computed / assigned
-  structSEG(iSeg)%var(ixSEG%width          )%dat(1) = realMissing
-  structSEG(iSeg)%var(ixSEG%man_n          )%dat(1) = realMissing
-  structSEG(iSeg)%var(ixSEG%upsArea        )%dat(1) = realMissing
-  structSEG(iSeg)%var(ixSEG%basUnderLake   )%dat(1) = realMissing
-  structSEG(iSeg)%var(ixSEG%rchUnderLake   )%dat(1) = realMissing
-  structSEG(iSeg)%var(ixSEG%minFlow        )%dat(1) = realMissing
-
-  ! initialize variables not yet computed / assigned
-  structNTOPO(iSeg)%var(ixNTOPO%rchOrder   )%dat(1) = integerMissing
-  structNTOPO(iSeg)%var(ixNTOPO%lakeId     )%dat(1) = integerMissing
-  structNTOPO(iSeg)%var(ixNTOPO%lakeIndex  )%dat(1) = integerMissing
-  structNTOPO(iSeg)%var(ixNTOPO%isLakeInlet)%dat(1) = integerMissing
-  structNTOPO(iSeg)%var(ixNTOPO%userTake   )%dat(1) = integerMissing
-  structNTOPO(iSeg)%var(ixNTOPO%goodBasin  )%dat(1) = integerMissing
-
- end do  ! looping through stream segments
 
  end subroutine getData
 

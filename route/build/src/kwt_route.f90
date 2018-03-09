@@ -20,13 +20,15 @@ USE globalData, only : LPARAM     ! Lake parameters
 USE globalData, only : LKTOPO     ! Lake topology
 USE globalData, only : LAKFLX     ! Lake fluxes
 
+! global data
+USE public_var, only : verySmall  ! a very small value
+
 implicit none
 private
 public::qroute_rch
 
 ! common variables
-integer(i4b),parameter  :: ixPrint = -9999  ! the desired reach (set to negative to avoid any printing)
-real(dp),parameter      :: verySmall=tiny(1.0_dp)  ! a very small number
+integer(i4b),save       :: ixPrint = -9999  ! the desired reach (set to negative to avoid any printing)
 
 contains
 
@@ -34,6 +36,7 @@ contains
  ! subroutine: route kinematic waves through the river network
  ! *********************************************************************
  subroutine QROUTE_RCH(IENS,JRCH,    & ! input: array indices
+                       ixDesire,     & ! input: index of the reach for verbose output
                        ixOutlet,     & ! input: index of the outlet reach
                        T0,T1,        & ! input: start and end of the time step
                        MAXQPAR,      & ! input: maximum number of particle in a reach
@@ -50,21 +53,6 @@ contains
  ! Purpose:
  !
  !   Route kinematic waves through the river network
- !
- ! ----------------------------------------------------------------------------------------
- ! I/O::
- !
- !   Input(s):
- !      IENS: ensemble member
- !      JRCH: index of stream segment
- !        T0: start of the time step (seconds)
- !        T1: end of the time step (seconds)
- !  LAKEFLAG: >0 if processing lakes
- !     RSTEP: retrospective time step offset (optional)
- !
- !   Outputs (in addition to update of data structures):
- !      ierr: error code
- !   message: error message
  !
  ! ----------------------------------------------------------------------------------------
  ! Method:
@@ -112,8 +100,9 @@ contains
    implicit none
    ! Input
    INTEGER(I4B), INTENT(IN)                    :: IENS          ! ensemble member
-   integer(i4b), intent(in)                    :: ixOutlet      ! index of the outlet reach
    INTEGER(I4B), INTENT(IN)                    :: JRCH          ! reach to process
+   integer(i4b), intent(in)                    :: ixDesire      ! index of the reach for verbose output
+   integer(i4b), intent(in)                    :: ixOutlet      ! index of the outlet reach
    REAL(DP), INTENT(IN)                        :: T0,T1         ! start and end of the time step (seconds)
    INTEGER(I4B), INTENT(IN)                    :: MAXQPAR       ! maximum number of particles
    INTEGER(I4B), INTENT(IN)                    :: LAKEFLAG      ! >0 if processing lakes
@@ -153,8 +142,7 @@ contains
    ! ----------------------------------------------------------------------------------------
    if(INIT) then
      INIT=.false.
-     !NULLIFY(Q_JRCH,TENTRY,T_EXIT,FROUTE,NEW_WAVE)
-     !deallocate(Q_JRCH,TENTRY,T_EXIT,FROUTE,NEW_WAVE)
+     ixPrint=ixDesire
    endif
    RCHFLX(IENS,JRCH)%TAKE=0.0_dp ! initialize take from this reach
     ! ----------------------------------------------------------------------------------------
@@ -171,9 +159,7 @@ contains
         ierr=20; message=trim(message)//'negative flow extracted from upstream reach'; return
       endif
       ! check
-      if(JRCH==ixPrint)then
-       print*, 'JRCH, Q_JRCH = ', JRCH, Q_JRCH
-      endif
+      if(JRCH==ixPrint) print*, 'JRCH, Q_JRCH = ', JRCH, Q_JRCH
     else
       ! set flow in headwater reaches to modelled streamflow from time delay histogram
       RCHFLX(IENS,JRCH)%REACH_Q = RCHFLX(IENS,JRCH)%BASIN_QR(1)
@@ -188,6 +174,8 @@ contains
       KROUTE(IENS,JRCH)%KWAVE(0)%TR=-9999
       KROUTE(IENS,JRCH)%KWAVE(0)%RF=.False.
       KROUTE(IENS,JRCH)%KWAVE(0)%QM=-9999
+      ! check
+      if(JRCH==ixPrint) print*, 'JRCH, RCHFLX(IENS,JRCH)%REACH_Q = ', JRCH, RCHFLX(IENS,JRCH)%REACH_Q
       return  ! no upstream reaches (routing for sub-basins done using time-delay histogram)
     endif
     ! ----------------------------------------------------------------------------------------
@@ -287,7 +275,7 @@ contains
         ierr=20; return
       endif
     endif
-    ! if the last reach or lake inlet (and lakes are enables), remove routed elements from memory
+    ! if the last reach or lake inlet (and lakes are enabled), remove routed elements from memory
     IF (NETOPO(JRCH)%DREACHI.LT.0 .OR. &  ! if the last reach, then there is no downstream reach
         (LAKEFLAG.EQ.1.AND.NETOPO(JRCH)%LAKINLT)) THEN ! if lake inlet
       ! copy data to a temporary wave
@@ -585,7 +573,7 @@ contains
   ! get flow in m2/s (scaled by with of downstream reach)
   QD(1) = RCHFLX(IENS,IR)%BASIN_QR(1)/RPARAM(JRCH)%R_WIDTH
   TD(1) = T1
-  if(JRCH == ixPrint) print*, 'special case: JRCH, IR = ', JRCH, IR
+  if(JRCH == ixPrint) print*, 'special case: JRCH, IR, NETOPO(IR)%REACHID = ', JRCH, IR, NETOPO(IR)%REACHID
   RETURN
  ENDIF
  ! allocate space for the upstream flow, time, and flags
@@ -1110,6 +1098,11 @@ contains
  T0=TENTRY; T1=TENTRY; T2=TENTRY
  ! compute wave celerity for all flow points (array operation)
  WC(1:NN) = ALFA*K**(1./ALFA)*Q1(1:NN)**((ALFA-1.)/ALFA)
+ ! check
+ if(jRch==ixPrint) print*, 'q1(1:nn), wc(1:nn), RPARAM(JRCH)%R_SLOPE, nn = ', &
+                            q1(1:nn), wc(1:nn), RPARAM(JRCH)%R_SLOPE, nn
+
+ ! handle breaking waves
  GT_ONE: IF(NN.GT.1) THEN                     ! no breaking if just one point
   X = 0.                                      ! altered later to describe "closest" shock
   GOTALL: DO                                  ! keep going until all shocks are merged
@@ -1165,9 +1158,12 @@ contains
  ! perform the routing
  ! ----------------------------------------------------------------------------------------
  DO IROUTE = 1,NN    ! loop through the remaining particles (shocks,waves) (NM=NI-NN have been merged)
+  ! check
+  if(jRch==ixPrint) print*, 'wc(iRoute), nn = ', wc(iRoute), nn
   ! check that we have non-zero flow
   if(WC(IROUTE) < verySmall)then
-   ierr=20; message=trim(message)//'zero flow'; return
+   write(message,'(a,i0)') trim(message)//'zero flow for reach id ', NETOPO(jRch)%REACHID
+   ierr=20; return
   endif
   ! compute the time the shock will exit the reach
   TEXIT = MIN(XMX/WC(IROUTE) + T1(IROUTE), HUGE(T1))
