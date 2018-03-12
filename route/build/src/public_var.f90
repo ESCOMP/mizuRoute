@@ -50,7 +50,7 @@ module public_var
   character(len=strLen),public    :: units_time           = ''              ! time units
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
-  logical(lgt)         ,public    :: ntopWriteOption      = .true.          ! option for writing updated network topology (0=no,1=yes)
+  logical(lgt)         ,public    :: ntopWriteOption      = .false.         ! option for writing augmented network topology (false=no,true=yes)
   character(len=strLen),public    :: fname_ntopNew        = ''              ! new filename containing stream network topology information
   character(len=strLen),public    :: dname_sseg           = ''              ! dimension name of segment in river network data
   character(len=strLen),public    :: dname_nhru           = ''              ! dimension name of hru in river network data

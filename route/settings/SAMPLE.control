@@ -15,15 +15,15 @@
 ! ****************************************************************************************************************************
 ! PART 2: DEFINE FINE NAME AND DIMENSIONS
 ! ---------------------------------------
-<fname_ntopOld>    NTOPO_NC                        ! River Network data netCDF 
+<fname_ntopOld>    NTOPO_NC                        ! netCDF name for River Network
 <dname_sseg>       DIMNAME_SEG                     ! dimension name of the stream segments
 <dname_nhru>       DIMNAME_HRU                     ! dimension name of the HRUs
-<ntopWriteOption>  F                               ! logical whether or not augmented or/and subset river network is written 
-<fname_ntopNew>    UPDATED_NTOPO_NC                ! Updated River Network netCDF 
+<ntopWriteOption>  F                               ! logical whether or not augmented river network is written 
+<fname_ntopNew>    UPDATED_NTOPO_NC                ! netCDF name for augmented River Network
 ! ****************************************************************************************************************************
 ! PART 3: DEFINE DESIRED VARIABLES FOR THE NETWORK TOPOLOGY
 ! ---------------------------------------------------------
-<seg_outlet>       -9999                           ! seg_id of outlet streamflow segment -9999 for all segments 
+<seg_outlet>       -9999                           ! seg_id of outlet streamflow segment. -9999 for all segments 
 ! ****************************************************************************************************************************
 ! PART 4: DEFINE RUNOFF FILE
 ! ----------------------------------
@@ -60,7 +60,7 @@
 ! ****************************************************************************************************************************
 ! Part 8: Define options to include/skip calculations
 ! ---------------------------
-<hydGeometryOption>    1                           ! option for hydraulic geometry calculations (0=read from file, 1=compute
+<hydGeometryOption>    1                           ! option for hydraulic geometry calculations (0=read from file, 1=compute)
 <topoNetworkOption>    1                           ! option for network topology calculations (0=read from file, 1=compute)
 <computeReachList>     1                           ! option to compute list of upstream reaches (0=do not compute, 1=compute)
 ! ****************************************************************************************************************************
