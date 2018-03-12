@@ -239,7 +239,7 @@ contains
 
  ! check the need to compute network topology
  ! if(topoNetworkOption==compute .or. computeReachList==compute .or. idSegOut>0)then
- if(idSegOut>0) ntopWriteOption=.true.   ! insure suset network topology is written
+ if(idSegOut>0) ntopWriteOption=.true.   ! insure that localized network topology is written if a particular outlet is specified
  if(ntopWriteOption)then
 
   ! disable the dimension containing all upstream reaches
