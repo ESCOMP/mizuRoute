@@ -24,14 +24,8 @@ CONTAINS
                             opt,             &  ! input: which routing options (state variables depends on routing options)
                             ierr, message)      ! output: error control
  ! External modules
- USE globalData, ONLY: meta_irf_bas
- USE globalData, ONLY: meta_irf
- USE globalData, ONLY: meta_kwt
  USE globalData, ONLY: meta_stateDims
  USE var_lookup, ONLY: ixStateDims, nStateDims
- USE var_lookup, ONLY: ixKWT,    nVarsKWT
- USE var_lookup, ONLY: ixIRF,    nVarsIRF
- USE var_lookup, ONLY: ixIRFbas, nVarsIRFbas
  implicit none
  ! input variables
  character(*),   intent(in)           :: fname            ! filename
@@ -147,6 +141,9 @@ CONTAINS
   END SUBROUTINE
 
   SUBROUTINE define_IRFbas_state(ierr, message1)
+   ! External modules
+   USE globalData, ONLY: meta_irf_bas
+   USE var_lookup, ONLY: ixIRFbas, nVarsIRFbas
    implicit none
    ! output
    integer(i4b), intent(out)  :: ierr          ! error code
@@ -189,6 +186,9 @@ CONTAINS
   END SUBROUTINE define_IRFbas_state
 
   SUBROUTINE define_KWT_state(ierr, message1)
+   ! External modules
+   USE globalData, ONLY: meta_kwt
+   USE var_lookup, ONLY: ixKWT, nVarsKWT
    implicit none
    ! output
    integer(i4b), intent(out)  :: ierr        ! error code
@@ -240,6 +240,9 @@ CONTAINS
   END SUBROUTINE define_KWT_state
 
   SUBROUTINE define_IRF_state(ierr, message1)
+   ! External modules
+   USE globalData, ONLY: meta_irf
+   USE var_lookup, ONLY: ixIRF, nVarsIRF
    implicit none
    ! output
    integer(i4b), intent(out)  :: ierr        ! error code
@@ -300,19 +303,9 @@ CONTAINS
  USE write_netcdf, ONLY: write_nc
  USE dataTypes,    ONLY: states
  ! meta data
- USE globalData,   ONLY: meta_irf_bas    ! basin IRF routing
- USE globalData,   ONLY: meta_irf        ! IRF routing
- USE globalData,   ONLY: meta_kwt        ! kwt routing
  USE globalData,   ONLY: meta_stateDims  ! dimension for state variables
- ! State/flux data structures
- USE globalData,   ONLY: KROUTE          ! KWT routing state
- USE globalData,   ONLY: NETOPO          ! To get UH (this should not be in this data strucuture)
- USE globalData,   ONLY: RCHFLX          ! To get q future for basin IRF and IRF (these should not be in this data strucuture)
  ! Named variables
  USE var_lookup,   ONLY: ixStateDims, nStateDims
- USE var_lookup,   ONLY: ixKWT,       nVarsKWT
- USE var_lookup,   ONLY: ixIRF,       nVarsIRF
- USE var_lookup,   ONLY: ixIRFbas,    nVarsIRFbas
  implicit none
  ! input variables
  character(*), intent(in)        :: fname           ! filename
@@ -362,6 +355,10 @@ CONTAINS
 
   ! Basin IRF writing procedures
   SUBROUTINE write_IRFbas_state(ierr, message1)
+  ! external module
+  USE globalData,   ONLY: meta_irf_bas
+  USE var_lookup,   ONLY: ixIRFbas, nVarsIRFbas
+  USE globalData,   ONLY: RCHFLX          ! To get q future for basin IRF and IRF (these should not be in this data strucuture)
   implicit none
   ! output
   integer(i4b), intent(out)  :: ierr            ! error code
@@ -422,6 +419,10 @@ CONTAINS
 
   ! KWT writing procedures
   SUBROUTINE write_KWT_state(ierr, message1)
+  ! External module
+  USE globalData,   ONLY: meta_kwt
+  USE var_lookup,   ONLY: ixKWT, nVarsKWT
+  USE globalData,   ONLY: KROUTE
   implicit none
   ! output
   integer(i4b), intent(out)  :: ierr            ! error code
@@ -505,8 +506,14 @@ CONTAINS
 
   END SUBROUTINE write_KWT_state
 
+
   ! IRF writing procedures
   SUBROUTINE write_IRF_state(ierr, message1)
+  ! external module
+  USE globalData,   ONLY: meta_irf        ! IRF routing
+  USE var_lookup,   ONLY: ixIRF, nVarsIRF
+  USE globalData,   ONLY: RCHFLX          ! To get q future for basin IRF and IRF (these should not be in this data strucuture)
+  USE globalData,   ONLY: NETOPO          ! To get UH (this should not be in this data strucuture)
   implicit none
   ! output
   integer(i4b), intent(out)  :: ierr            ! error code
