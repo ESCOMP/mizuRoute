@@ -38,6 +38,21 @@ implicit none
   logical(lgt)           :: varFile  = .true.          ! .true. if the variable should be read from a file
  endtype var_info
 
+ ! ---------- states structure --------------------------------------------------------------------------
+ !
+ type,public :: var
+  integer(i4b),  allocatable  :: array_2d_int(:,:)
+  integer(i4b),  allocatable  :: array_3d_int(:,:,:)
+  real(dp),      allocatable  :: array_2d_dp(:,:)
+  real(dp),      allocatable  :: array_3d_dp(:,:,:)
+  logical(lgt),  allocatable  :: array_2d_lgt(:,:)
+  logical(lgt),  allocatable  :: array_3d_lgt(:,:,:)
+ end type var
+
+ type,public :: states
+  type(var),     allocatable :: var(:)
+ end type states
+
  ! ---------- general data structures ----------------------------------------------------------------------
 
  ! ** double precision type
@@ -135,6 +150,13 @@ implicit none
  TYPE, public :: KREACH
   TYPE(FPOINT),allocatable             :: KWAVE(:)
  END TYPE KREACH
+
+ ! ---------- irf states (future flow series ) ---------------------------------
+
+ ! Future flow series
+ TYPE, public :: IRFREACH
+  REAL(DP), allocatable                :: qfuture(:)    ! runoff volume in future time steps for IRF routing (m3/s)
+ END TYPE IRFREACH
 
  ! ---------- reach fluxes --------------------------------------------------------------------
 
