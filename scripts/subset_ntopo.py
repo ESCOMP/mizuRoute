@@ -1,4 +1,4 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 
 import sys
 import getopt
@@ -8,7 +8,7 @@ import numpy as np
 # -----
 # Hardcoded variables
 # -----
-# Fill values 
+# Fill values
 FILL_VALUE = -9999.0
 
 # Variables with sSeg dimension
@@ -22,7 +22,8 @@ seg_var_name = ['reachIndex',
                 'downReachIndex',
                 'downReachID',
                 'reachLat1',
-                'reachLat2', 'reachLon1',
+                'reachLat2',
+                'reachLon1',
                 'reachLon2',
                 'reachStart',
                 'reachCount',
@@ -48,23 +49,19 @@ allups_var_name = ['reachList',
 
 def read_ntopo(nc_in):
     ntopo_data = xr.open_dataset(nc_in)
-    return ntopo_data 
+    return ntopo_data
 
-
-def write_ntopo(ntopo_data, nc_out):
-    ntopo_data.to_netcdf(nc_out, format='NETCDF4')
-    return None
 
 def subset_ntopo(seg_id, in_data):
     """Find upstream segs of <seg_id> in network data <in_data>
-       extract inforation of upstream segs and return them in <out_data> 
+       extract inforation of upstream segs and return them in <out_data>
     """
-    print('Outlet segment = %s'%seg_id)
+    print('Outlet segment = %s' % seg_id)
 
     # Identify index of the desired stream segment from reachID vector
     reach_id_array = in_data['reachID'].values     # reach ID
     idx = np.where(reach_id_array == int(seg_id))
-    if np.size(idx) != 1:
+    if not idx:
         raise Exception('unable to find desired stream segment')
 
     # Split into separate datasets based on a dimension
@@ -79,15 +76,16 @@ def subset_ntopo(seg_id, in_data):
         if in_data[varname].dims[0] != 'sUps':
             ups_data = ups_data.drop(varname)
 
+    # To get number of all the upstream segments ('reachCount') and starting index in all the upstream segment list array.
     idx_rch_start = in_data['reachStart'].values[idx]-1
     n_rch_count = in_data['reachCount'].values[idx]
-    print 'Number of upstream segment from outlet segment (nRchCount) = %d'%n_rch_count
-                         
-    # Read reach list of index from global segments (all the upstream reachs for each segment) 
-    idxs_uprch_list = in_data['reachList'].values[idx_rch_start[0]:idx_rch_start[0]+n_rch_count[0]]
+    print 'Number of upstream segment from outlet segment (nRchCount) = %d' % n_rch_count
 
-    # Reach upstream segment and associated HRU infor from non-ragged vector 
-    seg_sub_data = seg_data.isel(sSeg = idxs_uprch_list-1)
+    # Read reach list of index from global segments (all the upstream reachs for each segment)
+    idxs_uprch_list = in_data['reachList'].isel(sAll=slice(idx_rch_start[0], idx_rch_start[0]+n_rch_count[0]))
+
+    # Reach upstream segment and associated HRU infor from non-ragged vector
+    seg_sub_data = seg_data.isel(sSeg = idxs_uprch_list.values-1)
     print 'upstream seg id list = ',seg_sub_data['reachID'].values
 
     # Redo index for 'reachIndx' as local segment list
@@ -103,25 +101,25 @@ def subset_ntopo(seg_id, in_data):
 
     # Assign downstream segment ID = 0 at desired outlet segment
     for iSeg, id_uprch in enumerate(seg_sub_data['reachID'].values):
-        if (id_uprch == int(seg_id)): 
-            seg_sub_data.data_vars['downReachID'][iSeg] = 0
-            seg_sub_data.data_vars['downReachIndex'][iSeg] = -9999 
+        if (id_uprch == int(seg_id)):
+            seg_sub_data['downReachID'][iSeg] = 0
+            seg_sub_data['downReachIndex'][iSeg] = -9999
 
-    # Reach upstream segment and associated HRU infor from ragged vector 
+    # Reach upstream segment and associated HRU infor from ragged vector
     uprch_len_list = []
     uprch_idx_list = []
     hru_data_list = []
     ups_data_list = []
-    for idx_uprch in idxs_uprch_list:
+    for idx_uprch in idxs_uprch_list.values:
         idx_uprch -= 1
         idx_rch_start_tmp = in_data['reachStart'].values[idx_uprch]-1
         n_rch_count_tmp = in_data['reachCount'].values[idx_uprch]
 
-        # sAll dimension 
+        # sAll dimension
         # upReachTotalLength
         uprch_len_list.append(in_data['upReachTotalLength'][idx_rch_start_tmp:idx_rch_start_tmp+n_rch_count_tmp])
 
-        # reachList 
+        # reachList
         reach_list_tmp = in_data['reachList'].values[idx_rch_start_tmp:idx_rch_start_tmp+n_rch_count_tmp]
         up_idx_array = np.full(n_rch_count_tmp, FILL_VALUE, dtype=np.int32)
         for ii, up_id in enumerate(in_data['reachID'].values[reach_list_tmp-1]):
@@ -130,13 +128,13 @@ def subset_ntopo(seg_id, in_data):
         uprch_idx_list.append(xr.DataArray(up_idx_array, dims=['sAll'], name='reachList'))
 
         # Recompute all the upstream segment indices as local segment list
-        # sUps dimension 
+        # sUps dimension
         idx_ups_start = in_data['upReachStart'].values[idx_uprch]-1
         n_ups_count = in_data['upReachCount'].values[idx_uprch]
         if (n_ups_count > 0):
              ups_data_list.append(ups_data.isel(sUps = range(idx_ups_start, idx_ups_start+n_ups_count)))
 
-        # sHrus dimension 
+        # sHrus dimension
         idx_uphru_start = in_data['upHruStart'].values[idx_uprch]-1
         n_uphru_count = in_data['upHruCount'].values[idx_uprch]
         if (n_uphru_count > 0):
@@ -164,7 +162,7 @@ def subset_ntopo(seg_id, in_data):
     up_idx_data = xr.concat(uprch_idx_list, dim='sAll')
     hru_sub_data = xr.concat(hru_data_list, dim='sHRU')
     ups_sub_data = xr.concat(ups_data_list, dim='sUps')
-    
+
     # Re-compute immediate upstream segment index as local segment list
     imm_up_idx_list = np.full(ups_sub_data['upReachID'].size, FILL_VALUE, dtype=np.int32)
     for ii, imm_up_id in enumerate(ups_sub_data['upReachID'].values):
@@ -212,8 +210,8 @@ if __name__ == '__main__':
 
         ntopo_data = read_ntopo(nc_in)
         sub_ntopo_data = subset_ntopo(seg_id, ntopo_data)
-        print sub_ntopo_data
-        write_ntopo(sub_ntopo_data, nc_out)
+        print(sub_ntopo_data)
+        sub_ntopo_data.to_netcdf(nc_out, format='NETCDF4')
 
     else:
         usage()
