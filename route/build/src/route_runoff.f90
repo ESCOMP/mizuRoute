@@ -64,6 +64,10 @@ USE remapping,   only : basin2reach           ! remap runoff from routing basins
 USE kwt_route,   only : QROUTE_RCH            ! kinematic wave routing method
 USE irf_route,   only : make_uh               ! network unit hydrograph
 
+! subroutines: river network unit hydrograph routing
+USE irf_route_module, only : make_uh          ! reach unit hydrograph
+USE irf_route_module, only : irf_route        ! river network unit hydrograph method
+
 ! ******
 ! define variables
 ! ************************
@@ -423,6 +427,18 @@ do iTime=1, nTime
  ! write routed runoff (m3/s)
  call write_nc(trim(fileout), 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,iTime/), (/nRch,1/), ierr, cmessage)
  if (ierr/=0) call handle_err(ierr,cmessage)
+
+ ! perform IRF routing
+ if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+  call irf_route(iens,                 & ! input: ensemble index
+                 nRch,                 & ! input: number of reach in the river network
+                 ixDesire,             & ! input: index of the desired reach
+                 ierr,cmessage)          ! output: error control
+  call handle_err(ierr,cmessage)
+  ! write routed runoff (m3/s)
+  call write_nc(trim(fileout), 'IRFroutedRunoff', RCHFLX(iens,:)%REACH_Q_IRF, (/1,iTime/), (/nRch,1/), ierr, cmessage)
+  call handle_err(ierr,cmessage)
+ endif
 
  ! increment time bounds
  T0 = T0 + dt
