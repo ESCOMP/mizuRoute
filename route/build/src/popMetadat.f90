@@ -140,7 +140,7 @@ contains
  meta_kwt    (ixKWT%q               ) = var_info('kwt_q'           , 'Kinematic wave routed flow'                     ,'m3/sec' ,ixStateDims%time     , .true.)
 
  ! Impulse Response Function                     varName             varDesc                                           unit,     varFile,        writeOut
- meta_irf    (ixIRF%qfuture         ) = var_info('qfuture'         , 'future flow series'                             ,'m3/sec' ,ixStateDims%tdh_irf , .true.)
+ meta_irf    (ixIRF%qfuture         ) = var_info('irf_qfuture'     , 'future flow series'                             ,'m3/sec' ,ixStateDims%tdh_irf , .true.)
  meta_irf    (ixIRF%q               ) = var_info('irf_q'           , 'irf routed flow'                                ,'m3/sec' ,ixStateDims%time    , .true.)
 
  ! Basin Impulse Response Function               varName             varDesc                                             unit,   varFile,        writeOut

@@ -61,8 +61,7 @@ USE remapping,   only : remap_runoff          ! remap runoff from input polygons
 USE remapping,   only : basin2reach           ! remap runoff from routing basins to routing reaches
 
 ! subroutines: routing
-USE kwt_route,   only : QROUTE_RCH            ! kinematic wave routing method
-USE irf_route,   only : make_uh               ! network unit hydrograph
+USE kwt_route_module,   only : QROUTE_RCH     ! kinematic wave routing method
 
 ! subroutines: river network unit hydrograph routing
 USE irf_route_module, only : make_uh          ! reach unit hydrograph
@@ -400,33 +399,35 @@ do iTime=1, nTime
  ! * Perform the routing...
  ! ************************
 
- ! route streamflow through the river network
- do iRch=1,nRch
+ if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
+  ! route streamflow through the river network
+  do iRch=1,nRch
 
-  ! identify reach to process
-  jRch = NETOPO(iRch)%RHORDER
+   ! identify reach to process
+   jRch = NETOPO(iRch)%RHORDER
 
-  ! check
-  if(reachId(jRch) == desireId)then
-   print*, 'reachRunoff(jRch), RPARAM(jRch)%BASAREA, RCHFLX(iens,jRch)%BASIN_QR(1) = ', &
-            reachRunoff(jRch), RPARAM(jRch)%BASAREA, RCHFLX(iens,jRch)%BASIN_QR(1)
-  endif
+   ! check
+   if(reachId(jRch) == desireId)then
+    print*, 'reachRunoff(jRch), RPARAM(jRch)%BASAREA, RCHFLX(iens,jRch)%BASIN_QR(1) = ', &
+             reachRunoff(jRch), RPARAM(jRch)%BASAREA, RCHFLX(iens,jRch)%BASIN_QR(1)
+   endif
 
-  ! route kinematic waves through the river network
-  call QROUTE_RCH(iens,jrch,           & ! input: array indices
-                  ixDesire,            & ! input: index of the desired reach
-                  ixOutlet,            & ! input: index of the outlet reach
-                  T0,T1,               & ! input: start and end of the time step
-                  MAXQPAR,             & ! input: maximum number of particle in a reach
-                  LAKEFLAG,            & ! input: flag if lakes are to be processed
-                  ierr,cmessage)         ! output: error control
+   ! route kinematic waves through the river network
+   call QROUTE_RCH(iens,jrch,           & ! input: array indices
+                   ixDesire,            & ! input: index of the desired reach
+                   ixOutlet,            & ! input: index of the outlet reach
+                   T0,T1,               & ! input: start and end of the time step
+                   MAXQPAR,             & ! input: maximum number of particle in a reach
+                   LAKEFLAG,            & ! input: flag if lakes are to be processed
+                   ierr,cmessage)         ! output: error control
+   if (ierr/=0) call handle_err(ierr,cmessage)
+
+  end do  ! (looping through stream segments)
+
+  ! write routed runoff (m3/s)
+  call write_nc(trim(fileout), 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,iTime/), (/nRch,1/), ierr, cmessage)
   if (ierr/=0) call handle_err(ierr,cmessage)
-
- end do  ! (looping through stream segments)
-
- ! write routed runoff (m3/s)
- call write_nc(trim(fileout), 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,iTime/), (/nRch,1/), ierr, cmessage)
- if (ierr/=0) call handle_err(ierr,cmessage)
+ endif
 
  ! perform IRF routing
  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then

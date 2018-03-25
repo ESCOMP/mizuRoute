@@ -569,8 +569,14 @@ CONTAINS
 
   do iVar=1,nVarsIRF
 
-   call write_nc(fname, trim(meta_irf(iVar)%varName), state(impulseResponseFunc)%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,ntdh_irf,nens/), ierr, cmessage)
-   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+   if (iVar==ixIRF%q) cycle  ! not writing out river flow in state file
+
+   select case(iVar)
+    case(ixIRF%qfuture)
+     call write_nc(fname, trim(meta_irf(iVar)%varName), state(impulseResponseFunc)%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,ntdh_irf,nens/), ierr, cmessage)
+    case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc writing'; return
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+   end select
 
   end do
 

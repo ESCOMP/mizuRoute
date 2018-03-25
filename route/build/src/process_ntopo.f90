@@ -347,9 +347,9 @@ contains
   NETOPO(iSeg)%RCHLON1 = realMissing     ! Start longitude
   NETOPO(iSeg)%RCHLON2 = realMissing     ! End longitude
 
-  ! NOT USED: time delay histogram
-  allocate(NETOPO(iSeg)%UPSLENG(0), NETOPO(iSeg)%UH(0), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'unable to allocate space for time delay histogram'; return; endif
+!  ! NOT USED: time delay histogram
+!  allocate(NETOPO(iSeg)%UPSLENG(0), NETOPO(iSeg)%UH(0), stat=ierr)
+!  if(ierr/=0)then; message=trim(message)//'unable to allocate space for time delay histogram'; return; endif
 
  end do  ! looping through stream segments
 

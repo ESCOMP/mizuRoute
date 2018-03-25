@@ -1,4 +1,4 @@
-module kwt_route
+module kwt_route_module
 
 use nrtype
 use nr_utility_module, only : arth                                 ! Num. Recipies utilities
@@ -1445,4 +1445,4 @@ contains
  return
  end subroutine
 
-end module kwt_route
+end module kwt_route_module

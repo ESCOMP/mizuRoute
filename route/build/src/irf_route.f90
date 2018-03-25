@@ -48,6 +48,7 @@ contains
  integer(i4b), intent(out)              :: ierr        ! error code
  character(*), intent(out)              :: message     ! error message
  ! Local variables to
+ INTEGER(I4B)                           :: ntdh        ! number of time steps in IRF
  INTEGER(I4B)                           :: iRch        ! reach segment index
  INTEGER(I4B)                           :: jRch        ! reach segment to be routed
  character(len=strLen)                  :: cmessage    ! error message from subroutine
@@ -63,6 +64,17 @@ contains
 
   ! identify reach to process
   jRch = NETOPO(iRch)%RHORDER
+
+  if (.not.allocated(RCHFLX(iens,jRch)%QFUTURE_IRF))then
+
+    ntdh = size(NETOPO(jRch)%UH)
+
+    allocate(RCHFLX(iens,jRch)%QFUTURE_IRF(ntdh), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage)//': RCHFLX(iens,ibas)%QFUTURE'; return; endif
+
+    RCHFLX(iens,jRch)%QFUTURE_IRF(:) = 0._dp
+
+   endif
 
   ! perform river network UH routing
   call conv_upsbas_qr(iEns,          & ! input: index of runoff ensemble to be processed
@@ -132,6 +144,7 @@ contains
  integer(i4b)                          :: iTagg         ! index for aggregated (i.e. simulation) time step
  integer(i4b),parameter                :: nTMAX=240     ! Maximum hour of UH [hr] - 10 days times 24hrs
  integer(i4b),parameter                :: nHr=240       ! Maximum hour of UH [hr] - 10 days times 24hrs
+ character(len=strLen)                 :: cmessage      ! error message from subroutine
 
  ! initialize error control
  ierr=0; message='make_uh/'
@@ -227,8 +240,9 @@ contains
   enddo
 
   !Aggregate hourly unit hydrograph to simulation time step
-  allocate(NETOPO(iSeg)%UH((iHrLast+nTsub-1)/nTsub),stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'unable to allocate space for UH%UH_DATA'; return; endif
+  allocate(NETOPO(iSeg)%UH((iHrLast+nTsub-1)/nTsub),stat=ierr,errmsg=cmessage)
+  !if(ierr/=0)then; message=trim(message)//'unable to allocate space for UH%UH_DATA'; return; endif
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   NETOPO(iSeg)%UH(:)=0._dp
   do jHr = 1,iHrLast
     iTagg = (jHr+nTsub-1)/nTsub
