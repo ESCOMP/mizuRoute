@@ -76,16 +76,16 @@ CONTAINS
 
  ! routing specific variables
  call read_IRFbas_state(ierr, cmessage)
- if(ierr/=0) message=trim(message)//trim(cmessage); return
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  if (opt==allRoutingMethods .or. opt==kinematicWave) then
-  call read_IRF_state(ierr, cmessage)
-  if(ierr/=0) message=trim(message)//trim(cmessage); return
+  call read_KWT_state(ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  endif
 
  if (opt==allRoutingMethods .or. opt==impulseResponseFunc) then
   call read_IRF_state(ierr, cmessage)
-  if(ierr/=0) message=trim(message)//trim(cmessage); return
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
  CONTAINS
@@ -109,10 +109,10 @@ CONTAINS
   ierr=0; message1='read_IRFbas_state/'
 
   call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%tdh)%dimName), ntdh, ierr, cmessage)
-  if(ierr/=0) message1=trim(message1)//trim(cmessage); return
+  if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   allocate(state(0)%var(nVarsIRFbas), stat=ierr, errmsg=cmessage)
-  if(ierr/=0) message1=trim(message1)//trim(cmessage); return
+  if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsIRFbas
 
@@ -139,7 +139,8 @@ CONTAINS
   do iens=1,nens
    do iSeg=1,nSeg
 
-    allocate(RCHFLX(iens,iSeg)%QFUTURE(ntdh), stat=ierr)
+    allocate(RCHFLX(iens,iSeg)%QFUTURE(ntdh), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
     do iVar=1,nVarsIRFbas
 
@@ -183,18 +184,23 @@ CONTAINS
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsIRF
+
    if (iVar==ixIRF%q) cycle
+
    select case(iVar)
     case(ixIRF%qfuture); allocate(state(impulseResponseFunc)%var(iVar)%array_3d_dp(nSeg, ntdh_irf, nens), stat=ierr)
     case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
    end select
    if(ierr/=0)then; message1=trim(message1)//'problem allocating space for IRF routing state '//trim(meta_irf(iVar)%varName); return; endif
+
   end do
 
   call get_nc(fname,'numQF',numQF,(/1,1/),(/nSeg,nens/),ierr,cmessage)
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsIRF
+
+   if (iVar==ixIRF%q) cycle
 
    select case(iVar)
     case(ixIRF%qfuture); call get_nc(fname, meta_irf(iVar)%varName, state(impulseResponseFunc)%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,ntdh_irf,nens/), ierr, cmessage)
@@ -207,7 +213,8 @@ CONTAINS
   do iens=1,nens
    do iSeg=1,nSeg
 
-    allocate(RCHFLX(iens,iSeg)%QFUTURE_IRF(numQF(iens,iSeg)), stat=ierr)
+    allocate(RCHFLX(iens,iSeg)%QFUTURE_IRF(numQF(iens,iSeg)), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
     do iVar=1,nVarsIRF
 
@@ -250,11 +257,13 @@ CONTAINS
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   ! get Dimension sizes
-  call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%wave)%dimName), nwave,   ierr, cmessage)
+  call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%wave)%dimName), nwave, ierr, cmessage)
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsKWT
+
     if (iVar==ixKWT%q) cycle  ! not writing out river flow in state file
+
     select case(iVar)
      case(ixKWT%routed); allocate(state(kinematicWave)%var(iVar)%array_3d_int(nSeg, nwave, nens), stat=ierr)
      case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
@@ -291,10 +300,10 @@ CONTAINS
      if (iVar==ixKWT%q) cycle ! not writing out KWT routed flow
 
      select case(iVar)
-      case(ixKWT%tentry);    KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%QF = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
-      case(ixKWT%texit);     KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%QM = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
-      case(ixKWT%qwave);     KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%TI = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
-      case(ixKWT%qwave_mod); KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%TR = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
+      case(ixKWT%tentry);    KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%TI = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
+      case(ixKWT%texit);     KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%TR = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
+      case(ixKWT%qwave);     KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%QF = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
+      case(ixKWT%qwave_mod); KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%QM = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
       case(ixKWT%routed) ! this is suppposed to be logical variable, but put it as 0 or 1 in double now
        if (allocated(RFvec)) deallocate(RFvec, stat=ierr)
        allocate(RFvec(0:numWaves(iens,iSeg)-1),stat=ierr)
