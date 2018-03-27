@@ -1,7 +1,9 @@
 module process_ntopo
 
 ! data types
-USE nrtype                                ! variable types, etc.
+USE nrtype,    only : i4b,dp              ! variable types, etc.
+USE nrtype,    only : strLen              ! length of characters
+USE nrtype,    only : realMissing         ! missing value for real
 USE nrtype,    only : integerMissing      ! missing value for integers
 USE dataTypes, only : var_ilength         ! integer type:          var(:)%dat
 USE dataTypes, only : var_dlength         ! double precision type: var(:)%dat

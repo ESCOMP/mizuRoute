@@ -1,5 +1,6 @@
 module dataTypes
-USE nrtype
+USE nrtype, only: i4b,dp,lgt
+USE nrtype, only: integerMissing
 USE nrtype, only: strLen   ! string length
 ! used to create specific data types
 ! --

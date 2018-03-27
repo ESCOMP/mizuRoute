@@ -1,7 +1,7 @@
 module write_streamSeg
 
 ! data types
-USE nrtype
+USE nrtype,    only : i4b,dp,lgt
 USE nrtype,    only : strLen               ! string length
 USE nrtype,    only : integerMissing       ! missing value for integers
 USE dataTypes, only : var_ilength          ! integer type:          var(:)%dat
