@@ -62,6 +62,15 @@ module globalData
   real(dp)                       , public :: time_conv                  ! time conversion factor -- used to convert to mm/s
   real(dp)                       , public :: length_conv                ! length conversion factor -- used to convert to mm/s
 
+  ! ---------- routing parameter names -------------------------------------------------------------------
+
+  real(dp)                      :: fshape                               ! shape parameter in time delay histogram (=gamma distribution) [-]
+  real(dp)                      :: tscale                               ! scaling factor for the time delay histogram [sec]
+  real(dp)                      :: velo                                 ! velocity [m/s] for Saint-Venant equation   added by NM
+  real(dp)                      :: diff                                 ! diffusivity [m2/s] for Saint-Venant equation   added by NM
+  real(dp)                      :: mann_n                               ! manning's roughness coefficient [unitless]  added by NM
+  real(dp)                      :: wscale                               ! scaling factor for river width [-] added by NM
+
   ! ---------- general structure information --------------------------------------------------------
 
   type(struct_info)              , public :: meta_struct(nStructures)   ! metadata on the data structures
