@@ -55,6 +55,7 @@ contains
                       tot_hru,       & ! input: total number of all the upstream hrus for all stream segments
                       tot_upseg,     & ! input: total number of immediate upstream segments for all  stream segments
                       tot_upstream,  & ! input: total number of all of the upstream stream segments for all stream segments
+                      tot_uh,        & ! input: total number of all of unit hydrographs for all the segments
                       ! input: reach masks
                       ixHRU_desired, & ! input: indices of desired hrus
                       ixSeg_desired, & ! input: indices of desired reaches
@@ -72,6 +73,7 @@ contains
  integer(i4b)      , intent(in)      :: tot_hru          ! total number of all the upstream hrus for all stream segments
  integer(i4b)      , intent(in)      :: tot_upseg        ! total number of immediate upstream segments for all  stream segments
  integer(i4b)      , intent(in)      :: tot_upstream     ! total number of all of the upstream stream segments for all stream segments
+ integer(i4b)      , intent(in)      :: tot_uh           ! total number of all of the unit hydrograph for all stream segments
  ! input: reach masks
  integer(i4b)      , intent(in)      :: ixHRU_desired(:) ! indices of desired hrus
  integer(i4b)      , intent(in)      :: ixSeg_desired(:) ! indices of desired reaches
@@ -99,6 +101,7 @@ contains
  meta_dims(ixDims%upHRU)%dimLength =  tot_hru               ! upstream HRUs
  meta_dims(ixDims%upSeg)%dimLength =  tot_upseg             ! immediate upstream segments
  meta_dims(ixDims%upAll)%dimLength =  tot_upstream          ! all upstream segments
+ meta_dims(ixDims%uh   )%dimLength =  tot_uh                ! all unit hydrograph
 
  ! create NetCDF file
  call createFile(trim(fname),ierr,cmessage)
