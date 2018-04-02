@@ -250,7 +250,6 @@ contains
     iTagg = (jHr+nTsub-1)/nTsub
     seg_uh(iSeg)%dat(iTagg) = seg_uh(iSeg)%dat(iTagg) + UHQ(jHr)
   end do
-  print*,iSeg, seg_length, seg_uh(iSeg)%dat(:)
  end do ! sSeg loop
 
  end subroutine make_uh
