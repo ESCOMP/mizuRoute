@@ -150,19 +150,20 @@ CONTAINS
    character(*), intent(out)  :: message1       ! error message
    ! local
    integer(i4b)               :: iVar          ! index loop for variables
-   character(len=strLen)      :: dim_IRFbas(3) ! dimensions combination case 4
-   character(len=strLen)      :: dim_q(2)      ! dimensions combination case 4
+   character(len=strLen)      :: dim_IRFbas(4) ! dimensions combination case 4
+   character(len=strLen)      :: dim_q(3)      ! dimensions combination case 4
 
    ! initialize error control
    ierr=0; message1='define_IRFbas_state/'
 
    associate(dim_seg    => meta_stateDims(ixStateDims%seg)%dimName,     &
              dim_ens    => meta_stateDims(ixStateDims%ens)%dimName,     &
+             dim_time   => meta_stateDims(ixStateDims%time)%dimName,    &
              dim_tdh    => meta_stateDims(ixStateDims%tdh)%dimName)
 
    ! Array dimension sets
-   dim_IRFbas(:) = (/dim_seg, dim_tdh, dim_ens/)
-   dim_q(:)      = (/dim_seg, dim_ens/)
+   dim_IRFbas(:) = (/dim_seg, dim_tdh, dim_ens, dim_time/)
+   dim_q(:)      = (/dim_seg, dim_ens, dim_time/)
 
    ! Check dimension length is populated
    if (meta_stateDims(ixStateDims%tdh)%dimLength == integerMissing) then
@@ -195,16 +196,17 @@ CONTAINS
    character(*), intent(out)  :: message1     ! error message
    ! local
    integer(i4b)               :: iVar        ! index loop for variables
-   character(len=strLen)      :: dim_kwt(3)  ! dimensions combination case 4
+   character(len=strLen)      :: dim_kwt(4)  ! dimensions combination case 4
 
    ! initialize error control
    ierr=0; message1='define_KWT_state/'
 
    associate(dim_seg     => meta_stateDims(ixStateDims%seg)%dimName,     &
              dim_ens     => meta_stateDims(ixStateDims%ens)%dimName,     &
+             dim_time    => meta_stateDims(ixStateDims%time)%dimName,    &
              dim_wave    => meta_stateDims(ixStateDims%wave)%dimName)
 
-   dim_kwt(:) = (/dim_seg, dim_wave, dim_ens/)
+   dim_kwt(:) = (/dim_seg, dim_wave, dim_ens, dim_time/)
 
    ! Check dimension length is populated
    if (meta_stateDims(ixStateDims%wave)%dimLength == integerMissing) then
@@ -216,7 +218,7 @@ CONTAINS
    ierr = nf90_def_dim(ncid, trim(meta_stateDims(ixStateDims%wave)%dimName), meta_stateDims(ixStateDims%wave)%dimLength ,meta_stateDims(ixStateDims%wave)%dimId)
    if(ierr/=0)then; message1=trim(message1)//trim(nf90_strerror(ierr)); return; endif
 
-   call defvar(ncid,'numWaves', 'number of waves in a reach', '-', (/dim_seg, dim_ens/), nf90_int,ierr,cmessage)
+   call defvar(ncid,'numWaves', 'number of waves in a reach', '-', (/dim_seg,dim_ens,dim_time/), nf90_int,ierr,cmessage)
    if(ierr/=0)then; message1=trim(message1)//trim(nf90_strerror(ierr)); return; endif
 
    do iVar=1,nVarsKWT
@@ -249,15 +251,16 @@ CONTAINS
    character(*), intent(out)  :: message1     ! error message
    ! local
    integer(i4b)               :: iVar        ! index loop for variables
-   character(len=strLen)      :: dim_irf(3)  ! dimensions combination case 4
+   character(len=strLen)      :: dim_irf(4)  ! dimensions combination case 4
    ! initialize error control
    ierr=0; message1='define_IRF_state/'
 
    associate(dim_seg     => meta_stateDims(ixStateDims%seg)%dimName,     &
              dim_ens     => meta_stateDims(ixStateDims%ens)%dimName,     &
+             dim_time    => meta_stateDims(ixStateDims%time)%dimName,    &
              dim_tdh_irf => meta_stateDims(ixStateDims%tdh_irf)%dimName)
 
-   dim_irf(:) = (/dim_seg, dim_tdh_irf, dim_ens/)
+   dim_irf(:) = (/dim_seg, dim_tdh_irf, dim_ens, dim_time/)
 
    if (meta_stateDims(ixStateDims%tdh_irf)%dimLength == integerMissing) then
      call set_dim_len(ixStateDims%tdh_irf, ierr, cmessage)
@@ -268,7 +271,7 @@ CONTAINS
    ierr = nf90_def_dim(ncid, trim(meta_stateDims(ixStateDims%tdh_irf)%dimName), meta_stateDims(ixStateDims%tdh_irf)%dimLength ,meta_stateDims(ixStateDims%tdh_irf)%dimId)
    if(ierr/=0)then; message1=trim(message1)//trim(nf90_strerror(ierr)); return; endif
 
-   call defvar(ncid,'numQF','number of future q time steps in a reach','-',(/dim_seg, dim_ens/), nf90_int, ierr,cmessage)
+   call defvar(ncid,'numQF','number of future q time steps in a reach','-',(/dim_seg,dim_ens,dim_time/), nf90_int, ierr,cmessage)
    if(ierr/=0)then; message1=trim(message1)//trim(nf90_strerror(ierr)); return; endif
 
    do iVar=1,nVarsIRF
@@ -405,8 +408,8 @@ CONTAINS
   do iVar=1,nVarsIRFbas
 
    select case(iVar)
-    case(ixIRFbas%q);       call write_nc(fname, meta_irf_bas(iVar)%varName, state(0)%var(iVar)%array_2d_dp, (/1,1/), (/nSeg,nens/), ierr, cmessage)
-    case(ixIRFbas%qfuture); call write_nc(fname, meta_irf_bas(iVar)%varName, state(0)%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,ntdh,nens/), ierr, cmessage)
+    case(ixIRFbas%q);       call write_nc(fname, meta_irf_bas(iVar)%varName, state(0)%var(iVar)%array_2d_dp, (/1,1,iTime/), (/nSeg,nens,1/), ierr, cmessage)
+    case(ixIRFbas%qfuture); call write_nc(fname, meta_irf_bas(iVar)%varName, state(0)%var(iVar)%array_3d_dp, (/1,1,1,iTime/), (/nSeg,ntdh,nens,1/), ierr, cmessage)
     case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF variable index for nc writing'; return
    end select
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -484,7 +487,7 @@ CONTAINS
   enddo ! ensemble loop
 
   ! Writing netCDF
-  call write_nc(fname, 'numWaves', numWaves, (/1,1/), (/nSeg,nens/), ierr, cmessage)
+  call write_nc(fname, 'numWaves', numWaves, (/1,1,iTime/), (/nSeg,nens,1/), ierr, cmessage)
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsKWT
@@ -493,9 +496,9 @@ CONTAINS
 
     select case(iVar)
      case(ixKWT%routed)
-       call write_nc(fname, trim(meta_kwt(iVar)%varName), state(kinematicWave)%var(iVar)%array_3d_int, (/1,1,1/), (/nSeg,nwave,nens/), ierr, cmessage)
+       call write_nc(fname, trim(meta_kwt(iVar)%varName), state(kinematicWave)%var(iVar)%array_3d_int, (/1,1,1,iTime/), (/nSeg,nwave,nens,1/), ierr, cmessage)
      case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
-      call write_nc(fname, trim(meta_kwt(iVar)%varName), state(kinematicWave)%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nwave,nens/), ierr, cmessage)
+      call write_nc(fname, trim(meta_kwt(iVar)%varName), state(kinematicWave)%var(iVar)%array_3d_dp, (/1,1,1,iTime/), (/nSeg,nwave,nens,1/), ierr, cmessage)
      case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc writing'; return
     end select
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -564,7 +567,7 @@ CONTAINS
   enddo ! ensemble loop
 
   ! writing netcdf
-  call write_nc(fname, 'numQF', numQF, (/1,1/), (/nSeg,nens/), ierr, cmessage)
+  call write_nc(fname, 'numQF', numQF, (/1,1,iTime/), (/nSeg,nens,1/), ierr, cmessage)
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsIRF
@@ -573,7 +576,7 @@ CONTAINS
 
    select case(iVar)
     case(ixIRF%qfuture)
-     call write_nc(fname, trim(meta_irf(iVar)%varName), state(impulseResponseFunc)%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,ntdh_irf,nens/), ierr, cmessage)
+     call write_nc(fname, trim(meta_irf(iVar)%varName), state(impulseResponseFunc)%var(iVar)%array_3d_dp, (/1,1,1,iTime/), (/nSeg,ntdh_irf,nens,1/), ierr, cmessage)
     case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc writing'; return
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
    end select
