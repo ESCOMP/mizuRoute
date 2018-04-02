@@ -37,7 +37,7 @@ USE popMetadat_module, only : popMetadat      ! populate metadata
 
 ! subroutines: model control
 USE read_control_module, only : read_control  ! read the control file
-USE ascii_util_module, only : file_open       ! open file (performs a few checks as well)
+USE read_param_module,   only : read_param    ! read the routing parameters
 
 ! subroutines: netcdf output
 USE write_simoutput, only : defineFile        ! define netcdf output file
@@ -51,8 +51,8 @@ USE process_ntopo, only : ntopo               ! process the network topology
 USE getAncillary_module, only : getAncillary  ! get ancillary data
 
 ! subroutines: basin routing
-USE basinUH_module, only : basinUH, &         ! basin unit hydrograph
-                           IRF_route_basin    ! perform UH convolution for basin routing
+!USE basinUH_module, only : basinUH, &         ! basin unit hydrograph
+USE basinUH_module, only : IRF_route_basin    ! perform UH convolution for basin routing
 
 ! subroutines: get runoff for each basin in the routing layer
 USE read_runoff, only : get_runoff            ! read simulated runoff data
@@ -63,7 +63,7 @@ USE remapping,   only : basin2reach           ! remap runoff from routing basins
 USE kwt_route_module,   only : kwt_route     ! kinematic wave routing method
 
 ! subroutines: river network unit hydrograph routing
-USE irf_route_module, only : make_uh          ! reach unit hydrograph
+!USE irf_route_module, only : make_uh          ! reach unit hydrograph
 USE irf_route_module, only : irf_route        ! river network unit hydrograph method
 
 ! ******
@@ -95,7 +95,6 @@ type(var_ilength),allocatable :: structNTOPO(:)      ! network topology
 
 ! read control file
 character(len=strLen)         :: cfile_name          ! name of the control file
-integer(i4b)                  :: iunit               ! file unit
 
 ! define desired reaches
 integer(i4b)                  :: nHRU                ! number of HRUs
@@ -116,17 +115,6 @@ real(dp)    , allocatable     :: basinRunoff(:)      ! basin runoff (m/s)
 real(dp)    , allocatable     :: reachRunoff(:)      ! reach runoff (m/s)
 integer(i4b)                  :: ixDesire            ! desired reach index
 integer(i4b)                  :: ixOutlet            ! outlet reach index
-
-! namelist parameters
-real(dp)                      :: fshape              ! shape parameter in time delay histogram (=gamma distribution) [-]
-real(dp)                      :: tscale              ! scaling factor for the time delay histogram [sec]
-real(dp)                      :: velo                ! velocity [m/s] for Saint-Venant equation   added by NM
-real(dp)                      :: diff                ! diffusivity [m2/s] for Saint-Venant equation   added by NM
-real(dp)                      :: mann_n              ! manning's roughness coefficient [unitless]  added by NM
-real(dp)                      :: wscale              ! scaling factor for river width [-] added by NM
-namelist /HSLOPE/fshape,tscale  ! route simulated runoff through the local basin
-namelist /IRF_UH/velo,diff      ! route delayed runoff through river network with St.Venant UH
-namelist /KWT/mann_n,wscale     ! route kinematic waves through the river network
 
 ! ======================================================================================================
 ! ======================================================================================================
@@ -157,13 +145,9 @@ if(len_trim(cfile_name)==0) call handle_err(50,'need to supply name of the contr
 call read_control(trim(cfile_name), ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
-! read the name list
-call file_open(trim(param_nml),iunit,ierr,cmessage)
+! read the routing parameter namelist
+call read_param(trim(param_nml),ierr,cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
-read(iunit, nml=HSLOPE)
-read(iunit, nml=IRF_UH)
-read(iunit, nml=KWT)
-close(iunit)
 
 ! *****
 ! *** Process the network topology...
@@ -184,30 +168,32 @@ call ntopo(&
 if(ierr/=0) call handle_err(ierr, cmessage)
 !print*, 'PAUSE: after getting network topology'; read(*,*)
 
-! specify some additional routing parameters (temporary "fix")
-! NOTE: include here because using namelist parameters
-if(hydGeometryOption==compute)then
- if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
-  RPARAM(:)%R_WIDTH = wscale * sqrt(RPARAM(:)%TOTAREA)  ! channel width (m)
-  RPARAM(:)%R_MAN_N = mann_n                            ! Manning's "n" paramater (unitless)
- end if
-endif  ! computing network topology
+!   ! specify some additional routing parameters (temporary "fix")
+!   ! NOTE: include here because using namelist parameters
+!   if(hydGeometryOption==compute)then
+!    if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
+!     structSeg(:)%var(ixSEG%width)%dat(1) = wscale * sqrt(RPARAM(:)%TOTAREA)  ! channel width (m)
+!     structSeg(:)%var(ixSEG%man_n)%dat(1) = mann_n                            ! Manning's "n" paramater (unitless)
+!   !  RPARAM(:)%R_WIDTH = wscale * sqrt(RPARAM(:)%TOTAREA)  ! channel width (m)
+!   !  RPARAM(:)%R_MAN_N = mann_n                            ! Manning's "n" paramater (unitless)
+!    end if
+!   endif  ! computing network topology
 
 ! *****
 ! *** Get ancillary data for routing...
 ! *************************************
 
-! compute the time-delay histogram (to route runoff within basins)
-! NOTE: allocates and populates global data FRAC_FUTURE
-call basinUH(dt, fshape, tscale, ierr, cmessage)
-call handle_err(ierr, cmessage)
-
-! For IRF routing scheme: Compute unit hydrograph for each segment
-! NOTE: include here because using namelist parameters
-if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
- call make_uh(nRch, dt, velo, diff, ierr, cmessage)
- call handle_err(ierr, cmessage)
-end if
+!! compute the time-delay histogram (to route runoff within basins)
+!! NOTE: allocates and populates global data FRAC_FUTURE
+!call basinUH(dt, fshape, tscale, ierr, cmessage)
+!call handle_err(ierr, cmessage)
+!
+!! For IRF routing scheme: Compute unit hydrograph for each segment
+!! NOTE: include here because using namelist parameters
+!if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+! call make_uh(nRch, dt, velo, diff, ierr, cmessage)
+! call handle_err(ierr, cmessage)
+!end if
 
 ! get ancillary data for routing
 call getAncillary(&
@@ -299,6 +285,14 @@ ixDesire = findIndex(reachID,desireId,integerMissing)
 
 ! find index of outlet reach
 ixOutlet = findIndex(reachID,idSegOut,integerMissing)
+
+! *****
+! * Restart file output
+! ************************
+! Note: Write routing states for the entire network at one time step
+ ! Define state netCDF
+ call define_state_nc(trim(output_dir)//trim(fname_state_out), time_units, routOpt, ierr, cmessage)
+ if(ierr/=0) call handle_err(ierr, cmessage)
 
 ! *****
 ! *** Route runoff...
@@ -422,14 +416,6 @@ do iTime=1, nTime
  !print*, 'PAUSE: after routing'; read(*,*)
 
 end do  ! looping through time
-
-! *****
-! * Restart file output
-! ************************
-! Note: Write routing states for the entire network at one time step
- ! Define state netCDF
- call define_state_nc(trim(output_dir)//trim(fname_state_out), time_units, routOpt, ierr, cmessage)
- if(ierr/=0) call handle_err(ierr, cmessage)
 
  ! Write states to netCDF
  call write_state_nc(trim(output_dir)//trim(fname_state_out), routOpt, runoff_data%time, 1, T0, T1, reachID, ierr, cmessage)
