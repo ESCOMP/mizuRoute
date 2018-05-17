@@ -404,10 +404,15 @@ contains
   NETOPO(iSeg)%RCHLON1 = realMissing     ! Start longitude
   NETOPO(iSeg)%RCHLON2 = realMissing     ! End longitude
 
-!  ! NOT USED: UPSLENG : NETOPO(iSeg)%UPSLENG(0),
-  allocate(NETOPO(iSeg)%UH(size(structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat)), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'unable to allocate space for time delay histogram'; return; endif
+  ! reach unit hydrograph
+  allocate(NETOPO(iSeg)%UH(size(structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat)), stat=ierr, errmsg=cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': 'NETOPO(iSeg)%UH; return; endif
   NETOPO(iSeg)%UH(:) =  structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat(:)
+
+  ! upstream reach list
+  allocate(NETOPO(iSeg)%RCHLIST(size(structNTOPO(iSeg)%var(ixNTOPO%allUpSegIndices)%dat)), stat=ierr, errmsg=cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': NETOPO(iSeg)%RCHLIST'; return; endif
+  NETOPO(iSeg)%RCHLIST(:) =  structNTOPO(iSeg)%var(ixNTOPO%allUpSegIndices)%dat(:)
 
  end do  ! looping through stream segments
 

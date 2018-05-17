@@ -15,7 +15,6 @@ USE dataTypes,  only : runoff                 ! runoff data type
 
 ! global data
 USE public_var
-USE globalData, only : RPARAM                 ! reach parameter structure
 USE globalData, only : RCHFLX                 ! reach flux structure
 USE globalData, only : KROUTE                 ! routing states
 
@@ -51,7 +50,6 @@ USE process_ntopo, only : ntopo               ! process the network topology
 USE getAncillary_module, only : getAncillary  ! get ancillary data
 
 ! subroutines: basin routing
-!USE basinUH_module, only : basinUH, &         ! basin unit hydrograph
 USE basinUH_module, only : IRF_route_basin    ! perform UH convolution for basin routing
 
 ! subroutines: get runoff for each basin in the routing layer
@@ -59,12 +57,10 @@ USE read_runoff, only : get_runoff            ! read simulated runoff data
 USE remapping,   only : remap_runoff          ! remap runoff from input polygons to routing basins
 USE remapping,   only : basin2reach           ! remap runoff from routing basins to routing reaches
 
-! subroutines: routing
-USE kwt_route_module,   only : kwt_route     ! kinematic wave routing method
-
-! subroutines: river network unit hydrograph routing
-!USE irf_route_module, only : make_uh          ! reach unit hydrograph
-USE irf_route_module, only : irf_route        ! river network unit hydrograph method
+! subroutines: river routing
+USE accum_runoff_module, only : accum_runoff  ! upstream flow accumulation
+USE kwt_route_module,    only : kwt_route     ! kinematic wave routing method
+USE irf_route_module,    only : irf_route     ! river network unit hydrograph method
 
 ! ******
 ! define variables
@@ -113,6 +109,7 @@ integer(i4b), allocatable     :: basinID(:)          ! basin ID
 integer(i4b), allocatable     :: reachID(:)          ! reach ID
 real(dp)    , allocatable     :: basinRunoff(:)      ! basin runoff (m/s)
 real(dp)    , allocatable     :: reachRunoff(:)      ! reach runoff (m/s)
+integer(i4b), parameter       :: doesBasinRoute=1    ! integer to specify runoff input type (0 -> runoff input is already delayed, 1 -> runoff input is instantaneous)
 integer(i4b)                  :: ixDesire            ! desired reach index
 integer(i4b)                  :: ixOutlet            ! outlet reach index
 
@@ -168,32 +165,9 @@ call ntopo(&
 if(ierr/=0) call handle_err(ierr, cmessage)
 !print*, 'PAUSE: after getting network topology'; read(*,*)
 
-!   ! specify some additional routing parameters (temporary "fix")
-!   ! NOTE: include here because using namelist parameters
-!   if(hydGeometryOption==compute)then
-!    if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
-!     structSeg(:)%var(ixSEG%width)%dat(1) = wscale * sqrt(RPARAM(:)%TOTAREA)  ! channel width (m)
-!     structSeg(:)%var(ixSEG%man_n)%dat(1) = mann_n                            ! Manning's "n" paramater (unitless)
-!   !  RPARAM(:)%R_WIDTH = wscale * sqrt(RPARAM(:)%TOTAREA)  ! channel width (m)
-!   !  RPARAM(:)%R_MAN_N = mann_n                            ! Manning's "n" paramater (unitless)
-!    end if
-!   endif  ! computing network topology
-
 ! *****
 ! *** Get ancillary data for routing...
 ! *************************************
-
-!! compute the time-delay histogram (to route runoff within basins)
-!! NOTE: allocates and populates global data FRAC_FUTURE
-!call basinUH(dt, fshape, tscale, ierr, cmessage)
-!call handle_err(ierr, cmessage)
-!
-!! For IRF routing scheme: Compute unit hydrograph for each segment
-!! NOTE: include here because using namelist parameters
-!if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
-! call make_uh(nRch, dt, velo, diff, ierr, cmessage)
-! call handle_err(ierr, cmessage)
-!end if
 
 ! get ancillary data for routing
 call getAncillary(&
@@ -289,7 +263,7 @@ ixOutlet = findIndex(reachID,idSegOut,integerMissing)
 ! *****
 ! * Restart file output
 ! ************************
-! Note: Write routing states for the entire network at one time step
+
  ! Define state netCDF
  call define_state_nc(trim(output_dir)//trim(fname_state_out), time_units, routOpt, ierr, cmessage)
  if(ierr/=0) call handle_err(ierr, cmessage)
@@ -308,7 +282,7 @@ do iTime=1, nTime
  ! get the simulated runoff for the current time step
  call get_runoff(trim(input_dir)//trim(fname_qsim), & ! input: filename
                  iTime,                             & ! input: time index
-                 nSpatial,                          &  ! input:number of HRUs
+                 nSpatial,                          & ! input:number of HRUs
                  runoff_data%time,                  & ! output: time
                  runoff_data%qSim,                  & ! output: runoff data
                  ierr, cmessage)                      ! output: error control
@@ -343,29 +317,29 @@ do iTime=1, nTime
                   structNTOPO,       & ! intent(in):  Network topology structure
                   structSEG,         & ! intent(in):  Network attributes structure
                   ! output
-                  reachRunoff,       & ! intent(out): reach runoff (m/s)
+                  reachRunoff,       & ! intent(out): reach runoff (m3/s)
                   ierr, cmessage)      ! intent(out): error control
  if(ierr/=0) call handle_err(ierr,cmessage)
 
-! ! NOTE: Use BASIN_QR here because input runoff is already routed
-! RCHFLX(iens,:)%BASIN_QR(0) = RCHFLX(iens,:)%BASIN_QR(1)       ! streamflow from previous step
-! RCHFLX(iens,:)%BASIN_QR(1) = reachRunoff(:)*RPARAM(:)%BASAREA ! streamflow (m3/s)
+ if (doesBasinRoute == 1) then
 
- ! convert runoff to m3/s
- RCHFLX(iens,:)%BASIN_QI = reachRunoff(:)*RPARAM(:)%BASAREA ! instantaneous runoff (m3/s)
+  ! instantaneous runoff volume (m3/s) to data structure
+  RCHFLX(iens,:)%BASIN_QI = reachRunoff(:)
 
- ! ensure that routed streamflow is non-zero
- do iRch=1,nRch
-  if(RCHFLX(iens,iRch)%BASIN_QI < runoffMin) RCHFLX(iens,iRch)%BASIN_QI = runoffMin
- end do
+  ! write instataneous local runoff in each stream segment (m3/s)
+  call write_nc(trim(output_dir)//trim(fname_output), 'instRunoff', RCHFLX(iens,:)%BASIN_QI, (/1,iTime/), (/nRch,1/), ierr, cmessage)
+  call handle_err(ierr,cmessage)
 
- ! write instataneous local runoff in each stream segment (m3/s)
- call write_nc(trim(output_dir)//trim(fname_output), 'instRunoff', RCHFLX(iens,:)%BASIN_QI, (/1,iTime/), (/nRch,1/), ierr, cmessage)
- call handle_err(ierr,cmessage)
+  ! perform Basin routing
+  call IRF_route_basin(iens, nRch, ierr, cmessage)
+  call handle_err(ierr,cmessage)
 
- ! perform Basin routing
- call IRF_route_basin(iens, nRch, ierr, cmessage)
- call handle_err(ierr,cmessage)
+ else
+
+  RCHFLX(iens,:)%BASIN_QR(0) = RCHFLX(iens,:)%BASIN_QR(1)       ! streamflow from previous step
+  RCHFLX(iens,:)%BASIN_QR(1) = reachRunoff(:)                   ! streamflow (m3/s)
+
+ end if
 
  ! write routed local runoff in each stream segment (m3/s)
  call write_nc(trim(output_dir)//trim(fname_output), 'dlayRunoff', RCHFLX(iens,:)%BASIN_QR(1), (/1,iTime/), (/nRch,1/), ierr, cmessage)
@@ -376,6 +350,17 @@ do iTime=1, nTime
  ! *****
  ! * Perform the routing...
  ! ************************
+
+ ! perform upstream flow accumulation
+ call accum_runoff(iens,          &    ! input: ensemble index
+                   nRch,          &    ! input: number of reaches in the river network
+                   ixDesire,      &    ! input: index of verbose reach
+                   ierr, cmessage)     ! output: error controls
+ call handle_err(ierr,cmessage)
+
+ ! write accumulated runoff (m3/s)
+ call write_nc(trim(output_dir)//trim(fname_output), 'sumUpstreamRunoff', RCHFLX(iens,:)%UPSTREAM_QI, (/1,iTime/), (/nRch,1/), ierr, cmessage)
+ if (ierr/=0) call handle_err(ierr,cmessage)
 
  ! perform KWT routing
  if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
@@ -417,9 +402,9 @@ do iTime=1, nTime
 
 end do  ! looping through time
 
- ! Write states to netCDF
- call write_state_nc(trim(output_dir)//trim(fname_state_out), routOpt, runoff_data%time, 1, T0, T1, reachID, ierr, cmessage)
- if(ierr/=0) call handle_err(ierr, cmessage)
+! Write states to netCDF
+call write_state_nc(trim(output_dir)//trim(fname_state_out), routOpt, runoff_data%time, 1, T0, T1, reachID, ierr, cmessage)
+if(ierr/=0) call handle_err(ierr, cmessage)
 
 stop
 

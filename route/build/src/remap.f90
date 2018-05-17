@@ -172,6 +172,7 @@ module remapping
    associate(nContrib       => structNTOPO(iSeg)%var(ixNTOPO%nHRU)%dat(1),      & ! contributing HRUs
              hruContribIx   => structNTOPO(iSeg)%var(ixNTOPO%hruContribIx)%dat, & ! index of contributing HRU
              hruContribId   => structNTOPO(iSeg)%var(ixNTOPO%hruContribId)%dat, & ! unique ids of contributing HRU
+             basArea        => structSEG(  iSeg)%var(ixSEG%basArea)%dat(1),     & ! basin (total contributing HRU) area
              hruWeight      => structSEG(  iSeg)%var(ixSEG%weight)%dat          ) ! weight assigned to each HRU
 
    ! * case where HRUs drain into the segment
@@ -189,10 +190,16 @@ module remapping
       ierr=20; return
      endif
 
-     ! compute the weighted average
-     reachRunoff(iSeg) = reachRunoff(iSeg) + hruWeight(iHRU)*basinRunoff( hruContribIx(iHRU) )*time_conv*length_conv  ! ensure m/s
+     ! compute the weighted average runoff depth (m/s)
+     reachRunoff(iSeg) = reachRunoff(iSeg) + hruWeight(iHRU)*basinRunoff( hruContribIx(iHRU) )*time_conv*length_conv
 
     end do  ! (looping through contributing HRUs)
+
+    ! ensure that routed streamflow is non-zero
+    if(reachRunoff(iSeg) < runoffMin) reachRunoff(iSeg) = runoffMin
+
+    ! convert basin average runoff volume (m3/s)
+    reachRunoff(iSeg) = reachRunoff(iSeg)*basArea
 
    ! * special case where no HRUs drain into the segment
    else
