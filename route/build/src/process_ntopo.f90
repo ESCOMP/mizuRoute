@@ -406,7 +406,7 @@ contains
 
   ! reach unit hydrograph
   allocate(NETOPO(iSeg)%UH(size(structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat)), stat=ierr, errmsg=cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': 'NETOPO(iSeg)%UH; return; endif
+  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': NETOPO(iSeg)%UH'; return; endif
   NETOPO(iSeg)%UH(:) =  structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat(:)
 
   ! upstream reach list
