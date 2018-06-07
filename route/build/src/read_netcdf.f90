@@ -21,6 +21,8 @@ interface get_nc
   module procedure get_2d_darray
   module procedure get_3d_iarray
   module procedure get_3d_darray
+  module procedure get_4d_iarray
+  module procedure get_4d_darray
 end interface
 
 contains
@@ -250,7 +252,7 @@ contains
  end subroutine
 
  ! *********************************************************************
- ! subroutine: read a double precision 2D array
+ ! subroutine: read a integer 2D array
  ! *********************************************************************
  subroutine get_2d_iarray(fname,           &  ! input: filename
                           vname,           &  ! input: variable name
@@ -294,7 +296,7 @@ contains
  end subroutine
 
  ! *********************************************************************
- ! subroutine: read a double precision 3D array
+ ! subroutine: read a integer 3D array
  ! *********************************************************************
  subroutine get_3d_iarray(fname,          &  ! input: filename
                           vname,          &  ! input: variable name
@@ -335,6 +337,50 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  end subroutine
+
+ ! *********************************************************************
+ ! subroutine: read a integer 4D array
+ ! *********************************************************************
+ subroutine get_4d_iarray(fname,          &  ! input: filename
+                          vname,          &  ! input: variable name
+                          array,          &  ! output: variable data
+                          iStart,         &  ! input: start index
+                          iCount,         &  ! input: length of vector
+                          ierr, message)     ! output: error control
+  implicit none
+  ! input variables
+  character(*), intent(in)        :: fname        ! filename
+  character(*), intent(in)        :: vname        ! variable name
+  integer(i4b), intent(in)        :: iStart(1:4)  ! start indices
+  integer(i4b), intent(in)        :: iCount(1:4)  ! length of vector
+  ! output variables
+  integer(i4b), intent(out)       :: array(:,:,:,:) ! variable data
+  integer(i4b), intent(out)       :: ierr         ! error code
+  character(*), intent(out)       :: message      ! error message
+  ! local variables
+  integer(i4b)                    :: ncid         ! NetCDF file ID
+  integer(i4b)                    :: iVarId       ! NetCDF variable ID
+  ! initialize error control
+  ierr=0; message='get_4d_iarray/'
+
+  ! open NetCDF file
+  ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
+  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+  ! get variable ID
+  ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
+  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+  ! read data
+  ierr = nf90_get_var(ncid,iVarId,array,start=iStart,count=iCount)
+  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+  ! close output file
+  ierr = nf90_close(ncid)
+  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ end subroutine
+
 
  ! *********************************************************************
  ! subroutine: read a double precision 2D array
@@ -421,5 +467,49 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  end subroutine
+
+ ! *********************************************************************
+ ! subroutine: read a double precision 4D array
+ ! *********************************************************************
+ subroutine get_4d_darray(fname,          &  ! input: filename
+                          vname,          &  ! input: variable name
+                          array,          &  ! output: variable data
+                          iStart,         &  ! input: start index
+                          iCount,         &  ! input: length of vector
+                          ierr, message)     ! output: error control
+  implicit none
+  ! input variables
+  character(*), intent(in)        :: fname         ! filename
+  character(*), intent(in)        :: vname         ! variable name
+  integer(i4b), intent(in)        :: iStart(1:4)   ! start indices
+  integer(i4b), intent(in)        :: iCount(1:4)   ! length of vector
+  ! output variables
+  real(dp), intent(out)           :: array(:,:,:,:)  ! variable data
+  integer(i4b), intent(out)       :: ierr          ! error code
+  character(*), intent(out)       :: message       ! error message
+  ! local variables
+  integer(i4b)                    :: ncid          ! NetCDF file ID
+  integer(i4b)                    :: iVarId        ! NetCDF variable ID
+  ! initialize error control
+  ierr=0; message='get_4d_darray/'
+
+  ! open NetCDF file
+  ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
+  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+  ! get variable ID
+  ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
+  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+  ! read data
+  ierr = nf90_get_var(ncid,iVarId,array,start=iStart,count=iCount)
+  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+  ! close output file
+  ierr = nf90_close(ncid)
+  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ end subroutine
+
 
 end module read_netcdf
