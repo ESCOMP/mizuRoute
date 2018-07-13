@@ -259,7 +259,7 @@ contains
  !print*, 'rankId = ', rankId(1:10)
  !print*, 'qId( rankId(1:10) ) = ', qId( rankId(1:10) )
  !print*, 'PAUSE: '; read(*,*)
-
+ qix(1:size(qid)) = integerMissing
  nx=0
  jx=1
  ! loop through id vector
