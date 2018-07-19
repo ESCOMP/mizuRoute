@@ -106,7 +106,7 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! check
- if(count(remap_data%hru_ix==integerMissing)>0)then
+ if(count(remap_data%hru_ix/=integerMissing)/=nHRU)then
   message=trim(message)//'unable to identify all polygons in the mapping file'
   ierr=20; return
  endif

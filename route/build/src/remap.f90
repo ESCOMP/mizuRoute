@@ -53,11 +53,13 @@ module remapping
   ! initialize counter for the overlap vector
   ixOverlap = 1
 
-  ! loop through basins in the routing layer
-  do iHRU=1,size(structHRU2seg)
+  ! loop through hrus in the mapping ayer
+  do iHRU=1,size(remap_data%hru_ix)
 
    ! define the HRU index in the routing vector
    jHRU = remap_data%hru_ix(iHRU)
+
+   if (jHRU == integerMissing) cycle
 
    ! check that the basins match
    if( remap_data%hru_id(iHRU) /= structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1) )then
