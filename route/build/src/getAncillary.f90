@@ -225,10 +225,6 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do  ! looping through variables
 
- ! convert to zero-based indexing
- ! NOTE: Need to change this!
- remap_data%qhru_id = remap_data%qhru_id - 1
-
  end subroutine
 
  ! *****

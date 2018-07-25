@@ -53,13 +53,21 @@ module remapping
   ! initialize counter for the overlap vector
   ixOverlap = 1
 
-  ! loop through hrus in the mapping ayer
+  ! loop through hrus in the mapping layer
   do iHRU=1,size(remap_data%hru_ix)
 
    ! define the HRU index in the routing vector
    jHRU = remap_data%hru_ix(iHRU)
 
-   if (jHRU == integerMissing) cycle
+   ! if mapping data has hrus that do not exist in river network, skip that hru
+   ! but increment index of weight and overlap-poly-id arrays
+   if (jHRU == integerMissing)then
+    if (remap_data%num_qhru(iHRU)/=integerMissing)then
+      ixOverlap = ixOverlap + remap_data%num_qhru(iHRU)
+      print*, ixOverlap
+    endif
+    cycle
+   endif
 
    ! check that the basins match
    if( remap_data%hru_id(iHRU) /= structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1) )then
