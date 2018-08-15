@@ -106,7 +106,7 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! check
- if(count(remap_data%hru_ix==integerMissing)>0)then
+ if(count(remap_data%hru_ix/=integerMissing)/=nHRU)then
   message=trim(message)//'unable to identify all polygons in the mapping file'
   ierr=20; return
  endif
@@ -225,10 +225,6 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do  ! looping through variables
 
- ! convert to zero-based indexing
- ! NOTE: Need to change this!
- remap_data%qhru_id = remap_data%qhru_id - 1
-
  end subroutine
 
  ! *****
@@ -259,7 +255,7 @@ contains
  !print*, 'rankId = ', rankId(1:10)
  !print*, 'qId( rankId(1:10) ) = ', qId( rankId(1:10) )
  !print*, 'PAUSE: '; read(*,*)
-
+ qix(1:size(qid)) = integerMissing
  nx=0
  jx=1
  ! loop through id vector

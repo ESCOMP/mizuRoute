@@ -3,14 +3,7 @@ module irf_route_module
 USE nrtype
 
 ! global parameters
-USE globalData, only : RPARAM ! Reach parameters
-USE globalData, only : NETOPO ! Network topology
-
-! global routing data
-USE globalData, only : RCHFLX ! routing fluxes
-
-! global variables
-USE globalData, only : pi      ! pi
+!USE globalData, only : RPARAM ! Reach parameters
 
 ! privary
 implicit none
@@ -29,7 +22,7 @@ contains
                       ! input
                       iEns,       &    ! input: index of runoff ensemble to be processed
                       nRch,       &    ! input: index of reach to be processed
-                      desireID,   &    ! input: reachID to be checked by on-screen pringing
+                      ixDesire,   &    ! input: reachID to be checked by on-screen pringing
                       ! output
                       ierr, message)   ! output: error control
  ! ----------------------------------------------------------------------------------------
@@ -38,16 +31,21 @@ contains
  !   Convolute routed basisn flow volume at top of each of the upstream segment at one time step and at each segment
  !
  ! ----------------------------------------------------------------------------------------
+ 
+ ! global routing data
+ USE globalData, only : RCHFLX ! routing fluxes
+ USE globalData, only : NETOPO ! Network topology
 
  implicit none
  ! Input
  INTEGER(I4B), intent(IN)               :: iEns        ! runoff ensemble to be routed
  INTEGER(I4B), intent(IN)               :: nRch        ! number of reach segments in the network
- INTEGER(I4B), intent(IN)               :: desireID    ! reach ID to be printed out on screen
+ INTEGER(I4B), intent(IN)               :: ixDesire    ! index of the reach for verbose output
  ! Output
  integer(i4b), intent(out)              :: ierr        ! error code
  character(*), intent(out)              :: message     ! error message
  ! Local variables to
+ INTEGER(I4B)                           :: ntdh        ! number of time steps in IRF
  INTEGER(I4B)                           :: iRch        ! reach segment index
  INTEGER(I4B)                           :: jRch        ! reach segment to be routed
  character(len=strLen)                  :: cmessage    ! error message from subroutine
@@ -64,6 +62,17 @@ contains
   ! identify reach to process
   jRch = NETOPO(iRch)%RHORDER
 
+  if (.not.allocated(RCHFLX(iens,jRch)%QFUTURE_IRF))then
+
+    ntdh = size(NETOPO(jRch)%UH)
+
+    allocate(RCHFLX(iens,jRch)%QFUTURE_IRF(ntdh), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage)//': RCHFLX(iens,ibas)%QFUTURE'; return; endif
+
+    RCHFLX(iens,jRch)%QFUTURE_IRF(:) = 0._dp
+
+   endif
+
   ! perform river network UH routing
   call conv_upsbas_qr(iEns,          & ! input: index of runoff ensemble to be processed
                       jRch,          & ! input: index of reach to be processed
@@ -71,7 +80,7 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! check
-  if(NETOPO(jRch)%REACHID == desireID)then
+  if(NETOPO(jRch)%REACHIX == ixDesire)then
    print*, 'RCHFLX(iens,jRch)%BASIN_QR(1),RCHFLX(iens,jRch)%REACH_Q_IRF = ', &
             RCHFLX(iens,jRch)%BASIN_QR(1),RCHFLX(iens,jRch)%REACH_Q_IRF
   endif
@@ -87,13 +96,13 @@ contains
 ! *********************************************************************
  subroutine make_uh(&
                     ! Input
-                    nSeg,    &       ! input: Number of stream segments
-                    dt,      &       ! input: time step interval [sec]
-                    velo,    &       ! input: IRF parameter 1 - celerity C for each stream segment [m/s]
-                    diff,    &       ! input: IRF parameter 2 - diffusivity D for each stream segment [m^2/s]
+                    length,     &       ! input: river segment array [meter]
+                    dt,         &       ! input: time step interval [sec]
+                    velo,       &       ! input: IRF parameter 1 - celerity C for each stream segment [m/s]
+                    diff,       &       ! input: IRF parameter 2 - diffusivity D for each stream segment [m^2/s]
                     ! Output
+                    seg_uh,     &       ! output: unit hydrograph ordinates for a given segment length array
                     ierr, message)   ! output: error control
-
  ! ----------------------------------------------------------------------------------------
  ! Purpose:
  !
@@ -102,36 +111,40 @@ contains
  !   IRF and UH are used interchangebly.
  !
  ! ----------------------------------------------------------------------------------------
-
- implicit none
-
- ! input variables
- integer(i4b), intent(in)              :: nSeg          ! Numer of segment
- real(dp),     intent(in)              :: dt            ! Time step interval [sec]
- real(dp),     intent(in)              :: velo          ! Wave velocity C for each segment [m/sec]
- real(dp),     intent(in)              :: diff          ! Diffusivity D for each segment [m2/sec]
- ! output variables
- integer(i4b), intent(out)             :: ierr          ! error code
- character(*), intent(out)             :: message       ! error message
- ! local variables
- real(dp), allocatable                 :: UHM(:)        ! Unit hydrograph derived from S-V equation
- real(dp), allocatable                 :: UHQ(:)        !
- real(dp), allocatable                 :: fr(:)         ! Unit runoff depth evenly distributed over the simulation duration at hourly step
- real(dp)                              :: seg_length    ! length of rech segment
- real(dp)                              :: POT           ! Inside of exponential function of IRF
- real(dp)                              :: H             ! IRF, h(x,t) function h function in eq.15 Lohmann et al.1996
- real(dp)                              :: UHQ0          !
- real(dp)                              :: INTE          ! Accumulation (integration) of UH
- real(dp)                              :: sec           ! hr at each time step  [hr]
- real(dp),parameter                    :: dTUH=3600.0   ! UH time step [sec]
- integer(i4b)                          :: iHrStrt       ! index of UH time step where rising limb of UH start
- integer(i4b)                          :: iHrLast       ! index of UH time step where recession limb of UH become zero
- integer(i4b)                          :: nTSub         ! number of time steps where 1/nTsub [m] of runoff is inserted
- integer(i4b)                          :: iSeg          ! Loop index
- integer(i4b)                          :: iHr,jHr       ! Loop index of hour
- integer(i4b)                          :: iTagg         ! index for aggregated (i.e. simulation) time step
- integer(i4b),parameter                :: nTMAX=240     ! Maximum hour of UH [hr] - 10 days times 24hrs
- integer(i4b),parameter                :: nHr=240       ! Maximum hour of UH [hr] - 10 days times 24hrs
+  ! global variables
+  USE globalData, only : pi      ! pi
+  USE dataTypes,  only : dlength
+  implicit none
+  ! input variables
+  real(dp),                      intent(in)   :: length(:)     ! river segment length
+  real(dp),                      intent(in)   :: dt            ! Time step interval [sec]
+  real(dp),                      intent(in)   :: velo          ! Wave velocity C for each segment [m/sec]
+  real(dp),                      intent(in)   :: diff          ! Diffusivity D for each segment [m2/sec]
+  ! output variables
+  type(dlength),allocatable,     intent(out)  :: seg_uh(:)     ! unit hydrograph ordinates for each segment
+  integer(i4b),                  intent(out)  :: ierr          ! error code
+  character(*),                  intent(out)  :: message       ! error message
+  ! local variables
+  real(dp), allocatable                       :: UHM(:)        ! Unit hydrograph derived from S-V equation
+  real(dp), allocatable                       :: UHQ(:)        !
+  real(dp), allocatable                       :: fr(:)         ! Unit runoff depth evenly distributed over the simulation duration at hourly step
+  real(dp)                                    :: seg_length    ! length of rech segment
+  real(dp)                                    :: POT           ! Inside of exponential function of IRF
+  real(dp)                                    :: H             ! IRF, h(x,t) function h function in eq.15 Lohmann et al.1996
+  real(dp)                                    :: UHQ0          !
+  real(dp)                                    :: INTE          ! Accumulation (integration) of UH
+  real(dp)                                    :: sec           ! hr at each time step  [hr]
+  real(dp),parameter                          :: dTUH=3600.0   ! UH time step [sec]
+  integer(i4b)                                :: nSeg          ! Numer of segment
+  integer(i4b)                                :: iHrStrt       ! index of UH time step where rising limb of UH start
+  integer(i4b)                                :: iHrLast       ! index of UH time step where recession limb of UH become zero
+  integer(i4b)                                :: nTSub         ! number of time steps where 1/nTsub [m] of runoff is inserted
+  integer(i4b)                                :: iSeg          ! Loop index
+  integer(i4b)                                :: iHr,jHr       ! Loop index of hour
+  integer(i4b)                                :: iTagg         ! index for aggregated (i.e. simulation) time step
+  integer(i4b),parameter                      :: nTMAX=240     ! Maximum hour of UH [hr] - 10 days times 24hrs
+  integer(i4b),parameter                      :: nHr=240       ! Maximum hour of UH [hr] - 10 days times 24hrs
+  character(len=strLen)                       :: cmessage      ! error message from subroutine
 
  ! initialize error control
  ierr=0; message='make_uh/'
@@ -139,14 +152,17 @@ contains
  ! Dynamically assigned parameters
  nTsub=ceiling(dt/dTUH)
  !nTsub=floor(dt/dTUH)
+ nSeg = size(length)
 
  ! Memory allocation
- allocate(fr(nTMAX),stat=ierr)
- if(ierr/=0)then; message=trim(message)//'unable to allocate space for fr'; return; endif
- allocate(UHQ(nTMAX),stat=ierr)
- if(ierr/=0)then; message=trim(message)//'unable to allocate space for UHQ'; return; endif
- allocate(UHM(nHr),stat=ierr)
- if(ierr/=0)then; message=trim(message)//'unable to allocate space for UHM'; return; endif
+ allocate(seg_uh(nSeg), stat=ierr, errmsg=cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage)//': seg_uh'; return; endif
+ allocate(fr(nTMAX), stat=ierr, errmsg=cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage)//': fr'; return; endif
+ allocate(UHQ(nTMAX),stat=ierr, errmsg=cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage)//': UHQ'; return; endif
+ allocate(UHM(nHr),stat=ierr, errmsg=cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage)//': UHM'; return; endif
 
  ! Generate Unit Runoff depth [1/nTsub, 1/nTsub, ..., 1/nTsub, 0, 0, ...0]
  fr=0._dp
@@ -156,7 +172,9 @@ contains
  do iSeg=1,nSeg
 
   !Compute S-V based UH, UHM
-  seg_length = RPARAM(iSeg)%RLENGTH
+  seg_length = length(iSeg)
+  !seg_length = RPARAM(iSeg)%RLENGTH
+
   INTE = 0._dp
   sec = 0._dp
   UHM(:) = 0._dp
@@ -227,12 +245,13 @@ contains
   enddo
 
   !Aggregate hourly unit hydrograph to simulation time step
-  allocate(NETOPO(iSeg)%UH((iHrLast+nTsub-1)/nTsub),stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'unable to allocate space for UH%UH_DATA'; return; endif
-  NETOPO(iSeg)%UH(:)=0._dp
+  allocate(seg_uh(iSeg)%dat((iHrLast+nTsub-1)/nTsub),stat=ierr,errmsg=cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': seg_uh%dat'; return; endif
+
+  seg_uh(iSeg)%dat(:)=0._dp
   do jHr = 1,iHrLast
     iTagg = (jHr+nTsub-1)/nTsub
-    NETOPO(iSeg)%UH(iTagg) = NETOPO(iSeg)%UH(iTagg)+UHQ(jHr)
+    seg_uh(iSeg)%dat(iTagg) = seg_uh(iSeg)%dat(iTagg) + UHQ(jHr)
   end do
 
  end do ! sSeg loop
@@ -258,6 +277,9 @@ contains
  !                     RCHFLX%REACH_Q_IRF
  !                     RCHFLX%QFUTURE_IRF
  ! ----------------------------------------------------------------------------------------
+ ! global routing data
+ USE globalData, only : RCHFLX ! routing fluxes
+ USE globalData, only : NETOPO ! Network topology
 
  implicit none
  ! Input

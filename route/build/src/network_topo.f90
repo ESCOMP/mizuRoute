@@ -1,10 +1,11 @@
 MODULE network_topo
 
 ! data types
-USE nrtype
-USE nrtype,    only : strLen       ! length of a string
-USE dataTypes, only : var_ilength  ! integer type:          var(:)%dat
-USE dataTypes, only : var_dlength  ! double precision type: var(:)%dat
+USE nrtype,    only : i4b,dp,lgt
+USE nrtype,    only : strLen         ! length of a string
+USE nrtype,    only : integerMissing
+USE dataTypes, only : var_ilength    ! integer type:          var(:)%dat
+USE dataTypes, only : var_dlength    ! double precision type: var(:)%dat
 
 ! metadata on data structures
 USE globalData, only : meta_struct  ! structure information

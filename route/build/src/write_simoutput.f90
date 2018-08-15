@@ -38,7 +38,7 @@ CONTAINS
  ! local variables
  integer(i4b)                    :: ncid         ! NetCDF file ID
  integer(i4b)                    :: jDim, iVar   ! dimension, and variable index
- integer(i4b),parameter          :: nVars=9      ! number of variables
+ integer(i4b),parameter          :: nVars=8      ! number of variables
  character(len=strLen)           :: cmessage     ! error message of downwind routine
 
  ! initialize error control
@@ -81,13 +81,13 @@ CONTAINS
    case( 1); call defvar(ncid, 'basinID',           'basin ID',                                         '-',   (/dim_hru/),         nf90_int,   ierr,cmessage)
    case( 2); call defvar(ncid, 'reachID',           'reach ID',                                         '-',   (/dim_seg/),         nf90_int,   ierr,cmessage)
    ! define runoff variables (double precision)
-   case( 3); call defvar(ncid, 'basRunoff',         'basin runoff',                                     'm/s', (/dim_hru,dim_time/),nf90_double,ierr,cmessage)
-   case( 4); call defvar(ncid, 'instRunoff',        'instantaneous runoff in each reach',               'm3/s',(/dim_seg,dim_time/),nf90_double,ierr,cmessage)
-   case( 5); call defvar(ncid, 'dlayRunoff',        'delayed runoff in each reach',                     'm3/s',(/dim_seg,dim_time/),nf90_double,ierr,cmessage)
-   case( 6); call defvar(ncid, 'sumUpstreamRunoff', 'sum of upstream runoff in each reach',             'm3/s',(/dim_seg,dim_time/),nf90_double,ierr,cmessage)
-   case( 7); call defvar(ncid, 'KWTroutedRunoff',   'KWT routed runoff in each reach',                  'm3/s',(/dim_seg,dim_time/),nf90_double,ierr,cmessage)
-   case( 8); call defvar(ncid, 'UpBasRoutedRunoff', 'sum of upstream basin routed runoff in each reach','m3/s',(/dim_seg,dim_time/),nf90_double,ierr,cmessage)
-   case( 9); call defvar(ncid, 'IRFroutedRunoff',   'IRF routed runoff in each reach',                  'm3/s',(/dim_seg,dim_time/),nf90_double,ierr,cmessage)
+   case( 3); call defvar(ncid, 'basRunoff',         'basin runoff',                                     'm/s', (/dim_hru,dim_time/),nf90_float,ierr,cmessage)
+   case( 4); call defvar(ncid, 'instRunoff',        'instantaneous runoff in each reach',               'm3/s',(/dim_seg,dim_time/),nf90_float,ierr,cmessage)
+   case( 5); call defvar(ncid, 'dlayRunoff',        'delayed runoff in each reach',                     'm3/s',(/dim_seg,dim_time/),nf90_float,ierr,cmessage)
+   case( 6); call defvar(ncid, 'sumUpstreamRunoff', 'sum of upstream runoff in each reach',             'm3/s',(/dim_seg,dim_time/),nf90_float,ierr,cmessage)
+   case( 7); call defvar(ncid, 'KWTroutedRunoff',   'KWT routed runoff in each reach',                  'm3/s',(/dim_seg,dim_time/),nf90_float,ierr,cmessage)
+   !case( 8); call defvar(ncid, 'UpBasRoutedRunoff', 'sum of upstream basin routed runoff in each reach','m3/s',(/dim_seg,dim_time/),nf90_float,ierr,cmessage)
+   case( 8); call defvar(ncid, 'IRFroutedRunoff',   'IRF routed runoff in each reach',                  'm3/s',(/dim_seg,dim_time/),nf90_float,ierr,cmessage)
    case default; ierr=20; message=trim(message)//'unable to identify variable index'; return
   end select
   ! check errors

@@ -76,16 +76,16 @@ CONTAINS
 
  ! routing specific variables
  call read_IRFbas_state(ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return;endif
 
  if (opt==allRoutingMethods .or. opt==kinematicWave) then
   call read_KWT_state(ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
  endif
 
  if (opt==allRoutingMethods .or. opt==impulseResponseFunc) then
   call read_IRF_state(ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
  end if
 
  CONTAINS
@@ -109,7 +109,7 @@ CONTAINS
   ierr=0; message1='read_IRFbas_state/'
 
   call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%tdh)%dimName), ntdh, ierr, cmessage)
-  if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+  if(ierr/=0)then;  message1=trim(message1)//trim(cmessage); return; endif
 
   allocate(state(0)%var(nVarsIRFbas), stat=ierr, errmsg=cmessage)
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -265,7 +265,7 @@ CONTAINS
     if (iVar==ixKWT%q) cycle  ! not writing out river flow in state file
 
     select case(iVar)
-     case(ixKWT%routed); allocate(state(kinematicWave)%var(iVar)%array_3d_int(nSeg, nwave, nens), stat=ierr)
+     case(ixKWT%routed); allocate(state(kinematicWave)%var(iVar)%array_3d_dp(nSeg, nwave, nens), stat=ierr)
      case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
       allocate(state(kinematicWave)%var(iVar)%array_3d_dp(nSeg, nwave, nens), stat=ierr)
      case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
@@ -282,7 +282,7 @@ CONTAINS
 
     select case(iVar)
      case(ixKWT%routed)
-      call get_nc(fname,trim(meta_kwt(iVar)%varName), state(kinematicWave)%var(iVar)%array_3d_int, (/1,1,1/), (/nSeg,nwave,nens/), ierr, cmessage)
+      call get_nc(fname,trim(meta_kwt(iVar)%varName), state(kinematicWave)%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nwave,nens/), ierr, cmessage)
      case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
       call get_nc(fname,trim(meta_kwt(iVar)%varName), state(kinematicWave)%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nwave,nens/), ierr, cmessage)
      case default; ierr=20; message1=trim(message)//'unable to identify KWT variable index for nc reading'; return
@@ -307,7 +307,7 @@ CONTAINS
       case(ixKWT%routed) ! this is suppposed to be logical variable, but put it as 0 or 1 in double now
        if (allocated(RFvec)) deallocate(RFvec, stat=ierr)
        allocate(RFvec(0:numWaves(iens,iSeg)-1),stat=ierr)
-       RFvec = state(kinematicWave)%var(iVar)%array_3d_int(iSeg,1:numWaves(iens,iSeg),iens)
+       RFvec = nint(state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens))
        KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%RF=.False.
        where (RFvec==1_i4b) KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%RF=.True.
       case default; ierr=20; message1=trim(message1)//'unable to identify KWT routing state variable index'; return

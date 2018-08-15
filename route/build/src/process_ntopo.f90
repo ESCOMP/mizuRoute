@@ -1,10 +1,12 @@
 module process_ntopo
 
 ! data types
-USE nrtype                                ! variable types, etc.
+USE nrtype,    only : i4b,dp              ! variable types, etc.
+USE nrtype,    only : strLen              ! length of characters
+USE nrtype,    only : realMissing         ! missing value for real
 USE nrtype,    only : integerMissing      ! missing value for integers
 USE dataTypes, only : var_ilength         ! integer type:          var(:)%dat
-USE dataTypes, only : var_dlength         ! double precision type: var(:)%dat
+USE dataTypes, only : var_dlength,dlength ! double precision type: var(:)%dat, or dat
 
 ! global vars
 USE public_var, only : min_slope          ! minimum slope
@@ -14,9 +16,17 @@ USE public_var, only : fname_ntopNew      ! name of the new network topology fil
 USE public_var, only : dname_nhru         ! dimension name for HRUs
 USE public_var, only : dname_sseg         ! dimension name for stream segments
 USE public_var, only : idSegOut           ! ID for stream segment at the bottom of the subset
+USE public_var, only : dt                 ! simulation time step [sec]
+
+! options
 USE public_var, only : ntopWriteOption    ! option to write updated network topology
 USE public_var, only : topoNetworkOption  ! option to compute network topology
 USE public_var, only : computeReachList   ! option to compute reach list
+USE public_var, only : hydGeometryOption  ! option to obtain routing parameters
+USE public_var, only : routOpt            ! option for desired routing method
+USE public_var, only : allRoutingMethods  ! option for routing methods - all the methods
+USE public_var, only : kinematicWave      ! option for routing methods - kinematic wave only
+USE public_var, only : impulseResponseFunc! option for routing methods - IRF only
 
 ! global parameters
 USE globalData, only : RPARAM             ! Reach parameters
@@ -24,6 +34,11 @@ USE globalData, only : NETOPO             ! Network topology
 
 ! named variables
 USE globalData, only : true,false         ! named integers for true/false
+
+! routing parameters
+USE globalData, only : fshape, tscale     ! basin IRF routing parameters (Transfer function parameters)
+USE globalData, only : mann_n, wscale     ! KWT routing parameters (Transfer function parameters)
+USE globalData, only : velo, diff         ! IRF routing parameters (Transfer function parameters)
 
 ! named variables
 USE var_lookup,only:ixSEG                 ! index of variables for the stream segments
@@ -33,6 +48,10 @@ USE var_lookup,only:ixNTOPO               ! index of variables for the network t
 USE public_var, only : compute            ! compute given variable
 USE public_var, only : doNotCompute       ! do not compute given variable
 USE public_var, only : readFromFile       ! read given variable from a file
+
+! Routing parameter estimation procedure
+USE basinUH_module,   only : basinUH      ! construct basin unit hydrograph
+USE irf_route_module, only : make_uh      ! construct reach unit hydrograph
 
 implicit none
 
@@ -88,10 +107,13 @@ contains
  integer(i4b)                    :: tot_upstream       ! total number of all of the upstream stream segments for all stream segments
  integer(i4b)                    :: tot_upseg          ! total number of immediate upstream segments for all  stream segments
  integer(i4b)                    :: tot_hru            ! total number of all the upstream hrus for all stream segments
+ integer(i4b)                    :: tot_uh             ! total number of unit hydrograph from all the stream segments
  integer(i4b)   , allocatable    :: ixHRU_desired(:)   ! indices of desired hrus
  integer(i4b)   , allocatable    :: ixSeg_desired(:)   ! indices of desired reaches
  integer(i4b)   , parameter      :: maxUpstreamFile=10000000 ! 10 million: maximum number of upstream reaches to enable writing
  integer*8                       :: time0,time1        ! times
+ real(dp)     , allocatable      :: seg_length(:)      ! temporal array for segment length
+ type(dlength), allocatable      :: temp_dat(:)        ! temporal data storage
 
  ! initialize error control
  ierr=0; message='ntopo/'
@@ -210,6 +232,40 @@ contains
  write(*,'(a,1x,i20)') 'after reach_list: time = ', time1-time0
  !print*, trim(message)//'PAUSE : '; read(*,*)
 
+ ! ---------- Compute routing parameter  ------------------------------------------------------
+
+ call basinUH(dt, fshape, tscale, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ if(hydGeometryOption==compute)then
+
+  if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
+   structSeg(:)%var(ixSEG%width)%dat(1) = wscale * sqrt(structSEG(:)%var(ixSEG%totalArea)%dat(1))  ! channel width (m)
+   structSeg(:)%var(ixSEG%man_n)%dat(1) = mann_n                                                   ! Manning's "n" paramater (unitless)
+  end if
+
+ endif  ! computing network topology
+
+ if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+
+  allocate(seg_length(nSeg), stat=ierr, errmsg=cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': seg_length'; return; endif
+
+  forall(iSeg=1:nSeg) seg_length(iSeg) = structSEG(iSeg)%var(ixSEG%length)%dat(1)
+
+  call make_uh(seg_length, dt, velo, diff, temp_dat, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  tot_uh = 0
+  do iSeg=1,nSeg
+    allocate(structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat(size(temp_dat(iSeg)%dat)), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage)//': structSeg%var(ixSEG%uh)%dat'; return; endif
+    structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat(:) = temp_dat(iSeg)%dat(:)
+    tot_uh = tot_uh+size(temp_dat(iSeg)%dat)
+  enddo
+
+ endif
+
  ! ---------- get the mask of all upstream reaches above a given reach ---------------------------------------
 
  ! get the mask of all upstream reaches above a given reach
@@ -256,6 +312,7 @@ contains
                  tot_hru,       & ! input: total number of all the upstream hrus for all stream segments
                  tot_upseg,     & ! input: total number of immediate upstream segments for all  stream segments
                  tot_upstream,  & ! input: total number of all of the upstream stream segments for all stream segments
+                 tot_uh,        & ! input: total number of unit hydrograph for all stream segments
                  ! input: reach masks
                  ixHRU_desired, & ! input: indices of desired hrus
                  ixSeg_desired, & ! input: indices of desired reaches
@@ -295,8 +352,8 @@ contains
   ! copy data into the reach parameter structure
   RPARAM(iSeg)%RLENGTH =     structSEG(iSeg)%var(ixSEG%length)%dat(1)
   RPARAM(iSeg)%R_SLOPE = max(structSEG(iSeg)%var(ixSEG%slope)%dat(1), min_slope)
-  RPARAM(iSeg)%R_MAN_N =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
-  RPARAM(iSeg)%R_WIDTH =     structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
+  RPARAM(iSeg)%R_MAN_N =     structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
+  RPARAM(iSeg)%R_WIDTH =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
 
   ! compute variables
   RPARAM(iSeg)%BASAREA = structSEG(iSeg)%var(ixSEG%basArea)%dat(1)
@@ -347,9 +404,15 @@ contains
   NETOPO(iSeg)%RCHLON1 = realMissing     ! Start longitude
   NETOPO(iSeg)%RCHLON2 = realMissing     ! End longitude
 
-  ! NOT USED: time delay histogram
-  allocate(NETOPO(iSeg)%UPSLENG(0), NETOPO(iSeg)%UH(0), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'unable to allocate space for time delay histogram'; return; endif
+  ! reach unit hydrograph
+  allocate(NETOPO(iSeg)%UH(size(structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat)), stat=ierr, errmsg=cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': NETOPO(iSeg)%UH'; return; endif
+  NETOPO(iSeg)%UH(:) =  structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat(:)
+
+  ! upstream reach list
+  allocate(NETOPO(iSeg)%RCHLIST(size(structNTOPO(iSeg)%var(ixNTOPO%allUpSegIndices)%dat)), stat=ierr, errmsg=cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': NETOPO(iSeg)%RCHLIST'; return; endif
+  NETOPO(iSeg)%RCHLIST(:) =  structNTOPO(iSeg)%var(ixNTOPO%allUpSegIndices)%dat(:)
 
  end do  ! looping through stream segments
 

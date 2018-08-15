@@ -1,7 +1,7 @@
 module public_var
   ! This module include variables that can be accessed from any other modules and values not altered
   ! Examples of variables are physical parameteres, namelist variable, variables in control etc.
-  use nrtype
+  use nrtype, only: i4b,dp,lgt
   use nrtype, only: integerMissing, realMissing
   use nrtype, only: strLen  ! string length
   implicit none

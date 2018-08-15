@@ -1,5 +1,6 @@
 module dataTypes
-USE nrtype
+USE nrtype, only: i4b,dp,lgt
+USE nrtype, only: integerMissing
 USE nrtype, only: strLen   ! string length
 ! used to create specific data types
 ! --
@@ -123,6 +124,7 @@ implicit none
   integer(I4B)                            :: DREACHK  ! Immediate Downstream reach ID
   integer(I4B),dimension(:),allocatable   :: UREACHI  ! Immediate Upstream reach indices
   integer(I4B),dimension(:),allocatable   :: UREACHK  ! Immediate Upstream reach IDs
+  integer(I4B),dimension(:),allocatable   :: RCHLIST  ! all upstream reach indices
   logical(lgt),dimension(:),allocatable   :: goodBas  ! Flag to denote a good basin
   integer(I4B)                            :: RHORDER  ! Processing sequence
   real(dp)    ,dimension(:),allocatable   :: UH       ! Unit hydrograph for upstream
