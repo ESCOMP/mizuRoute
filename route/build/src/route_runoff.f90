@@ -92,7 +92,7 @@ logical(lgt)                  :: defNewOutputFile    ! flag to define new output
 integer(i4b)                  :: iens                ! ensemble member
 integer(i4b)                  :: iHRU                ! index for HRU
 integer(i4b)                  :: iRch                ! index for the stream segment
-integer(i4b)                  :: iTime               ! index for time
+integer(i4b)                  :: iTime,jTime         ! index for time
 integer(i4b)                  :: iRoute              ! index in routing vector
 
 ! error control
@@ -296,7 +296,7 @@ endif
  ! Define state netCDF
  call define_state_nc(trim(output_dir)//trim(fname_state_out), time_units, routOpt, ierr, cmessage)
  if(ierr/=0) call handle_err(ierr, cmessage)
- 
+
 ! ======================================================================================================
 ! ======================================================================================================
 ! ======================================================================================================
@@ -396,6 +396,7 @@ do iTime=1,nTime
 
   ! define output file
   call defineFile(trim(fileout),                         &  ! input: file name
+                  nEns,                                  &  ! input: number of ensembles
                   nHRU,                                  &  ! input: number of HRUs
                   nRch,                                  &  ! input: number of stream segments
                   time_units,                            &  ! input: time units
@@ -507,7 +508,7 @@ do iTime=1,nTime
                  ixDesire,             & ! input: index of the desired reach
                  ierr,cmessage)          ! output: error control
   call handle_err(ierr,cmessage)
-  
+
   ! write routed runoff (m3/s)
   call write_nc(trim(fileout), 'IRFroutedRunoff', RCHFLX(iens,:)%REACH_Q_IRF, (/1,jTime/), (/nRch,1/), ierr, cmessage)
   call handle_err(ierr,cmessage)
