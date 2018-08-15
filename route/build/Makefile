@@ -69,43 +69,43 @@ EXE_PATH = $(F_MASTER)bin
 #
 # data types
 DATATYPES = \
-  nrtype.f90 \
-  dataTypes.f90 \
-  var_lookup.f90 \
-  globalData.f90 \
-  popMetadat.f90
+		nrtype.f90 \
+		dataTypes.f90 \
+		var_lookup.f90 \
+		globalData.f90 \
+		public_var.f90 \
+		popMetadat.f90
 #
 # define utilities
 UTILS = \
-  nr_utility.f90 \
-  ascii_util.f90 \
-  time_utils.f90 \
-  gamma_func.f90 \
-  public_var.f90
-
+		nr_utility.f90 \
+		ascii_util.f90 \
+		time_utils.f90 \
+		gamma_func.f90
 #
 # read/write files
 IO = \
-  remap.f90 \
-  read_control.f90 \
-  read_param.f90 \
-  read_netcdf.f90 \
-  write_netcdf.f90 \
-  read_streamSeg.f90 \
-  write_streamSeg.f90 \
-  read_runoff.f90 \
-  getAncillary.f90 \
-  read_restart.f90 \
-  write_restart.f90 \
-  write_simoutput.f90
-
+		remap.f90 \
+		read_control.f90 \
+		read_param.f90 \
+		read_netcdf.f90 \
+		write_netcdf.f90 \
+		read_streamSeg.f90 \
+		write_streamSeg.f90 \
+		read_runoff.f90 \
+		getAncillary.f90 \
+		read_restart.f90 \
+		write_restart.f90 \
+		write_simoutput.f90
+#
 # perform model routing
 QROUTE = \
-  network_topo.f90 \
-  basinUH.f90 \
-  irf_route.f90 \
-  process_ntopo.f90 \
-  kwt_route.f90
+		accum_runoff.f90 \
+		basinUH.f90 \
+		network_topo.f90 \
+		process_ntopo.f90 \
+		irf_route.f90 \
+		kwt_route.f90
 
 # concatanate model subroutines
 TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(QROUTE)
