@@ -42,14 +42,18 @@ USE ascii_util_module, only : file_open       ! open file (performs a few checks
 
 ! subroutines: netcdf output
 USE write_simoutput, only : defineFile        ! define netcdf output file
+USE write_restart,   only : define_state_nc,& ! define netcdf state output file
+                            write_state_nc    ! write netcdf state output file
+USE read_restart,    only : read_state_nc     ! read netcdf state output file
 USE write_netcdf,    only : write_nc          ! write a variable to the NetCDF file
 
 ! subroutines: model set up
 USE process_ntopo, only : ntopo               ! process the network topology
 USE getAncillary_module, only : getAncillary  ! get ancillary data
 
-! subroutines: local basin unit hydrograp routing
-USE basinUH_module, only : basinUH            ! basin unit hydrograph
+! subroutines: basin routing
+USE basinUH_module, only : basinUH, &         ! basin unit hydrograph
+                           IRF_route_basin    ! perform UH convolution for basin routing
 
 ! subroutines: get runoff for each basin in the routing layer
 USE read_runoff, only : get_runoff            ! read simulated runoff data
@@ -58,6 +62,7 @@ USE remapping,   only : basin2reach           ! remap runoff from routing basins
 
 ! subroutines: routing
 USE kwt_route,   only : QROUTE_RCH            ! kinematic wave routing method
+USE irf_route,   only : make_uh               ! network unit hydrograph
 
 ! subroutines: river network unit hydrograph routing
 USE irf_route_module, only : make_uh          ! reach unit hydrograph
@@ -74,13 +79,12 @@ integer(i4b),parameter        :: ixPrint = -9999     ! index for printing
 ! model control
 integer(i4b),parameter        :: nEns=1              ! number of ensemble members
 character(len=strLen)         :: fileout             ! name of the output file
-
 ! index of looping variables
 integer(i4b)                  :: iens                ! ensemble member
 integer(i4b)                  :: iHRU                ! index for HRU
 integer(i4b)                  :: iRch,jRch           ! index for the stream segment
-integer(i4b)                  :: itime               ! index for time
-integer(i4b)                  :: jtime               ! index for time
+integer(i4b)                  :: iTime               ! index for time
+!    integer(i4b)                  :: jtime               ! index for time
 integer(i4b)                  :: iRoute              ! index in routing vector
 
 ! error control
@@ -228,6 +232,33 @@ call getAncillary(&
                   ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
+! *****
+! *** Initialize state
+! *************************************
+
+! allocate space for the routing structures
+allocate(RCHFLX(nEns,nRch), KROUTE(nEns,nRch), stat=ierr)
+if(ierr/=0) call handle_err(ierr, 'unable to allocate space for routing structures')
+
+if (isRestart)then
+
+ !Read restart file and initialize states
+ call read_state_nc(trim(output_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
+ if(ierr/=0) call handle_err(ierr, cmessage)
+
+else
+
+ ! Cold start .......
+ ! initialize flux structures
+ RCHFLX(:,:)%BASIN_QI = 0._dp
+ forall(iRoute=0:1) RCHFLX(:,:)%BASIN_QR(iRoute) = 0._dp
+
+ ! initialize time
+ T0 = 0._dp
+ T1 = dt
+
+endif
+
 ! ======================================================================================================
 ! ======================================================================================================
 ! ======================================================================================================
@@ -245,18 +276,6 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 allocate(basinID(nHRU), reachID(nRch), basinRunoff(nHRU), reachRunoff(nRch), stat=ierr)
 if(ierr/=0) call handle_err(ierr, 'unable to allocate space for runoff vectors')
 
-! allocate space for the routing structures
-allocate(RCHFLX(nens,nRch), KROUTE(nens,nRch), stat=ierr)
-if(ierr/=0) call handle_err(ierr, 'unable to allocate space for routing structures')
-
-! initialize flux structures
-RCHFLX(:,:)%BASIN_QI = 0._dp
-forall(iRoute=0:1) RCHFLX(:,:)%BASIN_QR(iRoute) = 0._dp
-
-! initialize time
-T0 = 0._dp
-T1 = dt
-
 ! define ensemble member
 iens=1
 
@@ -264,16 +283,18 @@ iens=1
 ! *** Define model output file...
 ! *******************************
 
-! temporary time loop
-do jTime=1,100
-
-! update filename
-fileout=trim(output_dir)
-write(fileout,'(a,i0,a)') trim(fileout)//'temp-', jTime, '.nc'
-print*, 'output file = ', trim(fileout)
+!   ! temporary time loop
+!   do jTime=1,100
+!
+!   ! update filename
+!   fileout=trim(output_dir)
+!   write(fileout,'(a,i0,a)') trim(fileout)//'temp-', jTime, '.nc'
+!   print*, 'output file = ', trim(fileout)
 
 ! define output file
+fileout=trim(output_dir)//trim(fname_output)
 call defineFile(trim(fileout),                         &  ! input: file name
+                nEns,                                  &  ! input: number of HRUs
                 nHRU,                                  &  ! input: number of HRUs
                 nRch,                                  &  ! input: number of stream segments
                 time_units,                            &  ! input: time units
@@ -301,7 +322,7 @@ ixOutlet = findIndex(reachID,idSegOut,integerMissing)
 ! *******************
 
 ! loop through time
-do iTime=1,nTime
+do iTime=1, nTime
 
  ! *****
  ! * Get the simulated runoff for the current time step...
@@ -349,15 +370,25 @@ do iTime=1,nTime
                   ierr, cmessage)      ! intent(out): error control
  if(ierr/=0) call handle_err(ierr,cmessage)
 
+! ! NOTE: Use BASIN_QR here because input runoff is already routed
+! RCHFLX(iens,:)%BASIN_QR(0) = RCHFLX(iens,:)%BASIN_QR(1)       ! streamflow from previous step
+! RCHFLX(iens,:)%BASIN_QR(1) = reachRunoff(:)*RPARAM(:)%BASAREA ! streamflow (m3/s)
+
  ! convert runoff to m3/s
- ! NOTE: Use BASIN_QR here because input runoff is already routed
- RCHFLX(iens,:)%BASIN_QR(0) = RCHFLX(iens,:)%BASIN_QR(1)       ! streamflow from previous step
- RCHFLX(iens,:)%BASIN_QR(1) = reachRunoff(:)*RPARAM(:)%BASAREA ! streamflow (m3/s)
+ RCHFLX(iens,:)%BASIN_QI = reachRunoff(:)*RPARAM(:)%BASAREA ! instantaneous runoff (m3/s)
 
  ! ensure that routed streamflow is non-zero
  do iRch=1,nRch
-  if(RCHFLX(iens,iRch)%BASIN_QR(1) < runoffMin) RCHFLX(iens,iRch)%BASIN_QR(1)=runoffMin
+  if(RCHFLX(iens,iRch)%BASIN_QI < runoffMin) RCHFLX(iens,iRch)%BASIN_QI = runoffMin
  end do
+
+ ! write instataneous local runoff in each stream segment (m3/s)
+ call write_nc(trim(fileout), 'instRunoff', RCHFLX(iens,:)%BASIN_QI, (/1,iTime/), (/nRch,1/), ierr, cmessage)
+ call handle_err(ierr,cmessage)
+
+ ! perform Basin routing
+ call IRF_route_basin(iens, nRch, ierr, cmessage)
+ call handle_err(ierr,cmessage)
 
  ! write routed local runoff in each stream segment (m3/s)
  call write_nc(trim(fileout), 'dlayRunoff', RCHFLX(iens,:)%BASIN_QR(1), (/1,iTime/), (/nRch,1/), ierr, cmessage)
@@ -395,7 +426,7 @@ do iTime=1,nTime
 
  ! write routed runoff (m3/s)
  call write_nc(trim(fileout), 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,iTime/), (/nRch,1/), ierr, cmessage)
- call handle_err(ierr,cmessage)
+ if (ierr/=0) call handle_err(ierr,cmessage)
 
  ! perform IRF routing
  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
@@ -413,12 +444,24 @@ do iTime=1,nTime
  T0 = T0 + dt
  T1 = T0 + dt
 
- print*, 'itime, jtime, ntime = ', itime, jtime, ntime
+!      print*, 'itime, jtime, ntime = ', itime, jtime, ntime
  !print*, 'PAUSE: after routing'; read(*,*)
 
 end do  ! looping through time
 
-end do  ! temporary time loop
+!     end do  ! temporary time loop
+
+! *****
+! * Restart file output
+! ************************
+! Note: Write routing states for the entire network at one time step
+ ! Define state netCDF
+ call define_state_nc(trim(output_dir)//trim(fname_state_out), time_units, routOpt, ierr, cmessage)
+ if(ierr/=0) call handle_err(ierr, cmessage)
+
+ ! Write states to netCDF
+ call write_state_nc(trim(output_dir)//trim(fname_state_out), routOpt, runoff_data%time, 1, T0, T1, reachID, ierr, cmessage)
+ if(ierr/=0) call handle_err(ierr, cmessage)
 
 stop
 

@@ -14,6 +14,7 @@ USE public_var, only : fname_ntopNew      ! name of the new network topology fil
 USE public_var, only : dname_nhru         ! dimension name for HRUs
 USE public_var, only : dname_sseg         ! dimension name for stream segments
 USE public_var, only : idSegOut           ! ID for stream segment at the bottom of the subset
+USE public_var, only : ntopWriteOption    ! option to write updated network topology
 USE public_var, only : topoNetworkOption  ! option to compute network topology
 USE public_var, only : computeReachList   ! option to compute reach list
 
@@ -237,7 +238,9 @@ contains
  ! ---------- write network topology to a netcdf file -------------------------------------------------------
 
  ! check the need to compute network topology
- if(topoNetworkOption==compute .or. computeReachList==compute .or. idSegOut>0)then
+ ! if(topoNetworkOption==compute .or. computeReachList==compute .or. idSegOut>0)then
+ if(idSegOut>0) ntopWriteOption=.true.   ! insure that localized network topology is written if a particular outlet is specified
+ if(ntopWriteOption)then
 
   ! disable the dimension containing all upstream reaches
   ! NOTE: For the CONUS this is 1,872,516,819 reaches !!

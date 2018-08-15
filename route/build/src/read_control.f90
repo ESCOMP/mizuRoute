@@ -97,6 +97,7 @@ contains
 
    ! part 2: Define river network netCDF and its meta
    case('<fname_ntopOld>');     fname_ntopOld                            = trim(cData) ! name of file containing stream network topology information
+   case('<ntopWriteOption>');   read(cData,*,iostat=io_error) ntopWriteOption          ! option for network topology calculations (0=read from file, 1=compute)
    case('<fname_ntopNew>');     fname_ntopNew                            = trim(cData) ! name of file containing stream segment information
    case('<dname_nhru>');        dname_nhru                               = trim(cData) ! dimension name of the HRUs
    case('<dname_sseg>');        dname_sseg                               = trim(cData) ! dimension name of the stream segments

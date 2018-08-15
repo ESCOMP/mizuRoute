@@ -133,6 +133,8 @@ contains
    TYPE(FPOINT),allocatable,DIMENSION(:),SAVE  :: NEW_WAVE      ! temporary wave
    LOGICAL(LGT),SAVE                           :: INIT=.TRUE.   ! used to initialize pointers
    ! random stuff
+   integer(i4b)                                :: IWV           ! rech index
+   character(strLen)                           :: fmt1,fmt2     ! format string
    CHARACTER(LEN=256)                          :: CMESSAGE      ! error message for downwind routine
 
    ! initialize error control
@@ -144,6 +146,10 @@ contains
      INIT=.false.
      ixPrint=ixDesire
    endif
+
+   if(JRCH==ixPrint) write(*,"('JRCH=',I10)") JRCH
+   if(JRCH==ixPrint) write(*,"('T0-T1=',F20.7,1x,F20.7)") T0, T1
+
    RCHFLX(IENS,JRCH)%TAKE=0.0_dp ! initialize take from this reach
     ! ----------------------------------------------------------------------------------------
     ! (1) EXTRACT FLOW FROM UPSTREAM REACHES & APPEND TO THE NON-ROUTED FLOW PARTICLES IN JRCH
@@ -159,7 +165,10 @@ contains
         ierr=20; message=trim(message)//'negative flow extracted from upstream reach'; return
       endif
       ! check
-      if(JRCH==ixPrint) print*, 'JRCH, Q_JRCH = ', JRCH, Q_JRCH
+      if(JRCH==ixPrint)then
+        write(fmt1,'(A,I5,A)') '(A,1X',size(Q_JRCH),'(1X,F20.7))'
+        write(*,fmt1) 'Initial_Q_JRCH=', (Q_JRCH(IWV), IWV=0,size(Q_JRCH)-1)
+      endif
     else
       ! set flow in headwater reaches to modelled streamflow from time delay histogram
       RCHFLX(IENS,JRCH)%REACH_Q = RCHFLX(IENS,JRCH)%BASIN_QR(1)
@@ -207,10 +216,12 @@ contains
                                        ierr,cmessage)                    ! (output)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     if(JRCH == ixPrint)then
-      print*, 'Q_JRCH = ', Q_JRCH
-      print*, 'FROUTE = ', FROUTE
-      print*, 'TENTRY = ', TENTRY
-      print*, 'T_EXIT = ', T_EXIT
+      write(fmt1,'(A,I5,A)') '(A,1X',NQ1+1,'(1X,F20.7))'
+      write(fmt2,'(A,I5,A)') '(A,1X',NQ1+1,'(1X,L))'
+      write(*,fmt1) 'Q_JRCH=',(Q_JRCH(IWV), IWV=0,NQ1)
+      write(*,fmt2) 'FROUTE=',(FROUTE(IWV), IWV=0,NQ1)
+      write(*,fmt1) 'TENTRY=',(TENTRY(IWV), IWV=0,NQ1)
+      write(*,fmt1) 'T_EXIT=',(T_EXIT(IWV), IWV=0,NQ1)
     endif
     ! ----------------------------------------------------------------------------------------
     ! (4) COMPUTE TIME-STEP AVERAGES
@@ -221,7 +232,7 @@ contains
     ! (zero position last routed; use of NR+1 instead of NR keeps next expected routed point)
     call INTERP_RCH(T_EXIT(0:NR+1),Q_JRCH(0:NR+1),TNEW,QNEW,IERR,CMESSAGE)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    if(JRCH == ixPrint) print*, 'QNEW(1) = ', QNEW(1)
+    if(JRCH == ixPrint) write(*,"('QNEW(1)=',1x,F10.7)") QNEW(1)
     ! m2/s --> m3/s + instantaneous runoff from basin
     RCHFLX(IENS,JRCH)%REACH_Q = QNEW(1)*RPARAM(JRCH)%R_WIDTH + RCHFLX(IENS,JRCH)%BASIN_QR(1)
     ! ----------------------------------------------------------------------------------------
