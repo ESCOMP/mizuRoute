@@ -240,8 +240,10 @@ contains
  if(hydGeometryOption==compute)then
 
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
-   structSeg(:)%var(ixSEG%width)%dat(1) = wscale * sqrt(structSEG(:)%var(ixSEG%totalArea)%dat(1))  ! channel width (m)
-   structSeg(:)%var(ixSEG%man_n)%dat(1) = mann_n                                                   ! Manning's "n" paramater (unitless)
+   do iSeg=1,nSeg
+    structSeg(iSeg)%var(ixSEG%width)%dat(1) = wscale * sqrt(structSEG(iSeg)%var(ixSEG%totalArea)%dat(1))  ! channel width (m)
+    structSeg(iSeg)%var(ixSEG%man_n)%dat(1) = mann_n                                                      ! Manning's "n" paramater (unitless)
+   end do
   end if
 
  endif  ! computing network topology
