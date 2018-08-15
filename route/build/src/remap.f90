@@ -53,11 +53,21 @@ module remapping
   ! initialize counter for the overlap vector
   ixOverlap = 1
 
-  ! loop through basins in the routing layer
-  do iHRU=1,size(structHRU2seg)
+  ! loop through hrus in the mapping layer
+  do iHRU=1,size(remap_data%hru_ix)
 
    ! define the HRU index in the routing vector
    jHRU = remap_data%hru_ix(iHRU)
+
+   ! if mapping data has hrus that do not exist in river network, skip that hru
+   ! but increment index of weight and overlap-poly-id arrays
+   if (jHRU == integerMissing)then
+    if (remap_data%num_qhru(iHRU)/=integerMissing)then
+      ixOverlap = ixOverlap + remap_data%num_qhru(iHRU)
+      print*, ixOverlap
+    endif
+    cycle
+   endif
 
    ! check that the basins match
    if( remap_data%hru_id(iHRU) /= structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1) )then
@@ -172,6 +182,7 @@ module remapping
    associate(nContrib       => structNTOPO(iSeg)%var(ixNTOPO%nHRU)%dat(1),      & ! contributing HRUs
              hruContribIx   => structNTOPO(iSeg)%var(ixNTOPO%hruContribIx)%dat, & ! index of contributing HRU
              hruContribId   => structNTOPO(iSeg)%var(ixNTOPO%hruContribId)%dat, & ! unique ids of contributing HRU
+             basArea        => structSEG(  iSeg)%var(ixSEG%basArea)%dat(1),     & ! basin (total contributing HRU) area
              hruWeight      => structSEG(  iSeg)%var(ixSEG%weight)%dat          ) ! weight assigned to each HRU
 
    ! * case where HRUs drain into the segment
@@ -189,10 +200,16 @@ module remapping
       ierr=20; return
      endif
 
-     ! compute the weighted average
-     reachRunoff(iSeg) = reachRunoff(iSeg) + hruWeight(iHRU)*basinRunoff( hruContribIx(iHRU) )*time_conv*length_conv  ! ensure m/s
+     ! compute the weighted average runoff depth (m/s)
+     reachRunoff(iSeg) = reachRunoff(iSeg) + hruWeight(iHRU)*basinRunoff( hruContribIx(iHRU) )*time_conv*length_conv
 
     end do  ! (looping through contributing HRUs)
+
+    ! ensure that routed streamflow is non-zero
+    if(reachRunoff(iSeg) < runoffMin) reachRunoff(iSeg) = runoffMin
+
+    ! convert basin average runoff volume (m3/s)
+    reachRunoff(iSeg) = reachRunoff(iSeg)*basArea
 
    ! * special case where no HRUs drain into the segment
    else

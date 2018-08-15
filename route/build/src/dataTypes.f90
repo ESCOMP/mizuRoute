@@ -1,5 +1,6 @@
 module dataTypes
-USE nrtype
+USE nrtype, only: i4b,dp,lgt
+USE nrtype, only: integerMissing
 USE nrtype, only: strLen   ! string length
 ! used to create specific data types
 ! --
@@ -47,6 +48,21 @@ implicit none
   integer(i4b)           :: imin     = integerMissing  ! minute
   real(dp)               :: dsec     = realMissing     ! second
  endtype time
+
+ ! ---------- states structure --------------------------------------------------------------------------
+ !
+ type,public :: var
+  integer(i4b),  allocatable  :: array_2d_int(:,:)
+  integer(i4b),  allocatable  :: array_3d_int(:,:,:)
+  real(dp),      allocatable  :: array_2d_dp(:,:)
+  real(dp),      allocatable  :: array_3d_dp(:,:,:)
+  logical(lgt),  allocatable  :: array_2d_lgt(:,:)
+  logical(lgt),  allocatable  :: array_3d_lgt(:,:,:)
+ end type var
+
+ type,public :: states
+  type(var),     allocatable :: var(:)
+ end type states
 
  ! ---------- general data structures ----------------------------------------------------------------------
 
@@ -113,14 +129,15 @@ implicit none
   real(DP)                                :: RCHLAT2  ! End latitude
   real(DP)                                :: RCHLON1  ! Start longitude
   real(DP)                                :: RCHLON2  ! End longitude
-  real(DP),    dimension(:),allocatable   :: UPSLENG  ! total upstream length  (added by NM)
+  real(DP),    dimension(:),allocatable   :: UPSLENG  ! total upstream length
   integer(I4B)                            :: DREACHI  ! Immediate Downstream reach index
   integer(I4B)                            :: DREACHK  ! Immediate Downstream reach ID
   integer(I4B),dimension(:),allocatable   :: UREACHI  ! Immediate Upstream reach indices
   integer(I4B),dimension(:),allocatable   :: UREACHK  ! Immediate Upstream reach IDs
+  integer(I4B),dimension(:),allocatable   :: RCHLIST  ! all upstream reach indices
   logical(lgt),dimension(:),allocatable   :: goodBas  ! Flag to denote a good basin
   integer(I4B)                            :: RHORDER  ! Processing sequence
-  real(dp)    ,dimension(:),allocatable   :: UH       ! Unit hydrograph for upstream (added by NM)
+  real(dp)    ,dimension(:),allocatable   :: UH       ! Unit hydrograph for upstream
   integer(I4B)                            :: LAKE_IX  ! Lake index (0,1,2,...,nlak-1)
   integer(I4B)                            :: LAKE_ID  ! Lake ID (REC code?)
   real(DP)                                :: BASULAK  ! Area of basin under lake
@@ -146,20 +163,28 @@ implicit none
   TYPE(FPOINT),allocatable             :: KWAVE(:)
  END TYPE KREACH
 
+ ! ---------- irf states (future flow series ) ---------------------------------
+
+ ! Future flow series
+ TYPE, public :: IRFREACH
+  REAL(DP), allocatable                :: qfuture(:)    ! runoff volume in future time steps for IRF routing (m3/s)
+ END TYPE IRFREACH
+
  ! ---------- reach fluxes --------------------------------------------------------------------
 
  ! fluxes in each reach
  TYPE, public :: STRFLX
   REAL(DP), allocatable                :: QFUTURE(:)        ! runoff volume in future time steps (m3/s)
-  REAL(DP), allocatable                :: QFUTURE_IRF(:)    ! runoff volume in future time steps for IRF routing (m3/s) added by NM
+  REAL(DP), allocatable                :: QFUTURE_IRF(:)    ! runoff volume in future time steps for IRF routing (m3/s)
   REAL(DP)                             :: BASIN_QI          ! instantaneous runoff volume from the local basin (m3/s)
   REAL(DP)                             :: BASIN_QR(0:1)     ! routed runoff volume from the local basin (m3/s)
-  REAL(DP)                             :: UPSBASIN_QR       ! routed runoff depth from the upstream basins (m/s) added by NM
-  REAL(DP)                             :: BASIN_QR_IRF(0:1) ! routed runoff volume from all the upstream basin (m3/s) added by NM
+  REAL(DP)                             :: UPSBASIN_QR       ! routed runoff depth from the upstream basins (m/s)
+  REAL(DP)                             :: BASIN_QR_IRF(0:1) ! routed runoff volume from all the upstream basin (m3/s)
   REAL(DP)                             :: REACH_Q           ! time-step average streamflow (m3/s)
-  REAL(DP)                             :: REACH_Q_IRF       ! time-step average streamflow (m3/s) from IRF routing added by NM
+  REAL(DP)                             :: REACH_Q_IRF       ! time-step average streamflow (m3/s) from IRF routing
   REAL(DP)                             :: UPSTREAM_QI       ! sum of upstream streamflow (m3/s)
   REAL(DP)                             :: TAKE              ! average take
+  logical(lgt)                         :: CHECK_IRF         ! .true. if the reach is routed
  ENDTYPE STRFLX
 
  ! ---------- lake data types -----------------------------------------------------------------

@@ -100,6 +100,7 @@ contains
    case('<sim_end>');           simEnd                             = trim(cData) ! date string defining the end of the simulation
 
    ! part 3: Define river network netCDF and its meta
+   case('<ntopWriteOption>');   read(cData,*,iostat=io_error) ntopWriteOption    ! option for network topology calculations (0=read from file, 1=compute)
    case('<fname_ntopOld>');     fname_ntopOld                      = trim(cData) ! name of file containing stream network topology information
    case('<fname_ntopNew>');     fname_ntopNew                      = trim(cData) ! name of file containing stream segment information
    case('<dname_nhru>');        dname_nhru                         = trim(cData) ! dimension name of the HRUs
@@ -164,7 +165,6 @@ contains
    case('<varname_hruArea>'      ); meta_SEG    (ixSEG%hruArea         )%varName =trim(cData)  ! local basin area (m2)
    case('<varname_weight>'       ); meta_SEG    (ixSEG%weight          )%varName =trim(cData)  ! HRU weight
    case('<varname_timeDelayHist>'); meta_SEG    (ixSEG%timeDelayHist   )%varName =trim(cData)  ! time delay histogram for each reach (s)
-   case('<varname_upsLength>'    ); meta_SEG    (ixSEG%upsLength       )%varName =trim(cData)  ! length of the vector of reaches above each reach (m)
    case('<varname_upsArea>'      ); meta_SEG    (ixSEG%upsArea         )%varName =trim(cData)  ! area above the top of the reach -- zero if headwater (m2)
    case('<varname_basUnderLake>' ); meta_SEG    (ixSEG%basUnderLake    )%varName =trim(cData)  ! Area of basin under lake  (m2)
    case('<varname_rchUnderLake>' ); meta_SEG    (ixSEG%rchUnderLake    )%varName =trim(cData)  ! Length of reach under lake (m)

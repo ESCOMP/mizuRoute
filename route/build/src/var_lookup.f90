@@ -1,6 +1,6 @@
 MODULE var_lookup
  ! defines named variables used to index array elements
- USE nrtype
+ USE nrtype, only: i4b
  USE nrtype, only: integerMissing  ! missing value for integers
  implicit none
  private
@@ -26,7 +26,25 @@ MODULE var_lookup
   integer(i4b)     :: upHRU        = integerMissing   ! upstream HRUs
   integer(i4b)     :: upSeg        = integerMissing   ! immediate upstream segments
   integer(i4b)     :: upAll        = integerMissing   ! all upstream segments
+  integer(i4b)     :: uh           = integerMissing   ! all segment unit hydrographs
  endtype iLook_dims
+ ! For routing state variables
+ type, public  ::  iLook_stateDims
+  integer(i4b)     :: seg          = integerMissing   ! stream segment vector
+  integer(i4b)     :: time         = integerMissing   ! time
+  integer(i4b)     :: tbound       = integerMissing   ! 2 elelment time bound vector
+  integer(i4b)     :: ens          = integerMissing   ! runoff ensemble
+  integer(i4b)     :: wave         = integerMissing   ! waves in a channel
+  integer(i4b)     :: tdh_irf      = integerMissing   ! irf routed future channel flow in a segment
+  integer(i4b)     :: tdh          = integerMissing   ! uh routed future overland flow
+ endtype iLook_stateDims
+ ! For river discharge variables
+ type, public  ::  iLook_qDims
+  integer(i4b)     :: time         = integerMissing   ! time
+  integer(i4b)     :: seg          = integerMissing   ! stream segment vector
+  integer(i4b)     :: hru          = integerMissing   ! hru vector
+  integer(i4b)     :: ens          = integerMissing   ! runoff ensemble
+ endtype iLook_qDims
  ! ***********************************************************************************************************
  ! ** define variables desired for each HRU
  ! ***********************************************************************************************************
@@ -56,7 +74,6 @@ MODULE var_lookup
   integer(i4b)     :: weight        = integerMissing  ! weight assigned to each HRU (-)
   ! unit hydrograph routing
   integer(i4b)     :: timeDelayHist = integerMissing  ! time delay histogram for each reach (s)
-  integer(i4b)     :: upsLength     = integerMissing  ! length of the vector of reaches above each reach (m)
   integer(i4b)     :: basArea       = integerMissing  ! area of the local HRUs contributing to each reach (m2)
   integer(i4b)     :: upsArea       = integerMissing  ! area above the top of the reach -- zero if headwater (m2)
   integer(i4b)     :: totalArea     = integerMissing  ! basArea + upsArea -- area at the bottom of the reach (m2)
@@ -96,23 +113,55 @@ MODULE var_lookup
   integer(i4b)     :: goodBasin       = integerMissing  ! flag to define a good basin (1=good, 0=bad)
  endtype iLook_NTOPO
  ! ***********************************************************************************************************
+ ! ** define variables for segment fluxes/states variables
+ ! ***********************************************************************************************************
+ ! Basin IRF state/fluxes
+ type, public  ::  iLook_IRFbas
+  integer(i4b)     :: qfuture        = integerMissing  ! future routed flow
+  integer(i4b)     :: q              = integerMissing  ! final discharge
+ endtype iLook_IRFbas
+ ! KWT state/fluxes
+ type, public  ::  iLook_KWT
+  integer(i4b)     :: tentry         = integerMissing  ! wave entry time at a segment
+  integer(i4b)     :: texit          = integerMissing  ! wave exit time at a segment
+  integer(i4b)     :: qwave          = integerMissing  ! wave flow
+  integer(i4b)     :: qwave_mod      = integerMissing  ! wave flow after merged
+  integer(i4b)     :: routed         = integerMissing  ! Routed out of a segment or not
+  integer(i4b)     :: q              = integerMissing  ! final discharge
+ endtype iLook_KWT
+ !IRF state/fluxes
+ type, public  ::  iLook_IRF
+  integer(i4b)     :: qfuture        = integerMissing  ! future routed flow
+  integer(i4b)     :: q              = integerMissing  ! final discharge
+ endtype iLook_IRF
+ ! ***********************************************************************************************************
  ! ** define data vectors
  ! ***********************************************************************************************************
- type(iLook_struct),  public,parameter :: ixStruct  = iLook_struct  (1,2,3,4)
- type(iLook_dims),    public,parameter :: ixDims    = iLook_dims    (1,2,3,4,5)
- type(iLook_HRU),     public,parameter :: ixHRU     = iLook_HRU     (1)
- type(iLook_HRU2SEG), public,parameter :: ixHRU2SEG = iLook_HRU2SEG (1,2,3,4)
- type(iLook_SEG),     public,parameter :: ixSEG     = iLook_SEG     (1,2,3,4,5,6,7,8,9,10,11,12,13,14)
- type(iLook_NTOPO)   ,public,parameter :: ixNTOPO   = iLook_NTOPO   (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16)
+ type(iLook_struct)   ,public,parameter :: ixStruct    = iLook_struct   (1,2,3,4)
+ type(iLook_dims)     ,public,parameter :: ixDims      = iLook_dims     (1,2,3,4,5,6)
+ type(iLook_stateDims),public,parameter :: ixStateDims = iLook_stateDims(1,2,3,4,5,6,7)
+ type(iLook_qDims)    ,public,parameter :: ixqDims     = iLook_qDims    (1,2,3,4)
+ type(iLook_HRU)      ,public,parameter :: ixHRU       = iLook_HRU      (1)
+ type(iLook_HRU2SEG)  ,public,parameter :: ixHRU2SEG   = iLook_HRU2SEG  (1,2,3,4)
+ type(iLook_SEG)      ,public,parameter :: ixSEG       = iLook_SEG      (1,2,3,4,5,6,7,8,9,10,11,12,13)
+ type(iLook_NTOPO)    ,public,parameter :: ixNTOPO     = iLook_NTOPO    (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16)
+ type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      (1,2,3,4,5,6)
+ type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      (1,2)
+ type(iLook_IRFbas  ) ,public,parameter :: ixIRFbas    = iLook_IRFbas   (1,2)
  ! ***********************************************************************************************************
  ! ** define size of data vectors
  ! ***********************************************************************************************************
- integer(i4b),parameter,public    :: nStructures  = storage_size(ixStruct )/iLength
- integer(i4b),parameter,public    :: nDimensions  = storage_size(ixDims   )/iLength
- integer(i4b),parameter,public    :: nVarsHRU     = storage_size(ixHRU    )/iLength
- integer(i4b),parameter,public    :: nVarsHRU2SEG = storage_size(ixHRU2SEG)/iLength
- integer(i4b),parameter,public    :: nVarsSEG     = storage_size(ixSEG    )/iLength
- integer(i4b),parameter,public    :: nVarsNTOPO   = storage_size(ixNTOPO  )/iLength
+ integer(i4b),parameter,public    :: nStructures  = storage_size(ixStruct   )/iLength
+ integer(i4b),parameter,public    :: nDimensions  = storage_size(ixDims     )/iLength
+ integer(i4b),parameter,public    :: nStateDims   = storage_size(ixStateDims)/iLength
+ integer(i4b),parameter,public    :: nqDims       = storage_size(ixQdims    )/iLength
+ integer(i4b),parameter,public    :: nVarsHRU     = storage_size(ixHRU      )/iLength
+ integer(i4b),parameter,public    :: nVarsHRU2SEG = storage_size(ixHRU2SEG  )/iLength
+ integer(i4b),parameter,public    :: nVarsSEG     = storage_size(ixSEG      )/iLength
+ integer(i4b),parameter,public    :: nVarsNTOPO   = storage_size(ixNTOPO    )/iLength
+ integer(i4b),parameter,public    :: nVarsKWT      = storage_size(ixKWT      )/iLength
+ integer(i4b),parameter,public    :: nVarsIRF      = storage_size(ixIRF      )/iLength
+ integer(i4b),parameter,public    :: nVarsIRFbas   = storage_size(ixIRFbas   )/iLength
  ! ***********************************************************************************************************
 
 END MODULE var_lookup

@@ -1,4 +1,4 @@
-module kwt_route
+module kwt_route_module
 
 use nrtype
 use nr_utility_module, only : arth                                 ! Num. Recipies utilities
@@ -25,15 +25,62 @@ USE public_var, only : verySmall  ! a very small value
 
 implicit none
 private
-public::qroute_rch
-
-! common variables
-integer(i4b),save       :: ixPrint = -9999  ! the desired reach (set to negative to avoid any printing)
+public::kwt_route
 
 contains
 
+
  ! *********************************************************************
  ! subroutine: route kinematic waves through the river network
+ ! *********************************************************************
+ SUBROUTINE kwt_route(iens,                 & ! input: ensemble index
+                      nRch,                 & ! input: number of reach in the river network
+                      ixDesire,             & ! input: reachID to be checked by on-screen pringing
+                      ixOutlet,             & ! input: index of the outlet reach
+                      T0,T1,                & ! input: start and end of the time step
+                      ierr,message)           ! output: error control
+  USE public_var, only : MAXQPAR              ! maximum number of waves per reach
+  implicit none
+  ! Input
+   integer(i4b), intent(in)                    :: iens          ! ensemble member
+   integer(i4b), intent(in)                    :: nRch          ! number of reach segments in the network
+   integer(i4b), intent(in)                    :: ixDesire      ! index of the reach for verbose output
+   integer(i4b), intent(in)                    :: ixOutlet      ! index of the outlet reach
+   real(dp),     intent(in)                    :: T0,T1         ! start and end of the time step (seconds)
+   ! output variables
+   integer(i4b), intent(out)                   :: ierr          ! error code
+   character(*), intent(out)                   :: message       ! error message
+   ! local variables
+   integer(I4B)                                :: LAKEFLAG=0    ! >0 if processing lakes
+   integer(i4b)                                :: iRch, jRch    ! reach indices
+   character(len=strLen)                       :: cmessage      ! error message for downwind routine
+
+  ! initialize error control
+  ierr=0; message='kwt_route/'
+
+  ! route streamflow through the river network
+  do iRch=1,nRch
+
+   ! identify reach to process
+   jRch = NETOPO(iRch)%RHORDER
+
+   ! route kinematic waves through the river network
+   call QROUTE_RCH(iens,jRch,           & ! input: array indices
+                   ixDesire,            & ! input: index of the desired reach
+                   ixOutlet,            & ! input: index of the outlet reach
+                   T0,T1,               & ! input: start and end of the time step
+                   MAXQPAR,             & ! input: maximum number of particle in a reach
+                   LAKEFLAG,            & ! input: flag if lakes are to be processed
+                   ierr,cmessage)         ! output: error control
+   if (ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  end do  ! (looping through stream segments)
+
+ END SUBROUTINE kwt_route
+
+
+ ! *********************************************************************
+ ! subroutine: route kinematic waves at one segment
  ! *********************************************************************
  subroutine QROUTE_RCH(IENS,JRCH,    & ! input: array indices
                        ixDesire,     & ! input: index of the reach for verbose output
@@ -133,6 +180,8 @@ contains
    TYPE(FPOINT),allocatable,DIMENSION(:),SAVE  :: NEW_WAVE      ! temporary wave
    LOGICAL(LGT),SAVE                           :: INIT=.TRUE.   ! used to initialize pointers
    ! random stuff
+   integer(i4b)                                :: IWV           ! rech index
+   character(strLen)                           :: fmt1,fmt2     ! format string
    CHARACTER(LEN=256)                          :: CMESSAGE      ! error message for downwind routine
 
    ! initialize error control
@@ -142,8 +191,11 @@ contains
    ! ----------------------------------------------------------------------------------------
    if(INIT) then
      INIT=.false.
-     ixPrint=ixDesire
    endif
+
+   if(JRCH==ixDesire) write(*,"('JRCH=',I10)") JRCH
+   if(JRCH==ixDesire) write(*,"('T0-T1=',F20.7,1x,F20.7)") T0, T1
+
    RCHFLX(IENS,JRCH)%TAKE=0.0_dp ! initialize take from this reach
     ! ----------------------------------------------------------------------------------------
     ! (1) EXTRACT FLOW FROM UPSTREAM REACHES & APPEND TO THE NON-ROUTED FLOW PARTICLES IN JRCH
@@ -151,7 +203,7 @@ contains
     NUPS = count(NETOPO(JRCH)%goodBas)        ! number of desired upstream reaches
     !NUPS = size(NETOPO(JRCH)%UREACHI)        ! number of upstream reaches
     IF (NUPS.GT.0) THEN
-      call GETUSQ_RCH(IENS,JRCH,LAKEFLAG,T0,T1, &                    ! input
+      call GETUSQ_RCH(IENS,JRCH,LAKEFLAG,T0,T1,ixDesire, &           ! input
                       Q_JRCH,TENTRY,T_EXIT,ierr,cmessage,RSTEP)      ! output
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       ! check for negative flow
@@ -159,7 +211,10 @@ contains
         ierr=20; message=trim(message)//'negative flow extracted from upstream reach'; return
       endif
       ! check
-      if(JRCH==ixPrint) print*, 'JRCH, Q_JRCH = ', JRCH, Q_JRCH
+      if(JRCH==ixDesire)then
+        write(fmt1,'(A,I5,A)') '(A,1X',size(Q_JRCH),'(1X,F20.7))'
+        write(*,fmt1) 'Initial_Q_JRCH=', (Q_JRCH(IWV), IWV=0,size(Q_JRCH)-1)
+      endif
     else
       ! set flow in headwater reaches to modelled streamflow from time delay histogram
       RCHFLX(IENS,JRCH)%REACH_Q = RCHFLX(IENS,JRCH)%BASIN_QR(1)
@@ -175,7 +230,7 @@ contains
       KROUTE(IENS,JRCH)%KWAVE(0)%RF=.False.
       KROUTE(IENS,JRCH)%KWAVE(0)%QM=-9999
       ! check
-      if(JRCH==ixPrint) print*, 'JRCH, RCHFLX(IENS,JRCH)%REACH_Q = ', JRCH, RCHFLX(IENS,JRCH)%REACH_Q
+      if(JRCH==ixDesire) print*, 'JRCH, RCHFLX(IENS,JRCH)%REACH_Q = ', JRCH, RCHFLX(IENS,JRCH)%REACH_Q
       return  ! no upstream reaches (routing for sub-basins done using time-delay histogram)
     endif
     ! ----------------------------------------------------------------------------------------
@@ -202,15 +257,17 @@ contains
     if(ierr/=0)then; message=trim(message)//'problem allocating space for FROUTE'; return; endif
     FROUTE(0) = .TRUE.; FROUTE(1:NQ1)=.FALSE.  ! init. routing flags
     ! route flow through the current [JRCH] river segment (Q_JRCH in units of m2/s)
-    call KINWAV_RCH(JRCH,T_START,T_END,Q_JRCH(1:NQ1),TENTRY(1:NQ1),&     ! (input)
-                                       FROUTE(1:NQ1),T_EXIT(1:NQ1),NQ2,& ! (output)
-                                       ierr,cmessage)                    ! (output)
+    call KINWAV_RCH(JRCH,T_START,T_END,Q_JRCH(1:NQ1),TENTRY(1:NQ1),ixDesire,& ! (input)
+                                       FROUTE(1:NQ1),T_EXIT(1:NQ1),NQ2,&      ! (output)
+                                       ierr,cmessage)                         ! (output)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    if(JRCH == ixPrint)then
-      print*, 'Q_JRCH = ', Q_JRCH
-      print*, 'FROUTE = ', FROUTE
-      print*, 'TENTRY = ', TENTRY
-      print*, 'T_EXIT = ', T_EXIT
+    if(JRCH == ixDesire)then
+      write(fmt1,'(A,I5,A)') '(A,1X',NQ1+1,'(1X,F20.7))'
+      write(fmt2,'(A,I5,A)') '(A,1X',NQ1+1,'(1X,L))'
+      write(*,fmt1) 'Q_JRCH=',(Q_JRCH(IWV), IWV=0,NQ1)
+      write(*,fmt2) 'FROUTE=',(FROUTE(IWV), IWV=0,NQ1)
+      write(*,fmt1) 'TENTRY=',(TENTRY(IWV), IWV=0,NQ1)
+      write(*,fmt1) 'T_EXIT=',(T_EXIT(IWV), IWV=0,NQ1)
     endif
     ! ----------------------------------------------------------------------------------------
     ! (4) COMPUTE TIME-STEP AVERAGES
@@ -221,7 +278,7 @@ contains
     ! (zero position last routed; use of NR+1 instead of NR keeps next expected routed point)
     call INTERP_RCH(T_EXIT(0:NR+1),Q_JRCH(0:NR+1),TNEW,QNEW,IERR,CMESSAGE)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    if(JRCH == ixPrint) print*, 'QNEW(1) = ', QNEW(1)
+    if(JRCH == ixDesire) write(*,"('QNEW(1)=',1x,F10.7)") QNEW(1)
     ! m2/s --> m3/s + instantaneous runoff from basin
     RCHFLX(IENS,JRCH)%REACH_Q = QNEW(1)*RPARAM(JRCH)%R_WIDTH + RCHFLX(IENS,JRCH)%BASIN_QR(1)
     ! ----------------------------------------------------------------------------------------
@@ -269,7 +326,7 @@ contains
     ! ***
     ! remove flow particles from the most downstream reach
     if(jRch==ixOutlet)then
-      if(jRch==ixPrint) print*, 'NETOPO(JRCH)%DREACHI = ', NETOPO(JRCH)%DREACHI
+      if(jRch==ixDesire) print*, 'NETOPO(JRCH)%DREACHI = ', NETOPO(JRCH)%DREACHI
       if(NETOPO(JRCH)%DREACHI > 0)then
         message=trim(message)//'downstream reach index of outlet reach is greater than zero'
         ierr=20; return
@@ -305,7 +362,7 @@ contains
  ! *********************************************************************
  ! subroutine: extract flow from the reaches upstream of JRCH
  ! *********************************************************************
- subroutine GETUSQ_RCH(IENS,JRCH,LAKEFLAG,T0,T1,&                ! input
+ subroutine GETUSQ_RCH(IENS,JRCH,LAKEFLAG,T0,T1,ixDesire,&       ! input
                        Q_JRCH,TENTRY,T_EXIT,ierr,message,&       ! output
                        RSTEP)                                    ! optional input
  ! ----------------------------------------------------------------------------------------
@@ -346,6 +403,7 @@ contains
  INTEGER(I4B), INTENT(IN)                    :: JRCH     ! reach to process
  INTEGER(I4B), INTENT(IN)                    :: LAKEFLAG ! >0 if processing lakes
  REAL(DP), INTENT(IN)                        :: T0,T1    ! start and end of the time step
+ INTEGER(I4B), INTENT(IN)                    :: ixDesire ! index of the reach for verbose output
  INTEGER(I4B), INTENT(IN), OPTIONAL          :: RSTEP    ! retrospective time step offset
  ! Local variables to hold the merged inputs to the downstream reach
  INTEGER(I4B)                                :: ROFFSET  ! retrospective offset due to rstep
@@ -387,17 +445,17 @@ contains
     QD(1) = LAKFLX(IENS,ILAK)%LAKE_Q / RPARAM(JRCH)%R_WIDTH  ! lake outflow per unit reach width
     TD(1) = T1 - DT*ROFFSET
    ELSE
-    CALL QEXMUL_RCH(IENS,JRCH,T0,T1,ND,QD,TD,ierr,cmessage,RSTEP)        ! do as normal for unsubmerged part of inlet reach
+    CALL QEXMUL_RCH(IENS,JRCH,T0,T1,ixDesire,ND,QD,TD,ierr,cmessage,RSTEP)        ! do as normal for unsubmerged part of inlet reach
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    ENDIF
   ELSE
-   CALL QEXMUL_RCH(IENS,JRCH,T0,T1,ND,QD,TD,ierr,cmessage,RSTEP)         ! not in lake; do as normal
+   CALL QEXMUL_RCH(IENS,JRCH,T0,T1,ixDesire,ND,QD,TD,ierr,cmessage,RSTEP)         ! not in lake; do as normal
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   ENDIF
  ELSE                                         ! lakes disabled
-  CALL QEXMUL_RCH(IENS,JRCH,T0,T1,ND,QD,TD,ierr,cmessage,RSTEP)         ! includes merging flow from different reaches
+  CALL QEXMUL_RCH(IENS,JRCH,T0,T1,ixDesire,ND,QD,TD,ierr,cmessage,RSTEP)         ! includes merging flow from different reaches
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  if(JRCH == ixPrint) print*, 'after QEXMUL_RCH: JRCH, ND, QD = ', JRCH, ND, QD
+  if(JRCH == ixDesire) print*, 'after QEXMUL_RCH: JRCH, ND, QD = ', JRCH, ND, QD
  ENDIF
  ! ----------------------------------------------------------------------------------------
  ! (2) EXTRACT NON-ROUTED FLOW FROM THE REACH JRCH & APPEND TO THE FLOW JUST ROUTED D/S
@@ -439,8 +497,8 @@ contains
  ! subroutine: extract flow from multiple reaches and merge into
  !                 a single series
  ! *********************************************************************
- subroutine QEXMUL_RCH(IENS,JRCH,T0,T1,&            ! input
-                       ND,QD,TD,ierr,message,&      ! output
+ subroutine QEXMUL_RCH(IENS,JRCH,T0,T1,ixDesire,&   ! input
+                       ND,QD,TD,ierr,message,   &   ! output
                        RSTEP)                       ! optional input
  ! ----------------------------------------------------------------------------------------
  ! Creator(s):
@@ -479,6 +537,7 @@ contains
  INTEGER(I4B), INTENT(IN)                    :: IENS      ! ensemble member
  INTEGER(I4B), INTENT(IN)                    :: JRCH      ! reach to process
  REAL(DP), INTENT(IN)                        :: T0,T1     ! start and end of the time step
+ integer(i4b), INTENT(IN)                    :: ixDesire  ! index of the reach for verbose output
  INTEGER(I4B), INTENT(IN), OPTIONAL          :: RSTEP     ! retrospective time step offset
  ! Local variables to hold flow/time from upstream reaches
  REAL(DP)                                    :: DT        ! model time step
@@ -573,7 +632,7 @@ contains
   ! get flow in m2/s (scaled by with of downstream reach)
   QD(1) = RCHFLX(IENS,IR)%BASIN_QR(1)/RPARAM(JRCH)%R_WIDTH
   TD(1) = T1
-  if(JRCH == ixPrint) print*, 'special case: JRCH, IR, NETOPO(IR)%REACHID = ', JRCH, IR, NETOPO(IR)%REACHID
+  if(JRCH == ixDesire) print*, 'special case: JRCH, IR, NETOPO(IR)%REACHID = ', JRCH, IR, NETOPO(IR)%REACHID
   RETURN
  ENDIF
  ! allocate space for the upstream flow, time, and flags
@@ -940,7 +999,8 @@ contains
  !                 single stream segment, including the formation and
  !                 propagation of a kinematic shock
  ! *********************************************************************
- subroutine KINWAV_RCH(JRCH,T_START,T_END,Q_JRCH,TENTRY,FROUTE,T_EXIT,NQ2,&
+ subroutine KINWAV_RCH(JRCH,T_START,T_END,Q_JRCH,TENTRY,ixDesire, &
+                       FROUTE,T_EXIT,NQ2, &
                        ierr,message)
  ! ----------------------------------------------------------------------------------------
  ! Creator(s):
@@ -1025,6 +1085,7 @@ contains
  INTEGER(I4B), INTENT(IN)                    :: JRCH     ! Reach to process
  REAL(DP), INTENT(IN)                        :: T_START  ! start of the time step
  REAL(DP), INTENT(IN)                        :: T_END    ! end of the time step
+ integer(i4b), intent(in)                    :: ixDesire ! index of the reach for verbose output
  ! Input/Output
  REAL(DP), DIMENSION(:), INTENT(INOUT)       :: Q_JRCH   ! flow to be routed
  REAL(DP), DIMENSION(:), INTENT(INOUT)       :: TENTRY   ! time to be routed
@@ -1099,7 +1160,7 @@ contains
  ! compute wave celerity for all flow points (array operation)
  WC(1:NN) = ALFA*K**(1./ALFA)*Q1(1:NN)**((ALFA-1.)/ALFA)
  ! check
- if(jRch==ixPrint) print*, 'q1(1:nn), wc(1:nn), RPARAM(JRCH)%R_SLOPE, nn = ', &
+ if(jRch==ixDesire) print*, 'q1(1:nn), wc(1:nn), RPARAM(JRCH)%R_SLOPE, nn = ', &
                             q1(1:nn), wc(1:nn), RPARAM(JRCH)%R_SLOPE, nn
 
  ! handle breaking waves
@@ -1159,7 +1220,7 @@ contains
  ! ----------------------------------------------------------------------------------------
  DO IROUTE = 1,NN    ! loop through the remaining particles (shocks,waves) (NM=NI-NN have been merged)
   ! check
-  if(jRch==ixPrint) print*, 'wc(iRoute), nn = ', wc(iRoute), nn
+  if(jRch==ixDesire) print*, 'wc(iRoute), nn = ', wc(iRoute), nn
   ! check that we have non-zero flow
   if(WC(IROUTE) < verySmall)then
    write(message,'(a,i0)') trim(message)//'zero flow for reach id ', NETOPO(jRch)%REACHID
@@ -1434,4 +1495,4 @@ contains
  return
  end subroutine
 
-end module kwt_route
+end module kwt_route_module

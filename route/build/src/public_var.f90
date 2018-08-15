@@ -1,7 +1,7 @@
 module public_var
   ! This module include variables that can be accessed from any other modules and values not altered
   ! Examples of variables are physical parameteres, namelist variable, variables in control etc.
-  use nrtype
+  use nrtype, only: i4b,dp,lgt
   use nrtype, only: integerMissing, realMissing
   use nrtype, only: strLen  ! string length
   implicit none
@@ -60,6 +60,7 @@ module public_var
   character(len=strLen),public    :: units_time           = ''              ! time units
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
+  logical(lgt)         ,public    :: ntopWriteOption      = .false.         ! option for writing augmented network topology (false=no,true=yes)
   character(len=strLen),public    :: fname_ntopNew        = ''              ! new filename containing stream network topology information
   character(len=strLen),public    :: dname_sseg           = ''              ! dimension name of segment in river network data
   character(len=strLen),public    :: dname_nhru           = ''              ! dimension name of hru in river network data
