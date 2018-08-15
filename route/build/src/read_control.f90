@@ -95,16 +95,20 @@ contains
    case('<input_dir>');         input_dir                          = trim(cData) ! directory containing input data
    case('<output_dir>');        output_dir                         = trim(cData) ! directory containing output data
 
-   ! part 2: Define river network netCDF and its meta
-   case('<fname_ntopOld>');     fname_ntopOld                            = trim(cData) ! name of file containing stream network topology information
-   case('<fname_ntopNew>');     fname_ntopNew                            = trim(cData) ! name of file containing stream segment information
-   case('<dname_nhru>');        dname_nhru                               = trim(cData) ! dimension name of the HRUs
-   case('<dname_sseg>');        dname_sseg                               = trim(cData) ! dimension name of the stream segments
+   ! part 2: Define the time period of the simulation
+   case('<sim_start>');         simStart                           = trim(cData) ! date string defining the start of the simulation
+   case('<sim_end>');           simEnd                             = trim(cData) ! date string defining the end of the simulation
 
-   ! part 3: Define desired outlet segment ID (if -9999 --> route over the entire network)
+   ! part 3: Define river network netCDF and its meta
+   case('<fname_ntopOld>');     fname_ntopOld                      = trim(cData) ! name of file containing stream network topology information
+   case('<fname_ntopNew>');     fname_ntopNew                      = trim(cData) ! name of file containing stream segment information
+   case('<dname_nhru>');        dname_nhru                         = trim(cData) ! dimension name of the HRUs
+   case('<dname_sseg>');        dname_sseg                         = trim(cData) ! dimension name of the stream segments
+
+   ! part 4: Define desired outlet segment ID (if -9999 --> route over the entire network)
    case('<seg_outlet>'   );     read(cData,*,iostat=io_error) idSegOut           ! seg_id of outlet streamflow segment
 
-   ! Part 4: Define runoff netCDF and its meta
+   ! Part 5: Define runoff netCDF and its meta
    case('<fname_qsim>');        fname_qsim   = trim(cData)                       ! name of file containing the runoff
    case('<vname_qsim>');        vname_qsim   = trim(cData)                       ! name of runoff variable
    case('<vname_time>');        vname_time   = trim(cData)                       ! name of time variable in the runoff file
@@ -114,7 +118,7 @@ contains
    case('<units_qsim>');        units_qsim   = trim(cData)                       ! units of runoff
    case('<dt_qsim>');           read(cData,*,iostat=io_error) dt                 ! time interval of the gridded runoff
 
-   ! Part 5: Define runoff mapping netCDF file and its metadata
+   ! Part 6: Define runoff mapping netCDF file and its metadata
    case('<is_remap>');             read(cData,*,iostat=io_error) is_remap        ! logical whether or not runnoff needs to be mapped to river network HRU
    case('<fname_remap>');          fname_remap           = trim(cData)           ! name of runoff mapping netCDF
    case('<vname_hruid_in_remap>'); vname_hruid_in_remap  = trim(cData)           ! name of variable containing ID of runoff HRU
@@ -124,21 +128,21 @@ contains
    case('<dname_hru_remap>');      dname_hru_remap       = trim(cData)           ! name of variable containing ID of runoff HRU
    case('<dname_data_remap>');     dname_data_remap      = trim(cData)           ! name of variable containing ID of runoff HRU
 
-   ! part 6 Define run control
+   ! part 7 Define run control
    case('<restart_opt>');   read(cData,*,iostat=io_error) isRestart              ! restart option: True-> model run with restart, F -> model run with empty channels
    case('<route_opt>');     read(cData,*,iostat=io_error) routOpt                ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
 
-   ! Part 7: Define output filename
+   ! Part 8: Define output filename
    case('<fname_output>');    fname_output    = trim(cData)                      ! filename for the model output
    case('<fname_state_in>');  fname_state_in  = trim(cData)                      ! filename for the channel states
    case('<fname_state_out>'); fname_state_out = trim(cData)                      ! filename for the channel states
 
-   ! Part 8: Define options to include/skip calculations
+   ! Part 9: Define options to include/skip calculations
    case('<hydGeometryOption>'); read(cData,*,iostat=io_error) hydGeometryOption  ! option for hydraulic geometry calculations (0=read from file, 1=compute)
    case('<topoNetworkOption>'); read(cData,*,iostat=io_error) topoNetworkOption  ! option for network topology calculations (0=read from file, 1=compute)
    case('<computeReachList>');  read(cData,*,iostat=io_error) computeReachList   ! option to compute list of upstream reaches (0=do not compute, 1=compute)
 
-   ! Part 9: Define namelist name for routing parameters
+   ! Part 10: Define namelist name for routing parameters
    case('<param_nml>');       param_nml       = trim(cData)                      ! name of namelist including routing parameter value
 
    ! Part X: Dictionary to modify variable names

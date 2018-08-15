@@ -79,6 +79,7 @@ DATATYPES = \
 UTILS = \
   nr_utility.f90 \
   ascii_util.f90 \
+  time_utils.f90 \
   gamma_func.f90 \
   public_var.f90
 #
