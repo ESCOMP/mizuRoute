@@ -12,6 +12,7 @@ USE dataTypes, only : var_dlength             ! double precision type: var(:)%da
 ! data structures
 USE dataTypes,  only : remap                  ! remapping data type
 USE dataTypes,  only : runoff                 ! runoff data type
+USE dataTypes,  only : time                   ! time data type
 
 ! global data
 USE public_var
@@ -38,6 +39,9 @@ USE popMetadat_module, only : popMetadat      ! populate metadata
 USE read_control_module, only : read_control  ! read the control file
 USE read_param_module,   only : read_param    ! read the routing parameters
 
+! subroutines netcdf input
+USE read_netcdf, only:get_nc                  ! netcdf input
+
 ! subroutines: netcdf output
 USE write_simoutput, only : defineFile        ! define netcdf output file
 USE write_restart,   only : define_state_nc,& ! define netcdf state output file
@@ -48,6 +52,11 @@ USE write_netcdf,    only : write_nc          ! write a variable to the NetCDF f
 ! subroutines: model set up
 USE process_ntopo, only : ntopo               ! process the network topology
 USE getAncillary_module, only : getAncillary  ! get ancillary data
+
+! subroutines: model time info
+USE time_utils_module, only : extractTime     ! get time from units string
+USE time_utils_module, only : compJulday      ! compute julian day
+USE time_utils_module, only : compCalday      ! compute calendar day
 
 ! subroutines: basin routing
 USE basinUH_module, only : IRF_route_basin    ! perform UH convolution for basin routing
@@ -76,6 +85,9 @@ integer(i4b), parameter       :: desireId=integerMissing  ! turn off checks or s
 
 ! model control
 integer(i4b),parameter        :: nEns=1              ! number of ensemble members
+character(len=strLen)         :: fileout             ! name of the output file
+logical(lgt)                  :: defNewOutputFile    ! flag to define new output file
+
 ! index of looping variables
 integer(i4b)                  :: iens                ! ensemble member
 integer(i4b)                  :: iHRU                ! index for HRU
@@ -106,6 +118,19 @@ type(runoff)                  :: runoff_data         ! runoff for one time step 
 integer(i4b)                  :: nSpatial            ! number of spatial elements
 integer(i4b)                  :: nTime               ! number of time steps
 character(len=strLen)         :: time_units          ! time units
+
+! time structures
+type(time)                    :: startTime           ! start time
+type(time)                    :: endTime             ! end time
+type(time)                    :: refTime             ! reference time
+type(time)                    :: modTime             ! model time
+type(time)                    :: prevTime            ! previous model time
+real(dp)                      :: startJulday         ! julian day: start
+real(dp)                      :: endJulday           ! julian day: end
+real(dp)                      :: refJulday           ! julian day: reference
+real(dp)                      :: modJulday           ! julian day: model simulation
+real(dp)                      :: convTime2Days       ! conversion factor to convert time to units of days
+real(dp)    , allocatable     :: timeVec(:)          ! time vector
 
 ! routing variables
 real(dp)                      :: T0,T1               ! entry/exit time for the reach
@@ -188,6 +213,55 @@ call getAncillary(&
                   ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
+! allocate space for the time data
+allocate(timeVec(ntime), stat=ierr); call handle_err(ierr, 'problem allocating timeVec')
+
+! get the time data
+call get_nc(trim(input_dir)//trim(fname_qsim), vname_time, timeVec, 1, nTime, ierr, cmessage)
+if(ierr/=0) call handle_err(ierr, cmessage)
+
+! get the time multiplier needed to convert time to units of days
+select case( trim( time_units(1:index(time_units,' ')) ) )
+ case('seconds'); convTime2Days=86400._dp
+ case('hours');   convTime2Days=24._dp
+ case('days');    convTime2Days=1._dp
+ case default;    call handle_err(20, 'unable to identify time units')
+end select
+
+! * extract reference time from the time string
+
+! extract reference time from the units string
+call extractTime(time_units,refTime%iy,refTime%im,refTime%id,refTime%ih,refTime%imin,refTime%dsec,ierr,cmessage)
+if(ierr/=0) call handle_err(ierr, cmessage)
+
+! extract start time from the simStart string
+call extractTime(trim(simStart),startTime%iy,startTime%im,startTime%id,startTime%ih,startTime%imin,startTime%dsec,ierr,cmessage)
+if(ierr/=0) call handle_err(ierr, cmessage)
+
+! extract end time from the simStart string
+call extractTime(trim(simEnd),endTime%iy,endTime%im,endTime%id,endTime%ih,endTime%imin,endTime%dsec,ierr,cmessage)
+if(ierr/=0) call handle_err(ierr, cmessage)
+
+! * compute the julian day from the time structures
+
+! calculate the reference julian day
+call compjulday(refTime%iy,refTime%im,refTime%id,refTime%ih,refTime%imin,refTime%dsec,refJulday,ierr,cmessage)
+if(ierr/=0) call handle_err(ierr, cmessage)
+
+! calculate the julian day for the start time
+call compjulday(startTime%iy,startTime%im,startTime%id,startTime%ih,startTime%imin,startTime%dsec,startJulday,ierr,cmessage)
+if(ierr/=0) call handle_err(ierr, cmessage)
+
+! calculate the julian day for the end time
+call compjulday(endTime%iy,endTime%im,endTime%id,endTime%ih,endTime%imin,endTime%dsec,endJulday,ierr,cmessage)
+if(ierr/=0) call handle_err(ierr, cmessage)
+
+! check that the dates are aligned
+if(endJulday<startJulday) call handle_err(20,'simulation end is before simulation start')
+
+! initialize previous model time
+prevTime = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
+
 ! *****
 ! *** Initialize state
 ! *************************************
@@ -215,6 +289,14 @@ else
 
 endif
 
+! *****
+! * Restart file output
+! ************************
+
+ ! Define state netCDF
+ call define_state_nc(trim(output_dir)//trim(fname_state_out), time_units, routOpt, ierr, cmessage)
+ if(ierr/=0) call handle_err(ierr, cmessage)
+ 
 ! ======================================================================================================
 ! ======================================================================================================
 ! ======================================================================================================
@@ -232,52 +314,43 @@ endif
 allocate(basinID(nHRU), reachID(nRch), basinRunoff(nHRU), reachRunoff(nRch), stat=ierr)
 if(ierr/=0) call handle_err(ierr, 'unable to allocate space for runoff vectors')
 
-! define ensemble member
-iens=1
-
 ! *****
-! *** Define model output file...
-! *******************************
-
-! define output file
-call defineFile(trim(output_dir)//trim(fname_output),  &  ! input: file name
-                nEns,                                  &  ! input: number of HRUs
-                nHRU,                                  &  ! input: number of HRUs
-                nRch,                                  &  ! input: number of stream segments
-                time_units,                            &  ! input: time units
-                ierr,cmessage)                            ! output: error control
-if(ierr/=0) call handle_err(ierr, cmessage)
-
-! define basin ID
-forall(iHRU=1:nHRU) basinID(iHRU) = structHRU2seg(iHRU)%var(ixHRU2seg%hruId)%dat(1)
-call write_nc(trim(output_dir)//trim(fname_output), 'basinID', basinID, (/1/), (/nHRU/), ierr, cmessage)
-call handle_err(ierr,cmessage)
-
-! define reach ID
-forall(iRch=1:nRch) reachID(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
-call write_nc(trim(output_dir)//trim(fname_output), 'reachID', reachID, (/1/), (/nRch/), ierr, cmessage)
-call handle_err(ierr,cmessage)
+! *** define indices...
+! *********************
 
 ! find index of desired reach
 ixDesire = findIndex(reachID,desireId,integerMissing)
 
-! find index of outlet reach
+! find index of desired reach
 ixOutlet = findIndex(reachID,idSegOut,integerMissing)
 
-! *****
-! * Restart file output
-! ************************
+! define ensemble member
+iens=1
 
- ! Define state netCDF
- call define_state_nc(trim(output_dir)//trim(fname_state_out), time_units, routOpt, ierr, cmessage)
- if(ierr/=0) call handle_err(ierr, cmessage)
+! **
+! **
+! **
+
 
 ! *****
 ! *** Route runoff...
 ! *******************
 
 ! loop through time
-do iTime=1, nTime
+do iTime=1,nTime
+
+ ! get the julian day of the model simulation
+ modJulday = refJulday + timeVec(iTime)/convTime2Days
+
+ ! check we are within the desired time interval
+ if(modJulday < startJulday .or. modJulday > endJulday) cycle
+
+ ! get the time
+ call compCalday(modJulday,modTime%iy,modTime%im,modTime%id,modTime%ih,modTime%imin,modTime%dsec,ierr,cmessage)
+ call handle_err(ierr, cmessage)
+
+ ! print progress
+ print*, modTime%iy,modTime%im,modTime%id,modTime%ih,modTime%imin
 
  ! *****
  ! * Get the simulated runoff for the current time step...
@@ -300,12 +373,56 @@ do iTime=1, nTime
   basinRunoff=runoff_data%qsim
  end if
 
+ ! *****
+ ! *** Define model output file...
+ ! *******************************
+
+ ! check need for the new file
+ select case(newFileFrequency)
+  case(annual); defNewOutputFile=(modTime%iy/=prevTime%iy)
+  case(month);  defNewOutputFile=(modTime%im/=prevTime%im)
+  case(day);    defNewOutputFile=(modTime%id/=prevTime%id)
+  case default; call handle_err(20,'unable to identify the option to define new output files')
+ end select
+
+ ! define new file
+ if(defNewOutputFile)then
+
+  ! initialize time
+  jtime=1
+
+  ! update filename
+  write(fileout,'(a,3(i0,a))') trim(output_dir)//'runoff_', modTime%iy, '-', modTime%im, '-', modTime%id, '.nc'
+
+  ! define output file
+  call defineFile(trim(fileout),                         &  ! input: file name
+                  nHRU,                                  &  ! input: number of HRUs
+                  nRch,                                  &  ! input: number of stream segments
+                  time_units,                            &  ! input: time units
+                  ierr,cmessage)                            ! output: error control
+  if(ierr/=0) call handle_err(ierr, cmessage)
+
+  ! define basin ID
+  forall(iHRU=1:nHRU) basinID(iHRU) = structHRU2seg(iHRU)%var(ixHRU2seg%hruId)%dat(1)
+  call write_nc(trim(fileout), 'basinID', basinID, (/1/), (/nHRU/), ierr, cmessage)
+  call handle_err(ierr,cmessage)
+
+  ! define reach ID
+  forall(iRch=1:nRch) reachID(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
+  call write_nc(trim(fileout), 'reachID', reachID, (/1/), (/nRch/), ierr, cmessage)
+  call handle_err(ierr,cmessage)
+
+ ! no new file requested: increment time
+ else
+  jtime = jtime+1
+ endif
+
  ! write time -- note time is just carried across from the input
- call write_nc(trim(output_dir)//trim(fname_output), 'time', (/runoff_data%time/), (/iTime/), (/1/), ierr, cmessage)
+ call write_nc(trim(fileout), 'time', (/runoff_data%time/), (/jTime/), (/1/), ierr, cmessage)
  call handle_err(ierr,cmessage)
 
  ! write the basin runoff to the netcdf file
- call write_nc(trim(output_dir)//trim(fname_output), 'basRunoff', basinRunoff, (/1,iTime/), (/nHRU,1/), ierr, cmessage)
+ call write_nc(trim(fileout), 'basRunoff', basinRunoff, (/1,jTime/), (/nHRU,1/), ierr, cmessage)
  call handle_err(ierr,cmessage)
 
  !print*, 'PAUSE: after getting simulated runoff'; read(*,*)
@@ -346,7 +463,7 @@ do iTime=1, nTime
  end if
 
  ! write routed local runoff in each stream segment (m3/s)
- call write_nc(trim(output_dir)//trim(fname_output), 'dlayRunoff', RCHFLX(iens,:)%BASIN_QR(1), (/1,iTime/), (/nRch,1/), ierr, cmessage)
+ call write_nc(trim(fileout), 'dlayRunoff', RCHFLX(iens,:)%BASIN_QR(1), (/1,jTime/), (/nRch,1/), ierr, cmessage)
  call handle_err(ierr,cmessage)
 
  !print*, 'PAUSE: after getting reach runoff'; read(*,*)
@@ -378,22 +495,7 @@ do iTime=1, nTime
   call handle_err(ierr,cmessage)
 
   ! write routed runoff (m3/s)
-  call write_nc(trim(output_dir)//trim(fname_output), 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,iTime/), (/nRch,1/), ierr, cmessage)
-  if (ierr/=0) call handle_err(ierr,cmessage)
-
- endif
-
- ! perform seg2seg IRF routing
- if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
-
-  call irf_route(iens,                 & ! input: ensemble index
-                 nRch,                 & ! input: number of reach in the river network
-                 ixDesire,             & ! input: index of the reach for verbose output
-                 ierr,cmessage)          ! output: error control
-  call handle_err(ierr,cmessage)
-
-  ! write routed runoff (m3/s)
-  call write_nc(trim(output_dir)//trim(fname_output), 'IRFroutedRunoff', RCHFLX(iens,:)%REACH_Q_IRF, (/1,iTime/), (/nRch,1/), ierr, cmessage)
+  call write_nc(trim(fileout), 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,jTime/), (/nRch,1/), ierr, cmessage)
   call handle_err(ierr,cmessage)
 
  endif
@@ -405,14 +507,18 @@ do iTime=1, nTime
                  ixDesire,             & ! input: index of the desired reach
                  ierr,cmessage)          ! output: error control
   call handle_err(ierr,cmessage)
+  
   ! write routed runoff (m3/s)
-  call write_nc(trim(fileout), 'IRFroutedRunoff', RCHFLX(iens,:)%REACH_Q_IRF, (/1,iTime/), (/nRch,1/), ierr, cmessage)
+  call write_nc(trim(fileout), 'IRFroutedRunoff', RCHFLX(iens,:)%REACH_Q_IRF, (/1,jTime/), (/nRch,1/), ierr, cmessage)
   call handle_err(ierr,cmessage)
  endif
 
  ! increment time bounds
  T0 = T0 + dt
  T1 = T0 + dt
+
+ ! update previous time
+ prevTime = modTime
 
  !print*, 'PAUSE: after routing'; read(*,*)
 

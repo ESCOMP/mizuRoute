@@ -73,14 +73,16 @@ DATATYPES = \
   dataTypes.f90 \
   var_lookup.f90 \
   globalData.f90 \
-  public_var.f90 \
   popMetadat.f90
 #
 # define utilities
 UTILS = \
   nr_utility.f90 \
   ascii_util.f90 \
-  gamma_func.f90
+  time_utils.f90 \
+  gamma_func.f90 \
+  public_var.f90
+
 #
 # read/write files
 IO = \

@@ -39,6 +39,16 @@ implicit none
   logical(lgt)           :: varFile  = .true.          ! .true. if the variable should be read from a file
  endtype var_info
 
+ ! ---------- time structures ------------------------------------------------------------------------------
+ type,public :: time
+  integer(i4b)           :: iy       = integerMissing  ! year
+  integer(i4b)           :: im       = integerMissing  ! month
+  integer(i4b)           :: id       = integerMissing  ! day
+  integer(i4b)           :: ih       = integerMissing  ! hour
+  integer(i4b)           :: imin     = integerMissing  ! minute
+  real(dp)               :: dsec     = realMissing     ! second
+ endtype time
+
  ! ---------- states structure --------------------------------------------------------------------------
  !
  type,public :: var

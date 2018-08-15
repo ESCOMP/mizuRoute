@@ -13,6 +13,7 @@ module public_var
   ! some common constant variables (not likely to change value)
   integer(i4b),parameter,public   :: imiss=-999             ! missing value for integer value
   real(dp),    parameter,public   :: dmiss=-999.0_dp        ! missing value for floating value
+  real(dp),    parameter,public   :: secprmin=60._dp        ! number of seconds in a minute
   real(dp),    parameter,public   :: secprhour=3600._dp     ! number of seconds in an hour
   real(dp),    parameter,public   :: secprday=86400._dp     ! number of seconds in a day
   real(dp),    parameter,public   :: verySmall=tiny(1.0_dp) ! a very small number
@@ -22,6 +23,12 @@ module public_var
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
 
   ! ---------- named variables ----------------------------------------------------------------------
+
+  ! output file frequency
+  integer(i4b) , parameter        :: annual=1001            ! named variable for yearly output files
+  integer(i4b) , parameter        :: month=1002             ! named variable for monthly output files
+  integer(i4b) , parameter        :: day=1003               ! named variable for daily output files
+
   ! compute versus read from file
   integer(i4b), parameter,public  :: compute=1              ! compute given variable
   integer(i4b), parameter,public  :: doNotCompute=0         ! do not compute given variable
@@ -39,6 +46,9 @@ module public_var
   character(len=strLen),public    :: ancil_dir            = ''              ! directory containing ancillary data
   character(len=strLen),public    :: input_dir            = ''              ! directory containing input data
   character(len=strLen),public    :: output_dir           = ''              ! directory containing output data
+  ! SIMULATION TIME
+  character(len=strLen),public    :: simStart             = ''              ! date string defining the start of the simulation
+  character(len=strLen),public    :: simEnd               = ''              ! date string defining the end of the simulation
   ! RUNOFF FILE
   character(len=strLen),public    :: fname_qsim           = ''              ! simulated runoff netCDF name
   character(len=strLen),public    :: vname_qsim           = ''              ! variable name for simulated runoff
@@ -56,6 +66,7 @@ module public_var
   character(len=strLen),public    :: dname_nhru           = ''              ! dimension name of hru in river network data
   ! ROUTED FLOW OUTPUT
   character(len=strLen),public    :: fname_output         = ''              ! name of output file
+  integer(i4b)         ,public    :: newFileFrequency     = day             ! frequency for new output files (day, month, annual)
   ! USER OPTIONS
   integer(i4b)         ,public    :: hydGeometryOption    = compute         ! option for hydraulic geometry calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: topoNetworkOption    = compute         ! option for network topology calculations (0=read from file, 1=compute)
