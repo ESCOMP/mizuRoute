@@ -31,9 +31,11 @@ contains
  !   Convolute routed basisn flow volume at top of each of the upstream segment at one time step and at each segment
  !
  ! ----------------------------------------------------------------------------------------
+ 
  ! global routing data
  USE globalData, only : RCHFLX ! routing fluxes
  USE globalData, only : NETOPO ! Network topology
+
  implicit none
  ! Input
  INTEGER(I4B), intent(IN)               :: iEns        ! runoff ensemble to be routed
@@ -172,6 +174,7 @@ contains
   !Compute S-V based UH, UHM
   seg_length = length(iSeg)
   !seg_length = RPARAM(iSeg)%RLENGTH
+
   INTE = 0._dp
   sec = 0._dp
   UHM(:) = 0._dp
@@ -250,6 +253,7 @@ contains
     iTagg = (jHr+nTsub-1)/nTsub
     seg_uh(iSeg)%dat(iTagg) = seg_uh(iSeg)%dat(iTagg) + UHQ(jHr)
   end do
+
  end do ! sSeg loop
 
  end subroutine make_uh
@@ -276,6 +280,7 @@ contains
  ! global routing data
  USE globalData, only : RCHFLX ! routing fluxes
  USE globalData, only : NETOPO ! Network topology
+
  implicit none
  ! Input
  INTEGER(I4B), intent(IN)               :: iEns        ! runoff ensemble to be routed
