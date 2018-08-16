@@ -232,13 +232,16 @@ contains
  write(*,'(a,1x,i20)') 'after reach_list: time = ', time1-time0
  !print*, trim(message)//'PAUSE : '; read(*,*)
 
- ! ---------- Compute routing parameter  ------------------------------------------------------
+ ! ---------- Compute routing parameters  --------------------------------------------------------------------
 
+ ! get lag times in the basin unit hydrograph
  call basinUH(dt, fshape, tscale, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+ ! compute hydraulic geometry (width and Manning's "n")
  if(hydGeometryOption==compute)then
 
+  ! (hydraulic geometry only needed for the kinematic wave method)
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
    do iSeg=1,nSeg
     structSeg(iSeg)%var(ixSEG%width)%dat(1) = wscale * sqrt(structSEG(iSeg)%var(ixSEG%totalArea)%dat(1))  ! channel width (m)
@@ -246,18 +249,22 @@ contains
    end do
   end if
 
- endif  ! computing network topology
+ endif  ! computing hydraulic geometry
 
+ ! get the channel unit hydrograph
+ ! (channel unit hydrograph is only needed for the impulse response function)
  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
 
+  ! extract the length information from the structure and place it in a vector
   allocate(seg_length(nSeg), stat=ierr, errmsg=cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': seg_length'; return; endif
-
   forall(iSeg=1:nSeg) seg_length(iSeg) = structSEG(iSeg)%var(ixSEG%length)%dat(1)
 
+  ! compute lag times in the channel unit hydrograph
   call make_uh(seg_length, dt, velo, diff, temp_dat, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+  ! put the lag times in the data structures
   tot_uh = 0
   do iSeg=1,nSeg
     allocate(structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat(size(temp_dat(iSeg)%dat)), stat=ierr, errmsg=cmessage)
@@ -266,7 +273,7 @@ contains
     tot_uh = tot_uh+size(temp_dat(iSeg)%dat)
   enddo
 
- endif
+ endif ! if using the impulse response function
 
  ! ---------- get the mask of all upstream reaches above a given reach ---------------------------------------
 
@@ -296,8 +303,7 @@ contains
  ! ---------- write network topology to a netcdf file -------------------------------------------------------
 
  ! check the need to compute network topology
- ! if(topoNetworkOption==compute .or. computeReachList==compute .or. idSegOut>0)then
- if(idSegOut>0) ntopWriteOption=.true.   ! insure that localized network topology is written if a particular outlet is specified
+ if(idSegOut>0) ntopWriteOption=.true.   ! ensure that localized network topology is written if a particular outlet is specified
  if(ntopWriteOption)then
 
   ! disable the dimension containing all upstream reaches

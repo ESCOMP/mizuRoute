@@ -99,16 +99,17 @@ IO = \
 		write_simoutput.f90
 #
 # perform model routing
-QROUTE = \
-		accum_runoff.f90 \
+MODSIM = \
 		basinUH.f90 \
+		irf_route.f90 \
+		process_time.f90 \
 		network_topo.f90 \
 		process_ntopo.f90 \
-		irf_route.f90 \
+		accum_runoff.f90 \
 		kwt_route.f90
 
 # concatanate model subroutines
-TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(QROUTE)
+TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(MODSIM)
 
 # insert appropriate directory name
 MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
