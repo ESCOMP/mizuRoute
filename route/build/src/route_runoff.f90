@@ -54,9 +54,8 @@ USE process_ntopo, only : ntopo               ! process the network topology
 USE getAncillary_module, only : getAncillary  ! get ancillary data
 
 ! subroutines: model time info
-USE time_utils_module, only : extractTime     ! get time from units string
-USE time_utils_module, only : compJulday      ! compute julian day
-USE time_utils_module, only : compCalday      ! compute calendar day
+USE time_utils_module,   only : compCalday    ! compute calendar day
+USE process_time_module, only : process_time  ! process time information
 
 ! subroutines: basin routing
 USE basinUH_module, only : IRF_route_basin    ! perform UH convolution for basin routing
@@ -120,9 +119,6 @@ integer(i4b)                  :: nTime               ! number of time steps
 character(len=strLen)         :: time_units          ! time units
 
 ! time structures
-type(time)                    :: startTime           ! start time
-type(time)                    :: endTime             ! end time
-type(time)                    :: refTime             ! reference time
 type(time)                    :: modTime             ! model time
 type(time)                    :: prevTime            ! previous model time
 real(dp)                      :: startJulday         ! julian day: start
@@ -228,33 +224,10 @@ select case( trim( time_units(1:index(time_units,' ')) ) )
  case default;    call handle_err(20, 'unable to identify time units')
 end select
 
-! * extract reference time from the time string
-
-! extract reference time from the units string
-call extractTime(time_units,refTime%iy,refTime%im,refTime%id,refTime%ih,refTime%imin,refTime%dsec,ierr,cmessage)
-if(ierr/=0) call handle_err(ierr, cmessage)
-
-! extract start time from the simStart string
-call extractTime(trim(simStart),startTime%iy,startTime%im,startTime%id,startTime%ih,startTime%imin,startTime%dsec,ierr,cmessage)
-if(ierr/=0) call handle_err(ierr, cmessage)
-
-! extract end time from the simStart string
-call extractTime(trim(simEnd),endTime%iy,endTime%im,endTime%id,endTime%ih,endTime%imin,endTime%dsec,ierr,cmessage)
-if(ierr/=0) call handle_err(ierr, cmessage)
-
-! * compute the julian day from the time structures
-
-! calculate the reference julian day
-call compjulday(refTime%iy,refTime%im,refTime%id,refTime%ih,refTime%imin,refTime%dsec,refJulday,ierr,cmessage)
-if(ierr/=0) call handle_err(ierr, cmessage)
-
-! calculate the julian day for the start time
-call compjulday(startTime%iy,startTime%im,startTime%id,startTime%ih,startTime%imin,startTime%dsec,startJulday,ierr,cmessage)
-if(ierr/=0) call handle_err(ierr, cmessage)
-
-! calculate the julian day for the end time
-call compjulday(endTime%iy,endTime%im,endTime%id,endTime%ih,endTime%imin,endTime%dsec,endJulday,ierr,cmessage)
-if(ierr/=0) call handle_err(ierr, cmessage)
+! extract time information from the control information
+call process_time(time_units,     refJulday,   ierr, cmessage); if(ierr/=0) call handle_err(ierr, cmessage)
+call process_time(trim(simStart), startJulday, ierr, cmessage); if(ierr/=0) call handle_err(ierr, cmessage)
+call process_time(trim(simEnd),   endJulday,   ierr, cmessage); if(ierr/=0) call handle_err(ierr, cmessage)
 
 ! check that the dates are aligned
 if(endJulday<startJulday) call handle_err(20,'simulation end is before simulation start')
