@@ -449,7 +449,7 @@ do iTime=1,nTime
   RCHFLX(iens,:)%BASIN_QI = reachRunoff(:)
 
   ! write instataneous local runoff in each stream segment (m3/s)
-  call write_nc(trim(output_dir)//trim(fname_output), 'instRunoff', RCHFLX(iens,:)%BASIN_QI, (/1,iTime/), (/nRch,1/), ierr, cmessage)
+  call write_nc(trim(fileout), 'instRunoff', RCHFLX(iens,:)%BASIN_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
   call handle_err(ierr,cmessage)
 
   ! perform Basin routing
@@ -481,7 +481,7 @@ do iTime=1,nTime
  call handle_err(ierr,cmessage)
 
  ! write accumulated runoff (m3/s)
- call write_nc(trim(output_dir)//trim(fname_output), 'sumUpstreamRunoff', RCHFLX(iens,:)%UPSTREAM_QI, (/1,iTime/), (/nRch,1/), ierr, cmessage)
+ call write_nc(trim(fileout), 'sumUpstreamRunoff', RCHFLX(iens,:)%UPSTREAM_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
  if (ierr/=0) call handle_err(ierr,cmessage)
 
  ! perform KWT routing
