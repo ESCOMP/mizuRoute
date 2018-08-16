@@ -245,7 +245,7 @@ if(ierr/=0) call handle_err(ierr, 'unable to allocate space for routing structur
 
 if (isRestart)then
 
- !Read restart file and initialize states
+ ! Read restart file and initialize states
  call read_state_nc(trim(output_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
  if(ierr/=0) call handle_err(ierr, cmessage)
 
@@ -266,9 +266,9 @@ endif
 ! * Restart file output
 ! ************************
 
- ! Define state netCDF
- call define_state_nc(trim(output_dir)//trim(fname_state_out), time_units, routOpt, ierr, cmessage)
- if(ierr/=0) call handle_err(ierr, cmessage)
+! Define state netCDF
+call define_state_nc(trim(output_dir)//trim(fname_state_out), time_units, routOpt, ierr, cmessage)
+if(ierr/=0) call handle_err(ierr, cmessage)
 
 ! ======================================================================================================
 ! ======================================================================================================
@@ -460,6 +460,7 @@ do iTime=1,nTime
  ! perform KWT routing
  if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
 
+  ! kinematic wave routing
   call kwt_route(iens,                 & ! input: ensemble index
                  nRch,                 & ! input: number of reach in the river network
                  ixDesire,             & ! input: index of the desired reach
@@ -476,6 +477,8 @@ do iTime=1,nTime
 
  ! perform IRF routing
  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+
+  ! IRF routing
   call irf_route(iens,                 & ! input: ensemble index
                  nRch,                 & ! input: number of reach in the river network
                  ixDesire,             & ! input: index of the desired reach
