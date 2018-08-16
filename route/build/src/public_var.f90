@@ -66,7 +66,7 @@ module public_var
   character(len=strLen),public    :: dname_nhru           = ''              ! dimension name of hru in river network data
   ! ROUTED FLOW OUTPUT
   character(len=strLen),public    :: fname_output         = ''              ! name of output file
-  integer(i4b)         ,public    :: newFileFrequency     = day             ! frequency for new output files (day, month, annual)
+  integer(i4b)         ,public    :: newFileFrequency     = annual          ! frequency for new output files (day, month, annual)
   ! USER OPTIONS
   integer(i4b)         ,public    :: hydGeometryOption    = compute         ! option for hydraulic geometry calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: topoNetworkOption    = compute         ! option for network topology calculations (0=read from file, 1=compute)
