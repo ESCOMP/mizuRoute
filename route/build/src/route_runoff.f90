@@ -114,7 +114,7 @@ integer(i4b)                  :: nRch                ! number of desired reaches
 ! ancillary data on model input
 type(remap)                   :: remap_data          ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
 type(runoff)                  :: runoff_data         ! runoff for one time step for all HRUs
-integer(i4b)                  :: nSpatial            ! number of spatial elements
+integer(i4b)                  :: nSpatial(1:2)       ! number of spatial elements
 integer(i4b)                  :: nTime               ! number of time steps
 character(len=strLen)         :: time_units          ! time units
 
@@ -304,7 +304,6 @@ iens=1
 ! **
 ! **
 
-
 ! *****
 ! *** Route runoff...
 ! *******************
@@ -332,15 +331,14 @@ do iTime=1,nTime
  ! get the simulated runoff for the current time step
  call get_runoff(trim(input_dir)//trim(fname_qsim), & ! input: filename
                  iTime,                             & ! input: time index
-                 nSpatial,                          & ! input:number of HRUs
-                 runoff_data%time,                  & ! output: time
-                 runoff_data%qSim,                  & ! output: runoff data
+                 nSpatial,                          & ! input: runoff data spatial size
+                 runoff_data,                       & ! output: runoff data structure
                  ierr, cmessage)                      ! output: error control
  call handle_err(ierr, cmessage)
 
  ! map simulated runoff to the basins in the river network
  if (is_remap) then
-  call remap_runoff(runoff_data, remap_data, structHRU2seg, basinRunoff, ierr, cmessage)
+  call remap_runoff(runoff_data, remap_data, structHRU2seg, nSpatial, basinRunoff, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr,cmessage)
  else
   basinRunoff=runoff_data%qsim
@@ -399,7 +397,7 @@ do iTime=1,nTime
  call write_nc(trim(fileout), 'basRunoff', basinRunoff, (/1,jTime/), (/nHRU,1/), ierr, cmessage)
  call handle_err(ierr,cmessage)
 
- !print*, 'PAUSE: after getting simulated runoff'; read(*,*)
+ print*, 'PAUSE: after getting simulated runoff'; read(*,*)
 
  ! *****
  ! * Map the basin runoff to the stream network...

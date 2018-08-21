@@ -57,6 +57,8 @@ module public_var
   character(len=strLen),public    :: units_qsim           = ''              ! units of simulated runoff data
   character(len=strLen),public    :: dname_time           = ''              ! dimension name for time
   character(len=strLen),public    :: dname_hruid          = ''              ! dimension name for hru in runoff data
+  character(len=strLen),public    :: dname_xlon           = ''              ! dimension name for x (j, longitude) dimension
+  character(len=strLen),public    :: dname_ylat           = ''              ! dimension name for y (i, latitude) dimension
   character(len=strLen),public    :: units_time           = ''              ! time units
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
@@ -84,6 +86,8 @@ module public_var
   character(len=strLen),public    :: vname_weight         = ''              ! variable name for areal weights of runoff HRUs within each river network
   character(len=strLen),public    :: vname_qhruid         = ''              ! variable name for runoff HRU ID
   character(len=strLen),public    :: vname_num_qhru       = ''              ! variable for numbers of runoff HRUs within each river network HRU
+  character(len=strLen),public    :: vname_i_index        = ''              ! variable for numbers of y (latitude) index if runoff file is grid
+  character(len=strLen),public    :: vname_j_index        = ''              ! variable for numbers of x (longitude) index if runoff file is grid
   character(len=strLen),public    :: dname_hru_remap      = ''              ! dimension name for river network HRU
   character(len=strLen),public    :: dname_data_remap     = ''              ! dimension name for runoff HRU ID
   ! MISCELLANEOUS
