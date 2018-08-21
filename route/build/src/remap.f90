@@ -44,10 +44,10 @@ module remapping
   ierr=0; message="remap_runoff/"
 
   if (nSpace(2) == imiss) then
-    call remap_2D_runoff(runoff_data, remap_data, structHRU2seg, basinRunoff, ierr, message)
+    call remap_1D_runoff(runoff_data, remap_data, structHRU2seg, basinRunoff, ierr, message)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   else
-    call remap_3D_runoff(runoff_data, remap_data, structHRU2seg, basinRunoff, ierr, message)
+    call remap_2D_runoff(runoff_data, remap_data, structHRU2seg, basinRunoff, ierr, message)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
@@ -56,34 +56,30 @@ module remapping
   ! *****
   ! private subroutine: used to map runoff data (on diferent polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
-  subroutine remap_3D_runoff(runoff_data, remap_data, structHRU2seg, basinRunoff, ierr, message)
+  subroutine remap_2D_runoff(runoff_data, remap_data, structHRU2seg, basinRunoff, ierr, message)
   implicit none
   ! input
-  type(runoff)         , intent(in)  :: runoff_data      ! runoff for one time step for all HRUs
-  type(remap)          , intent(in)  :: remap_data       ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
-  type(var_ilength)    , intent(in)  :: structHRU2seg(:) ! HRU-to-segment mapping
+  type(runoff)         , intent(in)  :: runoff_data         ! runoff for one time step for all HRUs
+  type(remap)          , intent(in)  :: remap_data          ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
+  type(var_ilength)    , intent(in)  :: structHRU2seg(:)    ! HRU-to-segment mapping
   ! output
-  real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
-  integer(i4b)         , intent(out) :: ierr             ! error code
-  character(len=strLen), intent(out) :: message          ! error message
+  real(dp)             , intent(out) :: basinRunoff(:)      ! basin runoff
+  integer(i4b)         , intent(out) :: ierr                ! error code
+  character(len=strLen), intent(out) :: message             ! error message
   ! local
-  integer(i4b)                       :: nrows            ! number of runoff grid rows (y index direction)
-  integer(i4b)                       :: iHRU,jHRU        ! index of basin in the routing layer
-  integer(i4b)                       :: ixOverlap        ! index in ragged array of overlapping polygons
-  integer(i4b)                       :: ii,jj            ! index of x and y in grid
-  integer(i4b)                       :: ixPoly           ! loop through overlapping polygons for a given basin
-  real(dp)                           :: sumWeights       ! used to check that the sum of weights equals one
-  real(dp)    , parameter            :: xTol=1.e-6_dp    ! tolerance to avoid divide by zero
+  integer(i4b)                       :: iHRU,jHRU           ! index of basin in the routing layer
+  integer(i4b)                       :: ixOverlap           ! index in ragged array of overlapping polygons
+  integer(i4b)                       :: ii,jj               ! index of x and y in grid
+  integer(i4b)                       :: ixPoly              ! loop through overlapping polygons for a given basin
+  real(dp)                           :: sumWeights          ! used to check that the sum of weights equals one
+  real(dp)    , parameter            :: xTol=1.e-6_dp       ! tolerance to avoid divide by zero
   integer(i4b), parameter            :: ixCheck=-huge(iHRU) ! basin to check
   integer(i4b), parameter            :: jxCheck=-huge(iHRU) ! basin to check
 
-  ierr=0; message="remap_3D_runoff/"
+  ierr=0; message="remap_2D_runoff/"
 
   ! initialize counter for the overlap vector
   ixOverlap = 1
-
-  ! get number y (lat, j) dimension
-  nrows = size(runoff_data%qSim2D,1)
 
   ! loop through hrus in the mapping layer
   do iHRU=1,size(remap_data%hru_ix)
@@ -113,12 +109,12 @@ module remapping
    ! loop through the overlapping polygons
    do ixPoly=1,remap_data%num_qhru(iHRU) ! number of overlapping polygons
 
-    ! index of i (x) and j (y)
+    ! index of i (x) and j (y) direction
+    jj = remap_data%j_index(ixOverlap)
     ii = remap_data%i_index(ixOverlap)
-    jj = nrows - remap_data%j_index(ixOverlap) + 1
 
     ! get the weighted average
-    if(runoff_data%qSim2D(ii,jj) > -xTol)then
+    if(runoff_data%qSim2d(ii,jj) > -xTol)then
      sumWeights        = sumWeights        + remap_data%weight(ixOverlap)
      basinRunoff(jHRU) = basinRunoff(jHRU) + remap_data%weight(ixOverlap)*runoff_data%qSim2D(ii,jj)
     endif
@@ -155,12 +151,12 @@ module remapping
 
   end do   ! looping through basins in the routing layer
 
-  end subroutine remap_3D_runoff
+  end subroutine remap_2D_runoff
 
   ! *****
   ! private subroutine: used to map runoff data (on diferent polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
-  subroutine remap_2D_runoff(runoff_data, remap_data, structHRU2seg, basinRunoff, ierr, message)
+  subroutine remap_1D_runoff(runoff_data, remap_data, structHRU2seg, basinRunoff, ierr, message)
   implicit none
   ! input
   type(runoff)         , intent(in)  :: runoff_data      ! runoff for one time step for all HRUs
@@ -180,7 +176,7 @@ module remapping
   integer(i4b), parameter            :: ixCheck=-huge(iHRU) ! basin to check
   !integer(i4b), parameter            :: ixCheck=24001479 ! basin to check
 
-  ierr=0; message="remap_2D_runoff/"
+  ierr=0; message="remap_1D_runoff/"
 
   ! initialize counter for the overlap vector
   ixOverlap = 1
@@ -277,7 +273,7 @@ module remapping
 
   end do   ! looping through basins in the routing layer
 
-  end subroutine remap_2D_runoff
+  end subroutine remap_1D_runoff
 
   ! *****
   ! * public subroutine: used to obtain streamflow for each stream segment...

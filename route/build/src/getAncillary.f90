@@ -37,6 +37,7 @@ contains
                          ! data structures
                          nHRU,            & ! input:  number of HRUs in the routing layer
                          structHRU2seg,   & ! input:  ancillary data for mapping hru2basin
+                         remap_flag,      & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
                          remap_data,      & ! output: data structure to remap data
                          runoff_data,     & ! output: data structure for runoff
                          ! dimensions
@@ -49,6 +50,7 @@ contains
  ! data structures
  integer(i4b)     , intent(in)      :: nHRU             ! number of HRUs
  type(var_ilength), intent(in)      :: structHRU2seg(:) ! HRU-to-segment mapping
+ logical(lgt),      intent(in)      :: remap_flag       ! logical whether or not runnoff needs to be mapped to river network HRU
  type(remap)  , intent(out)         :: remap_data       ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
  type(runoff) , intent(out)         :: runoff_data      ! runoff for one time step for all HRUs
  ! ancillary data
@@ -79,38 +81,39 @@ contains
  !print*, 'nSpatial, nTime, trim(time_units) = ', nSpatial(:), nTime, trim(time_units)
  !print*, trim(message)//'PAUSE : '; read(*,*)
 
- ! get runoff mapping file
- call get_remap_data(trim(ancil_dir)//trim(fname_remap),     & ! input: file name
-                     nSpatial,                               & ! input: number of spatial elements
-                     remap_data,                             & ! output: data structure to remap data from a polygon
-                     ierr, cmessage)                           ! output: error control
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (remap_flag) then
+   ! get runoff mapping file
+   call get_remap_data(trim(ancil_dir)//trim(fname_remap),     & ! input: file name
+                       nSpatial,                               & ! input: number of spatial elements
+                       remap_data,                             & ! output: data structure to remap data from a polygon
+                       ierr, cmessage)                           ! output: error control
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! get vector of HRU ids in the routing layer
- forall(iHRU=1:nHRU) route_id(iHRU) = structHRU2seg(iHRU)%var(ixHRU2seg%hruId)%dat(1)
+   ! get vector of HRU ids in the routing layer
+   forall(iHRU=1:nHRU) route_id(iHRU) = structHRU2seg(iHRU)%var(ixHRU2seg%hruId)%dat(1)
 
- ! get indices of the HRU ids in the mapping file in the routing layer
- call get_qix(remap_data%hru_id,  &    ! input: vector of ids in mapping file
-              route_id,           &    ! input: vector of ids in the routing layer
-              remap_data%hru_ix,  &    ! output: indices of hru ids in routing layer
-              ierr, cmessage)          ! output: error control
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- if ( nSpatial(2) == imiss ) then
-   ! get indices of the "overlap HRUs" (the runoff input) in the runoff vector
-   call get_qix(remap_data%qhru_id, &    ! input: vector of ids in mapping file
-                runoff_data%hru_id, &    ! input: vector of ids in runoff file
-                remap_data%qhru_ix, &    ! output: indices of mapping ids in runoff file
+   ! get indices of the HRU ids in the mapping file in the routing layer
+   call get_qix(remap_data%hru_id,  &    ! input: vector of ids in mapping file
+                route_id,           &    ! input: vector of ids in the routing layer
+                remap_data%hru_ix,  &    ! output: indices of hru ids in routing layer
                 ierr, cmessage)          ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- end if
 
- ! check
- if(count(remap_data%hru_ix/=integerMissing)/=nHRU)then
-  message=trim(message)//'unable to identify all polygons in the mapping file'
-  ierr=20; return
+   if ( nSpatial(2) == imiss ) then
+     ! get indices of the "overlap HRUs" (the runoff input) in the runoff vector
+     call get_qix(remap_data%qhru_id, &    ! input: vector of ids in mapping file
+                  runoff_data%hru_id, &    ! input: vector of ids in runoff file
+                  remap_data%qhru_ix, &    ! output: indices of mapping ids in runoff file
+                  ierr, cmessage)          ! output: error control
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
+
+   ! check
+   if(count(remap_data%hru_ix/=integerMissing)/=nHRU)then
+    message=trim(message)//'unable to identify all polygons in the mapping file'
+    ierr=20; return
+   endif
  endif
-
  !print*, trim(message)//'PAUSE : '; read(*,*)
 
  end subroutine getAncillary
@@ -246,7 +249,7 @@ contains
  character(*), intent(in)                :: fname           ! filename
  ! output variables
  type(runoff), intent(out)               :: runoff_data     ! runoff for one time step for all HRUs
- integer(i4b), intent(out)               :: nSpatial(1:2)   ! number of spatial elements
+ integer(i4b), intent(out)               :: nSpatial(1:2)   ! number of spatial elements (lat, lon) (y,x),(i,j)
  integer(i4b), intent(out)               :: nTime           ! number of time steps
  character(*), intent(out)               :: timeUnits       ! time units
  ! error control
@@ -273,7 +276,7 @@ contains
  call get_nc_dim_len(fname, trim(dname_xlon), nSpatial(2), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! allocate space for simulated runoff
+ ! allocate space for simulated runoff. qSim2d = runoff(lon, lat)
  allocate(runoff_data%qSim2d(nSpatial(2),nSpatial(1)), stat=ierr)
  if(ierr/=0)then; message=trim(message)//'problem allocating qsim'; return; endif
 

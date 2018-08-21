@@ -199,6 +199,7 @@ call getAncillary(&
                   ! data structures
                   nHRU,            & ! input:  number of HRUs in the routing layer
                   structHRU2seg,   & ! input:  ancillary data for mapping hru2basin
+                  is_remap,        & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
                   remap_data,      & ! output: data structure to remap data
                   runoff_data,     & ! output: data structure for runoff
                   ! dimensions
@@ -397,7 +398,7 @@ do iTime=1,nTime
  call write_nc(trim(fileout), 'basRunoff', basinRunoff, (/1,jTime/), (/nHRU,1/), ierr, cmessage)
  call handle_err(ierr,cmessage)
 
- print*, 'PAUSE: after getting simulated runoff'; read(*,*)
+ !print*, 'PAUSE: after getting simulated runoff'; read(*,*)
 
  ! *****
  ! * Map the basin runoff to the stream network...
