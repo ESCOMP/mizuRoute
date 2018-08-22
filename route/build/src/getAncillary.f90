@@ -20,7 +20,7 @@ USE public_var
 use netcdf
 use read_netcdf, only:get_nc
 use read_netcdf, only:get_nc_dim_len
-use read_netcdf, only:get_units
+use read_netcdf, only:get_var_attr_char
 
 implicit none
 
@@ -43,6 +43,7 @@ contains
                          nSpatial,        & ! output: number of spatial elements in runoff data
                          nTime,           & ! output: number of time steps
                          time_units,      & ! output: time units
+                         calendar,        & ! output: calendar
                          ! error control
                          ierr, message)     ! output: error control
  implicit none
@@ -55,6 +56,7 @@ contains
  integer(i4b) , intent(out)         :: nSpatial         ! number of spatial elements
  integer(i4b) , intent(out)         :: nTime            ! number of time steps
  character(*) , intent(out)         :: time_units       ! time units
+ character(*) , intent(out)         :: calendar         ! calendar
  ! error control
  integer(i4b), intent(out)          :: ierr             ! error code
  character(*), intent(out)          :: message          ! error message
@@ -71,8 +73,8 @@ contains
  ! get runoff metadata
  call get_runoff_metadata(trim(input_dir)//trim(fname_qsim), & ! input: filename
                           nSpatial, runoff_data%hru_id,      & ! output: number spatial elements and HRU ids
-                          nTime,    time_units,              & ! output: number of time steps and time units
-                          ierr,     cmessage)                  ! output: error control
+                          nTime, time_units, calendar,       & ! output: number of time steps, time units, calendar
+                          ierr,  cmessage)                     ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! allocate space for simulated runoff
@@ -133,6 +135,7 @@ contains
                                 hruId       , & ! vector of HRU Ids in the output file
                                 nTime       , & ! number of time steps
                                 timeUnits   , & ! time units
+                                calendar    , & ! calendar
                                 ! error control
                                 ierr, message)  ! output: error control
  implicit none
@@ -143,6 +146,7 @@ contains
  integer(i4b), intent(out) , allocatable :: hruId(:)        ! vector of HRU Ids
  integer(i4b), intent(out)               :: nTime           ! number of time steps
  character(*), intent(out)               :: timeUnits       ! time units
+ character(*), intent(out)               :: calendar        ! calendar
  ! error control
  integer(i4b), intent(out)               :: ierr            ! error code
  character(*), intent(out)               :: message         ! error message
@@ -160,7 +164,11 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the time units
- call get_units(fname, trim(vname_time), timeUnits, ierr, cmessage)
+ call get_var_attr_char(fname, trim(vname_time), 'units', timeUnits, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! get the calendar
+ call get_var_attr_char(fname, trim(vname_time), 'calendar', calendar, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! allocate space

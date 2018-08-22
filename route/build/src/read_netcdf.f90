@@ -66,7 +66,7 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  end subroutine
-
+ !! could be removed.............
  ! *********************************************************************
  ! subroutine: get units for a given variable
  ! *********************************************************************

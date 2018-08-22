@@ -117,6 +117,7 @@ type(runoff)                  :: runoff_data         ! runoff for one time step 
 integer(i4b)                  :: nSpatial            ! number of spatial elements
 integer(i4b)                  :: nTime               ! number of time steps
 character(len=strLen)         :: time_units          ! time units
+character(len=strLen)         :: calendar            ! calendar
 
 ! time structures
 type(time)                    :: modTime             ! model time
@@ -205,6 +206,7 @@ call getAncillary(&
                   nSpatial,        & ! output: number of spatial elements in runoff data
                   nTime,           & ! output: number of time steps
                   time_units,      & ! output: time units
+                  calendar,        & ! output: calendar
                   ! error control
                   ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
