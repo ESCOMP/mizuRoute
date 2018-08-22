@@ -382,6 +382,7 @@ do iTime=1,nTime
                   nHRU,                                  &  ! input: number of HRUs
                   nRch,                                  &  ! input: number of stream segments
                   time_units,                            &  ! input: time units
+                  calendar,                              &  ! input: calendar
                   ierr,cmessage)                            ! output: error control
   if(ierr/=0) call handle_err(ierr, cmessage)
 

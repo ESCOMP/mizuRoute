@@ -215,8 +215,8 @@ contains
    iyyy_tmp = iyyy - 1;
  end if
 
- juldayss = floor(real(days_per_yr*(iyyy_tmp + 4716))) + &
-            floor(30.6001 * real(mm+1)) + dfrac - 1524.5;
+ juldayss = real(floor(real(days_per_yr*(iyyy_tmp + 4716)))) + &
+            real(floor(30.6001 * real(mm_tmp+1))) + dfrac - 1524.5;
 
  end subroutine compjulday_noleap
 
@@ -338,7 +338,7 @@ contains
  if(julday<=0)then;err=10;message=trim(message)//"no negative julian days/"; return; end if
 
  A = floor(julday+0.5);
- F = julday - real(A)
+ F = julday + 0.5 - real(A)
  B = A + 1524;
  C = int((real(B) - 122.1)/real(days_per_yr));
  D = days_per_yr*C;
