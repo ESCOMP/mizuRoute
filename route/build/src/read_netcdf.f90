@@ -10,6 +10,7 @@ private
 
 public::get_nc
 public::get_nc_dim_len
+public::get_var_attr_char
 public::get_units
 
 interface get_nc
@@ -104,6 +105,54 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  end subroutine
+
+ ! *********************************************************************
+ ! subroutine: get attribute values for a variable
+ ! *********************************************************************
+ subroutine get_var_attr_char(fname,           &  ! input: filename
+                              vname,           &  ! input: variable name
+                              attr_name,       &  ! inpu: attribute name
+                              attr_value,      &  ! output: attribute value
+                              ierr, message)      ! output: error control
+ implicit none
+ ! input variables
+ character(*), intent(in)        :: fname        ! filename
+ character(*), intent(in)        :: vname        ! variable name
+ character(*), intent(in)        :: attr_name    ! attribute name
+ ! output variables
+ character(*), intent(out)       :: attr_value   ! attribute value
+ integer(i4b), intent(out)       :: ierr         ! error code
+ character(*), intent(out)       :: message      ! error message
+ ! local variables
+ integer(i4b)                    :: var_type     ! attribute variable type
+ integer(i4b)                    :: ncid         ! NetCDF file ID
+ integer(i4b)                    :: iVarID       ! variable ID
+ ! initialize error control
+ ierr=0; message='get_var_attr_char/'
+
+ ! open file for reading
+ ierr = nf90_open(fname, nf90_nowrite, ncid)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; name='//trim(fname); return; endif
+
+ ! get the ID of the time variable
+ ierr = nf90_inq_varid(ncid, trim(vname), ivarID)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ ! Inquire attribute type, NF90_CHAR(=2)
+ ierr = nf90_inquire_attribute(ncid, ivarID, attr_name, xtype=var_type)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ if (var_type /= 2)then; ierr=20; message=trim(message)//'attribute type is not character'; return; endif
+
+ ! get the attribute value
+ ierr = nf90_get_att(ncid, ivarID, attr_name, attr_value)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ ! close the NetCDF file
+ ierr = nf90_close(ncid)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ end subroutine get_var_attr_char
 
  ! *********************************************************************
  ! subroutine: get integer scalar value from netCDF
