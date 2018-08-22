@@ -95,6 +95,8 @@ implicit none
    integer(i4b)             , allocatable  :: hru_id(:)    ! Id of hrus associated with river network (="hru")
    integer(i4b)             , allocatable  :: qhru_id(:)   ! Id of hrus associated with runoff simulation (="qhru")
    integer(i4b)             , allocatable  :: num_qhru(:)  ! number of "qhru" within "hru"
+   integer(i4b)             , allocatable  :: i_index(:)   ! Index in the y dimension of the runoff grid (starting with 1,1 in LL corner)
+   integer(i4b)             , allocatable  :: j_index(:)   ! Index in the x dimension of the runoff grid (starting with 1,1 in LL corner)
    real(dp)                 , allocatable  :: weight(:)    ! area weight of "qhru" intersecting "hru"
    ! ancillary index vectors
    integer(i4b)             , allocatable  :: hru_ix(:)    ! Index of hrus associated with river network (="hru")
@@ -103,9 +105,10 @@ implicit none
 
  ! simulated runoff data
  type, public :: runoff
-   real(dp)                                :: time      ! time
-   real(dp)                 , allocatable  :: qsim(:)   ! runoff(hru) at one time step
-   integer(i4b)             , allocatable  :: hru_id(:) ! id of hrus at which runoff is simulated
+   real(dp)                                :: time        ! time
+   real(dp)                 , allocatable  :: qsim(:)     ! runoff(hru) at one time step
+   real(dp)                 , allocatable  :: qsim2D(:,:) ! runoff(hru) at one time step
+   integer(i4b)             , allocatable  :: hru_id(:)   ! id of hrus at which runoff is simulated
  end type runoff
 
  ! ---------- reach parameters ----------------------------------------------------------------------------

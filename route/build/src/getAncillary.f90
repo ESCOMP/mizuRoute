@@ -37,6 +37,7 @@ contains
                          ! data structures
                          nHRU,            & ! input:  number of HRUs in the routing layer
                          structHRU2seg,   & ! input:  ancillary data for mapping hru2basin
+                         remap_flag,      & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
                          remap_data,      & ! output: data structure to remap data
                          runoff_data,     & ! output: data structure for runoff
                          ! dimensions
@@ -50,10 +51,11 @@ contains
  ! data structures
  integer(i4b)     , intent(in)      :: nHRU             ! number of HRUs
  type(var_ilength), intent(in)      :: structHRU2seg(:) ! HRU-to-segment mapping
+ logical(lgt),      intent(in)      :: remap_flag       ! logical whether or not runnoff needs to be mapped to river network HRU
  type(remap)  , intent(out)         :: remap_data       ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
  type(runoff) , intent(out)         :: runoff_data      ! runoff for one time step for all HRUs
  ! ancillary data
- integer(i4b) , intent(out)         :: nSpatial         ! number of spatial elements
+ integer(i4b) , intent(out)         :: nSpatial(1:2)    ! number of spatial elements
  integer(i4b) , intent(out)         :: nTime            ! number of time steps
  character(*) , intent(out)         :: time_units       ! time units
  character(*) , intent(out)         :: calendar         ! calendar
@@ -72,47 +74,48 @@ contains
 
  ! get runoff metadata
  call get_runoff_metadata(trim(input_dir)//trim(fname_qsim), & ! input: filename
-                          nSpatial, runoff_data%hru_id,      & ! output: number spatial elements and HRU ids
+                          runoff_data,                       & ! output: runoff data structure
+                          nSpatial,                          & ! output: number spatial elements
                           nTime, time_units, calendar,       & ! output: number of time steps, time units, calendar
-                          ierr,  cmessage)                     ! output: error control
+                          ierr, cmessage)                      ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! allocate space for simulated runoff
- allocate(runoff_data%qSim(nSpatial), stat=ierr)
- if(ierr/=0)then; message=trim(message)//'problem allocating qsim'; return; endif
-
- !print*, 'nSpatial, nTime, trim(time_units) = ', nSpatial, nTime, trim(time_units)
+ !print*, 'nSpatial, nTime, trim(time_units) = ', nSpatial(:), nTime, trim(time_units)
  !print*, trim(message)//'PAUSE : '; read(*,*)
 
- ! get runoff mapping file
- call get_remap_data(trim(ancil_dir)//trim(fname_remap),     & ! input: file name
-                     remap_data,                             & ! output: data structure to remap data from a polygon
-                     ierr, cmessage)                           ! output: error control
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (remap_flag) then
+   ! get runoff mapping file
+   call get_remap_data(trim(ancil_dir)//trim(fname_remap),     & ! input: file name
+                       nSpatial,                               & ! input: number of spatial elements
+                       remap_data,                             & ! output: data structure to remap data from a polygon
+                       ierr, cmessage)                           ! output: error control
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! get vector of HRU ids in the routing layer
- forall(iHRU=1:nHRU) route_id(iHRU) = structHRU2seg(iHRU)%var(ixHRU2seg%hruId)%dat(1)
+   ! get vector of HRU ids in the routing layer
+   forall(iHRU=1:nHRU) route_id(iHRU) = structHRU2seg(iHRU)%var(ixHRU2seg%hruId)%dat(1)
 
- ! get indices of the HRU ids in the mapping file in the routing layer
- call get_qix(remap_data%hru_id,  &    ! input: vector of ids in mapping file
-              route_id,           &    ! input: vector of ids in the routing layer
-              remap_data%hru_ix,  &    ! output: indices of hru ids in routing layer
-              ierr, cmessage)          ! output: error control
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   ! get indices of the HRU ids in the mapping file in the routing layer
+   call get_qix(remap_data%hru_id,  &    ! input: vector of ids in mapping file
+                route_id,           &    ! input: vector of ids in the routing layer
+                remap_data%hru_ix,  &    ! output: indices of hru ids in routing layer
+                ierr, cmessage)          ! output: error control
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! get indices of the "overlap HRUs" (the runoff input) in the runoff vector
- call get_qix(remap_data%qhru_id, &    ! input: vector of ids in mapping file
-              runoff_data%hru_id, &    ! input: vector of ids in runoff file
-              remap_data%qhru_ix, &    ! output: indices of mapping ids in runoff file
-              ierr, cmessage)          ! output: error control
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if ( nSpatial(2) == imiss ) then
+     ! get indices of the "overlap HRUs" (the runoff input) in the runoff vector
+     call get_qix(remap_data%qhru_id, &    ! input: vector of ids in mapping file
+                  runoff_data%hru_id, &    ! input: vector of ids in runoff file
+                  remap_data%qhru_ix, &    ! output: indices of mapping ids in runoff file
+                  ierr, cmessage)          ! output: error control
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
 
- ! check
- if(count(remap_data%hru_ix/=integerMissing)/=nHRU)then
-  message=trim(message)//'unable to identify all polygons in the mapping file'
-  ierr=20; return
+   ! check
+   if(count(remap_data%hru_ix/=integerMissing)/=nHRU)then
+    message=trim(message)//'unable to identify all polygons in the mapping file'
+    ierr=20; return
+   endif
  endif
-
  !print*, trim(message)//'PAUSE : '; read(*,*)
 
  end subroutine getAncillary
@@ -125,14 +128,14 @@ contains
  ! ============================================================================================
 
  ! *****
- ! private subroutine: get runoff metadata...
+ ! public subroutine: get runoff  metadata...
  ! ******************************************
  subroutine get_runoff_metadata(&
                                 ! input
                                 fname       , & ! filename
                                 ! output
+                                runoff_data , & ! runoff data structure
                                 nSpatial    , & ! number of spatial elements
-                                hruId       , & ! vector of HRU Ids in the output file
                                 nTime       , & ! number of time steps
                                 timeUnits   , & ! time units
                                 calendar    , & ! calendar
@@ -140,10 +143,61 @@ contains
                                 ierr, message)  ! output: error control
  implicit none
  ! input variables
+ character(*), intent(in)        :: fname           ! filename
+ ! output variables
+ type(runoff), intent(out)       :: runoff_data     ! runoff for one time step for all HRUs
+ integer(i4b), intent(out)       :: nSpatial(1:2)   ! number of spatial elements
+ integer(i4b), intent(out)       :: nTime           ! number of time steps
+ character(*), intent(out)       :: timeUnits       ! time units
+ character(*), intent(out)       :: calendar        ! calendar
+ ! error control
+ integer(i4b), intent(out)       :: ierr            ! error code
+ character(*), intent(out)       :: message         ! error message
+ ! local variables
+ integer(i4b)                    :: ncid            ! netcdf id
+ integer(i4b)                    :: nDims           ! number of dimension in runoff file
+ character(len=strLen)           :: cmessage        ! error message from subroutine
+ ! initialize error control
+ ierr=0; message='get_runoff_metadata/'
+
+ ! open NetCDF file
+ ierr = nf90_open(trim(fname), nf90_nowrite, ncid)
+ if(ierr/=0)then; message=trim(message)//'['//trim(nf90_strerror(ierr))//'; file='//trim(fname)//']'; return; endif
+
+ ! get the number of dimensions - must be 2D(hru, time) or 3D(y, x, time)
+ ierr= nf90_inquire(ncid, nDimensions = nDims)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ ! get runoff metadata
+ select case( nDims )
+  case(2); call get_1D_runoff_metadata(fname, runoff_data, nSpatial, nTime, timeUnits, calendar, ierr, message)
+  case(3); call get_2D_runoff_metadata(fname, runoff_data, nSpatial, nTime, timeUnits, calendar, ierr, message)
+  case default; ierr=20; message=trim(message)//'runoff array nDimensions must be 2 or 3'; return
+ end select
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ end subroutine get_runoff_metadata
+
+ ! *****
+ ! private subroutine: get 2D runoff (hru, time) metadata...
+ ! ******************************************
+ subroutine get_1D_runoff_metadata(&
+                                   ! input
+                                   fname       , & ! filename
+                                   ! output
+                                   runoff_data , & ! runoff data structure
+                                   nSpatial    , & ! number of spatial elements
+                                   nTime       , & ! number of time steps
+                                   timeUnits   , & ! time units
+                                   calendar    , & ! calendar
+                                   ! error control
+                                   ierr, message)  ! output: error control
+ implicit none
+ ! input variables
  character(*), intent(in)                :: fname           ! filename
  ! output variables
- integer(i4b), intent(out)               :: nSpatial        ! number of spatial elements
- integer(i4b), intent(out) , allocatable :: hruId(:)        ! vector of HRU Ids
+ type(runoff), intent(out)               :: runoff_data     ! runoff for one time step for all HRUs
+ integer(i4b), intent(out)               :: nSpatial(1:2)   ! number of spatial elements
  integer(i4b), intent(out)               :: nTime           ! number of time steps
  character(*), intent(out)               :: timeUnits       ! time units
  character(*), intent(out)               :: calendar        ! calendar
@@ -153,10 +207,12 @@ contains
  ! local variables
  character(len=strLen)                   :: cmessage        ! error message from subroutine
  ! initialize error control
- ierr=0; message='get_runoff_metadata/'
+ ierr=0; message='get_1D_runoff_metadata/'
+
+ nSpatial(2) = imiss
 
  ! get the number of HRUs
- call get_nc_dim_len(fname, trim(dname_hruid), nSpatial, ierr, cmessage)
+ call get_nc_dim_len(fname, trim(dname_hruid), nSpatial(1), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get number of time steps from the runoff file
@@ -171,26 +227,89 @@ contains
  call get_var_attr_char(fname, trim(vname_time), 'calendar', calendar, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! allocate space
- allocate(hruId(nSpatial), stat=ierr)
- if(ierr/=0)then; message=trim(message)//'problem allocating hruId'; return; endif
+ ! allocate space for hru_id
+ allocate(runoff_data%hru_id(nSpatial(1)), stat=ierr)
+ if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data%hruId'; return; endif
+
+ ! allocate space for simulated runoff
+ allocate(runoff_data%qSim(nSpatial(1)), stat=ierr)
+ if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data%qsim'; return; endif
 
  ! get HRU ids from the runoff file
- call get_nc(fname, vname_hruid, hruId, 1, nSpatial, ierr, cmessage)
+ call get_nc(fname, vname_hruid, runoff_data%hru_id, 1, nSpatial(1), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- end subroutine get_runoff_metadata
+ end subroutine get_1D_runoff_metadata
+
+ ! *****
+ ! private subroutine: get 3D runoff (lat, lon, time) metadata...
+ ! ******************************************
+ subroutine get_2D_runoff_metadata(&
+                                ! input
+                                fname       , & ! filename
+                                ! output
+                                runoff_data , & ! runoff data structure
+                                nSpatial    , & ! number of ylat dimensions
+                                nTime       , & ! number of time steps
+                                timeUnits   , & ! time units
+                                calendar    , & ! calendar
+                                ! error control
+                                ierr, message)  ! output: error control
+ implicit none
+ ! input variables
+ character(*), intent(in)                :: fname           ! filename
+ ! output variables
+ type(runoff), intent(out)               :: runoff_data     ! runoff for one time step for all HRUs
+ integer(i4b), intent(out)               :: nSpatial(1:2)   ! number of spatial elements (lat, lon) (y,x),(i,j)
+ integer(i4b), intent(out)               :: nTime           ! number of time steps
+ character(*), intent(out)               :: timeUnits       ! time units
+ character(*), intent(out)               :: calendar        ! calendar
+ ! error control
+ integer(i4b), intent(out)               :: ierr            ! error code
+ character(*), intent(out)               :: message         ! error message
+ ! local variables
+ character(len=strLen)                   :: cmessage        ! error message from subroutine
+ ! initialize error control
+ ierr=0; message='get_2D_runoff_metadata/'
+
+ ! get number of time steps from the runoff file
+ call get_nc_dim_len(fname, trim(dname_time), nTime, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! get the time units
+ call get_var_attr_char(fname, trim(vname_time), 'units', timeUnits, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! get the calendar
+ call get_var_attr_char(fname, trim(vname_time), 'calendar', calendar, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! get size of ylat dimension
+ call get_nc_dim_len(fname, trim(dname_ylat), nSpatial(1), ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! get size of xlon dimension
+ call get_nc_dim_len(fname, trim(dname_xlon), nSpatial(2), ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! allocate space for simulated runoff. qSim2d = runoff(lon, lat)
+ allocate(runoff_data%qSim2d(nSpatial(2),nSpatial(1)), stat=ierr)
+ if(ierr/=0)then; message=trim(message)//'problem allocating qsim'; return; endif
+
+ end subroutine get_2D_runoff_metadata
 
  ! *****
  ! private subroutine: get mapping data between runoff hru and river network hru...
  ! ********************************************************************************
  subroutine get_remap_data(fname,         &   ! input: file name
+                           nSpatial,      &   ! input: number of spatial elements
                            remap_data,    &   ! output: data structure to remap data from a polygon
                            ierr, message)     ! output: error control
  USE dataTypes,  only : remap                 ! remapping data type
  implicit none
  ! input variables
  character(*), intent(in)           :: fname           ! filename
+ integer(i4b), intent(in)           :: nSpatial(1:2)   ! number of spatial elements
  ! output variables
  type(remap),  intent(out)          :: remap_data      ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
  integer(i4b), intent(out)          :: ierr            ! error code
@@ -214,20 +333,30 @@ contains
 
  ! allocate space for info in mapping file
  allocate(remap_data%hru_id(nHRU), remap_data%num_qhru(nHRU), &
-          remap_data%qhru_id(nData), remap_data%weight(nData), stat=ierr)
- if(ierr/=0)then; message=trim(message)//'problem allocating space for mapping info'; return; endif
+          remap_data%hru_ix(nHRU), remap_data%weight(nData), stat=ierr)
+ if(ierr/=0)then; message=trim(message)//'problem allocating space for common mapping info '; return; endif
 
- ! allocate space for index vectors
- allocate(remap_data%hru_ix(nHRU), remap_data%qhru_ix(nData), stat=ierr)
- if(ierr/=0)then; message=trim(message)//'problem allocating space for index vectors'; return; endif
+ ! if runoff input is hru vector...
+ if (nSpatial(2) == imiss) then
+  allocate(remap_data%qhru_id(nData), remap_data%qhru_ix(nData),  stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating space for mapping info for vector runoff'; return; endif
+ ! if runoff input is grid...
+ else
+  allocate(remap_data%i_index(nData),remap_data%j_index(nData), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating space for mapping info'; return; endif
+ endif
 
  ! get data
- do iVar=1,4
+ do iVar=1,6
+  if (nSpatial(2) == imiss .and. iVar >= 5) cycle
+  if (nSpatial(2) /= imiss .and. iVar == 4) cycle
   select case(iVar)
    case(1); call get_nc(fname, vname_hruid_in_remap, remap_data%hru_id,   1, nHRU,  ierr, cmessage)
    case(2); call get_nc(fname, vname_num_qhru,       remap_data%num_qhru, 1, nHRU,  ierr, cmessage)
    case(3); call get_nc(fname, vname_weight,         remap_data%weight,   1, nData, ierr, cmessage)
    case(4); call get_nc(fname, vname_qhruid,         remap_data%qhru_id,  1, nData, ierr, cmessage)
+   case(5); call get_nc(fname, vname_i_index,        remap_data%i_index,  1, nData, ierr, cmessage)
+   case(6); call get_nc(fname, vname_j_index,        remap_data%j_index,  1, nData, ierr, cmessage)
    case default; ierr=20; message=trim(message)//'unable to find variable'; return
   end select
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif

@@ -115,19 +115,23 @@ contains
    case('<vname_time>');        vname_time   = trim(cData)                       ! name of time variable in the runoff file
    case('<vname_hruid>');       vname_hruid  = trim(cData)                       ! name of the HRU id
    case('<dname_time>');        dname_time   = trim(cData)                       ! name of time variable in the runoff file
-   case('<dname_hruid>');       dname_hruid  = trim(cData)                       ! name of the HRU id
+   case('<dname_hruid>');       dname_hruid  = trim(cData)                       ! name of the HRU id dimension
+   case('<dname_xlon>');        dname_xlon   = trim(cData)                       ! name of x (j,lon) dimension
+   case('<dname_ylat>');        dname_ylat   = trim(cData)                       ! name of y (i,lat) dimension
    case('<units_qsim>');        units_qsim   = trim(cData)                       ! units of runoff
    case('<dt_qsim>');           read(cData,*,iostat=io_error) dt                 ! time interval of the gridded runoff
 
    ! Part 6: Define runoff mapping netCDF file and its metadata
    case('<is_remap>');             read(cData,*,iostat=io_error) is_remap        ! logical whether or not runnoff needs to be mapped to river network HRU
    case('<fname_remap>');          fname_remap           = trim(cData)           ! name of runoff mapping netCDF
-   case('<vname_hruid_in_remap>'); vname_hruid_in_remap  = trim(cData)           ! name of variable containing ID of runoff HRU
-   case('<vname_weight>');         vname_weight          = trim(cData)           ! name of variable contating areal weights of runoff HRUs within each river network
+   case('<vname_hruid_in_remap>'); vname_hruid_in_remap  = trim(cData)           ! name of variable containing ID of river network HRU
+   case('<vname_weight>');         vname_weight          = trim(cData)           ! name of variable contating areal weights of runoff HRUs within each river network HRU
    case('<vname_qhruid>');         vname_qhruid          = trim(cData)           ! name of variable containing ID of runoff HRU
+   case('<vname_i_index>');        vname_i_index         = trim(cData)           ! name of variable containing index of xlon dimension in runoff grid (if runoff file is grid)
+   case('<vname_j_index>');        vname_j_index         = trim(cData)           ! name of variable containing index of ylat dimension in runoff grid (if runoff file is grid)
    case('<vname_num_qhru>');       vname_num_qhru        = trim(cData)           ! name of variable containing numbers of runoff HRUs within each river network HRU
-   case('<dname_hru_remap>');      dname_hru_remap       = trim(cData)           ! name of variable containing ID of runoff HRU
-   case('<dname_data_remap>');     dname_data_remap      = trim(cData)           ! name of variable containing ID of runoff HRU
+   case('<dname_hru_remap>');      dname_hru_remap       = trim(cData)           ! name of dimension of river network HRU ID
+   case('<dname_data_remap>');     dname_data_remap      = trim(cData)           ! name of dimension of runoff HRU overlapping with river network HRU
 
    ! part 7 Define run control
    case('<restart_opt>');   read(cData,*,iostat=io_error) isRestart              ! restart option: True-> model run with restart, F -> model run with empty channels
