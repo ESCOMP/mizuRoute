@@ -11,6 +11,7 @@ private
 public::get_nc
 public::get_nc_dim_len
 public::get_var_attr_char
+public::get_var_attr_real
 
 interface get_nc
   module procedure get_iscalar
@@ -94,7 +95,7 @@ contains
  ierr = nf90_open(fname, nf90_nowrite, ncid)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; name='//trim(fname); return; endif
 
- ! get the ID of the time variable
+ ! get the ID of the variable
  ierr = nf90_inq_varid(ncid, trim(vname), ivarID)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
@@ -113,6 +114,55 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  end subroutine get_var_attr_char
+
+ ! *********************************************************************
+ ! subroutine: get attribute values for a real variable
+ ! *********************************************************************
+ subroutine get_var_attr_real(fname,           &  ! input: filename
+                              vname,           &  ! input: variable name
+                              attr_name,       &  ! inpu: attribute name
+                              attr_value,      &  ! output: attribute value in real
+                              ierr, message)      ! output: error control
+ implicit none
+ ! input variables
+ character(*), intent(in)        :: fname        ! filename
+ character(*), intent(in)        :: vname        ! variable name
+ character(*), intent(in)        :: attr_name    ! attribute name
+ ! output variables
+ real(dp), intent(out)           :: attr_value   ! attribute value in real
+ integer(i4b), intent(out)       :: ierr         ! error code
+ character(*), intent(out)       :: message      ! error message
+ ! local variables
+ integer(i4b)                    :: var_type     ! attribute variable type
+ integer(i4b)                    :: ncid         ! NetCDF file ID
+ integer(i4b)                    :: iVarID       ! variable ID
+ ! initialize error control
+ ierr=0; message='get_var_attr_real/'
+
+ ! open file for reading
+ ierr = nf90_open(fname, nf90_nowrite, ncid)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; name='//trim(fname); return; endif
+
+ ! get the ID of the variable
+ ierr = nf90_inq_varid(ncid, trim(vname), ivarID)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ ! Inquire attribute type, NF90_CHAR(=2)
+ ierr = nf90_inquire_attribute(ncid, ivarID, attr_name, xtype=var_type)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ if (var_type /= 5 .and. var_type /= 6)then; ierr=20; message=trim(message)//'attribute type is not real'; return; endif
+
+ ! get the attribute value
+ ierr = nf90_get_att(ncid, ivarID, attr_name, attr_value)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ ! close the NetCDF file
+ ierr = nf90_close(ncid)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ end subroutine get_var_attr_real
+
 
  ! *********************************************************************
  ! subroutine: get integer scalar value from netCDF
