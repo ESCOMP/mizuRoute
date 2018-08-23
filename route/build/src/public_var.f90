@@ -23,6 +23,7 @@ module public_var
   real(dp),    parameter,public   :: verySmall=tiny(1.0_dp) ! a very small number
   real(dp),    parameter,public   :: min_slope=1.e-6_dp     ! minimum slope
   real(dp),    parameter,public   :: runoffMin=1.e-15_dp    ! minimum runoff from each basin
+  real(dp),    parameter,public   :: negRunoffTol=-1.e-3_dp ! nagative runoff tolerance
   real(dp),    parameter,public   :: MinPosVal=1.e-10_dp    ! minimum value for positive value
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
 

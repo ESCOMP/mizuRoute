@@ -155,6 +155,7 @@ contains
  character(*), intent(out)       :: message         ! error message
  ! local variables
  integer(i4b)                    :: ncid            ! netcdf id
+ integer(i4b)                    :: ivarID          ! variable id
  integer(i4b)                    :: nDims           ! number of dimension in runoff file
  character(len=strLen)           :: cmessage        ! error message from subroutine
  ! initialize error control
@@ -164,8 +165,12 @@ contains
  ierr = nf90_open(trim(fname), nf90_nowrite, ncid)
  if(ierr/=0)then; message=trim(message)//'['//trim(nf90_strerror(ierr))//'; file='//trim(fname)//']'; return; endif
 
+ ! get the ID of runoff variable
+ ierr = nf90_inq_varid(ncid, trim(vname_qsim), ivarID)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
  ! get the number of dimensions - must be 2D(hru, time) or 3D(y, x, time)
- ierr= nf90_inquire(ncid, nDimensions = nDims)
+ ierr= nf90_inquire_variable(ncid, ivarID, ndims = nDims)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  ! get runoff metadata

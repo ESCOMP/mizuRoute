@@ -14,7 +14,7 @@ module remapping
   use var_lookup,only:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
 
   ! global data
-  USE public_var,only:runoffMin, imiss
+  USE public_var,only:runoffMin, negRunoffTol, imiss
   USE globalData,only:time_conv,length_conv  ! conversion factors
 
   implicit none
@@ -323,8 +323,8 @@ module remapping
     do iHRU=1,nContrib
 
      ! error check - runoff depth cannot be negative (no missing value)
-     if( basinRunoff( hruContribIx(iHRU) ) < 0._dp )then
-      write(message,'(a,i0)') trim(message)//'negative runoff for HRU ', hruContribId(iHRU)
+     if( basinRunoff( hruContribIx(iHRU) ) < negRunoffTol )then
+      write(message,'(a,i0)') trim(message)//'exceeded negative runoff tolerance for HRU ', hruContribId(iHRU)
       ierr=20; return
      endif
 
