@@ -16,9 +16,14 @@ module public_var
   real(dp),    parameter,public   :: secprmin=60._dp        ! number of seconds in a minute
   real(dp),    parameter,public   :: secprhour=3600._dp     ! number of seconds in an hour
   real(dp),    parameter,public   :: secprday=86400._dp     ! number of seconds in a day
+  integer(i4b),parameter,public   :: months_per_yr=12       ! number of months in a year
+  integer(i4b),parameter,public   :: days_per_yr=365        ! number of days in a year
+  real(dp),    parameter,public   :: hr_per_day = 24.0_dp   ! hours per days
+  real(dp),    parameter,public   :: min_per_hour = 60.0_dp ! minutes per hour
   real(dp),    parameter,public   :: verySmall=tiny(1.0_dp) ! a very small number
   real(dp),    parameter,public   :: min_slope=1.e-6_dp     ! minimum slope
   real(dp),    parameter,public   :: runoffMin=1.e-15_dp    ! minimum runoff from each basin
+  real(dp),    parameter,public   :: negRunoffTol=-1.e-3_dp ! nagative runoff tolerance
   real(dp),    parameter,public   :: MinPosVal=1.e-10_dp    ! minimum value for positive value
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
 

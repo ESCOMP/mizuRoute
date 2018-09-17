@@ -20,7 +20,7 @@ USE public_var
 use netcdf
 use read_netcdf, only:get_nc
 use read_netcdf, only:get_nc_dim_len
-use read_netcdf, only:get_units
+use read_netcdf, only:get_var_attr_char
 
 implicit none
 
@@ -44,6 +44,7 @@ contains
                          nSpatial,        & ! output: number of spatial elements in runoff data
                          nTime,           & ! output: number of time steps
                          time_units,      & ! output: time units
+                         calendar,        & ! output: calendar
                          ! error control
                          ierr, message)     ! output: error control
  implicit none
@@ -57,6 +58,7 @@ contains
  integer(i4b) , intent(out)         :: nSpatial(1:2)    ! number of spatial elements
  integer(i4b) , intent(out)         :: nTime            ! number of time steps
  character(*) , intent(out)         :: time_units       ! time units
+ character(*) , intent(out)         :: calendar         ! calendar
  ! error control
  integer(i4b), intent(out)          :: ierr             ! error code
  character(*), intent(out)          :: message          ! error message
@@ -74,8 +76,8 @@ contains
  call get_runoff_metadata(trim(input_dir)//trim(fname_qsim), & ! input: filename
                           runoff_data,                       & ! output: runoff data structure
                           nSpatial,                          & ! output: number spatial elements
-                          nTime,    time_units,              & ! output: number of time steps and time units
-                          ierr,     cmessage)                  ! output: error control
+                          nTime, time_units, calendar,       & ! output: number of time steps, time units, calendar
+                          ierr, cmessage)                      ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  !print*, 'nSpatial, nTime, trim(time_units) = ', nSpatial(:), nTime, trim(time_units)
@@ -136,6 +138,7 @@ contains
                                 nSpatial    , & ! number of spatial elements
                                 nTime       , & ! number of time steps
                                 timeUnits   , & ! time units
+                                calendar    , & ! calendar
                                 ! error control
                                 ierr, message)  ! output: error control
  implicit none
@@ -146,11 +149,13 @@ contains
  integer(i4b), intent(out)       :: nSpatial(1:2)   ! number of spatial elements
  integer(i4b), intent(out)       :: nTime           ! number of time steps
  character(*), intent(out)       :: timeUnits       ! time units
+ character(*), intent(out)       :: calendar        ! calendar
  ! error control
  integer(i4b), intent(out)       :: ierr            ! error code
  character(*), intent(out)       :: message         ! error message
  ! local variables
  integer(i4b)                    :: ncid            ! netcdf id
+ integer(i4b)                    :: ivarID          ! variable id
  integer(i4b)                    :: nDims           ! number of dimension in runoff file
  character(len=strLen)           :: cmessage        ! error message from subroutine
  ! initialize error control
@@ -160,14 +165,18 @@ contains
  ierr = nf90_open(trim(fname), nf90_nowrite, ncid)
  if(ierr/=0)then; message=trim(message)//'['//trim(nf90_strerror(ierr))//'; file='//trim(fname)//']'; return; endif
 
+ ! get the ID of runoff variable
+ ierr = nf90_inq_varid(ncid, trim(vname_qsim), ivarID)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
  ! get the number of dimensions - must be 2D(hru, time) or 3D(y, x, time)
- ierr= nf90_inquire(ncid, nDimensions = nDims)
+ ierr= nf90_inquire_variable(ncid, ivarID, ndims = nDims)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  ! get runoff metadata
  select case( nDims )
-  case(2); call get_1D_runoff_metadata(fname, runoff_data, nSpatial, nTime, timeUnits, ierr, message)
-  case(3); call get_2D_runoff_metadata(fname, runoff_data, nSpatial, nTime, timeUnits, ierr, message)
+  case(2); call get_1D_runoff_metadata(fname, runoff_data, nSpatial, nTime, timeUnits, calendar, ierr, message)
+  case(3); call get_2D_runoff_metadata(fname, runoff_data, nSpatial, nTime, timeUnits, calendar, ierr, message)
   case default; ierr=20; message=trim(message)//'runoff array nDimensions must be 2 or 3'; return
  end select
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -185,6 +194,7 @@ contains
                                    nSpatial    , & ! number of spatial elements
                                    nTime       , & ! number of time steps
                                    timeUnits   , & ! time units
+                                   calendar    , & ! calendar
                                    ! error control
                                    ierr, message)  ! output: error control
  implicit none
@@ -195,6 +205,7 @@ contains
  integer(i4b), intent(out)               :: nSpatial(1:2)   ! number of spatial elements
  integer(i4b), intent(out)               :: nTime           ! number of time steps
  character(*), intent(out)               :: timeUnits       ! time units
+ character(*), intent(out)               :: calendar        ! calendar
  ! error control
  integer(i4b), intent(out)               :: ierr            ! error code
  character(*), intent(out)               :: message         ! error message
@@ -214,7 +225,11 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the time units
- call get_units(fname, trim(vname_time), timeUnits, ierr, cmessage)
+ call get_var_attr_char(fname, trim(vname_time), 'units', timeUnits, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! get the calendar
+ call get_var_attr_char(fname, trim(vname_time), 'calendar', calendar, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! allocate space for hru_id
@@ -242,6 +257,7 @@ contains
                                 nSpatial    , & ! number of ylat dimensions
                                 nTime       , & ! number of time steps
                                 timeUnits   , & ! time units
+                                calendar    , & ! calendar
                                 ! error control
                                 ierr, message)  ! output: error control
  implicit none
@@ -252,6 +268,7 @@ contains
  integer(i4b), intent(out)               :: nSpatial(1:2)   ! number of spatial elements (lat, lon) (y,x),(i,j)
  integer(i4b), intent(out)               :: nTime           ! number of time steps
  character(*), intent(out)               :: timeUnits       ! time units
+ character(*), intent(out)               :: calendar        ! calendar
  ! error control
  integer(i4b), intent(out)               :: ierr            ! error code
  character(*), intent(out)               :: message         ! error message
@@ -265,7 +282,11 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the time units
- call get_units(fname, trim(vname_time), timeUnits, ierr, cmessage)
+ call get_var_attr_char(fname, trim(vname_time), 'units', timeUnits, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! get the calendar
+ call get_var_attr_char(fname, trim(vname_time), 'calendar', calendar, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get size of ylat dimension

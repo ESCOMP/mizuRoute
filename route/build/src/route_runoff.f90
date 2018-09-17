@@ -54,7 +54,8 @@ USE process_ntopo, only : ntopo               ! process the network topology
 USE getAncillary_module, only : getAncillary  ! get ancillary data
 
 ! subroutines: model time info
-USE time_utils_module,   only : compCalday    ! compute calendar day
+USE time_utils_module,   only : compCalday        ! compute calendar day
+USE time_utils_module,   only : compCalday_noleap ! compute calendar day
 USE process_time_module, only : process_time  ! process time information
 
 ! subroutines: basin routing
@@ -117,6 +118,7 @@ type(runoff)                  :: runoff_data         ! runoff for one time step 
 integer(i4b)                  :: nSpatial(1:2)       ! number of spatial elements
 integer(i4b)                  :: nTime               ! number of time steps
 character(len=strLen)         :: time_units          ! time units
+character(len=strLen)         :: calendar            ! calendar
 
 ! time structures
 type(time)                    :: modTime             ! model time
@@ -206,6 +208,7 @@ call getAncillary(&
                   nSpatial,        & ! output: number of spatial elements in runoff data
                   nTime,           & ! output: number of time steps
                   time_units,      & ! output: time units
+                  calendar,        & ! output: calendar
                   ! error control
                   ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
@@ -226,9 +229,9 @@ select case( trim( time_units(1:index(time_units,' ')) ) )
 end select
 
 ! extract time information from the control information
-call process_time(time_units,     refJulday,   ierr, cmessage); if(ierr/=0) call handle_err(ierr, cmessage)
-call process_time(trim(simStart), startJulday, ierr, cmessage); if(ierr/=0) call handle_err(ierr, cmessage)
-call process_time(trim(simEnd),   endJulday,   ierr, cmessage); if(ierr/=0) call handle_err(ierr, cmessage)
+call process_time(time_units,    calendar, refJulday,   ierr, cmessage); if(ierr/=0) call handle_err(ierr, cmessage)
+call process_time(trim(simStart),calendar, startJulday, ierr, cmessage); if(ierr/=0) call handle_err(ierr, cmessage)
+call process_time(trim(simEnd),  calendar, endJulday,   ierr, cmessage); if(ierr/=0) call handle_err(ierr, cmessage)
 
 ! check that the dates are aligned
 if(endJulday<startJulday) call handle_err(20,'simulation end is before simulation start')
@@ -319,7 +322,13 @@ do iTime=1,nTime
  if(modJulday < startJulday .or. modJulday > endJulday) cycle
 
  ! get the time
- call compCalday(modJulday,modTime%iy,modTime%im,modTime%id,modTime%ih,modTime%imin,modTime%dsec,ierr,cmessage)
+ select case(trim(calendar))
+  case('noleap')
+   call compCalday_noleap(modJulday,modTime%iy,modTime%im,modTime%id,modTime%ih,modTime%imin,modTime%dsec,ierr,cmessage)
+  case ('standard','gregorian','proleptic_gregorian')
+   call compCalday(modJulday,modTime%iy,modTime%im,modTime%id,modTime%ih,modTime%imin,modTime%dsec,ierr,cmessage)
+  case default; call handle_err(20, 'calendar name: '//trim(calendar)//' invalid')
+ end select
  call handle_err(ierr, cmessage)
 
  ! print progress
@@ -372,6 +381,7 @@ do iTime=1,nTime
                   nHRU,                                  &  ! input: number of HRUs
                   nRch,                                  &  ! input: number of stream segments
                   time_units,                            &  ! input: time units
+                  calendar,                              &  ! input: calendar
                   ierr,cmessage)                            ! output: error control
   if(ierr/=0) call handle_err(ierr, cmessage)
 

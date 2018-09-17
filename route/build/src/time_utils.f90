@@ -20,12 +20,16 @@
 
 module time_utils_module
 USE nrtype
-USE public_var,only:secprday,secprhour,secprmin  ! seconds in an (day, hour, minute)
+USE public_var,only:secprday,secprhour,secprmin, &   ! seconds in an (day, hour, minute)
+                    months_per_yr, days_per_yr,  &   ! months and days in year (no leap year)
+                    hr_per_day, min_per_hour         ! hours per day and minutes per hour
 implicit none
 private
 public::extractTime
 public::compjulday
+public::compjulday_noleap
 public::compcalday
+public::compcalday_noleap
 public::elapsedSec
 contains
 
@@ -178,6 +182,45 @@ contains
  end subroutine compjulday
 
  ! ***************************************************************************************
+ ! public subroutine compjulday: convert date to julian day (units of days) for noleap calendar
+ ! reference: https://github.com/nmizukami/VIC/blob/VIC.5.0.0/vic/drivers/shared_all/src/vic_time.c
+ ! ***************************************************************************************
+ subroutine compjulday_noleap(iyyy,mm,id,ih,imin,dsec,&  ! input
+                       juldayss,err,message)             ! output
+ implicit none
+ ! input variables
+ integer(i4b),intent(in)   :: iyyy,mm,id   ! year, month, day
+ integer(i4b),intent(in)   :: ih,imin      ! hour, minute
+ real(dp),intent(in)       :: dsec         ! seconds
+ ! output
+ real(dp),intent(out)      :: juldayss
+  integer(i4b),intent(out) :: err          ! error code
+  character(*),intent(out) :: message      ! error message
+ ! local variables
+ integer(i4b)              :: mm_tmp       ! adjusted month
+ integer(i4b)              :: iyyy_tmp     ! adjusted year
+ real(dp)                  :: dfrac        ! fraction of day
+
+ ! initialize errors
+ err=0; message="compjulday_noleap"
+
+ ! compute fraction of the day
+ dfrac = real(id,kind(dp))+(real(ih,kind(dp))*secprhour + real(imin,kind(dp))*secprmin + dsec) / secprday
+
+ ! compute julian day
+ ! Start Meeus algorithm (variables are in his notation)
+ mm_tmp = mm; iyyy_tmp = iyyy
+ if (mm < 3) then
+   mm_tmp = mm + months_per_yr
+   iyyy_tmp = iyyy - 1;
+ end if
+
+ juldayss = real(floor(real(days_per_yr*(iyyy_tmp + 4716)))) + &
+            real(floor(30.6001 * real(mm_tmp+1))) + dfrac - 1524.5;
+
+ end subroutine compjulday_noleap
+
+ ! ***************************************************************************************
  ! public subroutine compgregcal: convert julian day (units of days) to calendar date
  ! source: https://en.wikipedia.org/wiki/Julian_day#Julian_or_Gregorian_calendar_from_Julian_day_number
  ! ***************************************************************************************
@@ -212,8 +255,6 @@ contains
  integer(i4b),parameter       :: w = 2
  integer(i4b),parameter       :: b = 274277
  integer(i4b),parameter       :: c = -38
- real(dp),parameter           :: hr_per_day = 24.0_dp
- real(dp),parameter           :: min_per_hour = 60.0_dp
 
  ! local variables
  integer(i4b)          :: f,e,g,h                            ! various step variables from wikipedia
@@ -263,6 +304,84 @@ contains
  dsec = nint(remainder*secprmin)
 
  end subroutine compcalday
+
+ ! ***************************************************************************************
+ ! public subroutine compgregcal_noleap: compute yy,mm,dd,hr,min,hr from a noleap julian day
+ ! source: https://github.com/nmizukami/VIC/blob/VIC.5.0.0/vic/drivers/shared_all/src/vic_time.c
+ ! ***************************************************************************************
+ subroutine compcalday_noleap(julday,                              & !input
+                              iyyy,mm,id,ih,imin,dsec,err,message)   !output
+ implicit none
+
+ ! input variables
+ real(dp), intent(in)         :: julday       ! julian day
+ ! output varibles
+ integer(i4b), intent(out)    :: iyyy         ! year
+ integer(i4b), intent(out)    :: mm           ! month
+ integer(i4b), intent(out)    :: id           ! day
+ integer(i4b), intent(out)    :: ih           ! hour
+ integer(i4b), intent(out)    :: imin         ! minute
+ real(dp),     intent(out)    :: dsec         ! seconds
+ integer(i4b), intent(out)    :: err          ! error code
+ character(*), intent(out)    :: message      ! error message
+ ! local variables
+ integer(i4b)                 :: A,B,C,D,E            ! various step variable
+ integer(i4b)                 :: nday                 ! various step variable
+ real(dp)                     :: F                    ! various step variable
+ integer(i4b)                 :: dayofyr              ! day of year
+ real(dp)                     :: frac_day             ! fractional day
+ real(dp)                     :: days                 ! day with a fraction days
+ real(dp)                     :: remainder ! remainder of modulus operation
+
+ ! initialize errors
+ err=0; message="compcalday_noleap"
+ if(julday<=0)then;err=10;message=trim(message)//"no negative julian days/"; return; end if
+
+ A = floor(julday+0.5);
+ F = julday + 0.5 - real(A)
+ B = A + 1524;
+ C = int((real(B) - 122.1)/real(days_per_yr));
+ D = days_per_yr*C;
+ E = int(real((B - D)/30.6001));
+
+ ! compute day
+ days = real(B - D - int(30.6001 * E)) + F;
+ id = floor(days)
+
+ ! compute day in a year
+ nday = B - D - 123;
+ if (nday <= 305) then
+    dayofyr = nday + 60;
+ else
+    dayofyr = nday - 305;
+ endif
+
+ ! compute month
+ if (E < 14) then
+   mm = E - 1;
+ else
+   mm = E - 13;
+ endif
+
+ ! compute year
+ if (mm > 2) then
+  iyyy = C - 4716;
+ else
+  iyyy = C - 4715;
+ endif
+
+ ! Convert fractions of a day to time
+ ! now find hour,min,second
+ frac_day = julday - floor(julday)
+ ih = floor((frac_day+1e-9)*hr_per_day)
+
+ remainder = (frac_day+1e-9)*hr_per_day - ih
+ imin = floor(remainder*min_per_hour)
+
+ remainder = remainder*min_per_hour - imin
+ dsec = nint(remainder*secprmin)
+
+ end subroutine compcalday_noleap
 
  ! ***************************************************************************************
  ! public function elapsedSec: calculate difference of two time marks obtained by date_and_time()
