@@ -64,8 +64,8 @@ contains
 
  ! get the year
  call extract(refdate(istart:n),"-",iend,iyyy,err,message); if (err/=0) return
- if(iyyy < 1900)then; err=20; message=trim(message)//'year < 1900'; return; end if
- if(iyyy > 2100)then; err=20; message=trim(message)//'year > 2100'; return; end if
+ if(iyyy <    0)then; err=20; message=trim(message)//'year <    0'; return; end if
+ if(iyyy > 3000)then; err=20; message=trim(message)//'year > 3000'; return; end if
  ! get the month
  istart=istart+iend
  call extract(refdate(istart:n),"-",iend,im,err,message);   if (err/=0) return
