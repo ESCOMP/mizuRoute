@@ -44,10 +44,10 @@ module remapping
   ierr=0; message="remap_runoff/"
 
   if (nSpace(2) == imiss) then
-    call remap_1D_runoff(runoff_data, remap_data, structHRU2seg, basinRunoff, ierr, message)
+    call remap_1D_runoff(runoff_data, remap_data, structHRU2seg, basinRunoff, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   else
-    call remap_2D_runoff(runoff_data, remap_data, structHRU2seg, basinRunoff, ierr, message)
+    call remap_2D_runoff(runoff_data, remap_data, structHRU2seg, basinRunoff, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
@@ -75,7 +75,7 @@ module remapping
   real(dp)    , parameter            :: xTol=1.e-6_dp       ! tolerance to avoid divide by zero
   integer(i4b), parameter            :: ixCheck=-huge(iHRU) ! basin to check
   integer(i4b), parameter            :: jxCheck=-huge(iHRU) ! basin to check
-
+  logical(lgt), parameter            :: printWarn=.false.   ! flag to print warnings
   ierr=0; message="remap_2D_runoff/"
 
   ! initialize counter for the overlap vector
@@ -112,6 +112,18 @@ module remapping
     ! index of i (x) and j (y) direction
     jj = remap_data%j_index(ixOverlap)
     ii = remap_data%i_index(ixOverlap)
+
+    ! check i-indices
+    if(ii < lbound(runoff_data%qSim2d,1) .or. ii > ubound(runoff_data%qSim2d,1))then
+     if(printWarn) write(*,'(a,4(i0,a))') trim(message)//'WARNING: i-index is out of bounds [ii = ', ii, '; ixPoly = ', ixPoly, '; iHRU = ', iHRU, '; jHRU = ', jHRU, ']'
+     ixOverlap = ixOverlap + 1; cycle
+    endif
+
+    ! check j-indices
+    if(jj < lbound(runoff_data%qSim2d,2) .or. jj > ubound(runoff_data%qSim2d,2))then
+     if(printWarn) write(*,'(a,4(i0,a))') trim(message)//'WARNING: j-index is out of bounds [jj = ', jj, '; ixPoly = ', ixPoly, '; iHRU = ', iHRU, '; jHRU = ', jHRU, ']'
+     ixOverlap = ixOverlap + 1; cycle
+    endif
 
     ! get the weighted average
     if(runoff_data%qSim2d(ii,jj) > -xTol)then
@@ -150,6 +162,8 @@ module remapping
    !endif
 
   end do   ! looping through basins in the routing layer
+
+  !!print*, 'PAUSE: after remap_2D_runoff'; read(*,*)
 
   end subroutine remap_2D_runoff
 

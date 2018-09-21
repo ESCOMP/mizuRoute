@@ -83,7 +83,9 @@ contains
  !print*, 'nSpatial, nTime, trim(time_units) = ', nSpatial(:), nTime, trim(time_units)
  !print*, trim(message)//'PAUSE : '; read(*,*)
 
+ ! need to remap runoff to HRUs
  if (remap_flag) then
+
    ! get runoff mapping file
    call get_remap_data(trim(ancil_dir)//trim(fname_remap),     & ! input: file name
                        nSpatial,                               & ! input: number of spatial elements
@@ -175,8 +177,8 @@ contains
 
  ! get runoff metadata
  select case( nDims )
-  case(2); call get_1D_runoff_metadata(fname, runoff_data, nSpatial, nTime, timeUnits, calendar, ierr, message)
-  case(3); call get_2D_runoff_metadata(fname, runoff_data, nSpatial, nTime, timeUnits, calendar, ierr, message)
+  case(2); call get_1D_runoff_metadata(fname, runoff_data, nSpatial, nTime, timeUnits, calendar, ierr, cmessage)
+  case(3); call get_2D_runoff_metadata(fname, runoff_data, nSpatial, nTime, timeUnits, calendar, ierr, cmessage)
   case default; ierr=20; message=trim(message)//'runoff array nDimensions must be 2 or 3'; return
  end select
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif

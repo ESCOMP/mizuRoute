@@ -252,28 +252,32 @@ contains
  endif  ! computing hydraulic geometry
 
  ! get the channel unit hydrograph
- ! (channel unit hydrograph is only needed for the impulse response function)
- if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+ if(topoNetworkOption==compute)then
 
-  ! extract the length information from the structure and place it in a vector
-  allocate(seg_length(nSeg), stat=ierr, errmsg=cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': seg_length'; return; endif
-  forall(iSeg=1:nSeg) seg_length(iSeg) = structSEG(iSeg)%var(ixSEG%length)%dat(1)
+  ! (channel unit hydrograph is only needed for the impulse response function)
+  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
 
-  ! compute lag times in the channel unit hydrograph
-  call make_uh(seg_length, dt, velo, diff, temp_dat, ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   ! extract the length information from the structure and place it in a vector
+   allocate(seg_length(nSeg), stat=ierr, errmsg=cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': seg_length'; return; endif
+   forall(iSeg=1:nSeg) seg_length(iSeg) = structSEG(iSeg)%var(ixSEG%length)%dat(1)
 
-  ! put the lag times in the data structures
-  tot_uh = 0
-  do iSeg=1,nSeg
+   ! compute lag times in the channel unit hydrograph
+   call make_uh(seg_length, dt, velo, diff, temp_dat, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! put the lag times in the data structures
+   tot_uh = 0
+   do iSeg=1,nSeg
     allocate(structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat(size(temp_dat(iSeg)%dat)), stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage)//': structSeg%var(ixSEG%uh)%dat'; return; endif
     structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat(:) = temp_dat(iSeg)%dat(:)
     tot_uh = tot_uh+size(temp_dat(iSeg)%dat)
-  enddo
+   enddo
 
- endif ! if using the impulse response function
+  endif ! if using the impulse response function
+
+ endif ! if there is a need to compute the channel unit hydrograph
 
  ! ---------- get the mask of all upstream reaches above a given reach ---------------------------------------
 
@@ -311,6 +315,9 @@ contains
   !        --> it will always be quicker to recompute than read+write
   !        --> users can modify the hard-coded parameter "maxUpstreamFile" if desired
   if(tot_upstream > maxUpstreamFile) tot_upstream=0
+
+  ! remove file if it exists
+  call system('rm -f '//trim(ancil_dir)//trim(fname_ntopNew))
 
   ! write data
   call writeData(&

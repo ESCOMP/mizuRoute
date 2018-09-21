@@ -170,7 +170,7 @@ call read_control(trim(cfile_name), ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
 ! read the routing parameter namelist
-call read_param(trim(param_nml),ierr,cmessage)
+call read_param(trim(ancil_dir)//trim(param_nml),ierr,cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
 ! *****
@@ -229,9 +229,9 @@ select case( trim( time_units(1:index(time_units,' ')) ) )
 end select
 
 ! extract time information from the control information
-call process_time(time_units,    calendar, refJulday,   ierr, cmessage); if(ierr/=0) call handle_err(ierr, cmessage)
-call process_time(trim(simStart),calendar, startJulday, ierr, cmessage); if(ierr/=0) call handle_err(ierr, cmessage)
-call process_time(trim(simEnd),  calendar, endJulday,   ierr, cmessage); if(ierr/=0) call handle_err(ierr, cmessage)
+call process_time(time_units,    calendar, refJulday,   ierr, cmessage); if(ierr/=0) call handle_err(ierr, trim(cmessage)//' [refJulday]')
+call process_time(trim(simStart),calendar, startJulday, ierr, cmessage); if(ierr/=0) call handle_err(ierr, trim(cmessage)//' [startJulday]')
+call process_time(trim(simEnd),  calendar, endJulday,   ierr, cmessage); if(ierr/=0) call handle_err(ierr, trim(cmessage)//' [endJulday]')
 
 ! check that the dates are aligned
 if(endJulday<startJulday) call handle_err(20,'simulation end is before simulation start')
@@ -247,12 +247,10 @@ prevTime = time(integerMissing, integerMissing, integerMissing, integerMissing, 
 allocate(RCHFLX(nEns,nRch), KROUTE(nEns,nRch), stat=ierr)
 if(ierr/=0) call handle_err(ierr, 'unable to allocate space for routing structures')
 
+! read restart file and initialize states
 if (isRestart)then
-
- ! Read restart file and initialize states
  call read_state_nc(trim(output_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
  if(ierr/=0) call handle_err(ierr, cmessage)
-
 else
 
  ! Cold start .......
@@ -425,6 +423,7 @@ do iTime=1,nTime
                   ierr, cmessage)      ! intent(out): error control
  if(ierr/=0) call handle_err(ierr,cmessage)
 
+ ! perform within-basin routing
  if (doesBasinRoute == 1) then
 
   ! instantaneous runoff volume (m3/s) to data structure
@@ -438,11 +437,10 @@ do iTime=1,nTime
   call IRF_route_basin(iens, nRch, ierr, cmessage)
   call handle_err(ierr,cmessage)
 
+ ! no within-basin routing (assume handled by the hydrology model)
  else
-
   RCHFLX(iens,:)%BASIN_QR(0) = RCHFLX(iens,:)%BASIN_QR(1)       ! streamflow from previous step
   RCHFLX(iens,:)%BASIN_QR(1) = reachRunoff(:)                   ! streamflow (m3/s)
-
  end if
 
  ! write routed local runoff in each stream segment (m3/s)
