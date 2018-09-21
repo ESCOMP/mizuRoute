@@ -115,13 +115,13 @@ module remapping
 
     ! check i-indices
     if(ii < lbound(runoff_data%qSim2d,1) .or. ii > ubound(runoff_data%qSim2d,1))then
-     if(printWarn) write(*,'(a,4(i0,a))') trim(message)//'WARNING: i-index is out of bounds [ii = ', ii, '; ixPoly = ', ixPoly, '; iHRU = ', iHRU, '; jHRU = ', jHRU, ']'
+     if(printWarn) write(*,'(a,4(i0,a))') trim(message)//'WARNING: When computing weighted runoff at ', jHRU, 'th-HRU, i-index ', ii,' was not found in runoff grid data.'
      ixOverlap = ixOverlap + 1; cycle
     endif
 
     ! check j-indices
     if(jj < lbound(runoff_data%qSim2d,2) .or. jj > ubound(runoff_data%qSim2d,2))then
-     if(printWarn) write(*,'(a,4(i0,a))') trim(message)//'WARNING: j-index is out of bounds [jj = ', jj, '; ixPoly = ', ixPoly, '; iHRU = ', iHRU, '; jHRU = ', jHRU, ']'
+     if(printWarn) write(*,'(a,4(i0,a))') trim(message)//'WARNING: When computing weighted runoff at ', jHRU, 'th-HRU, j-index ', jj, 'was not found in runoff grid data.'
      ixOverlap = ixOverlap + 1; cycle
     endif
 
@@ -161,7 +161,7 @@ module remapping
    !                                         iHRU, basinRunoff(jHRU)
    !endif
 
-  end do   ! looping through basins in the routing layer
+  end do   ! looping through basins in the mapping layer
 
   !!print*, 'PAUSE: after remap_2D_runoff'; read(*,*)
 
@@ -285,7 +285,7 @@ module remapping
    !print*, 'basinRunoff(jHRU) = ', basinRunoff(jHRU)
    !print*, 'PAUSE : '; read(*,*)
 
-  end do   ! looping through basins in the routing layer
+  end do   ! looping through basins in the mapping layer
 
   end subroutine remap_1D_runoff
 
