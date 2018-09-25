@@ -6,6 +6,7 @@ USE nrtype,    only : strLen              ! length of characters
 USE nrtype,    only : realMissing         ! missing value for real
 USE nrtype,    only : integerMissing      ! missing value for integers
 USE dataTypes, only : var_ilength         ! integer type:          var(:)%dat
+USE dataTypes, only : var_clength         ! integer type:          var(:)%dat
 USE dataTypes, only : var_dlength,dlength ! double precision type: var(:)%dat, or dat
 
 ! global vars
@@ -73,6 +74,7 @@ contains
                   structSeg,        & ! ancillary data for stream segments
                   structHRU2seg,    & ! ancillary data for mapping hru2basin
                   structNTOPO,      & ! ancillary data for network toopology
+                  structPFAF,       & ! ancillary data for pfafstetter code
                   ! output: error control
                   ierr, message)
  ! external subroutines : I/O
@@ -95,6 +97,7 @@ contains
  type(var_dlength) , intent(out), allocatable :: structSeg(:)     ! stream segment properties
  type(var_ilength) , intent(out), allocatable :: structHRU2seg(:) ! HRU-to-segment mapping
  type(var_ilength) , intent(out), allocatable :: structNTOPO(:)   ! network topology
+ type(var_clength) , intent(out), allocatable :: structPFAF(:)    ! pfafstetter code
  ! output: error control
  integer(i4b)      , intent(out)              :: ierr             ! error code
  character(*)      , intent(out)              :: message          ! error message
@@ -137,6 +140,7 @@ contains
               structSeg,    & ! ancillary data for stream segments
               structHRU2seg,& ! ancillary data for mapping hru2basin
               structNTOPO,  & ! ancillary data for network topology
+              structPFAF,   & ! ancillary data for pfafstetter code
               ! output: error control
               ierr,cmessage) ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif

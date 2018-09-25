@@ -8,6 +8,7 @@ program route_runoff
 USE nrtype                                    ! variable types, etc.
 USE dataTypes, only : var_ilength             ! integer type:          var(:)%dat
 USE dataTypes, only : var_dlength             ! double precision type: var(:)%dat
+USE dataTypes, only : var_clength             ! character type: var(:)%dat
 
 ! data structures
 USE dataTypes,  only : remap                  ! remapping data type
@@ -24,6 +25,7 @@ USE var_lookup, only : ixHRU     , nVarsHRU      ! index of variables for data s
 USE var_lookup, only : ixHRU2SEG , nVarsHRU2SEG  ! index of variables for data structure
 USE var_lookup, only : ixSEG     , nVarsSEG      ! index of variables for data structure
 USE var_lookup, only : ixNTOPO   , nVarsNTOPO    ! index of variables for data structure
+USE var_lookup, only : ixPFAF    , nVarsPFAF     ! index of variables for data structure
 
 ! ******
 ! provide access to desired subroutines...
@@ -104,6 +106,7 @@ type(var_dlength),allocatable :: structHRU(:)        ! HRU properties
 type(var_dlength),allocatable :: structSeg(:)        ! stream segment properties
 type(var_ilength),allocatable :: structHRU2seg(:)    ! HRU-to-segment mapping
 type(var_ilength),allocatable :: structNTOPO(:)      ! network topology
+type(var_clength),allocatable :: structPFAF(:)       ! pfafstetter code
 
 ! read control file
 character(len=strLen)         :: cfile_name          ! name of the control file
@@ -187,6 +190,7 @@ call ntopo(&
            structSeg,        & ! ancillary data for stream segments
            structHRU2seg,    & ! ancillary data for mapping hru2basin
            structNTOPO,      & ! ancillary data for network topology
+           structPFAF,       & ! ancillary data for pfafstetter
            ! output: error control
            ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)

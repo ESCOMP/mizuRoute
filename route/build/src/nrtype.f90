@@ -12,4 +12,5 @@ MODULE nrtype
     INTEGER(I4B),PARAMETER :: strLen=256            ! string length
     INTEGER(I4B),PARAMETER :: integerMissing=-9999  ! missing value for integers
     REAL(DP),PARAMETER     :: realMissing=-9999._dp ! missing value for real numbers
+    character(len=32),PARAMETER :: characterMissing=''  ! missing values for characeters
 END MODULE nrtype

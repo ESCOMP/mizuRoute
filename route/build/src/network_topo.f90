@@ -40,7 +40,6 @@ public :: reachOrder     ! define the processing order
 public :: reach_list     ! get a list of reaches above each reach
 public :: reach_mask     ! get a mask that defines all segments above a given segment
 public :: reach_mask_orig     ! get a mask that defines all segments above a given segment
-!public::upstrm_length
 
 contains
 
@@ -1284,82 +1283,5 @@ contains
           !           END SUBROUTINE MOVE_LIST
           !          ! ----------------------------------------------------------------------------------------
           !          END SUBROUTINE REACH_LIST_ORIG
-
- ! *********************************************************************
- ! subroutine: Update total stream network length from a each esgment
- ! *********************************************************************
-           !          subroutine upstrm_length(nSeg, &          ! input
-           !                                   ierr, message)   ! error control
-           !          ! ----------------------------------------------------------------------------------------
-           !          ! Creator(s):
-           !          !
-           !          !   Naoki Mizukami
-           !          !
-           !          ! ----------------------------------------------------------------------------------------
-           !          ! Purpose:
-           !          !
-           !          !   Calculate total length of upstream reach network from each segment
-           !          !
-           !          ! ----------------------------------------------------------------------------------------
-           !          ! I/O:
-           !          !
-           !          !   INPUTS:
-           !          !    nSeg: Number of stream segments in the river network (reaches)
-           !          !
-           !          ! ----------------------------------------------------------------------------------------
-           !          ! Structures modified:
-           !          !
-           !          !   Updates structure NETOPO%UPSLENG (module reachparam)
-           !          !
-           !          ! ----------------------------------------------------------------------------------------
-           !          USE reachparam
-
-           !          implicit none
-           !          ! input variables
-           !          integer(I4B), intent(in)               :: nSeg          ! number of stream segments
-           !          ! output variables
-           !          integer(i4b), intent(out)              :: ierr          ! error code
-           !          character(*), intent(out)              :: message       ! error message
-           !          ! local variables
-           !          integer(I4B)                           :: iSeg          ! index for segment loop
-           !          integer(I4B)                           :: iUps          ! index for upstream segment loop
-           !          integer(I4B)                           :: jUps          ! index for upstream segment loop
-           !          INTEGER(I4B)                           :: NASSIGN       ! # reaches currently assigned
-           !          logical(LGT),dimension(:),allocatable  :: RCHFLAG       ! TRUE if reach is processed
-           !          integer(I4B)                           :: nUps          ! number of upstream reaches
-           !          real(DP)                               :: xLocal        ! length of one segement
-           !          real(DP)                               :: xTotal        ! total length of upstream segment
-
-           !          ! initialize error control
-           !          ierr=0; message='strmlength/'
-           !          ! ----------------------------------------------------------------------------------------
-           !          NASSIGN = 0
-           !          allocate(RCHFLAG(nSeg),stat=ierr)
-           !          if(ierr/=0)then; message=trim(message)//'problem allocating space for RCHFLAG'; return; endif
-           !          RCHFLAG(1:nSeg) = .FALSE.
-           !          ! ----------------------------------------------------------------------------------------
-
-           !          seg_loop: do iSeg=1,nSeg !Loop through each segment
-
-           !            nUps = size(NETOPO(iSeg)%RCHLIST) ! size of upstream segment
-           !            allocate(NETOPO(iSeg)%UPSLENG(nUps),stat=ierr)
-           !            !print *,'--------------------------------------------'
-           !            !print *,'Seg ID, Num of upstream', iSeg, nUps
-           !            !print *,'list of upstream index',NETOPO(iSeg)%RCHLIST
-           !            upstrms_loop: do iUps=1,nUps !Loop through upstream segments of current segment
-           !              jUps=NETOPO(iSeg)%RCHLIST(iUps) !index of upstreamf segment
-           !              xTotal = 0.0 !Initialize total length of upstream segments
-           !              do
-           !                xLocal=RPARAM(jUps)%RLENGTH ! Get a segment length
-           !                xTotal=xTotal+xLocal
-           !                if (jUps.eq.NETOPO(iSeg)%REACHIX) exit
-           !                jUps = NETOPO(jUps)%DREACHI ! Get index of immediate downstream segment
-           !              enddo
-           !              NETOPO(iSeg)%UPSLENG(iUps)=xTotal
-           !            enddo upstrms_loop
-           !            !print*, 'iSeg,  NETOPO(iSeg)%UPSLENG(:) = ', iSeg, NETOPO(iSeg)%UPSLENG(:)
-           !          enddo seg_loop
-
-           !          end subroutine upstrm_length
 
 end module network_topo

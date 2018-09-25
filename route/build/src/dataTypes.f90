@@ -87,6 +87,16 @@ implicit none
   type(ilength),allocatable           :: var(:)    ! var(:)%dat
  endtype var_ilength
 
+ ! ** character type
+ ! dat vector
+ type, public :: clength
+  character(len=32),allocatable       :: dat(:)    ! dat(:)
+ endtype clength
+ ! var vector
+ type, public :: var_clength
+  type(clength),allocatable           :: var(:)    ! var(:)%dat
+ endtype var_clength
+
  ! ---------- mapping data structures ----------------------------------------------------------------------
 
  ! data to remap runoff hru to river network hrus
@@ -127,27 +137,28 @@ implicit none
 
  ! River Network topology
  type, public :: RCHTOPO
-  integer(I4B)                            :: REACHIX  ! Reach index (0,1,2,...,nrch-1)
-  integer(I4B)                            :: REACHID  ! Reach ID (REC code)
-  real(DP)                                :: RCHLAT1  ! Start latitude
-  real(DP)                                :: RCHLAT2  ! End latitude
-  real(DP)                                :: RCHLON1  ! Start longitude
-  real(DP)                                :: RCHLON2  ! End longitude
-  real(DP),    dimension(:),allocatable   :: UPSLENG  ! total upstream length
-  integer(I4B)                            :: DREACHI  ! Immediate Downstream reach index
-  integer(I4B)                            :: DREACHK  ! Immediate Downstream reach ID
-  integer(I4B),dimension(:),allocatable   :: UREACHI  ! Immediate Upstream reach indices
-  integer(I4B),dimension(:),allocatable   :: UREACHK  ! Immediate Upstream reach IDs
-  integer(I4B),dimension(:),allocatable   :: RCHLIST  ! all upstream reach indices
-  logical(lgt),dimension(:),allocatable   :: goodBas  ! Flag to denote a good basin
-  integer(I4B)                            :: RHORDER  ! Processing sequence
-  real(dp)    ,dimension(:),allocatable   :: UH       ! Unit hydrograph for upstream
-  integer(I4B)                            :: LAKE_IX  ! Lake index (0,1,2,...,nlak-1)
-  integer(I4B)                            :: LAKE_ID  ! Lake ID (REC code?)
-  real(DP)                                :: BASULAK  ! Area of basin under lake
-  real(DP)                                :: RCHULAK  ! Length of reach under lake
-  LOGICAL(LGT)                            :: LAKINLT  ! .TRUE. if reach is lake inlet, .FALSE. otherwise
-  LOGICAL(LGT)                            :: USRTAKE  ! .TRUE. if user takes from reach, .FALSE. otherwise
+  integer(I4B)                               :: REACHIX  ! Reach index (0,1,2,...,nrch-1)
+  integer(I4B)                               :: REACHID  ! Reach ID (REC code)
+  real(DP)                                   :: RCHLAT1  ! Start latitude
+  real(DP)                                   :: RCHLAT2  ! End latitude
+  real(DP)                                   :: RCHLON1  ! Start longitude
+  real(DP)                                   :: RCHLON2  ! End longitude
+  real(DP),    dimension(:),allocatable      :: UPSLENG  ! total upstream length
+  integer(I4B)                               :: DREACHI  ! Immediate Downstream reach index
+  integer(I4B)                               :: DREACHK  ! Immediate Downstream reach ID
+  integer(I4B),dimension(:),allocatable      :: UREACHI  ! Immediate Upstream reach indices
+  integer(I4B),dimension(:),allocatable      :: UREACHK  ! Immediate Upstream reach IDs
+  integer(I4B),dimension(:),allocatable      :: RCHLIST  ! all upstream reach indices
+  logical(lgt),dimension(:),allocatable      :: goodBas  ! Flag to denote a good basin
+  character(len=32),dimension(:),allocatable :: pfafCode ! pfafstetter code
+  integer(I4B)                               :: RHORDER  ! Processing sequence
+  real(dp)    ,dimension(:),allocatable      :: UH       ! Unit hydrograph for upstream
+  integer(I4B)                               :: LAKE_IX  ! Lake index (0,1,2,...,nlak-1)
+  integer(I4B)                               :: LAKE_ID  ! Lake ID (REC code?)
+  real(DP)                                   :: BASULAK  ! Area of basin under lake
+  real(DP)                                   :: RCHULAK  ! Length of reach under lake
+  LOGICAL(LGT)                               :: LAKINLT  ! .TRUE. if reach is lake inlet, .FALSE. otherwise
+  LOGICAL(LGT)                               :: USRTAKE  ! .TRUE. if user takes from reach, .FALSE. otherwise
  end type RCHTOPO
 
  ! ---------- kinematic wave states (collection of particles) ---------------------------------

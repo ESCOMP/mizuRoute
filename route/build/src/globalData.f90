@@ -35,6 +35,7 @@ module globalData
   USE var_lookup, only : nVarsHRU2SEG  ! number of variables for data structure
   USE var_lookup, only : nVarsSEG      ! number of variables for data structure
   USE var_lookup, only : nVarsNTOPO    ! number of variables for data structure
+  USE var_lookup, only : nVarsPFAF     ! number of variables for data structure
   USE var_lookup, only : nVarsIRFbas   ! number of variables for data structure
   USE var_lookup, only : nVarsIRF      ! number of variables for data structure
   USE var_lookup, only : nVarsKWT      ! number of variables for data structure
@@ -54,8 +55,9 @@ module globalData
   integer(i4b)      , parameter  , public :: false=1002                 ! false
 
   ! variable types
-  integer(i4b)      , parameter  , public :: varType_integer = 1001     ! named variable for an integer
-  integer(i4b)      , parameter  , public :: varType_double  = 1002     ! named variable for a double precision
+  integer(i4b)      , parameter  , public :: varType_integer   = 1001   ! named variable for an integer
+  integer(i4b)      , parameter  , public :: varType_double    = 1002   ! named variable for a double precision
+  integer(i4b)      , parameter  , public :: varType_character = 1003   ! named variable for a double precision
 
   ! ---------- conversion factors -------------------------------------------------------------------
 
@@ -85,6 +87,7 @@ module globalData
   type(var_info)                 , public :: meta_HRU2SEG(nVarsHRU2SEG) ! HRU-to-segment mapping
   type(var_info)                 , public :: meta_SEG    (nVarsSEG    ) ! stream segment properties
   type(var_info)                 , public :: meta_NTOPO  (nVarsNTOPO  ) ! network topology
+  type(var_info)                 , public :: meta_PFAF   (nVarsPFAF   ) ! pfafstetter code
   type(var_info)                 , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
   type(var_info)                 , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
   type(var_info)                 , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states

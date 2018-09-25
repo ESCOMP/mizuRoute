@@ -25,12 +25,14 @@ contains
  USE globalData, only : meta_HRU2SEG         ! HRU-to-segment mapping
  USE globalData, only : meta_SEG             ! stream segment properties
  USE globalData, only : meta_NTOPO           ! network topology
+ USE globalData, only : meta_PFAF            ! pfafstetter code
 
  ! named variables in each structure
  USE var_lookup, only : ixHRU                ! index of variables for data structure
  USE var_lookup, only : ixHRU2SEG            ! index of variables for data structure
  USE var_lookup, only : ixSEG                ! index of variables for data structure
  USE var_lookup, only : ixNTOPO              ! index of variables for data structure
+ USE var_lookup, only : ixPFAF               ! index of variables for data structure
 
  ! external subroutines
  USE ascii_util_module,only:file_open        ! open file (performs a few checks as well)
@@ -189,6 +191,9 @@ contains
    case('<varname_isLakeInlet>'  ); meta_NTOPO  (ixNTOPO%isLakeInlet   )%varName =trim(cData)  ! flag to define if reach is a lake inlet (1=inlet, 0 otherwise)
    case('<varname_userTake>'     ); meta_NTOPO  (ixNTOPO%userTake      )%varName =trim(cData)  ! flag to define if user takes water from reach (1=extract, 0 otherwise)
    case('<varname_goodBasin>'    ); meta_NTOPO  (ixNTOPO%goodBasin     )%varName =trim(cData)  ! flag to define a good basin (1=good, 0=bad)
+
+   ! pfafstetter code
+   case('<varname_pfafCode>'     ); meta_PFAF   (ixPFAF%code           )%varName =trim(cData)  ! pfafstetter code
 
    ! if not in list then keep going
    case default
