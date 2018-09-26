@@ -3,8 +3,6 @@ module read_streamSeg
 ! data types
 USE nrtype,    only : i4b,dp,lgt
 USE nrtype,    only : strLen               ! string length
-USE nrtype,    only : integerMissing       ! missing value for integers
-USE nrtype,    only : characterMissing     ! missing value for characeters
 USE dataTypes, only : var_ilength          ! integer type:          var(:)%dat
 USE dataTypes, only : var_dlength          ! double precision type: var(:)%dat
 USE dataTypes, only : var_clength          ! character type:        var(:)%dat
@@ -86,31 +84,27 @@ contains
  character(*)      , intent(out)              :: message          ! error message
  ! ==========================================================================================================
  ! local variables
- integer(i4b)                        :: iStruct      ! structure index
- integer(i4b)                        :: iSpace       ! spatial index
- integer(i4b)                        :: iHRU         ! HRU index
- integer(i4b)                        :: iSeg         ! segment index
- integer(i4b)                        :: iVar         ! variable index
- integer(i4b)                        :: ncid         ! NetCDF file ID
- integer(i4b), allocatable           :: ncDimIDs(:)  ! NetCDF dimension ID vector
- integer(i4b)                        :: nDims        ! number of dimensions in a variable
- integer(i4b)                        :: idimID_nHRU  ! dimension ID for HRUs
- integer(i4b)                        :: idimID_sseg  ! dimension ID for stream segments
- integer(i4b)                        :: iVarID       ! variable ID
- integer(i4b)                        :: jxStart      ! Start index for a given reach
- integer(i4b)                        :: jxCount      ! Number of elements for a given reach
- integer(i4b), allocatable           :: ixStart(:)   ! Start index for each reach
- integer(i4b), allocatable           :: ixCount(:)   ! Number of elements in each reach
- integer(i4b), allocatable           :: iTemp(:)     ! temporary integer vector
- real(dp),     allocatable           :: dTemp(:)     ! temporary double precision vector
- character(Len=32), allocatable      :: cTemp(:)     ! temporary charactervector
- character(len=strLen)               :: dimName      ! dimension name
- integer(i4b)                        :: dimLength    ! dimension length
- integer(i4b)                        :: charLength   ! character dimension length
- logical(lgt)                        :: isDimScalar  ! .true. if the dimension is a scalar
- logical(lgt)                        :: isVarDesired ! .true. if the variable is desired
- character(len=strLen)               :: varName      ! variable name
- character(len=strLen)               :: cmessage     ! error message of downwind routine
+ integer(i4b)                           :: iStruct      ! structure index
+ integer(i4b)                           :: iSpace       ! spatial index
+ integer(i4b)                           :: iHRU         ! HRU index
+ integer(i4b)                           :: iSeg         ! segment index
+ integer(i4b)                           :: iVar         ! variable index
+ integer(i4b)                           :: ncid         ! NetCDF file ID
+ integer(i4b)                           :: idimID_nHRU  ! dimension ID for HRUs
+ integer(i4b)                           :: idimID_sseg  ! dimension ID for stream segments
+ integer(i4b)                           :: iVarID       ! variable ID
+ integer(i4b)                           :: jxStart      ! Start index for a given reach
+ integer(i4b)                           :: jxCount      ! Number of elements for a given reach
+ integer(i4b),              allocatable :: ixStart(:)   ! Start index for each reach
+ integer(i4b),              allocatable :: ixCount(:)   ! Number of elements in each reach
+ integer(i4b),              allocatable :: iTemp(:)     ! temporary integer vector
+ real(dp),                  allocatable :: dTemp(:)     ! temporary double precision vector
+ character(Len=maxPfafLen), allocatable :: cTemp(:)     ! temporary charactervector
+ integer(i4b)                           :: dimLength    ! dimension length
+ logical(lgt)                           :: isDimScalar  ! .true. if the dimension is a scalar
+ logical(lgt)                           :: isVarDesired ! .true. if the variable is desired
+ character(len=strLen)                  :: varName      ! variable name
+ character(len=strLen)                  :: cmessage     ! error message of downwind routine
  ! initialize error control
  ierr=0; message='getData/'
 
@@ -227,7 +221,6 @@ contains
   structNTOPO(iSeg)%var(ixNTOPO%isLakeInlet)%dat(1) = integerMissing
   structNTOPO(iSeg)%var(ixNTOPO%userTake   )%dat(1) = integerMissing
 
-  structPFAF(iSeg)%var(ixPFAF%code         )%dat(1) = characterMissing
  end do  ! looping through stream segments
 
  ! -----------------------------------------------------------------------------------------------------------------
@@ -325,22 +318,8 @@ contains
       allocate(cTemp(dimLength),stat=ierr); if(ierr/=0)then; message=trim(message)//'problem allocating cTemp'; return; endif
      endif
 
-     ! get the variable type
-     ierr = nf90_inquire_variable(ncid, ivarID, ndims=nDims)
-     if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
-     allocate(ncDimIDs(nDims))
-
-     ! get the dimension IDs
-     ierr = nf90_inquire_variable(ncid, ivarID, dimids=ncDimIDs)
-     if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
-     ! get the character dimension name and length (1st dimension)
-     ierr = nf90_inquire_dimension(ncid, ncDimIDs(1), name=dimName, len=charLength)
-     if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; name='//trim(dimName); return; endif
-
      ! read data
-     ierr = nf90_get_var(ncid, ivarID, cTemp, start=(/1,1/), count=(/charLength,dimLength/))
+     ierr = nf90_get_var(ncid, ivarID, cTemp, start=(/1,1/), count=(/maxPfafLen, dimLength/))
      if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; varname='//trim(varName); return; endif
 
     ! check errors

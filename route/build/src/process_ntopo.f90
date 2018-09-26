@@ -3,8 +3,6 @@ module process_ntopo
 ! data types
 USE nrtype,    only : i4b,dp              ! variable types, etc.
 USE nrtype,    only : strLen              ! length of characters
-USE nrtype,    only : realMissing         ! missing value for real
-USE nrtype,    only : integerMissing      ! missing value for integers
 USE dataTypes, only : var_ilength         ! integer type:          var(:)%dat
 USE dataTypes, only : var_clength         ! integer type:          var(:)%dat
 USE dataTypes, only : var_dlength,dlength ! double precision type: var(:)%dat, or dat
@@ -18,6 +16,8 @@ USE public_var, only : dname_nhru         ! dimension name for HRUs
 USE public_var, only : dname_sseg         ! dimension name for stream segments
 USE public_var, only : idSegOut           ! ID for stream segment at the bottom of the subset
 USE public_var, only : dt                 ! simulation time step [sec]
+USE public_var, only : maxPfafLen         ! maximum length of pfafstetter code
+USE globalData, only : meta_PFAF          ! meta for pfafstetter code
 
 ! options
 USE public_var, only : ntopWriteOption    ! option to write updated network topology
@@ -44,15 +44,21 @@ USE globalData, only : velo, diff         ! IRF routing parameters (Transfer fun
 ! named variables
 USE var_lookup,only:ixSEG                 ! index of variables for the stream segments
 USE var_lookup,only:ixNTOPO               ! index of variables for the network topology
+USE var_lookup,only:ixPFAF                ! index of variables for the pfafstetter code
 
-! named variables
+! common variables
 USE public_var, only : compute            ! compute given variable
 USE public_var, only : doNotCompute       ! do not compute given variable
 USE public_var, only : readFromFile       ! read given variable from a file
+USE public_var, only : realMissing         ! missing value for real
+USE public_var, only : integerMissing      ! missing value for integers
 
 ! Routing parameter estimation procedure
 USE basinUH_module,   only : basinUH      ! construct basin unit hydrograph
 USE irf_route_module, only : make_uh      ! construct reach unit hydrograph
+
+! NetCDF reading routine
+USE read_netcdf,      only : get_var_dims
 
 implicit none
 
@@ -104,6 +110,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------
  ! local variables
  character(len=strLen)           :: cmessage           ! error message of downwind routine
+ integer(i4b)                    :: dummy(2)           ! dummy variable for dimension length output
  integer(i4b)                    :: iSeg               ! indices for stream segment
  integer(i4b)                    :: iUps               ! indices of upstream segments
  integer(i4b)                    :: nUps               ! number of immediate upstream segments
@@ -125,6 +132,14 @@ contains
  call system_clock(time0)
 
  ! ---------- read in the stream segment information ---------------------------------------------------------
+ ! get pfafstetter maximum code length
+ call get_var_dims(trim(ancil_dir)//trim(fname_ntopOld), & ! input: file name
+                   trim(meta_PFAF(ixPFAF%code)%varName), & ! input: pfaf code variable name in netcdf
+                   ierr, cmessage,                       & ! output: error control
+                   dlen=dummy)             ! output optional: dimension length
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ maxPfafLen = dummy(1)
 
  ! get the number of HRUs and stream segments (needed for allocate statements)
  call getData(&
@@ -340,6 +355,7 @@ contains
                  structSeg,     & ! input: ancillary data for stream segments
                  structHRU2seg, & ! input: ancillary data for mapping hru2basin
                  structNTOPO,   & ! input: ancillary data for network topology
+                 structPFAF,    & ! input: ancillary data for pfafstetter code
                  ! output: error control
                  ierr,cmessage) ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
