@@ -1,7 +1,7 @@
 MODULE var_lookup
  ! defines named variables used to index array elements
- USE nrtype, only: i4b
- USE nrtype, only: integerMissing  ! missing value for integers
+ USE nrtype,     only: i4b
+ USE public_var, only: integerMissing  ! missing value for integers
  implicit none
  private
  ! local variables
@@ -28,6 +28,7 @@ MODULE var_lookup
   integer(i4b)     :: upSeg        = integerMissing   ! immediate upstream segments
   integer(i4b)     :: upAll        = integerMissing   ! all upstream segments
   integer(i4b)     :: uh           = integerMissing   ! all segment unit hydrographs
+  integer(i4b)     :: pfaf         = integerMissing   ! max pfaf code length
  endtype iLook_dims
  ! For routing state variables
  type, public  ::  iLook_stateDims
@@ -146,7 +147,7 @@ MODULE var_lookup
  ! ** define data vectors
  ! ***********************************************************************************************************
  type(iLook_struct)   ,public,parameter :: ixStruct    = iLook_struct   (1,2,3,4,5)
- type(iLook_dims)     ,public,parameter :: ixDims      = iLook_dims     (1,2,3,4,5,6)
+ type(iLook_dims)     ,public,parameter :: ixDims      = iLook_dims     (1,2,3,4,5,6,7)
  type(iLook_stateDims),public,parameter :: ixStateDims = iLook_stateDims(1,2,3,4,5,6,7)
  type(iLook_qDims)    ,public,parameter :: ixqDims     = iLook_qDims    (1,2,3,4)
  type(iLook_HRU)      ,public,parameter :: ixHRU       = iLook_HRU      (1)
