@@ -14,7 +14,7 @@ module remapping
   use var_lookup,only:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
 
   ! global data
-  USE public_var,only:runoffMin, negRunoffTol, imiss
+  USE public_var,only:runoffMin, negRunoffTol, imiss, integerMissing
   USE globalData,only:time_conv,length_conv  ! conversion factors
 
   implicit none
@@ -206,7 +206,6 @@ module remapping
    if (jHRU == integerMissing)then
     if (remap_data%num_qhru(iHRU)/=integerMissing)then
       ixOverlap = ixOverlap + remap_data%num_qhru(iHRU)
-      print*, ixOverlap
     endif
     cycle
    endif

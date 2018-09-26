@@ -3,7 +3,6 @@ MODULE network_topo
 ! data types
 USE nrtype,    only : i4b,dp,lgt
 USE nrtype,    only : strLen         ! length of a string
-USE nrtype,    only : integerMissing
 USE dataTypes, only : var_ilength    ! integer type:          var(:)%dat
 USE dataTypes, only : var_dlength    ! double precision type: var(:)%dat
 
@@ -17,6 +16,7 @@ USE globalData, only : meta_NTOPO   ! network topology
 ! named variables
 USE globalData, only : true,false   ! named integers for true/false
 USE public_var, only : verySmall    ! a very small value
+USE public_var, only : integerMissing
 
 ! named variables
 USE var_lookup,only:ixStruct, nStructures  ! index of data structures

@@ -2,7 +2,6 @@ module public_var
   ! This module include variables that can be accessed from any other modules and values not altered
   ! Examples of variables are physical parameteres, namelist variable, variables in control etc.
   use nrtype, only: i4b,dp,lgt
-  use nrtype, only: integerMissing, realMissing
   use nrtype, only: strLen  ! string length
   implicit none
 
@@ -26,6 +25,9 @@ module public_var
   real(dp),    parameter,public   :: negRunoffTol=-1.e-3_dp ! nagative runoff tolerance
   real(dp),    parameter,public   :: MinPosVal=1.e-10_dp    ! minimum value for positive value
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
+  integer(i4b),          public   :: maxPfafLen=32          ! maximum digit of pfafstetter code (default 32)
+  integer(i4b),parameter,public   :: integerMissing=-9999   ! missing value for integers
+  real(dp),    parameter,public   :: realMissing=-9999._dp  ! missing value for real numbers
 
   ! ---------- named variables ----------------------------------------------------------------------
 

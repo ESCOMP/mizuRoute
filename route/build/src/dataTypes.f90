@@ -1,8 +1,8 @@
 module dataTypes
-USE nrtype, only: i4b,dp,lgt
-USE nrtype, only: realMissing
-USE nrtype, only: integerMissing
-USE nrtype, only: strLen   ! string length
+USE nrtype,     only: i4b,dp,lgt
+USE nrtype,     only: strLen   ! string length
+USE public_var, only: realMissing
+USE public_var, only: integerMissing
 ! used to create specific data types
 ! --
 implicit none
