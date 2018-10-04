@@ -325,7 +325,7 @@ contains
                            nElement2Seg, & ! number of elements that drain into each segment
                            ierr,message)
  ! external modules
- USE nr_utility_module, ONLY: indexx  ! Num. Recipies utilities
+ !USE nr_utility_module, ONLY: indexx  ! Num. Recipies utilities
  implicit none
  ! input variables
  integer(i4b), intent(in)        :: nUp             ! number of upstream elements
