@@ -14,6 +14,7 @@ USE dataTypes, only : var_clength             ! character type: var(:)%dat
 USE dataTypes,  only : remap                  ! remapping data type
 USE dataTypes,  only : runoff                 ! runoff data type
 USE dataTypes,  only : time                   ! time data type
+USE dataTypes,  only : basin                  ! river basin data type
 
 ! global data
 USE public_var
@@ -54,6 +55,9 @@ USE write_netcdf,    only : write_nc          ! write a variable to the NetCDF f
 ! subroutines: model set up
 USE process_ntopo, only : ntopo               ! process the network topology
 USE getAncillary_module, only : getAncillary  ! get ancillary data
+
+! Subroutines : pfafstetter code
+USE pfafstetter_module,  only: process_pfaf    ! group segments based on pfafstetter code
 
 ! subroutines: model time info
 USE time_utils_module,   only : compCalday        ! compute calendar day
@@ -118,6 +122,7 @@ integer(i4b)                  :: nRch                ! number of desired reaches
 ! ancillary data on model input
 type(remap)                   :: remap_data          ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
 type(runoff)                  :: runoff_data         ! runoff for one time step for all HRUs
+type(basin),     allocatable  :: river_basin(:)     !
 integer(i4b)                  :: nSpatial(1:2)       ! number of spatial elements
 integer(i4b)                  :: nTime               ! number of time steps
 character(len=strLen)         :: time_units          ! time units
@@ -217,8 +222,13 @@ call getAncillary(&
                   ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
+! ----------  pfafstetter code process to group segments -------------------------------------------------------
+call process_pfaf(nRch, structPFAF, structNTOPO, river_basin, ierr, cmessage)
+if(ierr/=0) call handle_err(ierr, cmessage)
+
 ! allocate space for the time data
-allocate(timeVec(ntime), stat=ierr); call handle_err(ierr, 'problem allocating timeVec')
+allocate(timeVec(ntime), stat=ierr)
+if(ierr/=0) call handle_err(ierr, 'unable to allocate space for timeVec')
 
 ! get the time data
 call get_nc(trim(input_dir)//trim(fname_qsim), vname_time, timeVec, 1, nTime, ierr, cmessage)
@@ -460,6 +470,7 @@ do iTime=1,nTime
  ! perform upstream flow accumulation
  call accum_runoff(iens,          &    ! input: ensemble index
                    nRch,          &    ! input: number of reaches in the river network
+                   river_basin,   &    ! input: river basin data type
                    ixDesire,      &    ! input: index of verbose reach
                    ierr, cmessage)     ! output: error controls
  call handle_err(ierr,cmessage)
@@ -492,6 +503,7 @@ do iTime=1,nTime
   ! IRF routing
   call irf_route(iens,                 & ! input: ensemble index
                  nRch,                 & ! input: number of reach in the river network
+                 river_basin,          & ! input: river basin data type
                  ixDesire,             & ! input: index of the desired reach
                  ierr,cmessage)          ! output: error control
   call handle_err(ierr,cmessage)

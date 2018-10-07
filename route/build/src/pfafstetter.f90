@@ -1,11 +1,11 @@
 MODULE pfafstetter_module
-
 USE nrtype
 USE public_var
 USE dataTypes,  only : var_clength         ! character type:   var(:)%dat
 USE dataTypes,  only : var_ilength         ! integer type:     var(:)%dat
-USE var_lookup, only : ixPFAF,nVarsPFAF    ! index of variables for the pfafstetter code
-USE var_lookup, only : ixNTOPO,nVarsNTOPO  ! index of variables for the pfafstetter code
+USE dataTypes,  only : basin               ! integer type:     var(:)%dat
+USE var_lookup, only : ixPFAF              ! index of variables for the pfafstetter code
+USE var_lookup, only : ixNTOPO             ! index of variables for the pfafstetter code
 USE nr_utility_module, ONLY: indexx        ! Num. Recipies utilities
 USE nr_utility_module, ONLY: indexTrue     ! Num. Recipies utilities
 
@@ -22,59 +22,81 @@ end interface
 
 contains
 
- subroutine process_pfaf(nSeg, structPFAF, structNTOPO, isDangle, ierr, message)
+
+ subroutine process_pfaf(nSeg, structPFAF, structNTOPO, river_basin, ierr, message)
   ! To obtain outlets of independent tributaries
-  ! Output:  isDangle(nSeg),  True: outlet of tributaries
+  ! Output:  river data structure: outlet_index, mainstems(nSeg,level), tributary_outlet(nSeg)
   implicit none
   ! Input variables
-  integer(i4b),      intent(in)               :: nSeg             ! number of stream segments
-  type(var_clength), intent(in), allocatable  :: structPFAF(:)    ! pfafstetter code
-  type(var_ilength), intent(in), allocatable  :: structNTOPO(:)   ! network topology
+  integer(i4b),                   intent(in)  :: nSeg               ! number of stream segments
+  type(var_clength), allocatable, intent(in)  :: structPFAF(:)      ! pfafstetter code
+  type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)     ! network topology
   ! Output variables
-  logical(lgt), allocatable,intent(out)       :: isDangle(:)
-  integer(i4b),             intent(out)       :: ierr
-  character(len=strLen),    intent(out)       :: message          ! error message
+  type(basin),       allocatable, intent(out) :: river_basin(:)     ! river basin data
+  integer(i4b),                   intent(out) :: ierr
+  character(len=strLen),          intent(out) :: message            ! error message
   ! Local variables
   character(len=strLen)                       :: cmessage           ! error message from subroutine
-  character(len=32)                           :: pfafs(nSeg)
-  character(len=32), allocatable              :: pfaf_out(:)
+  character(len=32)                           :: pfafs(nSeg)        ! pfaf_code for all the segment
+  character(len=32), allocatable              :: pfaf_out(:)        ! pfaf_code for outlet segments
   character(len=32)                           :: upPfaf
   character(len=32)                           :: outMainstemCode
-  logical(lgt), allocatable                   :: mainstems(:,:)     ! store mainstem level
-  logical(lgt), allocatable                   :: mainstem(:,:)      ! store mainstem
-  integer(i4b)                                :: maxSegs=300
+  logical(lgt),      allocatable              :: mainstems(:,:)     ! logical to indicate segment is mainstem at each level
+  logical(lgt)                                :: done               ! logical
+  integer(i4b)                                :: maxSegs=100
   integer(i4b)                                :: maxLevel=10
-  integer(i4b)                                :: downIndex(nseg)
-  integer(i4b)                                :: comLevel
-  integer(i4b), allocatable                   :: upSegIndex(:)
-  integer(i4b)                                :: nOuts
-  integer(i4b)                                :: nUpSegs
+  integer(i4b)                                :: minSegs=20
+  integer(i4b)                                :: downIndex(nseg)    ! downstream segment index for all the segments
+  integer(i4b)                                :: segIndex(nseg)     ! segment index for all the segments
+  integer(i4b), allocatable                   :: segIndex_out(:)    ! segment index for outlet segment
+  integer(i4b)                                :: level              ! manstem level
+  integer(i4b)                                :: nOuts              ! number of outlets
+  integer(i4b)                                :: nUpSegs            ! number of upstream segments for a specified segment
   integer(i4b)                                :: tot_trib           ! Number of Tributary basins
+  integer(i4b), allocatable                   :: upSegIndex(:)
   integer(i4b), allocatable                   :: nTrib(:)           ! Number of segments in each tributary basin
   integer(i4b), allocatable                   :: rank_nTrib(:)
   integer(i4b), allocatable                   :: pos(:)
-  integer(i4b)                                :: iSeg,jSeg,iOut   ! loop indices
-  !integer(i4b)                                :: iLevel, jLevel,Level,dangle
+  integer(i4b)                                :: iSeg,jSeg,iOut     ! loop indices
+  integer(i4b)                                :: jLevel,level1,dangle
 
   ierr=0; message='process_pfaf/'
 
   forall(iSeg=1:nSeg) pfafs(iSeg)     = structPFAF(iSeg)%var(ixPFAF%code)%dat(1)
   forall(iSeg=1:nSeg) downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
+  forall(iSeg=1:nSeg) segIndex(iSeg)  = structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1)
 
   ! Number of outlets
   nOuts=count(downIndex<0)
+
+  allocate(river_basin(nOuts), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating river_basin'; return; endif
+
   allocate(pfaf_out(nOuts), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating pfaf_out'; return; endif
 
-  ! Outlet pfaf codes
+  allocate(segIndex_out(nOuts), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating pfaf_out'; return; endif
+
+  ! Outlet information - pfaf code and segment index
   pfaf_out = pack(pfafs, downIndex<0)
+  segIndex_out = pack(segIndex, downIndex<0)
+
+  river_basin(1:nOuts)%isMajor  = .true.
 
   do iOut = 1,nOuts
 
     print*, 'working on outlet:'//trim(adjustl(pfaf_out(iOut)))
 
+    river_basin(iOut)%outIndex = segIndex_out(iOut)
+
+    if (size(structNTOPO(segIndex_out(iOut))%var(ixNTOPO%allUpSegIndices)%dat) < minSegs) then
+      river_basin(iOut)%isMajor  = .false.
+      cycle
+    endif
+
     ! Identify pfaf level given a river network
-    call get_common_pfaf(pfafs, pfaf_out(iOut), comLevel, ierr, cmessage)
+    call get_common_pfaf(pfafs, pfaf_out(iOut), level, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! Identify mainstem segments at all levels (up to maxLevel)
@@ -82,101 +104,94 @@ contains
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! Initial assignment of mainstem segments
-    allocate(mainstem(size(mainstems,1),1), stat=ierr)
-    mainstem(:,1) = mainstems(:,comLevel+1)
+    allocate(river_basin(iOut)%mainstems(size(mainstems,1),size(mainstems,2)), stat=ierr)
+    river_basin(iOut)%mainstems = .false.
+    river_basin(iOut)%mainstems(:,level) = mainstems(:,level)
 
     ! Identify tributary outlets into a mainstem at the lowest level
     !  i.e. the segment that is not on any mainstems AND flows into any mainstem segments
-    call lgc_tributary_outlet(mainstems(:,:comLevel+1), downIndex, isDangle, ierr, cmessage)
+    call lgc_tributary_outlet(mainstems(:,:level), downIndex, river_basin(iOut)%tributary_outlet, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    !do
+    deallocate(mainstems, stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem deallocating mainstems'; return; endif
 
-    ! number of tributary basins
-    tot_trib = count(isDangle)
+    do
+      level = level + 1
+      print*, level
 
-    allocate(nTrib(tot_trib),rank_nTrib(tot_trib), stat=ierr)
-    if(ierr/=0)then; message=trim(message)//'problem allocating nTrib'; return; endif
+      ! number of tributary basins
+      tot_trib = count(river_basin(iOut)%tributary_outlet)
 
-    ! Extract array elements with only tributary outlet (keep indices in master array
-    call indexTrue(isDangle,pos)
+      allocate(nTrib(tot_trib),rank_nTrib(tot_trib), stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem allocating nTrib'; return; endif
 
-    ! number of tributary segments
-    do iSeg=1,tot_trib
-      nTrib(iSeg) = size(structNTOPO(pos(iSeg))%var(ixNTOPO%allUpSegIndices)%dat)
+      ! Extract array elements with only tributary outlet (keep indices in master array
+      call indexTrue(river_basin(iOut)%tributary_outlet, pos)
+
+      ! number of tributary segments
+      do iSeg=1,tot_trib
+        nTrib(iSeg) = size(structNTOPO(pos(iSeg))%var(ixNTOPO%allUpSegIndices)%dat)
+      end do
+
+      ! rank the tributary outlets based on number of upstream segments
+      call indexx(nTrib, rank_nTrib)
+
+      ! Identify mainstems of large tributaries (# of segments > maxSeg)
+      done=.true.
+      do iSeg=tot_trib,1,-1
+        if (nTrib(rank_nTrib(iSeg)) > maxSegs) then
+          write(*,'(A, A,I)') 'Exceed maximum number of segments: ', pfafs(pos(rank_nTrib(iSeg))), nTrib(rank_nTrib(iSeg))
+
+          ! Outlet mainstem code
+          outMainstemCode = mainstem_code(pfafs(pos(rank_nTrib(iSeg))))
+
+          nUpSegs = size(structNTOPO(pos(rank_nTrib(iSeg)))%var(ixNTOPO%allUpSegIndices)%dat)
+          allocate(upSegIndex(nUpSegs), stat=ierr)
+          if(ierr/=0)then; message=trim(message)//'problem allocating upSegIndex'; return; endif
+
+          upSegIndex(:) = structNTOPO(pos(rank_nTrib(iSeg)))%var(ixNTOPO%allUpSegIndices)%dat
+
+          do jSeg=1,nUpSegs
+            upPfaf = pfafs(upSegIndex(jSeg))
+            if (trim(mainstem_code(upPfaf)) /= trim(outMainstemCode)) cycle
+            river_basin(iOut)%mainstems(upSegIndex(jSeg),level) = .true.
+          end do
+
+          done=.false.
+
+          deallocate(upSegIndex, stat=ierr)
+          if(ierr/=0)then; message=trim(message)//'problem deallocating nSegIndex'; return; endif
+        else
+          exit
+        endif
+      end do ! tributary loop
+
+      ! update isOutletTrib based on added mainstem
+      call lgc_tributary_outlet(river_basin(iOut)%mainstems(:,:level), downIndex, river_basin(iOut)%tributary_outlet, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      deallocate(nTrib,rank_nTrib,stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem deallocating nTrib or rank_nTrib'; return; endif
+
+      if (done) exit ! if no mainstem/tributary update, exist updating loop
+
     end do
 
-    ! rank the tributary outlets based on number of upstream segments
-    call indexx(nTrib, rank_nTrib)
-
-    ! Identify mainstems of large tributaries (# of segments > maxSeg)
-    do iSeg=tot_trib,1,-1
-
-      if (nTrib(rank_nTrib(iSeg)) > maxSegs) then
-        write(*,'(A, A,I)') 'Exceed maximum number of segments: ', pfafs(pos(rank_nTrib(iSeg))), nTrib(rank_nTrib(iSeg))
-
-        ! Outlet mainstem code
-        outMainstemCode = mainstem_code(pfafs(pos(rank_nTrib(iSeg))))
-
-        ! this tributary outlet is now mainstem
-        mainstem(pos(rank_nTrib(iSeg)),1) = .true.
-
-        nUpSegs = size(structNTOPO(pos(rank_nTrib(iSeg)))%var(ixNTOPO%allUpSegIndices)%dat)
-        allocate(upSegIndex(nUpSegs), stat=ierr)
-        if(ierr/=0)then; message=trim(message)//'problem allocating upSegIndex'; return; endif
-
-        upSegIndex(:) = structNTOPO(pos(rank_nTrib(iSeg)))%var(ixNTOPO%allUpSegIndices)%dat
-
-        do jSeg=1,nUpSegs
-          upPfaf = pfafs(upSegIndex(jSeg))
-          if (trim(mainstem_code(upPfaf)) /= trim(outMainstemCode)) cycle
-          mainstem(jSeg,1) = .true.
-        end do
-
-        ! update isDangle based on added mainstem
-        call lgc_tributary_outlet(mainstem, downIndex, isDangle, ierr, cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-      else
-
-        exit
-
-      endif
-
-      deallocate(upSegIndex, stat=ierr)
-      if(ierr/=0)then; message=trim(message)//'problem deallocating nSegs'; return; endif
-
+    do iSeg=1,nSeg
+      level1=-999
+      dangle=0
+      do jLevel =1,maxLevel
+        if (river_basin(iOut)%mainstems(iSeg,jLevel)) then
+          level1 = jLevel
+          exit
+        end if
+      end do
+     if (river_basin(iOut)%tributary_outlet(iSeg)) dangle=1
+     write(*,'(A,I,I)') pfafs(iSeg), level1, dangle
     end do
 
-    !end do
-
-    stop
-
-    do iSeg=1,tot_trib
-      write(*,'(A,L,I,I)') pfafs(pos(iSeg)),isDangle(pos(iSeg)), nTrib(iSeg), nTrib(rank_nTrib(iSeg))
-    end do
-
-    print*, trim(message)//'pause: '; read(*,*)
-
-      !if (tot_tributaries .lt. threshSegs) exit
-      !if (tot_tributaries .lt. threshSegs) then
-      !  print*,iLevel, tot_tributaries
-      !  do iSeg=1,nSeg
-      !    level=-999
-      !    dangle=0
-      !    do jLevel =1,iLevel
-      !      if (mainstem(iSeg,jLevel)) then
-      !        level = jLevel
-      !        cycle
-      !      end if
-      !    end do
-      !   if (isDangle(iSeg)) dangle=1
-      !   write(*,'(A,I,I)') pfafs(iSeg), level, dangle
-      !  end do
-      !  exit
-      !endif
-
-  end do
+  end do ! outlet loop
 
  end subroutine process_pfaf
 
@@ -288,26 +303,24 @@ contains
 
   mainstem_code = '-999'   ! indicating segment is not manstem
 
-  if (pfaf == '-999') then
+  if (trim(adjustl(pfaf)) == '-999') then
    return
   end if
-
-  mainstem_code = pfaf
 
   nDigits = len(pfaf)
 
   do iDigit = nDigits, 1, -1
 
+    if (pfaf(iDigit:iDigit)=="") cycle !if character digit is empty, go next
+
     read(pfaf(iDigit:iDigit),'(i)') pfaf_int
 
-    if (mod(pfaf_int, 2) == 0) then
-      exit
-    endif
+    if (mod(pfaf_int, 2) == 0) exit
 
     if (iDigit /= 1) then
-      mainstem_code = pfaf(1:iDigit-1)
+      mainstem_code = trim(adjustl(pfaf(1:iDigit-1)))
     else
-      mainstem_code = pfaf(1:iDigit)
+      mainstem_code = trim(adjustl(pfaf(1:iDigit)))
     end if
 
   end do

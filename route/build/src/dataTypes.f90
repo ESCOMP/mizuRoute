@@ -65,6 +65,14 @@ implicit none
   type(var),     allocatable :: var(:)
  end type states
 
+ ! ---------- basin data structures ----------------------------------------------------------------------
+ type,public :: basin
+  integer(i4b)              :: outIndex             ! index of outlet segment based on segment array
+  logical(lgt)              :: isMajor              ! logical to indicate this is major basin (num of seg > threshold)
+  logical(lgt), allocatable :: mainstems(:,:)       ! logical to indicate mainstem segments for each level
+  logical(lgt), allocatable :: tributary_outlet(:)  ! logical to indicate outlet of tributary
+ end type basin
+
  ! ---------- general data structures ----------------------------------------------------------------------
 
  ! ** double precision type

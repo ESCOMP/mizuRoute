@@ -93,8 +93,6 @@ contains
  use network_topo,    only:reach_list            ! reach list
  use network_topo,    only:reach_mask            ! identify all reaches upstream of a given reach
  !use network_topo,    only:reach_mask_orig            ! identify all reaches upstream of a given reach
- ! external subroutines : pfafstetter code
- use pfafstetter_module,   only: process_pfaf    ! group segments based on pfafstetter code
  ! This subroutine 1) read river network data and 2) populate river network topology data strucutres
  implicit none
  ! output: model control
@@ -120,7 +118,6 @@ contains
  integer(i4b)                    :: tot_upseg          ! total number of immediate upstream segments for all  stream segments
  integer(i4b)                    :: tot_hru            ! total number of all the upstream hrus for all stream segments
  integer(i4b)                    :: tot_uh             ! total number of unit hydrograph from all the stream segments
- logical(lgt),    allocatable    :: trib_out(:)        ! logical array to indicate tributary outlet
  integer(i4b)   , allocatable    :: ixHRU_desired(:)   ! indices of desired hrus
  integer(i4b)   , allocatable    :: ixSeg_desired(:)   ! indices of desired reaches
  integer(i4b)   , parameter      :: maxUpstreamFile=10000000 ! 10 million: maximum number of upstream reaches to enable writing
@@ -326,11 +323,6 @@ contains
  write(*,'(a,1x,i20)') 'after reach_mask: time = ', time1-time0
  !print*, trim(message)//'PAUSE : '; read(*,*)
 
- ! ----------  pfafstetter code process to group segments -------------------------------------------------------
- call process_pfaf(nSeg, structPFAF, structNTOPO, trib_out, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- stop
  ! ---------- write network topology to a netcdf file -------------------------------------------------------
 
  ! check the need to compute network topology
