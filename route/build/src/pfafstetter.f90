@@ -14,6 +14,7 @@ implicit none
 private
 
 public :: process_pfaf
+public :: group_process
 
 interface char2int
   module procedure :: char2int_1d
@@ -22,6 +23,47 @@ end interface
 
 contains
 
+ subroutine group_process(nSeg_array, group, ierr, message)
+  implicit none
+  ! Input variables
+  integer(i4b),          intent(in)  :: nSeg_array(:)      ! number of stream segments
+  ! Output variables
+  integer(i4b),          intent(out) :: group(:)           ! process group
+  integer(i4b),          intent(out) :: ierr
+  character(len=strLen), intent(out) :: message            ! error message
+  ! Local variables
+  integer(i4b),allocatable           :: rank_array(:)      ! number of stream segments
+  integer(i4b)                       :: maxCores
+  integer(i4b)                       :: nCores
+  integer(i4b)                       :: maxSeg
+  integer(i4b)                       :: cc
+  integer(i4b)                       :: iGroup
+  integer(i4b)                       :: ii    ! loop index
+
+  ierr=0; message='process_group/'
+
+  nCores = size(nSeg_array)
+  if (nCores >= maxCores) nCores=maxCores
+
+  maxSeg = sum(nSeg_array)/nCores
+
+  allocate(rank_array(size(nSeg_array)),stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating rank_array'; return; endif
+
+  call indexx(nSeg_array,rank_array)
+
+  iGroup = 1
+  cc = 0
+  do ii=1,size(nSeg_array)
+
+    group(rank_array(ii)) = iGroup
+    cc = cc + nSeg_array(rank_array(ii))
+
+    if (cc>maxSeg) iGroup=iGroup+1
+
+  end do
+
+ end subroutine
 
  subroutine process_pfaf(nSeg, structPFAF, structNTOPO, river_basin, ierr, message)
   ! To obtain outlets of independent tributaries
