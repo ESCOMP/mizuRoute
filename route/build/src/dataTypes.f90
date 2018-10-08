@@ -66,11 +66,15 @@ implicit none
  end type states
 
  ! ---------- basin data structures ----------------------------------------------------------------------
+ type,public :: mainstem
+  integer(i4b), allocatable :: segIndex(:)          ! index of mainstem segment outlet
+ end type mainstem
+
  type,public :: basin
-  integer(i4b)              :: outIndex             ! index of outlet segment based on segment array
-  logical(lgt)              :: isMajor              ! logical to indicate this is major basin (num of seg > threshold)
-  logical(lgt), allocatable :: mainstems(:,:)       ! logical to indicate mainstem segments for each level
-  logical(lgt), allocatable :: tributary_outlet(:)  ! logical to indicate outlet of tributary
+  integer(i4b)                :: outIndex             ! index of outlet segment based on segment array
+  logical(lgt)                :: isMajor              ! logical to indicate this is major basin (num of seg > threshold)
+  type(mainstem), allocatable :: mainstem(:)          ! mainstem level
+  integer(i4b), allocatable   :: tributary_outlet(:)  ! index of tributary outlet segment
  end type basin
 
  ! ---------- general data structures ----------------------------------------------------------------------
