@@ -2,7 +2,9 @@ module irf_route_module
 
 ! global parameters
 USE nrtype
-USE dataTypes,  only : STRFLX        ! fluxes in each reach
+USE dataTypes,          only : STRFLX        ! fluxes in each reach
+USE pfafstetter_module, only : subset_order  ! recompute reach order for subset reach vector
+USE time_utils_module,  only : elapsedSec    ! calculate the elapsed time
 
 ! privary
 implicit none
@@ -41,14 +43,23 @@ contains
  INTEGER(I4B), intent(IN)               :: iEns           ! runoff ensemble to be routed
  INTEGER(I4B), intent(IN)               :: nRch           ! number of reach segments in the network
  type(basin),  intent(in), allocatable  :: river_basin(:) ! river basin information (mainstem, tributary outlet etc.)
- INTEGER(I4B), intent(IN)               :: ixDesire       ! index of the reach for verbose output
- ! Output
+ INTEGER(I4B), intent(IN)               :: ixDesire       ! index of the reach for verbose output ! Output
  integer(i4b), intent(out)              :: ierr           ! error code
  character(*), intent(out)              :: message        ! error message
  ! Local variables to
- INTEGER(I4B)                           :: iRch           ! reach segment index
- INTEGER(I4B)                           :: jRch           ! reach segment to be routed
+ integer(i4b)                           :: order(nRch)    ! vector of reach order for the entire network data
+ integer(i4b)                           :: nOuts          ! number of outlets
+ integer(i4b)                           :: nUps           ! number of upstream reaches
+ integer(i4b)                           :: nTrib          ! number of tributary basins
+ integer(i4b)                           :: outIndex       ! outlet reach index
+ integer(i4b), allocatable              :: segIndex(:)    ! upstream segment index
+ integer(i4b), allocatable              :: new_order(:)   ! subset upstream reach order
+ integer(i4b)                           :: iRch,jRch      ! loop indices
+ integer(i4b)                           :: iOut,iTrib     ! loop indices
+ integer(i4b)                           :: iLevel         ! loop indices
  character(len=strLen)                  :: cmessage       ! error message from subroutine
+ integer(i4b), dimension(8)             :: startTime,endTime ! date/time for the start and end of the initialization
+ real(dp)                               :: elapsedTime       ! elapsed time for the process
 
  ! initialize error control
  ierr=0; message='irf_route/'
@@ -56,15 +67,104 @@ contains
  ! Initialize CHEC_IRF to False.
  RCHFLX(iEns,:)%CHECK_IRF=.False.
 
- ! route streamflow through the river network
- do iRch=1,nRch
+ ! Number of Outlets
+ nOuts = size(river_basin)
 
-  jRch = NETOPO(iRch)%RHORDER
+ ! vector of order
+ forall(iRch=1:nRch) order(iRch) = NETOPO(iRch)%RHORDER
 
-  call segment_irf(iEns, jRch, ixDesire, ierr, message)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ elapsedTime = 0._dp
+ call date_and_time(values=startTime)
+
+ do iOut=1,nOuts
+
+   if (river_basin(iOut)%isMajor)then
+
+     ! 1. Route tributary reaches (parallel)
+     nTrib=size(river_basin(iOut)%tributary_outlet)
+     do iTrib = 1,nTrib
+
+       outIndex=river_basin(iOut)%tributary_outlet(iTrib)
+       nUps = size(NETOPO(outIndex)%RCHLIST)
+
+       allocate(segIndex(nUps), new_order(nUps), stat=ierr)
+       if(ierr/=0)then; message=trim(message)//'problem allocating segIndex'; return; endif
+
+       ! Extract upstream segment indices
+       segIndex(:) = NETOPO(outIndex)%RCHLIST
+
+       ! compute reach order for subset reaches
+       call subset_order(order, segIndex, new_order, ierr, cmessage)
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+       ! route streamflow through the river network
+       do iRch=1,nUps
+         jRch = segIndex(new_order(iRch))
+         call segment_irf(iEns, jRch, ixDesire, ierr, message)
+         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       end do
+
+       deallocate(segIndex, new_order)
+       if(ierr/=0)then; message=trim(message)//'problem with deallocation for segIndex or new_order'; return; endif
+
+     end do
+
+     ! 2. Route mainstems (serial)
+     do iLevel=size(river_basin(iOut)%mainstem),1,-1
+
+       if (.not. allocated(river_basin(iOut)%mainstem(iLevel)%segIndex)) cycle
+
+       nUps=size(river_basin(iOut)%mainstem(iLevel)%segIndex)
+       allocate(segIndex(nUps), new_order(nUps), stat=ierr)
+       if(ierr/=0)then; message=trim(message)//'problem allocating segIndex'; return; endif
+
+       ! Extract upstream segment indices (need to work on this)
+       segIndex(:) = river_basin(iOut)%mainstem(iLevel)%segIndex
+
+
+       call subset_order(order, segIndex, new_order, ierr, cmessage)
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+       do iRch=1,nUps
+         jRch = segIndex(new_order(iRch))
+         call segment_irf(iEns, jRch, ixDesire, ierr, message)
+         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       end do
+
+       deallocate(segIndex, new_order)
+       if(ierr/=0)then; message=trim(message)//'problem with deallocation for segIndex or new_order'; return; endif
+
+     end do
+
+   else  ! Routing Major river basin (nSeg <= maxSegs)
+
+     outIndex=river_basin(iOut)%outIndex
+
+     nUps = size(NETOPO(outIndex)%RCHLIST)
+     allocate(segIndex(nUps), new_order(nUps), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating segIndex'; return; endif
+
+     ! Extract upstream segment indices
+     segIndex(:) = NETOPO(outIndex)%RCHLIST
+
+     ! compute reach order for subset reaches
+     call subset_order(order, segIndex, new_order, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     ! route streamflow through the river network
+     do iRch=1,nUps
+       jRch = segIndex(new_order(iRch))
+       call segment_irf(iEns, jRch, ixDesire, ierr, message)
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     end do
+
+   end if
 
  end do
+
+ call date_and_time(values=endTime)
+ elapsedTime = elapsedTime + elapsedSec(startTime, endTime)
+ write(*,"(A,1PG15.7,A)") '  elapsed one time step = ', elapsedTime, ' s'
 
  end subroutine irf_route
 
@@ -380,3 +480,57 @@ contains
 
 end module irf_route_module
 
+!   ! *********************************************************************
+!   ! subroutine: perform network UH routing
+!   ! *********************************************************************
+!   subroutine irf_route(&
+!                        ! input
+!                        iEns,       &    ! input: index of runoff ensemble to be processed
+!                        nRch,       &    ! input: index of reach to be processed
+!                        river_basin,&    ! input: river basin information (mainstem, tributary outlet etc.)
+!                        ixDesire,   &    ! input: reachID to be checked by on-screen pringing
+!                        ! output
+!                        ierr, message)   ! output: error control
+!   ! ----------------------------------------------------------------------------------------
+!   ! Purpose:
+!   !
+!   !   Convolute routed basisn flow volume at top of each of the upstream segment at one time step and at each segment
+!   !
+!   ! ----------------------------------------------------------------------------------------
+!
+!   ! global routing data
+!   USE globalData, only : RCHFLX ! routing fluxes
+!   USE globalData, only : NETOPO ! Network topology
+!   USE dataTypes,  only : basin  ! river basin data type
+!
+!   implicit none
+!   ! Input
+!   INTEGER(I4B), intent(IN)               :: iEns           ! runoff ensemble to be routed
+!   INTEGER(I4B), intent(IN)               :: nRch           ! number of reach segments in the network
+!   type(basin),  intent(in), allocatable  :: river_basin(:) ! river basin information (mainstem, tributary outlet etc.)
+!   INTEGER(I4B), intent(IN)               :: ixDesire       ! index of the reach for verbose output
+!   ! Output
+!   integer(i4b), intent(out)              :: ierr           ! error code
+!   character(*), intent(out)              :: message        ! error message
+!   ! Local variables to
+!   INTEGER(I4B)                           :: iRch           ! reach segment index
+!   INTEGER(I4B)                           :: jRch           ! reach segment to be routed
+!   character(len=strLen)                  :: cmessage       ! error message from subroutine
+!
+!   ! initialize error control
+!   ierr=0; message='irf_route/'
+!
+!   ! Initialize CHEC_IRF to False.
+!   RCHFLX(iEns,:)%CHECK_IRF=.False.
+!
+!   ! route streamflow through the river network
+!   do iRch=1,nRch
+!
+!    jRch = NETOPO(iRch)%RHORDER
+!
+!    call segment_irf(iEns, jRch, ixDesire, ierr, message)
+!    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+!
+!   end do
+!
+!   end subroutine irf_route

@@ -57,7 +57,7 @@ USE process_ntopo, only : ntopo               ! process the network topology
 USE getAncillary_module, only : getAncillary  ! get ancillary data
 
 ! Subroutines : pfafstetter code
-USE pfafstetter_module,  only: process_pfaf    ! group segments based on pfafstetter code
+USE pfafstetter_module,  only: classify_river_basin ! group river network segments into computational groups
 
 ! subroutines: model time info
 USE time_utils_module,   only : compCalday        ! compute calendar day
@@ -223,7 +223,7 @@ call getAncillary(&
 if(ierr/=0) call handle_err(ierr, cmessage)
 
 ! ----------  pfafstetter code process to group segments -------------------------------------------------------
-call process_pfaf(nRch, structPFAF, structNTOPO, river_basin, ierr, cmessage)
+call classify_river_basin(nRch, structPFAF, structNTOPO, river_basin, ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
 ! allocate space for the time data
@@ -344,7 +344,7 @@ do iTime=1,nTime
  call handle_err(ierr, cmessage)
 
  ! print progress
- print*, modTime%iy,modTime%im,modTime%id,modTime%ih,modTime%imin
+ !print*, modTime%iy,modTime%im,modTime%id,modTime%ih,modTime%imin
 
  ! *****
  ! * Get the simulated runoff for the current time step...
@@ -470,7 +470,6 @@ do iTime=1,nTime
  ! perform upstream flow accumulation
  call accum_runoff(iens,          &    ! input: ensemble index
                    nRch,          &    ! input: number of reaches in the river network
-                   river_basin,   &    ! input: river basin data type
                    ixDesire,      &    ! input: index of verbose reach
                    ierr, cmessage)     ! output: error controls
  call handle_err(ierr,cmessage)
