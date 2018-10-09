@@ -66,15 +66,19 @@ implicit none
  end type states
 
  ! ---------- basin data structures ----------------------------------------------------------------------
- type,public :: mainstem
-  integer(i4b), allocatable :: segIndex(:)          ! index of mainstem segment outlet
- end type mainstem
+ ! segIndex points to the segment in the entire river network data
+ ! segOrder is order within subset of mainstem segments or tributary segments
+ type,public :: reach
+  integer(i4b), allocatable :: segIndex(:)           ! index of mainstem segment outlet
+  integer(i4b), allocatable :: segOrder(:)           ! index of mainstem segment outlet
+  integer(i4b)              :: nRch                  ! number of reach
+ end type reach
 
  type,public :: basin
-  integer(i4b)                :: outIndex             ! index of outlet segment based on segment array
-  logical(lgt)                :: isMajor              ! logical to indicate this is major basin (num of seg > threshold)
-  type(mainstem), allocatable :: mainstem(:)          ! mainstem level
-  integer(i4b), allocatable   :: tributary_outlet(:)  ! index of tributary outlet segment
+  integer(i4b)                 :: outIndex             ! index of outlet segment based on segment array
+  logical(lgt)                 :: isMajor              ! logical to indicate this is major basin (num of seg > threshold)
+  type(reach), allocatable     :: mainstem(:)          ! mainstem level
+  type(reach), allocatable     :: tributary(:)         ! index of tributary outlet segment
  end type basin
 
  ! ---------- general data structures ----------------------------------------------------------------------

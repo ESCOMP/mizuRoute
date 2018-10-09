@@ -25,8 +25,8 @@ end interface
 contains
 
  subroutine classify_river_basin(nSeg, structPFAF, structNTOPO, river_basin, ierr, message)
-  ! To obtain outlets of independent tributaries
-  ! Output:  river data structure: outlet_index, mainstems(nSeg,level), tributary_outlet(nSeg)
+  ! Process river network data using pfafstetter code and network topology
+  ! Output: return populated basin dataType
   implicit none
   ! Input variables
   integer(i4b),                   intent(in)  :: nSeg                   ! number of stream segments
@@ -50,8 +50,10 @@ contains
   integer(i4b)                                :: minSegs=20             ! if number of segments in a basin, flag it as minor (do not break up into mainstems and tributaries)
   integer(i4b)                                :: maxLevel=10
   integer(i4b)                                :: downIndex(nSeg)        ! downstream segment index for all the segments
-  integer(i4b)                                :: segIndex(nSeg)         ! segment index for all the segments
-  integer(i4b), allocatable                   :: segIndex_out(:)        ! segment index for outlet segment
+  integer(i4b)                                :: segIndex(nSeg)         ! reach index for all the segments
+  integer(i4b)                                :: order(nSeg)            ! reach order for all the segments
+  integer(i4b), allocatable                   :: segIndex_out(:)        ! index for outlet segment
+  integer(i4b), allocatable                   :: tributary_outlet(:)    ! index for tributary outlet reach
   integer(i4b)                                :: level                  ! manstem level
   integer(i4b)                                :: nOuts                  ! number of outlets
   integer(i4b)                                :: nUpSegs                ! number of upstream segments for a specified segment
@@ -61,7 +63,7 @@ contains
   integer(i4b), allocatable                   :: rank_nTrib(:)
   integer(i4b), allocatable                   :: trPos(:)
   integer(i4b), allocatable                   :: msPos(:)
-  integer(i4b)                                :: iSeg,jSeg,iOut         ! loop indices
+  integer(i4b)                                :: iSeg,jSeg,iOut,iTrib   ! loop indices
   integer(i4b)                                :: i1,i2,jLevel,level1,dangle
 
   ierr=0; message='classify_river_basin/'
@@ -69,6 +71,7 @@ contains
   forall(iSeg=1:nSeg) pfafs(iSeg)     = structPFAF(iSeg)%var(ixPFAF%code)%dat(1)
   forall(iSeg=1:nSeg) downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
   forall(iSeg=1:nSeg) segIndex(iSeg)  = structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1)
+  forall(iSeg=1:nSeg) order(iSeg)     = structNTOPO(iSeg)%var(ixNTOPO%rchOrder)%dat(1)
 
   ! Number of outlets
   nOuts=count(downIndex<0)
@@ -83,7 +86,7 @@ contains
   pfaf_out = pack(pfafs, downIndex<0)
   segIndex_out = pack(segIndex, downIndex<0)
 
-  river_basin(1:nOuts)%isMajor  = .true.
+ ! river_basin(1:nOuts)%isMajor  = .true.
 
   do iOut = 1,nOuts
 
@@ -94,10 +97,10 @@ contains
 
     river_basin(iOut)%outIndex = segIndex_out(iOut)
 
-    if (size(structNTOPO(segIndex_out(iOut))%var(ixNTOPO%allUpSegIndices)%dat) < minSegs) then
-      river_basin(iOut)%isMajor  = .false.
-      cycle
-    endif
+ !   if (size(structNTOPO(segIndex_out(iOut))%var(ixNTOPO%allUpSegIndices)%dat) < minSegs) then
+ !     river_basin(iOut)%isMajor  = .false.
+ !     cycle
+ !   endif
 
     ! Identify pfaf level given a river network
     call get_common_pfaf(pfafs, pfaf_out(iOut), level, ierr, cmessage)
@@ -114,16 +117,23 @@ contains
 
     ! Identify the lowest level mainstem segment index
     call indexTrue(mainstems(:,level), msPos)
-    allocate(river_basin(iOut)%mainstem(level)%segIndex(size(msPos)), stat=ierr)
-    if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(iOut)%mainstem(level)%segIndex'; return; endif
+    allocate(river_basin(iOut)%mainstem(level)%segIndex(size(msPos)), &
+             river_basin(iOut)%mainstem(level)%segOrder(size(msPos)), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(:)%mainstem(:)%segIndex or segOrder'; return; endif
     river_basin(iOut)%mainstem(level)%segIndex(1:size(msPos))  = msPos(1:size(msPos))
+    ! Compute reach order for mainstem segment
+    call subset_order(order, &
+                      river_basin(iOut)%mainstem(level)%segIndex, &
+                      river_basin(iOut)%mainstem(level)%segOrder, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    river_basin(iOut)%mainstem(level)%nRch = size(river_basin(iOut)%mainstem(level)%segIndex)
 
     ! Identify tributary outlets into a mainstem at the lowest level
     !  i.e. the segment that is not on any mainstems AND flows into any mainstem segments
     call lgc_tributary_outlet(mainstems(:,:level), downIndex, lgc_trib_outlet, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    deallocate(mainstems, stat=ierr)
+    deallocate(mainstems, segIndex_out, stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem deallocating mainstems'; return; endif
 
     do
@@ -139,8 +149,8 @@ contains
       call indexTrue(lgc_trib_outlet, trPos)
 
       ! number of tributary segments
-      do iSeg=1,tot_trib
-        nTrib(iSeg) = size(structNTOPO(trPos(iSeg))%var(ixNTOPO%allUpSegIndices)%dat)
+      do iTrib=1,tot_trib
+        nTrib(iTrib) = size(structNTOPO(trPos(iTrib))%var(ixNTOPO%allUpSegIndices)%dat)
       end do
 
       ! rank the tributary outlets based on number of upstream segments
@@ -148,19 +158,19 @@ contains
 
       ! Identify mainstems of large tributaries (# of segments > maxSeg) and update updated_mainstems.
       done=.true.
-      do iSeg=tot_trib,1,-1
-        ! nUpSegs = nTrib(rank_nTrib(iSeg))
-        if (nTrib(rank_nTrib(iSeg)) > maxSegs) then
-          write(*,'(A, A,I)') 'Exceed maximum number of segments: ', pfafs(trPos(rank_nTrib(iSeg))), nTrib(rank_nTrib(iSeg))
+      do iTrib=tot_trib,1,-1
+        ! nUpSegs = nTrib(rank_nTrib(iTrib))
+        if (nTrib(rank_nTrib(iTrib)) > maxSegs) then
+          write(*,'(A, A,I)') 'Exceed maximum number of segments: ', pfafs(trPos(rank_nTrib(iTrib))), nTrib(rank_nTrib(iTrib))
 
           ! Outlet mainstem code
-          outMainstemCode = mainstem_code(pfafs(trPos(rank_nTrib(iSeg))))
+          outMainstemCode = mainstem_code(pfafs(trPos(rank_nTrib(iTrib))))
 
-          nUpSegs = size(structNTOPO(trPos(rank_nTrib(iSeg)))%var(ixNTOPO%allUpSegIndices)%dat)
+          nUpSegs = size(structNTOPO(trPos(rank_nTrib(iTrib)))%var(ixNTOPO%allUpSegIndices)%dat)
           allocate(upSegIndex(nUpSegs), stat=ierr)
           if(ierr/=0)then; message=trim(message)//'problem allocating upSegIndex'; return; endif
 
-          upSegIndex(:) = structNTOPO(trPos(rank_nTrib(iSeg)))%var(ixNTOPO%allUpSegIndices)%dat
+          upSegIndex(:) = structNTOPO(trPos(rank_nTrib(iTrib)))%var(ixNTOPO%allUpSegIndices)%dat
           do jSeg=1,nUpSegs
             upPfaf = pfafs(upSegIndex(jSeg))
             if (trim(mainstem_code(upPfaf)) /= trim(outMainstemCode)) cycle
@@ -177,25 +187,50 @@ contains
         endif
       end do ! tributary loop
 
-      deallocate(nTrib, rank_nTrib, stat=ierr)
-      if(ierr/=0)then; message=trim(message)//'problem deallocating nTrib or rank_nTrib'; return; endif
+      if (done) then ! if no mainstem/tributary updated, update tributary reach info, and then exist loop
+        ! get tributary outlet segment index
+        allocate(tributary_outlet(tot_trib), stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem allocating ributary'; return; endif
+        tributary_outlet = trPos
 
-      if (done) then ! if no mainstem/tributary updated, update tributary_outlet segment, and then exist loop
-       allocate(river_basin(iOut)%tributary_outlet(size(trPos)), stat=ierr)
-       if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(iOut)%tributary_outlet'; return; endif
-       river_basin(iOut)%tributary_outlet = trPos
-       exit
-      else ! if mainstem/tributary updated, update updated_mainstems at current level, lgc_trib_outlet and check next level
+        allocate(river_basin(iOut)%tributary(tot_trib), stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(iOut)%tributary'; return; endif
+
+        do iTrib = 1,tot_trib
+          allocate(river_basin(iOut)%tributary(iTrib)%segIndex(nTrib(iTrib)), &
+                   river_basin(iOut)%tributary(iTrib)%segOrder(nTrib(iTrib)), stat=ierr)
+          if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(:)%tributary(:)%segIndex or %segOrder'; return; endif
+          ! compute reach index for tributary segments
+          river_basin(iOut)%tributary(iTrib)%segIndex(:) = structNTOPO(tributary_outlet(iTrib))%var(ixNTOPO%allUpSegIndices)%dat
+          ! compute reach order for tributary segments
+          call subset_order(order, &
+                            river_basin(iOut)%tributary(iTrib)%segIndex, &
+                            river_basin(iOut)%tributary(iTrib)%segOrder, ierr, cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+          river_basin(iOut)%tributary(iTrib)%nRch = size(river_basin(iOut)%tributary(iTrib)%segIndex)
+        end do
+        exit
+      else ! if mainstem/tributary updated, store mainstem reach info at current level, lgc_trib_outlet and go onto next level
+        ! Compute reach index for mainstem segments
         call indexTrue(updated_mainstems(:,level), msPos)
-        allocate(river_basin(iOut)%mainstem(level)%segIndex(size(msPos)), stat=ierr)
-        if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(iOut)%mainstem(level)%segIndex'; return; endif
-        river_basin(iOut)%mainstem(level)%segIndex(1:size(msPos))  = msPos(1:size(msPos))
+        allocate(river_basin(iOut)%mainstem(level)%segIndex(size(msPos)), &
+                 river_basin(iOut)%mainstem(level)%segOrder(size(msPos)), stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(:)%mainstem(:)%segIndex or segOrder'; return; endif
+        river_basin(iOut)%mainstem(level)%segIndex(1:size(msPos)) = msPos(1:size(msPos))
+        ! Compute reach order for mainstem segments
+        call subset_order(order, &
+                          river_basin(iOut)%mainstem(level)%segIndex, &
+                          river_basin(iOut)%mainstem(level)%segOrder, ierr, cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+        river_basin(iOut)%mainstem(level)%nRch = size(river_basin(iOut)%mainstem(level)%segIndex)
 
         ! update lgc_trib_outlet based on added mainstem
         call lgc_tributary_outlet(updated_mainstems(:,:level), downIndex, lgc_trib_outlet, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      endif
 
+        deallocate(nTrib, rank_nTrib, stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem deallocating nTrib or rank_nTrib'; return; endif
+      endif
     end do
 
 !    do iSeg=1,nSeg
@@ -210,9 +245,18 @@ contains
 !          end if
 !        endif
 !      end do
-!     i2 = findIndex(river_basin(iOut)%tributary_outlet, iSeg, -999)
-!     if (i2 /= -999) dangle=1
-!     write(*,'(A,I,I)') pfafs(iSeg), level1, dangle
+!
+!      do iTrib=1,tot_trib
+!        nUpSegs=size(river_basin(iOut)%tributary(iTrib)%segOrder)
+!        associate(outIndex => river_basin(iOut)%tributary(iTrib)%segOrder(nUpSegs))
+!        if (iSeg == river_basin(iOut)%tributary(iTrib)%segIndex(outIndex)) then
+!          dangle=1
+!          exit
+!        end if
+!        end associate
+!      end do
+!
+!      write(*,'(A,I,I)') pfafs(iSeg), level1, dangle
 !    end do
 
   end do ! outlet loop

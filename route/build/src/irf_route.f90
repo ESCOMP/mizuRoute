@@ -47,23 +47,24 @@ contains
  integer(i4b), intent(out)              :: ierr           ! error code
  character(*), intent(out)              :: message        ! error message
  ! Local variables to
- integer(i4b)                           :: order(nRch)    ! vector of reach order for the entire network data
  integer(i4b)                           :: nOuts          ! number of outlets
  integer(i4b)                           :: nUps           ! number of upstream reaches
  integer(i4b)                           :: nTrib          ! number of tributary basins
  integer(i4b)                           :: outIndex       ! outlet reach index
  integer(i4b), allocatable              :: segIndex(:)    ! upstream segment index
- integer(i4b), allocatable              :: new_order(:)   ! subset upstream reach order
+ integer(i4b), allocatable              :: segOrder(:)    ! subset upstream reach order
+ integer(i4b)                           :: jRank          ! ranked index of stream segment
  integer(i4b)                           :: iRch,jRch      ! loop indices
  integer(i4b)                           :: iOut,iTrib     ! loop indices
  integer(i4b)                           :: iLevel         ! loop indices
  character(len=strLen)                  :: cmessage       ! error message from subroutine
+ integer(i4b), dimension(8)             :: startTrib,endTrib ! date/time for the start and end of the initialization
  integer(i4b), dimension(8)             :: startTime,endTime ! date/time for the start and end of the initialization
- integer(i4b), dimension(8)             :: startPrep,endPrep ! date/time for the start and end of the initialization
- integer(i4b), dimension(8)             :: startRoute,endRoute ! date/time for the start and end of the initialization
+ integer(i4b), dimension(8)             :: startMain,endMain ! date/time for the start and end of the initialization
  real(dp)                               :: elapsedTime       ! elapsed time for the process
- real(dp)                               :: elapsedPrep       ! elapsed time for the process
- real(dp)                               :: elapsedRoute      ! elapsed time for the process
+ real(dp)                               :: elapsedTrib       ! elapsed time for the process
+ real(dp)                               :: elapsedMain       ! elapsed time for the process
+ integer(i4b)                           :: maxLevel,minLevel !
 
  ! initialize error control
  ierr=0; message='irf_route/'
@@ -74,115 +75,58 @@ contains
  ! Number of Outlets
  nOuts = size(river_basin)
 
- ! vector of order
- forall(iRch=1:nRch) order(iRch) = NETOPO(iRch)%RHORDER
-
  elapsedTime = 0._dp
- call date_and_time(values=startTime)
+ elapsedTrib = 0._dp
+ elapsedMain = 0._dp
 
  do iOut=1,nOuts
 
-   if (river_basin(iOut)%isMajor)then
+  maxLevel = 1
+  do iLevel=1,size(river_basin(iOut)%mainstem)
+    if (.not. allocated(river_basin(iOut)%mainstem(iLevel)%segIndex)) cycle
+    if (iLevel > maxLevel) maxLevel = iLevel
+  end do
+  minLevel = size(river_basin(iOut)%mainstem)
+  do iLevel=maxLevel,1,-1
+    if (.not. allocated(river_basin(iOut)%mainstem(iLevel)%segIndex)) cycle
+    if (iLevel < minLevel) minLevel = iLevel
+  end do
 
-     ! 1. Route tributary reaches (parallel)
-     nTrib=size(river_basin(iOut)%tributary_outlet)
-     do iTrib = 1,nTrib
+  call date_and_time(values=startTime)
+  !call date_and_time(values=startTrib)
+  ! 1. Route tributary reaches (parallel)
+  nTrib=size(river_basin(iOut)%tributary)
+  do iTrib = 1,nTrib
+    do iRch=1,river_basin(iOut)%tributary(iTrib)%nRch
+      jRank = river_basin(iOut)%tributary(iTrib)%segOrder(iRch)
+      jRch  = river_basin(iOut)%tributary(iTrib)%segIndex(jRank)
+      call segment_irf(iEns, jRch, ixDesire, ierr, message)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end do
+  end do
+ ! call date_and_time(values=endTrib)
+ ! elapsedTrib = elapsedTrib + elapsedSec(startTrib, endTrib)
+ ! write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTime, ' s'
 
-       elapsedPrep = 0._dp
-       call date_and_time(values=startPrep)
-
-       outIndex=river_basin(iOut)%tributary_outlet(iTrib)
-       nUps = size(NETOPO(outIndex)%RCHLIST)
-
-       allocate(segIndex(nUps), new_order(nUps), stat=ierr)
-       if(ierr/=0)then; message=trim(message)//'problem allocating segIndex'; return; endif
-
-       ! Extract upstream segment indices
-       segIndex(:) = NETOPO(outIndex)%RCHLIST
-
-       ! compute reach order for subset reaches
-       call subset_order(order, segIndex, new_order, ierr, cmessage)
-       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-       call date_and_time(values=endPrep)
-       elapsedPrep = elapsedPrep + elapsedSec(startPrep, endPrep)
-       write(*,"(I,A,1PG15.7,A)") iTrib,'  elapsed prep = ', elapsedPrep, ' s'
-
-       elapsedRoute = 0._dp
-       call date_and_time(values=startRoute)
-
-       ! route streamflow through the river network
-       do iRch=1,nUps
-         jRch = segIndex(new_order(iRch))
-         call segment_irf(iEns, jRch, ixDesire, ierr, message)
-         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-       end do
-
-       call date_and_time(values=endRoute)
-       elapsedRoute = elapsedRoute + elapsedSec(startRoute, endRoute)
-       write(*,"(I,A,1PG15.7,A)") iTrib,'  elapsed Route = ', elapsedRoute, ' s'
-
-       deallocate(segIndex, new_order)
-       if(ierr/=0)then; message=trim(message)//'problem with deallocation for segIndex or new_order'; return; endif
-
-     end do
-
-     ! 2. Route mainstems (serial)
-     do iLevel=size(river_basin(iOut)%mainstem),1,-1
-
-       if (.not. allocated(river_basin(iOut)%mainstem(iLevel)%segIndex)) cycle
-
-       nUps=size(river_basin(iOut)%mainstem(iLevel)%segIndex)
-       allocate(segIndex(nUps), new_order(nUps), stat=ierr)
-       if(ierr/=0)then; message=trim(message)//'problem allocating segIndex'; return; endif
-
-       ! Extract upstream segment indices (need to work on this)
-       segIndex(:) = river_basin(iOut)%mainstem(iLevel)%segIndex
-
-       call subset_order(order, segIndex, new_order, ierr, cmessage)
-       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-       do iRch=1,nUps
-         jRch = segIndex(new_order(iRch))
-         call segment_irf(iEns, jRch, ixDesire, ierr, message)
-         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-       end do
-
-       deallocate(segIndex, new_order)
-       if(ierr/=0)then; message=trim(message)//'problem with deallocation for segIndex or new_order'; return; endif
-
-     end do
-
-   else  ! Routing Major river basin (nSeg <= maxSegs)
-
-     outIndex=river_basin(iOut)%outIndex
-
-     nUps = size(NETOPO(outIndex)%RCHLIST)
-     allocate(segIndex(nUps), new_order(nUps), stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating segIndex'; return; endif
-
-     ! Extract upstream segment indices
-     segIndex(:) = NETOPO(outIndex)%RCHLIST
-
-     ! compute reach order for subset reaches
-     call subset_order(order, segIndex, new_order, ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-     ! route streamflow through the river network
-     do iRch=1,nUps
-       jRch = segIndex(new_order(iRch))
+ !  call date_and_time(values=startMain)
+   ! 2. Route mainstems (serial)
+   do iLevel=maxLevel,minLevel,-1
+     do iRch=1,river_basin(iOut)%mainstem(iLevel)%nRch
+       jRank = river_basin(iOut)%mainstem(iLevel)%segOrder(iRch)
+       jRch  = river_basin(iOut)%mainstem(iLevel)%segIndex(jRank)
        call segment_irf(iEns, jRch, ixDesire, ierr, message)
        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
      end do
-
-   end if
+   end do
+ !  call date_and_time(values=endMain)
+ !  elapsedMain = elapsedMain + elapsedSec(startMain, endMain)
+ !  write(*,"(A,1PG15.7,A)") '  total elapsed main stem = ', elapsedMain, ' s'
 
  end do
-
  call date_and_time(values=endTime)
  elapsedTime = elapsedTime + elapsedSec(startTime, endTime)
  write(*,"(A,1PG15.7,A)") '  total elapsed one time step = ', elapsedTime, ' s'
- stop
+
  end subroutine irf_route
 
 
