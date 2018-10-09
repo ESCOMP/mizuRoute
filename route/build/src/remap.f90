@@ -206,7 +206,6 @@ module remapping
    if (jHRU == integerMissing)then
     if (remap_data%num_qhru(iHRU)/=integerMissing)then
       ixOverlap = ixOverlap + remap_data%num_qhru(iHRU)
-      print*, ixOverlap
     endif
     cycle
    endif
