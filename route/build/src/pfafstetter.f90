@@ -198,22 +198,22 @@ contains
 
     end do
 
-    do iSeg=1,nSeg
-      level1=-999
-      dangle=0
-      do jLevel =1,maxLevel
-        if (allocated(river_basin(iOut)%mainstem(jLevel)%segIndex)) then
-          i1 = findIndex(river_basin(iOut)%mainstem(jlevel)%segIndex, iSeg, -999)
-          if (i1 /= -999) then
-            level1 = jLevel
-            exit
-          end if
-        endif
-      end do
-     i2 = findIndex(river_basin(iOut)%tributary_outlet, iSeg, -999)
-     if (i2 /= -999) dangle=1
-     write(*,'(A,I,I)') pfafs(iSeg), level1, dangle
-    end do
+!    do iSeg=1,nSeg
+!      level1=-999
+!      dangle=0
+!      do jLevel =1,maxLevel
+!        if (allocated(river_basin(iOut)%mainstem(jLevel)%segIndex)) then
+!          i1 = findIndex(river_basin(iOut)%mainstem(jlevel)%segIndex, iSeg, -999)
+!          if (i1 /= -999) then
+!            level1 = jLevel
+!            exit
+!          end if
+!        endif
+!      end do
+!     i2 = findIndex(river_basin(iOut)%tributary_outlet, iSeg, -999)
+!     if (i2 /= -999) dangle=1
+!     write(*,'(A,I,I)') pfafs(iSeg), level1, dangle
+!    end do
 
   end do ! outlet loop
 

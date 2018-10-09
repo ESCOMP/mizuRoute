@@ -59,7 +59,11 @@ contains
  integer(i4b)                           :: iLevel         ! loop indices
  character(len=strLen)                  :: cmessage       ! error message from subroutine
  integer(i4b), dimension(8)             :: startTime,endTime ! date/time for the start and end of the initialization
+ integer(i4b), dimension(8)             :: startPrep,endPrep ! date/time for the start and end of the initialization
+ integer(i4b), dimension(8)             :: startRoute,endRoute ! date/time for the start and end of the initialization
  real(dp)                               :: elapsedTime       ! elapsed time for the process
+ real(dp)                               :: elapsedPrep       ! elapsed time for the process
+ real(dp)                               :: elapsedRoute      ! elapsed time for the process
 
  ! initialize error control
  ierr=0; message='irf_route/'
@@ -84,6 +88,9 @@ contains
      nTrib=size(river_basin(iOut)%tributary_outlet)
      do iTrib = 1,nTrib
 
+       elapsedPrep = 0._dp
+       call date_and_time(values=startPrep)
+
        outIndex=river_basin(iOut)%tributary_outlet(iTrib)
        nUps = size(NETOPO(outIndex)%RCHLIST)
 
@@ -97,12 +104,23 @@ contains
        call subset_order(order, segIndex, new_order, ierr, cmessage)
        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+       call date_and_time(values=endPrep)
+       elapsedPrep = elapsedPrep + elapsedSec(startPrep, endPrep)
+       write(*,"(I,A,1PG15.7,A)") iTrib,'  elapsed prep = ', elapsedPrep, ' s'
+
+       elapsedRoute = 0._dp
+       call date_and_time(values=startRoute)
+
        ! route streamflow through the river network
        do iRch=1,nUps
          jRch = segIndex(new_order(iRch))
          call segment_irf(iEns, jRch, ixDesire, ierr, message)
          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
        end do
+
+       call date_and_time(values=endRoute)
+       elapsedRoute = elapsedRoute + elapsedSec(startRoute, endRoute)
+       write(*,"(I,A,1PG15.7,A)") iTrib,'  elapsed Route = ', elapsedRoute, ' s'
 
        deallocate(segIndex, new_order)
        if(ierr/=0)then; message=trim(message)//'problem with deallocation for segIndex or new_order'; return; endif
@@ -120,7 +138,6 @@ contains
 
        ! Extract upstream segment indices (need to work on this)
        segIndex(:) = river_basin(iOut)%mainstem(iLevel)%segIndex
-
 
        call subset_order(order, segIndex, new_order, ierr, cmessage)
        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -164,8 +181,8 @@ contains
 
  call date_and_time(values=endTime)
  elapsedTime = elapsedTime + elapsedSec(startTime, endTime)
- write(*,"(A,1PG15.7,A)") '  elapsed one time step = ', elapsedTime, ' s'
-
+ write(*,"(A,1PG15.7,A)") '  total elapsed one time step = ', elapsedTime, ' s'
+ stop
  end subroutine irf_route
 
 
