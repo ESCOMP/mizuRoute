@@ -92,10 +92,11 @@ contains
     if (iLevel < minLevel) minLevel = iLevel
   end do
 
-  call date_and_time(values=startTime)
-  !call date_and_time(values=startTrib)
-  ! 1. Route tributary reaches (parallel)
   nTrib=size(river_basin(iOut)%tributary)
+
+  call date_and_time(values=startTime)
+  call date_and_time(values=startTrib)
+  ! 1. Route tributary reaches (parallel)
   do iTrib = 1,nTrib
     do iRch=1,river_basin(iOut)%tributary(iTrib)%nRch
       jRank = river_basin(iOut)%tributary(iTrib)%segOrder(iRch)
@@ -104,11 +105,11 @@ contains
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     end do
   end do
- ! call date_and_time(values=endTrib)
- ! elapsedTrib = elapsedTrib + elapsedSec(startTrib, endTrib)
- ! write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTime, ' s'
+  call date_and_time(values=endTrib)
+  elapsedTrib = elapsedTrib + elapsedSec(startTrib, endTrib)
+  write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTrib, ' s'
 
- !  call date_and_time(values=startMain)
+   call date_and_time(values=startMain)
    ! 2. Route mainstems (serial)
    do iLevel=maxLevel,minLevel,-1
      do iRch=1,river_basin(iOut)%mainstem(iLevel)%nRch
@@ -118,9 +119,9 @@ contains
        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
      end do
    end do
- !  call date_and_time(values=endMain)
- !  elapsedMain = elapsedMain + elapsedSec(startMain, endMain)
- !  write(*,"(A,1PG15.7,A)") '  total elapsed main stem = ', elapsedMain, ' s'
+   call date_and_time(values=endMain)
+   elapsedMain = elapsedMain + elapsedSec(startMain, endMain)
+   write(*,"(A,1PG15.7,A)") '  total elapsed main stem = ', elapsedMain, ' s'
 
  end do
  call date_and_time(values=endTime)
@@ -439,7 +440,6 @@ contains
 
  end subroutine conv_upsbas_qr
 
-end module irf_route_module
 
 !   ! *********************************************************************
 !   ! subroutine: perform network UH routing
@@ -477,6 +477,8 @@ end module irf_route_module
 !   INTEGER(I4B)                           :: iRch           ! reach segment index
 !   INTEGER(I4B)                           :: jRch           ! reach segment to be routed
 !   character(len=strLen)                  :: cmessage       ! error message from subroutine
+!   integer(i4b), dimension(8)             :: startTime,endTime ! date/time for the start and end of the initialization
+!   real(dp)                               :: elapsedTime       ! elapsed time for the process
 !
 !   ! initialize error control
 !   ierr=0; message='irf_route/'
@@ -484,6 +486,8 @@ end module irf_route_module
 !   ! Initialize CHEC_IRF to False.
 !   RCHFLX(iEns,:)%CHECK_IRF=.False.
 !
+!   elapsedTime = 0._dp
+!   call date_and_time(values=startTime)
 !   ! route streamflow through the river network
 !   do iRch=1,nRch
 !
@@ -493,5 +497,10 @@ end module irf_route_module
 !    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 !
 !   end do
+!   call date_and_time(values=endTime)
+!   elapsedTime = elapsedTime + elapsedSec(startTime, endTime)
+!   write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTime, ' s'
 !
 !   end subroutine irf_route
+
+end module irf_route_module
