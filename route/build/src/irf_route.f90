@@ -96,15 +96,28 @@ contains
 
   call date_and_time(values=startTime)
   call date_and_time(values=startTrib)
+
   ! 1. Route tributary reaches (parallel)
+!$omp parallel default(none)                 &
+!$omp          private(jRank, jRch)          & ! private for a given thread
+!$omp          private(ierr, cmessage)       &
+!$omp          shared(river_basin)           &
+!$omp          shared(iEns, iOut, ixDesire)  &
+!$omp          firstprivate(nTrib)
+!$OMP DO    !! schedule(dynamic, 1)   ! chunk size of 1
   do iTrib = 1,nTrib
     do iRch=1,river_basin(iOut)%tributary(iTrib)%nRch
       jRank = river_basin(iOut)%tributary(iTrib)%segOrder(iRch)
       jRch  = river_basin(iOut)%tributary(iTrib)%segIndex(jRank)
-      call segment_irf(iEns, jRch, ixDesire, ierr, message)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      call segment_irf(iEns, jRch, ixDesire, ierr, cmessage)
+!   !$OMP CRITICAL(error_check)
+!         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+!   !$OMP END CRITICAL(error_check)
     end do
   end do
+!$OMP END DO
+!$OMP END PARALLEL
+
   call date_and_time(values=endTrib)
   elapsedTrib = elapsedTrib + elapsedSec(startTrib, endTrib)
   write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTrib, ' s'
