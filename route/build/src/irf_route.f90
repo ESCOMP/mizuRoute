@@ -104,7 +104,7 @@ contains
 !$omp          shared(river_basin)           &
 !$omp          shared(iEns, iOut, ixDesire)  &
 !$omp          firstprivate(nTrib)
-!$OMP DO    !! schedule(dynamic, 1)   ! chunk size of 1
+!$OMP DO schedule(dynamic, 1)   ! chunk size of 1
   do iTrib = 1,nTrib
     do iRch=1,river_basin(iOut)%tributary(iTrib)%nRch
       jRank = river_basin(iOut)%tributary(iTrib)%segOrder(iRch)
