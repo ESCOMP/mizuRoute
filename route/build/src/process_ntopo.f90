@@ -440,9 +440,11 @@ contains
   NETOPO(iSeg)%RCHLON2 = realMissing     ! End longitude
 
   ! reach unit hydrograph
-  allocate(NETOPO(iSeg)%UH(size(structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat)), stat=ierr, errmsg=cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': NETOPO(iSeg)%UH'; return; endif
-  NETOPO(iSeg)%UH(:) =  structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat(:)
+  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+    allocate(NETOPO(iSeg)%UH(size(structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat)), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage)//': NETOPO(iSeg)%UH'; return; endif
+    NETOPO(iSeg)%UH(:) =  structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat(:)
+  end if
 
   ! upstream reach list
   allocate(NETOPO(iSeg)%RCHLIST(size(structNTOPO(iSeg)%var(ixNTOPO%allUpSegIndices)%dat)), stat=ierr, errmsg=cmessage)
