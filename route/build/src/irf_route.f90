@@ -3,7 +3,6 @@ module irf_route_module
 ! global parameters
 USE nrtype
 USE dataTypes,          only : STRFLX        ! fluxes in each reach
-USE pfafstetter_module, only : subset_order  ! recompute reach order for subset reach vector
 USE time_utils_module,  only : elapsedSec    ! calculate the elapsed time
 
 ! privary
@@ -21,7 +20,7 @@ contains
  subroutine irf_route(&
                       ! input
                       iEns,       &    ! input: index of runoff ensemble to be processed
-                      nRch,       &    ! input: index of reach to be processed
+!                      nRch,       &    ! input: index of reach to be processed
                       river_basin,&    ! input: river basin information (mainstem, tributary outlet etc.)
                       ixDesire,   &    ! input: reachID to be checked by on-screen pringing
                       ! output
@@ -35,24 +34,20 @@ contains
 
  ! global routing data
  USE globalData, only : RCHFLX ! routing fluxes
- USE globalData, only : NETOPO ! Network topology
+! USE globalData, only : NETOPO ! Network topology
  USE dataTypes,  only : basin  ! river basin data type
 
  implicit none
  ! Input
  INTEGER(I4B), intent(IN)               :: iEns           ! runoff ensemble to be routed
- INTEGER(I4B), intent(IN)               :: nRch           ! number of reach segments in the network
+! INTEGER(I4B), intent(IN)               :: nRch           ! number of reach segments in the network
  type(basin),  intent(in), allocatable  :: river_basin(:) ! river basin information (mainstem, tributary outlet etc.)
  INTEGER(I4B), intent(IN)               :: ixDesire       ! index of the reach for verbose output ! Output
  integer(i4b), intent(out)              :: ierr           ! error code
  character(*), intent(out)              :: message        ! error message
  ! Local variables to
  integer(i4b)                           :: nOuts          ! number of outlets
- integer(i4b)                           :: nUps           ! number of upstream reaches
  integer(i4b)                           :: nTrib          ! number of tributary basins
- integer(i4b)                           :: outIndex       ! outlet reach index
- integer(i4b), allocatable              :: segIndex(:)    ! upstream segment index
- integer(i4b), allocatable              :: segOrder(:)    ! subset upstream reach order
  integer(i4b)                           :: jRank          ! ranked index of stream segment
  integer(i4b)                           :: iRch,jRch      ! loop indices
  integer(i4b)                           :: iOut,iTrib     ! loop indices
@@ -99,7 +94,7 @@ contains
 
   ! 1. Route tributary reaches (parallel)
 !$omp parallel default(none)                 &
-!$omp          private(jRank, jRch)          & ! private for a given thread
+!$omp          private(jRank, jRch, iRch)    & ! private for a given thread
 !$omp          private(ierr, cmessage)       &
 !$omp          shared(river_basin)           &
 !$omp          shared(iEns, iOut, ixDesire)  &
@@ -143,6 +138,16 @@ contains
 
  end subroutine irf_route
 
+! ! initialize the time that the openMP section starts
+! call system_clock(openMPstart)
+
+!  ! get the time that the GRU started
+!  call system_clock( timeGRUstart(iGRU) )
+
+!   ! save timing information
+!   call system_clock(openMPend)
+!   timeGRU(iGRU)          = real(openMPend - timeGRUstart(iGRU), kind(dp))
+!   timeGRUcompleted(iGRU) = real(openMPend - openMPstart       , kind(dp))
 
  ! *********************************************************************
  ! subroutine: perform one segment route UH routing

@@ -47,7 +47,7 @@ contains
   logical(lgt),      allocatable              :: lgc_trib_outlet(:)     ! logical to indicate segment is outlet of tributary
   logical(lgt)                                :: done                   ! logical
   integer(i4b)                                :: maxSegs=100
-  integer(i4b)                                :: minSegs=20             ! if number of segments in a basin, flag it as minor (do not break up into mainstems and tributaries)
+!  integer(i4b)                                :: minSegs=20             ! if number of segments in a basin, flag it as minor (do not break up into mainstems and tributaries)
   integer(i4b)                                :: maxLevel=10
   integer(i4b)                                :: downIndex(nSeg)        ! downstream segment index for all the segments
   integer(i4b)                                :: segIndex(nSeg)         ! reach index for all the segments
@@ -64,7 +64,7 @@ contains
   integer(i4b), allocatable                   :: trPos(:)
   integer(i4b), allocatable                   :: msPos(:)
   integer(i4b)                                :: iSeg,jSeg,iOut,iTrib   ! loop indices
-  integer(i4b)                                :: i1,i2,jLevel,level1,dangle
+  !integer(i4b)                                :: i1,i2,jLevel,level1,dangle
 
   ierr=0; message='classify_river_basin/'
 

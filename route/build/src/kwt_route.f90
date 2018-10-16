@@ -23,6 +23,8 @@ USE globalData, only : LAKFLX     ! Lake fluxes
 ! global data
 USE public_var, only : verySmall  ! a very small value
 
+USE time_utils_module,  only : elapsedSec    ! calculate the elapsed time
+
 implicit none
 private
 public::kwt_route
@@ -34,47 +36,117 @@ contains
  ! subroutine: route kinematic waves through the river network
  ! *********************************************************************
  SUBROUTINE kwt_route(iens,                 & ! input: ensemble index
-                      nRch,                 & ! input: number of reach in the river network
-                      ixDesire,             & ! input: reachID to be checked by on-screen pringing
-                      ixOutlet,             & ! input: index of the outlet reach
+                      river_basin,          & ! input: river basin information (mainstem, tributary outlet etc.)
                       T0,T1,                & ! input: start and end of the time step
+                      ixDesire,             & ! input: reachID to be checked by on-screen pringing
                       ierr,message)           ! output: error control
-  USE public_var, only : MAXQPAR              ! maximum number of waves per reach
-  implicit none
-  ! Input
-   integer(i4b), intent(in)                    :: iens          ! ensemble member
-   integer(i4b), intent(in)                    :: nRch          ! number of reach segments in the network
-   integer(i4b), intent(in)                    :: ixDesire      ! index of the reach for verbose output
-   integer(i4b), intent(in)                    :: ixOutlet      ! index of the outlet reach
-   real(dp),     intent(in)                    :: T0,T1         ! start and end of the time step (seconds)
-   ! output variables
-   integer(i4b), intent(out)                   :: ierr          ! error code
-   character(*), intent(out)                   :: message       ! error message
-   ! local variables
-   integer(I4B)                                :: LAKEFLAG=0    ! >0 if processing lakes
-   integer(i4b)                                :: iRch, jRch    ! reach indices
-   character(len=strLen)                       :: cmessage      ! error message for downwind routine
+ USE dataTypes,  only : basin                 ! river basin data type
+ implicit none
+ ! Input
+ integer(i4b), intent(in)                    :: iEns           ! ensemble member
+ type(basin),  intent(in), allocatable       :: river_basin(:) ! river basin information (mainstem, tributary outlet etc.)
+ integer(i4b), intent(in)                    :: ixDesire       ! index of the reach for verbose output
+ real(dp),     intent(in)                    :: T0,T1          ! start and end of the time step (seconds)
+ ! output variables
+ integer(i4b), intent(out)                   :: ierr           ! error code
+ character(*), intent(out)                   :: message        ! error message
+ ! local variables
+ integer(i4b)                                :: nOuts          ! number of outlets
+ integer(i4b)                                :: nTrib          ! number of tributary basins
+ integer(I4B)                                :: LAKEFLAG=0     ! >0 if processing lakes
+ integer(i4b)                                :: jRank          ! ranked index of stream segment
+ integer(i4b)                                :: iRch, jRch     ! reach indices
+ integer(i4b)                                :: iOut,iTrib     ! loop indices
+ integer(i4b)                                :: iLevel         ! loop indices
+ character(len=strLen)                       :: cmessage       ! error message for downwind routine
+ integer(i4b), dimension(8)                  :: startTrib,endTrib ! date/time for the start and end of the initialization
+ integer(i4b), dimension(8)                  :: startTime,endTime ! date/time for the start and end of the initialization
+ integer(i4b), dimension(8)                  :: startMain,endMain ! date/time for the start and end of the initialization
+ real(dp)                                    :: elapsedTime       ! elapsed time for the process
+ real(dp)                                    :: elapsedTrib       ! elapsed time for the process
+ real(dp)                                    :: elapsedMain       ! elapsed time for the process
+ integer(i4b)                                :: maxLevel,minLevel !
 
-  ! initialize error control
-  ierr=0; message='kwt_route/'
+ ! initialize error control
+ ierr=0; message='kwt_route/'
 
-  ! route streamflow through the river network
-  do iRch=1,nRch
+ ! Number of Outlets
+ nOuts = size(river_basin)
 
-   ! identify reach to process
-   jRch = NETOPO(iRch)%RHORDER
+ elapsedTime = 0._dp
+ elapsedTrib = 0._dp
+ elapsedMain = 0._dp
 
-   ! route kinematic waves through the river network
-   call QROUTE_RCH(iens,jRch,           & ! input: array indices
-                   ixDesire,            & ! input: index of the desired reach
-                   ixOutlet,            & ! input: index of the outlet reach
-                   T0,T1,               & ! input: start and end of the time step
-                   MAXQPAR,             & ! input: maximum number of particle in a reach
-                   LAKEFLAG,            & ! input: flag if lakes are to be processed
-                   ierr,cmessage)         ! output: error control
-   if (ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ do iOut=1,nOuts
 
-  end do  ! (looping through stream segments)
+   maxLevel = 1
+   do iLevel=1,size(river_basin(iOut)%mainstem)
+     if (.not. allocated(river_basin(iOut)%mainstem(iLevel)%segIndex)) cycle
+     if (iLevel > maxLevel) maxLevel = iLevel
+   end do
+   minLevel = size(river_basin(iOut)%mainstem)
+   do iLevel=maxLevel,1,-1
+     if (.not. allocated(river_basin(iOut)%mainstem(iLevel)%segIndex)) cycle
+     if (iLevel < minLevel) minLevel = iLevel
+   end do
+
+   nTrib=size(river_basin(iOut)%tributary)
+
+   call date_and_time(values=startTime)
+   call date_and_time(values=startTrib)
+   ! 1. Route tributary reaches (parallel)
+!$omp parallel default(none)                 &
+!$omp          private(jRank, jRch, iRch)    & ! private for a given thread
+!$omp          private(T0, T1)               & ! private for a given thread
+!$omp          private(LAKEFLAG)             & ! private for a given thread
+!$omp          private(ierr, cmessage)       &
+!$omp          shared(river_basin)           &
+!$omp          shared(iEns, iOut, ixDesire)  &
+!$omp          firstprivate(nTrib)
+!$OMP DO schedule(dynamic, 1)   ! chunk size of 1
+   do iTrib = 1,nTrib
+     do iRch=1,river_basin(iOut)%tributary(iTrib)%nRch
+       jRank = river_basin(iOut)%tributary(iTrib)%segOrder(iRch)
+       jRch  = river_basin(iOut)%tributary(iTrib)%segIndex(jRank)
+       ! route kinematic waves through the river network
+       call QROUTE_RCH(iens,jRch,           & ! input: array indices
+                       ixDesire,            & ! input: index of the desired reach
+                       T0,T1,               & ! input: start and end of the time step
+                       LAKEFLAG,            & ! input: flag if lakes are to be processed
+                       ierr,cmessage)         ! output: error control
+       !if (ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     end do  ! (looping through stream segments)
+   end do  ! (looping through stream segments)
+!$OMP END DO
+!$OMP END PARALLEL
+
+   call date_and_time(values=endTrib)
+   elapsedTrib = elapsedTrib + elapsedSec(startTrib, endTrib)
+   write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTrib, ' s'
+
+   call date_and_time(values=startMain)
+   ! 2. Route mainstems (serial)
+   do iLevel=maxLevel,minLevel,-1
+     do iRch=1,river_basin(iOut)%mainstem(iLevel)%nRch
+       jRank = river_basin(iOut)%mainstem(iLevel)%segOrder(iRch)
+       jRch  = river_basin(iOut)%mainstem(iLevel)%segIndex(jRank)
+      ! route kinematic waves through the river network
+      call QROUTE_RCH(iens,jRch,           & ! input: array indices
+                      ixDesire,            & ! input: index of the desired reach
+                      T0,T1,               & ! input: start and end of the time step
+                      LAKEFLAG,            & ! input: flag if lakes are to be processed
+                      ierr,cmessage)         ! output: error control
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     end do
+   end do
+   call date_and_time(values=endMain)
+   elapsedMain = elapsedMain + elapsedSec(startMain, endMain)
+   write(*,"(A,1PG15.7,A)") '  total elapsed main stem = ', elapsedMain, ' s'
+
+ end do
+ call date_and_time(values=endTime)
+ elapsedTime = elapsedTime + elapsedSec(startTime, endTime)
+ write(*,"(A,1PG15.7,A)") '  total elapsed one time step = ', elapsedTime, ' s'
 
  END SUBROUTINE kwt_route
 
@@ -84,12 +156,12 @@ contains
  ! *********************************************************************
  subroutine QROUTE_RCH(IENS,JRCH,    & ! input: array indices
                        ixDesire,     & ! input: index of the reach for verbose output
-                       ixOutlet,     & ! input: index of the outlet reach
+!                       ixOutlet,     & ! input: index of the outlet reach
                        T0,T1,        & ! input: start and end of the time step
-                       MAXQPAR,      & ! input: maximum number of particle in a reach
                        LAKEFLAG,     & ! input: flag if lakes are to be processed
                        ierr,message, & ! output: error control
                        RSTEP)          ! optional input: retrospective time step offset
+ USE public_var, only : MAXQPAR               ! maximum number of waves per reach
  ! ----------------------------------------------------------------------------------------
  ! Creator(s):
  !   Ross Woods, 1997 (original code)
@@ -149,9 +221,8 @@ contains
    INTEGER(I4B), INTENT(IN)                    :: IENS          ! ensemble member
    INTEGER(I4B), INTENT(IN)                    :: JRCH          ! reach to process
    integer(i4b), intent(in)                    :: ixDesire      ! index of the reach for verbose output
-   integer(i4b), intent(in)                    :: ixOutlet      ! index of the outlet reach
+!   integer(i4b), intent(in)                    :: ixOutlet      ! index of the outlet reach
    REAL(DP), INTENT(IN)                        :: T0,T1         ! start and end of the time step (seconds)
-   INTEGER(I4B), INTENT(IN)                    :: MAXQPAR       ! maximum number of particles
    INTEGER(I4B), INTENT(IN)                    :: LAKEFLAG      ! >0 if processing lakes
    INTEGER(I4B), INTENT(IN), OPTIONAL          :: RSTEP         ! retrospective time step offset
    ! output variables
@@ -325,13 +396,6 @@ contains
     if(ierr/=0)then; message=trim(message)//'problem deallocating space for [Q_JRCH, TENTRY, T_EXIT, FROUTE]'; return; endif
     ! ***
     ! remove flow particles from the most downstream reach
-    if(jRch==ixOutlet)then
-      if(jRch==ixDesire) print*, 'NETOPO(JRCH)%DREACHI = ', NETOPO(JRCH)%DREACHI
-      if(NETOPO(JRCH)%DREACHI > 0)then
-        message=trim(message)//'downstream reach index of outlet reach is greater than zero'
-        ierr=20; return
-      endif
-    endif
     ! if the last reach or lake inlet (and lakes are enabled), remove routed elements from memory
     IF (NETOPO(JRCH)%DREACHI.LT.0 .OR. &  ! if the last reach, then there is no downstream reach
         (LAKEFLAG.EQ.1.AND.NETOPO(JRCH)%LAKINLT)) THEN ! if lake inlet

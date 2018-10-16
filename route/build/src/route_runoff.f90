@@ -483,10 +483,11 @@ do iTime=1,nTime
 
   ! kinematic wave routing
   call kwt_route(iens,                 & ! input: ensemble index
-                 nRch,                 & ! input: number of reach in the river network
-                 ixDesire,             & ! input: index of the desired reach
-                 ixOutlet,             & ! input: index of the outlet reach
+!                 nRch,                 & ! input: number of reach in the river network
+!                 ixOutlet,             & ! input: index of the outlet reach
+                 river_basin,          & ! input: river basin data type
                  T0,T1,                & ! input: start and end of the time step
+                 ixDesire,             & ! input: index of the desired reach
                  ierr,cmessage)          ! output: error control
   call handle_err(ierr,cmessage)
 
@@ -501,7 +502,7 @@ do iTime=1,nTime
 
   ! IRF routing
   call irf_route(iens,                 & ! input: ensemble index
-                 nRch,                 & ! input: number of reach in the river network
+!                 nRch,                 & ! input: number of reach in the river network
                  river_basin,          & ! input: river basin data type
                  ixDesire,             & ! input: index of the desired reach
                  ierr,cmessage)          ! output: error control
