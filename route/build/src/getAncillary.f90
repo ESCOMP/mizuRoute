@@ -83,6 +83,9 @@ contains
  !print*, 'nSpatial, nTime, trim(time_units) = ', nSpatial(:), nTime, trim(time_units)
  !print*, trim(message)//'PAUSE : '; read(*,*)
 
+ ! get vector of HRU ids in the routing layer
+ forall(iHRU=1:nHRU) route_id(iHRU) = structHRU2seg(iHRU)%var(ixHRU2seg%hruId)%dat(1)
+
  ! need to remap runoff to HRUs
  if (remap_flag) then
 
@@ -92,9 +95,6 @@ contains
                        remap_data,                             & ! output: data structure to remap data from a polygon
                        ierr, cmessage)                           ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   ! get vector of HRU ids in the routing layer
-   forall(iHRU=1:nHRU) route_id(iHRU) = structHRU2seg(iHRU)%var(ixHRU2seg%hruId)%dat(1)
 
    ! get indices of the HRU ids in the mapping file in the routing layer
    call get_qix(remap_data%hru_id,  &    ! input: vector of ids in mapping file
@@ -117,6 +117,22 @@ contains
     message=trim(message)//'unable to identify all polygons in the mapping file'
     ierr=20; return
    endif
+ else
+   allocate(runoff_data%hru_ix(size(runoff_data%hru_id)), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data%hru_ix'; return; endif
+   ! get indices of the HRU ids in the runoff file in the routing layer
+   call get_qix(runoff_data%hru_id,  &    ! input: vector of ids in mapping file
+                route_id,            &    ! input: vector of ids in the routing layer
+                runoff_data%hru_ix,  &    ! output: indices of hru ids in routing layer
+                ierr, cmessage)           ! output: error control
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   print*, runoff_data%hru_id
+   ! check
+   if(count(runoff_data%hru_ix/=integerMissing)/=nHRU)then
+    message=trim(message)//'unable to identify all polygons in the mapping file'
+    ierr=20; return
+   endif
+
  endif
  !print*, trim(message)//'PAUSE : '; read(*,*)
 

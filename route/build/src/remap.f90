@@ -20,6 +20,7 @@ module remapping
   implicit none
   private
   public ::remap_runoff
+  public ::sort_runoff
   public ::basin2reach
 
   contains
@@ -287,6 +288,68 @@ module remapping
   end do   ! looping through basins in the mapping layer
 
   end subroutine remap_1D_runoff
+
+  ! *****
+  ! private subroutine: used to map runoff data (on diferent polygons) to the basins in the routing layer...
+  ! ***************************************************************************************************************
+  subroutine sort_runoff(runoff_data, structHRU2seg, basinRunoff, ierr, message)
+  implicit none
+  ! input
+  type(runoff)         , intent(in)  :: runoff_data      ! runoff for one time step for all HRUs
+  type(var_ilength)    , intent(in)  :: structHRU2seg(:) ! HRU-to-segment mapping
+  ! output
+  real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
+  integer(i4b)         , intent(out) :: ierr             ! error code
+  character(len=strLen), intent(out) :: message          ! error message
+  ! local
+  integer(i4b)                       :: iHRU,jHRU        ! index of basin in the routing layer
+  real(dp)    , parameter            :: xTol=1.e-6_dp    ! tolerance to avoid divide by zero
+  integer(i4b), parameter            :: ixCheck=-huge(iHRU) ! basin to check
+  !integer(i4b), parameter            :: ixCheck=24001479 ! basin to check
+
+  ierr=0; message="sort_runoff/"
+
+  ! loop through hrus in the runoff layer
+  do iHRU=1,size(runoff_data%hru_ix)
+
+   ! define the HRU index in the routing vector
+   jHRU = runoff_data%hru_ix(iHRU)
+
+   ! check that the hrus match
+   if( runoff_data%hru_id(iHRU) /= structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1) )then
+    message=trim(message)//'mismatch in HRU ids in the runoff layer'
+    ierr=20; return
+   endif
+
+   !print*, 'runoff_data%hru_id(iHRU), structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1) = ', &
+   !         runoff_data%hru_id(iHRU), structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1)
+
+   ! get the weighted average
+   if(runoff_data%qsim(iHRU) > -xTol)then
+     basinRunoff(jHRU) = runoff_data%qsim(iHRU)
+   endif
+
+   ! check
+   if(runoff_data%hru_id(iHRU)==ixCheck)then
+    print*, 'runoff_data%hru_id(iHRU)                         = ', runoff_data%hru_id(iHRU)
+    print*, 'structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1)  = ', structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1)
+    print*, 'jHRU, runoff_data%qsim(iHRU)                     = ', jHRU, runoff_data%qsim(iHRU)
+    print*, 'basinRunoff(jHRU) = ', basinRunoff(jHRU)*86400._dp*1000._dp*365._dp
+    print*, 'PAUSE : '; read(*,*)
+   endif
+
+   ! print progress
+   !if(mod(iHRU,100000)==0)then
+   ! print*, trim(message)//'sorting runoff, iHRU, basinRunoff(jHRU) = ', &
+   !                                         iHRU, basinRunoff(jHRU)
+   !endif
+
+   !print*, 'basinRunoff(jHRU) = ', basinRunoff(jHRU)
+   !print*, 'PAUSE : '; read(*,*)
+
+  end do   ! looping through basins in the mapping layer
+
+  end subroutine sort_runoff
 
   ! *****
   ! * public subroutine: used to obtain streamflow for each stream segment...

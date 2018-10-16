@@ -109,6 +109,7 @@ implicit none
    real(dp)                 , allocatable  :: qsim(:)     ! runoff(hru) at one time step
    real(dp)                 , allocatable  :: qsim2D(:,:) ! runoff(hru) at one time step
    integer(i4b)             , allocatable  :: hru_id(:)   ! id of hrus at which runoff is simulated
+   integer(i4b)             , allocatable  :: hru_ix(:)   ! index of hrus associated with vector network (="hru")
  end type runoff
 
  ! ---------- reach parameters ----------------------------------------------------------------------------
