@@ -2,8 +2,10 @@ module irf_route_module
 
 ! global parameters
 USE nrtype
-USE dataTypes,          only : STRFLX        ! fluxes in each reach
-USE time_utils_module,  only : elapsedSec    ! calculate the elapsed time
+USE dataTypes,          only : STRFLX         ! fluxes in each reach
+USE time_utils_module,  only : elapsedSec     ! calculate the elapsed time
+USE public_var,         only : realMissing    ! missing value for real number
+USE public_var,         only : integerMissing ! missing value for integer number
 
 ! privary
 implicit none
@@ -20,7 +22,6 @@ contains
  subroutine irf_route(&
                       ! input
                       iEns,       &    ! input: index of runoff ensemble to be processed
-!                      nRch,       &    ! input: index of reach to be processed
                       river_basin,&    ! input: river basin information (mainstem, tributary outlet etc.)
                       ixDesire,   &    ! input: reachID to be checked by on-screen pringing
                       ! output
@@ -34,13 +35,11 @@ contains
 
  ! global routing data
  USE globalData, only : RCHFLX ! routing fluxes
-! USE globalData, only : NETOPO ! Network topology
  USE dataTypes,  only : basin  ! river basin data type
 
  implicit none
  ! Input
  INTEGER(I4B), intent(IN)               :: iEns           ! runoff ensemble to be routed
-! INTEGER(I4B), intent(IN)               :: nRch           ! number of reach segments in the network
  type(basin),  intent(in), allocatable  :: river_basin(:) ! river basin information (mainstem, tributary outlet etc.)
  INTEGER(I4B), intent(IN)               :: ixDesire       ! index of the reach for verbose output ! Output
  integer(i4b), intent(out)              :: ierr           ! error code
@@ -52,14 +51,24 @@ contains
  integer(i4b)                           :: iRch,jRch      ! loop indices
  integer(i4b)                           :: iOut,iTrib     ! loop indices
  integer(i4b)                           :: iLevel         ! loop indices
- character(len=strLen)                  :: cmessage       ! error message from subroutine
- integer(i4b), dimension(8)             :: startTrib,endTrib ! date/time for the start and end of the initialization
- integer(i4b), dimension(8)             :: startTime,endTime ! date/time for the start and end of the initialization
- integer(i4b), dimension(8)             :: startMain,endMain ! date/time for the start and end of the initialization
- real(dp)                               :: elapsedTime       ! elapsed time for the process
- real(dp)                               :: elapsedTrib       ! elapsed time for the process
- real(dp)                               :: elapsedMain       ! elapsed time for the process
  integer(i4b)                           :: maxLevel,minLevel !
+ character(len=strLen)                  :: cmessage       ! error message from subroutine
+ !
+ integer(i4b)                           :: nThreads              ! number of threads
+ integer(i4b)                           :: omp_get_num_threads   ! get the number of threads
+ integer(i4b)                           :: omp_get_thread_num
+ integer(i4b)                           :: openMPstart           ! time for the start of the parallelization section
+ integer(i4b), allocatable              :: ixThread(:)           ! thread id
+ integer(i4b), allocatable              :: openMPend(:)          ! time for the start of the parallelization section
+ integer(i4b), allocatable              :: timeTribStart(:)      ! time Tributaries start
+ real(dp),     allocatable              :: timeTribCompleted(:)  ! time required to complete each Tributary
+ real(dp),     allocatable              :: timeTrib(:)           ! time spent on each Tributary
+ integer(i4b), dimension(8)             :: startTrib,endTrib     ! date/time for the start and end of the initialization
+ integer(i4b), dimension(8)             :: startTime,endTime     ! date/time for the start and end of the initialization
+ integer(i4b), dimension(8)             :: startMain,endMain     ! date/time for the start and end of the initialization
+ real(dp)                               :: elapsedTime           ! elapsed time for the process
+ real(dp)                               :: elapsedTrib           ! elapsed time for the process
+ real(dp)                               :: elapsedMain           ! elapsed time for the process
 
  ! initialize error control
  ierr=0; message='irf_route/'
@@ -86,32 +95,56 @@ contains
     if (.not. allocated(river_basin(iOut)%mainstem(iLevel)%segIndex)) cycle
     if (iLevel < minLevel) minLevel = iLevel
   end do
-
   nTrib=size(river_basin(iOut)%tributary)
 
   call date_and_time(values=startTime)
   call date_and_time(values=startTrib)
+  call system_clock(openMPstart)
 
+  allocate(ixThread(nTrib), openMPend(nTrib), timeTrib(nTrib), timeTribStart(nTrib), timeTribCompleted(nTrib), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to allocate space for Trib timing'; return; endif
+  timeTrib(:) = realMissing    ! initialize because used for ranking
+  ixThread(:) = integerMissing ! initialize because used for ranking
   ! 1. Route tributary reaches (parallel)
-!$omp parallel default(none)                 &
-!$omp          private(jRank, jRch, iRch)    & ! private for a given thread
-!$omp          private(ierr, cmessage)       &
-!$omp          shared(river_basin)           &
-!$omp          shared(iEns, iOut, ixDesire)  &
-!$omp          firstprivate(nTrib)
-!$OMP DO schedule(dynamic, 1)   ! chunk size of 1
+!$OMP PARALLEL default(none)                 &
+!$OMP          private(jRank, jRch, iRch)    & ! private for a given thread
+!$OMP          private(ierr, cmessage)       &
+!$OMP          shared(river_basin)           &
+!$OMP          shared(iEns, iOut, ixDesire)  &
+!$OMP          shared(openMPstart, openMPend, nThreads)   & ! access constant variables
+!$OMP          shared(timeTribStart, timeTribCompleted, timeTrib)  & ! time variables shared
+!$OMP          shared(ixThread)              & !
+!$OMP          firstprivate(nTrib)
+
+  nThreads = 1
+!$ nThreads = omp_get_num_threads()
+
+!$OMP DO schedule(dynamic)   ! chunk size of 1
   do iTrib = 1,nTrib
+
+!$    ixThread(iTrib) = omp_get_thread_num()
+    call system_clock(timeTribStart(iTrib))
+
     do iRch=1,river_basin(iOut)%tributary(iTrib)%nRch
       jRank = river_basin(iOut)%tributary(iTrib)%segOrder(iRch)
       jRch  = river_basin(iOut)%tributary(iTrib)%segIndex(jRank)
       call segment_irf(iEns, jRch, ixDesire, ierr, cmessage)
-!   !$OMP CRITICAL(error_check)
-!         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-!   !$OMP END CRITICAL(error_check)
+!      if(ierr/=0)then; ixmessage(iTrib)=trim(message)//trim(cmessage); exit; endif
     end do
+
+    call system_clock(openMPend(iTrib))
+    timeTrib(iTrib)          = real(openMPend(iTrib)-timeTribStart(iTrib), kind(dp))
+    timeTribCompleted(iTrib) = real(openMPend(iTrib)-openMPstart         , kind(dp))
+
   end do
 !$OMP END DO
 !$OMP END PARALLEL
+
+  do iTrib=1,nTrib
+    write(*,'(a,1x,3(i4,1x),f20.10,1x)') 'iTrib, ixThread(iTrib), nThreads, timeTrib = ', iTrib, ixThread(iTrib),nThreads, timeTrib(iTrib)
+  enddo
+  deallocate(ixThread, timeTrib, timeTribStart, timeTribCompleted, stat=ierr)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to deallocate space for Trib timing'; return; endif
 
   call date_and_time(values=endTrib)
   elapsedTrib = elapsedTrib + elapsedSec(startTrib, endTrib)
@@ -138,16 +171,7 @@ contains
 
  end subroutine irf_route
 
-! ! initialize the time that the openMP section starts
-! call system_clock(openMPstart)
 
-!  ! get the time that the GRU started
-!  call system_clock( timeGRUstart(iGRU) )
-
-!   ! save timing information
-!   call system_clock(openMPend)
-!   timeGRU(iGRU)          = real(openMPend - timeGRUstart(iGRU), kind(dp))
-!   timeGRUcompleted(iGRU) = real(openMPend - openMPstart       , kind(dp))
 
  ! *********************************************************************
  ! subroutine: perform one segment route UH routing
@@ -458,6 +482,7 @@ contains
 
  end subroutine conv_upsbas_qr
 
+end module irf_route_module
 
 !   ! *********************************************************************
 !   ! subroutine: perform network UH routing
@@ -519,6 +544,4 @@ contains
 !   elapsedTime = elapsedTime + elapsedSec(startTime, endTime)
 !   write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTime, ' s'
 !
-!   end subroutine irf_route
 
-end module irf_route_module
