@@ -7,18 +7,11 @@ use nr_utility_module, only : arth                                 ! Num. Recipi
 USE dataTypes,  only : FPOINT     ! particle
 USE dataTypes,  only : KREACH     ! collection of particles in a given reach
 
-! global parameters
-USE globalData, only : RPARAM     ! Reach parameters
-USE globalData, only : NETOPO     ! Network topology
-
-! global routing data
-USE globalData, only : KROUTE     ! routing states
-USE globalData, only : RCHFLX     ! routing fluxes
-
-! global lakes data
-USE globalData, only : LPARAM     ! Lake parameters
-USE globalData, only : LKTOPO     ! Lake topology
-USE globalData, only : LAKFLX     ! Lake fluxes
+!  ! global parameters
+!  USE globalData, only : RPARAM     ! Reach parameters
+!  USE globalData, only : NETOPO     ! Network topology
+!  USE globalData, only : KROUTE     ! routing states
+!  USE globalData, only : RCHFLX     ! routing fluxes
 
 ! global data
 USE public_var, only : verySmall  ! a very small value
@@ -97,9 +90,9 @@ contains
    ! 1. Route tributary reaches (parallel)
 !$omp parallel default(none)                 &
 !$omp          private(jRank, jRch, iRch)    & ! private for a given thread
-!$omp          private(T0, T1)               & ! private for a given thread
-!$omp          private(LAKEFLAG)             & ! private for a given thread
 !$omp          private(ierr, cmessage)       &
+!$omp          shared(T0,T1)                 & ! private for a given thread
+!$omp          shared(LAKEFLAG)              & ! private for a given thread
 !$omp          shared(river_basin)           &
 !$omp          shared(iEns, iOut, ixDesire)  &
 !$omp          firstprivate(nTrib)
@@ -109,7 +102,7 @@ contains
        jRank = river_basin(iOut)%tributary(iTrib)%segOrder(iRch)
        jRch  = river_basin(iOut)%tributary(iTrib)%segIndex(jRank)
        ! route kinematic waves through the river network
-       call QROUTE_RCH(iens,jRch,           & ! input: array indices
+       call QROUTE_RCH(iEns,jRch,           & ! input: array indices
                        ixDesire,            & ! input: index of the desired reach
                        T0,T1,               & ! input: start and end of the time step
                        LAKEFLAG,            & ! input: flag if lakes are to be processed
@@ -161,7 +154,12 @@ contains
                        LAKEFLAG,     & ! input: flag if lakes are to be processed
                        ierr,message, & ! output: error control
                        RSTEP)          ! optional input: retrospective time step offset
- USE public_var, only : MAXQPAR               ! maximum number of waves per reach
+ USE public_var, only : MAXQPAR        ! maximum number of waves per reach
+ ! global river data
+ USE globalData, only : RPARAM     ! Reach parameters
+ USE globalData, only : NETOPO     ! Network topology
+ USE globalData, only : KROUTE     ! routing states
+ USE globalData, only : RCHFLX     ! routing fluxes
  ! ----------------------------------------------------------------------------------------
  ! Creator(s):
  !   Ross Woods, 1997 (original code)
@@ -230,15 +228,19 @@ contains
    character(*), intent(out)                   :: message       ! error message
    ! (1) extract flow from upstream reaches and append to the non-routed flow in JRCH
    INTEGER(I4B)                                :: NUPS          ! number of upstream reaches
-   REAL(DP),DIMENSION(:),allocatable,SAVE      :: Q_JRCH        ! flow in downstream reach JRCH
-   REAL(DP),DIMENSION(:),allocatable,SAVE      :: TENTRY        ! entry time to JRCH (exit time u/s)
+!   REAL(DP),DIMENSION(:),allocatable,SAVE      :: Q_JRCH        ! flow in downstream reach JRCH
+   REAL(DP),DIMENSION(:),allocatable           :: Q_JRCH        ! flow in downstream reach JRCH
+!   REAL(DP),DIMENSION(:),allocatable,SAVE      :: TENTRY        ! entry time to JRCH (exit time u/s)
+   REAL(DP),DIMENSION(:),allocatable           :: TENTRY        ! entry time to JRCH (exit time u/s)
    INTEGER(I4B)                                :: NQ1           ! # flow particles
    ! (2) route flow within the current [JRCH] river segment
    INTEGER(I4B)                                :: ROFFSET       ! retrospective offset due to rstep
    REAL(DP)                                    :: T_START       ! start of time step
    REAL(DP)                                    :: T_END         ! end of time step
-   REAL(DP),DIMENSION(:),allocatable,SAVE      :: T_EXIT        ! time particle expected exit JRCH
-   LOGICAL(LGT),DIMENSION(:),allocatable,SAVE  :: FROUTE        ! routing flag .T. if particle exits
+!   REAL(DP),DIMENSION(:),allocatable,SAVE      :: T_EXIT        ! time particle expected exit JRCH
+   REAL(DP),DIMENSION(:),allocatable           :: T_EXIT        ! time particle expected exit JRCH
+!   LOGICAL(LGT),DIMENSION(:),allocatable,SAVE  :: FROUTE        ! routing flag .T. if particle exits
+   LOGICAL(LGT),DIMENSION(:),allocatable       :: FROUTE        ! routing flag .T. if particle exits
    INTEGER(I4B)                                :: NQ2           ! # flow particles (<=NQ1 b/c merge)
    ! (3) calculate time-step averages
    INTEGER(I4B)                                :: NR            ! # routed particles
@@ -248,8 +250,10 @@ contains
    ! (4) housekeeping
    REAL(DP)                                    :: Q_END         ! flow at the end of the timestep
    REAL(DP)                                    :: TIMEI         ! entry time at the end of the timestep
-   TYPE(FPOINT),allocatable,DIMENSION(:),SAVE  :: NEW_WAVE      ! temporary wave
-   LOGICAL(LGT),SAVE                           :: INIT=.TRUE.   ! used to initialize pointers
+!   TYPE(FPOINT),allocatable,DIMENSION(:),SAVE  :: NEW_WAVE      ! temporary wave
+   TYPE(FPOINT),allocatable,DIMENSION(:)       :: NEW_WAVE      ! temporary wave
+!   LOGICAL(LGT),SAVE                           :: INIT=.TRUE.   ! used to initialize pointers
+   LOGICAL(LGT)                                :: INIT=.TRUE.   ! used to initialize pointers
    ! random stuff
    integer(i4b)                                :: IWV           ! rech index
    character(strLen)                           :: fmt1,fmt2     ! format string
@@ -461,30 +465,35 @@ contains
  !   (none planned)
  !
  ! ----------------------------------------------------------------------------------------
+ USE globalData, only : KROUTE     ! routing states
+ USE globalData, only : NETOPO     ! Network topology
+ USE globalData, only : RPARAM     ! Reach parameters
+ USE globalData, only : LKTOPO     ! Lake topology
+ USE globalData, only : LAKFLX     ! Lake fluxes
  IMPLICIT NONE
  ! Input
  INTEGER(I4B), INTENT(IN)                    :: IENS     ! ensemble member
  INTEGER(I4B), INTENT(IN)                    :: JRCH     ! reach to process
  INTEGER(I4B), INTENT(IN)                    :: LAKEFLAG ! >0 if processing lakes
- REAL(DP), INTENT(IN)                        :: T0,T1    ! start and end of the time step
+ REAL(DP),     INTENT(IN)                    :: T0,T1    ! start and end of the time step
  INTEGER(I4B), INTENT(IN)                    :: ixDesire ! index of the reach for verbose output
  INTEGER(I4B), INTENT(IN), OPTIONAL          :: RSTEP    ! retrospective time step offset
+ ! Output
+ REAL(DP),allocatable, intent(out)           :: Q_JRCH(:)! merged (non-routed) flow in JRCH
+ REAL(DP),allocatable, intent(out)           :: TENTRY(:)! time flow particles entered JRCH
+ REAL(DP),allocatable, intent(out)           :: T_EXIT(:)! time flow is expected to exit JR
+ integer(i4b),         intent(out)           :: ierr     ! error code
+ character(*),         intent(out)           :: message  ! error message
  ! Local variables to hold the merged inputs to the downstream reach
  INTEGER(I4B)                                :: ROFFSET  ! retrospective offset due to rstep
  REAL(DP)                                    :: DT       ! model time step
- REAL(DP), DIMENSION(:),allocatable          :: QD       ! merged downstream flow
- REAL(DP), DIMENSION(:),allocatable          :: TD       ! merged downstream time
+ REAL(DP), allocatable                       :: QD(:)    ! merged downstream flow
+ REAL(DP), allocatable                       :: TD(:)    ! merged downstream time
  INTEGER(I4B)                                :: ND       ! # points shifted downstream
  INTEGER(I4B)                                :: NJ       ! # points in the JRCH reach
  INTEGER(I4B)                                :: NK       ! # points for routing (NJ+ND)
  INTEGER(I4B)                                :: ILAK     ! lake index
  character(len=256)                          :: cmessage ! error message for downwind routine
- ! Output
- REAL(DP),DIMENSION(:),allocatable           :: Q_JRCH   ! merged (non-routed) flow in JRCH
- REAL(DP),DIMENSION(:),allocatable           :: TENTRY   ! time flow particles entered JRCH
- REAL(DP),DIMENSION(:),allocatable           :: T_EXIT   ! time flow is expected to exit JR
- integer(i4b), intent(out)                   :: ierr     ! error code
- character(*), intent(out)                   :: message  ! error message
  ! initialize error control
  ierr=0; message='GETUSQ_RCH/'
  ! ----------------------------------------------------------------------------------------
@@ -596,6 +605,10 @@ contains
  !   (none planned)
  !
  ! ----------------------------------------------------------------------------------------
+ USE globalData, only : KROUTE     ! routing states
+ USE globalData, only : RCHFLX     ! routing fluxes
+ USE globalData, only : NETOPO     ! routing fluxes
+ USE globalData, only : RPARAM     ! Reach parameters
  IMPLICIT NONE
  ! Input
  INTEGER(I4B), INTENT(IN)                    :: IENS      ! ensemble member
@@ -603,6 +616,12 @@ contains
  REAL(DP), INTENT(IN)                        :: T0,T1     ! start and end of the time step
  integer(i4b), INTENT(IN)                    :: ixDesire  ! index of the reach for verbose output
  INTEGER(I4B), INTENT(IN), OPTIONAL          :: RSTEP     ! retrospective time step offset
+ ! Output
+ INTEGER(I4B),          intent(out)          :: ND        ! number of routed particles
+ REAL(DP), allocatable, intent(out)          :: QD(:)     ! flow particles just enetered JRCH
+ REAL(DP), allocatable, intent(out)          :: TD(:)     ! time flow particles entered JRCH
+ integer(i4b),          intent(out)          :: ierr      ! error code
+ character(*),          intent(out)          :: message   ! error message
  ! Local variables to hold flow/time from upstream reaches
  REAL(DP)                                    :: DT        ! model time step
  INTEGER(I4B)                                :: ROFFSET   ! retrospective offset due to rstep
@@ -612,7 +631,8 @@ contains
  INTEGER(I4B)                                :: INDX      ! index of the IUPS u/s reach
  INTEGER(I4B)                                :: MUPR      ! # reaches u/s of IUPS u/s reach
  INTEGER(I4B)                                :: NUPS      ! number of upstream elements
- TYPE(KREACH),DIMENSION(:),allocatable,SAVE  :: USFLOW    ! waves for all upstream segments
+ !TYPE(KREACH),DIMENSION(:),allocatable,SAVE  :: USFLOW    ! waves for all upstream segments
+ TYPE(KREACH),DIMENSION(:),allocatable       :: USFLOW    ! waves for all upstream segments
  REAL(DP), DIMENSION(:), ALLOCATABLE         :: UWIDTH    ! width of all upstream segments
  INTEGER(I4B)                                :: IMAX      ! max number of upstream particles
  INTEGER(I4B)                                :: IUPR      ! counter for reaches with particles
@@ -620,8 +640,10 @@ contains
  INTEGER(I4B)                                :: NS        ! size of  the wave
  INTEGER(I4B)                                :: NR        ! # routed particles in u/s reach
  INTEGER(I4B)                                :: NQ        ! NR+1, if non-routed particle exists
- TYPE(FPOINT),DIMENSION(:),allocatable,SAVE  :: NEW_WAVE  ! temporary wave
- LOGICAL(LGT),SAVE                           :: INIT=.TRUE. ! used to initialize pointers
+! TYPE(FPOINT),DIMENSION(:),allocatable,SAVE  :: NEW_WAVE  ! temporary wave
+ TYPE(FPOINT),DIMENSION(:),allocatable       :: NEW_WAVE  ! temporary wave
+! LOGICAL(LGT),SAVE                           :: INIT=.TRUE. ! used to initialize pointers
+ LOGICAL(LGT)                                :: INIT=.TRUE. ! used to initialize pointers
  ! Local variables to merge flow
  LOGICAL(LGT), DIMENSION(:), ALLOCATABLE     :: MFLG      ! T = all particles processed
  INTEGER(I4B), DIMENSION(:), ALLOCATABLE     :: ITIM      ! processing point for all u/s segments
@@ -638,14 +660,10 @@ contains
  INTEGER(I4B)                                :: JUPS_OLD  ! check that we don't get stuck in do-forever
  INTEGER(I4B)                                :: ITIM_OLD  ! check that we don't get stuck in do-forever
  REAL(DP)                                    :: TIME_OLD  ! previous time -- used to check for duplicates
- REAL(DP),DIMENSION(:),allocatable,SAVE      :: QD_TEMP   ! flow particles just enetered JRCH
- REAL(DP),DIMENSION(:),allocatable,SAVE      :: TD_TEMP   ! time flow particles entered JRCH
- ! Output
- INTEGER(I4B), INTENT(OUT)                   :: ND        ! number of routed particles
- REAL(DP), DIMENSION(:),allocatable          :: QD        ! flow particles just enetered JRCH
- REAL(DP), DIMENSION(:),allocatable          :: TD        ! time flow particles entered JRCH
- integer(i4b), intent(out)                   :: ierr     ! error code
- character(*), intent(out)                   :: message  ! error message
+ ! REAL(DP),DIMENSION(:),allocatable,SAVE      :: QD_TEMP   ! flow particles just enetered JRCH
+ REAL(DP),DIMENSION(:),allocatable           :: QD_TEMP   ! flow particles just enetered JRCH
+ ! REAL(DP),DIMENSION(:),allocatable,SAVE      :: TD_TEMP   ! time flow particles entered JRCH
+ REAL(DP),DIMENSION(:),allocatable           :: TD_TEMP   ! time flow particles entered JRCH
  ! initialize error control
  ierr=0; message='QEXMUL_RCH/'
  ! ----------------------------------------------------------------------------------------
@@ -952,13 +970,13 @@ contains
  ! ----------------------------------------------------------------------------------------
  IMPLICIT NONE
  ! Input
- INTEGER(I4B), INTENT(IN)                    :: MAXQPAR  ! maximum number of flow particles allowed
+ INTEGER(I4B),          INTENT(IN)           :: MAXQPAR  ! maximum number of flow particles allowed
  ! output
- REAL(DP), DIMENSION(:),allocatable          :: Q_JRCH   ! merged (non-routed) flow in JRCH
- REAL(DP), DIMENSION(:),allocatable          :: TENTRY   ! time flow particles entered JRCH
- REAL(DP), DIMENSION(:),allocatable          :: T_EXIT   ! time flow particles exited JRCH
- integer(i4b), intent(out)                   :: ierr     ! error code
- character(*), intent(out)                   :: message  ! error message
+ REAL(DP), allocatable, intent(inout)        :: Q_JRCH(:)! merged (non-routed) flow in JRCH
+ REAL(DP), allocatable, intent(inout)        :: TENTRY(:)! time flow particles entered JRCH
+ REAL(DP), allocatable, intent(inout)        :: T_EXIT(:)! time flow particles exited JRCH
+ integer(i4b),          intent(out)          :: ierr     ! error code
+ character(*),          intent(out)          :: message  ! error message
  ! Local variables
  INTEGER(I4B)                                :: NPRT     ! number of flow particles
  INTEGER(I4B)                                :: IPRT     ! loop through flow particles
@@ -1144,6 +1162,8 @@ contains
  !   (none planned)
  !
  ! ----------------------------------------------------------------------------------------
+ USE globalData, only : NETOPO     ! routing fluxes
+ USE globalData, only : RPARAM     ! Reach parameters
  IMPLICIT NONE
  ! Input
  INTEGER(I4B), INTENT(IN)                    :: JRCH     ! Reach to process
