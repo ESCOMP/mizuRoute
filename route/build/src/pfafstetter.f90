@@ -161,7 +161,7 @@ contains
       do iTrib=tot_trib,1,-1
         ! nUpSegs = nTrib(rank_nTrib(iTrib))
         if (nTrib(rank_nTrib(iTrib)) > maxSegs) then
-          write(*,'(A, A,I)') 'Exceed maximum number of segments: ', pfafs(trPos(rank_nTrib(iTrib))), nTrib(rank_nTrib(iTrib))
+          write(*,'(A,A,I4)') 'Exceed maximum number of segments: ', pfafs(trPos(rank_nTrib(iTrib))), nTrib(rank_nTrib(iTrib))
 
           ! Outlet mainstem code
           outMainstemCode = mainstem_code(pfafs(trPos(rank_nTrib(iTrib))))
@@ -193,8 +193,8 @@ contains
         if(ierr/=0)then; message=trim(message)//'problem allocating ributary'; return; endif
         tributary_outlet = trPos
 
-        allocate(river_basin(iOut)%tributary(tot_trib), stat=ierr)
-        if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(iOut)%tributary'; return; endif
+        allocate(river_basin(iOut)%tributary(tot_trib), river_basin(iOut)%tributary_order(tot_trib), stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(iOut)%tributary or tributary_order'; return; endif
 
         do iTrib = 1,tot_trib
           allocate(river_basin(iOut)%tributary(iTrib)%segIndex(nTrib(iTrib)), &
@@ -209,6 +209,7 @@ contains
           if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
           river_basin(iOut)%tributary(iTrib)%nRch = size(river_basin(iOut)%tributary(iTrib)%segIndex)
         end do
+        call indexx(nTrib, river_basin(iOut)%tributary_order)
         exit
       else ! if mainstem/tributary updated, store mainstem reach info at current level, lgc_trib_outlet and go onto next level
         ! Compute reach index for mainstem segments
@@ -232,6 +233,13 @@ contains
         if(ierr/=0)then; message=trim(message)//'problem deallocating nTrib or rank_nTrib'; return; endif
       endif
     end do
+
+!    do iTrib=1,tot_trib
+!       associate(jTrib => river_basin(iOut)%tributary_order(iTrib))
+!       nUpSegs=size(river_basin(iOut)%tributary(jTrib)%segOrder)
+!       print*,'iTrib, jTrib, nUpSegs = ', iTrib, jTrib, nUpSegs
+!       end associate
+!    end do
 
 !    do iSeg=1,nSeg
 !      level1=-999
@@ -413,7 +421,7 @@ contains
 
     if (pfaf(iDigit:iDigit)=="") cycle !if character digit is empty, go next
 
-    read(pfaf(iDigit:iDigit),'(i)') pfaf_int
+    read(pfaf(iDigit:iDigit),'(I1)') pfaf_int
 
     if (mod(pfaf_int, 2) == 0) exit
 
@@ -463,13 +471,13 @@ contains
     isUpstream = .false.
   else
     if (len(pfaf_b) /= nth .and. len(pfaf_a) /= nth) then
-      read(pfaf_a(nth+1:nth+1),'(i)') pfaf_a_int
-      read(pfaf_b(nth+1:nth+1),'(i)') pfaf_b_int
+      read(pfaf_a(nth+1:nth+1),'(I1)') pfaf_a_int
+      read(pfaf_b(nth+1:nth+1),'(I1)') pfaf_b_int
       if (pfaf_b_int .gt. pfaf_a_int) then
         isUpstream = .false.
       else
         do iDigit = nth+1, len(pfaf_b)
-          read(pfaf_b(iDigit:iDigit),'(i)') pfaf_b_int
+          read(pfaf_b(iDigit:iDigit),'(I1)') pfaf_b_int
           if ( mod(pfaf_b_int, 2) == 0) then
             isUpstream = .false.
             exit
@@ -547,7 +555,7 @@ contains
     int_array(1) = -1
   else
     do iChr =1,str_len
-      read(string(iChr:iChr),'(i)') int_array(iChr)
+      read(string(iChr:iChr),'(I1)') int_array(iChr)
     end do
   endif
 
@@ -584,7 +592,7 @@ contains
       int_array(iSize, 1) = -1
     else
       do iChr =1,str_len
-        read(string(iChr:iChr),'(i)') int_array(iSize, iChr)
+        read(string(iChr:iChr),'(I1)') int_array(iSize, iChr)
       end do
     end if
   end do

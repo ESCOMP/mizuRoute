@@ -69,14 +69,15 @@ implicit none
  ! segIndex points to the segment in the entire river network data
  ! segOrder is order within subset of mainstem segments or tributary segments
  type,public :: reach
-  integer(i4b), allocatable :: segIndex(:)           ! index of mainstem segment outlet
-  integer(i4b), allocatable :: segOrder(:)           ! index of mainstem segment outlet
+  integer(i4b), allocatable :: segIndex(:)           ! index of segment index
+  integer(i4b), allocatable :: segOrder(:)           ! index of orderd segment based on processing order
   integer(i4b)              :: nRch                  ! number of reach
  end type reach
 
  type,public :: basin
   integer(i4b)                 :: outIndex             ! index of outlet segment based on segment array
   logical(lgt)                 :: isMajor              ! logical to indicate this is major basin (num of seg > threshold)
+  integer(i4b),allocatable     :: tributary_order(:)   ! index of ordered tributary index based on number of tributary segments
   type(reach), allocatable     :: mainstem(:)          ! mainstem level
   type(reach), allocatable     :: tributary(:)         ! index of tributary outlet segment
  end type basin

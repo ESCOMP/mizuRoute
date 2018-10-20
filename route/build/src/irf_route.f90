@@ -49,7 +49,8 @@ contains
  integer(i4b)                           :: nTrib          ! number of tributary basins
  integer(i4b)                           :: jRank          ! ranked index of stream segment
  integer(i4b)                           :: iRch,jRch      ! loop indices
- integer(i4b)                           :: iOut,iTrib     ! loop indices
+ integer(i4b)                           :: iOut           ! loop indices
+ integer(i4b)                           :: iTrib,jTrib    ! loop indices
  integer(i4b)                           :: iLevel         ! loop indices
  integer(i4b)                           :: maxLevel,minLevel !
  character(len=strLen)                  :: cmessage       ! error message from subroutine
@@ -57,10 +58,10 @@ contains
  integer(i4b)                           :: nThreads              ! number of threads
  integer(i4b)                           :: omp_get_num_threads   ! get the number of threads
  integer(i4b)                           :: omp_get_thread_num
- integer(i4b)                           :: openMPstart           ! time for the start of the parallelization section
+ integer*8                              :: openMPstart           ! time for the start of the parallelization section
  integer(i4b), allocatable              :: ixThread(:)           ! thread id
- integer(i4b), allocatable              :: openMPend(:)          ! time for the start of the parallelization section
- integer(i4b), allocatable              :: timeTribStart(:)      ! time Tributaries start
+ integer*8,    allocatable              :: openMPend(:)          ! time for the start of the parallelization section
+ integer*8,    allocatable              :: timeTribStart(:)      ! time Tributaries start
  real(dp),     allocatable              :: timeTribCompleted(:)  ! time required to complete each Tributary
  real(dp),     allocatable              :: timeTrib(:)           ! time spent on each Tributary
  integer(i4b), dimension(8)             :: startTrib,endTrib     ! date/time for the start and end of the initialization
@@ -106,49 +107,51 @@ contains
   timeTrib(:) = realMissing    ! initialize because used for ranking
   ixThread(:) = integerMissing ! initialize because used for ranking
   ! 1. Route tributary reaches (parallel)
-!$OMP PARALLEL default(none)                 &
-!$OMP          private(jRank, jRch, iRch)    & ! private for a given thread
-!$OMP          private(ierr, cmessage)       &
-!$OMP          shared(river_basin)           &
-!$OMP          shared(iEns, iOut, ixDesire)  &
-!$OMP          shared(openMPstart, openMPend, nThreads)   & ! access constant variables
-!$OMP          shared(timeTribStart, timeTribCompleted, timeTrib)  & ! time variables shared
-!$OMP          shared(ixThread)              & !
+!$OMP PARALLEL default(none)                            &
+!$OMP          private(jTrib, jRank, jRch, iRch)        & ! private for a given thread
+!$OMP          private(ierr, cmessage)                  & ! private for a given thread
+!$OMP          shared(river_basin)                      & ! data structure shared
+!$OMP          shared(iEns, iOut, ixDesire)             & ! indices shared
+!$OMP          shared(openMPstart, openMPend, nThreads) & ! timing variables shared
+!$OMP          shared(timeTribStart)                    & ! timing variables shared
+!$OMP          shared(timeTribCompleted)                & ! timing variables shared
+!$OMP          shared(timeTrib)                         & ! timing variables shared
+!$OMP          shared(ixThread)                         & ! thread id array shared
 !$OMP          firstprivate(nTrib)
 
   nThreads = 1
 !$ nThreads = omp_get_num_threads()
 
 !$OMP DO schedule(dynamic)   ! chunk size of 1
-  do iTrib = 1,nTrib
-
+  do iTrib = nTrib,1,-1
 !$    ixThread(iTrib) = omp_get_thread_num()
     call system_clock(timeTribStart(iTrib))
-
+    jTrib = river_basin(iOut)%tributary_order(iTrib)
     do iRch=1,river_basin(iOut)%tributary(iTrib)%nRch
       jRank = river_basin(iOut)%tributary(iTrib)%segOrder(iRch)
       jRch  = river_basin(iOut)%tributary(iTrib)%segIndex(jRank)
       call segment_irf(iEns, jRch, ixDesire, ierr, cmessage)
 !      if(ierr/=0)then; ixmessage(iTrib)=trim(message)//trim(cmessage); exit; endif
     end do
-
     call system_clock(openMPend(iTrib))
     timeTrib(iTrib)          = real(openMPend(iTrib)-timeTribStart(iTrib), kind(dp))
     timeTribCompleted(iTrib) = real(openMPend(iTrib)-openMPstart         , kind(dp))
-
   end do
 !$OMP END DO
 !$OMP END PARALLEL
 
-  do iTrib=1,nTrib
-    write(*,'(a,1x,3(i4,1x),f20.10,1x)') 'iTrib, ixThread(iTrib), nThreads, timeTrib = ', iTrib, ixThread(iTrib),nThreads, timeTrib(iTrib)
+  write(*,'(a)') 'iTrib jTrib nSeg ixThread nThreads StartTime EndTime'
+  do iTrib=nTrib,1,-1
+    jTrib = river_basin(iOut)%tributary_order(iTrib)
+!    write(*,'(5(i4,1x),2(I20,1x))') nTrib-iTrib+1, jTrib, river_basin(iOut)%tributary(jTrib)%nRch, ixThread(jTrib), nThreads, timeTribStart(jTrib), openMPend(jTrib)
+    write(*,'(5(i4,1x),2(I20,1x))') nTrib-iTrib+1, jTrib, river_basin(iOut)%tributary(jTrib)%nRch, ixThread(iTrib), nThreads, timeTribStart(iTrib), openMPend(iTrib)
   enddo
   deallocate(ixThread, timeTrib, timeTribStart, timeTribCompleted, stat=ierr)
   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to deallocate space for Trib timing'; return; endif
 
   call date_and_time(values=endTrib)
   elapsedTrib = elapsedTrib + elapsedSec(startTrib, endTrib)
-  write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTrib, ' s'
+ ! write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTrib, ' s'
 
    call date_and_time(values=startMain)
    ! 2. Route mainstems (serial)
@@ -162,12 +165,12 @@ contains
    end do
    call date_and_time(values=endMain)
    elapsedMain = elapsedMain + elapsedSec(startMain, endMain)
-   write(*,"(A,1PG15.7,A)") '  total elapsed main stem = ', elapsedMain, ' s'
+ !  write(*,"(A,1PG15.7,A)") '  total elapsed main stem = ', elapsedMain, ' s'
 
  end do
  call date_and_time(values=endTime)
  elapsedTime = elapsedTime + elapsedSec(startTime, endTime)
- write(*,"(A,1PG15.7,A)") '  total elapsed one time step = ', elapsedTime, ' s'
+! write(*,"(A,1PG15.7,A)") '  total elapsed one time step = ', elapsedTime, ' s'
 
  end subroutine irf_route
 
