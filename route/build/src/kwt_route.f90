@@ -1,29 +1,22 @@
 module kwt_route_module
 
 use nrtype
-use nr_utility_module, only : arth                                 ! Num. Recipies utilities
+use nr_utility_module, only : arth       ! Num. Recipies utilities
 
 ! data types
-USE dataTypes,  only : FPOINT     ! particle
-USE dataTypes,  only : KREACH     ! collection of particles in a given reach
-
-!  ! global parameters
-!  USE globalData, only : RPARAM     ! Reach parameters
-!  USE globalData, only : NETOPO     ! Network topology
-!  USE globalData, only : KROUTE     ! routing states
-!  USE globalData, only : RCHFLX     ! routing fluxes
+USE dataTypes,  only : FPOINT            ! particle
+USE dataTypes,  only : KREACH            ! collection of particles in a given reach
 
 ! global data
-USE public_var, only : verySmall  ! a very small value
+USE public_var, only : verySmall         ! a very small value
 
-USE time_utils_module,  only : elapsedSec    ! calculate the elapsed time
+USE time_utils_module, only : elapsedSec ! calculate the elapsed time
 
 implicit none
 private
 public::kwt_route
 
 contains
-
 
  ! *********************************************************************
  ! subroutine: route kinematic waves through the river network
@@ -149,7 +142,6 @@ contains
  ! *********************************************************************
  subroutine QROUTE_RCH(IENS,JRCH,    & ! input: array indices
                        ixDesire,     & ! input: index of the reach for verbose output
-!                       ixOutlet,     & ! input: index of the outlet reach
                        T0,T1,        & ! input: start and end of the time step
                        LAKEFLAG,     & ! input: flag if lakes are to be processed
                        ierr,message, & ! output: error control
@@ -216,30 +208,25 @@ contains
  ! ----------------------------------------------------------------------------------------
    implicit none
    ! Input
-   INTEGER(I4B), INTENT(IN)                    :: IENS          ! ensemble member
-   INTEGER(I4B), INTENT(IN)                    :: JRCH          ! reach to process
+   integer(i4b), intent(in)                    :: IENS          ! ensemble member
+   integer(i4b), intent(in)                    :: JRCH          ! reach to process
    integer(i4b), intent(in)                    :: ixDesire      ! index of the reach for verbose output
-!   integer(i4b), intent(in)                    :: ixOutlet      ! index of the outlet reach
-   REAL(DP), INTENT(IN)                        :: T0,T1         ! start and end of the time step (seconds)
-   INTEGER(I4B), INTENT(IN)                    :: LAKEFLAG      ! >0 if processing lakes
-   INTEGER(I4B), INTENT(IN), OPTIONAL          :: RSTEP         ! retrospective time step offset
+   real(dp),     intent(in)                    :: T0,T1         ! start and end of the time step (seconds)
+   integer(i4b), intent(in)                    :: LAKEFLAG      ! >0 if processing lakes
+   integer(i4b), intent(in), optional          :: RSTEP         ! retrospective time step offset
    ! output variables
    integer(i4b), intent(out)                   :: ierr          ! error code
    character(*), intent(out)                   :: message       ! error message
    ! (1) extract flow from upstream reaches and append to the non-routed flow in JRCH
    INTEGER(I4B)                                :: NUPS          ! number of upstream reaches
-!   REAL(DP),DIMENSION(:),allocatable,SAVE      :: Q_JRCH        ! flow in downstream reach JRCH
    REAL(DP),DIMENSION(:),allocatable           :: Q_JRCH        ! flow in downstream reach JRCH
-!   REAL(DP),DIMENSION(:),allocatable,SAVE      :: TENTRY        ! entry time to JRCH (exit time u/s)
    REAL(DP),DIMENSION(:),allocatable           :: TENTRY        ! entry time to JRCH (exit time u/s)
    INTEGER(I4B)                                :: NQ1           ! # flow particles
    ! (2) route flow within the current [JRCH] river segment
    INTEGER(I4B)                                :: ROFFSET       ! retrospective offset due to rstep
    REAL(DP)                                    :: T_START       ! start of time step
    REAL(DP)                                    :: T_END         ! end of time step
-!   REAL(DP),DIMENSION(:),allocatable,SAVE      :: T_EXIT        ! time particle expected exit JRCH
    REAL(DP),DIMENSION(:),allocatable           :: T_EXIT        ! time particle expected exit JRCH
-!   LOGICAL(LGT),DIMENSION(:),allocatable,SAVE  :: FROUTE        ! routing flag .T. if particle exits
    LOGICAL(LGT),DIMENSION(:),allocatable       :: FROUTE        ! routing flag .T. if particle exits
    INTEGER(I4B)                                :: NQ2           ! # flow particles (<=NQ1 b/c merge)
    ! (3) calculate time-step averages
@@ -250,14 +237,12 @@ contains
    ! (4) housekeeping
    REAL(DP)                                    :: Q_END         ! flow at the end of the timestep
    REAL(DP)                                    :: TIMEI         ! entry time at the end of the timestep
-!   TYPE(FPOINT),allocatable,DIMENSION(:),SAVE  :: NEW_WAVE      ! temporary wave
    TYPE(FPOINT),allocatable,DIMENSION(:)       :: NEW_WAVE      ! temporary wave
-!   LOGICAL(LGT),SAVE                           :: INIT=.TRUE.   ! used to initialize pointers
    LOGICAL(LGT)                                :: INIT=.TRUE.   ! used to initialize pointers
    ! random stuff
    integer(i4b)                                :: IWV           ! rech index
-   character(strLen)                           :: fmt1,fmt2     ! format string
-   CHARACTER(LEN=256)                          :: CMESSAGE      ! error message for downwind routine
+   character(len=strLen)                       :: fmt1,fmt2     ! format string
+   character(len=strLen)                       :: CMESSAGE      ! error message for downwind routine
 
    ! initialize error control
    ierr=0; message='QROUTE_RCH/'
@@ -370,14 +355,8 @@ contains
     if (.not.allocated(KROUTE(IENS,JRCH)%KWAVE)) then
       ierr=20; message=trim(message)//'KROUTE is not associated'; return
     else
-   ! if(allocated(KROUTE(IENS,JRCH)%KWAVE)) then
       deallocate(KROUTE(IENS,JRCH)%KWAVE, STAT=ierr)
-   !   if (ierr.ne.0) then
-   !     print *, '% CANNOT DEALLOCATE SPACE (FOR SOME UNKNOWN REASON)... TRY AND NULLIFY!'
-   !     !NULLIFY(KROUTE(IENS,JRCH)%KWAVE)
-   !     deallocate(KROUTE(IENS,JRCH)%KWAVE)
-   !   endif
-   ! endif
+      if(ierr/=0)then; message=trim(message)//'problem deallocating space for KROUTE(IENS,JRCH)%KWAVE'; return; endif
       allocate(KROUTE(IENS,JRCH)%KWAVE(0:NQ2+1),STAT=ierr)   ! NQ2 is number of points for kinematic routing
       if(ierr/=0)then; message=trim(message)//'problem allocating space for KROUTE(IENS,JRCH)%KWAVE(0:NQ2+1)'; return; endif
     endif
@@ -423,8 +402,7 @@ contains
       DEALLOCATE(NEW_WAVE,STAT=IERR)
       if(ierr/=0)then; message=trim(message)//'problem deallocating space for NEW_WAVE'; return; endif
     endif  ! (if JRCH is the last reach)
-    ! get size of wave number for a reach
-    return
+
   end subroutine
 
  ! *********************************************************************
@@ -493,7 +471,7 @@ contains
  INTEGER(I4B)                                :: NJ       ! # points in the JRCH reach
  INTEGER(I4B)                                :: NK       ! # points for routing (NJ+ND)
  INTEGER(I4B)                                :: ILAK     ! lake index
- character(len=256)                          :: cmessage ! error message for downwind routine
+ character(len=strLen)                       :: cmessage ! error message for downwind routine
  ! initialize error control
  ierr=0; message='GETUSQ_RCH/'
  ! ----------------------------------------------------------------------------------------
@@ -613,7 +591,7 @@ contains
  ! Input
  INTEGER(I4B), INTENT(IN)                    :: IENS      ! ensemble member
  INTEGER(I4B), INTENT(IN)                    :: JRCH      ! reach to process
- REAL(DP), INTENT(IN)                        :: T0,T1     ! start and end of the time step
+ REAL(DP),     INTENT(IN)                    :: T0,T1     ! start and end of the time step
  integer(i4b), INTENT(IN)                    :: ixDesire  ! index of the reach for verbose output
  INTEGER(I4B), INTENT(IN), OPTIONAL          :: RSTEP     ! retrospective time step offset
  ! Output
@@ -631,18 +609,15 @@ contains
  INTEGER(I4B)                                :: INDX      ! index of the IUPS u/s reach
  INTEGER(I4B)                                :: MUPR      ! # reaches u/s of IUPS u/s reach
  INTEGER(I4B)                                :: NUPS      ! number of upstream elements
- !TYPE(KREACH),DIMENSION(:),allocatable,SAVE  :: USFLOW    ! waves for all upstream segments
- TYPE(KREACH),DIMENSION(:),allocatable       :: USFLOW    ! waves for all upstream segments
- REAL(DP), DIMENSION(:), ALLOCATABLE         :: UWIDTH    ! width of all upstream segments
+ TYPE(KREACH), allocatable                   :: USFLOW(:) ! waves for all upstream segments
+ REAL(DP),     allocatable                   :: UWIDTH(:) ! width of all upstream segments
  INTEGER(I4B)                                :: IMAX      ! max number of upstream particles
  INTEGER(I4B)                                :: IUPR      ! counter for reaches with particles
  INTEGER(I4B)                                :: IR        ! index of the upstream reach
  INTEGER(I4B)                                :: NS        ! size of  the wave
  INTEGER(I4B)                                :: NR        ! # routed particles in u/s reach
  INTEGER(I4B)                                :: NQ        ! NR+1, if non-routed particle exists
-! TYPE(FPOINT),DIMENSION(:),allocatable,SAVE  :: NEW_WAVE  ! temporary wave
- TYPE(FPOINT),DIMENSION(:),allocatable       :: NEW_WAVE  ! temporary wave
-! LOGICAL(LGT),SAVE                           :: INIT=.TRUE. ! used to initialize pointers
+ TYPE(FPOINT), allocatable                   :: NEW_WAVE(:)  ! temporary wave
  LOGICAL(LGT)                                :: INIT=.TRUE. ! used to initialize pointers
  ! Local variables to merge flow
  LOGICAL(LGT), DIMENSION(:), ALLOCATABLE     :: MFLG      ! T = all particles processed
@@ -660,10 +635,8 @@ contains
  INTEGER(I4B)                                :: JUPS_OLD  ! check that we don't get stuck in do-forever
  INTEGER(I4B)                                :: ITIM_OLD  ! check that we don't get stuck in do-forever
  REAL(DP)                                    :: TIME_OLD  ! previous time -- used to check for duplicates
- ! REAL(DP),DIMENSION(:),allocatable,SAVE      :: QD_TEMP   ! flow particles just enetered JRCH
- REAL(DP),DIMENSION(:),allocatable           :: QD_TEMP   ! flow particles just enetered JRCH
- ! REAL(DP),DIMENSION(:),allocatable,SAVE      :: TD_TEMP   ! time flow particles entered JRCH
- REAL(DP),DIMENSION(:),allocatable           :: TD_TEMP   ! time flow particles entered JRCH
+ REAL(DP), allocatable                       :: QD_TEMP(:)! flow particles just enetered JRCH
+ REAL(DP), allocatable                       :: TD_TEMP(:)! time flow particles entered JRCH
  ! initialize error control
  ierr=0; message='QEXMUL_RCH/'
  ! ----------------------------------------------------------------------------------------
@@ -936,7 +909,7 @@ contains
  TD(1:ND) = TD_TEMP(1:ND)
  DEALLOCATE(QD_TEMP,TD_TEMP,STAT=IERR)
  if(ierr/=0)then; message=trim(message)//'problem deallocating arrays [QD_TEMP, TD_TEMP]'; return; endif
- ! ----------------------------------------------------------------------------------------
+
  end subroutine
 
  ! *********************************************************************
@@ -1072,7 +1045,7 @@ contains
     REAL(DP),INTENT(IN)                        :: T0     ! desired time
     REAL(DP)                                   :: INTERP ! function name
     INTERP = Q1 + ( (Q2-Q1) / (T2-T1) ) * (T0-T1)
-  end function
+  end function INTERP
 
  end subroutine
 
@@ -1166,17 +1139,17 @@ contains
  USE globalData, only : RPARAM     ! Reach parameters
  IMPLICIT NONE
  ! Input
- INTEGER(I4B), INTENT(IN)                    :: JRCH     ! Reach to process
- REAL(DP), INTENT(IN)                        :: T_START  ! start of the time step
- REAL(DP), INTENT(IN)                        :: T_END    ! end of the time step
+ integer(i4b), intent(in)                    :: JRCH     ! Reach to process
+ real(dp),     intent(in)                    :: T_START  ! start of the time step
+ real(dp),     intent(in)                    :: T_END    ! end of the time step
  integer(i4b), intent(in)                    :: ixDesire ! index of the reach for verbose output
  ! Input/Output
- REAL(DP), DIMENSION(:), INTENT(INOUT)       :: Q_JRCH   ! flow to be routed
- REAL(DP), DIMENSION(:), INTENT(INOUT)       :: TENTRY   ! time to be routed
- REAL(DP), DIMENSION(:), INTENT(INOUT)       :: T_EXIT   ! time pts expected exit segment
- LOGICAL(LGT), DIMENSION(:), INTENT(INOUT)   :: FROUTE   ! routing flag, T=routed
+ REAL(dp),     intent(inout)                 :: Q_JRCH(:)! flow to be routed
+ REAL(dp),     intent(inout)                 :: TENTRY(:)! time to be routed
+ REAL(dp),     intent(inout)                 :: T_EXIT(:)! time pts expected exit segment
+ logical(lgt), intent(inout)                 :: FROUTE(:)! routing flag, T=routed
  ! Output
- INTEGER(I4B), INTENT(OUT)                   :: NQ2      ! # particles (<= input b/c merge)
+ integer(i4b), intent(out)                   :: NQ2      ! # particles (<= input b/c merge)
  integer(i4b), intent(out)                   :: ierr     ! error code
  character(*), intent(out)                   :: message  ! error message
  ! Internal
@@ -1204,7 +1177,7 @@ contains
  INTEGER(I4B)                                :: IROUTE   ! looping variable for routing
  INTEGER(I4B)                                :: JROUTE   ! looping variable for routing
  INTEGER(I4B)                                :: ICOUNT   ! used to account for merged pts
- character(len=256)                          :: cmessage ! error message of downwind routine
+ character(len=strLen)                       :: cmessage ! error message of downwind routine
  ! ----------------------------------------------------------------------------------------
  ! NOTE: If merged particles DO NOT exit the reach in the current time step, they are
  !       disaggregated into the original particles; if the merged particles DO exit the
@@ -1297,7 +1270,7 @@ contains
    ! --------------------------------------------------------------------------------------
   END DO GOTALL
  ENDIF GT_ONE
- !
+
  ICOUNT=0
  ! ----------------------------------------------------------------------------------------
  ! perform the routing
@@ -1348,7 +1321,7 @@ contains
  ! update arrays
  NQ2 = ICOUNT
  RETURN
- ! ----------------------------------------------------------------------------------------
+
  contains
 
   subroutine RUPDATE(QNEW,TOLD,TNEW,ierr,message)
@@ -1379,10 +1352,9 @@ contains
     IF(ICOUNT.EQ.1.AND.T_EXIT(ICOUNT).LE.T_START) T_EXIT(ICOUNT)=T_START+1.
     ! update flag for routed elements
     IF(T_EXIT(ICOUNT).LT.T_END) FROUTE(ICOUNT) =.TRUE.
-    return
-  end subroutine
+  end subroutine RUPDATE
 
- end subroutine
+ end subroutine KINWAV_RCH
 
  ! *********************************************************************
  ! new subroutine: calculate time-step averages from irregular values
@@ -1495,24 +1467,23 @@ contains
  REAL(DP)                                    :: QEST0    ! flow estimate at point T0
  REAL(DP)                                    :: QEST1    ! flow estimate at point T1
  ! --------------------------------------------------------------------------------------------
+ IERR=0; message='INTERP_RCH/'
+
  ! get array size
  NOLD = SIZE(TOLD); NNEW = SIZE(TNEW)
 
- !
- IERR=0
- message='INTERP_RCH/'
  ! check that the input time series starts before the first required output time
  ! and ends after the last required output time
  IF( (TOLD(1).GT.TNEW(1)) .OR. (TOLD(NOLD).LT.TNEW(NNEW)) ) THEN
   IERR=1; message=trim(message)//'bad bounds'; RETURN
  ENDIF
- !
+
  ! loop through the output times
  DO INEWLOOP=2,NNEW
-  !
+
   T0 = TNEW(INEWLOOP-1)                      ! start of the time step
   T1 = TNEW(INEWLOOP)                        ! end of the time step
-  !
+
   IBEG=1
   ! identify the index values that span the start of the time step
   BEG_ID: DO IOLDLOOP=2,NOLD
@@ -1521,7 +1492,7 @@ contains
     EXIT
    ENDIF
   END DO BEG_ID
-  !
+
   IEND=1
   ! identify the index values that span the end of the time step
   END_ID: DO IOLDLOOP=1,NOLD
@@ -1530,10 +1501,10 @@ contains
     EXIT
    ENDIF
   END DO END_ID
-  !
+
   ! initialize the areas
   AREAB=0D0; AREAE=0D0; AREAM=0D0
-  !
+
   ! special case: both TNEW(INEWLOOP-1) and TNEW(INEWLOOP) are within two original values
   ! (implies IBEG=IEND) -- estimate values at both end-points and average
   IF(T1.LT.TOLD(IBEG)) THEN
@@ -1543,21 +1514,21 @@ contains
    QNEW(INEWLOOP-1) = 0.5*(QEST0 + QEST1)
    CYCLE ! loop back to the next desired time
   ENDIF
-  !
+
   ! estimate the area under the curve at the start of the time step
   IF(T0.LT.TOLD(IBEG)) THEN  ! if equal process as AREAM
    SLOPE = (QOLD(IBEG)-QOLD(IBEG-1))/(TOLD(IBEG)-TOLD(IBEG-1))
    QEST0 = SLOPE*(T0-TOLD(IBEG-1)) + QOLD(IBEG-1)
    AREAB = (TOLD(IBEG)-T0) * 0.5*(QEST0 + QOLD(IBEG))
   ENDIF
-  !
+
   ! estimate the area under the curve at the end of the time step
   IF(T1.LT.TOLD(IEND)) THEN  ! if equal process as AREAM
    SLOPE = (QOLD(IEND)-QOLD(IEND-1))/(TOLD(IEND)-TOLD(IEND-1))
    QEST1 = SLOPE*(T1-TOLD(IEND-1)) + QOLD(IEND-1)
    AREAE = (T1-TOLD(IEND-1)) * 0.5*(QOLD(IEND-1) + QEST1)
   ENDIF
-  !
+
   ! check if there are extra points to process
   IF(IBEG.LT.IEND) THEN
    ! loop through remaining points
@@ -1570,13 +1541,13 @@ contains
     ENDIF   ! if point is valid
    END DO  ! IMID
   ENDIF   ! If there is a possibility that middle points even exist
-  !
+
   ! compute time step average
   AREAS = AREAB + AREAE + AREAM            ! sum of all areas
   QNEW(INEWLOOP-1) = AREAS / (T1-T0)       ! T1-T0 is the sum of all time slices
-  !
+
  END DO
- return
- end subroutine
+
+ end subroutine INTERP_RCH
 
 end module kwt_route_module
