@@ -314,6 +314,10 @@ module remapping
 
    ! define the HRU index in the routing vector
    jHRU = runoff_data%hru_ix(iHRU)
+   ! if no hru associated any segments in network data, skip it
+   if(jHRU==integerMissing)then
+    cycle
+   endif
 
    ! check that the hrus match
    if( runoff_data%hru_id(iHRU) /= structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1) )then

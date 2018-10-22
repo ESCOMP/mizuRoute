@@ -126,7 +126,7 @@ contains
                 runoff_data%hru_ix,  &    ! output: indices of hru ids in routing layer
                 ierr, cmessage)           ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   print*, runoff_data%hru_id
+
    ! check
    if(count(runoff_data%hru_ix/=integerMissing)/=nHRU)then
     message=trim(message)//'unable to identify all polygons in the mapping file'
