@@ -122,7 +122,7 @@ contains
   nThreads = 1
 !$ nThreads = omp_get_num_threads()
 
-!$OMP DO schedule(dynamic)   ! chunk size of 1
+!$OMP DO schedule(dynamic,1)   ! chunk size of 1
   do iTrib = nTrib,1,-1
 !$    ixThread(iTrib) = omp_get_thread_num()
     call system_clock(timeTribStart(iTrib))

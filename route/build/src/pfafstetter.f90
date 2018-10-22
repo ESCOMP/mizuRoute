@@ -15,7 +15,6 @@ implicit none
 private
 
 public :: classify_river_basin
-public :: subset_order
 
 interface char2int
   module procedure :: char2int_1d
@@ -25,7 +24,7 @@ end interface
 contains
 
  subroutine classify_river_basin(nSeg, structPFAF, structNTOPO, river_basin, ierr, message)
-  ! Process river network data using pfafstetter code and network topology
+  ! Identify tributary basin and mainstems using river network data and pfafstetter code
   ! Output: return populated basin dataType
   implicit none
   ! Input variables
@@ -47,7 +46,6 @@ contains
   logical(lgt),      allocatable              :: lgc_trib_outlet(:)     ! logical to indicate segment is outlet of tributary
   logical(lgt)                                :: done                   ! logical
   integer(i4b)                                :: maxSegs=100
-!  integer(i4b)                                :: minSegs=20             ! if number of segments in a basin, flag it as minor (do not break up into mainstems and tributaries)
   integer(i4b)                                :: maxLevel=10
   integer(i4b)                                :: downIndex(nSeg)        ! downstream segment index for all the segments
   integer(i4b)                                :: segIndex(nSeg)         ! reach index for all the segments
@@ -86,8 +84,6 @@ contains
   pfaf_out = pack(pfafs, downIndex<0)
   segIndex_out = pack(segIndex, downIndex<0)
 
- ! river_basin(1:nOuts)%isMajor  = .true.
-
   do iOut = 1,nOuts
 
     print*, 'working on outlet:'//trim(adjustl(pfaf_out(iOut)))
@@ -96,11 +92,6 @@ contains
     if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(iOut)%mainstem'; return; endif
 
     river_basin(iOut)%outIndex = segIndex_out(iOut)
-
- !   if (size(structNTOPO(segIndex_out(iOut))%var(ixNTOPO%allUpSegIndices)%dat) < minSegs) then
- !     river_basin(iOut)%isMajor  = .false.
- !     cycle
- !   endif
 
     ! Identify pfaf level given a river network
     call get_common_pfaf(pfafs, pfaf_out(iOut), level, ierr, cmessage)
@@ -159,7 +150,7 @@ contains
       ! Identify mainstems of large tributaries (# of segments > maxSeg) and update updated_mainstems.
       done=.true.
       do iTrib=tot_trib,1,-1
-        ! nUpSegs = nTrib(rank_nTrib(iTrib))
+
         if (nTrib(rank_nTrib(iTrib)) > maxSegs) then
           write(*,'(A,A,I4)') 'Exceed maximum number of segments: ', pfafs(trPos(rank_nTrib(iTrib))), nTrib(rank_nTrib(iTrib))
 
@@ -230,7 +221,7 @@ contains
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
         deallocate(nTrib, rank_nTrib, stat=ierr)
-        if(ierr/=0)then; message=trim(message)//'problem deallocating nTrib or rank_nTrib'; return; endif
+        if(ierr/=0)then; message=trim(message)//'problem deallocating [nTrib, rank_nTrib]'; return; endif
       endif
     end do
 
@@ -599,140 +590,7 @@ contains
 
   end subroutine char2int_2d
 
- subroutine group_array(narray, group, ierr, message)
-  ! Group array elements based on number
-  implicit none
-  ! Input variables
-  integer(i4b),          intent(in)  :: narray(:)      ! number of stream segments
-  ! Output variables
-  integer(i4b),          intent(out) :: group(:)           ! process group
-  integer(i4b),          intent(out) :: ierr
-  character(len=strLen), intent(out) :: message            ! error message
-  ! Local variables
-  integer(i4b),allocatable           :: rank_array(:)      ! number of stream segments
-  integer(i4b)                       :: maxNgroup=36
-  integer(i4b)                       :: arraySize
-  integer(i4b)                       :: maxElem
-  integer(i4b)                       :: cc
-  integer(i4b)                       :: iGroup
-  integer(i4b)                       :: ii                  ! loop index
-
-  ierr=0; message='group_array/'
-
-  arraySize = size(narray)
-  if (arraySize >= maxNgroup) arraySize=maxNgroup
-
-  maxElem = sum(narray)/arraySize
-
-  allocate(rank_array(size(narray)),stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating rank_array'; return; endif
-
-  call indexx(narray,rank_array)
-
-  iGroup = 1
-  cc = 0
-  do ii=size(narray),1,-1
-
-    group(rank_array(ii)) = iGroup
-    cc = cc + narray(rank_array(ii))
-    if (cc .gt. maxElem)then
-       iGroup=iGroup+1
-       cc=0
-     endif
-
-  end do
-
-  if (iGroup .gt. arraySize) then
-   print*,'yes'
-  end if
-
- end subroutine group_array
-
 end module pfafstetter_module
-
-!      subroutine group_river_network(nSeg, structPFAF, structNTOPO, ierr, message)
-!       !
-!       implicit none
-!       ! Input variables
-!       integer(i4b),                   intent(in)  :: nSeg                   ! number of stream segments
-!       type(var_clength), allocatable, intent(in)  :: structPFAF(:)          ! pfafstetter code
-!       type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)         ! network topology
-!       ! output variables
-!       integer(i4b),                   intent(out) :: ierr
-!       character(len=strLen),          intent(out) :: message                ! error message
-!       ! Local variables
-!       character(len=strLen)                       :: cmessage               ! error message from subroutine
-!       type(basin), allocatable                    :: river_basin(:)         ! river basin data
-!       !integer(i4b)                                :: order(nSeg)            ! process order
-!       integer(i4b)                                :: tot_trib               ! Number of Tributary basins
-!       integer(i4b)                                :: nOuts
-!       integer(i4b)                                :: iSeg,jSeg,iOut         ! loop indices
-!       integer(i4b)                                :: segIndex_trib          ! index of tributary outlet segment
-!       !integer(i4b), allocatable                   :: new_order(:)
-!       integer(i4b), allocatable                   :: tribGroup(:)
-!       integer(i4b), allocatable                   :: nTrib(:)
-!       !integer(i4b), allocatable                   :: msGroup(:,:)
-!
-!       ierr=0; message='group_river_network/'
-!
-!       call classify_river_basin(nSeg, structPFAF, structNTOPO, river_basin, ierr, message)
-!       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-!
-!       nOuts = size(river_basin)
-!
-!       do iOut=1,nOuts
-!         if (river_basin(iOut)%isMajor) then
-!           ! Total number of tributary
-!           tot_trib=size(river_basin(iOut)%tributary_outlet)
-!
-!           allocate(nTrib(tot_trib),tribGroup(tot_trib), stat=ierr)
-!           if(ierr/=0)then; message=trim(message)//'problem allocating nTrib'; return; endif
-!
-!           do iSeg=1,tot_trib
-!             segIndex_trib=river_basin(iOut)%tributary_outlet(iSeg)
-!             nTrib(iSeg) = size(structNTOPO(segIndex_trib)%var(ixNTOPO%allUpSegIndices)%dat)
-!           end do
-!           ! Group tributary
-!           call group_array(nTrib, tribGroup, ierr, message)
-!
-!           deallocate(nTrib, stat=ierr)
-!           if(ierr/=0)then; message=trim(message)//'problem deallocating nTrib'; return; endif
-!
-!      !     print*, tribGroup
-!
-!         end if
-!
-!       end do
-!
-!       !update reachorder for each tributaries
-!     !  forall(iSeg=1:nSeg) order(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%rchOrder)%dat(1)
-!
-!     !  do iSeg=1,tot_trib
-!     !    segIndex_trib=river_basin(iOut)%tributary_outlet(iSeg)
-!     !    nTrib(iSeg) = size(structNTOPO(segIndex_trib)%var(ixNTOPO%allUpSegIndices)%dat)
-!     !
-!     !    allocate(upSegIndex(nTrib(iSeg)), new_order(nTrib(iSeg)), stat=ierr)
-!     !    if(ierr/=0)then; message=trim(message)//'problem allocating upSegIndex'; return; endif
-!     !
-!     !    ! Extract upstream segment indices
-!     !    upSegIndex(:) = structNTOPO(segIndex_trib)%var(ixNTOPO%allUpSegIndices)%dat
-!     !
-!     !    call subset_order(order, upSegIndex, new_order, ierr, cmessage)
-!     !    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-!     !
-!     !    print*, '------------------------- '
-!     !    print*, 'segment: ', trim(pfafs(segIndex_trib))
-!     !    print*, 'No. upstream seg= ', nTrib(iSeg)
-!     !    do jSeg=1,size(upSegIndex)
-!     !      print*, jSeg, trim(pfafs(upSegIndex(jSeg))), new_order(jSeg)
-!     !    enddo
-!     !
-!     !    deallocate(upSegIndex, new_order, stat=ierr)
-!     !
-!     !  end do
-!      stop
-!
-!      end subroutine
 
 
 ! JUNK LINES
