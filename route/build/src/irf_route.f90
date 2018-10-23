@@ -1,11 +1,14 @@
 module irf_route_module
 
-! global parameters
+!numeric type
 USE nrtype
+! data type
 USE dataTypes,          only : STRFLX         ! fluxes in each reach
-USE time_utils_module,  only : elapsedSec     ! calculate the elapsed time
+! global parameters
 USE public_var,         only : realMissing    ! missing value for real number
 USE public_var,         only : integerMissing ! missing value for integer number
+! utilities
+USE time_utils_module,  only : elapsedSec     ! calculate the elapsed time
 
 ! privary
 implicit none
@@ -26,12 +29,6 @@ contains
                       ixDesire,   &    ! input: reachID to be checked by on-screen pringing
                       ! output
                       ierr, message)   ! output: error control
- ! ----------------------------------------------------------------------------------------
- ! Purpose:
- !
- !   Convolute routed basisn flow volume at top of each of the upstream segment at one time step and at each segment
- !
- ! ----------------------------------------------------------------------------------------
 
  ! global routing data
  USE globalData, only : RCHFLX ! routing fluxes
@@ -39,22 +36,23 @@ contains
 
  implicit none
  ! Input
- INTEGER(I4B), intent(IN)               :: iEns           ! runoff ensemble to be routed
- type(basin),  intent(in), allocatable  :: river_basin(:) ! river basin information (mainstem, tributary outlet etc.)
- INTEGER(I4B), intent(IN)               :: ixDesire       ! index of the reach for verbose output ! Output
- integer(i4b), intent(out)              :: ierr           ! error code
- character(*), intent(out)              :: message        ! error message
+ integer(i4b), intent(in)               :: iEns                  ! runoff ensemble to be routed
+ type(basin),  intent(in), allocatable  :: river_basin(:)        ! river basin information (mainstem, tributary outlet etc.)
+ integer(i4b), intent(in)               :: ixDesire              ! index of the reach for verbose output ! Output
+ ! output variables
+ integer(i4b), intent(out)              :: ierr                  ! error code
+ character(*), intent(out)              :: message               ! error message
  ! Local variables to
- integer(i4b)                           :: nOuts          ! number of outlets
- integer(i4b)                           :: nTrib          ! number of tributary basins
- integer(i4b)                           :: jRank          ! ranked index of stream segment
- integer(i4b)                           :: iRch,jRch      ! loop indices
- integer(i4b)                           :: iOut           ! loop indices
- integer(i4b)                           :: iTrib,jTrib    ! loop indices
- integer(i4b)                           :: iLevel         ! loop indices
- integer(i4b)                           :: maxLevel,minLevel !
- character(len=strLen)                  :: cmessage       ! error message from subroutine
- !
+ integer(i4b)                           :: nOuts                 ! number of outlets
+ integer(i4b)                           :: nTrib                 ! number of tributary basins
+ integer(i4b)                           :: jRank                 ! ranked index of stream segment
+ integer(i4b)                           :: iRch,jRch             ! loop indices
+ integer(i4b)                           :: iOut                  ! loop indices
+ integer(i4b)                           :: iTrib,jTrib           ! loop indices
+ integer(i4b)                           :: iLevel                ! loop indices
+ integer(i4b)                           :: maxLevel,minLevel     ! max. and min. mainstem levels
+ character(len=strLen)                  :: cmessage              ! error message from subroutine
+ ! variables needed for timing
  integer(i4b)                           :: nThreads              ! number of threads
  integer(i4b)                           :: omp_get_num_threads   ! get the number of threads
  integer(i4b)                           :: omp_get_thread_num
@@ -96,6 +94,7 @@ contains
     if (.not. allocated(river_basin(iOut)%mainstem(iLevel)%segIndex)) cycle
     if (iLevel < minLevel) minLevel = iLevel
   end do
+
   nTrib=size(river_basin(iOut)%tributary)
 
   call date_and_time(values=startTime)
@@ -104,8 +103,8 @@ contains
 
   allocate(ixThread(nTrib), openMPend(nTrib), timeTrib(nTrib), timeTribStart(nTrib), timeTribCompleted(nTrib), stat=ierr)
   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to allocate space for Trib timing'; return; endif
-  timeTrib(:) = realMissing    ! initialize because used for ranking
-  ixThread(:) = integerMissing ! initialize because used for ranking
+  timeTrib(:) = realMissing
+  ixThread(:) = integerMissing
   ! 1. Route tributary reaches (parallel)
 !$OMP PARALLEL default(none)                            &
 !$OMP          private(jTrib, jRank, jRch, iRch)        & ! private for a given thread
@@ -127,9 +126,9 @@ contains
 !$    ixThread(iTrib) = omp_get_thread_num()
     call system_clock(timeTribStart(iTrib))
     jTrib = river_basin(iOut)%tributary_order(iTrib)
-    do iRch=1,river_basin(iOut)%tributary(iTrib)%nRch
-      jRank = river_basin(iOut)%tributary(iTrib)%segOrder(iRch)
-      jRch  = river_basin(iOut)%tributary(iTrib)%segIndex(jRank)
+    do iRch=1,river_basin(iOut)%tributary(jTrib)%nRch
+      jRank = river_basin(iOut)%tributary(jTrib)%segOrder(iRch)
+      jRch  = river_basin(iOut)%tributary(jTrib)%segIndex(jRank)
       call segment_irf(iEns, jRch, ixDesire, ierr, cmessage)
 !      if(ierr/=0)then; ixmessage(iTrib)=trim(message)//trim(cmessage); exit; endif
     end do
@@ -140,18 +139,17 @@ contains
 !$OMP END DO
 !$OMP END PARALLEL
 
-  write(*,'(a)') 'iTrib jTrib nSeg ixThread nThreads StartTime EndTime'
-  do iTrib=nTrib,1,-1
-    jTrib = river_basin(iOut)%tributary_order(iTrib)
-!    write(*,'(5(i4,1x),2(I20,1x))') nTrib-iTrib+1, jTrib, river_basin(iOut)%tributary(jTrib)%nRch, ixThread(jTrib), nThreads, timeTribStart(jTrib), openMPend(jTrib)
-    write(*,'(5(i4,1x),2(I20,1x))') nTrib-iTrib+1, jTrib, river_basin(iOut)%tributary(jTrib)%nRch, ixThread(iTrib), nThreads, timeTribStart(iTrib), openMPend(iTrib)
-  enddo
+!  write(*,'(a)') 'iTrib jTrib nSeg ixThread nThreads StartTime EndTime'
+!  do iTrib=nTrib,1,-1
+!    jTrib = river_basin(iOut)%tributary_order(iTrib)
+!    write(*,'(5(i5,1x),2(I20,1x))') nTrib-iTrib+1, jTrib, river_basin(iOut)%tributary(jTrib)%nRch, ixThread(iTrib), nThreads, timeTribStart(iTrib), openMPend(iTrib)
+!  enddo
   deallocate(ixThread, timeTrib, timeTribStart, timeTribCompleted, stat=ierr)
   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to deallocate space for Trib timing'; return; endif
 
   call date_and_time(values=endTrib)
   elapsedTrib = elapsedTrib + elapsedSec(startTrib, endTrib)
- ! write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTrib, ' s'
+  write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTrib, ' s'
 
    call date_and_time(values=startMain)
    ! 2. Route mainstems (serial)
@@ -173,7 +171,6 @@ contains
 ! write(*,"(A,1PG15.7,A)") '  total elapsed one time step = ', elapsedTime, ' s'
 
  end subroutine irf_route
-
 
 
  ! *********************************************************************
