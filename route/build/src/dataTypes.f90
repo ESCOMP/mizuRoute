@@ -76,8 +76,6 @@ implicit none
 
  type,public :: basin
   integer(i4b)                 :: outIndex             ! index of outlet segment based on segment array
-  logical(lgt)                 :: isMajor              ! logical to indicate this is major basin (num of seg > threshold)
-  integer(i4b),allocatable     :: tributary_order(:)   ! index of ordered tributary index based on number of tributary segments
   type(reach), allocatable     :: mainstem(:)          ! mainstem level
   type(reach), allocatable     :: tributary(:)         ! index of tributary outlet segment
  end type basin

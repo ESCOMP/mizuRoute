@@ -385,7 +385,7 @@ do iTime=1,nTime
   jtime=1
 
   ! update filename
-  write(fileout,'(a,3(i0,a))') trim(output_dir)//'runoff_', modTime%iy, '-', modTime%im, '-', modTime%id, '.nc'
+  write(fileout,'(a,3(i0,a))') trim(output_dir)//trim(fname_output)//'_', modTime%iy, '-', modTime%im, '-', modTime%id, '.nc'
 
   ! define output file
   call defineFile(trim(fileout),                         &  ! input: file name
@@ -483,8 +483,6 @@ do iTime=1,nTime
 
   ! kinematic wave routing
   call kwt_route(iens,                 & ! input: ensemble index
-!                 nRch,                 & ! input: number of reach in the river network
-!                 ixOutlet,             & ! input: index of the outlet reach
                  river_basin,          & ! input: river basin data type
                  T0,T1,                & ! input: start and end of the time step
                  ixDesire,             & ! input: index of the desired reach
@@ -502,7 +500,6 @@ do iTime=1,nTime
 
   ! IRF routing
   call irf_route(iens,                 & ! input: ensemble index
-!                 nRch,                 & ! input: number of reach in the river network
                  river_basin,          & ! input: river basin data type
                  ixDesire,             & ! input: index of the desired reach
                  ierr,cmessage)          ! output: error control
