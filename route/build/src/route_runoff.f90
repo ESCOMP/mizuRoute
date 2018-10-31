@@ -75,11 +75,12 @@ USE remapping,   only : basin2reach           ! remap runoff from routing basins
 ! subroutines: river routing
 USE accum_runoff_module, only : accum_runoff  ! upstream flow accumulation
 USE kwt_route_module,    only : kwt_route     ! kinematic wave routing method
-USE irf_route_module,    only : irf_route     ! river network unit hydrograph method
+!USE kwt_route_module,    only : kwt_route => kwt_route_orig   ! kinematic wave routing method
 
 ! subroutines: river network unit hydrograph routing
 USE irf_route_module, only : make_uh          ! reach unit hydrograph
 USE irf_route_module, only : irf_route        ! river network unit hydrograph method
+!USE irf_route_module,    only : irf_route => irf_route_orig    ! river network unit hydrograph method
 
 ! ******
 ! define variables

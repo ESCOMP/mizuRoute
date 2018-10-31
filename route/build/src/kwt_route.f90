@@ -18,6 +18,7 @@ implicit none
 private
 
 public::kwt_route
+public::kwt_route_orig
 
 contains
 
@@ -40,14 +41,15 @@ contains
  integer(i4b), intent(out)              :: ierr                  ! error code
  character(*), intent(out)              :: message               ! error message
  ! local variables
+ integer(i4b)                           :: LAKEFLAG=0            ! >0 if processing lakes
  integer(i4b)                           :: nOuts                 ! number of outlets
  integer(i4b)                           :: nTrib                 ! number of tributary basins
- integer(i4b)                           :: LAKEFLAG=0            ! >0 if processing lakes
- integer(i4b)                           :: jRank                 ! ranked index of stream segment
- integer(i4b)                           :: iRch, jRch            ! reach indices
- integer(i4b)                           :: iOut                  ! loop indices
- integer(i4b)                           :: iTrib                 ! loop indices
- integer(i4b)                           :: iLevel                ! loop indices
+ integer(i4b)                           :: nStem                 ! number of mainstem in each level
+ integer(i4b)                           :: iRch, jRch            ! loop indices - reach
+ integer(i4b)                           :: iOut                  ! loop indices - basin outlet
+ integer(i4b)                           :: iTrib                 ! loop indices - tributary
+ integer(i4b)                           :: iLevel                ! loop indices - mainstem level
+ integer(i4b)                           :: iStem                 ! loop inidces - mainstem
  integer(i4b)                           :: maxLevel,minLevel     ! max. and min. mainstem levels
  character(len=strLen)                  :: cmessage              ! error message for downwind routine
  ! variables needed for timing
@@ -74,13 +76,13 @@ contains
  do iOut=1,nOuts
 
    maxLevel = 1
-   do iLevel=1,size(river_basin(iOut)%mainstem)
-     if (.not. allocated(river_basin(iOut)%mainstem(iLevel)%segIndex)) cycle
+   do iLevel=1,size(river_basin(iOut)%level)
+     if (.not. allocated(river_basin(iOut)%level(iLevel)%mainstem)) cycle
      if (iLevel > maxLevel) maxLevel = iLevel
    end do
-   minLevel = size(river_basin(iOut)%mainstem)
+   minLevel = size(river_basin(iOut)%level)
    do iLevel=maxLevel,1,-1
-     if (.not. allocated(river_basin(iOut)%mainstem(iLevel)%segIndex)) cycle
+     if (.not. allocated(river_basin(iOut)%level(iLevel)%mainstem)) cycle
      if (iLevel < minLevel) minLevel = iLevel
    end do
 
@@ -132,49 +134,64 @@ contains
 
    call system_clock(endTrib)
    elapsedTrib = real(endTrib-startTime, kind(dp))/10e8_dp
-!   write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTrib, ' s'
+   write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTrib, ' s'
 
-   write(*,'(a)') 'iTrib nSeg ixThread nThreads StartTime EndTime'
-   do iTrib=1,nTrib
-     write(*,'(4(i5,1x),2(I20,1x))') iTrib, river_basin(iOut)%tributary(iTrib)%nRch, ixThread(iTrib), nThreads, timeTribStart(iTrib), openMPend(iTrib)
-   enddo
-   deallocate(ixThread, timeTrib, timeTribStart, stat=ierr)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to deallocate space for Trib timing'; return; endif
+!   write(*,'(a)') 'iTrib nSeg ixThread nThreads StartTime EndTime'
+!   do iTrib=1,nTrib
+!     write(*,'(4(i5,1x),2(I20,1x))') iTrib, river_basin(iOut)%tributary(iTrib)%nRch, ixThread(iTrib), nThreads, timeTribStart(iTrib), openMPend(iTrib)
+!   enddo
+!   deallocate(ixThread, timeTrib, timeTribStart, stat=ierr)
+!   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to deallocate space for Trib timing'; return; endif
 
-   call system_clock(startMain)
    ! 2. Route mainstems (serial)
+   call system_clock(startMain)
    do iLevel=maxLevel,minLevel,-1
-     do iRch=1,river_basin(iOut)%mainstem(iLevel)%nRch
-       jRank = river_basin(iOut)%mainstem(iLevel)%segOrder(iRch)
-       jRch  = river_basin(iOut)%mainstem(iLevel)%segIndex(jRank)
-      ! route kinematic waves through the river network
-      call QROUTE_RCH(iens,jRch,           & ! input: array indices
-                      ixDesire,            & ! input: index of the desired reach
-                      T0,T1,               & ! input: start and end of the time step
-                      LAKEFLAG,            & ! input: flag if lakes are to be processed
-                      ierr,cmessage)         ! output: error control
-       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-     end do
+     nStem = size(river_basin(iOut)%level(iLevel)%mainstem)
+!$OMP PARALLEL default(none)                            &
+!$OMP          private(jRch, iRch)                      & ! private for a given thread
+!$OMP          private(iStem)                           & ! private for a given thread
+!$OMP          private(ierr, cmessage)                  & ! private for a given thread
+!$OMP          shared(T0,T1)                            & ! private for a given thread
+!$OMP          shared(LAKEFLAG)                         & ! private for a given thread
+!$OMP          shared(river_basin)                      & ! data structure shared
+!$OMP          shared(iLevel)                           & ! private for a given thread
+!$OMP          shared(iEns, iOut, ixDesire)             & ! indices shared
+!$OMP          firstprivate(nStem)
+!$OMP DO schedule(dynamic,1)
+     do iStem = 1,nStem
+       do iRch=1,river_basin(iOut)%level(iLevel)%mainstem(iStem)%nRch
+         jRch = river_basin(iOut)%level(iLevel)%mainstem(iStem)%segIndex(iRch)
+         ! route kinematic waves through the river network
+         call QROUTE_RCH(iens,jRch,           & ! input: array indices
+                         ixDesire,            & ! input: index of the desired reach
+                         T0,T1,               & ! input: start and end of the time step
+                         LAKEFLAG,            & ! input: flag if lakes are to be processed
+                         ierr,cmessage)         ! output: error control
+!         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       end do
+     enddo
+!$OMP END DO
+!$OMP END PARALLEL
    end do
    call system_clock(endMain)
    elapsedMain = real(endMain-startMain, kind(dp))/10e8_dp
-!   write(*,"(A,1PG15.7,A)") '  total elapsed main stem = ', elapsedMain, ' s'
+   write(*,"(A,1PG15.7,A)") '  total elapsed mainstem = ', elapsedMain, ' s'
 
  end do
  call system_clock(endTime)
  elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
-! write(*,"(A,1PG15.7,A)") '  total elapsed one time step = ', elapsedTime, ' s'
+ write(*,"(A,1PG15.7,A)") '  total elapsed entire = ', elapsedTime, ' s'
 
  END SUBROUTINE kwt_route
 
 
- SUBROUTINE kwt_route1(iens,                 & ! input: ensemble index
-                      river_basin,          & ! input: river basin information (mainstem, tributary outlet etc.)
-                      T0,T1,                & ! input: start and end of the time step
-                      ixDesire,             & ! input: reachID to be checked by on-screen pringing
-                      ierr,message)           ! output: error control
-  USE dataTypes,  only : basin                 ! river basin data type
-  USE globalData, only : NETOPO     ! Network topology
+ SUBROUTINE kwt_route_orig(iens,                 & ! input: ensemble index
+                           river_basin,          & ! input: river basin information (mainstem, tributary outlet etc.)
+                           T0,T1,                & ! input: start and end of the time step
+                           ixDesire,             & ! input: reachID to be checked by on-screen pringing
+                           ierr,message)           ! output: error control
+  USE dataTypes,  only : basin                     ! river basin data type
+  USE globalData, only : NETOPO                    ! Network topology
   implicit none
   ! Input
    integer(i4b), intent(in)                    :: iens          ! ensemble member
@@ -193,7 +210,7 @@ contains
    real(dp)                                    :: elapsedTime   ! elapsed time for the process
 
   ! initialize error control
-  ierr=0; message='kwt_route/'
+  ierr=0; message='kwt_route_orig/'
 
   call system_clock(startTime)
   nRch = size(NETOPO)
@@ -215,9 +232,9 @@ contains
 
   call system_clock(endTime)
   elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
-  write(*,"(A,1PG15.7,A)") '  elapsed one time step = ', elapsedTime, ' s'
+  write(*,"(A,1PG15.7,A)") '  total elapsed entire = ', elapsedTime, ' s'
 
- END SUBROUTINE kwt_route1
+ END SUBROUTINE kwt_route_orig
 
  ! *********************************************************************
  ! subroutine: route kinematic waves at one segment
