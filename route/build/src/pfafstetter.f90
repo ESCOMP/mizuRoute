@@ -370,7 +370,7 @@ contains
 !       end do
 !       write(*,'(A,I4,x,I1)') pfafs(iSeg), level1, dangle
 !     end do
-     stop
+!     stop
 
   end do ! outlet loop
 

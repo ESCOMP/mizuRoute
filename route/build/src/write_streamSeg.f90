@@ -158,7 +158,7 @@ contains
  ! ---------- create file ----------------------------------------------------------------------------------------
 
  ! create file
- ierr = nf90_create(trim(fname), nf90_classic_model, ncid)
+ ierr = nf90_create(trim(fname), NF90_64BIT_OFFSET, ncid)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  ! ---------- define dimensions ----------------------------------------------------------------------------------

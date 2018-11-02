@@ -305,12 +305,14 @@ contains
                  ! input
                  idSegOut,      &  ! input: reach index
                  structNTOPO,   &  ! input: network topology structures
+                 structSeg,     &  ! input: river reach properties
                  nHRU,          &  ! input: number of HRUs
                  nSeg,          &  ! input: number of reaches
                  ! output: updated dimensions
                  tot_hru,       &  ! input+output: total number of all the upstream hrus for all stream segments
                  tot_upseg,     &  ! input+output: sum of immediate upstream segments
                  tot_upstream,  &  ! input+output: total number of upstream reaches for all reaches
+                 tot_uh,        &  ! input+output: total number of unit hydrograph dimensions
                  ! output: dimension masks
                  ixHRU_desired, &  ! output: indices of desired hrus
                  ixSeg_desired, &  ! output: indices of desired reaches

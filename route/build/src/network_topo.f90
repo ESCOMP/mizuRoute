@@ -682,12 +682,14 @@ contains
                        ! input
                        desireId,      &  ! input: reach index
                        structNTOPO,   &  ! input: network topology structures
+                       structSeg,     &  ! input: Reach property structures
                        nHRU,          &  ! input: number of HRUs
                        nRch,          &  ! input: number of reaches
                        ! output: updated dimensions
                        tot_hru,       &  ! input+output: total number of all the upstream hrus for all stream segments
                        tot_upseg,     &  ! input+output: sum of immediate upstream segments
                        tot_upstream,  &  ! input+output: total number of upstream reaches for all reaches
+                       tot_uh,        &  ! input+output: total number of unit hydrograph dimensions
                        ! output: dimension masks
                        ixHRU_desired, &  ! output: indices of desired hrus
                        ixSeg_desired, &  ! output: indices of desired reaches
@@ -705,12 +707,14 @@ contains
  ! input variables
  integer(i4b)      , intent(in)                :: desireId          ! id of the desired reach
  type(var_ilength) , intent(inout)             :: structNTOPO(:)    ! network topology structure
+ type(var_dlength) , intent(in)                :: structSeg(:)      ! stream segment properties
  integer(i4b)      , intent(in)                :: nHRU              ! number of HRUs
  integer(i4b)      , intent(in)                :: nRch              ! number of reaches
  ! input+output: updated dimensions
  integer(i4b)      , intent(inout)             :: tot_hru           ! total number of all the upstream hrus for all stream segments
  integer(i4b)      , intent(inout)             :: tot_upseg         ! sum of immediate upstream segments
  integer(i4b)      , intent(inout)             :: tot_upstream      ! total number of upstream reaches for all reaches
+ integer(i4b)      , intent(inout)             :: tot_uh            ! total number of unit hydrograph dimensions
  ! output: dimension masks
  integer(i4b)      , intent(out) , allocatable :: ixHRU_desired(:)  ! indices of desired hrus
  integer(i4b)      , intent(out) , allocatable :: ixSeg_desired(:)  ! indices of desired reaches
@@ -799,11 +803,13 @@ contains
   tot_hru       = 0  ! total number of all the upstream hrus for all stream segments
   tot_upseg     = 0  ! sum of immediate upstream segments
   tot_upstream  = 0  ! total number of upstream reaches for all reaches
+  tot_uh        = 0  ! total number of unit hydrograph dimensions
   ! get the updated dimensions
   do iRch=1,nRch_desire
    tot_hru      = tot_hru      + structNTOPO( ixSeg_desired(iRch) )%var(ixNTOPO%nHRU)%dat(1)
    tot_upseg    = tot_upseg    + size(structNTOPO( ixSeg_desired(iRch) )%var(ixNTOPO%upSegIds)%dat)
    tot_upstream = tot_upstream + size(structNTOPO( ixSeg_desired(iRch) )%var(ixNTOPO%allUpSegIndices)%dat)
+   tot_uh       = tot_uh       + size(structSeg(   ixSeg_desired(iRch) )%var(ixSEG%timeDelayHist)%dat)
   end do
 
  endif  ! if the mask is desired
