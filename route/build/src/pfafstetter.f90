@@ -53,12 +53,12 @@ contains
   integer(i4b)                                :: rankSegOrder(nSeg)     ! ranked reach order for all the segments
   integer(i4b), allocatable                   :: segIndex_out(:)        ! index for outlet segment
   integer(i4b)                                :: level                  ! manstem level
-  integer(i4b)                                :: counter,counter1       ! counter
+  integer(i4b)                                :: nMains,nUpSegMain      ! number of mainstems in a level, and number of segments in a mainstem
   integer(i4b)                                :: nOuts                  ! number of outlets
   integer(i4b)                                :: nUpSegs                ! number of upstream segments for a specified segment
   integer(i4b)                                :: nTrib                  ! Number of Tributary basins
   integer(i4b), allocatable                   :: nSegTrib(:)            ! Number of segments in each tributary basin
-  integer(i4b), allocatable                   :: rankTrib(:)         ! index for ranked tributary based on num. of upstream reaches
+  integer(i4b), allocatable                   :: rankTrib(:)            ! index for ranked tributary based on num. of upstream reaches
   integer(i4b), allocatable                   :: segOrderTrib(:)        ! index for tributary upstream reach order
   integer(i4b), allocatable                   :: segMain(:)             ! index for segment in one mainstem
   integer(i4b), allocatable                   :: segOrderMain(:)        ! index for ordered segment in one mainstem
@@ -68,13 +68,10 @@ contains
   integer(i4b)                                :: iTrib,jTrib            ! loop indices
 !  integer(i4b)                                :: i1,i2,jLevel,level1,dangle
 !  integer*8                                   :: startTime,startTime1   ! time stamp [nanosec]
-!  integer*8                                   :: startTime2,startTime3  ! time stamp [nanosec]
 !  integer*8                                   :: endTime                ! time stamp [nanosec]
 !  real(dp)                                    :: elapsedTime            ! elapsed time for the process
 
   ierr=0; message='classify_river_basin/'
-
-!  call system_clock(startTime)
 
   forall(iSeg=1:nSeg) pfafs(iSeg)     = structPFAF(iSeg)%var(ixPFAF%code)%dat(1)
   forall(iSeg=1:nSeg) downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
@@ -88,7 +85,6 @@ contains
 
   allocate(river_basin(nOuts), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating river_basin'; return; endif
-
   allocate(pfaf_out(nOuts), segIndex_out(nOuts), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating [pfaf_out, segIndex_out]'; return; endif
 
@@ -96,13 +92,7 @@ contains
   pfaf_out = pack(pfafs, downIndex<0)
   segIndex_out = pack(segIndex, downIndex<0)
 
-!  call system_clock(endTime)
-!  elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
-!  write(*,"(A,1PG15.7,A)") ' total-elapsed [preprocess] = ', elapsedTime, ' s'
-
   do iOut = 1,nOuts
-
-!    call system_clock(startTime1)
 
     print*, 'working on outlet:'//trim(adjustl(pfaf_out(iOut)))
 
@@ -142,12 +132,8 @@ contains
     allocate(segOrderMain(size(msPos)), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating segOrderMain'; return; endif
 
-!    call system_clock(startTime)
     ! Compute reach order for mainstem segment
     call indexx(rankSegOrder(msPos), segOrderMain)
-!    call system_clock(endTime)
-!    elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
-!    write(*,"(A,1PG15.7,A)") '      elapsed-time [subset_order] = ', elapsedTime, ' s'
 
     river_basin(iOut)%level(level)%mainstem(1)%segIndex(1:size(msPos))  = msPos(segOrderMain)
     river_basin(iOut)%level(level)%mainstem(1)%nRch = size(msPos)
@@ -164,13 +150,8 @@ contains
     deallocate(mainstems, segIndex_out, segOrderMain, stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem deallocating mainstems'; return; endif
 
-!    call system_clock(endTime)
-!    elapsedTime = real(endTime-startTime1, kind(dp))/10e8_dp
-!    write(*,"(A,1PG15.7,A)") ' total elapsed-time [lowest level mainstem] = ', elapsedTime, ' s'
-
     do
       level = level + 1
-
       print*, 'Mainstem Level = ', level
 
       ! number of tributary basins
@@ -190,22 +171,18 @@ contains
       ! rank the tributary outlets based on number of upstream segments
       call indexx(nSegTrib, rankTrib)
 
-!      call system_clock(startTime)
       ! Identify mainstems of large tributaries (# of segments > maxSeg) and update updated_mainstems.
       done=.true.
-      counter = 0
+      nMains = 0
       do iTrib=nTrib,1,-1
         if (nSegTrib(rankTrib(iTrib)) > maxSegs) then
            write(*,'(A,A,I5)') 'Exceed maximum number of segments: ', pfafs(trPos(rankTrib(iTrib))), nSegTrib(rankTrib(iTrib))
-           counter=counter+1
+           nMains=nMains+1
            done=.false.
         else
            exit
         endif
       end do
-!      call system_clock(endTime)
-!      elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
-!      write(*,"(A,1PG15.7,A)") ' total elapsed-time [checked if main/trib update needed] = ', elapsedTime, ' s'
 
       if (done) then ! if no mainstem/tributary updated, update tributary reach info, and then exist loop
 
@@ -227,17 +204,11 @@ contains
           allocate(segOrderTrib(nSegTrib(rankTrib(iTrib))), stat=ierr)
           if(ierr/=0)then; message=trim(message)//'problem allocating segOrderTrib'; return; endif
 
-!          call system_clock(startTime1)
           ! compute reach order for tributary segments
           associate( segIndexTrib => structNTOPO(trPos(rankTrib(iTrib)))%var(ixNTOPO%allUpSegIndices)%dat)
           call indexx(rankSegOrder(segIndexTrib), segOrderTrib)
           river_basin(iOut)%tributary(jTrib)%segIndex(:) = segIndexTrib(segOrderTrib)
           end associate
-!          if (mod(jTrib,1000)==0) then
-!          call system_clock(endTime)
-!          elapsedTime = real(endTime-startTime1, kind(dp))/10e8_dp
-!          write(*,"(A,1PG15.7,A)") '      elapsed-time [comp. Trib. reach order] = ', elapsedTime, ' s'
-!          endif
 
           ! compute number of segments in each tributary
           river_basin(iOut)%tributary(jTrib)%nRch = nSegTrib(rankTrib(iTrib))
@@ -257,24 +228,16 @@ contains
 
       else ! if mainstem/tributary updated, store mainstem reach info at current level, update lgc_trib_outlet and go onto next level
 
-!        call system_clock(startTime)
-        allocate(river_basin(iOut)%level(level)%mainstem(counter), stat=ierr)
+        allocate(river_basin(iOut)%level(level)%mainstem(nMains), stat=ierr)
         if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(iOut)%level(level)%mainstem'; return; endif
 
-        do iTrib=nTrib,nTrib-counter+1,-1
+        do iTrib=nTrib,nTrib-nMains+1,-1
 
 !          if (mod(nTrib-iTrib+1,10)==0) print*, 'iTrib = ', nTrib-iTrib+1
-
 !          call system_clock(startTime1)
 
-!          call system_clock(startTime2)
           ! Outlet mainstem code
           outMainstemCode = mainstem_code(pfafs(trPos(rankTrib(iTrib))))
-!          if (mod(nTrib-iTrib+1,10)==0) then
-!          call system_clock(endTime)
-!          elapsedTime = real(endTime-startTime2, kind(dp))/10e8_dp
-!          write(*,"(A,1PG15.7,A)") '      elapsed-time [update main/trib]:mainstem_code = ', elapsedTime, ' s'
-!          endif
 
           associate(upSegIndex => structNTOPO(trPos(rankTrib(iTrib)))%var(ixNTOPO%allUpSegIndices)%dat)
 
@@ -283,36 +246,24 @@ contains
           allocate(segMain(nUpSegs), stat=ierr)
           if(ierr/=0)then; message=trim(message)//'problem allocating [segMain]'; return; endif
 
-!          call system_clock(startTime2)
-          counter1 = 0
+          nUpSegMain = 0
           do jSeg=1,nUpSegs
             upPfaf = pfafs(upSegIndex(jSeg))
             if (trim(mainstem_code(upPfaf)) /= trim(outMainstemCode)) cycle
             updated_mainstems(upSegIndex(jSeg),level) = .true.
-            counter1 = counter1+1
-            segMain(counter1) = upSegIndex(jSeg)
+            nUpSegMain = nUpSegMain+1
+            segMain(nUpSegMain) = upSegIndex(jSeg)
           end do
-!          if (mod(nTrib-iTrib+1,10)==0) then
-!          call system_clock(endTime)
-!          elapsedTime = real(endTime-startTime2, kind(dp))/10e8_dp
-!          write(*,"(A,1PG15.7,A)") '      elapsed-time [update main/trib]:collect mainstem seg = ', elapsedTime, ' s'
-!          endif
 
-          allocate(river_basin(iOut)%level(level)%mainstem(nTrib-iTrib+1)%segIndex(counter1), stat=ierr)
-          if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(iOut)%level(level)%mainstem(counter)%segIndex'; return; endif
-          allocate(segOrderMain(counter1), stat=ierr)
+          allocate(river_basin(iOut)%level(level)%mainstem(nTrib-iTrib+1)%segIndex(nUpSegMain), stat=ierr)
+          if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(iOut)%level(level)%mainstem(nUpSegMain)%segIndex'; return; endif
+          allocate(segOrderMain(nUpSegMain), stat=ierr)
           if(ierr/=0)then; message=trim(message)//'problem allocating segOrderMain'; return; endif
 
-          river_basin(iOut)%level(level)%mainstem(nTrib-iTrib+1)%nRch = counter1
+          river_basin(iOut)%level(level)%mainstem(nTrib-iTrib+1)%nRch = nUpSegMain
 
-!          call system_clock(startTime2)
-          call indexx(rankSegOrder(segMain(1:counter1)), segOrderMain)
+          call indexx(rankSegOrder(segMain(1:nUpSegMain)), segOrderMain)
           river_basin(iOut)%level(level)%mainstem(nTrib-iTrib+1)%segIndex(:) = segMain(segOrderMain)
-!          if (mod(nTrib-iTrib+1,10)==0) then
-!          call system_clock(endTime)
-!          elapsedTime = real(endTime-startTime2, kind(dp))/10e8_dp
-!          write(*,"(A,1PG15.7,A)") '      elapsed-time [update main/trib]:subset_order = ', elapsedTime, ' s'
-!          endif
 
           end associate
 
@@ -334,18 +285,12 @@ contains
         deallocate(nSegTrib, rankTrib, stat=ierr)
         if(ierr/=0)then; message=trim(message)//'problem deallocating [nSegTrib, rankTrib]'; return; endif
 
-!        call system_clock(endTime)
-!        elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
-!        write(*,"(A,1PG15.7,A)") ' total elapsed-time [update trib] = ', elapsedTime, ' s'
-
       endif
     end do ! end of tributary update loop
 
 !     do iTrib=1,nTrib
-!        associate(jTrib => river_basin(iOut)%tributary_order(iTrib))
-!        nUpSegs=size(river_basin(iOut)%tributary(jTrib)%segOrder)
-!        print*,'iTrib, jTrib, nUpSegs = ', iTrib, jTrib, nUpSegs
-!        end associate
+!        nUpSegs=size(river_basin(iOut)%tributary(iTrib)%segOrder)
+!        print*,'iTrib, nUpSegs = ', iTrib, nUpSegs
 !     end do
 
 !     do iSeg=1,nSeg
