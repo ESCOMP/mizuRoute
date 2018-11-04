@@ -3,7 +3,8 @@ USE nrtype
 USE public_var
 USE dataTypes,  only : var_clength         ! character type:   var(:)%dat
 USE dataTypes,  only : var_ilength         ! integer type:     var(:)%dat
-USE dataTypes,  only : basin               ! integer type:     var(:)%dat
+USE dataTypes,  only : basin               !
+USE dataTypes,  only : reach               !
 USE var_lookup, only : ixPFAF              ! index of variables for the pfafstetter code
 USE var_lookup, only : ixNTOPO             ! index of variables for the pfafstetter code
 USE nr_utility_module, ONLY: indexx        ! Num. Recipies utilities
@@ -36,6 +37,7 @@ contains
   integer(i4b),                   intent(out) :: ierr
   character(len=strLen),          intent(out) :: message                ! error message
   ! Local variables
+  type(reach), allocatable                    :: tmpMainstem(:)         ! temporary reach structure for mainstem
   character(len=strLen)                       :: cmessage               ! error message from subroutine
   character(len=32)                           :: pfafs(nSeg)            ! pfaf_codes for all the segment
   character(len=32), allocatable              :: pfaf_out(:)            ! pfaf_codes for outlet segments
@@ -58,7 +60,9 @@ contains
   integer(i4b)                                :: nUpSegs                ! number of upstream segments for a specified segment
   integer(i4b)                                :: nTrib                  ! Number of Tributary basins
   integer(i4b), allocatable                   :: nSegTrib(:)            ! Number of segments in each tributary basin
+  integer(i4b), allocatable                   :: nSegMain(:)            ! number of mainstem only segments excluding tributary segments
   integer(i4b), allocatable                   :: rankTrib(:)            ! index for ranked tributary based on num. of upstream reaches
+  integer(i4b), allocatable                   :: rankMain(:)            ! index for ranked mainstem based on num. of mainstem reaches
   integer(i4b), allocatable                   :: segOrderTrib(:)        ! index for tributary upstream reach order
   integer(i4b), allocatable                   :: segMain(:)             ! index for segment in one mainstem
   integer(i4b), allocatable                   :: segOrderMain(:)        ! index for ordered segment in one mainstem
@@ -66,6 +70,7 @@ contains
   integer(i4b), allocatable                   :: msPos(:)               ! mainstem indices
   integer(i4b)                                :: iSeg,jSeg,iOut         ! loop indices
   integer(i4b)                                :: iTrib,jTrib            ! loop indices
+  integer(i4b)                                :: iMain,jMain            ! loop indices
 !  integer(i4b)                                :: i1,i2,jLevel,level1,dangle
 !  integer*8                                   :: startTime,startTime1   ! time stamp [nanosec]
 !  integer*8                                   :: endTime                ! time stamp [nanosec]
@@ -230,6 +235,10 @@ contains
 
         allocate(river_basin(iOut)%level(level)%mainstem(nMains), stat=ierr)
         if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(iOut)%level(level)%mainstem'; return; endif
+        allocate(tmpMainstem(nMains), stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem allocating tmpMainstem'; return; endif
+        allocate(nSegMain(nMains), rankMain(nMains), stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem allocating [nSegMain,rankMain]'; return; endif
 
         do iTrib=nTrib,nTrib-nMains+1,-1
 
@@ -255,20 +264,19 @@ contains
             segMain(nUpSegMain) = upSegIndex(jSeg)
           end do
 
-          allocate(river_basin(iOut)%level(level)%mainstem(nTrib-iTrib+1)%segIndex(nUpSegMain), stat=ierr)
-          if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(iOut)%level(level)%mainstem(nUpSegMain)%segIndex'; return; endif
+          allocate(tmpMainstem(nTrib-iTrib+1)%segIndex(nUpSegMain), stat=ierr)
+          if(ierr/=0)then; message=trim(message)//'problem allocating tmpMainstem(nUpSegMain)%segIndex'; return; endif
           allocate(segOrderMain(nUpSegMain), stat=ierr)
           if(ierr/=0)then; message=trim(message)//'problem allocating segOrderMain'; return; endif
 
-          river_basin(iOut)%level(level)%mainstem(nTrib-iTrib+1)%nRch = nUpSegMain
-
           call indexx(rankSegOrder(segMain(1:nUpSegMain)), segOrderMain)
-          river_basin(iOut)%level(level)%mainstem(nTrib-iTrib+1)%segIndex(:) = segMain(segOrderMain)
+          tmpMainstem(nTrib-iTrib+1)%segIndex(:) = segMain(segOrderMain)
+          nSegMain(nTrib-iTrib+1) = nUpSegMain
 
           end associate
 
           deallocate(segMain, segOrderMain, stat=ierr)
-          if(ierr/=0)then; message=trim(message)//'problem deallocating [nSegTrib, rankTrib]'; return; endif
+          if(ierr/=0)then; message=trim(message)//'problem deallocating [segMain, segOrderMain]'; return; endif
 
 !          if (mod(nTrib-iTrib+1,10)==0) then
 !          call system_clock(endTime)
@@ -278,10 +286,23 @@ contains
 
         end do ! tributary loop
 
+        ! rank the mainstem based on number of upstream segments (excluding tributaries)
+        call indexx(nSegMain, rankMain)
+        ! populate mainstem segment component in river basin structure
+        do iMain=1,nMains
+          jMain=rankMain(nMains-iMain+1)
+          allocate(river_basin(iOut)%level(level)%mainstem(iMain)%segIndex(nSegMain(jMain)), stat=ierr)
+          if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(iOut)%level(level)%mainstem(iMain)%segIndex'; return; endif
+          river_basin(iOut)%level(level)%mainstem(iMain)%segIndex(:) = tmpMainstem(jMain)%segIndex(:)
+          river_basin(iOut)%level(level)%mainstem(iMain)%nRch = nSegMain(jMain)
+        enddo
+
         ! update lgc_trib_outlet based on added mainstem
         call lgc_tributary_outlet(updated_mainstems(:,:level), downIndex, lgc_trib_outlet, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+        deallocate(tmpMainstem, nSegMain, rankMain, stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem deallocating [tmpMainstem,nSegMain,rankMain]'; return; endif
         deallocate(nSegTrib, rankTrib, stat=ierr)
         if(ierr/=0)then; message=trim(message)//'problem deallocating [nSegTrib, rankTrib]'; return; endif
 
