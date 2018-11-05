@@ -72,7 +72,7 @@ contains
   integer(i4b)                                :: iTrib,jTrib            ! loop indices
   integer(i4b)                                :: iMain,jMain            ! loop indices
 !  integer(i4b)                                :: i1,i2,jLevel,level1,dangle
-!  integer*8                                   :: startTime,startTime1   ! time stamp [nanosec]
+!  integer*8                                   :: startTime              ! time stamp [nanosec]
 !  integer*8                                   :: endTime                ! time stamp [nanosec]
 !  real(dp)                                    :: elapsedTime            ! elapsed time for the process
 
@@ -243,7 +243,7 @@ contains
         do iTrib=nTrib,nTrib-nMains+1,-1
 
 !          if (mod(nTrib-iTrib+1,10)==0) print*, 'iTrib = ', nTrib-iTrib+1
-!          call system_clock(startTime1)
+!          call system_clock(startTime)
 
           ! Outlet mainstem code
           outMainstemCode = mainstem_code(pfafs(trPos(rankTrib(iTrib))))
@@ -280,7 +280,7 @@ contains
 
 !          if (mod(nTrib-iTrib+1,10)==0) then
 !          call system_clock(endTime)
-!          elapsedTime = real(endTime-startTime1, kind(dp))/10e8_dp
+!          elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
 !          write(*,"(A,1PG15.7,A)") ' total elapsed-time [update trib each loop] = ', elapsedTime, ' s'
 !          endif
 
@@ -318,13 +318,16 @@ contains
 !       level1=-999
 !       dangle=0
 !       do jLevel =1,maxLevel
-!         if (allocated(river_basin(iOut)%mainstem(jLevel)%segIndex)) then
-!           i1 = findIndex(river_basin(iOut)%mainstem(jlevel)%segIndex, iSeg, -999)
-!           if (i1 /= -999) then
-!             level1 = jLevel
-!             exit
-!           end if
+!         if (allocated(river_basin(iOut)%level(jLevel)%mainstem)) then
+!           do iMain=1,size(river_basin(iOut)%level(jLevel)%mainstem)
+!             i1 = findIndex(river_basin(iOut)%level(jLevel)%mainstem(iMain)%segIndex, iSeg, -999)
+!             if (i1 /= -999) then
+!               level1 = jLevel
+!               exit
+!             end if
+!           enddo
 !         endif
+!         if (level1/=-999) exit
 !       end do
 !
 !       do iTrib=1,nTrib
@@ -341,34 +344,6 @@ contains
   end do ! outlet loop
 
  end subroutine classify_river_basin
-
-
- subroutine subset_order(order, subIndices, new_order, ierr, message)
-  ! Input variables
-  integer(i4b),              intent(in)       :: order(:)
-  integer(i4b),              intent(in)       :: subIndices(:)
-  ! Output variables
-  integer(i4b), allocatable, intent(out)      :: new_order(:)
-  integer(i4b),              intent(out)      :: ierr
-  character(len=strLen),     intent(out)      :: message          ! error message
-  ! local variables
-  integer(i4b)                                :: iSeg
-  integer(i4b), allocatable                   :: rank_order(:)
-  integer(i4b), allocatable                   :: tmp_order(:)
-
-  ierr=0; message='subset_order/'
-
-  allocate(rank_order(size(order)), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating rank_orderx'; return; endif
-  allocate(tmp_order(size(subIndices)), new_order(size(subIndices)), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating tmp_order or new_order'; return; endif
-
-  ! rank order
-  call indexx(order,rank_order)
-
-  call indexx(rank_order(subIndices), new_order)
-
- end subroutine subset_order
 
 
  subroutine lgc_tributary_outlet(mainstem, ixDown, isDangle, ierr, message)
@@ -667,19 +642,3 @@ contains
   end subroutine char2int_2d
 
 end module pfafstetter_module
-
-
-! JUNK LINES
-! print out mainstem, and tributary outlet
-  !  do iSeg=1,nSeg
-  !    level1=-999
-  !    dangle=0
-  !    do jLevel =1,maxLevel
-  !      if (updated_mainstems(iSeg,jLevel)) then
-  !        level1 = jLevel
-  !        exit
-  !      end if
-  !    end do
-  !   if (lgc_trib_outlet(iSeg)) dangle=1
-  !   write(*,'(A,I,I)') pfafs(iSeg), level1, dangle
-  !  end do
