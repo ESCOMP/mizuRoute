@@ -1,12 +1,12 @@
 MODULE pfafstetter_module
 USE nrtype
 USE public_var
-USE dataTypes,  only : var_clength         ! character type:   var(:)%dat
-USE dataTypes,  only : var_ilength         ! integer type:     var(:)%dat
-USE dataTypes,  only : basin               !
-USE dataTypes,  only : reach               !
-USE var_lookup, only : ixPFAF              ! index of variables for the pfafstetter code
-USE var_lookup, only : ixNTOPO             ! index of variables for the pfafstetter code
+USE dataTypes,         ONLY: var_clength   ! character type:   var(:)%dat
+USE dataTypes,         ONLY: var_ilength   ! integer type:     var(:)%dat
+USE dataTypes,         ONLY: basin         !
+USE dataTypes,         ONLY: reach         !
+USE var_lookup,        ONLY: ixPFAF        ! index of variables for the pfafstetter code
+USE var_lookup,        ONLY: ixNTOPO       ! index of variables for the netowork topolgy
 USE nr_utility_module, ONLY: indexx        ! Num. Recipies utilities
 USE nr_utility_module, ONLY: indexTrue     ! Num. Recipies utilities
 USE nr_utility_module, ONLY: findIndex     ! Num. Recipies utilities
@@ -48,7 +48,7 @@ contains
   logical(lgt),      allocatable              :: lgc_trib_outlet(:)     ! logical to indicate segment is outlet of tributary
   logical(lgt)                                :: done                   ! logical
   integer(i4b)                                :: maxSegs=100
-  integer(i4b)                                :: maxLevel=10
+  integer(i4b)                                :: maxLevel=20
   integer(i4b)                                :: downIndex(nSeg)        ! downstream segment index for all the segments
   integer(i4b)                                :: segIndex(nSeg)         ! reach index for all the segments
   integer(i4b)                                :: segOrder(nSeg)         ! reach order for all the segments
@@ -71,7 +71,16 @@ contains
   integer(i4b)                                :: iSeg,jSeg,iOut         ! loop indices
   integer(i4b)                                :: iTrib,jTrib            ! loop indices
   integer(i4b)                                :: iMain,jMain            ! loop indices
+
 !  integer(i4b)                                :: i1,i2,jLevel,level1,dangle
+!  integer(i4b)                                :: nUps
+!  integer(i4b), allocatable                   :: idxList(:)            ! mainstem indices
+!  integer(i4b)                                :: nSeg_tmp
+!  integer(i4b)                                :: MainOutIndex
+!  character(len=32)                           :: levelArray(nSeg)        !
+!  integer(i4b)                                :: tribNseg(nSeg)         !
+!  integer(i4b)                                :: tribIndex(nSeg)         !
+
 !  integer*8                                   :: startTime              ! time stamp [nanosec]
 !  integer*8                                   :: endTime                ! time stamp [nanosec]
 !  real(dp)                                    :: elapsedTime            ! elapsed time for the process
@@ -309,11 +318,85 @@ contains
       endif
     end do ! end of tributary update loop
 
+! ------------------------------------------------------------------
+! START PRINT OUT
+! ------------------------------------------------------------------
+!     1. Print out number of upstream reaches for each tributaries
 !     do iTrib=1,nTrib
 !        nUpSegs=size(river_basin(iOut)%tributary(iTrib)%segOrder)
 !        print*,'iTrib, nUpSegs = ', iTrib, nUpSegs
 !     end do
 
+!     2. Print out for each mainstem level
+!     write(*,'(A)') 'level mainstem nUps'
+!     do jLevel =1,maxLevel
+!       nMains = 0
+!       if (allocated(river_basin(iOut)%level(jLevel)%mainstem)) then
+!         nMains = size(river_basin(iOut)%level(jLevel)%mainstem)
+!         allocate(nSegMain(nMains))
+!         do iMain=1,nMains
+!           nSeg_tmp = size(river_basin(iOut)%level(jLevel)%mainstem(iMain)%segIndex)
+!           associate(idx => river_basin(iOut)%level(jLevel)%mainstem(iMain)%segIndex(nSeg_tmp))
+!           nSegMain(iMain) = size(structNTOPO(idx)%var(ixNTOPO%allUpSegIndices)%dat)
+!           end associate
+!           write(*,'(I2,x,I3,x,I8)') jLevel, iMain, nSegMain(iMain)
+!         enddo
+!         deallocate(nSegMain)
+!       endif
+!     enddo
+
+!     3. Print mainstem code if in one of the mainstems for each reach
+!     3.1. assign mainstem code to the reach that belong to that mainstem
+!     levelArray = '-999'
+!     do jLevel = 1,maxLevel
+!       if (allocated(river_basin(iOut)%level(jLevel)%mainstem)) then
+!         do iMain=1,size(river_basin(iOut)%level(jLevel)%mainstem)
+!           nSeg_tmp = size(river_basin(iOut)%level(jLevel)%mainstem(iMain)%segIndex)
+!           allocate(idxList(nSeg_tmp), stat=ierr)
+!           idxList(1:nSeg_tmp) = river_basin(iOut)%level(jLevel)%mainstem(iMain)%segIndex(1:nSeg_tmp)
+!           do iSeg = 1,size(idxList)
+!             levelArray(idxList(iSeg)) = trim(mainstem_code(pfafs(idxList(iSeg))))
+!           enddo
+!           deallocate(idxList, stat=ierr)
+!         enddo
+!       endif
+!     end do
+!     3.2. compute number of tributary reaches and assign the tributary indix to the reaches within that tribuary
+!     tribNseg = -999
+!     tribIndex = -999
+!     do iTrib=1,nTrib
+!       nUpSegs=size(river_basin(iOut)%tributary(iTrib)%segIndex)
+!       tribNseg(river_basin(iOut)%tributary(iTrib)%segIndex) = nUpSegs
+!       tribIndex(river_basin(iOut)%tributary(iTrib)%segIndex) = iTrib
+!     end do
+!     do iSeg=1,nSeg
+!       write(*,'(I10,x,A,x,I5,x,I5)') structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1), levelArray(iSeg), tribIndex(iSeg), tribNseg(iSeg)
+!     end do
+
+!     4. Print mainstem code of the basin that reach belongs to
+!     levelArray = '-999'
+!     do jLevel =maxLevel,1,-1
+!       if (allocated(river_basin(iOut)%level(jLevel)%mainstem)) then
+!         do iMain=1,size(river_basin(iOut)%level(jLevel)%mainstem)
+!           nSeg_tmp = size(river_basin(iOut)%level(jLevel)%mainstem(iMain)%segIndex)
+!           MainOutIndex = river_basin(iOut)%level(jLevel)%mainstem(iMain)%segIndex(nSeg_tmp)
+!           nUps = size(structNTOPO(MainOutIndex)%var(ixNTOPO%allUpSegIndices)%dat(:))
+!           allocate(idxList(nUps), stat=ierr)
+!           idxList(1:nUps) = structNTOPO(MainOutIndex)%var(ixNTOPO%allUpSegIndices)%dat(1:nUps)
+!           do iSeg = 1,size(idxList)
+!             if (trim(levelArray(idxList(iSeg))) == '-999') then
+!               levelArray(idxList(iSeg)) = trim(mainstem_code(pfafs(MainOutIndex)))
+!             endif
+!           enddo
+!           deallocate(idxList, stat=ierr)
+!         enddo
+!       endif
+!     end do
+!     do iSeg=1,nSeg
+!       write(*,'(I10,x,A)') structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1), levelArray(iSeg)
+!     end do
+
+!     5. Print mainstem level or tributary dangling logic if not in mainstem for each reach
 !     do iSeg=1,nSeg
 !       level1=-999
 !       dangle=0
@@ -329,17 +412,22 @@ contains
 !         endif
 !         if (level1/=-999) exit
 !       end do
-!
-!       do iTrib=1,nTrib
-!         nUpSegs=size(river_basin(iOut)%tributary(iTrib)%segIndex)
-!         if (iSeg == river_basin(iOut)%tributary(iTrib)%segIndex(nUpSegs)) then
-!           dangle=1
-!           exit
-!         end if
-!       end do
-!       write(*,'(A,I4,x,I1)') pfafs(iSeg), level1, dangle
+!       ! to get dangle
+!       if (level1==-999) exit
+!         do iTrib=1,nTrib
+!           nUpSegs=size(river_basin(iOut)%tributary(iTrib)%segIndex)
+!           if (iSeg == river_basin(iOut)%tributary(iTrib)%segIndex(nUpSegs)) then
+!             dangle=1
+!             exit
+!           end if
+!         end do
+!       endif
+!       write(*,'(I10,x,I4,x,I1)') structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1), level1, dangle
 !     end do
 !     stop
+! ------------------------------------------------------------------
+! END PRINT OUT
+! ------------------------------------------------------------------
 
   end do ! outlet loop
 
@@ -476,6 +564,7 @@ contains
   end do
 
  end function mainstem_code
+
 
  logical(lgt) function isUpstream(pfaf_a, pfaf_b)
 
