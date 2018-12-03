@@ -26,6 +26,9 @@ module globalData
   use dataTypes,  only : remap         ! remapping data type
   use dataTypes,  only : runoff        ! runoff data type
 
+  ! basin data structure
+  use dataTypes,  only : reach_class   ! reach category (store mainstem code or pfaf code)
+
   ! data size
   USE var_lookup, only : nStructures   ! number of variables for data structure
   USE var_lookup, only : nDimensions   ! number of variables for data structure
@@ -112,5 +115,9 @@ module globalData
   ! mapping structures
   type(remap)                    , public :: remap_data      ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
   type(runoff)                   , public :: runoff_data     ! runoff for one time step for all HRUs
+
+  ! basin structures
+  type(reach_class)              , public :: domains(500)    ! reach categories (use mainstem code or pfaf code) within each basin (max. domain = 50)
+  integer(i4b)                   , public :: ixDomain        ! domain counter
 
 end module globalData

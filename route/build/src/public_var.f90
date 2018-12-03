@@ -26,6 +26,7 @@ module public_var
   real(dp),    parameter,public   :: MinPosVal=1.e-10_dp    ! minimum value for positive value
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
   integer(i4b),          public   :: maxPfafLen=32          ! maximum digit of pfafstetter code (default 32)
+  integer(i4b),          public   :: nThresh=10000          ! maximum river segments in each river basin
   integer(i4b),parameter,public   :: integerMissing=-9999   ! missing value for integers
   real(dp),    parameter,public   :: realMissing=-9999._dp  ! missing value for real numbers
 

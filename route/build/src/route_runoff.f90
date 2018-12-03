@@ -56,8 +56,9 @@ USE write_netcdf,    only : write_nc          ! write a variable to the NetCDF f
 USE process_ntopo, only : ntopo               ! process the network topology
 USE getAncillary_module, only : getAncillary  ! get ancillary data
 
-! Subroutines : pfafstetter code
-USE pfafstetter_module,  only: classify_river_basin ! group river network segments into computational groups
+! Subroutines : domain decomposition routine
+USE domain_decomposition_module, only: classify_river_basin     ! group river network segments into computational groups
+USE domain_decomposition_module, only: classify_river_basin_mpi ! group river network segments into computational groups
 
 ! subroutines: model time info
 USE time_utils_module,   only : compCalday        ! compute calendar day
@@ -224,8 +225,13 @@ call getAncillary(&
 if(ierr/=0) call handle_err(ierr, cmessage)
 
 ! ----------  pfafstetter code process to group segments -------------------------------------------------------
-call classify_river_basin(nRch, structPFAF, structNTOPO, river_basin, ierr, cmessage)
+!call classify_river_basin(nRch, structPFAF, structNTOPO, river_basin, nThresh, ierr, cmessage)
+!if(ierr/=0) call handle_err(ierr, cmessage)
+
+call classify_river_basin_mpi(nRch, structPFAF, structNTOPO, nThresh, ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
+
+stop
 
 ! allocate space for the time data
 allocate(timeVec(ntime), stat=ierr)
