@@ -69,9 +69,8 @@ implicit none
  ! segIndex points to the segment in the entire river network data
  ! segOrder is order within subset of mainstem segments or tributary segments
  type,public :: reach_class
-  character(32), allocatable :: pfaf(:)               ! pfaf code or mainstem code
-  integer(i4b),  allocatable :: segIndex(:)           ! index of segment index
-  integer(i4b),  allocatable :: nRch(:)               ! number of reach
+  character(32)              :: pfaf                  ! mainstem or basin pfaf code for a reach class
+  integer(i4b),  allocatable :: segIndex(:)          ! reach indices within a reach class
  end type reach_class
 
  type,public :: reach

@@ -12,18 +12,20 @@ USE var_lookup,        ONLY: ixNTOPO       ! index of variables for the netowork
 USE nr_utility_module, ONLY: indexx        ! Num. Recipies utilities
 USE nr_utility_module, ONLY: indexTrue     ! Num. Recipies utilities
 USE nr_utility_module, ONLY: arth          ! Num. Recipies utilities
+USE nr_utility_module, ONLY: findIndex     ! Num. Recipies utilities
 
+USE globalData, only : domains      ! domain data structure
+USE globalData, only : ixDomain     ! count of domains
 implicit none
 
 private
 
-public :: classify_river_basin
+public :: classify_river_basin_omp
 public :: classify_river_basin_mpi
 
 contains
 
  subroutine classify_river_basin_mpi(nSeg, structPFAF, structNTOPO, maxSegs, ierr, message)
-   USE globalData, only : ixDomain     ! count of domains
    ! Domain decomposition wrapper
    implicit none
    ! Input variables
@@ -43,8 +45,12 @@ contains
    integer(i4b)                                :: level                  ! number of digits of common pfaf codes given pfaf code at outlet reach
    integer(i4b)                                :: downIndex(nSeg)        ! downstream segment index for all the segments
    integer(i4b)                                :: segIndex(nSeg)         ! reach index for all the segments
+   integer(i4b)                                :: segId(nSeg)            ! reach id for all the segments
    integer(i4b)                                :: nOuts                  ! number of outlets
-   integer(i4b)                                :: iSeg, iOut             ! loop indices
+   integer(i4b)                                :: iSeg,iOut              ! loop indices
+   integer(i4b)                                :: ix                     ! loop indices
+   integer(i4b)                                :: idx                     ! loop indices
+   logical(lgt)                                :: seglgc(nSeg)
 
    ierr=0; message='classify_river_basin_mpi/'
 
@@ -53,6 +59,7 @@ contains
    forall(iSeg=1:nSeg) pfafs(iSeg)     = structPFAF(iSeg)%var(ixPFAF%code)%dat(1)
    forall(iSeg=1:nSeg) downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
    forall(iSeg=1:nSeg) segIndex(iSeg)  = structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1)
+   forall(iSeg=1:nSeg) segId(iSeg)     = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)
 
    ! Number of outlets
    nOuts=count(downIndex<0)
@@ -72,37 +79,62 @@ contains
 
      ! perform domain decomposition for a river basin
      pfafCommon = trim(pfafOutlet(1:level))   ! to be removed
-     call decomposition(pfafs, segIndex, downIndex, pfafCommon, maxSegs, ierr, cmessage)
+     call decomposition(pfafs, segIndex, downIndex, structNTOPO, pfafCommon, maxSegs, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end do
+
+   ! --------------------------------------------------
+   !  print to check
+   print*, nSeg
+   seglgc = .true.
+   do ix = 1,ixDomain
+    associate (segIndexSub => domains(ix)%segIndex)
+    do iSeg = 1,size(segIndexSub)
+      idx = findIndex(segId, segId(segIndexSub(iSeg)), -999)
+      if (idx/=-999)then
+        seglgc(idx) = .false.
+      else
+        print*, 'Cannot find ', segId(segIndexSub(iSeg))
+      endif
+      !write(*,"(I9,A,A,A,A,A,I4)") segId(segIndexSub(iSeg)),',',trim(adjustl(pfafs(segIndexSub(iSeg)))),',',trim(domains(ix)%pfaf),',',size(segIndexSub)
+    end do
+    end associate
+   end do
+
+   do ix = 1,nSeg
+     if (seglgc(ix)) print*, segId(ix), trim(adjustl(pfafs((ix))))
+   enddo
+   ! --------------------------------------------------
 
  end subroutine classify_river_basin_mpi
 
 
- recursive subroutine decomposition(pfafs, segIndex, downIndex, pfafCode, maxSegs, ierr, message)
+ recursive subroutine decomposition(pfafs, segIndex, downIndex, structNTOPO, pfafCode, maxSegs, ierr, message)
    implicit none
    ! Input variables
-   character(len=32),        intent(in)  :: pfafs(:)        ! pfaf_code list
-   integer(i4b),             intent(in)  :: downIndex(:)    ! downstream segment index for all the segments
-   integer(i4b),             intent(in)  :: segIndex(:)     ! reach index for all the segments
-   character(len=32),        intent(in)  :: pfafCode        ! common pfaf codes within a river basin
-   integer(i4b)                          :: maxSegs         ! maximum number of reaches in basin
+   character(len=32),              intent(in)  :: pfafs(:)        ! pfaf_code list
+   integer(i4b),                   intent(in)  :: downIndex(:)    ! downstream segment index for all the segments
+   integer(i4b),                   intent(in)  :: segIndex(:)     ! reach index for all the segments
+   type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)         ! network topology
+   character(len=32),              intent(in)  :: pfafCode        ! common pfaf codes within a river basin
+   integer(i4b)                                :: maxSegs         ! maximum number of reaches in basin
    ! Output variables
-   integer(i4b),             intent(out) :: ierr
-   character(len=strLen),    intent(out) :: message         ! error message
+   integer(i4b),                   intent(out) :: ierr
+   character(len=strLen),          intent(out) :: message         ! error message
    ! Local variables
-   character(len=strLen)                 :: cmessage        ! error message from subroutine
-   integer(i4b)                          :: iPfaf,iSeg      ! loop indices
-   integer(i4b)                          :: nMatch          ! count for pfafs matching with pfafCode
-   integer(i4b)                          :: nSeg            ! number of stream segments
-   logical(lgt),     allocatable         :: isMatch(:)      ! logical to indicate xxxxx
-   character(len=32)                     :: pfafCodeTmp     ! copy of pfafCode
-   character(len=32),allocatable         :: subPfafs(:)     ! subset of pfaf_codes
-   integer(i4b),     allocatable         :: subSegIndex(:)  ! subset of segment indices
-   integer(i4b),     allocatable         :: subDownIndex(:) ! subset of segment indices
-   character(len=32)                     :: subPfaf         ! pfaf_code appended by next level
-   character(len=32)                     :: pfaf            ! a pfaf_code
-   character(len=1)                      :: cPfaf           ! character digit
+   character(len=strLen)                       :: cmessage        ! error message from subroutine
+   integer(i4b)                                :: iPfaf,iSeg,jSeg ! loop indices
+   integer(i4b)                                :: nMatch          ! count for pfafs matching with pfafCode
+   integer(i4b)                                :: nSeg            ! number of stream segments
+   logical(lgt),     allocatable               :: isMatch(:)      ! logical to indicate xxxxx
+   character(len=32)                           :: pfafCodeTmp     ! copy of pfafCode
+   character(len=32),allocatable               :: subPfafs(:)     ! subset of pfaf_codes
+   integer(i4b),     allocatable               :: subSegIndex(:)  ! subset of segment indices
+   integer(i4b),     allocatable               :: subDownIndex(:) ! subset of donwstream segment original indices (indice are based on original segIndex)
+   integer(i4b),     allocatable               :: downIndexNew(:) ! subset of downstream segment indices within subset of sgement indices
+   character(len=32)                           :: subPfaf         ! pfaf_code appended by next level
+   character(len=32)                           :: pfaf            ! a pfaf_code
+   character(len=1)                            :: cPfaf           ! character digit
 
    ierr=0; message='decomposition/'
 
@@ -137,18 +169,28 @@ contains
 
      if (nMatch < maxSegs) then
        print*,'Aggregate: nMatch less than nThreh = ', maxSegs
-       allocate(subPfafs(nMatch), subDownIndex(nMatch), subSegIndex(nMatch), stat=ierr)
-       if(ierr/=0)then; message=trim(message)//'problem allocating [subPfafs, subDownIndex, subSegIndex]'; return; endif
+       allocate(subPfafs(nMatch), subDownIndex(nMatch), subSegIndex(nMatch), downIndexNew(nMatch), stat=ierr)
+       if(ierr/=0)then; message=trim(message)//'problem allocating [subPfafs, subDownIndex, subSegIndex, downIndexNew]'; return; endif
        subPfafs     = pack(pfafs, isMatch)
        subSegIndex  = pack(segIndex, isMatch)
        subDownIndex = pack(downIndex, isMatch)
-       call aggregate(pfafCodeTmp, subPfafs, subSegIndex, subDownIndex, ierr, cmessage) ! populate reach classification data structure
+       ! redo donwstream index
+       downIndexNew=-999
+       do iSeg = 1, nMatch
+         do jSeg = 1, nMatch
+           if (subDownIndex(iSeg) == subSegIndex(jSeg)) then
+             downIndexNew(iSeg) = jSeg
+             exit
+           end if
+         end do
+       end do
+       call aggregate(pfafCodeTmp, subPfafs, subSegIndex, downIndexNew, structNTOPO, ierr, cmessage) ! populate reach classification data structure
        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-       deallocate(subPfafs, subDownIndex, subSegIndex, stat=ierr)
-       if(ierr/=0)then; message=trim(message)//'problem deallocating [subPfafs, subDownIndex, subSegIndex]'; return; endif
+       deallocate(subPfafs, subDownIndex, subSegIndex, downIndexNew, stat=ierr)
+       if(ierr/=0)then; message=trim(message)//'problem deallocating [subPfafs, subDownIndex, subSegIndex, downIndexNew]'; return; endif
      else
        print*,'Disaggregate: nMatch more than maxSegs = ', maxSegs
-       call decomposition(pfafs, segIndex, downIndex, pfafCodeTmp, maxSegs, ierr, cmessage)
+       call decomposition(pfafs, segIndex, downIndex, structNTOPO, pfafCodeTmp, maxSegs, ierr, cmessage)
        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
      end if
 
@@ -159,135 +201,117 @@ contains
  end subroutine decomposition
 
 
- subroutine aggregate(pfafCode, pfafs, segIndex, downIndex, ierr, message)
-   USE globalData, only : domains      ! domain data structure
-   USE globalData, only : ixDomain     ! count of domains
+ subroutine aggregate(pfafCode, pfafs, segIndex, downIndex, structNTOPO, ierr, message)
+
+   ! Given a basin defined by "pfafCode", identify mainstem and tributaries.
+   ! Assign minu pfafCode (pfafCode=968 -> -968) to mainstem reaches, and
+   ! Identify a mainstem code for each tributary and assing that mainstem code to the reaches in the tributary
+   ! Modified data structure -> domains
+   ! domains(:)%pfaf           code for mainstem reach or tributaries
+   !           %segIndex(:)    indices of reaches that belong to pfaf
+
    implicit none
    ! Input variables
-   character(len=32),          intent(in)  :: pfafCode                  ! Common pfaf codes within a river basin
-   character(len=32),          intent(in)  :: pfafs(:)                  ! pfaf code for all the reaches
-   integer(i4b),               intent(in)  :: downIndex(:)              ! downstream reach index for all the reaches
-   integer(i4b),               intent(in)  :: segIndex(:)               ! reach index for all the reaches
+   character(len=32),              intent(in)  :: pfafCode                  ! Common pfaf codes within a river basin
+   character(len=32),              intent(in)  :: pfafs(:)                  ! pfaf codes within a basin
+   integer(i4b),                   intent(in)  :: downIndex(:)              ! downstream reach indices for reaches within a basin
+   integer(i4b),                   intent(in)  :: segIndex(:)               ! reach indices for reaches within a basin
+   type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)            ! network topology
    ! Output variables
-   integer(i4b),               intent(out) :: ierr                      ! error code
-   character(len=strLen),      intent(out) :: message                   ! error message
+   integer(i4b),                   intent(out) :: ierr                      ! error code
+   character(len=strLen),          intent(out) :: message                   ! error message
    ! Local variables
-   character(len=strLen)                   :: cmessage                  ! error message from subroutine
-   character(len=32)                       :: mainCode                  ! mainstem code
-   character(len=32)                       :: pfaf                      ! a pfaf code for a reach
-   integer(i4b)                            :: iSeg, jSeg, iTrib         ! loop indices
-   integer(i4b)                            :: nSeg, nTrib, nMainstem    ! number of reaches, tributaries, and mainstems, respectively
-   integer(i4b)                            :: cc                        ! counter
-   integer(i4b)                            :: pfafLen
-   integer(i4b)                            :: mainCodeLen
-   integer(i4b)                            :: pfaf_old, pfaf_new
-   integer(i4b),allocatable                :: ixSubset(:)               ! subset indices based on logical array from global index array
-   integer(i4b),allocatable                :: downIndexNew(:)           !
-   character(len=32)                       :: subPfaf
-   character(len=32),allocatable           :: trib_outlet_pfafs(:)
-   logical(lgt)                            :: isInterbasin, isHeadwater
-   logical(lgt),allocatable                :: isClosed(:)
-   logical(lgt),allocatable                :: isTribOutlet(:)
-   logical(lgt),allocatable                :: isMainstem(:)
-   logical(lgt),allocatable                :: isMainstem2d(:,:)
+   character(len=strLen)                       :: cmessage                  ! error message from subroutine
+   character(len=32)                           :: mainCode                  ! mainstem code
+   integer(i4b)                                :: iTrib                     ! loop indices
+   integer(i4b)                                :: nSeg,nTrib,nMainstem      ! number of reaches, tributaries, and mainstems, respectively
+   integer(i4b)                                :: nUpSegs                   ! numpber of upstream segments
+   integer(i4b)                                :: pfafLen
+   integer(i4b)                                :: pfaf_old, pfaf_new
+   integer(i4b),allocatable                    :: ixSubset(:)               ! subset indices based on logical array from global index array
+   character(len=32),allocatable               :: trib_outlet_pfafs(:)
+   logical(lgt)                                :: isInterbasin, isHeadwater ! logical to indicate the basin is inter basin or headwater
+   logical(lgt),allocatable                    :: isTribOutlet(:)
+   logical(lgt),allocatable                    :: isMainstem(:)
+   logical(lgt),allocatable                    :: isMainstem2d(:,:)
 
    ierr=0; message='aggregate/'
 
    ! Initialization
-   ixDomain = ixDomain + 1
    nSeg = size(pfafs)
-   allocate(domains(ixDomain)%pfaf(nSeg), domains(ixDomain)%nRch(nSeg), domains(ixDomain)%segIndex(nSeg), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'problem allocating [domains%pfaf, domains%nSeg]'; return; endif
-   domains(ixDomain)%pfaf(:)  = '-999'
-   domains(ixDomain)%nRch(:)  = -999
-   domains(ixDomain)%segIndex = segIndex
 
    ! get pfaf old and pfaf new
    pfafLen = len(trim(pfafCode))
    read(pfafCode(pfafLen-1:pfafLen-1),'(I1)') pfaf_old
    read(pfafCode(pfafLen:pfafLen),'(I1)') pfaf_new
 
-   ! check if an interbasin
+   ! check if an interbasin or headwater
    isInterbasin = (mod(pfaf_new, 2)==1)
    isHeadwater  = (mod(pfaf_old, 2)==0 .and. pfaf_new==9)
 
-   print*, 'basin, isInterbasin, isHeadwater = ',pfafCode, isInterbasin, isHeadWater
-
-   ! get closed basin segments
-   allocate(isClosed(nSeg), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'problem allocating [isClosed]'; return; endif
-   call find_closed_basin(pfafCode, pfafs, isClosed, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
    if (isInterbasin .and. (.not. isHeadwater)) then  ! if a river reach is in inter-basin and not headwater
-     ! populate mainstem segments
+
+     ! 1. Populate mainstem segments
+     ixDomain = ixDomain + 1
+     ! record the code for mainstem
+     domains(ixDomain)%pfaf = '-'//trim(pfafCode)
+     ! get mainstem reaches (isMainstem(nSeg) logical array)
      call find_mainstems(pfafCode, pfafs, isMainstem, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     ! Count mainstem reaches and allocate for segIndex array
      nMainstem = count(isMainstem)
-     do iSeg = 1, nSeg
-       if (isMainstem(iSeg)) then
-         domains(ixDomain)%pfaf(iSeg) = '-'//trim(pfafCode)
-         domains(ixDomain)%nRch(iSeg) = nMainstem
-       end if
-     end do
+     allocate(domains(ixDomain)%segIndex(nMainstem), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating [domains(ixDomain)%segIndex]'; return; endif
+     ! Identify mainstem reach indices based on the basin reaches
+     allocate(ixSubset(nMainstem), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating [ixSubset]'; return; endif
+     ixSubset = pack(arth(1,1,nSeg),isMainstem)
+     domains(ixDomain)%segIndex = segIndex(ixSubset)
+     deallocate(ixSubset, stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem deallocating [ixSubset]'; return; endif
 
-     ! Populate tributary segments
+     ! 2. Populate tributary segments
      ! Get logical array indicating tributary outlet segments (size = nSeg)
-     isMainstem2d =  spread(isMainstem,2,1)
-     allocate(downIndexNew(nSeg), stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating [downIndexNew]'; return; endif
-     downIndexNew=-999
-     do iSeg = 1, nSeg
-       do jSeg = 1, nSeg
-         if (downIndex(iSeg) == segIndex(jSeg)) then
-           downIndexNew(iSeg) = jSeg
-           exit
-         end if
-       end do
-     end do
-     call lgc_tributary_outlet(isMainstem2d, downIndexNew, isTribOutlet, ierr, cmessage)
+     isMainstem2d = spread(isMainstem,2,1)
+     call lgc_tributary_outlet(isMainstem2d, downIndex, isTribOutlet, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
      ! Get indices of tributary outlet segments (size = number of tributaries)
      nTrib = count(isTribOutlet)
-
+     ! idenfity tributary outlet reaches
      allocate(ixSubset(nTrib), trib_outlet_pfafs(nTrib), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating [ixSubset, trib_outlet_pfafs]'; return; endif
      ixSubset = pack(arth(1,1,nSeg),isTribOutlet)
      trib_outlet_pfafs = pfafs(ixSubset)
+     ! loop through each tributary to identify 1) tributary code (== mainstem code in tributary)
+     !                                         2) reaches in tributary
+     do iTrib = 1,nTrib
+       ixDomain = ixDomain + 1
+       mainCode = mainstem_code(trim(trib_outlet_pfafs(iTrib)))
+       domains(ixDomain)%pfaf = mainCode
+       associate(upSegIndex => structNTOPO(segIndex(ixSubset(iTrib)))%var(ixNTOPO%allUpSegIndices)%dat)
+       nUpSegs = size(upSegIndex)
+       allocate(domains(ixDomain)%segIndex(nUpSegs), stat=ierr)
+       if(ierr/=0)then; message=trim(message)//'problem allocating [domains(ixDomain)%segIndex]'; return; endif
+       domains(ixDomain)%segIndex = upSegIndex
+       end associate
+     end do
      deallocate(ixSubset, stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem deallocating [ixSubset]'; return; endif
 
-     do iTrib = 1,nTrib             ! loop through each tributary
-       mainCode = mainstem_code(trim(trib_outlet_pfafs(iTrib)))
-       mainCodeLen = len(trim(mainCode))
-       cc = 0
-       do iSeg = 1, nSeg
-         pfaf = adjustl(pfafs(iSeg))
-         subPfaf = trim(pfaf(1:mainCodeLen))
-         if (subPfaf == mainCode) then
-           cc = cc + 1
-           domains(ixDomain)%pfaf(iSeg) = mainCode
-         end if
-       end do
-       !domains(ixDomain)%nRch(iSegList) = cc
-     end do
-   else    ! a river reach is in tributary basin or headwater
-     domains(ixDomain)%pfaf(:) = trim(pfafCode)
-     domains(ixDomain)%nRch(:) = nSeg
-   end if
+   else    ! a river reach is in inter-basin or headwater
 
-   allocate(ixSubset(count(isClosed)), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'problem allocating [ixSubset]'; return; endif
-   ixSubset = pack(arth(1,1,nSeg),isClosed)
-   domains(ixDomain)%pfaf(ixSubset) = '-777'
-   domains(ixDomain)%nRch(ixSubset) = -777
-   deallocate(ixSubset, stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'problem deallocating [ixSubset]'; return; endif
+     ixDomain = ixDomain + 1
+     allocate(domains(ixDomain)%segIndex(size(segIndex)), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating domains(ixDomain)%segIndex for interbasin or headwater'; return; endif
+     domains(ixDomain)%pfaf = trim(pfafCode)
+     domains(ixDomain)%segIndex = segIndex
+
+   end if
 
  end subroutine aggregate
 
 
- subroutine classify_river_basin(nSeg, structPFAF, structNTOPO, river_basin, maxSegs, ierr, message)
+ subroutine classify_river_basin_omp(nSeg, structPFAF, structNTOPO, river_basin, maxSegs, ierr, message)
   ! Identify tributary basin and mainstems using river network data and pfafstetter code
   ! Output: return populated basin dataType
   implicit none
@@ -335,7 +359,7 @@ contains
   integer(i4b)                                :: iTrib,jTrib            ! loop indices
   integer(i4b)                                :: iMain,jMain            ! loop indices
 
-  ierr=0; message='classify_river_basin/'
+  ierr=0; message='classify_river_basin_omp/'
 
   forall(iSeg=1:nSeg) pfafs(iSeg)     = structPFAF(iSeg)%var(ixPFAF%code)%dat(1)
   forall(iSeg=1:nSeg) downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
@@ -570,7 +594,7 @@ contains
 
   end do ! outlet loop
 
- end subroutine classify_river_basin
+ end subroutine classify_river_basin_omp
 
 
 end module domain_decomposition_module

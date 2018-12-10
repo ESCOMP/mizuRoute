@@ -198,13 +198,9 @@ contains
 
     if (mod(pfaf_int, 2) == 0) exit
 
-    if (iDigit /= 1) then
-      mainstem_code = trim(adjustl(pfaf(1:iDigit-1)))
-    else
-      mainstem_code = trim(adjustl(pfaf(1:iDigit)))
-    end if
-
   end do
+
+  mainstem_code = trim(adjustl(pfaf(1:iDigit)))
 
  end function mainstem_code
 

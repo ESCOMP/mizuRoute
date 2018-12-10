@@ -117,7 +117,7 @@ module globalData
   type(runoff)                   , public :: runoff_data     ! runoff for one time step for all HRUs
 
   ! basin structures
-  type(reach_class)              , public :: domains(500)    ! reach categories (use mainstem code or pfaf code) within each basin (max. domain = 50)
+  type(reach_class)              , public :: domains(5000)   ! river network domain assignment (use mainstem code or pfaf code) for each domain orbasin (max. domain = 5000)
   integer(i4b)                   , public :: ixDomain        ! domain counter
 
 end module globalData
