@@ -57,6 +57,7 @@ module remapping
   ! *****
   ! private subroutine: used to map runoff data (on diferent polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
+  ! case 1: hru in runoff layer is grid (stored in 2-dimension array)
   subroutine remap_2D_runoff(runoff_data, remap_data, structHRU2seg, basinRunoff, ierr, message)
   implicit none
   ! input
@@ -172,6 +173,7 @@ module remapping
   ! private subroutine: used to map runoff data (on diferent polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
   subroutine remap_1D_runoff(runoff_data, remap_data, structHRU2seg, basinRunoff, ierr, message)
+  ! case 2: hru in runoff layer is hru polygon different than river network layer (stored in 1-dimension array)
   implicit none
   ! input
   type(runoff)         , intent(in)  :: runoff_data      ! runoff for one time step for all HRUs
@@ -290,8 +292,9 @@ module remapping
   end subroutine remap_1D_runoff
 
   ! *****
-  ! private subroutine: used to map runoff data (on diferent polygons) to the basins in the routing layer...
+  ! private subroutine: assign runoff data in runoff layer to hru in river network layer
   ! ***************************************************************************************************************
+  ! case 3: hru in runoff layer is hru polygon identical to river network layer (stored in 1-dimension array)
   subroutine sort_runoff(runoff_data, structHRU2seg, basinRunoff, ierr, message)
   implicit none
   ! input
