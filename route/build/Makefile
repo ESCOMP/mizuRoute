@@ -50,7 +50,7 @@ endif
 
 # Define flags
 ifeq "$(FC)" "gfortran"
- FLAGS1 = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds $(FLAGS_OMP)
+ FLAGS1 = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=all $(FLAGS_OMP)
  FLAGS = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
 endif
 ifeq "$(FC)" "ifort"
