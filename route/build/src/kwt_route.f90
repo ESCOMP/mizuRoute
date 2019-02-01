@@ -1,7 +1,8 @@
 module kwt_route_module
 
 use nrtype
-use nr_utility_module, only : arth                                 ! Num. Recipies utilities
+use nr_utility_module, only : arth       ! Num. Recipies utilities
+USE time_utils_module, only : elapsedSec ! calculate the elapsed time
 
 ! data types
 USE dataTypes,  only : FPOINT     ! particle
@@ -54,9 +55,14 @@ contains
    integer(I4B)                                :: LAKEFLAG=0    ! >0 if processing lakes
    integer(i4b)                                :: iRch, jRch    ! reach indices
    character(len=strLen)                       :: cmessage      ! error message for downwind routine
+   integer(i4b), dimension(8)                  :: startTime,endTime ! date/time for the start and end of the initialization
+   real(dp)                                    :: elapsedTime   ! elapsed time for the process
 
   ! initialize error control
   ierr=0; message='kwt_route/'
+
+  elapsedTime = 0._dp
+  call date_and_time(values=startTime)
 
   ! route streamflow through the river network
   do iRch=1,nRch
@@ -75,6 +81,10 @@ contains
    if (ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   end do  ! (looping through stream segments)
+
+  call date_and_time(values=endTime)
+  elapsedTime = elapsedTime + elapsedSec(startTime, endTime)
+  write(*,"(A,1PG15.7,A)") '  elapsed one time step = ', elapsedTime, ' s'
 
  END SUBROUTINE kwt_route
 

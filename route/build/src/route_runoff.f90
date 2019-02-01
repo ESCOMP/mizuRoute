@@ -64,6 +64,7 @@ USE basinUH_module, only : IRF_route_basin    ! perform UH convolution for basin
 ! subroutines: get runoff for each basin in the routing layer
 USE read_runoff, only : get_runoff            ! read simulated runoff data
 USE remapping,   only : remap_runoff          ! remap runoff from input polygons to routing basins
+USE remapping,   only : sort_runoff           ! sort routing basin runoff from netcdf in hru order in network data
 USE remapping,   only : basin2reach           ! remap runoff from routing basins to routing reaches
 
 ! subroutines: river routing
@@ -349,7 +350,8 @@ do iTime=1,nTime
   call remap_runoff(runoff_data, remap_data, structHRU2seg, nSpatial, basinRunoff, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr,cmessage)
  else
-  basinRunoff=runoff_data%qsim
+  call sort_runoff(runoff_data, structHRU2seg,  basinRunoff, ierr, cmessage)
+  if(ierr/=0) call handle_err(ierr,cmessage)
  end if
 
  ! *****

@@ -1,7 +1,7 @@
 module irf_route_module
 
 USE nrtype
-
+USE time_utils_module, only : elapsedSec ! calculate the elapsed time
 ! global parameters
 !USE globalData, only : RPARAM ! Reach parameters
 
@@ -31,7 +31,7 @@ contains
  !   Convolute routed basisn flow volume at top of each of the upstream segment at one time step and at each segment
  !
  ! ----------------------------------------------------------------------------------------
- 
+
  ! global routing data
  USE globalData, only : RCHFLX ! routing fluxes
  USE globalData, only : NETOPO ! Network topology
@@ -49,12 +49,17 @@ contains
  INTEGER(I4B)                           :: iRch        ! reach segment index
  INTEGER(I4B)                           :: jRch        ! reach segment to be routed
  character(len=strLen)                  :: cmessage    ! error message from subroutine
+ integer(i4b), dimension(8)             :: startTime,endTime ! date/time for the start and end of the initialization
+ real(dp)                               :: elapsedTime ! elapsed time for the process
 
  ! initialize error control
  ierr=0; message='irf_route/'
 
  ! Initialize CHEC_IRF to False.
  RCHFLX(iEns,:)%CHECK_IRF=.False.
+
+ elapsedTime = 0._dp
+ call date_and_time(values=startTime)
 
  ! route streamflow through the river network
  do iRch=1,nRch
@@ -86,6 +91,10 @@ contains
   endif
 
  end do  ! (looping through stream segments)
+
+ call date_and_time(values=endTime)
+ elapsedTime = elapsedTime + elapsedSec(startTime, endTime)
+! write(*,"(A,1PG15.7,A)") '  elapsed one time step = ', elapsedTime, ' s'
 
  end subroutine irf_route
 
