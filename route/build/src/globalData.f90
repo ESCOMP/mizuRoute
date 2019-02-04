@@ -116,8 +116,9 @@ module globalData
   type(remap)                    , public :: remap_data      ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
   type(runoff)                   , public :: runoff_data     ! runoff for one time step for all HRUs
 
-  ! basin structures
+  ! domain data
   type(reach_class)              , public :: domains(5000)   ! river network domain assignment (use mainstem code or pfaf code) for each domain orbasin (max. domain = 5000)
-  integer(i4b)                   , public :: ixDomain        ! domain counter
+  integer(i4b)                   , public :: nDomain         ! domain counter
+  integer(i4b)   , allocatable   , public :: node_id(:)      ! node id for domain
 
 end module globalData
