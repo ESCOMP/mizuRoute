@@ -3,6 +3,8 @@ program route_runoff
 ! ******
 ! provide access to desired data types / structures...
 ! ****************************************************
+! Library
+USE mpi                                       ! MPI
 
 ! variable types
 USE nrtype                                    ! variable types, etc.
@@ -83,6 +85,9 @@ USE irf_route_module, only : make_uh          ! reach unit hydrograph
 USE irf_route_module, only : irf_route        ! river network unit hydrograph method
 !USE irf_route_module,    only : irf_route => irf_route_orig    ! river network unit hydrograph method
 
+! subroutine mpi processes
+USE mpi_routine_module, only : commun_reach_param  ! distributing temporal static  reach parameters
+
 ! ******
 ! define variables
 ! ************************
@@ -150,6 +155,9 @@ integer(i4b), parameter       :: doesBasinRoute=1    ! integer to specify runoff
 integer(i4b)                  :: ixDesire            ! desired reach index
 integer(i4b)                  :: ixOutlet            ! outlet reach index
 
+! MPI variables
+integer(i4b)                  :: pid                 ! process id
+integer(i4b)                  :: nNodes              ! number of nodes
 ! ======================================================================================================
 ! ======================================================================================================
 ! ======================================================================================================
@@ -159,6 +167,16 @@ integer(i4b)                  :: ixOutlet            ! outlet reach index
 
 ! start of model/network configuration code
 
+! *****
+! *** MPI initialization ....
+! ***********************************
+call MPI_INIT(ierr)
+!  Get the number of processes
+call MPI_COMM_SIZE(MPI_COMM_WORLD, nNodes, ierr)
+!  Get the individual process ID
+call MPI_COMM_RANK(MPI_COMM_WORLD, pid, ierr)
+
+if (pid==0) then
 ! *****
 ! *** Populate metadata...
 ! ************************
@@ -187,50 +205,54 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 ! *** Process the network topology...
 ! ***********************************
 
-! get the network topology
-call ntopo(&
-           ! output: model control
-           nHRU,             & ! number of HRUs
-           nRch,             & ! number of stream segments
-           ! output: populate data structures
-           structHRU,        & ! ancillary data for HRUs
-           structSeg,        & ! ancillary data for stream segments
-           structHRU2seg,    & ! ancillary data for mapping hru2basin
-           structNTOPO,      & ! ancillary data for network topology
-           structPFAF,       & ! ancillary data for pfafstetter
-           ! output: error control
-           ierr, cmessage)
-if(ierr/=0) call handle_err(ierr, cmessage)
-!print*, 'PAUSE: after getting network topology'; read(*,*)
+  ! get the network topology
+  call ntopo(&
+             ! output: model control
+             nHRU,             & ! number of HRUs
+             nRch,             & ! number of stream segments
+             ! output: populate data structures
+             structHRU,        & ! ancillary data for HRUs
+             structSeg,        & ! ancillary data for stream segments
+             structHRU2seg,    & ! ancillary data for mapping hru2basin
+             structNTOPO,      & ! ancillary data for network topology
+             structPFAF,       & ! ancillary data for pfafstetter
+             ! output: error control
+             ierr, cmessage)
+  if(ierr/=0) call handle_err(ierr, cmessage)
+  !print*, 'PAUSE: after getting network topology'; read(*,*)
 
 ! *****
 ! *** Get ancillary data for routing...
 ! *************************************
 
-! get ancillary data for routing
-call getAncillary(&
-                  ! data structures
-                  nHRU,            & ! input:  number of HRUs in the routing layer
-                  structHRU2seg,   & ! input:  ancillary data for mapping hru2basin
-                  is_remap,        & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
-                  remap_data,      & ! output: data structure to remap data
-                  runoff_data,     & ! output: data structure for runoff
-                  ! dimensions
-                  nSpatial,        & ! output: number of spatial elements in runoff data
-                  nTime,           & ! output: number of time steps
-                  time_units,      & ! output: time units
-                  calendar,        & ! output: calendar
-                  ! error control
-                  ierr, cmessage)
+  ! get ancillary data for routing
+  call getAncillary(&
+                    ! data structures
+                    nHRU,            & ! input:  number of HRUs in the routing layer
+                    structHRU2seg,   & ! input:  ancillary data for mapping hru2basin
+                    is_remap,        & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
+                    remap_data,      & ! output: data structure to remap data
+                    runoff_data,     & ! output: data structure for runoff
+                    ! dimensions
+                    nSpatial,        & ! output: number of spatial elements in runoff data
+                    nTime,           & ! output: number of time steps
+                    time_units,      & ! output: time units
+                    calendar,        & ! output: calendar
+                    ! error control
+                    ierr, cmessage)
+  if(ierr/=0) call handle_err(ierr, cmessage)
+
+  ! ----------  pfafstetter code process to group segments -------------------------------------------------------
+  !call classify_river_basin_omp(nRch, structPFAF, structNTOPO, river_basin, nThresh, ierr, cmessage)
+  !if(ierr/=0) call handle_err(ierr, cmessage)
+
+  call classify_river_basin_mpi(nNodes, nRch, structPFAF, structNTOPO, nThresh, ierr, cmessage)
+  if(ierr/=0) call handle_err(ierr, cmessage)
+end if
+
+call commun_reach_param(nRch, pid, nNodes, structNTOPO, ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
-
-! ----------  pfafstetter code process to group segments -------------------------------------------------------
-!call classify_river_basin_omp(nRch, structPFAF, structNTOPO, river_basin, nThresh, ierr, cmessage)
-!if(ierr/=0) call handle_err(ierr, cmessage)
-
-call classify_river_basin_mpi(nRch, structPFAF, structNTOPO, nThresh, ierr, cmessage)
-if(ierr/=0) call handle_err(ierr, cmessage)
-
+call MPI_FINALIZE(ierr)
 stop
 
 ! allocate space for the time data
@@ -531,6 +553,9 @@ end do  ! looping through time
 ! Write states to netCDF
 call write_state_nc(trim(output_dir)//trim(fname_state_out), routOpt, runoff_data%time, 1, T0, T1, reachID, ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
+
+!  Shut down MPI
+call MPI_FINALIZE(ierr)
 
 stop
 

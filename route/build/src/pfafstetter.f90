@@ -112,21 +112,21 @@ contains
   ! Return 2D logical array (nseg x nlevel) to indicate which level of mainstem is assigned to each segment
   implicit none
   ! Input variables
-  character(*), intent(in)               :: pfafs(:)         ! input: pfafstetter code list
-  character(*), intent(in)               :: pfaf_out         ! input: pfafstetter code at outlet
-  integer(i4b), intent(in)               :: nLevel           ! input:  from comLevel
+  character(*), intent(in)               :: pfafs(:)         ! input: segment pfafstetter code list
+  character(*), intent(in)               :: pfaf_out         ! input: pfafstetter code at outlet segmet
+  integer(i4b), intent(in)               :: nLevel           ! input: from comLevel
   ! output variables
-  logical(lgt), allocatable, intent(out) :: mainstem(:,:)
+  logical(lgt), allocatable, intent(out) :: mainstem(:,:)    ! output:
   integer(i4b), intent(out)              :: ierr
   character(len=strLen),intent(out)      :: message          ! error message
   ! Local variables
-  integer(i4b), allocatable              :: pfaf_int(:,:)
+  integer(i4b), allocatable              :: pfaf_int(:,:)    !
   integer(i4b)                           :: comLevel
   integer(i4b)                           :: iLevel
   integer(i4b)                           :: iSeg
   integer(i4b)                           :: idx
-  character(len=strLen)                  :: cmessage       ! error message from subroutine
-  character(len=2)                       :: x1             ! string converted from integer
+  character(len=strLen)                  :: cmessage         ! error message from subroutine
+  character(len=2)                       :: x1               ! string converted from integer
 
   ierr=0; message='lgc_mainstems/'
 
@@ -176,7 +176,7 @@ contains
   ! mainstem: mainstem code (trimd  n last consecutive odd digits)
   implicit none
   ! input variables
-  character(*), intent(in)       :: pfaf          ! a pfafstetter code
+  character(*), intent(in)       :: pfaf          ! a segment pfafstetter code
   ! locat variables
   integer(i4b)                   :: pfaf_int      ! integer of one fafstetter code digit
   integer(i4b)                   :: iDigit        ! index of pfafstetter code digit
@@ -298,21 +298,21 @@ contains
  end subroutine get_common_pfaf
 
 
- subroutine find_closed_basin(pfafCode, pfafs, isClosed, ierr, message)
-  ! Given a list of pfafs of river network, identify closed basin reach within the basin defined by pfafCode
+ subroutine find_closed_basin(pfafBasin, pfafs, isClosed, ierr, message)
+  ! Given a list of pfafs of river network, identify closed basin reach within the basin defined by pfafBasin
   implicit none
   ! input variables
-  character(len=32),    intent(in)   :: pfafCode        ! a river basin pfaf code
-  character(len=32),    intent(in)   :: pfafs(:)        ! pfaf codes arrays
+  character(len=32),    intent(in)   :: pfafBasin       ! a river basin pfaf code
+  character(len=32),    intent(in)   :: pfafs(:)        ! segment pfaf codes arrays
   ! output variables
   logical(lgt),         intent(out)  :: isClosed(:)     ! logical to indicate segment is in closed basin
   integer(i4b),         intent(out)  :: ierr
   character(len=strLen),intent(out)  :: message         ! error message
   ! local variables
-  logical(lgt)                       :: isInBasin         ! logical to indicate the reach is within the basin
+  logical(lgt)                       :: isInBasin       ! logical to indicate the reach is within the basin
   integer(i4b)                       :: iSeg,iPfaf      ! loop indices
   integer(i4b)                       :: nSeg            ! number of reaches
-  integer(i4b)                       :: uniqLen         ! pfafCode digit length
+  integer(i4b)                       :: uniqLen         ! pfafBasin digit length
   character(len=32)                  :: pfaf            ! a pfafstetter code
 
   ierr=0; message='find_closed_basin/'
@@ -321,24 +321,24 @@ contains
   nSeg = size(pfafs)
   if (size(isClosed)/=nSeg)then;ierr=10;message=trim(message)//'isClosed array sized is inconsistent with pfaf array size';return;endif
   isClosed(:) = .false.
-  ! get the length of the basin ID (=pfafCode)
-  uniqLen = len(trim(pfafCode))
+  ! get the length of the basin ID (=pfafBasin)
+  uniqLen = len(trim(pfafBasin))
 
   ! check if each reach is in closed basin
   do iSeg = 1,nSeg
 
     pfaf = pfafs(iSeg) ! a pfaf code
 
-    ! check a "pfaf" basin is inside "pfafCode" basin
+    ! check a "pfaf" basin is inside "pfafBasin" basin
     isInBasin = .true.
     do iPfaf = uniqLen,len(trim(pfaf))
-      if (pfaf(iPfaf:iPfaf) /= pfafCode(iPfaf:iPfaf)) then
+      if (pfaf(iPfaf:iPfaf) /= pfafBasin(iPfaf:iPfaf)) then
         isInBasin = .false.
         exit
       endif
     end do
 
-    ! if a "pfaf" basin is inside, check a basin is closed basin (include 0 digit after common pfaf code with "pfafCode")
+    ! if a "pfaf" basin is inside, check a basin is closed basin (include 0 digit after common pfaf code with "pfafBasin")
     if (isInBasin) then
       do iPfaf = uniqLen,len(trim(pfaf))
         if (pfaf(iPfaf:iPfaf) == '0') then
