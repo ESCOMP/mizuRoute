@@ -7,7 +7,7 @@ USE dataTypes,         ONLY: var_clength   ! character type:   var(:)%dat
 USE dataTypes,         ONLY: var_ilength   ! integer type:     var(:)%dat
 USE dataTypes,         ONLY: basin         !
 USE dataTypes,         ONLY: reach         !
-USE dataTypes,         ONLY: reach_class   !
+USE dataTypes,         ONLY: subbasin_mpi  !
 USE var_lookup,        ONLY: ixPFAF        ! index of variables for the pfafstetter code
 USE var_lookup,        ONLY: ixNTOPO       ! index of variables for the netowork topolgy
 USE nr_utility_module, ONLY: indexx        ! Num. Recipies utilities
@@ -18,7 +18,6 @@ USE nr_utility_module, ONLY: findIndex     ! Num. Recipies utilities
 ! updated and saved data
 USE globalData, only : domains             ! domain data structure - for each domain, pfaf codes and list of segment indices
 USE globalData, only : nDomain             ! count of decomposed domains (tributaries + mainstems)
-USE globalData, only : node_id             ! node id for each domain
 
 implicit none
 
@@ -118,7 +117,7 @@ contains
 !   ! --------------------------------------------------
 !   !  print to check
 !   seglgc = .true.
-!   print*,'segid, pfaf-basin, pfaf-basin, basin-size, node-id'
+!   print*,'segid global_index  pfaf-seg  pfaf-basin  basin-size  node-id'
 !   do ix = 1,nDomain
 !    associate (segIndexSub => domains(ix)%segIndex)
 !    do iSeg = 1,size(segIndexSub)
@@ -128,7 +127,7 @@ contains
 !     else
 !      print*, 'Cannot find ', segId(segIndexSub(iSeg))
 !     endif
-!     write(*,"(I9,A,A,A,A,A,I4,A,I2)") segId(segIndexSub(iSeg)),',',trim(adjustl(pfafs(segIndexSub(iSeg)))),',',trim(domains(ix)%pfaf),',',size(segIndexSub),',',node_id(ix)
+!     write(*,"(I9,A,I9,A,A,A,A,A,I2)") segId(segIndexSub(iSeg)),' ',segIndexSub(iSeg),' ',trim(adjustl(pfafs(segIndexSub(iSeg)))),' ',trim(domains(ix)%pfaf),' ',domains(ix)%idNode
 !    end do
 !    end associate
 !   end do
@@ -170,8 +169,8 @@ contains
 
    ierr=0; message='assign_node/'
 
-   allocate(nSubSeg(nDomain),rnkRnDomain(nDomain),isAssigned(nDomain),node_id(nDomain),stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'problem allocating [nSubSeg,rnkRnDomain,isAssigned,node_id]'; return; endif
+   allocate(nSubSeg(nDomain),rnkRnDomain(nDomain),isAssigned(nDomain),stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'problem allocating [nSubSeg,rnkRnDomain,isAssigned]'; return; endif
 
    ! rank domain by number of segments
    ! count segments for each domain - nSubSeg
@@ -199,24 +198,27 @@ contains
     ixx = rnkRnDomain(ix)
     if (domains(ixx)%pfaf(1:1)/='-') then
      nSmallTrib = nSmallTrib + nSubSeg(ixx)
-     node_id(ixx) = 0
+     domains(ixx)%idNode = 0
+     domains(ixx)%isTrib = .true.
      isAssigned(ixx) = .true.
      if(nSmallTrib > nEven) exit
     endif
    end do
 
-   ! Distribute "large" tributary to distributed cores
+   ! Distribute mainstem and "large" tributary to distributed cores
    nWork(1:nNodes-1) = 0
    do ix = nDomain,1,-1  ! Going through domain from the largest size
     ixx = rnkRnDomain(ix)
     if (.not. isAssigned(ixx)) then
      if (domains(ixx)%pfaf(1:1)=='-') then   ! if domain is mainstem
-      node_id(ixx) = 0
+      domains(ixx)%idNode = 0
+      domains(ixx)%isTrib = .false.
       isAssigned(ixx) = .true.
      elseif (domains(ixx)%pfaf(1:1)/='-') then ! if domain is tributary
       ixNode = minloc(nWork)
       nWork(ixNode(1)) = nWork(ixNode(1))+size(domains(ixx)%segIndex)
-      node_id(ixx) = ixNode(1)
+      domains(ixx)%idNode = ixNode(1)
+      domains(ixx)%isTrib = .true.
       isAssigned(ixx) = .true.
      endif
     endif

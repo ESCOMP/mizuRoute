@@ -27,7 +27,7 @@ module globalData
   use dataTypes,  only : runoff        ! runoff data type
 
   ! basin data structure
-  use dataTypes,  only : reach_class   ! reach category (store mainstem code or pfaf code)
+  use dataTypes,  only : subbasin_mpi  ! reach category (store mainstem code or pfaf code)
 
   ! data size
   USE var_lookup, only : nStructures   ! number of variables for data structure
@@ -117,8 +117,7 @@ module globalData
   type(runoff)                   , public :: runoff_data     ! runoff for one time step for all HRUs
 
   ! domain data
-  type(reach_class)              , public :: domains(5000)   ! river network domain assignment (use mainstem code or pfaf code) for each domain orbasin (max. domain = 5000)
+  type(subbasin_mpi)             , public :: domains(5000)   ! domain decomposition based on subbasin
   integer(i4b)                   , public :: nDomain         ! domain counter
-  integer(i4b)   , allocatable   , public :: node_id(:)      ! node id for domain
 
 end module globalData

@@ -68,10 +68,12 @@ implicit none
  ! ---------- basin data structures ----------------------------------------------------------------------
  ! segIndex points to the segment in the entire river network data
  ! segOrder is order within subset of mainstem segments or tributary segments
- type,public :: reach_class
-  character(32)              :: pfaf                  ! mainstem or basin pfaf code for a reach class
-  integer(i4b),  allocatable :: segIndex(:)          ! reach indices within a reach class
- end type reach_class
+ type,public :: subbasin_mpi
+  character(32)              :: pfaf                  ! subbasin pfaf code - mainstem starting "-"
+  integer(i4b)               :: idNode                ! node ID
+  logical(lgt)               :: isTrib                ! logical to indicate subbasin is tributary or not
+  integer(i4b),  allocatable :: segIndex(:)           ! reach indices within a subbasin
+ end type subbasin_mpi
 
  type,public :: reach
   integer(i4b), allocatable :: segIndex(:)           ! index of segment index
