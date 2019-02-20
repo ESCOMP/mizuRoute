@@ -1,19 +1,19 @@
-MODULE domain_decomposition_module
+MODULE domain_decomposition
 
 USE nrtype
 USE public_var
 USE pfafstetter_module
+
 USE dataTypes,         ONLY: var_clength   ! character type:   var(:)%dat
 USE dataTypes,         ONLY: var_ilength   ! integer type:     var(:)%dat
-USE dataTypes,         ONLY: basin         !
-USE dataTypes,         ONLY: reach         !
-USE dataTypes,         ONLY: subbasin_mpi  !
+! variable indices
 USE var_lookup,        ONLY: ixPFAF        ! index of variables for the pfafstetter code
 USE var_lookup,        ONLY: ixNTOPO       ! index of variables for the netowork topolgy
-USE nr_utility_module, ONLY: indexx        ! Num. Recipies utilities
-USE nr_utility_module, ONLY: indexTrue     ! Num. Recipies utilities
-USE nr_utility_module, ONLY: arth          ! Num. Recipies utilities
-USE nr_utility_module, ONLY: findIndex     ! Num. Recipies utilities
+! Utilities
+USE nr_utility_module, ONLY: indexx        ! sorting array
+USE nr_utility_module, ONLY: indexTrue     ! I don't remember exactly
+USE nr_utility_module, ONLY: arth          ! generate sequential array
+USE nr_utility_module, ONLY: findIndex     ! find matching indices from array
 
 ! updated and saved data
 USE globalData, only : domains             ! domain data structure - for each domain, pfaf codes and list of segment indices
@@ -28,8 +28,23 @@ public :: classify_river_basin_mpi
 
 contains
 
- subroutine classify_river_basin_mpi(nNodes, nSeg, structPFAF, structNTOPO, maxSegs, ierr, message)
+ subroutine classify_river_basin_mpi(nNodes, nSeg, structPFAF, structNTOPO, maxSegs, nHRU, ierr, message)
    ! MPI domain decomposition wrapper
+   !
+   ! The following data struct components need to be populated
+   !   structPFAF(:)%var(ixPFAF%code)%dat(1)
+   !   structNTOPO(:)%var(ixNTOPO%segIndex)%dat(1)
+   !   structNTOPO(:)%var(ixNTOPO%downSegIndex)%dat(1)
+   !   structNTOPO(:)%var(ixNTOPO%nHRU)%dat(1)
+   !   structNTOPO(:)%var(ixNTOPO%hruContribIx)%dat(:)
+   !
+   ! Populate the domain data structure
+   !   domain(:)%pfaf         : basin pfaf code
+   !   domain(:)%segIndex(:)  : segment index within a basin
+   !   domain(:)%hruIndex(:)  : hru indix within a basin
+   !   domain(:)%isTrib       : T if a basin is a tributary, F if a basin is a mainstem
+   !   domain(:)%idNode       : proc id
+
    implicit none
    ! Input variables
    integer(i4b),                   intent(in)  :: nNodes                 ! number of nodes (root and computing nodes)
@@ -38,6 +53,7 @@ contains
    type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)         ! network topology
    integer(i4b),                   intent(in)  :: maxSegs                ! threshold number of tributary reaches
    ! Output variables
+   integer(i4b),                   intent(out) :: nHRU                   ! total number of HRUs that are connected to a reach
    integer(i4b),                   intent(out) :: ierr
    character(len=strLen),          intent(out) :: message                ! error message
    ! Local variables
@@ -47,18 +63,19 @@ contains
    character(len=32)                           :: pfafOutlet             ! pfaf_codes for a outlet segment
    character(len=32)                           :: pfafCommon             ! common pfaf_codes over the entire basin
    character(len=32), allocatable              :: pfafOutlets(:)         ! pfaf_codes for outlet segments
-   integer(i4b),allocatable                    :: ixSubset(:)            ! subset indices based on logical array from global index array
+   integer(i4b),      allocatable              :: ixSubset(:)            ! subset indices based on logical array from global index array
+   integer(i4b),      allocatable              :: nHruLocal(:)           ! number of HRU for each segment
    integer(i4b)                                :: level                  ! number of digits of common pfaf codes given pfaf code at outlet reach
    integer(i4b)                                :: downIndex(nSeg)        ! downstream segment index for all the segments
    integer(i4b)                                :: segIndex(nSeg)         ! reach index for all the segments
-   integer(i4b)                                :: segId(nSeg)            ! reach id for all the segments
    integer(i4b)                                :: nOuts                  ! number of outlets
    integer(i4b)                                :: nInvalid               ! number of invalid pfafcode (0 or -999)
-   integer(i4b)                                :: iSeg,iOut              ! loop indices
-   integer(i4b)                                :: ix                     ! loop indices
-   integer(i4b)                                :: idx                    ! loop indices
-   logical(lgt)                                :: seglgc(nSeg)
-   logical(lgt), allocatable                   :: isInvalid(:)
+   integer(i4b)                                :: iSeg, iOut, ix         ! loop indices
+   integer(i4b)                                :: ix1, ix2               ! first and last indices in array to subset
+   logical(lgt),      allocatable              :: isInvalid(:)
+ !  integer(i4b)                                :: segId(nSeg)            ! reach id for all the segments
+ !  integer(i4b)                                :: idx                    ! loop indices
+ !  logical(lgt)                                :: seglgc(nSeg)
 
    ierr=0; message='classify_river_basin_mpi/'
 
@@ -67,9 +84,8 @@ contains
 
    ! put ntopo and pfaf data into a separate array
    forall(iSeg=1:nSeg) pfafs(iSeg)     = structPFAF(iSeg)%var(ixPFAF%code)%dat(1)
-   forall(iSeg=1:nSeg) downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
    forall(iSeg=1:nSeg) segIndex(iSeg)  = structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1)
-   forall(iSeg=1:nSeg) segId(iSeg)     = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)
+   forall(iSeg=1:nSeg) downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
 
    ! put segments with invalid pfaf code (0 or -999) into a separate domain
    nDomain = nDomain+1
@@ -110,12 +126,35 @@ contains
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end do
 
+   ! populate domain(:)%hruIndex
+   nHRU = 0 ! total number of HRUs that contribute to the reach
+   do ix=1,nDomain
+     associate (ixSeg => domains(ix)%segIndex)
+     allocate(nHruLocal(size(ixSeg)), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating [nHruLocal]'; return; endif
+     do iSeg = 1, size(ixSeg)
+       nHruLocal(iSeg) = structNTOPO(ixSeg(iSeg))%var(ixNTOPO%nHRU)%dat(1)
+     enddo
+     nHRU=nHRU+sum(nHruLocal)
+     allocate(domains(ix)%hruIndex(sum(nHruLocal)), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating [domains(ix)%hruIndex]'; return; endif
+     do iSeg = 1, size(ixSeg)
+       ix1 = sum(nHruLocal(1:iSeg))-nHruLocal(iSeg)+1
+       ix2 = sum(nHruLocal(1:iSeg))
+       domains(ix)%hruIndex(ix1:ix2) = structNTOPO(ixSeg(iSeg))%var(ixNTOPO%hruContribIx)%dat(:)
+     enddo
+     deallocate(nHruLocal, stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem deallocating [nHruLocal]'; return; endif
+     end associate
+   enddo
+
    ! Assign domains to node
    call assign_node(nNodes, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
 !   ! --------------------------------------------------
 !   !  print to check
+!   forall(iSeg=1:nSeg) segId(iSeg)     = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)
 !   seglgc = .true.
 !   print*,'segid global_index  pfaf-seg  pfaf-basin  basin-size  node-id'
 !   do ix = 1,nDomain
@@ -456,6 +495,8 @@ contains
  subroutine classify_river_basin_omp(nSeg, structPFAF, structNTOPO, river_basin, maxSegs, ierr, message)
   ! Identify tributary basin and mainstems using river network data and pfafstetter code
   ! Output: return populated basin dataType
+  use dataTypes, only: basin         ! basin data structure
+  use dataTypes, only: reach         !
   implicit none
   ! Input variables
   integer(i4b),                   intent(in)  :: nSeg                   ! number of stream segments
@@ -739,4 +780,4 @@ contains
  end subroutine classify_river_basin_omp
 
 
-end module domain_decomposition_module
+end module domain_decomposition

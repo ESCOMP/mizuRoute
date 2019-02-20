@@ -184,8 +184,8 @@ contains
  ! loop through segments
  do iSeg=1,nSeg
 
-  ! save the segment index
-  structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1) = iSeg
+!  ! save the segment index
+!  structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1) = iSeg
 
   ! skip segments with no HRU drainage
   if(structNTOPO(iSeg)%var(ixNTOPO%nHRU)%dat(1)==0) cycle
@@ -242,6 +242,9 @@ contains
  integer(i4b)                    :: mUpstream(nRch)     ! number of elements that drain into each segment
  ! initialize error control
  ierr=0; message='up2downSegment/'
+
+ ! populate reach index
+ forall(iRch=1:nRch) structNTOPO(iRch)%var(ixNTOPO%segIndex)%dat(1) = iRch
 
  ! ---------- define the index of the downstream reach ID ----------------------------------------------------
 

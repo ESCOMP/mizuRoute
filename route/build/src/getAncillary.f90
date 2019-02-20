@@ -8,10 +8,10 @@ USE dataTypes, only : var_ilength            ! integer type:          var(:)%dat
 USE dataTypes, only : var_dlength            ! double precision type: var(:)%dat
 
 ! lookup variables
-USE var_lookup,only:ixHRU,    nVarsHRU     ! index of variables for the HRUs
-USE var_lookup,only:ixSEG,    nVarsSEG     ! index of variables for the stream segments
+!USE var_lookup,only:ixHRU,    nVarsHRU     ! index of variables for the HRUs
+!USE var_lookup,only:ixSEG,    nVarsSEG     ! index of variables for the stream segments
 USE var_lookup,only:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
-USE var_lookup,only:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
+!USE var_lookup,only:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
 
 ! global data
 USE public_var
@@ -94,7 +94,7 @@ contains
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! get vector of HRU ids in the routing layer
-   forall(iHRU=1:nHRU) route_id(iHRU) = structHRU2seg(iHRU)%var(ixHRU2seg%hruId)%dat(1)
+   forall(iHRU=1:nHRU) route_id(iHRU) = structHRU2SEG(iHRU)%var(ixHRU2SEG%hruId)%dat(1)
 
    ! get indices of the HRU ids in the mapping file in the routing layer
    call get_qix(remap_data%hru_id,  &    ! input: vector of ids in mapping file

@@ -8,19 +8,9 @@ USE dataTypes, only : var_clength         ! integer type:          var(:)%dat
 USE dataTypes, only : var_dlength,dlength ! double precision type: var(:)%dat, or dat
 
 ! global vars
-USE public_var, only : min_slope          ! minimum slope
-USE public_var, only : ancil_dir          ! name of the ancillary directory
-USE public_var, only : fname_ntopOld      ! name of the old network topology file
-USE public_var, only : fname_ntopNew      ! name of the new network topology file
-USE public_var, only : dname_nhru         ! dimension name for HRUs
-USE public_var, only : dname_sseg         ! dimension name for stream segments
 USE public_var, only : idSegOut           ! ID for stream segment at the bottom of the subset
-USE public_var, only : dt                 ! simulation time step [sec]
-USE public_var, only : maxPfafLen         ! maximum length of pfafstetter code
-USE globalData, only : meta_PFAF          ! meta for pfafstetter code
 
 ! options
-USE public_var, only : ntopWriteOption    ! option to write updated network topology
 USE public_var, only : topoNetworkOption  ! option to compute network topology
 USE public_var, only : computeReachList   ! option to compute reach list
 USE public_var, only : hydGeometryOption  ! option to obtain routing parameters
@@ -29,17 +19,8 @@ USE public_var, only : allRoutingMethods  ! option for routing methods - all the
 USE public_var, only : kinematicWave      ! option for routing methods - kinematic wave only
 USE public_var, only : impulseResponseFunc! option for routing methods - IRF only
 
-! global parameters
-USE globalData, only : RPARAM             ! Reach parameters
-USE globalData, only : NETOPO             ! Network topology
-
 ! named variables
 USE globalData, only : true,false         ! named integers for true/false
-
-! routing parameters
-USE globalData, only : fshape, tscale     ! basin IRF routing parameters (Transfer function parameters)
-USE globalData, only : mann_n, wscale     ! KWT routing parameters (Transfer function parameters)
-USE globalData, only : velo, diff         ! IRF routing parameters (Transfer function parameters)
 
 ! named variables
 USE var_lookup,only:ixSEG                 ! index of variables for the stream segments
@@ -53,117 +34,90 @@ USE public_var, only : readFromFile       ! read given variable from a file
 USE public_var, only : realMissing         ! missing value for real
 USE public_var, only : integerMissing      ! missing value for integers
 
-! Routing parameter estimation procedure
-USE basinUH_module,   only : basinUH      ! construct basin unit hydrograph
-USE irf_route_module, only : make_uh      ! construct reach unit hydrograph
-
-! NetCDF reading routine
-USE read_netcdf,      only : get_var_dims
-
 implicit none
 
 ! privacy -- everything private unless declared explicitly
 private
-public::ntopo
+public::augment_ntopo
+public::put_data_struct
 
 contains
 
  ! *********************************************************************
- ! public subroutine: read and process river network data
+ ! public subroutine: augment river network data
  ! *********************************************************************
- subroutine ntopo(&
-                  ! output: model control
+ subroutine augment_ntopo(&
+                  ! input: model control
                   nHRU,             & ! number of HRUs
                   nSeg,             & ! number of stream segments
-                  ! output: populate data structures
+                  ! inout: populate data structures
                   structHRU,        & ! ancillary data for HRUs
                   structSeg,        & ! ancillary data for stream segments
                   structHRU2seg,    & ! ancillary data for mapping hru2basin
                   structNTOPO,      & ! ancillary data for network toopology
                   structPFAF,       & ! ancillary data for pfafstetter code
+                  ! output:
+                  tot_hru,          & ! total number of all the upstream hrus for all stream segments
+                  tot_upseg,        & ! total number of immediate upstream segments for all  stream segments
+                  tot_upstream,     & ! total number of all the upstream segments for all stream segments
+                  tot_uh,           & ! total number of unit hydrograph from all the stream segments
+                  ixHRU_desired,    & ! indices of desired hrus
+                  ixSeg_desired,    & ! indices of desired reaches
                   ! output: error control
                   ierr, message)
- ! external subroutines : I/O
- use read_streamSeg,  only:getData               ! get the ancillary data
- use write_streamSeg, only:writeData             ! write the ancillary data
- ! external subroutines : network topology
- use network_topo,    only:hru2segment           ! get the mapping between HRUs and segments
- use network_topo,    only:up2downSegment        ! get the mapping between upstream and downstream segments
- use network_topo,    only:reachOrder            ! define the processing order
- use network_topo,    only:reach_list            ! reach list
- use network_topo,    only:reach_mask            ! identify all reaches upstream of a given reach
- !use network_topo,    only:reach_mask_orig            ! identify all reaches upstream of a given reach
- ! This subroutine 1) read river network data and 2) populate river network topology data strucutres
+
+ ! external subroutines/data
+ ! network topology routine
+ use network_topo,     only:hru2segment           ! get the mapping between HRUs and segments
+ use network_topo,     only:up2downSegment        ! get the mapping between upstream and downstream segments
+ use network_topo,     only:reachOrder            ! define the processing order
+ use network_topo,     only:reach_list            ! reach list
+ use network_topo,     only:reach_mask            ! identify all reaches upstream of a given reach
+ ! Routing parameter estimation routine
+ use routing_param,    only:basinUH               ! construct basin unit hydrograph
+ use routing_param,    only:make_uh               ! construct reach unit hydrograph
+ ! routing spatial constant parameters
+ use globalData,       only:fshape, tscale        ! basin IRF routing parameters (Transfer function parameters)
+ use globalData,       only:mann_n, wscale        ! KWT routing parameters (Transfer function parameters)
+ use globalData,       only:velo, diff            ! IRF routing parameters (Transfer function parameters)
+
+ USE public_var, only : dt                        ! simulation time step [sec]
+
+ ! This subroutine populate river network topology data strucutres
  implicit none
  ! output: model control
- integer(i4b)      , intent(out)              :: nHRU             ! number of HRUs
- integer(i4b)      , intent(out)              :: nSeg             ! number of stream segments
- ! output: populate data structures
- type(var_dlength) , intent(out), allocatable :: structHRU(:)     ! HRU properties
- type(var_dlength) , intent(out), allocatable :: structSeg(:)     ! stream segment properties
- type(var_ilength) , intent(out), allocatable :: structHRU2seg(:) ! HRU-to-segment mapping
- type(var_ilength) , intent(out), allocatable :: structNTOPO(:)   ! network topology
- type(var_clength) , intent(out), allocatable :: structPFAF(:)    ! pfafstetter code
+ integer(i4b)      , intent(in)                 :: nHRU             ! number of HRUs
+ integer(i4b)      , intent(in)                 :: nSeg             ! number of stream segments
+ ! inout: populate data structures
+ type(var_dlength) , intent(inout), allocatable :: structHRU(:)     ! HRU properties
+ type(var_dlength) , intent(inout), allocatable :: structSeg(:)     ! stream segment properties
+ type(var_ilength) , intent(inout), allocatable :: structHRU2seg(:) ! HRU-to-segment mapping
+ type(var_ilength) , intent(inout), allocatable :: structNTOPO(:)   ! network topology
+ type(var_clength) , intent(inout), allocatable :: structPFAF(:)    ! pfafstetter code
+ ! output:
+ integer(i4b),       intent(out)                :: tot_upstream     ! total number of all of the upstream stream segments for all stream segments
+ integer(i4b),       intent(out)                :: tot_upseg        ! total number of immediate upstream segments for all  stream segments
+ integer(i4b),       intent(out)                :: tot_hru          ! total number of all the upstream hrus for all stream segments
+ integer(i4b),       intent(out)                :: tot_uh           ! total number of unit hydrograph from all the stream segments
+ integer(i4b),       intent(out),   allocatable :: ixHRU_desired(:) ! indices of desired hrus
+ integer(i4b),       intent(out),   allocatable :: ixSeg_desired(:) ! indices of desired reaches
  ! output: error control
- integer(i4b)      , intent(out)              :: ierr             ! error code
- character(*)      , intent(out)              :: message          ! error message
+ integer(i4b)      , intent(out)                :: ierr             ! error code
+ character(*)      , intent(out)                :: message          ! error message
  ! --------------------------------------------------------------------------------------------------------------
  ! local variables
- character(len=strLen)           :: cmessage           ! error message of downwind routine
- integer(i4b)                    :: dummy(2)           ! dummy variable for dimension length output
- integer(i4b)                    :: iSeg               ! indices for stream segment
- integer(i4b)                    :: iUps               ! indices of upstream segments
- integer(i4b)                    :: nUps               ! number of immediate upstream segments
- integer(i4b)                    :: tot_upstream       ! total number of all of the upstream stream segments for all stream segments
- integer(i4b)                    :: tot_upseg          ! total number of immediate upstream segments for all  stream segments
- integer(i4b)                    :: tot_hru            ! total number of all the upstream hrus for all stream segments
- integer(i4b)                    :: tot_uh             ! total number of unit hydrograph from all the stream segments
- integer(i4b)   , allocatable    :: ixHRU_desired(:)   ! indices of desired hrus
- integer(i4b)   , allocatable    :: ixSeg_desired(:)   ! indices of desired reaches
- integer(i4b)   , parameter      :: maxUpstreamFile=10000000 ! 10 million: maximum number of upstream reaches to enable writing
- integer*8                       :: time0,time1        ! times
- real(dp)     , allocatable      :: seg_length(:)      ! temporal array for segment length
- type(dlength), allocatable      :: temp_dat(:)        ! temporal data storage
+ character(len=strLen)                          :: cmessage           ! error message of downwind routine
+ integer(i4b)                                   :: iSeg               ! indices for stream segment
+ integer(i4b)   , parameter                     :: maxUpstreamFile=10000000 ! 10 million: maximum number of upstream reaches to enable writing
+ integer*8                                      :: time0,time1        ! times
+ real(dp)     , allocatable                     :: seg_length(:)      ! temporal array for segment length
+ type(dlength), allocatable                     :: temp_dat(:)        ! temporal data storage
 
  ! initialize error control
- ierr=0; message='ntopo/'
+ ierr=0; message='augment_ntopo/'
 
  ! initialize times
  call system_clock(time0)
-
- ! ---------- read in the stream segment information ---------------------------------------------------------
- ! get pfafstetter maximum code length
- call get_var_dims(trim(ancil_dir)//trim(fname_ntopOld), & ! input: file name
-                   trim(meta_PFAF(ixPFAF%code)%varName), & ! input: pfaf code variable name in netcdf
-                   ierr, cmessage,                       & ! output: error control
-                   dlen=dummy)             ! output optional: dimension length
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- maxPfafLen = dummy(1)
-
- ! get the number of HRUs and stream segments (needed for allocate statements)
- call getData(&
-              ! input
-              trim(ancil_dir)//trim(fname_ntopOld), & ! input: file name
-              dname_nhru,   & ! input: dimension name of the HRUs
-              dname_sseg,   & ! input: dimension name of the stream segments
-              ! output: model control
-              nHRU,         & ! output: number of HRUs
-              nSeg,         & ! output: number of stream segments
-              ! output: populate data structures
-              structHRU,    & ! ancillary data for HRUs
-              structSeg,    & ! ancillary data for stream segments
-              structHRU2seg,& ! ancillary data for mapping hru2basin
-              structNTOPO,  & ! ancillary data for network topology
-              structPFAF,   & ! ancillary data for pfafstetter code
-              ! output: error control
-              ierr,cmessage) ! output: error control
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ! get timing
- call system_clock(time1)
- write(*,'(a,1x,i20)') 'after getData: time = ', time1-time0
- !print*, trim(message)//'PAUSE : '; read(*,*)
 
  ! ---------- get the mapping between HRUs and segments ------------------------------------------------------
 
@@ -268,6 +222,11 @@ contains
    end do
   end if
 
+  ! get timing
+  call system_clock(time1)
+  write(*,'(a,1x,i20)') 'after river geometry : time = ', time1-time0
+  !print*, trim(message)//'PAUSE : '; read(*,*)
+
  endif  ! computing hydraulic geometry
 
  ! get the channel unit hydrograph
@@ -295,6 +254,11 @@ contains
    enddo
 
   endif ! if using the impulse response function
+
+  ! get timing
+  call system_clock(time1)
+  write(*,'(a,1x,i20)') 'after topoNetwork : time = ', time1-time0
+  !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif ! if there is a need to compute the channel unit hydrograph
 
@@ -325,136 +289,117 @@ contains
  write(*,'(a,1x,i20)') 'after reach_mask: time = ', time1-time0
  !print*, trim(message)//'PAUSE : '; read(*,*)
 
- ! ---------- write network topology to a netcdf file -------------------------------------------------------
+end subroutine augment_ntopo
 
- ! check the need to compute network topology
- if(idSegOut>0) ntopWriteOption=.true.   ! ensure that localized network topology is written if a particular outlet is specified
- if(ntopWriteOption)then
-
-  ! disable the dimension containing all upstream reaches
-  ! NOTE: For the CONUS this is 1,872,516,819 reaches !!
-  !        --> it will always be quicker to recompute than read+write
-  !        --> users can modify the hard-coded parameter "maxUpstreamFile" if desired
-  if(tot_upstream > maxUpstreamFile) tot_upstream=0
-
-  ! remove file if it exists
-  call system('rm -f '//trim(ancil_dir)//trim(fname_ntopNew))
-
-  ! write data
-  call writeData(&
-                 ! input
-                 trim(ancil_dir)//trim(fname_ntopNew), & ! input: file name
-                 ! input: model control
-                 tot_hru,       & ! input: total number of all the upstream hrus for all stream segments
-                 tot_upseg,     & ! input: total number of immediate upstream segments for all  stream segments
-                 tot_upstream,  & ! input: total number of all of the upstream stream segments for all stream segments
-                 tot_uh,        & ! input: total number of unit hydrograph for all stream segments
-                 ! input: reach masks
-                 ixHRU_desired, & ! input: indices of desired hrus
-                 ixSeg_desired, & ! input: indices of desired reaches
-                 ! input: data structures
-                 structHRU,     & ! input: ancillary data for HRUs
-                 structSeg,     & ! input: ancillary data for stream segments
-                 structHRU2seg, & ! input: ancillary data for mapping hru2basin
-                 structNTOPO,   & ! input: ancillary data for network topology
-                 structPFAF,    & ! input: ancillary data for pfafstetter code
-                 ! output: error control
-                 ierr,cmessage) ! output: error control
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  ! created a subset = sucessful execution: Need to run again with the subset
-  if(idSegOut>0)then
-   write(*,'(a)') 'Running in subsetting mode'
-   write(*,'(a)') 'Created a subset network topology file '//trim(fname_ntopNew)
-   write(*,'(a)') ' --> Run again using the new network topology file '
-   stop 'SUCCESSFUL EXECUTION'
-  endif
-
- endif  ! if writing the data
-
+ ! *********************************************************************
+ ! public subroutine: populate old data strucutures
+ ! *********************************************************************
  ! ---------- temporary code: populate old data structures --------------------------------------------------
+ subroutine put_data_struct(nSeg, structSEG, structNTOPO, ierr, message)
+  ! Updating global parameters
+  use globalData, only : RPARAM             ! Reach parameters
+  use globalData, only : NETOPO             ! Network topology
 
- ! allocate space
- allocate(RPARAM(nSeg), NETOPO(nSeg), stat=ierr)
- if(ierr/=0)then; message=trim(message)//'unable to allocate space for old data structures'; return; endif
+  USE public_var, only : min_slope          ! minimum slope
 
- ! loop through stream segments
- do iSeg=1,nSeg
+  implicit none
+  ! input
+  integer(i4b)      , intent(in)                 :: nSeg             ! number of stream segments
+  ! inout: populate data structures
+  type(var_dlength) , intent(in)                 :: structSeg(:)     ! stream segment properties
+  type(var_ilength) , intent(in)                 :: structNTOPO(:)   ! network topology
+  ! output: error control
+  integer(i4b)      , intent(out)                :: ierr             ! error code
+  character(*)      , intent(out)                :: message          ! error message
+  ! local varialbles
+  character(len=strLen)                          :: cmessage         ! error message of downwind routine
+  integer(i4b)                                   :: nUps             ! number of upstream segments for a segment
+  integer(i4b)                                   :: iSeg,iUps        ! loop indices
 
-  ! print progress
-  if(mod(iSeg,1000000)==0) print*, 'Copying to the old data structures: iSeg, nSeg = ', iSeg, nSeg
+  ! initialize error control
+  ierr=0; message='put_data_struct/'
 
-  ! ----- reach parameters -----
+  ! allocate space
+  allocate(RPARAM(nSeg), NETOPO(nSeg), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'unable to allocate space for old data structures'; return; endif
 
-  ! copy data into the reach parameter structure
-  RPARAM(iSeg)%RLENGTH =     structSEG(iSeg)%var(ixSEG%length)%dat(1)
-  RPARAM(iSeg)%R_SLOPE = max(structSEG(iSeg)%var(ixSEG%slope)%dat(1), min_slope)
-  RPARAM(iSeg)%R_MAN_N =     structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
-  RPARAM(iSeg)%R_WIDTH =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
+  ! loop through stream segments
+  do iSeg=1,nSeg
 
-  ! compute variables
-  RPARAM(iSeg)%BASAREA = structSEG(iSeg)%var(ixSEG%basArea)%dat(1)
-  RPARAM(iSeg)%UPSAREA = structSEG(iSeg)%var(ixSEG%upsArea)%dat(1)
-  RPARAM(iSeg)%TOTAREA = structSEG(iSeg)%var(ixSEG%totalArea)%dat(1)
+   ! print progress
+   if(mod(iSeg,1000000)==0) print*, 'Copying to the old data structures: iSeg, nSeg = ', iSeg, nSeg
 
-  ! NOT USED: MINFLOW -- minimum environmental flow
-  RPARAM(iSeg)%MINFLOW = structSEG(iSeg)%var(ixSEG%minFlow)%dat(1)
+   ! ----- reach parameters -----
 
-  ! ----- network topology -----
+   ! copy data into the reach parameter structure
+   RPARAM(iSeg)%RLENGTH =     structSEG(iSeg)%var(ixSEG%length)%dat(1)
+   RPARAM(iSeg)%R_SLOPE = max(structSEG(iSeg)%var(ixSEG%slope)%dat(1), min_slope)
+   RPARAM(iSeg)%R_MAN_N =     structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
+   RPARAM(iSeg)%R_WIDTH =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
 
-  ! reach indices
-  NETOPO(iSeg)%REACHIX = structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1)     ! reach index (1, 2, 3, ..., nSeg)
-  NETOPO(iSeg)%REACHID = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)        ! reach ID (unique reach identifier)
+   ! compute variables
+   RPARAM(iSeg)%BASAREA = structSEG(iSeg)%var(ixSEG%basArea)%dat(1)
+   RPARAM(iSeg)%UPSAREA = structSEG(iSeg)%var(ixSEG%upsArea)%dat(1)
+   RPARAM(iSeg)%TOTAREA = structSEG(iSeg)%var(ixSEG%totalArea)%dat(1)
 
-  ! downstream reach indices
-  NETOPO(iSeg)%DREACHI = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1) ! Immediate Downstream reach index
-  NETOPO(iSeg)%DREACHK = structNTOPO(iSeg)%var(ixNTOPO%downSegId)%dat(1)    ! Immediate Downstream reach ID
+   ! NOT USED: MINFLOW -- minimum environmental flow
+   RPARAM(iSeg)%MINFLOW = structSEG(iSeg)%var(ixSEG%minFlow)%dat(1)
 
-  ! allocate space for immediate upstream reach indices
-  nUps = size(structNTOPO(iSeg)%var(ixNTOPO%upSegIds)%dat)
-  allocate(NETOPO(iSeg)%UREACHI(nUps), NETOPO(iSeg)%UREACHK(nUps), NETOPO(iSeg)%goodBas(nUps), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'unable to allocate space for upstream structures'; return; endif
+   ! ----- network topology -----
 
-  ! populate immediate upstream data structures
-  if(nUps>0)then
-   do iUps=1,nUps   ! looping through upstream reaches
-    NETOPO(iSeg)%UREACHI(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIndices)%dat(iUps)      ! Immediate Upstream reach indices
-    NETOPO(iSeg)%UREACHK(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIds    )%dat(iUps)      ! Immediate Upstream reach Ids
-    NETOPO(iSeg)%goodBas(iUps) = (structNTOPO(iSeg)%var(ixNTOPO%goodBasin)%dat(iUps)==true) ! "good" basin
-   end do  ! Loop through upstream reaches
-  endif
+   ! reach indices
+   NETOPO(iSeg)%REACHIX = structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1)     ! reach index (1, 2, 3, ..., nSeg)
+   NETOPO(iSeg)%REACHID = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)        ! reach ID (unique reach identifier)
 
-  ! define the reach order
-  NETOPO(iSeg)%RHORDER = structNTOPO(iSeg)%var(ixNTOPO%rchOrder)%dat(1)  ! Processing sequence
+   ! downstream reach indices
+   NETOPO(iSeg)%DREACHI = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1) ! Immediate Downstream reach index
+   NETOPO(iSeg)%DREACHK = structNTOPO(iSeg)%var(ixNTOPO%downSegId)%dat(1)    ! Immediate Downstream reach ID
 
-  ! NOT USED: lake parameters
-  NETOPO(iSeg)%LAKE_IX = integerMissing  ! Lake index (0,1,2,...,nlak-1)
-  NETOPO(iSeg)%LAKE_ID = integerMissing  ! Lake ID (REC code?)
-  NETOPO(iSeg)%BASULAK = realMissing     ! Area of basin under lake
-  NETOPO(iSeg)%RCHULAK = realMissing     ! Length of reach under lake
-  NETOPO(iSeg)%LAKINLT = .false.         ! .TRUE. if reach is lake inlet, .FALSE. otherwise
-  NETOPO(iSeg)%USRTAKE = .false.         ! .TRUE. if user takes from reach, .FALSE. otherwise
+   ! allocate space for immediate upstream reach indices
+   nUps = size(structNTOPO(iSeg)%var(ixNTOPO%upSegIds)%dat)
+   allocate(NETOPO(iSeg)%UREACHI(nUps), NETOPO(iSeg)%UREACHK(nUps), NETOPO(iSeg)%goodBas(nUps), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'unable to allocate space for upstream structures'; return; endif
 
-  ! NOT USED: Location (available in the input files)
-  NETOPO(iSeg)%RCHLAT1 = realMissing     ! Start latitude
-  NETOPO(iSeg)%RCHLAT2 = realMissing     ! End latitude
-  NETOPO(iSeg)%RCHLON1 = realMissing     ! Start longitude
-  NETOPO(iSeg)%RCHLON2 = realMissing     ! End longitude
+   ! populate immediate upstream data structures
+   if(nUps>0)then
+    do iUps=1,nUps   ! looping through upstream reaches
+     NETOPO(iSeg)%UREACHI(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIndices)%dat(iUps)      ! Immediate Upstream reach indices
+     NETOPO(iSeg)%UREACHK(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIds    )%dat(iUps)      ! Immediate Upstream reach Ids
+     NETOPO(iSeg)%goodBas(iUps) = (structNTOPO(iSeg)%var(ixNTOPO%goodBasin)%dat(iUps)==true) ! "good" basin
+    end do  ! Loop through upstream reaches
+   endif
 
-  ! reach unit hydrograph
-  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
-    allocate(NETOPO(iSeg)%UH(size(structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat)), stat=ierr, errmsg=cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage)//': NETOPO(iSeg)%UH'; return; endif
-    NETOPO(iSeg)%UH(:) =  structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat(:)
-  end if
+   ! define the reach order
+   NETOPO(iSeg)%RHORDER = structNTOPO(iSeg)%var(ixNTOPO%rchOrder)%dat(1)  ! Processing sequence
 
-  ! upstream reach list
-  allocate(NETOPO(iSeg)%RCHLIST(size(structNTOPO(iSeg)%var(ixNTOPO%allUpSegIndices)%dat)), stat=ierr, errmsg=cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': NETOPO(iSeg)%RCHLIST'; return; endif
-  NETOPO(iSeg)%RCHLIST(:) =  structNTOPO(iSeg)%var(ixNTOPO%allUpSegIndices)%dat(:)
+   ! NOT USED: lake parameters
+   NETOPO(iSeg)%LAKE_IX = integerMissing  ! Lake index (0,1,2,...,nlak-1)
+   NETOPO(iSeg)%LAKE_ID = integerMissing  ! Lake ID (REC code?)
+   NETOPO(iSeg)%BASULAK = realMissing     ! Area of basin under lake
+   NETOPO(iSeg)%RCHULAK = realMissing     ! Length of reach under lake
+   NETOPO(iSeg)%LAKINLT = .false.         ! .TRUE. if reach is lake inlet, .FALSE. otherwise
+   NETOPO(iSeg)%USRTAKE = .false.         ! .TRUE. if user takes from reach, .FALSE. otherwise
 
- end do  ! looping through stream segments
+   ! NOT USED: Location (available in the input files)
+   NETOPO(iSeg)%RCHLAT1 = realMissing     ! Start latitude
+   NETOPO(iSeg)%RCHLAT2 = realMissing     ! End latitude
+   NETOPO(iSeg)%RCHLON1 = realMissing     ! Start longitude
+   NETOPO(iSeg)%RCHLON2 = realMissing     ! End longitude
 
- end subroutine ntopo
+   ! reach unit hydrograph
+   if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+     allocate(NETOPO(iSeg)%UH(size(structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat)), stat=ierr, errmsg=cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage)//': NETOPO(iSeg)%UH'; return; endif
+     NETOPO(iSeg)%UH(:) =  structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat(:)
+   end if
+
+   ! upstream reach list
+   allocate(NETOPO(iSeg)%RCHLIST(size(structNTOPO(iSeg)%var(ixNTOPO%allUpSegIndices)%dat)), stat=ierr, errmsg=cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': NETOPO(iSeg)%RCHLIST'; return; endif
+   NETOPO(iSeg)%RCHLIST(:) =  structNTOPO(iSeg)%var(ixNTOPO%allUpSegIndices)%dat(:)
+
+  end do  ! looping through stream segments
+
+ end subroutine put_data_struct
 
 end module process_ntopo

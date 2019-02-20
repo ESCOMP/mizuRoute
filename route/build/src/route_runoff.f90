@@ -55,38 +55,28 @@ USE read_restart,    only : read_state_nc     ! read netcdf state output file
 USE write_netcdf,    only : write_nc          ! write a variable to the NetCDF file
 
 ! subroutines: model set up
-USE process_ntopo, only : ntopo               ! process the network topology
+USE data_initialization, only : initial_ntopo ! initialize river segment data
 USE getAncillary_module, only : getAncillary  ! get ancillary data
-
-! Subroutines : domain decomposition routine
-USE domain_decomposition_module, only: classify_river_basin_omp ! split river network segments for omp use
-USE domain_decomposition_module, only: classify_river_basin_mpi ! group river network segments into computational groups
 
 ! subroutines: model time info
 USE time_utils_module,   only : compCalday        ! compute calendar day
 USE time_utils_module,   only : compCalday_noleap ! compute calendar day
 USE process_time_module, only : process_time  ! process time information
 
-! subroutines: basin routing
-USE basinUH_module, only : IRF_route_basin    ! perform UH convolution for basin routing
-
 ! subroutines: get runoff for each basin in the routing layer
 USE read_runoff, only : get_runoff            ! read simulated runoff data
 USE remapping,   only : remap_runoff          ! remap runoff from input polygons to routing basins
 USE remapping,   only : basin2reach           ! remap runoff from routing basins to routing reaches
 
+! subroutines: basin routing
+USE basinUH_module, only : IRF_route_basin    ! perform UH convolution for basin routing
+
 ! subroutines: river routing
 USE accum_runoff_module, only : accum_runoff  ! upstream flow accumulation
 USE kwt_route_module,    only : kwt_route     ! kinematic wave routing method
+USE irf_route_module, only : irf_route        ! unit hydrograph (impulse response function) routing method
 !USE kwt_route_module,    only : kwt_route => kwt_route_orig   ! kinematic wave routing method
-
-! subroutines: river network unit hydrograph routing
-USE irf_route_module, only : make_uh          ! reach unit hydrograph
-USE irf_route_module, only : irf_route        ! river network unit hydrograph method
 !USE irf_route_module,    only : irf_route => irf_route_orig    ! river network unit hydrograph method
-
-! subroutine mpi processes
-USE mpi_routine_module, only : commun_reach_param  ! distributing temporal static  reach parameters
 
 ! ******
 ! define variables
@@ -114,10 +104,9 @@ character(len=strLen)         :: cmessage            ! error message of downwind
 
 !  network topology data structures
 type(var_dlength),allocatable :: structHRU(:)        ! HRU properties
-type(var_dlength),allocatable :: structSeg(:)        ! stream segment properties
+type(var_dlength),allocatable :: structSEG(:)        ! stream segment properties
 type(var_ilength),allocatable :: structHRU2seg(:)    ! HRU-to-segment mapping
 type(var_ilength),allocatable :: structNTOPO(:)      ! network topology
-type(var_clength),allocatable :: structPFAF(:)       ! pfafstetter code
 
 ! read control file
 character(len=strLen)         :: cfile_name          ! name of the control file
@@ -153,7 +142,6 @@ real(dp)    , allocatable     :: basinRunoff(:)      ! basin runoff (m/s)
 real(dp)    , allocatable     :: reachRunoff(:)      ! reach runoff (m/s)
 integer(i4b), parameter       :: doesBasinRoute=1    ! integer to specify runoff input type (0 -> runoff input is already delayed, 1 -> runoff input is instantaneous)
 integer(i4b)                  :: ixDesire            ! desired reach index
-integer(i4b)                  :: ixOutlet            ! outlet reach index
 
 ! MPI variables
 integer(i4b)                  :: pid                 ! process id
@@ -176,11 +164,10 @@ call MPI_COMM_SIZE(MPI_COMM_WORLD, nNodes, ierr)
 !  Get the individual process ID
 call MPI_COMM_RANK(MPI_COMM_WORLD, pid, ierr)
 
-if (pid==0) then
 ! *****
 ! *** Populate metadata...
 ! ************************
-
+if (pid==0) then
 ! populate the metadata files
 call popMetadat(ierr,cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
@@ -200,60 +187,39 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 ! read the routing parameter namelist
 call read_param(trim(ancil_dir)//trim(param_nml),ierr,cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
-
+endif
 ! *****
-! *** Process the network topology...
+! *** Initialization
 ! ***********************************
 
-  ! get the network topology
-  call ntopo(&
-             ! output: model control
-             nHRU,             & ! number of HRUs
-             nRch,             & ! number of stream segments
-             ! output: populate data structures
-             structHRU,        & ! ancillary data for HRUs
-             structSeg,        & ! ancillary data for stream segments
-             structHRU2seg,    & ! ancillary data for mapping hru2basin
-             structNTOPO,      & ! ancillary data for network topology
-             structPFAF,       & ! ancillary data for pfafstetter
-             ! output: error control
-             ierr, cmessage)
-  if(ierr/=0) call handle_err(ierr, cmessage)
-  !print*, 'PAUSE: after getting network topology'; read(*,*)
+! network topology
+call initial_ntopo(nNodes, pid, ierr, cmessage)
+if(ierr/=0) call handle_err(ierr, cmessage)
+!print*, 'PAUSE: after getting network topology'; read(*,*)
+
+call MPI_FINALIZE(ierr)
+stop
 
 ! *****
 ! *** Get ancillary data for routing...
 ! *************************************
 
-  ! get ancillary data for routing
-  call getAncillary(&
-                    ! data structures
-                    nHRU,            & ! input:  number of HRUs in the routing layer
-                    structHRU2seg,   & ! input:  ancillary data for mapping hru2basin
-                    is_remap,        & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
-                    remap_data,      & ! output: data structure to remap data
-                    runoff_data,     & ! output: data structure for runoff
-                    ! dimensions
-                    nSpatial,        & ! output: number of spatial elements in runoff data
-                    nTime,           & ! output: number of time steps
-                    time_units,      & ! output: time units
-                    calendar,        & ! output: calendar
-                    ! error control
-                    ierr, cmessage)
-  if(ierr/=0) call handle_err(ierr, cmessage)
-
-  ! ----------  pfafstetter code process to group segments -------------------------------------------------------
-  !call classify_river_basin_omp(nRch, structPFAF, structNTOPO, river_basin, nThresh, ierr, cmessage)
-  !if(ierr/=0) call handle_err(ierr, cmessage)
-
-  call classify_river_basin_mpi(nNodes, nRch, structPFAF, structNTOPO, nThresh, ierr, cmessage)
-  if(ierr/=0) call handle_err(ierr, cmessage)
-end if
-
-call commun_reach_param(nRch, pid, nNodes, structNTOPO, ierr, cmessage)
+! get ancillary data for routing
+call getAncillary(&
+                  ! data structures
+                  nHRU,            & ! input:  number of HRUs in the routing layer
+                  structHRU2seg,   & ! input:  ancillary data for mapping hru2basin
+                  is_remap,        & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
+                  remap_data,      & ! output: data structure to remap data
+                  runoff_data,     & ! output: data structure for runoff
+                  ! dimensions
+                  nSpatial,        & ! output: number of spatial elements in runoff data
+                  nTime,           & ! output: number of time steps
+                  time_units,      & ! output: time units
+                  calendar,        & ! output: calendar
+                  ! error control
+                  ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
-call MPI_FINALIZE(ierr)
-stop
 
 ! allocate space for the time data
 allocate(timeVec(ntime), stat=ierr)
@@ -339,9 +305,6 @@ if(ierr/=0) call handle_err(ierr, 'unable to allocate space for runoff vectors')
 ! find index of desired reach
 ixDesire = findIndex(reachID,desireId,integerMissing)
 
-! find index of desired reach
-ixOutlet = findIndex(reachID,idSegOut,integerMissing)
-
 ! define ensemble member
 iens=1
 
@@ -411,7 +374,7 @@ do iTime=1,nTime
  if(defNewOutputFile)then
 
   ! initialize time
-  jtime=1
+  jTime=1
 
   ! update filename
   write(fileout,'(a,3(i0,a))') trim(output_dir)//trim(fname_output)//'_', modTime%iy, '-', modTime%im, '-', modTime%id, '.nc'
@@ -438,7 +401,7 @@ do iTime=1,nTime
 
  ! no new file requested: increment time
  else
-  jtime = jtime+1
+  jTime = jTime+1
  endif
 
  ! write time -- note time is just carried across from the input

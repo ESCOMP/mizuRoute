@@ -69,12 +69,12 @@ module globalData
 
   ! ---------- routing parameter names -------------------------------------------------------------------
 
-  real(dp)                      :: fshape                               ! shape parameter in time delay histogram (=gamma distribution) [-]
-  real(dp)                      :: tscale                               ! scaling factor for the time delay histogram [sec]
-  real(dp)                      :: velo                                 ! velocity [m/s] for Saint-Venant equation   added by NM
-  real(dp)                      :: diff                                 ! diffusivity [m2/s] for Saint-Venant equation   added by NM
-  real(dp)                      :: mann_n                               ! manning's roughness coefficient [unitless]  added by NM
-  real(dp)                      :: wscale                               ! scaling factor for river width [-] added by NM
+  real(dp)                       , public :: fshape                     ! shape parameter in time delay histogram (=gamma distribution) [-]
+  real(dp)                       , public :: tscale                     ! scaling factor for the time delay histogram [sec]
+  real(dp)                       , public :: velo                       ! velocity [m/s] for Saint-Venant equation   added by NM
+  real(dp)                       , public :: diff                       ! diffusivity [m2/s] for Saint-Venant equation   added by NM
+  real(dp)                       , public :: mann_n                     ! manning's roughness coefficient [unitless]  added by NM
+  real(dp)                       , public :: wscale                     ! scaling factor for river width [-] added by NM
 
   ! ---------- general structure information --------------------------------------------------------
 

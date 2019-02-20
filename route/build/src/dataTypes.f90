@@ -73,7 +73,9 @@ implicit none
   integer(i4b)               :: idNode                ! node ID
   logical(lgt)               :: isTrib                ! logical to indicate subbasin is tributary or not
   integer(i4b),  allocatable :: segIndex(:)           ! reach indices within a subbasin
+  integer(i4b),  allocatable :: hruIndex(:)           ! hru indices within a subbasin
  end type subbasin_mpi
+
 
  type,public :: reach
   integer(i4b), allocatable :: segIndex(:)           ! index of segment index
