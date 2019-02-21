@@ -84,8 +84,6 @@ contains
  ! local variables
  integer(i4b)                           :: iStruct      ! structure index
  integer(i4b)                           :: iSpace       ! spatial index
- integer(i4b)                           :: iHRU         ! HRU index
- integer(i4b)                           :: iSeg         ! segment index
  integer(i4b)                           :: iVar         ! variable index
  integer(i4b)                           :: ncid         ! NetCDF file ID
  integer(i4b)                           :: idimID_nHRU  ! dimension ID for HRUs

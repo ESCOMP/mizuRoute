@@ -10,8 +10,6 @@ module public_var
   ! ---------- common constants ---------------------------------------------------------------------
 
   ! some common constant variables (not likely to change value)
-  integer(i4b),parameter,public   :: imiss=-999             ! missing value for integer value
-  real(dp),    parameter,public   :: dmiss=-999.0_dp        ! missing value for floating value
   real(dp),    parameter,public   :: secprmin=60._dp        ! number of seconds in a minute
   real(dp),    parameter,public   :: secprhour=3600._dp     ! number of seconds in an hour
   real(dp),    parameter,public   :: secprday=86400._dp     ! number of seconds in a day

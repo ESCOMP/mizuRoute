@@ -14,7 +14,7 @@ module remapping
   use var_lookup,only:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
 
   ! global data
-  USE public_var,only:runoffMin, negRunoffTol, imiss, integerMissing
+  USE public_var,only:runoffMin, negRunoffTol, integerMissing
   USE globalData,only:time_conv,length_conv  ! conversion factors
 
   implicit none
@@ -43,7 +43,7 @@ module remapping
 
   ierr=0; message="remap_runoff/"
 
-  if (nSpace(2) == imiss) then
+  if (nSpace(2) == integerMissing) then
     call remap_1D_runoff(runoff_data, remap_data, structHRU2seg, basinRunoff, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   else
