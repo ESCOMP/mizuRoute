@@ -1,5 +1,7 @@
 MODULE mpi_routine
 
+USE mpi
+
 USE nrtype
 USE dataTypes,         ONLY: var_ilength   ! integer type:     var(:)%dat
 USE dataTypes,         ONLY: var_dlength   ! double precision type: var(:)%dat
@@ -16,143 +18,148 @@ USE var_lookup,        ONLY:ixNTOPO,  nVarsNTOPO   ! index of variables for the 
 USE var_lookup,        ONLY:ixPFAF,   nVarsPFAF    ! index of variables for the pfafstetter code
 
 ! utility
-USE nr_utility_module, ONLY: arth          ! Num. Recipies utilities
-USE nr_utility_module, ONLY: indexx        ! Num. Recipies utilities
-
-! saved/updated global data
-USE globalData,        ONLY: domains       ! domain data structure - for each domain, pfaf codes and list of segment indices
-USE globalData,        ONLY: nDomain       ! count of decomposed domains (tributaries + mainstems)
-
-USE alloc_data,        ONLY: alloc_struct_scalar
-
-USE popMetadat_module, ONLY: popMetadat    ! populate metadata
-
-USE process_ntopo,     ONLY: augment_ntopo ! compute all the additional network topology (only compute option = on)
-
-USE mpi
+USE nr_utility_module, ONLY: arth                  !
+USE nr_utility_module, ONLY: indexx                ! sorted index array
 
 implicit none
 
 private
 
 public :: comm_ntopo_data
+public :: comm_runoff_data
 
 contains
 
   ! create mapping array to map global index to local index
-  !  ixSub(nSeg) : index that belong to a subbasin in global index
-  !  iySub(nSeg) : local indices for a subbasin
+  !  ixSubSEG(nSeg) : index that belong to a subbasin in global index
+  !  iySubSEG(nSeg) : local indices for a subbasin
   !  ixMap(nSeg) : map indix from global to local
   !
   !  examples
-  !  global_ix, iySub, ixSub,  ixMap, idNode
-  !    1            1      2       1      0
-  !    2            2      7       1      0
-  !    3            1      5       2      0
-  !    4            2      8       3      0
-  !    5            3      9       1      0
-  !    6            1      1       1      1
-  !    7            2      3       2      1
-  !    8            3      4       2      1
-  !    9            1      6       3      2
-  !   10            2     10       2      2
+  !  global_ix, iySub, ixSubSEG,  ixMap, idNode
+  !    1            1         2       1       0
+  !    2            2         7       1       0
+  !    3            1         5       2       0
+  !    4            2         8       3       0
+  !    5            3         9       1       0
+  !    6            1         1       1       1
+  !    7            2         3       2       1
+  !    8            3         4       2       1
+  !    9            1         6       3       2
+  !   10            2        10       2       2
   !
   !  if global index of interest is 4(=ixGlob), ixMap(ixGlob)=3 meaning element with 4 is located in 3rd in local array.
 
-
  ! *********************************************************************
- ! public subroutine: send decomposed reach/hru information and populate data structures
+ ! public subroutine: send reach/hru information to tasks and populate data structures
  ! *********************************************************************
  subroutine comm_ntopo_data(pid,          & ! input: proc id
                             nNodes,       & ! input: number of procs
+                            nEns,         & ! input: number of ensembles
                             nSeg,         & ! input: number of stream segments in whole domain
                             nHRU,         & ! input: number of HRUs in whole domain
-                            structHRU,    & ! input: ancillary data for HRUs
-                            structSEG,    & ! input: ancillary data for stream segments
-                            structHRU2seg,& ! input: ancillary data for mapping hru2basin
-                            structNTOPO,  & ! input: ancillary data for network toopology
-                            structPFAF,   & ! ancillary data for pfafstetter code
+                            structHRU,    & ! input: data structure for HRUs
+                            structSEG,    & ! input: data structure for stream segments
+                            structHRU2seg,& ! input: data structure for mapping hru2basin
+                            structNTOPO,  & ! input: data structure for network toopology
+                            ixSubHRU,     & ! output: sorted hru index array based on proc assignment
+                            ixSubSEG,     & ! output: sorted seg index array based on proc assignment
                             ierr,message)   ! output: error control
 
-  USE globalData, only: fshape, tscale, velo, diff, mann_n, wscale         ! parameter
+  USE globalData,        ONLY: fshape, tscale       ! routing parameters
+  USE globalData,        ONLY: velo, diff           ! routing parameters
+  USE globalData,        ONLY: mann_n, wscale       ! routing parameters
+  USE popMetadat_module, ONLY: popMetadat           ! populate metadata
+  USE alloc_data,        ONLY: alloc_struct
+  USE process_ntopo,     ONLY: augment_ntopo        ! compute all the additional network topology (only compute option = on)
+  USE process_ntopo,     ONLY: put_data_struct      !
+  USE globalData,        ONLY: domains              ! domain data structure - for each domain, pfaf codes and list of segment indices
+  USE globalData,        ONLY: nDomain              ! count of decomposed domains (tributaries + mainstems)
+  USE globalData,        ONLY: RCHFLX, RCHFLX_local
+  USE globalData,        ONLY: KROUTE, KROUTE_local
 
   implicit none
   ! Input variables
   integer(i4b),                   intent(in)  :: pid                      ! process id (MPI)
   integer(i4b),                   intent(in)  :: nNodes                   ! number of processes (MPI)
+  integer(i4b),                   intent(in)  :: nEns                     ! temporarily
   integer(i4b),                   intent(in)  :: nSeg                     ! number of total segments
   integer(i4b),                   intent(in)  :: nHRU                     ! number of total hru
-  type(var_dlength) , intent(in), allocatable :: structHRU(:)             ! HRU properties
-  type(var_dlength) , intent(in), allocatable :: structSeg(:)             ! stream segment properties
-  type(var_ilength) , intent(in), allocatable :: structHRU2SEG(:)         ! HRU to SEG mapping
-  type(var_ilength) , intent(in), allocatable :: structNTOPO(:)           ! network topology
-  type(var_clength) , intent(in), allocatable :: structPFAF(:)            ! pfafstetter code
-  ! Output variables
+  type(var_dlength), allocatable, intent(in)  :: structHRU(:)             ! HRU properties
+  type(var_dlength), allocatable, intent(in)  :: structSEG(:)             ! stream segment properties
+  type(var_ilength), allocatable, intent(in)  :: structHRU2SEG(:)         ! HRU to SEG mapping
+  type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)           ! network topology
+  ! Output
+  integer(i4b),      allocatable, intent(out) :: ixSubHRU(:)              ! global HRU index in the order of domains
+  integer(i4b),      allocatable, intent(out) :: ixSubSEG(:)              ! global reach index in the order of domains
+  ! Output error handling variables
   integer(i4b),                   intent(out) :: ierr
-  character(len=strLen),          intent(out) :: message                    ! error message
+  character(len=strLen),          intent(out) :: message                   ! error message
   ! Local variables
   ! data structure for decomposed river network per reach/hru
-  type(var_dlength), allocatable              :: structHRU_local(:)         ! ancillary data for HRUs
-  type(var_dlength), allocatable              :: structSeg_local(:)         ! ancillary data for stream segments
-  type(var_ilength), allocatable              :: structNTOPO_local(:)       ! network topology
-  type(var_ilength), allocatable              :: structHRU2seg_local(:)     ! ancillary data for mapping hru2basin
-  type(var_clength), allocatable              :: structPFAF_local(:)        ! ancillary data for pfafstetter code
+  type(var_dlength), allocatable              :: structHRU_local(:)        ! ancillary data for HRUs
+  type(var_dlength), allocatable              :: structSEG_local(:)        ! ancillary data for stream segments
+  type(var_ilength), allocatable              :: structNTOPO_local(:)      ! network topology
+  type(var_ilength), allocatable              :: structHRU2seg_local(:)    ! ancillary data for mapping hru2basin
+  type(var_clength), allocatable              :: structPFAF_local(:)       ! ancillary data for pfafstetter code
   ! number of data in data strucutes for decomposed river network per reach/hru
-  integer(i4b)                                :: tot_upstream_local         ! total number of all of the upstream stream segments for all stream segments
-  integer(i4b)                                :: tot_upseg_local            ! total number of immediate upstream segments for all  stream segments
-  integer(i4b)                                :: tot_hru_local              ! total number of all the upstream hrus for all stream segments
-  integer(i4b)                                :: tot_uh_local               ! total number of unit hydrograph from all the stream segments
+  integer(i4b)                                :: tot_upstream_local        ! total number of all of the upstream stream segments for all stream segments
+  integer(i4b)                                :: tot_upseg_local           ! total number of immediate upstream segments for all  stream segments
+  integer(i4b)                                :: tot_hru_local             ! total number of all the upstream hrus for all stream segments
+  integer(i4b)                                :: tot_uh_local              ! total number of unit hydrograph from all the stream segments
   ! indices for decomposed river network per reach/hru
-  integer(i4b),      allocatable              :: ixHRU_desired_local(:)     ! indices of desired hrus
-  integer(i4b),      allocatable              :: ixSeg_desired_local(:)     ! indices of desired reaches
+  integer(i4b),      allocatable              :: ixHRU_desired_local(:)    ! indices of desired hrus
+  integer(i4b),      allocatable              :: ixSeg_desired_local(:)    ! indices of desired reaches
   ! flat array for decomposed river network per reach/hru
-  integer(i4b),      allocatable              :: segId_local(:)             ! reach id for decomposed network
-  integer(i4b),      allocatable              :: downSegId_local(:)         ! downstream reach id for decomposed network
-  integer(i4b),      allocatable              :: hruId_local(:)             ! hru id array in decomposed network
-  integer(i4b),      allocatable              :: hruSegId_local(:)          ! downstream reach id array in decomposed network
-  real(dp),          allocatable              :: slope_local(:)             ! reach slope array in decomposed network
-  real(dp),          allocatable              :: length_local(:)            ! reach length array in decomposed network
-  real(dp),          allocatable              :: area_local(:)              ! hru area in decomposed network
+  integer(i4b),      allocatable              :: segId_local(:)            ! reach id for decomposed network
+  integer(i4b),      allocatable              :: downSegId_local(:)        ! downstream reach id for decomposed network
+  integer(i4b),      allocatable              :: hruId_local(:)            ! hru id array in decomposed network
+  integer(i4b),      allocatable              :: hruSegId_local(:)         ! downstream reach id array in decomposed network
+  real(dp),          allocatable              :: slope_local(:)            ! reach slope array in decomposed network
+  real(dp),          allocatable              :: length_local(:)           ! reach length array in decomposed network
+  real(dp),          allocatable              :: area_local(:)             ! hru area in decomposed network
   ! flat array for the entire river network per reach/hru
-  integer(i4b)                                :: hruId(nHRU)                ! hru id for all the HRUs
-  integer(i4b)                                :: hruSegId(nSeg)             ! hru-to-seg mapping for each hru
-  integer(i4b)                                :: segId(nSeg)                ! reach id for all the segments
-  integer(i4b)                                :: downIndex(nSeg)            ! downstream reach index for each reach
-  integer(i4b)                                :: downSegId(nSeg)            ! downstream reach ID for each reach
-  real(dp)                                    :: slope(nSeg)                ! reach slope array for each reach
-  real(dp)                                    :: length(nSeg)               ! reach length array for each reach
-  real(dp)                                    :: area(nHRU)                 ! hru area for each hru
-  integer(i4b)                                :: ixNode(nSeg)               ! node assignment for each reach
-  character(len=32)                           :: pfaf(nSeg)                 ! reach pfafcode for each reach
-  integer(i4b)                                :: ixSubHRU(nHRU)             ! global HRU index in the order of domains
-  integer(i4b)                                :: iySubHRU(nHRU)             ! local HRU index
-  integer(i4b)                                :: ixSub(nSeg)                ! global reach index in the order of domains
-  integer(i4b)                                :: iySub(nSeg)                ! local reach index
+  integer(i4b)                                :: hruId(nHRU)               ! hru id for all the HRUs
+  integer(i4b)                                :: hruSegId(nSeg)            ! hru-to-seg mapping for each hru
+  integer(i4b)                                :: segId(nSeg)               ! reach id for all the segments
+  integer(i4b)                                :: downSegId(nSeg)           ! downstream reach ID for each reach
+  real(dp)                                    :: slope(nSeg)               ! reach slope array for each reach
+  real(dp)                                    :: length(nSeg)              ! reach length array for each reach
+  real(dp)                                    :: area(nHRU)                ! hru area for each hru
+  integer(i4b)                                :: ixNode(nSeg)              ! node assignment for each reach
+  character(len=32)                           :: pfaf(nSeg)                ! reach pfafcode for each reach
+  integer(i4b)                                :: iySubHRU(nHRU)            ! local HRU index
+  integer(i4b)                                :: iySubSEG(nSeg)            ! local reach index
+  logical(lgt)                                :: isTrib(nSeg)              ! logical to indicate tributary seg or not
 !  integer(i4b)                                :: ixMap(nSeg)                ! map global index to local
-  logical(lgt)                                :: isTrib(nSeg)               ! logical to indicate tributary seg or not
-  ! flat array for decomposed river network per domain
-  integer(i4b)                                :: idNode(nDomain)            ! node id array for each domain
-  integer(i4b)                                :: rnkIdNode(nDomain)         ! ranked node id array for each domain
+!  integer(i4b)                                :: downIndex(nSeg)            ! downstream reach index for each reach
+  ! flat array for decomposed river network per domain (sub-basin)
+  integer(i4b)                                :: idNode(nDomain)           ! node id array for each domain
+  integer(i4b)                                :: rnkIdNode(nDomain)        ! ranked node id array for each domain
   ! mpi related variables
-  integer(i4b)                                :: iSeg,iHru                  ! reach and hru loop indices
-  integer(i4b)                                :: ix,ixx                     ! loop indices
-  integer(i4b)                                :: seg_per_proc(0:nNodes-1)   ! number of reaches assigned to each proc (i.e., node)
-  integer(i4b)                                :: hru_per_proc(0:nNodes-1)   ! number of hrus assigned to each proc (i.e., node)
+  integer(i4b)                                :: iSeg,iHru                 ! reach and hru loop indices
+  integer(i4b)                                :: ix,ixx                    ! loop indices
+  integer(i4b)                                :: seg_per_proc(0:nNodes-1)  ! number of reaches assigned to each proc (i.e., node)
+  integer(i4b)                                :: hru_per_proc(0:nNodes-1)  ! number of hrus assigned to each proc (i.e., node)
   integer(i4b)                                :: num_seg_received
   integer(i4b)                                :: num_hru_received
-  integer(i4b)                                :: myid                       ! process id indices
-  integer(i4b)                                :: ixSeg1,ixSeg2              ! starting index and ending index, respectively, for reach array
-  integer(i4b)                                :: ixHru1,ixHru2              ! starting index and ending index, respectively, for HRU array
-  integer(i4b)                                :: idx                        ! node indix (1, ... , nNodes)
-  integer(i4b), parameter                     :: root=0                     ! root node id
+  integer(i4b)                                :: nHru_root, nSeg_root      ! number of hrus and reaches in a root proc
+  integer(i4b)                                :: myid                      ! process id indices
+  integer(i4b)                                :: ixSeg1,ixSeg2             ! starting index and ending index, respectively, for reach array
+  integer(i4b)                                :: ixHru1,ixHru2             ! starting index and ending index, respectively, for HRU array
+  integer(i4b)                                :: idx                       ! node indix (1, ... , nNodes)
+  integer(i4b), parameter                     :: root=0                    ! root node id
   integer(i4b), parameter                     :: send_data_tag=2001
   integer(i4b), parameter                     :: return_data_tag=2002
   integer(i4b)                                :: status(MPI_STATUS_SIZE)
-  character(len=strLen)                       :: cmessage                   ! error message from subroutine
+  character(len=strLen)                       :: cmessage                  ! error message from subroutine
 
-  ierr=0; message='commun_reach_param/'
+  ierr=0; message='commun_ntopo_data/'
 
   if (pid == root) then ! this is a root process
+
+    allocate(RCHFLX(nEns,nSeg), KROUTE(nEns,nSeg), stat=ierr)
+    allocate(ixSubHRU(nHru),ixSubSEG(nSeg), stat=ierr)
 
     ! Create segIndex array from domains derived type. The array is sorted from node 0 through nNodes-1
     ! SegIndex Array needs to be contiguous when a chunk is sent to computing node (use sort function...)
@@ -167,11 +174,13 @@ contains
      ixx = rnkIdNode(ix)
      associate (nSubSeg => size(domains(ixx)%segIndex), nSubHru => size(domains(ixx)%hruIndex) )
 
+     ! reach index array in order of node assignment
      ixSeg1 = ixSeg2+1
      ixSeg2 = ixSeg1+nSubSeg-1
-     ixSub(ixSeg1:ixSeg2)  = domains(ixx)%segIndex(1:nSubSeg)   ! global seg index per node
-     iySub(ixSeg1:ixSeg2)  = arth(1,1,nSubSeg)                  ! local hru indix per node
+     ixSubSEG(ixSeg1:ixSeg2)  = domains(ixx)%segIndex(1:nSubSeg)   ! global seg index per node
+     iySubSEG(ixSeg1:ixSeg2)  = arth(1,1,nSubSeg)                  ! local hru indix per node
 
+     ! hru index array in order of node assignment
      if (nSubHru>0) then
        ixHru1 = ixHru2+1
        ixHru2 = ixHru1+nSubHru-1
@@ -188,19 +197,19 @@ contains
 
 !    ! create index mapping from global to local
 !    do iSeg = 1,nSeg
-!      ixMap(ixSub(iSeg)) = iySub(iSeg)
+!      ixMap(ixSubSEG(iSeg)) = iySub(iSeg)
 !    enddo
 
     ! covert component of derived data type to the arrays
     ! reach array
 !    downIndex = -1
     do iSeg = 1,nSeg
-     segId(iSeg)     = structNTOPO(ixSub(iSeg))%var(ixNTOPO%segId)%dat(1)
-     downSegId(iSeg) = structNTOPO(ixSub(iSeg))%var(ixNTOPO%downSegId)%dat(1)
-     slope(iSeg)     = structSEG(ixSub(iSeg))%var(ixSEG%slope)%dat(1)
-     length(iSeg)    = structSEG(ixSub(iSeg))%var(ixSEG%length)%dat(1)
-!     if (structNTOPO(ixSub(iSeg))%var(ixNTOPO%downSegIndex)%dat(1) > 0)then
-!       downIndex(iSeg)  = ixMap(structNTOPO(ixSub(iSeg))%var(ixNTOPO%downSegIndex)%dat(1))
+     segId(iSeg)     = structNTOPO(ixSubSEG(iSeg))%var(ixNTOPO%segId)%dat(1)
+     downSegId(iSeg) = structNTOPO(ixSubSEG(iSeg))%var(ixNTOPO%downSegId)%dat(1)
+     slope(iSeg)     = structSEG(ixSubSEG(iSeg))%var(ixSEG%slope)%dat(1)
+     length(iSeg)    = structSEG(ixSubSEG(iSeg))%var(ixSEG%length)%dat(1)
+!     if (structNTOPO(ixSubSEG(iSeg))%var(ixNTOPO%downSegIndex)%dat(1) > 0)then
+!       downIndex(iSeg)  = ixMap(structNTOPO(ixSubSEG(iSeg))%var(ixNTOPO%downSegIndex)%dat(1))
 !     endif
     end do
 
@@ -244,16 +253,69 @@ contains
       call MPI_SEND(area(ixHru1),     hru_per_proc(myid), MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
     end do
 
+    ! reach assigned to root proc
+    nSeg_root=seg_per_proc(root)   ! number of seg in root proc
+    nHru_root=hru_per_proc(root)   ! number of hru in root proc
+
+    call alloc_struct(nHru_root,             & ! output: number of HRUs
+                      nSeg_root,             & ! output: number of stream segments
+                      structHRU_local,       & ! inout: ancillary data for HRUs
+                      structSEG_local,       & ! inout: ancillary data for stream segments
+                      structHRU2seg_local,   & ! inout: ancillary data for mapping hru2basin
+                      structNTOPO_local,     & ! inout: ancillary data for network toopology
+                      structPFAF_local,      & ! inout: ancillary data for pfafstetter code
+                      ierr,cmessage)           ! output: error control
+
+    allocate(RCHFLX_local(nEns,nSeg_root), KROUTE_local(nEns,nSeg_root), stat=ierr)
+
+    ! Populate data structure
+    ! reach
+    do ix = 1, nSeg_root
+      structNTOPO_local(ix)%var(ixNTOPO%segId)%dat(1)     = segId(ix)
+      structNTOPO_local(ix)%var(ixNTOPO%downSegId)%dat(1) = downSegId(ix)
+      structSEG_local  (ix)%var(ixSEG%length)%dat(1)      = length(ix)
+      structSEG_local  (ix)%var(ixSEG%slope)%dat(1)       = slope(ix)
+    end do
+    ! hru
+    do ix = 1, nHru_root
+      structHRU2SEG_local(ix)%var(ixHRU2SEG%HRUid)%dat(1)    = hruId(ix)
+      structHRU2SEG_local(ix)%var(ixHRU2SEG%hruSegId)%dat(1) = hruSegId(ix)
+      structHRU_local    (ix)%var(ixHRU%area)%dat(1)         = area(ix)
+    end do
+
+    call augment_ntopo(&
+                       ! input: model control
+                       nHru_root,                   & ! number of stream segments
+                       nSeg_root,                   & ! number of HRUs
+                       ! inout: populate data structures
+                       structHRU_local,              & ! ancillary data for HRUs
+                       structSEG_local,              & ! ancillary data for stream segments
+                       structHRU2seg_local,          & ! ancillary data for mapping hru2basin
+                       structNTOPO_local,            & ! ancillary data for network toopology
+                       ! output
+                       tot_hru_local,                & ! total number of all the upstream hrus for all stream segments
+                       tot_upseg_local,              & ! total number of all the immediate upstream segments for all stream segments
+                       tot_upstream_local,           & ! total number of all the upstream segments for all stream segments
+                       tot_uh_local,                 & ! total number of unit hydrograph for all stream segments
+                       ixHRU_desired_local,          & ! indices of desired hrus
+                       ixSeg_desired_local,          & ! indices of desired reaches
+                       ! output: error control
+                       ierr, cmessage)
+
+    call put_data_struct(nSeg_root, structSEG_local, structNTOPO_local, ierr, cmessage)
+
 !    print*, 'ix, hruId, ixSubHRU, iySubHRU, hruSegId'
 !    do ix = 1,nHru
 !      print*, ix, hruId(ix), ixSubHRU(ix), iySubHRU(ix), hruSegId(ix)
 !    end do
 !    print*, 'ix, segId, ixSubHRU, iySubHRU, ixNode, pfaf'
 !    do ix = 1,nSeg
-!      print*, ix, segId(ix), ixSub(ix), iySub(ix), ixNode(ix), pfaf(ix)
+!      print*, ix, segId(ix), ixSubSEG(ix), iySub(ix), ixNode(ix), pfaf(ix)
 !    enddo
 
   else
+   call popMetadat(ierr,cmessage)
+
    ! recieve number of elements to be recieved
    call MPI_RECV(num_seg_received, 1, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
    call MPI_RECV(num_hru_received, 1, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
@@ -268,17 +330,16 @@ contains
             area_local     (num_hru_received), &
             stat=ierr)
 
-   call popMetadat(ierr,cmessage)
+    allocate(RCHFLX_local(nEns,num_seg_received), KROUTE_local(nEns,num_seg_received), stat=ierr)
 
-   call alloc_struct_scalar(&
-                          num_hru_received,      & ! output: number of HRUs
-                          num_seg_received,      & ! output: number of stream segments
-                          structHRU_local,       & ! inout: ancillary data for HRUs
-                          structSeg_local,       & ! inout: ancillary data for stream segments
-                          structHRU2seg_local,   & ! inout: ancillary data for mapping hru2basin
-                          structNTOPO_local,     & ! inout: ancillary data for network toopology
-                          structPFAF_local,      & ! inout: ancillary data for pfafstetter code
-                          ierr,cmessage)           ! output: error control
+   call alloc_struct(num_hru_received,      & ! output: number of HRUs
+                     num_seg_received,      & ! output: number of stream segments
+                     structHRU_local,       & ! inout: ancillary data for HRUs
+                     structSEG_local,       & ! inout: ancillary data for stream segments
+                     structHRU2seg_local,   & ! inout: ancillary data for mapping hru2basin
+                     structNTOPO_local,     & ! inout: ancillary data for network toopology
+                     structPFAF_local,      & ! inout: ancillary data for pfafstetter code
+                     ierr,cmessage)           ! output: error control
 
    ! recieve a local array and hold it in local arrays
    ! reach
@@ -312,10 +373,9 @@ contains
                    num_seg_received,             & ! number of stream segments
                    ! inout: populate data structures
                    structHRU_local,              & ! ancillary data for HRUs
-                   structSeg_local,              & ! ancillary data for stream segments
+                   structSEG_local,              & ! ancillary data for stream segments
                    structHRU2seg_local,          & ! ancillary data for mapping hru2basin
                    structNTOPO_local,            & ! ancillary data for network toopology
-                   structPFAF_local,             & ! ancillary data for pfafstetter code
                    ! output
                    tot_hru_local,                & ! total number of all the upstream hrus for all stream segments
                    tot_upseg_local,              & ! total number of all the immediate upstream segments for all stream segments
@@ -324,17 +384,127 @@ contains
                    ixHRU_desired_local,          & ! indices of desired hrus
                    ixSeg_desired_local,          & ! indices of desired reaches
                    ! output: error control
-                   ierr, message)
+                   ierr, cmessage)
 
-   print*, pid, size(structNTOPO_local)
-
+   call put_data_struct(num_seg_received, structSEG_local, structNTOPO_local, ierr, cmessage)
 
   endif
 
  end subroutine comm_ntopo_data
 
 
+ ! *********************************************************************
+ ! public subroutine: send decomposed hru runoff to tasks and populate data structures
+ ! *********************************************************************
+ subroutine comm_runoff_data(pid,           & ! input: proc id
+                             nNodes,        & ! input: number of procs
+                             nEns,          & ! input: number of ensembles
+                             nHRU,          & ! input: number of HRUs in whole domain
+                             ixSubHRU,      & ! input: global HRU index in the order of domains
+                             hru_per_proc,  & ! input: number of hrus assigned to each proc
+                             seg_per_proc,  & ! input: number of hrus assigned to each proc
+                             basinRunoff,   & ! input: runoff data structures
+                             ierr,message)    ! output: error control
+
+  USE remapping,  only : basin2reach          ! remap runoff from routing basins to routing reaches
+  USE globalData, only : RCHFLX_local         ! reach flux structure
+
+  implicit none
+
+  ! input variables
+  integer(i4b),             intent(in)  :: pid                      ! process id (MPI)
+  integer(i4b),             intent(in)  :: nNodes                   ! number of processes (MPI)
+  integer(i4b),             intent(in)  :: nEns
+  integer(i4b),             intent(in)  :: nHRU                     ! number of total hru
+  integer(i4b),allocatable, intent(in)  :: ixSubHRU(:)              ! global HRU index in the order of domains
+  integer(i4b),             intent(in)  :: hru_per_proc(0:nNodes-1) ! number of hrus assigned to each proc (i.e., node)
+  integer(i4b),             intent(in)  :: seg_per_proc(0:nNodes-1) ! number of hrus assigned to each proc (i.e., node)
+  real(dp),                 intent(in)  :: basinRunoff(nHRU)        ! basin runoff (m/s) for the entire domain
+  ! Output variables
+  integer(i4b),             intent(out) :: ierr
+  character(len=strLen),    intent(out) :: message                  ! error message
+  ! local variables
+  real(dp)                              :: basinRunoff_sorted(nHRU) ! sorted basin runoff (m/s) for whole domain
+  real(dp),  allocatable                :: basinRunoff_local(:)     ! basin runoff (m/s) for decomposed domains
+  real(dp),  allocatable                :: reachRunoff_local(:)     ! reach runoff (m/s) for decomposed domains
+  integer(i4b)                          :: num_hru_received
+  integer(i4b)                          :: num_seg_received
+  integer(i4b)                          :: iens
+  integer(i4b)                          :: ixHru1,ixHru2            ! starting index and ending index, respectively, for HRU array
+  integer(i4b)                          :: myid                     ! process id indices
+  integer(i4b)                          :: iHru                     ! process id indices
+  integer(i4b), parameter               :: root=0                   ! root node id
+  integer(i4b), parameter               :: send_data_tag=2001
+  integer(i4b), parameter               :: return_data_tag=2002
+  integer(i4b)                          :: status(MPI_STATUS_SIZE)
+  character(len=strLen)                 :: cmessage                 ! error message from subroutine
+
+  ierr=0; message='commun_runoff_data/'
+
+  if (pid == root) then ! this is a root process
+
+    do iHru = 1,nHRU
+      basinRunoff_sorted(iHru) = basinRunoff(ixSubHRU(iHru))
+    enddo
+
+    do myid = 1, nNodes-1
+      ! Get starting and ending indices
+      ixHru2   = sum(hru_per_proc(0:myid))
+      ixHru1 = ixHru2 - hru_per_proc(myid) + 1
+
+      ! Send number of elements (hrus and segs)
+      call MPI_SEND(hru_per_proc(myid), 1, MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(seg_per_proc(myid), 1, MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      ! Send regular 1D array
+      call MPI_SEND(basinRunoff_sorted(ixHru1), hru_per_proc(myid), MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+    end do
+
+    allocate(basinRunoff_local(hru_per_proc(root)), stat=ierr)
+    allocate(reachRunoff_local(seg_per_proc(root)), stat=ierr)
+    basinRunoff_local(1:hru_per_proc(root)) = basinRunoff_sorted(1:hru_per_proc(root))
+
+    ! map the basin runoff to the stream network...
+    call basin2reach(&
+                    ! input
+                    basinRunoff_local,       & ! intent(in):  basin runoff (m/s)
+                    ! output
+                    reachRunoff_local,       & ! intent(out): reach runoff (m3/s)
+                    ierr, cmessage)            ! intent(out): error control
+
+    ! instantaneous runoff volume (m3/s) to data structure
+    do iens = 1,nEns
+      RCHFLX_local(iens,:)%BASIN_QI = reachRunoff_local(:)
+    enddo
+
+  else
+
+    call MPI_RECV(num_hru_received, 1, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+    call MPI_RECV(num_seg_received, 1, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+
+    allocate(basinRunoff_local(num_hru_received), stat=ierr)
+    allocate(reachRunoff_local(num_seg_received), stat=ierr)
+
+    call MPI_RECV(basinRunoff_local, num_hru_received, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+
+    ! map the basin runoff to the stream network...
+    call basin2reach(&
+                    ! input
+                    basinRunoff_local,       & ! intent(in):  basin runoff (m/s)
+                    ! output
+                    reachRunoff_local,       & ! intent(out): reach runoff (m3/s)
+                    ierr, cmessage)            ! intent(out): error control
+
+    ! instantaneous runoff volume (m3/s) to data structure
+    do iens = 1,nEns
+      RCHFLX_local(iens,:)%BASIN_QI = reachRunoff_local(:)
+    enddo
+
+  endif
+ end subroutine comm_runoff_data
+
 end module mpi_routine
+
+
 
 !    print*, 'node=0 : mainstem domain'
 !    ixSeg2 = 0

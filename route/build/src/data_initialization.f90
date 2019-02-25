@@ -20,7 +20,7 @@ contains
  ! *********************************************************************
  ! private subroutine: initialize river network data
  ! *********************************************************************
- subroutine init_data(nNodes, pid, remap_data, runoff_data, ierr, message)
+ subroutine init_data(nNodes, pid, nEns, ixSubHRU, ixSubSEG, remap_data, runoff_data, ierr, message)
 
   USE public_var,  only : is_remap               ! logical whether or not runnoff needs to be mapped to river network HRU
   USE var_lookup,  only : ixHRU2SEG              ! index of variables for data structure
@@ -29,36 +29,40 @@ contains
 
    implicit none
    ! input:
-   integer(i4b)      , intent(in)              :: nNodes           ! number of procs
-   integer(i4b)      , intent(in)              :: pid              ! proc id
+   integer(i4b),              intent(in)    :: nNodes           ! number of procs
+   integer(i4b),              intent(in)    :: pid              ! proc id
+   integer(i4b),              intent(in)    :: nEns             ! number of ensembles
    ! out:
-   type(remap)       , intent(out)             :: remap_data       ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
-   type(runoff)      , intent(out)             :: runoff_data      ! runoff for one time step for all HRUs
+   integer(i4b), allocatable, intent(out)   :: ixSubHRU(:)      ! global HRU index in the order of domains
+   integer(i4b), allocatable, intent(out)   :: ixSubSEG(:)      ! global reach index in the order of domains
+   type(remap),               intent(out)   :: remap_data       ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
+   type(runoff),              intent(out)   :: runoff_data      ! runoff for one time step for all HRUs
    ! output: error control
-   integer(i4b)      , intent(out)             :: ierr             ! error code
-   character(*)      , intent(out)             :: message          ! error message
+   integer(i4b),              intent(out)   :: ierr             ! error code
+   character(*),              intent(out)   :: message          ! error message
    ! local variable
    ! river network data structures for the entire domain
-   type(var_dlength), allocatable              :: structHRU(:)     ! HRU properties
-   type(var_dlength), allocatable              :: structSeg(:)     ! stream segment properties
-   type(var_ilength), allocatable              :: structHRU2SEG(:) ! HRU-to-segment mapping
-   type(var_ilength), allocatable              :: structNTOPO(:)   ! network topology
-   type(var_clength), allocatable              :: structPFAF(:)    ! pfafstetter code
+   type(var_dlength), allocatable           :: structHRU(:)     ! HRU properties
+   type(var_dlength), allocatable           :: structSeg(:)     ! stream segment properties
+   type(var_ilength), allocatable           :: structHRU2SEG(:) ! HRU-to-segment mapping
+   type(var_ilength), allocatable           :: structNTOPO(:)   ! network topology
+   type(var_clength), allocatable           :: structPFAF(:)    ! pfafstetter code
    ! others
-   character(len=strLen)                       :: cmessage         ! error message of downwind routine
-   integer(i4b)                                :: iHRU             ! loop index
-   integer(i4b)     , allocatable              :: hruId_network(:) ! hruID of river network layer
-   integer(i4b)                                :: nHRU_network     ! number of HRU in river network
-   integer(i4b)                                :: nSpatial(1:2)    ! number of spatial elements in runoff data
-   integer(i4b)                                :: nTime            ! number of time steps
-   character(len=strLen)                       :: time_units       ! time units
-   character(len=strLen)                       :: calendar         ! calendar
+   character(len=strLen)                    :: cmessage         ! error message of downwind routine
+   integer(i4b)                             :: iHRU             ! loop index
+   integer(i4b)     , allocatable           :: hruId_network(:) ! hruID of river network layer
+   integer(i4b)                             :: nHRU_network     ! number of HRU in river network
+   integer(i4b)                             :: nSpatial(1:2)    ! number of spatial elements in runoff data
+   integer(i4b)                             :: nTime            ! number of time steps
+   character(len=strLen)                    :: time_units       ! time units
+   character(len=strLen)                    :: calendar         ! calendar
 
 
    ! initialize error control
    ierr=0; message='init_data/'
 
-   call init_ntopo(nNodes, pid, structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF,  ierr, message)
+   call init_ntopo(nNodes, pid, nEns, structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, ixSubHRU, ixSubSEG, &
+                   ierr, message)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    if (pid==0) then
@@ -91,7 +95,7 @@ contains
  ! *********************************************************************
  ! private subroutine: initialize river network data
  ! *********************************************************************
- subroutine init_ntopo(nNodes, pid, structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF,  ierr, message)
+ subroutine init_ntopo(nNodes, pid, nEns, structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, ixSubHRU, ixSubSEG, ierr, message)
   ! public vars
   USE public_var,           only : ancil_dir                ! name of the ancillary directory
   USE public_var,           only : fname_ntopOld            ! name of the old network topology file
@@ -121,12 +125,15 @@ contains
   ! input:
   integer(i4b)      , intent(in)              :: nNodes                   ! number of procs
   integer(i4b)      , intent(in)              :: pid                      ! proc id
+  integer(i4b)      , intent(in)              :: nEns                     ! number of ensembles
   ! output (river network data structures for the entire domain)
   type(var_dlength), allocatable, intent(out) :: structHRU(:)             ! HRU properties
   type(var_dlength), allocatable, intent(out) :: structSeg(:)             ! stream segment properties
   type(var_ilength), allocatable, intent(out) :: structHRU2SEG(:)         ! HRU-to-segment mapping
   type(var_ilength), allocatable, intent(out) :: structNTOPO(:)           ! network topology
   type(var_clength), allocatable, intent(out) :: structPFAF(:)            ! pfafstetter code
+  integer(i4b),      allocatable, intent(out) :: ixSubHRU(:)              ! global HRU index in the order of domains
+  integer(i4b),      allocatable, intent(out) :: ixSubSEG(:)              ! global reach index in the order of domains
   ! output: error control
   integer(i4b)      , intent(out)             :: ierr                     ! error code
   character(*)      , intent(out)             :: message                  ! error message
@@ -183,7 +190,6 @@ contains
                   structSeg,        & ! ancillary data for stream segments
                   structHRU2seg,    & ! ancillary data for mapping hru2basin
                   structNTOPO,      & ! ancillary data for network toopology
-                  structPFAF,       & ! ancillary data for pfafstetter code
                   ! output
                   tot_hru,          & ! total number of all the upstream hrus for all stream segments
                   tot_upseg,        & ! total number of all the immediate upstream segments for all stream segments
@@ -247,7 +253,8 @@ contains
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
-  call comm_ntopo_data(pid, nNodes, nSeg, nHRU, structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, ierr, cmessage)
+  call comm_ntopo_data(pid, nNodes, nEns, nSeg, nHRU, structHRU, structSEG, structHRU2SEG, structNTOPO, &
+                       ixSubHRU, ixSubSEG, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end subroutine init_ntopo
@@ -293,10 +300,7 @@ contains
  ! error control
  integer(i4b), intent(out)          :: ierr             ! error code
  character(*), intent(out)          :: message          ! error message
- ! -----------------------------------------------------------------------------------------------------------------
-
  ! local variables
- integer(i4b)                       :: iHRU             ! HRU array index
  character(len=strLen)              :: cmessage         ! error message from subroutine
 
  ! initialize error control

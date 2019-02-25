@@ -97,27 +97,31 @@ module globalData
   ! ---------- data structures ----------------------------------------------------------------------
 
   ! routing parameter structures
-  type(RCHPRP)    , allocatable  , public :: RPARAM(:)       ! Reach Parameters
-  type(RCHTOPO)   , allocatable  , public :: NETOPO(:)       ! River Network topology
+  type(RCHPRP)    , allocatable  , public :: RPARAM(:)            ! Reach Parameters
+  type(RCHTOPO)   , allocatable  , public :: NETOPO(:)            ! River Network topology
 
   ! time delay histogram
-  REAL(DP)        , ALLOCATABLE  , public :: FRAC_FUTURE(:)  ! fraction of runoff in future time steps
+  REAL(DP)        , ALLOCATABLE  , public :: FRAC_FUTURE(:)       ! fraction of runoff in future time steps
+  REAL(DP)        , ALLOCATABLE  , public :: FRAC_FUTURE_local(:) ! fraction of runoff in future time steps
 
   ! routing data structures
-  TYPE(KREACH)    , allocatable  , public :: KROUTE(:,:)     ! Routing state variables (ensembles, space [reaches])
-  TYPE(STRFLX)    , allocatable  , public :: RCHFLX(:,:)     ! Reach fluxes (ensembles, space [reaches])
+  TYPE(KREACH)    , allocatable  , public :: KROUTE(:,:)          ! Routing state variables (ensembles, space [reaches])
+  TYPE(STRFLX)    , allocatable  , public :: RCHFLX(:,:)          ! Reach fluxes (ensembles, space [reaches])
+  TYPE(KREACH)    , allocatable  , public :: KROUTE_local(:,:)    ! Routing state variables (ensembles, space [reaches]) for decomposed domains
+  TYPE(STRFLX)    , allocatable  , public :: RCHFLX_local(:,:)    ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
 
   ! lakes data structures
-  TYPE(LAKPRP)    , allocatable  , public :: LPARAM(:)       ! Lake parameters
-  TYPE(LAKTOPO)   , allocatable  , public :: LKTOPO(:)       ! Lake topology
-  TYPE(LKFLX)     , allocatable  , public :: LAKFLX(:,:)     ! Lake fluxes
+  TYPE(LAKPRP)    , allocatable  , public :: LPARAM(:)            ! Lake parameters
+  TYPE(LAKTOPO)   , allocatable  , public :: LKTOPO(:)            ! Lake topology
+  TYPE(LKFLX)     , allocatable  , public :: LAKFLX(:,:)          ! Lake fluxes
+  TYPE(LKFLX)     , allocatable  , public :: LAKFLX_local(:,:)    ! Lake fluxes for decomposed domains
 
   ! mapping structures
-  type(remap)                    , public :: remap_data      ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
-  type(runoff)                   , public :: runoff_data     ! runoff for one time step for all HRUs
+  type(remap)                    , public :: remap_data           ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
+  type(runoff)                   , public :: runoff_data          ! runoff for one time step for all HRUs
 
   ! domain data
-  type(subbasin_mpi)             , public :: domains(5000)   ! domain decomposition based on subbasin
-  integer(i4b)                   , public :: nDomain         ! domain counter
+  type(subbasin_mpi)             , public :: domains(5000)        ! domain decomposition based on subbasin
+  integer(i4b)                   , public :: nDomain              ! domain counter
 
 end module globalData

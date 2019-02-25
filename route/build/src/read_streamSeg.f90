@@ -31,10 +31,9 @@ USE var_lookup,only:ixPFAF,   nVarsPFAF    ! index of variables for the pfafstet
 USE netcdf
 
 ! external utilities
-USE nr_utility_module, ONLY: indexx  ! Num. Recipies utilities
 USE nr_utility_module, ONLY: arth    ! Num. Recipies utilities
 
-USE alloc_data,        ONLY: alloc_struct_scalar
+USE alloc_data,        ONLY: alloc_struct
 
 implicit none
 
@@ -97,7 +96,6 @@ contains
  real(dp),                  allocatable :: dTemp(:)     ! temporary double precision vector
  character(Len=maxPfafLen), allocatable :: cTemp(:)     ! temporary charactervector
  integer(i4b)                           :: dimLength    ! dimension length
- logical(lgt)                           :: isDimScalar  ! .true. if the dimension is a scalar
  logical(lgt)                           :: isVarDesired ! .true. if the variable is desired
  character(len=strLen)                  :: varName      ! variable name
  character(len=strLen)                  :: cmessage     ! error message of downwind routine
@@ -127,15 +125,15 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  ! ---------- allocate space for higher-level structure components -------------------------------------------------
- call alloc_struct_scalar(&
-                        nHRU,         & ! output: number of HRUs
-                        nSeg,         & ! output: number of stream segments
-                        structHRU,    & ! inout: ancillary data for HRUs
-                        structSeg,    & ! inout: ancillary data for stream segments
-                        structHRU2seg,& ! inout: ancillary data for mapping hru2basin
-                        structNTOPO,  & ! inout: ancillary data for network toopology
-                        structPFAF,   & ! inout: ancillary data for pfafstetter code
-                        ierr,cmessage)  ! output: error control
+ call alloc_struct(&
+                   nHRU,         & ! output: number of HRUs
+                   nSeg,         & ! output: number of stream segments
+                   structHRU,    & ! inout: ancillary data for HRUs
+                   structSeg,    & ! inout: ancillary data for stream segments
+                   structHRU2seg,& ! inout: ancillary data for mapping hru2basin
+                   structNTOPO,  & ! inout: ancillary data for network toopology
+                   structPFAF,   & ! inout: ancillary data for pfafstetter code
+                   ierr,cmessage)  ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! initial allocation of the temporary vectors

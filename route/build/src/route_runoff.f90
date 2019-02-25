@@ -20,15 +20,15 @@ USE dataTypes,  only : basin                  ! river basin data type
 
 ! global data
 USE public_var
+USE globalData, only : NETOPO                 ! river network data (tmp)
 USE globalData, only : RCHFLX                 ! reach flux structure
-USE globalData, only : KROUTE                 ! routing states
 
 ! metadata
-USE var_lookup, only : ixHRU     , nVarsHRU      ! index of variables for data structure
-USE var_lookup, only : ixHRU2SEG , nVarsHRU2SEG  ! index of variables for data structure
-USE var_lookup, only : ixSEG     , nVarsSEG      ! index of variables for data structure
-USE var_lookup, only : ixNTOPO   , nVarsNTOPO    ! index of variables for data structure
-USE var_lookup, only : ixPFAF    , nVarsPFAF     ! index of variables for data structure
+USE var_lookup, only : ixHRU                  ! index of variables for data structure
+USE var_lookup, only : ixHRU2SEG              ! index of variables for data structure
+USE var_lookup, only : ixSEG                  ! index of variables for data structure
+USE var_lookup, only : ixNTOPO                ! index of variables for data structure
+USE var_lookup, only : ixPFAF                 ! index of variables for data structure
 
 ! ******
 ! provide access to desired subroutines...
@@ -55,8 +55,7 @@ USE read_restart,    only : read_state_nc     ! read netcdf state output file
 USE write_netcdf,    only : write_nc          ! write a variable to the NetCDF file
 
 ! subroutines: model set up
-USE data_initialization, only : initial_ntopo ! initialize river segment data
-USE getAncillary_module, only : getAncillary  ! get ancillary data
+USE data_initialization, only : init_data ! initialize river segment data
 
 ! subroutines: model time info
 USE time_utils_module,   only : compCalday        ! compute calendar day
@@ -103,8 +102,6 @@ integer(i4b)                  :: ierr                ! error code
 character(len=strLen)         :: cmessage            ! error message of downwind routine
 
 !  network topology data structures
-type(var_dlength),allocatable :: structHRU(:)        ! HRU properties
-type(var_dlength),allocatable :: structSEG(:)        ! stream segment properties
 type(var_ilength),allocatable :: structHRU2seg(:)    ! HRU-to-segment mapping
 type(var_ilength),allocatable :: structNTOPO(:)      ! network topology
 
@@ -123,6 +120,8 @@ integer(i4b)                  :: nSpatial(1:2)       ! number of spatial element
 integer(i4b)                  :: nTime               ! number of time steps
 character(len=strLen)         :: time_units          ! time units
 character(len=strLen)         :: calendar            ! calendar
+integer(i4b),allocatable      :: ixSubHRU(:)         ! global HRU index in the order of domains
+integer(i4b),allocatable      :: ixSubSEG(:)         ! global reach index in the order of domains
 
 ! time structures
 type(time)                    :: modTime             ! model time
@@ -153,8 +152,6 @@ integer(i4b)                  :: nNodes              ! number of nodes
 ! ======================================================================================================
 ! ======================================================================================================
 
-! start of model/network configuration code
-
 ! *****
 ! *** MPI initialization ....
 ! ***********************************
@@ -165,61 +162,44 @@ call MPI_COMM_SIZE(MPI_COMM_WORLD, nNodes, ierr)
 call MPI_COMM_RANK(MPI_COMM_WORLD, pid, ierr)
 
 ! *****
-! *** Populate metadata...
+! *** model setup
 ! ************************
+
+! if the master node
 if (pid==0) then
-! populate the metadata files
-call popMetadat(ierr,cmessage)
-if(ierr/=0) call handle_err(ierr, cmessage)
+
+ ! populate the metadata files
+ call popMetadat(ierr,cmessage)
+ if(ierr/=0) call handle_err(ierr, cmessage)
+
+ ! get command-line argument defining the full path to the control file
+ call getarg(1,cfile_name)
+ if(len_trim(cfile_name)==0) call handle_err(50,'need to supply name of the control file as a command-line argument')
+
+ ! read the control file
+ call read_control(trim(cfile_name), ierr, cmessage)
+ if(ierr/=0) call handle_err(ierr, cmessage)
+
+ ! read the routing parameter namelist
+ call read_param(trim(ancil_dir)//trim(param_nml),ierr,cmessage)
+ if(ierr/=0) call handle_err(ierr, cmessage)
+
+endif  ! if the master node
 
 ! *****
-! *** Read control files...
-! *************************
-
-! get command-line argument defining the full path to the control file
-call getarg(1,cfile_name)
-if(len_trim(cfile_name)==0) call handle_err(50,'need to supply name of the control file as a command-line argument')
-
-! read the control file
-call read_control(trim(cfile_name), ierr, cmessage)
-if(ierr/=0) call handle_err(ierr, cmessage)
-
-! read the routing parameter namelist
-call read_param(trim(ancil_dir)//trim(param_nml),ierr,cmessage)
-if(ierr/=0) call handle_err(ierr, cmessage)
-endif
-! *****
-! *** Initialization
+! *** data initialization
 ! ***********************************
-
-! network topology
-call initial_ntopo(nNodes, pid, ierr, cmessage)
+call init_data(nNodes, pid, nEns, ixSubHRU, ixSubSEG, remap_data, runoff_data, ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 !print*, 'PAUSE: after getting network topology'; read(*,*)
 
+if (pid==3)then
+  print*, pid, NETOPO(1:10)%REACHID
+  print*, pid, NETOPO(1:10)%DREACHK
+endif
+
 call MPI_FINALIZE(ierr)
 stop
-
-! *****
-! *** Get ancillary data for routing...
-! *************************************
-
-! get ancillary data for routing
-call getAncillary(&
-                  ! data structures
-                  nHRU,            & ! input:  number of HRUs in the routing layer
-                  structHRU2seg,   & ! input:  ancillary data for mapping hru2basin
-                  is_remap,        & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
-                  remap_data,      & ! output: data structure to remap data
-                  runoff_data,     & ! output: data structure for runoff
-                  ! dimensions
-                  nSpatial,        & ! output: number of spatial elements in runoff data
-                  nTime,           & ! output: number of time steps
-                  time_units,      & ! output: time units
-                  calendar,        & ! output: calendar
-                  ! error control
-                  ierr, cmessage)
-if(ierr/=0) call handle_err(ierr, cmessage)
 
 ! allocate space for the time data
 allocate(timeVec(ntime), stat=ierr)
@@ -252,16 +232,11 @@ prevTime = time(integerMissing, integerMissing, integerMissing, integerMissing, 
 ! *** Initialize state
 ! *************************************
 
-! allocate space for the routing structures
-allocate(RCHFLX(nEns,nRch), KROUTE(nEns,nRch), stat=ierr)
-if(ierr/=0) call handle_err(ierr, 'unable to allocate space for routing structures')
-
 ! read restart file and initialize states
 if (isRestart)then
  call read_state_nc(trim(output_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
  if(ierr/=0) call handle_err(ierr, cmessage)
 else
-
  ! Cold start .......
  ! initialize flux structures
  RCHFLX(:,:)%BASIN_QI = 0._dp
@@ -270,7 +245,6 @@ else
  ! initialize time
  T0 = 0._dp
  T1 = dt
-
 endif
 
 ! *****
@@ -417,17 +391,6 @@ do iTime=1,nTime
  ! *****
  ! * Map the basin runoff to the stream network...
  ! ***********************************************
-
- ! map the basin runoff to the stream network...
- call basin2reach(&
-                  ! input
-                  basinRunoff,       & ! intent(in):  basin runoff (m/s)
-                  structNTOPO,       & ! intent(in):  Network topology structure
-                  structSEG,         & ! intent(in):  Network attributes structure
-                  ! output
-                  reachRunoff,       & ! intent(out): reach runoff (m3/s)
-                  ierr, cmessage)      ! intent(out): error control
- if(ierr/=0) call handle_err(ierr,cmessage)
 
  ! perform within-basin routing
  if (doesBasinRoute == 1) then

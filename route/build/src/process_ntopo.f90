@@ -52,10 +52,9 @@ contains
                   nSeg,             & ! number of stream segments
                   ! inout: populate data structures
                   structHRU,        & ! ancillary data for HRUs
-                  structSeg,        & ! ancillary data for stream segments
+                  structSEG,        & ! ancillary data for stream segments
                   structHRU2seg,    & ! ancillary data for mapping hru2basin
                   structNTOPO,      & ! ancillary data for network toopology
-                  structPFAF,       & ! ancillary data for pfafstetter code
                   ! output:
                   tot_hru,          & ! total number of all the upstream hrus for all stream segments
                   tot_upseg,        & ! total number of immediate upstream segments for all  stream segments
@@ -90,10 +89,9 @@ contains
  integer(i4b)      , intent(in)                 :: nSeg             ! number of stream segments
  ! inout: populate data structures
  type(var_dlength) , intent(inout), allocatable :: structHRU(:)     ! HRU properties
- type(var_dlength) , intent(inout), allocatable :: structSeg(:)     ! stream segment properties
+ type(var_dlength) , intent(inout), allocatable :: structSEG(:)     ! stream segment properties
  type(var_ilength) , intent(inout), allocatable :: structHRU2seg(:) ! HRU-to-segment mapping
  type(var_ilength) , intent(inout), allocatable :: structNTOPO(:)   ! network topology
- type(var_clength) , intent(inout), allocatable :: structPFAF(:)    ! pfafstetter code
  ! output:
  integer(i4b),       intent(out)                :: tot_upstream     ! total number of all of the upstream stream segments for all stream segments
  integer(i4b),       intent(out)                :: tot_upseg        ! total number of immediate upstream segments for all  stream segments
@@ -131,7 +129,7 @@ contains
                    nSeg,          & ! input: number of stream segments
                    ! input-output: data structures
                    structHRU,     & ! ancillary data for HRUs
-                   structSeg,     & ! ancillary data for stream segments
+                   structSEG,     & ! ancillary data for stream segments
                    structHRU2seg, & ! ancillary data for mapping hru2basin
                    structNTOPO,   & ! ancillary data for network toopology
                    ! output
@@ -195,7 +193,7 @@ contains
                  (computeReachList==compute), & ! flag to compute the reach list
                  structNTOPO,                 & ! Network topology
                  ! output
-                 structSeg,                   & ! input: ancillary data for stream segments
+                 structSEG,                   & ! input: ancillary data for stream segments
                  tot_upstream,                & ! Total number of upstream reaches for all reaches
                  ierr, cmessage)                ! Error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -217,8 +215,8 @@ contains
   ! (hydraulic geometry only needed for the kinematic wave method)
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
    do iSeg=1,nSeg
-    structSeg(iSeg)%var(ixSEG%width)%dat(1) = wscale * sqrt(structSEG(iSeg)%var(ixSEG%totalArea)%dat(1))  ! channel width (m)
-    structSeg(iSeg)%var(ixSEG%man_n)%dat(1) = mann_n                                                      ! Manning's "n" paramater (unitless)
+    structSEG(iSeg)%var(ixSEG%width)%dat(1) = wscale * sqrt(structSEG(iSeg)%var(ixSEG%totalArea)%dat(1))  ! channel width (m)
+    structSEG(iSeg)%var(ixSEG%man_n)%dat(1) = mann_n                                                      ! Manning's "n" paramater (unitless)
    end do
   end if
 
@@ -247,9 +245,9 @@ contains
    ! put the lag times in the data structures
    tot_uh = 0
    do iSeg=1,nSeg
-    allocate(structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat(size(temp_dat(iSeg)%dat)), stat=ierr, errmsg=cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage)//': structSeg%var(ixSEG%uh)%dat'; return; endif
-    structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat(:) = temp_dat(iSeg)%dat(:)
+    allocate(structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat(size(temp_dat(iSeg)%dat)), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage)//': structSEG%var(ixSEG%uh)%dat'; return; endif
+    structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat(:) = temp_dat(iSeg)%dat(:)
     tot_uh = tot_uh+size(temp_dat(iSeg)%dat)
    enddo
 
@@ -306,7 +304,7 @@ end subroutine augment_ntopo
   ! input
   integer(i4b)      , intent(in)                 :: nSeg             ! number of stream segments
   ! inout: populate data structures
-  type(var_dlength) , intent(in)                 :: structSeg(:)     ! stream segment properties
+  type(var_dlength) , intent(in)                 :: structSEG(:)     ! stream segment properties
   type(var_ilength) , intent(in)                 :: structNTOPO(:)   ! network topology
   ! output: error control
   integer(i4b)      , intent(out)                :: ierr             ! error code
@@ -372,6 +370,20 @@ end subroutine augment_ntopo
    ! define the reach order
    NETOPO(iSeg)%RHORDER = structNTOPO(iSeg)%var(ixNTOPO%rchOrder)%dat(1)  ! Processing sequence
 
+   ! allocate space for contributing HRUs
+   nUps = structNTOPO(iSeg)%var(ixNTOPO%nHRU)%dat(1)
+   allocate(NETOPO(iSeg)%HRUID(nUps), NETOPO(iSeg)%HRUIX(nUps), NETOPO(iSeg)%HRUWGT(nUps), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'unable to allocate space for contributing HRUs'; return; endif
+
+   ! HRU2SEG topology
+   if(nUps>0)then
+     do iUps = 1, nUps
+       NETOPO(iSeg)%HRUID(iUps) = structNTOPO(iSeg)%var(ixNTOPO%hruContribId)%dat(iUps)
+       NETOPO(iSeg)%HRUIX(iUps) = structNTOPO(iSeg)%var(ixNTOPO%hruContribIx)%dat(iUps)
+       NETOPO(iSeg)%HRUWGT(iUps) = structSEG(iSeg)%var(ixSEG%weight)%dat(iUps)
+     end do  ! Loop through contributing HRU loop
+   end if
+
    ! NOT USED: lake parameters
    NETOPO(iSeg)%LAKE_IX = integerMissing  ! Lake index (0,1,2,...,nlak-1)
    NETOPO(iSeg)%LAKE_ID = integerMissing  ! Lake ID (REC code?)
@@ -388,9 +400,9 @@ end subroutine augment_ntopo
 
    ! reach unit hydrograph
    if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
-     allocate(NETOPO(iSeg)%UH(size(structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat)), stat=ierr, errmsg=cmessage)
+     allocate(NETOPO(iSeg)%UH(size(structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat)), stat=ierr, errmsg=cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage)//': NETOPO(iSeg)%UH'; return; endif
-     NETOPO(iSeg)%UH(:) =  structSeg(iSeg)%var(ixSEG%timeDelayHist)%dat(:)
+     NETOPO(iSeg)%UH(:) =  structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat(:)
    end if
 
    ! upstream reach list

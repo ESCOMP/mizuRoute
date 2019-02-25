@@ -291,40 +291,40 @@ module remapping
   ! *****
   ! * public subroutine: used to obtain streamflow for each stream segment...
   ! *************************************************************************
-
   subroutine basin2reach(&
                          ! input
                          basinRunoff,       & ! intent(in):  basin runoff (m/s)
-                         structNTOPO,       & ! intent(in):  Network topology structure
-                         structSEG,         & ! intent(in):  Network attributes structure
                          ! output
                          reachRunoff,       & ! intent(out): reach runoff (m/s)
                          ierr, message)       ! intent(out): error control
+
+  USE globalData, only:NETOPO
+  USE globalData, only:RPARAM
+
   implicit none
   ! input
   real(dp)             , intent(in)  :: basinRunoff(:)   ! basin runoff (m/s)
-  type(var_ilength)    , intent(in)  :: structNTOPO(:)   ! Network topology structure
-  type(var_dlength)    , intent(in)  :: structSEG(:)     ! Network attributes structure
   ! output
   real(dp)             , intent(out) :: reachRunoff(:)   ! reach runoff (m/s)
   integer(i4b)         , intent(out) :: ierr             ! error code
   character(len=strLen), intent(out) :: message          ! error message
   ! ----------------------------------------------------------------------------------------------
   ! local
+  integer(i4b)                       :: nContrib         ! number of contributing HRUs
   integer(i4b)                       :: iHRU             ! array index for contributing HRU
   integer(i4b)                       :: iSeg             ! array index for stream segment
   ! initialize error control
   ierr=0; message='basin2reach/'
 
   ! interpolate the data to the basins
-  do iSeg=1,size(structSEG)
+  do iSeg=1,size(NETOPO)
 
    ! associate variables in data structure
-   associate(nContrib       => structNTOPO(iSeg)%var(ixNTOPO%nHRU)%dat(1),      & ! contributing HRUs
-             hruContribIx   => structNTOPO(iSeg)%var(ixNTOPO%hruContribIx)%dat, & ! index of contributing HRU
-             hruContribId   => structNTOPO(iSeg)%var(ixNTOPO%hruContribId)%dat, & ! unique ids of contributing HRU
-             basArea        => structSEG(  iSeg)%var(ixSEG%basArea)%dat(1),     & ! basin (total contributing HRU) area
-             hruWeight      => structSEG(  iSeg)%var(ixSEG%weight)%dat          ) ! weight assigned to each HRU
+   nContrib       = size(NETOPO(iSeg)%HRUID)
+   associate(hruContribIx   => NETOPO(iSeg)%HRUID,   & ! index of contributing HRU
+             hruContribId   => NETOPO(iSeg)%HRUIX,   & ! unique ids of contributing HRU
+             basArea        => RPARAM(iSeg)%BASAREA, & ! basin (total contributing HRU) area
+             hruWeight      => NETOPO(iSeg)%HRUWGT   ) ! weight assigned to each HRU
 
    ! * case where HRUs drain into the segment
    if(nContrib > 0)then
@@ -363,5 +363,80 @@ module remapping
   end do  ! looping through stream segments
 
   end subroutine basin2reach
+
+!   ! *****
+!   ! * public subroutine: used to obtain streamflow for each stream segment...
+!   ! *************************************************************************
+!   subroutine basin2reach_old(&
+!                          ! input
+!                          basinRunoff,       & ! intent(in):  basin runoff (m/s)
+!                          structNTOPO,       & ! intent(in):  Network topology structure
+!                          structSEG,         & ! intent(in):  Network attributes structure
+!                          ! output
+!                          reachRunoff,       & ! intent(out): reach runoff (m/s)
+!                          ierr, message)       ! intent(out): error control
+!   implicit none
+!   ! input
+!   real(dp)             , intent(in)  :: basinRunoff(:)   ! basin runoff (m/s)
+!   type(var_ilength)    , intent(in)  :: structNTOPO(:)   ! Network topology structure
+!   type(var_dlength)    , intent(in)  :: structSEG(:)     ! Network attributes structure
+!   ! output
+!   real(dp)             , intent(out) :: reachRunoff(:)   ! reach runoff (m/s)
+!   integer(i4b)         , intent(out) :: ierr             ! error code
+!   character(len=strLen), intent(out) :: message          ! error message
+!   ! ----------------------------------------------------------------------------------------------
+!   ! local
+!   integer(i4b)                       :: iHRU             ! array index for contributing HRU
+!   integer(i4b)                       :: iSeg             ! array index for stream segment
+!   ! initialize error control
+!   ierr=0; message='basin2reach_old/'
+!
+!   ! interpolate the data to the basins
+!   do iSeg=1,size(structSEG)
+!
+!    ! associate variables in data structure
+!    associate(nContrib       => structNTOPO(iSeg)%var(ixNTOPO%nHRU)%dat(1),      & ! contributing HRUs
+!              hruContribIx   => structNTOPO(iSeg)%var(ixNTOPO%hruContribIx)%dat, & ! index of contributing HRU
+!              hruContribId   => structNTOPO(iSeg)%var(ixNTOPO%hruContribId)%dat, & ! unique ids of contributing HRU
+!              basArea        => structSEG(  iSeg)%var(ixSEG%basArea)%dat(1),     & ! basin (total contributing HRU) area
+!              hruWeight      => structSEG(  iSeg)%var(ixSEG%weight)%dat          ) ! weight assigned to each HRU
+!
+!    ! * case where HRUs drain into the segment
+!    if(nContrib > 0)then
+!
+!     ! intialize the streamflow
+!     reachRunoff(iSeg) = 0._dp
+!
+!     ! loop through the HRUs
+!     do iHRU=1,nContrib
+!
+!      ! error check - runoff depth cannot be negative (no missing value)
+!      if( basinRunoff( hruContribIx(iHRU) ) < negRunoffTol )then
+!       write(message,'(a,i0)') trim(message)//'exceeded negative runoff tolerance for HRU ', hruContribId(iHRU)
+!       ierr=20; return
+!      endif
+!
+!      ! compute the weighted average runoff depth (m/s)
+!      reachRunoff(iSeg) = reachRunoff(iSeg) + hruWeight(iHRU)*basinRunoff( hruContribIx(iHRU) )*time_conv*length_conv
+!
+!     end do  ! (looping through contributing HRUs)
+!
+!     ! ensure that routed streamflow is non-zero
+!     if(reachRunoff(iSeg) < runoffMin) reachRunoff(iSeg) = runoffMin
+!
+!     ! convert basin average runoff volume (m3/s)
+!     reachRunoff(iSeg) = reachRunoff(iSeg)*basArea
+!
+!    ! * special case where no HRUs drain into the segment
+!    else
+!     reachRunoff(iSeg) = runoffMin
+!    endif
+!
+!    ! end association to data structures
+!    end associate
+!
+!   end do  ! looping through stream segments
+!
+!   end subroutine basin2reach_old
 
 end module remapping

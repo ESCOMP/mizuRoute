@@ -176,6 +176,9 @@ implicit none
   integer(I4B),dimension(:),allocatable      :: UREACHI  ! Immediate Upstream reach indices
   integer(I4B),dimension(:),allocatable      :: UREACHK  ! Immediate Upstream reach IDs
   integer(I4B),dimension(:),allocatable      :: RCHLIST  ! all upstream reach indices
+  integer(I4B),dimension(:),allocatable      :: HRUID    ! all contributing HRU IDs
+  integer(I4B),dimension(:),allocatable      :: HRUIX    ! all contributing HRU indices
+  real(DP),    dimension(:),allocatable      :: HRUWGT   ! areal weight for contributing HRUs
   logical(lgt),dimension(:),allocatable      :: goodBas  ! Flag to denote a good basin
   character(len=32),dimension(:),allocatable :: pfafCode ! pfafstetter code
   integer(I4B)                               :: RHORDER  ! Processing sequence

@@ -32,24 +32,25 @@ implicit none
 
 ! privacy
 private
-public::alloc_struct_scalar
+public::alloc_struct
+
 contains
 
  ! *********************************************************************
  ! new subroutine: get ancillary data for HRUs and stream segments
  ! *********************************************************************
- subroutine alloc_struct_scalar(&
-                    ! input: model control
-                    nHRU,         & ! output: number of HRUs
-                    nSeg,         & ! output: number of stream segments
-                    ! inout: populate data structures
-                    structHRU,    & ! ancillary data for HRUs
-                    structSeg,    & ! ancillary data for stream segments
-                    structHRU2seg,& ! ancillary data for mapping hru2basin
-                    structNTOPO,  & ! ancillary data for network toopology
-                    structPFAF,   & ! ancillary data for pfafstetter code
-                    ! output: error control
-                    ierr,message)   ! output: error control
+ subroutine alloc_struct(&
+                         ! input: model control
+                         nHRU,         & ! output: number of HRUs
+                         nSeg,         & ! output: number of stream segments
+                         ! inout: populate data structures
+                         structHRU,    & ! ancillary data for HRUs
+                         structSeg,    & ! ancillary data for stream segments
+                         structHRU2seg,& ! ancillary data for mapping hru2basin
+                         structNTOPO,  & ! ancillary data for network toopology
+                         structPFAF,   & ! ancillary data for pfafstetter code
+                         ! output: error control
+                         ierr,message)   ! output: error control
  implicit none
  ! input variables
  ! output: model control
@@ -74,7 +75,7 @@ contains
  logical(lgt)                                   :: isDimScalar  ! .true. if the dimension is a scalar
 
  ! initialize error control
- ierr=0; message='alloct_struc_scalar/'
+ ierr=0; message='alloct_struc/'
 
  ! ---------- allocate space for higher-level structure components -------------------------------------------------
 
@@ -82,7 +83,7 @@ contains
 
  ! allocate the spatial dimension in all data structures
  allocate(structHRU(nHRU), structHRU2seg(nHRU), structSeg(nSeg), structNTOPO(nSeg), structPFAF(nSeg), stat=ierr)
- if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating spatial dimension for data structures'; return; endif
+ if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating [structHRU,structHRU2seg,structNTOPO,structPFAF]'; return; endif
 
  ! allocate the variable dimension in the data structures with length nHRU
  do iHRU=1,nHRU
@@ -162,6 +163,6 @@ contains
 
  end do  ! looping through stream segments
 
- end subroutine alloc_struct_scalar
+ end subroutine alloc_struct
 
 end module alloc_data
