@@ -27,13 +27,11 @@ module remapping
   ! *****
   ! * public subroutine: used to map runoff data (on diferent grids/polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
-  subroutine remap_runoff(runoff_data, remap_data, structHRU2seg, nSpace, basinRunoff, ierr, message)
+  subroutine remap_runoff(runoff_data, remap_data, basinRunoff, ierr, message)
   implicit none
   ! input
   type(runoff)         , intent(in)  :: runoff_data      ! runoff for one time step for all HRUs
   type(remap)          , intent(in)  :: remap_data       ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
-  type(var_ilength)    , intent(in)  :: structHRU2seg(:) ! HRU-to-segment mapping
-  integer(i4b)         , intent(in)  :: nSpace(2)        ! size of spatial dimensions for runoff data
   ! output
   real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
   integer(i4b)         , intent(out) :: ierr             ! error code
@@ -43,11 +41,11 @@ module remapping
 
   ierr=0; message="remap_runoff/"
 
-  if (nSpace(2) == integerMissing) then
-    call remap_1D_runoff(runoff_data, remap_data, structHRU2seg, basinRunoff, ierr, cmessage)
+  if (runoff_data%nSpace(2) == integerMissing) then
+    call remap_1D_runoff(runoff_data, remap_data, basinRunoff, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   else
-    call remap_2D_runoff(runoff_data, remap_data, structHRU2seg, basinRunoff, ierr, cmessage)
+    call remap_2D_runoff(runoff_data, remap_data, basinRunoff, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
@@ -56,12 +54,11 @@ module remapping
   ! *****
   ! private subroutine: used to map runoff data (on diferent polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
-  subroutine remap_2D_runoff(runoff_data, remap_data, structHRU2seg, basinRunoff, ierr, message)
+  subroutine remap_2D_runoff(runoff_data, remap_data, basinRunoff, ierr, message)
   implicit none
   ! input
   type(runoff)         , intent(in)  :: runoff_data         ! runoff for one time step for all HRUs
   type(remap)          , intent(in)  :: remap_data          ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
-  type(var_ilength)    , intent(in)  :: structHRU2seg(:)    ! HRU-to-segment mapping
   ! output
   real(dp)             , intent(out) :: basinRunoff(:)      ! basin runoff
   integer(i4b)         , intent(out) :: ierr                ! error code
@@ -96,12 +93,6 @@ module remapping
     cycle
    endif
 
-   ! check that the basins match
-   if( remap_data%hru_id(iHRU) /= structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1) )then
-    message=trim(message)//'mismatch in HRU ids for basins in the routing layer'
-    ierr=20; return
-   endif
-
    ! initialize the weighted average
    sumWeights        = 0._dp
    basinRunoff(jHRU) = 0._dp
@@ -134,7 +125,6 @@ module remapping
     ! check
     if(remap_data%i_index(iHRU)==ixCheck .and. remap_data%j_index(iHRU)==jxCheck)then
      print*, 'remap_data%i_index(iHRU),remap_data%j_index(iHRU) = ', remap_data%i_index(iHRU), remap_data%j_index(iHRU)
-     print*, 'structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1)   = ', structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1)
      print*, 'remap_data%num_qhru(iHRU)                         = ', remap_data%num_qhru(iHRU)
      print*, 'runoff_data%qSim2D(ii,jj)                         = ', runoff_data%qSim2D(ii,jj)
     endif
@@ -170,12 +160,11 @@ module remapping
   ! *****
   ! private subroutine: used to map runoff data (on diferent polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
-  subroutine remap_1D_runoff(runoff_data, remap_data, structHRU2seg, basinRunoff, ierr, message)
+  subroutine remap_1D_runoff(runoff_data, remap_data, basinRunoff, ierr, message)
   implicit none
   ! input
   type(runoff)         , intent(in)  :: runoff_data      ! runoff for one time step for all HRUs
   type(remap)          , intent(in)  :: remap_data       ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
-  type(var_ilength)    , intent(in)  :: structHRU2seg(:) ! HRU-to-segment mapping
   ! output
   real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
   integer(i4b)         , intent(out) :: ierr             ! error code
@@ -210,14 +199,8 @@ module remapping
     cycle
    endif
 
-   ! check that the basins match
-   if( remap_data%hru_id(iHRU) /= structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1) )then
-    message=trim(message)//'mismatch in HRU ids for basins in the routing layer'
-    ierr=20; return
-   endif
-
-   !print*, 'remap_data%hru_id(iHRU), structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1), remap_data%num_qhru(iHRU) = ', &
-   !         remap_data%hru_id(iHRU), structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1), remap_data%num_qhru(iHRU)
+   !print*, 'remap_data%hru_id(iHRU), remap_data%num_qhru(iHRU) = ', &
+   !         remap_data%hru_id(iHRU), remap_data%num_qhru(iHRU)
 
    ! initialize the weighted average
    sumWeights        = 0._dp
@@ -251,7 +234,6 @@ module remapping
     ! check
     if(remap_data%hru_id(iHRU)==ixCheck)then
      print*, 'remap_data%hru_id(iHRU)                         = ', remap_data%hru_id(iHRU)
-     print*, 'structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1) = ', structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1)
      print*, 'remap_data%num_qhru(iHRU)                       = ', remap_data%num_qhru(iHRU)
      print*, 'ixRunoff, runoff_data%qSim(ixRunoff)            = ', ixRunoff, runoff_data%qSim(ixRunoff)
     endif
