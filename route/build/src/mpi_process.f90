@@ -7,9 +7,6 @@ USE dataTypes,         ONLY: var_ilength   ! integer type:     var(:)%dat
 USE dataTypes,         ONLY: var_dlength   ! double precision type: var(:)%dat
 USE dataTypes,         ONLY: var_clength   ! character type:        var(:)%dat
 
-! public data
-USE public_var
-
 ! named variables
 USE var_lookup,        ONLY:ixHRU,    nVarsHRU     ! index of variables for the HRUs
 USE var_lookup,        ONLY:ixSEG,    nVarsSEG     ! index of variables for the stream segments
@@ -20,6 +17,7 @@ USE var_lookup,        ONLY:ixPFAF,   nVarsPFAF    ! index of variables for the 
 ! utility
 USE nr_utility_module, ONLY: arth                  !
 USE nr_utility_module, ONLY: indexx                ! sorted index array
+USE nr_utility_module, only: findIndex             ! find index within a vector
 
 implicit none
 
@@ -29,26 +27,6 @@ public :: comm_ntopo_data
 public :: comm_runoff_data
 
 contains
-
-  ! create mapping array to map global index to local index
-  !  ixSubSEG(nSeg) : index that belong to a subbasin in global index
-  !  iySubSEG(nSeg) : local indices for a subbasin
-  !  ixMap(nSeg) : map indix from global to local
-  !
-  !  examples
-  !  global_ix, iySub, ixSubSEG,  ixMap, idNode
-  !    1            1         2       1       0
-  !    2            2         7       1       0
-  !    3            1         5       2       0
-  !    4            2         8       3       0
-  !    5            3         9       1       0
-  !    6            1         1       1       1
-  !    7            2         3       2       1
-  !    8            3         4       2       1
-  !    9            1         6       3       2
-  !   10            2        10       2       2
-  !
-  !  if global index of interest is 4(=ixGlob), ixMap(ixGlob)=3 meaning element with 4 is located in 3rd in local array.
 
  ! *********************************************************************
  ! public subroutine: send reach/hru information to tasks and populate data structures
@@ -64,19 +42,23 @@ contains
                             structNTOPO,  & ! input: data structure for network toopology
                             ixSubHRU,     & ! output: sorted hru index array based on proc assignment
                             ixSubSEG,     & ! output: sorted seg index array based on proc assignment
+                            hru_per_proc, & ! number of hrus assigned to each proc (i.e., node)
+                            seg_per_proc, & ! number of reaches assigned to each proc (i.e., node)
                             ierr,message)   ! output: error control
 
-  USE globalData,        ONLY: fshape, tscale       ! routing parameters
-  USE globalData,        ONLY: velo, diff           ! routing parameters
-  USE globalData,        ONLY: mann_n, wscale       ! routing parameters
   USE popMetadat_module, ONLY: popMetadat           ! populate metadata
   USE alloc_data,        ONLY: alloc_struct
   USE process_ntopo,     ONLY: augment_ntopo        ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,     ONLY: put_data_struct      !
+  USE globalData,        ONLY: fshape, tscale       ! routing parameters
+  USE globalData,        ONLY: velo, diff           ! routing parameters
+  USE globalData,        ONLY: mann_n, wscale       ! routing parameters
+  USE globalData,        ONLY: ixDesire             ! desired reach index
   USE globalData,        ONLY: domains              ! domain data structure - for each domain, pfaf codes and list of segment indices
   USE globalData,        ONLY: nDomain              ! count of decomposed domains (tributaries + mainstems)
   USE globalData,        ONLY: RCHFLX, RCHFLX_local
   USE globalData,        ONLY: KROUTE, KROUTE_local
+  USE public_var
 
   implicit none
   ! Input variables
@@ -92,6 +74,8 @@ contains
   ! Output
   integer(i4b),      allocatable, intent(out) :: ixSubHRU(:)              ! global HRU index in the order of domains
   integer(i4b),      allocatable, intent(out) :: ixSubSEG(:)              ! global reach index in the order of domains
+  integer(i4b),      allocatable, intent(out) :: hru_per_proc(:)          ! number of hrus assigned to each proc (i.e., node)
+  integer(i4b),      allocatable, intent(out) :: seg_per_proc(:)          ! number of reaches assigned to each proc (i.e., node)
   ! Output error handling variables
   integer(i4b),                   intent(out) :: ierr
   character(len=strLen),          intent(out) :: message                   ! error message
@@ -131,16 +115,12 @@ contains
   integer(i4b)                                :: iySubHRU(nHRU)            ! local HRU index
   integer(i4b)                                :: iySubSEG(nSeg)            ! local reach index
   logical(lgt)                                :: isTrib(nSeg)              ! logical to indicate tributary seg or not
-!  integer(i4b)                                :: ixMap(nSeg)                ! map global index to local
-!  integer(i4b)                                :: downIndex(nSeg)            ! downstream reach index for each reach
   ! flat array for decomposed river network per domain (sub-basin)
   integer(i4b)                                :: idNode(nDomain)           ! node id array for each domain
   integer(i4b)                                :: rnkIdNode(nDomain)        ! ranked node id array for each domain
   ! mpi related variables
   integer(i4b)                                :: iSeg,iHru                 ! reach and hru loop indices
   integer(i4b)                                :: ix,ixx                    ! loop indices
-  integer(i4b)                                :: seg_per_proc(0:nNodes-1)  ! number of reaches assigned to each proc (i.e., node)
-  integer(i4b)                                :: hru_per_proc(0:nNodes-1)  ! number of hrus assigned to each proc (i.e., node)
   integer(i4b)                                :: num_seg_received
   integer(i4b)                                :: num_hru_received
   integer(i4b)                                :: nHru_root, nSeg_root      ! number of hrus and reaches in a root proc
@@ -195,22 +175,13 @@ contains
      end associate
     end do
 
-!    ! create index mapping from global to local
-!    do iSeg = 1,nSeg
-!      ixMap(ixSubSEG(iSeg)) = iySub(iSeg)
-!    enddo
-
     ! covert component of derived data type to the arrays
     ! reach array
-!    downIndex = -1
     do iSeg = 1,nSeg
      segId(iSeg)     = structNTOPO(ixSubSEG(iSeg))%var(ixNTOPO%segId)%dat(1)
      downSegId(iSeg) = structNTOPO(ixSubSEG(iSeg))%var(ixNTOPO%downSegId)%dat(1)
      slope(iSeg)     = structSEG(ixSubSEG(iSeg))%var(ixSEG%slope)%dat(1)
      length(iSeg)    = structSEG(ixSubSEG(iSeg))%var(ixSEG%length)%dat(1)
-!     if (structNTOPO(ixSubSEG(iSeg))%var(ixNTOPO%downSegIndex)%dat(1) > 0)then
-!       downIndex(iSeg)  = ixMap(structNTOPO(ixSubSEG(iSeg))%var(ixNTOPO%downSegIndex)%dat(1))
-!     endif
     end do
 
     ! hru array
@@ -221,6 +192,7 @@ contains
     enddo
 
     ! Compute the number of elements in each node
+    allocate(seg_per_proc(0:nNodes), hru_per_proc(0:nNodes), stat=ierr)
     seg_per_proc = 0
     hru_per_proc = 0
     do ix = 1,nDomain
@@ -251,7 +223,21 @@ contains
       call MPI_SEND(hruId(ixHru1),    hru_per_proc(myid), MPI_INT,   myid, send_data_tag, MPI_COMM_WORLD, ierr)
       call MPI_SEND(hruSegId(ixHru1), hru_per_proc(myid), MPI_INT,   myid, send_data_tag, MPI_COMM_WORLD, ierr)
       call MPI_SEND(area(ixHru1),     hru_per_proc(myid), MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+     ! other public/global data
+      call MPI_SEND(desireId,1, MPI_INT,   myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(routOpt, 1, MPI_INT,   myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(dt,      1, MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(fshape,  1, MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(tscale,  1, MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(velo,    1, MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(diff,    1, MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(mann_n,  1, MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(wscale,  1, MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+
     end do
+
+    ! find index of desired reach
+    ixDesire = findIndex(segId(1:nSeg_root), desireId, integerMissing)
 
     ! reach assigned to root proc
     nSeg_root=seg_per_proc(root)   ! number of seg in root proc
@@ -308,9 +294,9 @@ contains
 !    do ix = 1,nHru
 !      print*, ix, hruId(ix), ixSubHRU(ix), iySubHRU(ix), hruSegId(ix)
 !    end do
-!    print*, 'ix, segId, ixSubHRU, iySubHRU, ixNode, pfaf'
+!    print*, 'ix, segId, ixSubSEG, iySubSEG, ixNode, pfaf'
 !    do ix = 1,nSeg
-!      print*, ix, segId(ix), ixSubSEG(ix), iySub(ix), ixNode(ix), pfaf(ix)
+!      print*, ix, segId(ix), ixSubSEG(ix), iySubSEG(ix), ixNode(ix), pfaf(ix)
 !    enddo
 
   else
@@ -351,6 +337,16 @@ contains
    call MPI_RECV(hruId_local,     num_hru_received, MPI_INT,   root, send_data_tag, MPI_COMM_WORLD, status, ierr)
    call MPI_RECV(hruSegId_local,  num_hru_received, MPI_INT,   root, send_data_tag, MPI_COMM_WORLD, status, ierr)
    call MPI_RECV(area_local,      num_hru_received, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+   ! other public/global data
+   call MPI_RECV(desireId,1, MPI_INT,   root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+   call MPI_RECV(routOpt, 1, MPI_INT,   root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+   call MPI_RECV(dt,      1, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+   call MPI_RECV(fshape,  1, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+   call MPI_RECV(tscale,  1, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+   call MPI_RECV(velo,    1, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+   call MPI_RECV(diff,    1, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+   call MPI_RECV(mann_n,  1, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+   call MPI_RECV(wscale,  1, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
 
    ! Populate data structure
    ! reach
@@ -363,9 +359,12 @@ contains
    forall(ix=1:num_hru_received) structHRU2SEG_local(ix)%var(ixHRU2SEG%hruSegId)%dat(1) = hruSegId_local(ix)
    forall(ix=1:num_hru_received) structHRU_local    (ix)%var(ixHRU%area)%dat(1)         = area_local(ix)
 
-   dt = 86400._dp
-   fshape=2.5_dp
-   tscale=86400._dp
+!   dt = 86400._dp
+!   fshape=2.5_dp
+!   tscale=86400._dp
+
+   ! find index of desired reach
+   ixDesire = findIndex(segId_local, desireId, integerMissing)
 
    call augment_ntopo(&
                    ! input: model control
@@ -401,13 +400,25 @@ contains
                              nEns,          & ! input: number of ensembles
                              nHRU,          & ! input: number of HRUs in whole domain
                              ixSubHRU,      & ! input: global HRU index in the order of domains
+                             T0,T1,         & ! input: begining and ending of time step (sec)
                              hru_per_proc,  & ! input: number of hrus assigned to each proc
                              seg_per_proc,  & ! input: number of hrus assigned to each proc
                              basinRunoff,   & ! input: runoff data structures
                              ierr,message)    ! output: error control
 
-  USE remapping,  only : basin2reach          ! remap runoff from routing basins to routing reaches
-  USE globalData, only : RCHFLX_local         ! reach flux structure
+  USE public_var
+  USE remapping,  only : basin2reach            ! remap runoff from routing basins to routing reaches
+  USE globalData, only : RCHFLX_local           ! reach flux structure
+  USE globalData, only : river_basin            !
+  USE globalData, only : ixDesire               ! desired reach index
+  ! subroutines: basin routing
+  USE basinUH_module, only : IRF_route_basin    ! perform UH convolution for basin routing
+  ! subroutines: river routing
+  USE accum_runoff_module, only : accum_runoff  ! upstream flow accumulation
+  USE kwt_route_module,    only : kwt_route     ! kinematic wave routing method
+  USE irf_route_module,    only : irf_route     ! unit hydrograph (impulse response function) routing method
+  !USE kwt_route_module,    only : kwt_route => kwt_route_orig   ! kinematic wave routing method
+  !USE irf_route_module,    only : irf_route => irf_route_orig    ! river network unit hydrograph method
 
   implicit none
 
@@ -417,8 +428,10 @@ contains
   integer(i4b),             intent(in)  :: nEns
   integer(i4b),             intent(in)  :: nHRU                     ! number of total hru
   integer(i4b),allocatable, intent(in)  :: ixSubHRU(:)              ! global HRU index in the order of domains
-  integer(i4b),             intent(in)  :: hru_per_proc(0:nNodes-1) ! number of hrus assigned to each proc (i.e., node)
-  integer(i4b),             intent(in)  :: seg_per_proc(0:nNodes-1) ! number of hrus assigned to each proc (i.e., node)
+  real(dp),                 intent(in)  :: T0                       ! begining of time step (second)
+  real(dp),                 intent(in)  :: T1                       ! ending of time step (second)
+  integer(i4b),allocatable, intent(in)  :: hru_per_proc(:)          ! number of hrus assigned to each proc (i.e., node)
+  integer(i4b),allocatable, intent(in)  :: seg_per_proc(:)          ! number of hrus assigned to each proc (i.e., node)
   real(dp),                 intent(in)  :: basinRunoff(nHRU)        ! basin runoff (m/s) for the entire domain
   ! Output variables
   integer(i4b),             intent(out) :: ierr
@@ -463,6 +476,7 @@ contains
     allocate(reachRunoff_local(seg_per_proc(root)), stat=ierr)
     basinRunoff_local(1:hru_per_proc(root)) = basinRunoff_sorted(1:hru_per_proc(root))
 
+    ! 1. subroutine: map basin runoff to river network HRUs
     ! map the basin runoff to the stream network...
     call basin2reach(&
                     ! input
@@ -471,10 +485,45 @@ contains
                     reachRunoff_local,       & ! intent(out): reach runoff (m3/s)
                     ierr, cmessage)            ! intent(out): error control
 
-    ! instantaneous runoff volume (m3/s) to data structure
+    ! 2. subroutine: basin route
+    if (doesBasinRoute == 1) then
+      ! instantaneous runoff volume (m3/s) to data structure
+      do iens = 1,nEns
+        RCHFLX_local(iens,:)%BASIN_QI = reachRunoff_local(:)
+        ! perform Basin routing
+        call IRF_route_basin(iens, num_seg_received, ierr, cmessage)
+      enddo
+    else
+      ! no basin routing required (handled outside mizuRoute))
+      RCHFLX_local(iens,:)%BASIN_QR(0) = RCHFLX_local(iens,:)%BASIN_QR(1)   ! streamflow from previous step
+      RCHFLX_local(iens,:)%BASIN_QR(1) = reachRunoff_local(:)                     ! streamflow (m3/s)
+    end if
+
+    ! 3. subroutine: river reach routing
+    ! perform upstream flow accumulation
     do iens = 1,nEns
-      RCHFLX_local(iens,:)%BASIN_QI = reachRunoff_local(:)
-    enddo
+      call accum_runoff(iens,              &    ! input: ensemble index
+                        num_seg_received,  &    ! input: number of reaches in the river network
+                        ixDesire,          &    ! input: index of verbose reach
+                        ierr, cmessage)         ! output: error controls
+
+      ! perform KWT routing
+      if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
+       call kwt_route(iens,                 & ! input: ensemble index
+                      river_basin,          & ! input: river basin data type
+                      T0,T1,                & ! input: start and end of the time step
+                      ixDesire,             & ! input: index of the desired reach
+                      ierr,cmessage)          ! output: error control
+      endif
+
+      ! perform IRF routing
+      if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+       call irf_route(iens,                 & ! input: ensemble index
+                      river_basin,          & ! input: river basin data type
+                      ixDesire,             & ! input: index of the desired reach
+                      ierr,cmessage)          ! output: error control
+      endif
+    end do
 
   else
 
@@ -486,6 +535,7 @@ contains
 
     call MPI_RECV(basinRunoff_local, num_hru_received, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
 
+    ! 1. subroutine: map basin runoff to river network HRUs
     ! map the basin runoff to the stream network...
     call basin2reach(&
                     ! input
@@ -494,12 +544,48 @@ contains
                     reachRunoff_local,       & ! intent(out): reach runoff (m3/s)
                     ierr, cmessage)            ! intent(out): error control
 
-    ! instantaneous runoff volume (m3/s) to data structure
+    ! 2. subroutine: basin routing
+    if (doesBasinRoute == 1) then
+      ! instantaneous runoff volume (m3/s) to data structure
+      do iens = 1,nEns
+        RCHFLX_local(iens,:)%BASIN_QI = reachRunoff_local(:)
+        ! perform Basin routing
+        call IRF_route_basin(iens, num_seg_received, ierr, cmessage)
+      enddo
+    else
+      ! no basin routing required (handled outside mizuRoute))
+      RCHFLX_local(iens,:)%BASIN_QR(0) = RCHFLX_local(iens,:)%BASIN_QR(1)   ! streamflow from previous step
+      RCHFLX_local(iens,:)%BASIN_QR(1) = reachRunoff_local(:)               ! streamflow (m3/s)
+    end if
+
+    ! 3. subroutine: river reach routing
+    ! perform upstream flow accumulation
     do iens = 1,nEns
-      RCHFLX_local(iens,:)%BASIN_QI = reachRunoff_local(:)
-    enddo
+      call accum_runoff(iens,              &    ! input: ensemble index
+                        num_seg_received,  &    ! input: number of reaches in the river network
+                        ixDesire,          &    ! input: index of verbose reach
+                        ierr, cmessage)         ! output: error controls
+
+      ! perform KWT routing
+      if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
+       call kwt_route(iens,                 & ! input: ensemble index
+                      river_basin,          & ! input: river basin data type
+                      T0,T1,                & ! input: start and end of the time step
+                      ixDesire,             & ! input: index of the desired reach
+                      ierr,cmessage)          ! output: error control
+      endif
+
+      ! perform IRF routing
+      if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+       call irf_route(iens,                 & ! input: ensemble index
+                      river_basin,          & ! input: river basin data type
+                      ixDesire,             & ! input: index of the desired reach
+                      ierr,cmessage)          ! output: error control
+      endif
+    end do
 
   endif
+
  end subroutine comm_runoff_data
 
 end module mpi_routine
@@ -539,3 +625,25 @@ end module mpi_routine
 !     end do
 !    end do
 
+
+
+
+  ! create mapping array to map global index to local index
+  !  ixSubSEG(nSeg) : index that belong to a subbasin in global index
+  !  iySubSEG(nSeg) : local indices for a subbasin
+  !  ixMap(nSeg) : map indix from global to local
+  !
+  !  examples
+  !  global_ix, iySub, ixSubSEG,  ixMap, idNode
+  !    1            1         2       1       0
+  !    2            2         7       1       0
+  !    3            1         5       2       0
+  !    4            2         8       3       0
+  !    5            3         9       1       0
+  !    6            1         1       1       1
+  !    7            2         3       2       1
+  !    8            3         4       2       1
+  !    9            1         6       3       2
+  !   10            2        10       2       2
+  !
+  !  if global index of interest is 4(=ixGlob), ixMap(ixGlob)=3 meaning element with 4 is located in 3rd in local array.

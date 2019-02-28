@@ -27,6 +27,7 @@ module globalData
   use dataTypes,  only : runoff        ! runoff data type
 
   ! basin data structure
+  use dataTypes,  only : basin         !
   use dataTypes,  only : subbasin_mpi  ! reach category (store mainstem code or pfaf code)
 
   ! data size
@@ -64,6 +65,7 @@ module globalData
 
   ! ---------- conversion factors -------------------------------------------------------------------
 
+  real(dp)                       , public :: convTime2Days              ! conversion factor to convert time to units of days
   real(dp)                       , public :: time_conv                  ! time conversion factor -- used to convert to mm/s
   real(dp)                       , public :: length_conv                ! length conversion factor -- used to convert to mm/s
 
@@ -121,7 +123,11 @@ module globalData
   type(runoff)                   , public :: runoff_data          ! runoff for one time step for all HRUs
 
   ! domain data
+  type(basin)     , allocatable  , public :: river_basin(:)       ! openMP domain decomposition
   type(subbasin_mpi)             , public :: domains(5000)        ! domain decomposition based on subbasin
   integer(i4b)                   , public :: nDomain              ! domain counter
+
+  ! miscellaneous
+  integer(i4b)                   , public :: ixDesire             ! index of desired reach
 
 end module globalData

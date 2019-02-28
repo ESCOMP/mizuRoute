@@ -96,9 +96,14 @@ module public_var
   character(len=strLen),public    :: vname_j_index        = ''              ! variable for numbers of x (longitude) index if runoff file is grid
   character(len=strLen),public    :: dname_hru_remap      = ''              ! dimension name for river network HRU
   character(len=strLen),public    :: dname_data_remap     = ''              ! dimension name for runoff HRU ID
-  ! MISCELLANEOUS
+  ! TIME
   real(dp)             ,public    :: dt                   = realMissing     ! time step (seconds)
+  character(len=strLen),public    :: time_units           = ''              ! time units (seconds, hours, or days)
+  character(len=strLen),public    :: calendar             = ''              ! calendar name
+  ! MISCELLANEOUS
   integer(i4b)         ,public    :: idSegOut             = integerMissing  ! id of outlet stream segment
   integer(i4b)         ,public    :: routOpt              = integerMissing  ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+  integer(i4b)         ,public    :: desireId             = integerMissing  ! turn off checks or speficy reach ID if necessary to print on screen
+  integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
 
 end module public_var
