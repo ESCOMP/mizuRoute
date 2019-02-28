@@ -142,10 +142,12 @@ implicit none
 
  ! simulated runoff data
  type, public :: runoff
-   real(dp)                                :: time        ! time
-   real(dp)                 , allocatable  :: qsim(:)     ! runoff(hru) at one time step
-   real(dp)                 , allocatable  :: qsim2D(:,:) ! runoff(x,y) at one time step
-   integer(i4b)             , allocatable  :: hru_id(:)   ! id of hrus at which runoff is simulated
+   integer(i4b)                            :: ntime         ! number of time steps
+   integer(i4b)                            :: nSpace(1:2)   ! number of spatial dimension
+   real(dp)                                :: time          ! time
+   real(dp)                 , allocatable  :: qsim(:)       ! runoff(hru) at one time step
+   real(dp)                 , allocatable  :: qsim2D(:,:)   ! runoff(x,y) at one time step
+   integer(i4b)             , allocatable  :: hru_id(:)     ! id of hrus at which runoff is simulated
  end type runoff
 
  ! ---------- reach parameters ----------------------------------------------------------------------------

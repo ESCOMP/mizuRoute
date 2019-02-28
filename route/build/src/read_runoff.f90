@@ -30,8 +30,6 @@ contains
                                 fname       , & ! filename
                                 ! output
                                 runoff_data , & ! runoff data structure
-                                nSpatial    , & ! number of spatial elements
-                                nTime       , & ! number of time steps
                                 timeUnits   , & ! time units
                                 calendar    , & ! calendar
                                 ! error control
@@ -41,8 +39,6 @@ contains
  character(*), intent(in)        :: fname           ! filename
  ! output variables
  type(runoff), intent(out)       :: runoff_data     ! runoff for one time step for all HRUs
- integer(i4b), intent(out)       :: nSpatial(1:2)   ! number of spatial elements
- integer(i4b), intent(out)       :: nTime           ! number of time steps
  character(*), intent(out)       :: timeUnits       ! time units
  character(*), intent(out)       :: calendar        ! calendar
  ! error control
@@ -70,8 +66,8 @@ contains
 
  ! get runoff metadata
  select case( nDims )
-  case(2); call get_1D_runoff_metadata(fname, runoff_data, nSpatial, nTime, timeUnits, calendar, ierr, cmessage)
-  case(3); call get_2D_runoff_metadata(fname, runoff_data, nSpatial, nTime, timeUnits, calendar, ierr, cmessage)
+  case(2); call get_1D_runoff_metadata(fname, runoff_data, timeUnits, calendar, ierr, cmessage)
+  case(3); call get_2D_runoff_metadata(fname, runoff_data, timeUnits, calendar, ierr, cmessage)
   case default; ierr=20; message=trim(message)//'runoff array nDimensions must be 2 or 3'; return
  end select
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -86,8 +82,6 @@ contains
                                    fname       , & ! filename
                                    ! output
                                    runoff_data , & ! runoff data structure
-                                   nSpatial    , & ! number of spatial elements
-                                   nTime       , & ! number of time steps
                                    timeUnits   , & ! time units
                                    calendar    , & ! calendar
                                    ! error control
@@ -97,8 +91,6 @@ contains
  character(*), intent(in)                :: fname           ! filename
  ! output variables
  type(runoff), intent(out)               :: runoff_data     ! runoff for one time step for all HRUs
- integer(i4b), intent(out)               :: nSpatial(1:2)   ! number of spatial elements
- integer(i4b), intent(out)               :: nTime           ! number of time steps
  character(*), intent(out)               :: timeUnits       ! time units
  character(*), intent(out)               :: calendar        ! calendar
  ! error control
@@ -109,14 +101,14 @@ contains
  ! initialize error control
  ierr=0; message='get_1D_runoff_metadata/'
 
- nSpatial(2) = integerMissing
+ runoff_data%nSpace(2) = integerMissing
 
  ! get the number of HRUs
- call get_nc_dim_len(fname, trim(dname_hruid), nSpatial(1), ierr, cmessage)
+ call get_nc_dim_len(fname, trim(dname_hruid), runoff_data%nSpace(1), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get number of time steps from the runoff file
- call get_nc_dim_len(fname, trim(dname_time), nTime, ierr, cmessage)
+ call get_nc_dim_len(fname, trim(dname_time), runoff_data%nTime, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the time units
@@ -128,15 +120,15 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! allocate space for hru_id
- allocate(runoff_data%hru_id(nSpatial(1)), stat=ierr)
+ allocate(runoff_data%hru_id(runoff_data%nSpace(1)), stat=ierr)
  if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data%hruId'; return; endif
 
  ! allocate space for simulated runoff
- allocate(runoff_data%qSim(nSpatial(1)), stat=ierr)
+ allocate(runoff_data%qSim(runoff_data%nSpace(1)), stat=ierr)
  if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data%qsim'; return; endif
 
  ! get HRU ids from the runoff file
- call get_nc(fname, vname_hruid, runoff_data%hru_id, 1, nSpatial(1), ierr, cmessage)
+ call get_nc(fname, vname_hruid, runoff_data%hru_id, 1, runoff_data%nSpace(1), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end subroutine get_1D_runoff_metadata
@@ -149,8 +141,6 @@ contains
                                 fname       , & ! filename
                                 ! output
                                 runoff_data , & ! runoff data structure
-                                nSpatial    , & ! number of ylat dimensions
-                                nTime       , & ! number of time steps
                                 timeUnits   , & ! time units
                                 calendar    , & ! calendar
                                 ! error control
@@ -160,8 +150,6 @@ contains
  character(*), intent(in)                :: fname           ! filename
  ! output variables
  type(runoff), intent(out)               :: runoff_data     ! runoff for one time step for all HRUs
- integer(i4b), intent(out)               :: nSpatial(1:2)   ! number of spatial elements (lat, lon) (y,x),(i,j)
- integer(i4b), intent(out)               :: nTime           ! number of time steps
  character(*), intent(out)               :: timeUnits       ! time units
  character(*), intent(out)               :: calendar        ! calendar
  ! error control
@@ -173,7 +161,7 @@ contains
  ierr=0; message='get_2D_runoff_metadata/'
 
  ! get number of time steps from the runoff file
- call get_nc_dim_len(fname, trim(dname_time), nTime, ierr, cmessage)
+ call get_nc_dim_len(fname, trim(dname_time), runoff_data%nTime, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the time units
@@ -185,15 +173,15 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get size of ylat dimension
- call get_nc_dim_len(fname, trim(dname_ylat), nSpatial(1), ierr, cmessage)
+ call get_nc_dim_len(fname, trim(dname_ylat), runoff_data%nSpace(1), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get size of xlon dimension
- call get_nc_dim_len(fname, trim(dname_xlon), nSpatial(2), ierr, cmessage)
+ call get_nc_dim_len(fname, trim(dname_xlon), runoff_data%nSpace(2), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! allocate space for simulated runoff. qSim2d = runoff(lon, lat)
- allocate(runoff_data%qSim2d(nSpatial(2),nSpatial(1)), stat=ierr)
+ allocate(runoff_data%qSim2d(runoff_data%nSpace(2),runoff_data%nSpace(1)), stat=ierr)
  if(ierr/=0)then; message=trim(message)//'problem allocating qsim'; return; endif
 
  end subroutine get_2D_runoff_metadata
@@ -205,14 +193,12 @@ contains
 
  subroutine get_runoff(fname,          &  ! input: filename
                        iTime,          &  ! input: time index
-                       nSpace,         &  ! input: size of HRUs
                        runoff_data,    &  ! inout: runoff data structure
                        ierr, message)     ! output: error control
  implicit none
  ! input variables
  character(*), intent(in)      :: fname              ! filename
  integer(i4b), intent(in)      :: iTime              ! index of time element
- integer(i4b), intent(in)      :: nSpace(1:2)        ! size of spatial dimensions
  ! input/output variables
  type(runoff), intent(inout)   :: runoff_data        ! runoff for one time step for all spatial dimension
  ! output variables
@@ -224,11 +210,11 @@ contains
  ! initialize error control
  ierr=0; message='get_runoff/'
 
- if (nSpace(2) == integerMissing) then
-  call get_1D_runoff(fname, iTime, nSpace(1), runoff_data, ierr, message)
+ if (runoff_data%nSpace(2) == integerMissing) then
+  call get_1D_runoff(fname, iTime, runoff_data%nSpace(1), runoff_data, ierr, message)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  else
-  call get_2D_runoff(fname, iTime, nSpace, runoff_data, ierr, message)
+  call get_2D_runoff(fname, iTime, runoff_data%nSpace, runoff_data, ierr, message)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  endif
 
@@ -285,7 +271,7 @@ contains
  ! *********************************************************************
  subroutine get_2D_runoff(fname,          &  ! input: filename
                           iTime,          &  ! input: time index
-                          nSpace,         &  ! input: size of grid dimensions
+                          nSpace,         &  ! input: size of HRUs
                           runoff_data,    &  ! output: runoff data structure
                           ierr, message)     ! output: error control
  implicit none
