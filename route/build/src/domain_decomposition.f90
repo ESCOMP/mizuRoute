@@ -29,7 +29,7 @@ public :: classify_river_basin_mpi
 contains
 
  subroutine classify_river_basin_mpi(nNodes, nSeg, structPFAF, structNTOPO, maxSegs, nHRU, ierr, message)
-   ! MPI domain decomposition wrapper
+   ! Main routine for MPI domain decomposition
    !
    ! The following data struct components need to be populated
    !   structPFAF(:)%var(ixPFAF%code)%dat(1)
@@ -59,7 +59,6 @@ contains
    ! Local variables
    character(len=strLen)                       :: cmessage               ! error message from subroutine
    character(len=32)                           :: pfafs(nSeg)            ! pfaf_codes for all the segment
-   character(len=32)                           :: pfaf                   ! a pfaf_code for a segment
    character(len=32)                           :: pfafOutlet             ! pfaf_codes for a outlet segment
    character(len=32)                           :: pfafCommon             ! common pfaf_codes over the entire basin
    character(len=32), allocatable              :: pfafOutlets(:)         ! pfaf_codes for outlet segments
