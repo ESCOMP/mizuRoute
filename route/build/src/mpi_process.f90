@@ -123,7 +123,7 @@ contains
   integer(i4b)                                :: ix,ixx                    ! loop indices
   integer(i4b)                                :: num_seg_received
   integer(i4b)                                :: num_hru_received
-  integer(i4b)                                :: nHru_root, nSeg_root      ! number of hrus and reaches in a root proc
+  integer(i4b)                                :: nHRU_root, nSeg_root      ! number of hrus and reaches in a root proc
   integer(i4b)                                :: myid                      ! process id indices
   integer(i4b)                                :: ixSeg1,ixSeg2             ! starting index and ending index, respectively, for reach array
   integer(i4b)                                :: ixHru1,ixHru2             ! starting index and ending index, respectively, for HRU array
@@ -139,7 +139,7 @@ contains
   if (pid == root) then ! this is a root process
 
     allocate(RCHFLX(nEns,nSeg), KROUTE(nEns,nSeg), stat=ierr)
-    allocate(ixSubHRU(nHru),ixSubSEG(nSeg), stat=ierr)
+    allocate(ixSubHRU(nHRU),ixSubSEG(nSeg), stat=ierr)
 
     ! Create segIndex array from domains derived type. The array is sorted from node 0 through nNodes-1
     ! SegIndex Array needs to be contiguous when a chunk is sent to computing node (use sort function...)
@@ -241,9 +241,9 @@ contains
 
     ! reach assigned to root proc
     nSeg_root=seg_per_proc(root)   ! number of seg in root proc
-    nHru_root=hru_per_proc(root)   ! number of hru in root proc
+    nHRU_root=hru_per_proc(root)   ! number of hru in root proc
 
-    call alloc_struct(nHru_root,             & ! output: number of HRUs
+    call alloc_struct(nHRU_root,             & ! output: number of HRUs
                       nSeg_root,             & ! output: number of stream segments
                       structHRU_local,       & ! inout: ancillary data for HRUs
                       structSEG_local,       & ! inout: ancillary data for stream segments
@@ -263,7 +263,7 @@ contains
       structSEG_local  (ix)%var(ixSEG%slope)%dat(1)       = slope(ix)
     end do
     ! hru
-    do ix = 1, nHru_root
+    do ix = 1, nHRU_root
       structHRU2SEG_local(ix)%var(ixHRU2SEG%HRUid)%dat(1)    = hruId(ix)
       structHRU2SEG_local(ix)%var(ixHRU2SEG%hruSegId)%dat(1) = hruSegId(ix)
       structHRU_local    (ix)%var(ixHRU%area)%dat(1)         = area(ix)
@@ -271,7 +271,7 @@ contains
 
     call augment_ntopo(&
                        ! input: model control
-                       nHru_root,                   & ! number of stream segments
+                       nHRU_root,                   & ! number of stream segments
                        nSeg_root,                   & ! number of HRUs
                        ! inout: populate data structures
                        structHRU_local,              & ! ancillary data for HRUs
@@ -291,7 +291,7 @@ contains
     call put_data_struct(nSeg_root, structSEG_local, structNTOPO_local, ierr, cmessage)
 
 !    print*, 'ix, hruId, ixSubHRU, iySubHRU, hruSegId'
-!    do ix = 1,nHru
+!    do ix = 1,nHRU
 !      print*, ix, hruId(ix), ixSubHRU(ix), iySubHRU(ix), hruSegId(ix)
 !    end do
 !    print*, 'ix, segId, ixSubSEG, iySubSEG, ixNode, pfaf'
