@@ -30,6 +30,9 @@ module globalData
   use dataTypes,  only : basin         !
   use dataTypes,  only : subbasin_mpi  ! reach category (store mainstem code or pfaf code)
 
+  ! time data structure
+  use dataTypes,  only : time         ! time data
+
   ! data size
   USE var_lookup, only : nStructures   ! number of variables for data structure
   USE var_lookup, only : nDimensions   ! number of variables for data structure
@@ -96,7 +99,14 @@ module globalData
   type(var_info)                 , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
   type(var_info)                 , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
   type(var_info)                 , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
+
   ! ---------- data structures ----------------------------------------------------------------------
+
+  integer(i4b)    , allocatable  , public :: basinID(:)           ! HRU id
+  integer(i4b)    , allocatable  , public :: reachID(:)           ! reach id
+
+  real(dp)        , allocatable  , public :: timeVar(:)           ! time variables (unit given by runoff data)
+  type(time)                     , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
 
   ! routing parameter structures
   type(RCHPRP)    , allocatable  , public :: RPARAM(:)            ! Reach Parameters

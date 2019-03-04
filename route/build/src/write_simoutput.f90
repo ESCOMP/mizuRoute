@@ -8,9 +8,133 @@ implicit none
 
 private
 
-public::defineFile
+public::prep_output
 
 CONTAINS
+
+ ! *********************************************************************
+ ! new subroutine: define routing output NetCDF file
+ ! *********************************************************************
+ SUBROUTINE prep_output(nEns,           & ! in:    number of ensembles
+                        nHRU,           & ! in:    number of HRUs
+                        nRch,           & ! in:    number of reaches
+                        iTime,          & ! in:    time index
+                        modJulday,      & ! out:   current simulation julian day
+                        jTime,          & ! out:   time step in output netCDF
+                        ierr, message)    ! out:   error control
+ !Dependent modules
+ USE dataTypes,           only : time              ! time data type
+ USE public_var,          only : refJulday         ! julian day: reference
+ USE public_var,          only : startJulday       ! julian day: start
+ USE public_var,          only : endJulday         ! julian day: end
+ USE public_var,          only : calendar          ! calendar name
+ USE public_var,          only : newFileFrequency  ! frequency for new output files (day, month, annual)
+ USE public_var,          only : time_units        ! time units (seconds, hours, or days)
+ USE public_var,          only : annual,month,day  ! time frequency named variable for output files
+ USE globalData,          only : basinID,reachID   ! HRU and reach ID in network
+ USE globalData,          only : timeVar           ! time variable
+ USE globalData,          only : modTime           ! previous and current model time
+ USE time_utils_module,   only : compCalday        ! compute calendar day
+ USE time_utils_module,   only : compCalday_noleap ! compute calendar day
+ USE write_netcdf,        only : write_nc          ! write a variable to the NetCDF file
+
+ implicit none
+
+ ! input variables
+ integer(i4b), intent(in)        :: nEns             ! number of ensembles
+ integer(i4b), intent(in)        :: nHRU             ! number of HRUs
+ integer(i4b), intent(in)        :: nRch             ! number of stream segments
+ integer(i4b), intent(in)        :: iTime            ! simulation time index
+ ! output variables
+ real(dp),     intent(out)       :: modJulday        ! julian day: model simulation
+ integer(i4b), intent(out)       :: jTime            ! time step in output netCDF
+ integer(i4b), intent(out)       :: ierr             ! error code
+ character(*), intent(out)       :: message          ! error message
+ ! local variables
+ character(len=strLen)           :: fileout          ! name of the output file
+ real(dp)                        :: convTime2Days    ! conversion factor to convert time to units of days
+ logical(lgt)                    :: defnewoutputfile ! flag to define new output file
+ character(len=strLen)           :: cmessage         ! error message of downwind routine
+
+ ! initialize error control
+ ierr=0; message='prep_output/'
+
+ ! get the time multiplier needed to convert time to units of days
+ select case( trim( time_units(1:index(time_units,' ')) ) )
+  case('seconds'); convTime2Days=86400._dp
+  case('hours');   convTime2Days=24._dp
+  case('days');    convTime2Days=1._dp
+  case default;    ierr=20; message=trim(message)//'unable to identify time units'; return
+ end select
+
+ ! get the julian day of the model simulation
+ modJulday = refJulday + timeVar(iTime)/convTime2Days
+
+ if(modJulday < startJulday .or. modJulday > endJulday) then
+   return
+ endif
+
+ ! get the time
+ select case(trim(calendar))
+  case('noleap')
+   call compCalday_noleap(modJulday,modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,ierr,cmessage)
+  case ('standard','gregorian','proleptic_gregorian')
+   call compCalday(modJulday,modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,ierr,cmessage)
+  case default;    ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
+ end select
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! print progress
+  !print*, modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin
+
+  ! *****
+  ! *** Define model output file...
+  ! *******************************
+
+  ! check need for the new file
+  select case(newFileFrequency)
+   case(annual); defNewOutputFile=(modTime(1)%iy/=modTime(0)%iy)
+   case(month);  defNewOutputFile=(modTime(1)%im/=modTime(0)%im)
+   case(day);    defNewOutputFile=(modTime(1)%id/=modTime(0)%id)
+   case default; ierr=20; message=trim(message)//'unable to identify the option to define new output files'; return
+  end select
+
+  ! define new file
+  if(defNewOutputFile)then
+
+    ! initialize time
+    jTime=1
+
+    ! update filename
+    write(fileout,'(a,3(i0,a))') trim(output_dir)//trim(fname_output)//'_', modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '.nc'
+
+    ! define output file
+    call defineFile(trim(fileout),                         &  ! input: file name
+                    nEns,                                  &  ! input: number of ensembles
+                    nHRU,                                  &  ! input: number of HRUs
+                    nRch,                                  &  ! input: number of stream segments
+                    time_units,                            &  ! input: time units
+                    calendar,                              &  ! input: calendar
+                    ierr,cmessage)                            ! output: error control
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! define basin ID
+    call write_nc(trim(fileout), 'basinID', basinID, (/1/), (/nHRU/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! define reach ID
+    call write_nc(trim(fileout), 'reachID', reachID, (/1/), (/nRch/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! no new file requested: increment time
+  else
+    jTime = jTime+1
+  endif
+
+  modTime(0) = modTime(1)
+
+ END SUBROUTINE prep_output
+
 
  ! *********************************************************************
  ! new subroutine: define routing output NetCDF file

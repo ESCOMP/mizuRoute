@@ -142,7 +142,7 @@ implicit none
 
  ! simulated runoff data
  type, public :: runoff
-   integer(i4b)                            :: ntime         ! number of time steps
+   integer(i4b)                            :: nTime         ! number of time steps
    integer(i4b)                            :: nSpace(1:2)   ! number of spatial dimension
    real(dp)                                :: time          ! time
    real(dp)                 , allocatable  :: qsim(:)       ! runoff(hru) at one time step

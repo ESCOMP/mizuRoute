@@ -8,6 +8,7 @@ USE dataTypes, only : var_clength         ! integer type:          var(:)%dat
 USE dataTypes, only : var_dlength,dlength ! double precision type: var(:)%dat, or dat
 
 USE public_var, only : integerMissing
+USE public_var, only : realMissing
 
 implicit none
 
@@ -33,8 +34,11 @@ contains
 
   USE public_var,  only : is_remap               ! logical whether or not runnoff needs to be mapped to river network HRU
   USE var_lookup,  only : ixHRU2SEG              ! index of variables for data structure
+  USE var_lookup,  only : ixNTOPO                ! index of variables for data structure
   USE dataTypes,   only : remap                  ! remapping data type
   USE dataTypes,   only : runoff                 ! runoff data type
+  USE globalData,  only : basinID
+  USE globalData,  only : reachID
 
    implicit none
    ! input:
@@ -59,10 +63,9 @@ contains
    type(var_ilength), allocatable           :: structNTOPO(:)   ! network topology
    type(var_clength), allocatable           :: structPFAF(:)    ! pfafstetter code
    ! others
+   integer(i4b)                             :: iHRU, iRch       ! loop index
+   integer(i4b)                             :: nHRU, nRch       ! number of HRU and reaches in river network
    character(len=strLen)                    :: cmessage         ! error message of downwind routine
-   integer(i4b)                             :: iHRU             ! loop index
-   integer(i4b)     , allocatable           :: hruId_network(:) ! hruID of river network layer
-   integer(i4b)                             :: nHRU_network     ! number of HRU in river network
 
    ! initialize error control
    ierr=0; message='init_data/'
@@ -74,23 +77,89 @@ contains
 
    if (pid==0) then
 
-     ! get vector of HRU ids in the river network layer
-     nHRU_network = size(structHRU2SEG)
-     allocate(hruId_network(nHRU_network), stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating [hruId_network]'; return; endif
-     forall(iHRU=1:nHRU_network) hruId_network(iHRU) = structHRU2SEG(iHRU)%var(ixHRU2SEG%hruId)%dat(1)
+     !  HRU and SEG ids in the river network layer (saved)
+     nHRU = size(structHRU2SEG); nRch = size(structSEG)
 
+     allocate(basinID(nHRU), reachID(nRch), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating [basinID, reachID]'; return; endif
+
+     forall(iHRU=1:nHRU) basinID(iHRU) = structHRU2SEG(iHRU)%var(ixHRU2SEG%hruId)%dat(1)
+     forall(iRch=1:nRch) reachID(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
+
+     !  runoff and remap data initialization
      call init_runoff(&
-                      hruId_network,   & ! input:  ancillary data for mapping hru2basin
                       is_remap,        & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
                       remap_data,      & ! output: data structure to remap data
                       runoff_data,     & ! output: data structure for runoff
                       ierr, message)     ! output: error control
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+     call init_time(runoff_data%ntime, ierr, message)     ! output: error control
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
    end if
 
  end subroutine init_data
+
+ ! *********************************************************************
+ ! private subroutine: initialize time data
+ ! *********************************************************************
+ subroutine init_time(nTime,     &    ! input: number of time steps
+                      ierr, message)  ! output
+
+  ! subroutines:
+  USE process_time_module, only : process_time  ! process time information
+  USE read_netcdf,         only : get_nc        ! netcdf input
+  ! derived datatype
+  USE dataTypes,           only : time          ! time data type
+  ! public data
+  USE public_var,          only : input_dir     ! directory containing input data
+  USE public_var,          only : fname_qsim    ! simulated runoff netCDF name
+  USE public_var,          only : vname_time    ! variable name for time
+  USE public_var,          only : time_units    ! time units (seconds, hours, or days)
+  USE public_var,          only : simStart      ! date string defining the start of the simulation
+  USE public_var,          only : simEnd        ! date string defining the end of the simulation
+  USE public_var,          only : calendar      ! calendar name
+  USE public_var,          only : startJulday   ! julian day: start
+  USE public_var,          only : endJulday     ! julian day: end
+  USE public_var,          only : refJulday     ! julian day: reference
+  USE globalData,          only : timeVar       ! time variables (unit given by runoff data)
+  USE globalData,          only : modTime       ! model time data (yyyy:mm:dd:hh:mm:ss)
+
+  implicit none
+
+  ! input:
+  integer(i4b),              intent(in)    :: nTime
+  ! output: error control
+  integer(i4b),              intent(out)   :: ierr             ! error code
+  character(*),              intent(out)   :: message          ! error message
+  ! local variable
+  character(len=strLen)                    :: cmessage         ! error message of downwind routine
+
+  ! initialize error control
+  ierr=0; message='init_time/'
+
+  ! time initialization
+  allocate(timeVar(nTime), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! get the time data
+  call get_nc(trim(input_dir)//trim(fname_qsim), vname_time, timeVar, 1, nTime, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! extract time information from the control information
+  call process_time(time_units,    calendar, refJulday,   ierr, cmessage); if(ierr/=0) message=trim(message)//trim(cmessage)//' [refJulday]'; return
+  call process_time(trim(simStart),calendar, startJulday, ierr, cmessage); if(ierr/=0) message=trim(message)//trim(cmessage)//' [startJulday]'; return
+  call process_time(trim(simEnd),  calendar, endJulday,   ierr, cmessage); if(ierr/=0) message=trim(message)//trim(cmessage)//' [endJulday]'; return
+
+  ! check that the dates are aligned
+  if(endJulday<startJulday) ierr=20; message=trim(message)//'simulation end is before simulation start'; return
+
+  ! initialize previous model time
+  modTime(0:1) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
+
+ end subroutine init_time
+
 
  ! *********************************************************************
  ! private subroutine: initialize river network data
@@ -269,7 +338,6 @@ contains
  ! *********************************************************************
  subroutine init_runoff(&
                          ! data structures
-                         hruID_network,   & ! input:  ancillary data for mapping hru2basin
                          remap_flag,      & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
                          remap_data,      & ! output: data structure to remap data
                          runoff_data,     & ! output: data structure for runoff
@@ -284,13 +352,12 @@ contains
  USE public_var,  only : time_units             ! time units
  USE dataTypes,   only : remap                  ! remapping data type
  USE dataTypes,   only : runoff                 ! runoff data type
-
- USE read_runoff, only : get_runoff_metadata  ! read meta data from runoff data
- USE read_remap,  only : get_remap_data       ! read remap data
+ USE read_runoff, only : get_runoff_metadata    ! read meta data from runoff data
+ USE read_remap,  only : get_remap_data         ! read remap data
+ USE globalData,  only : basinID                ! basin ID
 
  implicit none
  ! data structures
- integer(i4b)     , intent(in)      :: hruID_network(:) ! ID of routing layer
  logical(lgt),      intent(in)      :: remap_flag       ! logical whether or not runnoff needs to be mapped to river network HRU
  type(remap)  , intent(out)         :: remap_data       ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
  type(runoff) , intent(out)         :: runoff_data      ! runoff for one time step for all HRUs
@@ -311,7 +378,7 @@ contains
                           ierr, cmessage)                      ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- !print*, 'runoff_data%nSpace, nTime, trim(time_units) = ', runoff_data%nSpace(:), nTime, trim(time_units)
+ !print*, 'runoff_data%nSpace, nTime, trim(time_units) = ', runoff_data%nSpace(:), runoff_data%nTime, trim(time_units)
  !print*, trim(message)//'PAUSE : '; read(*,*)
 
  ! need to remap runoff to HRUs
@@ -326,7 +393,7 @@ contains
 
    ! get indices of the HRU ids in the mapping file in the routing layer
    call get_qix(remap_data%hru_id,  &    ! input: vector of ids in mapping file
-                hruID_network,      &    ! input: vector of ids in the routing layer
+                basinID,            &    ! input: vector of ids in the routing layer
                 remap_data%hru_ix,  &    ! output: indices of hru ids in routing layer
                 ierr, cmessage)          ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -341,7 +408,7 @@ contains
    end if
 
    ! check
-   if(count(remap_data%hru_ix/=integerMissing)/=size(hruID_network))then
+   if(count(remap_data%hru_ix/=integerMissing)/=size(basinID))then
     message=trim(message)//'unable to identify all polygons in the mapping file'
     ierr=20; return
    endif
@@ -350,7 +417,7 @@ contains
    do iHRU = 1, size(remap_data%hru_ix)
      jHRU = remap_data%hru_ix(iHRU)
      if (jHRU == integerMissing) cycle
-     if( remap_data%hru_id(iHRU) /= hruID_network(jHRU) )then
+     if( remap_data%hru_id(iHRU) /= basinID(jHRU) )then
       message=trim(message)//'mismatch in HRU ids for basins in the routing layer'
       ierr=20; return
      endif

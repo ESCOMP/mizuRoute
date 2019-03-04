@@ -303,8 +303,8 @@ module remapping
 
    ! associate variables in data structure
    nContrib       = size(NETOPO(iSeg)%HRUID)
-   associate(hruContribIx   => NETOPO(iSeg)%HRUID,   & ! index of contributing HRU
-             hruContribId   => NETOPO(iSeg)%HRUIX,   & ! unique ids of contributing HRU
+   associate(hruContribId   => NETOPO(iSeg)%HRUID,   & ! unique ids of contributing HRU
+             hruContribIx   => NETOPO(iSeg)%HRUIX,   & ! index of contributing HRU
              basArea        => RPARAM(iSeg)%BASAREA, & ! basin (total contributing HRU) area
              hruWeight      => NETOPO(iSeg)%HRUWGT   ) ! weight assigned to each HRU
 

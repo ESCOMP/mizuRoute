@@ -100,6 +100,9 @@ module public_var
   real(dp)             ,public    :: dt                   = realMissing     ! time step (seconds)
   character(len=strLen),public    :: time_units           = ''              ! time units (seconds, hours, or days)
   character(len=strLen),public    :: calendar             = ''              ! calendar name
+  real(dp)             ,public    :: startJulday          = realMissing     ! julian day: start
+  real(dp)             ,public    :: endJulday            = realMissing     ! julian day: end
+  real(dp)             ,public    :: refJulday            = realMissing     ! julian day: reference
   ! MISCELLANEOUS
   integer(i4b)         ,public    :: idSegOut             = integerMissing  ! id of outlet stream segment
   integer(i4b)         ,public    :: routOpt              = integerMissing  ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
