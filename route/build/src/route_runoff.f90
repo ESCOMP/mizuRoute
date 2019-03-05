@@ -1,56 +1,47 @@
 program route_runoff
+
 ! ******
 ! provide access to desired data types / structures...
 ! ****************************************************
-! Library
-USE mpi                                       ! MPI
-
 ! variable types
 USE nrtype                                    ! variable types, etc.
-USE dataTypes, only : var_ilength             ! integer type:          var(:)%dat
-USE dataTypes, only : var_dlength             ! double precision type: var(:)%dat
-USE dataTypes, only : var_clength             ! character type: var(:)%dat
 
 ! data structures
 USE dataTypes,  only : remap                  ! remapping data type
 USE dataTypes,  only : runoff                 ! runoff data type
-USE dataTypes,  only : basin                  ! river basin data type
 
 ! global data
 USE public_var
 !USE globalData, only : NETOPO                 ! river network data (tmp)
-USE globalData, only : RCHFLX                 ! reach flux structure
+USE globalData, only : TSEC                    ! time bounds [sec]
 
 ! ******
 ! provide access to desired subroutines...
 ! ****************************************
+! Library
+USE mpi                                       ! MPI
 
 ! subroutines: populate metadata
-USE popMetadat_module, only : popMetadat      ! populate metadata
+USE popMetadat_module, only : popMetadat         ! populate metadata
 
 ! subroutines: model control
-USE read_control_module, only : read_control  ! read the control file
-USE read_param_module,   only : read_param    ! read the routing parameters
-
-! subroutines netcdf input
-USE read_netcdf, only:get_nc                  ! netcdf input
-
-! subroutines: netcdf output
-USE write_simoutput, only : prep_output
-USE write_restart,   only : define_state_nc,& ! define netcdf state output file
-                            write_state_nc    ! write netcdf state output file
-USE read_restart,    only : read_state_nc     ! read netcdf state output file
-USE write_netcdf,    only : write_nc          ! write a variable to the NetCDF file
+USE read_control_module, only : read_control     ! read the control file
+USE read_param_module,   only : read_param       ! read the routing parameters
 
 ! subroutines: model set up
-USE data_initialization, only : init_data ! initialize river segment data
+USE data_initialization, only : init_data        ! initialize river segment data
+
+! subroutines: netcdf output
+USE write_simoutput,     only : prep_output
+USE write_restart,       only : write_state_nc   ! write netcdf state output file
+USE write_netcdf,        only : write_nc         ! write a variable to the NetCDF file
+
+! subroutines: get runoff for each basin in the routing layer
+USE read_runoff,         only : get_runoff       ! read simulated runoff data
+USE remapping,           only : remap_runoff     ! remap runoff from input polygons to routing basins
 
 ! subroutines: routing per proc
 USE mpi_routine,         only : comm_runoff_data
-
-! subroutines: get runoff for each basin in the routing layer
-USE read_runoff, only : get_runoff            ! read simulated runoff data
-USE remapping,   only : remap_runoff          ! remap runoff from input polygons to routing basins
 
 ! ******
 ! define variables
@@ -59,7 +50,6 @@ implicit none
 
 ! model control
 integer(i4b),parameter        :: nEns=1              ! number of ensemble members
-
 character(len=strLen)         :: cfile_name          ! name of the control file
 
 ! index of looping variables
@@ -84,7 +74,6 @@ integer(i4b),allocatable      :: hru_per_proc(:)     ! number of hru assigned to
 integer(i4b),allocatable      :: seg_per_proc(:)     ! number of reaches assigned to each proc (i.e., node)
 
 ! time variables
-real(dp)                      :: T0,T1               ! entry/exit time for the reach
 real(dp)                      :: modJulday           ! julian day: model simulation
 
 ! routing variables
@@ -95,8 +84,6 @@ real(dp)    , allocatable     :: reachRunoff(:)      ! reach runoff (m/s)
 integer(i4b)                  :: pid                 ! process id
 integer(i4b)                  :: nNodes              ! number of nodes
 
-! ======================================================================================================
-! ======================================================================================================
 ! ======================================================================================================
 ! ======================================================================================================
 
@@ -136,6 +123,10 @@ endif  ! if the master node
 
 ! *****
 ! *** data initialization
+!     - river topology, properties (time static)
+!     - runoff input
+!     - runoff remapping
+!     - channel states
 ! ***********************************
 call init_data(nNodes,       &  ! input:  number of procs
                pid,          &  ! input:  proc id
@@ -158,40 +149,10 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 !endif
 
 ! *****
-! *** Initialize state
-! *************************************
-! if the master node
-if (pid==0) then
-
- ! read restart file and initialize states
- if (isRestart)then
-  call read_state_nc(trim(output_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
-  if(ierr/=0) call handle_err(ierr, cmessage)
- else
-  ! Cold start .......
-  ! initialize flux structures
-  RCHFLX(:,:)%BASIN_QI = 0._dp
-  forall(ix=0:1) RCHFLX(:,:)%BASIN_QR(ix) = 0._dp
-
-  ! initialize time
-  T0 = 0._dp
-  T1 = dt
- endif
-
-endif
-
-! *****
-! * Restart file output
-! ************************
-! if the master node
-if (pid==0) then
- ! Define state netCDF
- call define_state_nc(trim(output_dir)//trim(fname_state_out), time_units, routOpt, ierr, cmessage)
- if(ierr/=0) call handle_err(ierr, cmessage)
-
-! *****
 ! *** Allocate space...
 ! *********************
+! if the master node
+if (pid==0) then
 
  ! allocate space for runoff vectors
  nHRU = size(ixSubHRU); nRch=size(ixSubSEG)
@@ -203,62 +164,57 @@ if (pid==0) then
 
 end if
 
-! *****
-! *** Route runoff...
-! *******************
-
 ! start of time-stepping simulation code
-
-if (pid==0) then
 do iTime=1,runoff_data%nTime
 
-  call prep_output(nEns,           & ! input:  number of ensembles
-                   nHRU,           & ! input:  number of HRUs
-                   nRch,           & ! input:  number of reaches
-                   iTime,          & ! input:  time loop index
-                   modJulday,      & ! out:    current simulation julian day
-                   jTime,          & ! output: time step in output netCDF
-                   ierr, cmessage)   ! output: error control
-  call handle_err(ierr,cmessage)
+  if (pid==0) then
 
-  ! check we are within the desired time interval
-  if(modJulday < startJulday .or. modJulday > endJulday) cycle
+    ! prepare simulation output netCDF
+    call prep_output(nEns,           & ! input:  number of ensembles
+                     nHRU,           & ! input:  number of HRUs
+                     nRch,           & ! input:  number of reaches
+                     iTime,          & ! input:  time loop index
+                     modJulday,      & ! out:    current simulation julian day
+                     jTime,          & ! output: time step in output netCDF
+                     ierr, cmessage)   ! output: error control
+    call handle_err(ierr,cmessage)
 
-! ! *****
-! ! * Get the simulated runoff for the current time step...
-! ! *******************************************************
-! ! get the simulated runoff for the current time step
-! call get_runoff(trim(input_dir)//trim(fname_qsim), & ! input: filename
-!                 iTime,                             & ! input: time index
-!                 runoff_data,                       & ! inout: runoff data structure
-!                 ierr, cmessage)                      ! output: error control
-! call handle_err(ierr, cmessage)
-!
-! ! map simulated runoff to the basins in the river network
-! if (is_remap) then
-!  call remap_runoff(runoff_data, remap_data, basinRunoff, ierr, cmessage)
-!  if(ierr/=0) call handle_err(ierr,cmessage)
-! else
-!  basinRunoff=runoff_data%qsim
-! end if
-!
-! !print*, 'PAUSE: after getting simulated runoff'; read(*,*)
-!
-! ! process routing at each proc
+    ! check we are within the desired time interval
+    if(modJulday < startJulday .or. modJulday > endJulday) cycle
+
+    ! get the simulated runoff for the current time step
+    call get_runoff(trim(input_dir)//trim(fname_qsim), & ! input: filename
+                    iTime,                             & ! input: time index
+                    runoff_data,                       & ! inout: runoff data structure
+                    ierr, cmessage)                      ! output: error control
+    call handle_err(ierr, cmessage)
+
+    ! map simulated runoff to the basins in the river network
+    if (is_remap) then
+     call remap_runoff(runoff_data, remap_data, basinRunoff, ierr, cmessage)
+     if(ierr/=0) call handle_err(ierr,cmessage)
+    else
+     basinRunoff=runoff_data%qsim
+    end if
+
+  end if
+
+ !print*, 'PAUSE: after getting simulated runoff'; read(*,*)
+
+ ! process routing at each proc
 ! call comm_runoff_data(pid,           &  ! input: proc id
 !                       nNodes,        &  ! input: number of procs
 !                       nEns,          &  ! input: number of ensembles
 !                       nHRU,          &  ! input: number of HRUs in whole domain
 !                       ixSubHRU,      &  ! input: global HRU index in the order of domains
-!                       T0,T1,         &  ! input: begining and ending of time step (sec)
 !                       hru_per_proc,  &  ! input: number of hrus assigned to each proc
 !                       seg_per_proc,  &  ! input: number of hrus assigned to each proc
 !                       basinRunoff,   &  ! input: runoff data structures
 !                       ierr, cmessage)   ! output: error control
 ! call handle_err(ierr,cmessage)
-!
+
 ! ! gether fluxes information from each proc and store it in global data structure
-!
+
 ! ! *****
 ! ! * Output
 ! ! ************************
@@ -290,16 +246,16 @@ do iTime=1,runoff_data%nTime
 !  call handle_err(ierr,cmessage)
 ! endif
 !
-! ! increment time bounds
-! T0 = T0 + dt
-! T1 = T0 + dt
-!
+ ! increment time bounds
+ TSEC(0) = TSEC(0) + dt
+ TSEC(1) = TSEC(0) + dt
+
 ! !print*, 'PAUSE: after routing'; read(*,*)
 
 end do  ! looping through time
-endif
+
 !! Write states to netCDF
-!call write_state_nc(trim(output_dir)//trim(fname_state_out), routOpt, runoff_data%time, 1, T0, T1, reachID, ierr, cmessage)
+!call write_state_nc(trim(output_dir)//trim(fname_state_out), routOpt, runoff_data%time, 1, TSEC(0), TSEC(1), reachID, ierr, cmessage)
 !if(ierr/=0) call handle_err(ierr, cmessage)
 
 !  Shut down MPI

@@ -86,7 +86,7 @@ contains
      forall(iHRU=1:nHRU) basinID(iHRU) = structHRU2SEG(iHRU)%var(ixHRU2SEG%hruId)%dat(1)
      forall(iRch=1:nRch) reachID(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
 
-     !  runoff and remap data initialization
+     ! runoff and remap data initialization (TO DO: split runoff and remap initialization)
      call init_runoff(&
                       is_remap,        & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
                       remap_data,      & ! output: data structure to remap data
@@ -94,7 +94,12 @@ contains
                       ierr, message)     ! output: error control
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-     call init_time(runoff_data%ntime, ierr, message)     ! output: error control
+     ! DateTime initialization
+     call init_time(runoff_data%ntime, ierr, message)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     ! channel state initialization
+     call init_state(ierr, message)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    end if
@@ -102,6 +107,62 @@ contains
  end subroutine init_data
 
  ! *********************************************************************
+ ! private subroutine: initialize channel state data
+ ! *********************************************************************
+ subroutine init_state( ierr, message)
+  ! subroutines
+  USE read_restart,  only : read_state_nc     ! read netcdf state output file
+  USE write_restart, only : define_state_nc   ! define netcdf state output file
+  ! global data
+  USE public_var,    only : isRestart         ! restart option: True-> model run with restart, F -> model run with empty channels
+  USE public_var,    only : routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+  USE public_var,    only : fname_state_in    ! name of state input file
+  USE public_var,    only : fname_state_out   ! name of state output file
+  USE public_var,    only : output_dir        ! directory containing output data
+  USE public_var,    only : time_units        ! time units (seconds, hours, or days)
+  USE globalData,    only : RCHFLX            ! reach flux structure
+  USE globalData,    only : TSEC              ! begining/ending of simulation time step [sec]
+
+  implicit none
+
+  ! output: error control
+  integer(i4b),        intent(out) :: ierr             ! error code
+  character(*),        intent(out) :: message          ! error message
+  ! local variable
+  real(dp)                         :: T0,T1            ! begining/ending of simulation time step [sec]
+  integer(i4b)                     :: ix               ! index for the stream segment
+  character(len=strLen)            :: cmessage         ! error message of downwind routine
+
+  ! initialize error control
+  ierr=0; message='init_state/'
+
+  ! read restart file and initialize states
+  if (isRestart) then
+
+   call read_state_nc(trim(output_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   TSEC(0)=T0; TEC(1)=T1
+
+  else
+
+   ! Cold start .......
+   ! initialize flux structures
+   RCHFLX(:,:)%BASIN_QI = 0._dp
+   forall(ix=0:1) RCHFLX(:,:)%BASIN_QR(ix) = 0._dp
+
+   ! initialize time
+   TSEC(0)=0._dp; TSEC(1)=dt
+
+  endif
+
+  ! Define output state netCDF
+  call define_state_nc(trim(output_dir)//trim(fname_state_out), time_units, routOpt, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ end subroutine init_state
+
+! *********************************************************************
  ! private subroutine: initialize time data
  ! *********************************************************************
  subroutine init_time(nTime,     &    ! input: number of time steps
