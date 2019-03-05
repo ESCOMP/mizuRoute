@@ -19,14 +19,9 @@ USE globalData, only : TSEC                    ! time bounds [sec]
 ! provide access to desired subroutines...
 ! ****************************************
 ! Library
-USE mpi                                       ! MPI
+USE mpi                                          ! MPI
 
-! subroutines: populate metadata
-USE popMetadat_module, only : popMetadat         ! populate metadata
-
-! subroutines: model control
-USE read_control_module, only : read_control     ! read the control file
-USE read_param_module,   only : read_param       ! read the routing parameters
+USE model_setup,         only : model_setup      ! model setupt - reading control file, populate metadata, read parameter file
 
 ! subroutines: model set up
 USE data_initialization, only : init_data        ! initialize river segment data
@@ -50,11 +45,10 @@ implicit none
 
 ! model control
 integer(i4b),parameter        :: nEns=1              ! number of ensemble members
-character(len=strLen)         :: cfile_name          ! name of the control file
 
 ! index of looping variables
 integer(i4b)                  :: iens                ! ensemble member
-integer(i4b)                  :: ix                ! index for the stream segment
+integer(i4b)                  :: ix                  ! general loop index
 integer(i4b)                  :: iTime,jTime         ! index for time
 
 ! error control
@@ -83,7 +77,6 @@ real(dp)    , allocatable     :: reachRunoff(:)      ! reach runoff (m/s)
 ! MPI variables
 integer(i4b)                  :: pid                 ! process id
 integer(i4b)                  :: nNodes              ! number of nodes
-
 ! ======================================================================================================
 ! ======================================================================================================
 
@@ -99,27 +92,8 @@ call MPI_COMM_RANK(MPI_COMM_WORLD, pid, ierr)
 ! *****
 ! *** model setup
 ! ************************
-
-! if the master node
-if (pid==0) then
-
- ! populate the metadata files
- call popMetadat(ierr,cmessage)
- if(ierr/=0) call handle_err(ierr, cmessage)
-
- ! get command-line argument defining the full path to the control file
- call getarg(1,cfile_name)
- if(len_trim(cfile_name)==0) call handle_err(50,'need to supply name of the control file as a command-line argument')
-
- ! read the control file
- call read_control(trim(cfile_name), ierr, cmessage)
- if(ierr/=0) call handle_err(ierr, cmessage)
-
- ! read the routing parameter namelist
- call read_param(trim(ancil_dir)//trim(param_nml),ierr,cmessage)
- if(ierr/=0) call handle_err(ierr, cmessage)
-
-endif  ! if the master node
+call model_setup(ierr, cmessage)
+if(ierr/=0) call handle_err(ierr, cmessage)
 
 ! *****
 ! *** data initialization
@@ -199,19 +173,19 @@ do iTime=1,runoff_data%nTime
 
   end if
 
- !print*, 'PAUSE: after getting simulated runoff'; read(*,*)
+ ! print*, 'PAUSE: after getting simulated runoff'; read(*,*)
 
- ! process routing at each proc
-! call comm_runoff_data(pid,           &  ! input: proc id
-!                       nNodes,        &  ! input: number of procs
-!                       nEns,          &  ! input: number of ensembles
-!                       nHRU,          &  ! input: number of HRUs in whole domain
-!                       ixSubHRU,      &  ! input: global HRU index in the order of domains
-!                       hru_per_proc,  &  ! input: number of hrus assigned to each proc
-!                       seg_per_proc,  &  ! input: number of hrus assigned to each proc
-!                       basinRunoff,   &  ! input: runoff data structures
-!                       ierr, cmessage)   ! output: error control
-! call handle_err(ierr,cmessage)
+  ! process routing at each proc
+  call comm_runoff_data(pid,           &  ! input: proc id
+                        nNodes,        &  ! input: number of procs
+                        nEns,          &  ! input: number of ensembles
+                        nHRU,          &  ! input: number of HRUs in whole domain
+                        ixSubHRU,      &  ! input: global HRU index in the order of domains
+                        hru_per_proc,  &  ! input: number of hrus assigned to each proc
+                        seg_per_proc,  &  ! input: number of hrus assigned to each proc
+                        basinRunoff,   &  ! input: runoff data structures
+                        ierr, cmessage)   ! output: error control
+  call handle_err(ierr,cmessage)
 
 ! ! gether fluxes information from each proc and store it in global data structure
 
