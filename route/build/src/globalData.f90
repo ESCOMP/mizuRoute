@@ -105,7 +105,9 @@ module globalData
   integer(i4b)    , allocatable  , public :: basinID(:)           ! HRU id
   integer(i4b)    , allocatable  , public :: reachID(:)           ! reach id
 
+  ! DataTime data
   real(dp)        , allocatable  , public :: timeVar(:)           ! time variables (unit given by runoff data)
+  real(dp)                       , public :: TSEC(0:1)            ! begning and end of time step (sec)
   type(time)                     , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
 
   ! routing parameter structures

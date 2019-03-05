@@ -400,7 +400,6 @@ contains
                              nEns,          & ! input: number of ensembles
                              nHRU,          & ! input: number of HRUs in whole domain
                              ixSubHRU,      & ! input: global HRU index in the order of domains
-                             T0,T1,         & ! input: begining and ending of time step (sec)
                              hru_per_proc,  & ! input: number of hrus assigned to each proc
                              seg_per_proc,  & ! input: number of hrus assigned to each proc
                              basinRunoff,   & ! input: runoff data structures
@@ -411,6 +410,7 @@ contains
   USE globalData, only : RCHFLX_local           ! reach flux structure
   USE globalData, only : river_basin            !
   USE globalData, only : ixDesire               ! desired reach index
+  USE globalData, only : TSEC                   ! beginning/ending of simulation time step [sec]
   ! subroutines: basin routing
   USE basinUH_module, only : IRF_route_basin    ! perform UH convolution for basin routing
   ! subroutines: river routing
@@ -428,8 +428,6 @@ contains
   integer(i4b),             intent(in)  :: nEns
   integer(i4b),             intent(in)  :: nHRU                     ! number of total hru
   integer(i4b),allocatable, intent(in)  :: ixSubHRU(:)              ! global HRU index in the order of domains
-  real(dp),                 intent(in)  :: T0                       ! begining of time step (second)
-  real(dp),                 intent(in)  :: T1                       ! ending of time step (second)
   integer(i4b),allocatable, intent(in)  :: hru_per_proc(:)          ! number of hrus assigned to each proc (i.e., node)
   integer(i4b),allocatable, intent(in)  :: seg_per_proc(:)          ! number of hrus assigned to each proc (i.e., node)
   real(dp),                 intent(in)  :: basinRunoff(nHRU)        ! basin runoff (m/s) for the entire domain
@@ -440,6 +438,7 @@ contains
   real(dp)                              :: basinRunoff_sorted(nHRU) ! sorted basin runoff (m/s) for whole domain
   real(dp),  allocatable                :: basinRunoff_local(:)     ! basin runoff (m/s) for decomposed domains
   real(dp),  allocatable                :: reachRunoff_local(:)     ! reach runoff (m/s) for decomposed domains
+  real(dp)                              :: T0, T1                   ! beginning/ending of simulation time step [sec]
   integer(i4b)                          :: num_hru_received
   integer(i4b)                          :: num_seg_received
   integer(i4b)                          :: iens
@@ -455,6 +454,8 @@ contains
   ierr=0; message='commun_runoff_data/'
 
   if (pid == root) then ! this is a root process
+
+    T0=TSEC(0); T1=TSEC(1)
 
     do iHru = 1,nHRU
       basinRunoff_sorted(iHru) = basinRunoff(ixSubHRU(iHru))
@@ -526,6 +527,8 @@ contains
     end do
 
   else
+
+    T0=TSEC(0); T1=TSEC(1)
 
     call MPI_RECV(num_hru_received, 1, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
     call MPI_RECV(num_seg_received, 1, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
