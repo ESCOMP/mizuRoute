@@ -33,7 +33,7 @@ contains
  ! *********************************************************************
  subroutine comm_ntopo_data(pid,          & ! input: proc id
                             nNodes,       & ! input: number of procs
-                            nEns,         & ! input: number of ensembles
+                            _nEns,        & ! input: number of ensembles
                             nSeg,         & ! input: number of stream segments in whole domain
                             nHRU,         & ! input: number of HRUs in whole domain
                             structHRU,    & ! input: data structure for HRUs
@@ -64,7 +64,7 @@ contains
   ! Input variables
   integer(i4b),                   intent(in)  :: pid                      ! process id (MPI)
   integer(i4b),                   intent(in)  :: nNodes                   ! number of processes (MPI)
-  integer(i4b),                   intent(in)  :: nEns                     ! temporarily
+  integer(i4b),                   intent(in)  :: _nEns                    ! temporarily
   integer(i4b),                   intent(in)  :: nSeg                     ! number of total segments
   integer(i4b),                   intent(in)  :: nHRU                     ! number of total hru
   type(var_dlength), allocatable, intent(in)  :: structHRU(:)             ! HRU properties
@@ -138,7 +138,7 @@ contains
 
   if (pid == root) then ! this is a root process
 
-    allocate(RCHFLX(nEns,nSeg), KROUTE(nEns,nSeg), stat=ierr)
+    allocate(RCHFLX(_nEns,nSeg), KROUTE(_nEns,nSeg), stat=ierr)
     allocate(ixSubHRU(nHRU),ixSubSEG(nSeg), stat=ierr)
 
     ! Create segIndex array from domains derived type. The array is sorted from node 0 through nNodes-1
@@ -252,7 +252,7 @@ contains
                       structPFAF_local,      & ! inout: ancillary data for pfafstetter code
                       ierr,cmessage)           ! output: error control
 
-    allocate(RCHFLX_local(nEns,nSeg_root), KROUTE_local(nEns,nSeg_root), stat=ierr)
+    allocate(RCHFLX_local(_nEns,nSeg_root), KROUTE_local(_nEns,nSeg_root), stat=ierr)
 
     ! Populate data structure
     ! reach
@@ -316,7 +316,7 @@ contains
             area_local     (num_hru_received), &
             stat=ierr)
 
-    allocate(RCHFLX_local(nEns,num_seg_received), KROUTE_local(nEns,num_seg_received), stat=ierr)
+    allocate(RCHFLX_local(_nEns,num_seg_received), KROUTE_local(_nEns,num_seg_received), stat=ierr)
 
    call alloc_struct(num_hru_received,      & ! output: number of HRUs
                      num_seg_received,      & ! output: number of stream segments
@@ -397,8 +397,6 @@ contains
  ! *********************************************************************
  subroutine comm_runoff_data(pid,           & ! input: proc id
                              nNodes,        & ! input: number of procs
-                             nEns,          & ! input: number of ensembles
-                             nHRU,          & ! input: number of HRUs in whole domain
                              ixSubHRU,      & ! input: global HRU index in the order of domains
                              hru_per_proc,  & ! input: number of hrus assigned to each proc
                              seg_per_proc,  & ! input: number of hrus assigned to each proc
@@ -406,11 +404,14 @@ contains
                              ierr,message)    ! output: error control
 
   USE public_var
+  USE public_var, only : nEns                   ! number of ensembles
   USE remapping,  only : basin2reach            ! remap runoff from routing basins to routing reaches
   USE globalData, only : RCHFLX_local           ! reach flux structure
-  USE globalData, only : river_basin            !
+  USE globalData, only : river_basin            ! OMP domain decomposition
   USE globalData, only : ixDesire               ! desired reach index
   USE globalData, only : TSEC                   ! beginning/ending of simulation time step [sec]
+  USE globalData, only : runoff_data            !
+  USE globalData, only : nHRU                   ! number of HRUs in the whoel river network
   ! subroutines: basin routing
   USE basinUH_module, only : IRF_route_basin    ! perform UH convolution for basin routing
   ! subroutines: river routing
@@ -425,8 +426,6 @@ contains
   ! input variables
   integer(i4b),             intent(in)  :: pid                      ! process id (MPI)
   integer(i4b),             intent(in)  :: nNodes                   ! number of processes (MPI)
-  integer(i4b),             intent(in)  :: nEns
-  integer(i4b),             intent(in)  :: nHRU                     ! number of total hru
   integer(i4b),allocatable, intent(in)  :: ixSubHRU(:)              ! global HRU index in the order of domains
   integer(i4b),allocatable, intent(in)  :: hru_per_proc(:)          ! number of hrus assigned to each proc (i.e., node)
   integer(i4b),allocatable, intent(in)  :: seg_per_proc(:)          ! number of hrus assigned to each proc (i.e., node)
