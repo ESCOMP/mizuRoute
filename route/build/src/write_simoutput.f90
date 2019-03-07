@@ -35,18 +35,17 @@ CONTAINS
 
   implicit none
 
-  ! input variables
-  integer(i4b), intent(in)        :: nEns             ! number of ensembles
-  integer(i4b), intent(in)        :: nHRU             ! number of HRUs
-  integer(i4b), intent(in)        :: nRch             ! number of stream segments
   ! output variables
   integer(i4b), intent(out)       :: ierr             ! error code
   character(*), intent(out)       :: message          ! error message
   ! local variables
+  integer(i4b)                    :: iens             ! temporal
   character(len=strLen)           :: cmessage         ! error message of downwind routine
 
   ! initialize error control
   ierr=0; message='output/'
+
+  iens = 1
 
   ! write time -- note time is just carried across from the input
   call write_nc(trim(fileout), 'time', (/runoff_data%time/), (/jTime/), (/1/), ierr, cmessage)
