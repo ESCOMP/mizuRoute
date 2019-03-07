@@ -51,8 +51,8 @@ contains
                     dname_nhru,   & ! input: dimension name of the HRUs
                     dname_sseg,   & ! input: dimension name of the stream segments
                     ! output: model control
-                    _nHRU,        & ! output: number of HRUs
-                    _nRch,        & ! output: number of stream segments
+                    nHRU_in,      & ! output: number of HRUs
+                    nRch_in,      & ! output: number of stream segments
                     ! output: populate data structures
                     structHRU,    & ! ancillary data for HRUs
                     structSeg,    & ! ancillary data for stream segments
@@ -68,8 +68,8 @@ contains
  character(*)      , intent(in)               :: dname_nhru       ! dimension name for HRUs
  character(*)      , intent(in)               :: dname_sseg       ! dimension name for stream segments
  ! output: model control
- integer(i4b)      , intent(out)              :: _nHRU            ! number of HRUs
- integer(i4b)      , intent(out)              :: _nRch            ! number of stream segments
+ integer(i4b)      , intent(out)              :: nHRU_in          ! number of HRUs
+ integer(i4b)      , intent(out)              :: nRch_in          ! number of stream segments
  ! output: data structures
  type(var_dlength) , intent(out), allocatable :: structHRU(:)     ! HRU properties
  type(var_dlength) , intent(out), allocatable :: structSeg(:)     ! stream segment properties
@@ -113,7 +113,7 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; name='//trim(dname_nhru); return; endif
 
  ! get the length of the HRU dimension
- ierr = nf90_inquire_dimension(ncid, idimID_nHRU, len=_nHRU)
+ ierr = nf90_inquire_dimension(ncid, idimID_nHRU, len=nHRU_in)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  ! get the ID of the stream segment dimension
@@ -121,13 +121,13 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; name='//trim(dname_sseg); return; endif
 
  ! get the length of the stream segment dimension
- ierr = nf90_inquire_dimension(ncid, idimID_sseg, len=_nRch)
+ ierr = nf90_inquire_dimension(ncid, idimID_sseg, len=nRch_in)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  ! ---------- allocate space for higher-level structure components -------------------------------------------------
  call alloc_struct(&
-                   _nHRU,        & ! output: number of HRUs
-                   _nRch,        & ! output: number of stream segments
+                   nHRU_in,      & ! output: number of HRUs
+                   nRch_in,      & ! output: number of stream segments
                    structHRU,    & ! inout: ancillary data for HRUs
                    structSeg,    & ! inout: ancillary data for stream segments
                    structHRU2seg,& ! inout: ancillary data for mapping hru2basin
@@ -137,7 +137,7 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! initial allocation of the temporary vectors
- allocate(iTemp(_nHRU), dTemp(_nHRU), cTemp(_nHRU), stat=ierr)
+ allocate(iTemp(nHRU_in), dTemp(nHRU_in), cTemp(nHRU_in), stat=ierr)
  if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating temporary vectors'; return; endif
 
  ! -----------------------------------------------------------------------------------------------------------------

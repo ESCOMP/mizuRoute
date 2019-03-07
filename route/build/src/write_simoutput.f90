@@ -204,9 +204,9 @@ CONTAINS
  ! private subroutine: define routing output NetCDF file
  ! *********************************************************************
  SUBROUTINE defineFile(fname,           &  ! input: filename
-                       _nEns,           &  ! input: number of ensembles
-                       _nHRU,           &  ! input: number of HRUs
-                       _nRch,           &  ! input: number of stream segments
+                       nEns_in,         &  ! input: number of ensembles
+                       nHRU_in,         &  ! input: number of HRUs
+                       nRch_in,         &  ! input: number of stream segments
                        units_time,      &  ! input: time units
                        calendar,        &  ! input: calendar
                        ierr, message)      ! output: error control
@@ -217,9 +217,9 @@ CONTAINS
  implicit none
  ! input variables
  character(*), intent(in)        :: fname        ! filename
- integer(i4b), intent(in)        :: _nEns        ! number of ensembles
- integer(i4b), intent(in)        :: _nHRU        ! number of HRUs
- integer(i4b), intent(in)        :: _nRch        ! number of stream segments
+ integer(i4b), intent(in)        :: nEns_in      ! number of ensembles
+ integer(i4b), intent(in)        :: nHRU_in      ! number of HRUs
+ integer(i4b), intent(in)        :: nRch_in      ! number of stream segments
  character(*), intent(in)        :: units_time   ! time units
  character(*), intent(in)        :: calendar     ! calendar
  ! output variables
@@ -240,9 +240,9 @@ CONTAINS
             dim_time => meta_qDims(ixQdims%time)%dimName)
 
 ! populate q dimension meta (not sure if this should be done here...)
- meta_qDims(ixQdims%seg)%dimLength = _nRch
- meta_qDims(ixQdims%hru)%dimLength = _nHRU
- meta_qDims(ixQdims%ens)%dimLength = _nEns
+ meta_qDims(ixQdims%seg)%dimLength = nRch_in
+ meta_qDims(ixQdims%hru)%dimLength = nHRU_in
+ meta_qDims(ixQdims%ens)%dimLength = nEns_in
 
  ! --------------------
  ! define file
