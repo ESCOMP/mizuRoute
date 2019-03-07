@@ -29,9 +29,10 @@ CONTAINS
   USE public_var,          only : kinematicWave       ! kinematic wave
   USE public_var,          only : impulseResponseFunc ! impulse response function
   USE public_var,          only : allRoutingMethods   ! all routing methods
-  USE globalData,          only : nEns, nHRU, nRch    ! number of ensembles, HRUs and river reaches
-  USE globalData,          only : RCHFLX
-  USE globalData,          only : runoff_data
+  USE globalData,          only : nHRU, nRch          ! number of ensembles, HRUs and river reaches
+  USE globalData,          only : RCHFLX              ! Reach fluxes (ensembles, space [reaches])
+  USE globalData,          only : runoff_data         ! runoff data for one time step for LSM HRUs and River network HRUs
+  USE write_netcdf,        only : write_nc            ! write a variable to the NetCDF file
 
   implicit none
 
@@ -52,7 +53,7 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! write the basin runoff to the netcdf file
-  call write_nc(trim(fileout), 'basRunoff', basinRunoff, (/1,jTime/), (/nHRU,1/), ierr, cmessage)
+  call write_nc(trim(fileout), 'basRunoff', runoff_data%basinRunoff, (/1,jTime/), (/nHRU,1/), ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   if (doesBasinRoute == 1) then

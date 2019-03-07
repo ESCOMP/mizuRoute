@@ -144,10 +144,11 @@ implicit none
  type, public :: runoff
    integer(i4b)                            :: nTime         ! number of time steps
    integer(i4b)                            :: nSpace(1:2)   ! number of spatial dimension
-   real(dp)                                :: time          ! time
-   real(dp)                 , allocatable  :: qsim(:)       ! runoff(hru) at one time step
-   real(dp)                 , allocatable  :: qsim2D(:,:)   ! runoff(x,y) at one time step
-   integer(i4b)             , allocatable  :: hru_id(:)     ! id of hrus at which runoff is simulated
+   real(dp)                                :: time          ! time variable
+   real(dp)                 , allocatable  :: qsim(:)       ! runoff(hru) at one time step (shape = nSpace(1))
+   real(dp)                 , allocatable  :: qsim2D(:,:)   ! runoff(x,y) at one time step (shape = /nSpace(1),nSpace(2)/)
+   integer(i4b)             , allocatable  :: hru_id(:)     ! id of hrus at which runoff is simulated (shape = nSpace(1))
+   real(dp)                 , allocatable  :: basinRunoff(:)! remapped river basin runoff (shape = number of nHRU)
  end type runoff
 
  ! ---------- reach parameters ----------------------------------------------------------------------------

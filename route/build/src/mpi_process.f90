@@ -399,7 +399,6 @@ contains
                              ixSubHRU,      & ! input: global HRU index in the order of domains
                              hru_per_proc,  & ! input: number of hrus assigned to each proc
                              seg_per_proc,  & ! input: number of hrus assigned to each proc
-                             basinRunoff,   & ! input: runoff data structures
                              ierr,message)    ! output: error control
   USE public_var
   USE globalData, only : RCHFLX_local           ! reach flux structure
@@ -428,7 +427,6 @@ contains
   integer(i4b),allocatable, intent(in)  :: ixSubHRU(:)              ! global HRU index in the order of domains
   integer(i4b),allocatable, intent(in)  :: hru_per_proc(:)          ! number of hrus assigned to each proc (i.e., node)
   integer(i4b),allocatable, intent(in)  :: seg_per_proc(:)          ! number of hrus assigned to each proc (i.e., node)
-  real(dp),                 intent(in)  :: basinRunoff(nHRU)        ! basin runoff (m/s) for the entire domain
   ! Output variables
   integer(i4b),             intent(out) :: ierr
   character(len=strLen),    intent(out) :: message                  ! error message
@@ -449,14 +447,14 @@ contains
   integer(i4b)                          :: status(MPI_STATUS_SIZE)
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
 
-  ierr=0; message='commun_runoff_data/'
+  ierr=0; message='comm_runoff_data/'
 
   if (pid == root) then ! this is a root process
 
     T0=TSEC(0); T1=TSEC(1)
 
     do iHru = 1,nHRU
-      basinRunoff_sorted(iHru) = basinRunoff(ixSubHRU(iHru))
+      basinRunoff_sorted(iHru) = runoff_data%basinRunoff(ixSubHRU(iHru))
     enddo
 
     do myid = 1, nNodes-1

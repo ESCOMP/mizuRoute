@@ -17,7 +17,6 @@ USE public_var
 !USE globalData, only : NETOPO                 ! river network data (tmp)
 USE globalData, only : TSEC                    ! time bounds [sec]
 USE globalData, only : runoff_data             ! hru runoff data structure
-USE globalData, only : nHRU, nRch              ! number of HRUs and reaches in the whoel river network
 
 ! ******
 ! provide access to desired subroutines...
@@ -32,7 +31,8 @@ USE model_setup,         only : init_data        ! initialize river segment data
 ! subroutines: routing per proc
 USE mpi_routine,         only : comm_runoff_data ! distribute runoff to proc, route them, and gather,
 
-! subroutines: netcdf output
+! subroutines: model I/O
+USE get_runoff        ,  only : get_hru_runoff
 USE write_simoutput,     only : prep_output      !
 USE write_simoutput,     only : output           !
 USE write_restart,       only : write_state_nc   ! write netcdf state output file
@@ -47,7 +47,6 @@ integer(i4b)                  :: ierr                ! error code
 character(len=strLen)         :: cmessage            ! error message of downwind routine
 
 ! index of looping variables
-integer(i4b)                  :: ix                  ! general loop index
 integer(i4b)                  :: iTime               ! index for time
 
 ! ancillary data on model input
@@ -58,9 +57,6 @@ integer(i4b),allocatable      :: seg_per_proc(:)     ! number of reaches assigne
 
 ! time variables
 real(dp)                      :: modJulday           ! julian day: model simulation
-! routing variables
-real(dp)    , allocatable     :: basinRunoff(:)      ! basin runoff (m/s)
-real(dp)    , allocatable     :: reachRunoff(:)      ! reach runoff (m/s)
 
 ! MPI variables
 integer(i4b)                  :: pid                 ! process id
@@ -80,7 +76,7 @@ call MPI_COMM_RANK(MPI_COMM_WORLD, pid, ierr)
 ! *****
 ! *** model setup
 ! ************************
-call init_model(ierr, cmessage)
+call init_model(pid, ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
 ! *****
@@ -99,7 +95,6 @@ call init_data(nNodes,       &  ! input:  number of procs
                ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 !print*, 'PAUSE: after getting network topology'; read(*,*)
-
 !if (pid==7)then
 !  print*, 'pid,reachID,downreachID,order'
 !  do ix=1,size(NETOPO)
@@ -107,13 +102,9 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 !  enddo
 !endif
 
-if (pid==0) then
- ! allocate space for runoff vectors
- allocate(basinRunoff(nHRU), reachRunoff(nRch), stat=ierr)
- if(ierr/=0) call handle_err(ierr, 'unable to allocate space for runoff vectors')
-end if
-
+! ***********************************
 ! start of time-stepping simulation code
+! ***********************************
 do iTime=1,runoff_data%nTime
 
   if (pid==0) then
@@ -139,7 +130,6 @@ do iTime=1,runoff_data%nTime
                         ixSubHRU,      &  ! input: global HRU index in the order of domains
                         hru_per_proc,  &  ! input: number of hrus assigned to each proc
                         seg_per_proc,  &  ! input: number of hrus assigned to each proc
-                        basinRunoff,   &  ! input: runoff data structures
                         ierr, cmessage)   ! output: error control
   if(ierr/=0) call handle_err(ierr, cmessage)
 
