@@ -19,39 +19,34 @@ public::init_data
 contains
 
  ! *********************************************************************
- ! public subroutine: initialize river network data
+ ! public subroutine: initialize river network, runoff, and runoff-mapping data
  ! *********************************************************************
- subroutine init_data(nNodes,      & ! input: number of procs
-                      pid,         & ! input: proc id
-                      nEns,        & ! input: number of ensembles
-                      ixSubHRU,    & ! output:
-                      ixSubSEG,    & ! output:
-                      hru_per_proc,& ! output:
-                      seg_per_proc,& ! output:
-                      remap_data,  & ! output: remapping data structure
-                      runoff_data, & ! output: runoff data structure
+ subroutine init_data(nNodes,        & ! input: number of procs
+                      pid,           & ! input: proc id
+                      ixSubHRU,      & ! output:
+                      ixSubSEG,      & ! output:
+                      hru_per_proc,  & ! output:
+                      seg_per_proc,  & ! output:
                       ierr, message)
 
   USE public_var,  only : is_remap               ! logical whether or not runnoff needs to be mapped to river network HRU
   USE var_lookup,  only : ixHRU2SEG              ! index of variables for data structure
   USE var_lookup,  only : ixNTOPO                ! index of variables for data structure
-  USE dataTypes,   only : remap                  ! remapping data type
-  USE dataTypes,   only : runoff                 ! runoff data type
-  USE globalData,  only : basinID
-  USE globalData,  only : reachID
+  USE globalData,  only : nHRU, nRch             ! number of HRUs and Reaches in the whole network
+  USE globalData,  only : basinID                ! HRU id vector
+  USE globalData,  only : reachID                ! reach ID vector
+  USE globalData,  only : runoff_data            ! runoff data structure
+  USE globalData,  only : remap_data             ! runoff mapping data structure
 
    implicit none
    ! input:
    integer(i4b),              intent(in)    :: nNodes           ! number of procs
    integer(i4b),              intent(in)    :: pid              ! proc id
-   integer(i4b),              intent(in)    :: nEns             ! number of ensembles
    ! out:
    integer(i4b), allocatable, intent(out)   :: ixSubHRU(:)      ! global HRU index in the order of domains
    integer(i4b), allocatable, intent(out)   :: ixSubSEG(:)      ! global reach index in the order of domains
    integer(i4b), allocatable, intent(out)   :: hru_per_proc(:)  ! number of hrus assigned to each proc (i.e., node)
    integer(i4b), allocatable, intent(out)   :: seg_per_proc(:)  ! number of reaches assigned to each proc (i.e., node)
-   type(remap),               intent(out)   :: remap_data       ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
-   type(runoff),              intent(out)   :: runoff_data      ! runoff for one time step for all HRUs
    ! output: error control
    integer(i4b),              intent(out)   :: ierr             ! error code
    character(*),              intent(out)   :: message          ! error message
@@ -64,21 +59,19 @@ contains
    type(var_clength), allocatable           :: structPFAF(:)    ! pfafstetter code
    ! others
    integer(i4b)                             :: iHRU, iRch       ! loop index
-   integer(i4b)                             :: nHRU, nRch       ! number of HRU and reaches in river network
    character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
    ! initialize error control
    ierr=0; message='init_data/'
 
-   call init_ntopo(nNodes, pid, nEns, structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, &
-                    ixSubHRU, ixSubSEG, hru_per_proc, seg_per_proc,   &
-                   ierr, message)
+   call init_ntopo(nNodes, pid,                                                  & ! input:  number of Procs and proc id
+                   nHRU, nRch,                                                   & ! output: number of HRU and Reaches
+                   structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
+                   ixSubHRU, ixSubSEG, hru_per_proc, seg_per_proc,               & ! output: MPI domain decomposition data
+                   ierr, message)                                                  ! output: error controls
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    if (pid==0) then
-
-     !  HRU and SEG ids in the river network layer (saved)
-     nHRU = size(structHRU2SEG); nRch = size(structSEG)
 
      allocate(basinID(nHRU), reachID(nRch), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating [basinID, reachID]'; return; endif
@@ -109,7 +102,7 @@ contains
  ! *********************************************************************
  ! private subroutine: initialize channel state data
  ! *********************************************************************
- subroutine init_state( ierr, message)
+ subroutine init_state(ierr, message)
   ! subroutines
   USE read_restart,  only : read_state_nc     ! read netcdf state output file
   USE write_restart, only : define_state_nc   ! define netcdf state output file
@@ -225,9 +218,11 @@ contains
  ! *********************************************************************
  ! private subroutine: initialize river network data
  ! *********************************************************************
- subroutine init_ntopo(nNodes, pid, nEns,                                            & ! input
-                       structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output:
-                       ixSubHRU, ixSubSEG, hru_per_proc, seg_per_proc, ierr, message)  ! output
+ subroutine init_ntopo(nNodes, pid,                                                  & ! input:  number of Procs and proc id
+                       _nHRU, _nRch,                                                 & ! output: number of HRU and Reaches
+                       structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
+                       ixSubHRU, ixSubSEG, hru_per_proc, seg_per_proc,               & ! output: MPI domain decomposition data
+                       ierr, message)                                                  ! output: error controls
   ! public vars
   USE public_var,           only : ancil_dir                ! name of the ancillary directory
   USE public_var,           only : fname_ntopOld            ! name of the old network topology file
@@ -237,6 +232,7 @@ contains
   USE public_var,           only : idSegOut                 ! ID for stream segment at the bottom of the subset
   USE public_var,           only : maxPfafLen               ! maximum digit of pfafstetter code (default 32)
   USE public_var,           only : nThresh                  ! maximum number of segments for each sub-basin
+  USE public_var,           only : nEns                     ! number of ensemble
   ! options
   USE public_var,           only : ntopWriteOption          ! option to write updated network topology
   ! common variables
@@ -251,14 +247,15 @@ contains
   USE write_streamSeg,      only : writeData                ! write the ancillary data
   USE read_netcdf,          only : get_var_dims
   USE process_ntopo,        only : augment_ntopo            ! compute all the additional network topology (only compute option = on)
-  USE domain_decomposition, only : classify_river_basin_mpi
+  USE domain_decomposition, only : classify_river_basin_mpi ! domain decomposition for mpi
   USE mpi_routine,          only : comm_ntopo_data
   implicit none
   ! input:
   integer(i4b)      , intent(in)              :: nNodes                   ! number of procs
   integer(i4b)      , intent(in)              :: pid                      ! proc id
-  integer(i4b)      , intent(in)              :: nEns                     ! number of ensembles
   ! output (river network data structures for the entire domain)
+  integer(i4b)                  , intent(out) :: _nHRU                    ! number of HRUs
+  integer(i4b)                  , intent(out) :: _nRch                    ! number of reaches
   type(var_dlength), allocatable, intent(out) :: structHRU(:)             ! HRU properties
   type(var_dlength), allocatable, intent(out) :: structSeg(:)             ! stream segment properties
   type(var_ilength), allocatable, intent(out) :: structHRU2SEG(:)         ! HRU-to-segment mapping
@@ -272,8 +269,6 @@ contains
   integer(i4b)      , intent(out)             :: ierr                     ! error code
   character(*)      , intent(out)             :: message                  ! error message
   ! local variable
-  integer(i4b)                                :: nHRU                     ! number of HRUs in network data
-  integer(i4b)                                :: nSeg                     ! number of stream segments in network data
   integer(i4b)                                :: tot_upstream             ! total number of all of the upstream stream segments for all stream segments
   integer(i4b)                                :: tot_upseg                ! total number of immediate upstream segments for all  stream segments
   integer(i4b)                                :: tot_hru                  ! total number of all the upstream hrus for all stream segments
@@ -303,8 +298,8 @@ contains
                dname_nhru,   & ! input: dimension name of the HRUs
                dname_sseg,   & ! input: dimension name of the stream segments
                ! output: model control
-               nHRU,         & ! output: number of HRUs
-               nSeg,         & ! output: number of stream segments
+               _nHRU,         & ! output: number of HRUs
+               _nRch,         & ! output: number of stream segments
                ! output: populate data structures
                structHRU,    & ! ancillary data for HRUs
                structSeg,    & ! ancillary data for stream segments
@@ -317,8 +312,8 @@ contains
 
   call augment_ntopo(&
                   ! input: model control
-                  nHRU,             & ! number of HRUs
-                  nSeg,             & ! number of stream segments
+                  _nHRU,             & ! number of HRUs
+                  _nRch,             & ! number of stream segments
                   ! inout: populate data structures
                   structHRU,        & ! ancillary data for HRUs
                   structSeg,        & ! ancillary data for stream segments
@@ -384,11 +379,11 @@ contains
   endif
 
   if (pid==0) then
-    call classify_river_basin_mpi(nNodes, nSeg, structPFAF, structNTOPO, nThresh, nHRU, ierr, cmessage)     !Warning: nHRU may change
+    call classify_river_basin_mpi(nNodes, _nRch, structPFAF, structNTOPO, nThresh, nHRU, ierr, cmessage)     !Warning: nHRU may change
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
-  call comm_ntopo_data(pid, nNodes, nEns, nSeg, nHRU, structHRU, structSEG, structHRU2SEG, structNTOPO, & ! input
+  call comm_ntopo_data(pid, nNodes,  _nRch, _nHRU, structHRU, structSEG, structHRU2SEG, structNTOPO, & ! input
                        ixSubHRU, ixSubSEG, hru_per_proc, seg_per_proc, ierr, cmessage)                    ! output
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -400,8 +395,8 @@ contains
  subroutine init_runoff(&
                          ! data structures
                          remap_flag,      & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
-                         remap_data,      & ! output: data structure to remap data
-                         runoff_data,     & ! output: data structure for runoff
+                         _remap_data,     & ! output: data structure to remap data
+                         _runoff_data,    & ! output: data structure for runoff
                          ! error control
                          ierr, message)     ! output: error control
 
@@ -413,15 +408,15 @@ contains
  USE public_var,  only : time_units             ! time units
  USE dataTypes,   only : remap                  ! remapping data type
  USE dataTypes,   only : runoff                 ! runoff data type
- USE read_runoff, only : get_runoff_metadata    ! read meta data from runoff data
+ USE read_runoff, only : read_runoff_metadata   ! read meta data from runoff data
  USE read_remap,  only : get_remap_data         ! read remap data
  USE globalData,  only : basinID                ! basin ID
 
  implicit none
  ! data structures
  logical(lgt),      intent(in)      :: remap_flag       ! logical whether or not runnoff needs to be mapped to river network HRU
- type(remap)  , intent(out)         :: remap_data       ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
- type(runoff) , intent(out)         :: runoff_data      ! runoff for one time step for all HRUs
+ type(remap)  , intent(out)         :: _remap_data      ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
+ type(runoff) , intent(out)         :: _runoff_data     ! runoff for one time step for all HRUs
  ! error control
  integer(i4b), intent(out)          :: ierr             ! error code
  character(*), intent(out)          :: message          ! error message
@@ -433,13 +428,13 @@ contains
  ierr=0; message='init_runoff/'
 
  ! get runoff metadata
- call get_runoff_metadata(trim(input_dir)//trim(fname_qsim), & ! input: filename
-                          runoff_data,                       & ! output: runoff data structure
-                          time_units, calendar,              & ! output: number of time steps, time units, calendar
+ call read_runoff_metadata(trim(input_dir)//trim(fname_qsim), & ! input: filename
+                          _runoff_data,                       & ! output: runoff data structure
+                          time_units, calendar,               & ! output: number of time steps, time units, calendar
                           ierr, cmessage)                      ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- !print*, 'runoff_data%nSpace, nTime, trim(time_units) = ', runoff_data%nSpace(:), runoff_data%nTime, trim(time_units)
+ !print*, '_runoff_data%nSpace, nTime, trim(time_units) = ', _runoff_data%nSpace(:), _runoff_data%nTime, trim(time_units)
  !print*, trim(message)//'PAUSE : '; read(*,*)
 
  ! need to remap runoff to HRUs
@@ -447,38 +442,38 @@ contains
 
    ! get runoff mapping file
    call get_remap_data(trim(ancil_dir)//trim(fname_remap),     & ! input: file name
-                       runoff_data%nSpace,                     & ! input: number of spatial elements
-                       remap_data,                             & ! output: data structure to remap data from a polygon
+                       _runoff_data%nSpace,                    & ! input: number of spatial elements
+                       _remap_data,                            & ! output: data structure to remap data from a polygon
                        ierr, cmessage)                           ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! get indices of the HRU ids in the mapping file in the routing layer
-   call get_qix(remap_data%hru_id,  &    ! input: vector of ids in mapping file
-                basinID,            &    ! input: vector of ids in the routing layer
-                remap_data%hru_ix,  &    ! output: indices of hru ids in routing layer
+   call get_qix(_remap_data%hru_id,  &    ! input: vector of ids in mapping file
+                basinID,             &    ! input: vector of ids in the routing layer
+                _remap_data%hru_ix,  &    ! output: indices of hru ids in routing layer
                 ierr, cmessage)          ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   if ( runoff_data%nSpace(2) == integerMissing ) then
+   if ( _runoff_data%nSpace(2) == integerMissing ) then
      ! get indices of the "overlap HRUs" (the runoff input) in the runoff vector
-     call get_qix(remap_data%qhru_id, &    ! input: vector of ids in mapping file
-                  runoff_data%hru_id, &    ! input: vector of ids in runoff file
-                  remap_data%qhru_ix, &    ! output: indices of mapping ids in runoff file
-                  ierr, cmessage)          ! output: error control
+     call get_qix(_remap_data%qhru_id, &    ! input: vector of ids in mapping file
+                  _runoff_data%hru_id, &    ! input: vector of ids in runoff file
+                  _remap_data%qhru_ix, &    ! output: indices of mapping ids in runoff file
+                  ierr, cmessage)           ! output: error control
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
 
    ! check
-   if(count(remap_data%hru_ix/=integerMissing)/=size(basinID))then
+   if(count(_remap_data%hru_ix/=integerMissing)/=size(basinID))then
     message=trim(message)//'unable to identify all polygons in the mapping file'
     ierr=20; return
    endif
 
    ! check that the basins match
-   do iHRU = 1, size(remap_data%hru_ix)
-     jHRU = remap_data%hru_ix(iHRU)
+   do iHRU = 1, size(_remap_data%hru_ix)
+     jHRU = _remap_data%hru_ix(iHRU)
      if (jHRU == integerMissing) cycle
-     if( remap_data%hru_id(iHRU) /= basinID(jHRU) )then
+     if( _remap_data%hru_id(iHRU) /= basinID(jHRU) )then
       message=trim(message)//'mismatch in HRU ids for basins in the routing layer'
       ierr=20; return
      endif
