@@ -137,7 +137,7 @@ module globalData
 
   ! mapping structures
   type(remap)                    , public :: remap_data           ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
-  type(runoff)                   , public :: runoff_data          ! runoff for one time step for all HRUs
+  type(runoff)                   , public :: runoff_data          ! runoff data for one time step for LSM HRUs and River network HRUs
 
   ! domain data
   type(basin)     , allocatable  , public :: river_basin(:)       ! openMP domain decomposition

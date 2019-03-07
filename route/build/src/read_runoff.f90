@@ -206,10 +206,10 @@ contains
  ierr=0; message='read_runoff_data/'
 
  if (runoff_data_in%nSpace(2) == integerMissing) then
-  call get_1D_runoff(fname, iTime, runoff_data_in%nSpace(1), runoff_data_in, ierr, message)
+  call read_1D_runoff(fname, iTime, runoff_data_in%nSpace(1), runoff_data_in, ierr, message)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  else
-  call get_2D_runoff(fname, iTime, runoff_data_in%nSpace, runoff_data_in, ierr, message)
+  call read_2D_runoff(fname, iTime, runoff_data_in%nSpace, runoff_data_in, ierr, message)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  endif
 
