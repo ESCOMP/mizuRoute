@@ -28,7 +28,7 @@ public :: classify_river_basin_mpi
 
 contains
 
- subroutine classify_river_basin_mpi(nNodes, nSeg, structPFAF, structNTOPO, maxSegs, nHRU, ierr, message)
+ subroutine classify_river_basin_mpi(nNodes, nSeg, structPFAF, structNTOPO, maxSegs, nContribHRU, ierr, message)
    ! Main routine for MPI domain decomposition
    !
    ! The following data struct components need to be populated
@@ -53,7 +53,7 @@ contains
    type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)         ! network topology
    integer(i4b),                   intent(in)  :: maxSegs                ! threshold number of tributary reaches
    ! Output variables
-   integer(i4b),                   intent(out) :: nHRU                   ! total number of HRUs that are connected to a reach
+   integer(i4b),                   intent(out) :: nContribHRU            ! total number of HRUs that are connected to a reach
    integer(i4b),                   intent(out) :: ierr
    character(len=strLen),          intent(out) :: message                ! error message
    ! Local variables
@@ -77,6 +77,9 @@ contains
  !  logical(lgt)                                :: seglgc(nSeg)
 
    ierr=0; message='classify_river_basin_mpi/'
+
+   ! check
+   if (nSeg/=size(structNTOPO))then; ierr=20; message=trim(message)//'number of reach input is not correct'; return; endif
 
    ! Initialize number of domains
    nDomain = 0
@@ -126,7 +129,7 @@ contains
    end do
 
    ! populate domain(:)%hruIndex
-   nHRU = 0 ! total number of HRUs that contribute to the reach
+   nContribHRU = 0 ! total number of HRUs that contribute to the reach
    do ix=1,nDomain
      associate (ixSeg => domains(ix)%segIndex)
      allocate(nHruLocal(size(ixSeg)), stat=ierr)
@@ -134,7 +137,7 @@ contains
      do iSeg = 1, size(ixSeg)
        nHruLocal(iSeg) = structNTOPO(ixSeg(iSeg))%var(ixNTOPO%nHRU)%dat(1)
      enddo
-     nHRU=nHRU+sum(nHruLocal)
+     nContribHRU=nContribHRU+sum(nHruLocal)
      allocate(domains(ix)%hruIndex(sum(nHruLocal)), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating [domains(ix)%hruIndex]'; return; endif
      do iSeg = 1, size(ixSeg)
