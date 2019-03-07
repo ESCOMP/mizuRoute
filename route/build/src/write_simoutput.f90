@@ -4,26 +4,94 @@ MODULE write_simoutput
 USE nrtype
 USE netcdf
 USE public_var
+
 implicit none
+
+! The following variables used only in this module
+character(len=strLen),save        :: fileout          ! name of the output file
+integer(i4b),         save        :: jTime            ! time step in output netCDF
 
 private
 
 public::prep_output
+public::output
 
 CONTAINS
 
  ! *********************************************************************
- ! new subroutine: define routing output NetCDF file
+ ! public subroutine: define routing output NetCDF file
  ! *********************************************************************
- SUBROUTINE prep_output(nEns,           & ! in:    number of ensembles
-                        nHRU,           & ! in:    number of HRUs
-                        nRch,           & ! in:    number of reaches
-                        iTime,          & ! in:    time index
+ SUBROUTINE output(ierr, message)    ! out:   error control
+
+  !Dependent modules
+  USE public_var,          only : doesBasinRoute      ! basin routing options   0-> no, 1->IRF, otherwise error
+  USE public_var,          only : routOpt             ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+  USE public_var,          only : kinematicWave       ! kinematic wave
+  USE public_var,          only : impulseResponseFunc ! impulse response function
+  USE public_var,          only : allRoutingMethods   ! all routing methods
+  USE globalData,          only : nEns, nHRU, nRch    ! number of ensembles, HRUs and river reaches
+  USE globalData,          only : RCHFLX
+  USE globalData,          only : runoff_data
+
+  implicit none
+
+  ! input variables
+  integer(i4b), intent(in)        :: nEns             ! number of ensembles
+  integer(i4b), intent(in)        :: nHRU             ! number of HRUs
+  integer(i4b), intent(in)        :: nRch             ! number of stream segments
+  ! output variables
+  integer(i4b), intent(out)       :: ierr             ! error code
+  character(*), intent(out)       :: message          ! error message
+  ! local variables
+  character(len=strLen)           :: cmessage         ! error message of downwind routine
+
+  ! initialize error control
+  ierr=0; message='output/'
+
+  ! write time -- note time is just carried across from the input
+  call write_nc(trim(fileout), 'time', (/runoff_data%time/), (/jTime/), (/1/), ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! write the basin runoff to the netcdf file
+  call write_nc(trim(fileout), 'basRunoff', basinRunoff, (/1,jTime/), (/nHRU,1/), ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  if (doesBasinRoute == 1) then
+   ! write instataneous local runoff in each stream segment (m3/s)
+   call write_nc(trim(fileout), 'instRunoff', RCHFLX(iens,:)%BASIN_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+  ! write routed local runoff in each stream segment (m3/s)
+  call write_nc(trim(fileout), 'dlayRunoff', RCHFLX(iens,:)%BASIN_QR(1), (/1,jTime/), (/nRch,1/), ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! write accumulated runoff (m3/s)
+  call write_nc(trim(fileout), 'sumUpstreamRunoff', RCHFLX(iens,:)%UPSTREAM_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
+   ! write routed runoff (m3/s)
+   call write_nc(trim(fileout), 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+   ! write routed runoff (m3/s)
+   call write_nc(trim(fileout), 'IRFroutedRunoff', RCHFLX(iens,:)%REACH_Q_IRF, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+ end subroutine output
+
+
+ ! *********************************************************************
+ ! public subroutine: define routing output NetCDF file
+ ! *********************************************************************
+ SUBROUTINE prep_output(iTime,          & ! in:    time index
                         modJulday,      & ! out:   current simulation julian day
-                        jTime,          & ! out:   time step in output netCDF
                         ierr, message)    ! out:   error control
  !Dependent modules
- USE dataTypes,           only : time              ! time data type
  USE public_var,          only : refJulday         ! julian day: reference
  USE public_var,          only : startJulday       ! julian day: start
  USE public_var,          only : endJulday         ! julian day: end
@@ -34,6 +102,7 @@ CONTAINS
  USE globalData,          only : basinID,reachID   ! HRU and reach ID in network
  USE globalData,          only : timeVar           ! time variable
  USE globalData,          only : modTime           ! previous and current model time
+ USE globalData,          only : nEns, nHRU, nRch  ! number of ensembles, HRUs and river reaches
  USE time_utils_module,   only : compCalday        ! compute calendar day
  USE time_utils_module,   only : compCalday_noleap ! compute calendar day
  USE write_netcdf,        only : write_nc          ! write a variable to the NetCDF file
@@ -41,17 +110,12 @@ CONTAINS
  implicit none
 
  ! input variables
- integer(i4b), intent(in)        :: nEns             ! number of ensembles
- integer(i4b), intent(in)        :: nHRU             ! number of HRUs
- integer(i4b), intent(in)        :: nRch             ! number of stream segments
  integer(i4b), intent(in)        :: iTime            ! simulation time index
  ! output variables
  real(dp),     intent(out)       :: modJulday        ! julian day: model simulation
- integer(i4b), intent(out)       :: jTime            ! time step in output netCDF
  integer(i4b), intent(out)       :: ierr             ! error code
  character(*), intent(out)       :: message          ! error message
  ! local variables
- character(len=strLen)           :: fileout          ! name of the output file
  real(dp)                        :: convTime2Days    ! conversion factor to convert time to units of days
  logical(lgt)                    :: defnewoutputfile ! flag to define new output file
  character(len=strLen)           :: cmessage         ! error message of downwind routine
@@ -137,12 +201,12 @@ CONTAINS
 
 
  ! *********************************************************************
- ! new subroutine: define routing output NetCDF file
+ ! private subroutine: define routing output NetCDF file
  ! *********************************************************************
  SUBROUTINE defineFile(fname,           &  ! input: filename
-                       nEns,            &  ! input: number of ensembles
-                       nHRU,            &  ! input: number of HRUs
-                       nSeg,            &  ! input: number of stream segments
+                       _nEns,           &  ! input: number of ensembles
+                       _nHRU,           &  ! input: number of HRUs
+                       _nRch,           &  ! input: number of stream segments
                        units_time,      &  ! input: time units
                        calendar,        &  ! input: calendar
                        ierr, message)      ! output: error control
@@ -153,9 +217,9 @@ CONTAINS
  implicit none
  ! input variables
  character(*), intent(in)        :: fname        ! filename
- integer(i4b), intent(in)        :: nEns         ! number of ensembles
- integer(i4b), intent(in)        :: nHRU         ! number of HRUs
- integer(i4b), intent(in)        :: nSeg         ! number of stream segments
+ integer(i4b), intent(in)        :: _nEns        ! number of ensembles
+ integer(i4b), intent(in)        :: _nHRU        ! number of HRUs
+ integer(i4b), intent(in)        :: _nRch        ! number of stream segments
  character(*), intent(in)        :: units_time   ! time units
  character(*), intent(in)        :: calendar     ! calendar
  ! output variables
@@ -176,9 +240,9 @@ CONTAINS
             dim_time => meta_qDims(ixQdims%time)%dimName)
 
 ! populate q dimension meta (not sure if this should be done here...)
- meta_qDims(ixQdims%seg)%dimLength = nSeg
- meta_qDims(ixQdims%hru)%dimLength = nHRU
- meta_qDims(ixQdims%ens)%dimLength = nEns
+ meta_qDims(ixQdims%seg)%dimLength = _nRch
+ meta_qDims(ixQdims%hru)%dimLength = _nHRU
+ meta_qDims(ixQdims%ens)%dimLength = _nEns
 
  ! --------------------
  ! define file
