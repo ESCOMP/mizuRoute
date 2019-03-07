@@ -101,6 +101,7 @@ module globalData
   type(var_info)                 , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
 
   ! ---------- data structures ----------------------------------------------------------------------
+  integer(i4b)                   , public :: nEns=1               ! number of ensemble
   ! number of spatial elements
   integer(i4b)                   , public :: nHRU
   integer(i4b)                   , public :: nRch
