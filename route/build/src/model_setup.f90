@@ -1,4 +1,4 @@
-module data_initialization
+module model_setup
 
 ! data types
 USE nrtype,    only : i4b,dp,lgt          ! variable types, etc.
@@ -14,9 +14,59 @@ implicit none
 
 ! privacy -- everything private unless declared explicitly
 private
-public::init_data
+public :: init_model
+public :: init_data
 
 contains
+
+ ! *********************************************************************
+ ! public subroutine: model setupt
+ ! *********************************************************************
+ subroutine init_model(pid, ierr, message)
+
+  USE public_var,          only : ancil_dir
+  USE public_var,          only : param_nml
+  ! subroutines: populate metadata
+  USE popMetadat_module,   only : popMetadat       ! populate metadata
+  ! subroutines: model control
+  USE read_control_module, only : read_control     ! read the control file
+  USE read_param_module,   only : read_param       ! read the routing parameters
+
+  implicit none
+
+  integer(i4b), intent(in)    :: pid               ! process id
+  ! output: error control
+  integer(i4b), intent(out)   :: ierr              ! error code
+  character(*), intent(out)   :: message           ! error message
+  ! local variables
+  character(len=strLen)       :: cfile_name        ! name of the control file
+  character(len=strLen)       :: cmessage          ! error message of downwind routine
+
+  ! initialize error control
+  ierr=0; message='init_model/'
+
+  ! if the master node
+  if (pid==0) then
+
+   ! populate the metadata files
+   call popMetadat(ierr,cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! get command-line argument defining the full path to the control file
+   call getarg(1,cfile_name)
+   if(len_trim(cfile_name)==0) ierr=50;message=trim(message)//'need to supply name of the control file as a command-line argument'; return
+
+   ! read the control file
+   call read_control(trim(cfile_name), ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! read the routing parameter namelist
+   call read_param(trim(ancil_dir)//trim(param_nml),ierr,cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  endif  ! if the master node
+ end subroutine init_model
+
 
  ! *********************************************************************
  ! public subroutine: initialize river network, runoff, and runoff-mapping data
@@ -107,6 +157,7 @@ contains
   USE read_restart,  only : read_state_nc     ! read netcdf state output file
   USE write_restart, only : define_state_nc   ! define netcdf state output file
   ! global data
+  USE public_var,    only : dt                ! simulation time step (seconds)
   USE public_var,    only : isRestart         ! restart option: True-> model run with restart, F -> model run with empty channels
   USE public_var,    only : routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
   USE public_var,    only : fname_state_in    ! name of state input file
@@ -135,7 +186,7 @@ contains
    call read_state_nc(trim(output_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   TSEC(0)=T0; TEC(1)=T1
+   TSEC(0)=T0; TSEC(1)=T1
 
   else
 
@@ -219,7 +270,7 @@ contains
  ! private subroutine: initialize river network data
  ! *********************************************************************
  subroutine init_ntopo(nNodes, pid,                                                  & ! input:  number of Procs and proc id
-                       nHRU_in, nRch_in,                                             & ! output: number of HRU and Reaches
+                       nHRU_out, nRch_out,                                             & ! output: number of HRU and Reaches
                        structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
                        ixSubHRU, ixSubSEG, hru_per_proc, seg_per_proc,               & ! output: MPI domain decomposition data
                        ierr, message)                                                  ! output: error controls
@@ -232,7 +283,6 @@ contains
   USE public_var,           only : idSegOut                 ! ID for stream segment at the bottom of the subset
   USE public_var,           only : maxPfafLen               ! maximum digit of pfafstetter code (default 32)
   USE public_var,           only : nThresh                  ! maximum number of segments for each sub-basin
-  USE public_var,           only : nEns                     ! number of ensemble
   ! options
   USE public_var,           only : ntopWriteOption          ! option to write updated network topology
   ! common variables
@@ -254,8 +304,8 @@ contains
   integer(i4b)      , intent(in)              :: nNodes                   ! number of procs
   integer(i4b)      , intent(in)              :: pid                      ! proc id
   ! output (river network data structures for the entire domain)
-  integer(i4b)                  , intent(out) :: nHRU_in                  ! number of HRUs
-  integer(i4b)                  , intent(out) :: nRch_in                  ! number of reaches
+  integer(i4b)                  , intent(out) :: nHRU_out                 ! number of HRUs
+  integer(i4b)                  , intent(out) :: nRch_out                 ! number of reaches
   type(var_dlength), allocatable, intent(out) :: structHRU(:)             ! HRU properties
   type(var_dlength), allocatable, intent(out) :: structSeg(:)             ! stream segment properties
   type(var_ilength), allocatable, intent(out) :: structHRU2SEG(:)         ! HRU-to-segment mapping
@@ -269,6 +319,7 @@ contains
   integer(i4b)      , intent(out)             :: ierr                     ! error code
   character(*)      , intent(out)             :: message                  ! error message
   ! local variable
+  integer(i4b)                                :: nContribHRU              ! number of HRUs that are connected to any reaches
   integer(i4b)                                :: tot_upstream             ! total number of all of the upstream stream segments for all stream segments
   integer(i4b)                                :: tot_upseg                ! total number of immediate upstream segments for all  stream segments
   integer(i4b)                                :: tot_hru                  ! total number of all the upstream hrus for all stream segments
@@ -298,8 +349,8 @@ contains
                dname_nhru,   & ! input: dimension name of the HRUs
                dname_sseg,   & ! input: dimension name of the stream segments
                ! output: model control
-               nHRU_in,      & ! output: number of HRUs
-               nRch_in,      & ! output: number of stream segments
+               nHRU_out,      & ! output: number of HRUs
+               nRch_out,      & ! output: number of stream segments
                ! output: populate data structures
                structHRU,    & ! ancillary data for HRUs
                structSeg,    & ! ancillary data for stream segments
@@ -312,8 +363,8 @@ contains
 
   call augment_ntopo(&
                   ! input: model control
-                  nHRU_in,          & ! number of HRUs
-                  nRch_in,          & ! number of stream segments
+                  nHRU_out,         & ! number of HRUs
+                  nRch_out,         & ! number of stream segments
                   ! inout: populate data structures
                   structHRU,        & ! ancillary data for HRUs
                   structSeg,        & ! ancillary data for stream segments
@@ -379,12 +430,12 @@ contains
   endif
 
   if (pid==0) then
-    call classify_river_basin_mpi(nNodes, nRch_in, structPFAF, structNTOPO, nThresh, nHRU, ierr, cmessage)     !Warning: nHRU may change
+    call classify_river_basin_mpi(nNodes, nRch_out, structPFAF, structNTOPO, nThresh, nContribHRU, ierr, cmessage)       !Warning: nHRU /= nContribHRU
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
-  call comm_ntopo_data(pid, nNodes,  nRch_in, nHRU_in, structHRU, structSEG, structHRU2SEG, structNTOPO, & ! input
-                       ixSubHRU, ixSubSEG, hru_per_proc, seg_per_proc, ierr, cmessage)                    ! output
+  call comm_ntopo_data(pid, nNodes, nRch_out, nContribHRU, structHRU, structSEG, structHRU2SEG, structNTOPO, & ! input
+                       ixSubHRU, ixSubSEG, hru_per_proc, seg_per_proc, ierr, cmessage)                         ! output
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end subroutine init_ntopo
@@ -571,4 +622,4 @@ contains
 
  end subroutine get_qix
 
-end module data_initialization
+end module model_setup
