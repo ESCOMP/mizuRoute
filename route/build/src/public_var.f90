@@ -66,6 +66,7 @@ module public_var
   character(len=strLen),public    :: dname_xlon           = ''              ! dimension name for x (j, longitude) dimension
   character(len=strLen),public    :: dname_ylat           = ''              ! dimension name for y (i, latitude) dimension
   character(len=strLen),public    :: units_time           = ''              ! time units
+  integer(i4b),         public    :: nEns                 = 1               ! number of ensemble
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
   logical(lgt)         ,public    :: ntopWriteOption      = .false.         ! option for writing augmented network topology (false=no,true=yes)
