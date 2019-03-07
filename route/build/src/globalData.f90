@@ -101,7 +101,11 @@ module globalData
   type(var_info)                 , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
 
   ! ---------- data structures ----------------------------------------------------------------------
+  ! number of spatial elements
+  integer(i4b)                   , public :: nHRU
+  integer(i4b)                   , public :: nRch
 
+  ! basin and reach IDs (to be removed)
   integer(i4b)    , allocatable  , public :: basinID(:)           ! HRU id
   integer(i4b)    , allocatable  , public :: reachID(:)           ! reach id
 
@@ -110,7 +114,7 @@ module globalData
   real(dp)                       , public :: TSEC(0:1)            ! begning and end of time step (sec)
   type(time)                     , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
 
-  ! routing parameter structures
+  ! river topology and parameter structures
   type(RCHPRP)    , allocatable  , public :: RPARAM(:)            ! Reach Parameters
   type(RCHTOPO)   , allocatable  , public :: NETOPO(:)            ! River Network topology
 
