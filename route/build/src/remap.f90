@@ -27,11 +27,11 @@ module remapping
   ! *****
   ! * public subroutine: used to map runoff data (on diferent grids/polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
-  subroutine remap_runoff(runoff_data, remap_data, basinRunoff, ierr, message)
+  subroutine remap_runoff(_runoff_data, _remap_data, basinRunoff, ierr, message)
   implicit none
   ! input
-  type(runoff)         , intent(in)  :: runoff_data      ! runoff for one time step for all HRUs
-  type(remap)          , intent(in)  :: remap_data       ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
+  type(runoff)         , intent(in)  :: _runoff_data      ! runoff for one time step for all HRUs
+  type(remap)          , intent(in)  :: _remap_data       ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
   ! output
   real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
   integer(i4b)         , intent(out) :: ierr             ! error code
@@ -41,11 +41,11 @@ module remapping
 
   ierr=0; message="remap_runoff/"
 
-  if (runoff_data%nSpace(2) == integerMissing) then
-    call remap_1D_runoff(runoff_data, remap_data, basinRunoff, ierr, cmessage)
+  if (_runoff_data%nSpace(2) == integerMissing) then
+    call remap_1D_runoff(_runoff_data, _remap_data, basinRunoff, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   else
-    call remap_2D_runoff(runoff_data, remap_data, basinRunoff, ierr, cmessage)
+    call remap_2D_runoff(_runoff_data, _remap_data, basinRunoff, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
@@ -54,11 +54,11 @@ module remapping
   ! *****
   ! private subroutine: used to map runoff data (on diferent polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
-  subroutine remap_2D_runoff(runoff_data, remap_data, basinRunoff, ierr, message)
+  subroutine remap_2D_runoff(_runoff_data, _remap_data, basinRunoff, ierr, message)
   implicit none
   ! input
-  type(runoff)         , intent(in)  :: runoff_data         ! runoff for one time step for all HRUs
-  type(remap)          , intent(in)  :: remap_data          ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
+  type(runoff)         , intent(in)  :: _runoff_data         ! runoff for one time step for all HRUs
+  type(remap)          , intent(in)  :: _remap_data          ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
   ! output
   real(dp)             , intent(out) :: basinRunoff(:)      ! basin runoff
   integer(i4b)         , intent(out) :: ierr                ! error code
@@ -79,16 +79,16 @@ module remapping
   ixOverlap = 1
 
   ! loop through hrus in the mapping layer
-  do iHRU=1,size(remap_data%hru_ix)
+  do iHRU=1,size(_remap_data%hru_ix)
 
    ! define the HRU index in the routing vector
-   jHRU = remap_data%hru_ix(iHRU)
+   jHRU = _remap_data%hru_ix(iHRU)
 
    ! if mapping data has hrus that do not exist in river network, skip that hru
    ! but increment index of weight and overlap-poly-id arrays
    if (jHRU == integerMissing)then
-    if (remap_data%num_qhru(iHRU)/=integerMissing)then
-      ixOverlap = ixOverlap + remap_data%num_qhru(iHRU)
+    if (_remap_data%num_qhru(iHRU)/=integerMissing)then
+      ixOverlap = ixOverlap + _remap_data%num_qhru(iHRU)
     endif
     cycle
    endif
@@ -98,35 +98,35 @@ module remapping
    basinRunoff(jHRU) = 0._dp
 
    ! loop through the overlapping polygons
-   do ixPoly=1,remap_data%num_qhru(iHRU) ! number of overlapping polygons
+   do ixPoly=1,_remap_data%num_qhru(iHRU) ! number of overlapping polygons
 
     ! index of i (x) and j (y) direction
-    jj = remap_data%j_index(ixOverlap)
-    ii = remap_data%i_index(ixOverlap)
+    jj = _remap_data%j_index(ixOverlap)
+    ii = _remap_data%i_index(ixOverlap)
 
     ! check i-indices
-    if(ii < lbound(runoff_data%qSim2d,1) .or. ii > ubound(runoff_data%qSim2d,1))then
+    if(ii < lbound(_runoff_data%qSim2d,1) .or. ii > ubound(_runoff_data%qSim2d,1))then
      if(printWarn) write(*,'(a,4(i0,a))') trim(message)//'WARNING: When computing weighted runoff at ', jHRU, 'th-HRU, i-index ', ii,' was not found in runoff grid data.'
      ixOverlap = ixOverlap + 1; cycle
     endif
 
     ! check j-indices
-    if(jj < lbound(runoff_data%qSim2d,2) .or. jj > ubound(runoff_data%qSim2d,2))then
+    if(jj < lbound(_runoff_data%qSim2d,2) .or. jj > ubound(_runoff_data%qSim2d,2))then
      if(printWarn) write(*,'(a,4(i0,a))') trim(message)//'WARNING: When computing weighted runoff at ', jHRU, 'th-HRU, j-index ', jj, 'was not found in runoff grid data.'
      ixOverlap = ixOverlap + 1; cycle
     endif
 
     ! get the weighted average
-    if(runoff_data%qSim2d(ii,jj) > -xTol)then
-     sumWeights        = sumWeights        + remap_data%weight(ixOverlap)
-     basinRunoff(jHRU) = basinRunoff(jHRU) + remap_data%weight(ixOverlap)*runoff_data%qSim2D(ii,jj)
+    if(_runoff_data%qSim2d(ii,jj) > -xTol)then
+     sumWeights        = sumWeights        + _remap_data%weight(ixOverlap)
+     basinRunoff(jHRU) = basinRunoff(jHRU) + _remap_data%weight(ixOverlap)*_runoff_data%qSim2D(ii,jj)
     endif
 
     ! check
-    if(remap_data%i_index(iHRU)==ixCheck .and. remap_data%j_index(iHRU)==jxCheck)then
-     print*, 'remap_data%i_index(iHRU),remap_data%j_index(iHRU) = ', remap_data%i_index(iHRU), remap_data%j_index(iHRU)
-     print*, 'remap_data%num_qhru(iHRU)                         = ', remap_data%num_qhru(iHRU)
-     print*, 'runoff_data%qSim2D(ii,jj)                         = ', runoff_data%qSim2D(ii,jj)
+    if(_remap_data%i_index(iHRU)==ixCheck .and. _remap_data%j_index(iHRU)==jxCheck)then
+     print*, '_remap_data%i_index(iHRU),_remap_data%j_index(iHRU) = ', _remap_data%i_index(iHRU), _remap_data%j_index(iHRU)
+     print*, '_remap_data%num_qhru(iHRU)                         = ', _remap_data%num_qhru(iHRU)
+     print*, '_runoff_data%qSim2D(ii,jj)                         = ', _runoff_data%qSim2D(ii,jj)
     endif
 
     ! increment the overlap index
@@ -140,7 +140,7 @@ module remapping
    endif
 
    ! check
-   if(remap_data%i_index(iHRU)==ixCheck .and. remap_data%j_index(iHRU)==jxCheck)then
+   if(_remap_data%i_index(iHRU)==ixCheck .and. _remap_data%j_index(iHRU)==jxCheck)then
     print*, 'basinRunoff(jHRU) = ', basinRunoff(jHRU)*86400._dp*1000._dp*365._dp
     print*, 'PAUSE : '; read(*,*)
    endif
@@ -160,11 +160,11 @@ module remapping
   ! *****
   ! private subroutine: used to map runoff data (on diferent polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
-  subroutine remap_1D_runoff(runoff_data, remap_data, basinRunoff, ierr, message)
+  subroutine remap_1D_runoff(_runoff_data, _remap_data, basinRunoff, ierr, message)
   implicit none
   ! input
-  type(runoff)         , intent(in)  :: runoff_data      ! runoff for one time step for all HRUs
-  type(remap)          , intent(in)  :: remap_data       ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
+  type(runoff)         , intent(in)  :: _runoff_data      ! runoff for one time step for all HRUs
+  type(remap)          , intent(in)  :: _remap_data       ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
   ! output
   real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
   integer(i4b)         , intent(out) :: ierr             ! error code
@@ -185,61 +185,61 @@ module remapping
   ixOverlap = 1
 
   ! loop through hrus in the mapping layer
-  do iHRU=1,size(remap_data%hru_ix)
+  do iHRU=1,size(_remap_data%hru_ix)
 
    ! define the HRU index in the routing vector
-   jHRU = remap_data%hru_ix(iHRU)
+   jHRU = _remap_data%hru_ix(iHRU)
 
    ! if mapping data has hrus that do not exist in river network, skip that hru
    ! but increment index of weight and overlap-poly-id arrays
    if (jHRU == integerMissing)then
-    if (remap_data%num_qhru(iHRU)/=integerMissing)then
-      ixOverlap = ixOverlap + remap_data%num_qhru(iHRU)
+    if (_remap_data%num_qhru(iHRU)/=integerMissing)then
+      ixOverlap = ixOverlap + _remap_data%num_qhru(iHRU)
     endif
     cycle
    endif
 
-   !print*, 'remap_data%hru_id(iHRU), remap_data%num_qhru(iHRU) = ', &
-   !         remap_data%hru_id(iHRU), remap_data%num_qhru(iHRU)
+   !print*, '_remap_data%hru_id(iHRU), _remap_data%num_qhru(iHRU) = ', &
+   !         _remap_data%hru_id(iHRU), _remap_data%num_qhru(iHRU)
 
    ! initialize the weighted average
    sumWeights        = 0._dp
    basinRunoff(jHRU) = 0._dp
 
    ! loop through the overlapping polygons
-   do ixPoly=1,remap_data%num_qhru(iHRU) ! number of overlapping polygons
+   do ixPoly=1,_remap_data%num_qhru(iHRU) ! number of overlapping polygons
 
     ! check that the cell exists in the runoff file
-    !print*, 'ixOverlap, remap_data%qhru_ix(ixOverlap) = ', ixOverlap, remap_data%qhru_ix(ixOverlap)
-    if(remap_data%qhru_ix(ixOverlap)==integerMissing)then
+    !print*, 'ixOverlap, _remap_data%qhru_ix(ixOverlap) = ', ixOverlap, _remap_data%qhru_ix(ixOverlap)
+    if(_remap_data%qhru_ix(ixOverlap)==integerMissing)then
      ixOverlap = ixOverlap + 1
      cycle
     endif
 
     ! get the index in the runoff file
-    ixRunoff = remap_data%qhru_ix(ixOverlap)
+    ixRunoff = _remap_data%qhru_ix(ixOverlap)
 
     ! check that we have idenbtified the correct runoff HRU
-    if( remap_data%qhru_id(ixOverlap) /= runoff_data%hru_id(ixRunoff) )then
+    if( _remap_data%qhru_id(ixOverlap) /= _runoff_data%hru_id(ixRunoff) )then
      message=trim(message)//'mismatch in HRU ids for polygons in the runoff layer'
      ierr=20; return
     endif
 
     ! get the weighted average
-    if(runoff_data%qSim(ixRunoff) > -xTol)then
-     sumWeights        = sumWeights        + remap_data%weight(ixOverlap)
-     basinRunoff(jHRU) = basinRunoff(jHRU) + remap_data%weight(ixOverlap)*runoff_data%qSim(ixRunoff)
+    if(_runoff_data%qSim(ixRunoff) > -xTol)then
+     sumWeights        = sumWeights        + _remap_data%weight(ixOverlap)
+     basinRunoff(jHRU) = basinRunoff(jHRU) + _remap_data%weight(ixOverlap)*_runoff_data%qSim(ixRunoff)
     endif
 
     ! check
-    if(remap_data%hru_id(iHRU)==ixCheck)then
-     print*, 'remap_data%hru_id(iHRU)                         = ', remap_data%hru_id(iHRU)
-     print*, 'remap_data%num_qhru(iHRU)                       = ', remap_data%num_qhru(iHRU)
-     print*, 'ixRunoff, runoff_data%qSim(ixRunoff)            = ', ixRunoff, runoff_data%qSim(ixRunoff)
+    if(_remap_data%hru_id(iHRU)==ixCheck)then
+     print*, '_remap_data%hru_id(iHRU)                         = ', _remap_data%hru_id(iHRU)
+     print*, '_remap_data%num_qhru(iHRU)                       = ', _remap_data%num_qhru(iHRU)
+     print*, 'ixRunoff, _runoff_data%qSim(ixRunoff)            = ', ixRunoff, _runoff_data%qSim(ixRunoff)
     endif
 
-    !print*, 'remap_data%qhru_id(ixOverlap), runoff_data%hru_id(ixRunoff), remap_data%weight(ixOverlap), runoff_data%qSim(ixRunoff) = ', &
-    !         remap_data%qhru_id(ixOverlap), runoff_data%hru_id(ixRunoff), remap_data%weight(ixOverlap), runoff_data%qSim(ixRunoff)
+    !print*, '_remap_data%qhru_id(ixOverlap), _runoff_data%hru_id(ixRunoff), _remap_data%weight(ixOverlap), _runoff_data%qSim(ixRunoff) = ', &
+    !         _remap_data%qhru_id(ixOverlap), _runoff_data%hru_id(ixRunoff), _remap_data%weight(ixOverlap), _runoff_data%qSim(ixRunoff)
 
     ! increment the overlap index
     ixOverlap = ixOverlap + 1
@@ -252,7 +252,7 @@ module remapping
    endif
 
    ! check
-   if(remap_data%hru_id(iHRU)==ixCheck)then
+   if(_remap_data%hru_id(iHRU)==ixCheck)then
     print*, 'basinRunoff(jHRU) = ', basinRunoff(jHRU)*86400._dp*1000._dp*365._dp
     print*, 'PAUSE : '; read(*,*)
    endif
