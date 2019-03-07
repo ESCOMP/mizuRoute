@@ -1,7 +1,7 @@
 !! ======================================================================================================
 !! mizuRoute stand-alone driver
-!
-!
+!!
+!!
 !! ======================================================================================================
 program route_runoff
 
@@ -26,16 +26,16 @@ USE globalData, only : nHRU, nRch              ! number of HRUs and reaches in t
 USE mpi                                          ! MPI
 
 ! subroutines: model set up
-USE model_setup,         only : model_setup      ! model setupt - reading control file, populate metadata, read parameter file
-USE data_initialization, only : init_data        ! initialize river segment data
-
-! subroutines: netcdf output
-USE write_simoutput,     only : prep_output
-USE write_simoutput,     only : output
-USE write_restart,       only : write_state_nc   ! write netcdf state output file
+USE model_setup,         only : init_model       ! model setupt - reading control file, populate metadata, read parameter file
+USE model_setup,         only : init_data        ! initialize river segment data
 
 ! subroutines: routing per proc
-USE mpi_routine,         only : comm_runoff_data
+USE mpi_routine,         only : comm_runoff_data ! distribute runoff to proc, route them, and gather,
+
+! subroutines: netcdf output
+USE write_simoutput,     only : prep_output      !
+USE write_simoutput,     only : output           !
+USE write_restart,       only : write_state_nc   ! write netcdf state output file
 
 ! ******
 ! define variables
@@ -58,7 +58,6 @@ integer(i4b),allocatable      :: seg_per_proc(:)     ! number of reaches assigne
 
 ! time variables
 real(dp)                      :: modJulday           ! julian day: model simulation
-
 ! routing variables
 real(dp)    , allocatable     :: basinRunoff(:)      ! basin runoff (m/s)
 real(dp)    , allocatable     :: reachRunoff(:)      ! reach runoff (m/s)
@@ -81,14 +80,14 @@ call MPI_COMM_RANK(MPI_COMM_WORLD, pid, ierr)
 ! *****
 ! *** model setup
 ! ************************
-call model_setup(ierr, cmessage)
+call init_model(ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
 ! *****
 ! *** data initialization
-!     - river topology, properties (time static)
-!     - runoff input
-!     - runoff remapping
+!     - river topology, properties (temporarily static)
+!     - runoff data (datetime, domain)
+!     - runoff remapping data
 !     - channel states
 ! ***********************************
 call init_data(nNodes,       &  ! input:  number of procs
@@ -121,15 +120,15 @@ do iTime=1,runoff_data%nTime
 
     ! prepare simulation output netCDF
     call prep_output(iTime,          & ! input:  time loop index
-                     modJulday,      & ! out:    current simulation julian day
+                     modJulday,      & ! output: current simulation julian day
                      ierr, cmessage)   ! output: error control
-    call handle_err(ierr,cmessage)
+    if(ierr/=0) call handle_err(ierr, cmessage)
 
     ! check we are within the desired time interval
     if(modJulday < startJulday .or. modJulday > endJulday) cycle
 
     call get_hru_runoff(iTime, ierr, cmessage)
-    call handle_err(ierr, cmessage)
+    if(ierr/=0) call handle_err(ierr, cmessage)
 
   end if
  ! print*, 'PAUSE: after getting simulated runoff'; read(*,*)
@@ -142,13 +141,10 @@ do iTime=1,runoff_data%nTime
                         seg_per_proc,  &  ! input: number of hrus assigned to each proc
                         basinRunoff,   &  ! input: runoff data structures
                         ierr, cmessage)   ! output: error control
-  call handle_err(ierr,cmessage)
+  if(ierr/=0) call handle_err(ierr, cmessage)
 
-  ! *****
-  ! * Output
-  ! ************************
   call output(ierr, cmessage)
-  call handle_err(ierr,cmessage)
+  if(ierr/=0) call handle_err(ierr, cmessage)
 
   ! increment time bounds
   TSEC(0) = TSEC(0) + dt
@@ -179,4 +175,4 @@ contains
  endif
  end subroutine handle_err
 
-end
+end program route_runoff
