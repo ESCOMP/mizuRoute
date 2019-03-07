@@ -33,9 +33,8 @@ contains
  ! *********************************************************************
  subroutine comm_ntopo_data(pid,          & ! input: proc id
                             nNodes,       & ! input: number of procs
-                            _nEns,        & ! input: number of ensembles
-                            nSeg,         & ! input: number of stream segments in whole domain
-                            nHRU,         & ! input: number of HRUs in whole domain
+                            nRch_in,      & ! input: number of stream segments in whole domain
+                            nHRU_in,      & ! input: number of HRUs that are connected to reaches
                             structHRU,    & ! input: data structure for HRUs
                             structSEG,    & ! input: data structure for stream segments
                             structHRU2seg,& ! input: data structure for mapping hru2basin
@@ -58,15 +57,15 @@ contains
   USE globalData,        ONLY: nDomain              ! count of decomposed domains (tributaries + mainstems)
   USE globalData,        ONLY: RCHFLX, RCHFLX_local
   USE globalData,        ONLY: KROUTE, KROUTE_local
+  USE globalData,        ONLY: nEns
   USE public_var
 
   implicit none
   ! Input variables
   integer(i4b),                   intent(in)  :: pid                      ! process id (MPI)
   integer(i4b),                   intent(in)  :: nNodes                   ! number of processes (MPI)
-  integer(i4b),                   intent(in)  :: _nEns                    ! temporarily
-  integer(i4b),                   intent(in)  :: nSeg                     ! number of total segments
-  integer(i4b),                   intent(in)  :: nHRU                     ! number of total hru
+  integer(i4b),                   intent(in)  :: nRch_in                  ! number of total segments
+  integer(i4b),                   intent(in)  :: nHRU_in                  ! number of total hru
   type(var_dlength), allocatable, intent(in)  :: structHRU(:)             ! HRU properties
   type(var_dlength), allocatable, intent(in)  :: structSEG(:)             ! stream segment properties
   type(var_ilength), allocatable, intent(in)  :: structHRU2SEG(:)         ! HRU to SEG mapping
@@ -103,18 +102,18 @@ contains
   real(dp),          allocatable              :: length_local(:)           ! reach length array in decomposed network
   real(dp),          allocatable              :: area_local(:)             ! hru area in decomposed network
   ! flat array for the entire river network per reach/hru
-  integer(i4b)                                :: hruId(nHRU)               ! hru id for all the HRUs
-  integer(i4b)                                :: hruSegId(nSeg)            ! hru-to-seg mapping for each hru
-  integer(i4b)                                :: segId(nSeg)               ! reach id for all the segments
-  integer(i4b)                                :: downSegId(nSeg)           ! downstream reach ID for each reach
-  real(dp)                                    :: slope(nSeg)               ! reach slope array for each reach
-  real(dp)                                    :: length(nSeg)              ! reach length array for each reach
-  real(dp)                                    :: area(nHRU)                ! hru area for each hru
-  integer(i4b)                                :: ixNode(nSeg)              ! node assignment for each reach
-  character(len=32)                           :: pfaf(nSeg)                ! reach pfafcode for each reach
-  integer(i4b)                                :: iySubHRU(nHRU)            ! local HRU index
-  integer(i4b)                                :: iySubSEG(nSeg)            ! local reach index
-  logical(lgt)                                :: isTrib(nSeg)              ! logical to indicate tributary seg or not
+  integer(i4b)                                :: hruId(nHRU_in)            ! hru id for all the HRUs
+  integer(i4b)                                :: hruSegId(nRch_in)         ! hru-to-seg mapping for each hru
+  integer(i4b)                                :: segId(nRch_in)            ! reach id for all the segments
+  integer(i4b)                                :: downSegId(nRch_in)        ! downstream reach ID for each reach
+  real(dp)                                    :: slope(nRch_in)            ! reach slope array for each reach
+  real(dp)                                    :: length(nRch_in)           ! reach length array for each reach
+  real(dp)                                    :: area(nHRU_in)             ! hru area for each hru
+  integer(i4b)                                :: ixNode(nRch_in)           ! node assignment for each reach
+  character(len=32)                           :: pfaf(nRch_in)             ! reach pfafcode for each reach
+  integer(i4b)                                :: iySubHRU(nHRU_in)         ! local HRU index
+  integer(i4b)                                :: iySubSEG(nRch_in)         ! local reach index
+  logical(lgt)                                :: isTrib(nRch_in)           ! logical to indicate tributary seg or not
   ! flat array for decomposed river network per domain (sub-basin)
   integer(i4b)                                :: idNode(nDomain)           ! node id array for each domain
   integer(i4b)                                :: rnkIdNode(nDomain)        ! ranked node id array for each domain
@@ -138,8 +137,8 @@ contains
 
   if (pid == root) then ! this is a root process
 
-    allocate(RCHFLX(_nEns,nSeg), KROUTE(_nEns,nSeg), stat=ierr)
-    allocate(ixSubHRU(nHRU),ixSubSEG(nSeg), stat=ierr)
+    allocate(RCHFLX(nEns,nRch_in), KROUTE(nEns,nRch_in), stat=ierr)
+    allocate(ixSubHRU(nHRU_in),ixSubSEG(nRch_in), stat=ierr)
 
     ! Create segIndex array from domains derived type. The array is sorted from node 0 through nNodes-1
     ! SegIndex Array needs to be contiguous when a chunk is sent to computing node (use sort function...)
@@ -177,7 +176,7 @@ contains
 
     ! covert component of derived data type to the arrays
     ! reach array
-    do iSeg = 1,nSeg
+    do iSeg = 1,nRch_in
      segId(iSeg)     = structNTOPO(ixSubSEG(iSeg))%var(ixNTOPO%segId)%dat(1)
      downSegId(iSeg) = structNTOPO(ixSubSEG(iSeg))%var(ixNTOPO%downSegId)%dat(1)
      slope(iSeg)     = structSEG(ixSubSEG(iSeg))%var(ixSEG%slope)%dat(1)
@@ -185,7 +184,7 @@ contains
     end do
 
     ! hru array
-    do iHru = 1,nHRU
+    do iHru = 1,nHRU_in
       hruId(iHru)    = structHRU2SEG(ixSubHRU(iHru))%var(ixHRU2SEG%HRUid)%dat(1)
       hruSegId(iHru) = structHRU2SEG(ixSubHRU(iHru))%var(ixHRU2SEG%hruSegId)%dat(1)
       area(iHru)     = structHRU(ixSubHRU(iHru))%var(ixHRU%area)%dat(1)
@@ -252,7 +251,7 @@ contains
                       structPFAF_local,      & ! inout: ancillary data for pfafstetter code
                       ierr,cmessage)           ! output: error control
 
-    allocate(RCHFLX_local(_nEns,nSeg_root), KROUTE_local(_nEns,nSeg_root), stat=ierr)
+    allocate(RCHFLX_local(nEns,nSeg_root), KROUTE_local(nEns,nSeg_root), stat=ierr)
 
     ! Populate data structure
     ! reach
@@ -291,11 +290,11 @@ contains
     call put_data_struct(nSeg_root, structSEG_local, structNTOPO_local, ierr, cmessage)
 
 !    print*, 'ix, hruId, ixSubHRU, iySubHRU, hruSegId'
-!    do ix = 1,nHRU
+!    do ix = 1,nHRU_in
 !      print*, ix, hruId(ix), ixSubHRU(ix), iySubHRU(ix), hruSegId(ix)
 !    end do
 !    print*, 'ix, segId, ixSubSEG, iySubSEG, ixNode, pfaf'
-!    do ix = 1,nSeg
+!    do ix = 1,nRch_in
 !      print*, ix, segId(ix), ixSubSEG(ix), iySubSEG(ix), ixNode(ix), pfaf(ix)
 !    enddo
 
@@ -316,7 +315,7 @@ contains
             area_local     (num_hru_received), &
             stat=ierr)
 
-    allocate(RCHFLX_local(_nEns,num_seg_received), KROUTE_local(_nEns,num_seg_received), stat=ierr)
+    allocate(RCHFLX_local(nEns,num_seg_received), KROUTE_local(nEns,num_seg_received), stat=ierr)
 
    call alloc_struct(num_hru_received,      & ! output: number of HRUs
                      num_seg_received,      & ! output: number of stream segments
@@ -402,16 +401,16 @@ contains
                              seg_per_proc,  & ! input: number of hrus assigned to each proc
                              basinRunoff,   & ! input: runoff data structures
                              ierr,message)    ! output: error control
-
   USE public_var
-  USE public_var, only : nEns                   ! number of ensembles
-  USE remapping,  only : basin2reach            ! remap runoff from routing basins to routing reaches
   USE globalData, only : RCHFLX_local           ! reach flux structure
   USE globalData, only : river_basin            ! OMP domain decomposition
   USE globalData, only : ixDesire               ! desired reach index
   USE globalData, only : TSEC                   ! beginning/ending of simulation time step [sec]
   USE globalData, only : runoff_data            !
   USE globalData, only : nHRU                   ! number of HRUs in the whoel river network
+  USE globalData, only : nEns                   ! number of ensembles
+  ! subroutine: mapping basin runoff to reach runoff
+  USE remapping,  only : basin2reach            ! remap runoff from routing basins to routing reaches
   ! subroutines: basin routing
   USE basinUH_module, only : IRF_route_basin    ! perform UH convolution for basin routing
   ! subroutines: river routing
@@ -631,9 +630,9 @@ end module mpi_routine
 
 
   ! create mapping array to map global index to local index
-  !  ixSubSEG(nSeg) : index that belong to a subbasin in global index
-  !  iySubSEG(nSeg) : local indices for a subbasin
-  !  ixMap(nSeg) : map indix from global to local
+  !  ixSubSEG(nRch_in) : index that belong to a subbasin in global index
+  !  iySubSEG(nRch_in) : local indices for a subbasin
+  !  ixMap(nRch_in) : map indix from global to local
   !
   !  examples
   !  global_ix, iySub, ixSubSEG,  ixMap, idNode
