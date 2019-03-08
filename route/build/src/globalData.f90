@@ -121,7 +121,6 @@ module globalData
 
   ! time delay histogram
   REAL(DP)        , ALLOCATABLE  , public :: FRAC_FUTURE(:)       ! fraction of runoff in future time steps
-  REAL(DP)        , ALLOCATABLE  , public :: FRAC_FUTURE_local(:) ! fraction of runoff in future time steps
 
   ! routing data structures
   TYPE(KREACH)    , allocatable  , public :: KROUTE(:,:)          ! Routing state variables (ensembles, space [reaches])
