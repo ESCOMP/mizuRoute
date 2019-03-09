@@ -73,10 +73,8 @@ contains
  use network_topo,     only:reach_list            ! reach list
  use network_topo,     only:reach_mask            ! identify all reaches upstream of a given reach
  ! Routing parameter estimation routine
- use routing_param,    only:basinUH               ! construct basin unit hydrograph
  use routing_param,    only:make_uh               ! construct reach unit hydrograph
  ! routing spatial constant parameters
- use globalData,       only:fshape, tscale        ! basin IRF routing parameters (Transfer function parameters)
  use globalData,       only:mann_n, wscale        ! KWT routing parameters (Transfer function parameters)
  use globalData,       only:velo, diff            ! IRF routing parameters (Transfer function parameters)
 
@@ -205,10 +203,6 @@ contains
 
  ! ---------- Compute routing parameters  --------------------------------------------------------------------
 
- ! get lag times in the basin unit hydrograph
- call basinUH(dt, fshape, tscale, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
  ! compute hydraulic geometry (width and Manning's "n")
  if(hydGeometryOption==compute)then
 
@@ -295,10 +289,12 @@ end subroutine augment_ntopo
  ! ---------- temporary code: populate old data structures --------------------------------------------------
  subroutine put_data_struct(nSeg, structSEG, structNTOPO, ierr, message)
   ! Updating global parameters
-  use globalData, only : RPARAM             ! Reach parameters
-  use globalData, only : NETOPO             ! Network topology
-
-  USE public_var, only : min_slope          ! minimum slope
+  use routing_param, only : basinUH            ! construct basin unit hydrograph
+  use globalData,    only : RPARAM             ! Reach parameters
+  use globalData,    only : NETOPO             ! Network topology
+  use globalData,    only : fshape, tscale     ! basin IRF routing parameters (Transfer function parameters)
+  USE public_var,    only : min_slope          ! minimum slope
+  USE public_var,    only : dt                 ! simulation time step [sec]
 
   implicit none
   ! input
@@ -316,6 +312,10 @@ end subroutine augment_ntopo
 
   ! initialize error control
   ierr=0; message='put_data_struct/'
+
+  ! get lag times in the basin unit hydrograph (not sure this is right place...)
+  call basinUH(dt, fshape, tscale, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! allocate space
   allocate(RPARAM(nSeg), NETOPO(nSeg), stat=ierr)
