@@ -131,15 +131,15 @@ contains
                       is_remap,        & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
                       remap_data,      & ! output: data structure to remap data
                       runoff_data,     & ! output: data structure for runoff
-                      ierr, message)     ! output: error control
+                      ierr, cmessage)    ! output: error control
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      ! DateTime initialization
-     call init_time(runoff_data%ntime, ierr, message)
+     call init_time(runoff_data%ntime, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      ! channel state initialization
-     call init_state(ierr, message)
+     call init_state(ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    end if
@@ -250,12 +250,15 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! extract time information from the control information
-  call process_time(time_units,    calendar, refJulday,   ierr, cmessage); if(ierr/=0) message=trim(message)//trim(cmessage)//' [refJulday]'; return
-  call process_time(trim(simStart),calendar, startJulday, ierr, cmessage); if(ierr/=0) message=trim(message)//trim(cmessage)//' [startJulday]'; return
-  call process_time(trim(simEnd),  calendar, endJulday,   ierr, cmessage); if(ierr/=0) message=trim(message)//trim(cmessage)//' [endJulday]'; return
+  call process_time(time_units,    calendar, refJulday,   ierr, cmessage)
+  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [refJulday]'; return; endif
+  call process_time(trim(simStart),calendar, startJulday, ierr, cmessage)
+  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [startJulday]'; return; endif
+  call process_time(trim(simEnd),  calendar, endJulday,   ierr, cmessage)
+  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endJulday]'; return; endif
 
   ! check that the dates are aligned
-  if(endJulday<startJulday) ierr=20; message=trim(message)//'simulation end is before simulation start'; return
+  if(endJulday<startJulday) then; ierr=20; message=trim(message)//'simulation end is before simulation start'; return; endif
 
   ! initialize previous model time
   modTime(0:1) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
