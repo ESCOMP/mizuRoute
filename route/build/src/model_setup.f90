@@ -22,8 +22,9 @@ contains
  ! *********************************************************************
  ! public subroutine: model setupt
  ! *********************************************************************
- subroutine init_model(pid, ierr, message)
+ subroutine init_model(pid, cfile_name, ierr, message)
 
+  ! shared data used
   USE public_var,          only : ancil_dir
   USE public_var,          only : param_nml
   ! subroutines: populate metadata
@@ -35,11 +36,11 @@ contains
   implicit none
 
   integer(i4b), intent(in)    :: pid               ! process id
+  character(*), intent(in)    :: cfile_name        ! name of the control file
   ! output: error control
   integer(i4b), intent(out)   :: ierr              ! error code
   character(*), intent(out)   :: message           ! error message
   ! local variables
-  character(len=strLen)       :: cfile_name        ! name of the control file
   character(len=strLen)       :: cmessage          ! error message of downwind routine
 
   ! initialize error control
@@ -51,10 +52,6 @@ contains
    ! populate the metadata files
    call popMetadat(ierr,cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   ! get command-line argument defining the full path to the control file
-   call getarg(1,cfile_name)
-   if(len_trim(cfile_name)==0) ierr=50;message=trim(message)//'need to supply name of the control file as a command-line argument'; return
 
    ! read the control file
    call read_control(trim(cfile_name), ierr, cmessage)
@@ -118,7 +115,7 @@ contains
                    nHRU, nRch,                                                   & ! output: number of HRU and Reaches
                    structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
                    ixSubHRU, ixSubSEG, hru_per_proc, seg_per_proc,               & ! output: MPI domain decomposition data
-                   ierr, message)                                                  ! output: error controls
+                   ierr, cmessage)                                                 ! output: error controls
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    if (pid==0) then
@@ -334,6 +331,7 @@ contains
   ierr=0; message='init_ntopo/'
 
   if (pid==0) then
+
   ! need to update maxPfafLen to the exact character size for pfaf code in netCDF
   call get_var_dims(trim(ancil_dir)//trim(fname_ntopOld), & ! input: file name
                     trim(meta_PFAF(ixPFAF%code)%varName), & ! input: pfaf code variable name in netcdf
