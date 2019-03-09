@@ -216,31 +216,31 @@ contains
       ! reach
       call MPI_SEND(segId(ixSeg1),     seg_per_proc(myid), MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
       call MPI_SEND(downSegId(ixSeg1), seg_per_proc(myid), MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-      call MPI_SEND(slope(ixSeg1),     seg_per_proc(myid), MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-      call MPI_SEND(length(ixSeg1),    seg_per_proc(myid), MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(length(ixSeg1),    seg_per_proc(myid), MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(slope(ixSeg1),     seg_per_proc(myid), MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
       ! hru
       call MPI_SEND(hruId(ixHru1),    hru_per_proc(myid), MPI_INT,   myid, send_data_tag, MPI_COMM_WORLD, ierr)
       call MPI_SEND(hruSegId(ixHru1), hru_per_proc(myid), MPI_INT,   myid, send_data_tag, MPI_COMM_WORLD, ierr)
-      call MPI_SEND(area(ixHru1),     hru_per_proc(myid), MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(area(ixHru1),     hru_per_proc(myid), MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
      ! other public/global data
       call MPI_SEND(desireId,1, MPI_INT,   myid, send_data_tag, MPI_COMM_WORLD, ierr)
       call MPI_SEND(routOpt, 1, MPI_INT,   myid, send_data_tag, MPI_COMM_WORLD, ierr)
-      call MPI_SEND(dt,      1, MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-      call MPI_SEND(fshape,  1, MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-      call MPI_SEND(tscale,  1, MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-      call MPI_SEND(velo,    1, MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-      call MPI_SEND(diff,    1, MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-      call MPI_SEND(mann_n,  1, MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-      call MPI_SEND(wscale,  1, MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(dt,      1, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(fshape,  1, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(tscale,  1, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(velo,    1, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(diff,    1, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(mann_n,  1, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(wscale,  1, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
 
     end do
-
-    ! find index of desired reach
-    ixDesire = findIndex(segId(1:nSeg_root), desireId, integerMissing)
 
     ! reach assigned to root proc
     nSeg_root=seg_per_proc(root)   ! number of seg in root proc
     nHRU_root=hru_per_proc(root)   ! number of hru in root proc
+
+    ! find index of desired reach
+    ixDesire = findIndex(segId(1:nSeg_root), desireId, integerMissing)
 
     call alloc_struct(nHRU_root,             & ! output: number of HRUs
                       nSeg_root,             & ! output: number of stream segments
@@ -250,6 +250,7 @@ contains
                       structNTOPO_local,     & ! inout: ancillary data for network toopology
                       structPFAF_local,      & ! inout: ancillary data for pfafstetter code
                       ierr,cmessage)           ! output: error control
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     allocate(RCHFLX_local(nEns,nSeg_root), KROUTE_local(nEns,nSeg_root), stat=ierr)
 
@@ -286,7 +287,8 @@ contains
                        ixSeg_desired_local,          & ! indices of desired reaches
                        ! output: error control
                        ierr, cmessage)
-
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    print*, 'pid, nHRU_root, nSeg_root, tot_hru_local, tot_upseg_local, tot_upstream_local, tot_uh_local =', pid, nHRU_root, nSeg_root, tot_hru_local, tot_upseg_local, tot_upstream_local, tot_uh_local
     call put_data_struct(nSeg_root, structSEG_local, structNTOPO_local, ierr, cmessage)
 
 !    print*, 'ix, hruId, ixSubHRU, iySubHRU, hruSegId'
@@ -300,6 +302,7 @@ contains
 
   else
    call popMetadat(ierr,cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! recieve number of elements to be recieved
    call MPI_RECV(num_seg_received, 1, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
@@ -315,7 +318,7 @@ contains
             area_local     (num_hru_received), &
             stat=ierr)
 
-    allocate(RCHFLX_local(nEns,num_seg_received), KROUTE_local(nEns,num_seg_received), stat=ierr)
+   allocate(RCHFLX_local(nEns,num_seg_received), KROUTE_local(nEns,num_seg_received), stat=ierr)
 
    call alloc_struct(num_hru_received,      & ! output: number of HRUs
                      num_seg_received,      & ! output: number of stream segments
@@ -330,22 +333,22 @@ contains
    ! reach
    call MPI_RECV(segId_local,     num_seg_received, MPI_INT,   root, send_data_tag, MPI_COMM_WORLD, status, ierr)
    call MPI_RECV(downSegId_local, num_seg_received, MPI_INT,   root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-   call MPI_RECV(length_local,    num_seg_received, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-   call MPI_RECV(slope_local,     num_seg_received, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+   call MPI_RECV(length_local,    num_seg_received, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+   call MPI_RECV(slope_local,     num_seg_received, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
    ! hru
    call MPI_RECV(hruId_local,     num_hru_received, MPI_INT,   root, send_data_tag, MPI_COMM_WORLD, status, ierr)
    call MPI_RECV(hruSegId_local,  num_hru_received, MPI_INT,   root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-   call MPI_RECV(area_local,      num_hru_received, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+   call MPI_RECV(area_local,      num_hru_received, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
    ! other public/global data
    call MPI_RECV(desireId,1, MPI_INT,   root, send_data_tag, MPI_COMM_WORLD, status, ierr)
    call MPI_RECV(routOpt, 1, MPI_INT,   root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-   call MPI_RECV(dt,      1, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-   call MPI_RECV(fshape,  1, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-   call MPI_RECV(tscale,  1, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-   call MPI_RECV(velo,    1, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-   call MPI_RECV(diff,    1, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-   call MPI_RECV(mann_n,  1, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-   call MPI_RECV(wscale,  1, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+   call MPI_RECV(dt,      1, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+   call MPI_RECV(fshape,  1, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+   call MPI_RECV(tscale,  1, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+   call MPI_RECV(velo,    1, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+   call MPI_RECV(diff,    1, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+   call MPI_RECV(mann_n,  1, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+   call MPI_RECV(wscale,  1, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
 
    ! Populate data structure
    ! reach
@@ -357,10 +360,6 @@ contains
    forall(ix=1:num_hru_received) structHRU2SEG_local(ix)%var(ixHRU2SEG%HRUid)%dat(1)    = hruId_local(ix)
    forall(ix=1:num_hru_received) structHRU2SEG_local(ix)%var(ixHRU2SEG%hruSegId)%dat(1) = hruSegId_local(ix)
    forall(ix=1:num_hru_received) structHRU_local    (ix)%var(ixHRU%area)%dat(1)         = area_local(ix)
-
-!   dt = 86400._dp
-!   fshape=2.5_dp
-!   tscale=86400._dp
 
    ! find index of desired reach
    ixDesire = findIndex(segId_local, desireId, integerMissing)
@@ -384,6 +383,7 @@ contains
                    ! output: error control
                    ierr, cmessage)
 
+   print*, 'pid, num_hru_received, num_seg_received, tot_hru_local, tot_upseg_local, tot_upstream_local, tot_uh_local =', pid, num_hru_received, num_seg_received, tot_hru_local, tot_upseg_local, tot_upstream_local, tot_uh_local
    call put_data_struct(num_seg_received, structSEG_local, structNTOPO_local, ierr, cmessage)
 
   endif
@@ -466,7 +466,7 @@ contains
       call MPI_SEND(hru_per_proc(myid), 1, MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
       call MPI_SEND(seg_per_proc(myid), 1, MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
       ! Send regular 1D array
-      call MPI_SEND(basinRunoff_sorted(ixHru1), hru_per_proc(myid), MPI_REAL8, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(basinRunoff_sorted(ixHru1), hru_per_proc(myid), MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
     end do
 
     allocate(basinRunoff_local(hru_per_proc(root)), stat=ierr)
@@ -522,6 +522,10 @@ contains
       endif
     end do
 
+    ! update model time step bound
+    TSEC(0) = TSEC(0) + dt
+    TSEC(1) = TSEC(0) + dt
+
   else
 
     T0=TSEC(0); T1=TSEC(1)
@@ -532,7 +536,7 @@ contains
     allocate(basinRunoff_local(num_hru_received), stat=ierr)
     allocate(reachRunoff_local(num_seg_received), stat=ierr)
 
-    call MPI_RECV(basinRunoff_local, num_hru_received, MPI_REAL8, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+    call MPI_RECV(basinRunoff_local, num_hru_received, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
 
     ! 1. subroutine: map basin runoff to river network HRUs
     ! map the basin runoff to the stream network...
@@ -583,7 +587,11 @@ contains
       endif
     end do
 
-  endif
+    ! update model time step bound
+    TSEC(0) = TSEC(0) + dt
+    TSEC(1) = TSEC(0) + dt
+
+  endif ! end of tasks
 
  end subroutine comm_runoff_data
 
