@@ -51,6 +51,11 @@ module globalData
 
   save
 
+  ! ---------- MPI variables -------------------------------------------------------------------
+
+  integer(i4b)                  :: pid                 ! process id
+  integer(i4b)                  :: nNodes              ! number of nodes
+
   ! ---------- physical constants -------------------------------------------------------------------
 
   real(dp)          , parameter  , public :: pi=3.14159265359_dp        ! pi
