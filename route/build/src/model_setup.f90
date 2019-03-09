@@ -10,6 +10,8 @@ USE dataTypes, only : var_dlength,dlength ! double precision type: var(:)%dat, o
 USE public_var, only : integerMissing
 USE public_var, only : realMissing
 
+USE globalData, only : pid, nNodes             ! procs id and number of procs
+
 implicit none
 
 ! privacy -- everything private unless declared explicitly
@@ -22,7 +24,7 @@ contains
  ! *********************************************************************
  ! public subroutine: model setupt
  ! *********************************************************************
- subroutine init_model(pid, cfile_name, ierr, message)
+ subroutine init_model(cfile_name, ierr, message)
 
   ! shared data used
   USE public_var,          only : ancil_dir
@@ -35,7 +37,6 @@ contains
 
   implicit none
 
-  integer(i4b), intent(in)    :: pid               ! process id
   character(*), intent(in)    :: cfile_name        ! name of the control file
   ! output: error control
   integer(i4b), intent(out)   :: ierr              ! error code
@@ -46,12 +47,12 @@ contains
   ! initialize error control
   ierr=0; message='init_model/'
 
+  ! populate the metadata files
+  call popMetadat(ierr,cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
   ! if the master node
   if (pid==0) then
-
-   ! populate the metadata files
-   call popMetadat(ierr,cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! read the control file
    call read_control(trim(cfile_name), ierr, cmessage)
@@ -62,14 +63,15 @@ contains
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   endif  ! if the master node
+
  end subroutine init_model
 
 
  ! *********************************************************************
  ! public subroutine: initialize river network, runoff, and runoff-mapping data
  ! *********************************************************************
- subroutine init_data(nNodes,        & ! input: number of procs
-                      pid,           & ! input: proc id
+ subroutine init_data(pid,           & ! input: proc id
+                      nNodes,        & ! input: number of procs
                       ixSubHRU,      & ! output:
                       ixSubSEG,      & ! output:
                       hru_per_proc,  & ! output:
@@ -84,11 +86,12 @@ contains
   USE globalData,  only : reachID                ! reach ID vector
   USE globalData,  only : runoff_data            ! runoff data structure
   USE globalData,  only : remap_data             ! runoff mapping data structure
+  USE mpi_routine, only : pass_public_vars       ! mpi data copy to slave proc
 
    implicit none
    ! input:
-   integer(i4b),              intent(in)    :: nNodes           ! number of procs
    integer(i4b),              intent(in)    :: pid              ! proc id
+   integer(i4b),              intent(in)    :: nNodes           ! number of procs
    ! out:
    integer(i4b), allocatable, intent(out)   :: ixSubHRU(:)      ! global HRU index in the order of domains
    integer(i4b), allocatable, intent(out)   :: ixSubSEG(:)      ! global reach index in the order of domains
@@ -111,13 +114,17 @@ contains
    ! initialize error control
    ierr=0; message='init_data/'
 
-   call init_ntopo(nNodes, pid,                                                  & ! input:  number of Procs and proc id
+   ! populate various river network data strucutures for each proc
+   call init_ntopo(pid, nNodes,                                                  & ! input:  number of Procs and proc id
                    nHRU, nRch,                                                   & ! output: number of HRU and Reaches
                    structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
                    ixSubHRU, ixSubSEG, hru_per_proc, seg_per_proc,               & ! output: MPI domain decomposition data
                    ierr, cmessage)                                                 ! output: error controls
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+   ! populate basiID and reachID vectors for output (in only master node)
+   ! pupulate runoff data structure (only meta, no runoff values)
+   ! pupulate remap data structure
    if (pid==0) then
 
      allocate(basinID(nHRU), reachID(nRch), stat=ierr)
@@ -144,7 +151,11 @@ contains
 
    end if
 
+   call pass_public_vars(pid, nNodes, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  end subroutine init_data
+
 
  ! *********************************************************************
  ! private subroutine: initialize channel state data
@@ -269,7 +280,7 @@ contains
  ! *********************************************************************
  ! private subroutine: initialize river network data
  ! *********************************************************************
- subroutine init_ntopo(nNodes, pid,                                                  & ! input:  number of Procs and proc id
+ subroutine init_ntopo(pid, nNodes,                                                    & ! input:  number of Procs and proc id
                        nHRU_out, nRch_out,                                             & ! output: number of HRU and Reaches
                        structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
                        ixSubHRU, ixSubSEG, hru_per_proc, seg_per_proc,               & ! output: MPI domain decomposition data
@@ -301,8 +312,8 @@ contains
   USE mpi_routine,          only : comm_ntopo_data
   implicit none
   ! input:
-  integer(i4b)      , intent(in)              :: nNodes                   ! number of procs
   integer(i4b)      , intent(in)              :: pid                      ! proc id
+  integer(i4b)      , intent(in)              :: nNodes                   ! number of procs
   ! output (river network data structures for the entire domain)
   integer(i4b)                  , intent(out) :: nHRU_out                 ! number of HRUs
   integer(i4b)                  , intent(out) :: nRch_out                 ! number of reaches
@@ -483,7 +494,7 @@ contains
  call read_runoff_metadata(trim(input_dir)//trim(fname_qsim), & ! input: filename
                           runoff_data_in,                     & ! output: runoff data structure
                           time_units, calendar,               & ! output: number of time steps, time units, calendar
-                          ierr, cmessage)                      ! output: error control
+                          ierr, cmessage)                       ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  !print*, 'runoff_data_in%nSpace, nTime, trim(time_units) = ', runoff_data_in%nSpace(:), runoff_data_in%nTime, trim(time_units)

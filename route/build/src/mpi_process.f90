@@ -25,6 +25,7 @@ private
 
 public :: comm_ntopo_data
 public :: comm_runoff_data
+public :: pass_public_vars
 
 contains
 
@@ -45,7 +46,6 @@ contains
                             seg_per_proc, & ! number of reaches assigned to each proc (i.e., node)
                             ierr,message)   ! output: error control
 
-  USE popMetadat_module, ONLY: popMetadat           ! populate metadata
   USE alloc_data,        ONLY: alloc_struct
   USE process_ntopo,     ONLY: augment_ntopo        ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,     ONLY: put_data_struct      !
@@ -222,7 +222,7 @@ contains
       call MPI_SEND(hruId(ixHru1),    hru_per_proc(myid), MPI_INT,   myid, send_data_tag, MPI_COMM_WORLD, ierr)
       call MPI_SEND(hruSegId(ixHru1), hru_per_proc(myid), MPI_INT,   myid, send_data_tag, MPI_COMM_WORLD, ierr)
       call MPI_SEND(area(ixHru1),     hru_per_proc(myid), MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-     ! other public/global data
+     ! other global data
       call MPI_SEND(desireId,1, MPI_INT,   myid, send_data_tag, MPI_COMM_WORLD, ierr)
       call MPI_SEND(routOpt, 1, MPI_INT,   myid, send_data_tag, MPI_COMM_WORLD, ierr)
       call MPI_SEND(dt,      1, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
@@ -301,8 +301,6 @@ contains
 !    enddo
 
   else
-   call popMetadat(ierr,cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! recieve number of elements to be recieved
    call MPI_RECV(num_seg_received, 1, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
@@ -594,6 +592,49 @@ contains
   endif ! end of tasks
 
  end subroutine comm_runoff_data
+
+ ! *********************************************************************
+ ! public subroutine: send public information to tasks
+ ! *********************************************************************
+ ! send all the necessary public variables to slave procs
+ subroutine pass_public_vars(pid,          & ! input: proc id
+                             nNodes,       & ! input: number of procs
+                             ierr,message)   ! output: error control
+
+  USE public_var
+
+  implicit none
+  ! Input variables
+  integer(i4b),                   intent(in)  :: pid                      ! process id (MPI)
+  integer(i4b),                   intent(in)  :: nNodes                   ! number of processes (MPI)
+  ! Output error handling variables
+  integer(i4b),                   intent(out) :: ierr
+  character(len=strLen),          intent(out) :: message                   ! error message
+  ! Local variables
+  integer(i4b)                                :: myid                     ! process id indices
+  integer(i4b), parameter                     :: root=0                    ! root node id
+  integer(i4b), parameter                     :: send_data_tag=2001
+  integer(i4b), parameter                     :: return_data_tag=2002
+  integer(i4b)                                :: status(MPI_STATUS_SIZE)
+  character(len=strLen)                       :: cmessage                  ! error message from subroutine
+
+  ierr=0; message='pass_public_vars/'
+
+  if (pid == root) then ! this is a root process
+
+    do myid = 1, nNodes-1
+     call MPI_SEND(startJulday,1,      MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+     call MPI_SEND(endJulday,  1,      MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+    end do
+
+  else
+
+     call MPI_RECV(startJulday,1,      MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+     call MPI_RECV(endJulday,  1,      MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+
+  endif
+
+ end subroutine pass_public_vars
 
 end module mpi_routine
 
