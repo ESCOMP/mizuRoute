@@ -21,7 +21,8 @@ CONTAINS
  ! *********************************************************************
  ! public subroutine: define routing output NetCDF file
  ! *********************************************************************
- SUBROUTINE output(ierr, message)    ! out:   error control
+ SUBROUTINE output(pid,  &           ! in:    proc id
+                   ierr, message)    ! out:   error control
 
   !Dependent modules
   USE public_var,          only : doesBasinRoute      ! basin routing options   0-> no, 1->IRF, otherwise error
@@ -36,6 +37,8 @@ CONTAINS
 
   implicit none
 
+  ! input variables
+  integer(i4b), intent(in)        :: pid              ! proc id
   ! output variables
   integer(i4b), intent(out)       :: ierr             ! error code
   character(*), intent(out)       :: message          ! error message
@@ -43,44 +46,48 @@ CONTAINS
   integer(i4b)                    :: iens             ! temporal
   character(len=strLen)           :: cmessage         ! error message of downwind routine
 
-  ! initialize error control
-  ierr=0; message='output/'
+  if (pid==0) then
 
-  iens = 1
+    ! initialize error control
+    ierr=0; message='output/'
 
-  ! write time -- note time is just carried across from the input
-  call write_nc(trim(fileout), 'time', (/runoff_data%time/), (/jTime/), (/1/), ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    iens = 1
 
-  ! write the basin runoff to the netcdf file
-  call write_nc(trim(fileout), 'basRunoff', runoff_data%basinRunoff, (/1,jTime/), (/nHRU,1/), ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! write time -- note time is just carried across from the input
+    call write_nc(trim(fileout), 'time', (/runoff_data%time/), (/jTime/), (/1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  if (doesBasinRoute == 1) then
-   ! write instataneous local runoff in each stream segment (m3/s)
-   call write_nc(trim(fileout), 'instRunoff', RCHFLX(iens,:)%BASIN_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
+    ! write the basin runoff to the netcdf file
+    call write_nc(trim(fileout), 'basRunoff', runoff_data%basinRunoff, (/1,jTime/), (/nHRU,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! write routed local runoff in each stream segment (m3/s)
-  call write_nc(trim(fileout), 'dlayRunoff', RCHFLX(iens,:)%BASIN_QR(1), (/1,jTime/), (/nRch,1/), ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if (doesBasinRoute == 1) then
+     ! write instataneous local runoff in each stream segment (m3/s)
+     call write_nc(trim(fileout), 'instRunoff', RCHFLX(iens,:)%BASIN_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
 
-  ! write accumulated runoff (m3/s)
-  call write_nc(trim(fileout), 'sumUpstreamRunoff', RCHFLX(iens,:)%UPSTREAM_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! write routed local runoff in each stream segment (m3/s)
+    call write_nc(trim(fileout), 'dlayRunoff', RCHFLX(iens,:)%BASIN_QR(1), (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
-   ! write routed runoff (m3/s)
-   call write_nc(trim(fileout), 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,jTime/), (/nRch,1/), ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
+    ! write accumulated runoff (m3/s)
+    call write_nc(trim(fileout), 'sumUpstreamRunoff', RCHFLX(iens,:)%UPSTREAM_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
-   ! write routed runoff (m3/s)
-   call write_nc(trim(fileout), 'IRFroutedRunoff', RCHFLX(iens,:)%REACH_Q_IRF, (/1,jTime/), (/nRch,1/), ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
+    if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
+     ! write routed runoff (m3/s)
+     call write_nc(trim(fileout), 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+    if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+     ! write routed runoff (m3/s)
+     call write_nc(trim(fileout), 'IRFroutedRunoff', RCHFLX(iens,:)%REACH_Q_IRF, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+  end if
 
  end subroutine output
 
@@ -88,8 +95,9 @@ CONTAINS
  ! *********************************************************************
  ! public subroutine: define routing output NetCDF file
  ! *********************************************************************
- SUBROUTINE prep_output(iTime,          & ! in:    time index
-                        modJulday,      & ! out:   current simulation julian day
+ SUBROUTINE prep_output(pid,            & ! in:    proc id
+                        iTime,          & ! in:    time index
+                        skip_timestep,  & ! out:   check if current time step is within start and end of simulation time
                         ierr, message)    ! out:   error control
  !Dependent modules
  USE public_var,          only : refJulday         ! julian day: reference
@@ -110,43 +118,49 @@ CONTAINS
  implicit none
 
  ! input variables
+ integer(i4b), intent(in)        :: pid              ! proc id
  integer(i4b), intent(in)        :: iTime            ! simulation time index
  ! output variables
- real(dp),     intent(out)       :: modJulday        ! julian day: model simulation
+ logical(lgt), intent(out)       :: skip_timestep    ! check if current time step is within start and end of simulation time
  integer(i4b), intent(out)       :: ierr             ! error code
  character(*), intent(out)       :: message          ! error message
  ! local variables
+ real(dp)                        :: modJulday        ! julian day: model simulation
  real(dp)                        :: convTime2Days    ! conversion factor to convert time to units of days
  logical(lgt)                    :: defnewoutputfile ! flag to define new output file
  character(len=strLen)           :: cmessage         ! error message of downwind routine
 
- ! initialize error control
- ierr=0; message='prep_output/'
+ if (pid==0) then
 
- ! get the time multiplier needed to convert time to units of days
- select case( trim( time_units(1:index(time_units,' ')) ) )
-  case('seconds'); convTime2Days=86400._dp
-  case('hours');   convTime2Days=24._dp
-  case('days');    convTime2Days=1._dp
-  case default;    ierr=20; message=trim(message)//'unable to identify time units'; return
- end select
+   ! initialize error control
+   ierr=0; message='prep_output/'
 
- ! get the julian day of the model simulation
- modJulday = refJulday + timeVar(iTime)/convTime2Days
+   skip_timestep = .false.
 
- if(modJulday < startJulday .or. modJulday > endJulday) then
-   return
- endif
+   ! get the time multiplier needed to convert time to units of days
+   select case( trim( time_units(1:index(time_units,' ')) ) )
+    case('seconds'); convTime2Days=86400._dp
+    case('hours');   convTime2Days=24._dp
+    case('days');    convTime2Days=1._dp
+    case default;    ierr=20; message=trim(message)//'unable to identify time units'; return
+   end select
 
- ! get the time
- select case(trim(calendar))
-  case('noleap')
-   call compCalday_noleap(modJulday,modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,ierr,cmessage)
-  case ('standard','gregorian','proleptic_gregorian')
-   call compCalday(modJulday,modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,ierr,cmessage)
-  case default;    ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
- end select
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   ! get the julian day of the model simulation
+   modJulday = refJulday + timeVar(iTime)/convTime2Days
+   if(modJulday < startJulday .or. modJulday > endJulday) then
+     skip_timestep = .true.
+     return
+   endif
+
+  ! get the time
+  select case(trim(calendar))
+   case('noleap')
+    call compCalday_noleap(modJulday,modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,ierr,cmessage)
+   case ('standard','gregorian','proleptic_gregorian')
+    call compCalday(modJulday,modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,ierr,cmessage)
+   case default;    ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
+  end select
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! print progress
   !print*, modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin
@@ -190,12 +204,14 @@ CONTAINS
     call write_nc(trim(fileout), 'reachID', reachID, (/1/), (/nRch/), ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! no new file requested: increment time
-  else
-    jTime = jTime+1
-  endif
+   ! no new file requested: increment time
+   else
+     jTime = jTime+1
+   endif
 
-  modTime(0) = modTime(1)
+   modTime(0) = modTime(1)
+
+  endif ! pid
 
  END SUBROUTINE prep_output
 
