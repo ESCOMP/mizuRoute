@@ -277,8 +277,22 @@ contains
 
 
  recursive subroutine decomposition(pfafs, segIndex, downIndex, pfafCode, maxSegs, ierr, message)
-   ! Given a basin pfaf-code ("pfafCode") and segment information (segment pfaf-codes, segment index, and downstream index),
-   ! this basin's river network is split into sub-basin domains with less than "maxSeg"
+
+   ! River network decomposition
+   !
+   ! Given a basin pfaf-code ("pfafCode") and reach information (reach pfaf-codes, reach index, and downstream index),
+   ! basin is further split into sub-basin domains with less than "maxSeg" of reaches
+   !
+   ! details:
+   ! Given a basin pfaf-code (e.g.,968),
+   ! 1.Examine number of reach, nSeg, for one higher level subbasin (e.g., 9681,9682,..9689)
+   !
+   ! 2.If the nSeg < maxSegs, call aggregation routine (see aggregation subroutine)
+   !    2.1. if the basin is tributary or headwater, it is one domain, and update domains data structure
+   !    2.2. if the basin is inter-basin, further this basin is decomposed into mainstems and tributaries and update domains data structure
+   !
+   ! 3. if the nSeg > maxSegs, call decomposition routine to examine one higher level subbasin
+
    implicit none
    ! Input variables
    character(len=32),              intent(in)  :: pfafs(:)        ! pfaf_code list
@@ -371,10 +385,12 @@ contains
 
  subroutine aggregate(pfafCode, pfafs, segIndex, downIndex, ierr, message)
 
-   ! Given a basin defined by "pfafCode", identify mainstem and tributaries.
-   ! Assign minu pfafCode (pfafCode=968 -> -968) to mainstem reaches, and
-   ! Identify a mainstem code for each tributary and assing that mainstem code to the reaches in the tributary
-   ! Modified data structure -> domains
+   ! Given a basin defined by "pfafCode",
+   ! if a basin is tributaries, headwater, no further domain splits
+   ! if a basin is inter-basin, split the basin into mainstem and tributaries.
+   ! Assign minus pfafCode (pfafCode=968 -> -968) to mainstem reaches
+   !
+   ! Update data structure -> domains
    ! domains(:)%pfaf           code for mainstem reach or tributaries
    !           %segIndex(:)    indices of reaches that belong to pfaf
 
@@ -481,7 +497,7 @@ contains
        if(ierr/=0)then; message=trim(message)//'problem deallocating [ixSubset]'; return; endif
      end do
 
-   else    ! a river reach is in inter-basin or headwater
+   else   ! basin is tributaries, headwater
 
      nDomain = nDomain + 1
      allocate(domains(nDomain)%segIndex(size(segIndex)), stat=ierr)
