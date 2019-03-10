@@ -24,7 +24,7 @@ implicit none
 private
 
 public :: comm_ntopo_data
-public :: comm_runoff_data
+public :: mpi_route
 public :: pass_public_vars
 
 contains
@@ -133,7 +133,7 @@ contains
   integer(i4b)                                :: status(MPI_STATUS_SIZE)
   character(len=strLen)                       :: cmessage                  ! error message from subroutine
 
-  ierr=0; message='commun_ntopo_data/'
+  ierr=0; message='comm_ntopo_data/'
 
   if (pid == root) then ! this is a root process
 
@@ -392,25 +392,27 @@ contains
  ! *********************************************************************
  ! public subroutine: send decomposed hru runoff to tasks and populate data structures
  ! *********************************************************************
- subroutine comm_runoff_data(pid,           & ! input: proc id
-                             nNodes,        & ! input: number of procs
-                             ixSubHRU,      & ! input: global HRU index in the order of domains
-                             hru_per_proc,  & ! input: number of hrus assigned to each proc
-                             seg_per_proc,  & ! input: number of hrus assigned to each proc
-                             ierr,message)    ! output: error control
+ subroutine mpi_route(pid,           & ! input: proc id
+                      nNodes,        & ! input: number of procs
+                      ierr,message)    ! output: error control
   USE public_var
   USE globalData, only : RCHFLX_local           ! reach flux structure
   USE globalData, only : river_basin            ! OMP domain decomposition
   USE globalData, only : ixDesire               ! desired reach index
   USE globalData, only : TSEC                   ! beginning/ending of simulation time step [sec]
-  USE globalData, only : runoff_data            !
+  USE globalData, only : runoff_data            ! runoff data structure
   USE globalData, only : nHRU                   ! number of HRUs in the whoel river network
+  USE globalData, only : ixHRU_order            ! global HRU index in the order of proc assignment
+  USE globalData, only : ixRch_order            ! global reach index in the order of proc assignment
+  USE globalData, only : hru_per_proc           ! number of hrus assigned to each proc (i.e., node)
+  USE globalData, only : rch_per_proc           ! number of reaches assigned to each proc (i.e., node)
   USE globalData, only : nEns                   ! number of ensembles
-  ! subroutine: mapping basin runoff to reach runoff
+  ! external subroutines:
+  ! mapping basin runoff to reach runoff
   USE remapping,  only : basin2reach            ! remap runoff from routing basins to routing reaches
-  ! subroutines: basin routing
+  ! basin routing
   USE basinUH_module, only : IRF_route_basin    ! perform UH convolution for basin routing
-  ! subroutines: river routing
+  ! river routing
   USE accum_runoff_module, only : accum_runoff  ! upstream flow accumulation
   USE kwt_route_module,    only : kwt_route     ! kinematic wave routing method
   USE irf_route_module,    only : irf_route     ! unit hydrograph (impulse response function) routing method
@@ -422,9 +424,6 @@ contains
   ! input variables
   integer(i4b),             intent(in)  :: pid                      ! process id (MPI)
   integer(i4b),             intent(in)  :: nNodes                   ! number of processes (MPI)
-  integer(i4b),allocatable, intent(in)  :: ixSubHRU(:)              ! global HRU index in the order of domains
-  integer(i4b),allocatable, intent(in)  :: hru_per_proc(:)          ! number of hrus assigned to each proc (i.e., node)
-  integer(i4b),allocatable, intent(in)  :: seg_per_proc(:)          ! number of hrus assigned to each proc (i.e., node)
   ! Output variables
   integer(i4b),             intent(out) :: ierr
   character(len=strLen),    intent(out) :: message                  ! error message
@@ -445,14 +444,14 @@ contains
   integer(i4b)                          :: status(MPI_STATUS_SIZE)
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
 
-  ierr=0; message='comm_runoff_data/'
+  ierr=0; message='mpi_route/'
 
   if (pid == root) then ! this is a root process
 
     T0=TSEC(0); T1=TSEC(1)
 
     do iHru = 1,nHRU
-      basinRunoff_sorted(iHru) = runoff_data%basinRunoff(ixSubHRU(iHru))
+      basinRunoff_sorted(iHru) = runoff_data%basinRunoff(ixHRU_order(iHru))
     enddo
 
     do myid = 1, nNodes-1
@@ -462,13 +461,13 @@ contains
 
       ! Send number of elements (hrus and segs)
       call MPI_SEND(hru_per_proc(myid), 1, MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-      call MPI_SEND(seg_per_proc(myid), 1, MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(rch_per_proc(myid), 1, MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
       ! Send regular 1D array
       call MPI_SEND(basinRunoff_sorted(ixHru1), hru_per_proc(myid), MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
     end do
 
     allocate(basinRunoff_local(hru_per_proc(root)), stat=ierr)
-    allocate(reachRunoff_local(seg_per_proc(root)), stat=ierr)
+    allocate(reachRunoff_local(rch_per_proc(root)), stat=ierr)
     basinRunoff_local(1:hru_per_proc(root)) = basinRunoff_sorted(1:hru_per_proc(root))
 
     ! 1. subroutine: map basin runoff to river network HRUs
@@ -591,7 +590,7 @@ contains
 
   endif ! end of tasks
 
- end subroutine comm_runoff_data
+ end subroutine mpi_route
 
  ! *********************************************************************
  ! public subroutine: send public information to tasks

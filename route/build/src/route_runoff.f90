@@ -9,11 +9,11 @@ program route_runoff
 ! provide access to desired data types / structures...
 ! ****************************************************
 ! variable types
-USE nrtype                                    ! variable types, etc.
+USE nrtype                                     ! variable types, etc.
 
 !USE globalData, only : NETOPO                 ! river network data (tmp)
 USE globalData, only : iTime
-USE globalData, only : modJulday, endJulday
+USE globalData, only : modJulday, endJulday    !
 USE globalData, only : pid, nNodes             ! procs id and number of procs
 
 ! ******
@@ -27,7 +27,7 @@ USE model_setup,         only : init_model       ! model setupt - reading contro
 USE model_setup,         only : init_data        ! initialize river segment data
 
 ! subroutines: routing
-USE mpi_routine,         only : comm_runoff_data ! Distribute runoff to proc, route them, and gather,
+USE mpi_routine,         only : mpi_route        ! Distribute runoff to proc, route them, and gather,
 
 ! subroutines: model I/O
 USE get_runoff        ,  only : get_hru_runoff   !
@@ -43,12 +43,6 @@ implicit none
 character(len=strLen)         :: cfile_name          ! name of the control file
 integer(i4b)                  :: ierr                ! error code
 character(len=strLen)         :: cmessage            ! error message of downwind routine
-
-! ancillary data on model input (Should be hidden)
-integer(i4b),allocatable      :: ixSubHRU(:)         ! global HRU index in the order of domains
-integer(i4b),allocatable      :: ixSubSEG(:)         ! global reach index in the order of domains
-integer(i4b),allocatable      :: hru_per_proc(:)     ! number of hru assigned to each proc (i.e., node)
-integer(i4b),allocatable      :: seg_per_proc(:)     ! number of reaches assigned to each proc (i.e., node)
 
 ! ======================================================================================================
 ! ======================================================================================================
@@ -81,10 +75,6 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 ! ***********************************
 call init_data(pid,          &  ! input:  proc id
                nNodes,       &  ! input:  number of procs
-               ixSubHRU,     &  ! output: sorted HRU index array
-               ixSubSEG,     &  ! output: sorted reach Index array
-               hru_per_proc, &  ! output: number of hrus per proc
-               seg_per_proc, &  ! output: number of reaches per proc
                ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
@@ -107,25 +97,20 @@ do while (modJulday < endJulday)
                    ierr, cmessage)   ! output: error control
   if(ierr/=0) call handle_err(ierr, cmessage)
 
-  if (pid==0) then
+  ! Get river network hru runoff at current time step
+  call get_hru_runoff(pid,          & ! input: proc id
+                      ierr, cmessage) ! output: error control
+  if(ierr/=0) call handle_err(ierr, cmessage)
 
-    call get_hru_runoff(ierr, cmessage)
-    if(ierr/=0) call handle_err(ierr, cmessage)
-
-  end if
- ! print*, 'PAUSE: after getting simulated runoff'; read(*,*)
-
-!  ! process routing at each proc
-!  call comm_runoff_data(pid,           &  ! input: proc id
-!                        nNodes,        &  ! input: number of procs
-!                        ixSubHRU,      &  ! input: global HRU index in the order of domains
-!                        hru_per_proc,  &  ! input: number of hrus assigned to each proc
-!                        seg_per_proc,  &  ! input: number of hrus assigned to each proc
-!                        ierr, cmessage)   ! output: error control
+  ! process routing at each proc
+!  call mpi_routing(pid,           &  ! input: proc id
+!                   nNodes,        &  ! input: number of procs
+!                   ierr, cmessage)   ! output: error control
 !  if(ierr/=0) call handle_err(ierr, cmessage)
 !
 !  call output(pid, ierr, cmessage)
 !  if(ierr/=0) call handle_err(ierr, cmessage)
+
   print*, pid, iTime
   iTime=iTime+1
 

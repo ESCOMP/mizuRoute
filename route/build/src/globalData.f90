@@ -153,6 +153,11 @@ module globalData
   type(subbasin_mpi)             , public :: domains(5000)        ! domain decomposition based on subbasin
   integer(i4b)                   , public :: nDomain              ! domain counter
 
+  integer(i4b)    , allocatable  , public :: ixHRU_order(:)       ! global HRU index in the order of proc assignment
+  integer(i4b)    , allocatable  , public :: ixRch_order(:)       ! global reach index in the order of proc assignment
+  integer(i4b)    , allocatable  , public :: hru_per_proc(:)      ! number of hrus assigned to each proc (i.e., node)
+  integer(i4b)    , allocatable  , public :: rch_per_proc(:)      ! number of reaches assigned to each proc (i.e., node)
+
   ! miscellaneous
   integer(i4b)                   , public :: ixDesire             ! index of desired reach
 

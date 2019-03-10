@@ -13,7 +13,8 @@ contains
  ! *********************************************************************
  ! public subroutine: read runoff data
  ! *********************************************************************
- subroutine get_hru_runoff(ierr, message)     ! output: error control
+ subroutine get_hru_runoff(pid,  &            ! input: proc id
+                           ierr, message)     ! output: error control
 
  ! populate runoff_data with runoff values at LSM domain and at iTime step
 
@@ -30,6 +31,8 @@ contains
   USE remapping,   only:remap_runoff            ! remapping LSM runoff to river network HRU runoff
 
   implicit none
+  ! input variables
+  integer(i4b), intent(in)      :: pid                ! proc id
   ! output variables
   integer(i4b), intent(out)     :: ierr               ! error code
   character(*), intent(out)     :: message            ! error message
@@ -37,41 +40,45 @@ contains
   real(dp)    , allocatable     :: basinRunoff(:)     ! basin runoff (m/s)
   character(len=strLen)         :: cmessage           ! error message from subroutine
 
-  ! initialize error control
-  ierr=0; message='get_hru_runoff/'
+  if (pid==0) then
 
-  ! get the simulated runoff for the current time step - runoff_data%qsim(:) or %qsim2D(:,:)
-  call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
-                        iTime,                             & ! input: time index
-                        runoff_data,                       & ! inout: runoff data structure
-                        ierr, cmessage)                      ! output: error control
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   ! initialize error control
+   ierr=0; message='get_hru_runoff/'
 
-  ! allocate basinRunoff (local array)
-  allocate(basinRunoff(nHRU), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   ! get the simulated runoff for the current time step - runoff_data%qsim(:) or %qsim2D(:,:)
+   call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
+                         iTime,                             & ! input: time index
+                         runoff_data,                       & ! inout: runoff data structure
+                         ierr, cmessage)                      ! output: error control
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! initialize runoff_data%basinRunoff
-  if ( allocated(runoff_data%basinRunoff) ) then
-    deallocate(runoff_data%basinRunoff, stat=ierr)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  end if
-  allocate(runoff_data%basinRunoff(nHRU), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   ! allocate basinRunoff (local array)
+   allocate(basinRunoff(nHRU), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! Get river network HRU runoff into runoff_data data structure
-  if (is_remap) then ! remap LSM simulated runoff to the HRUs in the river network
+   ! initialize runoff_data%basinRunoff
+   if ( allocated(runoff_data%basinRunoff) ) then
+     deallocate(runoff_data%basinRunoff, stat=ierr)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
+   allocate(runoff_data%basinRunoff(nHRU), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call remap_runoff(runoff_data, remap_data, basinRunoff, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   ! Get river network HRU runoff into runoff_data data structure
+   if (is_remap) then ! remap LSM simulated runoff to the HRUs in the river network
 
-    runoff_data%basinRunoff=basinRunoff
+     call remap_runoff(runoff_data, remap_data, basinRunoff, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  else ! runoff is already remapped to river network HRUs
+     runoff_data%basinRunoff=basinRunoff
 
-    runoff_data%basinRunoff=runoff_data%qsim
+   else ! runoff is already remapped to river network HRUs
 
-  end if
+     runoff_data%basinRunoff=runoff_data%qsim
+
+   end if
+
+  endif ! end  of pid if
 
  end subroutine get_hru_runoff
 

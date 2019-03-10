@@ -72,31 +72,28 @@ contains
  ! *********************************************************************
  subroutine init_data(pid,           & ! input: proc id
                       nNodes,        & ! input: number of procs
-                      ixSubHRU,      & ! output:
-                      ixSubSEG,      & ! output:
-                      hru_per_proc,  & ! output:
-                      seg_per_proc,  & ! output:
-                      ierr, message)
+                      ierr, message)   ! output: error control
 
   USE public_var,  only : is_remap               ! logical whether or not runnoff needs to be mapped to river network HRU
   USE var_lookup,  only : ixHRU2SEG              ! index of variables for data structure
   USE var_lookup,  only : ixNTOPO                ! index of variables for data structure
+
   USE globalData,  only : nHRU, nRch             ! number of HRUs and Reaches in the whole network
   USE globalData,  only : basinID                ! HRU id vector
   USE globalData,  only : reachID                ! reach ID vector
   USE globalData,  only : runoff_data            ! runoff data structure
   USE globalData,  only : remap_data             ! runoff mapping data structure
+  USE globalData,  only : ixHRU_order            ! global HRU index in the order of proc assignment
+  USE globalData,  only : ixRch_order            ! global reach index in the order of proc assignment
+  USE globalData,  only : hru_per_proc           ! number of hrus assigned to each proc (i.e., node)
+  USE globalData,  only : rch_per_proc           ! number of reaches assigned to each proc (i.e., node)
+  ! external subroutines
   USE mpi_routine, only : pass_public_vars       ! mpi data copy to slave proc
 
    implicit none
    ! input:
    integer(i4b),              intent(in)    :: pid              ! proc id
    integer(i4b),              intent(in)    :: nNodes           ! number of procs
-   ! out:
-   integer(i4b), allocatable, intent(out)   :: ixSubHRU(:)      ! global HRU index in the order of domains
-   integer(i4b), allocatable, intent(out)   :: ixSubSEG(:)      ! global reach index in the order of domains
-   integer(i4b), allocatable, intent(out)   :: hru_per_proc(:)  ! number of hrus assigned to each proc (i.e., node)
-   integer(i4b), allocatable, intent(out)   :: seg_per_proc(:)  ! number of reaches assigned to each proc (i.e., node)
    ! output: error control
    integer(i4b),              intent(out)   :: ierr             ! error code
    character(*),              intent(out)   :: message          ! error message
@@ -118,7 +115,7 @@ contains
    call init_ntopo(pid, nNodes,                                                  & ! input:  number of Procs and proc id
                    nHRU, nRch,                                                   & ! output: number of HRU and Reaches
                    structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
-                   ixSubHRU, ixSubSEG, hru_per_proc, seg_per_proc,               & ! output: MPI domain decomposition data
+                   ixHRU_order, ixRch_order, hru_per_proc, rch_per_proc,         & ! output: MPI domain decomposition data
                    ierr, cmessage)                                                 ! output: error controls
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
