@@ -96,21 +96,23 @@ CONTAINS
  ! public subroutine: define routing output NetCDF file
  ! *********************************************************************
  SUBROUTINE prep_output(pid,            & ! in:    proc id
-                        iTime,          & ! in:    time index
-                        skip_timestep,  & ! out:   check if current time step is within start and end of simulation time
                         ierr, message)    ! out:   error control
- !Dependent modules
- USE public_var,          only : refJulday         ! julian day: reference
- USE public_var,          only : startJulday       ! julian day: start
- USE public_var,          only : endJulday         ! julian day: end
+ ! saved variables!
  USE public_var,          only : calendar          ! calendar name
  USE public_var,          only : newFileFrequency  ! frequency for new output files (day, month, annual)
  USE public_var,          only : time_units        ! time units (seconds, hours, or days)
  USE public_var,          only : annual,month,day  ! time frequency named variable for output files
+
  USE globalData,          only : basinID,reachID   ! HRU and reach ID in network
+
  USE globalData,          only : timeVar           ! time variable
+ USE globalData,          only : iTime             ! time index
+ USE globalData,          only : refJulday         ! julian day: reference
+ USE globalData,          only : modJulday         ! julian day: at model time step
  USE globalData,          only : modTime           ! previous and current model time
+
  USE globalData,          only : nEns, nHRU, nRch  ! number of ensembles, HRUs and river reaches
+ ! subroutines
  USE time_utils_module,   only : compCalday        ! compute calendar day
  USE time_utils_module,   only : compCalday_noleap ! compute calendar day
  USE write_netcdf,        only : write_nc          ! write a variable to the NetCDF file
@@ -119,38 +121,20 @@ CONTAINS
 
  ! input variables
  integer(i4b), intent(in)        :: pid              ! proc id
- integer(i4b), intent(in)        :: iTime            ! simulation time index
  ! output variables
- logical(lgt), intent(out)       :: skip_timestep    ! check if current time step is within start and end of simulation time
  integer(i4b), intent(out)       :: ierr             ! error code
  character(*), intent(out)       :: message          ! error message
  ! local variables
- real(dp)                        :: modJulday        ! julian day: model simulation
- real(dp)                        :: convTime2Days    ! conversion factor to convert time to units of days
  logical(lgt)                    :: defnewoutputfile ! flag to define new output file
  character(len=strLen)           :: cmessage         ! error message of downwind routine
 
+ ! initialize error control
+ ierr=0; message='prep_output/'
+
+ ! get the julian day of the model simulation
+ modJulday = refJulday + timeVar(iTime)
+
  if (pid==0) then
-
-   ! initialize error control
-   ierr=0; message='prep_output/'
-
-   skip_timestep = .false.
-
-   ! get the time multiplier needed to convert time to units of days
-   select case( trim( time_units(1:index(time_units,' ')) ) )
-    case('seconds'); convTime2Days=86400._dp
-    case('hours');   convTime2Days=24._dp
-    case('days');    convTime2Days=1._dp
-    case default;    ierr=20; message=trim(message)//'unable to identify time units'; return
-   end select
-
-   ! get the julian day of the model simulation
-   modJulday = refJulday + timeVar(iTime)/convTime2Days
-   if(modJulday < startJulday .or. modJulday > endJulday) then
-     skip_timestep = .true.
-     return
-   endif
 
   ! get the time
   select case(trim(calendar))

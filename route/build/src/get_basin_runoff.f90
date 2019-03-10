@@ -13,8 +13,7 @@ contains
  ! *********************************************************************
  ! public subroutine: read runoff data
  ! *********************************************************************
- subroutine get_hru_runoff(iTime,          &  ! input: time index
-                           ierr, message)     ! output: error control
+ subroutine get_hru_runoff(ierr, message)     ! output: error control
 
  ! populate runoff_data with runoff values at LSM domain and at iTime step
 
@@ -22,6 +21,7 @@ contains
   USE public_var,  only:input_dir               ! directory containing input data
   USE public_var,  only:fname_qsim              ! simulated runoff netCDF name
   USE public_var,  only:is_remap                ! logical whether or not runnoff needs to be mapped to river network HRU
+  USE globalData,  only:iTime
   USE globalData,  only:nHRU
   USE globalData,  only:runoff_data             ! data structure to hru runoff data
   USE globalData,  only:remap_data              ! data structure to remap data
@@ -30,8 +30,6 @@ contains
   USE remapping,   only:remap_runoff            ! remapping LSM runoff to river network HRU runoff
 
   implicit none
-  ! input variables
-  integer(i4b), intent(in)      :: iTime              ! index of time element
   ! output variables
   integer(i4b), intent(out)     :: ierr               ! error code
   character(*), intent(out)     :: message            ! error message

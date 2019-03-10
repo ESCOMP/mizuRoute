@@ -233,9 +233,10 @@ contains
   USE public_var,          only : simStart      ! date string defining the start of the simulation
   USE public_var,          only : simEnd        ! date string defining the end of the simulation
   USE public_var,          only : calendar      ! calendar name
-  USE public_var,          only : startJulday   ! julian day: start
-  USE public_var,          only : endJulday     ! julian day: end
-  USE public_var,          only : refJulday     ! julian day: reference
+  USE globalData,          only : iTime         ! time index at simulation time step
+  USE globalData,          only : startJulday   ! julian day: start of routing simulation
+  USE globalData,          only : endJulday     ! julian day: end of routing simulation
+  USE globalData,          only : refJulday     ! julian day: reference
   USE globalData,          only : timeVar       ! time variables (unit given by runoff data)
   USE globalData,          only : modTime       ! model time data (yyyy:mm:dd:hh:mm:ss)
 
@@ -247,6 +248,8 @@ contains
   integer(i4b),              intent(out)   :: ierr             ! error code
   character(*),              intent(out)   :: message          ! error message
   ! local variable
+  integer(i4b)                             :: ix
+  real(dp)                                 :: convTime2Days
   character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
   ! initialize error control
@@ -260,6 +263,17 @@ contains
   call get_nc(trim(input_dir)//trim(fname_qsim), vname_time, timeVar, 1, nTime, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+  ! get the time multiplier needed to convert time to units of days
+  select case( trim( time_units(1:index(time_units,' ')) ) )
+   case('seconds'); convTime2Days=86400._dp
+   case('hours');   convTime2Days=24._dp
+   case('days');    convTime2Days=1._dp
+   case default;    ierr=20; message=trim(message)//'unable to identify time units'; return
+  end select
+
+  ! convert time unit in runoff netCDF to day
+  timeVar=timeVar/convTime2Days
+
   ! extract time information from the control information
   call process_time(time_units,    calendar, refJulday,   ierr, cmessage)
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [refJulday]'; return; endif
@@ -270,6 +284,13 @@ contains
 
   ! check that the dates are aligned
   if(endJulday<startJulday) then; ierr=20; message=trim(message)//'simulation end is before simulation start'; return; endif
+
+  ! fast forward time to time index at simStart and save iTime
+  do ix = 1, nTime
+    if( refJulday+timeVar(ix) < startJulday ) cycle
+    exit
+  enddo
+  iTime = ix
 
   ! initialize previous model time
   modTime(0:1) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)

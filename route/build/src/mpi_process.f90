@@ -601,7 +601,11 @@ contains
                              nNodes,       & ! input: number of procs
                              ierr,message)   ! output: error control
 
-  USE public_var
+  USE globalData,          only : timeVar           ! time variable
+  USE globalData,          only : iTime             ! time index
+  USE globalData,          only : refJulday         ! julian day: reference
+  USE globalData,          only : startJulday       ! julian day: start
+  USE globalData,          only : endJulday         ! julian day: end
 
   implicit none
   ! Input variables
@@ -611,26 +615,43 @@ contains
   integer(i4b),                   intent(out) :: ierr
   character(len=strLen),          intent(out) :: message                   ! error message
   ! Local variables
-  integer(i4b)                                :: myid                     ! process id indices
+  integer(i4b)                                :: nTime                     ! number of time step in runoff data
+  integer(i4b)                                :: nTime_recv                ! number of time step in runoff data in slave proc
+  integer(i4b)                                :: myid                      ! process id indices
   integer(i4b), parameter                     :: root=0                    ! root node id
   integer(i4b), parameter                     :: send_data_tag=2001
   integer(i4b), parameter                     :: return_data_tag=2002
   integer(i4b)                                :: status(MPI_STATUS_SIZE)
-  character(len=strLen)                       :: cmessage                  ! error message from subroutine
 
   ierr=0; message='pass_public_vars/'
 
   if (pid == root) then ! this is a root process
 
+    nTime = size(timeVar)
+
     do myid = 1, nNodes-1
+     ! number of nTime
+     call MPI_SEND(nTime,      1,      MPI_INT,              myid, send_data_tag, MPI_COMM_WORLD, ierr)
+
+     call MPI_SEND(iTime,      1,      MPI_INT,              myid, send_data_tag, MPI_COMM_WORLD, ierr)
+     call MPI_SEND(refJulday,  1,      MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
      call MPI_SEND(startJulday,1,      MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
      call MPI_SEND(endJulday,  1,      MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+
+     call MPI_SEND(timeVar(1), nTime,  MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
     end do
 
   else
+     ! number of nTime
+     call MPI_RECV(nTime_recv,  1,          MPI_INT,              root, send_data_tag, MPI_COMM_WORLD, status, ierr)
 
-     call MPI_RECV(startJulday,1,      MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-     call MPI_RECV(endJulday,  1,      MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+     call MPI_RECV(iTime,       1,          MPI_INT,              root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+     call MPI_RECV(refJulday,   1,          MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+     call MPI_RECV(startJulday, 1,          MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+     call MPI_RECV(endJulday,   1,          MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+
+     allocate(timeVar(nTime_recv), stat=ierr)
+     call MPI_RECV(timeVar,     nTime_recv, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
 
   endif
 

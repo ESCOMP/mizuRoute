@@ -11,12 +11,10 @@ program route_runoff
 ! variable types
 USE nrtype                                    ! variable types, etc.
 
-! global data
-USE public_var
-
 !USE globalData, only : NETOPO                 ! river network data (tmp)
-USE globalData, only : TSEC                    ! time bounds [sec]
-USE globalData, only : runoff_data             ! hru runoff data structure
+USE globalData, only : iTime
+USE globalData, only : modJulday, endJulday
+USE globalData, only : pid, nNodes             ! procs id and number of procs
 
 ! ******
 ! provide access to desired subroutines...
@@ -43,13 +41,8 @@ USE write_restart,       only : write_state_nc   ! write netcdf state output fil
 implicit none
 
 character(len=strLen)         :: cfile_name          ! name of the control file
-
-! error control
 integer(i4b)                  :: ierr                ! error code
 character(len=strLen)         :: cmessage            ! error message of downwind routine
-
-! index of looping variables
-integer(i4b)                  :: iTime               ! index for time
 
 ! ancillary data on model input (Should be hidden)
 integer(i4b),allocatable      :: ixSubHRU(:)         ! global HRU index in the order of domains
@@ -57,11 +50,6 @@ integer(i4b),allocatable      :: ixSubSEG(:)         ! global reach index in the
 integer(i4b),allocatable      :: hru_per_proc(:)     ! number of hru assigned to each proc (i.e., node)
 integer(i4b),allocatable      :: seg_per_proc(:)     ! number of reaches assigned to each proc (i.e., node)
 
-logical(lgt)                  :: skip_timestep       ! check if current time step is within start and end of simulation time
-
-! MPI variables
-integer(i4b)                  :: pid                 ! process id
-integer(i4b)                  :: nNodes              ! number of nodes
 ! ======================================================================================================
 ! ======================================================================================================
 
@@ -81,7 +69,7 @@ call MPI_COMM_RANK(MPI_COMM_WORLD, pid, ierr)
 ! *****
 ! *** model setup
 ! ************************
-call init_model(pid, cfile_name, ierr, cmessage)
+call init_model(cfile_name, ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
 ! *****
@@ -91,15 +79,15 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 !     - runoff remapping data
 !     - channel states
 ! ***********************************
-call init_data(nNodes,       &  ! input:  number of procs
-               pid,          &  ! input:  proc id
+call init_data(pid,          &  ! input:  proc id
+               nNodes,       &  ! input:  number of procs
                ixSubHRU,     &  ! output: sorted HRU index array
                ixSubSEG,     &  ! output: sorted reach Index array
                hru_per_proc, &  ! output: number of hrus per proc
                seg_per_proc, &  ! output: number of reaches per proc
                ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
-!print*, 'PAUSE: after getting network topology'; read(*,*)
+
 !if (pid==7)then
 !  print*, 'pid,reachID,downreachID,order'
 !  do ix=1,size(NETOPO)
@@ -110,27 +98,23 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 ! ***********************************
 ! start of time-stepping simulation
 ! ***********************************
-!do iTime=1,runoff_data%nTime
-do iTime=1,300
+do while (modJulday < endJulday)
+
+!  if (pid==8) print*, ''
 
   ! prepare simulation output netCDF
   call prep_output(pid,            & ! input:  proc id
-                   iTime,          & ! input:  time loop index
-                   skip_timestep,  & ! output: current simulation julian day
                    ierr, cmessage)   ! output: error control
   if(ierr/=0) call handle_err(ierr, cmessage)
 
-  ! check we are within the desired time interval
-  if(skip_timestep) cycle
+  if (pid==0) then
 
-!  if (pid==0) then
+    call get_hru_runoff(ierr, cmessage)
+    if(ierr/=0) call handle_err(ierr, cmessage)
 
-!    call get_hru_runoff(iTime, ierr, cmessage)
-!    if(ierr/=0) call handle_err(ierr, cmessage)
-
-!  end if
+  end if
  ! print*, 'PAUSE: after getting simulated runoff'; read(*,*)
-  print*, pid, iTime
+
 !  ! process routing at each proc
 !  call comm_runoff_data(pid,           &  ! input: proc id
 !                        nNodes,        &  ! input: number of procs
@@ -142,6 +126,8 @@ do iTime=1,300
 !
 !  call output(pid, ierr, cmessage)
 !  if(ierr/=0) call handle_err(ierr, cmessage)
+  print*, pid, iTime
+  iTime=iTime+1
 
 end do  ! looping through time
 
