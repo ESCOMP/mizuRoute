@@ -399,14 +399,13 @@ contains
   USE globalData, only : RCHFLX_local           ! reach flux structure
   USE globalData, only : river_basin            ! OMP domain decomposition
   USE globalData, only : ixDesire               ! desired reach index
-  USE globalData, only : TSEC                   ! beginning/ending of simulation time step [sec]
   USE globalData, only : runoff_data            ! runoff data structure
   USE globalData, only : nHRU                   ! number of HRUs in the whoel river network
   USE globalData, only : ixHRU_order            ! global HRU index in the order of proc assignment
-  USE globalData, only : ixRch_order            ! global reach index in the order of proc assignment
   USE globalData, only : hru_per_proc           ! number of hrus assigned to each proc (i.e., node)
   USE globalData, only : rch_per_proc           ! number of reaches assigned to each proc (i.e., node)
   USE globalData, only : nEns                   ! number of ensembles
+  USE globalData, only : TSEC                   ! beginning/ending of simulation time step [sec]
   ! external subroutines:
   ! mapping basin runoff to reach runoff
   USE remapping,  only : basin2reach            ! remap runoff from routing basins to routing reaches
@@ -519,10 +518,6 @@ contains
       endif
     end do
 
-    ! update model time step bound
-    TSEC(0) = TSEC(0) + dt
-    TSEC(1) = TSEC(0) + dt
-
   else
 
     T0=TSEC(0); T1=TSEC(1)
@@ -584,10 +579,6 @@ contains
       endif
     end do
 
-    ! update model time step bound
-    TSEC(0) = TSEC(0) + dt
-    TSEC(1) = TSEC(0) + dt
-
   endif ! end of tasks
 
  end subroutine mpi_route
@@ -600,11 +591,13 @@ contains
                              nNodes,       & ! input: number of procs
                              ierr,message)   ! output: error control
 
-  USE globalData,          only : timeVar           ! time variable
-  USE globalData,          only : iTime             ! time index
-  USE globalData,          only : refJulday         ! julian day: reference
-  USE globalData,          only : startJulday       ! julian day: start
-  USE globalData,          only : endJulday         ! julian day: end
+  USE globalData, only : timeVar           ! time variable
+  USE globalData, only : iTime             ! time index
+  USE globalData, only : refJulday         ! julian day: reference
+  USE globalData, only : startJulday       ! julian day: start
+  USE globalData, only : endJulday         ! julian day: end
+  USE globalData, only : modJulday         ! julian day: at simulation time step
+  USE globalData, only : TSEC              ! beginning/ending of simulation time step [sec]
 
   implicit none
   ! Input variables
@@ -636,8 +629,10 @@ contains
      call MPI_SEND(refJulday,  1,      MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
      call MPI_SEND(startJulday,1,      MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
      call MPI_SEND(endJulday,  1,      MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+     call MPI_SEND(modJulday,  1,      MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
 
      call MPI_SEND(timeVar(1), nTime,  MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+     call MPI_SEND(TSEC(0),    2,      MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
     end do
 
   else
@@ -648,9 +643,11 @@ contains
      call MPI_RECV(refJulday,   1,          MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
      call MPI_RECV(startJulday, 1,          MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
      call MPI_RECV(endJulday,   1,          MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+     call MPI_RECV(modJulday,   1,          MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
 
      allocate(timeVar(nTime_recv), stat=ierr)
      call MPI_RECV(timeVar,     nTime_recv, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+     call MPI_RECV(TSEC,        2,          MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
 
   endif
 

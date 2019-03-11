@@ -18,6 +18,7 @@ implicit none
 private
 public :: init_model
 public :: init_data
+public :: update_time
 
 contains
 
@@ -155,6 +156,39 @@ contains
 
 
  ! *********************************************************************
+ ! public subroutine: update time to next time
+ ! *********************************************************************
+ subroutine update_time(ierr, message)   ! output: error control
+
+  USE public_var, only : dt
+  USE globalData, only : TSEC          ! beginning/ending of simulation time step [sec]
+  USE globalData, only : timeVar       ! time variables (unit given by runoff data)
+  USE globalData, only : iTime         ! time index at simulation time step
+  USE globalData, only : refJulday     ! julian day: reference
+  USE globalData, only : modJulday     ! julian day: at model time step
+
+   implicit none
+   ! output: error control
+   integer(i4b),              intent(out)   :: ierr             ! error code
+   character(*),              intent(out)   :: message          ! error message
+
+   ! initialize error control
+   ierr=0; message='update_time/'
+
+   ! update time index
+   iTime=iTime+1
+
+   ! update the julian day of the model simulation
+   modJulday = refJulday + timeVar(iTime)
+
+   ! update model time step bound
+   TSEC(0) = TSEC(0) + dt
+   TSEC(1) = TSEC(0) + dt
+
+ end subroutine update_time
+
+
+ ! *********************************************************************
  ! private subroutine: initialize channel state data
  ! *********************************************************************
  subroutine init_state(ierr, message)
@@ -230,11 +264,13 @@ contains
   USE public_var,          only : simStart      ! date string defining the start of the simulation
   USE public_var,          only : simEnd        ! date string defining the end of the simulation
   USE public_var,          only : calendar      ! calendar name
+
+  USE globalData,          only : timeVar       ! time variables (unit given by runoff data)
   USE globalData,          only : iTime         ! time index at simulation time step
+  USE globalData,          only : refJulday     ! julian day: reference
   USE globalData,          only : startJulday   ! julian day: start of routing simulation
   USE globalData,          only : endJulday     ! julian day: end of routing simulation
-  USE globalData,          only : refJulday     ! julian day: reference
-  USE globalData,          only : timeVar       ! time variables (unit given by runoff data)
+  USE globalData,          only : modJulday     ! julian day: at model time step
   USE globalData,          only : modTime       ! model time data (yyyy:mm:dd:hh:mm:ss)
 
   implicit none
@@ -282,9 +318,10 @@ contains
   ! check that the dates are aligned
   if(endJulday<startJulday) then; ierr=20; message=trim(message)//'simulation end is before simulation start'; return; endif
 
-  ! fast forward time to time index at simStart and save iTime
+  ! fast forward time to time index at simStart and save iTime and modJulday
   do ix = 1, nTime
-    if( refJulday+timeVar(ix) < startJulday ) cycle
+    modJulday = refJulday + timeVar(ix)
+    if( modJulday < startJulday ) cycle
     exit
   enddo
   iTime = ix

@@ -12,7 +12,6 @@ program route_runoff
 USE nrtype                                     ! variable types, etc.
 
 !USE globalData, only : NETOPO                 ! river network data (tmp)
-USE globalData, only : iTime
 USE globalData, only : modJulday, endJulday    !
 USE globalData, only : pid, nNodes             ! procs id and number of procs
 
@@ -25,7 +24,7 @@ USE mpi                                          ! MPI
 ! subroutines: model set up
 USE model_setup,         only : init_model       ! model setupt - reading control file, populate metadata, read parameter file
 USE model_setup,         only : init_data        ! initialize river segment data
-
+USE model_setup,         only : update_time
 ! subroutines: routing
 USE mpi_routine,         only : mpi_route        ! Distribute runoff to proc, route them, and gather,
 
@@ -90,7 +89,7 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 ! ***********************************
 do while (modJulday < endJulday)
 
-!  if (pid==8) print*, ''
+  if (pid==8) write(*,*) 'modJulday= ', modJulday
 
   ! prepare simulation output netCDF
   call prep_output(pid,            & ! input:  proc id
@@ -111,8 +110,8 @@ do while (modJulday < endJulday)
 !  call output(pid, ierr, cmessage)
 !  if(ierr/=0) call handle_err(ierr, cmessage)
 
-  print*, pid, iTime
-  iTime=iTime+1
+  call update_time(ierr, cmessage)
+  if(ierr/=0) call handle_err(ierr, cmessage)
 
 end do  ! looping through time
 
