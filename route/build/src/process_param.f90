@@ -113,7 +113,7 @@ contains
  !
  ! ----------------------------------------------------------------------------------------
   ! global variables
-  USE globalData, only : pi      ! pi
+  USE public_var, only : pi      ! pi
   USE dataTypes,  only : dlength
   implicit none
   ! input variables

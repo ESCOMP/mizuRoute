@@ -29,8 +29,8 @@ CONTAINS
  !
  ! ----------------------------------------------------------------------------------------
  ! External modules
- USE globalData, only : RCHFLX ! routing fluxes
- USE globalData, only : NETOPO ! Network topology
+ USE globalData, only : RCHFLX_local ! routing fluxes
+ USE globalData, only : NETOPO       ! Network topology
  implicit none
  ! input
  integer(i4b), intent(in)           :: iens           ! runoff ensemble index
@@ -61,9 +61,9 @@ CONTAINS
    ! get indices for all reaches upstream
    iUpstream(1:nUpstream) = NETOPO(iRch)%RCHLIST(1:nUpstream)
    ! get streamflow for all reaches upstream
-   qUpstream(1:nUpstream) = RCHFLX(iEns,iUpstream(1:nUpstream))%BASIN_QR(1)
+   qUpstream(1:nUpstream) = RCHFLX_local(iEns,iUpstream(1:nUpstream))%BASIN_QR(1)
    ! get mean streamflow
-   RCHFLX(iEns,iRch)%UPSTREAM_QI = sum(qUpstream)
+   RCHFLX_local(iEns,iRch)%UPSTREAM_QI = sum(qUpstream)
 
    if(NETOPO(iRch)%REACHID == ixDesire)then
     print*, 'ixUpstream = ', NETOPO(iUpstream(1:nUpstream))%REACHIX

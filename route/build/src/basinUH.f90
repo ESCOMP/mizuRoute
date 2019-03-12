@@ -18,7 +18,7 @@ CONTAINS
  ! I created wrapper for basin routing because of potential other routing methods
  ! External modules
  USE globalData, ONLY : FRAC_FUTURE
- USE globalData, ONLY : RCHFLX
+ USE globalData, ONLY : RCHFLX_local
  implicit none
  ! input
  integer(i4b), intent(in)           :: iens        ! ith ensemble
@@ -37,19 +37,19 @@ CONTAINS
 
   do ibas=1,nSeg
 
-   if (.not.allocated(RCHFLX(iens,ibas)%QFUTURE))then
+   if (.not.allocated(RCHFLX_local(iens,ibas)%QFUTURE))then
 
-    allocate(RCHFLX(iens,ibas)%QFUTURE(ntdh), stat=ierr)
-    if(ierr/=0)then; message=trim(message)//'unable to allocate space for RCHFLX(iens,ibas)%QFUTURE'; return; endif
+    allocate(RCHFLX_local(iens,ibas)%QFUTURE(ntdh), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'unable to allocate space for RCHFLX_local(iens,ibas)%QFUTURE'; return; endif
 
-    RCHFLX(iens,ibas)%QFUTURE(:) = 0._dp
+    RCHFLX_local(iens,ibas)%QFUTURE(:) = 0._dp
 
    end if
 
-   call irf_conv(FRAC_FUTURE,                 &  ! input: pre-computed normalized UH
-                 RCHFLX(iens,ibas)%BASIN_QI,  &  ! input: basin average instantaneous runoff
-                 RCHFLX(iens,ibas)%QFUTURE,   &  ! inout: Update convoluted runoff
-                 RCHFLX(iens,ibas)%BASIN_QR,  &  ! inout: delayed runoff to segment at current and previous time step
+   call irf_conv(FRAC_FUTURE,                       &  ! input: pre-computed normalized UH
+                 RCHFLX_local(iens,ibas)%BASIN_QI,  &  ! input: basin average instantaneous runoff
+                 RCHFLX_local(iens,ibas)%QFUTURE,   &  ! inout: Update convoluted runoff
+                 RCHFLX_local(iens,ibas)%BASIN_QR,  &  ! inout: delayed runoff to segment at current and previous time step
                  ierr, message)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 

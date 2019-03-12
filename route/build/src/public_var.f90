@@ -9,6 +9,9 @@ module public_var
 
   ! ---------- common constants ---------------------------------------------------------------------
 
+  ! physical constants
+  real(dp),    parameter,public    :: pi=3.14159265359_dp   ! pi
+
   ! some common constant variables (not likely to change value)
   real(dp),    parameter,public   :: secprmin=60._dp        ! number of seconds in a minute
   real(dp),    parameter,public   :: secprhour=3600._dp     ! number of seconds in an hour

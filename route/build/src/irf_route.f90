@@ -31,8 +31,8 @@ contains
                       ierr, message)   ! output: error control
 
  ! global routing data
- USE globalData, only : RCHFLX ! routing fluxes
- USE dataTypes,  only : basin  ! river basin data type
+ USE globalData, only : RCHFLX_local ! routing fluxes
+ USE dataTypes,  only : basin        ! river basin data type
 
  implicit none
  ! Input
@@ -72,7 +72,7 @@ contains
  ierr=0; message='irf_route/'
 
  ! Initialize CHEC_IRF to False.
- RCHFLX(iEns,:)%CHECK_IRF=.False.
+ RCHFLX_local(iEns,:)%CHECK_IRF=.False.
 
  ! Number of Outlets
  nOuts = size(river_basin)
@@ -187,8 +187,8 @@ contains
                         ierr, message)   ! output: error control
 
  ! global routing data
- USE globalData, only : RCHFLX ! routing fluxes
- USE globalData, only : NETOPO ! Network topology
+ USE globalData, only : RCHFLX_local ! routing fluxes
+ USE globalData, only : NETOPO       ! Network topology
 
  implicit none
  ! Input
@@ -210,14 +210,14 @@ contains
  ierr=0; message='segment_irf/'
 
  ! route streamflow through the river network
-  if (.not.allocated(RCHFLX(iens,segIndex)%QFUTURE_IRF))then
+  if (.not.allocated(RCHFLX_local(iens,segIndex)%QFUTURE_IRF))then
 
    ntdh = size(NETOPO(segIndex)%UH)
 
-   allocate(RCHFLX(iens,segIndex)%QFUTURE_IRF(ntdh), stat=ierr, errmsg=cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': RCHFLX(iens,segIndex)%QFUTURE_IRF'; return; endif
+   allocate(RCHFLX_local(iens,segIndex)%QFUTURE_IRF(ntdh), stat=ierr, errmsg=cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': RCHFLX_local(iens,segIndex)%QFUTURE_IRF'; return; endif
 
-   RCHFLX(iens,segIndex)%QFUTURE_IRF(:) = 0._dp
+   RCHFLX_local(iens,segIndex)%QFUTURE_IRF(:) = 0._dp
 
   end if
 
@@ -230,24 +230,24 @@ contains
   if (nUps>0) then
     do iUps = 1,nUps
       iRch_ups = NETOPO(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-      uprflux(iUps) = RCHFLX(iens,iRch_ups)
+      uprflux(iUps) = RCHFLX_local(iens,iRch_ups)
     end do
   endif
 
   ! perform river network UH routing
-  call conv_upsbas_qr(NETOPO(segIndex)%UH,   &    ! input: reach unit hydrograph
-                      uprflux,               &    ! input: upstream reach fluxes
-                      RCHFLX(iens,segIndex), &    ! inout: updated fluxes at reach
-                      ierr, message)              ! output: error control
+  call conv_upsbas_qr(NETOPO(segIndex)%UH,         &    ! input: reach unit hydrograph
+                      uprflux,                     &    ! input: upstream reach fluxes
+                      RCHFLX_local(iens,segIndex), &    ! inout: updated fluxes at reach
+                      ierr, message)                    ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! Check True since now this reach now routed
-  RCHFLX(iEns,segIndex)%CHECK_IRF=.True.
+  RCHFLX_local(iEns,segIndex)%CHECK_IRF=.True.
 
   ! check
   if(NETOPO(segIndex)%REACHIX == ixDesire)then
-   print*, 'RCHFLX(iens,segIndex)%BASIN_QR(1),RCHFLX(iens,segIndex)%REACH_Q_IRF = ', &
-            RCHFLX(iens,segIndex)%BASIN_QR(1),RCHFLX(iens,segIndex)%REACH_Q_IRF
+   print*, 'RCHFLX_local(iens,segIndex)%BASIN_QR(1),RCHFLX_local(iens,segIndex)%REACH_Q_IRF = ', &
+            RCHFLX_local(iens,segIndex)%BASIN_QR(1),RCHFLX_local(iens,segIndex)%REACH_Q_IRF
   endif
 
  end subroutine segment_irf
@@ -332,7 +332,7 @@ contains
    ! ----------------------------------------------------------------------------------------
 
    ! global routing data
-   USE globalData, only : RCHFLX ! routing fluxes
+   USE globalData, only : RCHFLX_local ! routing fluxes
    USE globalData, only : NETOPO ! Network topology
    USE dataTypes,  only : basin  ! river basin data type
 
@@ -356,7 +356,7 @@ contains
    ierr=0; message='irf_route_orig/'
 
    ! Initialize CHEC_IRF to False.
-   RCHFLX(iEns,:)%CHECK_IRF=.False.
+   RCHFLX_local(iEns,:)%CHECK_IRF=.False.
 
    nRch=size(NETOPO)
 
@@ -373,7 +373,7 @@ contains
    end do
    call system_clock(endTime)
    elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
-   write(*,"(A,1PG15.7,A)") '  total elapsed entire = ', elapsedTime, ' s'
+!   write(*,"(A,1PG15.7,A)") '  total elapsed entire = ', elapsedTime, ' s'
 
  end subroutine irf_route_orig
 

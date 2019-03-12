@@ -72,9 +72,7 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 !     - runoff remapping data
 !     - channel states
 ! ***********************************
-call init_data(pid,          &  ! input:  proc id
-               nNodes,       &  ! input:  number of procs
-               ierr, cmessage)
+call init_data(pid, nNodes, ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
 !if (pid==7)then
@@ -92,23 +90,19 @@ do while (modJulday < endJulday)
   if (pid==8) write(*,*) 'modJulday= ', modJulday
 
   ! prepare simulation output netCDF
-  call prep_output(pid,            & ! input:  proc id
-                   ierr, cmessage)   ! output: error control
+  call prep_output(pid, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
 
   ! Get river network hru runoff at current time step
-  call get_hru_runoff(pid,          & ! input: proc id
-                      ierr, cmessage) ! output: error control
+  call get_hru_runoff(pid, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
 
   ! process routing at each proc
-!  call mpi_routing(pid,           &  ! input: proc id
-!                   nNodes,        &  ! input: number of procs
-!                   ierr, cmessage)   ! output: error control
-!  if(ierr/=0) call handle_err(ierr, cmessage)
-!
-!  call output(pid, ierr, cmessage)
-!  if(ierr/=0) call handle_err(ierr, cmessage)
+  call mpi_route(pid, nNodes, ierr, cmessage)
+  if(ierr/=0) call handle_err(ierr, cmessage)
+
+  call output(pid, ierr, cmessage)
+  if(ierr/=0) call handle_err(ierr, cmessage)
 
   call update_time(ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
