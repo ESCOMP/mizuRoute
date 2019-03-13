@@ -1,5 +1,4 @@
 MODULE write_simoutput
-
 ! Moudle wide external modules
 USE nrtype
 USE netcdf
@@ -97,20 +96,15 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE prep_output(pid,            & ! in:    proc id
                         ierr, message)    ! out:   error control
- ! saved variables!
+ ! saved public variables (usually parameters, or values not modified)
  USE public_var,          only : calendar          ! calendar name
  USE public_var,          only : newFileFrequency  ! frequency for new output files (day, month, annual)
  USE public_var,          only : time_units        ! time units (seconds, hours, or days)
  USE public_var,          only : annual,month,day  ! time frequency named variable for output files
-
+ ! saved global data
  USE globalData,          only : basinID,reachID   ! HRU and reach ID in network
-
- USE globalData,          only : timeVar           ! time variable
- USE globalData,          only : iTime             ! time index
- USE globalData,          only : refJulday         ! julian day: reference
  USE globalData,          only : modJulday         ! julian day: at model time step
  USE globalData,          only : modTime           ! previous and current model time
-
  USE globalData,          only : nEns, nHRU, nRch  ! number of ensembles, HRUs and river reaches
  ! subroutines
  USE time_utils_module,   only : compCalday        ! compute calendar day
@@ -130,9 +124,6 @@ CONTAINS
 
  ! initialize error control
  ierr=0; message='prep_output/'
-
- ! get the julian day of the model simulation
- modJulday = refJulday + timeVar(iTime)
 
  if (pid==0) then
 
