@@ -25,7 +25,8 @@ private
 
 public :: comm_ntopo_data
 public :: mpi_route
-public :: pass_public_vars
+public :: pass_global_data
+public :: pass_public_var
 
 contains
 
@@ -214,17 +215,15 @@ contains
       call MPI_SEND(hru_per_proc(myid), 1, MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
       ! Send regular 1D array
       ! reach
-      call MPI_SEND(segId(ixSeg1),     seg_per_proc(myid), MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-      call MPI_SEND(downSegId(ixSeg1), seg_per_proc(myid), MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(segId(ixSeg1),     seg_per_proc(myid), MPI_INT,              myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(downSegId(ixSeg1), seg_per_proc(myid), MPI_INT,              myid, send_data_tag, MPI_COMM_WORLD, ierr)
       call MPI_SEND(length(ixSeg1),    seg_per_proc(myid), MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
       call MPI_SEND(slope(ixSeg1),     seg_per_proc(myid), MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
       ! hru
-      call MPI_SEND(hruId(ixHru1),    hru_per_proc(myid), MPI_INT,   myid, send_data_tag, MPI_COMM_WORLD, ierr)
-      call MPI_SEND(hruSegId(ixHru1), hru_per_proc(myid), MPI_INT,   myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(hruId(ixHru1),    hru_per_proc(myid), MPI_INT,              myid, send_data_tag, MPI_COMM_WORLD, ierr)
+      call MPI_SEND(hruSegId(ixHru1), hru_per_proc(myid), MPI_INT,              myid, send_data_tag, MPI_COMM_WORLD, ierr)
       call MPI_SEND(area(ixHru1),     hru_per_proc(myid), MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-     ! other global data
-      call MPI_SEND(desireId,1, MPI_INT,   myid, send_data_tag, MPI_COMM_WORLD, ierr)
-      call MPI_SEND(routOpt, 1, MPI_INT,   myid, send_data_tag, MPI_COMM_WORLD, ierr)
+     ! other global data (maybe broadcast)
       call MPI_SEND(dt,      1, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
       call MPI_SEND(fshape,  1, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
       call MPI_SEND(tscale,  1, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
@@ -288,7 +287,7 @@ contains
                        ! output: error control
                        ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    print*, 'pid, nHRU_root, nSeg_root, tot_hru_local, tot_upseg_local, tot_upstream_local, tot_uh_local =', pid, nHRU_root, nSeg_root, tot_hru_local, tot_upseg_local, tot_upstream_local, tot_uh_local
+
     call put_data_struct(nSeg_root, structSEG_local, structNTOPO_local, ierr, cmessage)
 
 !    print*, 'ix, hruId, ixSubHRU, iySubHRU, hruSegId'
@@ -338,8 +337,6 @@ contains
    call MPI_RECV(hruSegId_local,  num_hru_received, MPI_INT,   root, send_data_tag, MPI_COMM_WORLD, status, ierr)
    call MPI_RECV(area_local,      num_hru_received, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
    ! other public/global data
-   call MPI_RECV(desireId,1, MPI_INT,   root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-   call MPI_RECV(routOpt, 1, MPI_INT,   root, send_data_tag, MPI_COMM_WORLD, status, ierr)
    call MPI_RECV(dt,      1, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
    call MPI_RECV(fshape,  1, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
    call MPI_RECV(tscale,  1, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
@@ -381,8 +378,14 @@ contains
                    ! output: error control
                    ierr, cmessage)
 
-   print*, 'pid, num_hru_received, num_seg_received, tot_hru_local, tot_upseg_local, tot_upstream_local, tot_uh_local =', pid, num_hru_received, num_seg_received, tot_hru_local, tot_upseg_local, tot_upstream_local, tot_uh_local
    call put_data_struct(num_seg_received, structSEG_local, structNTOPO_local, ierr, cmessage)
+!deleteme
+!   if (pid==7) then
+!   do ix =1, size(NETOPO)
+!   print*, NETOPO(ix)%REACHID, RPARAM(ix)%BASAREA,  NETOPO(ix)%HRUID
+!   enddo
+!   endif
+!deleteme
 
   endif
 
@@ -413,10 +416,10 @@ contains
   USE basinUH_module, only : IRF_route_basin    ! perform UH convolution for basin routing
   ! river routing
   USE accum_runoff_module, only : accum_runoff  ! upstream flow accumulation
-  USE kwt_route_module,    only : kwt_route     ! kinematic wave routing method
-  USE irf_route_module,    only : irf_route     ! unit hydrograph (impulse response function) routing method
-  !USE kwt_route_module,    only : kwt_route => kwt_route_orig   ! kinematic wave routing method
-  !USE irf_route_module,    only : irf_route => irf_route_orig    ! river network unit hydrograph method
+  !USE kwt_route_module,    only : kwt_route     ! kinematic wave routing method
+  !USE irf_route_module,    only : irf_route     ! unit hydrograph (impulse response function) routing method
+  USE kwt_route_module,    only : kwt_route => kwt_route_orig   ! kinematic wave routing method
+  USE irf_route_module,    only : irf_route => irf_route_orig    ! river network unit hydrograph method
 
   implicit none
 
@@ -446,6 +449,8 @@ contains
   ierr=0; message='mpi_route/'
 
   if (pid == root) then ! this is a root process
+    ! Reaches/HRU assigned to root node include BOTH small tributaries and mainstem
+    ! First, route "small tributaries" while routing over other bigger tributaries (at slave nodes).
 
     T0=TSEC(0); T1=TSEC(1)
 
@@ -478,6 +483,9 @@ contains
                     reachRunoff_local,       & ! intent(out): reach runoff (m3/s)
                     ierr, cmessage)            ! intent(out): error control
 
+! --------------------------------
+! Put this in seprate routine
+! --------------------------------
     ! 2. subroutine: basin route
     if (doesBasinRoute == 1) then
       ! instantaneous runoff volume (m3/s) to data structure
@@ -517,8 +525,11 @@ contains
                       ierr,cmessage)          ! output: error control
       endif
     end do
+! --------------------------------
+! Put this in seprate routine
+! --------------------------------
 
-  else
+  else  ! if slaved proc
 
     T0=TSEC(0); T1=TSEC(1)
 
@@ -539,6 +550,10 @@ contains
                     reachRunoff_local,       & ! intent(out): reach runoff (m3/s)
                     ierr, cmessage)            ! intent(out): error control
 
+! --------------------------------
+! Put this in seprate routine
+! --------------------------------
+
     ! 2. subroutine: basin routing
     if (doesBasinRoute == 1) then
       ! instantaneous runoff volume (m3/s) to data structure
@@ -552,7 +567,16 @@ contains
       RCHFLX_local(iens,:)%BASIN_QR(0) = RCHFLX_local(iens,:)%BASIN_QR(1)   ! streamflow from previous step
       RCHFLX_local(iens,:)%BASIN_QR(1) = reachRunoff_local(:)               ! streamflow (m3/s)
     end if
-
+! deleteme
+!if (pid==7) then
+!print*, T0
+!do iens = 1,nEns
+!do ihru=1,size(basinRunoff_local)
+!print*, pid, basinRunoff_local(ihru), reachRunoff_local(ihru)
+!enddo
+!enddo
+!endif
+! deleteme
     ! 3. subroutine: river reach routing
     ! perform upstream flow accumulation
     do iens = 1,nEns
@@ -578,18 +602,19 @@ contains
                       ierr,cmessage)          ! output: error control
       endif
     end do
+! --------------------------------
+! Put this in seprate routine
+! --------------------------------
 
   endif ! end of tasks
 
  end subroutine mpi_route
 
  ! *********************************************************************
- ! public subroutine: send public information to tasks
+ ! public subroutine: send global data
  ! *********************************************************************
  ! send all the necessary public variables to slave procs
- subroutine pass_public_vars(pid,          & ! input: proc id
-                             nNodes,       & ! input: number of procs
-                             ierr,message)   ! output: error control
+ subroutine pass_global_data(pid, nNodes, ierr,message)   ! output: error control
 
   USE globalData, only : timeVar           ! time variable
   USE globalData, only : iTime             ! time index
@@ -615,7 +640,14 @@ contains
   integer(i4b), parameter                     :: return_data_tag=2002
   integer(i4b)                                :: status(MPI_STATUS_SIZE)
 
-  ierr=0; message='pass_public_vars/'
+  ierr=0; message='pass_global_data/'
+
+  call MPI_BCAST(iTime,       1,     MPI_INT,              root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(refJulday,   1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(startJulday, 1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(endJulday,   1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(modJulday,   1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(TSEC,        2,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
 
   if (pid == root) then ! this is a root process
 
@@ -624,34 +656,52 @@ contains
     do myid = 1, nNodes-1
      ! number of nTime
      call MPI_SEND(nTime,      1,      MPI_INT,              myid, send_data_tag, MPI_COMM_WORLD, ierr)
-
-     call MPI_SEND(iTime,      1,      MPI_INT,              myid, send_data_tag, MPI_COMM_WORLD, ierr)
-     call MPI_SEND(refJulday,  1,      MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-     call MPI_SEND(startJulday,1,      MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-     call MPI_SEND(endJulday,  1,      MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-     call MPI_SEND(modJulday,  1,      MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-
      call MPI_SEND(timeVar(1), nTime,  MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-     call MPI_SEND(TSEC(0),    2,      MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
     end do
 
   else
-     ! number of nTime
-     call MPI_RECV(nTime_recv,  1,          MPI_INT,              root, send_data_tag, MPI_COMM_WORLD, status, ierr)
 
-     call MPI_RECV(iTime,       1,          MPI_INT,              root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-     call MPI_RECV(refJulday,   1,          MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-     call MPI_RECV(startJulday, 1,          MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-     call MPI_RECV(endJulday,   1,          MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-     call MPI_RECV(modJulday,   1,          MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+     ! number of nTime
+     call MPI_RECV(nTime_recv, 1, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
 
      allocate(timeVar(nTime_recv), stat=ierr)
-     call MPI_RECV(timeVar,     nTime_recv, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-     call MPI_RECV(TSEC,        2,          MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+     call MPI_RECV(timeVar, nTime_recv, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
 
   endif
 
- end subroutine pass_public_vars
+ end subroutine pass_global_data
+
+ ! *********************************************************************
+ ! public subroutine: send public var to tasks
+ ! *********************************************************************
+ ! (temporarily)
+ ! send all the necessary public variables updated from control file to slave procs
+ subroutine pass_public_var(ierr,message)   ! output: error control
+
+  USE public_var, only : hydGeometryOption       !
+  USE public_var, only : topoNetworkOption       !
+  USE public_var, only : computeReachList        !
+  USE public_var, only : routOpt                 !
+  USE public_var, only : desireId                !
+  USE public_var, only : doesBasinRoute          !
+
+  implicit none
+  ! Output error handling variables
+  integer(i4b),                   intent(out) :: ierr
+  character(len=strLen),          intent(out) :: message                   ! error message
+  ! Local variables
+  integer(i4b), parameter                     :: root=0                    ! root node id
+
+  ierr=0; message='pass_public_var/'
+
+  call MPI_BCAST(hydGeometryOption, 1, MPI_LOGICAL, root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(topoNetworkOption, 1, MPI_LOGICAL, root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(computeReachList,  1, MPI_LOGICAL, root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(routOpt,           1, MPI_INT,     root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(desireId,          1, MPI_INT,     root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(doesBasinRoute,    1, MPI_INT,     root, MPI_COMM_WORLD, ierr)
+
+ end subroutine pass_public_var
 
 end module mpi_routine
 
@@ -690,25 +740,3 @@ end module mpi_routine
 !     end do
 !    end do
 
-
-
-
-  ! create mapping array to map global index to local index
-  !  ixSubSEG(nRch_in) : index that belong to a subbasin in global index
-  !  iySubSEG(nRch_in) : local indices for a subbasin
-  !  ixMap(nRch_in) : map indix from global to local
-  !
-  !  examples
-  !  global_ix, iySub, ixSubSEG,  ixMap, idNode
-  !    1            1         2       1       0
-  !    2            2         7       1       0
-  !    3            1         5       2       0
-  !    4            2         8       3       0
-  !    5            3         9       1       0
-  !    6            1         1       1       1
-  !    7            2         3       2       1
-  !    8            3         4       2       1
-  !    9            1         6       3       2
-  !   10            2        10       2       2
-  !
-  !  if global index of interest is 4(=ixGlob), ixMap(ixGlob)=3 meaning element with 4 is located in 3rd in local array.

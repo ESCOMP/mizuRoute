@@ -288,14 +288,14 @@ end subroutine augment_ntopo
  ! *********************************************************************
  ! ---------- temporary code: populate old data structures --------------------------------------------------
  subroutine put_data_struct(nSeg, structSEG, structNTOPO, ierr, message)
-  ! Updating global parameters
-  use routing_param, only : basinUH            ! construct basin unit hydrograph
+  ! saved global data
   use globalData,    only : RPARAM             ! Reach parameters
   use globalData,    only : NETOPO             ! Network topology
   use globalData,    only : fshape, tscale     ! basin IRF routing parameters (Transfer function parameters)
   USE public_var,    only : min_slope          ! minimum slope
   USE public_var,    only : dt                 ! simulation time step [sec]
-
+  ! external subroutines
+  use routing_param, only : basinUH            ! construct basin unit hydrograph
   implicit none
   ! input
   integer(i4b)      , intent(in)                 :: nSeg             ! number of stream segments

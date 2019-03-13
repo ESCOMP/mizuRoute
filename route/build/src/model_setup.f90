@@ -35,6 +35,8 @@ contains
   ! subroutines: model control
   USE read_control_module, only : read_control     ! read the control file
   USE read_param_module,   only : read_param       ! read the routing parameters
+  ! MPI routine
+  USE mpi_routine,         only : pass_public_var
 
   implicit none
 
@@ -65,6 +67,9 @@ contains
 
   endif  ! if the master node
 
+  call pass_public_var(ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  end subroutine init_model
 
 
@@ -89,7 +94,7 @@ contains
   USE globalData,  only : hru_per_proc           ! number of hrus assigned to each proc (i.e., node)
   USE globalData,  only : rch_per_proc           ! number of reaches assigned to each proc (i.e., node)
   ! external subroutines
-  USE mpi_routine, only : pass_public_vars       ! mpi data copy to slave proc
+  USE mpi_routine, only : pass_global_data       ! mpi globaldata copy to slave proc
 
    implicit none
    ! input:
@@ -149,7 +154,7 @@ contains
 
    end if
 
-   call pass_public_vars(pid, nNodes, ierr, cmessage)
+   call pass_global_data(pid, nNodes, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end subroutine init_data
