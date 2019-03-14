@@ -2,10 +2,14 @@ module remapping
 
   ! data types
   use nrtype
-  use dataTypes, only : remap                  ! remapping data type
-  use dataTypes, only : runoff                 ! runoff data type
-  use dataTypes, only : var_ilength            ! integer type:          var(:)%dat
-  use dataTypes, only : var_dlength            ! double precision type: var(:)%dat
+  use dataTypes, only : remap                ! remapping data type
+  use dataTypes, only : runoff               ! runoff data type
+  use dataTypes, only : var_ilength          ! integer type:          var(:)%dat
+  use dataTypes, only : var_dlength          ! double precision type: var(:)%dat
+
+  ! parameter structures
+  USE dataTypes,  only : RCHPRP              ! Reach parameters (properties)
+  USE dataTypes,  only : RCHTOPO             ! Network topology
 
   ! look-up variables
   use var_lookup,only:ixHRU,    nVarsHRU     ! index of variables for the HRUs
@@ -275,38 +279,39 @@ module remapping
   ! *************************************************************************
   subroutine basin2reach(&
                          ! input
-                         basinRunoff,       & ! intent(in):  basin runoff (m/s)
+                         basinRunoff,       & ! basin runoff (m/s)
+                         NETOPO_in,         & ! reach topology data structure
+                         RPARAM_in,         & ! reach parameter data structure
                          ! output
                          reachRunoff,       & ! intent(out): reach runoff (m/s)
                          ierr, message)       ! intent(out): error control
 
-  USE globalData, only:NETOPO
-  USE globalData, only:RPARAM
-
   implicit none
   ! input
-  real(dp)             , intent(in)  :: basinRunoff(:)   ! basin runoff (m/s)
+  real(dp)                  , intent(in)  :: basinRunoff(:)   ! basin runoff (m/s)
+  type(RCHTOPO), allocatable, intent(in)  :: NETOPO_in(:)     ! River Network topology
+  type(RCHPRP),  allocatable, intent(in)  :: RPARAM_in(:)     ! River (non-)physical parameters
   ! output
-  real(dp)             , intent(out) :: reachRunoff(:)   ! reach runoff (m/s)
-  integer(i4b)         , intent(out) :: ierr             ! error code
-  character(len=strLen), intent(out) :: message          ! error message
+  real(dp)                  , intent(out) :: reachRunoff(:)   ! reach runoff (m/s)
+  integer(i4b)              , intent(out) :: ierr             ! error code
+  character(len=strLen)     , intent(out) :: message          ! error message
   ! ----------------------------------------------------------------------------------------------
   ! local
-  integer(i4b)                       :: nContrib         ! number of contributing HRUs
-  integer(i4b)                       :: iHRU             ! array index for contributing HRU
-  integer(i4b)                       :: iSeg             ! array index for stream segment
+  integer(i4b)                            :: nContrib         ! number of contributing HRUs
+  integer(i4b)                            :: iHRU             ! array index for contributing HRU
+  integer(i4b)                            :: iSeg             ! array index for stream segment
   ! initialize error control
   ierr=0; message='basin2reach/'
 
   ! interpolate the data to the basins
-  do iSeg=1,size(NETOPO)
+  do iSeg=1,size(NETOPO_in)
 
    ! associate variables in data structure
-   nContrib       = size(NETOPO(iSeg)%HRUID)
-   associate(hruContribId   => NETOPO(iSeg)%HRUID,   & ! unique ids of contributing HRU
-             hruContribIx   => NETOPO(iSeg)%HRUIX,   & ! index of contributing HRU
-             basArea        => RPARAM(iSeg)%BASAREA, & ! basin (total contributing HRU) area
-             hruWeight      => NETOPO(iSeg)%HRUWGT   ) ! weight assigned to each HRU
+   nContrib       = size(NETOPO_in(iSeg)%HRUID)
+   associate(hruContribId   => NETOPO_in(iSeg)%HRUID,   & ! unique ids of contributing HRU
+             hruContribIx   => NETOPO_in(iSeg)%HRUIX,   & ! index of contributing HRU
+             basArea        => RPARAM_in(iSeg)%BASAREA, & ! basin (total contributing HRU) area
+             hruWeight      => NETOPO_in(iSeg)%HRUWGT   ) ! weight assigned to each HRU
 
    ! * case where HRUs drain into the segment
    if(nContrib > 0)then

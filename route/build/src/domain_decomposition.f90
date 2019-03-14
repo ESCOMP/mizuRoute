@@ -218,8 +218,9 @@ contains
    ! count tributary domains - nTrib
    ! count total segments from tributary domains - nTribSeg
    ! rank domains based on nSubSeg - rnkRnDomain
-   nTribSeg = 0
-   nTrib = 0
+
+   nTribSeg = 0  ! number of tributary reaches
+   nTrib = 0     ! number of tributaries
    do ix = 1,nDomain
     nSubSeg(ix) = size(domains(ix)%segIndex)
     if (domains(ix)%pfaf(1:1)/='-') then
@@ -229,9 +230,10 @@ contains
    end do
    call indexx(nSubSeg,rnkRnDomain)
 
-   ! root node is used to process mainstem and small tributaries
+   ! root node is used to process small tributaries first in addition to mainstem later
    ! going through tributaries from the smallest, and accumulate number of tributary segments (nSmallTrib) up to "nEven"
    ! count a number of tributaries that are processed in mainstem cores
+
    nEven = nTribSeg/nNodes
    nSmallTrib=0
    isAssigned = .false.

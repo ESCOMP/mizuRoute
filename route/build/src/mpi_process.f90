@@ -58,6 +58,8 @@ contains
   USE globalData,        ONLY: nDomain              ! count of decomposed domains (tributaries + mainstems)
   USE globalData,        ONLY: RCHFLX, RCHFLX_local
   USE globalData,        ONLY: KROUTE, KROUTE_local
+  USE globalData,        ONLY: NETOPO, NETOPO_trib
+  USE globalData,        ONLY: RPARAM, RPARAM_trib
   USE globalData,        ONLY: nEns
   USE public_var
 
@@ -114,7 +116,7 @@ contains
   character(len=32)                           :: pfaf(nRch_in)             ! reach pfafcode for each reach
   integer(i4b)                                :: iySubHRU(nHRU_in)         ! local HRU index
   integer(i4b)                                :: iySubSEG(nRch_in)         ! local reach index
-  logical(lgt)                                :: isTrib(nRch_in)           ! logical to indicate tributary seg or not
+  logical(lgt)                                :: isTribSeg(nRch_in)        ! logical to indicate tributary seg or not
   ! flat array for decomposed river network per domain (sub-basin)
   integer(i4b)                                :: idNode(nDomain)           ! node id array for each domain
   integer(i4b)                                :: rnkIdNode(nDomain)        ! ranked node id array for each domain
@@ -138,6 +140,7 @@ contains
 
   if (pid == root) then ! this is a root process
 
+    ! allocate for the entire river network
     allocate(RCHFLX(nEns,nRch_in), KROUTE(nEns,nRch_in), stat=ierr)
     allocate(ixSubHRU(nHRU_in),ixSubSEG(nRch_in), stat=ierr)
 
@@ -148,8 +151,8 @@ contains
     forall(ix=1:nDomain) idNode(ix) = domains(ix)%idNode
     call indexx(idNode,rnkIdNode)
 
-    ixSeg2=0; ixHru2=0
-    do ix = 1, nDomain
+    ixSeg2=0; ixHru2=0 ! last indices of domain chunks
+    domain:do ix = 1, nDomain
 
      ixx = rnkIdNode(ix)
      associate (nSubSeg => size(domains(ixx)%segIndex), nSubHru => size(domains(ixx)%hruIndex) )
@@ -168,12 +171,26 @@ contains
        iySubHRU(ixHru1:ixHru2)  = arth(1,1,nSubHru)                ! local hru indix per node
      end if
 
-     isTrib(ixSeg1:ixSeg2) = domains(ixx)%isTrib                 ! if domain is tributary, T otherwise, F
-     ixNode(ixSeg1:ixSeg2) = domains(ixx)%idNode                 ! node id
-     pfaf(ixSeg1:ixSeg2)   = adjustl(trim(domains(ixx)%pfaf))    ! basin pfaf code
+     isTribSeg(ixSeg1:ixSeg2) = domains(ixx)%isTrib                 ! if domain is tributary, T otherwise, F
+     ixNode(ixSeg1:ixSeg2)    = domains(ixx)%idNode                 ! node id
+     pfaf(ixSeg1:ixSeg2)      = adjustl(trim(domains(ixx)%pfaf))    ! basin pfaf code
 
      end associate
+    end do domain
+
+    ! Count the number of reaches and hrus in each node
+    allocate(seg_per_proc(0:nNodes), hru_per_proc(0:nNodes), stat=ierr)
+    seg_per_proc = 0
+    hru_per_proc = 0
+    do ix = 1,nDomain
+     idx = domains(ix)%idNode
+     seg_per_proc(idx) = seg_per_proc(idx) + size(domains(ix)%segIndex)
+     hru_per_proc(idx) = hru_per_proc(idx) + size(domains(ix)%hruIndex)
     end do
+
+    ! reach assigned to root proc
+    nSeg_root=seg_per_proc(root)   ! number of seg in root proc
+    nHRU_root=hru_per_proc(root)   ! number of hru in root proc
 
     ! covert component of derived data type to the arrays
     ! reach array
@@ -191,18 +208,8 @@ contains
       area(iHru)     = structHRU(ixSubHRU(iHru))%var(ixHRU%area)%dat(1)
     enddo
 
-    ! Compute the number of elements in each node
-    allocate(seg_per_proc(0:nNodes), hru_per_proc(0:nNodes), stat=ierr)
-    seg_per_proc = 0
-    hru_per_proc = 0
-    do ix = 1,nDomain
-     idx = domains(ix)%idNode
-     seg_per_proc(idx) = seg_per_proc(idx) + size(domains(ix)%segIndex)
-     hru_per_proc(idx) = hru_per_proc(idx) + size(domains(ix)%hruIndex)
-    end do
-
     ! send a portion of array to each process
-    do myid = 1, nNodes-1
+    node:do myid = 1, nNodes-1
       ! Get starting and ending indices
       ixSeg2   = sum(seg_per_proc(0:myid))
       ixSeg1 = ixSeg2 - seg_per_proc(myid) + 1
@@ -224,7 +231,6 @@ contains
       call MPI_SEND(hruSegId(ixHru1), hru_per_proc(myid), MPI_INT,              myid, send_data_tag, MPI_COMM_WORLD, ierr)
       call MPI_SEND(area(ixHru1),     hru_per_proc(myid), MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
      ! other global data (maybe broadcast)
-      call MPI_SEND(dt,      1, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
       call MPI_SEND(fshape,  1, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
       call MPI_SEND(tscale,  1, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
       call MPI_SEND(velo,    1, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
@@ -232,11 +238,7 @@ contains
       call MPI_SEND(mann_n,  1, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
       call MPI_SEND(wscale,  1, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
 
-    end do
-
-    ! reach assigned to root proc
-    nSeg_root=seg_per_proc(root)   ! number of seg in root proc
-    nHRU_root=hru_per_proc(root)   ! number of hru in root proc
+    enddo node
 
     ! find index of desired reach
     ixDesire = findIndex(segId(1:nSeg_root), desireId, integerMissing)
@@ -288,7 +290,10 @@ contains
                        ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call put_data_struct(nSeg_root, structSEG_local, structNTOPO_local, ierr, cmessage)
+    call put_data_struct(nSeg_root, structSEG_local, structNTOPO_local, & ! input
+                         RPARAM_trib, NETOPO_trib,                      & ! output
+                         ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
 !    print*, 'ix, hruId, ixSubHRU, iySubHRU, hruSegId'
 !    do ix = 1,nHRU_in
@@ -337,7 +342,6 @@ contains
    call MPI_RECV(hruSegId_local,  num_hru_received, MPI_INT,   root, send_data_tag, MPI_COMM_WORLD, status, ierr)
    call MPI_RECV(area_local,      num_hru_received, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
    ! other public/global data
-   call MPI_RECV(dt,      1, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
    call MPI_RECV(fshape,  1, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
    call MPI_RECV(tscale,  1, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
    call MPI_RECV(velo,    1, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
@@ -378,11 +382,13 @@ contains
                    ! output: error control
                    ierr, cmessage)
 
-   call put_data_struct(num_seg_received, structSEG_local, structNTOPO_local, ierr, cmessage)
+   call put_data_struct(num_seg_received, structSEG_local, structNTOPO_local, & ! input
+                        RPARAM_trib, NETOPO_trib,                             & ! output:
+                        ierr, cmessage)
 !deleteme
 !   if (pid==7) then
-!   do ix =1, size(NETOPO)
-!   print*, NETOPO(ix)%REACHID, RPARAM(ix)%BASAREA,  NETOPO(ix)%HRUID
+!   do ix =1, size(NETOPO_trib)
+!   print*, NETOPO_trib(ix)%REACHID, RPARAM_trib(ix)%BASAREA,  NETOPO_trib(ix)%HRUID
 !   enddo
 !   endif
 !deleteme
@@ -399,7 +405,9 @@ contains
                       nNodes,        & ! input: number of procs
                       ierr,message)    ! output: error control
   USE public_var
-  USE globalData, only : RCHFLX_local           ! reach flux structure
+  USE globalData, only : NETOPO_trib            ! tributary reach netowrk structure
+  USE globalData, only : RPARAM_trib            ! tributary reach parameter structure
+  USE globalData, only : RCHFLX_local           ! tributary reach flux structure
   USE globalData, only : river_basin            ! OMP domain decomposition
   USE globalData, only : ixDesire               ! desired reach index
   USE globalData, only : runoff_data            ! runoff data structure
@@ -478,13 +486,15 @@ contains
     ! map the basin runoff to the stream network...
     call basin2reach(&
                     ! input
-                    basinRunoff_local,       & ! intent(in):  basin runoff (m/s)
+                    basinRunoff_local,       & ! basin runoff (m/s)
+                    NETOPO_trib,             & ! reach topology
+                    RPARAM_trib,             & ! reach parameter
                     ! output
                     reachRunoff_local,       & ! intent(out): reach runoff (m3/s)
                     ierr, cmessage)            ! intent(out): error control
 
 ! --------------------------------
-! Put this in seprate routine
+! BEGIN: Put this in seprate routine
 ! --------------------------------
     ! 2. subroutine: basin route
     if (doesBasinRoute == 1) then
@@ -503,10 +513,12 @@ contains
     ! 3. subroutine: river reach routing
     ! perform upstream flow accumulation
     do iens = 1,nEns
-      call accum_runoff(iens,              &    ! input: ensemble index
-                        num_seg_received,  &    ! input: number of reaches in the river network
-                        ixDesire,          &    ! input: index of verbose reach
-                        ierr, cmessage)         ! output: error controls
+      call accum_runoff(iens,              &  ! input: ensemble index
+                        num_seg_received,  &  ! input: number of reaches in the river network
+                        ixDesire,          &  ! input: index of verbose reach
+                        NETOPO_trib,       &  ! input: reach topology data structure
+                        RCHFLX_local,      &  ! inout: reach flux data structure
+                        ierr, cmessage)       ! output: error controls
 
       ! perform KWT routing
       if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
@@ -522,11 +534,13 @@ contains
        call irf_route(iens,                 & ! input: ensemble index
                       river_basin,          & ! input: river basin data type
                       ixDesire,             & ! input: index of the desired reach
+                      NETOPO_trib,          & ! input: reach topology data structure
+                      RCHFLX_local,         & ! inout: reach flux data structure
                       ierr,cmessage)          ! output: error control
       endif
     end do
 ! --------------------------------
-! Put this in seprate routine
+! END: Put this in seprate routine
 ! --------------------------------
 
   else  ! if slaved proc
@@ -545,13 +559,15 @@ contains
     ! map the basin runoff to the stream network...
     call basin2reach(&
                     ! input
-                    basinRunoff_local,       & ! intent(in):  basin runoff (m/s)
+                    basinRunoff_local,       & ! basin runoff (m/s)
+                    NETOPO_trib,             & ! reach topology
+                    RPARAM_trib,             & ! reach parameter
                     ! output
-                    reachRunoff_local,       & ! intent(out): reach runoff (m3/s)
-                    ierr, cmessage)            ! intent(out): error control
+                    reachRunoff_local,       & ! reach runoff (m3/s)
+                    ierr, cmessage)            ! error control
 
 ! --------------------------------
-! Put this in seprate routine
+! BEGIN: Put this in seprate routine
 ! --------------------------------
 
     ! 2. subroutine: basin routing
@@ -580,10 +596,12 @@ contains
     ! 3. subroutine: river reach routing
     ! perform upstream flow accumulation
     do iens = 1,nEns
-      call accum_runoff(iens,              &    ! input: ensemble index
-                        num_seg_received,  &    ! input: number of reaches in the river network
-                        ixDesire,          &    ! input: index of verbose reach
-                        ierr, cmessage)         ! output: error controls
+      call accum_runoff(iens,              &  ! input: ensemble index
+                        num_seg_received,  &  ! input: number of reaches in the river network
+                        ixDesire,          &  ! input: index of verbose reach
+                        NETOPO_trib,       &  ! input: reach topology data structure
+                        RCHFLX_local,      &  ! inout: reach flux data structure
+                        ierr, cmessage)       ! output: error controls
 
       ! perform KWT routing
       if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
@@ -599,6 +617,8 @@ contains
        call irf_route(iens,                 & ! input: ensemble index
                       river_basin,          & ! input: river basin data type
                       ixDesire,             & ! input: index of the desired reach
+                      NETOPO_trib,          & ! input: reach topology data structure
+                      RCHFLX_local,         & ! input: reach flux data structure
                       ierr,cmessage)          ! output: error control
       endif
     end do
@@ -694,12 +714,13 @@ contains
 
   ierr=0; message='pass_public_var/'
 
-  call MPI_BCAST(hydGeometryOption, 1, MPI_LOGICAL, root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(topoNetworkOption, 1, MPI_LOGICAL, root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(computeReachList,  1, MPI_LOGICAL, root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(routOpt,           1, MPI_INT,     root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(desireId,          1, MPI_INT,     root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(doesBasinRoute,    1, MPI_INT,     root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(hydGeometryOption, 1, MPI_LOGICAL,          root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(topoNetworkOption, 1, MPI_LOGICAL,          root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(computeReachList,  1, MPI_LOGICAL,          root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(routOpt,           1, MPI_INT,              root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(desireId,          1, MPI_INT,              root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(doesBasinRoute,    1, MPI_INT,              root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(dt,                1, MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
 
  end subroutine pass_public_var
 

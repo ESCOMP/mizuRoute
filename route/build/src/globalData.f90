@@ -122,8 +122,10 @@ module globalData
   type(time)                     , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
 
   ! river topology and parameter structures
-  type(RCHPRP)    , allocatable  , public :: RPARAM(:)            ! Reach Parameters
-  type(RCHTOPO)   , allocatable  , public :: NETOPO(:)            ! River Network topology
+  type(RCHPRP)    , allocatable  , public :: RPARAM(:)            ! Reach Parameters for whole domain
+  type(RCHTOPO)   , allocatable  , public :: NETOPO(:)            ! River Network topology for whole domain
+  type(RCHPRP)    , allocatable  , public :: RPARAM_trib(:)       ! Reach Parameters for tributaries
+  type(RCHTOPO)   , allocatable  , public :: NETOPO_trib(:)       ! River Network topology tributaries
 
   ! time delay histogram
   REAL(DP)        , ALLOCATABLE  , public :: FRAC_FUTURE(:)       ! fraction of runoff in future time steps

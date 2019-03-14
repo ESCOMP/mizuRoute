@@ -287,10 +287,11 @@ end subroutine augment_ntopo
  ! public subroutine: populate old data strucutures
  ! *********************************************************************
  ! ---------- temporary code: populate old data structures --------------------------------------------------
- subroutine put_data_struct(nSeg, structSEG, structNTOPO, ierr, message)
+ subroutine put_data_struct(nSeg, structSEG, structNTOPO, &
+                            RPARAM_in, NETOPO_in , ierr, message)
   ! saved global data
-  use globalData,    only : RPARAM             ! Reach parameters
-  use globalData,    only : NETOPO             ! Network topology
+  use dataTypes,     only : RCHPRP             ! Reach parameters
+  use dataTypes,     only : RCHTOPO            ! Network topology
   use globalData,    only : fshape, tscale     ! basin IRF routing parameters (Transfer function parameters)
   USE public_var,    only : min_slope          ! minimum slope
   USE public_var,    only : dt                 ! simulation time step [sec]
@@ -298,13 +299,15 @@ end subroutine augment_ntopo
   use routing_param, only : basinUH            ! construct basin unit hydrograph
   implicit none
   ! input
-  integer(i4b)      , intent(in)                 :: nSeg             ! number of stream segments
-  ! inout: populate data structures
-  type(var_dlength) , intent(in)                 :: structSEG(:)     ! stream segment properties
-  type(var_ilength) , intent(in)                 :: structNTOPO(:)   ! network topology
+  integer(i4b)                , intent(in)       :: nSeg             ! number of stream segments
+  type(var_dlength)           , intent(in)       :: structSEG(:)     ! stream segment properties
+  type(var_ilength)           , intent(in)       :: structNTOPO(:)   ! network topology
+  ! output data structure
+  type(RCHPRP)  , allocatable , intent(out)      :: RPARAM_in(:)     ! Reach Parameters
+  type(RCHTOPO) , allocatable , intent(out)      :: NETOPO_in(:)     ! River Network topology
   ! output: error control
-  integer(i4b)      , intent(out)                :: ierr             ! error code
-  character(*)      , intent(out)                :: message          ! error message
+  integer(i4b)                , intent(out)      :: ierr             ! error code
+  character(*)                , intent(out)      :: message          ! error message
   ! local varialbles
   character(len=strLen)                          :: cmessage         ! error message of downwind routine
   integer(i4b)                                   :: nUps             ! number of upstream segments for a segment
@@ -318,7 +321,7 @@ end subroutine augment_ntopo
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! allocate space
-  allocate(RPARAM(nSeg), NETOPO(nSeg), stat=ierr)
+  allocate(RPARAM_in(nSeg), NETOPO_in(nSeg), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'unable to allocate space for old data structures'; return; endif
 
   ! loop through stream segments
@@ -330,85 +333,85 @@ end subroutine augment_ntopo
    ! ----- reach parameters -----
 
    ! copy data into the reach parameter structure
-   RPARAM(iSeg)%RLENGTH =     structSEG(iSeg)%var(ixSEG%length)%dat(1)
-   RPARAM(iSeg)%R_SLOPE = max(structSEG(iSeg)%var(ixSEG%slope)%dat(1), min_slope)
-   RPARAM(iSeg)%R_MAN_N =     structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
-   RPARAM(iSeg)%R_WIDTH =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
+   RPARAM_in(iSeg)%RLENGTH =     structSEG(iSeg)%var(ixSEG%length)%dat(1)
+   RPARAM_in(iSeg)%R_SLOPE = max(structSEG(iSeg)%var(ixSEG%slope)%dat(1), min_slope)
+   RPARAM_in(iSeg)%R_MAN_N =     structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
+   RPARAM_in(iSeg)%R_WIDTH =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
 
    ! compute variables
-   RPARAM(iSeg)%BASAREA = structSEG(iSeg)%var(ixSEG%basArea)%dat(1)
-   RPARAM(iSeg)%UPSAREA = structSEG(iSeg)%var(ixSEG%upsArea)%dat(1)
-   RPARAM(iSeg)%TOTAREA = structSEG(iSeg)%var(ixSEG%totalArea)%dat(1)
+   RPARAM_in(iSeg)%BASAREA = structSEG(iSeg)%var(ixSEG%basArea)%dat(1)
+   RPARAM_in(iSeg)%UPSAREA = structSEG(iSeg)%var(ixSEG%upsArea)%dat(1)
+   RPARAM_in(iSeg)%TOTAREA = structSEG(iSeg)%var(ixSEG%totalArea)%dat(1)
 
    ! NOT USED: MINFLOW -- minimum environmental flow
-   RPARAM(iSeg)%MINFLOW = structSEG(iSeg)%var(ixSEG%minFlow)%dat(1)
+   RPARAM_in(iSeg)%MINFLOW = structSEG(iSeg)%var(ixSEG%minFlow)%dat(1)
 
    ! ----- network topology -----
 
    ! reach indices
-   NETOPO(iSeg)%REACHIX = structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1)     ! reach index (1, 2, 3, ..., nSeg)
-   NETOPO(iSeg)%REACHID = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)        ! reach ID (unique reach identifier)
+   NETOPO_in(iSeg)%REACHIX = structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1)     ! reach index (1, 2, 3, ..., nSeg)
+   NETOPO_in(iSeg)%REACHID = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)        ! reach ID (unique reach identifier)
 
    ! downstream reach indices
-   NETOPO(iSeg)%DREACHI = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1) ! Immediate Downstream reach index
-   NETOPO(iSeg)%DREACHK = structNTOPO(iSeg)%var(ixNTOPO%downSegId)%dat(1)    ! Immediate Downstream reach ID
+   NETOPO_in(iSeg)%DREACHI = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1) ! Immediate Downstream reach index
+   NETOPO_in(iSeg)%DREACHK = structNTOPO(iSeg)%var(ixNTOPO%downSegId)%dat(1)    ! Immediate Downstream reach ID
 
    ! allocate space for immediate upstream reach indices
    nUps = size(structNTOPO(iSeg)%var(ixNTOPO%upSegIds)%dat)
-   allocate(NETOPO(iSeg)%UREACHI(nUps), NETOPO(iSeg)%UREACHK(nUps), NETOPO(iSeg)%goodBas(nUps), stat=ierr)
+   allocate(NETOPO_in(iSeg)%UREACHI(nUps), NETOPO_in(iSeg)%UREACHK(nUps), NETOPO_in(iSeg)%goodBas(nUps), stat=ierr)
    if(ierr/=0)then; message=trim(message)//'unable to allocate space for upstream structures'; return; endif
 
    ! populate immediate upstream data structures
    if(nUps>0)then
     do iUps=1,nUps   ! looping through upstream reaches
-     NETOPO(iSeg)%UREACHI(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIndices)%dat(iUps)      ! Immediate Upstream reach indices
-     NETOPO(iSeg)%UREACHK(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIds    )%dat(iUps)      ! Immediate Upstream reach Ids
-     NETOPO(iSeg)%goodBas(iUps) = (structNTOPO(iSeg)%var(ixNTOPO%goodBasin)%dat(iUps)==true) ! "good" basin
+     NETOPO_in(iSeg)%UREACHI(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIndices)%dat(iUps)      ! Immediate Upstream reach indices
+     NETOPO_in(iSeg)%UREACHK(iUps) = structNTOPO(iSeg)%var(ixNTOPO%upSegIds    )%dat(iUps)      ! Immediate Upstream reach Ids
+     NETOPO_in(iSeg)%goodBas(iUps) = (structNTOPO(iSeg)%var(ixNTOPO%goodBasin)%dat(iUps)==true) ! "good" basin
     end do  ! Loop through upstream reaches
    endif
 
    ! define the reach order
-   NETOPO(iSeg)%RHORDER = structNTOPO(iSeg)%var(ixNTOPO%rchOrder)%dat(1)  ! Processing sequence
+   NETOPO_in(iSeg)%RHORDER = structNTOPO(iSeg)%var(ixNTOPO%rchOrder)%dat(1)  ! Processing sequence
 
    ! allocate space for contributing HRUs
    nUps = structNTOPO(iSeg)%var(ixNTOPO%nHRU)%dat(1)
-   allocate(NETOPO(iSeg)%HRUID(nUps), NETOPO(iSeg)%HRUIX(nUps), NETOPO(iSeg)%HRUWGT(nUps), stat=ierr)
+   allocate(NETOPO_in(iSeg)%HRUID(nUps), NETOPO_in(iSeg)%HRUIX(nUps), NETOPO_in(iSeg)%HRUWGT(nUps), stat=ierr)
    if(ierr/=0)then; message=trim(message)//'unable to allocate space for contributing HRUs'; return; endif
 
    ! HRU2SEG topology
    if(nUps>0)then
      do iUps = 1, nUps
-       NETOPO(iSeg)%HRUID(iUps) = structNTOPO(iSeg)%var(ixNTOPO%hruContribId)%dat(iUps)
-       NETOPO(iSeg)%HRUIX(iUps) = structNTOPO(iSeg)%var(ixNTOPO%hruContribIx)%dat(iUps)
-       NETOPO(iSeg)%HRUWGT(iUps) = structSEG(iSeg)%var(ixSEG%weight)%dat(iUps)
+       NETOPO_in(iSeg)%HRUID(iUps) = structNTOPO(iSeg)%var(ixNTOPO%hruContribId)%dat(iUps)
+       NETOPO_in(iSeg)%HRUIX(iUps) = structNTOPO(iSeg)%var(ixNTOPO%hruContribIx)%dat(iUps)
+       NETOPO_in(iSeg)%HRUWGT(iUps) = structSEG(iSeg)%var(ixSEG%weight)%dat(iUps)
      end do  ! Loop through contributing HRU loop
    end if
 
    ! NOT USED: lake parameters
-   NETOPO(iSeg)%LAKE_IX = integerMissing  ! Lake index (0,1,2,...,nlak-1)
-   NETOPO(iSeg)%LAKE_ID = integerMissing  ! Lake ID (REC code?)
-   NETOPO(iSeg)%BASULAK = realMissing     ! Area of basin under lake
-   NETOPO(iSeg)%RCHULAK = realMissing     ! Length of reach under lake
-   NETOPO(iSeg)%LAKINLT = .false.         ! .TRUE. if reach is lake inlet, .FALSE. otherwise
-   NETOPO(iSeg)%USRTAKE = .false.         ! .TRUE. if user takes from reach, .FALSE. otherwise
+   NETOPO_in(iSeg)%LAKE_IX = integerMissing  ! Lake index (0,1,2,...,nlak-1)
+   NETOPO_in(iSeg)%LAKE_ID = integerMissing  ! Lake ID (REC code?)
+   NETOPO_in(iSeg)%BASULAK = realMissing     ! Area of basin under lake
+   NETOPO_in(iSeg)%RCHULAK = realMissing     ! Length of reach under lake
+   NETOPO_in(iSeg)%LAKINLT = .false.         ! .TRUE. if reach is lake inlet, .FALSE. otherwise
+   NETOPO_in(iSeg)%USRTAKE = .false.         ! .TRUE. if user takes from reach, .FALSE. otherwise
 
    ! NOT USED: Location (available in the input files)
-   NETOPO(iSeg)%RCHLAT1 = realMissing     ! Start latitude
-   NETOPO(iSeg)%RCHLAT2 = realMissing     ! End latitude
-   NETOPO(iSeg)%RCHLON1 = realMissing     ! Start longitude
-   NETOPO(iSeg)%RCHLON2 = realMissing     ! End longitude
+   NETOPO_in(iSeg)%RCHLAT1 = realMissing     ! Start latitude
+   NETOPO_in(iSeg)%RCHLAT2 = realMissing     ! End latitude
+   NETOPO_in(iSeg)%RCHLON1 = realMissing     ! Start longitude
+   NETOPO_in(iSeg)%RCHLON2 = realMissing     ! End longitude
 
    ! reach unit hydrograph
    if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
-     allocate(NETOPO(iSeg)%UH(size(structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat)), stat=ierr, errmsg=cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage)//': NETOPO(iSeg)%UH'; return; endif
-     NETOPO(iSeg)%UH(:) =  structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat(:)
+     allocate(NETOPO_in(iSeg)%UH(size(structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat)), stat=ierr, errmsg=cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage)//': NETOPO_in(iSeg)%UH'; return; endif
+     NETOPO_in(iSeg)%UH(:) =  structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat(:)
    end if
 
    ! upstream reach list
-   allocate(NETOPO(iSeg)%RCHLIST(size(structNTOPO(iSeg)%var(ixNTOPO%allUpSegIndices)%dat)), stat=ierr, errmsg=cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': NETOPO(iSeg)%RCHLIST'; return; endif
-   NETOPO(iSeg)%RCHLIST(:) =  structNTOPO(iSeg)%var(ixNTOPO%allUpSegIndices)%dat(:)
+   allocate(NETOPO_in(iSeg)%RCHLIST(size(structNTOPO(iSeg)%var(ixNTOPO%allUpSegIndices)%dat)), stat=ierr, errmsg=cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': NETOPO_in(iSeg)%RCHLIST'; return; endif
+   NETOPO_in(iSeg)%RCHLIST(:) =  structNTOPO(iSeg)%var(ixNTOPO%allUpSegIndices)%dat(:)
 
   end do  ! looping through stream segments
 

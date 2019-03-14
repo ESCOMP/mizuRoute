@@ -11,7 +11,7 @@ program route_runoff
 ! variable types
 USE nrtype                                     ! variable types, etc.
 
-!USE globalData, only : NETOPO                 ! river network data (tmp)
+USE globalData, only : NETOPO                 ! river network data (tmp)
 USE globalData, only : modJulday, endJulday    !
 USE globalData, only : pid, nNodes             ! procs id and number of procs
 
@@ -42,7 +42,7 @@ implicit none
 character(len=strLen)         :: cfile_name          ! name of the control file
 integer(i4b)                  :: ierr                ! error code
 character(len=strLen)         :: cmessage            ! error message of downwind routine
-
+integer(i4b)                  :: ix
 ! ======================================================================================================
 ! ======================================================================================================
 
@@ -78,7 +78,7 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 !if (pid==7)then
 !  print*, 'pid,reachID,downreachID,order'
 !  do ix=1,size(NETOPO)
-!   write(*,"(I1,A,I9,A,I9,A,I5)") pid,',',NETOPO(ix)%REACHID,',',NETOPO(ix)%DREACHK,',',NETOPO(ix)%RHORDER
+!   write(*,"(I1,A,I9,A,I9,A,I9,A,I5)") pid,',',NETOPO(ix)%REACHIX,',',NETOPO(ix)%REACHID,',',NETOPO(ix)%DREACHK,',',NETOPO(ix)%RHORDER
 !  enddo
 !endif
 
@@ -87,7 +87,7 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 ! ***********************************
 do while (modJulday < endJulday)
 
-  if (pid==8) write(*,*) 'modJulday= ', modJulday
+  if (pid==0) write(*,*) 'modJulday= ', modJulday
 
   ! prepare simulation output netCDF
   call prep_output(pid, ierr, cmessage)
