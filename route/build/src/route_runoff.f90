@@ -67,10 +67,10 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 
 ! *****
 ! *** data initialization
-!     - river topology, properties
-!     - runoff data (datetime, domain)
-!     - runoff remapping data
-!     - channel states
+!    - river topology, properties (river network domain decomposition)
+!    - runoff data (datetime, domain)
+!    - runoff remapping data
+!    - channel states
 ! ***********************************
 call init_data(pid, nNodes, ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
