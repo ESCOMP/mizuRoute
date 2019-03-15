@@ -56,14 +56,14 @@ contains
                   structHRU2seg,    & ! ancillary data for mapping hru2basin
                   structNTOPO,      & ! ancillary data for network toopology
                   ! output:
+                  ierr, message,    & ! error control
+                  ! optional output:
                   tot_hru,          & ! total number of all the upstream hrus for all stream segments
                   tot_upseg,        & ! total number of immediate upstream segments for all  stream segments
                   tot_upstream,     & ! total number of all the upstream segments for all stream segments
                   tot_uh,           & ! total number of unit hydrograph from all the stream segments
                   ixHRU_desired,    & ! indices of desired hrus
-                  ixSeg_desired,    & ! indices of desired reaches
-                  ! output: error control
-                  ierr, message)
+                  ixSeg_desired     ) ! indices of desired reaches
 
  ! external subroutines/data
  ! network topology routine
@@ -83,31 +83,37 @@ contains
  ! This subroutine populate river network topology data strucutres
  implicit none
  ! output: model control
- integer(i4b)      , intent(in)                 :: nHRU             ! number of HRUs
- integer(i4b)      , intent(in)                 :: nSeg             ! number of stream segments
+ integer(i4b),       intent(in)                    :: nHRU             ! number of HRUs
+ integer(i4b),       intent(in)                    :: nSeg             ! number of stream segments
  ! inout: populate data structures
- type(var_dlength) , intent(inout), allocatable :: structHRU(:)     ! HRU properties
- type(var_dlength) , intent(inout), allocatable :: structSEG(:)     ! stream segment properties
- type(var_ilength) , intent(inout), allocatable :: structHRU2seg(:) ! HRU-to-segment mapping
- type(var_ilength) , intent(inout), allocatable :: structNTOPO(:)   ! network topology
- ! output:
- integer(i4b),       intent(out)                :: tot_upstream     ! total number of all of the upstream stream segments for all stream segments
- integer(i4b),       intent(out)                :: tot_upseg        ! total number of immediate upstream segments for all  stream segments
- integer(i4b),       intent(out)                :: tot_hru          ! total number of all the upstream hrus for all stream segments
- integer(i4b),       intent(out)                :: tot_uh           ! total number of unit hydrograph from all the stream segments
- integer(i4b),       intent(out),   allocatable :: ixHRU_desired(:) ! indices of desired hrus
- integer(i4b),       intent(out),   allocatable :: ixSeg_desired(:) ! indices of desired reaches
+ type(var_dlength), intent(inout), allocatable     :: structHRU(:)     ! HRU properties
+ type(var_dlength), intent(inout), allocatable     :: structSEG(:)     ! stream segment properties
+ type(var_ilength), intent(inout), allocatable     :: structHRU2seg(:) ! HRU-to-segment mapping
+ type(var_ilength), intent(inout), allocatable     :: structNTOPO(:)   ! network topology
  ! output: error control
- integer(i4b)      , intent(out)                :: ierr             ! error code
- character(*)      , intent(out)                :: message          ! error message
+ integer(i4b)      , intent(out)                   :: ierr             ! error code
+ character(*)      , intent(out)                   :: message          ! error message
+ ! optional output:
+ integer(i4b), optional, intent(out)               :: tot_upstream     ! total number of all of the upstream stream segments for all stream segments
+ integer(i4b), optional, intent(out)               :: tot_upseg        ! total number of immediate upstream segments for all  stream segments
+ integer(i4b), optional, intent(out)               :: tot_hru          ! total number of all the upstream hrus for all stream segments
+ integer(i4b), optional, intent(out)               :: tot_uh           ! total number of unit hydrograph from all the stream segments
+ integer(i4b), optional, intent(out),  allocatable :: ixHRU_desired(:) ! indices of desired hrus
+ integer(i4b), optional, intent(out),  allocatable :: ixSeg_desired(:) ! indices of desired reaches
  ! --------------------------------------------------------------------------------------------------------------
  ! local variables
- character(len=strLen)                          :: cmessage           ! error message of downwind routine
- integer(i4b)                                   :: iSeg               ! indices for stream segment
- integer(i4b)   , parameter                     :: maxUpstreamFile=10000000 ! 10 million: maximum number of upstream reaches to enable writing
- integer*8                                      :: time0,time1        ! times
- real(dp)     , allocatable                     :: seg_length(:)      ! temporal array for segment length
- type(dlength), allocatable                     :: temp_dat(:)        ! temporal data storage
+ character(len=strLen)                             :: cmessage             ! error message of downwind routine
+ integer(i4b)                                      :: tot_upstream_tmp     ! temporal storage for tot_upstream
+ integer(i4b)                                      :: tot_upseg_tmp        ! temporal storage tot_upseg_tmp
+ integer(i4b)                                      :: tot_hru_tmp          ! temporal storage tot_hru_tmp
+ integer(i4b)                                      :: tot_uh_tmp           ! temporal storage tot_uh_tmp
+ integer(i4b), allocatable                         :: ixHRU_desired_tmp(:) ! temporal storage ixHRU_desired_tmp
+ integer(i4b), allocatable                         :: ixSeg_desired_tmp(:) ! temporal storage ixSeg_desired_tmp
+ integer(i4b)                                      :: iSeg                 ! indices for stream segment
+ integer(i4b), parameter                           :: maxUpstreamFile=10000000 ! 10 million: maximum number of upstream reaches to enable writing
+ integer*8                                         :: time0,time1          ! for timing
+ real(dp)     , allocatable                        :: seg_length(:)        ! temporal array for segment length
+ type(dlength), allocatable                        :: temp_dat(:)          ! temporal storage for dlength data structure
 
  ! initialize error control
  ierr=0; message='augment_ntopo/'
@@ -131,8 +137,10 @@ contains
                    structHRU2seg, & ! ancillary data for mapping hru2basin
                    structNTOPO,   & ! ancillary data for network toopology
                    ! output
-                   tot_hru,    &   ! output: total number of all the upstream hrus for all stream segments
-                   ierr, cmessage) ! output: error control
+                   tot_hru_tmp,   & ! output: total number of all the upstream hrus for all stream segments
+                   ierr, cmessage)  ! output: error control
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
 
   ! get timing
   call system_clock(time1)
@@ -153,7 +161,7 @@ contains
                       ! input-output: data structures
                       structNTOPO,   & ! ancillary data for network toopology
                       ! output
-                      tot_upseg,     & ! output: sum of immediate upstream segments
+                      tot_upseg_tmp, & ! output: sum of immediate upstream segments
                       ierr, cmessage)  ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -192,7 +200,7 @@ contains
                  structNTOPO,                 & ! Network topology
                  ! output
                  structSEG,                   & ! input: ancillary data for stream segments
-                 tot_upstream,                & ! Total number of upstream reaches for all reaches
+                 tot_upstream_tmp,            & ! Total number of upstream reaches for all reaches
                  ierr, cmessage)                ! Error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -237,12 +245,12 @@ contains
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! put the lag times in the data structures
-   tot_uh = 0
+   tot_uh_tmp = 0
    do iSeg=1,nSeg
     allocate(structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat(size(temp_dat(iSeg)%dat)), stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage)//': structSEG%var(ixSEG%uh)%dat'; return; endif
     structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat(:) = temp_dat(iSeg)%dat(:)
-    tot_uh = tot_uh+size(temp_dat(iSeg)%dat)
+    tot_uh_tmp = tot_uh_tmp+size(temp_dat(iSeg)%dat)
    enddo
 
   endif ! if using the impulse response function
@@ -259,19 +267,19 @@ contains
  ! get the mask of all upstream reaches above a given reach
  call reach_mask(&
                  ! input
-                 idSegOut,      &  ! input: reach index
-                 structNTOPO,   &  ! input: network topology structures
-                 structSeg,     &  ! input: river reach properties
-                 nHRU,          &  ! input: number of HRUs
-                 nSeg,          &  ! input: number of reaches
+                 idSegOut,          &  ! input: reach index
+                 structNTOPO,       &  ! input: network topology structures
+                 structSeg,         &  ! input: river reach properties
+                 nHRU,              &  ! input: number of HRUs
+                 nSeg,              &  ! input: number of reaches
                  ! output: updated dimensions
-                 tot_hru,       &  ! input+output: total number of all the upstream hrus for all stream segments
-                 tot_upseg,     &  ! input+output: sum of immediate upstream segments
-                 tot_upstream,  &  ! input+output: total number of upstream reaches for all reaches
-                 tot_uh,        &  ! input+output: total number of unit hydrograph dimensions
+                 tot_hru_tmp,       &  ! input+output: total number of all the upstream hrus for all stream segments
+                 tot_upseg_tmp,     &  ! input+output: sum of immediate upstream segments
+                 tot_upstream_tmp,  &  ! input+output: total number of upstream reaches for all reaches
+                 tot_uh_tmp,        &  ! input+output: total number of unit hydrograph dimensions
                  ! output: dimension masks
-                 ixHRU_desired, &  ! output: indices of desired hrus
-                 ixSeg_desired, &  ! output: indices of desired reaches
+                 ixHRU_desired_tmp, &  ! output: indices of desired hrus
+                 ixSeg_desired_tmp, &  ! output: indices of desired reaches
                  ! output: error control
                  ierr, cmessage )  ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -280,6 +288,22 @@ contains
  call system_clock(time1)
  !write(*,'(a,1x,i20)') 'after reach_mask: time = ', time1-time0
  !print*, trim(message)//'PAUSE : '; read(*,*)
+
+ ! for optional output
+ if (present(tot_hru))       tot_hru=tot_hru_tmp
+ if (present(tot_upseg))     tot_upseg=tot_upseg_tmp
+ if (present(tot_upstream))  tot_upstream=tot_upstream_tmp
+ if (present(tot_uh))        tot_uh=tot_uh_tmp
+ if (present(ixSeg_desired)) then
+   allocate(ixSeg_desired(size(ixSeg_desired_tmp)), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'problem in allocating [isSeg_desire]'; return; endif
+   ixSeg_desired=ixSeg_desired_tmp
+ endif
+ if (present(ixHRU_desired)) then
+   allocate(ixHRU_desired(size(ixHRU_desired_tmp)), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'problem in allocating [ixHRU_desired]'; return; endif
+   ixHRU_desired=ixHRU_desired_tmp
+ endif
 
 end subroutine augment_ntopo
 

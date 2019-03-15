@@ -74,8 +74,10 @@ contains
   end do
   ntdh = ceiling(ntdh_try)
   ! allocate space for the time-delay histogram
-  allocate(FRAC_FUTURE(ntdh), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'unable to allocate space for the time delay histogram'; return; endif
+  if (.not.allocated(FRAC_FUTURE)) then
+    allocate(FRAC_FUTURE(ntdh), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'unable to allocate space for the time delay histogram'; return; endif
+  endif
   ! loop through time steps and compute the fraction of runoff in future time steps
   PSAVE = 0.                                                 ! cumulative probability at JTIM-1
   DO JTIM=1,NTDH

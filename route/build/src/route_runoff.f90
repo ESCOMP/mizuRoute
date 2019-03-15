@@ -11,7 +11,7 @@ program route_runoff
 ! variable types
 USE nrtype                                     ! variable types, etc.
 
-USE globalData, only : NETOPO                 ! river network data (tmp)
+!USE globalData, only : NETOPO                 ! river network data (tmp)
 USE globalData, only : modJulday, endJulday    !
 USE globalData, only : pid, nNodes             ! procs id and number of procs
 
@@ -81,6 +81,8 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 !   write(*,"(I1,A,I9,A,I9,A,I9,A,I5)") pid,',',NETOPO(ix)%REACHIX,',',NETOPO(ix)%REACHID,',',NETOPO(ix)%DREACHK,',',NETOPO(ix)%RHORDER
 !  enddo
 !endif
+!call MPI_FINALIZE(ierr)
+!stop
 
 ! ***********************************
 ! start of time-stepping simulation

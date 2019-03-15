@@ -43,7 +43,7 @@ contains
    !   domain(:)%segIndex(:)  : segment index within a basin
    !   domain(:)%hruIndex(:)  : hru indix within a basin
    !   domain(:)%isTrib       : T if a basin is a tributary, F if a basin is a mainstem
-   !   domain(:)%idNode       : proc id
+   !   domain(:)%idNode       : proc id (-1 through nNode-1) -1 is for mainstem but use pid=0
 
    implicit none
    ! Input variables
@@ -254,7 +254,7 @@ contains
     ixx = rnkRnDomain(ix)
     if (.not. isAssigned(ixx)) then
      if (domains(ixx)%pfaf(1:1)=='-') then   ! if domain is mainstem
-      domains(ixx)%idNode = 0
+      domains(ixx)%idNode = -1               ! put -1 for temporarily but mainstem is handled in root proc (idNode = 0)
       domains(ixx)%isTrib = .false.
       isAssigned(ixx) = .true.
      elseif (domains(ixx)%pfaf(1:1)/='-') then ! if domain is tributary

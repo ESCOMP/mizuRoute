@@ -435,22 +435,22 @@ contains
 
   call augment_ntopo(&
                   ! input: model control
-                  nHRU_out,         & ! number of HRUs
-                  nRch_out,         & ! number of stream segments
+                  nHRU_out,                         & ! number of HRUs
+                  nRch_out,                         & ! number of stream segments
                   ! inout: populate data structures
-                  structHRU,        & ! ancillary data for HRUs
-                  structSeg,        & ! ancillary data for stream segments
-                  structHRU2seg,    & ! ancillary data for mapping hru2basin
-                  structNTOPO,      & ! ancillary data for network toopology
-                  ! output
-                  tot_hru,          & ! total number of all the upstream hrus for all stream segments
-                  tot_upseg,        & ! total number of all the immediate upstream segments for all stream segments
-                  tot_upstream,     & ! total number of all the upstream segments for all stream segments
-                  tot_uh,           & ! total number of unit hydrograph for all stream segments
-                  ixHRU_desired,    & ! indices of desired hrus
-                  ixSeg_desired,    & ! indices of desired reaches
-                  ! output: error control
-                  ierr, message)
+                  structHRU,                        & ! ancillary data for HRUs
+                  structSeg,                        & ! ancillary data for stream segments
+                  structHRU2seg,                    & ! ancillary data for mapping hru2basin
+                  structNTOPO,                      & ! ancillary data for network toopology
+                  ! output:
+                  ierr, message,                    & ! error control
+                  ! optional output
+                  tot_hru       = tot_hru,          & ! total number of all the upstream hrus for all stream segments
+                  tot_upseg     = tot_upseg,        & ! total number of all the immediate upstream segments for all stream segments
+                  tot_upstream  = tot_upstream,     & ! total number of all the upstream segments for all stream segments
+                  tot_uh        = tot_uh,           & ! total number of unit hydrograph for all stream segments
+                  ixHRU_desired = ixHRU_desired,    & ! indices of desired hrus
+                  ixSeg_desired = ixSeg_desired)      ! indices of desired reaches
 
   ! Write out augmented network topology if desired
   if(idSegOut>0) ntopWriteOption=.true.   ! ensure that localized network topology is written if a particular outlet is specified
