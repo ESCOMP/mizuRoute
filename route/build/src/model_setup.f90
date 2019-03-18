@@ -94,6 +94,7 @@ contains
   USE globalData,  only : hru_per_proc           ! number of hrus assigned to each proc (i.e., node)
   USE globalData,  only : rch_per_proc           ! number of reaches assigned to each proc (i.e., node)
   ! external subroutines
+  USE mpi_routine, only : comm_ntopo_data        ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root node)
   USE mpi_routine, only : pass_global_data       ! mpi globaldata copy to slave proc
 
    implicit none
@@ -110,6 +111,7 @@ contains
    type(var_ilength), allocatable           :: structHRU2SEG(:) ! HRU-to-segment mapping
    type(var_ilength), allocatable           :: structNTOPO(:)   ! network topology
    type(var_clength), allocatable           :: structPFAF(:)    ! pfafstetter code
+   integer(i4b)                             :: nContribHRU      ! number of HRUs that are connected to any reaches
    ! others
    integer(i4b)                             :: iHRU, iRch       ! loop index
    character(len=strLen)                    :: cmessage         ! error message of downwind routine
@@ -118,12 +120,22 @@ contains
    ierr=0; message='init_data/'
 
    ! populate various river network data strucutures for each proc
-   call init_ntopo(pid, nNodes,                                                  & ! input:  number of Procs and proc id
-                   nHRU, nRch,                                                   & ! output: number of HRU and Reaches
-                   structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
-                   ixHRU_order, ixRch_order, hru_per_proc, rch_per_proc,         & ! output: MPI domain decomposition data
-                   ierr, cmessage)                                                 ! output: error controls
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if (pid==0) then
+
+     call init_ntopo(nHRU, nRch,                                                   & ! output: number of HRU and Reaches
+                     structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
+                     nContribHRU,                                                  & ! output: MPI domain decomposition data
+                     ierr, cmessage)                                                 ! output: error controls
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   endif
+
+   call comm_ntopo_data(pid, nNodes,                                          & ! input: proc id and # of procs
+                        nRch, nContribHRU,                                    & ! input: number of reach and HRUs that contribut to any reaches
+                        structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
+                        ixHRU_order, ixRch_order, hru_per_proc, rch_per_proc, & ! output: MPI domain decomposition data
+                        ierr, cmessage)                                         ! output: error controls
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! populate basiID and reachID vectors for output (in only master node)
    ! pupulate runoff data structure (only meta, no runoff values)
@@ -340,10 +352,9 @@ contains
  ! *********************************************************************
  ! private subroutine: initialize river network data
  ! *********************************************************************
- subroutine init_ntopo(pid, nNodes,                                                    & ! input:  number of Procs and proc id
-                       nHRU_out, nRch_out,                                             & ! output: number of HRU and Reaches
+ subroutine init_ntopo(nHRU_out, nRch_out,                                           & ! output: number of HRU and Reaches
                        structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
-                       ixSubHRU, ixSubSEG, hru_per_proc, seg_per_proc,               & ! output: MPI domain decomposition data
+                       nContribHRU,                                                  & ! output: number of HRUs that are connected to any reaches
                        ierr, message)                                                  ! output: error controls
   ! public vars
   USE public_var,           only : ancil_dir                ! name of the ancillary directory
@@ -369,11 +380,8 @@ contains
   USE read_netcdf,          only : get_var_dims
   USE process_ntopo,        only : augment_ntopo            ! compute all the additional network topology (only compute option = on)
   USE domain_decomposition, only : classify_river_basin_mpi ! domain decomposition for mpi
-  USE mpi_routine,          only : comm_ntopo_data
   implicit none
-  ! input:
-  integer(i4b)      , intent(in)              :: pid                      ! proc id
-  integer(i4b)      , intent(in)              :: nNodes                   ! number of procs
+  ! input: None
   ! output (river network data structures for the entire domain)
   integer(i4b)                  , intent(out) :: nHRU_out                 ! number of HRUs
   integer(i4b)                  , intent(out) :: nRch_out                 ! number of reaches
@@ -382,15 +390,11 @@ contains
   type(var_ilength), allocatable, intent(out) :: structHRU2SEG(:)         ! HRU-to-segment mapping
   type(var_ilength), allocatable, intent(out) :: structNTOPO(:)           ! network topology
   type(var_clength), allocatable, intent(out) :: structPFAF(:)            ! pfafstetter code
-  integer(i4b),      allocatable, intent(out) :: ixSubHRU(:)              ! global HRU index in the order of domains
-  integer(i4b),      allocatable, intent(out) :: ixSubSEG(:)              ! global reach index in the order of domains
-  integer(i4b),      allocatable, intent(out) :: hru_per_proc(:)          ! number of hrus assigned to each proc (i.e., node)
-  integer(i4b),      allocatable, intent(out) :: seg_per_proc(:)          ! number of reaches assigned to each proc (i.e., node)
+  integer(i4b),                   intent(out) :: nContribHRU              ! number of HRUs that are connected to any reaches
   ! output: error control
   integer(i4b)      , intent(out)             :: ierr                     ! error code
   character(*)      , intent(out)             :: message                  ! error message
   ! local variable
-  integer(i4b)                                :: nContribHRU              ! number of HRUs that are connected to any reaches
   integer(i4b)                                :: tot_upstream             ! total number of all of the upstream stream segments for all stream segments
   integer(i4b)                                :: tot_upseg                ! total number of immediate upstream segments for all  stream segments
   integer(i4b)                                :: tot_hru                  ! total number of all the upstream hrus for all stream segments
@@ -403,8 +407,6 @@ contains
 
   ! initialize error control
   ierr=0; message='init_ntopo/'
-
-  if (pid==0) then
 
   ! need to update maxPfafLen to the exact character size for pfaf code in netCDF
   call get_var_dims(trim(ancil_dir)//trim(fname_ntopOld), & ! input: file name
@@ -499,15 +501,7 @@ contains
    stop
   endif
 
-  endif
-
-  if (pid==0) then
-    call classify_river_basin_mpi(nNodes, nRch_out, structPFAF, structNTOPO, nThresh, nContribHRU, ierr, cmessage)       !Warning: nHRU /= nContribHRU
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
-
-  call comm_ntopo_data(pid, nNodes, nRch_out, nContribHRU, structHRU, structSEG, structHRU2SEG, structNTOPO, & ! input
-                       ixSubHRU, ixSubSEG, hru_per_proc, seg_per_proc, ierr, cmessage)                         ! output
+  call classify_river_basin_mpi(nNodes, nRch_out, structPFAF, structNTOPO, nThresh, nContribHRU, ierr, cmessage)       !Warning: nHRU /= nContribHRU
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end subroutine init_ntopo
@@ -695,3 +689,4 @@ contains
  end subroutine get_qix
 
 end module model_setup
+

@@ -42,7 +42,7 @@ implicit none
 character(len=strLen)         :: cfile_name          ! name of the control file
 integer(i4b)                  :: ierr                ! error code
 character(len=strLen)         :: cmessage            ! error message of downwind routine
-integer(i4b)                  :: ix
+!integer(i4b)                  :: ix
 ! ======================================================================================================
 ! ======================================================================================================
 
@@ -53,7 +53,7 @@ integer(i4b)                  :: ix
 ! *****
 ! *** MPI initialization ....
 ! ***********************************
-call MPI_INIT(ierr)
+call MPI_INIT(ierr); call mpi_handle_err(ierr,0)
 !  Get the number of processes
 call MPI_COMM_SIZE(MPI_COMM_WORLD, nNodes, ierr)
 !  Get the individual process ID
@@ -92,22 +92,28 @@ do while (modJulday < endJulday)
   if (pid==0) write(*,*) 'modJulday= ', modJulday
 
   ! prepare simulation output netCDF
-  call prep_output(pid, ierr, cmessage)
-  if(ierr/=0) call handle_err(ierr, cmessage)
+  if(pid==0)then
+    call prep_output(ierr, cmessage)
+    if(ierr/=0) call handle_err(ierr, cmessage)
+  endif
 
   ! Get river network hru runoff at current time step
-  call get_hru_runoff(pid, ierr, cmessage)
-  if(ierr/=0) call handle_err(ierr, cmessage)
+  if(pid==0)then
+    call get_hru_runoff(ierr, cmessage)
+    if(ierr/=0) call handle_err(ierr, cmessage)
+  endif
 
   ! process routing at each proc
   call mpi_route(pid, nNodes, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
 
-  call output(pid, ierr, cmessage)
-  if(ierr/=0) call handle_err(ierr, cmessage)
-
   call update_time(ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
+
+  if(pid==0)then
+    call output(ierr, cmessage)
+    if(ierr/=0) call handle_err(ierr, cmessage)
+  endif
 
 end do  ! looping through time
 
@@ -120,6 +126,38 @@ call MPI_FINALIZE(ierr)
 stop
 
 contains
+
+
+ subroutine mpi_handle_err(ierr,pid)
+ ! handle MPI error codes
+ implicit none
+ ! arguments
+ integer(i4b),intent(in):: ierr   ! error code
+ integer(i4b),intent(in):: pid    ! process ID
+ ! local variables
+ integer(i4b)           :: jerr   ! error code with message string call
+ integer(i4b)           :: errLen ! length of error message
+ character(len=strLen)  :: errMsg ! error message
+
+ ! check errors
+ if(ierr/=0)then
+
+  ! get error string
+  call MPI_Error_String(ierr, errMsg, errLen, jerr)
+  if(jerr==0)errMsg='problemIdentifyingErrorMessage'
+  if(errLen>strLen)errMsg='errorMessageLengthTooLong'
+
+  ! include process ID
+  write(*,'(a,1x,i4)') 'FATAL ERROR (MPI): '//trim(errMsg)//' for process ID ', pid
+
+  ! finalize MPI
+  call MPI_FINALIZE(jerr)
+  call flush(6)
+  stop
+
+ endif
+
+ end subroutine mpi_handle_err
 
  subroutine handle_err(err,message)
  ! handle error codes

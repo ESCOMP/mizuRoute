@@ -20,9 +20,7 @@ CONTAINS
  ! *********************************************************************
  ! public subroutine: define routing output NetCDF file
  ! *********************************************************************
- SUBROUTINE output(pid,  &           ! in:    proc id
-                   ierr, message)    ! out:   error control
-
+ SUBROUTINE output(ierr, message)    ! out:   error control
   !Dependent modules
   USE public_var,          only : doesBasinRoute      ! basin routing options   0-> no, 1->IRF, otherwise error
   USE public_var,          only : routOpt             ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
@@ -36,8 +34,7 @@ CONTAINS
 
   implicit none
 
-  ! input variables
-  integer(i4b), intent(in)        :: pid              ! proc id
+  ! input variables: none
   ! output variables
   integer(i4b), intent(out)       :: ierr             ! error code
   character(*), intent(out)       :: message          ! error message
@@ -45,48 +42,44 @@ CONTAINS
   integer(i4b)                    :: iens             ! temporal
   character(len=strLen)           :: cmessage         ! error message of downwind routine
 
-  if (pid==0) then
+  ! initialize error control
+  ierr=0; message='output/'
 
-    ! initialize error control
-    ierr=0; message='output/'
+  iens = 1
 
-    iens = 1
+  ! write time -- note time is just carried across from the input
+  call write_nc(trim(fileout), 'time', (/runoff_data%time/), (/jTime/), (/1/), ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! write time -- note time is just carried across from the input
-    call write_nc(trim(fileout), 'time', (/runoff_data%time/), (/jTime/), (/1/), ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  ! write the basin runoff to the netcdf file
+  call write_nc(trim(fileout), 'basRunoff', runoff_data%basinRunoff, (/1,jTime/), (/nHRU,1/), ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! write the basin runoff to the netcdf file
-    call write_nc(trim(fileout), 'basRunoff', runoff_data%basinRunoff, (/1,jTime/), (/nHRU,1/), ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if (doesBasinRoute == 1) then
+   ! write instataneous local runoff in each stream segment (m3/s)
+   call write_nc(trim(fileout), 'instRunoff', RCHFLX(iens,:)%BASIN_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
 
-    if (doesBasinRoute == 1) then
-     ! write instataneous local runoff in each stream segment (m3/s)
-     call write_nc(trim(fileout), 'instRunoff', RCHFLX(iens,:)%BASIN_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    endif
+  ! write routed local runoff in each stream segment (m3/s)
+  call write_nc(trim(fileout), 'dlayRunoff', RCHFLX(iens,:)%BASIN_QR(1), (/1,jTime/), (/nRch,1/), ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! write routed local runoff in each stream segment (m3/s)
-    call write_nc(trim(fileout), 'dlayRunoff', RCHFLX(iens,:)%BASIN_QR(1), (/1,jTime/), (/nRch,1/), ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  ! write accumulated runoff (m3/s)
+  call write_nc(trim(fileout), 'sumUpstreamRunoff', RCHFLX(iens,:)%UPSTREAM_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! write accumulated runoff (m3/s)
-    call write_nc(trim(fileout), 'sumUpstreamRunoff', RCHFLX(iens,:)%UPSTREAM_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
+   ! write routed runoff (m3/s)
+   call write_nc(trim(fileout), 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
 
-    if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
-     ! write routed runoff (m3/s)
-     call write_nc(trim(fileout), 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,jTime/), (/nRch,1/), ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    endif
-
-    if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
-     ! write routed runoff (m3/s)
-     call write_nc(trim(fileout), 'IRFroutedRunoff', RCHFLX(iens,:)%REACH_Q_IRF, (/1,jTime/), (/nRch,1/), ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    endif
-
-  end if
+  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+   ! write routed runoff (m3/s)
+   call write_nc(trim(fileout), 'IRFroutedRunoff', RCHFLX(iens,:)%REACH_Q_IRF, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
 
  end subroutine output
 
@@ -94,8 +87,8 @@ CONTAINS
  ! *********************************************************************
  ! public subroutine: define routing output NetCDF file
  ! *********************************************************************
- SUBROUTINE prep_output(pid,            & ! in:    proc id
-                        ierr, message)    ! out:   error control
+ SUBROUTINE prep_output(ierr, message)    ! out:   error control
+
  ! saved public variables (usually parameters, or values not modified)
  USE public_var,          only : calendar          ! calendar name
  USE public_var,          only : newFileFrequency  ! frequency for new output files (day, month, annual)
@@ -113,8 +106,7 @@ CONTAINS
 
  implicit none
 
- ! input variables
- integer(i4b), intent(in)        :: pid              ! proc id
+ ! input variables: none
  ! output variables
  integer(i4b), intent(out)       :: ierr             ! error code
  character(*), intent(out)       :: message          ! error message
@@ -124,8 +116,6 @@ CONTAINS
 
  ! initialize error control
  ierr=0; message='prep_output/'
-
- if (pid==0) then
 
   ! get the time
   select case(trim(calendar))
@@ -155,38 +145,38 @@ CONTAINS
   ! define new file
   if(defNewOutputFile)then
 
-    ! initialize time
-    jTime=1
+   ! initialize time
+   jTime=1
 
-    ! update filename
-    write(fileout,'(a,3(i0,a))') trim(output_dir)//trim(fname_output)//'_', modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '.nc'
+   ! update filename
+   write(fileout,'(a,3(i0,a))') trim(output_dir)//trim(fname_output)//'_', modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '.nc'
 
-    ! define output file
-    call defineFile(trim(fileout),                         &  ! input: file name
-                    nEns,                                  &  ! input: number of ensembles
-                    nHRU,                                  &  ! input: number of HRUs
-                    nRch,                                  &  ! input: number of stream segments
-                    time_units,                            &  ! input: time units
-                    calendar,                              &  ! input: calendar
-                    ierr,cmessage)                            ! output: error control
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   ! define output file
+   call defineFile(trim(fileout),                         &  ! input: file name
+                   nEns,                                  &  ! input: number of ensembles
+                   nHRU,                                  &  ! input: number of HRUs
+                   nRch,                                  &  ! input: number of stream segments
+                   time_units,                            &  ! input: time units
+                   calendar,                              &  ! input: calendar
+                   ierr,cmessage)                            ! output: error control
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! define basin ID
-    call write_nc(trim(fileout), 'basinID', basinID, (/1/), (/nHRU/), ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   ! define basin ID
+   call write_nc(trim(fileout), 'basinID', basinID, (/1/), (/nHRU/), ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! define reach ID
-    call write_nc(trim(fileout), 'reachID', reachID, (/1/), (/nRch/), ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   ! define reach ID
+   call write_nc(trim(fileout), 'reachID', reachID, (/1/), (/nRch/), ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! no new file requested: increment time
-   else
-     jTime = jTime+1
-   endif
+  ! no new file requested: increment time
+  else
 
-   modTime(0) = modTime(1)
+   jTime = jTime+1
 
-  endif ! pid
+  endif
+
+  modTime(0) = modTime(1)
 
  END SUBROUTINE prep_output
 
