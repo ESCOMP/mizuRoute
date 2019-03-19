@@ -53,7 +53,7 @@ contains
   USE globalData,        ONLY: ixDesire             ! desired reach index
   USE globalData,        ONLY: domains              ! domain data structure - for each domain, pfaf codes and list of segment indices
   USE globalData,        ONLY: nDomain              ! count of decomposed domains (tributaries + mainstems)
-  USE globalData,        ONLY: RCHFLX, RCHFLX_local, RCHFLX_main
+  USE globalData,        ONLY: RCHFLX, RCHFLX_trib, RCHFLX_main
   USE globalData,        ONLY: KROUTE, KROUTE_local, KROUTE_main
   USE globalData,        ONLY: NETOPO_trib, NETOPO_main
   USE globalData,        ONLY: RPARAM_trib, RPARAM_main
@@ -256,7 +256,7 @@ contains
                       ierr,cmessage)           ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    allocate(RCHFLX_local(nEns,nSeg_root), KROUTE_local(nEns,nSeg_root), stat=ierr)
+    allocate(RCHFLX_trib(nEns,nSeg_root), KROUTE_local(nEns,nSeg_root), stat=ierr)
 
     ! Populate data structure
     ! reach
@@ -379,7 +379,7 @@ contains
             area_local     (num_hru_received), &
             stat=ierr)
 
-   allocate(RCHFLX_local(nEns,num_seg_received), KROUTE_local(nEns,num_seg_received), stat=ierr)
+   allocate(RCHFLX_trib(nEns,num_seg_received), KROUTE_local(nEns,num_seg_received), stat=ierr)
 
    call alloc_struct(num_hru_received,      & ! output: number of HRUs
                      num_seg_received,      & ! output: number of stream segments
@@ -456,7 +456,7 @@ contains
   USE public_var
   USE globalData, only : NETOPO_trib, NETOPO_main  ! tributary reach netowrk structure
   USE globalData, only : RPARAM_trib, RPARAM_main  ! tributary reach parameter structure
-  USE globalData, only : RCHFLX_local,RCHFLX_main  ! tributary reach flux structure
+  USE globalData, only : RCHFLX_trib,RCHFLX_main  ! tributary reach flux structure
   USE globalData, only : RCHFLX                    ! tributary reach flux structure for entire network
   USE globalData, only : river_basin               ! OMP domain decomposition
   USE globalData, only : ixDesire                  ! desired reach index
@@ -469,11 +469,11 @@ contains
   USE globalData, only : TSEC                      ! beginning/ending of simulation time step [sec]
   ! external subroutines:
   ! mapping basin runoff to reach runoff
-  USE remapping,  only : basin2reach            ! remap runoff from routing basins to routing reaches
+  USE remapping,  only : basin2reach               ! remap runoff from routing basins to routing reaches
   ! basin routing
-  USE basinUH_module, only : IRF_route_basin    ! perform UH convolution for basin routing
+  USE basinUH_module, only : IRF_route_basin       ! perform UH convolution for basin routing
   ! river routing
-  USE accum_runoff_module, only : accum_runoff  ! upstream flow accumulation
+  USE accum_runoff_module, only : accum_runoff     ! upstream flow accumulation
   !USE kwt_route_module,    only : kwt_route     ! kinematic wave routing method
   !USE irf_route_module,    only : irf_route     ! unit hydrograph (impulse response function) routing method
   USE kwt_route_module,    only : kwt_route => kwt_route_orig   ! kinematic wave routing method
@@ -559,16 +559,16 @@ contains
     ! 2. subroutine: basin route
     if (doesBasinRoute == 1) then
       ! instantaneous runoff volume (m3/s) to data structure
-      RCHFLX_local(iens,:)%BASIN_QI = reachRunoff_local(:)
+      RCHFLX_trib(iens,:)%BASIN_QI = reachRunoff_local(:)
       ! perform Basin routing
-      call IRF_route_basin(iens, rch_per_proc(root), RCHFLX_local, ierr, cmessage)
+      call IRF_route_basin(iens, rch_per_proc(root), RCHFLX_trib, ierr, cmessage)
     else
       ! no basin routing required (handled outside mizuRoute))
-      RCHFLX_local(iens,:)%BASIN_QR(0) = RCHFLX_local(iens,:)%BASIN_QR(1)   ! streamflow from previous step
-      RCHFLX_local(iens,:)%BASIN_QR(1) = reachRunoff_local(:)                     ! streamflow (m3/s)
+      RCHFLX_trib(iens,:)%BASIN_QR(0) = RCHFLX_trib(iens,:)%BASIN_QR(1)   ! streamflow from previous step
+      RCHFLX_trib(iens,:)%BASIN_QR(1) = reachRunoff_local(:)                     ! streamflow (m3/s)
     end if
     ! populate reach fluxes in 2D array
-    routedRunoff_local(:,1) = RCHFLX_local(iens,:)%BASIN_QR(1)
+    routedRunoff_local(:,1) = RCHFLX_trib(iens,:)%BASIN_QR(1)
 
     ! 3. subroutine: river reach routing
     ! perform upstream flow accumulation
@@ -576,10 +576,10 @@ contains
                       rch_per_proc(root),&  ! input: number of reaches in the river network
                       ixDesire,          &  ! input: index of verbose reach
                       NETOPO_trib,       &  ! input: reach topology data structure
-                      RCHFLX_local,      &  ! inout: reach flux data structure
+                      RCHFLX_trib,       &  ! inout: reach flux data structure
                       ierr, cmessage)       ! output: error controls
     ! populate reach fluxes in 2D array
-    routedRunoff_local(:,2) = RCHFLX_local(iens,:)%UPSTREAM_QI
+    routedRunoff_local(:,2) = RCHFLX_trib(iens,:)%UPSTREAM_QI
 
     ! perform KWT routing
     if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
@@ -589,19 +589,19 @@ contains
                     ixDesire,             & ! input: index of the desired reach
                     ierr,cmessage)          ! output: error control
     ! populate reach fluxes in 2D array
-     routedRunoff_local(:,3) = RCHFLX_local(iens,:)%REACH_Q_IRF
+     routedRunoff_local(:,3) = RCHFLX_trib(iens,:)%REACH_Q_IRF
     endif
 
     ! perform IRF routing
     if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
-     call irf_route(iens,                 & ! input: ensemble index
-                    river_basin,          & ! input: river basin data type
-                    ixDesire,             & ! input: index of the desired reach
-                    NETOPO_trib,          & ! input: reach topology data structure
-                    RCHFLX_local,         & ! inout: reach flux data structure
-                    ierr,cmessage)          ! output: error control
+     call irf_route(iens,                & ! input: ensemble index
+                    river_basin,         & ! input: river basin data type
+                    ixDesire,            & ! input: index of the desired reach
+                    NETOPO_trib,         & ! input: reach topology data structure
+                    RCHFLX_trib,         & ! inout: reach flux data structure
+                    ierr,cmessage)         ! output: error control
     ! populate reach fluxes in 2D array
-     routedRunoff_local(:,4) = RCHFLX_local(iens,:)%REACH_Q_IRF
+     routedRunoff_local(:,4) = RCHFLX_trib(iens,:)%REACH_Q_IRF
     endif
 ! --------------------------------
 ! END: Put this in seprate routine
@@ -637,15 +637,15 @@ contains
     ! 2. subroutine: basin routing
     if (doesBasinRoute == 1) then
       ! instantaneous runoff volume (m3/s) to data structure
-      RCHFLX_local(iens,:)%BASIN_QI = reachRunoff_local(:)
+      RCHFLX_trib(iens,:)%BASIN_QI = reachRunoff_local(:)
       ! perform Basin routing
-      call IRF_route_basin(iens, num_seg_received, RCHFLX_local, ierr, cmessage)
+      call IRF_route_basin(iens, num_seg_received, RCHFLX_trib, ierr, cmessage)
     else
       ! no basin routing required (handled outside mizuRoute))
-      RCHFLX_local(iens,:)%BASIN_QR(0) = RCHFLX_local(iens,:)%BASIN_QR(1)   ! streamflow from previous step
-      RCHFLX_local(iens,:)%BASIN_QR(1) = reachRunoff_local(:)               ! streamflow (m3/s)
+      RCHFLX_trib(iens,:)%BASIN_QR(0) = RCHFLX_trib(iens,:)%BASIN_QR(1)   ! streamflow from previous step
+      RCHFLX_trib(iens,:)%BASIN_QR(1) = reachRunoff_local(:)              ! streamflow (m3/s)
     end if
-    routedRunoff_local(:,1) = RCHFLX_local(iens,:)%BASIN_QR(1)
+    routedRunoff_local(:,1) = RCHFLX_trib(iens,:)%BASIN_QR(1)
 
 ! deleteme
 !if (pid==7) then
@@ -657,13 +657,13 @@ contains
 ! deleteme
     ! 3. subroutine: river reach routing
     ! perform upstream flow accumulation
-    call accum_runoff(iens,              &  ! input: ensemble index
-                      num_seg_received,  &  ! input: number of reaches in the river network
-                      ixDesire,          &  ! input: index of verbose reach
-                      NETOPO_trib,       &  ! input: reach topology data structure
-                      RCHFLX_local,      &  ! inout: reach flux data structure
-                      ierr, cmessage)       ! output: error controls
-    routedRunoff_local(:,2) = RCHFLX_local(iens,:)%UPSTREAM_QI
+    call accum_runoff(iens,             &  ! input: ensemble index
+                      num_seg_received, &  ! input: number of reaches in the river network
+                      ixDesire,         &  ! input: index of verbose reach
+                      NETOPO_trib,      &  ! input: reach topology data structure
+                      RCHFLX_trib,      &  ! inout: reach flux data structure
+                      ierr, cmessage)      ! output: error controls
+    routedRunoff_local(:,2) = RCHFLX_trib(iens,:)%UPSTREAM_QI
 
     ! perform KWT routing
     if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
@@ -672,18 +672,18 @@ contains
                     T0,T1,                & ! input: start and end of the time step
                     ixDesire,             & ! input: index of the desired reach
                     ierr,cmessage)          ! output: error control
-     routedRunoff_local(:,3) = RCHFLX_local(iens,:)%REACH_Q
+     routedRunoff_local(:,3) = RCHFLX_trib(iens,:)%REACH_Q
     endif
 
     ! perform IRF routing
     if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
-     call irf_route(iens,                 & ! input: ensemble index
-                    river_basin,          & ! input: river basin data type
-                    ixDesire,             & ! input: index of the desired reach
-                    NETOPO_trib,          & ! input: reach topology data structure
-                    RCHFLX_local,         & ! input: reach flux data structure
-                    ierr,cmessage)          ! output: error control
-     routedRunoff_local(:,4) = RCHFLX_local(iens,:)%REACH_Q_IRF
+     call irf_route(iens,                & ! input: ensemble index
+                    river_basin,         & ! input: river basin data type
+                    ixDesire,            & ! input: index of the desired reach
+                    NETOPO_trib,         & ! input: reach topology data structure
+                    RCHFLX_trib,         & ! input: reach flux data structure
+                    ierr,cmessage)         ! output: error control
+     routedRunoff_local(:,4) = RCHFLX_trib(iens,:)%REACH_Q_IRF
     endif
 ! --------------------------------
 ! END: Put this in seprate routine
@@ -702,7 +702,7 @@ contains
    displs(myid) = sum(rch_per_proc(0:myid-1))
   end do
 
-  ! GATHER RCHFLX_local and KROUTE_local from slave proc
+  ! GATHER tributary routed flow and states from slave procs
   nRchTrib = sum(rch_per_proc(0:nNodes-1))
   allocate(routedRunoff(nRchTrib,4), stat=ierr)
   call MPI_GATHERV(routedRunoff_local(:,1), rch_per_proc(pid),                MPI_DOUBLE_PRECISION,       & ! flows from proc

@@ -250,7 +250,7 @@ contains
  USE globalData, only : RPARAM         ! Reach parameters
  USE globalData, only : NETOPO         ! Network topology
  USE globalData, only : KROUTE_local   ! routing states
- USE globalData, only : RCHFLX_local   ! routing fluxes
+ USE globalData, only : RCHFLX_trib   ! routing fluxes
  ! ----------------------------------------------------------------------------------------
  ! Creator(s):
  !   Ross Woods, 1997 (original code)
@@ -355,7 +355,7 @@ contains
    if(JRCH==ixDesire) write(*,"('JRCH=',I10)") JRCH
    if(JRCH==ixDesire) write(*,"('T0-T1=',F20.7,1x,F20.7)") T0, T1
 
-   RCHFLX_local(IENS,JRCH)%TAKE=0.0_dp ! initialize take from this reach
+   RCHFLX_trib(IENS,JRCH)%TAKE=0.0_dp ! initialize take from this reach
     ! ----------------------------------------------------------------------------------------
     ! (1) EXTRACT FLOW FROM UPSTREAM REACHES & APPEND TO THE NON-ROUTED FLOW PARTICLES IN JRCH
     ! ----------------------------------------------------------------------------------------
@@ -376,7 +376,7 @@ contains
       endif
     else
       ! set flow in headwater reaches to modelled streamflow from time delay histogram
-      RCHFLX_local(IENS,JRCH)%REACH_Q = RCHFLX_local(IENS,JRCH)%BASIN_QR(1)
+      RCHFLX_trib(IENS,JRCH)%REACH_Q = RCHFLX_trib(IENS,JRCH)%BASIN_QR(1)
       if (allocated(KROUTE_local(IENS,JRCH)%KWAVE)) THEN
         deallocate(KROUTE_local(IENS,JRCH)%KWAVE,STAT=IERR)
         if(ierr/=0)then; message=trim(message)//'problem deallocating space for KROUTE_local'; return; endif
@@ -389,7 +389,7 @@ contains
       KROUTE_local(IENS,JRCH)%KWAVE(0)%RF=.False.
       KROUTE_local(IENS,JRCH)%KWAVE(0)%QM=-9999
       ! check
-      if(JRCH==ixDesire) print*, 'JRCH, RCHFLX_local(IENS,JRCH)%REACH_Q = ', JRCH, RCHFLX_local(IENS,JRCH)%REACH_Q
+      if(JRCH==ixDesire) print*, 'JRCH, RCHFLX_trib(IENS,JRCH)%REACH_Q = ', JRCH, RCHFLX_trib(IENS,JRCH)%REACH_Q
       return  ! no upstream reaches (routing for sub-basins done using time-delay histogram)
     endif
     ! ----------------------------------------------------------------------------------------
@@ -439,7 +439,7 @@ contains
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     if(JRCH == ixDesire) write(*,"('QNEW(1)=',1x,F10.7)") QNEW(1)
     ! m2/s --> m3/s + instantaneous runoff from basin
-    RCHFLX_local(IENS,JRCH)%REACH_Q = QNEW(1)*RPARAM(JRCH)%R_WIDTH + RCHFLX_local(IENS,JRCH)%BASIN_QR(1)
+    RCHFLX_trib(IENS,JRCH)%REACH_Q = QNEW(1)*RPARAM(JRCH)%R_WIDTH + RCHFLX_trib(IENS,JRCH)%BASIN_QR(1)
     ! ----------------------------------------------------------------------------------------
     ! (5) HOUSEKEEPING
     ! ----------------------------------------------------------------------------------------
@@ -683,7 +683,7 @@ contains
  !
  ! ----------------------------------------------------------------------------------------
  USE globalData, only : KROUTE_local        ! routing states
- USE globalData, only : RCHFLX_local  ! routing fluxes
+ USE globalData, only : RCHFLX_trib  ! routing fluxes
  USE globalData, only : NETOPO        ! routing fluxes
  USE globalData, only : RPARAM        ! Reach parameters
  IMPLICIT NONE
@@ -784,7 +784,7 @@ contains
   ! get reach index
   IR = NETOPO(JRCH)%UREACHI(1)
   ! get flow in m2/s (scaled by with of downstream reach)
-  QD(1) = RCHFLX_local(IENS,IR)%BASIN_QR(1)/RPARAM(JRCH)%R_WIDTH
+  QD(1) = RCHFLX_trib(IENS,IR)%BASIN_QR(1)/RPARAM(JRCH)%R_WIDTH
   TD(1) = T1
   if(JRCH == ixDesire) print*, 'special case: JRCH, IR, NETOPO(IR)%REACHID = ', JRCH, IR, NETOPO(IR)%REACHID
   RETURN
@@ -805,7 +805,7 @@ contains
   ALLOCATE(USFLOW(IUPS)%KWAVE(0:1),STAT=IERR)  ! basin, has flow @start and @end of the time step
   if(ierr>0)then; message=trim(message)//'problem allocating array USFLOW(IUPS)%KWAVE'; return; endif
   ! place flow and time in the KWAVE array (routing done with time-delay histogram in TIMDEL_BAS.F90)
-  USFLOW(IUPS)%KWAVE(0:1)%QF = RCHFLX_local(IENS,IR)%BASIN_QR(0:1)    ! flow
+  USFLOW(IUPS)%KWAVE(0:1)%QF = RCHFLX_trib(IENS,IR)%BASIN_QR(0:1)    ! flow
   USFLOW(IUPS)%KWAVE(0:1)%TI = (/T0,T1/) - DT*ROFFSET                 ! entry time (not used)
   USFLOW(IUPS)%KWAVE(0:1)%TR = (/T0,T1/) - DT*ROFFSET                 ! exit time
   USFLOW(IUPS)%KWAVE(0:1)%RF = .TRUE.                                 ! routing flag
@@ -841,7 +841,7 @@ contains
    ! here a statement where we check for a modification in the upstream reach;
    ! if flow upstream is modified, then copy KROUTE_local(:,:)%KWAVE(:)%QM to USFLOW(..)%KWAVE%QF
    !IF (NUSER.GT.0.AND.SIMDAT%UCFFLAG.GE.1) THEN !if the irrigation module is active and there are users
-   !  IF (RCHFLX_local(IENS,IR)%TAKE.GT.0._DP) THEN !if take from upstream reach is greater then zero
+   !  IF (RCHFLX_trib(IENS,IR)%TAKE.GT.0._DP) THEN !if take from upstream reach is greater then zero
    !    ! replace QF with modified flow (as calculated in extract_from_rch)
    !    USFLOW(NUPB+IUPR)%KWAVE(0:NQ-1)%QF = KROUTE_local(IENS,IR)%KWAVE(0:NQ-1)%QM
    !  ENDIF
