@@ -10,7 +10,6 @@ program route_runoff
 ! ****************************************************
 ! variable types
 USE nrtype                                     ! variable types, etc.
-
 !USE globalData, only : NETOPO                 ! river network data (tmp)
 USE globalData, only : modJulday, endJulday    !
 USE globalData, only : pid, nNodes             ! procs id and number of procs
@@ -20,14 +19,12 @@ USE globalData, only : pid, nNodes             ! procs id and number of procs
 ! ****************************************
 ! Library
 USE mpi                                          ! MPI
-
 ! subroutines: model set up
 USE model_setup,         only : init_model       ! model setupt - reading control file, populate metadata, read parameter file
 USE model_setup,         only : init_data        ! initialize river segment data
 USE model_setup,         only : update_time
 ! subroutines: routing
 USE mpi_routine,         only : mpi_route        ! Distribute runoff to proc, route them, and gather,
-
 ! subroutines: model I/O
 USE get_runoff        ,  only : get_hru_runoff   !
 USE write_simoutput,     only : prep_output      !
@@ -42,6 +39,7 @@ implicit none
 character(len=strLen)         :: cfile_name          ! name of the control file
 integer(i4b)                  :: ierr                ! error code
 character(len=strLen)         :: cmessage            ! error message of downwind routine
+integer(i4b)                  :: iens = 1
 !integer(i4b)                  :: ix
 ! ======================================================================================================
 ! ======================================================================================================
@@ -104,7 +102,7 @@ do while (modJulday < endJulday)
   endif
 
   ! process routing at each proc
-  call mpi_route(pid, nNodes, ierr, cmessage)
+  call mpi_route(pid, nNodes, iens, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
 
   call update_time(ierr, cmessage)

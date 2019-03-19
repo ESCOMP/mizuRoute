@@ -30,7 +30,7 @@ contains
                       ixDesire,   &    ! input: reachID to be checked by on-screen pringing
                       NETOPO_in,  &    ! input: reach topology data structure
                       ! inout
-                      RCHFLX_out, &    ! input: reach flux data structure
+                      RCHFLX_out, &    ! inout: reach flux data structure
                       ! output
                       ierr, message)   ! output: error control
 
