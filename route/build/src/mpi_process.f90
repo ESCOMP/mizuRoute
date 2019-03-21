@@ -15,9 +15,6 @@ USE var_lookup,        ONLY:ixNTOPO,  nVarsNTOPO   ! index of variables for the 
 USE var_lookup,        ONLY:ixPFAF,   nVarsPFAF    ! index of variables for the pfafstetter code
 
 ! utility
-USE nr_utility_module, ONLY: arth                  !
-USE nr_utility_module, ONLY: indexx                ! sorted index array
-USE nr_utility_module, only: findIndex             ! find index within a vector
 
 implicit none
 
@@ -47,21 +44,24 @@ contains
                             seg_per_proc, & ! number of reaches assigned to each proc (i.e., node)
                             ierr,message)   ! output: error control
 
-  USE alloc_data,        ONLY: alloc_struct
-  USE process_ntopo,     ONLY: augment_ntopo        ! compute all the additional network topology (only compute option = on)
-  USE process_ntopo,     ONLY: put_data_struct      !
+  USE public_var
   USE globalData,        ONLY: ixDesire             ! desired reach index
   USE globalData,        ONLY: domains              ! domain data structure - for each domain, pfaf codes and list of segment indices
   USE globalData,        ONLY: nDomain              ! count of decomposed domains (tributaries + mainstems)
-  USE globalData,        ONLY: RCHFLX, RCHFLX_trib, RCHFLX_main
-  USE globalData,        ONLY: KROUTE, KROUTE_local, KROUTE_main
+  USE globalData,        ONLY: RCHFLX, RCHFLX_trib  ! Reach flux data structures (entire river network and tributary only)
+  USE globalData,        ONLY: KROUTE, KROUTE_local ! Reach k-wave data structures (entire river network and tributary only)
   USE globalData,        ONLY: NETOPO_trib, NETOPO_main
   USE globalData,        ONLY: RPARAM_trib, RPARAM_main
   USE globalData,        ONLY: fshape, tscale      ! parameters used for basin UH
   USE globalData,        ONLY: velo, diff          ! parameters used for UH
   USE globalData,        ONLY: mann_n, wscale      ! parameters used for KWT
   USE globalData,        ONLY: nEns
-  USE public_var
+  USE alloc_data,        ONLY: alloc_struct
+  USE process_ntopo,     ONLY: augment_ntopo        ! compute all the additional network topology (only compute option = on)
+  USE process_ntopo,     ONLY: put_data_struct      !
+  USE nr_utility_module, ONLY: indexx               ! sorted index array
+  USE nr_utility_module, ONLY: arth                 !
+  USE nr_utility_module, ONLY: findIndex            ! find index within a vector
 
   implicit none
   ! Input variables
@@ -126,7 +126,6 @@ contains
   integer(i4b)                                :: ixSeg1,ixSeg2             ! starting index and ending index, respectively, for reach array
   integer(i4b)                                :: ixHru1,ixHru2             ! starting index and ending index, respectively, for HRU array
   integer(i4b)                                :: idx                       ! node indix (1, ... , nNodes)
-  integer(i4b), parameter                     :: root=0                    ! root node id
   integer(i4b), parameter                     :: send_data_tag=2001
   integer(i4b), parameter                     :: return_data_tag=2002
   integer(i4b)                                :: status(MPI_STATUS_SIZE)
@@ -315,8 +314,6 @@ contains
                       ierr,cmessage)           ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    allocate(RCHFLX_main(nEns,nSeg_main), KROUTE_main(nEns,nSeg_main), stat=ierr)
-
     ! Populate data structure
     ! reach
     do ix = 1, nSeg_main
@@ -363,6 +360,7 @@ contains
 !      print*, ix, segId(ix), ixSubSEG(ix), iySubSEG(ix), ixNode(ix), pfaf(ix)
 !    enddo
 
+  ! for other procs
   else
 
    ! recieve number of elements to be recieved
@@ -454,8 +452,7 @@ contains
                       ierr,message)    ! output: error control
   ! shared data
   USE public_var
-  USE globalData, only : NETOPO_trib               ! tributary reach netowrk topology structure
-  USE globalData, only : NETOPO_main               ! mainstem reach netowrk topology structure
+  USE globalData, only : NETOPO_trib, NETOPO_main  ! tributary and mainstem reach netowrk topology structure
   USE globalData, only : NETOPO                    ! entire river reach netowrk topology structure
   USE globalData, only : RPARAM_trib, RPARAM_main  ! tributary and mainstem reach parameter structure
   USE globalData, only : RCHFLX_trib               ! tributary reach flux structure
@@ -505,7 +502,6 @@ contains
   integer(i4b)                          :: ixHru1,ixHru2            ! starting index and ending index, respectively, for HRU array
   integer(i4b)                          :: iHru,iSeg, myid          ! loop indices
   integer(i4b)                          :: nRchTrib                 ! number of tributary reaches
-  integer(i4b), parameter               :: root=0                   ! root node id
   integer(i4b), parameter               :: send_data_tag=2001
   integer(i4b), parameter               :: return_data_tag=2002
   integer(i4b)                          :: status(MPI_STATUS_SIZE)
@@ -807,7 +803,7 @@ contains
  ! *********************************************************************
  ! send all the necessary public variables to slave procs
  subroutine pass_global_data(pid, nNodes, ierr,message)   ! output: error control
-
+  USE public_var, only : root
   USE globalData, only : timeVar           ! time variable
   USE globalData, only : iTime             ! time index
   USE globalData, only : refJulday         ! julian day: reference
@@ -828,7 +824,6 @@ contains
   integer(i4b)                                :: nTime                     ! number of time step in runoff data
   integer(i4b)                                :: nTime_recv                ! number of time step in runoff data in slave proc
   integer(i4b)                                :: myid                      ! process id indices
-  integer(i4b), parameter                     :: root=0                    ! root node id
   integer(i4b), parameter                     :: send_data_tag=2001
   integer(i4b), parameter                     :: return_data_tag=2002
   integer(i4b)                                :: status(MPI_STATUS_SIZE)

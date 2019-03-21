@@ -30,6 +30,8 @@ module public_var
   integer(i4b),          public   :: nThresh=10000          ! maximum river segments in each river basin
   integer(i4b),parameter,public   :: integerMissing=-9999   ! missing value for integers
   real(dp),    parameter,public   :: realMissing=-9999._dp  ! missing value for real numbers
+  ! mpi related parameters
+  integer(i4b),parameter,public   :: root=0                 ! root node id
 
   ! ---------- named variables ----------------------------------------------------------------------
 

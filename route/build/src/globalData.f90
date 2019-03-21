@@ -137,8 +137,6 @@ module globalData
   TYPE(STRFLX)    , allocatable  , public :: RCHFLX(:,:)          ! Reach fluxes (ensembles, space [reaches]) for entire river network
   TYPE(KREACH)    , allocatable  , public :: KROUTE_local(:,:)    ! Routing state variables (ensembles, space [reaches]) for tributary
   TYPE(STRFLX)    , allocatable  , public :: RCHFLX_trib(:,:)     ! Reach fluxes (ensembles, space [reaches]) for tributaries
-  TYPE(KREACH)    , allocatable  , public :: KROUTE_main(:,:)     ! Routing state variables (ensembles, space [reaches]) for maintems
-  TYPE(STRFLX)    , allocatable  , public :: RCHFLX_main(:,:)     ! Reach fluxes (ensembles, space [reaches]) for mainstems
 
   ! lakes data structures
   TYPE(LAKPRP)    , allocatable  , public :: LPARAM(:)            ! Lake parameters
