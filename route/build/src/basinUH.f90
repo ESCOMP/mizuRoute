@@ -15,53 +15,72 @@ CONTAINS
  ! ---------------------------------------------------------------------------------------
  ! Public subroutine main driver for basin routing
  ! ---------------------------------------------------------------------------------------
- SUBROUTINE IRF_route_basin(&
-                            iens,       &    ! input: ensemble index
-                            nSeg,       &    ! input: number of reaches
-                            ! inout
-                            RCHFLX_out, &    ! inout: reach flux data structure
-                            ! output
-                            ierr, message)   ! output: error control
- ! I created wrapper for basin routing because of potential other routing methods
+ SUBROUTINE IRF_route_basin(iens,          & ! input: ensemble index
+                            RCHFLX_out,    & ! inout: reach flux data structure
+                            ierr, message, & ! output: error control
+                            ixSubRch)        ! optional input: subset of reach indices to be processed
+
  ! External modules
- USE globalData, ONLY : FRAC_FUTURE
+ USE globalData,        ONLY : FRAC_FUTURE
+ USE nr_utility_module, ONLY : arth
+
  implicit none
+
  ! input
  integer(i4b), intent(in)                 :: iens            ! ith ensemble
- integer(i4b), intent(in)                 :: nSeg            ! number of reach segments in the network
  ! inout
  type(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  ! output
  integer(I4B), intent(out)                :: ierr            ! error code
  character(*), intent(out)                :: message         ! error message
+ ! input (optional)
+ integer(i4b), intent(in),   optional     :: ixSubRch(:)     ! subset of reach indices to be processed
  ! local variables
  integer(i4b)                             :: ntdh            ! number of future time step
- integer(i4b)                             :: ibas            ! ith ensemble
+ integer(i4b)                             :: nSeg            ! number of reaches to be processed
+ integer(i4b)                             :: iSeg, jSeg      ! reach loop indix
+ integer(i4b), allocatable                :: ixRch(:)        ! a list of reach indices to be processed
  character(len=strLen)                    :: cmessage        ! error message from subroutines
 
  ierr=0; message='IRF_route_basin/'
 
- ntdh = size(FRAC_FUTURE)
+ ntdh = size(FRAC_FUTURE)        ! number of UH future times
 
-  do ibas=1,nSeg
+ ! if a subset of reaches is processed
+ if (present(ixSubRch))then
+  nSeg=size(ixSubRch)
+  allocate(ixRch(nSeg), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'unable to allocate space for [ixRch]'; return; endif
+  ixRch = ixSubRch
+ ! if all the reaches are processed
+ else
+  nSeg = size(RCHFLX_out(iens,:))
+  allocate(ixRch(nSeg), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'unable to allocate space for [ixRch]'; return; endif
+  ixRch = arth(1,1,nSeg)
+ endif
 
-   if (.not.allocated(RCHFLX_out(iens,ibas)%QFUTURE))then
+ do iSeg=1,nSeg
 
-    allocate(RCHFLX_out(iens,ibas)%QFUTURE(ntdh), stat=ierr)
-    if(ierr/=0)then; message=trim(message)//'unable to allocate space for RCHFLX_out(iens,ibas)%QFUTURE'; return; endif
+  jSeg = ixRch(iSeg)
 
-    RCHFLX_out(iens,ibas)%QFUTURE(:) = 0._dp
+  if (.not.allocated(RCHFLX_out(iens,jSeg)%QFUTURE))then
 
-   end if
+   allocate(RCHFLX_out(iens,jSeg)%QFUTURE(ntdh), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'unable to allocate space for RCHFLX_out(iens,iSeg)%QFUTURE'; return; endif
 
-   call irf_conv(FRAC_FUTURE,                     &  ! input: pre-computed normalized UH
-                 RCHFLX_out(iens,ibas)%BASIN_QI,  &  ! input: basin average instantaneous runoff
-                 RCHFLX_out(iens,ibas)%QFUTURE,   &  ! inout: Update convoluted runoff
-                 RCHFLX_out(iens,ibas)%BASIN_QR,  &  ! inout: delayed runoff to segment at current and previous time step
-                 ierr, message)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   RCHFLX_out(iens,jSeg)%QFUTURE(:) = 0._dp
 
-  end do
+  end if
+
+  call irf_conv(FRAC_FUTURE,                     &  ! input: pre-computed normalized UH
+                RCHFLX_out(iens,jSeg)%BASIN_QI,  &  ! input: basin average instantaneous runoff
+                RCHFLX_out(iens,jSeg)%QFUTURE,   &  ! inout: Update convoluted runoff
+                RCHFLX_out(iens,jSeg)%BASIN_QR,  &  ! inout: delayed runoff to segment at current and previous time step
+                ierr, message)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ end do
 
  CONTAINS
 

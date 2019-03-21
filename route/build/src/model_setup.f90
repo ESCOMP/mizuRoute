@@ -372,6 +372,7 @@ contains
   USE public_var,           only : integerMissing           ! missing value for integers
   ! global data
   USE globalData,           only : meta_PFAF                ! meta for pfafstetter code
+  USE globalData,           only : NETOPO, RPARAM           !
   ! variable index
   USE var_lookup,           only : ixPFAF                   ! index of variables for the pfafstetter code
   ! external subroutines
@@ -379,6 +380,7 @@ contains
   USE write_streamSeg,      only : writeData                ! write the ancillary data
   USE read_netcdf,          only : get_var_dims
   USE process_ntopo,        only : augment_ntopo            ! compute all the additional network topology (only compute option = on)
+  USE process_ntopo,        only : put_data_struct          ! populate NETOPO and RPARAM data structure
   USE domain_decomposition, only : classify_river_basin_mpi ! domain decomposition for mpi
   implicit none
   ! input: None
@@ -500,6 +502,11 @@ contains
    write(*,'(a)') ' SUCCESSFUL EXECUTION '
    stop
   endif
+
+  call put_data_struct(nRch_out, structSEG, structNTOPO, & ! input
+                       RPARAM, NETOPO,                   & ! output
+                       ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   call classify_river_basin_mpi(nNodes, nRch_out, structPFAF, structNTOPO, nThresh, nContribHRU, ierr, cmessage)       !Warning: nHRU /= nContribHRU
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif

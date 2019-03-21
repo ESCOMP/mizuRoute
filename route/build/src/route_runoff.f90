@@ -108,10 +108,10 @@ do while (modJulday < endJulday)
   call update_time(ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
 
-  if(pid==0)then
-    call output(ierr, cmessage)
-    if(ierr/=0) call handle_err(ierr, cmessage)
-  endif
+!  if(pid==0)then
+!    call output(ierr, cmessage)
+!    if(ierr/=0) call handle_err(ierr, cmessage)
+!  endif
 
 end do  ! looping through time
 

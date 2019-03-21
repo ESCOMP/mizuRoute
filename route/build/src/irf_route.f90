@@ -326,15 +326,13 @@ contains
    ! subroutine: perform network UH routing
    ! *********************************************************************
    subroutine irf_route_orig(&
-                             ! input
-                             iEns,       &    ! input: index of runoff ensemble to be processed
-                             river_basin,&    ! input: river basin information (mainstem, tributary outlet etc.)
-                             ixDesire,   &    ! input: reachID to be checked by on-screen pringing
-                             NETOPO_in,  &    ! input: reach topology data structure
-                             ! inout
-                             RCHFLX_out, &    ! input: reach flux data structure
-                             ! output
-                             ierr, message)   ! output: error control
+                             iEns,         &  ! input: index of runoff ensemble to be processed
+                             river_basin,  &  ! input: river basin information (mainstem, tributary outlet etc.)
+                             ixDesire,     &  ! input: reachID to be checked by on-screen pringing
+                             NETOPO_in,    &  ! input: reach topology data structure
+                             RCHFLX_out,   &  ! inout: reach flux data structure
+                             ierr, message,&  ! output: error control
+                             ixSubRch)        ! optional input: subset of reach indices to be processed
    ! ----------------------------------------------------------------------------------------
    ! Purpose:
    !
@@ -343,7 +341,9 @@ contains
    ! ----------------------------------------------------------------------------------------
 
    ! global routing data
-   USE dataTypes,  only : basin  ! river basin data type
+   USE dataTypes,         only : basin  ! river basin data type
+   ! external subroutine
+   USE nr_utility_module, only : arth
 
    implicit none
    ! Input
@@ -356,10 +356,12 @@ contains
    ! Output
    integer(i4b), intent(out)                 :: ierr              ! error code
    character(*), intent(out)                 :: message           ! error message
+   ! input (optional)
+   integer(i4b), intent(in),   optional      :: ixSubRch(:)       ! subset of reach indices to be processed
    ! Local variables to
    INTEGER(I4B)                              :: nSeg              ! number of reach segments in the network
-   INTEGER(I4B)                              :: iSeg              ! reach segment index
-   INTEGER(I4B)                              :: jSeg              ! reach segment to be routed
+   INTEGER(I4B)                              :: iSeg, jSeg        ! reach segment index
+   logical(lgt), allocatable                 :: do_irf(:)         ! logical to indicate which reaches are processed
    character(len=strLen)                     :: cmessage          ! error message from subroutine
    integer*8                                 :: startTime,endTime ! date/time for the start and end of the initialization
    real(dp)                                  :: elapsedTime       ! elapsed time for the process
@@ -367,10 +369,24 @@ contains
    ! initialize error control
    ierr=0; message='irf_route_orig/'
 
+   ! check
+   if (size(NETOPO_in)/=size(RCHFLX_out(iens,:))) then
+    ierr=20; message=trim(message)//'sizes of NETOPO and RCHFLX mismatch'; return
+   endif
+
    ! Initialize CHEC_IRF to False.
    RCHFLX_out(iEns,:)%CHECK_IRF=.False.
 
-   nSeg=size(NETOPO_in)
+   nSeg = size(RCHFLX_out(iens,:))
+
+   allocate(do_irf(nSeg), stat=ierr)
+
+   if (present(ixSubRch))then
+    do_irf(:)=.false.
+    do_irf(ixSubRch) = .true. ! only subset of reaches are on
+   else
+    do_irf(:)=.true. ! every reach is on
+   endif
 
    elapsedTime = 0._dp
    call system_clock(startTime)
@@ -378,6 +394,8 @@ contains
    do iSeg=1,nSeg
 
     jSeg = NETOPO_in(iSeg)%RHORDER
+
+    if (.not. do_irf(jSeg)) cycle
 
     call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, message)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
