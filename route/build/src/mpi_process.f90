@@ -49,7 +49,7 @@ contains
   USE globalData,        ONLY: domains              ! domain data structure - for each domain, pfaf codes and list of segment indices
   USE globalData,        ONLY: nDomain              ! count of decomposed domains (tributaries + mainstems)
   USE globalData,        ONLY: RCHFLX, RCHFLX_trib  ! Reach flux data structures (entire river network and tributary only)
-  USE globalData,        ONLY: KROUTE, KROUTE_local ! Reach k-wave data structures (entire river network and tributary only)
+  USE globalData,        ONLY: KROUTE, KROUTE_trib  ! Reach k-wave data structures (entire river network and tributary only)
   USE globalData,        ONLY: NETOPO_trib, NETOPO_main
   USE globalData,        ONLY: RPARAM_trib, RPARAM_main
   USE globalData,        ONLY: fshape, tscale      ! parameters used for basin UH
@@ -255,7 +255,7 @@ contains
                       ierr,cmessage)           ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    allocate(RCHFLX_trib(nEns,nSeg_root), KROUTE_local(nEns,nSeg_root), stat=ierr)
+    allocate(RCHFLX_trib(nEns,nSeg_root), KROUTE_trib(nEns,nSeg_root), stat=ierr)
 
     ! Populate data structure
     ! reach
@@ -377,7 +377,7 @@ contains
             area_local     (num_hru_received), &
             stat=ierr)
 
-   allocate(RCHFLX_trib(nEns,num_seg_received), KROUTE_local(nEns,num_seg_received), stat=ierr)
+   allocate(RCHFLX_trib(nEns,num_seg_received), KROUTE_trib(nEns,num_seg_received), stat=ierr)
 
    call alloc_struct(num_hru_received,      & ! output: number of HRUs
                      num_seg_received,      & ! output: number of stream segments
@@ -455,8 +455,11 @@ contains
   USE globalData, only : NETOPO_trib, NETOPO_main  ! tributary and mainstem reach netowrk topology structure
   USE globalData, only : NETOPO                    ! entire river reach netowrk topology structure
   USE globalData, only : RPARAM_trib, RPARAM_main  ! tributary and mainstem reach parameter structure
+  USE globalData, only : RPARAM                    ! entire river reach parameter structure
   USE globalData, only : RCHFLX_trib               ! tributary reach flux structure
-  USE globalData, only : RCHFLX                    ! tributary reach flux structure
+  USE globalData, only : RCHFLX                    ! entire reach flux structure
+  USE globalData, only : KROUTE_trib               ! tributary reach kwt data structure
+  USE globalData, only : KROUTE                    ! entire river reach kwt sate structure
   USE globalData, only : river_basin               ! OMP domain decomposition
   USE globalData, only : ixDesire                  ! desired reach index
   USE globalData, only : runoff_data               ! runoff data structure
@@ -495,7 +498,7 @@ contains
   real(dp),  allocatable                :: reachRunoff_main(:)      ! reach runoff (m/s) for mainstems (processed at root)
   real(dp),  allocatable                :: routedRunoff_local(:,:)  ! tributary routed runoff (m/s) for each proc
   real(dp),  allocatable                :: routedRunoff(:,:)        ! tributary routed runoff (m/s) gathered from each proc
-  real(dp)                              :: T0, T1                   ! beginning/ending of simulation time step [sec]
+  real(dp)                              :: T0,T1                    ! beginning/ending of simulation time step [sec]
   integer(i4b)                          :: displs(0:nNodes-1)       ! entry indices in receiving buffer (routedRunoff) at which to place the array from each proc
   integer(i4b)                          :: num_hru_received
   integer(i4b)                          :: num_seg_received
@@ -553,6 +556,7 @@ contains
                     ! output
                     reachRunoff_local,       & ! intent(out): reach runoff (m3/s)
                     ierr, cmessage)            ! intent(out): error control
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! 2. subroutine: basin route
     if (doesBasinRoute == 1) then
@@ -560,6 +564,7 @@ contains
       RCHFLX_trib(iens,:)%BASIN_QI = reachRunoff_local(:)
       ! perform Basin routing
       call IRF_route_basin(iens, RCHFLX_trib, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     else
       ! no basin routing required (handled outside mizuRoute))
       RCHFLX_trib(iens,:)%BASIN_QR(0) = RCHFLX_trib(iens,:)%BASIN_QR(1)   ! streamflow from previous step
@@ -575,6 +580,7 @@ contains
                       NETOPO_trib,       &  ! input: reach topology data structure
                       RCHFLX_trib,       &  ! inout: reach flux data structure
                       ierr, cmessage)       ! output: error controls
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     ! populate reach fluxes in 2D array
     routedRunoff_local(:,2) = RCHFLX_trib(iens,:)%UPSTREAM_QI
 
@@ -584,9 +590,14 @@ contains
                     river_basin,          & ! input: river basin data type
                     T0,T1,                & ! input: start and end of the time step
                     ixDesire,             & ! input: index of the desired reach
+                    NETOPO_trib,          & ! input: reach topology data structure
+                    RPARAM_trib,          & ! input: reach parameter data structure
+                    KROUTE_trib,          & ! inout: reach state data structure
+                    RCHFLX_trib,          & ! inout: reach flux data structure
                     ierr,cmessage)          ! output: error control
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     ! populate reach fluxes in 2D array
-     routedRunoff_local(:,3) = RCHFLX_trib(iens,:)%REACH_Q_IRF
+     routedRunoff_local(:,3) = RCHFLX_trib(iens,:)%REACH_Q
     endif
 
     ! perform IRF routing
@@ -597,6 +608,7 @@ contains
                     NETOPO_trib,         & ! input: reach topology data structure
                     RCHFLX_trib,         & ! inout: reach flux data structure
                     ierr,cmessage)         ! output: error control
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     ! populate reach fluxes in 2D array
      routedRunoff_local(:,4) = RCHFLX_trib(iens,:)%REACH_Q_IRF
     endif
@@ -630,6 +642,7 @@ contains
                     ! output
                     reachRunoff_local,       & ! reach runoff (m3/s)
                     ierr, cmessage)            ! error control
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! 2. subroutine: basin routing
     if (doesBasinRoute == 1) then
@@ -637,6 +650,7 @@ contains
       RCHFLX_trib(iens,:)%BASIN_QI = reachRunoff_local(:)
       ! perform Basin routing
       call IRF_route_basin(iens, RCHFLX_trib, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     else
       ! no basin routing required (handled outside mizuRoute))
       RCHFLX_trib(iens,:)%BASIN_QR(0) = RCHFLX_trib(iens,:)%BASIN_QR(1)   ! streamflow from previous step
@@ -659,6 +673,7 @@ contains
                       NETOPO_trib,      &  ! input: reach topology data structure
                       RCHFLX_trib,      &  ! inout: reach flux data structure
                       ierr, cmessage)      ! output: error controls
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     routedRunoff_local(:,2) = RCHFLX_trib(iens,:)%UPSTREAM_QI
 
     ! perform KWT routing
@@ -667,7 +682,12 @@ contains
                     river_basin,          & ! input: river basin data type
                     T0,T1,                & ! input: start and end of the time step
                     ixDesire,             & ! input: index of the desired reach
+                    NETOPO_trib,          & ! input: reach topology data structure
+                    RPARAM_trib,          & ! input: reach parameter data structure
+                    KROUTE_trib,          & ! inout: reach state data structure
+                    RCHFLX_trib,          & ! inout: reach flux data structure
                     ierr,cmessage)          ! output: error control
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
      routedRunoff_local(:,3) = RCHFLX_trib(iens,:)%REACH_Q
     endif
 
@@ -679,6 +699,7 @@ contains
                     NETOPO_trib,         & ! input: reach topology data structure
                     RCHFLX_trib,         & ! input: reach flux data structure
                     ierr,cmessage)         ! output: error control
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
      routedRunoff_local(:,4) = RCHFLX_trib(iens,:)%REACH_Q_IRF
     endif
 ! --------------------------------
@@ -704,6 +725,9 @@ contains
   call MPI_GATHERV(routedRunoff_local(:,2), rch_per_proc(pid),                MPI_DOUBLE_PRECISION,       & ! flows from proc
                    routedRunoff(:,2),       rch_per_proc(0:nNodes-1), displs, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
                    MPI_COMM_WORLD, ierr)
+  call MPI_GATHERV(routedRunoff_local(:,3), rch_per_proc(pid),                MPI_DOUBLE_PRECISION,       & ! flows from proc
+                   routedRunoff(:,3),       rch_per_proc(0:nNodes-1), displs, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
+                   MPI_COMM_WORLD, ierr)
   call MPI_GATHERV(routedRunoff_local(:,4), rch_per_proc(pid),                MPI_DOUBLE_PRECISION,       & ! flows from proc
                    routedRunoff(:,4),       rch_per_proc(0:nNodes-1), displs, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
                    MPI_COMM_WORLD, ierr)
@@ -713,6 +737,7 @@ contains
     do iSeg =1,nRchTrib ! Loop through tributary reaches
       associate(iRch => ixRch_order(rch_per_proc(-1)+iSeg)) ! the first "rch_per_proc(-1)" reaches are mainstems
       RCHFLX(iens,iRch)%UPSTREAM_QI = routedRunoff(iSeg,2)
+      RCHFLX(iens,iRch)%REACH_Q     = routedRunoff(iSeg,3)
       RCHFLX(iens,iRch)%REACH_Q_IRF = routedRunoff(iSeg,4)
       end associate
     end do
@@ -739,6 +764,7 @@ contains
                     ! output
                     reachRunoff_main,       & ! intent(out): reach runoff (m3/s)
                     ierr, cmessage)           ! intent(out): error control
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! 2. subroutine: basin route
     if (doesBasinRoute == 1) then
@@ -751,6 +777,7 @@ contains
                            RCHFLX,               &              ! inout:  reach flux data structure
                            ierr, cmessage,       &              ! output: error controls
                            ixRch_order(1:rch_per_proc(root-1))) ! optional input: indices of reach to be routed
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     else
       ! no basin routing required (handled outside mizuRoute))
       do iSeg = 1,rch_per_proc(root-1)
@@ -771,11 +798,16 @@ contains
 
     ! perform KWT routing
     if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
-     call kwt_route(iens,                 & ! input: ensemble index
-                    river_basin,          & ! input: river basin data type
-                    T0,T1,                & ! input: start and end of the time step
-                    ixDesire,             & ! input: index of the desired reach
-                    ierr,cmessage)          ! output: error control
+!     call kwt_route(iens,                 & ! input: ensemble index
+!                    river_basin,          & ! input: river basin data type
+!                    T0,T1,                & ! input: start and end of the time step
+!                    ixDesire,             & ! input: index of the desired reach
+!                    NETOPO,               & ! input: reach topology data structure
+!                    RPARAM,               & ! input: reach parameter data structure
+!                    KROUTE,               & ! inout: reach state data structure
+!                    RCHFLX,               & ! inout: reach flux data structure
+!                    ierr,cmessage,        & ! output: error control
+!                    ixRch_order(1:rch_per_proc(root-1))) ! optional input: indices of reach to be routed
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 

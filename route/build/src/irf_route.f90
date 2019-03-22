@@ -361,13 +361,16 @@ contains
    ! Local variables to
    INTEGER(I4B)                              :: nSeg              ! number of reach segments in the network
    INTEGER(I4B)                              :: iSeg, jSeg        ! reach segment index
-   logical(lgt), allocatable                 :: do_irf(:)         ! logical to indicate which reaches are processed
+   logical(lgt), allocatable                 :: doRoute(:)        ! logical to indicate which reaches are processed
    character(len=strLen)                     :: cmessage          ! error message from subroutine
    integer*8                                 :: startTime,endTime ! date/time for the start and end of the initialization
    real(dp)                                  :: elapsedTime       ! elapsed time for the process
 
    ! initialize error control
    ierr=0; message='irf_route_orig/'
+
+   elapsedTime = 0._dp
+   call system_clock(startTime)
 
    ! check
    if (size(NETOPO_in)/=size(RCHFLX_out(iens,:))) then
@@ -379,28 +382,27 @@ contains
 
    nSeg = size(RCHFLX_out(iens,:))
 
-   allocate(do_irf(nSeg), stat=ierr)
+   allocate(doRoute(nSeg), stat=ierr)
 
    if (present(ixSubRch))then
-    do_irf(:)=.false.
-    do_irf(ixSubRch) = .true. ! only subset of reaches are on
+    doRoute(:)=.false.
+    doRoute(ixSubRch) = .true. ! only subset of reaches are on
    else
-    do_irf(:)=.true. ! every reach is on
+    doRoute(:)=.true. ! every reach is on
    endif
 
-   elapsedTime = 0._dp
-   call system_clock(startTime)
    ! route streamflow through the river network
    do iSeg=1,nSeg
 
     jSeg = NETOPO_in(iSeg)%RHORDER
 
-    if (.not. do_irf(jSeg)) cycle
+    if (.not. doRoute(jSeg)) cycle
 
     call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, message)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    end do
+
    call system_clock(endTime)
    elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
 !   write(*,"(A,1PG15.7,A)") '  total elapsed entire = ', elapsedTime, ' s'
