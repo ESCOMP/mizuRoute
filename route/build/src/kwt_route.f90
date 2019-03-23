@@ -485,10 +485,10 @@ contains
     if(ierr/=0)then; message=trim(message)//'problem allocating space for FROUTE'; return; endif
     FROUTE(0) = .TRUE.; FROUTE(1:NQ1)=.FALSE.  ! init. routing flags
     ! route flow through the current [JRCH] river segment (Q_JRCH in units of m2/s)
-    call KINWAV_RCH(JRCH,T_START,T_END,ixDesire, & ! input: location and time
-                    NETOPO_in, RPARAM_in,        & ! input: river data structure
-                    Q_JRCH,TENTRY,T_EXIT,FROUTE, & ! inout: kwt states
-                    NQ2,ierr,cmessage)             ! output:
+    call KINWAV_RCH(JRCH,T_START,T_END,ixDesire,                             & ! input: location and time
+                    NETOPO_in, RPARAM_in,                                    & ! input: river data structure
+                    Q_JRCH(1:NQ1),TENTRY(1:NQ1),T_EXIT(1:NQ1),FROUTE(1:NQ1), & ! inout: kwt states
+                    NQ2,ierr,cmessage)                                         ! output:
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     if(JRCH == ixDesire)then
       write(fmt1,'(A,I5,A)') '(A,1X',NQ1+1,'(1X,F20.7))'
@@ -1678,12 +1678,6 @@ contains
  ! check that the input time series starts before the first required output time
  ! and ends after the last required output time
  IF( (TOLD(1).GT.TNEW(1)) .OR. (TOLD(NOLD).LT.TNEW(NNEW)) ) THEN
-IF( TOLD(1).GT.TNEW(1) ) THEN
-print*, 'TOLD(1), TNEW(1)=',TOLD(1), TNEW(1)
-endif
-IF( TOLD(NOLD).LT.TNEW(NNEW) ) THEN
-print*, 'TOLD(NOLD), TNEW(NNEW)=',TOLD(NOLD), TNEW(NNEW)
-endif
   IERR=1; message=trim(message)//'bad bounds'; RETURN
  ENDIF
 
