@@ -276,7 +276,6 @@ contains
    jSeg = NETOPO_in(iSeg)%RHORDER
 
    if (.not. doRoute(jSeg)) cycle
-
    ! route kinematic waves through the river network
    call QROUTE_RCH(iens,jSeg,           & ! input: array indices
                    ixDesire,            & ! input: index of the desired reach
@@ -1065,6 +1064,7 @@ contains
        ! test if we have bracketed properly
        IF (USFLOW(IUPS)%KWAVE(IEND)%TR.LT.CTIME(JUPS) .OR. &
            USFLOW(IUPS)%KWAVE(IBEG)%TR.GT.CTIME(JUPS)) THEN
+print*,jRch, USFLOW(IUPS)%KWAVE(IEND)%TR, USFLOW(IUPS)%KWAVE(IBEG)%TR, CTIME(JUPS)
             ierr=40; message=trim(message)//'the times are not ordered as we assume'; return
        ENDIF  ! test for bracketing
        ! estimate flow for the IUPS upstream reach at time CTIME(JUPS)
