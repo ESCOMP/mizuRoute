@@ -11,7 +11,7 @@ program route_runoff
 ! variable types
 USE nrtype                                     ! variable types, etc.
 !USE globalData, only : NETOPO                 ! river network data (tmp)
-USE globalData, only : modJulday, endJulday    !
+USE globalData, only : modJulday
 USE globalData, only : pid, nNodes             ! procs id and number of procs
 
 ! ******
@@ -40,6 +40,7 @@ character(len=strLen)         :: cfile_name          ! name of the control file
 integer(i4b)                  :: ierr                ! error code
 character(len=strLen)         :: cmessage            ! error message of downwind routine
 integer(i4b)                  :: iens = 1
+logical(lgt)                  :: finished=.false.
 !integer(i4b)                  :: ix
 ! ======================================================================================================
 ! ======================================================================================================
@@ -85,7 +86,7 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 ! ***********************************
 ! start of time-stepping simulation
 ! ***********************************
-do while (modJulday < endJulday)
+do while (.not.finished)
 
   if (pid==0) write(*,*) 'modJulday= ', modJulday
 
@@ -105,13 +106,13 @@ do while (modJulday < endJulday)
   call mpi_route(pid, nNodes, iens, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
 
-  call update_time(ierr, cmessage)
-  if(ierr/=0) call handle_err(ierr, cmessage)
+  if(pid==0)then
+    call output(ierr, cmessage)
+    if(ierr/=0) call handle_err(ierr, cmessage)
+  endif
 
-!  if(pid==0)then
-!    call output(ierr, cmessage)
-!    if(ierr/=0) call handle_err(ierr, cmessage)
-!  endif
+  call update_time(finished, ierr, cmessage)
+  if(ierr/=0) call handle_err(ierr, cmessage)
 
 end do  ! looping through time
 

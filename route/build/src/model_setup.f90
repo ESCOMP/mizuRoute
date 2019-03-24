@@ -175,7 +175,7 @@ contains
  ! *********************************************************************
  ! public subroutine: update time to next time
  ! *********************************************************************
- subroutine update_time(ierr, message)   ! output: error control
+ subroutine update_time(finished, ierr, message)   ! output: error control
 
   USE public_var, only : dt
   USE globalData, only : TSEC          ! beginning/ending of simulation time step [sec]
@@ -186,14 +186,19 @@ contains
 
    implicit none
    ! output: error control
+   logical(lgt),              intent(out)   :: finished
    integer(i4b),              intent(out)   :: ierr             ! error code
    character(*),              intent(out)   :: message          ! error message
 
    ! initialize error control
    ierr=0; message='update_time/'
 
+   finished=.false.
+
    ! update time index
    iTime=iTime+1
+
+   if (iTime>size(timeVar))then; finished=.true.; return; endif
 
    ! update the julian day of the model simulation
    modJulday = refJulday + timeVar(iTime)
