@@ -522,40 +522,35 @@ contains
 
   ierr=0; message='mpi_route/'
 
+  T0=TSEC(0); T1=TSEC(1)
+
   if (pid == root) then ! this is a root process
     ! Reaches/HRU assigned to root node include BOTH small tributaries and mainstem
     ! First, route "small tributaries" while routing over other bigger tributaries (at slave nodes).
-
-    T0=TSEC(0); T1=TSEC(1)
 
     do iHru = 1,nHRU
       basinRunoff_sorted(iHru) = runoff_data%basinRunoff(ixHRU_order(iHru))
     enddo
 
-    do myid = 1, nNodes-1
-      ! Get starting and ending indices
-      ixHru2   = sum(hru_per_proc(-1:myid))
-      ixHru1 = ixHru2 - hru_per_proc(myid) + 1
+  end if
 
-      ! Send number of elements (hrus and segs)
-      call MPI_SEND(hru_per_proc(myid), 1, MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-      call MPI_SEND(rch_per_proc(myid), 1, MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-      ! Send regular 1D array
-      call MPI_SEND(basinRunoff_sorted(ixHru1), hru_per_proc(myid), MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-    end do
+  ! Need to compute displacements
+  displs(0) = 0
+  do myid = 1, nNodes-1
+   displs(myid) = sum(hru_per_proc(0:myid-1))
+  end do
+  allocate(basinRunoff_local(hru_per_proc(pid)),    &
+           reachRunoff_local(rch_per_proc(pid)),    &
+           routedRunoff_local(rch_per_proc(pid),6), &
+           stat=ierr)
+  ! Distribute modified KROUTE data to each process
+  call MPI_SCATTERV(basinRunoff_sorted(hru_per_proc(-1)+1:nHRU), hru_per_proc(0:nNodes-1), displs, MPI_DOUBLE_PRECISION,      & ! flows from proc
+                    basinRunoff_local,                           hru_per_proc(pid),                MPI_DOUBLE_PRECISION, root,& ! gathered flows at root node
+                    MPI_COMM_WORLD, ierr)
 
-! --------------------------------
-! small tributary routing
-! --------------------------------
 ! --------------------------------
 ! BEGIN: Put this in seprate routine
 ! --------------------------------
-    allocate(basinRunoff_local(hru_per_proc(root)), stat=ierr)
-    allocate(reachRunoff_local(rch_per_proc(root)), stat=ierr)
-    allocate(routedRunoff_local(rch_per_proc(root),6), stat=ierr)
-
-    basinRunoff_local(1:hru_per_proc(root)) = basinRunoff_sorted(hru_per_proc(-1)+1:hru_per_proc(-1)+hru_per_proc(root))
-
     ! 1. subroutine: map basin runoff to river network HRUs
     ! map the basin runoff to the stream network...
     call basin2reach(&
@@ -630,107 +625,6 @@ contains
     ! populate reach fluxes in 2D array
      routedRunoff_local(:,5) = RCHFLX_trib(iens,:)%REACH_Q_IRF
     endif
-! --------------------------------
-! END: Put this in seprate routine
-! --------------------------------
-
-  else  ! if slaved procs
-
-    T0=TSEC(0); T1=TSEC(1)
-
-    call MPI_RECV(num_hru_received, 1, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-    call MPI_RECV(num_seg_received, 1, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-
-! --------------------------------
-! BEGIN: Put this in seprate routine
-! --------------------------------
-    allocate(basinRunoff_local(num_hru_received), stat=ierr)
-    allocate(reachRunoff_local(num_seg_received), stat=ierr)
-    allocate(routedRunoff_local(num_seg_received,6), stat=ierr)
-
-    call MPI_RECV(basinRunoff_local, num_hru_received, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-
-    ! 1. subroutine: map basin runoff to river network HRUs
-    ! map the basin runoff to the stream network...
-    call basin2reach(&
-                    ! input
-                    basinRunoff_local,       & ! basin runoff (m/s)
-                    NETOPO_trib,             & ! reach topology
-                    RPARAM_trib,             & ! reach parameter
-                    ! output
-                    reachRunoff_local,       & ! reach runoff (m3/s)
-                    ierr, cmessage)            ! error control
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    ! 2. subroutine: basin routing
-    if (doesBasinRoute == 1) then
-      ! instantaneous runoff volume (m3/s) to data structure
-      RCHFLX_trib(iens,:)%BASIN_QI = reachRunoff_local(:)
-      routedRunoff_local(:,6) = RCHFLX_trib(iens,:)%BASIN_QI
-      ! perform Basin routing
-      call IRF_route_basin(iens, RCHFLX_trib, ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    else
-      ! no basin routing required (handled outside mizuRoute))
-      RCHFLX_trib(iens,:)%BASIN_QR(0) = RCHFLX_trib(iens,:)%BASIN_QR(1)   ! streamflow from previous step
-      RCHFLX_trib(iens,:)%BASIN_QR(1) = reachRunoff_local(:)              ! streamflow (m3/s)
-    end if
-    routedRunoff_local(:,1) = RCHFLX_trib(iens,:)%BASIN_QR(0)
-    routedRunoff_local(:,2) = RCHFLX_trib(iens,:)%BASIN_QR(1)
-! deleteme
-!if (pid==7) then
-!print*, T0
-!do ihru=1,size(basinRunoff_local)
-!print*, pid, basinRunoff_local(ihru), reachRunoff_local(ihru)
-!enddo
-!endif
-! deleteme
-    ! 3. subroutine: river reach routing
-    ! perform upstream flow accumulation
-    call accum_runoff(iens,             &  ! input: ensemble index
-                      ixDesire,         &  ! input: index of verbose reach
-                      NETOPO_trib,      &  ! input: reach topology data structure
-                      RCHFLX_trib,      &  ! inout: reach flux data structure
-                      ierr, cmessage)      ! output: error controls
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    routedRunoff_local(:,3) = RCHFLX_trib(iens,:)%UPSTREAM_QI
-
-    ! perform KWT routing
-    if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
-     call kwt_route(iens,                 & ! input: ensemble index
-                    river_basin,          & ! input: river basin data type
-                    T0,T1,                & ! input: start and end of the time step
-                    ixDesire,             & ! input: index of the desired reach
-                    NETOPO_trib,          & ! input: reach topology data structure
-                    RPARAM_trib,          & ! input: reach parameter data structure
-                    KROUTE_trib,          & ! inout: reach state data structure
-                    RCHFLX_trib,          & ! inout: reach flux data structure
-                    ierr,cmessage)          ! output: error control
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-     routedRunoff_local(:,4) = RCHFLX_trib(iens,:)%REACH_Q
-     call kwt_struc2array(iens,KROUTE_trib,                        &
-                          QF_trib,QM_trib,TI_trib,TR_trib,RF_trib, &
-                          nWave_trib,                              &
-                          ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-     totWave(pid) = sum(nWave_trib)
-    endif
-
-    ! perform IRF routing
-    if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
-     call irf_route(iens,                & ! input: ensemble index
-                    river_basin,         & ! input: river basin data type
-                    ixDesire,            & ! input: index of the desired reach
-                    NETOPO_trib,         & ! input: reach topology data structure
-                    RCHFLX_trib,         & ! input: reach flux data structure
-                    ierr,cmessage)         ! output: error control
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-     routedRunoff_local(:,5) = RCHFLX_trib(iens,:)%REACH_Q_IRF
-    endif
-! --------------------------------
-! END: Put this in seprate routine
-! --------------------------------
-  endif ! end of slave procs
 
   ! make sure that routing at all the procs finished
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
