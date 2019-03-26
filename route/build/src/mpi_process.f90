@@ -609,6 +609,7 @@ contains
     !KW states
     ! collect arrays storing number of waves for each reach from each proc
     allocate(nWave(nRchTrib), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [nWave]'; return; endif
     call MPI_GATHERV(nWave_trib, rch_per_proc(pid),                MPI_INT,       & ! number of wave from proc
                      nWave,      rch_per_proc(0:nNodes-1), displs, MPI_INT, root, & ! gathered number of wave at root node
                      MPI_COMM_WORLD, ierr)
@@ -630,6 +631,7 @@ contains
 
     ! collect state arrays from each proc
     allocate(QF(sum(totWave)), QM(sum(totWave)), TI(sum(totWave)), TR(sum(totWave)), RF(sum(totWave)), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [QF,QM,TI,TR,RF]'; return; endif
     ! Can GATHER all together for QF, QM, TI, TR
     call MPI_GATHERV(QF_trib, totWave(pid),                   MPI_DOUBLE_PRECISION,       & ! flows from proc
                      QF,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
@@ -649,6 +651,7 @@ contains
 
     ! clear tribuary state arrays for all procs
     deallocate(QF_trib, QM_trib, TI_trib, TR_trib, RF_trib, stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem de-allocating array for [QF_trib,QM_trib,TI_trib,TR_trib,RF_trib]'; return; endif
 
     ! put it in global RCHFLX data structure
     if (pid==root) then
@@ -670,6 +673,7 @@ contains
         ixWave=ixWave+nWave(iSeg) !update 1st idex of array
       end do
       deallocate(QF, QM, TI, TR, RF, stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem allocating array for [QF,QM,TI,TR,RF]'; return; endif
     endif
   endif
 
@@ -728,19 +732,19 @@ contains
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! perform KWT routing
-!    if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
-!     call kwt_route(iens,                 & ! input: ensemble index
-!                    river_basin,          & ! input: river basin data type
-!                    T0,T1,                & ! input: start and end of the time step
-!                    ixDesire,             & ! input: index of the desired reach
-!                    NETOPO,               & ! input: reach topology data structure
-!                    RPARAM,               & ! input: reach parameter data structure
-!                    KROUTE,               & ! inout: reach state data structure
-!                    RCHFLX,               & ! inout: reach flux data structure
-!                    ierr,cmessage,        & ! output: error control
-!                    ixRch_order(1:rch_per_proc(root-1))) ! optional input: indices of reach to be routed
-!     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-!    endif
+    if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
+     call kwt_route(iens,                 & ! input: ensemble index
+                    river_basin,          & ! input: river basin data type
+                    T0,T1,                & ! input: start and end of the time step
+                    ixDesire,             & ! input: index of the desired reach
+                    NETOPO,               & ! input: reach topology data structure
+                    RPARAM,               & ! input: reach parameter data structure
+                    KROUTE,               & ! inout: reach state data structure
+                    RCHFLX,               & ! inout: reach flux data structure
+                    ierr,cmessage,        & ! output: error control
+                    ixRch_order(1:rch_per_proc(root-1))) ! optional input: indices of reach to be routed
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
 
     ! perform IRF routing
     if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
