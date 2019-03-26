@@ -912,10 +912,6 @@ contains
   UWIDTH(IUPS) = 1.0D0                         ! basin = unit width
   ! save the the time for the first particle in each reach
   CTIME(IUPS) = USFLOW(IUPS)%KWAVE(1)%TR       ! central time
-
-
-  if(jRch==53448) print*, 'basins: ', nupb, iups, CTIME(IUPS)
-
  END DO    ! (loop through upstream basins)
  ! ----------------------------------------------------------------------------------------
  ! (3) EXTRACT FLOW FROM UPSTREAM REACHES
@@ -978,17 +974,6 @@ contains
    UWIDTH(NUPB+IUPR) = RPARAM_in(IR)%R_WIDTH            ! reach, width = parameter
    ! save the time for the first particle in each reach
    CTIME(NUPB+IUPR) = USFLOW(NUPB+IUPR)%KWAVE(1)%TR  ! central time
-
-
-   if(jRch==53448)then
-    print*, 'reaches: ', nupb, iupr, CTIME(NUPB+IUPR)
-    print*, 'wave'
-    print*, lbound(USFLOW(NUPB+IUPR)%KWAVE)
-    print*, ubound(USFLOW(NUPB+IUPR)%KWAVE)
-    do iwav=0,size(USFLOW(NUPB+IUPR)%KWAVE)-1
-     print*, iwav, USFLOW(NUPB+IUPR)%KWAVE(iwav)%TI, USFLOW(NUPB+IUPR)%KWAVE(iwav)%TR, USFLOW(NUPB+IUPR)%KWAVE(iwav)%RF
-    end do
-   endif
 
    ! keep track of the total number of points that must be routed downstream
    IMAX = IMAX + (NR-1)     ! exclude zero point for the last routed
@@ -1081,13 +1066,10 @@ contains
        IF (USFLOW(IUPS)%KWAVE(IEND)%TR.LT.CTIME(JUPS) .OR. &
            USFLOW(IUPS)%KWAVE(IBEG)%TR.GT.CTIME(JUPS)) THEN
 
-
-
-
-
 print*,'jRch, NETOPO_in(jRch)%REACHID, NETOPO_in(jRch)%UREACHK=', JRch, NETOPO_in(jRch)%REACHID, NETOPO_in(jRch)%UREACHK
 print*,'IUPS, USFLOW(IUPS)%KWAVE(:)%TR=', IUPS, USFLOW(IUPS)%KWAVE(:)%TR
 print*,'USFLOW(IUPS)%KWAVE(IEND)%TR, USFLOW(IUPS)%KWAVE(IBEG)%TR, CTIME(JUPS)=', USFLOW(IUPS)%KWAVE(IEND)%TR, USFLOW(IUPS)%KWAVE(IBEG)%TR, CTIME(JUPS)
+
             ierr=40; message=trim(message)//'the times are not ordered as we assume'; return
        ENDIF  ! test for bracketing
        ! estimate flow for the IUPS upstream reach at time CTIME(JUPS)
