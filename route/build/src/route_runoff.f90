@@ -11,7 +11,7 @@ program route_runoff
 ! variable types
 USE nrtype                                     ! variable types, etc.
 !USE globalData, only : NETOPO                 ! river network data (tmp)
-USE globalData, only : modJulday
+USE globalData, only : modJulday,endJulday
 USE globalData, only : pid, nNodes             ! procs id and number of procs
 
 ! ******
@@ -88,7 +88,7 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 ! ***********************************
 do while (.not.finished)
 
-  if (pid==0) write(*,*) 'modJulday= ', modJulday
+  if (pid==0) write(*,*) 'modJulday,endJulday= ', modJulday, endJulday
 
   ! prepare simulation output netCDF
   if(pid==0)then

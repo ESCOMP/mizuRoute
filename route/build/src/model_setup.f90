@@ -7,6 +7,7 @@ USE dataTypes, only : var_ilength         ! integer type:          var(:)%dat
 USE dataTypes, only : var_clength         ! integer type:          var(:)%dat
 USE dataTypes, only : var_dlength,dlength ! double precision type: var(:)%dat, or dat
 
+USE public_var, only : verySmall
 USE public_var, only : integerMissing
 USE public_var, only : realMissing
 
@@ -91,8 +92,6 @@ contains
   USE globalData,  only : remap_data             ! runoff mapping data structure
   USE globalData,  only : ixHRU_order            ! global HRU index in the order of proc assignment
   USE globalData,  only : ixRch_order            ! global reach index in the order of proc assignment
-  USE globalData,  only : hru_per_proc           ! number of hrus assigned to each proc (i.e., node)
-  USE globalData,  only : rch_per_proc           ! number of reaches assigned to each proc (i.e., node)
   ! external subroutines
   USE mpi_routine, only : comm_ntopo_data        ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root node)
   USE mpi_routine, only : pass_global_data       ! mpi globaldata copy to slave proc
@@ -133,7 +132,7 @@ contains
    call comm_ntopo_data(pid, nNodes,                                          & ! input: proc id and # of procs
                         nRch, nContribHRU,                                    & ! input: number of reach and HRUs that contribut to any reaches
                         structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
-                        ixHRU_order, ixRch_order, hru_per_proc, rch_per_proc, & ! output: MPI domain decomposition data
+                        ixHRU_order, ixRch_order,                             & ! output: MPI domain decomposition data
                         ierr, cmessage)                                         ! output: error controls
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -183,6 +182,7 @@ contains
   USE globalData, only : iTime         ! time index at simulation time step
   USE globalData, only : refJulday     ! julian day: reference
   USE globalData, only : modJulday     ! julian day: at model time step
+  USE globalData, only : endJulday     ! julian day: at end of simulation
 
    implicit none
    ! output: error control
@@ -193,12 +193,12 @@ contains
    ! initialize error control
    ierr=0; message='update_time/'
 
-   finished=.false.
+   if (abs(modJulday-endJulday)<verySmall) then
+     finished=.true.;return
+   endif
 
    ! update time index
    iTime=iTime+1
-
-   if (iTime>size(timeVar))then; finished=.true.; return; endif
 
    ! update the julian day of the model simulation
    modJulday = refJulday + timeVar(iTime)
