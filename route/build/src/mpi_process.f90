@@ -123,8 +123,8 @@ contains
   integer(i4b)                                :: ixSeg1,ixSeg2             ! starting index and ending index, respectively, for reach array
   integer(i4b)                                :: ixHru1,ixHru2             ! starting index and ending index, respectively, for HRU array
   integer(i4b)                                :: idx                       ! node indix (1, ... , nNodes)
-  integer(i4b), parameter                     :: send_data_tag=2001
-  integer(i4b), parameter                     :: return_data_tag=2002
+!  integer(i4b), parameter                     :: send_data_tag=2001
+!  integer(i4b), parameter                     :: return_data_tag=2002
   character(len=strLen)                       :: cmessage                  ! error message from subroutine
 
   ierr=0; message='comm_ntopo_data/'
@@ -451,8 +451,8 @@ contains
   integer(i4b)                          :: ix1, ix2
   integer(i4b)                          :: iHru,iSeg, myid          ! loop indices
   integer(i4b)                          :: nRchTrib                 ! number of tributary reaches
-  integer(i4b), parameter               :: send_data_tag=2001
-  integer(i4b), parameter               :: return_data_tag=2002
+!  integer(i4b), parameter               :: send_data_tag=2001
+!  integer(i4b), parameter               :: return_data_tag=2002
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
 
   ierr=0; message='mpi_route/'
