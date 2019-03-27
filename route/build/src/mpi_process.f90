@@ -449,6 +449,8 @@ contains
   integer(i4b)                          :: ix1, ix2
   integer(i4b)                          :: iHru,iSeg, myid          ! loop indices
   integer(i4b)                          :: nRchTrib                 ! number of tributary reaches
+  integer(i4b)                          :: tributary=1              !
+  integer(i4b)                          :: mainstem=2               !
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
 
   ierr=0; message='mpi_route/'
@@ -526,6 +528,7 @@ contains
    call kwt_route(iens,                 & ! input: ensemble index
                   river_basin,          & ! input: river basin data type
                   T0,T1,                & ! input: start and end of the time step
+                  tributary,            & ! input:
                   ixDesire,             & ! input: index of the desired reach
                   NETOPO_trib,          & ! input: reach topology data structure
                   RPARAM_trib,          & ! input: reach parameter data structure
@@ -562,6 +565,17 @@ contains
   ! --------------------------------
   ! Subroutine: Collect all the tributary flows and states
   ! --------------------------------
+
+!  if (pid==1) then
+!   print*, 'pid = ', pid
+! !  print*, 'reach-index, reach-id, down-index, down-id, reach-order'
+!   do iSeg=1,rch_per_proc(pid)
+!!     print*, NETOPO_trib(iSeg)%REACHIX, NETOPO_trib(iSeg)%REACHID, NETOPO_trib(iSeg)%DREACHI, NETOPO_trib(iSeg)%DREACHK, NETOPO_trib(iSeg)%RHORDER
+!     print*, 'reachID, nWave =', NETOPO_trib(iSeg)%REACHID, size(KROUTE_trib(iens,iSeg)%KWAVE)
+!   enddo
+!  endif
+
+
   ! Need to compute displacements
   displs(0) = 0
   do myid = 1, nNodes-1
@@ -736,6 +750,7 @@ contains
      call kwt_route(iens,                 & ! input: ensemble index
                     river_basin,          & ! input: river basin data type
                     T0,T1,                & ! input: start and end of the time step
+                    mainstem,             & ! input:
                     ixDesire,             & ! input: index of the desired reach
                     NETOPO,               & ! input: reach topology data structure
                     RPARAM,               & ! input: reach parameter data structure
@@ -760,6 +775,9 @@ contains
 
   endif ! end of root proc
 
+  ! make sure that routing at all the procs finished
+  call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
    ! get all tributary kwt states (excluding mainstems)
    if (pid==root) then
@@ -778,6 +796,11 @@ contains
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     deallocate(KROUTE0, stat=ierr)
    endif
+
+   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+
+   ! will have to broadcast updated nWave to all proc
+    call MPI_BCAST(nWave, nRchTrib, MPI_INT, root, MPI_COMM_WORLD, ierr)
 
    ! total waves from all the tributary reaches in each proc
    ix2=0
