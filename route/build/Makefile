@@ -13,7 +13,7 @@ FC  =
 # Define the compiler exe
 FC_EXE =
 
-# define open MP flags
+# define open MP flags (yes if used)
 isOpenMP =
 FLAGS_OMP =
 LIBOPENMP =
@@ -25,8 +25,9 @@ F_MASTER =
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
-  NCDF_PATH = /opt/local
-  LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
+  NCDF_PATH = 
+  LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
+              -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
   INCNETCDF = -I$(NCDF_PATH)/include
   ifeq "$(isOpenMP)" "yes"
    FLAGS_OMP = -fopenmp
@@ -34,8 +35,9 @@ ifeq "$(FC)" "gfortran"
 endif
 
 ifeq "$(FC)" "ifort"
-  NCDF_PATH = /opt/netcdf4-intel
-  LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
+  NCDF_PATH = 
+  LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
+		          -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
   INCNETCDF = -I$(NCDF_PATH)/include
   ifeq "$(isOpenMP)" "yes"
    FLAGS_OMP = -fopenmp
@@ -43,15 +45,15 @@ ifeq "$(FC)" "ifort"
 endif
 
 ifeq "$(FC)" "pgf90"
- NCDF_PATH = /opt/netcdf4-pgf90
+ NCDF_PATH = 
  LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
  INCNETCDF = -I$(NCDF_PATH)/include
 endif
 
 # Define flags
 ifeq "$(FC)" "gfortran"
- FLAGS1 = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=all $(FLAGS_OMP)
- FLAGS = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+ FLAGS = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=all $(FLAGS_OMP)
+ FLAGS1 = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
 endif
 ifeq "$(FC)" "ifort"
  FLAGS1 = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
@@ -86,7 +88,8 @@ DATATYPES = \
     dataTypes.f90 \
     var_lookup.f90 \
     globalData.f90 \
-    popMetadat.f90
+    popMetadat.f90 \
+    allocation.f90 
 #
 # define utilities
 UTILS = \
@@ -105,24 +108,31 @@ IO = \
     read_streamSeg.f90 \
     write_streamSeg.f90 \
     read_runoff.f90 \
-    getAncillary.f90 \
+    get_basin_runoff.f90 \
+    read_remap.f90 \
     read_restart.f90 \
     write_restart.f90 \
     write_simoutput.f90
 
+INITIAL = \
+    process_time.f90 \
+    network_topo.f90 \
+    process_param.f90 \
+    process_ntopo.f90 \
+    pfafstetter.f90 \
+    domain_decomposition.f90
+
 # perform model routing
 QROUTE = \
-    process_time.f90 \
     accum_runoff.f90 \
     basinUH.f90 \
-    network_topo.f90 \
-    pfafstetter.f90 \
     irf_route.f90 \
-    process_ntopo.f90 \
-    kwt_route.f90
+    kwt_route.f90 \
+    mpi_process.f90 \
+    model_setup.f90
 
 # concatanate model subroutines
-TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(QROUTE)
+TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(INITIAL) $(QROUTE)
 
 # insert appropriate directory name
 MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
