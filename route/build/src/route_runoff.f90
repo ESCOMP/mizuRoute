@@ -29,7 +29,7 @@ USE mpi_routine,         only : mpi_route        ! Distribute runoff to proc, ro
 USE get_runoff        ,  only : get_hru_runoff   !
 USE write_simoutput,     only : prep_output      !
 USE write_simoutput,     only : output           !
-USE write_restart,       only : write_state_nc   ! write netcdf state output file
+USE write_restart,       only : output_state     ! write netcdf state output file
 
 ! ******
 ! define variables
@@ -116,8 +116,10 @@ do while (.not.finished)
 
 end do  ! looping through time
 
-!call write_state_nc(trim(output_dir)//trim(fname_state_out), routOpt, runoff_data%time, 1, TSEC(0), TSEC(1), reachID, ierr, cmessage)
-!if(ierr/=0) call handle_err(ierr, cmessage)
+!if (pid==0) then
+! call output_state(ierr, cmessage)
+! if(ierr/=0) call handle_err(ierr, cmessage)
+!endif
 
 !  Shut down MPI
 call MPI_FINALIZE(ierr)
