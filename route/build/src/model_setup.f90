@@ -349,7 +349,8 @@ contains
   iTime = ix
 
   ! initialize previous model time
-  modTime(0:1) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
+  !modTime(0:1) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
+  modTime(0) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
 
  end subroutine init_time
 

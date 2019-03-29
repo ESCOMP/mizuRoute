@@ -138,6 +138,7 @@ contains
    ! part 7 Define run control
    case('<restart_opt>');   read(cData,*,iostat=io_error) isRestart              ! restart option: True-> model run with restart, F -> model run with empty channels
    case('<route_opt>');     read(cData,*,iostat=io_error) routOpt                ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+   case('<desireId>'   );   read(cData,*,iostat=io_error) desireId               ! turn off checks or speficy reach ID if necessary to print on screen
 
    ! Part 8: Define output filename
    case('<fname_output>');    fname_output    = trim(cData)                      ! filename for the model output

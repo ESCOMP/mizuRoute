@@ -128,7 +128,7 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! print progress
-  !print*, modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin
+  print*, modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin
 
   ! *****
   ! *** Define model output file...

@@ -281,9 +281,7 @@ contains
   end do
 
   ! find index of desired reach
-  if (ixDesire/=integerMissing) then
-   ixDesire = findIndex(segId_local, desireId, integerMissing)
-  endif
+  if (desireId/=integerMissing) ixDesire = findIndex(segId_local, desireId, integerMissing)
 
   call augment_ntopo(&
                   ! input: model control
@@ -307,8 +305,9 @@ contains
     associate (nSeg_main => rch_per_proc(-1), &
                nHRU_main => hru_per_proc(-1) )
 
-    if (ixDesire/=integerMissing) then
+    if (desireId/=integerMissing) then
      ixDesire = findIndex(segId(1:nSeg_main), desireId, integerMissing)
+     if (ixDesire/=integerMissing) ixDesire = ixSubSEG(ixDesire)
     endif
 
     call alloc_struct(nHRU_main,            & ! output: number of HRUs

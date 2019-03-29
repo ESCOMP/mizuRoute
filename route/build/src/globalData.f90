@@ -1,6 +1,8 @@
 module globalData
   ! This module includes global data structures
 
+  use public_var, only : integerMissing
+
   ! data types
   use nrtype
 
@@ -159,6 +161,6 @@ module globalData
   integer(i4b)    , allocatable  , public :: rch_per_proc(:)      ! number of reaches assigned to each proc (i.e., node)
 
   ! miscellaneous
-  integer(i4b)                   , public :: ixDesire             ! index of desired reach
+  integer(i4b)                   , public :: ixDesire=integerMissing             ! index of desired reach
 
 end module globalData
