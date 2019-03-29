@@ -99,5 +99,6 @@ module public_var
   real(dp)             ,public    :: dt                   = realMissing     ! time step (seconds)
   integer(i4b)         ,public    :: idSegOut             = integerMissing  ! id of outlet stream segment
   integer(i4b)         ,public    :: routOpt              = integerMissing  ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+  integer(i4b)         ,public    :: desireId             = integerMissing  ! turn off checks or speficy reach ID if necessary to print on screen
 
 end module public_var

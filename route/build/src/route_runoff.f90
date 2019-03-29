@@ -81,9 +81,6 @@ USE irf_route_module, only : irf_route        ! river network unit hydrograph me
 ! ************************
 implicit none
 
-! desired routing ids
-integer(i4b), parameter       :: desireId=integerMissing  ! turn off checks or speficy reach ID if necessary to print on screen
-
 ! model control
 integer(i4b),parameter        :: nEns=1              ! number of ensemble members
 character(len=strLen)         :: fileout             ! name of the output file
@@ -290,6 +287,9 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 allocate(basinID(nHRU), reachID(nRch), basinRunoff(nHRU), reachRunoff(nRch), stat=ierr)
 if(ierr/=0) call handle_err(ierr, 'unable to allocate space for runoff vectors')
 
+forall(iHRU=1:nHRU) basinID(iHRU) = structHRU2seg(iHRU)%var(ixHRU2seg%hruId)%dat(1)
+forall(iRch=1:nRch) reachID(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
+
 ! *****
 ! *** define indices...
 ! *********************
@@ -386,12 +386,10 @@ do iTime=1,nTime
   if(ierr/=0) call handle_err(ierr, cmessage)
 
   ! define basin ID
-  forall(iHRU=1:nHRU) basinID(iHRU) = structHRU2seg(iHRU)%var(ixHRU2seg%hruId)%dat(1)
   call write_nc(trim(fileout), 'basinID', basinID, (/1/), (/nHRU/), ierr, cmessage)
   call handle_err(ierr,cmessage)
 
   ! define reach ID
-  forall(iRch=1:nRch) reachID(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
   call write_nc(trim(fileout), 'reachID', reachID, (/1/), (/nRch/), ierr, cmessage)
   call handle_err(ierr,cmessage)
 
