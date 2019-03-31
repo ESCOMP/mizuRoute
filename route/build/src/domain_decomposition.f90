@@ -71,7 +71,7 @@ contains
    integer(i4b)                                :: nInvalid               ! number of invalid pfafcode (0 or -999)
    integer(i4b)                                :: iSeg, iOut, ix         ! loop indices
    integer(i4b)                                :: ix1, ix2               ! first and last indices in array to subset
-   logical(lgt),      allocatable              :: isInvalid(:)
+   logical(lgt),      allocatable              :: isProcessed(:)
  !  integer(i4b)                                :: segId(nSeg)            ! reach id for all the segments
  !  integer(i4b)                                :: idx                    ! loop indices
  !  logical(lgt)                                :: seglgc(nSeg)
@@ -91,18 +91,18 @@ contains
 
    ! put segments with invalid pfaf code (0 or -999) into a separate domain
    nDomain = nDomain+1
-   allocate(isInvalid(nSeg), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'problem allocating [isInvalid]'; return; endif
-   isInvalid(1:nSeg)=.false.
+   allocate(isProcessed(nSeg), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'problem allocating [isProcessed]'; return; endif
+   isProcessed(1:nSeg)=.false.
    do iSeg = 1,nSeg
      if (trim(adjustl(pfafs(iSeg)))=='0' .or. trim(adjustl(pfafs(iSeg)))=='-999') then
-       isInvalid(iSeg)=.true.
+       isProcessed(iSeg)=.true.
      end if
    end do
-   nInvalid = count(isInvalid)
+   nInvalid = count(isProcessed)
    allocate(ixSubset(nInvalid), domains(nDomain)%segIndex(nInvalid), stat=ierr)
    if(ierr/=0)then; message=trim(message)//'problem allocating [ixSubset,domains(nDomain)%segIndex]'; return; endif
-   ixSubset = pack(arth(1,1,nSeg),isInvalid)
+   ixSubset = pack(arth(1,1,nSeg),isProcessed)
    domains(nDomain)%pfaf = '0'
    domains(nDomain)%segIndex = segIndex(ixSubset)
 
