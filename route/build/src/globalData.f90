@@ -152,7 +152,7 @@ module globalData
 
   ! domain data
   type(basin)     , allocatable  , public :: river_basin(:)       ! openMP domain decomposition
-  type(subbasin_mpi)             , public :: domains(5000)        ! domain decomposition based on subbasin
+  type(subbasin_mpi)             , public :: domains(150000)       ! domain decomposition based on subbasin maximum 50,000 domains
   integer(i4b)                   , public :: nDomain              ! domain counter
 
   integer(i4b)    , allocatable  , public :: ixHRU_order(:)       ! global HRU index in the order of proc assignment

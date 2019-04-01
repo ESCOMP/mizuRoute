@@ -10,7 +10,7 @@ program route_runoff
 ! ****************************************************
 ! variable types
 USE nrtype                                     ! variable types, etc.
-!USE globalData, only : NETOPO                 ! river network data (tmp)
+
 USE globalData, only : pid, nNodes             ! procs id and number of procs
 
 ! ******
@@ -20,8 +20,8 @@ USE globalData, only : pid, nNodes             ! procs id and number of procs
 USE mpi                                          ! MPI
 ! subroutines: model set up
 USE model_setup,         only : init_model       ! model setupt - reading control file, populate metadata, read parameter file
-USE model_setup,         only : init_data        ! initialize river segment data
-USE model_setup,         only : update_time
+USE model_setup,         only : init_data        ! initialize river reach data
+USE model_setup,         only : update_time      ! Update simulation time information at each time step
 ! subroutines: routing
 USE mpi_routine,         only : mpi_route        ! Distribute runoff to proc, route them, and gather,
 ! subroutines: model I/O
@@ -40,7 +40,6 @@ integer(i4b)                  :: ierr                ! error code
 character(len=strLen)         :: cmessage            ! error message of downwind routine
 integer(i4b)                  :: iens = 1
 logical(lgt)                  :: finished=.false.
-!integer(i4b)                  :: ix
 ! ======================================================================================================
 ! ======================================================================================================
 
@@ -73,12 +72,6 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 call init_data(pid, nNodes, ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
-!if (pid==7)then
-!  print*, 'pid,reachID,downreachID,order'
-!  do ix=1,size(NETOPO)
-!   write(*,"(I1,A,I9,A,I9,A,I9,A,I5)") pid,',',NETOPO(ix)%REACHIX,',',NETOPO(ix)%REACHID,',',NETOPO(ix)%DREACHK,',',NETOPO(ix)%RHORDER
-!  enddo
-!endif
 !call MPI_FINALIZE(ierr)
 !stop
 
@@ -113,6 +106,7 @@ do while (.not.finished)
 
 end do  ! looping through time
 
+! write state netCDF
 !if (pid==0) then
 ! call output_state(ierr, cmessage)
 ! if(ierr/=0) call handle_err(ierr, cmessage)
@@ -124,7 +118,6 @@ call MPI_FINALIZE(ierr)
 stop
 
 contains
-
 
  subroutine mpi_handle_err(ierr,pid)
  ! handle MPI error codes

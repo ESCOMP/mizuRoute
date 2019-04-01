@@ -202,6 +202,10 @@ contains
       area(iHru)     = structHRU(ixSubHRU(iHru))%var(ixHRU%area)%dat(1)
     enddo
 
+!    print*, 'ix, segId, ixSubSEG, iySubSEG, ixNode, pfaf'
+!    do ix = 1,nRch_in
+!      print*, segId(ix), ixSubSEG(ix), iySubSEG(ix), ixNode(ix), pfaf(ix)
+!    enddo
   endif
 
   if (pid/=root) then
@@ -358,10 +362,6 @@ contains
 !    do ix = 1,nHRU_in
 !      print*, ix, hruId(ix), ixSubHRU(ix), iySubHRU(ix), hruSegId(ix)
 !    end do
-!    print*, 'ix, segId, ixSubSEG, iySubSEG, ixNode, pfaf'
-!    do ix = 1,nRch_in
-!      print*, ix, segId(ix), ixSubSEG(ix), iySubSEG(ix), ixNode(ix), pfaf(ix)
-!    enddo
 
   ! for other procs
   endif
