@@ -58,6 +58,8 @@ call MPI_COMM_RANK(MPI_COMM_WORLD, pid, ierr)
 
 ! *****
 ! *** model setup
+!    - read control files and namelist
+!    - broadcast to all processors
 ! ************************
 call init_model(cfile_name, ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)

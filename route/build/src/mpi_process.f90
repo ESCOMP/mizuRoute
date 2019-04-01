@@ -984,10 +984,10 @@ contains
  ! send all the necessary public variables updated from control file to slave procs
  subroutine pass_public_var(ierr,message)   ! output: error control
 
-  USE public_var, only : root
-  USE public_var, only : hydGeometryOption       !
-  USE public_var, only : topoNetworkOption       !
-  USE public_var, only : computeReachList        !
+  USE public_var, only : root                    ! id of the root node
+  USE public_var, only : hydGeometryOption       ! flag to compute hydraulic geometry
+  USE public_var, only : topoNetworkOption       ! flag to compute the network topology
+  USE public_var, only : computeReachList        ! ! flag to compute the list of reaches upstream of each reach
   USE public_var, only : routOpt                 ! reach routing options
   USE public_var, only : desireId                ! reach id desired for print out
   USE public_var, only : doesBasinRoute          ! logical whether basin routing is performed or not
@@ -1000,6 +1000,7 @@ contains
 
   ierr=0; message='pass_public_var/'
 
+  ! pass algorithmic control parameters to each processor
   call MPI_BCAST(hydGeometryOption, 1, MPI_LOGICAL,          root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(topoNetworkOption, 1, MPI_LOGICAL,          root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(computeReachList,  1, MPI_LOGICAL,          root, MPI_COMM_WORLD, ierr)

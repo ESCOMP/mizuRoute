@@ -24,9 +24,11 @@ public :: update_time
 contains
 
  ! *********************************************************************
- ! public subroutine: model setupt
+ ! public subroutine: model setup
  ! *********************************************************************
  subroutine init_model(cfile_name, ierr, message)
+
+  ! used to read control files and namelist and broadcast to all processors
 
   ! shared data used
   USE public_var,          only : ancil_dir
@@ -68,6 +70,8 @@ contains
 
   endif  ! if the master node
 
+  ! pass algorithmic control parameters to each processor
+  ! NOTE: algorithmic control parameters are in the "public_var" module
   call pass_public_var(ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
