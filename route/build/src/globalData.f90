@@ -2,6 +2,7 @@ module globalData
   ! This module includes global data structures
 
   use public_var, only : integerMissing
+  use public_var, only : maxDomain
 
   ! data types
   use nrtype
@@ -152,7 +153,7 @@ module globalData
 
   ! domain data
   type(basin)     , allocatable  , public :: river_basin(:)       ! openMP domain decomposition
-  type(subbasin_mpi)             , public :: domains(150000)       ! domain decomposition based on subbasin maximum 50,000 domains
+  type(subbasin_mpi)             , public :: domains(maxDomain)   ! domain decomposition data structure (maximum domain is set to maxDomain)
   integer(i4b)                   , public :: nDomain              ! domain counter
 
   integer(i4b)    , allocatable  , public :: ixHRU_order(:)       ! global HRU index in the order of proc assignment

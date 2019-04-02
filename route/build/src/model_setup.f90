@@ -57,7 +57,7 @@ contains
   call popMetadat(ierr,cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! if the master node
+  ! if the master processor
   if (pid==0) then
 
    ! read the control file
@@ -68,7 +68,7 @@ contains
    call read_param(trim(ancil_dir)//trim(param_nml),ierr,cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  endif  ! if the master node
+  endif  ! if the master processor
 
   ! pass algorithmic control parameters to each processor
   ! NOTE: algorithmic control parameters are in the "public_var" module
@@ -97,7 +97,7 @@ contains
   USE globalData,  only : ixHRU_order            ! global HRU index in the order of proc assignment
   USE globalData,  only : ixRch_order            ! global reach index in the order of proc assignment
   ! external subroutines
-  USE mpi_routine, only : comm_ntopo_data        ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root node)
+  USE mpi_routine, only : comm_ntopo_data        ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
   USE mpi_routine, only : pass_global_data       ! mpi globaldata copy to slave proc
 
    implicit none
@@ -125,25 +125,16 @@ contains
    ! populate various river network data strucutures for each proc
    if (pid==0) then
 
+     ! read the river network data and compute additonal network attributes (inncludes spatial decomposition)
      call init_ntopo(nHRU, nRch,                                                   & ! output: number of HRU and Reaches
                      structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
                      nContribHRU,                                                  & ! output: MPI domain decomposition data
                      ierr, cmessage)                                                 ! output: error controls
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   endif
-
-   call comm_ntopo_data(pid, nNodes,                                          & ! input: proc id and # of procs
-                        nRch, nContribHRU,                                    & ! input: number of reach and HRUs that contribut to any reaches
-                        structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
-                        ixHRU_order, ixRch_order,                             & ! output: MPI domain decomposition data
-                        ierr, cmessage)                                         ! output: error controls
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   ! populate basiID and reachID vectors for output (in only master node)
-   ! pupulate runoff data structure (only meta, no runoff values)
-   ! pupulate remap data structure
-   if (pid==0) then
+     ! populate basiID and reachID vectors for output (in only master processor)
+     ! populate runoff data structure (only meta, no runoff values)
+     ! populate remap data structure
 
      allocate(basinID(nHRU), reachID(nRch), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating [basinID, reachID]'; return; endif
@@ -167,8 +158,17 @@ contains
      call init_state(ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   end if
+   end if  ! if processor=0 (root)
 
+   ! distribute network topology data and network parameters to the different processors
+   call comm_ntopo_data(pid, nNodes,                                          & ! input: proc id and # of procs
+                        nRch, nContribHRU,                                    & ! input: number of reach and HRUs that contribut to any reaches
+                        structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
+                        ixHRU_order, ixRch_order,                             & ! output: hru and reach indices in order of processor ids
+                        ierr, cmessage)                                         ! output: error controls
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! send all the necessary public variables to slave procs
    call pass_global_data(pid, nNodes, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -420,7 +420,8 @@ contains
   ! initialize error control
   ierr=0; message='init_ntopo/'
 
-  ! need to update maxPfafLen to the exact character size for pfaf code in netCDF
+  ! get the variable dimensions
+  ! NOTE: need to update maxPfafLen to the exact character size for pfaf code in netCDF
   call get_var_dims(trim(ancil_dir)//trim(fname_ntopOld), & ! input: file name
                     trim(meta_PFAF(ixPFAF%code)%varName), & ! input: pfaf code variable name in netcdf
                     ierr, cmessage,                       & ! output: error control
@@ -447,28 +448,30 @@ contains
                ierr,cmessage) ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+  ! compute additional network attributes
   call augment_ntopo(&
-                  ! input: model control
-                  nHRU_out,                         & ! number of HRUs
-                  nRch_out,                         & ! number of stream segments
-                  ! inout: populate data structures
-                  structHRU,                        & ! ancillary data for HRUs
-                  structSeg,                        & ! ancillary data for stream segments
-                  structHRU2seg,                    & ! ancillary data for mapping hru2basin
-                  structNTOPO,                      & ! ancillary data for network toopology
-                  ! output:
-                  ierr, message,                    & ! error control
-                  ! optional output
-                  tot_hru       = tot_hru,          & ! total number of all the upstream hrus for all stream segments
-                  tot_upseg     = tot_upseg,        & ! total number of all the immediate upstream segments for all stream segments
-                  tot_upstream  = tot_upstream,     & ! total number of all the upstream segments for all stream segments
-                  tot_uh        = tot_uh,           & ! total number of unit hydrograph for all stream segments
-                  ixHRU_desired = ixHRU_desired,    & ! indices of desired hrus
-                  ixSeg_desired = ixSeg_desired)      ! indices of desired reaches
+                     ! input: model control
+                     nHRU_out,                         & ! number of HRUs
+                     nRch_out,                         & ! number of stream segments
+                     ! inout: populate data structures
+                     structHRU,                        & ! ancillary data for HRUs
+                     structSeg,                        & ! ancillary data for stream segments
+                     structHRU2seg,                    & ! ancillary data for mapping hru2basin
+                     structNTOPO,                      & ! ancillary data for network toopology
+                     ! output:
+                     ierr, message,                    & ! error control
+                     ! optional output
+                     tot_hru       = tot_hru,          & ! total number of all the upstream hrus for all stream segments
+                     tot_upseg     = tot_upseg,        & ! total number of all the immediate upstream segments for all stream segments
+                     tot_upstream  = tot_upstream,     & ! total number of all the upstream segments for all stream segments
+                     tot_uh        = tot_uh,           & ! total number of unit hydrograph for all stream segments
+                     ixHRU_desired = ixHRU_desired,    & ! indices of desired hrus
+                     ixSeg_desired = ixSeg_desired)      ! indices of desired reaches
 
   ! Write out augmented network topology if desired
   if(idSegOut>0) ntopWriteOption=.true.   ! ensure that localized network topology is written if a particular outlet is specified
 
+  ! write network topology
   if(ntopWriteOption)then
 
     ! disable the dimension containing all upstream reaches
@@ -505,6 +508,7 @@ contains
   endif
 
   ! created a subset = sucessful execution: Need to run again with the subset
+  ! todo: need to stop gracefully on all processors
   if(idSegOut>0)then
    write(*,'(a)') 'Running in subsetting mode'
    write(*,'(a)') 'Created a subset network topology file '//trim(fname_ntopNew)
@@ -513,11 +517,13 @@ contains
    stop
   endif
 
+  ! copy data to the RPARAM and NETOPO structures
   call put_data_struct(nRch_out, structSEG, structNTOPO, & ! input
                        RPARAM, NETOPO,                   & ! output
                        ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+  ! spatial domain decomposition for MPI parallelization
   call classify_river_basin_mpi(nNodes, nRch_out, structPFAF, structNTOPO, nThresh, nContribHRU, ierr, cmessage)       !Warning: nHRU /= nContribHRU
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 

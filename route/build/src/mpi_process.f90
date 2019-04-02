@@ -29,17 +29,17 @@ contains
  ! *********************************************************************
  ! public subroutine: send reach/hru information to tasks and populate data structures
  ! *********************************************************************
- subroutine comm_ntopo_data(pid,          & ! input: proc id
-                            nNodes,       & ! input: number of procs
-                            nRch_in,      & ! input: number of stream segments in whole domain
-                            nHRU_in,      & ! input: number of HRUs that are connected to reaches
-                            structHRU,    & ! input: data structure for HRUs
-                            structSEG,    & ! input: data structure for stream segments
-                            structHRU2seg,& ! input: data structure for mapping hru2basin
-                            structNTOPO,  & ! input: data structure for network toopology
-                            ixSubHRU,     & ! output: sorted hru index array based on proc assignment
-                            ixSubSEG,     & ! output: sorted seg index array based on proc assignment
-                            ierr,message)   ! output: error control
+ subroutine comm_ntopo_data(pid,                & ! input: proc id
+                            nNodes,             & ! input: number of procs
+                            nRch_in,            & ! input: number of stream segments in whole domain
+                            nHRU_in,            & ! input: number of HRUs that are connected to reaches
+                            structHRU,          & ! input: data structure for HRUs
+                            structSEG,          & ! input: data structure for stream segments
+                            structHRU2seg,      & ! input: data structure for mapping hru2basin
+                            structNTOPO,        & ! input: data structure for network toopology
+                            ixGlobalSubHRU,     & ! output: sorted hru index array based on proc assignment
+                            ixGlobalSubSEG,     & ! output: sorted seg index array based on proc assignment
+                            ierr,message)         ! output: error control
 
   USE public_var
   USE globalData,        ONLY: ixDesire             ! desired reach index
@@ -73,8 +73,8 @@ contains
   type(var_ilength), allocatable, intent(in)  :: structHRU2SEG(:)         ! HRU to SEG mapping
   type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)           ! network topology
   ! Output
-  integer(i4b),      allocatable, intent(out) :: ixSubHRU(:)              ! global HRU index in the order of domains
-  integer(i4b),      allocatable, intent(out) :: ixSubSEG(:)              ! global reach index in the order of domains
+  integer(i4b),      allocatable, intent(out) :: ixGlobalSubHRU(:)        ! global HRU index in the order of domains
+  integer(i4b),      allocatable, intent(out) :: ixGlobalSubSEG(:)        ! global reach index in the order of domains
   ! Output error handling variables
   integer(i4b),                   intent(out) :: ierr
   character(len=strLen),          intent(out) :: message                   ! error message
@@ -108,15 +108,18 @@ contains
   real(dp)                                    :: area(nHRU_in)             ! hru area for each hru
   integer(i4b)                                :: ixNode(nRch_in)           ! node assignment for each reach
   character(len=32)                           :: pfaf(nRch_in)             ! reach pfafcode for each reach
-  integer(i4b)                                :: iySubHRU(nHRU_in)         ! local HRU index
-  integer(i4b)                                :: iySubSEG(nRch_in)         ! local reach index
+  integer(i4b)                                :: ixLocalSubHRU(nHRU_in)    ! local HRU index
+  integer(i4b)                                :: ixLocalSubSEG(nRch_in)    ! local reach index
   logical(lgt)                                :: isTribSeg(nRch_in)        ! logical to indicate tributary seg or not
+  integer(i4b)                                :: nRch_mainstem             ! number of reaches on the main stem
+  integer(i4b)                                :: nHRU_mainstem             ! number of hrus on the main stem
   ! flat array for decomposed river network per domain (sub-basin)
   integer(i4b)                                :: idNode(nDomain)           ! node id array for each domain
   integer(i4b)                                :: rnkIdNode(nDomain)        ! ranked node id array for each domain
+  integer(i4b)                                :: jHRU,jSeg                 ! ranked indices
   ! mpi related variables
-  integer(i4b)                                :: displs_hru(0:nNodes-1)       ! entry indices in receiving buffer (routedRunoff) at which to place the array from each proc
-  integer(i4b)                                :: displs_rch(0:nNodes-1)       ! entry indices in receiving buffer (routedRunoff) at which to place the array from each proc
+  integer(i4b)                                :: displs_hru(0:nNodes-1)    ! entry indices in receiving buffer (routedRunoff) at which to place the array from each proc
+  integer(i4b)                                :: displs_rch(0:nNodes-1)    ! entry indices in receiving buffer (routedRunoff) at which to place the array from each proc
   integer(i4b)                                :: iSeg,iHru                 ! reach and hru loop indices
   integer(i4b)                                :: ix,ixx                    ! loop indices
   integer(i4b)                                :: myid                      ! process id indices
@@ -127,7 +130,7 @@ contains
 
   ierr=0; message='comm_ntopo_data/'
 
-  ! spatial constant routing parameters
+  ! send the spatial constant routing parameters to each processor
   call MPI_BCAST(fshape,  1, MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(tscale,  1, MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(velo,    1, MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
@@ -135,39 +138,57 @@ contains
   call MPI_BCAST(mann_n,  1, MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(wscale,  1, MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
 
+  ! ********************************************************************************************************************
+  ! ********************************************************************************************************************
+  ! ********************************************************************************************************************
+  ! Part 1: define routing vectors ordered by domain/node
+  !  - define the global indices ordered by domain/node
+  !  - define the number of reaches/hrus on each processor
+  !  - copy the data from the data structures to the ordered routing vectors
+  ! ********************************************************************************************************************
+  ! ********************************************************************************************************************
+  ! ********************************************************************************************************************
+
   if (pid == root) then ! this is a root process
 
     ! allocate for the entire river network
     allocate(RCHFLX(nEns,nRch_in), KROUTE(nEns,nRch_in), stat=ierr)
-    allocate(ixSubHRU(nHRU_in),ixSubSEG(nRch_in), stat=ierr)
+
+    ! allocate local and global indices
+    allocate(ixGlobalSubHRU(nHRU_in),ixGlobalSubSEG(nRch_in), stat=ierr)
 
     ! Create segIndex array from domains derived type. The array is sorted from node 0 through nNodes-1
     ! SegIndex Array needs to be contiguous when a chunk is sent to computing node (use sort function...)
     ! start with mainstem domain assigned to root node
 
-    forall(ix=1:nDomain) idNode(ix) = domains(ix)%idNode
-    call indexx(idNode,rnkIdNode)
+    ! domain is a contiguous collection of reaches/HRUs -- multiple domains may be on a single processor
 
+    forall(ix=1:nDomain) idNode(ix) = domains(ix)%idNode ! extracts the processing node from the "domain" data structire
+    call indexx(idNode,rnkIdNode) ! rank the processor nodes
+
+    ! loop through the domains
     ixSeg2=0; ixHru2=0 ! last indices of domain chunks
     domain:do ix = 1, nDomain
 
+     ! get the number of stream segments and HRUs in each domain
      ixx = rnkIdNode(ix)
      associate (nSubSeg => size(domains(ixx)%segIndex), nSubHru => size(domains(ixx)%hruIndex) )
 
-     ! reach index array in order of node assignment
-     ixSeg1 = ixSeg2+1
-     ixSeg2 = ixSeg1+nSubSeg-1
-     ixSubSEG(ixSeg1:ixSeg2)  = domains(ixx)%segIndex(1:nSubSeg)   ! global seg index per node
-     iySubSEG(ixSeg1:ixSeg2)  = arth(1,1,nSubSeg)                  ! local hru indix per node
+     ! define reach index array in order of node assignment
+     ixSeg1 = ixSeg2+1             ! start index in the mapping vector
+     ixSeg2 = ixSeg1+nSubSeg-1     ! end index in the mapping vector
+     ixGlobalSubSEG(ixSeg1:ixSeg2) = domains(ixx)%segIndex(1:nSubSeg)   ! global seg index per node
+     ixLocalSubSEG(ixSeg1:ixSeg2)  = arth(1,1,nSubSeg)                  ! local hru indix per node
 
-     ! hru index array in order of node assignment
+     ! define hru index array in order of node assignment
      if (nSubHru>0) then
        ixHru1 = ixHru2+1
        ixHru2 = ixHru1+nSubHru-1
-       ixSubHRU(ixHru1:ixHru2)  = domains(ixx)%hruIndex(1:nSubHru) ! global hru index per node
-       iySubHRU(ixHru1:ixHru2)  = arth(1,1,nSubHru)                ! local hru indix per node
+       ixGlobalSubHRU(ixHru1:ixHru2)  = domains(ixx)%hruIndex(1:nSubHru) ! global hru index per node
+       ixLocalSubHRU(ixHru1:ixHru2)  = arth(1,1,nSubHru)                 ! local hru indix per node
      end if
 
+     ! extra information (debugging)
      isTribSeg(ixSeg1:ixSeg2) = domains(ixx)%isTrib                 ! if domain is tributary, T otherwise, F
      ixNode(ixSeg1:ixSeg2)    = domains(ixx)%idNode                 ! node id
      pfaf(ixSeg1:ixSeg2)      = adjustl(trim(domains(ixx)%pfaf))    ! basin pfaf code
@@ -186,44 +207,48 @@ contains
      hru_per_proc(idx) = hru_per_proc(idx) + size(domains(ix)%hruIndex)
     end do
 
-    ! covert component of derived data type to the arrays
+    ! define routing vectors ordered by domain/node
+
     ! reach array
     do iSeg = 1,nRch_in
-     segId(iSeg)     = structNTOPO(ixSubSEG(iSeg))%var(ixNTOPO%segId)%dat(1)
-     downSegId(iSeg) = structNTOPO(ixSubSEG(iSeg))%var(ixNTOPO%downSegId)%dat(1)
-     slope(iSeg)     = structSEG(ixSubSEG(iSeg))%var(ixSEG%slope)%dat(1)
-     length(iSeg)    = structSEG(ixSubSEG(iSeg))%var(ixSEG%length)%dat(1)
+     jSeg = ixGlobalSubSEG(iSeg) ! global index, ordered by domain/node
+     segId(iSeg)     = structNTOPO(jSeg)%var(ixNTOPO%segId)%dat(1)
+     downSegId(iSeg) = structNTOPO(jSeg)%var(ixNTOPO%downSegId)%dat(1)
+     slope(iSeg)     = structSEG(  jSeg)%var(ixSEG%slope)%dat(1)
+     length(iSeg)    = structSEG(  jSeg)%var(ixSEG%length)%dat(1)
     end do
 
     ! hru array
     do iHru = 1,nHRU_in
-      hruId(iHru)    = structHRU2SEG(ixSubHRU(iHru))%var(ixHRU2SEG%HRUid)%dat(1)
-      hruSegId(iHru) = structHRU2SEG(ixSubHRU(iHru))%var(ixHRU2SEG%hruSegId)%dat(1)
-      area(iHru)     = structHRU(ixSubHRU(iHru))%var(ixHRU%area)%dat(1)
+      jHRU = ixGlobalSubHRU(iHru)  ! global index, ordered by domain/node
+      hruId(iHru)    = structHRU2SEG(jHRU)%var(ixHRU2SEG%HRUid)%dat(1)
+      hruSegId(iHru) = structHRU2SEG(jHRU)%var(ixHRU2SEG%hruSegId)%dat(1)
+      area(iHru)     = structHRU(    jHRU)%var(ixHRU%area)%dat(1)
     enddo
 
-!    print*, 'ix, segId, ixSubSEG, iySubSEG, ixNode, pfaf'
+!    print*, 'ix, segId, ixGlobalSubSEG, ixLocalSubSEG, ixNode, pfaf'
 !    do ix = 1,nRch_in
-!      print*, segId(ix), ixSubSEG(ix), iySubSEG(ix), ixNode(ix), pfaf(ix)
+!      print*, segId(ix), ixGlobalSubSEG(ix), ixLocalSubSEG(ix), ixNode(ix), pfaf(ix)
 !    enddo
-  endif
 
+  endif  ! if pid==root
+
+  ! ********************************************************************************************************************
+  ! ********************************************************************************************************************
+  ! ********************************************************************************************************************
+  ! Part 2: Send the information to individual processors
+  ! ********************************************************************************************************************
+  ! ********************************************************************************************************************
+  ! ********************************************************************************************************************
+
+  ! sends the number of reaches/hrus per node to all processors
   if (pid/=root) then
     allocate(rch_per_proc(-1:nNodes-1), hru_per_proc(-1:nNodes-1), stat=ierr)
   endif
   call MPI_BCAST(rch_per_proc, nNodes+1, MPI_INT, root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(hru_per_proc, nNodes+1, MPI_INT, root, MPI_COMM_WORLD, ierr)
 
-  ! Need to compute displacements
-  displs_hru(0) = 0
-  do myid = 1, nNodes-1
-   displs_hru(myid) = sum(hru_per_proc(0:myid-1))
-  end do
-  displs_rch(0) = 0
-  do myid = 1, nNodes-1
-   displs_rch(myid) = sum(rch_per_proc(0:myid-1))
-  end do
-
+  ! allocate local routing vectors (for processor pid)
   allocate(segId_local    (rch_per_proc(pid)), &
            downSegId_local(rch_per_proc(pid)), &
            slope_local    (rch_per_proc(pid)), &
@@ -233,35 +258,59 @@ contains
            area_local     (hru_per_proc(pid)), &
            stat=ierr)
 
-  ! Distribute tributary river data to each process
-  call MPI_SCATTERV(segId(rch_per_proc(-1)+1:nRch_in),     rch_per_proc(0:nNodes-1), displs_rch, MPI_INT,      & ! flows from proc
-                    segId_local,                           rch_per_proc(pid),                    MPI_INT, root,& ! gathered flows at root node
+  ! compute displacements -- number of elements before the starting index
+  displs_hru(0) = 0
+  do myid = 1, nNodes-1
+   displs_hru(myid) = sum(hru_per_proc(0:myid-1))
+  end do
+  displs_rch(0) = 0
+  do myid = 1, nNodes-1
+   displs_rch(myid) = sum(rch_per_proc(0:myid-1))
+  end do
+
+  ! define the number of reaches/hrus on the main stem
+  nRch_mainstem = rch_per_proc(-1)
+  nHRU_mainstem = hru_per_proc(-1)
+
+  ! Distribute tributary river data to each process (send everything EXCEPT mainstem)
+  call MPI_SCATTERV(segId(nRch_mainstem+1:nRch_in),     rch_per_proc(0:nNodes-1), displs_rch, MPI_INT,      & ! flows from proc
+                    segId_local,                        rch_per_proc(pid),                    MPI_INT, root,& ! gathered flows at root node
                     MPI_COMM_WORLD, ierr)
-  call MPI_SCATTERV(downSegId(rch_per_proc(-1)+1:nRch_in), rch_per_proc(0:nNodes-1), displs_rch, MPI_INT,      & ! flows from proc
-                    downSegId_local,                       rch_per_proc(pid),                    MPI_INT, root,& ! gathered flows at root node
+  call MPI_SCATTERV(downSegId(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), displs_rch, MPI_INT,      & ! flows from proc
+                    downSegId_local,                    rch_per_proc(pid),                    MPI_INT, root,& ! gathered flows at root node
                     MPI_COMM_WORLD, ierr)
-  call MPI_SCATTERV(slope(rch_per_proc(-1)+1:nRch_in),     rch_per_proc(0:nNodes-1), displs_rch, MPI_DOUBLE_PRECISION,      & ! flows from proc
-                    slope_local,                           rch_per_proc(pid),                    MPI_DOUBLE_PRECISION, root,& ! gathered flows at root node
+  call MPI_SCATTERV(slope(nRch_mainstem+1:nRch_in),     rch_per_proc(0:nNodes-1), displs_rch, MPI_DOUBLE_PRECISION,      & ! flows from proc
+                    slope_local,                        rch_per_proc(pid),                    MPI_DOUBLE_PRECISION, root,& ! gathered flows at root node
                     MPI_COMM_WORLD, ierr)
-  call MPI_SCATTERV(length(rch_per_proc(-1)+1:nRch_in),    rch_per_proc(0:nNodes-1), displs_rch, MPI_DOUBLE_PRECISION,      & ! flows from proc
-                    length_local,                          rch_per_proc(pid),                    MPI_DOUBLE_PRECISION, root,& ! gathered flows at root node
+  call MPI_SCATTERV(length(nRch_mainstem+1:nRch_in),    rch_per_proc(0:nNodes-1), displs_rch, MPI_DOUBLE_PRECISION,      & ! flows from proc
+                    length_local,                       rch_per_proc(pid),                    MPI_DOUBLE_PRECISION, root,& ! gathered flows at root node
                     MPI_COMM_WORLD, ierr)
 
-  ! Distribute tributary hru data to each process
-  call MPI_SCATTERV(hruId(hru_per_proc(-1)+1:nHRU_in),    hru_per_proc(0:nNodes-1), displs_hru, MPI_INT,      & ! flows from proc
-                    hruId_local,                          hru_per_proc(pid),                    MPI_INT, root,& ! gathered flows at root node
+  ! Distribute tributary hru data to each process (send everything EXCEPT mainstem)
+  call MPI_SCATTERV(hruId(nHRU_mainstem+1:nHRU_in),    hru_per_proc(0:nNodes-1), displs_hru, MPI_INT,      & ! flows from proc
+                    hruId_local,                       hru_per_proc(pid),                    MPI_INT, root,& ! gathered flows at root node
                     MPI_COMM_WORLD, ierr)
-  call MPI_SCATTERV(hruSegId(hru_per_proc(-1)+1:nHRU_in), hru_per_proc(0:nNodes-1), displs_hru, MPI_INT,      & ! flows from proc
-                    hruSegId_local,                       hru_per_proc(pid),                    MPI_INT, root,& ! gathered flows at root node
+  call MPI_SCATTERV(hruSegId(nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), displs_hru, MPI_INT,      & ! flows from proc
+                    hruSegId_local,                    hru_per_proc(pid),                    MPI_INT, root,& ! gathered flows at root node
                     MPI_COMM_WORLD, ierr)
-  call MPI_SCATTERV(area(hru_per_proc(-1)+1:nHRU_in),     hru_per_proc(0:nNodes-1), displs_hru, MPI_DOUBLE_PRECISION,      & ! flows from proc
-                    area_local,                           hru_per_proc(pid),                    MPI_DOUBLE_PRECISION, root,& ! gathered flows at root node
+  call MPI_SCATTERV(area(nHRU_mainstem+1:nHRU_in),     hru_per_proc(0:nNodes-1), displs_hru, MPI_DOUBLE_PRECISION,      & ! flows from proc
+                    area_local,                        hru_per_proc(pid),                    MPI_DOUBLE_PRECISION, root,& ! gathered flows at root node
                     MPI_COMM_WORLD, ierr)
 
+  ! ********************************************************************************************************************
+  ! ********************************************************************************************************************
+  ! ********************************************************************************************************************
+  ! Part 3: populate local data structures and compute additional ancillary information
+  ! ********************************************************************************************************************
+  ! ********************************************************************************************************************
+  ! ********************************************************************************************************************
+
+  ! allocate space for tributary data structures
   allocate(RCHFLX_trib(nEns,rch_per_proc(pid)), KROUTE_trib(nEns,rch_per_proc(pid)), stat=ierr)
 
-  call alloc_struct(hru_per_proc(pid),     & ! output: number of HRUs
-                    rch_per_proc(pid),     & ! output: number of stream segments
+  ! allocate space for local data structures
+  call alloc_struct(hru_per_proc(pid),     & ! input: number of HRUs
+                    rch_per_proc(pid),     & ! input: number of stream segments
                     structHRU_local,       & ! inout: ancillary data for HRUs
                     structSEG_local,       & ! inout: ancillary data for stream segments
                     structHRU2seg_local,   & ! inout: ancillary data for mapping hru2basin
@@ -269,7 +318,8 @@ contains
                     structPFAF_local,      & ! inout: ancillary data for pfafstetter code
                     ierr,cmessage)           ! output: error control
 
-  ! Populate data structure
+  ! Populate local data structures
+
   ! reach
   do ix = 1,rch_per_proc(pid)
    structNTOPO_local(ix)%var(ixNTOPO%segId)%dat(1)     = segId_local(ix)
@@ -277,6 +327,7 @@ contains
    structSEG_local  (ix)%var(ixSEG%length)%dat(1)      = length_local(ix)
    structSEG_local  (ix)%var(ixSEG%slope)%dat(1)       = slope_local(ix)
   end do
+
   ! hru
   do ix=1,hru_per_proc(pid)
    structHRU2SEG_local(ix)%var(ixHRU2SEG%HRUid)%dat(1)    = hruId_local(ix)
@@ -287,33 +338,48 @@ contains
   ! find index of desired reach
   if (desireId/=integerMissing) ixDesire = findIndex(segId_local, desireId, integerMissing)
 
+  ! compute additional ancillary infomration
   call augment_ntopo(&
-                  ! input: model control
-                  hru_per_proc(pid),            & ! number of HRUs
-                  rch_per_proc(pid),            & ! number of stream segments
-                  ! inout: populate data structures
-                  structHRU_local,              & ! ancillary data for HRUs
-                  structSEG_local,              & ! ancillary data for stream segments
-                  structHRU2seg_local,          & ! ancillary data for mapping hru2basin
-                  structNTOPO_local,            & ! ancillary data for network toopology
-                  ! output: error control
-                  ierr, cmessage)
+                     ! input: model control
+                     hru_per_proc(pid),            & ! number of HRUs
+                     rch_per_proc(pid),            & ! number of stream segments
+                     ! inout: populate data structures
+                     structHRU_local,              & ! ancillary data for HRUs
+                     structSEG_local,              & ! ancillary data for stream segments
+                     structHRU2seg_local,          & ! ancillary data for mapping hru2basin
+                     structNTOPO_local,            & ! ancillary data for network toopology
+                     ! output: error control
+                     ierr, cmessage)
 
+  ! copy data to routing structres RPARAM_trib and NETOPO_trib
   call put_data_struct(rch_per_proc(pid), structSEG_local, structNTOPO_local, & ! input
-                       RPARAM_trib, NETOPO_trib,                             & ! output:
+                       RPARAM_trib, NETOPO_trib,                              & ! output:
                        ierr, cmessage)
+
+  ! ********************************************************************************************************************
+  ! ********************************************************************************************************************
+  ! ********************************************************************************************************************
+  ! Part 4: special case of the main stem: define main stem routing structures
+  ! ********************************************************************************************************************
+  ! ********************************************************************************************************************
+  ! ********************************************************************************************************************
+
+  ! NOTE: part 3 and part 4 could be combined using a subroutine with different arguments
 
   ! mainstem segments
   if (pid == root) then ! this is a root process
 
+    ! get the number of segments and HRUs on the main stem
     associate (nSeg_main => rch_per_proc(-1), &
                nHRU_main => hru_per_proc(-1) )
 
+    ! get index of desired reach
     if (desireId/=integerMissing) then
      ixDesire = findIndex(segId(1:nSeg_main), desireId, integerMissing)
-     if (ixDesire/=integerMissing) ixDesire = ixSubSEG(ixDesire)
+     if (ixDesire/=integerMissing) ixDesire = ixGlobalSubSEG(ixDesire)
     endif
 
+    ! allocate space for main stem data structures
     call alloc_struct(nHRU_main,            & ! output: number of HRUs
                       nSeg_main,            & ! output: number of stream segments
                       structHRU_main,       & ! inout: ancillary data for HRUs
@@ -324,7 +390,9 @@ contains
                       ierr,cmessage)           ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! Populate data structure
+    ! Populate main stem data structure
+    ! NOTE: same as above except the first nXXX_main elements (RHS global vectors)
+
     ! reach
     do ix = 1, nSeg_main
       structNTOPO_main(ix)%var(ixNTOPO%segId)%dat(1)     = segId(ix)
@@ -332,6 +400,7 @@ contains
       structSEG_main  (ix)%var(ixSEG%length)%dat(1)      = length(ix)
       structSEG_main  (ix)%var(ixSEG%slope)%dat(1)       = slope(ix)
     end do
+
     ! hru
     do ix = 1, nHRU_main
       structHRU2SEG_main(ix)%var(ixHRU2SEG%HRUid)%dat(1)    = hruId(ix)
@@ -339,6 +408,7 @@ contains
       structHRU_main    (ix)%var(ixHRU%area)%dat(1)         = area(ix)
     end do
 
+    ! compute additional ancillary infomration
     call augment_ntopo(&
                        ! input: model control
                        nHRU_main,                   & ! number of stream segments
@@ -352,19 +422,19 @@ contains
                        ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+    ! copy data to routing structres RPARAM_main and NETOPO_main
     call put_data_struct(nSeg_main, structSEG_main, structNTOPO_main, & ! input
                          RPARAM_main, NETOPO_main,                    & ! output
                          ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     end associate
 
-!    print*, 'ix, hruId, ixSubHRU, iySubHRU, hruSegId'
+!    print*, 'ix, hruId, ixGlobalSubHRU, ixLocalSubHRU, hruSegId'
 !    do ix = 1,nHRU_in
-!      print*, ix, hruId(ix), ixSubHRU(ix), iySubHRU(ix), hruSegId(ix)
+!      print*, ix, hruId(ix), ixGlobalSubHRU(ix), ixLocalSubHRU(ix), hruSegId(ix)
 !    end do
 
-  ! for other procs
-  endif
+  endif   ! if pid==root
 
 !deleteme
 !   if (pid==7) then
@@ -428,7 +498,6 @@ contains
   real(dp)                              :: basinRunoff_sorted(nHRU) ! sorted basin runoff (m/s) for whole domain
   real(dp),     allocatable             :: basinRunoff_local(:)     ! basin runoff (m/s) for tributaries
   real(dp),     allocatable             :: reachRunoff_local(:)     ! reach runoff (m/s) for tributaries
-  real(dp),     allocatable             :: reachRunoff_local1(:)     ! reach runoff (m/s) for tributaries
   real(dp),     allocatable             :: basinRunoff_main(:)      ! basin runoff (m/s) for mainstems (processed at root)
   real(dp),     allocatable             :: reachRunoff_main(:)      ! reach runoff (m/s) for mainstems (processed at root)
   real(dp),     allocatable             :: routedRunoff_local(:,:)  ! tributary routed runoff (m/s) for each proc
@@ -454,11 +523,14 @@ contains
 
   ierr=0; message='mpi_route/'
 
+  ! define the start and end of the time step
   T0=TSEC(0); T1=TSEC(1)
 
-  if (pid == root) then ! this is a root process
-    ! Reaches/HRU assigned to root node include BOTH small tributaries and mainstem
-    ! First, route "small tributaries" while routing over other bigger tributaries (at slave nodes).
+  ! Reaches/HRU assigned to root node include BOTH small tributaries and mainstem
+  ! First, route "small tributaries" while routing over other bigger tributaries (at slave nodes).
+
+ ! sort the basin runoff in terms of nodes/domains
+ if (pid == root) then ! this is a root process
     do iHru = 1,nHRU
       basinRunoff_sorted(iHru) = runoff_data%basinRunoff(ixHRU_order(iHru))
     enddo
@@ -471,10 +543,10 @@ contains
   end do
   allocate(basinRunoff_local(hru_per_proc(pid)),    &
            reachRunoff_local(rch_per_proc(pid)),    &
-           reachRunoff_local1(rch_per_proc(pid)),    &
            routedRunoff_local(rch_per_proc(pid),6), &
            stat=ierr)
-  ! Distribute modified KROUTE data to each process
+
+  ! Distribute the basin runoff to each process
   call MPI_SCATTERV(basinRunoff_sorted(hru_per_proc(-1)+1:nHRU), hru_per_proc(0:nNodes-1), displs, MPI_DOUBLE_PRECISION,      & ! flows from proc
                     basinRunoff_local,                           hru_per_proc(pid),                MPI_DOUBLE_PRECISION, root,& ! gathered flows at root node
                     MPI_COMM_WORLD, ierr)

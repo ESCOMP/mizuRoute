@@ -36,7 +36,7 @@ contains
                                      nContribHRU,   & ! output: number of contributory HRUs for each reach
                                      ierr, message)   ! output: error handling
    ! Details:
-   ! Divide the entire river basins, consiting of river reaches and HRUs, into tributaries (independent basins) and mainstems,
+   ! Divide the entire river basin, consiting of river reaches and HRUs, into tributaries (independent basins) and mainstems,
    ! such that the number of reaches in tributaries are less than threshold (= maxSegs). Using reach pfafstetter code to examine
    ! reaches/HRUs belong to tributaries/mainstems. Reaches missing pfafstetter code are grouped into one domain.
    !
@@ -94,7 +94,7 @@ contains
    integer(i4b)                                :: iSeg, iOut, ix         ! loop indices
    integer(i4b)                                :: ix1, ix2               ! first and last indices in array to subset
    logical(lgt),      allocatable              :: isInvalid(:)
-
+   ! debugging variables
    integer(i4b)                                :: segId(nSeg)            ! reach id for all the segments
    integer(i4b)                                :: ixSubSEG(nSeg)         !
    integer(i4b)                                :: ixSeg1, ixSeg2         !
@@ -414,17 +414,22 @@ contains
    ! initialize sub-basin pfafcode
    pfafCodeTmp = trim(pfafCode)
 
+   ! examine higher-level Pfafstetter codes
    do iPfaf = 1,9
+
+     ! get the new code -- e.g., 968 becomes 9681
      write(cPfaf, '(I1)') iPfaf
      pfafCodeTmp = trim(pfafCodeTmp)//cPfaf
 
+     ! initialize the match vector (logical)
      if (.not. allocated(isMatch)) then
        allocate(isMatch(nSeg), stat=ierr)
        if(ierr/=0)then; message=trim(message)//'problem allocating [isMatch]'; return; endif
      endif
      isMatch(:) = .false.
 
-     do iSeg = 1,size(pfafs)
+     ! identifying all basins where the Pfafstetter code equals the prefix
+     do iSeg = 1,nSeg
        pfaf = adjustl(pfafs(iSeg))
        subPfaf = pfaf(1:len(trim(pfafCodeTmp)))
        if (subPfaf == pfafCodeTmp) then
@@ -435,18 +440,25 @@ contains
 
      print*,'pfafCode, number of matches = ', trim(pfafCodeTmp), nMatch
 
+     ! if no match, remove the last digit (e.g., 9681 becomes 968)
      if (nMatch==0) then
        pfafCodeTmp = pfafCodeTmp(1:len(trim(pfafCodeTmp))-1)  ! decrement
        cycle
      end if
 
+     ! *******
+     ! *******
+     ! case 1: process separate domains (domain = collection of contiguous reaches)
      if (nMatch < maxSegs) then
+
+       ! get the Pfafstetter code and the indices for the subset
        print*,'Aggregate: nMatch less than nThreh = ', maxSegs
        allocate(subPfafs(nMatch), subDownIndex(nMatch), subSegIndex(nMatch), downIndexNew(nMatch), stat=ierr)
        if(ierr/=0)then; message=trim(message)//'problem allocating [subPfafs, subDownIndex, subSegIndex, downIndexNew]'; return; endif
        subPfafs     = pack(pfafs, isMatch)
        subSegIndex  = pack(segIndex, isMatch)
        subDownIndex = pack(downIndex, isMatch)
+
        ! redo donwstream index
        downIndexNew=-999
        do iSeg = 1, nMatch
@@ -457,16 +469,26 @@ contains
            end if
          end do
        end do
+
+       ! defines separate domains
+       !  -- could be (1) single domain (entire subset, if headwater); or (2) multiple domains (separate domains for each trib and the main stem, if main stem)
        call aggregate(pfafCodeTmp, subPfafs, subSegIndex, downIndexNew, ierr, cmessage) ! populate reach classification data structure
        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+       ! free up space
        deallocate(subPfafs, subDownIndex, subSegIndex, downIndexNew, stat=ierr)
        if(ierr/=0)then; message=trim(message)//'problem deallocating [subPfafs, subDownIndex, subSegIndex, downIndexNew]'; return; endif
+
+     ! *******
+     ! *******
+     ! case 2: continue recursion
      else
        print*,'Disaggregate: nMatch more than maxSegs = ', maxSegs
        call decomposition(pfafs, segIndex, downIndex, pfafCodeTmp, maxSegs, ierr, cmessage)
        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
      end if
 
+     ! get ready for the next code, e.g., 9681 becomes 968
      pfafCodeTmp = pfafCodeTmp(1:len(trim(pfafCodeTmp))-1) ! decrement
 
    end do
@@ -537,6 +559,8 @@ contains
    isInterbasin = (mod(pfaf_new, 2)==1)
    isHeadwater  = (mod(pfaf_old, 2)==0 .and. pfaf_new==9)
 
+   ! inter-basin, requires additional decomposition
+   ! NOTE: 9 is main stem (isInterbasin==.true.) but is also a headwater
    if (isInterbasin .and. (.not. isHeadwater)) then  ! if a river reach is in inter-basin and not headwater
 
      ! 1. Populate mainstem segments

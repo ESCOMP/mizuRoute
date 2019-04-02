@@ -24,12 +24,20 @@ module public_var
   real(dp),    parameter,public   :: min_slope=1.e-6_dp     ! minimum slope
   real(dp),    parameter,public   :: runoffMin=1.e-15_dp    ! minimum runoff from each basin
   real(dp),    parameter,public   :: negRunoffTol=-1.e-3_dp ! nagative runoff tolerance
-  real(dp),    parameter,public   :: MinPosVal=1.e-10_dp    ! minimum value for positive value
+
+  ! routing related constants
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
+
+  ! river network related constants
   integer(i4b),          public   :: maxPfafLen=32          ! maximum digit of pfafstetter code (default 32)
-  integer(i4b),          public   :: nThresh=10000          ! maximum river segments in each river basin
+  integer(i4b),parameter,public   :: nThresh=10000          ! maximum river segments in each river basin
+  integer(i4b),parameter,public   :: maxDomain=150000       ! maximum domains
+
+  ! constants for general use
+  real(dp),    parameter,public   :: MinPosVal=1.e-10_dp    ! minimum value for positive value
   integer(i4b),parameter,public   :: integerMissing=-9999   ! missing value for integers
   real(dp),    parameter,public   :: realMissing=-9999._dp  ! missing value for real numbers
+
   ! mpi related parameters
   integer(i4b),parameter,public   :: root=0                 ! root node id
 
