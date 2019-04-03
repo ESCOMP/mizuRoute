@@ -41,7 +41,7 @@ contains
                             ierr,message)         ! output: error control
 
   USE public_var
-  USE globalData,        ONLY: ixDesire             ! desired reach index
+  USE globalData,        ONLY: ixPrint              ! desired reach index
   USE globalData,        ONLY: domains              ! domain data structure - for each domain, pfaf codes and list of segment indices
   USE globalData,        ONLY: nDomain              ! count of decomposed domains (tributaries + mainstems)
   USE globalData,        ONLY: RCHFLX_trib          ! Reach flux data structures (entire river network and tributary only)
@@ -332,7 +332,7 @@ contains
   end do
 
   ! find index of desired reach
-  if (desireId/=integerMissing) ixDesire = findIndex(segId_local, desireId, integerMissing)
+  if (desireId/=integerMissing) ixPrint = findIndex(segId_local, desireId, integerMissing)
 
   ! compute additional ancillary infomration
   call augment_ntopo(&
@@ -371,8 +371,8 @@ contains
 
     ! get index of desired reach
     if (desireId/=integerMissing) then
-     ixDesire = findIndex(segId(1:nSeg_main), desireId, integerMissing)
-     if (ixDesire/=integerMissing) ixDesire = ixGlobalSubSEG(ixDesire)
+     ixPrint = findIndex(segId(1:nSeg_main), desireId, integerMissing)
+     if (ixPrint/=integerMissing) ixPrint = ixGlobalSubSEG(ixPrint)
     endif
 
     ! allocate space for main stem data structures
@@ -462,7 +462,7 @@ contains
   USE globalData, only : KROUTE_trib               ! tributary reach kwt data structure
   USE globalData, only : KROUTE                    ! entire river reach kwt sate structure
   USE globalData, only : river_basin               ! OMP domain decomposition
-  USE globalData, only : ixDesire                  ! desired reach index
+  USE globalData, only : ixPrint                   ! desired reach index
   USE globalData, only : runoff_data               ! runoff data structure
   USE globalData, only : nHRU                      ! number of HRUs in the whoel river network
   USE globalData, only : ixHRU_order               ! global HRU index in the order of proc assignment
@@ -596,7 +596,7 @@ contains
   ! 3. subroutine: river reach routing
   ! perform upstream flow accumulation
   call accum_runoff(iens,              &  ! input: ensemble index
-                    ixDesire,          &  ! input: index of verbose reach
+                    ixPrint,           &  ! input: index of verbose reach
                     NETOPO_trib,       &  ! input: reach topology data structure
                     RCHFLX_trib,       &  ! inout: reach flux data structure
                     ierr, cmessage,    &  ! output: error controls
@@ -609,7 +609,7 @@ contains
                   river_basin,          & ! input: river basin data type
                   T0,T1,                & ! input: start and end of the time step
                   tributary,            & ! input:
-                  ixDesire,             & ! input: index of the desired reach
+                  ixPrint,              & ! input: index of the desired reach
                   NETOPO_trib,          & ! input: reach topology data structure
                   RPARAM_trib,          & ! input: reach parameter data structure
                   KROUTE_trib,          & ! inout: reach state data structure
@@ -623,7 +623,7 @@ contains
   if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
    call irf_route(iens,                & ! input: ensemble index
                   river_basin,         & ! input: river basin data type
-                  ixDesire,            & ! input: index of the desired reach
+                  ixPrint,             & ! input: index of the desired reach
                   NETOPO_trib,         & ! input: reach topology data structure
                   RCHFLX_trib,         & ! inout: reach flux data structure
                   ierr,cmessage,       & ! output: error control
@@ -827,7 +827,7 @@ contains
     ! 3. subroutine: river reach routing
     ! perform upstream flow accumulation
     call accum_runoff(iens,                &  ! input: ensemble index
-                      ixDesire,            &  ! input: index of verbose reach
+                      ixPrint,             &  ! input: index of verbose reach
                       NETOPO,              &  ! input: reach topology data structure
                       RCHFLX,              &  ! inout: reach flux data structure
                       ierr, cmessage,      &  ! output: error controls
@@ -840,7 +840,7 @@ contains
                     river_basin,          & ! input: river basin data type
                     T0,T1,                & ! input: start and end of the time step
                     mainstem,             & ! input:
-                    ixDesire,             & ! input: index of the desired reach
+                    ixPrint,              & ! input: index of the desired reach
                     NETOPO,               & ! input: reach topology data structure
                     RPARAM,               & ! input: reach parameter data structure
                     KROUTE,               & ! inout: reach state data structure
@@ -854,7 +854,7 @@ contains
     if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
      call irf_route(iens,                 & ! input: ensemble index
                     river_basin,          & ! input: river basin data type
-                    ixDesire,             & ! input: index of the desired reach
+                    ixPrint,              & ! input: index of the desired reach
                     NETOPO,               & ! input: reach topology data structure
                     RCHFLX,               & ! inout: reach flux data structure
                     ierr,cmessage,        & ! output: error control

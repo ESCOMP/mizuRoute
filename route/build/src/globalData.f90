@@ -162,6 +162,6 @@ module globalData
   integer(i4b)    , allocatable  , public :: rch_per_proc(:)      ! number of reaches assigned to each proc (i.e., node)
 
   ! miscellaneous
-  integer(i4b)                   , public :: ixDesire=integerMissing             ! index of desired reach
+  integer(i4b)                   , public :: ixPrint=integerMissing   ! index of desired reach to be on-screen print
 
 end module globalData

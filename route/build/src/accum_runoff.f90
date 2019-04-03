@@ -96,7 +96,7 @@ CONTAINS
    ! get mean streamflow
    RCHFLX_out(iEns,jSeg)%UPSTREAM_QI = sum(qUpstream)
 
-   if(NETOPO_in(jSeg)%REACHID == ixDesire)then
+   if(NETOPO_in(jSeg)%REACHIX == ixDesire)then
     print*, 'ixUpstream = ', NETOPO_in(iUpstream(1:nUpstream))%REACHIX
     print*, 'idUpstream = ', NETOPO_in(iUpstream(1:nUpstream))%REACHID
     print*, 'qUpstream = ', qUpstream
