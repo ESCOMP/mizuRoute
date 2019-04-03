@@ -88,8 +88,11 @@ contains
   USE public_var,  only : is_remap               ! logical whether or not runnoff needs to be mapped to river network HRU
   USE var_lookup,  only : ixHRU2SEG              ! index of variables for data structure
   USE var_lookup,  only : ixNTOPO                ! index of variables for data structure
+  USE globalData,  only : RCHFLX                 ! Reach flux data structures (entire river network)
+  USE globalData,  only : KROUTE                 ! Reach k-wave data structures (entire river network)
 
   USE globalData,  only : nHRU, nRch             ! number of HRUs and Reaches in the whole network
+  USE globalData,  only : nEns                   ! number of ensembles
   USE globalData,  only : basinID                ! HRU id vector
   USE globalData,  only : reachID                ! reach ID vector
   USE globalData,  only : runoff_data            ! runoff data structure
@@ -131,6 +134,10 @@ contains
                      nContribHRU,                                                  & ! output: MPI domain decomposition data
                      ierr, cmessage)                                                 ! output: error controls
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     ! allocate space for the entire river network
+     allocate(RCHFLX(nEns,nRch), KROUTE(nEns,nRch), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating [RCHFLX, KROUTE]'; return; endif
 
      ! populate basiID and reachID vectors for output (in only master processor)
      ! populate runoff data structure (only meta, no runoff values)

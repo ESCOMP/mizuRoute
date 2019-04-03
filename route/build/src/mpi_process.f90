@@ -45,8 +45,8 @@ contains
   USE globalData,        ONLY: ixDesire             ! desired reach index
   USE globalData,        ONLY: domains              ! domain data structure - for each domain, pfaf codes and list of segment indices
   USE globalData,        ONLY: nDomain              ! count of decomposed domains (tributaries + mainstems)
-  USE globalData,        ONLY: RCHFLX, RCHFLX_trib  ! Reach flux data structures (entire river network and tributary only)
-  USE globalData,        ONLY: KROUTE, KROUTE_trib  ! Reach k-wave data structures (entire river network and tributary only)
+  USE globalData,        ONLY: RCHFLX_trib          ! Reach flux data structures (entire river network and tributary only)
+  USE globalData,        ONLY: KROUTE_trib          ! Reach k-wave data structures (entire river network and tributary only)
   USE globalData,        ONLY: NETOPO_trib, NETOPO_main
   USE globalData,        ONLY: RPARAM_trib, RPARAM_main
   USE globalData,        ONLY: fshape, tscale      ! parameters used for basin UH
@@ -150,9 +150,6 @@ contains
   ! ********************************************************************************************************************
 
   if (pid == root) then ! this is a root process
-
-    ! allocate for the entire river network
-    allocate(RCHFLX(nEns,nRch_in), KROUTE(nEns,nRch_in), stat=ierr)
 
     ! allocate local and global indices
     allocate(ixGlobalSubHRU(nHRU_in),ixGlobalSubSEG(nRch_in), stat=ierr)
