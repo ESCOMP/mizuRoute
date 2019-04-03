@@ -95,10 +95,10 @@ contains
    integer(i4b)                                :: ix1, ix2               ! first and last indices in array to subset
    logical(lgt),      allocatable              :: isInvalid(:)
    ! debugging variables
-   integer(i4b)                                :: segId(nSeg)            ! reach id for all the segments
-   integer(i4b)                                :: ixSubSEG(nSeg)         !
-   integer(i4b)                                :: ixSeg1, ixSeg2         !
-   logical(lgt)                                :: seglgc(nSeg)
+!   integer(i4b)                                :: segId(nSeg)            ! reach id for all the segments
+!   integer(i4b)                                :: ixSubSEG(nSeg)         !
+!   integer(i4b)                                :: ixSeg1, ixSeg2         !
+!   logical(lgt)                                :: seglgc(nSeg)
 
    ierr=0; message='classify_river_basin_mpi/'
 
