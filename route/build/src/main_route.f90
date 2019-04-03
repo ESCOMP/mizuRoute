@@ -37,7 +37,6 @@ contains
  ! ******
  ! public subroutine: main HRU/reach routing routines
  ! ************************
-
  subroutine main_route(&
                        ! input
                        iens,           &  ! ensemble index
@@ -53,8 +52,11 @@ contains
                        ! output: error handling
                        ierr, message)     ! output: error control
    ! Details:
-   !
-   !
+   ! Given HRU (basin) runoff, perform hru routing (optional) to get reach runoff, and then channel routing
+   ! Restriction:
+   ! 1. Reach order in NETOPO_in, RPARAM_in, RCHFLX_out, KROUTE_out must be in the same orders
+   ! 2. Process a list of reach indices (in terms of NETOPO_in etc.) given by ixRchProcessed
+   ! 3. basinRunoff_in is given in the order of NETOPO_in(:)%HRUIX.
 
    ! shared data
    USE public_var, only : routOpt
