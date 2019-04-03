@@ -41,10 +41,10 @@ contains
  subroutine main_route(&
                        ! input
                        iens,           &  ! ensemble index
-                       basinRunoff_in, &  !
+                       basinRunoff_in, &  ! basin (i.e.,HRU) runoff (m/s)
                        ixRchProcessed, &  ! indices of reach to be routed
                        river_basin,    &  ! OMP basin decomposition
-                       basinType,      &  ! basinType (0-> tributary, 1->mainstem)
+                       basinType,      &  ! basinType (1-> tributary, 2->mainstem)
                        NETOPO_in,      &  ! reach topology data structure
                        RPARAM_in,      &  ! reach parameter data structure
                        ! inout
@@ -72,7 +72,7 @@ contains
    real(dp),      allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
    integer(i4b),  allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
    type(basin),   allocatable, intent(in)    :: river_basin(:)       ! OMP basin decomposition
-   integer(i4b),               intent(in)    :: basinType            ! basinType (0-> tributary, 1->mainstem)
+   integer(i4b),               intent(in)    :: basinType            ! basinType (1-> tributary, 2->mainstem)
    type(RCHTOPO), allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology
    type(RCHPRP),  allocatable, intent(in)    :: RPARAM_in(:)         ! River reach parameter
    ! inout
@@ -97,16 +97,20 @@ contains
   ! number of reaches to be processed
   nSeg = size(ixRchProcessed)
 
+  allocate(reachRunoff_local(nSeg), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachRunoff_local]'; return; endif
+
   ! 1. subroutine: map basin runoff to river network HRUs
   ! map the basin runoff to the stream network...
   call basin2reach(&
                   ! input
-                  basinRunoff_in,        & ! basin runoff (m/s)
-                  NETOPO_in,             & ! reach topology
-                  RPARAM_in,             & ! reach parameter
+                  basinRunoff_in,     & ! basin runoff (m/s)
+                  NETOPO_in,          & ! reach topology
+                  RPARAM_in,          & ! reach parameter
                   ! output
-                  reachRunoff_local,     & ! intent(out): reach runoff (m3/s)
-                  ierr, cmessage)          ! intent(out): error control
+                  reachRunoff_local,  & ! intent(out): reach runoff (m3/s)
+                  ierr, cmessage,     & ! intent(out): error control
+                  ixRchProcessed)       ! optional input: indices of reach to be routed
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! 2. subroutine: basin route
