@@ -3,7 +3,6 @@ MODULE mpi_routine
 USE mpi
 
 USE nrtype
-USE dataTypes,         ONLY: KREACH
 USE dataTypes,         ONLY: var_ilength   ! integer type:     var(:)%dat
 USE dataTypes,         ONLY: var_dlength   ! double precision type: var(:)%dat
 USE dataTypes,         ONLY: var_clength   ! character type:        var(:)%dat
@@ -452,6 +451,7 @@ contains
                       iens,          & ! input: ensemble index
                       ierr,message)    ! output: error control
   ! shared data
+  USE dataTypes,  only: KREACH                     ! derived data type
   USE public_var
   USE globalData, only : NETOPO_trib, NETOPO_main  ! tributary and mainstem reach netowrk topology structure
   USE globalData, only : NETOPO                    ! entire river reach netowrk topology structure
@@ -567,18 +567,16 @@ contains
   if (doesBasinRoute == 1) then
     ! instantaneous runoff volume (m3/s) to data structure
     RCHFLX_trib(iens,:)%BASIN_QI = reachRunoff_local(:)
-    routedRunoff_local(:,6) = RCHFLX_trib(iens,:)%BASIN_QI
     ! perform Basin routing
-    call IRF_route_basin(iens, RCHFLX_trib, ierr, cmessage)
+    call IRF_route_basin(iens,        &  ! input:  ensemble index
+                         RCHFLX_trib, &  ! inout:  reach flux data structure
+                         ierr, cmessage) ! output: error controls
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   else
     ! no basin routing required (handled outside mizuRoute))
     RCHFLX_trib(iens,:)%BASIN_QR(0) = RCHFLX_trib(iens,:)%BASIN_QR(1)   ! streamflow from previous step
     RCHFLX_trib(iens,:)%BASIN_QR(1) = reachRunoff_local(:)                     ! streamflow (m3/s)
   end if
-  ! populate reach fluxes in 2D array
-  routedRunoff_local(:,1) = RCHFLX_trib(iens,:)%BASIN_QR(0)
-  routedRunoff_local(:,2) = RCHFLX_trib(iens,:)%BASIN_QR(1)
 
   ! 3. subroutine: river reach routing
   ! perform upstream flow accumulation
@@ -588,8 +586,6 @@ contains
                     RCHFLX_trib,       &  ! inout: reach flux data structure
                     ierr, cmessage)       ! output: error controls
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  ! populate reach fluxes in 2D array
-  routedRunoff_local(:,3) = RCHFLX_trib(iens,:)%UPSTREAM_QI
 
   ! perform KWT routing
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
@@ -604,14 +600,6 @@ contains
                   RCHFLX_trib,          & ! inout: reach flux data structure
                   ierr,cmessage)          ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  ! populate reach fluxes in 2D array
-   routedRunoff_local(:,4) = RCHFLX_trib(iens,:)%REACH_Q
-   call kwt_struc2array(iens,KROUTE_trib,                        &
-                        QF_trib,QM_trib,TI_trib,TR_trib,RF_trib, &
-                        nWave_trib,                              &
-                        ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   totWave(pid) = sum(nWave_trib)
   endif
 
   ! perform IRF routing
@@ -623,8 +611,6 @@ contains
                   RCHFLX_trib,         & ! inout: reach flux data structure
                   ierr,cmessage)         ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  ! populate reach fluxes in 2D array
-   routedRunoff_local(:,5) = RCHFLX_trib(iens,:)%REACH_Q_IRF
   endif
 
   ! make sure that routing at all the procs finished
@@ -634,15 +620,13 @@ contains
   ! Subroutine: Collect all the tributary flows and states
   ! --------------------------------
 
-!  if (pid==1) then
-!   print*, 'pid = ', pid
-! !  print*, 'reach-index, reach-id, down-index, down-id, reach-order'
-!   do iSeg=1,rch_per_proc(pid)
-!!     print*, NETOPO_trib(iSeg)%REACHIX, NETOPO_trib(iSeg)%REACHID, NETOPO_trib(iSeg)%DREACHI, NETOPO_trib(iSeg)%DREACHK, NETOPO_trib(iSeg)%RHORDER
-!     print*, 'reachID, nWave =', NETOPO_trib(iSeg)%REACHID, size(KROUTE_trib(iens,iSeg)%KWAVE)
-!   enddo
-!  endif
-
+  ! Transfer reach fluxes to 2D arrays
+  routedRunoff_local(:,1) = RCHFLX_trib(iens,:)%BASIN_QR(0)  ! HRU routed flow (previous time step)
+  routedRunoff_local(:,2) = RCHFLX_trib(iens,:)%BASIN_QR(1)  ! HRU routed flow (current time step)
+  routedRunoff_local(:,3) = RCHFLX_trib(iens,:)%UPSTREAM_QI  ! Upstream accumulated flow
+  routedRunoff_local(:,4) = RCHFLX_trib(iens,:)%REACH_Q      ! KWT routed flow
+  routedRunoff_local(:,5) = RCHFLX_trib(iens,:)%REACH_Q_IRF  ! IRF routed flow
+  routedRunoff_local(:,6) = RCHFLX_trib(iens,:)%BASIN_QI     ! non-HRU routed flow (
 
   ! Need to compute displacements
   displs(0) = 0
@@ -687,8 +671,17 @@ contains
     end do
   endif
 
+  ! KWT state communication
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
-    !KW states
+
+    ! Transfer KWT state data structure to flat arrays
+    call kwt_struc2array(iens,KROUTE_trib,                        &
+                         QF_trib,QM_trib,TI_trib,TR_trib,RF_trib, &
+                         nWave_trib,                              &
+                         ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    totWave(pid) = sum(nWave_trib)
+
     ! collect arrays storing number of waves for each reach from each proc
     allocate(nWave(nRchTrib), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [nWave]'; return; endif
@@ -727,8 +720,8 @@ contains
     call MPI_GATHERV(TR_trib, totWave(pid),                   MPI_DOUBLE_PRECISION,       & ! flows from proc
                      TR,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
                      MPI_COMM_WORLD, ierr)
-    call MPI_GATHERV(RF_trib, totWave(pid),                   MPI_LOGICAL,       & ! flows from proc
-                     RF,      totWave(0:nNodes-1), displs_kw, MPI_LOGICAL, root, & ! gathered flows at root node
+    call MPI_GATHERV(RF_trib, totWave(pid),                   MPI_LOGICAL,                & ! flows from proc
+                     RF,      totWave(0:nNodes-1), displs_kw, MPI_LOGICAL, root,          & ! gathered flows at root node
                      MPI_COMM_WORLD, ierr)
 
     ! clear tribuary state arrays for all procs
@@ -761,6 +754,15 @@ contains
 
   ! make sure that routing at all the procs finished
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+
+!  if (pid==1) then
+!   print*, 'pid = ', pid
+! !  print*, 'reach-index, reach-id, down-index, down-id, reach-order'
+!   do iSeg=1,rch_per_proc(pid)
+!!     print*, NETOPO_trib(iSeg)%REACHIX, NETOPO_trib(iSeg)%REACHID, NETOPO_trib(iSeg)%DREACHI, NETOPO_trib(iSeg)%DREACHK, NETOPO_trib(iSeg)%RHORDER
+!     print*, 'reachID, nWave =', NETOPO_trib(iSeg)%REACHID, size(KROUTE_trib(iens,iSeg)%KWAVE)
+!   enddo
+!  endif
 
 ! --------------------------------
 ! mainstem routing
