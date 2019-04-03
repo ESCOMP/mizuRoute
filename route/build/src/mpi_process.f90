@@ -46,8 +46,8 @@ contains
   USE globalData,        ONLY: nDomain              ! count of decomposed domains (tributaries + mainstems)
   USE globalData,        ONLY: RCHFLX_trib          ! Reach flux data structures (entire river network and tributary only)
   USE globalData,        ONLY: KROUTE_trib          ! Reach k-wave data structures (entire river network and tributary only)
-  USE globalData,        ONLY: NETOPO_trib, NETOPO_main
-  USE globalData,        ONLY: RPARAM_trib, RPARAM_main
+  USE globalData,        ONLY: NETOPO_trib
+  USE globalData,        ONLY: RPARAM_trib
   USE globalData,        ONLY: fshape, tscale      ! parameters used for basin UH
   USE globalData,        ONLY: velo, diff          ! parameters used for UH
   USE globalData,        ONLY: mann_n, wscale      ! parameters used for KWT
@@ -84,11 +84,6 @@ contains
   type(var_ilength), allocatable              :: structNTOPO_local(:)      ! network topology
   type(var_ilength), allocatable              :: structHRU2seg_local(:)    ! ancillary data for mapping hru2basin
   type(var_clength), allocatable              :: structPFAF_local(:)       ! ancillary data for pfafstetter code
-  type(var_dlength), allocatable              :: structHRU_main(:)         ! ancillary data for HRUs
-  type(var_dlength), allocatable              :: structSEG_main(:)         ! ancillary data for stream segments
-  type(var_ilength), allocatable              :: structNTOPO_main(:)       ! network topology
-  type(var_ilength), allocatable              :: structHRU2seg_main(:)     ! ancillary data for mapping hru2basin
-  type(var_clength), allocatable              :: structPFAF_main(:)        ! ancillary data for pfafstetter code
   ! flat array for decomposed river network per reach/hru
   integer(i4b),      allocatable              :: segId_local(:)            ! reach id for decomposed network
   integer(i4b),      allocatable              :: downSegId_local(:)        ! downstream reach id for decomposed network
@@ -352,86 +347,6 @@ contains
                        RPARAM_trib, NETOPO_trib,                              & ! output:
                        ierr, cmessage)
 
-  ! ********************************************************************************************************************
-  ! ********************************************************************************************************************
-  ! ********************************************************************************************************************
-  ! Part 4: special case of the main stem: define main stem routing structures
-  ! ********************************************************************************************************************
-  ! ********************************************************************************************************************
-  ! ********************************************************************************************************************
-
-  ! NOTE: part 3 and part 4 could be combined using a subroutine with different arguments
-
-  ! mainstem segments
-  if (pid == root) then ! this is a root process
-
-    ! get the number of segments and HRUs on the main stem
-    associate (nSeg_main => rch_per_proc(-1), &
-               nHRU_main => hru_per_proc(-1) )
-
-    ! get index of desired reach
-    if (desireId/=integerMissing) then
-     ixPrint = findIndex(segId(1:nSeg_main), desireId, integerMissing)
-     if (ixPrint/=integerMissing) ixPrint = ixGlobalSubSEG(ixPrint)
-    endif
-
-    ! allocate space for main stem data structures
-    call alloc_struct(nHRU_main,            & ! output: number of HRUs
-                      nSeg_main,            & ! output: number of stream segments
-                      structHRU_main,       & ! inout: ancillary data for HRUs
-                      structSEG_main,       & ! inout: ancillary data for stream segments
-                      structHRU2seg_main,   & ! inout: ancillary data for mapping hru2basin
-                      structNTOPO_main,     & ! inout: ancillary data for network toopology
-                      structPFAF_main,      & ! inout: ancillary data for pfafstetter code
-                      ierr,cmessage)           ! output: error control
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    ! Populate main stem data structure
-    ! NOTE: same as above except the first nXXX_main elements (RHS global vectors)
-
-    ! reach
-    do ix = 1, nSeg_main
-      structNTOPO_main(ix)%var(ixNTOPO%segId)%dat(1)     = segId(ix)
-      structNTOPO_main(ix)%var(ixNTOPO%downSegId)%dat(1) = downSegId(ix)
-      structSEG_main  (ix)%var(ixSEG%length)%dat(1)      = length(ix)
-      structSEG_main  (ix)%var(ixSEG%slope)%dat(1)       = slope(ix)
-    end do
-
-    ! hru
-    do ix = 1, nHRU_main
-      structHRU2SEG_main(ix)%var(ixHRU2SEG%HRUid)%dat(1)    = hruId(ix)
-      structHRU2SEG_main(ix)%var(ixHRU2SEG%hruSegId)%dat(1) = hruSegId(ix)
-      structHRU_main    (ix)%var(ixHRU%area)%dat(1)         = area(ix)
-    end do
-
-    ! compute additional ancillary infomration
-    call augment_ntopo(&
-                       ! input: model control
-                       nHRU_main,                   & ! number of stream segments
-                       nSeg_main,                   & ! number of HRUs
-                       ! inout: populate data structures
-                       structHRU_main,              & ! ancillary data for HRUs
-                       structSEG_main,              & ! ancillary data for stream segments
-                       structHRU2seg_main,          & ! ancillary data for mapping hru2basin
-                       structNTOPO_main,            & ! ancillary data for network toopology
-                       ! output: error control
-                       ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    ! copy data to routing structres RPARAM_main and NETOPO_main
-    call put_data_struct(nSeg_main, structSEG_main, structNTOPO_main, & ! input
-                         RPARAM_main, NETOPO_main,                    & ! output
-                         ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    end associate
-
-!    print*, 'ix, hruId, ixGlobalSubHRU, ixLocalSubHRU, hruSegId'
-!    do ix = 1,nHRU_in
-!      print*, ix, hruId(ix), ixGlobalSubHRU(ix), ixLocalSubHRU(ix), hruSegId(ix)
-!    end do
-
-  endif   ! if pid==root
-
 !deleteme
 !   if (pid==7) then
 !   do ix =1, size(NETOPO_trib)
@@ -451,30 +366,30 @@ contains
                       iens,          & ! input: ensemble index
                       ierr,message)    ! output: error control
   ! shared data
-  USE dataTypes,  only: KREACH                     ! derived data type
   USE public_var
-  USE globalData, only : NETOPO_trib  ! tributary and mainstem reach netowrk topology structure
-  USE globalData, only : NETOPO                    ! entire river reach netowrk topology structure
-  USE globalData, only : RPARAM_trib  ! tributary and mainstem reach parameter structure
-  USE globalData, only : RPARAM                    ! entire river reach parameter structure
-  USE globalData, only : RCHFLX_trib               ! tributary reach flux structure
-  USE globalData, only : RCHFLX                    ! entire reach flux structure
-  USE globalData, only : KROUTE_trib               ! tributary reach kwt data structure
-  USE globalData, only : KROUTE                    ! entire river reach kwt sate structure
-  USE globalData, only : river_basin               ! OMP domain decomposition
-  USE globalData, only : runoff_data               ! runoff data structure
-  USE globalData, only : nHRU                      ! number of HRUs in the whoel river network
-  USE globalData, only : ixHRU_order               ! global HRU index in the order of proc assignment
-  USE globalData, only : ixRch_order               ! global reach index in the order of proc assignment
-  USE globalData, only : hru_per_proc              ! number of hrus assigned to each proc (i.e., node)
-  USE globalData, only : rch_per_proc              ! number of reaches assigned to each proc (i.e., node)
+  USE dataTypes,  only : KREACH           ! derived data type
+  USE globalData, only : NETOPO_trib      ! tributary and mainstem reach netowrk topology structure
+  USE globalData, only : NETOPO           ! entire river reach netowrk topology structure
+  USE globalData, only : RPARAM_trib      ! tributary and mainstem reach parameter structure
+  USE globalData, only : RPARAM           ! entire river reach parameter structure
+  USE globalData, only : RCHFLX_trib      ! tributary reach flux structure
+  USE globalData, only : RCHFLX           ! entire reach flux structure
+  USE globalData, only : KROUTE_trib      ! tributary reach kwt data structure
+  USE globalData, only : KROUTE           ! entire river reach kwt sate structure
+  USE globalData, only : river_basin      ! OMP domain decomposition
+  USE globalData, only : runoff_data      ! runoff data structure
+  USE globalData, only : nHRU             ! number of HRUs in the whoel river network
+  USE globalData, only : ixHRU_order      ! global HRU index in the order of proc assignment
+  USE globalData, only : ixRch_order      ! global reach index in the order of proc assignment
+  USE globalData, only : hru_per_proc     ! number of hrus assigned to each proc (i.e., node)
+  USE globalData, only : rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
 
   ! external subroutines:
   ! general utility
-  USE nr_utility_module, ONLY: arth                 !
+  USE nr_utility_module, ONLY: arth       !
 
   ! routing driver
-  USE main_route_module, only: main_route        ! routing driver
+  USE main_route_module, only: main_route ! routing driver
 
   implicit none
 
