@@ -453,36 +453,28 @@ contains
   ! shared data
   USE dataTypes,  only: KREACH                     ! derived data type
   USE public_var
-  USE globalData, only : NETOPO_trib, NETOPO_main  ! tributary and mainstem reach netowrk topology structure
+  USE globalData, only : NETOPO_trib  ! tributary and mainstem reach netowrk topology structure
   USE globalData, only : NETOPO                    ! entire river reach netowrk topology structure
-  USE globalData, only : RPARAM_trib, RPARAM_main  ! tributary and mainstem reach parameter structure
+  USE globalData, only : RPARAM_trib  ! tributary and mainstem reach parameter structure
   USE globalData, only : RPARAM                    ! entire river reach parameter structure
   USE globalData, only : RCHFLX_trib               ! tributary reach flux structure
   USE globalData, only : RCHFLX                    ! entire reach flux structure
   USE globalData, only : KROUTE_trib               ! tributary reach kwt data structure
   USE globalData, only : KROUTE                    ! entire river reach kwt sate structure
   USE globalData, only : river_basin               ! OMP domain decomposition
-  USE globalData, only : ixPrint                   ! desired reach index
   USE globalData, only : runoff_data               ! runoff data structure
   USE globalData, only : nHRU                      ! number of HRUs in the whoel river network
   USE globalData, only : ixHRU_order               ! global HRU index in the order of proc assignment
   USE globalData, only : ixRch_order               ! global reach index in the order of proc assignment
   USE globalData, only : hru_per_proc              ! number of hrus assigned to each proc (i.e., node)
   USE globalData, only : rch_per_proc              ! number of reaches assigned to each proc (i.e., node)
-  USE globalData, only : TSEC                      ! beginning/ending of simulation time step [sec]
+
   ! external subroutines:
-  ! general
+  ! general utility
   USE nr_utility_module, ONLY: arth                 !
-  ! mapping basin runoff to reach runoff
-  USE remapping,  only : basin2reach               ! remap runoff from routing basins to routing reaches
-  ! basin routing
-  USE basinUH_module, only : IRF_route_basin       ! perform UH convolution for basin routing
-  ! river routing
-  USE accum_runoff_module, only : accum_runoff     ! upstream flow accumulation
-  !USE kwt_route_module,    only : kwt_route     ! kinematic wave routing method
-  !USE irf_route_module,    only : irf_route     ! unit hydrograph (impulse response function) routing method
-  USE kwt_route_module,    only : kwt_route => kwt_route_orig   ! kinematic wave routing method
-  USE irf_route_module,    only : irf_route => irf_route_orig    ! river network unit hydrograph method
+
+  ! routing driver
+  USE main_route_module, only: main_route        ! routing driver
 
   implicit none
 
@@ -496,12 +488,8 @@ contains
   ! local variables
   real(dp)                              :: basinRunoff_sorted(nHRU) ! sorted basin runoff (m/s) for whole domain
   real(dp),     allocatable             :: basinRunoff_local(:)     ! basin runoff (m/s) for tributaries
-  real(dp),     allocatable             :: reachRunoff_local(:)     ! reach runoff (m/s) for tributaries
-  real(dp),     allocatable             :: basinRunoff_main(:)      ! basin runoff (m/s) for mainstems (processed at root)
-  real(dp),     allocatable             :: reachRunoff_main(:)      ! reach runoff (m/s) for mainstems (processed at root)
   real(dp),     allocatable             :: routedRunoff_local(:,:)  ! tributary routed runoff (m/s) for each proc
   real(dp),     allocatable             :: routedRunoff(:,:)        ! tributary routed runoff (m/s) gathered from each proc
-  real(dp)                              :: T0,T1                    ! beginning/ending of simulation time step [sec]
   real(dp),     allocatable             :: QF(:), QF_trib(:)
   real(dp),     allocatable             :: QM(:), QM_trib(:)
   real(dp),     allocatable             :: TI(:), TI_trib(:)
@@ -518,14 +506,12 @@ contains
   integer(i4b)                          :: iHru, iSeg, myid         ! loop indices
   integer(i4b)                          :: nSegAllTrib              ! number of reaches from all tributaries
   integer(i4b)                          :: nSegTrib                 ! number of reaches from one tributary
+  integer(i4b)                          :: nSegMain                 ! number of reaches from mainstems
   integer(i4b)                          :: tributary=1              !
   integer(i4b)                          :: mainstem=2               !
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
 
   ierr=0; message='mpi_route/'
-
-  ! define the start and end of the time step
-  T0=TSEC(0); T1=TSEC(1)
 
   ! Reaches/HRU assigned to root node include BOTH small tributaries and mainstem
   ! First, route "small tributaries" while routing over other bigger tributaries (at slave nodes).
@@ -543,101 +529,47 @@ contains
    displs(myid) = sum(hru_per_proc(0:myid-1))
   end do
   allocate(basinRunoff_local(hru_per_proc(pid)),    &
-           reachRunoff_local(rch_per_proc(pid)),    &
            routedRunoff_local(rch_per_proc(pid),6), &
            stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [basinRunoff_local,reachRunoff_local,routedRunoff_local]'; return; endif
+  if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [basinRunoff_local,routedRunoff_local]'; return; endif
 
   ! Distribute the basin runoff to each process
   call MPI_SCATTERV(basinRunoff_sorted(hru_per_proc(-1)+1:nHRU), hru_per_proc(0:nNodes-1), displs, MPI_DOUBLE_PRECISION,      & ! flows from proc
                     basinRunoff_local,                           hru_per_proc(pid),                MPI_DOUBLE_PRECISION, root,& ! gathered flows at root node
                     MPI_COMM_WORLD, ierr)
 
-! --------------------------------
-! BEGIN: Put this in seprate routine
-! --------------------------------
+  ! --------------------------------
+  ! Perform tributary routing (for all procs)
+  ! --------------------------------
+  !Idenfity number of tributary reaches for each procs
   nSegTrib = rch_per_proc(pid)
   allocate(ixRchProcessed(nSegTrib), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating array for [ixRchProcessed]'; return; endif
+
+  ! Define processing reach indices in terms of tributary data sets
   ixRchProcessed = arth(1,1,nSegTrib)
 
-  ! 1. subroutine: map basin runoff to river network HRUs
-  ! map the basin runoff to the stream network...
-  call basin2reach(&
-                  ! input
-                  basinRunoff_local,       & ! basin runoff (m/s)
-                  NETOPO_trib,             & ! reach topology
-                  RPARAM_trib,             & ! reach parameter
-                  ! output
-                  reachRunoff_local,       & ! intent(out): reach runoff (m3/s)
-                  ierr, cmessage)            ! intent(out): error control
+  ! Perform routing
+  call main_route(iens,              &  ! ensemble index
+                  basinRunoff_local, &  ! basin (i.e.,HRU) runoff (m/s)
+                  ixRchProcessed,    &  ! indices of reach to be routed
+                  river_basin,       &  ! OMP basin decomposition
+                  tributary,         &  ! basinType (1-> tributary, 2->mainstem)
+                  NETOPO_trib,       &  ! reach topology data structure
+                  RPARAM_trib,       &  ! reach parameter data structure
+                  ! inout
+                  RCHFLX_trib,       &  ! reach flux data structure
+                  KROUTE_trib,       &  ! reach state data structure
+                  ! output: error handling
+                  ierr, message)     ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  ! 2. subroutine: basin route
-  if (doesBasinRoute == 1) then
-    ! instantaneous runoff volume (m3/s) to data structure
-    do iSeg = 1,nSegTrib
-     RCHFLX_trib(iens,ixRchProcessed(iSeg))%BASIN_QI = reachRunoff_local(iSeg)
-    enddo
-    ! perform Basin routing
-    call IRF_route_basin(iens,              &  ! input:  ensemble index
-                         RCHFLX_trib,       &  ! inout:  reach flux data structure
-                         ierr, cmessage,    &  ! output: error controls
-                         ixRchProcessed)       ! optional input: indices of reach to be routed
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  else
-    ! no basin routing required (handled outside mizuRoute))
-    do iSeg = 1,nSegTrib
-    RCHFLX_trib(iens,ixRchProcessed(iSeg))%BASIN_QR(0) = RCHFLX_trib(iens,iSeg)%BASIN_QR(1)   ! streamflow from previous step
-    RCHFLX_trib(iens,ixRchProcessed(iSeg))%BASIN_QR(1) = reachRunoff_local(iSeg)              ! streamflow (m3/s)
-    end do
-  end if
-
-  ! 3. subroutine: river reach routing
-  ! perform upstream flow accumulation
-  call accum_runoff(iens,              &  ! input: ensemble index
-                    ixPrint,           &  ! input: index of verbose reach
-                    NETOPO_trib,       &  ! input: reach topology data structure
-                    RCHFLX_trib,       &  ! inout: reach flux data structure
-                    ierr, cmessage,    &  ! output: error controls
-                    ixRchProcessed)       ! optional input: indices of reach to be routed
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  ! perform KWT routing
-  if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
-   call kwt_route(iens,                 & ! input: ensemble index
-                  river_basin,          & ! input: river basin data type
-                  T0,T1,                & ! input: start and end of the time step
-                  tributary,            & ! input:
-                  ixPrint,              & ! input: index of the desired reach
-                  NETOPO_trib,          & ! input: reach topology data structure
-                  RPARAM_trib,          & ! input: reach parameter data structure
-                  KROUTE_trib,          & ! inout: reach state data structure
-                  RCHFLX_trib,          & ! inout: reach flux data structure
-                  ierr,cmessage,        & ! output: error control
-                  ixRchProcessed)         ! optional input: indices of reach to be routed
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
-
-  ! perform IRF routing
-  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
-   call irf_route(iens,                & ! input: ensemble index
-                  river_basin,         & ! input: river basin data type
-                  ixPrint,             & ! input: index of the desired reach
-                  NETOPO_trib,         & ! input: reach topology data structure
-                  RCHFLX_trib,         & ! inout: reach flux data structure
-                  ierr,cmessage,       & ! output: error control
-                  ixRchProcessed)        ! optional input: indices of reach to be routed
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
 
   ! make sure that routing at all the procs finished
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
   ! --------------------------------
-  ! Subroutine: Collect all the tributary flows and states
+  ! Collect all the tributary flows
   ! --------------------------------
-
   ! Transfer reach fluxes to 2D arrays
   routedRunoff_local(:,1) = RCHFLX_trib(iens,:)%BASIN_QR(0)  ! HRU routed flow (previous time step)
   routedRunoff_local(:,2) = RCHFLX_trib(iens,:)%BASIN_QR(1)  ! HRU routed flow (current time step)
@@ -690,6 +622,9 @@ contains
     end do
   endif
 
+  ! --------------------------------
+  ! Collect all the tributary states
+  ! --------------------------------
   ! KWT state communication
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
 
@@ -783,90 +718,45 @@ contains
 !   enddo
 !  endif
 
-! --------------------------------
-! mainstem routing
-! --------------------------------
+  ! --------------------------------
+  ! perform mainstem routing
+  ! --------------------------------
   if (pid==root) then
-    allocate(basinRunoff_main(hru_per_proc(root-1)), stat=ierr)
-    allocate(reachRunoff_main(rch_per_proc(root-1)), stat=ierr)
+    ! number of HRUs and reaches from Mainstems
+    nSegMain = rch_per_proc(-1)
 
-    basinRunoff_main(1:hru_per_proc(root-1)) = basinRunoff_sorted(1:hru_per_proc(root-1))
-
-    ! 1. subroutine: map basin runoff to river network HRUs
-    ! map the basin runoff to the stream network...
-    call basin2reach(&
-                    ! input
-                    basinRunoff_main,       & ! basin runoff (m/s)
-                    NETOPO_main,            & ! reach topology
-                    RPARAM_main,            & ! reach parameter
-                    ! output
-                    reachRunoff_main,       & ! intent(out): reach runoff (m3/s)
-                    ierr, cmessage)           ! intent(out): error control
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    ! 2. subroutine: basin route
-    if (doesBasinRoute == 1) then
-      ! instantaneous runoff volume (m3/s) to data structure
-      do iSeg = 1,rch_per_proc(root-1)
-       RCHFLX(iens,ixRch_order(iSeg))%BASIN_QI = reachRunoff_main(iSeg)
-      end do
-      ! perform Basin routing
-      call IRF_route_basin(iens,                 &              ! input:  ensemble index
-                           RCHFLX,               &              ! inout:  reach flux data structure
-                           ierr, cmessage,       &              ! output: error controls
-                           ixRch_order(1:rch_per_proc(root-1))) ! optional input: indices of reach to be routed
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    else
-      ! no basin routing required (handled outside mizuRoute))
-      do iSeg = 1,rch_per_proc(root-1)
-      RCHFLX(iens,ixRch_order(iSeg))%BASIN_QR(0) = RCHFLX(iens,iSeg)%BASIN_QR(1)   ! streamflow from previous step
-      RCHFLX(iens,ixRch_order(iSeg))%BASIN_QR(1) = reachRunoff_main(iSeg)          ! streamflow (m3/s)
-      end do
+    if (allocated(ixRchProcessed)) then
+      deallocate(ixRchProcessed, stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem deallocating array for [ixRchProcessed]'; return; endif
     end if
+    allocate(ixRchProcessed(nSegMain), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [ixRchProcessed]'; return; endif
 
-    ! 3. subroutine: river reach routing
-    ! perform upstream flow accumulation
-    call accum_runoff(iens,                &  ! input: ensemble index
-                      ixPrint,             &  ! input: index of verbose reach
-                      NETOPO,              &  ! input: reach topology data structure
-                      RCHFLX,              &  ! inout: reach flux data structure
-                      ierr, cmessage,      &  ! output: error controls
-                      ixRch_order(1:rch_per_proc(root-1)))      ! optional input: indices of reach to be routed
+    ! Define processing reach indices
+    ixRchProcessed = ixRch_order(1:nSegMain)
+
+    call main_route(iens,                    &  ! ensemble index
+                    runoff_data%basinRunoff, &  ! basin (i.e.,HRU) runoff (m/s)
+                    ixRchProcessed,          &  ! indices of reach to be routed
+                    river_basin,             &  ! OMP basin decomposition
+                    mainstem,                &  ! basinType (1-> tributary, 2->mainstem)
+                    NETOPO,                  &  ! reach topology data structure
+                    RPARAM,                  &  ! reach parameter data structure
+                    ! inout
+                    RCHFLX,                  &  ! reach flux data structure
+                    KROUTE,                  &  ! reach state data structure
+                    ! output: error handling
+                    ierr, message)     ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    ! perform KWT routing
-    if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
-     call kwt_route(iens,                 & ! input: ensemble index
-                    river_basin,          & ! input: river basin data type
-                    T0,T1,                & ! input: start and end of the time step
-                    mainstem,             & ! input:
-                    ixPrint,              & ! input: index of the desired reach
-                    NETOPO,               & ! input: reach topology data structure
-                    RPARAM,               & ! input: reach parameter data structure
-                    KROUTE,               & ! inout: reach state data structure
-                    RCHFLX,               & ! inout: reach flux data structure
-                    ierr,cmessage,        & ! output: error control
-                    ixRch_order(1:rch_per_proc(root-1))) ! optional input: indices of reach to be routed
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    endif
-
-    ! perform IRF routing
-    if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
-     call irf_route(iens,                 & ! input: ensemble index
-                    river_basin,          & ! input: river basin data type
-                    ixPrint,              & ! input: index of the desired reach
-                    NETOPO,               & ! input: reach topology data structure
-                    RCHFLX,               & ! inout: reach flux data structure
-                    ierr,cmessage,        & ! output: error control
-                    ixRch_order(1:rch_per_proc(root-1)))      ! optional input: indices of reach to be routed
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    endif
 
   endif ! end of root proc
 
   ! make sure that routing at all the procs finished
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
+  ! --------------------------------
+  ! Distribute global states to processors to update states upstream reaches
+  ! --------------------------------
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
    ! get all tributary kwt states (excluding mainstems)
    if (pid==root) then
@@ -906,6 +796,7 @@ contains
    end do
 
    allocate(QF_trib(totWave(pid)),QM_trib(totWave(pid)),TI_trib(totWave(pid)),TR_trib(totWave(pid)),RF_trib(totWave(pid)), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'problem allocating array for [QF_trib, QM_trib, TI_trib, TR_trib, RF_trib]'; return; endif
 
    call MPI_SCATTERV(nWave,      rch_per_proc(0:nNodes-1), displs, MPI_INT,       &   ! number of wave from proc
                      nWave_trib, rch_per_proc(pid),                MPI_INT, root, &   ! gathered number of wave at root node
@@ -948,7 +839,8 @@ contains
     ixWave=ixWave+nWave_trib(iSeg) !update 1st idex of array
 
    end do
- endif
+
+ endif ! end of kwt option
 
  end subroutine mpi_route
 
