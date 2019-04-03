@@ -284,9 +284,14 @@ module remapping
                          RPARAM_in,         & ! reach parameter data structure
                          ! output
                          reachRunoff,       & ! intent(out): reach runoff (m/s)
-                         ierr, message)       ! intent(out): error control
+                         ierr, message,     & ! intent(out): error control
+                         ixSubRch)            ! optional input: subset of reach indices to be processed
+
+  ! External modules
+  USE nr_utility_module, ONLY : arth
 
   implicit none
+
   ! input
   real(dp)                  , intent(in)  :: basinRunoff(:)   ! basin runoff (m/s)
   type(RCHTOPO), allocatable, intent(in)  :: NETOPO_in(:)     ! River Network topology
@@ -295,16 +300,37 @@ module remapping
   real(dp)                  , intent(out) :: reachRunoff(:)   ! reach runoff (m/s)
   integer(i4b)              , intent(out) :: ierr             ! error code
   character(len=strLen)     , intent(out) :: message          ! error message
+  ! input (optional)
+  integer(i4b),  optional   , intent(in)  :: ixSubRch(:)     ! subset of reach indices to be processed
   ! ----------------------------------------------------------------------------------------------
   ! local
   integer(i4b)                            :: nContrib         ! number of contributing HRUs
-  integer(i4b)                            :: iHRU             ! array index for contributing HRU
-  integer(i4b)                            :: iSeg             ! array index for stream segment
+  integer(i4b)                            :: nSeg             ! number of reaches to be processed
+  integer(i4b)                            :: iHRU             ! array index for contributing HRUs
+  integer(i4b), allocatable               :: ixRch(:)         ! a list of reach indices to be processed
+  integer(i4b)                            :: iSeg, jSeg       ! array index for reaches
+
   ! initialize error control
   ierr=0; message='basin2reach/'
 
+ ! optional: if a subset of reaches is processed
+ if (present(ixSubRch))then
+  nSeg=size(ixSubRch)
+  allocate(ixRch(nSeg), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'unable to allocate space for [ixRch]'; return; endif
+  ixRch = ixSubRch
+ ! default: if all the reaches are processed
+ else
+  nSeg = size(NETOPO_in)
+  allocate(ixRch(nSeg), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'unable to allocate space for [ixRch]'; return; endif
+  ixRch = arth(1,1,nSeg)
+ endif
+
   ! interpolate the data to the basins
-  do iSeg=1,size(NETOPO_in)
+  do iSeg=1,nSeg
+
+   jSeg = ixRch(iSeg)
 
    ! associate variables in data structure
    nContrib       = size(NETOPO_in(iSeg)%HRUID)
@@ -350,6 +376,7 @@ module remapping
   end do  ! looping through stream segments
 
   end subroutine basin2reach
+
 
 !   ! *****
 !   ! * public subroutine: used to obtain streamflow for each stream segment...
