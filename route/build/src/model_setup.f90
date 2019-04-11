@@ -13,6 +13,8 @@ USE public_var, only : realMissing
 
 USE globalData, only : pid, nNodes             ! procs id and number of procs
 
+USE mpi_mod,    only : shr_mpi_abort
+
 implicit none
 
 ! privacy -- everything private unless declared explicitly
@@ -515,13 +517,12 @@ contains
   endif
 
   ! created a subset = sucessful execution: Need to run again with the subset
-  ! todo: need to stop gracefully on all processors
   if(idSegOut>0)then
    write(*,'(a)') 'Running in subsetting mode'
    write(*,'(a)') 'Created a subset network topology file '//trim(fname_ntopNew)
    write(*,'(a)') ' --> Run again using the new network topology file '
    write(*,'(a)') ' SUCCESSFUL EXECUTION '
-   stop
+   call shr_mpi_abort()
   endif
 
   ! copy data to the RPARAM and NETOPO structures
