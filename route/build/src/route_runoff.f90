@@ -40,8 +40,8 @@ integer(i4b)                  :: ierr                ! error code
 character(len=strLen)         :: cmessage            ! error message of downwind routine
 integer(i4b)                  :: iens = 1
 logical(lgt)                  :: finished=.false.
-!Timing
 
+!Timing
 integer(i4b)  :: cr, startTime, endTime
 real(dp)      :: rate, elapsedTime
 ! ======================================================================================================

@@ -94,11 +94,6 @@ contains
    integer(i4b)                                :: iSeg, iOut, ix         ! loop indices
    integer(i4b)                                :: ix1, ix2               ! first and last indices in array to subset
    logical(lgt),      allocatable              :: isInvalid(:)
-   ! debugging variables
-!   integer(i4b)                                :: segId(nSeg)            ! reach id for all the segments
-!   integer(i4b)                                :: ixSubSEG(nSeg)         !
-!   integer(i4b)                                :: ixSeg1, ixSeg2         !
-!   logical(lgt)                                :: seglgc(nSeg)
 
    ierr=0; message='classify_river_basin_mpi/'
 
@@ -113,7 +108,7 @@ contains
    forall(iSeg=1:nSeg) segIndex(iSeg)  = structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1)
    forall(iSeg=1:nSeg) downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
 
-   ! put segments with invalid pfaf code (0 or -999) into a separate domain
+   ! put reaches with invalid pfaf code (0 or -999) into a separate domain
    nDomain = nDomain+1
    allocate(isInvalid(nSeg), stat=ierr)
    if(ierr/=0)then; message=trim(message)//'problem allocating [isInvalid]'; return; endif
@@ -134,7 +129,7 @@ contains
    allocate(segIndex_sub (nSeg-nInvalid), &
             downIndex_sub(nSeg-nInvalid), &
             pfafs_sub    (nSeg-nInvalid), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'problem allocating [ixSubset]'; return; endif
+   if(ierr/=0)then; message=trim(message)//'problem allocating [segIndex_sub, downIndex_sub, pfafs_sub]'; return; endif
    segIndex_sub  = pack(segIndex,(.not.isInvalid))
    downIndex_sub = pack(downIndex,(.not.isInvalid))
    pfafs_sub     = pack(pfafs,(.not.isInvalid))
@@ -200,50 +195,63 @@ contains
    call assign_node(nNodes, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+   CONTAINS
+
    ! --------------------------------------------------
-   !  print to check
-!   forall(iSeg=1:nSeg) segId(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)
-!   print*,'segid global_index  pfaf-seg  pfaf-basin  basin-size  node-id'
-!   ixSeg1=0; ixSeg2=0
-!   ixSubSEG=-999
-!   do ix = 1,nDomain
-!    associate (segIndexSub => domains(ix)%segIndex, nSubSeg => size(domains(ix)%segIndex))
-!    ! reach index array in order of node assignment
-!    ixSeg1 = ixSeg2+1
-!    ixSeg2 = ixSeg1+nSubSeg-1
-!    ixSubSEG(ixSeg1:ixSeg2)  = domains(ix)%segIndex(1:nSubSeg)   ! global seg index per node
-!    do iSeg = 1,size(segIndexSub)
-!     write(*,"(I12,A,I9,A,A,A,A,A,I2)") segId(segIndexSub(iSeg)),' ',segIndexSub(iSeg),' ',trim(adjustl(pfafs(segIndexSub(iSeg)))),' ',trim(domains(ix)%pfaf),' ',domains(ix)%idNode
-!    end do
-!    end associate
-!   end do
-!   ! check not-assgined reaches
-!   seglgc = .true.
-!   do iSeg = 1, nSeg
-!    if (ixSubSEG(iSeg)>0) then ! turned off at reach assigned properly
-!     seglgc(ixSubSEG(iSeg)) = .false.
-!    endif
-!   enddo
-!   do iSeg = 1, nSeg
-!    if (seglgc(iSeg)) then ! check not assigned reaches
-!     if (downIndex(iSeg)>0) then
-!      print*, 'segid, downId, pfafcode = ', segId(iSeg), segId(downIndex(iSeg)), trim(pfafs(iSeg))
-!     else
-!      print*, 'segid, downId, pfafcode = ', segId(iSeg), downIndex(iSeg), trim(pfafs(iSeg))
-!     endif
-!    endif
-!   enddo
-!   ! --------------------------------------------------
-!   print*,'----'
-!   print*,'print out all the segments'
-!   print*,'seq, segid, pfaf, down-segid, down-pfaf'
-!   do ix = 1,nSeg
-!     if (downIndex(ix)>0)then
-!       write(*,"(I9,A,I9,A,A,A,I9,A,A)") ix,',',segId(ix),',',trim(adjustl(pfafs(ix))),',',segId(downIndex(ix)),',',trim(adjustl(pfafs(downIndex(ix))))
-!     else
-!       write(*,"(I9,A,I9,A,A,A,I9,A,A)") ix,',',segId(ix),',',trim(adjustl(pfafs(ix))),',',-999,',NaN'
-!     endif
-!   enddo
+   !  FOR DEBUGGING
+   ! --------------------------------------------------
+   subroutine print_screen()
+     ! debugging variables
+     integer(i4b)                           :: segId(nSeg)            ! reach id for all the segments
+     logical(lgt)                           :: missing(nSeg)
+
+     do iSeg = 1,nSeg
+       segId(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)
+     end do
+
+     print*,'seg_index segid down_index down_id  pfaf-seg  pfaf-basin node-id'
+     do ix = 1,nDomain
+      associate (segIndexSub => domains(ix)%segIndex, nSubSeg => size(domains(ix)%segIndex))
+      do iSeg = 1,size(segIndexSub)
+       if (downIndex(segIndexSub(iSeg)) > 0) then
+       write(*,"(I9,A,I12,A,I9,A,I12,A,A,A,A,A,I2)") segIndexSub(iSeg),' ',segId(segIndexSub(iSeg)),' ', &
+                                                     downIndex(segIndexSub(iSeg)),' ',segId(downIndex(segIndexSub(iSeg))),' ', &
+                                                     trim(adjustl(pfafs(segIndexSub(iSeg)))),' ',trim(domains(ix)%pfaf),' ',domains(ix)%idNode
+       else
+       write(*,"(I9,A,I12,A,I9,A,I12,A,A,A,A,A,I2)") segIndexSub(iSeg),' ',segId(segIndexSub(iSeg)),' ', &
+                                                     downIndex(segIndexSub(iSeg)),' ',-999,' ', &
+                                                     trim(adjustl(pfafs(segIndexSub(iSeg)))),' ',trim(domains(ix)%pfaf),' ',domains(ix)%idNode
+       endif
+      end do
+      end associate
+     end do
+
+     ! check not-assgined (missing) reaches
+     missing = .true.
+     do ix = 1,nDomain
+      associate (segIndexSub => domains(ix)%segIndex)
+      ! reach index array in order of node assignment
+      do iSeg = 1,size(segIndexSub)
+       missing(segIndexSub) = .false.
+      end do
+      end associate
+     end do
+     if (count(missing)>0) then
+       print*,'segid down_id pfaf-seg'
+       do iSeg = 1, nSeg
+        if (missing(iSeg)) then ! if not assigned reaches
+         if (downIndex(iSeg)>0) then
+          print*, segId(iSeg), segId(downIndex(iSeg)), trim(pfafs(iSeg))
+         else
+          print*, segId(iSeg), downIndex(iSeg), trim(pfafs(iSeg))
+         endif
+        endif
+       enddo
+      else
+       print*, 'NO MISSING SEGMENT: ALL SEGMENTS ARE ASSIGNED TO DOMAINS'
+     endif
+
+   end subroutine print_screen
 
  end subroutine classify_river_basin_mpi
 
