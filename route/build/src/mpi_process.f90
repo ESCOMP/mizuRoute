@@ -411,7 +411,6 @@ contains
   real(dp),     allocatable             :: TI(:), TI_trib(:)
   real(dp),     allocatable             :: TR(:), TR_trib(:)
   logical(lgt), allocatable             :: RF(:), RF_trib(:)
-  type(KREACH), allocatable             :: KROUTE0(:,:)             !temp KROUTE data structure to hold updated states
   integer(i4b), allocatable             :: nWave(:), nWave_trib(:)
   integer(i4b)                          :: ixWave
   integer(i4b), allocatable             :: ixRchProcessed(:)        ! reach indice list to be processed
@@ -675,86 +674,6 @@ contains
   ! --------------------------------
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
 
-
-!     ! get all tributary kwt states (excluding mainstems)
-!     if (pid==root) then
-!      ! extract only tributary reaches
-!      allocate(KROUTE0(1,nSegAllTrib), stat=ierr)
-!      do iSeg =1,nSegAllTrib ! Loop through tributary reaches
-!       associate(iRch => ixRch_order(rch_per_proc(-1)+iSeg)) ! the first "rch_per_proc(-1)" reaches are mainstems
-!       KROUTE0(1,iSeg) = KROUTE(iens,iRch)
-!       end associate
-!      enddo
-!      ! convert KROUTE data strucutre to state arrays
-!      call kwt_struc2array(iens, KROUTE0,  & !input: input state data structure
-!                           QF,QM,TI,TR,RF, & !output: states array
-!                           nWave,          & !output: number of waves per reach
-!                           ierr, cmessage)
-!      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-!     endif
-!
-!     call MPI_BARRIER(MPI_COMM_WORLD,ierr)
-!
-!     ! will have to broadcast updated nWave to all proc
-!      call MPI_BCAST(nWave, nSegAllTrib, MPI_INT, root, MPI_COMM_WORLD, ierr)
-!
-!     ! total waves from all the tributary reaches in each proc
-!     ix2=0
-!     do myid = 0, nNodes-1
-!       ix1=ix2+1
-!       ix2=ix1+rch_per_proc(myid)-1
-!       totWave(myid) = sum(nWave(ix1:ix2))
-!     enddo
-!
-!     ! displacement of wave array
-!     displs_kw(0) = 0
-!     do myid = 1, nNodes-1
-!      displs_kw(myid) = sum(totWave(0:myid-1))
-!     end do
-!
-!     allocate(QF_trib(totWave(pid)),QM_trib(totWave(pid)),TI_trib(totWave(pid)),TR_trib(totWave(pid)),RF_trib(totWave(pid)), stat=ierr)
-!     if(ierr/=0)then; message=trim(message)//'problem allocating array for [QF_trib, QM_trib, TI_trib, TR_trib, RF_trib]'; return; endif
-!
-!     call MPI_SCATTERV(nWave,      rch_per_proc(0:nNodes-1), displs, MPI_INT,       &   ! number of wave from proc
-!                       nWave_trib, rch_per_proc(pid),                MPI_INT, root, &   ! gathered number of wave at root node
-!                       MPI_COMM_WORLD, ierr)
-!
-!     ! Distribute modified KROUTE data to each process
-!     call MPI_SCATTERV(QF,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, & ! flows from proc
-!                       QF_trib, totWave(pid),        MPI_DOUBLE_PRECISION, root,      & ! gathered flows at root node
-!                       MPI_COMM_WORLD, ierr)
-!     call MPI_SCATTERV(QM,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, & ! flows from proc
-!                       QM_trib, totWave(pid),        MPI_DOUBLE_PRECISION, root,      & ! gathered flows at root node
-!                       MPI_COMM_WORLD, ierr)
-!     call MPI_SCATTERV(TI,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, & ! flows from proc
-!                       TI_trib, totWave(pid),        MPI_DOUBLE_PRECISION, root,      & ! gathered flows at root node
-!                       MPI_COMM_WORLD, ierr)
-!     call MPI_SCATTERV(TR,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, & ! flows from proc
-!                       TR_trib, totWave(pid),        MPI_DOUBLE_PRECISION, root,      & ! gathered flows at root node
-!                       MPI_COMM_WORLD, ierr)
-!     call MPI_SCATTERV(RF,      totWave(0:nNodes-1), displs_kw, MPI_LOGICAL,          & ! flows from proc
-!                       RF_trib, totWave(pid),        MPI_LOGICAL, root,               & ! gathered flows at root node
-!                       MPI_COMM_WORLD, ierr)
-!
-!     ! update KROUTE_trib data structure
-!     ixWave=1
-!     do iSeg =1,rch_per_proc(pid) ! Loop through reaches per proc
-!
-!      if (allocated(KROUTE_trib(iens,iSeg)%KWAVE)) then
-!       deallocate(KROUTE_trib(iens,iSeg)%KWAVE, stat=ierr)
-!      endif
-!
-!      allocate(KROUTE_trib(iens,iSeg)%KWAVE(0:nWave_trib(iSeg)-1),stat=ierr)
-!      if(ierr/=0)then; message=trim(message)//'problem allocating array for [KROUTE_out(iens,iRch)%KWAVE]'; return; endif
-!      KROUTE_trib(iens,iSeg)%KWAVE(0:nWave_trib(iSeg)-1)%QF = QF_trib(ixWave:ixWave+nWave_trib(iSeg)-1)
-!      KROUTE_trib(iens,iSeg)%KWAVE(0:nWave_trib(iSeg)-1)%QM = QM_trib(ixWave:ixWave+nWave_trib(iSeg)-1)
-!      KROUTE_trib(iens,iSeg)%KWAVE(0:nWave_trib(iSeg)-1)%TI = TI_trib(ixWave:ixWave+nWave_trib(iSeg)-1)
-!      KROUTE_trib(iens,iSeg)%KWAVE(0:nWave_trib(iSeg)-1)%TR = TR_trib(ixWave:ixWave+nWave_trib(iSeg)-1)
-!      KROUTE_trib(iens,iSeg)%KWAVE(0:nWave_trib(iSeg)-1)%RF = RF_trib(ixWave:ixWave+nWave_trib(iSeg)-1)
-!
-!      ixWave=ixWave+nWave_trib(iSeg) !update 1st idex of array
-!
-!     end do
    call mpi_comm_kwt_state(pid,                               &
                            nNodes,                            &
                            iens,                              &
