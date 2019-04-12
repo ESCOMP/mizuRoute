@@ -21,6 +21,10 @@ USE nr_utility_module, ONLY: indexx               ! sorted index array
 USE nr_utility_module, ONLY: arth                 !
 USE nr_utility_module, ONLY: findIndex            ! find index within a vector
 
+! MPI utility
+USE mpi_mod,           ONLY: shr_mpi_gatherV
+USE mpi_mod,           ONLY: shr_mpi_scatterV
+
 implicit none
 
 private
@@ -111,12 +115,9 @@ contains
   integer(i4b)                                :: idNode(nDomain)           ! node id array for each domain
   integer(i4b)                                :: rnkIdNode(nDomain)        ! ranked node id array for each domain
   integer(i4b)                                :: jHRU,jSeg                 ! ranked indices
-  ! mpi related variables
-  integer(i4b)                                :: displs_hru(0:nNodes-1)    ! entry indices in receiving buffer (routedRunoff) at which to place the array from each proc
-  integer(i4b)                                :: displs_rch(0:nNodes-1)    ! entry indices in receiving buffer (routedRunoff) at which to place the array from each proc
+  ! miscellaneous
   integer(i4b)                                :: iSeg,iHru                 ! reach and hru loop indices
   integer(i4b)                                :: ix,ixx                    ! loop indices
-  integer(i4b)                                :: myid                      ! process id indices
   integer(i4b)                                :: ixSeg1,ixSeg2             ! starting index and ending index, respectively, for reach array
   integer(i4b)                                :: ixHru1,ixHru2             ! starting index and ending index, respectively, for HRU array
   integer(i4b)                                :: idx                       ! node indix (1, ... , nNodes)
@@ -231,54 +232,18 @@ contains
   call MPI_BCAST(rch_per_proc, nNodes+1, MPI_INT, root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(hru_per_proc, nNodes+1, MPI_INT, root, MPI_COMM_WORLD, ierr)
 
-  ! allocate local routing vectors (for processor pid)
-  allocate(segId_local    (rch_per_proc(pid)), &
-           downSegId_local(rch_per_proc(pid)), &
-           slope_local    (rch_per_proc(pid)), &
-           length_local   (rch_per_proc(pid)), &
-           hruId_local    (hru_per_proc(pid)), &
-           hruSegId_local (hru_per_proc(pid)), &
-           area_local     (hru_per_proc(pid)), &
-           stat=ierr)
-
-  ! compute displacements -- number of elements before the starting index
-  displs_hru(0) = 0
-  do myid = 1, nNodes-1
-   displs_hru(myid) = sum(hru_per_proc(0:myid-1))
-  end do
-  displs_rch(0) = 0
-  do myid = 1, nNodes-1
-   displs_rch(myid) = sum(rch_per_proc(0:myid-1))
-  end do
-
   ! define the number of reaches/hrus on the main stem
   nRch_mainstem = rch_per_proc(-1)
   nHRU_mainstem = hru_per_proc(-1)
 
-  ! Distribute tributary river data to each process (send everything EXCEPT mainstem)
-  call MPI_SCATTERV(segId(nRch_mainstem+1:nRch_in),     rch_per_proc(0:nNodes-1), displs_rch, MPI_INT,      & ! flows from proc
-                    segId_local,                        rch_per_proc(pid),                    MPI_INT, root,& ! gathered flows at root node
-                    MPI_COMM_WORLD, ierr)
-  call MPI_SCATTERV(downSegId(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), displs_rch, MPI_INT,      & ! flows from proc
-                    downSegId_local,                    rch_per_proc(pid),                    MPI_INT, root,& ! gathered flows at root node
-                    MPI_COMM_WORLD, ierr)
-  call MPI_SCATTERV(slope(nRch_mainstem+1:nRch_in),     rch_per_proc(0:nNodes-1), displs_rch, MPI_DOUBLE_PRECISION,      & ! flows from proc
-                    slope_local,                        rch_per_proc(pid),                    MPI_DOUBLE_PRECISION, root,& ! gathered flows at root node
-                    MPI_COMM_WORLD, ierr)
-  call MPI_SCATTERV(length(nRch_mainstem+1:nRch_in),    rch_per_proc(0:nNodes-1), displs_rch, MPI_DOUBLE_PRECISION,      & ! flows from proc
-                    length_local,                       rch_per_proc(pid),                    MPI_DOUBLE_PRECISION, root,& ! gathered flows at root node
-                    MPI_COMM_WORLD, ierr)
+  call shr_mpi_scatterV(segId    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), segId_local,     ierr, cmessage)
+  call shr_mpi_scatterV(downSegId(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), downSegId_local, ierr, cmessage)
+  call shr_mpi_scatterV(slope    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), slope_local,     ierr, cmessage)
+  call shr_mpi_scatterV(length   (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), length_local,    ierr, cmessage)
 
-  ! Distribute tributary hru data to each process (send everything EXCEPT mainstem)
-  call MPI_SCATTERV(hruId(nHRU_mainstem+1:nHRU_in),    hru_per_proc(0:nNodes-1), displs_hru, MPI_INT,      & ! flows from proc
-                    hruId_local,                       hru_per_proc(pid),                    MPI_INT, root,& ! gathered flows at root node
-                    MPI_COMM_WORLD, ierr)
-  call MPI_SCATTERV(hruSegId(nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), displs_hru, MPI_INT,      & ! flows from proc
-                    hruSegId_local,                    hru_per_proc(pid),                    MPI_INT, root,& ! gathered flows at root node
-                    MPI_COMM_WORLD, ierr)
-  call MPI_SCATTERV(area(nHRU_mainstem+1:nHRU_in),     hru_per_proc(0:nNodes-1), displs_hru, MPI_DOUBLE_PRECISION,      & ! flows from proc
-                    area_local,                        hru_per_proc(pid),                    MPI_DOUBLE_PRECISION, root,& ! gathered flows at root node
-                    MPI_COMM_WORLD, ierr)
+  call shr_mpi_scatterV(hruId    (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruId_local,    ierr, cmessage)
+  call shr_mpi_scatterV(hruSegId (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruSegId_local, ierr, cmessage)
+  call shr_mpi_scatterV(area     (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), area_local,     ierr, cmessage)
 
   ! ********************************************************************************************************************
   ! ********************************************************************************************************************
@@ -416,20 +381,12 @@ contains
     enddo
   end if
 
-  ! Need to compute displacements
-  displs(0) = 0
-  do myid = 1, nNodes-1
-   displs(myid) = sum(hru_per_proc(0:myid-1))
-  end do
-  allocate(basinRunoff_local(hru_per_proc(pid)),    &
-           routedRunoff_local(rch_per_proc(pid),6), &
-           stat=ierr)
+  allocate(routedRunoff_local(rch_per_proc(pid),6), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [basinRunoff_local,routedRunoff_local]'; return; endif
 
   ! Distribute the basin runoff to each process
-  call MPI_SCATTERV(basinRunoff_sorted(hru_per_proc(-1)+1:nHRU), hru_per_proc(0:nNodes-1), displs, MPI_DOUBLE_PRECISION,      & ! flows from proc
-                    basinRunoff_local,                           hru_per_proc(pid),                MPI_DOUBLE_PRECISION, root,& ! gathered flows at root node
-                    MPI_COMM_WORLD, ierr)
+  call shr_mpi_scatterV(basinRunoff_sorted(hru_per_proc(-1)+1:nHRU), hru_per_proc(0:nNodes-1), basinRunoff_local, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! --------------------------------
   ! Perform tributary routing (for all procs)
@@ -629,8 +586,6 @@ contains
   integer(i4b)                          :: ixWave
   integer(i4b), allocatable             :: nWave(:)
   integer(i4b), allocatable             :: nWave_trib(:)
-  integer(i4b)                          :: displs(0:nNodes-1)    ! entry indices in receiving buffer (routedRunoff) at which to place the array from each proc
-  integer(i4b)                          :: displs_kw(0:nNodes-1) ! entry indices in receiving buffer (state arrays) at which to place the array from each proc
   integer(i4b)                          :: totWave(0:nNodes-1)
 
   ierr=0; message='mpi_scatter_kwt_state/'
@@ -638,9 +593,9 @@ contains
   ! Number of total reaches to be communicated
   nSeg = sum(nReach)
 
-  ! allocate nWave (number the same at all procs) and nWave_trib (number dependent on proc) at each proc
-  allocate(nWave(nSeg), nWave_trib(nReach(pid)), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating array for [nWave, nWave_trib]'; return; endif
+  ! allocate nWave (number the same at all procs) at each proc
+  allocate(nWave(nSeg), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating array for [nWave]'; return; endif
 
   if (pid==root) then
 
@@ -674,41 +629,24 @@ contains
     totWave(myid) = sum(nWave(ix1:ix2))
   enddo
 
-  ! Need to compute displacements
-  displs(0) = 0
-  do myid = 1, nNodes-1
-   displs(myid) = sum(nReach(0:myid-1))
-  end do
-
-  ! displacement of wave array
-  displs_kw(0) = 0
-  do myid = 1, nNodes-1
-   displs_kw(myid) = sum(totWave(0:myid-1))
-  end do
-
-  allocate(QF_trib(totWave(pid)),QM_trib(totWave(pid)),TI_trib(totWave(pid)),TR_trib(totWave(pid)),RF_trib(totWave(pid)), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating array for [QF_trib, QM_trib, TI_trib, TR_trib, RF_trib]'; return; endif
-
-  call MPI_SCATTERV(nWave,      nReach(0:nNodes-1), displs, MPI_INT,       &   ! number of wave from proc
-                    nWave_trib, nReach(pid),                MPI_INT, root, &   ! gathered number of wave at root node
-                    MPI_COMM_WORLD, ierr)
+  call shr_mpi_scatterV(nWave, nReach(0:nNodes-1), nWave_trib, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! Distribute modified KROUTE data to each process
-  call MPI_SCATTERV(QF,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, & ! flows from proc
-                    QF_trib, totWave(pid),        MPI_DOUBLE_PRECISION, root,      & ! gathered flows at root node
-                    MPI_COMM_WORLD, ierr)
-  call MPI_SCATTERV(QM,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, & ! flows from proc
-                    QM_trib, totWave(pid),        MPI_DOUBLE_PRECISION, root,      & ! gathered flows at root node
-                    MPI_COMM_WORLD, ierr)
-  call MPI_SCATTERV(TI,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, & ! flows from proc
-                    TI_trib, totWave(pid),        MPI_DOUBLE_PRECISION, root,      & ! gathered flows at root node
-                    MPI_COMM_WORLD, ierr)
-  call MPI_SCATTERV(TR,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, & ! flows from proc
-                    TR_trib, totWave(pid),        MPI_DOUBLE_PRECISION, root,      & ! gathered flows at root node
-                    MPI_COMM_WORLD, ierr)
-  call MPI_SCATTERV(RF,      totWave(0:nNodes-1), displs_kw, MPI_LOGICAL,          & ! flows from proc
-                    RF_trib, totWave(pid),        MPI_LOGICAL, root,               & ! gathered flows at root node
-                    MPI_COMM_WORLD, ierr)
+  call shr_mpi_scatterV(QF, totWave(0:nNodes-1), QF_trib, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  call shr_mpi_scatterV(QM, totWave(0:nNodes-1), QM_trib, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  call shr_mpi_scatterV(TI, totWave(0:nNodes-1), TI_trib, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  call shr_mpi_scatterV(TR, totWave(0:nNodes-1), TR_trib, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  call shr_mpi_scatterV(RF, totWave(0:nNodes-1), RF_trib, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! update KROUTE_trib data structure
   ixWave=1
@@ -811,6 +749,7 @@ contains
   end do
 
   ! collect arrays storing number of waves for each reach from each proc
+
   call MPI_GATHERV(nWave_trib, nReach(pid),                MPI_INT,       & ! number of wave from proc
                    nWave,      nReach(0:nNodes-1), displs, MPI_INT, root, & ! gathered number of wave at root node
                    MPI_COMM_WORLD, ierr)
