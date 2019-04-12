@@ -713,8 +713,6 @@ contains
   integer(i4b)                          :: ixWave
   integer(i4b), allocatable             :: nWave(:)
   integer(i4b), allocatable             :: nWave_trib(:)
-  integer(i4b)                          :: displs(0:nNodes-1)    ! entry indices in receiving buffer (routedRunoff) at which to place the array from each proc
-  integer(i4b)                          :: displs_kw(0:nNodes-1) ! entry indices in receiving buffer (state arrays) at which to place the array from each proc
   integer(i4b)                          :: totWave(0:nNodes-1)
 
   ierr=0; message='mpi_gather_kwt_state/'
@@ -723,8 +721,8 @@ contains
   nSeg = sum(nReach)
 
   ! allocate nWave (number the same at all procs) and nWave_trib (number dependent on proc) at each proc
-  allocate(nWave(nSeg), nWave_trib(nReach(pid)), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating array for [nWave, nWave_trib]'; return; endif
+  allocate(nWave_trib(nReach(pid)), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating array for [nWave_trib]'; return; endif
 
   ! extract only tributary reaches
   allocate(KROUTE0(1,nReach(pid)), stat=ierr)
@@ -741,22 +739,13 @@ contains
                        ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  totWave(pid) = sum(nWave_trib)
-
-  displs(0) = 0
-  do myid = 1, nNodes-1
-   displs(myid) = sum(nReach(0:myid-1))
-  end do
-
-  ! collect arrays storing number of waves for each reach from each proc
-
-  call MPI_GATHERV(nWave_trib, nReach(pid),                MPI_INT,       & ! number of wave from proc
-                   nWave,      nReach(0:nNodes-1), displs, MPI_INT, root, & ! gathered number of wave at root node
-                   MPI_COMM_WORLD, ierr)
+  call shr_mpi_gatherV(nWave_trib, nReach, nWave, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   call MPI_BCAST(nWave, nSeg, MPI_INT, root, MPI_COMM_WORLD, ierr)
 
   ! total waves in reaches in each proc
+!  totWave = sum(nWave_trib)
   ix2=0
   do myid = 0, nNodes-1
     ix1=ix2+1
@@ -764,31 +753,20 @@ contains
     totWave(myid) = sum(nWave(ix1:ix2))
   enddo
 
-  ! displacement of wave array
-  displs_kw(0) = 0
-  do myid = 1, nNodes-1
-   displs_kw(myid) = sum(totWave(0:myid-1))
-  end do
+  call shr_mpi_gatherV(QF_trib, totWave, QF, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! collect state arrays from each proc
-  allocate(QF(sum(totWave)), QM(sum(totWave)), TI(sum(totWave)), TR(sum(totWave)), RF(sum(totWave)), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating array for [QF,QM,TI,TR,RF]'; return; endif
-  ! Can GATHER all together for QF, QM, TI, TR
-  call MPI_GATHERV(QF_trib, totWave(pid),                   MPI_DOUBLE_PRECISION,       & ! flows from proc
-                   QF,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
-                   MPI_COMM_WORLD, ierr)
-  call MPI_GATHERV(QM_trib, totWave(pid),                   MPI_DOUBLE_PRECISION,       & ! flows from proc
-                   QM,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
-                   MPI_COMM_WORLD, ierr)
-  call MPI_GATHERV(TI_trib, totWave(pid),                   MPI_DOUBLE_PRECISION,       & ! flows from proc
-                   TI,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
-                   MPI_COMM_WORLD, ierr)
-  call MPI_GATHERV(TR_trib, totWave(pid),                   MPI_DOUBLE_PRECISION,       & ! flows from proc
-                   TR,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
-                   MPI_COMM_WORLD, ierr)
-  call MPI_GATHERV(RF_trib, totWave(pid),                   MPI_LOGICAL,                & ! flows from proc
-                   RF,      totWave(0:nNodes-1), displs_kw, MPI_LOGICAL, root,          & ! gathered flows at root node
-                   MPI_COMM_WORLD, ierr)
+  call shr_mpi_gatherV(QM_trib, totWave, QM, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  call shr_mpi_gatherV(TI_trib, totWave, TI, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  call shr_mpi_gatherV(TR_trib, totWave, TR, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  call shr_mpi_gatherV(RF_trib, totWave, RF, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! put it in global RCHFLX data structure
   if (pid==root) then
