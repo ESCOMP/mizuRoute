@@ -98,8 +98,8 @@ CONTAINS
     allocate(localArray(num_per_proc(pid)), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
 
-    call MPI_SCATTERV(globalArray, num_per_proc(0:nNodes-1), displs, MPI_INT,       & ! flows from proc
-                      localArray,  num_per_proc(pid),                MPI_INT, root, & ! scattered flows at root node
+    call MPI_SCATTERV(globalArray, num_per_proc(0:nNodes-1), displs, MPI_DOUBLE_PRECISION,       & ! flows from proc
+                      localArray,  num_per_proc(pid),                MPI_DOUBLE_PRECISION, root, & ! scattered flows at root node
                       MPI_COMM_WORLD, ierr)
 
   END SUBROUTINE shr_mpi_scatterRealV
@@ -133,8 +133,8 @@ CONTAINS
     allocate(localArray(num_per_proc(pid)), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
 
-    call MPI_SCATTERV(globalArray, num_per_proc(0:nNodes-1), displs, MPI_INT,       & ! flows from proc
-                      localArray,  num_per_proc(pid),                MPI_INT, root, & ! scattered flows at root node
+    call MPI_SCATTERV(globalArray, num_per_proc(0:nNodes-1), displs, MPI_LOGICAL,       & ! flows from proc
+                      localArray,  num_per_proc(pid),                MPI_LOGICAL, root, & ! scattered flows at root node
                       MPI_COMM_WORLD, ierr)
 
   END SUBROUTINE shr_mpi_scatterLogicalV
@@ -204,8 +204,8 @@ CONTAINS
     allocate(globalArray(sum(num_per_proc)), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
 
-    call MPI_GATHERV(localArray,  num_per_proc(pid),                MPI_INT,       & ! local array stuff
-                     globalArray, num_per_proc(0:nNodes-1), displs, MPI_INT, root, & ! global array stuff
+    call MPI_GATHERV(localArray,  num_per_proc(pid),                MPI_DOUBLE_PRECISION,       & ! local array stuff
+                     globalArray, num_per_proc(0:nNodes-1), displs, MPI_DOUBLE_PRECISION, root, & ! global array stuff
                      MPI_COMM_WORLD, ierr)
 
   END SUBROUTINE shr_mpi_gatherRealV
@@ -239,8 +239,8 @@ CONTAINS
     allocate(globalArray(sum(num_per_proc)), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
 
-    call MPI_GATHERV(localArray,  num_per_proc(pid),                MPI_INT,       & ! local array stuff
-                     globalArray, num_per_proc(0:nNodes-1), displs, MPI_INT, root, & ! global array stuff
+    call MPI_GATHERV(localArray,  num_per_proc(pid),                MPI_LOGICAL,       & ! local array stuff
+                     globalArray, num_per_proc(0:nNodes-1), displs, MPI_LOGICAL, root, & ! global array stuff
                      MPI_COMM_WORLD, ierr)
 
   END SUBROUTINE shr_mpi_gatherLogicalV
