@@ -2,7 +2,9 @@ MODULE mpi_routine
 
 USE mpi
 
+! numeric definition
 USE nrtype
+
 USE dataTypes,         ONLY: var_ilength   ! integer type:     var(:)%dat
 USE dataTypes,         ONLY: var_dlength   ! double precision type: var(:)%dat
 USE dataTypes,         ONLY: var_clength   ! character type:        var(:)%dat
@@ -13,6 +15,11 @@ USE var_lookup,        ONLY:ixSEG,    nVarsSEG     ! index of variables for the 
 USE var_lookup,        ONLY:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
 USE var_lookup,        ONLY:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
 USE var_lookup,        ONLY:ixPFAF,   nVarsPFAF    ! index of variables for the pfafstetter code
+
+! general utility
+USE nr_utility_module, ONLY: indexx               ! sorted index array
+USE nr_utility_module, ONLY: arth                 !
+USE nr_utility_module, ONLY: findIndex            ! find index within a vector
 
 implicit none
 
@@ -57,9 +64,6 @@ contains
   USE alloc_data,        ONLY: alloc_struct
   USE process_ntopo,     ONLY: augment_ntopo        ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,     ONLY: put_data_struct      !
-  USE nr_utility_module, ONLY: indexx               ! sorted index array
-  USE nr_utility_module, ONLY: arth                 !
-  USE nr_utility_module, ONLY: findIndex            ! find index within a vector
 
   implicit none
   ! Input variables
@@ -385,10 +389,6 @@ contains
   USE globalData, only : hru_per_proc     ! number of hrus assigned to each proc (i.e., node)
   USE globalData, only : rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
 
-  ! external subroutines:
-  ! general utility
-  USE nr_utility_module, ONLY: arth       !
-
   ! routing driver
   USE main_route_module, only: main_route ! routing driver
 
@@ -406,18 +406,18 @@ contains
   real(dp),     allocatable             :: basinRunoff_local(:)     ! basin runoff (m/s) for tributaries
   real(dp),     allocatable             :: routedRunoff_local(:,:)  ! tributary routed runoff (m/s) for each proc
   real(dp),     allocatable             :: routedRunoff(:,:)        ! tributary routed runoff (m/s) gathered from each proc
-  real(dp),     allocatable             :: QF(:), QF_trib(:)
-  real(dp),     allocatable             :: QM(:), QM_trib(:)
-  real(dp),     allocatable             :: TI(:), TI_trib(:)
-  real(dp),     allocatable             :: TR(:), TR_trib(:)
-  logical(lgt), allocatable             :: RF(:), RF_trib(:)
-  integer(i4b), allocatable             :: nWave(:), nWave_trib(:)
-  integer(i4b)                          :: ixWave
+!  real(dp),     allocatable             :: QF(:), QF_trib(:)
+!  real(dp),     allocatable             :: QM(:), QM_trib(:)
+!  real(dp),     allocatable             :: TI(:), TI_trib(:)
+!  real(dp),     allocatable             :: TR(:), TR_trib(:)
+!  logical(lgt), allocatable             :: RF(:), RF_trib(:)
+!  integer(i4b), allocatable             :: nWave(:), nWave_trib(:)
+!  integer(i4b)                          :: ixWave
   integer(i4b), allocatable             :: ixRchProcessed(:)        ! reach indice list to be processed
   integer(i4b)                          :: displs(0:nNodes-1)       ! entry indices in receiving buffer (routedRunoff) at which to place the array from each proc
-  integer(i4b)                          :: displs_kw(0:nNodes-1)    ! entry indices in receiving buffer (state arrays) at which to place the array from each proc
-  integer(i4b)                          :: totWave(0:nNodes-1)
-  integer(i4b)                          :: ix1, ix2
+!  integer(i4b)                          :: displs_kw(0:nNodes-1)    ! entry indices in receiving buffer (state arrays) at which to place the array from each proc
+!  integer(i4b)                          :: totWave(0:nNodes-1)
+!  integer(i4b)                          :: ix1, ix2
   integer(i4b)                          :: iHru, iSeg, myid         ! loop indices
   integer(i4b)                          :: nSegAllTrib              ! number of reaches from all tributaries
   integer(i4b)                          :: nSegTrib                 ! number of reaches from one tributary
@@ -543,82 +543,92 @@ contains
   ! KWT state communication
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
 
-    ! Transfer KWT state data structure to flat arrays
-    call kwt_struc2array(iens,KROUTE_trib,                        &
-                         QF_trib,QM_trib,TI_trib,TR_trib,RF_trib, &
-                         nWave_trib,                              &
-                         ierr, cmessage)
+!    ! Transfer KWT state data structure to flat arrays
+!    call kwt_struc2array(iens,KROUTE_trib,                        &
+!                         QF_trib,QM_trib,TI_trib,TR_trib,RF_trib, &
+!                         nWave_trib,                              &
+!                         ierr, cmessage)
+!    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+!    totWave(pid) = sum(nWave_trib)
+!
+!    ! collect arrays storing number of waves for each reach from each proc
+!    allocate(nWave(nSegAllTrib), stat=ierr)
+!    if(ierr/=0)then; message=trim(message)//'problem allocating array for [nWave]'; return; endif
+!    call MPI_GATHERV(nWave_trib, rch_per_proc(pid),                MPI_INT,       & ! number of wave from proc
+!                     nWave,      rch_per_proc(0:nNodes-1), displs, MPI_INT, root, & ! gathered number of wave at root node
+!                     MPI_COMM_WORLD, ierr)
+!    call MPI_BCAST(nWave, nSegAllTrib, MPI_INT, root, MPI_COMM_WORLD, ierr)
+!
+!    ! total waves in reaches in each proc
+!    ix2=0
+!    do myid = 0, nNodes-1
+!      ix1=ix2+1
+!      ix2=ix1+rch_per_proc(myid)-1
+!      totWave(myid) = sum(nWave(ix1:ix2))
+!    enddo
+!
+!    ! displacement of wave array
+!    displs_kw(0) = 0
+!    do myid = 1, nNodes-1
+!     displs_kw(myid) = sum(totWave(0:myid-1))
+!    end do
+!
+!    ! collect state arrays from each proc
+!    allocate(QF(sum(totWave)), QM(sum(totWave)), TI(sum(totWave)), TR(sum(totWave)), RF(sum(totWave)), stat=ierr)
+!    if(ierr/=0)then; message=trim(message)//'problem allocating array for [QF,QM,TI,TR,RF]'; return; endif
+!    ! Can GATHER all together for QF, QM, TI, TR
+!    call MPI_GATHERV(QF_trib, totWave(pid),                   MPI_DOUBLE_PRECISION,       & ! flows from proc
+!                     QF,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
+!                     MPI_COMM_WORLD, ierr)
+!    call MPI_GATHERV(QM_trib, totWave(pid),                   MPI_DOUBLE_PRECISION,       & ! flows from proc
+!                     QM,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
+!                     MPI_COMM_WORLD, ierr)
+!    call MPI_GATHERV(TI_trib, totWave(pid),                   MPI_DOUBLE_PRECISION,       & ! flows from proc
+!                     TI,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
+!                     MPI_COMM_WORLD, ierr)
+!    call MPI_GATHERV(TR_trib, totWave(pid),                   MPI_DOUBLE_PRECISION,       & ! flows from proc
+!                     TR,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
+!                     MPI_COMM_WORLD, ierr)
+!    call MPI_GATHERV(RF_trib, totWave(pid),                   MPI_LOGICAL,                & ! flows from proc
+!                     RF,      totWave(0:nNodes-1), displs_kw, MPI_LOGICAL, root,          & ! gathered flows at root node
+!                     MPI_COMM_WORLD, ierr)
+!
+!    ! clear tribuary state arrays for all procs
+!    deallocate(QF_trib, QM_trib, TI_trib, TR_trib, RF_trib, stat=ierr)
+!    if(ierr/=0)then; message=trim(message)//'problem de-allocating array for [QF_trib,QM_trib,TI_trib,TR_trib,RF_trib]'; return; endif
+!
+!    ! put it in global RCHFLX data structure
+!    if (pid==root) then
+!      ixWave=1
+!      do iSeg =1,nSegAllTrib ! Loop through tributary reaches
+!        associate(iRch => ixRch_order(rch_per_proc(-1)+iSeg)) ! the first "rch_per_proc(-1)" reaches are mainstems
+!        ! states
+!        if (allocated(KROUTE(iens,iRch)%KWAVE)) then
+!          deallocate(KROUTE(iens,iRch)%KWAVE, stat=ierr)
+!        endif
+!        allocate(KROUTE(iens,iRch)%KWAVE(0:nWave(iSeg)-1),stat=ierr)
+!        if(ierr/=0)then; message=trim(message)//'problem allocating array for [KROUTE_out(iens,iRch)%KWAVE]'; return; endif
+!        KROUTE(iens,iRch)%KWAVE(0:nWave(iSeg)-1)%QF = QF(ixWave:ixWave+nWave(iSeg)-1)
+!        KROUTE(iens,iRch)%KWAVE(0:nWave(iSeg)-1)%QM = QM(ixWave:ixWave+nWave(iSeg)-1)
+!        KROUTE(iens,iRch)%KWAVE(0:nWave(iSeg)-1)%TI = TI(ixWave:ixWave+nWave(iSeg)-1)
+!        KROUTE(iens,iRch)%KWAVE(0:nWave(iSeg)-1)%TR = TR(ixWave:ixWave+nWave(iSeg)-1)
+!        KROUTE(iens,iRch)%KWAVE(0:nWave(iSeg)-1)%RF = RF(ixWave:ixWave+nWave(iSeg)-1)
+!        end associate
+!        ixWave=ixWave+nWave(iSeg) !update 1st idex of array
+!      end do
+!      deallocate(QF, QM, TI, TR, RF, stat=ierr)
+!      if(ierr/=0)then; message=trim(message)//'problem allocating array for [QF,QM,TI,TR,RF]'; return; endif
+!    endif
+
+    call mpi_gather_kwt_state(pid,          &
+                              nNodes,       &
+                              iens,         &
+                              rch_per_proc(root:nNodes-1),              &
+                              ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                              arth(1,1,rch_per_proc(pid)),       &
+                              ierr, message)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    totWave(pid) = sum(nWave_trib)
 
-    ! collect arrays storing number of waves for each reach from each proc
-    allocate(nWave(nSegAllTrib), stat=ierr)
-    if(ierr/=0)then; message=trim(message)//'problem allocating array for [nWave]'; return; endif
-    call MPI_GATHERV(nWave_trib, rch_per_proc(pid),                MPI_INT,       & ! number of wave from proc
-                     nWave,      rch_per_proc(0:nNodes-1), displs, MPI_INT, root, & ! gathered number of wave at root node
-                     MPI_COMM_WORLD, ierr)
-    call MPI_BCAST(nWave, nSegAllTrib, MPI_INT, root, MPI_COMM_WORLD, ierr)
-
-    ! total waves in reaches in each proc
-    ix2=0
-    do myid = 0, nNodes-1
-      ix1=ix2+1
-      ix2=ix1+rch_per_proc(myid)-1
-      totWave(myid) = sum(nWave(ix1:ix2))
-    enddo
-
-    ! displacement of wave array
-    displs_kw(0) = 0
-    do myid = 1, nNodes-1
-     displs_kw(myid) = sum(totWave(0:myid-1))
-    end do
-
-    ! collect state arrays from each proc
-    allocate(QF(sum(totWave)), QM(sum(totWave)), TI(sum(totWave)), TR(sum(totWave)), RF(sum(totWave)), stat=ierr)
-    if(ierr/=0)then; message=trim(message)//'problem allocating array for [QF,QM,TI,TR,RF]'; return; endif
-    ! Can GATHER all together for QF, QM, TI, TR
-    call MPI_GATHERV(QF_trib, totWave(pid),                   MPI_DOUBLE_PRECISION,       & ! flows from proc
-                     QF,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
-                     MPI_COMM_WORLD, ierr)
-    call MPI_GATHERV(QM_trib, totWave(pid),                   MPI_DOUBLE_PRECISION,       & ! flows from proc
-                     QM,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
-                     MPI_COMM_WORLD, ierr)
-    call MPI_GATHERV(TI_trib, totWave(pid),                   MPI_DOUBLE_PRECISION,       & ! flows from proc
-                     TI,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
-                     MPI_COMM_WORLD, ierr)
-    call MPI_GATHERV(TR_trib, totWave(pid),                   MPI_DOUBLE_PRECISION,       & ! flows from proc
-                     TR,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
-                     MPI_COMM_WORLD, ierr)
-    call MPI_GATHERV(RF_trib, totWave(pid),                   MPI_LOGICAL,                & ! flows from proc
-                     RF,      totWave(0:nNodes-1), displs_kw, MPI_LOGICAL, root,          & ! gathered flows at root node
-                     MPI_COMM_WORLD, ierr)
-
-    ! clear tribuary state arrays for all procs
-    deallocate(QF_trib, QM_trib, TI_trib, TR_trib, RF_trib, stat=ierr)
-    if(ierr/=0)then; message=trim(message)//'problem de-allocating array for [QF_trib,QM_trib,TI_trib,TR_trib,RF_trib]'; return; endif
-
-    ! put it in global RCHFLX data structure
-    if (pid==root) then
-      ixWave=1
-      do iSeg =1,nSegAllTrib ! Loop through tributary reaches
-        associate(iRch => ixRch_order(rch_per_proc(-1)+iSeg)) ! the first "rch_per_proc(-1)" reaches are mainstems
-        ! states
-        if (allocated(KROUTE(iens,iRch)%KWAVE)) then
-          deallocate(KROUTE(iens,iRch)%KWAVE, stat=ierr)
-        endif
-        allocate(KROUTE(iens,iRch)%KWAVE(0:nWave(iSeg)-1),stat=ierr)
-        if(ierr/=0)then; message=trim(message)//'problem allocating array for [KROUTE_out(iens,iRch)%KWAVE]'; return; endif
-        KROUTE(iens,iRch)%KWAVE(0:nWave(iSeg)-1)%QF = QF(ixWave:ixWave+nWave(iSeg)-1)
-        KROUTE(iens,iRch)%KWAVE(0:nWave(iSeg)-1)%QM = QM(ixWave:ixWave+nWave(iSeg)-1)
-        KROUTE(iens,iRch)%KWAVE(0:nWave(iSeg)-1)%TI = TI(ixWave:ixWave+nWave(iSeg)-1)
-        KROUTE(iens,iRch)%KWAVE(0:nWave(iSeg)-1)%TR = TR(ixWave:ixWave+nWave(iSeg)-1)
-        KROUTE(iens,iRch)%KWAVE(0:nWave(iSeg)-1)%RF = RF(ixWave:ixWave+nWave(iSeg)-1)
-        end associate
-        ixWave=ixWave+nWave(iSeg) !update 1st idex of array
-      end do
-      deallocate(QF, QM, TI, TR, RF, stat=ierr)
-      if(ierr/=0)then; message=trim(message)//'problem allocating array for [QF,QM,TI,TR,RF]'; return; endif
-    endif
   endif
 
   ! make sure that routing at all the procs finished
@@ -650,18 +660,16 @@ contains
     ! Define processing reach indices
     ixRchProcessed = ixRch_order(1:nSegMain)
 
-    call main_route(iens,                    &  ! ensemble index
-                    runoff_data%basinRunoff, &  ! basin (i.e.,HRU) runoff (m/s)
-                    ixRchProcessed,          &  ! indices of reach to be routed
-                    river_basin,             &  ! OMP basin decomposition
-                    mainstem,                &  ! basinType (1-> tributary, 2->mainstem)
-                    NETOPO,                  &  ! reach topology data structure
-                    RPARAM,                  &  ! reach parameter data structure
-                    ! inout
-                    RCHFLX,                  &  ! reach flux data structure
-                    KROUTE,                  &  ! reach state data structure
-                    ! output: error handling
-                    ierr, message)     ! output: error control
+    call main_route(iens,                    &  ! input: ensemble index
+                    runoff_data%basinRunoff, &  ! input: basin (i.e.,HRU) runoff (m/s)
+                    ixRchProcessed,          &  ! input: indices of reach to be routed
+                    river_basin,             &  ! input: OMP basin decomposition
+                    mainstem,                &  ! input: basinType (1-> tributary, 2->mainstem)
+                    NETOPO,                  &  ! input: reach topology data structure
+                    RPARAM,                  &  ! input: reach parameter data structure
+                    RCHFLX,                  &  ! inout: reach flux data structure
+                    KROUTE,                  &  ! inout: reach state data structure
+                    ierr, message)              ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   endif ! end of root proc
@@ -674,13 +682,14 @@ contains
   ! --------------------------------
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
 
-   call mpi_comm_kwt_state(pid,                               &
-                           nNodes,                            &
-                           iens,                              &
-                           rch_per_proc(root:nNodes-1),       &
+   call mpi_scatter_kwt_state(pid,                                      &
+                           nNodes,                                   &
+                           iens,                                     &
+                           rch_per_proc(root:nNodes-1),              &
                            ixRch_order(rch_per_proc(root-1)+1:nRch), &
                            arth(1,1,rch_per_proc(pid)),       &
                            ierr, message)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  endif ! end of kwt option
 
@@ -689,7 +698,8 @@ contains
  ! *********************************************************************
  ! subroutine: kinematic wave state distribution
  ! *********************************************************************
- subroutine mpi_comm_kwt_state(pid,          &
+ ! scatter KWT states at selected reaches in KROUTE (main proc) to KROUTE_trib (other procs)
+ subroutine mpi_scatter_kwt_state(pid,          &
                                nNodes,       &
                                iens,         &
                                nReach,       &
@@ -731,9 +741,11 @@ contains
   integer(i4b)                          :: displs_kw(0:nNodes-1) ! entry indices in receiving buffer (state arrays) at which to place the array from each proc
   integer(i4b)                          :: totWave(0:nNodes-1)
 
-  ! scatter KWT states at selected reaches in KROUTE (main proc) to KROUTE_trib (other procs)
+  ierr=0; message='mpi_scatter_kwt_state/'
 
+  ! Number of total reaches to be communicated
   nSeg = sum(nReach)
+
   ! allocate nWave (number the same at all procs) and nWave_trib (number dependent on proc) at each proc
   allocate(nWave(nSeg), nWave_trib(nReach(pid)), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating array for [nWave, nWave_trib]'; return; endif
@@ -830,7 +842,148 @@ contains
 
   end do
 
- end subroutine mpi_comm_kwt_state
+ end subroutine mpi_scatter_kwt_state
+
+
+ subroutine mpi_gather_kwt_state(pid,          &
+                                 nNodes,       &
+                                 iens,         &
+                                 nReach,       &
+                                 rchIdxGlobal, &
+                                 rchIdxLocal,  &
+                                 ierr, message)
+
+  USE dataTypes,        ONLY: KREACH                             ! derived data type
+  USE public_var,       ONLY: root
+  USE globalData,       ONLY: KROUTE                             ! entire river reach kwt sate structure
+  USE globalData,       ONLY: KROUTE_trib                        ! Reach k-wave data structures (entire river network and tributary only)
+
+  ! input variables
+  integer(i4b),             intent(in)  :: pid                   ! process id (MPI)
+  integer(i4b),             intent(in)  :: nNodes                ! number of processes (MPI)
+  integer(i4b),             intent(in)  :: iens                  ! ensemble index
+  integer(i4b),             intent(in)  :: nReach(0:nNodes-1)    ! number of reaches communicate per node (dimension size == number of proc)
+  integer(i4b),             intent(in)  :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
+  integer(i4b),             intent(in)  :: rchIdxLocal(:)        ! reach indices (w.r.t. local) (dimension size depends on procs )
+  ! output variables
+  integer(i4b),             intent(out) :: ierr                  ! error code
+  character(len=strLen),    intent(out) :: message               ! error message
+  ! local variables
+  character(len=strLen)                 :: cmessage              ! error message from a subroutine
+  type(KREACH), allocatable             :: KROUTE0(:,:)          ! temp KROUTE data structure to hold updated states
+  real(dp),     allocatable             :: QF(:),QF_trib(:)
+  real(dp),     allocatable             :: QM(:),QM_trib(:)
+  real(dp),     allocatable             :: TI(:),TI_trib(:)
+  real(dp),     allocatable             :: TR(:),TR_trib(:)
+  logical(lgt), allocatable             :: RF(:),RF_trib(:)
+  integer(i4b)                          :: ix1, ix2
+  integer(i4b)                          :: myid
+  integer(i4b)                          :: nSeg                  ! number of reaches
+  integer(i4b)                          :: iSeg, jSeg
+  integer(i4b)                          :: ixWave
+  integer(i4b), allocatable             :: nWave(:)
+  integer(i4b), allocatable             :: nWave_trib(:)
+  integer(i4b)                          :: displs(0:nNodes-1)    ! entry indices in receiving buffer (routedRunoff) at which to place the array from each proc
+  integer(i4b)                          :: displs_kw(0:nNodes-1) ! entry indices in receiving buffer (state arrays) at which to place the array from each proc
+  integer(i4b)                          :: totWave(0:nNodes-1)
+
+  ierr=0; message='mpi_gather_kwt_state/'
+
+  ! Number of total reaches to be communicated
+  nSeg = sum(nReach)
+
+  ! allocate nWave (number the same at all procs) and nWave_trib (number dependent on proc) at each proc
+  allocate(nWave(nSeg), nWave_trib(nReach(pid)), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating array for [nWave, nWave_trib]'; return; endif
+
+  ! extract only tributary reaches
+  allocate(KROUTE0(1,nReach(pid)), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating array for [KROUTE0]'; return; endif
+  do iSeg =1,nReach(pid)  ! Loop through tributary reaches
+    jSeg = rchIdxLocal(iSeg)
+    KROUTE0(1, iSeg) = KROUTE_trib(iens,jSeg)
+  enddo
+
+  ! Transfer KWT state data structure to flat arrays
+  call kwt_struc2array(iens,KROUTE0,                            &
+                       QF_trib,QM_trib,TI_trib,TR_trib,RF_trib, &
+                       nWave_trib,                              &
+                       ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  totWave(pid) = sum(nWave_trib)
+
+  displs(0) = 0
+  do myid = 1, nNodes-1
+   displs(myid) = sum(nReach(0:myid-1))
+  end do
+
+  ! collect arrays storing number of waves for each reach from each proc
+  call MPI_GATHERV(nWave_trib, nReach(pid),                MPI_INT,       & ! number of wave from proc
+                   nWave,      nReach(0:nNodes-1), displs, MPI_INT, root, & ! gathered number of wave at root node
+                   MPI_COMM_WORLD, ierr)
+
+  call MPI_BCAST(nWave, nSeg, MPI_INT, root, MPI_COMM_WORLD, ierr)
+
+  ! total waves in reaches in each proc
+  ix2=0
+  do myid = 0, nNodes-1
+    ix1=ix2+1
+    ix2=ix1+nReach(myid)-1
+    totWave(myid) = sum(nWave(ix1:ix2))
+  enddo
+
+  ! displacement of wave array
+  displs_kw(0) = 0
+  do myid = 1, nNodes-1
+   displs_kw(myid) = sum(totWave(0:myid-1))
+  end do
+
+  ! collect state arrays from each proc
+  allocate(QF(sum(totWave)), QM(sum(totWave)), TI(sum(totWave)), TR(sum(totWave)), RF(sum(totWave)), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating array for [QF,QM,TI,TR,RF]'; return; endif
+  ! Can GATHER all together for QF, QM, TI, TR
+  call MPI_GATHERV(QF_trib, totWave(pid),                   MPI_DOUBLE_PRECISION,       & ! flows from proc
+                   QF,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
+                   MPI_COMM_WORLD, ierr)
+  call MPI_GATHERV(QM_trib, totWave(pid),                   MPI_DOUBLE_PRECISION,       & ! flows from proc
+                   QM,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
+                   MPI_COMM_WORLD, ierr)
+  call MPI_GATHERV(TI_trib, totWave(pid),                   MPI_DOUBLE_PRECISION,       & ! flows from proc
+                   TI,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
+                   MPI_COMM_WORLD, ierr)
+  call MPI_GATHERV(TR_trib, totWave(pid),                   MPI_DOUBLE_PRECISION,       & ! flows from proc
+                   TR,      totWave(0:nNodes-1), displs_kw, MPI_DOUBLE_PRECISION, root, & ! gathered flows at root node
+                   MPI_COMM_WORLD, ierr)
+  call MPI_GATHERV(RF_trib, totWave(pid),                   MPI_LOGICAL,                & ! flows from proc
+                   RF,      totWave(0:nNodes-1), displs_kw, MPI_LOGICAL, root,          & ! gathered flows at root node
+                   MPI_COMM_WORLD, ierr)
+
+  ! put it in global RCHFLX data structure
+  if (pid==root) then
+    ixWave=1
+    do iSeg =1,nSeg ! Loop through all the reaches involved into communication
+
+      jSeg = rchIdxGlobal(iSeg)
+
+      if (allocated(KROUTE(iens,jSeg)%KWAVE)) then
+        deallocate(KROUTE(iens,jSeg)%KWAVE, stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem de-allocating array for [KROUTE(iens,jSeg)%KWAVE]'; return; endif
+      endif
+
+      allocate(KROUTE(iens,jSeg)%KWAVE(0:nWave(iSeg)-1),stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem allocating array for [KROUTE_out(iens,iRch)%KWAVE]'; return; endif
+
+      KROUTE(iens,jSeg)%KWAVE(0:nWave(iSeg)-1)%QF = QF(ixWave:ixWave+nWave(iSeg)-1)
+      KROUTE(iens,jSeg)%KWAVE(0:nWave(iSeg)-1)%QM = QM(ixWave:ixWave+nWave(iSeg)-1)
+      KROUTE(iens,jSeg)%KWAVE(0:nWave(iSeg)-1)%TI = TI(ixWave:ixWave+nWave(iSeg)-1)
+      KROUTE(iens,jSeg)%KWAVE(0:nWave(iSeg)-1)%TR = TR(ixWave:ixWave+nWave(iSeg)-1)
+      KROUTE(iens,jSeg)%KWAVE(0:nWave(iSeg)-1)%RF = RF(ixWave:ixWave+nWave(iSeg)-1)
+      ixWave=ixWave+nWave(iSeg) !update 1st idex of array
+    end do
+  endif
+
+ end subroutine mpi_gather_kwt_state
 
 
  ! *********************************************************************
