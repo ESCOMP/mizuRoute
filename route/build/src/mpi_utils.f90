@@ -10,6 +10,8 @@ Module mpi_mod
   implicit none
   private
 
+  public :: shr_mpi_gatherV
+  public :: shr_mpi_scatterV
   public :: shr_mpi_chkerr
   public :: shr_mpi_commsize
   public :: shr_mpi_commrank
@@ -18,7 +20,231 @@ Module mpi_mod
   public :: shr_mpi_init
   public :: shr_mpi_finalize
 
+  interface shr_mpi_scatterV ; module procedure &
+    shr_mpi_scatterIntV,    &
+    shr_mpi_scatterRealV,   &
+    shr_mpi_scatterLogicalV
+  end interface
+
+  interface shr_mpi_gatherV ; module procedure &
+    shr_mpi_gatherIntV,    &
+    shr_mpi_gatherRealV,   &
+    shr_mpi_gatherLogicalV
+  end interface
+
 CONTAINS
+
+  ! ----------------------------------
+  ! 1D integer array scatter
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_scatterIntV(globalArray, num_per_proc, & ! input
+                                localArray, ierr, message)   ! output
+    USE globalData,  ONLY: pid, nNodes
+    USE public_var,  ONLY: root
+    implicit none
+    ! Input
+    integer(i4b),              intent(in)  :: globalArray(:)            ! input: global array at root proc
+    integer(i4b),              intent(in)  :: num_per_proc(0:nNodes-1)  ! input: number of elements per proc
+    integer(i4b), allocatable, intent(out) :: localArray(:)             ! output: scattered array for each proc
+    ! Output error handling variables
+    integer(i4b),              intent(out) :: ierr
+    character(strLen),         intent(out) :: message                   ! error message
+    ! local variable
+    integer(i4b)                           :: displs(0:nNodes-1)
+    integer(i4b)                           :: myid
+
+    ierr=0; message='shr_mpi_scatterIntV/'
+
+    displs(0) = 0
+    do myid = 1, nNodes-1
+     displs(myid) = sum(num_per_proc(0:myid-1))
+    end do
+
+    allocate(localArray(num_per_proc(pid)), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
+
+    call MPI_SCATTERV(globalArray, num_per_proc(0:nNodes-1), displs, MPI_INT,       & ! flows from proc
+                      localArray,  num_per_proc(pid),                MPI_INT, root, & ! scattered flows at root node
+                      MPI_COMM_WORLD, ierr)
+
+  END SUBROUTINE shr_mpi_scatterIntV
+
+  ! ----------------------------------
+  ! 1D double precision array scatter
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_scatterRealV(globalArray, num_per_proc, & ! input
+                                 localArray, ierr, message)   ! output
+    USE globalData,  ONLY: pid, nNodes
+    USE public_var,  ONLY: root
+    implicit none
+    ! Input
+    real(dp),              intent(in)  :: globalArray(:)            ! input: global array at root proc
+    integer(i4b),          intent(in)  :: num_per_proc(0:nNodes-1)  ! input: number of elements per proc
+    real(dp), allocatable, intent(out) :: localArray(:)             ! output: scattered array for each proc
+    ! Output error handling variables
+    integer(i4b),          intent(out) :: ierr
+    character(strLen),     intent(out) :: message                   ! error message
+    ! local variable
+    integer(i4b)                       :: displs(0:nNodes-1)
+    integer(i4b)                       :: myid
+
+    ierr=0; message='shr_mpi_scatterRealV/'
+
+    displs(0) = 0
+    do myid = 1, nNodes-1
+     displs(myid) = sum(num_per_proc(0:myid-1))
+    end do
+
+    allocate(localArray(num_per_proc(pid)), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
+
+    call MPI_SCATTERV(globalArray, num_per_proc(0:nNodes-1), displs, MPI_INT,       & ! flows from proc
+                      localArray,  num_per_proc(pid),                MPI_INT, root, & ! scattered flows at root node
+                      MPI_COMM_WORLD, ierr)
+
+  END SUBROUTINE shr_mpi_scatterRealV
+
+  ! ----------------------------------
+  ! SCATTER - 1D logical array
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_scatterLogicalV(globalArray, num_per_proc, & ! input
+                                     localArray, ierr, message)   ! output
+    USE globalData,  ONLY: pid, nNodes
+    USE public_var,  ONLY: root
+    implicit none
+    ! Input
+    logical(lgt),              intent(in)  :: globalArray(:)            ! input: global array at root proc
+    integer(i4b),              intent(in)  :: num_per_proc(0:nNodes-1)  ! input: number of elements per proc
+    logical(lgt), allocatable, intent(out) :: localArray(:)             ! output: scattered array for each proc
+    ! Output error handling variables
+    integer(i4b),              intent(out) :: ierr
+    character(strLen),         intent(out) :: message                   ! error message
+    ! local variable
+    integer(i4b)                           :: displs(0:nNodes-1)
+    integer(i4b)                           :: myid
+
+    ierr=0; message='shr_mpi_scatterLogicalV/'
+
+    displs(0) = 0
+    do myid = 1, nNodes-1
+     displs(myid) = sum(num_per_proc(0:myid-1))
+    end do
+
+    allocate(localArray(num_per_proc(pid)), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
+
+    call MPI_SCATTERV(globalArray, num_per_proc(0:nNodes-1), displs, MPI_INT,       & ! flows from proc
+                      localArray,  num_per_proc(pid),                MPI_INT, root, & ! scattered flows at root node
+                      MPI_COMM_WORLD, ierr)
+
+  END SUBROUTINE shr_mpi_scatterLogicalV
+
+
+  ! ----------------------------------
+  ! GATHER - 1D integer array
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_gatherIntV(localArray, num_per_proc, & ! input
+                                globalArray, ierr, message) ! output
+    USE globalData,  ONLY: pid, nNodes
+    USE public_var,  ONLY: root
+    implicit none
+    ! Input
+    integer(i4b),              intent(in)  :: localArray(:)             ! local array at each proc
+    integer(i4b),              intent(in)  :: num_per_proc(0:nNodes-1)  ! number of elements per proc (i.e., size of localArray)
+    ! Output
+    integer(i4b), allocatable, intent(out) :: globalArray(:)            ! gathered  array at root proc
+    integer(i4b),              intent(out) :: ierr
+    character(strLen),         intent(out) :: message                   ! error message
+    ! local variable
+    integer(i4b)                           :: displs(0:nNodes-1)
+    integer(i4b)                           :: myid
+
+    ierr=0; message='shr_mpi_gatherIntV/'
+
+    displs(0) = 0
+    do myid = 1, nNodes-1
+     displs(myid) = sum(num_per_proc(0:myid-1))
+    end do
+
+    allocate(globalArray(sum(num_per_proc)), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
+
+    call MPI_GATHERV(localArray,  num_per_proc(pid),                MPI_INT,       & ! local array stuff
+                     globalArray, num_per_proc(0:nNodes-1), displs, MPI_INT, root, & ! global array stuff
+                     MPI_COMM_WORLD, ierr)
+
+  END SUBROUTINE shr_mpi_gatherIntV
+
+  ! ----------------------------------
+  ! GATHER - 1D real8 array
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_gatherRealV(localArray, num_per_proc,  & ! input
+                                 globalArray, ierr, message)  ! output
+    USE globalData,  ONLY: pid, nNodes
+    USE public_var,  ONLY: root
+    implicit none
+    ! Input
+    real(dp),              intent(in)  :: localArray(:)             ! local array at each proc
+    integer(i4b),          intent(in)  :: num_per_proc(0:nNodes-1)  ! number of elements per proc (i.e., size of localArray)
+    ! Output
+    real(dp), allocatable, intent(out) :: globalArray(:)            ! gathered  array at root proc
+    integer(i4b),          intent(out) :: ierr
+    character(strLen),     intent(out) :: message                   ! error message
+    ! local variable
+    integer(i4b)                       :: displs(0:nNodes-1)
+    integer(i4b)                       :: myid
+
+    ierr=0; message='shr_mpi_gatherRealV/'
+
+    displs(0) = 0
+    do myid = 1, nNodes-1
+     displs(myid) = sum(num_per_proc(0:myid-1))
+    end do
+
+    allocate(globalArray(sum(num_per_proc)), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
+
+    call MPI_GATHERV(localArray,  num_per_proc(pid),                MPI_INT,       & ! local array stuff
+                     globalArray, num_per_proc(0:nNodes-1), displs, MPI_INT, root, & ! global array stuff
+                     MPI_COMM_WORLD, ierr)
+
+  END SUBROUTINE shr_mpi_gatherRealV
+
+  ! ----------------------------------
+  ! GATHER - 1D logical array
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_gatherLogicalV(localArray, num_per_proc,  & ! input
+                                    globalArray, ierr, message)  ! output
+    USE globalData,  ONLY: pid, nNodes
+    USE public_var,  ONLY: root
+    implicit none
+    ! Input
+    logical(lgt),              intent(in)  :: localArray(:)             ! local array at each proc
+    integer(i4b),              intent(in)  :: num_per_proc(0:nNodes-1)  ! number of elements per proc (i.e., size of localArray)
+    ! Output
+    logical(lgt), allocatable, intent(out) :: globalArray(:)            ! gathered  array at root proc
+    integer(i4b),              intent(out) :: ierr
+    character(strLen),         intent(out) :: message                   ! error message
+    ! local variable
+    integer(i4b)                           :: displs(0:nNodes-1)
+    integer(i4b)                           :: myid
+
+    ierr=0; message='shr_mpi_gatherLogicalV/'
+
+    displs(0) = 0
+    do myid = 1, nNodes-1
+     displs(myid) = sum(num_per_proc(0:myid-1))
+    end do
+
+    allocate(globalArray(sum(num_per_proc)), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
+
+    call MPI_GATHERV(localArray,  num_per_proc(pid),                MPI_INT,       & ! local array stuff
+                     globalArray, num_per_proc(0:nNodes-1), displs, MPI_INT, root, & ! global array stuff
+                     MPI_COMM_WORLD, ierr)
+
+  END SUBROUTINE shr_mpi_gatherLogicalV
+
 
   SUBROUTINE shr_mpi_chkerr(rcode,string)
 
