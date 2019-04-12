@@ -52,7 +52,7 @@ contains
    !   domain(:)%pfaf         : basin pfaf code
    !   domain(:)%segIndex(:)  : segment index within a basin
    !   domain(:)%hruIndex(:)  : hru indix within a basin
-   !   domain(:)%isTrib       : T if a basin is a tributary, F if a basin is a mainstem
+   !   domain(:)%basinType    : basinTypeIndex: 0-> unclassified, 1 -> tributary, 2-> inter-basin, 3-> headwater, 4-> whole basin
    !   domain(:)%idNode       : proc id (-1 through nNode-1) -1 is for mainstem but use pid=0
 
    ! updated and saved data
@@ -319,7 +319,6 @@ contains
     if (domains(ixx)%pfaf(1:1)/='-') then
      nSmallTrib = nSmallTrib + nSubSeg(ixx)
      domains(ixx)%idNode = 0
-     domains(ixx)%isTrib = .true.
      isAssigned(ixx) = .true.
      if(nSmallTrib > nEven) exit
     endif
@@ -332,13 +331,11 @@ contains
     if (.not. isAssigned(ixx)) then
      if (domains(ixx)%pfaf(1:1)=='-') then   ! if domain is mainstem
       domains(ixx)%idNode = -1               ! put -1 for temporarily but mainstem is handled in root proc (idNode = 0)
-      domains(ixx)%isTrib = .false.
       isAssigned(ixx) = .true.
      elseif (domains(ixx)%pfaf(1:1)/='-') then ! if domain is tributary
       ixNode = minloc(nWork)
       nWork(ixNode(1)) = nWork(ixNode(1))+size(domains(ixx)%segIndex)
       domains(ixx)%idNode = ixNode(1)
-      domains(ixx)%isTrib = .true.
       isAssigned(ixx) = .true.
      endif
     endif
@@ -571,47 +568,55 @@ contains
    ! NOTE: 9 is main stem (isInterbasin==.true.) but is also a headwater
    if (isInterbasin .and. (.not. isHeadwater)) then  ! if a river reach is in inter-basin and not headwater
 
-     ! 1. Populate mainstem segments
-     nDomain = nDomain + 1
-     ! record the code for mainstem
-     domains(nDomain)%pfaf = '-'//trim(pfafCode)
+     ! 1. Populate mainstem segments (basinType == 2)
      ! get mainstem reaches (isMainstem(nSeg) logical array)
      call find_mainstems(pfafCode, pfafs, isMainstem, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
      ! Count mainstem reaches and allocate for segIndex array
      nMainstem = count(isMainstem)
-     allocate(domains(nDomain)%segIndex(nMainstem), stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating [domains(nDomain)%segIndex]'; return; endif
+
      ! Identify mainstem reach indices based on the basin reaches
      allocate(ixSubset(nMainstem), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating [ixSubset]'; return; endif
      ixSubset = pack(arth(1,1,nSeg),isMainstem)
+
+     ! populate domains data structure
+     nDomain = nDomain + 1
+     allocate(domains(nDomain)%segIndex(nMainstem), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating [domains(nDomain)%segIndex]'; return; endif
+     domains(nDomain)%pfaf = '-'//trim(pfafCode)
      domains(nDomain)%segIndex = segIndex(ixSubset)
+     domains(nDomain)%basinType = 2
+
      deallocate(ixSubset, stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem deallocating [ixSubset]'; return; endif
 
-     ! 2. Populate tributary segments
+     ! 2. Populate tributary segments (basinType == 1)
      ! Get logical array indicating tributary outlet segments (size = nSeg)
-     isMainstem2d = spread(isMainstem,2,1)
+     isMainstem2d = spread(isMainstem,2,1)  ! size: [nSeg x 2]
      call lgc_tributary_outlet(isMainstem2d, downIndex, isTribOutlet, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
      ! Get indices of tributary outlet segments (size = number of tributaries)
      nTrib = count(isTribOutlet)
+
      ! idenfity tributary outlet reaches
      allocate(ixSubset(nTrib), trib_outlet_pfafs(nTrib), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating [ixSubset, trib_outlet_pfafs]'; return; endif
      ixSubset = pack(arth(1,1,nSeg),isTribOutlet)
      trib_outlet_pfafs = pfafs(ixSubset)
+
      deallocate(ixSubset, stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem deallocating [ixSubset]'; return; endif
+
      ! loop through each tributary to identify 1) tributary code (== mainstem code in tributary)
      !                                         2) reaches in tributary
      allocate(isTrib(nSeg), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating [isTrib]'; return; endif
+
      do iTrib = 1,nTrib
-       nDomain = nDomain + 1
        mainCode = mainstem_code(trim(trib_outlet_pfafs(iTrib)))
-       domains(nDomain)%pfaf = mainCode
 
        isTrib(1:nSeg) = .false.
        do iSeg=1,nSeg
@@ -623,21 +628,32 @@ contains
        enddo
 
        nUpSegs = count(isTrib)
-       allocate(ixSubset(nUpSegs), domains(nDomain)%segIndex(nUpSegs), stat=ierr)
-       if(ierr/=0)then; message=trim(message)//'problem allocating [ixSubset, domains(nDomain)%segIndex]'; return; endif
+       allocate(ixSubset(nUpSegs), stat=ierr)
+       if(ierr/=0)then; message=trim(message)//'problem allocating [ixSubset]'; return; endif
        ixSubset = pack(arth(1,1,nSeg),isTrib)
+
+       ! populate domains data structure
+       nDomain = nDomain + 1
+       allocate( domains(nDomain)%segIndex(nUpSegs), stat=ierr)
+       if(ierr/=0)then; message=trim(message)//'problem allocating [domains(nDomain)%segIndex]'; return; endif
+       domains(nDomain)%pfaf = mainCode
        domains(nDomain)%segIndex = segIndex(ixSubset)
+       domains(nDomain)%basinType = 1
+
        deallocate(ixSubset, stat=ierr)
        if(ierr/=0)then; message=trim(message)//'problem deallocating [ixSubset]'; return; endif
+
      end do
 
-   else   ! basin is tributaries, headwater
+   else   ! basin is tributaries, headwater (basinType == 3)
 
+     ! populate domains data structure
      nDomain = nDomain + 1
      allocate(domains(nDomain)%segIndex(size(segIndex)), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating domains(nDomain)%segIndex for interbasin or headwater'; return; endif
      domains(nDomain)%pfaf = trim(pfafCode)
      domains(nDomain)%segIndex = segIndex
+     domains(nDomain)%basinType = 3
 
    end if
 

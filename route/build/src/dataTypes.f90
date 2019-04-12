@@ -71,7 +71,8 @@ implicit none
  type,public :: subbasin_mpi
   character(32)              :: pfaf                  ! subbasin pfaf code - mainstem starting "-"
   integer(i4b)               :: idNode                ! node ID
-  logical(lgt)               :: isTrib                ! logical to indicate subbasin is tributary or not
+  integer(i4b)               :: basinType             ! basinTypeIndex: 0-> unclassified, 1 -> tributary, 2-> inter-basin, 3-> headwater, 4-> whole basin
+  integer(i4b)               :: outletIndex           ! reach index of a domain outlet
   integer(i4b),  allocatable :: segIndex(:)           ! reach indices within a subbasin
   integer(i4b),  allocatable :: hruIndex(:)           ! hru indices within a subbasin
  end type subbasin_mpi
