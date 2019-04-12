@@ -40,8 +40,6 @@ contains
   ! subroutines: model control
   USE read_control_module, only : read_control     ! read the control file
   USE read_param_module,   only : read_param       ! read the routing parameters
-  ! MPI routine
-  USE mpi_routine,         only : pass_public_var
 
   implicit none
 
@@ -59,22 +57,12 @@ contains
   call popMetadat(ierr,cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! if the master processor
-  if (pid==0) then
+  ! read the control file
+  call read_control(trim(cfile_name), ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! read the control file
-   call read_control(trim(cfile_name), ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   ! read the routing parameter namelist
-   call read_param(trim(ancil_dir)//trim(param_nml),ierr,cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  endif  ! if the master processor
-
-  ! pass algorithmic control parameters to each processor
-  ! NOTE: algorithmic control parameters are in the "public_var" module
-  call pass_public_var(ierr, cmessage)
+  ! read the routing parameter namelist
+  call read_param(trim(ancil_dir)//trim(param_nml),ierr,cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end subroutine init_model

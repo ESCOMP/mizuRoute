@@ -1,6 +1,9 @@
 module read_control_module
+
 USE nrtype
 USE public_var
+USE globalData, only : pid, nNodes             ! procs id and number of procs
+
 implicit none
 ! privacy
 private
@@ -17,7 +20,6 @@ contains
  USE nrtype                                  ! variable types, etc.
 
  ! global vars
- USE public_var
  USE globalData, only:time_conv,length_conv  ! conversion factors
 
  ! metadata structures
@@ -87,7 +89,9 @@ contains
    ! extract name of the information, and the information itself
    cName = adjustl(cLines(iLine)(ibeg_name:iend_name))
    cData = adjustl(cLines(iLine)(iend_name+1:iend_data-1))
-   print*, trim(cName), ' --> ', trim(cData)
+   if (pid==root) then
+    print*, trim(cName), ' --> ', trim(cData)
+   endif
 
    ! populate variables
    select case(trim(cName))

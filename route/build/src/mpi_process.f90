@@ -28,7 +28,6 @@ private
 public :: comm_ntopo_data
 public :: mpi_route
 public :: pass_global_data
-public :: pass_public_var
 
 contains
 
@@ -55,9 +54,6 @@ contains
   USE globalData,        ONLY: KROUTE_trib          ! Reach k-wave data structures (entire river network and tributary only)
   USE globalData,        ONLY: NETOPO_trib
   USE globalData,        ONLY: RPARAM_trib
-  USE globalData,        ONLY: fshape, tscale      ! parameters used for basin UH
-  USE globalData,        ONLY: velo, diff          ! parameters used for UH
-  USE globalData,        ONLY: mann_n, wscale      ! parameters used for KWT
   USE globalData,        ONLY: nEns
   USE globalData,        ONLY: hru_per_proc
   USE globalData,        ONLY: rch_per_proc
@@ -127,14 +123,6 @@ contains
   character(len=strLen)                       :: cmessage                  ! error message from subroutine
 
   ierr=0; message='comm_ntopo_data/'
-
-  ! send the spatial constant routing parameters to each processor
-  call MPI_BCAST(fshape,  1, MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(tscale,  1, MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(velo,    1, MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(diff,    1, MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(mann_n,  1, MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(wscale,  1, MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
 
   ! ********************************************************************************************************************
   ! ********************************************************************************************************************
@@ -546,13 +534,6 @@ contains
 
   ! make sure that routing at all the procs finished
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
-
-!  if (pid==1) then
-!   print*, 'pid = ', pid
-!   do iSeg=1,rch_per_proc(pid)
-!     print*, 'reachID, nWave =', NETOPO_trib(iSeg)%REACHID, size(KROUTE_trib(iens,iSeg)%KWAVE)
-!   enddo
-!  endif
 
   ! --------------------------------
   ! perform mainstem routing
@@ -1014,41 +995,6 @@ contains
   endif
 
  end subroutine pass_global_data
-
-
- ! *********************************************************************
- ! public subroutine: send public var to tasks
- ! *********************************************************************
- ! (temporarily)
- ! send all the necessary public variables updated from control file to slave procs
- subroutine pass_public_var(ierr,message)   ! output: error control
-
-  USE public_var, only : root                    ! id of the root node
-  USE public_var, only : hydGeometryOption       ! flag to compute hydraulic geometry
-  USE public_var, only : topoNetworkOption       ! flag to compute the network topology
-  USE public_var, only : computeReachList        ! ! flag to compute the list of reaches upstream of each reach
-  USE public_var, only : routOpt                 ! reach routing options
-  USE public_var, only : desireId                ! reach id desired for print out
-  USE public_var, only : doesBasinRoute          ! logical whether basin routing is performed or not
-  USE public_var, only : dt                      ! runoff time step [sec]
-
-  implicit none
-  ! Output error handling variables
-  integer(i4b),                   intent(out) :: ierr
-  character(len=strLen),          intent(out) :: message                   ! error message
-
-  ierr=0; message='pass_public_var/'
-
-  ! pass algorithmic control parameters to each processor
-  call MPI_BCAST(hydGeometryOption, 1, MPI_LOGICAL,          root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(topoNetworkOption, 1, MPI_LOGICAL,          root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(computeReachList,  1, MPI_LOGICAL,          root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(routOpt,           1, MPI_INT,              root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(desireId,          1, MPI_INT,              root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(doesBasinRoute,    1, MPI_INT,              root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(dt,                1, MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
-
- end subroutine pass_public_var
 
 end module mpi_routine
 
