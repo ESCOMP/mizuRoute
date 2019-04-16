@@ -76,6 +76,7 @@ contains
                       ierr, message)   ! output: error control
 
   USE public_var,  only : is_remap               ! logical whether or not runnoff needs to be mapped to river network HRU
+  USE public_var,  only : ntopAugmentMode        ! River network augmentation mode
   USE var_lookup,  only : ixHRU2SEG              ! index of variables for data structure
   USE var_lookup,  only : ixNTOPO                ! index of variables for data structure
   USE globalData,  only : RCHFLX                 ! Reach flux data structures (entire river network)
@@ -124,6 +125,16 @@ contains
                      nContribHRU,                                                  & ! output: MPI domain decomposition data
                      ierr, cmessage)                                                 ! output: error controls
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   end if
+
+   ! check if network topology write option is on. If so, terminate the program
+   if (ntopAugmentMode) then
+    call MPI_FINALIZE(ierr)
+    stop
+   end if
+
+   if (pid==0) then
 
      ! allocate space for the entire river network
      allocate(RCHFLX(nEns,nRch), KROUTE(nEns,nRch), stat=ierr)
@@ -369,11 +380,10 @@ contains
   USE public_var,           only : fname_ntopNew            ! name of the new network topology file
   USE public_var,           only : dname_nhru               ! dimension name for HRUs
   USE public_var,           only : dname_sseg               ! dimension name for stream segments
-  USE public_var,           only : idSegOut                 ! ID for stream segment at the bottom of the subset
   USE public_var,           only : maxPfafLen               ! maximum digit of pfafstetter code (default 32)
-  USE public_var,           only : nThresh                  ! maximum number of segments for each sub-basin
   ! options
   USE public_var,           only : ntopWriteOption          ! option to write updated network topology
+  USE public_var,           only : ntopAugmentMode          ! River network augmentation mode
   ! common variables
   USE public_var,           only : realMissing              ! missing value for real
   USE public_var,           only : integerMissing           ! missing value for integers
@@ -465,9 +475,6 @@ contains
                      ixHRU_desired = ixHRU_desired,    & ! indices of desired hrus
                      ixSeg_desired = ixSeg_desired)      ! indices of desired reaches
 
-  ! Write out augmented network topology if desired
-  if(idSegOut>0) ntopWriteOption=.true.   ! ensure that localized network topology is written if a particular outlet is specified
-
   ! write network topology
   if(ntopWriteOption)then
 
@@ -504,13 +511,12 @@ contains
 
   endif
 
-  ! created a subset = sucessful execution: Need to run again with the subset
-  if(idSegOut>0)then
+  if(ntopAugmentMode)then
    write(*,'(a)') 'Running in subsetting mode'
    write(*,'(a)') 'Created a subset network topology file '//trim(fname_ntopNew)
    write(*,'(a)') ' --> Run again using the new network topology file '
    write(*,'(a)') ' SUCCESSFUL EXECUTION '
-   call shr_mpi_abort()
+   return
   endif
 
   ! copy data to the RPARAM and NETOPO structures
@@ -520,7 +526,7 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! spatial domain decomposition for MPI parallelization
-  call classify_river_basin_mpi(nNodes, nRch_out, structPFAF, structNTOPO, nThresh, nContribHRU, ierr, cmessage)       !Warning: nHRU /= nContribHRU
+  call classify_river_basin_mpi(nNodes, nRch_out, structPFAF, structNTOPO, nContribHRU, ierr, cmessage)       !Warning: nHRU /= nContribHRU
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end subroutine init_ntopo

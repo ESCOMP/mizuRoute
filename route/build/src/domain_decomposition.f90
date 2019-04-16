@@ -32,7 +32,6 @@ contains
                                      nSeg,          & ! input:  number of reaches in the entire river network
                                      structPFAF,    & ! input:  pfafstetter code data structure
                                      structNTOPO,   & ! input:  river network data structure
-                                     maxSegs,       & ! input:  threshold of tributary basin reaches
                                      nContribHRU,   & ! output: number of contributory HRUs for each reach
                                      ierr, message)   ! output: error handling
    ! Details:
@@ -68,7 +67,6 @@ contains
    integer(i4b),                   intent(in)  :: nSeg                   ! number of stream segments
    type(var_clength), allocatable, intent(in)  :: structPFAF(:)          ! pfafstetter code
    type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)         ! network topology
-   integer(i4b),                   intent(in)  :: maxSegs                ! threshold number of tributary reaches
    ! Output variables
    integer(i4b),                   intent(out) :: nContribHRU            ! total number of HRUs that are connected to a reach
    integer(i4b),                   intent(out) :: ierr
@@ -80,6 +78,7 @@ contains
    character(len=32)                           :: pfafOutlet             ! pfaf_code for an outlet reach
    character(len=32)                           :: pfafCommon             ! common pfaf_codes over the entire basin
    character(len=32), allocatable              :: pfafOutlets(:)         ! list of pfaf_codes for all the outlet reaches
+   integer(i4b)                                :: maxSegs                ! upper limit of  number of tributary reaches
    integer(i4b)                                :: ixOutlet               ! reach index for an outlet reach
    integer(i4b),      allocatable              :: ixOutlets(:)           ! list of outlet reach indices for all the outlet reaches
    integer(i4b),      allocatable              :: ixSubset(:)            ! subset indices based on logical array from global index array
@@ -99,6 +98,9 @@ contains
 
    ! check
    if (nSeg/=size(structNTOPO))then; ierr=20; message=trim(message)//'number of reach input is not correct'; return; endif
+
+   ! Compute upper limit of reaches numbers within tributaries
+   maxSegs = nSeg/nNodes
 
    ! Initialize number of domains
    nDomain = 0
