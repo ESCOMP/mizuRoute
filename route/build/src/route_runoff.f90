@@ -42,7 +42,7 @@ integer(i4b)                  :: iens = 1
 logical(lgt)                  :: finished=.false.
 
 !Timing
-integer(i4b)  :: cr, startTime, endTime
+integer*8     :: cr, startTime, endTime
 real(dp)      :: rate, elapsedTime
 ! ======================================================================================================
 ! ======================================================================================================

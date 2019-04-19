@@ -88,8 +88,6 @@ contains
   USE globalData,  only : reachID                ! reach ID vector
   USE globalData,  only : runoff_data            ! runoff data structure
   USE globalData,  only : remap_data             ! runoff mapping data structure
-  USE globalData,  only : ixHRU_order            ! global HRU index in the order of proc assignment
-  USE globalData,  only : ixRch_order            ! global reach index in the order of proc assignment
   ! external subroutines
   USE mpi_routine, only : comm_ntopo_data        ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
   USE mpi_routine, only : pass_global_data       ! mpi globaldata copy to slave proc
@@ -172,12 +170,11 @@ contains
    call comm_ntopo_data(pid, nNodes,                                          & ! input: proc id and # of procs
                         nRch, nContribHRU,                                    & ! input: number of reach and HRUs that contribut to any reaches
                         structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
-                        ixHRU_order, ixRch_order,                             & ! output: hru and reach indices in order of processor ids
                         ierr, cmessage)                                         ! output: error controls
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! send all the necessary public variables to slave procs
-   call pass_global_data(pid, nNodes, ierr, cmessage)
+   ! send all the necessary global variables to slave procs
+   call pass_global_data(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end subroutine init_data

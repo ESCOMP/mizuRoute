@@ -101,7 +101,7 @@ CONTAINS
        if(ierr/=0)then; message=trim(message)//'problem allocating array for [allocArray]'; return; endif
 
        call MPI_RECV(allocArray, array_size, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-print*, pid, allocArray
+
     endif
 
   END SUBROUTINE shr_mpi_bcastInt
