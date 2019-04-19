@@ -2,6 +2,9 @@ MODULE mpi_routine
 
 USE mpi
 
+! general public variable
+USE public_var,       ONLY: integerMissing
+
 ! numeric definition
 USE nrtype
 
@@ -24,6 +27,7 @@ USE nr_utility_module, ONLY: findIndex            ! find index within a vector
 ! MPI utility
 USE mpi_mod,           ONLY: shr_mpi_gatherV
 USE mpi_mod,           ONLY: shr_mpi_scatterV
+USE mpi_mod,           ONLY: shr_mpi_allgather
 
 implicit none
 
@@ -54,13 +58,16 @@ contains
   USE globalData,        ONLY: ixPrint              ! desired reach index
   USE globalData,        ONLY: domains              ! domain data structure - for each domain, pfaf codes and list of segment indices
   USE globalData,        ONLY: nDomain              ! count of decomposed domains (tributaries + mainstems)
-  USE globalData,        ONLY: RCHFLX_trib          ! Reach flux data structures (entire river network and tributary only)
-  USE globalData,        ONLY: KROUTE_trib          ! Reach k-wave data structures (entire river network and tributary only)
+  USE globalData,        ONLY: RCHFLX_trib          ! Reach flux data structures (per proc, tributary only)
+  USE globalData,        ONLY: KROUTE_trib          ! Reach k-wave data structures (per proc, tributary only)
   USE globalData,        ONLY: NETOPO_trib
   USE globalData,        ONLY: RPARAM_trib
   USE globalData,        ONLY: nEns
-  USE globalData,        ONLY: hru_per_proc
-  USE globalData,        ONLY: rch_per_proc
+  USE globalData,        ONLY: hru_per_proc         !
+  USE globalData,        ONLY: rch_per_proc         !
+  USE globalData,        ONLY: tribOutlet_per_proc  ! number of tributary outlets per proc (size = nNodes)
+  USE globalData,        ONLY: global_ix_comm       ! global reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
+  USE globalData,        ONLY: local_ix_comm        ! local reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
   USE alloc_data,        ONLY: alloc_struct
   USE process_ntopo,     ONLY: augment_ntopo        ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,     ONLY: put_data_struct      !
@@ -82,13 +89,13 @@ contains
   integer(i4b),                   intent(out) :: ierr
   character(len=strLen),          intent(out) :: message                   ! error message
   ! Local variables
-  ! data structure for decomposed river network per reach/hru
+  ! data structure for decomposed river network data
   type(var_dlength), allocatable              :: structHRU_local(:)        ! ancillary data for HRUs
   type(var_dlength), allocatable              :: structSEG_local(:)        ! ancillary data for stream segments
   type(var_ilength), allocatable              :: structNTOPO_local(:)      ! network topology
   type(var_ilength), allocatable              :: structHRU2seg_local(:)    ! ancillary data for mapping hru2basin
   type(var_clength), allocatable              :: structPFAF_local(:)       ! ancillary data for pfafstetter code
-  ! flat array for decomposed river network per reach/hru
+  ! flat array for decomposed river network data
   integer(i4b),      allocatable              :: segId_local(:)            ! reach id for decomposed network
   integer(i4b),      allocatable              :: downSegId_local(:)        ! downstream reach id for decomposed network
   integer(i4b),      allocatable              :: hruId_local(:)            ! hru id array in decomposed network
@@ -96,7 +103,8 @@ contains
   real(dp),          allocatable              :: slope_local(:)            ! reach slope array in decomposed network
   real(dp),          allocatable              :: length_local(:)           ! reach length array in decomposed network
   real(dp),          allocatable              :: area_local(:)             ! hru area in decomposed network
-  ! flat array for the entire river network per reach/hru
+  logical(lgt),      allocatable              :: tribOutlet_local(:)       ! logical to indicate tributary outlet to mainstems
+  ! flat array for the entire river network
   integer(i4b)                                :: hruId(nHRU_in)            ! hru id for all the HRUs
   integer(i4b)                                :: hruSegId(nRch_in)         ! hru-to-seg mapping for each hru
   integer(i4b)                                :: segId(nRch_in)            ! reach id for all the segments
@@ -109,14 +117,19 @@ contains
   integer(i4b)                                :: ixLocalSubHRU(nHRU_in)    ! local HRU index
   integer(i4b)                                :: ixLocalSubSEG(nRch_in)    ! local reach index
   integer(i4b)                                :: basinTypeSeg(nRch_in)     ! logical to indicate tributary seg or not
+  logical(lgt),      allocatable              :: tribOutlet(:)             ! logical to indicate tributary outlet to mainstems over entire network
   integer(i4b)                                :: nRch_mainstem             ! number of reaches on the main stem
   integer(i4b)                                :: nHRU_mainstem             ! number of hrus on the main stem
+  integer(i4b)                                :: nRch_trib                 ! number of tributary outlets for each proc (scalar)
+  integer(i4b),     allocatable               :: nRch_trib_array(:)        ! number of tributary outlets for each proc (array)
   ! flat array for decomposed river network per domain (sub-basin)
   integer(i4b)                                :: idNode(nDomain)           ! node id array for each domain
   integer(i4b)                                :: rnkIdNode(nDomain)        ! ranked node id array for each domain
   integer(i4b)                                :: jHRU,jSeg                 ! ranked indices
   ! miscellaneous
+  integer(i4b), allocatable                   :: seq_array(:)
   integer(i4b)                                :: iSeg,iHru                 ! reach and hru loop indices
+  integer(i4b)                                :: ix1, ix2
   integer(i4b)                                :: ix,ixx                    ! loop indices
   integer(i4b)                                :: ixSeg1,ixSeg2             ! starting index and ending index, respectively, for reach array
   integer(i4b)                                :: ixHru1,ixHru2             ! starting index and ending index, respectively, for HRU array
@@ -217,6 +230,8 @@ contains
 
   endif  ! if pid==root
 
+  call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+
   ! ********************************************************************************************************************
   ! ********************************************************************************************************************
   ! ********************************************************************************************************************
@@ -304,12 +319,60 @@ contains
                        RPARAM_trib, NETOPO_trib,                              & ! output:
                        ierr, cmessage)
 
+  ! -----------------------------------------------------------------------------
+  ! Find "dangling reach", or tributary outlet reaches that link to mainstems
+  ! -----------------------------------------------------------------------------
+  allocate(tribOutlet_local(rch_per_proc(pid)), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating array for [tribOutlet_local]'; return; endif
+  tribOutlet_local = .false.
+  do ix=1,rch_per_proc(pid)
+    if (structNTOPO_local(ix)%var(ixNTOPO%downSegIndex)%dat(1) == -1) then
+      tribOutlet_local(ix) = .true.
+    endif
+  enddo
+
+  ! ather array for number of tributary outlet reaches per proc
+  call shr_mpi_allgather(tribOutlet_local, rch_per_proc(root:nNodes-1), tribOutlet, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! gather array for number of tributary outlet reaches from each proc
+  nRch_trib = count(tribOutlet_local) ! number of tributary outlets for each proc
+  call shr_mpi_allgather(nRch_trib, 1, nRch_trib_array, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! need to use 0:nNodes-1 bound instead of 1:nNodes
+  allocate(tribOutlet_per_proc(0:nNodes-1), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating array for [tribOutlet_per_proc]'; return; endif
+  tribOutlet_per_proc(0:nNodes-1) = nRch_trib_array
+
+  allocate(global_ix_comm(count(tribOutlet)),seq_array(rch_per_proc(pid)), local_ix_comm(nRch_trib), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating array for [global_ix_comm, loca_ix_comm]'; return; endif
+
+  ! mask non tributary outlet reaches
+  ! mainstem part (1:rch_per_proc(-1)) has to be removed from ixGlobalSubSEG
+  if (pid==0) then
+   ix1 = rch_per_proc(-1)+1; ix2 = sum(rch_per_proc)
+   global_ix_comm = pack(ixGlobalSubSEG(ix1:ix2), tribOutlet)   ! size = number of tributary outlet reaches from all the procs
+  endif
+
+  seq_array = arth(1,1,rch_per_proc(pid))
+  local_ix_comm = pack(seq_array, tribOutlet_local) ! size = number of tributary outlet reaches depending on proc
+
 !deleteme
-!   if (pid==7) then
+!   if (pid==0) then
+!   print*, 'ix, local_ix_comm, NETOPO_trib%REACHIX, reachId, downstream ID, downstream local ix'
+!   do ix =1, nRch_trib
+!    print*,  ix, local_ix_comm(ix), NETOPO_trib(local_ix_comm(ix))%REACHIX, NETOPO_trib(local_ix_comm(ix))%REACHID, NETOPO_trib(local_ix_comm(ix))%DREACHK, NETOPO_trib(local_ix_comm(ix))%DREACHI
+!   enddo
+!   do ix =1, size(global_ix_comm)
+!    print*,  ix, global_ix_comm(ix), NETOPO(global_ix_comm(ix))%REACHIX, NETOPO(global_ix_comm(ix))%REACHID, NETOPO(global_ix_comm(ix))%DREACHK, NETOPO(global_ix_comm(ix))%DREACHI
+!   enddo
 !   do ix =1, size(NETOPO_trib)
-!   print*, NETOPO_trib(ix)%REACHID, RPARAM_trib(ix)%BASAREA,  NETOPO_trib(ix)%HRUID
+!   print*, NETOPO_trib(ix)%REACHID, NETOPO_trib(ix)%DREACHK, NETOPO_trib(ix)%DREACHI, tribOutlet(ix)
 !   enddo
 !   endif
+!  print*, 'rch_per_proc= ', rch_per_proc
+!  print*, 'hru_per_proc= ', hru_per_proc
 !deleteme
 
  end subroutine comm_ntopo_data
@@ -341,6 +404,9 @@ contains
   USE globalData, only : ixRch_order      ! global reach index in the order of proc assignment
   USE globalData, only : hru_per_proc     ! number of hrus assigned to each proc (i.e., node)
   USE globalData, only : rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
+  USE globalData, only : tribOutlet_per_proc ! number of tributary outlets per proc (size = nNodes)
+  USE globalData, only : global_ix_comm   ! global reach index at tributary reach outlets to mainstem (size = sum of tributary outlets in all the procs)
+  USE globalData, only : local_ix_comm    ! local reach index at tributary reach outlets to mainstem for each proc (size = sum of tributary outlets in proc)
 
   ! routing driver
   USE main_route_module, only: main_route ! routing driver
@@ -368,8 +434,15 @@ contains
   integer(i4b)                          :: tributary=1              !
   integer(i4b)                          :: mainstem=2               !
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
+  ! timing
+  integer*8     :: cr, startTime, endTime
+  real(dp)      :: rate, elapsedTime
 
   ierr=0; message='mpi_route/'
+
+  ! Initialize the system_clock
+  call system_clock(count_rate=cr)
+  rate = real(cr)
 
   ! Reaches/HRU assigned to root node include BOTH small tributaries and mainstem
   ! First, route "small tributaries" while routing over other bigger tributaries (at slave nodes).
@@ -381,13 +454,18 @@ contains
     enddo
   end if
 
+call system_clock(startTime)
   ! Distribute the basin runoff to each process
   call shr_mpi_scatterV(basinRunoff_sorted(hru_per_proc(-1)+1:nHRU), hru_per_proc(0:nNodes-1), basinRunoff_local, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+call system_clock(endTime)
+elapsedTime = real(endTime-startTime, kind(dp))/rate
+write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-ro] = ', elapsedTime, ' s'
 
   ! --------------------------------
   ! Perform tributary routing (for all procs)
   ! --------------------------------
+call system_clock(startTime)
   !Idenfity number of tributary reaches for each procs
   nSegTrib = rch_per_proc(pid)
   allocate(ixRchProcessed(nSegTrib), stat=ierr)
@@ -413,10 +491,14 @@ contains
 
   ! make sure that routing at all the procs finished
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+call system_clock(endTime)
+elapsedTime = real(endTime-startTime, kind(dp))/rate
+write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/tributary-route] = ', elapsedTime, ' s'
 
   ! --------------------------------
   ! Collect all the tributary flows
   ! --------------------------------
+call system_clock(startTime)
   allocate(routedRunoff_local(rch_per_proc(pid),6), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [routedRunoff_local]'; return; endif
 
@@ -493,10 +575,15 @@ contains
   ! make sure that routing at all the procs finished
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
+call system_clock(endTime)
+elapsedTime = real(endTime-startTime, kind(dp))/rate
+write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/gater-state-flux] = ', elapsedTime, ' s'
+
   ! --------------------------------
   ! perform mainstem routing
   ! --------------------------------
   if (pid==root) then
+call system_clock(startTime)
     ! number of HRUs and reaches from Mainstems
     nSegMain = rch_per_proc(-1)
 
@@ -521,6 +608,9 @@ contains
                     KROUTE,                  &  ! inout: reach state data structure
                     ierr, message)              ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+call system_clock(endTime)
+elapsedTime = real(endTime-startTime, kind(dp))/rate
+write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/main_route] = ', elapsedTime, ' s'
 
   endif ! end of root proc
 
@@ -531,20 +621,26 @@ contains
   ! Distribute global states to processors to update states upstream reaches
   ! --------------------------------
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
+call system_clock(startTime)
 
-   call mpi_comm_kwt_state(pid,                                      &
-                           nNodes,                                   &
-                           iens,                                     &
-                           rch_per_proc(root:nNodes-1),              &
-                           ixRch_order(rch_per_proc(root-1)+1:nRch), &
-                           arth(1,1,rch_per_proc(pid)),              &
-                           1,                                        & ! 1 = scatter
+   call mpi_comm_kwt_state(pid,                                & ! input:
+                           nNodes,                             & ! input:
+                           iens,                               & ! input:
+                           tribOutlet_per_proc,                & ! input: number of reaches communicate per node (dimension size == number of proc)
+                           global_ix_comm,                     & ! input: global reach indices to communicate (dimension size == sum of nRearch)
+                           local_ix_comm,                      & ! input: local reach indices per proc (dimension size depends on procs )
+                           1,                                  & ! input: 1 = scatter
                            ierr, message)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+call system_clock(endTime)
+elapsedTime = real(endTime-startTime, kind(dp))/rate
+write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-state] = ', elapsedTime, ' s'
 
  endif ! end of kwt option
 
  end subroutine mpi_route
+
 
  ! *********************************************************************
  ! subroutine: kinematic wave state communication
@@ -627,6 +723,7 @@ contains
     call MPI_BCAST(nWave, nSeg, MPI_INT, root, MPI_COMM_WORLD, ierr)
 
     ! total waves from all the tributary reaches in each proc
+!  totWave(pid) = sum(nWave(pid))
     ix2=0
     do myid = 0, nNodes-1
       ix1=ix2+1
@@ -704,7 +801,7 @@ contains
     call MPI_BCAST(nWave, nSeg, MPI_INT, root, MPI_COMM_WORLD, ierr)
 
     ! total waves in reaches in each proc
-!  totWave = sum(nWave_trib)
+!  totWave(pid) = sum(nWave_trib(pid))
     ix2=0
     do myid = 0, nNodes-1
       ix1=ix2+1

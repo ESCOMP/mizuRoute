@@ -12,6 +12,7 @@ Module mpi_mod
 
   public :: shr_mpi_gatherV
   public :: shr_mpi_scatterV
+  public :: shr_mpi_allgather
   public :: shr_mpi_chkerr
   public :: shr_mpi_commsize
   public :: shr_mpi_commrank
@@ -30,6 +31,15 @@ Module mpi_mod
     shr_mpi_gatherIntV,    &
     shr_mpi_gatherRealV,   &
     shr_mpi_gatherLogicalV
+  end interface
+
+  interface shr_mpi_allgather ; module procedure &
+    shr_mpi_allgatherIntV,    &
+    shr_mpi_allgatherRealV,   &
+    shr_mpi_allgatherLogicalV,&
+    shr_mpi_allgatherInt,     &
+    shr_mpi_allgatherReal,    &
+    shr_mpi_allgatherLogical
   end interface
 
 CONTAINS
@@ -244,6 +254,200 @@ CONTAINS
                      MPI_COMM_WORLD, ierr)
 
   END SUBROUTINE shr_mpi_gatherLogicalV
+
+
+  ! ----------------------------------
+  ! ALLGATHER - 1D integer array
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_allgatherIntV(localArray,  num_per_proc, & ! input
+                                   globalArray, ierr, message) ! output
+    USE globalData,  ONLY: pid, nNodes
+    USE public_var,  ONLY: root
+    implicit none
+    ! Input
+    integer(i4b),              intent(in)  :: localArray(:)             ! local array at each proc
+    integer(i4b),              intent(in)  :: num_per_proc(0:nNodes-1)  ! number of elements per proc (i.e., size of localArray)
+    ! Output
+    integer(i4b), allocatable, intent(out) :: globalArray(:)            ! gathered  array at root proc
+    integer(i4b),              intent(out) :: ierr
+    character(strLen),         intent(out) :: message                   ! error message
+    ! local variable
+    integer(i4b)                           :: displs(0:nNodes-1)
+    integer(i4b)                           :: myid
+
+    ierr=0; message='shr_mpi_allgatherIntV/'
+
+    displs(0) = 0
+    do myid = 1, nNodes-1
+     displs(myid) = sum(num_per_proc(0:myid-1))
+    end do
+
+    allocate(globalArray(sum(num_per_proc)), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
+
+    call MPI_ALLGATHERV(localArray,  num_per_proc(pid),                MPI_INT, & ! local array stuff
+                        globalArray, num_per_proc(0:nNodes-1), displs, MPI_INT, & ! global array stuff
+                        MPI_COMM_WORLD, ierr)
+
+  END SUBROUTINE shr_mpi_allgatherIntV
+
+  ! ----------------------------------
+  ! ALLGATHER - real8 array
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_allgatherRealV(localArray,  num_per_proc, & ! input
+                                    globalArray, ierr, message) ! output
+    USE globalData,  ONLY: pid, nNodes
+    USE public_var,  ONLY: root
+    implicit none
+    ! Input
+    real(dp),                  intent(in)  :: localArray(:)             ! local array at each proc
+    integer(i4b),              intent(in)  :: num_per_proc(0:nNodes-1)  ! number of elements per proc (i.e., size of localArray)
+    ! Output
+    real(dp),     allocatable, intent(out) :: globalArray(:)            ! gathered  array at root proc
+    integer(i4b),              intent(out) :: ierr
+    character(strLen),         intent(out) :: message                   ! error message
+    ! local variable
+    integer(i4b)                           :: displs(0:nNodes-1)
+    integer(i4b)                           :: myid
+
+    ierr=0; message='shr_mpi_allgatherRealV/'
+
+    displs(0) = 0
+    do myid = 1, nNodes-1
+     displs(myid) = sum(num_per_proc(0:myid-1))
+    end do
+
+    allocate(globalArray(sum(num_per_proc)), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
+
+    call MPI_ALLGATHERV(localArray,  num_per_proc(pid),                MPI_DOUBLE_PRECISION, & ! local array stuff
+                        globalArray, num_per_proc(0:nNodes-1), displs, MPI_DOUBLE_PRECISION, & ! global array stuff
+                        MPI_COMM_WORLD, ierr)
+
+  END SUBROUTINE shr_mpi_allgatherRealV
+
+  ! ----------------------------------
+  ! ALLGATHER - logical array
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_allgatherLogicalV(localArray,  num_per_proc, & ! input
+                                       globalArray, ierr, message) ! output
+    USE globalData,  ONLY: pid, nNodes
+    USE public_var,  ONLY: root
+    implicit none
+    ! Input
+    logical(lgt),              intent(in)  :: localArray(:)             ! local array at each proc
+    integer(i4b),              intent(in)  :: num_per_proc(0:nNodes-1)  ! number of elements per proc (i.e., size of localArray)
+    ! Output
+    logical(lgt), allocatable, intent(out) :: globalArray(:)            ! gathered  array at root proc
+    integer(i4b),              intent(out) :: ierr
+    character(strLen),         intent(out) :: message                   ! error message
+    ! local variable
+    integer(i4b)                           :: displs(0:nNodes-1)
+    integer(i4b)                           :: myid
+
+    ierr=0; message='shr_mpi_allgatherLogicalV/'
+
+    displs(0) = 0
+    do myid = 1, nNodes-1
+     displs(myid) = sum(num_per_proc(0:myid-1))
+    end do
+
+    allocate(globalArray(sum(num_per_proc)), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
+
+    call MPI_ALLGATHERV(localArray,  num_per_proc(pid),                MPI_LOGICAL, & ! local array stuff
+                        globalArray, num_per_proc(0:nNodes-1), displs, MPI_LOGICAL, & ! global array stuff
+                        MPI_COMM_WORLD, ierr)
+
+  END SUBROUTINE shr_mpi_allgatherLogicalV
+
+  ! ----------------------------------
+  ! ALLGATHER - integer scalar
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_allgatherInt(localScalar,  num,        & ! input
+                                  globalArray, ierr, message) ! output
+    USE globalData,  ONLY: nNodes
+    USE public_var,  ONLY: root
+    implicit none
+    ! Input
+    integer(i4b),              intent(in)  :: localScalar        ! local array at each proc
+    integer(i4b),              intent(in)  :: num                ! number of elements per proc (i.e., size of localArray)
+    ! Output
+    integer(i4b), allocatable, intent(out) :: globalArray(:)     ! gathered  array at root proc
+    integer(i4b),              intent(out) :: ierr
+    character(strLen),         intent(out) :: message            ! error message
+    ! local variable
+    ! None
+
+    ierr=0; message='shr_mpi_allgatherInt/'
+
+    allocate(globalArray(num*nNodes), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
+
+    call MPI_ALLGATHER(localScalar, num, MPI_INT, & ! local array stuff
+                       globalArray, num, MPI_INT, & ! global array stuff
+                       MPI_COMM_WORLD, ierr)
+
+  END SUBROUTINE shr_mpi_allgatherInt
+
+  ! ----------------------------------
+  ! ALLGATHER - integer scalar
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_allgatherReal(localScalar,  num,        & ! input
+                                   globalArray, ierr, message) ! output
+    USE globalData,  ONLY: nNodes
+    USE public_var,  ONLY: root
+    implicit none
+    ! Input
+    real(dp),                  intent(in)  :: localScalar        ! local array at each proc
+    integer(i4b),              intent(in)  :: num                ! number of elements per proc (i.e., size of localArray)
+    ! Output
+    real(dp), allocatable,     intent(out) :: globalArray(:)     ! gathered  array at root proc
+    integer(i4b),              intent(out) :: ierr
+    character(strLen),         intent(out) :: message            ! error message
+    ! local variable
+    ! None
+
+    ierr=0; message='shr_mpi_allgatherReal/'
+
+    allocate(globalArray(num*nNodes), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
+
+    call MPI_ALLGATHER(localScalar,  num, MPI_DOUBLE_PRECISION,  & ! local array stuff
+                        globalArray, num, MPI_DOUBLE_PRECISION,  & ! global array stuff
+                        MPI_COMM_WORLD, ierr)
+
+  END SUBROUTINE shr_mpi_allgatherReal
+
+  ! ----------------------------------
+  ! ALLGATHER - logical scalar
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_allgatherLogical(localScalar,  num,        & ! input
+                                      globalArray, ierr, message) ! output
+    USE globalData,  ONLY: nNodes
+    USE public_var,  ONLY: root
+    implicit none
+    ! Input
+    logical(lgt),              intent(in)  :: localScalar        ! local array at each proc
+    integer(i4b),              intent(in)  :: num                ! number of elements per proc (i.e., size of localArray)
+    ! Output
+    logical(lgt), allocatable, intent(out) :: globalArray(:)     ! gathered  array at root proc
+    integer(i4b),              intent(out) :: ierr
+    character(strLen),         intent(out) :: message            ! error message
+    ! local variable
+    ! None
+
+    ierr=0; message='shr_mpi_allgatherLogical/'
+
+    allocate(globalArray(num*nNodes), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
+
+    call MPI_ALLGATHER(localScalar,  num, MPI_LOGICAL,  & ! local array stuff
+                        globalArray, num, MPI_LOGICAL,  & ! global array stuff
+                        MPI_COMM_WORLD, ierr)
+
+  END SUBROUTINE shr_mpi_allgatherLogical
+
 
 
   SUBROUTINE shr_mpi_chkerr(rcode,string)

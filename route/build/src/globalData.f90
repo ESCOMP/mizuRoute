@@ -156,10 +156,14 @@ module globalData
   type(subbasin_mpi)             , public :: domains(maxDomain)   ! domain decomposition data structure (maximum domain is set to maxDomain)
   integer(i4b)                   , public :: nDomain              ! domain counter
 
-  integer(i4b)    , allocatable  , public :: ixHRU_order(:)       ! global HRU index in the order of proc assignment
-  integer(i4b)    , allocatable  , public :: ixRch_order(:)       ! global reach index in the order of proc assignment
-  integer(i4b)    , allocatable  , public :: hru_per_proc(:)      ! number of hrus assigned to each proc (i.e., node)
-  integer(i4b)    , allocatable  , public :: rch_per_proc(:)      ! number of reaches assigned to each proc (i.e., node)
+  integer(i4b)    , allocatable  , public :: ixHRU_order(:)       ! global HRU index in the order of proc assignment (size = num of hrus contributing reach in entire network)
+  integer(i4b)    , allocatable  , public :: ixRch_order(:)       ! global reach index in the order of proc assignment (size = num of reaches in entire network))
+  integer(i4b)    , allocatable  , public :: hru_per_proc(:)      ! number of hrus assigned to each proc (size = num of procs
+  integer(i4b)    , allocatable  , public :: rch_per_proc(:)      ! number of reaches assigned to each proc (size = num of procs)
+
+  integer(i4b)    , allocatable  , public :: global_ix_comm(:)    ! global index array for tributary reach outlet (size = num of tributary outlets)
+  integer(i4b)    , allocatable  , public :: local_ix_comm(:)     ! local index array for tributary reach outlet (size = num of tributary outlets)
+  integer(i4b)    , allocatable  , public :: tribOutlet_per_proc(:)! number of tributary outlet reaches assigned to each proc (size = num of procs)
 
   ! miscellaneous
   integer(i4b)                   , public :: ixPrint=integerMissing   ! index of desired reach to be on-screen print
