@@ -25,6 +25,7 @@ USE nr_utility_module, ONLY: arth                 !
 USE nr_utility_module, ONLY: findIndex            ! find index within a vector
 
 ! MPI utility
+USE mpi_mod,           ONLY: shr_mpi_bcast
 USE mpi_mod,           ONLY: shr_mpi_gatherV
 USE mpi_mod,           ONLY: shr_mpi_scatterV
 USE mpi_mod,           ONLY: shr_mpi_allgather
@@ -50,8 +51,6 @@ contains
                             structSEG,          & ! input: data structure for stream segments
                             structHRU2seg,      & ! input: data structure for mapping hru2basin
                             structNTOPO,        & ! input: data structure for network toopology
-                            ixGlobalSubHRU,     & ! output: sorted hru index array based on proc assignment
-                            ixGlobalSubSEG,     & ! output: sorted seg index array based on proc assignment
                             ierr,message)         ! output: error control
 
   USE public_var
@@ -65,6 +64,8 @@ contains
   USE globalData,        ONLY: nEns
   USE globalData,        ONLY: hru_per_proc         !
   USE globalData,        ONLY: rch_per_proc         !
+  USE globalData,        ONLY: ixHRU_order          ! global HRU index in the order of proc assignment
+  USE globalData,        ONLY: ixRch_order          ! global reach index in the order of proc assignment
   USE globalData,        ONLY: tribOutlet_per_proc  ! number of tributary outlets per proc (size = nNodes)
   USE globalData,        ONLY: global_ix_comm       ! global reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
   USE globalData,        ONLY: local_ix_comm        ! local reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
@@ -82,9 +83,6 @@ contains
   type(var_dlength), allocatable, intent(in)  :: structSEG(:)             ! stream segment properties
   type(var_ilength), allocatable, intent(in)  :: structHRU2SEG(:)         ! HRU to SEG mapping
   type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)           ! network topology
-  ! Output
-  integer(i4b),      allocatable, intent(out) :: ixGlobalSubHRU(:)        ! global HRU index in the order of domains
-  integer(i4b),      allocatable, intent(out) :: ixGlobalSubSEG(:)        ! global reach index in the order of domains
   ! Output error handling variables
   integer(i4b),                   intent(out) :: ierr
   character(len=strLen),          intent(out) :: message                   ! error message
@@ -152,7 +150,11 @@ contains
   if (pid == root) then ! this is a root process
 
     ! allocate local and global indices
-    allocate(ixGlobalSubHRU(nHRU_in),ixGlobalSubSEG(nRch_in), stat=ierr)
+    allocate(rch_per_proc(-1:nNodes-1), hru_per_proc(-1:nNodes-1), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [rch_per_proc, hru_per_proc]'; return; endif
+
+    allocate(ixHRU_order(nHRU_in),ixRch_order(nRch_in), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [ixHRU_order, ixRch_order]'; return; endif
 
     ! Create segIndex array from domains derived type. The array is sorted from node 0 through nNodes-1
     ! SegIndex Array needs to be contiguous when a chunk is sent to computing node (use sort function...)
@@ -174,14 +176,14 @@ contains
      ! define reach index array in order of node assignment
      ixSeg1 = ixSeg2+1             ! start index in the mapping vector
      ixSeg2 = ixSeg1+nSubSeg-1     ! end index in the mapping vector
-     ixGlobalSubSEG(ixSeg1:ixSeg2) = domains(ixx)%segIndex(1:nSubSeg)   ! global seg index per node
+     ixRch_order(ixSeg1:ixSeg2) = domains(ixx)%segIndex(1:nSubSeg)   ! global seg index per node
      ixLocalSubSEG(ixSeg1:ixSeg2)  = arth(1,1,nSubSeg)                  ! local hru indix per node
 
      ! define hru index array in order of node assignment
      if (nSubHru>0) then
        ixHru1 = ixHru2+1
        ixHru2 = ixHru1+nSubHru-1
-       ixGlobalSubHRU(ixHru1:ixHru2)  = domains(ixx)%hruIndex(1:nSubHru) ! global hru index per node
+       ixHRU_order(ixHru1:ixHru2)  = domains(ixx)%hruIndex(1:nSubHru) ! global hru index per node
        ixLocalSubHRU(ixHru1:ixHru2)  = arth(1,1,nSubHru)                 ! local hru indix per node
      end if
 
@@ -195,7 +197,6 @@ contains
 
     ! Count the number of reaches and hrus in each node
     ! index of seg_per_proc and hru_per_proc: -1 -> mainstem, 0 -> small tributaries, 1 through nNodes-1 -> large tributaries
-    allocate(rch_per_proc(-1:nNodes-1), hru_per_proc(-1:nNodes-1), stat=ierr)
     rch_per_proc = 0
     hru_per_proc = 0
     do ix = 1,nDomain
@@ -208,7 +209,7 @@ contains
 
     ! reach array
     do iSeg = 1,nRch_in
-     jSeg = ixGlobalSubSEG(iSeg) ! global index, ordered by domain/node
+     jSeg = ixRch_order(iSeg) ! global index, ordered by domain/node
      segId(iSeg)     = structNTOPO(jSeg)%var(ixNTOPO%segId)%dat(1)
      downSegId(iSeg) = structNTOPO(jSeg)%var(ixNTOPO%downSegId)%dat(1)
      slope(iSeg)     = structSEG(  jSeg)%var(ixSEG%slope)%dat(1)
@@ -217,15 +218,15 @@ contains
 
     ! hru array
     do iHru = 1,nHRU_in
-      jHRU = ixGlobalSubHRU(iHru)  ! global index, ordered by domain/node
+      jHRU = ixHRU_order(iHru)  ! global index, ordered by domain/node
       hruId(iHru)    = structHRU2SEG(jHRU)%var(ixHRU2SEG%HRUid)%dat(1)
       hruSegId(iHru) = structHRU2SEG(jHRU)%var(ixHRU2SEG%hruSegId)%dat(1)
       area(iHru)     = structHRU(    jHRU)%var(ixHRU%area)%dat(1)
     enddo
 
-!    print*, 'ix, segId, ixGlobalSubSEG, ixLocalSubSEG, ixNode, pfaf'
+!    print*, 'ix, segId, ixRch_order, ixLocalSubSEG, ixNode, pfaf'
 !    do ix = 1,nRch_in
-!      print*, segId(ix), ixGlobalSubSEG(ix), ixLocalSubSEG(ix), ixNode(ix), pfaf(ix)
+!      print*, segId(ix), ixRch_order(ix), ixLocalSubSEG(ix), ixNode(ix), pfaf(ix)
 !    enddo
 
   endif  ! if pid==root
@@ -240,12 +241,12 @@ contains
   ! ********************************************************************************************************************
   ! ********************************************************************************************************************
 
-  ! sends the number of reaches/hrus per node to all processors
-  if (pid/=root) then
-    allocate(rch_per_proc(-1:nNodes-1), hru_per_proc(-1:nNodes-1), stat=ierr)
-  endif
-  call MPI_BCAST(rch_per_proc, nNodes+1, MPI_INT, root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(hru_per_proc, nNodes+1, MPI_INT, root, MPI_COMM_WORLD, ierr)
+  ! sends the number of reaches/hrus per proc to all processors
+  call shr_mpi_bcast(rch_per_proc, ierr, cmessage)
+  call shr_mpi_bcast(hru_per_proc, ierr, cmessage)
+
+  call shr_mpi_bcast(ixRch_order, ierr, cmessage)
+  call shr_mpi_bcast(ixHRU_order, ierr, cmessage)
 
   ! define the number of reaches/hrus on the main stem
   nRch_mainstem = rch_per_proc(-1)
@@ -349,11 +350,9 @@ contains
   if(ierr/=0)then; message=trim(message)//'problem allocating array for [global_ix_comm, loca_ix_comm]'; return; endif
 
   ! mask non tributary outlet reaches
-  ! mainstem part (1:rch_per_proc(-1)) has to be removed from ixGlobalSubSEG
-  if (pid==0) then
-   ix1 = rch_per_proc(-1)+1; ix2 = sum(rch_per_proc)
-   global_ix_comm = pack(ixGlobalSubSEG(ix1:ix2), tribOutlet)   ! size = number of tributary outlet reaches from all the procs
-  endif
+  ! mainstem part (1:rch_per_proc(-1)) has to be removed from ixRch_order
+  ix1 = rch_per_proc(-1)+1; ix2 = sum(rch_per_proc)
+  global_ix_comm = pack(ixRch_order(ix1:ix2), tribOutlet)   ! size = number of tributary outlet reaches from all the procs
 
   seq_array = arth(1,1,rch_per_proc(pid))
   local_ix_comm = pack(seq_array, tribOutlet_local) ! size = number of tributary outlet reaches depending on proc
@@ -371,8 +370,6 @@ contains
 !   print*, NETOPO_trib(ix)%REACHID, NETOPO_trib(ix)%DREACHK, NETOPO_trib(ix)%DREACHI, tribOutlet(ix)
 !   enddo
 !   endif
-!  print*, 'rch_per_proc= ', rch_per_proc
-!  print*, 'hru_per_proc= ', hru_per_proc
 !deleteme
 
  end subroutine comm_ntopo_data
@@ -916,7 +913,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
  ! public subroutine: send global data
  ! *********************************************************************
  ! send all the necessary public variables to slave procs
- subroutine pass_global_data(pid, nNodes, ierr,message)   ! output: error control
+ subroutine pass_global_data(ierr,message)   ! output: error control
   USE public_var, only : root
   USE globalData, only : timeVar           ! time variable
   USE globalData, only : iTime             ! time index
@@ -929,18 +926,12 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
   USE globalData, only : time_conv
   implicit none
   ! Input variables
-  integer(i4b),                   intent(in)  :: pid                      ! process id (MPI)
-  integer(i4b),                   intent(in)  :: nNodes                   ! number of processes (MPI)
+  ! None
   ! Output error handling variables
   integer(i4b),                   intent(out) :: ierr
   character(len=strLen),          intent(out) :: message                   ! error message
   ! Local variables
-  integer(i4b)                                :: nTime                     ! number of time step in runoff data
-  integer(i4b)                                :: nTime_recv                ! number of time step in runoff data in slave proc
-  integer(i4b)                                :: myid                      ! process id indices
-  integer(i4b), parameter                     :: send_data_tag=2001
-  integer(i4b), parameter                     :: return_data_tag=2002
-  integer(i4b)                                :: status(MPI_STATUS_SIZE)
+  ! None
 
   ierr=0; message='pass_global_data/'
 
@@ -954,24 +945,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
   call MPI_BCAST(length_conv, 1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(time_conv,   1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
 
-  ! send allocatable arrays
-  if (pid == root) then ! this is a root process
-    ! number of nTime
-    nTime = size(timeVar)
-
-    do myid = 1, nNodes-1
-     ! number of nTime
-     call MPI_SEND(nTime,                   1,  MPI_INT,              myid, send_data_tag, MPI_COMM_WORLD, ierr)
-     call MPI_SEND(timeVar(1),          nTime,  MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-    end do
-  else
-     ! number of nTime
-     call MPI_RECV(nTime_recv, 1, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-
-     allocate(timeVar(nTime_recv), stat=ierr)
-     call MPI_RECV(timeVar, nTime_recv, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-
-  endif
+  call shr_mpi_bcast(timeVar,ierr, message)
 
  end subroutine pass_global_data
 
