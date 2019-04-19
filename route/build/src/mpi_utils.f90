@@ -10,7 +10,7 @@ Module mpi_mod
   implicit none
   private
 
-  public :: shr_mpi_bcast_allocArray
+  public :: shr_mpi_bcast
   public :: shr_mpi_gatherV
   public :: shr_mpi_scatterV
   public :: shr_mpi_allgather
@@ -23,7 +23,7 @@ Module mpi_mod
   public :: shr_mpi_init
   public :: shr_mpi_finalize
 
-  interface shr_mpi_bcast_allocArray ; module procedure &
+  interface shr_mpi_bcast; module procedure &
     shr_mpi_bcastInt,    &
     shr_mpi_bcastReal,   &
     shr_mpi_bcastLogical
@@ -57,94 +57,98 @@ Module mpi_mod
 CONTAINS
 
   ! ----------------------------------
-  ! integer allocatable broadcast
+  ! BROADCAST - integer allocatable array
   ! ----------------------------------
-  SUBROUTINE shr_mpi_bcastInt(allocArray,   & ! input: array to be sent
+  SUBROUTINE shr_mpi_bcastInt(allocArray,   & ! inout:  array to be broadcasted to each proc
                               ierr, message)  ! output: error handling
     USE globalData,  ONLY: pid, nNodes
     USE public_var,  ONLY: root
     implicit none
     ! Input
-    integer(i4b), allocatable, intent(inout) :: allocArray(:)   ! inout:  array to be sent to proc
+    integer(i4b), allocatable, intent(inout) :: allocArray(:) ! inout:  array to be sent to proc
     ! Output error handling variables
-    integer(i4b),              intent(out) :: ierr
-    character(strLen),         intent(out) :: message           ! error message
+    integer(i4b),              intent(out)   :: ierr
+    character(strLen),         intent(out)   :: message       ! error message
     ! local variable
-    integer(i4b)                           :: myid
-    integer(i4b)                           :: array_size
+    integer(i4b)                             :: myid
+    integer(i4b)                             :: array_size
+    integer(i4b)                             :: bound(2)
 
     ierr=0; message='shr_mpi_bcastInt/'
 
     if (pid == root) then ! this is a root process
 
-      array_size = size(allocArray)
+      bound = (/lbound(allocArray), ubound(allocArray)/)
+
+      array_size = bound(2)-bound(1)+1
 
       do myid = 1, nNodes-1
-       call MPI_SEND(array_size,    1,          MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-       call MPI_SEND(allocArray(1), array_size, MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+       call MPI_SEND(bound(1),             2,          MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+       call MPI_SEND(allocArray(bound(1)), array_size, MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
       end do
 
     else
 
-       call MPI_RECV(array_size, 1, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+       call MPI_RECV(bound, 2, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
 
-       if (.not.allocated(allocArray)) then
-         allocate(allocArray(array_size), stat=ierr)
-         if(ierr/=0)then; message=trim(message)//'problem allocating array for [allocArray]'; return; endif
-       elseif (allocated(allocArray) .and. size(allocArray)/=array_size) then
+       array_size = bound(2)-bound(1)+1
+
+       if (allocated(allocArray)) then
          deallocate(allocArray, stat=ierr)
          if(ierr/=0)then; message=trim(message)//'probleml de-allocating array for [allocArray]'; return; endif
-         allocate(allocArray(array_size), stat=ierr)
-         if(ierr/=0)then; message=trim(message)//'problem allocating array for [allocArray]'; return; endif
        endif
+       allocate(allocArray(bound(1):bound(2)), stat=ierr)
+       if(ierr/=0)then; message=trim(message)//'problem allocating array for [allocArray]'; return; endif
 
        call MPI_RECV(allocArray, array_size, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
-
+print*, pid, allocArray
     endif
 
   END SUBROUTINE shr_mpi_bcastInt
 
   ! ----------------------------------
-  ! real allocatable array broadcast
+  ! BROADCAST - real allocatable array
   ! ----------------------------------
-  SUBROUTINE shr_mpi_bcastReal(allocArray,   & ! input:
+  SUBROUTINE shr_mpi_bcastReal(allocArray,   & ! input:  array to be broadcasted to each proc
                                ierr, message)  ! output: error handling
     USE globalData,  ONLY: pid, nNodes
     USE public_var,  ONLY: root
     implicit none
     ! Input
-    real(dp), allocatable, intent(inout) :: allocArray(:)   ! input:  array to be sent to proc
+    real(dp), allocatable, intent(inout) :: allocArray(:) ! inout:  array to be sent to proc
     ! Output error handling variables
-    integer(i4b),          intent(out) :: ierr
-    character(strLen),     intent(out) :: message                   ! error message
+    integer(i4b),          intent(out)   :: ierr
+    character(strLen),     intent(out)   :: message       ! error message
     ! local variable
-    integer(i4b)                       :: myid
-    integer(i4b)                       :: array_size
+    integer(i4b)                         :: myid
+    integer(i4b)                         :: array_size
+    integer(i4b)                         :: bound(2)
 
     ierr=0; message='shr_mpi_bcastReal/'
 
     if (pid == root) then ! this is a root process
 
-      array_size = size(allocArray)
+      bound = (/lbound(allocArray), ubound(allocArray)/)
+
+      array_size = bound(2)-bound(1)+1
 
       do myid = 1, nNodes-1
-       call MPI_SEND(array_size,    1,          MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-       call MPI_SEND(allocArray(1), array_size, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+       call MPI_SEND(bound(1),             2,          MPI_INT,              myid, send_data_tag, MPI_COMM_WORLD, ierr)
+       call MPI_SEND(allocArray(bound(1)), array_size, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
       end do
 
     else
 
-       call MPI_RECV(array_size, 1, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+       call MPI_RECV(bound, 2, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
 
-       if (.not.allocated(allocArray)) then
-         allocate(allocArray(array_size), stat=ierr)
-         if(ierr/=0)then; message=trim(message)//'problem allocating array for [allocArray]'; return; endif
-       elseif (allocated(allocArray) .and. size(allocArray)/=array_size) then
+       array_size = bound(2)-bound(1)+1
+
+       if (allocated(allocArray)) then
          deallocate(allocArray, stat=ierr)
          if(ierr/=0)then; message=trim(message)//'probleml de-allocating array for [allocArray]'; return; endif
-         allocate(allocArray(array_size), stat=ierr)
-         if(ierr/=0)then; message=trim(message)//'problem allocating array for [allocArray]'; return; endif
        endif
+       allocate(allocArray(bound(1):bound(2)), stat=ierr)
+       if(ierr/=0)then; message=trim(message)//'problem allocating array for [allocArray]'; return; endif
 
        call MPI_RECV(allocArray, array_size, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
 
@@ -153,47 +157,49 @@ CONTAINS
   END SUBROUTINE shr_mpi_bcastReal
 
   ! ----------------------------------
-  ! logical allocatable array broadcast
+  ! BROADCAST - logical allocatable array
   ! ----------------------------------
-  SUBROUTINE shr_mpi_bcastLogical(allocArray,    & ! input:
+  SUBROUTINE shr_mpi_bcastLogical(allocArray,    & ! inout: array to be broadcasted to each proc
                                   ierr, message)   ! output: error handling
     USE globalData,  ONLY: pid, nNodes
     USE public_var,  ONLY: root
     implicit none
     ! Input
-    logical(lgt),  allocatable,intent(inout)  :: allocArray(:)   ! input:  array to be sent to proc
+    logical(lgt), allocatable, intent(inout) :: allocArray(:)   ! input:  array to be sent to proc
     ! Output error handling variables
-    integer(i4b),          intent(out)     :: ierr
-    character(strLen),     intent(out)     :: message         ! error message
+    integer(i4b),              intent(out)   :: ierr
+    character(strLen),         intent(out)   :: message         ! error message
     ! local variable
-    integer(i4b)                           :: myid
-    integer(i4b)                           :: array_size
+    integer(i4b)                             :: myid
+    integer(i4b)                             :: array_size
+    integer(i4b)                             :: bound(2)
 
     ierr=0; message='shr_mpi_bcastLogical/'
 
     ! send allocatable arrays
     if (pid == root) then ! this is a root process
 
-      array_size = size(allocArray)
+      bound = (/lbound(allocArray), ubound(allocArray)/)
+
+      array_size = bound(2)-bound(1)+1
 
       do myid = 1, nNodes-1
-       call MPI_SEND(array_size,    1,          MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-       call MPI_SEND(allocArray(1), array_size, MPI_LOGICAL, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+       call MPI_SEND(bound(1),             2,          MPI_INT,     myid, send_data_tag, MPI_COMM_WORLD, ierr)
+       call MPI_SEND(allocArray(bound(1)), array_size, MPI_LOGICAL, myid, send_data_tag, MPI_COMM_WORLD, ierr)
       end do
 
     else
 
-       call MPI_RECV(array_size, 1, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+       call MPI_RECV(bound, 2, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
 
-       if (.not.allocated(allocArray)) then
-         allocate(allocArray(array_size), stat=ierr)
-         if(ierr/=0)then; message=trim(message)//'problem allocating array for [allocArray]'; return; endif
-       elseif (allocated(allocArray) .and. size(allocArray)/=array_size) then
+       array_size = bound(2)-bound(1)+1
+
+       if (allocated(allocArray)) then
          deallocate(allocArray, stat=ierr)
          if(ierr/=0)then; message=trim(message)//'probleml de-allocating array for [allocArray]'; return; endif
-         allocate(allocArray(array_size), stat=ierr)
-         if(ierr/=0)then; message=trim(message)//'problem allocating array for [allocArray]'; return; endif
        endif
+       allocate(allocArray(bound(1):bound(2)), stat=ierr)
+       if(ierr/=0)then; message=trim(message)//'problem allocating array for [allocArray]'; return; endif
 
        call MPI_RECV(allocArray, array_size, MPI_LOGICAL, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
 
@@ -202,7 +208,7 @@ CONTAINS
   END SUBROUTINE shr_mpi_bcastLogical
 
   ! ----------------------------------
-  ! 1D integer array scatter
+  ! SCATTERV - 1D integer array
   ! ----------------------------------
   SUBROUTINE shr_mpi_scatterIntV(globalArray, num_per_proc, & ! input
                                 localArray, ierr, message)   ! output
@@ -237,7 +243,7 @@ CONTAINS
   END SUBROUTINE shr_mpi_scatterIntV
 
   ! ----------------------------------
-  ! 1D double precision array scatter
+  ! SCATTERV - 1D double precision array
   ! ----------------------------------
   SUBROUTINE shr_mpi_scatterRealV(globalArray, num_per_proc, & ! input
                                  localArray, ierr, message)   ! output
@@ -272,7 +278,7 @@ CONTAINS
   END SUBROUTINE shr_mpi_scatterRealV
 
   ! ----------------------------------
-  ! SCATTER - 1D logical array
+  ! SCATTERV - 1D logical array
   ! ----------------------------------
   SUBROUTINE shr_mpi_scatterLogicalV(globalArray, num_per_proc, & ! input
                                      localArray, ierr, message)   ! output
@@ -306,9 +312,8 @@ CONTAINS
 
   END SUBROUTINE shr_mpi_scatterLogicalV
 
-
   ! ----------------------------------
-  ! GATHER - 1D integer array
+  ! GATHERV - 1D integer array
   ! ----------------------------------
   SUBROUTINE shr_mpi_gatherIntV(localArray, num_per_proc, & ! input
                                 globalArray, ierr, message) ! output
@@ -343,7 +348,7 @@ CONTAINS
   END SUBROUTINE shr_mpi_gatherIntV
 
   ! ----------------------------------
-  ! GATHER - 1D real8 array
+  ! GATHERV - 1D real8 array
   ! ----------------------------------
   SUBROUTINE shr_mpi_gatherRealV(localArray, num_per_proc,  & ! input
                                  globalArray, ierr, message)  ! output
@@ -378,7 +383,7 @@ CONTAINS
   END SUBROUTINE shr_mpi_gatherRealV
 
   ! ----------------------------------
-  ! GATHER - 1D logical array
+  ! GATHERV - 1D logical array
   ! ----------------------------------
   SUBROUTINE shr_mpi_gatherLogicalV(localArray, num_per_proc,  & ! input
                                     globalArray, ierr, message)  ! output
@@ -412,7 +417,7 @@ CONTAINS
 
   END SUBROUTINE shr_mpi_gatherLogicalV
 
-
+  ! ALLGATHER
   ! ----------------------------------
   ! ALLGATHER - 1D integer array
   ! ----------------------------------
