@@ -11,7 +11,7 @@ USE var_lookup,        ONLY: ixPFAF        ! index of variables for the pfafstet
 USE var_lookup,        ONLY: ixNTOPO       ! index of variables for the netowork topolgy
 ! General utilities
 USE nr_utility_module, ONLY: indexx        ! sorting array
-USE nr_utility_module, ONLY: indexTrue     ! I don't remember exactly
+USE nr_utility_module, ONLY: indexTrue     ! index at only true in array
 USE nr_utility_module, ONLY: arth          ! generate sequential array
 ! updated and saved data
 USE public_var
@@ -119,9 +119,9 @@ contains
      end if
    end do
    nInvalid = count(isInvalid)
-   allocate(ixSubset(nInvalid), domains(nDomain)%segIndex(nInvalid), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'problem allocating [ixSubset,domains(nDomain)%segIndex]'; return; endif
-   ixSubset = pack(arth(1,1,nSeg),isInvalid)
+   allocate(domains(nDomain)%segIndex(nInvalid), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'problem allocating [domains(nDomain)%segIndex]'; return; endif
+   call indexTrue(isInvalid, ixSubset)
    domains(nDomain)%pfaf = '0'
    domains(nDomain)%segIndex = segIndex(ixSubset)
 
@@ -580,9 +580,7 @@ contains
      nMainstem = count(isMainstem)
 
      ! Identify mainstem reach indices based on the basin reaches
-     allocate(ixSubset(nMainstem), stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating [ixSubset]'; return; endif
-     ixSubset = pack(arth(1,1,nSeg),isMainstem)
+     call indexTrue(isMainstem, ixSubset)
 
      ! populate domains data structure
      nDomain = nDomain + 1
@@ -604,9 +602,9 @@ contains
      nTrib = count(isTribOutlet)
 
      ! idenfity tributary outlet reaches
-     allocate(ixSubset(nTrib), trib_outlet_pfafs(nTrib), stat=ierr)
+     allocate(trib_outlet_pfafs(nTrib), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating [ixSubset, trib_outlet_pfafs]'; return; endif
-     ixSubset = pack(arth(1,1,nSeg),isTribOutlet)
+     call indexTrue(isTribOutlet, ixSubset)
      trib_outlet_pfafs = pfafs(ixSubset)
 
      deallocate(ixSubset, stat=ierr)
@@ -630,9 +628,7 @@ contains
        enddo
 
        nUpSegs = count(isTrib)
-       allocate(ixSubset(nUpSegs), stat=ierr)
-       if(ierr/=0)then; message=trim(message)//'problem allocating [ixSubset]'; return; endif
-       ixSubset = pack(arth(1,1,nSeg),isTrib)
+       call indexTrue(isTrib, ixSubset)
 
        ! populate domains data structure
        nDomain = nDomain + 1
