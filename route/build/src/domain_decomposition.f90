@@ -51,7 +51,6 @@ contains
    !   domain(:)%pfaf         : basin pfaf code
    !   domain(:)%segIndex(:)  : segment index within a basin
    !   domain(:)%hruIndex(:)  : hru indix within a basin
-   !   domain(:)%basinType    : basinTypeIndex: 0-> unclassified, 1 -> tributary, 2-> inter-basin, 3-> headwater, 4-> whole basin
    !   domain(:)%idNode       : proc id (-1 through nNode-1) -1 is for mainstem but use pid=0
 
    ! updated and saved data
@@ -92,7 +91,8 @@ contains
    integer(i4b)                                :: nInvalid               ! number of invalid pfafcode (0 or -999)
    integer(i4b)                                :: iSeg, iOut, ix         ! loop indices
    integer(i4b)                                :: ix1, ix2               ! first and last indices in array to subset
-   logical(lgt),      allocatable              :: isInvalid(:)
+   logical(lgt)                                :: isInvalid(nSeg)        ! logical to indicate reach with invalid pfaf code ("0" and "-999")
+   logical(lgt)                                :: debug = .false.        ! print out reach info with node assignment for debugging
 
    ierr=0; message='classify_river_basin_mpi/'
 
@@ -112,8 +112,6 @@ contains
 
    ! put reaches with invalid pfaf code (0 or -999) into a separate domain
    nDomain = nDomain+1
-   allocate(isInvalid(nSeg), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'problem allocating [isInvalid]'; return; endif
    isInvalid(1:nSeg)=.false.
    do iSeg = 1,nSeg
      if (trim(adjustl(pfafs(iSeg)))=='0' .or. trim(adjustl(pfafs(iSeg)))=='-999') then
@@ -197,6 +195,8 @@ contains
    call assign_node(nNodes, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+   if (debug) call print_screen()
+
    CONTAINS
 
    ! --------------------------------------------------
@@ -277,7 +277,7 @@ contains
    ! Local variables
    character(len=strLen)                       :: cmessage         ! error message from subroutine
    integer(i4b)                                :: nTribSeg         ! number of tributary segments
-   integer(i4b)                                :: nWork(nNodes-1)  ! number of tributary workload for each node
+   integer(i4b)                                :: nWork(nNodes-1) ! number of tributary workload for each node
    integer(i4b)                                :: ixNode(1)        ! node id where work load is minimum
    integer(i4b)                                :: ix,ixx           ! loop indices
    integer(i4b),allocatable                    :: nSubSeg(:)       !
@@ -326,21 +326,21 @@ contains
     endif
    end do
 
-   ! Distribute mainstem and "large" tributary to distributed cores
-   nWork(1:nNodes-1) = 0
+   ! Distribute mainstem and "large" tributary to distributed cores (if more than one procs are available)
+   nWork = 0
    do ix = nDomain,1,-1  ! Going through domain from the largest size
-    ixx = rnkRnDomain(ix)
-    if (.not. isAssigned(ixx)) then
-     if (domains(ixx)%pfaf(1:1)=='-') then   ! if domain is mainstem
-      domains(ixx)%idNode = -1               ! put -1 for temporarily but mainstem is handled in root proc (idNode = 0)
-      isAssigned(ixx) = .true.
-     elseif (domains(ixx)%pfaf(1:1)/='-') then ! if domain is tributary
-      ixNode = minloc(nWork)
-      nWork(ixNode(1)) = nWork(ixNode(1))+size(domains(ixx)%segIndex)
-      domains(ixx)%idNode = ixNode(1)
-      isAssigned(ixx) = .true.
+     ixx = rnkRnDomain(ix)
+     if (.not. isAssigned(ixx)) then
+       if (domains(ixx)%pfaf(1:1)=='-') then   ! if domain is mainstem
+         domains(ixx)%idNode = -1               ! put -1 for temporarily but mainstem is handled in root proc (idNode = 0)
+         isAssigned(ixx) = .true.
+       elseif (domains(ixx)%pfaf(1:1)/='-') then ! if domain is tributary
+         ixNode = minloc(nWork)
+         nWork(ixNode(1)) = nWork(ixNode(1))+size(domains(ixx)%segIndex)
+         domains(ixx)%idNode = ixNode(1)
+         isAssigned(ixx) = .true.
+       endif
      endif
-    endif
    end do
 
    ! check
@@ -407,8 +407,9 @@ contains
 
    nSeg = size(pfafs)
 
-   ! if a basin has n reaches where n < maxSegs
-   if (nSeg<=maxSegs) then
+   ! if a basin has n reaches where n < maxSegs, put all the reaches in one domain
+   ! DO NOT include nSeg=maxSegs, otherwise it does not work in case of proc=1
+   if (nSeg<maxSegs) then
      nDomain = nDomain+1
      allocate(domains(nDomain)%segIndex(nSeg), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating [domains(nDomain)%segIndex]'; return; endif
@@ -570,7 +571,7 @@ contains
    ! NOTE: 9 is main stem (isInterbasin==.true.) but is also a headwater
    if (isInterbasin .and. (.not. isHeadwater)) then  ! if a river reach is in inter-basin and not headwater
 
-     ! 1. Populate mainstem segments (basinType == 2)
+     ! 1. Populate mainstem segments
      ! get mainstem reaches (isMainstem(nSeg) logical array)
      call find_mainstems(pfafCode, pfafs, isMainstem, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -589,12 +590,11 @@ contains
      if(ierr/=0)then; message=trim(message)//'problem allocating [domains(nDomain)%segIndex]'; return; endif
      domains(nDomain)%pfaf = '-'//trim(pfafCode)
      domains(nDomain)%segIndex = segIndex(ixSubset)
-     domains(nDomain)%basinType = 2
 
      deallocate(ixSubset, stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem deallocating [ixSubset]'; return; endif
 
-     ! 2. Populate tributary segments (basinType == 1)
+     ! 2. Populate tributary segments
      ! Get logical array indicating tributary outlet segments (size = nSeg)
      isMainstem2d = spread(isMainstem,2,1)  ! size: [nSeg x 2]
      call lgc_tributary_outlet(isMainstem2d, downIndex, isTribOutlet, ierr, cmessage)
@@ -640,14 +640,13 @@ contains
        if(ierr/=0)then; message=trim(message)//'problem allocating [domains(nDomain)%segIndex]'; return; endif
        domains(nDomain)%pfaf = mainCode
        domains(nDomain)%segIndex = segIndex(ixSubset)
-       domains(nDomain)%basinType = 1
 
        deallocate(ixSubset, stat=ierr)
        if(ierr/=0)then; message=trim(message)//'problem deallocating [ixSubset]'; return; endif
 
      end do
 
-   else   ! basin is tributaries, headwater (basinType == 3)
+   else   ! basin is tributaries, headwater
 
      ! populate domains data structure
      nDomain = nDomain + 1
@@ -655,7 +654,6 @@ contains
      if(ierr/=0)then; message=trim(message)//'problem allocating domains(nDomain)%segIndex for interbasin or headwater'; return; endif
      domains(nDomain)%pfaf = trim(pfafCode)
      domains(nDomain)%segIndex = segIndex
-     domains(nDomain)%basinType = 3
 
    end if
 
