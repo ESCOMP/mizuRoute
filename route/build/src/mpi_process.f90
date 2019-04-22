@@ -62,8 +62,8 @@ contains
   USE globalData,        ONLY: NETOPO_trib
   USE globalData,        ONLY: RPARAM_trib
   USE globalData,        ONLY: nEns
-  USE globalData,        ONLY: hru_per_proc         !
-  USE globalData,        ONLY: rch_per_proc         !
+  USE globalData,        ONLY: hru_per_proc         ! number of hrus assigned to each proc (size = num of procs+1)
+  USE globalData,        ONLY: rch_per_proc         ! number of reaches assigned to each proc (size = num of procs+1)
   USE globalData,        ONLY: ixHRU_order          ! global HRU index in the order of proc assignment
   USE globalData,        ONLY: ixRch_order          ! global reach index in the order of proc assignment
   USE globalData,        ONLY: tribOutlet_per_proc  ! number of tributary outlets per proc (size = nNodes)
@@ -114,7 +114,6 @@ contains
   character(len=32)                           :: pfaf(nRch_in)             ! reach pfafcode for each reach
   integer(i4b)                                :: ixLocalSubHRU(nHRU_in)    ! local HRU index
   integer(i4b)                                :: ixLocalSubSEG(nRch_in)    ! local reach index
-  integer(i4b)                                :: basinTypeSeg(nRch_in)     ! logical to indicate tributary seg or not
   logical(lgt),      allocatable              :: tribOutlet(:)             ! logical to indicate tributary outlet to mainstems over entire network
   integer(i4b)                                :: nRch_mainstem             ! number of reaches on the main stem
   integer(i4b)                                :: nHRU_mainstem             ! number of hrus on the main stem
@@ -188,7 +187,6 @@ contains
      end if
 
      ! extra information (debugging)
-     basinTypeSeg(ixSeg1:ixSeg2) = domains(ixx)%basinType           ! if domain is tributary, T otherwise, F
      ixNode(ixSeg1:ixSeg2)       = domains(ixx)%idNode                 ! node id
      pfaf(ixSeg1:ixSeg2)         = adjustl(trim(domains(ixx)%pfaf))    ! basin pfaf code
 
@@ -720,7 +718,6 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
     call MPI_BCAST(nWave, nSeg, MPI_INT, root, MPI_COMM_WORLD, ierr)
 
     ! total waves from all the tributary reaches in each proc
-!  totWave(pid) = sum(nWave(pid))
     ix2=0
     do myid = 0, nNodes-1
       ix1=ix2+1
@@ -798,7 +795,6 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
     call MPI_BCAST(nWave, nSeg, MPI_INT, root, MPI_COMM_WORLD, ierr)
 
     ! total waves in reaches in each proc
-!  totWave(pid) = sum(nWave_trib(pid))
     ix2=0
     do myid = 0, nNodes-1
       ix1=ix2+1
