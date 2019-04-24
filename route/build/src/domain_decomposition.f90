@@ -78,6 +78,7 @@ contains
    character(len=32)                           :: pfafCommon             ! common pfaf_codes over the entire basin
    character(len=32), allocatable              :: pfafOutlets(:)         ! list of pfaf_codes for all the outlet reaches
    integer(i4b)                                :: maxSegs                ! upper limit of  number of tributary reaches
+   integer(i4b),      allocatable              :: ixUpSeg(:)             ! list of upstream reach indices at a given outlet
    integer(i4b)                                :: ixOutlet               ! reach index for an outlet reach
    integer(i4b),      allocatable              :: ixOutlets(:)           ! list of outlet reach indices for all the outlet reaches
    integer(i4b),      allocatable              :: ixSubset(:)            ! subset indices based on logical array from global index array
@@ -92,7 +93,8 @@ contains
    integer(i4b)                                :: iSeg, iOut, ix         ! loop indices
    integer(i4b)                                :: ix1, ix2               ! first and last indices in array to subset
    logical(lgt)                                :: isInvalid(nSeg)        ! logical to indicate reach with invalid pfaf code ("0" and "-999")
-   logical(lgt)                                :: debug = .false.        ! print out reach info with node assignment for debugging
+   logical(lgt),      allocatable              :: isValid(:)             ! logical to indicate reach with vlid pfaf code (non "0")
+   logical(lgt)                                :: debug = .true.        ! print out reach info with node assignment for debugging
 
    ierr=0; message='classify_river_basin_mpi/'
 
@@ -110,11 +112,11 @@ contains
    forall(iSeg=1:nSeg) segIndex(iSeg)  = structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1)
    forall(iSeg=1:nSeg) downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
 
-   ! put reaches with invalid pfaf code (0 or -999) into a separate domain
+   ! put reaches with missing pfaf code into a separate domain
    nDomain = nDomain+1
    isInvalid(1:nSeg)=.false.
    do iSeg = 1,nSeg
-     if (trim(adjustl(pfafs(iSeg)))=='0' .or. trim(adjustl(pfafs(iSeg)))=='-999') then
+     if (trim(adjustl(pfafs(iSeg)))==pfafMissing) then
        isInvalid(iSeg)=.true.
      end if
    end do
@@ -124,6 +126,7 @@ contains
    call indexTrue(isInvalid, ixSubset)
    domains(nDomain)%pfaf = '0'
    domains(nDomain)%segIndex = segIndex(ixSubset)
+   deallocate(ixSubset, stat=ierr)
 
    ! Excluding invalid pfaf code reaches from the entire reaches
    allocate(segIndex_sub (nSeg-nInvalid), &
@@ -151,7 +154,25 @@ contains
      ixOutlet   = ixOutlets(iOut)
 
      ! get all the upstream reach indices for this outlet
-     associate (ixUpSeg => structNTOPO(ixOutlet)%var(ixNTOPO%allUpSegIndices)%dat)
+     ! check if upstream segment include reaches with pCode==0. if so remove them.
+     associate (ixUpSeg_tmp => structNTOPO(ixOutlet)%var(ixNTOPO%allUpSegIndices)%dat)
+     if (allocated(isValid)) deallocate(isValid)
+     allocate(isValid(size(ixUpSeg_tmp)), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating [isValid]'; return; endif
+     isValid =.false.
+     do iSeg = 1,size(ixUpSeg_tmp)
+       if (trim(adjustl(pfafs(ixUpSeg_tmp(iSeg))))/=pfafMissing) then
+         isValid(iSeg)=.true.
+       end if
+     end do
+     if (all(.not.isValid)) cycle
+     if (allocated(ixUpSeg)) deallocate(ixUpSeg)
+     allocate(ixUpSeg(count(isValid)), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating [ixUpSeg]'; return; endif
+     call indexTrue(isValid, ixSubset)
+     ixUpSeg = ixUpSeg_tmp(ixSubset)
+     deallocate(ixSubset, stat=ierr)
+     end associate
 
      ! Identify pfaf level for a river basin given outlet pfaf
      call get_common_pfaf(pfafs(ixUpSeg), pfafOutlet, level, ierr, cmessage)
@@ -166,7 +187,7 @@ contains
                         maxSegs,            & ! input: max number of reaches for tributaries
                         ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-     end associate
+
    end do
 
    ! populate domain(:)%hruIndex

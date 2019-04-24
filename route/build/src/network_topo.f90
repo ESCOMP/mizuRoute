@@ -665,7 +665,7 @@ contains
 
   ! ---------- define good basins ---------------------------------------------------------
 
-  ! "goodBasin" == Drainage area at the bottom of the reach is greater than threshold, "verySmall" value.
+  ! "goodBasin" == Drainage area at the bottom of the immediate reaches is greater than threshold, "verySmall" value.
 
   if(nImmediate > 0)then
    do iUps=1,nImmediate ! get the upstream segments
