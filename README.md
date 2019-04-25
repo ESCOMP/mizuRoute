@@ -1,10 +1,7 @@
 # mizuRoute
-mizuRoute is a stand-alone, post-processor of runoff output from a hydrologic model to produce streamflow estimates in the river network. The tool was developed for the large scale river routing (e.g., river network over contiguous United States), but works for small-size headwater basin as well.
+stand-alone mizuRoute is a post-processor of runoff output from a hydrologic model to produce streamflow estimates in the river network provided by a user. The tool was developed for the large scale river routing (e.g., river network over contiguous United States), but works for small-size headwater basin as well.
 
-# Contents in repository
-This repository contains the source codes (Fortran90) and pre-process scripts (python and bash scripts) for mizuRoute. The repository also includes the user-manual, example dataset for a user to test mizuRoute, and netcdf test code (to make sure thtat netcdf library is loaded in the machine correctly).
-
-The Fortran 90 source code of mizuRoute consists of two parts - 1) river network preprocessor and 2) routing program. The river network preprocessor, stored in ntopo, is to augment the basic information on river segment connectivity derived from GIS to facilitate subsequent execution of river routing computation. The routing program, stored in route, executes hillslope and river routing computation.
+Technical documentation is now being built on [readthedocs](https://mizuroute.readthedocs.io/en/develop/)
 
 # To get started
 1. Obtaining mizuRoute package. Just to use the tool, download the package by clicking “Download Zip” button on right column. 
@@ -27,7 +24,7 @@ The user may use netcdf test code to check if NetCDF libraries are properly inst
 
     4. Ready to run the executables.
 
-If you get this far then mizuRoute is installed correctly and functional. Now, the user will have to process runoff data and network topology data. Please refer to [user manual](docs/GMD_routing_v1_user_manual_20150831.pdf) to learn more about how to create mizuRoute input data  for your application. 
+If you get this far then mizuRoute is installed correctly and functional. Now, the user will have to process runoff data and network topology data. Please refer to [readthedocs](https://mizuroute.readthedocs.io/en/develop/) to learn more about how to create mizuRoute input data for your application. 
 
 The user are encouraged to start with example data to get familiarize the process.
 For real application, getting river network data (netCDF) might be time consuming part because this most likely requires GIS process and convert shapefile to netCDF). Please refer to section 2.1 what information is required. 
