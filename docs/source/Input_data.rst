@@ -3,18 +3,21 @@ Input data
 =================
 
 mizuRoute expects 2 or 3 input data depending on how runoff data is provided. 
-If runoff data is provide at river network HRU, river network data and runoff data are expected.
-Otherwise, mizuRoute needs to remap runoff from hydrologic model HRU to river network HRU. 
+If runoff data is provided at each river network HRU (RN_HRU), river network data and runoff data are expected.
+Otherwise, mizuRoute needs to remap runoff at hydrologic model HRU (HM_HRU) to river network HRU with areal weight averaging. 
 In this case, one additional data, remapping data, is required. All the data need to be stored in netCDF.
 
 Basic netCDF requirement (variable, dimension, etc) are discussed below.
 Dimension and variable names use mizuRoute default name but can be whatever. 
+However, some of variables and dimensions have to be specified in :doc:`control file <Control_file>`
 
 River network data
 ------------------
 
-River network holds river reach topology, reach-hru topology, and river and hru physical parameters. The tables below list minimum requirement.
-Full list of reach/hru physical parameters possibly included are :doc:`full list of river and hru physical parameters <seg_hru_param>` 
+River network netCDF holds river reach topology, reach-hru topology, and river and hru physical parameters. The tables below list minimum requirement.
+Full list of reach/hru physical parameters possibly included are :doc:`full list of river and hru physical parameters <seg_hru_param>`. 
+
+It is recommended that river network topology is built within mizuRoute instead of computing outside, while physically parameters are ideally provided per reach and hru. 
 
 Dimensions required
 
@@ -42,7 +45,7 @@ Minimum variables required
 | slope      | seg        | ``-``     | real  | slope of segment                        |
 +------------+------------+-----------+-------+-----------------------------------------+
 | length     | seg        | m         | real  | length of segment                       |
-+------------+------------+-----------+-------------------------------------------------+
++------------+------------+-----------+-------+-----------------------------------------+
 
 Runoff data
 -----------
@@ -50,8 +53,8 @@ Runoff data
 Runoff (total runoff) data can be provided as 1) 2D [time, RN_hru], 2) 2D [time, HM_hru] or 3) 3D [time, i, j].
 
 * Option 1. runoff is given at each river network HRU 
-* Option 2. runoff is given at each hydrologic HRU (non-grid) 
-* Option 3. runoff is given by grid 
+* Option 2. runoff is given at each hydrologic model HRU (non-grid) 
+* Option 3. runoff is given at grid 
 
 Dimensions
 
@@ -60,9 +63,9 @@ Dimensions
 +========+===========+=============================================+
 | 1,2,3  | time      | time dimension                              | 
 +--------+-----------+---------------------------------------------+
-| 1      | RN_hru    | river network catchment or HRU dimension    | 
+| 1      | RN_HRU    | river network catchment or HRU dimension    | 
 +--------+-----------+---------------------------------------------+
-| 2      | HM_hru    | hydrologic model catchment or HRU dimension | 
+| 2      | HM_HRU    | hydrologic model catchment or HRU dimension | 
 +--------+-----------+---------------------------------------------+
 | 3      | i         | x direction dimension                       | 
 +        +-----------+---------------------------------------------+
