@@ -1,5 +1,5 @@
-physical river parameters
-=========================
+River parameters
+================
 
 Full list of river parameters, both physical and topological ones, can be output in netCDF as river network augmentation mode. 
 Please see :doc:`control file <Control_file>` for more information 

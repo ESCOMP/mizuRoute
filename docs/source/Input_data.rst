@@ -74,23 +74,23 @@ Dimensions
 
 Variables
 
-+--------+-----------+--------------+-----------------------------+-------+-------------------------+
-| Option | Variable  | Dimension    | Unit                        | Type  | Description             |
-+========+===========+==============+=============================+=======+=========================+
-| 1,2,3  | time      | time         | [time-unit] since yyy-mm-dd | real  | time                    |
-+--------+-----------+--------------+-----------------------------+-------+-------------------------+
-| 1      | RN_hruID  | RN_hru       | ``-``                       | int   | river network HRU ID    | 
-+--------+-----------+--------------+-----------------------------+-------+-------------------------+
-| 2      | HM_hruID  | HM_hru       | ``-``                       | int   | hydrologic model HRU ID | 
-+--------+-----------+--------------+-----------------------------+-------+-------------------------+
-| 1      | runoff    | time, RN_hru | [length-unit]/[time-unit]   | real  | total runoff            |
-+--------+           +--------------+                             +       +                         +
-| 2      |           | time, HM_hru |                             |       |                         |
-+--------+           +--------------+                             +       +                         +
-| 3      |           | time, i, j   |                             |       |                         |
-+--------+-----------+--------------+-----------------------------+-------+-------------------------+
++--------+-----------+--------------+--------------------------------------+-------+-------------------------+
+| Option | Variable  | Dimension    | Unit                                 | Type  | Description             |
++========+===========+==============+======================================+=======+=========================+
+| 1,2,3  | time      | time         | [time-unit] since yyy-mm-dd 00:00:00 | real  | time                    |
++--------+-----------+--------------+--------------------------------------+-------+-------------------------+
+| 1      | RN_hruID  | RN_hru       | ``-``                                | int   | river network HRU ID    | 
++--------+-----------+--------------+--------------------------------------+-------+-------------------------+
+| 2      | HM_hruID  | HM_hru       | ``-``                                | int   | hydrologic model HRU ID | 
++--------+-----------+--------------+--------------------------------------+-------+-------------------------+
+| 1      | runoff    | time, RN_hru | [length-unit]/[time-unit]            | real  | total runoff            |
++--------+           +--------------+                                      +       +                         +
+| 2      |           | time, HM_hru |                                      |       |                         |
++--------+           +--------------+                                      +       +                         +
+| 3      |           | time, i, j   |                                      |       |                         |
++--------+-----------+--------------+--------------------------------------+-------+-------------------------+
 
-Attributes: Time variable need at least 2 attributes - units and calendar. Four types of calendar can be handled. These are noleap, standard, gregorian, and proleptic_gregorian.
+Attributes: Time variable need at least 2 attributes- *units* and *calendar*. Four types of calendar can be handled. These are noleap, standard, gregorian, and proleptic_gregorian.
 Time unit format is shown in the table.
 
 Runoff mapping data

@@ -1,16 +1,17 @@
 Control file
 ============
 
-Control file is simple text file, mainly defining model control such as simulation time, file name and locations, etc. 
-Control file is read and saved in fortran variable named tag and as public variables in the beggining of the code. 
+Control file is simple text file, mainly defining model control such as simulation time, file name and locations, routing option etc. 
+Variables in control file are read in the beginning of the code and saved in fortran variable named tag and as public variables. 
 Some of such public varialbes have some default values, but most of them are not defined.
 Those undefined variables need to be defined in control file.   
-Other variables in supplement table do have default value but can be also defined in control file to overwrite the defualt values. 
+Other variables in supplement table do have their default values but can be also included in control file to overwrite the values. 
 The order of variables in the control file is flexible. However, grouping variables into similar theme is recommended for readibility. 
 
 Example of control file  is given in ./route/settings/SAMPLE.control
 
 Some of rules
+
 * Exclamation mark is for comment and after exclamation make is ignored for reading.
 * Format: <tag>    variable    ! comments
 * tag is Fortran variable name and cannot be changed and have to be enclosed by <>
