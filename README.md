@@ -1,7 +1,7 @@
 [![Documentation Status](https://readthedocs.org/projects/mizuroute/badge/?version=develop)](https://mizuroute.readthedocs.io/en/develop/?badge=develop)
 
 # mizuRoute
-stand-alone mizuRoute is a post-processor of runoff output from a hydrologic model to produce streamflow estimates in the river network provided by a user. The tool was developed for the large scale river routing (e.g., river network over contiguous United States), but works for small-size headwater basin as well.
+Stand-alone mizuRoute is a post-processor of runoff output from a hydrologic model or Land surface model to produce streamflow estimates in the river network provided by a user. The tool was developed for the large scale, network based river routing (e.g., river network over contiguous United States), but works for gridded river network as well.
 
 Technical documentation is now being built on [readthedocs](https://mizuroute.readthedocs.io/en/develop/)
 
@@ -16,7 +16,7 @@ NetCDF Fortran library is installed (libnetcdff.*) and not just the C-version.
 The NetCDF libraries are compiled with the same compiler as you plan to compile mizuRoute
 The user may use netcdf test code to check if NetCDF libraries are properly installed, 
 
-4. Compiling the source code (rive network preprocessor and routing program). Once you have all the above, you can compile mizuRoute source codes using the following steps: Navigate to your local copy of the mizuRoute directory and go to the build subdirectory. The user will have to compile river network preprocessor and routing program separately.
+4. Compiling the source code (rive network preprocessor and routing program). Once you have all the above, you can compile mizuRoute source codes using the following steps: Navigate to your local copy of the mizuRoute directory and go to the build subdirectory.
  
     1. Edit F_MASTER and FC (to your desired compiler). You may also need to set NCDF_PATH and you may need to add some extra entries if you are using a different Fortran compiler or your setup is different (if someone wants to contribute an actual configure script that would be great).
 
@@ -26,7 +26,8 @@ The user may use netcdf test code to check if NetCDF libraries are properly inst
 
     4. Ready to run the executables.
 
-If you get this far then mizuRoute is installed correctly and functional. Now, the user will have to process runoff data and network topology data. Please refer to [readthedocs](https://mizuroute.readthedocs.io/en/develop/) to learn more about how to create mizuRoute input data for your application. 
+If you get this far then mizuRoute is built correctly and functional. Now, the user will have to generate input data, runoff data, river network topology and runoff mapping data (depending on input runoff option). Please refer to [readthedocs](https://mizuroute.readthedocs.io/en/develop/) to learn more about mizuRoute input data. 
 
-The user are encouraged to start with example data to get familiarize the process.
-For real application, getting river network data (netCDF) might be time consuming part because this most likely requires GIS process and convert shapefile to netCDF). Please refer to section 2.1 what information is required. 
+The user are encouraged to start with example data to get familiarize the process. testCase are being now developed and posted separately.
+
+For real application, getting river network data (netCDF) might be time consuming because this most likely requires GIS process and convert shapefile to netCDF). 
