@@ -5,8 +5,9 @@ Welcome to mizuRoute v1.1 documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   Control_file
    Input_data 
+   Control_file
+   seg_hru_param
 
 
 Indices and tables

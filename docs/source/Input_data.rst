@@ -1,11 +1,20 @@
 =================
 Input data
 =================
+
+mizuRoute expects 2 or 3 input data depending on how runoff data is provided. 
+If runoff data is provide at river network HRU, river network data and runoff data are expected.
+Otherwise, mizuRoute needs to remap runoff from hydrologic model HRU to river network HRU. 
+In this case, one additional data, remapping data, is required. All the data need to be stored in netCDF.
+
+Basic netCDF requirement (variable, dimension, etc) are discussed below.
+Dimension and variable names use mizuRoute default name but can be whatever. 
+
 River network data
 ------------------
 
-River network data should be stored in netCDF format.
-dimension and varialbe names below use mizuRoute default name but can be whatever. 
+River network holds river reach topology, reach-hru topology, and river and hru physical parameters. The tables below list minimum requirement.
+Full list of reach/hru physical parameters possibly included are :doc:`full list of river and hru physical parameters <seg_hru_param>` 
 
 Dimensions required
 
@@ -38,13 +47,13 @@ Minimum variables required
 Runoff data
 -----------
 
-Runoff (total runoff) data can be provided as 1) [time, RN_hru], 2) [time, HM_hru] or 3) [time, i, j].
+Runoff (total runoff) data can be provided as 1) 2D [time, RN_hru], 2) 2D [time, HM_hru] or 3) 3D [time, i, j].
 
 * Option 1. runoff is given at each river network HRU 
 * Option 2. runoff is given at each hydrologic HRU (non-grid) 
 * Option 3. runoff is given by grid 
 
-Dimension
+Dimensions
 
 +--------+-----------+---------------------------------------------+
 | Option | Dimension | Description                                 |
@@ -60,31 +69,41 @@ Dimension
 |        | j         | y direction dimension                       | 
 +--------+-----------+---------------------------------------------+
 
-Variable
+Variables
 
-+-----------+----------------+-------+-------+---------------------+
-| Variable  | Dimension      | Unit  | Type  | Description         |
-+===========+================+=======+=======+=====================+
-| runoff    | [time, RN_hru] | L/T   | real  | total runoff        |
-|           | [time, HM_hru] |       |       |                     |
-|           | [time, i, j]   |       |       |                     |
-+-----------+----------------+-------+-------+---------------------+
++--------+-----------+--------------+-----------------------------+-------+-------------------------+
+| Option | Variable  | Dimension    | Unit                        | Type  | Description             |
++========+===========+==============+=============================+=======+=========================+
+| 1,2,3  | time      | time         | [time-unit] since yyy-mm-dd | real  | time                    |
++--------+-----------+--------------+-----------------------------+-------+-------------------------+
+| 1      | RN_hruID  | RN_hru       | ``-``                       | int   | river network HRU ID    | 
++--------+-----------+--------------+-----------------------------+-------+-------------------------+
+| 2      | HM_hruID  | HM_hru       | ``-``                       | int   | hydrologic model HRU ID | 
++--------+-----------+--------------+-----------------------------+-------+-------------------------+
+| 1      | runoff    | time, RN_hru | [length-unit]/[time-unit]   | real  | total runoff            |
++--------+           +--------------+                             +       +                         +
+| 2      |           | time, HM_hru |                             |       |                         |
++--------+           +--------------+                             +       +                         +
+| 3      |           | time, i, j   |                             |       |                         |
++--------+-----------+--------------+-----------------------------+-------+-------------------------+
 
+Attributes: Time variable need at least 2 attributes - units and calendar. Four types of calendar can be handled. These are noleap, standard, gregorian, and proleptic_gregorian.
+Time unit format is shown in the table.
 
 Runoff mapping data
 -------------------
 
-For runoff input options 1 and 2, runoff mapping data, also in netCDF format is necessary to get runoff value at each river network HRU
+For runoff input options 2 and 3, runoff mapping data, also in netCDF format, is necessary to compute runoff value for each river network HRU
 
 +--------+-----------+---------------------------------------------+
 | Option | Dimension | Description                                 |
 +========+===========+=============================================+
-| 2,3    | hru       | river network HRU                           | 
+| 2,3    | hru       | River network HRU                           | 
 +--------+-----------+---------------------------------------------+
-| 2,3    | data      | vectorized overlapping HRU (or grid boxes)  | 
+| 2,3    | data      | Vectorized overlapping HRU (or grid boxes)  | 
 +--------+-----------+---------------------------------------------+
 
-minimum runoff mapping netCDF variables 
+Required runoff mapping netCDF variables 
 
 +--------+------------+-----------+-------+-------+-----------------------------------------------+
 | Option | Variable   | Dimension | Unit  | type  | Descriptions                                  |
