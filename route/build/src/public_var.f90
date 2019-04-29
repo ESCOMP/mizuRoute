@@ -30,7 +30,6 @@ module public_var
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
 
   ! river network related constants
-  integer(i4b),          public   :: maxPfafLen=32          ! maximum digit of pfafstetter code (default 32)
   integer(i4b),parameter,public   :: maxDomain=150000       ! maximum domains
 
   ! constants for general use
@@ -118,5 +117,8 @@ module public_var
   integer(i4b)         ,public    :: routOpt              = integerMissing  ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
   integer(i4b)         ,public    :: desireId             = integerMissing  ! turn off checks or speficy reach ID if necessary to print on screen
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
+  ! PFAFCODE
+  integer(i4b)         ,public    :: maxPfafLen           = 32              ! maximum digit of pfafstetter code (default 32).
+  character(len=1)     ,public    :: pfafMissing          = '0'             ! missing pfafcode (e.g., reach without any upstream area)
 
 end module public_var
