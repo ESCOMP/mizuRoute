@@ -1,17 +1,15 @@
-.. mizuRoute documentation master file, created by
-   sphinx-quickstart on Sat Apr  6 17:17:51 2019.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-Welcome to mizuRoute's documentation!
-=====================================
+Welcome to mizuRoute v1.1 documentation!
+=========================================
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-    license
-    help
+   Intro
+   Input_data 
+   Control_file
+   seg_hru_param
+
 
 Indices and tables
 ==================
