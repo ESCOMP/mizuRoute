@@ -215,7 +215,7 @@ contains
    iyyy_tmp = iyyy - 1;
  end if
 
- juldayss = real(floor(real(days_per_yr*(iyyy_tmp + 4716)))) + &
+ juldayss = real(days_per_yr*(iyyy_tmp + 4716)) + &
             real(floor(30.6001 * real(mm_tmp+1))) + dfrac - 1524.5;
 
  end subroutine compjulday_noleap
@@ -337,37 +337,37 @@ contains
  err=0; message="compcalday_noleap"
  if(julday<=0)then;err=10;message=trim(message)//"no negative julian days/"; return; end if
 
- A = floor(julday+0.5);
- F = julday + 0.5 - real(A)
- B = A + 1524;
- C = int((real(B) - 122.1)/real(days_per_yr));
- D = days_per_yr*C;
- E = int(real((B - D)/30.6001));
+ A = floor(julday+0.5_dp)
+ F = julday + 0.5_dp - real(A,kind(dp))
+ B = A + 1524_i4b
+ C = int((real(B,kind(dp)) - 122.1_dp)/real(days_per_yr,kind(dp)))
+ D = days_per_yr*C
+ E = int(real(B-D,kind(dp))/30.6001_dp)
 
  ! compute day
- days = real(B - D - int(30.6001 * E)) + F;
+ days = real(B-D - int(30.6001*real(E,kind(dp))),kind(dp)) + F;
  id = floor(days)
 
  ! compute day in a year
- nday = B - D - 123;
+ nday = B-D - 123_i4b;
  if (nday <= 305) then
-    dayofyr = nday + 60;
+    dayofyr = nday + 60_i4b;
  else
-    dayofyr = nday - 305;
+    dayofyr = nday - 305_i4b;
  endif
 
  ! compute month
  if (E < 14) then
-   mm = E - 1;
+   mm = E - 1_i4b;
  else
-   mm = E - 13;
+   mm = E - 13_i4b;
  endif
 
  ! compute year
  if (mm > 2) then
-  iyyy = C - 4716;
+  iyyy = C - 4716_i4b;
  else
-  iyyy = C - 4715;
+  iyyy = C - 4715_i4b;
  endif
 
  ! Convert fractions of a day to time
