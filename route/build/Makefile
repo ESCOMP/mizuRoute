@@ -95,7 +95,8 @@ DATATYPES = \
 UTILS = \
     nr_utility.f90 \
     ascii_util.f90 \
-		time_utils.f90 \
+    time_utils.f90 \
+    mpi_utils.f90 \
     gamma_func.f90
 #
 # read/write files
@@ -128,6 +129,7 @@ QROUTE = \
     basinUH.f90 \
     irf_route.f90 \
     kwt_route.f90 \
+    main_route.f90 \
     mpi_process.f90 \
     model_setup.f90
 
@@ -144,7 +146,7 @@ MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
 DRIVER = $(F_KORE_DIR)route_runoff.f90
 
 # Define the executable
-EXE = route_runoff.exe
+EXE = 
 
 #========================================================================
 # PART 4: Compile the puppy
