@@ -212,11 +212,11 @@ contains
  mm_tmp = mm; iyyy_tmp = iyyy
  if (mm < 3) then
    mm_tmp = mm + months_per_yr
-   iyyy_tmp = iyyy - 1;
+   iyyy_tmp = iyyy - 1
  end if
 
  juldayss = real(days_per_yr*(iyyy_tmp + 4716)) + &
-            real(floor(30.6001 * real(mm_tmp+1))) + dfrac - 1524.5;
+            real(floor(30.6001 * real(mm_tmp+1))) + dfrac - 1524.5
 
  end subroutine compjulday_noleap
 
@@ -345,29 +345,29 @@ contains
  E = int(real(B-D,kind(dp))/30.6001_dp)
 
  ! compute day
- days = real(B-D - int(30.6001*real(E,kind(dp))),kind(dp)) + F;
+ days = real(B-D - int(30.6001*real(E,kind(dp))),kind(dp)) + F
  id = floor(days)
 
  ! compute day in a year
- nday = B-D - 123_i4b;
+ nday = B-D - 123_i4b
  if (nday <= 305) then
-    dayofyr = nday + 60_i4b;
+    dayofyr = nday + 60_i4b
  else
-    dayofyr = nday - 305_i4b;
+    dayofyr = nday - 305_i4b
  endif
 
  ! compute month
  if (E < 14) then
-   mm = E - 1_i4b;
+   mm = E - 1_i4b
  else
-   mm = E - 13_i4b;
+   mm = E - 13_i4b
  endif
 
  ! compute year
  if (mm > 2) then
-  iyyy = C - 4716_i4b;
+  iyyy = C - 4716_i4b
  else
-  iyyy = C - 4715_i4b;
+  iyyy = C - 4715_i4b
  endif
 
  ! Convert fractions of a day to time
