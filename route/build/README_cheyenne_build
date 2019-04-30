@@ -1,0 +1,11 @@
+Building on cheyenne:
+
+
+module purge
+module load gnu
+module load netcdf
+module load mpt
+module load ncarcompilers
+
+setenv BLDDIR `pwd`/../
+gmake FC=gfortran FC_EXE=mpif90 F_MASTER=$BLDDIR

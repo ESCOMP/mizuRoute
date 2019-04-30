@@ -95,6 +95,7 @@ DATATYPES = \
 UTILS = \
     nr_utility.f90 \
     ascii_util.f90 \
+    mpi_utils.f90 \
 		time_utils.f90 \
     gamma_func.f90
 #
@@ -128,6 +129,7 @@ QROUTE = \
     basinUH.f90 \
     irf_route.f90 \
     kwt_route.f90 \
+    main_route.f90 \
     mpi_process.f90 \
     model_setup.f90
 
