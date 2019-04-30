@@ -1,7 +1,7 @@
 MODULE var_lookup
  ! defines named variables used to index array elements
- USE nrtype, only: i4b
- USE nrtype, only: integerMissing  ! missing value for integers
+ USE nrtype,     only: i4b
+ USE public_var, only: integerMissing  ! missing value for integers
  implicit none
  private
  ! local variables

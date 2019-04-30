@@ -2,6 +2,7 @@ module popMetadat_module
 
 ! common variables
 USE public_var, only : MAXQPAR
+USE public_var, only : integerMissing
 
 ! data types
 USE nrtype

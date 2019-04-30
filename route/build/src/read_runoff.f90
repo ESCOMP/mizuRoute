@@ -39,7 +39,7 @@ contains
  ! initialize error control
  ierr=0; message='get_runoff/'
 
- if (nSpace(2) == imiss) then
+ if (nSpace(2) == integerMissing) then
   call get_1D_runoff(fname, iTime, nSpace(1), runoff_data, ierr, message)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  else
@@ -88,7 +88,7 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! replace _fill_value with -999 for dummy
- where ( abs(dummy - fill_value) < verySmall ) dummy = dmiss
+ where ( abs(dummy - fill_value) < verySmall ) dummy = realMissing
 
  ! reshape
  runoff_data%qsim(1:nSpace) = dummy(1:nSpace,1)
@@ -134,7 +134,7 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! replace _fill_value with -999 for dummy
- where ( abs(dummy - fill_value) < verySmall ) dummy = dmiss
+ where ( abs(dummy - fill_value) < verySmall ) dummy = realMissing
 
  ! reshape
  runoff_data%qsim2d(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)

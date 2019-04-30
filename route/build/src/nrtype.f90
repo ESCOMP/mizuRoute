@@ -10,6 +10,4 @@ MODULE nrtype
     INTEGER, PARAMETER     :: LGT = KIND(.true.)
     ! common variables
     INTEGER(I4B),PARAMETER :: strLen=256            ! string length
-    INTEGER(I4B),PARAMETER :: integerMissing=-9999  ! missing value for integers
-    REAL(DP),PARAMETER     :: realMissing=-9999._dp ! missing value for real numbers
 END MODULE nrtype

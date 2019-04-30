@@ -103,7 +103,7 @@ contains
                 ierr, cmessage)          ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   if ( nSpatial(2) == imiss ) then
+   if ( nSpatial(2) == integerMissing ) then
      ! get indices of the "overlap HRUs" (the runoff input) in the runoff vector
      call get_qix(remap_data%qhru_id, &    ! input: vector of ids in mapping file
                   runoff_data%hru_id, &    ! input: vector of ids in runoff file
@@ -232,7 +232,7 @@ contains
  ! initialize error control
  ierr=0; message='get_1D_runoff_metadata/'
 
- nSpatial(2) = imiss
+ nSpatial(2) = integerMissing
 
  ! get the number of HRUs
  call get_nc_dim_len(fname, trim(dname_hruid), nSpatial(1), ierr, cmessage)
@@ -360,7 +360,7 @@ contains
  if(ierr/=0)then; message=trim(message)//'problem allocating space for common mapping info '; return; endif
 
  ! if runoff input is hru vector...
- if (nSpatial(2) == imiss) then
+ if (nSpatial(2) == integerMissing) then
   allocate(remap_data%qhru_id(nData), remap_data%qhru_ix(nData),  stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating space for mapping info for vector runoff'; return; endif
  ! if runoff input is grid...
@@ -371,8 +371,8 @@ contains
 
  ! get data
  do iVar=1,6
-  if (nSpatial(2) == imiss .and. iVar >= 5) cycle
-  if (nSpatial(2) /= imiss .and. iVar == 4) cycle
+  if (nSpatial(2) == integerMissing .and. iVar >= 5) cycle
+  if (nSpatial(2) /= integerMissing .and. iVar == 4) cycle
   select case(iVar)
    case(1); call get_nc(fname, vname_hruid_in_remap, remap_data%hru_id,   1, nHRU,  ierr, cmessage)
    case(2); call get_nc(fname, vname_num_qhru,       remap_data%num_qhru, 1, nHRU,  ierr, cmessage)

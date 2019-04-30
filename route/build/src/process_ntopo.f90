@@ -3,8 +3,6 @@ module process_ntopo
 ! data types
 USE nrtype,    only : i4b,dp              ! variable types, etc.
 USE nrtype,    only : strLen              ! length of characters
-USE nrtype,    only : realMissing         ! missing value for real
-USE nrtype,    only : integerMissing      ! missing value for integers
 USE dataTypes, only : var_ilength         ! integer type:          var(:)%dat
 USE dataTypes, only : var_dlength,dlength ! double precision type: var(:)%dat, or dat
 
@@ -48,6 +46,8 @@ USE var_lookup,only:ixNTOPO               ! index of variables for the network t
 USE public_var, only : compute            ! compute given variable
 USE public_var, only : doNotCompute       ! do not compute given variable
 USE public_var, only : readFromFile       ! read given variable from a file
+USE public_var, only : realMissing        ! missing value for real
+USE public_var, only : integerMissing     ! missing value for integers
 
 ! Routing parameter estimation procedure
 USE basinUH_module,   only : basinUH      ! construct basin unit hydrograph

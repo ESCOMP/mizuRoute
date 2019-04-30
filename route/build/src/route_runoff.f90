@@ -115,8 +115,6 @@ type(remap)                   :: remap_data          ! data structure to remap d
 type(runoff)                  :: runoff_data         ! runoff for one time step for all HRUs
 integer(i4b)                  :: nSpatial(1:2)       ! number of spatial elements
 integer(i4b)                  :: nTime               ! number of time steps
-character(len=strLen)         :: time_units          ! time units
-character(len=strLen)         :: calendar            ! calendar
 
 ! time structures
 type(time)                    :: modTime             ! model time
@@ -134,7 +132,6 @@ integer(i4b), allocatable     :: basinID(:)          ! basin ID
 integer(i4b), allocatable     :: reachID(:)          ! reach ID
 real(dp)    , allocatable     :: basinRunoff(:)      ! basin runoff (m/s)
 real(dp)    , allocatable     :: reachRunoff(:)      ! reach runoff (m/s)
-integer(i4b), parameter       :: doesBasinRoute=1    ! integer to specify runoff input type (0 -> runoff input is already delayed, 1 -> runoff input is instantaneous)
 integer(i4b)                  :: ixDesire            ! desired reach index
 integer(i4b)                  :: ixOutlet            ! outlet reach index
 
