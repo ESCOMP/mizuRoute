@@ -370,7 +370,7 @@ do iTime=1,nTime
   jtime=1
 
   ! update filename
-  write(fileout,'(a,3(i0,a))') trim(output_dir)//'runoff_', modTime%iy, '-', modTime%im, '-', modTime%id, '.nc'
+  write(fileout,'(a,3(i0,a))') trim(output_dir)//trim(fname_output)//'_', modTime%iy, '-', modTime%im, '-', modTime%id, '.nc'
 
   ! define output file
   call defineFile(trim(fileout),                         &  ! input: file name

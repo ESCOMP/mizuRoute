@@ -1,5 +1,4 @@
 module process_ntopo
-
 ! data types
 USE nrtype,    only : i4b,dp              ! variable types, etc.
 USE nrtype,    only : strLen              ! length of characters
@@ -18,6 +17,7 @@ USE public_var, only : dt                 ! simulation time step [sec]
 
 ! options
 USE public_var, only : ntopWriteOption    ! option to write updated network topology
+USE public_var, only : ntopAugmentMode    ! River network augmentation mode
 USE public_var, only : topoNetworkOption  ! option to compute network topology
 USE public_var, only : computeReachList   ! option to compute reach list
 USE public_var, only : hydGeometryOption  ! option to obtain routing parameters
@@ -307,7 +307,6 @@ contains
  ! ---------- write network topology to a netcdf file -------------------------------------------------------
 
  ! check the need to compute network topology
- if(idSegOut>0) ntopWriteOption=.true.   ! ensure that localized network topology is written if a particular outlet is specified
  if(ntopWriteOption)then
 
   ! disable the dimension containing all upstream reaches
@@ -341,7 +340,7 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! created a subset = sucessful execution: Need to run again with the subset
-  if(idSegOut>0)then
+  if(ntopAugmentMode)then
    write(*,'(a)') 'Running in subsetting mode'
    write(*,'(a)') 'Created a subset network topology file '//trim(fname_ntopNew)
    write(*,'(a)') ' --> Run again using the new network topology file '
