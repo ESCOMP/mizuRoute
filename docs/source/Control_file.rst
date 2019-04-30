@@ -2,13 +2,13 @@ Control file
 ============
 
 Control file is simple text file, mainly defining model control such as simulation time, file name and locations, routing option etc. 
-Variables in control file are read in the beginning of the code and saved in fortran variable named tag and as public variables. 
+Variables in control file are read in the beginning of the code (see ``./build/src/read_control.f90``) and saved in fortran variable specified by tag (inside <> in table) and as public variables. 
 Some of such public varialbes have some default values, but most of them are not defined.
 Those undefined variables need to be defined in control file.   
 Other variables in supplement table do have their default values but can be also included in control file to overwrite the values. 
-The order of variables in the control file is flexible. However, grouping variables into similar theme is recommended for readibility. 
+The order of variables in the control file does not matter. However, grouping variables into similar theme is recommended for readibility. 
 
-Example of control file  is given in ./route/settings/SAMPLE.control
+Example of control file  is given in ``./route/settings/SAMPLE.control``
 
 Some of rules
 
@@ -29,21 +29,17 @@ The following variables (not pre-defined in the code) need to be defined in cont
 +------------------------+-------------------------------------------------------------------------------------------+
 | <output_dir>           | Directory that contains runoff data                                                       |
 +------------------------+-------------------------------------------------------------------------------------------+
-| <param_nml>            | spatially constant parameter namelist (should be stored in <ancil_dir>                    |
+| <param_nml>            | Spatially constant parameter namelist (should be stored in <ancil_dir>                    |
 +------------------------+-------------------------------------------------------------------------------------------+
-| <sim_start>            | time of simulation start. format: yyyy-mm-dd                                              |
+| <sim_start>            | time of simulation start. format: yyyy-mm-dd or yyyy-mm-dd hh:mm:ss                       |
 +------------------------+-------------------------------------------------------------------------------------------+
-| <sim_end>              | time of simulation end. format:  yyyy-mm-dd                                               |
+| <sim_end>              | time of simulation end. format:  yyyy-mm-dd or yyyy-mm-dd hh:mm:ss                        |
 +------------------------+-------------------------------------------------------------------------------------------+
-| <fname_ntopOld>        | netCDF name for River Network                                                             |
+| <fname_ntopOld>        | name of input netCDF for River Network                                                    |
 +------------------------+-------------------------------------------------------------------------------------------+
 | <dname_sseg>           | dimension name for reach                                                                  |
 +------------------------+-------------------------------------------------------------------------------------------+
 | <dname_nhru>           | dimension name for RN_HRU                                                                 |
-+------------------------+-------------------------------------------------------------------------------------------+
-| <ntopWriteOption>      | logical to indicate if augmented river network is written. T or F                         |
-+------------------------+-------------------------------------------------------------------------------------------+
-| <fname_ntopNew>        | output netCDF name for augmented river network. See note 1                                |
 +------------------------+-------------------------------------------------------------------------------------------+
 | <fname_qsim>           | netCDF name for HM_HRU runoff                                                             |
 +------------------------+-------------------------------------------------------------------------------------------+
@@ -100,21 +96,21 @@ The following variables (not pre-defined in the code) need to be defined in cont
 
 Variables that have default values but can be overwritten 
 
-+------------------------+-----------------+--------------------------------------------------------------------------+
-| tag                    | Default values  | Description                                                              |
-+========================+=================+==========================================================================+
-| <ntopWriteOption>      | F               | logical to indicate if augmented river network is written. T or F        |
-+------------------------+-----------------+--------------------------------------------------------------------------+
-| <fname_ntopNew>        |                 | output netCDF name for augmented river network. See note 1               |
-+------------------------+-----------------+--------------------------------------------------------------------------+
-| <newFileFrequency>     | annual          | frequency for new output files (day, month, or annual)                   |
-+------------------------+-----------------+--------------------------------------------------------------------------+
-| <hydGeometryOption>    | 1               | option for hydraulic geometry calculations (0=read from file, 1=compute) |
-+------------------------+-----------------+--------------------------------------------------------------------------+
-| <topoNetworkOption>    | 1               | option for network topology calculations (0=read from file, 1=compute)   |
-+------------------------+-----------------+--------------------------------------------------------------------------+
-| <computeReachList>     | 1               | option to compute list of upstream reaches (0=do not compute, 1=compute) |
-+------------------------+-----------------+--------------------------------------------------------------------------+
++------------------------+------------------------+--------------------------------------------------------------------------+
+| tag                    | Default values         | Description                                                              |
++========================+========================+==========================================================================+
+| <ntopWriteOption>      | F                      | logical to indicate if augmented river network is written. T or F        |
++------------------------+------------------------+--------------------------------------------------------------------------+
+| <fname_ntopNew>        | <fname_ntopOld>_aug.nc | output netCDF name for augmented river network. See note 1               |
++------------------------+------------------------+--------------------------------------------------------------------------+
+| <newFileFrequency>     | annual                 | frequency for new output files (day, month, or annual)                   |
++------------------------+------------------------+--------------------------------------------------------------------------+
+| <hydGeometryOption>    | 1                      | option for hydraulic geometry calculations (0=read from file, 1=compute) |
++------------------------+------------------------+--------------------------------------------------------------------------+
+| <topoNetworkOption>    | 1                      | option for network topology calculations (0=read from file, 1=compute)   |
++------------------------+------------------------+--------------------------------------------------------------------------+
+| <computeReachList>     | 1                      | option to compute list of upstream reaches (0=do not compute, 1=compute) |
++------------------------+------------------------+--------------------------------------------------------------------------+
 
 1. if <ntopWriteOption> is T or <seg_outlet> is not -999, river network is output into <fname_ntopNew> and program stops 
 
