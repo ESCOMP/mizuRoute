@@ -325,13 +325,13 @@ contains
  integer(i4b), intent(out)    :: err          ! error code
  character(*), intent(out)    :: message      ! error message
  ! local variables
- integer(i4b)                 :: A,B,C,D,E            ! various step variable
- integer(i4b)                 :: nday                 ! various step variable
- real(dp)                     :: F                    ! various step variable
- integer(i4b)                 :: dayofyr              ! day of year
- real(dp)                     :: frac_day             ! fractional day
- real(dp)                     :: days                 ! day with a fraction days
- real(dp)                     :: remainder ! remainder of modulus operation
+ integer(i4b)                 :: A,B,C,D,E    ! various step variable
+ integer(i4b)                 :: nday         ! various step variable
+ real(dp)                     :: F            ! various step variable
+ integer(i4b)                 :: dayofyr      ! day of year
+ real(dp)                     :: frac_day     ! fractional day
+ real(dp)                     :: days         ! day with a fraction days
+ real(dp)                     :: remainder    ! remainder of modulus operation
 
  ! initialize errors
  err=0; message="compcalday_noleap"
@@ -345,26 +345,26 @@ contains
  E = int(real(B-D,kind(dp))/30.6001_dp)
 
  ! compute day
- days = real(B-D - int(30.6001*real(E,kind(dp))),kind(dp)) + F
+ days = real(B-D - int(30.6001_dp*real(E,kind(dp))),kind(dp)) + F
  id = floor(days)
 
  ! compute day in a year
- nday = B-D - 123_i4b
- if (nday <= 305) then
+ nday = B - D - 123_i4b
+ if (nday <= 305_i4b) then
     dayofyr = nday + 60_i4b
  else
     dayofyr = nday - 305_i4b
  endif
 
  ! compute month
- if (E < 14) then
+ if (E < 14_i4b) then
    mm = E - 1_i4b
  else
    mm = E - 13_i4b
  endif
 
  ! compute year
- if (mm > 2) then
+ if (mm > 2_i4b) then
   iyyy = C - 4716_i4b
  else
   iyyy = C - 4715_i4b

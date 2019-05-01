@@ -10,6 +10,7 @@ private
 public::arth
 public::indexx
 public::findIndex
+public::indexTrue
 contains
 
  ! *************************************************************************************************
@@ -181,5 +182,23 @@ contains
  findIndex=vecIndex(1)
 
  end function findIndex
+
+ subroutine indexTrue(TF,pos)
+  ! Return indices of True in TF array
+  implicit none
+  ! Inlet variables
+  logical(lgt),intent(in)                :: TF(:)           ! Logical vector (True or False)
+  ! Outlet variables
+  integer(i4b), allocatable, intent(out) :: pos(:)          ! position of "true" conditions
+  ! Local variable
+  integer(i4b)                           :: npos            ! number of "true" conditions
+  integer(i4b)                           :: idx(size(TF))   ! vector of all positions
+
+  idx = arth(1,1,size(TF))           ! Enumerate all positions
+  npos  = count(TF)                  ! Count the elements of TF that are .True.
+  allocate(pos(npos))
+  pos = pack(idx,TF)                 ! With Pack function, verify position of true conditions
+
+ end subroutine indexTrue
 
 end module nr_utility_module

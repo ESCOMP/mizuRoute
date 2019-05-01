@@ -44,25 +44,25 @@ contains
   integer(i4b)                    :: iVarId       ! NetCDF variable ID
   ! initialize error control
   ierr=0; message='write_ivec/'
- 
+
   ! open NetCDF file
   ierr = nf90_open(trim(fname),nf90_write,ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! get variable ID
   ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! write data
   ierr = nf90_put_var(ncid,iVarId,array,start=iStart,count=iCount)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! close output file
   ierr = nf90_close(ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   end subroutine
- 
+
   ! *********************************************************************
   ! subroutine: write a double precision vector
   ! *********************************************************************
@@ -87,25 +87,26 @@ contains
   integer(i4b)                    :: iVarId       ! NetCDF variable ID
   ! initialize error control
   ierr=0; message='write_dvec/'
- 
+
   ! open NetCDF file
   ierr = nf90_open(trim(fname),nf90_write,ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! get variable ID
   ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! write data
   ierr = nf90_put_var(ncid,iVarId,array,start=iStart,count=iCount)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! close output file
   ierr = nf90_close(ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   end subroutine
- 
+
+
   ! *********************************************************************
   ! subroutine: write a double precision 2D array
   ! *********************************************************************
@@ -130,25 +131,25 @@ contains
   integer(i4b)                    :: iVarId       ! NetCDF variable ID
   ! initialize error control
   ierr=0; message='write_2d_iarray/'
- 
+
   ! open NetCDF file
   ierr = nf90_open(trim(fname),nf90_write,ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! get variable ID
   ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! write data
   ierr = nf90_put_var(ncid,iVarId,array,start=iStart,count=iCount)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! close output file
   ierr = nf90_close(ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   end subroutine
- 
+
   ! *********************************************************************
   ! subroutine: write a double precision 3D array
   ! *********************************************************************
@@ -173,25 +174,25 @@ contains
   integer(i4b)                    :: iVarId       ! NetCDF variable ID
   ! initialize error control
   ierr=0; message='write_3d_iarray/'
- 
+
   ! open NetCDF file
   ierr = nf90_open(trim(fname),nf90_write,ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! get variable ID
   ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! write data
   ierr = nf90_put_var(ncid,iVarId,array,start=iStart,count=iCount)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! close output file
   ierr = nf90_close(ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   end subroutine
- 
+
   ! *********************************************************************
   ! subroutine: write a double precision 2D array
   ! *********************************************************************
@@ -216,25 +217,25 @@ contains
   integer(i4b)                    :: iVarId       ! NetCDF variable ID
   ! initialize error control
   ierr=0; message='write_2d_darray/'
- 
+
   ! open NetCDF file
   ierr = nf90_open(trim(fname),nf90_write,ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! get variable ID
   ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! write data
   ierr = nf90_put_var(ncid,iVarId,array,start=iStart,count=iCount)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! close output file
   ierr = nf90_close(ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   end subroutine
- 
+
   ! *********************************************************************
   ! subroutine: write a double precision 3D array
   ! *********************************************************************
@@ -259,23 +260,23 @@ contains
   integer(i4b)                    :: iVarId        ! NetCDF variable ID
   ! initialize error control
   ierr=0; message='write_3d_darray/'
- 
+
   ! open NetCDF file
   ierr = nf90_open(trim(fname),nf90_write,ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! get variable ID
   ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! write data
   ierr = nf90_put_var(ncid,iVarId,array,start=iStart,count=iCount)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   ! close output file
   ierr = nf90_close(ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
   end subroutine
 
 end module write_netcdf
