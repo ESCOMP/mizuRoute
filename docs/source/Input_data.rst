@@ -14,7 +14,7 @@ However, some of variables and dimensions have to be specified in :doc:`control 
 River network data
 ------------------
 
-River network netCDF holds river reach topology, reach-hru topology, and river and hru physical parameters. The tables below list minimum requirement.
+River network netCDF holds river reach-reach topology, reach-hru topology, and river and hru physical parameters. The tables below list minimum requirement.
 Full list of reach/hru physical parameters possibly included are :doc:`full list of river and hru physical parameters <seg_hru_param>`. 
 
 It is recommended that river network topology is built within mizuRoute instead of computing outside, while physically parameters are ideally provided per reach and hru. 
@@ -37,6 +37,8 @@ Minimum variables required
 | segId      | seg        | ``-``     | int   | unique id of each stream segment        |
 +------------+------------+-----------+-------+-----------------------------------------+
 | HRUid      | hru        | ``-``     | int   | unique hru ID                           |
++------------+------------+-----------+-------+-----------------------------------------+
+| downSegId  | seg        | ``-``     | int   | id of the downstream segment            |
 +------------+------------+-----------+-------+-----------------------------------------+
 | hruSegId   | hru        | ``-``     | int   | id of the stream segment below each HRU |
 +------------+------------+-----------+-------+-----------------------------------------+

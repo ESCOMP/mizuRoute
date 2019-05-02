@@ -21,29 +21,26 @@ F_MASTER =
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
  NCDF_PATH = /opt/local
- LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
- INCNETCDF = -I$(NCDF_PATH)/include
 endif
 ifeq "$(FC)" "ifort"
  NCDF_PATH = /opt/netcdf4-intel
- LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
- INCNETCDF = -I$(NCDF_PATH)/include
 endif
 ifeq "$(FC)" "pgf90"
  NCDF_PATH = /opt/netcdf4-pgf90
- LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
- INCNETCDF = -I$(NCDF_PATH)/include
 endif
+
+LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
+INCNETCDF = -I$(NCDF_PATH)/include
 
 # Define flags
 ifeq "$(FC)" "gfortran"
  FLAGS = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
 endif
 ifeq "$(FC)" "ifort"
- FLAGS1 = -warn all -noerror_limit -FR -O0 -auto -WB -traceback -g -fltconsistency
-# FLAGS = -static -debug -warn all -check all,noarg_temp_created -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
- FLAGS = -warn all -check all,noarg_temp_created -FR -O2 -auto -WB -traceback -g -fltconsistency -fpe0
-# FLAGS = -debug -warn all -check all,noarg_temp_created -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
+ FLAGS = -O2 -p -g -warn all -check all -FR -auto -WB -traceback -fltconsistency -fpe0
+# FLAGS = -O0 -p -g -warn all -noerror_limit -FR -auto -WB -traceback -fltconsistency
+# FLAGS = -O0 -p -g -static -debug -warn all -check all -FR -O0 -auto -WB -traceback -fltconsistency -fpe0
+# FLAGS = -O0 -p -g -debug -warn all -check all -FR -auto -WB -traceback -fltconsistency -fpe0
 endif
 ifeq "$(FC)" "pgf90"
  FLAGS1 = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -Mprof=lines,time
@@ -69,47 +66,51 @@ EXE_PATH = $(F_MASTER)bin
 #
 # data types
 DATATYPES = \
-		nrtype.f90 \
-		dataTypes.f90 \
-		var_lookup.f90 \
-		globalData.f90 \
-		public_var.f90 \
-		popMetadat.f90
-#
+    nrtype.f90 \
+    public_var.f90 \
+    dataTypes.f90 \
+    var_lookup.f90 \
+    globalData.f90 \
+    popMetadat.f90 \
+    allocation.f90 
 # define utilities
 UTILS = \
-		nr_utility.f90 \
-		ascii_util.f90 \
+    nr_utility.f90 \
+    ascii_util.f90 \
 		time_utils.f90 \
-		gamma_func.f90
-#
+    gamma_func.f90
 # read/write files
 IO = \
-		remap.f90 \
-		read_control.f90 \
-		read_param.f90 \
-		read_netcdf.f90 \
-		write_netcdf.f90 \
-		read_streamSeg.f90 \
-		write_streamSeg.f90 \
-		read_runoff.f90 \
-		getAncillary.f90 \
-		read_restart.f90 \
-		write_restart.f90 \
-		write_simoutput.f90
-#
-# perform model routing
+    remap.f90 \
+    read_control.f90 \
+    read_param.f90 \
+    read_netcdf.f90 \
+    write_netcdf.f90 \
+    read_streamSeg.f90 \
+    write_streamSeg.f90 \
+    read_runoff.f90 \
+    get_basin_runoff.f90 \
+    read_remap.f90 \
+    read_restart.f90 \
+    write_restart.f90 \
+    write_simoutput.f90
+# initialization
+INIT = \
+    process_time.f90 \
+    network_topo.f90 \
+    process_param.f90 \
+    process_ntopo.f90
+# model simulation
 MODSIM = \
-		basinUH.f90 \
-		irf_route.f90 \
-		process_time.f90 \
-		network_topo.f90 \
-		process_ntopo.f90 \
-		accum_runoff.f90 \
-		kwt_route.f90
+    accum_runoff.f90 \
+    basinUH.f90 \
+    irf_route.f90 \
+    kwt_route.f90 \
+    main_route.f90 \
+    model_setup.f90
 
 # concatanate model subroutines
-TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(MODSIM)
+TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(INIT) $(MODSIM)
 
 # insert appropriate directory name
 MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
@@ -121,7 +122,7 @@ MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
 DRIVER = $(F_KORE_DIR)route_runoff.f90
 
 # Define the executable
-EXE = route_runoff.exe
+EXE = 
 
 #========================================================================
 # PART 4: Compile the puppy

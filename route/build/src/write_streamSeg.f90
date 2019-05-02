@@ -3,7 +3,6 @@ module write_streamSeg
 ! data types
 USE nrtype,    only : i4b,dp,lgt
 USE nrtype,    only : strLen               ! string length
-USE nrtype,    only : integerMissing       ! missing value for integers
 USE dataTypes, only : var_ilength          ! integer type:          var(:)%dat
 USE dataTypes, only : var_dlength          ! double precision type: var(:)%dat
 USE dataTypes, only : var_info             ! metadata
@@ -117,10 +116,10 @@ contains
 
   ! write data from each structure
   select case(iStruct)
-   case(ixStruct%HRU    ); call writeVar_dp (trim(fname), nSpace, meta_HRU    , structHRU    , ixHRU_desired, ierr, cmessage)       ! HRU properties
-   case(ixStruct%SEG    ); call writeVar_dp (trim(fname), nSpace, meta_SEG    , structSeg    , ixSeg_desired, ierr, cmessage)       ! stream segment properties
-   case(ixStruct%HRU2SEG); call writeVar_i4b(trim(fname), nSpace, meta_HRU2SEG, structHRU2seg, ixHRU_desired, ierr, cmessage)       ! HRU-to-segment mapping
-   case(ixStruct%NTOPO  ); call writeVar_i4b(trim(fname), nSpace, meta_NTOPO  , structNTOPO  , ixSeg_desired, ierr, cmessage)       ! network topology
+   case(ixStruct%HRU    ); call writeVar_dp  (trim(fname), nSpace, meta_HRU    , structHRU    , ixHRU_desired, ierr, cmessage)       ! HRU properties
+   case(ixStruct%SEG    ); call writeVar_dp  (trim(fname), nSpace, meta_SEG    , structSeg    , ixSeg_desired, ierr, cmessage)       ! stream segment properties
+   case(ixStruct%HRU2SEG); call writeVar_i4b (trim(fname), nSpace, meta_HRU2SEG, structHRU2seg, ixHRU_desired, ierr, cmessage)       ! HRU-to-segment mapping
+   case(ixStruct%NTOPO  ); call writeVar_i4b (trim(fname), nSpace, meta_NTOPO  , structNTOPO  , ixSeg_desired, ierr, cmessage)       ! network topology
    case default; ierr=20; message=trim(message)//'unable to identify data structure'; return
   end select
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -145,7 +144,6 @@ contains
  integer(i4b)                        :: jDim             ! dimension index
  integer(i4b)                        :: iStruct          ! structure index
  integer(i4b),parameter              :: nVars=30         ! number of variables
- integer(i4b),parameter              :: strLen=256       ! length of character string
  character(len=strLen)               :: cmessage         ! error message of downwind routine
  ! initialize error control
  ierr=0; message='createFile/'
@@ -153,7 +151,7 @@ contains
  ! ---------- create file ----------------------------------------------------------------------------------------
 
  ! create file
- ierr = nf90_create(trim(fname), nf90_classic_model, ncid)
+ ierr = nf90_create(trim(fname), NF90_64BIT_OFFSET, ncid)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  ! ---------- define dimensions ----------------------------------------------------------------------------------
@@ -161,7 +159,7 @@ contains
  ! define dimensions
  do jDim=1,size(meta_dims)
   ierr = nf90_def_dim(ncid, trim(meta_dims(jDim)%dimName), meta_dims(jDim)%dimLength, meta_dims(jDim)%dimId)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'name = '//trim(meta_dims(jDim)%dimName); return; endif
+  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; name = '//trim(meta_dims(jDim)%dimName); return; endif
  end do  ! looping through dimensions
 
  ! ---------- define start index and count for the ragged arrays -------------------------------------------------
@@ -275,7 +273,11 @@ contains
  ierr=0; message='varDefine/'
 
  ! define variable
- ierr = nf90_def_var(ncid,trim(varName), ivtype, meta_dims(ivdim)%dimId, iVarId)
+ if (ivtype /= 2) then ! character array
+  ierr = nf90_def_var(ncid,trim(varName), ivtype, meta_dims(ivdim)%dimId, iVarId)
+ else
+  ierr=20; message=trim(message)//'not supporting character type array'; return
+ end if
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'name = '//trim(varName); return; endif
 
  ! add variable description

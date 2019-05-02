@@ -1,8 +1,7 @@
 MODULE read_restart
 ! Moudle wide external modules
 USE nrtype, only: i4b, dp, &
-                  strLen,  &
-                  integerMissing
+                  strLen
 USE netcdf
 USE public_var
 

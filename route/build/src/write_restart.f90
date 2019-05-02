@@ -1,9 +1,7 @@
 MODULE write_restart
 
 ! Moudle wide external modules
-USE nrtype, only: i4b, dp, &
-                  strLen,  &
-                  integerMissing
+USE nrtype, only: i4b, dp, strLen
 USE netcdf
 USE public_var
 
@@ -12,9 +10,41 @@ implicit none
 private
 
 public::define_state_nc
-public::write_state_nc
+public::output_state
 
 CONTAINS
+
+ subroutine output_state(ierr, message)
+
+  ! Saved Data
+  USE public_var, ONLY: output_dir
+  USE public_var, ONLY: fname_state_out
+  USE public_var, ONLY: routOpt
+  USE globalData, ONLY: timeVar
+  USE globalData, ONLY: iTime
+  USE globalData, ONLY: TSEC
+  USE globalData, ONLY: reachID
+
+  implicit none
+  ! output variables
+  integer(i4b),   intent(out)          :: ierr             ! error code
+  character(*),   intent(out)          :: message          ! error message
+  ! local variables
+  character(len=strLen)                :: cmessage         ! error message of downwind routine
+
+  call write_state_nc(&
+                      trim(output_dir)//trim(fname_state_out), &  ! Input: state netcdf name
+                      routOpt,                                 &  ! input: which routing options
+                      timeVar(iTime), 1, TSEC(0), TSEC(1),     &  ! Input: time, time step, start and end time [sec]
+                      reachID,                                 &  ! Input: segment id vector
+                      ierr, message)                              ! Output: error control
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  print*, '--------------------'
+  print*, 'Finished simulation'
+  print*, '--------------------'
+
+ end subroutine output_state
 
  ! *********************************************************************
  ! subroutine: define restart NetCDF file

@@ -1,24 +1,193 @@
 MODULE write_simoutput
-
 ! Moudle wide external modules
 USE nrtype
 USE netcdf
 USE public_var
+
 implicit none
+
+! The following variables used only in this module
+character(len=strLen),save        :: fileout          ! name of the output file
+integer(i4b),         save        :: jTime            ! time step in output netCDF
 
 private
 
-public::defineFile
+public::prep_output
+public::output
 
 CONTAINS
 
  ! *********************************************************************
- ! new subroutine: define routing output NetCDF file
+ ! public subroutine: define routing output NetCDF file
+ ! *********************************************************************
+ SUBROUTINE output(ierr, message)    ! out:   error control
+  !Dependent modules
+  USE public_var,          only : doesBasinRoute      ! basin routing options   0-> no, 1->IRF, otherwise error
+  USE public_var,          only : routOpt             ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+  USE public_var,          only : kinematicWave       ! kinematic wave
+  USE public_var,          only : impulseResponseFunc ! impulse response function
+  USE public_var,          only : allRoutingMethods   ! all routing methods
+  USE globalData,          only : nHRU, nRch          ! number of ensembles, HRUs and river reaches
+  USE globalData,          only : RCHFLX              ! Reach fluxes (ensembles, space [reaches])
+  USE globalData,          only : runoff_data         ! runoff data for one time step for LSM HRUs and River network HRUs
+  USE write_netcdf,        only : write_nc            ! write a variable to the NetCDF file
+
+  implicit none
+
+  ! input variables: none
+  ! output variables
+  integer(i4b), intent(out)       :: ierr             ! error code
+  character(*), intent(out)       :: message          ! error message
+  ! local variables
+  integer(i4b)                    :: iens             ! temporal
+  character(len=strLen)           :: cmessage         ! error message of downwind routine
+
+  ! initialize error control
+  ierr=0; message='output/'
+
+  iens = 1
+
+  ! write time -- note time is just carried across from the input
+  call write_nc(trim(fileout), 'time', (/runoff_data%time/), (/jTime/), (/1/), ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! write the basin runoff to the netcdf file
+  call write_nc(trim(fileout), 'basRunoff', runoff_data%basinRunoff, (/1,jTime/), (/nHRU,1/), ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  if (doesBasinRoute == 1) then
+   ! write instataneous local runoff in each stream segment (m3/s)
+   call write_nc(trim(fileout), 'instRunoff', RCHFLX(iens,:)%BASIN_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+  ! write routed local runoff in each stream segment (m3/s)
+  call write_nc(trim(fileout), 'dlayRunoff', RCHFLX(iens,:)%BASIN_QR(1), (/1,jTime/), (/nRch,1/), ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! write accumulated runoff (m3/s)
+  call write_nc(trim(fileout), 'sumUpstreamRunoff', RCHFLX(iens,:)%UPSTREAM_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
+   ! write routed runoff (m3/s)
+   call write_nc(trim(fileout), 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+   ! write routed runoff (m3/s)
+   call write_nc(trim(fileout), 'IRFroutedRunoff', RCHFLX(iens,:)%REACH_Q_IRF, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+ end subroutine output
+
+
+ ! *********************************************************************
+ ! public subroutine: define routing output NetCDF file
+ ! *********************************************************************
+ SUBROUTINE prep_output(ierr, message)    ! out:   error control
+
+ ! saved public variables (usually parameters, or values not modified)
+ USE public_var,          only : calendar          ! calendar name
+ USE public_var,          only : newFileFrequency  ! frequency for new output files (day, month, annual)
+ USE public_var,          only : time_units        ! time units (seconds, hours, or days)
+ USE public_var,          only : annual,month,day  ! time frequency named variable for output files
+ ! saved global data
+ USE globalData,          only : basinID,reachID   ! HRU and reach ID in network
+ USE globalData,          only : modJulday         ! julian day: at model time step
+ USE globalData,          only : modTime           ! previous and current model time
+ USE globalData,          only : nEns, nHRU, nRch  ! number of ensembles, HRUs and river reaches
+ ! subroutines
+ USE time_utils_module,   only : compCalday        ! compute calendar day
+ USE time_utils_module,   only : compCalday_noleap ! compute calendar day
+ USE write_netcdf,        only : write_nc          ! write a variable to the NetCDF file
+
+ implicit none
+
+ ! input variables: none
+ ! output variables
+ integer(i4b), intent(out)       :: ierr             ! error code
+ character(*), intent(out)       :: message          ! error message
+ ! local variables
+ logical(lgt)                    :: defnewoutputfile ! flag to define new output file
+ character(len=strLen)           :: cmessage         ! error message of downwind routine
+
+ ! initialize error control
+ ierr=0; message='prep_output/'
+
+  ! get the time
+  select case(trim(calendar))
+   case('noleap')
+    call compCalday_noleap(modJulday,modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,ierr,cmessage)
+   case ('standard','gregorian','proleptic_gregorian')
+    call compCalday(modJulday,modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,ierr,cmessage)
+   case default;    ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
+  end select
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! print progress
+  print*, modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin
+
+  ! *****
+  ! *** Define model output file...
+  ! *******************************
+
+  ! check need for the new file
+  select case(newFileFrequency)
+   case(annual); defNewOutputFile=(modTime(1)%iy/=modTime(0)%iy)
+   case(month);  defNewOutputFile=(modTime(1)%im/=modTime(0)%im)
+   case(day);    defNewOutputFile=(modTime(1)%id/=modTime(0)%id)
+   case default; ierr=20; message=trim(message)//'unable to identify the option to define new output files'; return
+  end select
+
+  ! define new file
+  if(defNewOutputFile)then
+
+   ! initialize time
+   jTime=1
+
+   ! update filename
+   write(fileout,'(a,3(i0,a))') trim(output_dir)//trim(fname_output)//'_', modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '.nc'
+
+   ! define output file
+   call defineFile(trim(fileout),                         &  ! input: file name
+                   nEns,                                  &  ! input: number of ensembles
+                   nHRU,                                  &  ! input: number of HRUs
+                   nRch,                                  &  ! input: number of stream segments
+                   time_units,                            &  ! input: time units
+                   calendar,                              &  ! input: calendar
+                   ierr,cmessage)                            ! output: error control
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! define basin ID
+   call write_nc(trim(fileout), 'basinID', basinID, (/1/), (/nHRU/), ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! define reach ID
+   call write_nc(trim(fileout), 'reachID', reachID, (/1/), (/nRch/), ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! no new file requested: increment time
+  else
+
+   jTime = jTime+1
+
+  endif
+
+  modTime(0) = modTime(1)
+
+ END SUBROUTINE prep_output
+
+
+ ! *********************************************************************
+ ! private subroutine: define routing output NetCDF file
  ! *********************************************************************
  SUBROUTINE defineFile(fname,           &  ! input: filename
-                       nEns,            &  ! input: number of ensembles
-                       nHRU,            &  ! input: number of HRUs
-                       nSeg,            &  ! input: number of stream segments
+                       nEns_in,         &  ! input: number of ensembles
+                       nHRU_in,         &  ! input: number of HRUs
+                       nRch_in,         &  ! input: number of stream segments
                        units_time,      &  ! input: time units
                        calendar,        &  ! input: calendar
                        ierr, message)      ! output: error control
@@ -29,9 +198,9 @@ CONTAINS
  implicit none
  ! input variables
  character(*), intent(in)        :: fname        ! filename
- integer(i4b), intent(in)        :: nEns         ! number of ensembles
- integer(i4b), intent(in)        :: nHRU         ! number of HRUs
- integer(i4b), intent(in)        :: nSeg         ! number of stream segments
+ integer(i4b), intent(in)        :: nEns_in      ! number of ensembles
+ integer(i4b), intent(in)        :: nHRU_in      ! number of HRUs
+ integer(i4b), intent(in)        :: nRch_in      ! number of stream segments
  character(*), intent(in)        :: units_time   ! time units
  character(*), intent(in)        :: calendar     ! calendar
  ! output variables
@@ -52,9 +221,9 @@ CONTAINS
             dim_time => meta_qDims(ixQdims%time)%dimName)
 
 ! populate q dimension meta (not sure if this should be done here...)
- meta_qDims(ixQdims%seg)%dimLength = nSeg
- meta_qDims(ixQdims%hru)%dimLength = nHRU
- meta_qDims(ixQdims%ens)%dimLength = nEns
+ meta_qDims(ixQdims%seg)%dimLength = nRch_in
+ meta_qDims(ixQdims%hru)%dimLength = nHRU_in
+ meta_qDims(ixQdims%ens)%dimLength = nEns_in
 
  ! --------------------
  ! define file

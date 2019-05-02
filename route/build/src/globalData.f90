@@ -1,6 +1,8 @@
 module globalData
   ! This module includes global data structures
 
+  use public_var, only : integerMissing
+
   ! data types
   use nrtype
 
@@ -26,6 +28,9 @@ module globalData
   use dataTypes,  only : remap         ! remapping data type
   use dataTypes,  only : runoff        ! runoff data type
 
+  ! time data structure
+  use dataTypes,  only : time         ! time data
+
   ! data size
   USE var_lookup, only : nStructures   ! number of variables for data structure
   USE var_lookup, only : nDimensions   ! number of variables for data structure
@@ -43,9 +48,7 @@ module globalData
 
   save
 
-  ! ---------- physical constants -------------------------------------------------------------------
 
-  real(dp)          , parameter  , public :: pi=3.14159265359_dp        ! pi
 
   ! ---------- constants ----------------------------------------------------------------------------
 
@@ -54,22 +57,24 @@ module globalData
   integer(i4b)      , parameter  , public :: false=1002                 ! false
 
   ! variable types
-  integer(i4b)      , parameter  , public :: varType_integer = 1001     ! named variable for an integer
-  integer(i4b)      , parameter  , public :: varType_double  = 1002     ! named variable for a double precision
+  integer(i4b)      , parameter  , public :: varType_integer   = 1001   ! named variable for an integer
+  integer(i4b)      , parameter  , public :: varType_double    = 1002   ! named variable for a double precision
+  integer(i4b)      , parameter  , public :: varType_character = 1003   ! named variable for a double precision
 
   ! ---------- conversion factors -------------------------------------------------------------------
 
+  real(dp)                       , public :: convTime2Days              ! conversion factor to convert time to units of days
   real(dp)                       , public :: time_conv                  ! time conversion factor -- used to convert to mm/s
   real(dp)                       , public :: length_conv                ! length conversion factor -- used to convert to mm/s
 
   ! ---------- routing parameter names -------------------------------------------------------------------
 
-  real(dp)                      :: fshape                               ! shape parameter in time delay histogram (=gamma distribution) [-]
-  real(dp)                      :: tscale                               ! scaling factor for the time delay histogram [sec]
-  real(dp)                      :: velo                                 ! velocity [m/s] for Saint-Venant equation   added by NM
-  real(dp)                      :: diff                                 ! diffusivity [m2/s] for Saint-Venant equation   added by NM
-  real(dp)                      :: mann_n                               ! manning's roughness coefficient [unitless]  added by NM
-  real(dp)                      :: wscale                               ! scaling factor for river width [-] added by NM
+  real(dp)                       , public :: fshape                     ! shape parameter in time delay histogram (=gamma distribution) [-]
+  real(dp)                       , public :: tscale                     ! scaling factor for the time delay histogram [sec]
+  real(dp)                       , public :: velo                       ! velocity [m/s] for Saint-Venant equation   added by NM
+  real(dp)                       , public :: diff                       ! diffusivity [m2/s] for Saint-Venant equation   added by NM
+  real(dp)                       , public :: mann_n                     ! manning's roughness coefficient [unitless]  added by NM
+  real(dp)                       , public :: wscale                     ! scaling factor for river width [-] added by NM
 
   ! ---------- general structure information --------------------------------------------------------
 
@@ -88,26 +93,47 @@ module globalData
   type(var_info)                 , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
   type(var_info)                 , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
   type(var_info)                 , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
-  ! ---------- data structures ----------------------------------------------------------------------
 
-  ! routing parameter structures
-  type(RCHPRP)    , allocatable  , public :: RPARAM(:)       ! Reach Parameters
-  type(RCHTOPO)   , allocatable  , public :: NETOPO(:)       ! River Network topology
+  ! ---------- data structures ----------------------------------------------------------------------
+  integer(i4b)                   , public :: nEns=1               ! number of ensemble
+  ! number of spatial elements
+  integer(i4b)                   , public :: nHRU                 ! number of HRUs in the whole river network
+  integer(i4b)                   , public :: nRch                 ! number of reaches in the whole river network
+
+  ! basin and reach IDs (to be removed)
+  integer(i4b)    , allocatable  , public :: basinID(:)           ! HRU id
+  integer(i4b)    , allocatable  , public :: reachID(:)           ! reach id
+
+  ! DataTime data/variables
+  integer(i4b)                   , public :: iTime                ! time index at simulation time step
+  real(dp)                       , public :: startJulday          ! julian day: start of routing simulation
+  real(dp)                       , public :: endJulday            ! julian day: end of routing simulation
+  real(dp)                       , public :: refJulday            ! julian day: reference
+  real(dp)                       , public :: modJulday            ! julian day: simulation time step
+  real(dp)        , allocatable  , public :: timeVar(:)           ! time variables (unit given by runoff data)
+  real(dp)                       , public :: TSEC(0:1)            ! begning and end of time step (sec)
+  type(time)                     , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
+
+  ! river topology and parameter structures
+  type(RCHPRP)    , allocatable  , public :: RPARAM(:)            ! Reach Parameters for whole domain
+  type(RCHTOPO)   , allocatable  , public :: NETOPO(:)            ! River Network topology for whole domain
 
   ! time delay histogram
-  REAL(DP)        , ALLOCATABLE  , public :: FRAC_FUTURE(:)  ! fraction of runoff in future time steps
+  REAL(DP)        , ALLOCATABLE  , public :: FRAC_FUTURE(:)       ! fraction of runoff in future time steps
 
   ! routing data structures
-  TYPE(KREACH)    , allocatable  , public :: KROUTE(:,:)     ! Routing state variables (ensembles, space [reaches])
-  TYPE(STRFLX)    , allocatable  , public :: RCHFLX(:,:)     ! Reach fluxes (ensembles, space [reaches])
+  TYPE(KREACH)    , allocatable  , public :: KROUTE(:,:)          ! Routing state variables (ensembles, space [reaches]) for the entire river network
+  TYPE(STRFLX)    , allocatable  , public :: RCHFLX(:,:)          ! Reach fluxes (ensembles, space [reaches]) for entire river network
 
   ! lakes data structures
-  TYPE(LAKPRP)    , allocatable  , public :: LPARAM(:)       ! Lake parameters
-  TYPE(LAKTOPO)   , allocatable  , public :: LKTOPO(:)       ! Lake topology
-  TYPE(LKFLX)     , allocatable  , public :: LAKFLX(:,:)     ! Lake fluxes
+  TYPE(LAKPRP)    , allocatable  , public :: LPARAM(:)            ! Lake parameters
+  TYPE(LAKTOPO)   , allocatable  , public :: LKTOPO(:)            ! Lake topology
+  TYPE(LKFLX)     , allocatable  , public :: LAKFLX(:,:)          ! Lake fluxes
 
   ! mapping structures
-  type(remap)                    , public :: remap_data      ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
-  type(runoff)                   , public :: runoff_data     ! runoff for one time step for all HRUs
+  type(remap)                    , public :: remap_data           ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
+  type(runoff)                   , public :: runoff_data          ! runoff data for one time step for LSM HRUs and River network HRUs
+  ! miscellaneous
+  integer(i4b)                   , public :: ixPrint=integerMissing   ! index of desired reach to be on-screen print
 
 end module globalData

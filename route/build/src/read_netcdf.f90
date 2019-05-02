@@ -9,6 +9,7 @@ implicit none
 private
 
 public::get_nc
+public::get_var_dims
 public::get_nc_dim_len
 public::get_var_attr_char
 public::get_var_attr_real
@@ -27,6 +28,78 @@ interface get_nc
 end interface
 
 contains
+
+ ! *********************************************************************
+ ! subroutine: get dimension name and length for given 2D variable
+ ! *********************************************************************
+ subroutine get_var_dims(fname,          &  ! input: file name
+                         vname,          &  ! input: variable name
+                         ierr,message,   &  ! error control
+                         dlen,           &  ! dimension length
+                         dname)             ! dimension name
+ implicit none
+ ! input variables
+ character(*), intent(in)                :: fname           ! filename
+ character(*), intent(in)                :: vname           ! dimension name
+ ! output variables
+ integer(i4b), optional, intent(out)     :: dlen(:)         ! dimension length
+ character(*), optional, intent(out)     :: dname(:)        ! dimension name
+ integer(i4b), intent(out)               :: ierr            ! error code
+ character(*), intent(out)               :: message         ! error message
+ ! local variables
+ integer(i4b)                            :: ncid            ! NetCDF file ID
+ integer(i4b)                            :: ivarID          ! variable ID
+ integer(i4b), allocatable               :: ncDimIDs(:)     ! dimension IDs for a given variable
+ integer(i4b)                            :: nDims           ! number of dimensions in a variable
+ integer(i4b)                            :: ii              ! loop indix
+
+ ! initialize error control
+ ierr=0; message='get_var_dims/'
+
+ ! open NetCDF file
+ ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
+ if(ierr/=0)then; message=trim(message)//'['//trim(nf90_strerror(ierr))//'; file='//trim(fname)//']'; return; endif
+
+ ! get the ID of the variable
+ ierr = nf90_inq_varid(ncid, trim(vname), ivarID)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ ! get the number of dimesion in variable
+ ierr = nf90_inquire_variable(ncid, ivarID, ndims=nDims)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ ! check size of output arguments and number of dimensions in the variable
+ if (present(dlen)) then
+   if(nDims/=size(dlen)) then; ierr=10;  message=trim(message)//': '//trim(vname)//' number of dimensions mismatch with dlen size'; return; endif
+ end if
+ if (present(dname)) then
+   if(nDims/=size(dname)) then; ierr=10; message=trim(message)//': '//trim(vname)//' number of dimensions mismatch with dname size'; return; endif
+ end if
+
+ allocate(ncDimIDs(nDims), stat=ierr)
+ if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating spatial dimension for data structures'; return; endif
+
+ ! get the dimension IDs
+ ierr = nf90_inquire_variable(ncid, ivarID, dimids=ncDimIDs(:nDims))
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ ! get the dimension name and length
+ do ii = 1,nDims
+  if ( present(dlen) .and. present(dname) )then
+    ierr = nf90_inquire_dimension(ncid, ncDimIDs(ii), len=dlen(ii), name=dname(ii))
+  else if ( present(dlen) .and. .not. present(dname) )then
+    ierr = nf90_inquire_dimension(ncid, ncDimIDs(ii), len=dlen(ii))
+  else if ( .not. present(dlen) .and. present(dname) )then
+    ierr = nf90_inquire_dimension(ncid, ncDimIDs(ii), name=dname(ii))
+  endif
+  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; varname='//trim(vname); return; endif
+ end do
+
+ ! close output file
+ ierr = nf90_close(ncid)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ end subroutine get_var_dims
 
  ! *********************************************************************
  ! subroutine: get vector dimension from netCDF
@@ -53,11 +126,11 @@ contains
   ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
   if(ierr/=0)then; message=trim(message)//'['//trim(nf90_strerror(ierr))//'; file='//trim(fname)//']'; return; endif
 
-  ! get the ID of the time dimension
+  ! get the ID of the dimension
   ierr = nf90_inq_dimid(ncid, dname, iDimID)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; name='//trim(dname); return; endif
 
-  ! get the length of the time dimension
+  ! get the length of the dimension
   ierr = nf90_inquire_dimension(ncid, iDimID, len=nDim)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
