@@ -10,22 +10,23 @@
 CC=pgf90
 
 ifeq "$(CC)" "gfortran"
-NCDF_PATH=/opt/netcdf-4.3.0+gcc-4.7.2
+NCDF_PATH=/opt/netcdf4-gcc
 LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
             -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
 INCNETCDF = -I$(NCDF_PATH)/include
 endif
 
 ifeq "$(CC)" "ifort"
-NCDF_PATH = /usr/local/netcdf-4.3.0+ifort-12.1
+NCDF_PATH = /opt/netcdf4-intel
 LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
  	-L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
 INCNETCDF = -I$(NCDF_PATH)/include
 endif
 
 ifeq "$(CC)" "pgf90"
- LIBNETCDF = -L/usr/local/netcdf-4.3.0+pgi-13.4/lib -lnetcdff -lnetcdf
- INCNETCDF = -I/usr/local/netcdf-4.3.0+pgi-13.4/include
+ NCDF_PATH = /opt/netcdf4-pgi
+ LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
+ INCNETCDF = -I$(NCDF_PATH)/include
 endif
  
 # define flags
@@ -39,7 +40,8 @@ endif
 
 ifeq "$(CC)" "pgf90"
  FLAGS1 = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -Mprof=lines,time
- FLAGS = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv
+ #FLAGS = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv
+ FLAGS = -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv
 endif
 
 # define program
