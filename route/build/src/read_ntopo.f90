@@ -13,11 +13,11 @@ public::get_scl_dvar
 contains
 
 ! *********************************************************************
-! subroutine: get vector dimension from netCDF 
+! subroutine: get vector dimension from netCDF
 ! *********************************************************************
 subroutine get_vec_dim(fname,           &  ! input: filename
                        dname,           &  ! input: variable name
-                       nDim,            &  ! output: Size of dimension 
+                       nDim,            &  ! output: Size of dimension
                        ierr, message)      ! output: error control
  implicit none
  ! input variables
@@ -81,7 +81,7 @@ subroutine get_vec_ivar(fname,           &  ! input: filename
  ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
- ! allocate space for the output 
+ ! allocate space for the output
  !allocate(iVec(iCount),stat=ierr)
  !if(ierr/=0)then; message=trim(message)//'problem allocating space for iVec'; return; endif
 
@@ -222,7 +222,7 @@ end subroutine get_scl_dvar
  ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
- ! allocate space for the output 
+ ! allocate space for the output
 ! allocate(dVec(iCount),stat=ierr)
 ! if(ierr/=0)then; message=trim(message)//'problem allocating space for dVec'; return; endif
 

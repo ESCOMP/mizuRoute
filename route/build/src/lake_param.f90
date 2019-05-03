@@ -15,7 +15,7 @@ MODULE lake_param
   REAL(DP)                             :: DSCHECO  ! discharge at "ecological" height
   REAL(DP)                             :: DSCHSPL  ! discharge at spillway height
   REAL(DP)                             :: RATECVA  ! discharge rating curve parameter
-  REAL(DP)                             :: RATECVB  ! discharge rating curve parameter 
+  REAL(DP)                             :: RATECVB  ! discharge rating curve parameter
  ENDTYPE LAKPRP
  TYPE(LAKPRP), DIMENSION(:), POINTER   :: LPARAM  ! Reach Parameters
  ! Lake topology

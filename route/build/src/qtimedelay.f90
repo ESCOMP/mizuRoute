@@ -20,7 +20,7 @@ IMPLICIT NONE
 ! input
 REAL(DP), INTENT(IN)                   :: dt          ! model time step
 REAL(SP), INTENT(IN)                   :: fshape      ! shapef parameter in gamma distribution
-REAL(DP), INTENT(IN)                   :: tscale      ! time scale parameter 
+REAL(DP), INTENT(IN)                   :: tscale      ! time scale parameter
 ! output
 INTEGER(I4B), INTENT(OUT)              :: IERR        ! error code
 CHARACTER(*), INTENT(OUT)              :: MESSAGE     ! error message

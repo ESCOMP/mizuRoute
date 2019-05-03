@@ -30,7 +30,7 @@ MODULE var_lookup
  ! (3) define variables for the hru2basin mapping
  ! ***********************************************************************************************************
  type, public  ::  iLook_MAP
-  integer(i4b)     :: HRUid     = 1     ! HRU id 
+  integer(i4b)     :: HRUid     = 1     ! HRU id
   integer(i4b)     :: segHRUid  = 2     ! id of the stream segment below each HRU
  endtype iLook_MAP
  ! ***********************************************************************************************************
@@ -43,10 +43,10 @@ MODULE var_lookup
  ! ***********************************************************************************************************
  ! (X) define size of data vectors
  ! ***********************************************************************************************************
- integer(i4b),parameter,public    :: nVarsHRU=4 
- integer(i4b),parameter,public    :: nVarsSEG=7 
- integer(i4b),parameter,public    :: nVarsMAP=2 
- integer(i4b),parameter,public    :: nVarsTOP=2 
+ integer(i4b),parameter,public    :: nVarsHRU=4
+ integer(i4b),parameter,public    :: nVarsSEG=7
+ integer(i4b),parameter,public    :: nVarsMAP=2
+ integer(i4b),parameter,public    :: nVarsTOP=2
  ! ***********************************************************************************************************
  ! (X) define data vectors
  ! ***********************************************************************************************************
