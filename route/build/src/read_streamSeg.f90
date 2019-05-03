@@ -19,7 +19,7 @@ contains
                     imap_acil,  &   ! input-output: ancillary data for mapping hru2basin
                     ntop_acil,  &   ! input-output: ancillary data for network topology
                     nHRU,       &   ! output: number of HRUs
-                    nSeg,       &   ! output: number of stream segments  
+                    nSeg,       &   ! output: number of stream segments
                     ierr, message)  ! output: error control
  USE dataTypes,only:namepvar,nameivar    ! provide access to data types
  implicit none
@@ -216,7 +216,7 @@ contains
 
   ! compute total area of the HRUs draining to the stream segment
   totarea = sum(h2b(iSeg)%cHRU(:)%hru_area)
- 
+
   ! compute the weights
   h2b(iSeg)%cHRU(:)%wght = h2b(iSeg)%cHRU(:)%hru_area / totarea
 
@@ -245,7 +245,7 @@ contains
  implicit none
  ! input variables
  integer(i4b), intent(in)        :: nRch         ! number of reaches
- type(namepvar), intent(in)      :: sseg_acil(:) ! ancillary data for stream segments 
+ type(namepvar), intent(in)      :: sseg_acil(:) ! ancillary data for stream segments
  type(nameivar), intent(in)      :: ntop_acil(:) ! ancillary data for the network topology
  ! output variables
  integer(i4b), intent(out)       :: ierr         ! error code
@@ -271,12 +271,12 @@ contains
  RPARAM(:)%UPSAREA = sseg_acil(ixSEG%upArea   )%varData(:)
  RPARAM(:)%RLENGTH = sseg_acil(ixSEG%length   )%varData(:)
  RPARAM(:)%R_SLOPE = sseg_acil(ixSEG%slope    )%varData(:)
- 
+
  ! compute area draining to each stream segment
  do iRch=1,nRch
   RPARAM(iRch)%BASAREA = sum(h2b(iRch)%cHRU(:)%hru_area)
  end do
-  
+
  ! compute total area above the bottom of each reach (m2)
  RPARAM(:)%TOTAREA = RPARAM(:)%UPSAREA + RPARAM(:)%BASAREA
 
@@ -300,7 +300,7 @@ contains
  NETOPO(:)%RCHLAT2 =  huge(kind(dp))    ! End latitude
  NETOPO(:)%RCHLON1 =  huge(kind(dp))    ! Start longitude
  NETOPO(:)%RCHLON2 =  huge(kind(dp))    ! End longitude
- NETOPO(:)%LAKE_IX =  -1                ! Lake index (0,1,2,...,nlak-1)    
+ NETOPO(:)%LAKE_IX =  -1                ! Lake index (0,1,2,...,nlak-1)
  NETOPO(:)%LAKE_ID =  -1                ! Lake ID (REC code?)
  NETOPO(:)%BASULAK =   0._dp            ! Area of basin under lake
  NETOPO(:)%RCHULAK =   0._dp            ! Length of reach under lake
@@ -335,7 +335,7 @@ contains
 
  ! define reach indices
  NETOPO(:)%REACHIX = arth(1,1,nRch)
- NETOPO(:)%DREACHI = -1 
+ NETOPO(:)%DREACHI = -1
 
  hFlag(:) = .false.
  ! first identify non-headwater basins with no upstream area

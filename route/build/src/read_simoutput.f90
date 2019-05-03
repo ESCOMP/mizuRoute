@@ -52,7 +52,7 @@ contains
  ! get the ID of the time variable
  ierr = nf90_inq_varid(ncid, trim(vname_time), ivarID)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
- 
+
  ! get the time units
  ierr = nf90_get_att(ncid, ivarID, 'units', units_time)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
