@@ -1,5 +1,6 @@
-Building on cheyenne:
+#Building on cheyenne:
 
+# For gfortran
 
 module purge
 module load gnu
@@ -9,3 +10,16 @@ module load ncarcompilers
 
 setenv BLDDIR `pwd`/../
 gmake FC=gfortran FC_EXE=mpif90 F_MASTER=$BLDDIR
+
+
+# For ifort
+
+module purge
+module load intel
+module load netcdf
+module load mpt
+module load ncarcompilers
+
+setenv BLDDIR `pwd`/../
+gmake FC=ifort FC_EXE=mpif90 F_MASTER=$BLDDIR
+
