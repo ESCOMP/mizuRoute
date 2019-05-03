@@ -618,7 +618,7 @@ contains
      endif
    end do
 
-  else ! if runoff given in RN_HRU
+ else ! if runoff given in RN_HRU
 
    allocate(runoff_data_in%hru_ix(size(runoff_data_in%hru_id)), stat=ierr)
    if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data_in%hru_ix'; return; endif
