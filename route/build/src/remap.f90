@@ -24,6 +24,7 @@ module remapping
   implicit none
   private
   public ::remap_runoff
+  public ::sort_runoff
   public ::basin2reach
 
   contains
@@ -58,6 +59,7 @@ module remapping
   ! *****
   ! private subroutine: used to map runoff data (on diferent polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
+  ! case 1: hru in runoff layer is grid (stored in 2-dimension array)
   subroutine remap_2D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
   implicit none
   ! input
@@ -164,6 +166,7 @@ module remapping
   ! *****
   ! private subroutine: used to map runoff data (on diferent polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
+  ! case 2: hru in runoff layer is hru polygon different than river network layer (stored in 1-dimension array)
   subroutine remap_1D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
   implicit none
   ! input
@@ -273,6 +276,52 @@ module remapping
   end do   ! looping through basins in the mapping layer
 
   end subroutine remap_1D_runoff
+
+  ! *****
+  ! public subroutine: assign runoff data in runoff layer to hru in river network layer
+  ! ***************************************************************************************************************
+  ! case 3: hru in runoff layer is hru polygon identical to river network layer (stored in 1-dimension array)
+  subroutine sort_runoff(runoff_data_in, basinRunoff, ierr, message)
+  implicit none
+  ! input
+  type(runoff)         , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
+  ! output
+  real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
+  integer(i4b)         , intent(out) :: ierr             ! error code
+  character(len=strLen), intent(out) :: message          ! error message
+  ! local
+  integer(i4b)                       :: iHRU,jHRU        ! index of basin in the routing layer
+  real(dp)    , parameter            :: xTol=1.e-6_dp    ! tolerance to avoid divide by zero
+  integer(i4b), parameter            :: ixCheck=-huge(iHRU) ! basin to check
+
+  ierr=0; message="sort_runoff/"
+
+  ! loop through hrus in the runoff layer
+  do iHRU=1,size(runoff_data_in%hru_ix)
+
+   ! define the HRU index in the routing vector
+   jHRU = runoff_data_in%hru_ix(iHRU)
+   ! if no hru associated any segments in network data, skip it
+   if(jHRU==integerMissing)then
+    cycle
+   endif
+
+   ! get the weighted average
+   if(runoff_data_in%qsim(iHRU) > -xTol)then
+     basinRunoff(jHRU) = runoff_data_in%qsim(iHRU)
+   endif
+
+   ! check
+   if(runoff_data_in%hru_id(iHRU)==ixCheck)then
+    print*, 'jHRU, runoff_data_in%hru_id(iHRU) = ', jHRU, runoff_data_in%hru_id(iHRU)
+    print*, 'runoff_data_in%qsim(iHRU)         = ', runoff_data_in%qsim(iHRU)
+    print*, 'basinRunoff(jHRU)                 = ', basinRunoff(jHRU)*86400._dp*1000._dp*365._dp
+    print*, 'PAUSE : '; read(*,*)
+   endif
+
+  end do   ! looping through basins in the mapping layer
+
+  end subroutine sort_runoff
 
   ! *****
   ! * public subroutine: used to obtain streamflow for each stream segment...

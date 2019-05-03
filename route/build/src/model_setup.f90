@@ -618,8 +618,35 @@ contains
      endif
    end do
 
+ else ! if runoff given in RN_HRU
+
+   allocate(runoff_data_in%hru_ix(size(runoff_data_in%hru_id)), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data_in%hru_ix'; return; endif
+
+   ! get indices of the HRU ids in the runoff file in the routing layer
+   call get_qix(runoff_data_in%hru_id,  &    ! input: vector of ids in mapping file
+                basinID,                &    ! input: vector of ids in the routing layer
+                runoff_data_in%hru_ix,  &    ! output: indices of hru ids in routing layer
+                ierr, cmessage)              ! output: error control
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! check
+   if(count(runoff_data_in%hru_ix/=integerMissing)/=size(basinID))then
+    message=trim(message)//'unable to identify all polygons in the mapping file'
+    ierr=20; return
+   endif
+
+   ! check that the basins match
+   do iHRU = 1, size(runoff_data_in%hru_ix)
+     jHRU = runoff_data_in%hru_ix(iHRU)
+     if (jHRU == integerMissing) cycle
+     if( runoff_data_in%hru_id(iHRU) /= basinID(jHRU) )then
+      message=trim(message)//'mismatch in HRU ids for basins in the routing layer'
+      ierr=20; return
+     endif
+   end do
+
  endif
- !print*, trim(message)//'PAUSE : '; read(*,*)
 
  end subroutine init_runoff
 

@@ -233,6 +233,10 @@ CONTAINS
      displs(myid) = sum(num_per_proc(0:myid-1))
     end do
 
+    if (allocated(localArray)) then
+     deallocate(localArray, stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem de-allocating array for [localArray]'; return; endif
+    endif
     allocate(localArray(num_per_proc(pid)), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
 
@@ -268,6 +272,10 @@ CONTAINS
      displs(myid) = sum(num_per_proc(0:myid-1))
     end do
 
+    if (allocated(localArray)) then
+     deallocate(localArray, stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem de-allocating array for [localArray]'; return; endif
+    endif
     allocate(localArray(num_per_proc(pid)), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
 
@@ -303,6 +311,10 @@ CONTAINS
      displs(myid) = sum(num_per_proc(0:myid-1))
     end do
 
+    if (allocated(localArray)) then
+     deallocate(localArray, stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem de-allocating array for [localArray]'; return; endif
+    endif
     allocate(localArray(num_per_proc(pid)), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
 
@@ -338,8 +350,12 @@ CONTAINS
      displs(myid) = sum(num_per_proc(0:myid-1))
     end do
 
+    if (allocated(globalArray)) then
+     deallocate(globalArray, stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem de-allocating array for [globalArray]'; return; endif
+    endif
     allocate(globalArray(sum(num_per_proc)), stat=ierr)
-    if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [globalArray]'; return; endif
 
     call MPI_GATHERV(localArray,  num_per_proc(pid),                MPI_INT,       & ! local array stuff
                      globalArray, num_per_proc(0:nNodes-1), displs, MPI_INT, root, & ! global array stuff
@@ -373,6 +389,10 @@ CONTAINS
      displs(myid) = sum(num_per_proc(0:myid-1))
     end do
 
+    if (allocated(globalArray)) then
+     deallocate(globalArray, stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem de-allocating array for [globalArray]'; return; endif
+    endif
     allocate(globalArray(sum(num_per_proc)), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
 
@@ -408,6 +428,10 @@ CONTAINS
      displs(myid) = sum(num_per_proc(0:myid-1))
     end do
 
+    if (allocated(globalArray)) then
+     deallocate(globalArray, stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem de-allocating array for [globalArray]'; return; endif
+    endif
     allocate(globalArray(sum(num_per_proc)), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
 

@@ -27,7 +27,8 @@ contains
   USE globalData,  only:remap_data              ! data structure to remap data
   ! subroutines
   USE read_runoff, only:read_runoff_data        ! read runoff value into runoff_data data strucuture
-  USE remapping,   only:remap_runoff            ! remapping LSM runoff to river network HRU runoff
+  USE remapping,   only:remap_runoff            ! mapping HM runoff to river network HRU runoff (HM_HRU /= RN_HRU)
+  USE remapping,   only:sort_runoff             ! mapping HM runoff to river network HRU runoff (HM_HRU == RN_HRU)
 
   implicit none
   ! input variables: none
@@ -66,13 +67,14 @@ contains
    call remap_runoff(runoff_data, remap_data, basinRunoff, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   runoff_data%basinRunoff=basinRunoff
-
   else ! runoff is already remapped to river network HRUs
 
-   runoff_data%basinRunoff=runoff_data%qsim
+   call sort_runoff(runoff_data, basinRunoff, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   end if
+
+  runoff_data%basinRunoff=basinRunoff
 
  end subroutine get_hru_runoff
 
