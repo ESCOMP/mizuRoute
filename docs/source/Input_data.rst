@@ -9,7 +9,7 @@ In this case, one additional data, remapping data, is required. All the data nee
 
 Basic netCDF requirement (variable, dimension, etc) are discussed below.
 Dimension and variable names list mizuRoute default name but can be whatever. 
-If they are not default name, the variable names need to be speficied in :doc:`control file <Control_file>`
+If they are not default name, the variable names need to be speficied in :doc:`control file <Control_file>`.
 Some of variables and dimensions (even if they are the same as default name) have to be specified in :doc:`control file <Control_file>`
 
 River network data
