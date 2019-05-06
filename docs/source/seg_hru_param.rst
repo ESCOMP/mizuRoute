@@ -2,7 +2,7 @@ River parameters
 ================
 
 Full list of river parameters, both physical and topological ones, can be output in netCDF as river network augmentation mode. 
-Please see :doc:`control file <Control_file>` for more information 
+Those augmented variables can be read in from augmented network netCDF and variable names need to be specified in :doc:`control file <Control_file>` 
 
 Dimensions
 
@@ -46,14 +46,14 @@ physical parameters
 Topology parameters
 *******************
 
-River reach and hru topology are typically computed internally. it is recommended to compute instead of generating outside mizuRoute
+Extra or augmented river reach and hru topology are typically computed internally. It is recommended to compute instead of generating outside mizuRoute
 
 Variables
 
 +-----------------+------------+-----------+-------+----------------------------------------------------------------+
 | Variable        | Dimension  | Unit      | Type  | Description                                                    |
 +=================+============+===========+=======+================================================================+
-| segIndex        | seg        | ``-``     | int   | channel width                                                  |
+| segIndex        | seg        | ``-``     | int   | reach Index                                                    |
 +-----------------+------------+-----------+-------+----------------------------------------------------------------+
 | downSegId       | seg        | ``-``     | int   | downstream reach ID                                            |
 +-----------------+------------+-----------+-------+----------------------------------------------------------------+
@@ -68,6 +68,10 @@ Variables
 | rchOrder        | seg        | ``-``     | int   | routing processing order                                       |
 +-----------------+------------+-----------+-------+----------------------------------------------------------------+
 | goodBasin       | upSeg      | ``-``     | int   | flag to indicate immediate upstream HRUs are good HRU (area>0) |
++-----------------+------------+-----------+-------+----------------------------------------------------------------+
+| HRUindex        | hur        | ``-``     | int   | RN_HRU index                                                   |
++-----------------+------------+-----------+-------+----------------------------------------------------------------+
+| hruSegIndex     | hur        | ``-``     | int   | index of the reach below each HRU                              |
 +-----------------+------------+-----------+-------+----------------------------------------------------------------+
 | hruContribIx    | upHRU      | ``-``     | int   | indices of HRUs contributing flow to each reach                |
 +-----------------+------------+-----------+-------+----------------------------------------------------------------+

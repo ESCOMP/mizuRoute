@@ -205,6 +205,11 @@ contains
  end do  ! looping through lines in the control file
 
  ! control river network augmentation mode
+ ! case - ntopAugmentMode is T
+ ! ensure augmented network is written
+ if (ntopAugmentMode) then
+   ntopWriteOption = .true.
+ endif
  ! case - River network subset (i.e., idSegOut>0)
  ! ! ensure that localized network topology is written in netCDF and then terminate program
  if (idSegOut>0) then
