@@ -4,6 +4,14 @@ River parameters
 Full list of river parameters, both physical and topological ones, can be output in netCDF as river network augmentation mode. 
 Those augmented variables can be read in from augmented network netCDF and variable names need to be specified in :doc:`control file <Control_file>` 
 
+To read additional augmented network parameters, <hydGeometryOption> and <topoNetworkOption> needs to be turned on (specified as 0) in :doc:`control file <Control_file>`  
+
+Names of the river network variables (both network topology and physical parameters) can be also speficied in :doc:`control file <Control_file>`,
+if they are different than their default names. The format is 
+
+<varname_PARAMETER_DEFAULT_NAME>   NEW_NAME    ! 
+
+
 Dimensions
 
 +------------+-----------------------------------------------------------+

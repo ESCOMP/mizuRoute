@@ -100,11 +100,9 @@ Variables that have default values but can be overwritten
 +========================+========================+==========================================================================+
 | <ntopAugmentMode>      | F                      | logical to indicate river network augmention mode. See note 1.           |
 +------------------------+------------------------+--------------------------------------------------------------------------+
-| <ntopWriteOption>      | F                      | logical to indicate if augmented river network is written. T or F        |
+| <seg_outlet>           | -9999                  | outlet reach ID for subsetted river basin. See note 1                    |
 +------------------------+------------------------+--------------------------------------------------------------------------+
-| <seg_outlet>           | -999                   | outlet reach ID for subsetted river basin. See note 1                    |
-+------------------------+------------------------+--------------------------------------------------------------------------+
-| <fname_ntopNew>        | <fname_ntopOld>_aug.nc | output netCDF name for augmented river network. See note 1               |
+| <fname_ntopNew>        | <fname_ntopOld>_new.nc | output netCDF name for augmented river network. See note 1               |
 +------------------------+------------------------+--------------------------------------------------------------------------+
 | <newFileFrequency>     | annual                 | frequency for new output files (day, month, or annual)                   |
 +------------------------+------------------------+--------------------------------------------------------------------------+
@@ -121,13 +119,15 @@ Variables that have default values but can be overwritten
 | <calendar>             | From runoff input      | calenar used in input runoff data. See note 2.                           |
 +------------------------+------------------------+--------------------------------------------------------------------------+
 
+#. River network subset mode. 
+
+  * if <seg_outlet> is given, the river network topology and parameters read from <fname_ntopOld> are written in <fname_ntopNew> and the program stops. 
+ 
 #. River network augmentation mode. 
 
   * All the computed river network topology and parameters are written in <fname_ntopNew> and the program stops. 
-  * if <seg_outlet> is not -999, program becomes augmentation mode. 
-  * if <ntopWriteOption> is T, the program continues and perform routing unless <ntopAugmentMode> is T. 
 
-#. calendar has to be either ``noleap``, ``standard``, ``gregorian``, or ``proleptic_gregorian``. case sensitive
+#. If runoff input data does not have calendar attribute, it can be specified. Make sure time variable in runoff data use either ``noleap``, ``standard``, ``gregorian``, or ``proleptic_gregorian``. case sensitive
 
 
 Often case, river network data has different variable names than defaults. In this case, variable names can be speficied in control file as well.
@@ -156,8 +156,8 @@ Option 1 - HM_HRU runoff input::
   ! *************************************************************************************************************************
   ! PART 2: DEFINE TIME PERIOD OF THE SIMULATION
   ! --------------------------------------------
-  <sim_start>         1950-1-1                        ! time of simulation start (year-month-day)
-  <sim_end>           1951-1-1                        ! time of simulation end (year-month-day)
+  <sim_start>         1950-1-1 00:00:00               ! time of simulation start (year-month-day hh:mm:ss)
+  <sim_end>           1951-1-1 00:00:00               ! time of simulation end (year-month-day hh:mm:ss)
   ! **************************************************************************************************************************
   ! PART 3: DEFINE FINE NAME AND DIMENSIONS
   ! ---------------------------------------
