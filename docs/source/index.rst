@@ -10,10 +10,3 @@ Welcome to mizuRoute v1.1 documentation!
    Control_file
    seg_hru_param
 
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

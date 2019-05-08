@@ -105,7 +105,7 @@ contains
  meta_SEG    (ixSEG%man_n            ) = var_info('man_n'          , 'Mannings n'                                        ,'weird' ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%hruArea          ) = var_info('hruArea'        , 'area of each contributing HRU'                     ,'m2'    ,ixDims%upHRU , .false.)
  meta_SEG    (ixSEG%weight           ) = var_info('weight'         , 'weight assigned to each HRU'                       ,'-'     ,ixDims%upHRU , .false.)
- meta_SEG    (ixSEG%timeDelayHist    ) = var_info('timeDelayHist'  , 'time delay histogram for each reach'               ,'s'     ,ixDims%uh , .false.)
+ meta_SEG    (ixSEG%timeDelayHist    ) = var_info('timeDelayHist'  , 'time delay histogram for each reach'               ,'s'     ,ixDims%uh    , .false.)
  meta_SEG    (ixSEG%basArea          ) = var_info('basArea'        , 'total area of the contributing HRUs'               ,'m2'    ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%upsArea          ) = var_info('upsArea'        , 'area above the top of the reach -- 0 if headwater' ,'m2'    ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%totalArea        ) = var_info('totalArea'      , 'area above the bottom of the reach -- bas + ups'   ,'m2'    ,ixDims%seg   , .false.)
@@ -132,7 +132,7 @@ contains
  meta_NTOPO  (ixNTOPO%goodBasin      ) = var_info('goodBasin'      , 'flag to define a good basin (1=true)'               ,'-'    ,ixDims%upSeg , .false.)
 
  ! ---------- populate segment fluxes/states metadata structures -----------------------------------------------------------------------------------------------------
- ! Kinematic Wave                                 varName             varDesc                                          unit,     varFile,        writeOut
+ ! Kinematic Wave                                 varName             varDesc                                          unit,     varDim,        writeOut
  meta_kwt    (ixKWT%tentry          ) = var_info('tentry'          , 'time when a wave enters a segment'              ,'sec'    ,ixStateDims%wave     , .true.)
  meta_kwt    (ixKWT%texit           ) = var_info('texit'           , 'time when a wave is expected to exit a segment' ,'sec'    ,ixStateDims%wave     , .true.)
  meta_kwt    (ixKWT%qwave           ) = var_info('qwave'           , 'flow of a wave'                                 ,'m2/sec' ,ixStateDims%wave     , .true.)
@@ -140,11 +140,11 @@ contains
  meta_kwt    (ixKWT%routed          ) = var_info('routed'          , 'routing flag'                                   ,'-'      ,ixStateDims%wave     , .true.)
  meta_kwt    (ixKWT%q               ) = var_info('kwt_q'           , 'Kinematic wave routed flow'                     ,'m3/sec' ,ixStateDims%time     , .true.)
 
- ! Impulse Response Function                     varName             varDesc                                           unit,     varFile,        writeOut
+ ! Impulse Response Function                     varName             varDesc                                           unit,     varDim,        writeOut
  meta_irf    (ixIRF%qfuture         ) = var_info('irf_qfuture'     , 'future flow series'                             ,'m3/sec' ,ixStateDims%tdh_irf , .true.)
  meta_irf    (ixIRF%q               ) = var_info('irf_q'           , 'irf routed flow'                                ,'m3/sec' ,ixStateDims%time    , .true.)
 
- ! Basin Impulse Response Function               varName             varDesc                                             unit,   varFile,        writeOut
+ ! Basin Impulse Response Function               varName             varDesc                                             unit,   varDim,        writeOut
  meta_irf_bas(ixIRFbas%qfuture      ) = var_info('qfuture'         , 'future flow series'                             ,'m3/sec' ,ixStateDims%tdh     , .true.)
  meta_irf_bas(ixIRFbas%q            ) = var_info('basin_q'         , 'basin routed flow'                              ,'m3/sec' ,ixStateDims%time    , .true.)
 
