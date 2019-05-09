@@ -799,7 +799,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
     call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
     ! will have to broadcast updated nWave to all proc
-    call MPI_BCAST(nWave, nSeg, MPI_INT, root, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(nWave, nSeg, MPI_INTEGER, root, MPI_COMM_WORLD, ierr)
 
     ! total waves from all the tributary reaches in each proc
     ix2=0
@@ -876,7 +876,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
     call shr_mpi_gatherV(nWave_trib, nReach, nWave, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call MPI_BCAST(nWave, nSeg, MPI_INT, root, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(nWave, nSeg, MPI_INTEGER, root, MPI_COMM_WORLD, ierr)
 
     ! total waves in reaches in each proc
     ix2=0
@@ -1012,7 +1012,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
   ierr=0; message='pass_global_data/'
 
   ! send scalars
-  call MPI_BCAST(iTime,       1,     MPI_INT,              root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(iTime,       1,     MPI_INTEGER,              root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(refJulday,   1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(startJulday, 1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(endJulday,   1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)

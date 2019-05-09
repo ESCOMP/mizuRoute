@@ -17,11 +17,19 @@ FC_EXE =
 isOpenMP =
 FLAGS_OMP =
 LIBOPENMP =
+
+# define if should use external librarys (yes if used)
+isMPISERIAL =
  
 # Define core directory below which everything resides
 # parent directory of the 'build' directory
 # do not put space at the end of path
 F_MASTER =
+
+
+# External libraries (if used)
+EXTLIBS =
+EXTINCLUDES =
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
@@ -148,14 +156,18 @@ DRIVER = $(F_KORE_DIR)route_runoff.f90
 # Define the executable
 EXE = 
 
+# tasks
+all: compile install clean
+
 #========================================================================
 # PART 3.5: External libaries that might need to be built
 #========================================================================
 PIO_FILESYSTEM_HINTS = gpfs
 CPPDEFS      = -DPIO1 -D_NO_MPI_RSEND
-MCTDIR       = $(F_MASTER)../cime/src/externals/mct
+CIMEROOT     = $(F_MASTER)../cime
+MCTDIR       = $(CIMEROOT)/src/externals/mct
 MPISERIALDIR = $(MCTDIR)/mpi-serial
-PIO1DIR      = $(F_MASTER)../cime/src/externals/pio1
+PIO1DIR      = $(CIMEROOT)/src/externals/pio1
 LIBDIR       = $(F_MASTER)build/lib
 PIOLIBDIR    = $(F_MASTER)build/lib/piolib
 PIOLIB       = $(PIOLIBDIR)/libpio1.a
@@ -163,6 +175,12 @@ PIOCONF      = $(PIOLIBDIR)/Makefile.conf
 MPISERLIBDIR = $(F_MASTER)build/lib/mpi-seriallib
 MPISERLIB    = $(MPISERLIBDIR)/libmpi-serial.a
 MPISERCONF   = $(MPISERLIBDIR)/Makefile.conf
+
+ifeq "$(isMPISERIAL)" "yes"
+  EXTINCLUDES += -I$(MPISERLIBDIR)
+  EXTLIBS += $(MPISERLIB)
+  LDFLAGS += -L$(MPISERLIBDIR) -lmpi-serial
+endif
 
 ifdef PIO_FILESYSTEM_HINTS
         CMAKE_OPTS += -D PIO_FILESYSTEM_HINTS:STRING="$(PIO_FILESYSTEM_HINTS)"
@@ -177,10 +195,15 @@ $(MPISERCONF):
 $(MPISERLIB): $(MPISERCONF)
 	$(MAKE) $(MFLAGS) -C $(MPISERLIBDIR) SRCDIR=$(MCTDIR)
 
+cleanmpiseriallib:
+	rm $(MPISERCONF)
+	$(MAKE) $(MFLAGS) -C $(MPISERLIBDIR) SRCDIR=$(MCTDIR) clean
+
 $(PIOLIB): $(PIOCONF)
 	$(MAKE) $(MFLAGS) -C $(PIOLIBDIR)
 
 extlibs:
+	@echo "CIMEROOT:  "       $(CIMEROOT)
 	@echo "libdir:    "       $(LIBDIR)
 	@echo "CCP-DEFS:  "       $(CPPDEFS)
 	@echo "mpi-serial:"       $(MPISERIALDIR)
@@ -196,17 +219,17 @@ extlibs:
 	@echo "MAKE:        "     $(MAKE)
 	@echo "MFLAGS:      "     $(MFLAGS)
 	@echo "FLAGS:       "     $(FLAGS)
+	@echo "LDFLAGS:     "     $(LDFLAGS)
+
+
 
 #========================================================================
 # PART 4: Compile the puppy
 #========================================================================
-# tasks
-all: compile install clean
-
 # compile
-compile:
-	$(FC_EXE) $(FLAGS) $(MODSUB) $(DRIVER) \
-	$(LIBNETCDF) $(INCNETCDF) -o $(EXE)
+compile: $(EXTLIBS)
+	$(FC_EXE) $(FLAGS) $(EXTINCLUDES) $(MODSUB) $(DRIVER) \
+	$(LIBNETCDF) $(INCNETCDF) $(LDFLAGS) -o $(EXE)
 
 # Remove object files
 clean:
