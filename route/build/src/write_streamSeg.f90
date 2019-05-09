@@ -39,9 +39,6 @@ USE nr_utility_module, ONLY: arth    ! Num. Recipies utilities
 
 implicit none
 
-! define module-level constants
-integer(i4b),parameter  :: down2noSegment=0     ! index in the input file if the HRU does not drain to a segment
-
 ! privacy
 private
 public::writeData
@@ -93,11 +90,35 @@ contains
  ! local variables
  integer(i4b)                        :: nSpace           ! number of spatial elements
  integer(i4b)                        :: iStruct          ! structure index
+ integer(i4b)                        :: iVar             ! variable index
+ logical(lgt)                        :: dimCheck(nDimensions)  ! dimension used for output
  character(len=strLen)               :: cmessage         ! error message of downwind routine
  ! initialize error control
  ierr=0; message='writeData/'
 
- ! ---------- create NetCDF file ---------------------------------------------------------------------------------
+ ! ---------- Find dimension needed for output --------------------------------------------------------------------
+ dimCheck(:) = .true.
+ ! check dimensions need for output (only subset mode)
+ if (idSegOut>0) then
+   dimCheck(:) = .false.
+   do iVar=1,size(meta_HRU)
+     if (meta_HRU(iVar)%varFile) dimCheck(meta_HRU(iVar)%vartype) = .true.
+   end do
+   do iVar=1,size(meta_HRU2SEG)
+     if (meta_HRU2SEG(iVar)%varFile) dimCheck(meta_HRU2SEG(iVar)%vartype) = .true.
+   end do
+   do iVar=1,size(meta_SEG)
+     if (meta_SEG(iVar)%varFile) dimCheck(meta_SEG(iVar)%vartype) = .true.
+   end do
+   do iVar=1,size(meta_NTOPO)
+     if (meta_NTOPO(iVar)%varFile) dimCheck(meta_NTOPO(iVar)%vartype) = .true.
+   end do
+   do iVar=1,size(meta_PFAF)
+     if (meta_PFAF(iVar)%varFile) &
+        dimCheck(meta_PFAF(iVar)%vartype) = .true.
+        dimCheck(ixDims%pfaf) = .true.
+   end do
+ endif
 
  ! define dimension lengths
  meta_dims(ixDims%hru  )%dimLength =  size(ixHRU_desired)   ! hru vector
@@ -109,7 +130,7 @@ contains
  meta_dims(ixDims%pfaf )%dimLength =  maxPfafLen            ! maximum pfaf code length
 
  ! create NetCDF file
- call createFile(trim(fname),ierr,cmessage)
+ call createFile(trim(fname), dimCheck, ierr,cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! ---------- write data to the NetCDF file  ---------------------------------------------------------------------
@@ -139,10 +160,11 @@ contains
  ! *********************************************************************
  ! new subroutine: create NetCDF output file
  ! *********************************************************************
- subroutine createFile(fname,ierr,message)
+ subroutine createFile(fname, dimCheck, ierr,message)
  implicit none
  ! dummy variables
  character(*)      , intent(in)      :: fname            ! filename
+ logical(lgt)                        :: dimCheck(:)      ! dimension used for output
  integer(i4b)      , intent(out)     :: ierr             ! error code
  character(*)      , intent(out)     :: message          ! error message
  ! ---------------------------------------------------------------------------------------------------------------
@@ -165,6 +187,7 @@ contains
 
  ! define dimensions
  do jDim=1,size(meta_dims)
+  if (.not.dimCheck(jDim)) cycle
   ierr = nf90_def_dim(ncid, trim(meta_dims(jDim)%dimName), meta_dims(jDim)%dimLength, meta_dims(jDim)%dimId)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; name = '//trim(meta_dims(jDim)%dimName); return; endif
  end do  ! looping through dimensions
@@ -176,6 +199,8 @@ contains
 
   ! HRUs and stream segments are not ragged, so cycle
   if(jDim==ixDims%hru .or. jDim==ixDims%seg) cycle
+  ! if dimension is not used
+  if (.not.dimCheck(jDim)) cycle
 
   ! define the start index
   call varDefine(ncid, trim(meta_dims(jDim)%dimName)//'_start', 'start index in ragged array', '-', nf90_int, ixDims%seg, ierr, cmessage)
@@ -242,10 +267,12 @@ contains
  ierr=0; message='defineVar/'
 
  ! loop through variables
- do ivar=1,size(meta)
+ do iVar=1,size(meta)
+   ! if this is a subset mode (idSegOut>0) then only write variables where meta(iVar)%varFile = .true.
+   if(idSegOut>0 .and. .not.meta(iVar)%varFile) cycle
    call varDefine(ncid, & ! NetCDF ID
-                  trim(meta(ivar)%varName), trim(meta(ivar)%varDesc), trim(meta(ivar)%varUnit),&  ! name, description, units
-                  ivtype, meta(ivar)%varType, ierr, cmessage)                                     ! variable type, dimension index
+                  trim(meta(iVar)%varName), trim(meta(iVar)%varDesc), trim(meta(iVar)%varUnit),&  ! name, description, units
+                  ivtype, meta(iVar)%varType, ierr, cmessage)                                     ! variable type, dimension index
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do
 
@@ -352,18 +379,18 @@ contains
  if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating temporary vector'; return; endif
 
  ! loop through variables
- do ivar=1,size(meta)
+ do iVar=1,size(meta)
 
   ! ---------- get the data vector for a given variable -----------------------------------------------------------
 
-  ! if we created a subset (idSegOut>0) then only write variables where meta(ivar)%varFile = .true.
-  if(idSegOut>0 .and. .not.meta(ivar)%varFile) cycle
+  ! if we created a subset (idSegOut>0) then only write variables where meta(iVar)%varFile = .true.
+  if(idSegOut>0 .and. .not.meta(iVar)%varFile) cycle
 
   ! print progress
-  print*, 'Writing '//trim(meta(ivar)%varName)//' to file '//trim(fname)
+  print*, 'Writing '//trim(meta(iVar)%varName)//' to file '//trim(fname)
 
   ! save the dimension length
-  jDim      = meta(ivar)%varType        ! dimension index
+  jDim      = meta(iVar)%varType        ! dimension index
   dimLength = meta_dims(jDim)%dimLength ! dimension length
   if(dimLength==0) cycle
 
@@ -387,11 +414,11 @@ contains
    if(isRaggedArray)then  ! check the need to create the ragged array
 
     ! get count and end index
-    nx = size(struct(iSpace)%var(ivar)%dat)
+    nx = size(struct(iSpace)%var(iVar)%dat)
     jx = ix + nx -1
 
     ! write vector
-    tempVec(ix:jx) = struct(iSpace)%var(ivar)%dat(1:nx)
+    tempVec(ix:jx) = struct(iSpace)%var(iVar)%dat(1:nx)
 
     ! update indices
     ixStart(jSpace) = ix
@@ -400,7 +427,7 @@ contains
 
    ! ***** case 2: regular array
    else
-    tempVec(jSpace) = struct(iSpace)%var(ivar)%dat(1)
+    tempVec(jSpace) = struct(iSpace)%var(iVar)%dat(1)
    endif
 
   end do  ! looping through space
@@ -408,7 +435,7 @@ contains
   ! ---------- write the data vector to the NetCDF file -----------------------------------------------------------
 
   ! write data
-  call write_nc(trim(fname), trim(meta(ivar)%varName), tempVec, (/1/), (/dimLength/), ierr, cmessage)
+  call write_nc(trim(fname), trim(meta(iVar)%varName), tempVec, (/1/), (/dimLength/), ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! write ragged array
@@ -481,18 +508,18 @@ contains
  if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating temporary vector'; return; endif
 
  ! loop through variables
- do ivar=1,size(meta)
+ do iVar=1,size(meta)
 
   ! ---------- get the data vector for a given variable -----------------------------------------------------------
 
-  ! if we created a subset (idSegOut>0) then only write variables where meta(ivar)%varFile = .true.
-  if(idSegOut>0 .and. .not.meta(ivar)%varFile) cycle
+  ! if we created a subset (idSegOut>0) then only write variables where meta(iVar)%varFile = .true.
+  if(idSegOut>0 .and. .not.meta(iVar)%varFile) cycle
 
   ! print progress
-  print*, 'Writing '//trim(meta(ivar)%varName)//' to file '//trim(fname)
+  print*, 'Writing '//trim(meta(iVar)%varName)//' to file '//trim(fname)
 
   ! save the dimension length
-  jDim      = meta(ivar)%varType        ! dimension index
+  jDim      = meta(iVar)%varType        ! dimension index
   dimLength = meta_dims(jDim)%dimLength ! dimension length
   if(dimLength==0) cycle
 
@@ -516,11 +543,11 @@ contains
    if(isRaggedArray)then  ! check the need to create the ragged array
 
     ! get count and end index
-    nx = size(struct(iSpace)%var(ivar)%dat)
+    nx = size(struct(iSpace)%var(iVar)%dat)
     jx = ix + nx -1
 
     ! write vector
-    tempVec(ix:jx) = struct(iSpace)%var(ivar)%dat(1:nx)
+    tempVec(ix:jx) = struct(iSpace)%var(iVar)%dat(1:nx)
 
     ! update indices
     ixStart(jSpace) = ix
@@ -529,7 +556,7 @@ contains
 
    ! ***** case 2: regular array
    else
-    tempVec(jSpace) = struct(iSpace)%var(ivar)%dat(1)
+    tempVec(jSpace) = struct(iSpace)%var(iVar)%dat(1)
    endif
 
   end do  ! looping through space
@@ -537,7 +564,7 @@ contains
   ! ---------- write the data vector to the NetCDF file -----------------------------------------------------------
 
   ! write data
-  call write_nc(trim(fname), trim(meta(ivar)%varName), tempVec, (/1/), (/dimLength/), ierr, cmessage)
+  call write_nc(trim(fname), trim(meta(iVar)%varName), tempVec, (/1/), (/dimLength/), ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! write ragged array

@@ -212,11 +212,11 @@ contains
  mm_tmp = mm; iyyy_tmp = iyyy
  if (mm < 3) then
    mm_tmp = mm + months_per_yr
-   iyyy_tmp = iyyy - 1;
+   iyyy_tmp = iyyy - 1
  end if
 
- juldayss = real(floor(real(days_per_yr*(iyyy_tmp + 4716)))) + &
-            real(floor(30.6001 * real(mm_tmp+1))) + dfrac - 1524.5;
+ juldayss = real(days_per_yr*(iyyy_tmp + 4716)) + &
+            real(floor(30.6001 * real(mm_tmp+1))) + dfrac - 1524.5
 
  end subroutine compjulday_noleap
 

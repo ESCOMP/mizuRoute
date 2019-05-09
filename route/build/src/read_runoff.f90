@@ -1,13 +1,13 @@
 module read_runoff
 
-USE nrtype
 USE netcdf
+USE nrtype
 USE public_var
 USE read_netcdf, only:get_nc
 USE read_netcdf, only:get_var_attr_real
-USE read_netcdf, only:get_nc
-USE read_netcdf, only:get_nc_dim_len
 USE read_netcdf, only:get_var_attr_char
+
+USE read_netcdf, only:get_nc_dim_len
 USE dataTypes,   only:runoff                 ! runoff data type
 
 implicit none
@@ -254,7 +254,7 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! replace _fill_value with -999 for dummy
- where ( abs(dummy - fill_value) < verySmall ) dummy =realMissing
+ where ( abs(dummy - fill_value) < verySmall ) dummy = realMissing
 
  ! reshape
  runoff_data_in%qsim(1:nSpace) = dummy(1:nSpace,1)

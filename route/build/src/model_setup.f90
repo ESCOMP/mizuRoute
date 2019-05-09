@@ -77,6 +77,7 @@ contains
 
   USE public_var,  only : is_remap               ! logical whether or not runnoff needs to be mapped to river network HRU
   USE public_var,  only : ntopAugmentMode        ! River network augmentation mode
+  USE public_var,  only : idSegOut               ! outlet segment ID (-9999 => no outlet segment specified)
   USE var_lookup,  only : ixHRU2SEG              ! index of variables for data structure
   USE var_lookup,  only : ixNTOPO                ! index of variables for data structure
   USE globalData,  only : RCHFLX                 ! Reach flux data structures (entire river network)
@@ -127,7 +128,7 @@ contains
    end if
 
    ! check if network topology write option is on. If so, terminate the program
-   if (ntopAugmentMode) then
+   if (ntopAugmentMode .or. idSegOut>0) then
     call MPI_FINALIZE(ierr)
     stop
    end if
@@ -379,8 +380,8 @@ contains
   USE public_var,           only : dname_sseg               ! dimension name for stream segments
   USE public_var,           only : maxPfafLen               ! maximum digit of pfafstetter code (default 32)
   ! options
-  USE public_var,           only : ntopWriteOption          ! option to write updated network topology
   USE public_var,           only : ntopAugmentMode          ! River network augmentation mode
+  USE public_var,           only : idSegOut                 ! River network subset mode (idSegOut > 0)
   ! common variables
   USE public_var,           only : realMissing              ! missing value for real
   USE public_var,           only : integerMissing           ! missing value for integers
@@ -472,8 +473,8 @@ contains
                      ixHRU_desired = ixHRU_desired,    & ! indices of desired hrus
                      ixSeg_desired = ixSeg_desired)      ! indices of desired reaches
 
-  ! write network topology
-  if(ntopWriteOption)then
+  ! write network topology (if augment mode or subset mode)
+  if(ntopAugmentMode .or. idSegOut>0)then
 
     ! disable the dimension containing all upstream reaches
     ! NOTE: For the CONUS this is 1,872,516,819 reaches !!
@@ -506,14 +507,12 @@ contains
                    ierr,cmessage) ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  endif
-
-  if(ntopAugmentMode)then
-   write(*,'(a)') 'Running in subsetting mode'
-   write(*,'(a)') 'Created a subset network topology file '//trim(fname_ntopNew)
-   write(*,'(a)') ' --> Run again using the new network topology file '
-   write(*,'(a)') ' SUCCESSFUL EXECUTION '
-   return
+    if (idSegOut>0) write(*,'(a)') 'Running in river network subset mode'
+    if (ntopAugmentMode) write(*,'(a)') 'Running in river network augmentation mode'
+    write(*,'(a)') 'Created a new network topology file '//trim(fname_ntopNew)
+    write(*,'(a)') ' --> Run again using the new network topology file '
+    write(*,'(a)') ' SUCCESSFUL EXECUTION '
+    return
   endif
 
   ! copy data to the RPARAM and NETOPO structures
