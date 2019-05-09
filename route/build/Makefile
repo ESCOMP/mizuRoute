@@ -140,13 +140,62 @@ TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(INITIAL) $(QROUTE)
 MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
 
 #========================================================================
-# PART 2: Define driver programs, and executables
+# PART 3: Define driver programs, and executables
 #========================================================================
 # Define the driver routine
 DRIVER = $(F_KORE_DIR)route_runoff.f90
 
 # Define the executable
 EXE = 
+
+#========================================================================
+# PART 3.5: External libaries that might need to be built
+#========================================================================
+PIO_FILESYSTEM_HINTS = gpfs
+CPPDEFS      = -DPIO1 -D_NO_MPI_RSEND
+MCTDIR       = $(F_MASTER)../cime/src/externals/mct
+MPISERIALDIR = $(MCTDIR)/mpi-serial
+PIO1DIR      = $(F_MASTER)../cime/src/externals/pio1
+LIBDIR       = $(F_MASTER)build/lib
+PIOLIBDIR    = $(F_MASTER)build/lib/piolib
+PIOLIB       = $(PIOLIBDIR)/libpio1.a
+PIOCONF      = $(PIOLIBDIR)/Makefile.conf
+MPISERLIBDIR = $(F_MASTER)build/lib/mpi-seriallib
+MPISERLIB    = $(MPISERLIBDIR)/libmpi-serial.a
+MPISERCONF   = $(MPISERLIBDIR)/Makefile.conf
+
+ifdef PIO_FILESYSTEM_HINTS
+        CMAKE_OPTS += -D PIO_FILESYSTEM_HINTS:STRING="$(PIO_FILESYSTEM_HINTS)"
+endif
+
+$(MPISERCONF):
+	cp -p $(MPISERIALDIR)/*.h $(MPISERLIBDIR)/.
+	cd $(MPISERLIBDIR) && $(MPISERIALDIR)/configure FC=$(FC) MPIFC=$(FC_EXE) FCFLAGS="$(FLAGS) \
+                                              -I$(MPISERLIBDIR)" MCT_PATH=$(MPISERIALDIR) --srcdir $(MPISERIALDIR)
+	ln -sf $(MPISERIALDIR)/Makefile $(MPISERLIBDIR)/Makefile
+
+$(MPISERLIB): $(MPISERCONF)
+	$(MAKE) $(MFLAGS) -C $(MPISERLIBDIR) SRCDIR=$(MCTDIR)
+
+$(PIOLIB): $(PIOCONF)
+	$(MAKE) $(MFLAGS) -C $(PIOLIBDIR)
+
+extlibs:
+	@echo "libdir:    "       $(LIBDIR)
+	@echo "CCP-DEFS:  "       $(CPPDEFS)
+	@echo "mpi-serial:"       $(MPISERIALDIR)
+	@echo "pio1dir:   "       $(PIO1DIR)
+	@echo "mpi-seriallibdir:" $(MPISERLIBDIR)
+	@echo "piolibdir: "       $(PIOLIBDIR)
+	@echo "mpi-seriallib:   " $(MPISERLIB)
+	@echo "mpi-serialconf:  " $(MPISERCONF)
+	@echo "piolib:    "       $(PIOLIB)
+	@echo "pioconf:   "       $(PIOCONF)
+	@echo "CONFIG_SHELL:"     $(CONFIG_SHELL)
+	@echo "AR:          "     $(AR)
+	@echo "MAKE:        "     $(MAKE)
+	@echo "MFLAGS:      "     $(MFLAGS)
+	@echo "FLAGS:       "     $(FLAGS)
 
 #========================================================================
 # PART 4: Compile the puppy
