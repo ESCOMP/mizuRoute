@@ -4,6 +4,12 @@
 *.o
 *.obj
 
+# Executable directory
+route/bin
+
+# External library directory
+route/build/lib
+
 # Precompiled Headers
 *.gch
 *.pch
@@ -31,6 +37,11 @@
 *.local
 *bak*
 *tmp*
+
+# editor files
+*.swp
+*~
+
 
 # directories checked out by manage_externals, and other files created
 # by manage_externals
