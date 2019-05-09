@@ -30,20 +30,20 @@ USE write_simoutput,     only : prep_output      !
 USE write_simoutput,     only : output           !
 USE write_restart,       only : output_state     ! write netcdf state output file
 
+implicit none
+
 ! ******
 ! define variables
 ! ************************
-implicit none
-
 character(len=strLen)         :: cfile_name          ! name of the control file
 integer(i4b)                  :: ierr                ! error code
 character(len=strLen)         :: cmessage            ! error message of downwind routine
 integer(i4b)                  :: iens = 1
 logical(lgt)                  :: finished=.false.
-
 !Timing
-integer*8     :: cr, startTime, endTime
-real(dp)      :: rate, elapsedTime
+integer*8                     :: cr, startTime, endTime
+real(dp)                      :: rate, elapsedTime
+
 ! ======================================================================================================
 ! ======================================================================================================
 ! Initialize the system_clock

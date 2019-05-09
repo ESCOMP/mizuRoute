@@ -31,8 +31,8 @@ USE var_lookup,only:ixPFAF                ! index of variables for the pfafstett
 USE public_var, only : compute            ! compute given variable
 USE public_var, only : doNotCompute       ! do not compute given variable
 USE public_var, only : readFromFile       ! read given variable from a file
-USE public_var, only : realMissing         ! missing value for real
-USE public_var, only : integerMissing      ! missing value for integers
+USE public_var, only : realMissing        ! missing value for real
+USE public_var, only : integerMissing     ! missing value for integers
 
 implicit none
 

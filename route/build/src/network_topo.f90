@@ -184,9 +184,6 @@ contains
  ! loop through segments
  do iSeg=1,nSeg
 
-!  ! save the segment index
-!  structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1) = iSeg
-
   ! skip segments with no HRU drainage
   if(structNTOPO(iSeg)%var(ixNTOPO%nHRU)%dat(1)==0) cycle
 
