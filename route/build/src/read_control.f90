@@ -105,7 +105,6 @@ contains
    case('<sim_end>');              simEnd      = trim(cData)                       ! date string defining the end of the simulation
    ! RIVER NETWORK TOPOLOGY
    case('<fname_ntopOld>');        fname_ntopOld = trim(cData)                     ! name of file containing stream network topology information
-   case('<ntopWriteOption>');      read(cData,*,iostat=io_error) ntopWriteOption   ! option for network topology calculations (0=read from file, 1=compute)
    case('<ntopAugmentMode>');      read(cData,*,iostat=io_error) ntopAugmentMode   ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
    case('<fname_ntopNew>');        fname_ntopNew = trim(cData)                     ! name of file containing stream segment information
    case('<dname_nhru>');           dname_nhru    = trim(cData)                     ! dimension name of the HRUs
@@ -215,16 +214,12 @@ contains
 
  end do  ! looping through lines in the control file
 
- ! control river network augmentation mode
- ! case - River network subset (i.e., idSegOut>0)
- ! ! ensure that localized network topology is written in netCDF and then terminate program
+ ! control river network writing option
+ ! Case1- river network subset mode (idSegOut>0):  Write the network variables read from file over only upstream network specified idSegOut
+ ! Case2- river network augment mode: Write full network variables over the entire network
+ ! River network subset mode turnes off augmentation mode.
+ ! Turned off ntopAugmentMode
  if (idSegOut>0) then
-   ntopWriteOption = .true.
-   ntopAugmentMode = .true.
- endif
- ! case - no rier network subset AND no augmented network writing option
- ! no reason to terminate the program
- if (idSegOut<0.and..not.ntopWriteOption) then
    ntopAugmentMode = .false.
  endif
 
