@@ -208,6 +208,7 @@ endif
 ifdef PIO_FILESYSTEM_HINTS
         CMAKE_OPTS += -D PIO_FILESYSTEM_HINTS:STRING="$(PIO_FILESYSTEM_HINTS)"
 endif
+CMAKE_OPTS += -D GENF90_PATH=$(CIMEROOT)/src/externals/genf90
 
 $(MPISERCONF):
 	cp -p $(MPISERIALDIR)/*.h $(MPISERLIBDIR)/.
@@ -240,6 +241,7 @@ extlibs:
 	@echo "mpi-seriallib:   " $(MPISERLIB)
 	@echo "mpi-serialconf:  " $(MPISERCONF)
 	@echo "piolib:    "       $(PIOLIB)
+	@echo "piolib:Make"       $(PIOLIBMAKE)
 	@echo "AR:          "     $(AR)
 	@echo "MAKE:        "     $(MAKE)
 	@echo "MFLAGS:      "     $(MFLAGS)
