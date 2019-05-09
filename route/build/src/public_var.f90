@@ -69,7 +69,6 @@ module public_var
   character(len=strLen),public    :: simEnd               = ''              ! date string defining the end of the simulation
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
-  logical(lgt)         ,public    :: ntopWriteOption      = .false.         ! option for writing augmented network topology (false=no,true=yes)
   logical(lgt)         ,public    :: ntopAugmentMode      = .false.         ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
   character(len=strLen),public    :: fname_ntopNew        = ''              ! new filename containing stream network topology information
   character(len=strLen),public    :: dname_sseg           = ''              ! dimension name of segment in river network data
