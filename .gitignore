@@ -7,9 +7,6 @@
 # Executable directory
 route/bin
 
-# External library directory
-route/build/lib
-
 # Precompiled Headers
 *.gch
 *.pch
@@ -42,9 +39,19 @@ route/build/lib
 *.swp
 *~
 
+# CMAKE files created
+CMakeFiles
+CMakeCache.txt
+cmake_install.cmake
 
 # directories checked out by manage_externals, and other files created
 # by manage_externals
 manage_externals.log
 /cime/
+
+# External library build artifacts
+/route/build/lib/mpi-seriallib/*.h
+/route/build/lib/mpi-seriallib/Makefile*
+
+/route/build/lib/piolib/Makefile*
 

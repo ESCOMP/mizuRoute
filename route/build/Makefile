@@ -21,6 +21,8 @@ LIBOPENMP =
 # define if should use external librarys (yes if used)
 isMPISERIAL =
  
+PNETCDF_PATH =
+
 # Define core directory below which everything resides
 # parent directory of the 'build' directory
 # do not put space at the end of path
@@ -171,7 +173,7 @@ PIO1DIR      = $(CIMEROOT)/src/externals/pio1
 LIBDIR       = $(F_MASTER)build/lib
 PIOLIBDIR    = $(F_MASTER)build/lib/piolib
 PIOLIB       = $(PIOLIBDIR)/libpio1.a
-PIOCONF      = $(PIOLIBDIR)/Makefile.conf
+PIOLIBMAKE   = $(PIOLIBDIR)/Makefile
 MPISERLIBDIR = $(F_MASTER)build/lib/mpi-seriallib
 MPISERLIB    = $(MPISERLIBDIR)/libmpi-serial.a
 MPISERCONF   = $(MPISERLIBDIR)/Makefile.conf
@@ -180,8 +182,29 @@ ifeq "$(isMPISERIAL)" "yes"
   EXTINCLUDES += -I$(MPISERLIBDIR)
   EXTLIBS += $(MPISERLIB)
   LDFLAGS += -L$(MPISERLIBDIR) -lmpi-serial
+  ifdef PNETCDF_PATH
+    undefine PNETCDF_PATH
+  endif
 endif
 
+INCLDIR = -I.
+CMAKE_OPTS = 
+CMAKE_OPTS += -D CMAKE_Fortran_FLAGS:STRING="$(FLAGS) $(CPPDEFS) $(INCLDIR)" \
+              -D CMAKE_C_FLAGS:STRING="$(CFLAGS) $(CPPDEFS) $(INCLDIR)" \
+              -D CMAKE_CXX_FLAGS:STRING="$(CXXFLAGS) $(CPPDEFS) $(INCLDIR)" \
+              -D CMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+              -D PIO_ENABLE_TESTS:BOOL=OFF \
+              -D USER_CMAKE_MODULE_PATH:LIST="$(CIMEROOT)/src/CMake;$(CIMEROOT)/src/externals/pio2/cmake"
+CMAKE_OPTS += -D NetCDF_PATH:PATH=$(NCDF_PATH)
+
+
+
+
+ifdef PNETCDF_PATH
+        CMAKE_OPTS += -D PnetCDF_PATH:STRING="$(PNETCDF_PATH)"
+else
+        CMAKE_OPTS += -D WITH_PNETCDF:LOGICAL=FALSE -D PIO_USE_MPIIO:LOGICAL=FALSE
+endif
 ifdef PIO_FILESYSTEM_HINTS
         CMAKE_OPTS += -D PIO_FILESYSTEM_HINTS:STRING="$(PIO_FILESYSTEM_HINTS)"
 endif
@@ -199,13 +222,17 @@ cleanmpiseriallib:
 	rm $(MPISERCONF)
 	$(MAKE) $(MFLAGS) -C $(MPISERLIBDIR) SRCDIR=$(MCTDIR) clean
 
-$(PIOLIB): $(PIOCONF)
+$(PIOLIBMAKE):
+	cd $(PIOLIBDIR); \
+	$(CMAKE_ENV_VARS) cmake $(CMAKE_OPTS) $(PIO1DIR)
+
+$(PIOLIB): $(PIOLIBMAKE)
 	$(MAKE) $(MFLAGS) -C $(PIOLIBDIR)
 
 extlibs:
 	@echo "CIMEROOT:  "       $(CIMEROOT)
 	@echo "libdir:    "       $(LIBDIR)
-	@echo "CCP-DEFS:  "       $(CPPDEFS)
+	@echo "CPP-DEFS:  "       $(CPPDEFS)
 	@echo "mpi-serial:"       $(MPISERIALDIR)
 	@echo "pio1dir:   "       $(PIO1DIR)
 	@echo "mpi-seriallibdir:" $(MPISERLIBDIR)
@@ -213,13 +240,13 @@ extlibs:
 	@echo "mpi-seriallib:   " $(MPISERLIB)
 	@echo "mpi-serialconf:  " $(MPISERCONF)
 	@echo "piolib:    "       $(PIOLIB)
-	@echo "pioconf:   "       $(PIOCONF)
-	@echo "CONFIG_SHELL:"     $(CONFIG_SHELL)
 	@echo "AR:          "     $(AR)
 	@echo "MAKE:        "     $(MAKE)
 	@echo "MFLAGS:      "     $(MFLAGS)
 	@echo "FLAGS:       "     $(FLAGS)
 	@echo "LDFLAGS:     "     $(LDFLAGS)
+	@echo "CMAKE_OPTS:  "     $(CMAKE_OPTS)
+	@echo "CMAKE_ENV_VARS:"   $(CMAKE_ENV_VARS)
 
 
 
