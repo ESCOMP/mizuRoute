@@ -166,14 +166,14 @@ all: compile install clean
 # PART 3.5: External libaries that might need to be built
 #========================================================================
 PIO_FILESYSTEM_HINTS = gpfs
-CPPDEFS      = -DPIO1 -D_NO_MPI_RSEND
+CPPDEFS      = -DUSE_MPI_ISEND_FOR_FC
 CIMEROOT     = $(F_MASTER)../cime
 MCTDIR       = $(CIMEROOT)/src/externals/mct
 MPISERIALDIR = $(MCTDIR)/mpi-serial
-PIO1DIR      = $(CIMEROOT)/src/externals/pio1
+PIO2DIR      = $(CIMEROOT)/src/externals/pio2
 LIBDIR       = $(F_MASTER)build/lib
 PIOLIBDIR    = $(F_MASTER)build/lib/piolib
-PIOLIB       = $(PIOLIBDIR)/pio/libpio.a
+PIOLIB       = $(PIOLIBDIR)/src/flib/libpiof.a $(PIOLIBDIR)/src/clib/libpioc.a
 PIOLIBMAKE   = $(PIOLIBDIR)/Makefile
 MPISERLIBDIR = $(F_MASTER)build/lib/mpi-seriallib
 MPISERLIB    = $(MPISERLIBDIR)/libmpi-serial.a
@@ -203,7 +203,7 @@ endif
 
 ifeq "$(isPIO)" "yes"
   EXTLIBS += $(PIOLIB)
-  LDFLAGS += -L$(PIOLIBDIR)/pio -lpio
+  LDFLAGS += -L$(PIOLIBDIR)/src/flib -lpiof -L$(PIOLIBDIR)/src/clib -lpioc
 endif
 
 CMAKE_OPTS += -D CMAKE_Fortran_FLAGS:STRING="$(FLAGS) $(CPPDEFS) $(INCLDIR)" \
@@ -247,7 +247,7 @@ cleanpiolib:
 
 $(PIOLIBMAKE): $(MPISERIAL)
 	cd $(PIOLIBDIR); \
-	$(CMAKE_ENV_VARS) cmake $(CMAKE_OPTS) $(PIO1DIR)
+	$(CMAKE_ENV_VARS) cmake $(CMAKE_OPTS) $(PIO2DIR)
 
 $(PIOLIB): $(PIOLIBMAKE)
 	$(MAKE) $(MFLAGS) -C $(PIOLIBDIR)
@@ -257,7 +257,7 @@ extlibs:
 	@echo "libdir:    "       $(LIBDIR)
 	@echo "CPP-DEFS:  "       $(CPPDEFS)
 	@echo "mpi-serial:"       $(MPISERIALDIR)
-	@echo "pio1dir:   "       $(PIO1DIR)
+	@echo "pio2dir:   "       $(PIO2DIR)
 	@echo "mpi-seriallibdir:" $(MPISERLIBDIR)
 	@echo "piolibdir: "       $(PIOLIBDIR)
 	@echo "mpi-seriallib:   " $(MPISERLIB)
