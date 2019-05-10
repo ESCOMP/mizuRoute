@@ -496,8 +496,11 @@ call system_clock(startTime)
   call mpi_comm_flux(pid, nNodes,                              &
                      iens,                                     &
                      rch_per_proc(root:nNodes-1),              &
+                     !tribOutlet_per_proc,  & ! input: number of reaches communicate per node (dimension size == number of proc)
                      ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                     !global_ix_comm,      & ! input: global reach indices to communicate (dimension size == sum of nRearch)
                      arth(1,1,rch_per_proc(pid)),              &
+                     !local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
                      gather,                                   & ! input: communication type
                      ierr, message)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
