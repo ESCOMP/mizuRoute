@@ -19,6 +19,8 @@ FLAGS_OMP =
 LIBOPENMP =
 
 # define if should use external librarys (yes if used)
+# define path to PNETCDF if you want to use it
+# NOTE: We haven't tested with using PNETCDF
 isMPISERIAL =
 isPIO =
  
@@ -28,11 +30,6 @@ PNETCDF_PATH =
 # parent directory of the 'build' directory
 # do not put space at the end of path
 F_MASTER =
-
-
-# External libraries (if used)
-EXTLIBS =
-EXTINCLUDES =
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
@@ -86,6 +83,10 @@ MOD_PATH = $(F_MASTER)build/
 
 # Define the directory for the executables
 EXE_PATH = $(F_MASTER)bin
+
+# External libraries (if used)
+EXTLIBS =
+EXTINCLUDES =
 
 #========================================================================
 # PART 2: Assemble all of the sub-routines
@@ -219,6 +220,9 @@ CMAKE_OPTS += -D NetCDF_PATH:PATH=$(NCDF_PATH)
 
 ifdef PNETCDF_PATH
         CMAKE_OPTS += -D PnetCDF_PATH:STRING="$(PNETCDF_PATH)"
+        LDFLAGS    += -L$(PNETCDF_PATH)/lib -lpnetcdf
+        CPPDEFS    += -D_PNETCDF
+        INCLDIR    += -I$(PNETCDF_PATH)/include
 else
         CMAKE_OPTS += -D WITH_PNETCDF:LOGICAL=FALSE -D PIO_USE_MPIIO:LOGICAL=FALSE
 endif
@@ -252,7 +256,7 @@ $(PIOLIBMAKE): $(MPISERIAL)
 $(PIOLIB): $(PIOLIBMAKE)
 	$(MAKE) $(MFLAGS) -C $(PIOLIBDIR)
 
-extlibs:
+db_extlibs:
 	@echo "CIMEROOT:  "       $(CIMEROOT)
 	@echo "libdir:    "       $(LIBDIR)
 	@echo "CPP-DEFS:  "       $(CPPDEFS)
