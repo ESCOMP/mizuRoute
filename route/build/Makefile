@@ -195,6 +195,7 @@ ifeq "$(isMPISERIAL)" "yes"
       -DMPI_C_LIBRARIES=$(MPISERLIB) \
       -DMPI_Fortran_LIBRARIES=$(MPISERLIB)
 else
+  INCLDIR += -I$(MPI_ROOT)/include
   CPPDEFS += -DHAVE_MPI
   MPISERIAL = 
 endif
