@@ -20,6 +20,7 @@ LIBOPENMP =
 
 # define if should use external librarys (yes if used)
 isMPISERIAL =
+isPIO =
  
 PNETCDF_PATH =
 
@@ -172,7 +173,7 @@ MPISERIALDIR = $(MCTDIR)/mpi-serial
 PIO1DIR      = $(CIMEROOT)/src/externals/pio1
 LIBDIR       = $(F_MASTER)build/lib
 PIOLIBDIR    = $(F_MASTER)build/lib/piolib
-PIOLIB       = $(PIOLIBDIR)/libpio1.a
+PIOLIB       = $(PIOLIBDIR)/pio/libpio.a
 PIOLIBMAKE   = $(PIOLIBDIR)/Makefile
 MPISERLIBDIR = $(F_MASTER)build/lib/mpi-seriallib
 MPISERLIB    = $(MPISERLIBDIR)/libmpi-serial.a
@@ -198,6 +199,11 @@ else
   INCLDIR += -I$(MPI_ROOT)/include
   CPPDEFS += -DHAVE_MPI
   MPISERIAL = 
+endif
+
+ifeq "$(isPIO)" "yes"
+  EXTLIBS += $(PIOLIB)
+  LDFLAGS += -L$(PIOLIBDIR)/pio -lpio
 endif
 
 CMAKE_OPTS += -D CMAKE_Fortran_FLAGS:STRING="$(FLAGS) $(CPPDEFS) $(INCLDIR)" \
