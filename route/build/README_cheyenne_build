@@ -26,6 +26,17 @@ module load netcdf
 setenv BLDDIR `pwd`/../
 gmake FC=gfortran FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff isPIO=yes
 
+# For gfortran with MPI, PNETCDF and PIO2 libraries
+module purge
+module load gnu
+module load ncarcompilers
+module load mpt
+module load pnetcdf
+module load netcdf
+
+setenv BLDDIR `pwd`/../
+gmake FC=gfortran FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff isPIO=yes PNETCDF_PATH=$PNETCDF
+
 # For gfortran just with MPI (SO WITHOUT ANY OF THE EXTERNAL LIBRARIES)
 module purge
 module load gnu

@@ -26,6 +26,12 @@ isPIO =
  
 PNETCDF_PATH =
 
+# If isPIO==yes then you can give hints to PIO about the local system
+# gpfs is the specific filesystem used on cheyenne
+# (can be gpfs or lustre) Only use it if you know for sure about your filesystem.
+# If not make this setting blank
+PIO_FILESYSTEM_HINTS = gpfs
+
 # Define core directory below which everything resides
 # parent directory of the 'build' directory
 # do not put space at the end of path
@@ -166,7 +172,6 @@ all: compile install clean
 #========================================================================
 # PART 3.5: External libaries that might need to be built
 #========================================================================
-PIO_FILESYSTEM_HINTS = gpfs
 CPPDEFS      = -DUSE_MPI_ISEND_FOR_FC
 CIMEROOT     = $(F_MASTER)../cime
 MCTDIR       = $(CIMEROOT)/src/externals/mct
@@ -255,28 +260,6 @@ $(PIOLIBMAKE): $(MPISERIAL)
 
 $(PIOLIB): $(PIOLIBMAKE)
 	$(MAKE) $(MFLAGS) -C $(PIOLIBDIR)
-
-db_extlibs:
-	@echo "CIMEROOT:  "       $(CIMEROOT)
-	@echo "libdir:    "       $(LIBDIR)
-	@echo "CPP-DEFS:  "       $(CPPDEFS)
-	@echo "mpi-serial:"       $(MPISERIALDIR)
-	@echo "pio2dir:   "       $(PIO2DIR)
-	@echo "mpi-seriallibdir:" $(MPISERLIBDIR)
-	@echo "piolibdir: "       $(PIOLIBDIR)
-	@echo "mpi-seriallib:   " $(MPISERLIB)
-	@echo "mpi-serialconf:  " $(MPISERCONF)
-	@echo "piolib:    "       $(PIOLIB)
-	@echo "piolib:Make"       $(PIOLIBMAKE)
-	@echo "AR:          "     $(AR)
-	@echo "MAKE:        "     $(MAKE)
-	@echo "MFLAGS:      "     $(MFLAGS)
-	@echo "FLAGS:       "     $(FLAGS)
-	@echo "LDFLAGS:     "     $(LDFLAGS)
-	@echo "CMAKE_OPTS:  "     $(CMAKE_OPTS)
-	@echo "CMAKE_ENV_VARS:"   $(CMAKE_ENV_VARS)
-
-
 
 #========================================================================
 # PART 4: Compile the puppy
