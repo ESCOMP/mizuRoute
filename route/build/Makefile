@@ -230,13 +230,13 @@ $(MPISERLIB): $(MPISERCONF)
 	$(MAKE) $(MFLAGS) -C $(MPISERLIBDIR) SRCDIR=$(MCTDIR)
 
 cleanmpiseriallib:
-	rm $(MPISERCONF)
 	$(MAKE) $(MFLAGS) -C $(MPISERLIBDIR) SRCDIR=$(MCTDIR) clean
+	rm $(MPISERCONF)
 
 cleanpiolib:
-	rm $(PIOLIBMAKE)
-	rm $(PIOLIBDIR)/CMakeCache.txt
 	$(MAKE) $(MFLAGS) -C $(PIOLIBDIR) clean
+	rm $(PIOLIBDIR)/CMakeCache.txt
+	rm $(PIOLIBMAKE)
 
 $(PIOLIBMAKE): $(MPISERIAL)
 	cd $(PIOLIBDIR); \
