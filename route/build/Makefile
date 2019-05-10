@@ -182,12 +182,12 @@ INCLDIR      = -I.
 CMAKE_OPTS   = 
 
 ifeq "$(isMPISERIAL)" "yes"
-  EXTINCLUDES += -I$(MPISERLIBDIR)
+  EXTINCLUDES += -I$(MPISERIALDIR)
   EXTLIBS += $(MPISERLIB)
   MPISERIAL = $(MPISERLIB)
   LDFLAGS += -L$(MPISERLIBDIR) -lmpi-serial
   CPPDEFS += -DNO_MPI2
-  INCLDIR += -I$(MPISERLIBDIR)
+  INCLDIR += -I$(MPISERIALDIR)
   ifdef PNETCDF_PATH
     undefine PNETCDF_PATH
   endif
@@ -230,7 +230,7 @@ CMAKE_OPTS += -D GENF90_PATH=$(CIMEROOT)/src/externals/genf90
 $(MPISERCONF):
 	cp -p $(MPISERIALDIR)/*.h $(MPISERLIBDIR)/.
 	cd $(MPISERLIBDIR) && $(MPISERIALDIR)/configure FC=$(FC) MPIFC=$(FC_EXE) FCFLAGS="$(FLAGS) \
-                                              -I$(MPISERLIBDIR)" MCT_PATH=$(MPISERIALDIR) --srcdir $(MPISERIALDIR)
+                                              -I$(MPISERIALDIR)" MCT_PATH=$(MPISERIALDIR) --srcdir $(MPISERIALDIR)
 	ln -sf $(MPISERIALDIR)/Makefile $(MPISERLIBDIR)/Makefile
 
 $(MPISERLIB): $(MPISERCONF)
