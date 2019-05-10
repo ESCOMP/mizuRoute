@@ -177,18 +177,28 @@ PIOLIBMAKE   = $(PIOLIBDIR)/Makefile
 MPISERLIBDIR = $(F_MASTER)build/lib/mpi-seriallib
 MPISERLIB    = $(MPISERLIBDIR)/libmpi-serial.a
 MPISERCONF   = $(MPISERLIBDIR)/Makefile.conf
+INCLDIR      = -I.
+CMAKE_OPTS   = 
 
 ifeq "$(isMPISERIAL)" "yes"
   EXTINCLUDES += -I$(MPISERLIBDIR)
   EXTLIBS += $(MPISERLIB)
+  MPISERIAL = $(MPISERLIB)
   LDFLAGS += -L$(MPISERLIBDIR) -lmpi-serial
+  CPPDEFS += -DNO_MPI2
+  INCLDIR += -I$(MPISERLIBDIR)
   ifdef PNETCDF_PATH
     undefine PNETCDF_PATH
   endif
+  CMAKE_OPTS += -DMPI_C_INCLUDE_PATH=$(PIOLIBDIR) \
+      -DMPI_Fortran_INCLUDE_PATH=$(PIOLIBDIR) \
+      -DMPI_C_LIBRARIES=$(MPISERLIB) \
+      -DMPI_Fortran_LIBRARIES=$(MPISERLIB)
+else
+  CPPDEFS += -DHAVE_MPI
+  MPISERIAL = 
 endif
 
-INCLDIR = -I.
-CMAKE_OPTS = 
 CMAKE_OPTS += -D CMAKE_Fortran_FLAGS:STRING="$(FLAGS) $(CPPDEFS) $(INCLDIR)" \
               -D CMAKE_C_FLAGS:STRING="$(CFLAGS) $(CPPDEFS) $(INCLDIR)" \
               -D CMAKE_CXX_FLAGS:STRING="$(CXXFLAGS) $(CPPDEFS) $(INCLDIR)" \
@@ -223,7 +233,12 @@ cleanmpiseriallib:
 	rm $(MPISERCONF)
 	$(MAKE) $(MFLAGS) -C $(MPISERLIBDIR) SRCDIR=$(MCTDIR) clean
 
-$(PIOLIBMAKE):
+cleanpiolib:
+	rm $(PIOLIBMAKE)
+	rm $(PIOLIBDIR)/CMakeCache.txt
+	$(MAKE) $(MFLAGS) -C $(PIOLIBDIR) clean
+
+$(PIOLIBMAKE): $(MPISERIAL)
 	cd $(PIOLIBDIR); \
 	$(CMAKE_ENV_VARS) cmake $(CMAKE_OPTS) $(PIO1DIR)
 
