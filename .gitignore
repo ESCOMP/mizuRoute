@@ -54,5 +54,7 @@ manage_externals.log
 /route/build/lib/mpi-seriallib/Makefile*
 
 /route/build/lib/piolib/Makefile*
-/route/build/lib/piolib/pio
+/route/build/lib/piolib/config.h
+/route/build/lib/piolib/doc
+/route/build/lib/piolib/src
 
