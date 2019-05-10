@@ -1,1 +1,7 @@
 Location to build the MCT mpi-serial library which is a MPI implementation that only works with one task
+
+
+NOTE: SRCDIR is a required option to be given to the Makefile
+
+
+gmake SRCDIR=../../../../cime/src/externals/mct/
