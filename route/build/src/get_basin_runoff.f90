@@ -67,16 +67,14 @@ contains
    call remap_runoff(runoff_data, remap_data, basinRunoff, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   runoff_data%basinRunoff=basinRunoff
-
   else ! runoff is already remapped to river network HRUs
 
    call sort_runoff(runoff_data, basinRunoff, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   runoff_data%basinRunoff=basinRunoff
-
   end if
+
+  runoff_data%basinRunoff=basinRunoff
 
  end subroutine get_hru_runoff
 

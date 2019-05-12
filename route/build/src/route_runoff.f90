@@ -68,9 +68,9 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 call classify_river_basin(nRch, structPFAF, structNTOPO, river_basin, ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
-! *****
+! ***********************************
 ! start of time-stepping simulation
-! ************************
+! ***********************************
 do while (.not.finished)
 
   ! prepare simulation output netCDF

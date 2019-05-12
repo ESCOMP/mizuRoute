@@ -132,6 +132,7 @@ contains
                    structSeg,    & ! inout: ancillary data for stream segments
                    structHRU2seg,& ! inout: ancillary data for mapping hru2basin
                    structNTOPO,  & ! inout: ancillary data for network toopology
+                   structPFAF,   & ! inout: ancillary data for pfafstetter code
                    ierr,cmessage)  ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 

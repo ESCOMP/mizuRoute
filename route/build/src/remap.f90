@@ -99,12 +99,6 @@ module remapping
     cycle
    endif
 
-!   ! check that the basins match
-!   if( remap_data%hru_id(iHRU) /= structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1) )then
-!    message=trim(message)//'mismatch in HRU ids for basins in the routing layer'
-!    ierr=20; return
-!   endif
-!
    ! initialize the weighted average
    sumWeights        = 0._dp
    basinRunoff(jHRU) = 0._dp
@@ -212,14 +206,8 @@ module remapping
     cycle
    endif
 
-!   ! check that the basins match
-!   if( remap_data%hru_id(iHRU) /= structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1) )then
-!    message=trim(message)//'mismatch in HRU ids for basins in the routing layer'
-!    ierr=20; return
-!   endif
-
-   !print*, 'remap_data%hru_id(iHRU), structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1), remap_data%num_qhru(iHRU) = ', &
-   !         remap_data%hru_id(iHRU), structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1), remap_data%num_qhru(iHRU)
+   !print*, 'remap_data_in%hru_id(iHRU), structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1), remap_data_in%num_qhru(iHRU) = ', &
+   !         remap_data_in%hru_id(iHRU), structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1), remap_data_in%num_qhru(iHRU)
 
    ! initialize the weighted average
    sumWeights        = 0._dp

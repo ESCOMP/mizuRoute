@@ -4,6 +4,7 @@ module process_ntopo
 USE nrtype,    only : i4b,dp,lgt          ! variable types, etc.
 USE nrtype,    only : strLen              ! length of characters
 USE dataTypes, only : var_ilength         ! integer type:          var(:)%dat
+USE dataTypes, only : var_clength         ! integer type:          var(:)%dat
 USE dataTypes, only : var_dlength,dlength ! double precision type: var(:)%dat, or dat
 
 ! global vars
@@ -24,6 +25,7 @@ USE globalData, only : true,false         ! named integers for true/false
 ! named variables
 USE var_lookup,only:ixSEG                 ! index of variables for the stream segments
 USE var_lookup,only:ixNTOPO               ! index of variables for the network topology
+USE var_lookup,only:ixPFAF                ! index of variables for the pfafstetter code
 
 ! common variables
 USE public_var, only : compute            ! compute given variable
@@ -220,6 +222,11 @@ contains
    end do
   end if
 
+  ! get timing
+  call system_clock(time1)
+  !write(*,'(a,1x,i20)') 'after river geometry : time = ', time1-time0
+  !print*, trim(message)//'PAUSE : '; read(*,*)
+
  endif  ! computing hydraulic geometry
 
  ! get the channel unit hydrograph
@@ -247,6 +254,11 @@ contains
    enddo
 
   endif ! if using the impulse response function
+
+  ! get timing
+  call system_clock(time1)
+  !write(*,'(a,1x,i20)') 'after topoNetwork : time = ', time1-time0
+  !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif ! if there is a need to compute the channel unit hydrograph
 

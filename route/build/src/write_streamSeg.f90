@@ -113,6 +113,11 @@ contains
    do iVar=1,size(meta_NTOPO)
      if (meta_NTOPO(iVar)%varFile) dimCheck(meta_NTOPO(iVar)%vartype) = .true.
    end do
+   do iVar=1,size(meta_PFAF)
+     if (meta_PFAF(iVar)%varFile) &
+        dimCheck(meta_PFAF(iVar)%vartype) = .true.
+        dimCheck(ixDims%pfaf) = .true.
+   end do
  endif
 
  ! define dimension lengths

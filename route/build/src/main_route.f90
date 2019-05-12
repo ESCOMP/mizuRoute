@@ -9,6 +9,7 @@ USE dataTypes,           only : STRFLX                      ! fluxes in each rea
 USE dataTypes,           only : RCHTOPO                     ! Network topology
 USE dataTypes,           only : RCHPRP                      ! Reach parameter
 USE dataTypes,           only : runoff                      ! runoff data type
+USE dataTypes,           only : basin                       ! river basin data type
 
 ! subroutines: general utility
 USE nr_utility_module,   only : findIndex                   ! find index within a vector
@@ -20,8 +21,10 @@ USE basinUH_module,      only : IRF_route_basin             ! perform UH convolu
 
 ! subroutines: river routing
 USE accum_runoff_module, only : accum_runoff                ! upstream flow accumulation
-USE kwt_route_module,    only : kwt_route                  ! kinematic wave routing method
-USE irf_route_module,    only : irf_route                  ! unit hydrograph (impulse response function) routing method
+!USE kwt_route_module,    only : kwt_route                  ! kinematic wave routing method
+!USE irf_route_module,    only : irf_route                  ! unit hydrograph (impulse response function) routing method
+USE kwt_route_module,    only : kwt_route => kwt_route_orig ! kinematic wave routing method
+USE irf_route_module,    only : irf_route => irf_route_orig ! river network unit hydrograph method
 
 ! utilities
 USE nr_utility_module, ONLY : arth
@@ -91,6 +94,7 @@ contains
                        iens,           &  ! ensemble index
                        basinRunoff_in, &  ! basin (i.e.,HRU) runoff (m/s)
                        ixRchProcessed, &  ! indices of reach to be routed
+                       river_basin,    &  ! OMP basin decomposition
                        basinType,      &  ! basinType (1-> tributary, 2->mainstem)
                        NETOPO_in,      &  ! reach topology data structure
                        RPARAM_in,      &  ! reach parameter data structure
@@ -121,6 +125,7 @@ contains
    integer(i4b),               intent(in)    :: iens                 ! ensemble member
    real(dp),      allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
    integer(i4b),  allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
+   type(basin),   allocatable, intent(in)    :: river_basin(:)       ! OMP basin decomposition
    integer(i4b),               intent(in)    :: basinType            ! basinType (1-> tributary, 2->mainstem)
    type(RCHTOPO), allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology
    type(RCHPRP),  allocatable, intent(in)    :: RPARAM_in(:)         ! River reach parameter
@@ -195,6 +200,7 @@ contains
    ! perform KWT routing
    if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
     call kwt_route(iens,                 & ! input: ensemble index
+                   river_basin,          & ! input: river basin data type
                    T0,T1,                & ! input: start and end of the time step
                    basinType,            & ! input: basinType (0-> tributary, 1->mainstem)
                    ixPrint,              & ! input: index of the desired reach
@@ -210,6 +216,7 @@ contains
    ! perform IRF routing
    if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
     call irf_route(iens,                & ! input: ensemble index
+                   river_basin,         & ! input: river basin data type
                    ixPrint,             & ! input: index of the desired reach
                    NETOPO_in,           & ! input: reach topology data structure
                    RCHFLX_out,          & ! inout: reach flux data structure

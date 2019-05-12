@@ -28,6 +28,8 @@ module globalData
   use dataTypes,  only : remap         ! remapping data type
   use dataTypes,  only : runoff        ! runoff data type
 
+  ! basin data structure
+  use dataTypes,  only : basin         !
   ! time data structure
   use dataTypes,  only : time         ! time data
 
@@ -135,6 +137,9 @@ module globalData
   ! mapping structures
   type(remap)                    , public :: remap_data           ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
   type(runoff)                   , public :: runoff_data          ! runoff data for one time step for LSM HRUs and River network HRUs
+
+  ! domain data
+  type(basin)     , allocatable  , public :: river_basin(:)       ! openMP domain decomposition
   ! miscellaneous
   integer(i4b)                   , public :: ixPrint=integerMissing   ! index of desired reach to be on-screen print
 

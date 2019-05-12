@@ -5,6 +5,7 @@ USE nrtype,    only : i4b,dp,lgt
 USE nrtype,    only : strLen               ! string length
 USE dataTypes, only : var_ilength          ! integer type:          var(:)%dat
 USE dataTypes, only : var_dlength          ! double precision type: var(:)%dat
+USE dataTypes, only : var_clength          ! character type:        var(:)%dat
 USE dataTypes, only : var_info             ! metadata
 
 ! global data
@@ -16,6 +17,7 @@ USE globalData, only : meta_HRU            ! HRU properties
 USE globalData, only : meta_HRU2SEG        ! HRU-to-segment mapping
 USE globalData, only : meta_SEG            ! stream segment properties
 USE globalData, only : meta_NTOPO          ! network topology
+USE globalData, only : meta_PFAF           ! network topology
 
 ! named variables
 USE var_lookup,only:ixStruct, nStructures  ! index of data structures
@@ -24,6 +26,7 @@ USE var_lookup,only:ixHRU,    nVarsHRU     ! index of variables for the HRUs
 USE var_lookup,only:ixSEG,    nVarsSEG     ! index of variables for the stream segments
 USE var_lookup,only:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
 USE var_lookup,only:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
+USE var_lookup,only:ixPFAF,   nVarsPFAF    ! index of variables for the pfafstetter code
 
 implicit none
 
@@ -45,6 +48,7 @@ contains
                          structSeg,    & ! ancillary data for stream segments
                          structHRU2seg,& ! ancillary data for mapping hru2basin
                          structNTOPO,  & ! ancillary data for network toopology
+                         structPFAF,   & ! ancillary data for pfafstetter code
                          ! output: error control
                          ierr,message)   ! output: error control
  implicit none
@@ -57,6 +61,7 @@ contains
  type(var_dlength) , intent(inout), allocatable :: structSeg(:)     ! stream segment properties
  type(var_ilength) , intent(inout), allocatable :: structHRU2seg(:) ! HRU-to-segment mapping
  type(var_ilength) , intent(inout), allocatable :: structNTOPO(:)   ! network topology
+ type(var_clength) , intent(inout), allocatable :: structPFAF(:)    ! network topology
  ! output: error control
  integer(i4b)      , intent(out)                :: ierr             ! error code
  character(*)      , intent(out)                :: message          ! error message
@@ -77,8 +82,8 @@ contains
  print*, 'Allocating space for the higher-level structure components'; call flush(6)
 
  ! allocate the spatial dimension in all data structures
- allocate(structHRU(nHRU), structHRU2seg(nHRU), structSeg(nSeg), structNTOPO(nSeg), stat=ierr)
- if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating [structHRU,structHRU2seg,structNTOPO]'; return; endif
+ allocate(structHRU(nHRU), structHRU2seg(nHRU), structSeg(nSeg), structNTOPO(nSeg), structPFAF(nSeg), stat=ierr)
+ if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating [structHRU,structHRU2seg,structNTOPO,structPFAF]'; return; endif
 
  ! allocate the variable dimension in the data structures with length nHRU
  do iHRU=1,nHRU
@@ -88,7 +93,7 @@ contains
 
  ! allocate the variable dimension in the data structures with length nSeg
  do iSeg=1,nSeg
-  allocate(structSeg(iSeg)%var(nVarsSEG), structNTOPO(iSeg)%var(nVarsNTOPO),stat=ierr)
+  allocate(structSeg(iSeg)%var(nVarsSEG), structNTOPO(iSeg)%var(nVarsNTOPO), structPFAF(iSeg)%var(nVarsPFAF),stat=ierr)
   if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating variables for stream segments'; return; endif
  end do
 
@@ -101,8 +106,8 @@ contains
 
   ! populate the spatial dimension
   select case(iStruct)
-   case(ixStruct%HRU, ixStruct%HRU2SEG);    meta_struct(iStruct)%nSpace=nHRU
-   case(ixStruct%SEG, ixStruct%NTOPO)  ;    meta_struct(iStruct)%nSpace=nSeg
+   case(ixStruct%HRU, ixStruct%HRU2SEG);              meta_struct(iStruct)%nSpace=nHRU
+   case(ixStruct%SEG, ixStruct%NTOPO, ixStruct%PFAF); meta_struct(iStruct)%nSpace=nSeg
    case default; ierr=20; message=trim(message)//'unable to identify data structure'; return
   end select
 
@@ -118,6 +123,7 @@ contains
      case(ixStruct%HRU2SEG); isDimScalar = ( meta_HRU2SEG(ivar)%varType==ixDims%hru .or. meta_HRU2SEG(ivar)%varType==ixDims%seg )
      case(ixStruct%SEG    ); isDimScalar = ( meta_SEG(    ivar)%varType==ixDims%hru .or. meta_SEG(    ivar)%varType==ixDims%seg )
      case(ixStruct%NTOPO  ); isDimScalar = ( meta_NTOPO(  ivar)%varType==ixDims%hru .or. meta_NTOPO(  ivar)%varType==ixDims%seg )
+     case(ixStruct%PFAF   ); isDimScalar = ( meta_PFAF(   ivar)%varType==ixDims%hru .or. meta_PFAF(   ivar)%varType==ixDims%seg )
      case default; ierr=20; message=trim(message)//'unable to identify data structure'; return
     end select
 
@@ -127,6 +133,7 @@ contains
      case(ixStruct%HRU2SEG); if(isDimScalar) allocate(structHRU2seg(iSpace)%var(iVar)%dat(1), stat=ierr)
      case(ixStruct%SEG    ); if(isDimScalar) allocate(structSeg(    iSpace)%var(iVar)%dat(1), stat=ierr)
      case(ixStruct%NTOPO  ); if(isDimScalar) allocate(structNTOPO(  iSpace)%var(iVar)%dat(1), stat=ierr)
+     case(ixStruct%PFAF   ); if(isDimScalar) allocate(structPFAF(   iSpace)%var(iVar)%dat(1), stat=ierr)
      case default; ierr=20; message=trim(message)//'unable to identify data structure'; return
     end select
     if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for the data vectors'; return; endif
