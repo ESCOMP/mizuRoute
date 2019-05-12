@@ -192,11 +192,9 @@ contains
   integer(i4b), allocatable, intent(out) :: pos(:)          ! position of "true" conditions
   ! Local variable
   integer(i4b)                           :: npos            ! number of "true" conditions
-  integer(i4b)                           :: i               ! loop index
   integer(i4b)                           :: idx(size(TF))   ! vector of all positions
 
-  forall(i=1:size(TF)) idx(i) = i    ! Enumerate all positions
-  idx = arth(1,1,size(TF))
+  idx = arth(1,1,size(TF))           ! Enumerate all positions
   npos  = count(TF)                  ! Count the elements of TF that are .True.
   allocate(pos(npos))
   pos = pack(idx,TF)                 ! With Pack function, verify position of true conditions

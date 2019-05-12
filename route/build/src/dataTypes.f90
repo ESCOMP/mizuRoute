@@ -134,10 +134,14 @@ implicit none
 
  ! simulated runoff data
  type, public :: runoff
-   real(dp)                                :: time        ! time
-   real(dp)                 , allocatable  :: qsim(:)     ! runoff(hru) at one time step
-   real(dp)                 , allocatable  :: qsim2D(:,:) ! runoff(hru) at one time step
-   integer(i4b)             , allocatable  :: hru_id(:)   ! id of hrus at which runoff is simulated
+   integer(i4b)                            :: nTime         ! number of time steps
+   integer(i4b)                            :: nSpace(1:2)   ! number of spatial dimension
+   real(dp)                                :: time          ! time variable
+   real(dp)                 , allocatable  :: qsim(:)       ! runoff(hru) at one time step (shape = nSpace(1))
+   real(dp)                 , allocatable  :: qsim2D(:,:)   ! runoff(x,y) at one time step (shape = /nSpace(1),nSpace(2)/)
+   integer(i4b)             , allocatable  :: hru_id(:)     ! id of hrus at which runoff is simulated (shape = nSpace(1))
+   integer(i4b)             , allocatable  :: hru_ix(:)     ! index of hrus associated with river network
+   real(dp)                 , allocatable  :: basinRunoff(:)! remapped river basin runoff (shape = number of nHRU)
  end type runoff
 
  ! ---------- reach parameters ----------------------------------------------------------------------------
@@ -168,6 +172,9 @@ implicit none
   integer(I4B),dimension(:),allocatable      :: UREACHI  ! Immediate Upstream reach indices
   integer(I4B),dimension(:),allocatable      :: UREACHK  ! Immediate Upstream reach IDs
   integer(I4B),dimension(:),allocatable      :: RCHLIST  ! all upstream reach indices
+  integer(I4B),dimension(:),allocatable      :: HRUID    ! all contributing HRU IDs
+  integer(I4B),dimension(:),allocatable      :: HRUIX    ! all contributing HRU indices
+  real(DP),    dimension(:),allocatable      :: HRUWGT   ! areal weight for contributing HRUs
   logical(lgt),dimension(:),allocatable      :: goodBas  ! Flag to denote a good basin
   character(len=32),dimension(:),allocatable :: pfafCode ! pfafstetter code
   integer(I4B)                               :: RHORDER  ! Processing sequence
