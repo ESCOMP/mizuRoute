@@ -1,2 +1,2 @@
-# Contents in ancillary_data 
+# Contents in bin 
 1. compiled executable 
