@@ -37,7 +37,8 @@ contains
                       RPARAM_in,            & ! input: reach parameter data structure
                       KROUTE_out,           & ! inout: reach state data structure
                       RCHFLX_out,           & ! inout: reach flux data structure
-                      ierr,message)           ! output: error control
+                      ierr,message,         & ! output: error control
+                      ixSubRch)               ! optional input: subset of reach indices to be processed
  USE dataTypes,  only : basin                 ! river basin data type
  implicit none
  ! Input
@@ -54,8 +55,12 @@ contains
  ! output variables
  integer(i4b), intent(out)                :: ierr                  ! error code
  character(*), intent(out)                :: message               ! error message
+ ! input (optional)
+ integer(i4b), intent(in),   optional     :: ixSubRch(:)           ! subset of reach indices to be processed
  ! local variables
+ logical(lgt), allocatable                :: doRoute(:)            ! logical to indicate which reaches are processed
  integer(i4b)                             :: LAKEFLAG=0            ! >0 if processing lakes
+ integer(i4b)                             :: nSeg                  ! number of reaches in the network
  integer(i4b)                             :: nOuts                 ! number of outlets
  integer(i4b)                             :: nTrib                 ! number of tributary basins
  integer(i4b)                             :: nStem                 ! number of mainstem in each level
@@ -83,6 +88,18 @@ contains
 
  ! initialize error control
  ierr=0; message='kwt_route/'
+
+ nSeg = size(NETOPO_in)
+
+ allocate(doRoute(nSeg), stat=ierr)
+ if(ierr/=0)then; message=trim(message)//'problem allocating space for [doRoute]'; return; endif
+
+ if (present(ixSubRch))then
+  doRoute(:)=.false.
+  doRoute(ixSubRch) = .true. ! only subset of reaches are on
+ else
+  doRoute(:)=.true.          ! every reach is on
+ endif
 
  ! Number of Outlets
  nOuts = size(river_basin)
@@ -116,6 +133,7 @@ contains
 !$OMP          shared(T0,T1)                            & ! private for a given thread
 !$OMP          shared(LAKEFLAG)                         & ! private for a given thread
 !$OMP          shared(river_basin)                      & ! data structure shared
+!$OMP          shared(doRoute)                          & ! data array shared
 !$OMP          shared(NETOPO_in)                        & ! data structure shared
 !$OMP          shared(RPARAM_in)                        & ! data structure shared
 !$OMP          shared(KROUTE_out)                       & ! data structure shared
@@ -137,6 +155,7 @@ contains
     call system_clock(timeTribStart(iTrib))
      do iRch=1,river_basin(iOut)%tributary(iTrib)%nRch
        jRch  = river_basin(iOut)%tributary(iTrib)%segIndex(iRch)
+       if (.not. doRoute(jRch)) cycle
        ! route kinematic waves through the river network
        call QROUTE_RCH(iEns,jRch,           & ! input: array indices
                        ixDesire,            & ! input: index of the desired reach
@@ -178,6 +197,7 @@ contains
 !$OMP          shared(T0,T1)                            & ! private for a given thread
 !$OMP          shared(LAKEFLAG)                         & ! private for a given thread
 !$OMP          shared(river_basin)                      & ! data structure shared
+!$OMP          shared(doRoute)                          & ! data array shared
 !$OMP          shared(NETOPO_in)                        & ! data structure shared
 !$OMP          shared(RPARAM_in)                        & ! data structure shared
 !$OMP          shared(KROUTE_out)                       & ! data structure shared
@@ -190,6 +210,7 @@ contains
      do iStem = 1,nStem
        do iRch=1,river_basin(iOut)%level(iLevel)%mainstem(iStem)%nRch
          jRch = river_basin(iOut)%level(iLevel)%mainstem(iStem)%segIndex(iRch)
+         if (.not. doRoute(jRch)) cycle
          ! route kinematic waves through the river network
          call QROUTE_RCH(iens,jRch,           & ! input: array indices
                          ixDesire,            & ! input: index of the desired reach

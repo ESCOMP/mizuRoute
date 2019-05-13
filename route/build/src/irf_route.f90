@@ -23,16 +23,13 @@ contains
  ! *********************************************************************
  ! subroutine: perform network UH routing
  ! *********************************************************************
- subroutine irf_route(&
-                      ! input
-                      iEns,       &    ! input: index of runoff ensemble to be processed
-                      river_basin,&    ! input: river basin information (mainstem, tributary outlet etc.)
-                      ixDesire,   &    ! input: reachID to be checked by on-screen pringing
-                      NETOPO_in,  &    ! input: reach topology data structure
-                      ! inout
-                      RCHFLX_out, &    ! inout: reach flux data structure
-                      ! output
-                      ierr, message)   ! output: error control
+ subroutine irf_route(iEns,          &    ! input: index of runoff ensemble to be processed
+                      river_basin,   &    ! input: river basin information (mainstem, tributary outlet etc.)
+                      ixDesire,      &    ! input: reachID to be checked by on-screen pringing
+                      NETOPO_in,     &    ! input: reach topology data structure
+                      RCHFLX_out,    &    ! inout: reach flux data structure
+                      ierr, message, &    ! output: error control
+                      ixSubRch)           ! optional input: subset of reach indices to be processed
 
  ! global routing data
  USE dataTypes,  only : basin        ! river basin data type
@@ -48,7 +45,11 @@ contains
  ! output variables
  integer(i4b), intent(out)                 :: ierr                ! error code
  character(*), intent(out)                 :: message             ! error message
- ! Local variables to
+ ! input (optional)
+ integer(i4b), intent(in),   optional      :: ixSubRch(:)         ! subset of reach indices to be processed
+ ! Local variables
+ logical(lgt), allocatable                 :: doRoute(:)          ! logical to indicate which reaches are processed
+ integer(i4b)                              :: nSeg                ! number of reach segments in the network
  integer(i4b)                              :: nOuts               ! number of outlets
  integer(i4b)                              :: nTrib               ! number of tributary basins
  integer(i4b)                              :: nStem               ! number of mainstem in each level
@@ -77,8 +78,19 @@ contains
  ! initialize error control
  ierr=0; message='irf_route/'
 
+ nSeg = size(NETOPO_in)
+
  ! Initialize CHEC_IRF to False.
  RCHFLX_out(iEns,:)%CHECK_IRF=.False.
+
+ allocate(doRoute(nSeg), stat=ierr)
+
+ if (present(ixSubRch))then
+  doRoute(:)=.false.
+  doRoute(ixSubRch) = .true. ! only subset of reaches are on
+ else
+  doRoute(:)=.true. ! every reach is on
+ endif
 
  ! Number of Outlets
  nOuts = size(river_basin)
@@ -109,6 +121,7 @@ contains
 !$OMP          private(jSeg, iSeg)                      & ! private for a given thread
 !$OMP          private(ierr, cmessage)                  & ! private for a given thread
 !$OMP          shared(river_basin)                      & ! data structure shared
+!$OMP          shared(doRoute)                          & ! data array shared
 !$OMP          shared(NETOPO_in)                        & ! data structure shared
 !$OMP          shared(RCHFLX_out)                       & ! data structure shared
 !$OMP          shared(iEns, iOut, ixDesire)             & ! indices shared
@@ -127,6 +140,7 @@ contains
     call system_clock(timeTribStart(iTrib))
     do iSeg=1,river_basin(iOut)%tributary(iTrib)%nRch
       jSeg = river_basin(iOut)%tributary(iTrib)%segIndex(iSeg)
+      if (.not. doRoute(jSeg)) cycle
       call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, cmessage)
 !      if(ierr/=0)then; ixmessage(iTrib)=trim(message)//trim(cmessage); exit; endif
     end do
@@ -155,6 +169,7 @@ contains
 !$OMP          private(jSeg, iSeg)                      & ! private for a given thread
 !$OMP          private(iStem)                           & ! private for a given thread
 !$OMP          private(ierr, cmessage)                  & ! private for a given thread
+!$OMP          shared(doRoute)                          & ! data structure shared
 !$OMP          shared(river_basin)                      & ! data structure shared
 !$OMP          shared(NETOPO_in)                        & ! data structure shared
 !$OMP          shared(RCHFLX_out)                       & ! data structure shared
@@ -165,6 +180,7 @@ contains
      do iStem=1,nStem
        do iSeg=1,river_basin(iOut)%level(iLevel)%mainstem(iStem)%nRch
          jSeg = river_basin(iOut)%level(iLevel)%mainstem(iStem)%segIndex(iSeg)
+         if (.not. doRoute(jSeg)) cycle
          call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, cmessage)
 !         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
        end do
