@@ -5,6 +5,9 @@ use nrtype
 ! data types
 USE dataTypes,  only : FPOINT            ! particle
 USE dataTypes,  only : KREACH            ! collection of particles in a given reach
+USE dataTypes,  only : STRFLX            ! fluxes in each reach
+USE dataTypes,  only : RCHTOPO           ! Network topology
+USE dataTypes,  only : RCHPRP            ! Reach parameter
 ! global data
 USE public_var, only : verySmall         ! a very small value
 USE public_var, only : realMissing       ! missing value for real number
@@ -28,44 +31,55 @@ contains
  SUBROUTINE kwt_route(iens,                 & ! input: ensemble index
                       river_basin,          & ! input: river basin information (mainstem, tributary outlet etc.)
                       T0,T1,                & ! input: start and end of the time step
+                      basinType,            & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
                       ixDesire,             & ! input: reachID to be checked by on-screen pringing
+                      NETOPO_in,            & ! input: reach topology data structure
+                      RPARAM_in,            & ! input: reach parameter data structure
+                      KROUTE_out,           & ! inout: reach state data structure
+                      RCHFLX_out,           & ! inout: reach flux data structure
                       ierr,message)           ! output: error control
  USE dataTypes,  only : basin                 ! river basin data type
  implicit none
  ! Input
- integer(i4b), intent(in)               :: iEns                  ! ensemble member
- type(basin),  intent(in), allocatable  :: river_basin(:)        ! river basin information (mainstem, tributary outlet etc.)
- integer(i4b), intent(in)               :: ixDesire              ! index of the reach for verbose output
- real(dp),     intent(in)               :: T0,T1                 ! start and end of the time step (seconds)
+ integer(i4b), intent(in)                 :: iEns                  ! ensemble member
+ type(basin),  intent(in), allocatable    :: river_basin(:)        ! river basin information (mainstem, tributary outlet etc.)
+ real(dp),     intent(in)                 :: T0,T1                 ! start and end of the time step (seconds)
+ integer(i4b), intent(in)                 :: basinType             ! integer to indicate basin type (1-> tributary, 2-> mainstem)
+ integer(i4b), intent(in)                 :: ixDesire              ! index of the reach for verbose output
+ type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)          ! River Network topology
+ type(RCHPRP), intent(in),    allocatable :: RPARAM_in(:)          ! River reach parameter
+ ! inout
+ type(KREACH), intent(inout), allocatable :: KROUTE_out(:,:)       ! reach state data
+ type(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)       ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  ! output variables
- integer(i4b), intent(out)              :: ierr                  ! error code
- character(*), intent(out)              :: message               ! error message
+ integer(i4b), intent(out)                :: ierr                  ! error code
+ character(*), intent(out)                :: message               ! error message
  ! local variables
- integer(i4b)                           :: LAKEFLAG=0            ! >0 if processing lakes
- integer(i4b)                           :: nOuts                 ! number of outlets
- integer(i4b)                           :: nTrib                 ! number of tributary basins
- integer(i4b)                           :: nStem                 ! number of mainstem in each level
- integer(i4b)                           :: iRch, jRch            ! loop indices - reach
- integer(i4b)                           :: iOut                  ! loop indices - basin outlet
- integer(i4b)                           :: iTrib                 ! loop indices - tributary
- integer(i4b)                           :: iLevel                ! loop indices - mainstem level
- integer(i4b)                           :: iStem                 ! loop inidces - mainstem
- integer(i4b)                           :: maxLevel,minLevel     ! max. and min. mainstem levels
- character(len=strLen)                  :: cmessage              ! error message for downwind routine
+ integer(i4b)                             :: LAKEFLAG=0            ! >0 if processing lakes
+ integer(i4b)                             :: nOuts                 ! number of outlets
+ integer(i4b)                             :: nTrib                 ! number of tributary basins
+ integer(i4b)                             :: nStem                 ! number of mainstem in each level
+ integer(i4b)                             :: iRch, jRch            ! loop indices - reach
+ integer(i4b)                             :: iOut                  ! loop indices - basin outlet
+ integer(i4b)                             :: iTrib                 ! loop indices - tributary
+ integer(i4b)                             :: iLevel                ! loop indices - mainstem level
+ integer(i4b)                             :: iStem                 ! loop inidces - mainstem
+ integer(i4b)                             :: maxLevel,minLevel     ! max. and min. mainstem levels
+ character(len=strLen)                    :: cmessage              ! error message for downwind routine
  ! variables needed for timing
- integer(i4b)                           :: nThreads              ! number of threads
- integer(i4b)                           :: omp_get_num_threads   ! get the number of threads
- integer(i4b)                           :: omp_get_thread_num
- integer(i4b), allocatable              :: ixThread(:)           ! thread id
- integer*8,    allocatable              :: openMPend(:)          ! time for the start of the parallelization section
- integer*8,    allocatable              :: timeTribStart(:)      ! time Tributaries start
- real(dp),     allocatable              :: timeTrib(:)           ! time spent on each Tributary
- integer*8                              :: endTrib               ! date/time for the start and end of the initialization
- integer*8                              :: startTime,endTime     ! date/time for the start and end of the initialization
- integer*8                              :: startMain,endMain     ! date/time for the start and end of the initialization
- real(dp)                               :: elapsedTime           ! elapsed time for the process
- real(dp)                               :: elapsedTrib           ! elapsed time for the process
- real(dp)                               :: elapsedMain           ! elapsed time for the process
+ integer(i4b)                             :: nThreads              ! number of threads
+ integer(i4b)                             :: omp_get_num_threads   ! get the number of threads
+ integer(i4b)                             :: omp_get_thread_num
+ integer(i4b), allocatable                :: ixThread(:)           ! thread id
+ integer*8,    allocatable                :: openMPend(:)          ! time for the start of the parallelization section
+ integer*8,    allocatable                :: timeTribStart(:)      ! time Tributaries start
+ real(dp),     allocatable                :: timeTrib(:)           ! time spent on each Tributary
+ integer*8                                :: endTrib               ! date/time for the start and end of the initialization
+ integer*8                                :: startTime,endTime     ! date/time for the start and end of the initialization
+ integer*8                                :: startMain,endMain     ! date/time for the start and end of the initialization
+ real(dp)                                 :: elapsedTime           ! elapsed time for the process
+ real(dp)                                 :: elapsedTrib           ! elapsed time for the process
+ real(dp)                                 :: elapsedMain           ! elapsed time for the process
 
  ! initialize error control
  ierr=0; message='kwt_route/'
@@ -102,6 +116,11 @@ contains
 !$OMP          shared(T0,T1)                            & ! private for a given thread
 !$OMP          shared(LAKEFLAG)                         & ! private for a given thread
 !$OMP          shared(river_basin)                      & ! data structure shared
+!$OMP          shared(NETOPO_in)                        & ! data structure shared
+!$OMP          shared(RPARAM_in)                        & ! data structure shared
+!$OMP          shared(KROUTE_out)                       & ! data structure shared
+!$OMP          shared(RCHFLX_out)                       & ! data structure shared
+!$OMP          shared(basinType)                        & ! scalar varaible shared
 !$OMP          shared(iEns, iOut, ixDesire)             & ! indices shared
 !$OMP          shared(openMPend, nThreads)              & ! timing variables shared
 !$OMP          shared(timeTribStart)                    & ! timing variables shared
@@ -121,8 +140,13 @@ contains
        ! route kinematic waves through the river network
        call QROUTE_RCH(iEns,jRch,           & ! input: array indices
                        ixDesire,            & ! input: index of the desired reach
+                       basinType,           & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
                        T0,T1,               & ! input: start and end of the time step
                        LAKEFLAG,            & ! input: flag if lakes are to be processed
+                       NETOPO_in,           & ! input: reach topology data structure
+                       RPARAM_in,           & ! input: reach parameter data structure
+                       KROUTE_out,          & ! inout: reach state data structure
+                       RCHFLX_out,          & ! inout: reach flux data structure
                        ierr,cmessage)         ! output: error control
        !if (ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
      end do  ! (looping through stream segments)
@@ -154,6 +178,11 @@ contains
 !$OMP          shared(T0,T1)                            & ! private for a given thread
 !$OMP          shared(LAKEFLAG)                         & ! private for a given thread
 !$OMP          shared(river_basin)                      & ! data structure shared
+!$OMP          shared(NETOPO_in)                        & ! data structure shared
+!$OMP          shared(RPARAM_in)                        & ! data structure shared
+!$OMP          shared(KROUTE_out)                       & ! data structure shared
+!$OMP          shared(RCHFLX_out)                       & ! data structure shared
+!$OMP          shared(basinType)                        & ! scalar varaible shared
 !$OMP          shared(iLevel)                           & ! private for a given thread
 !$OMP          shared(iEns, iOut, ixDesire)             & ! indices shared
 !$OMP          firstprivate(nStem)
@@ -164,8 +193,13 @@ contains
          ! route kinematic waves through the river network
          call QROUTE_RCH(iens,jRch,           & ! input: array indices
                          ixDesire,            & ! input: index of the desired reach
+                         basinType,           & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
                          T0,T1,               & ! input: start and end of the time step
                          LAKEFLAG,            & ! input: flag if lakes are to be processed
+                         NETOPO_in,           & ! input: reach topology data structure
+                         RPARAM_in,           & ! input: reach parameter data structure
+                         KROUTE_out,          & ! inout: reach state data structure
+                         RCHFLX_out,          & ! inout: reach flux data structure
                          ierr,cmessage)         ! output: error control
 !         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
        end do
@@ -188,43 +222,86 @@ contains
  SUBROUTINE kwt_route_orig(iens,                 & ! input: ensemble index
                            river_basin,          & ! input: river basin information (mainstem, tributary outlet etc.)
                            T0,T1,                & ! input: start and end of the time step
+                           basinType,            & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
                            ixDesire,             & ! input: reachID to be checked by on-screen pringing
-                           ierr,message)           ! output: error control
+                           NETOPO_in,            & ! input: reach topology data structure
+                           RPARAM_in,            & ! input: reach parameter data structure
+                           KROUTE_out,           & ! inout: reach state (wave) data structure
+                           RCHFLX_out,           & ! inout: reach flux data structure
+                           ierr,message,         & ! output: error control
+                           ixSubRch)               ! optional input: subset of reach indices to be processed
+  ! global routing data
   USE dataTypes,  only : basin                     ! river basin data type
-  USE globalData, only : NETOPO                    ! Network topology
+
   implicit none
   ! Input
-   integer(i4b), intent(in)                    :: iens          ! ensemble member
-    type(basin), intent(in), allocatable       :: river_basin(:)        ! river basin information (mainstem, tributary outlet etc.)
-   integer(i4b), intent(in)                    :: ixDesire      ! index of the reach for verbose output
-   real(dp),     intent(in)                    :: T0,T1         ! start and end of the time step (seconds)
+   integer(i4b), intent(in)                 :: iens            ! ensemble member
+   type(basin),  intent(in),    allocatable :: river_basin(:)  ! river basin information (mainstem, tributary outlet etc.)
+   real(dp),     intent(in)                 :: T0,T1           ! start and end of the time step (seconds)
+   integer(i4b), intent(in)                 :: basinType       ! integer to indicate basin type (1-> tributary, 2-> mainstem)
+   integer(i4b), intent(in)                 :: ixDesire        ! index of the reach for verbose output
+   type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)    ! River Network topology
+   type(RCHPRP), intent(in),    allocatable :: RPARAM_in(:)    ! River reach parameter
+   ! inout
+   type(KREACH), intent(inout), allocatable :: KROUTE_out(:,:) ! reach state data
+   TYPE(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
    ! output variables
-   integer(i4b), intent(out)                   :: ierr          ! error code
-   character(*), intent(out)                   :: message       ! error message
+   integer(i4b), intent(out)                :: ierr            ! error code
+   character(*), intent(out)                :: message         ! error message
+   ! input (optional)
+   integer(i4b), intent(in),   optional     :: ixSubRch(:)     ! subset of reach indices to be processed
    ! local variables
-   integer(i4b)                                :: nRch          ! number of reach segments in the network
-   integer(I4B)                                :: LAKEFLAG=0    ! >0 if processing lakes
-   integer(i4b)                                :: iRch, jRch    ! reach indices
-   character(len=strLen)                       :: cmessage      ! error message for downwind routine
-   integer*8                                   :: startTime,endTime ! date/time for the start and end of the initialization
-   real(dp)                                    :: elapsedTime   ! elapsed time for the process
+   integer(i4b)                             :: nSeg            ! number of reach segments in the network
+   integer(I4B)                             :: LAKEFLAG=0      ! >0 if processing lakes
+   integer(i4b)                             :: iSeg, jSeg      ! reach indices
+   logical(lgt), allocatable                :: doRoute(:)      ! logical to indicate which reaches are processed
+   character(len=strLen)                    :: cmessage        ! error message for downwind routine
+   integer*8                                :: startTime,endTime ! date/time for the start and end of the initialization
+   real(dp)                                 :: elapsedTime     ! elapsed time for the process
 
   ! initialize error control
   ierr=0; message='kwt_route_orig/'
 
+  elapsedTime = 0._dp
   call system_clock(startTime)
-  nRch = size(NETOPO)
+
+  ! check
+  if (size(NETOPO_in)/=size(RCHFLX_out(iens,:))) then
+   ierr=20; message=trim(message)//'sizes of NETOPO and RCHFLX mismatch'; return
+  endif
+
+  ! Initialize CHEC_IRF to False.
+!  RCHFLX_out(iEns,:)%CHECK_KWT=.False.
+
+  nSeg = size(NETOPO_in)
+
+  allocate(doRoute(nSeg), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating space for [doRoute]'; return; endif
+
+  if (present(ixSubRch))then
+   doRoute(:)=.false.
+   doRoute(ixSubRch) = .true. ! only subset of reaches are on
+  else
+   doRoute(:)=.true.          ! every reach is on
+  endif
+
   ! route streamflow through the river network
-  do iRch=1,nRch
+  do iSeg=1,nSeg
 
    ! identify reach to process
-   jRch = NETOPO(iRch)%RHORDER
+   jSeg = NETOPO_in(iSeg)%RHORDER
 
+   if (.not. doRoute(jSeg)) cycle
    ! route kinematic waves through the river network
-   call QROUTE_RCH(iens,jRch,           & ! input: array indices
+   call QROUTE_RCH(iens,jSeg,           & ! input: array indices
                    ixDesire,            & ! input: index of the desired reach
+                   basinType,           & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
                    T0,T1,               & ! input: start and end of the time step
                    LAKEFLAG,            & ! input: flag if lakes are to be processed
+                   NETOPO_in,           & ! input: reach topology data structure
+                   RPARAM_in,           & ! input: reach parameter data structure
+                   KROUTE_out,          & ! inout: reach state data structure
+                   RCHFLX_out,          & ! inout: reach flux data structure
                    ierr,cmessage)         ! output: error control
    if (ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -232,7 +309,7 @@ contains
 
   call system_clock(endTime)
   elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
-  write(*,"(A,1PG15.7,A)") '  total elapsed entire = ', elapsedTime, ' s'
+!  write(*,"(A,1PG15.7,A)") '  total elapsed entire = ', elapsedTime, ' s'
 
  END SUBROUTINE kwt_route_orig
 
@@ -241,16 +318,17 @@ contains
  ! *********************************************************************
  subroutine QROUTE_RCH(IENS,JRCH,    & ! input: array indices
                        ixDesire,     & ! input: index of the reach for verbose output
+                       basinType,    & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
                        T0,T1,        & ! input: start and end of the time step
                        LAKEFLAG,     & ! input: flag if lakes are to be processed
+                       NETOPO_in,    & ! input: reach topology data structure
+                       RPARAM_in,    & ! input: reach parameter data structure
+                       KROUTE_out,   & ! inout: reach state data structure
+                       RCHFLX_out,   & ! inout: reach flux data structure
                        ierr,message, & ! output: error control
                        RSTEP)          ! optional input: retrospective time step offset
+ ! public data
  USE public_var, only : MAXQPAR        ! maximum number of waves per reach
- ! global river data
- USE globalData, only : RPARAM     ! Reach parameters
- USE globalData, only : NETOPO     ! Network topology
- USE globalData, only : KROUTE     ! routing states
- USE globalData, only : RCHFLX     ! routing fluxes
  ! ----------------------------------------------------------------------------------------
  ! Creator(s):
  !   Ross Woods, 1997 (original code)
@@ -295,7 +373,7 @@ contains
  !
  !   * all variables are defined (IMPLICIT NONE) and described (comments)
  !
- !   * use of a new data structure (KROUTE) to hold and update the flow particles
+ !   * use of a new data structure (KROUTE_out) to hold and update the flow particles
  !
  !   * upgrade to F90 (especially structured variables and dynamic memory allocation)
  !
@@ -310,9 +388,15 @@ contains
    integer(i4b), intent(in)                    :: IENS          ! ensemble member
    integer(i4b), intent(in)                    :: JRCH          ! reach to process
    integer(i4b), intent(in)                    :: ixDesire      ! index of the reach for verbose output
+   integer(i4b), intent(in)                    :: basinType       ! integer to indicate basin type (1-> tributary, 2-> mainstem)
    real(dp),     intent(in)                    :: T0,T1         ! start and end of the time step (seconds)
    integer(i4b), intent(in)                    :: LAKEFLAG      ! >0 if processing lakes
+   type(RCHTOPO),intent(in),    allocatable    :: NETOPO_in(:)  ! River Network topology
+   type(RCHPRP), intent(in),    allocatable    :: RPARAM_in(:)  ! River reach parameter
    integer(i4b), intent(in), optional          :: RSTEP         ! retrospective time step offset
+   ! inout
+   type(KREACH), intent(inout), allocatable    :: KROUTE_out(:,:) ! reach state data
+   TYPE(STRFLX), intent(inout), allocatable    :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
    ! output variables
    integer(i4b), intent(out)                   :: ierr          ! error code
    character(*), intent(out)                   :: message       ! error message
@@ -355,15 +439,18 @@ contains
    if(JRCH==ixDesire) write(*,"('JRCH=',I10)") JRCH
    if(JRCH==ixDesire) write(*,"('T0-T1=',F20.7,1x,F20.7)") T0, T1
 
-   RCHFLX(IENS,JRCH)%TAKE=0.0_dp ! initialize take from this reach
+   RCHFLX_out(IENS,JRCH)%TAKE=0.0_dp ! initialize take from this reach
     ! ----------------------------------------------------------------------------------------
     ! (1) EXTRACT FLOW FROM UPSTREAM REACHES & APPEND TO THE NON-ROUTED FLOW PARTICLES IN JRCH
     ! ----------------------------------------------------------------------------------------
-    NUPS = count(NETOPO(JRCH)%goodBas)        ! number of desired upstream reaches
-    !NUPS = size(NETOPO(JRCH)%UREACHI)        ! number of upstream reaches
+    NUPS = count(NETOPO_in(JRCH)%goodBas)        ! number of desired upstream reaches
+    !NUPS = size(NETOPO_in(JRCH)%UREACHI)        ! number of upstream reaches
     IF (NUPS.GT.0) THEN
-      call GETUSQ_RCH(IENS,JRCH,LAKEFLAG,T0,T1,ixDesire, &           ! input
-                      Q_JRCH,TENTRY,T_EXIT,ierr,cmessage,RSTEP)      ! output
+      call GETUSQ_RCH(IENS,JRCH,LAKEFLAG,T0,T1,ixDesire, & ! input
+                      NETOPO_in,RPARAM_in,RCHFLX_out,    & ! input
+                      KROUTE_out,                        & ! inout
+                      Q_JRCH,TENTRY,T_EXIT,ierr,cmessage,& ! output
+                      RSTEP)                               ! optional input
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       ! check for negative flow
       if (MINVAL(Q_JRCH).lt.0.0_dp) then
@@ -376,20 +463,20 @@ contains
       endif
     else
       ! set flow in headwater reaches to modelled streamflow from time delay histogram
-      RCHFLX(IENS,JRCH)%REACH_Q = RCHFLX(IENS,JRCH)%BASIN_QR(1)
-      if (allocated(KROUTE(IENS,JRCH)%KWAVE)) THEN
-        deallocate(KROUTE(IENS,JRCH)%KWAVE,STAT=IERR)
-        if(ierr/=0)then; message=trim(message)//'problem deallocating space for KROUTE'; return; endif
+      RCHFLX_out(IENS,JRCH)%REACH_Q = RCHFLX_out(IENS,JRCH)%BASIN_QR(1)
+      if (allocated(KROUTE_out(IENS,JRCH)%KWAVE)) THEN
+        deallocate(KROUTE_out(IENS,JRCH)%KWAVE,STAT=IERR)
+        if(ierr/=0)then; message=trim(message)//'problem deallocating space for KROUTE_out'; return; endif
       endif
-      allocate(KROUTE(IENS,JRCH)%KWAVE(0:0),STAT=ierr)
-      if(ierr/=0)then; message=trim(message)//'problem allocating space for KROUTE(IENS,JRCH)%KWAVE(1)'; return; endif
-      KROUTE(IENS,JRCH)%KWAVE(0)%QF=-9999
-      KROUTE(IENS,JRCH)%KWAVE(0)%TI=-9999
-      KROUTE(IENS,JRCH)%KWAVE(0)%TR=-9999
-      KROUTE(IENS,JRCH)%KWAVE(0)%RF=.False.
-      KROUTE(IENS,JRCH)%KWAVE(0)%QM=-9999
+      allocate(KROUTE_out(IENS,JRCH)%KWAVE(0:0),STAT=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem allocating space for KROUTE_out(IENS,JRCH)%KWAVE(1)'; return; endif
+      KROUTE_out(IENS,JRCH)%KWAVE(0)%QF=-9999
+      KROUTE_out(IENS,JRCH)%KWAVE(0)%TI=-9999
+      KROUTE_out(IENS,JRCH)%KWAVE(0)%TR=-9999
+      KROUTE_out(IENS,JRCH)%KWAVE(0)%RF=.False.
+      KROUTE_out(IENS,JRCH)%KWAVE(0)%QM=-9999
       ! check
-      if(JRCH==ixDesire) print*, 'JRCH, RCHFLX(IENS,JRCH)%REACH_Q = ', JRCH, RCHFLX(IENS,JRCH)%REACH_Q
+      if(JRCH==ixDesire) print*, 'JRCH, RCHFLX_out(IENS,JRCH)%REACH_Q = ', JRCH, RCHFLX_out(IENS,JRCH)%REACH_Q
       return  ! no upstream reaches (routing for sub-basins done using time-delay histogram)
     endif
     ! ----------------------------------------------------------------------------------------
@@ -416,9 +503,10 @@ contains
     if(ierr/=0)then; message=trim(message)//'problem allocating space for FROUTE'; return; endif
     FROUTE(0) = .TRUE.; FROUTE(1:NQ1)=.FALSE.  ! init. routing flags
     ! route flow through the current [JRCH] river segment (Q_JRCH in units of m2/s)
-    call KINWAV_RCH(JRCH,T_START,T_END,Q_JRCH(1:NQ1),TENTRY(1:NQ1),ixDesire,& ! (input)
-                                       FROUTE(1:NQ1),T_EXIT(1:NQ1),NQ2,&      ! (output)
-                                       ierr,cmessage)                         ! (output)
+    call KINWAV_RCH(JRCH,T_START,T_END,ixDesire,                             & ! input: location and time
+                    NETOPO_in, RPARAM_in,                                    & ! input: river data structure
+                    Q_JRCH(1:NQ1),TENTRY(1:NQ1),T_EXIT(1:NQ1),FROUTE(1:NQ1), & ! inout: kwt states
+                    NQ2,ierr,cmessage)                                         ! output:
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     if(JRCH == ixDesire)then
       write(fmt1,'(A,I5,A)') '(A,1X',NQ1+1,'(1X,F20.7))'
@@ -439,7 +527,7 @@ contains
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     if(JRCH == ixDesire) write(*,"('QNEW(1)=',1x,F10.7)") QNEW(1)
     ! m2/s --> m3/s + instantaneous runoff from basin
-    RCHFLX(IENS,JRCH)%REACH_Q = QNEW(1)*RPARAM(JRCH)%R_WIDTH + RCHFLX(IENS,JRCH)%BASIN_QR(1)
+    RCHFLX_out(IENS,JRCH)%REACH_Q = QNEW(1)*RPARAM_in(JRCH)%R_WIDTH + RCHFLX_out(IENS,JRCH)%BASIN_QR(1)
     ! ----------------------------------------------------------------------------------------
     ! (5) HOUSEKEEPING
     ! ----------------------------------------------------------------------------------------
@@ -451,24 +539,24 @@ contains
     TIMEI = TENTRY(NR) + &   !        (dT/dT)                                 (dT)
              ( (TENTRY(NR+1)-TENTRY(NR)) / (T_EXIT(NR+1)-T_EXIT(NR)) ) * (T_END-T_EXIT(NR))
     ! allocate space for the routed data (+1 to allocate space for the interpolated point)
-    if (.not.allocated(KROUTE(IENS,JRCH)%KWAVE)) then
-      ierr=20; message=trim(message)//'KROUTE is not associated'; return
+    if (.not.allocated(KROUTE_out(IENS,JRCH)%KWAVE)) then
+      ierr=20; message=trim(message)//'KROUTE_out is not associated'; return
     else
-      deallocate(KROUTE(IENS,JRCH)%KWAVE, STAT=ierr)
-      if(ierr/=0)then; message=trim(message)//'problem deallocating space for KROUTE(IENS,JRCH)%KWAVE'; return; endif
-      allocate(KROUTE(IENS,JRCH)%KWAVE(0:NQ2+1),STAT=ierr)   ! NQ2 is number of points for kinematic routing
-      if(ierr/=0)then; message=trim(message)//'problem allocating space for KROUTE(IENS,JRCH)%KWAVE(0:NQ2+1)'; return; endif
+      deallocate(KROUTE_out(IENS,JRCH)%KWAVE, STAT=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem deallocating space for KROUTE_out(IENS,JRCH)%KWAVE'; return; endif
+      allocate(KROUTE_out(IENS,JRCH)%KWAVE(0:NQ2+1),STAT=ierr)   ! NQ2 is number of points for kinematic routing
+      if(ierr/=0)then; message=trim(message)//'problem allocating space for KROUTE_out(IENS,JRCH)%KWAVE(0:NQ2+1)'; return; endif
     endif
     ! insert the interpolated point (TI is irrelevant, as the point is "routed")
-    KROUTE(IENS,JRCH)%KWAVE(NR+1)%QF=Q_END;   KROUTE(IENS,JRCH)%KWAVE(NR+1)%TI=TIMEI
-    KROUTE(IENS,JRCH)%KWAVE(NR+1)%TR=T_END;   KROUTE(IENS,JRCH)%KWAVE(NR+1)%RF=.TRUE.
+    KROUTE_out(IENS,JRCH)%KWAVE(NR+1)%QF=Q_END;   KROUTE_out(IENS,JRCH)%KWAVE(NR+1)%TI=TIMEI
+    KROUTE_out(IENS,JRCH)%KWAVE(NR+1)%TR=T_END;   KROUTE_out(IENS,JRCH)%KWAVE(NR+1)%RF=.TRUE.
     ! add the output from kinwave...         - skip NR+1
     ! (when JRCH becomes IR routed points will be stripped out & the structures updated again)
-    KROUTE(IENS,JRCH)%KWAVE(0:NR)%QF=Q_JRCH(0:NR); KROUTE(IENS,JRCH)%KWAVE(NR+2:NQ2+1)%QF=Q_JRCH(NR+1:NQ2)
-    KROUTE(IENS,JRCH)%KWAVE(0:NR)%TI=TENTRY(0:NR); KROUTE(IENS,JRCH)%KWAVE(NR+2:NQ2+1)%TI=TENTRY(NR+1:NQ2)
-    KROUTE(IENS,JRCH)%KWAVE(0:NR)%TR=T_EXIT(0:NR); KROUTE(IENS,JRCH)%KWAVE(NR+2:NQ2+1)%TR=T_EXIT(NR+1:NQ2)
-    KROUTE(IENS,JRCH)%KWAVE(0:NR)%RF=FROUTE(0:NR); KROUTE(IENS,JRCH)%KWAVE(NR+2:NQ2+1)%RF=FROUTE(NR+1:NQ2)
-    KROUTE(IENS,JRCH)%KWAVE(0:NQ2+1)%QM=-9999
+    KROUTE_out(IENS,JRCH)%KWAVE(0:NR)%QF=Q_JRCH(0:NR); KROUTE_out(IENS,JRCH)%KWAVE(NR+2:NQ2+1)%QF=Q_JRCH(NR+1:NQ2)
+    KROUTE_out(IENS,JRCH)%KWAVE(0:NR)%TI=TENTRY(0:NR); KROUTE_out(IENS,JRCH)%KWAVE(NR+2:NQ2+1)%TI=TENTRY(NR+1:NQ2)
+    KROUTE_out(IENS,JRCH)%KWAVE(0:NR)%TR=T_EXIT(0:NR); KROUTE_out(IENS,JRCH)%KWAVE(NR+2:NQ2+1)%TR=T_EXIT(NR+1:NQ2)
+    KROUTE_out(IENS,JRCH)%KWAVE(0:NR)%RF=FROUTE(0:NR); KROUTE_out(IENS,JRCH)%KWAVE(NR+2:NQ2+1)%RF=FROUTE(NR+1:NQ2)
+    KROUTE_out(IENS,JRCH)%KWAVE(0:NQ2+1)%QM=-9999
     ! implement water use
     !IF (NUSER.GT.0.AND.UCFFLAG.GE.1) THEN
       !CALL EXTRACT_FROM_RCH(IENS,JRCH,NR,Q_JRCH,T_EXIT,T_END,TNEW)
@@ -479,8 +567,8 @@ contains
     ! ***
     ! remove flow particles from the most downstream reach
     ! if the last reach or lake inlet (and lakes are enabled), remove routed elements from memory
-    IF (NETOPO(JRCH)%DREACHI.LT.0 .OR. &  ! if the last reach, then there is no downstream reach
-        (LAKEFLAG.EQ.1.AND.NETOPO(JRCH)%LAKINLT)) THEN ! if lake inlet
+    IF ((NETOPO_in(JRCH)%DREACHI.LT.0 .and. basinType==2).OR. &  ! if the last reach, then there is no downstream reach
+        (LAKEFLAG.EQ.1.AND.NETOPO_in(JRCH)%LAKINLT)) THEN ! if lake inlet
       ! copy data to a temporary wave
       if (allocated(NEW_WAVE)) THEN
         DEALLOCATE(NEW_WAVE,STAT=IERR)
@@ -488,28 +576,30 @@ contains
       endif
       ALLOCATE(NEW_WAVE(0:NN),STAT=IERR)  ! NN = number non-routed (the zero element is the last routed point)
       if(ierr/=0)then; message=trim(message)//'problem allocating space for NEW_WAVE'; return; endif
-      NEW_WAVE(0:NN) = KROUTE(IENS,JRCH)%KWAVE(NR+1:NQ2+1)  ! +1 because of the interpolated point
+      NEW_WAVE(0:NN) = KROUTE_out(IENS,JRCH)%KWAVE(NR+1:NQ2+1)  ! +1 because of the interpolated point
       ! re-size wave structure
-      if (allocated(KROUTE(IENS,JRCH)%KWAVE)) THEN
-        deallocate(KROUTE(IENS,JRCH)%KWAVE,STAT=IERR)
-        if(ierr/=0)then; message=trim(message)//'problem deallocating space for KROUTE'; return; endif
+      if (allocated(KROUTE_out(IENS,JRCH)%KWAVE)) THEN
+        deallocate(KROUTE_out(IENS,JRCH)%KWAVE,STAT=IERR)
+        if(ierr/=0)then; message=trim(message)//'problem deallocating space for KROUTE_out'; return; endif
       endif
-      allocate(KROUTE(IENS,JRCH)%KWAVE(0:NN),STAT=IERR)  ! again, the zero element for the last routed point
-      if(ierr/=0)then; message=trim(message)//'problem allocating space for KROUTE'; return; endif
+      allocate(KROUTE_out(IENS,JRCH)%KWAVE(0:NN),STAT=IERR)  ! again, the zero element for the last routed point
+      if(ierr/=0)then; message=trim(message)//'problem allocating space for KROUTE_out'; return; endif
       ! copy data back to the wave structure and deallocate space for the temporary wave
-      KROUTE(IENS,JRCH)%KWAVE(0:NN) = NEW_WAVE(0:NN)
+      KROUTE_out(IENS,JRCH)%KWAVE(0:NN) = NEW_WAVE(0:NN)
       DEALLOCATE(NEW_WAVE,STAT=IERR)
       if(ierr/=0)then; message=trim(message)//'problem deallocating space for NEW_WAVE'; return; endif
     endif  ! (if JRCH is the last reach)
 
-  end subroutine
+  end subroutine QROUTE_RCH
 
  ! *********************************************************************
  ! subroutine: extract flow from the reaches upstream of JRCH
  ! *********************************************************************
- subroutine GETUSQ_RCH(IENS,JRCH,LAKEFLAG,T0,T1,ixDesire,&       ! input
-                       Q_JRCH,TENTRY,T_EXIT,ierr,message,&       ! output
-                       RSTEP)                                    ! optional input
+ subroutine GETUSQ_RCH(IENS,JRCH,LAKEFLAG,T0,T1,ixDesire, & ! input
+                       NETOPO_in,RPARAM_in,RCHFLX_in,     & ! input
+                       KROUTE_out,                        & ! inout
+                       Q_JRCH,TENTRY,T_EXIT,ierr,message, & ! output
+                       RSTEP)                               ! optional input
  ! ----------------------------------------------------------------------------------------
  ! Creator(s):
  !   Ross Woods, 2000; Martyn Clark, 2006
@@ -529,9 +619,14 @@ contains
  !   LAKEFLAG: >0 means process lakes
  !         T0: Start of the time step
  !         T1: End of the time step
+ !  NETOPO_in: river network topology
+ !  RPARAM_in: river reach parameter
  !      RSTEP: Retrospective time step
  !
- !   Outputs:
+ !      Inout:
+ ! KROUTE_out: reach wave data structures
+ !
+ !    Outputs:
  !  Q_JRCH(:): Vector of merged flow particles in reach JRCH
  !  TENTRY(:): Vector of times flow particles entered reach JRCH (exited upstream reaches)
  !  T_EXIT(:): Vector of times flow particles are expected to exit reach JRCH
@@ -542,35 +637,37 @@ contains
  !   (none planned)
  !
  ! ----------------------------------------------------------------------------------------
- USE globalData, only : KROUTE     ! routing states
- USE globalData, only : NETOPO     ! Network topology
- USE globalData, only : RPARAM     ! Reach parameters
- USE globalData, only : LKTOPO     ! Lake topology
- USE globalData, only : LAKFLX     ! Lake fluxes
+ USE globalData, only : LKTOPO           ! Lake topology
+ USE globalData, only : LAKFLX           ! Lake fluxes
  IMPLICIT NONE
  ! Input
- INTEGER(I4B), INTENT(IN)                    :: IENS     ! ensemble member
- INTEGER(I4B), INTENT(IN)                    :: JRCH     ! reach to process
- INTEGER(I4B), INTENT(IN)                    :: LAKEFLAG ! >0 if processing lakes
- REAL(DP),     INTENT(IN)                    :: T0,T1    ! start and end of the time step
- INTEGER(I4B), INTENT(IN)                    :: ixDesire ! index of the reach for verbose output
- INTEGER(I4B), INTENT(IN), OPTIONAL          :: RSTEP    ! retrospective time step offset
+ integer(I4B), intent(in)                 :: IENS         ! ensemble member
+ integer(I4B), intent(in)                 :: JRCH         ! reach to process
+ integer(I4B), intent(in)                 :: LAKEFLAG     ! >0 if processing lakes
+ real(DP),     intent(in)                 :: T0,T1        ! start and end of the time step
+ integer(I4B), intent(in)                 :: ixDesire     ! index of the reach for verbose output
+ type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:) ! River Network topology
+ type(RCHPRP), intent(in),    allocatable :: RPARAM_in(:) ! River reach parameter
+ type(STRFLX), intent(in),    allocatable :: RCHFLX_in(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+ integer(I4B), intent(in),    optional    :: RSTEP        ! retrospective time step offset
+ ! inout
+ type(KREACH), intent(inout), allocatable :: KROUTE_out(:,:) ! reach state data
  ! Output
- REAL(DP),allocatable, intent(out)           :: Q_JRCH(:)! merged (non-routed) flow in JRCH
- REAL(DP),allocatable, intent(out)           :: TENTRY(:)! time flow particles entered JRCH
- REAL(DP),allocatable, intent(out)           :: T_EXIT(:)! time flow is expected to exit JR
- integer(i4b),         intent(out)           :: ierr     ! error code
- character(*),         intent(out)           :: message  ! error message
+ REAL(DP),allocatable, intent(out)        :: Q_JRCH(:)    ! merged (non-routed) flow in JRCH
+ REAL(DP),allocatable, intent(out)        :: TENTRY(:)    ! time flow particles entered JRCH
+ REAL(DP),allocatable, intent(out)        :: T_EXIT(:)    ! time flow is expected to exit JR
+ integer(i4b),         intent(out)        :: ierr         ! error code
+ character(*),         intent(out)        :: message      ! error message
  ! Local variables to hold the merged inputs to the downstream reach
- INTEGER(I4B)                                :: ROFFSET  ! retrospective offset due to rstep
- REAL(DP)                                    :: DT       ! model time step
- REAL(DP), allocatable                       :: QD(:)    ! merged downstream flow
- REAL(DP), allocatable                       :: TD(:)    ! merged downstream time
- INTEGER(I4B)                                :: ND       ! # points shifted downstream
- INTEGER(I4B)                                :: NJ       ! # points in the JRCH reach
- INTEGER(I4B)                                :: NK       ! # points for routing (NJ+ND)
- INTEGER(I4B)                                :: ILAK     ! lake index
- character(len=strLen)                       :: cmessage ! error message for downwind routine
+ INTEGER(I4B)                             :: ROFFSET      ! retrospective offset due to rstep
+ REAL(DP)                                 :: DT           ! model time step
+ REAL(DP), allocatable                    :: QD(:)        ! merged downstream flow
+ REAL(DP), allocatable                    :: TD(:)        ! merged downstream time
+ INTEGER(I4B)                             :: ND           ! # points shifted downstream
+ INTEGER(I4B)                             :: NJ           ! # points in the JRCH reach
+ INTEGER(I4B)                             :: NK           ! # points for routing (NJ+ND)
+ INTEGER(I4B)                             :: ILAK         ! lake index
+ character(len=strLen)                    :: cmessage     ! error message for downwind routine
  ! initialize error control
  ierr=0; message='GETUSQ_RCH/'
  ! ----------------------------------------------------------------------------------------
@@ -584,72 +681,86 @@ contains
  ELSE
    ROFFSET = RSTEP
  END IF
- IF (LAKEFLAG.EQ.1) THEN                      ! lakes are enabled
+ if (LAKEFLAG.EQ.1) then  ! lakes are enabled
   ! get lake outflow and only lake outflow if reach is a lake outlet reach, else do as normal
-  ILAK = NETOPO(JRCH)%LAKE_IX                 ! lake index
-  IF (ILAK.GT.0) THEN                         ! part of reach is in lake
-   IF (NETOPO(JRCH)%REACHIX.EQ.LKTOPO(ILAK)%DREACHI) THEN  ! we are in a lake outlet reach
+  ILAK = NETOPO_in(JRCH)%LAKE_IX                              ! lake index
+  if (ILAK.GT.0) then                                         ! part of reach is in lake
+   if (NETOPO_in(JRCH)%REACHIX.eq.LKTOPO(ILAK)%DREACHI) then  ! we are in a lake outlet reach
     ND = 1
     ALLOCATE(QD(1),TD(1),STAT=IERR)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for QD and TD'; return; endif
-    QD(1) = LAKFLX(IENS,ILAK)%LAKE_Q / RPARAM(JRCH)%R_WIDTH  ! lake outflow per unit reach width
+    QD(1) = LAKFLX(IENS,ILAK)%LAKE_Q / RPARAM_in(JRCH)%R_WIDTH  ! lake outflow per unit reach width
     TD(1) = T1 - DT*ROFFSET
-   ELSE
-    CALL QEXMUL_RCH(IENS,JRCH,T0,T1,ixDesire,ND,QD,TD,ierr,cmessage,RSTEP)        ! do as normal for unsubmerged part of inlet reach
+   else
+    call QEXMUL_RCH(IENS,JRCH,T0,T1,ixDesire,     &   ! input
+                   NETOPO_in,RPARAM_in,RCHFLX_in, &   ! input
+                   KROUTE_out,                    &   ! inout
+                   ND,QD,TD,ierr,cmessage,        &   ! output
+                   RSTEP)                             ! optional input
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   ENDIF
-  ELSE
-   CALL QEXMUL_RCH(IENS,JRCH,T0,T1,ixDesire,ND,QD,TD,ierr,cmessage,RSTEP)         ! not in lake; do as normal
+   endif
+  else
+   call QEXMUL_RCH(IENS,JRCH,T0,T1,ixDesire,      &   ! input
+                   NETOPO_in,RPARAM_in,RCHFLX_in, &   ! input
+                   KROUTE_out,                    &   ! inout
+                   ND,QD,TD,ierr,cmessage,        &   ! output
+                   RSTEP)                             ! optional input
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  ENDIF
- ELSE                                         ! lakes disabled
-  CALL QEXMUL_RCH(IENS,JRCH,T0,T1,ixDesire,ND,QD,TD,ierr,cmessage,RSTEP)         ! includes merging flow from different reaches
+  endif
+ else  ! lakes disabled
+  call QEXMUL_RCH(IENS,JRCH,T0,T1,ixDesire,      &   ! input
+                  NETOPO_in,RPARAM_in,RCHFLX_in, &   ! input
+                  KROUTE_out,                    &   ! inout
+                  ND,QD,TD,ierr,cmessage,        &   ! output
+                  RSTEP)                             ! optional input
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   if(JRCH == ixDesire) print*, 'after QEXMUL_RCH: JRCH, ND, QD = ', JRCH, ND, QD
- ENDIF
+ endif
  ! ----------------------------------------------------------------------------------------
  ! (2) EXTRACT NON-ROUTED FLOW FROM THE REACH JRCH & APPEND TO THE FLOW JUST ROUTED D/S
  ! ----------------------------------------------------------------------------------------
  ! check that the routing structure is associated
- if(allocated(KROUTE).eqv..FALSE.)THEN
-  ierr=20; message='routing structure KROUTE is not associated'; return
+ if(allocated(KROUTE_out).eqv..FALSE.)THEN
+  ierr=20; message='routing structure KROUTE_out is not associated'; return
  endif
  ! check that the wave has been initialized
- if (allocated(KROUTE(IENS,JRCH)%KWAVE).eqv..FALSE.) THEN
+ if (allocated(KROUTE_out(IENS,JRCH)%KWAVE).eqv..FALSE.) THEN
   ! if not initialized, then set initial flow to first flow
   ! (this will only occur for a cold start in the case of no streamflow observations)
-  allocate(KROUTE(IENS,JRCH)%KWAVE(0:0),STAT=IERR)
+  allocate(KROUTE_out(IENS,JRCH)%KWAVE(0:0),STAT=IERR)
   if(ierr/=0)then; message=trim(message)//'problem allocating array for KWAVE'; return; endif
-  KROUTE(IENS,JRCH)%KWAVE(0)%QF = QD(1)
-  KROUTE(IENS,JRCH)%KWAVE(0)%TI = T0 - DT - DT*ROFFSET
-  KROUTE(IENS,JRCH)%KWAVE(0)%TR = T0      - DT*ROFFSET
-  KROUTE(IENS,JRCH)%KWAVE(0)%RF = .TRUE.
+  KROUTE_out(IENS,JRCH)%KWAVE(0)%QF = QD(1)
+  KROUTE_out(IENS,JRCH)%KWAVE(0)%TI = T0 - DT - DT*ROFFSET
+  KROUTE_out(IENS,JRCH)%KWAVE(0)%TR = T0      - DT*ROFFSET
+  KROUTE_out(IENS,JRCH)%KWAVE(0)%RF = .TRUE.
  endif
  ! now extract the non-routed flow
  ! NB: routed flows were stripped out in the previous timestep when JRCH was index of u/s reach
  !  {only non-routed flows remain in the routing structure [ + zero element (last routed)]}
- NJ = SIZE(KROUTE(IENS,JRCH)%KWAVE) - 1           ! number of elements not routed (-1 for 0)
+ NJ = SIZE(KROUTE_out(IENS,JRCH)%KWAVE) - 1           ! number of elements not routed (-1 for 0)
  NK = NJ + ND                                     ! pts still in reach + u/s pts just routed
  ALLOCATE(Q_JRCH(0:NK),TENTRY(0:NK),T_EXIT(0:NK),STAT=IERR) ! include zero element for INTERP later
  if(ierr/=0)then; message=trim(message)//'problem allocating array for [Q_JRCH, TENTRY, T_EXIT]'; return; endif
- Q_JRCH(0:NJ) = KROUTE(IENS,JRCH)%KWAVE(0:NJ)%QF  ! extract the non-routed flow from reach JR
- TENTRY(0:NJ) = KROUTE(IENS,JRCH)%KWAVE(0:NJ)%TI  ! extract the non-routed time from reach JR
- T_EXIT(0:NJ) = KROUTE(IENS,JRCH)%KWAVE(0:NJ)%TR  ! extract the expected exit time
- Q_JRCH(NJ+1:NJ+ND) = QD(1:ND)                    ! append u/s flow just routed downstream
- TENTRY(NJ+1:NJ+ND) = TD(1:ND)                    ! append u/s time just routed downstream
- T_EXIT(NJ+1:NJ+ND) = -9999.0D0                   ! set un-used T_EXIT to missing
- deallocate(QD,TD,STAT=IERR)                      ! routed flow appended, no longer needed
+ Q_JRCH(0:NJ) = KROUTE_out(IENS,JRCH)%KWAVE(0:NJ)%QF  ! extract the non-routed flow from reach JR
+ TENTRY(0:NJ) = KROUTE_out(IENS,JRCH)%KWAVE(0:NJ)%TI  ! extract the non-routed time from reach JR
+ T_EXIT(0:NJ) = KROUTE_out(IENS,JRCH)%KWAVE(0:NJ)%TR  ! extract the expected exit time
+ Q_JRCH(NJ+1:NJ+ND) = QD(1:ND)                        ! append u/s flow just routed downstream
+ TENTRY(NJ+1:NJ+ND) = TD(1:ND)                        ! append u/s time just routed downstream
+ T_EXIT(NJ+1:NJ+ND) = -9999.0D0                       ! set un-used T_EXIT to missing
+ deallocate(QD,TD,STAT=IERR)                          ! routed flow appended, no longer needed
  if(ierr/=0)then; message=trim(message)//'problem deallocating array for QD and TD'; return; endif
 
- end subroutine
+ end subroutine GETUSQ_RCH
 
  ! *********************************************************************
  ! subroutine: extract flow from multiple reaches and merge into
  !                 a single series
  ! *********************************************************************
- subroutine QEXMUL_RCH(IENS,JRCH,T0,T1,ixDesire,&   ! input
-                       ND,QD,TD,ierr,message,   &   ! output
-                       RSTEP)                       ! optional input
+ subroutine QEXMUL_RCH(IENS,JRCH,T0,T1,ixDesire,      &   ! input
+                       NETOPO_in,RPARAM_in,RCHFLX_in, &   ! input
+                       KROUTE_out,                    &   ! inout
+                       ND,QD,TD,ierr,message,         &   ! output
+                       RSTEP)                             ! optional input
  ! ----------------------------------------------------------------------------------------
  ! Creator(s):
  !   Ross Woods, 2000 (two upstream reaches)
@@ -669,7 +780,13 @@ contains
  !       JRCH: Index of the downstream reach
  !         T0: Start of the time step
  !         T1: End of the time step
+ !  NETOPO_in: river network topology
+ !  RPARAM_in: river reach parameter
+ !  RCHFLX_in: reach flux
  !      RSTEP: Retrospective time step
+ !
+ !      Inout:
+ ! KROUTE_out: reach wave data structures
  !
  !   Outputs:
  !      ND   : Number of routed particles
@@ -682,23 +799,24 @@ contains
  !   (none planned)
  !
  ! ----------------------------------------------------------------------------------------
- USE globalData, only : KROUTE     ! routing states
- USE globalData, only : RCHFLX     ! routing fluxes
- USE globalData, only : NETOPO     ! routing fluxes
- USE globalData, only : RPARAM     ! Reach parameters
  IMPLICIT NONE
  ! Input
- INTEGER(I4B), INTENT(IN)                    :: IENS      ! ensemble member
- INTEGER(I4B), INTENT(IN)                    :: JRCH      ! reach to process
- REAL(DP),     INTENT(IN)                    :: T0,T1     ! start and end of the time step
- integer(i4b), INTENT(IN)                    :: ixDesire  ! index of the reach for verbose output
- INTEGER(I4B), INTENT(IN), OPTIONAL          :: RSTEP     ! retrospective time step offset
+ INTEGER(i4b), intent(in)                    :: IENS            ! ensemble member
+ INTEGER(i4b), intent(in)                    :: JRCH            ! reach to process
+ REAL(dp),     intent(in)                    :: T0,T1           ! start and end of the time step
+ integer(i4b), intent(in)                    :: ixDesire        ! index of the reach for verbose output
+ type(RCHTOPO),intent(in), allocatable       :: NETOPO_in(:)    ! River Network topology
+ type(RCHPRP), intent(in), allocatable       :: RPARAM_in(:)    ! River reach parameter
+ type(STRFLX), intent(in), allocatable       :: RCHFLX_in(:,:)  ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+ integer(i4b), intent(in), optional          :: RSTEP           ! retrospective time step offset
+ ! Inout
+ type(KREACH), intent(inout), allocatable    :: KROUTE_out(:,:) ! reach state data
  ! Output
- INTEGER(I4B),          intent(out)          :: ND        ! number of routed particles
- REAL(DP), allocatable, intent(out)          :: QD(:)     ! flow particles just enetered JRCH
- REAL(DP), allocatable, intent(out)          :: TD(:)     ! time flow particles entered JRCH
- integer(i4b),          intent(out)          :: ierr      ! error code
- character(*),          intent(out)          :: message   ! error message
+ integer(i4b),          intent(out)          :: ND              ! number of routed particles
+ real(dp), allocatable, intent(out)          :: QD(:)           ! flow particles just enetered JRCH
+ real(dp), allocatable, intent(out)          :: TD(:)           ! time flow particles entered JRCH
+ integer(i4b),          intent(out)          :: ierr            ! error code
+ character(*),          intent(out)          :: message         ! error message
  ! Local variables to hold flow/time from upstream reaches
  REAL(DP)                                    :: DT        ! model time step
  INTEGER(I4B)                                :: ROFFSET   ! retrospective offset due to rstep
@@ -743,7 +861,6 @@ contains
  ! ----------------------------------------------------------------------------------------
  IF(INIT) THEN
   INIT=.FALSE.
-  !NULLIFY(USFLOW,NEW_WAVE,QD_TEMP,TD_TEMP)
   !deallocate(USFLOW,NEW_WAVE,QD_TEMP,TD_TEMP)
  ENDIF
  ! set the retrospective offset
@@ -758,35 +875,35 @@ contains
  ! (1) DETERMINE THE NUMBER OF UPSTREAM REACHES
  ! ----------------------------------------------------------------------------------------
  ! ** SPECIAL CASE ** of no basins with any area
- if(count(NETOPO(JRCH)%goodBas)==0)return
+ if(count(NETOPO_in(JRCH)%goodBas)==0)return
  ! Need to extract and merge the runoff from all upstream BASINS as well as the streamflow
  !  from all upstream REACHES.  However, streamflow in headwater basins is undefined.  Thus
  !  the number of series merged from upstream reaches is the number of upstream basins +
  !  the number of upstream reaches that are not headwater basins.
  NUPR = 0                               ! number of upstream reaches
- NUPB = SIZE(NETOPO(JRCH)%UREACHI)      ! number of upstream basins
- !NUPB = count(NETOPO(JRCH)%goodBas)      ! number of upstream basins
+ NUPB = SIZE(NETOPO_in(JRCH)%UREACHI)      ! number of upstream basins
+ !NUPB = count(NETOPO_in(JRCH)%goodBas)      ! number of upstream basins
  DO IUPS=1,NUPB
-  INDX = NETOPO(JRCH)%UREACHI(IUPS)     ! index of the IUPS upstream reach
-  !MUPR = SIZE(NETOPO(INDX)%UREACHI)     ! # reaches upstream of the IUPS upstream reach
-  MUPR = count(NETOPO(INDX)%goodBas)     ! # reaches upstream of the IUPS upstream reach
+  INDX = NETOPO_in(JRCH)%UREACHI(IUPS)     ! index of the IUPS upstream reach
+  !MUPR = SIZE(NETOPO_in(INDX)%UREACHI)     ! # reaches upstream of the IUPS upstream reach
+  MUPR = count(NETOPO_in(INDX)%goodBas)     ! # reaches upstream of the IUPS upstream reach
   IF (MUPR.GT.0) NUPR = NUPR + 1        ! reach has streamflow in it, so add that as well
  END DO  ! iups
  NUPS = NUPB + NUPR                     ! number of upstream elements (basins + reaches)
  !print*, 'NUPB, NUPR, NUPS', NUPB, NUPR, NUPS
- !print*, 'NETOPO(JRCH)%UREACHK = ', NETOPO(JRCH)%UREACHK
- !print*, 'NETOPO(JRCH)%goodBas = ', NETOPO(JRCH)%goodBas
+ !print*, 'NETOPO_in(JRCH)%UREACHK = ', NETOPO_in(JRCH)%UREACHK
+ !print*, 'NETOPO_in(JRCH)%goodBas = ', NETOPO_in(JRCH)%goodBas
  ! if nups eq 1, then ** SPECIAL CASE ** of just one upstream basin that is a headwater
  IF (NUPS.EQ.1) THEN
   ND = 1
   ALLOCATE(QD(1),TD(1),STAT=IERR)
   if(ierr/=0)then; message=trim(message)//'problem allocating array QD and TD'; return; endif
   ! get reach index
-  IR = NETOPO(JRCH)%UREACHI(1)
+  IR = NETOPO_in(JRCH)%UREACHI(1)
   ! get flow in m2/s (scaled by with of downstream reach)
-  QD(1) = RCHFLX(IENS,IR)%BASIN_QR(1)/RPARAM(JRCH)%R_WIDTH
+  QD(1) = RCHFLX_in(IENS,IR)%BASIN_QR(1)/RPARAM_in(JRCH)%R_WIDTH
   TD(1) = T1
-  if(JRCH == ixDesire) print*, 'special case: JRCH, IR, NETOPO(IR)%REACHID = ', JRCH, IR, NETOPO(IR)%REACHID
+  if(JRCH == ixDesire) print*, 'special case: JRCH, IR, NETOPO_in(IR)%REACHID = ', JRCH, IR, NETOPO_in(IR)%REACHID
   RETURN
  ENDIF
  ! allocate space for the upstream flow, time, and flags
@@ -800,12 +917,12 @@ contains
  ! ----------------------------------------------------------------------------------------
  DO IUPS=1,NUPB
   ! identify the index for the IUPS upstream segment
-  IR = NETOPO(JRCH)%UREACHI(IUPS)
+  IR = NETOPO_in(JRCH)%UREACHI(IUPS)
   ! allocate space for the IUPS stream segment (flow, time, and flags)
   ALLOCATE(USFLOW(IUPS)%KWAVE(0:1),STAT=IERR)  ! basin, has flow @start and @end of the time step
   if(ierr>0)then; message=trim(message)//'problem allocating array USFLOW(IUPS)%KWAVE'; return; endif
   ! place flow and time in the KWAVE array (routing done with time-delay histogram in TIMDEL_BAS.F90)
-  USFLOW(IUPS)%KWAVE(0:1)%QF = RCHFLX(IENS,IR)%BASIN_QR(0:1)          ! flow
+  USFLOW(IUPS)%KWAVE(0:1)%QF = RCHFLX_in(IENS,IR)%BASIN_QR(0:1)      ! flow
   USFLOW(IUPS)%KWAVE(0:1)%TI = (/T0,T1/) - DT*ROFFSET                 ! entry time (not used)
   USFLOW(IUPS)%KWAVE(0:1)%TR = (/T0,T1/) - DT*ROFFSET                 ! exit time
   USFLOW(IUPS)%KWAVE(0:1)%RF = .TRUE.                                 ! routing flag
@@ -820,30 +937,30 @@ contains
  ! ----------------------------------------------------------------------------------------
  IUPR = 0
  DO IUPS=1,NUPB
-  INDX = NETOPO(JRCH)%UREACHI(IUPS)     ! index of the IUPS upstream reach
-  !MUPR = SIZE(NETOPO(INDX)%UREACHI)     ! # reaches upstream of the IUPS upstream reach
-  MUPR = count(NETOPO(INDX)%goodBas)     ! # reaches upstream of the IUPS upstream reach
+  INDX = NETOPO_in(JRCH)%UREACHI(IUPS)     ! index of the IUPS upstream reach
+  !MUPR = SIZE(NETOPO_in(INDX)%UREACHI)     ! # reaches upstream of the IUPS upstream reach
+  MUPR = count(NETOPO_in(INDX)%goodBas)     ! # reaches upstream of the IUPS upstream reach
   IF (MUPR.GT.0) THEN                   ! reach has streamflow in it, so add that as well
    IUPR = IUPR + 1
    ! identify the index for the IUPS upstream segment
-   IR = NETOPO(JRCH)%UREACHI(IUPS)
+   IR = NETOPO_in(JRCH)%UREACHI(IUPS)
    ! identify the size of the wave
-   NS = SIZE(KROUTE(IENS,IR)%KWAVE)
+   NS = SIZE(KROUTE_out(IENS,IR)%KWAVE)
    ! identify number of routed flow elements in the IUPS upstream segment
-   NR = COUNT(KROUTE(IENS,IR)%KWAVE(:)%RF)
+   NR = COUNT(KROUTE_out(IENS,IR)%KWAVE(:)%RF)
    ! include a non-routed point, if it exists
    NQ = MIN(NR+1,NS)
    ! allocate space for the IUPS stream segment (flow, time, and flags)
    ALLOCATE(USFLOW(NUPB+IUPR)%KWAVE(0:NQ-1),STAT=IERR)  ! (zero position = last routed)
    if(ierr/=0)then; message=trim(message)//'problem allocating array USFLOW(NUPB+IUPR)%KWAVE(0:NQ-1)'; return; endif
    ! place data in the new arrays
-   USFLOW(NUPB+IUPR)%KWAVE(0:NQ-1) = KROUTE(IENS,IR)%KWAVE(0:NQ-1)
+   USFLOW(NUPB+IUPR)%KWAVE(0:NQ-1) = KROUTE_out(IENS,IR)%KWAVE(0:NQ-1)
    ! here a statement where we check for a modification in the upstream reach;
-   ! if flow upstream is modified, then copy KROUTE(:,:)%KWAVE(:)%QM to USFLOW(..)%KWAVE%QF
+   ! if flow upstream is modified, then copy KROUTE_out(:,:)%KWAVE(:)%QM to USFLOW(..)%KWAVE%QF
    !IF (NUSER.GT.0.AND.SIMDAT%UCFFLAG.GE.1) THEN !if the irrigation module is active and there are users
-   !  IF (RCHFLX(IENS,IR)%TAKE.GT.0._DP) THEN !if take from upstream reach is greater then zero
+   !  IF (RCHFLX_out(IENS,IR)%TAKE.GT.0._DP) THEN !if take from upstream reach is greater then zero
    !    ! replace QF with modified flow (as calculated in extract_from_rch)
-   !    USFLOW(NUPB+IUPR)%KWAVE(0:NQ-1)%QF = KROUTE(IENS,IR)%KWAVE(0:NQ-1)%QM
+   !    USFLOW(NUPB+IUPR)%KWAVE(0:NQ-1)%QF = KROUTE_out(IENS,IR)%KWAVE(0:NQ-1)%QM
    !  ENDIF
    !ENDIF
    ! ...and REMOVE the routed particles from the upstream reach
@@ -854,25 +971,29 @@ contains
    END IF
    ALLOCATE(NEW_WAVE(0:NS-1),STAT=IERR)                 ! get new wave
    if(ierr/=0)then; message=trim(message)//'problem allocating array NEW_WAVE'; return; endif
-   NEW_WAVE(0:NS-1) = KROUTE(IENS,IR)%KWAVE(0:NS-1)  ! copy
+   NEW_WAVE(0:NS-1) = KROUTE_out(IENS,IR)%KWAVE(0:NS-1)  ! copy
+
    ! (re-size wave structure)
-   IF (.NOT.allocated(KROUTE(IENS,IR)%KWAVE))then; print*,' not allocated. in qex ';return; endif
-   IF (allocated(KROUTE(IENS,IR)%KWAVE)) THEN
-     deallocate(KROUTE(IENS,IR)%KWAVE,STAT=IERR)
-     if(ierr/=0)then; message=trim(message)//'problem deallocating array KROUTE'; return; endif
+   IF (.NOT.allocated(KROUTE_out(IENS,IR)%KWAVE))then; print*,' not allocated. in qex ';return; endif
+   IF (allocated(KROUTE_out(IENS,IR)%KWAVE)) THEN
+     deallocate(KROUTE_out(IENS,IR)%KWAVE,STAT=IERR)
+     if(ierr/=0)then; message=trim(message)//'problem deallocating array KROUTE_out'; return; endif
    END IF
-   ALLOCATE(KROUTE(IENS,IR)%KWAVE(0:NS-NR),STAT=IERR)   ! reduced size
-   if(ierr/=0)then; message=trim(message)//'problem allocating array KROUTE'; return; endif
+   ALLOCATE(KROUTE_out(IENS,IR)%KWAVE(0:NS-NR),STAT=IERR)   ! reduced size
+   if(ierr/=0)then; message=trim(message)//'problem allocating array KROUTE_out'; return; endif
+
    ! (copy "last routed" and "non-routed" elements)
-   KROUTE(IENS,IR)%KWAVE(0:NS-NR) = NEW_WAVE(NR-1:NS-1)
+   KROUTE_out(IENS,IR)%KWAVE(0:NS-NR) = NEW_WAVE(NR-1:NS-1)
+
    ! (de-allocate temporary wave)
    DEALLOCATE(NEW_WAVE,STAT=IERR)
    if(ierr/=0)then; message=trim(message)//'problem deallocating array NEW_WAVE'; return; endif
-  ! NULLIFY(NEW_WAVE)
+
    ! save the upstream width
-   UWIDTH(NUPB+IUPR) = RPARAM(IR)%R_WIDTH            ! reach, width = parameter
+   UWIDTH(NUPB+IUPR) = RPARAM_in(IR)%R_WIDTH            ! reach, width = parameter
    ! save the time for the first particle in each reach
    CTIME(NUPB+IUPR) = USFLOW(NUPB+IUPR)%KWAVE(1)%TR  ! central time
+
    ! keep track of the total number of points that must be routed downstream
    IMAX = IMAX + (NR-1)     ! exclude zero point for the last routed
   ENDIF ! if reach has particles in it
@@ -950,7 +1071,7 @@ contains
       ! identify the element of the wave for the IUPS upstream reach
       IWAV = ITIM(IUPS)
       ! compute scale factor (scale upstream flow by width of downstream reach)
-      SCFAC = UWIDTH(IUPS) / RPARAM(JRCH)%R_WIDTH
+      SCFAC = UWIDTH(IUPS) / RPARAM_in(JRCH)%R_WIDTH
       ! case of the upstream reach with the minimum time (no interpolation required)
       IF (IUPS.EQ.JUPS) THEN
        SFLOW = USFLOW(IUPS)%KWAVE(IWAV)%QF * SCFAC  ! scaled flow
@@ -1009,7 +1130,7 @@ contains
  DEALLOCATE(QD_TEMP,TD_TEMP,STAT=IERR)
  if(ierr/=0)then; message=trim(message)//'problem deallocating arrays [QD_TEMP, TD_TEMP]'; return; endif
 
- end subroutine
+ end subroutine QEXMUL_RCH
 
  ! *********************************************************************
  !  subroutine: removes flow particles from the routing structure,
@@ -1153,8 +1274,10 @@ contains
  !                 single stream segment, including the formation and
  !                 propagation of a kinematic shock
  ! *********************************************************************
- subroutine KINWAV_RCH(JRCH,T_START,T_END,Q_JRCH,TENTRY,ixDesire, &
-                       FROUTE,T_EXIT,NQ2, &
+ subroutine KINWAV_RCH(JRCH,T_START,T_END,ixDesire,               & ! input: location and time
+                       NETOPO_in, RPARAM_in,                      & ! input: river data structure
+                       Q_JRCH,TENTRY,T_EXIT,FROUTE,               & ! inout: kwt states
+                       NQ2,                                       & ! output:
                        ierr,message)
  ! ----------------------------------------------------------------------------------------
  ! Creator(s):
@@ -1234,14 +1357,14 @@ contains
  !   (none planned)
  !
  ! ----------------------------------------------------------------------------------------
- USE globalData, only : NETOPO     ! routing fluxes
- USE globalData, only : RPARAM     ! Reach parameters
  IMPLICIT NONE
  ! Input
  integer(i4b), intent(in)                    :: JRCH     ! Reach to process
  real(dp),     intent(in)                    :: T_START  ! start of the time step
  real(dp),     intent(in)                    :: T_END    ! end of the time step
  integer(i4b), intent(in)                    :: ixDesire ! index of the reach for verbose output
+ type(RCHTOPO),intent(in),    allocatable    :: NETOPO_in(:)    ! River Network topology
+ type(RCHPRP), intent(in),    allocatable    :: RPARAM_in(:)    ! River reach parameter
  ! Input/Output
  REAL(dp),     intent(inout)                 :: Q_JRCH(:)! flow to be routed
  REAL(dp),     intent(inout)                 :: TENTRY(:)! time to be routed
@@ -1300,8 +1423,8 @@ contains
  ierr=0; message='KINWAV_RCH/'
  ! Get the reach parameters
  ALFA = 5._dp/3._dp        ! should this be initialized here or in a parameter file?
- K    = SQRT(RPARAM(JRCH)%R_SLOPE)/RPARAM(JRCH)%R_MAN_N
- XMX  = RPARAM(JRCH)%RLENGTH
+ K    = SQRT(RPARAM_in(JRCH)%R_SLOPE)/RPARAM_in(JRCH)%R_MAN_N
+ XMX  = RPARAM_in(JRCH)%RLENGTH
  ! Identify the number of points to route
  NN = SIZE(Q1)                                ! modified when elements are merged
  NI = NN                                      ! original size of the input
@@ -1316,8 +1439,8 @@ contains
  ! compute wave celerity for all flow points (array operation)
  WC(1:NN) = ALFA*K**(1./ALFA)*Q1(1:NN)**((ALFA-1.)/ALFA)
  ! check
- if(jRch==ixDesire) print*, 'q1(1:nn), wc(1:nn), RPARAM(JRCH)%R_SLOPE, nn = ', &
-                            q1(1:nn), wc(1:nn), RPARAM(JRCH)%R_SLOPE, nn
+ if(jRch==ixDesire) print*, 'q1(1:nn), wc(1:nn), RPARAM_in(JRCH)%R_SLOPE, nn = ', &
+                            q1(1:nn), wc(1:nn), RPARAM_in(JRCH)%R_SLOPE, nn
 
  ! handle breaking waves
  GT_ONE: IF(NN.GT.1) THEN                     ! no breaking if just one point
@@ -1379,7 +1502,7 @@ contains
   if(jRch==ixDesire) print*, 'wc(iRoute), nn = ', wc(iRoute), nn
   ! check that we have non-zero flow
   if(WC(IROUTE) < verySmall)then
-   write(message,'(a,i0)') trim(message)//'zero flow for reach id ', NETOPO(jRch)%REACHID
+   write(message,'(a,i0)') trim(message)//'zero flow for reach id ', NETOPO_in(jRch)%REACHID
    ierr=20; return
   endif
   ! compute the time the shock will exit the reach

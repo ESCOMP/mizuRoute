@@ -50,6 +50,7 @@ contains
   USE globalData, only : RCHFLX           ! entire reach flux structure
   USE globalData, only : KROUTE           ! entire river reach kwt sate structure
   USE globalData, only : runoff_data      ! runoff data structure
+  USE globalData, only : river_basin      ! OMP basin decomposition
   USE globalData, only : nRch             ! number of reaches in the whoel river network
 
   implicit none
@@ -73,6 +74,7 @@ contains
   call main_route(iens,                    &  ! ensemble index
                   runoff_data%basinRunoff, &  ! basin (i.e.,HRU) runoff (m/s)
                   ixRchProcessed,          &  ! indices of reach to be routed
+                  river_basin,             &  ! OMP basin decomposition
                   mainstem,                &  ! basinType (1-> tributary, 2->mainstem)
                   NETOPO,                  &  ! reach topology data structure
                   RPARAM,                  &  ! reach parameter data structure
@@ -94,7 +96,7 @@ contains
                        iens,           &  ! ensemble index
                        basinRunoff_in, &  ! basin (i.e.,HRU) runoff (m/s)
                        ixRchProcessed, &  ! indices of reach to be routed
-                       river_basin,    &  ! OMP basin decomposition
+                       river_basin_in, &  ! OMP basin decomposition
                        basinType,      &  ! basinType (1-> tributary, 2->mainstem)
                        NETOPO_in,      &  ! reach topology data structure
                        RPARAM_in,      &  ! reach parameter data structure
@@ -104,8 +106,7 @@ contains
                        ! output: error handling
                        ierr, message)     ! output: error control
    ! Details:
-   ! Given HRU (basin) runoff, perform hru routing (optional) to get reach runoff, and then channel routing
-   ! Restriction:
+   ! Given HRU (basin) runoff, perform hru routing (optional) to get reach runoff, and then channel routing ! Restriction:
    ! 1. Reach order in NETOPO_in, RPARAM_in, RCHFLX_out, KROUTE_out must be in the same orders
    ! 2. Process a list of reach indices (in terms of NETOPO_in etc.) given by ixRchProcessed
    ! 3. basinRunoff_in is given in the order of NETOPO_in(:)%HRUIX.
@@ -125,7 +126,7 @@ contains
    integer(i4b),               intent(in)    :: iens                 ! ensemble member
    real(dp),      allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
    integer(i4b),  allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
-   type(basin),   allocatable, intent(in)    :: river_basin(:)       ! OMP basin decomposition
+   type(basin),   allocatable, intent(in)    :: river_basin_in(:)    ! OMP basin decomposition
    integer(i4b),               intent(in)    :: basinType            ! basinType (1-> tributary, 2->mainstem)
    type(RCHTOPO), allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology
    type(RCHPRP),  allocatable, intent(in)    :: RPARAM_in(:)         ! River reach parameter
@@ -200,7 +201,7 @@ contains
    ! perform KWT routing
    if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
     call kwt_route(iens,                 & ! input: ensemble index
-                   river_basin,          & ! input: river basin data type
+                   river_basin_in,       & ! input: river basin data type
                    T0,T1,                & ! input: start and end of the time step
                    basinType,            & ! input: basinType (0-> tributary, 1->mainstem)
                    ixPrint,              & ! input: index of the desired reach
@@ -216,7 +217,7 @@ contains
    ! perform IRF routing
    if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
     call irf_route(iens,                & ! input: ensemble index
-                   river_basin,         & ! input: river basin data type
+                   river_basin_in,      & ! input: river basin data type
                    ixPrint,             & ! input: index of the desired reach
                    NETOPO_in,           & ! input: reach topology data structure
                    RCHFLX_out,          & ! inout: reach flux data structure

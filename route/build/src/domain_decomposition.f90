@@ -27,7 +27,7 @@ contains
  ! ***************************************************************
  ! public subroutine: Main routine for OMP domain decomposition
  ! ***************************************************************
- subroutine classify_river_basin_omp(nSeg, structPFAF, structNTOPO, river_basin, maxSegs, ierr, message)
+ subroutine classify_river_basin_omp(nSeg, structPFAF, structNTOPO, river_basin, ierr, message)
   ! Identify tributary basin and mainstems using river network data and pfafstetter code
   ! Output: return populated basin dataType
 
@@ -45,7 +45,6 @@ contains
   integer(i4b),                   intent(in)  :: nSeg                   ! number of stream segments
   type(var_clength), allocatable, intent(in)  :: structPFAF(:)          ! pfafstetter code
   type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)         ! network topology
-  integer(i4b)                  , intent(in)  :: maxSegs                ! maximum reach number in each tributary
   ! Output variables
   type(basin),       allocatable, intent(out) :: river_basin(:)         ! river basin data
   integer(i4b),                   intent(out) :: ierr
@@ -61,6 +60,7 @@ contains
   logical(lgt),      allocatable              :: updated_mainstems(:,:) ! logical to indicate segment is mainstem at each level
   logical(lgt),      allocatable              :: lgc_trib_outlet(:)     ! logical to indicate segment is outlet of tributary
   logical(lgt)                                :: done                   ! logical
+  integer(i4b)                                :: maxSegs=100
   integer(i4b)                                :: maxLevel=20
   integer(i4b)                                :: downIndex(nSeg)        ! downstream segment index for all the segments
   integer(i4b)                                :: segIndex(nSeg)         ! reach index for all the segments

@@ -334,9 +334,9 @@ contains
  ! *********************************************************************
  ! private subroutine: initialize river network data
  ! *********************************************************************
- subroutine init_ntopo(nHRU_out, nRch_out,                               & ! output: number of HRU and Reaches
-                       structHRU, structSEG, structHRU2SEG, structNTOPO, & ! output: data structure for river data
-                       ierr, message)                                      ! output: error controls
+ subroutine init_ntopo(nHRU_out, nRch_out,                                           & ! output: number of HRU and Reaches
+                       structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
+                       ierr, message)                                                  ! output: error controls
   ! public vars
   USE public_var,           only : ancil_dir                ! name of the ancillary directory
   USE public_var,           only : fname_ntopOld            ! name of the old network topology file
@@ -352,7 +352,8 @@ contains
   USE public_var,           only : integerMissing           ! missing value for integers
   ! global data
   USE globalData,           only : meta_PFAF                ! meta for pfafstetter code
-  USE globalData,           only : NETOPO, RPARAM           !
+  USE globalData,           only : NETOPO, RPARAM           ! network and parameter data structure used in routing routine
+  USE globalData,           only : river_basin              ! openMP river network decomposition
   ! variable index
   USE var_lookup,           only : ixPFAF                   ! index of variables for the pfafstetter code
   ! external subroutines
@@ -361,7 +362,7 @@ contains
   USE read_netcdf,          only : get_var_dims
   USE process_ntopo,        only : augment_ntopo            ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,        only : put_data_struct          ! populate NETOPO and RPARAM data structure
-
+  USE domain_decomposition, only : classify_river_basin_omp ! domain decomposition for openMP
   implicit none
   ! input: None
   ! output (river network data structures for the entire domain)
@@ -483,6 +484,14 @@ contains
   call put_data_struct(nRch_out, structSEG, structNTOPO, & ! input
                        RPARAM, NETOPO,                   & ! output
                        ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! ----------  pfafstetter code process to group segments -------------------------------------------------------
+  call classify_river_basin_omp(nRch_out,       & ! input
+                                structPFAF,     & ! input
+                                structNTOPO,    & ! input
+                                river_basin,    & ! output
+                                ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end subroutine init_ntopo

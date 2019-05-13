@@ -26,32 +26,27 @@ F_MASTER =
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
   NCDF_PATH = /opt/local
-  LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
-  INCNETCDF = -I$(NCDF_PATH)/include
-  ifeq "$(isOpenMP)" "yes"
-   FLAGS_OMP = -fopenmp
-  endif
 endif
 
 ifeq "$(FC)" "ifort"
   NCDF_PATH = /opt/netcdf4-intel
-  LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
-  INCNETCDF = -I$(NCDF_PATH)/include
-  ifeq "$(isOpenMP)" "yes"
-   FLAGS_OMP = -fopenmp
-  endif
 endif
 
 ifeq "$(FC)" "pgf90"
  NCDF_PATH = /opt/netcdf4-pgf90
- LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
- INCNETCDF = -I$(NCDF_PATH)/include
+endif
+
+LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
+INCNETCDF = -I$(NCDF_PATH)/include
+
+ifeq "$(isOpenMP)" "yes"
+ FLAGS_OMP = -fopenmp
 endif
 
 # Define flags
 ifeq "$(FC)" "gfortran"
- FLAGS1 = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds $(FLAGS_OMP)
- FLAGS = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+ FLAGS = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds $(FLAGS_OMP)
+ FLAGS1 = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
 endif
 ifeq "$(FC)" "ifort"
  FLAGS1 = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
@@ -86,15 +81,14 @@ DATATYPES = \
     dataTypes.f90 \
     var_lookup.f90 \
     globalData.f90 \
-    popMetadat.f90
-#
+    popMetadat.f90 \
+    allocation.f90 
 # define utilities
 UTILS = \
     nr_utility.f90 \
     ascii_util.f90 \
 		time_utils.f90 \
     gamma_func.f90
-#
 # read/write files
 IO = \
     remap.f90 \
@@ -105,24 +99,30 @@ IO = \
     read_streamSeg.f90 \
     write_streamSeg.f90 \
     read_runoff.f90 \
-    getAncillary.f90 \
+    get_basin_runoff.f90 \
+    read_remap.f90 \
     read_restart.f90 \
     write_restart.f90 \
     write_simoutput.f90
-
-# perform model routing
-QROUTE = \
+# initialization
+INIT = \
     process_time.f90 \
+    network_topo.f90 \
+    process_param.f90 \
+    process_ntopo.f90 \
+    pfafstetter.f90 \
+    domain_decomposition.f90
+# model simulation 
+MODSIM = \
     accum_runoff.f90 \
     basinUH.f90 \
-    network_topo.f90 \
-    pfafstetter.f90 \
     irf_route.f90 \
-    process_ntopo.f90 \
-    kwt_route.f90
+    kwt_route.f90 \
+    main_route.f90 \
+    model_setup.f90
 
 # concatanate model subroutines
-TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(QROUTE)
+TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(INIT) $(MODSIM)
 
 # insert appropriate directory name
 MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
@@ -134,7 +134,7 @@ MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
 DRIVER = $(F_KORE_DIR)route_runoff.f90
 
 # Define the executable
-EXE = route_runoff.exe
+EXE = 
 
 #========================================================================
 # PART 4: Compile the puppy
