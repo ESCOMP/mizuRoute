@@ -1,2 +1,2 @@
-# Contents in ancillary_data 
+# Contents in settings 
 1. Control file (SAMPLE.control) 
