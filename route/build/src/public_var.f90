@@ -28,6 +28,9 @@ module public_var
 
   ! routing related constants
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
+  ! openMP domain decompostion parameters
+  integer(i4b)                    :: maxSegs=100            ! maximum reach numbers within tributaries
+  integer(i4b)                    :: maxLevel=20            ! maximum mainstem levels
   ! constants for general use
   real(dp),    parameter,public   :: MinPosVal=1.e-10_dp    ! minimum value for positive value
   integer(i4b),parameter,public   :: integerMissing=-9999   ! missing value for integers

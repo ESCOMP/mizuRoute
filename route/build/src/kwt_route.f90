@@ -59,6 +59,7 @@ contains
  integer(i4b), intent(in),   optional     :: ixSubRch(:)           ! subset of reach indices to be processed
  ! local variables
  logical(lgt), allocatable                :: doRoute(:)            ! logical to indicate which reaches are processed
+ logical(lgt)                             :: doMainstem            ! logical to indicate mainstem is defined for a basin
  integer(i4b)                             :: LAKEFLAG=0            ! >0 if processing lakes
  integer(i4b)                             :: nSeg                  ! number of reaches in the network
  integer(i4b)                             :: nOuts                 ! number of outlets
@@ -106,10 +107,12 @@ contains
 
  do iOut=1,nOuts
 
+   doMainstem = .false.
    maxLevel = 1
    do iLevel=1,size(river_basin(iOut)%level)
      if (.not. allocated(river_basin(iOut)%level(iLevel)%mainstem)) cycle
      if (iLevel > maxLevel) maxLevel = iLevel
+     doMainstem = .true. ! mainstem defined -> need to mainstem routing
    end do
    minLevel = size(river_basin(iOut)%level)
    do iLevel=maxLevel,1,-1
@@ -186,7 +189,8 @@ contains
 !   deallocate(ixThread, timeTrib, timeTribStart, stat=ierr)
 !   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to deallocate space for Trib timing'; return; endif
 
-   ! 2. Route mainstems (serial)
+   if (.not.doMainstem) cycle ! For small basin, no mainstem defined
+   ! 2. Route mainstems
    call system_clock(startMain)
    do iLevel=maxLevel,minLevel,-1
      nStem = size(river_basin(iOut)%level(iLevel)%mainstem)
@@ -232,7 +236,7 @@ contains
    elapsedMain = real(endMain-startMain, kind(dp))/10e8_dp
    write(*,"(A,1PG15.7,A)") '  total elapsed mainstem = ', elapsedMain, ' s'
 
- end do
+ end do ! basin loop
  call system_clock(endTime)
  elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
  write(*,"(A,1PG15.7,A)") '  total elapsed entire = ', elapsedTime, ' s'

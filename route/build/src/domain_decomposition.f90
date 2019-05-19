@@ -27,14 +27,36 @@ contains
  ! ***************************************************************
  ! public subroutine: Main routine for OMP domain decomposition
  ! ***************************************************************
- subroutine classify_river_basin_omp(nSeg, structPFAF, structNTOPO, river_basin, ierr, message)
-  ! Identify tributary basin and mainstems using river network data and pfafstetter code
-  ! Output: return populated basin dataType
+ subroutine classify_river_basin_omp(nSeg,          & ! input: number of reaches in the entire river network
+                                     structPFAF,    & ! input: pfafstetter code data structure
+                                     structNTOPO,   & ! input: river network data structure
+                                     river_basin,   & ! output: tributary/mainstem domain decomposition
+                                     ierr, message)
+  ! Details:
+  ! Identify tributary reaches and mainstems using river network topology and pfafstetter code
+  ! for each basin. Basins are identified based on outlet reach in topology (downSegIndex < 0)
+
+  ! The following data struct components need to be populated
+  !   structPFAF(:)%var(ixPFAF%code)%dat(1)
+  !   structNTOPO(:)%var(ixNTOPO%segIndex)%dat(1)
+  !   structNTOPO(:)%var(ixNTOPO%downSegIndex)%dat(1)
+  !   structNTOPO(:)%var(ixNTOPO%rchOrder)%dat(1)
+  !   structNTOPO(:)%var(ixNTOPO%allUpSegIndices)%dat(:)
+  !
+  ! Populate the domain data structure
+  !   river_basin(ixOut)%outIndex                                   : oulet reach index for "ixOut" basin
+  !   river_basin(ixOut)%level(ixLvl)%mainstem(ixMain)%segIndex(:)  : reach indice for "ixLvl" level mainstem "ixMain" of "ixOut" basin
+  !                                                   %nRch         : number of reaches for "ixLvl" level mainstem "ixMain" of "ixOut" basin
+  !   river_basin(ixOut)%tributary(ixTrib)%segIndex(:)              : reach indice for "ixTrib" tributary of "ixOut" basin
+  !                                       %nRch                     : number of reaches for "ixTrib" tributary of "ixOut" basin
 
   ! External modules
   ! derive data types
   USE dataTypes,          only: basin                ! basin data structure
   USE dataTypes,          only: reach                !
+  USE public_var,         only: maxSegs
+  USE public_var,         only: maxLevel
+  USE public_var,         only: pfafMissing
   ! pfafstetter routines
   USE pfafstetter_module, only: get_common_pfaf
   USE pfafstetter_module, only: lgc_mainstems
@@ -53,20 +75,21 @@ contains
   type(reach), allocatable                    :: tmpMainstem(:)         ! temporary reach structure for mainstem
   character(len=strLen)                       :: cmessage               ! error message from subroutine
   character(len=32)                           :: pfafs(nSeg)            ! pfaf_codes for all the segment
-  character(len=32), allocatable              :: pfaf_out(:)            ! pfaf_codes for outlet segments
+  character(len=32), allocatable              :: pfafOutlets(:)         ! pfaf_codes for outlet segments
   character(len=32)                           :: upPfaf                 ! pfaf_code for one upstream segment
   character(len=32)                           :: outMainstemCode
   logical(lgt),      allocatable              :: mainstems(:,:)         ! logical to indicate segment is mainstem at each level
   logical(lgt),      allocatable              :: updated_mainstems(:,:) ! logical to indicate segment is mainstem at each level
   logical(lgt),      allocatable              :: lgc_trib_outlet(:)     ! logical to indicate segment is outlet of tributary
+  logical(lgt),      allocatable              :: isValid(:)             ! ogical to indicate reach with vlid pfaf code (non "0")
   logical(lgt)                                :: done                   ! logical
-  integer(i4b)                                :: maxSegs=100
-  integer(i4b)                                :: maxLevel=20
   integer(i4b)                                :: downIndex(nSeg)        ! downstream segment index for all the segments
   integer(i4b)                                :: segIndex(nSeg)         ! reach index for all the segments
   integer(i4b)                                :: segOrder(nSeg)         ! reach order for all the segments
   integer(i4b)                                :: rankSegOrder(nSeg)     ! ranked reach order for all the segments
-  integer(i4b), allocatable                   :: segIndex_out(:)        ! index for outlet segment
+  integer(i4b), allocatable                   :: ixUpSeg(:)             ! list of upstream reach indices at a given outlet
+  integer(i4b), allocatable                   :: ixSubset(:)            ! subset indices based on logical array from global index array
+  integer(i4b), allocatable                   :: ixOutlets(:)           ! index for outlet segment
   integer(i4b)                                :: level                  ! manstem level
   integer(i4b)                                :: nMains,nUpSegMain      ! number of mainstems in a level, and number of segments in a mainstem
   integer(i4b)                                :: nOuts                  ! number of outlets
@@ -94,9 +117,10 @@ contains
 !  integer(i4b)                                :: tribNseg(nSeg)         !
 !  integer(i4b)                                :: tribIndex(nSeg)         !
 
-!  integer*8                                   :: startTime              ! time stamp [nanosec]
-!  integer*8                                   :: endTime                ! time stamp [nanosec]
-!  real(dp)                                    :: elapsedTime            ! elapsed time for the process
+  integer*8                                   :: cr, startTime, endTime ! rate, start and end time stamps
+  real(dp)                                    :: elapsedTime            ! elapsed time for the process
+
+  CALL system_clock(count_rate=cr)
 
   ierr=0; message='classify_river_basin_omp/'
 
@@ -105,6 +129,7 @@ contains
   forall(iSeg=1:nSeg) segIndex(iSeg)  = structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1)
   forall(iSeg=1:nSeg) segOrder(iSeg)  = structNTOPO(iSeg)%var(ixNTOPO%rchOrder)%dat(1)
 
+  ! sorting reach processing order
   call indexx(segOrder,rankSegOrder)
 
   ! Number of outlets
@@ -112,45 +137,90 @@ contains
 
   allocate(river_basin(nOuts), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating river_basin'; return; endif
-  allocate(pfaf_out(nOuts), segIndex_out(nOuts), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating [pfaf_out, segIndex_out]'; return; endif
+  allocate(pfafOutlets(nOuts), ixOutlets(nOuts), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating [pfafOutlets, ixOutlets]'; return; endif
 
   ! Outlet information - pfaf code and segment index
-  pfaf_out = pack(pfafs, downIndex<0)
-  segIndex_out = pack(segIndex, downIndex<0)
+  pfafOutlets = pack(pfafs, downIndex<0)
+  ixOutlets   = pack(segIndex, downIndex<0)
 
+  ! Process basin by basin
   do iOut = 1,nOuts
 
-    print*, 'working on outlet:'//trim(adjustl(pfaf_out(iOut)))
+    print*, 'working on outlet:'//trim(adjustl(pfafOutlets(iOut)))
 
     allocate(river_basin(iOut)%level(maxLevel), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(iOut)%mainstem'; return; endif
 
-    river_basin(iOut)%outIndex = segIndex_out(iOut)
+    ! basin outlet reach index
+    river_basin(iOut)%outIndex = ixOutlets(iOut)
 
-!    call system_clock(startTime)
+    ! get all the upstream reach indices for this outlet
+    ! check if upstream segment include reaches with pCode==0. if so remove them.
+    associate (ixUpSeg_tmp => structNTOPO(ixOutlets(iOut))%var(ixNTOPO%allUpSegIndices)%dat)
+    if (allocated(isValid)) deallocate(isValid)
+    allocate(isValid(size(ixUpSeg_tmp)), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating [isValid]'; return; endif
+    isValid =.false.
+    do iSeg = 1,size(ixUpSeg_tmp)
+      if (trim(adjustl(pfafs(ixUpSeg_tmp(iSeg))))/=pfafMissing) isValid(iSeg)=.true.
+    end do
+    if (all(.not.isValid)) cycle
+    if (allocated(ixUpSeg)) deallocate(ixUpSeg)
+    allocate(ixUpSeg(count(isValid)), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating [ixUpSeg]'; return; endif
+    call indexTrue(isValid, ixSubset)
+    ixUpSeg = ixUpSeg_tmp(ixSubset)
+    deallocate(ixSubset, stat=ierr)
+
+    ! Special case: small basin (number of reaches < maxSegs
+    ! Put all the small basin reaches under tributary data structures
+    if (size(ixUpSeg)<maxSegs) then
+
+      allocate(river_basin(iOut)%tributary(1), stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(iOut)%tributary'; return; endif
+      allocate(river_basin(iOut)%tributary(1)%segIndex(size(ixUpSeg)), stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(iOut)%tributary(1)%segIndex'; return; endif
+      allocate(segOrderTrib(size(ixUpSeg)), stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem allocating segOrderTrib'; return; endif
+
+      ! Compute reach order for only small basin
+      call indexx(rankSegOrder(ixUpSeg), segOrderTrib)
+
+      river_basin(iOut)%tributary(1)%segIndex(:) = ixUpSeg(segOrderTrib)
+      river_basin(iOut)%tributary(1)%nRch        = size(ixUpSeg)
+
+      deallocate(segOrderTrib, stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem deallocating segOrderTrib'; return; endif
+
+      cycle
+
+    end if
+    end associate
+
+    call system_clock(startTime)
     ! Identify pfaf level given a river network
-    call get_common_pfaf(pfafs, pfaf_out(iOut), level, ierr, cmessage)
+    call get_common_pfaf(pfafs(ixUpSeg), pfafOutlets(iOut), level, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-!    call system_clock(endTime)
-!    elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
-!    write(*,"(A,1PG15.7,A)") '       elapsed-time [get_common_pfaf] = ', elapsedTime, ' s'
+    call system_clock(endTime)
+    elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+    write(*,"(A,1PG15.7,A)") '       elapsed-time [get_common_pfaf] = ', elapsedTime, ' s'
 
 !    call system_clock(startTime)
     ! Identify mainstem segments at all levels (up to maxLevel)
-    call lgc_mainstems(pfafs, pfaf_out(iOut), maxLevel, mainstems, ierr, cmessage)
+    call lgc_mainstems(pfafs(ixUpSeg), pfafOutlets(iOut), maxLevel, mainstems, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 !    call system_clock(endTime)
 !    elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
 !    write(*,"(A,1PG15.7,A)") '      elapsed-time [lgc_mainstems] = ', elapsedTime, ' s'
 
     ! Initial assignment of mainstem segments
-    allocate(updated_mainstems(size(mainstems,1),size(mainstems,2)), stat=ierr)
+    allocate(updated_mainstems(nSeg,size(mainstems,2)), stat=ierr)
     updated_mainstems = .false.
-    updated_mainstems(:,level) = mainstems(:,level)
+    updated_mainstems(ixUpSeg,level) = mainstems(:,level)
 
     ! Identify the lowest level mainstem segment index
-    call indexTrue(mainstems(:,level), msPos)
+    call indexTrue(updated_mainstems(:,level), msPos)
 
     allocate(river_basin(iOut)%level(level)%mainstem(1), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(iOut)%mainstem(level)%mainstem'; return; endif
@@ -168,13 +238,13 @@ contains
 !    call system_clock(startTime)
     ! Identify tributary outlets into a mainstem at the lowest level
     !  i.e. the segment that is not on any mainstems AND flows into any mainstem segments
-    call lgc_tributary_outlet(mainstems(:,:level), downIndex, lgc_trib_outlet, ierr, cmessage)
+    call lgc_tributary_outlet(updated_mainstems(:,:level), downIndex, lgc_trib_outlet, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 !    call system_clock(endTime)
 !    elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
 !    write(*,"(A,1PG15.7,A)") '      elapsed-time [lgc_tributary_outlet] = ', elapsedTime, ' s'
 
-    deallocate(mainstems, segIndex_out, segOrderMain, stat=ierr)
+    deallocate(mainstems, segOrderMain, stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem deallocating mainstems'; return; endif
 
     do
@@ -241,7 +311,7 @@ contains
           river_basin(iOut)%tributary(jTrib)%nRch = nSegTrib(rankTrib(iTrib))
 
           deallocate(segOrderTrib, stat=ierr)
-          if(ierr/=0)then; message=trim(message)//'problem deallocating segOrderTrib'; return; endif
+          if(ierr/=0)then; message=trim(message)//'problem deallocating [segOrderTrib]'; return; endif
 
 !          if (mod(jTrib,1000)==0) then
 !          call system_clock(endTime)
@@ -250,6 +320,9 @@ contains
 !          endif
 
         end do
+
+        deallocate(nSegTrib, rankTrib, stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem deallocating [nSegTrib, rankTrib]'; return; endif
 
         exit
 
@@ -445,6 +518,5 @@ contains
 ! ------------------------------------------------------------------
 ! END PRINT OUT
 ! ------------------------------------------------------------------
-
 
 end module domain_decomposition
