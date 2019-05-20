@@ -198,20 +198,16 @@ contains
     end if
     end associate
 
-    call system_clock(startTime)
-    ! Identify pfaf level given a river network
+    ! Identify pfaf level given a sub-basin river network
     call get_common_pfaf(pfafs(ixUpSeg), pfafOutlets(iOut), level, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    call system_clock(endTime)
-    elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-    write(*,"(A,1PG15.7,A)") '       elapsed-time [get_common_pfaf] = ', elapsedTime, ' s'
 
 !    call system_clock(startTime)
     ! Identify mainstem segments at all levels (up to maxLevel)
     call lgc_mainstems(pfafs(ixUpSeg), pfafOutlets(iOut), maxLevel, mainstems, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 !    call system_clock(endTime)
-!    elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
+!    elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 !    write(*,"(A,1PG15.7,A)") '      elapsed-time [lgc_mainstems] = ', elapsedTime, ' s'
 
     ! Initial assignment of mainstem segments
@@ -235,14 +231,10 @@ contains
     river_basin(iOut)%level(level)%mainstem(1)%segIndex(1:size(msPos))  = msPos(segOrderMain)
     river_basin(iOut)%level(level)%mainstem(1)%nRch = size(msPos)
 
-!    call system_clock(startTime)
     ! Identify tributary outlets into a mainstem at the lowest level
     !  i.e. the segment that is not on any mainstems AND flows into any mainstem segments
     call lgc_tributary_outlet(updated_mainstems(:,:level), downIndex, lgc_trib_outlet, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-!    call system_clock(endTime)
-!    elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
-!    write(*,"(A,1PG15.7,A)") '      elapsed-time [lgc_tributary_outlet] = ', elapsedTime, ' s'
 
     deallocate(mainstems, segOrderMain, stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem deallocating mainstems'; return; endif
@@ -273,7 +265,7 @@ contains
       nMains = 0
       do iTrib=nTrib,1,-1
         if (nSegTrib(rankTrib(iTrib)) > maxSegs) then
-           write(*,'(A,A,I5)') 'Exceed maximum number of segments: ', pfafs(trPos(rankTrib(iTrib))), nSegTrib(rankTrib(iTrib))
+           write(*,'(A,A,I6)') 'Exceed maximum number of segments: ', pfafs(trPos(rankTrib(iTrib))), nSegTrib(rankTrib(iTrib))
            nMains=nMains+1
            done=.false.
         else
@@ -282,8 +274,6 @@ contains
       end do
 
       if (done) then ! if no mainstem/tributary updated, update tributary reach info, and then exist loop
-
-!        print*, 'Main/Trib update finished, Now Update tributary reach ....'
 
         allocate(river_basin(iOut)%tributary(nTrib), stat=ierr)
         if(ierr/=0)then; message=trim(message)//'problem allocating river_basin%tributary'; return; endif
@@ -337,9 +327,6 @@ contains
 
         do iTrib=nTrib,nTrib-nMains+1,-1
 
-!          if (mod(nTrib-iTrib+1,10)==0) print*, 'iTrib = ', nTrib-iTrib+1
-!          call system_clock(startTime)
-
           ! Outlet mainstem code
           outMainstemCode = mainstem_code(pfafs(trPos(rankTrib(iTrib))))
 
@@ -372,12 +359,6 @@ contains
 
           deallocate(segMain, segOrderMain, stat=ierr)
           if(ierr/=0)then; message=trim(message)//'problem deallocating [segMain, segOrderMain]'; return; endif
-
-!          if (mod(nTrib-iTrib+1,10)==0) then
-!          call system_clock(endTime)
-!          elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
-!          write(*,"(A,1PG15.7,A)") ' total elapsed-time [update trib each loop] = ', elapsedTime, ' s'
-!          endif
 
         end do ! tributary loop
 
