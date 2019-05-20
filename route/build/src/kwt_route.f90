@@ -80,15 +80,14 @@ contains
  integer*8,    allocatable                :: openMPend(:)          ! time for the start of the parallelization section
  integer*8,    allocatable                :: timeTribStart(:)      ! time Tributaries start
  real(dp),     allocatable                :: timeTrib(:)           ! time spent on each Tributary
- integer*8                                :: endTrib               ! date/time for the start and end of the initialization
- integer*8                                :: startTime,endTime     ! date/time for the start and end of the initialization
- integer*8                                :: startMain,endMain     ! date/time for the start and end of the initialization
+ integer*8                                :: cr,startTime,endTime  ! rate, start and end time stamps
+ integer*8                                :: startTimeSub          ! start time stamps sub-sections
  real(dp)                                 :: elapsedTime           ! elapsed time for the process
- real(dp)                                 :: elapsedTrib           ! elapsed time for the process
- real(dp)                                 :: elapsedMain           ! elapsed time for the process
 
  ! initialize error control
  ierr=0; message='kwt_route/'
+
+ CALL system_clock(count_rate=cr)
 
  nSeg = size(NETOPO_in)
 
@@ -148,7 +147,6 @@ contains
 !$OMP          shared(timeTrib)                         & ! timing variables shared
 !$OMP          shared(ixThread)                         & ! thread id array shared
 !$OMP          firstprivate(nTrib)
-
    nThreads = 1
 !$ nThreads = omp_get_num_threads()
 
@@ -178,20 +176,20 @@ contains
 !$OMP END DO
 !$OMP END PARALLEL
 
-   call system_clock(endTrib)
-   elapsedTrib = real(endTrib-startTime, kind(dp))/10e8_dp
-   write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTrib, ' s'
+   call system_clock(endTime)
+   elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+   write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTime, ' s'
 
 !   write(*,'(a)') 'iTrib nSeg ixThread nThreads StartTime EndTime'
 !   do iTrib=1,nTrib
 !     write(*,'(4(i5,1x),2(I20,1x))') iTrib, river_basin(iOut)%tributary(iTrib)%nRch, ixThread(iTrib), nThreads, timeTribStart(iTrib), openMPend(iTrib)
 !   enddo
-!   deallocate(ixThread, timeTrib, timeTribStart, stat=ierr)
-!   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to deallocate space for Trib timing'; return; endif
+   deallocate(ixThread, openMPend, timeTrib, timeTribStart, stat=ierr)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to deallocate space for Trib timing'; return; endif
 
    if (.not.doMainstem) cycle ! For small basin, no mainstem defined
    ! 2. Route mainstems
-   call system_clock(startMain)
+   call system_clock(startTimeSub)
    do iLevel=maxLevel,minLevel,-1
      nStem = size(river_basin(iOut)%level(iLevel)%mainstem)
 !$OMP PARALLEL default(none)                            &
@@ -232,13 +230,13 @@ contains
 !$OMP END DO
 !$OMP END PARALLEL
    end do
-   call system_clock(endMain)
-   elapsedMain = real(endMain-startMain, kind(dp))/10e8_dp
-   write(*,"(A,1PG15.7,A)") '  total elapsed mainstem = ', elapsedMain, ' s'
+   call system_clock(endTime)
+   elapsedTime = real(endTime-startTimeSub, kind(dp))/real(cr)
+   write(*,"(A,1PG15.7,A)") '  total elapsed mainstem = ', elapsedTime, ' s'
 
  end do ! basin loop
  call system_clock(endTime)
- elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
+ elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
  write(*,"(A,1PG15.7,A)") '  total elapsed entire = ', elapsedTime, ' s'
 
  END SUBROUTINE kwt_route
