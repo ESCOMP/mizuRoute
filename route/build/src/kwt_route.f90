@@ -73,13 +73,13 @@ contains
  integer(i4b)                             :: maxLevel,minLevel     ! max. and min. mainstem levels
  character(len=strLen)                    :: cmessage              ! error message for downwind routine
  ! variables needed for timing
- integer(i4b)                             :: nThreads              ! number of threads
- integer(i4b)                             :: omp_get_num_threads   ! get the number of threads
- integer(i4b)                             :: omp_get_thread_num
- integer(i4b), allocatable                :: ixThread(:)           ! thread id
- integer*8,    allocatable                :: openMPend(:)          ! time for the start of the parallelization section
- integer*8,    allocatable                :: timeTribStart(:)      ! time Tributaries start
- real(dp),     allocatable                :: timeTrib(:)           ! time spent on each Tributary
+! integer(i4b)                             :: nThreads              ! number of threads
+! integer(i4b)                             :: omp_get_num_threads   ! get the number of threads
+! integer(i4b)                             :: omp_get_thread_num
+! integer(i4b), allocatable                :: ixThread(:)           ! thread id
+! integer*8,    allocatable                :: openMPend(:)          ! time for the start of the parallelization section
+! integer*8,    allocatable                :: timeTribStart(:)      ! time Tributaries start
+! real(dp),     allocatable                :: timeTrib(:)           ! time spent on each Tributary
  integer*8                                :: cr,startTime,endTime  ! rate, start and end time stamps
  integer*8                                :: startTimeSub          ! start time stamps sub-sections
  real(dp)                                 :: elapsedTime           ! elapsed time for the process
@@ -104,6 +104,7 @@ contains
  ! Number of Outlets
  nOuts = size(river_basin)
 
+ call system_clock(startTime)
  do iOut=1,nOuts
 
    doMainstem = .false.
@@ -121,12 +122,12 @@ contains
 
    nTrib=size(river_basin(iOut)%tributary)
 
-   allocate(ixThread(nTrib), openMPend(nTrib), timeTrib(nTrib), timeTribStart(nTrib), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to allocate space for Trib timing'; return; endif
-   timeTrib(:) = realMissing
-   ixThread(:) = integerMissing
+!   allocate(ixThread(nTrib), openMPend(nTrib), timeTrib(nTrib), timeTribStart(nTrib), stat=ierr)
+!   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to allocate space for Trib timing'; return; endif
+!   timeTrib(:) = realMissing
+!   ixThread(:) = integerMissing
 
-   call system_clock(startTime)
+   call system_clock(startTimeSub)
 
    ! 1. Route tributary reaches (parallel)
 !$OMP parallel default(none)                            &
@@ -142,18 +143,18 @@ contains
 !$OMP          shared(RCHFLX_out)                       & ! data structure shared
 !$OMP          shared(basinType)                        & ! scalar varaible shared
 !$OMP          shared(iEns, iOut, ixDesire)             & ! indices shared
-!$OMP          shared(openMPend, nThreads)              & ! timing variables shared
-!$OMP          shared(timeTribStart)                    & ! timing variables shared
-!$OMP          shared(timeTrib)                         & ! timing variables shared
-!$OMP          shared(ixThread)                         & ! thread id array shared
+!!$OMP          shared(openMPend, nThreads)              & ! timing variables shared
+!!$OMP          shared(timeTribStart)                    & ! timing variables shared
+!!$OMP          shared(timeTrib)                         & ! timing variables shared
+!!$OMP          shared(ixThread)                         & ! thread id array shared
 !$OMP          firstprivate(nTrib)
-   nThreads = 1
-!$ nThreads = omp_get_num_threads()
+!   nThreads = 1
+!!$ nThreads = omp_get_num_threads()
 
 !$OMP DO schedule(dynamic, 1)   ! chunk size of 1
    do iTrib = 1,nTrib
-!$    ixThread(iTrib) = omp_get_thread_num()
-    call system_clock(timeTribStart(iTrib))
+!!$    ixThread(iTrib) = omp_get_thread_num()
+!    call system_clock(timeTribStart(iTrib))
      do iRch=1,river_basin(iOut)%tributary(iTrib)%nRch
        jRch  = river_basin(iOut)%tributary(iTrib)%segIndex(iRch)
        if (.not. doRoute(jRch)) cycle
@@ -170,22 +171,22 @@ contains
                        ierr,cmessage)         ! output: error control
        !if (ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
      end do  ! (looping through stream segments)
-     call system_clock(openMPend(iTrib))
-     timeTrib(iTrib) = real(openMPend(iTrib)-timeTribStart(iTrib), kind(dp))
+!     call system_clock(openMPend(iTrib))
+!     timeTrib(iTrib) = real(openMPend(iTrib)-timeTribStart(iTrib), kind(dp))
    end do  ! (looping through stream segments)
 !$OMP END DO
 !$OMP END PARALLEL
 
    call system_clock(endTime)
-   elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+   elapsedTime = real(endTime-startTimeSub, kind(dp))/real(cr)
    write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTime, ' s'
 
 !   write(*,'(a)') 'iTrib nSeg ixThread nThreads StartTime EndTime'
 !   do iTrib=1,nTrib
 !     write(*,'(4(i5,1x),2(I20,1x))') iTrib, river_basin(iOut)%tributary(iTrib)%nRch, ixThread(iTrib), nThreads, timeTribStart(iTrib), openMPend(iTrib)
 !   enddo
-   deallocate(ixThread, openMPend, timeTrib, timeTribStart, stat=ierr)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to deallocate space for Trib timing'; return; endif
+!   deallocate(ixThread, openMPend, timeTrib, timeTribStart, stat=ierr)
+!   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to deallocate space for Trib timing'; return; endif
 
    if (.not.doMainstem) cycle ! For small basin, no mainstem defined
    ! 2. Route mainstems
