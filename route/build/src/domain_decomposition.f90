@@ -405,7 +405,7 @@ contains
    integer(i4b),                   intent(in)  :: downIndex(:)    ! downstream segment index for all the segments
    integer(i4b),                   intent(in)  :: segIndex(:)     ! reach index for all the segments
    character(len=32),              intent(in)  :: pfafCode        ! common pfaf codes within a river basin
-   integer(i4b)                                :: maxSegs         ! maximum number of reaches in basin
+   integer(i4b),                   intent(in)  :: maxSegs         ! maximum number of reaches in basin
    ! Output variables
    integer(i4b),                   intent(out) :: ierr
    character(len=strLen),          intent(out) :: message         ! error message
