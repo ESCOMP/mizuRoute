@@ -15,7 +15,7 @@ USE model_setup,         only : init_model       ! model setupt - reading contro
 USE model_setup,         only : init_data        ! initialize river reach data
 USE model_setup,         only : update_time      ! Update simulation time information at each time step
 ! subroutines: routing
-USE main_route_module,   only : serial_route     !
+USE main_route_module,   only : main_route       !
 ! subroutines: model I/O
 USE get_runoff        ,  only : get_hru_runoff   !
 USE write_simoutput,     only : prep_output      !
@@ -82,7 +82,7 @@ elapsedTime = real(endTime-startTime, kind(dp))/rate
 write(*,"(A,1PG15.7,A)") '   elapsed-time [read_ro] = ', elapsedTime, ' s'
 
 call system_clock(startTime)
-  call serial_route(iens, ierr, cmessage)
+  call main_route(iens, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
 call system_clock(endTime)
 elapsedTime = real(endTime-startTime, kind(dp))/rate
