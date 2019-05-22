@@ -70,7 +70,6 @@ contains
  !integer*8,    allocatable                 :: timeTribStart(:)    ! time Tributaries start
  !real(dp),     allocatable                 :: timeTrib(:)         ! time spent on each Tributary
  integer*8                                 :: cr,startTime,endTime! rate, start and end time stamps
- integer*8                                 :: startTimeSub        ! start time stamp for sub section
  real(dp)                                  :: elapsedTime         ! elapsed time for the process
 
  ! initialize error control
@@ -95,7 +94,6 @@ contains
  ! Number of Outlets
  nOuts = size(river_basin)
 
- call system_clock(startTime)
  do iOut=1,nOuts
 
   doMainstem = .false.
@@ -121,7 +119,7 @@ contains
 !  ixThread(:) = integerMissing
 
   ! 1. Route tributary reaches (parallel)
-  call system_clock(startTimeSub)
+!  call system_clock(startTime)
 !$OMP PARALLEL default(none)                            &
 !$OMP          private(jSeg, iSeg)                      & ! private for a given thread
 !$OMP          private(ierr, cmessage)                  & ! private for a given thread
@@ -154,9 +152,9 @@ contains
 !$OMP END DO
 !$OMP END PARALLEL
 
-  call system_clock(endTime)
-  elapsedTime = real(endTime-startTimeSub, kind(dp))/real(cr)
-  write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTime, ' s'
+!  call system_clock(endTime)
+!  elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+!  write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTime, ' s'
 
 !  write(*,'(a)') 'iTrib nSeg ixThread nThreads StartTime EndTime'
 !  do iTrib=1,nTrib
@@ -167,7 +165,7 @@ contains
 
    if (.not.doMainstem) cycle ! For small basin, no mainstem defined
    ! 2. Route mainstems
-   call system_clock(startTimeSub)
+!   call system_clock(startTime)
    do iLevel=maxLevel,minLevel,-1
      nStem = size(river_basin(iOut)%level(iLevel)%mainstem)
 !$OMP PARALLEL default(none)                            &
@@ -194,14 +192,11 @@ contains
 !$OMP END PARALLEL
    end do
 
-   call system_clock(endTime)
-   elapsedTime = real(endTime-startTimeSub, kind(dp))/real(cr)
-   write(*,"(A,1PG15.7,A)") '  total elapsed mainstem = ', elapsedTime, ' s'
+!   call system_clock(endTime)
+!   elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+!   write(*,"(A,1PG15.7,A)") '  total elapsed mainstem = ', elapsedTime, ' s'
 
  end do ! basin loop
- call system_clock(endTime)
- elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
- write(*,"(A,1PG15.7,A)") '  total elapsed entire = ', elapsedTime, ' s'
 
  end subroutine irf_route
 
