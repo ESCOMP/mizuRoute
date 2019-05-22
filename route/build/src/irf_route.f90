@@ -99,17 +99,19 @@ contains
  do iOut=1,nOuts
 
   doMainstem = .false.
-  maxLevel = 1
-  do iLevel=1,size(river_basin(iOut)%level)
-    if (.not. allocated(river_basin(iOut)%level(iLevel)%mainstem)) cycle
-    if (iLevel > maxLevel) maxLevel = iLevel
-    doMainstem = .true. ! mainstem defined -> need to mainstem routing
-  end do
-  minLevel = size(river_basin(iOut)%level)
-  do iLevel=maxLevel,1,-1
-    if (.not. allocated(river_basin(iOut)%level(iLevel)%mainstem)) cycle
-    if (iLevel < minLevel) minLevel = iLevel
-  end do
+  if (allocated(river_basin(iOut)%level)) then
+    doMainstem = .true.
+    maxLevel = 1
+    do iLevel=1,size(river_basin(iOut)%level)
+      if (.not. allocated(river_basin(iOut)%level(iLevel)%mainstem)) cycle
+      if (iLevel > maxLevel) maxLevel = iLevel
+    end do
+    minLevel = size(river_basin(iOut)%level)
+    do iLevel=maxLevel,1,-1
+      if (.not. allocated(river_basin(iOut)%level(iLevel)%mainstem)) cycle
+      if (iLevel < minLevel) minLevel = iLevel
+    end do
+  endif
 
   nTrib=size(river_basin(iOut)%tributary)
 

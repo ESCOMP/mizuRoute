@@ -79,7 +79,6 @@ implicit none
 
  type,public :: basin
   integer(i4b)                 :: outIndex             ! index of outlet segment based on segment array
-!  type(reach), allocatable     :: mainstem(:)          ! mainstem level
   type(mslevel), allocatable   :: level(:)             ! mainstem reach
   type(reach), allocatable     :: tributary(:)         ! index of tributary outlet segment
  end type basin

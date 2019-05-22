@@ -353,7 +353,6 @@ contains
   ! global data
   USE globalData,           only : meta_PFAF                ! meta for pfafstetter code
   USE globalData,           only : NETOPO, RPARAM           ! network and parameter data structure used in routing routine
-  USE globalData,           only : river_basin              ! openMP river network decomposition
   ! variable index
   USE var_lookup,           only : ixPFAF                   ! index of variables for the pfafstetter code
   ! external subroutines
@@ -490,7 +489,6 @@ contains
   call classify_river_basin_omp(nRch_out,       & ! input
                                 structPFAF,     & ! input
                                 structNTOPO,    & ! input
-                                river_basin,    & ! output
                                 ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 

@@ -51,8 +51,6 @@ module globalData
 
   save
 
-
-
   ! ---------- constants ----------------------------------------------------------------------------
 
   ! true/false
@@ -140,7 +138,8 @@ module globalData
 
   ! domain data
   type(basin)     , allocatable  , public :: river_basin(:)       ! openMP domain decomposition
+
   ! miscellaneous
-  integer(i4b)                   , public :: ixPrint=integerMissing   ! index of desired reach to be on-screen print
+  integer(i4b)                   , public :: ixPrint=integerMissing    ! index of desired reach to be on-screen print
 
 end module globalData

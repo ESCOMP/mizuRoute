@@ -33,14 +33,14 @@ character(len=strLen)         :: cmessage            ! error message of downwind
 integer(i4b)                  :: iens = 1
 logical(lgt)                  :: finished=.false.
 !Timing
-!integer*8                     :: cr, startTime, endTime
-!real(dp)                      :: rate, elapsedTime
+integer*8                     :: cr, startTime, endTime
+real(dp)                      :: rate, elapsedTime
 
 ! ======================================================================================================
 ! ======================================================================================================
 ! Initialize the system_clock
-!CALL system_clock(count_rate=cr)
-!rate = real(cr)
+CALL system_clock(count_rate=cr)
+rate = real(cr)
 
 ! get command-line argument defining the full path to the control file
  call getarg(1,cfile_name)
@@ -74,26 +74,26 @@ do while (.not.finished)
   if(ierr/=0) call handle_err(ierr, cmessage)
 
   ! Get river network hru runoff at current time step
-!call system_clock(startTime)
+call system_clock(startTime)
   call get_hru_runoff(ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
-!call system_clock(endTime)
-!elapsedTime = real(endTime-startTime, kind(dp))/rate
-!write(*,"(A,1PG15.7,A)") '   elapsed-time [read_ro] = ', elapsedTime, ' s'
+call system_clock(endTime)
+elapsedTime = real(endTime-startTime, kind(dp))/rate
+write(*,"(A,1PG15.7,A)") '   elapsed-time [read_ro] = ', elapsedTime, ' s'
 
-!call system_clock(startTime)
+call system_clock(startTime)
   call serial_route(iens, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
-!call system_clock(endTime)
-!elapsedTime = real(endTime-startTime, kind(dp))/rate
-!write(*,"(A,1PG15.7,A)") '   elapsed-time [routing] = ', elapsedTime, ' s'
+call system_clock(endTime)
+elapsedTime = real(endTime-startTime, kind(dp))/rate
+write(*,"(A,1PG15.7,A)") '   elapsed-time [routing] = ', elapsedTime, ' s'
 
-!call system_clock(startTime)
+call system_clock(startTime)
   call output(ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
-!call system_clock(endTime)
-!elapsedTime = real(endTime-startTime, kind(dp))/rate
-!write(*,"(A,1PG15.7,A)") '   elapsed-time [output] = ', elapsedTime, ' s'
+call system_clock(endTime)
+elapsedTime = real(endTime-startTime, kind(dp))/rate
+write(*,"(A,1PG15.7,A)") '   elapsed-time [output] = ', elapsedTime, ' s'
 
   call update_time(finished, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
