@@ -238,7 +238,9 @@ contains
    ! extract the length information from the structure and place it in a vector
    allocate(seg_length(nSeg), stat=ierr, errmsg=cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage)//': seg_length'; return; endif
-   forall(iSeg=1:nSeg) seg_length(iSeg) = structSEG(iSeg)%var(ixSEG%length)%dat(1)
+   do iSeg = 1,nSeg
+     seg_length(iSeg) = structSEG(iSeg)%var(ixSEG%length)%dat(1)
+   end do
 
    ! compute lag times in the channel unit hydrograph
    call make_uh(seg_length, dt, velo, diff, temp_dat, ierr, cmessage)

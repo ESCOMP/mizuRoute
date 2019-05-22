@@ -128,10 +128,12 @@ contains
   ierr=0; message='classify_river_basin_omp/'
 
   ! put data structures into a seprate array
-  forall(iSeg=1:nSeg) pfafs(iSeg)     = structPFAF(iSeg)%var(ixPFAF%code)%dat(1)
-  forall(iSeg=1:nSeg) downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
-  forall(iSeg=1:nSeg) segIndex(iSeg)  = structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1)
-  forall(iSeg=1:nSeg) segOrder(iSeg)  = structNTOPO(iSeg)%var(ixNTOPO%rchOrder)%dat(1)
+  do iSeg = 1,nSeg
+   pfafs(iSeg)     = structPFAF(iSeg)%var(ixPFAF%code)%dat(1)
+   downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
+   segIndex(iSeg)  = structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1)
+   segOrder(iSeg)  = structNTOPO(iSeg)%var(ixNTOPO%rchOrder)%dat(1)
+  end do
 
   ! sorting reach processing order
   call indexx(segOrder,rankSegOrder)

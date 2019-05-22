@@ -125,8 +125,12 @@ contains
    allocate(basinID(nHRU), reachID(nRch), stat=ierr)
    if(ierr/=0)then; message=trim(message)//'problem allocating [basinID, reachID]'; return; endif
 
-   forall(iHRU=1:nHRU) basinID(iHRU) = structHRU2SEG(iHRU)%var(ixHRU2SEG%hruId)%dat(1)
-   forall(iRch=1:nRch) reachID(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
+   do iHRU = 1,nHRU
+     basinID(iHRU) = structHRU2SEG(iHRU)%var(ixHRU2SEG%hruId)%dat(1)
+   enddo
+   do iRch = 1,nRch
+     reachID(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
+   end do
 
    ! runoff and remap data initialization (TO DO: split runoff and remap initialization)
    call init_runoff(&
@@ -230,7 +234,8 @@ contains
    ! Cold start .......
    ! initialize flux structures
    RCHFLX(:,:)%BASIN_QI = 0._dp
-   forall(ix=0:1) RCHFLX(:,:)%BASIN_QR(ix) = 0._dp
+   RCHFLX(:,:)%BASIN_QR(0) = 0._dp
+   RCHFLX(:,:)%BASIN_QR(1) = 0._dp
 
    ! initialize time
    TSEC(0)=0._dp; TSEC(1)=dt
