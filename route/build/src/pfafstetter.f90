@@ -113,7 +113,7 @@ contains
   implicit none
   ! Input variables
   character(*), intent(in)               :: pfafs(:)         ! input: segment pfafstetter code list
-  character(*), intent(in)               :: pfaf_out         ! input: pfafstetter code at outlet segmet
+  character(*), intent(in)               :: pfaf_out         ! input: pfafstetter code at outlet segment
   integer(i4b), intent(in)               :: nLevel           ! input: from comLevel
   ! output variables
   logical(lgt), allocatable, intent(out) :: mainstem(:,:)    ! output:
