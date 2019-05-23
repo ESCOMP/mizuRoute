@@ -172,38 +172,21 @@ all: compile install clean
 #========================================================================
 # PART 3.5: External libaries that might need to be built
 #========================================================================
-CPPDEFS      = -DUSE_MPI_ISEND_FOR_FC
-CIMEROOT     = $(F_MASTER)../cime
-MCTDIR       = $(CIMEROOT)/src/externals/mct
-MPISERIALDIR = $(MCTDIR)/mpi-serial
-PIO2DIR      = $(CIMEROOT)/src/externals/pio2
 LIBDIR       = $(F_MASTER)build/lib
-PIOLIBDIR    = $(F_MASTER)build/lib/piolib
+PIOLIBDIR    = $(LIBDIR)/piolib
 PIOLIB       = $(PIOLIBDIR)/src/flib/libpiof.a $(PIOLIBDIR)/src/clib/libpioc.a
-PIOLIBMAKE   = $(PIOLIBDIR)/Makefile
-MPISERLIBDIR = $(F_MASTER)build/lib/mpi-seriallib
+MPISERLIBDIR = $(LIBDIR)/mpi-seriallib
 MPISERLIB    = $(MPISERLIBDIR)/libmpi-serial.a
-MPISERCONF   = $(MPISERLIBDIR)/Makefile.conf
-INCLDIR      = -I.
-CMAKE_OPTS   = 
 
 ifeq "$(isMPISERIAL)" "yes"
   EXTINCLUDES += -I$(MPISERLIBDIR)
   EXTLIBS += $(MPISERLIB)
-  MPISERIAL = $(MPISERLIB)
   LDFLAGS += -L$(MPISERLIBDIR) -lmpi-serial
-  CPPDEFS += -DNO_MPI2
-  INCLDIR += -I$(MPISERIALDIR)
   ifdef PNETCDF_PATH
     undefine PNETCDF_PATH
   endif
-  CMAKE_OPTS += -DMPI_C_INCLUDE_PATH=$(PIOLIBDIR) \
-      -DMPI_Fortran_INCLUDE_PATH=$(PIOLIBDIR) \
-      -DMPI_C_LIBRARIES=$(MPISERLIB) \
-      -DMPI_Fortran_LIBRARIES=$(MPISERLIB)
+  MPISERIAL = $(MPISERLIB)
 else
-  INCLDIR += -I$(MPI_ROOT)/include
-  CPPDEFS += -DHAVE_MPI
   MPISERIAL = 
 endif
 
@@ -212,54 +195,23 @@ ifeq "$(isPIO)" "yes"
   LDFLAGS += -L$(PIOLIBDIR)/src/flib -lpiof -L$(PIOLIBDIR)/src/clib -lpioc
 endif
 
-CMAKE_OPTS += -D CMAKE_Fortran_FLAGS:STRING="$(FLAGS) $(CPPDEFS) $(INCLDIR)" \
-              -D CMAKE_C_FLAGS:STRING="$(CFLAGS) $(CPPDEFS) $(INCLDIR)" \
-              -D CMAKE_CXX_FLAGS:STRING="$(CXXFLAGS) $(CPPDEFS) $(INCLDIR)" \
-              -D CMAKE_VERBOSE_MAKEFILE:BOOL=ON \
-              -D PIO_ENABLE_TESTS:BOOL=OFF \
-              -D USER_CMAKE_MODULE_PATH:LIST="$(CIMEROOT)/src/CMake;$(CIMEROOT)/src/externals/pio2/cmake"
-CMAKE_OPTS += -D NetCDF_PATH:PATH=$(NCDF_PATH)
-
-
-
-
 ifdef PNETCDF_PATH
-        CMAKE_OPTS += -D PnetCDF_PATH:STRING="$(PNETCDF_PATH)"
         LDFLAGS    += -L$(PNETCDF_PATH)/lib -lpnetcdf
-        CPPDEFS    += -D_PNETCDF
-        INCLDIR    += -I$(PNETCDF_PATH)/include
-else
-        CMAKE_OPTS += -D WITH_PNETCDF:LOGICAL=FALSE -D PIO_USE_MPIIO:LOGICAL=FALSE
 endif
-ifdef PIO_FILESYSTEM_HINTS
-        CMAKE_OPTS += -D PIO_FILESYSTEM_HINTS:STRING="$(PIO_FILESYSTEM_HINTS)"
-endif
-CMAKE_OPTS += -D GENF90_PATH=$(CIMEROOT)/src/externals/genf90
 
-$(MPISERCONF):
-	cp -p $(MPISERIALDIR)/*.h $(MPISERLIBDIR)/.
-	cd $(MPISERLIBDIR) && $(MPISERIALDIR)/configure FC=$(FC) MPIFC=$(FC_EXE) FCFLAGS="$(FLAGS) \
-                                              -I$(MPISERIALDIR)" MCT_PATH=$(MPISERIALDIR) --srcdir $(MPISERIALDIR)
-	ln -sf $(MPISERIALDIR)/Makefile $(MPISERLIBDIR)/Makefile
+$(PIOLIB): $(MPISERIAL)
+	cd $(LIBDIR); \
+	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) FC=$(FC) FC_EXE=$(FC_EXE) FLAGS="$(FLAGS)" \
+	PIO_FILESYSTEM_HINTS=$(PIO_FILESYSTEM_HINTS) PNETCDF_PATH=$(PNETCDF_PATH) isPIO=yes NCDF_PATH=$(NCDF_PATH) $(PIOLIB)
 
-$(MPISERLIB): $(MPISERCONF)
-	$(MAKE) $(MFLAGS) -C $(MPISERLIBDIR) SRCDIR=$(MCTDIR)
+$(MPISERLIB):
+	cd $(LIBDIR); \
+	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) FC=$(FC) FC_EXE=$(FC_EXE) FLAGS="$(FLAGS)" isMPISERIAL=yes $(MPISERLIB)
 
-cleanmpiseriallib:
-	$(MAKE) $(MFLAGS) -C $(MPISERLIBDIR) SRCDIR=$(MCTDIR) clean
-	rm $(MPISERCONF)
-
-cleanpiolib:
-	$(MAKE) $(MFLAGS) -C $(PIOLIBDIR) clean
-	rm $(PIOLIBDIR)/CMakeCache.txt
-	rm $(PIOLIBMAKE)
-
-$(PIOLIBMAKE): $(MPISERIAL)
-	cd $(PIOLIBDIR); \
-	$(CMAKE_ENV_VARS) cmake $(CMAKE_OPTS) $(PIO2DIR)
-
-$(PIOLIB): $(PIOLIBMAKE)
-	$(MAKE) $(MFLAGS) -C $(PIOLIBDIR)
+# Clean external libs
+cleanlibs:
+	cd $(LIBDIR); \
+	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) cleanpiolib cleanmpiseriallib
 
 #========================================================================
 # PART 4: Compile the puppy
