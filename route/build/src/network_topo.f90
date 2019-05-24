@@ -249,7 +249,7 @@ contains
  ! populate reach index
  do iRch = 1,nRch
   structNTOPO(iRch)%var(ixNTOPO%segIndex)%dat(1) = iRch
- endo
+ end do
 
  ! ---------- define the index of the downstream reach ID ----------------------------------------------------
 
