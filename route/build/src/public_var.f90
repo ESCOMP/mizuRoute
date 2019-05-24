@@ -29,8 +29,13 @@ module public_var
   ! routing related constants
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
 
-  ! river network related constants
+  ! MPI domain decomposition parameters
   integer(i4b),parameter,public   :: maxDomain=150000       ! maximum domains
+
+  ! openMP domain decompostion parameters
+  integer(i4b),parameter,public   :: maxSegs=100            ! maximum reach numbers within tributaries
+  integer(i4b),parameter,public   :: maxLevel=20            ! maximum mainstem levels used for OMP domain decomposition
+
 
   ! constants for general use
   real(dp),    parameter,public   :: MinPosVal=1.e-10_dp    ! minimum value for positive value
@@ -107,7 +112,7 @@ module public_var
   ! USER OPTIONS
   integer(i4b)         ,public    :: hydGeometryOption    = compute         ! option for hydraulic geometry calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: topoNetworkOption    = compute         ! option for network topology calculations (0=read from file, 1=compute)
-  integer(i4b)         ,public    :: computeReachList     = doNotCompute    ! option to compute list of upstream reaches (0=do not compute, 1=compute)
+  integer(i4b)         ,public    :: computeReachList     = compute         ! option to compute list of upstream reaches (0=do not compute, 1=compute)
   ! TIME
   character(len=strLen),public    :: time_units           = ''              ! time units (seconds, hours, or days)
   character(len=strLen),public    :: calendar             = ''              ! calendar name
@@ -116,6 +121,7 @@ module public_var
   integer(i4b)         ,public    :: routOpt              = integerMissing  ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
   integer(i4b)         ,public    :: desireId             = integerMissing  ! turn off checks or speficy reach ID if necessary to print on screen
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
+  integer(i4b)         ,public    :: doesAccumRunoff      = 1               ! option to delayed runoff accumulation over all the upstream reaches
   ! PFAFCODE
   integer(i4b)         ,public    :: maxPfafLen           = 32              ! maximum digit of pfafstetter code (default 32).
   character(len=1)     ,public    :: pfafMissing          = '0'             ! missing pfafcode (e.g., reach without any upstream area)

@@ -23,6 +23,7 @@ CONTAINS
  SUBROUTINE output(ierr, message)    ! out:   error control
   !Dependent modules
   USE public_var,          only : doesBasinRoute      ! basin routing options   0-> no, 1->IRF, otherwise error
+  USE public_var,          only : doesAccumRunoff     ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
   USE public_var,          only : routOpt             ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
   USE public_var,          only : kinematicWave       ! kinematic wave
   USE public_var,          only : impulseResponseFunc ! impulse response function
@@ -66,8 +67,10 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! write accumulated runoff (m3/s)
-  call write_nc(trim(fileout), 'sumUpstreamRunoff', RCHFLX(iens,:)%UPSTREAM_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if (doesAccumRunoff == 1) then
+   call write_nc(trim(fileout), 'sumUpstreamRunoff', RCHFLX(iens,:)%UPSTREAM_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
 
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
    ! write routed runoff (m3/s)

@@ -23,7 +23,7 @@ CONTAINS
                          ixDesire,      & ! input: ReachID to be checked by on-screen printing
                          NETOPO_in,     & ! input: reach topology data structure
                          RCHFLX_out,    & ! inout: reach flux data structure
-                         ierr, message, & ! outut: error controls
+                         ierr, message, & ! output: error controls
                          ixSubRch)        ! optional input: subset of reach indices to be processed
  ! ----------------------------------------------------------------------------------------
  ! Purpose:
