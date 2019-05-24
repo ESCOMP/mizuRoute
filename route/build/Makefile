@@ -191,6 +191,7 @@ else
 endif
 
 ifeq "$(isPIO)" "yes"
+  EXTINCLUDES += -I$(PIOLIBDIR)/src/flib -I$(PIOLIBDIR)/src/clib
   EXTLIBS += $(PIOLIB)
   LDFLAGS += -L$(PIOLIBDIR)/src/flib -lpiof -L$(PIOLIBDIR)/src/clib -lpioc
 endif

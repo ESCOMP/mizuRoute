@@ -40,10 +40,14 @@ $(MPISERIALDIR):
 $(PIO2DIR):
 	@echo "PIO2DIR does not exist: $(PIO2DIR)"
 
+ifeq "$(isPIO)" "yes"
+  INCLDIR += -I$(PIOLIBDIR) -I$(PIOLIBDIR)/src/flib -I$(PIOLIBDIR)/src/clib -I$(PIO2DIR)/src/clib
+endif
+
 ifeq "$(isMPISERIAL)" "yes"
   MPISERIAL = $(MPISERLIB)
   CPPDEFS += -DNO_MPI2
-  INCLDIR += -I$(MPISERIALDIR)
+  INCLDIR += -I$(MPISERIALDIR) -I$(MPISERLIBDIR)
   ifdef PNETCDF_PATH
     undefine PNETCDF_PATH
   endif
@@ -57,11 +61,13 @@ else
   MPISERIAL = 
 endif
 
+
 CMAKE_OPTS += -D CMAKE_Fortran_FLAGS:STRING="$(FLAGS) $(CPPDEFS) $(INCLDIR)" \
               -D CMAKE_C_FLAGS:STRING="$(CFLAGS) $(CPPDEFS) $(INCLDIR)" \
               -D CMAKE_CXX_FLAGS:STRING="$(CXXFLAGS) $(CPPDEFS) $(INCLDIR)" \
               -D CMAKE_VERBOSE_MAKEFILE:BOOL=ON \
               -D PIO_ENABLE_TESTS:BOOL=OFF \
+              -D PIO_ENABLE_TIMING:BOOL=OFF \
               -D USER_CMAKE_MODULE_PATH:LIST="$(CIMEROOT)/src/CMake;$(CIMEROOT)/src/externals/pio2/cmake"
 CMAKE_OPTS += -D NetCDF_PATH:PATH=$(NCDF_PATH)
 
