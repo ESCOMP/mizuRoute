@@ -203,6 +203,10 @@ contains
    ! initialize error control
    ierr=0; message='update_time/'
 
+   ! update model time step bound
+   TSEC(0) = TSEC(0) + dt
+   TSEC(1) = TSEC(0) + dt
+
    if (abs(modJulday-endJulday)<verySmall) then
      finished=.true.;return
    endif
@@ -212,10 +216,6 @@ contains
 
    ! update the julian day of the model simulation
    modJulday = refJulday + timeVar(iTime)
-
-   ! update model time step bound
-   TSEC(0) = TSEC(0) + dt
-   TSEC(1) = TSEC(0) + dt
 
  end subroutine update_time
 
