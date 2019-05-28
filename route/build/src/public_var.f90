@@ -100,7 +100,7 @@ module public_var
   ! USER OPTIONS
   integer(i4b)         ,public    :: hydGeometryOption    = compute         ! option for hydraulic geometry calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: topoNetworkOption    = compute         ! option for network topology calculations (0=read from file, 1=compute)
-  integer(i4b)         ,public    :: computeReachList     = doNotCompute    ! option to compute list of upstream reaches (0=do not compute, 1=compute)
+  integer(i4b)         ,public    :: computeReachList     = compute         ! option to compute list of upstream reaches (0=do not compute, 1=compute)
   ! TIME
   character(len=strLen),public    :: time_units           = ''              ! time units (seconds, hours, or days)
   character(len=strLen),public    :: calendar             = ''              ! calendar name

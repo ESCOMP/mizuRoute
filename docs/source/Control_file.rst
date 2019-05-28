@@ -134,68 +134,209 @@ Often case, river network data has different variable names than defaults. In th
 See :doc:`River parameters <seg_hru_param>`.   
 
 
+Control file examples
+---------------------
 
+These are examples for three cases of runoff input. These are just templates to start with. 
+Users need to specify appropreate directories, netCDF variables/dimension names based on their data
 
-Examples
+Option 1 - runoff input is given at RN_HRU::
 
-Option 1 - HM_HRU runoff input::
-
-  ! ****************************************************************************************************************************
-  ! ***** DEFINITION OF MODEL CONTROL INFORMATION ******************************************************************************
-  ! ****************************************************************************************************************************
-  ! ****************************************************************************************************************************
+  ! *************************************************************************************************************************
+  ! ***** DEFINITION OF MODEL CONTROL INFORMATION ***************************************************************************
+  ! *************************************************************************************************************************
+  ! *************************************************************************************************************************
   ! Note: lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines.
   !    lines starting with <xxx> are read till "!" 
   !
   ! *************************************************************************************************************************
-  ! PART 1: DEFINE DIRECTORIES 
+  ! DEFINE DIRECTORIES 
   ! --------------------------
-  <ancil_dir>    ./ancillary_data/                    ! directory containing ancillary data (river network, remapping netCDF)
-  <input_dir>    ./input/                             ! directory containing input data (runoff netCDF)
-  <output_dir>   ./output/                            ! directory containing output data
+  <ancil_dir>         ./ancillary_data/               ! directory containing ancillary data (river network, remapping netCDF)
+  <input_dir>         ./input/                        ! directory containing input data (runoff netCDF)
+  <output_dir>        ./output/                       ! directory containing output data
   ! *************************************************************************************************************************
-  ! PART 2: DEFINE TIME PERIOD OF THE SIMULATION
+  ! DEFINE TIME PERIOD OF THE SIMULATION
   ! --------------------------------------------
   <sim_start>         1950-1-1 00:00:00               ! time of simulation start (year-month-day hh:mm:ss)
   <sim_end>           1951-1-1 00:00:00               ! time of simulation end (year-month-day hh:mm:ss)
   ! **************************************************************************************************************************
-  ! PART 3: DEFINE FINE NAME AND DIMENSIONS
+  ! DEFINE FINE NAME AND DIMENSIONS
   ! ---------------------------------------
-  <fname_ntopOld>    ntopo_entire.nc                  ! name of netCDF containing river segment data 
-  <dname_sseg>       seg                              ! dimension name of the stream segments
-  <dname_nhru>       hru                              ! dimension name of the HRUs
+  <fname_ntopOld>     ntopo_entire.nc                 ! name of netCDF containing river segment data 
+  <dname_sseg>        seg                             ! dimension name of the stream segments
+  <dname_nhru>        hru                             ! dimension name of the RN_HRUs
   ! **************************************************************************************************************************
-  ! PART 4: DEFINE DESIRED VARIABLES FOR THE NETWORK TOPOLOGY
+  ! DEFINE DESIRED VARIABLES FOR THE NETWORK TOPOLOGY
   ! ---------------------------------------------------------
-  <seg_outlet>  -9999                                 ! reach ID of outlet streamflow segment. -9999 for all segments 
+  <seg_outlet>        -9999                           ! reach ID of outlet streamflow segment. -9999 for all segments 
   ! **************************************************************************************************************************
-  ! PART 5: DEFINE RUNOFF FILE
+  ! DEFINE RUNOFF FILE
   ! ----------------------------------
-  <fname_qsim>  runoff.HM_HRU.nc                      ! name of netCDF containing the HRU runoff
-  <vname_qsim>  RUNOFF                                ! name of HRU runoff variable
-  <vname_time>  time                                  ! name of time variable in the runoff file
-  <vname_hruid> hru                                   ! name of runoff HRU id variable
-  <dname_time>  time                                  ! name of time dimension 
-  <dname_hruid> hru                                   ! name of the HRU dimension 
-  <units_qsim>  mm/s                                  ! units of runoff
-  <dt_qsim>     86400                                 ! time interval of the runoff
+  <fname_qsim>        runoff.RN_HRU.nc                ! name of netCDF containing the runoff
+  <vname_qsim>        RUNOFF                          ! variable name of HRU runoff
+  <vname_time>        time                            ! variable name of time in the runoff file
+  <vname_hruid>       hru                             ! variable name of runoff HRU ID
+  <dname_time>        time                            ! dimension name of time
+  <dname_hruid>       hru                             ! dimension name of HM_HRU
+  <units_qsim>        mm/s                            ! units of runoff
+  <dt_qsim>           86400                           ! time interval of the runoff
   ! **************************************************************************************************************************
-  ! PART 6: DEFINE RUNOFF MAPPING FILE 
+  ! DEFINE RUNOFF MAPPING FILE 
   ! ----------------------------------
-  <is_remap>    F                                     ! logical to indicate runnoff needs to be mapped to river network HRU 
+  <is_remap>          F                               ! logical to indicate runnoff needs to be mapped to river network HRU 
   ! **************************************************************************************************************************
-  ! PART 7 DEFINE RUN CONTROL 
+  ! DEFINE RUN CONTROL 
   ! ---------------------------
-  <route_opt>   0                                     ! option for routing schemes 0-> both, 1->IRF, 2->KWT otherwise error 
+  <route_opt>         0                               ! option for routing schemes 0-> both, 1->IRF, 2->KWT otherwise error 
+  <restart_opt>           F                                 ! option to use saved flow states T->yes, F->No 
   ! **************************************************************************************************************************
-  ! PART 8: DEFINE OUTPUT FILE
+  ! DEFINE OUTPUT FILE
   ! ---------------------------
-  <fname_output>    flow_                             ! prefix of netCDF for the model output (netCDF name = flow_nomapping_yyyy.nc)
-  <fname_state_in>  state.in.nc                       ! netCDF name for the model state input 
-  <fname_state_out> state.out.nc                      ! netCDF name for the channel state output 
+  <fname_output>      flow                            ! prefix of output netCDF name (netCDF name = flow_nomapping_yyyy.nc)
+  <fname_state_in>    state.in.nc                     ! netCDF name for the model state input 
+  <fname_state_out>   state.out.nc                    ! netCDF name for the channel state output 
   ! **************************************************************************************************************************
-  ! PART 10: Namelist file name 
+  ! Namelist file name 
   ! ---------------------------
-  <param_nml>    param.nml.default                    ! spatially constant model parameters    
+  <param_nml>         param.nml.default               ! spatially constant model parameters    
   ! **************************************************************************************************************************
 
+Option 2 - runoff input is given at HM_HRU::
+
+  ! *************************************************************************************************************************
+  ! ***** DEFINITION OF MODEL CONTROL INFORMATION ***************************************************************************
+  ! *************************************************************************************************************************
+  ! *************************************************************************************************************************
+  ! Note: lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines.
+  !    lines starting with <xxx> are read till "!" 
+  !
+  ! *************************************************************************************************************************
+  ! DEFINE DIRECTORIES 
+  ! --------------------------
+  <ancil_dir>             ./ancillary_data/                ! directory containing ancillary data (river network, remapping netCDF)
+  <input_dir>             ./input/                         ! directory containing input data (runoff netCDF)
+  <output_dir>            ./output/                        ! directory containing output data
+  ! *************************************************************************************************************************
+  ! DEFINE TIME PERIOD OF THE SIMULATION
+  ! --------------------------------------------
+  <sim_start>             1950-1-1 00:00:00                ! time of simulation start (year-month-day hh:mm:ss)
+  <sim_end>               1951-1-1 00:00:00                ! time of simulation end (year-month-day hh:mm:ss)
+  ! **************************************************************************************************************************
+  ! DEFINE FINE NAME AND DIMENSIONS
+  ! ---------------------------------------
+  <fname_ntopOld>         ntopo_entire.nc                  ! name of netCDF containing river segment data 
+  <dname_sseg>            seg                              ! dimension name of the stream segments
+  <dname_nhru>            hru                              ! dimension name of the RN_HRUs
+  ! **************************************************************************************************************************
+  ! DEFINE DESIRED VARIABLES FOR THE NETWORK TOPOLOGY
+  ! ---------------------------------------------------------
+  <seg_outlet>            -9999                            ! reach ID of outlet streamflow segment. -9999 for all segments 
+  ! **************************************************************************************************************************
+  ! DEFINE RUNOFF FILE
+  ! ----------------------------------
+  <fname_qsim>            runoff.HM_HRU.nc                 ! name of netCDF containing the HRU runoff
+  <vname_qsim>            RUNOFF                           ! variable name of HRU runoff
+  <vname_time>            time                             ! variable name of time in the runoff file
+  <vname_hruid>           hru                              ! variable name of runoff HRU ID
+  <dname_time>            time                             ! dimension name of time
+  <dname_hruid>           hru                              ! dimension name of HM_HRU
+  <units_qsim>            mm/s                             ! units of runoff
+  <dt_qsim>               86400                            ! time interval of the runoff
+  ! **************************************************************************************************************************
+  ! DEFINE RUNOFF MAPPING FILE 
+  ! ----------------------------------
+  <is_remap>              T                                 ! logical to indicate runnoff needs to be mapped to RN_HRU 
+  <fname_remap>           spatialweights_HM_HRU_RN_HRU.nc   ! name of netCDF for HM_HRU-RN_HRU mapping data
+  <vname_hruid_in_remap>  polyid                            ! variable name of RN_HRU in the mapping file
+  <vname_weight>          weight                            ! variable name of areal weights of overlapping HM_HUs for each RN_HRU
+  <vname_qhruid>          overlapPolyId                     ! variable name of HM_HRU ID
+  <vname_num_qhru>        overlaps                          ! variable name of numbers of HM_HRUs for each RN_HRU
+  <dname_hru_remap>       polyid                            ! dimension name of RN_HRU (in the mapping file)
+  <dname_data_remap>      data                              ! dimension name of ragged HM_HRU
+  ! **************************************************************************************************************************
+  ! DEFINE RUN CONTROL 
+  ! ---------------------------
+  <route_opt>             0                                 ! option for routing schemes 0-> both, 1->IRF, 2->KWT otherwise error 
+  <restart_opt>           F                                 ! option to use saved flow states T->yes, F->No 
+  ! **************************************************************************************************************************
+  ! DEFINE OUTPUT FILE
+  ! ---------------------------
+  <fname_output>          flow                              ! prefix of output netCDF name (netCDF name = flow_nomapping_yyyy.nc)
+  <fname_state_in>        state.in.nc                       ! netCDF name for the model state input 
+  <fname_state_out>       state.out.nc                      ! netCDF name for the channel state output 
+  ! **************************************************************************************************************************
+  ! Namelist file name 
+  ! ---------------------------
+  <param_nml>             param.nml.default                 ! spatially constant model parameters    
+  ! **************************************************************************************************************************
+
+Option 3 - runoff input is given at grid::
+
+  ! *************************************************************************************************************************
+  ! ***** DEFINITION OF MODEL CONTROL INFORMATION ***************************************************************************
+  ! *************************************************************************************************************************
+  ! *************************************************************************************************************************
+  ! Note: lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines.
+  !    lines starting with <xxx> are read till "!" 
+  !
+  ! *************************************************************************************************************************
+  ! DEFINE DIRECTORIES 
+  ! --------------------------
+  <ancil_dir>             ./ancillary_data/                ! directory containing ancillary data (river network, remapping netCDF)
+  <input_dir>             ./input/                         ! directory containing input data (runoff netCDF)
+  <output_dir>            ./output/                        ! directory containing output data
+  ! *************************************************************************************************************************
+  ! DEFINE TIME PERIOD OF THE SIMULATION
+  ! --------------------------------------------
+  <sim_start>             1950-1-1 00:00:00                ! time of simulation start (year-month-day hh:mm:ss)
+  <sim_end>               1951-1-1 00:00:00                ! time of simulation end (year-month-day hh:mm:ss)
+  ! **************************************************************************************************************************
+  ! DEFINE FINE NAME AND DIMENSIONS
+  ! ---------------------------------------
+  <fname_ntopOld>         ntopo_entire.nc                  ! name of netCDF containing river segment data 
+  <dname_sseg>            seg                              ! dimension name of the stream segments
+  <dname_nhru>            hru                              ! dimension name of the RN_HRUs
+  ! **************************************************************************************************************************
+  ! DEFINE DESIRED VARIABLES FOR THE NETWORK TOPOLOGY
+  ! ---------------------------------------------------------
+  <seg_outlet>            -9999                            ! reach ID of outlet streamflow segment. -9999 for all segments 
+  ! **************************************************************************************************************************
+  ! DEFINE RUNOFF FILE
+  ! ----------------------------------
+  <fname_qsim>            runoff.HM_HRU.nc                 ! name of netCDF containing the HRU runoff
+  <vname_qsim>            RUNOFF                           ! variable name of HRU runoff
+  <vname_time>            time                             ! variable name of time in the runoff file
+  <dname_time>            time                             ! dimension name of time
+  <dname_xlon>            lon                              ! dimension name of x(j)
+  <dname_ylat>            lat                              ! dimension name of y(i)
+  <units_qsim>            mm/s                             ! units of runoff
+  <dt_qsim>               86400                            ! time interval of the runoff
+  ! **************************************************************************************************************************
+  ! DEFINE RUNOFF MAPPING FILE 
+  ! ----------------------------------
+  <is_remap>              T                                 ! logical to indicate runnoff needs to be mapped to RN_HRU 
+  <fname_remap>           spatialweights_HM_HRU_RN_HRU.nc   ! name of netCDF for HM_HRU-RN_HRU mapping data
+  <vname_hruid_in_remap>  polyid                            ! variable name of RN_HRU in the mapping file
+  <vname_weight>          weight                            ! variable name of areal weights of overlapping HM_HUs for each RN_HRU
+  <vname_i_index>         i_index                           ! variable name of ylat index
+  <vname_j_index>         j_index                           ! variable name of xlon index
+  <vname_num_qhru>        overlaps                          ! variable name of numbers of HM_HRUs for each RN_HRU
+  <dname_hru_remap>       polyid                            ! dimension name of RN_HRU (in the mapping file)
+  <dname_data_remap>      data                              ! dimension name of ragged HM_HRU
+  ! **************************************************************************************************************************
+  ! DEFINE RUN CONTROL 
+  ! ---------------------------
+  <route_opt>             0                                 ! option for routing schemes 0-> both, 1->IRF, 2->KWT otherwise error 
+  <restart_opt>           F                                 ! option to use saved flow states T->yes, F->No 
+  ! **************************************************************************************************************************
+  ! DEFINE OUTPUT FILE
+  ! ---------------------------
+  <fname_output>          flow                              ! prefix of output netCDF name (netCDF name = flow_nomapping_yyyy.nc)
+  <fname_state_in>        state.in.nc                       ! netCDF name for the model state input 
+  <fname_state_out>       state.out.nc                      ! netCDF name for the channel state output 
+  ! **************************************************************************************************************************
+  ! Namelist file name 
+  ! ---------------------------
+  <param_nml>             param.nml.default                 ! spatially constant model parameters    
+  ! **************************************************************************************************************************

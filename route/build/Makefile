@@ -18,6 +18,9 @@ FC_EXE =
 # do not put space at the end of path
 F_MASTER =
 
+# Define the compiled executable
+EXE = 
+
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
  NCDF_PATH = /opt/local
@@ -116,13 +119,10 @@ TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(INIT) $(MODSIM)
 MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
 
 #========================================================================
-# PART 2: Define driver programs, and executables
+# PART 2: Define driver programs
 #========================================================================
 # Define the driver routine
 DRIVER = $(F_KORE_DIR)route_runoff.f90
-
-# Define the executable
-EXE = 
 
 #========================================================================
 # PART 4: Compile the puppy

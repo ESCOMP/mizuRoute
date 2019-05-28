@@ -9,4 +9,5 @@ Welcome to mizuRoute v1.1 documentation!
    Input_data 
    Control_file
    seg_hru_param
+   testCase
 
