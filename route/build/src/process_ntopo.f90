@@ -8,7 +8,6 @@ USE dataTypes, only : var_dlength,dlength ! double precision type: var(:)%dat, o
 
 ! global vars
 USE public_var, only : idSegOut           ! ID for stream segment at the bottom of the subset
-
 ! options
 USE public_var, only : topoNetworkOption  ! option to compute network topology
 USE public_var, only : computeReachList   ! option to compute reach list
@@ -36,6 +35,7 @@ implicit none
 
 ! privacy -- everything private unless declared explicitly
 private
+public::check_river_properties
 public::augment_ntopo
 public::put_data_struct
 
@@ -296,6 +296,56 @@ contains
 end subroutine augment_ntopo
 
  ! *********************************************************************
+ ! public subroutine: check network data is physically valid
+ ! *********************************************************************
+ subroutine check_river_properties(structNTOPO, structHRU, structSEG, &  ! input: data structure for physical river network data
+                                   ierr, message)
+  ! saved global data
+  USE public_var,    only : min_slope          ! minimum slope
+  implicit none
+  ! input
+  type(var_ilength)           , intent(in)       :: structNTOPO(:)   ! network topology
+  type(var_dlength)           , intent(inout)    :: structHRU(:)     ! HRU properties
+  type(var_dlength)           , intent(inout)    :: structSEG(:)     ! stream reach properties
+  ! output: error control
+  integer(i4b)                , intent(out)      :: ierr             ! error code
+  character(*)                , intent(out)      :: message          ! error message
+  ! local varialbles
+  integer(i4b)                                   :: nSeg,nHru        ! number of stream reaches and HRUs
+  integer(i4b)                                   :: iSeg,iHru        ! loop indices
+
+  ! initialize error control
+  ierr=0; message='check_river_properties/'
+
+  nSeg = size(structSEG)
+  nHru = size(structHRU)
+
+  ! check reach
+  do iSeg = 1,nSeg
+    associate(segId => structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1))
+    ! Check reach length
+    if (structSEG(iSeg)%var(ixSEG%length)%dat(1) <= 0 )then
+     ierr=10
+     write(message,'(a,i0,a,1PG15.7)') trim(message)//'reach length for reach id ', segId, ' is negative:', structSEG(iSeg)%var(ixSEG%length)%dat(1)
+     return
+    endif
+
+    ! Check reach slope
+    if (structSEG(iSeg)%var(ixSEG%slope)%dat(1) < min_slope) then
+     write(*,'(a,i0,a,1PG15.7)') 'WARNING: reach slope for reach id ', segId, ' is negative. Use min_slope: ', min_slope
+     structSEG(iSeg)%var(ixSEG%slope)%dat(1) = min_slope
+    endif
+    end associate
+  enddo
+
+  ! check HRU
+  do iHru = 1,nHru
+
+  enddo
+
+  end subroutine check_river_properties
+
+ ! *********************************************************************
  ! public subroutine: populate old data strucutures
  ! *********************************************************************
  ! ---------- temporary code: populate old data structures --------------------------------------------------
@@ -346,7 +396,7 @@ end subroutine augment_ntopo
 
    ! copy data into the reach parameter structure
    RPARAM_in(iSeg)%RLENGTH =     structSEG(iSeg)%var(ixSEG%length)%dat(1)
-   RPARAM_in(iSeg)%R_SLOPE = max(structSEG(iSeg)%var(ixSEG%slope)%dat(1), min_slope)
+   RPARAM_in(iSeg)%R_SLOPE =     structSEG(iSeg)%var(ixSEG%slope)%dat(1)
    RPARAM_in(iSeg)%R_MAN_N =     structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
    RPARAM_in(iSeg)%R_WIDTH =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
 
