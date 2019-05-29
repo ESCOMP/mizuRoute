@@ -95,8 +95,12 @@ contains
  ! ---------- get the index of the stream segment that a given HRU drains into ------------------------------
 
  ! get input vectors
- forall(iSeg=1:nSeg) segId(iSeg)    = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)
- forall(iHRU=1:nHRU) hruSegId(iHRU) = structHRU2seg(iHRU)%var(ixHRU2seg%hruSegId)%dat(1)
+ do iSeg = 1, nSeg
+  segId(iSeg)    = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)
+ end do
+ do iHRU = 1, nHRU
+  hruSegId(iHRU) = structHRU2seg(iHRU)%var(ixHRU2seg%hruSegId)%dat(1)
+ end do
 
  call downReachIndex(&
                      ! input
@@ -111,7 +115,9 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! populate data structure
- forall(iHRU=1:nHRU) structHRU2seg(iHRU)%var(ixHRU2seg%hruSegIndex)%dat(1) = segHRUix(iHRU)
+ do iHRU = 1, nHRU
+   structHRU2seg(iHRU)%var(ixHRU2seg%hruSegIndex)%dat(1) = segHRUix(iHRU)
+ end do
 
  ! get the total number of HRUs that drain into any segments
  total_hru = sum(nHRU2seg)
@@ -241,7 +247,9 @@ contains
  ierr=0; message='up2downSegment/'
 
  ! populate reach index
- forall(iRch=1:nRch) structNTOPO(iRch)%var(ixNTOPO%segIndex)%dat(1) = iRch
+ do iRch = 1,nRch
+  structNTOPO(iRch)%var(ixNTOPO%segIndex)%dat(1) = iRch
+ enddo
 
  ! ---------- define the index of the downstream reach ID ----------------------------------------------------
 
@@ -307,7 +315,9 @@ contains
  where(downIndex==integerMissing) downIndex=-1
 
  ! populate data structures
- forall(iRch=1:nRch) structNTOPO(iRch)%var(ixNTOPO%downSegIndex)%dat(1) = downIndex(iRch)
+ do iRch=1,nRch
+  structNTOPO(iRch)%var(ixNTOPO%downSegIndex)%dat(1) = downIndex(iRch)
+ end do
 
  end subroutine up2downSegment
 
@@ -758,7 +768,9 @@ contains
   ixHRU_map(:) = integerMissing
 
   ! find the index of the reach
-  forall(iRch=1:nRch) idSeg_vec(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
+  do iRch = 1,nRch
+   idSeg_vec(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
+  end do
   ixDesire = findIndex(idSeg_vec,desireId,integerMissing)
   if(ixDesire==integerMissing)then
    message=trim(message)//'unable to find index of desired reach id'

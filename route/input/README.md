@@ -1,2 +1,2 @@
-# Contents in ancillary_data 
+# Contents in input
  1. runoff netCDF

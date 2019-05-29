@@ -198,7 +198,7 @@ contains
  do jDim=1,size(meta_dims)
 
   ! HRUs and stream segments are not ragged, so cycle
-  if(jDim==ixDims%hru .or. jDim==ixDims%seg) cycle
+  if(jDim==ixDims%hru .or. jDim==ixDims%seg .or. jDim==ixDims%pfaf) cycle
   ! if dimension is not used
   if (.not.dimCheck(jDim)) cycle
 
