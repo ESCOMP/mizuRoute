@@ -23,6 +23,7 @@ LIBOPENMP =
 # NOTE: We haven't tested with using PNETCDF
 isMPISERIAL =
 isPIO =
+isGPTL = 
  
 PNETCDF_PATH =
 
@@ -174,7 +175,8 @@ all: compile install clean
 #========================================================================
 LIBDIR       = $(F_MASTER)build/lib
 PIOLIBDIR    = $(LIBDIR)/piolib
-PIOLIB       = $(PIOLIBDIR)/src/flib/libpiof.a $(PIOLIBDIR)/src/clib/libpioc.a
+PIOINCDIR    = $(LIBDIR)/piolib
+PIOLIB       = $(PIOLIBDIR)/libpiof.a $(PIOLIBDIR)/libpioc.a
 MPISERLIBDIR = $(LIBDIR)/mpi-seriallib
 MPISERLIB    = $(MPISERLIBDIR)/libmpi-serial.a
 
@@ -191,9 +193,13 @@ else
 endif
 
 ifeq "$(isPIO)" "yes"
-  EXTINCLUDES += -I$(PIOLIBDIR)/src/flib -I$(PIOLIBDIR)/src/clib
+  EXTINCLUDES += -I$(PIOINCDIR)
   EXTLIBS += $(PIOLIB)
-  LDFLAGS += -L$(PIOLIBDIR)/src/flib -lpiof -L$(PIOLIBDIR)/src/clib -lpioc
+  LDFLAGS += -L$(PIOLIBDIR) -lpiof -lpioc
+
+  ifeq "$(isGPTL)" "yes"
+     LDFLAGS += -lgptl
+  endif
 endif
 
 ifdef PNETCDF_PATH
