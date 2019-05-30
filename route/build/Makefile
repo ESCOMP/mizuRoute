@@ -216,9 +216,19 @@ $(MPISERLIB):
 	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) FC=$(FC) FC_EXE=$(FC_EXE) FLAGS="$(FLAGS)" isMPISERIAL=yes $(MPISERLIB)
 
 # Clean external libs
-cleanlibs:
+cleanlibs: cleanpiolib cleanmpiseriallib
+	@echo "Clean the pio and mpi-serial external libraries"
+.PHONY : cleanlibs
+
+cleanpiolib:
 	cd $(LIBDIR); \
-	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) cleanpiolib cleanmpiseriallib
+	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) cleanpiolib
+.PHONY : cleanpiolib
+
+cleanmpiseriallib:
+	cd $(LIBDIR); \
+	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) cleanmpiseriallib
+.PHONY : cleanmpiseriallib
 
 #========================================================================
 # PART 4: Compile the puppy

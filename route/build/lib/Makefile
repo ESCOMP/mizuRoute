@@ -102,14 +102,17 @@ $(MPISERCONF):
 $(MPISERLIB): $(MPISERCONF)
 	$(MAKE) $(MFLAGS) -C $(MPISERLIBDIR) SRCDIR=$(MCTDIR)
 
+cleanlibs: cleanmpiseriallib cleanpiolib
+	@echo "Clean the libraries"
+.PHONY : cleanlibs
+
 cleanmpiseriallib:
-	rm $(MPISERLIBDIR)/*.h
-	rm $(MPISERLIB)
-	rm $(MPISERCONF)
-	rm $(MPISERLIBDIR)/Makefile
+	rm $(MPISERLIBDIR)/*.h $(MPISERLIB) $(MPISERCONF) $(MPISERLIBDIR)/Makefile
+.PHONY : cleanmpiseriallib
 
 cleanpiolib:
-	rm -rf $(PIOLIBDIR)/CMake*
+	rm $(PIOLIBDIR)/CMake* $(PIOLIBDIR)/*.cmake $(PIOLIBDIR)/*.h $(PIOLIB) $(PIOLIBDIR)/include/* $(PIOLIBMAKE)
+.PHONY : cleanpiolib
 
 $(PIOLIBMAKE): $(MPISERIAL)
 	cd $(PIOLIBDIR); \
@@ -138,4 +141,5 @@ db_extlibs:
 	@echo "FLAGS:       "     $(FLAGS)
 	@echo "CMAKE_OPTS:  "     $(CMAKE_OPTS)
 	@echo "CMAKE_ENV_VARS:"   $(CMAKE_ENV_VARS)
+.PHONY : db_extlibs
 
