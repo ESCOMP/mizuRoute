@@ -19,8 +19,8 @@ FLAGS_OMP =
 LIBOPENMP =
 
 # define if should use external librarys (yes if used)
+# external librarys are: mpi-serial, Parallel-I/O, and GPTL timing library
 # define path to PNETCDF if you want to use it
-# NOTE: We haven't tested with using PNETCDF
 isMPISERIAL =
 isPIO =
 isGPTL = 
@@ -209,7 +209,8 @@ endif
 $(PIOLIB): $(MPISERIAL)
 	cd $(LIBDIR); \
 	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) FC=$(FC) FC_EXE=$(FC_EXE) FLAGS="$(FLAGS)" \
-	PIO_FILESYSTEM_HINTS=$(PIO_FILESYSTEM_HINTS) PNETCDF_PATH=$(PNETCDF_PATH) isPIO=yes NCDF_PATH=$(NCDF_PATH) $(PIOLIB)
+	PIO_FILESYSTEM_HINTS=$(PIO_FILESYSTEM_HINTS) PNETCDF_PATH=$(PNETCDF_PATH) isPIO=yes isGPTL=$(isGPTL) \
+	MPIINC_PATHLIST=$(CPATH) NCDF_PATH=$(NCDF_PATH) $(PIOLIB)
 
 $(MPISERLIB):
 	cd $(LIBDIR); \

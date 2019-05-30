@@ -22,6 +22,7 @@ PIOLIBMAKE   = $(PIOLIBDIR)/Makefile
 MPISERLIBDIR = $(F_MASTER)build/lib/mpi-seriallib
 MPISERLIB    = $(MPISERLIBDIR)/libmpi-serial.a
 MPISERCONF   = $(MPISERLIBDIR)/Makefile.conf
+MPIINC_PATHLIST  = $(CPATH)
 INCLDIR      = -I.
 CMAKE_OPTS   = 
 
@@ -56,7 +57,9 @@ ifeq "$(isMPISERIAL)" "yes"
       -DMPI_C_LIBRARIES=$(MPISERLIB) \
       -DMPI_Fortran_LIBRARIES=$(MPISERLIB)
 else
-  INCLDIR += -I$(MPI_ROOT)/include
+  # Change colon delimited list to space with a -I in front of each
+  MPIINC   = $(subst :, -I,$(MPIINC_PATHLIST))
+  INCLDIR += -I$(MPIINC)
   CPPDEFS += -DHAVE_MPI
   MPISERIAL = 
 endif
@@ -111,7 +114,7 @@ cleanmpiseriallib:
 .PHONY : cleanmpiseriallib
 
 cleanpiolib:
-	rm $(PIOLIBDIR)/CMake* $(PIOLIBDIR)/*.cmake $(PIOLIBDIR)/*.h $(PIOLIB) $(PIOLIBDIR)/include/* $(PIOLIBMAKE)
+	rm -rf $(PIOLIBDIR)/CMake* $(PIOLIBDIR)/*.cmake $(PIOLIBDIR)/*.h $(PIOLIB) $(PIOLIBDIR)/include/* $(PIOLIBMAKE)
 .PHONY : cleanpiolib
 
 $(PIOLIBMAKE): $(MPISERIAL)
@@ -135,6 +138,8 @@ db_extlibs:
 	@echo "mpi-serialconf:  " $(MPISERCONF)
 	@echo "piolib:    "       $(PIOLIB)
 	@echo "piolib:Make"       $(PIOLIBMAKE)
+	@echo "MPIINC_PATHLIST: " $(MPIINC_PATHLIST)
+	@echo "INCLDIR      "     $(INCLDIR)
 	@echo "AR:          "     $(AR)
 	@echo "MAKE:        "     $(MAKE)
 	@echo "MFLAGS:      "     $(MFLAGS)
