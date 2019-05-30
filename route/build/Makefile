@@ -174,8 +174,8 @@ all: compile install clean
 # PART 3.5: External libaries that might need to be built
 #========================================================================
 LIBDIR       = $(F_MASTER)build/lib
-PIOLIBDIR    = $(LIBDIR)/piolib
-PIOINCDIR    = $(LIBDIR)/piolib
+PIOLIBDIR    = $(LIBDIR)/piolib/lib
+PIOINCDIR    = $(LIBDIR)/piolib/include
 PIOLIB       = $(PIOLIBDIR)/libpiof.a $(PIOLIBDIR)/libpioc.a
 MPISERLIBDIR = $(LIBDIR)/mpi-seriallib
 MPISERLIB    = $(MPISERLIBDIR)/libmpi-serial.a
