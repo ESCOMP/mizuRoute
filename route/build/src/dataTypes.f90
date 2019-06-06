@@ -70,6 +70,7 @@ implicit none
  ! segOrder is order within subset of mainstem segments or tributary segments
  type,public :: subbasin_mpi
   character(32)              :: pfaf                  ! subbasin pfaf code - mainstem starting "-"
+  integer(i4b)               :: basinType             ! basin type identifier 0->mainstem, 1->tributary
   integer(i4b)               :: idNode                ! node ID
   integer(i4b)               :: outletIndex           ! reach index of a domain outlet
   integer(i4b),  allocatable :: segIndex(:)           ! reach indices within a subbasin
