@@ -1,0 +1,3 @@
+Location to build the PIO library
+
+NOTE: cmake must be called from the main mizuRoute Makefile to create the Makefiles and build

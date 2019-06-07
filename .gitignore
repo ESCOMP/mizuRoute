@@ -4,6 +4,9 @@
 *.o
 *.obj
 
+# Executable directory
+route/bin
+
 # Precompiled Headers
 *.gch
 *.pch
@@ -31,3 +34,27 @@
 *.local
 *bak*
 *tmp*
+
+# editor files
+*.swp
+*~
+
+# CMAKE files created
+CMakeFiles
+CMakeCache.txt
+cmake_install.cmake
+
+# directories checked out by manage_externals, and other files created
+# by manage_externals
+manage_externals.log
+/cime/
+
+# External library build artifacts
+/route/build/lib/mpi-seriallib/*.h
+/route/build/lib/mpi-seriallib/Makefile*
+
+/route/build/lib/piolib/Makefile*
+/route/build/lib/piolib/config.h
+/route/build/lib/piolib/doc
+/route/build/lib/piolib/src
+

@@ -17,7 +17,22 @@ FC_EXE =
 isOpenMP =
 FLAGS_OMP =
 LIBOPENMP =
+
+# define if should use external librarys (yes if used)
+# external librarys are: mpi-serial, Parallel-I/O, and GPTL timing library
+# define path to PNETCDF if you want to use it
+isMPISERIAL =
+isPIO =
+isGPTL = 
  
+PNETCDF_PATH =
+
+# If isPIO==yes then you can give hints to PIO about the local system
+# gpfs is the specific filesystem used on cheyenne
+# (can be gpfs or lustre) Only use it if you know for sure about your filesystem.
+# If not make this setting blank
+PIO_FILESYSTEM_HINTS = gpfs
+
 # Define core directory below which everything resides
 # parent directory of the 'build' directory
 # do not put space at the end of path
@@ -75,6 +90,10 @@ MOD_PATH = $(F_MASTER)build/
 
 # Define the directory for the executables
 EXE_PATH = $(F_MASTER)bin
+
+# External libraries (if used)
+EXTLIBS =
+EXTINCLUDES =
 
 #========================================================================
 # PART 2: Assemble all of the sub-routines
@@ -140,7 +159,7 @@ TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(INITIAL) $(QROUTE)
 MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
 
 #========================================================================
-# PART 2: Define driver programs, and executables
+# PART 3: Define driver programs, and executables
 #========================================================================
 # Define the driver routine
 DRIVER = $(F_KORE_DIR)route_runoff.f90
@@ -148,16 +167,77 @@ DRIVER = $(F_KORE_DIR)route_runoff.f90
 # Define the executable
 EXE = 
 
-#========================================================================
-# PART 4: Compile the puppy
-#========================================================================
 # tasks
 all: compile install clean
 
+#========================================================================
+# PART 3.5: External libaries that might need to be built
+#========================================================================
+LIBDIR       = $(F_MASTER)build/lib
+PIOLIBDIR    = $(LIBDIR)/piolib/lib
+PIOINCDIR    = $(LIBDIR)/piolib/include
+PIOLIB       = $(PIOLIBDIR)/libpiof.a $(PIOLIBDIR)/libpioc.a
+MPISERLIBDIR = $(LIBDIR)/mpi-seriallib
+MPISERLIB    = $(MPISERLIBDIR)/libmpi-serial.a
+
+ifeq "$(isMPISERIAL)" "yes"
+  EXTINCLUDES += -I$(MPISERLIBDIR)
+  EXTLIBS += $(MPISERLIB)
+  LDFLAGS += -L$(MPISERLIBDIR) -lmpi-serial
+  ifdef PNETCDF_PATH
+    undefine PNETCDF_PATH
+  endif
+  MPISERIAL = $(MPISERLIB)
+else
+  MPISERIAL = 
+endif
+
+ifeq "$(isPIO)" "yes"
+  EXTINCLUDES += -I$(PIOINCDIR)
+  EXTLIBS += $(PIOLIB)
+  LDFLAGS += -L$(PIOLIBDIR) -lpiof -lpioc
+
+  ifeq "$(isGPTL)" "yes"
+     LDFLAGS += -lgptl
+  endif
+endif
+
+ifdef PNETCDF_PATH
+        LDFLAGS    += -L$(PNETCDF_PATH)/lib -lpnetcdf
+endif
+
+$(PIOLIB): $(MPISERIAL)
+	cd $(LIBDIR); \
+	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) FC=$(FC) FC_EXE=$(FC_EXE) FLAGS="$(FLAGS)" \
+	PIO_FILESYSTEM_HINTS=$(PIO_FILESYSTEM_HINTS) PNETCDF_PATH=$(PNETCDF_PATH) isPIO=yes isGPTL=$(isGPTL) \
+	MPIINC_PATHLIST=$(CPATH) NCDF_PATH=$(NCDF_PATH) $(PIOLIB)
+
+$(MPISERLIB):
+	cd $(LIBDIR); \
+	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) FC=$(FC) FC_EXE=$(FC_EXE) FLAGS="$(FLAGS)" isMPISERIAL=yes $(MPISERLIB)
+
+# Clean external libs
+cleanlibs: cleanpiolib cleanmpiseriallib
+	@echo "Clean the pio and mpi-serial external libraries"
+.PHONY : cleanlibs
+
+cleanpiolib:
+	cd $(LIBDIR); \
+	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) cleanpiolib
+.PHONY : cleanpiolib
+
+cleanmpiseriallib:
+	cd $(LIBDIR); \
+	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) cleanmpiseriallib
+.PHONY : cleanmpiseriallib
+
+#========================================================================
+# PART 4: Compile the puppy
+#========================================================================
 # compile
-compile:
-	$(FC_EXE) $(FLAGS) $(MODSUB) $(DRIVER) \
-	$(LIBNETCDF) $(INCNETCDF) -o $(EXE)
+compile: $(EXTLIBS)
+	$(FC_EXE) $(FLAGS) $(EXTINCLUDES) $(MODSUB) $(DRIVER) \
+	$(LIBNETCDF) $(INCNETCDF) $(LDFLAGS) -o $(EXE)
 
 # Remove object files
 clean:

@@ -83,13 +83,13 @@ CONTAINS
       array_size = bound(2)-bound(1)+1
 
       do myid = 1, nNodes-1
-       call MPI_SEND(bound(1),             2,          MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-       call MPI_SEND(allocArray(bound(1)), array_size, MPI_INT, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+       call MPI_SEND(bound(1),             2,          MPI_INTEGER, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+       call MPI_SEND(allocArray(bound(1)), array_size, MPI_INTEGER, myid, send_data_tag, MPI_COMM_WORLD, ierr)
       end do
 
     else
 
-       call MPI_RECV(bound, 2, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+       call MPI_RECV(bound, 2, MPI_INTEGER, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
 
        array_size = bound(2)-bound(1)+1
 
@@ -100,7 +100,7 @@ CONTAINS
        allocate(allocArray(bound(1):bound(2)), stat=ierr)
        if(ierr/=0)then; message=trim(message)//'problem allocating array for [allocArray]'; return; endif
 
-       call MPI_RECV(allocArray, array_size, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+       call MPI_RECV(allocArray, array_size, MPI_INTEGER, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
 
     endif
 
@@ -133,13 +133,13 @@ CONTAINS
       array_size = bound(2)-bound(1)+1
 
       do myid = 1, nNodes-1
-       call MPI_SEND(bound(1),             2,          MPI_INT,              myid, send_data_tag, MPI_COMM_WORLD, ierr)
+       call MPI_SEND(bound(1),             2,          MPI_INTEGER,              myid, send_data_tag, MPI_COMM_WORLD, ierr)
        call MPI_SEND(allocArray(bound(1)), array_size, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
       end do
 
     else
 
-       call MPI_RECV(bound, 2, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+       call MPI_RECV(bound, 2, MPI_INTEGER, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
 
        array_size = bound(2)-bound(1)+1
 
@@ -184,13 +184,13 @@ CONTAINS
       array_size = bound(2)-bound(1)+1
 
       do myid = 1, nNodes-1
-       call MPI_SEND(bound(1),             2,          MPI_INT,     myid, send_data_tag, MPI_COMM_WORLD, ierr)
+       call MPI_SEND(bound(1),             2,          MPI_INTEGER,     myid, send_data_tag, MPI_COMM_WORLD, ierr)
        call MPI_SEND(allocArray(bound(1)), array_size, MPI_LOGICAL, myid, send_data_tag, MPI_COMM_WORLD, ierr)
       end do
 
     else
 
-       call MPI_RECV(bound, 2, MPI_INT, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+       call MPI_RECV(bound, 2, MPI_INTEGER, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
 
        array_size = bound(2)-bound(1)+1
 
@@ -240,8 +240,8 @@ CONTAINS
     allocate(localArray(num_per_proc(pid)), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
 
-    call MPI_SCATTERV(globalArray, num_per_proc(0:nNodes-1), displs, MPI_INT,       & ! flows from proc
-                      localArray,  num_per_proc(pid),                MPI_INT, root, & ! scattered flows at root node
+    call MPI_SCATTERV(globalArray, num_per_proc(0:nNodes-1), displs, MPI_INTEGER,       & ! flows from proc
+                      localArray,  num_per_proc(pid),                MPI_INTEGER, root, & ! scattered flows at root node
                       MPI_COMM_WORLD, ierr)
 
   END SUBROUTINE shr_mpi_scatterIntV
@@ -357,8 +357,8 @@ CONTAINS
     allocate(globalArray(sum(num_per_proc)), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [globalArray]'; return; endif
 
-    call MPI_GATHERV(localArray,  num_per_proc(pid),                MPI_INT,       & ! local array stuff
-                     globalArray, num_per_proc(0:nNodes-1), displs, MPI_INT, root, & ! global array stuff
+    call MPI_GATHERV(localArray,  num_per_proc(pid),                MPI_INTEGER,       & ! local array stuff
+                     globalArray, num_per_proc(0:nNodes-1), displs, MPI_INTEGER, root, & ! global array stuff
                      MPI_COMM_WORLD, ierr)
 
   END SUBROUTINE shr_mpi_gatherIntV
@@ -471,8 +471,8 @@ CONTAINS
     allocate(globalArray(sum(num_per_proc)), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
 
-    call MPI_ALLGATHERV(localArray,  num_per_proc(pid),                MPI_INT, & ! local array stuff
-                        globalArray, num_per_proc(0:nNodes-1), displs, MPI_INT, & ! global array stuff
+    call MPI_ALLGATHERV(localArray,  num_per_proc(pid),                MPI_INTEGER, & ! local array stuff
+                        globalArray, num_per_proc(0:nNodes-1), displs, MPI_INTEGER, & ! global array stuff
                         MPI_COMM_WORLD, ierr)
 
   END SUBROUTINE shr_mpi_allgatherIntV
@@ -570,8 +570,8 @@ CONTAINS
     allocate(globalArray(num*nNodes), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [localArray]'; return; endif
 
-    call MPI_ALLGATHER(localScalar, num, MPI_INT, & ! local array stuff
-                       globalArray, num, MPI_INT, & ! global array stuff
+    call MPI_ALLGATHER(localScalar, num, MPI_INTEGER, & ! local array stuff
+                       globalArray, num, MPI_INTEGER, & ! global array stuff
                        MPI_COMM_WORLD, ierr)
 
   END SUBROUTINE shr_mpi_allgatherInt

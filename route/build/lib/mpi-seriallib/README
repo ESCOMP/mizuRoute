@@ -1,0 +1,11 @@
+Location to build the MCT mpi-serial library which is a MPI implementation that only works with one task
+
+The mpi-serial configure script must be run from the main mizuRoute Makefile in order to create the
+build files in this directory.
+
+
+NOTE: After build files are created, SRCDIR is a required option to be given to the Makefile
+
+so....
+
+gmake SRCDIR=../../../../cime/src/externals/mct/
