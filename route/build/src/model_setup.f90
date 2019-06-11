@@ -396,7 +396,7 @@ contains
   USE read_netcdf,          only : get_var_dims
   USE process_ntopo,        only : augment_ntopo            ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,        only : put_data_struct          ! populate NETOPO and RPARAM data structure
-  USE domain_decomposition, only : classify_river_basin     ! domain decomposition for mpi
+  USE domain_decomposition, only : mpi_domain_decomposition ! domain decomposition for mpi
   implicit none
   ! input: None
   ! output (river network data structures for the entire domain)
@@ -522,7 +522,7 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! spatial domain decomposition for MPI parallelization
-  call classify_river_basin(nNodes, nRch_out, structNTOPO, nContribHRU, ierr, cmessage)       !Warning: nHRU /= nContribHRU
+  call mpi_domain_decomposition(nNodes, nRch_out, structNTOPO, nContribHRU, ierr, cmessage)     !Warning: nHRU /= nContribHRU
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end subroutine init_ntopo

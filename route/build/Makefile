@@ -109,7 +109,6 @@ DATATYPES = \
     globalData.f90 \
     popMetadat.f90 \
     allocation.f90 
-#
 # define utilities
 UTILS = \
     nr_utility.f90 \
@@ -117,7 +116,6 @@ UTILS = \
     time_utils.f90 \
     mpi_utils.f90 \
     gamma_func.f90
-#
 # read/write files
 IO = \
     remap.f90 \
@@ -133,17 +131,16 @@ IO = \
     read_restart.f90 \
     write_restart.f90 \
     write_simoutput.f90
-
-INITIAL = \
+# initialization
+INIT = \
     process_time.f90 \
     network_topo.f90 \
     process_param.f90 \
     process_ntopo.f90 \
     pfafstetter.f90 \
     domain_decomposition.f90
-
-# perform model routing
-QROUTE = \
+# CORE
+CORE = \
     accum_runoff.f90 \
     basinUH.f90 \
     irf_route.f90 \
@@ -153,7 +150,7 @@ QROUTE = \
     model_setup.f90
 
 # concatanate model subroutines
-TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(INITIAL) $(QROUTE)
+TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(INIT) $(CORE)
 
 # insert appropriate directory name
 MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
