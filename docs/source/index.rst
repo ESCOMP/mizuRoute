@@ -1,9 +1,8 @@
-Welcome to mizuRoute v1.1 documentation!
+Welcome to mizuRoute documentation!
 =========================================
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
 
    Intro
    Input_data 
