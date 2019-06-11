@@ -9,7 +9,7 @@ USE dataTypes,           only : STRFLX                      ! fluxes in each rea
 USE dataTypes,           only : RCHTOPO                     ! Network topology
 USE dataTypes,           only : RCHPRP                      ! Reach parameter
 USE dataTypes,           only : runoff                      ! runoff data type
-USE dataTypes,           only : basin                       ! river basin data type
+USE dataTypes,           only : subbasin_omp                ! mainstem+tributary data structures
 
 ! subroutines: general utility
 USE nr_utility_module,   only : findIndex                   ! find index within a vector
@@ -74,7 +74,7 @@ contains
    integer(i4b),               intent(in)    :: iens                 ! ensemble member
    real(dp),      allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
    integer(i4b),  allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
-   type(basin),   allocatable, intent(in)    :: river_basin(:)       ! OMP basin decomposition
+   type(subbasin_omp), allocatable, intent(in)    :: river_basin(:)       ! OMP basin decomposition
    integer(i4b),               intent(in)    :: basinType            ! basinType (1-> tributary, 2->mainstem)
    type(RCHTOPO), allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology
    type(RCHPRP),  allocatable, intent(in)    :: RPARAM_in(:)         ! River reach parameter

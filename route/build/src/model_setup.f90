@@ -525,6 +525,10 @@ contains
   call mpi_domain_decomposition(nNodes, nRch_out, structNTOPO, nContribHRU, ierr, cmessage)     !Warning: nHRU /= nContribHRU
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+  ! spatial domain decomposition for OMP parallelization
+
+
+
  end subroutine init_ntopo
 
  ! *****

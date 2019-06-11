@@ -8,6 +8,7 @@ USE dataTypes,          only : RCHTOPO        ! Network topology
 ! global parameters
 USE public_var,         only : realMissing    ! missing value for real number
 USE public_var,         only : integerMissing ! missing value for integer number
+USE globalData,         only : nThreads          ! number of threads used for openMP
 ! utilities
 USE time_utils_module,  only : elapsedSec     ! calculate the elapsed time
 
@@ -23,88 +24,82 @@ contains
  ! *********************************************************************
  ! subroutine: perform network UH routing
  ! *********************************************************************
- subroutine irf_route(&
-                      ! input
-                      iEns,       &    ! input: index of runoff ensemble to be processed
-                      river_basin,&    ! input: river basin information (mainstem, tributary outlet etc.)
-                      ixDesire,   &    ! input: reachID to be checked by on-screen pringing
-                      NETOPO_in,  &    ! input: reach topology data structure
-                      ! inout
-                      RCHFLX_out, &    ! inout: reach flux data structure
-                      ! output
-                      ierr, message)   ! output: error control
+ subroutine irf_route(iEns,          &  ! input: index of runoff ensemble to be processed
+                      river_basin,   &  ! input: river basin information (mainstem, tributary outlet etc.)
+                      ixDesire,      &  ! input: reachID to be checked by on-screen pringing
+                      NETOPO_in,     &  ! input: reach topology data structure
+                      RCHFLX_out,    &  ! inout: reach flux data structure
+                      ierr, message, &  ! output: error control
+                      ixSubRch)         ! optional input: subset of reach indices to be processed
 
  ! global routing data
- USE dataTypes,  only : basin        ! river basin data type
+ USE dataTypes,  only : subbasin_omp   ! mainstem+tributary data structures
 
  implicit none
  ! Input
- integer(i4b), intent(in)                  :: iEns                ! runoff ensemble to be routed
- type(basin),  intent(in),    allocatable  :: river_basin(:)      ! river basin information (mainstem, tributary outlet etc.)
- integer(i4b), intent(in)                  :: ixDesire            ! index of the reach for verbose output ! Output
- type(RCHTOPO),intent(in),    allocatable  :: NETOPO_in(:)        ! River Network topology
+ integer(i4b),       intent(in)                  :: iEns                ! runoff ensemble to be routed
+ type(subbasin_omp), intent(in),    allocatable  :: river_basin(:)      ! river basin information (mainstem, tributary outlet etc.)
+ integer(i4b),       intent(in)                  :: ixDesire            ! index of the reach for verbose output ! Output
+ type(RCHTOPO),      intent(in),    allocatable  :: NETOPO_in(:)        ! River Network topology
  ! inout
- TYPE(STRFLX), intent(inout), allocatable  :: RCHFLX_out(:,:)     ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+ TYPE(STRFLX),       intent(inout), allocatable  :: RCHFLX_out(:,:)     ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  ! output variables
- integer(i4b), intent(out)                 :: ierr                ! error code
- character(*), intent(out)                 :: message             ! error message
+ integer(i4b),       intent(out)                 :: ierr                ! error code
+ character(*),       intent(out)                 :: message             ! error message
+ ! input (optional)
+ integer(i4b),       intent(in), optional        :: ixSubRch(:)         ! subset of reach indices to be processed
  ! Local variables to
- integer(i4b)                              :: nOuts               ! number of outlets
- integer(i4b)                              :: nTrib               ! number of tributary basins
- integer(i4b)                              :: nStem               ! number of mainstem in each level
- integer(i4b)                              :: iSeg, jSeg          ! loop indices - reach
- integer(i4b)                              :: iOut                ! loop indices - basin outlet
- integer(i4b)                              :: iTrib               ! loop indices - tributary
- integer(i4b)                              :: iLevel              ! loop indices - mainstem level
- integer(i4b)                              :: iStem               ! loop inidces - mainstem
- integer(i4b)                              :: maxLevel,minLevel   ! max. and min. mainstem levels
- character(len=strLen)                     :: cmessage            ! error message from subroutine
+ character(len=strLen)                           :: cmessage            ! error message from subroutine
+ logical(lgt),                      allocatable  :: doRoute(:)          ! logical to indicate which reaches are processed
+ integer(i4b)                                    :: nTrib               ! number of tributary basins
+ integer(i4b)                                    :: nSeg                ! number of reaches in the network
+ integer(i4b)                                    :: iSeg, jSeg          ! loop indices - reach
+ integer(i4b)                                    :: iTrib, iStem        ! loop indices - tributary, mainstem
  ! variables needed for timing
- integer(i4b)                              :: nThreads            ! number of threads
- integer(i4b)                              :: omp_get_num_threads ! get the number of threads
- integer(i4b)                              :: omp_get_thread_num
- integer(i4b), allocatable                 :: ixThread(:)         ! thread id
- integer*8,    allocatable                 :: openMPend(:)        ! time for the start of the parallelization section
- integer*8,    allocatable                 :: timeTribStart(:)    ! time Tributaries start
- real(dp),     allocatable                 :: timeTrib(:)         ! time spent on each Tributary
- integer*8                                 :: endTrib             ! date/time for the start and end of the initialization
- integer*8                                 :: startTime,endTime   ! date/time for the start and end of the initialization
- integer*8                                 :: startMain,endMain   ! date/time for the start and end of the initialization
- real(dp)                                  :: elapsedTime         ! elapsed time for the process
- real(dp)                                  :: elapsedTrib         ! elapsed time for the process
- real(dp)                                  :: elapsedMain         ! elapsed time for the process
+ integer(i4b)                                    :: omp_get_num_threads ! get the number of threads
+ integer(i4b)                                    :: omp_get_thread_num
+ integer(i4b), allocatable                       :: ixThread(:)         ! thread id
+ integer*8,    allocatable                       :: openMPend(:)        ! time for the start of the parallelization section
+ integer*8,    allocatable                       :: timeTribStart(:)    ! time Tributaries start
+ real(dp),     allocatable                       :: timeTrib(:)         ! time spent on each Tributary
+ integer*8                                       :: cr                  ! rate
+ integer*8                                       :: endTrib             ! date/time for the start and end of the initialization
+ integer*8                                       :: startMain           ! date/time for the start and end of the initialization
+ integer*8                                       :: startTime,endTime   ! date/time for the start and end of the initialization
+ real(dp)                                        :: elapsedTime         ! elapsed time for the process
 
  ! initialize error control
  ierr=0; message='irf_route/'
+ call system_clock(count_rate=cr)
+
+ ! number of reach check
+ if (size(NETOPO_in)/=size(RCHFLX_out(iens,:))) then
+  ierr=20; message=trim(message)//'sizes of NETOPO and RCHFLX mismatch'; return
+ endif
+
+ nSeg = size(RCHFLX_out(iens,:))
 
  ! Initialize CHEC_IRF to False.
  RCHFLX_out(iEns,:)%CHECK_IRF=.False.
 
- ! Number of Outlets
- nOuts = size(river_basin)
+ allocate(doRoute(nSeg), stat=ierr)
 
- do iOut=1,nOuts
+ if (present(ixSubRch))then
+  doRoute(:)=.false.
+  doRoute(ixSubRch) = .true. ! only subset of reaches are on
+ else
+  doRoute(:)=.true. ! every reach is on
+ endif
 
-  maxLevel = 1
-  do iLevel=1,size(river_basin(iOut)%level)
-    if (.not. allocated(river_basin(iOut)%level(iLevel)%mainstem)) cycle
-    if (iLevel > maxLevel) maxLevel = iLevel
-  end do
-  minLevel = size(river_basin(iOut)%level)
-  do iLevel=maxLevel,1,-1
-    if (.not. allocated(river_basin(iOut)%level(iLevel)%mainstem)) cycle
-    if (iLevel < minLevel) minLevel = iLevel
-  end do
+ nTrib=size(river_basin(1)%tributary)
 
-  nTrib=size(river_basin(iOut)%tributary)
+ allocate(ixThread(nTrib), openMPend(nTrib), timeTrib(nTrib), timeTribStart(nTrib), stat=ierr)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to allocate space for Trib timing'; return; endif
+ timeTrib(:) = realMissing
+ ixThread(:) = integerMissing
 
-  allocate(ixThread(nTrib), openMPend(nTrib), timeTrib(nTrib), timeTribStart(nTrib), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to allocate space for Trib timing'; return; endif
-  timeTrib(:) = realMissing
-  ixThread(:) = integerMissing
-
-  ! 1. Route tributary reaches (parallel)
-  call system_clock(startTime)
+ ! 1. Route tributary reaches (parallel)
+ call system_clock(startTime)
 !$OMP PARALLEL default(none)                            &
 !$OMP          private(jSeg, iSeg)                      & ! private for a given thread
 !$OMP          private(ierr, cmessage)                  & ! private for a given thread
@@ -116,15 +111,13 @@ contains
 !$OMP          shared(ixThread)                         & ! thread id array shared
 !$OMP          firstprivate(nTrib)
 
-  nThreads = 1
-!$ nThreads = omp_get_num_threads()
-
 !$OMP DO schedule(dynamic,1)
   do iTrib = 1,nTrib
 !$    ixThread(iTrib) = omp_get_thread_num()
     call system_clock(timeTribStart(iTrib))
-    do iSeg=1,river_basin(iOut)%tributary(iTrib)%nRch
-      jSeg = river_basin(iOut)%tributary(iTrib)%segIndex(iSeg)
+    do iSeg=1,river_basin(1)%tributary(iTrib)%nRch
+      jSeg = river_basin(1)%tributary(iTrib)%segIndex(iSeg)
+      if (.not. doRoute(jSeg)) cycle
       call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, message)
 !      if(ierr/=0)then; ixmessage(iTrib)=trim(message)//trim(cmessage); exit; endif
     end do
@@ -135,8 +128,8 @@ contains
 !$OMP END PARALLEL
 
   call system_clock(endTrib)
-  elapsedTrib = real(endTrib-startTime, kind(dp))/10e8_dp
-  write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTrib, ' s'
+  elapsedTime = real(endTrib-startTime, kind(dp))/real(cr)
+  write(*,"(A,1PG15.7,A)") '  total elapsed tributary = ', elapsedTime, ' s'
 
 !  write(*,'(a)') 'iTrib nSeg ixThread nThreads StartTime EndTime'
 !  do iTrib=1,nTrib
@@ -147,35 +140,19 @@ contains
 
    ! 2. Route mainstems (serial)
    call system_clock(startMain)
-   do iLevel=maxLevel,minLevel,-1
-     nStem = size(river_basin(iOut)%level(iLevel)%mainstem)
-!$OMP PARALLEL default(none)                            &
-!$OMP          private(jSeg, iSeg)                      & ! private for a given thread
-!$OMP          private(iStem)                           & ! private for a given thread
-!$OMP          private(ierr, cmessage)                  & ! private for a given thread
-!$OMP          shared(river_basin)                      & ! data structure shared
-!$OMP          shared(iLevel)                           & ! private for a given thread
-!$OMP          shared(iEns, iOut, ixDesire)             & ! indices shared
-!$OMP          firstprivate(nStem)
-!$OMP DO schedule(dynamic,1)
-     do iStem=1,nStem
-       do iSeg=1,river_basin(iOut)%level(iLevel)%mainstem(iStem)%nRch
-         jSeg = river_basin(iOut)%level(iLevel)%mainstem(iStem)%segIndex(iSeg)
-         call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, message)
-!         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-       end do
+   do iStem=1,size(river_basin(1)%mainstem)
+     do iSeg=1,river_basin(1)%mainstem(iStem)%nRch
+       jSeg = river_basin(1)%mainstem(iStem)%segIndex(iSeg)
+       if (.not. doRoute(jSeg)) cycle
+       call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, message)
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
      end do
-!$OMP END DO
-!$OMP END PARALLEL
    end do
 
-   call system_clock(endMain)
-   elapsedMain = real(endMain-startMain, kind(dp))/10e8_dp
-   write(*,"(A,1PG15.7,A)") '  total elapsed mainstem = ', elapsedMain, ' s'
-
- end do
  call system_clock(endTime)
- elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
+ elapsedTime = real(endTime-startMain, kind(dp))/real(cr)
+ write(*,"(A,1PG15.7,A)") '  total elapsed Mainstem = ', elapsedTime, ' s'
+ elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
  write(*,"(A,1PG15.7,A)") '  total elapsed entire = ', elapsedTime, ' s'
 
  end subroutine irf_route
@@ -325,8 +302,7 @@ contains
    ! *********************************************************************
    ! subroutine: perform network UH routing
    ! *********************************************************************
-   subroutine irf_route_orig(&
-                             iEns,         &  ! input: index of runoff ensemble to be processed
+   subroutine irf_route_orig(iEns,         &  ! input: index of runoff ensemble to be processed
                              river_basin,  &  ! input: river basin information (mainstem, tributary outlet etc.)
                              ixDesire,     &  ! input: reachID to be checked by on-screen pringing
                              NETOPO_in,    &  ! input: reach topology data structure
@@ -341,35 +317,32 @@ contains
    ! ----------------------------------------------------------------------------------------
 
    ! global routing data
-   USE dataTypes,         only : basin  ! river basin data type
-   ! external subroutine
-   USE nr_utility_module, only : arth
+   USE dataTypes,         only : subbasin_omp  ! mainstem+tributary data strucuture
 
    implicit none
    ! Input
-   integer(I4B), intent(in)                  :: iEns              ! runoff ensemble to be routed
-   type(basin),  intent(in),    allocatable  :: river_basin(:)    ! river basin information (mainstem, tributary outlet etc.)
-   integer(I4B), intent(in)                  :: ixDesire          ! index of the reach for verbose output
-   type(RCHTOPO),intent(in),    allocatable  :: NETOPO_in(:)      ! River Network topology
+   integer(I4B), intent(in)                     :: iEns              ! runoff ensemble to be routed
+   type(subbasin_omp), intent(in), allocatable  :: river_basin(:)    ! river basin information (mainstem, tributary outlet etc.)
+   integer(I4B), intent(in)                     :: ixDesire          ! index of the reach for verbose output
+   type(RCHTOPO),intent(in),    allocatable     :: NETOPO_in(:)      ! River Network topology
    ! inout
-   TYPE(STRFLX), intent(inout), allocatable  :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+   TYPE(STRFLX), intent(inout), allocatable     :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
    ! Output
-   integer(i4b), intent(out)                 :: ierr              ! error code
-   character(*), intent(out)                 :: message           ! error message
+   integer(i4b), intent(out)                    :: ierr              ! error code
+   character(*), intent(out)                    :: message           ! error message
    ! input (optional)
-   integer(i4b), intent(in),   optional      :: ixSubRch(:)       ! subset of reach indices to be processed
+   integer(i4b), intent(in),   optional         :: ixSubRch(:)       ! subset of reach indices to be processed
    ! Local variables to
-   INTEGER(I4B)                              :: nSeg              ! number of reach segments in the network
-   INTEGER(I4B)                              :: iSeg, jSeg        ! reach segment index
-   logical(lgt), allocatable                 :: doRoute(:)        ! logical to indicate which reaches are processed
-   character(len=strLen)                     :: cmessage          ! error message from subroutine
-   integer*8                                 :: startTime,endTime ! date/time for the start and end of the initialization
-   real(dp)                                  :: elapsedTime       ! elapsed time for the process
+   INTEGER(I4B)                                 :: nSeg              ! number of reach segments in the network
+   INTEGER(I4B)                                 :: iSeg, jSeg        ! reach segment index
+   logical(lgt), allocatable                    :: doRoute(:)        ! logical to indicate which reaches are processed
+   character(len=strLen)                        :: cmessage          ! error message from subroutine
+   integer*8                                    :: startTime,endTime ! date/time for the start and end of the initialization
+   real(dp)                                     :: elapsedTime       ! elapsed time for the process
 
    ! initialize error control
    ierr=0; message='irf_route_orig/'
 
-   elapsedTime = 0._dp
    call system_clock(startTime)
 
    ! check

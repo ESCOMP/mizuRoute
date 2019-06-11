@@ -30,7 +30,7 @@ module globalData
   use dataTypes,  only : runoff        ! runoff data type
 
   ! basin data structure
-  use dataTypes,  only : basin         !
+  use dataTypes,  only : subbasin_omp  ! mainstem+tributary data structures
   use dataTypes,  only : subbasin_mpi  ! reach category (store mainstem code or pfaf code)
 
   ! time data structure
@@ -54,10 +54,11 @@ module globalData
 
   save
 
-  ! ---------- MPI variables -------------------------------------------------------------------
+  ! ---------- MPI/OMP variables -------------------------------------------------------------------
 
   integer(i4b)                  :: pid                 ! process id
   integer(i4b)                  :: nNodes              ! number of nodes
+  integer(i4b)                  :: nThreads            ! number of threads
 
   ! ---------- constants ----------------------------------------------------------------------------
 
@@ -152,9 +153,13 @@ module globalData
   type(runoff)                   , public :: runoff_data          ! runoff data for one time step for LSM HRUs and River network HRUs
 
   ! domain data
-  type(basin)     , allocatable  , public :: river_basin(:)       ! openMP domain decomposition
+  ! MPI
   type(subbasin_mpi)             , public :: domains(maxDomain)   ! domain decomposition data structure (maximum domain is set to maxDomain)
   integer(i4b)                   , public :: nDomain              ! domain counter
+  ! OMP
+  type(subbasin_mpi)             , public :: domains_omp(maxDomain)! domain decomposition data structure (maximum domain is set to maxDomain)
+  integer(i4b)                   , public :: nDomain_omp           ! domain counter
+  type(subbasin_omp), allocatable, public :: river_basin(:)       ! openMP domain decomposition
 
   integer(i4b)    , allocatable  , public :: ixHRU_order(:)       ! global HRU index in the order of proc assignment (size = num of hrus contributing reach in entire network)
   integer(i4b)    , allocatable  , public :: ixRch_order(:)       ! global reach index in the order of proc assignment (size = num of reaches in entire network))

@@ -70,28 +70,34 @@ implicit none
  ! segOrder is order within subset of mainstem segments or tributary segments
  type,public :: subbasin_mpi
   character(32)              :: pfaf                  ! subbasin pfaf code - mainstem starting "-"
-  integer(i4b)               :: basinType             ! basin type identifier 0->mainstem, 1->tributary
+  integer(i4b)               :: basinType             ! basin type identifier: tributary->1, mainstem->2
   integer(i4b)               :: idNode                ! node ID
   integer(i4b)               :: outletIndex           ! reach index of a domain outlet
   integer(i4b),  allocatable :: segIndex(:)           ! reach indices within a subbasin
   integer(i4b),  allocatable :: hruIndex(:)           ! hru indices within a subbasin
  end type subbasin_mpi
 
-
+ ! Data structures to hold mainstem and independent tributary reaches separately
+ ! Used for openMP
  type,public :: reach
   integer(i4b), allocatable :: segIndex(:)           ! index of segment index
   integer(i4b)              :: nRch                  ! number of reach
  end type reach
 
- type,public :: mslevel
-  type(reach), allocatable :: mainstem(:)            ! mainstem reaches
- end type mslevel
+ type,public :: subbasin_omp
+  integer(i4b)               :: outIndex             ! index of outlet segment based on segment array
+  type(reach), allocatable   :: mainstem(:)          ! mainstem reach
+  type(reach), allocatable   :: tributary(:)         ! tributary reach
+ end type subbasin_omp
 
- type,public :: basin
-  integer(i4b)                 :: outIndex             ! index of outlet segment based on segment array
-  type(mslevel), allocatable   :: level(:)             ! mainstem reach
-  type(reach), allocatable     :: tributary(:)         ! index of tributary outlet segment
- end type basin
+ ! data structure to hold reach indices for each branch based on stream order (alternative openmp domain decomposition)
+ type,public :: branch
+  integer(i4b), allocatable :: segIndex(:)
+ end type branch
+
+ type,public :: streamOrder
+   type(branch), allocatable :: branch(:)
+ end type streamOrder
 
  ! ---------- general data structures ----------------------------------------------------------------------
 

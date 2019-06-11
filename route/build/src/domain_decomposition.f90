@@ -19,6 +19,7 @@ implicit none
 private
 
 public :: mpi_domain_decomposition
+public :: omp_domain_decomposition
 
 contains
 
@@ -54,12 +55,45 @@ contains
                              nContribHRU=nContribHRU) ! output(optional): number of contributory HRUs for each reach
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! Assign domains to node
    call assign_node(nNodes, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-
  end subroutine mpi_domain_decomposition
+
+ ! ***************************************************************
+ ! public subroutine: OMP domain decomposition
+ ! ***************************************************************
+ subroutine omp_domain_decomposition(nThreads, nSeg, structNTOPO, ierr, message)
+
+   ! External modules
+   USE globalData, only: domains_omp             ! domain data structure - for each domain, pfaf codes and list of segment indices
+   USE globalData, only: nDomain_omp             ! count of decomposed domains (tributaries + mainstems)
+
+   implicit none
+   ! Input variables
+   integer(i4b),                   intent(in)  :: nThreads        ! number of nodes (root and computing nodes)
+   integer(i4b),                   intent(in)  :: nSeg            ! number of stream segments
+   type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)  ! network topology
+   ! Output variables
+   integer(i4b),                   intent(out) :: ierr
+   character(len=strLen),          intent(out) :: message         ! error message
+   ! Local variables
+   character(len=strLen)                       :: cmessage        ! error message from subroutine
+
+   ierr=0; message='omp_domain_decomposition/'
+
+   call classify_river_basin(nThreads,       &        ! input:  number of threads
+                             nSeg,           &        ! input:  number of reaches in the entire river network
+                             structNTOPO,    &        ! input:  river network data structure
+                             domains_omp,    &        ! output: domain data structure
+                             nDomain_omp,    &        ! output: number of domains
+                             ierr, cmessage)          ! output: error handling
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   call basin_order(nSeg, structNTOPO, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ end subroutine omp_domain_decomposition
 
  ! ***************************************************************
  ! private subroutine: Domain decomposition
@@ -383,7 +417,7 @@ write(*,"(A,1PG15.7,A)") '   elapsed-time [hru_decomposition] = ', elapsedTime, 
    integer(i4b)                           :: ixNode(1)        ! node id where work load is minimum
    integer(i4b)                           :: ix,ixx           ! loop indices
    integer(i4b),allocatable               :: nSubSeg(:)       !
-   integer(i4b),allocatable               :: rnkRnDomain(:)   ! ranked domain based on size
+   integer(i4b),allocatable               :: rankDomain(:)   ! ranked domain based on size
    integer(i4b)                           :: nTrib            !
    integer(i4b)                           :: nEven            !
    integer(i4b)                           :: nSmallTrib       ! number of small tributaries to be processed in root node
@@ -393,14 +427,14 @@ write(*,"(A,1PG15.7,A)") '   elapsed-time [hru_decomposition] = ', elapsedTime, 
 
    ierr=0; message='assign_node/'
 
-   allocate(nSubSeg(nDomain),rnkRnDomain(nDomain),isAssigned(nDomain),stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'problem allocating [nSubSeg,rnkRnDomain,isAssigned]'; return; endif
+   allocate(nSubSeg(nDomain),rankDomain(nDomain),isAssigned(nDomain),stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'problem allocating [nSubSeg,rankDomain,isAssigned]'; return; endif
 
    ! rank domain by number of segments
    ! count segments for each domain - nSubSeg
    ! count tributary domains - nTrib
    ! count total segments from tributary domains - nTribSeg
-   ! rank domains based on nSubSeg - rnkRnDomain
+   ! rank domains based on nSubSeg - rankDomain
 
    nTribSeg = 0  ! number of tributary reaches
    nTrib = 0     ! number of tributaries
@@ -411,7 +445,7 @@ write(*,"(A,1PG15.7,A)") '   elapsed-time [hru_decomposition] = ', elapsedTime, 
      nTrib = nTrib + 1
     endif
    end do
-   call indexx(nSubSeg,rnkRnDomain)
+   call indexx(nSubSeg,rankDomain)
 
    ! root node is used to process small tributaries first in addition to mainstem later
    ! going through tributaries from the smallest, and accumulate number of tributary segments (nSmallTrib) up to "nEven"
@@ -421,7 +455,7 @@ write(*,"(A,1PG15.7,A)") '   elapsed-time [hru_decomposition] = ', elapsedTime, 
    nSmallTrib=0
    isAssigned = .false.
    do ix = 1,nDomain
-    ixx = rnkRnDomain(ix)
+    ixx = rankDomain(ix)
     if (domains(ixx)%basinType==tributary) then
      nSmallTrib = nSmallTrib + nSubSeg(ixx)
      domains(ixx)%idNode = 0
@@ -433,7 +467,7 @@ write(*,"(A,1PG15.7,A)") '   elapsed-time [hru_decomposition] = ', elapsedTime, 
    ! Distribute mainstem and "large" tributary to distributed cores (if more than one procs are available)
    nWork = 0
    do ix = nDomain,1,-1  ! Going through domain from the largest size
-     ixx = rnkRnDomain(ix)
+     ixx = rankDomain(ix)
      if (.not. isAssigned(ixx)) then
        if (domains(ixx)%basinType==mainstem) then   ! if domain is mainstem
          domains(ixx)%idNode = -1                   ! put -1 for temporarily but mainstem is handled in root proc (idNode = 0)
@@ -456,5 +490,108 @@ write(*,"(A,1PG15.7,A)") '   elapsed-time [hru_decomposition] = ', elapsedTime, 
    enddo
 
  end subroutine assign_node
+
+ ! ***************************************************************
+ ! private subroutine: Assign decomposed domain into procs
+ ! ***************************************************************
+ subroutine basin_order(nSeg, structNTOPO_in, ierr, message)
+   ! redo data structures
+
+   ! External modules
+   USE globalData, only: domains_omp       ! domain data structure - for each domain, pfaf codes and list of segment indices
+   USE globalData, only: nDomain_omp       ! count of decomposed domains (tributaries + mainstems)
+   USE globalData, only: river_basin       !
+
+   implicit none
+   ! Input variables
+   integer(i4b),              intent(in)      :: nSeg
+   type(var_ilength), allocatable, intent(in) :: structNTOPO_in(:)  ! network topology
+   ! Output variables
+   integer(i4b),              intent(out)     :: ierr
+   character(len=strLen),     intent(out)     :: message            ! error message
+   ! Local variables
+   integer(i4b)                               :: segOrder(nSeg)     ! reach order
+   integer(i4b)                               :: rankSegOrder(nSeg) ! ranked reach order
+   integer(i4b)                               :: nTrib              ! number of tributary segments
+   integer(i4b)                               :: ix,ixx, iSeg       ! loop indices
+   integer(i4b),allocatable                   :: nSubSeg(:)         !
+   integer(i4b),allocatable                   :: subSegOrder(:)     ! reach order in a subset domain
+   integer(i4b),allocatable                   :: rankDomain(:)      ! ranked domain based on size
+   integer(i4b), parameter                    :: tributary=1
+   integer(i4b), parameter                    :: mainstem=2
+   logical(lgt),allocatable                   :: isAssigned(:)
+
+   ierr=0; message='basin_order/'
+
+   do iSeg=1,nSeg
+     segOrder(iSeg) = structNTOPO_in(iSeg)%var(ixNTOPO%rchOrder)%dat(1)
+   enddo
+
+   ! sorting reach processing order
+   call indexx(segOrder,rankSegOrder)
+
+   allocate(river_basin(1), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'problem allocating [river_basin]'; return; endif
+
+   allocate(nSubSeg(nDomain_omp),rankDomain(nDomain_omp),isAssigned(nDomain_omp),stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'problem allocating [nSubSeg,rankDomain,isAssigned]'; return; endif
+
+   ! rank domains based on number of reaches i.e., nSubSeg - rankDomain
+   ! count tributaries
+
+   nTrib = 0     ! initialize number of tributaries
+   do ix = 1,nDomain_omp
+    nSubSeg(ix) = size(domains_omp(ix)%segIndex)
+    if (domains_omp(ix)%basinType==tributary) nTrib=nTrib+1
+   end do
+   call indexx(nSubSeg, rankDomain)
+
+   allocate(river_basin(1)%tributary(nTrib), river_basin(1)%mainstem(1), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'problem allocating [river_basin%tributary and %mainstem]'; return; endif
+
+   ! put reaches in tributaries and mainstem in the processing order within domain
+   do ix = nDomain_omp,1,-1  ! Going through domain from the largest size
+
+     ixx = rankDomain(ix)
+
+     assigned:if (.not. isAssigned(ixx)) then
+
+       associate(ixSegs => domains_omp(ixx)%segIndex)
+
+       ! Compute reach order for only small basin
+       allocate(subSegOrder(size(ixSegs)), stat=ierr)
+       if(ierr/=0)then; message=trim(message)//'problem allocating segOrderTrib'; return; endif
+
+       call indexx(rankSegOrder(ixSegs), subSegOrder)
+
+       domain:if (domains_omp(ixx)%basinType==mainstem) then   ! if domain is mainstem
+
+         allocate(river_basin(1)%mainstem(1)%segIndex(size(ixSegs)), stat=ierr)
+         if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(1)%mainstem(1)%segIndex'; return; endif
+
+         river_basin(1)%mainstem(1)%segIndex(:) = ixSegs(subSegOrder)
+         river_basin(1)%mainstem(1)%nRch        = size(ixSegs)
+
+         isAssigned(ixx) = .true.
+
+       elseif (domains_omp(ixx)%basinType==tributary) then ! if domain is tributary
+
+         allocate(river_basin(1)%tributary(ixx)%segIndex(size(ixSegs)), stat=ierr)
+         if(ierr/=0)then; message=trim(message)//'problem allocating river_basin(1)%tributary(ix)%segIndex'; return; endif
+
+         river_basin(1)%tributary(ixx)%segIndex(:) = ixSegs(subSegOrder)
+         river_basin(1)%tributary(ixx)%nRch        = size(ixSegs)
+
+         isAssigned(ixx) = .true.
+
+       endif domain
+
+       end associate
+
+     endif assigned
+
+   end do
+
+ end subroutine basin_order
 
 end module domain_decomposition
