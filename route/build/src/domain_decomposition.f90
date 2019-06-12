@@ -571,8 +571,9 @@ write(*,"(A,1PG15.7,A)") '   elapsed-time [hru_decomposition] = ', elapsedTime, 
        associate(ixSegs => domains_omp(ixx)%segIndex)
 
        ! Compute reach order for only small basin
+       if (allocated(subSegOrder)) deallocate(subSegOrder)
        allocate(subSegOrder(size(ixSegs)), stat=ierr)
-       if(ierr/=0)then; message=trim(message)//'problem allocating segOrderTrib'; return; endif
+       if(ierr/=0)then; message=trim(message)//'problem allocating subSegOrder'; return; endif
 
        call indexx(rankSegOrder(ixSegs), subSegOrder)
 

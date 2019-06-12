@@ -62,7 +62,8 @@ contains
   USE globalData,          ONLY: ixPrint                  ! desired reach index
   USE globalData,          ONLY: domains                  ! domain data structure - for each domain, pfaf codes and list of segment indices
   USE globalData,          ONLY: nDomain                  ! count of decomposed domains (tributaries + mainstems)
-  USE globalData,          ONLY: river_basin_main         ! OMP domain data structures for mainstem
+  USE globalData,          ONLY: river_basin_main         ! OMP domain data structure for mainstem
+  USE globalData,          ONLY: river_basin_trib         ! OMP domain data structure for tributaries
   USE globalData,          ONLY: RCHFLX_trib              ! Reach flux data structures (per proc, tributary)
   USE globalData,          ONLY: KROUTE_trib              ! Reach k-wave data structures (per proc, tributary)
   USE globalData,          ONLY: NETOPO_trib              ! network topology data structure (per proc, tributary)
@@ -414,6 +415,10 @@ contains
                        ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+  ! OMP domain decomposition
+  call omp_domain_decomposition(nThreads, rch_per_proc(pid), structNTOPO_local, river_basin_trib, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
   ! -----------------------------------------------------------------------------
   ! Find "dangling reach", or tributary outlet reaches that link to mainstems
   ! -----------------------------------------------------------------------------
@@ -486,8 +491,8 @@ contains
   USE globalData, only : RCHFLX           ! entire reach flux structure
   USE globalData, only : KROUTE_trib      ! tributary reach kwt data structure
   USE globalData, only : KROUTE           ! entire river reach kwt sate structure
-  USE globalData, only : river_basin_trib ! tributary OMP domain decomposition
-  USE globalData, only : river_basin_main ! mainstem OMP domain decomposition
+  USE globalData, only : river_basin_trib ! tributary OMP domain data structure
+  USE globalData, only : river_basin_main ! mainstem OMP domain data structure
   USE globalData, only : runoff_data      ! runoff data structure
   USE globalData, only : nHRU             ! number of HRUs in the whoel river network
   USE globalData, only : nRch             ! number of reaches in the whoel river network
