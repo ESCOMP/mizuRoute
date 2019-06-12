@@ -11,7 +11,7 @@ program route_runoff
 ! variable types
 USE nrtype                                     ! variable types, etc.
 
-USE globalData, only : pid, nNodes             ! procs id and number of procs
+USE globalData, only : pid, nNodes, nThreads   ! procs id and number of procs and threads
 
 ! ******
 ! provide access to desired subroutines...
@@ -62,6 +62,9 @@ call MPI_INIT(ierr); call mpi_handle_err(ierr,0)
 call MPI_COMM_SIZE(MPI_COMM_WORLD, nNodes, ierr)
 !  Get the individual process ID
 call MPI_COMM_RANK(MPI_COMM_WORLD, pid, ierr)
+!  Get number of threads
+nThreads = 1
+!$ nThreads = omp_get_num_threads()
 
 ! *****
 ! *** model setup
@@ -78,7 +81,7 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 !    - runoff remapping data
 !    - channel states
 ! ***********************************
-call init_data(pid, nNodes, ierr, cmessage)
+call init_data(pid, nNodes, nThreads, ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
 !call MPI_FINALIZE(ierr)

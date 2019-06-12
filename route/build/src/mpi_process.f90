@@ -11,6 +11,7 @@ USE nrtype
 USE dataTypes,         ONLY: var_ilength   ! integer type:     var(:)%dat
 USE dataTypes,         ONLY: var_dlength   ! double precision type: var(:)%dat
 USE dataTypes,         ONLY: var_clength   ! character type:        var(:)%dat
+USE dataTypes,         ONLY: subbasin_omp  ! openMP domain data structure
 
 ! named variables
 USE var_lookup,        ONLY:ixHRU,    nVarsHRU     ! index of variables for the HRUs
@@ -48,6 +49,7 @@ contains
  ! *********************************************************************
  subroutine comm_ntopo_data(pid,                & ! input: proc id
                             nNodes,             & ! input: number of procs
+                            nThreads,           & ! input: number of threads
                             nRch_in,            & ! input: number of stream segments in whole domain
                             nHRU_in,            & ! input: number of HRUs that are connected to reaches
                             structHRU,          & ! input: data structure for HRUs
@@ -57,29 +59,31 @@ contains
                             ierr,message)         ! output: error control
 
   USE public_var
-  USE globalData,        ONLY: ixPrint              ! desired reach index
-  USE globalData,        ONLY: domains              ! domain data structure - for each domain, pfaf codes and list of segment indices
-  USE globalData,        ONLY: nDomain              ! count of decomposed domains (tributaries + mainstems)
-  USE globalData,        ONLY: RCHFLX_trib          ! Reach flux data structures (per proc, tributary only)
-  USE globalData,        ONLY: KROUTE_trib          ! Reach k-wave data structures (per proc, tributary only)
-  USE globalData,        ONLY: NETOPO_trib
-  USE globalData,        ONLY: RPARAM_trib
-  USE globalData,        ONLY: nEns
-  USE globalData,        ONLY: hru_per_proc         ! number of hrus assigned to each proc (size = num of procs+1)
-  USE globalData,        ONLY: rch_per_proc         ! number of reaches assigned to each proc (size = num of procs+1)
-  USE globalData,        ONLY: ixHRU_order          ! global HRU index in the order of proc assignment
-  USE globalData,        ONLY: ixRch_order          ! global reach index in the order of proc assignment
-  USE globalData,        ONLY: tribOutlet_per_proc  ! number of tributary outlets per proc (size = nNodes)
-  USE globalData,        ONLY: global_ix_comm       ! global reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
-  USE globalData,        ONLY: local_ix_comm        ! local reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
-  USE alloc_data,        ONLY: alloc_struct
-  USE process_ntopo,     ONLY: augment_ntopo        ! compute all the additional network topology (only compute option = on)
-  USE process_ntopo,     ONLY: put_data_struct      !
-
+  USE globalData,          ONLY: ixPrint                  ! desired reach index
+  USE globalData,          ONLY: domains                  ! domain data structure - for each domain, pfaf codes and list of segment indices
+  USE globalData,          ONLY: nDomain                  ! count of decomposed domains (tributaries + mainstems)
+  USE globalData,          ONLY: river_basin_main         ! OMP domain data structures for mainstem
+  USE globalData,          ONLY: RCHFLX_trib              ! Reach flux data structures (per proc, tributary)
+  USE globalData,          ONLY: KROUTE_trib              ! Reach k-wave data structures (per proc, tributary)
+  USE globalData,          ONLY: NETOPO_trib              ! network topology data structure (per proc, tributary)
+  USE globalData,          ONLY: RPARAM_trib              ! reach physical parameter data structure (per proc, tributary)
+  USE globalData,          ONLY: nEns                     ! ensemble numbers (currently only 1)
+  USE globalData,          ONLY: hru_per_proc             ! number of hrus assigned to each proc (size = num of procs+1)
+  USE globalData,          ONLY: rch_per_proc             ! number of reaches assigned to each proc (size = num of procs+1)
+  USE globalData,          ONLY: ixHRU_order              ! global HRU index in the order of proc assignment
+  USE globalData,          ONLY: ixRch_order              ! global reach index in the order of proc assignment
+  USE globalData,          ONLY: tribOutlet_per_proc      ! number of tributary outlets per proc (size = nNodes)
+  USE globalData,          ONLY: global_ix_comm           ! global reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
+  USE globalData,          ONLY: local_ix_comm            ! local reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
+  USE alloc_data,          ONLY: alloc_struct
+  USE process_ntopo,       ONLY: augment_ntopo            ! compute all the additional network topology (only compute option = on)
+  USE process_ntopo,       ONLY: put_data_struct          !
+  USE domain_decomposition,ONLY: omp_domain_decomposition ! domain decomposition for omp
   implicit none
   ! Input variables
   integer(i4b),                   intent(in)  :: pid                      ! process id (MPI)
   integer(i4b),                   intent(in)  :: nNodes                   ! number of processes (MPI)
+  integer(i4b),                   intent(in)  :: nThreads                 ! number of threads (OMP)
   integer(i4b),                   intent(in)  :: nRch_in                  ! number of total segments
   integer(i4b),                   intent(in)  :: nHRU_in                  ! number of total hru
   type(var_dlength), allocatable, intent(in)  :: structHRU(:)             ! HRU properties
@@ -90,13 +94,19 @@ contains
   integer(i4b),                   intent(out) :: ierr
   character(len=strLen),          intent(out) :: message                   ! error message
   ! Local variables
-  ! data structure for decomposed river network data
-  type(var_dlength), allocatable              :: structHRU_local(:)        ! ancillary data for HRUs
-  type(var_dlength), allocatable              :: structSEG_local(:)        ! ancillary data for stream segments
-  type(var_ilength), allocatable              :: structNTOPO_local(:)      ! network topology
-  type(var_ilength), allocatable              :: structHRU2seg_local(:)    ! ancillary data for mapping hru2basin
-  type(var_clength), allocatable              :: structPFAF_local(:)       ! ancillary data for pfafstetter code
-  ! flat array for decomposed river network data
+  ! data structure for tributary river network data
+  type(var_dlength), allocatable              :: structHRU_local(:)        ! tributary ancillary data for HRUs
+  type(var_dlength), allocatable              :: structSEG_local(:)        ! tributary ancillary data for stream segments
+  type(var_ilength), allocatable              :: structNTOPO_local(:)      ! tributary network topology
+  type(var_ilength), allocatable              :: structHRU2seg_local(:)    ! tributary ancillary data for mapping hru2basin
+  type(var_clength), allocatable              :: structPFAF_local(:)       ! tributary ancillary data for pfafstetter code
+  ! data structure for mainstem river network data (root node)
+  type(var_dlength), allocatable              :: structHRU_main(:)         ! mainstem ancillary data for HRUs
+  type(var_dlength), allocatable              :: structSEG_main(:)         ! mainstem ancillary data for stream segments
+  type(var_ilength), allocatable              :: structNTOPO_main(:)       ! mainstem network topology
+  type(var_ilength), allocatable              :: structHRU2seg_main(:)     ! mainstem ancillary data for mapping hru2basin
+  type(var_clength), allocatable              :: structPFAF_main(:)        ! mainstem ancillary data for pfafstetter code
+  ! 1D array for decomposed river network data
   integer(i4b),      allocatable              :: segId_local(:)            ! reach id for decomposed network
   integer(i4b),      allocatable              :: downSegId_local(:)        ! downstream reach id for decomposed network
   integer(i4b),      allocatable              :: hruId_local(:)            ! hru id array in decomposed network
@@ -105,7 +115,7 @@ contains
   real(dp),          allocatable              :: length_local(:)           ! reach length array in decomposed network
   real(dp),          allocatable              :: area_local(:)             ! hru area in decomposed network
   logical(lgt),      allocatable              :: tribOutlet_local(:)       ! logical to indicate tributary outlet to mainstems
-  ! flat array for the entire river network
+  ! 1D array for the entire river network
   integer(i4b)                                :: hruId(nHRU_in)            ! hru id for all the HRUs
   integer(i4b)                                :: hruSegId(nRch_in)         ! hru-to-seg mapping for each hru
   integer(i4b)                                :: segId(nRch_in)            ! reach id for all the segments
@@ -127,6 +137,7 @@ contains
   integer(i4b)                                :: rnkIdNode(nDomain)        ! ranked node id array for each domain
   integer(i4b)                                :: jHRU,jSeg                 ! ranked indices
   ! miscellaneous
+  type(subbasin_omp), allocatable             :: river_basin_tmp(:)
   integer(i4b), allocatable                   :: seq_array(:)
   integer(i4b)                                :: iSeg,iHru                 ! reach and hru loop indices
   integer(i4b)                                :: ix1, ix2
@@ -140,12 +151,10 @@ contains
 
   ! ********************************************************************************************************************
   ! ********************************************************************************************************************
-  ! ********************************************************************************************************************
   ! Part 1: define routing vectors ordered by domain/node
   !  - define the global indices ordered by domain/node
   !  - define the number of reaches/hrus on each processor
   !  - copy the data from the data structures to the ordered routing vectors
-  ! ********************************************************************************************************************
   ! ********************************************************************************************************************
   ! ********************************************************************************************************************
 
@@ -164,7 +173,9 @@ contains
 
     ! domain is a contiguous collection of reaches/HRUs -- multiple domains may be on a single processor
 
-    forall(ix=1:nDomain) idNode(ix) = domains(ix)%idNode ! extracts the processing node from the "domain" data structire
+    do ix=1,nDomain
+      idNode(ix) = domains(ix)%idNode ! extracts the processing node from the "domain" data structire
+    enddo
     call indexx(idNode,rnkIdNode) ! rank the processor nodes
 
     ! loop through the domains
@@ -230,15 +241,101 @@ contains
 !      print*, segId(ix), ixRch_order(ix), ixLocalSubSEG(ix), ixNode(ix), pfaf(ix)
 !    enddo
 
+   ! ********************************************************************************************************************
+   ! ********************************************************************************************************************
+   ! Mainstem decomposition for OMP
+   ! ********************************************************************************************************************
+   ! ********************************************************************************************************************
+
+   ! allocate space for local data structures
+   call alloc_struct(hru_per_proc(-1),     & ! input: number of HRUs
+                     rch_per_proc(-1),     & ! input: number of stream segments
+                     structHRU_main,       & ! inout: ancillary data for HRUs
+                     structSEG_main,       & ! inout: ancillary data for stream segments
+                     structHRU2seg_main,   & ! inout: ancillary data for mapping hru2basin
+                     structNTOPO_main,     & ! inout: ancillary data for network toopology
+                     structPFAF_main,      & ! inout: ancillary data for pfafstetter code
+                     ierr,cmessage)           ! output: error control
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! Populate local data structures
+   ! reach
+   do ix = 1, rch_per_proc(-1)
+     structNTOPO_main(ix)%var(ixNTOPO%segId)%dat(1)     = segId(ix)
+     structNTOPO_main(ix)%var(ixNTOPO%downSegId)%dat(1) = downSegId(ix)
+     structSEG_main  (ix)%var(ixSEG%length)%dat(1)      = length(ix)
+     structSEG_main  (ix)%var(ixSEG%slope)%dat(1)       = slope(ix)
+   end do
+
+   ! hru
+   do ix=1, hru_per_proc(-1)
+     structHRU2SEG_main(ix)%var(ixHRU2SEG%HRUid)%dat(1)    = hruId(ix)
+     structHRU2SEG_main(ix)%var(ixHRU2SEG%hruSegId)%dat(1) = hruSegId(ix)
+     structHRU_main    (ix)%var(ixHRU%area)%dat(1)         = area(ix)
+   end do
+
+   ! compute additional ancillary infomration
+   call augment_ntopo(hru_per_proc(-1),            & ! input: number of HRUs
+                      rch_per_proc(-1),            & ! input: number of stream segments
+                      structHRU_main,              & ! inout: ancillary data for HRUs
+                      structSEG_main,              & ! inout: ancillary data for stream segments
+                      structHRU2seg_main,          & ! inout: ancillary data for mapping hru2basin
+                      structNTOPO_main,            & ! inout: ancillary data for network toopology
+                      ierr, cmessage)                 ! output: error control
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! OMP domain decomposition
+   call omp_domain_decomposition(nThreads, rch_per_proc(-1), structNTOPO_main, river_basin_tmp, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! river_basin_tmp is based on local indices and need to conver it to global indices
+   !allocate river_basin_main
+   allocate(river_basin_main(1), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main]'; return; endif
+
+   ! if mainstem within "mainstem" defined by MPI decomposition exists
+   ! Construct mainstem parts in omp decomposed domain with global reach index
+   alloc_check:if (allocated(river_basin_tmp(1)%mainstem)) then
+
+     allocate(river_basin_main(1)%mainstem(size(river_basin_tmp(1)%mainstem)), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%mainstem]'; return; endif
+
+     mainstems:do ix = 1, size(river_basin_tmp(1)%mainstem)
+
+       allocate(river_basin_main(1)%mainstem(ix)%segIndex(size(river_basin_tmp(1)%mainstem(ix)%segIndex)), stat=ierr)
+       if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%mainstem%segindex]'; return; endif
+
+       do iSeg = 1, size(river_basin_tmp(1)%mainstem(ix)%segIndex)
+         river_basin_main(1)%mainstem(1)%segIndex(iSeg) = ixRch_order(river_basin_tmp(1)%mainstem(ix)%segIndex(iSeg))
+       enddo
+
+     enddo mainstems
+
+   endif alloc_check
+
+   ! always tributary should be allocated
+   ! Construct tributary parts in omp decomposed domain with global reach index
+   allocate(river_basin_main(1)%tributary(size(river_basin_tmp(1)%tributary)), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%tributary]'; return; endif
+
+   tribs:do ix = 1, size(river_basin_tmp(1)%tributary)
+
+     allocate(river_basin_main(1)%tributary(ix)%segIndex(size(river_basin_tmp(1)%tributary(ix)%segIndex)), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%tributary%segindex]'; return; endif
+
+     do iSeg = 1, size(river_basin_tmp(1)%tributary(ix)%segIndex)
+       river_basin_main(1)%tributary(ix)%segIndex(iSeg) = ixRch_order(river_basin_tmp(1)%tributary(ix)%segIndex(iSeg))
+     enddo
+
+   enddo tribs
+
   endif  ! if pid==root
 
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
   ! ********************************************************************************************************************
   ! ********************************************************************************************************************
-  ! ********************************************************************************************************************
-  ! Part 2: Send the information to individual processors
-  ! ********************************************************************************************************************
+  ! Part 2: Send the information for tributaries to individual processors
   ! ********************************************************************************************************************
   ! ********************************************************************************************************************
 
@@ -249,7 +346,7 @@ contains
   call shr_mpi_bcast(ixRch_order, ierr, cmessage)
   call shr_mpi_bcast(ixHRU_order, ierr, cmessage)
 
-  ! define the number of reaches/hrus on the main stem
+  ! define the number of reaches/hrus on the mainstem
   nRch_mainstem = rch_per_proc(-1)
   nHRU_mainstem = hru_per_proc(-1)
 
@@ -264,9 +361,7 @@ contains
 
   ! ********************************************************************************************************************
   ! ********************************************************************************************************************
-  ! ********************************************************************************************************************
-  ! Part 3: populate local data structures and compute additional ancillary information
-  ! ********************************************************************************************************************
+  ! Part 3: populate local (tributary) data structures and compute additional ancillary information
   ! ********************************************************************************************************************
   ! ********************************************************************************************************************
 
@@ -282,9 +377,9 @@ contains
                     structNTOPO_local,     & ! inout: ancillary data for network toopology
                     structPFAF_local,      & ! inout: ancillary data for pfafstetter code
                     ierr,cmessage)           ! output: error control
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! Populate local data structures
-
   ! reach
   do ix = 1,rch_per_proc(pid)
    structNTOPO_local(ix)%var(ixNTOPO%segId)%dat(1)     = segId_local(ix)
@@ -304,22 +399,20 @@ contains
   if (desireId/=integerMissing) ixPrint = findIndex(segId_local, desireId, integerMissing)
 
   ! compute additional ancillary infomration
-  call augment_ntopo(&
-                     ! input: model control
-                     hru_per_proc(pid),            & ! number of HRUs
-                     rch_per_proc(pid),            & ! number of stream segments
-                     ! inout: populate data structures
-                     structHRU_local,              & ! ancillary data for HRUs
-                     structSEG_local,              & ! ancillary data for stream segments
-                     structHRU2seg_local,          & ! ancillary data for mapping hru2basin
-                     structNTOPO_local,            & ! ancillary data for network toopology
-                     ! output: error control
-                     ierr, cmessage)
+  call augment_ntopo(hru_per_proc(pid),            & ! input: number of HRUs
+                     rch_per_proc(pid),            & ! input: number of stream segments
+                     structHRU_local,              & ! inout: ancillary data for HRUs
+                     structSEG_local,              & ! inout: ancillary data for stream segments
+                     structHRU2seg_local,          & ! inout: ancillary data for mapping hru2basin
+                     structNTOPO_local,            & ! inout: ancillary data for network toopology
+                     ierr, cmessage)                 ! output: error control
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! copy data to routing structres RPARAM_trib and NETOPO_trib
   call put_data_struct(rch_per_proc(pid), structSEG_local, structNTOPO_local, & ! input
                        RPARAM_trib, NETOPO_trib,                              & ! output:
                        ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! -----------------------------------------------------------------------------
   ! Find "dangling reach", or tributary outlet reaches that link to mainstems
@@ -350,7 +443,7 @@ contains
   allocate(global_ix_comm(count(tribOutlet)),seq_array(rch_per_proc(pid)), local_ix_comm(nRch_trib), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating array for [global_ix_comm, loca_ix_comm]'; return; endif
 
-  ! mask non tributary outlet reaches
+  ! mask non-tributary outlet reaches
   ! mainstem part (1:nRch_mainstem) has to be removed from ixRch_order
   ix1 = nRch_mainstem+1; ix2 = sum(rch_per_proc)
   global_ix_comm = pack(ixRch_order(ix1:ix2), tribOutlet)   ! size = number of tributary outlet reaches from all the procs
@@ -375,7 +468,6 @@ contains
 
  end subroutine comm_ntopo_data
 
-
  ! *********************************************************************
  ! public subroutine: send decomposed hru runoff to tasks and populate data structures
  ! *********************************************************************
@@ -394,7 +486,8 @@ contains
   USE globalData, only : RCHFLX           ! entire reach flux structure
   USE globalData, only : KROUTE_trib      ! tributary reach kwt data structure
   USE globalData, only : KROUTE           ! entire river reach kwt sate structure
-  USE globalData, only : river_basin      ! OMP domain decomposition
+  USE globalData, only : river_basin_trib ! tributary OMP domain decomposition
+  USE globalData, only : river_basin_main ! mainstem OMP domain decomposition
   USE globalData, only : runoff_data      ! runoff data structure
   USE globalData, only : nHRU             ! number of HRUs in the whoel river network
   USE globalData, only : nRch             ! number of reaches in the whoel river network
@@ -428,14 +521,13 @@ contains
   integer(i4b)                          :: mainstem=2               !
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
   ! timing
-  integer*8     :: cr, startTime, endTime
-  real(dp)      :: rate, elapsedTime
+  integer*8                             :: cr, startTime, endTime
+  real(dp)                              :: elapsedTime
 
   ierr=0; message='mpi_route/'
 
   ! Initialize the system_clock
   call system_clock(count_rate=cr)
-  rate = real(cr)
 
   ! Reaches/HRU assigned to root node include BOTH small tributaries and mainstem
   ! First, route "small tributaries" while routing over other bigger tributaries (at slave nodes).
@@ -452,7 +544,7 @@ call system_clock(startTime)
   call shr_mpi_scatterV(basinRunoff_sorted(hru_per_proc(-1)+1:nHRU), hru_per_proc(0:nNodes-1), basinRunoff_local, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 call system_clock(endTime)
-elapsedTime = real(endTime-startTime, kind(dp))/rate
+elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-ro] = ', elapsedTime, ' s'
 
   ! --------------------------------
@@ -471,7 +563,7 @@ call system_clock(startTime)
   call main_route(iens,              &  ! ensemble index
                   basinRunoff_local, &  ! basin (i.e.,HRU) runoff (m/s)
                   ixRchProcessed,    &  ! indices of reach to be routed
-                  river_basin,       &  ! OMP basin decomposition
+                  river_basin_trib,  &  ! OMP basin decomposition
                   tributary,         &  ! basinType (1-> tributary, 2->mainstem)
                   NETOPO_trib,       &  ! reach topology data structure
                   RPARAM_trib,       &  ! reach parameter data structure
@@ -485,7 +577,7 @@ call system_clock(startTime)
   ! make sure that routing at all the procs finished
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 call system_clock(endTime)
-elapsedTime = real(endTime-startTime, kind(dp))/rate
+elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/tributary-route] = ', elapsedTime, ' s'
 
   ! --------------------------------
@@ -526,7 +618,7 @@ call system_clock(startTime)
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
 call system_clock(endTime)
-elapsedTime = real(endTime-startTime, kind(dp))/rate
+elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/gater-state-flux] = ', elapsedTime, ' s'
 
   ! --------------------------------
@@ -550,7 +642,7 @@ call system_clock(startTime)
     call main_route(iens,                    &  ! input: ensemble index
                     runoff_data%basinRunoff, &  ! input: basin (i.e.,HRU) runoff (m/s)
                     ixRchProcessed,          &  ! input: indices of reach to be routed
-                    river_basin,             &  ! input: OMP basin decomposition
+                    river_basin_main,        &  ! input: OMP basin decomposition
                     mainstem,                &  ! input: basinType (1-> tributary, 2->mainstem)
                     NETOPO,                  &  ! input: reach topology data structure
                     RPARAM,                  &  ! input: reach parameter data structure
@@ -559,7 +651,7 @@ call system_clock(startTime)
                     ierr, message)              ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 call system_clock(endTime)
-elapsedTime = real(endTime-startTime, kind(dp))/rate
+elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/main_route] = ', elapsedTime, ' s'
   endif ! end of root proc
 
@@ -580,13 +672,12 @@ call system_clock(startTime)
                            ierr, message)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 call system_clock(endTime)
-elapsedTime = real(endTime-startTime, kind(dp))/rate
+elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-state] = ', elapsedTime, ' s'
 
  endif ! end of kwt option
 
  end subroutine mpi_route
-
 
  ! *********************************************************************
  ! subroutine: fluxes communication
@@ -931,7 +1022,6 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
   endif
 
  end subroutine mpi_comm_kwt_state
-
 
  ! *********************************************************************
  ! private subroutine

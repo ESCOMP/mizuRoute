@@ -159,7 +159,8 @@ module globalData
   ! OMP
   type(subbasin_mpi)             , public :: domains_omp(maxDomain)! domain decomposition data structure (maximum domain is set to maxDomain)
   integer(i4b)                   , public :: nDomain_omp           ! domain counter
-  type(subbasin_omp), allocatable, public :: river_basin(:)       ! openMP domain decomposition
+  type(subbasin_omp), allocatable, public :: river_basin_main(:)   ! openMP domain decomposition for mainstem
+  type(subbasin_omp), allocatable, public :: river_basin_trib(:)   ! openMP domain decomposition for tributary
 
   integer(i4b)    , allocatable  , public :: ixHRU_order(:)       ! global HRU index in the order of proc assignment (size = num of hrus contributing reach in entire network)
   integer(i4b)    , allocatable  , public :: ixRch_order(:)       ! global reach index in the order of proc assignment (size = num of reaches in entire network))
