@@ -70,6 +70,7 @@ contains
  use network_topo,     only:hru2segment           ! get the mapping between HRUs and segments
  use network_topo,     only:up2downSegment        ! get the mapping between upstream and downstream segments
  use network_topo,     only:reachOrder            ! define the processing order
+ use network_topo,     only:streamOrdering        ! define stream order (Strahler)
  use network_topo,     only:reach_list            ! reach list
  use network_topo,     only:reach_mask            ! identify all reaches upstream of a given reach
  ! Routing parameter estimation routine
@@ -186,6 +187,24 @@ contains
   ! get timing
   call system_clock(time1)
   write(*,'(a,1x,1PG15.7,A)') 'after reachOrder: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
+  !print*, trim(message)//'PAUSE : '; read(*,*)
+
+ endif  ! if need to compute network topology
+
+ ! ---------- compute Strahler stream order for each reach ---------------------------------------------------
+
+ ! check the need to compute network topology
+ if(topoNetworkOption==compute)then
+
+  ! defines the processing order for the individual stream segments in the river network
+  call streamOrdering(nSeg,         &   ! input:        number of reaches
+                      structNTOPO,  &   ! input:output: network topology
+                      ierr, cmessage)   ! output:       error control
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! get timing
+  call system_clock(time1)
+  write(*,'(a,1x,1PG15.7,A)') 'after streamOrder: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
   !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif  ! if need to compute network topology

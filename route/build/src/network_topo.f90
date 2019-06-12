@@ -37,7 +37,7 @@ private
 public :: hru2segment    ! compute correspondence between HRUs and segments
 public :: up2downSegment ! mapping between upstream and downstream segments
 public :: reachOrder     ! define the processing order
-public :: shreveStreamOrder ! get stream order for each reach
+public :: streamOrdering ! get stream order for each reach
 public :: reach_list     ! get a list of reaches above each reach
 public :: reach_mask     ! get a mask that defines all segments above a given segment
 public :: reach_mask_orig     ! get a mask that defines all segments above a given segment
@@ -535,9 +535,9 @@ contains
  ! *********************************************************************
  ! public subroutine: compute Shreve stream order for each segment
  ! *********************************************************************
- subroutine shreveStreamOrder(nSeg,         &   ! input:        number of reaches
-                              structNTOPO,  &   ! input:output: network topology
-                              ierr, message)    ! output:       error control
+ subroutine streamOrdering(nSeg,         &   ! input:        number of reaches
+                           structNTOPO,  &   ! input:output: network topology
+                           ierr, message)    ! output:       error control
  ! ----------------------------------------------------------------------------------------
  ! Purpose:
  !
@@ -558,9 +558,11 @@ contains
  ! local variables
  integer(i4b)                      :: iSeg,jSeg,kSeg ! loop through reaches
  integer(i4b)                      :: iUps           ! loop through immeidate upstream reach
+ integer(i4b)                      :: strmOrder      ! maximum stream order
  integer(i4b)                      :: nImmediate     ! number of immediate upstream reaches
+ logical(lgt)                      :: increment      ! increment order or not
 
- ierr=0; message='shreveStreamOrder/'
+ ierr=0; message='streamOrdering/'
 
  do iSeg = 1,nSeg
 
@@ -570,21 +572,40 @@ contains
 
    ! Initialize streamorder as 1 for most upstream reach, otherwise 0
    if (nImmediate<1) then
-     structNTOPO(jSeg)%var(ixNTOPO%streamOrder)%dat(1)=1
-     cycle
+
+     structNTOPO(jSeg)%var(ixNTOPO%streamOrder)%dat(1) = 1
+
+   elseif (nImmediate==1) then
+
+     kSeg = structNTOPO(jSeg)%var(ixNTOPO%upSegIndices)%dat(nImmediate)
+     structNTOPO(jSeg)%var(ixNTOPO%streamOrder)%dat(1) = structNTOPO(kSeg)%var(ixNTOPO%streamOrder)%dat(1)
+
    else
-     structNTOPO(jSeg)%var(ixNTOPO%streamOrder)%dat(1)=0
+     ! take order from one of upstream reach for initialization
+     kSeg = structNTOPO(jSeg)%var(ixNTOPO%upSegIndices)%dat(1)
+     strmOrder = structNTOPO(kSeg)%var(ixNTOPO%streamOrder)%dat(1)
+     increment = .true.
+     do iUps = 2,nImmediate
+       kSeg = structNTOPO(jSeg)%var(ixNTOPO%upSegIndices)%dat(iUps)
+       ! if the other upstream reaches are different, assign higher one and no need to increment order
+       if (structNTOPO(kSeg)%var(ixNTOPO%streamOrder)%dat(1) /= strmOrder) then
+         increment = .False.
+         if (structNTOPO(kSeg)%var(ixNTOPO%streamOrder)%dat(1) > strmOrder) then
+           strmOrder = structNTOPO(kSeg)%var(ixNTOPO%streamOrder)%dat(1)
+         endif
+       endif
+     enddo
+
+     structNTOPO(jSeg)%var(ixNTOPO%streamOrder)%dat(1) = strmOrder
+     if (increment) then
+       structNTOPO(jSeg)%var(ixNTOPO%streamOrder)%dat(1) = structNTOPO(jSeg)%var(ixNTOPO%streamOrder)%dat(1) + 1
+     endif
+
    endif
 
-   ! streamOrder is added 1 for every immediate upstream reaches
-   do iUps = 1,nImmediate
-     kSeg = structNTOPO(jSeg)%var(ixNTOPO%upSegIndices)%dat(iUps)
-     structNTOPO(jSeg)%var(ixNTOPO%streamOrder)%dat(1) = structNTOPO(jSeg)%var(ixNTOPO%streamOrder)%dat(1) + &
-                                                         structNTOPO(kSeg)%var(ixNTOPO%streamOrder)%dat(1)
-   enddo
   enddo
 
- end subroutine shreveStreamOrder
+ end subroutine streamOrdering
 
 
  ! *********************************************************************
