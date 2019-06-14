@@ -44,6 +44,7 @@ contains
    character(len=strLen),          intent(out) :: message         ! error message
    ! Local variables
    character(len=strLen)                       :: cmessage        ! error message from subroutine
+   logical(lgt)                                :: debug = .false. ! print out reach info with node assignment for debugging
 
    ierr=0; message='mpi_domain_decomposition/'
 
@@ -58,6 +59,69 @@ contains
 
    call assign_node(nNodes, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   if (debug) call print_screen()
+
+   CONTAINS
+
+   ! --------------------------------------------------
+   !  FOR DEBUGGING
+   ! --------------------------------------------------
+   subroutine print_screen()
+     ! debugging variables
+     integer(i4b)                           :: segId(nSeg)          ! reach id for all the segments
+     integer(i4b)                           :: downIndex(nSeg)      ! down reach id for all the segments
+     integer(i4b)                           :: iSeg, ix             ! loop indix
+     logical(lgt)                           :: missing(nSeg)
+
+     do iSeg = 1,nSeg
+       segId(iSeg)     = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)
+       downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
+     end do
+
+     print*,'seg_index segid down_index down_id node-id'
+     do ix = 1,nDomain
+      associate (segIndexSub => domains(ix)%segIndex, nSubSeg => size(domains(ix)%segIndex))
+      do iSeg = 1,size(segIndexSub)
+       if (downIndex(segIndexSub(iSeg)) > 0) then
+       write(*,"(I9,A,I12,A,I9,A,I12,A,I2)") segIndexSub(iSeg),' ',segId(segIndexSub(iSeg)),' ', &
+                                             downIndex(segIndexSub(iSeg)),' ',segId(downIndex(segIndexSub(iSeg))),' ', &
+                                             domains(ix)%idNode
+       else
+       write(*,"(I9,A,I12,A,I9,A,I12,A,I2)") segIndexSub(iSeg),' ',segId(segIndexSub(iSeg)),' ', &
+                                                     downIndex(segIndexSub(iSeg)),' ',-999,' ', &
+                                                     domains(ix)%idNode
+       endif
+      end do
+      end associate
+     end do
+
+     ! check not-assgined (missing) reaches
+     missing = .true.
+     do ix = 1,nDomain
+      associate (segIndexSub => domains(ix)%segIndex)
+      ! reach index array in order of node assignment
+      do iSeg = 1,size(segIndexSub)
+       missing(segIndexSub) = .false.
+      end do
+      end associate
+     end do
+     if (count(missing)>0) then
+       print*,'segid down_id'
+       do iSeg = 1, nSeg
+        if (missing(iSeg)) then ! if not assigned reaches
+         if (downIndex(iSeg)>0) then
+          print*, segId(iSeg), segId(downIndex(iSeg))
+         else
+          print*, segId(iSeg), downIndex(iSeg)
+         endif
+        endif
+       enddo
+      else
+       print*, 'NO MISSING SEGMENT: ALL SEGMENTS ARE ASSIGNED TO DOMAINS'
+     endif
+
+   end subroutine print_screen
 
  end subroutine mpi_domain_decomposition
 
@@ -152,7 +216,6 @@ contains
    integer(i4b)                                :: sumHruLocal         ! sum of hrus that contribute to the segments
    integer(i4b)                                :: iSeg, ix            ! loop indices
    integer(i4b)                                :: ix1, ix2            ! first and last indices in array to subset
-   logical(lgt)                                :: debug = .false.     ! print out reach info with node assignment for debugging
 
    integer*8                              :: cr, startTime, endTime
    real(dp)                               :: elapsedTime
@@ -209,66 +272,6 @@ call system_clock(startTime)
 call system_clock(endTime)
 elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,1PG15.7,A)") '   elapsed-time [hru_decomposition] = ', elapsedTime, ' s'
-
-   if (debug) call print_screen()
-
-   CONTAINS
-
-   ! --------------------------------------------------
-   !  FOR DEBUGGING
-   ! --------------------------------------------------
-   subroutine print_screen()
-     ! debugging variables
-     integer(i4b)                           :: segId(nSeg)            ! reach id for all the segments
-     logical(lgt)                           :: missing(nSeg)
-
-     do iSeg = 1,nSeg
-       segId(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)
-     end do
-
-     print*,'seg_index segid down_index down_id node-id'
-     do ix = 1,nDomains
-      associate (segIndexSub => domains_out(ix)%segIndex, nSubSeg => size(domains_out(ix)%segIndex))
-      do iSeg = 1,size(segIndexSub)
-       if (downIndex(segIndexSub(iSeg)) > 0) then
-       write(*,"(I9,A,I12,A,I9,A,I12,A,I2)") segIndexSub(iSeg),' ',segId(segIndexSub(iSeg)),' ', &
-                                             downIndex(segIndexSub(iSeg)),' ',segId(downIndex(segIndexSub(iSeg))),' ', &
-                                             domains_out(ix)%idNode
-       else
-       write(*,"(I9,A,I12,A,I9,A,I12,A,I2)") segIndexSub(iSeg),' ',segId(segIndexSub(iSeg)),' ', &
-                                                     downIndex(segIndexSub(iSeg)),' ',-999,' ', &
-                                                     domains_out(ix)%idNode
-       endif
-      end do
-      end associate
-     end do
-
-     ! check not-assgined (missing) reaches
-     missing = .true.
-     do ix = 1,nDomains
-      associate (segIndexSub => domains_out(ix)%segIndex)
-      ! reach index array in order of node assignment
-      do iSeg = 1,size(segIndexSub)
-       missing(segIndexSub) = .false.
-      end do
-      end associate
-     end do
-     if (count(missing)>0) then
-       print*,'segid down_id'
-       do iSeg = 1, nSeg
-        if (missing(iSeg)) then ! if not assigned reaches
-         if (downIndex(iSeg)>0) then
-          print*, segId(iSeg), segId(downIndex(iSeg))
-         else
-          print*, segId(iSeg), downIndex(iSeg)
-         endif
-        endif
-       enddo
-      else
-       print*, 'NO MISSING SEGMENT: ALL SEGMENTS ARE ASSIGNED TO DOMAINS'
-     endif
-
-   end subroutine print_screen
 
  end subroutine classify_river_basin
 

@@ -43,7 +43,6 @@ contains
                        basinRunoff_in, &  ! basin (i.e.,HRU) runoff (m/s)
                        ixRchProcessed, &  ! indices of reach to be routed
                        river_basin,    &  ! OMP basin decomposition
-                       basinType,      &  ! basinType (1-> tributary, 2->mainstem)
                        NETOPO_in,      &  ! reach topology data structure
                        RPARAM_in,      &  ! reach parameter data structure
                        ! inout
@@ -75,7 +74,6 @@ contains
    real(dp),      allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
    integer(i4b),  allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
    type(subbasin_omp), allocatable, intent(in)    :: river_basin(:)       ! OMP basin decomposition
-   integer(i4b),               intent(in)    :: basinType            ! basinType (1-> tributary, 2->mainstem)
    type(RCHTOPO), allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology
    type(RCHPRP),  allocatable, intent(in)    :: RPARAM_in(:)         ! River reach parameter
    ! inout
@@ -153,7 +151,6 @@ contains
     call kwt_route(iens,                 & ! input: ensemble index
                    river_basin,          & ! input: river basin data type
                    T0,T1,                & ! input: start and end of the time step
-                   basinType,            & ! input: basinType (0-> tributary, 1->mainstem)
                    ixPrint,              & ! input: index of the desired reach
                    NETOPO_in,            & ! input: reach topology data structure
                    RPARAM_in,            & ! input: reach parameter data structure

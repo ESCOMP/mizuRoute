@@ -32,7 +32,6 @@ contains
  SUBROUTINE kwt_route(iens,                 & ! input: ensemble index
                       river_basin,          & ! input: river basin information (mainstem, tributary outlet etc.)
                       T0,T1,                & ! input: start and end of the time step
-                      basinType,            & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
                       ixDesire,             & ! input: reachID to be checked by on-screen pringing
                       NETOPO_in,            & ! input: reach topology data structure
                       RPARAM_in,            & ! input: reach parameter data structure
@@ -47,7 +46,6 @@ contains
    integer(i4b),       intent(in)                 :: iEns                 ! ensemble member
    type(subbasin_omp), intent(in),    allocatable :: river_basin(:)       ! river basin information (mainstem, tributary outlet etc.)
    real(dp),           intent(in)                 :: T0,T1                ! start and end of the time step (seconds)
-   integer(i4b),       intent(in)                 :: basinType            ! integer to indicate basin type (1-> tributary, 2-> mainstem)
    integer(i4b),       intent(in)                 :: ixDesire             ! index of the reach for verbose output
    type(RCHTOPO),      intent(in),    allocatable :: NETOPO_in(:)         ! River Network topology
    type(RCHPRP),       intent(in),    allocatable :: RPARAM_in(:)         ! River reach parameter
@@ -68,7 +66,6 @@ contains
    integer(i4b)                                   :: iSeg, jSeg           ! loop indices - reach
    integer(i4b)                                   :: iTrib, iStem         ! loop indices - tributary, mainstem
    ! variables needed for timing
-   integer(i4b)                                   :: omp_get_num_threads  ! get the number of threads
    integer(i4b)                                   :: omp_get_thread_num
    integer(i4b), allocatable                      :: ixThread(:)          ! thread id
    integer*8,    allocatable                      :: openMPend(:)         ! time for the start of the parallelization section
@@ -133,7 +130,6 @@ contains
        ! route kinematic waves through the river network
        call QROUTE_RCH(iEns,jSeg,           & ! input: array indices
                        ixDesire,            & ! input: index of the desired reach
-                       basinType,           & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
                        T0,T1,               & ! input: start and end of the time step
                        LAKEFLAG,            & ! input: flag if lakes are to be processed
                        NETOPO_in,           & ! input: reach topology data structure
@@ -157,29 +153,30 @@ contains
 !   do iTrib=1,nTrib
 !     write(*,'(4(i5,1x),2(I20,1x))') iTrib, river_basin(1)%tributary(iTrib)%nRch, ixThread(iTrib), nThreads, timeTribStart(iTrib), openMPend(iTrib)
 !   enddo
-!   deallocate(ixThread, timeTrib, timeTribStart, stat=ierr)
-!   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to deallocate space for Trib timing'; return; endif
+   deallocate(ixThread, timeTrib, timeTribStart, stat=ierr)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to deallocate space for Trib timing'; return; endif
 
    ! 2. Route mainstems (serial)
    call system_clock(startMain)
-   do iStem = 1,size(river_basin(1)%mainstem)
-     do iSeg = 1,river_basin(1)%mainstem(iStem)%nRch
-       jSeg = river_basin(1)%mainstem(iStem)%segIndex(iSeg)
-       if (.not. doRoute(jSeg)) cycle
-       ! route kinematic waves through the river network
-       call QROUTE_RCH(iens,jSeg,           & ! input: array indices
-                       ixDesire,            & ! input: index of the desired reach
-                       basinType,           & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
-                       T0,T1,               & ! input: start and end of the time step
-                       LAKEFLAG,            & ! input: flag if lakes are to be processed
-                       NETOPO_in,           & ! input: reach topology data structure
-                       RPARAM_in,           & ! input: reach parameter data structure
-                       KROUTE_out,          & ! inout: reach state data structure
-                       RCHFLX_out,          & ! inout: reach flux data structure
-                       ierr,cmessage)         ! output: error control
-       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-     end do
-   enddo
+   if (allocated(river_basin(1)%mainstem)) then
+     do iStem = 1,size(river_basin(1)%mainstem)
+       do iSeg = 1,river_basin(1)%mainstem(iStem)%nRch
+         jSeg = river_basin(1)%mainstem(iStem)%segIndex(iSeg)
+         if (.not. doRoute(jSeg)) cycle
+         ! route kinematic waves through the river network
+         call QROUTE_RCH(iens,jSeg,           & ! input: array indices
+                         ixDesire,            & ! input: index of the desired reach
+                         T0,T1,               & ! input: start and end of the time step
+                         LAKEFLAG,            & ! input: flag if lakes are to be processed
+                         NETOPO_in,           & ! input: reach topology data structure
+                         RPARAM_in,           & ! input: reach parameter data structure
+                         KROUTE_out,          & ! inout: reach state data structure
+                         RCHFLX_out,          & ! inout: reach flux data structure
+                         ierr,cmessage)         ! output: error control
+         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       end do
+     enddo
+   endif
 
    call system_clock(endTime)
    elapsedTime = real(endTime-startMain, kind(dp))/real(cr)
@@ -193,7 +190,6 @@ contains
  SUBROUTINE kwt_route_orig(iens,                 & ! input: ensemble index
                            river_basin,          & ! input: river basin information (mainstem, tributary outlet etc.)
                            T0,T1,                & ! input: start and end of the time step
-                           basinType,            & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
                            ixDesire,             & ! input: reachID to be checked by on-screen pringing
                            NETOPO_in,            & ! input: reach topology data structure
                            RPARAM_in,            & ! input: reach parameter data structure
@@ -209,7 +205,6 @@ contains
    integer(i4b), intent(in)                 :: iens            ! ensemble member
    type(subbasin_omp), intent(in), allocatable :: river_basin(:)  ! river basin information (mainstem, tributary outlet etc.)
    real(dp),     intent(in)                 :: T0,T1           ! start and end of the time step (seconds)
-   integer(i4b), intent(in)                 :: basinType       ! integer to indicate basin type (1-> tributary, 2-> mainstem)
    integer(i4b), intent(in)                 :: ixDesire        ! index of the reach for verbose output
    type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)    ! River Network topology
    type(RCHPRP), intent(in),    allocatable :: RPARAM_in(:)    ! River reach parameter
@@ -265,7 +260,6 @@ contains
    ! route kinematic waves through the river network
    call QROUTE_RCH(iens,jSeg,           & ! input: array indices
                    ixDesire,            & ! input: index of the desired reach
-                   basinType,           & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
                    T0,T1,               & ! input: start and end of the time step
                    LAKEFLAG,            & ! input: flag if lakes are to be processed
                    NETOPO_in,           & ! input: reach topology data structure
@@ -288,7 +282,6 @@ contains
  ! *********************************************************************
  subroutine QROUTE_RCH(IENS,JRCH,    & ! input: array indices
                        ixDesire,     & ! input: index of the reach for verbose output
-                       basinType,    & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
                        T0,T1,        & ! input: start and end of the time step
                        LAKEFLAG,     & ! input: flag if lakes are to be processed
                        NETOPO_in,    & ! input: reach topology data structure
@@ -358,7 +351,6 @@ contains
    integer(i4b), intent(in)                    :: IENS          ! ensemble member
    integer(i4b), intent(in)                    :: JRCH          ! reach to process
    integer(i4b), intent(in)                    :: ixDesire      ! index of the reach for verbose output
-   integer(i4b), intent(in)                    :: basinType       ! integer to indicate basin type (1-> tributary, 2-> mainstem)
    real(dp),     intent(in)                    :: T0,T1         ! start and end of the time step (seconds)
    integer(i4b), intent(in)                    :: LAKEFLAG      ! >0 if processing lakes
    type(RCHTOPO),intent(in),    allocatable    :: NETOPO_in(:)  ! River Network topology
@@ -537,7 +529,8 @@ contains
     ! ***
     ! remove flow particles from the most downstream reach
     ! if the last reach or lake inlet (and lakes are enabled), remove routed elements from memory
-    IF ((NETOPO_in(JRCH)%DREACHI.LT.0 .and. basinType==2).OR. &  ! if the last reach, then there is no downstream reach
+!    IF ((NETOPO_in(JRCH)%DREACHI.LT.0 .and. basinType==2).OR. &  ! if the last reach, then there is no downstream reach
+    IF ((NETOPO_in(JRCH)%DREACHK.LT.0 ).OR. &  ! if the last reach (down reach ID is negative), then there is no downstream reach
         (LAKEFLAG.EQ.1.AND.NETOPO_in(JRCH)%LAKINLT)) THEN ! if lake inlet
       ! copy data to a temporary wave
       if (allocated(NEW_WAVE)) THEN

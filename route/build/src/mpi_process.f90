@@ -245,90 +245,94 @@ contains
    ! ********************************************************************************************************************
    ! ********************************************************************************************************************
    ! Mainstem decomposition for OMP
+   ! case: 1 node use - there is no mainstems and all the reaches are treated as tributary reaches
    ! ********************************************************************************************************************
    ! ********************************************************************************************************************
+   if (nNodes /= 1) then
 
-   ! allocate space for local data structures
-   call alloc_struct(hru_per_proc(-1),     & ! input: number of HRUs
-                     rch_per_proc(-1),     & ! input: number of stream segments
-                     structHRU_main,       & ! inout: ancillary data for HRUs
-                     structSEG_main,       & ! inout: ancillary data for stream segments
-                     structHRU2seg_main,   & ! inout: ancillary data for mapping hru2basin
-                     structNTOPO_main,     & ! inout: ancillary data for network toopology
-                     structPFAF_main,      & ! inout: ancillary data for pfafstetter code
-                     ierr,cmessage)           ! output: error control
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     ! allocate space for local data structures
+     call alloc_struct(hru_per_proc(-1),     & ! input: number of HRUs
+                       rch_per_proc(-1),     & ! input: number of stream segments
+                       structHRU_main,       & ! inout: ancillary data for HRUs
+                       structSEG_main,       & ! inout: ancillary data for stream segments
+                       structHRU2seg_main,   & ! inout: ancillary data for mapping hru2basin
+                       structNTOPO_main,     & ! inout: ancillary data for network toopology
+                       structPFAF_main,      & ! inout: ancillary data for pfafstetter code
+                       ierr,cmessage)           ! output: error control
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! Populate local data structures
-   ! reach
-   do ix = 1, rch_per_proc(-1)
-     structNTOPO_main(ix)%var(ixNTOPO%segId)%dat(1)     = segId(ix)
-     structNTOPO_main(ix)%var(ixNTOPO%downSegId)%dat(1) = downSegId(ix)
-     structSEG_main  (ix)%var(ixSEG%length)%dat(1)      = length(ix)
-     structSEG_main  (ix)%var(ixSEG%slope)%dat(1)       = slope(ix)
-   end do
+     ! Populate local data structures
+     ! reach
+     do ix = 1, rch_per_proc(-1)
+       structNTOPO_main(ix)%var(ixNTOPO%segId)%dat(1)     = segId(ix)
+       structNTOPO_main(ix)%var(ixNTOPO%downSegId)%dat(1) = downSegId(ix)
+       structSEG_main  (ix)%var(ixSEG%length)%dat(1)      = length(ix)
+       structSEG_main  (ix)%var(ixSEG%slope)%dat(1)       = slope(ix)
+     end do
 
-   ! hru
-   do ix=1, hru_per_proc(-1)
-     structHRU2SEG_main(ix)%var(ixHRU2SEG%HRUid)%dat(1)    = hruId(ix)
-     structHRU2SEG_main(ix)%var(ixHRU2SEG%hruSegId)%dat(1) = hruSegId(ix)
-     structHRU_main    (ix)%var(ixHRU%area)%dat(1)         = area(ix)
-   end do
+     ! hru
+     do ix=1, hru_per_proc(-1)
+       structHRU2SEG_main(ix)%var(ixHRU2SEG%HRUid)%dat(1)    = hruId(ix)
+       structHRU2SEG_main(ix)%var(ixHRU2SEG%hruSegId)%dat(1) = hruSegId(ix)
+       structHRU_main    (ix)%var(ixHRU%area)%dat(1)         = area(ix)
+     end do
 
-   ! compute additional ancillary infomration
-   call augment_ntopo(hru_per_proc(-1),            & ! input: number of HRUs
-                      rch_per_proc(-1),            & ! input: number of stream segments
-                      structHRU_main,              & ! inout: ancillary data for HRUs
-                      structSEG_main,              & ! inout: ancillary data for stream segments
-                      structHRU2seg_main,          & ! inout: ancillary data for mapping hru2basin
-                      structNTOPO_main,            & ! inout: ancillary data for network toopology
-                      ierr, cmessage)                 ! output: error control
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     ! compute additional ancillary infomration
+     call augment_ntopo(hru_per_proc(-1),            & ! input: number of HRUs
+                        rch_per_proc(-1),            & ! input: number of stream segments
+                        structHRU_main,              & ! inout: ancillary data for HRUs
+                        structSEG_main,              & ! inout: ancillary data for stream segments
+                        structHRU2seg_main,          & ! inout: ancillary data for mapping hru2basin
+                        structNTOPO_main,            & ! inout: ancillary data for network toopology
+                        ierr, cmessage)                 ! output: error control
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! OMP domain decomposition
-   call omp_domain_decomposition(nThreads, rch_per_proc(-1), structNTOPO_main, river_basin_tmp, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     ! OMP domain decomposition
+     call omp_domain_decomposition(nThreads, rch_per_proc(-1), structNTOPO_main, river_basin_tmp, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! river_basin_tmp is based on local indices and need to conver it to global indices
-   !allocate river_basin_main
-   allocate(river_basin_main(1), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main]'; return; endif
+     ! river_basin_tmp is based on local indices and need to conver it to global indices
+     !allocate river_basin_main
+     allocate(river_basin_main(1), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main]'; return; endif
 
-   ! if mainstem within "mainstem" defined by MPI decomposition exists
-   ! Construct mainstem parts in omp decomposed domain with global reach index
-   alloc_check:if (allocated(river_basin_tmp(1)%mainstem)) then
+     ! if mainstem within "mainstem" defined by MPI decomposition exists
+     ! Construct mainstem parts in omp decomposed domain with global reach index
+     alloc_check:if (allocated(river_basin_tmp(1)%mainstem)) then
 
-     allocate(river_basin_main(1)%mainstem(size(river_basin_tmp(1)%mainstem)), stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%mainstem]'; return; endif
+       allocate(river_basin_main(1)%mainstem(size(river_basin_tmp(1)%mainstem)), stat=ierr)
+       if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%mainstem]'; return; endif
 
-     mainstems:do ix = 1, size(river_basin_tmp(1)%mainstem)
+       mainstems:do ix = 1, size(river_basin_tmp(1)%mainstem)
 
-       allocate(river_basin_main(1)%mainstem(ix)%segIndex(size(river_basin_tmp(1)%mainstem(ix)%segIndex)), stat=ierr)
-       if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%mainstem%segindex]'; return; endif
+         allocate(river_basin_main(1)%mainstem(ix)%segIndex(size(river_basin_tmp(1)%mainstem(ix)%segIndex)), stat=ierr)
+         if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%mainstem%segindex]'; return; endif
 
-       do iSeg = 1, size(river_basin_tmp(1)%mainstem(ix)%segIndex)
-         river_basin_main(1)%mainstem(1)%segIndex(iSeg) = ixRch_order(river_basin_tmp(1)%mainstem(ix)%segIndex(iSeg))
+         do iSeg = 1, size(river_basin_tmp(1)%mainstem(ix)%segIndex)
+           river_basin_main(1)%mainstem(1)%segIndex(iSeg) = ixRch_order(river_basin_tmp(1)%mainstem(ix)%segIndex(iSeg))
+         enddo
+
+       enddo mainstems
+
+     endif alloc_check
+
+     ! always tributary should be allocated
+     ! Construct tributary parts in omp decomposed domain with global reach index
+     allocate(river_basin_main(1)%tributary(size(river_basin_tmp(1)%tributary)), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%tributary]'; return; endif
+
+     tribs:do ix = 1, size(river_basin_tmp(1)%tributary)
+
+       allocate(river_basin_main(1)%tributary(ix)%segIndex(size(river_basin_tmp(1)%tributary(ix)%segIndex)), stat=ierr)
+       if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%tributary%segindex]'; return; endif
+
+       do iSeg = 1, size(river_basin_tmp(1)%tributary(ix)%segIndex)
+         river_basin_main(1)%tributary(ix)%segIndex(iSeg) = ixRch_order(river_basin_tmp(1)%tributary(ix)%segIndex(iSeg))
        enddo
 
-     enddo mainstems
+     enddo tribs
 
-   endif alloc_check
-
-   ! always tributary should be allocated
-   ! Construct tributary parts in omp decomposed domain with global reach index
-   allocate(river_basin_main(1)%tributary(size(river_basin_tmp(1)%tributary)), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%tributary]'; return; endif
-
-   tribs:do ix = 1, size(river_basin_tmp(1)%tributary)
-
-     allocate(river_basin_main(1)%tributary(ix)%segIndex(size(river_basin_tmp(1)%tributary(ix)%segIndex)), stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%tributary%segindex]'; return; endif
-
-     do iSeg = 1, size(river_basin_tmp(1)%tributary(ix)%segIndex)
-       river_basin_main(1)%tributary(ix)%segIndex(iSeg) = ixRch_order(river_basin_tmp(1)%tributary(ix)%segIndex(iSeg))
-     enddo
-
-   enddo tribs
+   endif ! if a single node
 
   endif  ! if pid==root
 
@@ -522,8 +526,6 @@ contains
   integer(i4b)                          :: iHru                     ! loop indices
   integer(i4b)                          :: nSegTrib                 ! number of reaches from one tributary
   integer(i4b)                          :: nSegMain                 ! number of reaches from mainstems
-  integer(i4b)                          :: tributary=1              !
-  integer(i4b)                          :: mainstem=2               !
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
   ! timing
   integer*8                             :: cr, startTime, endTime
@@ -569,7 +571,6 @@ call system_clock(startTime)
                   basinRunoff_local, &  ! basin (i.e.,HRU) runoff (m/s)
                   ixRchProcessed,    &  ! indices of reach to be routed
                   river_basin_trib,  &  ! OMP basin decomposition
-                  tributary,         &  ! basinType (1-> tributary, 2->mainstem)
                   NETOPO_trib,       &  ! reach topology data structure
                   RPARAM_trib,       &  ! reach parameter data structure
                   ! inout
@@ -648,7 +649,6 @@ call system_clock(startTime)
                     runoff_data%basinRunoff, &  ! input: basin (i.e.,HRU) runoff (m/s)
                     ixRchProcessed,          &  ! input: indices of reach to be routed
                     river_basin_main,        &  ! input: OMP basin decomposition
-                    mainstem,                &  ! input: basinType (1-> tributary, 2->mainstem)
                     NETOPO,                  &  ! input: reach topology data structure
                     RPARAM,                  &  ! input: reach parameter data structure
                     RCHFLX,                  &  ! inout: reach flux data structure
@@ -664,7 +664,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/main_route] 
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
   ! --------------------------------
-  ! Distribute global states to processors to update states upstream reaches
+  ! Distribute updated tributary states (only tributary reaches flowing into mainstem) to processors to update states upstream reaches
   ! --------------------------------
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
 call system_clock(startTime)

@@ -56,7 +56,6 @@ contains
  integer(i4b)                                    :: iSeg, jSeg          ! loop indices - reach
  integer(i4b)                                    :: iTrib, iStem        ! loop indices - tributary, mainstem
  ! variables needed for timing
- integer(i4b)                                    :: omp_get_num_threads ! get the number of threads
  integer(i4b)                                    :: omp_get_thread_num
  integer(i4b), allocatable                       :: ixThread(:)         ! thread id
  integer*8,    allocatable                       :: openMPend(:)        ! time for the start of the parallelization section
@@ -79,10 +78,10 @@ contains
 
  nSeg = size(RCHFLX_out(iens,:))
 
+ allocate(doRoute(nSeg), stat=ierr)
+
  ! Initialize CHEC_IRF to False.
  RCHFLX_out(iEns,:)%CHECK_IRF=.False.
-
- allocate(doRoute(nSeg), stat=ierr)
 
  if (present(ixSubRch))then
   doRoute(:)=.false.
@@ -98,8 +97,9 @@ contains
  timeTrib(:) = realMissing
  ixThread(:) = integerMissing
 
- ! 1. Route tributary reaches (parallel)
  call system_clock(startTime)
+
+ ! 1. Route tributary reaches (parallel)
 !$OMP PARALLEL default(none)                            &
 !$OMP          private(jSeg, iSeg)                      & ! private for a given thread
 !$OMP          private(ierr, cmessage)                  & ! private for a given thread
@@ -135,19 +135,21 @@ contains
 !  do iTrib=1,nTrib
 !    write(*,'(4(i5,1x),2(I20,1x))') iTrib, river_basin(iOut)%tributary(iTrib)%nRch, ixThread(iTrib), nThreads, timeTribStart(iTrib), openMPend(iTrib)
 !  enddo
-!  deallocate(ixThread, timeTrib, timeTribStart, stat=ierr)
-!  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to deallocate space for Trib timing'; return; endif
+  deallocate(ixThread, timeTrib, timeTribStart, stat=ierr)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to deallocate space for Trib timing'; return; endif
 
    ! 2. Route mainstems (serial)
    call system_clock(startMain)
-   do iStem=1,size(river_basin(1)%mainstem)
-     do iSeg=1,river_basin(1)%mainstem(iStem)%nRch
-       jSeg = river_basin(1)%mainstem(iStem)%segIndex(iSeg)
-       if (.not. doRoute(jSeg)) cycle
-       call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, message)
-       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if (allocated(river_basin(1)%mainstem)) then
+     do iStem=1,size(river_basin(1)%mainstem)
+       do iSeg=1,river_basin(1)%mainstem(iStem)%nRch
+         jSeg = river_basin(1)%mainstem(iStem)%segIndex(iSeg)
+         if (.not. doRoute(jSeg)) cycle
+         call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, message)
+         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       end do
      end do
-   end do
+   endif
 
  call system_clock(endTime)
  elapsedTime = real(endTime-startMain, kind(dp))/real(cr)

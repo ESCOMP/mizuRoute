@@ -40,15 +40,15 @@ integer(i4b)                  :: ierr                ! error code
 character(len=strLen)         :: cmessage            ! error message of downwind routine
 integer(i4b)                  :: iens = 1
 logical(lgt)                  :: finished=.false.
+integer(i4b)                  :: omp_get_num_threads ! number of threads used for openMP
 !Timing
 integer*8                     :: cr, startTime, endTime
-real(dp)                      :: rate, elapsedTime
+real(dp)                      :: elapsedTime
 
 ! ======================================================================================================
 ! ======================================================================================================
 ! Initialize the system_clock
 CALL system_clock(count_rate=cr)
-rate = real(cr)
 
 ! get command-line argument defining the full path to the control file
  call getarg(1,cfile_name)
@@ -103,7 +103,7 @@ call system_clock(startTime)
     call get_hru_runoff(ierr, cmessage)
     if(ierr/=0) call handle_err(ierr, cmessage)
 call system_clock(endTime)
-elapsedTime = real(endTime-startTime, kind(dp))/rate
+elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,1PG15.7,A)") '   elapsed-time [read_ro] = ', elapsedTime, ' s'
   endif
 
@@ -115,7 +115,7 @@ endif
   if(ierr/=0) call handle_err(ierr, cmessage)
 if(pid==0)then
 call system_clock(endTime)
-elapsedTime = real(endTime-startTime, kind(dp))/rate
+elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,1PG15.7,A)") '   elapsed-time [routing] = ', elapsedTime, ' s'
 endif
 
@@ -124,7 +124,7 @@ call system_clock(startTime)
     call output(ierr, cmessage)
     if(ierr/=0) call handle_err(ierr, cmessage)
 call system_clock(endTime)
-elapsedTime = real(endTime-startTime, kind(dp))/rate
+elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,1PG15.7,A)") '   elapsed-time [output] = ', elapsedTime, ' s'
   endif
 
