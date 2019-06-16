@@ -245,7 +245,7 @@ contains
    ! ********************************************************************************************************************
    ! ********************************************************************************************************************
    ! Mainstem decomposition for OMP
-   ! case: 1 node use - there is no mainstems and all the reaches are treated as tributary reaches
+   ! For single node use - there exist no mainstems and all the reaches are treated as tributary reaches
    ! ********************************************************************************************************************
    ! ********************************************************************************************************************
    if (nNodes /= 1) then
@@ -305,11 +305,13 @@ contains
 
        mainstems:do ix = 1, size(river_basin_tmp(1)%mainstem)
 
-         allocate(river_basin_main(1)%mainstem(ix)%segIndex(size(river_basin_tmp(1)%mainstem(ix)%segIndex)), stat=ierr)
+         allocate(river_basin_main(1)%mainstem(ix)%segIndex(river_basin_tmp(1)%mainstem(ix)%nRch), stat=ierr)
          if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%mainstem%segindex]'; return; endif
 
-         do iSeg = 1, size(river_basin_tmp(1)%mainstem(ix)%segIndex)
-           river_basin_main(1)%mainstem(1)%segIndex(iSeg) = ixRch_order(river_basin_tmp(1)%mainstem(ix)%segIndex(iSeg))
+         river_basin_main(1)%mainstem(ix)%nRch = river_basin_tmp(1)%mainstem(ix)%nRch
+
+         do iSeg = 1, river_basin_tmp(1)%mainstem(ix)%nRch
+           river_basin_main(1)%mainstem(ix)%segIndex(iSeg) = ixRch_order(river_basin_tmp(1)%mainstem(ix)%segIndex(iSeg))
          enddo
 
        enddo mainstems
@@ -323,10 +325,12 @@ contains
 
      tribs:do ix = 1, size(river_basin_tmp(1)%tributary)
 
-       allocate(river_basin_main(1)%tributary(ix)%segIndex(size(river_basin_tmp(1)%tributary(ix)%segIndex)), stat=ierr)
+       allocate(river_basin_main(1)%tributary(ix)%segIndex(river_basin_tmp(1)%tributary(ix)%nRch), stat=ierr)
        if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%tributary%segindex]'; return; endif
 
-       do iSeg = 1, size(river_basin_tmp(1)%tributary(ix)%segIndex)
+       river_basin_main(1)%tributary(ix)%nRch = river_basin_tmp(1)%tributary(ix)%nRch
+
+       do iSeg = 1, river_basin_tmp(1)%tributary(ix)%nRch
          river_basin_main(1)%tributary(ix)%segIndex(iSeg) = ixRch_order(river_basin_tmp(1)%tributary(ix)%segIndex(iSeg))
        enddo
 
@@ -627,10 +631,13 @@ call system_clock(endTime)
 elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/gater-state-flux] = ', elapsedTime, ' s'
 
+if (rch_per_proc(-1)==0) return
+
   ! --------------------------------
   ! perform mainstem routing
   ! --------------------------------
   if (pid==root) then
+
 call system_clock(startTime)
     ! number of HRUs and reaches from Mainstems
     nSegMain = rch_per_proc(-1)

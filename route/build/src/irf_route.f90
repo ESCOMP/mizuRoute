@@ -104,7 +104,10 @@ contains
 !$OMP          private(jSeg, iSeg)                      & ! private for a given thread
 !$OMP          private(ierr, cmessage)                  & ! private for a given thread
 !$OMP          shared(river_basin)                      & ! data structure shared
-!$OMP          shared(iEns, iOut, ixDesire)             & ! indices shared
+!$OMP          shared(doRoute)                          & ! data array shared
+!$OMP          shared(NETOPO_in)                        & ! data structure shared
+!$OMP          shared(RCHFLX_out)                       & ! data structure shared
+!$OMP          shared(iEns, ixDesire)                   & ! indices shared
 !$OMP          shared(openMPend, nThreads)              & ! timing variables shared
 !$OMP          shared(timeTribStart)                    & ! timing variables shared
 !$OMP          shared(timeTrib)                         & ! timing variables shared
@@ -118,7 +121,7 @@ contains
     do iSeg=1,river_basin(1)%tributary(iTrib)%nRch
       jSeg = river_basin(1)%tributary(iTrib)%segIndex(iSeg)
       if (.not. doRoute(jSeg)) cycle
-      call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, message)
+      call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, cmessage)
 !      if(ierr/=0)then; ixmessage(iTrib)=trim(message)//trim(cmessage); exit; endif
     end do
     call system_clock(openMPend(iTrib))
@@ -133,7 +136,7 @@ contains
 
 !  write(*,'(a)') 'iTrib nSeg ixThread nThreads StartTime EndTime'
 !  do iTrib=1,nTrib
-!    write(*,'(4(i5,1x),2(I20,1x))') iTrib, river_basin(iOut)%tributary(iTrib)%nRch, ixThread(iTrib), nThreads, timeTribStart(iTrib), openMPend(iTrib)
+!    write(*,'(4(i5,1x),2(I20,1x))') iTrib, river_basin(1)%tributary(iTrib)%nRch, ixThread(iTrib), nThreads, timeTribStart(iTrib), openMPend(iTrib)
 !  enddo
   deallocate(ixThread, timeTrib, timeTribStart, stat=ierr)
   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to deallocate space for Trib timing'; return; endif

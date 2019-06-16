@@ -145,7 +145,7 @@ contains
 
   ! get timing
   call system_clock(time1)
-  write(*,'(a,1x,1PG15.7,A)') 'after hru2segment: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
+  !write(*,'(a,1x,1PG15.7,A)') 'after hru2segment: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
   !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif  ! if need to compute network topology
@@ -168,7 +168,7 @@ contains
 
   ! get timing
   call system_clock(time1)
-  write(*,'(a,1x,1PG15.7,A)') 'after up2downSegment: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
+  !write(*,'(a,1x,1PG15.7,A)') 'after up2downSegment: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
   !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif  ! if need to compute network topology
@@ -186,7 +186,7 @@ contains
 
   ! get timing
   call system_clock(time1)
-  write(*,'(a,1x,1PG15.7,A)') 'after reachOrder: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
+  !write(*,'(a,1x,1PG15.7,A)') 'after reachOrder: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
   !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif  ! if need to compute network topology
@@ -204,7 +204,7 @@ contains
 
   ! get timing
   call system_clock(time1)
-  write(*,'(a,1x,1PG15.7,A)') 'after streamOrder: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
+  !write(*,'(a,1x,1PG15.7,A)') 'after streamOrder: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
   !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif  ! if need to compute network topology
@@ -225,7 +225,7 @@ contains
 
  ! get timing
  call system_clock(time1)
- write(*,'(a,1x,1PG15.7,A)') 'after reach_list: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
+ !write(*,'(a,1x,1PG15.7,A)') 'after reach_list: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
  !print*, trim(message)//'PAUSE : '; read(*,*)
 
  ! ---------- Compute routing parameters  --------------------------------------------------------------------
@@ -278,7 +278,7 @@ contains
 
   ! get timing
   call system_clock(time1)
-  write(*,'(a,1x,1PG15.7,A)') 'after reach parameters: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
+  !write(*,'(a,1x,1PG15.7,A)') 'after reach parameters: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
   !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif ! if there is a need to compute the channel unit hydrograph

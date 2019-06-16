@@ -108,12 +108,17 @@ contains
 
    ! 1. Route tributary reaches (parallel)
 !$OMP parallel default(none)                            &
-!$OMP          private(jRch, iRch)                      & ! private for a given thread
+!$OMP          private(jSeg, iSeg)                      & ! private for a given thread
 !$OMP          private(ierr, cmessage)                  & ! private for a given thread
 !$OMP          shared(T0,T1)                            & ! private for a given thread
 !$OMP          shared(LAKEFLAG)                         & ! private for a given thread
 !$OMP          shared(river_basin)                      & ! data structure shared
-!$OMP          shared(iEns, iOut, ixDesire)             & ! indices shared
+!$OMP          shared(doRoute)                          & ! data array shared
+!$OMP          shared(NETOPO_in)                        & ! data structure shared
+!$OMP          shared(RPARAM_in)                        & ! data structure shared
+!$OMP          shared(KROUTE_out)                       & ! data structure shared
+!$OMP          shared(RCHFLX_out)                       & ! data structure shared
+!$OMP          shared(iEns, ixDesire)                   & ! indices shared
 !$OMP          shared(openMPend, nThreads)              & ! timing variables shared
 !$OMP          shared(timeTribStart)                    & ! timing variables shared
 !$OMP          shared(timeTrib)                         & ! timing variables shared

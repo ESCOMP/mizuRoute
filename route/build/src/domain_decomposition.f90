@@ -6,6 +6,7 @@ USE nrtype
 ! derived data types
 USE dataTypes,         ONLY: var_ilength   ! integer type:     var(:)%dat
 USE dataTypes,         ONLY: subbasin_omp  ! openMP domain data structure
+USE dataTypes,         ONLY: subbasin_mpi  ! MPI domain data structure
 ! variable indices
 USE var_lookup,        ONLY: ixNTOPO       ! index of variables for the netowork topolgy
 ! General utilities
@@ -130,10 +131,6 @@ contains
  ! ***************************************************************
  subroutine omp_domain_decomposition(nThreads, nSeg, structNTOPO, river_basin_out, ierr, message)
 
-   ! External modules
-   USE globalData, only: domains_omp             ! domain data structure - for each domain, pfaf codes and list of segment indices
-   USE globalData, only: nDomain_omp             ! count of decomposed domains (tributaries + mainstems)
-
    implicit none
    ! Input variables
    integer(i4b),                   intent(in)  :: nThreads        ! number of nodes (root and computing nodes)
@@ -144,6 +141,8 @@ contains
    integer(i4b),                   intent(out) :: ierr
    character(len=strLen),          intent(out) :: message         ! error message
    ! Local variables
+   type(subbasin_mpi)                          :: domains_omp(maxDomain)! domain decomposition data structure (maximum domain is set to maxDomain)
+   integer(i4b)                                :: nDomain_omp
    character(len=strLen)                       :: cmessage        ! error message from subroutine
 
    ierr=0; message='omp_domain_decomposition/'
@@ -156,7 +155,7 @@ contains
                              ierr, cmessage)          ! output: error handling
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   call basin_order(nSeg, structNTOPO, river_basin_out, ierr, cmessage)
+   call basin_order(nSeg, structNTOPO, domains_omp, nDomain_omp, river_basin_out, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end subroutine omp_domain_decomposition
@@ -191,7 +190,6 @@ contains
 
    ! updated and saved data
    USE public_var, only : maxDomain
-   USE dataTypes,  only : subbasin_mpi  ! reach category (store mainstem code or pfaf code)
 
    implicit none
 
@@ -271,7 +269,7 @@ call system_clock(startTime)
    enddo
 call system_clock(endTime)
 elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-write(*,"(A,1PG15.7,A)") '   elapsed-time [hru_decomposition] = ', elapsedTime, ' s'
+!write(*,"(A,1PG15.7,A)") '   elapsed-time [hru_decomposition] = ', elapsedTime, ' s'
 
  end subroutine classify_river_basin
 
@@ -291,7 +289,6 @@ write(*,"(A,1PG15.7,A)") '   elapsed-time [hru_decomposition] = ', elapsedTime, 
    !           %segIndex(:)    indices of reaches belong to this domain
 
    ! External modules
-   USE dataTypes,          only: subbasin_mpi         ! reach category (store mainstem code or pfaf code)
    USE pfafstetter_module, only: lgc_tributary_outlet
 
    implicit none
@@ -331,6 +328,7 @@ write(*,"(A,1PG15.7,A)") '   elapsed-time [hru_decomposition] = ', elapsedTime, 
    ! Domain assignment for no-mainstem basin (i.e., basin size < maxSegs)
    ! Number of outlets
    nOut=count(downIndex<0)
+
    allocate(ixOutlets(nOut), stat=ierr)
    if(ierr/=0)then; message=trim(message)//'problem allocating [ixOutlets]'; return; endif
    ixOutlets   = pack(segIndex, downIndex<0)
@@ -499,22 +497,21 @@ write(*,"(A,1PG15.7,A)") '   elapsed-time [hru_decomposition] = ', elapsedTime, 
  ! ***************************************************************
  ! private subroutine: Assign decomposed domain into procs
  ! ***************************************************************
- subroutine basin_order(nSeg, structNTOPO_in, river_basin_out, ierr, message)
+ subroutine basin_order(nSeg, structNTOPO_in, domains_omp, nDomain_omp, river_basin_out, ierr, message)
    ! redo data structures
-
-   ! External modules
-   USE globalData, only: domains_omp       ! domain data structure - for each domain, pfaf codes and list of segment indices
-   USE globalData, only: nDomain_omp       ! count of decomposed domains (tributaries + mainstems)
 
    implicit none
    ! Input variables
    integer(i4b),              intent(in)      :: nSeg
    type(var_ilength), allocatable, intent(in) :: structNTOPO_in(:)  ! network topology
+   type(subbasin_mpi),             intent(in) :: domains_omp(:)     ! domain decomposition data structure (maximum domain is set to maxDomain)
+   integer(i4b)                               :: nDomain_omp
    ! Output variables
    type(subbasin_omp),allocatable, intent(out) :: river_basin_out(:)!
    integer(i4b),              intent(out)     :: ierr
    character(len=strLen),     intent(out)     :: message            ! error message
    ! Local variables
+   character(len=strLen)                      :: cmessage         ! error message from subroutine
    integer(i4b)                               :: segOrder(nSeg)     ! reach order
    integer(i4b)                               :: rankSegOrder(nSeg) ! ranked reach order
    integer(i4b)                               :: nTrib              ! number of tributary reaches
@@ -565,7 +562,8 @@ write(*,"(A,1PG15.7,A)") '   elapsed-time [hru_decomposition] = ', elapsedTime, 
 
    ! put reaches in tributaries and mainstem in the processing order within domain
    nTrib=0; nMain=0
-   do ix = nDomain_omp,1,-1  ! Going through domain from the largest size
+   isAssigned = .false.
+   domain:do ix = nDomain_omp,1,-1  ! Going through domain from the largest size
 
      ixx = rankDomain(ix)
 
@@ -610,7 +608,15 @@ write(*,"(A,1PG15.7,A)") '   elapsed-time [hru_decomposition] = ', elapsedTime, 
 
      endif assigned
 
-   end do
+   end do domain
+
+   ! check
+   do ix = 1,nDomain_omp
+     if (.not.isAssigned(ix)) then
+       write(cmessage, "(A,I1,A)") 'Domain ', ix, 'is not assigned to any nodes'
+       ierr = 10; message=trim(message)//trim(cmessage); return
+     endif
+   enddo
 
  end subroutine basin_order
 

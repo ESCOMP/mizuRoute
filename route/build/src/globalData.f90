@@ -157,8 +157,6 @@ module globalData
   type(subbasin_mpi)             , public :: domains(maxDomain)   ! domain decomposition data structure (maximum domain is set to maxDomain)
   integer(i4b)                   , public :: nDomain              ! domain counter
   ! OMP
-  type(subbasin_mpi)             , public :: domains_omp(maxDomain)! domain decomposition data structure (maximum domain is set to maxDomain)
-  integer(i4b)                   , public :: nDomain_omp           ! domain counter
   type(subbasin_omp), allocatable, public :: river_basin_main(:)   ! openMP domain decomposition for mainstem
   type(subbasin_omp), allocatable, public :: river_basin_trib(:)   ! openMP domain decomposition for tributary
 
