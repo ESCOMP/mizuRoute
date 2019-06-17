@@ -152,7 +152,7 @@ contains
 
    call system_clock(endTrib)
    elapsedTime = real(endTrib-startTime, kind(dp))/real(cr)
-   write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTime, ' s'
+!   write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/kwt/tributary] = ', elapsedTime, ' s'
 
 !   write(*,'(a)') 'iTrib nSeg ixThread nThreads StartTime EndTime'
 !   do iTrib=1,nTrib
@@ -182,12 +182,11 @@ contains
        end do
      enddo
    endif
-
    call system_clock(endTime)
    elapsedTime = real(endTime-startMain, kind(dp))/real(cr)
-   write(*,"(A,1PG15.7,A)") '  total elapsed mainstem = ', elapsedTime, ' s'
+!   write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/kwt/Mainstem] = ', elapsedTime, ' s'
    elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-   write(*,"(A,1PG15.7,A)") '  total elapsed entire = ', elapsedTime, ' s'
+   write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/kwt] = ', elapsedTime, ' s'
 
  END SUBROUTINE kwt_route
 

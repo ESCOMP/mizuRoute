@@ -21,10 +21,10 @@ USE basinUH_module,      only : IRF_route_basin             ! perform UH convolu
 
 ! subroutines: river routing
 USE accum_runoff_module, only : accum_runoff                ! upstream flow accumulation
-!USE kwt_route_module,    only : kwt_route                  ! kinematic wave routing method
-!USE irf_route_module,    only : irf_route                  ! unit hydrograph (impulse response function) routing method
-USE kwt_route_module,    only : kwt_route => kwt_route_orig ! kinematic wave routing method
-USE irf_route_module,    only : irf_route => irf_route_orig ! river network unit hydrograph method
+USE kwt_route_module,    only : kwt_route                  ! kinematic wave routing method
+USE irf_route_module,    only : irf_route                  ! unit hydrograph (impulse response function) routing method
+!USE kwt_route_module,    only : kwt_route => kwt_route_orig ! kinematic wave routing method
+!USE irf_route_module,    only : irf_route => irf_route_orig ! river network unit hydrograph method
 
 implicit none
 

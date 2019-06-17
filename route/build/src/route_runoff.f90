@@ -1,7 +1,6 @@
 !! ======================================================================================================
 !! mizuRoute stand-alone driver
 !!
-!!
 !! ======================================================================================================
 program route_runoff
 
@@ -10,7 +9,6 @@ program route_runoff
 ! ****************************************************
 ! variable types
 USE nrtype                                     ! variable types, etc.
-
 USE globalData, only : pid, nNodes, nThreads   ! procs id and number of procs and threads
 
 ! ******
@@ -45,12 +43,14 @@ integer(i4b)                  :: omp_get_num_threads ! number of threads used fo
 integer*8                     :: cr, startTime, endTime
 real(dp)                      :: elapsedTime
 
-! ======================================================================================================
-! ======================================================================================================
+! ******
 ! Initialize the system_clock
+! ***********************************
 CALL system_clock(count_rate=cr)
 
+! ******
 ! get command-line argument defining the full path to the control file
+! ***********************************
  call getarg(1,cfile_name)
  if(len_trim(cfile_name)==0) call handle_err(50,'need to supply name of the control file as a command-line argument')
 
@@ -64,7 +64,9 @@ call MPI_COMM_SIZE(MPI_COMM_WORLD, nNodes, ierr)
 call MPI_COMM_RANK(MPI_COMM_WORLD, pid, ierr)
 !  Get number of threads
 nThreads = 1
+!$OMP PARALLEL
 !$ nThreads = omp_get_num_threads()
+!$OMP END PARALLEL
 
 ! *****
 ! *** model setup
@@ -76,7 +78,7 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 
 ! *****
 ! *** data initialization
-!    - river topology, properties (river network domain decomposition)
+!    - river topology, properties, river network domain decomposition
 !    - runoff data (datetime, domain)
 !    - runoff remapping data
 !    - channel states
@@ -84,8 +86,6 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 call init_data(pid, nNodes, nThreads, ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
-!call MPI_FINALIZE(ierr)
-!stop
 ! ***********************************
 ! start of time-stepping simulation
 ! ***********************************

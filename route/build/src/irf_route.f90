@@ -132,7 +132,7 @@ contains
 
   call system_clock(endTrib)
   elapsedTime = real(endTrib-startTime, kind(dp))/real(cr)
-  write(*,"(A,1PG15.7,A)") '  total elapsed tributary = ', elapsedTime, ' s'
+!  write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/irf/tributary] = ', elapsedTime, ' s'
 
 !  write(*,'(a)') 'iTrib nSeg ixThread nThreads StartTime EndTime'
 !  do iTrib=1,nTrib
@@ -153,12 +153,11 @@ contains
        end do
      end do
    endif
-
  call system_clock(endTime)
  elapsedTime = real(endTime-startMain, kind(dp))/real(cr)
- write(*,"(A,1PG15.7,A)") '  total elapsed Mainstem = ', elapsedTime, ' s'
+! write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/irf/Mainstem] = ', elapsedTime, ' s'
  elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
- write(*,"(A,1PG15.7,A)") '  total elapsed entire = ', elapsedTime, ' s'
+ write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/irf] = ', elapsedTime, ' s'
 
  end subroutine irf_route
 
