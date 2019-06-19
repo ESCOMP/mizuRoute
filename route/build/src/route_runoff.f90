@@ -83,7 +83,7 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 !    - runoff remapping data
 !    - channel states
 ! ***********************************
-call init_data(pid, nNodes, nThreads, ierr, cmessage)
+call init_data(pid, nNodes, ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
 ! ***********************************

@@ -73,7 +73,6 @@ contains
  ! *********************************************************************
  subroutine init_data(pid,           & ! input: proc id
                       nNodes,        & ! input: number of procs
-                      nThreads,      & ! input: number of threads
                       ierr, message)   ! output: error control
 
   USE public_var,  only : is_remap               ! logical whether or not runnoff needs to be mapped to river network HRU
@@ -98,7 +97,6 @@ contains
    ! input:
    integer(i4b),              intent(in)    :: pid              ! proc id
    integer(i4b),              intent(in)    :: nNodes           ! number of procs
-   integer(i4b),              intent(in)    :: nThreads         ! number of threads
    ! output: error control
    integer(i4b),              intent(out)   :: ierr             ! error code
    character(*),              intent(out)   :: message          ! error message
@@ -170,7 +168,7 @@ contains
    end if  ! if processor=0 (root)
 
    ! distribute network topology data and network parameters to the different processors
-   call comm_ntopo_data(pid, nNodes, nThreads,                                & ! input: proc id and # of procs and threads
+   call comm_ntopo_data(pid, nNodes,                                          & ! input: proc id and # of procs
                         nRch, nContribHRU,                                    & ! input: number of reach and HRUs that contribut to any reaches
                         structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
                         ierr, cmessage)                                         ! output: error controls

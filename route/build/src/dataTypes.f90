@@ -77,7 +77,7 @@ implicit none
   integer(i4b),  allocatable :: hruIndex(:)           ! hru indices within a subbasin
  end type subbasin_mpi
 
- ! Data structures to hold mainstem and independent tributary reaches separately
+ ! Data structures to reach indices within each leg of stream order separately
  ! Used for openMP
  type,public :: reach
   integer(i4b), allocatable :: segIndex(:)           ! index of segment index
@@ -85,19 +85,16 @@ implicit none
  end type reach
 
  type,public :: subbasin_omp
+   type(reach), allocatable :: branch(:)
+ end type subbasin_omp
+
+ ! Data structures to hold mainstem and independent tributary reaches separately
+ ! Used for openMP
+ type,public :: subbasin_omp_tmp
   integer(i4b)               :: outIndex             ! index of outlet segment based on segment array
   type(reach), allocatable   :: mainstem(:)          ! mainstem reach
   type(reach), allocatable   :: tributary(:)         ! tributary reach
- end type subbasin_omp
-
- ! data structure to hold reach indices for each branch based on stream order (alternative openmp domain decomposition)
- type,public :: branch
-  integer(i4b), allocatable :: segIndex(:)
- end type branch
-
- type,public :: streamOrder
-   type(branch), allocatable :: branch(:)
- end type streamOrder
+ end type subbasin_omp_tmp
 
  ! ---------- general data structures ----------------------------------------------------------------------
 

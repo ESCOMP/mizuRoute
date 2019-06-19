@@ -49,7 +49,6 @@ contains
  ! *********************************************************************
  subroutine comm_ntopo_data(pid,                & ! input: proc id
                             nNodes,             & ! input: number of procs
-                            nThreads,           & ! input: number of threads
                             nRch_in,            & ! input: number of stream segments in whole domain
                             nHRU_in,            & ! input: number of HRUs that are connected to reaches
                             structHRU,          & ! input: data structure for HRUs
@@ -84,7 +83,6 @@ contains
   ! Input variables
   integer(i4b),                   intent(in)  :: pid                      ! process id (MPI)
   integer(i4b),                   intent(in)  :: nNodes                   ! number of processes (MPI)
-  integer(i4b),                   intent(in)  :: nThreads                 ! number of threads (OMP)
   integer(i4b),                   intent(in)  :: nRch_in                  ! number of total segments
   integer(i4b),                   intent(in)  :: nHRU_in                  ! number of total hru
   type(var_dlength), allocatable, intent(in)  :: structHRU(:)             ! HRU properties
@@ -288,53 +286,32 @@ contains
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      ! OMP domain decomposition
-     call omp_domain_decomposition(nThreads, rch_per_proc(-1), structNTOPO_main, river_basin_tmp, ierr, cmessage)
+     call omp_domain_decomposition(rch_per_proc(-1), structNTOPO_main, river_basin_tmp, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      ! river_basin_tmp is based on local indices and need to conver it to global indices
-     !allocate river_basin_main
-     allocate(river_basin_main(1), stat=ierr)
+     allocate(river_basin_main(size(river_basin_tmp)), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main]'; return; endif
 
-     ! if mainstem within "mainstem" defined by MPI decomposition exists
-     ! Construct mainstem parts in omp decomposed domain with global reach index
-     alloc_check:if (allocated(river_basin_tmp(1)%mainstem)) then
+     sorder:do ix = 1, size(river_basin_tmp)
 
-       allocate(river_basin_main(1)%mainstem(size(river_basin_tmp(1)%mainstem)), stat=ierr)
-       if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%mainstem]'; return; endif
+       allocate(river_basin_main(ix)%branch(size(river_basin_tmp(ix)%branch)), stat=ierr)
+       if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%branch]'; return; endif
 
-       mainstems:do ix = 1, size(river_basin_tmp(1)%mainstem)
+       branch:do ixx = 1, size(river_basin_tmp(ix)%branch)
 
-         allocate(river_basin_main(1)%mainstem(ix)%segIndex(river_basin_tmp(1)%mainstem(ix)%nRch), stat=ierr)
-         if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%mainstem%segindex]'; return; endif
+          allocate(river_basin_main(ix)%branch(ixx)%segIndex(river_basin_tmp(ix)%branch(ixx)%nRch), stat=ierr)
+          if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%mainstem%segindex]'; return; endif
 
-         river_basin_main(1)%mainstem(ix)%nRch = river_basin_tmp(1)%mainstem(ix)%nRch
+          river_basin_main(ix)%branch(ixx)%nRch = river_basin_tmp(ix)%branch(ixx)%nRch
 
-         do iSeg = 1, river_basin_tmp(1)%mainstem(ix)%nRch
-           river_basin_main(1)%mainstem(ix)%segIndex(iSeg) = ixRch_order(river_basin_tmp(1)%mainstem(ix)%segIndex(iSeg))
-         enddo
+          do iSeg = 1, river_basin_tmp(ix)%branch(ixx)%nRch
+            river_basin_main(ix)%branch(ixx)%segIndex(iSeg) = ixRch_order(river_basin_tmp(ix)%branch(ixx)%segIndex(iSeg))
+          enddo
 
-       enddo mainstems
+       enddo branch
 
-     endif alloc_check
-
-     ! always tributary should be allocated
-     ! Construct tributary parts in omp decomposed domain with global reach index
-     allocate(river_basin_main(1)%tributary(size(river_basin_tmp(1)%tributary)), stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%tributary]'; return; endif
-
-     tribs:do ix = 1, size(river_basin_tmp(1)%tributary)
-
-       allocate(river_basin_main(1)%tributary(ix)%segIndex(river_basin_tmp(1)%tributary(ix)%nRch), stat=ierr)
-       if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%tributary%segindex]'; return; endif
-
-       river_basin_main(1)%tributary(ix)%nRch = river_basin_tmp(1)%tributary(ix)%nRch
-
-       do iSeg = 1, river_basin_tmp(1)%tributary(ix)%nRch
-         river_basin_main(1)%tributary(ix)%segIndex(iSeg) = ixRch_order(river_basin_tmp(1)%tributary(ix)%segIndex(iSeg))
-       enddo
-
-     enddo tribs
+     enddo sorder
 
    endif ! if a single node
 
@@ -424,8 +401,18 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! OMP domain decomposition
-  call omp_domain_decomposition(nThreads, rch_per_proc(pid), structNTOPO_local, river_basin_trib, ierr, cmessage)
+  call omp_domain_decomposition(rch_per_proc(pid), structNTOPO_local, river_basin_trib, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  !if (pid==2) then
+  !  do ix =1,size(river_basin_trib)
+  !    do ixx = 1, size(river_basin_trib(ix)%branch)
+  !      do iSeg = 1, river_basin_trib(ix)%branch(ixx)%nRch
+  !        print*, structNTOPO_local(river_basin_trib(ix)%branch(ixx)%segIndex(iSeg))%var(ixNTOPO%segId)%dat(1), ix, ixx
+  !      enddo
+  !    enddo
+  !  enddo
+  !endif
 
   ! -----------------------------------------------------------------------------
   ! Find "dangling reach", or tributary outlet reaches that link to mainstems
@@ -612,12 +599,12 @@ call system_clock(startTime)
 
     call mpi_comm_kwt_state(pid, nNodes,         &
                             iens,                &
-                            rch_per_proc(root:nNodes-1),              &
-                            !tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
-                            ixRch_order(rch_per_proc(root-1)+1:nRch), &
-                            !global_ix_comm,      & ! input: global reach indices to communicate (dimension size == sum of nRearch)
-                            arth(1,1,rch_per_proc(pid)),              &
-                            !local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
+                            !rch_per_proc(root:nNodes-1),              &
+                            tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
+                            !ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                            global_ix_comm,      & ! input: global reach indices to communicate (dimension size == sum of nRearch)
+                            !arth(1,1,rch_per_proc(pid)),              &
+                            local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
                             gather,               & ! communication type
                             ierr, message)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif

@@ -61,10 +61,12 @@ contains
    character(len=strLen)                          :: cmessage             ! error message for downwind routine
    logical(lgt),                      allocatable :: doRoute(:)           ! logical to indicate which reaches are processed
    integer(i4b)                                   :: LAKEFLAG=0           ! >0 if processing lakes
+   integer(i4b)                                   :: nOrder               ! number of stream order
    integer(i4b)                                   :: nTrib                ! number of tributary basins
    integer(i4b)                                   :: nSeg                 ! number of reaches in the network
    integer(i4b)                                   :: iSeg, jSeg           ! loop indices - reach
-   integer(i4b)                                   :: iTrib, iStem         ! loop indices - tributary, mainstem
+   integer(i4b)                                   :: iTrib                ! loop indices - branch
+   integer(i4b)                                   :: ix                   ! loop indices stream order
    ! variables needed for timing
    integer(i4b)                                   :: omp_get_thread_num
    integer(i4b), allocatable                      :: ixThread(:)          ! thread id
@@ -72,8 +74,6 @@ contains
    integer*8,    allocatable                      :: timeTribStart(:)     ! time Tributaries start
    real(dp),     allocatable                      :: timeTrib(:)          ! time spent on each Tributary
    integer*8                                      :: cr                   ! rate
-   integer*8                                      :: endTrib              ! date/time for the start and end of the initialization
-   integer*8                                      :: startMain            ! date/time for the start and end of the initialization
    integer*8                                      :: startTime,endTime    ! date/time for the start and end of the initialization
    real(dp)                                       :: elapsedTime          ! elapsed time for the process
 
@@ -97,16 +97,20 @@ contains
     doRoute(:)=.true. ! every reach is on
    endif
 
-   nTrib=size(river_basin(1)%tributary)
+   nOrder = size(river_basin)
 
-   allocate(ixThread(nTrib), openMPend(nTrib), timeTrib(nTrib), timeTribStart(nTrib), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to allocate space for Trib timing'; return; endif
-   timeTrib(:) = realMissing
-   ixThread(:) = integerMissing
+   do ix = 1, nOrder
 
-   call system_clock(startTime)
+     nTrib=size(river_basin(ix)%branch)
 
-   ! 1. Route tributary reaches (parallel)
+     allocate(ixThread(nTrib), openMPend(nTrib), timeTrib(nTrib), timeTribStart(nTrib), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to allocate space for Trib timing'; return; endif
+     timeTrib(:) = realMissing
+     ixThread(:) = integerMissing
+
+     call system_clock(startTime)
+
+     ! 1. Route tributary reaches (parallel)
 !$OMP parallel default(none)                            &
 !$OMP          private(jSeg, iSeg)                      & ! private for a given thread
 !$OMP          private(ierr, cmessage)                  & ! private for a given thread
@@ -118,7 +122,7 @@ contains
 !$OMP          shared(RPARAM_in)                        & ! data structure shared
 !$OMP          shared(KROUTE_out)                       & ! data structure shared
 !$OMP          shared(RCHFLX_out)                       & ! data structure shared
-!$OMP          shared(iEns, ixDesire)                   & ! indices shared
+!$OMP          shared(ix, iEns, ixDesire)               & ! indices shared
 !$OMP          shared(openMPend, nThreads)              & ! timing variables shared
 !$OMP          shared(timeTribStart)                    & ! timing variables shared
 !$OMP          shared(timeTrib)                         & ! timing variables shared
@@ -126,50 +130,14 @@ contains
 !$OMP          firstprivate(nTrib)
 
 !$OMP DO schedule(dynamic, 1)   ! chunk size of 1
-   do iTrib = 1,nTrib
+     do iTrib = 1,nTrib
 !$    ixThread(iTrib) = omp_get_thread_num()
-    call system_clock(timeTribStart(iTrib))
-     do iSeg=1,river_basin(1)%tributary(iTrib)%nRch
-       jSeg  = river_basin(1)%tributary(iTrib)%segIndex(iSeg)
-       if (.not. doRoute(jSeg)) cycle
-       ! route kinematic waves through the river network
-       call QROUTE_RCH(iEns,jSeg,           & ! input: array indices
-                       ixDesire,            & ! input: index of the desired reach
-                       T0,T1,               & ! input: start and end of the time step
-                       LAKEFLAG,            & ! input: flag if lakes are to be processed
-                       NETOPO_in,           & ! input: reach topology data structure
-                       RPARAM_in,           & ! input: reach parameter data structure
-                       KROUTE_out,          & ! inout: reach state data structure
-                       RCHFLX_out,          & ! inout: reach flux data structure
-                       ierr,cmessage)         ! output: error control
-       !if (ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-     end do  ! (looping through stream segments)
-     call system_clock(openMPend(iTrib))
-     timeTrib(iTrib) = real(openMPend(iTrib)-timeTribStart(iTrib), kind(dp))
-   end do  ! (looping through stream segments)
-!$OMP END DO
-!$OMP END PARALLEL
-
-   call system_clock(endTrib)
-   elapsedTime = real(endTrib-startTime, kind(dp))/real(cr)
-!   write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/kwt/tributary] = ', elapsedTime, ' s'
-
-!   write(*,'(a)') 'iTrib nSeg ixThread nThreads StartTime EndTime'
-!   do iTrib=1,nTrib
-!     write(*,'(4(i5,1x),2(I20,1x))') iTrib, river_basin(1)%tributary(iTrib)%nRch, ixThread(iTrib), nThreads, timeTribStart(iTrib), openMPend(iTrib)
-!   enddo
-   deallocate(ixThread, timeTrib, timeTribStart, stat=ierr)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to deallocate space for Trib timing'; return; endif
-
-   ! 2. Route mainstems (serial)
-   call system_clock(startMain)
-   if (allocated(river_basin(1)%mainstem)) then
-     do iStem = 1,size(river_basin(1)%mainstem)
-       do iSeg = 1,river_basin(1)%mainstem(iStem)%nRch
-         jSeg = river_basin(1)%mainstem(iStem)%segIndex(iSeg)
+       call system_clock(timeTribStart(iTrib))
+       do iSeg=1,river_basin(ix)%branch(iTrib)%nRch
+         jSeg  = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
          if (.not. doRoute(jSeg)) cycle
          ! route kinematic waves through the river network
-         call QROUTE_RCH(iens,jSeg,           & ! input: array indices
+         call QROUTE_RCH(iEns,jSeg,           & ! input: array indices
                          ixDesire,            & ! input: index of the desired reach
                          T0,T1,               & ! input: start and end of the time step
                          LAKEFLAG,            & ! input: flag if lakes are to be processed
@@ -178,15 +146,26 @@ contains
                          KROUTE_out,          & ! inout: reach state data structure
                          RCHFLX_out,          & ! inout: reach flux data structure
                          ierr,cmessage)         ! output: error control
-         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-       end do
-     enddo
-   endif
-   call system_clock(endTime)
-   elapsedTime = real(endTime-startMain, kind(dp))/real(cr)
-!   write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/kwt/Mainstem] = ', elapsedTime, ' s'
-   elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-   write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/kwt] = ', elapsedTime, ' s'
+         !if (ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       end do  ! (looping through stream segments)
+       call system_clock(openMPend(iTrib))
+       timeTrib(iTrib) = real(openMPend(iTrib)-timeTribStart(iTrib), kind(dp))
+     end do  ! (looping through stream segments)
+!$OMP END DO
+!$OMP END PARALLEL
+
+     call system_clock(endTime)
+     elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+!   write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/kwt/tributary] = ', elapsedTime, ' s'
+
+!   write(*,'(a)') 'iTrib nSeg ixThread nThreads StartTime EndTime'
+!   do iTrib=1,nTrib
+!     write(*,'(4(i5,1x),2(I20,1x))') iTrib, river_basin(1)%tributary(iTrib)%nRch, ixThread(iTrib), nThreads, timeTribStart(iTrib), openMPend(iTrib)
+!   enddo
+     deallocate(ixThread, openMPend, timeTrib, timeTribStart, stat=ierr)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to deallocate space for Trib timing'; return; endif
+
+   end do
 
  END SUBROUTINE kwt_route
 
