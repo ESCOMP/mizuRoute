@@ -58,11 +58,6 @@ contains
  integer(i4b)                                    :: iTrib               ! loop indices - branch
  integer(i4b)                                    :: ix                  ! loop indices stream order
  ! variables needed for timing
- integer(i4b)                                    :: omp_get_thread_num
- integer(i4b), allocatable                       :: ixThread(:)         ! thread id
- integer*8,    allocatable                       :: openMPend(:)        ! time for the start of the parallelization section
- integer*8,    allocatable                       :: timeTribStart(:)    ! time Tributaries start
- real(dp),     allocatable                       :: timeTrib(:)         ! time spent on each Tributary
  integer*8                                       :: cr                  ! rate
  integer*8                                       :: startTime,endTime   ! date/time for the start and end of the initialization
  real(dp)                                        :: elapsedTime         ! elapsed time for the process
@@ -92,16 +87,11 @@ contains
 
  nOrder = size(river_basin)
 
+ call system_clock(startTime)
+
  do ix = 1,nOrder
 
    nTrib=size(river_basin(ix)%branch)
-
-   allocate(ixThread(nTrib), openMPend(nTrib), timeTrib(nTrib), timeTribStart(nTrib), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to allocate space for Trib timing'; return; endif
-   timeTrib(:) = realMissing
-   ixThread(:) = integerMissing
-
-   call system_clock(startTime)
 
   ! 1. Route tributary reaches (parallel)
 !$OMP PARALLEL default(none)                            &
@@ -112,40 +102,25 @@ contains
 !$OMP          shared(NETOPO_in)                        & ! data structure shared
 !$OMP          shared(RCHFLX_out)                       & ! data structure shared
 !$OMP          shared(ix, iEns, ixDesire)               & ! indices shared
-!$OMP          shared(openMPend, nThreads)              & ! timing variables shared
-!$OMP          shared(timeTribStart)                    & ! timing variables shared
-!$OMP          shared(timeTrib)                         & ! timing variables shared
-!$OMP          shared(ixThread)                         & ! thread id array shared
 !$OMP          firstprivate(nTrib)
 
 !$OMP DO schedule(dynamic,1)
    do iTrib = 1,nTrib
-!$    ixThread(iTrib) = omp_get_thread_num()
-     call system_clock(timeTribStart(iTrib))
      do iSeg=1,river_basin(ix)%branch(iTrib)%nRch
        jSeg = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
        if (.not. doRoute(jSeg)) cycle
        call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, cmessage)
 !      if(ierr/=0)then; ixmessage(iTrib)=trim(message)//trim(cmessage); exit; endif
      end do
-     call system_clock(openMPend(iTrib))
-     timeTrib(iTrib) = real(openMPend(iTrib)-timeTribStart(iTrib), kind(dp))
    end do
 !$OMP END DO
 !$OMP END PARALLEL
 
-   call system_clock(endTime)
-   elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-!  write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/irf/tributary] = ', elapsedTime, ' s'
+ end do
 
-!  write(*,'(a)') 'iTrib nSeg ixThread nThreads StartTime EndTime'
-!  do iTrib=1,nTrib
-!    write(*,'(4(i5,1x),2(I20,1x))') iTrib, river_basin(1)%tributary(iTrib)%nRch, ixThread(iTrib), nThreads, timeTribStart(iTrib), openMPend(iTrib)
-!  enddo
-   deallocate(ixThread, openMPend, timeTrib, timeTribStart, stat=ierr)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to deallocate space for Trib timing'; return; endif
-
-  end do
+ call system_clock(endTime)
+ elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+ write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/irf] = ', elapsedTime, ' s'
 
  end subroutine irf_route
 

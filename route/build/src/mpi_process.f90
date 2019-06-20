@@ -32,9 +32,9 @@ USE mpi_mod,           ONLY: shr_mpi_scatterV
 USE mpi_mod,           ONLY: shr_mpi_allgather
 
 implicit none
-
-integer(i4b),parameter  :: scatter=1  ! communication identifier
-integer(i4b),parameter  :: gather=2   ! communication identifier
+! common parameters within this module
+integer(i4b),parameter  :: scatter=1
+integer(i4b),parameter  :: gather=2
 
 private
 
@@ -77,8 +77,9 @@ contains
   USE globalData,          ONLY: local_ix_comm            ! local reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
   USE alloc_data,          ONLY: alloc_struct
   USE process_ntopo,       ONLY: augment_ntopo            ! compute all the additional network topology (only compute option = on)
-  USE process_ntopo,       ONLY: put_data_struct          !
-  USE domain_decomposition,ONLY: omp_domain_decomposition ! domain decomposition for omp
+  USE process_ntopo,       ONLY: put_data_struct               !
+  USE domain_decomposition,ONLY: omp_domain_decomposition &    ! domain decomposition for omp
+                              => omp_domain_decomposition_stro
   implicit none
   ! Input variables
   integer(i4b),                   intent(in)  :: pid                      ! process id (MPI)

@@ -138,6 +138,7 @@ contains
    ! perform upstream flow accumulation
    if (doesAccumRunoff == 1) then
      call accum_runoff(iens,              &  ! input: ensemble index
+                       river_basin,       &  ! input: river basin data type
                        ixPrint,           &  ! input: index of verbose reach
                        NETOPO_in,         &  ! input: reach topology data structure
                        RCHFLX_out,        &  ! inout: reach flux data structure
