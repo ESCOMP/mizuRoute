@@ -94,7 +94,7 @@ contains
    nTrib=size(river_basin(ix)%branch)
 
   ! 1. Route tributary reaches (parallel)
-!$OMP PARALLEL default(none)                            &
+!$OMP PARALLEL DO schedule(dynamic,1)                   &
 !$OMP          private(jSeg, iSeg)                      & ! private for a given thread
 !$OMP          private(ierr, cmessage)                  & ! private for a given thread
 !$OMP          shared(river_basin)                      & ! data structure shared
@@ -103,18 +103,15 @@ contains
 !$OMP          shared(RCHFLX_out)                       & ! data structure shared
 !$OMP          shared(ix, iEns, ixDesire)               & ! indices shared
 !$OMP          firstprivate(nTrib)
-
-!$OMP DO schedule(dynamic,1)
-   do iTrib = 1,nTrib
-     do iSeg=1,river_basin(ix)%branch(iTrib)%nRch
+   trib:do iTrib = 1,nTrib
+     seg:do iSeg=1,river_basin(ix)%branch(iTrib)%nRch
        jSeg = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
        if (.not. doRoute(jSeg)) cycle
        call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, cmessage)
 !      if(ierr/=0)then; ixmessage(iTrib)=trim(message)//trim(cmessage); exit; endif
-     end do
-   end do
-!$OMP END DO
-!$OMP END PARALLEL
+     end do seg
+   end do trib
+!$OMP END PARALLEL DO
 
  end do
 

@@ -100,7 +100,7 @@ contains
      nTrib=size(river_basin(ix)%branch)
 
      ! 1. Route tributary reaches (parallel)
-!$OMP parallel default(none)                            &
+!$OMP PARALLEL DO schedule(dynamic,1)                   & ! chunk size of 1
 !$OMP          private(jSeg, iSeg)                      & ! private for a given thread
 !$OMP          private(ierr, cmessage)                  & ! private for a given thread
 !$OMP          shared(T0,T1)                            & ! private for a given thread
@@ -113,10 +113,8 @@ contains
 !$OMP          shared(RCHFLX_out)                       & ! data structure shared
 !$OMP          shared(ix, iEns, ixDesire)               & ! indices shared
 !$OMP          firstprivate(nTrib)
-
-!$OMP DO schedule(dynamic, 1)   ! chunk size of 1
-     do iTrib = 1,nTrib
-       do iSeg=1,river_basin(ix)%branch(iTrib)%nRch
+     trib:do iTrib = 1,nTrib
+       seg:do iSeg=1,river_basin(ix)%branch(iTrib)%nRch
          jSeg  = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
          if (.not. doRoute(jSeg)) cycle
          ! route kinematic waves through the river network
@@ -130,10 +128,9 @@ contains
                          RCHFLX_out,          & ! inout: reach flux data structure
                          ierr,cmessage)         ! output: error control
          !if (ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-       end do  ! (looping through stream segments)
-     end do  ! (looping through stream segments)
-!$OMP END DO
-!$OMP END PARALLEL
+       end do  seg
+     end do trib
+!$OMP END PARALLEL DO
 
    end do
 
