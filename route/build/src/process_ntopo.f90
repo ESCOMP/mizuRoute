@@ -70,6 +70,7 @@ contains
  use network_topo,     only:hru2segment           ! get the mapping between HRUs and segments
  use network_topo,     only:up2downSegment        ! get the mapping between upstream and downstream segments
  use network_topo,     only:reachOrder            ! define the processing order
+ use network_topo,     only:streamOrdering        ! define stream order (Strahler)
  use network_topo,     only:reach_list            ! reach list
  use network_topo,     only:reach_mask            ! identify all reaches upstream of a given reach
  ! Routing parameter estimation routine
@@ -110,15 +111,16 @@ contains
  integer(i4b), allocatable                         :: ixHRU_desired_tmp(:) ! temporal storage ixHRU_desired_tmp
  integer(i4b), allocatable                         :: ixSeg_desired_tmp(:) ! temporal storage ixSeg_desired_tmp
  integer(i4b)                                      :: iSeg                 ! indices for stream segment
- integer(i4b), parameter                           :: maxUpstreamFile=10000000 ! 10 million: maximum number of upstream reaches to enable writing
- integer*8                                         :: time0,time1          ! for timing
  real(dp)     , allocatable                        :: seg_length(:)        ! temporal array for segment length
  type(dlength), allocatable                        :: temp_dat(:)          ! temporal storage for dlength data structure
+ integer(i4b), parameter                           :: maxUpstreamFile=10000000 ! 10 million: maximum number of upstream reaches to enable writing
+ integer*8                                         :: time0,time1,cr       ! for timing
 
  ! initialize error control
  ierr=0; message='augment_ntopo/'
 
  ! initialize times
+ call system_clock(count_rate=cr)
  call system_clock(time0)
 
  ! ---------- get the mapping between HRUs and segments ------------------------------------------------------
@@ -141,10 +143,9 @@ contains
                    ierr, cmessage)  ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-
   ! get timing
   call system_clock(time1)
-  !write(*,'(a,1x,i20)') 'after hru2segment: time = ', time1-time0
+  !write(*,'(a,1x,1PG15.7,A)') 'after hru2segment: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
   !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif  ! if need to compute network topology
@@ -167,7 +168,7 @@ contains
 
   ! get timing
   call system_clock(time1)
-  !write(*,'(a,1x,i20)') 'after up2downSegment: time = ', time1-time0
+  !write(*,'(a,1x,1PG15.7,A)') 'after up2downSegment: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
   !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif  ! if need to compute network topology
@@ -185,7 +186,25 @@ contains
 
   ! get timing
   call system_clock(time1)
-  !write(*,'(a,1x,i20)') 'after reachOrder: time = ', time1-time0
+  !write(*,'(a,1x,1PG15.7,A)') 'after reachOrder: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
+  !print*, trim(message)//'PAUSE : '; read(*,*)
+
+ endif  ! if need to compute network topology
+
+ ! ---------- compute Strahler stream order for each reach ---------------------------------------------------
+
+ ! check the need to compute network topology
+ if(topoNetworkOption==compute)then
+
+  ! defines the processing order for the individual stream segments in the river network
+  call streamOrdering(nSeg,         &   ! input:        number of reaches
+                      structNTOPO,  &   ! input:output: network topology
+                      ierr, cmessage)   ! output:       error control
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! get timing
+  call system_clock(time1)
+  !write(*,'(a,1x,1PG15.7,A)') 'after streamOrder: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
   !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif  ! if need to compute network topology
@@ -206,7 +225,7 @@ contains
 
  ! get timing
  call system_clock(time1)
- !write(*,'(a,1x,i20)') 'after reach_list: time = ', time1-time0
+ !write(*,'(a,1x,1PG15.7,A)') 'after reach_list: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
  !print*, trim(message)//'PAUSE : '; read(*,*)
 
  ! ---------- Compute routing parameters  --------------------------------------------------------------------
@@ -224,7 +243,7 @@ contains
 
   ! get timing
   call system_clock(time1)
-  !write(*,'(a,1x,i20)') 'after river geometry : time = ', time1-time0
+  !write(*,'(a,1x,1PG15.7,A)') 'after river geometry: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
   !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif  ! computing hydraulic geometry
@@ -259,7 +278,7 @@ contains
 
   ! get timing
   call system_clock(time1)
-  !write(*,'(a,1x,i20)') 'after topoNetwork : time = ', time1-time0
+  !write(*,'(a,1x,1PG15.7,A)') 'after reach parameters: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
   !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif ! if there is a need to compute the channel unit hydrograph
@@ -288,7 +307,7 @@ contains
 
  ! get timing
  call system_clock(time1)
- !write(*,'(a,1x,i20)') 'after reach_mask: time = ', time1-time0
+ !write(*,'(a,1x,1PG15.7,A)') 'after reach_mask: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
  !print*, trim(message)//'PAUSE : '; read(*,*)
 
  ! for optional output

@@ -67,12 +67,27 @@ implicit none
 
  ! ---------- basin data structures ----------------------------------------------------------------------
  ! segIndex points to the segment in the entire river network data
- ! segOrder is order within subset of mainstem segments or tributary segments
+ type,public :: subdomain
+  character(32)              :: pfaf                  ! subbasin pfaf code - mainstem starting "-"
+  integer(i4b)               :: basinType             ! basin type identifier: tributary->1, mainstem->2
+  integer(i4b)               :: outletIndex           ! reach index of a domain outlet
+  integer(i4b),  allocatable :: segIndex(:)           ! reach indices within a subbasin
+  integer(i4b),  allocatable :: hruIndex(:)           ! hru indices within a subbasin
+end type subdomain
+
  type,public :: reach
   integer(i4b), allocatable :: segIndex(:)           ! index of segment index
   integer(i4b)              :: nRch                  ! number of reach
  end type reach
 
+ ! Data structures to hold mainstem and independent tributary reaches separately
+ ! Used for openMP
+ type,public :: subbasin_omp
+   type(reach), allocatable :: branch(:)
+ end type subbasin_omp
+
+ ! Data structures to hold mainstem and independent tributary reaches separately
+ ! Used for openMP
  type,public :: mslevel
   type(reach), allocatable :: mainstem(:)            ! mainstem reaches
  end type mslevel

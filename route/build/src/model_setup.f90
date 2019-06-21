@@ -357,6 +357,7 @@ contains
   ! global data
   USE globalData,           only : meta_PFAF                ! meta for pfafstetter code
   USE globalData,           only : NETOPO, RPARAM           ! network and parameter data structure used in routing routine
+  USE globalData,           only : river_basin              ! OMP domain decompostion data strucuture
   ! variable index
   USE var_lookup,           only : ixPFAF                   ! index of variables for the pfafstetter code
   ! external subroutines
@@ -365,7 +366,9 @@ contains
   USE read_netcdf,          only : get_var_dims
   USE process_ntopo,        only : augment_ntopo            ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,        only : put_data_struct          ! populate NETOPO and RPARAM data structure
-  USE domain_decomposition, only : classify_river_basin_omp ! domain decomposition for openMP
+  USE domain_decomposition, only : omp_domain_decomposition &    ! domain decomposition for omp
+ ! USE domain_decomposition, only : omp_domain_decomposition &    ! domain decomposition for omp
+                                 => omp_domain_decomposition_stro
   implicit none
   ! input: None
   ! output (river network data structures for the entire domain)
@@ -489,11 +492,8 @@ contains
                        ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! ----------  pfafstetter code process to group segments -------------------------------------------------------
-  call classify_river_basin_omp(nRch_out,       & ! input
-                                structPFAF,     & ! input
-                                structNTOPO,    & ! input
-                                ierr, cmessage)
+  ! spatial domain decomposition for OMP parallelization
+  call omp_domain_decomposition(nRch_out, structNTOPO, river_basin, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end subroutine init_ntopo

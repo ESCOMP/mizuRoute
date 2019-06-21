@@ -31,7 +31,6 @@ contains
  SUBROUTINE kwt_route(iens,                 & ! input: ensemble index
                       river_basin,          & ! input: river basin information (mainstem, tributary outlet etc.)
                       T0,T1,                & ! input: start and end of the time step
-                      basinType,            & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
                       ixDesire,             & ! input: reachID to be checked by on-screen pringing
                       NETOPO_in,            & ! input: reach topology data structure
                       RPARAM_in,            & ! input: reach parameter data structure
@@ -39,88 +38,72 @@ contains
                       RCHFLX_out,           & ! inout: reach flux data structure
                       ierr,message,         & ! output: error control
                       ixSubRch)               ! optional input: subset of reach indices to be processed
- USE dataTypes,  only : basin                 ! river basin data type
- implicit none
- ! Input
- integer(i4b), intent(in)                 :: iEns                  ! ensemble member
- type(basin),  intent(in), allocatable    :: river_basin(:)        ! river basin information (mainstem, tributary outlet etc.)
- real(dp),     intent(in)                 :: T0,T1                 ! start and end of the time step (seconds)
- integer(i4b), intent(in)                 :: basinType             ! integer to indicate basin type (1-> tributary, 2-> mainstem)
- integer(i4b), intent(in)                 :: ixDesire              ! index of the reach for verbose output
- type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)          ! River Network topology
- type(RCHPRP), intent(in),    allocatable :: RPARAM_in(:)          ! River reach parameter
- ! inout
- type(KREACH), intent(inout), allocatable :: KROUTE_out(:,:)       ! reach state data
- type(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)       ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
- ! output variables
- integer(i4b), intent(out)                :: ierr                  ! error code
- character(*), intent(out)                :: message               ! error message
- ! input (optional)
- integer(i4b), intent(in),   optional     :: ixSubRch(:)           ! subset of reach indices to be processed
- ! local variables
- logical(lgt), allocatable                :: doRoute(:)            ! logical to indicate which reaches are processed
- logical(lgt)                             :: doMainstem            ! logical to indicate mainstem is defined for a basin
- integer(i4b)                             :: LAKEFLAG=0            ! >0 if processing lakes
- integer(i4b)                             :: nSeg                  ! number of reaches in the network
- integer(i4b)                             :: nOuts                 ! number of outlets
- integer(i4b)                             :: nTrib                 ! number of tributary basins
- integer(i4b)                             :: nStem                 ! number of mainstem in each level
- integer(i4b)                             :: iRch, jRch            ! loop indices - reach
- integer(i4b)                             :: iOut                  ! loop indices - basin outlet
- integer(i4b)                             :: iTrib                 ! loop indices - tributary
- integer(i4b)                             :: iLevel                ! loop indices - mainstem level
- integer(i4b)                             :: iStem                 ! loop inidces - mainstem
- integer(i4b)                             :: maxLevel,minLevel     ! max. and min. mainstem levels
- character(len=strLen)                    :: cmessage              ! error message for downwind routine
- ! variables needed for timing
-! integer(i4b)                             :: nThreads              ! number of threads
-! integer(i4b)                             :: omp_get_num_threads   ! get the number of threads
+
+   USE dataTypes,  only : subbasin_omp          ! mainstem+tributary data strucuture
+   implicit none
+   ! Input
+   integer(i4b),       intent(in)                 :: iEns                 ! ensemble member
+   type(subbasin_omp), intent(in),    allocatable :: river_basin(:)       ! river basin information (mainstem, tributary outlet etc.)
+   real(dp),           intent(in)                 :: T0,T1                ! start and end of the time step (seconds)
+   integer(i4b),       intent(in)                 :: ixDesire             ! index of the reach for verbose output
+   type(RCHTOPO),      intent(in),    allocatable :: NETOPO_in(:)         ! River Network topology
+   type(RCHPRP),       intent(in),    allocatable :: RPARAM_in(:)         ! River reach parameter
+   ! inout
+   type(KREACH),       intent(inout), allocatable :: KROUTE_out(:,:)      ! reach state data
+   type(STRFLX),       intent(inout), allocatable :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+   ! output variables
+   integer(i4b),       intent(out)                :: ierr                 ! error code
+   character(*),       intent(out)                :: message              ! error message
+   ! input (optional)
+   integer(i4b),       intent(in), optional       :: ixSubRch(:)          ! subset of reach indices to be processed
+   ! local variables
+   character(len=strLen)                          :: cmessage             ! error message for downwind routine
+   logical(lgt),                      allocatable :: doRoute(:)           ! logical to indicate which reaches are processed
+   integer(i4b)                                   :: LAKEFLAG=0           ! >0 if processing lakes
+   integer(i4b)                                   :: nOrder               ! number of stream order
+   integer(i4b)                                   :: nTrib                ! number of tributary basins
+   integer(i4b)                                   :: nSeg                 ! number of reaches in the network
+   integer(i4b)                                   :: iSeg, jSeg           ! loop indices - reach
+   integer(i4b)                                   :: iTrib                ! loop indices - branch
+   integer(i4b)                                   :: ix                   ! loop indices stream order
+   ! variables needed for timing
+   integer*8                                      :: cr                   ! rate
+   integer*8                                      :: startTime,endTime    ! start and end time stamps
+   real(dp)                                       :: elapsedTime          ! elapsed time for the process
 ! integer(i4b)                             :: omp_get_thread_num
 ! integer(i4b), allocatable                :: ixThread(:)           ! thread id
 ! integer*8,    allocatable                :: openMPend(:)          ! time for the start of the parallelization section
 ! integer*8,    allocatable                :: timeTribStart(:)      ! time Tributaries start
 ! real(dp),     allocatable                :: timeTrib(:)           ! time spent on each Tributary
- integer*8                                :: cr,startTime,endTime  ! rate, start and end time stamps
- real(dp)                                 :: elapsedTime           ! elapsed time for the process
 
- ! initialize error control
- ierr=0; message='kwt_route/'
+   ! initialize error control
+   ierr=0; message='kwt_route/'
+   call system_clock(count_rate=cr)
 
- CALL system_clock(count_rate=cr)
+   ! number of reach check
+   if (size(NETOPO_in)/=size(RCHFLX_out(iens,:))) then
+    ierr=20; message=trim(message)//'sizes of NETOPO and RCHFLX mismatch'; return
+   endif
 
- nSeg = size(NETOPO_in)
+   nSeg = size(NETOPO_in)
 
- allocate(doRoute(nSeg), stat=ierr)
- if(ierr/=0)then; message=trim(message)//'problem allocating space for [doRoute]'; return; endif
+   allocate(doRoute(nSeg), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'problem allocating space for [doRoute]'; return; endif
 
- if (present(ixSubRch))then
-  doRoute(:)=.false.
-  doRoute(ixSubRch) = .true. ! only subset of reaches are on
- else
-  doRoute(:)=.true.          ! every reach is on
- endif
+   if (present(ixSubRch))then
+    doRoute(:)=.false.
+    doRoute(ixSubRch) = .true. ! only subset of reaches are on
+   else
+    doRoute(:)=.true. ! every reach is on
+   endif
 
- ! Number of Outlets
- nOuts = size(river_basin)
+   nOrder = size(river_basin)
 
- do iOut=1,nOuts
+   call system_clock(startTime)
 
-   doMainstem = .false.
-   if (allocated(river_basin(iOut)%level)) then
-     doMainstem = .true.
-     maxLevel = 1
-     do iLevel=1,size(river_basin(iOut)%level)
-       if (.not. allocated(river_basin(iOut)%level(iLevel)%mainstem)) cycle
-       if (iLevel > maxLevel) maxLevel = iLevel
-     end do
-     minLevel = size(river_basin(iOut)%level)
-     do iLevel=maxLevel,1,-1
-       if (.not. allocated(river_basin(iOut)%level(iLevel)%mainstem)) cycle
-       if (iLevel < minLevel) minLevel = iLevel
-     end do
-   end if
+   do ix = 1, nOrder
 
-   nTrib=size(river_basin(iOut)%tributary)
+     nTrib=size(river_basin(ix)%branch)
 
 !   allocate(ixThread(nTrib), openMPend(nTrib), timeTrib(nTrib), timeTribStart(nTrib), stat=ierr)
 !   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to allocate space for Trib timing'; return; endif
@@ -128,9 +111,8 @@ contains
 !   ixThread(:) = integerMissing
 
    ! 1. Route tributary reaches (parallel)
-!   call system_clock(startTime)
-!$OMP parallel default(none)                            &
-!$OMP          private(jRch, iRch)                      & ! private for a given thread
+!$OMP PARALLEL DO schedule(dynamic,1)                   & ! chunk size of 1
+!$OMP          private(jSeg, iSeg)                      & ! private for a given thread
 !$OMP          private(ierr, cmessage)                  & ! private for a given thread
 !$OMP          shared(T0,T1)                            & ! private for a given thread
 !$OMP          shared(LAKEFLAG)                         & ! private for a given thread
@@ -140,83 +122,21 @@ contains
 !$OMP          shared(RPARAM_in)                        & ! data structure shared
 !$OMP          shared(KROUTE_out)                       & ! data structure shared
 !$OMP          shared(RCHFLX_out)                       & ! data structure shared
-!$OMP          shared(basinType)                        & ! scalar varaible shared
-!$OMP          shared(iEns, iOut, ixDesire)             & ! indices shared
+!$OMP          shared(ix, iEns, ixDesire)               & ! indices shared
+!$OMP          firstprivate(nTrib)
 !!$OMP          shared(openMPend, nThreads)              & ! timing variables shared
 !!$OMP          shared(timeTribStart)                    & ! timing variables shared
 !!$OMP          shared(timeTrib)                         & ! timing variables shared
 !!$OMP          shared(ixThread)                         & ! thread id array shared
-!$OMP          firstprivate(nTrib)
-!   nThreads = 1
-!!$ nThreads = omp_get_num_threads()
-
-!$OMP DO schedule(dynamic, 1)   ! chunk size of 1
-   do iTrib = 1,nTrib
+     trib:do iTrib = 1,nTrib
 !!$    ixThread(iTrib) = omp_get_thread_num()
 !    call system_clock(timeTribStart(iTrib))
-     do iRch=1,river_basin(iOut)%tributary(iTrib)%nRch
-       jRch  = river_basin(iOut)%tributary(iTrib)%segIndex(iRch)
-       if (.not. doRoute(jRch)) cycle
-       ! route kinematic waves through the river network
-       call QROUTE_RCH(iEns,jRch,           & ! input: array indices
-                       ixDesire,            & ! input: index of the desired reach
-                       basinType,           & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
-                       T0,T1,               & ! input: start and end of the time step
-                       LAKEFLAG,            & ! input: flag if lakes are to be processed
-                       NETOPO_in,           & ! input: reach topology data structure
-                       RPARAM_in,           & ! input: reach parameter data structure
-                       KROUTE_out,          & ! inout: reach state data structure
-                       RCHFLX_out,          & ! inout: reach flux data structure
-                       ierr,cmessage)         ! output: error control
-       !if (ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-     end do  ! (looping through stream segments)
-!     call system_clock(openMPend(iTrib))
-!     timeTrib(iTrib) = real(openMPend(iTrib)-timeTribStart(iTrib), kind(dp))
-   end do  ! (looping through stream segments)
-!$OMP END DO
-!$OMP END PARALLEL
-
-!   call system_clock(endTime)
-!   elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-!   write(*,"(A,1PG15.7,A)") '  total elapsed trib = ', elapsedTime, ' s'
-
-!   write(*,'(a)') 'iTrib nSeg ixThread nThreads StartTime EndTime'
-!   do iTrib=1,nTrib
-!     write(*,'(4(i5,1x),2(I20,1x))') iTrib, river_basin(iOut)%tributary(iTrib)%nRch, ixThread(iTrib), nThreads, timeTribStart(iTrib), openMPend(iTrib)
-!   enddo
-!   deallocate(ixThread, openMPend, timeTrib, timeTribStart, stat=ierr)
-!   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to deallocate space for Trib timing'; return; endif
-
-   if (.not.doMainstem) cycle ! For small basin, no mainstem defined
-   ! 2. Route mainstems
-!   call system_clock(startTime)
-   do iLevel=maxLevel,minLevel,-1
-     nStem = size(river_basin(iOut)%level(iLevel)%mainstem)
-!$OMP PARALLEL default(none)                            &
-!$OMP          private(jRch, iRch)                      & ! private for a given thread
-!$OMP          private(iStem)                           & ! private for a given thread
-!$OMP          private(ierr, cmessage)                  & ! private for a given thread
-!$OMP          shared(T0,T1)                            & ! private for a given thread
-!$OMP          shared(LAKEFLAG)                         & ! private for a given thread
-!$OMP          shared(river_basin)                      & ! data structure shared
-!$OMP          shared(doRoute)                          & ! data array shared
-!$OMP          shared(NETOPO_in)                        & ! data structure shared
-!$OMP          shared(RPARAM_in)                        & ! data structure shared
-!$OMP          shared(KROUTE_out)                       & ! data structure shared
-!$OMP          shared(RCHFLX_out)                       & ! data structure shared
-!$OMP          shared(basinType)                        & ! scalar varaible shared
-!$OMP          shared(iLevel)                           & ! private for a given thread
-!$OMP          shared(iEns, iOut, ixDesire)             & ! indices shared
-!$OMP          firstprivate(nStem)
-!$OMP DO schedule(dynamic,1)
-     do iStem = 1,nStem
-       do iRch=1,river_basin(iOut)%level(iLevel)%mainstem(iStem)%nRch
-         jRch = river_basin(iOut)%level(iLevel)%mainstem(iStem)%segIndex(iRch)
-         if (.not. doRoute(jRch)) cycle
+       seg:do iSeg=1,river_basin(ix)%branch(iTrib)%nRch
+         jSeg  = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
+         if (.not. doRoute(jSeg)) cycle
          ! route kinematic waves through the river network
-         call QROUTE_RCH(iens,jRch,           & ! input: array indices
+         call QROUTE_RCH(iEns,jSeg,           & ! input: array indices
                          ixDesire,            & ! input: index of the desired reach
-                         basinType,           & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
                          T0,T1,               & ! input: start and end of the time step
                          LAKEFLAG,            & ! input: flag if lakes are to be processed
                          NETOPO_in,           & ! input: reach topology data structure
@@ -224,17 +144,25 @@ contains
                          KROUTE_out,          & ! inout: reach state data structure
                          RCHFLX_out,          & ! inout: reach flux data structure
                          ierr,cmessage)         ! output: error control
-!         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-       end do
-     enddo
-!$OMP END DO
-!$OMP END PARALLEL
-   end do
-!   call system_clock(endTime)
-!   elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-!   write(*,"(A,1PG15.7,A)") '  total elapsed mainstem = ', elapsedTime, ' s'
+         !if (ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       end do seg
+!     call system_clock(openMPend(iTrib))
+!     timeTrib(iTrib) = real(openMPend(iTrib)-timeTribStart(iTrib), kind(dp))
+     end do trib
+!$OMP END PARALLEL DO
 
- end do ! basin loop
+!   write(*,'(a)') 'iTrib nSeg ixThread nThreads StartTime EndTime'
+!   do iTrib=1,nTrib
+!     write(*,'(4(i5,1x),2(I20,1x))') iTrib, river_basin(ix)%branch(iTrib)%nRch, ixThread(iTrib), nThreads, timeTribStart(iTrib), openMPend(iTrib)
+!   enddo
+!   deallocate(ixThread, openMPend, timeTrib, timeTribStart, stat=ierr)
+!   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': unable to deallocate space for Trib timing'; return; endif
+
+   end do ! basin loop
+
+   call system_clock(endTime)
+   elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+!   write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/kwt] = ', elapsedTime, ' s'
 
  END SUBROUTINE kwt_route
 
@@ -242,7 +170,6 @@ contains
  SUBROUTINE kwt_route_orig(iens,                 & ! input: ensemble index
                            river_basin,          & ! input: river basin information (mainstem, tributary outlet etc.)
                            T0,T1,                & ! input: start and end of the time step
-                           basinType,            & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
                            ixDesire,             & ! input: reachID to be checked by on-screen pringing
                            NETOPO_in,            & ! input: reach topology data structure
                            RPARAM_in,            & ! input: reach parameter data structure
@@ -251,14 +178,13 @@ contains
                            ierr,message,         & ! output: error control
                            ixSubRch)               ! optional input: subset of reach indices to be processed
   ! global routing data
-  USE dataTypes,  only : basin                     ! river basin data type
+  USE dataTypes,  only : subbasin_omp          ! mainstem+tributary data strucuture
 
   implicit none
   ! Input
    integer(i4b), intent(in)                 :: iens            ! ensemble member
-   type(basin),  intent(in),    allocatable :: river_basin(:)  ! river basin information (mainstem, tributary outlet etc.)
+   type(subbasin_omp), intent(in), allocatable :: river_basin(:)  ! river basin information (mainstem, tributary outlet etc.)
    real(dp),     intent(in)                 :: T0,T1           ! start and end of the time step (seconds)
-   integer(i4b), intent(in)                 :: basinType       ! integer to indicate basin type (1-> tributary, 2-> mainstem)
    integer(i4b), intent(in)                 :: ixDesire        ! index of the reach for verbose output
    type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)    ! River Network topology
    type(RCHPRP), intent(in),    allocatable :: RPARAM_in(:)    ! River reach parameter
@@ -276,13 +202,14 @@ contains
    integer(i4b)                             :: iSeg, jSeg      ! reach indices
    logical(lgt), allocatable                :: doRoute(:)      ! logical to indicate which reaches are processed
    character(len=strLen)                    :: cmessage        ! error message for downwind routine
+   integer*8                                :: cr                ! rate
    integer*8                                :: startTime,endTime ! date/time for the start and end of the initialization
-   real(dp)                                 :: elapsedTime     ! elapsed time for the process
+   real(dp)                                 :: elapsedTime       ! elapsed time for the process
 
   ! initialize error control
   ierr=0; message='kwt_route_orig/'
+  call system_clock(count_rate=cr)
 
-  elapsedTime = 0._dp
   call system_clock(startTime)
 
   ! check
@@ -315,7 +242,6 @@ contains
    ! route kinematic waves through the river network
    call QROUTE_RCH(iens,jSeg,           & ! input: array indices
                    ixDesire,            & ! input: index of the desired reach
-                   basinType,           & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
                    T0,T1,               & ! input: start and end of the time step
                    LAKEFLAG,            & ! input: flag if lakes are to be processed
                    NETOPO_in,           & ! input: reach topology data structure
@@ -328,7 +254,7 @@ contains
   end do  ! (looping through stream segments)
 
   call system_clock(endTime)
-  elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
+  elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 !  write(*,"(A,1PG15.7,A)") '  total elapsed entire = ', elapsedTime, ' s'
 
  END SUBROUTINE kwt_route_orig
@@ -338,7 +264,6 @@ contains
  ! *********************************************************************
  subroutine QROUTE_RCH(IENS,JRCH,    & ! input: array indices
                        ixDesire,     & ! input: index of the reach for verbose output
-                       basinType,    & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
                        T0,T1,        & ! input: start and end of the time step
                        LAKEFLAG,     & ! input: flag if lakes are to be processed
                        NETOPO_in,    & ! input: reach topology data structure
@@ -408,7 +333,6 @@ contains
    integer(i4b), intent(in)                    :: IENS          ! ensemble member
    integer(i4b), intent(in)                    :: JRCH          ! reach to process
    integer(i4b), intent(in)                    :: ixDesire      ! index of the reach for verbose output
-   integer(i4b), intent(in)                    :: basinType       ! integer to indicate basin type (1-> tributary, 2-> mainstem)
    real(dp),     intent(in)                    :: T0,T1         ! start and end of the time step (seconds)
    integer(i4b), intent(in)                    :: LAKEFLAG      ! >0 if processing lakes
    type(RCHTOPO),intent(in),    allocatable    :: NETOPO_in(:)  ! River Network topology
@@ -587,7 +511,8 @@ contains
     ! ***
     ! remove flow particles from the most downstream reach
     ! if the last reach or lake inlet (and lakes are enabled), remove routed elements from memory
-    IF ((NETOPO_in(JRCH)%DREACHI.LT.0 .and. basinType==2).OR. &  ! if the last reach, then there is no downstream reach
+!    IF ((NETOPO_in(JRCH)%DREACHI.LT.0 .and. basinType==2).OR. &  ! if the last reach, then there is no downstream reach
+    IF ((NETOPO_in(JRCH)%DREACHK.LT.0 ).OR. &  ! if the last reach (down reach ID is negative), then there is no downstream reach
         (LAKEFLAG.EQ.1.AND.NETOPO_in(JRCH)%LAKINLT)) THEN ! if lake inlet
       ! copy data to a temporary wave
       if (allocated(NEW_WAVE)) THEN

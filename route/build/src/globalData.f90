@@ -29,7 +29,8 @@ module globalData
   use dataTypes,  only : runoff        ! runoff data type
 
   ! basin data structure
-  use dataTypes,  only : basin         !
+  use dataTypes,  only : subbasin_omp  ! mainstem+tributary data structures
+
   ! time data structure
   use dataTypes,  only : time         ! time data
 
@@ -51,6 +52,8 @@ module globalData
 
   save
 
+  ! ---------- MPI/OMP variables -------------------------------------------------------------------
+  integer(i4b)                  :: nThreads            ! number of threads
   ! ---------- constants ----------------------------------------------------------------------------
 
   ! true/false
@@ -137,9 +140,9 @@ module globalData
   type(runoff)                   , public :: runoff_data          ! runoff data for one time step for LSM HRUs and River network HRUs
 
   ! domain data
-  type(basin)     , allocatable  , public :: river_basin(:)       ! openMP domain decomposition
+  type(subbasin_omp), allocatable, public :: river_basin(:)       ! openMP domain decomposition
 
   ! miscellaneous
-  integer(i4b)                   , public :: ixPrint=integerMissing    ! index of desired reach to be on-screen print
+  integer(i4b)                   , public :: ixPrint=integerMissing   ! index of desired reach to be on-screen print
 
 end module globalData

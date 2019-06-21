@@ -15,10 +15,6 @@ USE irf_route_module,    only : irf_route                  ! unit hydrograph (im
 !USE kwt_route_module,    only : kwt_route => kwt_route_orig ! kinematic wave routing method
 !USE irf_route_module,    only : irf_route => irf_route_orig ! river network unit hydrograph method
 
-! subroutines: general utility
-USE nr_utility_module,   only : findIndex                   ! find index within a vector
-USE nr_utility_module,   only : arth
-
 implicit none
 
 private
@@ -67,7 +63,6 @@ contains
    character(len=strLen)                     :: cmessage             ! error message of downwind routine
    real(dp)                                  :: T0,T1                ! beginning/ending of simulation time step [sec]
    real(dp),      allocatable                :: reachRunoff_local(:) ! reach runoff (m/s)
-   integer(i4b)                              :: mainstem=2           ! basin indicator (mainstem = 2 )
    integer(i4b)                              :: iSeg                 ! index of reach
    ! timing variables
    integer*8                                 :: cr, startTime, endTime ! rate, start and end time stamps
@@ -128,6 +123,7 @@ contains
    if (doesAccumRunoff == 1) then
      call system_clock(startTime)
      call accum_runoff(iens,              &  ! input: ensemble index
+                       river_basin,       &  ! input: river basin data type
                        ixPrint,           &  ! input: index of verbose reach
                        NETOPO,            &  ! input: reach topology data structure
                        RCHFLX,            &  ! inout: reach flux data structure
@@ -144,7 +140,6 @@ contains
     call kwt_route(iens,                 & ! input: ensemble index
                    river_basin,          & ! input: river basin data type
                    T0,T1,                & ! input: start and end of the time step
-                   mainstem,             & ! input: basinType (1-> tributary, 2->mainstem)
                    ixPrint,              & ! input: index of the desired reach
                    NETOPO,               & ! input: reach topology data structure
                    RPARAM,               & ! input: reach parameter data structure
@@ -173,5 +168,6 @@ contains
    endif
 
  end subroutine main_route
+
 
 end module main_route_module
