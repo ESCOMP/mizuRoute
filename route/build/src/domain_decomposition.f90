@@ -422,11 +422,7 @@ contains
    integer(i4b)                                :: iSeg, ix            ! loop indices
    integer(i4b)                                :: ix1, ix2            ! first and last indices in array to subset
 
-   integer*8                              :: cr, startTime, endTime
-   real(dp)                               :: elapsedTime
-
    ierr=0; message='classify_river_basin/'
-   call system_clock(count_rate=cr)
 
    ! check
    if (nSeg/=size(structNTOPO))then; ierr=20; message=trim(message)//'number of reach input is not correct'; return; endif
@@ -450,33 +446,34 @@ contains
    call decomposeDomain(structNTOPO, majorMainstem, maxSegs, domains_out, nDomains, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-call system_clock(startTime)
    ! populate domain(:)%hruIndex
    if (present(nContribHRU)) nContribHRU = 0 ! total number of HRUs that contribute to the reach
    do ix=1,nDomains
      associate (ixSeg => domains_out(ix)%segIndex)
+
      allocate(nHruLocal(size(ixSeg)), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating [nHruLocal]'; return; endif
+     sumHruLocal = 0
      do iSeg = 1, size(ixSeg)
+       sumHruLocal = sumHruLocal + structNTOPO(ixSeg(iSeg))%var(ixNTOPO%nHRU)%dat(1)
        nHruLocal(iSeg) = structNTOPO(ixSeg(iSeg))%var(ixNTOPO%nHRU)%dat(1)
      enddo
-     sumHruLocal = sum(nHruLocal)
+
      if (present(nContribHRU)) nContribHRU=nContribHRU+sumHruLocal
+
      allocate(domains_out(ix)%hruIndex(sumHruLocal), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating [domains_out(ix)%hruIndex]'; return; endif
+
+     ix2 = 0
      do iSeg = 1, size(ixSeg)
-       sumHruLocal = sum(nHruLocal(1:iSeg))
-       ix1 = sumHruLocal-nHruLocal(iSeg)+1
-       ix2 = sumHruLocal
+       ix1 = ix2+1
+       ix2 = ix1+nHruLocal(iSeg)-1
        domains_out(ix)%hruIndex(ix1:ix2) = structNTOPO(ixSeg(iSeg))%var(ixNTOPO%hruContribIx)%dat(:)
      enddo
      deallocate(nHruLocal, stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem deallocating [nHruLocal]'; return; endif
      end associate
    enddo
-call system_clock(endTime)
-elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-!write(*,"(A,1PG15.7,A)") '   elapsed-time [hru_decomposition] = ', elapsedTime, ' s'
 
  end subroutine classify_river_basin
 
