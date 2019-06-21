@@ -78,8 +78,10 @@ contains
   USE alloc_data,          ONLY: alloc_struct
   USE process_ntopo,       ONLY: augment_ntopo            ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,       ONLY: put_data_struct               !
-  USE domain_decomposition,ONLY: omp_domain_decomposition &    ! domain decomposition for omp
-                              => omp_domain_decomposition_stro
+  USE domain_decomposition,ONLY: omp_domain_decomposition     ! domain decomposition for omp
+  !USE domain_decomposition,ONLY: omp_domain_decomposition &    ! domain decomposition for omp
+  !                            => omp_domain_decomposition_stro
+
   implicit none
   ! Input variables
   integer(i4b),                   intent(in)  :: pid                      ! process id (MPI)

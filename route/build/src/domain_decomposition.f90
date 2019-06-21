@@ -733,15 +733,12 @@ elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
    ! sorting reach processing order
    call indexx(segOrder,rankSegOrder)
 
-   allocate(river_basin_out(2), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'problem allocating [river_basin_out]'; return; endif
-
    allocate(nSubSeg(nDomain_omp),rankDomain(nDomain_omp),isAssigned(nDomain_omp),stat=ierr)
    if(ierr/=0)then; message=trim(message)//'problem allocating [nSubSeg,rankDomain,isAssigned]'; return; endif
 
-   ! rank domains based on number of reaches i.e., nSubSeg - rankDomain
-   ! count tributaries
-
+   ! rank domains based on number of reaches i.e., rankDomain
+   ! count tributar and mainstem domains
+   ! nTrib > 0 and nMain = 0 or 1
    nTrib = 0; nMain = 0     ! initialize number of tributaries and mainstems
    do ix = 1,nDomain_omp
     nSubSeg(ix) = size(domains_omp(ix)%segIndex)
@@ -750,10 +747,16 @@ elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
    end do
    call indexx(nSubSeg, rankDomain)
 
-   if (nTrib/=0) then
-     allocate(river_basin_out(tributary)%branch(nTrib), stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating [river_basin_out%branch]'; return; endif
+   ! allocate river_basin_out data strucuture
+   if (nMain==0) then
+    allocate(river_basin_out(1), stat=ierr)
+   else
+    allocate(river_basin_out(2), stat=ierr)
    endif
+   if(ierr/=0)then; message=trim(message)//'problem allocating [river_basin_out]'; return; endif
+
+   allocate(river_basin_out(tributary)%branch(nTrib), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'problem allocating [river_basin_out%branch]'; return; endif
 
    if (nMain/=0) then
      allocate(river_basin_out(mainstem)%branch(nMain), stat=ierr)
