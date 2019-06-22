@@ -367,8 +367,8 @@ contains
   USE process_ntopo,        only : augment_ntopo            ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,        only : put_data_struct          ! populate NETOPO and RPARAM data structure
   USE domain_decomposition, only : omp_domain_decomposition     ! domain decomposition for omp
- ! USE domain_decomposition, only : omp_domain_decomposition &    ! domain decomposition for omp
- !                                => omp_domain_decomposition_stro
+!  USE domain_decomposition, only : omp_domain_decomposition &    ! domain decomposition for omp
+!                                => omp_domain_decomposition_stro
   implicit none
   ! input: None
   ! output (river network data structures for the entire domain)
@@ -392,9 +392,13 @@ contains
   integer(i4b)                                :: dummy(2)                 ! dummy variable to hold dimension length for 2D variables in netCDF
   integer(i4b)   , parameter                  :: maxUpstreamFile=10000000 ! 10 million: maximum number of upstream reaches to enable writing
   character(len=strLen)                       :: cmessage                 ! error message of downwind routine
+  integer*8                                   :: cr                  ! rate
+  integer*8                                   :: startTime,endTime   ! date/time for the start and end of the initialization
+  real(dp)                                    :: elapsedTime         ! elapsed time for the process
 
   ! initialize error control
   ierr=0; message='init_ntopo/'
+  call system_clock(count_rate=cr)
 
   ! get the variable dimensions
   ! NOTE: need to update maxPfafLen to the exact character size for pfaf code in netCDF
@@ -493,8 +497,12 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! spatial domain decomposition for OMP parallelization
+  call system_clock(startTime)
   call omp_domain_decomposition(nRch_out, structNTOPO, river_basin, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  call system_clock(endTime)
+  elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+  write(*,"(A,1PG15.7,A)") '  elapsed-time [domain_decomposition] = ', elapsedTime, ' s'
 
  end subroutine init_ntopo
 
