@@ -273,7 +273,6 @@ contains
 
          associate(upIndex => structNTOPO(ixOutlets(iOut))%var(ixNTOPO%allUpSegIndices)%dat)
 
-         ixUpSeg_tmp = 0
          nSegStreamOrder = 0
          do iSeg = 1, nUpSegs
            if (streamOrder(upIndex(iSeg))/=ix) cycle
@@ -324,30 +323,48 @@ contains
 
          associate(upIndex => structNTOPO(ixTribOutlet(iTrib))%var(ixNTOPO%allUpSegIndices)%dat)
 
-         ixUpSeg_tmp = 0
-         nSegStreamOrder = 0
-         do iSeg = 1, nUpSegs
-           if (streamOrder(upIndex(iSeg))/=ix) cycle
-           nSegStreamOrder = nSegStreamOrder + 1
-           ixUpSeg_tmp(nSegStreamOrder) = upIndex(iSeg)
-         enddo
+         if (ix==1) then
 
-         if (allocated(subSegOrder)) deallocate(subSegOrder)
-         allocate(subSegOrder(nSegStreamOrder), stat=ierr)
-         if(ierr/=0)then; message=trim(message)//'problem allocating [subSegOrder]'; return; endif
+           if (allocated(subSegOrder)) deallocate(subSegOrder)
+           allocate(subSegOrder(nUpSegs), stat=ierr)
+           if(ierr/=0)then; message=trim(message)//'problem allocating [subSegOrder]'; return; endif
 
-         if (allocated(ixUpSeg)) deallocate(ixUpSeg)
-         allocate(ixUpSeg(nSegStreamOrder), stat=ierr)
-         if(ierr/=0)then; message=trim(message)//'problem allocating [ixUpSeg]'; return; endif
+           allocate(branch(iTrib+nOut)%segIndex(nUpSegs), stat=ierr)
+           if(ierr/=0)then; message=trim(message)//'problem allocating [branch(iTrib)%segIndex]'; return; endif
 
-         allocate(branch(iTrib+nOut)%segIndex(nSegStreamOrder), stat=ierr)
-         if(ierr/=0)then; message=trim(message)//'problem allocating [branch(iTrib)%segIndex]'; return; endif
+           call indexx(rankSegOrder(upIndex), subSegOrder)
 
-         ixUpSeg = ixUpSeg_tmp(1:nSegStreamOrder)
-         call indexx(rankSegOrder(ixUpSeg), subSegOrder)
+           branch(iTrib+nOut)%segIndex = upIndex(subSegOrder)
+           branch(iTrib+nOut)%nRch     = nUpSegs
 
-         branch(iTrib+nOut)%nRch     = nSegStreamOrder
-         branch(iTrib+nOut)%segIndex = ixUpSeg(subSegOrder)
+         else
+
+           nSegStreamOrder = 0
+           do iSeg = 1, nUpSegs
+             if (streamOrder(upIndex(iSeg))/=ix) cycle
+             nSegStreamOrder = nSegStreamOrder + 1
+             ixUpSeg_tmp(nSegStreamOrder) = upIndex(iSeg)
+           enddo
+
+           if (allocated(subSegOrder)) deallocate(subSegOrder)
+           allocate(subSegOrder(nSegStreamOrder), stat=ierr)
+           if(ierr/=0)then; message=trim(message)//'problem allocating [subSegOrder]'; return; endif
+
+           if (allocated(ixUpSeg)) deallocate(ixUpSeg)
+           allocate(ixUpSeg(nSegStreamOrder), stat=ierr)
+           if(ierr/=0)then; message=trim(message)//'problem allocating [ixUpSeg]'; return; endif
+
+           allocate(branch(iTrib+nOut)%segIndex(nSegStreamOrder), stat=ierr)
+           if(ierr/=0)then; message=trim(message)//'problem allocating [branch(iTrib)%segIndex]'; return; endif
+
+           ixUpSeg = ixUpSeg_tmp(1:nSegStreamOrder)
+
+           call indexx(rankSegOrder(ixUpSeg), subSegOrder)
+
+           branch(iTrib+nOut)%nRch     = nSegStreamOrder
+           branch(iTrib+nOut)%segIndex = ixUpSeg(subSegOrder)
+
+         endif
 
          nSegBranch(iTrib+nOut) = branch(iTrib+nOut)%nRch
 
@@ -448,6 +465,7 @@ contains
 
    ! populate domain(:)%hruIndex
    if (present(nContribHRU)) nContribHRU = 0 ! total number of HRUs that contribute to the reach
+
    do ix=1,nDomains
      associate (ixSeg => domains_out(ix)%segIndex)
 
@@ -470,8 +488,10 @@ contains
        ix2 = ix1+nHruLocal(iSeg)-1
        domains_out(ix)%hruIndex(ix1:ix2) = structNTOPO(ixSeg(iSeg))%var(ixNTOPO%hruContribIx)%dat(:)
      enddo
+
      deallocate(nHruLocal, stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem deallocating [nHruLocal]'; return; endif
+
      end associate
    enddo
 
@@ -819,6 +839,5 @@ contains
    enddo
 
  end subroutine basin_order
-
 
 end module domain_decomposition
