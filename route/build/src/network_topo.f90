@@ -1164,9 +1164,9 @@ contains
  ! --------- update the dimension lengths ---------------------------------------------------------------------------------------------
 
 
- tot_hru       = 0._dp  ! total number of all the upstream hrus for all stream segments
- tot_upseg     = 0._dp  ! sum of immediate upstream segments
- tot_upstream  = 0._dp  ! total number of upstream reaches for all reaches
+ tot_hru       = 0_i4b  ! total number of all the upstream hrus for all stream segments
+ tot_upseg     = 0_i4b  ! sum of immediate upstream segments
+ tot_upstream  = 0_i4b  ! total number of upstream reaches for all reaches
  ! get the updated dimensions
  do iRch=1,nRch_desire
   tot_hru      = tot_hru      + structNTOPO( ixSeg_desired(iRch) )%var(ixNTOPO%nHRU)%dat(1)
