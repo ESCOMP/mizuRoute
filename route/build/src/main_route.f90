@@ -57,7 +57,6 @@ contains
   character(len=strLen), intent(out) :: message ! error message
   ! Local variables
   integer(i4b), allocatable          :: ixRchProcessed(:)    ! reach indice list to be processed
-  integer(i4b)                       :: mainstem=2           ! basin indicator (mainstem = 2 )
   character(len=strLen)              :: cmessage             ! error message of downwind routine
 
   ierr=0; message='serial_route/'
@@ -70,7 +69,6 @@ contains
   call main_route(iens,                    &  ! ensemble index
                   runoff_data%basinRunoff, &  ! basin (i.e.,HRU) runoff (m/s)
                   ixRchProcessed,          &  ! indices of reach to be routed
-                  mainstem,                &  ! basinType (1-> tributary, 2->mainstem)
                   NETOPO,                  &  ! reach topology data structure
                   RPARAM,                  &  ! reach parameter data structure
                   ! inout
@@ -91,7 +89,6 @@ contains
                        iens,           &  ! ensemble index
                        basinRunoff_in, &  ! basin (i.e.,HRU) runoff (m/s)
                        ixRchProcessed, &  ! indices of reach to be routed
-                       basinType,      &  ! basinType (1-> tributary, 2->mainstem)
                        NETOPO_in,      &  ! reach topology data structure
                        RPARAM_in,      &  ! reach parameter data structure
                        ! inout
@@ -121,7 +118,6 @@ contains
    integer(i4b),               intent(in)    :: iens                 ! ensemble member
    real(dp),      allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
    integer(i4b),  allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
-   integer(i4b),               intent(in)    :: basinType            ! basinType (1-> tributary, 2->mainstem)
    type(RCHTOPO), allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology
    type(RCHPRP),  allocatable, intent(in)    :: RPARAM_in(:)         ! River reach parameter
    ! inout
@@ -196,7 +192,6 @@ contains
    if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
     call kwt_route(iens,                 & ! input: ensemble index
                    T0,T1,                & ! input: start and end of the time step
-                   basinType,            & ! input: basinType (0-> tributary, 1->mainstem)
                    ixPrint,              & ! input: index of the desired reach
                    NETOPO_in,            & ! input: reach topology data structure
                    RPARAM_in,            & ! input: reach parameter data structure
