@@ -119,7 +119,7 @@ contains
   logical(lgt),      allocatable              :: tribOutlet_local(:)       ! logical to indicate tributary outlet to mainstems
   ! 1D array for the entire river network
   integer(i4b)                                :: hruId(nHRU_in)            ! hru id for all the HRUs
-  integer(i4b)                                :: hruSegId(nRch_in)         ! hru-to-seg mapping for each hru
+  integer(i4b)                                :: hruSegId(nHRU_in)         ! hru-to-seg mapping for each hru
   integer(i4b)                                :: segId(nRch_in)            ! reach id for all the segments
   integer(i4b)                                :: downSegId(nRch_in)        ! downstream reach ID for each reach
   real(dp)                                    :: slope(nRch_in)            ! reach slope array for each reach
