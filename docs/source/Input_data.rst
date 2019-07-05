@@ -50,6 +50,9 @@ Minimum variables required
 | length     | seg        | m         | real  | length of segment                       |
 +------------+------------+-----------+-------+-----------------------------------------+
 
+Negative or zero (<=0) value for downSegId is reserved for no downstream reach, meaning that such reach or hru does not flow into any reach.
+(i.e., basin outlet). For this reason, segID is required to use positive integer value (>0).
+
 Runoff data
 -----------
 
