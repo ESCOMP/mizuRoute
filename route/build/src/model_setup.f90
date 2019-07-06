@@ -84,6 +84,7 @@ contains
   USE globalData,  only : KROUTE                 ! Reach k-wave data structures (entire river network)
 
   USE globalData,  only : nHRU, nRch             ! number of HRUs and Reaches in the whole network
+  USE globalData,  only : nContribHRU            ! number of HRUs that are connected to any reaches
   USE globalData,  only : nEns                   ! number of ensembles
   USE globalData,  only : basinID                ! HRU id vector
   USE globalData,  only : reachID                ! reach ID vector
@@ -107,7 +108,6 @@ contains
    type(var_ilength), allocatable           :: structHRU2SEG(:) ! HRU-to-segment mapping
    type(var_ilength), allocatable           :: structNTOPO(:)   ! network topology
    type(var_clength), allocatable           :: structPFAF(:)    ! pfafstetter code
-   integer(i4b)                             :: nContribHRU      ! number of HRUs that are connected to any reaches
    ! others
    integer(i4b)                             :: iHRU, iRch       ! loop index
    character(len=strLen)                    :: cmessage         ! error message of downwind routine
@@ -146,8 +146,12 @@ contains
      allocate(basinID(nHRU), reachID(nRch), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating [basinID, reachID]'; return; endif
 
-     forall(iHRU=1:nHRU) basinID(iHRU) = structHRU2SEG(iHRU)%var(ixHRU2SEG%hruId)%dat(1)
-     forall(iRch=1:nRch) reachID(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
+     do iHRU = 1,nHRU
+      basinID(iHRU) = structHRU2SEG(iHRU)%var(ixHRU2SEG%hruId)%dat(1)
+     enddo
+     do iRch = 1,nRch
+      reachID(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
+     enddo
 
      ! runoff and remap data initialization (TO DO: split runoff and remap initialization)
      call init_runoff(&
@@ -177,6 +181,7 @@ contains
    ! send all the necessary global variables to slave procs
    call pass_global_data(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
 !stop
  end subroutine init_data
 

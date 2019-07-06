@@ -109,6 +109,7 @@ module globalData
   integer(i4b)                   , public :: nEns=1               ! number of ensemble
   ! number of spatial elements
   integer(i4b)                   , public :: nHRU                 ! number of HRUs in the whole river network
+  integer(i4b)                   , public :: nContribHRU          ! number of HRUs that are connected to any reaches
   integer(i4b)                   , public :: nRch                 ! number of reaches in the whole river network
 
   ! basin and reach IDs (to be removed)

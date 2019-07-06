@@ -70,8 +70,8 @@ contains
   USE globalData,          ONLY: nEns                     ! ensemble numbers (currently only 1)
   USE globalData,          ONLY: hru_per_proc             ! number of hrus assigned to each proc (size = num of procs+1)
   USE globalData,          ONLY: rch_per_proc             ! number of reaches assigned to each proc (size = num of procs+1)
-  USE globalData,          ONLY: ixHRU_order              ! global HRU index in the order of proc assignment
-  USE globalData,          ONLY: ixRch_order              ! global reach index in the order of proc assignment
+  USE globalData,          ONLY: ixHRU_order              ! global HRU index in the order of proc assignment (size = total number of HRUs contributing to any reaches, nContribHRU)
+  USE globalData,          ONLY: ixRch_order              ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
   USE globalData,          ONLY: tribOutlet_per_proc      ! number of tributary outlets per proc (size = nNodes)
   USE globalData,          ONLY: global_ix_comm           ! global reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
   USE globalData,          ONLY: local_ix_comm            ! local reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
@@ -86,8 +86,8 @@ contains
   ! Input variables
   integer(i4b),                   intent(in)  :: pid                      ! process id (MPI)
   integer(i4b),                   intent(in)  :: nNodes                   ! number of processes (MPI)
-  integer(i4b),                   intent(in)  :: nRch_in                  ! number of total segments
-  integer(i4b),                   intent(in)  :: nHRU_in                  ! number of total hru
+  integer(i4b),                   intent(in)  :: nRch_in                  ! number of total reaches
+  integer(i4b),                   intent(in)  :: nHRU_in                  ! number of total HRUs that are connected to reaches
   type(var_dlength), allocatable, intent(in)  :: structHRU(:)             ! HRU properties
   type(var_dlength), allocatable, intent(in)  :: structSEG(:)             ! stream segment properties
   type(var_ilength), allocatable, intent(in)  :: structHRU2SEG(:)         ! HRU to SEG mapping
@@ -492,7 +492,7 @@ contains
   USE globalData, only : river_basin_trib ! tributary OMP domain data structure
   USE globalData, only : river_basin_main ! mainstem OMP domain data structure
   USE globalData, only : runoff_data      ! runoff data structure
-  USE globalData, only : nHRU             ! number of HRUs in the whoel river network
+  USE globalData, only : nContribHRU      ! number of reaches in the whoel river network
   USE globalData, only : nRch             ! number of reaches in the whoel river network
   USE globalData, only : ixHRU_order      ! global HRU index in the order of proc assignment
   USE globalData, only : ixRch_order      ! global reach index in the order of proc assignment
@@ -514,7 +514,7 @@ contains
   integer(i4b),             intent(out) :: ierr
   character(len=strLen),    intent(out) :: message                  ! error message
   ! local variables
-  real(dp)                              :: basinRunoff_sorted(nHRU) ! sorted basin runoff (m/s) for whole domain
+  real(dp)                              :: basinRunoff_sorted(nContribHRU) ! sorted basin runoff (m/s) for whole domain
   real(dp),     allocatable             :: basinRunoff_local(:)     ! basin runoff (m/s) for tributaries
   integer(i4b), allocatable             :: ixRchProcessed(:)        ! reach indice list to be processed
   integer(i4b)                          :: iHru                     ! loop indices
@@ -526,23 +526,25 @@ contains
   real(dp)                              :: elapsedTime
 
   ierr=0; message='mpi_route/'
-
-  ! Initialize the system_clock
   call system_clock(count_rate=cr)
 
   ! Reaches/HRU assigned to root node include BOTH small tributaries and mainstem
   ! First, route "small tributaries" while routing over other bigger tributaries (at slave nodes).
 
+call system_clock(startTime)
  ! sort the basin runoff in terms of nodes/domains
  if (pid == root) then ! this is a root process
-    do iHru = 1,nHRU
+    do iHru = 1,nContribHRU
       basinRunoff_sorted(iHru) = runoff_data%basinRunoff(ixHRU_order(iHru))
     enddo
   end if
+call system_clock(endTime)
+elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/sort-runoff] = ', elapsedTime, ' s'
 
 call system_clock(startTime)
   ! Distribute the basin runoff to each process
-  call shr_mpi_scatterV(basinRunoff_sorted(hru_per_proc(-1)+1:nHRU), hru_per_proc(0:nNodes-1), basinRunoff_local, ierr, cmessage)
+  call shr_mpi_scatterV(basinRunoff_sorted(hru_per_proc(-1)+1:nContribHRU), hru_per_proc(0:nNodes-1), basinRunoff_local, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 call system_clock(endTime)
 elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
