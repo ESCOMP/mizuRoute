@@ -8,13 +8,14 @@ Otherwise, mizuRoute needs to remap runoff at hydrologic model HRU (HM_HRU) to r
 In this case, one additional data, remapping data, is required. All the data need to be stored in netCDF.
 
 Basic netCDF requirement (variable, dimension, etc) are discussed below.
-Dimension and variable names use mizuRoute default name but can be whatever. 
-However, some of variables and dimensions have to be specified in :doc:`control file <Control_file>`
+Dimension and variable names list mizuRoute default name but can be whatever. 
+If they are not default name, the variable names need to be speficied in :doc:`control file <Control_file>`.
+Some of variables and dimensions (even if they are the same as default name) have to be specified in :doc:`control file <Control_file>`
 
 River network data
 ------------------
 
-River network netCDF holds river reach topology, reach-hru topology, and river and hru physical parameters. The tables below list minimum requirement.
+River network netCDF holds river reach-reach topology, reach-hru topology, and river and hru physical parameters. The tables below list minimum requirement.
 Full list of reach/hru physical parameters possibly included are :doc:`full list of river and hru physical parameters <seg_hru_param>`. 
 
 It is recommended that river network topology is built within mizuRoute instead of computing outside, while physically parameters are ideally provided per reach and hru. 
@@ -38,6 +39,8 @@ Minimum variables required
 +------------+------------+-----------+-------+-----------------------------------------+
 | HRUid      | hru        | ``-``     | int   | unique hru ID                           |
 +------------+------------+-----------+-------+-----------------------------------------+
+| downSegId  | seg        | ``-``     | int   | id of the downstream segment            |
++------------+------------+-----------+-------+-----------------------------------------+
 | hruSegId   | hru        | ``-``     | int   | id of the stream segment below each HRU |
 +------------+------------+-----------+-------+-----------------------------------------+
 | area       | hru        | m2        | real  | hru area                                |
@@ -46,6 +49,9 @@ Minimum variables required
 +------------+------------+-----------+-------+-----------------------------------------+
 | length     | seg        | m         | real  | length of segment                       |
 +------------+------------+-----------+-------+-----------------------------------------+
+
+Negative or zero (<=0) value for downSegId is reserved for no downstream reach, meaning that such reach or hru does not flow into any reach.
+(i.e., basin outlet). For this reason, segID is required to use positive integer value (>0).
 
 Runoff data
 -----------

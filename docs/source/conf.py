@@ -24,7 +24,7 @@ copyright = '2019, Naoki Mizukami'
 author = 'Naoki Mizukami'
 
 # The short X.Y version
-version = '2.0'
+version = '1.1'
 # The full version, including alpha/beta/rc tags
 release = ''
 
@@ -43,7 +43,7 @@ extensions = [
 ]
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['ntemplates']
+templates_path = ['_templates']
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
@@ -76,7 +76,7 @@ pygments_style = None
 # a list of builtin themes.
 #
 #html_theme = 'alabaster'
-html_theme = 'classic'
+html_theme = 'sphinxdoc'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -103,7 +103,7 @@ html_static_path = ['_static']
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'v20doc'
+htmlhelp_basename = 'v11doc'
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -130,7 +130,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'mizuRoute.tex', 'mizuRoute Documentation',
+    (master_doc, 'v11.tex', 'v1.1 Documentation',
      'Naoki Mizukami', 'manual'),
 ]
 
@@ -140,7 +140,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'mizuroute', 'mizuRoute Documentation',
+    (master_doc, 'v11', 'v1.1 Documentation',
      [author], 1)
 ]
 
@@ -151,8 +151,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'mizuRoute', 'mizuRoute Documentation',
-     author, 'mizuRoute', 'One line description of project.',
+    (master_doc, 'v11', 'v1.1 Documentation',
+     author, 'v11', 'One line description of project.',
      'Miscellaneous'),
 ]
 
