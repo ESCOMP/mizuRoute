@@ -39,28 +39,28 @@ contains
 
   implicit none
   ! Input
-  integer(I4B), intent(in)                  :: iEns              ! runoff ensemble to be routed
-  integer(I4B), intent(in)                  :: ixDesire          ! index of the reach for verbose output
-  type(RCHTOPO),intent(in),    allocatable  :: NETOPO_in(:)      ! River Network topology
+  integer(I4B), intent(in)                  :: iEns                 ! runoff ensemble to be routed
+  integer(I4B), intent(in)                  :: ixDesire             ! index of the reach for verbose output
+  type(RCHTOPO),intent(in),    allocatable  :: NETOPO_in(:)         ! River Network topology
   ! inout
-  TYPE(STRFLX), intent(inout), allocatable  :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+  TYPE(STRFLX), intent(inout), allocatable  :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
   ! Output
-  integer(i4b), intent(out)                 :: ierr              ! error code
-  character(*), intent(out)                 :: message           ! error message
+  integer(i4b), intent(out)                 :: ierr                 ! error code
+  character(*), intent(out)                 :: message              ! error message
   ! input (optional)
-  integer(i4b), intent(in),   optional      :: ixSubRch(:)       ! subset of reach indices to be processed
+  integer(i4b), intent(in),   optional      :: ixSubRch(:)          ! subset of reach indices to be processed
   ! Local variables to
-  INTEGER(I4B)                              :: nSeg              ! number of reach segments in the network
-  INTEGER(I4B)                              :: iSeg, jSeg        ! reach segment index
-  logical(lgt), allocatable                 :: doRoute(:)        ! logical to indicate which reaches are processed
-  character(len=strLen)                     :: cmessage          ! error message from subroutine
-  integer*8                                 :: startTime,endTime ! date/time for the start and end of the initialization
-  real(dp)                                  :: elapsedTime       ! elapsed time for the process
+  INTEGER(I4B)                              :: nSeg                 ! number of reach segments in the network
+  INTEGER(I4B)                              :: iSeg, jSeg           ! reach segment index
+  logical(lgt), allocatable                 :: doRoute(:)           ! logical to indicate which reaches are processed
+  character(len=strLen)                     :: cmessage             ! error message from subroutine
+  integer*8                                 :: cr,startTime,endTime ! date/time for the start and end of the initialization
+  real(dp)                                  :: elapsedTime          ! elapsed time for the process
 
   ! initialize error control
   ierr=0; message='irf_route/'
 
-  elapsedTime = 0._dp
+  call system_clock(count_rate=cr)
   call system_clock(startTime)
 
   ! check
@@ -95,8 +95,8 @@ contains
   end do
 
   call system_clock(endTime)
-  elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
-!   write(*,"(A,1PG15.7,A)") '  total elapsed entire = ', elapsedTime, ' s'
+  elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+!   write(*,"(A,1PG15.7,A)") '  elapsed [route/irf] = ', elapsedTime, ' s'
 
  end subroutine irf_route
 

@@ -55,6 +55,7 @@ CONTAINS
 
  ierr=0; message='accum_runoff/'
  call system_clock(count_rate=cr)
+ call system_clock(startTime)
 
  ! check
  if (size(NETOPO_in)/=size(RCHFLX_out(iens,:))) then
@@ -74,8 +75,6 @@ CONTAINS
  else
    doRoute(:)=.true. ! every reach is on
  endif
-
- call system_clock(startTime)
 
  ! compute the sum of all upstream runoff at each point in the river network
  do iSeg=1,nSeg

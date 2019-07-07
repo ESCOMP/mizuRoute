@@ -98,7 +98,6 @@ contains
                        ierr, message)     ! output: error control
    ! Details:
    ! Given HRU (basin) runoff, perform hru routing (optional) to get reach runoff, and then channel routing
-   ! Restriction:
    ! 1. Reach order in NETOPO_in, RPARAM_in, RCHFLX_out, KROUTE_out must be in the same orders
    ! 2. Process a list of reach indices (in terms of NETOPO_in etc.) given by ixRchProcessed
    ! 3. basinRunoff_in is given in the order of NETOPO_in(:)%HRUIX.
@@ -106,6 +105,7 @@ contains
    ! shared data
    USE public_var, only : routOpt
    USE public_var, only : doesBasinRoute
+   USE public_var, only : doesAccumRunoff
    USE public_var, only : allRoutingMethods
    USE public_var, only : kinematicWave
    USE public_var, only : impulseResponseFunc
@@ -180,13 +180,15 @@ contains
 
   ! 3. subroutine: river reach routing
    ! perform upstream flow accumulation
-   call accum_runoff(iens,              &  ! input: ensemble index
-                     ixPrint,           &  ! input: index of verbose reach
-                     NETOPO_in,         &  ! input: reach topology data structure
-                     RCHFLX_out,        &  ! inout: reach flux data structure
-                     ierr, cmessage,    &  ! output: error controls
-                     ixRchProcessed)       ! optional input: indices of reach to be routed
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if (doesAccumRunoff == 1) then
+     call accum_runoff(iens,              &  ! input: ensemble index
+                       ixPrint,           &  ! input: index of verbose reach
+                       NETOPO_in,         &  ! input: reach topology data structure
+                       RCHFLX_out,        &  ! inout: reach flux data structure
+                       ierr, cmessage,    &  ! output: error controls
+                       ixRchProcessed)       ! optional input: indices of reach to be routed
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   endif
 
    ! perform KWT routing
    if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then

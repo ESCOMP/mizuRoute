@@ -39,32 +39,32 @@ contains
 
   implicit none
   ! Input
-   integer(i4b), intent(in)                 :: iens            ! ensemble member
-   real(dp),     intent(in)                 :: T0,T1           ! start and end of the time step (seconds)
-   integer(i4b), intent(in)                 :: ixDesire        ! index of the reach for verbose output
-   type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)    ! River Network topology
-   type(RCHPRP), intent(in),    allocatable :: RPARAM_in(:)    ! River reach parameter
+   integer(i4b), intent(in)                 :: iens                 ! ensemble member
+   real(dp),     intent(in)                 :: T0,T1                ! start and end of the time step (seconds)
+   integer(i4b), intent(in)                 :: ixDesire             ! index of the reach for verbose output
+   type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)         ! River Network topology
+   type(RCHPRP), intent(in),    allocatable :: RPARAM_in(:)         ! River reach parameter
    ! inout
-   type(KREACH), intent(inout), allocatable :: KROUTE_out(:,:) ! reach state data
-   TYPE(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+   type(KREACH), intent(inout), allocatable :: KROUTE_out(:,:)      ! reach state data
+   TYPE(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
    ! output variables
-   integer(i4b), intent(out)                :: ierr            ! error code
-   character(*), intent(out)                :: message         ! error message
+   integer(i4b), intent(out)                :: ierr                 ! error code
+   character(*), intent(out)                :: message              ! error message
    ! input (optional)
-   integer(i4b), intent(in),   optional     :: ixSubRch(:)     ! subset of reach indices to be processed
+   integer(i4b), intent(in),   optional     :: ixSubRch(:)          ! subset of reach indices to be processed
    ! local variables
-   integer(i4b)                             :: nSeg            ! number of reach segments in the network
-   integer(I4B)                             :: LAKEFLAG=0      ! >0 if processing lakes
-   integer(i4b)                             :: iSeg, jSeg      ! reach indices
-   logical(lgt), allocatable                :: doRoute(:)      ! logical to indicate which reaches are processed
-   character(len=strLen)                    :: cmessage        ! error message for downwind routine
-   integer*8                                :: startTime,endTime ! date/time for the start and end of the initialization
-   real(dp)                                 :: elapsedTime     ! elapsed time for the process
+   integer(i4b)                             :: nSeg                 ! number of reach segments in the network
+   integer(I4B)                             :: LAKEFLAG=0           ! >0 if processing lakes
+   integer(i4b)                             :: iSeg, jSeg           ! reach indices
+   logical(lgt), allocatable                :: doRoute(:)           ! logical to indicate which reaches are processed
+   character(len=strLen)                    :: cmessage             ! error message for downwind routine
+   integer*8                                :: cr,startTime,endTime ! date/time for the start and end of the initialization
+   real(dp)                                 :: elapsedTime          ! elapsed time for the process
 
   ! initialize error control
   ierr=0; message='kwt_route/'
 
-  elapsedTime = 0._dp
+  call system_clock(count_rate=cr)
   call system_clock(startTime)
 
   ! check
@@ -109,8 +109,8 @@ contains
   end do  ! (looping through stream segments)
 
   call system_clock(endTime)
-  elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
-!  write(*,"(A,1PG15.7,A)") '  total elapsed entire = ', elapsedTime, ' s'
+  elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+!  write(*,"(A,1PG15.7,A)") '  elapsed [route/kwt] = ', elapsedTime, ' s'
 
  END SUBROUTINE kwt_route
 
