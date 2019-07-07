@@ -57,7 +57,6 @@ contains
   character(len=strLen), intent(out) :: message ! error message
   ! Local variables
   integer(i4b), allocatable          :: ixRchProcessed(:)    ! reach indice list to be processed
-  integer(i4b)                       :: mainstem=2           ! basin indicator (mainstem = 2 )
   character(len=strLen)              :: cmessage             ! error message of downwind routine
 
   ierr=0; message='serial_route/'
@@ -70,7 +69,6 @@ contains
   call main_route(iens,                    &  ! ensemble index
                   runoff_data%basinRunoff, &  ! basin (i.e.,HRU) runoff (m/s)
                   ixRchProcessed,          &  ! indices of reach to be routed
-                  mainstem,                &  ! basinType (1-> tributary, 2->mainstem)
                   NETOPO,                  &  ! reach topology data structure
                   RPARAM,                  &  ! reach parameter data structure
                   ! inout
@@ -91,7 +89,6 @@ contains
                        iens,           &  ! ensemble index
                        basinRunoff_in, &  ! basin (i.e.,HRU) runoff (m/s)
                        ixRchProcessed, &  ! indices of reach to be routed
-                       basinType,      &  ! basinType (1-> tributary, 2->mainstem)
                        NETOPO_in,      &  ! reach topology data structure
                        RPARAM_in,      &  ! reach parameter data structure
                        ! inout
@@ -101,7 +98,6 @@ contains
                        ierr, message)     ! output: error control
    ! Details:
    ! Given HRU (basin) runoff, perform hru routing (optional) to get reach runoff, and then channel routing
-   ! Restriction:
    ! 1. Reach order in NETOPO_in, RPARAM_in, RCHFLX_out, KROUTE_out must be in the same orders
    ! 2. Process a list of reach indices (in terms of NETOPO_in etc.) given by ixRchProcessed
    ! 3. basinRunoff_in is given in the order of NETOPO_in(:)%HRUIX.
@@ -109,6 +105,7 @@ contains
    ! shared data
    USE public_var, only : routOpt
    USE public_var, only : doesBasinRoute
+   USE public_var, only : doesAccumRunoff
    USE public_var, only : allRoutingMethods
    USE public_var, only : kinematicWave
    USE public_var, only : impulseResponseFunc
@@ -121,7 +118,6 @@ contains
    integer(i4b),               intent(in)    :: iens                 ! ensemble member
    real(dp),      allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
    integer(i4b),  allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
-   integer(i4b),               intent(in)    :: basinType            ! basinType (1-> tributary, 2->mainstem)
    type(RCHTOPO), allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology
    type(RCHPRP),  allocatable, intent(in)    :: RPARAM_in(:)         ! River reach parameter
    ! inout
@@ -184,19 +180,20 @@ contains
 
   ! 3. subroutine: river reach routing
    ! perform upstream flow accumulation
-   call accum_runoff(iens,              &  ! input: ensemble index
-                     ixPrint,           &  ! input: index of verbose reach
-                     NETOPO_in,         &  ! input: reach topology data structure
-                     RCHFLX_out,        &  ! inout: reach flux data structure
-                     ierr, cmessage,    &  ! output: error controls
-                     ixRchProcessed)       ! optional input: indices of reach to be routed
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if (doesAccumRunoff == 1) then
+     call accum_runoff(iens,              &  ! input: ensemble index
+                       ixPrint,           &  ! input: index of verbose reach
+                       NETOPO_in,         &  ! input: reach topology data structure
+                       RCHFLX_out,        &  ! inout: reach flux data structure
+                       ierr, cmessage,    &  ! output: error controls
+                       ixRchProcessed)       ! optional input: indices of reach to be routed
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   endif
 
    ! perform KWT routing
    if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
     call kwt_route(iens,                 & ! input: ensemble index
                    T0,T1,                & ! input: start and end of the time step
-                   basinType,            & ! input: basinType (0-> tributary, 1->mainstem)
                    ixPrint,              & ! input: index of the desired reach
                    NETOPO_in,            & ! input: reach topology data structure
                    RPARAM_in,            & ! input: reach parameter data structure

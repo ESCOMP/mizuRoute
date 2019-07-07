@@ -46,7 +46,7 @@ CONTAINS
  integer(i4b),       intent(in),   optional     :: ixSubRch(:)     ! subset of reach indices to be processed
  ! local variables
  integer(i4b)                                   :: nSeg            ! number of segments in the network
- integer(i4b)                                   :: iSeg            ! reach segment indices
+ integer(i4b)                                   :: iSeg,jSeg       ! reach segment indices
  logical(lgt), allocatable                      :: doRoute(:)      ! logical to indicate which reaches are processed
  character(len=strLen)                          :: cmessage        ! error message from subroutines
  integer*8                                      :: cr                   ! rate
@@ -55,6 +55,7 @@ CONTAINS
 
  ierr=0; message='accum_runoff/'
  call system_clock(count_rate=cr)
+ call system_clock(startTime)
 
  ! check
  if (size(NETOPO_in)/=size(RCHFLX_out(iens,:))) then
@@ -75,14 +76,14 @@ CONTAINS
    doRoute(:)=.true. ! every reach is on
  endif
 
- call system_clock(startTime)
-
  ! compute the sum of all upstream runoff at each point in the river network
  do iSeg=1,nSeg
 
-   if (.not. doRoute(iSeg)) cycle
+   jSeg = NETOPO_in(iSeg)%RHORDER
 
-   call accum_qupstream(iens, iSeg, ixDesire, NETOPO_in, RCHFLX_out, ierr, cmessage)
+   if (.not. doRoute(jSeg)) cycle
+
+   call accum_qupstream(iens, jSeg, ixDesire, NETOPO_in, RCHFLX_out, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end do ! looping through stream segments

@@ -29,7 +29,6 @@ contains
  ! *********************************************************************
  SUBROUTINE kwt_route(iens,                 & ! input: ensemble index
                       T0,T1,                & ! input: start and end of the time step
-                      basinType,            & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
                       ixDesire,             & ! input: reachID to be checked by on-screen pringing
                       NETOPO_in,            & ! input: reach topology data structure
                       RPARAM_in,            & ! input: reach parameter data structure
@@ -40,33 +39,32 @@ contains
 
   implicit none
   ! Input
-   integer(i4b), intent(in)                 :: iens            ! ensemble member
-   real(dp),     intent(in)                 :: T0,T1           ! start and end of the time step (seconds)
-   integer(i4b), intent(in)                 :: basinType       ! integer to indicate basin type (1-> tributary, 2-> mainstem)
-   integer(i4b), intent(in)                 :: ixDesire        ! index of the reach for verbose output
-   type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)    ! River Network topology
-   type(RCHPRP), intent(in),    allocatable :: RPARAM_in(:)    ! River reach parameter
+   integer(i4b), intent(in)                 :: iens                 ! ensemble member
+   real(dp),     intent(in)                 :: T0,T1                ! start and end of the time step (seconds)
+   integer(i4b), intent(in)                 :: ixDesire             ! index of the reach for verbose output
+   type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)         ! River Network topology
+   type(RCHPRP), intent(in),    allocatable :: RPARAM_in(:)         ! River reach parameter
    ! inout
-   type(KREACH), intent(inout), allocatable :: KROUTE_out(:,:) ! reach state data
-   TYPE(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+   type(KREACH), intent(inout), allocatable :: KROUTE_out(:,:)      ! reach state data
+   TYPE(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
    ! output variables
-   integer(i4b), intent(out)                :: ierr            ! error code
-   character(*), intent(out)                :: message         ! error message
+   integer(i4b), intent(out)                :: ierr                 ! error code
+   character(*), intent(out)                :: message              ! error message
    ! input (optional)
-   integer(i4b), intent(in),   optional     :: ixSubRch(:)     ! subset of reach indices to be processed
+   integer(i4b), intent(in),   optional     :: ixSubRch(:)          ! subset of reach indices to be processed
    ! local variables
-   integer(i4b)                             :: nSeg            ! number of reach segments in the network
-   integer(I4B)                             :: LAKEFLAG=0      ! >0 if processing lakes
-   integer(i4b)                             :: iSeg, jSeg      ! reach indices
-   logical(lgt), allocatable                :: doRoute(:)      ! logical to indicate which reaches are processed
-   character(len=strLen)                    :: cmessage        ! error message for downwind routine
-   integer*8                                :: startTime,endTime ! date/time for the start and end of the initialization
-   real(dp)                                 :: elapsedTime     ! elapsed time for the process
+   integer(i4b)                             :: nSeg                 ! number of reach segments in the network
+   integer(I4B)                             :: LAKEFLAG=0           ! >0 if processing lakes
+   integer(i4b)                             :: iSeg, jSeg           ! reach indices
+   logical(lgt), allocatable                :: doRoute(:)           ! logical to indicate which reaches are processed
+   character(len=strLen)                    :: cmessage             ! error message for downwind routine
+   integer*8                                :: cr,startTime,endTime ! date/time for the start and end of the initialization
+   real(dp)                                 :: elapsedTime          ! elapsed time for the process
 
   ! initialize error control
   ierr=0; message='kwt_route/'
 
-  elapsedTime = 0._dp
+  call system_clock(count_rate=cr)
   call system_clock(startTime)
 
   ! check
@@ -99,7 +97,6 @@ contains
    ! route kinematic waves through the river network
    call QROUTE_RCH(iens,jSeg,           & ! input: array indices
                    ixDesire,            & ! input: index of the desired reach
-                   basinType,           & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
                    T0,T1,               & ! input: start and end of the time step
                    LAKEFLAG,            & ! input: flag if lakes are to be processed
                    NETOPO_in,           & ! input: reach topology data structure
@@ -112,8 +109,8 @@ contains
   end do  ! (looping through stream segments)
 
   call system_clock(endTime)
-  elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
-!  write(*,"(A,1PG15.7,A)") '  total elapsed entire = ', elapsedTime, ' s'
+  elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+!  write(*,"(A,1PG15.7,A)") '  elapsed [route/kwt] = ', elapsedTime, ' s'
 
  END SUBROUTINE kwt_route
 
@@ -122,7 +119,6 @@ contains
  ! *********************************************************************
  subroutine QROUTE_RCH(IENS,JRCH,    & ! input: array indices
                        ixDesire,     & ! input: index of the reach for verbose output
-                       basinType,    & ! input: integer to indicate basin type (1-> tributary, 2-> mainstem)
                        T0,T1,        & ! input: start and end of the time step
                        LAKEFLAG,     & ! input: flag if lakes are to be processed
                        NETOPO_in,    & ! input: reach topology data structure
@@ -192,7 +188,6 @@ contains
    integer(i4b), intent(in)                    :: IENS          ! ensemble member
    integer(i4b), intent(in)                    :: JRCH          ! reach to process
    integer(i4b), intent(in)                    :: ixDesire      ! index of the reach for verbose output
-   integer(i4b), intent(in)                    :: basinType       ! integer to indicate basin type (1-> tributary, 2-> mainstem)
    real(dp),     intent(in)                    :: T0,T1         ! start and end of the time step (seconds)
    integer(i4b), intent(in)                    :: LAKEFLAG      ! >0 if processing lakes
    type(RCHTOPO),intent(in),    allocatable    :: NETOPO_in(:)  ! River Network topology
@@ -371,7 +366,8 @@ contains
     ! ***
     ! remove flow particles from the most downstream reach
     ! if the last reach or lake inlet (and lakes are enabled), remove routed elements from memory
-    IF ((NETOPO_in(JRCH)%DREACHI.LT.0 .and. basinType==2).OR. &  ! if the last reach, then there is no downstream reach
+    !IF ((NETOPO_in(JRCH)%DREACHI.LT.0 .and. basinType==2).OR. &  ! if the last reach, then there is no downstream reach
+    IF ((NETOPO_in(JRCH)%DREACHK<=0).OR. &  ! if the last reach (DRECHK: downstream ID is less than 0), then there is no downstream reach
         (LAKEFLAG.EQ.1.AND.NETOPO_in(JRCH)%LAKINLT)) THEN ! if lake inlet
       ! copy data to a temporary wave
       if (allocated(NEW_WAVE)) THEN

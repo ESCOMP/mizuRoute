@@ -23,16 +23,17 @@ EXE =
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
- NCDF_PATH = /opt/local
+ NCDF_PATH =
 endif
 ifeq "$(FC)" "ifort"
- NCDF_PATH = /opt/netcdf4-intel
+ NCDF_PATH =
 endif
 ifeq "$(FC)" "pgf90"
- NCDF_PATH = /opt/netcdf4-pgf90
+ NCDF_PATH = 
 endif
 
-LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
+LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
+            -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
 INCNETCDF = -I$(NCDF_PATH)/include
 
 # Define flags
@@ -80,7 +81,7 @@ DATATYPES = \
 UTILS = \
     nr_utility.f90 \
     ascii_util.f90 \
-		time_utils.f90 \
+    time_utils.f90 \
     gamma_func.f90
 # read/write files
 IO = \
@@ -103,8 +104,8 @@ INIT = \
     network_topo.f90 \
     process_param.f90 \
     process_ntopo.f90
-# model simulation
-MODSIM = \
+# CORE
+CORE = \
     accum_runoff.f90 \
     basinUH.f90 \
     irf_route.f90 \
@@ -113,13 +114,13 @@ MODSIM = \
     model_setup.f90
 
 # concatanate model subroutines
-TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(INIT) $(MODSIM)
+TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(INIT) $(CORE)
 
 # insert appropriate directory name
 MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
 
 #========================================================================
-# PART 2: Define driver programs
+# PART 3: Define driver programs
 #========================================================================
 # Define the driver routine
 DRIVER = $(F_KORE_DIR)route_runoff.f90
