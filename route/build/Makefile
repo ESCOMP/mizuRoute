@@ -1,11 +1,13 @@
 #========================================================================
 # Makefile to compile the routing model
 #========================================================================
-#
-#
+# 
+# Need to edit FC, FC_EXE, EXE, isOpenMP (if OMP is used), F_MASTER, NCDF_PATH
+# Feel free to modify compiler flag (FLAGS)
+# Do not leave space after your edits
 #
 #========================================================================
-# PART 0: User configure part 
+# User configure part 
 #========================================================================
 # Define fortran compiler - gfortran, ifort or pgf90
 FC  =
@@ -13,10 +15,11 @@ FC  =
 # Define the compiler exe
 FC_EXE =
 
-# define open MP flags
+# Define the executable
+EXE = 
+
+# define open MP option (put yes to activate OMP) 
 isOpenMP =
-FLAGS_OMP =
-LIBOPENMP =
  
 # Define core directory below which everything resides
 # parent directory of the 'build' directory
@@ -25,20 +28,22 @@ F_MASTER =
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
-  NCDF_PATH = /opt/local
+  NCDF_PATH = 
 endif
-
 ifeq "$(FC)" "ifort"
-  NCDF_PATH = /opt/netcdf4-intel
+  NCDF_PATH = 
 endif
 
 ifeq "$(FC)" "pgf90"
- NCDF_PATH = /opt/netcdf4-pgf90
+ NCDF_PATH = 
 endif
 
-LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
+LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
+            -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
 INCNETCDF = -I$(NCDF_PATH)/include
 
+FLAGS_OMP =
+LIBOPENMP =
 ifeq "$(isOpenMP)" "yes"
  FLAGS_OMP = -fopenmp
 endif
@@ -58,7 +63,7 @@ ifeq "$(FC)" "pgf90"
 endif
 
 #========================================================================
-# PART 1: Define directory paths
+# Define directory paths
 #========================================================================
 # Core directory that contains source code
 F_KORE_DIR = $(F_MASTER)build/src/
@@ -70,7 +75,7 @@ MOD_PATH = $(F_MASTER)build/
 EXE_PATH = $(F_MASTER)bin
 
 #========================================================================
-# PART 2: Assemble all of the sub-routines
+# Assemble all of the sub-routines
 #========================================================================
 # Define subroutines
 #
@@ -88,14 +93,15 @@ UTILS = \
     nr_utility.f90 \
     ascii_util.f90 \
 		time_utils.f90 \
+		ncio_utils.f90 \
     gamma_func.f90
 # read/write files
 IO = \
+    read_netcdf.f90 \
+    write_netcdf.f90 \
     remap.f90 \
     read_control.f90 \
     read_param.f90 \
-    read_netcdf.f90 \
-    write_netcdf.f90 \
     read_streamSeg.f90 \
     write_streamSeg.f90 \
     read_runoff.f90 \
@@ -112,7 +118,7 @@ INIT = \
     process_ntopo.f90 \
     pfafstetter.f90 \
     domain_decomposition.f90
-# model simulation 
+# model simulation
 MODSIM = \
     accum_runoff.f90 \
     basinUH.f90 \
@@ -128,16 +134,13 @@ TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(INIT) $(MODSIM)
 MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
 
 #========================================================================
-# PART 2: Define driver programs, and executables
+# Define driver programs, and executables
 #========================================================================
 # Define the driver routine
 DRIVER = $(F_KORE_DIR)route_runoff.f90
 
-# Define the executable
-EXE = 
-
 #========================================================================
-# PART 4: Compile the puppy
+# Compile the puppy
 #========================================================================
 # tasks
 all: compile install clean
