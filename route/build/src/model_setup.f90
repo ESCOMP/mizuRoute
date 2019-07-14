@@ -413,7 +413,7 @@ contains
                      structHRU2seg,                    & ! ancillary data for mapping hru2basin
                      structNTOPO,                      & ! ancillary data for network toopology
                      ! output:
-                     ierr, message,                    & ! error control
+                     ierr, cmessage,                   & ! error control
                      ! optional output
                      tot_hru       = tot_hru,          & ! total number of all the upstream hrus for all stream segments
                      tot_upseg     = tot_upseg,        & ! total number of all the immediate upstream segments for all stream segments
@@ -421,6 +421,7 @@ contains
                      tot_uh        = tot_uh,           & ! total number of unit hydrograph for all stream segments
                      ixHRU_desired = ixHRU_desired,    & ! indices of desired hrus
                      ixSeg_desired = ixSeg_desired)      ! indices of desired reaches
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! write network topology (if augment mode or subset mode)
   if(ntopAugmentMode .or. idSegOut>0)then
