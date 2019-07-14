@@ -2,7 +2,6 @@ MODULE read_restart
 ! Moudle wide external modules
 USE nrtype, only: i4b, dp, &
                   strLen
-USE netcdf
 USE public_var
 
 implicit none
@@ -22,7 +21,7 @@ CONTAINS
                           T0, T1,          &   ! output: start and end time [sec]
                           ierr, message)       ! Output: error control
  ! External module
- USE read_netcdf,  ONLY: get_nc, &
+ USE io_netcdf,    ONLY: get_nc, &
                          get_nc_dim_len
  USE dataTypes,    ONLY: states
  ! meta data
@@ -317,7 +316,6 @@ CONTAINS
   enddo
 
   END SUBROUTINE read_KWT_state
-
 
  END SUBROUTINE read_state_nc
 

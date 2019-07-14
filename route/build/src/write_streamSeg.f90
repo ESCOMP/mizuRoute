@@ -31,7 +31,7 @@ USE var_lookup,only:ixPFAF,   nVarsPFAF    ! index of variables for the pfafstet
 
 ! netcdf modules
 USE netcdf
-USE write_netcdf, only : write_nc
+USE io_netcdf, only : write_nc
 
 ! external utilities
 USE nr_utility_module, ONLY: indexx  ! Num. Recipies utilities

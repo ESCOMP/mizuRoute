@@ -334,7 +334,7 @@ CONTAINS
                            seg_id,               &   ! Input: segment id vector
                            ierr, message)            ! Output: error control
  ! External module
- USE write_netcdf, ONLY: write_nc
+ USE io_netcdf,    ONLY: write_nc
  USE dataTypes,    ONLY: states
  ! meta data
  USE globalData,   ONLY: meta_stateDims  ! dimension for state variables

@@ -290,7 +290,7 @@ contains
 
   ! subroutines:
   USE process_time_module, only : process_time  ! process time information
-  USE read_netcdf,         only : get_nc        ! netcdf input
+  USE io_netcdf,           only : get_nc        ! netcdf input
   ! derived datatype
   USE dataTypes,           only : time          ! time data type
   ! public data
@@ -399,7 +399,7 @@ contains
   USE read_streamSeg,       only : getData                  ! get the ancillary data
   USE write_streamSeg,      only : writeData                ! write the ancillary data
   USE process_ntopo,        only : check_river_properties   ! check if river network data is physically valid
-  USE read_netcdf,          only : get_var_dims
+  USE io_netcdf,            only : get_var_dims
   USE process_ntopo,        only : augment_ntopo            ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,        only : put_data_struct          ! populate NETOPO and RPARAM data structure
   USE domain_decomposition, only : mpi_domain_decomposition ! domain decomposition for mpi

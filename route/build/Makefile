@@ -2,16 +2,21 @@
 # Makefile to compile the routing model
 #========================================================================
 #
-#
+# Need to edit FC, FC_EXE, EXE, isOpenMP (if OMP is used), F_MASTER, NCDF_PATH
+# Feel free to modify compiler flag (FLAGS)
+# Do not leave space after your edits
 #
 #========================================================================
-# PART 0: User configure part 
+# User configure part
 #========================================================================
 # Define fortran compiler - gfortran, ifort or pgf90
 FC  =
 
 # Define the compiler exe
 FC_EXE =
+
+# Define the executable
+EXE =
 
 # define open MP flags (yes if used)
 isOpenMP =
@@ -80,7 +85,7 @@ ifeq "$(FC)" "pgf90"
 endif
 
 #========================================================================
-# PART 1: Define directory paths
+# Define directory paths
 #========================================================================
 # Core directory that contains source code
 F_KORE_DIR = $(F_MASTER)build/src/
@@ -96,7 +101,7 @@ EXTLIBS =
 EXTINCLUDES =
 
 #========================================================================
-# PART 2: Assemble all of the sub-routines
+# Assemble all of the sub-routines
 #========================================================================
 # Define subroutines
 #
@@ -114,6 +119,7 @@ UTILS = \
     nr_utility.f90 \
     ascii_util.f90 \
     time_utils.f90 \
+    ncio_utils.f90 \
     mpi_utils.f90 \
     gamma_func.f90
 # read/write files
@@ -121,8 +127,6 @@ IO = \
     remap.f90 \
     read_control.f90 \
     read_param.f90 \
-    read_netcdf.f90 \
-    write_netcdf.f90 \
     read_streamSeg.f90 \
     write_streamSeg.f90 \
     read_runoff.f90 \
@@ -156,19 +160,16 @@ TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(INIT) $(CORE)
 MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
 
 #========================================================================
-# PART 3: Define driver programs, and executables
+# Define driver programs
 #========================================================================
 # Define the driver routine
 DRIVER = $(F_KORE_DIR)route_runoff.f90
-
-# Define the executable
-EXE = 
 
 # tasks
 all: compile install clean
 
 #========================================================================
-# PART 3.5: External libaries that might need to be built
+# External libaries that might need to be built
 #========================================================================
 LIBDIR       = $(F_MASTER)build/lib
 PIOLIBDIR    = $(LIBDIR)/piolib/lib
@@ -229,7 +230,7 @@ cleanmpiseriallib:
 .PHONY : cleanmpiseriallib
 
 #========================================================================
-# PART 4: Compile the puppy
+# Compile the puppy
 #========================================================================
 # compile
 compile: $(EXTLIBS)
