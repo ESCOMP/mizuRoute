@@ -7,9 +7,8 @@ USE public_var
 
 ! Netcdf
 use netcdf
-use read_netcdf, only:get_nc
-use read_netcdf, only:get_nc_dim_len
-use read_netcdf, only:get_var_attr_char
+use io_netcdf, only:get_nc
+use io_netcdf, only:get_nc_dim_len
 
 implicit none
 
