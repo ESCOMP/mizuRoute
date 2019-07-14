@@ -38,8 +38,8 @@ integer*8                     :: cr, startTime, endTime
 real(dp)                      :: elapsedTime
 
 ! ******
-! Initialize the system_clock
-CALL system_clock(count_rate=cr)
+! system_clock rate
+call system_clock(count_rate=cr)
 
 ! ******
 ! get command-line argument defining the full path to the control file
@@ -108,7 +108,6 @@ write(*,"(A,1PG15.7,A)") '   elapsed-time [output] = ', elapsedTime, ' s'
 end do  ! looping through time
 
 ! write state netCDF
-!call write_state_nc(trim(output_dir)//trim(fname_state_out), routOpt, runoff_data%time, 1, T0, T1, reachID, ierr, cmessage)
 call output_state(ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 

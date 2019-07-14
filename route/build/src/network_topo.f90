@@ -83,23 +83,24 @@ contains
  integer(i4b)                    :: segHRUix(nHRU)    ! index of segment where HRU drains
  integer(i4b)                    :: nHRU2seg(nSeg)    ! number of HRUs that drain into a given segment
  real(dp)                        :: totarea           ! total area of all HRUs feeding into a given stream segment (m2)
- !integer*8                       :: time0,time1       ! times
+ !integer*8                       :: cr, startTime, endTime
 
  ! initialize error control
  ierr=0; message='hru2segment/'
+ !call system_clock(count_rate=cr)
 
  !print*, 'PAUSE: start of '//trim(message); read(*,*)
 
  ! initialize timing
- !call system_clock(time0)
+ !call system_clock(startTime)
 
  ! ---------- get the index of the stream segment that a given HRU drains into ------------------------------
 
  ! get input vectors
- do iSeg = 1, nSeg
-  segId(iSeg)    = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)
+ do iSeg=1,nSeg
+  segId(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)
  end do
- do iHRU = 1, nHRU
+ do iHRU=1,nHRU
   hruSegId(iHRU) = structHRU2seg(iHRU)%var(ixHRU2seg%hruSegId)%dat(1)
  end do
 
@@ -116,8 +117,8 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! populate data structure
- do iHRU = 1, nHRU
-   structHRU2seg(iHRU)%var(ixHRU2seg%hruSegIndex)%dat(1) = segHRUix(iHRU)
+ do iHRU=1,nHRU
+  structHRU2seg(iHRU)%var(ixHRU2seg%hruSegIndex)%dat(1) = segHRUix(iHRU)
  end do
 
  ! get the total number of HRUs that drain into any segments
@@ -137,9 +138,8 @@ contains
   structNTOPO(iSeg)%var(ixNTOPO%nHRU)%dat(1) = 0
  end do
 
- ! get timing
- !call system_clock(time1)
- !print*, 'timing: allocate space = ', time1-time0
+ !call system_clock(endTime)
+ !print*, 'timing: allocate space = ', real(endTime-startTime,kind(dp))/real(cr)
 
  ! ---------- populate structure components for HRU-2-Segment mapping ---------------------------------------
 
@@ -183,8 +183,8 @@ contains
  endif
 
  ! get timing
- !call system_clock(time1)
- !print*, 'timing: populate structure components = ', time1-time0
+ !call system_clock(endTime)
+ !print*, 'timing: populate structure components = ', real(endTime-startTime,kind(dp))/real(cr)
 
  ! ---------- compute additional variables ------------------------------------------------------------------
 
@@ -207,8 +207,8 @@ contains
  end do  ! (looping thru stream segments)
 
  ! get timing
- !call system_clock(time1)
- !print*, 'timing: compute HRU weights = ', time1-time0
+ !call system_clock(endTime)
+ !print*, 'timing: compute HRU weights = ', real(endTime-startTime,kind(dp))/real(cr)
  !print*, 'PAUSE: end of '//trim(message); read(*,*)
 
  end subroutine hru2segment
@@ -236,6 +236,7 @@ contains
  character(*)      , intent(out)                :: message          ! error message
  ! local variables
  logical(lgt),parameter          :: checkMap=.true.     ! flag to check the mapping
+ logical(lgt)                    :: checkDownID         ! flag to invalid downstream id
  character(len=strLen)           :: cmessage            ! error message of downwind routine
  integer(i4b)                    :: iRch                ! reach index
  integer(i4b)                    :: ixDownRch           ! index of the downstream reach
@@ -254,11 +255,25 @@ contains
 
  ! ---------- define the index of the downstream reach ID ----------------------------------------------------
 
+ checkDownID = .false.
+
  ! get the segid and downstream segment
  do iRch=1,nRch
   segId(iRch)     = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
   downSegId(iRch) = structNTOPO(iRch)%var(ixNTOPO%downSegId)%dat(1)
+
+  ! check topology
+  if (segId(iRch) == downSegId(iRch)) then
+    checkDownID=.true.
+    write(*,'(a,i0,a,i0)') 'Reach-ID= ', segId(iRch), ' Downstream-reach-ID= ', downSegId(iRch)
+  endif
+
  end do
+
+ if (checkDownID) then
+  ierr=10; write(message,'(a,i0,a)') trim(message)//'reach ID and downstream ID are identical for above reaches!!!'
+  return
+ endif
 
  ! define the index of the downstream reach ID
  call downReachIndex(&
@@ -357,6 +372,8 @@ contains
  integer(i4b)                    :: rankDownSeg(nUp)    ! rank index of each downstream stream segment
  logical(lgt),parameter          :: checkLink=.false.   ! flag to check the links
  logical(lgt),parameter          :: checkMap=.true.     ! flag to check the mapping
+ integer(i4b),parameter          :: nProgress=100000    ! print every nProgress step
+
  ! initialize error control
  ierr=0; message='downReachIndex/'
 
@@ -375,7 +392,7 @@ contains
  do iUp=1,nUp
 
   ! print progress
-  !if(mod(iUp,10000)==0) print*, 'Getting downstream link for reach: ', iUp, nUp
+  if(mod(iUp,nProgress)==0) print*, 'Getting downstream link for reach: ', iUp, nUp
 
   ! get Ids for the up2seg mapping vector
   rankDownId = downId( rankDownSeg(iUp) )
@@ -645,6 +662,7 @@ contains
  integer(i4b)                                   :: nUpstream       ! total number of upstream reaches
  integer(i4b)                                   :: iUps            ! index of upstream reaches
  integer(i4b)                                   :: iPos            ! position in vector
+ integer(i4b),parameter                         :: nProgress=100000! print every nProgress step
  ! ----------------------------------------------------------------------------------------
  message='REACH_LIST/'
 
@@ -670,7 +688,7 @@ contains
   ! ---------- identify reach in the ordered vector ----------------------------------------
 
   ! print progress
-  if(mod(kRch,100000)==0) print*, 'Getting list of all upstream reaches: kRch, nRch = ', kRch, nRch
+  if(mod(kRch,nProgress)==0) print*, 'Getting list of all upstream reaches: kRch, nRch = ', kRch, nRch
 
   ! NOTE: Reaches are ordered
   !        -->  kRch cannpt be processed until all upstream reaches are processed

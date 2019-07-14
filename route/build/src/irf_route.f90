@@ -326,12 +326,14 @@ contains
    INTEGER(I4B)                                 :: iSeg, jSeg        ! reach segment index
    logical(lgt), allocatable                    :: doRoute(:)        ! logical to indicate which reaches are processed
    character(len=strLen)                        :: cmessage          ! error message from subroutine
+   integer*8                                    :: cr                ! rate
    integer*8                                    :: startTime,endTime ! date/time for the start and end of the initialization
    real(dp)                                     :: elapsedTime       ! elapsed time for the process
 
    ! initialize error control
    ierr=0; message='irf_route_orig/'
 
+   call system_clock(count_rate=cr)
    call system_clock(startTime)
 
    ! check
@@ -366,7 +368,7 @@ contains
    end do
 
    call system_clock(endTime)
-   elapsedTime = real(endTime-startTime, kind(dp))/10e8_dp
+   elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 !   write(*,"(A,1PG15.7,A)") '  total elapsed entire = ', elapsedTime, ' s'
 
  end subroutine irf_route_orig

@@ -38,6 +38,7 @@ implicit none
 
 ! privacy -- everything private unless declared explicitly
 private
+public::check_river_properties
 public::augment_ntopo
 public::put_data_struct
 
@@ -327,6 +328,49 @@ contains
  endif
 
 end subroutine augment_ntopo
+
+ ! *********************************************************************
+ ! public subroutine: check network data is physically valid
+ ! *********************************************************************
+ subroutine check_river_properties(structNTOPO, structHRU, structSEG, &  ! input: data structure for physical river network data
+                                   ierr, message)
+  ! saved global data
+  USE public_var,    only : min_slope          ! minimum slope
+  implicit none
+  ! input
+  type(var_ilength)           , intent(in)       :: structNTOPO(:)   ! network topology
+  type(var_dlength)           , intent(inout)    :: structHRU(:)     ! HRU properties
+  type(var_dlength)           , intent(inout)    :: structSEG(:)     ! stream reach properties
+  ! output: error control
+  integer(i4b)                , intent(out)      :: ierr             ! error code
+  character(*)                , intent(out)      :: message          ! error message
+  ! local varialbles
+  integer(i4b)                                   :: nSeg,nHru        ! number of stream reaches and HRUs
+  integer(i4b)                                   :: iSeg,iHru        ! loop indices
+
+  ! initialize error control
+  ierr=0; message='check_river_properties/'
+
+  nSeg = size(structSEG)
+  nHru = size(structHRU)
+
+  ! check reach
+  do iSeg = 1,nSeg
+    associate(segId => structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1))
+    ! Check reach length
+    if (structSEG(iSeg)%var(ixSEG%length)%dat(1) <= 0 )then
+     ierr=10
+     write(message,'(a,i0,a,1PG15.7)') trim(message)//'reach length for reach id ', segId, ' is negative:', structSEG(iSeg)%var(ixSEG%length)%dat(1)
+     return
+    endif
+    end associate
+  enddo
+
+  do iHru = 1,nHru
+  ! check somehting for hru properties
+  enddo
+
+  end subroutine check_river_properties
 
  ! *********************************************************************
  ! public subroutine: populate old data strucutures
