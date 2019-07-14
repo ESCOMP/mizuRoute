@@ -1,8 +1,9 @@
 MODULE write_simoutput
 ! Moudle wide external modules
-USE nrtype
 USE netcdf
+USE nrtype
 USE public_var
+USE io_netcdf, only: write_nc  ! write a variable to the NetCDF file
 
 implicit none
 
@@ -31,7 +32,6 @@ CONTAINS
   USE globalData,          only : nHRU, nRch          ! number of ensembles, HRUs and river reaches
   USE globalData,          only : RCHFLX              ! Reach fluxes (ensembles, space [reaches])
   USE globalData,          only : runoff_data         ! runoff data for one time step for LSM HRUs and River network HRUs
-  USE write_netcdf,        only : write_nc            ! write a variable to the NetCDF file
 
   implicit none
 
@@ -105,7 +105,6 @@ CONTAINS
  ! subroutines
  USE time_utils_module,   only : compCalday        ! compute calendar day
  USE time_utils_module,   only : compCalday_noleap ! compute calendar day
- USE write_netcdf,        only : write_nc          ! write a variable to the NetCDF file
 
  implicit none
 

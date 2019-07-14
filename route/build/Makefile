@@ -1,7 +1,7 @@
 #========================================================================
 # Makefile to compile the routing model
 #========================================================================
-# 
+#
 # Need to edit FC, FC_EXE, EXE, isOpenMP (if OMP is used), F_MASTER, NCDF_PATH
 # Feel free to modify compiler flag (FLAGS)
 # Do not leave space after your edits
@@ -92,13 +92,11 @@ DATATYPES = \
 UTILS = \
     nr_utility.f90 \
     ascii_util.f90 \
-		time_utils.f90 \
-		ncio_utils.f90 \
+    time_utils.f90 \
+    ncio_utils.f90 \
     gamma_func.f90
 # read/write files
 IO = \
-    read_netcdf.f90 \
-    write_netcdf.f90 \
     remap.f90 \
     read_control.f90 \
     read_param.f90 \
@@ -119,7 +117,7 @@ INIT = \
     pfafstetter.f90 \
     domain_decomposition.f90
 # model simulation
-MODSIM = \
+CORE = \
     accum_runoff.f90 \
     basinUH.f90 \
     irf_route.f90 \
@@ -128,13 +126,13 @@ MODSIM = \
     model_setup.f90
 
 # concatanate model subroutines
-TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(INIT) $(MODSIM)
+TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(INIT) $(CORE)
 
 # insert appropriate directory name
 MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
 
 #========================================================================
-# Define driver programs, and executables
+# Define driver programs
 #========================================================================
 # Define the driver routine
 DRIVER = $(F_KORE_DIR)route_runoff.f90
