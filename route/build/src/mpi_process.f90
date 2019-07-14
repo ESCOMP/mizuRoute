@@ -531,16 +531,12 @@ contains
   ! Reaches/HRU assigned to root node include BOTH small tributaries and mainstem
   ! First, route "small tributaries" while routing over other bigger tributaries (at slave nodes).
 
-call system_clock(startTime)
  ! sort the basin runoff in terms of nodes/domains
  if (pid == root) then ! this is a root process
     do iHru = 1,nContribHRU
       basinRunoff_sorted(iHru) = runoff_data%basinRunoff(ixHRU_order(iHru))
     enddo
   end if
-call system_clock(endTime)
-elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/sort-runoff] = ', elapsedTime, ' s'
 
 call system_clock(startTime)
   ! Distribute the basin runoff to each process
