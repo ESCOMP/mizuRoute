@@ -82,14 +82,11 @@ contains
   ! 1. subroutine: map basin runoff to river network HRUs
   ! map the basin runoff to the stream network...
   call system_clock(startTime)
-  call basin2reach(&
-                  ! input
-                  runoff_data%basinRunoff, & ! basin runoff (m/s)
-                  NETOPO,                  & ! reach topology
-                  RPARAM,                  & ! reach parameter
-                  ! output
-                  reachRunoff_local,       & ! intent(out): reach runoff (m3/s)
-                  ierr, cmessage)            ! intent(out): error control
+  call basin2reach(runoff_data%basinRunoff, & ! input:  basin runoff (m/s)
+                   NETOPO,                  & ! input:  reach topology
+                   RPARAM,                  & ! input:  reach parameter
+                   reachRunoff_local,       & ! output: reach runoff (m3/s)
+                   ierr, cmessage)            ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   call system_clock(endTime)
   elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
