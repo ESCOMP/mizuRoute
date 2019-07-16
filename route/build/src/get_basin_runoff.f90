@@ -55,7 +55,7 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   call system_clock(endTime)
   elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-  write(*,"(A,1PG15.7,A)") '  elapsed-time [runoff_input/read] = ', elapsedTime, ' s'
+!  write(*,"(A,1PG15.7,A)") '  elapsed-time [runoff_input/read] = ', elapsedTime, ' s'
 
   ! allocate basinRunoff (local array)
   allocate(basinRunoff(nHRU), stat=ierr)
