@@ -9,8 +9,6 @@ USE dataTypes,          only : RCHTOPO        ! Network topology
 USE public_var,         only : realMissing    ! missing value for real number
 USE public_var,         only : integerMissing ! missing value for integer number
 USE globalData,         only : nThreads          ! number of threads used for openMP
-! utilities
-USE time_utils_module,  only : elapsedSec     ! calculate the elapsed time
 
 ! privary
 implicit none
@@ -230,17 +228,12 @@ contains
  ! *********************************************************************
  ! subroutine: Compute delayed runoff from the upstream segments
  ! *********************************************************************
- subroutine conv_upsbas_qr(&
-                           ! input
-                           reach_uh,   &    ! input: reach unit hydrograph
+ subroutine conv_upsbas_qr(reach_uh,   &    ! input: reach unit hydrograph
                            rflux_ups,  &    ! input: upstream reach fluxes
                            rflux,      &    ! input: input flux at reach
                            ierr, message)   ! output: error control
  ! ----------------------------------------------------------------------------------------
- ! Purpose:
- !
- !   Convolute routed basisn flow volume at top of each of the upstream segment at one time step and at each segment
- !
+ ! Details: Convolute runoff volume of upstream at one reach at one time step
  ! ----------------------------------------------------------------------------------------
 
  implicit none
@@ -254,8 +247,8 @@ contains
  character(*), intent(out)              :: message      ! error message
  ! Local variables to
  real(dp)                               :: q_upstream   ! total discharge at top of the reach being processed
- INTEGER(I4B)                           :: nTDH         ! number of UH data
- INTEGER(I4B)                           :: iTDH         ! index of UH data (i.e.,future time step)
+ INTEGER(I4B)                           :: ntdh         ! number of UH data
+ INTEGER(I4B)                           :: itdh         ! index of UH data (i.e.,future time step)
  INTEGER(I4B)                           :: nUps         ! number of all upstream segment
  INTEGER(I4B)                           :: iUps         ! loop indices for u/s reaches
 
@@ -265,26 +258,32 @@ contains
  ! identify number of upstream segments of the reach being processed
  nUps = size(rflux_ups)
 
+ ! Find out total q at top of a segment
  q_upstream = 0.0_dp
  if(nUps>0)then
    do iUps = 1,nUps
-     ! Find out total q at top of a segment
      q_upstream = q_upstream + rflux_ups(iUps)%REACH_Q_IRF
    end do
  endif
 
  ! place a fraction of runoff in future time steps
- nTDH = size(reach_uh) ! identify the number of future time steps of UH for a given segment
- do iTDH=1,nTDH
-   rflux%QFUTURE_IRF(iTDH) = rflux%QFUTURE_IRF(iTDH) &
-                             + reach_uh(iTDH)*q_upstream
+ ntdh = size(reach_uh) ! identify the number of future time steps of UH for a given segment
+ do itdh=1,ntdh
+   rflux%QFUTURE_IRF(itdh) = rflux%QFUTURE_IRF(itdh) &
+                             + reach_uh(itdh)*q_upstream
  enddo
 
  ! Add local routed flow
  rflux%REACH_Q_IRF = rflux%QFUTURE_IRF(1) + rflux%BASIN_QR(1)
 
  ! move array back   use eoshift
- rflux%QFUTURE_IRF=eoshift(rflux%QFUTURE_IRF,shift=1)
+ !rflux%QFUTURE_IRF=eoshift(rflux%QFUTURE_IRF,shift=1)
+
+ do itdh=2,ntdh
+  rflux%QFUTURE_IRF(itdh-1) = rflux%QFUTURE_IRF(itdh)
+ enddo
+
+ rflux%QFUTURE_IRF(ntdh) = 0._dp
 
  end subroutine conv_upsbas_qr
 
