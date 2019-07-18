@@ -136,7 +136,7 @@ contains
 
    call system_clock(endTime)
    elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-   write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/kwt] = ', elapsedTime, ' s'
+!   write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/kwt] = ', elapsedTime, ' s'
 
  END SUBROUTINE kwt_route
 

@@ -78,9 +78,9 @@ contains
   USE alloc_data,          ONLY: alloc_struct
   USE process_ntopo,       ONLY: augment_ntopo            ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,       ONLY: put_data_struct               !
-  USE domain_decomposition,ONLY: omp_domain_decomposition     ! domain decomposition for omp
-  !USE domain_decomposition,ONLY: omp_domain_decomposition &    ! domain decomposition for omp
-  !                            => omp_domain_decomposition_stro
+  !USE domain_decomposition,ONLY: omp_domain_decomposition     ! domain decomposition for omp
+  USE domain_decomposition,ONLY: omp_domain_decomposition &    ! domain decomposition for omp
+                              => omp_domain_decomposition_stro
 
   implicit none
   ! Input variables
@@ -674,7 +674,6 @@ call system_clock(startTime)
 call system_clock(endTime)
 elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-state] = ', elapsedTime, ' s'
-
  endif ! end of kwt option
 
  end subroutine mpi_route

@@ -117,7 +117,7 @@ CONTAINS
 
  call system_clock(endTime)
  elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
- write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/accum] = ', elapsedTime, ' s'
+ !write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/accum] = ', elapsedTime, ' s'
 
  END SUBROUTINE accum_runoff
 

@@ -10,15 +10,10 @@ USE dataTypes,           only : RCHTOPO                     ! Network topology
 USE dataTypes,           only : RCHPRP                      ! Reach parameter
 USE dataTypes,           only : runoff                      ! runoff data type
 USE dataTypes,           only : subbasin_omp                ! mainstem+tributary data structures
-
-! subroutines: general utility
-USE nr_utility_module,   only : findIndex                   ! find index within a vector
-
 ! mapping HRU runoff to reach
 USE remapping,           only : basin2reach
 ! subroutines: basin routing
 USE basinUH_module,      only : IRF_route_basin             ! perform UH convolution for basin routing
-
 ! subroutines: river routing
 USE accum_runoff_module, only : accum_runoff                ! upstream flow accumulation
 USE kwt_route_module,    only : kwt_route                  ! kinematic wave routing method
@@ -103,15 +98,12 @@ contains
 
   ! 1. subroutine: map basin runoff to river network HRUs
   ! map the basin runoff to the stream network...
-  call basin2reach(&
-                  ! input
-                  basinRunoff_in,     & ! basin runoff (m/s)
-                  NETOPO_in,          & ! reach topology
-                  RPARAM_in,          & ! reach parameter
-                  ! output
-                  reachRunoff_local,  & ! intent(out): reach runoff (m3/s)
-                  ierr, cmessage,     & ! intent(out): error control
-                  ixRchProcessed)       ! optional input: indices of reach to be routed
+  call basin2reach(basinRunoff_in,     & ! input: basin runoff (m/s)
+                   NETOPO_in,          & ! input: reach topology
+                   RPARAM_in,          & ! input: reach parameter
+                   reachRunoff_local,  & ! output: reach runoff (m3/s)
+                   ierr, cmessage,     & ! output: error control
+                   ixRchProcessed)       ! optional input: indices of reach to be routed
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! 2. subroutine: basin route
