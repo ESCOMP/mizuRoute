@@ -49,6 +49,7 @@ contains
    type(subdomain)                             :: domains_omp(maxDomain)! domain decomposition data structure (maximum domain is set to maxDomain)
    integer(i4b)                                :: nDomain_omp
    character(len=strLen)                       :: cmessage        ! error message from subroutine
+   logical(lgt),parameter                      :: debug=.true.           ! screen print for domain decomposition
 
    ierr=0; message='omp_domain_decomposition/'
 
@@ -62,6 +63,40 @@ contains
 
    call basin_order(nSeg, structNTOPO, domains_omp, nDomain_omp, river_basin_out, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   if (debug) call print_screen()
+
+   contains
+
+   ! --------------------------------------------------
+   !  FOR DEBUGGING
+   ! --------------------------------------------------
+   subroutine print_screen()
+     ! debugging variables
+     integer(i4b)                           :: segId(nSeg)          ! reach id for all the segments
+     integer(i4b)                           :: downIndex(nSeg)      ! down reach id for all the segments
+     integer(i4b)                           :: iSeg, jSeg, iBrn,ix  ! loop indix
+
+     do iSeg = 1,nSeg
+       segId(iSeg)     = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)
+       downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
+     end do
+
+     print*,'seg-index segid down-index down-id branch-index'
+     do ix = 1,size(river_basin_out)
+      do iBrn = 1,size(river_basin_out(ix)%branch)
+       do iSeg=1,river_basin_out(ix)%branch(iBrn)%nRch
+        jSeg = river_basin_out(ix)%branch(iBrn)%segIndex(iSeg)
+        if (downIndex((jSeg)) > 0) then
+         write(*,"(I9,X,I12,X,I9,X,I12,X,I2)") jSeg, segId(jSeg), downIndex(jSeg),segId(downIndex(jSeg)), iBrn
+        else
+         write(*,"(I9,X,I12,X,I9,X,I12,X,I2)") jSeg, segId(jSeg), downIndex(jSeg),-999, iBrn
+        endif
+       end do
+      end do
+     end do
+
+   end subroutine print_screen
 
  end subroutine omp_domain_decomposition
 
@@ -105,6 +140,7 @@ contains
    integer(i4b)                                :: nTrib,nOut             ! number of tributaries, and basin outlets, respectively
    integer(i4b)                                :: nSegStreamOrder        ! number of reachs of the same stream order
    integer(i4b)                                :: nUpSegs                ! numpber of upstream segments
+   logical(lgt),parameter                      :: debug=.false.           ! screen print for domain decomposition
 
    ierr=0; message='omp_domain_decomposition_stro/'
 
@@ -280,6 +316,40 @@ contains
      end do
 
    end do sorder
+
+   if (debug) call print_screen()
+
+   contains
+
+   ! --------------------------------------------------
+   !  FOR DEBUGGING
+   ! --------------------------------------------------
+   subroutine print_screen()
+     ! debugging variables
+     integer(i4b)                           :: segId(nSeg)          ! reach id for all the segments
+     integer(i4b)                           :: downIndex(nSeg)      ! down reach id for all the segments
+     integer(i4b)                           :: iSeg, jSeg, ix       ! loop indix
+
+     do iSeg = 1,nSeg
+       segId(iSeg)     = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)
+       downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
+     end do
+
+     print*,'seg-index segid down-index down-id stream-order'
+     do ix = 1,maxStreamOrder
+      do iBrn = 1,size(river_basin_out(ix)%branch)
+       do iSeg=1,river_basin_out(ix)%branch(iBrn)%nRch
+        jSeg = river_basin_out(ix)%branch(iBrn)%segIndex(iSeg)
+        if (downIndex((jSeg)) > 0) then
+         write(*,"(I9,X,I12,X,I9,X,I12,X,I2)") jSeg, segId(jSeg), downIndex(jSeg),segId(downIndex(jSeg)),ix
+        else
+         write(*,"(I9,X,I12,X,I9,X,I12,X,I2)") jSeg, segId(jSeg), downIndex(jSeg),-999, ix
+        endif
+       end do
+      end do
+     end do
+
+   end subroutine print_screen
 
  end subroutine omp_domain_decomposition_stro
 
