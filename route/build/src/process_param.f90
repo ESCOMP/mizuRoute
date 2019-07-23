@@ -56,23 +56,33 @@ contains
   ! ---------------------------------------------------------------------------------------
   ! initialize error control
   ierr=0; message='basinUH/'
-  ! use a Gamma distribution with shape parameter, fshape = 2.5, and time parameter, tscale, input
+  ! use a Gamma distribution with shape parameter, fshape, and time parameter, tscale, input
   alamb = fshape/tscale                  ! scale parameter
   ! find the desired number of future time steps
-  ntdh_min = 1._dp
-  ntdh_max = 1000._dp
-  ntdh_try = 0.5_dp*(ntdh_min + ntdh_max)
-  do itry=1,maxtry
-   x_value = alamb*dt*ntdh_try
-   cumprob = gammp(fshape, x_value)
-   !print*, tscale, ntdh_try, cumprob
-   if(cumprob < 0.99_dp)  ntdh_min = ntdh_try
-   if(cumprob > 0.999_dp) ntdh_max = ntdh_try
-   if(cumprob > 0.99_dp .and. cumprob < 0.999_dp) exit
-   ntdh_try = 0.5_dp*(ntdh_min + ntdh_max)
-   if(itry==maxtry)then; ierr=20; message=trim(message)//'cannot identify the maximum number of bins for the tdh'; return; endif
-  end do
+  ! in case check if the cummulative Gamma distribution is 1 for given model time step, tscale and fsahpe.
+  ! Modified by Shervan Gharari on 23th July 2019
+  X_VALUE = alamb*dt                        ! assuming ntdh_try is set to 1.00
+  cumprob = gammp(fshape, X_VALUE)          ! check the cumdist gamma distribution for the X_VALUE of UH of 1 time step
+  if(cumprob > 0.999_dp) then               ! check if the cum dist function reaches close to one for UH of 1 time step
+   print*, cumprob, X_VALUE                 ! print the value of X_VALUE
+   ntdh_try = 1.5                           ! to make sure that we have 2.00 time step for UH one will be with [1.00,0.00]
+  else                                      ! if the sum is not one then find the best UH length by itterating from a large number
+   ntdh_min = 1._dp
+   ntdh_max = 1000._dp
+   ntdh_try = 0.5_dp*(ntdh_min + ntdh_max)  
+   do itry=1,maxtry
+    x_value = alamb*dt*ntdh_try
+    cumprob = gammp(fshape, x_value)
+    print*, tscale, ntdh_try, cumprob, x_value, itry
+    if(cumprob < 0.99_dp)  ntdh_min = ntdh_try
+    if(cumprob > 0.999_dp) ntdh_max = ntdh_try
+    if(cumprob > 0.99_dp .and. cumprob < 0.999_dp) exit
+    ntdh_try = 0.5_dp*(ntdh_min + ntdh_max)
+    if(itry==maxtry)then; ierr=20; message=trim(message)//'cannot identify the maximum number of bins for the tdh'; return; endif
+   end do
+  endif                                    ! end the if statement
   ntdh = ceiling(ntdh_try)
+  print*, ntdh                             ! print the ntdh
   ! allocate space for the time-delay histogram
   if (.not.allocated(FRAC_FUTURE)) then
     allocate(FRAC_FUTURE(ntdh), stat=ierr)
