@@ -95,8 +95,12 @@ contains
  ! ---------- get the index of the stream segment that a given HRU drains into ------------------------------
 
  ! get input vectors
- forall(iSeg=1:nSeg) segId(iSeg)    = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)
- forall(iHRU=1:nHRU) hruSegId(iHRU) = structHRU2seg(iHRU)%var(ixHRU2seg%hruSegId)%dat(1)
+ do iSeg=1,nSeg
+  segId(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)
+ end do
+ do iHRU=1,nHRU
+  hruSegId(iHRU) = structHRU2seg(iHRU)%var(ixHRU2seg%hruSegId)%dat(1)
+ enddo
 
  call downReachIndex(&
                      ! input
@@ -111,7 +115,9 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! populate data structure
- forall(iHRU=1:nHRU) structHRU2seg(iHRU)%var(ixHRU2seg%hruSegIndex)%dat(1) = segHRUix(iHRU)
+ do iHRU=1,nHRU
+  structHRU2seg(iHRU)%var(ixHRU2seg%hruSegIndex)%dat(1) = segHRUix(iHRU)
+ enddo
 
  ! get the total number of HRUs that drain into any segments
  total_hru = sum(nHRU2seg)
@@ -232,6 +238,7 @@ contains
  character(*)      , intent(out)                :: message          ! error message
  ! local variables
  logical(lgt),parameter          :: checkMap=.true.     ! flag to check the mapping
+ logical(lgt)                    :: checkDownID         ! flag to invalid downstream id
  character(len=strLen)           :: cmessage            ! error message of downwind routine
  integer(i4b)                    :: iRch                ! reach index
  integer(i4b)                    :: ixDownRch           ! index of the downstream reach
@@ -245,11 +252,25 @@ contains
 
  ! ---------- define the index of the downstream reach ID ----------------------------------------------------
 
+ checkDownID = .false.
+
  ! get the segid and downstream segment
  do iRch=1,nRch
   segId(iRch)     = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
   downSegId(iRch) = structNTOPO(iRch)%var(ixNTOPO%downSegId)%dat(1)
+
+  ! check topology
+  if (segId(iRch) == downSegId(iRch)) then
+    checkDownID=.true.
+    write(*,'(a,i0,a,i0)') 'Reach-ID= ', segId(iRch), ' Downstream-reach-ID= ', downSegId(iRch)
+  endif
+
  end do
+
+ if (checkDownID) then
+  ierr=10; write(message,'(a,i0,a)') trim(message)//'reach ID and downstream ID are identical for above reaches!!!'
+  return
+ endif
 
  ! define the index of the downstream reach ID
  call downReachIndex(&

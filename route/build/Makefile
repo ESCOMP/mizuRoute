@@ -88,8 +88,7 @@ IO = \
     remap.f90 \
     read_control.f90 \
     read_param.f90 \
-    read_netcdf.f90 \
-    write_netcdf.f90 \
+    ncio_utils.f90 \
     read_streamSeg.f90 \
     write_streamSeg.f90 \
     read_runoff.f90 \

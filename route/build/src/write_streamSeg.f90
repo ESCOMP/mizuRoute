@@ -28,7 +28,7 @@ USE var_lookup,only:ixNTOPO,  nVarsNTOPO   ! index of variables for the network 
 
 ! netcdf modules
 USE netcdf
-USE write_netcdf, only : write_nc
+USE io_netcdf, only : write_nc
 
 ! external utilities
 USE nr_utility_module, ONLY: indexx  ! Num. Recipies utilities
