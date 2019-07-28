@@ -121,6 +121,7 @@ UTILS = \
     time_utils.f90 \
     ncio_utils.f90 \
     mpi_utils.f90 \
+    pio_utils.f90 \
     gamma_func.f90
 # read/write files
 IO = \
