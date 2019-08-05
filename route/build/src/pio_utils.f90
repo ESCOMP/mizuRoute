@@ -3,25 +3,6 @@ module pio_utils
   USE mpi
   USE nrtype
   USE pio
-  USE pio, only: pio_init, pio_finalize
-  USE pio, only: pio_createfile, pio_openfile, pio_closefile
-  USE pio, only: pio_rearr_subset, pio_rearr_box
-  USE pio, only: pio_redef, pio_def_dim, pio_def_var, pio_enddef
-  USE pio, only: pio_initdecomp
-  USE pio, only: pio_read_darray, pio_write_darray
-  USE pio, only: pio_get_var, pio_put_var
-  USE pio, only: pio_syncfile
-  USE pio, only: pio_get_att, pio_put_att
-  USE pio, only: pio_seterrorhandling
-  USE pio, only: pio_inq_att, pio_inq_dimid, pio_inq_dimlen, pio_inq_dimname, pio_inq_vardimid, pio_inq_varid
-  USE pio, only: pio_inq_varname, pio_inq_varndims, pio_inquire, pio_internal_error
-  USE pio, only: pio_setframe
-  USE pio, only: pio_freedecomp
-  USE pio, only: pio_noerr
-  USE pio, only: pio_iotask_rank
-  USE pio, only: pio_bcast_error
-  USE pio, only: pio_offset_kind
-  USE pio, only: pio_iotype_pnetcdf, pio_iotype_netcdf, pio_iotype_netcdf4c, pio_iotype_NETCDF4p
 
   implicit none
 
@@ -40,7 +21,6 @@ module pio_utils
 
   ! public PIO parameter
   integer(i4b),parameter,public :: ncd_int       = pio_int
-  integer(i4b),parameter,public :: ncd_log       =-pio_int
   integer(i4b),parameter,public :: ncd_float     = pio_real
   integer(i4b),parameter,public :: ncd_double    = pio_double
   integer(i4b),parameter,public :: ncd_char      = pio_char
@@ -305,9 +285,6 @@ contains
     if(ierr/=0)then; message=trim(message)//'ERROR: adding calendar'; return; endif
   end if
 
-  ierr = pio_enddef(pioFileDesc)
-  if(ierr/=pio_noerr)then; message=trim(message)//'Could not end define mode'; return; endif
-
   end subroutine defVar
 
   ! -----------------------------
@@ -332,11 +309,11 @@ contains
   integer(i4b),          intent(in)    :: iStart(:)    ! start index
   integer(i4b),          intent(in)    :: iCount(:)    ! length of vector
   ! output
-  integer(i4b),     intent(out)           :: ierr
-  character(*),     intent(out)           :: message      ! error message
+  integer(i4b),     intent(out)        :: ierr
+  character(*),     intent(out)        :: message      ! error message
   ! local variables
   type(file_desc_t)                    :: pioFileDesc  ! pio file handle
-  type(var_desc_t)                        :: pioVarId
+  type(var_desc_t)                     :: pioVarId
 
   ierr=0; message='write_int_array1D/'
 
@@ -385,7 +362,7 @@ contains
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
   if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
 
-  ierr = pio_put_var(pioFileDesc, pioVarId, iStart, iCount, array)
+  ierr = pio_put_var(pioFileDesc, pioVarId, iStart, iCount, real(array,kind=sp))
   if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
 
   call pio_closefile(pioFileDesc)
@@ -463,7 +440,7 @@ contains
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
   if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
 
-  ierr = pio_put_var(pioFileDesc, pioVarId, iStart, iCount, array)
+  ierr = pio_put_var(pioFileDesc, pioVarId, iStart, iCount, real(array,kind=sp))
   if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
 
   call pio_closefile(pioFileDesc)
@@ -580,7 +557,7 @@ contains
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
   if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
 
-  call pio_write_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
+  call pio_write_darray(pioFileDesc, pioVarId, iodesc, real(array,kind=sp), ierr)
   if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
 
   call pio_syncfile(pioFileDesc)
@@ -619,7 +596,7 @@ contains
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
   if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
 
-  call pio_write_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
+  call pio_write_darray(pioFileDesc, pioVarId, iodesc, real(array,kind=sp), ierr)
   if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
 
   call pio_syncfile(pioFileDesc)
@@ -710,7 +687,7 @@ contains
 
   call pio_setframe(pioFileDesc, pioVarId, int(nr, kind=pio_offset_kind))
 
-  call pio_write_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
+  call pio_write_darray(pioFileDesc, pioVarId, iodesc, real(array,kind=sp), ierr)
   if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
 
   call pio_syncfile(pioFileDesc)
@@ -798,7 +775,7 @@ contains
 
   call pio_setframe(pioFileDesc, pioVarId, int(nr, kind=pio_offset_kind))
 
-  call pio_write_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
+  call pio_write_darray(pioFileDesc, pioVarId, iodesc, real(array,kind=sp), ierr)
   if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
 
   call pio_syncfile(pioFileDesc)

@@ -517,9 +517,10 @@ contains
   real(dp)                              :: basinRunoff_sorted(nContribHRU) ! sorted basin runoff (m/s) for whole domain
   real(dp),     allocatable             :: basinRunoff_local(:)     ! basin runoff (m/s) for tributaries
   integer(i4b), allocatable             :: ixRchProcessed(:)        ! reach indice list to be processed
-  integer(i4b)                          :: iHru                     ! loop indices
+  integer(i4b)                          :: iHru,jHru                ! loop indices
   integer(i4b)                          :: nSegTrib                 ! number of reaches from one tributary
   integer(i4b)                          :: nSegMain                 ! number of reaches from mainstems
+  integer(i4b)                          :: nHRU_mainstem             ! number of hrus on the main stem
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
   ! timing
   integer*8                             :: cr, startTime, endTime
@@ -534,13 +535,17 @@ contains
  ! sort the basin runoff in terms of nodes/domains
  if (pid == root) then ! this is a root process
     do iHru = 1,nContribHRU
-      basinRunoff_sorted(iHru) = runoff_data%basinRunoff(ixHRU_order(iHru))
+      jHru = ixHRU_order(iHru)
+      basinRunoff_sorted(iHru) = runoff_data%basinRunoff(jHru)
     enddo
   end if
 
+  call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+
 call system_clock(startTime)
   ! Distribute the basin runoff to each process
-  call shr_mpi_scatterV(basinRunoff_sorted(hru_per_proc(-1)+1:nContribHRU), hru_per_proc(0:nNodes-1), basinRunoff_local, ierr, cmessage)
+  nHRU_mainstem = hru_per_proc(-1)
+  call shr_mpi_scatterV(basinRunoff_sorted(nHRU_mainstem+1:nContribHRU), hru_per_proc(0:nNodes-1), basinRunoff_local, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 call system_clock(endTime)
 elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
@@ -1080,9 +1085,12 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
  ! *********************************************************************
  ! public subroutine: send global data
  ! *********************************************************************
- ! send all the necessary public variables to slave procs
+ ! send all the necessary public/global variables neccesary in task
  subroutine pass_global_data(ierr,message)   ! output: error control
   USE public_var, only : root
+  USE public_var, only : calendar
+  USE public_var, only : time_units
+  USE globalData, only : nRch,nHRU         ! number of reaches and hrus in whole network
   USE globalData, only : timeVar           ! time variable
   USE globalData, only : iTime             ! time index
   USE globalData, only : refJulday         ! julian day: reference
@@ -1092,6 +1100,8 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
   USE globalData, only : TSEC              ! beginning/ending of simulation time step [sec]
   USE globalData, only : length_conv
   USE globalData, only : time_conv
+  USE globalData, only : reachID
+  USE globalData, only : basinID
   implicit none
   ! Input variables
   ! None
@@ -1104,7 +1114,11 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
   ierr=0; message='pass_global_data/'
 
   ! send scalars
-  call MPI_BCAST(iTime,       1,     MPI_INTEGER,              root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(iTime,       1,     MPI_INTEGER,          root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(nRch,        1,     MPI_INTEGER,          root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(nHRU,        1,     MPI_INTEGER,          root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(calendar,  strLen,  MPI_CHARACTER,        root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(time_units,strLen,  MPI_CHARACTER,        root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(refJulday,   1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(startJulday, 1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(endJulday,   1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
@@ -1114,6 +1128,8 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
   call MPI_BCAST(time_conv,   1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
 
   call shr_mpi_bcast(timeVar,ierr, message)
+  call shr_mpi_bcast(reachID,ierr, message)
+  call shr_mpi_bcast(basinID,ierr, message)
 
  end subroutine pass_global_data
 
