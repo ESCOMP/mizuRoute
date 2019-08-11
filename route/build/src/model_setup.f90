@@ -195,6 +195,7 @@ contains
   USE globalData, only : TSEC          ! beginning/ending of simulation time step [sec]
   USE globalData, only : timeVar       ! time variables (unit given by runoff data)
   USE globalData, only : iTime         ! time index at simulation time step
+  USE globalData, only : convTime2Days ! conversion multipliers for time unit of runoff input to day
   USE globalData, only : refJulday     ! julian day: reference
   USE globalData, only : modJulday     ! julian day: at model time step
   USE globalData, only : endJulday     ! julian day: at end of simulation
@@ -220,7 +221,7 @@ contains
    iTime=iTime+1
 
    ! update the julian day of the model simulation
-   modJulday = refJulday + timeVar(iTime)
+   modJulday = refJulday + timeVar(iTime)/convTime2Days
 
  end subroutine update_time
 
@@ -304,6 +305,7 @@ contains
 
   USE globalData,          only : timeVar       ! time variables (unit given by runoff data)
   USE globalData,          only : iTime         ! time index at simulation time step
+  USE globalData,          only : convTime2Days ! conversion multipliers for time unit of runoff input to day
   USE globalData,          only : refJulday     ! julian day: reference
   USE globalData,          only : startJulday   ! julian day: start of routing simulation
   USE globalData,          only : endJulday     ! julian day: end of routing simulation
@@ -319,7 +321,6 @@ contains
   character(*),              intent(out)   :: message          ! error message
   ! local variable
   integer(i4b)                             :: ix
-  real(dp)                                 :: convTime2Days
   character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
   ! initialize error control
@@ -341,9 +342,6 @@ contains
    case default;    ierr=20; message=trim(message)//'unable to identify time units'; return
   end select
 
-  ! convert time unit in runoff netCDF to day
-  timeVar=timeVar/convTime2Days
-
   ! extract time information from the control information
   call process_time(time_units,    calendar, refJulday,   ierr, cmessage)
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [refJulday]'; return; endif
@@ -356,8 +354,9 @@ contains
   if(endJulday<startJulday) then; ierr=20; message=trim(message)//'simulation end is before simulation start'; return; endif
 
   ! fast forward time to time index at simStart and save iTime and modJulday
+  ! need to convert time unit in timeVar to day
   do ix = 1, nTime
-    modJulday = refJulday + timeVar(ix)
+    modJulday = refJulday + timeVar(ix)/convTime2Days
     if( modJulday < startJulday ) cycle
     exit
   enddo

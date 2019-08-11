@@ -63,7 +63,7 @@ module pio_utils
   !! pio_iotype_netcdf = 2      Netcdf3 Classic format (serial)
   !! pio_iotype_netcdf4c = 3    NetCDF4 (HDF5) compressed format (serial)
   !! pio_iotype_NETCDF4p = 4    NetCDF4 (HDF5) parallel
-  integer, parameter :: iotype = pio_iotype_netcdf
+  integer, parameter :: iotype = pio_iotype_pnetcdf
 
 contains
 
@@ -108,8 +108,9 @@ contains
                         gidx_local,   & ! input: local global-index array at one dimension
                         iodesc)         ! output:
     ! Details:
+    ! domain decomposition is defined only in the 1st dimension
     !
-    !
+    use globalData, ONLY: pid
 
     implicit none
     ! input variables
@@ -129,6 +130,12 @@ contains
     integer(i4b)                        :: ix             ! counter
     integer(i4b)                        :: nn             !
 
+  ! timing
+  integer*8                             :: cr, startTime, endTime
+  real(dp)                              :: elapsedTime
+  call system_clock(count_rate=cr)
+
+call system_clock(startTime)
     ndims = size(dimLen)
     gsize = dimLen(1)        ! 1st dimension size for global array
     lsize = size(gidx_local) ! local size = 1st dimension size for local array
@@ -145,21 +152,48 @@ contains
       do ix = 2, ndims
         nn = nn*dimLen(ix)
       enddo
+
+      ! fill global indices in higher dimension
+      allocate(compdof2d(lsize,nn))
+      do ix = 1,nn
+        compdof2d(1:lsize, ix) = (ix-1)*gsize + gidx_local(1:lsize)
+      end do
+
+      ! take care of ghost indices (0 index value)
+      do ix = 1, lsize
+       if (gidx_local(ix) == 0) then
+         compdof2d(ix,:) = 0
+       endif
+      enddo
+
+!   do ix = 1,lsize
+!    print*, (compdof2d(ix,jx),jx=1,nn)
+!   enddo
+
+      allocate(compdof(totnum))
+      compdof = reshape(compdof2d,[totnum])
+
+    else
+
+      allocate(compdof(totnum))
+      compdof(1:lsize) = gidx_local(1:lsize)
+
     endif
+call system_clock(endTime)
+elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [pio_utils/prep] = ', elapsedTime, ' s'
 
-    allocate(compdof2d(lsize,nn))
-    do ix = 1,nn
-      compdof2d(1:lsize, ix) = (ix-1)*gsize + gidx_local(1:lsize)
-    end do
+!    print*, (compdof(ix),ix=1,totnum)
 
-    allocate(compdof(totnum))
-    compdof = reshape(compdof2d,[totnum])
-
+call system_clock(startTime)
     call pio_initdecomp(pioIoSystem,      & ! input: pio system descriptor
                         piotype,          & ! input: data type
                         dimLen(1:ndims),  & ! input: dimension length in global array
                         compdof,          & ! input: decomposition for local array
                         iodesc)             ! output:
+call system_clock(endTime)
+elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [pio_utils/pio_initdecomp] = ', elapsedTime, ' s'
 
   end subroutine pio_decomp
 
@@ -284,6 +318,7 @@ contains
     ierr = pio_put_att(pioFileDesc, pioVarId, 'calendar', trim(vcal))
     if(ierr/=0)then; message=trim(message)//'ERROR: adding calendar'; return; endif
   end if
+
 
   end subroutine defVar
 
@@ -778,7 +813,7 @@ contains
   call pio_write_darray(pioFileDesc, pioVarId, iodesc, real(array,kind=sp), ierr)
   if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
 
-  call pio_syncfile(pioFileDesc)
+  !call pio_syncfile(pioFileDesc)
 
   call pio_closefile(pioFileDesc)
 

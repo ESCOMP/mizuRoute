@@ -493,7 +493,6 @@ contains
   USE globalData, only : river_basin_main ! mainstem OMP domain data structure
   USE globalData, only : runoff_data      ! runoff data structure
   USE globalData, only : nContribHRU      ! number of reaches in the whoel river network
-  USE globalData, only : nRch             ! number of reaches in the whoel river network
   USE globalData, only : ixHRU_order      ! global HRU index in the order of proc assignment
   USE globalData, only : ixRch_order      ! global reach index in the order of proc assignment
   USE globalData, only : hru_per_proc     ! number of hrus assigned to each proc (i.e., node)
@@ -539,7 +538,6 @@ contains
       basinRunoff_sorted(iHru) = runoff_data%basinRunoff(jHru)
     enddo
   end if
-
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
 call system_clock(startTime)
@@ -564,54 +562,46 @@ call system_clock(startTime)
   ixRchProcessed = arth(1,1,nSegTrib)
 
   ! Perform routing
-  call main_route(iens,              &  ! ensemble index
-                  basinRunoff_local, &  ! basin (i.e.,HRU) runoff (m/s)
-                  ixRchProcessed,    &  ! indices of reach to be routed
-                  river_basin_trib,  &  ! OMP basin decomposition
-                  NETOPO_trib,       &  ! reach topology data structure
-                  RPARAM_trib,       &  ! reach parameter data structure
-                  ! inout
-                  RCHFLX_trib,       &  ! reach flux data structure
-                  KROUTE_trib,       &  ! reach state data structure
-                  ! output: error handling
-                  ierr, message)     ! output: error control
+  call main_route(iens,              &  ! input: ensemble index
+                  basinRunoff_local, &  ! input: basin (i.e.,HRU) runoff (m/s)
+                  ixRchProcessed,    &  ! input: indices of reach to be routed
+                  river_basin_trib,  &  ! input: OMP basin decomposition
+                  NETOPO_trib,       &  ! input: reach topology data structure
+                  RPARAM_trib,       &  ! input: reach parameter data structure
+                  RCHFLX_trib,       &  ! inout: reach flux data structure
+                  KROUTE_trib,       &  ! inout: reach state data structure
+                  ierr, message)        ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  ! make sure that routing at all the procs finished
-  call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 call system_clock(endTime)
 elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/tributary-route] = ', elapsedTime, ' s'
+
+  ! make sure that routing at all the procs finished
+  call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
   ! --------------------------------
   ! Collect all the tributary flows
   ! --------------------------------
 call system_clock(startTime)
   ! flux communication
-  call mpi_comm_flux(pid, nNodes,                              &
-                     iens,                                     &
-                     rch_per_proc(root:nNodes-1),              &
-                     !tribOutlet_per_proc,  & ! input: number of reaches communicate per node (dimension size == number of proc)
-                     ixRch_order(rch_per_proc(root-1)+1:nRch), &
-                     !global_ix_comm,      & ! input: global reach indices to communicate (dimension size == sum of nRearch)
-                     arth(1,1,rch_per_proc(pid)),              &
-                     !local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
-                     gather,                                   & ! input: communication type
+  call mpi_comm_flux(pid, nNodes,         & ! input:
+                     iens,                & ! input:
+                     tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
+                     global_ix_comm,      & ! input: global reach indices to communicate (dimension size == sum of nRearch)
+                     local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
+                     gather,              & ! input: communication type
                      ierr, message)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! KWT state communication
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
 
-    call mpi_comm_kwt_state(pid, nNodes,         &
-                            iens,                &
-                            !rch_per_proc(root:nNodes-1),              &
+    call mpi_comm_kwt_state(pid, nNodes,         & ! input:
+                            iens,                & ! input:
                             tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
-                            !ixRch_order(rch_per_proc(root-1)+1:nRch), &
                             global_ix_comm,      & ! input: global reach indices to communicate (dimension size == sum of nRearch)
-                            !arth(1,1,rch_per_proc(pid)),              &
                             local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
-                            gather,               & ! communication type
+                            gather,              & ! communication type
                             ierr, message)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -624,13 +614,12 @@ call system_clock(endTime)
 elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/gater-state-flux] = ', elapsedTime, ' s'
 
-if (rch_per_proc(-1)==0) return
+  if (rch_per_proc(-1)==0) return
 
   ! --------------------------------
   ! perform mainstem routing
   ! --------------------------------
   if (pid==root) then
-
 call system_clock(startTime)
     ! number of HRUs and reaches from Mainstems
     nSegMain = rch_per_proc(-1)
@@ -673,7 +662,7 @@ call system_clock(startTime)
                            tribOutlet_per_proc,                & ! input: number of reaches communicate per node (dimension size == number of proc)
                            global_ix_comm,                     & ! input: global reach indices to communicate (dimension size == sum of nRearch)
                            local_ix_comm,                      & ! input: local reach indices per proc (dimension size depends on procs )
-                           scatter,                            & ! input: 1 = scatter
+                           scatter,                            & ! input: communication type
                            ierr, message)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 call system_clock(endTime)
@@ -938,7 +927,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
      endif
 
      allocate(KROUTE_trib(iens,jSeg)%KWAVE(0:nWave_trib(iSeg)-1),stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating array for [KROUTE_out(iens,iRch)%KWAVE]'; return; endif
+     if(ierr/=0)then; message=trim(message)//'problem allocating array for [KROUTE_trib(iens,iRch)%KWAVE]'; return; endif
 
      KROUTE_trib(iens,jSeg)%KWAVE(0:nWave_trib(iSeg)-1)%QF = QF_trib(ixWave:ixWave+nWave_trib(iSeg)-1)
      KROUTE_trib(iens,jSeg)%KWAVE(0:nWave_trib(iSeg)-1)%QM = QM_trib(ixWave:ixWave+nWave_trib(iSeg)-1)
@@ -1090,6 +1079,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
   USE public_var, only : root
   USE public_var, only : calendar
   USE public_var, only : time_units
+  USE globalData, only : convTime2Days     ! conversion multipliers for time unit of runoff input to day
   USE globalData, only : nRch,nHRU         ! number of reaches and hrus in whole network
   USE globalData, only : timeVar           ! time variable
   USE globalData, only : iTime             ! time index
@@ -1119,6 +1109,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
   call MPI_BCAST(nHRU,        1,     MPI_INTEGER,          root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(calendar,  strLen,  MPI_CHARACTER,        root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(time_units,strLen,  MPI_CHARACTER,        root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(convTime2Days,1,    MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(refJulday,   1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(startJulday, 1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(endJulday,   1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)

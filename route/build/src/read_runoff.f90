@@ -241,10 +241,6 @@ contains
  ! initialize error control
  ierr=0; message='read_1D_runoff/'
 
- ! get the time data
- call get_nc(trim(fname), vname_time, runoff_data_in%time, iTime, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
  ! get the simulated runoff data
  call get_nc(trim(fname),vname_qsim, dummy, (/1,iTime/), (/nSpace,1/), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -286,10 +282,6 @@ contains
 
  ! initialize error control
  ierr=0; message='read_2D_runoff/'
-
- ! get the time data
- call get_nc(trim(fname), vname_time, runoff_data_in%time, iTime, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the simulated runoff data
  call get_nc(trim(fname), vname_qsim, dummy, (/1,1,iTime/), (/nSpace(2), nSpace(1), 1/), ierr, cmessage)

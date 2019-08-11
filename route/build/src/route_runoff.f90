@@ -24,8 +24,8 @@ USE model_setup,         only : update_time      ! Update simulation time inform
 USE mpi_routine,         only : mpi_route        ! Distribute runoff to proc, route them, and gather,
 ! subroutines: model I/O
 USE get_runoff        ,  only : get_hru_runoff   !
-USE write_simoutput,     only : prep_output      !
-USE write_simoutput,     only : output           !
+USE write_simoutput_pio, only : prep_output      !
+USE write_simoutput_pio, only : output           !
 USE write_restart,       only : output_state     ! write netcdf state output file
 
 implicit none
@@ -46,7 +46,7 @@ real(dp)                      :: elapsedTime
 ! ******
 ! Initialize the system_clock
 ! ***********************************
-CALL system_clock(count_rate=cr)
+call system_clock(count_rate=cr)
 
 ! ******
 ! get command-line argument defining the full path to the control file
@@ -92,10 +92,8 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 do while (.not.finished)
 
   ! prepare simulation output netCDF
-  if(pid==0)then
-    call prep_output(ierr, cmessage)
-    if(ierr/=0) call handle_err(ierr, cmessage)
-  endif
+  call prep_output(ierr, cmessage)
+  if(ierr/=0) call handle_err(ierr, cmessage)
 
   ! Get river network hru runoff at current time step
   if(pid==0)then
@@ -108,25 +106,19 @@ write(*,"(A,1PG15.7,A)") '   elapsed-time [read_ro] = ', elapsedTime, ' s'
   endif
 
   ! process routing at each proc
-if(pid==0)then
 call system_clock(startTime)
-endif
   call mpi_route(pid, nNodes, iens, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
-if(pid==0)then
 call system_clock(endTime)
 elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,1PG15.7,A)") '   elapsed-time [routing] = ', elapsedTime, ' s'
-endif
 
-  if(pid==0)then
 call system_clock(startTime)
-    call output(ierr, cmessage)
-    if(ierr/=0) call handle_err(ierr, cmessage)
+  call output(ierr, cmessage)
+  if(ierr/=0) call handle_err(ierr, cmessage)
 call system_clock(endTime)
 elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,1PG15.7,A)") '   elapsed-time [output] = ', elapsedTime, ' s'
-  endif
 
   call update_time(finished, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
@@ -134,10 +126,8 @@ write(*,"(A,1PG15.7,A)") '   elapsed-time [output] = ', elapsedTime, ' s'
 end do  ! looping through time
 
 ! write state netCDF
-!if (pid==0) then
 ! call output_state(ierr, cmessage)
 ! if(ierr/=0) call handle_err(ierr, cmessage)
-!endif
 
 !  Shut down MPI
 call MPI_FINALIZE(ierr)
