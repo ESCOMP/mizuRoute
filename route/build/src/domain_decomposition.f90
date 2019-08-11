@@ -39,17 +39,17 @@ contains
 
    implicit none
    ! Input variables
-   integer(i4b),                   intent(in)  :: nSeg            ! number of stream segments
-   type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)  ! network topology
+   integer(i4b),                   intent(in)  :: nSeg                   ! number of stream segments
+   type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)         ! network topology
    ! Output variables
-   type(subbasin_omp),allocatable, intent(out) :: river_basin_out(:)
+   type(subbasin_omp),allocatable, intent(out) :: river_basin_out(:)     ! omp domain decomposition data structure
    integer(i4b),                   intent(out) :: ierr
-   character(len=strLen),          intent(out) :: message         ! error message
+   character(len=strLen),          intent(out) :: message                ! error message
    ! Local variables
-   type(subdomain)                             :: domains_omp(maxDomain)! domain decomposition data structure (maximum domain is set to maxDomain)
+   type(subdomain)                             :: domains_omp(maxDomain) ! domain decomposition data structure (maximum domain is set to maxDomain)
    integer(i4b)                                :: nDomain_omp
-   character(len=strLen)                       :: cmessage        ! error message from subroutine
-   logical(lgt),parameter                      :: debug=.true.           ! screen print for domain decomposition
+   character(len=strLen)                       :: cmessage               ! error message from subroutine
+   logical(lgt),parameter                      :: debug=.false.          ! screen print for domain decomposition
 
    ierr=0; message='omp_domain_decomposition/'
 
@@ -82,15 +82,15 @@ contains
        downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
      end do
 
-     print*,'seg-index segid down-index down-id branch-index'
+     print*,'seg-index segid down-index down-id basin-type domain'
      do ix = 1,size(river_basin_out)
       do iBrn = 1,size(river_basin_out(ix)%branch)
        do iSeg=1,river_basin_out(ix)%branch(iBrn)%nRch
         jSeg = river_basin_out(ix)%branch(iBrn)%segIndex(iSeg)
         if (downIndex((jSeg)) > 0) then
-         write(*,"(I9,X,I12,X,I9,X,I12,X,I2)") jSeg, segId(jSeg), downIndex(jSeg),segId(downIndex(jSeg)), iBrn
+         write(*,"(I9,X,I12,X,I9,X,I12,X,I1,X,I6)") jSeg, segId(jSeg), downIndex(jSeg), segId(downIndex(jSeg)), ix, iBrn
         else
-         write(*,"(I9,X,I12,X,I9,X,I12,X,I2)") jSeg, segId(jSeg), downIndex(jSeg),-999, iBrn
+         write(*,"(I9,X,I12,X,I9,X,I12,X,I1,X,I6)") jSeg, segId(jSeg), downIndex(jSeg), -999, ix, iBrn
         endif
        end do
       end do
@@ -335,15 +335,15 @@ contains
        downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
      end do
 
-     print*,'seg-index segid down-index down-id stream-order'
+     print*,'seg-index segid down-index down-id stream-order branch'
      do ix = 1,maxStreamOrder
       do iBrn = 1,size(river_basin_out(ix)%branch)
        do iSeg=1,river_basin_out(ix)%branch(iBrn)%nRch
         jSeg = river_basin_out(ix)%branch(iBrn)%segIndex(iSeg)
         if (downIndex((jSeg)) > 0) then
-         write(*,"(I9,X,I12,X,I9,X,I12,X,I2)") jSeg, segId(jSeg), downIndex(jSeg),segId(downIndex(jSeg)),ix
+         write(*,"(I9,X,I12,X,I9,X,I12,X,I2,X,I5)") jSeg, segId(jSeg), downIndex(jSeg),segId(downIndex(jSeg)),ix,iBrn
         else
-         write(*,"(I9,X,I12,X,I9,X,I12,X,I2)") jSeg, segId(jSeg), downIndex(jSeg),-999, ix
+         write(*,"(I9,X,I12,X,I9,X,I12,X,I2,X,I5)") jSeg, segId(jSeg), downIndex(jSeg),-999,ix,iBrn
         endif
        end do
       end do
