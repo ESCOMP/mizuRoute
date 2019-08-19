@@ -1,7 +1,6 @@
 MODULE write_simoutput_pio
 
 ! Moudle wide external modules
-
 USE nrtype
 
 USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
@@ -147,6 +146,7 @@ contains
  USE globalData,          only : modJulday         ! julian day: at model time step
  USE globalData,          only : modTime           ! previous and current model time
  USE globalData,          only : nHRU, nRch        ! number of ensembles, HRUs and river reaches
+ USE globalData,          only: ixRch_order        ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
  ! subroutines
  USE time_utils_module,   only : compCalday        ! compute calendar day
  USE time_utils_module,   only : compCalday_noleap ! compute calendar day
@@ -203,6 +203,10 @@ contains
                    ierr,cmessage)                            ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+!   do ix = 1,nRch
+!    reachID_tmp(ix) = reachID(ixRch_order(ix))
+!   enddo
+
    ! define basin ID
    call write_netcdf(pioSystem, trim(fileout), 'basinID', basinID, [1], [nHRU], ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -234,7 +238,6 @@ contains
  USE var_lookup, ONLY: ixQdims, nQdims
  USE globalData, ONLY: meta_qDims
  USE globalData, ONLY: rch_per_proc             ! number of reaches assigned to each proc (size = num of procs+1)
- USE globalData, ONLY: ixRch_order              ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
  USE globalData, ONLY: nEns, nHRU, nRch         ! number of ensembles, HRUs and river reaches
 
  implicit none
@@ -249,7 +252,7 @@ contains
  character(len=strLen)       :: cmessage          ! error message of downwind routine
  integer(i4b)                :: jDim,iVar         ! dimension, and variable index
  integer(i4b)                :: ix1, ix2          ! frst and last indices of global array for local array chunk
- integer(i4b)                :: ix                ! loop index
+ integer(i4b)                :: ixRch(nRch)        !
  integer(i4b)                :: nHRU_in
  integer(i4b),allocatable    :: dof_hru(:)        ! dof for basin runoff
  integer(i4b),parameter      :: nVars=8           ! number of variables
@@ -276,11 +279,12 @@ contains
    ix1 = sum(rch_per_proc(-1:pid-1))+1
  endif
  ix2 = sum(rch_per_proc(-1:pid))
-
+ ixRch = arth(1,1,nRch)
  call pio_decomp(pioSystem,              & ! input: pio system descriptor
                  ncd_float,              & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                  [nRch],                 & ! input: dimension length == global array size
-                 ixRch_order(ix1:ix2),   & ! input:
+!                 ixRch_order(ix1:ix2),   & ! input:
+                 ixRch(ix1:ix2),         & ! input:
                  iodesc_rch_flx)
 
 ! For runoff
@@ -293,11 +297,9 @@ contains
  allocate(dof_hru(nHRU_in))
 
  if (pid==0) then
-  do ix = 1, nHRU_in
-    dof_hru = arth(1,1,nHRU)
-  end do
+  dof_hru = arth(1,1,nHRU)
  else
-  dof_hru(1) = 0_i4b
+  dof_hru = 0_i4b
  endif
 
  call pio_decomp(pioSystem,     & ! input: pio system descriptor
@@ -307,7 +309,7 @@ contains
                  iodesc_hru_ro)
 
  call createFile(pioSystem, trim(fname), pioFileDesc, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//'cannot create netCDF'; return; endif
+ if(ierr/=0)then; message=trim(cmessage)//'cannot create netCDF'; return; endif
 
  do jDim =1,nQdims
    if (jDim ==ixQdims%time) then ! time dimension (unlimited)
@@ -348,8 +350,7 @@ contains
  call endDef(pioFileDesc, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! close NetCDF file
- call closefile(pioFileDesc)
+ !call closefile(pioFileDesc)
 
  END SUBROUTINE defineFile
 

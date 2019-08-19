@@ -129,13 +129,12 @@ contains
     integer(i4b)                        :: lsize          ! local array 1st dimension size
     integer(i4b)                        :: ix             ! counter
     integer(i4b)                        :: nn             !
+    ! timing
+    integer*8                             :: cr, startTime, endTime
+    real(dp)                              :: elapsedTime
 
-  ! timing
-  integer*8                             :: cr, startTime, endTime
-  real(dp)                              :: elapsedTime
-  call system_clock(count_rate=cr)
+    call system_clock(count_rate=cr)
 
-call system_clock(startTime)
     ndims = size(dimLen)
     gsize = dimLen(1)        ! 1st dimension size for global array
     lsize = size(gidx_local) ! local size = 1st dimension size for local array
@@ -179,9 +178,6 @@ call system_clock(startTime)
       compdof(1:lsize) = gidx_local(1:lsize)
 
     endif
-call system_clock(endTime)
-elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [pio_utils/prep] = ', elapsedTime, ' s'
 
 !    print*, (compdof(ix),ix=1,totnum)
 

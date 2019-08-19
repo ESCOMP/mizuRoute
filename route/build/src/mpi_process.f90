@@ -75,6 +75,7 @@ contains
   USE globalData,          ONLY: tribOutlet_per_proc      ! number of tributary outlets per proc (size = nNodes)
   USE globalData,          ONLY: global_ix_comm           ! global reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
   USE globalData,          ONLY: local_ix_comm            ! local reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
+  USE globalData,          ONLY: reachID
   USE alloc_data,          ONLY: alloc_struct
   USE process_ntopo,       ONLY: augment_ntopo            ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,       ONLY: put_data_struct               !
@@ -139,6 +140,7 @@ contains
   integer(i4b)                                :: rnkIdNode(nDomain)        ! ranked node id array for each domain
   integer(i4b)                                :: jHRU,jSeg                 ! ranked indices
   ! miscellaneous
+  integer(i4b)                                :: tmp(nRch_in)              !
   type(subbasin_omp), allocatable             :: river_basin_tmp(:)
   integer(i4b), allocatable                   :: seq_array(:)
   integer(i4b)                                :: iSeg,iHru                 ! reach and hru loop indices
@@ -236,6 +238,13 @@ contains
       hruId(iHru)    = structHRU2SEG(jHRU)%var(ixHRU2SEG%HRUid)%dat(1)
       hruSegId(iHru) = structHRU2SEG(jHRU)%var(ixHRU2SEG%hruSegId)%dat(1)
       area(iHru)     = structHRU(    jHRU)%var(ixHRU%area)%dat(1)
+    enddo
+
+    do ix=1,nRch_in
+     tmp(ix) = reachID( ixRch_order(ix))
+    enddo
+    do ix=1,nRch_in
+    reachID(ix) = tmp(ix)
     enddo
 
 !    print*, 'ix, segId, ixRch_order, ixLocalSubSEG, ixNode, pfaf'
@@ -669,6 +678,9 @@ call system_clock(endTime)
 elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-state] = ', elapsedTime, ' s'
  endif ! end of kwt option
+
+  ! make sure that routing at all the procs finished
+  call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
  end subroutine mpi_route
 
