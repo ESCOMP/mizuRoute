@@ -1,7 +1,7 @@
 module model_setup
 
 ! data types
-USE nrtype,    only : i4b,dp,lgt          ! variable types, etc.
+USE nrtype,    only : i4b,i8b,dp,lgt          ! variable types, etc.
 USE nrtype,    only : strLen              ! length of characters
 USE dataTypes, only : var_ilength         ! integer type:          var(:)%dat
 USE dataTypes, only : var_clength         ! integer type:          var(:)%dat
@@ -647,8 +647,8 @@ contains
  USE nr_utility_module, ONLY: indexx  ! get rank of data value
  implicit none
  ! input
- integer(i4b), intent(in)  :: qid(:)                       ! ID of input vector
- integer(i4b), intent(in)  :: qidMaster(:)                 ! ID of master vector
+ integer(i8b), intent(in)  :: qid(:)                       ! ID of input vector
+ integer(i8b), intent(in)  :: qidMaster(:)                 ! ID of master vector
  ! output
  integer(i4b), intent(out) :: qix(:)                       ! index within master vector
  integer(i4b), intent(out) :: ierr                         ! error code
