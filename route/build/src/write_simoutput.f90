@@ -166,7 +166,7 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! define basin ID
-   call write_nc(trim(fileout), 'basinID', basinID, (/1/), (/nHRU/), ierr, cmessage)
+   call write_nc(trim(fileout), 'basinID', int(basinID,kind(i4b)), (/1/), (/nHRU/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! define reach ID
