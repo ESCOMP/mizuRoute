@@ -75,9 +75,11 @@ contains
   if (pid==0) then
    associate(nRch_main => rch_per_proc(-1), nRch_trib => rch_per_proc(0))
    allocate(RCHFLX_local(nRch_main+nRch_trib), stat=ierr)
-   do ix = 1,nRch_main
-    RCHFLX_local(ix) = RCHFLX(iens,ixRch_order(ix))
-   enddo
+   if (nRch_main/=0) then
+     do ix = 1,nRch_main
+      RCHFLX_local(ix) = RCHFLX(iens,ixRch_order(ix))
+     enddo
+   end if
    RCHFLX_local(nRch_main+1:nRch_main+nRch_trib) = RCHFLX_trib(iens,:)
    end associate
   else
@@ -146,7 +148,6 @@ contains
  USE globalData,          only : modJulday         ! julian day: at model time step
  USE globalData,          only : modTime           ! previous and current model time
  USE globalData,          only : nHRU, nRch        ! number of ensembles, HRUs and river reaches
- USE globalData,          only: ixRch_order        ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
  ! subroutines
  USE time_utils_module,   only : compCalday        ! compute calendar day
  USE time_utils_module,   only : compCalday_noleap ! compute calendar day
@@ -202,10 +203,6 @@ contains
                    calendar,                              &  ! input: calendar
                    ierr,cmessage)                            ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-!   do ix = 1,nRch
-!    reachID_tmp(ix) = reachID(ixRch_order(ix))
-!   enddo
 
    ! define basin ID
    call write_netcdf(pioSystem, trim(fileout), 'basinID', basinID, [1], [nHRU], ierr, cmessage)
@@ -283,7 +280,6 @@ contains
  call pio_decomp(pioSystem,              & ! input: pio system descriptor
                  ncd_float,              & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                  [nRch],                 & ! input: dimension length == global array size
-!                 ixRch_order(ix1:ix2),   & ! input:
                  ixRch(ix1:ix2),         & ! input:
                  iodesc_rch_flx)
 
