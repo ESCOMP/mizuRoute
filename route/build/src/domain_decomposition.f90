@@ -107,9 +107,7 @@ contains
      do ix = 1,nDomain
       associate (segIndexSub => domains(ix)%segIndex)
       ! reach index array in order of node assignment
-      do iSeg = 1,size(segIndexSub)
-       missing(segIndexSub) = .false.
-      end do
+      missing(segIndexSub) = .false.
       end associate
      end do
      if (count(missing)>0) then

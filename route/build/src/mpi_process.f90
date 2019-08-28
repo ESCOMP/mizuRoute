@@ -79,9 +79,9 @@ contains
   USE alloc_data,          ONLY: alloc_struct
   USE process_ntopo,       ONLY: augment_ntopo            ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,       ONLY: put_data_struct               !
-  !USE domain_decomposition,ONLY: omp_domain_decomposition     ! domain decomposition for omp
-  USE domain_decomposition,ONLY: omp_domain_decomposition &    ! domain decomposition for omp
-                              => omp_domain_decomposition_stro
+  USE domain_decomposition,ONLY: omp_domain_decomposition     ! domain decomposition for omp
+  !USE domain_decomposition,ONLY: omp_domain_decomposition &    ! domain decomposition for omp
+  !                            => omp_domain_decomposition_stro
 
   implicit none
   ! Input variables
@@ -254,11 +254,10 @@ contains
 
    ! ********************************************************************************************************************
    ! ********************************************************************************************************************
-   ! Mainstem decomposition for OMP
-   ! For single node use - there exist no mainstems and all the reaches are treated as tributary reaches
+   ! Mainstem decomposition for OMP if mainstem exists as a result of MPI domain docomposition
    ! ********************************************************************************************************************
    ! ********************************************************************************************************************
-   if (nNodes /= 1) then
+   if (rch_per_proc(-1) > 0) then
 
      ! allocate space for local data structures
      call alloc_struct(hru_per_proc(-1),     & ! input: number of HRUs
