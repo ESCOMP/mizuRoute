@@ -59,8 +59,8 @@ module pio_utils
     module procedure write_real_darray3D_recdim
   end interface
 
-  !! pio_iotype_pnetcdf = 1     Parallel Netcdf  (parallel)
-  !! pio_iotype_netcdf = 2      Netcdf3 Classic format (serial)
+  !! pio_iotype_pnetcdf  = 1    Parallel Netcdf  (parallel)
+  !! pio_iotype_netcdf   = 2    Netcdf3 Classic format (serial)
   !! pio_iotype_netcdf4c = 3    NetCDF4 (HDF5) compressed format (serial)
   !! pio_iotype_NETCDF4p = 4    NetCDF4 (HDF5) parallel
   integer, parameter :: iotype = pio_iotype_pnetcdf
@@ -108,9 +108,10 @@ contains
                         gidx_local,   & ! input: local global-index array at one dimension
                         iodesc)         ! output:
     ! Details:
-    ! domain decomposition is defined only in the 1st dimension
+    ! domain descomposition (gidx_local is defined only in the 1st dimension.
     !
-    use globalData, ONLY: pid
+    ! Note:
+    ! gidx_local doesn't need to be sequential but it will work a lot better if it's monotonically increasing on each compute task
 
     implicit none
     ! input variables
@@ -129,11 +130,6 @@ contains
     integer(i4b)                        :: lsize          ! local array 1st dimension size
     integer(i4b)                        :: ix             ! counter
     integer(i4b)                        :: nn             !
-    ! timing
-    integer*8                             :: cr, startTime, endTime
-    real(dp)                              :: elapsedTime
-
-    call system_clock(count_rate=cr)
 
     ndims = size(dimLen)
     gsize = dimLen(1)        ! 1st dimension size for global array
@@ -181,15 +177,11 @@ contains
 
 !    print*, (compdof(ix),ix=1,totnum)
 
-call system_clock(startTime)
     call pio_initdecomp(pioIoSystem,      & ! input: pio system descriptor
                         piotype,          & ! input: data type
                         dimLen(1:ndims),  & ! input: dimension length in global array
                         compdof,          & ! input: decomposition for local array
                         iodesc)             ! output:
-call system_clock(endTime)
-elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [pio_utils/pio_initdecomp] = ', elapsedTime, ' s'
 
   end subroutine pio_decomp
 
@@ -206,12 +198,15 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [pio_utils/pio_initde
     type(file_desc_t),     intent(out)  :: pioFileDesc            ! contains data identifying the file.
     integer(i4b),          intent(out)  :: ierr
     character(*),          intent(out)  :: message      ! error message
+    integer(i4b)                        :: mode
+
+    mode = ior(PIO_64BIT_DATA,PIO_CLOBBER)
 
     ierr = pio_createfile(pioIOsystem,    & ! input:
                           pioFileDesc,    & ! output:
                           iotype,         & ! input: ??
                           trim(fileName), & ! input: input file name
-                          pio_clobber)      ! append
+                          mode)             ! append
     if(ierr/=pio_noerr)then; message=trim(message)//'cannot create netCDF'; return; endif
 
   end subroutine createFile
