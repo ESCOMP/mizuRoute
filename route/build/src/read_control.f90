@@ -128,7 +128,7 @@ contains
    case('<dname_data_remap>');     dname_data_remap     = trim(cData)              ! name of dimension of runoff HRU overlapping with river network HRU
    ! ROUTED FLOW OUTPUT
    case('<fname_output>');         fname_output     = trim(cData)                  ! filename for the model output
-   case('<newFileFrequency>');     read(cData,*,iostat=io_error) newFileFrequency  ! frequency for new output files (day, month, annual)
+   case('<newFileFrequency>');     newFileFrequency = trim(cData)                  ! frequency for new output files (day, month, annual, single)
    ! STATES
    case('<restart_opt>');          read(cData,*,iostat=io_error) isRestart         ! restart option: True-> model run with restart, F -> model run with empty channels
    case('<fname_state_in>');       fname_state_in  = trim(cData)                   ! filename for the channel states
