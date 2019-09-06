@@ -26,7 +26,7 @@ USE mpi_routine,         only : mpi_route        ! Distribute runoff to proc, ro
 USE get_runoff        ,  only : get_hru_runoff   !
 USE write_simoutput_pio, only : prep_output      !
 USE write_simoutput_pio, only : output           !
-USE write_restart,       only : output_state     ! write netcdf state output file
+USE write_restart_pio,   only : output_state     ! write netcdf state output file
 
 implicit none
 
@@ -126,8 +126,8 @@ write(*,"(A,1PG15.7,A)") '   elapsed-time [output] = ', elapsedTime, ' s'
 end do  ! looping through time
 
 ! write state netCDF
-! call output_state(ierr, cmessage)
-! if(ierr/=0) call handle_err(ierr, cmessage)
+ call output_state(ierr, cmessage)
+ if(ierr/=0) call handle_err(ierr, cmessage)
 
 !  Shut down MPI
 call MPI_FINALIZE(ierr)

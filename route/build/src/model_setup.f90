@@ -165,10 +165,6 @@ contains
      call init_time(runoff_data%ntime, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-     ! channel state initialization
-     call init_state(ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
    end if  ! if processor=0 (root)
 
    ! distribute network topology data and network parameters to the different processors
@@ -178,11 +174,14 @@ contains
                         ierr, cmessage)                                         ! output: error controls
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! send all the necessary global variables to slave procs
+   ! send all the necessary global variables to nodes
    call pass_global_data(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-!stop
+   ! channel state initialization
+   call init_state(pid, nNodes, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  end subroutine init_data
 
 
@@ -229,10 +228,10 @@ contains
  ! *********************************************************************
  ! private subroutine: initialize channel state data
  ! *********************************************************************
- subroutine init_state(ierr, message)
+ subroutine init_state(pid, nNodes, ierr, message)
   ! subroutines
-  USE read_restart,  only : read_state_nc     ! read netcdf state output file
-  USE write_restart, only : define_state_nc   ! define netcdf state output file
+  USE read_restart,      only : read_state_nc     ! read netcdf state output file
+  USE write_restart_pio, only : define_state_nc   ! define netcdf state output file
   ! global data
   USE public_var,    only : dt                ! simulation time step (seconds)
   USE public_var,    only : isRestart         ! restart option: True-> model run with restart, F -> model run with empty channels
@@ -240,37 +239,51 @@ contains
   USE public_var,    only : fname_state_in    ! name of state input file
   USE public_var,    only : fname_state_out   ! name of state output file
   USE public_var,    only : output_dir        ! directory containing output data
-  USE public_var,    only : time_units        ! time units (seconds, hours, or days)
   USE globalData,    only : RCHFLX            ! reach flux structure
   USE globalData,    only : TSEC              ! begining/ending of simulation time step [sec]
+  USE mpi_routine,   only : mpi_restart
 
   implicit none
-
+  ! input:
+  integer(i4b),        intent(in)  :: pid              ! proc id
+  integer(i4b),        intent(in)  :: nNodes           ! number of procs
   ! output: error control
   integer(i4b),        intent(out) :: ierr             ! error code
   character(*),        intent(out) :: message          ! error message
   ! local variable
   real(dp)                         :: T0,T1            ! begining/ending of simulation time step [sec]
   integer(i4b)                     :: ix               ! index for the stream segment
+  integer(i4b)                     :: iens             ! ensemble index (currently only 1)
   character(len=strLen)            :: cmessage         ! error message of downwind routine
 
   ! initialize error control
   ierr=0; message='init_state/'
 
+  iens = 1_i4b
+
   ! read restart file and initialize states
   if (isRestart) then
 
-   call read_state_nc(trim(output_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if (pid==0) then
+    call read_state_nc(trim(output_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   TSEC(0)=T0; TSEC(1)=T1
+    TSEC(0)=T0; TSEC(1)=T1
+
+   end if
+
+   call mpi_restart(pid, nNodes, iens, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   else
 
-   ! Cold start .......
-   ! initialize flux structures
-   RCHFLX(:,:)%BASIN_QI = 0._dp
-   forall(ix=0:1) RCHFLX(:,:)%BASIN_QR(ix) = 0._dp
+   if (pid==0) then
+    ! Cold start .......
+    ! initialize flux structures
+    RCHFLX(:,:)%BASIN_QI = 0._dp
+    forall(ix=0:1) RCHFLX(:,:)%BASIN_QR(ix) = 0._dp
+
+   end if
 
    ! initialize time
    TSEC(0)=0._dp; TSEC(1)=dt
@@ -278,7 +291,7 @@ contains
   endif
 
   ! Define output state netCDF
-  call define_state_nc(trim(output_dir)//trim(fname_state_out), time_units, routOpt, ierr, cmessage)
+  call define_state_nc(trim(output_dir)//trim(fname_state_out), ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end subroutine init_state

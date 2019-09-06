@@ -4,6 +4,7 @@ USE mpi
 
 ! general public variable
 USE public_var,       ONLY: integerMissing
+USE public_var,       ONLY: root
 
 ! numeric definition
 USE nrtype
@@ -39,6 +40,7 @@ integer(i4b),parameter  :: gather=2
 private
 
 public :: comm_ntopo_data
+public :: mpi_restart
 public :: mpi_route
 public :: pass_global_data
 
@@ -480,7 +482,100 @@ contains
  end subroutine comm_ntopo_data
 
  ! *********************************************************************
- ! public subroutine: send decomposed hru runoff to tasks and populate data structures
+ ! public subroutine: restart flux/state communication
+ ! *********************************************************************
+ subroutine mpi_restart(pid,           & ! input: proc id
+                        nNodes,        & ! input: number of procs
+                        iens,          & ! input: ensemble index
+                        ierr,message)    ! output: error control
+  ! shared data
+  USE public_var
+  USE globalData, only : nRch             ! number of reaches in the whoel river network
+  USE globalData, only : ixRch_order      ! global reach index in the order of proc assignment
+  USE globalData, only : rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
+  USE globalData, only : RCHFLX_trib      ! tributary reach flux structure
+  USE globalData, only : RCHFLX           ! entire reach flux structure
+  USE globalData, only : TSEC             ! beginning/ending of simulation time step [sec]
+
+  implicit none
+
+  ! input variables
+  integer(i4b),             intent(in)  :: pid                      ! process id (MPI)
+  integer(i4b),             intent(in)  :: nNodes                   ! number of processes (MPI)
+  integer(i4b),             intent(in)  :: iens                     ! ensemble index
+  ! Output variables
+  integer(i4b),             intent(out) :: ierr
+  character(len=strLen),    intent(out) :: message                  ! error message
+  ! local variables
+  character(len=strLen)                 :: cmessage                 ! error message from subroutine
+  integer(i4b)                          :: iSeg
+  real(dp),     allocatable             :: flux_global(:)           ! basin runoff (m/s) for entire reaches
+  real(dp),     allocatable             :: flux_local(:)            ! basin runoff (m/s) for tributaries
+
+  ierr=0; message='mpi_restart/'
+
+  call MPI_BCAST(TSEC, 2, MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
+
+  allocate(flux_global(nRch), flux_local(rch_per_proc(pid)), stat=ierr)
+  do iSeg = 1, nRch
+    flux_global(iSeg) = RCHFLX(iens,iSeg)%BASIN_QR(1)
+  enddo
+
+  ! flux communication (only basin delayed runoff flux)
+  call mpi_comm_single_flux(pid, nNodes,                              &
+                            flux_global,                              &
+                            flux_local,                               &
+                            rch_per_proc(root:nNodes-1),              &
+                            ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                            arth(1,1,rch_per_proc(pid)),              &
+                            scatter,                                  &
+                            ierr, message)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  do iSeg = 1, rch_per_proc(pid)
+    RCHFLX_trib(iens,iSeg)%BASIN_QR(1) = flux_local(iSeg)
+  enddo
+
+  ! basin IRF state communication
+  if (doesBasinRoute == 1) then
+    call mpi_comm_irf_bas_state(pid, nNodes,                              &
+                                iens,                                     &
+                                rch_per_proc(root:nNodes-1),              &
+                                ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                                arth(1,1,rch_per_proc(pid)),              &
+                                scatter,                                  & ! communication type
+                                ierr, message)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+  ! KWT state communication
+  if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
+    call mpi_comm_kwt_state(pid, nNodes,                              &
+                            iens,                                     &
+                            rch_per_proc(root:nNodes-1),              &
+                            ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                            arth(1,1,rch_per_proc(pid)),              &
+                            scatter,                                  & ! communication type
+                            ierr, message)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+  ! IRF state communication
+  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+    call mpi_comm_irf_state(pid, nNodes,                              &
+                            iens,                                     &
+                            rch_per_proc(root:nNodes-1),              &
+                            ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                            arth(1,1,rch_per_proc(pid)),              &
+                            scatter,                                  & ! communication type
+                            ierr, message)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+ end subroutine mpi_restart
+
+ ! *********************************************************************
+ ! public subroutine: routing routine
  ! *********************************************************************
  subroutine mpi_route(pid,           & ! input: proc id
                       nNodes,        & ! input: number of procs
@@ -546,6 +641,7 @@ contains
       basinRunoff_sorted(iHru) = runoff_data%basinRunoff(jHru)
     enddo
   end if
+
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
 call system_clock(startTime)
@@ -628,6 +724,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/gater-state-
   ! perform mainstem routing
   ! --------------------------------
   if (pid==root) then
+
 call system_clock(startTime)
     ! number of HRUs and reaches from Mainstems
     nSegMain = rch_per_proc(-1)
@@ -670,7 +767,7 @@ call system_clock(startTime)
                            tribOutlet_per_proc,                & ! input: number of reaches communicate per node (dimension size == number of proc)
                            global_ix_comm,                     & ! input: global reach indices to communicate (dimension size == sum of nRearch)
                            local_ix_comm,                      & ! input: local reach indices per proc (dimension size depends on procs )
-                           scatter,                            & ! input: communication type
+                           scatter,                            & ! input: 1 = scatter
                            ierr, message)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 call system_clock(endTime)
@@ -684,7 +781,101 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
  end subroutine mpi_route
 
  ! *********************************************************************
- ! subroutine: fluxes communication
+ ! subroutine: single flux communication
+ ! *********************************************************************
+ subroutine mpi_comm_single_flux(pid,          &
+                                 nNodes,       &
+                                 flux_global,  &
+                                 flux_local,   &
+                                 nReach,       &
+                                 rchIdxGlobal, &
+                                 rchIdxLocal,  &
+                                 commType,     &
+                                 ierr, message)
+
+  ! input variables
+  integer(i4b),             intent(in)    :: pid                   ! process id (MPI)
+  integer(i4b),             intent(in)    :: nNodes                ! number of processes (MPI)
+  real(dp),     allocatable,intent(inout) :: flux_global(:)        ! global flux vectors
+  real(dp),     allocatable,intent(inout) :: flux_local(:)         ! local flux vectors
+  integer(i4b),             intent(in)    :: nReach(0:nNodes-1)    ! number of reaches communicate per node (dimension size == number of proc)
+  integer(i4b),             intent(in)    :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
+  integer(i4b),             intent(in)    :: rchIdxLocal(:)        ! reach indices (w.r.t. local) (dimension size depends on procs )
+  integer(i4b),             intent(in)    :: commType              ! communication type 1->scatter, 2->gather otherwise error
+  ! output variables
+  integer(i4b),             intent(out)   :: ierr                  ! error code
+  character(len=strLen),    intent(out)   :: message               ! error message
+  ! local variables
+  character(len=strLen)                   :: cmessage              ! error message from a subroutine
+  real(dp),     allocatable               :: flux_global_tmp(:)    ! temporal global flux array
+  real(dp),     allocatable               :: flux_local_tmp(:)     ! temporal local flux array
+  integer(i4b)                            :: nSeg                  ! number of reaches involved into communication
+  integer(i4b)                            :: iSeg, jSeg            ! reach looping index
+
+  ierr=0; message='mpi_comm_single_flux/'
+
+  ! Number of total reaches to be communicated
+  nSeg = sum(nReach)
+
+  if (commType == scatter) then
+
+    if (pid==root) then
+
+      allocate(flux_global_tmp(nSeg), stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux_global_tmp]'; return; endif
+
+      do iSeg =1,nSeg ! Loop through global reach
+       jSeg = rchIdxGlobal(iSeg)
+       flux_global_tmp(iSeg) = flux_global(jSeg)     !
+      enddo
+
+    end if ! end of root processor operation
+
+    call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+
+    ! Distribute global flux data to each process
+    allocate(flux_local_tmp(nReach(pid)), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux_local_tmp]'; return; endif
+
+    call shr_mpi_scatterV(flux_global_tmp, nReach, flux_local_tmp, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! put flux at correct location in local flux array
+    do iSeg =1,nReach(pid) ! Loop through reaches per proc
+      jSeg = rchIdxLocal(iSeg)
+      flux_local(jSeg) = flux_local_tmp(iSeg)
+    end do
+
+  elseif (commType == gather) then
+
+    allocate(flux_local_tmp(nReach(pid)), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux_local_tmp]'; return; endif
+
+    do iSeg =1,nReach(pid)
+      jSeg = rchIdxLocal(iSeg)
+      flux_local_tmp(iSeg) = flux_local(jSeg)
+    end do
+
+    allocate(flux_global_tmp(nSeg), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux_global_tmp]'; return; endif
+
+    call shr_mpi_gatherV(flux_local_tmp, nReach, flux_global_tmp, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! put flux at correct location in global flux array
+    if (pid==root) then
+      do iSeg =1,nSeg ! Loop through all the reaches involved into communication
+        jSeg = rchIdxGlobal(iSeg)
+        flux_global(jSeg) = flux_global_tmp(iSeg)
+      end do
+    endif
+
+  endif
+
+ end subroutine mpi_comm_single_flux
+
+ ! *********************************************************************
+ ! subroutine: all fluxes communication
  ! *********************************************************************
  subroutine mpi_comm_flux(pid,          &
                           nNodes,       &
@@ -762,12 +953,12 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
 
       jSeg = rchIdxLocal(iSeg)
 
-      RCHFLX_trib(iens,jSeg)%BASIN_QR(0) = flux(iSeg,1)  ! HRU routed flow (previous time step)
-      RCHFLX_trib(iens,jSeg)%BASIN_QR(1) = flux(iSeg,2)  ! HRU routed flow (current time step)
-      RCHFLX_trib(iens,jSeg)%UPSTREAM_QI = flux(iSeg,3)  ! Upstream accumulated flow
-      RCHFLX_trib(iens,jSeg)%REACH_Q     = flux(iSeg,4)  ! KWT routed flow
-      RCHFLX_trib(iens,jSeg)%REACH_Q_IRF = flux(iSeg,5)  ! IRF routed flow
-      RCHFLX_trib(iens,jSeg)%BASIN_QI    = flux(iSeg,6)  ! non-HRU routed flow (
+      RCHFLX_trib(iens,jSeg)%BASIN_QR(0) = flux_local(iSeg,1)  ! HRU routed flow (previous time step)
+      RCHFLX_trib(iens,jSeg)%BASIN_QR(1) = flux_local(iSeg,2)  ! HRU routed flow (current time step)
+      RCHFLX_trib(iens,jSeg)%UPSTREAM_QI = flux_local(iSeg,3)  ! Upstream accumulated flow
+      RCHFLX_trib(iens,jSeg)%REACH_Q     = flux_local(iSeg,4)  ! KWT routed flow
+      RCHFLX_trib(iens,jSeg)%REACH_Q_IRF = flux_local(iSeg,5)  ! IRF routed flow
+      RCHFLX_trib(iens,jSeg)%BASIN_QI    = flux_local(iSeg,6)  ! non-HRU routed flow (
 
     end do
 
@@ -818,6 +1009,350 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
   endif
 
  end subroutine mpi_comm_flux
+
+ ! *********************************************************************
+ ! subroutine: basin IRF state communication
+ ! *********************************************************************
+ subroutine mpi_comm_irf_bas_state(pid,          &
+                                   nNodes,       &
+                                   iens,         &
+                                   nReach,       &
+                                   rchIdxGlobal, &
+                                   rchIdxLocal,  &
+                                   commType,     &
+                                   ierr, message)
+
+  USE dataTypes,        ONLY: STRFLX              ! reach flux data structure
+  USE public_var,       ONLY: root
+  USE globalData,       ONLY: RCHFLX
+  USE globalData,       ONLY: RCHFLX_trib
+
+  ! input variables
+  integer(i4b),             intent(in)  :: pid                   ! process id (MPI)
+  integer(i4b),             intent(in)  :: nNodes                ! number of processes (MPI)
+  integer(i4b),             intent(in)  :: iens                  ! ensemble index
+  integer(i4b),             intent(in)  :: nReach(0:nNodes-1)    ! number of reaches communicate per node (dimension size == number of proc)
+  integer(i4b),             intent(in)  :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
+  integer(i4b),             intent(in)  :: rchIdxLocal(:)        ! reach indices (w.r.t. local) (dimension size depends on procs )
+  integer(i4b),             intent(in)  :: commType              ! communication type 1->scatter, 2->gather otherwise error
+  ! output variables
+  integer(i4b),             intent(out) :: ierr                  ! error code
+  character(len=strLen),    intent(out) :: message               ! error message
+  ! local variables
+  character(len=strLen)                 :: cmessage              ! error message from a subroutine
+  type(STRFLX), allocatable             :: RCHFLX0(:,:)          ! temp RCHFLX data structure to hold updated states
+  real(dp),     allocatable             :: qfuture(:),qfuture_trib(:)
+  integer(i4b)                          :: ix1, ix2
+  integer(i4b)                          :: myid
+  integer(i4b)                          :: nSeg                  ! number of reaches
+  integer(i4b)                          :: iSeg, jSeg
+  integer(i4b)                          :: ixTdh
+  integer(i4b), allocatable             :: ntdh(:)
+  integer(i4b), allocatable             :: ntdh_trib(:)
+  integer(i4b)                          :: totTdh(0:nNodes-1)
+
+  ierr=0; message='mpi_comm_irf_bas_state/'
+
+  ! Number of total reaches to be communicated
+  nSeg = sum(nReach)
+
+  if (commType == scatter) then
+
+    ! allocate nWave (number the same at all procs) at each proc
+    allocate(ntdh(nSeg), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [ntdh]'; return; endif
+
+    if (pid==root) then
+
+     ! extract only tributary reaches
+     allocate(RCHFLX0(1,nSeg), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating array for [RCHFLX0]'; return; endif
+     do iSeg =1,nSeg ! Loop through tributary reaches
+      jSeg = rchIdxGlobal(iSeg)
+      RCHFLX0(1, iSeg) = RCHFLX(iens,jSeg)
+     enddo
+
+     ! convert RCHFLX data strucutre to state arrays
+     call irf_bas_struc2array(iens, RCHFLX0,  & !input: input state data structure
+                          qfuture,            & !output: states array
+                          ntdh,               & !output: number of qfuture per reach
+                          ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    endif ! end of root process
+
+    call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+
+    ! will have to broadcast updated ntdh to all proc
+    call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, MPI_COMM_WORLD, ierr)
+
+    ! total waves from all the tributary reaches in each proc
+    ix2=0
+    do myid = 0, nNodes-1
+      ix1=ix2+1
+      ix2=ix1+nReach(myid)-1
+      totTdh(myid) = sum(ntdh(ix1:ix2))
+    enddo
+
+    call shr_mpi_scatterV(ntdh, nReach(0:nNodes-1), ntdh_trib, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! Distribute modified RCHFLX data to each process
+    call shr_mpi_scatterV(qfuture, totTdh(0:nNodes-1), qfuture_trib, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! update RCHFLX_trib data structure
+    ixTdh=1
+    do iSeg =1,nReach(pid) ! Loop through reaches per proc
+
+     jSeg = rchIdxLocal(iSeg)
+
+     if (allocated(RCHFLX_trib(iens,jSeg)%QFUTURE)) then
+      deallocate(RCHFLX_trib(iens,jSeg)%QFUTURE, stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem de-allocating array for [IRF_trib(iens,jSeg)%QFUTURE_IRF]'; return; endif
+     endif
+
+     allocate(RCHFLX_trib(iens,jSeg)%QFUTURE(1:ntdh_trib(iSeg)),stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating array for [RCHFLX_out(iens,iRch)%QFUTURE_IRF]'; return; endif
+
+     RCHFLX_trib(iens,jSeg)%QFUTURE(1:ntdh_trib(iSeg)) = qfuture_trib(ixTdh:ixTdh+ntdh_trib(iSeg)-1)
+
+     ixTdh=ixTdh+ntdh_trib(iSeg) !update 1st idex of array
+
+    end do
+
+  elseif (commType == gather) then
+
+    ! allocate ntdh (number the same at all procs) and ntdh_trib (number dependent on proc) at each proc
+    allocate(ntdh_trib(nReach(pid)), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [ntdh_trib]'; return; endif
+
+    ! extract only tributary reaches
+    allocate(RCHFLX0(1,nReach(pid)), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [RCHFLX0]'; return; endif
+    do iSeg =1,nReach(pid)  ! Loop through tributary reaches
+      jSeg = rchIdxLocal(iSeg)
+      RCHFLX0(1, iSeg) = RCHFLX_trib(iens,jSeg)
+    enddo
+
+    ! Transfer KWT state data structure to flat arrays
+    call irf_bas_struc2array(iens,RCHFLX0,       &
+                         qfuture_trib,       &
+                         ntdh_trib,          &
+                         ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    call shr_mpi_gatherV(ntdh_trib, nReach, ntdh, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, MPI_COMM_WORLD, ierr)
+
+    ! total waves in reaches in each proc
+    ix2=0
+    do myid = 0, nNodes-1
+      ix1=ix2+1
+      ix2=ix1+nReach(myid)-1
+      totTdh(myid) = sum(ntdh(ix1:ix2))
+    enddo
+
+    call shr_mpi_gatherV(qfuture_trib, totTdh, qfuture, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! put it in global RCHFLX data structure
+    if (pid==root) then
+      ixTdh=1
+      do iSeg =1,nSeg ! Loop through all the reaches involved into communication
+
+        jSeg = rchIdxGlobal(iSeg)
+
+        if (allocated(RCHFLX(iens,jSeg)%QFUTURE)) then
+          deallocate(RCHFLX(iens,jSeg)%QFUTURE, stat=ierr)
+          if(ierr/=0)then; message=trim(message)//'problem de-allocating array for [RCHFLX(iens,jSeg)%QFUTURE]'; return; endif
+        endif
+
+        allocate(RCHFLX(iens,jSeg)%QFUTURE(1:ntdh(iSeg)),stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem allocating array for [RCHFLX_out(iens,iRch)%QFUTURE]'; return; endif
+
+        RCHFLX(iens,jSeg)%QFUTURE(1:ntdh(iSeg)) = qfuture(ixTdh:ixTdh+ntdh(iSeg)-1)
+        ixTdh=ixTdh+ntdh(iSeg) !update 1st idex of array
+      end do
+    endif
+
+  endif
+
+ end subroutine mpi_comm_irf_bas_state
+
+ ! *********************************************************************
+ ! subroutine: IRF state communication
+ ! *********************************************************************
+ subroutine mpi_comm_IRF_state(pid,          &
+                               nNodes,       &
+                               iens,         &
+                               nReach,       &
+                               rchIdxGlobal, &
+                               rchIdxLocal,  &
+                               commType,     &
+                               ierr, message)
+
+  USE dataTypes,        ONLY: STRFLX              ! reach flux data structure
+  USE public_var,       ONLY: root
+  USE globalData,       ONLY: RCHFLX
+  USE globalData,       ONLY: RCHFLX_trib
+
+  ! input variables
+  integer(i4b),             intent(in)  :: pid                   ! process id (MPI)
+  integer(i4b),             intent(in)  :: nNodes                ! number of processes (MPI)
+  integer(i4b),             intent(in)  :: iens                  ! ensemble index
+  integer(i4b),             intent(in)  :: nReach(0:nNodes-1)    ! number of reaches communicate per node (dimension size == number of proc)
+  integer(i4b),             intent(in)  :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
+  integer(i4b),             intent(in)  :: rchIdxLocal(:)        ! reach indices (w.r.t. local) (dimension size depends on procs )
+  integer(i4b),             intent(in)  :: commType              ! communication type 1->scatter, 2->gather otherwise error
+  ! output variables
+  integer(i4b),             intent(out) :: ierr                  ! error code
+  character(len=strLen),    intent(out) :: message               ! error message
+  ! local variables
+  character(len=strLen)                 :: cmessage              ! error message from a subroutine
+  type(STRFLX), allocatable             :: RCHFLX0(:,:)          ! temp RCHFLX data structure to hold updated states
+  real(dp),     allocatable             :: qfuture(:),qfuture_trib(:)
+  integer(i4b)                          :: ix1, ix2
+  integer(i4b)                          :: myid
+  integer(i4b)                          :: nSeg                  ! number of reaches
+  integer(i4b)                          :: iSeg, jSeg
+  integer(i4b)                          :: ixTdh
+  integer(i4b), allocatable             :: ntdh(:)
+  integer(i4b), allocatable             :: ntdh_trib(:)
+  integer(i4b)                          :: totTdh(0:nNodes-1)
+
+  ierr=0; message='mpi_comm_irf_state/'
+
+  ! Number of total reaches to be communicated
+  nSeg = sum(nReach)
+
+  if (commType == scatter) then
+
+    ! allocate nWave (number the same at all procs) at each proc
+    allocate(ntdh(nSeg), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [ntdh]'; return; endif
+
+    if (pid==root) then
+
+     ! extract only tributary reaches
+     allocate(RCHFLX0(1,nSeg), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating array for [RCHFLX0]'; return; endif
+     do iSeg =1,nSeg ! Loop through tributary reaches
+      jSeg = rchIdxGlobal(iSeg)
+      RCHFLX0(1, iSeg) = RCHFLX(iens,jSeg)
+     enddo
+
+     ! convert RCHFLX data strucutre to state arrays
+     call irf_struc2array(iens, RCHFLX0,  & !input: input state data structure
+                          qfuture,        & !output: states array
+                          ntdh,           & !output: number of qfuture per reach
+                          ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    endif ! end of root process
+
+    call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+
+    ! will have to broadcast updated ntdh to all proc
+    call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, MPI_COMM_WORLD, ierr)
+
+    ! total waves from all the tributary reaches in each proc
+    ix2=0
+    do myid = 0, nNodes-1
+      ix1=ix2+1
+      ix2=ix1+nReach(myid)-1
+      totTdh(myid) = sum(ntdh(ix1:ix2))
+    enddo
+
+    call shr_mpi_scatterV(ntdh, nReach(0:nNodes-1), ntdh_trib, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! Distribute modified RCHFLX data to each process
+    call shr_mpi_scatterV(qfuture, totTdh(0:nNodes-1), qfuture_trib, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! update RCHFLX_trib data structure
+    ixTdh=1
+    do iSeg =1,nReach(pid) ! Loop through reaches per proc
+
+     jSeg = rchIdxLocal(iSeg)
+
+     if (allocated(RCHFLX_trib(iens,jSeg)%QFUTURE_IRF)) then
+      deallocate(RCHFLX_trib(iens,jSeg)%QFUTURE_IRF, stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem de-allocating array for [IRF_trib(iens,jSeg)%QFUTURE_IRF]'; return; endif
+     endif
+
+     allocate(RCHFLX_trib(iens,jSeg)%QFUTURE_IRF(1:ntdh_trib(iSeg)),stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating array for [RCHFLX_out(iens,iRch)%QFUTURE_IRF]'; return; endif
+
+     RCHFLX_trib(iens,jSeg)%QFUTURE_IRF(1:ntdh_trib(iSeg)) = qfuture_trib(ixTdh:ixTdh+ntdh_trib(iSeg)-1)
+
+     ixTdh=ixTdh+ntdh_trib(iSeg) !update 1st idex of array
+
+    end do
+
+  elseif (commType == gather) then
+
+    ! allocate ntdh (number the same at all procs) and ntdh_trib (number dependent on proc) at each proc
+    allocate(ntdh_trib(nReach(pid)), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [ntdh_trib]'; return; endif
+
+    ! extract only tributary reaches
+    allocate(RCHFLX0(1,nReach(pid)), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [RCHFLX0]'; return; endif
+    do iSeg =1,nReach(pid)  ! Loop through tributary reaches
+      jSeg = rchIdxLocal(iSeg)
+      RCHFLX0(1, iSeg) = RCHFLX_trib(iens,jSeg)
+    enddo
+
+    ! Transfer KWT state data structure to flat arrays
+    call irf_struc2array(iens,RCHFLX0,       &
+                         qfuture_trib,       &
+                         ntdh_trib,          &
+                         ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    call shr_mpi_gatherV(ntdh_trib, nReach, ntdh, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, MPI_COMM_WORLD, ierr)
+
+    ! total waves in reaches in each proc
+    ix2=0
+    do myid = 0, nNodes-1
+      ix1=ix2+1
+      ix2=ix1+nReach(myid)-1
+      totTdh(myid) = sum(ntdh(ix1:ix2))
+    enddo
+
+    call shr_mpi_gatherV(qfuture_trib, totTdh, qfuture, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! put it in global RCHFLX data structure
+    if (pid==root) then
+      ixTdh=1
+      do iSeg =1,nSeg ! Loop through all the reaches involved into communication
+
+        jSeg = rchIdxGlobal(iSeg)
+
+        if (allocated(RCHFLX(iens,jSeg)%QFUTURE_IRF)) then
+          deallocate(RCHFLX(iens,jSeg)%QFUTURE_IRF, stat=ierr)
+          if(ierr/=0)then; message=trim(message)//'problem de-allocating array for [RCHFLX(iens,jSeg)%QFUTURE_IRF]'; return; endif
+        endif
+
+        allocate(RCHFLX(iens,jSeg)%QFUTURE_IRF(1:ntdh(iSeg)),stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem allocating array for [RCHFLX_out(iens,iRch)%QFUTURE_IRF]'; return; endif
+
+        RCHFLX(iens,jSeg)%QFUTURE_IRF(1:ntdh(iSeg)) = qfuture(ixTdh:ixTdh+ntdh(iSeg)-1)
+        ixTdh=ixTdh+ntdh(iSeg) !update 1st idex of array
+      end do
+    endif
+
+  endif
+
+ end subroutine mpi_comm_irf_state
 
  ! *********************************************************************
  ! subroutine: kinematic wave state communication
@@ -1030,6 +1565,101 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
  ! *********************************************************************
  ! private subroutine
  ! *********************************************************************
+ subroutine irf_bas_struc2array(iens, RCHFLX_in,    &  ! input:
+                                qfuture_bas,        &  ! output:
+                                ntdh_bas,               &  ! output:
+                                ierr, message)
+  USE dataTypes,  only : STRFLX              ! reach flux data structure
+  implicit none
+  ! Input
+  integer(i4b),          intent(in)              :: iens           ! ensemble index
+  type(STRFLX),          intent(in), allocatable :: RCHFLX_in(:,:) ! reach state data
+  ! Output error handling variables
+  real(dp),              intent(out),allocatable :: qfuture_bas(:) ! flat array for wave Q
+  integer(i4b),          intent(out),allocatable :: ntdh_bas(:)    ! number of waves at each reach
+  integer(i4b),          intent(out)             :: ierr           ! error code
+  character(len=strLen), intent(out)             :: message        ! error message
+  ! local variables
+  integer(i4b)                                   :: ixTdh          ! 1st indix of each reach
+  integer(i4b)                                   :: iSeg           ! loop indix
+  integer(i4b)                                   :: nSeg           ! number of reaches
+  integer(i4b)                                   :: totTdh         ! total number of waves from all the reaches
+
+  ierr=0; message='irf_bas_struc2array/'
+
+  nSeg = size(RCHFLX_in(iens,:))
+  if (.not.allocated(ntdh_bas)) then
+    allocate(ntdh_bas(nSeg), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [ntdh_bas]'; return; endif
+  end if
+
+  do iSeg = 1,nSeg
+   ntdh_bas(iSeg) = size(RCHFLX_in(iens,iSeg)%QFUTURE)
+  enddo
+
+  totTdh=sum(ntdh_bas)
+  allocate(qfuture_bas(totTdh), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating array for [qfuture_bas]'; return; endif
+
+  ixTdh = 1
+  do iSeg=1,nSeg
+   qfuture_bas(ixTdh:ixTdh+ntdh_bas(iSeg)-1) = RCHFLX_in(iens,iSeg)%QFUTURE(1:ntdh_bas(iSeg))
+   ixTdh = ixTdh+ntdh_bas(iSeg)
+  end do
+
+ end subroutine irf_bas_struc2array
+
+
+ ! *********************************************************************
+ ! private subroutine
+ ! *********************************************************************
+ subroutine irf_struc2array(iens, RCHFLX_in,    &  ! input:
+                            qfuture,            &  ! output:
+                            ntdh,               &  ! output:
+                            ierr, message)
+  USE dataTypes,  only : STRFLX              ! reach flux data structure
+  implicit none
+  ! Input
+  integer(i4b),          intent(in)              :: iens           ! ensemble index
+  type(STRFLX),          intent(in), allocatable :: RCHFLX_in(:,:) ! reach state data
+  ! Output error handling variables
+  real(dp),              intent(out),allocatable :: qfuture(:)     ! flat array for wave Q
+  integer(i4b),          intent(out),allocatable :: ntdh(:)        ! number of waves at each reach
+  integer(i4b),          intent(out)             :: ierr           ! error code
+  character(len=strLen), intent(out)             :: message        ! error message
+  ! local variables
+  integer(i4b)                                   :: ixTdh          ! 1st indix of each reach
+  integer(i4b)                                   :: iSeg           ! loop indix
+  integer(i4b)                                   :: nSeg           ! number of reaches
+  integer(i4b)                                   :: totTdh         ! total number of waves from all the reaches
+
+  ierr=0; message='irf_struc2array/'
+
+  nSeg = size(RCHFLX_in(iens,:))
+  if (.not.allocated(ntdh)) then
+    allocate(ntdh(nSeg), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [ntdh]'; return; endif
+  end if
+
+  do iSeg = 1,nSeg
+   ntdh(iSeg) = size(RCHFLX_in(iens,iSeg)%QFUTURE_IRF)
+  enddo
+
+  totTdh=sum(ntdh)
+  allocate(qfuture(totTdh), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating array for [qfuture]'; return; endif
+
+  ixTdh = 1
+  do iSeg=1,nSeg
+   qfuture(ixTdh:ixTdh+ntdh(iSeg)-1) = RCHFLX_in(iens,iSeg)%QFUTURE_IRF(1:ntdh(iSeg))
+   ixTdh = ixTdh+ntdh(iSeg)
+  end do
+
+ end subroutine irf_struc2array
+
+ ! *********************************************************************
+ ! private subroutine
+ ! *********************************************************************
  subroutine kwt_struc2array(iens, KROUTE_in,     &  ! input:
                             QF,QM,TI,TR,RF,      &  ! output:
                             nWave,               &
@@ -1098,7 +1728,6 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
   USE globalData, only : startJulday       ! julian day: start
   USE globalData, only : endJulday         ! julian day: end
   USE globalData, only : modJulday         ! julian day: at simulation time step
-  USE globalData, only : TSEC              ! beginning/ending of simulation time step [sec]
   USE globalData, only : length_conv
   USE globalData, only : time_conv
   USE globalData, only : reachID
@@ -1125,7 +1754,6 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
   call MPI_BCAST(startJulday, 1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(endJulday,   1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(modJulday,   1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(TSEC,        2,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(length_conv, 1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(time_conv,   1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
 
@@ -1136,38 +1764,4 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
  end subroutine pass_global_data
 
 end module mpi_routine
-
-
-!    print*, 'node=0 : mainstem domain'
-!    ixSeg2 = 0
-!    do ixx = 1,nDomain
-!     if (domains(ixx)%idNode==0 .and. domains(ixx)%pfaf(1:1)=='-') then
-!      ixSeg1 = ixSeg2+1
-!      ixSeg2 = ixSeg1+size(domains(ixx)%segIndex)-1
-!      segIndex(ixSeg1:ixSeg2) = domains(ixx)%segIndex
-!      print*,domains(ixx)%pfaf, size(domains(ixx)%segIndex)
-!     endif
-!    end do
-!    ! second, small tributary domain assigned to root node
-!    print*, 'node=0 : small tributary domain'
-!    do ixx = 1,nDomain
-!     if (domains(ixx)%idNode==0 .and. domains(ixx)%pfaf(1:1)/='-') then
-!      ixSeg1 = ixSeg2+1
-!      ixSeg2 = ixSeg1+size(domains(ixx)%segIndex)-1
-!      segIndex(ixSeg1:ixSeg2) = domains(ixx)%segIndex
-!      print*,domains(ixx)%pfaf, size(domains(ixx)%segIndex)
-!     endif
-!    end do
-!    ! finally large tributary domain assigned to computing node
-!    do ix=1,nNodes-1
-!     print*, 'node= ', ix
-!     do ixx = 1,nDomain
-!      if (domains(ixx)%idNode == ix) then
-!        ixSeg1 = ixSeg2+1
-!        ixSeg2 = ixSeg1+size(domains(ixx)%segIndex)-1
-!        segIndex(ixSeg1:ixSeg2) = domains(ixx)%segIndex
-!        print*,domains(ixx)%pfaf, size(domains(ixx)%segIndex)
-!       endif
-!     end do
-!    end do
 
