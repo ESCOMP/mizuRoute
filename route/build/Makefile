@@ -18,6 +18,12 @@ FC_EXE =
 # Define the executable
 EXE = 
 
+# Define optional setting
+# fast:      Enables optimizations
+# debug:     Minimum debug options, still 
+# profile:   Enables profiling
+MODE = debug
+
 # define open MP option (put yes to activate OMP) 
 isOpenMP =
  
@@ -28,12 +34,11 @@ F_MASTER =
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
-  NCDF_PATH = 
+ NCDF_PATH = 
 endif
 ifeq "$(FC)" "ifort"
-  NCDF_PATH = 
+ NCDF_PATH = 
 endif
-
 ifeq "$(FC)" "pgf90"
  NCDF_PATH = 
 endif
@@ -47,19 +52,40 @@ LIBOPENMP =
 ifeq "$(isOpenMP)" "yes"
  FLAGS_OMP = -fopenmp
 endif
-
+#========================================================================
 # Define flags
+#========================================================================
 ifeq "$(FC)" "gfortran"
- FLAGS = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds $(FLAGS_OMP)
- FLAGS1 = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+  ifeq "$(MODE)" "fast"
+    FLAGS = -O3 -fmax-errors=0 -ffree-line-length-none $(FLAGS_OMP)
+  endif
+  ifeq "$(MODE)" "debug"
+    FLAGS = -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP) 
+  endif
+  ifeq "$(MODE)" "profile"
+    FLAGS = -p -g -Wall -fmax-errors=0 -fbacktrace -fbounds-check -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP)
+  endif
 endif
+
 ifeq "$(FC)" "ifort"
- FLAGS1 = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
- FLAGS = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
+  ifeq "$(MODE)" "fast"
+    FLAGS = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
+  endif
+  ifeq "$(MODE)" "debug"
+    FLAGS = -g -debug -warn all -check all -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
+  endif
+  ifeq "$(MODE)" "profile"
+    FLAGS = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
+  endif
 endif
+
 ifeq "$(FC)" "pgf90"
- FLAGS1 = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -Mprof=lines,time
- FLAGS = -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv
+  ifeq "$(MODE)" "fast"
+    FLAGS = -O2 -mp -c -Mdclchk $(FLAGS_OMP)
+  endif
+  ifeq "$(MODE)" "debug"
+    FLAGS = -g -Mbounds -Mlist -Minfo  -Mdclchk $(FLAGS_OMP)
+  endif
 endif
 
 #========================================================================
@@ -116,7 +142,7 @@ INIT = \
     process_ntopo.f90 \
     pfafstetter.f90 \
     domain_decomposition.f90
-# model simulation
+# CORE
 CORE = \
     accum_runoff.f90 \
     basinUH.f90 \
