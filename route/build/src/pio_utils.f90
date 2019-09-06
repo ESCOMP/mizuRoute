@@ -55,8 +55,13 @@ module pio_utils
   interface write_pnetcdf_recdim
     module procedure write_int_darray2D_recdim
     module procedure write_int_darray3D_recdim
-    module procedure write_real_darray2D_recdim
-    module procedure write_real_darray3D_recdim
+    module procedure write_int_darray4D_recdim
+    module procedure write_float_darray2D_recdim
+    module procedure write_float_darray3D_recdim
+    module procedure write_float_darray4D_recdim
+    module procedure write_double_darray2D_recdim
+    module procedure write_double_darray3D_recdim
+    module procedure write_double_darray4D_recdim
   end interface
 
   !! pio_iotype_pnetcdf  = 1    Parallel Netcdf  (parallel)
@@ -679,8 +684,52 @@ contains
   end subroutine write_int_darray2D_recdim
 
   ! ---------------------------------------------------------------
+  ! write distributed float vector into 2D variable with record dimension
+  ! ---------------------------------------------------------------
+  subroutine write_float_darray2D_recdim(pioIoSystem,     &
+                                         fname,           &  ! input: filename
+                                         vname,           &  ! input: variable name
+                                         array,           &  ! input: variable data
+                                         iodesc,          &  ! input: it is from initdecomp routine
+                                         nr,              &  ! input: index of record dimension
+                                         ierr, message)      ! output: error control
+  implicit none
+  ! input variables
+  type(iosystem_desc_t), intent(inout)  :: pioIoSystem
+  character(*),          intent(in)     :: fname        ! filename
+  character(*),          intent(in)     :: vname        ! variable name
+  real(sp),              intent(in)     :: array(:)     ! variable data
+  type(io_desc_t),       intent(inout)  :: iodesc       ! io descriptor handle that is generated in PIO_initdecomp
+  integer(i4b),          intent(in)     :: nr           ! index of record dimension
+  ! output variables
+  integer(i4b),          intent(out)    :: ierr         ! error code
+  character(*),          intent(out)    :: message      ! error message
+  ! local variables
+  type(file_desc_t)                     :: pioFileDesc  ! pio file handle
+  type(var_desc_t)                      :: pioVarId     ! netCDF variable ID
+
+  ! initialize error control
+  ierr=0; message='write_float_darray2D_recdim/'
+
+  ierr=pio_openfile(pioIoSystem, pioFileDesc, iotype, trim(fname), mode=pio_write)
+  if(ierr/=0)then; message=trim(message)//'ERROR: opening nc file'; return; endif
+
+  ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
+  if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
+
+  call pio_setframe(pioFileDesc, pioVarId, int(nr, kind=pio_offset_kind))
+
+  call pio_write_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
+  if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
+
+  call pio_closefile(pioFileDesc)
+
+  end subroutine write_float_darray2D_recdim
+
+  ! ---------------------------------------------------------------
   ! write distributed real vector into 2D variable with record dimension
-  subroutine write_real_darray2D_recdim(pioIoSystem,     &
+  ! ---------------------------------------------------------------
+  subroutine write_double_darray2D_recdim(pioIoSystem,     &
                                         fname,           &  ! input: filename
                                         vname,           &  ! input: variable name
                                         array,           &  ! input: variable data
@@ -703,7 +752,7 @@ contains
   type(var_desc_t)                      :: pioVarId     ! netCDF variable ID
 
   ! initialize error control
-  ierr=0; message='write_real_darray2D_recdim/'
+  ierr=0; message='write_double_darray2D_recdim/'
 
   ierr=pio_openfile(pioIoSystem, pioFileDesc, iotype, trim(fname), mode=pio_write)
   if(ierr/=0)then; message=trim(message)//'ERROR: opening nc file'; return; endif
@@ -713,14 +762,12 @@ contains
 
   call pio_setframe(pioFileDesc, pioVarId, int(nr, kind=pio_offset_kind))
 
-  call pio_write_darray(pioFileDesc, pioVarId, iodesc, real(array,kind=sp), ierr)
+  call pio_write_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
   if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
-
-  call pio_syncfile(pioFileDesc)
 
   call pio_closefile(pioFileDesc)
 
-  end subroutine write_real_darray2D_recdim
+  end subroutine write_double_darray2D_recdim
 
   ! ---------------------------------------------------------------
   ! write distributed integer 2D array into 3D variable with record dimension
@@ -760,21 +807,63 @@ contains
   call pio_write_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
   if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
 
-  call pio_syncfile(pioFileDesc)
-
   call pio_closefile(pioFileDesc)
 
   end subroutine write_int_darray3D_recdim
 
   ! ---------------------------------------------------------------
-  ! write distributed real 2D array into 3D variable with record dimension
-  subroutine write_real_darray3D_recdim(pioIoSystem,     &
-                                        fname,           &  ! input: filename
-                                        vname,           &  ! input: variable name
-                                        array,           &  ! input: variable data
-                                        iodesc,          &  ! input: ??? it is from initdecomp routine
-                                        nr,              &  ! input: index of record dimension
-                                        ierr, message)      ! output: error control
+  ! write distributed float 2D array into 3D variable with record dimension
+  ! ---------------------------------------------------------------
+  subroutine write_float_darray3D_recdim(pioIoSystem,     &
+                                          fname,           &  ! input: filename
+                                          vname,           &  ! input: variable name
+                                          array,           &  ! input: variable data
+                                          iodesc,          &  ! input: ??? it is from initdecomp routine
+                                          nr,              &  ! input: index of record dimension
+                                          ierr, message)      ! output: error control
+  implicit none
+  ! input variables
+  type(iosystem_desc_t), intent(inout)  :: pioIoSystem
+  character(*),          intent(in)     :: fname        ! filename
+  character(*),          intent(in)     :: vname        ! variable name
+  real(sp),              intent(in)     :: array(:,:)   ! variable data
+  type(io_desc_t),       intent(inout)  :: iodesc       ! io descriptor handle that is generated in PIO_initdecomp
+  integer(i4b),          intent(in)     :: nr           ! index of record dimension
+  ! output variables
+  integer(i4b),          intent(out)    :: ierr         ! error code
+  character(*),          intent(out)    :: message      ! error message
+  ! local variables
+  type(file_desc_t)                     :: pioFileDesc  ! pio file handle
+  type(var_desc_t)                      :: pioVarId     ! netCDF variable ID
+
+  ! initialize error control
+  ierr=0; message='write_float_darray3D_recdim/'
+
+  ierr=pio_openfile(pioIoSystem, pioFileDesc, iotype, trim(fname), mode=pio_write)
+  if(ierr/=0)then; message=trim(message)//'ERROR: opening nc file'; return; endif
+
+  ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
+  if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
+
+  call pio_setframe(pioFileDesc, pioVarId, int(nr, kind=pio_offset_kind))
+
+  call pio_write_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
+  if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
+
+  call pio_closefile(pioFileDesc)
+
+  end subroutine write_float_darray3D_recdim
+
+  ! ---------------------------------------------------------------
+  ! write distributed double 2D array into 3D variable with record dimension
+  ! ---------------------------------------------------------------
+  subroutine write_double_darray3D_recdim(pioIoSystem,     &
+                                          fname,           &  ! input: filename
+                                          vname,           &  ! input: variable name
+                                          array,           &  ! input: variable data
+                                          iodesc,          &  ! input: ??? it is from initdecomp routine
+                                          nr,              &  ! input: index of record dimension
+                                          ierr, message)      ! output: error control
   implicit none
   ! input variables
   type(iosystem_desc_t), intent(inout)  :: pioIoSystem
@@ -791,7 +880,7 @@ contains
   type(var_desc_t)                      :: pioVarId     ! netCDF variable ID
 
   ! initialize error control
-  ierr=0; message='write_real_darray3D_recdim/'
+  ierr=0; message='write_double_darray3D_recdim/'
 
   ierr=pio_openfile(pioIoSystem, pioFileDesc, iotype, trim(fname), mode=pio_write)
   if(ierr/=0)then; message=trim(message)//'ERROR: opening nc file'; return; endif
@@ -801,14 +890,141 @@ contains
 
   call pio_setframe(pioFileDesc, pioVarId, int(nr, kind=pio_offset_kind))
 
-  call pio_write_darray(pioFileDesc, pioVarId, iodesc, real(array,kind=sp), ierr)
+  call pio_write_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
   if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
 
   !call pio_syncfile(pioFileDesc)
 
   call pio_closefile(pioFileDesc)
 
-  end subroutine write_real_darray3D_recdim
+  end subroutine write_double_darray3D_recdim
 
+  ! ---------------------------------------------------------------
+  ! write distributed integer 3D array into 4D variable with record dimension
+  subroutine write_int_darray4D_recdim(pioIoSystem,     &
+                                       fname,           &  ! input: filename
+                                       vname,           &  ! input: variable name
+                                       array,           &  ! input: variable data
+                                       iodesc,          &  ! input: ??? it is from initdecomp routine
+                                       nr,              &  ! input: index of record dimension
+                                       ierr, message)      ! output: error control
+  implicit none
+  ! input variables
+  type(iosystem_desc_t), intent(inout)  :: pioIoSystem
+  character(*),          intent(in)     :: fname        ! filename
+  character(*),          intent(in)     :: vname        ! variable name
+  integer(i4b),          intent(in)     :: array(:,:,:) ! variable data
+  type(io_desc_t),       intent(inout)  :: iodesc       ! io descriptor handle that is generated in PIO_initdecomp
+  integer(i4b),          intent(in)     :: nr           ! index of record dimension
+  ! output variables
+  integer(i4b),          intent(out)    :: ierr         ! error code
+  character(*),          intent(out)    :: message      ! error message
+  ! local variables
+  type(file_desc_t)                     :: pioFileDesc  ! pio file handle
+  type(var_desc_t)                      :: pioVarId     ! netCDF variable ID
+
+  ! initialize error control
+  ierr=0; message='write_int_darray4D_recdim/'
+
+  ierr=pio_openfile(pioIoSystem, pioFileDesc, iotype, trim(fname), mode=pio_write)
+  if(ierr/=0)then; message=trim(message)//'ERROR: opening nc file'; return; endif
+
+  ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
+  if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
+
+  call pio_setframe(pioFileDesc, pioVarId, int(nr,kind=pio_offset_kind))
+
+  call pio_write_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
+  if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
+
+  call pio_closefile(pioFileDesc)
+
+  end subroutine write_int_darray4D_recdim
+
+  ! ---------------------------------------------------------------
+  ! write distributed float 3D array into 4D variable with record dimension
+  ! ---------------------------------------------------------------
+  subroutine write_float_darray4D_recdim(pioIoSystem,     &
+                                         fname,           &  ! input: filename
+                                         vname,           &  ! input: variable name
+                                         array,           &  ! input: variable data
+                                         iodesc,          &  ! input: ??? it is from initdecomp routine
+                                         nr,              &  ! input: index of record dimension
+                                         ierr, message)      ! output: error control
+  implicit none
+  ! input variables
+  type(iosystem_desc_t), intent(inout)  :: pioIoSystem
+  character(*),          intent(in)     :: fname        ! filename
+  character(*),          intent(in)     :: vname        ! variable name
+  real(sp),              intent(in)     :: array(:,:,:) ! variable data
+  type(io_desc_t),       intent(inout)  :: iodesc       ! io descriptor handle that is generated in PIO_initdecomp
+  integer(i4b),          intent(in)     :: nr           ! index of record dimension
+  ! output variables
+  integer(i4b),          intent(out)    :: ierr         ! error code
+  character(*),          intent(out)    :: message      ! error message
+  ! local variables
+  type(file_desc_t)                     :: pioFileDesc  ! pio file handle
+  type(var_desc_t)                      :: pioVarId     ! netCDF variable ID
+
+  ! initialize error control
+  ierr=0; message='write_float_darray4D_recdim/'
+
+  ierr=pio_openfile(pioIoSystem, pioFileDesc, iotype, trim(fname), mode=pio_write)
+  if(ierr/=0)then; message=trim(message)//'ERROR: opening nc file'; return; endif
+
+  ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
+  if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
+
+  call pio_setframe(pioFileDesc, pioVarId, int(nr, kind=pio_offset_kind))
+
+  call pio_write_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
+  if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
+
+  call pio_closefile(pioFileDesc)
+
+  end subroutine write_float_darray4D_recdim
+
+  ! ---------------------------------------------------------------
+  ! write distributed double 3D array into 4D variable with record dimension
+  ! ---------------------------------------------------------------
+  subroutine write_double_darray4D_recdim(pioIoSystem,     &
+                                          fname,           &  ! input: filename
+                                          vname,           &  ! input: variable name
+                                          array,           &  ! input: variable data
+                                          iodesc,          &  ! input: ??? it is from initdecomp routine
+                                          nr,              &  ! input: index of record dimension
+                                          ierr, message)      ! output: error control
+  implicit none
+  ! input variables
+  type(iosystem_desc_t), intent(inout)  :: pioIoSystem
+  character(*),          intent(in)     :: fname        ! filename
+  character(*),          intent(in)     :: vname        ! variable name
+  real(dp),              intent(in)     :: array(:,:,:) ! variable data
+  type(io_desc_t),       intent(inout)  :: iodesc       ! io descriptor handle that is generated in PIO_initdecomp
+  integer(i4b),          intent(in)     :: nr           ! index of record dimension
+  ! output variables
+  integer(i4b),          intent(out)    :: ierr         ! error code
+  character(*),          intent(out)    :: message      ! error message
+  ! local variables
+  type(file_desc_t)                     :: pioFileDesc  ! pio file handle
+  type(var_desc_t)                      :: pioVarId     ! netCDF variable ID
+
+  ! initialize error control
+  ierr=0; message='write_double_darray4D_recdim/'
+
+  ierr=pio_openfile(pioIoSystem, pioFileDesc, iotype, trim(fname), mode=pio_write)
+  if(ierr/=0)then; message=trim(message)//'ERROR: opening nc file'; return; endif
+
+  ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
+  if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
+
+  call pio_setframe(pioFileDesc, pioVarId, int(nr, kind=pio_offset_kind))
+
+  call pio_write_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
+  if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
+
+  call pio_closefile(pioFileDesc)
+
+  end subroutine write_double_darray4D_recdim
 
 end module pio_utils
