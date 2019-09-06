@@ -18,6 +18,12 @@ FC_EXE =
 # Define the executable
 EXE =
 
+# Define optional setting
+# fast:      Enables optimizations
+# debug:     Minimum debug options, still 
+# profile:   Enables profiling
+MODE = debug
+
 # define open MP flags (yes if used)
 isOpenMP =
 FLAGS_OMP =
@@ -29,7 +35,7 @@ LIBOPENMP =
 isMPISERIAL =
 isPIO =
 isGPTL = 
- 
+
 PNETCDF_PATH =
 
 # If isPIO==yes then you can give hints to PIO about the local system
@@ -45,43 +51,56 @@ F_MASTER =
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
-  NCDF_PATH = 
-  LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
-              -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
-  INCNETCDF = -I$(NCDF_PATH)/include
-  ifeq "$(isOpenMP)" "yes"
-   FLAGS_OMP = -fopenmp
-  endif
+ NCDF_PATH = 
 endif
-
 ifeq "$(FC)" "ifort"
-  NCDF_PATH = 
-  LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
-		          -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
-  INCNETCDF = -I$(NCDF_PATH)/include
-  ifeq "$(isOpenMP)" "yes"
-   FLAGS_OMP = -fopenmp
-  endif
+ NCDF_PATH = 
 endif
-
 ifeq "$(FC)" "pgf90"
  NCDF_PATH = 
- LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
- INCNETCDF = -I$(NCDF_PATH)/include
 endif
 
+LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
+            -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
+INCNETCDF = -I$(NCDF_PATH)/include
+
+ifeq "$(isOpenMP)" "yes"
+ FLAGS_OMP = -fopenmp
+endif
+#========================================================================
 # Define flags
+#========================================================================
 ifeq "$(FC)" "gfortran"
- FLAGS = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=all $(FLAGS_OMP)
- FLAGS1 = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+  ifeq "$(MODE)" "fast"
+    FLAGS = -O3 -fmax-errors=0 -ffree-line-length-none $(FLAGS_OMP)
+  endif
+  ifeq "$(MODE)" "debug"
+    FLAGS = -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP) 
+  endif
+  ifeq "$(MODE)" "profile"
+    FLAGS = -p -g -Wall -fmax-errors=0 -fbacktrace -fbounds-check -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP)
+  endif
 endif
+
 ifeq "$(FC)" "ifort"
- FLAGS1 = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
- FLAGS = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
+  ifeq "$(MODE)" "fast"
+    FLAGS = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
+  endif
+  ifeq "$(MODE)" "debug"
+    FLAGS = -g -debug -warn all -check all -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
+  endif
+  ifeq "$(MODE)" "profile"
+    FLAGS = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
+  endif
 endif
+
 ifeq "$(FC)" "pgf90"
- FLAGS1 = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -Mprof=lines,time
- FLAGS = -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv
+  ifeq "$(MODE)" "fast"
+    FLAGS = -O2 -mp -c -Mdclchk $(FLAGS_OMP)
+  endif
+  ifeq "$(MODE)" "debug"
+    FLAGS = -g -Mbounds -Mlist -Minfo  -Mdclchk $(FLAGS_OMP)
+  endif
 endif
 
 #========================================================================
@@ -134,8 +153,8 @@ IO = \
     get_basin_runoff.f90 \
     read_remap.f90 \
     read_restart.f90 \
-    write_restart.f90 \
-    write_simoutput.f90
+    write_restart_pio.f90 \
+    write_simoutput_pio.f90
 # initialization
 INIT = \
     process_time.f90 \
