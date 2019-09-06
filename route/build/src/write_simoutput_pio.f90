@@ -99,34 +99,34 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! write the basin runoff to the netcdf file
-  call write_pnetcdf_recdim(pioSystem, trim(fileout), 'basRunoff', basinRunoff, iodesc_hru_ro, jTime, ierr, cmessage)
+  call write_pnetcdf_recdim(pioSystem, trim(fileout), 'basRunoff',real(basinRunoff,kind=sp), iodesc_hru_ro, jTime, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   if (doesBasinRoute == 1) then
    ! write instataneous local runoff in each stream segment (m3/s)
-   call write_pnetcdf_recdim(pioSystem, trim(fileout),'instRunoff', RCHFLX_local(:)%BASIN_QI, iodesc_rch_flx, jTime, ierr, cmessage)
+   call write_pnetcdf_recdim(pioSystem, trim(fileout),'instRunoff', real(RCHFLX_local(:)%BASIN_QI,kind=sp), iodesc_rch_flx, jTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   ! write routed local runoff in each stream segment (m3/s)
-  call write_pnetcdf_recdim(pioSystem, trim(fileout),'dlayRunoff', RCHFLX_local(:)%BASIN_QR(1), iodesc_rch_flx, jTime, ierr, cmessage)
+  call write_pnetcdf_recdim(pioSystem, trim(fileout),'dlayRunoff', real(RCHFLX_local(:)%BASIN_QR(1),kind=sp), iodesc_rch_flx, jTime, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! write accumulated runoff (m3/s)
   if (doesAccumRunoff == 1) then
-   call write_pnetcdf_recdim(pioSystem, trim(fileout),'sumUpstreamRunoff', RCHFLX_local(:)%UPSTREAM_QI, iodesc_rch_flx, jTime, ierr, cmessage)
+   call write_pnetcdf_recdim(pioSystem, trim(fileout),'sumUpstreamRunoff', real(RCHFLX_local(:)%UPSTREAM_QI,kind=sp), iodesc_rch_flx, jTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
    ! write routed runoff (m3/s)
-   call write_pnetcdf_recdim(pioSystem, trim(fileout),'KWTroutedRunoff', RCHFLX_local(:)%REACH_Q, iodesc_rch_flx, jTime, ierr, cmessage)
+   call write_pnetcdf_recdim(pioSystem, trim(fileout),'KWTroutedRunoff', real(RCHFLX_local(:)%REACH_Q,kind=sp), iodesc_rch_flx, jTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
    ! write routed runoff (m3/s)
-   call write_pnetcdf_recdim(pioSystem, trim(fileout),'IRFroutedRunoff', RCHFLX_local(:)%REACH_Q_IRF, iodesc_rch_flx, jTime, ierr, cmessage)
+   call write_pnetcdf_recdim(pioSystem, trim(fileout),'IRFroutedRunoff', real(RCHFLX_local(:)%REACH_Q_IRF,kind=sp), iodesc_rch_flx, jTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
