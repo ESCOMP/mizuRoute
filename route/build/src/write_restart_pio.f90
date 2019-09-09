@@ -212,7 +212,7 @@ CONTAINS
  ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens, dim_time]
  call pio_decomp(pioSystemState,         & ! input: pio system descriptor
                  ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                 [nSeg,ntdh,nEns],       & ! input: dimension length == global array size
+                 [nSeg,ntdh_irf,nEns],   & ! input: dimension length == global array size
                  ixRch(ix1:ix2),         & ! input:
                  iodesc_irf_float)
 
@@ -715,7 +715,7 @@ CONTAINS
      select case(iVar)
       case(ixIRF%qfuture)
        state(impulseResponseFunc)%var(iVar)%array_3d_dp(iSeg,1:numQF(iens,iSeg),iens) = RCHFLX_local(iSeg)%QFUTURE_IRF
-       state(impulseResponseFunc)%var(iVar)%array_3d_dp(iSeg,numQF(iens,iSeg)+1:,iens) = realMissing
+       state(impulseResponseFunc)%var(iVar)%array_3d_dp(iSeg,numQF(iens,iSeg)+1:ntdh_irf,iens) = realMissing
       case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
      end select
 
