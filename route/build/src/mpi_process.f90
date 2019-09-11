@@ -1398,6 +1398,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
   integer(i4b), allocatable             :: nWave(:)
   integer(i4b), allocatable             :: nWave_trib(:)
   integer(i4b)                          :: totWave(0:nNodes-1)
+  integer(i4b)                          :: totWaveAll
 
   ierr=0; message='mpi_comm_kwt_state/'
 
@@ -1441,6 +1442,14 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
       ix2=ix1+nReach(myid)-1
       totWave(myid) = sum(nWave(ix1:ix2))
     enddo
+
+    totWaveAll = sum(nWave)
+    ! need to allocate global array to be scattered at the other tasks
+    if (pid/=root) then
+     allocate(QF(totWaveAll), QM(totWaveAll), TI(totWaveAll), TR(totWaveAll), RF(totWaveAll), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating array for [QF,..,RF]'; return; endif
+    endif
+    call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
     call shr_mpi_scatterV(nWave, nReach(0:nNodes-1), nWave_trib, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
