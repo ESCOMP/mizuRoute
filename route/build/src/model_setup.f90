@@ -252,7 +252,6 @@ contains
   character(*),        intent(out) :: message          ! error message
   ! local variable
   real(dp)                         :: T0,T1            ! begining/ending of simulation time step [sec]
-  integer(i4b)                     :: ix               ! index for the stream segment
   integer(i4b)                     :: iens             ! ensemble index (currently only 1)
   character(len=strLen)            :: cmessage         ! error message of downwind routine
 
@@ -281,8 +280,8 @@ contains
     ! Cold start .......
     ! initialize flux structures
     RCHFLX(:,:)%BASIN_QI = 0._dp
-    forall(ix=0:1) RCHFLX(:,:)%BASIN_QR(ix) = 0._dp
-
+    RCHFLX(:,:)%BASIN_QR(0) = 0._dp
+    RCHFLX(:,:)%BASIN_QR(1) = 0._dp
    end if
 
    ! initialize time
