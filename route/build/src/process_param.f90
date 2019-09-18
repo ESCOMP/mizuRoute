@@ -176,7 +176,6 @@ contains
 
   !Compute S-V based UH, UHM
   seg_length = length(iSeg)
-  !seg_length = RPARAM(iSeg)%RLENGTH
 
   INTE = 0._dp
   sec = 0._dp

@@ -2,14 +2,10 @@ MODULE write_simoutput_pio
 
 ! Moudle wide external modules
 USE nrtype
-
 USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
-
-USE public_var
+USE public_var,        ONLY: root
 USE globalData,        ONLY: pid, nNodes
-
 USE nr_utility_module, ONLY: arth
-
 USE pio_utils
 
 implicit none
@@ -63,7 +59,8 @@ contains
   integer(i4b)                    :: iens             ! temporal
   character(len=strLen)           :: cmessage         ! error message of downwind routine
   type(STRFLX),allocatable        :: RCHFLX_local(:)
-  real(dp),    allocatable        :: basinRunoff(:)
+  real(sp),    allocatable        :: tmp_array(:)
+  real(sp),    allocatable        :: basinRunoff(:)
   integer(i4b)                    :: ix               ! error code
 
   ! initialize error control
@@ -72,9 +69,9 @@ contains
   iens = 1
 
   ! Need to combine mainstem RCHFLX and tributary RCHFLX into RCHFLX_local for root node
-  if (pid==0) then
+  if (pid==root) then
    associate(nRch_main => rch_per_proc(-1), nRch_trib => rch_per_proc(0))
-   allocate(RCHFLX_local(nRch_main+nRch_trib), stat=ierr)
+   allocate(RCHFLX_local(nRch_main+nRch_trib), tmp_array(nRch_main+nRch_trib), stat=ierr)
    if (nRch_main/=0) then
      do ix = 1,nRch_main
       RCHFLX_local(ix) = RCHFLX(iens,ixRch_order(ix))
@@ -83,13 +80,13 @@ contains
    RCHFLX_local(nRch_main+1:nRch_main+nRch_trib) = RCHFLX_trib(iens,:)
    end associate
   else
-   allocate(RCHFLX_local(rch_per_proc(pid)), stat=ierr)
+   allocate(RCHFLX_local(rch_per_proc(pid)),tmp_array(rch_per_proc(pid)), stat=ierr)
    RCHFLX_local = RCHFLX_trib(iens,:)
   endif
 
-  if (pid==0) then
+  if (pid==root) then
    allocate(basinRunoff(nHRU))
-   basinRunoff = runoff_data%basinRunoff
+   basinRunoff = real(runoff_data%basinRunoff, kind=sp)
   else
    allocate(basinRunoff(1))
   endif
@@ -99,34 +96,39 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! write the basin runoff to the netcdf file
-  call write_pnetcdf_recdim(pioSystem, trim(fileout), 'basRunoff',real(basinRunoff,kind=sp), iodesc_hru_ro, jTime, ierr, cmessage)
+  call write_pnetcdf_recdim(pioSystem, trim(fileout), 'basRunoff',basinRunoff, iodesc_hru_ro, jTime, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   if (doesBasinRoute == 1) then
    ! write instataneous local runoff in each stream segment (m3/s)
-   call write_pnetcdf_recdim(pioSystem, trim(fileout),'instRunoff', real(RCHFLX_local(:)%BASIN_QI,kind=sp), iodesc_rch_flx, jTime, ierr, cmessage)
+   tmp_array = real(RCHFLX_local(:)%BASIN_QI,kind=sp)
+   call write_pnetcdf_recdim(pioSystem, trim(fileout),'instRunoff', tmp_array, iodesc_rch_flx, jTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   ! write routed local runoff in each stream segment (m3/s)
-  call write_pnetcdf_recdim(pioSystem, trim(fileout),'dlayRunoff', real(RCHFLX_local(:)%BASIN_QR(1),kind=sp), iodesc_rch_flx, jTime, ierr, cmessage)
+  tmp_array = real(RCHFLX_local(:)%BASIN_QR(1),kind=sp)
+  call write_pnetcdf_recdim(pioSystem, trim(fileout),'dlayRunoff', tmp_array, iodesc_rch_flx, jTime, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! write accumulated runoff (m3/s)
   if (doesAccumRunoff == 1) then
-   call write_pnetcdf_recdim(pioSystem, trim(fileout),'sumUpstreamRunoff', real(RCHFLX_local(:)%UPSTREAM_QI,kind=sp), iodesc_rch_flx, jTime, ierr, cmessage)
+   tmp_array = real(RCHFLX_local(:)%UPSTREAM_QI,kind=sp)
+   call write_pnetcdf_recdim(pioSystem, trim(fileout),'sumUpstreamRunoff', tmp_array, iodesc_rch_flx, jTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
    ! write routed runoff (m3/s)
-   call write_pnetcdf_recdim(pioSystem, trim(fileout),'KWTroutedRunoff', real(RCHFLX_local(:)%REACH_Q,kind=sp), iodesc_rch_flx, jTime, ierr, cmessage)
+   tmp_array = real(RCHFLX_local(:)%REACH_Q,kind=sp)
+   call write_pnetcdf_recdim(pioSystem, trim(fileout),'KWTroutedRunoff', tmp_array, iodesc_rch_flx, jTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
    ! write routed runoff (m3/s)
-   call write_pnetcdf_recdim(pioSystem, trim(fileout),'IRFroutedRunoff', real(RCHFLX_local(:)%REACH_Q_IRF,kind=sp), iodesc_rch_flx, jTime, ierr, cmessage)
+   tmp_array = real(RCHFLX_local(:)%REACH_Q_IRF,kind=sp)
+   call write_pnetcdf_recdim(pioSystem, trim(fileout),'IRFroutedRunoff', tmp_array, iodesc_rch_flx, jTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
@@ -139,6 +141,8 @@ contains
  SUBROUTINE prep_output(ierr, message)
 
  ! saved public variables (usually parameters, or values not modified)
+ USE public_var,          only : output_dir        ! output directory
+ USE public_var,          only : fname_output      ! output file name head
  USE public_var,          only : calendar          ! calendar name
  USE public_var,          only : newFileFrequency  ! frequency for new output files (day, month, annual)
  USE public_var,          only : time_units        ! time units (seconds, hours, or days)
@@ -176,7 +180,7 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! print progress
-  if (pid==0) then
+  if (pid==root) then
     print*, modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin
   endif
 
@@ -270,10 +274,10 @@ contains
  ! pio initialization
  call pio_sys_init(pid, nNodes, pioSystem)
 
- if (pid==0) then
-   ix1 = 1
+ if (pid==root) then
+   ix1 = 1_i4b
  else
-   ix1 = sum(rch_per_proc(-1:pid-1))+1
+   ix1 = sum(rch_per_proc(-1:pid-1))+1_i4b
  endif
  ix2 = sum(rch_per_proc(-1:pid))
  ixRch = arth(1,1,nRch)
@@ -284,15 +288,15 @@ contains
                  iodesc_rch_flx)
 
 ! For runoff
- if (pid/=0) then
-  nHRU_in = 1
+ if (pid/=root) then
+  nHRU_in = 1_i4b
  else
   nHRU_in = nHRU
  endif
 
  allocate(dof_hru(nHRU_in))
 
- if (pid==0) then
+ if (pid==root) then
   dof_hru = arth(1,1,nHRU)
  else
   dof_hru = 0_i4b
@@ -327,7 +331,7 @@ contains
    ! define network topology (integers)
    case( 1); call defvar(pioFileDesc, 'basinID',           [dim_hru],          ncd_int,   ierr, cmessage, vdesc='basin ID',                            vunit='-'   )
    case( 2); call defvar(pioFileDesc, 'reachID',           [dim_seg],          ncd_int,   ierr, cmessage, vdesc='reach ID',                            vunit='-'   )
-   ! define runoff variables (double precision)
+   ! define runoff variables (single precision)
    case( 3); call defvar(pioFileDesc, 'basRunoff',         [dim_hru,dim_time], ncd_float, ierr, cmessage, vdesc='basin runoff',                         vunit='m/s' )
    case( 4); call defVar(pioFileDesc, 'instRunoff',        [dim_seg,dim_time], ncd_float, ierr, cmessage, vdesc='instantaneous runoff in each reach',   vunit='m3/s')
    case( 5); call defVar(pioFileDesc, 'dlayRunoff',        [dim_seg,dim_time], ncd_float, ierr, cmessage, vdesc='delayed runoff in each reach',         vunit='m3/s')
