@@ -51,6 +51,7 @@ module public_var
   integer(i4b) , parameter        :: annual=1001            ! named variable for yearly output files
   integer(i4b) , parameter        :: month=1002             ! named variable for monthly output files
   integer(i4b) , parameter        :: day=1003               ! named variable for daily output files
+  integer(i4b) , parameter        :: single=1004            ! named variable for a single output file
 
   ! compute versus read from file
   integer(i4b), parameter,public  :: compute=1              ! compute given variable
@@ -102,7 +103,7 @@ module public_var
   character(len=strLen),public    :: dname_data_remap     = ''              ! dimension name for runoff HRU ID
   ! ROUTED FLOW OUTPUT
   character(len=strLen),public    :: fname_output         = ''              ! name of output file
-  integer(i4b)         ,public    :: newFileFrequency     = annual          ! frequency for new output files (day, month, annual)
+  character(len=strLen),public    :: newFileFrequency     = 'annual'        ! frequency for new output files (day, month, annual)
   ! STATES
   logical(lgt)         ,public    :: isRestart            = .false.         ! restart option: True-> model run with restart, F -> model run with empty channels
   character(len=strLen),public    :: fname_state_in       = ''              ! name of state file
