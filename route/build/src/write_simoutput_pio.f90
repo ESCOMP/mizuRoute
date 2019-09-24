@@ -13,11 +13,10 @@ implicit none
 ! The following variables used only in this module
 character(len=strLen),save :: fileout              ! name of the output file
 integer(i4b),         save :: jTime                ! time step in output netCDF
-
-type(file_desc_t),    save :: pioFileDesc          ! contains data identifying the file
-type(iosystem_desc_t),save :: pioSystem
-type(io_desc_t),      save :: iodesc_rch_flx
-type(io_desc_t),      save :: iodesc_hru_ro
+type(iosystem_desc_t),save :: pioSystem            ! PIO I/O system data
+type(file_desc_t),    save :: pioFileDesc          ! PIO data identifying the file
+type(io_desc_t),      save :: iodesc_rch_flx       ! PIO domain decomposition data for reach flux [nRch]
+type(io_desc_t),      save :: iodesc_hru_ro        ! PIO domain decomposition data for hru runoff [nHRU]
 
 integer(i4b),parameter     :: recordDim=-999       ! record dimension Indicator
 
@@ -91,46 +90,51 @@ contains
    allocate(basinRunoff(1))
   endif
 
+  call openFile(pioSystem, pioFileDesc, trim(fileout), ncd_write, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
   ! write time -- note time is just carried across from the input
-  call write_netcdf(pioSystem, trim(fileout), 'time', [timeVar(iTime)], [jTime], [1], ierr, cmessage)
+  call write_netcdf(pioFileDesc, 'time', [timeVar(iTime)], [jTime], [1], ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! write the basin runoff to the netcdf file
-  call write_pnetcdf_recdim(pioSystem, trim(fileout), 'basRunoff',basinRunoff, iodesc_hru_ro, jTime, ierr, cmessage)
+  call write_pnetcdf_recdim(pioFileDesc, 'basRunoff',basinRunoff, iodesc_hru_ro, jTime, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   if (doesBasinRoute == 1) then
    ! write instataneous local runoff in each stream segment (m3/s)
    tmp_array = real(RCHFLX_local(:)%BASIN_QI,kind=sp)
-   call write_pnetcdf_recdim(pioSystem, trim(fileout),'instRunoff', tmp_array, iodesc_rch_flx, jTime, ierr, cmessage)
+   call write_pnetcdf_recdim(pioFileDesc, 'instRunoff', tmp_array, iodesc_rch_flx, jTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   ! write routed local runoff in each stream segment (m3/s)
   tmp_array = real(RCHFLX_local(:)%BASIN_QR(1),kind=sp)
-  call write_pnetcdf_recdim(pioSystem, trim(fileout),'dlayRunoff', tmp_array, iodesc_rch_flx, jTime, ierr, cmessage)
+  call write_pnetcdf_recdim(pioFileDesc, 'dlayRunoff', tmp_array, iodesc_rch_flx, jTime, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! write accumulated runoff (m3/s)
   if (doesAccumRunoff == 1) then
    tmp_array = real(RCHFLX_local(:)%UPSTREAM_QI,kind=sp)
-   call write_pnetcdf_recdim(pioSystem, trim(fileout),'sumUpstreamRunoff', tmp_array, iodesc_rch_flx, jTime, ierr, cmessage)
+   call write_pnetcdf_recdim(pioFileDesc, 'sumUpstreamRunoff', tmp_array, iodesc_rch_flx, jTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
    ! write routed runoff (m3/s)
    tmp_array = real(RCHFLX_local(:)%REACH_Q,kind=sp)
-   call write_pnetcdf_recdim(pioSystem, trim(fileout),'KWTroutedRunoff', tmp_array, iodesc_rch_flx, jTime, ierr, cmessage)
+   call write_pnetcdf_recdim(pioFileDesc, 'KWTroutedRunoff', tmp_array, iodesc_rch_flx, jTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
    ! write routed runoff (m3/s)
    tmp_array = real(RCHFLX_local(:)%REACH_Q_IRF,kind=sp)
-   call write_pnetcdf_recdim(pioSystem, trim(fileout),'IRFroutedRunoff', tmp_array, iodesc_rch_flx, jTime, ierr, cmessage)
+   call write_pnetcdf_recdim(pioFileDesc, 'IRFroutedRunoff', tmp_array, iodesc_rch_flx, jTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
+
+  call closeFile(pioFileDesc)
 
  end subroutine output
 
@@ -208,13 +212,18 @@ contains
                    ierr,cmessage)                            ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+   call openFile(pioSystem, pioFileDesc, trim(fileout), ncd_write, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
    ! define basin ID
-   call write_netcdf(pioSystem, trim(fileout), 'basinID', basinID, [1], [nHRU], ierr, cmessage)
+   call write_netcdf(pioFileDesc, 'basinID', basinID, [1], [nHRU], ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! define reach ID
-   call write_netcdf(pioSystem, trim(fileout), 'reachID', reachID, [1], [nRch], ierr, cmessage)
+   call write_netcdf(pioFileDesc, 'reachID', reachID, [1], [nRch], ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   call closeFile(pioFileDesc)
 
   ! no new file requested: increment time
   else

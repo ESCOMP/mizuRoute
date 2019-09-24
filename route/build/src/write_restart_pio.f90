@@ -482,14 +482,18 @@ CONTAINS
   endif
 
  ! -- Write out to netCDF
+
+ call openFile(pioSystemState, pioFileDescState, trim(fname), ncd_write, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  ! Miscellaneous variables - seg id, time etc
- call write_netcdf(pioSystemState, trim(fname), 'reachID', reachID, [1], [nRch], ierr, cmessage)
+ call write_netcdf(pioFileDescState, 'reachID', reachID, [1], [nRch], ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call write_netcdf(pioSystemState, trim(fname), 'time', [timeVar(iTime)], [kTime], [1], ierr, cmessage)
+ call write_netcdf(pioFileDescState, 'time', [timeVar(iTime)], [kTime], [1], ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call write_netcdf(pioSystemState, trim(fname), 'time_bound', [TSEC(0),TSEC(1)], [1,kTime], [2,1], ierr, cmessage)
+ call write_netcdf(pioFileDescState, 'time_bound', [TSEC(0),TSEC(1)], [1,kTime], [2,1], ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  if (doesBasinRoute == 1) then
@@ -506,6 +510,8 @@ CONTAINS
   call write_KWT_state(ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
+
+ call closeFile(pioFileDescState)
 
  CONTAINS
 
@@ -558,8 +564,8 @@ CONTAINS
   do iVar=1,nVarsIRFbas
 
    select case(iVar)
-    case(ixIRFbas%qfuture); call write_pnetcdf_recdim(pioSystemState, fname, meta_irf_bas(iVar)%varName, state(0)%var(iVar)%array_3d_dp, iodesc_irf_bas_double, kTime, ierr, cmessage)
-    case(ixIRFbas%q);       call write_pnetcdf_recdim(pioSystemState, fname, meta_irf_bas(iVar)%varName, state(0)%var(iVar)%array_2d_dp, iodesc_state_double, kTime, ierr, cmessage)
+    case(ixIRFbas%qfuture); call write_pnetcdf_recdim(pioFileDescState, meta_irf_bas(iVar)%varName, state(0)%var(iVar)%array_3d_dp, iodesc_irf_bas_double, kTime, ierr, cmessage)
+    case(ixIRFbas%q);       call write_pnetcdf_recdim(pioFileDescState, meta_irf_bas(iVar)%varName, state(0)%var(iVar)%array_2d_dp, iodesc_state_double, kTime, ierr, cmessage)
     case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF variable index for nc writing'; return
    end select
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -644,7 +650,7 @@ CONTAINS
   enddo ! ensemble loop
 
   ! Writing netCDF
-  call write_pnetcdf_recdim(pioSystemState, trim(fname),'numWaves', numWaves, iodesc_state_int, kTime, ierr, cmessage)
+  call write_pnetcdf_recdim(pioFileDescState,'numWaves', numWaves, iodesc_state_int, kTime, ierr, cmessage)
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsKWT
@@ -653,9 +659,9 @@ CONTAINS
 
     select case(iVar)
      case(ixKWT%routed)
-       call write_pnetcdf_recdim(pioSystemState, trim(fname),trim(meta_kwt(iVar)%varName), state(kinematicWave)%var(iVar)%array_3d_int, iodesc_wave_int, kTime, ierr, cmessage)
+       call write_pnetcdf_recdim(pioFileDescState, trim(meta_kwt(iVar)%varName), state(kinematicWave)%var(iVar)%array_3d_int, iodesc_wave_int, kTime, ierr, cmessage)
      case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
-       call write_pnetcdf_recdim(pioSystemState, trim(fname),trim(meta_kwt(iVar)%varName), state(kinematicWave)%var(iVar)%array_3d_dp, iodesc_wave_double, kTime, ierr, cmessage)
+       call write_pnetcdf_recdim(pioFileDescState, trim(meta_kwt(iVar)%varName), state(kinematicWave)%var(iVar)%array_3d_dp, iodesc_wave_double, kTime, ierr, cmessage)
      case default; ierr=20; message1=trim(message1)//'unable to identify KWT variable index for nc writing'; return
     end select
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -724,7 +730,7 @@ CONTAINS
   enddo ! ensemble loop
 
   ! writing netcdf
-  call write_pnetcdf_recdim(pioSystemState, trim(fname),'numQF', numQF, iodesc_state_int, kTime, ierr, cmessage)
+  call write_pnetcdf_recdim(pioFileDescState, 'numQF', numQF, iodesc_state_int, kTime, ierr, cmessage)
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsIRF
@@ -733,7 +739,7 @@ CONTAINS
 
    select case(iVar)
     case(ixIRF%qfuture)
-     call write_pnetcdf_recdim(pioSystemState, trim(fname),trim(meta_irf(iVar)%varName), state(impulseResponseFunc)%var(iVar)%array_3d_dp, iodesc_irf_float, kTime, ierr, cmessage)
+     call write_pnetcdf_recdim(pioFileDescState, trim(meta_irf(iVar)%varName), state(impulseResponseFunc)%var(iVar)%array_3d_dp, iodesc_irf_float, kTime, ierr, cmessage)
     case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc writing'; return
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
    end select
