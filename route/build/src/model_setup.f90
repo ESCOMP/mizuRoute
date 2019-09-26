@@ -90,6 +90,7 @@ contains
   USE globalData,  only : reachID                ! reach ID vector
   USE globalData,  only : runoff_data            ! runoff data structure
   USE globalData,  only : remap_data             ! runoff mapping data structure
+  USE globalData,  only : isFileOpen             ! file open/close status
   ! external subroutines
   USE mpi_routine, only : comm_ntopo_data        ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
   USE mpi_routine, only : pass_global_data       ! mpi globaldata copy to slave proc
@@ -182,6 +183,8 @@ contains
    call init_state(pid, nNodes, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+   isFileOpen=.false.
+
  end subroutine init_data
 
 
@@ -198,6 +201,8 @@ contains
   USE globalData, only : refJulday     ! julian day: reference
   USE globalData, only : modJulday     ! julian day: at model time step
   USE globalData, only : endJulday     ! julian day: at end of simulation
+  ! external routine
+  USE write_simoutput_pio, only : close_output_nc
 
    implicit none
    ! output: error control
@@ -213,6 +218,7 @@ contains
    TSEC(1) = TSEC(0) + dt
 
    if (abs(modJulday-endJulday)<verySmall) then
+     call close_output_nc()
      finished=.true.;return
    endif
 

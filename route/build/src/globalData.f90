@@ -170,6 +170,9 @@ module globalData
   integer(i4b)    , allocatable  , public :: local_ix_comm(:)     ! local index array for tributary reach outlet (size = num of tributary outlets)
   integer(i4b)    , allocatable  , public :: tribOutlet_per_proc(:)! number of tributary outlet reaches assigned to each proc (size = num of procs)
 
+  ! I/O stuff
+  logical(lgt)                   , public :: isFileOpen            ! flag to indicate output netcdf is open
+
   ! miscellaneous
   integer(i4b)                   , public :: ixPrint=integerMissing   ! index of desired reach to be on-screen print
 

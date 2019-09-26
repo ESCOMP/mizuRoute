@@ -4,6 +4,7 @@ MODULE write_simoutput_pio
 USE nrtype
 USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
 USE public_var,        ONLY: root
+USE public_var,        ONLY: integerMissing
 USE globalData,        ONLY: pid, nNodes
 USE nr_utility_module, ONLY: arth
 USE pio_utils
@@ -24,6 +25,7 @@ private
 
 public::prep_output
 public::output
+public::close_output_nc
 
 contains
 
@@ -90,9 +92,6 @@ contains
    allocate(basinRunoff(1))
   endif
 
-  call openFile(pioSystem, pioFileDesc, trim(fileout), ncd_write, ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
   ! write time -- note time is just carried across from the input
   call write_netcdf(pioFileDesc, 'time', [timeVar(iTime)], [jTime], [1], ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -134,8 +133,6 @@ contains
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
-  call closeFile(pioFileDesc)
-
  end subroutine output
 
 
@@ -155,6 +152,7 @@ contains
  USE globalData,          only : modJulday         ! julian day: at model time step
  USE globalData,          only : modTime           ! previous and current model time
  USE globalData,          only : nHRU, nRch        ! number of ensembles, HRUs and river reaches
+ USE globalData,          only : isFileOpen        ! file open/close status
  ! subroutines
  USE time_utils_module,   only : compCalday        ! compute calendar day
  USE time_utils_module,   only : compCalday_noleap ! compute calendar day
@@ -199,6 +197,9 @@ contains
   ! define new file
   if(defNewOutputFile)then
 
+   ! close netcdf only if is is open
+   call close_output_nc()
+
    ! initialize time
    jTime=1
 
@@ -223,7 +224,7 @@ contains
    call write_netcdf(pioFileDesc, 'reachID', reachID, [1], [nRch], ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   call closeFile(pioFileDesc)
+   isFileOpen = .True.
 
   ! no new file requested: increment time
   else
@@ -236,6 +237,14 @@ contains
 
  END SUBROUTINE prep_output
 
+ SUBROUTINE close_output_nc()
+  USE globalData, only : isFileOpen   ! file open/close status
+  implicit none
+  if (isFileOpen) then
+   call closeFile(pioFileDesc)
+   isFileOpen=.false.
+  endif
+ END SUBROUTINE close_output_nc
 
  ! *********************************************************************
  ! private subroutine: define routing output NetCDF file
@@ -358,8 +367,6 @@ contains
  ! end definitions
  call endDef(pioFileDesc, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- !call closefile(pioFileDesc)
 
  END SUBROUTINE defineFile
 
