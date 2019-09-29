@@ -9,10 +9,11 @@
 #========================================================================
 # User configure part
 #========================================================================
-# Define fortran compiler - gfortran, ifort or pgf90
+# Define fortran compiler - gnu, intel or pgi 
 FC  =
 
 # Define the compiler exe
+# For MPI use, mpifort, mpif77, mpif90, mpif08 
 FC_EXE =
 
 # Define the executable
@@ -36,8 +37,6 @@ isMPISERIAL =
 isPIO =
 isGPTL = 
 
-PNETCDF_PATH =
-
 # If isPIO==yes then you can give hints to PIO about the local system
 # gpfs is the specific filesystem used on cheyenne
 # (can be gpfs or lustre) Only use it if you know for sure about your filesystem.
@@ -50,14 +49,17 @@ PIO_FILESYSTEM_HINTS = gpfs
 F_MASTER =
 
 # Define the NetCDF libraries and path to include files
-ifeq "$(FC)" "gfortran"
+ifeq "$(FC)" "gnu"
  NCDF_PATH = 
+ PNETCDF_PATH =
 endif
-ifeq "$(FC)" "ifort"
+ifeq "$(FC)" "intel"
  NCDF_PATH = 
+ PNETCDF_PATH =
 endif
-ifeq "$(FC)" "pgf90"
+ifeq "$(FC)" "pgi"
  NCDF_PATH = 
+ PNETCDF_PATH =
 endif
 
 LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
@@ -65,12 +67,17 @@ LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
 INCNETCDF = -I$(NCDF_PATH)/include
 
 ifeq "$(isOpenMP)" "yes"
- FLAGS_OMP = -fopenmp
+ ifeq "$(FC)" "pgi"
+  FLAGS_OMP = -mp
+ else
+  FLAGS_OMP = -fopenmp
+ endif 
 endif
+
 #========================================================================
 # Define flags
 #========================================================================
-ifeq "$(FC)" "gfortran"
+ifeq "$(FC)" "gnu"
   ifeq "$(MODE)" "fast"
     FLAGS = -O3 -fmax-errors=0 -ffree-line-length-none $(FLAGS_OMP)
   endif
@@ -82,24 +89,24 @@ ifeq "$(FC)" "gfortran"
   endif
 endif
 
-ifeq "$(FC)" "ifort"
+ifeq "$(FC)" "intel"
   ifeq "$(MODE)" "fast"
     FLAGS = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -debug -warn all -check all -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
+    FLAGS = -g -debug all -warn all -check all -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
   endif
   ifeq "$(MODE)" "profile"
     FLAGS = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
   endif
 endif
 
-ifeq "$(FC)" "pgf90"
+ifeq "$(FC)" "pgi"
   ifeq "$(MODE)" "fast"
-    FLAGS = -O2 -mp -c -Mdclchk $(FLAGS_OMP)
+    FLAGS = -fast -O3 -Mdclchk $(FLAGS_OMP)
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -Mbounds -Mlist -Minfo  -Mdclchk $(FLAGS_OMP)
+    FLAGS = -g -traceback -Mbounds -Mlist -Minfo -Mdclchk $(FLAGS_OMP)
   endif
 endif
 
@@ -260,6 +267,7 @@ compile: $(EXTLIBS)
 # Remove object files
 clean:
 						rm -f *.o
+						rm -f *.lst
 						rm -f *.mod
 						rm -f *__genmod.f90
 #

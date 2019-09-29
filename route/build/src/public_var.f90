@@ -30,7 +30,7 @@ module public_var
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
 
   ! MPI domain decomposition parameters
-  integer(i4b),parameter,public   :: maxDomain=150000       ! maximum domains
+  integer(i4b),parameter,public   :: maxDomain=900000       ! maximum domains
 
   ! openMP domain decompostion parameters
   integer(i4b),parameter,public   :: maxSegs=100            ! maximum reach numbers within tributaries
