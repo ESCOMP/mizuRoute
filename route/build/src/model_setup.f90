@@ -401,14 +401,16 @@ contains
   ierr=0; message='init_ntopo/'
   call system_clock(count_rate=cr)
 
-  ! get the variable dimensions
-  ! NOTE: need to update maxPfafLen to the exact character size for pfaf code in netCDF
-  call get_var_dims(trim(ancil_dir)//trim(fname_ntopOld), & ! input: file name
-                    trim(meta_PFAF(ixPFAF%code)%varName), & ! input: pfaf code variable name in netcdf
-                    ierr, cmessage,                       & ! output: error control
-                    dlen=dummy)                             ! output optional: dimension length
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  maxPfafLen = dummy(1)
+  if (meta_PFAF(ixPFAF%code)%varFile) then
+    ! get the variable dimensions
+    ! NOTE: need to update maxPfafLen to the exact character size for pfaf code in netCDF
+    call get_var_dims(trim(ancil_dir)//trim(fname_ntopOld), & ! input: file name
+                      trim(meta_PFAF(ixPFAF%code)%varName), & ! input: pfaf code variable name in netcdf
+                      ierr, cmessage,                       & ! output: error control
+                      dlen=dummy)                             ! output optional: dimension length
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    maxPfafLen = dummy(1)
+  end if
 
   ! read river network data
   call getData(&
