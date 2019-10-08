@@ -2,10 +2,12 @@
 # Makefile to compile the routing model
 #========================================================================
 #
-#
+# Need to edit FC, FC_EXE, EXE, F_MASTER, NCDF_PATH
+# Feel free to modify compiler flag (FLAGS)
+# Do not leave space after your edits
 #
 #========================================================================
-# PART 0: User configure part 
+# User configure part 
 #========================================================================
 # Define fortran compiler - gfortran, ifort or pgf90
 FC  =
@@ -13,13 +15,19 @@ FC  =
 # Define the compiler exe
 FC_EXE =
 
+# Define the compiled executable
+EXE = route_runoff.develop.exe
+
+# Define optional setting
+# fast:      Enables optimizations
+# debug:     Minimum debug options, still 
+# profile:   Enables profiling
+MODE = debug
+
 # Define core directory below which everything resides
 # parent directory of the 'build' directory
 # do not put space at the end of path
 F_MASTER =
-
-# Define the compiled executable
-EXE = 
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
@@ -36,23 +44,45 @@ LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
             -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
 INCNETCDF = -I$(NCDF_PATH)/include
 
+#========================================================================
 # Define flags
+#========================================================================
 ifeq "$(FC)" "gfortran"
- FLAGS = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
-endif
-ifeq "$(FC)" "ifort"
- FLAGS = -O2 -p -g -warn all -check all -FR -auto -WB -traceback -fltconsistency -fpe0
-# FLAGS = -O0 -p -g -warn all -noerror_limit -FR -auto -WB -traceback -fltconsistency
-# FLAGS = -O0 -p -g -static -debug -warn all -check all -FR -O0 -auto -WB -traceback -fltconsistency -fpe0
-# FLAGS = -O0 -p -g -debug -warn all -check all -FR -auto -WB -traceback -fltconsistency -fpe0
-endif
-ifeq "$(FC)" "pgf90"
- FLAGS1 = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -Mprof=lines,time
- FLAGS = -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv
+  ifeq "$(MODE)" "fast"
+    FLAGS = -O3 -fmax-errors=0 -ffree-line-length-none
+  endif
+  ifeq "$(MODE)" "debug"
+    FLAGS = -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none 
+  endif
+  ifeq "$(MODE)" "profile"
+    FLAGS = -p -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none 
+  endif
 endif
 
+ifeq "$(FC)" "ifort"
+  ifeq "$(MODE)" "fast"
+    FLAGS = -O3 -FR -auto -fltconsistency -fpe0
+  endif
+  ifeq "$(MODE)" "debug"
+    FLAGS = -g -debug -warn all -check all -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency
+  endif
+  ifeq "$(MODE)" "profile"
+    FLAGS = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency
+  endif
+endif
+
+ifeq "$(FC)" "pgf90"
+  ifeq "$(MODE)" "fast"
+    FLAGS = -O2 -mp -c -Mdclchk
+  endif
+  ifeq "$(MODE)" "debug"
+    FLAGS = -g -Mbounds -Mlist -Minfo  -Mdclchk
+  endif
+endif
+
+
 #========================================================================
-# PART 1: Define directory paths
+# Define directory paths
 #========================================================================
 # Core directory that contains source code
 F_KORE_DIR = $(F_MASTER)build/src/
@@ -64,7 +94,7 @@ MOD_PATH = $(F_MASTER)build/
 EXE_PATH = $(F_MASTER)bin
 
 #========================================================================
-# PART 2: Assemble all of the sub-routines
+# Assemble all of the sub-routines
 #========================================================================
 # Define subroutines
 #
@@ -82,13 +112,13 @@ UTILS = \
     nr_utility.f90 \
     ascii_util.f90 \
     time_utils.f90 \
+    ncio_utils.f90 \
     gamma_func.f90
 # read/write files
 IO = \
     remap.f90 \
     read_control.f90 \
     read_param.f90 \
-    ncio_utils.f90 \
     read_streamSeg.f90 \
     write_streamSeg.f90 \
     read_runoff.f90 \
@@ -119,13 +149,13 @@ TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(INIT) $(CORE)
 MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
 
 #========================================================================
-# PART 3: Define driver programs
+# Define driver programs
 #========================================================================
 # Define the driver routine
 DRIVER = $(F_KORE_DIR)route_runoff.f90
 
 #========================================================================
-# PART 4: Compile the puppy
+# Compile the puppy
 #========================================================================
 # tasks
 all: compile install clean
