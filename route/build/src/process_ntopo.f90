@@ -313,7 +313,7 @@ end subroutine augment_ntopo
   ! local varialbles
   integer(i4b)                                   :: nSeg,nHru        ! number of stream reaches and HRUs
   integer(i4b)                                   :: iSeg,iHru        ! loop indices
-  logical(lgt)                                   :: verobse = .false.
+  logical(lgt)                                   :: verbose = .false.
 
   ! initialize error control
   ierr=0; message='check_river_properties/'
