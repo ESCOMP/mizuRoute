@@ -9,10 +9,10 @@
 #========================================================================
 # User configure part 
 #========================================================================
-# Define fortran compiler - gfortran, ifort or pgf90
+# Define fortran compiler - gnu, intel or pgi 
 FC  =
 
-# Define the compiler exe
+# Define the compiler exe, e.g., gnu=>gfortran, intel=>intel, pgi=>pgf90
 FC_EXE =
 
 # Define the executable
@@ -33,13 +33,13 @@ isOpenMP =
 F_MASTER =
 
 # Define the NetCDF libraries and path to include files
-ifeq "$(FC)" "gfortran"
+ifeq "$(FC)" "gnu"
  NCDF_PATH = 
 endif
-ifeq "$(FC)" "ifort"
+ifeq "$(FC)" "intel"
  NCDF_PATH = 
 endif
-ifeq "$(FC)" "pgf90"
+ifeq "$(FC)" "pgi"
  NCDF_PATH = 
 endif
 
@@ -47,15 +47,16 @@ LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
             -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
 INCNETCDF = -I$(NCDF_PATH)/include
 
+#========================================================================
+# Define flags
+#========================================================================
 FLAGS_OMP =
 LIBOPENMP =
 ifeq "$(isOpenMP)" "yes"
  FLAGS_OMP = -fopenmp
 endif
-#========================================================================
-# Define flags
-#========================================================================
-ifeq "$(FC)" "gfortran"
+
+ifeq "$(FC)" "gnu"
   ifeq "$(MODE)" "fast"
     FLAGS = -O3 -fmax-errors=0 -ffree-line-length-none $(FLAGS_OMP)
   endif
@@ -63,11 +64,11 @@ ifeq "$(FC)" "gfortran"
     FLAGS = -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP) 
   endif
   ifeq "$(MODE)" "profile"
-    FLAGS = -p -g -Wall -fmax-errors=0 -fbacktrace -fbounds-check -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP)
+    FLAGS = -p -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP)
   endif
 endif
 
-ifeq "$(FC)" "ifort"
+ifeq "$(FC)" "intel"
   ifeq "$(MODE)" "fast"
     FLAGS = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
   endif
@@ -79,7 +80,7 @@ ifeq "$(FC)" "ifort"
   endif
 endif
 
-ifeq "$(FC)" "pgf90"
+ifeq "$(FC)" "pgi"
   ifeq "$(MODE)" "fast"
     FLAGS = -O2 -mp -c -Mdclchk $(FLAGS_OMP)
   endif

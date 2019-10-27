@@ -367,9 +367,9 @@ contains
   USE io_netcdf,            only : get_var_dims
   USE process_ntopo,        only : augment_ntopo            ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,        only : put_data_struct          ! populate NETOPO and RPARAM data structure
-!  USE domain_decomposition, only : omp_domain_decomposition     ! domain decomposition for omp
-  USE domain_decomposition, only : omp_domain_decomposition &    ! domain decomposition for omp
-                                => omp_domain_decomposition_stro
+  USE domain_decomposition, only : omp_domain_decomposition     ! domain decomposition for omp
+!  USE domain_decomposition, only : omp_domain_decomposition &    ! domain decomposition for omp
+!                                => omp_domain_decomposition_stro
   implicit none
   ! input: None
   ! output (river network data structures for the entire domain)
