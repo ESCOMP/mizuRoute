@@ -7,15 +7,15 @@
 # Do not leave space after your edits
 #
 #========================================================================
-# User configure part 
+# User configure part
 #========================================================================
-# Define fortran compiler - gnu, intel or pgi 
+# Define fortran compiler - gnu, intel or pgi
 FC  =
 
 # Define the compiler exe, e.g., gnu=>gfortran, intel=>intel, pgi=>pgf90
 FC_EXE =
 
-# Define the executable
+# Define the compiled executable
 EXE = 
 
 # Define optional setting
@@ -61,7 +61,7 @@ ifeq "$(FC)" "gnu"
     FLAGS = -O3 -fmax-errors=0 -ffree-line-length-none $(FLAGS_OMP)
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP) 
+    FLAGS = -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP)
   endif
   ifeq "$(MODE)" "profile"
     FLAGS = -p -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP)
@@ -73,7 +73,7 @@ ifeq "$(FC)" "intel"
     FLAGS = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -debug -warn all -check all -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
+    FLAGS = -g -debug all -warn all -check all -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
   endif
   ifeq "$(MODE)" "profile"
     FLAGS = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
@@ -82,10 +82,10 @@ endif
 
 ifeq "$(FC)" "pgi"
   ifeq "$(MODE)" "fast"
-    FLAGS = -O2 -mp -c -Mdclchk $(FLAGS_OMP)
+    FLAGS = -fast -O3 -Mdclchk $(FLAGS_OMP)
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -Mbounds -Mlist -Minfo  -Mdclchk $(FLAGS_OMP)
+    FLAGS = -g -Mbounds -Mlist -Minfo -Mdclchk $(FLAGS_OMP)
   endif
 endif
 
@@ -178,6 +178,7 @@ compile:
 # Remove object files
 clean:
 						rm -f *.o
+						rm -f *.lst
 						rm -f *.mod
 						rm -f *__genmod.f90
 #
