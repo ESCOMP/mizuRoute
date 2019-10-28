@@ -2,21 +2,21 @@
 # Makefile to compile the routing model
 #========================================================================
 #
-# Need to edit FC, FC_EXE, EXE, F_MASTER, NCDF_PATH
+# Need to edit FC, FC_EXE, EXE, isOpenMP (if OMP is used), F_MASTER, NCDF_PATH
 # Feel free to modify compiler flag (FLAGS)
 # Do not leave space after your edits
 #
 #========================================================================
-# User configure part 
+# User configure part
 #========================================================================
-# Define fortran compiler - gfortran, ifort or pgf90
+# Define fortran compiler - gnu, intel or pgi
 FC  =
 
-# Define the compiler exe
+# Define the compiler exe, e.g., gnu=>gfortran, intel=>intel, pgi=>pgf90
 FC_EXE =
 
 # Define the compiled executable
-EXE = route_runoff.develop.exe
+EXE = 
 
 # Define optional setting
 # fast:      Enables optimizations
@@ -24,19 +24,22 @@ EXE = route_runoff.develop.exe
 # profile:   Enables profiling
 MODE = debug
 
+# define open MP option (put yes to activate OMP) 
+isOpenMP =
+ 
 # Define core directory below which everything resides
 # parent directory of the 'build' directory
 # do not put space at the end of path
 F_MASTER =
 
 # Define the NetCDF libraries and path to include files
-ifeq "$(FC)" "gfortran"
- NCDF_PATH =
+ifeq "$(FC)" "gnu"
+ NCDF_PATH = 
 endif
-ifeq "$(FC)" "ifort"
- NCDF_PATH =
+ifeq "$(FC)" "intel"
+ NCDF_PATH = 
 endif
-ifeq "$(FC)" "pgf90"
+ifeq "$(FC)" "pgi"
  NCDF_PATH = 
 endif
 
@@ -47,39 +50,44 @@ INCNETCDF = -I$(NCDF_PATH)/include
 #========================================================================
 # Define flags
 #========================================================================
-ifeq "$(FC)" "gfortran"
+FLAGS_OMP =
+LIBOPENMP =
+ifeq "$(isOpenMP)" "yes"
+ FLAGS_OMP = -fopenmp
+endif
+
+ifeq "$(FC)" "gnu"
   ifeq "$(MODE)" "fast"
-    FLAGS = -O3 -fmax-errors=0 -ffree-line-length-none
+    FLAGS = -O3 -fmax-errors=0 -ffree-line-length-none $(FLAGS_OMP)
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none 
+    FLAGS = -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP)
   endif
   ifeq "$(MODE)" "profile"
-    FLAGS = -p -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none 
+    FLAGS = -p -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP)
   endif
 endif
 
-ifeq "$(FC)" "ifort"
+ifeq "$(FC)" "intel"
   ifeq "$(MODE)" "fast"
-    FLAGS = -O3 -FR -auto -fltconsistency -fpe0
+    FLAGS = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -debug -warn all -check all -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency
+    FLAGS = -g -debug all -warn all -check all -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
   endif
   ifeq "$(MODE)" "profile"
-    FLAGS = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency
+    FLAGS = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
   endif
 endif
 
-ifeq "$(FC)" "pgf90"
+ifeq "$(FC)" "pgi"
   ifeq "$(MODE)" "fast"
-    FLAGS = -O2 -mp -c -Mdclchk
+    FLAGS = -fast -O3 -Mdclchk $(FLAGS_OMP)
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -Mbounds -Mlist -Minfo  -Mdclchk
+    FLAGS = -g -Mbounds -Mlist -Minfo -Mdclchk $(FLAGS_OMP)
   endif
 endif
-
 
 #========================================================================
 # Define directory paths
@@ -132,7 +140,9 @@ INIT = \
     process_time.f90 \
     network_topo.f90 \
     process_param.f90 \
-    process_ntopo.f90
+    process_ntopo.f90 \
+    pfafstetter.f90 \
+    domain_decomposition.f90
 # CORE
 CORE = \
     accum_runoff.f90 \
@@ -168,6 +178,7 @@ compile:
 # Remove object files
 clean:
 						rm -f *.o
+						rm -f *.lst
 						rm -f *.mod
 						rm -f *__genmod.f90
 #

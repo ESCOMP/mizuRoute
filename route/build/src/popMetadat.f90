@@ -11,8 +11,9 @@ USE dataTypes,  only : var_info     ! data type for metadata structure
 USE dataTypes,  only : dim_info     ! data type for metadata structure
 
 ! variable type
-USE globalData, only : varType_integer  ! named variable for an integer
-USE globalData, only : varType_double   ! named variable for a double precision
+USE globalData, only : varType_integer   ! named variable for an integer
+USE globalData, only : varType_double    ! named variable for a double precision
+USE globalData, only : varType_character ! named variable for a double precision
 
 ! metadata on data structures
 USE globalData, only : meta_struct    ! structure information
@@ -23,6 +24,7 @@ USE globalData, only : meta_HRU       ! HRU properties
 USE globalData, only : meta_HRU2SEG   ! HRU-to-segment mapping
 USE globalData, only : meta_SEG       ! stream segment properties
 USE globalData, only : meta_NTOPO     ! network topology
+USE globalData, only : meta_PFAF      ! pfafstetter code
 
 USE globalData, only : meta_irf_bas   ! within-basin irf routing fluxes and states
 USE globalData, only : meta_irf       ! irf routing fluxes and states in a segment
@@ -37,6 +39,7 @@ USE var_lookup, only : ixHRU      , nVarsHRU      ! index of variables for data 
 USE var_lookup, only : ixHRU2SEG  , nVarsHRU2SEG  ! index of variables for data structure
 USE var_lookup, only : ixSEG      , nVarsSEG      ! index of variables for data structure
 USE var_lookup, only : ixNTOPO    , nVarsNTOPO    ! index of variables for data structure
+USE var_lookup, only : ixPFAF     , nVarsPFAF     ! index of variables for data structure
 
 USE var_lookup, only : ixKWT      , nVarsKWT      ! index of variables for data structure
 USE var_lookup, only : ixIRF      , nVarsIRF      ! index of variables for data structure
@@ -60,10 +63,11 @@ contains
  ! ---------- define data structures -----------------------------------------------------------------------------------------------------------
 
  ! structure index                            name      variable type    length of spatial dimension, number of variables
- meta_struct(ixStruct%HRU    ) = struct_info('HRU',     varType_double,  integerMissing,              nVarsHRU)
- meta_struct(ixStruct%HRU2SEG) = struct_info('HRU2SEG', varType_integer, integerMissing,              nVarsHRU2SEG)
- meta_struct(ixStruct%SEG    ) = struct_info('SEG',     varType_double,  integerMissing,              nVarsSEG)
- meta_struct(ixStruct%NTOPO  ) = struct_info('NTOPO',   varType_integer, integerMissing,              nVarsNTOPO)
+ meta_struct(ixStruct%HRU    ) = struct_info('HRU',     varType_double,    integerMissing,              nVarsHRU)
+ meta_struct(ixStruct%HRU2SEG) = struct_info('HRU2SEG', varType_integer,   integerMissing,              nVarsHRU2SEG)
+ meta_struct(ixStruct%SEG    ) = struct_info('SEG',     varType_double,    integerMissing,              nVarsSEG)
+ meta_struct(ixStruct%NTOPO  ) = struct_info('NTOPO',   varType_integer,   integerMissing,              nVarsNTOPO)
+ meta_struct(ixStruct%PFAF  )  = struct_info('PFAF',    varType_character, integerMissing,              nVarsPFAF)
 
  ! ---------- define variable dimensions -------------------------------------------------------------------------------------------------------
 
@@ -74,6 +78,7 @@ contains
  meta_dims  (ixDims%upSeg    ) = dim_info('upSeg', integerMissing, integerMissing)  ! immediate upstream segments
  meta_dims  (ixDims%upAll    ) = dim_info('upAll', integerMissing, integerMissing)  ! all upstream segments
  meta_dims  (ixDims%uh       ) = dim_info('uh'   , integerMissing, integerMissing)  ! all unit hydrograph
+ meta_dims  (ixDims%pfaf     ) = dim_info('pfaf' , integerMissing, integerMissing)  ! max pfafstetter code length
 
  meta_stateDims(ixStateDims%seg     ) = dim_info('seg',     integerMissing, integerMissing)  ! stream segment vector
  meta_stateDims(ixStateDims%time    ) = dim_info('time',    integerMissing, integerMissing)  ! time
@@ -125,11 +130,15 @@ contains
  meta_NTOPO  (ixNTOPO%upSegIndices   ) = var_info('upSegIndices'   , 'indices for the immediate upstream stream segments' ,'-'    ,ixDims%upSeg , .false.)
  meta_NTOPO  (ixNTOPO%allUpSegIndices) = var_info('allUpSegIndices', 'indices of all upstream stream segments'            ,'-'    ,ixDims%upAll , .false.)
  meta_NTOPO  (ixNTOPO%rchOrder       ) = var_info('rchOrder'       , 'order that stream segments are processed'           ,'-'    ,ixDims%seg   , .false.)
+ meta_NTOPO  (ixNTOPO%streamOrder    ) = var_info('streamOrder'    , 'Shreve Stream Order'                                ,'-'    ,ixDims%seg   , .false.)
  meta_NTOPO  (ixNTOPO%lakeId         ) = var_info('lakeId'         , 'unique id of each lake in the river network'        ,'-'    ,ixDims%seg   , .false.)
  meta_NTOPO  (ixNTOPO%lakeIndex      ) = var_info('lakeIndex'      , 'index of each lake in the river network'            ,'-'    ,ixDims%seg   , .false.)
  meta_NTOPO  (ixNTOPO%isLakeInlet    ) = var_info('isLakeInlet'    , 'flag to define if a lake inlet (1=true)'            ,'-'    ,ixDims%seg   , .false.)
  meta_NTOPO  (ixNTOPO%userTake       ) = var_info('userTake'       , 'flag to define if user takes water (1=true)'        ,'-'    ,ixDims%seg   , .false.)
  meta_NTOPO  (ixNTOPO%goodBasin      ) = var_info('goodBasin'      , 'flag to define a good basin (1=true)'               ,'-'    ,ixDims%upSeg , .false.)
+
+ ! PFAF CODE                                     varName        varDesc                                                varUnit, varType, varFile
+ meta_PFAF  (ixPFAF%code             ) = var_info('code'           , 'pfafstetter code'                                   ,'-'    ,ixDims%seg   , .false.)
 
  ! ---------- populate segment fluxes/states metadata structures -----------------------------------------------------------------------------------------------------
  ! Kinematic Wave                                 varName             varDesc                                          unit,     varDim,        writeOut

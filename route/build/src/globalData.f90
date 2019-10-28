@@ -28,6 +28,9 @@ module globalData
   use dataTypes,  only : remap         ! remapping data type
   use dataTypes,  only : runoff        ! runoff data type
 
+  ! basin data structure
+  use dataTypes,  only : subbasin_omp  ! mainstem+tributary data structures
+
   ! time data structure
   use dataTypes,  only : time         ! time data
 
@@ -40,6 +43,7 @@ module globalData
   USE var_lookup, only : nVarsHRU2SEG  ! number of variables for data structure
   USE var_lookup, only : nVarsSEG      ! number of variables for data structure
   USE var_lookup, only : nVarsNTOPO    ! number of variables for data structure
+  USE var_lookup, only : nVarsPFAF     ! number of variables for data structure
   USE var_lookup, only : nVarsIRFbas   ! number of variables for data structure
   USE var_lookup, only : nVarsIRF      ! number of variables for data structure
   USE var_lookup, only : nVarsKWT      ! number of variables for data structure
@@ -48,8 +52,8 @@ module globalData
 
   save
 
-
-
+  ! ---------- MPI/OMP variables -------------------------------------------------------------------
+  integer(i4b)                  :: nThreads            ! number of threads
   ! ---------- constants ----------------------------------------------------------------------------
 
   ! true/false
@@ -90,6 +94,7 @@ module globalData
   type(var_info)                 , public :: meta_HRU2SEG(nVarsHRU2SEG) ! HRU-to-segment mapping
   type(var_info)                 , public :: meta_SEG    (nVarsSEG    ) ! stream segment properties
   type(var_info)                 , public :: meta_NTOPO  (nVarsNTOPO  ) ! network topology
+  type(var_info)                 , public :: meta_PFAF   (nVarsPFAF   ) ! pfafstetter code
   type(var_info)                 , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
   type(var_info)                 , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
   type(var_info)                 , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
@@ -133,6 +138,10 @@ module globalData
   ! mapping structures
   type(remap)                    , public :: remap_data           ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
   type(runoff)                   , public :: runoff_data          ! runoff data for one time step for LSM HRUs and River network HRUs
+
+  ! domain data
+  type(subbasin_omp), allocatable, public :: river_basin(:)       ! openMP domain decomposition
+
   ! miscellaneous
   integer(i4b)                   , public :: ixPrint=integerMissing   ! index of desired reach to be on-screen print
 

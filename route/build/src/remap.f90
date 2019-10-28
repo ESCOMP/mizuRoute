@@ -99,12 +99,6 @@ module remapping
     cycle
    endif
 
-!   ! check that the basins match
-!   if( remap_data%hru_id(iHRU) /= structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1) )then
-!    message=trim(message)//'mismatch in HRU ids for basins in the routing layer'
-!    ierr=20; return
-!   endif
-!
    ! initialize the weighted average
    sumWeights        = 0._dp
    basinRunoff(jHRU) = 0._dp
@@ -212,14 +206,8 @@ module remapping
     cycle
    endif
 
-!   ! check that the basins match
-!   if( remap_data%hru_id(iHRU) /= structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1) )then
-!    message=trim(message)//'mismatch in HRU ids for basins in the routing layer'
-!    ierr=20; return
-!   endif
-
-   !print*, 'remap_data%hru_id(iHRU), structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1), remap_data%num_qhru(iHRU) = ', &
-   !         remap_data%hru_id(iHRU), structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1), remap_data%num_qhru(iHRU)
+   !print*, 'remap_data_in%hru_id(iHRU), structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1), remap_data_in%num_qhru(iHRU) = ', &
+   !         remap_data_in%hru_id(iHRU), structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1), remap_data_in%num_qhru(iHRU)
 
    ! initialize the weighted average
    sumWeights        = 0._dp
@@ -368,37 +356,35 @@ module remapping
   integer(i4b)                            :: nContrib         ! number of contributing HRUs
   integer(i4b)                            :: nSeg             ! number of reaches to be processed
   integer(i4b)                            :: iHRU             ! array index for contributing HRUs
-  integer(i4b), allocatable               :: ixRch(:)         ! a list of reach indices to be processed
-  integer(i4b)                            :: iSeg, jSeg       ! array index for reaches
+  logical(lgt), allocatable               :: doRoute(:)       ! logical to indicate which reaches are processed
+  integer(i4b)                            :: iSeg             ! array index for reaches
 
   ! initialize error control
   ierr=0; message='basin2reach/'
 
+  nSeg = size(NETOPO_in)
+
+  allocate(doRoute(nSeg), stat=ierr)
+
   ! optional: if a subset of reaches is processed
   if (present(ixSubRch))then
-   nSeg=size(ixSubRch)
-   allocate(ixRch(nSeg), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'unable to allocate space for [ixRch]'; return; endif
-   ixRch = ixSubRch
-  ! default: if all the reaches are processed
+   doRoute(:)=.false.
+   doRoute(ixSubRch) = .true. ! only subset of reaches are on
   else
-   nSeg = size(NETOPO_in)
-   allocate(ixRch(nSeg), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'unable to allocate space for [ixRch]'; return; endif
-   ixRch = arth(1,1,nSeg)
+   doRoute(:)=.true. ! every reach is on
   endif
 
   ! interpolate the data to the basins
   do iSeg=1,nSeg
 
-   jSeg = ixRch(iSeg)
+   if (.not. doRoute(iSeg)) cycle
 
    ! associate variables in data structure
-   nContrib       = size(NETOPO_in(jSeg)%HRUID)
-   associate(hruContribId   => NETOPO_in(jSeg)%HRUID,   & ! unique ids of contributing HRU
-             hruContribIx   => NETOPO_in(jSeg)%HRUIX,   & ! index of contributing HRU
-             basArea        => RPARAM_in(jSeg)%BASAREA, & ! basin (total contributing HRU) area
-             hruWeight      => NETOPO_in(jSeg)%HRUWGT   ) ! weight assigned to each HRU
+   nContrib       = size(NETOPO_in(iSeg)%HRUID)
+   associate(hruContribId   => NETOPO_in(iSeg)%HRUID,   & ! unique ids of contributing HRU
+             hruContribIx   => NETOPO_in(iSeg)%HRUIX,   & ! index of contributing HRU
+             basArea        => RPARAM_in(iSeg)%BASAREA, & ! basin (total contributing HRU) area
+             hruWeight      => NETOPO_in(iSeg)%HRUWGT   ) ! weight assigned to each HRU
 
    ! * case where HRUs drain into the segment
    if(nContrib > 0)then

@@ -38,16 +38,24 @@ contains
   ! local variables
   real(dp)    , allocatable     :: basinRunoff(:)     ! basin runoff (m/s)
   character(len=strLen)         :: cmessage           ! error message from subroutine
+  ! timing
+  integer*8                     :: startTime,endTime,cr ! star and end time stamp, rate
+  real(dp)                      :: elapsedTime          ! elapsed time for the process
 
   ! initialize error control
   ierr=0; message='get_hru_runoff/'
+  call system_clock(count_rate=cr)
 
+  call system_clock(startTime)
   ! get the simulated runoff for the current time step - runoff_data%qsim(:) or %qsim2D(:,:)
   call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
                         iTime,                             & ! input: time index
                         runoff_data,                       & ! inout: runoff data structure
                         ierr, cmessage)                      ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  call system_clock(endTime)
+  elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+!  write(*,"(A,1PG15.7,A)") '  elapsed-time [runoff_input/read] = ', elapsedTime, ' s'
 
   ! allocate basinRunoff (local array)
   allocate(basinRunoff(nHRU), stat=ierr)
@@ -61,22 +69,24 @@ contains
   allocate(runoff_data%basinRunoff(nHRU), stat=ierr)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+  call system_clock(startTime)
   ! Get river network HRU runoff into runoff_data data structure
   if (is_remap) then ! remap LSM simulated runoff to the HRUs in the river network
 
    call remap_runoff(runoff_data, remap_data, basinRunoff, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   runoff_data%basinRunoff=basinRunoff
-
   else ! runoff is already remapped to river network HRUs
 
    call sort_runoff(runoff_data, basinRunoff, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   runoff_data%basinRunoff=basinRunoff
-
   end if
+  call system_clock(endTime)
+  elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+!  write(*,"(A,1PG15.7,A)") '  elapsed-time [runoff_input/remap] = ', elapsedTime, ' s'
+
+  runoff_data%basinRunoff=basinRunoff
 
  end subroutine get_hru_runoff
 

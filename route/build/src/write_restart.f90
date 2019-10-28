@@ -1,7 +1,8 @@
 MODULE write_restart
 
 ! Moudle wide external modules
-USE nrtype, only: i4b, dp, strLen
+USE nrtype, only: i4b, dp, &
+                  strLen
 USE netcdf
 USE public_var
 

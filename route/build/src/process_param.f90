@@ -68,7 +68,7 @@ contains
   else
    ntdh_min = 1._dp
    ntdh_max = 1000._dp
-   ntdh_try = 0.5_dp*(ntdh_min + ntdh_max)  
+   ntdh_try = 0.5_dp*(ntdh_min + ntdh_max)
    do itry=1,maxtry
     x_value = alamb*dt*ntdh_try
     cumprob = gammp(fshape, x_value)

@@ -4,6 +4,7 @@ module model_setup
 USE nrtype,    only : i4b,dp,lgt          ! variable types, etc.
 USE nrtype,    only : strLen              ! length of characters
 USE dataTypes, only : var_ilength         ! integer type:          var(:)%dat
+USE dataTypes, only : var_clength         ! integer type:          var(:)%dat
 USE dataTypes, only : var_dlength,dlength ! double precision type: var(:)%dat, or dat
 
 USE public_var, only : verySmall
@@ -95,6 +96,7 @@ contains
    type(var_dlength), allocatable           :: structSeg(:)     ! stream segment properties
    type(var_ilength), allocatable           :: structHRU2SEG(:) ! HRU-to-segment mapping
    type(var_ilength), allocatable           :: structNTOPO(:)   ! network topology
+   type(var_clength), allocatable           :: structPFAF(:)    ! pfafstetter code
    ! others
    integer(i4b)                             :: iHRU, iRch       ! loop index
    character(len=strLen)                    :: cmessage         ! error message of downwind routine
@@ -104,9 +106,9 @@ contains
 
    ! populate various river network data strucutures for each proc
    ! read the river network data and compute additonal network attributes (inncludes spatial decomposition)
-   call init_ntopo(nHRU, nRch,                                       & ! output: number of HRU and Reaches
-                   structHRU, structSEG, structHRU2SEG, structNTOPO, & ! output: data structure for river data
-                   ierr, cmessage)                                     ! output: error controls
+   call init_ntopo(nHRU, nRch,                                       &             ! output: number of HRU and Reaches
+                   structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
+                   ierr, cmessage)                                                 ! output: error controls
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! check if network topology write option is on. If so, terminate the program
@@ -123,8 +125,12 @@ contains
    allocate(basinID(nHRU), reachID(nRch), stat=ierr)
    if(ierr/=0)then; message=trim(message)//'problem allocating [basinID, reachID]'; return; endif
 
-   forall(iHRU=1:nHRU) basinID(iHRU) = structHRU2SEG(iHRU)%var(ixHRU2SEG%hruId)%dat(1)
-   forall(iRch=1:nRch) reachID(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
+   do iHRU = 1,nHRU
+     basinID(iHRU) = structHRU2SEG(iHRU)%var(ixHRU2SEG%hruId)%dat(1)
+   enddo
+   do iRch = 1,nRch
+     reachID(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
+   end do
 
    ! runoff and remap data initialization (TO DO: split runoff and remap initialization)
    call init_runoff(&
@@ -209,7 +215,6 @@ contains
   character(*),        intent(out) :: message          ! error message
   ! local variable
   real(dp)                         :: T0,T1            ! begining/ending of simulation time step [sec]
-  integer(i4b)                     :: ix               ! index for the stream segment
   character(len=strLen)            :: cmessage         ! error message of downwind routine
 
   ! initialize error control
@@ -228,7 +233,8 @@ contains
    ! Cold start .......
    ! initialize flux structures
    RCHFLX(:,:)%BASIN_QI = 0._dp
-   forall(ix=0:1) RCHFLX(:,:)%BASIN_QR(ix) = 0._dp
+   RCHFLX(:,:)%BASIN_QR(0) = 0._dp
+   RCHFLX(:,:)%BASIN_QR(1) = 0._dp
 
    ! initialize time
    TSEC(0)=0._dp; TSEC(1)=dt
@@ -332,15 +338,16 @@ contains
  ! *********************************************************************
  ! private subroutine: initialize river network data
  ! *********************************************************************
- subroutine init_ntopo(nHRU_out, nRch_out,                               & ! output: number of HRU and Reaches
-                       structHRU, structSEG, structHRU2SEG, structNTOPO, & ! output: data structure for river data
-                       ierr, message)                                      ! output: error controls
+ subroutine init_ntopo(nHRU_out, nRch_out,                                           & ! output: number of HRU and Reaches
+                       structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
+                       ierr, message)                                                  ! output: error controls
   ! public vars
   USE public_var,           only : ancil_dir                ! name of the ancillary directory
   USE public_var,           only : fname_ntopOld            ! name of the old network topology file
   USE public_var,           only : fname_ntopNew            ! name of the new network topology file
   USE public_var,           only : dname_nhru               ! dimension name for HRUs
   USE public_var,           only : dname_sseg               ! dimension name for stream segments
+  USE public_var,           only : maxPfafLen               ! maximum digit of pfafstetter code (default 32)
   ! options
   USE public_var,           only : ntopAugmentMode          ! River network augmentation mode
   USE public_var,           only : idSegOut                 ! River network subset mode (idSegOut > 0)
@@ -348,14 +355,21 @@ contains
   USE public_var,           only : realMissing              ! missing value for real
   USE public_var,           only : integerMissing           ! missing value for integers
   ! global data
-  USE globalData,           only : NETOPO, RPARAM           !
+  USE globalData,           only : meta_PFAF                ! meta for pfafstetter code
+  USE globalData,           only : NETOPO, RPARAM           ! network and parameter data structure used in routing routine
+  USE globalData,           only : river_basin              ! OMP domain decompostion data strucuture
+  ! variable index
+  USE var_lookup,           only : ixPFAF                   ! index of variables for the pfafstetter code
   ! external subroutines
   USE read_streamSeg,       only : getData                  ! get the ancillary data
   USE write_streamSeg,      only : writeData                ! write the ancillary data
   USE process_ntopo,        only : check_river_properties   ! check if river network data is physically valid
+  USE io_netcdf,            only : get_var_dims
   USE process_ntopo,        only : augment_ntopo            ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,        only : put_data_struct          ! populate NETOPO and RPARAM data structure
-
+  USE domain_decomposition, only : omp_domain_decomposition     ! domain decomposition for omp
+!  USE domain_decomposition, only : omp_domain_decomposition &    ! domain decomposition for omp
+!                                => omp_domain_decomposition_stro
   implicit none
   ! input: None
   ! output (river network data structures for the entire domain)
@@ -365,6 +379,7 @@ contains
   type(var_dlength), allocatable, intent(out) :: structSeg(:)             ! stream segment properties
   type(var_ilength), allocatable, intent(out) :: structHRU2SEG(:)         ! HRU-to-segment mapping
   type(var_ilength), allocatable, intent(out) :: structNTOPO(:)           ! network topology
+  type(var_clength), allocatable, intent(out) :: structPFAF(:)            ! pfafstetter code
   ! output: error control
   integer(i4b)      , intent(out)             :: ierr                     ! error code
   character(*)      , intent(out)             :: message                  ! error message
@@ -375,11 +390,27 @@ contains
   integer(i4b)                                :: tot_uh                   ! total number of unit hydrograph from all the stream segments
   integer(i4b),      allocatable              :: ixHRU_desired(:)         ! indices of desired hrus
   integer(i4b),      allocatable              :: ixSeg_desired(:)         ! indices of desired reaches
+  integer(i4b)                                :: dummy(2)                 ! dummy variable to hold dimension length for 2D variables in netCDF
   integer(i4b)   , parameter                  :: maxUpstreamFile=10000000 ! 10 million: maximum number of upstream reaches to enable writing
   character(len=strLen)                       :: cmessage                 ! error message of downwind routine
+  integer*8                                   :: cr                  ! rate
+  integer*8                                   :: startTime,endTime   ! date/time for the start and end of the initialization
+  real(dp)                                    :: elapsedTime         ! elapsed time for the process
 
   ! initialize error control
   ierr=0; message='init_ntopo/'
+  call system_clock(count_rate=cr)
+
+  if (meta_PFAF(ixPFAF%code)%varFile) then
+    ! get the variable dimensions
+    ! NOTE: need to update maxPfafLen to the exact character size for pfaf code in netCDF
+    call get_var_dims(trim(ancil_dir)//trim(fname_ntopOld), & ! input: file name
+                      trim(meta_PFAF(ixPFAF%code)%varName), & ! input: pfaf code variable name in netcdf
+                      ierr, cmessage,                       & ! output: error control
+                      dlen=dummy)                             ! output optional: dimension length
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    maxPfafLen = dummy(1)
+  end if
 
   ! read river network data
   call getData(&
@@ -395,6 +426,7 @@ contains
                structSeg,    & ! ancillary data for stream segments
                structHRU2seg,& ! ancillary data for mapping hru2basin
                structNTOPO,  & ! ancillary data for network topology
+               structPFAF,   & ! ancillary data for pfafstetter code
                ! output: error control
                ierr,cmessage) ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -452,11 +484,13 @@ contains
                    structSeg,     & ! input: ancillary data for stream segments
                    structHRU2seg, & ! input: ancillary data for mapping hru2basin
                    structNTOPO,   & ! input: ancillary data for network topology
+                   structPFAF,    & ! input: ancillary data for pfafstetter code
                    ! output: error control
                    ierr,cmessage) ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    write(*,'(a)') 'Running in river network writing mode'
+    if (idSegOut>0) write(*,'(a)') 'Running in river network subset mode'
+    if (ntopAugmentMode) write(*,'(a)') 'Running in river network augmentation mode'
     write(*,'(a)') 'Created a new network topology file '//trim(fname_ntopNew)
     write(*,'(a)') ' --> Run again using the new network topology file '
     write(*,'(a)') ' SUCCESSFUL EXECUTION '
@@ -468,6 +502,14 @@ contains
                        RPARAM, NETOPO,                   & ! output
                        ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! spatial domain decomposition for OMP parallelization
+  call system_clock(startTime)
+  call omp_domain_decomposition(nRch_out, structNTOPO, river_basin, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  call system_clock(endTime)
+  elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+  write(*,"(A,1PG15.7,A)") '  elapsed-time [domain_decomposition] = ', elapsedTime, ' s'
 
  end subroutine init_ntopo
 
@@ -561,7 +603,7 @@ contains
      endif
    end do
 
- else ! if runoff given in RN_HRU,
+ else ! if runoff given in RN_HRU
 
    allocate(runoff_data_in%hru_ix(size(runoff_data_in%hru_id)), stat=ierr)
    if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data_in%hru_ix'; return; endif
@@ -588,8 +630,8 @@ contains
       ierr=20; return
      endif
    end do
+
  endif
- !print*, trim(message)//'PAUSE : '; read(*,*)
 
  end subroutine init_runoff
 

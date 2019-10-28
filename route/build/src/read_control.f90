@@ -26,12 +26,14 @@ contains
  USE globalData, only : meta_HRU2SEG         ! HRU-to-segment mapping
  USE globalData, only : meta_SEG             ! stream segment properties
  USE globalData, only : meta_NTOPO           ! network topology
+ USE globalData, only : meta_PFAF            ! pfafstetter code
 
  ! named variables in each structure
  USE var_lookup, only : ixHRU                ! index of variables for data structure
  USE var_lookup, only : ixHRU2SEG            ! index of variables for data structure
  USE var_lookup, only : ixSEG                ! index of variables for data structure
  USE var_lookup, only : ixNTOPO              ! index of variables for data structure
+ USE var_lookup, only : ixPFAF               ! index of variables for data structure
 
  ! external subroutines
  USE ascii_util_module,only:file_open        ! open file (performs a few checks as well)
@@ -148,6 +150,9 @@ contains
    case('<desireId>'   );          read(cData,*,iostat=io_error) desireId          ! turn off checks or speficy reach ID if necessary to print on screen
    case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute    ! basin routing options   0-> no, 1->IRF, otherwise error
    case('<doesAccumRunoff>');      read(cData,*,iostat=io_error) doesAccumRunoff   ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
+   ! PFAFCODE
+   case('<maxPfafLen>');           read(cData,*,iostat=io_error) maxPfafLen        ! maximum digit of pfafstetter code (default 32)
+   case('<pfafMissing>');          pfafMissing = trim(cData)                       ! missing pfafcode (e.g., reach without any upstream area)
 
    ! VARIABLE NAMES for data (overwrite default name in popMeta.f90)
    ! HRU structure
@@ -187,6 +192,9 @@ contains
    case('<varname_isLakeInlet>'  ); meta_NTOPO  (ixNTOPO%isLakeInlet   )%varName =trim(cData)  ! flag to define if reach is a lake inlet (1=inlet, 0 otherwise)
    case('<varname_userTake>'     ); meta_NTOPO  (ixNTOPO%userTake      )%varName =trim(cData)  ! flag to define if user takes water from reach (1=extract, 0 otherwise)
    case('<varname_goodBasin>'    ); meta_NTOPO  (ixNTOPO%goodBasin     )%varName =trim(cData)  ! flag to define a good basin (1=good, 0=bad)
+
+   ! pfafstetter code
+   case('<varname_pfafCode>'     ); meta_PFAF   (ixPFAF%code           )%varName =trim(cData)  ! pfafstetter code
 
    ! if not in list then keep going
    case default
