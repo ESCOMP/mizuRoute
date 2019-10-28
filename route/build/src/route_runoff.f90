@@ -36,9 +36,10 @@ logical(lgt)                  :: finished=.false.
 integer*8                     :: cr, startTime, endTime
 real(dp)                      :: elapsedTime
 
+! ======================================================================================================
+! ======================================================================================================
 ! Initialize the system_clock
 call system_clock(count_rate=cr)
-rate = real(cr)
 
 ! get command-line argument defining the full path to the control file
  call getarg(1,cfile_name)
@@ -77,21 +78,21 @@ call system_clock(startTime)
   if(ierr/=0) call handle_err(ierr, cmessage)
 call system_clock(endTime)
 elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-!write(*,"(A,1PG15.7,A)") '   elapsed-time [read_ro] = ', elapsedTime, ' s'
+write(*,"(A,1PG15.7,A)") '   elapsed-time [read_ro] = ', elapsedTime, ' s'
 
 call system_clock(startTime)
   call serial_route(iens, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
 call system_clock(endTime)
 elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-!write(*,"(A,1PG15.7,A)") '   elapsed-time [routing] = ', elapsedTime, ' s'
+write(*,"(A,1PG15.7,A)") '   elapsed-time [routing] = ', elapsedTime, ' s'
 
 call system_clock(startTime)
   call output(ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
 call system_clock(endTime)
 elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-!write(*,"(A,1PG15.7,A)") '   elapsed-time [output] = ', elapsedTime, ' s'
+write(*,"(A,1PG15.7,A)") '   elapsed-time [output] = ', elapsedTime, ' s'
 
   call update_time(finished, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)

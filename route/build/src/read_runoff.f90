@@ -3,12 +3,12 @@ module read_runoff
 USE netcdf
 USE nrtype
 USE public_var
-USE read_netcdf, only:get_nc
-USE read_netcdf, only:get_var_attr_real
-USE read_netcdf, only:get_var_attr_char
+USE io_netcdf, only:get_nc
+USE io_netcdf, only:get_var_attr_real
+USE io_netcdf, only:get_var_attr_char
 
-USE read_netcdf, only:get_nc_dim_len
-USE dataTypes,   only:runoff                 ! runoff data type
+USE io_netcdf, only:get_nc_dim_len
+USE dataTypes, only:runoff                 ! runoff data type
 
 implicit none
 

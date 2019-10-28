@@ -132,9 +132,13 @@ contains
    real(dp),      allocatable                :: reachRunoff_local(:) ! reach runoff (m/s)
    integer(i4b)                              :: nSeg                 ! number of reach to be processed
    integer(i4b)                              :: iSeg                 ! index of reach
+   !Timing
+   integer*8                                 :: cr, startTime, endTime
+   real(dp)                                  :: elapsedTime
 
    ! initialize errors
    ierr=0; message = "main_routing/"
+   call system_clock(count_rate=cr)
 
   ! define the start and end of the time step
   T0=TSEC(0); T1=TSEC(1)
@@ -147,6 +151,7 @@ contains
 
   ! 1. subroutine: map basin runoff to river network HRUs
   ! map the basin runoff to the stream network...
+  call system_clock(startTime)
   call basin2reach(&
                   ! input
                   basinRunoff_in,     & ! basin runoff (m/s)
@@ -157,9 +162,13 @@ contains
                   ierr, cmessage,     & ! intent(out): error control
                   ixRchProcessed)       ! optional input: indices of reach to be routed
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  call system_clock(endTime)
+  elapsedTime = real(endTime-startTime, kind(dp))/real(cr,kind(dp))
+  write(*,"(A,1PG15.7,A)") '      elapsed-time [basin2reach] = ', elapsedTime, ' s'
 
   ! 2. subroutine: basin route
   if (doesBasinRoute == 1) then
+    call system_clock(startTime)
     ! instantaneous runoff volume (m3/s) to data structure
     do iSeg = 1,nSeg
      RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QI = reachRunoff_local(iSeg)
@@ -170,6 +179,9 @@ contains
                          ierr, cmessage,    &  ! output: error controls
                          ixRchProcessed)       ! optional input: indices of reach to be routed
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call system_clock(endTime)
+    elapsedTime = real(endTime-startTime, kind(dp))/real(cr,kind(dp))
+    write(*,"(A,1PG15.7,A)") '      elapsed-time [IRF_route_basin] = ', elapsedTime, ' s'
   else
     ! no basin routing required (handled outside mizuRoute))
     do iSeg = 1,nSeg
@@ -181,6 +193,7 @@ contains
   ! 3. subroutine: river reach routing
    ! perform upstream flow accumulation
    if (doesAccumRunoff == 1) then
+     call system_clock(startTime)
      call accum_runoff(iens,              &  ! input: ensemble index
                        ixPrint,           &  ! input: index of verbose reach
                        NETOPO_in,         &  ! input: reach topology data structure
@@ -188,10 +201,14 @@ contains
                        ierr, cmessage,    &  ! output: error controls
                        ixRchProcessed)       ! optional input: indices of reach to be routed
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     call system_clock(endTime)
+     elapsedTime = real(endTime-startTime, kind(dp))/real(cr,kind(dp))
+     write(*,"(A,1PG15.7,A)") '      elapsed-time [accum_runoff] = ', elapsedTime, ' s'
    endif
 
    ! perform KWT routing
    if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
+    call system_clock(startTime)
     call kwt_route(iens,                 & ! input: ensemble index
                    T0,T1,                & ! input: start and end of the time step
                    ixPrint,              & ! input: index of the desired reach
@@ -202,10 +219,14 @@ contains
                    ierr,cmessage,        & ! output: error control
                    ixRchProcessed)         ! optional input: indices of reach to be routed
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call system_clock(endTime)
+    elapsedTime = real(endTime-startTime, kind(dp))/real(cr,kind(dp))
+    write(*,"(A,1PG15.7,A)") '      elapsed-time [kwt_route] = ', elapsedTime, ' s'
    endif
 
    ! perform IRF routing
    if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+    call system_clock(startTime)
     call irf_route(iens,                & ! input: ensemble index
                    ixPrint,             & ! input: index of the desired reach
                    NETOPO_in,           & ! input: reach topology data structure
@@ -213,6 +234,9 @@ contains
                    ierr,cmessage,       & ! output: error control
                    ixRchProcessed)        ! optional input: indices of reach to be routed
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call system_clock(endTime)
+    elapsedTime = real(endTime-startTime, kind(dp))/real(cr,kind(dp))
+    write(*,"(A,1PG15.7,A)") '      elapsed-time [irf_route] = ', elapsedTime, ' s'
    endif
 
  end subroutine main_route
