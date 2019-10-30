@@ -1,4 +1,4 @@
-[![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.56043.svg)](http://dx.doi.org/10.5281/zenodo.56043)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3522462.svg)](https://doi.org/10.5281/zenodo.3522462)
 [![Documentation Status](https://readthedocs.org/projects/mizuroute/badge/?version=develop)](https://mizuroute.readthedocs.io/en/develop/?badge=develop)
 
 # mizuRoute
