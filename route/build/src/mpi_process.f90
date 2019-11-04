@@ -434,12 +434,13 @@ contains
   if(ierr/=0)then; message=trim(message)//'problem allocating array for [tribOutlet_local]'; return; endif
   tribOutlet_local = .false.
   do ix=1,rch_per_proc(pid)
-    if (structNTOPO_local(ix)%var(ixNTOPO%downSegIndex)%dat(1) == -1) then
+    if (structNTOPO_local(ix)%var(ixNTOPO%downSegIndex)%dat(1) == -1 .and. &
+        structNTOPO_local(ix)%var(ixNTOPO%downSegId)%dat(1) > 0) then  !index == -1 but there is donwstream id actually
       tribOutlet_local(ix) = .true.
     endif
   enddo
 
-  ! ather array for number of tributary outlet reaches per proc
+  ! gather array for tributary outlet reaches per each proc
   call shr_mpi_allgather(tribOutlet_local, rch_per_proc(root:nNodes-1), tribOutlet, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -683,10 +684,13 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/tributary-ro
   ! make sure that routing at all the procs finished
   call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
+  if (rch_per_proc(-1)==0) return
+
   ! --------------------------------
   ! Collect all the tributary flows
   ! --------------------------------
 call system_clock(startTime)
+
   ! flux communication
   call mpi_comm_flux(pid, nNodes,         & ! input:
                      iens,                & ! input:
@@ -717,8 +721,6 @@ call system_clock(startTime)
 call system_clock(endTime)
 elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/gater-state-flux] = ', elapsedTime, ' s'
-
-  if (rch_per_proc(-1)==0) return
 
   ! --------------------------------
   ! perform mainstem routing
