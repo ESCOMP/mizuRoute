@@ -31,6 +31,7 @@ USE mpi_mod,           ONLY: shr_mpi_bcast
 USE mpi_mod,           ONLY: shr_mpi_gatherV
 USE mpi_mod,           ONLY: shr_mpi_scatterV
 USE mpi_mod,           ONLY: shr_mpi_allgather
+USE mpi_mod,           ONLY: shr_mpi_abort
 
 implicit none
 ! common parameters within this module
@@ -325,6 +326,19 @@ contains
        enddo branch
 
      enddo sorder
+
+    ! -------------------
+    ! print*,'segid,branch,order'
+    ! do ix = 1, size(river_basin_main)
+    !   do ixx = 1, size(river_basin_main(ix)%branch)
+    !     do iSeg = 1, river_basin_main(ix)%branch(ixx)%nRch
+    !       associate (idx_tmp => river_basin_main(ix)%branch(ixx)%segIndex(iSeg))
+    !       write(*,"(I15,A,I9,A,I9)") structNTOPO(idx_tmp)%var(ixNTOPO%segId)%dat(1),',',ixx,',',ix
+    !       end associate
+    !     end do
+    !   end do
+    ! enddo
+    ! -------------------
 
    endif ! if a single node
 
