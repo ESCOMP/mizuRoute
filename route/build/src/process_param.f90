@@ -65,7 +65,6 @@ contains
   do itry=1,maxtry
    x_value = alamb*dt*ntdh_try
    cumprob = gammp(fshape, x_value)
-   !print*, tscale, ntdh_try, cumprob
    if(cumprob < 0.99_dp)  ntdh_min = ntdh_try
    if(cumprob > 0.999_dp) ntdh_max = ntdh_try
    if(cumprob > 0.99_dp .and. cumprob < 0.999_dp) exit

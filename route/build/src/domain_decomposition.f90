@@ -85,18 +85,18 @@ contains
        downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
      end do
 
-     print*,'seg_index segid down_index down_id node-id'
+     write(iulog,*) 'seg_index segid down_index down_id node-id'
      do ix = 1,nDomain
       associate (segIndexSub => domains(ix)%segIndex, nSubSeg => size(domains(ix)%segIndex))
       do iSeg = 1,size(segIndexSub)
        if (downIndex(segIndexSub(iSeg)) > 0) then
-       write(*,"(I9,A,I12,A,I9,A,I12,A,I2)") segIndexSub(iSeg),' ',segId(segIndexSub(iSeg)),' ', &
-                                             downIndex(segIndexSub(iSeg)),' ',segId(downIndex(segIndexSub(iSeg))),' ', &
-                                             domains(ix)%idNode
+       write(iulog, "(I9,A,I12,A,I9,A,I12,A,I2)") segIndexSub(iSeg),' ',segId(segIndexSub(iSeg)),' ', &
+                                                  downIndex(segIndexSub(iSeg)),' ',segId(downIndex(segIndexSub(iSeg))),' ', &
+                                                  domains(ix)%idNode
        else
-       write(*,"(I9,A,I12,A,I9,A,I12,A,I2)") segIndexSub(iSeg),' ',segId(segIndexSub(iSeg)),' ', &
-                                                     downIndex(segIndexSub(iSeg)),' ',-999,' ', &
-                                                     domains(ix)%idNode
+       write(iulog, "(I9,A,I12,A,I9,A,I12,A,I2)") segIndexSub(iSeg),' ',segId(segIndexSub(iSeg)),' ', &
+                                                  downIndex(segIndexSub(iSeg)),' ',-999,' ', &
+                                                  domains(ix)%idNode
        endif
       end do
       end associate
@@ -111,18 +111,18 @@ contains
       end associate
      end do
      if (count(missing)>0) then
-       print*,'segid down_id'
+       write(iulog,*) 'segid down_id'
        do iSeg = 1, nSeg
         if (missing(iSeg)) then ! if not assigned reaches
          if (downIndex(iSeg)>0) then
-          print*, segId(iSeg), segId(downIndex(iSeg))
+          write(iulog,*) segId(iSeg), segId(downIndex(iSeg))
          else
-          print*, segId(iSeg), downIndex(iSeg)
+          write(iulog,*) segId(iSeg), downIndex(iSeg)
          endif
         endif
        enddo
       else
-       print*, 'NO MISSING SEGMENT: ALL SEGMENTS ARE ASSIGNED TO DOMAINS'
+       write(iulog,*) 'NO MISSING SEGMENT: ALL SEGMENTS ARE ASSIGNED TO DOMAINS'
      endif
 
    end subroutine print_screen

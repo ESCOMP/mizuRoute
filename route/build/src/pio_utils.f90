@@ -166,7 +166,7 @@ contains
       enddo
 
 !   do ix = 1,lsize
-!    print*, (compdof2d(ix,jx),jx=1,nn)
+!    write(*,*) (compdof2d(ix,jx),jx=1,nn)
 !   enddo
 
       allocate(compdof(totnum))
@@ -179,7 +179,7 @@ contains
 
     endif
 
-!    print*, (compdof(ix),ix=1,totnum)
+!    write(*,*) (compdof(ix),ix=1,totnum)
 
     call pio_initdecomp(pioIoSystem,      & ! input: pio system descriptor
                         piotype,          & ! input: data type

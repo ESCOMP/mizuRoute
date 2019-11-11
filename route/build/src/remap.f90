@@ -18,6 +18,7 @@ module remapping
   use var_lookup,only:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
 
   ! global data
+  USE public_var,only:iulog                  ! i/o logical unit number
   USE public_var,only:runoffMin, negRunoffTol, integerMissing
   USE globalData,only:time_conv,length_conv  ! conversion factors
 
@@ -112,13 +113,13 @@ module remapping
 
     ! check i-indices
     if(ii < lbound(runoff_data_in%qSim2d,1) .or. ii > ubound(runoff_data_in%qSim2d,1))then
-     if(printWarn) write(*,'(a,4(i0,a))') trim(message)//'WARNING: When computing weighted runoff at ', jHRU, 'th-HRU, i-index ', ii,' was not found in runoff grid data.'
+     if(printWarn) write(iulog,'(a,4(i0,a))') trim(message)//'WARNING: When computing weighted runoff at ', jHRU, 'th-HRU, i-index ', ii,' was not found in runoff grid data.'
      ixOverlap = ixOverlap + 1; cycle
     endif
 
     ! check j-indices
     if(jj < lbound(runoff_data_in%qSim2d,2) .or. jj > ubound(runoff_data_in%qSim2d,2))then
-     if(printWarn) write(*,'(a,4(i0,a))') trim(message)//'WARNING: When computing weighted runoff at ', jHRU, 'th-HRU, j-index ', jj, 'was not found in runoff grid data.'
+     if(printWarn) write(iulog,'(a,4(i0,a))') trim(message)//'WARNING: When computing weighted runoff at ', jHRU, 'th-HRU, j-index ', jj, 'was not found in runoff grid data.'
      ixOverlap = ixOverlap + 1; cycle
     endif
 
@@ -130,9 +131,9 @@ module remapping
 
     ! check
     if(remap_data_in%i_index(iHRU)==ixCheck .and. remap_data_in%j_index(iHRU)==jxCheck)then
-     print*, 'remap_data_in%i_index(iHRU),remap_data_in%j_index(iHRU) = ', remap_data_in%i_index(iHRU), remap_data_in%j_index(iHRU)
-     print*, 'remap_data_in%num_qhru(iHRU)                            = ', remap_data_in%num_qhru(iHRU)
-     print*, 'runoff_data_in%qSim2D(ii,jj)                            = ', runoff_data_in%qSim2D(ii,jj)
+     write(iulog,*) 'remap_data_in%i_index(iHRU),remap_data_in%j_index(iHRU) = ', remap_data_in%i_index(iHRU), remap_data_in%j_index(iHRU)
+     write(iulog,*) 'remap_data_in%num_qhru(iHRU)                            = ', remap_data_in%num_qhru(iHRU)
+     write(iulog,*) 'runoff_data_in%qSim2D(ii,jj)                            = ', runoff_data_in%qSim2D(ii,jj)
     endif
 
     ! increment the overlap index
@@ -147,19 +148,10 @@ module remapping
 
    ! check
    if(remap_data_in%i_index(iHRU)==ixCheck .and. remap_data_in%j_index(iHRU)==jxCheck)then
-    print*, 'basinRunoff(jHRU) = ', basinRunoff(jHRU)*86400._dp*1000._dp*365._dp
-    print*, 'PAUSE : '; read(*,*)
+    write(iulog,*) 'basinRunoff(jHRU) = ', basinRunoff(jHRU)*86400._dp*1000._dp*365._dp
    endif
 
-   ! print progress
-   !if(mod(iHRU,100000)==0)then
-   ! print*, trim(message)//'mapping runoff, iHRU, basinRunoff(jHRU) = ', &
-   !                                         iHRU, basinRunoff(jHRU)
-   !endif
-
   end do   ! looping through basins in the mapping layer
-
-  !!print*, 'PAUSE: after remap_2D_runoff'; read(*,*)
 
   end subroutine remap_2D_runoff
 
@@ -206,8 +198,8 @@ module remapping
     cycle
    endif
 
-   !print*, 'remap_data_in%hru_id(iHRU), remap_data_in%num_qhru(iHRU) = ', &
-   !         remap_data_in%hru_id(iHRU), remap_data_in%num_qhru(iHRU)
+   !write(*,*) 'remap_data_in%hru_id(iHRU), remap_data_in%num_qhru(iHRU) = ', &
+   !            remap_data_in%hru_id(iHRU), remap_data_in%num_qhru(iHRU)
 
    ! initialize the weighted average
    sumWeights        = 0._dp
@@ -217,7 +209,7 @@ module remapping
    do ixPoly=1,remap_data_in%num_qhru(iHRU) ! number of overlapping polygons
 
     ! check that the cell exists in the runoff file
-    !print*, 'ixOverlap, remap_data_in%qhru_ix(ixOverlap) = ', ixOverlap, remap_data_in%qhru_ix(ixOverlap)
+    !write(*,*) 'ixOverlap, remap_data_in%qhru_ix(ixOverlap) = ', ixOverlap, remap_data_in%qhru_ix(ixOverlap)
     if(remap_data_in%qhru_ix(ixOverlap)==integerMissing)then
      ixOverlap = ixOverlap + 1
      cycle
@@ -240,13 +232,13 @@ module remapping
 
     ! check
     if(remap_data_in%hru_id(iHRU)==ixCheck)then
-     print*, 'remap_data_in%hru_id(iHRU)                         = ', remap_data_in%hru_id(iHRU)
-     print*, 'remap_data_in%num_qhru(iHRU)                       = ', remap_data_in%num_qhru(iHRU)
-     print*, 'ixRunoff, runoff_data_in%qSim(ixRunoff)            = ', ixRunoff, runoff_data_in%qSim(ixRunoff)
+     write(iulog,*) 'remap_data_in%hru_id(iHRU)                         = ', remap_data_in%hru_id(iHRU)
+     write(iulog,*) 'remap_data_in%num_qhru(iHRU)                       = ', remap_data_in%num_qhru(iHRU)
+     write(iulog,*) 'ixRunoff, runoff_data_in%qSim(ixRunoff)            = ', ixRunoff, runoff_data_in%qSim(ixRunoff)
     endif
 
-    !print*, 'remap_data_in%qhru_id(ixOverlap), runoff_data_in%hru_id(ixRunoff), remap_data_in%weight(ixOverlap), runoff_data_in%qSim(ixRunoff) = ', &
-    !         remap_data_in%qhru_id(ixOverlap), runoff_data_in%hru_id(ixRunoff), remap_data_in%weight(ixOverlap), runoff_data_in%qSim(ixRunoff)
+    !write(*,*) 'remap_data_in%qhru_id(ixOverlap), runoff_data_in%hru_id(ixRunoff), remap_data_in%weight(ixOverlap), runoff_data_in%qSim(ixRunoff) = ', &
+    !            remap_data_in%qhru_id(ixOverlap), runoff_data_in%hru_id(ixRunoff), remap_data_in%weight(ixOverlap), runoff_data_in%qSim(ixRunoff)
 
     ! increment the overlap index
     ixOverlap = ixOverlap + 1
@@ -260,18 +252,8 @@ module remapping
 
    ! check
    if(remap_data_in%hru_id(iHRU)==ixCheck)then
-    print*, 'basinRunoff(jHRU) = ', basinRunoff(jHRU)*86400._dp*1000._dp*365._dp
-    print*, 'PAUSE : '; read(*,*)
+    write(iulog,*) 'basinRunoff(jHRU) = ', basinRunoff(jHRU)*86400._dp*1000._dp*365._dp
    endif
-
-   ! print progress
-   !if(mod(iHRU,100000)==0)then
-   ! print*, trim(message)//'mapping runoff, iHRU, basinRunoff(jHRU) = ', &
-   !                                         iHRU, basinRunoff(jHRU)
-   !endif
-
-   !print*, 'basinRunoff(jHRU) = ', basinRunoff(jHRU)
-   !print*, 'PAUSE : '; read(*,*)
 
   end do   ! looping through basins in the mapping layer
 
@@ -313,10 +295,9 @@ module remapping
 
    ! check
    if(runoff_data_in%hru_id(iHRU)==ixCheck)then
-    print*, 'jHRU, runoff_data_in%hru_id(iHRU) = ', jHRU, runoff_data_in%hru_id(iHRU)
-    print*, 'runoff_data_in%qsim(iHRU)         = ', runoff_data_in%qsim(iHRU)
-    print*, 'basinRunoff(jHRU)                 = ', basinRunoff(jHRU)*86400._dp*1000._dp*365._dp
-    print*, 'PAUSE : '; read(*,*)
+    write(iulog,*) 'jHRU, runoff_data_in%hru_id(iHRU) = ', jHRU, runoff_data_in%hru_id(iHRU)
+    write(iulog,*) 'runoff_data_in%qsim(iHRU)         = ', runoff_data_in%qsim(iHRU)
+    write(iulog,*) 'basinRunoff(jHRU)                 = ', basinRunoff(jHRU)*86400._dp*1000._dp*365._dp
    endif
 
   end do   ! looping through basins in the mapping layer

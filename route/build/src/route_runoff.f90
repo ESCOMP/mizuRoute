@@ -9,6 +9,8 @@ program route_runoff
 ! ****************************************************
 ! variable types
 USE nrtype                                     ! variable types, etc.
+! shared data
+USE public_var, only : iulog                   ! i/o logical unit number
 USE globalData, only : pid, nNodes, nThreads   ! procs id and number of procs and threads
 
 ! ******
@@ -171,7 +173,7 @@ contains
  integer(i4b),intent(in)::err             ! error code
  character(*),intent(in)::message         ! error message
  if(err/=0)then
-  print*,'FATAL ERROR: '//trim(message)
+  write(iulog,*) 'FATAL ERROR: '//trim(message)
   call flush(6)
   stop
  endif

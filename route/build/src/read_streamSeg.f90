@@ -195,7 +195,7 @@ contains
    ! ---------- read data into temporary structures ----------------------------------------------------------------
 
    ! print progress
-   print*, 'Reading '//trim(varName)//' into structure '//trim(meta_struct(iStruct)%structName)
+   write(iulog,*) 'Reading '//trim(varName)//' into structure '//trim(meta_struct(iStruct)%structName)
 
    ! read data from NetCDF files
    select case(iStruct)

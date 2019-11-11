@@ -6,6 +6,7 @@ USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
 USE dataTypes,         ONLY: KREACH            ! collection of particles in a given reach
 USE dataTypes,         ONLY: RCHTOPO           ! Network topology
 USE dataTypes,         ONLY: states
+USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: integerMissing
 USE public_var,        ONLY: realMissing
 USE globalData,        ONLY: pid, nNodes
@@ -55,9 +56,9 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   if (pid==0) then
-   print*, '--------------------'
-   print*, 'Finished simulation'
-   print*, '--------------------'
+   write(iulog,*) '--------------------'
+   write(iulog,*) 'Finished simulation'
+   write(iulog,*) '--------------------'
   end if
 
  end subroutine output_state

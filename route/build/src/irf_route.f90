@@ -6,9 +6,9 @@ USE nrtype
 USE dataTypes,          only : STRFLX         ! fluxes in each reach
 USE dataTypes,          only : RCHTOPO        ! Network topology
 ! global parameters
+USE public_var,         only : iulog          ! i/o logical unit number
 USE public_var,         only : realMissing    ! missing value for real number
 USE public_var,         only : integerMissing ! missing value for integer number
-!USE globalData,         only : nThreads          ! number of threads used for openMP
 
 ! privary
 implicit none
@@ -192,8 +192,8 @@ contains
 
   ! check
   if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
-   print*, 'RCHFLX_out(iens,segIndex)%BASIN_QR(1),RCHFLX_out(iens,segIndex)%REACH_Q_IRF = ', &
-            RCHFLX_out(iens,segIndex)%BASIN_QR(1),RCHFLX_out(iens,segIndex)%REACH_Q_IRF
+   write(iulog,*) 'RCHFLX_out(iens,segIndex)%BASIN_QR(1),RCHFLX_out(iens,segIndex)%REACH_Q_IRF = ', &
+                   RCHFLX_out(iens,segIndex)%BASIN_QR(1),RCHFLX_out(iens,segIndex)%REACH_Q_IRF
   endif
 
  end subroutine segment_irf

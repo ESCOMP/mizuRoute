@@ -9,6 +9,7 @@ USE dataTypes,  only : STRFLX            ! fluxes in each reach
 USE dataTypes,  only : RCHTOPO           ! Network topology
 USE dataTypes,  only : RCHPRP            ! Reach parameter
 ! global data
+USE public_var, only : iulog             ! i/o logical unit number
 USE public_var, only : verySmall         ! a very small value
 USE public_var, only : realMissing       ! missing value for real number
 USE public_var, only : integerMissing    ! missing value for integer number
@@ -261,8 +262,8 @@ contains
      INIT=.false.
    endif
 
-   if(JRCH==ixDesire) write(*,"('JRCH=',I10)") JRCH
-   if(JRCH==ixDesire) write(*,"('T0-T1=',F20.7,1x,F20.7)") T0, T1
+   if(JRCH==ixDesire) write(iulog,"('JRCH=',I10)") JRCH
+   if(JRCH==ixDesire) write(iulog,"('T0-T1=',F20.7,1x,F20.7)") T0, T1
 
    RCHFLX_out(IENS,JRCH)%TAKE=0.0_dp ! initialize take from this reach
     ! ----------------------------------------------------------------------------------------
@@ -284,7 +285,7 @@ contains
       ! check
       if(JRCH==ixDesire)then
         write(fmt1,'(A,I5,A)') '(A,1X',size(Q_JRCH),'(1X,F20.7))'
-        write(*,fmt1) 'Initial_Q_JRCH=', (Q_JRCH(IWV), IWV=0,size(Q_JRCH)-1)
+        write(iulog,fmt1) 'Initial_Q_JRCH=', (Q_JRCH(IWV), IWV=0,size(Q_JRCH)-1)
       endif
     else
       ! set flow in headwater reaches to modelled streamflow from time delay histogram
@@ -301,7 +302,7 @@ contains
       KROUTE_out(IENS,JRCH)%KWAVE(0)%RF=.False.
       KROUTE_out(IENS,JRCH)%KWAVE(0)%QM=-9999
       ! check
-      if(JRCH==ixDesire) print*, 'JRCH, RCHFLX_out(IENS,JRCH)%REACH_Q = ', JRCH, RCHFLX_out(IENS,JRCH)%REACH_Q
+      if(JRCH==ixDesire) write(iulog,*) 'JRCH, RCHFLX_out(IENS,JRCH)%REACH_Q = ', JRCH, RCHFLX_out(IENS,JRCH)%REACH_Q
       return  ! no upstream reaches (routing for sub-basins done using time-delay histogram)
     endif
     ! ----------------------------------------------------------------------------------------
@@ -336,10 +337,10 @@ contains
     if(JRCH == ixDesire)then
       write(fmt1,'(A,I5,A)') '(A,1X',NQ1+1,'(1X,F20.7))'
       write(fmt2,'(A,I5,A)') '(A,1X',NQ1+1,'(1X,L))'
-      write(*,fmt1) 'Q_JRCH=',(Q_JRCH(IWV), IWV=0,NQ1)
-      write(*,fmt2) 'FROUTE=',(FROUTE(IWV), IWV=0,NQ1)
-      write(*,fmt1) 'TENTRY=',(TENTRY(IWV), IWV=0,NQ1)
-      write(*,fmt1) 'T_EXIT=',(T_EXIT(IWV), IWV=0,NQ1)
+      write(iulog,fmt1) 'Q_JRCH=',(Q_JRCH(IWV), IWV=0,NQ1)
+      write(iulog,fmt2) 'FROUTE=',(FROUTE(IWV), IWV=0,NQ1)
+      write(iulog,fmt1) 'TENTRY=',(TENTRY(IWV), IWV=0,NQ1)
+      write(iulog,fmt1) 'T_EXIT=',(T_EXIT(IWV), IWV=0,NQ1)
     endif
     ! ----------------------------------------------------------------------------------------
     ! (4) COMPUTE TIME-STEP AVERAGES
@@ -350,7 +351,7 @@ contains
     ! (zero position last routed; use of NR+1 instead of NR keeps next expected routed point)
     call INTERP_RCH(T_EXIT(0:NR+1),Q_JRCH(0:NR+1),TNEW,QNEW,IERR,CMESSAGE)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    if(JRCH == ixDesire) write(*,"('QNEW(1)=',1x,F10.7)") QNEW(1)
+    if(JRCH == ixDesire) write(iulog,"('QNEW(1)=',1x,F10.7)") QNEW(1)
     ! m2/s --> m3/s + instantaneous runoff from basin
     RCHFLX_out(IENS,JRCH)%REACH_Q = QNEW(1)*RPARAM_in(JRCH)%R_WIDTH + RCHFLX_out(IENS,JRCH)%BASIN_QR(1)
     ! ----------------------------------------------------------------------------------------
@@ -540,7 +541,7 @@ contains
                   ND,QD,TD,ierr,cmessage,        &   ! output
                   RSTEP)                             ! optional input
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  if(JRCH == ixDesire) print*, 'after QEXMUL_RCH: JRCH, ND, QD = ', JRCH, ND, QD
+  if(JRCH == ixDesire) write(iulog,*) 'after QEXMUL_RCH: JRCH, ND, QD = ', JRCH, ND, QD
  endif
  ! ----------------------------------------------------------------------------------------
  ! (2) EXTRACT NON-ROUTED FLOW FROM THE REACH JRCH & APPEND TO THE FLOW JUST ROUTED D/S
@@ -729,7 +730,7 @@ contains
   ! get flow in m2/s (scaled by with of downstream reach)
   QD(1) = RCHFLX_in(IENS,IR)%BASIN_QR(1)/RPARAM_in(JRCH)%R_WIDTH
   TD(1) = T1
-  if(JRCH == ixDesire) print*, 'special case: JRCH, IR, NETOPO_in(IR)%REACHID = ', JRCH, IR, NETOPO_in(IR)%REACHID
+  if(JRCH == ixDesire) write(iulog,*) 'special case: JRCH, IR, NETOPO_in(IR)%REACHID = ', JRCH, IR, NETOPO_in(IR)%REACHID
   RETURN
  ENDIF
  ! allocate space for the upstream flow, time, and flags
@@ -800,11 +801,13 @@ contains
    NEW_WAVE(0:NS-1) = KROUTE_out(IENS,IR)%KWAVE(0:NS-1)  ! copy
 
    ! (re-size wave structure)
-   IF (.NOT.allocated(KROUTE_out(IENS,IR)%KWAVE))then; print*,' not allocated. in qex ';return; endif
-   IF (allocated(KROUTE_out(IENS,IR)%KWAVE)) THEN
+   if (.not.allocated(KROUTE_out(IENS,IR)%KWAVE))then
+     ierr=20; message=trim(message)//'KROUTE_out%KWAVE is not associated'; return
+   end if
+   if (allocated(KROUTE_out(IENS,IR)%KWAVE)) THEN
      deallocate(KROUTE_out(IENS,IR)%KWAVE,STAT=IERR)
      if(ierr/=0)then; message=trim(message)//'problem deallocating array KROUTE_out'; return; endif
-   END IF
+   end if
    ALLOCATE(KROUTE_out(IENS,IR)%KWAVE(0:NS-NR),STAT=IERR)   ! reduced size
    if(ierr/=0)then; message=trim(message)//'problem allocating array KROUTE_out'; return; endif
 
@@ -910,11 +913,6 @@ contains
        ! test if we have bracketed properly
        IF (USFLOW(IUPS)%KWAVE(IEND)%TR.LT.CTIME(JUPS) .OR. &
            USFLOW(IUPS)%KWAVE(IBEG)%TR.GT.CTIME(JUPS)) THEN
-
-print*,'jRch, NETOPO_in(jRch)%REACHID, NETOPO_in(jRch)%UREACHK=', JRch, NETOPO_in(jRch)%REACHID, NETOPO_in(jRch)%UREACHK
-print*,'IUPS, USFLOW(IUPS)%KWAVE(:)%TR=', IUPS, USFLOW(IUPS)%KWAVE(:)%TR
-print*,'USFLOW(IUPS)%KWAVE(IEND)%TR, USFLOW(IUPS)%KWAVE(IBEG)%TR, CTIME(JUPS)=', USFLOW(IUPS)%KWAVE(IEND)%TR, USFLOW(IUPS)%KWAVE(IBEG)%TR, CTIME(JUPS)
-
             ierr=40; message=trim(message)//'the times are not ordered as we assume'; return
        ENDIF  ! test for bracketing
        ! estimate flow for the IUPS upstream reach at time CTIME(JUPS)
@@ -1270,8 +1268,8 @@ print*,'USFLOW(IUPS)%KWAVE(IEND)%TR, USFLOW(IUPS)%KWAVE(IBEG)%TR, CTIME(JUPS)=',
  ! compute wave celerity for all flow points (array operation)
  WC(1:NN) = ALFA*K**(1./ALFA)*Q1(1:NN)**((ALFA-1.)/ALFA)
  ! check
- if(jRch==ixDesire) print*, 'q1(1:nn), wc(1:nn), RPARAM_in(JRCH)%R_SLOPE, nn = ', &
-                            q1(1:nn), wc(1:nn), RPARAM_in(JRCH)%R_SLOPE, nn
+ if(jRch==ixDesire) write(iulog,*) 'q1(1:nn), wc(1:nn), RPARAM_in(JRCH)%R_SLOPE, nn = ', &
+                                    q1(1:nn), wc(1:nn), RPARAM_in(JRCH)%R_SLOPE, nn
 
  ! handle breaking waves
  GT_ONE: IF(NN.GT.1) THEN                     ! no breaking if just one point
@@ -1330,7 +1328,7 @@ print*,'USFLOW(IUPS)%KWAVE(IEND)%TR, USFLOW(IUPS)%KWAVE(IBEG)%TR, CTIME(JUPS)=',
  ! ----------------------------------------------------------------------------------------
  DO IROUTE = 1,NN    ! loop through the remaining particles (shocks,waves) (NM=NI-NN have been merged)
   ! check
-  if(jRch==ixDesire) print*, 'wc(iRoute), nn = ', wc(iRoute), nn
+  if(jRch==ixDesire) write(iulog,*) 'wc(iRoute), nn = ', wc(iRoute), nn
   ! check that we have non-zero flow
   if(WC(IROUTE) < verySmall)then
    write(message,'(a,i0)') trim(message)//'zero flow for reach id ', NETOPO_in(jRch)%REACHID

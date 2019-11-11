@@ -6,7 +6,8 @@ USE nrtype,    only : strLen              ! length of characters
 USE dataTypes, only : var_ilength         ! integer type:          var(:)%dat
 USE dataTypes, only : var_clength         ! integer type:          var(:)%dat
 USE dataTypes, only : var_dlength,dlength ! double precision type: var(:)%dat, or dat
-
+!Public data
+USE public_var, only : iulog              ! i/o logical unit number
 USE public_var, only : verySmall
 USE public_var, only : integerMissing
 USE public_var, only : realMissing
@@ -599,8 +600,7 @@ contains
                           ierr, cmessage)                       ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- !print*, 'runoff_data_in%nSpace, nTime, trim(time_units) = ', runoff_data_in%nSpace(:), runoff_data_in%nTime, trim(time_units)
- !print*, trim(message)//'PAUSE : '; read(*,*)
+ !write(*,*) 'runoff_data_in%nSpace, nTime, trim(time_units) = ', runoff_data_in%nSpace(:), runoff_data_in%nTime, trim(time_units)
 
  ! need to remap runoff to HRUs
  if (remap_flag) then
@@ -708,9 +708,6 @@ contains
  call indexx(qid,       rankID)
  call indexx(qidMaster, rankMaster)
 
- !print*, 'rankId = ', rankId(1:10)
- !print*, 'qId( rankId(1:10) ) = ', qId( rankId(1:10) )
- !print*, 'PAUSE: '; read(*,*)
  qix(1:size(qid)) = integerMissing
  nx=0
  jx=1
@@ -722,7 +719,7 @@ contains
 
    ! keep track of trials
    nx=nx+1
-   !print*, 'qid( rankId(ix) ), qidMaster( rankMaster(ixMaster) ) = ', qid( rankId(ix) ), qidMaster( rankMaster(ixMaster) )
+   !write(*,*) 'qid( rankId(ix) ), qidMaster( rankMaster(ixMaster) ) = ', qid( rankId(ix) ), qidMaster( rankMaster(ixMaster) )
 
    ! find match
    if( qid( rankId(ix) ) == qidMaster( rankMaster(ixMaster) ) )then
@@ -742,14 +739,13 @@ contains
 
   ! print progress
   if(qix( rankId(ix) )/=integerMissing .and. mod(ix,1000000)==0)then
-   print*, trim(message)//'matching ids: ix, qix( rankId(ix) ), qid( rankId(ix) ), qidMaster( qix( rankId(ix) ) ) = ', &
-                                         ix, qix( rankId(ix) ), qid( rankId(ix) ), qidMaster( qix( rankId(ix) ) )
-   !print*, 'PAUSE : '; read(*,*)
+   write(iulog,*) trim(message)//'matching ids: ix, qix( rankId(ix) ), qid( rankId(ix) ), qidMaster( qix( rankId(ix) ) ) = ', &
+                                                ix, qix( rankId(ix) ), qid( rankId(ix) ), qidMaster( qix( rankId(ix) ) )
   endif
 
  end do  ! looping through the vector
 
- print*, 'nMissing = ', count(qix==integerMissing)
+ write(iulog,*) 'nMissing = ', count(qix==integerMissing)
 
  ! check again
  do ix=1,size(qid)
