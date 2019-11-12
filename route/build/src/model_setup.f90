@@ -49,7 +49,6 @@ contains
   ! local variables
   character(len=strLen)       :: message             ! error message
   integer(i4b)                :: omp_get_num_threads ! number of threads used for openMP
-  character(len=strLen)       :: cmessage            ! error message of downwind routine
 
   ! initialize error control
   message='init_mpi/'

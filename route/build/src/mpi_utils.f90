@@ -842,7 +842,6 @@ CONTAINS
     !----- local ---
     character(strLen),parameter :: subName = 'shr_mpi_abort/'
     integer(i4b)                :: jerr
-    integer                     :: rc       ! return code
 
     !-------------------------------------------------------------------------------
     ! PURPOSE: MPI abort
