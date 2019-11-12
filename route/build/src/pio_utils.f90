@@ -78,11 +78,13 @@ contains
   ! *********************************************************************
   subroutine pio_sys_init(pid,       &  !input
                           nNodes,    &  !input
+                          comm,      &  !input
                           pioIOsystem)  !output
     implicit none
     ! input variables
     integer(i4b),          intent(in)  :: pid
     integer(i4b),          intent(in)  :: nNodes
+    integer(i4b),          intent(in)  :: comm
     type(iosystem_desc_t), intent(out) :: pioIoSystem  ! pio system descriptor
     ! Local variables
     integer(i4b)                       :: stride       ! stride in MPI rank between IO tasks.
@@ -95,7 +97,7 @@ contains
     nIOtasks    = nNodes/stride
     nAggregator = 0
     call pio_init(pid,              & ! input: MPI rank
-                  MPI_COMM_WORLD,   & ! input: MPI communicator
+                  comm,             & ! input: MPI communicator
                   nIOtasks,         & ! input: Number of iotasks
                   nAggregator,      & ! input: number of aggregators to use
                   stride,           & ! input: MPI rank stride between IO tasks

@@ -7,6 +7,7 @@ USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: root
 USE public_var,        ONLY: integerMissing
 USE globalData,        ONLY: pid, nNodes
+USE globalData,        ONLY: mpicom_route
 USE nr_utility_module, ONLY: arth
 USE pio_utils
 
@@ -291,7 +292,7 @@ contains
  meta_qDims(ixQdims%ens)%dimLength = nEns
 
  ! pio initialization
- call pio_sys_init(pid, nNodes, pioSystem)
+ call pio_sys_init(pid, nNodes, mpicom_route, pioSystem)
 
  if (pid==root) then
    ix1 = 1_i4b

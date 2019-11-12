@@ -56,6 +56,7 @@ module globalData
 
   ! ---------- MPI/OMP variables -------------------------------------------------------------------
 
+  integer(i4b)                  :: mpicom_route        ! communicator for this program
   integer(i4b)                  :: pid                 ! process id
   integer(i4b)                  :: nNodes              ! number of nodes
   integer(i4b)                  :: nThreads            ! number of threads

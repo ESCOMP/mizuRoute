@@ -10,6 +10,7 @@ USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: integerMissing
 USE public_var,        ONLY: realMissing
 USE globalData,        ONLY: pid, nNodes
+USE globalData,        ONLY: mpicom_route
 USE nr_utility_module, ONLY: arth
 USE pio_utils
 
@@ -108,7 +109,7 @@ CONTAINS
  ! ----------------------------------
  ! pio initialization for restart netCDF
  ! ----------------------------------
- call pio_sys_init(pid, nNodes, pioSystemState)
+ call pio_sys_init(pid, nNodes, mpicom_route, pioSystemState)
 
  ! ----------------------------------
  ! Create file

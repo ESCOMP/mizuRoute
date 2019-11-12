@@ -31,7 +31,7 @@ USE mpi_mod,           ONLY: shr_mpi_bcast
 USE mpi_mod,           ONLY: shr_mpi_gatherV
 USE mpi_mod,           ONLY: shr_mpi_scatterV
 USE mpi_mod,           ONLY: shr_mpi_allgather
-USE mpi_mod,           ONLY: shr_mpi_abort
+USE mpi_mod,           ONLY: shr_mpi_barrier
 
 implicit none
 ! common parameters within this module
@@ -52,6 +52,7 @@ contains
  ! *********************************************************************
  subroutine comm_ntopo_data(pid,                & ! input: proc id
                             nNodes,             & ! input: number of procs
+                            comm,               & ! input: communicator
                             nRch_in,            & ! input: number of stream segments in whole domain
                             nHRU_in,            & ! input: number of HRUs that are connected to reaches
                             structHRU,          & ! input: data structure for HRUs
@@ -90,6 +91,7 @@ contains
   ! Input variables
   integer(i4b),                   intent(in)  :: pid                      ! process id (MPI)
   integer(i4b),                   intent(in)  :: nNodes                   ! number of processes (MPI)
+  integer(i4b),                   intent(in)  :: comm                     ! communicator
   integer(i4b),                   intent(in)  :: nRch_in                  ! number of total reaches
   integer(i4b),                   intent(in)  :: nHRU_in                  ! number of total HRUs that are connected to reaches
   type(var_dlength), allocatable, intent(in)  :: structHRU(:)             ! HRU properties
@@ -344,7 +346,7 @@ contains
 
   endif  ! if pid==root
 
-  call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+  call shr_mpi_barrier(comm, message)
 
   ! ********************************************************************************************************************
   ! ********************************************************************************************************************
@@ -501,6 +503,7 @@ contains
  ! *********************************************************************
  subroutine mpi_restart(pid,           & ! input: proc id
                         nNodes,        & ! input: number of procs
+                        comm,          & ! input: communicator
                         iens,          & ! input: ensemble index
                         ierr,message)    ! output: error control
   ! shared data
@@ -517,6 +520,7 @@ contains
   ! input variables
   integer(i4b),             intent(in)  :: pid                      ! process id (MPI)
   integer(i4b),             intent(in)  :: nNodes                   ! number of processes (MPI)
+  integer(i4b),             intent(in)  :: comm                     ! communicator
   integer(i4b),             intent(in)  :: iens                     ! ensemble index
   ! Output variables
   integer(i4b),             intent(out) :: ierr
@@ -529,7 +533,7 @@ contains
 
   ierr=0; message='mpi_restart/'
 
-  call MPI_BCAST(TSEC, 2, MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(TSEC, 2, MPI_DOUBLE_PRECISION, root, comm, ierr)
 
   allocate(flux_global(nRch), flux_local(rch_per_proc(pid)), stat=ierr)
   do iSeg = 1, nRch
@@ -537,7 +541,7 @@ contains
   enddo
 
   ! flux communication (only basin delayed runoff flux)
-  call mpi_comm_single_flux(pid, nNodes,                              &
+  call mpi_comm_single_flux(pid, nNodes, comm,                        &
                             flux_global,                              &
                             flux_local,                               &
                             rch_per_proc(root:nNodes-1),              &
@@ -553,7 +557,7 @@ contains
 
   ! basin IRF state communication
   if (doesBasinRoute == 1) then
-    call mpi_comm_irf_bas_state(pid, nNodes,                              &
+    call mpi_comm_irf_bas_state(pid, nNodes, comm,                        &
                                 iens,                                     &
                                 rch_per_proc(root:nNodes-1),              &
                                 ixRch_order(rch_per_proc(root-1)+1:nRch), &
@@ -565,7 +569,7 @@ contains
 
   ! KWT state communication
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
-    call mpi_comm_kwt_state(pid, nNodes,                              &
+    call mpi_comm_kwt_state(pid, nNodes, comm,                        &
                             iens,                                     &
                             rch_per_proc(root:nNodes-1),              &
                             ixRch_order(rch_per_proc(root-1)+1:nRch), &
@@ -577,7 +581,7 @@ contains
 
   ! IRF state communication
   if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
-    call mpi_comm_irf_state(pid, nNodes,                              &
+    call mpi_comm_irf_state(pid, nNodes, comm,                        &
                             iens,                                     &
                             rch_per_proc(root:nNodes-1),              &
                             ixRch_order(rch_per_proc(root-1)+1:nRch), &
@@ -594,6 +598,7 @@ contains
  ! *********************************************************************
  subroutine mpi_route(pid,           & ! input: proc id
                       nNodes,        & ! input: number of procs
+                      comm,          & ! input: communicator
                       iens,          & ! input: ensemble index
                       ierr,message)    ! output: error control
   ! shared data
@@ -626,6 +631,7 @@ contains
   ! input variables
   integer(i4b),             intent(in)  :: pid                      ! process id (MPI)
   integer(i4b),             intent(in)  :: nNodes                   ! number of processes (MPI)
+  integer(i4b),             intent(in)  :: comm                     ! communicator
   integer(i4b),             intent(in)  :: iens                     ! ensemble index
   ! Output variables
   integer(i4b),             intent(out) :: ierr
@@ -657,7 +663,7 @@ contains
     enddo
   end if
 
-  call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+  call shr_mpi_barrier(comm, message)
 
 call system_clock(startTime)
   ! Distribute the basin runoff to each process
@@ -696,7 +702,7 @@ elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/tributary-route] = ', elapsedTime, ' s'
 
   ! make sure that routing at all the procs finished
-  call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+  call shr_mpi_barrier(comm, message)
 
   if (rch_per_proc(-1)==0) return
 
@@ -706,7 +712,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/tributary-ro
 call system_clock(startTime)
 
   ! flux communication
-  call mpi_comm_flux(pid, nNodes,         & ! input:
+  call mpi_comm_flux(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
                      iens,                & ! input:
                      tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
                      global_ix_comm,      & ! input: global reach indices to communicate (dimension size == sum of nRearch)
@@ -718,7 +724,7 @@ call system_clock(startTime)
   ! KWT state communication
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
 
-    call mpi_comm_kwt_state(pid, nNodes,         & ! input:
+    call mpi_comm_kwt_state(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
                             iens,                & ! input:
                             tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
                             global_ix_comm,      & ! input: global reach indices to communicate (dimension size == sum of nRearch)
@@ -730,7 +736,7 @@ call system_clock(startTime)
   endif
 
   ! make sure that routing at all the procs finished
-  call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+  call shr_mpi_barrier(comm, message)
 
 call system_clock(endTime)
 elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
@@ -771,14 +777,14 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/main_route] 
   endif ! end of root proc
 
   ! make sure that routing at all the procs finished
-  call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+  call shr_mpi_barrier(comm, message)
 
   ! --------------------------------
   ! Distribute updated tributary states (only tributary reaches flowing into mainstem) to processors to update states upstream reaches
   ! --------------------------------
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
 call system_clock(startTime)
-   call mpi_comm_kwt_state(pid, nNodes,                        & ! input:
+   call mpi_comm_kwt_state(pid, nNodes, comm,                  & ! input: mpi rank, number of tasks, and communicator
                            iens,                               & ! input:
                            tribOutlet_per_proc,                & ! input: number of reaches communicate per node (dimension size == number of proc)
                            global_ix_comm,                     & ! input: global reach indices to communicate (dimension size == sum of nRearch)
@@ -792,7 +798,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
  endif ! end of kwt option
 
   ! make sure that routing at all the procs finished
-  call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+  call shr_mpi_barrier(comm, message)
 
  end subroutine mpi_route
 
@@ -801,6 +807,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
  ! *********************************************************************
  subroutine mpi_comm_single_flux(pid,          &
                                  nNodes,       &
+                                 comm,         & ! input: communicator
                                  flux_global,  &
                                  flux_local,   &
                                  nReach,       &
@@ -812,6 +819,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
   ! input variables
   integer(i4b),             intent(in)    :: pid                   ! process id (MPI)
   integer(i4b),             intent(in)    :: nNodes                ! number of processes (MPI)
+  integer(i4b),             intent(in)    :: comm                  ! communicator
   real(dp),     allocatable,intent(inout) :: flux_global(:)        ! global flux vectors
   real(dp),     allocatable,intent(inout) :: flux_local(:)         ! local flux vectors
   integer(i4b),             intent(in)    :: nReach(0:nNodes-1)    ! number of reaches communicate per node (dimension size == number of proc)
@@ -847,7 +855,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
 
     end if ! end of root processor operation
 
-    call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+    call shr_mpi_barrier(comm, message)
 
     ! Distribute global flux data to each process
     allocate(flux_local_tmp(nReach(pid)), stat=ierr)
@@ -895,6 +903,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
  ! *********************************************************************
  subroutine mpi_comm_flux(pid,          &
                           nNodes,       &
+                          comm,         & ! input: communicator
                           iens,         &
                           nReach,       &
                           rchIdxGlobal, &
@@ -909,6 +918,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
   ! input variables
   integer(i4b),             intent(in)  :: pid                   ! process id (MPI)
   integer(i4b),             intent(in)  :: nNodes                ! number of processes (MPI)
+  integer(i4b),             intent(in)  :: comm                  ! communicator
   integer(i4b),             intent(in)  :: iens                  ! ensemble index
   integer(i4b),             intent(in)  :: nReach(0:nNodes-1)    ! number of reaches communicate per node (dimension size == number of proc)
   integer(i4b),             intent(in)  :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
@@ -951,7 +961,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
 
     end if ! end of root processor operation
 
-    call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+    call shr_mpi_barrier(comm, message)
 
     ! Distribute global flux data to each process
     allocate(flux_local(nReach(pid),nFluxes), stat=ierr)
@@ -1031,6 +1041,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
  ! *********************************************************************
  subroutine mpi_comm_irf_bas_state(pid,          &
                                    nNodes,       &
+                                   comm,         & ! input: communicator
                                    iens,         &
                                    nReach,       &
                                    rchIdxGlobal, &
@@ -1046,6 +1057,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
   ! input variables
   integer(i4b),             intent(in)  :: pid                   ! process id (MPI)
   integer(i4b),             intent(in)  :: nNodes                ! number of processes (MPI)
+  integer(i4b),             intent(in)  :: comm                  ! communicator
   integer(i4b),             intent(in)  :: iens                  ! ensemble index
   integer(i4b),             intent(in)  :: nReach(0:nNodes-1)    ! number of reaches communicate per node (dimension size == number of proc)
   integer(i4b),             intent(in)  :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
@@ -1097,10 +1109,10 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
 
     endif ! end of root process
 
-    call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+    call shr_mpi_barrier(comm, message)
 
     ! will have to broadcast updated ntdh to all proc
-    call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, comm, ierr)
 
     ! total waves from all the tributary reaches in each proc
     ix2=0
@@ -1161,7 +1173,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
     call shr_mpi_gatherV(ntdh_trib, nReach, ntdh, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, comm, ierr)
 
     ! total waves in reaches in each proc
     ix2=0
@@ -1203,6 +1215,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
  ! *********************************************************************
  subroutine mpi_comm_IRF_state(pid,          &
                                nNodes,       &
+                               comm,         & ! input: communicator
                                iens,         &
                                nReach,       &
                                rchIdxGlobal, &
@@ -1218,6 +1231,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
   ! input variables
   integer(i4b),             intent(in)  :: pid                   ! process id (MPI)
   integer(i4b),             intent(in)  :: nNodes                ! number of processes (MPI)
+  integer(i4b),             intent(in)  :: comm                  ! communicator
   integer(i4b),             intent(in)  :: iens                  ! ensemble index
   integer(i4b),             intent(in)  :: nReach(0:nNodes-1)    ! number of reaches communicate per node (dimension size == number of proc)
   integer(i4b),             intent(in)  :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
@@ -1269,10 +1283,10 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
 
     endif ! end of root process
 
-    call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+    call shr_mpi_barrier(comm, message)
 
     ! will have to broadcast updated ntdh to all proc
-    call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, comm, ierr)
 
     ! total waves from all the tributary reaches in each proc
     ix2=0
@@ -1333,7 +1347,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
     call shr_mpi_gatherV(ntdh_trib, nReach, ntdh, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, comm, ierr)
 
     ! total waves in reaches in each proc
     ix2=0
@@ -1373,8 +1387,9 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
  ! *********************************************************************
  ! subroutine: kinematic wave state communication
  ! *********************************************************************
- subroutine mpi_comm_kwt_state(pid,          &
-                               nNodes,       &
+ subroutine mpi_comm_kwt_state(pid,          & ! input:
+                               nNodes,       & ! input: number of node
+                               comm,         & ! input: communicator
                                iens,         &
                                nReach,       &
                                rchIdxGlobal, &
@@ -1390,6 +1405,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
   ! input variables
   integer(i4b),             intent(in)  :: pid                   ! process id (MPI)
   integer(i4b),             intent(in)  :: nNodes                ! number of processes (MPI)
+  integer(i4b),             intent(in)  :: comm                  ! communicator
   integer(i4b),             intent(in)  :: iens                  ! ensemble index
   integer(i4b),             intent(in)  :: nReach(0:nNodes-1)    ! number of reaches communicate per node (dimension size == number of proc)
   integer(i4b),             intent(in)  :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
@@ -1446,10 +1462,10 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
 
     endif ! end of root process
 
-    call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+    call shr_mpi_barrier(comm, message)
 
     ! will have to broadcast updated nWave to all proc
-    call MPI_BCAST(nWave, nSeg, MPI_INTEGER, root, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(nWave, nSeg, MPI_INTEGER, root, comm, ierr)
 
     ! total waves from all the tributary reaches in each proc
     ix2=0
@@ -1465,7 +1481,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
      allocate(QF(totWaveAll), QM(totWaveAll), TI(totWaveAll), TR(totWaveAll), RF(totWaveAll), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating array for [QF,..,RF]'; return; endif
     endif
-    call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+    call shr_mpi_barrier(comm, message)
 
     call shr_mpi_scatterV(nWave, nReach(0:nNodes-1), nWave_trib, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -1534,7 +1550,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
     call shr_mpi_gatherV(nWave_trib, nReach, nWave, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call MPI_BCAST(nWave, nSeg, MPI_INTEGER, root, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(nWave, nSeg, MPI_INTEGER, root, comm, ierr)
 
     ! total waves in reaches in each proc
     ix2=0
@@ -1741,7 +1757,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
  ! public subroutine: send global data
  ! *********************************************************************
  ! send all the necessary public/global variables neccesary in task
- subroutine pass_global_data(ierr,message)   ! output: error control
+ subroutine pass_global_data(comm, ierr,message)   ! output: error control
   USE public_var, only : root
   USE public_var, only : calendar
   USE public_var, only : time_units
@@ -1759,28 +1775,28 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
   USE globalData, only : basinID
   implicit none
   ! Input variables
-  ! None
+  integer(i4b),                   intent(in)  :: comm    ! communicator
   ! Output error handling variables
   integer(i4b),                   intent(out) :: ierr
-  character(len=strLen),          intent(out) :: message                   ! error message
+  character(len=strLen),          intent(out) :: message ! error message
   ! Local variables
   ! None
 
   ierr=0; message='pass_global_data/'
 
   ! send scalars
-  call MPI_BCAST(iTime,       1,     MPI_INTEGER,          root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(nRch,        1,     MPI_INTEGER,          root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(nHRU,        1,     MPI_INTEGER,          root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(calendar,  strLen,  MPI_CHARACTER,        root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(time_units,strLen,  MPI_CHARACTER,        root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(convTime2Days,1,    MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(refJulday,   1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(startJulday, 1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(endJulday,   1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(modJulday,   1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(length_conv, 1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
-  call MPI_BCAST(time_conv,   1,     MPI_DOUBLE_PRECISION, root, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(iTime,       1,     MPI_INTEGER,          root, comm, ierr)
+  call MPI_BCAST(nRch,        1,     MPI_INTEGER,          root, comm, ierr)
+  call MPI_BCAST(nHRU,        1,     MPI_INTEGER,          root, comm, ierr)
+  call MPI_BCAST(calendar,  strLen,  MPI_CHARACTER,        root, comm, ierr)
+  call MPI_BCAST(time_units,strLen,  MPI_CHARACTER,        root, comm, ierr)
+  call MPI_BCAST(convTime2Days,1,    MPI_DOUBLE_PRECISION, root, comm, ierr)
+  call MPI_BCAST(refJulday,   1,     MPI_DOUBLE_PRECISION, root, comm, ierr)
+  call MPI_BCAST(startJulday, 1,     MPI_DOUBLE_PRECISION, root, comm, ierr)
+  call MPI_BCAST(endJulday,   1,     MPI_DOUBLE_PRECISION, root, comm, ierr)
+  call MPI_BCAST(modJulday,   1,     MPI_DOUBLE_PRECISION, root, comm, ierr)
+  call MPI_BCAST(length_conv, 1,     MPI_DOUBLE_PRECISION, root, comm, ierr)
+  call MPI_BCAST(time_conv,   1,     MPI_DOUBLE_PRECISION, root, comm, ierr)
 
   call shr_mpi_bcast(timeVar,ierr, message)
   call shr_mpi_bcast(reachID,ierr, message)
