@@ -726,6 +726,8 @@ contains
  end subroutine init_runoff
 
 
+! ONLY STANDALONE - end
+
  ! *****
  ! private subroutine: get indices of mapping points within runoff file...
  ! ***********************************************************************
@@ -801,6 +803,7 @@ contains
  end do
 
  end subroutine get_qix
+! ONLY STANDALONE - begin
 
 end module model_setup
 
