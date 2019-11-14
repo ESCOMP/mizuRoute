@@ -39,6 +39,9 @@ route/bin
 *.swp
 *~
 
+# temp src directory
+/route/build/src/tmp
+
 # CMAKE files created
 CMakeFiles
 CMakeCache.txt
