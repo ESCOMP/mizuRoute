@@ -17,7 +17,8 @@ implicit none
 
 ! privacy -- everything private unless declared explicitly
 private
-public :: init_mpi
+public :: init_mpi      ! For stand-alone only
+public :: get_mpi_omp
 public :: init_model
 public :: init_data
 public :: update_time
@@ -25,22 +26,17 @@ public :: update_time
 contains
 
  ! *********************************************************************
- ! public subroutine: model setup
+ ! public subroutine: initialize MPI for stand-alone program
  ! *********************************************************************
  subroutine init_mpi()
 
-  ! initialize hybrid parallelization (Initialize MPI and get OMP thread)
+  ! Initialize MPI and get OMP thread
 
   ! shared data used
-  USE globalData, only : nNodes       ! number of tasks
-  USE globalData, only : pid          ! procs id (rank)
   USE globalData, only : mpicom_route ! communicator id
-  USE globalData, only : nThreads     ! number of OMP threads
 
   ! subroutines: populate metadata
   USE mpi_mod,    only : shr_mpi_init
-  USE mpi_mod,    only : shr_mpi_commsize
-  USE mpi_mod,    only : shr_mpi_commrank
 
   implicit none
 
@@ -48,18 +44,50 @@ contains
   ! output: None
   ! local variables
   character(len=strLen)       :: message             ! error message
-  integer(i4b)                :: omp_get_num_threads ! number of threads used for openMP
 
   ! initialize error control
   message='init_mpi/'
 
   call shr_mpi_init(mpicom_route, message)
 
+  call get_mpi_omp(mpicom_route)
+
+ end subroutine init_mpi
+
+
+ ! *********************************************************************
+ ! public subroutine: get mpi and omp info
+ ! *********************************************************************
+ subroutine get_mpi_omp(comm)
+
+  ! Obtain mpi rank/ntasks and omp thread number
+
+  ! shared data used
+  USE globalData, only : nNodes       ! number of tasks
+  USE globalData, only : pid          ! procs id (rank)
+  USE globalData, only : nThreads     ! number of OMP threads
+
+  ! subroutines: populate metadata
+  USE mpi_mod,    only : shr_mpi_commsize
+  USE mpi_mod,    only : shr_mpi_commrank
+
+  implicit none
+
+  ! input:  None
+  integer(i4b),  intent(in)  :: comm      ! communicator
+  ! output: None
+  ! local variables
+  character(len=strLen)      :: message             ! error message
+  integer(i4b)               :: omp_get_num_threads ! number of threads used for openMP
+
+  ! initialize error control
+  message='get_mpi_omp/'
+
   ! Get the number of processes
-  call shr_mpi_commsize(mpicom_route, nNodes, message)
+  call shr_mpi_commsize(comm, nNodes, message)
 
   ! Get the individual process ID
-  call shr_mpi_commrank(mpicom_route, pid, message)
+  call shr_mpi_commrank(comm, pid, message)
 
   !  Get number of threads
   nThreads = 1
@@ -67,7 +95,7 @@ contains
   !$ nThreads = omp_get_num_threads()
   !$OMP END PARALLEL
 
- end subroutine init_mpi
+ end subroutine get_mpi_omp
 
 
  ! *********************************************************************

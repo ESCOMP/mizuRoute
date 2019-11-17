@@ -18,6 +18,7 @@ USE globalData, only : mpicom_route            ! communicator
 ! provide access to desired subroutines...
 ! ****************************************
 USE mpi_mod,             only : shr_mpi_finalize
+USE mpi_mod,             only : shr_mpi_abort
 ! subroutines: model set up
 USE model_setup,         only : init_mpi         ! initialize MPI for this program
 USE model_setup,         only : init_model       ! model setupt - reading control file, populate metadata, read parameter file
@@ -133,9 +134,7 @@ contains
  integer(i4b),intent(in)::err             ! error code
  character(*),intent(in)::message         ! error message
  if(err/=0)then
-  write(iulog,*) 'FATAL ERROR: '//trim(message)
-  call flush(6)
-  stop
+  call shr_mpi_abort('FATAL ERROR: '//trim(message), err)
  endif
  end subroutine handle_err
 
