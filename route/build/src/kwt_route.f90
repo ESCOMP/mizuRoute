@@ -1,21 +1,21 @@
 module kwt_route_module
 
 !numeric type
-use nrtype
+USE nrtype
 ! data types
-USE dataTypes,  only : FPOINT            ! particle
-USE dataTypes,  only : KREACH            ! collection of particles in a given reach
-USE dataTypes,  only : STRFLX            ! fluxes in each reach
-USE dataTypes,  only : RCHTOPO           ! Network topology
-USE dataTypes,  only : RCHPRP            ! Reach parameter
+USE dataTypes, ONLY: FPOINT            ! particle
+USE dataTypes, ONLY: KREACH            ! collection of particles in a given reach
+USE dataTypes, ONLY: STRFLX            ! fluxes in each reach
+USE dataTypes, ONLY: RCHTOPO           ! Network topology
+USE dataTypes, ONLY: RCHPRP            ! Reach parameter
 ! global data
-USE public_var, only : iulog             ! i/o logical unit number
-USE public_var, only : verySmall         ! a very small value
-USE public_var, only : realMissing       ! missing value for real number
-USE public_var, only : integerMissing    ! missing value for integer number
+USE public_var, ONLY: iulog             ! i/o logical unit number
+USE public_var, ONLY: verySmall         ! a very small value
+USE public_var, ONLY: realMissing       ! missing value for real number
+USE public_var, ONLY: integerMissing    ! missing value for integer number
 ! utilities
-use nr_utility_module, only : arth       ! Num. Recipies utilities
-USE time_utils_module, only : elapsedSec ! calculate the elapsed time
+USE nr_utility_module, ONLY: arth       ! Num. Recipies utilities
+USE time_utils_module, ONLY: elapsedSec ! calculate the elapsed time
 
 ! privary
 implicit none
@@ -39,7 +39,7 @@ contains
                       ierr,message,         & ! output: error control
                       ixSubRch)               ! optional input: subset of reach indices to be processed
 
-   USE dataTypes,  only : subbasin_omp          ! mainstem+tributary data strucuture
+   USE dataTypes, ONLY: subbasin_omp          ! mainstem+tributary data strucuture
    implicit none
    ! Input
    integer(i4b),       intent(in)                 :: iEns                 ! ensemble member
@@ -155,7 +155,7 @@ contains
                        ierr,message, & ! output: error control
                        RSTEP)          ! optional input: retrospective time step offset
  ! public data
- USE public_var, only : MAXQPAR        ! maximum number of waves per reach
+ USE public_var, ONLY: MAXQPAR        ! maximum number of waves per reach
  ! ----------------------------------------------------------------------------------------
  ! Creator(s):
  !   Ross Woods, 1997 (original code)
@@ -464,8 +464,8 @@ contains
  !   (none planned)
  !
  ! ----------------------------------------------------------------------------------------
- USE globalData, only : LKTOPO           ! Lake topology
- USE globalData, only : LAKFLX           ! Lake fluxes
+ USE globalData, ONLY: LKTOPO           ! Lake topology
+ USE globalData, ONLY: LAKFLX           ! Lake fluxes
  IMPLICIT NONE
  ! Input
  integer(I4B), intent(in)                 :: IENS         ! ensemble member

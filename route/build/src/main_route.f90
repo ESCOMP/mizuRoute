@@ -1,23 +1,26 @@
 module main_route_module
 
 ! variable types
-USE nrtype                                                  ! variable types, etc.
+USE nrtype                                   ! variable types, etc.
 
 ! data structures
-USE dataTypes,           only : KREACH                      ! collection of particles in a given reach
-USE dataTypes,           only : STRFLX                      ! fluxes in each reach
-USE dataTypes,           only : RCHTOPO                     ! Network topology
-USE dataTypes,           only : RCHPRP                      ! Reach parameter
-USE dataTypes,           only : runoff                      ! runoff data type
-USE dataTypes,           only : subbasin_omp                ! mainstem+tributary data structures
+USE dataTypes, ONLY: KREACH                  ! collection of particles in a given reach
+USE dataTypes, ONLY: STRFLX                  ! fluxes in each reach
+USE dataTypes, ONLY: RCHTOPO                 ! Network topology
+USE dataTypes, ONLY: RCHPRP                  ! Reach parameter
+USE dataTypes, ONLY: runoff                  ! runoff data type
+USE dataTypes, ONLY: subbasin_omp            ! mainstem+tributary data structures
+
 ! mapping HRU runoff to reach
-USE remapping,           only : basin2reach
+USE remapping, ONLY: basin2reach
+
 ! subroutines: basin routing
-USE basinUH_module,      only : IRF_route_basin             ! perform UH convolution for basin routing
+USE basinUH_module, ONLY: IRF_route_basin    ! perform UH convolution for basin routing
+
 ! subroutines: river routing
-USE accum_runoff_module, only : accum_runoff                ! upstream flow accumulation
-USE kwt_route_module,    only : kwt_route                  ! kinematic wave routing method
-USE irf_route_module,    only : irf_route                  ! unit hydrograph (impulse response function) routing method
+USE accum_runoff_module, ONLY: accum_runoff  ! upstream flow accumulation
+USE kwt_route_module,    ONLY: kwt_route     ! kinematic wave routing method
+USE irf_route_module,    ONLY: irf_route     ! unit hydrograph (impulse response function) routing method
 
 implicit none
 
@@ -51,14 +54,14 @@ contains
    ! 3. basinRunoff_in is given in the order of NETOPO_in(:)%HRUIX.
 
    ! shared data
-   USE public_var, only : routOpt
-   USE public_var, only : doesBasinRoute
-   USE public_var, only : doesAccumRunoff
-   USE public_var, only : allRoutingMethods
-   USE public_var, only : kinematicWave
-   USE public_var, only : impulseResponseFunc
-   USE globalData, only : TSEC                    ! beginning/ending of simulation time step [sec]
-   USE globalData, only : ixPrint                 ! desired reach index to be on-screen print
+   USE public_var, ONLY: routOpt
+   USE public_var, ONLY: doesBasinRoute
+   USE public_var, ONLY: doesAccumRunoff
+   USE public_var, ONLY: allRoutingMethods
+   USE public_var, ONLY: kinematicWave
+   USE public_var, ONLY: impulseResponseFunc
+   USE globalData, ONLY: TSEC                    ! beginning/ending of simulation time step [sec]
+   USE globalData, ONLY: ixPrint                 ! desired reach index to be on-screen print
 
    implicit none
 
@@ -165,6 +168,5 @@ contains
    endif
 
  end subroutine main_route
-
 
 end module main_route_module

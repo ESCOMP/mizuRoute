@@ -3,8 +3,8 @@ module routing_param
 !numeric type
 USE nrtype
 ! global parameters
-USE public_var,         only : realMissing    ! missing value for real number
-USE public_var,         only : integerMissing ! missing value for integer number
+USE public_var, ONLY: realMissing    ! missing value for real number
+USE public_var, ONLY: integerMissing ! missing value for integer number
 
 ! privary
 implicit none
@@ -30,8 +30,8 @@ contains
   ! -----------------
   ! MODULE reach_flux -- runoff fractions stored in FRAC_FUTURE(:)
   ! ---------------------------------------------------------------------------------------
-  USE gamma_func_module, ONLY : gammp                   ! interface for the incomplete gamma function
-  USE globalData,        ONLY : FRAC_FUTURE             ! fraction of runoff in future time steps
+  USE gamma_func_module, ONLY: gammp                   ! interface for the incomplete gamma function
+  USE globalData,        ONLY: FRAC_FUTURE             ! fraction of runoff in future time steps
   IMPLICIT NONE
   ! input
   REAL(DP), INTENT(IN)                   :: dt          ! model time step
@@ -114,8 +114,8 @@ contains
  !
  ! ----------------------------------------------------------------------------------------
   ! global variables
-  USE public_var, only : pi      ! pi
-  USE dataTypes,  only : dlength
+  USE public_var, ONLY: pi      ! pi
+  USE dataTypes,  ONLY: dlength
   implicit none
   ! input variables
   real(dp),                      intent(in)   :: length(:)     ! river segment length

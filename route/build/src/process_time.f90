@@ -1,13 +1,13 @@
 module process_time_module
 
 ! data types
-USE nrtype,    only : i4b,dp              ! variable types, etc.
-USE nrtype,    only : strLen              ! length of characters
-USE dataTypes, only : time                ! time data type
+USE nrtype,    ONLY: i4b,dp              ! variable types, etc.
+USE nrtype,    ONLY: strLen              ! length of characters
+USE dataTypes, ONLY: time                ! time data type
 
 ! subroutines: model time info
-USE time_utils_module, only : extractTime       ! get time from units string
-USE time_utils_module, only : compJulday,&      ! compute julian day
+USE time_utils_module, ONLY: extractTime       ! get time from units string
+USE time_utils_module, ONLY: compJulday,&      ! compute julian day
                               compJulday_noleap ! compute julian day for noleap calendar
 implicit none
 

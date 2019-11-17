@@ -1,26 +1,26 @@
 module remapping
 
   ! data types
-  use nrtype
-  use dataTypes, only : remap                ! remapping data type
-  use dataTypes, only : runoff               ! runoff data type
-  use dataTypes, only : var_ilength          ! integer type:          var(:)%dat
-  use dataTypes, only : var_dlength          ! double precision type: var(:)%dat
+  USE nrtype
+  USE dataTypes, ONLY: remap                ! remapping data type
+  USE dataTypes, ONLY: runoff               ! runoff data type
+  USE dataTypes, ONLY: var_ilength          ! integer type:          var(:)%dat
+  USE dataTypes, ONLY: var_dlength          ! double precision type: var(:)%dat
 
   ! parameter structures
-  USE dataTypes,  only : RCHPRP              ! Reach parameters (properties)
-  USE dataTypes,  only : RCHTOPO             ! Network topology
+  USE dataTypes,  ONLY: RCHPRP              ! Reach parameters (properties)
+  USE dataTypes,  ONLY: RCHTOPO             ! Network topology
 
   ! look-up variables
-  use var_lookup,only:ixHRU,    nVarsHRU     ! index of variables for the HRUs
-  use var_lookup,only:ixSEG,    nVarsSEG     ! index of variables for the stream segments
-  use var_lookup,only:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
-  use var_lookup,only:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
+  USE var_lookup, ONLY:ixHRU,    nVarsHRU     ! index of variables for the HRUs
+  USE var_lookup, ONLY:ixSEG,    nVarsSEG     ! index of variables for the stream segments
+  USE var_lookup, ONLY:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
+  USE var_lookup, ONLY:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
 
   ! global data
-  USE public_var,only:iulog                  ! i/o logical unit number
-  USE public_var,only:runoffMin, negRunoffTol, integerMissing
-  USE globalData,only:time_conv,length_conv  ! conversion factors
+  USE public_var, ONLY:iulog                  ! i/o logical unit number
+  USE public_var, ONLY:runoffMin, negRunoffTol, integerMissing
+  USE globalData, ONLY:time_conv,length_conv  ! conversion factors
 
   implicit none
   private

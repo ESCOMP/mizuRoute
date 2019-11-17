@@ -36,8 +36,8 @@ contains
  subroutine mpi_domain_decomposition(nNodes, nSeg, structNTOPO, nContribHRU, ierr, message)
 
    ! External modules
-   USE globalData, only: domains                 ! domain data structure - for each domain, pfaf codes and list of segment indices
-   USE globalData, only: nDomain                 ! count of decomposed domains (tributaries + mainstems)
+   USE globalData, ONLY: domains                 ! domain data structure - for each domain, pfaf codes and list of segment indices
+   USE globalData, ONLY: nDomain                 ! count of decomposed domains (tributaries + mainstems)
 
    implicit none
    ! Input variables
@@ -134,7 +134,7 @@ contains
  ! ***************************************************************
  subroutine omp_domain_decomposition(nSeg, structNTOPO, river_basin_out, ierr, message)
 
-   USE globalData, only: nThreads                 ! number of threads
+   USE globalData, ONLY: nThreads                 ! number of threads
 
    implicit none
    ! Input variables
@@ -170,8 +170,8 @@ contains
  subroutine omp_domain_decomposition_stro(nSeg, structNTOPO, river_basin_out, ierr, message)
 
    ! External modules
-   USE pfafstetter_module, only: lgc_tributary_outlet
-   USE dataTypes,          only: reach               ! reach data structure
+   USE pfafstetter_module, ONLY: lgc_tributary_outlet
+   USE dataTypes,          ONLY: reach               ! reach data structure
    implicit none
    ! Input variables
    integer(i4b),                   intent(in)  :: nSeg                   ! number of stream segments
@@ -411,7 +411,7 @@ contains
    !   domain(:)%idNode       : proc id (-1 through nNode-1) -1 is for mainstem but use pid=0
 
    ! updated and saved data
-   USE public_var, only : maxDomain
+   USE public_var, ONLY: maxDomain
 
    implicit none
 
@@ -511,7 +511,7 @@ contains
    !           %segIndex(:)    indices of reaches belong to this domain
 
    ! External modules
-   USE pfafstetter_module, only: lgc_tributary_outlet
+   USE pfafstetter_module, ONLY: lgc_tributary_outlet
 
    implicit none
    ! Input variables
@@ -624,8 +624,8 @@ contains
    ! assign domains into computing nodes
 
    ! External modules
-   USE globalData, only: domains                 ! domain data structure - for each domain, pfaf codes and list of segment indices
-   USE globalData, only: nDomain                 ! count of decomposed domains (tributaries + mainstems)
+   USE globalData, ONLY: domains                 ! domain data structure - for each domain, pfaf codes and list of segment indices
+   USE globalData, ONLY: nDomain                 ! count of decomposed domains (tributaries + mainstems)
 
    implicit none
    ! Input variables

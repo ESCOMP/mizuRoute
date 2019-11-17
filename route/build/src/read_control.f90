@@ -2,7 +2,7 @@ module read_control_module
 
 USE nrtype
 USE public_var
-USE globalData, only : pid, nNodes             ! procs id and number of procs
+USE globalData, ONLY: pid, nNodes             ! procs id and number of procs
 
 implicit none
 ! privacy
@@ -20,25 +20,25 @@ contains
  USE nrtype                                  ! variable types, etc.
 
  ! global vars
- USE globalData, only:time_conv,length_conv  ! conversion factors
+ USE globalData, ONLY: time_conv,length_conv  ! conversion factors
 
  ! metadata structures
- USE globalData, only : meta_HRU             ! HRU properties
- USE globalData, only : meta_HRU2SEG         ! HRU-to-segment mapping
- USE globalData, only : meta_SEG             ! stream segment properties
- USE globalData, only : meta_NTOPO           ! network topology
- USE globalData, only : meta_PFAF            ! pfafstetter code
+ USE globalData, ONLY: meta_HRU             ! HRU properties
+ USE globalData, ONLY: meta_HRU2SEG         ! HRU-to-segment mapping
+ USE globalData, ONLY: meta_SEG             ! stream segment properties
+ USE globalData, ONLY: meta_NTOPO           ! network topology
+ USE globalData, ONLY: meta_PFAF            ! pfafstetter code
 
  ! named variables in each structure
- USE var_lookup, only : ixHRU                ! index of variables for data structure
- USE var_lookup, only : ixHRU2SEG            ! index of variables for data structure
- USE var_lookup, only : ixSEG                ! index of variables for data structure
- USE var_lookup, only : ixNTOPO              ! index of variables for data structure
- USE var_lookup, only : ixPFAF               ! index of variables for data structure
+ USE var_lookup, ONLY: ixHRU                ! index of variables for data structure
+ USE var_lookup, ONLY: ixHRU2SEG            ! index of variables for data structure
+ USE var_lookup, ONLY: ixSEG                ! index of variables for data structure
+ USE var_lookup, ONLY: ixNTOPO              ! index of variables for data structure
+ USE var_lookup, ONLY: ixPFAF               ! index of variables for data structure
 
  ! external subroutines
- USE ascii_util_module,only:file_open        ! open file (performs a few checks as well)
- USE ascii_util_module,only:get_vlines       ! get a list of character strings from non-comment lines
+ USE ascii_util_module, ONLY:file_open        ! open file (performs a few checks as well)
+ USE ascii_util_module, ONLY:get_vlines       ! get a list of character strings from non-comment lines
 
  implicit none
  ! input

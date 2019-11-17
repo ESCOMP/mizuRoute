@@ -234,10 +234,10 @@ CONTAINS
 
   SUBROUTINE set_dim_len(ixDim, ierr, message1)
    ! populate state netCDF dimension size
-   USE public_var,   ONLY: MAXQPAR
-   USE globalData,   ONLY: meta_stateDims  ! states dimension meta
-   USE globalData,   ONLY: FRAC_FUTURE     ! To get size of q future for basin IRF
-   USE globalData,   ONLY: nEns, nRch      ! number of ensembles and river reaches
+   USE public_var, ONLY: MAXQPAR
+   USE globalData, ONLY: meta_stateDims  ! states dimension meta
+   USE globalData, ONLY: FRAC_FUTURE     ! To get size of q future for basin IRF
+   USE globalData, ONLY: nEns, nRch      ! number of ensembles and river reaches
    implicit none
    ! input
    integer(i4b), intent(in)   :: ixDim    ! ixDim
@@ -415,28 +415,28 @@ CONTAINS
                            ierr, message)            ! Output: error control
  ! External module
  ! meta data
- USE globalData,   ONLY: meta_stateDims  ! dimension for state variables
+ USE globalData, ONLY: meta_stateDims  ! dimension for state variables
  ! Named variables
- USE var_lookup,   ONLY: ixStateDims, nStateDims
+ USE var_lookup, ONLY: ixStateDims, nStateDims
  ! global/public data
- USE public_var,   ONLY: routOpt
- USE public_var,   ONLY: doesBasinRoute
- USE public_var,   ONLY: allRoutingMethods
- USE public_var,   ONLY: kinematicWave
- USE public_var,   ONLY: impulseResponseFunc
- USE globalData,   ONLY: RCHFLX              ! global Reach fluxes (ensembles, space [reaches])
- USE globalData,   ONLY: RCHFLX_trib         !
- USE globalData,   ONLY: NETOPO              ! global Reach fluxes (ensembles, space [reaches])
- USE globalData,   ONLY: NETOPO_trib         !
- USE globalData,   ONLY: KROUTE              ! global Reach fluxes (ensembles, space [reaches])
- USE globalData,   ONLY: KROUTE_trib         !
- USE globalData,   ONLY: ixRch_order         ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
- USE globalData,   ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
- USE globalData,   ONLY: reachID         ! reach ID in network
- USE globalData,   ONLY: nRch            ! number of reaches in network
- USE globalData,   ONLY: TSEC            ! beginning/ending of simulation time step [sec]
- USE globalData,   ONLY: timeVar         ! time variable
- USE globalData,   ONLY: iTime           ! time index
+ USE public_var, ONLY: routOpt
+ USE public_var, ONLY: doesBasinRoute
+ USE public_var, ONLY: allRoutingMethods
+ USE public_var, ONLY: kinematicWave
+ USE public_var, ONLY: impulseResponseFunc
+ USE globalData, ONLY: RCHFLX              ! global Reach fluxes (ensembles, space [reaches])
+ USE globalData, ONLY: RCHFLX_trib         !
+ USE globalData, ONLY: NETOPO              ! global Reach fluxes (ensembles, space [reaches])
+ USE globalData, ONLY: NETOPO_trib         !
+ USE globalData, ONLY: KROUTE              ! global Reach fluxes (ensembles, space [reaches])
+ USE globalData, ONLY: KROUTE_trib         !
+ USE globalData, ONLY: ixRch_order         ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
+ USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
+ USE globalData, ONLY: reachID         ! reach ID in network
+ USE globalData, ONLY: nRch            ! number of reaches in network
+ USE globalData, ONLY: TSEC            ! beginning/ending of simulation time step [sec]
+ USE globalData, ONLY: timeVar         ! time variable
+ USE globalData, ONLY: iTime           ! time index
  implicit none
  ! input variables
  character(*), intent(in)        :: fname           ! filename
@@ -520,8 +520,8 @@ CONTAINS
   ! Basin IRF writing procedures
   SUBROUTINE write_IRFbas_state(ierr, message1)
   ! external module
-  USE globalData,   ONLY: meta_irf_bas
-  USE var_lookup,   ONLY: ixIRFbas, nVarsIRFbas
+  USE globalData, ONLY: meta_irf_bas
+  USE var_lookup, ONLY: ixIRFbas, nVarsIRFbas
   implicit none
   ! output
   integer(i4b), intent(out)  :: ierr            ! error code
@@ -581,8 +581,8 @@ CONTAINS
   ! KWT writing procedures
   SUBROUTINE write_KWT_state(ierr, message1)
   ! External module
-  USE globalData,   ONLY: meta_kwt
-  USE var_lookup,   ONLY: ixKWT, nVarsKWT
+  USE globalData, ONLY: meta_kwt
+  USE var_lookup, ONLY: ixKWT, nVarsKWT
   implicit none
   ! output
   integer(i4b), intent(out)  :: ierr            ! error code
@@ -678,8 +678,8 @@ CONTAINS
   ! IRF writing procedures
   SUBROUTINE write_IRF_state(ierr, message1)
   ! external module
-  USE globalData,   ONLY: meta_irf        ! IRF routing
-  USE var_lookup,   ONLY: ixIRF, nVarsIRF
+  USE globalData, ONLY: meta_irf        ! IRF routing
+  USE var_lookup, ONLY: ixIRF, nVarsIRF
   implicit none
   ! output
   integer(i4b), intent(out)  :: ierr            ! error code

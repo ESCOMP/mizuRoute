@@ -2,7 +2,7 @@ MODULE basinUH_module
 
 USE nrtype
 USE public_var
-USE dataTypes,          only : STRFLX         ! fluxes in each reach
+USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
 
 implicit none
 
@@ -78,7 +78,7 @@ CONTAINS
                     RCHFLX_out,   &    ! inout: reach flux data structure
                     ierr, message)     ! output: error control
  ! External modules
- USE globalData,        ONLY : FRAC_FUTURE
+ USE globalData, ONLY: FRAC_FUTURE
  implicit none
  ! Input
  INTEGER(I4B), intent(IN)                 :: iEns           ! runoff ensemble to be routed

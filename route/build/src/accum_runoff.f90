@@ -4,8 +4,8 @@ USE nrtype
 USE public_var
 
 ! data type
-USE dataTypes,          only : STRFLX         ! fluxes in each reach
-USE dataTypes,          only : RCHTOPO        ! Network topology
+USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
+USE dataTypes, ONLY: RCHTOPO        ! Network topology
 
 implicit none
 
@@ -33,7 +33,7 @@ CONTAINS
  !
  ! ----------------------------------------------------------------------------------------
 
- USE dataTypes,         ONLY: subbasin_omp   ! mainstem+tributary data structures
+ USE dataTypes, ONLY: subbasin_omp   ! mainstem+tributary data structures
 
  implicit none
  ! input

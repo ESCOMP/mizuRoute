@@ -3,23 +3,23 @@ MODULE mpi_routine
 USE mpi
 
 ! general public variable
-USE public_var,       ONLY: integerMissing
-USE public_var,       ONLY: root
+USE public_var, ONLY: integerMissing
+USE public_var, ONLY: root
 
 ! numeric definition
 USE nrtype
 
-USE dataTypes,         ONLY: var_ilength   ! integer type:     var(:)%dat
-USE dataTypes,         ONLY: var_dlength   ! double precision type: var(:)%dat
-USE dataTypes,         ONLY: var_clength   ! character type:        var(:)%dat
-USE dataTypes,         ONLY: subbasin_omp  ! openMP domain data structure
+USE dataTypes, ONLY: var_ilength   ! integer type:     var(:)%dat
+USE dataTypes, ONLY: var_dlength   ! double precision type: var(:)%dat
+USE dataTypes, ONLY: var_clength   ! character type:        var(:)%dat
+USE dataTypes, ONLY: subbasin_omp  ! openMP domain data structure
 
 ! named variables
-USE var_lookup,        ONLY:ixHRU,    nVarsHRU     ! index of variables for the HRUs
-USE var_lookup,        ONLY:ixSEG,    nVarsSEG     ! index of variables for the stream segments
-USE var_lookup,        ONLY:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
-USE var_lookup,        ONLY:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
-USE var_lookup,        ONLY:ixPFAF,   nVarsPFAF    ! index of variables for the pfafstetter code
+USE var_lookup, ONLY:ixHRU,    nVarsHRU     ! index of variables for the HRUs
+USE var_lookup, ONLY:ixSEG,    nVarsSEG     ! index of variables for the stream segments
+USE var_lookup, ONLY:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
+USE var_lookup, ONLY:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
+USE var_lookup, ONLY:ixPFAF,   nVarsPFAF    ! index of variables for the pfafstetter code
 
 ! general utility
 USE nr_utility_module, ONLY: indexx               ! sorted index array
@@ -27,11 +27,11 @@ USE nr_utility_module, ONLY: arth                 !
 USE nr_utility_module, ONLY: findIndex            ! find index within a vector
 
 ! MPI utility
-USE mpi_mod,           ONLY: shr_mpi_bcast
-USE mpi_mod,           ONLY: shr_mpi_gatherV
-USE mpi_mod,           ONLY: shr_mpi_scatterV
-USE mpi_mod,           ONLY: shr_mpi_allgather
-USE mpi_mod,           ONLY: shr_mpi_barrier
+USE mpi_mod, ONLY: shr_mpi_bcast
+USE mpi_mod, ONLY: shr_mpi_gatherV
+USE mpi_mod, ONLY: shr_mpi_scatterV
+USE mpi_mod, ONLY: shr_mpi_allgather
+USE mpi_mod, ONLY: shr_mpi_barrier
 
 implicit none
 ! common parameters within this module
@@ -508,12 +508,12 @@ contains
                         ierr,message)    ! output: error control
   ! shared data
   USE public_var
-  USE globalData, only : nRch             ! number of reaches in the whoel river network
-  USE globalData, only : ixRch_order      ! global reach index in the order of proc assignment
-  USE globalData, only : rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
-  USE globalData, only : RCHFLX_trib      ! tributary reach flux structure
-  USE globalData, only : RCHFLX           ! entire reach flux structure
-  USE globalData, only : TSEC             ! beginning/ending of simulation time step [sec]
+  USE globalData, ONLY: nRch             ! number of reaches in the whoel river network
+  USE globalData, ONLY: ixRch_order      ! global reach index in the order of proc assignment
+  USE globalData, ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
+  USE globalData, ONLY: RCHFLX_trib      ! tributary reach flux structure
+  USE globalData, ONLY: RCHFLX           ! entire reach flux structure
+  USE globalData, ONLY: TSEC             ! beginning/ending of simulation time step [sec]
 
   implicit none
 
@@ -603,28 +603,28 @@ contains
                       ierr,message)    ! output: error control
   ! shared data
   USE public_var
-  USE dataTypes,  only : KREACH           ! derived data type
-  USE globalData, only : NETOPO_trib      ! tributary and mainstem reach netowrk topology structure
-  USE globalData, only : NETOPO           ! entire river reach netowrk topology structure
-  USE globalData, only : RPARAM_trib      ! tributary and mainstem reach parameter structure
-  USE globalData, only : RPARAM           ! entire river reach parameter structure
-  USE globalData, only : RCHFLX_trib      ! tributary reach flux structure
-  USE globalData, only : RCHFLX           ! entire reach flux structure
-  USE globalData, only : KROUTE_trib      ! tributary reach kwt data structure
-  USE globalData, only : KROUTE           ! entire river reach kwt sate structure
-  USE globalData, only : river_basin_trib ! tributary OMP domain data structure
-  USE globalData, only : river_basin_main ! mainstem OMP domain data structure
-  USE globalData, only : runoff_data      ! runoff data structure
-  USE globalData, only : nContribHRU      ! number of reaches in the whoel river network
-  USE globalData, only : ixHRU_order      ! global HRU index in the order of proc assignment
-  USE globalData, only : ixRch_order      ! global reach index in the order of proc assignment
-  USE globalData, only : hru_per_proc     ! number of hrus assigned to each proc (i.e., node)
-  USE globalData, only : rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
-  USE globalData, only : tribOutlet_per_proc ! number of tributary outlets per proc (size = nNodes)
-  USE globalData, only : global_ix_comm   ! global reach index at tributary reach outlets to mainstem (size = sum of tributary outlets in all the procs)
-  USE globalData, only : local_ix_comm    ! local reach index at tributary reach outlets to mainstem for each proc (size = sum of tributary outlets in proc)
+  USE dataTypes,  ONLY: KREACH           ! derived data type
+  USE globalData, ONLY: NETOPO_trib      ! tributary and mainstem reach netowrk topology structure
+  USE globalData, ONLY: NETOPO           ! entire river reach netowrk topology structure
+  USE globalData, ONLY: RPARAM_trib      ! tributary and mainstem reach parameter structure
+  USE globalData, ONLY: RPARAM           ! entire river reach parameter structure
+  USE globalData, ONLY: RCHFLX_trib      ! tributary reach flux structure
+  USE globalData, ONLY: RCHFLX           ! entire reach flux structure
+  USE globalData, ONLY: KROUTE_trib      ! tributary reach kwt data structure
+  USE globalData, ONLY: KROUTE           ! entire river reach kwt sate structure
+  USE globalData, ONLY: river_basin_trib ! tributary OMP domain data structure
+  USE globalData, ONLY: river_basin_main ! mainstem OMP domain data structure
+  USE globalData, ONLY: runoff_data      ! runoff data structure
+  USE globalData, ONLY: nContribHRU      ! number of reaches in the whoel river network
+  USE globalData, ONLY: ixHRU_order      ! global HRU index in the order of proc assignment
+  USE globalData, ONLY: ixRch_order      ! global reach index in the order of proc assignment
+  USE globalData, ONLY: hru_per_proc     ! number of hrus assigned to each proc (i.e., node)
+  USE globalData, ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
+  USE globalData, ONLY: tribOutlet_per_proc ! number of tributary outlets per proc (size = nNodes)
+  USE globalData, ONLY: global_ix_comm   ! global reach index at tributary reach outlets to mainstem (size = sum of tributary outlets in all the procs)
+  USE globalData, ONLY: local_ix_comm    ! local reach index at tributary reach outlets to mainstem for each proc (size = sum of tributary outlets in proc)
   ! routing driver
-  USE main_route_module, only: main_route ! routing driver
+  USE main_route_module, ONLY: main_route ! routing driver
 
   implicit none
 
@@ -911,9 +911,9 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
                           commType,     &
                           ierr, message)
 
-  USE public_var,       ONLY: root
-  USE globalData,       ONLY: RCHFLX
-  USE globalData,       ONLY: RCHFLX_trib
+  USE public_var, ONLY: root
+  USE globalData, ONLY: RCHFLX
+  USE globalData, ONLY: RCHFLX_trib
 
   ! input variables
   integer(i4b),             intent(in)  :: pid                   ! process id (MPI)
@@ -1049,10 +1049,10 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
                                    commType,     &
                                    ierr, message)
 
-  USE dataTypes,        ONLY: STRFLX              ! reach flux data structure
-  USE public_var,       ONLY: root
-  USE globalData,       ONLY: RCHFLX
-  USE globalData,       ONLY: RCHFLX_trib
+  USE dataTypes,  ONLY: STRFLX              ! reach flux data structure
+  USE public_var, ONLY: root
+  USE globalData, ONLY: RCHFLX
+  USE globalData, ONLY: RCHFLX_trib
 
   ! input variables
   integer(i4b),             intent(in)  :: pid                   ! process id (MPI)
@@ -1223,10 +1223,10 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
                                commType,     &
                                ierr, message)
 
-  USE dataTypes,        ONLY: STRFLX              ! reach flux data structure
-  USE public_var,       ONLY: root
-  USE globalData,       ONLY: RCHFLX
-  USE globalData,       ONLY: RCHFLX_trib
+  USE dataTypes,  ONLY: STRFLX              ! reach flux data structure
+  USE public_var, ONLY: root
+  USE globalData, ONLY: RCHFLX
+  USE globalData, ONLY: RCHFLX_trib
 
   ! input variables
   integer(i4b),             intent(in)  :: pid                   ! process id (MPI)
@@ -1397,10 +1397,10 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
                                commType,     &
                                ierr, message)
 
-  USE dataTypes,        ONLY: KREACH                             ! derived data type
-  USE public_var,       ONLY: root
-  USE globalData,       ONLY: KROUTE                             ! entire river reach kwt sate structure
-  USE globalData,       ONLY: KROUTE_trib                        ! Reach k-wave data structures (entire river network and tributary only)
+  USE dataTypes,  ONLY: KREACH                             ! derived data type
+  USE public_var, ONLY: root
+  USE globalData, ONLY: KROUTE                             ! entire river reach kwt sate structure
+  USE globalData, ONLY: KROUTE_trib                        ! Reach k-wave data structures (entire river network and tributary only)
 
   ! input variables
   integer(i4b),             intent(in)  :: pid                   ! process id (MPI)
@@ -1610,7 +1610,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
                                 qfuture_bas,        &  ! output:
                                 ntdh_bas,               &  ! output:
                                 ierr, message)
-  USE dataTypes,  only : STRFLX              ! reach flux data structure
+  USE dataTypes, ONLY: STRFLX              ! reach flux data structure
   implicit none
   ! Input
   integer(i4b),          intent(in)              :: iens           ! ensemble index
@@ -1658,7 +1658,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
                             qfuture,            &  ! output:
                             ntdh,               &  ! output:
                             ierr, message)
-  USE dataTypes,  only : STRFLX              ! reach flux data structure
+  USE dataTypes, ONLY: STRFLX              ! reach flux data structure
   implicit none
   ! Input
   integer(i4b),          intent(in)              :: iens           ! ensemble index
@@ -1705,7 +1705,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
                             QF,QM,TI,TR,RF,      &  ! output:
                             nWave,               &
                             ierr, message)
-  USE dataTypes,  only : KREACH             ! collection of particles in a given reach
+  USE dataTypes, ONLY: KREACH             ! collection of particles in a given reach
   implicit none
   ! Input
   integer(i4b),          intent(in)              :: iens           ! ensemble index
@@ -1758,21 +1758,21 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
  ! *********************************************************************
  ! send all the necessary public/global variables neccesary in task
  subroutine pass_global_data(comm, ierr,message)   ! output: error control
-  USE public_var, only : root
-  USE public_var, only : calendar
-  USE public_var, only : time_units
-  USE globalData, only : convTime2Days     ! conversion multipliers for time unit of runoff input to day
-  USE globalData, only : nRch,nHRU         ! number of reaches and hrus in whole network
-  USE globalData, only : timeVar           ! time variable
-  USE globalData, only : iTime             ! time index
-  USE globalData, only : refJulday         ! julian day: reference
-  USE globalData, only : startJulday       ! julian day: start
-  USE globalData, only : endJulday         ! julian day: end
-  USE globalData, only : modJulday         ! julian day: at simulation time step
-  USE globalData, only : length_conv
-  USE globalData, only : time_conv
-  USE globalData, only : reachID
-  USE globalData, only : basinID
+  USE public_var, ONLY: root
+  USE public_var, ONLY: calendar
+  USE public_var, ONLY: time_units
+  USE globalData, ONLY: convTime2Days     ! conversion multipliers for time unit of runoff input to day
+  USE globalData, ONLY: nRch,nHRU         ! number of reaches and hrus in whole network
+  USE globalData, ONLY: timeVar           ! time variable
+  USE globalData, ONLY: iTime             ! time index
+  USE globalData, ONLY: refJulday         ! julian day: reference
+  USE globalData, ONLY: startJulday       ! julian day: start
+  USE globalData, ONLY: endJulday         ! julian day: end
+  USE globalData, ONLY: modJulday         ! julian day: at simulation time step
+  USE globalData, ONLY: length_conv
+  USE globalData, ONLY: time_conv
+  USE globalData, ONLY: reachID
+  USE globalData, ONLY: basinID
   implicit none
   ! Input variables
   integer(i4b),                   intent(in)  :: comm    ! communicator
