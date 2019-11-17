@@ -1,17 +1,17 @@
 module model_setup
 
 ! data types
-USE nrtype,    only : i4b,dp,lgt          ! variable types, etc.
-USE nrtype,    only : strLen              ! length of characters
-USE dataTypes, only : var_ilength         ! integer type:          var(:)%dat
-USE dataTypes, only : var_clength         ! integer type:          var(:)%dat
-USE dataTypes, only : var_dlength         ! double precision type: var(:)%dat, or dat
+USE nrtype,    ONLY: i4b,dp,lgt          ! variable types, etc.
+USE nrtype,    ONLY: strLen              ! length of characters
+USE dataTypes, ONLY: var_ilength         ! integer type:          var(:)%dat
+USE dataTypes, ONLY: var_clength         ! integer type:          var(:)%dat
+USE dataTypes, ONLY: var_dlength         ! double precision type: var(:)%dat, or dat
 
 ! Shared data
-USE public_var, only : iulog              ! i/o logical unit number
-USE public_var, only : verySmall
-USE public_var, only : integerMissing
-USE public_var, only : realMissing
+USE public_var, ONLY: iulog              ! i/o logical unit number
+USE public_var, ONLY: verySmall
+USE public_var, ONLY: integerMissing
+USE public_var, ONLY: realMissing
 
 implicit none
 
@@ -33,10 +33,10 @@ contains
   ! Initialize MPI and get OMP thread
 
   ! shared data used
-  USE globalData, only : mpicom_route ! communicator id
+  USE globalData, ONLY: mpicom_route ! communicator id
 
   ! subroutines: populate metadata
-  USE mpi_mod,    only : shr_mpi_init
+  USE mpi_mod, ONLY: shr_mpi_init
 
   implicit none
 
@@ -63,13 +63,13 @@ contains
   ! Obtain mpi rank/ntasks and omp thread number
 
   ! shared data used
-  USE globalData, only : nNodes       ! number of tasks
-  USE globalData, only : pid          ! procs id (rank)
-  USE globalData, only : nThreads     ! number of OMP threads
+  USE globalData, ONLY: nNodes       ! number of tasks
+  USE globalData, ONLY: pid          ! procs id (rank)
+  USE globalData, ONLY: nThreads     ! number of OMP threads
 
   ! subroutines: populate metadata
-  USE mpi_mod,    only : shr_mpi_commsize
-  USE mpi_mod,    only : shr_mpi_commrank
+  USE mpi_mod, ONLY: shr_mpi_commsize
+  USE mpi_mod, ONLY: shr_mpi_commrank
 
   implicit none
 
@@ -106,13 +106,13 @@ contains
   ! used to read control files and namelist and broadcast to all processors
 
   ! shared data used
-  USE public_var,          only : ancil_dir
-  USE public_var,          only : param_nml
+  USE public_var, ONLY: ancil_dir
+  USE public_var, ONLY: param_nml
   ! subroutines: populate metadata
-  USE popMetadat_module,   only : popMetadat       ! populate metadata
+  USE popMetadat_module, ONLY: popMetadat       ! populate metadata
   ! subroutines: model control
-  USE read_control_module, only : read_control     ! read the control file
-  USE read_param_module,   only : read_param       ! read the routing parameters
+  USE read_control_module, ONLY: read_control     ! read the control file
+  USE read_param_module,   ONLY: read_param       ! read the routing parameters
 
   implicit none
 
@@ -149,25 +149,24 @@ contains
                       comm,          & ! input: communicator
                       ierr, message)   ! output: error control
 
-  USE public_var,  only : is_remap               ! logical whether or not runnoff needs to be mapped to river network HRU
-  USE public_var,  only : ntopAugmentMode        ! River network augmentation mode
-  USE public_var,  only : idSegOut               ! outlet segment ID (-9999 => no outlet segment specified)
-  USE var_lookup,  only : ixHRU2SEG              ! index of variables for data structure
-  USE var_lookup,  only : ixNTOPO                ! index of variables for data structure
-  USE globalData,  only : RCHFLX                 ! Reach flux data structures (entire river network)
-  USE globalData,  only : KROUTE                 ! Reach k-wave data structures (entire river network)
-
-  USE globalData,  only : nHRU, nRch             ! number of HRUs and Reaches in the whole network
-  USE globalData,  only : nContribHRU            ! number of HRUs that are connected to any reaches
-  USE globalData,  only : nEns                   ! number of ensembles
-  USE globalData,  only : basinID                ! HRU id vector
-  USE globalData,  only : reachID                ! reach ID vector
-  USE globalData,  only : runoff_data            ! runoff data structure
-  USE globalData,  only : remap_data             ! runoff mapping data structure
-  USE globalData,  only : isFileOpen             ! file open/close status
+  USE public_var,  ONLY: is_remap               ! logical whether or not runnoff needs to be mapped to river network HRU
+  USE public_var,  ONLY: ntopAugmentMode        ! River network augmentation mode
+  USE public_var,  ONLY: idSegOut               ! outlet segment ID (-9999 => no outlet segment specified)
+  USE var_lookup,  ONLY: ixHRU2SEG              ! index of variables for data structure
+  USE var_lookup,  ONLY: ixNTOPO                ! index of variables for data structure
+  USE globalData,  ONLY: RCHFLX                 ! Reach flux data structures (entire river network)
+  USE globalData,  ONLY: KROUTE                 ! Reach k-wave data structures (entire river network)
+  USE globalData,  ONLY: nHRU, nRch             ! number of HRUs and Reaches in the whole network
+  USE globalData,  ONLY: nContribHRU            ! number of HRUs that are connected to any reaches
+  USE globalData,  ONLY: nEns                   ! number of ensembles
+  USE globalData,  ONLY: basinID                ! HRU id vector
+  USE globalData,  ONLY: reachID                ! reach ID vector
+  USE globalData,  ONLY: runoff_data            ! runoff data structure
+  USE globalData,  ONLY: remap_data             ! runoff mapping data structure
+  USE globalData,  ONLY: isFileOpen             ! file open/close status
   ! external subroutines
-  USE mpi_routine, only : comm_ntopo_data        ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
-  USE mpi_routine, only : pass_global_data       ! mpi globaldata copy to slave proc
+  USE mpi_routine, ONLY: comm_ntopo_data        ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
+  USE mpi_routine, ONLY: pass_global_data       ! mpi globaldata copy to slave proc
 
    implicit none
    ! input:
@@ -268,16 +267,17 @@ contains
  ! *********************************************************************
  subroutine update_time(finished, ierr, message)   ! output: error control
 
-  USE public_var, only : dt
-  USE globalData, only : TSEC          ! beginning/ending of simulation time step [sec]
-  USE globalData, only : timeVar       ! time variables (unit given by runoff data)
-  USE globalData, only : iTime         ! time index at simulation time step
-  USE globalData, only : convTime2Days ! conversion multipliers for time unit of runoff input to day
-  USE globalData, only : refJulday     ! julian day: reference
-  USE globalData, only : modJulday     ! julian day: at model time step
-  USE globalData, only : endJulday     ! julian day: at end of simulation
+  ! Shared data
+  USE public_var, ONLY: dt
+  USE globalData, ONLY: TSEC          ! beginning/ending of simulation time step [sec]
+  USE globalData, ONLY: timeVar       ! time variables (unit given by runoff data)
+  USE globalData, ONLY: iTime         ! time index at simulation time step
+  USE globalData, ONLY: convTime2Days ! conversion multipliers for time unit of runoff input to day
+  USE globalData, ONLY: refJulday     ! julian day: reference
+  USE globalData, ONLY: modJulday     ! julian day: at model time step
+  USE globalData, ONLY: endJulday     ! julian day: at end of simulation
   ! external routine
-  USE write_simoutput_pio, only : close_output_nc
+  USE write_simoutput_pio, ONLY: close_output_nc
 
    implicit none
    ! output: error control
@@ -310,19 +310,19 @@ contains
  ! private subroutine: initialize channel state data
  ! *********************************************************************
  subroutine init_state(pid, nNodes, comm, ierr, message)
-  ! subroutines
-  USE read_restart,      only : read_state_nc     ! read netcdf state output file
-  USE write_restart_pio, only : define_state_nc   ! define netcdf state output file
+  ! external routines
+  USE read_restart,      ONLY: read_state_nc     ! read netcdf state output file
+  USE write_restart_pio, ONLY: define_state_nc   ! define netcdf state output file
+  USE mpi_routine,       ONLY: mpi_restart
   ! global data
-  USE public_var,    only : dt                ! simulation time step (seconds)
-  USE public_var,    only : isRestart         ! restart option: True-> model run with restart, F -> model run with empty channels
-  USE public_var,    only : routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-  USE public_var,    only : fname_state_in    ! name of state input file
-  USE public_var,    only : fname_state_out   ! name of state output file
-  USE public_var,    only : output_dir        ! directory containing output data
-  USE globalData,    only : RCHFLX            ! reach flux structure
-  USE globalData,    only : TSEC              ! begining/ending of simulation time step [sec]
-  USE mpi_routine,   only : mpi_restart
+  USE public_var, ONLY: dt                ! simulation time step (seconds)
+  USE public_var, ONLY: isRestart         ! restart option: True-> model run with restart, F -> model run with empty channels
+  USE public_var, ONLY: routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+  USE public_var, ONLY: fname_state_in    ! name of state input file
+  USE public_var, ONLY: fname_state_out   ! name of state output file
+  USE public_var, ONLY: output_dir        ! directory containing output data
+  USE globalData, ONLY: RCHFLX            ! reach flux structure
+  USE globalData, ONLY: TSEC              ! begining/ending of simulation time step [sec]
 
   implicit none
   ! input:
@@ -384,27 +384,27 @@ contains
                       ierr, message)  ! output
 
   ! subroutines:
-  USE process_time_module, only : process_time  ! process time information
-  USE io_netcdf,           only : get_nc        ! netcdf input
+  USE process_time_module, ONLY: process_time  ! process time information
+  USE io_netcdf,           ONLY: get_nc        ! netcdf input
   ! derived datatype
-  USE dataTypes,           only : time          ! time data type
+  USE dataTypes, ONLY: time           ! time data type
   ! public data
-  USE public_var,          only : input_dir     ! directory containing input data
-  USE public_var,          only : fname_qsim    ! simulated runoff netCDF name
-  USE public_var,          only : vname_time    ! variable name for time
-  USE public_var,          only : time_units    ! time units (seconds, hours, or days)
-  USE public_var,          only : simStart      ! date string defining the start of the simulation
-  USE public_var,          only : simEnd        ! date string defining the end of the simulation
-  USE public_var,          only : calendar      ! calendar name
+  USE public_var, ONLY: input_dir     ! directory containing input data
+  USE public_var, ONLY: fname_qsim    ! simulated runoff netCDF name
+  USE public_var, ONLY: vname_time    ! variable name for time
+  USE public_var, ONLY: time_units    ! time units (seconds, hours, or days)
+  USE public_var, ONLY: simStart      ! date string defining the start of the simulation
+  USE public_var, ONLY: simEnd        ! date string defining the end of the simulation
+  USE public_var, ONLY: calendar      ! calendar name
 
-  USE globalData,          only : timeVar       ! time variables (unit given by runoff data)
-  USE globalData,          only : iTime         ! time index at simulation time step
-  USE globalData,          only : convTime2Days ! conversion multipliers for time unit of runoff input to day
-  USE globalData,          only : refJulday     ! julian day: reference
-  USE globalData,          only : startJulday   ! julian day: start of routing simulation
-  USE globalData,          only : endJulday     ! julian day: end of routing simulation
-  USE globalData,          only : modJulday     ! julian day: at model time step
-  USE globalData,          only : modTime       ! model time data (yyyy:mm:dd:hh:mm:ss)
+  USE globalData, ONLY: timeVar       ! time variables (unit given by runoff data)
+  USE globalData, ONLY: iTime         ! time index at simulation time step
+  USE globalData, ONLY: convTime2Days ! conversion multipliers for time unit of runoff input to day
+  USE globalData, ONLY: refJulday     ! julian day: reference
+  USE globalData, ONLY: startJulday   ! julian day: start of routing simulation
+  USE globalData, ONLY: endJulday     ! julian day: end of routing simulation
+  USE globalData, ONLY: modJulday     ! julian day: at model time step
+  USE globalData, ONLY: modTime       ! model time data (yyyy:mm:dd:hh:mm:ss)
 
   implicit none
 
@@ -471,32 +471,32 @@ contains
                        structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
                        nContribHRU,                                                  & ! output: number of HRUs that are connected to any reaches
                        ierr, message)                                                  ! output: error controls
-  ! public vars
-  USE public_var,           only : ancil_dir                ! name of the ancillary directory
-  USE public_var,           only : fname_ntopOld            ! name of the old network topology file
-  USE public_var,           only : fname_ntopNew            ! name of the new network topology file
-  USE public_var,           only : dname_nhru               ! dimension name for HRUs
-  USE public_var,           only : dname_sseg               ! dimension name for stream segments
-  USE public_var,           only : maxPfafLen               ! maximum digit of pfafstetter code (default 32)
+  ! Shared data
+  USE public_var, ONLY: ancil_dir                ! name of the ancillary directory
+  USE public_var, ONLY: fname_ntopOld            ! name of the old network topology file
+  USE public_var, ONLY: fname_ntopNew            ! name of the new network topology file
+  USE public_var, ONLY: dname_nhru               ! dimension name for HRUs
+  USE public_var, ONLY: dname_sseg               ! dimension name for stream segments
+  USE public_var, ONLY: maxPfafLen               ! maximum digit of pfafstetter code (default 32)
   ! options
-  USE public_var,           only : ntopAugmentMode          ! River network augmentation mode
-  USE public_var,           only : idSegOut                 ! River network subset mode (idSegOut > 0)
+  USE public_var, ONLY: ntopAugmentMode          ! River network augmentation mode
+  USE public_var, ONLY: idSegOut                 ! River network subset mode (idSegOut > 0)
   ! common variables
-  USE public_var,           only : realMissing              ! missing value for real
-  USE public_var,           only : integerMissing           ! missing value for integers
+  USE public_var, ONLY: realMissing              ! missing value for real
+  USE public_var, ONLY: integerMissing           ! missing value for integers
   ! global data
-  USE globalData,           only : meta_PFAF                ! meta for pfafstetter code
-  USE globalData,           only : NETOPO, RPARAM           !
+  USE globalData, ONLY: meta_PFAF                ! meta for pfafstetter code
+  USE globalData, ONLY: NETOPO, RPARAM           !
   ! variable index
-  USE var_lookup,           only : ixPFAF                   ! index of variables for the pfafstetter code
+  USE var_lookup, ONLY: ixPFAF                   ! index of variables for the pfafstetter code
   ! external subroutines
-  USE read_streamSeg,       only : getData                  ! get the ancillary data
-  USE write_streamSeg,      only : writeData                ! write the ancillary data
-  USE process_ntopo,        only : check_river_properties   ! check if river network data is physically valid
-  USE io_netcdf,            only : get_var_dims
-  USE process_ntopo,        only : augment_ntopo            ! compute all the additional network topology (only compute option = on)
-  USE process_ntopo,        only : put_data_struct          ! populate NETOPO and RPARAM data structure
-  USE domain_decomposition, only : mpi_domain_decomposition ! domain decomposition for mpi
+  USE read_streamSeg,       ONLY: getData                  ! get the ancillary data
+  USE write_streamSeg,      ONLY: writeData                ! write the ancillary data
+  USE process_ntopo,        ONLY: check_river_properties   ! check if river network data is physically valid
+  USE io_netcdf,            ONLY: get_var_dims
+  USE process_ntopo,        ONLY: augment_ntopo            ! compute all the additional network topology (only compute option = on)
+  USE process_ntopo,        ONLY: put_data_struct          ! populate NETOPO and RPARAM data structure
+  USE domain_decomposition, ONLY: mpi_domain_decomposition ! domain decomposition for mpi
   implicit none
   ! input: None
   integer(i4b),                   intent(in)  :: nNodes                   ! number of procs
@@ -643,17 +643,17 @@ contains
                          ! error control
                          ierr, message)     ! output: error control
 
- USE public_var,  only : ancil_dir              ! name of the ancillary directory
- USE public_var,  only : input_dir              ! name of the runoff input directory
- USE public_var,  only : fname_qsim             ! name of simulated runoff netCDF
- USE public_var,  only : fname_remap            ! name of runoff mapping netCDF name
- USE public_var,  only : calendar               ! name of calendar
- USE public_var,  only : time_units             ! time units
- USE dataTypes,   only : remap                  ! remapping data type
- USE dataTypes,   only : runoff                 ! runoff data type
- USE read_runoff, only : read_runoff_metadata   ! read meta data from runoff data
- USE read_remap,  only : get_remap_data         ! read remap data
- USE globalData,  only : basinID                ! basin ID
+ USE public_var,  ONLY: ancil_dir              ! name of the ancillary directory
+ USE public_var,  ONLY: input_dir              ! name of the runoff input directory
+ USE public_var,  ONLY: fname_qsim             ! name of simulated runoff netCDF
+ USE public_var,  ONLY: fname_remap            ! name of runoff mapping netCDF name
+ USE public_var,  ONLY: calendar               ! name of calendar
+ USE public_var,  ONLY: time_units             ! time units
+ USE globalData,  ONLY: basinID                ! basin ID
+ USE dataTypes,   ONLY: remap                  ! remapping data type
+ USE dataTypes,   ONLY: runoff                 ! runoff data type
+ USE read_runoff, ONLY: read_runoff_metadata   ! read meta data from runoff data
+ USE read_remap,  ONLY: get_remap_data         ! read remap data
 
  implicit none
  ! data structures

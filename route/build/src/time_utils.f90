@@ -19,10 +19,11 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module time_utils_module
+
 USE nrtype
-USE public_var,only:secprday,secprhour,secprmin, &   ! seconds in an (day, hour, minute)
-                    months_per_yr, days_per_yr,  &   ! months and days in year (no leap year)
-                    hr_per_day, min_per_hour         ! hours per day and minutes per hour
+USE public_var, ONLY: secprday,secprhour,secprmin, &   ! seconds in an (day, hour, minute)
+                      months_per_yr, days_per_yr,  &   ! months and days in year (no leap year)
+                      hr_per_day, min_per_hour         ! hours per day and minutes per hour
 implicit none
 private
 public::extractTime
@@ -31,6 +32,7 @@ public::compjulday_noleap
 public::compcalday
 public::compcalday_noleap
 public::elapsedSec
+
 contains
 
 

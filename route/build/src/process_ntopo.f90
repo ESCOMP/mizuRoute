@@ -1,39 +1,39 @@
 module process_ntopo
 
 ! data types
-USE nrtype,    only : i4b,dp,lgt          ! variable types, etc.
-USE nrtype,    only : strLen              ! length of characters
-USE dataTypes, only : var_ilength         ! integer type:          var(:)%dat
-USE dataTypes, only : var_clength         ! integer type:          var(:)%dat
-USE dataTypes, only : var_dlength,dlength ! double precision type: var(:)%dat, or dat
+USE nrtype,    ONLY: i4b,dp,lgt          ! variable types, etc.
+USE nrtype,    ONLY: strLen              ! length of characters
+USE dataTypes, ONLY: var_ilength         ! integer type:          var(:)%dat
+USE dataTypes, ONLY: var_clength         ! integer type:          var(:)%dat
+USE dataTypes, ONLY: var_dlength,dlength ! double precision type: var(:)%dat, or dat
 
 ! global vars
-USE public_var, only : iulog              ! i/o logical unit number
-USE public_var, only : idSegOut           ! ID for stream segment at the bottom of the subset
+USE public_var, ONLY: iulog              ! i/o logical unit number
+USE public_var, ONLY: idSegOut           ! ID for stream segment at the bottom of the subset
 
 ! options
-USE public_var, only : topoNetworkOption  ! option to compute network topology
-USE public_var, only : computeReachList   ! option to compute reach list
-USE public_var, only : hydGeometryOption  ! option to obtain routing parameters
-USE public_var, only : routOpt            ! option for desired routing method
-USE public_var, only : allRoutingMethods  ! option for routing methods - all the methods
-USE public_var, only : kinematicWave      ! option for routing methods - kinematic wave only
-USE public_var, only : impulseResponseFunc! option for routing methods - IRF only
+USE public_var, ONLY: topoNetworkOption  ! option to compute network topology
+USE public_var, ONLY: computeReachList   ! option to compute reach list
+USE public_var, ONLY: hydGeometryOption  ! option to obtain routing parameters
+USE public_var, ONLY: routOpt            ! option for desired routing method
+USE public_var, ONLY: allRoutingMethods  ! option for routing methods - all the methods
+USE public_var, ONLY: kinematicWave      ! option for routing methods - kinematic wave only
+USE public_var, ONLY: impulseResponseFunc! option for routing methods - IRF only
 
 ! named variables
-USE globalData, only : true,false         ! named integers for true/false
+USE globalData, ONLY: true,false         ! named integers for true/false
 
 ! named variables
-USE var_lookup,only:ixSEG                 ! index of variables for the stream segments
-USE var_lookup,only:ixNTOPO               ! index of variables for the network topology
-USE var_lookup,only:ixPFAF                ! index of variables for the pfafstetter code
+USE var_lookup, ONLY: ixSEG                 ! index of variables for the stream segments
+USE var_lookup, ONLY: ixNTOPO               ! index of variables for the network topology
+USE var_lookup, ONLY: ixPFAF                ! index of variables for the pfafstetter code
 
 ! common variables
-USE public_var, only : compute            ! compute given variable
-USE public_var, only : doNotCompute       ! do not compute given variable
-USE public_var, only : readFromFile       ! read given variable from a file
-USE public_var, only : realMissing        ! missing value for real
-USE public_var, only : integerMissing     ! missing value for integers
+USE public_var, ONLY: compute            ! compute given variable
+USE public_var, ONLY: doNotCompute       ! do not compute given variable
+USE public_var, ONLY: readFromFile       ! read given variable from a file
+USE public_var, ONLY: realMissing        ! missing value for real
+USE public_var, ONLY: integerMissing     ! missing value for integers
 
 implicit none
 
@@ -69,19 +69,19 @@ contains
 
  ! external subroutines/data
  ! network topology routine
- use network_topo,     only:hru2segment           ! get the mapping between HRUs and segments
- use network_topo,     only:up2downSegment        ! get the mapping between upstream and downstream segments
- use network_topo,     only:reachOrder            ! define the processing order
- use network_topo,     only:streamOrdering        ! define stream order (Strahler)
- use network_topo,     only:reach_list            ! reach list
- use network_topo,     only:reach_mask            ! identify all reaches upstream of a given reach
+ USE network_topo,     only:hru2segment           ! get the mapping between HRUs and segments
+ USE network_topo,     only:up2downSegment        ! get the mapping between upstream and downstream segments
+ USE network_topo,     only:reachOrder            ! define the processing order
+ USE network_topo,     only:streamOrdering        ! define stream order (Strahler)
+ USE network_topo,     only:reach_list            ! reach list
+ USE network_topo,     only:reach_mask            ! identify all reaches upstream of a given reach
  ! Routing parameter estimation routine
- use routing_param,    only:make_uh               ! construct reach unit hydrograph
+ USE routing_param,    only:make_uh               ! construct reach unit hydrograph
  ! routing spatial constant parameters
- use globalData,       only:mann_n, wscale        ! KWT routing parameters (Transfer function parameters)
- use globalData,       only:velo, diff            ! IRF routing parameters (Transfer function parameters)
+ USE globalData,       only:mann_n, wscale        ! KWT routing parameters (Transfer function parameters)
+ USE globalData,       only:velo, diff            ! IRF routing parameters (Transfer function parameters)
 
- USE public_var, only : dt                        ! simulation time step [sec]
+ USE public_var, ONLY: dt                        ! simulation time step [sec]
 
  ! This subroutine populate river network topology data strucutres
  implicit none
@@ -328,7 +328,7 @@ end subroutine augment_ntopo
  subroutine check_river_properties(structNTOPO, structHRU, structSEG, &  ! input: data structure for physical river network data
                                    ierr, message)
   ! saved global data
-  USE public_var,    only : min_slope          ! minimum slope
+  USE public_var, ONLY: min_slope          ! minimum slope
   implicit none
   ! input
   type(var_ilength)           , intent(in)       :: structNTOPO(:)   ! network topology
@@ -372,13 +372,13 @@ end subroutine augment_ntopo
  subroutine put_data_struct(nSeg, structSEG, structNTOPO, &
                             RPARAM_in, NETOPO_in , ierr, message)
   ! saved global data
-  use dataTypes,     only : RCHPRP             ! Reach parameters
-  use dataTypes,     only : RCHTOPO            ! Network topology
-  use globalData,    only : fshape, tscale     ! basin IRF routing parameters (Transfer function parameters)
-  USE public_var,    only : min_slope          ! minimum slope
-  USE public_var,    only : dt                 ! simulation time step [sec]
+  USE dataTypes,     ONLY: RCHPRP             ! Reach parameters
+  USE dataTypes,     ONLY: RCHTOPO            ! Network topology
+  USE globalData,    ONLY: fshape, tscale     ! basin IRF routing parameters (Transfer function parameters)
+  USE public_var,    ONLY: min_slope          ! minimum slope
+  USE public_var,    ONLY: dt                 ! simulation time step [sec]
   ! external subroutines
-  use routing_param, only : basinUH            ! construct basin unit hydrograph
+  USE routing_param, ONLY: basinUH            ! construct basin unit hydrograph
   implicit none
   ! input
   integer(i4b)                , intent(in)       :: nSeg             ! number of stream segments

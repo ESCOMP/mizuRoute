@@ -2,8 +2,8 @@ module public_var
   ! This module include variables that can be accessed from any other modules and values not altered
   ! except that variables read from control file are populated.
 
-  use nrtype, only: i4b,dp,lgt
-  use nrtype, only: strLen  ! string length
+  USE nrtype, only: i4b,dp,lgt
+  USE nrtype, only: strLen  ! string length
   implicit none
 
   save

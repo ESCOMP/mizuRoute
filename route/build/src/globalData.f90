@@ -1,54 +1,54 @@
 module globalData
   ! This module includes global data structures
 
-  use public_var, only : integerMissing
-  use public_var, only : maxDomain
+  USE public_var, ONLY: integerMissing
+  USE public_var, ONLY: maxDomain
 
   ! data types
-  use nrtype
+  USE nrtype
 
   ! metadata types
-  use dataTypes,  only : struct_info   ! metadata type
-  use dataTypes,  only : dim_info      ! metadata type
-  use dataTypes,  only : var_info      ! metadata type
+  USE dataTypes, ONLY: struct_info   ! metadata type
+  USE dataTypes, ONLY: dim_info      ! metadata type
+  USE dataTypes, ONLY: var_info      ! metadata type
 
   ! parameter structures
-  USE dataTypes,  only : RCHPRP        ! Reach parameters (properties)
-  USE dataTypes,  only : RCHTOPO       ! Network topology
+  USE dataTypes, ONLY: RCHPRP        ! Reach parameters (properties)
+  USE dataTypes, ONLY: RCHTOPO       ! Network topology
 
   ! routing structures
-  USE dataTypes,  only : KREACH        ! Collection of flow particles in each reach
-  USE dataTypes,  only : STRFLX        ! fluxes in each reach
+  USE dataTypes, ONLY: KREACH        ! Collection of flow particles in each reach
+  USE dataTypes, ONLY: STRFLX        ! fluxes in each reach
 
   ! lake structures
-  USE dataTypes,  only : LAKPRP        ! lake properties
-  USE dataTypes,  only : LAKTOPO       ! lake topology
-  USE dataTypes,  only : LKFLX         ! lake fluxes
+  USE dataTypes, ONLY: LAKPRP        ! lake properties
+  USE dataTypes, ONLY: LAKTOPO       ! lake topology
+  USE dataTypes, ONLY: LKFLX         ! lake fluxes
 
   ! remapping structures
-  use dataTypes,  only : remap         ! remapping data type
-  use dataTypes,  only : runoff        ! runoff data type
+  USE dataTypes, ONLY: remap         ! remapping data type
+  USE dataTypes, ONLY: runoff        ! runoff data type
 
   ! basin data structure
-  use dataTypes,  only : subbasin_omp  ! mainstem+tributary data structures
-  use dataTypes,  only : subbasin_mpi  ! reach category (store mainstem code or pfaf code)
+  USE dataTypes, ONLY: subbasin_omp  ! mainstem+tributary data structures
+  USE dataTypes, ONLY: subbasin_mpi  ! reach category (store mainstem code or pfaf code)
 
   ! time data structure
-  use dataTypes,  only : time         ! time data
+  USE dataTypes, ONLY: time         ! time data
 
   ! data size
-  USE var_lookup, only : nStructures   ! number of variables for data structure
-  USE var_lookup, only : nDimensions   ! number of variables for data structure
-  USE var_lookup, only : nStateDims    ! number of variables for data structure
-  USE var_lookup, only : nQdims        ! number of variables for data structure
-  USE var_lookup, only : nVarsHRU      ! number of variables for data structure
-  USE var_lookup, only : nVarsHRU2SEG  ! number of variables for data structure
-  USE var_lookup, only : nVarsSEG      ! number of variables for data structure
-  USE var_lookup, only : nVarsNTOPO    ! number of variables for data structure
-  USE var_lookup, only : nVarsPFAF     ! number of variables for data structure
-  USE var_lookup, only : nVarsIRFbas   ! number of variables for data structure
-  USE var_lookup, only : nVarsIRF      ! number of variables for data structure
-  USE var_lookup, only : nVarsKWT      ! number of variables for data structure
+  USE var_lookup, ONLY: nStructures   ! number of variables for data structure
+  USE var_lookup, ONLY: nDimensions   ! number of variables for data structure
+  USE var_lookup, ONLY: nStateDims    ! number of variables for data structure
+  USE var_lookup, ONLY: nQdims        ! number of variables for data structure
+  USE var_lookup, ONLY: nVarsHRU      ! number of variables for data structure
+  USE var_lookup, ONLY: nVarsHRU2SEG  ! number of variables for data structure
+  USE var_lookup, ONLY: nVarsSEG      ! number of variables for data structure
+  USE var_lookup, ONLY: nVarsNTOPO    ! number of variables for data structure
+  USE var_lookup, ONLY: nVarsPFAF     ! number of variables for data structure
+  USE var_lookup, ONLY: nVarsIRFbas   ! number of variables for data structure
+  USE var_lookup, ONLY: nVarsIRF      ! number of variables for data structure
+  USE var_lookup, ONLY: nVarsKWT      ! number of variables for data structure
 
   implicit none
 

@@ -37,20 +37,20 @@ contains
  subroutine output(ierr, message)
 
   !Dependent modules
-  USE public_var,          only : doesBasinRoute      ! basin routing options   0-> no, 1->IRF, otherwise error
-  USE public_var,          only : doesAccumRunoff     ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
-  USE public_var,          only : routOpt             ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-  USE public_var,          only : kinematicWave       ! kinematic wave
-  USE public_var,          only : impulseResponseFunc ! impulse response function
-  USE public_var,          only : allRoutingMethods   ! all routing methods
-  USE globalData,          only : nHRU                ! number of ensembles, HRUs and river reaches
-  USE globalData,          only : RCHFLX              ! global Reach fluxes (ensembles, space [reaches])
-  USE globalData,          only : RCHFLX_trib         ! tributary Reach fluxes (ensembles, space [reaches])
-  USE globalData,          only : iTime               ! time index at simulation time step
-  USE globalData,          only : timeVar             ! time variables (unit given by runoff data)
-  USE globalData,          only : runoff_data         ! runoff data for one time step for LSM HRUs and River network HRUs
-  USE globalData,          only : ixRch_order         ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
-  USE globalData,          only : rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
+  USE public_var, ONLY: doesBasinRoute      ! basin routing options   0-> no, 1->IRF, otherwise error
+  USE public_var, ONLY: doesAccumRunoff     ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
+  USE public_var, ONLY: routOpt             ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+  USE public_var, ONLY: kinematicWave       ! kinematic wave
+  USE public_var, ONLY: impulseResponseFunc ! impulse response function
+  USE public_var, ONLY: allRoutingMethods   ! all routing methods
+  USE globalData, ONLY: nHRU                ! number of ensembles, HRUs and river reaches
+  USE globalData, ONLY: RCHFLX              ! global Reach fluxes (ensembles, space [reaches])
+  USE globalData, ONLY: RCHFLX_trib         ! tributary Reach fluxes (ensembles, space [reaches])
+  USE globalData, ONLY: iTime               ! time index at simulation time step
+  USE globalData, ONLY: timeVar             ! time variables (unit given by runoff data)
+  USE globalData, ONLY: runoff_data         ! runoff data for one time step for LSM HRUs and River network HRUs
+  USE globalData, ONLY: ixRch_order         ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
+  USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
 
   implicit none
 
@@ -144,20 +144,20 @@ contains
  SUBROUTINE prep_output(ierr, message)
 
  ! saved public variables (usually parameters, or values not modified)
- USE public_var,          only : output_dir        ! output directory
- USE public_var,          only : fname_output      ! output file name head
- USE public_var,          only : calendar          ! calendar name
- USE public_var,          only : newFileFrequency  ! frequency for new output files (day, month, annual, single)
- USE public_var,          only : time_units        ! time units (seconds, hours, or days)
+ USE public_var, ONLY: output_dir        ! output directory
+ USE public_var, ONLY: fname_output      ! output file name head
+ USE public_var, ONLY: calendar          ! calendar name
+ USE public_var, ONLY: newFileFrequency  ! frequency for new output files (day, month, annual, single)
+ USE public_var, ONLY: time_units        ! time units (seconds, hours, or days)
  ! saved global data
- USE globalData,          only : basinID,reachID   ! HRU and reach ID in network
- USE globalData,          only : modJulday         ! julian day: at model time step
- USE globalData,          only : modTime           ! previous and current model time
- USE globalData,          only : nHRU, nRch        ! number of ensembles, HRUs and river reaches
- USE globalData,          only : isFileOpen        ! file open/close status
+ USE globalData, ONLY: basinID,reachID   ! HRU and reach ID in network
+ USE globalData, ONLY: modJulday         ! julian day: at model time step
+ USE globalData, ONLY: modTime           ! previous and current model time
+ USE globalData, ONLY: nHRU, nRch        ! number of ensembles, HRUs and river reaches
+ USE globalData, ONLY: isFileOpen        ! file open/close status
  ! subroutines
- USE time_utils_module,   only : compCalday        ! compute calendar day
- USE time_utils_module,   only : compCalday_noleap ! compute calendar day
+ USE time_utils_module, ONLy: compCalday        ! compute calendar day
+ USE time_utils_module, ONLy: compCalday_noleap ! compute calendar day
 
  implicit none
 
@@ -240,12 +240,14 @@ contains
  END SUBROUTINE prep_output
 
  SUBROUTINE close_output_nc()
-  USE globalData, only : isFileOpen   ! file open/close status
+
+  USE globalData, ONLY: isFileOpen   ! file open/close status
   implicit none
   if (isFileOpen) then
    call closeFile(pioFileDesc)
    isFileOpen=.false.
   endif
+
  END SUBROUTINE close_output_nc
 
  ! *********************************************************************

@@ -3,12 +3,11 @@ Module mpi_mod
   ! PURPOSE: general layer on MPI functions
   !-------------------------------------------------------------------------------
   USE mpi
-
   USE nrtype
-  USE globalData,  ONLY: pid, nNodes
-  USE globalData,  ONLY: mpicom_route
-  USE public_var,  ONLY: root
-  USE public_var,  ONLY: iulog
+  USE globalData, ONLY: pid, nNodes
+  USE globalData, ONLY: mpicom_route
+  USE public_var, ONLY: root
+  USE public_var, ONLY: iulog
 
   implicit none
   private

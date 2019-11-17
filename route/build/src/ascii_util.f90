@@ -1,10 +1,12 @@
 module ascii_util_module
+
 USE nrtype
 implicit none
 private
 public::file_open
 public::split_line
 public::get_vlines
+
 contains
 
  ! **********************************************************************************************

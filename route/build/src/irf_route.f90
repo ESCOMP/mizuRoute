@@ -3,12 +3,12 @@ module irf_route_module
 !numeric type
 USE nrtype
 ! data type
-USE dataTypes,          only : STRFLX         ! fluxes in each reach
-USE dataTypes,          only : RCHTOPO        ! Network topology
+USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
+USE dataTypes, ONLY: RCHTOPO        ! Network topology
 ! global parameters
-USE public_var,         only : iulog          ! i/o logical unit number
-USE public_var,         only : realMissing    ! missing value for real number
-USE public_var,         only : integerMissing ! missing value for integer number
+USE public_var, ONLY: iulog          ! i/o logical unit number
+USE public_var, ONLY: realMissing    ! missing value for real number
+USE public_var, ONLY: integerMissing ! missing value for integer number
 
 ! privary
 implicit none
@@ -30,7 +30,7 @@ contains
                       ixSubRch)         ! optional input: subset of reach indices to be processed
 
  ! global routing data
- USE dataTypes,  only : subbasin_omp   ! mainstem+tributary data structures
+ USE dataTypes, ONLY: subbasin_omp   ! mainstem+tributary data structures
 
  implicit none
  ! Input
