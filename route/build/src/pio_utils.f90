@@ -65,49 +65,46 @@ module pio_utils
     module procedure write_double_darray4D_recdim
   end interface
 
-  !! pio_iotype_pnetcdf  = 1    Parallel Netcdf  (parallel)
-  !! pio_iotype_netcdf   = 2    Netcdf3 Classic format (serial)
-  !! pio_iotype_netcdf4c = 3    NetCDF4 (HDF5) compressed format (serial)
-  !! pio_iotype_NETCDF4p = 4    NetCDF4 (HDF5) parallel
-  integer, parameter :: iotype = pio_iotype_pnetcdf
-
 contains
 
   ! *********************************************************************
   ! subroutine: initialize ParallelIO system
   ! *********************************************************************
   subroutine pio_sys_init(pid,       &  !input
-                          nNodes,    &  !input
                           comm,      &  !input
+                          stride,    &  !input
+                          nIOtasks,  &  !input
+                          rearranger,&  !input
+                          idxBase,   &  !input
                           pioIOsystem)  !output
     implicit none
     ! input variables
     integer(i4b),          intent(in)  :: pid
-    integer(i4b),          intent(in)  :: nNodes
     integer(i4b),          intent(in)  :: comm
+    integer(i4b),          intent(in)  :: stride       ! stride in MPI rank between IO tasks.
+    integer(i4b),          intent(in)  :: nIOtasks     ! number of IO tasks
+    integer(i4b),          intent(in)  :: rearranger   !
+    integer(i4b),          intent(in)  :: idxBase      ! Start index of IO tasks.
     type(iosystem_desc_t), intent(out) :: pioIoSystem  ! pio system descriptor
     ! Local variables
-    integer(i4b)                       :: stride       ! stride in MPI rank between IO tasks.
-    integer(i4b)                       :: nIOtasks     ! number of IO tasks
     integer(i4b)                       :: nAggregator  ! MPI aggregator count
-    integer(i4b),parameter             :: idxBase=1    ! Start index of IO tasks.
 
     ! set up PIO for rest of parameters
-    stride      = 1
-    nIOtasks    = nNodes/stride
     nAggregator = 0
     call pio_init(pid,              & ! input: MPI rank
                   comm,             & ! input: MPI communicator
                   nIOtasks,         & ! input: Number of iotasks
                   nAggregator,      & ! input: number of aggregators to use
                   stride,           & ! input: MPI rank stride between IO tasks
-                  pio_rearr_subset, & ! input: do not use any form of rearrangement
+                  rearranger,       & ! input: do not use any form of rearrangement
                   pioIoSystem,      & ! output: pio system descriptor
                   base=idxBase)       ! base (optional argument)
 
   end subroutine pio_sys_init
 
-  !-----------------------------------------------------------------------
+  ! *********************************************************************
+  ! subroutine: PIO domain decomposition data
+  ! *********************************************************************
   subroutine pio_decomp(pioIoSystem,  & ! input: pio system descriptor
                         piotype,      & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                         dimLen,       & ! input: dimension length for global array
@@ -122,7 +119,7 @@ contains
     implicit none
     ! input variables
     type(iosystem_desc_t),intent(inout) :: pioIoSystem    ! pio system descriptor
-    integer,              intent(in)    :: piotype        ! pio data type
+    integer(i4b),         intent(in)    :: piotype        ! pio data type
     integer(i4b),         intent(in)    :: dimLen(:)      ! length of dimension for global array
     integer(i4b),         intent(in)    :: gidx_local(:)  ! indices of global array describing the decomposition of the data
     ! output variables
@@ -191,51 +188,134 @@ contains
 
   end subroutine pio_decomp
 
-
   !-----------------------------------------------------------------------
-  subroutine createFile(pioIoSystem, fileName, pioFileDesc, ierr, message)
+  function iotype_id(iotype,        &  ! input:  netcdf type name
+                     ierr, message)    ! output: error handling
+
+    ! Valid netcdf type: "netcdf", "netcdf4c", "netcdf4p", "pnetcdf"
+    !
+    !  - pnetcdf  ==> pio_iotype_pnetcdf  = 1   Parallel Netcdf  (parallel)
+    !  - netcdf   ==> pio_iotype_netcdf   = 2   Netcdf3 Classic format (serial)
+    !  - netcdf4c ==> pio_iotype_netcdf4c = 3   NetCDF4 (HDF5) compressed format (serial)
+    !  - netcdf4p ==> pio_iotype_NETCDF4p = 4   NetCDF4 (HDF5) parallel
 
     implicit none
     ! input variables
-    type(iosystem_desc_t), intent(inout):: pioIoSystem
-    character(*),          intent(in)   :: fileName
-    type(file_desc_t),     intent(out)  :: pioFileDesc  ! contains data identifying the file.
-    integer(i4b),          intent(out)  :: ierr
-    character(*),          intent(out)  :: message      ! error message
+    character(*), intent(in)  :: iotype    ! Input: netcdf type
+    ! local variable
+    integer(i4b), intent(out) :: ierr      ! error code
+    character(*), intent(out) :: message   ! error message
+    integer(i4b)              :: iotype_id !
+
+    ierr=0; message='iotype_id'
+
+    select case(trim(iotype))
+      case('netcdf');   iotype_id = pio_iotype_netcdf
+      case('pnetcdf');  iotype_id = pio_iotype_pnetcdf
+      case('netcdf4c'); iotype_id = pio_iotype_netcdf4c
+      case('netcdf4p'); iotype_id = pio_iotype_NETCDF4p
+      case default
+        message=trim(message)//'unexpected netcdf type name '//trim(iotype)
+        ierr=20; return
+    end select
+
+  end function iotype_id
+
+  function ioformat_id(ioformat,     &  ! input:  netcdf format name, default="64bit_offset"
+                       ierr, message)   ! output: error handling
+    ! Valid netcdf format: "64bit_offset"
+    !
+    !  - 64bit_offset,
+
+    implicit none
+    ! input variables
+    character(*), intent(in)  :: ioformat    ! Input: netcdf format name
+    ! output variable
+    integer(i4b), intent(out) :: ierr        ! error code
+    character(*), intent(out) :: message     ! error message
+    integer(i4b)              :: ioformat_id ! netcdf format id
+
+    ierr=0; message='ioformat_id'
+
+    select case(trim(ioformat))
+      case('64bit_data');   ioformat_id = PIO_64BIT_DATA
+      case('64bit_offset'); ioformat_id = PIO_64BIT_OFFSET
+      case default
+        message=trim(message)//'unexpected netcdf format name '//trim(ioformat)
+        ierr=20; return
+    end select
+
+  end function ioformat_id
+
+  !-----------------------------------------------------------------------
+  subroutine createFile(pioIoSystem,   &  ! inout:  pio system descriptor (initialized by pio_init)
+                        fileName,      &  ! input:  output netcdf name
+                        netcdf_type,   &  ! input:  netcdf type name,   default="netcdf"
+                        netcdf_format, &  ! input:  netcdf format name, default="64bit_offset"
+                        pioFileDesc,   &  ! output: pio file descriptor (use in writing function)
+                        ierr, message)    ! output: error handling
+
+    implicit none
+    ! input variable
+    type(iosystem_desc_t), intent(inout):: pioIoSystem   ! input: pio system descriptor
+    character(*),          intent(in)   :: fileName      ! input: netcdf name
+    character(*),          intent(in)   :: netcdf_type   ! input: netcdf type name
+    character(*),          intent(in)   :: netcdf_format ! input: netcdf format name
+    ! output variable
+    type(file_desc_t),     intent(out)  :: pioFileDesc   ! contains data identifying the file.
+    integer(i4b),          intent(out)  :: ierr          ! error code
+    character(*),          intent(out)  :: message       ! error message
+    ! local variable
+    integer(i4b)                        :: iotype        ! netcdf type ID
+    integer(i4b)                        :: ioformat      ! netcdf format ID
     integer(i4b)                        :: mode
+    character(len=strLen)               :: cmessage      ! error message from subroutine
 
-    mode = ior(PIO_64BIT_DATA,PIO_CLOBBER)
+   iotype = iotype_id(netcdf_type, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ierr = pio_createfile(pioIOsystem,    & ! input:
-                          pioFileDesc,    & ! output:
-                          iotype,         & ! input: ??
-                          trim(fileName), & ! input: input file name
-                          mode)             ! append
-    if(ierr/=pio_noerr)then; message=trim(message)//'cannot create netCDF'; return; endif
+   ioformat = ioformat_id(netcdf_format, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   mode = ior(ioformat,PIO_CLOBBER)
+
+   ierr = pio_createfile(pioIOsystem,    & ! input:
+                         pioFileDesc,    & ! output:
+                         iotype,         & ! input:
+                         trim(fileName), & ! input: input file name
+                         mode)             ! append
+   if(ierr/=pio_noerr)then; message=trim(message)//'cannot create netCDF'; return; endif
 
   end subroutine createFile
 
   !-----------------------------------------------------------------------
-  subroutine openFile(pioIoSystem, pioFileDesc, fname, mode, ierr, message)
+  subroutine openFile(pioIoSystem, pioFileDesc, fname, netcdf_type, mode, ierr, message)
     !
     ! DESCRIPTION:
     ! Open a NetCDF PIO file
     !
+    implicit none
     ! ARGUMENTS:
     type(iosystem_desc_t), intent(inout) :: pioIoSystem
     type(file_desc_t),     intent(inout) :: pioFileDesc  ! contains data identifying the file.
     character(*),          intent(in)    :: fname        ! filename
+    character(*),          intent(in)    :: netcdf_type  ! input: netcdf type name
     integer(i4b),          intent(in)    :: mode         ! file mode: pio_nowrite or pio_write
     ! output
     integer(i4b),          intent(out)   :: ierr         ! error status
     character(*),          intent(out)   :: message      ! error message
+    ! local variable
+    integer(i4b)                         :: iotype       ! netcdf type ID
+    character(len=strLen)                :: cmessage     ! error message from subroutine
 
     ierr=0; message='openFile/'
 
-    ierr = pio_openfile(pioIoSystem, pioFileDesc, iotype, trim(fname), mode)
+    iotype = iotype_id(netcdf_type, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+    ierr = pio_openfile(pioIoSystem, pioFileDesc, iotype, trim(fname), mode)
     if(ierr/=pio_noerr)then; message=trim(message)//'Could not open netCDF'; return; endif
-      !call shr_sys_abort('ncd_pio_openfile ERROR: Failed to open file')
+    !call shr_sys_abort('ncd_pio_openfile ERROR: Failed to open file')
 
   end subroutine openFile
 
@@ -244,6 +324,7 @@ contains
     ! !DESCRIPTION:
     ! Close a NetCDF PIO file
     !
+    implicit none
     ! !ARGUMENTS:
     type(file_desc_t), intent(inout) :: pioFileDesc   ! PIO file handle to close
     !-----------------------------------------------------------------------
@@ -257,6 +338,7 @@ contains
     ! !DESCRIPTION:
     ! end definition of netcdf file
     !
+    implicit none
     ! input
     type(file_desc_t), intent(inout) :: pioFileDesc  ! netcdf file id
     ! output

@@ -54,12 +54,18 @@ module globalData
 
   save
 
-  ! ---------- MPI/OMP variables -------------------------------------------------------------------
+  ! ---------- MPI/OMP/PIO variables ----------------------------------------------------------------
 
-  integer(i4b)                  :: mpicom_route        ! communicator for this program
-  integer(i4b)                  :: pid                 ! process id
-  integer(i4b)                  :: nNodes              ! number of nodes
-  integer(i4b)                  :: nThreads            ! number of threads
+  integer(i4b)                   , public :: mpicom_route              ! communicator for this program
+  integer(i4b)                   , public :: pid                       ! process id
+  integer(i4b)                   , public :: nNodes                    ! number of nodes
+  integer(i4b)                   , public :: nThreads                  ! number of threads
+  character(len=strLen)          , public :: pio_netcdf_format = "64bit_offset"
+  character(len=strLen)          , public :: pio_typename      = "pnetcdf"
+  integer(i4b)                   , public :: pio_numiotasks    = -99
+  integer(i4b)                   , public :: pio_rearranger    = 2     ! 0=>PIO_rearr_none 1=> PIO_rearr_box 2=> PIO_rearr_subset
+  integer(i4b)                   , public :: pio_root          = 1
+  integer(i4b)                   , public :: pio_stride        = 1
 
   ! ---------- constants ----------------------------------------------------------------------------
 
@@ -136,7 +142,7 @@ module globalData
   type(RCHTOPO)   , allocatable  , public :: NETOPO_main(:)       ! River Network topology for mainstems
 
   ! time delay histogram
-  REAL(DP)        , ALLOCATABLE  , public :: FRAC_FUTURE(:)       ! fraction of runoff in future time steps
+  REAL(DP)        , allocatable  , public :: FRAC_FUTURE(:)       ! fraction of runoff in future time steps
 
   ! routing data structures
   TYPE(KREACH)    , allocatable  , public :: KROUTE(:,:)          ! Routing state variables (ensembles, space [reaches]) for the entire river network

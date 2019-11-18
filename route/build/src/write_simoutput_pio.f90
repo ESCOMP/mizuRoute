@@ -1,6 +1,6 @@
 MODULE write_simoutput_pio
 
-! Moudle wide external modules
+! Moudle wide shared data
 USE nrtype
 USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
 USE public_var,        ONLY: iulog             ! i/o logical unit number
@@ -8,6 +8,13 @@ USE public_var,        ONLY: root
 USE public_var,        ONLY: integerMissing
 USE globalData,        ONLY: pid, nNodes
 USE globalData,        ONLY: mpicom_route
+USE globalData,        ONLY: pio_netcdf_format
+USE globalData,        ONLY: pio_typename
+USE globalData,        ONLY: pio_numiotasks
+USE globalData,        ONLY: pio_rearranger
+USE globalData,        ONLY: pio_root
+USE globalData,        ONLY: pio_stride
+! Moudle wide external modules
 USE nr_utility_module, ONLY: arth
 USE pio_utils
 
@@ -215,7 +222,7 @@ contains
                    ierr,cmessage)                            ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   call openFile(pioSystem, pioFileDesc, trim(fileout), ncd_write, ierr, cmessage)
+   call openFile(pioSystem, pioFileDesc, trim(fileout), pio_typename, ncd_write, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! define basin ID
@@ -294,7 +301,11 @@ contains
  meta_qDims(ixQdims%ens)%dimLength = nEns
 
  ! pio initialization
- call pio_sys_init(pid, nNodes, mpicom_route, pioSystem)
+ pio_numiotasks = nNodes/pio_stride
+ call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
+                   pio_stride, pio_numiotasks, & ! input: PIO related parameters
+                   pio_rearranger, pio_root,   & ! input: PIO related parameters
+                   pioSystem)                    ! output: PIO system descriptors
 
  if (pid==root) then
    ix1 = 1_i4b
@@ -330,7 +341,7 @@ contains
                  dof_hru,       & ! input:
                  iodesc_hru_ro)
 
- call createFile(pioSystem, trim(fname), pioFileDesc, ierr, cmessage)
+ call createFile(pioSystem, trim(fname), pio_typename, pio_netcdf_format, pioFileDesc, ierr, cmessage)
  if(ierr/=0)then; message=trim(cmessage)//'cannot create netCDF'; return; endif
 
  do jDim =1,nQdims
