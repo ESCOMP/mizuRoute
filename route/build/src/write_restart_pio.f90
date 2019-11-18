@@ -1,6 +1,6 @@
 MODULE write_restart_pio
 
-! Moudle wide external modules
+! Moudle wide shared data
 USE nrtype
 USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
 USE dataTypes,         ONLY: KREACH            ! collection of particles in a given reach
@@ -11,6 +11,13 @@ USE public_var,        ONLY: integerMissing
 USE public_var,        ONLY: realMissing
 USE globalData,        ONLY: pid, nNodes
 USE globalData,        ONLY: mpicom_route
+USE globalData,        ONLY: pio_netcdf_format
+USE globalData,        ONLY: pio_typename
+USE globalData,        ONLY: pio_numiotasks
+USE globalData,        ONLY: pio_rearranger
+USE globalData,        ONLY: pio_root
+USE globalData,        ONLY: pio_stride
+! Moudle wide external modules
 USE nr_utility_module, ONLY: arth
 USE pio_utils
 
@@ -109,12 +116,16 @@ CONTAINS
  ! ----------------------------------
  ! pio initialization for restart netCDF
  ! ----------------------------------
- call pio_sys_init(pid, nNodes, mpicom_route, pioSystemState)
+ pio_numiotasks = nNodes/pio_stride
+ call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
+                   pio_stride, pio_numiotasks, & ! input: PIO related parameters
+                   pio_rearranger, pio_root,   & ! input: PIO related parameters
+                   pioSystemState)               ! output: PIO system descriptors
 
  ! ----------------------------------
  ! Create file
  ! ----------------------------------
- call createFile(pioSystemState, trim(fname), pioFileDescState, ierr, cmessage)
+ call createFile(pioSystemState, trim(fname), pio_typename, pio_netcdf_format, pioFileDescState, ierr, cmessage)
  if(ierr/=0)then; message=trim(cmessage)//'cannot create state netCDF'; return; endif
 
  ! For common dimension/variables - seg id, time, time-bound -----------
@@ -485,7 +496,7 @@ CONTAINS
 
  ! -- Write out to netCDF
 
- call openFile(pioSystemState, pioFileDescState, trim(fname), ncd_write, ierr, cmessage)
+ call openFile(pioSystemState, pioFileDescState, trim(fname),pio_typename, ncd_write, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! Miscellaneous variables - seg id, time etc
