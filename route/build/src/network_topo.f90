@@ -17,7 +17,7 @@ USE globalData, ONLY: meta_SEG     ! stream segment properties
 USE globalData, ONLY: meta_NTOPO   ! network topology
 
 ! named variables
-USE globalData, ONLY: true,false      ! named integers for true/false
+USE public_var, ONLY: true,false      ! named integers for true/false
 USE public_var, ONLY: verySmall       ! a very small value
 USE public_var, ONLY: integerMissing
 

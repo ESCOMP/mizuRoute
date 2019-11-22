@@ -50,6 +50,15 @@ module public_var
 
   ! ---------- named variables ----------------------------------------------------------------------
 
+  ! true/false
+  integer(i4b), parameter, public :: true=1001                  ! true
+  integer(i4b), parameter, public :: false=1002                 ! false
+
+  ! variable types
+  integer(i4b), parameter, public :: varType_integer   = 1001   ! named variable for an integer
+  integer(i4b), parameter, public :: varType_double    = 1002   ! named variable for a double precision
+  integer(i4b), parameter, public :: varType_character = 1003   ! named variable for a double precision
+
   ! compute versus read from file
   integer(i4b), parameter,public  :: compute=1              ! compute given variable
   integer(i4b), parameter,public  :: doNotCompute=0         ! do not compute given variable

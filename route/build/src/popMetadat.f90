@@ -3,17 +3,15 @@ module popMetadat_module
 ! common variables
 USE public_var, ONLY: MAXQPAR
 USE public_var, ONLY: integerMissing
+USE public_var, ONLY: varType_integer   ! named variable for an integer
+USE public_var, ONLY: varType_double    ! named variable for a double precision
+USE public_var, ONLY: varType_character ! named variable for a double precision
 
 ! data types
 USE nrtype
 USE dataTypes,  ONLY: struct_info  ! data type for metadata structure
 USE dataTypes,  ONLY: var_info     ! data type for metadata structure
 USE dataTypes,  ONLY: dim_info     ! data type for metadata structure
-
-! variable type
-USE globalData, ONLY: varType_integer   ! named variable for an integer
-USE globalData, ONLY: varType_double    ! named variable for a double precision
-USE globalData, ONLY: varType_character ! named variable for a double precision
 
 ! metadata on data structures
 USE globalData, ONLY: meta_struct    ! structure information
