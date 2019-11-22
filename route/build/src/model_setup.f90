@@ -165,6 +165,7 @@ contains
   USE globalData,  ONLY: remap_data             ! runoff mapping data structure
   USE globalData,  ONLY: isFileOpen             ! file open/close status
   ! external subroutines
+  USE mpi_mod,     ONLY: shr_mpi_finalize       ! mpi utilities: shut down mpi
   USE mpi_routine, ONLY: comm_ntopo_data        ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
   USE mpi_routine, ONLY: pass_global_data       ! mpi globaldata copy to slave proc
 
@@ -205,7 +206,7 @@ contains
 
    ! check if network topology write option is on. If so, terminate the program
    if (ntopAugmentMode .or. idSegOut>0) then
-    call MPI_FINALIZE(ierr)
+    call shr_mpi_finalize(comm)
     stop
    end if
 
