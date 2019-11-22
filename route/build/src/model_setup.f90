@@ -613,11 +613,11 @@ contains
                    ierr,cmessage) ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    if (idSegOut>0) write(*,'(a)') 'Running in river network subset mode'
-    if (ntopAugmentMode) write(*,'(a)') 'Running in river network augmentation mode'
-    write(*,'(a)') 'Created a new network topology file '//trim(fname_ntopNew)
-    write(*,'(a)') ' --> Run again using the new network topology file '
-    write(*,'(a)') ' SUCCESSFUL EXECUTION '
+    if (idSegOut>0) write(iulog,'(a)') 'Running in river network subset mode'
+    if (ntopAugmentMode) write(iulog,'(a)') 'Running in river network augmentation mode'
+    write(iulog,'(a)') 'Created a new network topology file '//trim(fname_ntopNew)
+    write(iulog,'(a)') ' --> Run again using the new network topology file '
+    write(iulog,'(a)') ' SUCCESSFUL EXECUTION '
     return
   endif
 
