@@ -21,7 +21,7 @@ USE public_var, ONLY: kinematicWave      ! option for routing methods - kinemati
 USE public_var, ONLY: impulseResponseFunc! option for routing methods - IRF only
 
 ! named variables
-USE globalData, ONLY: true,false         ! named integers for true/false
+USE public_var, ONLY: true,false         ! named integers for true/false
 
 ! named variables
 USE var_lookup, ONLY: ixSEG                 ! index of variables for the stream segments

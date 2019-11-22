@@ -1,5 +1,5 @@
 module globalData
-  ! This module includes global data structures
+  ! This module includes shared data
 
   USE public_var, ONLY: integerMissing
   USE public_var, ONLY: maxDomain
@@ -54,6 +54,33 @@ module globalData
 
   save
 
+  ! ---------- Catchment and reach IDs  -------------------------------------------------------------------------
+
+  integer(i4b)                   , public :: nHRU                 ! number of HRUs in the whole river network
+  integer(i4b)                   , public :: nContribHRU          ! number of HRUs that are connected to any reaches
+  integer(i4b)                   , public :: nRch                 ! number of reaches in the whole river network
+  integer(i4b)    , allocatable  , public :: basinID(:)           ! HRU id
+  integer(i4b)    , allocatable  , public :: reachID(:)           ! reach id
+
+  ! ---------- Data/Time data  -------------------------------------------------------------------------
+
+  integer(i4b)                   , public :: iTime                ! time index at simulation time step
+  real(dp)                       , public :: startJulday          ! julian day: start of routing simulation
+  real(dp)                       , public :: endJulday            ! julian day: end of routing simulation
+  real(dp)                       , public :: refJulday            ! julian day: reference
+  real(dp)                       , public :: modJulday            ! julian day: simulation time step
+  real(dp)        , allocatable  , public :: timeVar(:)           ! time variables (unit given by runoff data)
+  real(dp)                       , public :: TSEC(0:1)            ! begning and end of time step (sec)
+  type(time)                     , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
+
+  ! ---------- Misc. data -------------------------------------------------------------------------
+
+  ! I/O stuff
+  logical(lgt)                   , public :: isFileOpen                ! flag to indicate output netcdf is open
+  integer(i4b)                   , public :: ixPrint=integerMissing    ! index of desired reach to be on-screen print
+  ! ennsemble number (maybe to be removed)
+  integer(i4b)                   , public :: nEns=1                    ! number of ensemble
+
   ! ---------- MPI/OMP/PIO variables ----------------------------------------------------------------
 
   integer(i4b)                   , public :: mpicom_route              ! communicator for this program
@@ -67,17 +94,6 @@ module globalData
   integer(i4b)                   , public :: pio_root          = 1
   integer(i4b)                   , public :: pio_stride        = 1
 
-  ! ---------- constants ----------------------------------------------------------------------------
-
-  ! true/false
-  integer(i4b)      , parameter  , public :: true=1001                  ! true
-  integer(i4b)      , parameter  , public :: false=1002                 ! false
-
-  ! variable types
-  integer(i4b)      , parameter  , public :: varType_integer   = 1001   ! named variable for an integer
-  integer(i4b)      , parameter  , public :: varType_double    = 1002   ! named variable for a double precision
-  integer(i4b)      , parameter  , public :: varType_character = 1003   ! named variable for a double precision
-
   ! ---------- conversion factors -------------------------------------------------------------------
 
   real(dp)                       , public :: convTime2Days              ! conversion factor to convert time to units of days
@@ -85,7 +101,7 @@ module globalData
   real(dp)                       , public :: length_conv                ! length conversion factor -- used to convert to mm/s
 
   ! ---------- routing parameter names -------------------------------------------------------------------
-
+  ! spatial constant ....
   real(dp)                       , public :: fshape                     ! shape parameter in time delay histogram (=gamma distribution) [-]
   real(dp)                       , public :: tscale                     ! scaling factor for the time delay histogram [sec]
   real(dp)                       , public :: velo                       ! velocity [m/s] for Saint-Venant equation   added by NM
@@ -112,26 +128,7 @@ module globalData
   type(var_info)                 , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
   type(var_info)                 , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
 
-  ! ---------- data structures ----------------------------------------------------------------------
-  integer(i4b)                   , public :: nEns=1               ! number of ensemble
-  ! number of spatial elements
-  integer(i4b)                   , public :: nHRU                 ! number of HRUs in the whole river network
-  integer(i4b)                   , public :: nContribHRU          ! number of HRUs that are connected to any reaches
-  integer(i4b)                   , public :: nRch                 ! number of reaches in the whole river network
-
-  ! basin and reach IDs (to be removed)
-  integer(i4b)    , allocatable  , public :: basinID(:)           ! HRU id
-  integer(i4b)    , allocatable  , public :: reachID(:)           ! reach id
-
-  ! DataTime data/variables
-  integer(i4b)                   , public :: iTime                ! time index at simulation time step
-  real(dp)                       , public :: startJulday          ! julian day: start of routing simulation
-  real(dp)                       , public :: endJulday            ! julian day: end of routing simulation
-  real(dp)                       , public :: refJulday            ! julian day: reference
-  real(dp)                       , public :: modJulday            ! julian day: simulation time step
-  real(dp)        , allocatable  , public :: timeVar(:)           ! time variables (unit given by runoff data)
-  real(dp)                       , public :: TSEC(0:1)            ! begning and end of time step (sec)
-  type(time)                     , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
+  ! ---------- shared data structures ----------------------------------------------------------------------
 
   ! river topology and parameter structures
   type(RCHPRP)    , allocatable  , public :: RPARAM(:)            ! Reach Parameters for whole domain
@@ -176,11 +173,5 @@ module globalData
   integer(i4b)    , allocatable  , public :: global_ix_comm(:)    ! global index array for tributary reach outlet (size = num of tributary outlets)
   integer(i4b)    , allocatable  , public :: local_ix_comm(:)     ! local index array for tributary reach outlet (size = num of tributary outlets)
   integer(i4b)    , allocatable  , public :: tribOutlet_per_proc(:)! number of tributary outlet reaches assigned to each proc (size = num of procs)
-
-  ! I/O stuff
-  logical(lgt)                   , public :: isFileOpen            ! flag to indicate output netcdf is open
-
-  ! miscellaneous
-  integer(i4b)                   , public :: ixPrint=integerMissing   ! index of desired reach to be on-screen print
 
 end module globalData
