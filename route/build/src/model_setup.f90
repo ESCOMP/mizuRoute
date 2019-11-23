@@ -1,4 +1,4 @@
-module model_setup
+MODULE model_setup
 
 ! data types
 USE nrtype,    ONLY: i4b,dp,lgt          ! variable types, etc.
@@ -17,24 +17,25 @@ implicit none
 
 ! privacy -- everything private unless declared explicitly
 private
-public :: init_mpi      ! For stand-alone only
+public :: init_mpi           ! For stand-alone only
 public :: get_mpi_omp
 public :: init_model
-public :: init_data
+public :: init_data          ! For stand-alone only
+public :: init_ntopo_data
+public :: init_state_data
 public :: update_time
 
-contains
+CONTAINS
 
  ! *********************************************************************
  ! public subroutine: initialize MPI for stand-alone program
  ! *********************************************************************
- subroutine init_mpi()
+ SUBROUTINE init_mpi()
 
   ! Initialize MPI and get OMP thread
 
   ! shared data used
   USE globalData, ONLY: mpicom_route ! communicator id
-
   ! subroutines: populate metadata
   USE mpi_mod, ONLY: shr_mpi_init
 
@@ -52,13 +53,13 @@ contains
 
   call get_mpi_omp(mpicom_route)
 
- end subroutine init_mpi
+ END SUBROUTINE init_mpi
 
 
  ! *********************************************************************
  ! public subroutine: get mpi and omp info
  ! *********************************************************************
- subroutine get_mpi_omp(comm)
+ SUBROUTINE get_mpi_omp(comm)
 
   ! Obtain mpi rank/ntasks and omp thread number
 
@@ -66,7 +67,6 @@ contains
   USE globalData, ONLY: nNodes       ! number of tasks
   USE globalData, ONLY: pid          ! procs id (rank)
   USE globalData, ONLY: nThreads     ! number of OMP threads
-
   ! subroutines: populate metadata
   USE mpi_mod, ONLY: shr_mpi_commsize
   USE mpi_mod, ONLY: shr_mpi_commrank
@@ -95,13 +95,13 @@ contains
   !$ nThreads = omp_get_num_threads()
   !$OMP END PARALLEL
 
- end subroutine get_mpi_omp
+ END SUBROUTINE get_mpi_omp
 
 
  ! *********************************************************************
  ! public subroutine: model setup
  ! *********************************************************************
- subroutine init_model(cfile_name, ierr, message)
+ SUBROUTINE init_model(cfile_name, ierr, message)
 
   ! used to read control files and namelist and broadcast to all processors
 
@@ -138,22 +138,68 @@ contains
   call read_param(trim(ancil_dir)//trim(param_nml),ierr,cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- end subroutine init_model
+ END SUBROUTINE init_model
 
 
  ! *********************************************************************
- ! public subroutine: initialize river network, runoff, and runoff-mapping data
+ ! public subroutine: initialize all the data - For stand-alone
  ! *********************************************************************
- subroutine init_data(pid,           & ! input: proc id
+ SUBROUTINE init_data(pid,           & ! input: proc id
                       nNodes,        & ! input: number of procs
                       comm,          & ! input: communicator
                       ierr, message)   ! output: error control
 
-  USE public_var,  ONLY: is_remap               ! logical whether or not runnoff needs to be mapped to river network HRU
-  USE public_var,  ONLY: ntopAugmentMode        ! River network augmentation mode
-  USE public_var,  ONLY: idSegOut               ! outlet segment ID (-9999 => no outlet segment specified)
+   USE globalData,  ONLY: isFileOpen             ! file open/close status
+   ! external subroutines
+   USE mpi_routine, ONLY: pass_global_data       ! mpi globaldata copy to slave proc
+
+   IMPLICIT NONE
+   integer(i4b),              intent(in)    :: pid              ! proc id
+   integer(i4b),              intent(in)    :: nNodes           ! number of procs
+   integer(i4b),              intent(in)    :: comm             ! communicator
+   ! output: error control
+   integer(i4b),              intent(out)   :: ierr             ! error code
+   character(*),              intent(out)   :: message          ! error message
+   ! local variable
+   character(len=strLen)                    :: cmessage         ! error message of downwind routine
+
+   ! initialize error control
+   ierr=0; message='init_data/'
+
+   ! network topology data initialization
+   call init_ntopo_data(pid, nNodes, comm, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! runoff and mapping data initialization
+   call init_runoff_data(pid, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! broadcast public and some global variables
+   call pass_global_data(comm, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! channel state initialization
+   call init_state_data(pid, nNodes, comm, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   isFileOpen=.false.
+
+ END SUBROUTINE init_data
+
+
+ ! *********************************************************************
+ ! public subroutine: initialize river network and state data
+ ! *********************************************************************
+ SUBROUTINE init_ntopo_data(pid,           & ! input: proc id
+                            nNodes,        & ! input: number of procs
+                            comm,          & ! input: communicator
+                            ierr, message)   ! output: error control
+
   USE var_lookup,  ONLY: ixHRU2SEG              ! index of variables for data structure
   USE var_lookup,  ONLY: ixNTOPO                ! index of variables for data structure
+  ! Shared data
+  USE public_var,  ONLY: ntopAugmentMode        ! River network augmentation mode
+  USE public_var,  ONLY: idSegOut               ! outlet segment ID (-9999 => no outlet segment specified)
   USE globalData,  ONLY: RCHFLX                 ! Reach flux data structures (entire river network)
   USE globalData,  ONLY: KROUTE                 ! Reach k-wave data structures (entire river network)
   USE globalData,  ONLY: nHRU, nRch             ! number of HRUs and Reaches in the whole network
@@ -161,13 +207,9 @@ contains
   USE globalData,  ONLY: nEns                   ! number of ensembles
   USE globalData,  ONLY: basinID                ! HRU id vector
   USE globalData,  ONLY: reachID                ! reach ID vector
-  USE globalData,  ONLY: runoff_data            ! runoff data structure
-  USE globalData,  ONLY: remap_data             ! runoff mapping data structure
-  USE globalData,  ONLY: isFileOpen             ! file open/close status
   ! external subroutines
   USE mpi_mod,     ONLY: shr_mpi_finalize       ! mpi utilities: shut down mpi
   USE mpi_routine, ONLY: comm_ntopo_data        ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
-  USE mpi_routine, ONLY: pass_global_data       ! mpi globaldata copy to slave proc
 
    implicit none
    ! input:
@@ -189,7 +231,7 @@ contains
    character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
    ! initialize error control
-   ierr=0; message='init_data/'
+   ierr=0; message='init_ntopo_data/'
 
    ! populate various river network data strucutures for each proc
    if (pid==0) then
@@ -230,6 +272,38 @@ contains
       reachID(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
      enddo
 
+   end if  ! if processor=0 (root)
+
+   ! distribute network topology data and network parameters to the different processors
+   call comm_ntopo_data(pid, nNodes, comm,                                    & ! input: proc id, # of procs and commnicator
+                        nRch, nContribHRU,                                    & ! input: number of reach and HRUs that contribut to any reaches
+                        structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
+                        ierr, cmessage)                                         ! output: error controls
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ END SUBROUTINE init_ntopo_data
+
+
+ ! ********************************************************************************
+ ! public subroutine: initialize runoff, and runoff-mapping data - For stand-alone
+ ! ********************************************************************************
+ SUBROUTINE init_runoff_data(pid,           & ! input: proc id
+                             ierr, message)   ! output: error control
+
+   USE public_var, ONLY: is_remap             ! logical whether or not runnoff needs to be mapped to river network HRU
+   USE globalData, ONLY: remap_data           ! runoff mapping data structure
+   USE globalData, ONLY: runoff_data          ! runoff data structure
+
+   implicit none
+   ! input:
+   integer(i4b),              intent(in)    :: pid              ! proc id
+   ! output: error control
+   integer(i4b),              intent(out)   :: ierr             ! error code
+   character(*),              intent(out)   :: message          ! error message
+   ! local:
+   character(len=strLen)                    :: cmessage         ! error message of downwind routine
+
+   if (pid==0) then
      ! runoff and remap data initialization (TO DO: split runoff and remap initialization)
      call init_runoff(is_remap,        & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
                       remap_data,      & ! output: data structure to remap data
@@ -243,30 +317,13 @@ contains
 
    end if  ! if processor=0 (root)
 
-   ! distribute network topology data and network parameters to the different processors
-   call comm_ntopo_data(pid, nNodes, comm,                                    & ! input: proc id, # of procs and commnicator
-                        nRch, nContribHRU,                                    & ! input: number of reach and HRUs that contribut to any reaches
-                        structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
-                        ierr, cmessage)                                         ! output: error controls
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   ! send all the necessary global variables to nodes
-   call pass_global_data(comm, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   ! channel state initialization
-   call init_state(pid, nNodes, comm, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   isFileOpen=.false.
-
- end subroutine init_data
+ END SUBROUTINE init_runoff_data
 
 
  ! *********************************************************************
  ! public subroutine: update time to next time
  ! *********************************************************************
- subroutine update_time(finished, ierr, message)   ! output: error control
+ SUBROUTINE update_time(finished, ierr, message)
 
   ! Shared data
   USE public_var, ONLY: dt
@@ -304,13 +361,14 @@ contains
    ! update the julian day of the model simulation
    modJulday = refJulday + timeVar(iTime)/convTime2Days
 
- end subroutine update_time
+ END SUBROUTINE update_time
 
 
  ! *********************************************************************
- ! private subroutine: initialize channel state data
+ ! public subroutine: initialize channel state data
  ! *********************************************************************
- subroutine init_state(pid, nNodes, comm, ierr, message)
+ SUBROUTINE init_state_data(pid, nNodes, comm, ierr, message)
+
   ! external routines
   USE read_restart,      ONLY: read_state_nc     ! read netcdf state output file
   USE write_restart_pio, ONLY: define_state_nc   ! define netcdf state output file
@@ -339,7 +397,7 @@ contains
   character(len=strLen)            :: cmessage         ! error message of downwind routine
 
   ! initialize error control
-  ierr=0; message='init_state/'
+  ierr=0; message='init_state_data/'
 
   iens = 1_i4b
 
@@ -376,12 +434,12 @@ contains
   call define_state_nc(trim(output_dir)//trim(fname_state_out), ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- end subroutine init_state
+ END SUBROUTINE init_state_data
 
 ! *********************************************************************
  ! private subroutine: initialize time data
  ! *********************************************************************
- subroutine init_time(nTime,     &    ! input: number of time steps
+ SUBROUTINE init_time(nTime,     &    ! input: number of time steps
                       ierr, message)  ! output
 
   ! subroutines:
@@ -389,7 +447,7 @@ contains
   USE io_netcdf,           ONLY: get_nc        ! netcdf input
   ! derived datatype
   USE dataTypes, ONLY: time           ! time data type
-  ! public data
+  ! Shared data
   USE public_var, ONLY: input_dir     ! directory containing input data
   USE public_var, ONLY: fname_qsim    ! simulated runoff netCDF name
   USE public_var, ONLY: vname_time    ! variable name for time
@@ -397,7 +455,6 @@ contains
   USE public_var, ONLY: simStart      ! date string defining the start of the simulation
   USE public_var, ONLY: simEnd        ! date string defining the end of the simulation
   USE public_var, ONLY: calendar      ! calendar name
-
   USE globalData, ONLY: timeVar       ! time variables (unit given by runoff data)
   USE globalData, ONLY: iTime         ! time index at simulation time step
   USE globalData, ONLY: convTime2Days ! conversion multipliers for time unit of runoff input to day
@@ -461,13 +518,13 @@ contains
   !modTime(0:1) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
   modTime(0) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
 
- end subroutine init_time
+ END SUBROUTINE init_time
 
 
  ! *********************************************************************
  ! private subroutine: initialize river network data
  ! *********************************************************************
- subroutine init_ntopo(nNodes,                                                       & ! input:  number of nodes
+ SUBROUTINE init_ntopo(nNodes,                                                       & ! input:  number of nodes
                        nHRU_out, nRch_out,                                           & ! output: number of HRU and Reaches
                        structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
                        nContribHRU,                                                  & ! output: number of HRUs that are connected to any reaches
@@ -498,6 +555,7 @@ contains
   USE process_ntopo,        ONLY: augment_ntopo            ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,        ONLY: put_data_struct          ! populate NETOPO and RPARAM data structure
   USE domain_decomposition, ONLY: mpi_domain_decomposition ! domain decomposition for mpi
+
   implicit none
   ! input: None
   integer(i4b),                   intent(in)  :: nNodes                   ! number of procs
@@ -631,18 +689,15 @@ contains
   call mpi_domain_decomposition(nNodes, nRch_out, structNTOPO, nContribHRU, ierr, cmessage)     !Warning: nHRU /= nContribHRU
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- end subroutine init_ntopo
+ END SUBROUTINE init_ntopo
 
  ! *****
- ! public subroutine: get mapping data between runoff hru and river network hru
+ ! private subroutine: get mapping data between runoff hru and river network hru
  ! *********************************************************************
- subroutine init_runoff(&
-                         ! data structures
-                         remap_flag,      & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
-                         remap_data_in,   & ! output: data structure to remap data
-                         runoff_data_in,  & ! output: data structure for runoff
-                         ! error control
-                         ierr, message)     ! output: error control
+ SUBROUTINE init_runoff(remap_flag,      & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
+                        remap_data_in,   & ! output: data structure to remap data
+                        runoff_data_in,  & ! output: data structure for runoff
+                        ierr, message)     ! output: error control
 
  USE public_var,  ONLY: ancil_dir              ! name of the ancillary directory
  USE public_var,  ONLY: input_dir              ! name of the runoff input directory
@@ -752,14 +807,16 @@ contains
 
  endif
 
- end subroutine init_runoff
+ END SUBROUTINE init_runoff
 
 
  ! *****
  ! private subroutine: get indices of mapping points within runoff file...
  ! ***********************************************************************
- subroutine get_qix(qid,qidMaster,qix,ierr,message)
+ SUBROUTINE get_qix(qid,qidMaster,qix,ierr,message)
+
  USE nr_utility_module, ONLY: indexx  ! get rank of data value
+
  implicit none
  ! input
  integer(i4b), intent(in)  :: qid(:)                       ! ID of input vector
@@ -773,6 +830,7 @@ contains
  integer(i4b)             :: rankMaster( size(qidMaster) ) ! rank of master vector
  integer(i4b)             :: ix,jx,ixMaster                ! array indices
  integer(i4b)             :: nx                            ! counter
+
  ! initialize error control
  ierr=0; message='get_qix/'
 
@@ -829,7 +887,6 @@ contains
   endif
  end do
 
- end subroutine get_qix
+ END SUBROUTINE get_qix
 
-end module model_setup
-
+END MODULE model_setup

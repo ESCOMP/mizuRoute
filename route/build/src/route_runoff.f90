@@ -2,7 +2,7 @@
 !! mizuRoute stand-alone driver
 !!
 !! ======================================================================================================
-program route_runoff
+PROGRAM route_runoff
 
 ! ******
 ! provide access to desired data types / structures...
@@ -10,27 +10,27 @@ program route_runoff
 ! variable types
 USE nrtype                                     ! variable types, etc.
 ! shared data
-USE public_var, only : iulog                   ! i/o logical unit number
-USE globalData, only : pid, nNodes             ! procs id and number of procs
-USE globalData, only : mpicom_route            ! communicator
+USE public_var, ONLY: iulog                   ! i/o logical unit number
+USE globalData, ONLY: pid, nNodes             ! procs id and number of procs
+USE globalData, ONLY: mpicom_route            ! communicator
 
 ! ******
 ! provide access to desired subroutines...
 ! ****************************************
-USE mpi_mod,             only : shr_mpi_finalize
-USE mpi_mod,             only : shr_mpi_abort
+USE mpi_mod,             ONLY: shr_mpi_finalize
+USE mpi_mod,             ONLY: shr_mpi_abort
 ! subroutines: model set up
-USE model_setup,         only : init_mpi         ! initialize MPI for this program
-USE model_setup,         only : init_model       ! model setupt - reading control file, populate metadata, read parameter file
-USE model_setup,         only : init_data        ! initialize river reach data
-USE model_setup,         only : update_time      ! Update simulation time information at each time step
+USE model_setup,         ONLY: init_mpi         ! initialize MPI for this program
+USE model_setup,         ONLY: init_model       ! model setupt - reading control file, populate metadata, read parameter file
+USE model_setup,         ONLY: init_data        ! initialize river reach data
+USE model_setup,         ONLY: update_time      ! Update simulation time information at each time step
 ! subroutines: routing
-USE mpi_routine,         only : mpi_route        ! Distribute runoff to proc, route them, and gather,
+USE mpi_routine,         ONLY: mpi_route        ! Distribute runoff to proc, route them, and gather,
 ! subroutines: model I/O
-USE get_runoff        ,  only : get_hru_runoff   !
-USE write_simoutput_pio, only : prep_output      !
-USE write_simoutput_pio, only : output           !
-USE write_restart_pio,   only : output_state     ! write netcdf state output file
+USE get_runoff,          ONLY: get_hru_runoff   !
+USE write_simoutput_pio, ONLY: prep_output      !
+USE write_simoutput_pio, ONLY: output           !
+USE write_restart_pio,   ONLY: output_state     ! write netcdf state output file
 
 implicit none
 
@@ -85,11 +85,9 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 ! ***********************************
 do while (.not.finished)
 
-  ! prepare simulation output netCDF
   call prep_output(ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
 
-  ! Get river network hru runoff at current time step
   if(pid==0)then
 call system_clock(startTime)
     call get_hru_runoff(ierr, cmessage)
@@ -99,7 +97,6 @@ elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(iulog,"(A,1PG15.7,A)") '   elapsed-time [read_ro] = ', elapsedTime, ' s'
   endif
 
-  ! process routing at each proc
 call system_clock(startTime)
   call mpi_route(pid, nNodes, mpicom_route, iens, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
@@ -117,7 +114,7 @@ write(iulog,"(A,1PG15.7,A)") '   elapsed-time [output] = ', elapsedTime, ' s'
   call update_time(finished, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
 
-end do  ! looping through time
+end do
 
 call output_state(ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
@@ -126,9 +123,9 @@ call shr_mpi_finalize(mpicom_route)
 
 stop
 
-contains
+CONTAINS
 
- subroutine handle_err(err,message)
+ SUBROUTINE handle_err(err,message)
  ! handle error codes
  implicit none
  integer(i4b),intent(in)::err             ! error code
@@ -136,6 +133,6 @@ contains
  if(err/=0)then
   call shr_mpi_abort('FATAL ERROR: '//trim(message), err)
  endif
- end subroutine handle_err
+ END SUBROUTINE handle_err
 
-end program route_runoff
+END PROGRAM route_runoff
