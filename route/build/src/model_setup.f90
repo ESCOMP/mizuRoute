@@ -5,25 +5,70 @@ USE nrtype,    only : i4b,dp,lgt          ! variable types, etc.
 USE nrtype,    only : strLen              ! length of characters
 USE dataTypes, only : var_ilength         ! integer type:          var(:)%dat
 USE dataTypes, only : var_clength         ! integer type:          var(:)%dat
-USE dataTypes, only : var_dlength,dlength ! double precision type: var(:)%dat, or dat
+USE dataTypes, only : var_dlength         ! double precision type: var(:)%dat, or dat
 
+! Shared data
+USE public_var, only : iulog              ! i/o logical unit number
 USE public_var, only : verySmall
 USE public_var, only : integerMissing
 USE public_var, only : realMissing
-
-USE globalData, only : pid, nNodes             ! procs id and number of procs
-
-USE mpi_mod,    only : shr_mpi_abort
 
 implicit none
 
 ! privacy -- everything private unless declared explicitly
 private
+public :: init_mpi
 public :: init_model
 public :: init_data
 public :: update_time
 
 contains
+
+ ! *********************************************************************
+ ! public subroutine: model setup
+ ! *********************************************************************
+ subroutine init_mpi()
+
+  ! initialize hybrid parallelization (Initialize MPI and get OMP thread)
+
+  ! shared data used
+  USE globalData, only : nNodes       ! number of tasks
+  USE globalData, only : pid          ! procs id (rank)
+  USE globalData, only : mpicom_route ! communicator id
+  USE globalData, only : nThreads     ! number of OMP threads
+
+  ! subroutines: populate metadata
+  USE mpi_mod,    only : shr_mpi_init
+  USE mpi_mod,    only : shr_mpi_commsize
+  USE mpi_mod,    only : shr_mpi_commrank
+
+  implicit none
+
+  ! input:  None
+  ! output: None
+  ! local variables
+  character(len=strLen)       :: message             ! error message
+  integer(i4b)                :: omp_get_num_threads ! number of threads used for openMP
+
+  ! initialize error control
+  message='init_mpi/'
+
+  call shr_mpi_init(mpicom_route, message)
+
+  ! Get the number of processes
+  call shr_mpi_commsize(mpicom_route, nNodes, message)
+
+  ! Get the individual process ID
+  call shr_mpi_commrank(mpicom_route, pid, message)
+
+  !  Get number of threads
+  nThreads = 1
+  !$OMP PARALLEL
+  !$ nThreads = omp_get_num_threads()
+  !$OMP END PARALLEL
+
+ end subroutine init_mpi
+
 
  ! *********************************************************************
  ! public subroutine: model setup
@@ -73,6 +118,7 @@ contains
  ! *********************************************************************
  subroutine init_data(pid,           & ! input: proc id
                       nNodes,        & ! input: number of procs
+                      comm,          & ! input: communicator
                       ierr, message)   ! output: error control
 
   USE public_var,  only : is_remap               ! logical whether or not runnoff needs to be mapped to river network HRU
@@ -99,6 +145,7 @@ contains
    ! input:
    integer(i4b),              intent(in)    :: pid              ! proc id
    integer(i4b),              intent(in)    :: nNodes           ! number of procs
+   integer(i4b),              intent(in)    :: comm             ! communicator
    ! output: error control
    integer(i4b),              intent(out)   :: ierr             ! error code
    character(*),              intent(out)   :: message          ! error message
@@ -120,7 +167,8 @@ contains
    if (pid==0) then
 
      ! read the river network data and compute additonal network attributes (inncludes spatial decomposition)
-     call init_ntopo(nHRU, nRch,                                                   & ! output: number of HRU and Reaches
+     call init_ntopo(nNodes,                                                       & ! input:  number of nodes
+                     nHRU, nRch,                                                   & ! output: number of HRU and Reaches
                      structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
                      nContribHRU,                                                  & ! output: MPI domain decomposition data
                      ierr, cmessage)                                                 ! output: error controls
@@ -155,8 +203,7 @@ contains
      enddo
 
      ! runoff and remap data initialization (TO DO: split runoff and remap initialization)
-     call init_runoff(&
-                      is_remap,        & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
+     call init_runoff(is_remap,        & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
                       remap_data,      & ! output: data structure to remap data
                       runoff_data,     & ! output: data structure for runoff
                       ierr, cmessage)    ! output: error control
@@ -169,18 +216,18 @@ contains
    end if  ! if processor=0 (root)
 
    ! distribute network topology data and network parameters to the different processors
-   call comm_ntopo_data(pid, nNodes,                                          & ! input: proc id and # of procs
+   call comm_ntopo_data(pid, nNodes, comm,                                    & ! input: proc id, # of procs and commnicator
                         nRch, nContribHRU,                                    & ! input: number of reach and HRUs that contribut to any reaches
                         structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
                         ierr, cmessage)                                         ! output: error controls
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! send all the necessary global variables to nodes
-   call pass_global_data(ierr, cmessage)
+   call pass_global_data(comm, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! channel state initialization
-   call init_state(pid, nNodes, ierr, cmessage)
+   call init_state(pid, nNodes, comm, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    isFileOpen=.false.
@@ -234,7 +281,7 @@ contains
  ! *********************************************************************
  ! private subroutine: initialize channel state data
  ! *********************************************************************
- subroutine init_state(pid, nNodes, ierr, message)
+ subroutine init_state(pid, nNodes, comm, ierr, message)
   ! subroutines
   USE read_restart,      only : read_state_nc     ! read netcdf state output file
   USE write_restart_pio, only : define_state_nc   ! define netcdf state output file
@@ -253,6 +300,7 @@ contains
   ! input:
   integer(i4b),        intent(in)  :: pid              ! proc id
   integer(i4b),        intent(in)  :: nNodes           ! number of procs
+  integer(i4b),        intent(in)  :: comm             ! communicator
   ! output: error control
   integer(i4b),        intent(out) :: ierr             ! error code
   character(*),        intent(out) :: message          ! error message
@@ -277,7 +325,7 @@ contains
 
    end if
 
-   call mpi_restart(pid, nNodes, iens, ierr, cmessage)
+   call mpi_restart(pid, nNodes, comm, iens, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   else
@@ -390,7 +438,8 @@ contains
  ! *********************************************************************
  ! private subroutine: initialize river network data
  ! *********************************************************************
- subroutine init_ntopo(nHRU_out, nRch_out,                                           & ! output: number of HRU and Reaches
+ subroutine init_ntopo(nNodes,                                                       & ! input:  number of nodes
+                       nHRU_out, nRch_out,                                           & ! output: number of HRU and Reaches
                        structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
                        nContribHRU,                                                  & ! output: number of HRUs that are connected to any reaches
                        ierr, message)                                                  ! output: error controls
@@ -422,6 +471,7 @@ contains
   USE domain_decomposition, only : mpi_domain_decomposition ! domain decomposition for mpi
   implicit none
   ! input: None
+  integer(i4b),                   intent(in)  :: nNodes                   ! number of procs
   ! output (river network data structures for the entire domain)
   integer(i4b)                  , intent(out) :: nHRU_out                 ! number of HRUs
   integer(i4b)                  , intent(out) :: nRch_out                 ! number of reaches
@@ -599,8 +649,7 @@ contains
                           ierr, cmessage)                       ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- !print*, 'runoff_data_in%nSpace, nTime, trim(time_units) = ', runoff_data_in%nSpace(:), runoff_data_in%nTime, trim(time_units)
- !print*, trim(message)//'PAUSE : '; read(*,*)
+ !write(*,*) 'runoff_data_in%nSpace, nTime, trim(time_units) = ', runoff_data_in%nSpace(:), runoff_data_in%nTime, trim(time_units)
 
  ! need to remap runoff to HRUs
  if (remap_flag) then
@@ -676,12 +725,6 @@ contains
 
  end subroutine init_runoff
 
- ! ============================================================================================
- ! ============================================================================================
- ! ============================================================================================
- ! ============================================================================================
- ! ============================================================================================
- ! ============================================================================================
 
  ! *****
  ! private subroutine: get indices of mapping points within runoff file...
@@ -708,9 +751,6 @@ contains
  call indexx(qid,       rankID)
  call indexx(qidMaster, rankMaster)
 
- !print*, 'rankId = ', rankId(1:10)
- !print*, 'qId( rankId(1:10) ) = ', qId( rankId(1:10) )
- !print*, 'PAUSE: '; read(*,*)
  qix(1:size(qid)) = integerMissing
  nx=0
  jx=1
@@ -722,7 +762,7 @@ contains
 
    ! keep track of trials
    nx=nx+1
-   !print*, 'qid( rankId(ix) ), qidMaster( rankMaster(ixMaster) ) = ', qid( rankId(ix) ), qidMaster( rankMaster(ixMaster) )
+   !write(*,*) 'qid( rankId(ix) ), qidMaster( rankMaster(ixMaster) ) = ', qid( rankId(ix) ), qidMaster( rankMaster(ixMaster) )
 
    ! find match
    if( qid( rankId(ix) ) == qidMaster( rankMaster(ixMaster) ) )then
@@ -742,14 +782,13 @@ contains
 
   ! print progress
   if(qix( rankId(ix) )/=integerMissing .and. mod(ix,1000000)==0)then
-   print*, trim(message)//'matching ids: ix, qix( rankId(ix) ), qid( rankId(ix) ), qidMaster( qix( rankId(ix) ) ) = ', &
-                                         ix, qix( rankId(ix) ), qid( rankId(ix) ), qidMaster( qix( rankId(ix) ) )
-   !print*, 'PAUSE : '; read(*,*)
+   write(iulog,*) trim(message)//'matching ids: ix, qix( rankId(ix) ), qid( rankId(ix) ), qidMaster( qix( rankId(ix) ) ) = ', &
+                                                ix, qix( rankId(ix) ), qid( rankId(ix) ), qidMaster( qix( rankId(ix) ) )
   endif
 
  end do  ! looping through the vector
 
- print*, 'nMissing = ', count(qix==integerMissing)
+ write(iulog,*) 'nMissing = ', count(qix==integerMissing)
 
  ! check again
  do ix=1,size(qid)

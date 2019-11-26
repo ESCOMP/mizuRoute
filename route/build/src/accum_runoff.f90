@@ -173,10 +173,10 @@ CONTAINS
  ! check
  if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
   associate( ixUpstream => NETOPO_in(segIndex)%RCHLIST)
-  print*, 'ixUpstream = ', NETOPO_in(ixUpstream(1:size(ixUpstream)))%REACHIX
-  print*, 'idUpstream = ', NETOPO_in(ixUpstream(1:size(ixUpstream)))%REACHID
+  write(iulog,*) 'ixUpstream = ', NETOPO_in(ixUpstream(1:size(ixUpstream)))%REACHIX
+  write(iulog,*) 'idUpstream = ', NETOPO_in(ixUpstream(1:size(ixUpstream)))%REACHID
   end associate
-  print*, 'RCHFLX_out%UPSTREAM_QI = ', RCHFLX_out(iens,segIndex)%UPSTREAM_QI
+  write(iulog,*) 'RCHFLX_out%UPSTREAM_QI = ', RCHFLX_out(iens,segIndex)%UPSTREAM_QI
  endif
 
  end subroutine accum_qupstream

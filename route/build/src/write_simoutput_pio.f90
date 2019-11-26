@@ -3,9 +3,11 @@ MODULE write_simoutput_pio
 ! Moudle wide external modules
 USE nrtype
 USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
+USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: root
 USE public_var,        ONLY: integerMissing
 USE globalData,        ONLY: pid, nNodes
+USE globalData,        ONLY: mpicom_route
 USE nr_utility_module, ONLY: arth
 USE pio_utils
 
@@ -182,7 +184,7 @@ contains
 
   ! print progress
   if (pid==root) then
-    print*, modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin
+    write(iulog,*) modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin
   endif
 
   ! check need for the new file
@@ -290,7 +292,7 @@ contains
  meta_qDims(ixQdims%ens)%dimLength = nEns
 
  ! pio initialization
- call pio_sys_init(pid, nNodes, pioSystem)
+ call pio_sys_init(pid, nNodes, mpicom_route, pioSystem)
 
  if (pid==root) then
    ix1 = 1_i4b

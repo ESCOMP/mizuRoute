@@ -6,6 +6,9 @@ USE nrtype,    only : strLen         ! length of a string
 USE dataTypes, only : var_ilength    ! integer type:          var(:)%dat
 USE dataTypes, only : var_dlength    ! double precision type: var(:)%dat
 
+! public parameters
+USE public_var,only : iulog          ! i/o logical unit number
+
 ! metadata on data structures
 USE globalData, only : meta_struct  ! structure information
 USE globalData, only : meta_HRU     ! HRU properties
@@ -89,8 +92,6 @@ contains
  ierr=0; message='hru2segment/'
  !call system_clock(count_rate=cr)
 
- !print*, 'PAUSE: start of '//trim(message); read(*,*)
-
  ! initialize timing
  !call system_clock(startTime)
 
@@ -139,7 +140,7 @@ contains
  end do
 
  !call system_clock(endTime)
- !print*, 'timing: allocate space = ', real(endTime-startTime,kind(dp))/real(cr)
+ !write(*,*) 'timing: allocate space = ', real(endTime-startTime,kind(dp))/real(cr)
 
  ! ---------- populate structure components for HRU-2-Segment mapping ---------------------------------------
 
@@ -184,7 +185,7 @@ contains
 
  ! get timing
  !call system_clock(endTime)
- !print*, 'timing: populate structure components = ', real(endTime-startTime,kind(dp))/real(cr)
+ !write(*,*) 'timing: populate structure components = ', real(endTime-startTime,kind(dp))/real(cr)
 
  ! ---------- compute additional variables ------------------------------------------------------------------
 
@@ -208,8 +209,7 @@ contains
 
  ! get timing
  !call system_clock(endTime)
- !print*, 'timing: compute HRU weights = ', real(endTime-startTime,kind(dp))/real(cr)
- !print*, 'PAUSE: end of '//trim(message); read(*,*)
+ !write(*,*) 'timing: compute HRU weights = ', real(endTime-startTime,kind(dp))/real(cr)
 
  end subroutine hru2segment
 
@@ -392,7 +392,7 @@ contains
  do iUp=1,nUp
 
   ! print progress
-  if(mod(iUp,nProgress)==0) print*, 'Getting downstream link for reach: ', iUp, nUp
+  if(mod(iUp,nProgress)==0) write(iulog,*) 'Getting downstream link for reach: ', iUp, nUp
 
   ! get Ids for the up2seg mapping vector
   rankDownId = downId( rankDownSeg(iUp) )
@@ -408,8 +408,8 @@ contains
 
    ! check
    if(jSeg>iSeg+100 .and. checkLink)then
-    print*, 'iUp, iSeg, jSeg, rankDownId, rankSegId, rankDownSeg(iUp), rankSeg(jSeg) = ', &
-             iUp, iSeg, jSeg, rankDownId, rankSegId, rankDownSeg(iUp), rankSeg(jSeg)
+    write(iulog,*) 'iUp, iSeg, jSeg, rankDownId, rankSegId, rankDownSeg(iUp), rankSeg(jSeg) = ', &
+                    iUp, iSeg, jSeg, rankDownId, rankSegId, rankDownSeg(iUp), rankSeg(jSeg)
     if(jSeg>iSeg+200)then
      print*, trim(message)//'PAUSE : '; read(*,*)
     endif
@@ -497,7 +497,7 @@ contains
   DO IRCH=1,NRCH
    ! print progress
    if(jCount>0)then
-    if(mod(jCount,100000)==0) print*, 'Getting order for reach: ', count(RCHFLAG), nRch
+    if(mod(jCount,100000)==0) write(iulog,*) 'Getting order for reach: ', count(RCHFLAG), nRch
    endif
    ! check if the reach is assigned yet
    IF(RCHFLAG(IRCH)) THEN
@@ -508,14 +508,14 @@ contains
    JRCH = IRCH    ! the first reach under investigation
    DO  ! do until get to a "most upstream" reach that is not assigned
     nUps = size(structNTOPO(jRch)%var(ixNTOPO%upSegIds)%dat)
-    !print*, 'iRch, nUps = ', iRch, nUps
+    !write(*,*) 'iRch, nUps = ', iRch, nUps
     IF (NUPS.GE.1) THEN     ! (if NUPS = 0, then it is a first-order basin)
      KRCH = JRCH   ! the reach under investigation
      ! loop through upstream reaches
      DO IUPS=1,NUPS
       jCount = jCount+1
       uIndex = structNTOPO(jRch)%var(ixNTOPO%upSegIndices)%dat(iUps)  ! index of the upstream reach
-      !print*, 'jRch, uIndex = ', jRch, uIndex, structNTOPO(jRch)%var(ixNTOPO%upSegIds)%dat
+      !write(*,*) 'jRch, uIndex = ', jRch, uIndex, structNTOPO(jRch)%var(ixNTOPO%upSegIds)%dat
       ! check if the reach is NOT assigned
       IF (.NOT.RCHFLAG(UINDEX)) THEN
        JRCH = UINDEX
@@ -545,7 +545,7 @@ contains
  DEALLOCATE(RCHFLAG,STAT=IERR)
  if(ierr/=0)then; message=trim(message)//'problem deallocating space for RCHFLAG'; return; endif
  ! test
- !print*, 'reachOrder = ', (structNTOPO(jRch)%var(ixNTOPO%rchOrder)%dat(1), jRch=1,nRch)
+ !write(*,*) 'reachOrder = ', (structNTOPO(jRch)%var(ixNTOPO%rchOrder)%dat(1), jRch=1,nRch)
  ! ----------------------------------------------------------------------------------------
  end subroutine reachOrder
 
@@ -688,7 +688,7 @@ contains
   ! ---------- identify reach in the ordered vector ----------------------------------------
 
   ! print progress
-  if(mod(kRch,nProgress)==0) print*, 'Getting list of all upstream reaches: kRch, nRch = ', kRch, nRch
+  if(mod(kRch,nProgress)==0) write(iulog,*) 'Getting list of all upstream reaches: kRch, nRch = ', kRch, nRch
 
   ! NOTE: Reaches are ordered
   !        -->  kRch cannpt be processed until all upstream reaches are processed
@@ -1030,11 +1030,11 @@ contains
  DO KRCH=1,nRch
 
   ! print progress
-  !if(mod(kRch,100000)==0) print*, 'Getting reach subset: kRch, nRch = ', kRch, nRch
+  !if(mod(kRch,100000)==0) write(*,*) 'Getting reach subset: kRch, nRch = ', kRch, nRch
 
   ! check the list
   checkList = (structNTOPO(kRch)%var(ixNTOPO%segId)%dat(1)==startReach)
-  if(checkList) print*, 'Checking the list for reach ', startReach
+  if(checkList) write(*,*) 'Checking the list for reach ', startReach
 
   ! skip if we have already tested krch
   if(isTested(kRch)) cycle
@@ -1060,7 +1060,7 @@ contains
 
    ! index of downstream reach
    JRCH = structNTOPO(iRch)%var(ixNTOPO%downSegIndex)%dat(1)
-   if(checkList) print*, 'Downstream id = ', structNTOPO(iRch)%var(ixNTOPO%downSegId)%dat(1)
+   if(checkList) write(*,*) 'Downstream id = ', structNTOPO(iRch)%var(ixNTOPO%downSegId)%dat(1)
 
    ! check if reached the outlet
    if(jRch<=0) exit         ! negative = missing, which means that the reach is the outlet
@@ -1193,13 +1193,12 @@ contains
  end do
 
  ! check
- !  print*, 'ixHRU_desired = ', ixHRU_desired
- !  print*, 'ixSeg_desired = ', ixSeg_desired
+ !  write(*,*) 'ixHRU_desired = ', ixHRU_desired
+ !  write(*,*) 'ixSeg_desired = ', ixSeg_desired
  !  do iRch=1,nRch_desire
- !   print*, isDesired(ixSeg_desired(iRch)), ixSeg_desired(iRch), ixSeg_map(ixSeg_desired(iRch)), &
+ !   write(*,*) isDesired(ixSeg_desired(iRch)), ixSeg_desired(iRch), ixSeg_map(ixSeg_desired(iRch)), &
  !    structNTOPO( ixSeg_desired(iRch) )%var(ixNTOPO%nHRU)%dat(:), structNTOPO( ixSeg_desired(iRch) )%var(ixNTOPO%hruContribIx)%dat(:)
  !  end do
- !  print*, trim(message)//'PAUSE: '; read(*,*)
 
  ! ----------------------------------------------------------------------------------------
  ! ----------------------------------------------------------------------------------------

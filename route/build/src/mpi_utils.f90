@@ -1,11 +1,14 @@
 Module mpi_mod
-
   !-------------------------------------------------------------------------------
   ! PURPOSE: general layer on MPI functions
   !-------------------------------------------------------------------------------
   USE mpi
 
   USE nrtype
+  USE globalData,  ONLY: pid, nNodes
+  USE globalData,  ONLY: mpicom_route
+  USE public_var,  ONLY: root
+  USE public_var,  ONLY: iulog
 
   implicit none
   private
@@ -19,6 +22,7 @@ Module mpi_mod
   public :: shr_mpi_commsize
   public :: shr_mpi_commrank
   public :: shr_mpi_initialized
+  public :: shr_mpi_barrier
   public :: shr_mpi_abort
   public :: shr_mpi_init
   public :: shr_mpi_finalize
@@ -61,8 +65,6 @@ CONTAINS
   ! ----------------------------------
   SUBROUTINE shr_mpi_bcastInt(allocArray,   & ! inout:  array to be broadcasted to each proc
                               ierr, message)  ! output: error handling
-    USE globalData,  ONLY: pid, nNodes
-    USE public_var,  ONLY: root
     implicit none
     ! Input
     integer(i4b), allocatable, intent(inout) :: allocArray(:) ! inout:  array to be sent to proc
@@ -83,13 +85,13 @@ CONTAINS
       array_size = bound(2)-bound(1)+1
 
       do myid = 1, nNodes-1
-       call MPI_SEND(bound(1),             2,          MPI_INTEGER, myid, send_data_tag, MPI_COMM_WORLD, ierr)
-       call MPI_SEND(allocArray(bound(1)), array_size, MPI_INTEGER, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+       call MPI_SEND(bound(1),             2,          MPI_INTEGER, myid, send_data_tag, mpicom_route, ierr)
+       call MPI_SEND(allocArray(bound(1)), array_size, MPI_INTEGER, myid, send_data_tag, mpicom_route, ierr)
       end do
 
     else
 
-       call MPI_RECV(bound, 2, MPI_INTEGER, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+       call MPI_RECV(bound, 2, MPI_INTEGER, root, send_data_tag, mpicom_route, status, ierr)
 
        array_size = bound(2)-bound(1)+1
 
@@ -100,7 +102,7 @@ CONTAINS
        allocate(allocArray(bound(1):bound(2)), stat=ierr)
        if(ierr/=0)then; message=trim(message)//'problem allocating array for [allocArray]'; return; endif
 
-       call MPI_RECV(allocArray, array_size, MPI_INTEGER, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+       call MPI_RECV(allocArray, array_size, MPI_INTEGER, root, send_data_tag, mpicom_route, status, ierr)
 
     endif
 
@@ -111,8 +113,6 @@ CONTAINS
   ! ----------------------------------
   SUBROUTINE shr_mpi_bcastReal(allocArray,   & ! input:  array to be broadcasted to each proc
                                ierr, message)  ! output: error handling
-    USE globalData,  ONLY: pid, nNodes
-    USE public_var,  ONLY: root
     implicit none
     ! Input
     real(dp), allocatable, intent(inout) :: allocArray(:) ! inout:  array to be sent to proc
@@ -133,13 +133,13 @@ CONTAINS
       array_size = bound(2)-bound(1)+1
 
       do myid = 1, nNodes-1
-       call MPI_SEND(bound(1),             2,          MPI_INTEGER,              myid, send_data_tag, MPI_COMM_WORLD, ierr)
-       call MPI_SEND(allocArray(bound(1)), array_size, MPI_DOUBLE_PRECISION, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+       call MPI_SEND(bound(1),             2,          MPI_INTEGER,              myid, send_data_tag, mpicom_route, ierr)
+       call MPI_SEND(allocArray(bound(1)), array_size, MPI_DOUBLE_PRECISION, myid, send_data_tag, mpicom_route, ierr)
       end do
 
     else
 
-       call MPI_RECV(bound, 2, MPI_INTEGER, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+       call MPI_RECV(bound, 2, MPI_INTEGER, root, send_data_tag, mpicom_route, status, ierr)
 
        array_size = bound(2)-bound(1)+1
 
@@ -150,7 +150,7 @@ CONTAINS
        allocate(allocArray(bound(1):bound(2)), stat=ierr)
        if(ierr/=0)then; message=trim(message)//'problem allocating array for [allocArray]'; return; endif
 
-       call MPI_RECV(allocArray, array_size, MPI_DOUBLE_PRECISION, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+       call MPI_RECV(allocArray, array_size, MPI_DOUBLE_PRECISION, root, send_data_tag, mpicom_route, status, ierr)
 
     endif
 
@@ -161,8 +161,6 @@ CONTAINS
   ! ----------------------------------
   SUBROUTINE shr_mpi_bcastLogical(allocArray,    & ! inout: array to be broadcasted to each proc
                                   ierr, message)   ! output: error handling
-    USE globalData,  ONLY: pid, nNodes
-    USE public_var,  ONLY: root
     implicit none
     ! Input
     logical(lgt), allocatable, intent(inout) :: allocArray(:)   ! input:  array to be sent to proc
@@ -184,13 +182,13 @@ CONTAINS
       array_size = bound(2)-bound(1)+1
 
       do myid = 1, nNodes-1
-       call MPI_SEND(bound(1),             2,          MPI_INTEGER,     myid, send_data_tag, MPI_COMM_WORLD, ierr)
-       call MPI_SEND(allocArray(bound(1)), array_size, MPI_LOGICAL, myid, send_data_tag, MPI_COMM_WORLD, ierr)
+       call MPI_SEND(bound(1),             2,          MPI_INTEGER,     myid, send_data_tag, mpicom_route, ierr)
+       call MPI_SEND(allocArray(bound(1)), array_size, MPI_LOGICAL, myid, send_data_tag, mpicom_route, ierr)
       end do
 
     else
 
-       call MPI_RECV(bound, 2, MPI_INTEGER, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+       call MPI_RECV(bound, 2, MPI_INTEGER, root, send_data_tag, mpicom_route, status, ierr)
 
        array_size = bound(2)-bound(1)+1
 
@@ -201,7 +199,7 @@ CONTAINS
        allocate(allocArray(bound(1):bound(2)), stat=ierr)
        if(ierr/=0)then; message=trim(message)//'problem allocating array for [allocArray]'; return; endif
 
-       call MPI_RECV(allocArray, array_size, MPI_LOGICAL, root, send_data_tag, MPI_COMM_WORLD, status, ierr)
+       call MPI_RECV(allocArray, array_size, MPI_LOGICAL, root, send_data_tag, mpicom_route, status, ierr)
 
     endif
 
@@ -212,8 +210,6 @@ CONTAINS
   ! ----------------------------------
   SUBROUTINE shr_mpi_scatterIntV(globalArray, num_per_proc, & ! input
                                 localArray, ierr, message)   ! output
-    USE globalData,  ONLY: pid, nNodes
-    USE public_var,  ONLY: root
     implicit none
     ! Input
     integer(i4b),              intent(in)  :: globalArray(:)            ! input: global array at root proc
@@ -242,7 +238,7 @@ CONTAINS
 
     call MPI_SCATTERV(globalArray, num_per_proc(0:nNodes-1), displs, MPI_INTEGER,       & ! flows from proc
                       localArray,  num_per_proc(pid),                MPI_INTEGER, root, & ! scattered flows at root node
-                      MPI_COMM_WORLD, ierr)
+                      mpicom_route, ierr)
 
   END SUBROUTINE shr_mpi_scatterIntV
 
@@ -251,8 +247,6 @@ CONTAINS
   ! ----------------------------------
   SUBROUTINE shr_mpi_scatterRealV(globalArray, num_per_proc, & ! input
                                  localArray, ierr, message)   ! output
-    USE globalData,  ONLY: pid, nNodes
-    USE public_var,  ONLY: root
     implicit none
     ! Input
     real(dp),              intent(in)  :: globalArray(:)            ! input: global array at root proc
@@ -281,7 +275,7 @@ CONTAINS
 
     call MPI_SCATTERV(globalArray, num_per_proc(0:nNodes-1), displs, MPI_DOUBLE_PRECISION,       & ! flows from proc
                       localArray,  num_per_proc(pid),                MPI_DOUBLE_PRECISION, root, & ! scattered flows at root node
-                      MPI_COMM_WORLD, ierr)
+                      mpicom_route, ierr)
 
   END SUBROUTINE shr_mpi_scatterRealV
 
@@ -290,8 +284,6 @@ CONTAINS
   ! ----------------------------------
   SUBROUTINE shr_mpi_scatterLogicalV(globalArray, num_per_proc, & ! input
                                      localArray, ierr, message)   ! output
-    USE globalData,  ONLY: pid, nNodes
-    USE public_var,  ONLY: root
     implicit none
     ! Input
     logical(lgt),              intent(in)  :: globalArray(:)            ! input: global array at root proc
@@ -320,7 +312,7 @@ CONTAINS
 
     call MPI_SCATTERV(globalArray, num_per_proc(0:nNodes-1), displs, MPI_LOGICAL,       & ! flows from proc
                       localArray,  num_per_proc(pid),                MPI_LOGICAL, root, & ! scattered flows at root node
-                      MPI_COMM_WORLD, ierr)
+                      mpicom_route, ierr)
 
   END SUBROUTINE shr_mpi_scatterLogicalV
 
@@ -329,8 +321,6 @@ CONTAINS
   ! ----------------------------------
   SUBROUTINE shr_mpi_gatherIntV(localArray, num_per_proc, & ! input
                                 globalArray, ierr, message) ! output
-    USE globalData,  ONLY: pid, nNodes
-    USE public_var,  ONLY: root
     implicit none
     ! Input
     integer(i4b),              intent(in)  :: localArray(:)             ! local array at each proc
@@ -359,7 +349,7 @@ CONTAINS
 
     call MPI_GATHERV(localArray,  num_per_proc(pid),                MPI_INTEGER,       & ! local array stuff
                      globalArray, num_per_proc(0:nNodes-1), displs, MPI_INTEGER, root, & ! global array stuff
-                     MPI_COMM_WORLD, ierr)
+                     mpicom_route, ierr)
 
   END SUBROUTINE shr_mpi_gatherIntV
 
@@ -368,8 +358,6 @@ CONTAINS
   ! ----------------------------------
   SUBROUTINE shr_mpi_gatherRealV(localArray, num_per_proc,  & ! input
                                  globalArray, ierr, message)  ! output
-    USE globalData,  ONLY: pid, nNodes
-    USE public_var,  ONLY: root
     implicit none
     ! Input
     real(dp),              intent(in)  :: localArray(:)             ! local array at each proc
@@ -398,7 +386,7 @@ CONTAINS
 
     call MPI_GATHERV(localArray,  num_per_proc(pid),                MPI_DOUBLE_PRECISION,       & ! local array stuff
                      globalArray, num_per_proc(0:nNodes-1), displs, MPI_DOUBLE_PRECISION, root, & ! global array stuff
-                     MPI_COMM_WORLD, ierr)
+                     mpicom_route, ierr)
 
   END SUBROUTINE shr_mpi_gatherRealV
 
@@ -407,8 +395,6 @@ CONTAINS
   ! ----------------------------------
   SUBROUTINE shr_mpi_gatherLogicalV(localArray, num_per_proc,  & ! input
                                     globalArray, ierr, message)  ! output
-    USE globalData,  ONLY: pid, nNodes
-    USE public_var,  ONLY: root
     implicit none
     ! Input
     logical(lgt),              intent(in)  :: localArray(:)             ! local array at each proc
@@ -437,7 +423,7 @@ CONTAINS
 
     call MPI_GATHERV(localArray,  num_per_proc(pid),                MPI_LOGICAL,       & ! local array stuff
                      globalArray, num_per_proc(0:nNodes-1), displs, MPI_LOGICAL, root, & ! global array stuff
-                     MPI_COMM_WORLD, ierr)
+                     mpicom_route, ierr)
 
   END SUBROUTINE shr_mpi_gatherLogicalV
 
@@ -447,8 +433,6 @@ CONTAINS
   ! ----------------------------------
   SUBROUTINE shr_mpi_allgatherIntV(localArray,  num_per_proc, & ! input
                                    globalArray, ierr, message) ! output
-    USE globalData,  ONLY: pid, nNodes
-    USE public_var,  ONLY: root
     implicit none
     ! Input
     integer(i4b),              intent(in)  :: localArray(:)             ! local array at each proc
@@ -473,7 +457,7 @@ CONTAINS
 
     call MPI_ALLGATHERV(localArray,  num_per_proc(pid),                MPI_INTEGER, & ! local array stuff
                         globalArray, num_per_proc(0:nNodes-1), displs, MPI_INTEGER, & ! global array stuff
-                        MPI_COMM_WORLD, ierr)
+                        mpicom_route, ierr)
 
   END SUBROUTINE shr_mpi_allgatherIntV
 
@@ -482,8 +466,6 @@ CONTAINS
   ! ----------------------------------
   SUBROUTINE shr_mpi_allgatherRealV(localArray,  num_per_proc, & ! input
                                     globalArray, ierr, message) ! output
-    USE globalData,  ONLY: pid, nNodes
-    USE public_var,  ONLY: root
     implicit none
     ! Input
     real(dp),                  intent(in)  :: localArray(:)             ! local array at each proc
@@ -508,7 +490,7 @@ CONTAINS
 
     call MPI_ALLGATHERV(localArray,  num_per_proc(pid),                MPI_DOUBLE_PRECISION, & ! local array stuff
                         globalArray, num_per_proc(0:nNodes-1), displs, MPI_DOUBLE_PRECISION, & ! global array stuff
-                        MPI_COMM_WORLD, ierr)
+                        mpicom_route, ierr)
 
   END SUBROUTINE shr_mpi_allgatherRealV
 
@@ -517,8 +499,6 @@ CONTAINS
   ! ----------------------------------
   SUBROUTINE shr_mpi_allgatherLogicalV(localArray,  num_per_proc, & ! input
                                        globalArray, ierr, message) ! output
-    USE globalData,  ONLY: pid, nNodes
-    USE public_var,  ONLY: root
     implicit none
     ! Input
     logical(lgt),              intent(in)  :: localArray(:)             ! local array at each proc
@@ -543,7 +523,7 @@ CONTAINS
 
     call MPI_ALLGATHERV(localArray,  num_per_proc(pid),                MPI_LOGICAL, & ! local array stuff
                         globalArray, num_per_proc(0:nNodes-1), displs, MPI_LOGICAL, & ! global array stuff
-                        MPI_COMM_WORLD, ierr)
+                        mpicom_route, ierr)
 
   END SUBROUTINE shr_mpi_allgatherLogicalV
 
@@ -572,7 +552,7 @@ CONTAINS
 
     call MPI_ALLGATHER(localScalar, num, MPI_INTEGER, & ! local array stuff
                        globalArray, num, MPI_INTEGER, & ! global array stuff
-                       MPI_COMM_WORLD, ierr)
+                       mpicom_route, ierr)
 
   END SUBROUTINE shr_mpi_allgatherInt
 
@@ -601,7 +581,7 @@ CONTAINS
 
     call MPI_ALLGATHER(localScalar,  num, MPI_DOUBLE_PRECISION,  & ! local array stuff
                         globalArray, num, MPI_DOUBLE_PRECISION,  & ! global array stuff
-                        MPI_COMM_WORLD, ierr)
+                        mpicom_route, ierr)
 
   END SUBROUTINE shr_mpi_allgatherReal
 
@@ -630,63 +610,36 @@ CONTAINS
 
     call MPI_ALLGATHER(localScalar,  num, MPI_LOGICAL,  & ! local array stuff
                         globalArray, num, MPI_LOGICAL,  & ! global array stuff
-                        MPI_COMM_WORLD, ierr)
+                        mpicom_route, ierr)
 
   END SUBROUTINE shr_mpi_allgatherLogical
 
 
+  !===============================================================================
+  !===============================================================================
 
-  SUBROUTINE shr_mpi_chkerr(rcode,string)
+  SUBROUTINE shr_mpi_commsize(comm, ntasks, message)
 
     IMPLICIT none
 
     !----- arguments ---
-    integer(i4b),  intent(in)   :: rcode  ! input MPI error code
-    character(*),  intent(in)   :: string ! message
+    integer,              intent(in)  :: comm
+    integer,              intent(out) :: ntasks
+    character(*),optional,intent(in)  :: message   ! message
 
     !----- local ---
-    character(strLen),parameter :: subName = 'shr_mpi_chkerr/'
-    character(strLen)           :: lstring
-    integer(i4b)                :: slen
-    integer(i4b)                :: ierr
+    character(strLen),parameter       :: subName = 'shr_mpi_commsize/'
+    integer(i4b)                      :: ierr
 
     !-------------------------------------------------------------------------------
-    ! PURPOSE: layer on MPI error checking
+    ! PURPOSE: MPI number of tasks
     !-------------------------------------------------------------------------------
 
-    if (rcode /= MPI_SUCCESS) then
-       call MPI_ERROR_STRING(rcode,lstring,slen,ierr)
-       write(*,*) trim(subName),lstring(1:slen)
-       call shr_mpi_abort(string,rcode)
-    endif
-
-  END SUBROUTINE shr_mpi_chkerr
-
-  !===============================================================================
-  !===============================================================================
-
-  SUBROUTINE shr_mpi_commsize(comm,size,string)
-
-    IMPLICIT none
-
-    !----- arguments ---
-    integer,intent(in)                 :: comm
-    integer,intent(out)                :: size
-    character(*),optional,intent(in)   :: string   ! message
-
-    !----- local ---
-    character(strLen),parameter        :: subName = 'shr_mpi_commsize/'
-    integer(i4b)                       :: ierr
-
-    !-------------------------------------------------------------------------------
-    ! PURPOSE: MPI commsize
-    !-------------------------------------------------------------------------------
-
-    call MPI_COMM_SIZE(comm,size,ierr)
-    if (present(string)) then
-       call shr_mpi_chkerr(ierr,subName//trim(string))
+    call MPI_COMM_SIZE(comm, ntasks, ierr)
+    if (present(message)) then
+       call shr_mpi_chkerr(ierr, comm=comm, message=subName//trim(message))
     else
-       call shr_mpi_chkerr(ierr,subName)
+       call shr_mpi_chkerr(ierr, comm=comm, message=subName)
     endif
 
   END SUBROUTINE shr_mpi_commsize
@@ -694,28 +647,28 @@ CONTAINS
   !===============================================================================
   !===============================================================================
 
-  SUBROUTINE shr_mpi_commrank(comm,rank,string)
+  SUBROUTINE shr_mpi_commrank(comm, rank, message)
 
     IMPLICIT none
 
     !----- arguments ---
     integer(i4b),intent(in)            :: comm
     integer(i4b),intent(out)           :: rank
-    character(*),optional,intent(in)   :: string   ! message
+    character(*),optional,intent(in)   :: message   ! message
 
     !----- local ---
     character(strLen),parameter        :: subName = 'shr_mpi_commrank/'
     integer(i4b)                       :: ierr
 
     !-------------------------------------------------------------------------------
-    ! PURPOSE: MPI commrank
+    ! PURPOSE: MPI rank
     !-------------------------------------------------------------------------------
 
     call MPI_COMM_RANK(comm,rank,ierr)
-    if (present(string)) then
-       call shr_mpi_chkerr(ierr,subName//trim(string))
+    if (present(message)) then
+       call shr_mpi_chkerr(ierr, comm=comm, message=subName//trim(message))
     else
-       call shr_mpi_chkerr(ierr,subName)
+       call shr_mpi_chkerr(ierr, comm=comm, message=subName)
     endif
 
   END SUBROUTINE shr_mpi_commrank
@@ -723,13 +676,13 @@ CONTAINS
   !===============================================================================
   !===============================================================================
 
-  SUBROUTINE shr_mpi_initialized(flag,string)
+  SUBROUTINE shr_mpi_initialized(flag, message)
 
     IMPLICIT none
 
     !----- arguments ---
-    logical,intent(out)                :: flag
-    character(*),optional,intent(in)   :: string   ! message
+    logical,              intent(out)  :: flag
+    character(*),optional,intent(in)   :: message   ! message
 
     !----- local ---
     character(strLen),parameter        :: subName = 'shr_mpi_initialized/'
@@ -740,10 +693,10 @@ CONTAINS
     !-------------------------------------------------------------------------------
 
     call MPI_INITIALIZED(flag,ierr)
-    if (present(string)) then
-       call shr_mpi_chkerr(ierr,subName//trim(string))
+    if (present(message)) then
+       call shr_mpi_chkerr(ierr, message=subName//trim(message))
     else
-       call shr_mpi_chkerr(ierr,subName)
+       call shr_mpi_chkerr(ierr, message=subName)
     endif
 
   END SUBROUTINE shr_mpi_initialized
@@ -751,45 +704,13 @@ CONTAINS
   !===============================================================================
   !===============================================================================
 
-  SUBROUTINE shr_mpi_abort(string,rcode)
+  SUBROUTINE shr_mpi_init(comm, message)
 
     IMPLICIT none
 
     !----- arguments ---
-    character(*),optional,intent(in)   :: string   ! message
-    integer(i4b),optional,intent(in)   :: rcode    ! optional code
-
-    !----- local ---
-    character(strLen),parameter        :: subName = 'shr_mpi_abort/'
-    integer(i4b)                       :: ierr
-    integer                            :: rc       ! return code
-
-    !-------------------------------------------------------------------------------
-    ! PURPOSE: MPI abort
-    !-------------------------------------------------------------------------------
-
-    if ( present(string) .and. present(rcode) ) then
-       write(*,*) trim(subName),trim(string),rcode
-    endif
-    if ( present(rcode) )then
-       rc = rcode
-    else
-       rc = 1001
-    end if
-    call MPI_ABORT(MPI_COMM_WORLD,rc,ierr)
-    stop
-
-  END SUBROUTINE shr_mpi_abort
-
-  !===============================================================================
-  !===============================================================================
-
-  SUBROUTINE shr_mpi_init(string)
-
-    IMPLICIT none
-
-    !----- arguments ---
-    character(*),optional,intent(in)   :: string   ! message
+    integer(i4b),         intent(out)  :: comm      ! communicator
+    character(*),optional,intent(in)   :: message   ! message
 
     !----- local ---
     character(strLen),parameter        :: subName = 'shr_mpi_init/'
@@ -800,41 +721,173 @@ CONTAINS
     !-------------------------------------------------------------------------------
 
     call MPI_INIT(ierr)
-    if (present(string)) then
-       call shr_mpi_chkerr(ierr,subName//trim(string))
+    if (present(message)) then
+       call shr_mpi_chkerr(ierr, message=subName//trim(message))
     else
-       call shr_mpi_chkerr(ierr,subName)
+       call shr_mpi_chkerr(ierr, message=subName)
     endif
+
+    comm = MPI_COMM_WORLD
 
   END SUBROUTINE shr_mpi_init
 
   !===============================================================================
   !===============================================================================
 
-  SUBROUTINE shr_mpi_finalize(string)
+  SUBROUTINE shr_mpi_barrier(comm, message)
+
+    IMPLICIT none
+
+    !----- argument ---
+    integer(i4b),           intent(in) :: comm         ! communicator
+    character(*), optional, intent(in) :: message      ! error message
+    !----- local variables ---
+    character(strLen),parameter        :: subName = 'shr_mpi_barrier/'
+    integer(i4b)                       :: ierr         ! error code
+
+    call MPI_BARRIER(comm, ierr)
+    if (present(message)) then
+       call shr_mpi_chkerr(ierr, comm=comm, message=subName//trim(message))
+    else
+       call shr_mpi_chkerr(ierr, comm=comm, message=subName)
+    endif
+
+  END SUBROUTINE shr_mpi_barrier
+
+  !===============================================================================
+  !===============================================================================
+
+  SUBROUTINE shr_mpi_finalize(comm, message)
 
     IMPLICIT none
 
     !----- arguments ---
-    character(*),optional,intent(in)   :: string   ! message
+    integer(i4b),           intent(in) :: comm      ! communicator
+    character(*), optional, intent(in) :: message   ! message
 
     !----- local ---
+    character(strLen)                  :: cmessage
     character(strLen),parameter        :: subName = 'shr_mpi_finalize/'
     integer(i4b)                       :: ierr
 
     !-------------------------------------------------------------------------------
     ! PURPOSE: MPI finalize
     !-------------------------------------------------------------------------------
+    cmessage=trim(subName)//'shr_mpi_barrier'
+    call shr_mpi_barrier(comm, cmessage)
 
-    call MPI_BARRIER(MPI_COMM_WORLD,ierr)
     call MPI_FINALIZE(ierr)
-    if (present(string)) then
-       call shr_mpi_chkerr(ierr,subName//trim(string))
+    if (present(message)) then
+       call shr_mpi_chkerr(ierr, comm=comm, message=subName//trim(message))
     else
-       call shr_mpi_chkerr(ierr,subName)
+       call shr_mpi_chkerr(ierr, comm=comm, message=subName)
     endif
 
   END SUBROUTINE shr_mpi_finalize
+
+
+  !===============================================================================
+  !===============================================================================
+
+  SUBROUTINE shr_mpi_chkerr(ierr, comm, message)
+
+    IMPLICIT none
+
+    !----- arguments ---
+    integer(i4b),           intent(in) :: ierr    ! input MPI error code
+    integer(i4b), optional, intent(in) :: comm    ! communicator
+    character(*), optional, intent(in) :: message ! message
+
+    !----- local ---
+    character(strLen),parameter        :: subName = 'shr_mpi_chkerr/'
+    character(strLen)                  :: cmessage
+    character(strLen)                  :: errMsg
+    integer(i4b)                       :: errLen
+    integer(i4b)                       :: jerr
+    integer(i4b)                       :: comm_tmp
+
+    !-------------------------------------------------------------------------------
+    ! PURPOSE: layer on MPI error checking
+    !-------------------------------------------------------------------------------
+
+    if (ierr /= MPI_SUCCESS) then
+      call MPI_ERROR_STRING(ierr, errMsg, errLen, jerr)
+      if (present(message)) then
+        cmessage = trim(subName)//trim(message)//errMsg(1:errLen)
+      else
+        cmessage = trim(subName)//errMsg(1:errLen)
+      endif
+      if (present(comm)) then
+        comm_tmp = comm
+      else
+        comm_tmp = 100
+      endif
+        call shr_mpi_abort(comm_tmp, cmessage, ierr)
+    endif
+
+  END SUBROUTINE shr_mpi_chkerr
+
+  !===============================================================================
+  !===============================================================================
+
+  SUBROUTINE shr_mpi_abort(comm, message, ierr)
+
+    IMPLICIT none
+
+    !----- arguments ---
+    integer(i4b), intent(in)    :: comm     ! communicator
+    character(*), intent(in)    :: message  ! message
+    integer(i4b), intent(in)    :: ierr     ! error code
+
+    !----- local ---
+    character(strLen),parameter :: subName = 'shr_mpi_abort/'
+    integer(i4b)                :: jerr
+
+    !-------------------------------------------------------------------------------
+    ! PURPOSE: MPI abort
+    !-------------------------------------------------------------------------------
+
+    write(iulog,*) trim(subName),trim(message),ierr
+
+    call MPI_ABORT(comm, ierr, jerr)
+
+    stop
+
+  END SUBROUTINE shr_mpi_abort
+
+  !===============================================================================
+  !===============================================================================
+
+  SUBROUTINE mpi_handle_err(ierr,pid)
+  ! handle MPI error codes
+  implicit none
+  ! arguments
+  integer(i4b),intent(in):: ierr   ! error code
+  integer(i4b),intent(in):: pid    ! process ID
+  ! local variables
+  integer(i4b)           :: jerr   ! error code with message string call
+  integer(i4b)           :: errLen ! length of error message
+  character(len=strLen)  :: errMsg ! error message
+
+  ! check errors
+  if(ierr/=0)then
+
+   ! get error string
+   call MPI_Error_String(ierr, errMsg, errLen, jerr)
+   if(jerr==0)errMsg='problemIdentifyingErrorMessage'
+   if(errLen>strLen)errMsg='errorMessageLengthTooLong'
+
+   ! include process ID
+   write(*,'(a,1x,i4)') 'FATAL ERROR (MPI): '//trim(errMsg)//' for process ID ', pid
+
+   ! finalize MPI
+   call MPI_FINALIZE(jerr)
+   call flush(6)
+   stop
+
+  endif
+
+  END SUBROUTINE mpi_handle_err
 
   !===============================================================================
   !===============================================================================

@@ -387,7 +387,7 @@ contains
   if(idSegOut>0 .and. .not.meta(iVar)%varFile) cycle
 
   ! print progress
-  print*, 'Writing '//trim(meta(iVar)%varName)//' to file '//trim(fname)
+  write(iulog,*) 'Writing '//trim(meta(iVar)%varName)//' to file '//trim(fname)
 
   ! save the dimension length
   jDim      = meta(iVar)%varType        ! dimension index
@@ -516,7 +516,7 @@ contains
   if(idSegOut>0 .and. .not.meta(iVar)%varFile) cycle
 
   ! print progress
-  print*, 'Writing '//trim(meta(iVar)%varName)//' to file '//trim(fname)
+  write(iulog,*) 'Writing '//trim(meta(iVar)%varName)//' to file '//trim(fname)
 
   ! save the dimension length
   jDim      = meta(iVar)%varType        ! dimension index
@@ -646,7 +646,7 @@ contains
   if(idSegOut>0 .and. .not.meta(ivar)%varFile) cycle
 
   ! print progress
-  print*, 'Writing '//trim(meta(ivar)%varName)//' to file '//trim(fname)
+  write(iulog,*) 'Writing '//trim(meta(ivar)%varName)//' to file '//trim(fname)
 
   ! save the dimension length
   jDim      = meta(ivar)%varType        ! dimension index

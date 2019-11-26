@@ -45,13 +45,10 @@ module public_var
   ! mpi related parameters
   integer(i4b),parameter,public   :: root=0                 ! root node id
 
-  ! ---------- named variables ----------------------------------------------------------------------
+  ! I/O related parameters
+  integer(i4b),          public   :: iulog=6               ! logical unit identifier
 
-  ! output file frequency
-  integer(i4b) , parameter        :: annual=1001            ! named variable for yearly output files
-  integer(i4b) , parameter        :: month=1002             ! named variable for monthly output files
-  integer(i4b) , parameter        :: day=1003               ! named variable for daily output files
-  integer(i4b) , parameter        :: single=1004            ! named variable for a single output file
+  ! ---------- named variables ----------------------------------------------------------------------
 
   ! compute versus read from file
   integer(i4b), parameter,public  :: compute=1              ! compute given variable

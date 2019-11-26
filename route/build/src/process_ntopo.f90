@@ -8,6 +8,7 @@ USE dataTypes, only : var_clength         ! integer type:          var(:)%dat
 USE dataTypes, only : var_dlength,dlength ! double precision type: var(:)%dat, or dat
 
 ! global vars
+USE public_var, only : iulog              ! i/o logical unit number
 USE public_var, only : idSegOut           ! ID for stream segment at the bottom of the subset
 
 ! options
@@ -147,7 +148,6 @@ contains
   ! get timing
   call system_clock(time1)
   !write(*,'(a,1x,1PG15.7,A)') 'after hru2segment: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
-  !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif  ! if need to compute network topology
 
@@ -170,7 +170,6 @@ contains
   ! get timing
   call system_clock(time1)
   !write(*,'(a,1x,1PG15.7,A)') 'after up2downSegment: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
-  !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif  ! if need to compute network topology
 
@@ -188,7 +187,6 @@ contains
   ! get timing
   call system_clock(time1)
   !write(*,'(a,1x,1PG15.7,A)') 'after reachOrder: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
-  !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif  ! if need to compute network topology
 
@@ -206,7 +204,6 @@ contains
   ! get timing
   call system_clock(time1)
   !write(*,'(a,1x,1PG15.7,A)') 'after streamOrder: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
-  !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif  ! if need to compute network topology
 
@@ -227,7 +224,6 @@ contains
  ! get timing
  call system_clock(time1)
  !write(*,'(a,1x,1PG15.7,A)') 'after reach_list: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
- !print*, trim(message)//'PAUSE : '; read(*,*)
 
  ! ---------- Compute routing parameters  --------------------------------------------------------------------
 
@@ -245,7 +241,6 @@ contains
   ! get timing
   call system_clock(time1)
   !write(*,'(a,1x,1PG15.7,A)') 'after river geometry: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
-  !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif  ! computing hydraulic geometry
 
@@ -280,7 +275,6 @@ contains
   ! get timing
   call system_clock(time1)
   !write(*,'(a,1x,1PG15.7,A)') 'after reach parameters: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
-  !print*, trim(message)//'PAUSE : '; read(*,*)
 
  endif ! if there is a need to compute the channel unit hydrograph
 
@@ -309,7 +303,6 @@ contains
  ! get timing
  call system_clock(time1)
  !write(*,'(a,1x,1PG15.7,A)') 'after reach_mask: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
- !print*, trim(message)//'PAUSE : '; read(*,*)
 
  ! for optional output
  if (present(tot_hru))       tot_hru=tot_hru_tmp
@@ -417,7 +410,7 @@ end subroutine augment_ntopo
   do iSeg=1,nSeg
 
    ! print progress
-   if(mod(iSeg,1000000)==0) print*, 'Copying to the old data structures: iSeg, nSeg = ', iSeg, nSeg
+   if(mod(iSeg,1000000)==0) write(iulog,*) 'Copying to the old data structures: iSeg, nSeg = ', iSeg, nSeg
 
    ! ----- reach parameters -----
 
