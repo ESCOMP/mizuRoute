@@ -168,6 +168,7 @@ implicit none
   real(DP)                                :: BASAREA  ! local basin area
   real(DP)                                :: TOTAREA  ! UPSAREA + BASAREA
   real(DP)                                :: MINFLOW  ! minimum environmental flow
+  real(DP), dimension(:),allocatable      :: UPSLENG  ! total upstream length (not used)
  end type RCHPRP
 
  ! River Network topology
@@ -178,7 +179,6 @@ implicit none
   real(DP)                                   :: RCHLAT2  ! End latitude
   real(DP)                                   :: RCHLON1  ! Start longitude
   real(DP)                                   :: RCHLON2  ! End longitude
-  real(DP),    dimension(:),allocatable      :: UPSLENG  ! total upstream length
   integer(I4B)                               :: DREACHI  ! Immediate Downstream reach index
   integer(I4B)                               :: DREACHK  ! Immediate Downstream reach ID
   integer(I4B),dimension(:),allocatable      :: UREACHI  ! Immediate Upstream reach indices
@@ -231,14 +231,12 @@ implicit none
   REAL(DP), allocatable                :: QFUTURE_IRF(:)    ! runoff volume in future time steps for IRF routing (m3/s)
   REAL(DP)                             :: BASIN_QI          ! instantaneous runoff volume from the local basin (m3/s)
   REAL(DP)                             :: BASIN_QR(0:1)     ! routed runoff volume from the local basin (m3/s)
-  REAL(DP)                             :: UPSBASIN_QR       ! routed runoff depth from the upstream basins (m/s)
-  REAL(DP)                             :: BASIN_QR_IRF(0:1) ! routed runoff volume from all the upstream basin (m3/s)
   REAL(DP)                             :: REACH_Q           ! time-step average streamflow (m3/s)
   REAL(DP)                             :: REACH_Q_IRF       ! time-step average streamflow (m3/s) from IRF routing
   REAL(DP)                             :: UPSTREAM_QI       ! sum of upstream streamflow (m3/s)
   REAL(DP)                             :: TAKE              ! average take
   logical(lgt)                         :: CHECK_IRF         ! .true. if the reach is routed
- ENDTYPE STRFLX
+ END TYPE STRFLX
 
  ! ---------- lake data types -----------------------------------------------------------------
 
@@ -256,7 +254,7 @@ implicit none
   REAL(DP)                             :: DSCHSPL           ! discharge at spillway height
   REAL(DP)                             :: RATECVA           ! discharge rating curve parameter
   REAL(DP)                             :: RATECVB           ! discharge rating curve parameter
- ENDTYPE LAKPRP
+ END TYPE LAKPRP
 
  ! Lake topology
  TYPE, public :: LAKTOPO
@@ -270,7 +268,7 @@ implicit none
   INTEGER(I4B)                         :: DREACHK           ! Downstream reach ID
   INTEGER(I4B)                         :: DLAKE_I           ! Downstream lake index
   INTEGER(I4B)                         :: DLAKE_K           ! Downstream lake ID
- ENDTYPE LAKTOPO
+ END TYPE LAKTOPO
 
  ! Lake fluxes
  TYPE, public :: LKFLX
@@ -279,6 +277,6 @@ implicit none
   REAL(DP)                             :: LAKE_P            ! lake precipitation (m3)
   REAL(DP)                             :: LAKE_E            ! lake evaporation (m3)
   REAL(DP)                             :: LAKE_I            ! inflow to lake (m3 s-1)
- ENDTYPE LKFLX
+ END TYPE LKFLX
 
 end module dataTypes

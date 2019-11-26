@@ -956,7 +956,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
        flux(iSeg,3) = RCHFLX(iens,jSeg)%UPSTREAM_QI  ! Upstream accumulated flow
        flux(iSeg,4) = RCHFLX(iens,jSeg)%REACH_Q      ! KWT routed flow
        flux(iSeg,5) = RCHFLX(iens,jSeg)%REACH_Q_IRF  ! IRF routed flow
-       flux(iSeg,6) = RCHFLX(iens,jSeg)%BASIN_QI     ! non-HRU routed flow (
+       flux(iSeg,6) = RCHFLX(iens,jSeg)%BASIN_QI     ! HRU non-routed flow
       enddo
 
     end if ! end of root processor operation
@@ -984,7 +984,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
       RCHFLX_trib(iens,jSeg)%UPSTREAM_QI = flux_local(iSeg,3)  ! Upstream accumulated flow
       RCHFLX_trib(iens,jSeg)%REACH_Q     = flux_local(iSeg,4)  ! KWT routed flow
       RCHFLX_trib(iens,jSeg)%REACH_Q_IRF = flux_local(iSeg,5)  ! IRF routed flow
-      RCHFLX_trib(iens,jSeg)%BASIN_QI    = flux_local(iSeg,6)  ! non-HRU routed flow (
+      RCHFLX_trib(iens,jSeg)%BASIN_QI    = flux_local(iSeg,6)  ! HRU non-routed flow
 
     end do
 
