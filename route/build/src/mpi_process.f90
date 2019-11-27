@@ -37,6 +37,8 @@ implicit none
 ! common parameters within this module
 integer(i4b),parameter  :: scatter=1
 integer(i4b),parameter  :: gather=2
+integer(i4b),parameter  :: upstream_size=1
+integer(i4b),parameter  :: stream_order=2
 
 private
 
@@ -82,10 +84,8 @@ contains
   USE globalData,          ONLY: reachID
   USE alloc_data,          ONLY: alloc_struct
   USE process_ntopo,       ONLY: augment_ntopo            ! compute all the additional network topology (only compute option = on)
-  USE process_ntopo,       ONLY: put_data_struct               !
-  USE domain_decomposition,ONLY: omp_domain_decomposition     ! domain decomposition for omp
-  !USE domain_decomposition,ONLY: omp_domain_decomposition &    ! domain decomposition for omp
-  !                            => omp_domain_decomposition_stro
+  USE process_ntopo,       ONLY: put_data_struct          !
+  USE domain_decomposition,ONLY: omp_domain_decomposition ! domain decomposition for omp
 
   implicit none
   ! Input variables
@@ -302,7 +302,7 @@ contains
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      ! OMP domain decomposition
-     call omp_domain_decomposition(rch_per_proc(-1), structNTOPO_main, river_basin_tmp, ierr, cmessage)
+     call omp_domain_decomposition(stream_order, rch_per_proc(-1), structNTOPO_main, river_basin_tmp, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      ! river_basin_tmp is based on local indices and need to conver it to global indices
@@ -430,7 +430,7 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! OMP domain decomposition
-  call omp_domain_decomposition(rch_per_proc(pid), structNTOPO_local, river_basin_trib, ierr, cmessage)
+  call omp_domain_decomposition(upstream_size, rch_per_proc(pid), structNTOPO_local, river_basin_trib, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   !if (pid==2) then
