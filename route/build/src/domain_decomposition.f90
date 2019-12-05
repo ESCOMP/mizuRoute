@@ -39,6 +39,7 @@ CONTAINS
    ! External modules
    USE globalData, ONLY: domains                 ! domain data structure - for each domain, pfaf codes and list of segment indices
    USE globalData, ONLY: nDomain                 ! count of decomposed domains (tributaries + mainstems)
+   USE mpi_mod,    ONLY: shr_mpi_abort
 
    implicit none
    ! Input variables
@@ -67,7 +68,10 @@ CONTAINS
    call assign_node(nNodes, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   if (debug) call print_screen()
+   if (debug) then
+     call print_screen()
+     call shr_mpi_abort('Evaluate domain decomposition. Terminate program', 20)
+   end if
 
    CONTAINS
 
@@ -150,7 +154,6 @@ CONTAINS
    character(len=strLen),          intent(out) :: message         ! error message
    ! Local variables
    integer(i4b)                                :: nn
-   character(len=strLen)                       :: cmessage        ! error message from subroutine
 
    ! initialize error control
    ierr=0; message='omp_domain_decomposition/'
