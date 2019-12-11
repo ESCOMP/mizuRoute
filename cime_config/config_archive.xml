@@ -1,0 +1,17 @@
+<components version="2.0">
+  <comp_archive_spec compname="mizuRoute" compclass="rof">
+    <rest_file_extension>r</rest_file_extension>
+    <hist_file_extension>h\.*\.nc$</hist_file_extension>
+    <rest_history_varname>locfnh</rest_history_varname>
+    <rpointer>
+      <rpointer_file>rpointer.rof</rpointer_file>
+      <rpointer_content>./$CASE.mizuRoute.r.$DATENAME.nc</rpointer_content>
+    </rpointer>
+    <test_file_names>
+      <tfile disposition="copy">rpointer.rof</tfile>
+      <tfile disposition="copy">casename.mizuRoute.r.1976-01-01-00000.nc</tfile>
+      <tfile disposition="move">casename.mizuRoute.h.1976-01-01-00000.nc</tfile>
+      <tfile disposition="ignore">casename.mizuRoute.h.1976-01-01-00000.nc.base</tfile>
+    </test_file_names>
+  </comp_archive_spec>
+</components>
