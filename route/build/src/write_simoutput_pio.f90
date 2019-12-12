@@ -174,7 +174,9 @@ contains
  character(*), intent(out)       :: message          ! error message
  ! local variables
  logical(lgt)                    :: defNewOutputFile ! flag to define new output file
+ integer(i4b)                    :: sec_per_day      ! second within day
  character(len=strLen)           :: cmessage         ! error message of downwind routine
+ character(*),parameter          :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
 
  ! initialize error control
  ierr=0; message='prep_output/'
@@ -213,7 +215,9 @@ contains
    jTime=1
 
    ! Define filename
-   write(fileout,'(a,3(i0,a))') trim(output_dir)//trim(fname_output)//'_', modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '.nc'
+   sec_per_day = 0
+   write(fileout, fmtYMDS) trim(output_dir)//trim(fname_output)//'.mizuRoute.h.', &
+                           modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '-',sec_per_day,'.nc'
 
    ! define output file
    call defineFile(trim(fileout),                         &  ! input: file name
