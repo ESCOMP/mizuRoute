@@ -169,12 +169,11 @@ implicit none
   real(dp)                                :: BASAREA  ! local basin area
   real(dp)                                :: TOTAREA  ! UPSAREA + BASAREA
   real(dp)                                :: MINFLOW  ! minimum environmental flow
-  real(dp), dimension(:),allocatable      :: UPSLENG  ! total upstream length (not used)
  end type RCHPRP
 
  ! River Network topology
  type, public :: RCHTOPO
-  integer(i4b)                               :: REACHIX  ! Reach index (0,1,2,...,nrch-1)
+  integer(i4b)                               :: REACHIX  ! Reach index (1,2,...,nrch)
   integer(i4b)                               :: REACHID  ! Reach ID (REC code)
   real(dp)                                   :: RCHLAT1  ! Start latitude
   real(dp)                                   :: RCHLAT2  ! End latitude
@@ -192,8 +191,8 @@ implicit none
   character(len=32),dimension(:),allocatable :: pfafCode ! pfafstetter code
   integer(i4b)                               :: RHORDER  ! Processing sequence
   real(dp)    ,dimension(:),allocatable      :: UH       ! Unit hydrograph for upstream
-  integer(i4b)                               :: LAKE_IX  ! Lake index (0,1,2,...,nlak-1)
-  integer(i4b)                               :: LAKE_ID  ! Lake ID (REC code?)
+  integer(i4b)                               :: LAKE_IX  ! Lake index (1,2,...,nlak)
+  integer(i4b)                               :: LAKE_ID  ! Lake ID (REC code)
   real(dp)                                   :: BASULAK  ! Area of basin under lake
   real(dp)                                   :: RCHULAK  ! Length of reach under lake
   logical(lgt)                               :: LAKINLT  ! .TRUE. if reach is lake inlet, .FALSE. otherwise
@@ -227,7 +226,7 @@ implicit none
  ! ---------- reach fluxes --------------------------------------------------------------------
 
  ! fluxes in each reach
- TYPE, public :: STRFLX
+ TYPE, public :: strflx
   real(dp), allocatable                :: QFUTURE(:)        ! runoff volume in future time steps (m3/s)
   real(dp), allocatable                :: QFUTURE_IRF(:)    ! runoff volume in future time steps for IRF routing (m3/s)
   real(dp)                             :: BASIN_QI          ! instantaneous runoff volume from the local basin (m3/s)
@@ -236,8 +235,8 @@ implicit none
   real(dp)                             :: REACH_Q_IRF       ! time-step average streamflow (m3/s) from IRF routing
   real(dp)                             :: UPSTREAM_QI       ! sum of upstream streamflow (m3/s)
   real(dp)                             :: TAKE              ! average take
-  logical(lgt)                         :: CHECK_IRF         ! .true. if the reach is routed
- END TYPE STRFLX
+  logical(lgt)                         :: isRoute           ! .true. if the reach is routed
+ END TYPE strflx
 
  ! ---------- lake data types -----------------------------------------------------------------
 
