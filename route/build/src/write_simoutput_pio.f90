@@ -152,7 +152,7 @@ contains
 
  ! saved public variables (usually parameters, or values not modified)
  USE public_var, ONLY: output_dir        ! output directory
- USE public_var, ONLY: fname_output      ! output file name head
+ USE public_var, ONLY: case_name         ! simulation name ==> output filename head
  USE public_var, ONLY: calendar          ! calendar name
  USE public_var, ONLY: newFileFrequency  ! frequency for new output files (day, month, annual, single)
  USE public_var, ONLY: time_units        ! time units (seconds, hours, or days)
@@ -174,7 +174,7 @@ contains
  character(*), intent(out)       :: message          ! error message
  ! local variables
  logical(lgt)                    :: defNewOutputFile ! flag to define new output file
- integer(i4b)                    :: sec_per_day      ! second within day
+ integer(i4b)                    :: sec_in_day       ! second within day
  character(len=strLen)           :: cmessage         ! error message of downwind routine
  character(*),parameter          :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
 
@@ -215,9 +215,9 @@ contains
    jTime=1
 
    ! Define filename
-   sec_per_day = 0
-   write(fileout, fmtYMDS) trim(output_dir)//trim(fname_output)//'.mizuRoute.h.', &
-                           modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '-',sec_per_day,'.nc'
+   sec_in_day = 0
+   write(fileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuRoute.h.', &
+                           modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '-',sec_in_day,'.nc'
 
    ! define output file
    call defineFile(trim(fileout),                         &  ! input: file name

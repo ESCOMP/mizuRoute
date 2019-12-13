@@ -371,14 +371,12 @@ CONTAINS
 
   ! external routines
   USE read_restart,      ONLY: read_state_nc     ! read netcdf state output file
-  USE write_restart_pio, ONLY: define_state_nc   ! define netcdf state output file
   USE mpi_routine,       ONLY: mpi_restart
   ! global data
   USE public_var, ONLY: dt                ! simulation time step (seconds)
   USE public_var, ONLY: isRestart         ! restart option: True-> model run with restart, F -> model run with empty channels
   USE public_var, ONLY: routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
   USE public_var, ONLY: fname_state_in    ! name of state input file
-  USE public_var, ONLY: fname_state_out   ! name of state output file
   USE public_var, ONLY: output_dir        ! directory containing output data
   USE globalData, ONLY: RCHFLX            ! reach flux structure
   USE globalData, ONLY: TSEC              ! begining/ending of simulation time step [sec]
@@ -429,10 +427,6 @@ CONTAINS
    TSEC(0)=0._dp; TSEC(1)=dt
 
   endif
-
-  ! Define output state netCDF
-  call define_state_nc(trim(output_dir)//trim(fname_state_out), ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  END SUBROUTINE init_state_data
 

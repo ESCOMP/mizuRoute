@@ -100,9 +100,17 @@ contains
    case('<ancil_dir>');            ancil_dir   = trim(cData)                       ! directory containing ancillary data
    case('<input_dir>');            input_dir   = trim(cData)                       ! directory containing input data
    case('<output_dir>');           output_dir  = trim(cData)                       ! directory containing output data
-   ! SIMULATION TIME
+   ! RUN CONTROL
+   case('<case_name>');            case_name   = trim(cData)                       ! name of simulation
    case('<sim_start>');            simStart    = trim(cData)                       ! date string defining the start of the simulation
    case('<sim_end>');              simEnd      = trim(cData)                       ! date string defining the end of the simulation
+   case('<newFileFrequency>');     newFileFrequency = trim(cData)                  ! frequency for new output files (day, month, annual, single)
+   case('<restart_opt>');          read(cData,*,iostat=io_error) isRestart         ! restart option: True-> model run with restart, F -> model run with empty channels
+   case('<fname_state_in>');       fname_state_in  = trim(cData)                   ! filename for the channel states
+   case('<route_opt>');            read(cData,*,iostat=io_error) routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+   case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute    ! basin routing options   0-> no, 1->IRF, otherwise error
+   case('<doesAccumRunoff>');      read(cData,*,iostat=io_error) doesAccumRunoff   ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
+   case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut          ! desired outlet reach id (if -9999 --> route over the entire network)
    ! RIVER NETWORK TOPOLOGY
    case('<fname_ntopOld>');        fname_ntopOld = trim(cData)                     ! name of file containing stream network topology information
    case('<ntopAugmentMode>');      read(cData,*,iostat=io_error) ntopAugmentMode   ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
@@ -131,13 +139,6 @@ contains
    case('<vname_j_index>');        vname_j_index        = trim(cData)              ! name of variable containing index of ylat dimension in runoff grid (if runoff file is grid)
    case('<dname_hru_remap>');      dname_hru_remap      = trim(cData)              ! name of dimension of river network HRU ID
    case('<dname_data_remap>');     dname_data_remap     = trim(cData)              ! name of dimension of runoff HRU overlapping with river network HRU
-   ! ROUTED FLOW OUTPUT
-   case('<fname_output>');         fname_output     = trim(cData)                  ! filename for the model output
-   case('<newFileFrequency>');     newFileFrequency = trim(cData)                  ! frequency for new output files (day, month, annual, single)
-   ! STATES
-   case('<restart_opt>');          read(cData,*,iostat=io_error) isRestart         ! restart option: True-> model run with restart, F -> model run with empty channels
-   case('<fname_state_in>');       fname_state_in  = trim(cData)                   ! filename for the channel states
-   case('<fname_state_out>');      fname_state_out = trim(cData)                   ! filename for the channel states
    ! SPATIAL CONSTANT PARAMETERS
    case('<param_nml>');            param_nml       = trim(cData)                   ! name of namelist including routing parameter value
    ! USER OPTIONS: Define options to include/skip calculations
@@ -148,11 +149,7 @@ contains
    case('<time_units>');           time_units = trim(cData)                        ! time units (seconds, hours, or days)
    case('<calendar>');             calendar   = trim(cData)                        ! calendar name
    ! MISCELLANEOUS
-   case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut          ! desired outlet reach id (if -9999 --> route over the entire network)
-   case('<route_opt>');            read(cData,*,iostat=io_error) routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
    case('<desireId>'   );          read(cData,*,iostat=io_error) desireId          ! turn off checks or speficy reach ID if necessary to print on screen
-   case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute    ! basin routing options   0-> no, 1->IRF, otherwise error
-   case('<doesAccumRunoff>');      read(cData,*,iostat=io_error) doesAccumRunoff   ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
    ! PFAFCODE
    case('<maxPfafLen>');           read(cData,*,iostat=io_error) maxPfafLen        ! maximum digit of pfafstetter code (default 32)
    case('<pfafMissing>');          pfafMissing = trim(cData)                       ! missing pfafcode (e.g., reach without any upstream area)
