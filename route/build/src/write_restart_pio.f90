@@ -50,17 +50,29 @@ CONTAINS
  subroutine output_state(ierr, message)
 
   USE public_var, ONLY: output_dir
-  USE public_var, ONLY: fname_state_out
+  USE public_var, ONLY: case_name         ! simulation name ==> output filename head
+  USE globalData, ONLY: modTime           ! previous and current model time
 
   implicit none
   ! output variables
   integer(i4b),   intent(out)          :: ierr             ! error code
   character(*),   intent(out)          :: message          ! error message
   ! local variables
+  character(len=strLen)                :: fileout_state    ! name of the output file
+  character(*),parameter               :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
+  integer(i4b)                         :: sec_in_day      ! second within day
   character(len=strLen)                :: cmessage         ! error message of downwind routine
 
-  call write_state_nc(trim(output_dir)//trim(fname_state_out), &  ! Input: state netcdf name
-                      ierr, message)                              ! Output: error control
+  ! Define filename
+  sec_in_day = 0
+  write(fileout_state, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuRoute.r.', &
+                          modTime(0)%iy, '-', modTime(0)%im, '-', modTime(0)%id, '-',sec_in_day,'.nc'
+
+  ! Define output state netCDF
+  call define_state_nc(trim(fileout_state), ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  call write_state_nc(fileout_state, ierr, message)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   if (pid==0) then
