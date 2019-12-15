@@ -46,6 +46,7 @@ module globalData
   USE var_lookup, ONLY: nVarsSEG      ! number of variables for data structure
   USE var_lookup, ONLY: nVarsNTOPO    ! number of variables for data structure
   USE var_lookup, ONLY: nVarsPFAF     ! number of variables for data structure
+  USE var_lookup, ONLY: nVarsRFLX     ! number of variables for data structure
   USE var_lookup, ONLY: nVarsIRFbas   ! number of variables for data structure
   USE var_lookup, ONLY: nVarsIRF      ! number of variables for data structure
   USE var_lookup, ONLY: nVarsKWT      ! number of variables for data structure
@@ -124,6 +125,7 @@ module globalData
   type(var_info)                 , public :: meta_SEG    (nVarsSEG    ) ! stream segment properties
   type(var_info)                 , public :: meta_NTOPO  (nVarsNTOPO  ) ! network topology
   type(var_info)                 , public :: meta_PFAF   (nVarsPFAF   ) ! pfafstetter code
+  type(var_info)                 , public :: meta_rflx   (nVarsRFLX )   ! reach flux variables
   type(var_info)                 , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
   type(var_info)                 , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
   type(var_info)                 , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
