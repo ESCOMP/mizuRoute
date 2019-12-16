@@ -6,6 +6,12 @@ USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
 USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: root
 USE public_var,        ONLY: integerMissing
+USE public_var,        ONLY: doesBasinRoute      ! basin routing options   0-> no, 1->IRF, otherwise error
+USE public_var,        ONLY: doesAccumRunoff     ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
+USE public_var,        ONLY: routOpt             ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+USE public_var,        ONLY: kinematicWave       ! kinematic wave
+USE public_var,        ONLY: impulseResponseFunc ! impulse response function
+USE public_var,        ONLY: allRoutingMethods   ! all routing methods
 USE globalData,        ONLY: pid, nNodes
 USE globalData,        ONLY: mpicom_route
 USE globalData,        ONLY: pio_netcdf_format
@@ -44,12 +50,6 @@ contains
  subroutine output(ierr, message)
 
   !Dependent modules
-  USE public_var, ONLY: doesBasinRoute      ! basin routing options   0-> no, 1->IRF, otherwise error
-  USE public_var, ONLY: doesAccumRunoff     ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
-  USE public_var, ONLY: routOpt             ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-  USE public_var, ONLY: kinematicWave       ! kinematic wave
-  USE public_var, ONLY: impulseResponseFunc ! impulse response function
-  USE public_var, ONLY: allRoutingMethods   ! all routing methods
   USE globalData, ONLY: nHRU                ! number of ensembles, HRUs and river reaches
   USE globalData, ONLY: RCHFLX              ! global Reach fluxes (ensembles, space [reaches])
   USE globalData, ONLY: RCHFLX_trib         ! tributary Reach fluxes (ensembles, space [reaches])
@@ -297,10 +297,25 @@ contains
  ! initialize error control
  ierr=0; message='defineFile/'
 
-! populate q dimension meta (not sure if this should be done here...)
+ ! populate q dimension meta (not sure if this should be done here...)
  meta_qDims(ixQdims%seg)%dimLength = nRch
  meta_qDims(ixQdims%hru)%dimLength = nHRU
  meta_qDims(ixQdims%ens)%dimLength = nEns
+
+ ! Modify write option
+ ! This is temporary
+ if (routOpt==kinematicWave) then
+  meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
+ end if
+ if (routOpt==impulseResponseFunc) then
+  meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
+ end if
+ if (doesAccumRunoff==0) then
+  meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile = .false.
+ end if
+ if (doesBasinRoute==0) then
+  meta_rflx(ixRFLX%instRunoff)%varFile = .false.
+ end if
 
  ! pio initialization
  pio_numiotasks = nNodes/pio_stride

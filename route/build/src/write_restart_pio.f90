@@ -220,33 +220,38 @@ CONTAINS
                  ixRch(ix1:ix2),         & ! input:
                  iodesc_state_int)
 
- ! type: int, dim: [dim_seg, dim_wave, dim_ens, dim_time]
- call pio_decomp(pioSystemState,         & ! input: pio system descriptor
-                 ncd_int,                & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                 [nSeg,nWave,nEns],      & ! input: dimension length == global array size
-                 ixRch(ix1:ix2),         & ! input:
-                 iodesc_wave_int)
+ if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
+   ! type: int, dim: [dim_seg, dim_wave, dim_ens, dim_time]
+   call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+                   ncd_int,                & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                   [nSeg,nWave,nEns],      & ! input: dimension length == global array size
+                   ixRch(ix1:ix2),         & ! input:
+                   iodesc_wave_int)
 
- ! type: float, dim: [dim_seg, dim_wave, dim_ens, dim_time]
- call pio_decomp(pioSystemState,         & ! input: pio system descriptor
-                 ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                 [nSeg,nWave,nEns],      & ! input: dimension length == global array size
-                 ixRch(ix1:ix2),         & ! input:
-                 iodesc_wave_double)
+   ! type: float, dim: [dim_seg, dim_wave, dim_ens, dim_time]
+   call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                   [nSeg,nWave,nEns],      & ! input: dimension length == global array size
+                   ixRch(ix1:ix2),         & ! input:
+                   iodesc_wave_double)
+ end if
 
- ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens, dim_time]
- call pio_decomp(pioSystemState,         & ! input: pio system descriptor
-                 ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                 [nSeg,ntdh_irf,nEns],   & ! input: dimension length == global array size
-                 ixRch(ix1:ix2),         & ! input:
-                 iodesc_irf_float)
+ if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+   ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens, dim_time]
+   call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                   [nSeg,ntdh_irf,nEns],   & ! input: dimension length == global array size
+                   ixRch(ix1:ix2),         & ! input:
+                   iodesc_irf_float)
 
+ end if
  ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens, dim_time]
  call pio_decomp(pioSystemState,         & ! input: pio system descriptor
                  ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                  [nSeg,ntdh,nEns],       & ! input: dimension length == global array size
                  ixRch(ix1:ix2),         & ! input:
                  iodesc_irf_bas_double)
+
  end associate
 
  ! Finishing up definition -------
@@ -492,19 +497,19 @@ CONTAINS
       NETOPO_local(ix) = NETOPO(ixRch_order(ix))
       KROUTE_local(ix) = KROUTE(iens,ixRch_order(ix))
      enddo
-   end if
-   RCHFLX_local(nRch_main+1:nRch_main+nRch_trib) = RCHFLX_trib(iens,:)
-   NETOPO_local(nRch_main+1:nRch_main+nRch_trib) = NETOPO_trib(:)
-   KROUTE_local(nRch_main+1:nRch_main+nRch_trib) = KROUTE_trib(iens,:)
+  end if
+  RCHFLX_local(nRch_main+1:nRch_main+nRch_trib) = RCHFLX_trib(iens,:)
+  NETOPO_local(nRch_main+1:nRch_main+nRch_trib) = NETOPO_trib(:)
+  KROUTE_local(nRch_main+1:nRch_main+nRch_trib) = KROUTE_trib(iens,:)
   end associate
-  else
-   allocate(RCHFLX_local(rch_per_proc(pid)), &
-            NETOPO_local(rch_per_proc(pid)), &
-            KROUTE_local(rch_per_proc(pid)),stat=ierr)
-   RCHFLX_local = RCHFLX_trib(iens,:)
-   NETOPO_local = NETOPO_trib(:)
-   KROUTE_local = KROUTE_trib(iens,:)
-  endif
+ else
+  allocate(RCHFLX_local(rch_per_proc(pid)), &
+           NETOPO_local(rch_per_proc(pid)), &
+           KROUTE_local(rch_per_proc(pid)),stat=ierr)
+  RCHFLX_local = RCHFLX_trib(iens,:)
+  NETOPO_local = NETOPO_trib(:)
+  KROUTE_local = KROUTE_trib(iens,:)
+ endif
 
  ! -- Write out to netCDF
 
