@@ -73,7 +73,7 @@ contains
  allocate(doRoute(nSeg), stat=ierr)
 
  ! Initialize CHEC_IRF to False.
- RCHFLX_out(iEns,:)%CHECK_IRF=.False.
+ RCHFLX_out(iEns,:)%isRoute=.False.
 
  if (present(ixSubRch))then
   doRoute(:)=.false.
@@ -188,7 +188,7 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! Check True since now this reach now routed
-  RCHFLX_out(iEns,segIndex)%CHECK_IRF=.True.
+  RCHFLX_out(iEns,segIndex)%isRoute=.True.
 
   ! check
   if(NETOPO_in(segIndex)%REACHIX == ixDesire)then

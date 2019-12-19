@@ -6,6 +6,12 @@ USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
 USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: root
 USE public_var,        ONLY: integerMissing
+USE public_var,        ONLY: doesBasinRoute      ! basin routing options   0-> no, 1->IRF, otherwise error
+USE public_var,        ONLY: doesAccumRunoff     ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
+USE public_var,        ONLY: routOpt             ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+USE public_var,        ONLY: kinematicWave       ! kinematic wave
+USE public_var,        ONLY: impulseResponseFunc ! impulse response function
+USE public_var,        ONLY: allRoutingMethods   ! all routing methods
 USE globalData,        ONLY: pid, nNodes
 USE globalData,        ONLY: mpicom_route
 USE globalData,        ONLY: pio_netcdf_format
@@ -44,12 +50,6 @@ contains
  subroutine output(ierr, message)
 
   !Dependent modules
-  USE public_var, ONLY: doesBasinRoute      ! basin routing options   0-> no, 1->IRF, otherwise error
-  USE public_var, ONLY: doesAccumRunoff     ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
-  USE public_var, ONLY: routOpt             ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-  USE public_var, ONLY: kinematicWave       ! kinematic wave
-  USE public_var, ONLY: impulseResponseFunc ! impulse response function
-  USE public_var, ONLY: allRoutingMethods   ! all routing methods
   USE globalData, ONLY: nHRU                ! number of ensembles, HRUs and river reaches
   USE globalData, ONLY: RCHFLX              ! global Reach fluxes (ensembles, space [reaches])
   USE globalData, ONLY: RCHFLX_trib         ! tributary Reach fluxes (ensembles, space [reaches])
@@ -152,7 +152,7 @@ contains
 
  ! saved public variables (usually parameters, or values not modified)
  USE public_var, ONLY: output_dir        ! output directory
- USE public_var, ONLY: fname_output      ! output file name head
+ USE public_var, ONLY: case_name         ! simulation name ==> output filename head
  USE public_var, ONLY: calendar          ! calendar name
  USE public_var, ONLY: newFileFrequency  ! frequency for new output files (day, month, annual, single)
  USE public_var, ONLY: time_units        ! time units (seconds, hours, or days)
@@ -174,7 +174,9 @@ contains
  character(*), intent(out)       :: message          ! error message
  ! local variables
  logical(lgt)                    :: defNewOutputFile ! flag to define new output file
+ integer(i4b)                    :: sec_in_day       ! second within day
  character(len=strLen)           :: cmessage         ! error message of downwind routine
+ character(*),parameter          :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
 
  ! initialize error control
  ierr=0; message='prep_output/'
@@ -213,7 +215,9 @@ contains
    jTime=1
 
    ! Define filename
-   write(fileout,'(a,3(i0,a))') trim(output_dir)//trim(fname_output)//'_', modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '.nc'
+   sec_in_day = 0
+   write(fileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuRoute.h.', &
+                           modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '-',sec_in_day,'.nc'
 
    ! define output file
    call defineFile(trim(fileout),                         &  ! input: file name
@@ -266,6 +270,8 @@ contains
                        ierr, message)      ! output: error control
  !Dependent modules
  USE var_lookup, ONLY: ixQdims, nQdims
+ USE var_lookup, ONLY: ixRFLX, nVarsRFLX
+ USE globalData, ONLY: meta_rflx
  USE globalData, ONLY: meta_qDims
  USE globalData, ONLY: rch_per_proc             ! number of reaches assigned to each proc (size = num of procs+1)
  USE globalData, ONLY: nEns, nHRU, nRch         ! number of ensembles, HRUs and river reaches
@@ -284,21 +290,32 @@ contains
  integer(i4b)                :: ix1, ix2          ! frst and last indices of global array for local array chunk
  integer(i4b)                :: ixRch(nRch)        !
  integer(i4b)                :: nHRU_in
+ integer(i4b)                :: ixDim
+ integer(i4b)                :: dim_array(2)
  integer(i4b),allocatable    :: dof_hru(:)        ! dof for basin runoff
- integer(i4b),parameter      :: nVars=8           ! number of variables
 
  ! initialize error control
  ierr=0; message='defineFile/'
 
- associate (dim_seg  => meta_qDims(ixQdims%seg)%dimId,    &
-            dim_hru  => meta_qDims(ixQdims%hru)%dimId,    &
-            dim_ens  => meta_qDims(ixQdims%ens)%dimId,    &
-            dim_time => meta_qDims(ixQdims%time)%dimId)
-
-! populate q dimension meta (not sure if this should be done here...)
+ ! populate q dimension meta (not sure if this should be done here...)
  meta_qDims(ixQdims%seg)%dimLength = nRch
  meta_qDims(ixQdims%hru)%dimLength = nHRU
  meta_qDims(ixQdims%ens)%dimLength = nEns
+
+ ! Modify write option
+ ! This is temporary
+ if (routOpt==kinematicWave) then
+  meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
+ end if
+ if (routOpt==impulseResponseFunc) then
+  meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
+ end if
+ if (doesAccumRunoff==0) then
+  meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile = .false.
+ end if
+ if (doesBasinRoute==0) then
+  meta_rflx(ixRFLX%instRunoff)%varFile = .false.
+ end if
 
  ! pio initialization
  pio_numiotasks = nNodes/pio_stride
@@ -354,30 +371,37 @@ contains
  end do
 
  ! define coordinate variable for time
- call defVar(pioFileDesc, trim(meta_qDims(ixQdims%time)%dimName), [dim_time], ncd_float, ierr, cmessage, vdesc=trim(meta_qDims(ixQdims%time)%dimName), vunit=trim(units_time), vcal=calendar)
+ call defVar(pioFileDesc,                                 &                                        ! pio file descriptor
+             trim(meta_qDims(ixQdims%time)%dimName),      &                                        ! variable name
+             [meta_qDims(ixQdims%time)%dimId], ncd_float, &                                        ! dimension array and type
+             ierr, cmessage,                              &                                        ! error handle
+             vdesc=trim(meta_qDims(ixQdims%time)%dimName), vunit=trim(units_time), vcal=calendar)  ! optional attributes
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! define variables
- do iVar=1,nVars
-  ! define variable
-  select case(iVar)
-   ! define network topology (integers)
-   case( 1); call defvar(pioFileDesc, 'basinID',           [dim_hru],          ncd_int,   ierr, cmessage, vdesc='basin ID',                            vunit='-'   )
-   case( 2); call defvar(pioFileDesc, 'reachID',           [dim_seg],          ncd_int,   ierr, cmessage, vdesc='reach ID',                            vunit='-'   )
-   ! define runoff variables (single precision)
-   case( 3); call defvar(pioFileDesc, 'basRunoff',         [dim_hru,dim_time], ncd_float, ierr, cmessage, vdesc='basin runoff',                         vunit='m/s' )
-   case( 4); call defVar(pioFileDesc, 'instRunoff',        [dim_seg,dim_time], ncd_float, ierr, cmessage, vdesc='instantaneous runoff in each reach',   vunit='m3/s')
-   case( 5); call defVar(pioFileDesc, 'dlayRunoff',        [dim_seg,dim_time], ncd_float, ierr, cmessage, vdesc='delayed runoff in each reach',         vunit='m3/s')
-   case( 6); call defVar(pioFileDesc, 'sumUpstreamRunoff', [dim_seg,dim_time], ncd_float, ierr, cmessage, vdesc='sum of upstream runoff in each reach', vunit='m3/s')
-   case( 7); call defVar(pioFileDesc, 'KWTroutedRunoff',   [dim_seg,dim_time], ncd_float, ierr, cmessage, vdesc='KWT routed runoff in each reach',      vunit='m3/s')
-   case( 8); call defVar(pioFileDesc, 'IRFroutedRunoff',   [dim_seg,dim_time], ncd_float, ierr, cmessage, vdesc='IRF routed runoff in each reach',      vunit='m3/s')
-   case default; ierr=20; message=trim(message)//'unable to identify variable index'; return
-  end select
-  ! check errors
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- end do
+ ! define hru ID and reach ID variables
+ call defvar(pioFileDesc, 'basinID', [meta_qDims(ixQdims%hru)%dimId], ncd_int, ierr, cmessage, vdesc='basin ID', vunit='-')
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ call defvar(pioFileDesc, 'reachID', [meta_qDims(ixQdims%seg)%dimId], ncd_int, ierr, cmessage, vdesc='reach ID', vunit='-')
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- end associate
+ ! define flux variables
+ do iVar=1,nVarsRFLX
+
+  if (.not.meta_rflx(iVar)%varFile) cycle
+
+  ! define dimension ID array
+  ixDim = meta_rflx(iVar)%varType
+  dim_array = [meta_qDims(ixDim)%dimId, meta_qDims(ixQdims%time)%dimId]
+
+  ! define variable
+  call defvar(pioFileDesc,             &                 ! pio file descriptor
+              meta_rflx(iVar)%varName, &                 ! variable name
+              dim_array, ncd_float,    &                 ! dimension array and type
+              ierr, cmessage,          &                 ! error handling
+              vdesc=meta_rflx(iVar)%varDesc, vunit=meta_rflx(iVar)%varUnit)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ end do
 
  ! end definitions
  call endDef(pioFileDesc, ierr, cmessage)
