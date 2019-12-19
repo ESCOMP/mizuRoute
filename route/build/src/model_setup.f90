@@ -64,7 +64,9 @@ CONTAINS
   ! Obtain mpi rank/ntasks and omp thread number
 
   ! shared data used
+  USE public_var, ONLY: root         ! root proce id
   USE globalData, ONLY: nNodes       ! number of tasks
+  USE globalData, ONLY: masterproc   ! root proc logical
   USE globalData, ONLY: pid          ! procs id (rank)
   USE globalData, ONLY: nThreads     ! number of OMP threads
   ! subroutines: populate metadata
@@ -88,6 +90,12 @@ CONTAINS
 
   ! Get the individual process ID
   call shr_mpi_commrank(comm, pid, message)
+
+  if (pid == root) then
+     masterproc = .true.
+  else
+     masterproc = .false.
+  end if
 
   !  Get number of threads
   nThreads = 1
