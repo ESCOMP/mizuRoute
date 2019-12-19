@@ -88,6 +88,7 @@ module globalData
   integer(i4b)                   , public :: pid                       ! process id
   integer(i4b)                   , public :: nNodes                    ! number of nodes
   integer(i4b)                   , public :: nThreads                  ! number of threads
+  logical(lgt)                   , public :: masterproc                ! root logical. root processor => true, other => false
   character(len=strLen)          , public :: pio_netcdf_format = "64bit_offset"
   character(len=strLen)          , public :: pio_typename      = "pnetcdf"
   integer(i4b)                   , public :: pio_numiotasks    = -99
