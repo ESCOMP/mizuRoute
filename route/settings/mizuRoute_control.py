@@ -22,13 +22,15 @@ class mizuRoute_control(object):
    """ Object to hold a dictionary of settings for mizuRoute control """
 
    # Class Data:
-   fileread = False
+   fileRead = False
+   dict = {}
+   keyList = []
 
    def read( self, infile ):
        """
        Read and parse a mizuRoute control file
        """
-       self.fileread = True
+       self.fileRead = True
 
 
    def write( self, outfile ):
@@ -40,11 +42,19 @@ class mizuRoute_control(object):
        """
        Return an element from the control file
        """
+       if ( self.__is_valid_name( name ) ):
+          return( self.dict[name] )
+       else:
+          return( "UNSET" )
 
-   def set( self, name ):
+   def set( self, name, value ):
        """
        Set an element in the control file
        """
+       if ( not self.__is_valid_name( name ) ):
+          self.keyList.append(name)
+
+       self.dict[name] = value
 
 
    def __is_valid_name( self, name ):
@@ -52,7 +62,11 @@ class mizuRoute_control(object):
        Check if the name is valid
        """
        if ( self.is_read() ):
-          return( True )
+          try:
+             idx =  self.keyList.index(name) 
+             return( True )
+          except  ValueError:
+             return( False )
        else:
           return( False )
 
@@ -60,7 +74,7 @@ class mizuRoute_control(object):
        """
        Check if file has been read
        """
-       return( self.fileread )
+       return( self.fileRead )
 
 #
 # Unit testing for above classes
@@ -77,6 +91,28 @@ class test_mizuRoute_control(unittest.TestCase):
        self.assertFalse( self.ctl.is_read() )
        self.ctl.read( "SAMPLE.control" )
        self.assertTrue( self.ctl.is_read() )
+
+   def test_get_not_read( self ):
+       value = self.ctl.get( "thing" )
+       self.assertEqual( value, "UNSET" )
+
+   def test_get_after_set( self ):
+       name = "thingwithlongname"
+       value = "valuereturned"
+       self.ctl.read( "SAMPLE.control" )
+       self.ctl.set( name, value )
+       getvalue = self.ctl.get( name )
+       self.assertEqual( getvalue, value )
+
+   def test_get_bad_name_after_set( self ):
+       name = "thingwithlongname"
+       name2 = name + "even_longer"
+       value = "valuereturned"
+       self.ctl.read( "SAMPLE.control" )
+       self.ctl.set( name, value )
+       getvalue = self.ctl.get( name2 )
+       self.assertEqual( getvalue, "UNSET" )
+
 
 if __name__ == '__main__':
      unittest.main()
