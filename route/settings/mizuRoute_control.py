@@ -6,7 +6,7 @@ can then be modified and output as a new file.
 Erik Kluzek
 """
 
-import sys
+import sys, re
 
 sys.path.append( "../../cime/scripts/lib" );
 
@@ -22,14 +22,37 @@ class mizuRoute_control(object):
    """ Object to hold a dictionary of settings for mizuRoute control """
 
    # Class Data:
-   fileRead = False
-   dict = {}
-   keyList = []
+   fileRead = False    # If file has been read or not
+   dict = {}           # Dictionary of control elments
+   keyList = []        # List of keys for control elements
+   lines = []          # Lines of the entire file read in
+   desc = []           # Description for each control element
 
    def read( self, infile ):
        """
        Read and parse a mizuRoute control file
        """
+       # Read the whole file and save each line as object data
+       ctlfile = open( infile, "r" )
+       self.lines = ctlfile.readlines()
+       ctlfile.close()
+
+       # Loop through each line in the file
+       for line in self.lines:
+          # Ignore comment lines
+          if ( not line.find( "!" ) == 0 ):
+             match = re.search( '^<(.+?)>\s+(\S+)\s+\!(.+)$', line )
+             if ( not match ):
+                print( "Error in reading in line:"+line )
+             else:
+                name = match.group(1)
+                value = match.group(2)
+                comment = match.group(3)
+                self.set( name, value )
+                self.desc.append(comment)
+
+
+       # Mark the file as read
        self.fileRead = True
 
 
