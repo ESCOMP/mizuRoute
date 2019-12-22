@@ -17,11 +17,18 @@ module rof_comp_nuopc
   use shr_sys_mod           , only : shr_sys_abort
   use shr_file_mod          , only : shr_file_getlogunit, shr_file_setlogunit
   use shr_cal_mod           , only : shr_cal_noleap, shr_cal_gregorian, shr_cal_ymd2date
+!!!! mizuRoute
+  use public_var            , only : iulog
+  use public_var            , only : masterproc  !create this  logical variable  in mizuRoute (masterproc=true => master task, false => other tasks
+  use model_setup           , only : RtmSpmdInit  => get_mpi_omp
+  use model_setup           , only : pid          => iam
+  use model_setup           , only : nNodes       => npes
+  use globalData            , only : mpicom_route => mpicom_rof
+!!!! mizuRoute
 !!!! mosart 
-  use RtmVar                , only : rtmlon, rtmlat, iulog
+  use RtmVar                , only : rtmlon, rtmlat
   use RtmVar                , only : nsrStartup, nsrContinue, nsrBranch
   use RtmVar                , only : inst_index, inst_suffix, inst_name, RtmVarSet
-  use RtmSpmd               , only : RtmSpmdInit, masterproc, mpicom_rof, ROFID, iam, npes
   use RunoffMod             , only : rtmCTL
   use RtmMod                , only : Rtmini, Rtmrun
   use RtmTimeManager        , only : timemgr_setup, get_curr_date, get_step_size, advance_timestep
@@ -169,6 +176,7 @@ contains
     !----------------------------------------------------------------------------
 
     ! The following call initializees the module variable mpicom_rof in RtmSpmd
+    mpicom_rof = mpicom
     call RtmSpmdInit(mpicom)
 
     ! Set ROFID - needed for the mosart code that requires MCT
