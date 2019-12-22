@@ -70,7 +70,7 @@ class mizuRoute_control(object):
        """
        logger.debug( "Write out file: "+outfile )
 
-       vallen  = str(self.longestValue + 5)
+       vallen  = str(self.longestValue + 1)
        # Loop through each line in the file
        for line in self.lines:
           # Write comment lines as is
@@ -83,8 +83,8 @@ class mizuRoute_control(object):
              name = match.group(1)
              value = self.get( name )
              comment = match.group(3)
-             namelen = str(self.longestName - len(name) + 4)
-             format = "<%s>%"+namelen+"s   %"+vallen+"s    ! %s"
+             namelen = str(self.longestName - len(name) + 1)
+             format = "<%s>%"+namelen+"s   %-"+vallen+"s    ! %s"
              print( format % (name, " ", value, comment) )
 
    def get( self, name ):
