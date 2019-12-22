@@ -33,6 +33,9 @@ class mizuRoute_control(object):
        Read and parse a mizuRoute control file
        """
        # Read the whole file and save each line as object data
+       if ( not os.path.exists(infile) ):
+          expect( False, "Input file to read does NOT exist: "+infile )
+
        ctlfile = open( infile, "r" )
        self.lines = ctlfile.readlines()
        ctlfile.close()
@@ -43,7 +46,7 @@ class mizuRoute_control(object):
           if ( not line.find( "!" ) == 0 ):
              match = re.search( '^<(.+?)>\s+(\S+)\s+\!(.+)$', line )
              if ( not match ):
-                print( "Error in reading in line:"+line )
+                expect( False, "Error in reading in line:"+line )
              else:
                 name = match.group(1)
                 value = match.group(2)
@@ -118,6 +121,9 @@ class test_mizuRoute_control(unittest.TestCase):
    def test_get_not_read( self ):
        value = self.ctl.get( "thing" )
        self.assertEqual( value, "UNSET" )
+
+   def test_non_existant_file( self ):
+       self.assertRaises( SystemExit, self.ctl.read, "file_does_NOT_EXIST.zztop" )
 
    def test_get_after_set( self ):
        name = "thingwithlongname"
