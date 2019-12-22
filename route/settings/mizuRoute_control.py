@@ -22,17 +22,21 @@ class mizuRoute_control(object):
    """ Object to hold a dictionary of settings for mizuRoute control """
 
    # Class Data:
-   fileRead = False    # If file has been read or not
-   dict = {}           # Dictionary of control elments
-   keyList = []        # List of keys for control elements
-   lines = []          # Lines of the entire file read in
-   desc = []           # Description for each control element
+   fileRead = False                         # If file has been read or not
+   dict = {}                                # Dictionary of control elments
+   keyList = []                             # List of keys for control elements
+   lines = []                               # Lines of the entire file read in
+   desc = []                                # Description for each control element
+   lineMatch = '^<(.+?)>\s+(\S+)\s+\!(.+)$' # Pattern to match for lines
+   longestName = 0                          # Longest name
+   longestValue = 0                         # Longest value
 
    def read( self, infile ):
        """
        Read and parse a mizuRoute control file
        """
        # Read the whole file and save each line as object data
+       logger.debug( "read in file: "+infile )
        if ( not os.path.exists(infile) ):
           expect( False, "Input file to read does NOT exist: "+infile )
 
@@ -44,7 +48,7 @@ class mizuRoute_control(object):
        for line in self.lines:
           # Ignore comment lines
           if ( not line.find( "!" ) == 0 ):
-             match = re.search( '^<(.+?)>\s+(\S+)\s+\!(.+)$', line )
+             match = re.search( self.lineMatch, line )
              if ( not match ):
                 expect( False, "Error in reading in line:"+line )
              else:
@@ -56,6 +60,7 @@ class mizuRoute_control(object):
 
 
        # Mark the file as read
+       logger.debug( "File read" )
        self.fileRead = True
 
 
@@ -63,6 +68,24 @@ class mizuRoute_control(object):
        """
        Write out a mizuRoute control file
        """
+       logger.debug( "Write out file: "+outfile )
+
+       vallen  = str(self.longestValue + 5)
+       # Loop through each line in the file
+       for line in self.lines:
+          # Write comment lines as is
+          if ( line.find( "!" ) == 0 ):
+             print( "%s" % (line) )
+          else:
+             match = re.search( self.lineMatch, line )
+             if ( not match ):
+                expect( False, "Error in for output line:"+line )
+             name = match.group(1)
+             value = self.get( name )
+             comment = match.group(3)
+             namelen = str(self.longestName - len(name) + 4)
+             format = "<%s>%"+namelen+"s   %"+vallen+"s    ! %s"
+             print( format % (name, " ", value, comment) )
 
    def get( self, name ):
        """
@@ -81,6 +104,9 @@ class mizuRoute_control(object):
           self.keyList.append(name)
 
        self.dict[name] = value
+       # Check for longest value and name
+       if ( len(name)  > self.longestName  ): self.longestName  = len(name)
+       if ( len(value) > self.longestValue ): self.longestValue = len(value)
 
 
    def __is_valid_name( self, name ):
@@ -145,6 +171,9 @@ class test_mizuRoute_control(unittest.TestCase):
        getvalue = self.ctl.get( name2 )
        self.assertEqual( getvalue, "UNSET" )
 
+   def test_write( self ):
+       self.ctl.read( "SAMPLE.control" )
+       self.ctl.write( "mizuRoute_in" )
 
 if __name__ == '__main__':
      unittest.main()
