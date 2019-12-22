@@ -125,6 +125,9 @@ class test_mizuRoute_control(unittest.TestCase):
    def test_non_existant_file( self ):
        self.assertRaises( SystemExit, self.ctl.read, "file_does_NOT_EXIST.zztop" )
 
+   def test_bad_file( self ):
+       self.assertRaises( SystemExit, self.ctl.read, "README.md" )
+
    def test_get_after_set( self ):
        name = "thingwithlongname"
        value = "valuereturned"
