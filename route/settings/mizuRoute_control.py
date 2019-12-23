@@ -11,7 +11,7 @@ import sys, re
 sys.path.append( "../../cime/scripts/lib" );
 
 from CIME.XML.standard_module_setup import *
-from CIME.utils import expect, convert_to_string, convert_to_type
+from CIME.utils import expect, convert_to_string, convert_to_type, run_cmd_no_fail
 
 import six
 
@@ -26,7 +26,6 @@ class mizuRoute_control(object):
    dict = {}                                # Dictionary of control elments
    keyList = []                             # List of keys for control elements
    lines = []                               # Lines of the entire file read in
-   desc = []                                # Description for each control element
    lineMatch = '^<(.+?)>\s+(\S+)\s+\!(.+)$' # Pattern to match for lines
    longestName = 0                          # Longest name
    longestValue = 0                         # Longest value
@@ -54,10 +53,12 @@ class mizuRoute_control(object):
              else:
                 name = match.group(1)
                 value = match.group(2)
-                comment = match.group(3)
                 self.set( name, value )
-                self.desc.append(comment)
 
+
+       # If no data was read -- abort with an error
+       if ( len(self.keyList) == 0 ):
+          expect( False, "No data was read from the file: "+infile )
 
        # Mark the file as read
        logger.debug( "File read" )
@@ -70,12 +71,15 @@ class mizuRoute_control(object):
        """
        logger.debug( "Write out file: "+outfile )
 
+       if ( os.path.exists(outfile) ):
+          os.remove( outfile )
+       ctlfile = open( outfile, "w" )
        vallen  = str(self.longestValue + 1)
        # Loop through each line in the file
        for line in self.lines:
           # Write comment lines as is
           if ( line.find( "!" ) == 0 ):
-             print( "%s" % (line) )
+             ctlfile.write( line )
           else:
              match = re.search( self.lineMatch, line )
              if ( not match ):
@@ -84,8 +88,10 @@ class mizuRoute_control(object):
              value = self.get( name )
              comment = match.group(3)
              namelen = str(self.longestName - len(name) + 1)
-             format = "<%s>%"+namelen+"s   %-"+vallen+"s    ! %s"
-             print( format % (name, " ", value, comment) )
+             format = "<%s>%"+namelen+"s   %-"+vallen+"s    ! %s\n"
+             ctlfile.write( format % (name, " ", value, comment) )
+
+       ctlfile.close()
 
    def get( self, name ):
        """
@@ -171,9 +177,17 @@ class test_mizuRoute_control(unittest.TestCase):
        getvalue = self.ctl.get( name2 )
        self.assertEqual( getvalue, "UNSET" )
 
+   def test_empty_file( self ):
+       self.assertRaises( SystemExit, self.ctl.read, "../../cime_config/user_nl_mizuRoute" )
+
    def test_write( self ):
-       self.ctl.read( "SAMPLE.control" )
-       self.ctl.write( "mizuRoute_in" )
+       infile = "SAMPLE.control" 
+       self.ctl.read( infile )
+       outfile = "mizuRoute_in"
+       self.ctl.write( outfile )
+       if ( not run_cmd_no_fail( "diff -wb "+infile+" "+outfile ) == "" ):
+          expect( False, "Write of input file results in something different" )
+       os.remove( outfile )
 
 if __name__ == '__main__':
      unittest.main()
