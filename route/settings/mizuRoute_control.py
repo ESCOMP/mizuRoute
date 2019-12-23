@@ -53,7 +53,7 @@ class mizuRoute_control(object):
              else:
                 name = match.group(1)
                 value = match.group(2)
-                self.set( name, value )
+                self.set( name, value, allowNewName=True )
 
 
        # If no data was read -- abort with an error
@@ -102,17 +102,21 @@ class mizuRoute_control(object):
        else:
           return( "UNSET" )
 
-   def set( self, name, value ):
+   def set( self, name, value, allowNewName=False ):
        """
        Set an element in the control file
        """
-       if ( not self.__is_valid_name( name ) ):
-          self.keyList.append(name)
-
        self.dict[name] = value
        # Check for longest value and name
        if ( len(name)  > self.longestName  ): self.longestName  = len(name)
        if ( len(value) > self.longestValue ): self.longestValue = len(value)
+
+       if ( not self.__is_valid_name( name ) ):
+          if ( allowNewName ):
+             self.keyList.append(name)
+          else:
+             expect( False, "set method is operating on a name that doesn't exist:"+name )
+
 
 
    def __is_valid_name( self, name ):
@@ -164,7 +168,7 @@ class test_mizuRoute_control(unittest.TestCase):
        name = "thingwithlongname"
        value = "valuereturned"
        self.ctl.read( "SAMPLE.control" )
-       self.ctl.set( name, value )
+       self.ctl.set( name, value, allowNewName=True )
        getvalue = self.ctl.get( name )
        self.assertEqual( getvalue, value )
 
@@ -173,9 +177,16 @@ class test_mizuRoute_control(unittest.TestCase):
        name2 = name + "even_longer"
        value = "valuereturned"
        self.ctl.read( "SAMPLE.control" )
-       self.ctl.set( name, value )
+       self.ctl.set( name, value, allowNewName=True )
        getvalue = self.ctl.get( name2 )
        self.assertEqual( getvalue, "UNSET" )
+
+   def test_set_doesnot_allow_newname( self ):
+       name = "thingwithlongnamethatsnotonthefile"
+       value = "valuetoset"
+       self.ctl.read( "SAMPLE.control" )
+       self.assertRaises( SystemExit, self.ctl.set, name, value )
+
 
    def test_empty_file( self ):
        self.assertRaises( SystemExit, self.ctl.read, "../../cime_config/user_nl_mizuRoute" )
