@@ -17,22 +17,20 @@ module rof_comp_nuopc
   use shr_sys_mod           , only : shr_sys_abort
   use shr_file_mod          , only : shr_file_getlogunit, shr_file_setlogunit
   use shr_cal_mod           , only : shr_cal_noleap, shr_cal_gregorian, shr_cal_ymd2date
-!!!! mizuRoute
+
   use public_var            , only : iulog
   use public_var            , only : masterproc  !create this  logical variable  in mizuRoute (masterproc=true => master task, false => other tasks
-  use model_setup           , only : RtmSpmdInit  => get_mpi_omp
-  use model_setup           , only : pid          => iam
-  use model_setup           , only : nNodes       => npes
+  use globalData            , only : pid          => iam
+  use globalData            , only : nNodes       => npes
   use globalData            , only : mpicom_route => mpicom_rof
-!!!! mizuRoute
-!!!! mosart 
-  use RtmVar                , only : rtmlon, rtmlat
-  use RtmVar                , only : nsrStartup, nsrContinue, nsrBranch
-  use RtmVar                , only : inst_index, inst_suffix, inst_name, RtmVarSet
+  use model_setup           , only : get_mpi_omp
   use RunoffMod             , only : rtmCTL
-  use RtmMod                , only : Rtmini, Rtmrun
+  use RtmMod                , only : route_ini, route_run
   use RtmTimeManager        , only : timemgr_setup, get_curr_date, get_step_size, advance_timestep
-!!!!! mosart
+  use RtmVar                , only : nCat
+  use RtmVar                , only : inst_index, inst_suffix, inst_name, RtmVarSet
+  use RtmVar                , only : nsrStartup, nsrContinue, nsrBranch
+
   use perf_mod              , only : t_startf, t_stopf, t_barrierf
   use rof_import_export     , only : advertise_fields, realize_fields
   use rof_import_export     , only : import_fields, export_fields
@@ -172,17 +170,19 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     !----------------------------------------------------------------------------
-    ! initialize MOSART MPI communicator
+    ! initialize mizuRoute MPI communicator
     !----------------------------------------------------------------------------
 
     ! The following call initializees the module variable mpicom_rof in RtmSpmd
     mpicom_rof = mpicom
-    call RtmSpmdInit(mpicom)
+    call get_mpi_omp(mpicom)
 
+!! ROFID need for mizuRoute??
     ! Set ROFID - needed for the mosart code that requires MCT
     call NUOPC_CompAttributeGet(gcomp, name='MCTID', value=cvalue, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     read(cvalue,*) ROFID  ! convert from string to integer
+!! need for mizuRoute??
 
     !----------------------------------------------------------------------------
     ! determine instance information
@@ -423,9 +423,9 @@ contains
     !----------------------
 
     if (masterproc) then
-       write(iulog,*) "MOSART river model initialization"
-       write(iulog,*) ' mosart npes = ',npes
-       write(iulog,*) ' mosart iam  = ',iam
+       write(iulog,*) "mizuRoute initialization"
+       write(iulog,*) ' mizuRoute npes = ',npes
+       write(iulog,*) ' mizuRoute iam  = ',iam
        write(iulog,*) ' inst_name = ',trim(inst_name)
     endif
 
@@ -452,15 +452,13 @@ contains
          username_in=username)
 
     !----------------------
-    ! Initialize Mosart
+    ! Initialize mizuRoute 
     !----------------------
 
-    ! - Read in mosart namelist
-    ! - Initialize mosart time manager
+    ! - Read in control file
+    ! - Initialize time manager
     ! - Initialize number of mosart tracers
-    ! - Read input data (river direction file) (global)
-    ! - Deriver gridbox edges (global)
-    ! - Determine mosart ocn/land mask (global)
+    ! - Read river network input data (global)
     ! - Compute total number of basins and runoff ponts
     ! - Compute river basins, actually compute ocean outlet gridcell
     ! - Allocate basins to pes
@@ -470,9 +468,7 @@ contains
     !     - need to compute areas where they are not defined in input file
     ! - Initialize runoff datatype (rtmCTL)
 
-    ! TODO: are not handling rof_prognostic = .false. for now, how should this be handled in NUOPC?
-
-    call Rtmini(rtm_active=rof_prognostic, flood_active=flood_present)
+    call route_ini(rtm_active=rof_prognostic, flood_active=flood_present)
 
     !--------------------------------
     ! generate the mesh and realize fields
@@ -488,7 +484,6 @@ contains
        gindex(ni) = rtmCTL%gindex(n)
     end do
 !! MIZUROUTE END OF CHANGE  
-
 
     ! create distGrid from global index array
     DistGrid = ESMF_DistGridCreate(arbSeqIndexList=gindex, rc=rc)
@@ -517,20 +512,25 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     !--------------------------------
-    ! Create MOSART export state
+    ! Create mizuRoute export state
     !--------------------------------
 
     call export_fields(gcomp, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    ! Set global grid size scalars in export state
-    call State_SetScalar(dble(rtmlon), flds_scalar_index_nx, exportState, &
+    call State_SetScalar(dble(nCat), flds_scalar_index_ncat, exportState, &
          flds_scalar_name, flds_scalar_num, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    call State_SetScalar(dble(rtmlat), flds_scalar_index_ny, exportState, &
-         flds_scalar_name, flds_scalar_num, rc)
-    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+!   NO need for mizuRoute since not using lat/lon??
+!!    ! Set global grid size scalars in export state
+!!    call State_SetScalar(dble(rtmlon), flds_scalar_index_nx, exportState, &
+!!         flds_scalar_name, flds_scalar_num, rc)
+!!    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+!!
+!!    call State_SetScalar(dble(rtmlat), flds_scalar_index_ny, exportState, &
+!!         flds_scalar_name, flds_scalar_num, rc)
+!!    if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     !----------------------------------------------------------------------------
     ! Reset shr logging
@@ -553,9 +553,9 @@ contains
     convCIM  = "CIM"
     purpComp = "Model Component Simulation Description"
     call ESMF_AttributeAdd(comp, convention=convCIM, purpose=purpComp, rc=rc)
-    call ESMF_AttributeSet(comp, "ShortName", "MOSART", convention=convCIM, purpose=purpComp, rc=rc)
-    call ESMF_AttributeSet(comp, "LongName", "MOSART River Model", convention=convCIM, purpose=purpComp, rc=rc)
-    call ESMF_AttributeSet(comp, "Description", "MOSART River Model", convention=convCIM, purpose=purpComp, rc=rc)
+    call ESMF_AttributeSet(comp, "ShortName", "mizuRoute", convention=convCIM, purpose=purpComp, rc=rc)
+    call ESMF_AttributeSet(comp, "LongName", "mizuRoute River Model", convention=convCIM, purpose=purpComp, rc=rc)
+    call ESMF_AttributeSet(comp, "Description", "mizuRoute River Model", convention=convCIM, purpose=purpComp, rc=rc)
     call ESMF_AttributeSet(comp, "ReleaseDate", "2017", convention=convCIM, purpose=purpComp, rc=rc)
     call ESMF_AttributeSet(comp, "ModelType", "River", convention=convCIM, purpose=purpComp, rc=rc)
     call ESMF_AttributeSet(comp, "Name", "TBD", convention=convCIM, purpose=purpComp, rc=rc)
@@ -579,7 +579,7 @@ contains
   subroutine ModelAdvance(gcomp, rc)
 
     !------------------------
-    ! Run MOSART
+    ! Run mizuRoute
     !------------------------
 
     ! arguments:
@@ -673,7 +673,7 @@ contains
     endif
 
     !--------------------------------
-    ! Run MOSART
+    ! Run mizuRoute
     !--------------------------------
 
     ! Restart File - use nexttimestr rather than currtimestr here since that is the time at the end of
@@ -688,9 +688,9 @@ contains
     call shr_cal_ymd2date(yr_sync, mon_sync, day_sync, ymd_sync)
     write(rdate,'(i4.4,"-",i2.2,"-",i2.2,"-",i5.5)') yr_sync, mon_sync, day_sync, tod_sync
 
-    ! Advance mosart time step then run MOSART (export data is in rtmCTL and Trunoff data types)
+    ! Advance mosart time step then run mizuRoute (export data is in rtmCTL and Trunoff data types)
     call advance_timestep()
-    call Rtmrun(rstwr, nlend, rdate)
+    call route_run(rstwr, nlend, rdate)
 
     !--------------------------------
     ! Pack export state to mediator
@@ -717,7 +717,7 @@ contains
        write(iulog,*)' mosart ymd=',ymd     ,'  mosart tod= ',tod
        write(iulog,*)'   sync ymd=',ymd_sync,'    sync tod= ',tod_sync
        rc = ESMF_FAILURE
-       call ESMF_LogWrite(subname//" MOSART clock not in sync with Master Sync clock",ESMF_LOGMSG_ERROR)
+       call ESMF_LogWrite(subname//" mizuRoute clock not in sync with Master Sync clock",ESMF_LOGMSG_ERROR)
     end if
 
     !--------------------------------
@@ -898,7 +898,7 @@ contains
 
     if (masterproc) then
        write(iulog,F91)
-       write(iulog,F00) 'MOSART: end of main integration loop'
+       write(iulog,F00) 'mizuRoute: end of main integration loop'
        write(iulog,F91)
     end if
 

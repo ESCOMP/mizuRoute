@@ -10,15 +10,12 @@ module rof_import_export
   use shr_kind_mod    , only : r8 => shr_kind_r8
   use shr_sys_mod     , only : shr_sys_abort
   use rof_shr_methods , only : chkerr
-!!!! mizuRoute
+
   use public_var      , only : iulog
-  use public_var      , only : masterproc  !create this  logical variable  in mizuRoute (masterproc=true => master task, false => other tasks
-  use globalData      , only : iTime      ! replace RtmTimeManager,  get_nstep in Mosart
-!!!! mizuRoute
-!!!!! Mosart
+  use public_var      , only : masterproc          !create this  logical variable  in mizuRoute (masterproc=true => master task, false => other tasks
+  use globalData      , only : iTime               ! replace RtmTimeManager,  get_nstep in Mosart
   use RunoffMod       , only : rtmCTL, TRunoff
   use RtmVar          , only : nt_rtm, rtm_tracers
-!!!!! Mosart
 
   implicit none
   private ! except
