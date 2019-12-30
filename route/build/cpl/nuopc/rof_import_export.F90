@@ -14,7 +14,7 @@ module rof_import_export
   use public_var      , only : iulog
   use public_var      , only : masterproc          !create this  logical variable  in mizuRoute (masterproc=true => master task, false => other tasks
   use globalData      , only : iTime               ! replace RtmTimeManager,  get_nstep in Mosart
-  use RunoffMod       , only : rtmCTL, TRunoff
+  use RunoffMod       , only : rtmCTL
   use RtmVar          , only : nt_rtm, rtm_tracers
 
   implicit none
@@ -77,14 +77,11 @@ contains
     !--------------------------------
     ! Advertise export fields
     !--------------------------------
-! Need to change for mizuRoute
     call fldlist_add(fldsFrRof_num, fldsFrRof, trim(flds_scalar_name))
     call fldlist_add(fldsFrRof_num, fldsFrRof, 'Forr_rofl')    
     call fldlist_add(fldsFrRof_num, fldsFrRof, 'Forr_rofi')
     call fldlist_add(fldsFrRof_num, fldsFrRof, 'Flrr_flood')
     call fldlist_add(fldsFrRof_num, fldsFrRof, 'Flrr_volr')
-    call fldlist_add(fldsFrRof_num, fldsFrRof, 'Flrr_volrmch')
-! Need to change for mizuRoute
 
     do n = 1,fldsFrRof_num
        call NUOPC_Advertise(exportState, standardName=fldsFrRof(n)%stdname, &
@@ -257,7 +254,6 @@ contains
     real(r8), pointer :: rofi(:)
     real(r8), pointer :: flood(:)
     real(r8), pointer :: volr(:)
-    real(r8), pointer :: volrmch(:)
     logical, save     :: first_time = .true.
     integer           :: dbrc
     character(len=*), parameter :: subname='(rof_import_export:export_fields)'
@@ -300,39 +296,27 @@ contains
     allocate(rofi(begr:endr))
     allocate(flood(begr:endr))
     allocate(volr(begr:endr))
-    allocate(volrmch(begr:endr))
 
     if ( ice_runoff )then
        ! separate liquid and ice runoff
        do n = begr,endr
-          rofl(n) =  rtmCTL%direct(n,nliq) / (rtmCTL%area(n)*0.001_r8)
-          rofi(n) =  rtmCTL%direct(n,nfrz) / (rtmCTL%area(n)*0.001_r8)
-          if (rtmCTL%mask(n) >= 2) then
-             ! liquid and ice runoff are treated separately - this is what goes to the ocean
-             rofl(n) = rofl(n) + rtmCTL%runoff(n,nliq) / (rtmCTL%area(n)*0.001_r8)
-             rofi(n) = rofi(n) + rtmCTL%runoff(n,nfrz) / (rtmCTL%area(n)*0.001_r8)
-          end if
+          rofl(n) = rtmCTL%discharge(n,nliq)
+          rofi(n) = rtmCTL%discharge(n,nfrz)
        end do
     else
        ! liquid and ice runoff added to liquid runoff, ice runoff is zero
        do n = begr,endr
-          rofl(n) = (rtmCTL%direct(n,nfrz) + rtmCTL%direct(n,nliq)) / (rtmCTL%area(n)*0.001_r8)
-          if (rtmCTL%mask(n) >= 2) then
-             rofl(n) = rofl(n) + (rtmCTL%runoff(n,nfrz) + rtmCTL%runoff(n,nliq)) / (rtmCTL%area(n)*0.001_r8)
-          endif
+          rofl(n) = (rtmCTL%discharge(n,nfrz) + rtmCTL%discharge(n,nliq))
           rofi(n) = 0._r8
        end do
     end if
 
     ! Flooding back to land, sign convention is positive in land->rof direction
     ! so if water is sent from rof to land, the flux must be negative.
-    ! scs: is there a reason for the wr+wt rather than volr (wr+wt+wh)?
-    ! volr(n) = (Trunoff%wr(n,nliq) + Trunoff%wt(n,nliq)) / rtmCTL%area(n)
 
     do n = begr, endr
        flood(n)   = -rtmCTL%flood(n)    / (rtmCTL%area(n)*0.001_r8)
        volr(n)    =  rtmCTL%volr(n,nliq)/ rtmCTL%area(n)
-       volrmch(n) =  Trunoff%wr(n,nliq) / rtmCTL%area(n)
     end do
 
     call state_setexport(exportState, 'Forr_rofl', begr, endr, input=rofl, rc=rc)
@@ -347,20 +331,16 @@ contains
     call state_setexport(exportState, 'Flrr_volr', begr, endr, input=volr, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    call state_setexport(exportState, 'Flrr_volrmch', begr, endr, input=volrmch, rc=rc)
-    if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
     if (debug > 0 .and. masterproc .and. iTime <  5) then
        do n = begr,endr
           write(iulog,F01)'export: nstep, n, Flrr_flood   = ',iTime, n, flood(n)
           write(iulog,F01)'export: nstep, n, Flrr_volr    = ',iTime, n, volr(n)
-          write(iulog,F01)'export: nstep, n, Flrr_volrmch = ',iTime, n, volrmch(n)
           write(iulog,F01)'export: nstep, n, Forr_rofl    = ',iTime ,n, rofl(n)
           write(iulog,F01)'export: nstep, n, Forr_rofi    = ',iTime ,n, rofi(n)
        end do
     end if
 
-    deallocate(rofl, rofi, flood, volr, volrmch)
+    deallocate(rofl, rofi, flood, volr)
 
   end subroutine export_fields
 

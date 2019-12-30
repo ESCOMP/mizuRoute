@@ -23,11 +23,11 @@ module rof_comp_nuopc
   use globalData            , only : pid          => iam
   use globalData            , only : nNodes       => npes
   use globalData            , only : mpicom_route => mpicom_rof
+  use globalData            , only : nHRU
   use model_setup           , only : get_mpi_omp
   use RunoffMod             , only : rtmCTL
   use RtmMod                , only : route_ini, route_run
   use RtmTimeManager        , only : timemgr_setup, get_curr_date, get_step_size, advance_timestep
-  use RtmVar                , only : nCat
   use RtmVar                , only : inst_index, inst_suffix, inst_name, RtmVarSet
   use RtmVar                , only : nsrStartup, nsrContinue, nsrBranch
 
@@ -55,8 +55,9 @@ module rof_comp_nuopc
 
   character(len=CL)       :: flds_scalar_name = ''
   integer                 :: flds_scalar_num = 0
-  integer                 :: flds_scalar_index_nx = 0
-  integer                 :: flds_scalar_index_ny = 0
+  integer                 :: flds_scalar_index_ncat = 0
+  !integer                 :: flds_scalar_index_nx = 0
+  !integer                 :: flds_scalar_index_ny = 0
   integer                 :: flds_scalar_index_nextsw_cday = 0._r8
 
   integer     , parameter :: debug = 1
@@ -225,27 +226,38 @@ contains
        call shr_sys_abort(subname//'Need to set attribute ScalarFieldCount')
     endif
 
-    call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxGridNX", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+    call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxNCat", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     if (isPresent .and. isSet) then
-       read(cvalue,*) flds_scalar_index_nx
-       write(logmsg,*) flds_scalar_index_nx
-       call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_nx = '//trim(logmsg), ESMF_LOGMSG_INFO)
+       read(cvalue,*) flds_scalar_index_ncat
+       write(logmsg,*) flds_scalar_index_ncat
+       call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_ncat = '//trim(logmsg), ESMF_LOGMSG_INFO)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     else
-       call shr_sys_abort(subname//'Need to set attribute ScalarFieldIdxGridNX')
+       call shr_sys_abort(subname//'Need to set attribute ScalarFieldIdxNCat')
     endif
-
-    call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxGridNY", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
-    if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    if (isPresent .and. isSet) then
-       read(cvalue,*) flds_scalar_index_ny
-       write(logmsg,*) flds_scalar_index_ny
-       call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_ny = '//trim(logmsg), ESMF_LOGMSG_INFO)
-       if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    else
-       call shr_sys_abort(subname//'Need to set attribute ScalarFieldIdxGridNY')
-    endif
+!
+!    call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxGridNX", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+!    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+!    if (isPresent .and. isSet) then
+!       read(cvalue,*) flds_scalar_index_nx
+!       write(logmsg,*) flds_scalar_index_nx
+!       call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_nx = '//trim(logmsg), ESMF_LOGMSG_INFO)
+!       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+!    else
+!       call shr_sys_abort(subname//'Need to set attribute ScalarFieldIdxGridNX')
+!    endif
+!
+!    call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxGridNY", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+!    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+!    if (isPresent .and. isSet) then
+!       read(cvalue,*) flds_scalar_index_ny
+!       write(logmsg,*) flds_scalar_index_ny
+!       call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_ny = '//trim(logmsg), ESMF_LOGMSG_INFO)
+!       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+!    else
+!       call shr_sys_abort(subname//'Need to set attribute ScalarFieldIdxGridNY')
+!    endif
 
     call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxNextSwCday", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -305,7 +317,6 @@ contains
     logical                     :: rof_prognostic        ! flag
     integer                     :: shrlogunit            ! original log unit
     integer                     :: lsize                 ! local size ofarrays
-    integer                     :: n,ni                  ! indices
     integer                     :: lbnum                 ! input to memory diagnostic
     integer                     :: nsrest                ! restart type
     character(CL)               :: calendar              ! calendar type name
@@ -462,7 +473,7 @@ contains
     ! - Compute total number of basins and runoff ponts
     ! - Compute river basins, actually compute ocean outlet gridcell
     ! - Allocate basins to pes
-    ! - Count and distribute cells to rglo2gdc (determine rtmCTL%begr, rtmCTL%endr)
+    ! - Count and distribute HRUs to rglo2gdc (determine rtmCTL%begr, rtmCTL%endr)
     ! - Adjust area estimation from DRT algorithm for those outlet grids
     !     - useful for grid-based representation only
     !     - need to compute areas where they are not defined in input file
@@ -474,7 +485,6 @@ contains
     ! generate the mesh and realize fields
     !--------------------------------
 
-!! MIZUROUTE BEG OF CHANGE
     ! determine global index array
     lsize = rtmCTL%endr - rtmCTL%begr + 1
     allocate(gindex(lsize))
@@ -483,7 +493,6 @@ contains
        ni = ni + 1
        gindex(ni) = rtmCTL%gindex(n)
     end do
-!! MIZUROUTE END OF CHANGE  
 
     ! create distGrid from global index array
     DistGrid = ESMF_DistGridCreate(arbSeqIndexList=gindex, rc=rc)
@@ -518,7 +527,7 @@ contains
     call export_fields(gcomp, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    call State_SetScalar(dble(nCat), flds_scalar_index_ncat, exportState, &
+    call State_SetScalar(dble(nHRU), flds_scalar_index_ncat, exportState, &
          flds_scalar_name, flds_scalar_num, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
@@ -618,7 +627,7 @@ contains
 #if (defined _MEMTRACE)
     if(masterproc) then
        lbnum=1
-       call memmon_dump_fort('memmon.out','mosart_comp_nuopc_ModelAdvance:start::',lbnum)
+       call memmon_dump_fort('memmon.out','mizuRoute_comp_nuopc_ModelAdvance:start::',lbnum)
     endif
 #endif
 
@@ -633,12 +642,12 @@ contains
     ! Unpack import state from mediator
     !--------------------------------
 
-    call t_startf ('lc_mosart_import')
+    call t_startf ('lc_mizuRoute_import')
 
     call import_fields(gcomp, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    call t_stopf ('lc_mosart_import')
+    call t_stopf ('lc_mizuRoute_import')
 
     !--------------------------------
     ! Determine if time to write restart
@@ -688,7 +697,7 @@ contains
     call shr_cal_ymd2date(yr_sync, mon_sync, day_sync, ymd_sync)
     write(rdate,'(i4.4,"-",i2.2,"-",i2.2,"-",i5.5)') yr_sync, mon_sync, day_sync, tod_sync
 
-    ! Advance mosart time step then run mizuRoute (export data is in rtmCTL and Trunoff data types)
+    ! Advance mizuRoute time step then run mizuRoute (MODIFIY THIS COMMENT FOR MIZUROUTE: export data is in rtmCTL and Trunoff data types)
     call advance_timestep()
     call route_run(rstwr, nlend, rdate)
 
@@ -696,7 +705,7 @@ contains
     ! Pack export state to mediator
     !--------------------------------
 
-    ! (input is rtmCTL%runoff, output is r2x)
+    ! (MODIFIY THIS COMMENT FOR MIZUROUTE: input is rtmCTL%runoff, output is r2x)
     call t_startf ('lc_rof_export')
 
     call export_fields(gcomp, rc)
@@ -714,8 +723,8 @@ contains
     tod = tod
 
     if ( (ymd /= ymd_sync) .and. (tod /= tod_sync) ) then
-       write(iulog,*)' mosart ymd=',ymd     ,'  mosart tod= ',tod
-       write(iulog,*)'   sync ymd=',ymd_sync,'    sync tod= ',tod_sync
+       write(iulog,*)' mizuRoute ymd=',ymd     ,'  mizuRoute tod= ',tod
+       write(iulog,*)'      sync ymd=',ymd_sync,'       sync tod= ',tod_sync
        rc = ESMF_FAILURE
        call ESMF_LogWrite(subname//" mizuRoute clock not in sync with Master Sync clock",ESMF_LOGMSG_ERROR)
     end if
@@ -745,7 +754,7 @@ contains
 #if (defined _MEMTRACE)
     if(masterproc) then
        lbnum=1
-       call memmon_dump_fort('memmon.out','mosart_comp_nuopc_ModelAdvance:end::',lbnum)
+       call memmon_dump_fort('memmon.out','mizuRoute_comp_nuopc_ModelAdvance:end::',lbnum)
        call memmon_reset_addr()
     endif
 #endif
@@ -884,8 +893,8 @@ contains
     integer, intent(out) :: rc
 
     ! local variables
-    character(*), parameter :: F00   = "('(mosart_comp_nuopc) ',8a)"
-    character(*), parameter :: F91   = "('(mosart_comp_nuopc) ',73('-'))"
+    character(*), parameter :: F00   = "('(mizuRoute_comp_nuopc) ',8a)"
+    character(*), parameter :: F91   = "('(mizuRoute_comp_nuopc) ',73('-'))"
     character(len=*),parameter  :: subname=trim(modName)//':(ModelFinalize) '
     !-------------------------------------------------------------------------------
 
