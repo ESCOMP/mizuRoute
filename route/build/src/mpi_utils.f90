@@ -6,6 +6,7 @@ Module mpi_mod
   USE nrtype
   USE globalData, ONLY: pid, nNodes
   USE globalData, ONLY: mpicom_route
+  USE globalData, ONLY: masterproc
   USE public_var, ONLY: root
   USE public_var, ONLY: iulog
 
@@ -77,7 +78,7 @@ CONTAINS
 
     ierr=0; message='shr_mpi_bcastInt/'
 
-    if (pid == root) then ! this is a root process
+    if (masterproc) then
 
       bound = (/lbound(allocArray), ubound(allocArray)/)
 
@@ -125,7 +126,7 @@ CONTAINS
 
     ierr=0; message='shr_mpi_bcastReal/'
 
-    if (pid == root) then ! this is a root process
+    if (masterproc) then
 
       bound = (/lbound(allocArray), ubound(allocArray)/)
 
@@ -174,7 +175,7 @@ CONTAINS
     ierr=0; message='shr_mpi_bcastLogical/'
 
     ! send allocatable arrays
-    if (pid == root) then ! this is a root process
+    if (masterproc) then
 
       bound = (/lbound(allocArray), ubound(allocArray)/)
 

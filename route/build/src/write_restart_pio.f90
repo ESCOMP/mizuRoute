@@ -10,6 +10,7 @@ USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: integerMissing
 USE public_var,        ONLY: realMissing
 USE globalData,        ONLY: pid, nNodes
+USE globalData,        ONLY: masterproc
 USE globalData,        ONLY: mpicom_route
 USE globalData,        ONLY: pio_netcdf_format
 USE globalData,        ONLY: pio_typename
@@ -75,7 +76,7 @@ CONTAINS
   call write_state_nc(fileout_state, ierr, message)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  if (pid==0) then
+  if (masterproc) then
    write(iulog,*) '--------------------'
    write(iulog,*) 'Finished simulation'
    write(iulog,*) '--------------------'
@@ -198,7 +199,7 @@ CONTAINS
            ntdh_irf => meta_stateDims(ixStateDims%tdh_irf)%dimLength, & ! maximum future q time steps among basins
            nWave    => meta_stateDims(ixStateDims%wave)%dimLength)      ! maximum waves allowed in a reach
 
- if (pid==0) then
+ if (masterproc) then
    ix1 = 1
  else
    ix1 = sum(rch_per_proc(-1:pid-1))+1
@@ -486,7 +487,7 @@ CONTAINS
  iens = 1
  kTime = kTime + 1
 
- if (pid==0) then
+ if (masterproc) then
   associate(nRch_main => rch_per_proc(-1), nRch_trib => rch_per_proc(0))
   allocate(RCHFLX_local(nRch_main+nRch_trib), &
            NETOPO_local(nRch_main+nRch_trib), &

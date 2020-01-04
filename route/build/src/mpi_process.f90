@@ -5,6 +5,7 @@ USE mpi
 ! general public variable
 USE public_var, ONLY: integerMissing
 USE public_var, ONLY: root
+USE globalData, ONLY: masterproc
 
 ! numeric definition
 USE nrtype
@@ -167,7 +168,7 @@ contains
   ! ********************************************************************************************************************
   ! ********************************************************************************************************************
 
-  if (pid == root) then ! this is a root process
+  if (masterproc) then ! this is a root process
 
     ! allocate local and global indices
     allocate(rch_per_proc(-1:nNodes-1), hru_per_proc(-1:nNodes-1), stat=ierr)
@@ -344,7 +345,7 @@ contains
 
    endif ! if a single node
 
-  endif  ! if pid==root
+  endif  ! if masterproc
 
   call shr_mpi_barrier(comm, message)
 
@@ -656,7 +657,7 @@ contains
   ! First, route "small tributaries" while routing over other bigger tributaries (at slave nodes).
 
  ! sort the basin runoff in terms of nodes/domains
- if (pid == root) then ! this is a root process
+ if (masterproc) then ! this is a root process
     do iHru = 1,nContribHRU
       jHru = ixHRU_order(iHru)
       basinRunoff_sorted(iHru) = runoff_data%basinRunoff(jHru)
@@ -745,7 +746,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/gater-state-
   ! --------------------------------
   ! perform mainstem routing
   ! --------------------------------
-  if (pid==root) then
+  if (masterproc) then
 
 call system_clock(startTime)
     ! number of HRUs and reaches from Mainstems
@@ -843,7 +844,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
 
   if (commType == scatter) then
 
-    if (pid==root) then
+    if (masterproc) then
 
       allocate(flux_global_tmp(nSeg), stat=ierr)
       if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux_global_tmp]'; return; endif
@@ -887,7 +888,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! put flux at correct location in global flux array
-    if (pid==root) then
+    if (masterproc) then
       do iSeg =1,nSeg ! Loop through all the reaches involved into communication
         jSeg = rchIdxGlobal(iSeg)
         flux_global(jSeg) = flux_global_tmp(iSeg)
@@ -944,7 +945,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
 
   if (commType == scatter) then
 
-    if (pid==root) then
+    if (masterproc) then
 
       allocate(flux(nSeg, nFluxes), stat=ierr)
       if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux]'; return; endif
@@ -1018,7 +1019,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
     end do
 
     ! put it in global RCHFLX data structure
-    if (pid==root) then
+    if (masterproc) then
       do iSeg =1,nSeg ! Loop through all the reaches involved into communication
 
         jSeg = rchIdxGlobal(iSeg)
@@ -1090,7 +1091,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
     allocate(ntdh(nSeg), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [ntdh]'; return; endif
 
-    if (pid==root) then
+    if (masterproc) then
 
      ! extract only tributary reaches
      allocate(RCHFLX0(1,nSeg), stat=ierr)
@@ -1187,7 +1188,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! put it in global RCHFLX data structure
-    if (pid==root) then
+    if (masterproc) then
       ixTdh=1
       do iSeg =1,nSeg ! Loop through all the reaches involved into communication
 
@@ -1264,7 +1265,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
     allocate(ntdh(nSeg), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [ntdh]'; return; endif
 
-    if (pid==root) then
+    if (masterproc) then
 
      ! extract only tributary reaches
      allocate(RCHFLX0(1,nSeg), stat=ierr)
@@ -1361,7 +1362,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! put it in global RCHFLX data structure
-    if (pid==root) then
+    if (masterproc) then
       ixTdh=1
       do iSeg =1,nSeg ! Loop through all the reaches involved into communication
 
@@ -1443,7 +1444,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
     allocate(nWave(nSeg), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [nWave]'; return; endif
 
-    if (pid==root) then
+    if (masterproc) then
 
      ! extract only tributary reaches
      allocate(KROUTE0(1,nSeg), stat=ierr)
@@ -1477,7 +1478,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
 
     totWaveAll = sum(nWave)
     ! need to allocate global array to be scattered at the other tasks
-    if (pid/=root) then
+    if (.not.masterproc) then
      allocate(QF(totWaveAll), QM(totWaveAll), TI(totWaveAll), TR(totWaveAll), RF(totWaveAll), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating array for [QF,..,RF]'; return; endif
     endif
@@ -1576,7 +1577,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! put it in global RCHFLX data structure
-    if (pid==root) then
+    if (masterproc) then
       ixWave=1
       do iSeg =1,nSeg ! Loop through all the reaches involved into communication
 
