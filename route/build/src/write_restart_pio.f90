@@ -76,12 +76,6 @@ CONTAINS
   call write_state_nc(fileout_state, ierr, message)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  if (masterproc) then
-   write(iulog,*) '--------------------'
-   write(iulog,*) 'Finished simulation'
-   write(iulog,*) '--------------------'
-  end if
-
  end subroutine output_state
 
  ! *********************************************************************
