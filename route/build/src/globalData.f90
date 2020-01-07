@@ -17,8 +17,8 @@ module globalData
   USE dataTypes, ONLY: RCHTOPO       ! Network topology
 
   ! routing structures
-  USE dataTypes, ONLY: KREACH        ! Collection of flow particles in each reach
   USE dataTypes, ONLY: STRFLX        ! fluxes in each reach
+  USE dataTypes, ONLY: STRSTA        ! states in each reach
 
   ! lake structures
   USE dataTypes, ONLY: LAKPRP        ! lake properties
@@ -145,9 +145,9 @@ module globalData
   REAL(DP)        , allocatable  , public :: FRAC_FUTURE(:)       ! fraction of runoff in future time steps
 
   ! routing data structures
-  TYPE(KREACH)    , allocatable  , public :: KROUTE(:,:)          ! Routing state variables (ensembles, space [reaches]) for the entire river network
+  TYPE(STRSTA)    , allocatable  , public :: RCHSTA(:,:)          ! Routing state variables (ensembles, space [reaches]) for the entire river network
   TYPE(STRFLX)    , allocatable  , public :: RCHFLX(:,:)          ! Reach fluxes (ensembles, space [reaches]) for entire river network
-  TYPE(KREACH)    , allocatable  , public :: KROUTE_trib(:,:)     ! Routing state variables (ensembles, space [reaches]) for tributary
+  TYPE(STRSTA)    , allocatable  , public :: RCHSTA_trib(:,:)     ! Routing state variables (ensembles, space [reaches]) for tributary
   TYPE(STRFLX)    , allocatable  , public :: RCHFLX_trib(:,:)     ! Reach fluxes (ensembles, space [reaches]) for tributaries
 
   ! lakes data structures
