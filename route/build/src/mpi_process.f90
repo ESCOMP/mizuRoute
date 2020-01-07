@@ -71,7 +71,7 @@ contains
   USE globalData,          ONLY: river_basin_main         ! OMP domain data structure for mainstem
   USE globalData,          ONLY: river_basin_trib         ! OMP domain data structure for tributaries
   USE globalData,          ONLY: RCHFLX_trib              ! Reach flux data structures (per proc, tributary)
-  USE globalData,          ONLY: KROUTE_trib              ! Reach k-wave data structures (per proc, tributary)
+  USE globalData,          ONLY: RCHSTA_trib              ! Reach state data structures (per proc, tributary)
   USE globalData,          ONLY: NETOPO_trib              ! network topology data structure (per proc, tributary)
   USE globalData,          ONLY: RPARAM_trib              ! reach physical parameter data structure (per proc, tributary)
   USE globalData,          ONLY: nEns                     ! ensemble numbers (currently only 1)
@@ -382,7 +382,7 @@ contains
   ! ********************************************************************************************************************
 
   ! allocate space for tributary data structures
-  allocate(RCHFLX_trib(nEns,rch_per_proc(pid)), KROUTE_trib(nEns,rch_per_proc(pid)), stat=ierr)
+  allocate(RCHFLX_trib(nEns,rch_per_proc(pid)), RCHSTA_trib(nEns,rch_per_proc(pid)), stat=ierr)
 
   ! allocate space for local data structures
   call alloc_struct(hru_per_proc(pid),     & ! input: number of HRUs
@@ -604,15 +604,14 @@ contains
                       ierr,message)    ! output: error control
   ! shared data
   USE public_var
-  USE dataTypes,  ONLY: KREACH           ! derived data type
   USE globalData, ONLY: NETOPO_trib      ! tributary and mainstem reach netowrk topology structure
   USE globalData, ONLY: NETOPO           ! entire river reach netowrk topology structure
   USE globalData, ONLY: RPARAM_trib      ! tributary and mainstem reach parameter structure
   USE globalData, ONLY: RPARAM           ! entire river reach parameter structure
   USE globalData, ONLY: RCHFLX_trib      ! tributary reach flux structure
   USE globalData, ONLY: RCHFLX           ! entire reach flux structure
-  USE globalData, ONLY: KROUTE_trib      ! tributary reach kwt data structure
-  USE globalData, ONLY: KROUTE           ! entire river reach kwt sate structure
+  USE globalData, ONLY: RCHSTA_trib      ! tributary reach state data structure
+  USE globalData, ONLY: RCHSTA           ! entire river reach state sate structure
   USE globalData, ONLY: river_basin_trib ! tributary OMP domain data structure
   USE globalData, ONLY: river_basin_main ! mainstem OMP domain data structure
   USE globalData, ONLY: runoff_data      ! runoff data structure
@@ -695,7 +694,7 @@ call system_clock(startTime)
                   NETOPO_trib,       &  ! input: reach topology data structure
                   RPARAM_trib,       &  ! input: reach parameter data structure
                   RCHFLX_trib,       &  ! inout: reach flux data structure
-                  KROUTE_trib,       &  ! inout: reach state data structure
+                  RCHSTA_trib,       &  ! inout: reach state data structure
                   ierr, message)        ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 call system_clock(endTime)
@@ -769,7 +768,7 @@ call system_clock(startTime)
                     NETOPO,                  &  ! input: reach topology data structure
                     RPARAM,                  &  ! input: reach parameter data structure
                     RCHFLX,                  &  ! inout: reach flux data structure
-                    KROUTE,                  &  ! inout: reach state data structure
+                    RCHSTA,                  &  ! inout: reach state data structure
                     ierr, message)              ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 call system_clock(endTime)
@@ -1398,10 +1397,10 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
                                commType,     &
                                ierr, message)
 
-  USE dataTypes,  ONLY: KREACH                             ! derived data type
+  USE dataTypes,  ONLY: LKWRCH                             ! derived data type
   USE public_var, ONLY: root
-  USE globalData, ONLY: KROUTE                             ! entire river reach kwt sate structure
-  USE globalData, ONLY: KROUTE_trib                        ! Reach k-wave data structures (entire river network and tributary only)
+  USE globalData, ONLY: RCHSTA                             ! entire river reach sate structure
+  USE globalData, ONLY: RCHSTA_trib                        ! Reach state data structures (entire river network and tributary only)
 
   ! input variables
   integer(i4b),             intent(in)  :: pid                   ! process id (MPI)
@@ -1417,7 +1416,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
   character(len=strLen),    intent(out) :: message               ! error message
   ! local variables
   character(len=strLen)                 :: cmessage              ! error message from a subroutine
-  type(KREACH), allocatable             :: KROUTE0(:,:)          ! temp KROUTE data structure to hold updated states
+  type(LKWRCH), allocatable             :: KROUTE0(:,:)          ! temp KROUTE data structure to hold updated states
   real(dp),     allocatable             :: QF(:),QF_trib(:)
   real(dp),     allocatable             :: QM(:),QM_trib(:)
   real(dp),     allocatable             :: TI(:),TI_trib(:)
@@ -1451,7 +1450,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
      if(ierr/=0)then; message=trim(message)//'problem allocating array for [KROUTE0]'; return; endif
      do iSeg =1,nSeg ! Loop through tributary reaches
       jSeg = rchIdxGlobal(iSeg)
-      KROUTE0(1, iSeg) = KROUTE(iens,jSeg)
+      KROUTE0(1, iSeg) = RCHSTA(iens,jSeg)%LKW_ROUTE
      enddo
 
      ! convert KROUTE data strucutre to state arrays
@@ -1487,7 +1486,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
     call shr_mpi_scatterV(nWave, nReach(0:nNodes-1), nWave_trib, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! Distribute modified KROUTE data to each process
+    ! Distribute modified LKW_ROUTE%KWAVE data to each process
     call shr_mpi_scatterV(QF, totWave(0:nNodes-1), QF_trib, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -1503,25 +1502,25 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
     call shr_mpi_scatterV(RF, totWave(0:nNodes-1), RF_trib, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! update KROUTE_trib data structure
+    ! update RCHSTA_trib%LKW_ROUTE data structure
     ixWave=1
     do iSeg =1,nReach(pid) ! Loop through reaches per proc
 
      jSeg = rchIdxLocal(iSeg)
 
-     if (allocated(KROUTE_trib(iens,jSeg)%KWAVE)) then
-      deallocate(KROUTE_trib(iens,jSeg)%KWAVE, stat=ierr)
+     if (allocated(RCHSTA_trib(iens,jSeg)%LKW_ROUTE%KWAVE)) then
+      deallocate(RCHSTA_trib(iens,jSeg)%LKW_ROUTE%KWAVE, stat=ierr)
       if(ierr/=0)then; message=trim(message)//'problem de-allocating array for [KROUTE_trib(iens,jSeg)%KWAVE]'; return; endif
      endif
 
-     allocate(KROUTE_trib(iens,jSeg)%KWAVE(0:nWave_trib(iSeg)-1),stat=ierr)
+     allocate(RCHSTA_trib(iens,jSeg)%LKW_ROUTE%KWAVE(0:nWave_trib(iSeg)-1),stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating array for [KROUTE_trib(iens,iRch)%KWAVE]'; return; endif
 
-     KROUTE_trib(iens,jSeg)%KWAVE(0:nWave_trib(iSeg)-1)%QF = QF_trib(ixWave:ixWave+nWave_trib(iSeg)-1)
-     KROUTE_trib(iens,jSeg)%KWAVE(0:nWave_trib(iSeg)-1)%QM = QM_trib(ixWave:ixWave+nWave_trib(iSeg)-1)
-     KROUTE_trib(iens,jSeg)%KWAVE(0:nWave_trib(iSeg)-1)%TI = TI_trib(ixWave:ixWave+nWave_trib(iSeg)-1)
-     KROUTE_trib(iens,jSeg)%KWAVE(0:nWave_trib(iSeg)-1)%TR = TR_trib(ixWave:ixWave+nWave_trib(iSeg)-1)
-     KROUTE_trib(iens,jSeg)%KWAVE(0:nWave_trib(iSeg)-1)%RF = RF_trib(ixWave:ixWave+nWave_trib(iSeg)-1)
+     RCHSTA_trib(iens,jSeg)%LKW_ROUTE%KWAVE(0:nWave_trib(iSeg)-1)%QF = QF_trib(ixWave:ixWave+nWave_trib(iSeg)-1)
+     RCHSTA_trib(iens,jSeg)%LKW_ROUTE%KWAVE(0:nWave_trib(iSeg)-1)%QM = QM_trib(ixWave:ixWave+nWave_trib(iSeg)-1)
+     RCHSTA_trib(iens,jSeg)%LKW_ROUTE%KWAVE(0:nWave_trib(iSeg)-1)%TI = TI_trib(ixWave:ixWave+nWave_trib(iSeg)-1)
+     RCHSTA_trib(iens,jSeg)%LKW_ROUTE%KWAVE(0:nWave_trib(iSeg)-1)%TR = TR_trib(ixWave:ixWave+nWave_trib(iSeg)-1)
+     RCHSTA_trib(iens,jSeg)%LKW_ROUTE%KWAVE(0:nWave_trib(iSeg)-1)%RF = RF_trib(ixWave:ixWave+nWave_trib(iSeg)-1)
 
      ixWave=ixWave+nWave_trib(iSeg) !update 1st idex of array
 
@@ -1538,7 +1537,7 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [KROUTE0]'; return; endif
     do iSeg =1,nReach(pid)  ! Loop through tributary reaches
       jSeg = rchIdxLocal(iSeg)
-      KROUTE0(1, iSeg) = KROUTE_trib(iens,jSeg)
+      KROUTE0(1, iSeg) = RCHSTA_trib(iens,jSeg)%LKW_ROUTE
     enddo
 
     ! Transfer KWT state data structure to flat arrays
@@ -1583,19 +1582,19 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
 
         jSeg = rchIdxGlobal(iSeg)
 
-        if (allocated(KROUTE(iens,jSeg)%KWAVE)) then
-          deallocate(KROUTE(iens,jSeg)%KWAVE, stat=ierr)
+        if (allocated(RCHSTA(iens,jSeg)%LKW_ROUTE%KWAVE)) then
+          deallocate(RCHSTA(iens,jSeg)%LKW_ROUTE%KWAVE, stat=ierr)
           if(ierr/=0)then; message=trim(message)//'problem de-allocating array for [KROUTE(iens,jSeg)%KWAVE]'; return; endif
         endif
 
-        allocate(KROUTE(iens,jSeg)%KWAVE(0:nWave(iSeg)-1),stat=ierr)
+        allocate(RCHSTA(iens,jSeg)%LKW_ROUTE%KWAVE(0:nWave(iSeg)-1),stat=ierr)
         if(ierr/=0)then; message=trim(message)//'problem allocating array for [KROUTE_out(iens,iRch)%KWAVE]'; return; endif
 
-        KROUTE(iens,jSeg)%KWAVE(0:nWave(iSeg)-1)%QF = QF(ixWave:ixWave+nWave(iSeg)-1)
-        KROUTE(iens,jSeg)%KWAVE(0:nWave(iSeg)-1)%QM = QM(ixWave:ixWave+nWave(iSeg)-1)
-        KROUTE(iens,jSeg)%KWAVE(0:nWave(iSeg)-1)%TI = TI(ixWave:ixWave+nWave(iSeg)-1)
-        KROUTE(iens,jSeg)%KWAVE(0:nWave(iSeg)-1)%TR = TR(ixWave:ixWave+nWave(iSeg)-1)
-        KROUTE(iens,jSeg)%KWAVE(0:nWave(iSeg)-1)%RF = RF(ixWave:ixWave+nWave(iSeg)-1)
+        RCHSTA(iens,jSeg)%LKW_ROUTE%KWAVE(0:nWave(iSeg)-1)%QF = QF(ixWave:ixWave+nWave(iSeg)-1)
+        RCHSTA(iens,jSeg)%LKW_ROUTE%KWAVE(0:nWave(iSeg)-1)%QM = QM(ixWave:ixWave+nWave(iSeg)-1)
+        RCHSTA(iens,jSeg)%LKW_ROUTE%KWAVE(0:nWave(iSeg)-1)%TI = TI(ixWave:ixWave+nWave(iSeg)-1)
+        RCHSTA(iens,jSeg)%LKW_ROUTE%KWAVE(0:nWave(iSeg)-1)%TR = TR(ixWave:ixWave+nWave(iSeg)-1)
+        RCHSTA(iens,jSeg)%LKW_ROUTE%KWAVE(0:nWave(iSeg)-1)%RF = RF(ixWave:ixWave+nWave(iSeg)-1)
         ixWave=ixWave+nWave(iSeg) !update 1st idex of array
       end do
     endif
@@ -1706,11 +1705,11 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
                             QF,QM,TI,TR,RF,      &  ! output:
                             nWave,               &
                             ierr, message)
-  USE dataTypes, ONLY: KREACH             ! collection of particles in a given reach
+  USE dataTypes, ONLY: LKWRCH             ! collection of particles in a given reach
   implicit none
   ! Input
   integer(i4b),          intent(in)              :: iens           ! ensemble index
-  type(KREACH),          intent(in), allocatable :: KROUTE_in(:,:) ! reach state data
+  type(LKWRCH),          intent(in), allocatable :: KROUTE_in(:,:) ! reach state data
   ! Output error handling variables
   real(dp),              intent(out),allocatable :: QF(:)          ! flat array for wave Q
   real(dp),              intent(out),allocatable :: QM(:)          ! Flat array for modified Q

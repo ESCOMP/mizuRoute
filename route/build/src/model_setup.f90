@@ -209,7 +209,7 @@ CONTAINS
   USE public_var,  ONLY: ntopAugmentMode        ! River network augmentation mode
   USE public_var,  ONLY: idSegOut               ! outlet segment ID (-9999 => no outlet segment specified)
   USE globalData,  ONLY: RCHFLX                 ! Reach flux data structures (entire river network)
-  USE globalData,  ONLY: KROUTE                 ! Reach k-wave data structures (entire river network)
+  USE globalData,  ONLY: RCHSTA                 ! Reach state data structures (entire river network)
   USE globalData,  ONLY: nHRU, nRch             ! number of HRUs and Reaches in the whole network
   USE globalData,  ONLY: nContribHRU            ! number of HRUs that are connected to any reaches
   USE globalData,  ONLY: nEns                   ! number of ensembles
@@ -263,8 +263,8 @@ CONTAINS
    if (pid==0) then
 
      ! allocate space for the entire river network
-     allocate(RCHFLX(nEns,nRch), KROUTE(nEns,nRch), stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating [RCHFLX, KROUTE]'; return; endif
+     allocate(RCHFLX(nEns,nRch), RCHSTA(nEns,nRch), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating [RCHFLX, RCHSTA]'; return; endif
 
      ! populate basiID and reachID vectors for output (in only master processor)
      ! populate runoff data structure (only meta, no runoff values)

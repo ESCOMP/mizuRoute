@@ -3,7 +3,7 @@ MODULE write_restart_pio
 ! Moudle wide shared data
 USE nrtype
 USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
-USE dataTypes,         ONLY: KREACH            ! collection of particles in a given reach
+USE dataTypes,         ONLY: STRSTA            ! state in each reach
 USE dataTypes,         ONLY: RCHTOPO           ! Network topology
 USE dataTypes,         ONLY: states
 USE public_var,        ONLY: iulog             ! i/o logical unit number
@@ -457,8 +457,8 @@ CONTAINS
  USE globalData, ONLY: RCHFLX_trib         !
  USE globalData, ONLY: NETOPO              ! global Reach fluxes (ensembles, space [reaches])
  USE globalData, ONLY: NETOPO_trib         !
- USE globalData, ONLY: KROUTE              ! global Reach fluxes (ensembles, space [reaches])
- USE globalData, ONLY: KROUTE_trib         !
+ USE globalData, ONLY: RCHSTA              ! global Reach state (ensembles, space [reaches])
+ USE globalData, ONLY: RCHSTA_trib         !
  USE globalData, ONLY: ixRch_order         ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
  USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
  USE globalData, ONLY: reachID         ! reach ID in network
@@ -473,11 +473,11 @@ CONTAINS
  integer(i4b), intent(out)       :: ierr            ! error code
  character(*), intent(out)       :: message         ! error message
  ! local variables
- integer(i4b)                    :: iens             ! temporal
+ integer(i4b)                    :: iens            ! temporal
  type(states)                    :: state(0:2)      ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
  type(STRFLX), allocatable       :: RCHFLX_local(:) ! reordered reach flux data structure
  type(RCHTOPO),allocatable       :: NETOPO_local(:) ! reordered topology data structure
- type(KREACH), allocatable       :: KROUTE_local(:) ! reordered kinematic wave data structure
+ type(STRSTA), allocatable       :: RCHSTA_local(:) ! reordered statedata structure
  integer(i4b)                    :: ix              ! loop index
  character(len=strLen)           :: cmessage        ! error message of downwind routine
 
@@ -491,25 +491,25 @@ CONTAINS
   associate(nRch_main => rch_per_proc(-1), nRch_trib => rch_per_proc(0))
   allocate(RCHFLX_local(nRch_main+nRch_trib), &
            NETOPO_local(nRch_main+nRch_trib), &
-           KROUTE_local(nRch_main+nRch_trib), stat=ierr)
+           RCHSTA_local(nRch_main+nRch_trib), stat=ierr)
   if (nRch_main/=0) then
      do ix = 1,nRch_main
       RCHFLX_local(ix) = RCHFLX(iens,ixRch_order(ix))
       NETOPO_local(ix) = NETOPO(ixRch_order(ix))
-      KROUTE_local(ix) = KROUTE(iens,ixRch_order(ix))
+      RCHSTA_local(ix) = RCHSTA(iens,ixRch_order(ix))
      enddo
   end if
   RCHFLX_local(nRch_main+1:nRch_main+nRch_trib) = RCHFLX_trib(iens,:)
   NETOPO_local(nRch_main+1:nRch_main+nRch_trib) = NETOPO_trib(:)
-  KROUTE_local(nRch_main+1:nRch_main+nRch_trib) = KROUTE_trib(iens,:)
+  RCHSTA_local(nRch_main+1:nRch_main+nRch_trib) = RCHSTA_trib(iens,:)
   end associate
  else
   allocate(RCHFLX_local(rch_per_proc(pid)), &
            NETOPO_local(rch_per_proc(pid)), &
-           KROUTE_local(rch_per_proc(pid)),stat=ierr)
+           RCHSTA_local(rch_per_proc(pid)),stat=ierr)
   RCHFLX_local = RCHFLX_trib(iens,:)
   NETOPO_local = NETOPO_trib(:)
-  KROUTE_local = KROUTE_trib(iens,:)
+  RCHSTA_local = RCHSTA_trib(iens,:)
  endif
 
  ! -- Write out to netCDF
@@ -649,7 +649,7 @@ CONTAINS
   do iens=1,nEns
    do iSeg=1,nSeg
 
-    numWaves(iens,iseg) = size(KROUTE_local(iseg)%KWAVE)
+    numWaves(iens,iseg) = size(RCHSTA_local(iseg)%LKW_ROUTE%KWAVE)
 
     do iVar=1,nVarsKWT
 
@@ -657,21 +657,21 @@ CONTAINS
 
      select case(iVar)
       case(ixKWT%tentry)
-       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = KROUTE_local(iSeg)%KWAVE(:)%TI
+       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%TI
        state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
       case(ixKWT%texit)
-       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = KROUTE_local(iSeg)%KWAVE(:)%TR
+       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%TR
        state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
       case(ixKWT%qwave)
-       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = KROUTE_local(iSeg)%KWAVE(:)%QF
+       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%QF
        state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
       case(ixKWT%qwave_mod)
-       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = KROUTE_local(iSeg)%KWAVE(:)%QM
+       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%QM
        state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
       case(ixKWT%routed) ! this is suppposed to be logical variable, but put it as 0 or 1 in double now
        if (allocated(RFvec)) deallocate(RFvec, stat=ierr)
        allocate(RFvec(numWaves(iens,iSeg)),stat=ierr); RFvec=0_i4b
-       where (KROUTE_local(iSeg)%KWAVE(:)%RF) RFvec=1_i4b
+       where (RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%RF) RFvec=1_i4b
        state(kinematicWave)%var(iVar)%array_3d_int(iSeg,1:numWaves(iens,iSeg),iens) = RFvec
        state(kinematicWave)%var(iVar)%array_3d_int(iSeg,numWaves(iens,iSeg)+1:,iens) = integerMissing
       case default; ierr=20; message1=trim(message1)//'unable to identify KWT routing state variable index'; return

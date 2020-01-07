@@ -235,7 +235,7 @@ CONTAINS
   ! meta data
   USE globalData, ONLY: meta_kwt                  ! kwt routing
   ! State/flux data structures
-  USE globalData, ONLY: KROUTE                    ! KWT routing state
+  USE globalData, ONLY: RCHSTA                    ! routing state
   ! Named variables
   USE var_lookup, ONLY: ixKWT, nVarsKWT
   implicit none
@@ -292,23 +292,23 @@ CONTAINS
   do iens=1,nens
    do iSeg=1,nSeg
 
-    allocate(KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1), stat=ierr)
+    allocate(RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1), stat=ierr)
 
     do iVar=1,nVarsKWT
 
      if (iVar==ixKWT%q) cycle ! not writing out KWT routed flow
 
      select case(iVar)
-      case(ixKWT%tentry);    KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%TI = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
-      case(ixKWT%texit);     KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%TR = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
-      case(ixKWT%qwave);     KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%QF = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
-      case(ixKWT%qwave_mod); KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%QM = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
+      case(ixKWT%tentry);    RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%TI = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
+      case(ixKWT%texit);     RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%TR = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
+      case(ixKWT%qwave);     RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%QF = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
+      case(ixKWT%qwave_mod); RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%QM = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
       case(ixKWT%routed) ! this is suppposed to be logical variable, but put it as 0 or 1 in double now
        if (allocated(RFvec)) deallocate(RFvec, stat=ierr)
        allocate(RFvec(0:numWaves(iens,iSeg)-1),stat=ierr)
        RFvec = nint(state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens))
-       KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%RF=.False.
-       where (RFvec==1_i4b) KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%RF=.True.
+       RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%RF=.False.
+       where (RFvec==1_i4b) RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%RF=.True.
       case default; ierr=20; message1=trim(message1)//'unable to identify KWT routing state variable index'; return
      end select
 
