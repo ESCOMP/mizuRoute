@@ -512,6 +512,7 @@ contains
   USE public_var
   USE globalData, ONLY: nRch             ! number of reaches in the whoel river network
   USE globalData, ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
+  USE globalData, ONLY: ixRch_order      ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
   USE globalData, ONLY: RCHFLX_trib      ! tributary reach flux structure
   USE globalData, ONLY: RCHFLX           ! entire reach flux structure
   USE globalData, ONLY: TSEC             ! beginning/ending of simulation time step [sec]
@@ -550,7 +551,7 @@ contains
                             flux_global,                              &
                             flux_local,                               &
                             rch_per_proc(root:nNodes-1),              &
-                            arth(rch_per_proc(root-1)+1,1,nRch), &
+                            ixRch_order(rch_per_proc(root-1)+1:nRch), &
                             arth(1,1,rch_per_proc(pid)),              &
                             scatter,                                  &
                             ierr, message)
@@ -565,7 +566,7 @@ contains
     call mpi_comm_irf_bas_state(pid, nNodes, comm,                        &
                                 iens,                                     &
                                 rch_per_proc(root:nNodes-1),              &
-                                arth(rch_per_proc(root-1)+1,1,nRch),      &
+                                ixRch_order(rch_per_proc(root-1)+1:nRch), &
                                 arth(1,1,rch_per_proc(pid)),              &
                                 scatter,                                  & ! communication type
                                 ierr, message)
@@ -577,7 +578,7 @@ contains
     call mpi_comm_kwt_state(pid, nNodes, comm,                        &
                             iens,                                     &
                             rch_per_proc(root:nNodes-1),              &
-                            arth(rch_per_proc(root-1)+1,1,nRch),      &
+                            ixRch_order(rch_per_proc(root-1)+1:nRch), &
                             arth(1,1,rch_per_proc(pid)),              &
                             scatter,                                  & ! communication type
                             ierr, message)
@@ -589,7 +590,7 @@ contains
     call mpi_comm_irf_state(pid, nNodes, comm,                        &
                             iens,                                     &
                             rch_per_proc(root:nNodes-1),              &
-                            arth(rch_per_proc(root-1)+1,1,nRch),      &
+                            ixRch_order(rch_per_proc(root-1)+1:nRch), &
                             arth(1,1,rch_per_proc(pid)),              &
                             scatter,                                  & ! communication type
                             ierr, message)

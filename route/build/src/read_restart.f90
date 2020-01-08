@@ -28,6 +28,7 @@ CONTAINS
  USE globalData, ONLY: meta_stateDims  ! dimension for state variables
  ! Named variables
  USE var_lookup, ONLY: ixStateDims, nStateDims
+ USE globalData, ONLY: ixRch_order
 
  implicit none
  ! input variables
@@ -102,6 +103,7 @@ CONTAINS
   character(*), intent(out)     :: message1       ! error message
   ! local variables
   integer(i4b)                  :: iVar,iens,iSeg ! index loops for variables, ensembles, reaches respectively
+  integer(i4b)                  :: jSeg           ! index loops for reaches respectively
   integer(i4b)                  :: ntdh           ! dimension size
 
   ! initialize error control
@@ -138,14 +140,16 @@ CONTAINS
   do iens=1,nens
    do iSeg=1,nSeg
 
-    allocate(RCHFLX(iens,iSeg)%QFUTURE(ntdh), stat=ierr, errmsg=cmessage)
+    jSeg = ixRch_order(iSeg)
+
+    allocate(RCHFLX(iens,jSeg)%QFUTURE(ntdh), stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
     do iVar=1,nVarsIRFbas
 
      select case(iVar)
-      case(ixIRFbas%q);       RCHFLX(iens,iSeg)%BASIN_QR(1) = state(0)%var(iVar)%array_2d_dp(iSeg,iens)
-      case(ixIRFbas%qfuture); RCHFLX(iens,iSeg)%QFUTURE(:)  = state(0)%var(iVar)%array_3d_dp(iSeg,:,iens)
+      case(ixIRFbas%q);       RCHFLX(iens,jSeg)%BASIN_QR(1) = state(0)%var(iVar)%array_2d_dp(iSeg,iens)
+      case(ixIRFbas%qfuture); RCHFLX(iens,jSeg)%QFUTURE(:)  = state(0)%var(iVar)%array_3d_dp(iSeg,:,iens)
       case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF state variable index'; return
      end select
 
@@ -168,6 +172,7 @@ CONTAINS
   character(*), intent(out)     :: message1       ! error message
   ! local variables
   integer(i4b)                  :: iVar,iens,iSeg ! index loops for variables, ensembles, reaches respectively
+  integer(i4b)                  :: jSeg           ! index loops for reaches respectively
   integer(i4b), allocatable     :: numQF(:,:)     ! number of future Q time steps for each ensemble and segment
   integer(i4b)                  :: ntdh_irf       ! dimenion sizes
   ! initialize error control
@@ -212,7 +217,9 @@ CONTAINS
   do iens=1,nens
    do iSeg=1,nSeg
 
-    allocate(RCHFLX(iens,iSeg)%QFUTURE_IRF(numQF(iens,iSeg)), stat=ierr, errmsg=cmessage)
+    jSeg = ixRch_order(iSeg)
+
+    allocate(RCHFLX(iens,jSeg)%QFUTURE_IRF(numQF(iens,iSeg)), stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
     do iVar=1,nVarsIRF
@@ -220,7 +227,7 @@ CONTAINS
      if (iVar==ixIRF%q) cycle ! not writing out IRF routed flow
 
      select case(iVar)
-      case(ixIRF%qfuture); RCHFLX(iens,iSeg)%QFUTURE_IRF = state(impulseResponseFunc)%var(iVar)%array_3d_dp(iSeg,1:numQF(iens,iSeg),iens)
+      case(ixIRF%qfuture); RCHFLX(iens,jSeg)%QFUTURE_IRF = state(impulseResponseFunc)%var(iVar)%array_3d_dp(iSeg,1:numQF(iens,iSeg),iens)
       case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
      end select
 
@@ -243,6 +250,7 @@ CONTAINS
   character(*), intent(out)     :: message1       ! error message
   ! output
   integer(i4b)                  :: iVar,iens,iSeg ! index loops for variables, ensembles, reaches respectively
+  integer(i4b)                  :: jSeg           ! index loops for reaches respectively
   integer(i4b)                  :: nwave          ! dimenion sizes
   integer(i4b), allocatable     :: RFvec(:)       ! temporal vector
   integer(i4b), allocatable     :: numWaves(:,:)  ! number of waves for each ensemble and segment
@@ -292,23 +300,25 @@ CONTAINS
   do iens=1,nens
    do iSeg=1,nSeg
 
-    allocate(RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1), stat=ierr)
+    jSeg = ixRch_order(iSeg)
+
+    allocate(RCHSTA(iens,jSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1), stat=ierr)
 
     do iVar=1,nVarsKWT
 
      if (iVar==ixKWT%q) cycle ! not writing out KWT routed flow
 
      select case(iVar)
-      case(ixKWT%tentry);    RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%TI = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
-      case(ixKWT%texit);     RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%TR = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
-      case(ixKWT%qwave);     RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%QF = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
-      case(ixKWT%qwave_mod); RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%QM = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
+      case(ixKWT%tentry);    RCHSTA(iens,jSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%TI = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
+      case(ixKWT%texit);     RCHSTA(iens,jSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%TR = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
+      case(ixKWT%qwave);     RCHSTA(iens,jSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%QF = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
+      case(ixKWT%qwave_mod); RCHSTA(iens,jSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%QM = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
       case(ixKWT%routed) ! this is suppposed to be logical variable, but put it as 0 or 1 in double now
        if (allocated(RFvec)) deallocate(RFvec, stat=ierr)
        allocate(RFvec(0:numWaves(iens,iSeg)-1),stat=ierr)
        RFvec = nint(state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens))
-       RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%RF=.False.
-       where (RFvec==1_i4b) RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%RF=.True.
+       RCHSTA(iens,jSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%RF=.False.
+       where (RFvec==1_i4b) RCHSTA(iens,jSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%RF=.True.
       case default; ierr=20; message1=trim(message1)//'unable to identify KWT routing state variable index'; return
      end select
 
