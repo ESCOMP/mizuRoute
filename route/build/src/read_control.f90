@@ -2,7 +2,7 @@ module read_control_module
 
 USE nrtype
 USE public_var
-USE globalData, ONLY: pid, nNodes             ! procs id and number of procs
+USE globalData, ONLY: pid, nNodes, masterproc             ! procs id and number of procs
 
 implicit none
 ! privacy
@@ -89,7 +89,7 @@ contains
    ! extract name of the information, and the information itself
    cName = adjustl(cLines(iLine)(ibeg_name:iend_name))
    cData = adjustl(cLines(iLine)(iend_name+1:iend_data-1))
-   if (pid==root) then
+   if (masterproc) then
     write(iulog,*) trim(cName), ' --> ', trim(cData)
    endif
 

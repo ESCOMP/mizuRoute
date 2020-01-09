@@ -1,0 +1,53 @@
+! ****************************************************************************************************************************
+! ****************************************************************************************************************************
+! ***** DEFINITION OF MODEL CONTROL INFORMATION ******************************************************************************
+! ****************************************************************************************************************************
+! ****************************************************************************************************************************
+! Note: lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines.
+!       lines starting with <xxx> are read till "!"
+!
+! ****************************************************************************************************************************
+! DEFINE DIRECTORIES 
+! --------------------------
+<ancil_dir>            ANCIL_DIR                   ! directory containing ancillary data (river network data)
+<output_dir>           OUTPUT_DIR                  ! directory containing output data
+! ****************************************************************************************************************************
+! RUN CONTROL 
+! --------------------------------------------
+<case_name>            CASE_NAME                   ! simulation name - used for output and restart netcdf name 
+<sim_start>            yyyy-mm-dd                  ! time of simulation start (year-month-day)
+<sim_end>              yyyy-mm-dd                  ! time of simulation end (year-month-day)
+<restart_opt>          F                           ! option to use saved flow states T->yes, F->No (start with empty channels) 
+<fname_state_in>       STATE_IN_NC                 ! restart file name 
+<newFileFrequency>     month                       ! output netcdf frequency - single, annual, month, day
+<route_opt>            2                           ! option for routing schemes 0-> both, 1->IRF, 2->KWT otherwise error 
+<doesAccumRunoff>      1                           ! option to compute upstream accumulated flow
+! ****************************************************************************************************************************
+! DEFINE FINE NAME AND DIMENSIONS
+! ---------------------------------------
+<fname_ntopOld>        NTOPO_NC                    ! netCDF name for River Network
+<dname_sseg>           DIMNAME_SEG                 ! dimension name of the stream segments
+<dname_nhru>           DIMNAME_HRU                 ! dimension name of the HRUs
+<ntopWriteOption>      F                           ! logical whether or not augmented river network is written 
+<fname_ntopNew>        UPDATED_NTOPO_NC            ! netCDF name for augmented River Network
+<varname_area>         Basin_Area                  ! name of variable holding hru area
+<varname_length>       Length                      ! name of variable holding segment length
+<varname_slope>        Slope                       ! name of variable holding segment slope
+<varname_HRUid>        hruid                       ! name of variable holding HRU id
+<varname_hruSegId>     seg_hru_id                  ! name of variable holding the stream segment below each HRU  
+<varname_segId>        seg_id                      ! name of variable holding the ID of each stream segment  
+<varname_downSegId>    tosegment                   ! name of variable holding the ID of the next downstream segment
+<varname_pfafCode>     PFAF                        ! name of variable holding the pfafstetter code
+! ****************************************************************************************************************************
+! Define options to include/skip calculations
+! ----------------------------------------------------
+<hydGeometryOption>    1                           ! option for hydraulic geometry calculations (0=read from file, 1=compute)
+<topoNetworkOption>    1                           ! option for network topology calculations (0=read from file, 1=compute)
+<computeReachList>     1                           ! option to compute list of upstream reaches (0=do not compute, 1=compute)
+! ****************************************************************************************************************************
+! Namelist file name 
+! ---------------------------
+<param_nml>            PARAMETER_NML               ! Namelist name containing routing parameter values 
+! ****************************************************************************************************************************
+! ****************************************************************************************************************************
+! ****************************************************************************************************************************

@@ -1,11 +1,12 @@
 MODULE dataTypes
 
+! used to create specific data types
+
 USE nrtype,     ONLY: i4b,dp,lgt
-USE nrtype,     ONLY: strLen   ! string length
+USE nrtype,     ONLY: strLen
 USE public_var, ONLY: realMissing
 USE public_var, ONLY: integerMissing
-! used to create specific data types
-! --
+
 implicit none
 
  ! everything private unless specified otherwise
@@ -199,10 +200,10 @@ implicit none
   logical(lgt)                               :: USRTAKE  ! .TRUE. if user takes from reach, .FALSE. otherwise
  end type RCHTOPO
 
- ! ---------- kinematic wave states (collection of particles) ---------------------------------
+ ! ---------- reach states --------------------------------------------------------------------
 
+ !---------- Lagrangian kinematic wave states (collection of particles) ---------------------------------
  ! Individual flow particles
- ! NOTE: type could possibly be private
  TYPE, public :: FPOINT
   real(dp)                             :: QF       ! Flow
   real(dp)                             :: QM       ! Modified flow
@@ -212,16 +213,28 @@ implicit none
  END TYPE FPOINT
 
  ! Collection of flow points within a given reach
- TYPE, public :: KREACH
+ TYPE, public :: LKWRCH
   type(FPOINT),allocatable             :: KWAVE(:)
- END TYPE KREACH
+ END TYPE LKWRCH
+
+ ! ---------- Eulerian kinematic wave ---------------------------------
+ type, public :: EKWRCH
+   real(dp), allocatable    :: volsub(:)      ! volume in sub-reach (m3/s)
+   real(dp), allocatable    :: qsub(:,:)      ! discharge from sub-reach (m3/s)
+ end type EKWRCH
 
  ! ---------- irf states (future flow series ) ---------------------------------
-
  ! Future flow series
- TYPE, public :: IRFREACH
+ type, public :: IRFRCH
   real(dp), allocatable                :: qfuture(:)    ! runoff volume in future time steps for IRF routing (m3/s)
- END TYPE IRFREACH
+ END TYPE IRFRCH
+
+ type, public :: STRSTA
+  type(IRFRCH)       :: IRF_ROUTE
+  type(LKWRCH)       :: LKW_ROUTE
+  type(EKWRCH)       :: EKW_ROUTE
+ end type STRSTA
+
 
  ! ---------- reach fluxes --------------------------------------------------------------------
 
@@ -258,8 +271,8 @@ implicit none
 
  ! Lake topology
  TYPE, public :: LAKTOPO
-  integer(i4b)                         :: LAKE_IX           ! Lake index (0,1,2,...,nlak-1)
-  integer(i4b)                         :: LAKE_ID           ! Lake ID (REC code?)
+  integer(i4b)                         :: LAKE_IX           ! Lake index (1,2,...,nlak)
+  integer(i4b)                         :: LAKE_ID           ! Lake ID (REC code)
   real(dp)                             :: LAKLAT1           ! Centroid latitude
   real(dp)                             :: LAKLAT2           ! Outlet latitude
   real(dp)                             :: LAKLON1           ! Centroid longitude

@@ -4,7 +4,6 @@ MODULE write_simoutput_pio
 USE nrtype
 USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
 USE public_var,        ONLY: iulog             ! i/o logical unit number
-USE public_var,        ONLY: root
 USE public_var,        ONLY: integerMissing
 USE public_var,        ONLY: doesBasinRoute      ! basin routing options   0-> no, 1->IRF, otherwise error
 USE public_var,        ONLY: doesAccumRunoff     ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
@@ -13,6 +12,7 @@ USE public_var,        ONLY: kinematicWave       ! kinematic wave
 USE public_var,        ONLY: impulseResponseFunc ! impulse response function
 USE public_var,        ONLY: allRoutingMethods   ! all routing methods
 USE globalData,        ONLY: pid, nNodes
+USE globalData,        ONLY: masterproc
 USE globalData,        ONLY: mpicom_route
 USE globalData,        ONLY: pio_netcdf_format
 USE globalData,        ONLY: pio_typename
@@ -79,7 +79,7 @@ contains
   iens = 1
 
   ! Need to combine mainstem RCHFLX and tributary RCHFLX into RCHFLX_local for root node
-  if (pid==root) then
+  if (masterproc) then
    associate(nRch_main => rch_per_proc(-1), nRch_trib => rch_per_proc(0))
    allocate(RCHFLX_local(nRch_main+nRch_trib), tmp_array(nRch_main+nRch_trib), stat=ierr)
    if (nRch_main/=0) then
@@ -94,7 +94,7 @@ contains
    RCHFLX_local = RCHFLX_trib(iens,:)
   endif
 
-  if (pid==root) then
+  if (masterproc) then
    allocate(basinRunoff(nHRU))
    basinRunoff = real(runoff_data%basinRunoff, kind=sp)
   else
@@ -192,7 +192,7 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! print progress
-  if (pid==root) then
+  if (masterproc) then
     write(iulog,*) modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin
   endif
 
@@ -324,7 +324,7 @@ contains
                    pio_rearranger, pio_root,   & ! input: PIO related parameters
                    pioSystem)                    ! output: PIO system descriptors
 
- if (pid==root) then
+ if (masterproc) then
    ix1 = 1_i4b
  else
    ix1 = sum(rch_per_proc(-1:pid-1))+1_i4b
@@ -338,15 +338,15 @@ contains
                  iodesc_rch_flx)
 
 ! For runoff
- if (pid/=root) then
-  nHRU_in = 1_i4b
- else
+ if (masterproc) then
   nHRU_in = nHRU
+ else
+  nHRU_in = 1_i4b
  endif
 
  allocate(dof_hru(nHRU_in))
 
- if (pid==root) then
+ if (masterproc) then
   dof_hru = arth(1,1,nHRU)
  else
   dof_hru = 0_i4b

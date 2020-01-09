@@ -38,6 +38,7 @@ module public_var
 
 
   ! constants for general use
+  real(dp),    parameter,public   :: MaxPosVal=1.e36_dp     ! maximum value for positive value
   real(dp),    parameter,public   :: MinPosVal=1.e-10_dp    ! minimum value for positive value
   integer(i4b),parameter,public   :: integerMissing=-9999   ! missing value for integers
   real(dp),    parameter,public   :: realMissing=-9999._dp  ! missing value for real numbers
