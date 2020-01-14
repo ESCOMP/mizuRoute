@@ -24,6 +24,7 @@ public :: init_data          ! For stand-alone only
 public :: init_ntopo_data
 public :: init_state_data
 public :: update_time
+public :: model_finalize
 
 CONTAINS
 
@@ -209,14 +210,13 @@ CONTAINS
   USE public_var,  ONLY: ntopAugmentMode        ! River network augmentation mode
   USE public_var,  ONLY: idSegOut               ! outlet segment ID (-9999 => no outlet segment specified)
   USE globalData,  ONLY: RCHFLX                 ! Reach flux data structures (entire river network)
-  USE globalData,  ONLY: KROUTE                 ! Reach k-wave data structures (entire river network)
+  USE globalData,  ONLY: RCHSTA                 ! Reach state data structures (entire river network)
   USE globalData,  ONLY: nHRU, nRch             ! number of HRUs and Reaches in the whole network
   USE globalData,  ONLY: nContribHRU            ! number of HRUs that are connected to any reaches
   USE globalData,  ONLY: nEns                   ! number of ensembles
   USE globalData,  ONLY: basinID                ! HRU id vector
   USE globalData,  ONLY: reachID                ! reach ID vector
   ! external subroutines
-  USE mpi_mod,     ONLY: shr_mpi_finalize       ! mpi utilities: shut down mpi
   USE mpi_routine, ONLY: comm_ntopo_data        ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
 
    implicit none
@@ -256,15 +256,14 @@ CONTAINS
 
    ! check if network topology write option is on. If so, terminate the program
    if (ntopAugmentMode .or. idSegOut>0) then
-    call shr_mpi_finalize(comm)
-    stop
+    call model_finalize(comm)
    end if
 
    if (pid==0) then
 
      ! allocate space for the entire river network
-     allocate(RCHFLX(nEns,nRch), KROUTE(nEns,nRch), stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating [RCHFLX, KROUTE]'; return; endif
+     allocate(RCHFLX(nEns,nRch), RCHSTA(nEns,nRch), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating [RCHFLX, RCHSTA]'; return; endif
 
      ! populate basiID and reachID vectors for output (in only master processor)
      ! populate runoff data structure (only meta, no runoff values)
@@ -438,7 +437,30 @@ CONTAINS
 
  END SUBROUTINE init_state_data
 
-! *********************************************************************
+
+ ! *********************************************************************
+ ! public subroutine: finalize model
+ ! *********************************************************************
+ SUBROUTINE model_finalize(comm)
+  USE globalData, ONLY: masterproc       ! root proc logical
+  USE mpi_mod,    ONLY: shr_mpi_finalize ! mpi utilities: shut down mpi
+  implicit none
+  integer(i4b), intent(in) :: comm   ! communicator
+
+  if (masterproc) then
+    write(iulog,*) '----------------------'
+    write(iulog,*) ' SUCCESSFUL EXECUTION '
+    write(iulog,*) '----------------------'
+  end if
+
+  call shr_mpi_finalize(comm)
+
+  stop
+
+ END SUBROUTINE model_finalize
+
+
+ ! *********************************************************************
  ! private subroutine: initialize time data
  ! *********************************************************************
  SUBROUTINE init_time(nTime,     &    ! input: number of time steps
@@ -677,7 +699,6 @@ CONTAINS
     if (ntopAugmentMode) write(iulog,'(a)') 'Running in river network augmentation mode'
     write(iulog,'(a)') 'Created a new network topology file '//trim(fname_ntopNew)
     write(iulog,'(a)') ' --> Run again using the new network topology file '
-    write(iulog,'(a)') ' SUCCESSFUL EXECUTION '
     return
   endif
 

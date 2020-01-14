@@ -4,7 +4,7 @@ module main_route_module
 USE nrtype                                   ! variable types, etc.
 
 ! data structures
-USE dataTypes, ONLY: KREACH                  ! collection of particles in a given reach
+USE dataTypes, ONLY: STRSTA                  ! state in each reach
 USE dataTypes, ONLY: STRFLX                  ! fluxes in each reach
 USE dataTypes, ONLY: RCHTOPO                 ! Network topology
 USE dataTypes, ONLY: RCHPRP                  ! Reach parameter
@@ -43,13 +43,13 @@ contains
                        RPARAM_in,      &  ! reach parameter data structure
                        ! inout
                        RCHFLX_out,     &  ! reach flux data structure
-                       KROUTE_out,     &  ! reach state data structure
+                       RCHSTA_out,     &  ! reach state data structure
                        ! output: error handling
                        ierr, message)     ! output: error control
    ! Details:
    ! Given HRU (basin) runoff, perform hru routing (optional) to get reach runoff, and then channel routing
    ! Restriction:
-   ! 1. Reach order in NETOPO_in, RPARAM_in, RCHFLX_out, KROUTE_out must be in the same orders
+   ! 1. Reach order in NETOPO_in, RPARAM_in, RCHFLX_out, RCHSTA_out must be in the same orders
    ! 2. Process a list of reach indices (in terms of NETOPO_in etc.) given by ixRchProcessed
    ! 3. basinRunoff_in is given in the order of NETOPO_in(:)%HRUIX.
 
@@ -74,7 +74,7 @@ contains
    type(RCHPRP),  allocatable, intent(in)    :: RPARAM_in(:)         ! River reach parameter
    ! inout
    TYPE(STRFLX),  allocatable, intent(inout) :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
-   TYPE(KREACH),  allocatable, intent(inout) :: KROUTE_out(:,:)      ! reach state data structure
+   TYPE(STRSTA),  allocatable, intent(inout) :: RCHSTA_out(:,:)      ! reach state data structure
    ! output
    integer(i4b),               intent(out)   :: ierr                 ! error code
    character(len=strLen),      intent(out)   :: message              ! error message
@@ -148,7 +148,7 @@ contains
                    ixPrint,              & ! input: index of the desired reach
                    NETOPO_in,            & ! input: reach topology data structure
                    RPARAM_in,            & ! input: reach parameter data structure
-                   KROUTE_out,           & ! inout: reach state data structure
+                   RCHSTA_out,           & ! inout: reach state data structure
                    RCHFLX_out,           & ! inout: reach flux data structure
                    ierr,cmessage,        & ! output: error control
                    ixRchProcessed)         ! optional input: indices of reach to be routed
