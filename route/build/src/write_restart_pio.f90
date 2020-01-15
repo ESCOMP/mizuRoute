@@ -9,6 +9,7 @@ USE dataTypes,         ONLY: states
 USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: integerMissing
 USE public_var,        ONLY: realMissing
+USE public_var,        ONLY: rpntfil           ! ascii containing last restart file (used in coupled mode)
 USE globalData,        ONLY: pid, nNodes
 USE globalData,        ONLY: masterproc
 USE globalData,        ONLY: mpicom_route
@@ -75,6 +76,9 @@ CONTAINS
 
   call write_state_nc(fileout_state, ierr, message)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  open(1, file = trim(output_dir)//trim(rpntfil), status='replace', action='write')
+  write(1,*) fileout_state
 
  end subroutine output_state
 
