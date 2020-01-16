@@ -47,7 +47,8 @@ module public_var
   integer(i4b),parameter,public   :: root=0                 ! root node id
 
   ! I/O related parameters
-  integer(i4b),          public   :: iulog=6               ! logical unit identifier
+  integer(i4b),          public   :: iulog=6                ! logical unit identifier
+  character(len=strLen), public   :: rpntfil='rpointer.rof' ! file name for local restart pointer file
 
   ! ---------- named variables ----------------------------------------------------------------------
 
