@@ -154,6 +154,11 @@ class test_mizuRoute_control(unittest.TestCase):
        self.ctl.read( "SAMPLE.control" )
        self.assertTrue( self.ctl.is_read() )
 
+   def test_is_read_coupled( self ):
+       self.assertFalse( self.ctl.is_read() )
+       self.ctl.read( "SAMPLE-coupled.control" )
+       self.assertTrue( self.ctl.is_read() )
+
    def test_get_not_read( self ):
        value = self.ctl.get( "thing" )
        self.assertEqual( value, "UNSET" )
