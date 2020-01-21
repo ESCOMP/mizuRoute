@@ -43,7 +43,7 @@ module rof_import_export
   type (fld_list_type)   :: fldsFrRof(fldsMax)
 
   integer     ,parameter :: debug = 0 ! internal debug level
-  character(*),parameter :: F01 = "('(mosart_import_export) ',a,i5,2x,i8,2x,d21.14)"
+  character(*),parameter :: F01 = "('(mizuRoute_import_export) ',a,i5,2x,i8,2x,d21.14)"
   character(*),parameter :: u_FILE_u = &
        __FILE__
 
@@ -98,9 +98,8 @@ contains
     call fldlist_add(fldsToRof_num, fldsToRof, 'Flrl_rofsur')
     call fldlist_add(fldsToRof_num, fldsToRof, 'Flrl_rofgwl')
     call fldlist_add(fldsToRof_num, fldsToRof, 'Flrl_rofsub')
-    call fldlist_add(fldsToRof_num, fldsToRof, 'Flrl_rofdto')
-    call fldlist_add(fldsToRof_num, fldsToRof, 'Flrl_rofi')
-    call fldlist_add(fldsToRof_num, fldsToRof, 'Flrl_irrig')
+    call fldlist_add(fldsToRof_num, fldsToRof, 'Flrl_rofi')    ! NOT doing anything for now
+    call fldlist_add(fldsToRof_num, fldsToRof, 'Flrl_irrig')   !
 
     do n = 1,fldsToRof_num
        call NUOPC_Advertise(importState, standardName=fldsToRof(n)%stdname, &

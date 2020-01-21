@@ -16,9 +16,10 @@ module rof_comp_nuopc
   use shr_kind_mod          , only : R8=>SHR_KIND_R8, CL=>SHR_KIND_CL
   use shr_sys_mod           , only : shr_sys_abort
   use shr_file_mod          , only : shr_file_getlogunit, shr_file_setlogunit
-  use shr_cal_mod           , only : shr_cal_noleap, shr_cal_gregorian, shr_cal_ymd2date
+  use shr_cal_mod           , only : shr_cal_ymd2date
 
   use public_var            , only : iulog
+  use public_var            , only : calendar, simStart, simEnd, time_units
   use public_var            , only : masterproc  !create this  logical variable  in mizuRoute (masterproc=true => master task, false => other tasks
   use globalData            , only : pid          => iam
   use globalData            , only : nNodes       => npes
@@ -27,9 +28,10 @@ module rof_comp_nuopc
   use model_setup           , only : get_mpi_omp
   use RunoffMod             , only : rtmCTL
   use RtmMod                , only : route_ini, route_run
-  use RtmTimeManager        , only : timemgr_setup, get_curr_date, get_step_size, advance_timestep
+  use RtmTimeManager        , only : init_time, shr_timeStr
   use RtmVar                , only : inst_index, inst_suffix, inst_name, RtmVarSet
   use RtmVar                , only : nsrStartup, nsrContinue, nsrBranch
+  use RtmVar                , only : coupling_period !day
 
   use perf_mod              , only : t_startf, t_stopf, t_barrierf
   use rof_import_export     , only : advertise_fields, realize_fields
@@ -55,9 +57,8 @@ module rof_comp_nuopc
 
   character(len=CL)       :: flds_scalar_name = ''
   integer                 :: flds_scalar_num = 0
-  integer                 :: flds_scalar_index_ncat = 0
-  !integer                 :: flds_scalar_index_nx = 0
-  !integer                 :: flds_scalar_index_ny = 0
+  integer                 :: flds_scalar_index_nx = 0
+  integer                 :: flds_scalar_index_ny = 0
   integer                 :: flds_scalar_index_nextsw_cday = 0._r8
 
   integer     , parameter :: debug = 1
@@ -178,11 +179,11 @@ contains
     mpicom_rof = mpicom
     call get_mpi_omp(mpicom)
 
-!! ROFID need for mizuRoute??
-    ! Set ROFID - needed for the mosart code that requires MCT
-    call NUOPC_CompAttributeGet(gcomp, name='MCTID', value=cvalue, rc=rc)
-    if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    read(cvalue,*) ROFID  ! convert from string to integer
+!! WHAT IS THIS? ROFID need for mizuRoute??
+!    ! Set ROFID - needed for the mosart code that requires MCT
+!    call NUOPC_CompAttributeGet(gcomp, name='MCTID', value=cvalue, rc=rc)
+!    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+!    read(cvalue,*) ROFID  ! convert from string to integer
 !! need for mizuRoute??
 
     !----------------------------------------------------------------------------
@@ -226,38 +227,27 @@ contains
        call shr_sys_abort(subname//'Need to set attribute ScalarFieldCount')
     endif
 
-    call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxNCat", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+    call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxGridNX", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     if (isPresent .and. isSet) then
-       read(cvalue,*) flds_scalar_index_ncat
-       write(logmsg,*) flds_scalar_index_ncat
-       call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_ncat = '//trim(logmsg), ESMF_LOGMSG_INFO)
+       read(cvalue,*) flds_scalar_index_nx
+       write(logmsg,*) flds_scalar_index_nx
+       call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_nx = '//trim(logmsg), ESMF_LOGMSG_INFO)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     else
-       call shr_sys_abort(subname//'Need to set attribute ScalarFieldIdxNCat')
+       call shr_sys_abort(subname//'Need to set attribute ScalarFieldIdxGridNX')
     endif
-!
-!    call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxGridNX", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
-!    if (ChkErr(rc,__LINE__,u_FILE_u)) return
-!    if (isPresent .and. isSet) then
-!       read(cvalue,*) flds_scalar_index_nx
-!       write(logmsg,*) flds_scalar_index_nx
-!       call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_nx = '//trim(logmsg), ESMF_LOGMSG_INFO)
-!       if (ChkErr(rc,__LINE__,u_FILE_u)) return
-!    else
-!       call shr_sys_abort(subname//'Need to set attribute ScalarFieldIdxGridNX')
-!    endif
-!
-!    call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxGridNY", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
-!    if (ChkErr(rc,__LINE__,u_FILE_u)) return
-!    if (isPresent .and. isSet) then
-!       read(cvalue,*) flds_scalar_index_ny
-!       write(logmsg,*) flds_scalar_index_ny
-!       call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_ny = '//trim(logmsg), ESMF_LOGMSG_INFO)
-!       if (ChkErr(rc,__LINE__,u_FILE_u)) return
-!    else
-!       call shr_sys_abort(subname//'Need to set attribute ScalarFieldIdxGridNY')
-!    endif
+
+    call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxGridNY", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    if (isPresent .and. isSet) then
+       read(cvalue,*) flds_scalar_index_ny
+       write(logmsg,*) flds_scalar_index_ny
+       call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_ny = '//trim(logmsg), ESMF_LOGMSG_INFO)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    else
+       call shr_sys_abort(subname//'Need to set attribute ScalarFieldIdxGridNY')
+    endif
 
     call NUOPC_CompAttributeGet(gcomp, name="ScalarFieldIdxNextSwCday", value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -304,9 +294,9 @@ contains
     type(ESMF_Calendar)         :: esmf_calendar         ! esmf calendar
     type(ESMF_CalKind_Flag)     :: esmf_caltype          ! esmf calendar type
     integer , allocatable       :: gindex(:)             ! global index space on my processor
+    integer                     :: yy,mm,dd              ! Temporaries for time query
     integer                     :: ref_ymd               ! reference date (YYYYMMDD)
     integer                     :: ref_tod               ! reference time of day (sec)
-    integer                     :: yy,mm,dd              ! Temporaries for time query
     integer                     :: start_ymd             ! start date (YYYYMMDD)
     integer                     :: start_tod             ! start time of day (sec)
     integer                     :: stop_ymd              ! stop date (YYYYMMDD)
@@ -319,7 +309,6 @@ contains
     integer                     :: lsize                 ! local size ofarrays
     integer                     :: lbnum                 ! input to memory diagnostic
     integer                     :: nsrest                ! restart type
-    character(CL)               :: calendar              ! calendar type name
     character(CL)               :: username              ! user name
     character(CL)               :: caseid                ! case identifier name
     character(CL)               :: ctitle                ! case description title
@@ -380,15 +369,23 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     read(cvalue,*) username
 
+
     !----------------------
-    ! Get properties from clock
+    ! Initialize time managers in mizuRoute
     !----------------------
 
+    ! Get clock properties
     call ESMF_ClockGet( clock, &
          currTime=currTime, startTime=startTime, stopTime=stopTime, refTime=RefTime, &
          timeStep=timeStep, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
+    ! Get coupling interval in day
+    call ESMF_TimeIntervalGet( timeStep, d_r8=coupling_period, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+    ! get ymd integer and string for start time, end time and reference time
+    ! for continuous run, start time == current time
     call ESMF_TimeGet( currTime, yy=yy, mm=mm, dd=dd, s=curr_tod, rc=rc )
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     call shr_cal_ymd2date(yy,mm,dd,curr_ymd)
@@ -397,37 +394,37 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     call shr_cal_ymd2date(yy,mm,dd,start_ymd)
 
+    if (trim(starttype) == trim('continue') ) then
+      call shr_timeStr( currTime, simStart )
+    else
+      call shr_timeStr( startTime, simStart )
+    endif
+
     call ESMF_TimeGet( stopTime, yy=yy, mm=mm, dd=dd, s=stop_tod, rc=rc )
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     call shr_cal_ymd2date(yy,mm,dd,stop_ymd)
+    call shr_timeStr( stopTime, simEnd )
 
     call ESMF_TimeGet( refTime, yy=yy, mm=mm, dd=dd, s=ref_tod, rc=rc )
-    if (ChkErr(rc,__LINE__,u_FILE_u)) return
     call shr_cal_ymd2date(yy,mm,dd,ref_ymd)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    call shr_timeStr( refTime, simRef )
 
     call ESMF_TimeGet( currTime, calkindflag=esmf_caltype, rc=rc )
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     if (esmf_caltype == ESMF_CALKIND_NOLEAP) then
-       calendar = shr_cal_noleap
+       calendar = 'noleap'
     else if (esmf_caltype == ESMF_CALKIND_GREGORIAN) then
-       calendar = shr_cal_gregorian
+       calendar = 'gregorian'
     else
        call shr_sys_abort( subname//'ERROR:: bad calendar for ESMF' )
     end if
 
-    !----------------------
-    ! Set time manager module variables
-    !----------------------
+    write(time_units,'(a)') 'days since ', simRef
 
-    call timemgr_setup(&
-         calendar_in=calendar, &
-         start_ymd_in=start_ymd, &
-         start_tod_in=start_tod, &
-         ref_ymd_in=ref_ymd, &
-         ref_tod_in=ref_tod, &
-         stop_ymd_in=stop_ymd, &
-         stop_tod_in=stop_tod)
+    ! time initialize
+    call init_time(ierr, cmessage)
 
     !----------------------
     ! Read namelist, grid and surface data
@@ -463,20 +460,15 @@ contains
          username_in=username)
 
     !----------------------
-    ! Initialize mizuRoute 
+    ! Initialize mizuRoute
     !----------------------
 
     ! - Read in control file
     ! - Initialize time manager
-    ! - Initialize number of mosart tracers
-    ! - Read river network input data (global)
-    ! - Compute total number of basins and runoff ponts
-    ! - Compute river basins, actually compute ocean outlet gridcell
+    ! - Initialize number of tracers (ice and liquid) -- NOT ACTIVATED
+    ! - Read/process river network input data (global)
     ! - Allocate basins to pes
     ! - Count and distribute HRUs to rglo2gdc (determine rtmCTL%begr, rtmCTL%endr)
-    ! - Adjust area estimation from DRT algorithm for those outlet grids
-    !     - useful for grid-based representation only
-    !     - need to compute areas where they are not defined in input file
     ! - Initialize runoff datatype (rtmCTL)
 
     call route_ini(rtm_active=rof_prognostic, flood_active=flood_present)
@@ -527,19 +519,14 @@ contains
     call export_fields(gcomp, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    call State_SetScalar(dble(nHRU), flds_scalar_index_ncat, exportState, &
+    ! Set global grid size scalars in export state
+    call State_SetScalar(dble(nHRU), flds_scalar_index_nx, exportState, &
          flds_scalar_name, flds_scalar_num, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-!   NO need for mizuRoute since not using lat/lon??
-!!    ! Set global grid size scalars in export state
-!!    call State_SetScalar(dble(rtmlon), flds_scalar_index_nx, exportState, &
-!!         flds_scalar_name, flds_scalar_num, rc)
-!!    if (ChkErr(rc,__LINE__,u_FILE_u)) return
-!!
-!!    call State_SetScalar(dble(rtmlat), flds_scalar_index_ny, exportState, &
-!!         flds_scalar_name, flds_scalar_num, rc)
-!!    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    call State_SetScalar(dble(1), flds_scalar_index_ny, exportState, &
+         flds_scalar_name, flds_scalar_num, rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     !----------------------------------------------------------------------------
     ! Reset shr logging
@@ -604,7 +591,6 @@ contains
     type(ESMF_State)  :: exportState
     character(CL)     :: cvalue
     integer           :: shrlogunit    ! original log unit
-    integer           :: dtime         ! time step size
     integer           :: ymd_sync, ymd ! current date (YYYYMMDD)
     integer           :: yr_sync, yr   ! current year
     integer           :: mon_sync, mon ! current month
@@ -698,8 +684,8 @@ contains
     write(rdate,'(i4.4,"-",i2.2,"-",i2.2,"-",i5.5)') yr_sync, mon_sync, day_sync, tod_sync
 
     ! Advance mizuRoute time step then run mizuRoute (MODIFIY THIS COMMENT FOR MIZUROUTE: export data is in rtmCTL and Trunoff data types)
-    call advance_timestep()
-    call route_run(rstwr, nlend, rdate)
+    call route_run(rstwr)
+    !call advance_timestep()
 
     !--------------------------------
     ! Pack export state to mediator
@@ -716,18 +702,17 @@ contains
     !--------------------------------
     ! Check that internal clock is in sync with master clock
     !--------------------------------
-
-    dtime = get_step_size()
-    call get_curr_date( yr, mon, day, tod)
-    ymd = yr*10000 + mon*100 + day
-    tod = tod
-
-    if ( (ymd /= ymd_sync) .and. (tod /= tod_sync) ) then
-       write(iulog,*)' mizuRoute ymd=',ymd     ,'  mizuRoute tod= ',tod
-       write(iulog,*)'      sync ymd=',ymd_sync,'       sync tod= ',tod_sync
-       rc = ESMF_FAILURE
-       call ESMF_LogWrite(subname//" mizuRoute clock not in sync with Master Sync clock",ESMF_LOGMSG_ERROR)
-    end if
+! MIZUROUTE_TODO get ymd tod from mizuRoute
+!    call get_curr_date( yr, mon, day, tod)
+!    ymd = yr*10000 + mon*100 + day
+!    tod = tod
+!
+!    if ( (ymd /= ymd_sync) .and. (tod /= tod_sync) ) then
+!       write(iulog,*)' mizuRoute ymd=',ymd     ,'  mizuRoute tod= ',tod
+!       write(iulog,*)'      sync ymd=',ymd_sync,'       sync tod= ',tod_sync
+!       rc = ESMF_FAILURE
+!       call ESMF_LogWrite(subname//" mizuRoute clock not in sync with Master Sync clock",ESMF_LOGMSG_ERROR)
+!    end if
 
     !--------------------------------
     ! diagnostics
