@@ -15,6 +15,9 @@ USE public_var, ONLY: realMissing
 
 implicit none
 
+integer(i4b),parameter  :: upstream_size=1
+integer(i4b),parameter  :: stream_order=2
+
 ! privacy -- everything private unless declared explicitly
 private
 public :: init_mpi           ! For stand-alone only
@@ -281,12 +284,20 @@ CONTAINS
 
    end if  ! if processor=0 (root)
 
-   ! distribute network topology data and network parameters to the different processors
-   call comm_ntopo_data(pid, nNodes, comm,                                    & ! input: proc id, # of procs and commnicator
-                        nRch, nContribHRU,                                    & ! input: number of reach and HRUs that contribut to any reaches
-                        structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
-                        ierr, cmessage)                                         ! output: error controls
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if (nNodes>1) then
+     ! distribute network topology data and network parameters to the different processors
+     call comm_ntopo_data(pid, nNodes, comm,                                    & ! input: proc id, # of procs and commnicator
+                          nRch, nContribHRU,                                    & ! input: number of reach and HRUs that contribut to any reaches
+                          structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
+                          ierr, cmessage)                                         ! output: error controls
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   else
+     ! Setup openmp for whole domain
+     call all_domain_omp_decomp(nRch,           & ! input: number of reach and HRUs that contribut to any reaches
+                                structNTOPO,    & ! input: river network data structures for the entire network
+                                ierr, cmessage)   ! output: error controls
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   endif
 
  END SUBROUTINE init_ntopo_data
 
@@ -417,8 +428,10 @@ CONTAINS
 
    end if
 
-   call mpi_restart(pid, nNodes, comm, iens, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if (nNodes>0) then
+     call mpi_restart(pid, nNodes, comm, iens, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
 
   else
 
@@ -911,5 +924,67 @@ CONTAINS
  end do
 
  END SUBROUTINE get_qix
+
+ ! *********************************************************************
+ ! private subroutine: openmp domain decomposition for entire network
+ ! *********************************************************************
+ SUBROUTINE all_domain_omp_decomp(nRch_in,            & ! input: number of stream segments in whole domain
+                                  structNTOPO,        & ! input: data structure for network toopology
+                                  ierr,message)         ! output: error control
+
+  ! Perform the entire network openmp domain decomposition
+  ! This sub-routine is called only with single mpi proc use
+
+  USE var_lookup,          ONLY: ixNTOPO                  ! index of variables for the network topology
+  USE globalData,          ONLY: river_basin_main         ! OMP domain data structure for mainstem
+  USE globalData,          ONLY: rch_per_proc             ! number of reaches assigned to each proc (size = num of procs+1)
+  USE globalData,          ONLY: ixRch_order              ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
+  USE domain_decomposition,ONLY: omp_domain_decomposition ! domain decomposition for omp
+
+  implicit none
+  ! Input variables
+  integer(i4b),                   intent(in)  :: nRch_in                  ! number of total reaches
+  type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)           ! network topology
+  ! Output error handling variables
+  integer(i4b),                   intent(out) :: ierr
+  character(len=strLen),          intent(out) :: message                   ! error message
+  ! Local variables
+  integer(i4b)                                :: iSeg                      ! reach and hru loop indices
+  character(len=strLen)                       :: cmessage                  ! error message from subroutine
+
+  ierr=0; message='all_domain_omp_decomp/'
+
+  ! allocate local and global indices
+  allocate(rch_per_proc(-1:0), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating array for [rch_per_proc]'; return; endif
+
+  allocate(ixRch_order(nRch_in), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating array for [ixRch_order]'; return; endif
+
+  ! Count the number of reaches and hrus in each node
+  rch_per_proc(-1) = nRch_in; rch_per_proc(0) = 0
+  do iSeg =1,nRch_in
+    ixRch_order(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1)
+  end do
+
+  ! OMP domain decomposition
+  call omp_domain_decomposition(stream_order, rch_per_proc(-1), structNTOPO, river_basin_main, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! -------------------
+  ! print*,'segid,branch,order'
+  ! do ix = 1, size(river_basin_main)
+  !   do ixx = 1, size(river_basin_main(ix)%branch)
+  !     do iSeg = 1, river_basin_main(ix)%branch(ixx)%nRch
+  !       associate (idx_tmp => river_basin_main(ix)%branch(ixx)%segIndex(iSeg))
+  !       write(*,"(I15,A,I9,A,I9)") structNTOPO(idx_tmp)%var(ixNTOPO%segId)%dat(1),',',ixx,',',ix
+  !       end associate
+  !     end do
+  !   end do
+  ! enddo
+  ! -------------------
+
+ END SUBROUTINE all_domain_omp_decomp
+
 
 END MODULE model_setup

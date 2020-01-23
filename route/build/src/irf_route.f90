@@ -209,7 +209,7 @@ contains
  ! ----------------------------------------------------------------------------------------
  ! Details: Convolute runoff volume of upstream at one reach at one time step
  ! ----------------------------------------------------------------------------------------
-
+ USE public_var, ONLY: dt
  implicit none
  ! Input
  real(dp),     intent(in)               :: reach_uh(:)  ! reach unit hydrograph
@@ -246,6 +246,10 @@ contains
    rflux%QFUTURE_IRF(iTDH) = rflux%QFUTURE_IRF(iTDH) &
                              + reach_uh(iTDH)*q_upstream
  enddo
+
+ ! Volume stored in reach
+ rflux%REACH_VOL(0) = rflux%REACH_VOL(1)
+ rflux%REACH_VOL(1) = rflux%REACH_VOL(0) - (rflux%QFUTURE_IRF(1) - q_upstream)*dt
 
  ! Add local routed flow
  rflux%REACH_Q_IRF = rflux%QFUTURE_IRF(1) + rflux%BASIN_QR(1)
