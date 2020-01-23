@@ -87,7 +87,9 @@ contains
       RCHFLX_local(ix) = RCHFLX(iens,ixRch_order(ix))
      enddo
    end if
-   RCHFLX_local(nRch_main+1:nRch_main+nRch_trib) = RCHFLX_trib(iens,:)
+   if (nRch_trib>0) then
+     RCHFLX_local(nRch_main+1:nRch_main+nRch_trib) = RCHFLX_trib(iens,:)
+   endif
    end associate
   else
    allocate(RCHFLX_local(rch_per_proc(pid)),tmp_array(rch_per_proc(pid)), stat=ierr)

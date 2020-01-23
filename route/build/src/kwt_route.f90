@@ -16,7 +16,6 @@ USE public_var, ONLY: realMissing       ! missing value for real number
 USE public_var, ONLY: integerMissing    ! missing value for integer number
 ! utilities
 USE nr_utility_module, ONLY: arth       ! Num. Recipies utilities
-USE time_utils_module, ONLY: elapsedSec ! calculate the elapsed time
 
 ! privary
 implicit none

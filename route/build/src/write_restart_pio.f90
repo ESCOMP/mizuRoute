@@ -497,9 +497,11 @@ CONTAINS
       RCHSTA_local(ix) = RCHSTA(iens,ixRch_order(ix))
      enddo
   end if
-  RCHFLX_local(nRch_main+1:nRch_main+nRch_trib) = RCHFLX_trib(iens,:)
-  NETOPO_local(nRch_main+1:nRch_main+nRch_trib) = NETOPO_trib(:)
-  RCHSTA_local(nRch_main+1:nRch_main+nRch_trib) = RCHSTA_trib(iens,:)
+   if (nRch_trib>0) then
+     RCHFLX_local(nRch_main+1:nRch_main+nRch_trib) = RCHFLX_trib(iens,:)
+     NETOPO_local(nRch_main+1:nRch_main+nRch_trib) = NETOPO_trib(:)
+     RCHSTA_local(nRch_main+1:nRch_main+nRch_trib) = RCHSTA_trib(iens,:)
+   endif
   end associate
  else
   allocate(RCHFLX_local(rch_per_proc(pid)), &
