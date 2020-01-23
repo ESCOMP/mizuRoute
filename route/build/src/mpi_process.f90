@@ -500,6 +500,7 @@ contains
 
  end subroutine comm_ntopo_data
 
+
  ! *********************************************************************
  ! public subroutine: restart flux/state communication
  ! *********************************************************************
@@ -659,7 +660,7 @@ contains
 
   ! Reaches/HRU assigned to root node include BOTH small tributaries and mainstem
   ! First, route "small tributaries" while routing over other bigger tributaries (at slave nodes).
-
+  if (nNodes>1) then
  ! sort the basin runoff in terms of nodes/domains
  if (masterproc) then ! this is a root process
     do iHru = 1,nContribHRU
@@ -747,6 +748,8 @@ call system_clock(endTime)
 elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/gater-state-flux] = ', elapsedTime, ' s'
 
+  end if ! (nNodes>1)
+
   ! --------------------------------
   ! perform mainstem routing
   ! --------------------------------
@@ -784,6 +787,8 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/main_route] 
   ! make sure that routing at all the procs finished
   call shr_mpi_barrier(comm, message)
 
+  if (nNodes>1) then
+
   ! --------------------------------
   ! Distribute updated tributary states (only tributary reaches flowing into mainstem) to processors to update states upstream reaches
   ! --------------------------------
@@ -804,6 +809,8 @@ write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-
 
   ! make sure that routing at all the procs finished
   call shr_mpi_barrier(comm, message)
+
+  endif !(nNodes>1)
 
  end subroutine mpi_route
 
