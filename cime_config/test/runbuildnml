@@ -1,0 +1,18 @@
+#!/bin/bash
+export CIMEROOT=`cd ../../cime;pwd`
+export PWD=`pwd`
+cp ../user_* .
+echo "Run the help option"
+../buildnml --help > /dev/null
+if [ $? != 0 ] ; then
+   echo "test FAIL"
+   exit -1
+fi
+echo "Try a simple test"
+../buildnml `pwd` --verbose
+if [ $? != 0 ] ; then
+   echo "test FAIL"
+   exit -1
+fi
+rm -rf user_* run/* Buildconf/mizurouteconf/* Buildconf/*
+echo "Successfully ran test"

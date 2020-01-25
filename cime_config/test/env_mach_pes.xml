@@ -1,0 +1,74 @@
+<?xml version="1.0"?>
+
+<config_definition>
+
+<!--
+
+-->
+    <entry id="TOTALPES" value="72">
+       <type>integer</type>
+    </entry>
+    <entry id="NINST_MAX" value="1">
+       <type>integer</type>
+    </entry>
+    <entry id="MAX_TASKS_PER_NODE" value="36">
+       <type>integer</type>
+    </entry>
+    <entry id="MAX_MPITASKS_PER_NODE" value="36">
+       <type>integer</type>
+    </entry>
+    <entry id="FORCE_SPARE_NODES" value="-999">
+      <type>integer</type>
+      <desc>Force this exact number of spare nodes to be allocated</desc>
+    </entry>
+
+    <entry id="NTHRDS">
+       <type>integer</type>
+      <values>
+        <value compclass="ATM">1</value>
+        <value compclass="CPL">1</value>
+        <value compclass="ROF">1</value>
+        <value compclass="LND">1</value>
+      </values>
+    </entry>
+
+    <entry id="NTASKS">
+       <type>integer</type>
+      <values>
+        <value compclass="ATM">-2</value>
+        <value compclass="CPL">-2</value>
+        <value compclass="ROF">-2</value>
+        <value compclass="LND">-2</value>
+      </values>
+    </entry>
+
+    <entry id="ROOTPE">
+       <type>integer</type>
+      <values>
+        <value compclass="ATM">0</value>
+        <value compclass="CPL">0</value>
+        <value compclass="ROF">0</value>
+        <value compclass="LND">0</value>
+      </values>
+    </entry>
+
+    <entry id="NINST">
+       <type>integer</type>
+      <values>
+        <value compclass="ATM">1</value>
+        <value compclass="ROF">1</value>
+        <value compclass="LND">1</value>
+      </values>
+    </entry>
+
+    <entry id="PSTRID">
+       <type>integer</type>
+      <values>
+        <value compclass="ATM">1</value>
+        <value compclass="CPL">1</value>
+        <value compclass="ROF">1</value>
+        <value compclass="LND">1</value>
+      </values>
+    </entry>
+
+</config_definition>

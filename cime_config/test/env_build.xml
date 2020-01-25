@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+
+<config_definition>
+
+<!--
+
+-->
+    <entry id="ROF_GRID" value="r05">
+      <type>char</type>
+      <desc>river runoff (rof) grid</desc>
+    </entry>
+    <entry id="ROF_NX" value="720">
+    </entry>
+    <entry id="ROF_NY" value="1">
+    </entry>
+
+    <entry id="OS" value="LINUX">
+    </entry>
+    <entry id="COMPILER" value="intel">
+    </entry>
+    <entry id="MPILIB" value="mpt">
+    </entry>
+
+</config_definition>
