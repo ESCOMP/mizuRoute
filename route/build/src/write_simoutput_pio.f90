@@ -51,11 +51,12 @@ contains
 
   !Dependent modules
   USE globalData, ONLY: nHRU                ! number of ensembles, HRUs and river reaches
-  USE globalData, ONLY: RCHFLX              ! global Reach fluxes (ensembles, space [reaches])
+  USE globalData, ONLY: RCHFLX_main         ! mainstem Reach fluxes (ensembles, space [reaches])
   USE globalData, ONLY: RCHFLX_trib         ! tributary Reach fluxes (ensembles, space [reaches])
   USE globalData, ONLY: iTime               ! time index at simulation time step
   USE globalData, ONLY: timeVar             ! time variables (unit given by runoff data)
   USE globalData, ONLY: runoff_data         ! runoff data for one time step for LSM HRUs and River network HRUs
+  USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
   USE globalData, ONLY: ixRch_order         ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
   USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
 
@@ -80,15 +81,15 @@ contains
 
   ! Need to combine mainstem RCHFLX and tributary RCHFLX into RCHFLX_local for root node
   if (masterproc) then
-   associate(nRch_main => rch_per_proc(-1), nRch_trib => rch_per_proc(0))
-   allocate(RCHFLX_local(nRch_main+nRch_trib), tmp_array(nRch_main+nRch_trib), stat=ierr)
-   if (nRch_main/=0) then
-     do ix = 1,nRch_main
-      RCHFLX_local(ix) = RCHFLX(iens,ixRch_order(ix))
+   associate(nRch_trib => rch_per_proc(0))
+   allocate(RCHFLX_local(nRch_mainstem+nRch_trib), tmp_array(nRch_mainstem+nRch_trib), stat=ierr)
+   if (nRch_mainstem>0) then
+     do ix = 1,nRch_mainstem
+      RCHFLX_local(ix) = RCHFLX_main(iens,ix)
      enddo
    end if
    if (nRch_trib>0) then
-     RCHFLX_local(nRch_main+1:nRch_main+nRch_trib) = RCHFLX_trib(iens,:)
+     RCHFLX_local(nRch_mainstem+1:nRch_mainstem+nRch_trib) = RCHFLX_trib(iens,:)
    endif
    end associate
   else

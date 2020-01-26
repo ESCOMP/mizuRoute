@@ -396,7 +396,9 @@ CONTAINS
   USE public_var, ONLY: routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
   USE public_var, ONLY: fname_state_in    ! name of state input file
   USE public_var, ONLY: output_dir        ! directory containing output data
-  USE globalData, ONLY: RCHFLX            ! reach flux structure
+  USE globalData, ONLY: nRch_mainstem     ! number of mainstem reaches
+  USE globalData, ONLY: RCHFLX_main       ! reach flux structure
+  USE globalData, ONLY: RCHFLX_trib       ! reach flux structure
   USE globalData, ONLY: TSEC              ! begining/ending of simulation time step [sec]
 
   implicit none
@@ -434,14 +436,20 @@ CONTAINS
    end if
 
   else
+   ! Cold start .......
+    ! initialize flux structures
 
    if (pid==0) then
-    ! Cold start .......
-    ! initialize flux structures
-    RCHFLX(:,:)%BASIN_QI = 0._dp
-    RCHFLX(:,:)%BASIN_QR(0) = 0._dp
-    RCHFLX(:,:)%BASIN_QR(1) = 0._dp
+     if (nRch_mainstem > 0) then
+       RCHFLX_main(:,:)%BASIN_QI = 0._dp
+       RCHFLX_main(:,:)%BASIN_QR(0) = 0._dp
+       RCHFLX_main(:,:)%BASIN_QR(1) = 0._dp
+     end if
    end if
+
+   RCHFLX_trib(:,:)%BASIN_QI = 0._dp
+   RCHFLX_trib(:,:)%BASIN_QR(0) = 0._dp
+   RCHFLX_trib(:,:)%BASIN_QR(1) = 0._dp
 
    ! initialize time
    TSEC(0)=0._dp; TSEC(1)=dt
