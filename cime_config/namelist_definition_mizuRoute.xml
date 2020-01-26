@@ -44,7 +44,7 @@
   <!-- group HSLOPE                -->
   <!-- =========================== -->
 
-  <entry id="fshape">
+  <entry id="fshape" skip_default_entry="true">
     <type>real</type>
     <category>HSLOPE</category>
     <group>HSLOPE</group>
@@ -56,7 +56,7 @@
     </values>
   </entry>
 
-  <entry id="tscale">
+  <entry id="tscale" skip_default_entry="true">
     <type>real</type>
     <category>HSLOPE</category>
     <group>HSLOPE</group>
@@ -68,7 +68,7 @@
   <!-- =========================== -->
   <!-- group IRF_UH                -->
   <!-- =========================== -->
-  <entry id="velo">
+  <entry id="velo" skip_default_entry="true">
     <type>real</type>
     <category>IRF_UH</category>
     <group>IRF_UH</group>
@@ -76,7 +76,7 @@
       velocity [m/s] for Saint-Venant equation
     </desc>
   </entry>
-  <entry id="diff">
+  <entry id="diff" skip_default_entry="true">
     <type>real</type>
     <category>IRF_UH</category>
     <group>IRF_UH</group>
@@ -89,7 +89,7 @@
   <!-- =========================== -->
   <!-- group KWT                   -->
   <!-- =========================== -->
-  <entry id="mann_n">
+  <entry id="mann_n" skip_default_entry="true">
     <type>real</type>
     <category>KWT</category>
     <group>KWT</group>
@@ -97,7 +97,7 @@
       velocity [m/s] for Saint-Venant equation
     </desc>
   </entry>
-  <entry id="wscale">
+  <entry id="wscale" skip_default_entry="true">
     <type>real</type>
     <category>KWT</category>
     <group>KWT</group>
