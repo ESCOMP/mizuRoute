@@ -13,7 +13,7 @@
   -->
 
   <!-- Descriptions of all the different valid configurations for different model versions -->
-  <description modifier_mode="1">
+  <description modifier_mode="?">
     <desc rof="MIZUROUTE">mizuRoute River Routing Model</desc>
   </description>
 
