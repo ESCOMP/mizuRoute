@@ -41,6 +41,7 @@ contains
                        river_basin,    &  ! OMP basin decomposition
                        NETOPO_in,      &  ! reach topology data structure
                        RPARAM_in,      &  ! reach parameter data structure
+                       ixDesire,       &  ! input: reachID to be checked by on-screen pringing
                        ! inout
                        RCHFLX_out,     &  ! reach flux data structure
                        RCHSTA_out,     &  ! reach state data structure
@@ -61,7 +62,6 @@ contains
    USE public_var, ONLY: kinematicWave
    USE public_var, ONLY: impulseResponseFunc
    USE globalData, ONLY: TSEC                    ! beginning/ending of simulation time step [sec]
-   USE globalData, ONLY: ixPrint                 ! desired reach index to be on-screen print
 
    implicit none
 
@@ -72,6 +72,7 @@ contains
    type(subbasin_omp), allocatable, intent(in)    :: river_basin(:)       ! OMP basin decomposition
    type(RCHTOPO), allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology
    type(RCHPRP),  allocatable, intent(in)    :: RPARAM_in(:)         ! River reach parameter
+   integer(i4b),               intent(in)    :: ixDesire             ! index of the reach for verbose output
    ! inout
    TYPE(STRFLX),  allocatable, intent(inout) :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
    TYPE(STRSTA),  allocatable, intent(inout) :: RCHSTA_out(:,:)      ! reach state data structure
@@ -132,7 +133,7 @@ contains
    if (doesAccumRunoff == 1) then
      call accum_runoff(iens,              &  ! input: ensemble index
                        river_basin,       &  ! input: river basin data type
-                       ixPrint,           &  ! input: index of verbose reach
+                       ixDesire,          &  ! input: index of verbose reach
                        NETOPO_in,         &  ! input: reach topology data structure
                        RCHFLX_out,        &  ! inout: reach flux data structure
                        ierr, cmessage,    &  ! output: error controls
@@ -145,7 +146,7 @@ contains
     call kwt_route(iens,                 & ! input: ensemble index
                    river_basin,          & ! input: river basin data type
                    T0,T1,                & ! input: start and end of the time step
-                   ixPrint,              & ! input: index of the desired reach
+                   ixDesire,             &  ! input: index of verbose reach
                    NETOPO_in,            & ! input: reach topology data structure
                    RPARAM_in,            & ! input: reach parameter data structure
                    RCHSTA_out,           & ! inout: reach state data structure
@@ -159,7 +160,7 @@ contains
    if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
     call irf_route(iens,                & ! input: ensemble index
                    river_basin,         & ! input: river basin data type
-                   ixPrint,             & ! input: index of the desired reach
+                   ixDesire,            &  ! input: index of verbose reach
                    NETOPO_in,           & ! input: reach topology data structure
                    RCHFLX_out,          & ! inout: reach flux data structure
                    ierr,cmessage,       & ! output: error control

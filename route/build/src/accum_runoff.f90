@@ -172,11 +172,8 @@ CONTAINS
 
  ! check
  if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
-  associate( ixUpstream => NETOPO_in(segIndex)%RCHLIST)
-  write(iulog,*) 'ixUpstream = ', NETOPO_in(ixUpstream(1:size(ixUpstream)))%REACHIX
-  write(iulog,*) 'idUpstream = ', NETOPO_in(ixUpstream(1:size(ixUpstream)))%REACHID
-  end associate
-  write(iulog,*) 'RCHFLX_out%UPSTREAM_QI = ', RCHFLX_out(iens,segIndex)%UPSTREAM_QI
+  write(iulog,*) 'CHECK ACCUM_RUNOFF (To be removed - not very useful)'
+  write(iulog,*) '  RCHFLX_out%UPSTREAM_QI = ', RCHFLX_out(iens,segIndex)%UPSTREAM_QI
  endif
 
  end subroutine accum_qupstream

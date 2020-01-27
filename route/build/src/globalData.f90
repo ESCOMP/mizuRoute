@@ -78,7 +78,7 @@ module globalData
 
   ! I/O stuff
   logical(lgt)                   , public :: isFileOpen                ! flag to indicate output netcdf is open
-  integer(i4b)                   , public :: ixPrint=integerMissing    ! index of desired reach to be on-screen print
+  integer(i4b)                   , public :: ixPrint(1:2)=integerMissing ! index of desired reach to be on-screen print
   ! ennsemble number (maybe to be removed)
   integer(i4b)                   , public :: nEns=1                    ! number of ensemble
 
