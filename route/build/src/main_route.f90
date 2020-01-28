@@ -62,7 +62,6 @@ contains
    USE public_var, ONLY: kinematicWave
    USE public_var, ONLY: impulseResponseFunc
    USE globalData, ONLY: TSEC                    ! beginning/ending of simulation time step [sec]
-   USE globalData, ONLY: ixPrint                 ! desired reach index to be on-screen print
 
    implicit none
 

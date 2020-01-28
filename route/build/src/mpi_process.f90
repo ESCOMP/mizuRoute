@@ -708,6 +708,7 @@ contains
                       ierr,message)    ! output: error control
   ! shared data
   USE public_var
+  USE globalData, ONLY: ixPrint          ! desired reach index
   USE globalData, ONLY: NETOPO_trib      ! tributary reach netowrk topology structure
   USE globalData, ONLY: RPARAM_trib      ! tributary reach parameter structure
   USE globalData, ONLY: NETOPO_main      ! mainstem reach netowrk topology structure
@@ -807,6 +808,7 @@ contains
                   river_basin_trib,  &  ! input: OMP basin decomposition
                   NETOPO_trib,       &  ! input: reach topology data structure
                   RPARAM_trib,       &  ! input: reach parameter data structure
+                  ixPrint(2),        &  ! input: reach index to be checked by on-screen pringing
                   RCHFLX_trib,       &  ! inout: reach flux data structure
                   RCHSTA_trib,       &  ! inout: reach state data structure
                   ierr, message)        ! output: error control
@@ -886,6 +888,7 @@ contains
                     river_basin_main,        &  ! input: OMP basin decomposition
                     NETOPO_main,             &  ! input: reach topology data structure
                     RPARAM_main,             &  ! input: reach parameter data structure
+                    ixPrint(1),              &  ! input: reach index to be checked by on-screen pringing
                     RCHFLX_main,             &  ! inout: reach flux data structure
                     RCHSTA_main,             &  ! inout: reach state data structure
                     ierr, message)              ! output: error control
