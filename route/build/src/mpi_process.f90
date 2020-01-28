@@ -334,7 +334,7 @@ contains
   end do
 
   ! find index of desired reach
-  if (desireId/=integerMissing) ixPrint = findIndex(segId_local, desireId, integerMissing)
+  if (desireId/=integerMissing) ixPrint(2) = findIndex(segId_local, desireId, integerMissing)
 
   ! compute additional ancillary infomration
   call augment_ntopo(hru_per_proc(pid),            & ! input: number of HRUs
@@ -508,6 +508,9 @@ contains
        jHru = ixHRU_order(iHru)  ! global index, ordered by domain/node
        structHRU_main(iHru) = structHRU(jHru)
      enddo
+
+     ! find index of desired reach
+     if (desireId/=integerMissing) ixPrint(1) = findIndex(segId, desireId, integerMissing)
 
      ! copy data to routing structres RPARAM_trib and NETOPO_trib
      call put_data_struct(nRch_mainstem+nTribOutlet, structSEG_main, structNTOPO_main, & ! input
