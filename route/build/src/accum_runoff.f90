@@ -172,8 +172,10 @@ CONTAINS
 
  ! check
  if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
-  write(iulog,*) 'CHECK ACCUM_RUNOFF (To be removed - not very useful)'
-  write(iulog,*) 'RCHFLX_out%UPSTREAM_QI = ', RCHFLX_out(iens,segIndex)%UPSTREAM_QI
+  write(iulog,*) 'CHECK ACCUM_RUNOFF'
+  write(iulog,*) ' UREACHK, uprflux = ', (NETOPO_in(segIndex)%UREACHK(iUps), uprflux(iUps), iUps=1,nUps)
+  write(iulog,*) ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1) = ', RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+  write(iulog,*) ' RCHFLX_out%UPSTREAM_QI = ', RCHFLX_out(iens,segIndex)%UPSTREAM_QI
  endif
 
  end subroutine accum_qupstream
