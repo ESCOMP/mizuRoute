@@ -538,10 +538,10 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
-! if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
-!  call write_KWT_state(ierr, cmessage)
-!  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-! end if
+ if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
+  call write_KWT_state(ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
 
  call closeFile(pioFileDescState)
 
