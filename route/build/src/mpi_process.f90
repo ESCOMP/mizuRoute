@@ -152,10 +152,12 @@ contains
   integer(i4b)                                :: idNode(nDomain)           ! node id array for each domain
   integer(i4b)                                :: rnkIdNode(nDomain)        ! ranked node id array for each domain
   integer(i4b)                                :: jHRU,jSeg                 ! ranked indices
+  integer(i4b)                                :: iUps                      ! immediate upstream loop indices
+  integer(i4b),     allocatable               :: jUps(:)                   ! immediate upstream loop indices
   ! miscellaneous
   integer(i4b)                                :: tmp(nRch_in)              !
-!  type(subbasin_omp), allocatable             :: river_basin_tmp(:)
   integer(i4b), allocatable                   :: seq_array(:)
+  integer(i4b)                                :: nUps
   integer(i4b)                                :: iSeg,iHru                 ! reach and hru loop indices
   integer(i4b)                                :: ix1, ix2
   integer(i4b)                                :: ix,ixx                    ! loop indices
@@ -472,8 +474,7 @@ contains
        structHRU2SEG_main(ix)%var(ixHRU2SEG%hruSegId)%dat(1) = hruSegId(ix)
        structHRU_main    (ix)%var(ixHRU%area)%dat(1)         = area(ix)
      end do
-!     computeReachList = doNotCompute
-!     hydGeometryOption = doNotCompute
+
      ! compute additional ancillary infomration
      call augment_ntopo(nHRU_mainstem,             & ! input: number of HRUs
                         nRch_mainstem+nTribOutlet, & ! input: number of stream segments
@@ -487,26 +488,36 @@ contains
      do iSeg = 1, nRch_mainstem
        jSeg = ixRch_order(iSeg) ! global index, ordered by domain/node
        structSEG_main(iSeg) = structSEG(jSeg)
+       nUps = size(structNTOPO(jSeg)%var(ixNTOPO%upSegIds)%dat)
        deallocate(structNTOPO_main(iSeg)%var(ixNTOPO%goodBasin)%dat)
-       allocate(structNTOPO_main(iSeg)%var(ixNTOPO%goodBasin)%dat(size(structNTOPO(jSeg)%var(ixNTOPO%goodBasin)%dat)))
+       allocate(structNTOPO_main(iSeg)%var(ixNTOPO%goodBasin)%dat(nUps))
        structNTOPO_main(iSeg)%var(ixNTOPO%goodBasin)%dat(:) = structNTOPO(jSeg)%var(ixNTOPO%goodBasin)%dat(:)
+       allocate(jUps(nUps))
+       do iUps = 1,nUps
+         do ix = 1,nUps
+           if (structNTOPO_main(iSeg)%var(ixNTOPO%upSegIds)%dat(ix) == structNTOPO(jSeg)%var(ixNTOPO%upSegIds)%dat(iUps)) then
+             jUps(iUps) = ix
+           end if
+         end do
+       end do
+       structNTOPO_main(iSeg)%var(ixNTOPO%upSegIds    )%dat(:) = structNTOPO_main(iSeg)%var(ixNTOPO%upSegIds)%dat(jUps)
+       structNTOPO_main(iSeg)%var(ixNTOPO%upSegIndices)%dat(:) = structNTOPO_main(iSeg)%var(ixNTOPO%upSegIndices)%dat(jUps)
+       deallocate(jUps)
      end do
 
      do iSeg = 1, nTribOutlet
        jSeg = global_ix_comm(iSeg)
        structSEG_main(global_ix_main(iSeg)) = structSEG(jSeg)
-       deallocate(structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%goodBasin)%dat, structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIds)%dat, structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIndices)%dat)
-       allocate(structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%goodBasin)%dat(size(structNTOPO(jSeg)%var(ixNTOPO%goodBasin)%dat)))
-       allocate(structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIds)%dat(size(structNTOPO(jSeg)%var(ixNTOPO%upSegIds)%dat)))
-       allocate(structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIndices)%dat(size(structNTOPO(jSeg)%var(ixNTOPO%upSegIndices)%dat)))
-       structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%goodBasin)%dat(:) = structNTOPO(jSeg)%var(ixNTOPO%goodBasin)%dat(:)
-       structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIds)%dat(:) = structNTOPO(jSeg)%var(ixNTOPO%upSegIds)%dat(:)
-       structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIndices)%dat(:) = structNTOPO(jSeg)%var(ixNTOPO%upSegIndices)%dat(:)
-     enddo
-
-     do iHru = 1,nHRU_mainstem
-       jHru = ixHRU_order(iHru)  ! global index, ordered by domain/node
-       structHRU_main(iHru) = structHRU(jHru)
+       nUps = size(structNTOPO(jSeg)%var(ixNTOPO%upSegIds)%dat)
+       deallocate(structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%goodBasin   )%dat, &
+                  structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIds    )%dat, &
+                  structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIndices)%dat)
+       allocate(structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%goodBasin   )%dat(nUps),&
+                structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIds    )%dat(nUps),&
+                structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIndices)%dat(nUps))
+       structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%goodBasin   )%dat(:) = structNTOPO(jSeg)%var(ixNTOPO%goodBasin)%dat(:)
+       structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIds    )%dat(:) = structNTOPO(jSeg)%var(ixNTOPO%upSegIds)%dat(:)
+       structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIndices)%dat(:) = integerMissing
      enddo
 
      ! find index of desired reach
@@ -521,37 +532,6 @@ contains
      ! OMP domain decomposition
      call omp_domain_decomposition(stream_order, nRch_mainstem+nTribOutlet, structNTOPO_main, river_basin_main, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-     do ix=1,nRch_mainstem
-       print*, ix, NETOPO_main(ix)%REACHIX, NETOPO_main(ix)%REACHID, (NETOPO_main(ix)%UREACHI(ixx), NETOPO_main(ix)%UREACHK(ixx), NETOPO_main(ix)%goodBas(ixx), ixx = 1,size(NETOPO_main(ix)%UREACHI))
-     enddo
-     do ix=1,nTribOutlet
-       print*, ix, NETOPO_main(ix+nRch_mainstem)%REACHIX, NETOPO_main(ix+nRch_mainstem)%REACHID, (NETOPO_main(ix+nRch_mainstem)%UREACHI(ixx), NETOPO_main(ix+nRch_mainstem)%UREACHK(ixx), NETOPO_main(ix+nRch_mainstem)%goodBas(ixx), ixx = 1,size(NETOPO_main(ix+nRch_mainstem)%goodBas))
-     enddo
-
-!     ! river_basin_tmp is based on local indices and need to conver it to global indices
-!     allocate(river_basin_main(size(river_basin_tmp)), stat=ierr)
-!     if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main]'; return; endif
-!
-!     sorder:do ix = 1, size(river_basin_tmp)
-!
-!       allocate(river_basin_main(ix)%branch(size(river_basin_tmp(ix)%branch)), stat=ierr)
-!       if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%branch]'; return; endif
-!
-!       branch:do ixx = 1, size(river_basin_tmp(ix)%branch)
-!
-!          allocate(river_basin_main(ix)%branch(ixx)%segIndex(river_basin_tmp(ix)%branch(ixx)%nRch), stat=ierr)
-!          if(ierr/=0)then; message=trim(message)//'problem allocating array for [river_basin_main%mainstem%segindex]'; return; endif
-!
-!          river_basin_main(ix)%branch(ixx)%nRch = river_basin_tmp(ix)%branch(ixx)%nRch
-!
-!          do iSeg = 1, river_basin_tmp(ix)%branch(ixx)%nRch
-!            river_basin_main(ix)%branch(ixx)%segIndex(iSeg) = ixRch_order(river_basin_tmp(ix)%branch(ixx)%segIndex(iSeg))
-!          enddo
-!
-!       enddo branch
-!
-!     enddo sorder
 
     ! -------------------
     ! print*,'segid,branch,order'
@@ -727,7 +707,6 @@ contains
   USE globalData, ONLY: nRch_mainstem    ! number of mainstem reaches
   USE globalData, ONLY: nHRU_mainstem    ! number of mainstem HRUs
   USE globalData, ONLY: ixHRU_order      ! global HRU index in the order of proc assignment
-  USE globalData, ONLY: ixRch_order      ! global reach index in the order of proc assignment
   USE globalData, ONLY: hru_per_proc     ! number of hrus assigned to each proc (i.e., node)
   USE globalData, ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
   USE globalData, ONLY: tribOutlet_per_proc ! number of tributary outlets per proc (size = nNodes)
