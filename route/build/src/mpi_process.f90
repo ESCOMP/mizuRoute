@@ -66,7 +66,7 @@ contains
                             ierr,message)         ! output: error control
 
   USE public_var
-  USE globalData,          ONLY: ixPrint                  ! desired reach index
+  USE globalData,          ONLY: ixPrint                  ! reach index to be checked by on-screen pringing
   USE globalData,          ONLY: domains                  ! domain data structure - for each domain, pfaf codes and list of segment indices
   USE globalData,          ONLY: nDomain                  ! count of decomposed domains (tributaries + mainstems)
   USE globalData,          ONLY: river_basin_main         ! OMP domain data structure for mainstem
@@ -303,6 +303,12 @@ contains
                         ierr, cmessage)                 ! output: error control
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+     ! find index of desired reach in mainstem space
+     if (desireId/=integerMissing) then
+       ixPrint(1)=findIndex(segId(1:rch_per_proc(-1)), desireId, integerMissing)
+       if (ixPrint(1)/=integerMissing) ixPrint(1)=ixRch_order(ixPrint(1))
+     endif
+
      ! OMP domain decomposition
      call omp_domain_decomposition(stream_order, rch_per_proc(-1), structNTOPO_main, river_basin_tmp, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -412,8 +418,8 @@ contains
    structHRU_local    (ix)%var(ixHRU%area)%dat(1)         = area_local(ix)
   end do
 
-  ! find index of desired reach
-  if (desireId/=integerMissing) ixPrint = findIndex(segId_local, desireId, integerMissing)
+  ! find index of desired reach in tributary space
+  if (desireId/=integerMissing) ixPrint(2) = findIndex(segId_local, desireId, integerMissing)
 
   ! compute additional ancillary infomration
   call augment_ntopo(hru_per_proc(pid),            & ! input: number of HRUs
@@ -610,6 +616,7 @@ contains
                       ierr,message)    ! output: error control
   ! shared data
   USE public_var
+  USE globalData, ONLY: ixPrint          ! reach index to be checked by on-screen pringing
   USE globalData, ONLY: NETOPO_trib      ! tributary and mainstem reach netowrk topology structure
   USE globalData, ONLY: NETOPO           ! entire river reach netowrk topology structure
   USE globalData, ONLY: RPARAM_trib      ! tributary and mainstem reach parameter structure
@@ -699,6 +706,7 @@ call system_clock(startTime)
                   river_basin_trib,  &  ! input: OMP basin decomposition
                   NETOPO_trib,       &  ! input: reach topology data structure
                   RPARAM_trib,       &  ! input: reach parameter data structure
+                  ixPrint(2),        &  ! input: reach index to be checked by on-screen pringing
                   RCHFLX_trib,       &  ! inout: reach flux data structure
                   RCHSTA_trib,       &  ! inout: reach state data structure
                   ierr, message)        ! output: error control
@@ -775,6 +783,7 @@ call system_clock(startTime)
                     river_basin_main,        &  ! input: OMP basin decomposition
                     NETOPO,                  &  ! input: reach topology data structure
                     RPARAM,                  &  ! input: reach parameter data structure
+                    ixPrint(1),              &  ! input: input: reachID to be checked by on-screen pringing
                     RCHFLX,                  &  ! inout: reach flux data structure
                     RCHSTA,                  &  ! inout: reach state data structure
                     ierr, message)              ! output: error control
