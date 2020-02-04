@@ -57,7 +57,6 @@ contains
   USE globalData, ONLY: timeVar             ! time variables (unit given by runoff data)
   USE globalData, ONLY: runoff_data         ! runoff data for one time step for LSM HRUs and River network HRUs
   USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
-  USE globalData, ONLY: ixRch_order         ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
   USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
 
   implicit none

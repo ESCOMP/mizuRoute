@@ -457,7 +457,6 @@ CONTAINS
  USE globalData, ONLY: NETOPO_trib         ! tributary reach topology
  USE globalData, ONLY: RCHSTA_main         ! mainstem reach state (ensembles, reaches)
  USE globalData, ONLY: RCHSTA_trib         ! tributary reach state (ensembles, reaches)
- USE globalData, ONLY: ixRch_order         ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
  USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
  USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
  USE globalData, ONLY: reachID         ! reach ID in network
