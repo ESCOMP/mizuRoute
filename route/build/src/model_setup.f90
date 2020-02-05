@@ -214,7 +214,14 @@ CONTAINS
   USE public_var,  ONLY: idSegOut               ! outlet segment ID (-9999 => no outlet segment specified)
   USE globalData,  ONLY: RCHFLX                 ! Reach flux data structures (entire river network)
   USE globalData,  ONLY: RCHSTA                 ! Reach state data structures (entire river network)
+  USE globalData,  ONLY: NETOPO, RPARAM      !
   USE globalData,  ONLY: nHRU, nRch             ! number of HRUs and Reaches in the whole network
+  USE globalData,  ONLY: nRch_mainstem          ! number of mainstem reaches
+  USE globalData,  ONLY: nHRU_mainstem          ! number of mainstem HRUs
+  USE globalData,  ONLY: RCHFLX_main            ! Reach flux data structures (master proc, mainstem)
+  USE globalData,  ONLY: RCHSTA_main            ! Reach state data structures (master proc, mainstem)
+  USE globalData,  ONLY: NETOPO_main         !
+  USE globalData,  ONLY: RPARAM_main         !
   USE globalData,  ONLY: nContribHRU            ! number of HRUs that are connected to any reaches
   USE globalData,  ONLY: nEns                   ! number of ensembles
   USE globalData,  ONLY: basinID                ! HRU id vector
@@ -285,18 +292,35 @@ CONTAINS
    end if  ! if processor=0 (root)
 
    if (nNodes>1) then
+
      ! distribute network topology data and network parameters to the different processors
      call comm_ntopo_data(pid, nNodes, comm,                                    & ! input: proc id, # of procs and commnicator
                           nRch, nContribHRU,                                    & ! input: number of reach and HRUs that contribut to any reaches
                           structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
                           ierr, cmessage)                                         ! output: error controls
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
    else
+
+     nRch_mainstem = nRch
+     nHRU_mainstem = nContribHRU
+
+     allocate(RCHFLX_main(nEns, nRch_mainstem), RCHSTA_main(nEns, nRch_mainstem), stat=ierr, errmsg=cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     allocate(NETOPO_main(nRch_mainstem), RPARAM_main(nRch_mainstem), stat=ierr, errmsg=cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     NETOPO_main(:) = NETOPO(:); RPARAM_main(:) = RPARAM(:)
+
+     deallocate(NETOPO, RPARAM)
+
      ! Setup openmp for whole domain
      call all_domain_omp_decomp(nRch,           & ! input: number of reach and HRUs that contribut to any reaches
                                 structNTOPO,    & ! input: river network data structures for the entire network
                                 ierr, cmessage)   ! output: error controls
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
    endif
 
  END SUBROUTINE init_ntopo_data
@@ -396,7 +420,10 @@ CONTAINS
   USE public_var, ONLY: routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
   USE public_var, ONLY: fname_state_in    ! name of state input file
   USE public_var, ONLY: output_dir        ! directory containing output data
-  USE globalData, ONLY: RCHFLX            ! reach flux structure
+  USE globalData, ONLY: nRch_mainstem     ! number of mainstem reaches
+  USE globalData, ONLY: rch_per_proc      ! number of tributary reaches
+  USE globalData, ONLY: RCHFLX_main       ! reach flux structure
+  USE globalData, ONLY: RCHFLX_trib       ! reach flux structure
   USE globalData, ONLY: TSEC              ! begining/ending of simulation time step [sec]
 
   implicit none
@@ -434,13 +461,20 @@ CONTAINS
    end if
 
   else
+   ! Cold start .......
+    ! initialize flux structures
 
    if (pid==0) then
-    ! Cold start .......
-    ! initialize flux structures
-    RCHFLX(:,:)%BASIN_QI = 0._dp
-    RCHFLX(:,:)%BASIN_QR(0) = 0._dp
-    RCHFLX(:,:)%BASIN_QR(1) = 0._dp
+     if (nRch_mainstem > 0) then
+       RCHFLX_main(:,:)%BASIN_QI = 0._dp
+       RCHFLX_main(:,:)%BASIN_QR(0) = 0._dp
+       RCHFLX_main(:,:)%BASIN_QR(1) = 0._dp
+     end if
+   end if
+   if (rch_per_proc(pid) > 0) then
+     RCHFLX_trib(:,:)%BASIN_QI = 0._dp
+     RCHFLX_trib(:,:)%BASIN_QR(0) = 0._dp
+     RCHFLX_trib(:,:)%BASIN_QR(1) = 0._dp
    end if
 
    ! initialize time

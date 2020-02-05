@@ -60,6 +60,8 @@ module globalData
   integer(i4b)                   , public :: nHRU                 ! number of HRUs in the whole river network
   integer(i4b)                   , public :: nContribHRU          ! number of HRUs that are connected to any reaches
   integer(i4b)                   , public :: nRch                 ! number of reaches in the whole river network
+  integer(i4b)                   , public :: nRch_mainstem        ! number of reaches in mainstems
+  integer(i4b)                   , public :: nHRU_mainstem        ! number of HRUs in mainstems
   integer(i4b)    , allocatable  , public :: basinID(:)           ! HRU id
   integer(i4b)    , allocatable  , public :: reachID(:)           ! reach id
 
@@ -78,7 +80,7 @@ module globalData
 
   ! I/O stuff
   logical(lgt)                   , public :: isFileOpen                ! flag to indicate output netcdf is open
-  integer(i4b)                   , public :: ixPrint(1:2)=integerMissing ! index of desired reach to be on-screen print
+  integer(i4b)                   , public :: ixPrint(1:2)=integerMissing    ! index of desired reach to be on-screen print
   ! ennsemble number (maybe to be removed)
   integer(i4b)                   , public :: nEns=1                    ! number of ensemble
 
@@ -149,6 +151,8 @@ module globalData
   TYPE(STRFLX)    , allocatable  , public :: RCHFLX(:,:)          ! Reach fluxes (ensembles, space [reaches]) for entire river network
   TYPE(STRSTA)    , allocatable  , public :: RCHSTA_trib(:,:)     ! Routing state variables (ensembles, space [reaches]) for tributary
   TYPE(STRFLX)    , allocatable  , public :: RCHFLX_trib(:,:)     ! Reach fluxes (ensembles, space [reaches]) for tributaries
+  TYPE(STRSTA)    , allocatable  , public :: RCHSTA_main(:,:)     ! Routing state variables (ensembles, space [reaches]) for mainstem
+  TYPE(STRFLX)    , allocatable  , public :: RCHFLX_main(:,:)     ! Reach fluxes (ensembles, space [reaches]) for mainstem
 
   ! lakes data structures
   TYPE(LAKPRP)    , allocatable  , public :: LPARAM(:)            ! Lake parameters
@@ -173,8 +177,9 @@ module globalData
   integer(i4b)    , allocatable  , public :: hru_per_proc(:)      ! number of hrus assigned to each proc (size = num of procs
   integer(i4b)    , allocatable  , public :: rch_per_proc(:)      ! number of reaches assigned to each proc (size = num of procs)
 
+  integer(i4b)    , allocatable  , public :: global_ix_main(:)    ! index array in mainstem array for tributary reach outlet (size = num of tributary outlets)
   integer(i4b)    , allocatable  , public :: global_ix_comm(:)    ! global index array for tributary reach outlet (size = num of tributary outlets)
-  integer(i4b)    , allocatable  , public :: local_ix_comm(:)     ! local index array for tributary reach outlet (size = num of tributary outlets)
+  integer(i4b)    , allocatable  , public :: local_ix_comm(:)     ! local index array for tributary reach outlet (size = num of tributary outlets per proc)
   integer(i4b)    , allocatable  , public :: tribOutlet_per_proc(:)! number of tributary outlet reaches assigned to each proc (size = num of procs)
 
 end module globalData
