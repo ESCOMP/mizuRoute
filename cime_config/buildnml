@@ -15,7 +15,9 @@ CIMEROOT = os.environ.get("CIMEROOT")
 if CIMEROOT is None:
     raise SystemExit("ERROR: must set CIMEROOT environment variable")
 sys.path.append(os.path.join(CIMEROOT, "scripts", "Tools"))
-sys.path.append(os.path.join("../../route/settings"))
+# Path for mizuRoute/route/settings for both a mizuRoute standalone checkout as well as a CESM checkout
+sys.path.append(os.path.join(CIMEROOT, "..", "route", "settings"))
+sys.path.append(os.path.join(CIMEROOT, "..", "components", "mizuRoute", "route", "settings"))
 
 from standard_script_setup import *
 from CIME.case import Case
