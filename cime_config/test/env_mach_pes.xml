@@ -1,21 +1,30 @@
 <?xml version="1.0"?>
 
-<config_definition>
+<file id="env_mach_pes.xml" version="2.0">
+  <header>
+  </header>
+  <comment>
+  </comment>
 
 <!--
 
 -->
+  <group id="all">
     <entry id="TOTALPES" value="72">
        <type>integer</type>
+       <desc></desc>
     </entry>
     <entry id="NINST_MAX" value="1">
        <type>integer</type>
+       <desc></desc>
     </entry>
     <entry id="MAX_TASKS_PER_NODE" value="36">
        <type>integer</type>
+       <desc></desc>
     </entry>
     <entry id="MAX_MPITASKS_PER_NODE" value="36">
        <type>integer</type>
+       <desc></desc>
     </entry>
     <entry id="FORCE_SPARE_NODES" value="-999">
       <type>integer</type>
@@ -30,6 +39,7 @@
         <value compclass="ROF">1</value>
         <value compclass="LND">1</value>
       </values>
+      <desc></desc>
     </entry>
 
     <entry id="NTASKS">
@@ -40,6 +50,7 @@
         <value compclass="ROF">-2</value>
         <value compclass="LND">-2</value>
       </values>
+      <desc></desc>
     </entry>
 
     <entry id="ROOTPE">
@@ -50,6 +61,7 @@
         <value compclass="ROF">0</value>
         <value compclass="LND">0</value>
       </values>
+      <desc></desc>
     </entry>
 
     <entry id="NINST">
@@ -59,6 +71,7 @@
         <value compclass="ROF">1</value>
         <value compclass="LND">1</value>
       </values>
+      <desc></desc>
     </entry>
 
     <entry id="PSTRID">
@@ -69,6 +82,8 @@
         <value compclass="ROF">1</value>
         <value compclass="LND">1</value>
       </values>
+      <desc></desc>
     </entry>
+  </group>
 
-</config_definition>
+</file>

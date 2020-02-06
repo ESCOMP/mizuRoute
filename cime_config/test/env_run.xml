@@ -1,12 +1,16 @@
 <?xml version="1.0"?>
 
-<config_definition>
+<file id="env_run.xml" version="2.0">
+  <header>
+  </header>
+
 
 <!--
 
 Sample env_run.xml file that allows buildnml to be run for testing in this directory.
 
 -->
+<group>
 <entry id="DIN_LOC_ROOT"         value="MYDINLOCROOT"  /> 
 
     <entry id="CASESTR" value="test">
@@ -33,5 +37,6 @@ Sample env_run.xml file that allows buildnml to be run for testing in this direc
     </entry>
     <entry id="ROF_DOMAIN_PATH" value="$DIN_LOC_ROOT/share/domains">
     </entry>
+</group>
 
-</config_definition>
+</file>
