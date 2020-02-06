@@ -1,5 +1,11 @@
 #!/bin/bash
-export CIMEROOT=`cd ../../cime;pwd`
+cd ../../cime
+if [ $? != 0 ]; then
+   cd ../../../../cime
+fi
+export CIMEROOT=`pwd`
+    
+cd -
 export PWD=`pwd`
 cp ../user_* .
 mkdir CaseDocs
