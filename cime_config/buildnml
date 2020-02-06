@@ -157,7 +157,7 @@ def buildnml(case, caseroot, compname):
         os.remove(data_list_path)
 
     #----------------------------------------------------
-    # Make sure only one instance is being run
+    # Do some checking
     #----------------------------------------------------
     expect( ninst == 1, "mizuRoute can only be run for a single instance" )
 
@@ -186,12 +186,13 @@ def buildnml(case, caseroot, compname):
 
     # copy control files to rundir
     if os.path.isdir(rundir):
-       for file in ["mizuRoute.control", "mizuRoute_in" ]:
-          file_src = os.path.join(confdir, file )
-          file_dest = os.path.join(rundir, file )
-          if inst_string:
-             file_dest += inst_string
-          shutil.copy(file_src, file_dest)
+       for destdir in [rundir, caseroot+"/CaseDocs"]:
+          for nfile in ["mizuRoute.control", "mizuRoute_in" ]:
+             file_src = os.path.join(confdir, nfile )
+             file_dest = os.path.join(destdir, nfile )
+             if inst_string:
+                file_dest += inst_string
+             shutil.copy(file_src, file_dest)
 
 ###############################################################################
 def _main_func():

@@ -34,6 +34,7 @@ def _main_func():
         gmake = case.get_value("GMAKE")
         driver = case.get_value("COMP_INTERFACE").lower()
 
+        expect( driver == "nuopc", "mizuRoute only has a nuopc COMP_INTERFACE" )
         #-------------------------------------------------------
         # create Filepath file
         #-------------------------------------------------------
@@ -42,7 +43,7 @@ def _main_func():
             caseroot = case.get_value("CASEROOT")
             paths = [os.path.join(caseroot,"SourceMods","src.mizuRoute"),
                      os.path.join(rof_root,"route","build","src"),
-                     os.path.join(rof_root,"route","build","cpl","nupopc")]
+                     os.path.join(rof_root,"route","build","cpl",driver)]
             with open(filepath_file, "w") as filepath:
                 filepath.write("\n".join(paths))
                 filepath.write("\n")
