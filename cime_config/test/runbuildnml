@@ -22,5 +22,5 @@ if [ $? != 0 ] ; then
 else
    cat Buildconf/mizurouteconf/mizuRoute*
 fi
-#rm -rf user_* run/* Buildconf/mizurouteconf/* Buildconf/* CaseDocs
+rm -rf user_* run/* Buildconf/mizurouteconf/* Buildconf/* CaseDocs
 echo "Successfully ran test"
