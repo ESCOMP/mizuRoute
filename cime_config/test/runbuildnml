@@ -1,12 +1,11 @@
 #!/bin/bash
-cd ../../cime
+cd ../../cime >& /dev/null
 if [ $? != 0 ]; then
    cd ../../../../cime
 fi
 export CIMEROOT=`pwd`
     
 cd -
-export PWD=`pwd`
 cp ../user_* .
 mkdir CaseDocs
 echo "Run the help option"
@@ -20,6 +19,8 @@ echo "Try a simple test"
 if [ $? != 0 ] ; then
    echo "test FAIL"
    exit -1
+else
+   cat Buildconf/mizurouteconf/mizuRoute*
 fi
-rm -rf user_* run/* Buildconf/mizurouteconf/* Buildconf/* CaseDocs
+#rm -rf user_* run/* Buildconf/mizurouteconf/* Buildconf/* CaseDocs
 echo "Successfully ran test"
