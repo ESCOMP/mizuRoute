@@ -66,6 +66,7 @@ def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_
     # Get some important values from the case
     #----------------------------------------------------
     rundir = case.get_value("RUNDIR")
+    dindir = case.get_value("DIN_LOC_ROOT")
     casename = case.get_value("CASE")
     run_type = case.get_value("RUN_TYPE")
     run_start = case.get_value("RUN_STARTDATE")
@@ -74,6 +75,8 @@ def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_
     #----------------------------------------------------
     ctl.set( "case_name", casename )
     ctl.set( "output_dir", rundir )
+    ctl.set( "ancil_dir", dindir+"/rof/mizuRoute/ancillary_data" )
+    ctl.set( "fname_ntopOld", "ntopo_HDMA_c20191025.nc" )
     ctl.set( "sim_start", run_start )
     ctl.set( "sim_end", "9999-12-31" )
     ctl.set( "param_nml", "mizuRoute_in" )

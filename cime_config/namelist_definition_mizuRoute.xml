@@ -44,7 +44,7 @@
   <!-- group HSLOPE                -->
   <!-- =========================== -->
 
-  <entry id="fshape" skip_default_entry="true">
+  <entry id="fshape">
     <type>real</type>
     <category>HSLOPE</category>
     <group>HSLOPE</group>
@@ -56,54 +56,69 @@
     </values>
   </entry>
 
-  <entry id="tscale" skip_default_entry="true">
+  <entry id="tscale">
     <type>real</type>
     <category>HSLOPE</category>
     <group>HSLOPE</group>
     <desc>
       scaling factor for the time delay histogram [sec]
     </desc>
+    <values>
+      <value>86400</value>
+    </values>
   </entry>
 
   <!-- =========================== -->
   <!-- group IRF_UH                -->
   <!-- =========================== -->
-  <entry id="velo" skip_default_entry="true">
+  <entry id="velo">
     <type>real</type>
     <category>IRF_UH</category>
     <group>IRF_UH</group>
     <desc>
       velocity [m/s] for Saint-Venant equation
     </desc>
+    <values>
+      <value>1.5</value>
+    </values>
   </entry>
-  <entry id="diff" skip_default_entry="true">
+  <entry id="diff">
     <type>real</type>
     <category>IRF_UH</category>
     <group>IRF_UH</group>
     <desc>
       diffusivity [m2/s] for Saint-Venant equation
     </desc>
+    <values>
+      <value>800.0</value>
+    </values>
   </entry>
 
 
   <!-- =========================== -->
   <!-- group KWT                   -->
   <!-- =========================== -->
-  <entry id="mann_n" skip_default_entry="true">
+  <entry id="mann_n">
     <type>real</type>
     <category>KWT</category>
     <group>KWT</group>
     <desc>
       velocity [m/s] for Saint-Venant equation
     </desc>
+    <values>
+      <value>0.01</value>
+    </values>
   </entry>
-  <entry id="wscale" skip_default_entry="true">
+  <entry id="wscale">
     <type>real</type>
     <category>KWT</category>
     <group>KWT</group>
     <desc>
       scaling factor for river width
     </desc>
+    <values>
+      <value>0.001</value>
+    </values>
   </entry>
 
 
