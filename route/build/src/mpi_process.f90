@@ -668,6 +668,11 @@ contains
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
+  ! no need for the entire domain flux/state data strucure
+  if (masterproc) then
+    deallocate(RCHFLX, RCHSTA)
+  end if
+
  end subroutine mpi_restart
 
  ! *********************************************************************
