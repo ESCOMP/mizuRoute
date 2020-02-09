@@ -25,9 +25,10 @@ CONTAINS
                       get_nc_dim_len
  USE dataTypes, ONLY: states
  ! meta data
- USE globalData, ONLY: meta_stateDims  ! dimension for state variables
- ! Named variables
  USE var_lookup, ONLY: ixStateDims, nStateDims
+ USE globalData, ONLY: meta_stateDims            ! dimension for state variables
+ USE globalData, ONLY: RCHFLX                    ! reach flux data structure for the entire domain
+ USE globalData, ONLY: RCHSTA                    ! reach state data structure for the entire domain
  USE globalData, ONLY: ixRch_order
 
  implicit none
@@ -68,6 +69,9 @@ CONTAINS
   end associate
  enddo
 
+ allocate(RCHFLX(nens,nSeg), RCHSTA(nens,nSeg), stat=ierr)
+ if(ierr/=0)then; message=trim(message)//'problem allocating [RCHFLX, RCHSTA]'; return; endif
+
  ! Read variables
  ! time bound
  call get_nc(fname,'time_bound',TB(:), 1, 2, ierr, cmessage)
@@ -93,8 +97,6 @@ CONTAINS
   SUBROUTINE read_IRFbas_state(ierr, message1)
   ! meta data
   USE globalData, ONLY: meta_irf_bas              ! basin IRF routing
-  ! State/flux data structures
-  USE globalData, ONLY: RCHFLX                    ! To get q future for basin IRF and IRF (these should not be in this data strucuture)
   ! Named variables
   USE var_lookup, ONLY: ixIRFbas, nVarsIRFbas
   implicit none
@@ -163,8 +165,6 @@ CONTAINS
   SUBROUTINE read_IRF_state(ierr, message1)
   ! meta data
   USE globalData,  ONLY: meta_irf               ! IRF routing
-  ! State/flux data structures
-  USE globalData,  ONLY: RCHFLX                 ! To get q future for basin IRF and IRF (these should not be in this data strucuture)
   ! Named variables
   USE var_lookup,  ONLY: ixIRF, nVarsIRF
   implicit none
@@ -241,8 +241,6 @@ CONTAINS
   SUBROUTINE read_KWT_state(ierr, message1)
   ! meta data
   USE globalData, ONLY: meta_kwt                  ! kwt routing
-  ! State/flux data structures
-  USE globalData, ONLY: RCHSTA                    ! routing state
   ! Named variables
   USE var_lookup, ONLY: ixKWT, nVarsKWT
   implicit none
