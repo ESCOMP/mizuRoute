@@ -1,32 +1,32 @@
 module alloc_data
 
 ! data types
-USE nrtype,    only : i4b,dp,lgt
-USE nrtype,    only : strLen               ! string length
-USE dataTypes, only : var_ilength          ! integer type:          var(:)%dat
-USE dataTypes, only : var_dlength          ! double precision type: var(:)%dat
-USE dataTypes, only : var_clength          ! character type:        var(:)%dat
-USE dataTypes, only : var_info             ! metadata
+USE nrtype,    ONLY: i4b,dp,lgt
+USE nrtype,    ONLY: strLen               ! string length
+USE dataTypes, ONLY: var_ilength          ! integer type:          var(:)%dat
+USE dataTypes, ONLY: var_dlength          ! double precision type: var(:)%dat
+USE dataTypes, ONLY: var_clength          ! character type:        var(:)%dat
+USE dataTypes, ONLY: var_info             ! metadata
 
 ! global data
 USE public_var
 
 ! metadata on data structures
-USE globalData, only : meta_struct         ! structure information
-USE globalData, only : meta_HRU            ! HRU properties
-USE globalData, only : meta_HRU2SEG        ! HRU-to-segment mapping
-USE globalData, only : meta_SEG            ! stream segment properties
-USE globalData, only : meta_NTOPO          ! network topology
-USE globalData, only : meta_PFAF           ! network topology
+USE globalData, ONLY: meta_struct         ! structure information
+USE globalData, ONLY: meta_HRU            ! HRU properties
+USE globalData, ONLY: meta_HRU2SEG        ! HRU-to-segment mapping
+USE globalData, ONLY: meta_SEG            ! stream segment properties
+USE globalData, ONLY: meta_NTOPO          ! network topology
+USE globalData, ONLY: meta_PFAF           ! network topology
 
 ! named variables
-USE var_lookup,only:ixStruct, nStructures  ! index of data structures
-USE var_lookup,only:ixDims,   nDimensions  ! index of dimensions
-USE var_lookup,only:ixHRU,    nVarsHRU     ! index of variables for the HRUs
-USE var_lookup,only:ixSEG,    nVarsSEG     ! index of variables for the stream segments
-USE var_lookup,only:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
-USE var_lookup,only:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
-USE var_lookup,only:ixPFAF,   nVarsPFAF    ! index of variables for the pfafstetter code
+USE var_lookup, ONLY: ixStruct, nStructures  ! index of data structures
+USE var_lookup, ONLY: ixDims,   nDimensions  ! index of dimensions
+USE var_lookup, ONLY: ixHRU,    nVarsHRU     ! index of variables for the HRUs
+USE var_lookup, ONLY: ixSEG,    nVarsSEG     ! index of variables for the stream segments
+USE var_lookup, ONLY: ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
+USE var_lookup, ONLY: ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
+USE var_lookup, ONLY: ixPFAF,   nVarsPFAF    ! index of variables for the pfafstetter code
 
 implicit none
 

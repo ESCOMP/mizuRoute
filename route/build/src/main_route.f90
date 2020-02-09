@@ -1,23 +1,26 @@
-module main_route_module
+MODULE main_route_module
 
 ! variable types
-USE nrtype                                                  ! variable types, etc.
+USE nrtype                                   ! variable types, etc.
 
 ! data structures
-USE dataTypes,           only : KREACH                      ! collection of particles in a given reach
-USE dataTypes,           only : STRFLX                      ! fluxes in each reach
-USE dataTypes,           only : RCHTOPO                     ! Network topology
-USE dataTypes,           only : RCHPRP                      ! Reach parameter
-USE dataTypes,           only : runoff                      ! runoff data type
-USE dataTypes,           only : subbasin_omp                ! mainstem+tributary data structures
+USE dataTypes, ONLY: STRSTA                  ! state in each reach
+USE dataTypes, ONLY: STRFLX                  ! fluxes in each reach
+USE dataTypes, ONLY: RCHTOPO                 ! Network topology
+USE dataTypes, ONLY: RCHPRP                  ! Reach parameter
+USE dataTypes, ONLY: runoff                  ! runoff data type
+USE dataTypes, ONLY: subbasin_omp            ! mainstem+tributary data structures
+
 ! mapping HRU runoff to reach
-USE remapping,           only : basin2reach
+USE remapping, ONLY: basin2reach
+
 ! subroutines: basin routing
-USE basinUH_module,      only : IRF_route_basin             ! perform UH convolution for basin routing
+USE basinUH_module, ONLY: IRF_route_basin    ! perform UH convolution for basin routing
+
 ! subroutines: river routing
-USE accum_runoff_module, only : accum_runoff                ! upstream flow accumulation
-USE kwt_route_module,    only : kwt_route                  ! kinematic wave routing method
-USE irf_route_module,    only : irf_route                  ! unit hydrograph (impulse response function) routing method
+USE accum_runoff_module, ONLY: accum_runoff  ! upstream flow accumulation
+USE kwt_route_module,    ONLY: kwt_route     ! kinematic wave routing method
+USE irf_route_module,    ONLY: irf_route     ! unit hydrograph (impulse response function) routing method
 
 implicit none
 
@@ -25,12 +28,12 @@ private
 
 public::main_route
 
-contains
+CONTAINS
 
  ! ******
  ! public subroutine: main HRU/reach routing routines
  ! ************************
- subroutine main_route(&
+ SUBROUTINE main_route(&
                        ! input
                        iens,           &  ! ensemble index
                        basinRunoff_in, &  ! basin (i.e.,HRU) runoff (m/s)
@@ -38,49 +41,50 @@ contains
                        river_basin,    &  ! OMP basin decomposition
                        NETOPO_in,      &  ! reach topology data structure
                        RPARAM_in,      &  ! reach parameter data structure
+                       ixDesire,       &  ! index of verbose reach
                        ! inout
                        RCHFLX_out,     &  ! reach flux data structure
-                       KROUTE_out,     &  ! reach state data structure
+                       RCHSTA_out,     &  ! reach state data structure
                        ! output: error handling
                        ierr, message)     ! output: error control
+
    ! Details:
    ! Given HRU (basin) runoff, perform hru routing (optional) to get reach runoff, and then channel routing
    ! Restriction:
-   ! 1. Reach order in NETOPO_in, RPARAM_in, RCHFLX_out, KROUTE_out must be in the same orders
+   ! 1. Reach order in NETOPO_in, RPARAM_in, RCHFLX_out, RCHSTA_out must be in the same orders
    ! 2. Process a list of reach indices (in terms of NETOPO_in etc.) given by ixRchProcessed
    ! 3. basinRunoff_in is given in the order of NETOPO_in(:)%HRUIX.
 
-   ! shared data
-   USE public_var, only : routOpt
-   USE public_var, only : doesBasinRoute
-   USE public_var, only : doesAccumRunoff
-   USE public_var, only : allRoutingMethods
-   USE public_var, only : kinematicWave
-   USE public_var, only : impulseResponseFunc
-   USE globalData, only : TSEC                    ! beginning/ending of simulation time step [sec]
-   USE globalData, only : ixPrint                 ! desired reach index to be on-screen print
+   USE public_var, ONLY: routOpt
+   USE public_var, ONLY: doesBasinRoute
+   USE public_var, ONLY: doesAccumRunoff
+   USE public_var, ONLY: allRoutingMethods
+   USE public_var, ONLY: kinematicWave
+   USE public_var, ONLY: impulseResponseFunc
+   USE globalData, ONLY: TSEC                    ! beginning/ending of simulation time step [sec]
 
    implicit none
 
    ! input
-   integer(i4b),               intent(in)    :: iens                 ! ensemble member
-   real(dp),      allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
-   integer(i4b),  allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
+   integer(i4b),                    intent(in)    :: iens                 ! ensemble member
+   real(dp),           allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
+   integer(i4b),       allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
    type(subbasin_omp), allocatable, intent(in)    :: river_basin(:)       ! OMP basin decomposition
-   type(RCHTOPO), allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology
-   type(RCHPRP),  allocatable, intent(in)    :: RPARAM_in(:)         ! River reach parameter
+   type(RCHTOPO),      allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology
+   type(RCHPRP),       allocatable, intent(in)    :: RPARAM_in(:)         ! River reach parameter
+   integer(i4b),                    intent(in)    :: ixDesire             ! index of the reach for verbose output
    ! inout
-   TYPE(STRFLX),  allocatable, intent(inout) :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
-   TYPE(KREACH),  allocatable, intent(inout) :: KROUTE_out(:,:)      ! reach state data structure
+   type(STRFLX),       allocatable, intent(inout) :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+   type(STRSTA),       allocatable, intent(inout) :: RCHSTA_out(:,:)      ! reach state data structure
    ! output
-   integer(i4b),               intent(out)   :: ierr                 ! error code
-   character(len=strLen),      intent(out)   :: message              ! error message
+   integer(i4b),                    intent(out)   :: ierr                 ! error code
+   character(len=strLen),           intent(out)   :: message              ! error message
    ! local variables
-   character(len=strLen)                     :: cmessage             ! error message of downwind routine
-   real(dp)                                  :: T0,T1                ! beginning/ending of simulation time step [sec]
-   real(dp),      allocatable                :: reachRunoff_local(:) ! reach runoff (m/s)
-   integer(i4b)                              :: nSeg                 ! number of reach to be processed
-   integer(i4b)                              :: iSeg                 ! index of reach
+   character(len=strLen)                          :: cmessage             ! error message of downwind routine
+   real(dp)                                       :: T0,T1                ! beginning/ending of simulation time step [sec]
+   real(dp),           allocatable                :: reachRunoff_local(:) ! reach runoff (m/s)
+   integer(i4b)                                   :: nSeg                 ! number of reach to be processed
+   integer(i4b)                                   :: iSeg                 ! index of reach
 
    ! initialize errors
    ierr=0; message = "main_routing/"
@@ -129,7 +133,7 @@ contains
    if (doesAccumRunoff == 1) then
      call accum_runoff(iens,              &  ! input: ensemble index
                        river_basin,       &  ! input: river basin data type
-                       ixPrint,           &  ! input: index of verbose reach
+                       ixDesire,          &  ! input: index of verbose reach
                        NETOPO_in,         &  ! input: reach topology data structure
                        RCHFLX_out,        &  ! inout: reach flux data structure
                        ierr, cmessage,    &  ! output: error controls
@@ -142,10 +146,10 @@ contains
     call kwt_route(iens,                 & ! input: ensemble index
                    river_basin,          & ! input: river basin data type
                    T0,T1,                & ! input: start and end of the time step
-                   ixPrint,              & ! input: index of the desired reach
+                   ixDesire,             & ! input: index of verbose reach
                    NETOPO_in,            & ! input: reach topology data structure
                    RPARAM_in,            & ! input: reach parameter data structure
-                   KROUTE_out,           & ! inout: reach state data structure
+                   RCHSTA_out,           & ! inout: reach state data structure
                    RCHFLX_out,           & ! inout: reach flux data structure
                    ierr,cmessage,        & ! output: error control
                    ixRchProcessed)         ! optional input: indices of reach to be routed
@@ -156,7 +160,7 @@ contains
    if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
     call irf_route(iens,                & ! input: ensemble index
                    river_basin,         & ! input: river basin data type
-                   ixPrint,             & ! input: index of the desired reach
+                   ixDesire,            & ! input: index of verbose reach
                    NETOPO_in,           & ! input: reach topology data structure
                    RCHFLX_out,          & ! inout: reach flux data structure
                    ierr,cmessage,       & ! output: error control
@@ -164,7 +168,6 @@ contains
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    endif
 
- end subroutine main_route
+ END SUBROUTINE main_route
 
-
-end module main_route_module
+END MODULE main_route_module

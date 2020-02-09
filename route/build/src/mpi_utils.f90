@@ -3,12 +3,12 @@ Module mpi_mod
   ! PURPOSE: general layer on MPI functions
   !-------------------------------------------------------------------------------
   USE mpi
-
   USE nrtype
-  USE globalData,  ONLY: pid, nNodes
-  USE globalData,  ONLY: mpicom_route
-  USE public_var,  ONLY: root
-  USE public_var,  ONLY: iulog
+  USE globalData, ONLY: pid, nNodes
+  USE globalData, ONLY: mpicom_route
+  USE globalData, ONLY: masterproc
+  USE public_var, ONLY: root
+  USE public_var, ONLY: iulog
 
   implicit none
   private
@@ -78,7 +78,7 @@ CONTAINS
 
     ierr=0; message='shr_mpi_bcastInt/'
 
-    if (pid == root) then ! this is a root process
+    if (masterproc) then
 
       bound = (/lbound(allocArray), ubound(allocArray)/)
 
@@ -126,7 +126,7 @@ CONTAINS
 
     ierr=0; message='shr_mpi_bcastReal/'
 
-    if (pid == root) then ! this is a root process
+    if (masterproc) then
 
       bound = (/lbound(allocArray), ubound(allocArray)/)
 
@@ -175,7 +175,7 @@ CONTAINS
     ierr=0; message='shr_mpi_bcastLogical/'
 
     ! send allocatable arrays
-    if (pid == root) then ! this is a root process
+    if (masterproc) then
 
       bound = (/lbound(allocArray), ubound(allocArray)/)
 
@@ -804,7 +804,6 @@ CONTAINS
     character(strLen)                  :: errMsg
     integer(i4b)                       :: errLen
     integer(i4b)                       :: jerr
-    integer(i4b)                       :: comm_tmp
 
     !-------------------------------------------------------------------------------
     ! PURPOSE: layer on MPI error checking
@@ -818,11 +817,10 @@ CONTAINS
         cmessage = trim(subName)//errMsg(1:errLen)
       endif
       if (present(comm)) then
-        comm_tmp = comm
+        call shr_mpi_abort(cmessage, ierr, comm)
       else
-        comm_tmp = 100
+        call shr_mpi_abort(cmessage, ierr)
       endif
-        call shr_mpi_abort(comm_tmp, cmessage, ierr)
     endif
 
   END SUBROUTINE shr_mpi_chkerr
@@ -830,14 +828,14 @@ CONTAINS
   !===============================================================================
   !===============================================================================
 
-  SUBROUTINE shr_mpi_abort(comm, message, ierr)
+  SUBROUTINE shr_mpi_abort(message, ierr, comm)
 
     IMPLICIT none
 
     !----- arguments ---
-    integer(i4b), intent(in)    :: comm     ! communicator
-    character(*), intent(in)    :: message  ! message
-    integer(i4b), intent(in)    :: ierr     ! error code
+    character(*),           intent(in) :: message  ! message
+    integer(i4b),           intent(in) :: ierr     ! error code
+    integer(i4b), optional, intent(in) :: comm     ! communicator
 
     !----- local ---
     character(strLen),parameter :: subName = 'shr_mpi_abort/'
@@ -848,8 +846,13 @@ CONTAINS
     !-------------------------------------------------------------------------------
 
     write(iulog,*) trim(subName),trim(message),ierr
+    call flush(6)
 
-    call MPI_ABORT(comm, ierr, jerr)
+    if (present(comm)) then
+      call MPI_ABORT(comm, ierr, jerr)
+    else
+      call MPI_ABORT(MPI_COMM_WORLD, ierr, jerr)
+    endif
 
     stop
 
@@ -859,7 +862,7 @@ CONTAINS
   !===============================================================================
 
   SUBROUTINE mpi_handle_err(ierr,pid)
-  ! handle MPI error codes
+  ! handle non-MPI error codes
   implicit none
   ! arguments
   integer(i4b),intent(in):: ierr   ! error code

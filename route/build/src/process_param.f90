@@ -3,8 +3,8 @@ module routing_param
 !numeric type
 USE nrtype
 ! global parameters
-USE public_var,         only : realMissing    ! missing value for real number
-USE public_var,         only : integerMissing ! missing value for integer number
+USE public_var, ONLY: realMissing    ! missing value for real number
+USE public_var, ONLY: integerMissing ! missing value for integer number
 
 ! privary
 implicit none
@@ -30,8 +30,8 @@ contains
   ! -----------------
   ! MODULE reach_flux -- runoff fractions stored in FRAC_FUTURE(:)
   ! ---------------------------------------------------------------------------------------
-  USE gamma_func_module, ONLY : gammp                   ! interface for the incomplete gamma function
-  USE globalData,        ONLY : FRAC_FUTURE             ! fraction of runoff in future time steps
+  USE gamma_func_module, ONLY: gammp                   ! interface for the incomplete gamma function
+  USE globalData,        ONLY: FRAC_FUTURE             ! fraction of runoff in future time steps
   IMPLICIT NONE
   ! input
   REAL(DP), INTENT(IN)                   :: dt          ! model time step
@@ -59,19 +59,29 @@ contains
   ! use a Gamma distribution with shape parameter, fshape = 2.5, and time parameter, tscale, input
   alamb = fshape/tscale                  ! scale parameter
   ! find the desired number of future time steps
-  ntdh_min = 1._dp
-  ntdh_max = 1000._dp
-  ntdh_try = 0.5_dp*(ntdh_min + ntdh_max)
-  do itry=1,maxtry
-   x_value = alamb*dt*ntdh_try
-   cumprob = gammp(fshape, x_value)
-   if(cumprob < 0.99_dp)  ntdh_min = ntdh_try
-   if(cumprob > 0.999_dp) ntdh_max = ntdh_try
-   if(cumprob > 0.99_dp .and. cumprob < 0.999_dp) exit
+  ! check if the cummulative Gamma distribution is close to 1.00 for given model time step, tscale and fsahpe.
+  X_VALUE = alamb*dt
+  cumprob = gammp(fshape, X_VALUE)
+  if(cumprob > 0.999_dp) then
+   !print*, cumprob, X_VALUE
+   ntdh_try = 1.999_dp
+  else
+   ntdh_min = 1._dp
+   ntdh_max = 1000._dp
    ntdh_try = 0.5_dp*(ntdh_min + ntdh_max)
-   if(itry==maxtry)then; ierr=20; message=trim(message)//'cannot identify the maximum number of bins for the tdh'; return; endif
-  end do
+   do itry=1,maxtry
+    x_value = alamb*dt*ntdh_try
+    cumprob = gammp(fshape, x_value)
+    !print*, tscale, ntdh_try, cumprob, x_value, itry
+    if(cumprob < 0.99_dp)  ntdh_min = ntdh_try
+    if(cumprob > 0.999_dp) ntdh_max = ntdh_try
+    if(cumprob > 0.99_dp .and. cumprob < 0.999_dp) exit
+    ntdh_try = 0.5_dp*(ntdh_min + ntdh_max)
+    if(itry==maxtry)then; ierr=20; message=trim(message)//'cannot identify the maximum number of bins for the tdh'; return; endif
+   end do
+  endif
   ntdh = ceiling(ntdh_try)
+  !print*, ntdh
   ! allocate space for the time-delay histogram
   if (.not.allocated(FRAC_FUTURE)) then
     allocate(FRAC_FUTURE(ntdh), stat=ierr)
@@ -114,8 +124,8 @@ contains
  !
  ! ----------------------------------------------------------------------------------------
   ! global variables
-  USE public_var, only : pi      ! pi
-  USE dataTypes,  only : dlength
+  USE public_var, ONLY: pi      ! pi
+  USE dataTypes,  ONLY: dlength
   implicit none
   ! input variables
   real(dp),                      intent(in)   :: length(:)     ! river segment length

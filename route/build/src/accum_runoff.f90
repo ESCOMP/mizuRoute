@@ -4,8 +4,8 @@ USE nrtype
 USE public_var
 
 ! data type
-USE dataTypes,          only : STRFLX         ! fluxes in each reach
-USE dataTypes,          only : RCHTOPO        ! Network topology
+USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
+USE dataTypes, ONLY: RCHTOPO        ! Network topology
 
 implicit none
 
@@ -20,7 +20,7 @@ CONTAINS
  ! ---------------------------------------------------------------------------------------
  SUBROUTINE accum_runoff(iEns,          & ! input: index of runoff ensemble to be processed
                          river_basin,   & ! input: river basin information (mainstem, tributary outlet etc.)
-                         ixDesire,      & ! input: ReachID to be checked by on-screen printing
+                         ixDesire,      & ! input: index of verbose reach
                          NETOPO_in,     & ! input: reach topology data structure
                          RCHFLX_out,    & ! inout: reach flux data structure
                          ierr, message, & ! output: error controls
@@ -33,7 +33,8 @@ CONTAINS
  !
  ! ----------------------------------------------------------------------------------------
 
- USE dataTypes,         ONLY: subbasin_omp   ! mainstem+tributary data structures
+ USE dataTypes,   ONLY: subbasin_omp   ! mainstem+tributary data structures
+ USE model_utils, ONLY: handle_err
 
  implicit none
  ! input
@@ -107,7 +108,7 @@ CONTAINS
        if (.not. doRoute(jSeg)) cycle
 
        call accum_qupstream(iens, jSeg, ixDesire, NETOPO_in, RCHFLX_out, ierr, cmessage)
-       !if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
 
      end do
    end do
@@ -126,7 +127,7 @@ CONTAINS
  ! *********************************************************************
  subroutine accum_qupstream(iEns,       &    ! input: index of runoff ensemble to be processed
                             segIndex,   &    ! input: index of reach to be processed
-                            ixDesire,   &    ! input: reachID to be checked by on-screen pringing
+                            ixDesire,   &    ! input: index of verbose reach
                             NETOPO_in,  &    ! input: reach topology data structure
                             RCHFLX_out, &    ! inout: reach flux data structure
                             ierr, message)   ! output: error control
@@ -172,11 +173,10 @@ CONTAINS
 
  ! check
  if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
-  associate( ixUpstream => NETOPO_in(segIndex)%RCHLIST)
-  write(iulog,*) 'ixUpstream = ', NETOPO_in(ixUpstream(1:size(ixUpstream)))%REACHIX
-  write(iulog,*) 'idUpstream = ', NETOPO_in(ixUpstream(1:size(ixUpstream)))%REACHID
-  end associate
-  write(iulog,*) 'RCHFLX_out%UPSTREAM_QI = ', RCHFLX_out(iens,segIndex)%UPSTREAM_QI
+  write(iulog,*) 'CHECK ACCUM_RUNOFF'
+  write(iulog,*) ' UREACHK, uprflux = ', (NETOPO_in(segIndex)%UREACHK(iUps), uprflux(iUps), iUps=1,nUps)
+  write(iulog,*) ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1) = ', RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+  write(iulog,*) ' RCHFLX_out%UPSTREAM_QI = ', RCHFLX_out(iens,segIndex)%UPSTREAM_QI
  endif
 
  end subroutine accum_qupstream

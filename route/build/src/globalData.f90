@@ -1,76 +1,102 @@
 module globalData
-  ! This module includes global data structures
+  ! This module includes shared data
 
-  use public_var, only : integerMissing
-  use public_var, only : maxDomain
+  USE public_var, ONLY: integerMissing
+  USE public_var, ONLY: maxDomain
 
   ! data types
-  use nrtype
+  USE nrtype
 
   ! metadata types
-  use dataTypes,  only : struct_info   ! metadata type
-  use dataTypes,  only : dim_info      ! metadata type
-  use dataTypes,  only : var_info      ! metadata type
+  USE dataTypes, ONLY: struct_info   ! metadata type
+  USE dataTypes, ONLY: dim_info      ! metadata type
+  USE dataTypes, ONLY: var_info      ! metadata type
 
   ! parameter structures
-  USE dataTypes,  only : RCHPRP        ! Reach parameters (properties)
-  USE dataTypes,  only : RCHTOPO       ! Network topology
+  USE dataTypes, ONLY: RCHPRP        ! Reach parameters (properties)
+  USE dataTypes, ONLY: RCHTOPO       ! Network topology
 
   ! routing structures
-  USE dataTypes,  only : KREACH        ! Collection of flow particles in each reach
-  USE dataTypes,  only : STRFLX        ! fluxes in each reach
+  USE dataTypes, ONLY: STRFLX        ! fluxes in each reach
+  USE dataTypes, ONLY: STRSTA        ! states in each reach
 
   ! lake structures
-  USE dataTypes,  only : LAKPRP        ! lake properties
-  USE dataTypes,  only : LAKTOPO       ! lake topology
-  USE dataTypes,  only : LKFLX         ! lake fluxes
+  USE dataTypes, ONLY: LAKPRP        ! lake properties
+  USE dataTypes, ONLY: LAKTOPO       ! lake topology
+  USE dataTypes, ONLY: LKFLX         ! lake fluxes
 
   ! remapping structures
-  use dataTypes,  only : remap         ! remapping data type
-  use dataTypes,  only : runoff        ! runoff data type
+  USE dataTypes, ONLY: remap         ! remapping data type
+  USE dataTypes, ONLY: runoff        ! runoff data type
 
   ! basin data structure
-  use dataTypes,  only : subbasin_omp  ! mainstem+tributary data structures
-  use dataTypes,  only : subbasin_mpi  ! reach category (store mainstem code or pfaf code)
+  USE dataTypes, ONLY: subbasin_omp  ! mainstem+tributary data structures
+  USE dataTypes, ONLY: subbasin_mpi  ! reach category (store mainstem code or pfaf code)
 
   ! time data structure
-  use dataTypes,  only : time         ! time data
+  USE dataTypes, ONLY: time         ! time data
 
   ! data size
-  USE var_lookup, only : nStructures   ! number of variables for data structure
-  USE var_lookup, only : nDimensions   ! number of variables for data structure
-  USE var_lookup, only : nStateDims    ! number of variables for data structure
-  USE var_lookup, only : nQdims        ! number of variables for data structure
-  USE var_lookup, only : nVarsHRU      ! number of variables for data structure
-  USE var_lookup, only : nVarsHRU2SEG  ! number of variables for data structure
-  USE var_lookup, only : nVarsSEG      ! number of variables for data structure
-  USE var_lookup, only : nVarsNTOPO    ! number of variables for data structure
-  USE var_lookup, only : nVarsPFAF     ! number of variables for data structure
-  USE var_lookup, only : nVarsIRFbas   ! number of variables for data structure
-  USE var_lookup, only : nVarsIRF      ! number of variables for data structure
-  USE var_lookup, only : nVarsKWT      ! number of variables for data structure
+  USE var_lookup, ONLY: nStructures   ! number of variables for data structure
+  USE var_lookup, ONLY: nDimensions   ! number of variables for data structure
+  USE var_lookup, ONLY: nStateDims    ! number of variables for data structure
+  USE var_lookup, ONLY: nQdims        ! number of variables for data structure
+  USE var_lookup, ONLY: nVarsHRU      ! number of variables for data structure
+  USE var_lookup, ONLY: nVarsHRU2SEG  ! number of variables for data structure
+  USE var_lookup, ONLY: nVarsSEG      ! number of variables for data structure
+  USE var_lookup, ONLY: nVarsNTOPO    ! number of variables for data structure
+  USE var_lookup, ONLY: nVarsPFAF     ! number of variables for data structure
+  USE var_lookup, ONLY: nVarsRFLX     ! number of variables for data structure
+  USE var_lookup, ONLY: nVarsIRFbas   ! number of variables for data structure
+  USE var_lookup, ONLY: nVarsIRF      ! number of variables for data structure
+  USE var_lookup, ONLY: nVarsKWT      ! number of variables for data structure
 
   implicit none
 
   save
 
-  ! ---------- MPI/OMP variables -------------------------------------------------------------------
+  ! ---------- Catchment and reach IDs  -------------------------------------------------------------------------
 
-  integer(i4b)                  :: mpicom_route        ! communicator for this program
-  integer(i4b)                  :: pid                 ! process id
-  integer(i4b)                  :: nNodes              ! number of nodes
-  integer(i4b)                  :: nThreads            ! number of threads
+  integer(i4b)                   , public :: nHRU                 ! number of HRUs in the whole river network
+  integer(i4b)                   , public :: nContribHRU          ! number of HRUs that are connected to any reaches
+  integer(i4b)                   , public :: nRch                 ! number of reaches in the whole river network
+  integer(i4b)                   , public :: nRch_mainstem        ! number of reaches in mainstems
+  integer(i4b)                   , public :: nHRU_mainstem        ! number of HRUs in mainstems
+  integer(i4b)    , allocatable  , public :: basinID(:)           ! HRU id
+  integer(i4b)    , allocatable  , public :: reachID(:)           ! reach id
 
-  ! ---------- constants ----------------------------------------------------------------------------
+  ! ---------- Data/Time data  -------------------------------------------------------------------------
 
-  ! true/false
-  integer(i4b)      , parameter  , public :: true=1001                  ! true
-  integer(i4b)      , parameter  , public :: false=1002                 ! false
+  integer(i4b)                   , public :: iTime                ! time index at simulation time step
+  real(dp)                       , public :: startJulday          ! julian day: start of routing simulation
+  real(dp)                       , public :: endJulday            ! julian day: end of routing simulation
+  real(dp)                       , public :: refJulday            ! julian day: reference
+  real(dp)                       , public :: modJulday            ! julian day: simulation time step
+  real(dp)        , allocatable  , public :: timeVar(:)           ! time variables (unit given by runoff data)
+  real(dp)                       , public :: TSEC(0:1)            ! begning and end of time step (sec)
+  type(time)                     , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
 
-  ! variable types
-  integer(i4b)      , parameter  , public :: varType_integer   = 1001   ! named variable for an integer
-  integer(i4b)      , parameter  , public :: varType_double    = 1002   ! named variable for a double precision
-  integer(i4b)      , parameter  , public :: varType_character = 1003   ! named variable for a double precision
+  ! ---------- Misc. data -------------------------------------------------------------------------
+
+  ! I/O stuff
+  logical(lgt)                   , public :: isFileOpen                ! flag to indicate output netcdf is open
+  integer(i4b)                   , public :: ixPrint(1:2)=integerMissing    ! index of desired reach to be on-screen print
+  ! ennsemble number (maybe to be removed)
+  integer(i4b)                   , public :: nEns=1                    ! number of ensemble
+
+  ! ---------- MPI/OMP/PIO variables ----------------------------------------------------------------
+
+  integer(i4b)                   , public :: mpicom_route              ! communicator for this program
+  integer(i4b)                   , public :: pid                       ! process id
+  integer(i4b)                   , public :: nNodes                    ! number of nodes
+  integer(i4b)                   , public :: nThreads                  ! number of threads
+  logical(lgt)                   , public :: masterproc                ! root logical. root processor => true, other => false
+  character(len=strLen)          , public :: pio_netcdf_format = "64bit_offset"
+  character(len=strLen)          , public :: pio_typename      = "pnetcdf"
+  integer(i4b)                   , public :: pio_numiotasks    = -99
+  integer(i4b)                   , public :: pio_rearranger    = 2     ! 0=>PIO_rearr_none 1=> PIO_rearr_box 2=> PIO_rearr_subset
+  integer(i4b)                   , public :: pio_root          = 1
+  integer(i4b)                   , public :: pio_stride        = 1
 
   ! ---------- conversion factors -------------------------------------------------------------------
 
@@ -79,7 +105,7 @@ module globalData
   real(dp)                       , public :: length_conv                ! length conversion factor -- used to convert to mm/s
 
   ! ---------- routing parameter names -------------------------------------------------------------------
-
+  ! spatial constant ....
   real(dp)                       , public :: fshape                     ! shape parameter in time delay histogram (=gamma distribution) [-]
   real(dp)                       , public :: tscale                     ! scaling factor for the time delay histogram [sec]
   real(dp)                       , public :: velo                       ! velocity [m/s] for Saint-Venant equation   added by NM
@@ -102,30 +128,12 @@ module globalData
   type(var_info)                 , public :: meta_SEG    (nVarsSEG    ) ! stream segment properties
   type(var_info)                 , public :: meta_NTOPO  (nVarsNTOPO  ) ! network topology
   type(var_info)                 , public :: meta_PFAF   (nVarsPFAF   ) ! pfafstetter code
+  type(var_info)                 , public :: meta_rflx   (nVarsRFLX )   ! reach flux variables
   type(var_info)                 , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
   type(var_info)                 , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
   type(var_info)                 , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
 
-  ! ---------- data structures ----------------------------------------------------------------------
-  integer(i4b)                   , public :: nEns=1               ! number of ensemble
-  ! number of spatial elements
-  integer(i4b)                   , public :: nHRU                 ! number of HRUs in the whole river network
-  integer(i4b)                   , public :: nContribHRU          ! number of HRUs that are connected to any reaches
-  integer(i4b)                   , public :: nRch                 ! number of reaches in the whole river network
-
-  ! basin and reach IDs (to be removed)
-  integer(i4b)    , allocatable  , public :: basinID(:)           ! HRU id
-  integer(i4b)    , allocatable  , public :: reachID(:)           ! reach id
-
-  ! DataTime data/variables
-  integer(i4b)                   , public :: iTime                ! time index at simulation time step
-  real(dp)                       , public :: startJulday          ! julian day: start of routing simulation
-  real(dp)                       , public :: endJulday            ! julian day: end of routing simulation
-  real(dp)                       , public :: refJulday            ! julian day: reference
-  real(dp)                       , public :: modJulday            ! julian day: simulation time step
-  real(dp)        , allocatable  , public :: timeVar(:)           ! time variables (unit given by runoff data)
-  real(dp)                       , public :: TSEC(0:1)            ! begning and end of time step (sec)
-  type(time)                     , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
+  ! ---------- shared data structures ----------------------------------------------------------------------
 
   ! river topology and parameter structures
   type(RCHPRP)    , allocatable  , public :: RPARAM(:)            ! Reach Parameters for whole domain
@@ -136,13 +144,15 @@ module globalData
   type(RCHTOPO)   , allocatable  , public :: NETOPO_main(:)       ! River Network topology for mainstems
 
   ! time delay histogram
-  REAL(DP)        , ALLOCATABLE  , public :: FRAC_FUTURE(:)       ! fraction of runoff in future time steps
+  REAL(DP)        , allocatable  , public :: FRAC_FUTURE(:)       ! fraction of runoff in future time steps
 
   ! routing data structures
-  TYPE(KREACH)    , allocatable  , public :: KROUTE(:,:)          ! Routing state variables (ensembles, space [reaches]) for the entire river network
+  TYPE(STRSTA)    , allocatable  , public :: RCHSTA(:,:)          ! Routing state variables (ensembles, space [reaches]) for the entire river network
   TYPE(STRFLX)    , allocatable  , public :: RCHFLX(:,:)          ! Reach fluxes (ensembles, space [reaches]) for entire river network
-  TYPE(KREACH)    , allocatable  , public :: KROUTE_trib(:,:)     ! Routing state variables (ensembles, space [reaches]) for tributary
+  TYPE(STRSTA)    , allocatable  , public :: RCHSTA_trib(:,:)     ! Routing state variables (ensembles, space [reaches]) for tributary
   TYPE(STRFLX)    , allocatable  , public :: RCHFLX_trib(:,:)     ! Reach fluxes (ensembles, space [reaches]) for tributaries
+  TYPE(STRSTA)    , allocatable  , public :: RCHSTA_main(:,:)     ! Routing state variables (ensembles, space [reaches]) for mainstem
+  TYPE(STRFLX)    , allocatable  , public :: RCHFLX_main(:,:)     ! Reach fluxes (ensembles, space [reaches]) for mainstem
 
   ! lakes data structures
   TYPE(LAKPRP)    , allocatable  , public :: LPARAM(:)            ! Lake parameters
@@ -167,14 +177,9 @@ module globalData
   integer(i4b)    , allocatable  , public :: hru_per_proc(:)      ! number of hrus assigned to each proc (size = num of procs
   integer(i4b)    , allocatable  , public :: rch_per_proc(:)      ! number of reaches assigned to each proc (size = num of procs)
 
+  integer(i4b)    , allocatable  , public :: global_ix_main(:)    ! index array in mainstem array for tributary reach outlet (size = num of tributary outlets)
   integer(i4b)    , allocatable  , public :: global_ix_comm(:)    ! global index array for tributary reach outlet (size = num of tributary outlets)
-  integer(i4b)    , allocatable  , public :: local_ix_comm(:)     ! local index array for tributary reach outlet (size = num of tributary outlets)
+  integer(i4b)    , allocatable  , public :: local_ix_comm(:)     ! local index array for tributary reach outlet (size = num of tributary outlets per proc)
   integer(i4b)    , allocatable  , public :: tribOutlet_per_proc(:)! number of tributary outlet reaches assigned to each proc (size = num of procs)
-
-  ! I/O stuff
-  logical(lgt)                   , public :: isFileOpen            ! flag to indicate output netcdf is open
-
-  ! miscellaneous
-  integer(i4b)                   , public :: ixPrint=integerMissing   ! index of desired reach to be on-screen print
 
 end module globalData

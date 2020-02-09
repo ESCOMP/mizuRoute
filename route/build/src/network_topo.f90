@@ -1,32 +1,32 @@
 MODULE network_topo
 
 ! data types
-USE nrtype,    only : i4b,dp,lgt
-USE nrtype,    only : strLen         ! length of a string
-USE dataTypes, only : var_ilength    ! integer type:          var(:)%dat
-USE dataTypes, only : var_dlength    ! double precision type: var(:)%dat
+USE nrtype,    ONLY: i4b,dp,lgt
+USE nrtype,    ONLY: strLen         ! length of a string
+USE dataTypes, ONLY: var_ilength    ! integer type:          var(:)%dat
+USE dataTypes, ONLY: var_dlength    ! double precision type: var(:)%dat
 
 ! public parameters
-USE public_var,only : iulog          ! i/o logical unit number
+USE public_var, ONLY: iulog          ! i/o logical unit number
 
 ! metadata on data structures
-USE globalData, only : meta_struct  ! structure information
-USE globalData, only : meta_HRU     ! HRU properties
-USE globalData, only : meta_HRU2SEG ! HRU-to-segment mapping
-USE globalData, only : meta_SEG     ! stream segment properties
-USE globalData, only : meta_NTOPO   ! network topology
+USE globalData, ONLY: meta_struct  ! structure information
+USE globalData, ONLY: meta_HRU     ! HRU properties
+USE globalData, ONLY: meta_HRU2SEG ! HRU-to-segment mapping
+USE globalData, ONLY: meta_SEG     ! stream segment properties
+USE globalData, ONLY: meta_NTOPO   ! network topology
 
 ! named variables
-USE globalData, only : true,false   ! named integers for true/false
-USE public_var, only : verySmall    ! a very small value
-USE public_var, only : integerMissing
+USE public_var, ONLY: true,false      ! named integers for true/false
+USE public_var, ONLY: verySmall       ! a very small value
+USE public_var, ONLY: integerMissing
 
 ! named variables
-USE var_lookup,only:ixStruct, nStructures  ! index of data structures
-USE var_lookup,only:ixHRU,    nVarsHRU     ! index of variables for the HRUs
-USE var_lookup,only:ixSEG,    nVarsSEG     ! index of variables for the stream segments
-USE var_lookup,only:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
-USE var_lookup,only:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
+USE var_lookup, ONLY:ixStruct, nStructures  ! index of data structures
+USE var_lookup, ONLY:ixHRU,    nVarsHRU     ! index of variables for the HRUs
+USE var_lookup, ONLY:ixSEG,    nVarsSEG     ! index of variables for the stream segments
+USE var_lookup, ONLY:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
+USE var_lookup, ONLY:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
 
 ! external utilities
 USE nr_utility_module, ONLY: findIndex     ! Num. Recipies utilities
@@ -628,7 +628,7 @@ contains
  ! *********************************************************************
  ! new subroutine: identify all reaches above the current reach
  ! *********************************************************************
- SUBROUTINE REACH_LIST(&
+ SUBROUTINE reach_list(&
                        ! input
                        NRCH,        & ! Number of reaches
                        doReachList, & ! flag to compute the list of upstream reaches
@@ -644,7 +644,7 @@ contains
  !     at each point in the river network)
  !
  ! ----------------------------------------------------------------------------------------
- USE nr_utility_module, ONLY : arth                          ! Num. Recipies utilities
+ USE nr_utility_module, ONLY: arth                          ! Num. Recipies utilities
  IMPLICIT NONE
  ! input variables
  INTEGER(I4B)      , INTENT(IN)                 :: NRCH            ! number of stream segments
@@ -664,7 +664,7 @@ contains
  integer(i4b)                                   :: iPos            ! position in vector
  integer(i4b),parameter                         :: nProgress=100000! print every nProgress step
  ! ----------------------------------------------------------------------------------------
- message='REACH_LIST/'
+ message='reach_list/'
 
  ! check if the list of upstream reaches is desired
  if(.not.doReachList)then
@@ -777,13 +777,12 @@ contains
 
  end do  ! looping through reaches
 
-
- END SUBROUTINE REACH_LIST
+ END SUBROUTINE reach_list
 
  ! *********************************************************************
  ! new subroutine: identify all reaches above a given reach
  ! *********************************************************************
- SUBROUTINE REACH_MASK(&
+ SUBROUTINE reach_mask(&
                        ! input
                        desireId,      &  ! input: reach index
                        structNTOPO,   &  ! input: network topology structures
@@ -807,7 +806,7 @@ contains
  !
  ! ----------------------------------------------------------------------------------------
  USE nrtype
- USE nr_utility_module, ONLY : arth                                 ! Num. Recipies utilities
+ USE nr_utility_module, ONLY: arth                                 ! Num. Recipies utilities
  IMPLICIT NONE
  ! input variables
  integer(i4b)      , intent(in)                :: desireId          ! id of the desired reach
@@ -838,7 +837,7 @@ contains
  integer(i4b)                                  :: jxDesire          ! index of desired reach
  ! ----------------------------------------------------------------------------------------
  ! initialize error control
- ierr=0; message='REACH_MASK/'
+ ierr=0; message='reach_mask/'
 
  ! check if we actually want the mask
  if(desireId<0)then
@@ -963,7 +962,7 @@ contains
  !
  ! ----------------------------------------------------------------------------------------
  USE nrtype
- USE nr_utility_module, ONLY : arth                                 ! Num. Recipies utilities
+ USE nr_utility_module, ONLY: arth                                 ! Num. Recipies utilities
  IMPLICIT NONE
  ! input variables
  integer(i4b)      , intent(in)                :: desireId          ! id of the desired reach
@@ -1007,7 +1006,7 @@ contains
  integer(i4b),allocatable                      :: ixDownstream(:)   ! indices of downstream reaches
  ! ----------------------------------------------------------------------------------------
  ! initialize error control
- ierr=0; message='REACH_MASK/'
+ ierr=0; message='REACH_MASK_ORIG/'
 
  ! check if we actually want the mask
  if(desireId<0)then

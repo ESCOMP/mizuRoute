@@ -2,8 +2,8 @@ module public_var
   ! This module include variables that can be accessed from any other modules and values not altered
   ! except that variables read from control file are populated.
 
-  use nrtype, only: i4b,dp,lgt
-  use nrtype, only: strLen  ! string length
+  USE nrtype, only: i4b,dp,lgt
+  USE nrtype, only: strLen  ! string length
   implicit none
 
   save
@@ -38,6 +38,7 @@ module public_var
 
 
   ! constants for general use
+  real(dp),    parameter,public   :: MaxPosVal=1.e36_dp     ! maximum value for positive value
   real(dp),    parameter,public   :: MinPosVal=1.e-10_dp    ! minimum value for positive value
   integer(i4b),parameter,public   :: integerMissing=-9999   ! missing value for integers
   real(dp),    parameter,public   :: realMissing=-9999._dp  ! missing value for real numbers
@@ -46,9 +47,19 @@ module public_var
   integer(i4b),parameter,public   :: root=0                 ! root node id
 
   ! I/O related parameters
-  integer(i4b),          public   :: iulog=6               ! logical unit identifier
+  integer(i4b),          public   :: iulog=6                ! logical unit identifier
+  character(len=strLen), public   :: rpntfil='rpointer.rof' ! file name for local restart pointer file
 
   ! ---------- named variables ----------------------------------------------------------------------
+
+  ! true/false
+  integer(i4b), parameter, public :: true=1001                  ! true
+  integer(i4b), parameter, public :: false=1002                 ! false
+
+  ! variable types
+  integer(i4b), parameter, public :: varType_integer   = 1001   ! named variable for an integer
+  integer(i4b), parameter, public :: varType_double    = 1002   ! named variable for a double precision
+  integer(i4b), parameter, public :: varType_character = 1003   ! named variable for a double precision
 
   ! compute versus read from file
   integer(i4b), parameter,public  :: compute=1              ! compute given variable
@@ -67,15 +78,23 @@ module public_var
   character(len=strLen),public    :: ancil_dir            = ''              ! directory containing ancillary data
   character(len=strLen),public    :: input_dir            = ''              ! directory containing input data
   character(len=strLen),public    :: output_dir           = ''              ! directory containing output data
-  ! SIMULATION TIME
+  ! RUN CONTROL
+  character(len=strLen),public    :: case_name            = ''              ! name of simulation
   character(len=strLen),public    :: simStart             = ''              ! date string defining the start of the simulation
   character(len=strLen),public    :: simEnd               = ''              ! date string defining the end of the simulation
+  character(len=strLen),public    :: newFileFrequency     = 'annual'        ! frequency for new output files (day, month, annual)
+  logical(lgt)         ,public    :: isRestart            = .false.         ! restart option: True-> model run with restart, F -> model run with empty channels
+  character(len=strLen),public    :: fname_state_in       = ''              ! netCDF name of restart file if isRestart is true
+  integer(i4b)         ,public    :: routOpt              = integerMissing  ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+  integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
+  integer(i4b)         ,public    :: doesAccumRunoff      = 1               ! option to delayed runoff accumulation over all the upstream reaches
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
   logical(lgt)         ,public    :: ntopAugmentMode      = .false.         ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
   character(len=strLen),public    :: fname_ntopNew        = ''              ! new filename containing stream network topology information
   character(len=strLen),public    :: dname_sseg           = ''              ! dimension name of segment in river network data
   character(len=strLen),public    :: dname_nhru           = ''              ! dimension name of hru in river network data
+  integer(i4b)         ,public    :: idSegOut             = integerMissing  ! id of outlet stream segment
   ! RUNOFF FILE
   character(len=strLen),public    :: fname_qsim           = ''              ! simulated runoff netCDF name
   character(len=strLen),public    :: vname_qsim           = ''              ! variable name for simulated runoff
@@ -98,28 +117,17 @@ module public_var
   character(len=strLen),public    :: vname_j_index        = ''              ! variable for numbers of x (longitude) index if runoff file is grid
   character(len=strLen),public    :: dname_hru_remap      = ''              ! dimension name for river network HRU
   character(len=strLen),public    :: dname_data_remap     = ''              ! dimension name for runoff HRU ID
-  ! ROUTED FLOW OUTPUT
-  character(len=strLen),public    :: fname_output         = ''              ! name of output file
-  character(len=strLen),public    :: newFileFrequency     = 'annual'        ! frequency for new output files (day, month, annual)
-  ! STATES
-  logical(lgt)         ,public    :: isRestart            = .false.         ! restart option: True-> model run with restart, F -> model run with empty channels
-  character(len=strLen),public    :: fname_state_in       = ''              ! name of state file
-  character(len=strLen),public    :: fname_state_out      = ''              ! name of state file
   ! SPATIAL CONSTANT PARAMETERS
   character(len=strLen),public    :: param_nml            = ''              ! name of the namelist file
-  ! USER OPTIONS
+  ! COMPUTATION OPTION
   integer(i4b)         ,public    :: hydGeometryOption    = compute         ! option for hydraulic geometry calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: topoNetworkOption    = compute         ! option for network topology calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: computeReachList     = compute         ! option to compute list of upstream reaches (0=do not compute, 1=compute)
   ! TIME
-  character(len=strLen),public    :: time_units           = ''              ! time units (seconds, hours, or days)
+  character(len=strLen),public    :: time_units           = ''              ! time units: format must be "seconds (hours, or days) since yyyy-mo-da hh:mm:ss"
   character(len=strLen),public    :: calendar             = ''              ! calendar name
   ! MISCELLANEOUS
-  integer(i4b)         ,public    :: idSegOut             = integerMissing  ! id of outlet stream segment
-  integer(i4b)         ,public    :: routOpt              = integerMissing  ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
   integer(i4b)         ,public    :: desireId             = integerMissing  ! turn off checks or speficy reach ID if necessary to print on screen
-  integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
-  integer(i4b)         ,public    :: doesAccumRunoff      = 1               ! option to delayed runoff accumulation over all the upstream reaches
   ! PFAFCODE
   integer(i4b)         ,public    :: maxPfafLen           = 32              ! maximum digit of pfafstetter code (default 32).
   character(len=1)     ,public    :: pfafMissing          = '0'             ! missing pfafcode (e.g., reach without any upstream area)

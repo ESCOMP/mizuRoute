@@ -1,16 +1,25 @@
 MODULE write_restart_pio
 
-! Moudle wide external modules
+! Moudle wide shared data
 USE nrtype
 USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
-USE dataTypes,         ONLY: KREACH            ! collection of particles in a given reach
+USE dataTypes,         ONLY: STRSTA            ! state in each reach
 USE dataTypes,         ONLY: RCHTOPO           ! Network topology
 USE dataTypes,         ONLY: states
 USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: integerMissing
 USE public_var,        ONLY: realMissing
+USE public_var,        ONLY: rpntfil           ! ascii containing last restart file (used in coupled mode)
 USE globalData,        ONLY: pid, nNodes
+USE globalData,        ONLY: masterproc
 USE globalData,        ONLY: mpicom_route
+USE globalData,        ONLY: pio_netcdf_format
+USE globalData,        ONLY: pio_typename
+USE globalData,        ONLY: pio_numiotasks
+USE globalData,        ONLY: pio_rearranger
+USE globalData,        ONLY: pio_root
+USE globalData,        ONLY: pio_stride
+! Moudle wide external modules
 USE nr_utility_module, ONLY: arth
 USE pio_utils
 
@@ -43,24 +52,33 @@ CONTAINS
  subroutine output_state(ierr, message)
 
   USE public_var, ONLY: output_dir
-  USE public_var, ONLY: fname_state_out
+  USE public_var, ONLY: case_name         ! simulation name ==> output filename head
+  USE globalData, ONLY: modTime           ! previous and current model time
 
   implicit none
   ! output variables
   integer(i4b),   intent(out)          :: ierr             ! error code
   character(*),   intent(out)          :: message          ! error message
   ! local variables
+  character(len=strLen)                :: fileout_state    ! name of the output file
+  character(*),parameter               :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
+  integer(i4b)                         :: sec_in_day      ! second within day
   character(len=strLen)                :: cmessage         ! error message of downwind routine
 
-  call write_state_nc(trim(output_dir)//trim(fname_state_out), &  ! Input: state netcdf name
-                      ierr, message)                              ! Output: error control
+  ! Define filename
+  sec_in_day = 0
+  write(fileout_state, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuRoute.r.', &
+                          modTime(0)%iy, '-', modTime(0)%im, '-', modTime(0)%id, '-',sec_in_day,'.nc'
+
+  ! Define output state netCDF
+  call define_state_nc(trim(fileout_state), ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  if (pid==0) then
-   write(iulog,*) '--------------------'
-   write(iulog,*) 'Finished simulation'
-   write(iulog,*) '--------------------'
-  end if
+  call write_state_nc(fileout_state, ierr, message)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  open(1, file = trim(output_dir)//trim(rpntfil), status='replace', action='write')
+  write(1,*) fileout_state
 
  end subroutine output_state
 
@@ -109,12 +127,16 @@ CONTAINS
  ! ----------------------------------
  ! pio initialization for restart netCDF
  ! ----------------------------------
- call pio_sys_init(pid, nNodes, mpicom_route, pioSystemState)
+ pio_numiotasks = nNodes/pio_stride
+ call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
+                   pio_stride, pio_numiotasks, & ! input: PIO related parameters
+                   pio_rearranger, pio_root,   & ! input: PIO related parameters
+                   pioSystemState)               ! output: PIO system descriptors
 
  ! ----------------------------------
  ! Create file
  ! ----------------------------------
- call createFile(pioSystemState, trim(fname), pioFileDescState, ierr, cmessage)
+ call createFile(pioSystemState, trim(fname), pio_typename, pio_netcdf_format, pioFileDescState, ierr, cmessage)
  if(ierr/=0)then; message=trim(cmessage)//'cannot create state netCDF'; return; endif
 
  ! For common dimension/variables - seg id, time, time-bound -----------
@@ -175,7 +197,7 @@ CONTAINS
            ntdh_irf => meta_stateDims(ixStateDims%tdh_irf)%dimLength, & ! maximum future q time steps among basins
            nWave    => meta_stateDims(ixStateDims%wave)%dimLength)      ! maximum waves allowed in a reach
 
- if (pid==0) then
+ if (masterproc) then
    ix1 = 1
  else
    ix1 = sum(rch_per_proc(-1:pid-1))+1
@@ -197,33 +219,38 @@ CONTAINS
                  ixRch(ix1:ix2),         & ! input:
                  iodesc_state_int)
 
- ! type: int, dim: [dim_seg, dim_wave, dim_ens, dim_time]
- call pio_decomp(pioSystemState,         & ! input: pio system descriptor
-                 ncd_int,                & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                 [nSeg,nWave,nEns],      & ! input: dimension length == global array size
-                 ixRch(ix1:ix2),         & ! input:
-                 iodesc_wave_int)
+ if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
+   ! type: int, dim: [dim_seg, dim_wave, dim_ens, dim_time]
+   call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+                   ncd_int,                & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                   [nSeg,nWave,nEns],      & ! input: dimension length == global array size
+                   ixRch(ix1:ix2),         & ! input:
+                   iodesc_wave_int)
 
- ! type: float, dim: [dim_seg, dim_wave, dim_ens, dim_time]
- call pio_decomp(pioSystemState,         & ! input: pio system descriptor
-                 ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                 [nSeg,nWave,nEns],      & ! input: dimension length == global array size
-                 ixRch(ix1:ix2),         & ! input:
-                 iodesc_wave_double)
+   ! type: float, dim: [dim_seg, dim_wave, dim_ens, dim_time]
+   call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                   [nSeg,nWave,nEns],      & ! input: dimension length == global array size
+                   ixRch(ix1:ix2),         & ! input:
+                   iodesc_wave_double)
+ end if
 
- ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens, dim_time]
- call pio_decomp(pioSystemState,         & ! input: pio system descriptor
-                 ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                 [nSeg,ntdh_irf,nEns],   & ! input: dimension length == global array size
-                 ixRch(ix1:ix2),         & ! input:
-                 iodesc_irf_float)
+ if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+   ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens, dim_time]
+   call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                   [nSeg,ntdh_irf,nEns],   & ! input: dimension length == global array size
+                   ixRch(ix1:ix2),         & ! input:
+                   iodesc_irf_float)
 
+ end if
  ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens, dim_time]
  call pio_decomp(pioSystemState,         & ! input: pio system descriptor
                  ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                  [nSeg,ntdh,nEns],       & ! input: dimension length == global array size
                  ixRch(ix1:ix2),         & ! input:
                  iodesc_irf_bas_double)
+
  end associate
 
  ! Finishing up definition -------
@@ -234,10 +261,10 @@ CONTAINS
 
   SUBROUTINE set_dim_len(ixDim, ierr, message1)
    ! populate state netCDF dimension size
-   USE public_var,   ONLY: MAXQPAR
-   USE globalData,   ONLY: meta_stateDims  ! states dimension meta
-   USE globalData,   ONLY: FRAC_FUTURE     ! To get size of q future for basin IRF
-   USE globalData,   ONLY: nEns, nRch      ! number of ensembles and river reaches
+   USE public_var, ONLY: MAXQPAR
+   USE globalData, ONLY: meta_stateDims  ! states dimension meta
+   USE globalData, ONLY: FRAC_FUTURE     ! To get size of q future for basin IRF
+   USE globalData, ONLY: nEns, nRch      ! number of ensembles and river reaches
    implicit none
    ! input
    integer(i4b), intent(in)   :: ixDim    ! ixDim
@@ -415,28 +442,28 @@ CONTAINS
                            ierr, message)            ! Output: error control
  ! External module
  ! meta data
- USE globalData,   ONLY: meta_stateDims  ! dimension for state variables
+ USE globalData, ONLY: meta_stateDims  ! dimension for state variables
  ! Named variables
- USE var_lookup,   ONLY: ixStateDims, nStateDims
+ USE var_lookup, ONLY: ixStateDims, nStateDims
  ! global/public data
- USE public_var,   ONLY: routOpt
- USE public_var,   ONLY: doesBasinRoute
- USE public_var,   ONLY: allRoutingMethods
- USE public_var,   ONLY: kinematicWave
- USE public_var,   ONLY: impulseResponseFunc
- USE globalData,   ONLY: RCHFLX              ! global Reach fluxes (ensembles, space [reaches])
- USE globalData,   ONLY: RCHFLX_trib         !
- USE globalData,   ONLY: NETOPO              ! global Reach fluxes (ensembles, space [reaches])
- USE globalData,   ONLY: NETOPO_trib         !
- USE globalData,   ONLY: KROUTE              ! global Reach fluxes (ensembles, space [reaches])
- USE globalData,   ONLY: KROUTE_trib         !
- USE globalData,   ONLY: ixRch_order         ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
- USE globalData,   ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
- USE globalData,   ONLY: reachID         ! reach ID in network
- USE globalData,   ONLY: nRch            ! number of reaches in network
- USE globalData,   ONLY: TSEC            ! beginning/ending of simulation time step [sec]
- USE globalData,   ONLY: timeVar         ! time variable
- USE globalData,   ONLY: iTime           ! time index
+ USE public_var, ONLY: routOpt
+ USE public_var, ONLY: doesBasinRoute
+ USE public_var, ONLY: allRoutingMethods
+ USE public_var, ONLY: kinematicWave
+ USE public_var, ONLY: impulseResponseFunc
+ USE globalData, ONLY: RCHFLX_main         ! mainstem reach fluxes (ensembles, reaches)
+ USE globalData, ONLY: RCHFLX_trib         ! tributary reach fluxes (ensembles, reaches)
+ USE globalData, ONLY: NETOPO_main         ! mainstem reach topology
+ USE globalData, ONLY: NETOPO_trib         ! tributary reach topology
+ USE globalData, ONLY: RCHSTA_main         ! mainstem reach state (ensembles, reaches)
+ USE globalData, ONLY: RCHSTA_trib         ! tributary reach state (ensembles, reaches)
+ USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
+ USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
+ USE globalData, ONLY: reachID         ! reach ID in network
+ USE globalData, ONLY: nRch            ! number of reaches in network
+ USE globalData, ONLY: TSEC            ! beginning/ending of simulation time step [sec]
+ USE globalData, ONLY: timeVar         ! time variable
+ USE globalData, ONLY: iTime           ! time index
  implicit none
  ! input variables
  character(*), intent(in)        :: fname           ! filename
@@ -444,11 +471,11 @@ CONTAINS
  integer(i4b), intent(out)       :: ierr            ! error code
  character(*), intent(out)       :: message         ! error message
  ! local variables
- integer(i4b)                    :: iens             ! temporal
+ integer(i4b)                    :: iens            ! temporal
  type(states)                    :: state(0:2)      ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
  type(STRFLX), allocatable       :: RCHFLX_local(:) ! reordered reach flux data structure
  type(RCHTOPO),allocatable       :: NETOPO_local(:) ! reordered topology data structure
- type(KREACH), allocatable       :: KROUTE_local(:) ! reordered kinematic wave data structure
+ type(STRSTA), allocatable       :: RCHSTA_local(:) ! reordered statedata structure
  integer(i4b)                    :: ix              ! loop index
  character(len=strLen)           :: cmessage        ! error message of downwind routine
 
@@ -458,34 +485,36 @@ CONTAINS
  iens = 1
  kTime = kTime + 1
 
- if (pid==0) then
-  associate(nRch_main => rch_per_proc(-1), nRch_trib => rch_per_proc(0))
-  allocate(RCHFLX_local(nRch_main+nRch_trib), &
-           NETOPO_local(nRch_main+nRch_trib), &
-           KROUTE_local(nRch_main+nRch_trib), stat=ierr)
-  if (nRch_main/=0) then
-     do ix = 1,nRch_main
-      RCHFLX_local(ix) = RCHFLX(iens,ixRch_order(ix))
-      NETOPO_local(ix) = NETOPO(ixRch_order(ix))
-      KROUTE_local(ix) = KROUTE(iens,ixRch_order(ix))
+ if (masterproc) then
+  associate(nRch_trib => rch_per_proc(0))
+  allocate(RCHFLX_local(nRch_mainstem+nRch_trib), &
+           NETOPO_local(nRch_mainstem+nRch_trib), &
+           RCHSTA_local(nRch_mainstem+nRch_trib), stat=ierr)
+  if (nRch_mainstem>0) then
+     do ix = 1,nRch_mainstem
+      RCHFLX_local(ix) = RCHFLX_main(iens,ix)
+      NETOPO_local(ix) = NETOPO_main(ix)
+      RCHSTA_local(ix) = RCHSTA_main(iens,ix)
      enddo
-   end if
-   RCHFLX_local(nRch_main+1:nRch_main+nRch_trib) = RCHFLX_trib(iens,:)
-   NETOPO_local(nRch_main+1:nRch_main+nRch_trib) = NETOPO_trib(:)
-   KROUTE_local(nRch_main+1:nRch_main+nRch_trib) = KROUTE_trib(iens,:)
-  end associate
-  else
-   allocate(RCHFLX_local(rch_per_proc(pid)), &
-            NETOPO_local(rch_per_proc(pid)), &
-            KROUTE_local(rch_per_proc(pid)),stat=ierr)
-   RCHFLX_local = RCHFLX_trib(iens,:)
-   NETOPO_local = NETOPO_trib(:)
-   KROUTE_local = KROUTE_trib(iens,:)
-  endif
+  end if
+   if (nRch_trib>0) then
+     RCHFLX_local(nRch_mainstem+1:nRch_mainstem+nRch_trib) = RCHFLX_trib(iens,:)
+     NETOPO_local(nRch_mainstem+1:nRch_mainstem+nRch_trib) = NETOPO_trib(:)
+     RCHSTA_local(nRch_mainstem+1:nRch_mainstem+nRch_trib) = RCHSTA_trib(iens,:)
+   endif
+   end associate
+ else
+  allocate(RCHFLX_local(rch_per_proc(pid)), &
+           NETOPO_local(rch_per_proc(pid)), &
+           RCHSTA_local(rch_per_proc(pid)),stat=ierr)
+  RCHFLX_local = RCHFLX_trib(iens,:)
+  NETOPO_local = NETOPO_trib(:)
+  RCHSTA_local = RCHSTA_trib(iens,:)
+ endif
 
  ! -- Write out to netCDF
 
- call openFile(pioSystemState, pioFileDescState, trim(fname), ncd_write, ierr, cmessage)
+ call openFile(pioSystemState, pioFileDescState, trim(fname),pio_typename, ncd_write, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! Miscellaneous variables - seg id, time etc
@@ -520,8 +549,8 @@ CONTAINS
   ! Basin IRF writing procedures
   SUBROUTINE write_IRFbas_state(ierr, message1)
   ! external module
-  USE globalData,   ONLY: meta_irf_bas
-  USE var_lookup,   ONLY: ixIRFbas, nVarsIRFbas
+  USE globalData, ONLY: meta_irf_bas
+  USE var_lookup, ONLY: ixIRFbas, nVarsIRFbas
   implicit none
   ! output
   integer(i4b), intent(out)  :: ierr            ! error code
@@ -581,8 +610,8 @@ CONTAINS
   ! KWT writing procedures
   SUBROUTINE write_KWT_state(ierr, message1)
   ! External module
-  USE globalData,   ONLY: meta_kwt
-  USE var_lookup,   ONLY: ixKWT, nVarsKWT
+  USE globalData, ONLY: meta_kwt
+  USE var_lookup, ONLY: ixKWT, nVarsKWT
   implicit none
   ! output
   integer(i4b), intent(out)  :: ierr            ! error code
@@ -620,7 +649,7 @@ CONTAINS
   do iens=1,nEns
    do iSeg=1,nSeg
 
-    numWaves(iens,iseg) = size(KROUTE_local(iseg)%KWAVE)
+    numWaves(iens,iseg) = size(RCHSTA_local(iseg)%LKW_ROUTE%KWAVE)
 
     do iVar=1,nVarsKWT
 
@@ -628,21 +657,21 @@ CONTAINS
 
      select case(iVar)
       case(ixKWT%tentry)
-       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = KROUTE_local(iSeg)%KWAVE(:)%TI
+       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%TI
        state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
       case(ixKWT%texit)
-       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = KROUTE_local(iSeg)%KWAVE(:)%TR
+       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%TR
        state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
       case(ixKWT%qwave)
-       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = KROUTE_local(iSeg)%KWAVE(:)%QF
+       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%QF
        state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
       case(ixKWT%qwave_mod)
-       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = KROUTE_local(iSeg)%KWAVE(:)%QM
+       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%QM
        state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
       case(ixKWT%routed) ! this is suppposed to be logical variable, but put it as 0 or 1 in double now
        if (allocated(RFvec)) deallocate(RFvec, stat=ierr)
        allocate(RFvec(numWaves(iens,iSeg)),stat=ierr); RFvec=0_i4b
-       where (KROUTE_local(iSeg)%KWAVE(:)%RF) RFvec=1_i4b
+       where (RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%RF) RFvec=1_i4b
        state(kinematicWave)%var(iVar)%array_3d_int(iSeg,1:numWaves(iens,iSeg),iens) = RFvec
        state(kinematicWave)%var(iVar)%array_3d_int(iSeg,numWaves(iens,iSeg)+1:,iens) = integerMissing
       case default; ierr=20; message1=trim(message1)//'unable to identify KWT routing state variable index'; return
@@ -678,8 +707,8 @@ CONTAINS
   ! IRF writing procedures
   SUBROUTINE write_IRF_state(ierr, message1)
   ! external module
-  USE globalData,   ONLY: meta_irf        ! IRF routing
-  USE var_lookup,   ONLY: ixIRF, nVarsIRF
+  USE globalData, ONLY: meta_irf        ! IRF routing
+  USE var_lookup, ONLY: ixIRF, nVarsIRF
   implicit none
   ! output
   integer(i4b), intent(out)  :: ierr            ! error code

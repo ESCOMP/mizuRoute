@@ -1,10 +1,12 @@
-module dataTypes
-USE nrtype,     only: i4b,dp,lgt
-USE nrtype,     only: strLen   ! string length
-USE public_var, only: realMissing
-USE public_var, only: integerMissing
+MODULE dataTypes
+
 ! used to create specific data types
-! --
+
+USE nrtype,     ONLY: i4b,dp,lgt
+USE nrtype,     ONLY: strLen
+USE public_var, ONLY: realMissing
+USE public_var, ONLY: integerMissing
+
 implicit none
 
  ! everything private unless specified otherwise
@@ -160,125 +162,135 @@ implicit none
 
  ! Reach Parameters
  type, public ::  RCHPRP
-  real(DP)                                :: R_SLOPE
-  real(DP)                                :: R_MAN_N
-  real(DP)                                :: R_WIDTH
-  real(DP)                                :: RLENGTH
-  real(DP)                                :: UPSAREA  ! upstream area (zero if headwater basin)
-  real(DP)                                :: BASAREA  ! local basin area
-  real(DP)                                :: TOTAREA  ! UPSAREA + BASAREA
-  real(DP)                                :: MINFLOW  ! minimum environmental flow
+  real(dp)                                :: R_SLOPE
+  real(dp)                                :: R_MAN_N
+  real(dp)                                :: R_WIDTH
+  real(dp)                                :: RLENGTH
+  real(dp)                                :: UPSAREA  ! upstream area (zero if headwater basin)
+  real(dp)                                :: BASAREA  ! local basin area
+  real(dp)                                :: TOTAREA  ! UPSAREA + BASAREA
+  real(dp)                                :: MINFLOW  ! minimum environmental flow
  end type RCHPRP
 
  ! River Network topology
  type, public :: RCHTOPO
-  integer(I4B)                               :: REACHIX  ! Reach index (0,1,2,...,nrch-1)
-  integer(I4B)                               :: REACHID  ! Reach ID (REC code)
-  real(DP)                                   :: RCHLAT1  ! Start latitude
-  real(DP)                                   :: RCHLAT2  ! End latitude
-  real(DP)                                   :: RCHLON1  ! Start longitude
-  real(DP)                                   :: RCHLON2  ! End longitude
-  real(DP),    dimension(:),allocatable      :: UPSLENG  ! total upstream length
-  integer(I4B)                               :: DREACHI  ! Immediate Downstream reach index
-  integer(I4B)                               :: DREACHK  ! Immediate Downstream reach ID
-  integer(I4B),dimension(:),allocatable      :: UREACHI  ! Immediate Upstream reach indices
-  integer(I4B),dimension(:),allocatable      :: UREACHK  ! Immediate Upstream reach IDs
-  integer(I4B),dimension(:),allocatable      :: RCHLIST  ! all upstream reach indices
-  integer(I4B),dimension(:),allocatable      :: HRUID    ! all contributing HRU IDs
-  integer(I4B),dimension(:),allocatable      :: HRUIX    ! all contributing HRU indices
-  real(DP),    dimension(:),allocatable      :: HRUWGT   ! areal weight for contributing HRUs
+  integer(i4b)                               :: REACHIX  ! Reach index (1,2,...,nrch)
+  integer(i4b)                               :: REACHID  ! Reach ID (REC code)
+  real(dp)                                   :: RCHLAT1  ! Start latitude
+  real(dp)                                   :: RCHLAT2  ! End latitude
+  real(dp)                                   :: RCHLON1  ! Start longitude
+  real(dp)                                   :: RCHLON2  ! End longitude
+  integer(i4b)                               :: DREACHI  ! Immediate Downstream reach index
+  integer(i4b)                               :: DREACHK  ! Immediate Downstream reach ID
+  integer(i4b),dimension(:),allocatable      :: UREACHI  ! Immediate Upstream reach indices
+  integer(i4b),dimension(:),allocatable      :: UREACHK  ! Immediate Upstream reach IDs
+  integer(i4b),dimension(:),allocatable      :: RCHLIST  ! all upstream reach indices
+  integer(i4b),dimension(:),allocatable      :: HRUID    ! all contributing HRU IDs
+  integer(i4b),dimension(:),allocatable      :: HRUIX    ! all contributing HRU indices
+  real(dp),    dimension(:),allocatable      :: HRUWGT   ! areal weight for contributing HRUs
   logical(lgt),dimension(:),allocatable      :: goodBas  ! Flag to denote a good basin
   character(len=32),dimension(:),allocatable :: pfafCode ! pfafstetter code
-  integer(I4B)                               :: RHORDER  ! Processing sequence
+  integer(i4b)                               :: RHORDER  ! Processing sequence
   real(dp)    ,dimension(:),allocatable      :: UH       ! Unit hydrograph for upstream
-  integer(I4B)                               :: LAKE_IX  ! Lake index (0,1,2,...,nlak-1)
-  integer(I4B)                               :: LAKE_ID  ! Lake ID (REC code?)
-  real(DP)                                   :: BASULAK  ! Area of basin under lake
-  real(DP)                                   :: RCHULAK  ! Length of reach under lake
-  LOGICAL(LGT)                               :: LAKINLT  ! .TRUE. if reach is lake inlet, .FALSE. otherwise
-  LOGICAL(LGT)                               :: USRTAKE  ! .TRUE. if user takes from reach, .FALSE. otherwise
+  integer(i4b)                               :: LAKE_IX  ! Lake index (1,2,...,nlak)
+  integer(i4b)                               :: LAKE_ID  ! Lake ID (REC code)
+  real(dp)                                   :: BASULAK  ! Area of basin under lake
+  real(dp)                                   :: RCHULAK  ! Length of reach under lake
+  logical(lgt)                               :: LAKINLT  ! .TRUE. if reach is lake inlet, .FALSE. otherwise
+  logical(lgt)                               :: USRTAKE  ! .TRUE. if user takes from reach, .FALSE. otherwise
  end type RCHTOPO
 
- ! ---------- kinematic wave states (collection of particles) ---------------------------------
+ ! ---------- reach states --------------------------------------------------------------------
 
+ !---------- Lagrangian kinematic wave states (collection of particles) ---------------------------------
  ! Individual flow particles
- ! NOTE: type could possibly be private
  TYPE, public :: FPOINT
-  REAL(DP)                             :: QF       ! Flow
-  REAL(DP)                             :: QM       ! Modified flow
-  REAL(DP)                             :: TI       ! initial time of point in reach
-  REAL(DP)                             :: TR       ! time point expected to exit reach
-  LOGICAL(LGT)                         :: RF       ! routing flag (T if point has exited)
+  real(dp)                             :: QF       ! Flow
+  real(dp)                             :: QM       ! Modified flow
+  real(dp)                             :: TI       ! initial time of point in reach
+  real(dp)                             :: TR       ! time point expected to exit reach
+  logical(lgt)                         :: RF       ! routing flag (T if point has exited)
  END TYPE FPOINT
 
  ! Collection of flow points within a given reach
- TYPE, public :: KREACH
-  TYPE(FPOINT),allocatable             :: KWAVE(:)
- END TYPE KREACH
+ TYPE, public :: LKWRCH
+  type(FPOINT),allocatable             :: KWAVE(:)
+ END TYPE LKWRCH
+
+ ! ---------- Eulerian kinematic wave ---------------------------------
+ type, public :: EKWRCH
+   real(dp), allocatable    :: volsub(:)      ! volume in sub-reach (m3/s)
+   real(dp), allocatable    :: qsub(:,:)      ! discharge from sub-reach (m3/s)
+ end type EKWRCH
 
  ! ---------- irf states (future flow series ) ---------------------------------
-
  ! Future flow series
- TYPE, public :: IRFREACH
-  REAL(DP), allocatable                :: qfuture(:)    ! runoff volume in future time steps for IRF routing (m3/s)
- END TYPE IRFREACH
+ type, public :: IRFRCH
+  real(dp), allocatable                :: qfuture(:)    ! runoff volume in future time steps for IRF routing (m3/s)
+ END TYPE IRFRCH
+
+ type, public :: STRSTA
+  type(IRFRCH)       :: IRF_ROUTE
+  type(LKWRCH)       :: LKW_ROUTE
+  type(EKWRCH)       :: EKW_ROUTE
+ end type STRSTA
+
 
  ! ---------- reach fluxes --------------------------------------------------------------------
 
  ! fluxes in each reach
- TYPE, public :: STRFLX
-  REAL(DP), allocatable                :: QFUTURE(:)        ! runoff volume in future time steps (m3/s)
-  REAL(DP), allocatable                :: QFUTURE_IRF(:)    ! runoff volume in future time steps for IRF routing (m3/s)
-  REAL(DP)                             :: BASIN_QI          ! instantaneous runoff volume from the local basin (m3/s)
-  REAL(DP)                             :: BASIN_QR(0:1)     ! routed runoff volume from the local basin (m3/s)
-  REAL(DP)                             :: UPSBASIN_QR       ! routed runoff depth from the upstream basins (m/s)
-  REAL(DP)                             :: BASIN_QR_IRF(0:1) ! routed runoff volume from all the upstream basin (m3/s)
-  REAL(DP)                             :: REACH_Q           ! time-step average streamflow (m3/s)
-  REAL(DP)                             :: REACH_Q_IRF       ! time-step average streamflow (m3/s) from IRF routing
-  REAL(DP)                             :: UPSTREAM_QI       ! sum of upstream streamflow (m3/s)
-  REAL(DP)                             :: TAKE              ! average take
-  logical(lgt)                         :: CHECK_IRF         ! .true. if the reach is routed
- ENDTYPE STRFLX
+ TYPE, public :: strflx
+  real(dp), allocatable                :: QFUTURE(:)        ! runoff volume in future time steps (m3/s)
+  real(dp), allocatable                :: QFUTURE_IRF(:)    ! runoff volume in future time steps for IRF routing (m3/s)
+  real(dp)                             :: BASIN_QI          ! instantaneous runoff volume from the local basin (m3/s)
+  real(dp)                             :: BASIN_QR(0:1)     ! routed runoff volume from the local basin (m3/s)
+  real(dp)                             :: REACH_Q           ! time-step average streamflow (m3/s)
+  real(dp)                             :: REACH_Q_IRF       ! time-step average streamflow (m3/s) from IRF routing
+  real(dp)                             :: UPSTREAM_QI       ! sum of upstream streamflow (m3/s)
+  real(dp)                             :: REACH_VOL(0:1)    ! volume of water at previous and current time step [m3]
+  real(dp)                             :: TAKE              ! average take
+  logical(lgt)                         :: isRoute           ! .true. if the reach is routed
+ END TYPE strflx
 
  ! ---------- lake data types -----------------------------------------------------------------
 
  ! Lake Parameters
  TYPE, public :: LAKPRP
-  REAL(DP)                             :: AREAREF           ! lake area
-  REAL(DP)                             :: LAKREFLEV         ! lake elevation
-  REAL(DP)                             :: LAKAVGLEV         ! lake average level (for initialization)
-  REAL(DP)                             :: HE2AR_C           ! water height-surface area parameter
-  REAL(DP)                             :: HE2AR_D           ! water height-surface area parameter
-  REAL(DP)                             :: HGHTLOW           ! minimum water height for discharge
-  REAL(DP)                             :: HGHTECO           ! minimum height for ecological concerns
-  REAL(DP)                             :: HGHTSPL           ! spillway height
-  REAL(DP)                             :: DSCHECO           ! discharge at "ecological" height
-  REAL(DP)                             :: DSCHSPL           ! discharge at spillway height
-  REAL(DP)                             :: RATECVA           ! discharge rating curve parameter
-  REAL(DP)                             :: RATECVB           ! discharge rating curve parameter
- ENDTYPE LAKPRP
+  real(dp)                             :: AREAREF           ! lake area
+  real(dp)                             :: LAKREFLEV         ! lake elevation
+  real(dp)                             :: LAKAVGLEV         ! lake average level (for initialization)
+  real(dp)                             :: HE2AR_C           ! water height-surface area parameter
+  real(dp)                             :: HE2AR_D           ! water height-surface area parameter
+  real(dp)                             :: HGHTLOW           ! minimum water height for discharge
+  real(dp)                             :: HGHTECO           ! minimum height for ecological concerns
+  real(dp)                             :: HGHTSPL           ! spillway height
+  real(dp)                             :: DSCHECO           ! discharge at "ecological" height
+  real(dp)                             :: DSCHSPL           ! discharge at spillway height
+  real(dp)                             :: RATECVA           ! discharge rating curve parameter
+  real(dp)                             :: RATECVB           ! discharge rating curve parameter
+ END TYPE LAKPRP
 
  ! Lake topology
  TYPE, public :: LAKTOPO
-  INTEGER(I4B)                         :: LAKE_IX           ! Lake index (0,1,2,...,nlak-1)
-  INTEGER(I4B)                         :: LAKE_ID           ! Lake ID (REC code?)
-  REAL(DP)                             :: LAKLAT1           ! Centroid latitude
-  REAL(DP)                             :: LAKLAT2           ! Outlet latitude
-  REAL(DP)                             :: LAKLON1           ! Centroid longitude
-  REAL(DP)                             :: LAKLON2           ! Outlet longitude
-  INTEGER(I4B)                         :: DREACHI           ! Downstream reach index
-  INTEGER(I4B)                         :: DREACHK           ! Downstream reach ID
-  INTEGER(I4B)                         :: DLAKE_I           ! Downstream lake index
-  INTEGER(I4B)                         :: DLAKE_K           ! Downstream lake ID
- ENDTYPE LAKTOPO
+  integer(i4b)                         :: LAKE_IX           ! Lake index (1,2,...,nlak)
+  integer(i4b)                         :: LAKE_ID           ! Lake ID (REC code)
+  real(dp)                             :: LAKLAT1           ! Centroid latitude
+  real(dp)                             :: LAKLAT2           ! Outlet latitude
+  real(dp)                             :: LAKLON1           ! Centroid longitude
+  real(dp)                             :: LAKLON2           ! Outlet longitude
+  integer(i4b)                         :: DREACHI           ! Downstream reach index
+  integer(i4b)                         :: DREACHK           ! Downstream reach ID
+  integer(i4b)                         :: DLAKE_I           ! Downstream lake index
+  integer(i4b)                         :: DLAKE_K           ! Downstream lake ID
+ END TYPE LAKTOPO
 
  ! Lake fluxes
  TYPE, public :: LKFLX
-  REAL(DP)                             :: LAKE_Qav          ! lake discharge (average over time step) (m3 s-1)
-  REAL(DP)                             :: LAKE_Q            ! lake discharge (instantaneous) (m3 s-1)
-  REAL(DP)                             :: LAKE_P            ! lake precipitation (m3)
-  REAL(DP)                             :: LAKE_E            ! lake evaporation (m3)
-  REAL(DP)                             :: LAKE_I            ! inflow to lake (m3 s-1)
- ENDTYPE LKFLX
+  real(dp)                             :: LAKE_Qav          ! lake discharge (average over time step) (m3 s-1)
+  real(dp)                             :: LAKE_Q            ! lake discharge (instantaneous) (m3 s-1)
+  real(dp)                             :: LAKE_P            ! lake precipitation (m3)
+  real(dp)                             :: LAKE_E            ! lake evaporation (m3)
+  real(dp)                             :: LAKE_I            ! inflow to lake (m3 s-1)
+ END TYPE LKFLX
 
-end module dataTypes
+END MODULE dataTypes

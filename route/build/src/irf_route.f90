@@ -3,12 +3,12 @@ module irf_route_module
 !numeric type
 USE nrtype
 ! data type
-USE dataTypes,          only : STRFLX         ! fluxes in each reach
-USE dataTypes,          only : RCHTOPO        ! Network topology
+USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
+USE dataTypes, ONLY: RCHTOPO        ! Network topology
 ! global parameters
-USE public_var,         only : iulog          ! i/o logical unit number
-USE public_var,         only : realMissing    ! missing value for real number
-USE public_var,         only : integerMissing ! missing value for integer number
+USE public_var, ONLY: iulog          ! i/o logical unit number
+USE public_var, ONLY: realMissing    ! missing value for real number
+USE public_var, ONLY: integerMissing ! missing value for integer number
 
 ! privary
 implicit none
@@ -30,7 +30,8 @@ contains
                       ixSubRch)         ! optional input: subset of reach indices to be processed
 
  ! global routing data
- USE dataTypes,  only : subbasin_omp   ! mainstem+tributary data structures
+ USE dataTypes, ONLY: subbasin_omp   ! mainstem+tributary data structures
+ USE model_utils, ONLY: handle_err
 
  implicit none
  ! Input
@@ -73,7 +74,7 @@ contains
  allocate(doRoute(nSeg), stat=ierr)
 
  ! Initialize CHEC_IRF to False.
- RCHFLX_out(iEns,:)%CHECK_IRF=.False.
+ RCHFLX_out(iEns,:)%isRoute=.False.
 
  if (present(ixSubRch))then
   doRoute(:)=.false.
@@ -105,7 +106,7 @@ contains
        jSeg = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
        if (.not. doRoute(jSeg)) cycle
        call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, cmessage)
-!      if(ierr/=0)then; ixmessage(iTrib)=trim(message)//trim(cmessage); exit; endif
+       if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
      end do seg
    end do trib
 !$OMP END PARALLEL DO
@@ -188,7 +189,7 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! Check True since now this reach now routed
-  RCHFLX_out(iEns,segIndex)%CHECK_IRF=.True.
+  RCHFLX_out(iEns,segIndex)%isRoute=.True.
 
   ! check
   if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
@@ -209,7 +210,7 @@ contains
  ! ----------------------------------------------------------------------------------------
  ! Details: Convolute runoff volume of upstream at one reach at one time step
  ! ----------------------------------------------------------------------------------------
-
+ USE public_var, ONLY: dt
  implicit none
  ! Input
  real(dp),     intent(in)               :: reach_uh(:)  ! reach unit hydrograph
@@ -246,6 +247,10 @@ contains
    rflux%QFUTURE_IRF(iTDH) = rflux%QFUTURE_IRF(iTDH) &
                              + reach_uh(iTDH)*q_upstream
  enddo
+
+ ! Volume stored in reach
+ rflux%REACH_VOL(0) = rflux%REACH_VOL(1)
+ rflux%REACH_VOL(1) = rflux%REACH_VOL(0) - (rflux%QFUTURE_IRF(1) - q_upstream)*dt
 
  ! Add local routed flow
  rflux%REACH_Q_IRF = rflux%QFUTURE_IRF(1) + rflux%BASIN_QR(1)

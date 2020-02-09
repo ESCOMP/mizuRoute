@@ -21,14 +21,15 @@ implicit none
 ! common parameters within this module
 integer(i4b), parameter   :: tributary=1
 integer(i4b), parameter   :: mainstem=2
+integer(i4b), parameter   :: upstream_size=1
+integer(i4b), parameter   :: stream_order=2
 
 private
 
 public :: mpi_domain_decomposition
 public :: omp_domain_decomposition
-public :: omp_domain_decomposition_stro
 
-contains
+CONTAINS
 
  ! ***************************************************************
  ! public subroutine: MPI Domain decomposition
@@ -36,8 +37,9 @@ contains
  subroutine mpi_domain_decomposition(nNodes, nSeg, structNTOPO, nContribHRU, ierr, message)
 
    ! External modules
-   USE globalData, only: domains                 ! domain data structure - for each domain, pfaf codes and list of segment indices
-   USE globalData, only: nDomain                 ! count of decomposed domains (tributaries + mainstems)
+   USE globalData, ONLY: domains                 ! domain data structure - for each domain, pfaf codes and list of segment indices
+   USE globalData, ONLY: nDomain                 ! count of decomposed domains (tributaries + mainstems)
+   USE mpi_mod,    ONLY: shr_mpi_abort
 
    implicit none
    ! Input variables
@@ -54,6 +56,8 @@ contains
 
    ierr=0; message='mpi_domain_decomposition/'
 
+   if (nNodes==1) return
+
    call classify_river_basin(nNodes,         &        ! input:  number of procs
                              nSeg,           &        ! input:  number of reaches in the entire river network
                              structNTOPO,    &        ! input:  river network data structure
@@ -66,7 +70,10 @@ contains
    call assign_node(nNodes, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   if (debug) call print_screen()
+   if (debug) then
+     call print_screen()
+     call shr_mpi_abort('Evaluate domain decomposition. Terminate program', 20)
+   end if
 
    CONTAINS
 
@@ -129,17 +136,56 @@ contains
 
  end subroutine mpi_domain_decomposition
 
- ! ***************************************************************
- ! public subroutine: OMP domain decomposition - method 1
- ! ***************************************************************
- subroutine omp_domain_decomposition(nSeg, structNTOPO, river_basin_out, ierr, message)
 
-   USE globalData, only: nThreads                 ! number of threads
+ ! ***************************************************************
+ ! public subroutine: OMP domain decomposition - interface
+ ! ***************************************************************
+ SUBROUTINE omp_domain_decomposition(method, nSeg, structNTOPO, river_basin_out, ierr, message, nDiv)
+
+   USE globalData, ONLY: nThreads                 ! number of threads
+
+   implicit none
+   ! Input variables
+   integer(i4b),                   intent(in)  :: method          ! decompiosition method
+   integer(i4b),                   intent(in)  :: nSeg            ! number of stream segments
+   type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)  ! network topology
+   integer(i4b),      optional,    intent(in)  :: nDiv            ! division of reach numbers
+   ! Output variables
+   type(subbasin_omp),allocatable, intent(out) :: river_basin_out(:)
+   integer(i4b),                   intent(out) :: ierr
+   character(len=strLen),          intent(out) :: message         ! error message
+   ! Local variables
+   integer(i4b)                                :: nn
+
+   ! initialize error control
+   ierr=0; message='omp_domain_decomposition/'
+
+   if (present(nDiv)) then
+     nn = nDiv
+   else
+     nn = nThreads
+   end if
+
+   select case(method)
+     case(upstream_size)
+       call omp_domain_decomp_upsize(nSeg, structNTOPO, river_basin_out, ierr, message, nn)
+     case(stream_order)
+       call omp_domain_decomp_stro(nSeg, structNTOPO, river_basin_out, ierr, message)
+     case default; ierr=20; message=trim(message)//'method id is not valid'; return
+   end select
+
+ END SUBROUTINE omp_domain_decomposition
+
+ ! ***************************************************************
+ ! private subroutine: OMP domain decomposition - method 1
+ ! ***************************************************************
+ subroutine omp_domain_decomp_upsize(nSeg, structNTOPO, river_basin_out, ierr, message, nDiv)
 
    implicit none
    ! Input variables
    integer(i4b),                   intent(in)  :: nSeg            ! number of stream segments
    type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)  ! network topology
+   integer(i4b),                   intent(in)  :: nDiv            ! division of reach numbers
    ! Output variables
    type(subbasin_omp),allocatable, intent(out) :: river_basin_out(:)
    integer(i4b),                   intent(out) :: ierr
@@ -149,9 +195,9 @@ contains
    integer(i4b)                                :: nDomain_omp
    character(len=strLen)                       :: cmessage        ! error message from subroutine
 
-   ierr=0; message='omp_domain_decomposition/'
+   ierr=0; message='omp_domain_decomp_upsize/'
 
-   call classify_river_basin(nThreads,       &        ! input:  number of threads
+   call classify_river_basin(nDiv,           &        ! input:  number of reach numbers
                              nSeg,           &        ! input:  number of reaches in the entire river network
                              structNTOPO,    &        ! input:  river network data structure
                              domains_omp,    &        ! output: domain data structure
@@ -162,16 +208,17 @@ contains
    call basin_order(nSeg, structNTOPO, domains_omp, nDomain_omp, river_basin_out, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- end subroutine omp_domain_decomposition
+ end subroutine omp_domain_decomp_upsize
 
  ! ***************************************************************
- ! public subroutine: OMP domain decomposition - method2
+ ! private subroutine: OMP domain decomposition - method2
  ! ***************************************************************
- subroutine omp_domain_decomposition_stro(nSeg, structNTOPO, river_basin_out, ierr, message)
+ subroutine omp_domain_decomp_stro(nSeg, structNTOPO, river_basin_out, ierr, message)
 
    ! External modules
-   USE pfafstetter_module, only: lgc_tributary_outlet
-   USE dataTypes,          only: reach               ! reach data structure
+   USE pfafstetter_module, ONLY: lgc_tributary_outlet
+   USE dataTypes,          ONLY: reach               ! reach data structure
+
    implicit none
    ! Input variables
    integer(i4b),                   intent(in)  :: nSeg                   ! number of stream segments
@@ -205,7 +252,7 @@ contains
    integer(i4b)                                :: nSegStreamOrder        ! number of reachs of the same stream order
    integer(i4b)                                :: nUpSegs                ! numpber of upstream segments
 
-   ierr=0; message='omp_domain_decomposition_stro/'
+   ierr=0; message='omp_domain_decomp_stro/'
 
    do iSeg = 1,nSeg
     segIndex(iSeg)    = structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1)
@@ -380,7 +427,7 @@ contains
 
    end do sorder
 
- end subroutine omp_domain_decomposition_stro
+ end subroutine omp_domain_decomp_stro
 
  ! ***************************************************************
  ! private subroutine: Domain decomposition
@@ -411,7 +458,7 @@ contains
    !   domain(:)%idNode       : proc id (-1 through nNode-1) -1 is for mainstem but use pid=0
 
    ! updated and saved data
-   USE public_var, only : maxDomain
+   USE public_var, ONLY: maxDomain
 
    implicit none
 
@@ -511,7 +558,7 @@ contains
    !           %segIndex(:)    indices of reaches belong to this domain
 
    ! External modules
-   USE pfafstetter_module, only: lgc_tributary_outlet
+   USE pfafstetter_module, ONLY: lgc_tributary_outlet
 
    implicit none
    ! Input variables
@@ -624,8 +671,8 @@ contains
    ! assign domains into computing nodes
 
    ! External modules
-   USE globalData, only: domains                 ! domain data structure - for each domain, pfaf codes and list of segment indices
-   USE globalData, only: nDomain                 ! count of decomposed domains (tributaries + mainstems)
+   USE globalData, ONLY: domains                 ! domain data structure - for each domain, pfaf codes and list of segment indices
+   USE globalData, ONLY: nDomain                 ! count of decomposed domains (tributaries + mainstems)
 
    implicit none
    ! Input variables
