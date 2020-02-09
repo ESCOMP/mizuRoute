@@ -31,7 +31,7 @@ contains
  SUBROUTINE kwt_route(iens,                 & ! input: ensemble index
                       river_basin,          & ! input: river basin information (mainstem, tributary outlet etc.)
                       T0,T1,                & ! input: start and end of the time step
-                      ixDesire,             & ! input: reachID to be checked by on-screen pringing
+                      ixDesire,             & ! input: index of verbose reach
                       NETOPO_in,            & ! input: reach topology data structure
                       RPARAM_in,            & ! input: reach parameter data structure
                       RCHSTA_out,           & ! inout: reach state data structure
@@ -119,7 +119,7 @@ contains
          if (.not. doRoute(jSeg)) cycle
          ! route kinematic waves through the river network
          call QROUTE_RCH(iEns,jSeg,           & ! input: array indices
-                         ixDesire,            & ! input: index of the desired reach
+                         ixDesire,            & ! input: index of verbose reach
                          T0,T1,               & ! input: start and end of the time step
                          LAKEFLAG,            & ! input: flag if lakes are to be processed
                          NETOPO_in,           & ! input: reach topology data structure

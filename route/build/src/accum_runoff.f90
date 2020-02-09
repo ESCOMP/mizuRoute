@@ -20,7 +20,7 @@ CONTAINS
  ! ---------------------------------------------------------------------------------------
  SUBROUTINE accum_runoff(iEns,          & ! input: index of runoff ensemble to be processed
                          river_basin,   & ! input: river basin information (mainstem, tributary outlet etc.)
-                         ixDesire,      & ! input: ReachID to be checked by on-screen printing
+                         ixDesire,      & ! input: index of verbose reach
                          NETOPO_in,     & ! input: reach topology data structure
                          RCHFLX_out,    & ! inout: reach flux data structure
                          ierr, message, & ! output: error controls
@@ -126,7 +126,7 @@ CONTAINS
  ! *********************************************************************
  subroutine accum_qupstream(iEns,       &    ! input: index of runoff ensemble to be processed
                             segIndex,   &    ! input: index of reach to be processed
-                            ixDesire,   &    ! input: reachID to be checked by on-screen pringing
+                            ixDesire,   &    ! input: index of verbose reach
                             NETOPO_in,  &    ! input: reach topology data structure
                             RCHFLX_out, &    ! inout: reach flux data structure
                             ierr, message)   ! output: error control
