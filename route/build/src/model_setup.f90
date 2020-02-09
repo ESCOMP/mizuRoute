@@ -27,7 +27,6 @@ public :: init_data          ! For stand-alone only
 public :: init_ntopo_data
 public :: init_state_data
 public :: update_time
-public :: model_finalize
 
 CONTAINS
 
@@ -212,8 +211,6 @@ CONTAINS
   ! Shared data
   USE public_var,  ONLY: ntopAugmentMode        ! River network augmentation mode
   USE public_var,  ONLY: idSegOut               ! outlet segment ID (-9999 => no outlet segment specified)
-  USE globalData,  ONLY: RCHFLX                 ! Reach flux data structures (entire river network)
-  USE globalData,  ONLY: RCHSTA                 ! Reach state data structures (entire river network)
   USE globalData,  ONLY: nHRU, nRch             ! number of HRUs and Reaches in the whole network
   USE globalData,  ONLY: nRch_mainstem          ! number of mainstem reaches
   USE globalData,  ONLY: nHRU_mainstem          ! number of mainstem HRUs
@@ -226,6 +223,7 @@ CONTAINS
   USE globalData,  ONLY: basinID                ! HRU id vector
   USE globalData,  ONLY: reachID                ! reach ID vector
   ! external subroutines
+  USE model_utils, ONLY: model_finalize
   USE mpi_routine, ONLY: comm_ntopo_data        ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
   USE process_ntopo, ONLY: put_data_struct      ! populate NETOPO and RPARAM data structure
 
@@ -271,12 +269,7 @@ CONTAINS
 
    if (pid==0) then
 
-!     allocate(RCHFLX(nEns,nRch), RCHSTA(nEns,nRch), stat=ierr)
-!     if(ierr/=0)then; message=trim(message)//'problem allocating [RCHFLX, RCHSTA]'; return; endif
-
      ! populate basiID and reachID vectors for output (in only master processor)
-     ! populate runoff data structure (only meta, no runoff values)
-     ! populate remap data structure
 
      allocate(basinID(nHRU), reachID(nRch), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating [basinID, reachID]'; return; endif
@@ -480,28 +473,6 @@ CONTAINS
   endif
 
  END SUBROUTINE init_state_data
-
-
- ! *********************************************************************
- ! public subroutine: finalize model
- ! *********************************************************************
- SUBROUTINE model_finalize(comm)
-  USE globalData, ONLY: masterproc       ! root proc logical
-  USE mpi_mod,    ONLY: shr_mpi_finalize ! mpi utilities: shut down mpi
-  implicit none
-  integer(i4b), intent(in) :: comm   ! communicator
-
-  if (masterproc) then
-    write(iulog,*) '----------------------'
-    write(iulog,*) ' SUCCESSFUL EXECUTION '
-    write(iulog,*) '----------------------'
-  end if
-
-  call shr_mpi_finalize(comm)
-
-  stop
-
- END SUBROUTINE model_finalize
 
 
  ! *********************************************************************

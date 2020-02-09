@@ -40,6 +40,8 @@ contains
                       ixSubRch)               ! optional input: subset of reach indices to be processed
 
    USE dataTypes, ONLY: subbasin_omp          ! mainstem+tributary data strucuture
+   USE model_utils, ONLY: handle_err
+
    implicit none
    ! Input
    integer(i4b),       intent(in)                 :: iEns                 ! ensemble member
@@ -127,7 +129,7 @@ contains
                          RCHSTA_out,          & ! inout: reach state data structure
                          RCHFLX_out,          & ! inout: reach flux data structure
                          ierr,cmessage)         ! output: error control
-         !if (ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+         if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
        end do  seg
      end do trib
 !$OMP END PARALLEL DO

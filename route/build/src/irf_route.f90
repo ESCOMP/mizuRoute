@@ -31,6 +31,7 @@ contains
 
  ! global routing data
  USE dataTypes, ONLY: subbasin_omp   ! mainstem+tributary data structures
+ USE model_utils, ONLY: handle_err
 
  implicit none
  ! Input
@@ -105,7 +106,7 @@ contains
        jSeg = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
        if (.not. doRoute(jSeg)) cycle
        call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, cmessage)
-!      if(ierr/=0)then; ixmessage(iTrib)=trim(message)//trim(cmessage); exit; endif
+       if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
      end do seg
    end do trib
 !$OMP END PARALLEL DO

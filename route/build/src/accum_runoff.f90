@@ -33,7 +33,8 @@ CONTAINS
  !
  ! ----------------------------------------------------------------------------------------
 
- USE dataTypes, ONLY: subbasin_omp   ! mainstem+tributary data structures
+ USE dataTypes,   ONLY: subbasin_omp   ! mainstem+tributary data structures
+ USE model_utils, ONLY: handle_err
 
  implicit none
  ! input
@@ -107,7 +108,7 @@ CONTAINS
        if (.not. doRoute(jSeg)) cycle
 
        call accum_qupstream(iens, jSeg, ixDesire, NETOPO_in, RCHFLX_out, ierr, cmessage)
-       !if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
 
      end do
    end do
