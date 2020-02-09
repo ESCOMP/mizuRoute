@@ -17,7 +17,6 @@ USE globalData, ONLY: mpicom_route            ! communicator
 ! ******
 ! provide access to desired subroutines...
 ! ****************************************
-USE mpi_mod,             ONLY: shr_mpi_abort
 ! subroutines: model set up
 USE model_setup,         ONLY: init_mpi         ! initialize MPI for this program
 USE model_setup,         ONLY: init_model       ! model setupt - reading control file, populate metadata, read parameter file
