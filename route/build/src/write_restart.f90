@@ -80,7 +80,7 @@ CONTAINS
            dim_tbound  => meta_stateDims(ixStateDims%tbound)%dimName)
 
  ! Create file
- ierr = nf90_create(trim(fname),nf90_classic_model,ncid)
+ ierr = nf90_create(trim(fname),nf90_64bit_offset,ncid)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  ! For common dimension/variables - seg id, time, time-bound -----------
