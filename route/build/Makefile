@@ -9,11 +9,11 @@
 #========================================================================
 # User configure part
 #========================================================================
-# Define fortran compiler - gnu, intel or pgi 
+# Define fortran compiler - gnu, intel or pgi
 FC  =
 
 # Define the compiler exe
-# For MPI use, mpifort, mpif77, mpif90, mpif08 
+# For MPI use, mpifort, mpif77, mpif90, mpif08
 FC_EXE =
 
 # Define the executable
@@ -21,12 +21,12 @@ EXE =
 
 # Define optional setting
 # fast:      Enables optimizations
-# debug:     Minimum debug options, still 
+# debug:     Minimum debug options, still
 # profile:   Enables profiling
 MODE = debug
 
 # define open MP flags (yes if used)
-isOpenMP =
+isOpenMP = yes
 FLAGS_OMP =
 LIBOPENMP =
 
@@ -34,8 +34,8 @@ LIBOPENMP =
 # external librarys are: mpi-serial, Parallel-I/O, and GPTL timing library
 # define path to PNETCDF if you want to use it
 isMPISERIAL =
-isPIO =
-isGPTL = 
+isPIO = yes
+isGPTL =
 
 # If isPIO==yes then you can give hints to PIO about the local system
 # gpfs is the specific filesystem used on cheyenne
@@ -50,15 +50,15 @@ F_MASTER =
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gnu"
- NCDF_PATH = 
+ NCDF_PATH =
  PNETCDF_PATH =
 endif
 ifeq "$(FC)" "intel"
- NCDF_PATH = 
+ NCDF_PATH =
  PNETCDF_PATH =
 endif
 ifeq "$(FC)" "pgi"
- NCDF_PATH = 
+ NCDF_PATH =
  PNETCDF_PATH =
 endif
 
@@ -71,7 +71,7 @@ ifeq "$(isOpenMP)" "yes"
   FLAGS_OMP = -mp
  else
   FLAGS_OMP = -fopenmp
- endif 
+ endif
 endif
 
 #========================================================================
@@ -82,7 +82,7 @@ ifeq "$(FC)" "gnu"
     FLAGS = -O3 -fmax-errors=0 -ffree-line-length-none $(FLAGS_OMP)
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP) 
+    FLAGS = -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP)
   endif
   ifeq "$(MODE)" "profile"
     FLAGS = -p -g -Wall -fmax-errors=0 -fbacktrace -fbounds-check -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP)
@@ -139,7 +139,7 @@ DATATYPES = \
     var_lookup.f90 \
     globalData.f90 \
     popMetadat.f90 \
-    allocation.f90 
+    allocation.f90
 # define utilities
 UTILS = \
     nr_utility.f90 \
@@ -148,6 +148,7 @@ UTILS = \
     ncio_utils.f90 \
     mpi_utils.f90 \
     pio_utils.f90 \
+    model_utils.f90 \
     gamma_func.f90
 # read/write files
 IO = \
@@ -156,9 +157,9 @@ IO = \
     read_param.f90 \
     read_streamSeg.f90 \
     write_streamSeg.f90 \
-    read_runoff.f90 \
-    get_basin_runoff.f90 \
-    read_remap.f90 \
+    standalone/read_runoff.f90 \
+    standalone/get_basin_runoff.f90 \
+    standalone/read_remap.f90 \
     read_restart.f90 \
     write_restart_pio.f90 \
     write_simoutput_pio.f90
@@ -176,6 +177,7 @@ CORE = \
     basinUH.f90 \
     irf_route.f90 \
     kwt_route.f90 \
+    kwe_route.f90 \
     main_route.f90 \
     mpi_process.f90 \
     model_setup.f90
@@ -190,7 +192,7 @@ MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
 # Define driver programs
 #========================================================================
 # Define the driver routine
-DRIVER = $(F_KORE_DIR)route_runoff.f90
+DRIVER = $(F_KORE_DIR)standalone/route_runoff.f90
 
 # tasks
 all: compile install clean
@@ -214,7 +216,7 @@ ifeq "$(isMPISERIAL)" "yes"
   endif
   MPISERIAL = $(MPISERLIB)
 else
-  MPISERIAL = 
+  MPISERIAL =
 endif
 
 ifeq "$(isPIO)" "yes"
