@@ -1,4 +1,4 @@
-module main_route_module
+MODULE main_route_module
 
 ! variable types
 USE nrtype                                   ! variable types, etc.
@@ -28,12 +28,12 @@ private
 
 public::main_route
 
-contains
+CONTAINS
 
  ! ******
  ! public subroutine: main HRU/reach routing routines
  ! ************************
- subroutine main_route(&
+ SUBROUTINE main_route(&
                        ! input
                        iens,           &  ! ensemble index
                        basinRunoff_in, &  ! basin (i.e.,HRU) runoff (m/s)
@@ -41,12 +41,13 @@ contains
                        river_basin,    &  ! OMP basin decomposition
                        NETOPO_in,      &  ! reach topology data structure
                        RPARAM_in,      &  ! reach parameter data structure
-                       ixDesire,       &  ! input: reachID to be checked by on-screen pringing
+                       ixDesire,       &  ! index of verbose reach
                        ! inout
                        RCHFLX_out,     &  ! reach flux data structure
                        RCHSTA_out,     &  ! reach state data structure
                        ! output: error handling
                        ierr, message)     ! output: error control
+
    ! Details:
    ! Given HRU (basin) runoff, perform hru routing (optional) to get reach runoff, and then channel routing
    ! Restriction:
@@ -54,7 +55,6 @@ contains
    ! 2. Process a list of reach indices (in terms of NETOPO_in etc.) given by ixRchProcessed
    ! 3. basinRunoff_in is given in the order of NETOPO_in(:)%HRUIX.
 
-   ! shared data
    USE public_var, ONLY: routOpt
    USE public_var, ONLY: doesBasinRoute
    USE public_var, ONLY: doesAccumRunoff
@@ -66,25 +66,25 @@ contains
    implicit none
 
    ! input
-   integer(i4b),               intent(in)    :: iens                 ! ensemble member
-   real(dp),      allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
-   integer(i4b),  allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
+   integer(i4b),                    intent(in)    :: iens                 ! ensemble member
+   real(dp),           allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
+   integer(i4b),       allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
    type(subbasin_omp), allocatable, intent(in)    :: river_basin(:)       ! OMP basin decomposition
-   type(RCHTOPO), allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology
-   type(RCHPRP),  allocatable, intent(in)    :: RPARAM_in(:)         ! River reach parameter
-   integer(i4b),               intent(in)    :: ixDesire             ! index of the reach for verbose output
+   type(RCHTOPO),      allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology
+   type(RCHPRP),       allocatable, intent(in)    :: RPARAM_in(:)         ! River reach parameter
+   integer(i4b),                    intent(in)    :: ixDesire             ! index of the reach for verbose output
    ! inout
-   TYPE(STRFLX),  allocatable, intent(inout) :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
-   TYPE(STRSTA),  allocatable, intent(inout) :: RCHSTA_out(:,:)      ! reach state data structure
+   type(STRFLX),       allocatable, intent(inout) :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+   type(STRSTA),       allocatable, intent(inout) :: RCHSTA_out(:,:)      ! reach state data structure
    ! output
-   integer(i4b),               intent(out)   :: ierr                 ! error code
-   character(len=strLen),      intent(out)   :: message              ! error message
+   integer(i4b),                    intent(out)   :: ierr                 ! error code
+   character(len=strLen),           intent(out)   :: message              ! error message
    ! local variables
-   character(len=strLen)                     :: cmessage             ! error message of downwind routine
-   real(dp)                                  :: T0,T1                ! beginning/ending of simulation time step [sec]
-   real(dp),      allocatable                :: reachRunoff_local(:) ! reach runoff (m/s)
-   integer(i4b)                              :: nSeg                 ! number of reach to be processed
-   integer(i4b)                              :: iSeg                 ! index of reach
+   character(len=strLen)                          :: cmessage             ! error message of downwind routine
+   real(dp)                                       :: T0,T1                ! beginning/ending of simulation time step [sec]
+   real(dp),           allocatable                :: reachRunoff_local(:) ! reach runoff (m/s)
+   integer(i4b)                                   :: nSeg                 ! number of reach to be processed
+   integer(i4b)                                   :: iSeg                 ! index of reach
 
    ! initialize errors
    ierr=0; message = "main_routing/"
@@ -146,7 +146,7 @@ contains
     call kwt_route(iens,                 & ! input: ensemble index
                    river_basin,          & ! input: river basin data type
                    T0,T1,                & ! input: start and end of the time step
-                   ixDesire,             &  ! input: index of verbose reach
+                   ixDesire,             & ! input: index of verbose reach
                    NETOPO_in,            & ! input: reach topology data structure
                    RPARAM_in,            & ! input: reach parameter data structure
                    RCHSTA_out,           & ! inout: reach state data structure
@@ -160,7 +160,7 @@ contains
    if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
     call irf_route(iens,                & ! input: ensemble index
                    river_basin,         & ! input: river basin data type
-                   ixDesire,            &  ! input: index of verbose reach
+                   ixDesire,            & ! input: index of verbose reach
                    NETOPO_in,           & ! input: reach topology data structure
                    RCHFLX_out,          & ! inout: reach flux data structure
                    ierr,cmessage,       & ! output: error control
@@ -168,6 +168,6 @@ contains
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    endif
 
- end subroutine main_route
+ END SUBROUTINE main_route
 
-end module main_route_module
+END MODULE main_route_module

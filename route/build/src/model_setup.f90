@@ -27,7 +27,6 @@ public :: init_data          ! For stand-alone only
 public :: init_ntopo_data
 public :: init_state_data
 public :: update_time
-public :: model_finalize
 
 CONTAINS
 
@@ -212,15 +211,21 @@ CONTAINS
   ! Shared data
   USE public_var,  ONLY: ntopAugmentMode        ! River network augmentation mode
   USE public_var,  ONLY: idSegOut               ! outlet segment ID (-9999 => no outlet segment specified)
-  USE globalData,  ONLY: RCHFLX                 ! Reach flux data structures (entire river network)
-  USE globalData,  ONLY: RCHSTA                 ! Reach state data structures (entire river network)
   USE globalData,  ONLY: nHRU, nRch             ! number of HRUs and Reaches in the whole network
+  USE globalData,  ONLY: nRch_mainstem          ! number of mainstem reaches
+  USE globalData,  ONLY: nHRU_mainstem          ! number of mainstem HRUs
+  USE globalData,  ONLY: RCHFLX_main            ! Reach flux data structures (master proc, mainstem)
+  USE globalData,  ONLY: RCHSTA_main            ! Reach state data structures (master proc, mainstem)
+  USE globalData,  ONLY: NETOPO_main            !
+  USE globalData,  ONLY: RPARAM_main            !
   USE globalData,  ONLY: nContribHRU            ! number of HRUs that are connected to any reaches
   USE globalData,  ONLY: nEns                   ! number of ensembles
   USE globalData,  ONLY: basinID                ! HRU id vector
   USE globalData,  ONLY: reachID                ! reach ID vector
   ! external subroutines
+  USE model_utils, ONLY: model_finalize
   USE mpi_routine, ONLY: comm_ntopo_data        ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
+  USE process_ntopo, ONLY: put_data_struct      ! populate NETOPO and RPARAM data structure
 
    implicit none
    ! input:
@@ -264,13 +269,7 @@ CONTAINS
 
    if (pid==0) then
 
-     ! allocate space for the entire river network
-     allocate(RCHFLX(nEns,nRch), RCHSTA(nEns,nRch), stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating [RCHFLX, RCHSTA]'; return; endif
-
      ! populate basiID and reachID vectors for output (in only master processor)
-     ! populate runoff data structure (only meta, no runoff values)
-     ! populate remap data structure
 
      allocate(basinID(nHRU), reachID(nRch), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating [basinID, reachID]'; return; endif
@@ -285,18 +284,33 @@ CONTAINS
    end if  ! if processor=0 (root)
 
    if (nNodes>1) then
+
      ! distribute network topology data and network parameters to the different processors
      call comm_ntopo_data(pid, nNodes, comm,                                    & ! input: proc id, # of procs and commnicator
                           nRch, nContribHRU,                                    & ! input: number of reach and HRUs that contribut to any reaches
                           structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
                           ierr, cmessage)                                         ! output: error controls
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
    else
+
+     nRch_mainstem = nRch
+     nHRU_mainstem = nContribHRU
+
+     allocate(RCHFLX_main(nEns, nRch_mainstem), RCHSTA_main(nEns, nRch_mainstem), stat=ierr, errmsg=cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     call put_data_struct(nRch_mainstem, structSEG, structNTOPO, & ! input
+                          RPARAM_main, NETOPO_main,              & ! output
+                          ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
      ! Setup openmp for whole domain
      call all_domain_omp_decomp(nRch,           & ! input: number of reach and HRUs that contribut to any reaches
                                 structNTOPO,    & ! input: river network data structures for the entire network
                                 ierr, cmessage)   ! output: error controls
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
    endif
 
  END SUBROUTINE init_ntopo_data
@@ -396,7 +410,10 @@ CONTAINS
   USE public_var, ONLY: routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
   USE public_var, ONLY: fname_state_in    ! name of state input file
   USE public_var, ONLY: output_dir        ! directory containing output data
-  USE globalData, ONLY: RCHFLX            ! reach flux structure
+  USE globalData, ONLY: nRch_mainstem     ! number of mainstem reaches
+  USE globalData, ONLY: rch_per_proc      ! number of tributary reaches
+  USE globalData, ONLY: RCHFLX_main       ! reach flux structure
+  USE globalData, ONLY: RCHFLX_trib       ! reach flux structure
   USE globalData, ONLY: TSEC              ! begining/ending of simulation time step [sec]
 
   implicit none
@@ -434,13 +451,20 @@ CONTAINS
    end if
 
   else
+   ! Cold start .......
+    ! initialize flux structures
 
    if (pid==0) then
-    ! Cold start .......
-    ! initialize flux structures
-    RCHFLX(:,:)%BASIN_QI = 0._dp
-    RCHFLX(:,:)%BASIN_QR(0) = 0._dp
-    RCHFLX(:,:)%BASIN_QR(1) = 0._dp
+     if (nRch_mainstem > 0) then
+       RCHFLX_main(:,:)%BASIN_QI = 0._dp
+       RCHFLX_main(:,:)%BASIN_QR(0) = 0._dp
+       RCHFLX_main(:,:)%BASIN_QR(1) = 0._dp
+     end if
+   end if
+   if (rch_per_proc(pid) > 0) then
+     RCHFLX_trib(:,:)%BASIN_QI = 0._dp
+     RCHFLX_trib(:,:)%BASIN_QR(0) = 0._dp
+     RCHFLX_trib(:,:)%BASIN_QR(1) = 0._dp
    end if
 
    ! initialize time
@@ -449,28 +473,6 @@ CONTAINS
   endif
 
  END SUBROUTINE init_state_data
-
-
- ! *********************************************************************
- ! public subroutine: finalize model
- ! *********************************************************************
- SUBROUTINE model_finalize(comm)
-  USE globalData, ONLY: masterproc       ! root proc logical
-  USE mpi_mod,    ONLY: shr_mpi_finalize ! mpi utilities: shut down mpi
-  implicit none
-  integer(i4b), intent(in) :: comm   ! communicator
-
-  if (masterproc) then
-    write(iulog,*) '----------------------'
-    write(iulog,*) ' SUCCESSFUL EXECUTION '
-    write(iulog,*) '----------------------'
-  end if
-
-  call shr_mpi_finalize(comm)
-
-  stop
-
- END SUBROUTINE model_finalize
 
 
  ! *********************************************************************
@@ -581,7 +583,6 @@ CONTAINS
   USE public_var, ONLY: integerMissing           ! missing value for integers
   ! global data
   USE globalData, ONLY: meta_PFAF                ! meta for pfafstetter code
-  USE globalData, ONLY: NETOPO, RPARAM           !
   ! variable index
   USE var_lookup, ONLY: ixPFAF                   ! index of variables for the pfafstetter code
   ! external subroutines
@@ -590,7 +591,6 @@ CONTAINS
   USE process_ntopo,        ONLY: check_river_properties   ! check if river network data is physically valid
   USE io_netcdf,            ONLY: get_var_dims
   USE process_ntopo,        ONLY: augment_ntopo            ! compute all the additional network topology (only compute option = on)
-  USE process_ntopo,        ONLY: put_data_struct          ! populate NETOPO and RPARAM data structure
   USE domain_decomposition, ONLY: mpi_domain_decomposition ! domain decomposition for mpi
 
   implicit none
@@ -714,12 +714,6 @@ CONTAINS
     write(iulog,'(a)') ' --> Run again using the new network topology file '
     return
   endif
-
-  ! copy data to the RPARAM and NETOPO structures
-  call put_data_struct(nRch_out, structSEG, structNTOPO, & ! input
-                       RPARAM, NETOPO,                   & ! output
-                       ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! spatial domain decomposition for MPI parallelization
   call mpi_domain_decomposition(nNodes, nRch_out, structNTOPO, nContribHRU, ierr, cmessage)     !Warning: nHRU /= nContribHRU

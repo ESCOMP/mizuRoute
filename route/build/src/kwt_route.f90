@@ -31,7 +31,7 @@ contains
  SUBROUTINE kwt_route(iens,                 & ! input: ensemble index
                       river_basin,          & ! input: river basin information (mainstem, tributary outlet etc.)
                       T0,T1,                & ! input: start and end of the time step
-                      ixDesire,             & ! input: reachID to be checked by on-screen pringing
+                      ixDesire,             & ! input: index of verbose reach
                       NETOPO_in,            & ! input: reach topology data structure
                       RPARAM_in,            & ! input: reach parameter data structure
                       RCHSTA_out,           & ! inout: reach state data structure
@@ -40,6 +40,8 @@ contains
                       ixSubRch)               ! optional input: subset of reach indices to be processed
 
    USE dataTypes, ONLY: subbasin_omp          ! mainstem+tributary data strucuture
+   USE model_utils, ONLY: handle_err
+
    implicit none
    ! Input
    integer(i4b),       intent(in)                 :: iEns                 ! ensemble member
@@ -119,7 +121,7 @@ contains
          if (.not. doRoute(jSeg)) cycle
          ! route kinematic waves through the river network
          call QROUTE_RCH(iEns,jSeg,           & ! input: array indices
-                         ixDesire,            & ! input: index of the desired reach
+                         ixDesire,            & ! input: index of verbose reach
                          T0,T1,               & ! input: start and end of the time step
                          LAKEFLAG,            & ! input: flag if lakes are to be processed
                          NETOPO_in,           & ! input: reach topology data structure
@@ -127,7 +129,7 @@ contains
                          RCHSTA_out,          & ! inout: reach state data structure
                          RCHFLX_out,          & ! inout: reach flux data structure
                          ierr,cmessage)         ! output: error control
-         !if (ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+         if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
        end do  seg
      end do trib
 !$OMP END PARALLEL DO

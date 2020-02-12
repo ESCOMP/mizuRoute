@@ -17,13 +17,14 @@ USE globalData, ONLY: mpicom_route            ! communicator
 ! ******
 ! provide access to desired subroutines...
 ! ****************************************
-USE mpi_mod,             ONLY: shr_mpi_abort
 ! subroutines: model set up
 USE model_setup,         ONLY: init_mpi         ! initialize MPI for this program
 USE model_setup,         ONLY: init_model       ! model setupt - reading control file, populate metadata, read parameter file
 USE model_setup,         ONLY: init_data        ! initialize river reach data
 USE model_setup,         ONLY: update_time      ! Update simulation time information at each time step
-USE model_setup,         ONLY: model_finalize
+! subroutines: model finalize
+USE model_utils,         ONLY: model_finalize
+USE model_utils,         ONLY: handle_err
 ! subroutines: routing
 USE mpi_routine,         ONLY: mpi_route        ! Distribute runoff to proc, route them, and gather,
 ! subroutines: model I/O
@@ -120,17 +121,5 @@ call output_state(ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
 call model_finalize(mpicom_route)
-
-CONTAINS
-
- SUBROUTINE handle_err(err,message)
- ! handle error codes
- implicit none
- integer(i4b),intent(in)::err             ! error code
- character(*),intent(in)::message         ! error message
- if(err/=0)then
-  call shr_mpi_abort('FATAL ERROR: '//trim(message), err)
- endif
- END SUBROUTINE handle_err
 
 END PROGRAM route_runoff

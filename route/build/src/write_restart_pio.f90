@@ -451,14 +451,14 @@ CONTAINS
  USE public_var, ONLY: allRoutingMethods
  USE public_var, ONLY: kinematicWave
  USE public_var, ONLY: impulseResponseFunc
- USE globalData, ONLY: RCHFLX              ! global Reach fluxes (ensembles, space [reaches])
- USE globalData, ONLY: RCHFLX_trib         !
- USE globalData, ONLY: NETOPO              ! global Reach fluxes (ensembles, space [reaches])
- USE globalData, ONLY: NETOPO_trib         !
- USE globalData, ONLY: RCHSTA              ! global Reach state (ensembles, space [reaches])
- USE globalData, ONLY: RCHSTA_trib         !
- USE globalData, ONLY: ixRch_order         ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
+ USE globalData, ONLY: RCHFLX_main         ! mainstem reach fluxes (ensembles, reaches)
+ USE globalData, ONLY: RCHFLX_trib         ! tributary reach fluxes (ensembles, reaches)
+ USE globalData, ONLY: NETOPO_main         ! mainstem reach topology
+ USE globalData, ONLY: NETOPO_trib         ! tributary reach topology
+ USE globalData, ONLY: RCHSTA_main         ! mainstem reach state (ensembles, reaches)
+ USE globalData, ONLY: RCHSTA_trib         ! tributary reach state (ensembles, reaches)
  USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
+ USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
  USE globalData, ONLY: reachID         ! reach ID in network
  USE globalData, ONLY: nRch            ! number of reaches in network
  USE globalData, ONLY: TSEC            ! beginning/ending of simulation time step [sec]
@@ -486,23 +486,23 @@ CONTAINS
  kTime = kTime + 1
 
  if (masterproc) then
-  associate(nRch_main => rch_per_proc(-1), nRch_trib => rch_per_proc(0))
-  allocate(RCHFLX_local(nRch_main+nRch_trib), &
-           NETOPO_local(nRch_main+nRch_trib), &
-           RCHSTA_local(nRch_main+nRch_trib), stat=ierr)
-  if (nRch_main/=0) then
-     do ix = 1,nRch_main
-      RCHFLX_local(ix) = RCHFLX(iens,ixRch_order(ix))
-      NETOPO_local(ix) = NETOPO(ixRch_order(ix))
-      RCHSTA_local(ix) = RCHSTA(iens,ixRch_order(ix))
+  associate(nRch_trib => rch_per_proc(0))
+  allocate(RCHFLX_local(nRch_mainstem+nRch_trib), &
+           NETOPO_local(nRch_mainstem+nRch_trib), &
+           RCHSTA_local(nRch_mainstem+nRch_trib), stat=ierr)
+  if (nRch_mainstem>0) then
+     do ix = 1,nRch_mainstem
+      RCHFLX_local(ix) = RCHFLX_main(iens,ix)
+      NETOPO_local(ix) = NETOPO_main(ix)
+      RCHSTA_local(ix) = RCHSTA_main(iens,ix)
      enddo
   end if
    if (nRch_trib>0) then
-     RCHFLX_local(nRch_main+1:nRch_main+nRch_trib) = RCHFLX_trib(iens,:)
-     NETOPO_local(nRch_main+1:nRch_main+nRch_trib) = NETOPO_trib(:)
-     RCHSTA_local(nRch_main+1:nRch_main+nRch_trib) = RCHSTA_trib(iens,:)
+     RCHFLX_local(nRch_mainstem+1:nRch_mainstem+nRch_trib) = RCHFLX_trib(iens,:)
+     NETOPO_local(nRch_mainstem+1:nRch_mainstem+nRch_trib) = NETOPO_trib(:)
+     RCHSTA_local(nRch_mainstem+1:nRch_mainstem+nRch_trib) = RCHSTA_trib(iens,:)
    endif
-  end associate
+   end associate
  else
   allocate(RCHFLX_local(rch_per_proc(pid)), &
            NETOPO_local(rch_per_proc(pid)), &
