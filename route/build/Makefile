@@ -180,7 +180,8 @@ CORE = \
     kwe_route.f90 \
     main_route.f90 \
     mpi_process.f90 \
-    model_setup.f90
+    init_model_data.f90 \
+    standalone/model_setup.f90
 
 # concatanate model subroutines
 TEMP_MODSUB = $(DATATYPES) $(UTILS) $(IO) $(INIT) $(CORE)
