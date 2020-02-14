@@ -16,17 +16,17 @@ FC  =
 FC_EXE =
 
 # Define the compiled executable
-EXE = 
+EXE =
 
 # Define optional setting
 # fast:      Enables optimizations
-# debug:     Minimum debug options, still 
+# debug:     Minimum debug options, still
 # profile:   Enables profiling
 MODE = debug
 
-# define open MP option (put yes to activate OMP) 
+# define open MP option (put yes to activate OMP)
 isOpenMP =
- 
+
 # Define core directory below which everything resides
 # parent directory of the 'build' directory
 # do not put space at the end of path
@@ -34,13 +34,13 @@ F_MASTER =
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gnu"
- NCDF_PATH = 
+ NCDF_PATH =
 endif
 ifeq "$(FC)" "intel"
- NCDF_PATH = 
+ NCDF_PATH =
 endif
 ifeq "$(FC)" "pgi"
- NCDF_PATH = 
+ NCDF_PATH =
 endif
 
 LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
@@ -114,7 +114,7 @@ DATATYPES = \
     var_lookup.f90 \
     globalData.f90 \
     popMetadat.f90 \
-    allocation.f90 
+    allocation.f90
 # define utilities
 UTILS = \
     nr_utility.f90 \
