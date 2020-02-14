@@ -19,9 +19,9 @@ USE globalData, ONLY: mpicom_route            ! communicator
 ! ****************************************
 ! subroutines: model set up
 USE model_setup,         ONLY: init_mpi         ! initialize MPI for this program
-USE model_setup,         ONLY: init_model       ! model setupt - reading control file, populate metadata, read parameter file
 USE model_setup,         ONLY: init_data        ! initialize river reach data
-USE model_setup,         ONLY: update_time      ! Update simulation time information at each time step
+USE init_model_data,     ONLY: init_model       ! model setupt - reading control file, populate metadata, read parameter file
+USE init_model_data,     ONLY: update_time      ! Update simulation time information at each time step
 ! subroutines: model finalize
 USE model_utils,         ONLY: model_finalize
 USE model_utils,         ONLY: handle_err
