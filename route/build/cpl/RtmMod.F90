@@ -6,22 +6,19 @@ MODULE RtmMod
   USE RtmVar        , ONLY : nt_rtm, rtm_tracers, &
                              ice_runoff, do_rtm,  &
                              nsrContinue, nsrBranch, nsrStartup, nsrest, &
-                             coupling_period, &
-                             cfile_name, rpntfil, &
+                             cfile_name, coupling_period, &
+                             caseid, brnch_retain_casename, inst_suffix, &
                              barrier_timers
-  USE RtmTimeManager, ONLY : init_time
   USE RtmFileUtils,   ONLY : relavu, getavu, opnfil, getfil
+  USE RtmTimeManager, ONLY : init_time
   USE RunoffMod     , ONLY : rtmCTL, RunoffInit
+  USE public_var,     ONLY : dt                         ! routing time step
   USE public_var    , ONLY : iulog
-  USE public_var    , ONLY : dt                         ! routing time step
-  USE globalData    , ONLY : pid          => iam
-  USE globalData    , ONLY : nNodes       => npes
-  USE globalData    , ONLY : mpicom_route => mpicom_rof
-  USE globalData    , ONLY : ixHRU_order                ! global HRU index in the order of proc assignment (size = num of hrus contributing reach in entire network)
-  USE globalData    , ONLY : hru_per_proc               ! number of hrus assigned to each proc (size = num of procs
-  USE globalData    , ONLY : nContribHRU                !
-  USE globalData    , ONLY : RCHFLX                     !
-  USE globalData    , ONLY : RCHFLX_trib                !
+  USE public_var    , ONLY : rpntfil
+  USE globalData    , ONLY : iam        => pid
+  USE globalData    , ONLY : npes       => nNodes
+  USE globalData    , ONLY : mpicom_rof => mpicom_route
+  USE globalData    , ONLY : masterproc
   USE perf_mod
 
 ! !PUBLIC TYPES:
@@ -43,6 +40,11 @@ CONTAINS
 ! Initialize mizuRoute network, decomp
 ! !CALLED FROM:
 ! subroutine initialize in module initializeMod
+  USE public_var,  ONLY: isRestart
+  USE globalData,  ONLY: ixHRU_order                ! global HRU index in the order of proc assignment (size = num of hrus contributing reach in entire network)
+  USE globalData,  ONLY: hru_per_proc               ! number of hrus assigned to each proc (size = num of procs
+  USE init_model_data, ONLY: init_ntopo_data
+  USE init_model_data, ONLY: init_state_data
 
 ! !ARGUMENTS:
   implicit none
@@ -50,7 +52,6 @@ CONTAINS
   logical, intent(out)       :: flood_active
   ! LOCAL VARIABLES:
   character(len=CL)          :: rtm_trstr                 ! tracer string
-  character(len=CL)          :: pnamer                    ! full pathname of netcdf restart file
   integer                    :: ierr                      ! error code
   integer                    :: n, ix1, ix2, myid
   character(len= 7)          :: runtyp(4)                 ! run type
@@ -74,16 +75,14 @@ CONTAINS
     dt = coupling_period
   endif
 
-!!!!!!! CHECK
   ! Obtain restart file if appropriate
   if ((nsrest == nsrContinue) .or. &
       (nsrest == nsrBranch  )) then
      isRestart = .true.
-     call RtmRestGetfile( file=fname_state_in, path=pnamer )
-  else (nsrest == nsrStartup ) then
+     call RtmRestGetfile()
+  else if (nsrest == nsrStartup ) then
      isRestart = .false.
   endif
-!!!!!!! CHECK
 
   runtyp(:)               = 'missing'
   runtyp(nsrStartup  + 1) = 'initial'
@@ -99,8 +98,8 @@ CONTAINS
 
     rtm_active = do_rtm
 
-    if .not.(do_rtm) then
-      if (masterproc) then
+    if ( .not.do_rtm ) then
+      if ( masterproc ) then
         write(iulog,*)'mizuRoute will not be active '
       endif
       RETURN
@@ -170,7 +169,7 @@ CONTAINS
     ! Read restart/initial info
     !-------------------------------------------------------
 
-    call init_state_data(iam, npes, mpicom_rof, ierr, message)
+    call init_state_data(iam, npes, mpicom_rof, ierr, cmessage)
     if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
   END SUBROUTINE route_ini
@@ -181,28 +180,47 @@ CONTAINS
 ! *********************************************************************!
   SUBROUTINE route_run(rstwr)
 
+    USE dataTypes,         ONLY: strflx
+    USE globalData,        ONLY: runoff_data      ! runoff data structure
+    USE globalData,        ONLY: RCHFLX_trib      ! Reach flux data structures (per proc, tributary)
+    USE globalData,        ONLY: RCHFLX_main      ! Reach flux data structures (master proc, mainstem)
+    USE globalData,        ONLY: ixHRU_order      ! global HRU index in the order of proc assignment
+    USE globalData,        ONLY: nRch_mainstem    ! number of mainstem reaches
+    USE globalData,        ONLY: nHRU_mainstem    ! number of mainstem HRUs
+    USE globalData,        ONLY: nContribHRU      ! number of reaches in the whoel river network
+    USE globalData,        ONLY: hru_per_proc     ! number of hrus assigned to each proc (i.e., node)
+    USE globalData,        ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
+    USE mpi_routine,       ONLY: mpi_route        ! MPI routing call
+    USE nr_utility_module, ONLY: arth
+    USE init_model_data,   ONLY: update_time
+
 ! !DESCRIPTION:
 ! River routing model
-    USE dataType, ONLY: strflx
+
 ! !ARGUMENTS:
     implicit none
     logical ,         intent(in) :: rstwr                  ! true => write restart file this step)
 ! !LOCAL VARIABLES:
     integer                      :: iens                   ! ensemble index (1 for now)
+    integer                      :: ix                     ! loop index
     integer                      :: nr, ns, nt             ! indices
     integer                      :: yr, mon, day, ymd, tod ! time information
     integer                      :: nsub                   ! subcyling for cfl
-    real(r8)                     :: delt                   ! delt associated with subcycling
-    real(r8)                     :: delt_coupling          ! real value of coupling_period
+    integer, parameter           :: gather=2
     integer , save               :: nsub_save              ! previous nsub
     real(r8), save               :: delt_save              ! previous delt
     logical,  save               :: first_call = .true.    ! first time flag (for backwards compatibility)
+    real(r8)                     :: delt                   ! delt associated with subcycling
+    real(r8)                     :: delt_coupling          ! real value of coupling_period
+    real(r8),     allocatable    :: runoff_local(:)        !
     type(strflx), allocatable    :: RCHFLX_local(:)
-    logical,                     :: finished
-    integer                      :: ierr                   ! error code
+    logical                      :: finished
     ! parameters used in negative runoff partitioning algorithm
     real(r8)                     :: irrig_volume           ! volume of irrigation demand during time step [m3]
+    ! error handling
     character(len=*),parameter   :: subname = '(route_run) '
+    character(len=CL)            :: cmessage
+    integer                      :: ierr                   ! error code
 !-----------------------------------------------------------------------
 
     call t_startf('mizuRoute_tot')
@@ -218,51 +236,48 @@ CONTAINS
     ! Initialize mosart history handler and fields
     !-------------------------------------------------------
     call t_startf('mizuRoute_histinit')
-    call prep_output(ierr, message)
+    call prep_output(ierr, cmessage)
     call t_stopf('mizuRoute_histinit')
 
     rtmCTL%discharge = 0._r8
     rtmCTL%volr      = 0._r8
     rtmCTL%flood     = 0._r8
 
-
-    !-----------------------------------
-    ! Compute irrigation flux based on demand from clm
-    ! Must be calculated before volr is updated to be consistent with lnd
-    ! Just consider land points and only remove liquid water
-    !-----------------------------------
-
-    call t_startf('mizuRoute_irrig')
-    nt = 1
-    rtmCTL%qirrig_actual = 0._r8
-    do nr = rtmCTL%begr,rtmCTL%endr
-
-      ! calculate volume of irrigation flux during timestep
-      irrig_volume = -rtmCTL%qirrig(nr) * coupling_period
-
-      ! compare irrig_volume to main channel storage;
-      ! add overage to subsurface runoff
-      if(irrig_volume > RCHFLX_local(1,nr)%REACH_VOL) then
-        rtmCTL%qsub(nr,nt) = rtmCTL%qsub(nr,nt) &
-                           + (RCHFLX_local(1,nr)%REACH_VOL - irrig_volume) / coupling_period
-        irrig_volume = RCHFLX_local(1,nr)%REACH_VOL
-      endif
-
-!scs: how to deal with sink points / river outlets?
-!     if (rtmCTL%mask(nr) == 1) then
-
-      ! actual irrigation rate [m3/s]
-      ! i.e. the rate actually removed from the main channel
-      ! if irrig_volume is greater than TRunoff%wr
-      rtmCTL%qirrig_actual(nr) = - irrig_volume / coupling_period
-
-      ! remove irrigation from wr (main channel)
-      RCHFLX_local(1,nr)%REACH_VOL = RCHFLX_local(1,nr)%REACH_VOL - irrig_volume
-
-!scs  endif
-    enddo
-    call t_stopf('mizuRoute_irrig')
-
+!       !-----------------------------------
+!       ! Compute irrigation flux based on demand from clm
+!       ! Must be calculated before volr is updated to be consistent with lnd
+!       ! Just consider land points and only remove liquid water
+!       !-----------------------------------
+!
+!       call t_startf('mizuRoute_irrig')
+!       nt = 1
+!       rtmCTL%qirrig_actual = 0._r8
+!       do nr = rtmCTL%begr,rtmCTL%endr
+!
+!         ! calculate volume of irrigation flux during timestep
+!         irrig_volume = -rtmCTL%qirrig(nr) * coupling_period
+!
+!         ! compare irrig_volume to main channel storage;
+!         ! add overage to subsurface runoff
+!         if(irrig_volume > RCHFLX_local(1,nr)%REACH_VOL(1)) then
+!           rtmCTL%qsub(nr,nt) = rtmCTL%qsub(nr,nt) &
+!                              + (RCHFLX_local(1,nr)%REACH_VOL(1) - irrig_volume) / coupling_period
+!           irrig_volume = RCHFLX_local(1,nr)%REACH_VOL
+!         endif
+!
+!   !scs: how to deal with sink points / river outlets?
+!   !     if (rtmCTL%mask(nr) == 1) then
+!
+!         ! actual irrigation rate [m3/s]
+!         ! i.e. the rate actually removed from the main channel
+!         ! if irrig_volume is greater than TRunoff%wr
+!         rtmCTL%qirrig_actual(nr) = - irrig_volume / coupling_period
+!
+!         ! remove irrigation from wr (main channel)
+!         RCHFLX_local(1,nr)%REACH_VOL(1) = RCHFLX_local(1,nr)%REACH_VOL(1) - irrig_volume
+!   !scs  endif
+!       enddo
+!       call t_stopf('mizuRoute_irrig')
 
     if (barrier_timers) then
        call t_startf('mizuRoute_SMdirect_barrier')
@@ -286,7 +301,7 @@ CONTAINS
                               rtmCTL%lnumr,                                & ! input: numpber of element for local
                               ixHRU_order(hru_per_proc(-1)+1:nContribHRU), & ! input: global index
                               arth(1,1,hru_per_proc(iam)),                 & ! input: local index
-                              gather,
+                              gather,                                      & ! input: type of communication
                               ierr, cmessage)
     if (masterproc) then
       do nr = 1,hru_per_proc(-1)
@@ -317,7 +332,7 @@ CONTAINS
     iens = 1
     do ns = 1,nsub
 
-      call mpi_route(iam, npes, mpicom_route, iens, ierr, cmessage)
+      call mpi_route(iam, npes, mpicom_rof, iens, ierr, cmessage)
       if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
       if (masterproc) then
@@ -325,21 +340,21 @@ CONTAINS
         allocate(RCHFLX_local(nRch_main+nRch_trib), stat=ierr)
         if (nRch_main/=0) then
           do ix = 1,nRch_main
-           RCHFLX_local(ix) = RCHFLX(1,ixRch_order(ix))
+           RCHFLX_local(ix) = RCHFLX_main(iens, ix)
           enddo
         end if
         RCHFLX_local(nRch_main+1:nRch_main+nRch_trib) = RCHFLX_trib(iens,:)
         end associate
       else
         allocate(RCHFLX_local(rch_per_proc(iam)), stat=ierr)
-        RCHFLX_local = RCHFLX_trib(1,:)
+        RCHFLX_local(:) = RCHFLX_trib(iens, :)
       endif
 
-      do nt = 1,nt_rtm
-        do nr = rtmCTL%begr,rtmCTL%endr
-          rtmCTL%volr(nr,nt)      = 0._r8
-          rtmCTL%flood(nr,nt)     = 0._r8
-          rtmCTL%discharge(nr,nt) = rtmCTL%discharge(nr,nt) + RCHFLX_local(1,nr)%REACH_Q/float(nsub)      ! Reach fluxes (ensembles, space [reaches]) for tributaries
+      do nr = rtmCTL%begr,rtmCTL%endr
+        rtmCTL%volr(nr)      = 0._r8
+        rtmCTL%flood(nr)     = 0._r8
+        do nt = 1,nt_rtm
+          rtmCTL%discharge(nr,nt) = rtmCTL%discharge(nr,nt) + RCHFLX_local(nr)%REACH_Q/float(nsub)      ! Reach fluxes (ensembles, space [reaches]) for tributaries
         enddo
       enddo
 
@@ -380,53 +395,48 @@ CONTAINS
   END SUBROUTINE route_run
 
 
-  SUBROUTINE RtmRestGetfile( file, path )
+  SUBROUTINE RtmRestGetfile()
     !---------------------------------------------------
     ! DESCRIPTION:
     ! Determine and obtain netcdf restart file
+    USE public_var, ONLY: output_dir
+    USE public_var, ONLY: fname_state_in
 
     ! ARGUMENTS:
     implicit none
-    character(len=*), intent(out) :: file  ! name of netcdf restart file
-    character(len=*), intent(out) :: path  ! full pathname of netcdf restart file
-
     ! LOCAL VARIABLES:
-    integer :: status                      ! return status
-    integer :: length                      ! temporary
-    character(len=256) :: ftest,ctest      ! temporaries
+    character(CL)      :: path           ! full pathname of netcdf restart file
+    integer            :: status         ! return status
+    integer            :: length         ! temporary
+    character(len=256) :: ftest,ctest    ! temporaries
     !---------------------------------------------------
 
     ! Continue run:
     ! Restart file pathname is read restart pointer file
+    ! use "output_diro" for directory name for restart file
     if (nsrest==nsrContinue) then
        call restFile_read_pfile( path )
-       call getfil( path, file, 0 )
+       call getfil( path, output_dir, fname_state_in, 0 )
     end if
 
     ! Branch run:
     ! Restart file pathname is obtained from namelist "fname_state_in"
     if (nsrest==nsrBranch) then
-       length = len_trim(fname_state_in)
-       if (fname_state_in(length-2:length) == '.nc') then
-          path = trim(output_dir)//trim(fname_state_in)
-       else
-          path = trim(output_dir)//trim(fname_state_in) // '.nc'
-       end if
-       call getfil( path, file, 0 )
 
        ! Check case name consistency (case name must be different
        ! for branch run, unless brnch_retain_casename is set)
        ctest = 'xx.'//trim(caseid)//'.mizuRoute'
-       ftest = 'xx.'//trim(file)
+       ftest = 'xx.'//trim(fname_state_in)
        status = index(trim(ftest),trim(ctest))
        if (status /= 0 .and. .not.(brnch_retain_casename)) then
           write(iulog,*) 'Must change case name on branch run if ',&
                'brnch_retain_casename namelist is not set'
-          write(iulog,*) 'previous case filename= ',trim(file),&
+          write(iulog,*) 'previous case filename= ',trim(fname_state_in),&
                ' current case = ',trim(caseid), ' ctest = ',trim(ctest), &
                ' ftest = ',trim(ftest)
           call shr_sys_abort()
        end if
+
     end if
 
   END SUBROUTINE RtmRestGetfile

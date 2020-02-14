@@ -12,7 +12,7 @@ module rof_import_export
   use rof_shr_methods , only : chkerr
 
   use public_var      , only : iulog
-  use public_var      , only : masterproc          !create this  logical variable  in mizuRoute (masterproc=true => master task, false => other tasks
+  use globalData      , only : masterproc          !create this  logical variable  in mizuRoute (masterproc=true => master task, false => other tasks
   use globalData      , only : iTime               ! replace RtmTimeManager,  get_nstep in Mosart
   use RunoffMod       , only : rtmCTL
   use RtmVar          , only : nt_rtm, rtm_tracers
@@ -78,7 +78,7 @@ contains
     ! Advertise export fields
     !--------------------------------
     call fldlist_add(fldsFrRof_num, fldsFrRof, trim(flds_scalar_name))
-    call fldlist_add(fldsFrRof_num, fldsFrRof, 'Forr_rofl')    
+    call fldlist_add(fldsFrRof_num, fldsFrRof, 'Forr_rofl')
     call fldlist_add(fldsFrRof_num, fldsFrRof, 'Forr_rofi')
     call fldlist_add(fldsFrRof_num, fldsFrRof, 'Flrr_flood')
     call fldlist_add(fldsFrRof_num, fldsFrRof, 'Flrr_volr')
@@ -117,7 +117,7 @@ contains
     type(ESMF_GridComp) , intent(inout) :: gcomp
     type(ESMF_Mesh)     , intent(in)    :: Emesh
     character(len=*)    , intent(in)    :: flds_scalar_name
-    integer             , intent(in)    :: flds_scalar_num 
+    integer             , intent(in)    :: flds_scalar_num
     integer             , intent(out)   :: rc
 
     ! local variables
@@ -169,7 +169,7 @@ contains
     type(ESMF_State) :: importState
     integer          :: n,nt
     integer          :: begr, endr
-    integer          :: nliq, nfrz 
+    integer          :: nliq, nfrz
     integer          :: dbrc
     character(len=*), parameter :: subname='(rof_import_export:import_fields)'
     !---------------------------------------------------------------------------
@@ -198,7 +198,7 @@ contains
 
     ! determine output array and scale by unit convertsion
     ! NOTE: the call to state_getimport will convert from input kg/m2s to m3/s
-    
+
     call state_getimport(importState, 'Flrl_rofsur', begr, endr, rtmCTL%area, output=rtmCTL%qsur(:,nliq), rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
@@ -314,8 +314,8 @@ contains
     ! so if water is sent from rof to land, the flux must be negative.
 
     do n = begr, endr
-       flood(n)   = -rtmCTL%flood(n)    / (rtmCTL%area(n)*0.001_r8)
-       volr(n)    =  rtmCTL%volr(n,nliq)/ rtmCTL%area(n)
+       flood(n)   = -rtmCTL%flood(n) / (rtmCTL%area(n)*0.001_r8)
+       volr(n)    =  rtmCTL%volr(n)  / rtmCTL%area(n)
     end do
 
     call state_setexport(exportState, 'Forr_rofl', begr, endr, input=rofl, rc=rc)
@@ -476,7 +476,7 @@ contains
     ! input/output variables
     type(ESMF_State)    , intent(in)    :: state
     character(len=*)    , intent(in)    :: fldname
-    integer             , intent(in)    :: begr 
+    integer             , intent(in)    :: begr
     integer             , intent(in)    :: endr
     real(r8)            , intent(in)    :: area(begr:endr)
     real(r8)            , intent(out)   :: output(begr:endr)
@@ -531,7 +531,7 @@ contains
     use shr_const_mod, only : fillvalue=>SHR_CONST_SPVAL
 
     ! ----------------------------------------------
-    ! Map input array to export state field 
+    ! Map input array to export state field
     ! ----------------------------------------------
 
     ! input/output variables

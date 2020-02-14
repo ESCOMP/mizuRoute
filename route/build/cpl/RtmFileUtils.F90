@@ -6,8 +6,8 @@ module RtmFileUtils
 ! !USES:
   USE shr_sys_mod , ONLY : shr_sys_abort
   USE shr_file_mod, ONLY : shr_file_get, shr_file_getUnit, shr_file_freeUnit
-  USE public_var  , ONLY : masterproc  
-  USE public_var  , ONLY : iulog 
+  USE globalData  , ONLY : masterproc
+  USE public_var  , ONLY : iulog
 !
 ! !PUBLIC TYPES:
   implicit none
@@ -54,17 +54,45 @@ contains
 
   end function get_filename
 
+!-----------------------------------------------------------------------
+
+  character(len=256) function get_dirname (fulpath)
+
+    ! !DESCRIPTION:
+    ! Returns directory name given full pathname
+    !
+    ! !ARGUMENTS:
+    implicit none
+    character(len=*), intent(in)  :: fulpath !full pathname
+    !
+    ! !LOCAL VARIABLES:
+    integer i     !loop index
+    integer klen  !length of fulpath character string
+    !----------------------------------------------------------
+
+    klen = len_trim(fulpath)
+    do i = klen, 1, -1
+       if (fulpath(i:i) == '/') go to 10
+    end do
+    i = 0
+10  get_dirname = fulpath(1:i)
+
+  end function get_dirname
+
 !------------------------------------------------------------------------
 
-   subroutine getfil (fulpath, locfn, iflag)
+!------------------------------------------------------------------------
+
+   subroutine getfil (fulpath, dir, locfn, iflag)
 
      ! !DESCRIPTION:
      ! Obtain local copy of file. First check current working directory,
      ! Next check full pathname[fulpath] on disk
-     ! 
+     !
      ! !ARGUMENTS:
      implicit none
      character(len=*), intent(in)  :: fulpath !Archival or permanent disk full pathname
+     character(len=*), intent(out) :: dir     !output directory name
      character(len=*), intent(out) :: locfn   !output local file name
      integer,          intent(in)  :: iflag   !0=>abort if file not found 1=>do not abort
 
@@ -76,6 +104,7 @@ contains
 
      ! get local file name from full name
      locfn = get_filename( fulpath )
+     dir   = get_dirname ( fulpath )
      if (len_trim(locfn) == 0) then
         if (masterproc) write(iulog,*)'(GETFIL): local filename has zero length'
         call shr_sys_abort()

@@ -20,12 +20,12 @@ module rof_comp_nuopc
 
   use public_var            , only : iulog
   use public_var            , only : calendar, simStart, simEnd, time_units
-  use public_var            , only : masterproc  !create this  logical variable  in mizuRoute (masterproc=true => master task, false => other tasks
-  use globalData            , only : pid          => iam
-  use globalData            , only : nNodes       => npes
-  use globalData            , only : mpicom_route => mpicom_rof
+  use globalData            , only : masterproc  !create this  logical variable  in mizuRoute (masterproc=true => master task, false => other tasks
+  use globalData            , only : iam        => pid
+  use globalData            , only : npes       => nNodes
+  use globalData            , only : mpicom_rof => mpicom_route
   use globalData            , only : nHRU
-  use model_setup           , only : get_mpi_omp
+  use init_model_data       , only : get_mpi_omp
   use RunoffMod             , only : rtmCTL
   use RtmMod                , only : route_ini, route_run
   use RtmTimeManager        , only : init_time, shr_timeStr
@@ -307,8 +307,12 @@ contains
     logical                     :: rof_prognostic        ! flag
     integer                     :: shrlogunit            ! original log unit
     integer                     :: lsize                 ! local size ofarrays
+    integer                     :: n,ni                  ! indices
     integer                     :: lbnum                 ! input to memory diagnostic
     integer                     :: nsrest                ! restart type
+    integer                     :: ierr                  ! error
+    character(CL)               :: cmessage              ! error message
+    character(CL)               :: simRef                ! date string defining the reference time
     character(CL)               :: username              ! user name
     character(CL)               :: caseid                ! case identifier name
     character(CL)               :: ctitle                ! case description title

@@ -4,20 +4,20 @@ module RtmVar
 
   use shr_kind_mod , only : r8 => shr_kind_r8, CL => SHR_KIND_CL
   use shr_sys_mod  , only : shr_sys_abort
-  use public_var   , only : masterproc
+  use globalData   , only : masterproc
 
   implicit none
- 
+
   save
 
-  ! private variables 
+  ! private variables
   integer, private, parameter          :: iundef = -9999999
   integer, private, parameter          :: rundef = -9999999._r8
   logical, private                     :: RtmVar_isset = .false.
 
   ! public variables (saved)
   !TODO - nt_rtm and rtm_tracers need to be removed and set by access to the index array
-  integer,           public  parameter :: nt_rtm = 2                      ! number of tracers
+  integer,           public, parameter :: nt_rtm = 2                      ! number of tracers
   character(len=3),  public, parameter :: rtm_tracers(nt_rtm) = (/'LIQ','ICE'/)
 
   logical,           public            :: barrier_timers = .false.       ! barrier timers
@@ -38,18 +38,20 @@ module RtmVar
   character(len=CL), public            :: model_doi_url                  ! Web address of the Digital Object Identifier (DOI) for this model version
 
   ! Instance control
-  integer,           public            :: inst_index                     
+  integer,           public            :: inst_index
   character(len=16), public            :: inst_name
   character(len=16), public            :: inst_suffix
 
   ! Rtm control variables
-  logical,           public            :: do_rtm =.true.                  !
-  integer,           public            :: coupling_period                 ! coupling period
-  integer,           public            :: rtmhist_ndens = 1               ! namelist: output density of netcdf history files
-  integer,           public            :: rtmhist_mfilt = 30              ! namelist: number of time samples per tape
-  integer,           public            :: rtmhist_nhtfrq= (/0, -24, -24/) ! namelist: history write freq(0=monthly)
-  logical,           public            :: ice_runoff    = .false.         ! true => runoff is split into liquid and ice, 
-  character(len=256),public            :: cfile_name = 'mizuRoute_in' 
+  logical,           public            :: do_rtm =.true.                   !
+  character(len=CL), public            :: nrevsn_rtm   = ' '               ! restart data file name for branch run
+  integer,           public            :: coupling_period                  ! coupling period
+  integer,           public            :: rtmhist_ndens  = 1               ! namelist: output density of netcdf history files
+  integer,           public            :: rtmhist_mfilt  = 30              ! namelist: number of time samples per tape
+  integer,           public            :: rtmhist_nhtfrq = 0               ! namelist: history write freq(0=monthly)
+  logical,           public            :: ice_runoff     = .false.         ! true => runoff is split into liquid and ice,
+  character(len=256),public            :: cfile_name     = 'mizuRoute.control'
+  character(len=256),public            :: para_xxxx      = 'mizuRoute_in'
 
 CONTAINS
 
@@ -105,7 +107,7 @@ CONTAINS
        if (nsrest /= nsrStartup .and. nsrest /= nsrContinue .and. nsrest /= nsrBranch ) then
           call shr_sys_abort( 'RtmVarInit ERROR: nsrest NOT set to a valid value' )
        end if
-    endif   
+    endif
     RtmVar_isset = .true.
   END SUBROUTINE RtmVarInit
 

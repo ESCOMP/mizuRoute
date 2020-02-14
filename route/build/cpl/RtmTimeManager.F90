@@ -1,9 +1,11 @@
-MODULE timeManager 
+MODULE RtmTimeManager
 
   USE ESMF
   USE shr_kind_mod, only: r8 => shr_kind_r8
   USE shr_sys_mod , only: shr_sys_abort
   USE public_var  , only: iulog
+  USE public_var  , ONLY: integerMissing
+  USE public_var  , ONLY: realMissing
 
   implicit none
   private
@@ -34,11 +36,12 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE init_time(ierr, message)  ! output
 
-  ! Initialize mizuRoute time based on coupler imported clock 
+  ! Initialize mizuRoute time based on coupler imported clock
 
   ! subroutines:
   USE process_time_module, ONLY: process_time  ! process time information
   ! Shared data
+  USE dataTypes,  ONLY: time                   ! time data type
   USE public_var, ONLY: time_units             ! time units (seconds, hours, or days)
   USE public_var, ONLY: simStart               ! date string defining the start of the simulation
   USE public_var, ONLY: simEnd                 ! date string defining the end of the simulation
@@ -56,21 +59,21 @@ CONTAINS
 
   ! input:
   ! output: error control
-  integer(i4b),              intent(out)   :: ierr             ! error code
+  integer,                   intent(out)   :: ierr             ! error code
   character(*),              intent(out)   :: message          ! error message
   ! local variable
-  integer(i4b)                             :: nTime
-  integer(i4b)                             :: ix
-  character(len=strLen)                    :: cmessage         ! error message of downwind routine
+  integer                                  :: nTime
+  integer                                  :: ix
+  character(len=256)                       :: cmessage         ! error message of downwind routine
 
   ! initialize error control
   ierr=0; message='init_time/'
 
   ! get the time multiplier needed to convert time to units of days
   select case( trim( time_units(1:index(time_units,' ')) ) )
-   case('seconds'); convTime2Days=86400._dp
-   case('hours');   convTime2Days=24._dp
-   case('days');    convTime2Days=1._dp
+   case('seconds'); convTime2Days=86400._r8
+   case('hours');   convTime2Days=24._r8
+   case('days');    convTime2Days=1._r8
    case default;    ierr=20; message=trim(message)//'unable to identify time units'; return
   end select
 
@@ -82,7 +85,7 @@ CONTAINS
   call process_time(trim(simEnd),  calendar, endJulday,   ierr, cmessage)
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endJulday]'; return; endif
 
-  nTime = int((endJulday - refJulday)*convTime2Days) 
+  nTime = int((endJulday - refJulday)*convTime2Days)
   allocate(timeVar(nTime), stat=ierr)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -121,7 +124,7 @@ CONTAINS
 
    write(timeStr,'(i4.4,a,i2.2,a,i2.2,a,i2.2,a,i2.2,a,i2.2)'), yy,'-',mm,'-',dd,' ',hr,':',mn,':',sec
 
- END SUBROUTINE shr_dateStr
+ END SUBROUTINE shr_timeStr
 
 
-END MODULE timeManager
+END MODULE RtmTimeManager
