@@ -192,7 +192,7 @@ CONTAINS
     USE globalData,        ONLY: hru_per_proc     ! number of hrus assigned to each proc (i.e., node)
     USE globalData,        ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
     USE mpi_routine,       ONLY: mpi_route        ! MPI routing call
-    USE mpi_process,       ONLY: mpi_comm_single_flux
+    USE mpi_routine,       ONLY: mpi_comm_single_flux
     USE write_simoutput_pio,ONLY: prep_output
     USE write_simoutput_pio,ONLY: output
     USE write_restart_pio, ONLY: output_state

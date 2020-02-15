@@ -48,6 +48,7 @@ public :: comm_ntopo_data
 public :: mpi_restart
 public :: mpi_route
 public :: pass_global_data
+public :: mpi_comm_single_flux
 
 contains
 
