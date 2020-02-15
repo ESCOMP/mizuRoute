@@ -2,7 +2,7 @@ MODULE RtmMod
 
 ! !DESCRIPTION:
   USE shr_kind_mod  , ONLY : r8 => shr_kind_r8, CL => SHR_KIND_CL
-  USE shr_sys_mod   , ONLY : shr_sys_flush
+  USE shr_sys_mod   , ONLY : shr_sys_flush, shr_sys_abort
   USE RtmVar        , ONLY : nt_rtm, rtm_tracers, &
                              ice_runoff, do_rtm, do_rtmflood, &
                              nsrContinue, nsrBranch, nsrStartup, nsrest, &
@@ -43,7 +43,7 @@ CONTAINS
   USE public_var,  ONLY: isRestart
   USE globalData,  ONLY: ixHRU_order                ! global HRU index in the order of proc assignment (size = num of hrus contributing reach in entire network)
   USE globalData,  ONLY: hru_per_proc               ! number of hrus assigned to each proc (size = num of procs
-  USE init_model_data, ONLY: init_ntopo_data
+  USE init_model_data, ONLY: init_ntopo_data, init_model
   USE init_model_data, ONLY: init_state_data
 
 ! !ARGUMENTS:
@@ -192,6 +192,10 @@ CONTAINS
     USE globalData,        ONLY: hru_per_proc     ! number of hrus assigned to each proc (i.e., node)
     USE globalData,        ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
     USE mpi_routine,       ONLY: mpi_route        ! MPI routing call
+    USE mpi_process,       ONLY: mpi_comm_single_flux
+    USE write_simoutput_pio,ONLY: prep_output
+    USE write_simoutput_pio,ONLY: output
+    USE write_restart_pio, ONLY: output_state
     USE nr_utility_module, ONLY: arth
     USE init_model_data,   ONLY: update_time
 

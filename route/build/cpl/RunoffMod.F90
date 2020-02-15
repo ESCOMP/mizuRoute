@@ -8,6 +8,7 @@ MODULE RunoffMod
   USE nrtype,     ONLY : r8 => dp
   USE public_var, ONLY : iulog, MaxPosVal
   USE rtmVar,     ONLY : nt_rtm
+  USE shr_sys_mod,ONLY : shr_sys_abort
 
 ! !PUBLIC TYPES:
   implicit none
