@@ -385,7 +385,7 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     ! Get coupling interval in day
-    call ESMF_TimeIntervalGet( timeStep, d_r8=coupling_period, rc=rc)
+    call ESMF_TimeIntervalGet( timeStep, d=coupling_period, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     ! get ymd integer and string for start time, end time and reference time

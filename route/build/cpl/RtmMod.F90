@@ -4,7 +4,7 @@ MODULE RtmMod
   USE shr_kind_mod  , ONLY : r8 => shr_kind_r8, CL => SHR_KIND_CL
   USE shr_sys_mod   , ONLY : shr_sys_flush
   USE RtmVar        , ONLY : nt_rtm, rtm_tracers, &
-                             ice_runoff, do_rtm,  &
+                             ice_runoff, do_rtm, do_rtmflood, &
                              nsrContinue, nsrBranch, nsrStartup, nsrest, &
                              cfile_name, coupling_period, &
                              caseid, brnch_retain_casename, inst_suffix, &
@@ -97,6 +97,7 @@ CONTAINS
   endif
 
     rtm_active = do_rtm
+    flood_active = do_rtmflood
 
     if ( .not.do_rtm ) then
       if ( masterproc ) then
