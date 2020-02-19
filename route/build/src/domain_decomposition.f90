@@ -602,8 +602,14 @@ CONTAINS
    do iOut = 1,nOut
      ! number of upstream reach for a tributary
      nUpSegs = size(structNTOPO(ixOutlets(iOut))%var(ixNTOPO%allUpSegIndices)%dat)
+
      if (nUpSegs > maxSegs) cycle
+
      nDomains = nDomains + 1
+
+     allocate(domains_out(nDomains)%segIndex(nUpSegs), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating [domains_out(nDomains)%segIndex]'; return; endif
+
      domains_out(nDomains)%basinType = tributary
      domains_out(nDomains)%segIndex  = structNTOPO(ixOutlets(iOut))%var(ixNTOPO%allUpSegIndices)%dat
    enddo
@@ -629,6 +635,9 @@ CONTAINS
 
    ! 2. Populate tributary segments
    ! Get logical array indicating tributary outlet segments (size = nSeg)
+   allocate(isMainstem2d(nMainstem,2), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'problem allocating [isMainstem2d]'; return; endif
+
    isMainstem2d = spread(isMainstem,2,1)  ! size: [nSeg x 2]
    call lgc_tributary_outlet(isMainstem2d, downIndex, isTribOutlet, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
