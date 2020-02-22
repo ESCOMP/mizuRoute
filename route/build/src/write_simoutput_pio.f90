@@ -69,9 +69,7 @@ contains
   integer(i4b)                    :: iens             ! temporal
   character(len=strLen)           :: cmessage         ! error message of downwind routine
   type(STRFLX),allocatable        :: RCHFLX_local(:)
-  real(sp),    allocatable        :: tmp_array(:)
-  real(sp),    allocatable        :: basinRunoff(:)
-  integer(i4b)                    :: ix               ! error code
+  real(dp),    allocatable        :: basinRunoff(:)
 
   ! initialize error control
   ierr=0; message='output/'
@@ -81,24 +79,22 @@ contains
   ! Need to combine mainstem RCHFLX and tributary RCHFLX into RCHFLX_local for root node
   if (masterproc) then
    associate(nRch_trib => rch_per_proc(0))
-   allocate(RCHFLX_local(nRch_mainstem+nRch_trib), tmp_array(nRch_mainstem+nRch_trib), stat=ierr)
+   allocate(RCHFLX_local(nRch_mainstem+nRch_trib), stat=ierr)
    if (nRch_mainstem>0) then
-     do ix = 1,nRch_mainstem
-      RCHFLX_local(ix) = RCHFLX_main(iens,ix)
-     enddo
+     RCHFLX_local(1:nRch_mainstem) = RCHFLX_main(iens,1:nRch_mainstem)
    end if
    if (nRch_trib>0) then
      RCHFLX_local(nRch_mainstem+1:nRch_mainstem+nRch_trib) = RCHFLX_trib(iens,:)
    endif
    end associate
   else
-   allocate(RCHFLX_local(rch_per_proc(pid)),tmp_array(rch_per_proc(pid)), stat=ierr)
+   allocate(RCHFLX_local(rch_per_proc(pid)), stat=ierr)
    RCHFLX_local = RCHFLX_trib(iens,:)
   endif
 
   if (masterproc) then
    allocate(basinRunoff(nHRU))
-   basinRunoff = real(runoff_data%basinRunoff, kind=sp)
+   basinRunoff = runoff_data%basinRunoff
   else
    allocate(basinRunoff(1))
   endif
@@ -113,34 +109,29 @@ contains
 
   if (doesBasinRoute == 1) then
    ! write instataneous local runoff in each stream segment (m3/s)
-   tmp_array = real(RCHFLX_local(:)%BASIN_QI,kind=sp)
-   call write_pnetcdf_recdim(pioFileDesc, 'instRunoff', tmp_array, iodesc_rch_flx, jTime, ierr, cmessage)
+   call write_pnetcdf_recdim(pioFileDesc, 'instRunoff', RCHFLX_local(:)%BASIN_QI, iodesc_rch_flx, jTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   ! write routed local runoff in each stream segment (m3/s)
-  tmp_array = real(RCHFLX_local(:)%BASIN_QR(1),kind=sp)
-  call write_pnetcdf_recdim(pioFileDesc, 'dlayRunoff', tmp_array, iodesc_rch_flx, jTime, ierr, cmessage)
+  call write_pnetcdf_recdim(pioFileDesc, 'dlayRunoff', RCHFLX_local(:)%BASIN_QR(1), iodesc_rch_flx, jTime, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! write accumulated runoff (m3/s)
   if (doesAccumRunoff == 1) then
-   tmp_array = real(RCHFLX_local(:)%UPSTREAM_QI,kind=sp)
-   call write_pnetcdf_recdim(pioFileDesc, 'sumUpstreamRunoff', tmp_array, iodesc_rch_flx, jTime, ierr, cmessage)
+   call write_pnetcdf_recdim(pioFileDesc, 'sumUpstreamRunoff', RCHFLX_local(:)%UPSTREAM_QI, iodesc_rch_flx, jTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
    ! write routed runoff (m3/s)
-   tmp_array = real(RCHFLX_local(:)%REACH_Q,kind=sp)
-   call write_pnetcdf_recdim(pioFileDesc, 'KWTroutedRunoff', tmp_array, iodesc_rch_flx, jTime, ierr, cmessage)
+   call write_pnetcdf_recdim(pioFileDesc, 'KWTroutedRunoff', RCHFLX_local(:)%REACH_Q, iodesc_rch_flx, jTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
    ! write routed runoff (m3/s)
-   tmp_array = real(RCHFLX_local(:)%REACH_Q_IRF,kind=sp)
-   call write_pnetcdf_recdim(pioFileDesc, 'IRFroutedRunoff', tmp_array, iodesc_rch_flx, jTime, ierr, cmessage)
+   call write_pnetcdf_recdim(pioFileDesc, 'IRFroutedRunoff', RCHFLX_local(:)%REACH_Q_IRF, iodesc_rch_flx, jTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
@@ -334,7 +325,7 @@ contains
  ix2 = sum(rch_per_proc(-1:pid))
  ixRch = arth(1,1,nRch)
  call pio_decomp(pioSystem,              & ! input: pio system descriptor
-                 ncd_float,              & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                 ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                  [nRch],                 & ! input: dimension length == global array size
                  ixRch(ix1:ix2),         & ! input:
                  iodesc_rch_flx)
@@ -355,7 +346,7 @@ contains
  endif
 
  call pio_decomp(pioSystem,     & ! input: pio system descriptor
-                 ncd_float,     & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                 ncd_double,    & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                  [nHRU],        & ! input: dimension length == global array size
                  dof_hru,       & ! input:
                  iodesc_hru_ro)
