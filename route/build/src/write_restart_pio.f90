@@ -476,7 +476,6 @@ CONTAINS
  type(STRFLX), allocatable       :: RCHFLX_local(:) ! reordered reach flux data structure
  type(RCHTOPO),allocatable       :: NETOPO_local(:) ! reordered topology data structure
  type(STRSTA), allocatable       :: RCHSTA_local(:) ! reordered statedata structure
- integer(i4b)                    :: ix              ! loop index
  character(len=strLen)           :: cmessage        ! error message of downwind routine
 
  ! initialize error control
@@ -491,11 +490,9 @@ CONTAINS
            NETOPO_local(nRch_mainstem+nRch_trib), &
            RCHSTA_local(nRch_mainstem+nRch_trib), stat=ierr)
   if (nRch_mainstem>0) then
-     do ix = 1,nRch_mainstem
-      RCHFLX_local(ix) = RCHFLX_main(iens,ix)
-      NETOPO_local(ix) = NETOPO_main(ix)
-      RCHSTA_local(ix) = RCHSTA_main(iens,ix)
-     enddo
+    RCHFLX_local(1:nRch_mainstem) = RCHFLX_main(iens,1:nRch_mainstem)
+    NETOPO_local(1:nRch_mainstem) = NETOPO_main(1:nRch_mainstem)
+    RCHSTA_local(1:nRch_mainstem) = RCHSTA_main(iens,1:nRch_mainstem)
   end if
    if (nRch_trib>0) then
      RCHFLX_local(nRch_mainstem+1:nRch_mainstem+nRch_trib) = RCHFLX_trib(iens,:)
