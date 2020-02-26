@@ -8,7 +8,11 @@ Technical documentation is now being built on [readthedocs](https://mizuroute.re
 # To get started
 1. Obtaining mizuRoute package. Just to use the tool, download the package by clicking “Download Zip” button on right column. 
 
-2. Fortran compiler. We have successfully used the intel Fortran compiler (ifort), the GNU Fortran compiler (gfortran, version 4.8 or higher), and PGI fortran compiler (pgf90), the latter two of which are freely available. Since we do not use any compiler-specific extensions, mizuRoute should be complied with any Fortran compilers. If the user does not have a Fortran compiler, [gfortran](https://gcc.gnu.org/wiki/GFortran) can be installed for free. The easiest way is to use a package manager. Which package manager depends on your machine flavor. 
+2. Fortran compiler. Since we do not use any compiler-specific extensions, mizuRoute should be complied with any Fortran compilers. We have successfully used the intel Fortran compiler (ifort), the GNU Fortran compiler (gfortran), and PGI fortran compiler (pgf90). If the user does not have a Fortran compiler, [gfortran](https://gcc.gnu.org/wiki/GFortran) can be installed for free. The easiest way is to use a package manager. Which package manager depends on your machine flavor. 
+We tested with the following compilers:
+   - gfortran 8.3.0
+   - ifort 18.0.5
+   - pgi 19.3
 
 3. NetCDF libraries. [NetCDF](http://www.unidata.ucar.edu/software/netcdf/) or the Network Common Data Format, is a set of software libraries and self-describing, machine-independent data formats that support the creation, access, and sharing of array-oriented scientific data. All the mizuRoute I/Ol use NetCDF. The user needs to ensure that:
 NetCDF version 4.x is installed in the linux-like machine.
@@ -18,7 +22,7 @@ The user may use netcdf test code to check if NetCDF libraries are properly inst
 
 4. Compiling the source code (rive network preprocessor and routing program). Once you have all the above, you can compile mizuRoute source codes using the following steps: Navigate to your local copy of the mizuRoute directory and go to the build subdirectory.
  
-    1. Edit F_MASTER and FC (to your desired compiler). You may also need to set NCDF_PATH and you may need to add some extra entries if you are using a different Fortran compiler or your setup is different (if someone wants to contribute an actual configure script that would be great).
+    1. Edit F_MASTER (name of path befor build directory) and FC (compiler name: gnu, intel or pgi) and FC_EXE (compiler executable name). You may also need to set NCDF_PATH. You may need to add some extra entries if you are using a different Fortran compiler or your setup is different (if someone wants to contribute an actual configure script that would be great). openMP (shared memory parallel processing) directive is implemented to prallelize the routing process. To activate openMP, set `isOpenMP`= `yes`. 
 
     2. Type make under directory where Makefile is located. If all goes well, this will create  the executable runoff_route.exe (or process_river_topology.exe) to the bin directory. You may get some warnings (depending on your compiler settings), but you should not get any errors.
 
