@@ -295,7 +295,7 @@ CONTAINS
 
       ! if only single proc is used, all runoff is stored in mainstem runoff array
       if (.not. allocated(basinRunoff_main)) then
-        allocate(basinRunoff_main(nHRU), stat=ierr)
+        allocate(basinRunoff_main(nHRU_mainstem), stat=ierr)
         if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [basinRunoff_main]'); endif
       end if
         do nr = 1,nHRU_mainstem
@@ -306,15 +306,21 @@ CONTAINS
 
       if (masterproc) then
         associate(nHRU_trib => hru_per_proc(0))
+        if (nHRU_mainstem > 0) then
+          if (.not. allocated(basinRunoff_main)) then
+            allocate(basinRunoff_main(nHRU_mainstem), stat=ierr)
+            if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [basinRunoff_main]'); endif
+          end if
+          do nr = 1,nHRU_mainstem
+            basinRunoff_main(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
+          end do
+        end if
 
-        if (.not. allocated(basinRunoff_main)) then
-          allocate(basinRunoff_main(nHRU), stat=ierr)
+        if (.not. allocated(basinRunoff_trib)) then
+          allocate(basinRunoff_main(nHRU_trib), stat=ierr)
           if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [basinRunoff_main]'); endif
         end if
 
-        do nr = 1,nHRU_mainstem
-          basinRunoff_main(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
-        end do
         do nr = nHRU_mainstem+1, nHRU_mainstem+nHRU_trib
           basinRunoff_trib(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
         end do
