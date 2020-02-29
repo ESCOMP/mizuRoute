@@ -43,9 +43,9 @@ module RtmVar
   character(len=16), public            :: inst_suffix
 
   ! Rtm control variables
-  logical,           public            :: do_rtm      = .true.             !
-  logical,           public            :: do_rtmflood = .false.            !
-  character(len=CL), public            :: nrevsn_rtm  = ' '                ! restart data file name for branch run
+  logical,           public            :: do_rtm         = .true.          !
+  logical,           public            :: do_rtmflood    = .false.         !
+  character(len=CL), public            :: nrevsn_rtm     = ' '             ! restart data file name for branch run
   integer,           public            :: coupling_period                  ! coupling period
   integer,           public            :: rtmhist_ndens  = 1               ! namelist: output density of netcdf history files
   integer,           public            :: rtmhist_mfilt  = 30              ! namelist: number of time samples per tape

@@ -1,6 +1,8 @@
 MODULE RtmMod
 
-! !DESCRIPTION:
+  !DESCRIPTION:
+
+  USE perf_mod
   USE shr_kind_mod  , ONLY : r8 => shr_kind_r8, CL => SHR_KIND_CL
   USE shr_sys_mod   , ONLY : shr_sys_flush, shr_sys_abort
   USE RtmVar        , ONLY : nt_rtm, rtm_tracers, &
@@ -19,7 +21,6 @@ MODULE RtmMod
   USE globalData    , ONLY : npes       => nNodes
   USE globalData    , ONLY : mpicom_rof => mpicom_route
   USE globalData    , ONLY : masterproc
-  USE perf_mod
 
 ! !PUBLIC TYPES:
   implicit none
@@ -40,9 +41,9 @@ CONTAINS
 ! Initialize mizuRoute network, decomp
 ! !CALLED FROM:
 ! subroutine initialize in module initializeMod
-  USE public_var,  ONLY: isRestart
-  USE globalData,  ONLY: ixHRU_order                ! global HRU index in the order of proc assignment (size = num of hrus contributing reach in entire network)
-  USE globalData,  ONLY: hru_per_proc               ! number of hrus assigned to each proc (size = num of procs
+  USE public_var,      ONLY: isRestart
+  USE globalData,      ONLY: ixHRU_order                ! global HRU index in the order of proc assignment (size = num of hrus contributing reach in entire network)
+  USE globalData,      ONLY: hru_per_proc               ! number of hrus assigned to each proc (size = num of procs
   USE init_model_data, ONLY: init_ntopo_data, init_model
   USE init_model_data, ONLY: init_state_data
 
@@ -96,7 +97,7 @@ CONTAINS
      write(iulog,*) '   delt_mizuRoute        = ',dt
   endif
 
-    rtm_active = do_rtm
+    rtm_active   = do_rtm
     flood_active = do_rtmflood
 
     if ( .not.do_rtm ) then
@@ -132,7 +133,7 @@ CONTAINS
        rtm_trstr = trim(rtm_trstr)//':'//trim(rtm_tracers(n))
     enddo
     if (masterproc) then
-       write(iulog,*)'mizuRoute tracers = ',nt_rtm,trim(rtm_trstr)
+       write(iulog,*)'mizuRoute tracers = ',nt_rtm, trim(rtm_trstr)
     end if
 
     !-------------------------------------------------------
@@ -145,18 +146,21 @@ CONTAINS
     !-------------------------------------------------------
     ! Allocate local flux variables
     !-------------------------------------------------------
-
+    ! 1st and last indices and number of elements in local domain
     rtmCTL%begr  = 1
+
     if (masterproc) then
       rtmCTL%endr  = hru_per_proc(-1)+hru_per_proc(0)
       rtmCTL%lnumr = hru_per_proc(-1)+hru_per_proc(0)
     else
-      rtmCTL%lnumr = hru_per_proc(iam)
       rtmCTL%endr  = hru_per_proc(iam)
+      rtmCTL%lnumr = hru_per_proc(iam)
     end if
 
+    ! total elements in whole domain
     rtmCTL%numr   = sum(hru_per_proc)
 
+    ! index wrt global domain
     ix2=0
     do myid = 0, npes-1
       ix1 = ix2 + 1
@@ -181,26 +185,22 @@ CONTAINS
 ! *********************************************************************!
   SUBROUTINE route_run(rstwr)
 
-    USE dataTypes,         ONLY: strflx
-    USE globalData,        ONLY: runoff_data      ! runoff data structure
-    USE globalData,        ONLY: RCHFLX_trib      ! Reach flux data structures (per proc, tributary)
-    USE globalData,        ONLY: RCHFLX_main      ! Reach flux data structures (master proc, mainstem)
-    USE globalData,        ONLY: ixHRU_order      ! global HRU index in the order of proc assignment
-    USE globalData,        ONLY: nRch_mainstem    ! number of mainstem reaches
-    USE globalData,        ONLY: nHRU_mainstem    ! number of mainstem HRUs
-    USE globalData,        ONLY: nContribHRU      ! number of reaches in the whoel river network
-    USE globalData,        ONLY: hru_per_proc     ! number of hrus assigned to each proc (i.e., node)
-    USE globalData,        ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
-    USE mpi_routine,       ONLY: mpi_route        ! MPI routing call
-    USE mpi_routine,       ONLY: mpi_comm_single_flux
-    USE write_simoutput_pio,ONLY: prep_output
-    USE write_simoutput_pio,ONLY: output
-    USE write_restart_pio, ONLY: output_state
-    USE nr_utility_module, ONLY: arth
-    USE init_model_data,   ONLY: update_time
+    USE dataTypes,           ONLY: strflx
+    USE globalData,          ONLY: RCHFLX_trib      ! Reach flux data structures (per proc, tributary)
+    USE globalData,          ONLY: RCHFLX_main      ! Reach flux data structures (master proc, mainstem)
+    USE globalData,          ONLY: nHRU_mainstem    ! number of mainstem HRUs
+    USE globalData,          ONLY: hru_per_proc     ! number of hrus assigned to each proc (i.e., node)
+    USE globalData,          ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
+    USE globalData,          ONLY: basinRunoff_main ! mainstem only HRU runoff
+    USE globalData,          ONLY: basinRunoff_trib ! tributary only HRU runoff
+    USE write_simoutput_pio, ONLY: prep_output
+    USE mpi_routine,         ONLY: mpi_route        ! MPI routing call
+    USE write_simoutput_pio, ONLY: output
+    USE write_restart_pio,   ONLY: output_state
+    USE init_model_data,     ONLY: update_time
 
 ! !DESCRIPTION:
-! River routing model
+! Main routine for routing at all the river reaches per coupling period
 
 ! !ARGUMENTS:
     implicit none
@@ -217,7 +217,6 @@ CONTAINS
     logical,  save               :: first_call = .true.    ! first time flag (for backwards compatibility)
     real(r8)                     :: delt                   ! delt associated with subcycling
     real(r8)                     :: delt_coupling          ! real value of coupling_period
-    real(r8),     allocatable    :: runoff_local(:)        !
     type(strflx), allocatable    :: RCHFLX_local(:)
     logical                      :: finished
     ! parameters used in negative runoff partitioning algorithm
@@ -233,12 +232,13 @@ CONTAINS
 
     delt_coupling = coupling_period*1.0_r8
     if (first_call) then
-       delt_save    = dt
+       nsub_save = 1
+       delt_save = dt
        if (masterproc) write(iulog,'(2a,g20.12)') trim(subname),' mizuRoute coupling period ',delt_coupling
     end if
 
     !-------------------------------------------------------
-    ! Initialize mosart history handler and fields
+    ! Initialize mizuRoute history handler and fields
     !-------------------------------------------------------
     call t_startf('mizuRoute_histinit')
     call prep_output(ierr, cmessage)
@@ -270,8 +270,8 @@ CONTAINS
 !           irrig_volume = RCHFLX_local(1,nr)%REACH_VOL
 !         endif
 !
-!   !scs: how to deal with sink points / river outlets?
-!   !     if (rtmCTL%mask(nr) == 1) then
+!         !scs: how to deal with sink points / river outlets?
+!         !if (rtmCTL%mask(nr) == 1) then
 !
 !         ! actual irrigation rate [m3/s]
 !         ! i.e. the rate actually removed from the main channel
@@ -280,7 +280,7 @@ CONTAINS
 !
 !         ! remove irrigation from wr (main channel)
 !         RCHFLX_local(1,nr)%REACH_VOL(1) = RCHFLX_local(1,nr)%REACH_VOL(1) - irrig_volume
-!   !scs  endif
+!         !scs  endif
 !       enddo
 !       call t_stopf('mizuRoute_irrig')
 
@@ -290,30 +290,50 @@ CONTAINS
        call t_stopf ('mizuRoute_SMdirect_barrier')
     endif
 
-    ! Get total runoff for river routing
-    ! Gather local total runoff (for each proc) into global total-runoff array (runoff_data%basinRunoff) in master
-    ! This is temporal routine
-    allocate(runoff_local(rtmCTL%lnumr), stat=ierr)
-    if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+    ! Get total runoff for each catchment
+    if (npes==1) then
 
-    do nr = rtmCTL%begr,rtmCTL%endr
-      runoff_local(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
-    end do
-
-    call mpi_comm_single_flux(iam, npes, mpicom_rof,                       & ! input: mpi parameters
-                              runoff_data%basinRunoff,                     & ! input: global array
-                              runoff_local,                                & ! input: local array
-                              rtmCTL%lnumr,                                & ! input: numpber of element for local
-                              ixHRU_order(hru_per_proc(-1)+1:nContribHRU), & ! input: global index
-                              arth(1,1,hru_per_proc(iam)),                 & ! input: local index
-                              gather,                                      & ! input: type of communication
-                              ierr, cmessage)
-    if (masterproc) then
-      do nr = 1,hru_per_proc(-1)
-        runoff_data%basinRunoff(ixHRU_order(nr)) = runoff_local(nr)
+      ! if only single proc is used, all runoff is stored in mainstem runoff array
+      if (.not. allocated(basinRunoff_main)) then
+        allocate(basinRunoff_main(nHRU), stat=ierr)
+        if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [basinRunoff_main]'); endif
+      end if
+        do nr = 1,nHRU_mainstem
+          basinRunoff_main(:) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
       end do
-    end if
 
+    else
+
+      if (masterproc) then
+        associate(nHRU_trib => hru_per_proc(0))
+
+        if (.not. allocated(basinRunoff_main)) then
+          allocate(basinRunoff_main(nHRU), stat=ierr)
+          if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [basinRunoff_main]'); endif
+        end if
+
+        do nr = 1,nHRU_mainstem
+          basinRunoff_main(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
+        end do
+        do nr = nHRU_mainstem+1, nHRU_mainstem+nHRU_trib
+          basinRunoff_trib(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
+        end do
+        end associate
+
+      else
+
+        if (.not. allocated(basinRunoff_main)) then
+          allocate(basinRunoff_trib(rtmCTL%lnumr), stat=ierr)
+          if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [basinRunoff_trib]'); endif
+        end if
+
+        do nr = rtmCTL%begr,rtmCTL%endr
+          basinRunoff_trib(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
+        end do
+
+      end if
+
+    end if
     !-----------------------------------
     ! mizuRoute Subcycling
     !-----------------------------------
@@ -337,18 +357,16 @@ CONTAINS
     iens = 1
     do ns = 1,nsub
 
-      call mpi_route(iam, npes, mpicom_rof, iens, ierr, cmessage)
+      call mpi_route(iam, npes, mpicom_rof, iens, ierr, cmessage, scatter_ro=.false.)
       if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
       if (masterproc) then
         associate(nRch_main => rch_per_proc(-1), nRch_trib => rch_per_proc(0))
         allocate(RCHFLX_local(nRch_main+nRch_trib), stat=ierr)
         if (nRch_main/=0) then
-          do ix = 1,nRch_main
-           RCHFLX_local(ix) = RCHFLX_main(iens, ix)
-          enddo
+          RCHFLX_local(1:nRch_main) = RCHFLX_main(iens, 1:nRch_main)
         end if
-        RCHFLX_local(nRch_main+1:nRch_main+nRch_trib) = RCHFLX_trib(iens,:)
+        RCHFLX_local(nRch_main+1:nRch_main+nRch_trib) = RCHFLX_trib(iens,1:nRch_trib)
         end associate
       else
         allocate(RCHFLX_local(rch_per_proc(iam)), stat=ierr)
@@ -358,9 +376,7 @@ CONTAINS
       do nr = rtmCTL%begr,rtmCTL%endr
         rtmCTL%volr(nr)      = 0._r8
         rtmCTL%flood(nr)     = 0._r8
-        do nt = 1,nt_rtm
-          rtmCTL%discharge(nr,nt) = rtmCTL%discharge(nr,nt) + RCHFLX_local(nr)%REACH_Q/float(nsub)      ! Reach fluxes (ensembles, space [reaches]) for tributaries
-        enddo
+        rtmCTL%discharge(nr,nt) = rtmCTL%discharge(nr,nt) + RCHFLX_local(nr)%REACH_Q/float(nsub) !
       enddo
 
     enddo
