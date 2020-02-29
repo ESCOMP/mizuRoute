@@ -3,9 +3,7 @@ MODULE mpi_routine
 USE mpi
 
 ! general public variable
-USE public_var, ONLY: integerMissing
-USE public_var, ONLY: realMissing
-USE public_var, ONLY: root
+USE public_var                   ! iulog, integerMissing, realMissing, root, calendar, time_units
 USE globalData, ONLY: masterproc
 
 ! numeric definition
@@ -24,9 +22,9 @@ USE var_lookup, ONLY:ixNTOPO,  nVarsNTOPO   ! index of variables for the network
 USE var_lookup, ONLY:ixPFAF,   nVarsPFAF    ! index of variables for the pfafstetter code
 
 ! general utility
-USE nr_utility_module, ONLY: indexx               ! sorted index array
-USE nr_utility_module, ONLY: arth                 !
-USE nr_utility_module, ONLY: findIndex            ! find index within a vector
+USE nr_utility_module, ONLY: indexx         ! create sorted index array
+USE nr_utility_module, ONLY: arth           ! build a vector of regularly spaced numbers
+USE nr_utility_module, ONLY: findIndex      ! find index within a vector
 
 ! MPI utility
 USE mpi_mod, ONLY: shr_mpi_bcast
@@ -36,6 +34,7 @@ USE mpi_mod, ONLY: shr_mpi_allgather
 USE mpi_mod, ONLY: shr_mpi_barrier
 
 implicit none
+
 ! common parameters within this module
 integer(i4b),parameter  :: scatter=1
 integer(i4b),parameter  :: gather=2
@@ -66,7 +65,6 @@ contains
                             structNTOPO,        & ! input: data structure for network toopology
                             ierr,message)         ! output: error control
 
-  USE public_var
   USE globalData,          ONLY: ixPrint                  ! reach index to be checked by on-screen pringing
   USE globalData,          ONLY: domains                  ! domain data structure - for each domain, pfaf codes and list of segment indices
   USE globalData,          ONLY: nDomain                  ! count of decomposed domains (tributaries + mainstems)
@@ -551,7 +549,6 @@ contains
                         iens,          & ! input: ensemble index
                         ierr,message)    ! output: error control
   ! shared data
-  USE public_var
   USE globalData, ONLY: nRch             ! number of reaches in the whoel river network
   USE globalData, ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
   USE globalData, ONLY: nRch_mainstem    ! number of mainstem reaches
@@ -683,33 +680,36 @@ contains
                       nNodes,        & ! input: number of procs
                       comm,          & ! input: communicator
                       iens,          & ! input: ensemble index
-                      ierr,message)    ! output: error control
+                      ierr,message,  & ! output: error control
+                      scatter_ro)      ! optional input: logical. .true. => scatter global hru runoff to mainstem and tributary
   ! shared data
-  USE public_var
-  USE globalData, ONLY: ixPrint          ! desired reach index
-  USE globalData, ONLY: NETOPO_trib      ! tributary reach netowrk topology structure
-  USE globalData, ONLY: RPARAM_trib      ! tributary reach parameter structure
-  USE globalData, ONLY: NETOPO_main      ! mainstem reach netowrk topology structure
-  USE globalData, ONLY: RPARAM_main      ! mainstem reach parameter structure
-  USE globalData, ONLY: RCHFLX_trib      ! tributary reach flux structure
-  USE globalData, ONLY: RCHSTA_trib      ! tributary reach state data structure
-  USE globalData, ONLY: RCHFLX_main      ! Reach flux data structures (master proc, mainstem)
-  USE globalData, ONLY: RCHSTA_main      ! Reach state data structures (master proc, mainstem)
-  USE globalData, ONLY: river_basin_trib ! tributary OMP domain data structure
-  USE globalData, ONLY: river_basin_main ! mainstem OMP domain data structure
-  USE globalData, ONLY: runoff_data      ! runoff data structure
-  USE globalData, ONLY: nContribHRU      ! number of reaches in the whoel river network
-  USE globalData, ONLY: nRch_mainstem    ! number of mainstem reaches
-  USE globalData, ONLY: nHRU_mainstem    ! number of mainstem HRUs
-  USE globalData, ONLY: nHRU             ! number of HRUs
-  USE globalData, ONLY: ixHRU_order      ! global HRU index in the order of proc assignment
-  USE globalData, ONLY: hru_per_proc     ! number of hrus assigned to each proc (i.e., node)
-  USE globalData, ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
-  USE globalData, ONLY: tribOutlet_per_proc ! number of tributary outlets per proc (size = nNodes)
-  USE globalData, ONLY: global_ix_main   ! reach index at tributary reach outlets to mainstem (size = sum of tributary outlets in all the procs)
-  USE globalData, ONLY: local_ix_comm    ! local reach index at tributary reach outlets to mainstem for each proc (size = sum of tributary outlets in proc)
+  USE globalData, ONLY: ixPrint             ! desired reach index
+  USE globalData, ONLY: NETOPO_trib         ! tributary river netowrk topology structure
+  USE globalData, ONLY: NETOPO_main         ! mainstem river netowrk topology structure
+  USE globalData, ONLY: RPARAM_trib         ! tributary reach parameter structure
+  USE globalData, ONLY: RPARAM_main         ! mainstem reach parameter structure
+  USE globalData, ONLY: RCHFLX_trib         ! tributary reach flux structure
+  USE globalData, ONLY: RCHFLX_main         ! Reach flux data structures (master proc, mainstem)
+  USE globalData, ONLY: RCHSTA_trib         ! tributary reach state data structure
+  USE globalData, ONLY: RCHSTA_main         ! Reach state data structures (master proc, mainstem)
+  USE globalData, ONLY: basinRunoff_main    ! mainstem only HRU runoff
+  USE globalData, ONLY: basinRunoff_trib    ! tributary only HRU runoff
+  USE globalData, ONLY: river_basin_trib    ! tributary OMP domain data structure
+  USE globalData, ONLY: river_basin_main    ! mainstem OMP domain data structure
+  USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
+  USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc
+  USE globalData, ONLY: tribOutlet_per_proc ! number of tributary outlets per proc (array size = nNodes)
+  USE globalData, ONLY: global_ix_main      ! reach index at tributary reach outlets to mainstem (size = sum of tributary outlets in all the procs)
+  USE globalData, ONLY: local_ix_comm       ! local reach index at tributary reach outlets to mainstem for each proc (size = sum of tributary outlets in proc)
   ! routing driver
-  USE main_route_module, ONLY: main_route ! routing driver
+  USE main_route_module, ONLY: main_route   ! routing driver
+
+  ! Details:
+  ! Reaches/HRUs assigned to master proc include BOTH small tributaries and mainstem. Reaches/HRUs assigned to other procs includ ONLY tributaries
+  ! 1. Route "small" tributaries" assigned to master proc and "bigger tributaries" on other procs the same time
+  ! 2 (if mainstem exist). pass flow/state variables at "tributary-mainstem junction", which is outlet of tributaries into mainstem to master proc
+  ! 3 (if mainstem exist). Route mainstem at master proc
+  ! 4 (if mainstem exist & for a certain routing method). pass updated flow/state variables at "tributary-mainstem junction to other procs
 
   implicit none
 
@@ -721,13 +721,13 @@ contains
   ! Output variables
   integer(i4b),             intent(out) :: ierr
   character(len=strLen),    intent(out) :: message                  ! error message
+  ! optional input variables
+  logical(lgt), optional,   intent(in)  :: scatter_ro               ! logical to indicate if scattering global runoff is required
   ! local variables
-  real(dp)                              :: basinRunoff_sorted(nContribHRU) ! sorted basin runoff (m/s) for whole domain
-  real(dp),     allocatable             :: basinRunoff_trib(:)      ! basin runoff (m/s) for tributaries
-  real(dp),     allocatable             :: basinRunoff_main(:)      ! basin runoff (m/s) for mainstem
   integer(i4b), allocatable             :: ixRchProcessed(:)        ! reach indice list to be processed
   integer(i4b)                          :: iHru,jHru                ! loop indices
   integer(i4b)                          :: nRch_trib                ! number of reaches on one tributary (in a proc)
+  logical(lgt)                          :: doesScatterRunoff        ! temporal logical to indicate if scattering global runoff is required
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
   ! timing
   integer*8                             :: cr, startTime, endTime
@@ -736,39 +736,41 @@ contains
   ierr=0; message='mpi_route/'
   call system_clock(count_rate=cr)
 
-  ! Reaches/HRU assigned to root node include BOTH small tributaries and mainstem
-  ! First, route "small tributaries" while routing over other bigger tributaries (at slave nodes).
-  if (nNodes>1) then
-
-  ! sort the basin runoff in terms of nodes/domains
-  if (masterproc) then ! this is a root process
-
-    allocate(basinRunoff_main(nHRU_mainstem), stat=ierr)
-    if(ierr/=0)then; message=trim(message)//'problem allocating array for [ixRchProcessed]'; return; endif
-
-    do iHru = 1,nContribHRU
-      jHru = ixHRU_order(iHru)
-      basinRunoff_sorted(iHru) = runoff_data%basinRunoff(jHru)
-    enddo
-
-    ! runoff at hru in mainstem
-    basinRunoff_main(:) = basinRunoff_sorted(1:nHRU_mainstem)
-
+  if (present(scatter_ro)) then
+    doesScatterRunoff = scatter_ro
+  else
+    doesScatterRunoff = .true.
   end if
 
-  call shr_mpi_barrier(comm, message)
-
-  ! Distribute the basin runoff to each process
-  call system_clock(startTime)
-  call shr_mpi_scatterV(basinRunoff_sorted(nHRU_mainstem+1:nContribHRU), hru_per_proc(0:nNodes-1), basinRunoff_trib, ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  call system_clock(endTime)
-  elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-  write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-ro] = ', elapsedTime, ' s'
+  ! --------------------------------
+  ! distribute (scatter) global runoff array to local runoff arrays
+  !  - basinRunoff_main (only at master proc)
+  !  - basinRunoff_trib (all procs)
+  ! --------------------------------
+  if (doesScatterRunoff) then
+    call system_clock(startTime)
+    call scatter_runoff(nNodes, comm, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call system_clock(endTime)
+    elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+    write(iulog,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-ro] = ', elapsedTime, ' s'
+  else
+     write(iulog,*) 'Runoff data is already decomposed into mainstem and tributaries'
+     if (masterproc) then
+       if (.not.allocated(basinRunoff_main)) then
+         ierr=10; message=trim(message)//'mainstem runoff array is not allocated/populated'; return
+       endif
+     else
+       if(.not.allocated(basinRunoff_trib)) then
+       ierr=10; message=trim(message)//'tributary runoff array is not allocated/populated'; return
+       end if
+     end if
+  end if
 
   ! --------------------------------
   ! Perform tributary routing (for all procs)
   ! --------------------------------
+  if (nNodes>1) then
   call system_clock(startTime)
 
   !Idenfity number of tributary reaches for each procs
@@ -848,11 +850,6 @@ contains
   ! --------------------------------
   if (masterproc) then
 
-    if (nNodes==1) then
-     allocate(basinRunoff_main(nHRU), stat=ierr)
-     basinRunoff_main(:) = runoff_data%basinRunoff(:)
-    end if
-
     call system_clock(startTime)
 
     if (allocated(ixRchProcessed)) then
@@ -917,6 +914,76 @@ contains
   endif !(nNodes>1)
 
  end subroutine mpi_route
+
+ ! *********************************************************************
+ ! private subroutine: scatter global domain runoff data to local domain
+ ! *********************************************************************
+ SUBROUTINE scatter_runoff(nNodes, comm, & ! mpi variables: number nodes, communicator
+                           ierr, message)  ! error controls
+
+  USE globalData, ONLY: nHRU              ! number of all HRUs
+  USE globalData, ONLY: nContribHRU       ! number of all HRUS contributing to river reaches
+  USE globalData, ONLY: nHRU_mainstem     ! number of mainstem HRUs
+  USE globalData, ONLY: runoff_data       ! runoff data structure
+  USE globalData, ONLY: ixHRU_order       ! global HRU index in the order of proc assignment
+  USE globalData, ONLY: hru_per_proc      ! number of hrus assigned to each proc (i.e., node)
+  USE globalData, ONLY: basinRunoff_main  ! HRU runoff holder for mainstem
+  USE globalData, ONLY: basinRunoff_trib  ! HRU runoff holder for tributary
+
+  ! input variables
+  integer(i4b),           intent(in)  :: nNodes                          ! number of processes (MPI)
+  integer(i4b),           intent(in)  :: comm                            ! communicator
+  ! output variables
+  integer(i4b),           intent(out) :: ierr                            ! error code
+  character(len=strLen),  intent(out) :: message                         ! error message
+  ! local variables
+  integer(i4b)                        :: iHru,jHru                       ! loop indices
+  real(dp)                            :: basinRunoff_sorted(nContribHRU) ! sorted basin runoff (m/s) for whole domain
+  character(len=strLen)               :: cmessage                        ! error message from a subroutine
+
+  ierr=0; message='scatter_runoff/'
+
+  if (nNodes==1) then
+
+    ! if only single proc is used, all runoff is stored in mainstem runoff array
+    if (.not. allocated(basinRunoff_main)) then
+      allocate(basinRunoff_main(nHRU), stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinRunoff_main]'; return; endif
+    end if
+    basinRunoff_main(:) = runoff_data%basinRunoff(:)
+
+  else
+
+    ! sort the basin runoff in terms of nodes/domains
+    if (masterproc) then ! this is a root process
+
+      if (.not. allocated(basinRunoff_main)) then
+        allocate(basinRunoff_main(nHRU_mainstem), stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinRunoff_main]'; return; endif
+      endif
+
+      do iHru = 1,nContribHRU
+        jHru = ixHRU_order(iHru)
+        basinRunoff_sorted(iHru) = runoff_data%basinRunoff(jHru)
+      enddo
+
+      ! runoff at hru in mainstem
+      basinRunoff_main(:) = basinRunoff_sorted(1:nHRU_mainstem)
+
+    end if
+
+    call shr_mpi_barrier(comm, message)
+
+    ! Distribute the basin runoff to each process
+    call shr_mpi_scatterV(basinRunoff_sorted(nHRU_mainstem+1:nContribHRU), &
+                          hru_per_proc(0:nNodes-1),                        &
+                          basinRunoff_trib,                                &
+                          ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  end if
+
+ END SUBROUTINE scatter_runoff
 
  ! *********************************************************************
  ! subroutine: single flux communication
@@ -1029,7 +1096,6 @@ contains
                           commType,     &
                           ierr, message)
 
-  USE public_var, ONLY: root
   USE dataTypes,  ONLY: STRFLX              ! reach flux data structure
 
   ! input variables
@@ -1170,7 +1236,6 @@ contains
                                    ierr, message)
 
   USE dataTypes,  ONLY: STRFLX              ! reach flux data structure
-  USE public_var, ONLY: root
 
   ! input variables
   integer(i4b),             intent(in)    :: pid                   ! process id (MPI)
@@ -1346,7 +1411,6 @@ contains
                                ierr, message)
 
   USE dataTypes,  ONLY: STRFLX              ! reach flux data structure
-  USE public_var, ONLY: root
 
   ! input variables
   integer(i4b),             intent(in)    :: pid                   ! process id (MPI)
@@ -1523,7 +1587,6 @@ contains
 
   USE dataTypes,  ONLY: LKWRCH
   USE dataTypes,  ONLY: STRSTA
-  USE public_var, ONLY: root
 
   ! input variables
   integer(i4b),             intent(in)    :: pid                   ! process id (MPI)
@@ -1883,9 +1946,6 @@ contains
  ! *********************************************************************
  ! send all the necessary public/global variables neccesary in task
  subroutine pass_global_data(comm, ierr,message)   ! output: error control
-  USE public_var, ONLY: root
-  USE public_var, ONLY: calendar
-  USE public_var, ONLY: time_units
   USE globalData, ONLY: convTime2Days     ! conversion multipliers for time unit of runoff input to day
   USE globalData, ONLY: nRch,nHRU         ! number of reaches and hrus in whole network
   USE globalData, ONLY: timeVar           ! time variable
