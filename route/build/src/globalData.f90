@@ -162,7 +162,11 @@ module globalData
 
   ! mapping structures
   type(remap)                    , public :: remap_data           ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
-  type(runoff)                   , public :: runoff_data          ! runoff data for one time step for LSM HRUs and River network HRUs
+
+  ! hru runoff data
+  type(runoff)                   , public :: runoff_data          ! HRU runoff data structure for one time step for LSM HRUs and River network HRUs
+  real(dp)        , allocatable  , public :: basinRunoff_trib(:)  ! HRU runoff array (m/s) for tributaries
+  real(dp)        , allocatable  , public :: basinRunoff_main(:)  ! HRU runoff array (m/s) for mainstem
 
   ! domain data
   ! MPI
