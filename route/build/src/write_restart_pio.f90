@@ -32,6 +32,7 @@ type(io_desc_t),      save :: iodesc_state_int
 type(io_desc_t),      save :: iodesc_state_double
 type(io_desc_t),      save :: iodesc_wave_int
 type(io_desc_t),      save :: iodesc_wave_double
+type(io_desc_t),      save :: iodesc_mesh_double
 type(io_desc_t),      save :: iodesc_irf_float
 type(io_desc_t),      save :: iodesc_irf_bas_double
 
@@ -95,6 +96,7 @@ CONTAINS
  USE public_var, ONLY: allRoutingMethods
  USE public_var, ONLY: doesBasinRoute
  USE public_var, ONLY: kinematicWave
+ USE public_var, ONLY: kinematicWaveEuler
  USE public_var, ONLY: impulseResponseFunc
  USE globalData, ONLY: meta_stateDims           ! dimension meta for state
  USE globalData, ONLY: rch_per_proc             ! number of reaches assigned to each proc (size = num of procs+1)
@@ -151,7 +153,7 @@ CONTAINS
    call set_dim_len(ixDim, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage)//' for '//trim(meta_stateDims(ixDim)%dimName); return; endif
   endif
-  call defDim(pioFileDescState, trim(meta_stateDims(ixDim)%dimName), meta_stateDims(ixDim)%dimLength, meta_stateDims(ixDim)%dimId)
+  call defdim(pioFileDescState, trim(meta_stateDims(ixDim)%dimName), meta_stateDims(ixDim)%dimLength, meta_stateDims(ixDim)%dimId)
   end associate
  end do
 
@@ -182,6 +184,12 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
+ ! KWE routing
+ if (routOpt==kinematicWaveEuler) then
+  call define_KWE_state(ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
  ! IRF routing
  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
   call define_IRF_state(ierr, cmessage)
@@ -194,7 +202,8 @@ CONTAINS
  associate(nSeg     => meta_stateDims(ixStateDims%seg)%dimLength,     &
            nEns     => meta_stateDims(ixStateDims%ens)%dimLength,     &
            ntdh     => meta_stateDims(ixStateDims%tdh)%dimLength,     & ! maximum future q time steps among basins
-           ntdh_irf => meta_stateDims(ixStateDims%tdh_irf)%dimLength, & ! maximum future q time steps among basins
+           ntdh_irf => meta_stateDims(ixStateDims%tdh_irf)%dimLength, & ! maximum future q time steps among reaches
+           nFdmesh  => meta_stateDims(ixStateDims%fdmesh)%dimLength,  & ! finite difference mesh points
            nWave    => meta_stateDims(ixStateDims%wave)%dimLength)      ! maximum waves allowed in a reach
 
  if (masterproc) then
@@ -233,6 +242,15 @@ CONTAINS
                    [nSeg,nWave,nEns],      & ! input: dimension length == global array size
                    ixRch(ix1:ix2),         & ! input:
                    iodesc_wave_double)
+ end if
+
+ if (routOpt==kinematicWaveEuler) then
+   ! type: float, dim: [dim_seg, dim_fdmesh, dim_ens, dim_time]
+   call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                   [nSeg,nFdmesh,nEns],    & ! input: dimension length == global array size
+                   ixRch(ix1:ix2),         & ! input:
+                   iodesc_mesh_double)
  end if
 
  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
@@ -281,6 +299,7 @@ CONTAINS
     case(ixStateDims%tbound);  meta_stateDims(ixStateDims%tbound)%dimLength  = 2
     case(ixStateDims%tdh);     meta_stateDims(ixStateDims%tdh)%dimLength     = size(FRAC_FUTURE)
     case(ixStateDims%tdh_irf); meta_stateDims(ixStateDims%tdh_irf)%dimLength = 20   !just temporarily
+    case(ixStateDims%fdmesh);  meta_stateDims(ixStateDims%fdmesh)%dimLength  = 4
     case(ixStateDims%wave);    meta_stateDims(ixStateDims%wave)%dimLength    = MAXQPAR
     case default; ierr=20; message1=trim(message1)//'unable to identify dimension variable index'; return
    end select
@@ -333,6 +352,55 @@ CONTAINS
   end associate
 
   END SUBROUTINE define_IRFbas_state
+
+
+  SUBROUTINE define_KWE_state(ierr, message1)
+   ! External modules
+   USE globalData, ONLY: meta_KWE
+   USE var_lookup, ONLY: ixKWE, nVarsKWE
+   implicit none
+   ! output
+   integer(i4b), intent(out) :: ierr          ! error code
+   character(*), intent(out) :: message1       ! error message
+   ! local
+   integer(i4b)              :: iVar          ! index loop for variables
+   integer(i4b)              :: dim_a(4)      ! dimensions combination case 4
+   integer(i4b)              :: dim_q(4)      ! dimensions combination case 4
+
+   ! initialize error control
+   ierr=0; message1='define_KWE_state/'
+
+   ! Check dimension length is populated
+   if (meta_stateDims(ixStateDims%fdmesh)%dimLength == integerMissing) then
+     call set_dim_len(ixStateDims%fdmesh, ierr, cmessage)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%fdmesh)%dimName); return; endif
+   end if
+
+   call defdim(pioFileDescState, trim(meta_stateDims(ixStateDims%fdmesh)%dimName), meta_stateDims(ixStateDims%fdmesh)%dimLength, meta_stateDims(ixStateDims%fdmesh)%dimId)
+   if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
+
+   associate(dim_seg    => meta_stateDims(ixStateDims%seg)%dimId,     &
+             dim_ens    => meta_stateDims(ixStateDims%ens)%dimId,     &
+             dim_time   => meta_stateDims(ixStateDims%time)%dimId,    &
+             dim_fdmesh => meta_stateDims(ixStateDims%fdmesh)%dimId)
+
+   ! Array dimension sets
+   dim_a(:) = [dim_seg, dim_fdmesh, dim_ens, dim_time]
+   dim_q(:) = [dim_seg, dim_fdmesh, dim_ens, dim_time]
+
+   do iVar=1,nVarsKWE
+    select case(iVar)
+     case(ixKWE%a); call defVar(pioFileDescState, trim(meta_KWE(iVar)%varName), dim_a, ncd_double, ierr, cmessage, vdesc=trim(meta_KWE(iVar)%varDesc), vunit=trim(meta_KWE(iVar)%varUnit))
+     case(ixKWE%q); call defVar(pioFileDescState, trim(meta_KWE(iVar)%varName), dim_q, ncd_double, ierr, cmessage, vdesc=trim(meta_KWE(iVar)%varDesc), vunit=trim(meta_KWE(iVar)%varUnit))
+     case default; ierr=20; message1=trim(message1)//'unable to identify Euler kinematic wave routing state variable index'; return
+    end select
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+   end do
+
+  end associate
+
+  END SUBROUTINE define_KWE_state
+
 
   SUBROUTINE define_KWT_state(ierr, message1)
    ! External modules
@@ -450,6 +518,7 @@ CONTAINS
  USE public_var, ONLY: doesBasinRoute
  USE public_var, ONLY: allRoutingMethods
  USE public_var, ONLY: kinematicWave
+ USE public_var, ONLY: kinematicWaveEuler
  USE public_var, ONLY: impulseResponseFunc
  USE globalData, ONLY: RCHFLX_main         ! mainstem reach fluxes (ensembles, reaches)
  USE globalData, ONLY: RCHFLX_trib         ! tributary reach fluxes (ensembles, reaches)
@@ -472,7 +541,7 @@ CONTAINS
  character(*), intent(out)       :: message         ! error message
  ! local variables
  integer(i4b)                    :: iens            ! temporal
- type(states)                    :: state(0:2)      ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
+ type(states)                    :: state(0:3)      ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
  type(STRFLX), allocatable       :: RCHFLX_local(:) ! reordered reach flux data structure
  type(RCHTOPO),allocatable       :: NETOPO_local(:) ! reordered topology data structure
  type(STRSTA), allocatable       :: RCHSTA_local(:) ! reordered statedata structure
@@ -531,6 +600,11 @@ CONTAINS
 
  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
   call write_IRF_state(ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
+ if (routOpt==kinematicWaveEuler) then
+  call write_KWE_state(ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
@@ -603,6 +677,68 @@ CONTAINS
   end associate
 
   END SUBROUTINE write_IRFbas_state
+
+  ! KWE writing procedures
+  SUBROUTINE write_KWE_state(ierr, message1)
+  ! External module
+  USE globalData, ONLY: meta_kwe
+  USE var_lookup, ONLY: ixKWE, nVarsKWE
+  implicit none
+  ! output
+  integer(i4b), intent(out)  :: ierr            ! error code
+  character(*), intent(out)  :: message1        ! error message
+  ! local variables
+  integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
+  ! initialize error control
+  ierr=0; message1='write_KWE_state/'
+
+  associate(nSeg     => size(RCHFLX_local),                         &
+            nEns     => meta_stateDims(ixStateDims%ens)%dimLength,  &
+            nMesh    => meta_stateDims(ixStateDims%fdmesh)%dimLength)     ! maximum waves allowed in a reach
+
+  allocate(state(kinematicWaveEuler)%var(nVarsKWE), stat=ierr, errmsg=cmessage)
+  if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+  do iVar=1,nVarsKWE
+    select case(iVar)
+     case(ixKWE%a, ixKWE%q)
+      allocate(state(kinematicWaveEuler)%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
+     case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
+    end select
+    if(ierr/=0)then; message1=trim(message1)//'problem allocating space for KWE routing state '//trim(meta_kwe(iVar)%varName); return; endif
+  end do
+
+  ! --Convert data structures to arrays
+  do iens=1,nEns
+   do iSeg=1,nSeg
+
+    do iVar=1,nVarsKWE
+     select case(iVar)
+      case(ixKWE%a)
+       state(kinematicWaveEuler)%var(iVar)%array_3d_dp(iSeg,1:4,iens) = RCHSTA_local(iSeg)%EKW_ROUTE%A(:)
+      case(ixKWE%q)
+       state(kinematicWaveEuler)%var(iVar)%array_3d_dp(iSeg,1:4,iens) = RCHSTA_local(iSeg)%EKW_ROUTE%Q(:)
+      case default; ierr=20; message1=trim(message1)//'unable to identify KWE routing state variable index'; return
+     end select
+    enddo ! variable loop
+   enddo ! seg loop
+  enddo ! ensemble loop
+
+  ! Writing netCDF
+  do iVar=1,nVarsKWE
+    select case(iVar)
+     case(ixKWE%a, ixKWE%q)
+       call write_pnetcdf_recdim(pioFileDescState, trim(meta_kwe(iVar)%varName), state(kinematicWaveEuler)%var(iVar)%array_3d_dp, iodesc_mesh_double, kTime, ierr, cmessage)
+     case default; ierr=20; message1=trim(message1)//'unable to identify KWE variable index for nc writing'; return
+    end select
+   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+  end do
+
+  end associate
+
+  END SUBROUTINE write_KWE_state
+
 
   ! KWT writing procedures
   SUBROUTINE write_KWT_state(ierr, message1)
