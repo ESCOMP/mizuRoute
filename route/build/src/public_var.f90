@@ -70,6 +70,7 @@ module public_var
   integer(i4b), parameter,public  :: allRoutingMethods=0    ! all routing methods
   integer(i4b), parameter,public  :: impulseResponseFunc=1  ! impulse response function
   integer(i4b), parameter,public  :: kinematicWave=2        ! kinematic wave
+  integer(i4b), parameter,public  :: kinematicWaveEuler=3   ! kinematic wave euler
 
   ! ---------- variables in the control file --------------------------------------------------------
 

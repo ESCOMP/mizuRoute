@@ -38,6 +38,7 @@ MODULE var_lookup
   integer(i4b)     :: tbound       = integerMissing   ! 2 elelment time bound vector
   integer(i4b)     :: ens          = integerMissing   ! runoff ensemble
   integer(i4b)     :: wave         = integerMissing   ! waves in a channel
+  integer(i4b)     :: fdmesh       = integerMissing   ! finite difference 4 coners
   integer(i4b)     :: tdh_irf      = integerMissing   ! irf routed future channel flow in a segment
   integer(i4b)     :: tdh          = integerMissing   ! uh routed future overland flow
  endtype iLook_stateDims
@@ -133,7 +134,8 @@ MODULE var_lookup
   integer(i4b)     :: instRunoff        = integerMissing  ! instantaneous runoff in each reach
   integer(i4b)     :: dlayRunoff        = integerMissing  ! delayed runoff in each reac
   integer(i4b)     :: sumUpstreamRunoff = integerMissing  ! sum of upstream runoff in each reach
-  integer(i4b)     :: KWTroutedRunoff   = integerMissing  ! KWT routed runoff in each reach
+  integer(i4b)     :: KWTroutedRunoff   = integerMissing  ! Lagrangian KWT routed runoff in each reach
+  integer(i4b)     :: KWEroutedRunoff   = integerMissing  ! Eulerian KWT routed runoff in each reach
   integer(i4b)     :: IRFroutedRunoff   = integerMissing  ! IRF routed runoff in each reach
  endtype iLook_rflx
  ! Basin IRF state/fluxes
@@ -150,6 +152,11 @@ MODULE var_lookup
   integer(i4b)     :: routed         = integerMissing  ! Routed out of a segment or not
   integer(i4b)     :: q              = integerMissing  ! final discharge
  endtype iLook_KWT
+ ! KWE state/fluxes
+ type, public  ::  iLook_KWE
+  integer(i4b)     :: a              = integerMissing  ! flow area
+  integer(i4b)     :: q              = integerMissing  ! discharge
+ endtype iLook_KWE
  !IRF state/fluxes
  type, public  ::  iLook_IRF
   integer(i4b)     :: qfuture        = integerMissing  ! future routed flow
@@ -160,15 +167,16 @@ MODULE var_lookup
  ! ***********************************************************************************************************
  type(iLook_struct)   ,public,parameter :: ixStruct    = iLook_struct   (1,2,3,4,5)
  type(iLook_dims)     ,public,parameter :: ixDims      = iLook_dims     (1,2,3,4,5,6,7)
- type(iLook_stateDims),public,parameter :: ixStateDims = iLook_stateDims(1,2,3,4,5,6,7)
+ type(iLook_stateDims),public,parameter :: ixStateDims = iLook_stateDims(1,2,3,4,5,6,7,8)
  type(iLook_qDims)    ,public,parameter :: ixqDims     = iLook_qDims    (1,2,3,4)
  type(iLook_HRU)      ,public,parameter :: ixHRU       = iLook_HRU      (1)
  type(iLook_HRU2SEG)  ,public,parameter :: ixHRU2SEG   = iLook_HRU2SEG  (1,2,3,4)
  type(iLook_SEG)      ,public,parameter :: ixSEG       = iLook_SEG      (1,2,3,4,5,6,7,8,9,10,11,12,13)
  type(iLook_NTOPO)    ,public,parameter :: ixNTOPO     = iLook_NTOPO    (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17)
  type(iLook_PFAF)     ,public,parameter :: ixPFAF      = iLook_PFAF     (1)
- type(iLook_rflx)     ,public,parameter :: ixRFLX      = iLook_rflx     (1,2,3,4,5,6)
+ type(iLook_rflx)     ,public,parameter :: ixRFLX      = iLook_rflx     (1,2,3,4,5,6,7)
  type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      (1,2,3,4,5,6)
+ type(iLook_KWE)      ,public,parameter :: ixKWE       = iLook_KWE      (1,2)
  type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      (1,2)
  type(iLook_IRFbas  ) ,public,parameter :: ixIRFbas    = iLook_IRFbas   (1,2)
  ! ***********************************************************************************************************
@@ -185,6 +193,7 @@ MODULE var_lookup
  integer(i4b),parameter,public    :: nVarsPFAF     = storage_size(ixPFAF    )/iLength
  integer(i4b),parameter,public    :: nVarsRFLX     = storage_size(ixRFLX     )/iLength
  integer(i4b),parameter,public    :: nVarsKWT      = storage_size(ixKWT      )/iLength
+ integer(i4b),parameter,public    :: nVarsKWE      = storage_size(ixKWE      )/iLength
  integer(i4b),parameter,public    :: nVarsIRF      = storage_size(ixIRF      )/iLength
  integer(i4b),parameter,public    :: nVarsIRFbas   = storage_size(ixIRFbas   )/iLength
  ! ***********************************************************************************************************
