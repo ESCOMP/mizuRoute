@@ -171,6 +171,7 @@ contains
  character(*),  intent(out)                :: message           ! error message
  ! Local variables to
  type(STRFLX), allocatable                 :: uprflux(:)        ! upstream Reach fluxes
+ logical(lgt)                              :: doExamin          ! check details of variables
  integer(i4b)                              :: nUps              ! number of upstream segment
  integer(i4b)                              :: iUps              ! upstream reach index
  integer(i4b)                              :: iRch_ups          ! index of upstream reach in NETOPO
@@ -179,6 +180,10 @@ contains
  ! initialize error control
  ierr=0; message='kwe_rch/'
 
+ doExamin = .false.
+ if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
+   doExamin = .true.
+ end if
 
  ! identify number of upstream segments of the reach being processed
  nUps = size(NETOPO_in(segIndex)%UREACHI)
@@ -199,6 +204,7 @@ contains
                uprflux,                     &    ! input: upstream reach fluxes
                RCHSTA_out(iens,segIndex),   &    ! inout:
                RCHFLX_out(iens,segIndex),   &    ! inout: updated fluxes at reach
+               doExamin,                    &    ! input: reach index to be examined
                ierr, message)                    ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -206,7 +212,7 @@ contains
  RCHFLX_out(iEns,segIndex)%isRoute=.True.
 
  ! check
- if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
+ if(doExamin)then
   write(iulog,*) 'RCHFLX_out(iens,segIndex)%BASIN_QR(1),RCHFLX_out(iens,segIndex)%REACH_Q = ', &
                   RCHFLX_out(iens,segIndex)%BASIN_QR(1),RCHFLX_out(iens,segIndex)%REACH_Q
  endif
@@ -222,17 +228,21 @@ contains
                      uprflux,       & ! input: upstream reach fluxes
                      rstate,        & ! inout: reach state at a reach
                      rflux,         & ! inout: reach flux at a reach
+                     doExamin,      & ! input: reach index to be examined
                      ierr,message)
  ! ----------------------------------------------------------------------------------------
 
- ! https://www.fs.fed.us/rm/pubs_other/rmrs_2010_wang_l001.pdf
- ! STILL WORKING IN PROGRESS.
+ ! e.g., doc: https://www.fs.fed.us/rm/pubs_other/rmrs_2010_wang_l001.pdf
+ ! state array:
+ ! (time:0:1, loc:0:1) 0-previous time step/inlet, 1-current time step/outlet.
+ ! Q or A(1,2,3,4): 1: (t=0,x=0), 2: (t=0,x=1), 3: (t=1,x=0), 4: (t=1,x=1)
 
  IMPLICIT NONE
  ! Input
  type(RCHPRP), intent(in)                 :: rch_param    ! River reach parameter
  real(dp),     intent(in)                 :: T0,T1        ! start and end of the time step (seconds)
  type(STRFLX), intent(in), allocatable    :: uprflux(:)   ! upstream Reach fluxes
+ logical(lgt), intent(in)                 :: doExamin     ! reach index to be examined
  ! Input/Output
  type(STRSTA), intent(inout)              :: rstate       ! curent reach states
  type(STRFLX), intent(inout)              :: rflux        ! current Reach fluxes
@@ -240,17 +250,19 @@ contains
  integer(i4b), intent(out)                :: ierr         ! error code
  character(*), intent(out)                :: message      ! error message
  ! LOCAL VAIRABLES
- type(EKWRCH)                             :: ekw_tmp      ! temporal eulerian kw state
- real(DP)                                 :: beta         ! constant, 5/3
- real(DP)                                 :: alpha        ! sqrt(slope)(/mannings N* width)
- real(dp)                                 :: theta        ! Courant number [-]
+ real(dP)                                 :: alpha        ! sqrt(slope)(/mannings N* width)
+ real(dP)                                 :: beta         ! constant, 5/3
+ real(dP)                                 :: alpha1       ! sqrt(slope)(/mannings N* width)
+ real(dP)                                 :: beta1        ! constant, 5/3
+ !real(dp)                                 :: theta        ! Courant number [-]
  real(dp)                                 :: dT           ! interval of time step [sec]
  real(dp)                                 :: dX           ! length of segment [m]
+ real(dp)                                 :: A(0:1,0:1)   !
+ real(dp)                                 :: Q(0:1,0:1)   !
  real(dp)                                 :: Abar         !
  real(dp)                                 :: Qbar         !
  integer(i4b)                             :: iUps,ix      ! loop index
  integer(i4b)                             :: nUps         ! number of all upstream segment
- real(dp), allocatable                    :: WC(:)        ! wave celerity
  character(len=strLen)                    :: cmessage     ! error message from subroutine
 
  ! initialize error control
@@ -260,72 +272,116 @@ contains
 
  if (nUps>0) then
 
-   ! (time:0:1, loc:0:1) 0-previous time step/inlet, 1-current time step/outlet.
+   !  current time and inlet  3 (1,0) -> previous time and inlet  1 (0,0)
+   !  current time and outlet 4 (1,1) -> previous time and outlet 2 (0,1)
    do ix = 0,1
-     ekw_tmp%A(0,ix) = rstate%EKW_ROUTE%A(1,ix)
-     ekw_tmp%Q(0,ix) = rstate%EKW_ROUTE%Q(1,ix)
+     A(0,ix) = rstate%EKW_ROUTE%A(ix+3)
+     Q(0,ix) = rstate%EKW_ROUTE%Q(ix+3)
    end do
 
-   ekw_tmp%A(1,1) = 0._dp
-   ekw_tmp%Q(1,1) = 0._dp
+   A(1,1) = realMissing
+   Q(1,1) = realMissing
 
    ! Get the reach parameters
    ! A = (Q/alpha)**(1/beta)
    ! Q = alpha*A**beta
-   alpha  = sqrt(rch_param%R_SLOPE)/(rch_param%R_MAN_N*rch_param%R_WIDTH**(2._dp/3._dp))
-   beta = 5._dp/3._dp
+   alpha = sqrt(rch_param%R_SLOPE)/(rch_param%R_MAN_N*rch_param%R_WIDTH**(2._dp/3._dp))
+   beta  = 5._dp/3._dp
+   beta1  = 1._dp/beta
+   alpha1 = (1.0/alpha)**beta1
    dX  = rch_param%RLENGTH
    dT = T1-T0
 
    ! compute flow rate and flow area at upstream end at current time step
-   ekw_tmp%Q(1,0) = 0.0_dp
+   Q(1,0) = 0.0_dp
    do iUps = 1,nUps
-     ekw_tmp%Q(1,0) = ekw_tmp%Q(1,0) + uprflux(iUps)%REACH_Q
+     Q(1,0) = Q(1,0) + uprflux(iUps)%REACH_Q
    end do
 
-   ekw_tmp%A(1,0) = (ekw_tmp%Q(1,0)/alpha)**(1/beta)
+   A(1,0) = (Q(1,0)/alpha)**(1/beta)
 
-   ! Compute Courant number == ration of celarity to dx/dt
-   Qbar = 0.5*(ekw_tmp%Q(0,1)+ekw_tmp%Q(1,0))
-   Abar = 0.5*(ekw_tmp%A(0,1)+ekw_tmp%A(1,0))
-   if (Abar < 0._dp .and. Abar >0._dp) then
-     Qbar = runoffMin
-     Abar = (Qbar/alpha)**(1/beta)
-   endif
-   theta = beta*(dT/dX)*(Qbar)/(Abar)
+   if (doExamin) then
+     write(iulog,*) 'R_SLOPE= ',rch_param%R_SLOPE,'R_WIDTH= ',rch_param%R_WIDTH, 'R_MANN= ',rch_param%R_MAN_N
+     write(iulog,*) 'Q(0,0)= ', Q(0,0), 'Q(0,1)= ', Q(0,1), 'Q(1,0)= ', Q(1,0)
+     write(iulog,*) 'A(0,0)= ', A(0,0), 'A(0,1)= ', A(0,1), 'A(1,0)= ', A(1,0)
+   end if
+
+!   ! Compute Courant number == ration of celarity to dx/dt
+!   Qbar = 0.5*(Q(0,1)+Q(1,0))
+!   Abar = 0.5*(A(0,1)+A(1,0))
+!   if (Abar > 0._dp) then
+!     theta = beta*(dT/dX)*(Qbar)/(Abar)
+!   else
+!     Qbar = runoffMin
+!     Abar = (Qbar/alpha)**(1/beta)
+!     theta = beta*(dT/dX)*(Qbar)/(Abar)
+!   endif
+!
+!   if (doExamin) then
+!     write(iulog,*) 'dT= ', dt, 'dX=', dX, 'Qbar= ', Qbar, 'Abar= ', ABar, 'theta= ', theta
+!   end if
 
    ! ----------
    ! solve flow rate and flow area at downstream end at current time step
    ! ----------
-   if (theta >= 1) then
-     ekw_tmp%Q(1,1) = ekw_tmp%Q(1,0) - dX/dT*(ekw_tmp%A(1,0)-ekw_tmp%A(0,0)) + rflux%BASIN_QR(1)
-     ekw_tmp%A(1,1) = (ekw_tmp%Q(1,1)/alpha)**(1/beta)
-   else
-     ekw_tmp%A(1,1) = ekw_tmp%A(1,0) + dT/dX*(ekw_tmp%Q(0,0) - ekw_tmp%Q(0,1))
-     ekw_tmp%Q(1,1) = alpha*ekw_tmp%A(1,1)**beta + rflux%BASIN_QR(1)
-     ekw_tmp%A(1,1) = (ekw_tmp%Q(1,1)/alpha)**(1/beta)
+!   if (theta >= 1.0) then
+!     Q(1,1) = Q(1,0) - dX/dT*(A(1,0)-A(0,0))
+!     if (Q(1,1) < 0._dp) then
+!       A(1,1) = A(0,1) + dT/dX*(Q(0,0) - Q(0,1))
+!       Q(1,1) = alpha*A(1,1)**beta
+!     else
+!       A(1,1) = (Q(1,1)/alpha)**(1/beta)
+!     end if
+!   else
+!     A(1,1) = A(0,1) + dT/dX*(Q(0,0) - Q(0,1))
+!     if (A(1,1) < 0._dp) then
+!       Q(1,1) = Q(1,0) - dX/dT*(A(1,0)-A(0,0))
+!       A(1,1) = (Q(1,1)/alpha)**(1/beta)
+!     else
+!       Q(1,1) = alpha*A(1,1)**beta
+!     end if
+!   end if
+
+   Qbar = (Q(0,1) + Q(1,0))/2
+   Q(1,1) = dT/dX*Q(1,0) + alpha1*beta1*Qbar**(beta1-1)*Q(0,1)
+   Q(1,1) = Q(1,1)/(dT/dX + alpha1*beta1*Qbar**(beta1-1))
+
+   if (doExamin) then
+     write(iulog,*) 'A(1,1)= ', A(1,1), 'Q(1,1)= ', Q(1,1)
    end if
 
  else ! if head-water
 
+   !  current time and inlet  3 (1,0) -> previous time and inlet (0,0)
+   !  current time and outlet 4 (1,1) -> previous time and outlet (0,1)
    do ix = 0,1
-     ekw_tmp%A(0,ix) = rstate%EKW_ROUTE%A(1,ix)
-     ekw_tmp%Q(0,ix) = rstate%EKW_ROUTE%Q(1,ix)
+     A(0,ix) = rstate%EKW_ROUTE%A(ix+3)
+     Q(0,ix) = rstate%EKW_ROUTE%Q(ix+3)
    end do
 
-   ekw_tmp%A(1,0) = 0._dp
-   ekw_tmp%Q(1,0) = 0._dp
+   A(1,0) = 0._dp
+   Q(1,0) = 0._dp
 
-   ekw_tmp%Q(1,1) = rflux%BASIN_QR(1)
-   ekw_tmp%A(1,1) = (ekw_tmp%Q(1,1)/alpha)**(1/beta)
+   Q(1,1) = 0._dp
+   A(1,1) = 0._dp
+
+   if (doExamin) then
+     write(iulog,*) 'This is headwater '
+     write(iulog,*) 'A(1,1)= ', A(1,1), 'Q(1,1)= ', Q(1,1)
+   endif
  endif
 
  ! add catchment flow
- rflux%REACH_Q = ekw_tmp%Q(1,1)
+ rflux%REACH_Q = Q(1,1)+rflux%BASIN_QR(1)
 
  ! update state
- rstate%EKW_ROUTE%Q = ekw_tmp%Q
- rstate%EKW_ROUTE%A = ekw_tmp%A
+ do ix = 0,1
+   rstate%EKW_ROUTE%Q(ix+1) = Q(0,ix)
+   rstate%EKW_ROUTE%Q(ix+3) = Q(1,ix)
+
+   rstate%EKW_ROUTE%A(ix+1) = A(0,ix)
+   rstate%EKW_ROUTE%A(ix+3) = A(1,ix)
+ end do
 
  END SUBROUTINE kw_euler
 
