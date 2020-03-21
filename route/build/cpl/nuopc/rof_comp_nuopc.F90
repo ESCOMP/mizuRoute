@@ -438,6 +438,8 @@ contains
        write(iulog,*) "mizuRoute initialization"
        write(iulog,*) ' mizuRoute npes = ',npes
        write(iulog,*) ' mizuRoute iam  = ',iam
+       write(iulog,*) ' mizuRoute cal  = ',trim(calendar)
+       write(iulog,*) ' mizuRoute time = ',trim(time_units)
        write(iulog,*) ' inst_name = ',trim(inst_name)
        call shr_sys_flush(iulog)
     endif

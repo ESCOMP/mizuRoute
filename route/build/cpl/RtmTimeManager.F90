@@ -2,10 +2,11 @@ MODULE RtmTimeManager
 
   USE ESMF
   USE shr_kind_mod, only: r8 => shr_kind_r8
-  USE shr_sys_mod , only: shr_sys_abort
+  USE shr_sys_mod , only: shr_sys_abort, shr_sys_flush
   USE public_var  , only: iulog
   USE public_var  , ONLY: integerMissing
   USE public_var  , ONLY: realMissing
+  USE globalData  , ONLY: masterproc
 
   implicit none
   private
@@ -77,6 +78,11 @@ CONTAINS
    case default;    ierr=20; message=trim(message)//'unable to identify time units'; return
   end select
 
+  if ( masterproc )then
+    write(iulog,*) 'simStart = ', trim(simStart)
+    write(iulog,*) 'simEnd   = ', trim(simEnd)
+    call shr_sys_flush(iulog)
+  end if
   ! extract time information from the control information
   call process_time(trim(time_units), calendar, refJulday,   ierr, cmessage)
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [refJulday]'; return; endif
@@ -86,8 +92,18 @@ CONTAINS
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endJulday]'; return; endif
 
   nTime = int((endJulday - refJulday)*convTime2Days)
+  if ( masterproc )then
+     write(iulog,*) 'refJulDay = ', refJulday
+     write(iulog,*) 'startJulDay = ', startJulday
+     write(iulog,*) 'endJulDay = ', endJulday
+     write(iulog,*) 'nTime   = ', nTime
+     call shr_sys_flush(iulog)
+  end if
+  if ( allocated(timeVar) )then
+    message=trim(message)//trim(cmessage)//' (allocated)'; return
+  end if
   allocate(timeVar(nTime), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if(ierr/=0)then; message=trim(message)//trim(cmessage)//' (allocate)'; return; endif
 
   ! check that the dates are aligned
   if(endJulday<startJulday) then; ierr=20; message=trim(message)//'simulation end is before simulation start'; return; endif
