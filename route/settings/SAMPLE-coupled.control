@@ -35,9 +35,9 @@
 <varname_length>       Length                      ! name of variable holding segment length
 <varname_slope>        Slope                       ! name of variable holding segment slope
 <varname_HRUid>        hruid                       ! name of variable holding HRU id
-<varname_hruSegId>     seg_hru_id                  ! name of variable holding the stream segment below each HRU  
+<varname_hruSegId>     hru_seg_id                  ! name of variable holding the stream segment below each HRU  
 <varname_segId>        seg_id                      ! name of variable holding the ID of each stream segment  
-<varname_downSegId>    tosegment                   ! name of variable holding the ID of the next downstream segment
+<varname_downSegId>    Tosegment                   ! name of variable holding the ID of the next downstream segment
 <varname_pfafCode>     PFAF                        ! name of variable holding the pfafstetter code
 <units_qsim>       mm/s                            ! units of runoff e.g., mm/s
 ! ****************************************************************************************************************************
