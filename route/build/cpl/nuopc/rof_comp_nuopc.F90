@@ -14,7 +14,7 @@ module rof_comp_nuopc
   use NUOPC_Model           , only : model_label_Finalize       => label_Finalize
   use NUOPC_Model           , only : NUOPC_ModelGet
   use shr_kind_mod          , only : R8=>SHR_KIND_R8, CL=>SHR_KIND_CL
-  use shr_sys_mod           , only : shr_sys_abort
+  use shr_sys_mod           , only : shr_sys_abort, shr_sys_flush
   use shr_file_mod          , only : shr_file_getlogunit, shr_file_setlogunit
   use shr_cal_mod           , only : shr_cal_ymd2date
 
@@ -311,17 +311,17 @@ contains
     integer                     :: lbnum                 ! input to memory diagnostic
     integer                     :: nsrest                ! restart type
     integer                     :: ierr                  ! error
-    character(CL)               :: cmessage              ! error message
-    character(CL)               :: simRef                ! date string defining the reference time
-    character(CL)               :: username              ! user name
-    character(CL)               :: caseid                ! case identifier name
-    character(CL)               :: ctitle                ! case description title
-    character(CL)               :: hostname              ! hostname of machine running on
-    character(CL)               :: model_version         ! model version
-    character(CL)               :: starttype             ! start-type (startup, continue, branch, hybrid)
-    character(CL)               :: stdname, shortname    ! needed for advertise
+    character(len=CL)           :: cmessage              ! error message
+    character(len=CL)           :: simRef                ! date string defining the reference time
+    character(len=CL)           :: username              ! user name
+    character(len=CL)           :: caseid                ! case identifier name
+    character(len=CL)           :: ctitle                ! case description title
+    character(len=CL)           :: hostname              ! hostname of machine running on
+    character(len=CL)           :: model_version         ! model version
+    character(len=CL)           :: starttype             ! start-type (startup, continue, branch, hybrid)
+    character(len=CL)           :: stdname, shortname    ! needed for advertise
     logical                     :: brnch_retain_casename ! flag if should retain the case name on a branch start type
-    character(CL)               :: cvalue
+    character(len=CL)           :: cvalue
     character(ESMF_MAXSTR)      :: convCIM, purpComp
     character(len=*), parameter :: subname=trim(modName)//':(InitializeRealize) '
     !---------------------------------------------------------------------------
@@ -425,7 +425,7 @@ contains
        call shr_sys_abort( subname//'ERROR:: bad calendar for ESMF' )
     end if
 
-    write(time_units,'(a)') 'days since ', simRef
+    time_units = 'days since '//trim(simRef)
 
     ! time initialize
     call init_time(ierr, cmessage)
@@ -438,7 +438,10 @@ contains
        write(iulog,*) "mizuRoute initialization"
        write(iulog,*) ' mizuRoute npes = ',npes
        write(iulog,*) ' mizuRoute iam  = ',iam
+       write(iulog,*) ' mizuRoute cal  = ',trim(calendar)
+       write(iulog,*) ' mizuRoute time = ',trim(time_units)
        write(iulog,*) ' inst_name = ',trim(inst_name)
+       call shr_sys_flush(iulog)
     endif
 
     ! Initialize RtmVar module variables
@@ -503,6 +506,7 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     if (masterproc) then
        write(iulog,*)'mesh file for domain is ',trim(cvalue)
+       call shr_sys_flush(iulog)
     end if
 
     ! recreate the mesh using the above distGrid

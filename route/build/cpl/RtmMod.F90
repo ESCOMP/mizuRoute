@@ -99,6 +99,7 @@ CONTAINS
      write(iulog,*) '   run type              = ',runtyp(nsrest+1)
      write(iulog,*) '   coupling_period       = ',coupling_period
      write(iulog,*) '   delt_mizuRoute        = ',dt
+     call shr_sys_flush(iulog)
   endif
 
     rtm_active   = do_rtm
