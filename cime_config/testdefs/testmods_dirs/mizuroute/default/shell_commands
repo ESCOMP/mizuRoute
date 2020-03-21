@@ -1,0 +1,4 @@
+#!/bin/bash
+
+./xmlchange ROF_NCPL="1"
+
