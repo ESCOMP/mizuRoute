@@ -114,7 +114,7 @@ CONTAINS
 
    ! Arguments
    type(ESMF_Time), intent(in)  :: esmfTime
-   character(*),    intent(out) :: timeStr
+   character(len=*),intent(out) :: timeStr
    ! Local variables
    integer                     :: yy,mm,dd              ! Temporaries for time query
    integer                     :: hr,mn,sec             ! Temporaries for time query
