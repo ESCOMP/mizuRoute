@@ -502,7 +502,14 @@ contains
     call NUOPC_CompAttributeGet(gcomp, name='mesh_rof', value=cvalue, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
+if (masterproc) then
+write(iulog,*)'cvalue= ',trim(cvalue)
+endif
     EMeshTemp = ESMF_MeshCreate(filename=trim(cvalue), fileformat=ESMF_FILEFORMAT_ESMFMESH, rc=rc)
+if (masterproc) then
+write(iulog,*)'EMeshTemp '
+write(iulog,*)'rc ',rc
+endif
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     if (masterproc) then
        write(iulog,*)'mesh file for domain is ',trim(cvalue)

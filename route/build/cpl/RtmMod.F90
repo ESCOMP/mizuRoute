@@ -74,10 +74,12 @@ CONTAINS
   call init_model(cfile_name, ierr, cmessage)
   if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
-  ! if routing time step and coupling time step is different, match dt to coupling_period
+  ! if routing time step and coupling time step is different, match dt to coupling_period. Assure that dt insecond
   if (dt/=coupling_period) then
-    write(iulog,*) 'WARNING: Adjust mizuRoute dt to coupling_period'
-    dt = coupling_period
+    if (masterproc) then
+      write(iulog,*) 'WARNING: Adjust mizuRoute dt to coupling_period'
+    endif
+    dt = coupling_period*60.0*60.0*24.0
   endif
 
   ! Obtain restart file if appropriate
@@ -97,8 +99,8 @@ CONTAINS
   if (masterproc) then
      write(iulog,*) 'define run:'
      write(iulog,*) '   run type              = ',runtyp(nsrest+1)
-     write(iulog,*) '   coupling_period       = ',coupling_period
-     write(iulog,*) '   delt_mizuRoute        = ',dt
+     write(iulog,*) '   coupling_period       = ',coupling_period, '[day]'
+     write(iulog,*) '   delt_mizuRoute        = ',dt, '[sec]'
      call shr_sys_flush(iulog)
   endif
 
@@ -179,23 +181,22 @@ CONTAINS
     if (masterproc) then
       rtmCTL%endr  = hru_per_proc(-1)+hru_per_proc(0)
       rtmCTL%lnumr = hru_per_proc(-1)+hru_per_proc(0)
+      ix1 = 1
+      ix2 = rtmCTL%lnumr
     else
       rtmCTL%endr  = hru_per_proc(iam)
       rtmCTL%lnumr = hru_per_proc(iam)
+      ix2 = sum(hru_per_proc(-1:iam))
+      ix1 = ix2 - sum(hru_per_proc(-1:iam-1))
     end if
 
     ! total elements in whole domain
     rtmCTL%numr   = sum(hru_per_proc)
 
-    ! index wrt global domain
-    ix2=0
-    do myid = 0, npes-1
-      ix1 = ix2 + 1
-      ix2 = ix1 + rtmCTL%lnumr - 1
-      rtmCTL%gindex(rtmCTL%begr:rtmCTL%endr) = ixHRU_order(ix1:ix2)
-    enddo
-
     call RunoffInit(rtmCTL%begr, rtmCTL%endr, rtmCTL%numr)
+
+    ! index wrt global domain
+    rtmCTL%gindex(rtmCTL%begr:rtmCTL%endr) = ixHRU_order(ix1:ix2)
 
     !-------------------------------------------------------
     ! Read restart/initial info
