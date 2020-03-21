@@ -10,6 +10,7 @@
 ! DEFINE DIRECTORIES 
 ! --------------------------
 <ancil_dir>            ANCIL_DIR                   ! directory containing ancillary data (river network data)
+<input_dir>            INPUT_DIR                   ! directory containing input data
 <output_dir>           OUTPUT_DIR                  ! directory containing output data
 ! ****************************************************************************************************************************
 ! RUN CONTROL 
