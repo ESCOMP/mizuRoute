@@ -87,6 +87,7 @@ CONTAINS
 
   ! shared data used
   USE public_var, ONLY: ancil_dir
+  USE public_var, ONLY: input_dir
   USE public_var, ONLY: param_nml
   ! subroutines: populate metadata
   USE popMetadat_module, ONLY: popMetadat       ! populate metadata
@@ -115,7 +116,7 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! read the routing parameter namelist
-  call read_param(trim(ancil_dir)//trim(param_nml),ierr,cmessage)
+  call read_param(trim(input_dir)//trim(param_nml),ierr,cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  END SUBROUTINE init_model
