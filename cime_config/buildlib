@@ -41,7 +41,7 @@ def _main_func():
         filepath_file = os.path.join(bldroot,"Filepath")
         if not os.path.isfile(filepath_file):
             caseroot = case.get_value("CASEROOT")
-            paths = [os.path.join(caseroot,"SourceMods","src.mizuRoute"),
+            paths = [os.path.join(caseroot,"SourceMods","src.mizuroute"),
                      os.path.join(rof_root,"route","build","src"),
                      os.path.join(rof_root,"route","build","cpl"),
                      os.path.join(rof_root,"route","build","cpl",driver)]

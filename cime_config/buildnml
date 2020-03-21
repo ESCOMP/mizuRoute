@@ -75,7 +75,7 @@ def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_
     #----------------------------------------------------
     ctl.set( "case_name", casename )
     ctl.set( "output_dir", rundir )
-    ctl.set( "ancil_dir", dindir+"/rof/mizuRoute/ancillary_data" )
+    ctl.set( "ancil_dir", dindir+"/rof/mizuRoute/ancillary_data/" )
     ctl.set( "fname_ntopOld", "ntopo_HDMA_c20191025.nc" )
     ctl.set( "dname_sseg", "seg" )
     ctl.set( "dname_nhru", "hru" )

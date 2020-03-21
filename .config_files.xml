@@ -6,7 +6,7 @@
 
   <!-- This is the same as the default entry in
        cime/config/cesm/config_files.xml except for the value for mizuRoute:
-       In a standalone mizuRoute checkout, COMP_ROOT_DIR_LND is $SRCROOT
+       In a standalone mizuRoute checkout, COMP_ROOT_DIR_ROF is $SRCROOT
        rather than $SRCROOT/components/mizuRoute.
 
        However, because of the way overrides are handled, we need to
