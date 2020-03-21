@@ -74,13 +74,14 @@ def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_
     # Set control values that we get from CESM
     #----------------------------------------------------
     ctl.set( "case_name", casename )
-    ctl.set( "output_dir", rundir )
+    ctl.set( "output_dir", rundir+"/" )
+    ctl.set( "input_dir", rundir+"/" )
     ctl.set( "ancil_dir", dindir+"/rof/mizuRoute/ancillary_data/" )
     ctl.set( "fname_ntopOld", "ntopo_HDMA_c20191025.nc" )
     ctl.set( "dname_sseg", "seg" )
     ctl.set( "dname_nhru", "hru" )
     ctl.set( "sim_start", run_start )
-    ctl.set( "sim_end", "9999-12-31" )
+    ctl.set( "sim_end", "2001-12-31" )
     ctl.set( "param_nml", "mizuRoute_in" )
 
     #----------------------------------------------------
