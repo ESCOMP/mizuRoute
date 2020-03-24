@@ -6,6 +6,8 @@ USE public_var
 ! data type
 USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
 USE dataTypes, ONLY: RCHTOPO        ! Network topology
+! subroutines: general
+USE perf_mod,  ONLY: t_startf,t_stopf ! timing start/stop
 
 implicit none
 
@@ -57,12 +59,8 @@ CONTAINS
  integer(i4b)                                   :: iTrib, ix       ! loop indices
  logical(lgt), allocatable                      :: doRoute(:)      ! logical to indicate which reaches are processed
  character(len=strLen)                          :: cmessage        ! error message from subroutines
- integer*8                                      :: cr                   ! rate
- integer*8                                      :: startTime,endTime    ! date/time for the start and end of the initialization
- real(dp)                                       :: elapsedTime          ! elapsed time for the process
 
  ierr=0; message='accum_runoff/'
- call system_clock(count_rate=cr)
 
  ! check
  if (size(NETOPO_in)/=size(RCHFLX_out(iens,:))) then
@@ -85,7 +83,7 @@ CONTAINS
 
  nDom = size(river_basin)
 
- call system_clock(startTime)
+ call t_startf('route/accum-runoff')
 
  do ix = 1,nDom
    ! 1. Route tributary reaches (parallel)
@@ -116,9 +114,7 @@ CONTAINS
 
  end do ! looping through stream segments
 
- call system_clock(endTime)
- elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
- !write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/accum] = ', elapsedTime, ' s'
+ call t_stopf('route/accum-runoff')
 
  END SUBROUTINE accum_runoff
 
