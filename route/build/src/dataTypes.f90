@@ -198,7 +198,7 @@ implicit none
   real(dp)                                   :: RCHULAK  ! Length of reach under lake
   logical(lgt)                               :: LAKINLT  ! .TRUE. if reach is lake inlet, .FALSE. otherwise
   logical(lgt)                               :: USRTAKE  ! .TRUE. if user takes from reach, .FALSE. otherwise
- ! logical(lgt)                               :: ISLAKE   ! .TRUE. if the object is a reach the network topology should creat this flag
+  logical(lgt)                               :: ISLAKE =.false. ! .TRUE. if the object is a reach the network topology should creat this flag
  end type RCHTOPO
 
  ! ---------- reach states --------------------------------------------------------------------
@@ -293,90 +293,5 @@ implicit none
   real(dp)                             :: LAKE_E            ! lake evaporation (m3)
   real(dp)                             :: LAKE_I            ! inflow to lake (m3 s-1)
  END TYPE LKFLX
-
- !! lake storage
- !TYPE, public :: LAKSTR
- ! real(dp)                             :: sotrage           ! lake storage (m3)
- !END TYPE LAKSTR
-
-! ! ---------- OBJECT ORIENTED NETWORK TOPOLOGY AND PARAETERS---------------------------------------------------
-! ! THIS IS JUST A SUGGESTION OF HOW THE NETWORK TOPOLOGY CAN BE BUILD THAT INCLUDES RIVER AND LAKE AND MORE OBJECT SUCH AS INTAKE/OUTTAKE
-! ! THIS has few advantage of proper linking the object, lake and reaches also has the advantages that there is in transfering the lake paramter through 
-! ! few subroutine to pass it to the lake module
-! ! pluse the netwrok topology calculation remains mostly intact and only track the logical id of whether or not the model 
-
-! ! Object-oriented Network topology
-! type, public :: OBJTOPO
-!  integer(i4b)                               :: OBJIX  ! Reach index (1,2,...,nrch+mlake+ketc)
-!  integer(i4b)                               :: OBJID  ! Reach ID (REC code)
-!  real(dp)                                   :: RCHLAT1  ! Start latitude
-!  real(dp)                                   :: RCHLAT2  ! End latitude
-!  real(dp)                                   :: RCHLON1  ! Start longitude
-!  real(dp)                                   :: RCHLON2  ! End longitude
-!  integer(i4b)                               :: DWOBJIX  ! Immediate Downstream reach index
-!  integer(i4b)                               :: DWOBJID  ! Immediate Downstream reach ID
-!  integer(i4b),dimension(:),allocatable      :: UPOBJIX  ! Immediate Upstream reach indices
-!  integer(i4b),dimension(:),allocatable      :: UPOBJID  ! Immediate Upstream reach IDs
-!  integer(i4b),dimension(:),allocatable      :: ALUPOBJIX ! all upstream reach indices
-!  integer(i4b),dimension(:),allocatable      :: ALUPOBJID ! all contributing HRU IDs
-!  integer(i4b),dimension(:),allocatable      :: HRUIX    ! all contributing HRU indices
-!  real(dp),    dimension(:),allocatable      :: HRUWGT   ! areal weight for contributing HRUs
-!  logical(lgt),dimension(:),allocatable      :: goodBas  ! Flag to denote a good basin
-!  character(len=32),dimension(:),allocatable :: pfafCode ! pfafstetter code (should be ajusted for the lakes as well)
-!  integer(i4b)                               :: OBJORD   ! Processing sequence
-!  real(dp)    ,dimension(:),allocatable      :: UH       ! Unit hydrograph for upstream *** not sure if it should be here ***
-!  logical(lgt)                               :: ISREACH  ! .TRUE. if the object is a reach
-!  logical(lgt)                               :: ISLAKE   ! .TRUE. if the object is a lake
-!  logical(lgt)                               :: ISSTHELSE ! .TURE. if the object is sth else (added in future, weir for example)
-!  logical(lgt)                               :: ISTAKE   ! .TURE. if the a flux [m3/s or mm/timestep] is added to a node or removed from the node 
-!                                                         ! this should be on when for example precipitation is added to lake or evaporation is taken from it
-!                                                         ! also it can be used for reach water intake later/ + can be take and - can be give for example
-!  logical(lgt)                               :: isRoute  ! .true. if the object is simulated/routed *** this should be here and not in the fluxes I would say...
-! end type OBJTOPO
-
-! ! Paraemters of the object on the river network, the values will be set missing for paraemter of lake if the object is a reach for example
-! type, public ::  OBJPRP
-!  real(dp)                                :: SLOPE             ! slope of the reach or object
-!  real(dp)                                :: MAN_N             ! manning of the reach or object
-!  real(dp)                                :: WIDTH             ! width of the reach or object
-!  real(dp)                                :: LENGTH            ! length of the reach or object
-!  real(dp)                                :: AREAREF           ! lake area or object
-!  real(dp)                                :: REFLEV            ! lake elevation or object
-!  real(dp)                                :: AVGLEV            ! lake average level (for initialization)
-!  real(dp)                                :: HE2AR_C           ! water height-surface area parameter
-!  real(dp)                                :: HE2AR_D           ! water height-surface area parameter
-!  real(dp)                                :: HGHTLOW           ! minimum water height for discharge
-!  real(dp)                                :: HGHTECO           ! minimum height for ecological concerns
-!  real(dp)                                :: HGHTSPL           ! spillway height
-!  real(dp)                                :: DSCHECO           ! discharge at "ecological" height
-!  real(dp)                                :: DSCHSPL           ! discharge at spillway height
-!  real(dp)                                :: RATECVA           ! discharge rating curve parameter
-!  real(dp)                                :: RATECVB           ! discharge rating curve parameter
-!  real(dp)                                :: LAKLAT1           ! Centroid latitude
-!  real(dp)                                :: LAKLAT2           ! Outlet latitude
-!  real(dp)                                :: LAKLON1           ! Centroid longitude
-!  real(dp)                                :: LAKLON2           ! Outlet longitude
-!  real(dp)                                :: UPSAREA           ! upstream area (zero if headwater basin) exlusind ghte area for the computational element of the object [m2 ?]
-!  real(dp)                                :: BASAREA           ! local basin area on the computational element of object [m2 ?]
-!  real(dp)                                :: TOTAREA           ! UPSAREA + BASAREA sum of the above [m2 ?]
-!  real(dp)                                :: MINFLOW           ! minimum environmental flow the object has to provide
-! end type OBJPRP
-
-! ! object sotrage including the reach and lake storage
-! type, public :: OBJSTR
-!  real(dp)                                :: STORAGE(0:1)      ! storage of the object such as reach or lake/reservoir; 0 begining of the time step and 1 end of the time step
-! end type OBJSTR
-
-! ! object flux, average flux for reach, lake or any object
-! TYPE, public :: OBJFLX
-!  real(dp), allocatable                :: Q_FUT(:)        ! runoff volume in future time steps (m3/s)
-!  real(dp), allocatable                :: Q_FUT_IRF(:)    ! runoff volume in future time steps for IRF routing (m3/s) *** why should be a IRF version here; is this needed? ***
-!  real(dp)                             :: QI          ! instantaneous runoff volume from the local area assosiated to an object (m3/s)
-!  real(dp)                             :: QR(0:1)     ! routed runoff volume from the local area assosiated with an object (m3/s)
-!  real(dp)                             :: Q           ! time-step average object flow (m3/s)
-!  real(dp)                             :: Q_IRF       ! time-step average object flow (m3/s) from IRF routing
-!  real(dp)                             :: UP_QI       ! sum of upstream object streamflow (m3/s) upstream can be 
-!  real(dp)                             :: TAKE        ! average take
-! end type OBJFLX
 
 END MODULE dataTypes
