@@ -1,0 +1,11 @@
+clone the mizuRoute feature/mpi-pio into a folder on graham
+go to the mizuRoute folder and type:
+```./manage_externals/checkout_externals```
+and then load the necessary modules
+```module load intel/2018.3 openmpi/3.1.2 netcdf/4.6.1 netcdf-fortran-mpi/4.4.4 pnetcdf```
+then navigate to the route/build folder
+open Makefile_graham.local and change the intial part of the F_MASTER to the direction the the folder build is located.
+F_MASTER should be ending with a '/' and with no space after it
+then on the commnad line type:
+```make -f Makefile_graham.local```
+the exe should be in the bin forlder
