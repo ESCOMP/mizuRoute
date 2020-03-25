@@ -32,6 +32,8 @@ contains
                         ! output
                         ierr, message)   ! output: error control
 
+ USE public_var, ONLY: dt
+ 
  implicit none
  ! Input
  INTEGER(I4B), intent(IN)                 :: iEns           ! runoff ensemble to be routed
