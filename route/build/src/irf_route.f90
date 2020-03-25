@@ -49,6 +49,7 @@ contains
  ! Local variables
  character(len=strLen)                           :: cmessage            ! error message from subroutine
  logical(lgt),                      allocatable  :: doRoute(:)          ! logical to indicate which reaches are processed
+ logical(lgt)                                    :: islake              ! is the object is a lake
  integer(i4b)                                    :: nOrder              ! number of stream order
  integer(i4b)                                    :: nTrib               ! number of tributary basins
  integer(i4b)                                    :: nSeg                ! number of reaches in the network
@@ -83,6 +84,9 @@ contains
   doRoute(:)=.true. ! every reach is on
  endif
 
+! set islake to false in this case as no lake is implemented
+islake = .false.
+
  nOrder = size(river_basin)
 
  call system_clock(startTime)
@@ -105,7 +109,10 @@ contains
      seg:do iSeg=1,river_basin(ix)%branch(iTrib)%nRch
        jSeg = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
        if (.not. doRoute(jSeg)) cycle
-       call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, cmessage)
+        !if (islake) cycle
+         !lake_route(iEns,segIndex,  ixDesire,  NETOPO_in, LAKEPR, RCHFLX_out, Lake_storage, ierr, message) ! this inputs should be pass to the routing
+        !if (.not. islake) cycle ! later this can be change to isreach flag if the strcuture of dataType is unified
+         call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, cmessage)
        if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
      end do seg
    end do trib
