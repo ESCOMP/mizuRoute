@@ -40,7 +40,7 @@ PIO_FILESYSTEM_HINTS =
 # Define core directory below which everything resides
 # parent directory of the 'build' directory
 # do not put space at the end of path
-F_MASTER = /home/shg096/mizuRoute/route/  # should be changed accordingly
+F_MASTER = /home/shg096/mizuRoute/route/
 # Define the NetCDF libraries and path to include files
 # pnetcdf location on graham
 #  gnu   openmpi:
