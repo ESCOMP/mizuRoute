@@ -49,7 +49,6 @@ contains
  ! Local variables
  character(len=strLen)                           :: cmessage            ! error message from subroutine
  logical(lgt),                      allocatable  :: doRoute(:)          ! logical to indicate which reaches are processed
- logical(lgt)                                    :: islake              ! is the object is a lake
  integer(i4b)                                    :: nOrder              ! number of stream order
  integer(i4b)                                    :: nTrib               ! number of tributary basins
  integer(i4b)                                    :: nSeg                ! number of reaches in the network
