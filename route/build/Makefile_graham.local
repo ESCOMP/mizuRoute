@@ -15,7 +15,7 @@ FC  = intel
 # For MPI use, mpifort, mpif77, mpif90, mpif08
 FC_EXE = mpif90
 # Define the executable
-EXE = route_runoff.mpi-pio.exe
+EXE = route_runoff.mpi-pio.lake.exe
 # Define optional setting
 # fast:      Enables optimizations
 # debug:     Minimum debug options, still
