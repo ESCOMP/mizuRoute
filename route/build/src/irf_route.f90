@@ -10,6 +10,8 @@ USE public_var, ONLY: iulog          ! i/o logical unit number
 USE public_var, ONLY: realMissing    ! missing value for real number
 USE public_var, ONLY: integerMissing ! missing value for integer number
 
+USE lake_route_module, ONLY: lake_route
+
 ! privary
 implicit none
 private
