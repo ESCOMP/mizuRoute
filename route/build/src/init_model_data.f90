@@ -346,12 +346,18 @@ CONTAINS
        RCHFLX_main(:,:)%BASIN_QI = 0._dp
        RCHFLX_main(:,:)%BASIN_QR(0) = 0._dp
        RCHFLX_main(:,:)%BASIN_QR(1) = 0._dp
+       RCHFLX_main(:,:)%REACH_Q = 0._dp         ! Initializing the flux which is used in lake route
+       RCHFLX_main(:,:)%REACH_VOL(0) = 0._dp    ! initializing the storage of lake volume for main channel (root node); later may be read from an input file
+       RCHFLX_main(:,:)%REACH_VOL(1) = 0._dp    ! initializing the storage of lake volume for main channel (root node); later may be read from an input file
      end if
    end if
    if (rch_per_proc(pid) > 0) then
      RCHFLX_trib(:,:)%BASIN_QI = 0._dp
      RCHFLX_trib(:,:)%BASIN_QR(0) = 0._dp
      RCHFLX_trib(:,:)%BASIN_QR(1) = 0._dp
+     RCHFLX_trib(:,:)%REACH_Q = 0._dp           ! Initializing the flux which is used in lake route
+     RCHFLX_trib(:,:)%REACH_VOL(0) = 0._dp      ! initializing the storage of lake volume for tributaries; layer may be read from an input file
+     RCHFLX_trib(:,:)%REACH_VOL(0) = 0._dp      ! initializing the storage of lake volume for tributaries; later may be read from an input file
    end if
 
    ! initialize time

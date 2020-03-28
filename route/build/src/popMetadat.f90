@@ -136,6 +136,7 @@ contains
  meta_NTOPO  (ixNTOPO%isLakeInlet    ) = var_info('isLakeInlet'    , 'flag to define if a lake inlet (1=true)'            ,'-'    ,ixDims%seg   , .false.)
  meta_NTOPO  (ixNTOPO%userTake       ) = var_info('userTake'       , 'flag to define if user takes water (1=true)'        ,'-'    ,ixDims%seg   , .false.)
  meta_NTOPO  (ixNTOPO%goodBasin      ) = var_info('goodBasin'      , 'flag to define a good basin (1=true)'               ,'-'    ,ixDims%upSeg , .false.)
+ meta_NTOPO  (ixNTOPO%islake         ) = var_info('islake'         , 'flag to define a good basin (1=true)'               ,'-'    ,ixDims%upSeg , .false.) ! has added the lake flag
 
  ! PFAF CODE                                     varName        varDesc                                                varUnit, varType, varFile
  meta_PFAF  (ixPFAF%code             ) = var_info('code'           , 'pfafstetter code'                                   ,'-'    ,ixDims%seg   , .true.)

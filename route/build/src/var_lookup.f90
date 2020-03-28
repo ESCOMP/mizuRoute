@@ -112,6 +112,7 @@ MODULE var_lookup
   integer(i4b)     :: lakeId          = integerMissing  ! unique id of each lake in the river network
   integer(i4b)     :: lakeIndex       = integerMissing  ! index of each lake in the river network
   integer(i4b)     :: isLakeInlet     = integerMissing  ! flag to define if reach is a lake inlet (1=inlet, 0 otherwise)
+  integer(i4b)     :: islake          = integerMissing  ! flag to define a lake (1=lake, 0=reach)
   ! irrigation
   integer(i4b)     :: userTake        = integerMissing  ! flag to define if user takes water from reach (1=extract, 0 otherwise)
   ! testing
@@ -165,7 +166,7 @@ MODULE var_lookup
  type(iLook_HRU)      ,public,parameter :: ixHRU       = iLook_HRU      (1)
  type(iLook_HRU2SEG)  ,public,parameter :: ixHRU2SEG   = iLook_HRU2SEG  (1,2,3,4)
  type(iLook_SEG)      ,public,parameter :: ixSEG       = iLook_SEG      (1,2,3,4,5,6,7,8,9,10,11,12,13)
- type(iLook_NTOPO)    ,public,parameter :: ixNTOPO     = iLook_NTOPO    (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17)
+ type(iLook_NTOPO)    ,public,parameter :: ixNTOPO     = iLook_NTOPO    (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18)
  type(iLook_PFAF)     ,public,parameter :: ixPFAF      = iLook_PFAF     (1)
  type(iLook_rflx)     ,public,parameter :: ixRFLX      = iLook_rflx     (1,2,3,4,5,6)
  type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      (1,2,3,4,5,6)
