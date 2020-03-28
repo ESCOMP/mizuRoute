@@ -78,24 +78,17 @@ contains
    end do
   endif
 
-  ! perform lake routing based on a fixed storage discharge relationship (can be changes later)
-  ! updating storage of the lake
-
-  RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) + q_upstream * dt
-
-  ! perform storage discharge relationship for a fixed sotrage discharge relashinship for all the lakes in this version
-  ! at this moment we have explicit but later we can do a an iteretive solution of the storage and re
-  
-  RCHFLX_out(iens,segIndex)%REACH_Q = RCHFLX_out(iens,segIndex)%REACH_VOL(1) * 0.01 ! here it is a simplified version of level pool I guess basically liner reservoir
-
-  RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_Q * dt ! here it is 
-
-  ! a simplified version of level pool I guess basically liner reservoir
-  
-  ! later we should be able to pass the lake parameter for level pool I assume LAKPRP%RATECVA and LAKPRP%RATECVB
+  ! perform lake routing based on a fixed storage discharge relationship Q=kS
+  RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(0) ! updating storage for current time
+  RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) + q_upstream * dt  ! input upstream discharge  
+  RCHFLX_out(iens,segIndex)%REACH_Q = RCHFLX_out(iens,segIndex)%REACH_VOL(1) * 0.01 ! simplified level pool liner reservoir Q=kS
+  RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_Q * dt ! updating the storage 
 
   ! set the routed flag as .True.
   RCHFLX_out(iEns,segIndex)%isRoute=.True.
+
+  ! pass the current storage for the past time step for the next time step simulation
+  RCHFLX_out(iens,segIndex)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) !shift on time step back
  
  end subroutine lake_route
 
