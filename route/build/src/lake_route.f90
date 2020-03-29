@@ -81,6 +81,8 @@ contains
 
   ! perform lake routing based on a fixed storage discharge relationship Q=kS
   ! there is no in basin routing for lake; the input to the lake (precipitation) should be added to the storage of the lake
+  ! in the current implementation there is no input to the system from nodes that are lake
+  ! if the entire network topology is lake the system response will be all zero
   RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(0) ! updating storage for current time
   RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) + q_upstream * dt  ! input upstream discharge  
   RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_VOL(1) * 0.01 ! simplified level pool liner reservoir Q=kS
