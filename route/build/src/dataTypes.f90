@@ -198,7 +198,7 @@ implicit none
   real(dp)                                   :: RCHULAK  ! Length of reach under lake
   logical(lgt)                               :: LAKINLT  ! .TRUE. if reach is lake inlet, .FALSE. otherwise
   logical(lgt)                               :: USRTAKE  ! .TRUE. if user takes from reach, .FALSE. otherwise
-  logical(lgt)                               :: ISLAKE =.false. ! .TRUE. if the object is a reach the network topology should creat this flag
+  logical(lgt)                               :: ISLAKE   ! .TRUE. if the object is a reach the network topology should creat this flag
  end type RCHTOPO
 
  ! ---------- reach states --------------------------------------------------------------------
