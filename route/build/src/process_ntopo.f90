@@ -469,7 +469,10 @@ end subroutine augment_ntopo
      end do  ! Loop through contributing HRU loop
    end if
 
-   ! NOT USED: lake parameters
+   ! lake parameters
+   ! USED
+   NETOPO_in(iSeg)%isLake = (structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)==true)
+   ! NOT USED
    NETOPO_in(iSeg)%LAKE_IX = integerMissing  ! Lake index (0,1,2,...,nlak-1)
    NETOPO_in(iSeg)%LAKE_ID = integerMissing  ! Lake ID (REC code?)
    NETOPO_in(iSeg)%BASULAK = realMissing     ! Area of basin under lake
