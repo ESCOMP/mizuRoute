@@ -162,6 +162,7 @@ CONTAINS
                    river_basin,         & ! input: river basin data type
                    ixDesire,            & ! input: index of verbose reach
                    NETOPO_in,           & ! input: reach topology data structure
+                   RPARAM_in,           & ! input: reach parameter data structure
                    RCHFLX_out,          & ! inout: reach flux data structure
                    ierr,cmessage,       & ! output: error control
                    ixRchProcessed)        ! optional input: indices of reach to be routed

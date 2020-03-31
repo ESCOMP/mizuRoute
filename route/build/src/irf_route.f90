@@ -5,6 +5,7 @@ USE nrtype
 ! data type
 USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
 USE dataTypes, ONLY: RCHTOPO        ! Network topology
+USE dataTypes, ONLY: RCHPRP         ! Network parameter
 ! global parameters
 USE public_var, ONLY: iulog          ! i/o logical unit number
 USE public_var, ONLY: realMissing    ! missing value for real number
@@ -27,6 +28,7 @@ contains
                       river_basin,   &  ! input: river basin information (mainstem, tributary outlet etc.)
                       ixDesire,      &  ! input: reachID to be checked by on-screen pringing
                       NETOPO_in,     &  ! input: reach topology data structure
+                      RPARAM_in,     &  ! input: reach parameter data structure
                       RCHFLX_out,    &  ! inout: reach flux data structure
                       ierr, message, &  ! output: error control
                       ixSubRch)         ! optional input: subset of reach indices to be processed
@@ -41,6 +43,7 @@ contains
  type(subbasin_omp), intent(in),    allocatable  :: river_basin(:)      ! river basin information (mainstem, tributary outlet etc.)
  integer(i4b),       intent(in)                  :: ixDesire            ! index of the reach for verbose output ! Output
  type(RCHTOPO),      intent(in),    allocatable  :: NETOPO_in(:)        ! River Network topology
+ type(RCHPRP),       intent(in),    allocatable  :: RPARAM_in(:)        ! River Network parameters
  ! inout
  TYPE(STRFLX),       intent(inout), allocatable  :: RCHFLX_out(:,:)     ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  ! output variables
@@ -110,7 +113,7 @@ contains
         if (NETOPO_in(jseg)%islake) then
          print*, 'islake = ', NETOPO_in(jseg)%islake ! to check if it is lake
          print*, 'reach id that is lake = ', NETOPO_in(jseg)%REACHID ! to check the reach id of lake
-         call lake_route(iEns, jSeg, ixDesire, NETOPO_in, RCHFLX_out, ierr, message)
+         call lake_route(iEns, jSeg, ixDesire, NETOPO_in, RPARAM_in, RCHFLX_out, ierr, message)
         else
          ! print*, 'isnotlake =', NETOPO_in(jseg)%islake ! to check if it is not a lake
          call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, cmessage)

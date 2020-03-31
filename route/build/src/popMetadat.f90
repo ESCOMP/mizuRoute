@@ -106,6 +106,8 @@ contains
  ! SEG                                           varName        varDesc                                                varUnit, varType, varFile
  meta_SEG    (ixSEG%length           ) = var_info('length'         , 'length of segment'                                 ,'m'     ,ixDims%seg   , .true.)
  meta_SEG    (ixSEG%slope            ) = var_info('slope'          , 'slope of segment'                                  ,'-'     ,ixDims%seg   , .true.)
+ meta_SEG    (ixSEG%RATECVA          ) = var_info('RATECVA'        , 'stage-discharge relationship parameter A'          ,'-'     ,ixDims%seg   , .true.)
+ meta_SEG    (ixSEG%RATECVB          ) = var_info('RATECVB'        , 'stage-discharge relationship parameter B'          ,'-'     ,ixDims%seg   , .true.)
  meta_SEG    (ixSEG%width            ) = var_info('width'          , 'width of segment'                                  ,'m'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%man_n            ) = var_info('man_n'          , 'Mannings n'                                        ,'weird' ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%hruArea          ) = var_info('hruArea'        , 'area of each contributing HRU'                     ,'m2'    ,ixDims%upHRU , .false.)

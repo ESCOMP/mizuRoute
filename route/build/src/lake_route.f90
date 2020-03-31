@@ -5,6 +5,7 @@ USE nrtype
 ! data type
 USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
 USE dataTypes, ONLY: RCHTOPO        ! Network topology
+USE dataTypes, ONLY: RCHPRP         ! Network parameter
 ! global parameters
 USE public_var, ONLY: iulog          ! i/o logical unit number
 USE public_var, ONLY: realMissing    ! missing value for real number
@@ -27,6 +28,7 @@ contains
                         segIndex,   &    ! input: index of runoff ensemble to be processed
                         ixDesire,   &    ! input: reachID to be checked by on-screen pringing (here reachID can be lake)
                         NETOPO_in,  &    ! input: reach topology data structure
+                        RPARAM_in,  &    ! input: reach parameter data strcuture
                         ! inout
                         RCHFLX_out, &    ! inout: reach flux data structure
                         ! output
@@ -40,6 +42,7 @@ contains
  INTEGER(I4B), intent(IN)                 :: segIndex       ! segment where routing is performed
  INTEGER(I4B), intent(IN)                 :: ixDesire       ! index of the reach for verbose output
  type(RCHTOPO), intent(IN),   allocatable :: NETOPO_in(:)   ! River Network topology
+ type(RCHPRP),  intent(IN),   allocatable :: RPARAM_in(:)   ! River Network topology
  ! inout
  TYPE(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  ! Output
@@ -85,6 +88,7 @@ contains
   ! if the entire network topology is lake the system response will be all zero
   print*, 'volume before simulation = ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
   print*, 'upstream streamflow = ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
+  print*, 'RATECVA = ', RPARAM_in(segIndex)%RATECVA
   RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(0) ! updating storage for current time
   RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) + q_upstream * dt  ! input upstream discharge  
   RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_VOL(1) * 0.01 / dt ! simplified level pool liner reservoir Q=kS
