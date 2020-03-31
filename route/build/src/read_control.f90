@@ -176,6 +176,8 @@ contains
    case('<varname_basUnderLake>' ); meta_SEG    (ixSEG%basUnderLake    )%varName =trim(cData)  ! Area of basin under lake  (m2)
    case('<varname_rchUnderLake>' ); meta_SEG    (ixSEG%rchUnderLake    )%varName =trim(cData)  ! Length of reach under lake (m)
    case('<varname_minFlow>'      ); meta_SEG    (ixSEG%minFlow         )%varName =trim(cData)  ! minimum environmental flow
+   case('<varname_RATECVA>'      ); meta_SEG    (ixSEG%RATECVA         )%varName =trim(cData)  ! stage-discharge relationship parameter A
+   case('<varname_RATECVB>'      ); meta_SEG    (ixSEG%RATECVB         )%varName =trim(cData)  ! stage-discharge relationship parameter B
 
    ! network topology
    case('<varname_hruContribIx>' ); meta_NTOPO  (ixNTOPO%hruContribIx  )%varName =trim(cData)  ! indices of the vector of HRUs that contribute flow to each segment

@@ -415,10 +415,14 @@ end subroutine augment_ntopo
    ! ----- reach parameters -----
 
    ! copy data into the reach parameter structure
-   RPARAM_in(iSeg)%RLENGTH =     structSEG(iSeg)%var(ixSEG%length)%dat(1)
-   RPARAM_in(iSeg)%R_SLOPE = max(structSEG(iSeg)%var(ixSEG%slope)%dat(1), min_slope)
-   RPARAM_in(iSeg)%R_MAN_N =     structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
-   RPARAM_in(iSeg)%R_WIDTH =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
+   RPARAM_in(iSeg)%RLENGTH   =     structSEG(iSeg)%var(ixSEG%length)%dat(1)
+   RPARAM_in(iSeg)%R_SLOPE   = max(structSEG(iSeg)%var(ixSEG%slope)%dat(1), min_slope)
+   RPARAM_in(iSeg)%R_MAN_N   =     structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
+   RPARAM_in(iSeg)%R_WIDTH   =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
+   RPARAM_in(iSeg)%RATECVA   =     structSEG(iSeg)%var(ixSEG%RATECVA)%dat(1)
+   RPARAM_in(iSeg)%RATECVB   =     structSEG(iSeg)%var(ixSEG%RATECVB)%dat(1)
+   print*, 'Parameter A = ', structSEG(iSeg)%var(ixSEG%RATECVA)%dat(1)
+   print*, 'Parameter B = ', structSEG(iSeg)%var(ixSEG%RATECVB)%dat(1)
 
    ! compute variables
    RPARAM_in(iSeg)%BASAREA = structSEG(iSeg)%var(ixSEG%basArea)%dat(1)

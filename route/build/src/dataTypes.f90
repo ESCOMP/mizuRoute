@@ -170,6 +170,8 @@ implicit none
   real(dp)                                :: BASAREA  ! local basin area
   real(dp)                                :: TOTAREA  ! UPSAREA + BASAREA
   real(dp)                                :: MINFLOW  ! minimum environmental flow
+  real(dp)                                :: RATECVA           ! discharge rating curve parameter A
+  real(dp)                                :: RATECVB           ! discharge rating curve parameter B
  end type RCHPRP
 
  ! River Network topology
@@ -267,8 +269,8 @@ implicit none
   real(dp)                             :: HGHTSPL           ! spillway height
   real(dp)                             :: DSCHECO           ! discharge at "ecological" height
   real(dp)                             :: DSCHSPL           ! discharge at spillway height
-  real(dp)                             :: RATECVA           ! discharge rating curve parameter
-  real(dp)                             :: RATECVB           ! discharge rating curve parameter
+  real(dp)                             :: RATECVA           ! discharge rating curve parameter A
+  real(dp)                             :: RATECVB           ! discharge rating curve parameter B
  END TYPE LAKPRP
 
  ! Lake topology
