@@ -83,15 +83,18 @@ contains
   ! there is no in basin routing for lake; the input to the lake (precipitation) should be added to the storage of the lake
   ! in the current implementation there is no input to the system from nodes that are lake
   ! if the entire network topology is lake the system response will be all zero
+  print*, 'volume before simulation = ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
+  print*, 'upstream streamflow = ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
   RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(0) ! updating storage for current time
   RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) + q_upstream * dt  ! input upstream discharge  
-  RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_VOL(1) * 0.01 ! simplified level pool liner reservoir Q=kS
+  RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_VOL(1) * 0.01 / dt ! simplified level pool liner reservoir Q=kS
   RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt ! updating the storage 
 
   ! set the routed flag as .True.
   RCHFLX_out(iEns,segIndex)%isRoute=.True.
 
   ! pass the current storage for the past time step for the next time step simulation
+  print*, 'volume after simulation = ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
   RCHFLX_out(iens,segIndex)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) !shift on time step back
   
  

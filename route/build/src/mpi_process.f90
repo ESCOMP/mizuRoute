@@ -124,6 +124,7 @@ contains
   ! 1D array for decomposed river network data
   integer(i4b),      allocatable              :: segId_local(:)            ! reach id for decomposed network
   integer(i4b),      allocatable              :: downSegId_local(:)        ! downstream reach id for decomposed network
+  integer(i4b),      allocatable              :: islake_local(:)           ! islake flag local
   integer(i4b),      allocatable              :: hruId_local(:)            ! hru id array in decomposed network
   integer(i4b),      allocatable              :: hruSegId_local(:)         ! downstream reach id array in decomposed network
   real(dp),          allocatable              :: slope_local(:)            ! reach slope array in decomposed network
@@ -135,6 +136,7 @@ contains
   integer(i4b)                                :: hruSegId(nHRU_in)         ! hru-to-seg mapping for each hru
   integer(i4b)                                :: segId(nRch_in)            ! reach id for all the segments
   integer(i4b)                                :: downSegId(nRch_in)        ! downstream reach ID for each reach
+  integer(i4b)                                :: islake(nRch_in)           ! islake flag
   real(dp)                                    :: slope(nRch_in)            ! reach slope array for each reach
   real(dp)                                    :: length(nRch_in)           ! reach length array for each reach
   real(dp)                                    :: area(nHRU_in)             ! hru area for each hru
@@ -240,6 +242,7 @@ contains
      jSeg = ixRch_order(iSeg) ! global index, ordered by domain/node
      segId(iSeg)     = structNTOPO(jSeg)%var(ixNTOPO%segId)%dat(1)
      downSegId(iSeg) = structNTOPO(jSeg)%var(ixNTOPO%downSegId)%dat(1)
+     islake(iSeg)    = structNTOPO(jSeg)%var(ixNTOPO%islake)%dat(1)
      slope(iSeg)     = structSEG(  jSeg)%var(ixSEG%slope)%dat(1)
      length(iSeg)    = structSEG(  jSeg)%var(ixSEG%length)%dat(1)
     end do
@@ -288,12 +291,15 @@ contains
 
     call shr_mpi_scatterV(segId    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), segId_local,     ierr, cmessage)
     call shr_mpi_scatterV(downSegId(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), downSegId_local, ierr, cmessage)
+    call shr_mpi_scatterV(islake   (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), islake_local,    ierr, cmessage)
     call shr_mpi_scatterV(slope    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), slope_local,     ierr, cmessage)
     call shr_mpi_scatterV(length   (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), length_local,    ierr, cmessage)
 
     call shr_mpi_scatterV(hruId    (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruId_local,    ierr, cmessage)
     call shr_mpi_scatterV(hruSegId (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruSegId_local, ierr, cmessage)
     call shr_mpi_scatterV(area     (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), area_local,     ierr, cmessage)
+
+
 
     ! -----------------------------------------------------------------------------
     !  populate local (tributary) data structures and compute additional ancillary information
@@ -315,6 +321,7 @@ contains
     reach: do ix = 1,rch_per_proc(pid)
      structNTOPO_local(ix)%var(ixNTOPO%segId)%dat(1)     = segId_local(ix)
      structNTOPO_local(ix)%var(ixNTOPO%downSegId)%dat(1) = downSegId_local(ix)
+     structNTOPO_local(ix)%var(ixNTOPO%islake)%dat(1)    = islake_local(ix)
      structSEG_local  (ix)%var(ixSEG%length)%dat(1)      = length_local(ix)
      structSEG_local  (ix)%var(ixSEG%slope)%dat(1)       = slope_local(ix)
     end do reach
@@ -443,6 +450,7 @@ contains
      main_rch: do ix = 1, nRch_mainstem
        structNTOPO_main(ix)%var(ixNTOPO%segId)%dat(1)     = segId(ix)
        structNTOPO_main(ix)%var(ixNTOPO%downSegId)%dat(1) = downSegId(ix)
+       structNTOPO_main(ix)%var(ixNTOPO%islake)%dat(1)    = islake(ix)
        structSEG_main  (ix)%var(ixSEG%length)%dat(1)      = length(ix)
        structSEG_main  (ix)%var(ixSEG%slope)%dat(1)       = slope(ix)
      end do main_rch
@@ -451,6 +459,7 @@ contains
        ixx = global_ix_comm(ix)
        structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%segId)%dat(1)     = structNTOPO(ixx)%var(ixNTOPO%segId)%dat(1)
        structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%downSegId)%dat(1) = structNTOPO(ixx)%var(ixNTOPO%downSegId)%dat(1)
+       structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%islake)%dat(1)    = structNTOPO(ixx)%var(ixNTOPO%islake)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%length)%dat(1)      = structSEG(ixx)%var(ixSEG%length)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%slope)%dat(1)       = structSEG(ixx)%var(ixSEG%slope)%dat(1)
        global_ix_main(ix) = nRch_mainstem+ix   ! index in mainstem array that is link to tributary outlet

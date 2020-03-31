@@ -471,7 +471,13 @@ end subroutine augment_ntopo
 
    ! lake parameters
    ! USED
-   NETOPO_in(iSeg)%isLake = (structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)==true)
+   NETOPO_in(iSeg)%isLake = (structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)==1)
+   ! print*, 'is lake = ', structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)
+   ! print*, 'is lake logical = ', (structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)==1)
+   if (NETOPO_in(iSeg)%isLake) THEN
+    print*, 'is lake = ', NETOPO_in(iSeg)%isLake ! to check the islake flag
+    print*, 'is reach ID = ', NETOPO_in(iSeg)%REACHID ! to check the islake flag
+   ENDIF
    ! NOT USED
    NETOPO_in(iSeg)%LAKE_IX = integerMissing  ! Lake index (0,1,2,...,nlak-1)
    NETOPO_in(iSeg)%LAKE_ID = integerMissing  ! Lake ID (REC code?)
