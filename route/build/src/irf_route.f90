@@ -103,6 +103,7 @@ contains
 !$OMP          shared(river_basin)                      & ! data structure shared
 !$OMP          shared(doRoute)                          & ! data array shared
 !$OMP          shared(NETOPO_in)                        & ! data structure shared
+!$OMP          shared(RPARAM_in)                        & ! data structure shared
 !$OMP          shared(RCHFLX_out)                       & ! data structure shared
 !$OMP          shared(ix, iEns, ixDesire)               & ! indices shared
 !$OMP          firstprivate(nTrib)
