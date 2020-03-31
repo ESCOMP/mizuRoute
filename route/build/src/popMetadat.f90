@@ -149,6 +149,7 @@ contains
  meta_rflx   (ixRFLX%sumUpstreamRunoff) = var_info('sumUpstreamRunoff', 'sum of upstream runoff in each reach'        ,'m3/s'   ,ixQdims%seg         ,.true.)
  meta_rflx   (ixRFLX%KWTroutedRunoff  ) = var_info('KWTroutedRunoff'  , 'KWT routed runoff in each reach'             ,'m3/s'   ,ixQdims%seg         ,.true.)
  meta_rflx   (ixRFLX%IRFroutedRunoff  ) = var_info('IRFroutedRunoff'  , 'IRF routed runoff in each reach'             ,'m3/s'   ,ixQdims%seg         ,.true.)
+ meta_rflx   (ixRFLX%IRFlakeVol  )      = var_info('IRFlakeVol'       , 'lake volume for IRF routing'                 ,'m3'     ,ixQdims%seg         ,.true.)
 
  ! Kinematic Wave                                 varName             varDesc                                          unit,     varDim,              writeOut
  meta_kwt    (ixKWT%tentry          ) = var_info('tentry'          , 'time when a wave enters a segment'              ,'sec'    ,ixStateDims%wave    ,.true.)

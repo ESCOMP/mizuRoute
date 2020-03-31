@@ -135,6 +135,12 @@ contains
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
+  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+   ! write lake volume (m3)
+   call write_pnetcdf_recdim(pioFileDesc, 'IRFlakeVol', RCHFLX_local(:)%REACH_VOL(1), iodesc_rch_flx, jTime, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
  end subroutine output
 
 
