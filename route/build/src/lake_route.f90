@@ -91,14 +91,14 @@ contains
   print*, 'RATECVA = ', RPARAM_in(segIndex)%RATECVA
   RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(0) ! updating storage for current time
   RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) + q_upstream * dt  ! input upstream discharge  
-  RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_VOL(1) * 0.01 / dt ! simplified level pool liner reservoir Q=kS
+  RCHFLX_out(iens,segIndex)%REACH_Q_IRF = min ( RPARAM_in(segIndex)%RATECVA * RCHFLX_out(iens,segIndex)%REACH_VOL(1) ** RPARAM_in(segIndex)%RATECVB , RCHFLX_out(iens,segIndex)%REACH_VOL(1)) / dt ! calculate the discharge
   RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt ! updating the storage 
 
   ! set the routed flag as .True.
   RCHFLX_out(iEns,segIndex)%isRoute=.True.
 
   ! pass the current storage for the past time step for the next time step simulation
-  print*, 'volume after simulation = ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
+  print*, 'volume after simulation = ', RCHFLX_out(iens,segIndex)%REACH_VOL(1)
   RCHFLX_out(iens,segIndex)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) !shift on time step back
   
  

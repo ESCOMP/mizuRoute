@@ -475,7 +475,7 @@ end subroutine augment_ntopo
 
    ! lake parameters
    ! USED
-   NETOPO_in(iSeg)%isLake = (structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)==1)
+   NETOPO_in(iSeg)%isLake = (structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)==true)
    ! print*, 'is lake = ', structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)
    ! print*, 'is lake logical = ', (structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)==1)
    if (NETOPO_in(iSeg)%isLake) THEN
