@@ -85,8 +85,10 @@ do while (.not.finished)
   if(ierr/=0) call handle_err(ierr, cmessage)
 
   if(pid==0)then
+    call t_startf ('input')
     call get_hru_runoff(ierr, cmessage)
     if(ierr/=0) call handle_err(ierr, cmessage)
+    call t_stopf ('input')
   endif
 
   call t_startf ('route-total')
@@ -94,8 +96,10 @@ do while (.not.finished)
   if(ierr/=0) call handle_err(ierr, cmessage)
   call t_stopf ('route-total')
 
+  call t_startf ('output')
   call output(ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
+  call t_stopf ('output')
 
   call update_time(finished, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
