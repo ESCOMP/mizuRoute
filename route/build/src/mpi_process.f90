@@ -879,7 +879,7 @@ contains
   ! --------------------------------
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
 
-    call t_startf ('route/mainstem_route')
+    call t_startf ('route/scatter-kwt-state')
 
     call mpi_comm_kwt_state(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
                             iens,                & ! input:
