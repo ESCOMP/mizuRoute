@@ -47,6 +47,9 @@ module remapping
 
   ierr=0; message="remap_runoff/"
 
+  print*, "evaporation data inside remap", runoff_data_in%easim
+  print*, "runoff data inside remap",      runoff_data_in%qsim
+
   if (runoff_data_in%nSpace(2) == integerMissing) then
     call remap_1D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif

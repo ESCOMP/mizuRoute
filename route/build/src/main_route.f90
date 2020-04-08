@@ -100,6 +100,8 @@ CONTAINS
 
   ! 1. subroutine: map basin runoff to river network HRUs
   ! map the basin runoff to the stream network...
+  ! print*, "basin Evaporation in main_route = ", basinRunoff_in(:)%Easim
+  ! print*, "basin Precipitation in main_route = ", basinRunoff_in !%Precip(1)
   call basin2reach(basinRunoff_in,     & ! input: basin runoff (m/s)
                    NETOPO_in,          & ! input: reach topology
                    RPARAM_in,          & ! input: reach parameter
