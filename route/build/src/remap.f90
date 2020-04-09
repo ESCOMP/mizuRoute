@@ -33,13 +33,14 @@ module remapping
   ! *****
   ! * public subroutine: used to map runoff data (on diferent grids/polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
-  subroutine remap_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
+  subroutine remap_runoff(runoff_data_in, remap_data_in, flux_name, remapped_flux, ierr, message) ! name of the flux is passed to the subroutine
   implicit none
   ! input
   type(runoff)         , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
   type(remap)          , intent(in)  :: remap_data_in    ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
+  character(len=strLen), intent(in)  :: flux_name        ! name of the flux in runoff_data_in (e.g., runoff, evaporation or precipitation)
   ! output
-  real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
+  real(dp)             , intent(out) :: remapped_flux(:) ! basin runoff
   integer(i4b)         , intent(out) :: ierr             ! error code
   character(len=strLen), intent(out) :: message          ! error message
   ! local
@@ -47,14 +48,14 @@ module remapping
 
   ierr=0; message="remap_runoff/"
 
-  print*, "evaporation data inside remap", runoff_data_in%easim
-  print*, "runoff data inside remap",      runoff_data_in%qsim
+  ! print*, "evaporation data inside remap", runoff_data_in%easim
+  ! print*, "runoff data inside remap",      runoff_data_in%qsim
 
   if (runoff_data_in%nSpace(2) == integerMissing) then
-    call remap_1D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, cmessage)
+    call remap_1D_runoff(runoff_data_in, remap_data_in, flux_name, remapped_flux, ierr, cmessage) ! the name of the flux is passed to remap
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   else
-    call remap_2D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, cmessage)
+    call remap_2D_runoff(runoff_data_in, remap_data_in, flux_name, remapped_flux, ierr, cmessage) ! the name of the flux is passed to remap
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
@@ -64,16 +65,18 @@ module remapping
   ! private subroutine: used to map runoff data (on diferent polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
   ! case 1: hru in runoff layer is grid (stored in 2-dimension array)
-  subroutine remap_2D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
+  subroutine remap_2D_runoff(runoff_data_in, remap_data_in, flux_name, remapped_flux, ierr, message)
   implicit none
   ! input
   type(runoff)         , intent(in)  :: runoff_data_in      ! runoff for one time step for all HRUs
   type(remap)          , intent(in)  :: remap_data_in       ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
+  character(len=strLen), intent(in)  :: flux_name           ! name of the flux in runoff_data_in (e.g., runoff, evaporation, precipitation)
   ! output
-  real(dp)             , intent(out) :: basinRunoff(:)      ! basin runoff
+  real(dp)             , intent(out) :: remapped_flux(:)    ! basin runoff
   integer(i4b)         , intent(out) :: ierr                ! error code
   character(len=strLen), intent(out) :: message             ! error message
   ! local
+  real(dp)             , allocatable :: flux_local(:,:)     ! use to keep the 2D flux and pass perform remap on it
   integer(i4b)                       :: iHRU,jHRU           ! index of basin in the routing layer
   integer(i4b)                       :: ixOverlap           ! index in ragged array of overlapping polygons
   integer(i4b)                       :: ii,jj               ! index of x and y in grid
@@ -83,7 +86,20 @@ module remapping
   integer(i4b), parameter            :: ixCheck=-huge(iHRU) ! basin to check
   integer(i4b), parameter            :: jxCheck=-huge(iHRU) ! basin to check
   logical(lgt), parameter            :: printWarn=.false.   ! flag to print warnings
+  character(len=strLen)              :: runoff = 'runoff'                    ! flag in case the flux is runoff
+  character(len=strLen)              :: evaporation = 'evaporation'          ! flag in case the flux is runoff
+  character(len=strLen)              :: precipitation = 'precipitation'      ! flag in case the flux is runoff
   ierr=0; message="remap_2D_runoff/"
+
+
+  ! passing the values to the model 
+  allocate(flux_local(runoff_data_in%nSpace(1), runoff_data_in%nSpace(2))) ! allocate the flux to the size of the flux at the time step
+  select case(trim(flux_name)) ! case to pass the appropirate flux from runoff_data_in strcutre to flux_local for remapping of the flux
+   case('runoff');           flux_local = runoff_data_in%qsim2d    ! case where it is 2D runoff
+   case('evaporation');      flux_local = runoff_data_in%easim2d   ! case where it is 2D evaporation
+   case('precipitation');    flux_local = runoff_data_in%precip2d  ! case where it is 2D precipitaion
+   case default; ierr=20; message=trim(message)//'the input flux is not recognized'; return
+  end select
 
   ! initialize counter for the overlap vector
   ixOverlap = 1
@@ -105,7 +121,7 @@ module remapping
 
    ! initialize the weighted average
    sumWeights        = 0._dp
-   basinRunoff(jHRU) = 0._dp
+   remapped_flux(jHRU) = 0._dp
 
    ! loop through the overlapping polygons
    do ixPoly=1,remap_data_in%num_qhru(iHRU) ! number of overlapping polygons
@@ -115,28 +131,28 @@ module remapping
     ii = remap_data_in%i_index(ixOverlap)
 
     ! check i-indices
-    if(ii < lbound(runoff_data_in%qSim2d,1) .or. ii > ubound(runoff_data_in%qSim2d,1))then
+    if(ii < lbound(flux_local,1) .or. ii > ubound(flux_local,1))then
      if(printWarn) write(iulog,'(a,4(i0,a))') trim(message)//'WARNING: When computing weighted runoff at ', jHRU, 'th-HRU, i-index ', ii,' was not found in runoff grid data.'
      ixOverlap = ixOverlap + 1; cycle
     endif
 
     ! check j-indices
-    if(jj < lbound(runoff_data_in%qSim2d,2) .or. jj > ubound(runoff_data_in%qSim2d,2))then
+    if(jj < lbound(flux_local,2) .or. jj > ubound(flux_local,2))then
      if(printWarn) write(iulog,'(a,4(i0,a))') trim(message)//'WARNING: When computing weighted runoff at ', jHRU, 'th-HRU, j-index ', jj, 'was not found in runoff grid data.'
      ixOverlap = ixOverlap + 1; cycle
     endif
 
     ! get the weighted average
-    if(runoff_data_in%qSim2d(ii,jj) > -xTol)then
+    if(flux_local(ii,jj) > -xTol)then
      sumWeights        = sumWeights        + remap_data_in%weight(ixOverlap)
-     basinRunoff(jHRU) = basinRunoff(jHRU) + remap_data_in%weight(ixOverlap)*runoff_data_in%qSim2D(ii,jj)
+     remapped_flux(jHRU) = remapped_flux(jHRU) + remap_data_in%weight(ixOverlap)*flux_local(ii,jj)
     endif
 
     ! check
     if(remap_data_in%i_index(iHRU)==ixCheck .and. remap_data_in%j_index(iHRU)==jxCheck)then
      write(iulog,*) 'remap_data_in%i_index(iHRU),remap_data_in%j_index(iHRU) = ', remap_data_in%i_index(iHRU), remap_data_in%j_index(iHRU)
      write(iulog,*) 'remap_data_in%num_qhru(iHRU)                            = ', remap_data_in%num_qhru(iHRU)
-     write(iulog,*) 'runoff_data_in%qSim2D(ii,jj)                            = ', runoff_data_in%qSim2D(ii,jj)
+     write(iulog,*) 'flux_local(ii,jj)                                       = ', flux_local(ii,jj)
     endif
 
     ! increment the overlap index
@@ -146,12 +162,12 @@ module remapping
 
    ! compute weighted average
    if(sumWeights>xTol)then
-    if(abs(1._dp - sumWeights)>xTol) basinRunoff(jHRU) = basinRunoff(jHRU) / sumWeights
+    if(abs(1._dp - sumWeights)>xTol) remapped_flux(jHRU) = remapped_flux(jHRU) / sumWeights
    endif
 
    ! check
    if(remap_data_in%i_index(iHRU)==ixCheck .and. remap_data_in%j_index(iHRU)==jxCheck)then
-    write(iulog,*) 'basinRunoff(jHRU) = ', basinRunoff(jHRU)*86400._dp*1000._dp*365._dp
+    write(iulog,*) 'remapped_flux(jHRU) = ', remapped_flux(jHRU)*86400._dp*1000._dp*365._dp
    endif
 
   end do   ! looping through basins in the mapping layer
@@ -162,16 +178,18 @@ module remapping
   ! private subroutine: used to map runoff data (on diferent polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
   ! case 2: hru in runoff layer is hru polygon different than river network layer (stored in 1-dimension array)
-  subroutine remap_1D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
+  subroutine remap_1D_runoff(runoff_data_in, remap_data_in,flux_name, remapped_flux, ierr, message)
   implicit none
   ! input
   type(runoff)         , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
   type(remap)          , intent(in)  :: remap_data_in    ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
+  character(len=strLen), intent(in)  :: flux_name        ! name of the flux in runoff_data_in (e.g., runoff, evaporation, precipitation)
   ! output
-  real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
+  real(dp)             , intent(out) :: remapped_flux(:)   ! basin runoff
   integer(i4b)         , intent(out) :: ierr             ! error code
   character(len=strLen), intent(out) :: message          ! error message
   ! local
+  real(dp)             , allocatable :: flux_local(:)    ! use to keep the 1D flux and pass perform remap on it
   integer(i4b)                       :: iHRU,jHRU        ! index of basin in the routing layer
   integer(i4b)                       :: ixOverlap        ! index in ragged array of overlapping polygons
   integer(i4b)                       :: ixRunoff         ! index in the runoff vector
@@ -179,9 +197,20 @@ module remapping
   real(dp)                           :: sumWeights       ! used to check that the sum of weights equals one
   real(dp)    , parameter            :: xTol=1.e-6_dp    ! tolerance to avoid divide by zero
   integer(i4b), parameter            :: ixCheck=-huge(iHRU) ! basin to check
-  !integer(i4b), parameter            :: ixCheck=24001479 ! basin to check
+  !integer(i4b), parameter           :: ixCheck=24001479 ! basin to check
+  character(len=strLen), parameter   :: runoff = 'runoff'                    ! flag in case the flux is runoff
+  character(len=strLen), parameter   :: evaporation = 'evaporation'          ! flag in case the flux is runoff
+  character(len=strLen), parameter   :: precipitation = 'precipitation'      ! flag in case the flux is runoff
 
   ierr=0; message="remap_1D_runoff/"
+
+  allocate(flux_local(runoff_data_in%nSpace(1))) ! allocate the flux to the size of the flux at the time step 1D
+  select case(trim(flux_name)) ! case to pass the appropirate flux from runoff_data_in strcutre to flux_local for remapping of the flux
+   case(trim(runoff));           flux_local = runoff_data_in%qsim    ! case where it is 2D runoff
+   case(trim(evaporation));      flux_local = runoff_data_in%easim   ! case where it is 2D evaporation
+   case(trim(precipitation));    flux_local = runoff_data_in%precip  ! case where it is 2D precipitaion
+   case default; ierr=20; message=trim(message)//'the input flux is not recognized'; return
+  end select
 
   ! initialize counter for the overlap vector
   ixOverlap = 1
@@ -206,7 +235,7 @@ module remapping
 
    ! initialize the weighted average
    sumWeights        = 0._dp
-   basinRunoff(jHRU) = 0._dp
+   remapped_flux(jHRU) = 0._dp
 
    ! loop through the overlapping polygons
    do ixPoly=1,remap_data_in%num_qhru(iHRU) ! number of overlapping polygons
@@ -228,20 +257,20 @@ module remapping
     endif
 
     ! get the weighted average
-    if(runoff_data_in%qSim(ixRunoff) > -xTol)then
+    if(flux_local(ixRunoff) > -xTol)then
      sumWeights        = sumWeights        + remap_data_in%weight(ixOverlap)
-     basinRunoff(jHRU) = basinRunoff(jHRU) + remap_data_in%weight(ixOverlap)*runoff_data_in%qSim(ixRunoff)
+     remapped_flux(jHRU) = remapped_flux(jHRU) + remap_data_in%weight(ixOverlap)*flux_local(ixRunoff)
     endif
 
     ! check
     if(remap_data_in%hru_id(iHRU)==ixCheck)then
      write(iulog,*) 'remap_data_in%hru_id(iHRU)                         = ', remap_data_in%hru_id(iHRU)
      write(iulog,*) 'remap_data_in%num_qhru(iHRU)                       = ', remap_data_in%num_qhru(iHRU)
-     write(iulog,*) 'ixRunoff, runoff_data_in%qSim(ixRunoff)            = ', ixRunoff, runoff_data_in%qSim(ixRunoff)
+     write(iulog,*) 'ixRunoff, flux_local(ixRunoff)                     = ', ixRunoff, flux_local(ixRunoff)
     endif
 
-    !write(*,*) 'remap_data_in%qhru_id(ixOverlap), runoff_data_in%hru_id(ixRunoff), remap_data_in%weight(ixOverlap), runoff_data_in%qSim(ixRunoff) = ', &
-    !            remap_data_in%qhru_id(ixOverlap), runoff_data_in%hru_id(ixRunoff), remap_data_in%weight(ixOverlap), runoff_data_in%qSim(ixRunoff)
+    !write(*,*) 'remap_data_in%qhru_id(ixOverlap), runoff_data_in%hru_id(ixRunoff), remap_data_in%weight(ixOverlap), flux_local(ixRunoff) = ', &
+    !            remap_data_in%qhru_id(ixOverlap), runoff_data_in%hru_id(ixRunoff), remap_data_in%weight(ixOverlap), flux_local(ixRunoff)
 
     ! increment the overlap index
     ixOverlap = ixOverlap + 1
@@ -250,12 +279,12 @@ module remapping
 
    ! compute weighted average
    if(sumWeights>xTol)then
-    if(abs(1._dp - sumWeights)>xTol) basinRunoff(jHRU) = basinRunoff(jHRU) / sumWeights
+    if(abs(1._dp - sumWeights)>xTol) remapped_flux(jHRU) = remapped_flux(jHRU) / sumWeights
    endif
 
    ! check
    if(remap_data_in%hru_id(iHRU)==ixCheck)then
-    write(iulog,*) 'basinRunoff(jHRU) = ', basinRunoff(jHRU)*86400._dp*1000._dp*365._dp
+    write(iulog,*) 'remapped_flux(jHRU) = ', remapped_flux(jHRU)*86400._dp*1000._dp*365._dp
    endif
 
   end do   ! looping through basins in the mapping layer
@@ -266,20 +295,33 @@ module remapping
   ! public subroutine: assign runoff data in runoff layer to hru in river network layer
   ! ***************************************************************************************************************
   ! case 3: hru in runoff layer is hru polygon identical to river network layer (stored in 1-dimension array)
-  subroutine sort_runoff(runoff_data_in, basinRunoff, ierr, message)
+  subroutine sort_runoff(runoff_data_in, flux_name, basinflux, ierr, message)
   implicit none
   ! input
   type(runoff)         , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
+  character(len=strLen), intent(in)  :: flux_name        ! error message (runoff, evaporaion or precipitation)
   ! output
-  real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
+  real(dp)             , intent(out) :: basinflux(:)     ! basin runoff
   integer(i4b)         , intent(out) :: ierr             ! error code
   character(len=strLen), intent(out) :: message          ! error message
   ! local
+  real(dp)             , allocatable :: flux_local(:)    ! local flux to pass the 1D array of fluxes to it
   integer(i4b)                       :: iHRU,jHRU        ! index of basin in the routing layer
   real(dp)    , parameter            :: xTol=1.e-6_dp    ! tolerance to avoid divide by zero
   integer(i4b), parameter            :: ixCheck=-huge(iHRU) ! basin to check
+  character(len=strLen), parameter   :: runoff = 'runoff'                    ! flag in case the flux is runoff
+  character(len=strLen), parameter   :: evaporation = 'evaporation'          ! flag in case the flux is runoff
+  character(len=strLen), parameter   :: precipitation = 'precipitation'      ! flag in case the flux is runoff
 
   ierr=0; message="sort_runoff/"
+
+  allocate(flux_local(runoff_data_in%nSpace(1))) ! allocate the flux to the size of the flux at the time step 1D
+  select case(trim(flux_name)) ! case to pass the appropirate flux from runoff_data_in strcutre to flux_local for remapping of the flux
+   case(trim(runoff));           flux_local = runoff_data_in%qsim    ! case where it is 1D runoff
+   case(trim(evaporation));      flux_local = runoff_data_in%easim   ! case where it is 1D evaporation
+   case(trim(precipitation));    flux_local = runoff_data_in%precip  ! case where it is 1D precipitaion
+   case default; ierr=20; message=trim(message)//'the input flux is not recognized'; return
+  end select
 
   ! loop through hrus in the runoff layer
   do iHRU=1,size(runoff_data_in%hru_ix)
@@ -292,15 +334,15 @@ module remapping
    endif
 
    ! get the weighted average
-   if(runoff_data_in%qsim(iHRU) > -xTol)then
-     basinRunoff(jHRU) = runoff_data_in%qsim(iHRU)
+   if(flux_local(iHRU) > -xTol)then
+     basinflux(jHRU) = flux_local(iHRU)
    endif
 
    ! check
    if(runoff_data_in%hru_id(iHRU)==ixCheck)then
     write(iulog,*) 'jHRU, runoff_data_in%hru_id(iHRU) = ', jHRU, runoff_data_in%hru_id(iHRU)
-    write(iulog,*) 'runoff_data_in%qsim(iHRU)         = ', runoff_data_in%qsim(iHRU)
-    write(iulog,*) 'basinRunoff(jHRU)                 = ', basinRunoff(jHRU)*86400._dp*1000._dp*365._dp
+    write(iulog,*) 'flux_local(iHRU)                  = ', flux_local(iHRU)
+    write(iulog,*) 'basinflux(jHRU)                   = ', basinflux(jHRU)*86400._dp*1000._dp*365._dp
    endif
 
   end do   ! looping through basins in the mapping layer

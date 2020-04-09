@@ -272,7 +272,7 @@ contains
  where ( abs(dummy - fill_value) < verySmall ) dummy = realMissing
 
  ! reshape
- !runoff_data_in%qsim(1:nSpace) = dummy(1:nSpace,1)
+ runoff_data_in%qsim(1:nSpace) = dummy(1:nSpace,1)
  !Print*, "runoff values -> ", dummy
 
  !Print*, "varibale name -> ", vname_evasim
