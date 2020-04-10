@@ -115,7 +115,7 @@ CONTAINS
  ! Routing specific variables --------------
 
  ! basin IRF
- if (.true.) then
+ if (doesBasinRoute) then
   call define_IRFbas_state(ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
@@ -370,7 +370,7 @@ CONTAINS
  call write_nc(fname,'time_bound', (/T0,T1/), (/1,iTime/), (/2,1/), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- if (.true.)then
+ if (doesBasinRoute)then
   call write_IRFbas_state(ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
