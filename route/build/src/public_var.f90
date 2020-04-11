@@ -53,8 +53,8 @@ module public_var
   ! ---------- named variables ----------------------------------------------------------------------
 
   ! true/false
-  integer(i4b), parameter, public :: true=1001                  ! true
-  integer(i4b), parameter, public :: false=1002                 ! false
+  integer(i4b), parameter, public :: true=1                     ! true
+  integer(i4b), parameter, public :: false=0                    ! false
 
   ! variable types
   integer(i4b), parameter, public :: varType_integer   = 1001   ! named variable for an integer
