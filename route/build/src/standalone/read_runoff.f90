@@ -123,6 +123,14 @@ contains
  allocate(runoff_data_in%qSim(runoff_data_in%nSpace(1)), stat=ierr)
  if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data_in%qsim'; return; endif
 
+ ! allocate space for simulated evaporation
+ allocate(runoff_data_in%easim(runoff_data_in%nSpace(1)), stat=ierr)
+ if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data_in%easim'; return; endif
+
+ ! allocate space for precipitation
+ allocate(runoff_data_in%precip(runoff_data_in%nSpace(1)), stat=ierr)
+ if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data_in%precip'; return; endif
+
  ! get HRU ids from the runoff file
  call get_nc(fname, vname_hruid, runoff_data_in%hru_id, 1, runoff_data_in%nSpace(1), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -180,6 +188,14 @@ contains
  allocate(runoff_data_in%qSim2d(runoff_data_in%nSpace(2),runoff_data_in%nSpace(1)), stat=ierr)
  if(ierr/=0)then; message=trim(message)//'problem allocating qsim'; return; endif
 
+! ! allocate space for simulated evaporation
+! allocate(runoff_data_in%easim2d(runoff_data_in%nSpace(2)), stat=ierr)
+! if(ierr/=0)then; message=trim(message)//'problem allocating easim'; return; endif
+
+! ! allocate space for precipitation
+! allocate(runoff_data_in%precip2d(runoff_data_in%nSpace(2)), stat=ierr)
+! if(ierr/=0)then; message=trim(message)//'problem allocating precip'; return; endif
+
  end subroutine read_2D_runoff_metadata
 
 
@@ -216,7 +232,7 @@ contains
  end subroutine read_runoff_data
 
  ! *********************************************************************
- ! private subroutine: read 2D runoff data
+ ! private subroutine: read 1D runoff data
  ! *********************************************************************
  subroutine read_1D_runoff(fname,          &  ! input: filename
                            iTime,          &  ! input: time index
@@ -241,6 +257,9 @@ contains
  ! initialize error control
  ierr=0; message='read_1D_runoff/'
 
+ !Print*, "varibale name -> ", vname_qsim
+ !Print*, "file name -> ", fname
+
  ! get the simulated runoff data
  call get_nc(trim(fname),vname_qsim, dummy, (/1,iTime/), (/nSpace,1/), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -254,6 +273,42 @@ contains
 
  ! reshape
  runoff_data_in%qsim(1:nSpace) = dummy(1:nSpace,1)
+ !Print*, "runoff values -> ", dummy
+
+ !Print*, "varibale name -> ", vname_evasim
+ !Print*, "file name -> ", fname
+ 
+ ! get the simulated evaporation
+ call get_nc(trim(fname),vname_evasim, dummy, (/1,iTime/), (/nSpace,1/), ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! get the _fill_values for runoff variable
+ call get_var_attr_real(trim(fname), vname_evasim, '_FillValue', fill_value, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! replace _fill_value with -999 for dummy
+ where ( abs(dummy - fill_value) < verySmall ) dummy = realMissing
+
+ ! reshape
+ runoff_data_in%Easim(1:nSpace) = dummy(1:nSpace,1)
+ ! Print*, "evaporation values -> ", dummy
+
+
+ ! get the precipitation data
+ call get_nc(trim(fname),vname_precip, dummy, (/1,iTime/), (/nSpace,1/), ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! get the _fill_values for runoff variable
+ call get_var_attr_real(trim(fname), vname_precip, '_FillValue', fill_value, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! replace _fill_value with -999 for dummy
+ where ( abs(dummy - fill_value) < verySmall ) dummy = realMissing
+
+ ! reshape
+ runoff_data_in%Precip(1:nSpace) = dummy(1:nSpace,1)
+ ! Print*, "precipitation values in read_runoff.f dummy -> ", dummy
+ ! Print*, "precipitation values in read_runoff.f runoff_data_in-> ", dummy
 
  end subroutine read_1D_runoff
 
@@ -296,6 +351,36 @@ contains
 
  ! reshape
  runoff_data_in%qsim2d(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)
+
+
+ ! get the simulated evaporation data
+ call get_nc(trim(fname), vname_evasim, dummy, (/1,1,iTime/), (/nSpace(2), nSpace(1), 1/), ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! get the _fill_values for runoff variable
+ call get_var_attr_real(trim(fname), vname_evasim, '_FillValue', fill_value, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! replace _fill_value with -999 for dummy
+ where ( abs(dummy - fill_value) < verySmall ) dummy = realMissing
+
+ ! reshape
+ runoff_data_in%Easim2D(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)
+
+
+ ! get the simulated precipitation data
+ call get_nc(trim(fname), vname_precip, dummy, (/1,1,iTime/), (/nSpace(2), nSpace(1), 1/), ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! get the _fill_values for runoff variable
+ call get_var_attr_real(trim(fname), vname_precip, '_FillValue', fill_value, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! replace _fill_value with -999 for dummy
+ where ( abs(dummy - fill_value) < verySmall ) dummy = realMissing
+
+ ! reshape
+ runoff_data_in%Precip2D(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)
 
  end subroutine read_2D_runoff
 

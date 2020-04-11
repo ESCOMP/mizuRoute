@@ -148,14 +148,20 @@ implicit none
 
  ! simulated runoff data
  type, public :: runoff
-   integer(i4b)                            :: nTime         ! number of time steps
-   integer(i4b)                            :: nSpace(1:2)   ! number of spatial dimension
-   real(dp)                                :: time          ! time variable at one time step
-   real(dp)                 , allocatable  :: qsim(:)       ! runoff(HM_HRU) at one time step (size: nSpace(1))
-   real(dp)                 , allocatable  :: qsim2D(:,:)   ! runoff(x,y) at one time step (size: /nSpace(1),nSpace(2)/)
-   integer(i4b)             , allocatable  :: hru_id(:)     ! id of HM_HRUs or RN_HRUs at which runoff is stored (size: nSpace(1))
-   integer(i4b)             , allocatable  :: hru_ix(:)     ! Index of RN_HRUs associated with river network (used only if HM_HRUs = RN_HRUs)
-   real(dp)                 , allocatable  :: basinRunoff(:)! remapped river network catchment runoff (size: number of nHRU)
+   integer(i4b)                            :: nTime           ! number of time steps
+   integer(i4b)                            :: nSpace(1:2)     ! number of spatial dimension
+   real(dp)                                :: time            ! time variable at one time step
+   integer(i4b)             , allocatable  :: hru_id(:)       ! id of HM_HRUs or RN_HRUs at which runoff is stored (size: nSpace(1))
+   integer(i4b)             , allocatable  :: hru_ix(:)       ! Index of RN_HRUs associated with river network (used only if HM_HRUs = RN_HRUs)
+   real(dp)                 , allocatable  :: qsim(:)         ! runoff(HM_HRU) at one time step (size: nSpace(1))
+   real(dp)                 , allocatable  :: qsim2D(:,:)     ! runoff(x,y) at one time step (size: /nSpace(1),nSpace(2)/)
+   real(dp)                 , allocatable  :: Easim(:)        ! Evaporation(HM_HRU) at one time step (size: nSpace(1))
+   real(dp)                 , allocatable  :: Easim2D(:,:)    ! Evaporation(x,y) at one time step (size: /nSpace(1),nSpace(2)/)
+   real(dp)                 , allocatable  :: Precip(:)       ! Precipitation(HM_HRU) at one time step (size: nSpace(1))
+   real(dp)                 , allocatable  :: Precip2D(:,:)   ! Precipitation(x,y) at one time step (size: /nSpace(1),nSpace(2)/)
+   real(dp)                 , allocatable  :: basinRunoff(:)  ! remapped river network catchment runoff (size: number of nHRU)
+   real(dp)                 , allocatable  :: basinEvapo(:)   ! remapped river network catchment Evaporation (size: number of nHRU)
+   real(dp)                 , allocatable  :: basinPrecip(:)  ! remapped river network catchment Precipitation (size: number of nHRU)
  end type runoff
 
  ! ---------- reach parameters ----------------------------------------------------------------------------
@@ -253,6 +259,8 @@ implicit none
   real(dp)                             :: REACH_VOL(0:1)    ! volume of water at previous and current time step [m3]
   real(dp)                             :: TAKE              ! average take
   logical(lgt)                         :: isRoute           ! .true. if the reach is routed
+  real(dp)                             :: basinEvapo        ! remapped river network catchment Evaporation (size: number of nHRU)
+  real(dp)                             :: basinPrecip       ! remapped river network catchment Precipitation (size: number of nHRU)
  END TYPE strflx
 
  ! ---------- lake data types -----------------------------------------------------------------

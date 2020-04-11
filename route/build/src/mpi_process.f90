@@ -716,6 +716,10 @@ contains
   USE globalData, ONLY: RCHSTA_main         ! Reach state data structures (master proc, mainstem)
   USE globalData, ONLY: basinRunoff_main    ! mainstem only HRU runoff
   USE globalData, ONLY: basinRunoff_trib    ! tributary only HRU runoff
+  USE globalData, ONLY: basinEvapo_main     ! mainstem only HRU Evaporation
+  USE globalData, ONLY: basinEvapo_trib     ! tributary only HRU Evaporation
+  USE globalData, ONLY: basinPrecip_main    ! mainstem only HRU Precipitation
+  USE globalData, ONLY: basinPrecip_trib    ! tributary only HRU Precipitation
   USE globalData, ONLY: river_basin_trib    ! tributary OMP domain data structure
   USE globalData, ONLY: river_basin_main    ! mainstem OMP domain data structure
   USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
@@ -806,6 +810,8 @@ contains
   ! Perform routing
   call main_route(iens,              &  ! input: ensemble index
                   basinRunoff_trib,  &  ! input: basin (i.e.,HRU) runoff (m/s)
+                  basinEvapo_trib,   &  ! input: basin (i.e. HRU) Evapo  (m/s)
+                  basinPrecip_trib,  &  ! input: basin (i.e. HRU) Precip (m/s)
                   ixRchProcessed,    &  ! input: indices of reach to be routed
                   river_basin_trib,  &  ! input: OMP basin decomposition
                   NETOPO_trib,       &  ! input: reach topology data structure
@@ -884,8 +890,10 @@ contains
     ! Define processing reach indices
     ixRchProcessed = arth(1,1,nRch_mainstem)
 
-    call main_route(iens,                    &  ! input: ensemble index
+    call main_route(iens,                       &  ! input: ensemble index
                     basinRunoff_main,        &  ! input: basin (i.e.,HRU) runoff (m/s)
+                    basinEvapo_main,         &  ! input: basin (i.e. HRU) Evapo  (m/s)
+                    basinPrecip_main,        &  ! input: basin (i.e. HRU) Precip (m/s)
                     ixRchProcessed,          &  ! input: indices of reach to be routed
                     river_basin_main,        &  ! input: OMP basin decomposition
                     NETOPO_main,             &  ! input: reach topology data structure
@@ -951,6 +959,10 @@ contains
   USE globalData, ONLY: hru_per_proc      ! number of hrus assigned to each proc (i.e., node)
   USE globalData, ONLY: basinRunoff_main  ! HRU runoff holder for mainstem
   USE globalData, ONLY: basinRunoff_trib  ! HRU runoff holder for tributary
+  USE globalData, ONLY: basinEvapo_main   ! HRU evaporation holder for mainstem
+  USE globalData, ONLY: basinEvapo_trib   ! HRU evaporation holder for tributary
+  USE globalData, ONLY: basinPrecip_main  ! HRU precipitation holder for mainstem
+  USE globalData, ONLY: basinPrecip_trib  ! HRU precipitation holder for tributary
 
   ! input variables
   integer(i4b),           intent(in)  :: nNodes                          ! number of processes (MPI)
@@ -961,6 +973,8 @@ contains
   ! local variables
   integer(i4b)                        :: iHru,jHru                       ! loop indices
   real(dp)                            :: basinRunoff_sorted(nContribHRU) ! sorted basin runoff (m/s) for whole domain
+  real(dp)                            :: basinEvapo_sorted(nContribHRU)  ! sorted basin evaporation (m/s) for whole domain 
+  real(dp)                            :: basinPrecip_sorted(nContribHRU) ! sorted basin precipitation (m/s) for whole domain
   character(len=strLen)               :: cmessage                        ! error message from a subroutine
 
   ierr=0; message='scatter_runoff/'
@@ -974,6 +988,20 @@ contains
     end if
     basinRunoff_main(:) = runoff_data%basinRunoff(:)
 
+    ! if only single proc is used, all evaporation is stored in mainstem evaporation array
+    if (.not. allocated(basinEvapo_main)) then
+      allocate(basinEvapo_main(nHRU), stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinEvapo_main]'; return; endif
+    end if
+    basinEvapo_main(:) = runoff_data%basinEvapo(:)
+
+    ! if only single proc is used, all precipitation is stored in mainstem precipitation array
+    if (.not. allocated(basinPrecip_main)) then
+      allocate(basinPrecip_main(nHRU), stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinPrecip_main]'; return; endif
+    end if
+    basinPrecip_main(:) = runoff_data%basinPrecip(:)
+
   else
 
     ! sort the basin runoff in terms of nodes/domains
@@ -984,13 +1012,27 @@ contains
         if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinRunoff_main]'; return; endif
       endif
 
+      if (.not. allocated(basinEvapo_main)) then
+        allocate(basinEvapo_main(nHRU_mainstem), stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinEvapo_main]'; return; endif
+      endif
+
+      if (.not. allocated(basinPrecip_main)) then
+        allocate(basinPrecip_main(nHRU_mainstem), stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinPrecip_main]'; return; endif
+      endif
+
       do iHru = 1,nContribHRU
         jHru = ixHRU_order(iHru)
         basinRunoff_sorted(iHru) = runoff_data%basinRunoff(jHru)
+        basinEvapo_sorted(iHru)  = runoff_data%basinEvapo(jHru)
+        basinPrecip_sorted(iHru) = runoff_data%basinPrecip(jHru)
       enddo
 
       ! runoff at hru in mainstem
       basinRunoff_main(:) = basinRunoff_sorted(1:nHRU_mainstem)
+      basinEvapo_main(:)  = basinEvapo_sorted(1:nHRU_mainstem)
+      basinPRecip_main(:) = basinPrecip_sorted(1:nHRU_mainstem)
 
     end if
 
@@ -1000,6 +1042,18 @@ contains
     call shr_mpi_scatterV(basinRunoff_sorted(nHRU_mainstem+1:nContribHRU), &
                           hru_per_proc(0:nNodes-1),                        &
                           basinRunoff_trib,                                &
+                          ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    call shr_mpi_scatterV(basinEvapo_sorted(nHRU_mainstem+1:nContribHRU), &
+                          hru_per_proc(0:nNodes-1),                        &
+                          basinEvapo_trib,                                &
+                          ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    call shr_mpi_scatterV(basinPrecip_sorted(nHRU_mainstem+1:nContribHRU), &
+                          hru_per_proc(0:nNodes-1),                        &
+                          basinPrecip_trib,                                &
                           ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
