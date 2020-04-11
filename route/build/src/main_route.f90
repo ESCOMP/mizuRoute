@@ -14,7 +14,7 @@ USE dataTypes, ONLY: subbasin_omp            ! mainstem+tributary data structure
 ! mapping HRU runoff to reach
 USE remapping, ONLY: basin2reach
 
-! subroutines: basin routing
+! subroutines: basin routing 
 USE basinUH_module, ONLY: IRF_route_basin    ! perform UH convolution for basin routing
 
 ! subroutines: river routing
@@ -37,6 +37,8 @@ CONTAINS
                        ! input
                        iens,           &  ! ensemble index
                        basinRunoff_in, &  ! basin (i.e.,HRU) runoff (m/s)
+                       basinEvapo_in,  &  ! basin (i.e.,HRU) evaporation (m/s)
+                       basinPrecip_in, &  ! basin (i.e.,HRU) precipitation (m/s)
                        ixRchProcessed, &  ! indices of reach to be routed
                        river_basin,    &  ! OMP basin decomposition
                        NETOPO_in,      &  ! reach topology data structure
@@ -68,6 +70,8 @@ CONTAINS
    ! input
    integer(i4b),                    intent(in)    :: iens                 ! ensemble member
    real(dp),           allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
+   real(dp),           allocatable, intent(in)    :: basinEvapo_in(:)     ! basin (i.e.,HRU) evaporation (m/s)
+   real(dp),           allocatable, intent(in)    :: basinPrecip_in(:)    ! basin (i.e.,HRU) precipitation (m/s)
    integer(i4b),       allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
    type(subbasin_omp), allocatable, intent(in)    :: river_basin(:)       ! OMP basin decomposition
    type(RCHTOPO),      allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology
@@ -98,6 +102,10 @@ CONTAINS
   allocate(reachRunoff_local(nSeg), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachRunoff_local]'; return; endif
 
+  print*, "basin evapo in, inside main route = ", basinEvapo_in 
+  print*, "basin runoff in, inside main route = ", basinRunoff_in
+  print*, "basin precip in, inside main route = ", basinPrecip_in
+
   ! 1. subroutine: map basin runoff to river network HRUs
   ! map the basin runoff to the stream network...
   ! print*, "basin Evaporation in main_route = ", basinRunoff_in(:)%Easim
@@ -118,6 +126,7 @@ CONTAINS
     enddo
     ! perform Basin routing
     call IRF_route_basin(iens,              &  ! input:  ensemble index
+                         NETOPO_in,         &  ! input:  reach topology
                          RCHFLX_out,        &  ! inout:  reach flux data structure
                          ierr, cmessage,    &  ! output: error controls
                          ixRchProcessed)       ! optional input: indices of reach to be routed
@@ -129,6 +138,12 @@ CONTAINS
     RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QR(1) = reachRunoff_local(iSeg)             ! streamflow (m3/s)
     end do
   end if
+
+  ! allocating precipitation and evaporation for
+  do iSeg = 1,nSeg
+   RCHFLX_out(iens,ixRchProcessed(iSeg))%Basinevapo  = basinEvapo_in(iSeg)  ! Evaporation pass to reach flux (m/s)
+   RCHFLX_out(iens,ixRchProcessed(iSeg))%BasinPrecip = basinPrecip_in(iSeg) ! precipitation pass to reach flux (m/s)
+  end do
 
   ! 3. subroutine: river reach routing
    ! perform upstream flow accumulation

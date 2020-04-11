@@ -42,7 +42,7 @@ contains
   character(len=strLen)         :: runoff = 'runoff'                    ! flag in case the flux is runoff
   character(len=strLen)         :: evaporation = 'evaporation'          ! flag in case the flux is evaporation
   character(len=strLen)         :: precipitation = 'precipitation'      ! flag in case the flux is precipitation
-  character(len=strLen)         :: cmessage           ! error message from subroutine
+  character(len=strLen)         :: cmessage                             ! error message from subroutine
 
   ! initialize error control
   ierr=0; message='get_hru_runoff/'
@@ -52,7 +52,7 @@ contains
                         iTime,                             & ! input: time index
                         runoff_data,                       & ! inout: runoff data structure
                         ierr, cmessage)                      ! output: error control
-  print*, "data from the NetCDF file", runoff_data%qsim(5000:8000)
+  
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! allocate basinRunoff (local array)
@@ -119,9 +119,9 @@ contains
   runoff_data%basinEvapo = basinEvapo
   runoff_data%basinPrecip = basinPrecip
 
-  print*, basinRunoff(1:100)
-  print*, basinEvapo(1:100)
-  print*, basinPrecip(1:100)
+  !print*, basinRunoff
+  !print*, basinEvapo
+  !print*, basinPrecip
   ! stop
 
  end subroutine get_hru_runoff

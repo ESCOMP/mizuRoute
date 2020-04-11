@@ -716,6 +716,10 @@ contains
   USE globalData, ONLY: RCHSTA_main         ! Reach state data structures (master proc, mainstem)
   USE globalData, ONLY: basinRunoff_main    ! mainstem only HRU runoff
   USE globalData, ONLY: basinRunoff_trib    ! tributary only HRU runoff
+  USE globalData, ONLY: basinEvapo_main     ! mainstem only HRU Evaporation
+  USE globalData, ONLY: basinEvapo_trib     ! tributary only HRU Evaporation
+  USE globalData, ONLY: basinPrecip_main    ! mainstem only HRU Precipitation
+  USE globalData, ONLY: basinPrecip_trib    ! tributary only HRU Precipitation
   USE globalData, ONLY: river_basin_trib    ! tributary OMP domain data structure
   USE globalData, ONLY: river_basin_main    ! mainstem OMP domain data structure
   USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
@@ -806,6 +810,8 @@ contains
   ! Perform routing
   call main_route(iens,              &  ! input: ensemble index
                   basinRunoff_trib,  &  ! input: basin (i.e.,HRU) runoff (m/s)
+                  basinEvapo_trib,   &  ! input: basin (i.e. HRU) Evapo  (m/s)
+                  basinPrecip_trib,  &  ! input: basin (i.e. HRU) Precip (m/s)
                   ixRchProcessed,    &  ! input: indices of reach to be routed
                   river_basin_trib,  &  ! input: OMP basin decomposition
                   NETOPO_trib,       &  ! input: reach topology data structure
@@ -884,8 +890,10 @@ contains
     ! Define processing reach indices
     ixRchProcessed = arth(1,1,nRch_mainstem)
 
-    call main_route(iens,                    &  ! input: ensemble index
+    call main_route(iens,                       &  ! input: ensemble index
                     basinRunoff_main,        &  ! input: basin (i.e.,HRU) runoff (m/s)
+                    basinEvapo_main,         &  ! input: basin (i.e. HRU) Evapo  (m/s)
+                    basinPrecip_main,        &  ! input: basin (i.e. HRU) Precip (m/s)
                     ixRchProcessed,          &  ! input: indices of reach to be routed
                     river_basin_main,        &  ! input: OMP basin decomposition
                     NETOPO_main,             &  ! input: reach topology data structure

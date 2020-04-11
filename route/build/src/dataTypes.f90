@@ -259,6 +259,8 @@ implicit none
   real(dp)                             :: REACH_VOL(0:1)    ! volume of water at previous and current time step [m3]
   real(dp)                             :: TAKE              ! average take
   logical(lgt)                         :: isRoute           ! .true. if the reach is routed
+  real(dp)                             :: basinEvapo        ! remapped river network catchment Evaporation (size: number of nHRU)
+  real(dp)                             :: basinPrecip       ! remapped river network catchment Precipitation (size: number of nHRU)
  END TYPE strflx
 
  ! ---------- lake data types -----------------------------------------------------------------
