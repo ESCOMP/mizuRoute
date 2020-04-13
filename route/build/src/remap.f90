@@ -431,14 +431,19 @@ module remapping
 
      ! compute the weighted average runoff depth (m/s)
      reachRunoff(iSeg) = reachRunoff(iSeg) + hruWeight(iHRU)*basinRunoff( hruContribIx(iHRU) )*time_conv*length_conv
+     ! print*, "basin runoff inside remap inside basin to reach", basinRunoff( hruContribIx(iHRU) ) , time_conv, length_conv, hruWeight(iHRU)
 
     end do  ! (looping through contributing HRUs)
 
     ! ensure that routed streamflow is non-zero
+    ! print*, "reach runoff inside remap inside basin to reach before correction", reachRunoff(iSeg), runoffMin, NETOPO_in(jSeg)%HRUWGT
     if(reachRunoff(iSeg) < runoffMin) reachRunoff(iSeg) = runoffMin
+    ! print*, "reach runoff inside remap inside basin to reach", reachRunoff(iSeg), runoffMin, NETOPO_in(jSeg)%HRUWGT
+    ! print*, "HRU ID inside rempa indside basin to reach", NETOPO_in(jSeg)%HRUID
 
     ! convert basin average runoff volume (m3/s)
     reachRunoff(iSeg) = reachRunoff(iSeg)*basArea
+    ! print*, "flux in m3/s and basin area", reachRunoff(iSeg), basArea
 
    ! * special case where no HRUs drain into the segment
    else

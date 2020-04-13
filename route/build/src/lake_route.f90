@@ -83,7 +83,8 @@ contains
 
   print*, "inside lake, RCHFLX_out(iens,segIndex)%basinprecip = ", RCHFLX_out(iens,segIndex)%basinprecip
   print*, "inside lake, RCHFLX_out(iens,segIndex)%basinevapo = ", RCHFLX_out(iens,segIndex)%basinevapo
-  print*, "RPARAM_in(segIndex)%BASAREA", RPARAM_in(segIndex)%BASAREA
+  print*, "RPARAM_in(segIndex)%RATECVA", RPARAM_in(segIndex)%RATECVA
+  print*, "RPARAM_in(segIndex)%RATECVB", RPARAM_in(segIndex)%RATECVB
   
 
   ! perform lake routing based on a fixed storage discharge relationship Q=kS
@@ -95,8 +96,8 @@ contains
   print*, 'RATECVA = ', RPARAM_in(segIndex)%RATECVA
   RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(0) ! updating storage for current time
   RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) + q_upstream * dt  ! input upstream discharge
-  RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) + RCHFLX_out(iens,segIndex)%basinprecip * RPARAM_in(segIndex)%BASAREA !
-  RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%basinevapo * RPARAM_in(segIndex)%BASAREA !
+  RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) + RCHFLX_out(iens,segIndex)%basinprecip * dt ! input lake precipitation
+  RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%basinevapo * dt ! input lake evaporaiton
   if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) .LT. 0) then; ! set the lake volume as 0 if it goes negative
     RCHFLX_out(iens,segIndex)%REACH_VOL(1)=0
   endif

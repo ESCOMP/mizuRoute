@@ -87,6 +87,8 @@ CONTAINS
    character(len=strLen)                          :: cmessage             ! error message of downwind routine
    real(dp)                                       :: T0,T1                ! beginning/ending of simulation time step [sec]
    real(dp),           allocatable                :: reachRunoff_local(:) ! reach runoff (m/s)
+   real(dp),           allocatable                :: reachEvapo_local(:)  ! reach runoff (m/s)
+   real(dp),           allocatable                :: reachPrecip_local(:) ! reach runoff (m/s)
    integer(i4b)                                   :: nSeg                 ! number of reach to be processed
    integer(i4b)                                   :: iSeg                 ! index of reach
 
@@ -102,14 +104,18 @@ CONTAINS
   allocate(reachRunoff_local(nSeg), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachRunoff_local]'; return; endif
 
-  print*, "basin evapo in, inside main route = ", basinEvapo_in 
-  print*, "basin runoff in, inside main route = ", basinRunoff_in
-  print*, "basin precip in, inside main route = ", basinPrecip_in
+  allocate(reachEvapo_local(nSeg), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachEvapo_local]'; return; endif
+
+  allocate(reachPrecip_local(nSeg), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachPrecip_local]'; return; endif
+
+  !print*, "basin evapo in, inside main route = ", basinEvapo_in 
+  !print*, "basin runoff in, inside main route = ", basinRunoff_in
+  !print*, "basin precip in, inside main route = ", basinPrecip_in
 
   ! 1. subroutine: map basin runoff to river network HRUs
-  ! map the basin runoff to the stream network...
-  ! print*, "basin Evaporation in main_route = ", basinRunoff_in(:)%Easim
-  ! print*, "basin Precipitation in main_route = ", basinRunoff_in !%Precip(1)
+  ! map the basin runoff/evapo/precip to the stream network in m3/s
   call basin2reach(basinRunoff_in,     & ! input: basin runoff (m/s)
                    NETOPO_in,          & ! input: reach topology
                    RPARAM_in,          & ! input: reach parameter
@@ -117,6 +123,26 @@ CONTAINS
                    ierr, cmessage,     & ! output: error control
                    ixRchProcessed)       ! optional input: indices of reach to be routed
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  ! evaporation to node total evaporation in (m3/s)
+  call basin2reach(basinEvapo_in,      & ! input: basin runoff (m/s)
+                   NETOPO_in,          & ! input: reach topology
+                   RPARAM_in,          & ! input: reach parameter
+                   reachEvapo_local,   & ! output: reach Evapo (m3/s)
+                   ierr, cmessage,     & ! output: error control
+                   ixRchProcessed)       ! optional input: indices of reach to be routed
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  ! precipitation to node total precipitation in (m3/s)
+  call basin2reach(basinPrecip_in,     & ! input: basin runoff (m/s)
+                   NETOPO_in,          & ! input: reach topology
+                   RPARAM_in,          & ! input: reach parameter
+                   reachPrecip_local,  & ! output: reach Precip (m3/s)
+                   ierr, cmessage,     & ! output: error control
+                   ixRchProcessed)       ! optional input: indices of reach to be routed
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  !print*, "basin evapo in, inside main route m3/s = ", reachRunoff_local 
+  !print*, "basin runoff in, inside main route m3/s = ", reachEvapo_local
+  !print*, "basin precip in, inside main route m3/s = ", reachPrecip_local
 
   ! 2. subroutine: basin route
   if (doesBasinRoute == 1) then
@@ -141,8 +167,8 @@ CONTAINS
 
   ! allocating precipitation and evaporation for
   do iSeg = 1,nSeg
-   RCHFLX_out(iens,ixRchProcessed(iSeg))%Basinevapo  = basinEvapo_in(iSeg)  ! Evaporation pass to reach flux (m/s)
-   RCHFLX_out(iens,ixRchProcessed(iSeg))%BasinPrecip = basinPrecip_in(iSeg) ! precipitation pass to reach flux (m/s)
+   RCHFLX_out(iens,ixRchProcessed(iSeg))%Basinevapo  = reachEvapo_local(iSeg)  ! Evaporation pass to reach flux (m/s)
+   RCHFLX_out(iens,ixRchProcessed(iSeg))%BasinPrecip = reachPrecip_local(iSeg) ! precipitation pass to reach flux (m/s)
   end do
 
   ! 3. subroutine: river reach routing
