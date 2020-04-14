@@ -146,7 +146,7 @@ implicit none
    integer(i4b)             , allocatable  :: qhru_ix(:)   ! Index of hrus associated with runoff simulation (="qhru")
  end type remap
 
- ! simulated runoff data
+ ! simulated runoff data from hydrological or land surface models grids or units
  type, public :: runoff
    integer(i4b)                            :: nTime           ! number of time steps
    integer(i4b)                            :: nSpace(1:2)     ! number of spatial dimension
@@ -164,9 +164,48 @@ implicit none
    real(dp)                 , allocatable  :: basinPrecip(:)  ! remapped river network catchment Precipitation (size: number of nHRU)
  end type runoff
 
+! !!! suggestion for strcture and name of the input fluxes for the generality (many fluxes can be allocated as flux_in1, etc)
+! !!! this will result in modular reading of many fluxes such as fulx_in_evapo%flux, flux_in_runoff%flux etc etc
+! type, public :: flux_in
+!   integer(i4b)                            :: nTime           ! number of time steps
+!   integer(i4b)                            :: nSpace(1:2)     ! number of spatial dimension
+!   real(dp)                                :: time            ! time variable at one time step
+!   integer(i4b)             , allocatable  :: hru_id(:)       ! id of HM_HRUs or RN_HRUs at which runoff is stored (size: nSpace(1))
+!   integer(i4b)             , allocatable  :: hru_ix(:)       ! Index of RN_HRUs associated with river network (used only if HM_HRUs = RN_HRUs)
+!   real(dp)                 , allocatable  :: flux(:)         ! runoff(HM_HRU) at one time step (size: nSpace(1))
+!   real(dp)                 , allocatable  :: flux2D(:,:)     ! runoff(x,y) at one time step (size: /nSpace(1),nSpace(2)/)
+!   real(dp)                 , allocatable  :: basinflux(:)    ! remapped river network catchment flux (size: number of nHRU)
+! end type flux_in
+
+ ! it is possible that every flux_in have different remapping. this will allow injestion of from different sources with different resolutions etc
+! type, public :: remap_new
+!   ! information in the mapping file
+!   integer(i4b)             , allocatable  :: node_id(:)      ! Id of node, river or lakes, on the river network
+!   integer(i4b)             , allocatable  :: flux_in_id(:)   ! Id associated with flux simulation (for example, grid or hydrological model HRUs)
+!   integer(i4b)             , allocatable  :: num_fluxid_nodeid(:)     ! number of id assosiated with hydrological source for example grid in one routing subbasin
+!   integer(i4b)             , allocatable  :: i_index(:)      ! Index in the y dimension of the flux_in grid (starting with 1,1 in LL corner)
+!   integer(i4b)             , allocatable  :: j_index(:)      ! Index in the x dimension of the flux_in grid (starting with 1,1 in LL corner)
+!   real(dp)                 , allocatable  :: weight(:)       ! area weight of flux_in source intersecting routing subbasins
+!   ! ancillary index vectors
+!   integer(i4b)             , allocatable  :: hru_ix(:)       ! Index of node on river network (routing subbasins)
+!   integer(i4b)             , allocatable  :: qhru_ix(:)      ! Index of flux_in sources (grids or HRUs)
+! end type remap_new
+
+ !!! suggestion for strcture and name of the input fluxes for each node (eg, injection and abstraction from each node such as river segments or lake)
+ !!! this will be only in Nnodes*time
+ !type, public :: NETW_flxst_in.  !node input flux and state
+ !  integer(i4b)                            :: nTime           ! number of time steps
+ !  integer(i4b)                            :: nSpace(1:2)     ! number of spatial dimension
+ !  real(dp)                                :: time            ! time variable at one time step
+ !  integer(i4b)             , allocatable  :: hru_id(:)       ! id of the node (size: nSpace(1))
+ !  real(dp)                 , allocatable  :: state(:)        ! input state to a node (m3)
+ !  real(dp)                 , allocatable  :: flux(:)         ! input flux to a node (m3/s)
+ !end type node_flxst_in 
+
  ! ---------- reach parameters ----------------------------------------------------------------------------
 
  ! Reach Parameters
+ !!! suggest to call this NETWPRM
  type, public ::  RCHPRP
   real(dp)                                :: R_SLOPE
   real(dp)                                :: R_MAN_N
@@ -176,11 +215,12 @@ implicit none
   real(dp)                                :: BASAREA  ! local basin area
   real(dp)                                :: TOTAREA  ! UPSAREA + BASAREA
   real(dp)                                :: MINFLOW  ! minimum environmental flow
-  real(dp)                                :: RATECVA           ! discharge rating curve parameter A
-  real(dp)                                :: RATECVB           ! discharge rating curve parameter B
+  real(dp)                                :: RATECVA  ! discharge rating curve parameter A
+  real(dp)                                :: RATECVB  ! discharge rating curve parameter B
  end type RCHPRP
 
  ! River Network topology
+ !!! suggest to call this NETWTOPO; suggest to include flags like in basin routing for each indivial node
  type, public :: RCHTOPO
   integer(i4b)                               :: REACHIX  ! Reach index (1,2,...,nrch)
   integer(i4b)                               :: REACHID  ! Reach ID (REC code)
@@ -248,6 +288,8 @@ implicit none
  ! ---------- reach fluxes --------------------------------------------------------------------
 
  ! fluxes in each reach
+ !!! suggest to call it nodeflxst; node state and fluxes
+ !!! TYPE, public :: NETW_flxst_out; generalized for each routing methos instead of puting everything in one...
  TYPE, public :: strflx
   real(dp), allocatable                :: QFUTURE(:)        ! runoff volume in future time steps (m3/s)
   real(dp), allocatable                :: QFUTURE_IRF(:)    ! runoff volume in future time steps for IRF routing (m3/s)
