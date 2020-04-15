@@ -188,13 +188,13 @@ contains
  allocate(runoff_data_in%qSim2d(runoff_data_in%nSpace(2),runoff_data_in%nSpace(1)), stat=ierr)
  if(ierr/=0)then; message=trim(message)//'problem allocating qsim'; return; endif
 
-! ! allocate space for simulated evaporation
-! allocate(runoff_data_in%easim2d(runoff_data_in%nSpace(2)), stat=ierr)
-! if(ierr/=0)then; message=trim(message)//'problem allocating easim'; return; endif
+ ! allocate space for simulated evaporation
+ allocate(runoff_data_in%easim2d(runoff_data_in%nSpace(2),runoff_data_in%nSpace(1)), stat=ierr)
+ if(ierr/=0)then; message=trim(message)//'problem allocating easim'; return; endif
 
-! ! allocate space for precipitation
-! allocate(runoff_data_in%precip2d(runoff_data_in%nSpace(2)), stat=ierr)
-! if(ierr/=0)then; message=trim(message)//'problem allocating precip'; return; endif
+ ! allocate space for precipitation
+ allocate(runoff_data_in%precip2d(runoff_data_in%nSpace(2),runoff_data_in%nSpace(1)), stat=ierr)
+ if(ierr/=0)then; message=trim(message)//'problem allocating precip'; return; endif
 
  end subroutine read_2D_runoff_metadata
 

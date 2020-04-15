@@ -50,6 +50,7 @@ contains
  character(*), intent(out)                :: message        ! error message
  ! Local variables to
  real(dp)                                 :: q_upstream     ! total discharge at top of the reach being processed
+ real(dp)                                 :: WB             ! water balance component in the lake
  type(STRFLX), allocatable                :: fluxstate(:)   ! upstream Reach fluxes
  INTEGER(I4B)                             :: nUps           ! number of upstream segment
  INTEGER(I4B)                             :: iUps           ! upstream reach index
@@ -81,34 +82,52 @@ contains
    end do
   endif
 
-  print*, "inside lake, RCHFLX_out(iens,segIndex)%basinprecip = ", RCHFLX_out(iens,segIndex)%basinprecip
-  print*, "inside lake, RCHFLX_out(iens,segIndex)%basinevapo = ", RCHFLX_out(iens,segIndex)%basinevapo
-  print*, "RPARAM_in(segIndex)%RATECVA", RPARAM_in(segIndex)%RATECVA
-  print*, "RPARAM_in(segIndex)%RATECVB", RPARAM_in(segIndex)%RATECVB
+  ! print*, "inside lake, RCHFLX_out(iens,segIndex)%basinprecip = ", RCHFLX_out(iens,segIndex)%basinprecip
+  ! print*, "inside lake, RCHFLX_out(iens,segIndex)%basinevapo = ", RCHFLX_out(iens,segIndex)%basinevapo
+  ! print*, "RPARAM_in(segIndex)%RATECVA", RPARAM_in(segIndex)%RATECVA
+  ! print*, "RPARAM_in(segIndex)%RATECVB", RPARAM_in(segIndex)%RATECVB
   
 
   ! perform lake routing based on a fixed storage discharge relationship Q=kS
-  ! there is no in basin routing for lake; the input to the lake (precipitation) should be added to the storage of the lake
-  ! in the current implementation there is no input to the system from nodes that are lake
-  ! if the entire network topology is lake the system response will be all zero
-  print*, 'volume before simulation = ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
-  print*, 'upstream streamflow = ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
-  print*, 'RATECVA = ', RPARAM_in(segIndex)%RATECVA
+  ! no runoff input is added to the lake; the input are only precipitation and evaporation to the lake
+
+  print*, '------lake-simulation-------- '
+  print*, 'node id that is lake ...... = ', NETOPO_in(segIndex)%REACHID ! to check the reach id of lake
+  print*, 'lake param RATECVA ........ = ', RPARAM_in(segIndex)%RATECVA
+  print*, 'lake param RATECVB ........ = ', RPARAM_in(segIndex)%RATECVB
+  print*, 'volume before simulation m3 = ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
+  print*, 'upstream streamflow m3/s .. = ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
+  print*, 'upstream precipitation m3/s = ', RCHFLX_out(iens,segIndex)%basinprecip
+  print*, 'upstream evaporation m3/s . = ', RCHFLX_out(iens,segIndex)%basinevapo
+  
   RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(0) ! updating storage for current time
-  RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) + q_upstream * dt  ! input upstream discharge
+  RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) + q_upstream * dt  ! input upstream discharge from m3/s to m3
   RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) + RCHFLX_out(iens,segIndex)%basinprecip * dt ! input lake precipitation
-  RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%basinevapo * dt ! input lake evaporaiton
+  RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%basinevapo * dt ! output lake evaporaiton
+  if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) .LT. 0) then; ! set the lake volume as 0 if it goes negative actual evaporation is not calculated here in case low storage mean low evaporaiton...
+    RCHFLX_out(iens,segIndex)%REACH_VOL(1)=0
+  endif
+  ! A has the dimnesion of 1/s; the flux leaving per second
+  RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RPARAM_in(segIndex)%RATECVA * (RCHFLX_out(iens,segIndex)%REACH_VOL(1) ** RPARAM_in(segIndex)%RATECVB)! simplified level pool liner reservoir Q=AS^B
+  RCHFLX_out(iens,segIndex)%REACH_Q_IRF = (min(RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt, RCHFLX_out(iens,segIndex)%REACH_VOL(1)) )/dt! in case is the output volume is more than lake volume
+  RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt ! updating the storage
   if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) .LT. 0) then; ! set the lake volume as 0 if it goes negative
     RCHFLX_out(iens,segIndex)%REACH_VOL(1)=0
   endif
-  RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_VOL(1) * 0.01 / dt ! simplified level pool liner reservoir Q=kS
-  RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt ! updating the storage 
+
+
+  print*, 'lake simulated output m3/s .= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
+  print*, 'volume after simulation m3 .= ', RCHFLX_out(iens,segIndex)%REACH_VOL(1)
+
+  ! calculate water balance (in this water balance we dont have the actual evaporation)
+  WB = q_upstream * dt + RCHFLX_out(iens,segIndex)%basinprecip * dt - RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt &
+  - RCHFLX_out(iens,segIndex)%basinevapo * dt - (RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_VOL(0))
+  print*, 'water balance error ....... = ', WB
 
   ! set the routed flag as .True.
   RCHFLX_out(iEns,segIndex)%isRoute=.True.
 
   ! pass the current storage for the past time step for the next time step simulation
-  print*, 'volume after simulation = ', RCHFLX_out(iens,segIndex)%REACH_VOL(1)
   RCHFLX_out(iens,segIndex)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) !shift on time step back
   
  
