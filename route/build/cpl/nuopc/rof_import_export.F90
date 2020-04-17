@@ -8,12 +8,12 @@ module rof_import_export
   use NUOPC           , only : NUOPC_CompAttributeGet, NUOPC_Advertise, NUOPC_IsConnected
   use NUOPC_Model     , only : NUOPC_ModelGet
   use shr_kind_mod    , only : r8 => shr_kind_r8
-  use shr_sys_mod     , only : shr_sys_abort
+  use shr_sys_mod     , only : shr_sys_abort, shr_sys_flush
   use rof_shr_methods , only : chkerr
 
   use public_var      , only : iulog
   use globalData      , only : masterproc          !create this  logical variable  in mizuRoute (masterproc=true => master task, false => other tasks
-  use globalData      , only : iTime               ! replace RtmTimeManager,  get_nstep in Mosart
+  use globalData      , only : iTime               ! get step number in mizuRoute
   use RunoffMod       , only : rtmCTL
   use RtmVar          , only : nt_rtm, rtm_tracers
 
@@ -42,7 +42,7 @@ module rof_import_export
   type (fld_list_type)   :: fldsToRof(fldsMax)
   type (fld_list_type)   :: fldsFrRof(fldsMax)
 
-  integer     ,parameter :: debug = 0 ! internal debug level
+  logical     ,parameter :: debug_write = .true. ! internal debug level
   character(*),parameter :: F01 = "('(mizuRoute_import_export) ',a,i5,2x,i8,2x,d21.14)"
   character(*),parameter :: u_FILE_u = &
        __FILE__
@@ -217,7 +217,7 @@ contains
     rtmCTL%qsub(begr:endr, nfrz) = 0.0_r8
     rtmCTL%qgwl(begr:endr, nfrz) = 0.0_r8
 
-    if (debug > 0 .and. masterproc .and. iTime < 5) then
+    if (debug_write.and. masterproc .and. iTime < 5) then
        do n = begr,endr
           write(iulog,F01)'import: nstep, n, Flrl_rofsur = ',iTime,n,rtmCTL%qsur(n,nliq)
           write(iulog,F01)'import: nstep, n, Flrl_rofsub = ',iTime,n,rtmCTL%qsub(n,nliq)
@@ -225,6 +225,7 @@ contains
           write(iulog,F01)'import: nstep, n, Flrl_rofi   = ',iTime,n,rtmCTL%qsur(n,nfrz)
           write(iulog,F01)'import: nstep, n, Flrl_irrig  = ',iTime,n,rtmCTL%qirrig(n)
        end do
+       call shr_sys_flush(iulog)
     end if
 
   end subroutine import_fields
@@ -284,6 +285,7 @@ contains
           else
              write(iulog,*)'Snow capping will flow out in liquid river runoff'
           endif
+          call shr_sys_flush(iulog)
        endif
        first_time = .false.
     end if
@@ -298,6 +300,7 @@ contains
 
     if ( ice_runoff )then
        ! separate liquid and ice runoff
+       call shr_sys_abort(trim(subname)//': ERROR ice_runoff can NOT be true')
        do n = begr,endr
           rofl(n) = rtmCTL%discharge(n,nliq)
           rofi(n) = rtmCTL%discharge(n,nfrz)
@@ -314,8 +317,12 @@ contains
     ! so if water is sent from rof to land, the flux must be negative.
 
     do n = begr, endr
-       flood(n)   = -rtmCTL%flood(n) / (rtmCTL%area(n)*0.001_r8)
-       volr(n)    =  rtmCTL%volr(n)  / rtmCTL%area(n)
+       !flood(n)   = -rtmCTL%flood(n) / (rtmCTL%area(n)*0.001_r8)
+       !flood(n)   = -rtmCTL%flood(n)
+       flood(n)   = 0.0_r8
+       !volr(n)    =  rtmCTL%volr(n)  / rtmCTL%area(n)
+       !volr(n)    =  rtmCTL%volr(n)
+       volr(n)    =  0.0_r8
     end do
 
     call state_setexport(exportState, 'Forr_rofl', begr, endr, input=rofl, rc=rc)
@@ -330,13 +337,14 @@ contains
     call state_setexport(exportState, 'Flrr_volr', begr, endr, input=volr, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    if (debug > 0 .and. masterproc .and. iTime <  5) then
+    if (debug_write .and. masterproc .and. iTime <  5) then
        do n = begr,endr
           write(iulog,F01)'export: nstep, n, Flrr_flood   = ',iTime, n, flood(n)
           write(iulog,F01)'export: nstep, n, Flrr_volr    = ',iTime, n, volr(n)
           write(iulog,F01)'export: nstep, n, Forr_rofl    = ',iTime ,n, rofl(n)
           write(iulog,F01)'export: nstep, n, Forr_rofi    = ',iTime ,n, rofi(n)
        end do
+       call shr_sys_flush(iulog)
     end if
 
     deallocate(rofl, rofi, flood, volr)
@@ -509,7 +517,7 @@ contains
        end do
 
        ! write debug output if appropriate
-       if (masterproc .and. debug > 0 .and. iTime < 5) then
+       if (masterproc .and. debug_write .and. iTime < 5) then
           do g = begr,endr
              i = 1 + g - begr
              if (output(g) /= 0._r8) then
@@ -571,13 +579,14 @@ contains
        end do
 
        ! write debug output if appropriate
-       if (masterproc .and. debug > 0 .and. iTime < 5) then
+       if (masterproc .and. debug_write .and. iTime < 5) then
           do g = begr,endr
              i = 1 + g - begr
              if (input(g) /= 0._r8) then
-!                write(iulog,F01)'export: nstep, n, '//trim(fldname)//' = ',iTime,i,input(g)
+                 write(iulog,F01)'export: nstep, n, '//trim(fldname)//' = ',iTime,i,input(g)
              end if
           end do
+          call shr_sys_flush(iulog)
        end if
 
        ! check for nans
@@ -671,7 +680,7 @@ contains
              write(iulog,*) "NaN found in field ", trim(fname), ' at gridcell index ',begg+i-1
           end if
        end do
-       call shr_sys_abort(' ERROR: One or more of the output from MOSART to the coupler are NaN ' )
+       call shr_sys_abort(' ERROR: One or more of the output from mizuRoute to the coupler are NaN ' )
     end if
   end subroutine check_for_nans
 

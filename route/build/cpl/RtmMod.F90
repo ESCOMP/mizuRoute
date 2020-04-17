@@ -166,11 +166,14 @@ CONTAINS
     end if
 
     !-------------------------------------------------------
-    ! Determine mosart ocn/land mask (global, all procs)
+    ! Determine mizuroute ocn/land mask (global, all procs)
     !-------------------------------------------------------
 
     call init_ntopo_data(iam, npes, mpicom_rof, ierr, cmessage)
     if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+    if ( .not. allocated(hru_per_proc) )then
+       call shr_sys_abort(trim(subname)//trim(cmessage))
+    endif
 
     !-------------------------------------------------------
     ! Allocate local flux variables
@@ -178,25 +181,33 @@ CONTAINS
     ! 1st and last indices and number of elements in local domain
     rtmCTL%begr  = 1
 
+    ! total elements in whole domain
+    rtmCTL%numr   = sum(hru_per_proc)
+
     if (masterproc) then
-      rtmCTL%endr  = hru_per_proc(-1)+hru_per_proc(0)
-      rtmCTL%lnumr = hru_per_proc(-1)+hru_per_proc(0)
+      ! MAster proc uses the first two HRU sections
+      rtmCTL%endr  = sum(hru_per_proc(-1:0))
+      rtmCTL%lnumr = rtmCTL%endr
       ix1 = 1
       ix2 = rtmCTL%lnumr
     else
       rtmCTL%endr  = hru_per_proc(iam)
       rtmCTL%lnumr = hru_per_proc(iam)
-      ix2 = sum(hru_per_proc(-1:iam))
-      ix1 = ix2 - sum(hru_per_proc(-1:iam-1))
+      ix1 = sum(hru_per_proc(-1:iam-1)) + 1
+      ix2 = ix1 + hru_per_proc(iam) - 1
     end if
-
-    ! total elements in whole domain
-    rtmCTL%numr   = sum(hru_per_proc)
 
     call RunoffInit(rtmCTL%begr, rtmCTL%endr, rtmCTL%numr)
 
     ! index wrt global domain
     rtmCTL%gindex(rtmCTL%begr:rtmCTL%endr) = ixHRU_order(ix1:ix2)
+
+    if ( any(rtmCTL%gindex(rtmCTL%begr:rtmCTL%endr) < 1) )then
+       call shr_sys_abort(trim(subname)//"bad gindex < 1")
+    endif
+    if ( any(rtmCTL%gindex(rtmCTL%begr:rtmCTL%endr) > rtmCTL%numr) )then
+       call shr_sys_abort(trim(subname)//"bad gindex > max")
+    endif
 
     !-------------------------------------------------------
     ! Read restart/initial info

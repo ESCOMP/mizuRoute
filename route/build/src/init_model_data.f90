@@ -150,6 +150,7 @@ CONTAINS
   USE model_utils, ONLY: model_finalize
   USE mpi_routine, ONLY: comm_ntopo_data        ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
   USE process_ntopo, ONLY: put_data_struct      ! populate NETOPO and RPARAM data structure
+  USE mpi_mod      , ONLY: shr_mpi_initialized  ! If MPI is being used
 
    implicit none
    ! input:
@@ -169,6 +170,7 @@ CONTAINS
    ! others
    integer(i4b)                             :: iHRU, iRch       ! loop index
    character(len=strLen)                    :: cmessage         ! error message of downwind routine
+   logical                                  :: mpi_on           ! If MPI is being used for a single task
 
    ! initialize error control
    ierr=0; message='init_ntopo_data/'
@@ -217,6 +219,15 @@ CONTAINS
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    else
+     call shr_mpi_initialized( mpi_on, trim(message)//"Problem checking for MPI" )
+     if ( mpi_on )then
+        ! If MPI is active still needs to setup masterproc setup
+        call comm_ntopo_data(pid, nNodes, comm,                                    & ! input: proc id, # of procs and commnicator
+                             nRch, nContribHRU,                                    & ! input: number of reach and HRUs that contribut to any reaches
+                             structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
+                             ierr, cmessage)                                         ! output: error controls
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     end if
 
      nRch_mainstem = nRch
      nHRU_mainstem = nContribHRU
@@ -230,10 +241,12 @@ CONTAINS
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      ! Setup openmp for whole domain
-     call all_domain_omp_decomp(nRch,           & ! input: number of reach and HRUs that contribut to any reaches
-                                structNTOPO,    & ! input: river network data structures for the entire network
-                                ierr, cmessage)   ! output: error controls
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     if ( .not. mpi_on )then
+        call all_domain_omp_decomp(nRch,           & ! input: number of reach and HRUs that contribut to any reaches
+                                   structNTOPO,    & ! input: river network data structures for the entire network
+                                   ierr, cmessage)   ! output: error controls
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     end if
 
    endif
 

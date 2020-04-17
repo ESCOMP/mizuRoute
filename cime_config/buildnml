@@ -65,7 +65,7 @@ def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_
        varname_downSegId = "Tosegment"
        varname_pfafCode = "PFAF"
     elif (  config['rof_grid'] == "r05" ):
-       fname_ntopOld = "ntopo_r05_MOSART_Global_half_20161105a_c20200323.nc"
+       fname_ntopOld = "ntopo_r05_MOSART_Global_half_20161105a_reord_c20200331.nc"
        varname_area = "hruArea"
        varname_length = "rlen"
        varname_slope  = "rslp"
