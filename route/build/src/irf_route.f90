@@ -112,8 +112,8 @@ contains
        jSeg = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
        if (.not. doRoute(jSeg)) cycle
         if (NETOPO_in(jseg)%islake) then
-         print*, 'islake = ', NETOPO_in(jseg)%islake ! to check if it is lake
-         print*, 'reach id that is lake = ', NETOPO_in(jseg)%REACHID ! to check the reach id of lake
+         ! print*, 'islake = ', NETOPO_in(jseg)%islake ! to check if it is lake
+         ! print*, 'reach id that is lake = ', NETOPO_in(jseg)%REACHID ! to check the reach id of lake
          call lake_route(iEns, jSeg, ixDesire, NETOPO_in, RPARAM_in, RCHFLX_out, ierr, message)
         else
          ! print*, 'isnotlake =', NETOPO_in(jseg)%islake ! to check if it is not a lake

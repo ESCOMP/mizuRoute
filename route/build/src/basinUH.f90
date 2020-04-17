@@ -123,11 +123,11 @@ CONTAINS
  ! print*, "is lake flag", NETOPO_in(iSeg)%islake
 
  if (NETOPO_in(iSeg)%islake) then;
-   print*, "is lake flag", NETOPO_in(iSeg)%islake;
-   print*, "FRAC_FUTURE_local for lakes= ", FRAC_FUTURE_local
+   ! print*, "is lake flag", NETOPO_in(iSeg)%islake;
+   ! print*, "FRAC_FUTURE_local for lakes= ", FRAC_FUTURE_local
    FRAC_FUTURE_local(:) = 0._dp
    FRAC_FUTURE_local(1) = 1._dp
-   print*, "FRAC_FUTURE_local for lakes= ", FRAC_FUTURE_local
+   ! print*, "FRAC_FUTURE_local for lakes= ", FRAC_FUTURE_local
  endif
 
   ! perform river network UH routing
