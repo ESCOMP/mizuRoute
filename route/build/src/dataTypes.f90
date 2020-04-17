@@ -182,7 +182,6 @@ implicit none
  end type RCHPRP
 
  ! River Network topology
- !!! suggest to call this NETWTOPO; suggest to include flags like in basin routing for each indivial node
  type, public :: RCHTOPO
   integer(i4b)                               :: REACHIX  ! Reach index (1,2,...,nrch)
   integer(i4b)                               :: REACHID  ! Reach ID (REC code)
@@ -250,8 +249,6 @@ implicit none
  ! ---------- reach fluxes --------------------------------------------------------------------
 
  ! fluxes in each reach
- !!! suggest to call it nodeflxst; node state and fluxes
- !!! TYPE, public :: NETW_flxst_out; generalized for each routing methos instead of puting everything in one...
  TYPE, public :: strflx
   real(dp), allocatable                :: QFUTURE(:)        ! runoff volume in future time steps (m3/s)
   real(dp), allocatable                :: QFUTURE_IRF(:)    ! runoff volume in future time steps for IRF routing (m3/s)
