@@ -280,10 +280,6 @@ contains
 
   subroutine InitializeRealize(gcomp, importState, exportState, clock, rc)
 
-#ifdef __INTEL_COMPILER
-    use IFPORT, only : qsort              ! Intel library with qsort
-#endif
-    use RtmFileUtils, only : getavu, relavu, opnfil
     ! input/output variables
     type(ESMF_GridComp)  :: gcomp
     type(ESMF_State)     :: importState
@@ -342,12 +338,7 @@ contains
     integer                     :: localDeCount          ! ESMF dist-grid local processor element count
     logical                     :: regDecompFlag         ! ESMF dist-grid regular decomposition flag
     integer                     :: connectionCount       ! ESMF dist-grid connection count
-    integer                     :: ilog                  ! Unit to write gindex to
-    character(len=256)          :: filename              ! filename to write gindex to
 
-#ifdef __INTEL_COMPILER
-    integer(2), external        :: compare_int           ! Function to compare integers for sorting
-#endif
     character(len=*), parameter :: subname=trim(modName)//':(InitializeRealize) '
     !---------------------------------------------------------------------------
 
@@ -526,20 +517,6 @@ contains
        write(iulog,*) "iam, lsize = ", iam, lsize
        write(iulog,*) "iam, gindex(min,max,mid) = ", iam, minval(gindex), maxval(gindex), gindex(lsize/2)
        call shr_sys_flush(iulog)
-    end if
-    ! Sort the indices (should NOT be required)
-#ifdef __INTEL_COMPILER
-    !call qsort( gindex, lsize, sizeof(gindex(1)), compare_int )
-#endif
-    ! Write the indices out to make sure they aren't duplicated accross tasks
-    if ( debug_write ) then
-       ilog = getavu()
-       write(filename,'(a,i3.3)') "gindex.", iam
-       call opnfil( filename, ilog, "f" )
-       do ni = 1, lsize
-          write(ilog,*) gindex(ni)
-       end do
-       call relavu(ilog)
     end if
     ! create distGrid from global index array
     DistGrid = ESMF_DistGridCreate(arbSeqIndexList=gindex, rc=rc)
@@ -991,24 +968,3 @@ contains
   !===============================================================================
 
 end module rof_comp_nuopc
-
-  !===============================================================================
-
-#ifdef __INTEL_COMPILER
-integer(2) function compare_int( a1, a2 )
-  !
-  ! Compare two integer for sorting
-  !
-  integer, intent(IN) :: a1, a2   ! Two integers to compare for sorting
-  !-------------------------------------------------------------------------------
-  !===============================================================================
-  if ( a1 == a2 )then
-    compare_int = 0
-  else if ( a1 < a2 )then
-    compare_int = -1
-  else
-    compare_int = 1
-  end if
-  !===============================================================================
-end function compare_int
-#endif
