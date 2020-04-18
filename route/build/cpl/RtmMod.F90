@@ -147,13 +147,6 @@ CONTAINS
     !pio_stride        = shr_pio_(inst_name)    ! there is no function to extract pio_stride
 
     !-------------------------------------------------------
-    ! Initialize mizuRoute time
-    !-------------------------------------------------------
-
-    call init_time(ierr, cmessage)
-    if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-
-    !-------------------------------------------------------
     ! Initialize rtm_trstr
     !-------------------------------------------------------
 
