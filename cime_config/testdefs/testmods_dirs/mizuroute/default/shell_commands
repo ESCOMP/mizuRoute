@@ -1,4 +1,8 @@
 #!/bin/bash
 
 ./xmlchange ROF_NCPL="1"
+ROF_GRID=`./xmlquery --value ROF_GRID`
+if [ "$ROF_GRID" == "r05" ]; then
+   ./xmlchange ROF_DOMAIN_MESH="$DIN_LOC_ROOT/rof/mizuRoute/meshes/r05_noocean_c110308_cdf5_ESMFmesh_c20200416.nc"
+fi
 

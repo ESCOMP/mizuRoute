@@ -39,7 +39,7 @@ CONTAINS
    ! External modules
    USE globalData, ONLY: domains                 ! domain data structure - for each domain, pfaf codes and list of segment indices
    USE globalData, ONLY: nDomain                 ! count of decomposed domains (tributaries + mainstems)
-   USE mpi_mod,    ONLY: shr_mpi_abort
+   USE mpi_mod,    ONLY: shr_mpi_abort, shr_mpi_initialized
 
    implicit none
    ! Input variables
@@ -53,10 +53,14 @@ CONTAINS
    ! Local variables
    character(len=strLen)                       :: cmessage        ! error message from subroutine
    logical(lgt)                                :: debug = .false. ! print out reach info with node assignment for debugging
+   logical                                     :: mpi_on          ! If MPI is on
 
    ierr=0; message='mpi_domain_decomposition/'
 
-   if (nNodes==1) return
+   if (nNodes==1) then
+      call shr_mpi_initialized( mpi_on, trim(message)//"trougle checking if mpi initialized")
+      if ( .not. mpi_on ) return
+   end if
 
    call classify_river_basin(nNodes,         &        ! input:  number of procs
                              nSeg,           &        ! input:  number of reaches in the entire river network
