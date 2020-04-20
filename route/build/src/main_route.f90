@@ -95,10 +95,6 @@ contains
   ! 2. subroutine: basin route
   if (doesBasinRoute == 1) then
     call system_clock(startTime)
-!    ! instantaneous runoff volume (m3/s) to data structure
-!    do iSeg = 1,nRch
-!     RCHFLX(iens,iSeg)%BASIN_QI = reachRunoff_local(iSeg)
-!    enddo
     ! perform Basin routing
     call IRF_route_basin(iens,              &  ! input:  ensemble index
                          reachRunoff_local, &  ! input:  instantaneous Runoff volume [m3/s] flowing into reach

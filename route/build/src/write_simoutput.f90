@@ -232,7 +232,7 @@ CONTAINS
  ! --------------------
  ! define file
  ! --------------------
- ierr = nf90_create(trim(fname),nf90_classic_model,ncid)
+ ierr = nf90_create(trim(fname),nf90_64bit_offset,ncid)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  do jDim =1,nQdims
