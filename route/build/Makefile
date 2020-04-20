@@ -53,7 +53,15 @@ INCNETCDF = -I$(NCDF_PATH)/include
 FLAGS_OMP =
 LIBOPENMP =
 ifeq "$(isOpenMP)" "yes"
- FLAGS_OMP = -fopenmp
+ ifeq "$(FC)" "pgi"
+  FLAGS_OMP = -mp
+ endif
+ ifeq "$(FC)" "gnu"
+  FLAGS_OMP = -fopenmp
+ endif
+ ifeq "$(FC)" "intel"
+  FLAGS_OMP = -qopenmp
+ endif
 endif
 
 ifeq "$(FC)" "gnu"
