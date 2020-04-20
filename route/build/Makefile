@@ -7,59 +7,94 @@
 # Do not leave space after your edits
 #
 #========================================================================
-# User configure part 
+# User configure part
 #========================================================================
-# Define fortran compiler - gfortran, ifort or pgf90
+# Define fortran compiler - gnu, intel or pgi
 FC  =
 
-# Define the compiler exe
+# Define the compiler exe, e.g., gnu=>gfortran, intel=>intel, pgi=>pgf90
 FC_EXE =
 
-# Define the executable
-EXE = 
+# Define the compiled executable
+EXE =
 
-# define open MP option (put yes to activate OMP) 
+# Define optional setting
+# fast:      Enables optimizations
+# debug:     Minimum debug options, still
+# profile:   Enables profiling
+MODE = debug
+
+# define open MP option (put yes to activate OMP)
 isOpenMP =
- 
+
 # Define core directory below which everything resides
 # parent directory of the 'build' directory
 # do not put space at the end of path
 F_MASTER =
 
 # Define the NetCDF libraries and path to include files
-ifeq "$(FC)" "gfortran"
-  NCDF_PATH = 
+ifeq "$(FC)" "gnu"
+ NCDF_PATH =
 endif
-ifeq "$(FC)" "ifort"
-  NCDF_PATH = 
+ifeq "$(FC)" "intel"
+ NCDF_PATH =
 endif
-
-ifeq "$(FC)" "pgf90"
- NCDF_PATH = 
+ifeq "$(FC)" "pgi"
+ NCDF_PATH =
 endif
 
 LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
             -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
 INCNETCDF = -I$(NCDF_PATH)/include
 
+#========================================================================
+# Define flags
+#========================================================================
 FLAGS_OMP =
 LIBOPENMP =
 ifeq "$(isOpenMP)" "yes"
- FLAGS_OMP = -fopenmp
+ ifeq "$(FC)" "pgi"
+  FLAGS_OMP = -mp
+ endif
+ ifeq "$(FC)" "gnu"
+  FLAGS_OMP = -fopenmp
+ endif
+ ifeq "$(FC)" "intel"
+  FLAGS_OMP = -qopenmp
+ endif
 endif
 
-# Define flags
-ifeq "$(FC)" "gfortran"
- FLAGS = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds $(FLAGS_OMP)
- FLAGS1 = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+ifeq "$(FC)" "gnu"
+  ifeq "$(MODE)" "fast"
+    FLAGS = -O3 -fmax-errors=0 -ffree-line-length-none $(FLAGS_OMP)
+  endif
+  ifeq "$(MODE)" "debug"
+    FLAGS = -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP)
+  endif
+  ifeq "$(MODE)" "profile"
+    FLAGS = -p -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP)
+  endif
 endif
-ifeq "$(FC)" "ifort"
- FLAGS1 = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
- FLAGS = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
+
+ifeq "$(FC)" "intel"
+  ifeq "$(MODE)" "fast"
+    FLAGS = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
+  endif
+  ifeq "$(MODE)" "debug"
+    FLAGS = -g -debug all -warn all -check all -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
+  endif
+  ifeq "$(MODE)" "profile"
+    FLAGS = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
+  endif
 endif
-ifeq "$(FC)" "pgf90"
- FLAGS1 = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -Mprof=lines,time
- FLAGS = -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv
+
+ifeq "$(FC)" "pgi"
+  ifeq "$(MODE)" "fast"
+    FLAGS = -fast -O3 -Mdclchk $(FLAGS_OMP)
+  endif
+  ifeq "$(MODE)" "debug"
+    FLAGS = -g -Mbounds -Mlist -Minfo -Mdclchk $(FLAGS_OMP)
+  endif
 endif
 
 #========================================================================
@@ -87,7 +122,7 @@ DATATYPES = \
     var_lookup.f90 \
     globalData.f90 \
     popMetadat.f90 \
-    allocation.f90 
+    allocation.f90
 # define utilities
 UTILS = \
     nr_utility.f90 \
@@ -116,7 +151,7 @@ INIT = \
     process_ntopo.f90 \
     pfafstetter.f90 \
     domain_decomposition.f90
-# model simulation
+# CORE
 CORE = \
     accum_runoff.f90 \
     basinUH.f90 \
@@ -151,6 +186,7 @@ compile:
 # Remove object files
 clean:
 						rm -f *.o
+						rm -f *.lst
 						rm -f *.mod
 						rm -f *__genmod.f90
 #

@@ -347,6 +347,7 @@ end subroutine augment_ntopo
   ! local varialbles
   integer(i4b)                                   :: nSeg,nHru        ! number of stream reaches and HRUs
   integer(i4b)                                   :: iSeg,iHru        ! loop indices
+  logical(lgt)                                   :: verbose = .false.
 
   ! initialize error control
   ierr=0; message='check_river_properties/'
@@ -363,12 +364,21 @@ end subroutine augment_ntopo
      write(message,'(a,i0,a,1PG15.7)') trim(message)//'reach length for reach id ', segId, ' is negative:', structSEG(iSeg)%var(ixSEG%length)%dat(1)
      return
     endif
+
+    ! Check reach slope
+    if (structSEG(iSeg)%var(ixSEG%slope)%dat(1) < min_slope) then
+     if (verbose) then
+       write(*,'(a,i0,a,1PG15.7)') 'WARNING: reach slope for reach id ', segId, ' is negative. Use min_slope: ', min_slope
+     endif
+     structSEG(iSeg)%var(ixSEG%slope)%dat(1) = min_slope
+    endif
     end associate
   enddo
 
-  do iHru = 1,nHru
+  ! check HRU
+  !do iHru = 1,nHru
   ! check somehting for hru properties
-  enddo
+  !enddo
 
   end subroutine check_river_properties
 
@@ -423,7 +433,7 @@ end subroutine augment_ntopo
 
    ! copy data into the reach parameter structure
    RPARAM_in(iSeg)%RLENGTH =     structSEG(iSeg)%var(ixSEG%length)%dat(1)
-   RPARAM_in(iSeg)%R_SLOPE = max(structSEG(iSeg)%var(ixSEG%slope)%dat(1), min_slope)
+   RPARAM_in(iSeg)%R_SLOPE =     structSEG(iSeg)%var(ixSEG%slope)%dat(1)
    RPARAM_in(iSeg)%R_MAN_N =     structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
    RPARAM_in(iSeg)%R_WIDTH =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
 

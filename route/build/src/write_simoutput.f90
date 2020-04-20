@@ -96,7 +96,8 @@ CONTAINS
  USE public_var,          only : calendar          ! calendar name
  USE public_var,          only : newFileFrequency  ! frequency for new output files (day, month, annual)
  USE public_var,          only : time_units        ! time units (seconds, hours, or days)
- USE public_var,          only : annual,month,day  ! time frequency named variable for output files
+ USE public_var,          only : annual,month,day, & ! time frequency named variable for output files
+                                 single              ! time frequency named variable for output files
  ! saved global data
  USE globalData,          only : basinID,reachID   ! HRU and reach ID in network
  USE globalData,          only : modJulday         ! julian day: at model time step
@@ -137,10 +138,11 @@ CONTAINS
   ! *******************************
 
   ! check need for the new file
-  select case(newFileFrequency)
-   case(annual); defNewOutputFile=(modTime(1)%iy/=modTime(0)%iy)
-   case(month);  defNewOutputFile=(modTime(1)%im/=modTime(0)%im)
-   case(day);    defNewOutputFile=(modTime(1)%id/=modTime(0)%id)
+  select case(trim(newFileFrequency))
+   case('single'); defNewOutputFile=(modTime(0)%iy==integerMissing)
+   case('annual'); defNewOutputFile=(modTime(1)%iy/=modTime(0)%iy)
+   case('month');  defNewOutputFile=(modTime(1)%im/=modTime(0)%im)
+   case('day');    defNewOutputFile=(modTime(1)%id/=modTime(0)%id)
    case default; ierr=20; message=trim(message)//'unable to identify the option to define new output files'; return
   end select
 

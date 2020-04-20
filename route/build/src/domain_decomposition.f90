@@ -656,7 +656,7 @@ contains
    ! put reaches in tributaries and mainstem in the processing order within domain
    nTrib=0; nMain=0
    isAssigned = .false.
-   domain:do ix = nDomain_omp,1,-1  ! Going through domain from the largest size
+   omp_domain:do ix = nDomain_omp,1,-1  ! Going through domain from the largest size
 
      ixx = rankDomain(ix)
 
@@ -701,7 +701,7 @@ contains
 
      endif assigned
 
-   end do domain
+   end do omp_domain
 
    ! check
    do ix = 1,nDomain_omp

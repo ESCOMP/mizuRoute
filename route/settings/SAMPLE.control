@@ -7,30 +7,28 @@
 !       lines starting with <xxx> are read till "!"
 !
 ! ****************************************************************************************************************************
-! PART 1: DEFINE DIRECTORIES 
+! DEFINE DIRECTORIES 
 ! --------------------------
 <ancil_dir>        ANCIL_DIR                       ! directory containing ancillary data (runoff mapping data, river network data)
 <input_dir>        INPUT_DIR                       ! directory containing input data (runoff data)
 <output_dir>       OUTPUT_DIR                      ! directory containing output data
 ! ****************************************************************************************************************************
-! PART 2: DEFINE TIME PERIOD OF THE SIMULATION
+! DEFINE TIME PERIOD OF THE SIMULATION
 ! --------------------------------------------
 <sim_start>        yyyy-mm-dd                      ! time of simulation start (year-month-day)
 <sim_end>          yyyy-mm-dd                      ! time of simulation end (year-month-day)
 ! ****************************************************************************************************************************
-! PART 3: DEFINE FINE NAME AND DIMENSIONS
+! DEFINE RIVER NETWORK DATA 
 ! ---------------------------------------
 <fname_ntopOld>    NTOPO_NC                        ! netCDF name for River Network
 <dname_sseg>       DIMNAME_SEG                     ! dimension name of the stream segments
 <dname_nhru>       DIMNAME_HRU                     ! dimension name of the HRUs
-<ntopWriteOption>  F                               ! logical whether or not augmented river network is written 
-<fname_ntopNew>    UPDATED_NTOPO_NC                ! netCDF name for augmented River Network
 ! ****************************************************************************************************************************
-! PART 4: DEFINE DESIRED VARIABLES FOR THE NETWORK TOPOLOGY
+! DEFINE DESIRED VARIABLES FOR THE NETWORK TOPOLOGY
 ! ---------------------------------------------------------
 <seg_outlet>       -9999                           ! seg_id of outlet streamflow segment. -9999 for all segments 
 ! ****************************************************************************************************************************
-! PART 5: DEFINE RUNOFF FILE
+! DEFINE RUNOFF DATA 
 ! ----------------------------------
 <fname_qsim>       RUNOFF_NC                       ! name of file containing the HRU runoff
 <vname_qsim>       VARNAME_RUNOFF                  ! name of HRU runoff variable
@@ -43,7 +41,7 @@
 <units_qsim>       mm/s                            ! units of runoff e.g., mm/s
 <dt_qsim>          86400                           ! time interval of the runoff [sec] e.g., 86400 sec for daily step
 ! ****************************************************************************************************************************
-! PART 6: DEFINE RUNOFF MAPPING FILE 
+! DEFINE RUNOFF REMAPPING DATA 
 !  ----------------------------------
 <is_remap>              T                          ! logical whether or not runnoff needs to be mapped to river network HRU 
 <fname_remap>           MAPPING_NC                 ! name of runoff mapping netCDF 
@@ -56,28 +54,22 @@
 <vname_i_index>         DIMNAME_I_INDEX            ! name of ylat index dimension (if 2D runoff grid is input) 
 <vname_j_index>         DIMNAME_J_INDEX            ! name of xlon index dimension (if 2D runoff grid is input)
 ! ****************************************************************************************************************************
-! PART 7 DEFINE RUN CONTROL 
+! DEFINE RUN CONTROLS 
 ! ---------------------------
 <restart_opt>          F                           ! option to use saved flow states T->yes, F->No (start with empty channels) 
-<route_opt>            2                           ! option for routing schemes 0-> both, 1->IRF, 2->KWT otherwise error 
+<route_opt>            0                           ! option for routing schemes 0-> both, 1->IRF, 2->KWT otherwise error 
 ! ****************************************************************************************************************************
-! PART 8: DEFINE OUTPUT FILE
+! DEFINE OUTPUT FILES
 ! ---------------------------
 <fname_output>         Q_OUT_NC                    ! filename for the model output
 <fname_state_in>       STATE_IN_NC                 ! filename for the channel states input 
 <fname_state_out>      STATE_OUT_NC                ! filename for the channel states output
 ! ****************************************************************************************************************************
-! Part 9: Define options to include/skip calculations
-! ----------------------------------------------------
-<hydGeometryOption>    1                           ! option for hydraulic geometry calculations (0=read from file, 1=compute)
-<topoNetworkOption>    1                           ! option for network topology calculations (0=read from file, 1=compute)
-<computeReachList>     1                           ! option to compute list of upstream reaches (0=do not compute, 1=compute)
-! ****************************************************************************************************************************
-! PART 10: Namelist file name 
+! NAMELIST 
 ! ---------------------------
 <param_nml>            PARAMETER_NML               ! Namelist name containing routing parameter values 
 ! ****************************************************************************************************************************
-! Part 11: Dictionary to map variable names
+! Dictionary to map variable names
 ! ---------------------------
 <varname_area>         Basin_Area                  ! name of variable holding hru area
 <varname_length>       Length                      ! name of variable holding segment length

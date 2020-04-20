@@ -23,7 +23,7 @@ CONTAINS
  implicit none
  ! input
  integer(i4b), intent(in)                 :: iens            ! ith ensemble
-  real(dp)   , intent(out)                :: reachRunoff(:)  ! instantaneous reach runoff volumen (m3/s)
+ real(dp)    , intent(in)                 :: reachRunoff(:)  ! instantaneous reach runoff volumen (m3/s)
  ! inout
  type(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  ! output
