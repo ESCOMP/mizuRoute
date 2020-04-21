@@ -87,7 +87,7 @@ CONTAINS
    character(len=strLen)                          :: cmessage             ! error message of downwind routine
    real(dp)                                       :: T0,T1                ! beginning/ending of simulation time step [sec]
    real(dp),           allocatable                :: reachRunoff_local(:) ! reach runoff (m/s)
-   real(dp),           allocatable                :: reachEvapo_local(:)  ! reach evaporaiton (m/s)
+   real(dp),           allocatable                :: reachEvapo_local(:)  ! reach evaporation (m/s)
    real(dp),           allocatable                :: reachPrecip_local(:) ! reach precipitation (m/s)
    integer(i4b)                                   :: nSeg                 ! number of reach to be processed
    integer(i4b)                                   :: iSeg                 ! index of reach
