@@ -5,7 +5,7 @@ USE nrtype
 ! data type
 USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
 USE dataTypes, ONLY: RCHTOPO        ! Network topology
-USE dataTypes, ONLY: RCHPRP         ! Network parameter
+USE dataTypes, ONLY: RCHPRP         ! reach/lake property parameter
 ! global parameters
 USE public_var, ONLY: iulog          ! i/o logical unit number
 USE public_var, ONLY: realMissing    ! missing value for real number
@@ -112,11 +112,8 @@ contains
        jSeg = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
        if (.not. doRoute(jSeg)) cycle
         if (NETOPO_in(jseg)%islake) then
-         ! print*, 'islake = ', NETOPO_in(jseg)%islake ! to check if it is lake
-         ! print*, 'reach id that is lake = ', NETOPO_in(jseg)%REACHID ! to check the reach id of lake
          call lake_route(iEns, jSeg, ixDesire, NETOPO_in, RPARAM_in, RCHFLX_out, ierr, message)
         else
-         ! print*, 'isnotlake =', NETOPO_in(jseg)%islake ! to check if it is not a lake
          call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, cmessage)
         endif
        if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))

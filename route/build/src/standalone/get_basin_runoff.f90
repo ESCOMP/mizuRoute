@@ -52,7 +52,7 @@ contains
                         iTime,                             & ! input: time index
                         runoff_data,                       & ! inout: runoff data structure
                         ierr, cmessage)                      ! output: error control
-  
+
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! allocate basinRunoff (local array)
@@ -118,11 +118,6 @@ contains
   runoff_data%basinRunoff = basinRunoff
   runoff_data%basinEvapo = basinEvapo
   runoff_data%basinPrecip = basinPrecip
-
-  !print*, basinRunoff
-  !print*, basinEvapo
-  !print*, basinPrecip
-  ! stop
 
  end subroutine get_hru_runoff
 

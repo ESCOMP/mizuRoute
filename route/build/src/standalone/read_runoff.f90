@@ -257,9 +257,6 @@ contains
  ! initialize error control
  ierr=0; message='read_1D_runoff/'
 
- !Print*, "varibale name -> ", vname_qsim
- !Print*, "file name -> ", fname
-
  ! get the simulated runoff data
  call get_nc(trim(fname),vname_qsim, dummy, (/1,iTime/), (/nSpace,1/), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -273,11 +270,7 @@ contains
 
  ! reshape
  runoff_data_in%qsim(1:nSpace) = dummy(1:nSpace,1)
- !Print*, "runoff values -> ", dummy
 
- !Print*, "varibale name -> ", vname_evasim
- !Print*, "file name -> ", fname
- 
  ! get the simulated evaporation
  call get_nc(trim(fname),vname_evasim, dummy, (/1,iTime/), (/nSpace,1/), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -291,8 +284,6 @@ contains
 
  ! reshape
  runoff_data_in%Easim(1:nSpace) = dummy(1:nSpace,1)
- ! Print*, "evaporation values -> ", dummy
-
 
  ! get the precipitation data
  call get_nc(trim(fname),vname_precip, dummy, (/1,iTime/), (/nSpace,1/), ierr, cmessage)
@@ -307,8 +298,6 @@ contains
 
  ! reshape
  runoff_data_in%Precip(1:nSpace) = dummy(1:nSpace,1)
- ! Print*, "precipitation values in read_runoff.f dummy -> ", dummy
- ! Print*, "precipitation values in read_runoff.f runoff_data_in-> ", dummy
 
  end subroutine read_1D_runoff
 

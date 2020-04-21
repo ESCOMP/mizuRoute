@@ -14,7 +14,7 @@ USE dataTypes, ONLY: subbasin_omp            ! mainstem+tributary data structure
 ! mapping HRU runoff to reach
 USE remapping, ONLY: basin2reach
 
-! subroutines: basin routing 
+! subroutines: basin routing
 USE basinUH_module, ONLY: IRF_route_basin    ! perform UH convolution for basin routing
 
 ! subroutines: river routing
@@ -87,8 +87,8 @@ CONTAINS
    character(len=strLen)                          :: cmessage             ! error message of downwind routine
    real(dp)                                       :: T0,T1                ! beginning/ending of simulation time step [sec]
    real(dp),           allocatable                :: reachRunoff_local(:) ! reach runoff (m/s)
-   real(dp),           allocatable                :: reachEvapo_local(:)  ! reach runoff (m/s)
-   real(dp),           allocatable                :: reachPrecip_local(:) ! reach runoff (m/s)
+   real(dp),           allocatable                :: reachEvapo_local(:)  ! reach evaporaiton (m/s)
+   real(dp),           allocatable                :: reachPrecip_local(:) ! reach precipitation (m/s)
    integer(i4b)                                   :: nSeg                 ! number of reach to be processed
    integer(i4b)                                   :: iSeg                 ! index of reach
 
@@ -109,10 +109,6 @@ CONTAINS
 
   allocate(reachPrecip_local(nSeg), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachPrecip_local]'; return; endif
-
-  !print*, "basin evapo in, inside main route = ", basinEvapo_in 
-  !print*, "basin runoff in, inside main route = ", basinRunoff_in
-  !print*, "basin precip in, inside main route = ", basinPrecip_in
 
   ! 1. subroutine: map basin runoff to river network HRUs
   ! map the basin runoff/evapo/precip to the stream network in m3/s
@@ -139,10 +135,6 @@ CONTAINS
                    ierr, cmessage,     & ! output: error control
                    ixRchProcessed)       ! optional input: indices of reach to be routed
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  !print*, "basin evapo in, inside main route m3/s = ", reachRunoff_local 
-  !print*, "basin runoff in, inside main route m3/s = ", reachEvapo_local
-  !print*, "basin precip in, inside main route m3/s = ", reachPrecip_local
 
   ! 2. subroutine: basin route
   if (doesBasinRoute == 1) then
