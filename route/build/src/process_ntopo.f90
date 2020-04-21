@@ -421,8 +421,6 @@ end subroutine augment_ntopo
    RPARAM_in(iSeg)%R_WIDTH   =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
    RPARAM_in(iSeg)%RATECVA   =     structSEG(iSeg)%var(ixSEG%RATECVA)%dat(1)
    RPARAM_in(iSeg)%RATECVB   =     structSEG(iSeg)%var(ixSEG%RATECVB)%dat(1)
-   ! print*, 'Parameter A = ', structSEG(iSeg)%var(ixSEG%RATECVA)%dat(1)
-   ! print*, 'Parameter B = ', structSEG(iSeg)%var(ixSEG%RATECVB)%dat(1)
 
    ! compute variables
    RPARAM_in(iSeg)%BASAREA = structSEG(iSeg)%var(ixSEG%basArea)%dat(1)
@@ -476,12 +474,6 @@ end subroutine augment_ntopo
    ! lake parameters
    ! USED
    NETOPO_in(iSeg)%isLake = (structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)==true)
-   ! print*, 'is lake = ', structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)
-   ! print*, 'is lake logical = ', (structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)==1)
-   !if (NETOPO_in(iSeg)%isLake) THEN ! this IF should be cleaned
-   ! print*, 'is lake = ', NETOPO_in(iSeg)%isLake ! to check the islake flag
-   ! print*, 'is reach ID = ', NETOPO_in(iSeg)%REACHID ! to check the islake flag
-   !ENDIF
    ! NOT USED
    NETOPO_in(iSeg)%LAKE_IX = integerMissing  ! Lake index (0,1,2,...,nlak-1)
    NETOPO_in(iSeg)%LAKE_ID = integerMissing  ! Lake ID (REC code?)

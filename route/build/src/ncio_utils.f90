@@ -550,9 +550,6 @@ contains
   ! initialize error control
   ierr=0; message='get_2d_darray/'
 
-  !print*, "inside ncio_utils vname = ", vname
-  !print*, "inside ncio_utils fname = ", fname
-
   ! open NetCDF file
   ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
