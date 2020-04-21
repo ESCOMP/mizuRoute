@@ -34,8 +34,8 @@ contains
                         ! output
                         ierr, message)   ! output: error control
 
- USE public_var, ONLY: dt
- 
+ USE public_var, ONLY: dt, lakeWBTol
+
  implicit none
  ! Input
  INTEGER(I4B), intent(IN)                 :: iEns           ! runoff ensemble to be routed
@@ -82,24 +82,20 @@ contains
    end do
   endif
 
-  ! print*, "inside lake, RCHFLX_out(iens,segIndex)%basinprecip = ", RCHFLX_out(iens,segIndex)%basinprecip
-  ! print*, "inside lake, RCHFLX_out(iens,segIndex)%basinevapo = ", RCHFLX_out(iens,segIndex)%basinevapo
-  ! print*, "RPARAM_in(segIndex)%RATECVA", RPARAM_in(segIndex)%RATECVA
-  ! print*, "RPARAM_in(segIndex)%RATECVB", RPARAM_in(segIndex)%RATECVB
-  
-
   ! perform lake routing based on a fixed storage discharge relationship Q=kS
   ! no runoff input is added to the lake; the input are only precipitation and evaporation to the lake
 
-  print*, '------lake-simulation-------- '
-  print*, 'node id that is lake ...... = ', NETOPO_in(segIndex)%REACHID ! to check the reach id of lake
-  print*, 'lake param RATECVA ........ = ', RPARAM_in(segIndex)%RATECVA
-  print*, 'lake param RATECVB ........ = ', RPARAM_in(segIndex)%RATECVB
-  print*, 'volume before simulation m3 = ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
-  print*, 'upstream streamflow m3/s .. = ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
-  print*, 'upstream precipitation m3/s = ', RCHFLX_out(iens,segIndex)%basinprecip
-  print*, 'upstream evaporation m3/s . = ', RCHFLX_out(iens,segIndex)%basinevapo
-  
+  ! if(NETOPO_in(segIndex)%REACHIX == ixDesire)then   ! uncommnet when the ixDesire is fixed and not -9999
+   print*, '------lake-simulation-------- '
+   print*, 'node id that is lake .......= ', NETOPO_in(segIndex)%REACHID ! to check the reach id of lake
+   print*, 'lake param RATECVA .........= ', RPARAM_in(segIndex)%RATECVA
+   print*, 'lake param RATECVB .........= ', RPARAM_in(segIndex)%RATECVB
+   print*, 'volume before simulation m3.= ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
+   print*, 'upstream streamflow m3/s ...= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
+   print*, 'upstream precipitation m3/s.= ', RCHFLX_out(iens,segIndex)%basinprecip
+   print*, 'upstream evaporation m3/s ..= ', RCHFLX_out(iens,segIndex)%basinevapo
+  ! endif
+
   RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(0) ! updating storage for current time
   RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) + q_upstream * dt  ! input upstream discharge from m3/s to m3
   RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) + RCHFLX_out(iens,segIndex)%basinprecip * dt ! input lake precipitation
@@ -115,22 +111,29 @@ contains
     RCHFLX_out(iens,segIndex)%REACH_VOL(1)=0
   endif
 
-
-  print*, 'lake simulated output m3/s .= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
-  print*, 'volume after simulation m3 .= ', RCHFLX_out(iens,segIndex)%REACH_VOL(1)
-
   ! calculate water balance (in this water balance we dont have the actual evaporation)
   WB = q_upstream * dt + RCHFLX_out(iens,segIndex)%basinprecip * dt - RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt &
   - RCHFLX_out(iens,segIndex)%basinevapo * dt - (RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_VOL(0))
-  print*, 'water balance error ....... = ', WB
+
+  !if(NETOPO_in(segIndex)%REACHIX == ixDesire)then    ! uncommnet when the ixDesire is fixed and not -9999
+   print*, 'lake simulated output m3/s .= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
+   print*, 'volume after simulation m3 .= ', RCHFLX_out(iens,segIndex)%REACH_VOL(1)
+   print*, 'water balance error ........= ', WB
+  !endif
+
+  if(WB.ge.lakeWBTol)then;
+   print*, 'Water balance for lake ID = ', NETOPO_in(segIndex)%REACHID, 'excees the Tolerance'
+   cmessage = 'Water balance for lake ID = excees the Tolerance'
+   ierr = 1; message=trim(message)//trim(cmessage);
+  endif
 
   ! set the routed flag as .True.
   RCHFLX_out(iEns,segIndex)%isRoute=.True.
 
   ! pass the current storage for the past time step for the next time step simulation
   RCHFLX_out(iens,segIndex)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) !shift on time step back
-  
- 
+
+
  end subroutine lake_route
 
 end module lake_route_module
