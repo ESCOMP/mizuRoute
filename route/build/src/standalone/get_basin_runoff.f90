@@ -1,6 +1,7 @@
 module get_runoff
 
 USE nrtype
+USE dataTypes, ONLY: infileinfo
 
 implicit none
 
@@ -29,6 +30,9 @@ contains
   USE read_runoff, only:read_runoff_data        ! read runoff value into runoff_data data strucuture
   USE remapping,   only:remap_runoff            ! mapping HM runoff to river network HRU runoff (HM_HRU /= RN_HRU)
   USE remapping,   only:sort_runoff             ! mapping HM runoff to river network HRU runoff (HM_HRU == RN_HRU)
+  ! external subroutines
+  USE ascii_util_module, ONLY:file_open        ! open file (performs a few checks as well)
+  USE ascii_util_module, ONLY:get_vlines       ! get a list of character strings from non-comment lines
 
   implicit none
   ! input variables: none
@@ -43,9 +47,65 @@ contains
   character(len=strLen)         :: evaporation = 'evaporation'          ! flag in case the flux is evaporation
   character(len=strLen)         :: precipitation = 'precipitation'      ! flag in case the flux is precipitation
   character(len=strLen)         :: cmessage                             ! error message from subroutine
+  integer(i4b)                  :: size_fname_qsim                      ! error code
+  character(len=strLen)         :: infile                               ! input filename
+  integer(i4b)                  :: unt                                  ! file unit (free unit output from file_open)
+  character(len=strLen),allocatable :: dataLines(:)                     ! vector of lines of information (non-comment lines)
+  integer(i4b)                      :: iFile                            ! counter for forcing files
+  integer(i4b)                      :: nFile                            ! number of forcing files in forcing file list
+  character(len=strLen)             :: filenameData                     ! name of forcing datafile
+  type(infileinfo), allocatable ::  infileinfo(:)                       ! the file
 
   ! initialize error control
   ierr=0; message='get_hru_runoff/'
+
+
+  print*, 'iTime is:',iTime
+  ! checking if fname_qsim is .txt or .nc
+  size_fname_qsim = len(trim(fname_qsim))
+  print*, size_fname_qsim
+  print*, fname_qsim(size_fname_qsim-3:size_fname_qsim)
+  print*, fname_qsim
+  if (fname_qsim (size_fname_qsim-3:size_fname_qsim).eq.'.txt')then
+   print*, '*.txt'
+
+    ! ------------------------------------------------------------------------------------------------------------------
+    ! (1) read from the list of forcing files
+    ! ------------------------------------------------------------------------------------------------------------------
+    ! build filename for forcing file list
+    infile = trim(input_dir)//trim(fname_qsim)
+
+    ! open file
+    call file_open(trim(infile),unt,ierr,cmessage)  ! question... what is the unt?
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
+
+    ! get a list of character strings from non-comment lines
+    call get_vlines(unt,dataLines,ierr,cmessage)
+    if(ierr/=0)then; ierr=20; message=trim(message)//trim(cmessage); return; end if
+    nFile = size(dataLines)
+
+    ! allocate space for forcing information
+    if(allocated(infileinfo)) deallocate(infileinfo)
+    allocate(infileinfo(nFile), stat=ierr)
+    if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for forcFileInfo'; return; end if
+
+    ! poputate the forcingInfo structure with filenames
+    do iFile=1,nFile
+     ! split the line into "words" (expect one word: the file describing forcing data for that index)
+     read(dataLines(iFile),*,iostat=ierr) filenameData
+     if(ierr/=0)then; message=trim(message)//'problem reading a line of data from file ['//trim(infile)//']'; return; end if
+     ! set forcing file name attribute
+     infileinfo(iFile)%infilename = trim(filenameData)
+    end do  ! (looping through files)
+
+    ! close ascii file
+    close(unit=unt,iostat=ierr); if(ierr/=0)then;message=trim(message)//'problem closing forcing file list'; return; end if
+
+  endif
+  if (fname_qsim (size_fname_qsim-2:size_fname_qsim).eq.'.nc')then
+   print*, '*.nc'
+  endif
+  stop
 
   ! get the simulated runoff for the current time step - runoff_data%qsim(:), %qsim2D(:,:), easim(:), easim2d(:,:), precip(:) and precip2d(:)
   call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
