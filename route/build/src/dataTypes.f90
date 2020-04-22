@@ -164,6 +164,19 @@ implicit none
    real(dp)                 , allocatable  :: basinPrecip(:)  ! remapped river network catchment Precipitation (size: number of nHRU)
  end type runoff
 
+
+! ---------- forcing input file ---------------------------------------------------------------------------
+
+ ! Reach Parameters
+ type, public ::  infileinfo
+  character(len=strLen)                   :: infilename       ! the name of the input file name
+  type(time)                              :: start_time       ! the date and time of the first record of a nc file
+  type(time)                              :: end_time         ! the date and time of the last record of a nc file
+  integer(i4b)                            :: iTimestart       ! time increament compare to the start of simulation of a input file
+  integer(i4b)                            :: iTimeend         ! time increament compare to the end of simulation of a input file
+ end type infileinfo
+
+
  ! ---------- reach parameters ----------------------------------------------------------------------------
 
  ! Reach Parameters
