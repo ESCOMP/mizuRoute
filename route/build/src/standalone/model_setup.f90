@@ -184,6 +184,8 @@ CONTAINS
   ! get the time data
   call get_nc(trim(input_dir)//trim(fname_qsim), vname_time, timeVar, 1, nTime, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  print*, 'timeVar', timeVar
+  print*, 'nTime', nTime
 
   ! get the time multiplier needed to convert time to units of days
   select case( trim( time_units(1:index(time_units,' ')) ) )
@@ -216,6 +218,13 @@ CONTAINS
   ! initialize previous model time
   !modTime(0:1) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
   modTime(0) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
+
+  print*, 'refJulday', refJulday
+  print*, 'startJulday',startJulday
+  print*, 'endJulday', endJulday
+  print*, 'modTime', modTime
+  print*, 'simStart', simStart
+  print*, 'simEnd', simEnd
 
  END SUBROUTINE init_time
 
