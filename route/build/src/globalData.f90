@@ -50,6 +50,7 @@ module globalData
   USE var_lookup, ONLY: nVarsIRFbas   ! number of variables for data structure
   USE var_lookup, ONLY: nVarsIRF      ! number of variables for data structure
   USE var_lookup, ONLY: nVarsKWT      ! number of variables for data structure
+  USE var_lookup, ONLY: nVarsKWE      ! number of variables for data structure
 
   implicit none
 
@@ -131,6 +132,7 @@ module globalData
   type(var_info)                 , public :: meta_rflx   (nVarsRFLX )   ! reach flux variables
   type(var_info)                 , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
   type(var_info)                 , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
+  type(var_info)                 , public :: meta_kwe    (nVarsKWE    ) ! KWE routing fluxes/states
   type(var_info)                 , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
 
   ! ---------- shared data structures ----------------------------------------------------------------------

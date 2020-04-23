@@ -25,6 +25,8 @@ USE var_lookup, ONLY:ixPFAF,   nVarsPFAF    ! index of variables for the pfafste
 USE nr_utility_module, ONLY: indexx         ! create sorted index array
 USE nr_utility_module, ONLY: arth           ! build a vector of regularly spaced numbers
 USE nr_utility_module, ONLY: findIndex      ! find index within a vector
+USE perf_mod,          ONLY: t_startf       ! timing start
+USE perf_mod,          ONLY: t_stopf        ! timing stop
 
 ! MPI utility
 USE mpi_mod, ONLY: shr_mpi_bcast
@@ -729,12 +731,8 @@ contains
   integer(i4b)                          :: nRch_trib                ! number of reaches on one tributary (in a proc)
   logical(lgt)                          :: doesScatterRunoff        ! temporal logical to indicate if scattering global runoff is required
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
-  ! timing
-  integer*8                             :: cr, startTime, endTime
-  real(dp)                              :: elapsedTime
 
   ierr=0; message='mpi_route/'
-  call system_clock(count_rate=cr)
 
   if (present(scatter_ro)) then
     doesScatterRunoff = scatter_ro
@@ -748,12 +746,10 @@ contains
   !  - basinRunoff_trib (all procs)
   ! --------------------------------
   if (doesScatterRunoff) then
-    call system_clock(startTime)
+    call t_startf ('route/scatter-runoff')
     call scatter_runoff(nNodes, comm, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    call system_clock(endTime)
-    elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-    write(iulog,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-ro] = ', elapsedTime, ' s'
+    call t_stopf ('route/scatter-runoff')
   else
      write(iulog,*) 'Runoff data is already decomposed into mainstem and tributaries'
      if (masterproc) then
@@ -771,7 +767,8 @@ contains
   ! Perform tributary routing (for all procs)
   ! --------------------------------
   if (nNodes>1) then
-  call system_clock(startTime)
+
+  call t_startf ('route/tributary-route')
 
   !Idenfity number of tributary reaches for each procs
   nRch_trib = rch_per_proc(pid)
@@ -794,9 +791,7 @@ contains
                   ierr, message)        ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  call system_clock(endTime)
-  elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-  write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/tributary-route] = ', elapsedTime, ' s'
+  call t_stopf ('route/tributary-route')
 
   ! make sure that routing at all the procs finished
   call shr_mpi_barrier(comm, message)
@@ -806,7 +801,7 @@ contains
   ! --------------------------------
   ! Collect all the tributary flows
   ! --------------------------------
-  call system_clock(startTime)
+  call t_startf('route/gather-state-flux')
 
   ! flux communication
   call mpi_comm_flux(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
@@ -836,12 +831,10 @@ contains
 
   endif
 
+  call t_stopf('route/gather-state-flux')
+
   ! make sure that routing at all the procs finished
   call shr_mpi_barrier(comm, message)
-
-  call system_clock(endTime)
-  elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-  write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/gater-state-flux] = ', elapsedTime, ' s'
 
   end if ! (nNodes>1)
 
@@ -850,7 +843,7 @@ contains
   ! --------------------------------
   if (masterproc) then
 
-    call system_clock(startTime)
+    call t_startf ('route/mainstem_route')
 
     if (allocated(ixRchProcessed)) then
       deallocate(ixRchProcessed, stat=ierr)
@@ -874,9 +867,7 @@ contains
                     ierr, message)              ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call system_clock(endTime)
-    elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-    write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/main_route] = ', elapsedTime, ' s'
+    call t_stopf ('route/mainstem_route')
 
   endif ! end of root proc
 
@@ -889,7 +880,7 @@ contains
   ! --------------------------------
   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
 
-    call system_clock(startTime)
+    call t_startf ('route/scatter-kwt-state')
 
     call mpi_comm_kwt_state(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
                             iens,                & ! input:
@@ -902,9 +893,7 @@ contains
                             ierr, message)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call system_clock(endTime)
-    elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-    write(*,"(A,I2,A,1PG15.7,A)") 'pid=',pid,',   elapsed-time [routing/scatter-kwt-state] = ', elapsedTime, ' s'
+    call t_stopf ('route/scatter-kwt-state')
 
   endif ! end of kwt option
 
@@ -1954,8 +1943,6 @@ contains
   USE globalData, ONLY: startJulday       ! julian day: start
   USE globalData, ONLY: endJulday         ! julian day: end
   USE globalData, ONLY: modJulday         ! julian day: at simulation time step
-  USE globalData, ONLY: length_conv
-  USE globalData, ONLY: time_conv
   USE globalData, ONLY: reachID
   USE globalData, ONLY: basinID
   implicit none
@@ -1980,8 +1967,6 @@ contains
   call MPI_BCAST(startJulday, 1,     MPI_DOUBLE_PRECISION, root, comm, ierr)
   call MPI_BCAST(endJulday,   1,     MPI_DOUBLE_PRECISION, root, comm, ierr)
   call MPI_BCAST(modJulday,   1,     MPI_DOUBLE_PRECISION, root, comm, ierr)
-  call MPI_BCAST(length_conv, 1,     MPI_DOUBLE_PRECISION, root, comm, ierr)
-  call MPI_BCAST(time_conv,   1,     MPI_DOUBLE_PRECISION, root, comm, ierr)
 
   call shr_mpi_bcast(timeVar,ierr, message)
   call shr_mpi_bcast(reachID,ierr, message)
