@@ -3,6 +3,12 @@ module get_runoff
 USE nrtype
 USE dataTypes, ONLY: infileinfo
 
+USE io_netcdf, only:get_nc
+USE io_netcdf, only:get_var_attr_real
+USE io_netcdf, only:get_var_attr_char
+
+USE io_netcdf, only:get_nc_dim_len
+
 implicit none
 
 private
@@ -18,21 +24,34 @@ contains
 
  ! populate runoff_data with runoff values at LSM domain and at iTime step
 
-  ! shared data
-  USE public_var,  only:input_dir               ! directory containing input data
-  USE public_var,  only:fname_qsim              ! simulated runoff netCDF name
-  USE public_var,  only:is_remap                ! logical whether or not runnoff needs to be mapped to river network HRU
-  USE globalData,  only:iTime
-  USE globalData,  only:nHRU
-  USE globalData,  only:runoff_data             ! data structure to hru runoff data
-  USE globalData,  only:remap_data              ! data structure to remap data
   ! subroutines
+  USE process_time_module, ONLY: process_time  ! process time information
   USE read_runoff, only:read_runoff_data        ! read runoff value into runoff_data data strucuture
   USE remapping,   only:remap_runoff            ! mapping HM runoff to river network HRU runoff (HM_HRU /= RN_HRU)
   USE remapping,   only:sort_runoff             ! mapping HM runoff to river network HRU runoff (HM_HRU == RN_HRU)
   ! external subroutines
   USE ascii_util_module, ONLY:file_open        ! open file (performs a few checks as well)
   USE ascii_util_module, ONLY:get_vlines       ! get a list of character strings from non-comment lines
+
+
+  ! shared data
+  USE public_var,  only:input_dir               ! directory containing input data
+  USE public_var,  only:fname_qsim              ! simulated runoff netCDF name
+  USE public_var,  only:is_remap                ! logical whether or not runnoff needs to be mapped to river network HRU
+  USE public_var,  only:vname_time              ! public var time varibale name
+  USE public_var,  only:time_units              ! time units (seconds, hours, or days) from control file
+  USE public_var,  only: simStart               ! date string defining the start of the simulation
+  USE public_var,  only: simEnd                 ! date string defining the end of the simulation
+  USE globalData,  only:iTime
+  USE globalData,  only:nHRU
+  USE globalData,  only:runoff_data             ! data structure to hru runoff data
+  USE globalData,  only:remap_data              ! data structure to remap data
+  USE globalData,  only: timeVar                ! time variables (unit given by runoff data)
+  USE globalData,  only: convTime2Days          ! conversion multipliers for time unit of runoff input to day
+  USE public_var,  only: calendar               ! calendar name
+  USE globalData,  only: refJulday               ! julian day: reference
+  USE globalData,  only: startJulday             ! julian day: start of routing simulation
+  USE globalData,  only: endJulday               ! julian day: end of routing simulation
 
   implicit none
   ! input variables: none
@@ -54,23 +73,26 @@ contains
   integer(i4b)                      :: iFile                            ! counter for forcing files
   integer(i4b)                      :: nFile                            ! number of forcing files in forcing file list
   character(len=strLen)             :: filenameData                     ! name of forcing datafile
-  type(infileinfo), allocatable ::  infileinfo(:)                       ! the file
+  type(infileinfo), allocatable     ::  infileinfo(:)                   ! the file
+  integer(i4b), parameter           ::  nTime = 4662                    ! hard coded for now
 
   ! initialize error control
   ierr=0; message='get_hru_runoff/'
 
+  fname_qsim = 'NetCDF_input.txt' ! just chenge the file name locally here to check the model simulation
+  print*, 'print default fname with input in get_basin_runoff',fname_qsim
 
-  print*, 'iTime is:',iTime
+  print*, 'iTime is in get_basin_runoff:',iTime
   ! checking if fname_qsim is .txt or .nc
   size_fname_qsim = len(trim(fname_qsim))
   print*, size_fname_qsim
-  print*, fname_qsim(size_fname_qsim-3:size_fname_qsim)
-  print*, fname_qsim
+  print*, 'the extension of the file',fname_qsim(size_fname_qsim-3:size_fname_qsim)
+  print*, 'the fname_qsim', fname_qsim
   if (fname_qsim (size_fname_qsim-3:size_fname_qsim).eq.'.txt')then
    print*, '*.txt'
 
     ! ------------------------------------------------------------------------------------------------------------------
-    ! (1) read from the list of forcing files
+    ! (1) read from the list of forcing files and populate the start and end time steps in Julian days
     ! ------------------------------------------------------------------------------------------------------------------
     ! build filename for forcing file list
     infile = trim(input_dir)//trim(fname_qsim)
@@ -83,6 +105,7 @@ contains
     call get_vlines(unt,dataLines,ierr,cmessage)
     if(ierr/=0)then; ierr=20; message=trim(message)//trim(cmessage); return; end if
     nFile = size(dataLines)
+    print*, 'number of lines in the text file', nFile
 
     ! allocate space for forcing information
     if(allocated(infileinfo)) deallocate(infileinfo)
@@ -96,7 +119,39 @@ contains
      if(ierr/=0)then; message=trim(message)//'problem reading a line of data from file ['//trim(infile)//']'; return; end if
      ! set forcing file name attribute
      infileinfo(iFile)%infilename = trim(filenameData)
+     !
+     call get_nc(trim(input_dir)//trim(fname_qsim), vname_time, timeVar, 1, nTime, ierr, cmessage)
+
+     ! get the time multiplier needed to convert time to units of days
+     select case( trim( time_units(1:index(time_units,' ')) ) )
+      case('seconds'); convTime2Days=86400._dp
+      case('hours');   convTime2Days=24._dp
+      case('days');    convTime2Days=1._dp
+      case default;    ierr=20; message=trim(message)//'unable to identify time units'; return
+     end select
+     ! vname_time = vname_time / convTime2Days
+
+     print*, time_units
+     ! extract time information from the control information
+     call process_time(time_units,    calendar, refJulday,   ierr, cmessage) ! the time unit is coming from the NetCDF for one NetCDF file
+     if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [refJulday]'; return; endif
+     ! similarly the endref should be done here....
+     ! refJuldayend = refJulday + vname_time (end)
+
+     !! startJulyday and endJulyday can be move to earlier part as they are used only once...
+     call process_time(trim(simStart),calendar, startJulday, ierr, cmessage) ! start of the simulation from the
+     if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [startJulday]'; return; endif
+     call process_time(trim(simEnd),  calendar, endJulday,   ierr, cmessage)
+     if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endJulday]'; return; endif
+
+     print*, refJulday, startJulday, endJulday
+
+  ! check that the dates are aligned
+  if(endJulday<startJulday) then; ierr=20; message=trim(message)//'simulation end is before simulation start'; return; endif
+
     end do  ! (looping through files)
+    print*, infileinfo(1)%infilename
+    print*, infileinfo(2)%infilename
 
     ! close ascii file
     close(unit=unt,iostat=ierr); if(ierr/=0)then;message=trim(message)//'problem closing forcing file list'; return; end if
