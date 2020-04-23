@@ -24,6 +24,16 @@ contains
 
  ! populate runoff_data with runoff values at LSM domain and at iTime step
 
+  ! subroutines
+  USE process_time_module, ONLY: process_time  ! process time information
+  USE read_runoff, only:read_runoff_data        ! read runoff value into runoff_data data strucuture
+  USE remapping,   only:remap_runoff            ! mapping HM runoff to river network HRU runoff (HM_HRU /= RN_HRU)
+  USE remapping,   only:sort_runoff             ! mapping HM runoff to river network HRU runoff (HM_HRU == RN_HRU)
+  ! external subroutines
+  USE ascii_util_module, ONLY:file_open        ! open file (performs a few checks as well)
+  USE ascii_util_module, ONLY:get_vlines       ! get a list of character strings from non-comment lines
+
+
   ! shared data
   USE public_var,  only:input_dir               ! directory containing input data
   USE public_var,  only:fname_qsim              ! simulated runoff netCDF name
@@ -42,15 +52,6 @@ contains
   USE globalData,  only: refJulday               ! julian day: reference
   USE globalData,  only: startJulday             ! julian day: start of routing simulation
   USE globalData,  only: endJulday               ! julian day: end of routing simulation
-
-  ! subroutines
-  USE process_time_module, only:process_time    ! process time information
-  USE read_runoff, only:read_runoff_data        ! read runoff value into runoff_data data strucuture
-  USE remapping,   only:remap_runoff            ! mapping HM runoff to river network HRU runoff (HM_HRU /= RN_HRU)
-  USE remapping,   only:sort_runoff             ! mapping HM runoff to river network HRU runoff (HM_HRU == RN_HRU)
-  ! external subroutines
-  USE ascii_util_module, ONLY:file_open        ! open file (performs a few checks as well)
-  USE ascii_util_module, ONLY:get_vlines       ! get a list of character strings from non-comment lines
 
   implicit none
   ! input variables: none
@@ -91,7 +92,7 @@ contains
    print*, '*.txt'
 
     ! ------------------------------------------------------------------------------------------------------------------
-    ! (1) read from the list of forcing files
+    ! (1) read from the list of forcing files and populate the start and end time steps in Julian days
     ! ------------------------------------------------------------------------------------------------------------------
     ! build filename for forcing file list
     infile = trim(input_dir)//trim(fname_qsim)
@@ -128,16 +129,17 @@ contains
       case('days');    convTime2Days=1._dp
       case default;    ierr=20; message=trim(message)//'unable to identify time units'; return
      end select
-
+     ! vname_time = vname_time / convTime2Days
 
      print*, time_units
      ! extract time information from the control information
      call process_time(time_units,    calendar, refJulday,   ierr, cmessage) ! the time unit is coming from the NetCDF for one NetCDF file
      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [refJulday]'; return; endif
      ! similarly the endref should be done here....
-     
+     ! refJuldayend = refJulday + vname_time (end)
+
      !! startJulyday and endJulyday can be move to earlier part as they are used only once...
-     call process_time(trim(simStart),calendar, startJulday, ierr, cmessage) ! start of the simulation from the 
+     call process_time(trim(simStart),calendar, startJulday, ierr, cmessage) ! start of the simulation from the
      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [startJulday]'; return; endif
      call process_time(trim(simEnd),  calendar, endJulday,   ierr, cmessage)
      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endJulday]'; return; endif
