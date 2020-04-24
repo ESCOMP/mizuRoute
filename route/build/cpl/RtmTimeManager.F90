@@ -9,26 +9,26 @@ MODULE RtmTimeManager
   USE globalData  , ONLY: masterproc
 
   implicit none
-  private
+  private ! except
 
-  ! Public methods
   public :: init_time                 ! setup startup values
   public :: shr_timeStr
 
+  !--------------------------------------------------------------------------
+  ! Private module data
+  !--------------------------------------------------------------------------
 
-  integer,  parameter :: uninit_int = -999999999
-  real(r8), parameter :: uninit_r8  = -999999999.0
+  logical,  parameter :: debug_write = .true.
 
   ! Input from CESM driver
-  integer,          save :: nelapse               = uninit_int,  & ! number of timesteps (or days if negative) to extend a run
-                            start_ymd             = uninit_int,  & ! starting date for run in yearmmdd format
-                            start_tod             = 0,           & ! starting time of day for run in seconds
-                            stop_ymd              = uninit_int,  & ! stopping date for run in yearmmdd format
-                            stop_tod              = 0,           & ! stopping time of day for run in seconds
-                            ref_ymd               = uninit_int,  & ! reference date for time coordinate in yearmmdd format
-                            ref_tod               = 0              ! reference time of day for time coordinate in seconds
-
-  logical,          save :: tm_first_restart_step = .false.        ! true for first step of a restart or branch run
+  integer,  save      :: nelapse               = integerMissing, & ! number of timesteps (or days if negative) to extend a run
+                         start_ymd             = integerMissing, & ! starting date for run in yearmmdd format
+                         start_tod             = 0,              & ! starting time of day for run in seconds
+                         stop_ymd              = integerMissing, & ! stopping date for run in yearmmdd format
+                         stop_tod              = 0,              & ! stopping time of day for run in seconds
+                         ref_ymd               = integerMissing, & ! reference date for time coordinate in yearmmdd format
+                         ref_tod               = 0                 ! reference time of day for time coordinate in seconds
+  logical,  save      :: tm_first_restart_step = .false.           ! true for first step of a restart or branch run
 
 CONTAINS
 
@@ -78,11 +78,6 @@ CONTAINS
    case default;    ierr=20; message=trim(message)//'unable to identify time units'; return
   end select
 
-  if ( masterproc )then
-    write(iulog,*) 'simStart = ', trim(simStart)
-    write(iulog,*) 'simEnd   = ', trim(simEnd)
-    call shr_sys_flush(iulog)
-  end if
   ! extract time information from the control information
   call process_time(trim(time_units), calendar, refJulday,   ierr, cmessage)
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [refJulday]'; return; endif
@@ -91,19 +86,22 @@ CONTAINS
   call process_time(trim(simEnd),  calendar, endJulday,   ierr, cmessage)
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endJulday]'; return; endif
 
-  nTime = int((endJulday - refJulday)*convTime2Days)
-  if ( masterproc )then
-     write(iulog,*) 'refJulDay = ', refJulday
-     write(iulog,*) 'startJulDay = ', startJulday
-     write(iulog,*) 'endJulDay = ', endJulday
-     write(iulog,*) 'nTime   = ', nTime
-     call shr_sys_flush(iulog)
-  end if
+  nTime = int((endJulday - refJulday)*convTime2Days) + 1
+
   if ( allocated(timeVar) )then
     message=trim(message)//trim(cmessage)//' (allocated)'; return
   end if
+
   allocate(timeVar(nTime), stat=ierr)
   if(ierr/=0)then; message=trim(message)//trim(cmessage)//' (allocate)'; return; endif
+
+  ! Create timeVar array: starting with 0 and increment of model time step in model unit
+  timeVar(1) = (startJulday - refJulday)*convTime2Days
+  if (nTime>1) then
+    do ix = 2, nTime
+      timeVar(ix) = timeVar(ix-1) + convTime2Days
+    end do
+  end if
 
   ! check that the dates are aligned
   if(endJulday<startJulday) then; ierr=20; message=trim(message)//'simulation end is before simulation start'; return; endif
@@ -116,6 +114,16 @@ CONTAINS
     exit
   enddo
   iTime = ix
+
+  if (masterproc .and. debug_write) then
+    write(iulog,*) 'simStart (startJulDay) = ', trim(simStart),'(',startJulday,')'
+    write(iulog,*) 'simEnd   (endJulDay)   = ', trim(simEnd),  '(',endJulday,  ')'
+    write(iulog,*) 'refJulDay              = ', refJulday
+    write(iulog,*) 'modJulDay              = ', modJulday
+    write(iulog,*) 'nTime                  = ', nTime
+    write(iulog,*) 'iTime, timeVar(iTime)  = ', iTime, timeVar(iTime)
+    call shr_sys_flush(iulog)
+  end if
 
   ! initialize previous model time
   modTime(0) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)

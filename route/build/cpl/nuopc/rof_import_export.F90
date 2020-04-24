@@ -82,6 +82,7 @@ contains
     call fldlist_add(fldsFrRof_num, fldsFrRof, 'Forr_rofi')
     call fldlist_add(fldsFrRof_num, fldsFrRof, 'Flrr_flood')
     call fldlist_add(fldsFrRof_num, fldsFrRof, 'Flrr_volr')
+    call fldlist_add(fldsFrRof_num, fldsFrRof, 'Flrr_volrmch')
 
     do n = 1,fldsFrRof_num
        call NUOPC_Advertise(exportState, standardName=fldsFrRof(n)%stdname, &
@@ -254,6 +255,7 @@ contains
     real(r8), pointer :: rofi(:)
     real(r8), pointer :: flood(:)
     real(r8), pointer :: volr(:)
+    real(r8), pointer :: volrmch(:)
     logical, save     :: first_time = .true.
     integer           :: dbrc
     character(len=*), parameter :: subname='(rof_import_export:export_fields)'
@@ -297,6 +299,7 @@ contains
     allocate(rofi(begr:endr))
     allocate(flood(begr:endr))
     allocate(volr(begr:endr))
+    allocate(volrmch(begr:endr))
 
     if ( ice_runoff )then
        ! separate liquid and ice runoff
@@ -323,6 +326,7 @@ contains
        !volr(n)    =  rtmCTL%volr(n)  / rtmCTL%area(n)
        !volr(n)    =  rtmCTL%volr(n)
        volr(n)    =  0.0_r8
+       volrmch(n) =  0.0_r8
     end do
 
     call state_setexport(exportState, 'Forr_rofl', begr, endr, input=rofl, rc=rc)
@@ -337,17 +341,21 @@ contains
     call state_setexport(exportState, 'Flrr_volr', begr, endr, input=volr, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
+    call state_setexport(exportState, 'Flrr_volrmch', begr, endr, input=volrmch, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
     if (debug_write .and. masterproc .and. iTime <  5) then
        do n = begr,endr
           write(iulog,F01)'export: nstep, n, Flrr_flood   = ',iTime, n, flood(n)
           write(iulog,F01)'export: nstep, n, Flrr_volr    = ',iTime, n, volr(n)
+          write(iulog,F01)'export: nstep, n, Flrr_volrmch = ',iTime, n, volrmch(n)
           write(iulog,F01)'export: nstep, n, Forr_rofl    = ',iTime ,n, rofl(n)
           write(iulog,F01)'export: nstep, n, Forr_rofi    = ',iTime ,n, rofi(n)
        end do
        call shr_sys_flush(iulog)
     end if
 
-    deallocate(rofl, rofi, flood, volr)
+    deallocate(rofl, rofi, flood, volr, volrmch)
 
   end subroutine export_fields
 
