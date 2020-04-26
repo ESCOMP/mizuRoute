@@ -8,7 +8,8 @@ USE public_var,        ONLY: integerMissing
 USE public_var,        ONLY: doesBasinRoute      ! basin routing options   0-> no, 1->IRF, otherwise error
 USE public_var,        ONLY: doesAccumRunoff     ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
 USE public_var,        ONLY: routOpt             ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-USE public_var,        ONLY: kinematicWave       ! kinematic wave
+USE public_var,        ONLY: kinematicWave       ! Lagrangian kinematic wave
+USE public_var,        ONLY: kinematicWaveEuler  ! Eulerian kinematic wave
 USE public_var,        ONLY: impulseResponseFunc ! impulse response function
 USE public_var,        ONLY: allRoutingMethods   ! all routing methods
 USE globalData,        ONLY: pid, nNodes
@@ -129,6 +130,12 @@ contains
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
+  if (routOpt==kinematicWaveEuler) then
+   ! write routed runoff (m3/s)
+   call write_pnetcdf_recdim(pioFileDesc, 'KWEroutedRunoff', RCHFLX_local(:)%REACH_Q, iodesc_rch_flx, jTime, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
   if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
    ! write routed runoff (m3/s)
    call write_pnetcdf_recdim(pioFileDesc, 'IRFroutedRunoff', RCHFLX_local(:)%REACH_Q_IRF, iodesc_rch_flx, jTime, ierr, cmessage)
@@ -243,16 +250,16 @@ contains
 
  END SUBROUTINE prep_output
 
- SUBROUTINE close_output_nc()
 
+ SUBROUTINE close_output_nc()
   USE globalData, ONLY: isFileOpen   ! file open/close status
   implicit none
   if (isFileOpen) then
    call closeFile(pioFileDesc)
    isFileOpen=.false.
   endif
-
  END SUBROUTINE close_output_nc
+
 
  ! *********************************************************************
  ! private subroutine: define routing output NetCDF file
@@ -299,9 +306,18 @@ contains
  ! This is temporary
  if (routOpt==kinematicWave) then
   meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
+  meta_rflx(ixRFLX%KWEroutedRunoff)%varFile = .false.
+ end if
+ if (routOpt==kinematicWaveEuler) then
+  meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
+  meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
  end if
  if (routOpt==impulseResponseFunc) then
   meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
+  meta_rflx(ixRFLX%KWEroutedRunoff)%varFile = .false.
+ end if
+ if (routOpt==allRoutingMethods) then
+  meta_rflx(ixRFLX%KWEroutedRunoff)%varFile = .false.
  end if
  if (doesAccumRunoff==0) then
   meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile = .false.

@@ -219,8 +219,8 @@ implicit none
 
  ! ---------- Eulerian kinematic wave ---------------------------------
  type, public :: EKWRCH
-   real(dp), allocatable    :: volsub(:)      ! volume in sub-reach (m3/s)
-   real(dp), allocatable    :: qsub(:,:)      ! discharge from sub-reach (m3/s)
+   real(dp)    :: Q(1:4)          ! Discharge at upstream and downstream of reach at current and previous time step(m3/s)
+   real(dp)    :: A(1:4)          ! Flow area at upstream and downstream of reach at current and previous time step(m3/s)
  end type EKWRCH
 
  ! ---------- irf states (future flow series ) ---------------------------------

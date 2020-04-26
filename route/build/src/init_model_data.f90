@@ -234,6 +234,7 @@ CONTAINS
                                 ierr, cmessage)   ! output: error controls
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+
    endif
 
  END SUBROUTINE init_ntopo_data
@@ -297,10 +298,14 @@ CONTAINS
   USE public_var, ONLY: routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
   USE public_var, ONLY: fname_state_in    ! name of state input file
   USE public_var, ONLY: output_dir        ! directory containing output data
+  USE public_var, ONLY: routOpt           ! routing scheme options
+  USE public_var, ONLY: kinematicWaveEuler!
   USE globalData, ONLY: nRch_mainstem     ! number of mainstem reaches
   USE globalData, ONLY: rch_per_proc      ! number of tributary reaches
   USE globalData, ONLY: RCHFLX_main       ! reach flux structure
   USE globalData, ONLY: RCHFLX_trib       ! reach flux structure
+  USE globalData, ONLY: RCHSTA_main       ! reach flux structure
+  USE globalData, ONLY: RCHSTA_trib       ! reach flux structure
   USE globalData, ONLY: TSEC              ! begining/ending of simulation time step [sec]
 
   implicit none
@@ -314,6 +319,7 @@ CONTAINS
   ! local variable
   real(dp)                         :: T0,T1            ! begining/ending of simulation time step [sec]
   integer(i4b)                     :: iens             ! ensemble index (currently only 1)
+  integer(i4b)                     :: ix               ! loop index
   character(len=strLen)            :: cmessage         ! error message of downwind routine
 
   ! initialize error control
@@ -342,16 +348,36 @@ CONTAINS
     ! initialize flux structures
 
    if (pid==0) then
+
      if (nRch_mainstem > 0) then
        RCHFLX_main(:,:)%BASIN_QI = 0._dp
        RCHFLX_main(:,:)%BASIN_QR(0) = 0._dp
        RCHFLX_main(:,:)%BASIN_QR(1) = 0._dp
+
+       if (routOpt==kinematicWaveEuler) then
+         do ix = 1,4
+           RCHSTA_main(:,:)%EKW_ROUTE%A(ix) = 0._dp
+           RCHSTA_main(:,:)%EKW_ROUTE%Q(ix) = 0._dp
+         end do
+       end if
+
      end if
+
    end if
+
    if (rch_per_proc(pid) > 0) then
+
      RCHFLX_trib(:,:)%BASIN_QI = 0._dp
      RCHFLX_trib(:,:)%BASIN_QR(0) = 0._dp
      RCHFLX_trib(:,:)%BASIN_QR(1) = 0._dp
+
+     if (routOpt==kinematicWaveEuler) then
+       do ix = 1,4
+         RCHSTA_trib(:,:)%EKW_ROUTE%A(ix) = 0._dp
+         RCHSTA_trib(:,:)%EKW_ROUTE%Q(ix) = 0._dp
+       end do
+     end if
+
    end if
 
    ! initialize time
@@ -535,10 +561,13 @@ CONTAINS
   ! This sub-routine is called only with single mpi proc use
 
   USE var_lookup,          ONLY: ixNTOPO                  ! index of variables for the network topology
+  USE public_var,          ONLY: desireId
+  USE globalData,          ONLY: ixPrint
   USE globalData,          ONLY: river_basin_main         ! OMP domain data structure for mainstem
   USE globalData,          ONLY: rch_per_proc             ! number of reaches assigned to each proc (size = num of procs+1)
   USE globalData,          ONLY: ixRch_order              ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
   USE domain_decomposition,ONLY: omp_domain_decomposition ! domain decomposition for omp
+  USE nr_utility_module,   ONLY: findIndex                ! find index within a vector
 
   implicit none
   ! Input variables
@@ -548,6 +577,7 @@ CONTAINS
   integer(i4b),                   intent(out) :: ierr
   character(len=strLen),          intent(out) :: message                   ! error message
   ! Local variables
+  integer(i4b), allocatable                   :: segId(:)                  ! reach id
   integer(i4b)                                :: iSeg                      ! reach and hru loop indices
   character(len=strLen)                       :: cmessage                  ! error message from subroutine
 
@@ -557,18 +587,21 @@ CONTAINS
   allocate(rch_per_proc(-1:0), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating array for [rch_per_proc]'; return; endif
 
-  allocate(ixRch_order(nRch_in), stat=ierr)
+  allocate(ixRch_order(nRch_in), segId(nRch_in), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating array for [ixRch_order]'; return; endif
 
   ! Count the number of reaches and hrus in each node
   rch_per_proc(-1) = nRch_in; rch_per_proc(0) = 0
   do iSeg =1,nRch_in
+    segId(iSeg)       =  structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)
     ixRch_order(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1)
   end do
 
   ! OMP domain decomposition
   call omp_domain_decomposition(stream_order, rch_per_proc(-1), structNTOPO, river_basin_main, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  if (desireId/=integerMissing) ixPrint(1) = findIndex(segId, desireId, integerMissing); print*, 'desireId=',desireId, 'ixPrint(1)=', ixPrint(1)
 
   ! -------------------
   ! print*,'segid,branch,order'

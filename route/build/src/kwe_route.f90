@@ -13,6 +13,7 @@ USE dataTypes, ONLY: EKWRCH            ! Eulerian KW state
 ! global data
 USE public_var, ONLY: iulog             ! i/o logical unit number
 USE public_var, ONLY: verySmall         ! a very small value
+USE public_var, ONLY: runoffMin         ! minimum runoff
 USE public_var, ONLY: realMissing       ! missing value for real number
 USE public_var, ONLY: integerMissing    ! missing value for integer number
 
@@ -170,6 +171,7 @@ contains
  character(*),  intent(out)                :: message           ! error message
  ! Local variables to
  type(STRFLX), allocatable                 :: uprflux(:)        ! upstream Reach fluxes
+ logical(lgt)                              :: doCheck           ! check details of variables
  integer(i4b)                              :: nUps              ! number of upstream segment
  integer(i4b)                              :: iUps              ! upstream reach index
  integer(i4b)                              :: iRch_ups          ! index of upstream reach in NETOPO
@@ -178,6 +180,10 @@ contains
  ! initialize error control
  ierr=0; message='kwe_rch/'
 
+ doCheck = .false.
+ if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
+   doCheck = .true.
+ end if
 
  ! identify number of upstream segments of the reach being processed
  nUps = size(NETOPO_in(segIndex)%UREACHI)
@@ -192,22 +198,31 @@ contains
    end do
  endif
 
+ if(doCheck)then
+   write(iulog,'(A)') 'CHECK Euler Kinematic wave'
+   if (nUps>0) then
+     do iUps = 1,nUps
+       write(iulog,'(A,X,I6,X,G11.5)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),uprflux(iUps)%REACH_Q
+     enddo
+   end if
+   write(iulog,'(A,X,G11.5)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+ endif
+
  ! perform river network UH routing
  call kw_euler(RPARAM_in(segIndex),         &    ! input: parameter at segIndex reach
                T0,T1,                       &    ! input: start and end of the time step
                uprflux,                     &    ! input: upstream reach fluxes
                RCHSTA_out(iens,segIndex),   &    ! inout:
                RCHFLX_out(iens,segIndex),   &    ! inout: updated fluxes at reach
+               doCheck,                    &    ! input: reach index to be examined
                ierr, message)                    ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! Check True since now this reach now routed
  RCHFLX_out(iEns,segIndex)%isRoute=.True.
 
- ! check
- if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
-  write(iulog,*) 'RCHFLX_out(iens,segIndex)%BASIN_QR(1),RCHFLX_out(iens,segIndex)%REACH_Q = ', &
-                  RCHFLX_out(iens,segIndex)%BASIN_QR(1),RCHFLX_out(iens,segIndex)%REACH_Q
+ if(doCheck)then
+  write(iulog,'(A,X,G11.5)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%REACH_Q
  endif
 
  END SUBROUTINE kwe_rch
@@ -221,19 +236,25 @@ contains
                      uprflux,       & ! input: upstream reach fluxes
                      rstate,        & ! inout: reach state at a reach
                      rflux,         & ! inout: reach flux at a reach
+                     doCheck,       & ! input: reach index to be examined
                      ierr,message)
  ! ----------------------------------------------------------------------------------------
-
- ! https://www.fs.fed.us/rm/pubs_other/rmrs_2010_wang_l001.pdf
-
- ! STILL WORKING IN PROGRESS.
- ! Need to handle empty chanel (at first time step and the headwate basin where no channel routing is performed)
+ ! Kinematic wave equation is solved based on conservative form the equation
+ ! Reference: HEC-HMS technical reference mannual
+ ! https://www.hec.usace.army.mil/software/hec-hms/documentation/HEC-HMS_Technical%20Reference%20Manual_(CPD-74B).pdf
+ !
+ ! Regarding state array:
+ ! (time:0:1, loc:0:1) 0-previous time step/inlet, 1-current time step/outlet.
+ ! Q or A(1,2,3,4): 1: (t=0,x=0), 2: (t=0,x=1), 3: (t=1,x=0), 4: (t=1,x=1)
+ !
+ ! TO-DO: 1. implement adaptive time step Euler
 
  IMPLICIT NONE
  ! Input
  type(RCHPRP), intent(in)                 :: rch_param    ! River reach parameter
  real(dp),     intent(in)                 :: T0,T1        ! start and end of the time step (seconds)
  type(STRFLX), intent(in), allocatable    :: uprflux(:)   ! upstream Reach fluxes
+ logical(lgt), intent(in)                 :: doCheck      ! reach index to be examined
  ! Input/Output
  type(STRSTA), intent(inout)              :: rstate       ! curent reach states
  type(STRFLX), intent(inout)              :: rflux        ! current Reach fluxes
@@ -241,87 +262,130 @@ contains
  integer(i4b), intent(out)                :: ierr         ! error code
  character(*), intent(out)                :: message      ! error message
  ! LOCAL VAIRABLES
- type(EKWRCH)                             :: ekw_tmp      ! temporal eulerian kw state
- integer(i4b)                             :: NN           ! number of reach sub-segments
- real(DP)                                 :: ALFA         ! constant, 5/3
- real(DP)                                 :: K            ! sqrt(slope)/mannings N
- real(DP)                                 :: XMX          ! length of the stream segment
+ real(dP)                                 :: alpha        ! sqrt(slope)(/mannings N* width)
+ real(dP)                                 :: beta         ! constant, 5/3
+ real(dP)                                 :: alpha1       ! sqrt(slope)(/mannings N* width)
+ real(dP)                                 :: beta1        ! constant, 5/3
+ !real(dp)                                 :: theta        ! Courant number [-]
  real(dp)                                 :: dT           ! interval of time step [sec]
- real(dp)                                 :: dx           ! time duration [sec]
- real(dp)                                 :: q_upstream   ! total upstream discharge [m3/s]
+ real(dp)                                 :: dX           ! length of segment [m]
+ real(dp)                                 :: A(0:1,0:1)   !
+ real(dp)                                 :: Q(0:1,0:1)   !
+ real(dp)                                 :: Abar         !
+ real(dp)                                 :: Qbar         !
  integer(i4b)                             :: iUps,ix      ! loop index
  integer(i4b)                             :: nUps         ! number of all upstream segment
- real(dp), allocatable                    :: qin(:)       ! interval of time step [sec]
- real(dp), allocatable                    :: WC(:)        ! wave celerity
  character(len=strLen)                    :: cmessage     ! error message from subroutine
 
  ! initialize error control
  ierr=0; message='kw_euler/'
 
-
- ! deallocate current reach sub q array
- if (allocated(rstate%EKW_ROUTE%qsub)) then
-
-  NN = size(rstate%EKW_ROUTE%qsub,2)
-  allocate(ekw_tmp%qsub(0:1,NN), stat=ierr, errmsg=cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': '; return; endif
-  ekw_tmp%qsub = rstate%EKW_ROUTE%qsub
-
-  deallocate(rstate%EKW_ROUTE%qsub)
-
- else
-
-  NN = 1
-  allocate(ekw_tmp%qsub(0:1,NN))
-  ekw_tmp%qsub(:,:) = 0._dp
-
- endif
-
- ! identify number of upstream segments of the reach being processed
  nUps = size(uprflux)
 
- ! Get the reach parameters
- ALFA = 5._dp/3._dp        ! should this be initialized here or in a parameter file?
- K    = sqrt(rch_param%R_SLOPE)/rch_param%R_MAN_N
- XMX  = rch_param%RLENGTH
+ if (nUps>0) then
 
- ! Identify the number of points to route
- dT = T1-T0
- dx = XMX/NN
-
- allocate(WC(NN), qin(NN), stat=ierr, errmsg=cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage)//': '; return; endif
-
- ! compute wave celerity for all flow points (array operation)
- WC(1:NN) = ALFA*K**(1._dp/ALFA)*ekw_tmp%qsub(0,1:NN)**((ALFA-1._dp)/ALFA)
-
- qin(1:NN) = 0._dp
- qin(NN)   = rflux%BASIN_QR(1)
-
- ! Find out total q at top of a segment
- q_upstream = 0.0_dp
- if(nUps>0)then
-   do iUps = 1,nUps
-     q_upstream = q_upstream + uprflux(iUps)%REACH_Q
+   !  current time and inlet  3 (1,0) -> previous time and inlet  1 (0,0)
+   !  current time and outlet 4 (1,1) -> previous time and outlet 2 (0,1)
+   do ix = 0,1
+     A(0,ix) = rstate%EKW_ROUTE%A(ix+3)
+     Q(0,ix) = rstate%EKW_ROUTE%Q(ix+3)
    end do
+
+   A(1,1) = realMissing
+   Q(1,1) = realMissing
+
+   ! Get the reach parameters
+   ! A = (Q/alpha)**(1/beta)
+   ! Q = alpha*A**beta
+   alpha = sqrt(rch_param%R_SLOPE)/(rch_param%R_MAN_N*rch_param%R_WIDTH**(2._dp/3._dp))
+   beta  = 5._dp/3._dp
+   beta1  = 1._dp/beta
+   alpha1 = (1.0/alpha)**beta1
+   dX = rch_param%RLENGTH
+   dT = T1-T0
+
+   ! compute flow rate and flow area at upstream end at current time step
+   Q(1,0) = 0.0_dp
+   do iUps = 1,nUps
+     Q(1,0) = Q(1,0) + uprflux(iUps)%REACH_Q
+   end do
+
+   A(1,0) = (Q(1,0)/alpha)**(1/beta)
+
+   if (doCheck) then
+     write(iulog,'(3(A,X,G11.5))') ' R_SLOPE=',rch_param%R_SLOPE,' R_WIDTH=',rch_param%R_WIDTH,' R_MANN=',rch_param%R_MAN_N
+     write(iulog,'(3(A,X,G11.5))') ' Q(0,0)=',Q(0,0),' Q(0,1)=',Q(0,1),' Q(1,0)=',Q(1,0)
+     write(iulog,'(3(A,X,G11.5))') ' A(0,0)=',A(0,0),' A(0,1)=',A(0,1),' A(1,0)=',A(1,0)
+   end if
+
+! ----- Need adaptive time step forward Euler --------
+!   ! Compute Courant number == ration of celarity to dx/dt
+!   Qbar = 0.5*(Q(0,1)+Q(1,0))
+!   Abar = 0.5*(A(0,1)+A(1,0))
+!   if (Abar <= 0._dp) then
+!     Qbar = runoffMin
+!     Abar = (Qbar/alpha)**(1/beta)
+!   endif
+!   theta = beta*(dT/dX)*(Qbar)/(Abar)
+!
+!   if (doCheck) then
+!     write(iulog,'(5(a,G11.5,x))') ' dT= ', dt, 'dX=', dX, 'Qbar= ', Qbar, 'Abar= ', ABar, 'theta= ', theta
+!   end if
+
+   ! ----------
+   ! solve flow rate and flow area at downstream end at current time step
+   ! ----------
+
+! ----- Modify for adaptive time step forward Euler --------
+!   if (theta >= 1.0) then
+!     Q(1,1) = Q(1,0) - dX/dT*(A(1,0)-A(0,0))
+!     A(1,1) = (Q(1,1)/alpha)**(1/beta)
+!   else
+!     A(1,1) = A(0,1) + dT/dX*(Q(0,0) - Q(0,1))
+!     Q(1,1) = alpha*A(1,1)**beta
+!   end if
+
+   Qbar = (Q(0,1) + Q(1,0))/2
+   Q(1,1) = dT/dX*Q(1,0) + alpha1*beta1*Qbar**(beta1-1)*Q(0,1)
+   Q(1,1) = Q(1,1)/(dT/dX + alpha1*beta1*Qbar**(beta1-1))
+
+   if (doCheck) then
+     write(iulog,'(2(A,X,G11.5))') ' A(1,1)=',A(1,1),' Q(1,1)=',Q(1,1)
+   end if
+
+ else ! if head-water
+
+   !  current time and inlet  3 (1,0) -> previous time and inlet (0,0)
+   !  current time and outlet 4 (1,1) -> previous time and outlet (0,1)
+   do ix = 0,1
+     A(0,ix) = rstate%EKW_ROUTE%A(ix+3)
+     Q(0,ix) = rstate%EKW_ROUTE%Q(ix+3)
+   end do
+
+   A(1,0) = 0._dp
+   Q(1,0) = 0._dp
+
+   Q(1,1) = 0._dp
+   A(1,1) = 0._dp
+
+   if (doCheck) then
+     write(iulog,'(A)')            ' This is headwater '
+     write(iulog,'(2(A,X,G11.5))') ' A(1,1)=',A(1,1),' Q(1,1)=',Q(1,1)
+   endif
+
  endif
 
- subrch:do ix = 1, NN
-   if (ix ==1) then
-     ekw_tmp%qsub(1,ix) = dT/dX*q_upstream + 1._dp/WC(ix)*ekw_tmp%qsub(0,ix) + dT*qin(ix)
-   else
-     ekw_tmp%qsub(1,ix) = dT/dX*ekw_tmp%qsub(1,ix-1)+1._dp/WC(ix)*ekw_tmp%qsub(0,ix) + dT*qin(ix)
-   endif
-   ekw_tmp%qsub(1,ix) = ekw_tmp%qsub(1,ix)/(dT/dX+1._dp/WC(ix))
- end do subrch
+ ! add catchment flow
+ rflux%REACH_Q = Q(1,1)+rflux%BASIN_QR(1)
 
- rflux%REACH_Q = ekw_tmp%qsub(1,NN)
+ ! update state
+ do ix = 0,1
+   rstate%EKW_ROUTE%Q(ix+1) = Q(0,ix)
+   rstate%EKW_ROUTE%Q(ix+3) = Q(1,ix)
 
-
- allocate(rstate%EKW_ROUTE%qsub(0:1,NN), stat=ierr, errmsg=cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage)//': rstate%EKW_ROUTE%qsub'; return; endif
-
- rstate%EKW_ROUTE%qsub = ekw_tmp%qsub
+   rstate%EKW_ROUTE%A(ix+1) = A(0,ix)
+   rstate%EKW_ROUTE%A(ix+3) = A(1,ix)
+ end do
 
  END SUBROUTINE kw_euler
 
