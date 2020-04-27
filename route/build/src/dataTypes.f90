@@ -130,6 +130,19 @@ implicit none
   type(clength),allocatable           :: var(:)    ! var(:)%dat
  endtype var_clength
 
+
+ ! ---------- forcing input file strcuture -----------------------------------------------------------------
+  ! input file name and strcuture for nc files
+  type, public ::  infileinfo
+   character(len=strLen)                   :: infilename       ! the name of the input file name
+   real(dp)                 , allocatable  :: timevar(:)       ! the time varibale from the netcdf file
+   real(dp)                                :: convTime2Days    ! the time varibale from the netcdf file
+   integer(i4b)                            :: nTime            ! number of time step in a nc file
+   integer(i4b)                            :: iTimebound(1:2)  ! time index of start and end of the
+   character(len=strLen)                   :: calendar         ! the calendar
+   character(len=strLen)                   :: unit             ! the unit of time
+  end type infileinfo
+
  ! ---------- mapping data structures ----------------------------------------------------------------------
 
  ! data to remap runoff hru to river network hrus
