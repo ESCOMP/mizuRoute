@@ -216,6 +216,12 @@ def buildnml(case, caseroot, compname):
     create_namelist_infile(case, user_nl_file, infile)
     control_infile = [infile]
 
+    # Read in the user control file for the case and change settings to it
+    user_ctl_file = os.path.join(caseroot, "user_ctl_mizuRoute" + inst_string)
+    usrctl = mizuRoute_control()
+    usrctl.read( user_ctl_file, allowEmpty=True )
+    for element in usrctl.get_elmList():
+       ctl.set( element, usrctl.get( element ) )
     # Create the namelist generator object - independent of instance
     definition_files = [srcroot + "/cime_config/namelist_definition_mizuRoute.xml"]
     nmlgen = NamelistGenerator(case, definition_files)

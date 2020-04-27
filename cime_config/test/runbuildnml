@@ -20,6 +20,7 @@ if [ $? != 0 ] ; then
    echo "test FAIL"
    exit -1
 else
+   echo "Cat the results...."
    cat Buildconf/mizurouteconf/mizuRoute*
 fi
 rm -rf user_* run/* Buildconf/mizurouteconf/* Buildconf/* CaseDocs
