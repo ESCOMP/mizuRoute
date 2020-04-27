@@ -247,6 +247,12 @@ class test_mizuRoute_control(unittest.TestCase):
    def test_empty_file( self ):
        self.assertRaises( SystemExit, self.ctl.read, "../../cime_config/user_nl_mizuRoute" )
 
+   def test_read_in_two_control_files( self ):
+       self.ctl.read( "SAMPLE.control" )
+       newctl = mizuRoute_control()
+       newctl.read( "../../cime_config/user_nl_mizuRoute", allowEmpty=True )
+       self.assertEqual( newctl.get_elmList(), [] )
+
    def test_write( self ):
        infile = "SAMPLE.control" 
        self.ctl.read( infile )
