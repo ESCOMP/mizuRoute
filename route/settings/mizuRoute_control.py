@@ -118,7 +118,14 @@ class mizuRoute_control(object):
           else:
              expect( False, "set method is operating on a name that doesn't exist:"+name )
 
+   def get_elmList( self ):
+       """
+       Get the list of elements in the file
+       """
+       if ( not self.is_read() ):
+             expect( False, "mizuRoute control file was NOT read in yet, need to do that before returning list of elements" )
 
+       return( self.keyList )
 
    def __is_valid_name( self, name ):
        """
@@ -154,6 +161,45 @@ class test_mizuRoute_control(unittest.TestCase):
        self.assertFalse( self.ctl.is_read() )
        self.ctl.read( "SAMPLE.control" )
        self.assertTrue( self.ctl.is_read() )
+
+   def test_get_list_of_elments( self ):
+       self.ctl.read( "SAMPLE.control" )
+       elist = self.ctl.get_elmList( )
+       expected = ['ancil_dir', 'input_dir', 'output_dir', 'sim_start', 'sim_end', 'fname_ntopOld', 
+                   'dname_sseg', 'dname_nhru', 'ntopWriteOption', 'fname_ntopNew', 'seg_outlet', 
+                   'fname_qsim', 'vname_qsim', 'vname_time', 'vname_hruid', 'dname_xlon',
+                   'dname_ylat', 'dname_time', 'dname_hruid', 'units_qsim', 'dt_qsim', 'is_remap', 
+                   'fname_remap', 'vname_hruid_in_remap', 'vname_weight', 'vname_qhruid', 'vname_num_qhru', 
+                   'dname_hru_remap', 'dname_data_remap', 'vname_i_index', 'vname_j_index',
+                   'restart_opt', 'route_opt', 'fname_output', 'fname_state_in', 'fname_state_out', 
+                   'hydGeometryOption', 'topoNetworkOption', 'computeReachList', 'param_nml', 'varname_area', 
+                   'varname_length', 'varname_slope', 'varname_HRUid', 'varname_hruSegId',
+                   'varname_segId', 'varname_downSegId', 'thingwithlongname', 'ancil_dir', 
+                   'input_dir', 'output_dir', 'sim_start', 'sim_end',
+                   'fname_ntopOld', 'dname_sseg', 'dname_nhru', 'ntopWriteOption', 'fname_ntopNew', 
+                   'seg_outlet', 'fname_qsim', 'vname_qsim',
+                   'vname_time', 'vname_hruid', 'dname_xlon', 'dname_ylat', 'dname_time', 'dname_hruid', 
+                   'units_qsim', 'dt_qsim', 'is_remap',
+                   'fname_remap', 'vname_hruid_in_remap', 'vname_weight', 'vname_qhruid', 'vname_num_qhru', 
+                   'dname_hru_remap', 'dname_data_remap',
+                   'vname_i_index', 'vname_j_index', 'restart_opt', 'route_opt', 'fname_output', 
+                   'fname_state_in', 'fname_state_out',
+                   'hydGeometryOption', 'topoNetworkOption', 'computeReachList', 'param_nml', 
+                   'varname_area', 'varname_length', 'varname_slope',
+                   'varname_HRUid', 'varname_hruSegId', 'varname_segId', 'varname_downSegId', 
+                   'ancil_dir', 'input_dir', 'output_dir', 'sim_start',
+                   'sim_end', 'fname_ntopOld', 'dname_sseg', 'dname_nhru', 'ntopWriteOption', 
+                   'fname_ntopNew', 'seg_outlet', 'fname_qsim',
+                   'vname_qsim', 'vname_time', 'vname_hruid', 'dname_xlon', 'dname_ylat', 
+                   'dname_time', 'dname_hruid', 'units_qsim', 'dt_qsim',
+                   'is_remap', 'fname_remap', 'vname_hruid_in_remap', 'vname_weight', 'vname_qhruid', 
+                   'vname_num_qhru', 'dname_hru_remap',
+                   'dname_data_remap', 'vname_i_index', 'vname_j_index', 'restart_opt', 'route_opt', 
+                   'fname_output', 'fname_state_in',
+                   'fname_state_out', 'hydGeometryOption', 'topoNetworkOption', 'computeReachList', 
+                   'param_nml', 'varname_area', 'varname_length',
+                   'varname_slope', 'varname_HRUid', 'varname_hruSegId', 'varname_segId', 'varname_downSegId']
+       self.assertEqual( expected, elist )
 
    def test_is_read_coupled( self ):
        self.assertFalse( self.ctl.is_read() )
