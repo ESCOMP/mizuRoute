@@ -31,7 +31,7 @@ class mizuRoute_control(object):
    longestName = 0                          # Longest name
    longestValue = 0                         # Longest value
 
-   def read( self, infile ):
+   def read( self, infile, allowEmpty=False ):
        """
        Read and parse a mizuRoute control file
        """
@@ -58,7 +58,7 @@ class mizuRoute_control(object):
 
 
        # If no data was read -- abort with an error
-       if ( len(self.keyList) == 0 ):
+       if ( len(self.keyList) == 0 and not allowEmpty ):
           expect( False, "No data was read from the file: "+infile )
 
        # Mark the file as read
@@ -200,6 +200,10 @@ class test_mizuRoute_control(unittest.TestCase):
                    'param_nml', 'varname_area', 'varname_length',
                    'varname_slope', 'varname_HRUid', 'varname_hruSegId', 'varname_segId', 'varname_downSegId']
        self.assertEqual( expected, elist )
+
+   def test_allow_empty( self ):
+       self.ctl.read( "../../cime_config/user_nl_mizuRoute", allowEmpty=True )
+       self.assertTrue( self.ctl.is_read() )
 
    def test_is_read_coupled( self ):
        self.assertFalse( self.ctl.is_read() )
