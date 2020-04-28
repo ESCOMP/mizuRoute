@@ -44,6 +44,11 @@
       <desc>case name</desc>
     </entry>
 
+    <entry id="MODEL" value="cesm">
+      <type>char</type>
+      <desc>model system name</desc>
+    </entry>
+
     <entry id="CASEROOT" value="$ENV{PWD}">
       <type>char</type>
       <desc>full pathname of case</desc>

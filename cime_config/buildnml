@@ -65,7 +65,7 @@ def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_
        varname_downSegId = "Tosegment"
        varname_pfafCode = "PFAF"
     elif (  config['rof_grid'] == "r05" ):
-       fname_ntopOld = "ntopo_r05_MOSART_Global_half_20161105a_reord_c20200331.nc"
+       fname_ntopOld = "ntopo_r05_MOSART_Global_half_20161105a_cdf5_reord_360_c20200427.nc"
        varname_area = "hruArea"
        varname_length = "rlen"
        varname_slope  = "rslp"
@@ -215,6 +215,18 @@ def buildnml(case, caseroot, compname):
     infile = os.path.join(confdir, "control_infile")
     create_namelist_infile(case, user_nl_file, infile)
     control_infile = [infile]
+
+    # Read in the user control file for the case and change settings to it
+    file_src = "user_ctl_mizuRoute"
+    user_ctl_file = os.path.join(caseroot, file_src + inst_string)
+    if ( not os.path.exists( user_ctl_file ) ):
+       shutil.copy( os.path.join( srcroot, "cime_config", file_src), user_ctl_file )
+    usrctl = mizuRoute_control()
+    usrctl.read( user_ctl_file, allowEmpty=True )
+    for element in usrctl.get_elmList():
+       value = ctl.get( element )
+       expect( value != "UNSET", "Element in the user_ctl_mizuRoute file is NOT in the control file: "+element )
+       ctl.set( element, usrctl.get( element ) )
 
     # Create the namelist generator object - independent of instance
     definition_files = [srcroot + "/cime_config/namelist_definition_mizuRoute.xml"]
