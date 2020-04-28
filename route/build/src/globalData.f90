@@ -12,6 +12,9 @@ module globalData
   USE dataTypes, ONLY: dim_info      ! metadata type
   USE dataTypes, ONLY: var_info      ! metadata type
 
+  ! input data file info
+  USE dataTypes, ONLY: infileinfo    ! strture for getting the information of input files
+
   ! parameter structures
   USE dataTypes, ONLY: RCHPRP        ! Reach parameters (properties)
   USE dataTypes, ONLY: RCHTOPO       ! Network topology
@@ -68,6 +71,7 @@ module globalData
   ! ---------- Data/Time data  -------------------------------------------------------------------------
 
   integer(i4b)                   , public :: iTime                ! time index at simulation time step
+  integer(i4b)                   , public :: iTime_local          ! time index at simulation time step for a given input file
   real(dp)                       , public :: startJulday          ! julian day: start of routing simulation
   real(dp)                       , public :: endJulday            ! julian day: end of routing simulation
   real(dp)                       , public :: refJulday            ! julian day: reference
@@ -75,6 +79,11 @@ module globalData
   real(dp)        , allocatable  , public :: timeVar(:)           ! time variables (unit given by runoff data)
   real(dp)                       , public :: TSEC(0:1)            ! begning and end of time step (sec)
   type(time)                     , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
+
+  ! ---------- input file information -------------------------------------------------------------------
+
+  type(infileinfo) , allocatable , public :: infileinfo_data(:)   ! conversion factor to convert time to units of days
+
 
   ! ---------- Misc. data -------------------------------------------------------------------------
 

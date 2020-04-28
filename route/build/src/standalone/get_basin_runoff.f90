@@ -25,6 +25,7 @@ contains
   USE globalData,  only:nHRU
   USE globalData,  only:runoff_data             ! data structure to hru runoff data
   USE globalData,  only:remap_data              ! data structure to remap data
+  USE globalData,  only:iTime_local             ! local index of time for the current file to be read
   ! subroutines
   USE read_runoff, only:read_runoff_data        ! read runoff value into runoff_data data strucuture
   USE remapping,   only:remap_runoff            ! mapping HM runoff to river network HRU runoff (HM_HRU /= RN_HRU)
@@ -49,7 +50,7 @@ contains
 
   ! get the simulated runoff for the current time step - runoff_data%qsim(:), %qsim2D(:,:), easim(:), easim2d(:,:), precip(:) and precip2d(:)
   call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
-                        iTime,                             & ! input: time index
+                        iTime_local,                       & ! input: time index
                         runoff_data,                       & ! inout: runoff data structure
                         ierr, cmessage)                      ! output: error control
 
