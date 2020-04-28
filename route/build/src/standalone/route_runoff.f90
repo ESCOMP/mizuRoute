@@ -20,6 +20,8 @@ USE globalData, ONLY: mpicom_route            ! communicator
 ! subroutines: model set up
 USE model_setup,         ONLY: init_mpi         ! initialize MPI for this program
 USE model_setup,         ONLY: init_data        ! initialize river reach data
+USE model_setup,         ONLY: infile_name      ! updating the file name and iTime_local
+USE model_setup,         ONLY: infile_pop       ! updating the file name and iTime_local
 USE init_model_data,     ONLY: init_model       ! model setupt - reading control file, populate metadata, read parameter file
 USE init_model_data,     ONLY: update_time      ! Update simulation time information at each time step
 ! subroutines: model finalize
@@ -71,6 +73,12 @@ call init_mpi()
 call init_model(cfile_name, ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
 
+
+! *****
+! *** populate the input file and iTime
+! ************************
+call infile_pop(ierr, cmessage)
+
 ! *****
 ! *** data initialization
 !    - river topology, properties, river network domain decomposition
@@ -85,6 +93,9 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 ! start of time-stepping simulation
 ! ***********************************
 do while (.not.finished)
+
+  ! update the name of the file and iTime_local
+  call infile_name(ierr, cmessage)         ! output
 
   call prep_output(ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)

@@ -2,9 +2,6 @@ module get_runoff
 
 USE nrtype
 
-! external routines
-USE model_setup,  ONLY: infile_name
-
 implicit none
 
 private
@@ -28,6 +25,7 @@ contains
   USE globalData,  only:nHRU
   USE globalData,  only:runoff_data             ! data structure to hru runoff data
   USE globalData,  only:remap_data              ! data structure to remap data
+  USE globalData,  only:iTime_local             ! local index of time for the current file to be read
   ! subroutines
   USE read_runoff, only:read_runoff_data        ! read runoff value into runoff_data data strucuture
   USE remapping,   only:remap_runoff            ! mapping HM runoff to river network HRU runoff (HM_HRU /= RN_HRU)
@@ -46,15 +44,9 @@ contains
   character(len=strLen)         :: evaporation = 'evaporation'          ! flag in case the flux is evaporation
   character(len=strLen)         :: precipitation = 'precipitation'      ! flag in case the flux is precipitation
   character(len=strLen)         :: cmessage                             ! error message from subroutine
-  integer(i4b)                  :: iTime_local                          ! local index of time for file name
 
   ! initialize error control
   ierr=0; message='get_hru_runoff/'
-
-  ! update the name of the file and iTime
-  call infile_name(fname_qsim,          & ! updating the file name for a given iTime
-                   iTime_local,         & ! getting the index of iTime for a given file
-                   ierr, message)         ! output
 
   ! get the simulated runoff for the current time step - runoff_data%qsim(:), %qsim2D(:,:), easim(:), easim2d(:,:), precip(:) and precip2d(:)
   call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename

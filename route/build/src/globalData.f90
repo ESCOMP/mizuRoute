@@ -71,6 +71,7 @@ module globalData
   ! ---------- Data/Time data  -------------------------------------------------------------------------
 
   integer(i4b)                   , public :: iTime                ! time index at simulation time step
+  integer(i4b)                   , public :: iTime_local          ! time index at simulation time step for a given input file
   real(dp)                       , public :: startJulday          ! julian day: start of routing simulation
   real(dp)                       , public :: endJulday            ! julian day: end of routing simulation
   real(dp)                       , public :: refJulday            ! julian day: reference
