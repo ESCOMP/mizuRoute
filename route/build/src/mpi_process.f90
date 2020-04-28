@@ -751,8 +751,8 @@ contains
     call t_stopf ('route/scatter-runoff')
   else
      if (masterproc) then
-       write(iulog,*) 'NOTE: HRU Runoff is already decomposed into mainstems and tributaries. No need for scatter_runoff'
        if (.not.allocated(basinRunoff_main)) then
+         write(iulog,*) 'NOTE: HRU Runoff is already decomposed into mainstems and tributaries. No need for scatter_runoff'
          ierr=10; message=trim(message)//'mainstem runoff array is not allocated/populated'; return
        endif
      else
