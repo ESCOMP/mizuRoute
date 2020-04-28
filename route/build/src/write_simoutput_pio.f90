@@ -192,7 +192,9 @@ contains
 
   ! print progress
   if (masterproc) then
+    print*, "inside write simoutput_pio line 195"
     write(iulog,*) modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin
+    write(iulog,*) modTime(0)%iy,modTime(0)%im,modTime(0)%id,modTime(0)%ih,modTime(0)%imin
   endif
 
   ! check need for the new file
@@ -242,6 +244,7 @@ contains
   else
 
    jTime = jTime+1
+   print*, "inside write simoutput_pio jTime = ", jTime
 
   endif
 

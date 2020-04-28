@@ -444,10 +444,6 @@ CONTAINS
   print*, "inside infile_name iTime_local", iTime_local
   print*, "inside infile_name file name", fname_qsim
 
-  ! initialize previous model time
-  !modTime(0:1) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
-  modTime(0) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
-
  END SUBROUTINE infile_name
 
  ! *********************************************************************
