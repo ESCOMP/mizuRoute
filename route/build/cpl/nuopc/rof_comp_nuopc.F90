@@ -25,10 +25,11 @@ module rof_comp_nuopc
   use globalData            , only : npes       => nNodes
   use globalData            , only : mpicom_rof => mpicom_route
   use globalData            , only : nHRU
-  use init_model_data       , only : get_mpi_omp
+  use init_model_data       , only : get_mpi_omp, init_model
   use RunoffMod             , only : rtmCTL
   use RtmMod                , only : route_ini, route_run
   use RtmTimeManager        , only : init_time, shr_timeStr
+  USE RtmVar                , ONLY : cfile_name
   use RtmVar                , only : inst_index, inst_suffix, inst_name, RtmVarSet
   use RtmVar                , only : nsrStartup, nsrContinue, nsrBranch
   use RtmVar                , only : coupling_period !day
@@ -389,6 +390,8 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     read(cvalue,*) username
 
+    ! Temporal fix
+    call init_model(cfile_name, ierr, cmessage)
 
     !----------------------
     ! Initialize time managers in mizuRoute
@@ -422,6 +425,8 @@ contains
 
     call ESMF_TimeGet( stopTime, yy=yy, mm=mm, dd=dd, s=stop_tod, rc=rc )
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    ! adjust stopTime for mizuRoute clock
+    stopTime = stopTime - timeStep
     call shr_cal_ymd2date(yy,mm,dd,stop_ymd)
     call shr_timeStr( stopTime, simEnd )
 
@@ -443,7 +448,7 @@ contains
 
     time_units = 'days since '//trim(simRef)
 
-    ! time initialize
+    ! mizuRoute time initialize based on time from coupler
     call init_time(ierr, cmessage)
 
     !----------------------

@@ -50,6 +50,7 @@ CONTAINS
   USE globalData,      ONLY: hru_per_proc               ! number of hrus assigned to each proc (size = num of procs
   USE init_model_data, ONLY: init_ntopo_data, init_model
   USE init_model_data, ONLY: init_state_data
+  USE mpi_routine,     ONLY: pass_global_data
 
 ! !ARGUMENTS:
   implicit none
@@ -71,10 +72,10 @@ CONTAINS
   ! 2. read control file
   ! 3. read routing parameters
 
-  call init_model(cfile_name, ierr, cmessage)
-  if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+!  call init_model(cfile_name, ierr, cmessage)
+!  if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
-  ! if routing time step and coupling time step is different, match dt to coupling_period. Assure that dt insecond
+  ! If routing time step dt [sec] and coupling time step coupling_period [day] is different, match dt to coupling_period.
   if (dt/=coupling_period) then
     if (masterproc) then
       write(iulog,*) 'WARNING: Adjust mizuRoute dt to coupling_period'
@@ -159,7 +160,7 @@ CONTAINS
     end if
 
     !-------------------------------------------------------
-    ! Determine mizuroute ocn/land mask (global, all procs)
+    ! Initialize river network connectivity (global, all procs)
     !-------------------------------------------------------
 
     call init_ntopo_data(iam, npes, mpicom_rof, ierr, cmessage)
@@ -167,6 +168,9 @@ CONTAINS
     if ( .not. allocated(hru_per_proc) )then
        call shr_sys_abort(trim(subname)//trim(cmessage))
     endif
+
+    call  pass_global_data(mpicom_rof, ierr, cmessage)
+    if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
     !-------------------------------------------------------
     ! Allocate local flux variables
@@ -248,7 +252,7 @@ CONTAINS
     real(r8), save               :: delt_save              ! previous delt
     logical,  save               :: first_call = .true.    ! first time flag (for backwards compatibility)
     real(r8)                     :: delt                   ! delt associated with subcycling
-    real(r8)                     :: delt_coupling          ! real value of coupling_period
+    real(r8)                     :: delt_coupling          ! real value of coupling_period [sec]
     type(strflx), allocatable    :: RCHFLX_local(:)
     logical                      :: finished
     ! parameters used in negative runoff partitioning algorithm
@@ -262,11 +266,11 @@ CONTAINS
     call t_startf('mizuRoute_tot')
     call shr_sys_flush(iulog)
 
-    delt_coupling = coupling_period*1.0_r8
+    delt_coupling = coupling_period*60.0*60.0*24.0
     if (first_call) then
        nsub_save = 1
        delt_save = dt
-       if (masterproc) write(iulog,'(2a,g20.12)') trim(subname),' mizuRoute coupling period ',delt_coupling
+       if (masterproc) write(iulog,'(2a,g20.12,a)') trim(subname),' mizuRoute coupling period ',delt_coupling, '[sec]'
     end if
 
     !-------------------------------------------------------
@@ -292,13 +296,13 @@ CONTAINS
 !       do nr = rtmCTL%begr,rtmCTL%endr
 !
 !         ! calculate volume of irrigation flux during timestep
-!         irrig_volume = -rtmCTL%qirrig(nr) * coupling_period
+!         irrig_volume = -rtmCTL%qirrig(nr) * delt_coupling
 !
 !         ! compare irrig_volume to main channel storage;
 !         ! add overage to subsurface runoff
 !         if(irrig_volume > RCHFLX_local(1,nr)%REACH_VOL(1)) then
 !           rtmCTL%qsub(nr,nt) = rtmCTL%qsub(nr,nt) &
-!                              + (RCHFLX_local(1,nr)%REACH_VOL(1) - irrig_volume) / coupling_period
+!                              + (RCHFLX_local(1,nr)%REACH_VOL(1) - irrig_volume) / delt_coupling
 !           irrig_volume = RCHFLX_local(1,nr)%REACH_VOL
 !         endif
 !
@@ -308,19 +312,13 @@ CONTAINS
 !         ! actual irrigation rate [m3/s]
 !         ! i.e. the rate actually removed from the main channel
 !         ! if irrig_volume is greater than TRunoff%wr
-!         rtmCTL%qirrig_actual(nr) = - irrig_volume / coupling_period
+!         rtmCTL%qirrig_actual(nr) = - irrig_volume / delt_coupling
 !
 !         ! remove irrigation from wr (main channel)
 !         RCHFLX_local(1,nr)%REACH_VOL(1) = RCHFLX_local(1,nr)%REACH_VOL(1) - irrig_volume
 !         !scs  endif
 !       enddo
 !       call t_stopf('mizuRoute_irrig')
-
-    if (barrier_timers) then
-       call t_startf('mizuRoute_SMdirect_barrier')
-       call mpi_barrier(mpicom_rof,ierr)
-       call t_stopf ('mizuRoute_SMdirect_barrier')
-    endif
 
     ! Get total runoff for each catchment
     if (npes==1) then
@@ -337,6 +335,7 @@ CONTAINS
     else
 
       if (masterproc) then
+
         associate(nHRU_trib => hru_per_proc(0))
         if (nHRU_mainstem > 0) then
           if (.not. allocated(basinRunoff_main)) then
@@ -344,48 +343,59 @@ CONTAINS
             if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [basinRunoff_main]'); endif
           end if
           do nr = 1,nHRU_mainstem
-            basinRunoff_main(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
+!            write(iulog,'(a,i4,x,i5,x,g10.5,x,g10.5,x,g10.5)') 'CHECK: pid, nr, qsur, qsub, qgwl= ', iam, nr, rtmCTL%qsur(nr,1), rtmCTL%qsub(nr,1), rtmCTL%qgwl(nr,1)
+            basinRunoff_main(nr) = 1.0 !rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
           end do
         end if
 
         if (.not. allocated(basinRunoff_trib)) then
-          allocate(basinRunoff_main(nHRU_trib), stat=ierr)
-          if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [basinRunoff_main]'); endif
+          allocate(basinRunoff_trib(nHRU_trib), stat=ierr)
+          if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [basinRunoff_trib]'); endif
         end if
 
-        do nr = nHRU_mainstem+1, nHRU_mainstem+nHRU_trib
-          basinRunoff_trib(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
+        do nr = 1, nHRU_trib
+          ix = nr + nHRU_mainstem
+!          write(iulog,'(a,i4,x,i5,x,g10.5,x,g10.5,x,g10.5)') 'CHECK: pid, nr, qsur, qsub, qgwl= ', iam, nr, rtmCTL%qsur(nr,1), rtmCTL%qsub(nr,1), rtmCTL%qgwl(nr,1)
+          basinRunoff_trib(nr) = 1.0 !rtmCTL%qsur(ix,1)+rtmCTL%qsub(ix,1)+rtmCTL%qgwl(nr,1)
         end do
         end associate
 
       else
 
-        if (.not. allocated(basinRunoff_main)) then
+        if (.not. allocated(basinRunoff_trib)) then
           allocate(basinRunoff_trib(rtmCTL%lnumr), stat=ierr)
           if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [basinRunoff_trib]'); endif
         end if
 
         do nr = rtmCTL%begr,rtmCTL%endr
-          basinRunoff_trib(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
+!          write(iulog,'(a,i4,x,i5,x,g10.5,x,g10.5,x,g10.5)') 'CHECK: pid, nr, qsur, qsub, qgwl= ', iam, nr, rtmCTL%qsur(nr,1), rtmCTL%qsub(nr,1), rtmCTL%qgwl(nr,1)
+          basinRunoff_trib(nr) = 1.0 !rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
         end do
 
       end if
 
     end if
+
+    if (barrier_timers) then
+       call t_startf('mizuRoute_SMdirect_barrier')
+       call mpi_barrier(mpicom_rof,ierr)
+       call t_stopf ('mizuRoute_SMdirect_barrier')
+    endif
+
     !-----------------------------------
     ! mizuRoute Subcycling
     !-----------------------------------
     ! subcycling needed when coupling frequency is greater than routing time steps
     call t_startf('mizuRoute_subcycling')
 
-    nsub = coupling_period/dt
-    if (nsub*dt < coupling_period) then
+    nsub = delt_coupling/dt
+    if (nsub*dt < delt_coupling) then
        nsub = nsub + 1
     end if
     delt = delt_coupling/float(nsub)
     if (delt /= delt_save) then
        if (masterproc) then
-          write(iulog,'(2a,2g20.12,2i12)') trim(subname),' mizuRoute delt update from/to',delt_save,delt,nsub_save,nsub
+          write(iulog,'(a,2(a,i12,g20.12))') trim(subname),' mizuRoute sub-timestep, dt update from', nsub_save, delt_save, ' to ', nsub, delt
        end if
     endif
 
@@ -414,7 +424,7 @@ CONTAINS
       do nr = rtmCTL%begr,rtmCTL%endr
         rtmCTL%volr(nr)      = 0._r8
         rtmCTL%flood(nr)     = 0._r8
-        rtmCTL%discharge(nr,nt) = rtmCTL%discharge(nr,nt) + RCHFLX_local(nr)%REACH_Q/float(nsub) !
+        rtmCTL%discharge(nr,1) = rtmCTL%discharge(nr,1) + RCHFLX_local(nr)%REACH_Q/float(nsub) !
       enddo
 
     enddo
