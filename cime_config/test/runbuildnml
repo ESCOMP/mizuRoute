@@ -6,7 +6,7 @@ fi
 export CIMEROOT=`pwd`
     
 cd -
-cp ../user_* .
+cp ../user_nl_* .
 mkdir CaseDocs
 echo "Run the help option"
 ../buildnml --help > /dev/null

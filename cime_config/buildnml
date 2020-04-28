@@ -217,7 +217,10 @@ def buildnml(case, caseroot, compname):
     control_infile = [infile]
 
     # Read in the user control file for the case and change settings to it
-    user_ctl_file = os.path.join(caseroot, "user_ctl_mizuRoute" + inst_string)
+    file_src = "user_ctl_mizuRoute"
+    user_ctl_file = os.path.join(caseroot, file_src + inst_string)
+    if ( not os.path.exists( user_ctl_file ) ):
+       shutil.copy( os.path.join( srcroot, "cime_config", file_src), user_ctl_file )
     usrctl = mizuRoute_control()
     usrctl.read( user_ctl_file, allowEmpty=True )
     for element in usrctl.get_elmList():
