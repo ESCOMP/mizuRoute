@@ -280,6 +280,9 @@ CONTAINS
 
   enddo
 
+  ! close ascii file
+  close(unit=unt,iostat=ierr); if(ierr/=0)then;message=trim(message)//'problem closing forcing file list'; return; end if
+
   ! find the total length of the timeVar
   counter = 0; ! counter
   do iFile=1,nFile
