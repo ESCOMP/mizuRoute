@@ -80,7 +80,7 @@ CONTAINS
            dim_tbound  => meta_stateDims(ixStateDims%tbound)%dimName)
 
  ! Create file
- ierr = nf90_create(trim(fname),nf90_classic_model,ncid)
+ ierr = nf90_create(trim(fname),nf90_64bit_offset,ncid)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  ! For common dimension/variables - seg id, time, time-bound -----------
@@ -115,7 +115,7 @@ CONTAINS
  ! Routing specific variables --------------
 
  ! basin IRF
- if (.true.) then
+ if (doesBasinRoute == 1) then
   call define_IRFbas_state(ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
@@ -370,7 +370,7 @@ CONTAINS
  call write_nc(fname,'time_bound', (/T0,T1/), (/1,iTime/), (/2,1/), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- if (.true.)then
+ if (doesBasinRoute == 1) then
   call write_IRFbas_state(ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
@@ -501,15 +501,24 @@ CONTAINS
      if (iVar==ixKWT%q) cycle ! not writing out KWT routed flow
 
      select case(iVar)
-      case(ixKWT%tentry);    state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = KROUTE(iens,iSeg)%KWAVE(:)%TI
-      case(ixKWT%texit);     state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = KROUTE(iens,iSeg)%KWAVE(:)%TR
-      case(ixKWT%qwave);     state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = KROUTE(iens,iSeg)%KWAVE(:)%QF
-      case(ixKWT%qwave_mod); state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = KROUTE(iens,iSeg)%KWAVE(:)%QM
+      case(ixKWT%tentry)
+       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = KROUTE(iens,iSeg)%KWAVE(:)%TI
+       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
+      case(ixKWT%texit)
+       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = KROUTE(iens,iSeg)%KWAVE(:)%TR
+       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
+      case(ixKWT%qwave)
+       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = KROUTE(iens,iSeg)%KWAVE(:)%QF
+       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
+      case(ixKWT%qwave_mod)
+       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = KROUTE(iens,iSeg)%KWAVE(:)%QM
+       state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
       case(ixKWT%routed) ! this is suppposed to be logical variable, but put it as 0 or 1 in double now
        if (allocated(RFvec)) deallocate(RFvec, stat=ierr)
        allocate(RFvec(numWaves(iens,iSeg)),stat=ierr); RFvec=0_i4b
        where (KROUTE(iens,iSeg)%KWAVE(:)%RF) RFvec=1_i4b
        state(kinematicWave)%var(iVar)%array_3d_int(iSeg,1:numWaves(iens,iSeg),iens) = RFvec
+       state(kinematicWave)%var(iVar)%array_3d_int(iSeg,numWaves(iens,iSeg)+1:,iens) = integerMissing
       case default; ierr=20; message1=trim(message1)//'unable to identify KWT routing state variable index'; return
      end select
 
@@ -589,7 +598,9 @@ CONTAINS
      if (iVar==ixIRF%q) cycle ! not writing out IRF routed flow
 
      select case(iVar)
-      case(ixIRF%qfuture); state(impulseResponseFunc)%var(iVar)%array_3d_dp(iSeg,1:numQF(iens,iSeg),iens) = RCHFLX(iens,iSeg)%QFUTURE_IRF
+      case(ixIRF%qfuture)
+       state(impulseResponseFunc)%var(iVar)%array_3d_dp(iSeg,1:numQF(iens,iSeg),iens) = RCHFLX(iens,iSeg)%QFUTURE_IRF
+       state(impulseResponseFunc)%var(iVar)%array_3d_dp(iSeg,numQF(iens,iSeg)+1:ntdh_irf,iens) = realMissing
       case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
      end select
 
