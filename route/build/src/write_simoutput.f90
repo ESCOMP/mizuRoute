@@ -3,14 +3,21 @@ MODULE write_simoutput
 ! Moudle wide external modules
 USE nrtype
 USE public_var
-USE io_netcdf, only: ncd_int, ncd_float, ncd_double
+USE public_var,only: routOpt                ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+USE public_var,only: doesBasinRoute         ! basin routing options   0-> no, 1->IRF, otherwise error
+USE public_var,only: doesAccumRunoff        ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
+USE public_var,only: kinematicWave          ! kinematic wave
+USE public_var,only: impulseResponseFunc    ! impulse response function
+USE public_var,only: allRoutingMethods      ! all routing methods
+USE io_netcdf, only: ncd_int
+USE io_netcdf, only: ncd_float, ncd_double
 USE io_netcdf, only: ncd_unlimited
-USE io_netcdf, only: def_nc        ! define netcdf
-USE io_netcdf, only: def_var       ! define netcdf variable
-USE io_netcdf, only: def_dim       ! define netcdf dimension
-USE io_netcdf, only: end_def       ! end defining netcdf
-USE io_netcdf, only: close_nc      ! close netcdf
-USE io_netcdf, only: write_nc      ! write a variable to the NetCDF file
+USE io_netcdf, only: def_nc                 ! define netcdf
+USE io_netcdf, only: def_var                ! define netcdf variable
+USE io_netcdf, only: def_dim                ! define netcdf dimension
+USE io_netcdf, only: end_def                ! end defining netcdf
+USE io_netcdf, only: close_nc               ! close netcdf
+USE io_netcdf, only: write_nc               ! write a variable to the NetCDF file
 
 implicit none
 
@@ -30,12 +37,6 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE output(ierr, message)    ! out:   error control
   !Dependent modules
-  USE public_var,          only : doesBasinRoute      ! basin routing options   0-> no, 1->IRF, otherwise error
-  USE public_var,          only : doesAccumRunoff     ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
-  USE public_var,          only : routOpt             ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-  USE public_var,          only : kinematicWave       ! kinematic wave
-  USE public_var,          only : impulseResponseFunc ! impulse response function
-  USE public_var,          only : allRoutingMethods   ! all routing methods
   USE globalData,          only : nHRU, nRch          ! number of ensembles, HRUs and river reaches
   USE globalData,          only : RCHFLX              ! Reach fluxes (ensembles, space [reaches])
   USE globalData,          only : runoff_data         ! runoff data for one time step for LSM HRUs and River network HRUs
@@ -203,7 +204,9 @@ CONTAINS
                        calendar,        &  ! input: calendar
                        ierr, message)      ! output: error control
  !Dependent modules
+ USE globalData, ONLY: meta_rflx
  USE globalData, ONLY: meta_qDims
+ USE var_lookup, ONLY: ixRFLX, nVarsRFLX
  USE var_lookup, ONLY: ixQdims, nQdims
 
  implicit none
@@ -218,9 +221,10 @@ CONTAINS
  integer(i4b), intent(out)       :: ierr         ! error code
  character(*), intent(out)       :: message      ! error message
  ! local variables
+ character(len=strLen)           :: dim_array(2)
+ integer(i4b)                    :: ixDim
  integer(i4b)                    :: ncid         ! NetCDF file ID
  integer(i4b)                    :: jDim, iVar   ! dimension, and variable index
- integer(i4b),parameter          :: nVars=8      ! number of variables
  character(len=strLen)           :: cmessage     ! error message of downwind routine
 
  ! initialize error control
@@ -235,6 +239,22 @@ CONTAINS
  meta_qDims(ixQdims%seg)%dimLength = nRch_in
  meta_qDims(ixQdims%hru)%dimLength = nHRU_in
  meta_qDims(ixQdims%ens)%dimLength = nEns_in
+
+ ! Modify write option
+ ! Routing option
+ if (routOpt==kinematicWave) then
+  meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
+ elseif (routOpt==impulseResponseFunc) then
+  meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
+ endif
+ ! runoff accumulation option
+ if (doesAccumRunoff==0) then
+  meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile = .false.
+ endif
+ ! basin runoff routing option
+ if (doesBasinRoute==0) then
+  meta_rflx(ixRFLX%instRunoff)%varFile = .false.
+ endif
 
  ! --------------------
  ! define file
@@ -251,28 +271,28 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do
 
- ! define coordinate variable for time
+ ! Define coordinate variable for time
  call def_var(ncid, trim(dim_time), (/dim_time/), ncd_double, ierr, cmessage, vdesc=trim(dim_time), vunit=trim(units_time), vcal=calendar)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+ ! Define ID variable for time
+ call def_var(ncid, 'basinID', (/dim_hru/), ncd_int, ierr, cmessage, vdesc='basin ID', vunit='-')
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ call def_var(ncid, 'reachID', (/dim_seg/), ncd_int, ierr, cmessage, vdesc='reach ID', vunit='-')
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  ! define variables
- do iVar=1,nVars
-  ! define variable
-  select case(iVar)
-   ! define network topology (integers)
-   case( 1); call def_var(ncid, 'basinID',           (/dim_hru/),          ncd_int,   ierr, cmessage, vdesc='basin ID',                            vunit='-'   )
-   case( 2); call def_var(ncid, 'reachID',           (/dim_seg/),          ncd_int,   ierr, cmessage, vdesc='reach ID',                            vunit='-'   )
-   ! define runoff variables (double precision)
-   case( 3); call def_var(ncid, 'basRunoff',         (/dim_hru,dim_time/), ncd_float, ierr, cmessage, vdesc='basin runoff',                        vunit='m/s' )
-   case( 4); call def_var(ncid, 'instRunoff',        (/dim_seg,dim_time/), ncd_float, ierr, cmessage, vdesc='instantaneous runoff in each reach',  vunit='m3/s')
-   case( 5); call def_var(ncid, 'dlayRunoff',        (/dim_seg,dim_time/), ncd_float, ierr, cmessage, vdesc='delayed runoff in each reach',        vunit='m3/s')
-   case( 6); call def_var(ncid, 'sumUpstreamRunoff', (/dim_seg,dim_time/), ncd_float, ierr, cmessage, vdesc='sum of upstream runoff in each reach',vunit='m3/s')
-   case( 7); call def_var(ncid, 'KWTroutedRunoff',   (/dim_seg,dim_time/), ncd_float, ierr, cmessage, vdesc='KWT routed runoff in each reach',     vunit='m3/s')
-   case( 8); call def_var(ncid, 'IRFroutedRunoff',   (/dim_seg,dim_time/), ncd_float, ierr, cmessage, vdesc='IRF routed runoff in each reach',     vunit='m3/s')
-   case default; ierr=20; message=trim(message)//'unable to identify variable index'; return
-  end select
-  ! check errors
+ do iVar=1, nVarsRFLX
+
+  if (.not.meta_rflx(iVar)%varFile) cycle
+
+  ! define dimension ID array
+  ixDim = meta_rflx(iVar)%varType
+  dim_array = [meta_qDims(ixDim)%dimName, meta_qDims(ixQdims%time)%dimName]
+
+  call def_var(ncid, meta_rflx(iVar)%varName, dim_array, ncd_float, ierr, cmessage, vdesc=meta_rflx(iVar)%varDesc, vunit=meta_rflx(iVar)%varUnit )
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  end do
 
  end associate
