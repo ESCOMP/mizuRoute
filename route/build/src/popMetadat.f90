@@ -26,6 +26,7 @@ USE globalData, only : meta_SEG       ! stream segment properties
 USE globalData, only : meta_NTOPO     ! network topology
 USE globalData, only : meta_PFAF      ! pfafstetter code
 
+USE globalData, only : meta_rflx      ! reach flux variables
 USE globalData, only : meta_irf_bas   ! within-basin irf routing fluxes and states
 USE globalData, only : meta_irf       ! irf routing fluxes and states in a segment
 USE globalData, only : meta_kwt       ! kinematic wave routing fluxes and states in a segment
@@ -41,6 +42,7 @@ USE var_lookup, only : ixSEG      , nVarsSEG      ! index of variables for data 
 USE var_lookup, only : ixNTOPO    , nVarsNTOPO    ! index of variables for data structure
 USE var_lookup, only : ixPFAF     , nVarsPFAF     ! index of variables for data structure
 
+USE var_lookup, only : ixRFLX     , nVarsRFLX     ! index of variables for data structure
 USE var_lookup, only : ixKWT      , nVarsKWT      ! index of variables for data structure
 USE var_lookup, only : ixIRF      , nVarsIRF      ! index of variables for data structure
 USE var_lookup, only : ixIRFbas   , nVarsIRFbas   ! index of variables for data structure
@@ -141,6 +143,14 @@ contains
  meta_PFAF  (ixPFAF%code             ) = var_info('code'           , 'pfafstetter code'                                   ,'-'    ,ixDims%seg   , .false.)
 
  ! ---------- populate segment fluxes/states metadata structures -----------------------------------------------------------------------------------------------------
+! Reach Flux                                      varName             varDesc                                         unit,     varDim,              writeOut
+ meta_rflx   (ixRFLX%basRunoff        ) = var_info('basRunoff'        , 'basin runoff'                                ,'m/s'    ,ixQdims%hru         ,.true.)
+ meta_rflx   (ixRFLX%instRunoff       ) = var_info('instRunoff'       , 'instantaneous runoff in each reach'          ,'m3/s'   ,ixQdims%seg         ,.true.)
+ meta_rflx   (ixRFLX%dlayRunoff       ) = var_info('dlayRunoff'       , 'delayed runoff in each reach'                ,'m3/s'   ,ixQdims%seg         ,.true.)
+ meta_rflx   (ixRFLX%sumUpstreamRunoff) = var_info('sumUpstreamRunoff', 'sum of upstream runoff in each reach'        ,'m3/s'   ,ixQdims%seg         ,.true.)
+ meta_rflx   (ixRFLX%KWTroutedRunoff  ) = var_info('KWTroutedRunoff'  , 'KWT routed runoff in each reach'             ,'m3/s'   ,ixQdims%seg         ,.true.)
+ meta_rflx   (ixRFLX%IRFroutedRunoff  ) = var_info('IRFroutedRunoff'  , 'IRF routed runoff in each reach'             ,'m3/s'   ,ixQdims%seg         ,.true.)
+
  ! Kinematic Wave                                 varName             varDesc                                          unit,     varDim,        writeOut
  meta_kwt    (ixKWT%tentry          ) = var_info('tentry'          , 'time when a wave enters a segment'              ,'sec'    ,ixStateDims%wave     , .true.)
  meta_kwt    (ixKWT%texit           ) = var_info('texit'           , 'time when a wave is expected to exit a segment' ,'sec'    ,ixStateDims%wave     , .true.)
