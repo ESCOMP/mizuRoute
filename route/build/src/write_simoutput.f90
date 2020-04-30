@@ -1,9 +1,16 @@
 MODULE write_simoutput
+
 ! Moudle wide external modules
-USE netcdf
 USE nrtype
 USE public_var
-USE io_netcdf, only: write_nc  ! write a variable to the NetCDF file
+USE io_netcdf, only: ncd_int, ncd_float, ncd_double
+USE io_netcdf, only: ncd_unlimited
+USE io_netcdf, only: def_nc        ! define netcdf
+USE io_netcdf, only: def_var       ! define netcdf variable
+USE io_netcdf, only: def_dim       ! define netcdf dimension
+USE io_netcdf, only: end_def       ! end defining netcdf
+USE io_netcdf, only: close_nc      ! close netcdf
+USE io_netcdf, only: write_nc      ! write a variable to the NetCDF file
 
 implicit none
 
@@ -84,7 +91,7 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
- end subroutine output
+ END SUBROUTINE output
 
 
  ! *********************************************************************
@@ -232,106 +239,53 @@ CONTAINS
  ! --------------------
  ! define file
  ! --------------------
- ierr = nf90_create(trim(fname),nf90_64bit_offset,ncid)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+ call def_nc(trim(fname), ncid, ierr, cmessage, nctype=netcdf_format)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  do jDim =1,nQdims
    if (jDim ==ixQdims%time) then ! time dimension (unlimited)
-    ierr = nf90_def_dim(ncid, trim(meta_qDims(jDim)%dimName), nf90_unlimited, meta_qDims(jDim)%dimId)
+    call def_dim(ncid, trim(meta_qDims(jDim)%dimName), ncd_unlimited, meta_qDims(jDim)%dimId, ierr, cmessage)
    else
-    ierr = nf90_def_dim(ncid, trim(meta_qDims(jDim)%dimName), meta_qDims(jDim)%dimLength ,meta_qDims(jDim)%dimId)
+    call def_dim(ncid, trim(meta_qDims(jDim)%dimName), meta_qDims(jDim)%dimLength ,meta_qDims(jDim)%dimId, ierr, cmessage)
    endif
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do
 
  ! define coordinate variable for time
- call defvar(ncid, trim(dim_time), (/dim_time/), nf90_double, ierr, cmessage, vdesc=trim(dim_time), vunit=trim(units_time), vcal=calendar)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+ call def_var(ncid, trim(dim_time), (/dim_time/), ncd_double, ierr, cmessage, vdesc=trim(dim_time), vunit=trim(units_time), vcal=calendar)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! define variables
  do iVar=1,nVars
   ! define variable
   select case(iVar)
    ! define network topology (integers)
-   case( 1); call defvar(ncid, 'basinID',           (/dim_hru/),          nf90_int,   ierr,cmessage, vdesc='basin ID',                            vunit='-'   )
-   case( 2); call defvar(ncid, 'reachID',           (/dim_seg/),          nf90_int,   ierr,cmessage, vdesc='reach ID',                            vunit='-'   )
+   case( 1); call def_var(ncid, 'basinID',           (/dim_hru/),          ncd_int,   ierr, cmessage, vdesc='basin ID',                            vunit='-'   )
+   case( 2); call def_var(ncid, 'reachID',           (/dim_seg/),          ncd_int,   ierr, cmessage, vdesc='reach ID',                            vunit='-'   )
    ! define runoff variables (double precision)
-   case( 3); call defvar(ncid, 'basRunoff',         (/dim_hru,dim_time/), nf90_float, ierr,cmessage, vdesc='basin runoff',                        vunit='m/s' )
-   case( 4); call defvar(ncid, 'instRunoff',        (/dim_seg,dim_time/), nf90_float, ierr,cmessage, vdesc='instantaneous runoff in each reach',  vunit='m3/s')
-   case( 5); call defvar(ncid, 'dlayRunoff',        (/dim_seg,dim_time/), nf90_float, ierr,cmessage, vdesc='delayed runoff in each reach',        vunit='m3/s')
-   case( 6); call defvar(ncid, 'sumUpstreamRunoff', (/dim_seg,dim_time/), nf90_float, ierr,cmessage, vdesc='sum of upstream runoff in each reach',vunit='m3/s')
-   case( 7); call defvar(ncid, 'KWTroutedRunoff',   (/dim_seg,dim_time/), nf90_float, ierr,cmessage, vdesc='KWT routed runoff in each reach',     vunit='m3/s')
-   case( 8); call defvar(ncid, 'IRFroutedRunoff',   (/dim_seg,dim_time/), nf90_float, ierr,cmessage, vdesc='IRF routed runoff in each reach',     vunit='m3/s')
+   case( 3); call def_var(ncid, 'basRunoff',         (/dim_hru,dim_time/), ncd_float, ierr, cmessage, vdesc='basin runoff',                        vunit='m/s' )
+   case( 4); call def_var(ncid, 'instRunoff',        (/dim_seg,dim_time/), ncd_float, ierr, cmessage, vdesc='instantaneous runoff in each reach',  vunit='m3/s')
+   case( 5); call def_var(ncid, 'dlayRunoff',        (/dim_seg,dim_time/), ncd_float, ierr, cmessage, vdesc='delayed runoff in each reach',        vunit='m3/s')
+   case( 6); call def_var(ncid, 'sumUpstreamRunoff', (/dim_seg,dim_time/), ncd_float, ierr, cmessage, vdesc='sum of upstream runoff in each reach',vunit='m3/s')
+   case( 7); call def_var(ncid, 'KWTroutedRunoff',   (/dim_seg,dim_time/), ncd_float, ierr, cmessage, vdesc='KWT routed runoff in each reach',     vunit='m3/s')
+   case( 8); call def_var(ncid, 'IRFroutedRunoff',   (/dim_seg,dim_time/), ncd_float, ierr, cmessage, vdesc='IRF routed runoff in each reach',     vunit='m3/s')
    case default; ierr=20; message=trim(message)//'unable to identify variable index'; return
   end select
   ! check errors
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do
 
  end associate
 
  ! end definitions
- ierr = nf90_enddef(ncid)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+ call end_def(ncid, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! close NetCDF file
- ierr = nf90_close(ncid)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+ call close_nc(ncid, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  END SUBROUTINE defineFile
-
- ! *********************************************************************
- ! private subroutine: define variable attributes NetCDF file
- ! *********************************************************************
- SUBROUTINE defvar(ncid, vname, dimNames, ivtype, ierr, message, vdesc, vunit, vcal)
-  ! input
-  integer(i4b), intent(in)             :: ncid                   ! Input: netcdf fine ID
-  character(*), intent(in)             :: vname                  ! Input: variable name
-  character(*), intent(in)             :: dimNames(:)            ! Input: variable dimension names
-  integer(i4b), intent(in)             :: ivtype                 ! Input: variable type
-  character(*), intent(in), optional   :: vdesc                  ! Input: variable description
-  character(*), intent(in), optional   :: vunit                  ! Input: variable units
-  character(*), intent(in), optional   :: vcal                   ! Input: calendar (if time variable)
-  ! output
-  integer(i4b), intent(out)            :: ierr                   ! error code
-  character(*), intent(out)            :: message                ! error message
-  ! local
-  character(len=strLen)                :: calendar_str           ! calendar string
-  character(len=strLen)                :: unit_str               ! unit string
-  character(len=strLen)                :: desc_str               ! long_name string
-  integer(i4b)                         :: id                     ! loop through dimensions
-  integer(i4b)                         :: dimIDs(size(dimNames)) ! vector of dimension IDs
-  integer(i4b)                         :: iVarId                 ! variable ID
-
-  ! define dimension IDs
-  do id=1,size(dimNames)
-   ierr=nf90_inq_dimid(ncid,trim(dimNames(id)),dimIDs(id))
-   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-  end do
-
-  ! define variable
-  ierr = nf90_def_var(ncid,trim(vname),ivtype,dimIds,iVarId)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
-  if (present(vdesc)) then ! add long_name
-    desc_str = trim(vdesc)
-    ierr = nf90_put_att(ncid,iVarId,'long_name',trim(desc_str))
-    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-  end if
-
-  if (present(vunit)) then ! add variable unit
-    unit_str = trim(vunit)
-    ierr = nf90_put_att(ncid,iVarId,'units',trim(unit_str))
-    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-  end if
-
-  if (present(vcal)) then ! add time calendar
-    calendar_str = trim(vcal)
-    ierr = nf90_put_att(ncid,iVarId,'calendar',trim(calendar_str))
-    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-  end if
-
- END SUBROUTINE defvar
 
 
 END MODULE write_simoutput

@@ -12,10 +12,14 @@ public::get_var_dims
 public::get_nc_dim_len
 public::get_var_attr_char
 public::get_var_attr_real
-public::defvar
+public::def_nc
+public::def_dim
+public::def_var
+public::end_def
 public::write_nc
+public::close_nc
 
-interface get_nc
+INTERFACE get_nc
   module procedure get_iscalar
   module procedure get_dscalar
   module procedure get_ivec
@@ -26,9 +30,9 @@ interface get_nc
   module procedure get_3d_darray
   module procedure get_4d_iarray
   module procedure get_4d_darray
-end interface
+END INTERFACE
 
-interface write_nc
+INTERFACE write_nc
   module procedure write_ivec
   module procedure write_dvec
   module procedure write_charvec
@@ -36,9 +40,58 @@ interface write_nc
   module procedure write_2d_darray
   module procedure write_3d_iarray
   module procedure write_3d_darray
-end interface
+END INTERFACE
 
-contains
+! public netCDF parameter
+integer(i4b),parameter,public :: ncd_short     = nf90_short
+integer(i4b),parameter,public :: ncd_int       = nf90_int
+integer(i4b),parameter,public :: ncd_float     = nf90_float
+integer(i4b),parameter,public :: ncd_double    = nf90_double
+integer(i4b),parameter,public :: ncd_char      = nf90_char
+integer(i4b),parameter,public :: ncd_unlimited = nf90_unlimited
+
+CONTAINS
+
+ ! *********************************************************************
+ ! subroutine: Define netcdf file
+ ! *********************************************************************
+ SUBROUTINE def_nc(fname,          &  ! input: file name
+                   ncid,           &  ! error control
+                   ierr,message,   &  ! error control
+                   nctype)            ! netCDF type
+ implicit none
+ ! input variables
+ character(*),           intent(in)  :: fname          ! filename
+ character(*), optional, intent(in)  :: nctype         ! netCDF type
+ ! output variables
+ integer(i4b),           intent(out) :: ncid           ! netcdf id
+ integer(i4b),           intent(out) :: ierr           ! error code
+ character(*),           intent(out) :: message        ! error message
+ ! local variables
+ character(len=strLen)               :: nctype_local   ! local string for netCDF type name
+ integer(i4b)                        :: nctypeID       ! netCDF type ID
+
+ ! initialize error control
+ ierr=0; message='def_nc/'
+
+ if (present(nctype)) then
+   nctype_local = nctype
+ else
+   nctype_local = '64bit_offset'
+ end if
+
+ select case(trim(nctype_local))
+   case('64bit_offset'); nctypeID = nf90_64bit_offset
+   case('netcdf4');      nctypeID = nf90_netcdf4
+   case('classic');      nctypeID = nf90_classic_model
+   case default; ierr=20; message=trim(message)//'unable to identify netCDF type'; return
+ end select
+
+ ierr = nf90_create(trim(fname), nctypeID, ncid)
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ END SUBROUTINE def_nc
+
 
  ! *********************************************************************
  ! subroutine: get dimension name and length for given 2D variable
@@ -956,50 +1009,121 @@ contains
   end subroutine
 
  ! *********************************************************************
- ! private subroutine: define variable attributes NetCDF file
+ ! Public subroutine: define variable attributes NetCDF file
  ! *********************************************************************
- subroutine defvar(ncid, vname, dimNames, ivtype, ierr, message, vdesc, vunit, vcal)
-  ! input
-  integer(i4b), intent(in)             :: ncid                   ! Input: netcdf fine ID
-  character(*), intent(in)             :: vname                  ! Input: variable name
-  character(*), intent(in)             :: dimNames(:)            ! Input: variable dimension names
-  integer(i4b), intent(in)             :: ivtype                 ! Input: variable type
-  character(*), intent(in), optional   :: vdesc                  ! Input: variable description
-  character(*), intent(in), optional   :: vunit                  ! Input: variable units
-  character(*), intent(in), optional   :: vcal                   ! Input: calendar (if time variable)
-  ! output
-  integer(i4b), intent(out)            :: ierr                   ! error code
-  character(*), intent(out)            :: message                ! error message
-  ! local
-  integer(i4b)                         :: id                     ! loop through dimensions
-  integer(i4b)                         :: dimIDs(size(dimNames)) ! vector of dimension IDs
-  integer(i4b)                         :: iVarId                 ! variable ID
+ SUBROUTINE def_var(ncid, vname, dimNames, ivtype, ierr, message, vdesc, vunit, vcal)
 
-  ! define dimension IDs
-  do id=1,size(dimNames)
-   ierr=nf90_inq_dimid(ncid,trim(dimNames(id)),dimIDs(id))
+   implicit none
+   ! input
+   integer(i4b), intent(in)             :: ncid                   ! Input: netcdf fine ID
+   character(*), intent(in)             :: vname                  ! Input: variable name
+   character(*), intent(in)             :: dimNames(:)            ! Input: variable dimension names
+   integer(i4b), intent(in)             :: ivtype                 ! Input: variable type
+   character(*), intent(in), optional   :: vdesc                  ! Input: variable description
+   character(*), intent(in), optional   :: vunit                  ! Input: variable units
+   character(*), intent(in), optional   :: vcal                   ! Input: calendar (if time variable)
+   ! output
+   integer(i4b), intent(out)            :: ierr                   ! error code
+   character(*), intent(out)            :: message                ! error message
+   ! local
+   integer(i4b)                         :: id                     ! loop through dimensions
+   integer(i4b)                         :: dimIDs(size(dimNames)) ! vector of dimension IDs
+   integer(i4b)                         :: iVarId                 ! variable ID
+
+   ! initialize error control
+   ierr=0; message='def_var/'
+
+   ! define dimension IDs
+   do id=1,size(dimNames)
+    ierr=nf90_inq_dimid(ncid,trim(dimNames(id)),dimIDs(id))
+    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+   end do
+
+   ! define variable
+   ierr = nf90_def_var(ncid,trim(vname),ivtype,dimIds,iVarId)
    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-  end do
 
-  ! define variable
-  ierr = nf90_def_var(ncid,trim(vname),ivtype,dimIds,iVarId)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+   if (present(vdesc)) then ! add long_name
+     ierr = nf90_put_att(ncid,iVarId,'long_name',trim(vdesc))
+     if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+   end if
 
-  if (present(vdesc)) then ! add long_name
-    ierr = nf90_put_att(ncid,iVarId,'long_name',trim(vdesc))
-    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-  end if
+   if (present(vunit)) then ! add variable unit
+     ierr = nf90_put_att(ncid,iVarId,'units',trim(vunit))
+     if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+   end if
 
-  if (present(vunit)) then ! add variable unit
-    ierr = nf90_put_att(ncid,iVarId,'units',trim(vunit))
-    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-  end if
+   if (present(vcal)) then ! add time calendar
+     ierr = nf90_put_att(ncid,iVarId,'calendar',trim(vcal))
+     if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+   end if
 
-  if (present(vcal)) then ! add time calendar
-    ierr = nf90_put_att(ncid,iVarId,'calendar',trim(vcal))
-    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-  end if
+ END SUBROUTINE def_var
 
- end subroutine defvar
 
-end module io_netcdf
+ ! *********************************************************************
+ ! Public subroutine: define dimension NetCDF file
+ ! *********************************************************************
+ SUBROUTINE def_dim(ncid, dimName, dimLen, dimID, ierr, message)
+
+   implicit none
+   ! input
+   integer(i4b), intent(in)  :: ncid     ! Input: netcdf fine ID
+   character(*), intent(in)  :: dimName  ! Input: variable dimension name
+   integer(i4b), intent(in)  :: dimLen   ! Input: dimension length
+   ! output
+   integer(i4b), intent(out) :: dimID    ! dimension id
+   integer(i4b), intent(out) :: ierr     ! error code
+   character(*), intent(out) :: message  ! error message
+
+   ! initialize error control
+   ierr=0; message='def_dim/'
+
+   ierr = nf90_def_dim(ncid, trim(dimName), dimLen, dimId)
+   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ END SUBROUTINE def_dim
+
+
+ ! *********************************************************************
+ ! Public subroutine: End defining netCDF file
+ ! *********************************************************************
+ SUBROUTINE end_def(ncid, ierr, message)
+
+   implicit none
+   ! input
+   integer(i4b), intent(in)  :: ncid     ! Input: netcdf fine ID
+   ! output
+   integer(i4b), intent(out) :: ierr     ! error code
+   character(*), intent(out) :: message  ! error message
+
+   ! initialize error control
+   ierr=0; message='end_def/'
+
+   ierr = nf90_enddef(ncid)
+   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ END SUBROUTINE end_def
+
+
+ ! *********************************************************************
+ ! Public subroutine: close netcdf
+ ! *********************************************************************
+ SUBROUTINE close_nc(ncid, ierr, message)
+
+   implicit none
+   ! input
+   integer(i4b), intent(in)             :: ncid                   ! Input: netcdf fine ID
+   ! output
+   integer(i4b), intent(out)    :: ierr      ! error code
+   character(*), intent(out)    :: message   ! error message
+
+   ! initialize error control
+   ierr=0; message='close_nc/'
+
+   ierr = nf90_close(ncid)
+   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ END SUBROUTINE close_nc
+
+END MODULE io_netcdf
