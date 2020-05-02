@@ -8,6 +8,9 @@ module public_var
 
   save
 
+  ! ---------- mizuRoute version -------------------------------------------------------------------
+  character(len=strLen), parameter, public    :: mizuRouteVersion='v1.2'
+
   ! ---------- common constants ---------------------------------------------------------------------
 
   ! physical constants
@@ -30,7 +33,7 @@ module public_var
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
 
   ! domain decomposition parameters
-  integer(i4b),parameter,public :: maxDomain=150000         ! maximum sub-domains
+  integer(i4b),parameter,public   :: maxDomain=150000       ! maximum sub-domains
 
   ! constants for general use
   real(dp),    parameter,public   :: MinPosVal=1.e-10_dp    ! minimum value for positive value
