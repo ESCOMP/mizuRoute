@@ -36,7 +36,6 @@ contains
   integer(i4b), intent(out)     :: ierr               ! error code
   character(*), intent(out)     :: message            ! error message
   ! local variables
-  real(dp)    , allocatable     :: basinRunoff(:)     ! basin runoff (m/s)
   character(len=strLen)         :: cmessage           ! error message from subroutine
   ! timing
   integer*8                     :: startTime,endTime,cr ! star and end time stamp, rate
@@ -57,9 +56,6 @@ contains
   elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 !  write(*,"(A,1PG15.7,A)") '  elapsed-time [runoff_input/read] = ', elapsedTime, ' s'
 
-  ! allocate basinRunoff (local array)
-  allocate(basinRunoff(nHRU), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! initialize runoff_data%basinRunoff
   if ( allocated(runoff_data%basinRunoff) ) then
@@ -73,12 +69,12 @@ contains
   ! Get river network HRU runoff into runoff_data data structure
   if (is_remap) then ! remap LSM simulated runoff to the HRUs in the river network
 
-   call remap_runoff(runoff_data, remap_data, basinRunoff, ierr, cmessage)
+   call remap_runoff(runoff_data, remap_data, runoff_data%basinRunoff, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   else ! runoff is already remapped to river network HRUs
 
-   call sort_runoff(runoff_data, basinRunoff, ierr, cmessage)
+   call sort_runoff(runoff_data, runoff_data%basinRunoff, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   end if
@@ -86,7 +82,6 @@ contains
   elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 !  write(*,"(A,1PG15.7,A)") '  elapsed-time [runoff_input/remap] = ', elapsedTime, ' s'
 
-  runoff_data%basinRunoff=basinRunoff
 
  end subroutine get_hru_runoff
 
