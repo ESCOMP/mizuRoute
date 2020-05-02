@@ -1,4 +1,5 @@
 MODULE var_lookup
+
  ! defines named variables used to index array elements
  USE nrtype,     only: i4b
  USE public_var, only: integerMissing  ! missing value for integers
@@ -126,6 +127,15 @@ MODULE var_lookup
  ! ***********************************************************************************************************
  ! ** define variables for segment fluxes/states variables
  ! ***********************************************************************************************************
+ ! Reach fluxes
+ type, public  ::  iLook_RFLX
+  integer(i4b)     :: basRunoff         = integerMissing  ! basin runoff
+  integer(i4b)     :: instRunoff        = integerMissing  ! instantaneous runoff in each reach
+  integer(i4b)     :: dlayRunoff        = integerMissing  ! delayed runoff in each reac
+  integer(i4b)     :: sumUpstreamRunoff = integerMissing  ! sum of upstream runoff in each reach
+  integer(i4b)     :: KWTroutedRunoff   = integerMissing  ! Lagrangian KWT routed runoff in each reach
+  integer(i4b)     :: IRFroutedRunoff   = integerMissing  ! IRF routed runoff in each reach
+ endtype iLook_RFLX
  ! Basin IRF state/fluxes
  type, public  ::  iLook_IRFbas
   integer(i4b)     :: qfuture        = integerMissing  ! future routed flow
@@ -157,6 +167,7 @@ MODULE var_lookup
  type(iLook_SEG)      ,public,parameter :: ixSEG       = iLook_SEG      (1,2,3,4,5,6,7,8,9,10,11,12,13)
  type(iLook_NTOPO)    ,public,parameter :: ixNTOPO     = iLook_NTOPO    (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17)
  type(iLook_PFAF)     ,public,parameter :: ixPFAF      = iLook_PFAF     (1)
+ type(iLook_RFLX)     ,public,parameter :: ixRFLX      = iLook_RFLX     (1,2,3,4,5,6)
  type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      (1,2,3,4,5,6)
  type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      (1,2)
  type(iLook_IRFbas  ) ,public,parameter :: ixIRFbas    = iLook_IRFbas   (1,2)
@@ -172,6 +183,7 @@ MODULE var_lookup
  integer(i4b),parameter,public    :: nVarsSEG     = storage_size(ixSEG      )/iLength
  integer(i4b),parameter,public    :: nVarsNTOPO   = storage_size(ixNTOPO    )/iLength
  integer(i4b),parameter,public    :: nVarsPFAF     = storage_size(ixPFAF    )/iLength
+ integer(i4b),parameter,public    :: nVarsRFLX     = storage_size(ixRFLX    )/iLength
  integer(i4b),parameter,public    :: nVarsKWT      = storage_size(ixKWT      )/iLength
  integer(i4b),parameter,public    :: nVarsIRF      = storage_size(ixIRF      )/iLength
  integer(i4b),parameter,public    :: nVarsIRFbas   = storage_size(ixIRFbas   )/iLength

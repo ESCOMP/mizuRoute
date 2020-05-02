@@ -150,6 +150,7 @@ contains
    case('<desireId>'   );          read(cData,*,iostat=io_error) desireId          ! turn off checks or speficy reach ID if necessary to print on screen
    case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute    ! basin routing options   0-> no, 1->IRF, otherwise error
    case('<doesAccumRunoff>');      read(cData,*,iostat=io_error) doesAccumRunoff   ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
+   case('<netcdf_format>');        netcdf_format = trim(cData)                     ! netcdf format for output 'classic','64bit_offset','netcdf4'
    ! PFAFCODE
    case('<maxPfafLen>');           read(cData,*,iostat=io_error) maxPfafLen        ! maximum digit of pfafstetter code (default 32)
    case('<pfafMissing>');          pfafMissing = trim(cData)                       ! missing pfafcode (e.g., reach without any upstream area)
@@ -199,7 +200,7 @@ contains
    ! if not in list then keep going
    case default
     message=trim(message)//'unexpected text in control file -- provided '//trim(cName)&
-                         //' (note strings in control file must match the variable names in var_lookup.f90)'
+                         //' (note strings in control file must match the variable names in public_var.f90)'
     err=20; return
 
   end select
