@@ -10,6 +10,7 @@ module globalData
   use dataTypes,  only : struct_info   ! metadata type
   use dataTypes,  only : dim_info      ! metadata type
   use dataTypes,  only : var_info      ! metadata type
+  use objTypes,   only : var_info_new  ! metadata type
 
   ! parameter structures
   USE dataTypes,  only : RCHPRP        ! Reach parameters (properties)
@@ -55,16 +56,6 @@ module globalData
 
   ! ---------- MPI/OMP variables -------------------------------------------------------------------
   integer(i4b)                  :: nThreads            ! number of threads
-  ! ---------- constants ----------------------------------------------------------------------------
-
-  ! true/false
-  integer(i4b)      , parameter  , public :: true=1001                  ! true
-  integer(i4b)      , parameter  , public :: false=1002                 ! false
-
-  ! variable types
-  integer(i4b)      , parameter  , public :: varType_integer   = 1001   ! named variable for an integer
-  integer(i4b)      , parameter  , public :: varType_double    = 1002   ! named variable for a double precision
-  integer(i4b)      , parameter  , public :: varType_character = 1003   ! named variable for a double precision
 
   ! ---------- conversion factors -------------------------------------------------------------------
 
@@ -96,10 +87,10 @@ module globalData
   type(var_info)                 , public :: meta_SEG    (nVarsSEG    ) ! stream segment properties
   type(var_info)                 , public :: meta_NTOPO  (nVarsNTOPO  ) ! network topology
   type(var_info)                 , public :: meta_PFAF   (nVarsPFAF   ) ! pfafstetter code
-  type(var_info)                 , public :: meta_rflx   (nVarsRFLX   ) ! reach flux variables
-  type(var_info)                 , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
-  type(var_info)                 , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
-  type(var_info)                 , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
+  type(var_info_new)             , public :: meta_rflx   (nVarsRFLX   ) ! reach flux variables
+  type(var_info_new)             , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
+  type(var_info_new)             , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
+  type(var_info_new)             , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
 
   ! ---------- data structures ----------------------------------------------------------------------
   integer(i4b)                   , public :: nEns=1               ! number of ensemble

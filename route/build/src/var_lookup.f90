@@ -148,12 +148,10 @@ MODULE var_lookup
   integer(i4b)     :: qwave          = integerMissing  ! wave flow
   integer(i4b)     :: qwave_mod      = integerMissing  ! wave flow after merged
   integer(i4b)     :: routed         = integerMissing  ! Routed out of a segment or not
-  integer(i4b)     :: q              = integerMissing  ! final discharge
  endtype iLook_KWT
  !IRF state/fluxes
  type, public  ::  iLook_IRF
   integer(i4b)     :: qfuture        = integerMissing  ! future routed flow
-  integer(i4b)     :: q              = integerMissing  ! final discharge
  endtype iLook_IRF
  ! ***********************************************************************************************************
  ! ** define data vectors
@@ -168,8 +166,8 @@ MODULE var_lookup
  type(iLook_NTOPO)    ,public,parameter :: ixNTOPO     = iLook_NTOPO    (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17)
  type(iLook_PFAF)     ,public,parameter :: ixPFAF      = iLook_PFAF     (1)
  type(iLook_RFLX)     ,public,parameter :: ixRFLX      = iLook_RFLX     (1,2,3,4,5,6)
- type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      (1,2,3,4,5,6)
- type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      (1,2)
+ type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      (1,2,3,4,5)
+ type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      (1)
  type(iLook_IRFbas  ) ,public,parameter :: ixIRFbas    = iLook_IRFbas   (1,2)
  ! ***********************************************************************************************************
  ! ** define size of data vectors
