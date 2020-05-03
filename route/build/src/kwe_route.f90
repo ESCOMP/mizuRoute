@@ -167,7 +167,7 @@ contains
  character(*),  intent(out)                :: message           ! error message
  ! Local variables to
  type(STRFLX), allocatable                 :: uprflux(:)        ! upstream Reach fluxes
- logical(lgt)                              :: doExamin          ! check details of variables
+ logical(lgt)                              :: doCheck           ! check details of variables
  integer(i4b)                              :: nUps              ! number of upstream segment
  integer(i4b)                              :: iUps              ! upstream reach index
  integer(i4b)                              :: iRch_ups          ! index of upstream reach in NETOPO
@@ -176,9 +176,9 @@ contains
  ! initialize error control
  ierr=0; message='kwe_rch/'
 
- doExamin = .false.
+ doCheck = .false.
  if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
-   doExamin = .true.
+   doCheck = .true.
  end if
 
  ! identify number of upstream segments of the reach being processed
@@ -194,23 +194,31 @@ contains
    end do
  endif
 
+ if(doCheck)then
+   write(iulog,'(A)') 'CHECK Euler Kinematic wave'
+   if (nUps>0) then
+     do iUps = 1,nUps
+       write(iulog,'(A,X,I6,X,G11.5)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),uprflux(iUps)%REACH_Q
+     enddo
+   end if
+   write(iulog,'(A,X,G11.5)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+ endif
+
  ! perform river network UH routing
  call kw_euler(RPARAM_in(segIndex),         &    ! input: parameter at segIndex reach
                T0,T1,                       &    ! input: start and end of the time step
                uprflux,                     &    ! input: upstream reach fluxes
                RCHSTA_out(iens,segIndex),   &    ! inout:
                RCHFLX_out(iens,segIndex),   &    ! inout: updated fluxes at reach
-               doExamin,                    &    ! input: reach index to be examined
+               doCheck,                    &    ! input: reach index to be examined
                ierr, message)                    ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! Check True since now this reach now routed
  RCHFLX_out(iEns,segIndex)%isRoute=.True.
 
- ! check
- if(doExamin)then
-  write(iulog,*) 'RCHFLX_out(iens,segIndex)%BASIN_QR(1),RCHFLX_out(iens,segIndex)%REACH_Q = ', &
-                  RCHFLX_out(iens,segIndex)%BASIN_QR(1),RCHFLX_out(iens,segIndex)%REACH_Q
+ if(doCheck)then
+  write(iulog,'(A,X,G11.5)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%REACH_Q
  endif
 
  END SUBROUTINE kwe_rch
@@ -224,21 +232,25 @@ contains
                      uprflux,       & ! input: upstream reach fluxes
                      rstate,        & ! inout: reach state at a reach
                      rflux,         & ! inout: reach flux at a reach
-                     doExamin,      & ! input: reach index to be examined
+                     doCheck,       & ! input: reach index to be examined
                      ierr,message)
  ! ----------------------------------------------------------------------------------------
-
- ! e.g., doc: https://www.fs.fed.us/rm/pubs_other/rmrs_2010_wang_l001.pdf
- ! state array:
+ ! Kinematic wave equation is solved based on conservative form the equation
+ ! Reference: HEC-HMS technical reference mannual
+ ! https://www.hec.usace.army.mil/software/hec-hms/documentation/HEC-HMS_Technical%20Reference%20Manual_(CPD-74B).pdf
+ !
+ ! Regarding state array:
  ! (time:0:1, loc:0:1) 0-previous time step/inlet, 1-current time step/outlet.
  ! Q or A(1,2,3,4): 1: (t=0,x=0), 2: (t=0,x=1), 3: (t=1,x=0), 4: (t=1,x=1)
+ !
+ ! TO-DO: 1. implement adaptive time step Euler
 
  IMPLICIT NONE
  ! Input
  type(RCHPRP), intent(in)                 :: rch_param    ! River reach parameter
  real(dp),     intent(in)                 :: T0,T1        ! start and end of the time step (seconds)
  type(STRFLX), intent(in), allocatable    :: uprflux(:)   ! upstream Reach fluxes
- logical(lgt), intent(in)                 :: doExamin     ! reach index to be examined
+ logical(lgt), intent(in)                 :: doCheck      ! reach index to be examined
  ! Input/Output
  type(STRSTA), intent(inout)              :: rstate       ! curent reach states
  type(STRFLX), intent(inout)              :: rflux        ! current Reach fluxes
@@ -285,7 +297,7 @@ contains
    beta  = 5._dp/3._dp
    beta1  = 1._dp/beta
    alpha1 = (1.0/alpha)**beta1
-   dX  = rch_param%RLENGTH
+   dX = rch_param%RLENGTH
    dT = T1-T0
 
    ! compute flow rate and flow area at upstream end at current time step
@@ -296,54 +308,45 @@ contains
 
    A(1,0) = (Q(1,0)/alpha)**(1/beta)
 
-   if (doExamin) then
-     write(iulog,*) 'R_SLOPE= ',rch_param%R_SLOPE,'R_WIDTH= ',rch_param%R_WIDTH, 'R_MANN= ',rch_param%R_MAN_N
-     write(iulog,*) 'Q(0,0)= ', Q(0,0), 'Q(0,1)= ', Q(0,1), 'Q(1,0)= ', Q(1,0)
-     write(iulog,*) 'A(0,0)= ', A(0,0), 'A(0,1)= ', A(0,1), 'A(1,0)= ', A(1,0)
+   if (doCheck) then
+     write(iulog,'(3(A,X,G11.5))') ' R_SLOPE=',rch_param%R_SLOPE,' R_WIDTH=',rch_param%R_WIDTH,' R_MANN=',rch_param%R_MAN_N
+     write(iulog,'(3(A,X,G11.5))') ' Q(0,0)=',Q(0,0),' Q(0,1)=',Q(0,1),' Q(1,0)=',Q(1,0)
+     write(iulog,'(3(A,X,G11.5))') ' A(0,0)=',A(0,0),' A(0,1)=',A(0,1),' A(1,0)=',A(1,0)
    end if
 
+! ----- Need adaptive time step forward Euler --------
 !   ! Compute Courant number == ration of celarity to dx/dt
 !   Qbar = 0.5*(Q(0,1)+Q(1,0))
 !   Abar = 0.5*(A(0,1)+A(1,0))
-!   if (Abar > 0._dp) then
-!     theta = beta*(dT/dX)*(Qbar)/(Abar)
-!   else
+!   if (Abar <= 0._dp) then
 !     Qbar = runoffMin
 !     Abar = (Qbar/alpha)**(1/beta)
-!     theta = beta*(dT/dX)*(Qbar)/(Abar)
 !   endif
+!   theta = beta*(dT/dX)*(Qbar)/(Abar)
 !
-!   if (doExamin) then
-!     write(iulog,*) 'dT= ', dt, 'dX=', dX, 'Qbar= ', Qbar, 'Abar= ', ABar, 'theta= ', theta
+!   if (doCheck) then
+!     write(iulog,'(5(a,G11.5,x))') ' dT= ', dt, 'dX=', dX, 'Qbar= ', Qbar, 'Abar= ', ABar, 'theta= ', theta
 !   end if
 
    ! ----------
    ! solve flow rate and flow area at downstream end at current time step
    ! ----------
+
+! ----- Modify for adaptive time step forward Euler --------
 !   if (theta >= 1.0) then
 !     Q(1,1) = Q(1,0) - dX/dT*(A(1,0)-A(0,0))
-!     if (Q(1,1) < 0._dp) then
-!       A(1,1) = A(0,1) + dT/dX*(Q(0,0) - Q(0,1))
-!       Q(1,1) = alpha*A(1,1)**beta
-!     else
-!       A(1,1) = (Q(1,1)/alpha)**(1/beta)
-!     end if
+!     A(1,1) = (Q(1,1)/alpha)**(1/beta)
 !   else
 !     A(1,1) = A(0,1) + dT/dX*(Q(0,0) - Q(0,1))
-!     if (A(1,1) < 0._dp) then
-!       Q(1,1) = Q(1,0) - dX/dT*(A(1,0)-A(0,0))
-!       A(1,1) = (Q(1,1)/alpha)**(1/beta)
-!     else
-!       Q(1,1) = alpha*A(1,1)**beta
-!     end if
+!     Q(1,1) = alpha*A(1,1)**beta
 !   end if
 
    Qbar = (Q(0,1) + Q(1,0))/2
    Q(1,1) = dT/dX*Q(1,0) + alpha1*beta1*Qbar**(beta1-1)*Q(0,1)
    Q(1,1) = Q(1,1)/(dT/dX + alpha1*beta1*Qbar**(beta1-1))
 
-   if (doExamin) then
-     write(iulog,*) 'A(1,1)= ', A(1,1), 'Q(1,1)= ', Q(1,1)
+   if (doCheck) then
+     write(iulog,'(2(A,X,G11.5))') ' A(1,1)=',A(1,1),' Q(1,1)=',Q(1,1)
    end if
 
  else ! if head-water
@@ -361,10 +364,11 @@ contains
    Q(1,1) = 0._dp
    A(1,1) = 0._dp
 
-   if (doExamin) then
-     write(iulog,*) 'This is headwater '
-     write(iulog,*) 'A(1,1)= ', A(1,1), 'Q(1,1)= ', Q(1,1)
+   if (doCheck) then
+     write(iulog,'(A)')            ' This is headwater '
+     write(iulog,'(2(A,X,G11.5))') ' A(1,1)=',A(1,1),' Q(1,1)=',Q(1,1)
    endif
+
  endif
 
  ! add catchment flow
