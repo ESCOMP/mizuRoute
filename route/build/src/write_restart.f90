@@ -159,6 +159,10 @@ CONTAINS
    ! output
    integer(i4b), intent(out)  :: ierr     ! error code
    character(*), intent(out)  :: message1  ! error message
+   ! local
+   integer(i4b)                      :: iVar           ! index loop for variables
+   character(len=strLen),allocatable :: dim_IRFbas(:)  ! dimensions combination case 4
+
    ! initialize error control
    ierr=0; message1='set_dim_len/'
 
@@ -181,12 +185,12 @@ CONTAINS
    USE var_lookup, ONLY: ixIRFbas, nVarsIRFbas
    implicit none
    ! output
-   integer(i4b), intent(out)  :: ierr          ! error code
-   character(*), intent(out)  :: message1       ! error message
+   integer(i4b), intent(out)         :: ierr          ! error code
+   character(*), intent(out)         :: message1      ! error message
    ! local
-   integer(i4b)               :: iVar          ! index loop for variables
-   character(len=strLen)      :: dim_IRFbas(4) ! dimensions combination case 4
-   character(len=strLen)      :: dim_q(3)      ! dimensions combination case 4
+   integer(i4b)                      :: iVar,ixDim    ! index loop for variables
+   integer(i4b)                      :: nDims         ! number of dimensions
+   character(len=strLen),allocatable :: dim_IRFbas(:) ! dimensions combination case 4
 
    ! initialize error control
    ierr=0; message1='define_IRFbas_state/'
@@ -195,10 +199,6 @@ CONTAINS
              dim_ens    => meta_stateDims(ixStateDims%ens)%dimName,     &
              dim_time   => meta_stateDims(ixStateDims%time)%dimName,    &
              dim_tdh    => meta_stateDims(ixStateDims%tdh)%dimName)
-
-   ! Array dimension sets
-   dim_IRFbas(:) = (/dim_seg, dim_tdh, dim_ens, dim_time/)
-   dim_q(:)      = (/dim_seg, dim_ens, dim_time/)
 
    ! Check dimension length is populated
    if (meta_stateDims(ixStateDims%tdh)%dimLength == integerMissing) then
@@ -210,12 +210,19 @@ CONTAINS
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
    do iVar=1,nVarsIRFbas
-    select case(iVar)
-     case(ixIRFbas%qfuture); call def_var(ncid, meta_irf_bas(iVar)%varName, dim_IRFbas,  ncd_double, ierr, cmessage, vdesc=meta_irf_bas(iVar)%varDesc, vunit=meta_irf_bas(iVar)%varUnit )
-     case(ixIRFbas%q);       call def_var(ncid, meta_irf_bas(iVar)%varName, dim_q, ncd_double, ierr, cmessage, vdesc=meta_irf_bas(iVar)%varDesc, vunit=meta_irf_bas(iVar)%varUnit )
-     case default; ierr=20; message1=trim(message1)//'unable to identify hill-slope routing state variable index'; return
-    end select
-    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+     nDims = size(meta_irf_bas(iVar)%varDim)
+     if (allocated(dim_IRFbas)) then
+       deallocate(dim_IRFbas)
+     end if
+     allocate(dim_IRFbas(nDims))
+     do ixDim = 1, nDims
+       dim_IRFbas(ixDim) = meta_stateDims(meta_irf_bas(iVar)%varDim(ixDim))%dimName
+     end do
+
+     call def_var(ncid, meta_irf_bas(iVar)%varName, dim_IRFbas, meta_irf_bas(iVar)%varType, ierr, cmessage, vdesc=meta_irf_bas(iVar)%varDesc, vunit=meta_irf_bas(iVar)%varUnit )
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
    end do
   end associate
 
@@ -227,11 +234,12 @@ CONTAINS
    USE var_lookup, ONLY: ixKWT, nVarsKWT
    implicit none
    ! output
-   integer(i4b), intent(out)  :: ierr        ! error code
-   character(*), intent(out)  :: message1     ! error message
+   integer(i4b), intent(out)         :: ierr        ! error code
+   character(*), intent(out)         :: message1    ! error message
    ! local
-   integer(i4b)               :: iVar        ! index loop for variables
-   character(len=strLen)      :: dim_kwt(4)  ! dimensions combination case 4
+   integer(i4b)                      :: iVar,ixDim  ! index loop for variables
+   integer(i4b)                      :: nDims       ! number of dimensions
+   character(len=strLen),allocatable :: dim_kwt(:)  ! dimensions combination case 4
 
    ! initialize error control
    ierr=0; message1='define_KWT_state/'
@@ -240,8 +248,6 @@ CONTAINS
              dim_ens     => meta_stateDims(ixStateDims%ens)%dimName,     &
              dim_time    => meta_stateDims(ixStateDims%time)%dimName,    &
              dim_wave    => meta_stateDims(ixStateDims%wave)%dimName)
-
-   dim_kwt(:) = (/dim_seg, dim_wave, dim_ens, dim_time/)
 
    ! Check dimension length is populated
    if (meta_stateDims(ixStateDims%wave)%dimLength == integerMissing) then
@@ -258,17 +264,17 @@ CONTAINS
 
    do iVar=1,nVarsKWT
 
-    if (iVar==ixKWT%q) cycle  !skip writing final discharge
+     nDims = size(meta_kwt(iVar)%varDim)
+     if (allocated(dim_kwt)) then
+       deallocate(dim_kwt)
+     endif
+     allocate(dim_kwt(nDims))
+     do ixDim = 1, nDims
+       dim_kwt(ixDim) = meta_stateDims(meta_kwt(iVar)%varDim(ixDim))%dimName
+     end do
 
-    select case(iVar)
-     case(ixKWT%tentry);    call def_var(ncid, meta_kwt(iVar)%varName, dim_kwt, ncd_double, ierr, cmessage, vdesc=meta_kwt(iVar)%varDesc, vunit=meta_kwt(iVar)%varUnit)
-     case(ixKWT%texit);     call def_var(ncid, meta_kwt(iVar)%varName, dim_kwt, ncd_double, ierr, cmessage, vdesc=meta_kwt(iVar)%varDesc, vunit=meta_kwt(iVar)%varUnit)
-     case(ixKWT%qwave);     call def_var(ncid, meta_kwt(iVar)%varName, dim_kwt, ncd_double, ierr, cmessage, vdesc=meta_kwt(iVar)%varDesc, vunit=meta_kwt(iVar)%varUnit)
-     case(ixKWT%qwave_mod); call def_var(ncid, meta_kwt(iVar)%varName, dim_kwt, ncd_double, ierr, cmessage, vdesc=meta_kwt(iVar)%varDesc, vunit=meta_kwt(iVar)%varUnit)
-     case(ixKWT%routed);    call def_var(ncid, meta_kwt(iVar)%varName, dim_kwt, ncd_int,    ierr, cmessage, vdesc=meta_kwt(iVar)%varDesc, vunit=meta_kwt(iVar)%varUnit)
-     case default; ierr=20; message1=trim(message1)//'unable to identify KWT routing state variable index'; return
-    end select
-    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+     call def_var(ncid, meta_kwt(iVar)%varName, dim_kwt, meta_kwt(iVar)%varType, ierr, cmessage, vdesc=meta_kwt(iVar)%varDesc, vunit=meta_kwt(iVar)%varUnit)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
    end do
 
@@ -282,11 +288,12 @@ CONTAINS
    USE var_lookup, ONLY: ixIRF, nVarsIRF
    implicit none
    ! output
-   integer(i4b), intent(out)  :: ierr        ! error code
-   character(*), intent(out)  :: message1     ! error message
+   integer(i4b), intent(out)         :: ierr        ! error code
+   character(*), intent(out)         :: message1    ! error message
    ! local
-   integer(i4b)               :: iVar        ! index loop for variables
-   character(len=strLen)      :: dim_irf(4)  ! dimensions combination case 4
+   integer(i4b)                      :: iVar,ixDim  ! index loop for variables
+   integer(i4b)                      :: nDims       ! number of dimensions
+   character(len=strLen),allocatable :: dim_irf(:)  ! dimensions combination case 4
    ! initialize error control
    ierr=0; message1='define_IRF_state/'
 
@@ -295,7 +302,7 @@ CONTAINS
              dim_time    => meta_stateDims(ixStateDims%time)%dimName,    &
              dim_tdh_irf => meta_stateDims(ixStateDims%tdh_irf)%dimName)
 
-   dim_irf(:) = (/dim_seg, dim_tdh_irf, dim_ens, dim_time/)
+   ! define dimension ID array
 
    if (meta_stateDims(ixStateDims%tdh_irf)%dimLength == integerMissing) then
      call set_dim_len(ixStateDims%tdh_irf, ierr, cmessage)
@@ -311,13 +318,17 @@ CONTAINS
 
    do iVar=1,nVarsIRF
 
-    if (iVar==ixIRF%q) cycle  ! skip writing final discharge
+     nDims = size(meta_irf(iVar)%varDim)
+     if (allocated(dim_irf)) then
+       deallocate(dim_irf)
+     endif
+     allocate(dim_irf(nDims))
+     do ixDim = 1, nDims
+       dim_irf(ixDim) = meta_stateDims(meta_irf(iVar)%varDim(ixDim))%dimName
+     end do
 
-    select case(iVar)
-     case(ixIRF%qfuture); call def_var(ncid, meta_irf(iVar)%varName, dim_irf, ncd_double, ierr, cmessage, vdesc=meta_irf(iVar)%varDesc, vunit=meta_irf(iVar)%varUnit)
-     case default; ierr=20; message1=trim(message1)//'unable to identify IRF routing state variable index'; return
-    end select
-   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+     call def_var(ncid, meta_irf(iVar)%varName, dim_irf, meta_irf(iVar)%varType, ierr, cmessage, vdesc=meta_irf(iVar)%varDesc, vunit=meta_irf(iVar)%varUnit)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
    end do
 
@@ -483,7 +494,6 @@ CONTAINS
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsKWT
-    if (iVar==ixKWT%q) cycle  ! not writing out river flow in state file
     select case(iVar)
      case(ixKWT%routed); allocate(state(kinematicWave)%var(iVar)%array_3d_int(nSeg, nwave, nens), stat=ierr)
      case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
@@ -500,8 +510,6 @@ CONTAINS
     numWaves(iens,iseg) = size(KROUTE(iens,iseg)%KWAVE)
 
     do iVar=1,nVarsKWT
-
-     if (iVar==ixKWT%q) cycle ! not writing out KWT routed flow
 
      select case(iVar)
       case(ixKWT%tentry)
@@ -534,8 +542,6 @@ CONTAINS
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsKWT
-
-    if (iVar==ixKWT%q) cycle  ! not writing out river flow in state file
 
     select case(iVar)
      case(ixKWT%routed)
@@ -582,7 +588,6 @@ CONTAINS
   if(ierr/=0)then; message1=trim(message1)//'problem allocating space for numQF'; return; endif
 
   do iVar=1,nVarsIRF
-   if (iVar==ixIRF%q) cycle
    select case(iVar)
     case(ixIRF%qfuture); allocate(state(impulseResponseFunc)%var(iVar)%array_3d_dp(nSeg, ntdh_irf, nens), stat=ierr)
     case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
@@ -597,8 +602,6 @@ CONTAINS
     numQF(iens,iseg) = size(NETOPO(iSeg)%UH)
 
     do iVar=1,nVarsIRF
-
-     if (iVar==ixIRF%q) cycle ! not writing out IRF routed flow
 
      select case(iVar)
       case(ixIRF%qfuture)
@@ -616,8 +619,6 @@ CONTAINS
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsIRF
-
-   if (iVar==ixIRF%q) cycle  ! not writing out river flow in state file
 
    select case(iVar)
     case(ixIRF%qfuture)
