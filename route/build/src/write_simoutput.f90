@@ -104,8 +104,6 @@ CONTAINS
  USE public_var,          only : calendar          ! calendar name
  USE public_var,          only : newFileFrequency  ! frequency for new output files (day, month, annual)
  USE public_var,          only : time_units        ! time units (seconds, hours, or days)
- USE public_var,          only : annual,month,day, & ! time frequency named variable for output files
-                                 single              ! time frequency named variable for output files
  ! saved global data
  USE globalData,          only : basinID,reachID   ! HRU and reach ID in network
  USE globalData,          only : modJulday         ! julian day: at model time step
@@ -221,11 +219,12 @@ CONTAINS
  integer(i4b), intent(out)       :: ierr         ! error code
  character(*), intent(out)       :: message      ! error message
  ! local variables
- character(len=strLen)           :: dim_array(2)
- integer(i4b)                    :: ixDim
- integer(i4b)                    :: ncid         ! NetCDF file ID
- integer(i4b)                    :: jDim, iVar   ! dimension, and variable index
- character(len=strLen)           :: cmessage     ! error message of downwind routine
+ character(len=strLen),allocatable :: dim_array(:)
+ integer(i4b)                      :: nDims
+ integer(i4b)                      :: ixDim
+ integer(i4b)                      :: ncid         ! NetCDF file ID
+ integer(i4b)                      :: jDim, iVar   ! dimension, and variable index
+ character(len=strLen)             :: cmessage     ! error message of downwind routine
 
  ! initialize error control
  ierr=0; message='defineFile/'
@@ -287,10 +286,16 @@ CONTAINS
   if (.not.meta_rflx(iVar)%varFile) cycle
 
   ! define dimension ID array
-  ixDim = meta_rflx(iVar)%varType
-  dim_array = [meta_qDims(ixDim)%dimName, meta_qDims(ixQdims%time)%dimName]
+  nDims = size(meta_rflx(iVar)%varDim)
+  if (allocated(dim_array)) then
+    deallocate(dim_array)
+  endif
+  allocate(dim_array(nDims))
+  do ixDim = 1, nDims
+    dim_array(ixDim) = meta_qDims(meta_rflx(iVar)%varDim(ixDim))%dimName
+  end do
 
-  call def_var(ncid, meta_rflx(iVar)%varName, dim_array, ncd_float, ierr, cmessage, vdesc=meta_rflx(iVar)%varDesc, vunit=meta_rflx(iVar)%varUnit )
+  call def_var(ncid, meta_rflx(iVar)%varName, dim_array, meta_rflx(iVar)%varType, ierr, cmessage, vdesc=meta_rflx(iVar)%varDesc, vunit=meta_rflx(iVar)%varUnit )
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end do

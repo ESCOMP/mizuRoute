@@ -42,11 +42,14 @@ module public_var
 
   ! ---------- named variables ----------------------------------------------------------------------
 
-  ! output file frequency
-  integer(i4b) , parameter        :: annual=1001            ! named variable for yearly output files
-  integer(i4b) , parameter        :: month=1002             ! named variable for monthly output files
-  integer(i4b) , parameter        :: day=1003               ! named variable for daily output files
-  integer(i4b) , parameter        :: single=1004            ! named variable for yearly output files
+  ! true/false
+  integer(i4b), parameter, public :: true=1001                  ! true
+  integer(i4b), parameter, public :: false=1002                 ! false
+
+  ! variable types
+  integer(i4b), parameter, public :: varType_integer   = 1001   ! named variable for an integer
+  integer(i4b), parameter, public :: varType_double    = 1002   ! named variable for a double precision
+  integer(i4b), parameter, public :: varType_character = 1003   ! named variable for a double precision
 
   ! compute versus read from file
   integer(i4b), parameter,public  :: compute=1              ! compute given variable
