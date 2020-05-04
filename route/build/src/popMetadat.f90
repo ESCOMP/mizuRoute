@@ -13,9 +13,9 @@ USE dataTypes,  only : var_info     ! data type for metadata structure
 USE dataTypes,  only : dim_info     ! data type for metadata structure
 
 ! variable type
-USE globalData, only : varType_integer   ! named variable for an integer
-USE globalData, only : varType_double    ! named variable for a double precision
-USE globalData, only : varType_character ! named variable for a double precision
+USE public_var, only : varType_integer   ! named variable for an integer
+USE public_var, only : varType_double    ! named variable for a double precision
+USE public_var, only : varType_character ! named variable for a double precision
 
 ! metadata on data structures
 USE globalData, only : meta_struct    ! structure information
