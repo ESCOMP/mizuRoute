@@ -12,6 +12,7 @@ public::get_var_dims
 public::get_nc_dim_len
 public::get_var_attr_char
 public::get_var_attr_real
+public::put_global_attr
 public::def_nc
 public::def_dim
 public::def_var
@@ -50,6 +51,7 @@ integer(i4b),parameter,public :: ncd_float     = nf90_float
 integer(i4b),parameter,public :: ncd_double    = nf90_double
 integer(i4b),parameter,public :: ncd_char      = nf90_char
 integer(i4b),parameter,public :: ncd_unlimited = nf90_unlimited
+integer(i4b),parameter,public :: ncd_global    = nf90_global
 
 CONTAINS
 
@@ -751,6 +753,30 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  end subroutine
+
+  ! *********************************************************************
+  ! subroutine: write global attribute
+  ! *********************************************************************
+  subroutine put_global_attr(ncid,          & ! input: netCDF ID
+                             attName,       & ! input: global attribute name
+                             attValue,      & ! input: global attribute values
+                             ierr, message)   ! output: error control
+  implicit none
+  ! input variables
+  integer(i4b), intent(in)        :: ncid      ! Input: netcdf fine ID
+  character(*), intent(in)        :: attName   ! attribute name
+  character(*), intent(in)        :: attValue  ! attribute values
+  ! output variables
+  integer(i4b), intent(out)       :: ierr          ! error code
+  character(*), intent(out)       :: message       ! error message
+
+  ! initialize error control
+  ierr=0; message='put_global_attr/'
+
+  ierr = nf90_put_att(ncid, ncd_global, trim(attName), trim(attValue))
+  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+  end subroutine
 
   ! *********************************************************************
   ! subroutine: write an integer vector
