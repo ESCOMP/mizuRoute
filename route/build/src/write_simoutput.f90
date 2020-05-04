@@ -37,9 +37,11 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE output(ierr, message)    ! out:   error control
   !Dependent modules
-  USE globalData,          only : nHRU, nRch          ! number of ensembles, HRUs and river reaches
-  USE globalData,          only : RCHFLX              ! Reach fluxes (ensembles, space [reaches])
-  USE globalData,          only : runoff_data         ! runoff data for one time step for LSM HRUs and River network HRUs
+  USE var_lookup, ONLY: ixRFLX
+  USE globalData, ONLY: meta_rflx
+  USE globalData, ONLY: nHRU, nRch          ! number of ensembles, HRUs and river reaches
+  USE globalData, ONLY: RCHFLX              ! Reach fluxes (ensembles, space [reaches])
+  USE globalData, ONLY: runoff_data         ! runoff data for one time step for LSM HRUs and River network HRUs
 
   implicit none
 
@@ -60,33 +62,37 @@ CONTAINS
   call write_nc(trim(fileout), 'time', (/runoff_data%time/), (/jTime/), (/1/), ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! write the basin runoff to the netcdf file
-  call write_nc(trim(fileout), 'basRunoff', runoff_data%basinRunoff, (/1,jTime/), (/nHRU,1/), ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if (meta_rflx(ixRFLX%basRunoff)%varFile) then
+   ! write the basin runoff at HRU (m/s)
+   call write_nc(trim(fileout), 'basRunoff', runoff_data%basinRunoff, (/1,jTime/), (/nHRU,1/), ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
 
-  if (doesBasinRoute == 1) then
+  if (meta_rflx(ixRFLX%instRunoff)%varFile) then
    ! write instataneous local runoff in each stream segment (m3/s)
    call write_nc(trim(fileout), 'instRunoff', RCHFLX(iens,:)%BASIN_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
-  ! write routed local runoff in each stream segment (m3/s)
-  call write_nc(trim(fileout), 'dlayRunoff', RCHFLX(iens,:)%BASIN_QR(1), (/1,jTime/), (/nRch,1/), ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if (meta_rflx(ixRFLX%dlayRunoff)%varFile) then
+   ! write routed local runoff in each stream segment (m3/s)
+   call write_nc(trim(fileout), 'dlayRunoff', RCHFLX(iens,:)%BASIN_QR(1), (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
 
-  ! write accumulated runoff (m3/s)
-  if (doesAccumRunoff == 1) then
+  if (meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile) then
+   ! write accumulated runoff (m3/s)
    call write_nc(trim(fileout), 'sumUpstreamRunoff', RCHFLX(iens,:)%UPSTREAM_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
-  if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
+  if (meta_rflx(ixRFLX%KWTroutedRunoff)%varFile) then
    ! write routed runoff (m3/s)
    call write_nc(trim(fileout), 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,jTime/), (/nRch,1/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
-  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+  if (meta_rflx(ixRFLX%IRFroutedRunoff)%varFile) then
    ! write routed runoff (m3/s)
    call write_nc(trim(fileout), 'IRFroutedRunoff', RCHFLX(iens,:)%REACH_Q_IRF, (/1,jTime/), (/nRch,1/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
