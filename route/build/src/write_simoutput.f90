@@ -15,6 +15,7 @@ USE io_netcdf, only: ncd_unlimited
 USE io_netcdf, only: def_nc                 ! define netcdf
 USE io_netcdf, only: def_var                ! define netcdf variable
 USE io_netcdf, only: def_dim                ! define netcdf dimension
+USE io_netcdf, only: put_global_attr        ! write global attributes
 USE io_netcdf, only: end_def                ! end defining netcdf
 USE io_netcdf, only: close_nc               ! close netcdf
 USE io_netcdf, only: write_nc               ! write a variable to the NetCDF file
@@ -208,6 +209,7 @@ CONTAINS
                        calendar,        &  ! input: calendar
                        ierr, message)      ! output: error control
  !Dependent modules
+ USE public_var,  ONLY: mizuRouteVersion
  USE globalData, ONLY: meta_rflx
  USE globalData, ONLY: meta_qDims
  USE var_lookup, ONLY: ixRFLX, nVarsRFLX
@@ -307,6 +309,10 @@ CONTAINS
  end do
 
  end associate
+
+ ! put global attribute
+ call put_global_attr(ncid, 'version', trim(mizuRouteVersion) ,ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! end definitions
  call end_def(ncid, ierr, cmessage)
