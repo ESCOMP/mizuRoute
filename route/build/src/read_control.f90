@@ -27,6 +27,7 @@ contains
  USE globalData, only : meta_SEG             ! stream segment properties
  USE globalData, only : meta_NTOPO           ! network topology
  USE globalData, only : meta_PFAF            ! pfafstetter code
+ USE globalData, only : meta_rflx            ! river flux variables
 
  ! named variables in each structure
  USE var_lookup, only : ixHRU                ! index of variables for data structure
@@ -34,6 +35,7 @@ contains
  USE var_lookup, only : ixSEG                ! index of variables for data structure
  USE var_lookup, only : ixNTOPO              ! index of variables for data structure
  USE var_lookup, only : ixPFAF               ! index of variables for data structure
+ USE var_lookup, only : ixRFLX               ! index of variables for data structure
 
  ! external subroutines
  USE ascii_util_module,only:file_open        ! open file (performs a few checks as well)
@@ -154,17 +156,22 @@ contains
    ! PFAFCODE
    case('<maxPfafLen>');           read(cData,*,iostat=io_error) maxPfafLen        ! maximum digit of pfafstetter code (default 32)
    case('<pfafMissing>');          pfafMissing = trim(cData)                       ! missing pfafcode (e.g., reach without any upstream area)
+   ! OUTPUT OPTIONS
+   case('<basRunoff>');            read(cData,*,iostat=io_error) meta_rflx(ixRFLX%basRunoff        )%varFile
+   case('<instRunoff>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%instRunoff       )%varFile
+   case('<dlayRunoff>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%dlayRunoff       )%varFile
+   case('<sumUpstreamRunoff>');    read(cData,*,iostat=io_error) meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile
+   case('<KWTroutedRunoff>');      read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWTroutedRunoff  )%varFile
+   case('<IRFroutedRunoff>');      read(cData,*,iostat=io_error) meta_rflx(ixRFLX%IRFroutedRunoff  )%varFile
 
    ! VARIABLE NAMES for data (overwrite default name in popMeta.f90)
    ! HRU structure
    case('<varname_area>'         ); meta_HRU    (ixHRU%area            )%varName = trim(cData) ! HRU area
-
    ! Mapping from HRUs to stream segments
    case('<varname_HRUid>'        ); meta_HRU2SEG(ixHRU2SEG%HRUid       )%varName = trim(cData) ! HRU id
    case('<varname_HRUindex>'     ); meta_HRU2SEG(ixHRU2SEG%HRUindex    )%varName = trim(cData) ! HRU index
    case('<varname_hruSegId>'     ); meta_HRU2SEG(ixHRU2SEG%hruSegId    )%varName = trim(cData) ! the stream segment id below each HRU
    case('<varname_hruSegIndex>'  ); meta_HRU2SEG(ixHRU2SEG%hruSegIndex )%varName = trim(cData) ! the stream segment index below each HRU
-
    ! reach properties
    case('<varname_length>'       ); meta_SEG    (ixSEG%length          )%varName =trim(cData)  ! length of segment  (m)
    case('<varname_slope>'        ); meta_SEG    (ixSEG%slope           )%varName =trim(cData)  ! slope of segment   (-)
@@ -177,7 +184,6 @@ contains
    case('<varname_basUnderLake>' ); meta_SEG    (ixSEG%basUnderLake    )%varName =trim(cData)  ! Area of basin under lake  (m2)
    case('<varname_rchUnderLake>' ); meta_SEG    (ixSEG%rchUnderLake    )%varName =trim(cData)  ! Length of reach under lake (m)
    case('<varname_minFlow>'      ); meta_SEG    (ixSEG%minFlow         )%varName =trim(cData)  ! minimum environmental flow
-
    ! network topology
    case('<varname_hruContribIx>' ); meta_NTOPO  (ixNTOPO%hruContribIx  )%varName =trim(cData)  ! indices of the vector of HRUs that contribute flow to each segment
    case('<varname_hruContribId>' ); meta_NTOPO  (ixNTOPO%hruContribId  )%varName =trim(cData)  ! ids of the vector of HRUs that contribute flow to each segment
@@ -193,7 +199,6 @@ contains
    case('<varname_isLakeInlet>'  ); meta_NTOPO  (ixNTOPO%isLakeInlet   )%varName =trim(cData)  ! flag to define if reach is a lake inlet (1=inlet, 0 otherwise)
    case('<varname_userTake>'     ); meta_NTOPO  (ixNTOPO%userTake      )%varName =trim(cData)  ! flag to define if user takes water from reach (1=extract, 0 otherwise)
    case('<varname_goodBasin>'    ); meta_NTOPO  (ixNTOPO%goodBasin     )%varName =trim(cData)  ! flag to define a good basin (1=good, 0=bad)
-
    ! pfafstetter code
    case('<varname_pfafCode>'     ); meta_PFAF   (ixPFAF%code           )%varName =trim(cData)  ! pfafstetter code
 
@@ -213,10 +218,12 @@ contains
 
  end do  ! looping through lines in the control file
 
- ! control river network writing option
+ ! ---------- control river network writing option  ---------------------------------------------------------------------
+
  ! Case1- river network subset mode (idSegOut>0):  Write the network variables read from file over only upstream network specified idSegOut
  ! Case2- river network augment mode: Write full network variables over the entire network
  ! River network subset mode turnes off augmentation mode.
+
  ! Turned off ntopAugmentMode
  if (idSegOut>0) then
    ntopAugmentMode = .false.
