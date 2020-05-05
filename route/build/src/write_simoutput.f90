@@ -2,13 +2,15 @@ MODULE write_simoutput
 
 ! Moudle wide external modules
 USE nrtype
-USE public_var
+USE var_lookup,only: ixRFLX, nVarsRFLX
+USE public_var,only: integerMissing
 USE public_var,only: routOpt                ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
 USE public_var,only: doesBasinRoute         ! basin routing options   0-> no, 1->IRF, otherwise error
 USE public_var,only: doesAccumRunoff        ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
 USE public_var,only: kinematicWave          ! kinematic wave
 USE public_var,only: impulseResponseFunc    ! impulse response function
 USE public_var,only: allRoutingMethods      ! all routing methods
+USE globalData,only: meta_rflx
 USE io_netcdf, only: ncd_int
 USE io_netcdf, only: ncd_float, ncd_double
 USE io_netcdf, only: ncd_unlimited
@@ -38,8 +40,6 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE output(ierr, message)    ! out:   error control
   !Dependent modules
-  USE var_lookup, ONLY: ixRFLX
-  USE globalData, ONLY: meta_rflx
   USE globalData, ONLY: nHRU, nRch          ! number of ensembles, HRUs and river reaches
   USE globalData, ONLY: RCHFLX              ! Reach fluxes (ensembles, space [reaches])
   USE globalData, ONLY: runoff_data         ! runoff data for one time step for LSM HRUs and River network HRUs
@@ -108,6 +108,8 @@ CONTAINS
  SUBROUTINE prep_output(ierr, message)    ! out:   error control
 
  ! saved public variables (usually parameters, or values not modified)
+ USE public_var,          only : output_dir        ! output directory
+ USE public_var,          only : fname_output      ! output netcdf name (header)
  USE public_var,          only : calendar          ! calendar name
  USE public_var,          only : newFileFrequency  ! frequency for new output files (day, month, annual)
  USE public_var,          only : time_units        ! time units (seconds, hours, or days)
@@ -209,10 +211,9 @@ CONTAINS
                        calendar,        &  ! input: calendar
                        ierr, message)      ! output: error control
  !Dependent modules
- USE public_var,  ONLY: mizuRouteVersion
- USE globalData, ONLY: meta_rflx
+ USE public_var, ONLY: mizuRouteVersion
+ USE public_var, ONLY: netcdf_format
  USE globalData, ONLY: meta_qDims
- USE var_lookup, ONLY: ixRFLX, nVarsRFLX
  USE var_lookup, ONLY: ixQdims, nQdims
 
  implicit none
@@ -236,11 +237,6 @@ CONTAINS
 
  ! initialize error control
  ierr=0; message='defineFile/'
-
- associate (dim_seg  => meta_qDims(ixQdims%seg)%dimName,    &
-            dim_hru  => meta_qDims(ixQdims%hru)%dimName,    &
-            dim_ens  => meta_qDims(ixQdims%ens)%dimName,    &
-            dim_time => meta_qDims(ixQdims%time)%dimName)
 
 ! populate q dimension meta (not sure if this should be done here...)
  meta_qDims(ixQdims%seg)%dimLength = nRch_in
@@ -279,13 +275,14 @@ CONTAINS
  end do
 
  ! Define coordinate variable for time
- call def_var(ncid, trim(dim_time), (/dim_time/), ncd_double, ierr, cmessage, vdesc=trim(dim_time), vunit=trim(units_time), vcal=calendar)
+ call def_var(ncid, 'time', (/meta_qDims(ixQdims%time)%dimName/), ncd_double, ierr, cmessage, vdesc='time', vunit=trim(units_time), vcal=calendar)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! Define ID variable for time
- call def_var(ncid, 'basinID', (/dim_hru/), ncd_int, ierr, cmessage, vdesc='basin ID', vunit='-')
+ call def_var(ncid, 'reachID', (/meta_qDims(ixQdims%seg)%dimName/), ncd_int, ierr, cmessage, vdesc='reach ID', vunit='-')
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- call def_var(ncid, 'reachID', (/dim_seg/), ncd_int, ierr, cmessage, vdesc='reach ID', vunit='-')
+
+ call def_var(ncid, 'basinID', (/meta_qDims(ixQdims%hru)%dimName/), ncd_int, ierr, cmessage, vdesc='basin ID', vunit='-')
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! define variables
@@ -307,8 +304,6 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end do
-
- end associate
 
  ! put global attribute
  call put_global_attr(ncid, 'version', trim(mizuRouteVersion) ,ierr, cmessage)
