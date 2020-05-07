@@ -74,6 +74,16 @@ def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_
        varname_segId = "segID"
        varname_downSegId = "toSegID"
        varname_pfafCode = "pCode"
+    elif (  config['rof_grid'] == "r05_amazon" ):
+       fname_ntopOld = "ntopo_r05_MOSART_amazon_half_20161105a_cdf5_reord_360_c20200507.nc"
+       varname_area = "hruArea"
+       varname_length = "rlen"
+       varname_slope  = "rslp"
+       varname_HRUid = "hruID"
+       varname_hruSegId = "hru_seg"
+       varname_segId = "segID"
+       varname_downSegId = "toSegID"
+       varname_pfafCode = "pCode"
     else:
        expect( False, "mizuRoute does NOT know about this grid: "+config['rof_grid'] )
 
