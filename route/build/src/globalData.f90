@@ -89,9 +89,10 @@ module globalData
 
   integer(i4b)                   , public :: mpicom_route              ! communicator for this program
   integer(i4b)                   , public :: pid                       ! process id
-  integer(i4b)                   , public :: nNodes                    ! number of nodes
+  integer(i4b)                   , public :: nNodes                    ! number of MPI processors
   integer(i4b)                   , public :: nThreads                  ! number of threads
   logical(lgt)                   , public :: masterproc                ! root logical. root processor => true, other => false
+  logical(lgt)                   , public :: multiProcs                ! MPI multi-processors logical. => number of processors>1 true, other => false
   character(len=strLen)          , public :: pio_netcdf_format = "64bit_offset"
   character(len=strLen)          , public :: pio_typename      = "pnetcdf"
   integer(i4b)                   , public :: pio_numiotasks    = -99

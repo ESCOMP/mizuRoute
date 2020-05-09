@@ -693,6 +693,7 @@ contains
   USE globalData, ONLY: RCHFLX_main         ! Reach flux data structures (master proc, mainstem)
   USE globalData, ONLY: RCHSTA_trib         ! tributary reach state data structure
   USE globalData, ONLY: RCHSTA_main         ! Reach state data structures (master proc, mainstem)
+  USE globalData, ONLY: nHRU_mainstem       ! number of mainstem HRUs
   USE globalData, ONLY: basinRunoff_main    ! mainstem only HRU runoff
   USE globalData, ONLY: basinRunoff_trib    ! tributary only HRU runoff
   USE globalData, ONLY: river_basin_trib    ! tributary OMP domain data structure
@@ -750,16 +751,25 @@ contains
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     call t_stopf ('route/scatter-runoff')
   else
-     if (masterproc) then
-       if (.not.allocated(basinRunoff_main)) then
-         write(iulog,*) 'NOTE: HRU Runoff is already decomposed into mainstems and tributaries. No need for scatter_runoff'
-         ierr=10; message=trim(message)//'mainstem runoff array is not allocated/populated'; return
-       endif
-     else
-       if(.not.allocated(basinRunoff_trib)) then
-       ierr=10; message=trim(message)//'tributary runoff array is not allocated/populated'; return
-       end if
-     end if
+    if (nNodes==1) then
+      if (.not.allocated(basinRunoff_main)) then
+        ierr=10; message=trim(message)//'master proc: mainstem runoff array is not allocated'; return
+      endif
+    else
+      if (masterproc) then
+        write(iulog,*) 'NOTE: HRU Runoff is already decomposed into mainstems and tributaries. No need for scatter_runoff'
+        if (nHRU_mainstem > 0 .and. .not.allocated(basinRunoff_main)) then
+          ierr=10; message=trim(message)//'mainstem runoff array is not allocated/populated'; return
+        endif
+        if (.not.allocated(basinRunoff_trib)) then
+          ierr=10; message=trim(message)//'master proc: tributary runoff array is not allocated'; return
+        endif
+      else
+        if(.not.allocated(basinRunoff_trib)) then
+          ierr=10; message=trim(message)//'tributary runoff array is not allocated/populated'; return
+        end if
+      end if
+    end if
   end if
 
   ! --------------------------------
