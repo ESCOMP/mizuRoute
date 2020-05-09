@@ -147,6 +147,9 @@ contains
  ! loop through HRUs
  do iHRU=1,nHRU
 
+  ! save the HRU index
+  structHRU2seg(iHRU)%var(ixHRU2SEG%HRUindex)%dat(1) = iHRU
+
   ! identify the index of the stream segment that the HRU drains into
   iSeg = segHRUix(iHRU)
 
@@ -167,9 +170,6 @@ contains
 
   ! end associations
   end associate
-
-  ! save the HRU index
-  structHRU2seg(iHRU)%var(ixHRU2SEG%HRUindex)%dat(1) = iHRU
 
  end do ! looping through HRUs
 

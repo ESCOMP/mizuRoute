@@ -53,14 +53,8 @@ CONTAINS
    ! Local variables
    character(len=strLen)                       :: cmessage        ! error message from subroutine
    logical(lgt)                                :: debug = .false. ! print out reach info with node assignment for debugging
-   logical                                     :: mpi_on          ! If MPI is on
 
    ierr=0; message='mpi_domain_decomposition/'
-
-   if (nNodes==1) then
-      call shr_mpi_initialized( mpi_on, trim(message)//"trougle checking if mpi initialized")
-      if ( .not. mpi_on ) return
-   end if
 
    call classify_river_basin(nNodes,         &        ! input:  number of procs
                              nSeg,           &        ! input:  number of reaches in the entire river network
