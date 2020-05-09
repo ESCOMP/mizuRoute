@@ -56,8 +56,6 @@ CONTAINS
 
    ierr=0; message='mpi_domain_decomposition/'
 
-   if (nNodes==1) return
-
    call classify_river_basin(nNodes,         &        ! input:  number of procs
                              nSeg,           &        ! input:  number of reaches in the entire river network
                              structNTOPO,    &        ! input:  river network data structure
