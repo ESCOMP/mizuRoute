@@ -267,11 +267,11 @@ CONTAINS
    print*, "conversion", convTime2Days
 
    ! populated the index of the iTime for each nc file
-   if (iFile.eq.1) then
+   if (iFile==1) then
     infileinfo_data(iFile)%iTimebound(1) = 1
     infileinfo_data(iFile)%iTimebound(2) = size(infileinfo_data(iFile)%timeVar)
    endif
-   if (iFile.gt.1) then
+   if (iFile>1) then
     infileinfo_data(iFile)%iTimebound(1) = infileinfo_data(iFile-1)%iTimebound(2) + 1 ! the last index from the perivous nc file + 1
     infileinfo_data(iFile)%iTimebound(2) = infileinfo_data(iFile-1)%iTimebound(2) + nTime ! the last index from the perivous nc file + 1
    endif
@@ -299,7 +299,7 @@ CONTAINS
   counter = 1; ! counter
   do iFile=1,nFile
    timeVar(counter:counter+infileinfo_data(iFile)%nTime-1) = infileinfo_data(iFile)%timeVar
-   counter = counter + +infileinfo_data(iFile)%nTime
+   counter = counter + infileinfo_data(iFile)%nTime
   enddo
 
   print*, "global time var : ", timeVar
@@ -436,7 +436,7 @@ CONTAINS
   ! fast forward time to time index at simStart and save iTime and modJulday
   ! need to convert time unit in timeVar to day
   ixloop: do ix = 1, size(infileinfo_data) !loop over number of file
-   if (iTime.ge.infileinfo_data(ix)%iTimebound(1).and.iTime.le.infileinfo_data(ix)%iTimebound(2)) then
+   if ((iTime >= infileinfo_data(ix)%iTimebound(1)).and.(iTime <= infileinfo_data(ix)%iTimebound(2))) then
     iTime_local = iTime - infileinfo_data(ix)%iTimebound(1) + 1
     fname_qsim = trim(infileinfo_data(ix)%infilename)
     exit ixloop

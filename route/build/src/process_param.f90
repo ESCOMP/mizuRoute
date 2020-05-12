@@ -255,6 +255,9 @@ contains
     if (INTE > 0.9999) exit
   enddo
 
+  !re-normalize
+  UHQ = UHQ/INTE
+
   !Aggregate hourly unit hydrograph to simulation time step
   allocate(seg_uh(iSeg)%dat((iHrLast+nTsub-1)/nTsub),stat=ierr,errmsg=cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': seg_uh%dat'; return; endif

@@ -37,9 +37,9 @@ contains
   integer(i4b), intent(out)     :: ierr                                 ! error code
   character(*), intent(out)     :: message                              ! error message
   ! local variables
-  real(dp)    , allocatable     :: basinRunoff(:)                       ! basin runoff (m/s)
-  real(dp)    , allocatable     :: basinEvapo(:)                        ! basin runoff (m/s)
-  real(dp)    , allocatable     :: basinPrecip(:)                       ! basin runoff (m/s)
+  !real(dp)    , allocatable     :: basinRunoff(:)                       ! basin runoff (m/s)
+  !real(dp)    , allocatable     :: basinEvapo(:)                        ! basin runoff (m/s)
+  !real(dp)    , allocatable     :: basinPrecip(:)                       ! basin runoff (m/s)
   character(len=strLen)         :: runoff = 'runoff'                    ! flag in case the flux is runoff
   character(len=strLen)         :: evaporation = 'evaporation'          ! flag in case the flux is evaporation
   character(len=strLen)         :: precipitation = 'precipitation'      ! flag in case the flux is precipitation
@@ -57,8 +57,8 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! allocate basinRunoff (local array)
-  allocate(basinRunoff(nHRU), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  !allocate(basinRunoff(nHRU), stat=ierr)
+  !if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! initialize runoff_data%basinRunoff
   if ( allocated(runoff_data%basinRunoff) ) then
@@ -69,8 +69,8 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! allocate basinEvapo (local array)
-  allocate(basinEvapo(nHRU), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  !allocate(basinEvapo(nHRU), stat=ierr)
+  !if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! initialize runoff_data%basinEvapo
   if ( allocated(runoff_data%basinEvapo) ) then
@@ -81,8 +81,8 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! allocate basinPrecip (local array)
-  allocate(basinPrecip(nHRU), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  !allocate(basinPrecip(nHRU), stat=ierr)
+  !if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! initialize runoff_data%basinPrecip
   if ( allocated(runoff_data%basinPrecip) ) then
@@ -96,29 +96,29 @@ contains
   ! Get river network HRU runoff into runoff_data data structure
   if (is_remap) then ! remap LSM simulated runoff to the HRUs in the river network
 
-   call remap_runoff(runoff_data, remap_data, runoff,        basinRunoff, ierr, cmessage) ! if flage runoff then it uses qsim or qsim2d
+   call remap_runoff(runoff_data, remap_data, runoff,        runoff_data%basinRunoff, ierr, cmessage) ! if flage runoff then it uses qsim or qsim2d
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   call remap_runoff(runoff_data, remap_data, evaporation,   basinEvapo, ierr, cmessage) ! if flag evaporation then it uses easim or easim2d
+   call remap_runoff(runoff_data, remap_data, evaporation,   runoff_data%basinEvapo , ierr, cmessage) ! if flag evaporation then it uses easim or easim2d
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   call remap_runoff(runoff_data, remap_data, Precipitation, basinPrecip, ierr, cmessage) ! if flag precipitation then it uses precip or precip2d
+   call remap_runoff(runoff_data, remap_data, Precipitation, runoff_data%basinPrecip, ierr, cmessage) ! if flag precipitation then it uses precip or precip2d
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   else ! runoff is already remapped to river network HRUs
 
-   call sort_runoff(runoff_data, runoff, basinRunoff, ierr, cmessage)
+   call sort_runoff(runoff_data, runoff       , runoff_data%basinRunoff, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   call sort_runoff(runoff_data, evaporation, basinEvapo,  ierr, cmessage)
+   call sort_runoff(runoff_data, evaporation  , runoff_data%basinEvapo , ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   call sort_runoff(runoff_data, precipitation, basinPrecip, ierr, cmessage)
+   call sort_runoff(runoff_data, precipitation, runoff_data%basinPrecip, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   end if
 
-  runoff_data%basinRunoff = basinRunoff
-  runoff_data%basinEvapo = basinEvapo
-  runoff_data%basinPrecip = basinPrecip
+  !runoff_data%basinRunoff = basinRunoff
+  !runoff_data%basinEvapo = basinEvapo
+  !runoff_data%basinPrecip = basinPrecip
 
  end subroutine get_hru_runoff
 
