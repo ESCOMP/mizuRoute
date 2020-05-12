@@ -190,8 +190,7 @@ CONTAINS
    if (masterproc) then
 
      ! read the river network data and compute additonal network attributes (inncludes spatial decomposition)
-     call init_ntopo(nNodes,                                                       & ! input:  number of nodes
-                     nHRU, nRch,                                                   & ! output: number of HRU and Reaches
+     call init_ntopo(nHRU, nRch,                                                   & ! output: number of HRU and Reaches
                      structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
                      ierr, cmessage)                                                 ! output: error controls
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -223,15 +222,16 @@ CONTAINS
 
      ! spatial domain decomposition for MPI parallelization
      if (masterproc) then
-       call mpi_domain_decomposition(nNodes, nRch, structNTOPO, & ! input:
-                                     nContribHRU,               & ! output: number of HRUs that are connected to any reaches
-                                     ierr, cmessage)              ! output: error controls
+       call mpi_domain_decomposition(nNodes, nRch,               & ! input:
+                                     structNTOPO, structHRU2SEG, & ! input:  input data structures
+                                     nContribHRU,                & ! output: number of HRUs that are connected to any reaches
+                                     ierr, cmessage)               ! output: error controls
        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
      end if
 
      ! distribute network topology data and network parameters to the different processors
      call comm_ntopo_data(pid, nNodes, comm,                                    & ! input: proc id, # of procs and commnicator
-                          nRch, nContribHRU,                                    & ! input: number of reach and HRUs that contribut to any reaches
+                          nRch, nHRU,                                           & ! input: number of reach and HRUs that contribut to any reaches
                           structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
                           ierr, cmessage)                                         ! output: error controls
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -245,7 +245,7 @@ CONTAINS
      enddo
 
      nRch_mainstem = nRch
-     nHRU_mainstem = nContribHRU
+     nHRU_mainstem = nHRU
 
      allocate(RCHFLX_main(nEns, nRch_mainstem), RCHSTA_main(nEns, nRch_mainstem), stat=ierr, errmsg=cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -417,8 +417,7 @@ CONTAINS
  ! *********************************************************************
  ! private subroutine: initialize river network data
  ! *********************************************************************
- SUBROUTINE init_ntopo(nNodes,                                                       & ! input:  number of nodes
-                       nHRU_out, nRch_out,                                           & ! output: number of HRU and Reaches
+ SUBROUTINE init_ntopo(nHRU_out, nRch_out,                                           & ! output: number of HRU and Reaches
                        structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
                        ierr, message)                                                  ! output: error controls
   ! Shared data
@@ -445,7 +444,6 @@ CONTAINS
 
   implicit none
   ! input: None
-  integer(i4b),                   intent(in)  :: nNodes                   ! number of procs
   ! output (river network data structures for the entire domain)
   integer(i4b)                  , intent(out) :: nHRU_out                 ! number of HRUs
   integer(i4b)                  , intent(out) :: nRch_out                 ! number of reaches
