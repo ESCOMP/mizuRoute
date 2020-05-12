@@ -9,6 +9,7 @@ USE dataTypes,         ONLY: subbasin_omp  ! openMP domain data structure
 USE dataTypes,         ONLY: subbasin_mpi  ! MPI domain data structure
 ! variable indices
 USE var_lookup,        ONLY: ixNTOPO       ! index of variables for the netowork topolgy
+USE var_lookup,        ONLY: ixHRU2SEG     ! index of variables for the netowork topolgy
 ! General utilities
 USE nr_utility_module, ONLY: indexx        ! sorting array
 USE nr_utility_module, ONLY: indexTrue     ! index at only true in array
@@ -21,6 +22,7 @@ implicit none
 ! common parameters within this module
 integer(i4b), parameter   :: tributary=1
 integer(i4b), parameter   :: mainstem=2
+integer(i4b), parameter   :: endorheic=3
 integer(i4b), parameter   :: upstream_size=1
 integer(i4b), parameter   :: stream_order=2
 
@@ -34,7 +36,12 @@ CONTAINS
  ! ***************************************************************
  ! public subroutine: MPI Domain decomposition
  ! ***************************************************************
- subroutine mpi_domain_decomposition(nNodes, nSeg, structNTOPO, nContribHRU, ierr, message)
+ subroutine mpi_domain_decomposition(nNodes,       & ! input: number of procs
+                                     nSeg,         & ! input: number of reaches
+                                     structNTOPO,  & ! input: river network data structure
+                                     structHRU2SEG,& ! input: reach-hru topology data structure
+                                     nContribHRU,  & ! output: number of contributory HRUs within the entire river network
+                                     ierr, message)  ! output: error handling
 
    ! External modules
    USE globalData, ONLY: domains                 ! domain data structure - for each domain, pfaf codes and list of segment indices
@@ -44,8 +51,9 @@ CONTAINS
    implicit none
    ! Input variables
    integer(i4b),                   intent(in)  :: nNodes          ! number of nodes (root and computing nodes)
-   integer(i4b),                   intent(in)  :: nSeg            ! number of stream segments
+   integer(i4b),                   intent(in)  :: nSeg            ! number of reaches
    type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)  ! network topology
+   type(var_ilength), allocatable, intent(in)  :: structHRU2SEG(:)! reach-hru topology
    ! Output variables
    integer(i4b),                   intent(out) :: nContribHRU     ! total number of HRUs that are connected to a reach
    integer(i4b),                   intent(out) :: ierr
@@ -56,13 +64,14 @@ CONTAINS
 
    ierr=0; message='mpi_domain_decomposition/'
 
-   call classify_river_basin(nNodes,         &        ! input:  number of procs
-                             nSeg,           &        ! input:  number of reaches in the entire river network
-                             structNTOPO,    &        ! input:  river network data structure
-                             domains,        &        ! output: domain data structure
-                             nDomain,        &        ! output: number of domains
-                             ierr, cmessage, &        ! output: error handling
-                             nContribHRU=nContribHRU) ! output(optional): number of contributory HRUs for each reach
+   call classify_river_basin(nNodes,                      & ! input:  number of procs
+                             nSeg,                        & ! input:  number of reaches in the entire river network
+                             structNTOPO,                 & ! input:  river network data structure
+                             domains,                     & ! output: domain data structure
+                             nDomain,                     & ! output: number of domains
+                             ierr, cmessage,              & ! output: error handling
+                             structHRU2SEG=structHRU2SEG, & ! input(optional): reach-hru topology data structure
+                             nContribHRU=nContribHRU)       ! output(optional): number of contributory HRUs within the entire river network
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    call assign_node(nNodes, ierr, cmessage)
@@ -432,10 +441,11 @@ CONTAINS
  ! ***************************************************************
  subroutine classify_river_basin(nDivs,         & ! input:  number of divisions (nodes or threads)
                                  nSeg,          & ! input:  number of reaches in the entire river network
-                                 structNTOPO,   & ! input:  river network data structure
+                                 structNTOPO,   & ! input:  river topology data structure
                                  domains_out,   & ! output: domain data structure
                                  nDomains,      & ! output: number of domains
                                  ierr, message, & ! output: error handling
+                                 structHRU2SEG, & ! input(optional): river-hru topology data structure
                                  nContribHRU)     ! output(optional): number of contributory HRUs for each reach
    ! Details:
    ! Divide the entire river basin, consiting of river reaches and HRUs, into tributaries (independent basins) and mainstems,
@@ -450,7 +460,7 @@ CONTAINS
    !   structNTOPO(:)%var(ixNTOPO%hruContribIx)%dat(:)
    !
    ! Populate the domain data structure
-   !   domain(:)%basinType    : basin identifier 1 -> tributary, 2 -> mainstem
+   !   domain(:)%basinType    : basin identifier 1 -> tributary, 2 -> mainstem, 3 -> endorheic
    !   domain(:)%segIndex(:)  : segment index within a basin
    !   domain(:)%hruIndex(:)  : hru indix within a basin
    !   domain(:)%idNode       : proc id (-1 through nNode-1) -1 is for mainstem but use pid=0
@@ -461,26 +471,32 @@ CONTAINS
    implicit none
 
    ! Input variables
-   integer(i4b),                   intent(in)  :: nDivs               ! number of nodes (root and computing nodes)
-   integer(i4b),                   intent(in)  :: nSeg                ! number of stream segments
-   type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)      ! network topology
+   integer(i4b),                             intent(in)  :: nDivs               ! number of nodes (root and computing nodes)
+   integer(i4b),                             intent(in)  :: nSeg                ! number of stream segments
+   type(var_ilength),           allocatable, intent(in)  :: structNTOPO(:)      ! river reach topology
+   type(var_ilength), optional, allocatable, intent(in)  :: structHRU2SEG(:)    ! river-hru topology
    ! Output variables
-   type(subbasin_mpi),             intent(out) :: domains_out(maxDomain)  ! domain decomposition data structure (maximum domain is set to maxDomain)
-   integer(i4b),                   intent(out) :: nDomains
-   integer(i4b),      optional,    intent(out) :: nContribHRU         ! total number of HRUs that are connected to a reach
-   integer(i4b),                   intent(out) :: ierr
-   character(len=strLen),          intent(out) :: message             ! error message
+   type(subbasin_mpi),                       intent(out) :: domains_out(maxDomain) ! domain decomposition data structure (maximum domain is set to maxDomain)
+   integer(i4b),                             intent(out) :: nDomains
+   integer(i4b),      optional,              intent(out) :: nContribHRU         ! total number of HRUs that are connected to a reach
+   integer(i4b),                             intent(out) :: ierr
+   character(len=strLen),                    intent(out) :: message             ! error message
    ! Local variables
-   character(len=strLen)                       :: cmessage            ! error message from subroutine
-   integer(i4b)                                :: maxSegs             ! upper limit of  number of tributary reaches
-   integer(i4b),      allocatable              :: nHruLocal(:)        ! a number of HRU for selected reaches (e.g., reaches in one domain)
-   integer(i4b)                                :: segIndex(nSeg)      ! reach index for all the reaches
-   integer(i4b)                                :: downIndex(nSeg)     ! downstream reach index for all the reacheds
-   logical(lgt)                                :: majorMainstem(nSeg) ! logical to indicate reach is "major" mainstem
-   integer(i4b)                                :: nUpSeg              ! number of upstream reaches for a reach
-   integer(i4b)                                :: sumHruLocal         ! sum of hrus that contribute to the segments
-   integer(i4b)                                :: iSeg, ix            ! loop indices
-   integer(i4b)                                :: ix1, ix2            ! first and last indices in array to subset
+   character(len=strLen)                                 :: cmessage            ! error message from subroutine
+   integer(i4b)                                          :: nCat                ! number of HRUs (Catchments)
+   integer(i4b)                                          :: maxSegs             ! upper limit of  number of tributary reaches
+   integer(i4b)                                          :: nEndorheic          ! a number of endorheic HRUs
+   integer(i4b), allocatable                             :: nHruLocal(:)        ! a number of HRU for selected reaches (e.g., reaches in one domain)
+   integer(i4b), allocatable                             :: HRUindex(:)         ! local array for HRU indices
+   integer(i4b), allocatable                             :: ixEndorheic(:)      ! local array for endorheic HRU indices
+   integer(i4b), allocatable                             :: index_array(:)      ! local index array
+   integer(i4b)                                          :: segIndex(nSeg)      ! reach index for all the reaches
+   integer(i4b)                                          :: downIndex(nSeg)     ! downstream reach index for all the reacheds
+   logical(lgt)                                          :: majorMainstem(nSeg) ! logical to indicate reach is "major" mainstem
+   integer(i4b)                                          :: nUpSeg              ! number of upstream reaches for a reach
+   integer(i4b)                                          :: sumHruLocal         ! sum of hrus that contribute to the segments
+   integer(i4b)                                          :: iSeg,iCat, ix       ! loop indices
+   integer(i4b)                                          :: ix1, ix2            ! first and last indices in array to subset
 
    ierr=0; message='classify_river_basin/'
 
@@ -538,6 +554,40 @@ CONTAINS
      end associate
    enddo
 
+   ! Optional put domain contains endorheic, non-contributary HRU
+   if (present(structHRU2SEG)) then
+
+     nCat = size(structHRU2SEG)
+     allocate(HRUindex(nCat), stat=ierr, errmsg=cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     do iCat = 1, nCat
+       HRUindex(iCat) = structHRU2SEG(iCat)%var(ixHRU2SEG%HRUindex)%dat(1)
+     end do
+
+     nEndorheic = count(HRUindex==integerMissing)
+
+     if (nEndorheic > 0) then
+
+       allocate(ixEndorheic(nEndorheic), stat=ierr, errmsg=cmessage)
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       allocate(index_array(nCat), stat=ierr, errmsg=cmessage)
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+       index_array = arth(1,1,nCat)
+       ixEndorheic  = pack(index_array, HRUindex==integerMissing)
+
+       nDomains = nDomains+1
+
+       allocate(domains_out(nDomains)%hruIndex(nEndorheic), stat=ierr, errmsg=cmessage)
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+       domains_out(nDomains)%basintype = endorheic
+       domains_out(nDomains)%hruIndex(1:nEndorheic) = index_array(ixEndorheic)
+
+     end if
+   end if
+
  end subroutine classify_river_basin
 
  ! ***************************************************************
@@ -552,7 +602,7 @@ CONTAINS
    ! Details:
    ! Given mainstem reaches, identify tributary basins (i.e., basin flows into mainstems)
    ! Update data structure -> domains
-   ! domains(:)%basinType      code to indicate mainstem (0) or tributaries (1)
+   ! domains(:)%basinType      code to indicate basin type: mainstem -> 1, tributary -> 2, endorheic -> 3
    !           %segIndex(:)    indices of reaches belong to this domain
 
    ! External modules
@@ -690,11 +740,11 @@ CONTAINS
    ! Local variables
    character(len=strLen)                  :: cmessage         ! error message from subroutine
    integer(i4b)                           :: nTribSeg         ! number of tributary segments
-   integer(i4b)                           :: nWork(nNodes-1) ! number of tributary workload for each node
+   integer(i4b)                           :: nWork(nNodes-1)  ! number of tributary workload for each node
    integer(i4b)                           :: ixNode(1)        ! node id where work load is minimum
    integer(i4b)                           :: ix,ixx           ! loop indices
    integer(i4b),allocatable               :: nSubSeg(:)       !
-   integer(i4b),allocatable               :: rankDomain(:)   ! ranked domain based on size
+   integer(i4b),allocatable               :: rankDomain(:)    ! ranked domain based on size
    integer(i4b)                           :: nTrib            !
    integer(i4b)                           :: nEven            !
    integer(i4b)                           :: nSmallTrib       ! number of small tributaries to be processed in root node
@@ -744,13 +794,16 @@ CONTAINS
    do ix = nDomain,1,-1  ! Going through domain from the largest size
      ixx = rankDomain(ix)
      if (.not. isAssigned(ixx)) then
-       if (domains(ixx)%basinType==mainstem) then   ! if domain is mainstem
-         domains(ixx)%idNode = -1                   ! put -1 for temporarily but mainstem is handled in root proc (idNode = 0)
+       if (domains(ixx)%basinType==mainstem) then ! mainstem reach/hru: assigned to proc-id=-1 (handled in root proc)
+         domains(ixx)%idNode = -1
          isAssigned(ixx) = .true.
-       elseif (domains(ixx)%basinType==tributary) then ! if domain is tributary
+       elseif (domains(ixx)%basinType==tributary) then ! triburary reach/hru: assign to proc-id=0
          ixNode = minloc(nWork)
          nWork(ixNode(1)) = nWork(ixNode(1))+size(domains(ixx)%segIndex)
          domains(ixx)%idNode = ixNode(1)
+         isAssigned(ixx) = .true.
+       elseif (domains(ixx)%basinType==endorheic) then ! endorheic hru: assign to proc-id=-1
+         domains(ixx)%idNode = -1
          isAssigned(ixx) = .true.
        endif
      endif

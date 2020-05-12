@@ -24,6 +24,7 @@ USE var_lookup, ONLY:ixPFAF,   nVarsPFAF    ! index of variables for the pfafste
 ! general utility
 USE nr_utility_module, ONLY: indexx         ! create sorted index array
 USE nr_utility_module, ONLY: arth           ! build a vector of regularly spaced numbers
+USE nr_utility_module, ONLY: sizeo          ! get size of allocatable array (if not allocated, zero)
 USE nr_utility_module, ONLY: findIndex      ! find index within a vector
 USE perf_mod,          ONLY: t_startf       ! timing start
 USE perf_mod,          ONLY: t_stopf        ! timing stop
@@ -38,10 +39,18 @@ USE mpi_mod, ONLY: shr_mpi_barrier
 implicit none
 
 ! common parameters within this module
+! commputation types
 integer(i4b),parameter  :: scatter=1
 integer(i4b),parameter  :: gather=2
+! omp domain decomposition methods
 integer(i4b),parameter  :: upstream_size=1
 integer(i4b),parameter  :: stream_order=2
+! sub domain types
+integer(i4b),parameter  :: mainstem=1
+integer(i4b),parameter  :: tributary=2
+integer(i4b),parameter  :: endorheic=3
+
+logical(lgt), parameter :: debug=.false.
 
 private
 
@@ -91,6 +100,7 @@ contains
   USE globalData,          ONLY: global_ix_comm           ! global reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
   USE globalData,          ONLY: local_ix_comm            ! local reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
   USE globalData,          ONLY: reachID
+  USE globalData,          ONLY: basinID
   USE alloc_data,          ONLY: alloc_struct
   USE process_ntopo,       ONLY: augment_ntopo            ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,       ONLY: put_data_struct          !
@@ -141,9 +151,7 @@ contains
   real(dp)                                    :: length(nRch_in)           ! reach length array for each reach
   real(dp)                                    :: area(nHRU_in)             ! hru area for each hru
   integer(i4b)                                :: ixNode(nRch_in)           ! node assignment for each reach
-  character(len=32)                           :: pfaf(nRch_in)             ! reach pfafcode for each reach
-  integer(i4b)                                :: ixLocalSubHRU(nHRU_in)    ! local HRU index
-  integer(i4b)                                :: ixLocalSubSEG(nRch_in)    ! local reach index
+  integer(i4b)                                :: ixDomain(nRch_in)         ! domain index for each reach
   logical(lgt),      allocatable              :: tribOutlet(:)             ! logical to indicate tributary outlet to mainstems over entire network
   integer(i4b)                                :: nTribOutlet               ! number of tributary outlet connected to mainstem
   integer(i4b)                                :: nRch_trib                 ! number of tributary outlets for each proc (scalar)
@@ -162,7 +170,7 @@ contains
   integer(i4b)                                :: ix,ixx                    ! loop indices
   integer(i4b)                                :: ixSeg1,ixSeg2             ! starting index and ending index, respectively, for reach array
   integer(i4b)                                :: ixHru1,ixHru2             ! starting index and ending index, respectively, for HRU array
-  integer(i4b)                                :: idx                       ! node indix (1, ... , nNodes)
+  integer(i4b)                                :: idx                       ! node indix (-1, 0, 1, ... , nNodes-1)
   character(len=strLen)                       :: cmessage                  ! error message from subroutine
 
   ierr=0; message='comm_ntopo_data/'
@@ -204,23 +212,22 @@ contains
      ixx = rnkIdNode(ix)
      associate (nSubSeg => size(domains(ixx)%segIndex), nSubHru => size(domains(ixx)%hruIndex) )
 
-     ! define reach index array in order of node assignment
-     ixSeg1 = ixSeg2+1             ! start index in the mapping vector
-     ixSeg2 = ixSeg1+nSubSeg-1     ! end index in the mapping vector
-     ixRch_order(ixSeg1:ixSeg2) = domains(ixx)%segIndex(1:nSubSeg)   ! global seg index per node
-     ixLocalSubSEG(ixSeg1:ixSeg2)  = arth(1,1,nSubSeg)                  ! local hru indix per node
+     ! define reach global index array in order of node assignment
+     if (domains(ixx)%basinType /= endorheic ) then   ! endorheic domain does not have reaches
+       ixSeg1 = ixSeg2+1
+       ixSeg2 = ixSeg1+nSubSeg-1
+       ixRch_order(ixSeg1:ixSeg2) = domains(ixx)%segIndex(1:nSubSeg)
+       ! extra information (debugging)
+       ixNode(ixSeg1:ixSeg2)      = domains(ixx)%idNode
+       ixDomain(ixSeg1:ixSeg2)    = ixx
+     end if
 
      ! define hru index array in order of node assignment
      if (nSubHru>0) then
        ixHru1 = ixHru2+1
        ixHru2 = ixHru1+nSubHru-1
-       ixHRU_order(ixHru1:ixHru2)  = domains(ixx)%hruIndex(1:nSubHru) ! global hru index per node
-       ixLocalSubHRU(ixHru1:ixHru2)  = arth(1,1,nSubHru)                 ! local hru indix per node
+       ixHRU_order(ixHru1:ixHru2) = domains(ixx)%hruIndex(1:nSubHru) ! global hru index per node
      end if
-
-     ! extra information (debugging)
-     ixNode(ixSeg1:ixSeg2)       = domains(ixx)%idNode                 ! node id
-     pfaf(ixSeg1:ixSeg2)         = adjustl(trim(domains(ixx)%pfaf))    ! basin pfaf code
 
      end associate
     end do domain
@@ -231,12 +238,11 @@ contains
     hru_per_proc = 0
     do ix = 1,nDomain
      idx = domains(ix)%idNode
-     rch_per_proc(idx) = rch_per_proc(idx) + size(domains(ix)%segIndex)
-     hru_per_proc(idx) = hru_per_proc(idx) + size(domains(ix)%hruIndex)
+     rch_per_proc(idx) = rch_per_proc(idx) + sizeo(domains(ix)%segIndex)
+     hru_per_proc(idx) = hru_per_proc(idx) + sizeo(domains(ix)%hruIndex)
     end do
 
     ! define routing vectors ordered by domain/node
-
     ! reach array
     do iSeg = 1,nRch_in
      jSeg = ixRch_order(iSeg) ! global index, ordered by domain/node
@@ -254,13 +260,16 @@ contains
       area(iHru)     = structHRU(    jHRU)%var(ixHRU%area)%dat(1)
     enddo
 
-    ! Reorder reachID for output to match up with order of RCHFLX and RCHSTA reach order
-    reachID(:) = reachID( ixRch_order )
+    ! Reorder reachID and basinID for output to match up with order of RCHFLX/RCHSTA reach order and basinRunoff hru order
+    reachID(1:nRch_in) = reachID( ixRch_order )
+    basinID(1:nHRU_in) = basinID( ixHRU_order )
 
-!    print*, 'ix, segId, ixRch_order, ixLocalSubSEG, ixNode, pfaf'
-!    do ix = 1,nRch_in
-!      print*, segId(ix), ixRch_order(ix), ixLocalSubSEG(ix), ixNode(ix), pfaf(ix)
-!    enddo
+    if (debug) then
+      write(iulog,'(a)') 'ix, segId, ixRch_order, domain-index, proc-id'
+      do ix = 1,nRch_in
+        write(iulog,*) ix, segId(ix), ixRch_order(ix), ixDomain(ix), ixNode(ix)
+      enddo
+    endif
 
   endif  ! ( masterproc )
 
@@ -727,7 +736,6 @@ contains
   logical(lgt), optional,   intent(in)  :: scatter_ro               ! logical to indicate if scattering global runoff is required
   ! local variables
   integer(i4b), allocatable             :: ixRchProcessed(:)        ! reach indice list to be processed
-  integer(i4b)                          :: iHru,jHru                ! loop indices
   integer(i4b)                          :: nRch_trib                ! number of reaches on one tributary (in a proc)
   logical(lgt)                          :: doesScatterRunoff        ! temporal logical to indicate if scattering global runoff is required
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
@@ -920,10 +928,8 @@ contains
                            ierr, message)  ! error controls
 
   USE globalData, ONLY: nHRU              ! number of all HRUs
-  USE globalData, ONLY: nContribHRU       ! number of all HRUS contributing to river reaches
   USE globalData, ONLY: nHRU_mainstem     ! number of mainstem HRUs
   USE globalData, ONLY: runoff_data       ! runoff data structure
-  USE globalData, ONLY: ixHRU_order       ! global HRU index in the order of proc assignment
   USE globalData, ONLY: hru_per_proc      ! number of hrus assigned to each proc (i.e., node)
   USE globalData, ONLY: basinRunoff_main  ! HRU runoff holder for mainstem
   USE globalData, ONLY: basinRunoff_trib  ! HRU runoff holder for tributary
@@ -935,8 +941,7 @@ contains
   integer(i4b),           intent(out) :: ierr                            ! error code
   character(len=strLen),  intent(out) :: message                         ! error message
   ! local variables
-  integer(i4b)                        :: iHru,jHru                       ! loop indices
-  real(dp)                            :: basinRunoff_sorted(nContribHRU) ! sorted basin runoff (m/s) for whole domain
+  real(dp)                            :: basinRunoff_local(nHRU)         ! temporal basin runoff (m/s) for whole domain
   character(len=strLen)               :: cmessage                        ! error message from a subroutine
 
   ierr=0; message='scatter_runoff/'
@@ -960,22 +965,19 @@ contains
         if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinRunoff_main]'; return; endif
       endif
 
-      do iHru = 1,nContribHRU
-        jHru = ixHRU_order(iHru)
-        basinRunoff_sorted(iHru) = runoff_data%basinRunoff(jHru)
-      enddo
-
       ! runoff at hru in mainstem
-      basinRunoff_main(:) = basinRunoff_sorted(1:nHRU_mainstem)
+      basinRunoff_local(1:nHRU) = runoff_data%basinRunoff(1:nHRU)
+
+      basinRunoff_main(1:nHRU_mainstem) = asinRunoff_local(1:nHRU_mainstem)
 
     end if
 
     call shr_mpi_barrier(comm, message)
 
     ! Distribute the basin runoff to each process
-    call shr_mpi_scatterV(basinRunoff_sorted(nHRU_mainstem+1:nContribHRU), &
-                          hru_per_proc(0:nNodes-1),                        &
-                          basinRunoff_trib,                                &
+    call shr_mpi_scatterV(basinRunoff_local(nHRU_mainstem+1:nHRU), &
+                          hru_per_proc(0:nNodes-1),                &
+                          basinRunoff_trib,                        &
                           ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
