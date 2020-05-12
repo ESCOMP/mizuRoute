@@ -968,7 +968,7 @@ contains
       ! runoff at hru in mainstem
       basinRunoff_local(1:nHRU) = runoff_data%basinRunoff(1:nHRU)
 
-      basinRunoff_main(1:nHRU_mainstem) = asinRunoff_local(1:nHRU_mainstem)
+      basinRunoff_main(1:nHRU_mainstem) = basinRunoff_local(1:nHRU_mainstem)
 
     end if
 
