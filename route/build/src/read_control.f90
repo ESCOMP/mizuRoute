@@ -180,6 +180,10 @@ contains
    case('<varname_minFlow>'      ); meta_SEG    (ixSEG%minFlow         )%varName =trim(cData)  ! minimum environmental flow
    case('<varname_RATECVA>'      ); meta_SEG    (ixSEG%RATECVA         )%varName =trim(cData)  ! stage-discharge relationship parameter A
    case('<varname_RATECVB>'      ); meta_SEG    (ixSEG%RATECVB         )%varName =trim(cData)  ! stage-discharge relationship parameter B
+   case('<varname_RATECVC>'      ); meta_SEG    (ixSEG%RATECVC         )%varName =trim(cData)  ! stage-discharge relationship parameter C
+   case('<varname_RATECVD>'      ); meta_SEG    (ixSEG%RATECVD         )%varName =trim(cData)  ! stage-discharge relationship parameter D
+   case('<varname_RATECVE>'      ); meta_SEG    (ixSEG%RATECVE         )%varName =trim(cData)  ! stage-discharge relationship parameter E
+   case('<varname_RATECVF>'      ); meta_SEG    (ixSEG%RATECVF         )%varName =trim(cData)  ! stage-discharge relationship parameter F
 
    ! network topology
    case('<varname_hruContribIx>' ); meta_NTOPO  (ixNTOPO%hruContribIx  )%varName =trim(cData)  ! indices of the vector of HRUs that contribute flow to each segment
