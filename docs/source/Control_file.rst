@@ -52,9 +52,9 @@ The following variables (not pre-defined in the code) need to be defined in cont
 +--------+------------------------+-------------------------------------------------------------------------------------------+
 | 2      | <vname_hruid>          | variable name for HM_HRU ID                                                               |
 +--------+------------------------+-------------------------------------------------------------------------------------------+
-| 3      | <dname_xlon>           | dimension name for x, lat, or j dimension                                                 |
+| 3      | <dname_xlon>           | dimension name for x, lon, or i dimension                                                 |
 +--------+------------------------+-------------------------------------------------------------------------------------------+
-| 3      | <dname_ylat>           | dimension name for y, lon, or i dimension                                                 |
+| 3      | <dname_ylat>           | dimension name for y, lat, or j dimension                                                 |
 +--------+------------------------+-------------------------------------------------------------------------------------------+
 | 1,2,3  | <dname_time>           | dimension name for time                                                                   |
 +--------+------------------------+-------------------------------------------------------------------------------------------+
@@ -74,9 +74,9 @@ The following variables (not pre-defined in the code) need to be defined in cont
 +--------+------------------------+-------------------------------------------------------------------------------------------+
 |   2    | <vname_qhruid>         | variable name for HM_HRU ID                                                               |
 +--------+------------------------+-------------------------------------------------------------------------------------------+
-|     3  | <vname_i_index>        | variable name of ylat index                                                               |
+|     3  | <vname_i_index>        | variable name of xlon index                                                               |
 +--------+------------------------+-------------------------------------------------------------------------------------------+
-|     3  | <vname_j_index>        | variable name of xlon index                                                               |
+|     3  | <vname_j_index>        | variable name of ylat index                                                               |
 +--------+------------------------+-------------------------------------------------------------------------------------------+
 |   2,3  | <vname_num_qhru>       | variable name for a numbers of overlapping HM_HRUs with RN_HRUs                           |
 +--------+------------------------+-------------------------------------------------------------------------------------------+
@@ -319,8 +319,8 @@ Option 3 - runoff input is given at grid::
   <fname_remap>           spatialweights_HM_HRU_RN_HRU.nc   ! name of netCDF for HM_HRU-RN_HRU mapping data
   <vname_hruid_in_remap>  polyid                            ! variable name of RN_HRU in the mapping file
   <vname_weight>          weight                            ! variable name of areal weights of overlapping HM_HUs for each RN_HRU
-  <vname_i_index>         i_index                           ! variable name of ylat index
-  <vname_j_index>         j_index                           ! variable name of xlon index
+  <vname_i_index>         i_index                           ! variable name of xlon index
+  <vname_j_index>         j_index                           ! variable name of ylat index
   <vname_num_qhru>        overlaps                          ! variable name of numbers of HM_HRUs for each RN_HRU
   <dname_hru_remap>       polyid                            ! dimension name of RN_HRU (in the mapping file)
   <dname_data_remap>      data                              ! dimension name of ragged HM_HRU
