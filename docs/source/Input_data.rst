@@ -130,3 +130,7 @@ Required runoff mapping netCDF variables
 |        | j_index    | data      | ``-`` | int   | j direction index overlapping grid boxes      |
 +--------+------------+-----------+-------+-------+-----------------------------------------------+
 
+Hope this picture helps you understand mapping netCDF variables.
+
+.. image:: images/mapping1.png
+  :width: 400
