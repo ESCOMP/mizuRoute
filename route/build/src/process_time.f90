@@ -48,11 +48,11 @@ contains
 
  ! calculate the julian day for the start time
  select case(trim(calendar))
-  case ('noleap')
+  case ('noleap','365_day')
    call compjulday_noleap(timeStruct%iy,timeStruct%im,timeStruct%id,timeStruct%ih,timeStruct%imin,timeStruct%dsec,julianDate,ierr,cmessage)
   case ('standard','gregorian','proleptic_gregorian')
    call compjulday(timeStruct%iy,timeStruct%im,timeStruct%id,timeStruct%ih,timeStruct%imin,timeStruct%dsec,julianDate,ierr,cmessage)
-  case default; ierr=20; message=trim(message)//trim(calendar)//': calendar name invalid'; return
+  case default; ierr=20; message=trim(message)//trim(calendar)//': calendar invalid; accept either noleap, 365_day, standard, gregorian, or proleptic_gregorian'; return
  end select
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
