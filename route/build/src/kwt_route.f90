@@ -21,7 +21,6 @@ implicit none
 private
 
 public::kwt_route
-public::kwt_route_orig
 
 contains
 
@@ -166,98 +165,6 @@ contains
 
  END SUBROUTINE kwt_route
 
-
- SUBROUTINE kwt_route_orig(iens,                 & ! input: ensemble index
-                           river_basin,          & ! input: river basin information (mainstem, tributary outlet etc.)
-                           T0,T1,                & ! input: start and end of the time step
-                           ixDesire,             & ! input: reachID to be checked by on-screen pringing
-                           NETOPO_in,            & ! input: reach topology data structure
-                           RPARAM_in,            & ! input: reach parameter data structure
-                           KROUTE_out,           & ! inout: reach state (wave) data structure
-                           RCHFLX_out,           & ! inout: reach flux data structure
-                           ierr,message,         & ! output: error control
-                           ixSubRch)               ! optional input: subset of reach indices to be processed
-  ! global routing data
-  USE dataTypes,  only : subbasin_omp          ! mainstem+tributary data strucuture
-
-  implicit none
-  ! Input
-   integer(i4b), intent(in)                 :: iens            ! ensemble member
-   type(subbasin_omp), intent(in), allocatable :: river_basin(:)  ! river basin information (mainstem, tributary outlet etc.)
-   real(dp),     intent(in)                 :: T0,T1           ! start and end of the time step (seconds)
-   integer(i4b), intent(in)                 :: ixDesire        ! index of the reach for verbose output
-   type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)    ! River Network topology
-   type(RCHPRP), intent(in),    allocatable :: RPARAM_in(:)    ! River reach parameter
-   ! inout
-   type(KREACH), intent(inout), allocatable :: KROUTE_out(:,:) ! reach state data
-   TYPE(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
-   ! output variables
-   integer(i4b), intent(out)                :: ierr            ! error code
-   character(*), intent(out)                :: message         ! error message
-   ! input (optional)
-   integer(i4b), intent(in),   optional     :: ixSubRch(:)     ! subset of reach indices to be processed
-   ! local variables
-   integer(i4b)                             :: nSeg            ! number of reach segments in the network
-   integer(I4B)                             :: LAKEFLAG=0      ! >0 if processing lakes
-   integer(i4b)                             :: iSeg, jSeg      ! reach indices
-   logical(lgt), allocatable                :: doRoute(:)      ! logical to indicate which reaches are processed
-   character(len=strLen)                    :: cmessage        ! error message for downwind routine
-   integer*8                                :: cr                ! rate
-   integer*8                                :: startTime,endTime ! date/time for the start and end of the initialization
-   real(dp)                                 :: elapsedTime       ! elapsed time for the process
-
-  ! initialize error control
-  ierr=0; message='kwt_route_orig/'
-  call system_clock(count_rate=cr)
-
-  call system_clock(startTime)
-
-  ! check
-  if (size(NETOPO_in)/=size(RCHFLX_out(iens,:))) then
-   ierr=20; message=trim(message)//'sizes of NETOPO and RCHFLX mismatch'; return
-  endif
-
-  ! Initialize CHEC_IRF to False.
-!  RCHFLX_out(iEns,:)%CHECK_KWT=.False.
-
-  nSeg = size(NETOPO_in)
-
-  allocate(doRoute(nSeg), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating space for [doRoute]'; return; endif
-
-  if (present(ixSubRch))then
-   doRoute(:)=.false.
-   doRoute(ixSubRch) = .true. ! only subset of reaches are on
-  else
-   doRoute(:)=.true.          ! every reach is on
-  endif
-
-  ! route streamflow through the river network
-  do iSeg=1,nSeg
-
-   ! identify reach to process
-   jSeg = NETOPO_in(iSeg)%RHORDER
-
-   if (.not. doRoute(jSeg)) cycle
-   ! route kinematic waves through the river network
-   call QROUTE_RCH(iens,jSeg,           & ! input: array indices
-                   ixDesire,            & ! input: index of the desired reach
-                   T0,T1,               & ! input: start and end of the time step
-                   LAKEFLAG,            & ! input: flag if lakes are to be processed
-                   NETOPO_in,           & ! input: reach topology data structure
-                   RPARAM_in,           & ! input: reach parameter data structure
-                   KROUTE_out,          & ! inout: reach state data structure
-                   RCHFLX_out,          & ! inout: reach flux data structure
-                   ierr,cmessage)         ! output: error control
-   if (ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  end do  ! (looping through stream segments)
-
-  call system_clock(endTime)
-  elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-!  write(*,"(A,1PG15.7,A)") '  total elapsed entire = ', elapsedTime, ' s'
-
- END SUBROUTINE kwt_route_orig
 
  ! *********************************************************************
  ! subroutine: route kinematic waves at one segment

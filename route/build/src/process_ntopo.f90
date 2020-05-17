@@ -346,7 +346,7 @@ end subroutine augment_ntopo
   character(*)                , intent(out)      :: message          ! error message
   ! local varialbles
   integer(i4b)                                   :: nSeg,nHru        ! number of stream reaches and HRUs
-  integer(i4b)                                   :: iSeg,iHru        ! loop indices
+  integer(i4b)                                   :: iSeg             ! loop indices
   logical(lgt)                                   :: verbose = .false.
 
   ! initialize error control
