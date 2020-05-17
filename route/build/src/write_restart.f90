@@ -28,8 +28,7 @@ CONTAINS
   USE public_var, ONLY: output_dir
   USE public_var, ONLY: fname_state_out
   USE public_var, ONLY: routOpt
-  USE globalData, ONLY: timeVar
-  USE globalData, ONLY: iTime
+  USE globalData, ONLY: runoff_data         ! runoff data for one time step for LSM HRUs and River network HRUs
   USE globalData, ONLY: TSEC
   USE globalData, ONLY: reachID
 
@@ -42,7 +41,7 @@ CONTAINS
 
   call write_state_nc(trim(output_dir)//trim(fname_state_out), &  ! Input: state netcdf name
                       routOpt,                                 &  ! input: which routing options
-                      timeVar(iTime), 1, TSEC(0), TSEC(1),     &  ! Input: time, time step, start and end time [sec]
+                      runoff_data%time, 1, TSEC(0), TSEC(1),   &  ! Input: time, time step, start and end time [sec]
                       reachID,                                 &  ! Input: segment id vector
                       ierr, message)                              ! Output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -150,8 +149,7 @@ CONTAINS
   SUBROUTINE set_dim_len(ixDim, ierr, message1)
    ! State/flux data structures
    USE globalData,   ONLY: meta_stateDims  ! states dimension meta
-   USE globalData,   ONLY: NETOPO          ! To get segment size
-   USE globalData,   ONLY: RCHFLX          ! To get size of q future for IRF
+   USE globalData,   ONLY: nRch
    USE globalData,   ONLY: FRAC_FUTURE     ! To get size of q future for basin IRF
    implicit none
    ! input
@@ -160,7 +158,6 @@ CONTAINS
    integer(i4b), intent(out)  :: ierr     ! error code
    character(*), intent(out)  :: message1  ! error message
    ! local
-   integer(i4b)                      :: iVar           ! index loop for variables
    character(len=strLen),allocatable :: dim_IRFbas(:)  ! dimensions combination case 4
 
    ! initialize error control
@@ -168,7 +165,7 @@ CONTAINS
 
    select case(ixDim)
     case(ixStateDims%time);    meta_stateDims(ixStateDims%time)%dimLength    = ncd_unlimited
-    case(ixStateDims%seg);     meta_stateDims(ixStateDims%seg)%dimLength     = size(NETOPO)
+    case(ixStateDims%seg);     meta_stateDims(ixStateDims%seg)%dimLength     = nRch
     case(ixStateDims%ens);     meta_stateDims(ixStateDims%ens)%dimLength     = 1
     case(ixStateDims%tbound);  meta_stateDims(ixStateDims%tbound)%dimLength  = 2
     case(ixStateDims%tdh);     meta_stateDims(ixStateDims%tdh)%dimLength     = size(FRAC_FUTURE)

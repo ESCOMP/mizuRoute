@@ -151,6 +151,7 @@ contains
  endif
 
  ! loop through data structures
+ write(iulog,'(2a)') new_line('a'), '---- Read river network data --- '
  do iStruct=1,nStructures
 
   ! loop through the variables
@@ -195,7 +196,7 @@ contains
    ! ---------- read data into temporary structures ----------------------------------------------------------------
 
    ! print progress
-   print*, 'Reading '//trim(varName)//' into structure '//trim(meta_struct(iStruct)%structName)
+   write(iulog,'(2x,a)') 'Reading '//trim(varName)//' into structure '//trim(meta_struct(iStruct)%structName)
 
    ! read data from NetCDF files
    select case(iStruct)

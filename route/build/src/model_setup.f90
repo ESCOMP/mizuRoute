@@ -7,6 +7,8 @@ USE dataTypes, only : var_ilength         ! integer type:          var(:)%dat
 USE dataTypes, only : var_clength         ! integer type:          var(:)%dat
 USE dataTypes, only : var_dlength,dlength ! double precision type: var(:)%dat, or dat
 
+USE public_var, only : iulog
+USE public_var, only : debug
 USE public_var, only : verySmall
 USE public_var, only : integerMissing
 USE public_var, only : realMissing
@@ -300,9 +302,10 @@ contains
 
   ! get the time multiplier needed to convert time to units of days
   select case( trim( time_units(1:index(time_units,' ')) ) )
-   case('seconds'); convTime2Days=86400._dp
-   case('hours');   convTime2Days=24._dp
-   case('days');    convTime2Days=1._dp
+   case('seconds','second','sec','s'); convTime2Days=86400._dp
+   case('minutes','minute','min');     convTime2Days=1440._dp
+   case('hours','hour','hr','h');      convTime2Days=24._dp
+   case('days','day','d');             convTime2Days=1._dp
    case default;    ierr=20; message=trim(message)//'unable to identify time units'; return
   end select
 
@@ -393,13 +396,9 @@ contains
   integer(i4b)                                :: dummy(2)                 ! dummy variable to hold dimension length for 2D variables in netCDF
   integer(i4b)   , parameter                  :: maxUpstreamFile=10000000 ! 10 million: maximum number of upstream reaches to enable writing
   character(len=strLen)                       :: cmessage                 ! error message of downwind routine
-  integer*8                                   :: cr                  ! rate
-  integer*8                                   :: startTime,endTime   ! date/time for the start and end of the initialization
-  real(dp)                                    :: elapsedTime         ! elapsed time for the process
 
   ! initialize error control
   ierr=0; message='init_ntopo/'
-  call system_clock(count_rate=cr)
 
   if (meta_PFAF(ixPFAF%code)%varFile) then
     ! get the variable dimensions
@@ -504,12 +503,8 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! spatial domain decomposition for OMP parallelization
-  call system_clock(startTime)
   call omp_domain_decomposition(nRch_out, structNTOPO, river_basin, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  call system_clock(endTime)
-  elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-  write(*,"(A,1PG15.7,A)") '  elapsed-time [domain_decomposition] = ', elapsedTime, ' s'
 
  end subroutine init_ntopo
 
@@ -545,7 +540,6 @@ contains
  integer(i4b), intent(out)          :: ierr             ! error code
  character(*), intent(out)          :: message          ! error message
  ! local variables
- integer(i4b)                       :: iHRU, jHRU       ! hru loop indices
  character(len=strLen)              :: cmessage         ! error message from subroutine
 
  ! initialize error control
@@ -559,7 +553,6 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  !print*, 'runoff_data_in%nSpace, nTime, trim(time_units) = ', runoff_data_in%nSpace(:), runoff_data_in%nTime, trim(time_units)
- !print*, trim(message)//'PAUSE : '; read(*,*)
 
  ! need to remap runoff to HRUs
  if (remap_flag) then
@@ -578,6 +571,18 @@ contains
                 ierr, cmessage)          ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+   if (debug) then
+     write(iulog,'(a)') new_line('a')
+     write(iulog,'(a)')        'DEBUG: Corresponding between River-Network(RN) hru in mapping data and RN hru in river network data'
+     write(iulog,'(2x,a,I15)') '(1) number of RN hru in river-network = ', size(basinID)
+     write(iulog,'(2x,a,I15)') '(2) number of RN hru in mapping       = ', size(remap_data_in%hru_id)
+     write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two  = ', count(remap_data_in%hru_ix/=integerMissing)
+     if(count(remap_data_in%hru_ix/=integerMissing)/=size(basinID))then
+       message=trim(message)//'(1) not equal (2)'
+       ierr=20; return
+     endif
+   end if
+
    if ( runoff_data_in%nSpace(2) == integerMissing ) then
      ! get indices of the "overlap HRUs" (the runoff input) in the runoff vector
      call get_qix(remap_data_in%qhru_id, &  ! input: vector of ids in mapping file
@@ -585,23 +590,15 @@ contains
                   remap_data_in%qhru_ix, &  ! output: indices of mapping ids in runoff file
                   ierr, cmessage)           ! output: error control
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     if (debug) then
+       write(iulog,'(a)') new_line('a')
+       write(iulog,'(a)')        'DEBUG: corresponding between Hydro-Model (HM) hru in mapping data and HM hru in runoff data'
+       write(iulog,'(2x,a,I15)') '(1) number of HM hru in hyrdo-model  = ', size(runoff_data_in%hru_id)
+       write(iulog,'(2x,a,I15)') '(2) number of HM hru in mapping      = ', size(remap_data_in%qhru_id)
+       write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two = ', count(remap_data_in%qhru_ix/=integerMissing)
+     end if
    end if
-
-   ! check
-   if(count(remap_data_in%hru_ix/=integerMissing)/=size(basinID))then
-    message=trim(message)//'unable to identify all polygons in the mapping file'
-    ierr=20; return
-   endif
-
-   ! check that the basins match
-   do iHRU = 1, size(remap_data_in%hru_ix)
-     jHRU = remap_data_in%hru_ix(iHRU)
-     if (jHRU == integerMissing) cycle
-     if( remap_data_in%hru_id(iHRU) /= basinID(jHRU) )then
-      message=trim(message)//'mismatch in HRU ids for basins in the routing layer'
-      ierr=20; return
-     endif
-   end do
 
  else ! if runoff given in RN_HRU
 
@@ -615,32 +612,21 @@ contains
                 ierr, cmessage)              ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! check
-   if(count(runoff_data_in%hru_ix/=integerMissing)/=size(basinID))then
-    message=trim(message)//'unable to identify all polygons in the mapping file'
-    ierr=20; return
-   endif
-
-   ! check that the basins match
-   do iHRU = 1, size(runoff_data_in%hru_ix)
-     jHRU = runoff_data_in%hru_ix(iHRU)
-     if (jHRU == integerMissing) cycle
-     if( runoff_data_in%hru_id(iHRU) /= basinID(jHRU) )then
-      message=trim(message)//'mismatch in HRU ids for basins in the routing layer'
-      ierr=20; return
+   if (debug) then
+     write(iulog,'(a)') new_line('a')
+     write(iulog,'(a)')        'DEBUG: corresponding between River-Network (RN) hru in runoff data and RN hru in river network data'
+     write(iulog,'(2x,a,I15)') '(1) number of RN hru in river-network = ', size(basinID)
+     write(iulog,'(2x,a,I15)') '(2) number of RN hru in hyrdo-model   = ', size(runoff_data_in%hru_id)
+     write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two  = ', count(runoff_data_in%hru_ix/=integerMissing)
+     if(count(runoff_data_in%hru_ix/=integerMissing)/=size(basinID))then
+       message=trim(message)//'(1) not equal (2)'
+       ierr=20; return
      endif
-   end do
+   end if
 
  endif
 
  end subroutine init_runoff
-
- ! ============================================================================================
- ! ============================================================================================
- ! ============================================================================================
- ! ============================================================================================
- ! ============================================================================================
- ! ============================================================================================
 
  ! *****
  ! private subroutine: get indices of mapping points within runoff file...
@@ -660,6 +646,7 @@ contains
  integer(i4b)             :: rankMaster( size(qidMaster) ) ! rank of master vector
  integer(i4b)             :: ix,jx,ixMaster                ! array indices
  integer(i4b)             :: nx                            ! counter
+
  ! initialize error control
  ierr=0; message='get_qix/'
 
@@ -669,7 +656,6 @@ contains
 
  !print*, 'rankId = ', rankId(1:10)
  !print*, 'qId( rankId(1:10) ) = ', qId( rankId(1:10) )
- !print*, 'PAUSE: '; read(*,*)
  qix(1:size(qid)) = integerMissing
  nx=0
  jx=1
@@ -703,17 +689,15 @@ contains
   if(qix( rankId(ix) )/=integerMissing .and. mod(ix,1000000)==0)then
    print*, trim(message)//'matching ids: ix, qix( rankId(ix) ), qid( rankId(ix) ), qidMaster( qix( rankId(ix) ) ) = ', &
                                          ix, qix( rankId(ix) ), qid( rankId(ix) ), qidMaster( qix( rankId(ix) ) )
-   !print*, 'PAUSE : '; read(*,*)
   endif
 
  end do  ! looping through the vector
 
- print*, 'nMissing = ', count(qix==integerMissing)
-
- ! check again
+ ! check
  do ix=1,size(qid)
   if(qix(ix) /= integerMissing)then
    if(qid(ix) /= qidMaster( qix(ix) ) )then
+    write(iulog,'(a,2(x,I10,x,I15))') 'ERROR Mapping: ix, qid(ix), qix(ix), qidMaster(qix(ix))=', ix, qid(ix), qix(ix), qidMaster(qix(ix))
     message=trim(message)//'unable to find the match'
     ierr=20; return
    endif

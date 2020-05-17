@@ -10,14 +10,14 @@ private
 public::get_nc
 public::get_var_dims
 public::get_nc_dim_len
-public::get_var_attr_char
-public::get_var_attr_real
+public::get_var_attr
 public::put_global_attr
 public::def_nc
 public::def_dim
 public::def_var
 public::end_def
 public::write_nc
+public::open_nc
 public::close_nc
 
 INTERFACE get_nc
@@ -42,6 +42,11 @@ INTERFACE write_nc
   module procedure write_2d_darray
   module procedure write_3d_iarray
   module procedure write_3d_darray
+END INTERFACE
+
+INTERFACE get_var_attr
+  module procedure get_var_attr_char
+  module procedure get_var_attr_real
 END INTERFACE
 
 ! public netCDF parameter
@@ -241,9 +246,9 @@ CONTAINS
 
  ! Inquire attribute type, NF90_CHAR(=2)
  ierr = nf90_inquire_attribute(ncid, ivarID, attr_name, xtype=var_type)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; nc='//trim(fname)//'; attr='//trim(attr_name); return; endif
 
- if (var_type /= 2)then; ierr=20; message=trim(message)//'attribute type is not character'; return; endif
+ if (var_type /= nf90_char)then; ierr=20; message=trim(message)//'attribute type must be character'; return; endif
 
  ! get the attribute value
  ierr = nf90_get_att(ncid, ivarID, attr_name, attr_value)
@@ -289,9 +294,9 @@ CONTAINS
 
  ! Inquire attribute type, NF90_CHAR(=2)
  ierr = nf90_inquire_attribute(ncid, ivarID, attr_name, xtype=var_type)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; nc='//trim(fname)//'; attr='//trim(attr_name); return; endif
 
- if (var_type /= 5 .and. var_type /= 6)then; ierr=20; message=trim(message)//'attribute type is not real'; return; endif
+ if (var_type /= nf90_float .and. var_type /= nf90_double)then; ierr=20; message=trim(message)//'attribute type must be real'; return; endif
 
  ! get the attribute value
  ierr = nf90_get_att(ncid, ivarID, attr_name, attr_value)
@@ -1175,6 +1180,38 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  END SUBROUTINE end_def
+
+
+ ! *********************************************************************
+ ! Public subroutine: close netcdf
+ ! *********************************************************************
+ SUBROUTINE open_nc(fname, mode, ncid, ierr, message)
+
+   implicit none
+   ! input variables
+   character(*), intent(in)     :: fname     ! filename
+   character(1), intent(in)     :: mode      ! Input: mode ID
+   ! output
+   integer(i4b), intent(out)    :: ncid      ! output: netcdf ID
+   integer(i4b), intent(out)    :: ierr      ! error code
+   character(*), intent(out)    :: message   ! error message
+   ! local
+   integer(i4b)                 :: modeId    ! mode flag
+
+   ! initialize error control
+   ierr=0; message='open_nc/'
+
+   select case(trim(mode))
+     case('r','R'); modeId = NF90_NOWRITE
+     case('w','W'); modeId = NF90_WRITE
+     case('s','S'); modeId = NF90_SHARE
+     case default; ierr=20; message=trim(message)//'netCDF open mode not recongnized; chose "r", "w", "s"'; return
+   end select
+
+   ierr = nf90_open(trim(fname), modeId, ncid)
+   if(ierr/=0)then; message=trim(message)//'['//trim(nf90_strerror(ierr))//'; file='//trim(fname)//']'; return; endif
+
+ END SUBROUTINE open_nc
 
 
  ! *********************************************************************
