@@ -76,6 +76,7 @@ contains
  close(iunit)
 
  ! loop through the non-comment lines in the input file, and extract the name and the information
+ write(iulog,'(a)') '---- read control file --- '
  do iLine=1,size(cLines)
 
    ! initialize io_error
@@ -90,7 +91,7 @@ contains
    ! extract name of the information, and the information itself
    cName = adjustl(cLines(iLine)(ibeg_name:iend_name))
    cData = adjustl(cLines(iLine)(iend_name+1:iend_data-1))
-   print*, trim(cName), ' --> ', trim(cData)
+   write(iulog,'(x,a,a,a)') trim(cName), ' --> ', trim(cData)
 
    ! populate variables
    select case(trim(cName))
@@ -144,9 +145,10 @@ contains
    case('<topoNetworkOption>');    read(cData,*,iostat=io_error) topoNetworkOption ! option for network topology calculations (0=read from file, 1=compute)
    case('<computeReachList>');     read(cData,*,iostat=io_error) computeReachList  ! option to compute list of upstream reaches (0=do not compute, 1=compute)
    ! TIME
-   case('<time_units>');           time_units = trim(cData)                        ! time units (seconds, hours, or days)
+   case('<time_units>');           time_units = trim(cData)                        ! time units. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
    case('<calendar>');             calendar   = trim(cData)                        ! calendar name
    ! MISCELLANEOUS
+   case('<debug>');                read(cData,*,iostat=io_error) debug             ! print out detailed information throught the probram
    case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut          ! desired outlet reach id (if -9999 --> route over the entire network)
    case('<route_opt>');            read(cData,*,iostat=io_error) routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
    case('<desireId>'   );          read(cData,*,iostat=io_error) desireId          ! turn off checks or speficy reach ID if necessary to print on screen
@@ -229,8 +231,23 @@ contains
    ntopAugmentMode = .false.
  endif
 
- ! ---------- unit conversion --------------------------------------------------------------------------------------------
+ ! ---------- time variables  --------------------------------------------------------------------------------------------
+ write(iulog,'(2a)') new_line('a'), '---- calendar --- '
+ if (trim(calendar)/=charMissing) then
+   write(iulog,'(a)') '  calendar is provided in control file: '//trim(calendar)
+ else
+   write(iulog,'(a)') '  calendar will be read from '//trim(fname_qsim)
+ end if
+ if (trim(time_units)/=charMissing) then
+   write(iulog,'(a)') '  time_unit is provided in control file: '//trim(time_units)
+ else
+   write(iulog,'(a)') '  time_unit will be read from '//trim(fname_qsim)
+ end if
 
+ ! ---------- runoff unit conversion --------------------------------------------------------------------------------------------
+
+ write(iulog,'(2a)') new_line('a'), '---- runoff unit --- '
+ write(iulog,'(a)') '  runoff unit is provided as: '//trim(units_qsim)
  ! find the position of the "/" character
  ipos = index(trim(units_qsim),'/')
  if(ipos==0)then
@@ -257,7 +274,7 @@ contains
   case('h','hour');   time_conv = 1._dp/secprhour
   case('s','second'); time_conv = 1._dp
   case default
-   message=trim(message)//'cannot identify the time units [time units = '//trim(cTime)//']'
+   message=trim(message)//'expect the time units to be "day"("d"), "hour"("h") or "second"("s") [time units = '//trim(cTime)//']'
    err=81; return
  end select
 
