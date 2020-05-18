@@ -13,6 +13,8 @@ USE public_var, only : verySmall
 USE public_var, only : integerMissing
 USE public_var, only : realMissing
 
+USE nr_utility_module, only : unique
+
 implicit none
 
 ! privacy -- everything private unless declared explicitly
@@ -540,6 +542,8 @@ contains
  integer(i4b), intent(out)          :: ierr             ! error code
  character(*), intent(out)          :: message          ! error message
  ! local variables
+ integer(i4b), allocatable          :: unq_qhru_id(:)
+ integer(i4b), allocatable          :: unq_idx(:)
  character(len=strLen)              :: cmessage         ! error message from subroutine
 
  ! initialize error control
@@ -572,8 +576,7 @@ contains
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    if (debug) then
-     write(iulog,'(a)') new_line('a')
-     write(iulog,'(a)')        'DEBUG: Corresponding between River-Network(RN) hru in mapping data and RN hru in river network data'
+     write(iulog,'(2a)') new_line('a'), 'DEBUG: Corresponding between River-Network(RN) hru in mapping data and RN hru in river network data'
      write(iulog,'(2x,a,I15)') '(1) number of RN hru in river-network = ', size(basinID)
      write(iulog,'(2x,a,I15)') '(2) number of RN hru in mapping       = ', size(remap_data_in%hru_id)
      write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two  = ', count(remap_data_in%hru_ix/=integerMissing)
@@ -592,11 +595,11 @@ contains
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      if (debug) then
-       write(iulog,'(a)') new_line('a')
-       write(iulog,'(a)')        'DEBUG: corresponding between Hydro-Model (HM) hru in mapping data and HM hru in runoff data'
+       call unique(remap_data_in%qhru_id, unq_qhru_id, unq_idx)
+       write(iulog,'(2a)') new_line('a'),'DEBUG: corresponding between Hydro-Model (HM) hru in mapping data and HM hru in runoff data'
        write(iulog,'(2x,a,I15)') '(1) number of HM hru in hyrdo-model  = ', size(runoff_data_in%hru_id)
-       write(iulog,'(2x,a,I15)') '(2) number of HM hru in mapping      = ', size(remap_data_in%qhru_id)
-       write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two = ', count(remap_data_in%qhru_ix/=integerMissing)
+       write(iulog,'(2x,a,I15)') '(2) number of HM hru in mapping      = ', size(unq_qhru_id)
+       write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two = ', count(remap_data_in%qhru_ix(unq_idx)/=integerMissing)
      end if
    end if
 
@@ -613,8 +616,7 @@ contains
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    if (debug) then
-     write(iulog,'(a)') new_line('a')
-     write(iulog,'(a)')        'DEBUG: corresponding between River-Network (RN) hru in runoff data and RN hru in river network data'
+     write(iulog,'(2a)') new_line('a'), 'DEBUG: corresponding between River-Network (RN) hru in runoff data and RN hru in river network data'
      write(iulog,'(2x,a,I15)') '(1) number of RN hru in river-network = ', size(basinID)
      write(iulog,'(2x,a,I15)') '(2) number of RN hru in hyrdo-model   = ', size(runoff_data_in%hru_id)
      write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two  = ', count(runoff_data_in%hru_ix/=integerMissing)
