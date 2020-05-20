@@ -11,6 +11,7 @@ module globalData
   USE dataTypes, ONLY: struct_info   ! metadata type
   USE dataTypes, ONLY: dim_info      ! metadata type
   USE dataTypes, ONLY: var_info      ! metadata type
+  USE objTypes,  ONLY: var_info_new  ! metadata type
 
   ! parameter structures
   USE dataTypes, ONLY: RCHPRP        ! Reach parameters (properties)
@@ -130,11 +131,11 @@ module globalData
   type(var_info)                 , public :: meta_SEG    (nVarsSEG    ) ! stream segment properties
   type(var_info)                 , public :: meta_NTOPO  (nVarsNTOPO  ) ! network topology
   type(var_info)                 , public :: meta_PFAF   (nVarsPFAF   ) ! pfafstetter code
-  type(var_info)                 , public :: meta_rflx   (nVarsRFLX )   ! reach flux variables
-  type(var_info)                 , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
-  type(var_info)                 , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
-  type(var_info)                 , public :: meta_kwe    (nVarsKWE    ) ! KWE routing fluxes/states
-  type(var_info)                 , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
+  type(var_info_new)             , public :: meta_rflx   (nVarsRFLX   ) ! reach flux variables
+  type(var_info_new)             , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
+  type(var_info_new)             , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
+  type(var_info_new)             , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
+  type(var_info_new)             , public :: meta_kwe    (nVarsKWE    ) ! KWE routing fluxes/states
 
   ! ---------- shared data structures ----------------------------------------------------------------------
 
