@@ -55,6 +55,7 @@ contains
  INTEGER(I4B)                             :: nUps           ! number of upstream segment
  INTEGER(I4B)                             :: iUps           ! upstream reach index
  INTEGER(I4B)                             :: iRch_ups       ! index of upstream reach in NETOPO
+ INTEGER(I4B)                             :: ntdh           ! number of time steps in IRF
  character(len=strLen)                    :: cmessage       ! error message from subroutine
 
  ! initialize error control
@@ -90,6 +91,10 @@ contains
    print*, 'node id that is lake .......= ', NETOPO_in(segIndex)%REACHID ! to check the reach id of lake
    print*, 'lake param RATECVA .........= ', RPARAM_in(segIndex)%RATECVA
    print*, 'lake param RATECVB .........= ', RPARAM_in(segIndex)%RATECVB
+   print*, 'lake param RATECVC .........= ', RPARAM_in(segIndex)%RATECVC
+   print*, 'lake param RATECVD .........= ', RPARAM_in(segIndex)%RATECVD
+   print*, 'lake param RATECVE .........= ', RPARAM_in(segIndex)%RATECVE
+   print*, 'lake param RATECVF .........= ', RPARAM_in(segIndex)%RATECVF
    print*, 'volume before simulation m3.= ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
    print*, 'upstream streamflow m3/s ...= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
    print*, 'upstream precipitation m3/s.= ', RCHFLX_out(iens,segIndex)%basinprecip
@@ -133,6 +138,13 @@ contains
   ! pass the current storage for the past time step for the next time step simulation
   RCHFLX_out(iens,segIndex)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) !shift on time step back
 
+  ! assign the zero value as lake do not have a QFUTURE_IRF
+  if (.not.allocated(RCHFLX_out(iens,segIndex)%QFUTURE_IRF))then
+   ntdh = size(NETOPO_in(segIndex)%UH)
+   allocate(RCHFLX_out(iens,segIndex)%QFUTURE_IRF(ntdh), stat=ierr, errmsg=cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': RCHFLX_out(iens,segIndex)%QFUTURE_IRF'; return; endif
+   RCHFLX_out(iens,segIndex)%QFUTURE_IRF(1:ntdh) = 0._dp
+  end if
 
  end subroutine lake_route
 

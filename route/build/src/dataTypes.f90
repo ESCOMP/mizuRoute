@@ -192,6 +192,10 @@ implicit none
   real(dp)                                :: MINFLOW  ! minimum environmental flow
   real(dp)                                :: RATECVA  ! discharge rating curve parameter A
   real(dp)                                :: RATECVB  ! discharge rating curve parameter B
+  real(dp)                                :: RATECVC  ! discharge rating curve parameter C
+  real(dp)                                :: RATECVD  ! discharge rating curve parameter D
+  real(dp)                                :: RATECVE  ! discharge rating curve parameter E
+  real(dp)                                :: RATECVF  ! discharge rating curve parameter F
  end type RCHPRP
 
  ! River Network topology
