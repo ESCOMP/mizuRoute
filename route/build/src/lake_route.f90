@@ -108,8 +108,12 @@ contains
   if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) .LT. 0) then; ! set the lake volume as 0 if it goes negative actual evaporation is not calculated here in case low storage mean low evaporaiton...
     RCHFLX_out(iens,segIndex)%REACH_VOL(1)=0
   endif
-  ! A has the dimnesion of 1/s; the flux leaving per second
-  RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RPARAM_in(segIndex)%RATECVA * (RCHFLX_out(iens,segIndex)%REACH_VOL(1) ** RPARAM_in(segIndex)%RATECVB)! simplified level pool liner reservoir Q=AS^B
+  ! RATECVA has the dimnesion of 1/s; the flux leaving per second
+  ! RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RPARAM_in(segIndex)%RATECVA * (RCHFLX_out(iens,segIndex)%REACH_VOL(1) ** &
+  !                                         RPARAM_in(segIndex)%RATECVB) !  Q=AS^B
+  RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RPARAM_in(segIndex)%RATECVA * RCHFLX_out(iens,segIndex)%REACH_VOL(1) * &
+                                          (RCHFLX_out(iens,segIndex)%REACH_VOL(1) / RPARAM_in(segIndex)%RATECVC) ** &
+                                          RPARAM_in(segIndex)%RATECVB! Q = AS(S/Smax)^B based on Eq. 1 Hanasaki et al., 2006 https://doi.org/10.1016/j.jhydrol.2005.11.011
   RCHFLX_out(iens,segIndex)%REACH_Q_IRF = (min(RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt, RCHFLX_out(iens,segIndex)%REACH_VOL(1)) )/dt! in case is the output volume is more than lake volume
   RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt ! updating the storage
   if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) .LT. 0) then; ! set the lake volume as 0 if it goes negative
