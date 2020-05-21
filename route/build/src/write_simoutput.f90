@@ -3,6 +3,7 @@ MODULE write_simoutput
 ! Moudle wide external modules
 USE nrtype
 USE var_lookup,only: ixRFLX, nVarsRFLX
+USE public_var,only: iulog
 USE public_var,only: integerMissing
 USE public_var,only: routOpt                ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
 USE public_var,only: doesBasinRoute         ! basin routing options   0-> no, 1->IRF, otherwise error
@@ -146,7 +147,7 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! print progress
-  print*, modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin
+  write(iulog,'(a,I4,4(x,I4))') new_line('a'), modTime(1)%iy, modTime(1)%im, modTime(1)%id, modTime(1)%ih, modTime(1)%imin
 
   ! *****
   ! *** Define model output file...

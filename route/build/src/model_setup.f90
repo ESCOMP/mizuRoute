@@ -542,7 +542,7 @@ contains
  integer(i4b), intent(out)          :: ierr             ! error code
  character(*), intent(out)          :: message          ! error message
  ! local variables
- integer(i4b), allocatable          :: unq_qhru_id(:)
+ integer(i8b), allocatable          :: unq_qhru_id(:)
  integer(i4b), allocatable          :: unq_idx(:)
  character(len=strLen)              :: cmessage         ! error message from subroutine
 
