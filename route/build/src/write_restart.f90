@@ -46,10 +46,6 @@ CONTAINS
                       ierr, message)                              ! Output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  print*, '--------------------'
-  print*, 'Finished simulation'
-  print*, '--------------------'
-
  end subroutine output_state
 
  ! *********************************************************************
