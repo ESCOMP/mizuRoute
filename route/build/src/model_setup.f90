@@ -162,9 +162,9 @@ contains
 
   USE public_var, only : dt
   USE globalData, only : TSEC          ! beginning/ending of simulation time step [sec]
-  USE globalData, only : timeVar       ! time variables (unit given by runoff data)
   USE globalData, only : iTime         ! time index at simulation time step
   USE globalData, only : refJulday     ! julian day: reference
+  USE globalData, only : roJulday      ! julian day: runoff input time
   USE globalData, only : modJulday     ! julian day: at model time step
   USE globalData, only : endJulday     ! julian day: at end of simulation
 
@@ -182,14 +182,18 @@ contains
    TSEC(1) = TSEC(0) + dt
 
    if (abs(modJulday-endJulday)<verySmall) then
-     finished=.true.;return
+     finished=.true.
+     write(iulog,'(a)') new_line('a'), '--------------------'
+     write(iulog,'(a)')                'Finished simulation'
+     write(iulog,'(a)')                '--------------------'
+     return
    endif
 
    ! update time index
    iTime=iTime+1
 
    ! update the julian day of the model simulation
-   modJulday = refJulday + timeVar(iTime)
+   modJulday = roJulday(iTime)
 
  end subroutine update_time
 
@@ -259,6 +263,7 @@ contains
 
   ! subroutines:
   USE process_time_module, only : process_time  ! process time information
+  USE process_time_module, only : process_calday! compute data and time from julian day
   USE io_netcdf,           only : get_nc        ! netcdf input
   ! derived datatype
   USE dataTypes,           only : time          ! time data type
@@ -274,6 +279,7 @@ contains
   USE globalData,          only : timeVar       ! time variables (unit given by runoff data)
   USE globalData,          only : iTime         ! time index at simulation time step
   USE globalData,          only : refJulday     ! julian day: reference
+  USE globalData,          only : roJulday      ! julian day: runoff input time
   USE globalData,          only : startJulday   ! julian day: start of routing simulation
   USE globalData,          only : endJulday     ! julian day: end of routing simulation
   USE globalData,          only : modJulday     ! julian day: at model time step
@@ -288,14 +294,17 @@ contains
   character(*),              intent(out)   :: message          ! error message
   ! local variable
   integer(i4b)                             :: ix
+  type(time)                               :: rofCal
+  type(time)                               :: simCal
   real(dp)                                 :: convTime2Days
   character(len=strLen)                    :: cmessage         ! error message of downwind routine
+  character(len=50)                        :: fmt1='(a,I4,a,I2.2,a,I2.2,x,I2.2,a,I2.2,a,F5.2)'
 
   ! initialize error control
   ierr=0; message='init_time/'
 
   ! time initialization
-  allocate(timeVar(nTime), stat=ierr)
+  allocate(timeVar(nTime), roJulday(nTime), stat=ierr)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! get the time data
@@ -311,9 +320,6 @@ contains
    case default;    ierr=20; message=trim(message)//'unable to identify time units'; return
   end select
 
-  ! convert time unit in runoff netCDF to day
-  timeVar=timeVar/convTime2Days
-
   ! extract time information from the control information
   call process_time(time_units,    calendar, refJulday,   ierr, cmessage)
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [refJulday]'; return; endif
@@ -322,12 +328,53 @@ contains
   call process_time(trim(simEnd),  calendar, endJulday,   ierr, cmessage)
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endJulday]'; return; endif
 
+  ! Julian day at first time step in runoff data
+  ! convert time unit in runoff netCDF to day
+  do ix = 1, nTime
+    roJulday(ix) = refJulday + timeVar(ix)/convTime2Days
+  end do
+
   ! check that the dates are aligned
-  if(endJulday<startJulday) then; ierr=20; message=trim(message)//'simulation end is before simulation start'; return; endif
+  if(endJulday<startJulday) then
+    write(cmessage,'(7a)') 'simulation end is before simulation start:', new_line('a'), '<sim_start>= ', trim(simStart), new_line('a'), '<sim_end>= ', trim(simEnd)
+    ierr=20; message=trim(message)//trim(cmessage); return
+  endif
+
+  ! check sim_start is before the last time step in runoff data
+  if(startJulday>roJulday(nTime)) then
+    call process_calday(roJulday(nTime), calendar, rofCal, ierr, cmessage)
+    call process_calday(startJulday, calendar, simCal, ierr, cmessage)
+    write(iulog,'(2a)') new_line('a'),'ERROR: <sim_start> is after the first time step in input runoff'
+    write(iulog,fmt1)  ' runoff_end  : ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
+    write(iulog,fmt1)  ' <sim_start> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
+    ierr=20; message=trim(message)//'check <sim_start> against runoff input time'; return
+  endif
+
+  ! Compare sim_start vs. time at first time step in runoff data
+  if (startJulday < roJulday(1)) then
+    call process_calday(roJulday(1), calendar, rofCal, ierr, cmessage)
+    call process_calday(startJulday, calendar, simCal, ierr, cmessage)
+    write(iulog,'(2a)') new_line('a'),'WARNING: <sim_start> is before the first time step in input runoff'
+    write(iulog,fmt1)  ' runoff_start: ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
+    write(iulog,fmt1)  ' <sim_start> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
+    write(iulog,'(a)') ' Reset <sim_start> to runoff_start'
+    startJulday = roJulday(1)
+  endif
+
+  ! Compare sim_end vs. time at last time step in runoff data
+  if (endJulday > roJulday(nTime)) then
+    call process_calday(roJulday(nTime), calendar, rofCal, ierr, cmessage)
+    call process_calday(endJulday,       calendar, simCal, ierr, cmessage)
+    write(iulog,'(2a)')  new_line('a'),'WARNING: <sim_end> is after the last time step in input runoff'
+    write(iulog,fmt1)   ' runoff_end: ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
+    write(iulog,fmt1)   ' <sim_end> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
+    write(iulog,'(a)')  ' Reset <sim_end> to runoff_end'
+    endJulday = roJulday(nTime)
+  endif
 
   ! fast forward time to time index at simStart and save iTime and modJulday
   do ix = 1, nTime
-    modJulday = refJulday + timeVar(ix)
+    modJulday = roJulday(ix)
     if( modJulday < startJulday ) cycle
     exit
   enddo
