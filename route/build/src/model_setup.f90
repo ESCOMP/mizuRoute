@@ -1,57 +1,67 @@
-module model_setup
+MODULE model_setup
 
 ! data types
-USE nrtype,    only : i4b,dp,lgt          ! variable types, etc.
-USE nrtype,    only : strLen              ! length of characters
-USE dataTypes, only : var_ilength         ! integer type:          var(:)%dat
-USE dataTypes, only : var_clength         ! integer type:          var(:)%dat
-USE dataTypes, only : var_dlength,dlength ! double precision type: var(:)%dat, or dat
+USE nrtype,    ONLY : i4b,dp,lgt          ! variable types, etc.
+USE nrtype,    ONLY : strLen              ! length of characters
+USE dataTypes, ONLY : var_ilength         ! integer type:          var(:)%dat
+USE dataTypes, ONLY : var_clength         ! integer type:          var(:)%dat
+USE dataTypes, ONLY : var_dlength,dlength ! double precision type: var(:)%dat, or dat
 
-USE public_var, only : iulog
-USE public_var, only : debug
-USE public_var, only : verySmall
-USE public_var, only : integerMissing
-USE public_var, only : realMissing
+USE public_var, ONLY : iulog
+USE public_var, ONLY : debug
+USE public_var, ONLY : verySmall
+USE public_var, ONLY : integerMissing
+USE public_var, ONLY : realMissing
+USE public_var, ONLY : charMissing
 
-USE nr_utility_module, only : unique
+USE nr_utility_module, ONLY : unique  ! get unique element array
+USE nr_utility_module, ONLY : indexx  ! get rank of data value
 
 implicit none
 
-! privacy -- everything private unless declared explicitly
 private
+
 public :: init_model
 public :: init_data
 public :: update_time
 
-contains
+CONTAINS
 
  ! *********************************************************************
  ! public subroutine: model setup
  ! *********************************************************************
- subroutine init_model(cfile_name, ierr, message)
+ SUBROUTINE init_model(cfile_name, ierr, message)
 
   ! used to read control files and namelist and broadcast to all processors
 
   ! shared data used
-  USE public_var,          only : ancil_dir
-  USE public_var,          only : param_nml
+  USE public_var,          ONLY : ancil_dir
+  USE public_var,          ONLY : param_nml
+  USE globalData,          ONLY : nThreads         ! a number of threads
   ! subroutines: populate metadata
-  USE popMetadat_module,   only : popMetadat       ! populate metadata
+  USE popMetadat_module,   ONLY : popMetadat       ! populate metadata
   ! subroutines: model control
-  USE read_control_module, only : read_control     ! read the control file
-  USE read_param_module,   only : read_param       ! read the routing parameters
+  USE read_control_module, ONLY : read_control     ! read the control file
+  USE read_param_module,   ONLY : read_param       ! read the routing parameters
 
   implicit none
 
-  character(*), intent(in)    :: cfile_name        ! name of the control file
+  character(*), intent(in)    :: cfile_name          ! name of the control file
   ! output: error control
-  integer(i4b), intent(out)   :: ierr              ! error code
-  character(*), intent(out)   :: message           ! error message
+  integer(i4b), intent(out)   :: ierr                ! error code
+  character(*), intent(out)   :: message             ! error message
   ! local variables
-  character(len=strLen)       :: cmessage          ! error message of downwind routine
+  integer(i4b)                :: omp_get_num_threads ! number of threads used for openMP
+  character(len=strLen)       :: cmessage            ! error message of downwind routine
 
   ! initialize error control
   ierr=0; message='init_model/'
+
+  ! Get number of threads
+  nThreads = 1
+  !$OMP PARALLEL
+  !$ nThreads = omp_get_num_threads()
+  !$OMP END PARALLEL
 
   ! populate the metadata files
   call popMetadat(ierr,cmessage)
@@ -65,28 +75,28 @@ contains
   call read_param(trim(ancil_dir)//trim(param_nml),ierr,cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- end subroutine init_model
+ END SUBROUTINE init_model
 
 
  ! *********************************************************************
  ! public subroutine: initialize river network, runoff, and runoff-mapping data
  ! *********************************************************************
- subroutine init_data(ierr, message)   ! output: error control
+ subroutine init_data(ierr, message)
 
-  USE public_var,  only : is_remap               ! logical whether or not runnoff needs to be mapped to river network HRU
-  USE public_var,  only : ntopAugmentMode        ! River network augmentation mode
-  USE public_var,  only : idSegOut               ! outlet segment ID (-9999 => no outlet segment specified)
-  USE var_lookup,  only : ixHRU2SEG              ! index of variables for data structure
-  USE var_lookup,  only : ixNTOPO                ! index of variables for data structure
-  USE globalData,  only : RCHFLX                 ! Reach flux data structures (entire river network)
-  USE globalData,  only : KROUTE                 ! Reach k-wave data structures (entire river network)
+  USE public_var,  ONLY : is_remap               ! logical whether or not runnoff needs to be mapped to river network HRU
+  USE public_var,  ONLY : ntopAugmentMode        ! River network augmentation mode
+  USE public_var,  ONLY : idSegOut               ! outlet segment ID (-9999 => no outlet segment specified)
+  USE var_lookup,  ONLY : ixHRU2SEG              ! index of variables for data structure
+  USE var_lookup,  ONLY : ixNTOPO                ! index of variables for data structure
+  USE globalData,  ONLY : RCHFLX                 ! Reach flux data structures (entire river network)
+  USE globalData,  ONLY : KROUTE                 ! Reach k-wave data structures (entire river network)
 
-  USE globalData,  only : nHRU, nRch             ! number of HRUs and Reaches in the whole network
-  USE globalData,  only : nEns                   ! number of ensembles
-  USE globalData,  only : basinID                ! HRU id vector
-  USE globalData,  only : reachID                ! reach ID vector
-  USE globalData,  only : runoff_data            ! runoff data structure
-  USE globalData,  only : remap_data             ! runoff mapping data structure
+  USE globalData,  ONLY : nHRU, nRch             ! number of HRUs and Reaches in the whole network
+  USE globalData,  ONLY : nEns                   ! number of ensembles
+  USE globalData,  ONLY : basinID                ! HRU id vector
+  USE globalData,  ONLY : reachID                ! reach ID vector
+  USE globalData,  ONLY : runoff_data            ! runoff data structure
+  USE globalData,  ONLY : remap_data             ! runoff mapping data structure
 
    implicit none
    ! input:
@@ -122,7 +132,7 @@ contains
    allocate(RCHFLX(nEns,nRch), KROUTE(nEns,nRch), stat=ierr)
    if(ierr/=0)then; message=trim(message)//'problem allocating [RCHFLX, KROUTE]'; return; endif
 
-   ! populate basiID and reachID vectors for output (in only master processor)
+   ! populate basiID and reachID vectors for output (in ONLY master processor)
    ! populate runoff data structure (only meta, no runoff values)
    ! populate remap data structure
 
@@ -137,8 +147,7 @@ contains
    end do
 
    ! runoff and remap data initialization (TO DO: split runoff and remap initialization)
-   call init_runoff(&
-                    is_remap,        & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
+   call init_runoff(is_remap,        & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
                     remap_data,      & ! output: data structure to remap data
                     runoff_data,     & ! output: data structure for runoff
                     ierr, cmessage)    ! output: error control
@@ -156,17 +165,16 @@ contains
 
 
  ! *********************************************************************
- ! public subroutine: update time to next time
+ ! public subroutine: update time to next time step
  ! *********************************************************************
- subroutine update_time(finished, ierr, message)   ! output: error control
+ SUBROUTINE update_time(finished, ierr, message)
 
-  USE public_var, only : dt
-  USE globalData, only : TSEC          ! beginning/ending of simulation time step [sec]
-  USE globalData, only : iTime         ! time index at simulation time step
-  USE globalData, only : refJulday     ! julian day: reference
-  USE globalData, only : roJulday      ! julian day: runoff input time
-  USE globalData, only : modJulday     ! julian day: at model time step
-  USE globalData, only : endJulday     ! julian day: at end of simulation
+  USE public_var, ONLY : dt
+  USE globalData, ONLY : TSEC          ! beginning/ending of simulation time step [sec]
+  USE globalData, ONLY : iTime         ! time index at simulation time step
+  USE globalData, ONLY : roJulday      ! julian day: runoff input time
+  USE globalData, ONLY : modJulday     ! julian day: at model time step
+  USE globalData, ONLY : endJulday     ! julian day: at end of simulation
 
    implicit none
    ! output: error control
@@ -177,10 +185,6 @@ contains
    ! initialize error control
    ierr=0; message='update_time/'
 
-   ! update model time step bound
-   TSEC(0) = TSEC(0) + dt
-   TSEC(1) = TSEC(0) + dt
-
    if (abs(modJulday-endJulday)<verySmall) then
      finished=.true.
      write(iulog,'(a)') new_line('a'), '--------------------'
@@ -189,13 +193,17 @@ contains
      return
    endif
 
+   ! update model time step bound
+   TSEC(0) = TSEC(0) + dt
+   TSEC(1) = TSEC(0) + dt
+
    ! update time index
    iTime=iTime+1
 
    ! update the julian day of the model simulation
    modJulday = roJulday(iTime)
 
- end subroutine update_time
+ END SUBROUTINE update_time
 
 
  ! *********************************************************************
@@ -203,18 +211,14 @@ contains
  ! *********************************************************************
  subroutine init_state(ierr, message)
   ! subroutines
-  USE read_restart,  only : read_state_nc     ! read netcdf state output file
-  USE write_restart, only : define_state_nc   ! define netcdf state output file
+  USE read_restart,  ONLY : read_state_nc     ! read netcdf state output file
   ! global data
-  USE public_var,    only : dt                ! simulation time step (seconds)
-  USE public_var,    only : isRestart         ! restart option: True-> model run with restart, F -> model run with empty channels
-  USE public_var,    only : routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-  USE public_var,    only : fname_state_in    ! name of state input file
-  USE public_var,    only : fname_state_out   ! name of state output file
-  USE public_var,    only : output_dir        ! directory containing output data
-  USE public_var,    only : time_units        ! time units (seconds, hours, or days)
-  USE globalData,    only : RCHFLX            ! reach flux structure
-  USE globalData,    only : TSEC              ! begining/ending of simulation time step [sec]
+  USE public_var,    ONLY : dt                ! simulation time step (seconds)
+  USE public_var,    ONLY : routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+  USE public_var,    ONLY : fname_state_in    ! name of state input file
+  USE public_var,    ONLY : output_dir        ! directory containing output data
+  USE globalData,    ONLY : RCHFLX            ! reach flux structure
+  USE globalData,    ONLY : TSEC              ! begining/ending of simulation time step [sec]
 
   implicit none
 
@@ -229,7 +233,7 @@ contains
   ierr=0; message='init_state/'
 
   ! read restart file and initialize states
-  if (isRestart) then
+  if (trim(fname_state_in)/=charMissing) then
 
    call read_state_nc(trim(output_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -249,41 +253,40 @@ contains
 
   endif
 
-  ! Define output state netCDF
-  call define_state_nc(trim(output_dir)//trim(fname_state_out), time_units, routOpt, ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- end subroutine init_state
+ END SUBROUTINE init_state
 
 ! *********************************************************************
  ! private subroutine: initialize time data
  ! *********************************************************************
- subroutine init_time(nTime,     &    ! input: number of time steps
+ SUBROUTINE init_time(nTime,     &    ! input: number of time steps
                       ierr, message)  ! output
 
   ! subroutines:
-  USE process_time_module, only : process_time  ! process time information
-  USE process_time_module, only : process_calday! compute data and time from julian day
-  USE io_netcdf,           only : get_nc        ! netcdf input
+  USE process_time_module, ONLY : process_time  ! process time information
+  USE process_time_module, ONLY : process_calday! compute data and time from julian day
+  USE io_netcdf,           ONLY : get_nc        ! netcdf input
   ! derived datatype
-  USE dataTypes,           only : time          ! time data type
+  USE dataTypes,           ONLY : time          ! time data type
   ! public data
-  USE public_var,          only : input_dir     ! directory containing input data
-  USE public_var,          only : fname_qsim    ! simulated runoff netCDF name
-  USE public_var,          only : vname_time    ! variable name for time
-  USE public_var,          only : time_units    ! time units (seconds, hours, or days)
-  USE public_var,          only : simStart      ! date string defining the start of the simulation
-  USE public_var,          only : simEnd        ! date string defining the end of the simulation
-  USE public_var,          only : calendar      ! calendar name
-
-  USE globalData,          only : timeVar       ! time variables (unit given by runoff data)
-  USE globalData,          only : iTime         ! time index at simulation time step
-  USE globalData,          only : refJulday     ! julian day: reference
-  USE globalData,          only : roJulday      ! julian day: runoff input time
-  USE globalData,          only : startJulday   ! julian day: start of routing simulation
-  USE globalData,          only : endJulday     ! julian day: end of routing simulation
-  USE globalData,          only : modJulday     ! julian day: at model time step
-  USE globalData,          only : modTime       ! model time data (yyyy:mm:dd:hh:mm:ss)
+  USE public_var,          ONLY : input_dir     ! directory containing input data
+  USE public_var,          ONLY : fname_qsim    ! simulated runoff netCDF name
+  USE public_var,          ONLY : vname_time    ! variable name for time
+  USE public_var,          ONLY : time_units    ! time units (seconds, hours, or days)
+  USE public_var,          ONLY : simStart      ! date string defining the start of the simulation
+  USE public_var,          ONLY : simEnd        ! date string defining the end of the simulation
+  USE public_var,          ONLY : calendar      ! calendar name
+  USE public_var,          ONLY : restart_write ! restart write option
+  USE public_var,          ONLY : restart_date  ! restart date
+  ! saved time variables
+  USE globalData,          ONLY : timeVar       ! time variables (unit given by runoff data)
+  USE globalData,          ONLY : iTime         ! time index at runoff input time step
+  USE globalData,          ONLY : refJulday     ! julian day: reference
+  USE globalData,          ONLY : roJulday      ! julian day: runoff input time
+  USE globalData,          ONLY : startJulday   ! julian day: start of routing simulation
+  USE globalData,          ONLY : endJulday     ! julian day: end of routing simulation
+  USE globalData,          ONLY : modJulday     ! julian day: at model time step
+  USE globalData,          ONLY : restartJulday ! julian day: at restart
+  USE globalData,          ONLY : modTime       ! model time data (yyyy:mm:dd:hh:mm:sec)
 
   implicit none
 
@@ -297,6 +300,7 @@ contains
   type(time)                               :: rofCal
   type(time)                               :: simCal
   real(dp)                                 :: convTime2Days
+  character(len=7)                         :: t_unit
   character(len=strLen)                    :: cmessage         ! error message of downwind routine
   character(len=50)                        :: fmt1='(a,I4,a,I2.2,a,I2.2,x,I2.2,a,I2.2,a,F5.2)'
 
@@ -312,12 +316,14 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! get the time multiplier needed to convert time to units of days
-  select case( trim( time_units(1:index(time_units,' ')) ) )
+  t_unit = trim( time_units(1:index(time_units,' ')) )
+  select case( trim(t_unit) )
    case('seconds','second','sec','s'); convTime2Days=86400._dp
    case('minutes','minute','min');     convTime2Days=1440._dp
    case('hours','hour','hr','h');      convTime2Days=24._dp
    case('days','day','d');             convTime2Days=1._dp
-   case default;    ierr=20; message=trim(message)//'unable to identify time units'; return
+   case default
+     ierr=20; message=trim(message)//'<time_units>= '//trim(t_unit)//': <time_units> must be seconds, minutes, hours or days.'; return
   end select
 
   ! extract time information from the control information
@@ -381,46 +387,59 @@ contains
   iTime = ix
 
   ! initialize previous model time
-  !modTime(0:1) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
   modTime(0) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
 
- end subroutine init_time
+  ! restart drop off time
+  select case(trim(restart_write))
+    case('last','Last')
+      call process_time(trim(simEnd), calendar, restartJulday, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartDate]'; return; endif
+    case('never','Never')
+      restartJulday = 0.0_dp
+    case('specified','Specified')
+      if (trim(restart_date) == charMissing) then
+        ierr=20; message=trim(message)//'<restart_date> must be provided when <restart_write> option is "specified"'; return
+      end if
+      call process_time(trim(restart_date),calendar, restartJulday, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartDate]'; return; endif
+    case default
+      ierr=20; message=trim(message)//'Current accepted <restart_write> options: last[Last], never[Never], specified[Specified]'; return
+  end select
+
+ END SUBROUTINE init_time
 
 
  ! *********************************************************************
  ! private subroutine: initialize river network data
  ! *********************************************************************
- subroutine init_ntopo(nHRU_out, nRch_out,                                           & ! output: number of HRU and Reaches
+ SUBROUTINE init_ntopo(nHRU_out, nRch_out,                                           & ! output: number of HRU and Reaches
                        structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
                        ierr, message)                                                  ! output: error controls
   ! public vars
-  USE public_var,           only : ancil_dir                ! name of the ancillary directory
-  USE public_var,           only : fname_ntopOld            ! name of the old network topology file
-  USE public_var,           only : fname_ntopNew            ! name of the new network topology file
-  USE public_var,           only : dname_nhru               ! dimension name for HRUs
-  USE public_var,           only : dname_sseg               ! dimension name for stream segments
-  USE public_var,           only : maxPfafLen               ! maximum digit of pfafstetter code (default 32)
+  USE public_var,           ONLY : ancil_dir                ! name of the ancillary directory
+  USE public_var,           ONLY : fname_ntopOld            ! name of the old network topology file
+  USE public_var,           ONLY : fname_ntopNew            ! name of the new network topology file
+  USE public_var,           ONLY : dname_nhru               ! dimension name for HRUs
+  USE public_var,           ONLY : dname_sseg               ! dimension name for stream segments
+  USE public_var,           ONLY : maxPfafLen               ! maximum digit of pfafstetter code (default 32)
   ! options
-  USE public_var,           only : ntopAugmentMode          ! River network augmentation mode
-  USE public_var,           only : idSegOut                 ! River network subset mode (idSegOut > 0)
-  ! common variables
-  USE public_var,           only : realMissing              ! missing value for real
-  USE public_var,           only : integerMissing           ! missing value for integers
+  USE public_var,           ONLY : ntopAugmentMode          ! River network augmentation mode
+  USE public_var,           ONLY : idSegOut                 ! River network subset mode (idSegOut > 0)
   ! global data
-  USE globalData,           only : meta_PFAF                ! meta for pfafstetter code
-  USE globalData,           only : NETOPO, RPARAM           ! network and parameter data structure used in routing routine
-  USE globalData,           only : river_basin              ! OMP domain decompostion data strucuture
+  USE globalData,           ONLY : meta_PFAF                ! meta for pfafstetter code
+  USE globalData,           ONLY : NETOPO, RPARAM           ! network and parameter data structure used in routing routine
+  USE globalData,           ONLY : river_basin              ! OMP domain decompostion data strucuture
   ! variable index
-  USE var_lookup,           only : ixPFAF                   ! index of variables for the pfafstetter code
+  USE var_lookup,           ONLY : ixPFAF                   ! index of variables for the pfafstetter code
   ! external subroutines
-  USE read_streamSeg,       only : getData                  ! get the ancillary data
-  USE write_streamSeg,      only : writeData                ! write the ancillary data
-  USE process_ntopo,        only : check_river_properties   ! check if river network data is physically valid
-  USE io_netcdf,            only : get_var_dims
-  USE process_ntopo,        only : augment_ntopo            ! compute all the additional network topology (only compute option = on)
-  USE process_ntopo,        only : put_data_struct          ! populate NETOPO and RPARAM data structure
-  USE domain_decomposition, only : omp_domain_decomposition     ! domain decomposition for omp
-!  USE domain_decomposition, only : omp_domain_decomposition &    ! domain decomposition for omp
+  USE read_streamSeg,       ONLY : getData                  ! get the ancillary data
+  USE write_streamSeg,      ONLY : writeData                ! write the ancillary data
+  USE process_ntopo,        ONLY : check_river_properties   ! check if river network data is physically valid
+  USE io_netcdf,            ONLY : get_var_dims
+  USE process_ntopo,        ONLY : augment_ntopo            ! compute all the additional network topology (only compute option = on)
+  USE process_ntopo,        ONLY : put_data_struct          ! populate NETOPO and RPARAM data structure
+  USE domain_decomposition, ONLY : omp_domain_decomposition     ! domain decomposition for omp
+!  USE domain_decomposition, ONLY : omp_domain_decomposition &    ! domain decomposition for omp
 !                                => omp_domain_decomposition_stro
   implicit none
   ! input: None
@@ -518,30 +537,30 @@ contains
     ! write data
     call writeData(&
                    ! input
-                   trim(ancil_dir)//trim(fname_ntopNew), & ! input: file name
-                   ! input: model control
-                   tot_hru,       & ! input: total number of all the upstream hrus for all stream segments
-                   tot_upseg,     & ! input: total number of immediate upstream segments for all  stream segments
-                   tot_upstream,  & ! input: total number of all of the upstream stream segments for all stream segments
-                   tot_uh,        & ! input: total number of unit hydrograph for all stream segments
+                   trim(ancil_dir)//trim(fname_ntopNew), & ! file name
+                   ! input: total elements
+                   tot_hru,                              & ! total number of all the upstream hrus for all stream segments
+                   tot_upseg,                            & ! total number of immediate upstream segments for all  stream segments
+                   tot_upstream,                         & ! total number of all of the upstream stream segments for all stream segments
+                   tot_uh,                               & ! total number of unit hydrograph for all stream segments
                    ! input: reach masks
-                   ixHRU_desired, & ! input: indices of desired hrus
-                   ixSeg_desired, & ! input: indices of desired reaches
+                   ixHRU_desired,                        & ! indices of desired hrus
+                   ixSeg_desired,                        & ! indices of desired reaches
                    ! input: data structures
-                   structHRU,     & ! input: ancillary data for HRUs
-                   structSeg,     & ! input: ancillary data for stream segments
-                   structHRU2seg, & ! input: ancillary data for mapping hru2basin
-                   structNTOPO,   & ! input: ancillary data for network topology
-                   structPFAF,    & ! input: ancillary data for pfafstetter code
+                   structHRU,                            & ! ancillary data for HRUs
+                   structSeg,                            & ! ancillary data for stream segments
+                   structHRU2seg,                        & ! ancillary data for mapping hru2basin
+                   structNTOPO,                          & ! ancillary data for network topology
+                   structPFAF,                           & ! ancillary data for pfafstetter code
                    ! output: error control
-                   ierr,cmessage) ! output: error control
+                   ierr,cmessage)                          ! error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    if (idSegOut>0) write(*,'(a)') 'Running in river network subset mode'
-    if (ntopAugmentMode) write(*,'(a)') 'Running in river network augmentation mode'
-    write(*,'(a)') 'Created a new network topology file '//trim(fname_ntopNew)
-    write(*,'(a)') ' --> Run again using the new network topology file '
-    write(*,'(a)') ' SUCCESSFUL EXECUTION '
+    if (idSegOut>0)      write(iulog,'(2a)') new_line('a'), 'Running in river network subset mode'
+    if (ntopAugmentMode) write(iulog,'(2a)') new_line('a'), 'Running in river network augmentation mode'
+    write(iulog,'(x,a)') 'Created a new network topology file '//trim(fname_ntopNew)
+    write(iulog,'(x,a)') '--> Run again using the new network topology file '
+    write(iulog,'(x,a)') 'SUCCESSFUL EXECUTION '
     return
   endif
 
@@ -555,30 +574,27 @@ contains
   call omp_domain_decomposition(nRch_out, structNTOPO, river_basin, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- end subroutine init_ntopo
+ END SUBROUTINE init_ntopo
 
  ! *****
  ! public subroutine: get mapping data between runoff hru and river network hru
  ! *********************************************************************
- subroutine init_runoff(&
-                         ! data structures
-                         remap_flag,      & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
-                         remap_data_in,   & ! output: data structure to remap data
-                         runoff_data_in,  & ! output: data structure for runoff
-                         ! error control
-                         ierr, message)     ! output: error control
+ SUBROUTINE init_runoff(remap_flag,      & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
+                        remap_data_in,   & ! output: data structure to remap data
+                        runoff_data_in,  & ! output: data structure for runoff
+                        ierr, message)     ! output: error control
 
- USE public_var,  only : ancil_dir              ! name of the ancillary directory
- USE public_var,  only : input_dir              ! name of the runoff input directory
- USE public_var,  only : fname_qsim             ! name of simulated runoff netCDF
- USE public_var,  only : fname_remap            ! name of runoff mapping netCDF name
- USE public_var,  only : calendar               ! name of calendar
- USE public_var,  only : time_units             ! time units
- USE dataTypes,   only : remap                  ! remapping data type
- USE dataTypes,   only : runoff                 ! runoff data type
- USE read_runoff, only : read_runoff_metadata   ! read meta data from runoff data
- USE read_remap,  only : get_remap_data         ! read remap data
- USE globalData,  only : basinID                ! basin ID
+ USE public_var,  ONLY : ancil_dir              ! name of the ancillary directory
+ USE public_var,  ONLY : input_dir              ! name of the runoff input directory
+ USE public_var,  ONLY : fname_qsim             ! name of simulated runoff netCDF
+ USE public_var,  ONLY : fname_remap            ! name of runoff mapping netCDF name
+ USE public_var,  ONLY : calendar               ! name of calendar
+ USE public_var,  ONLY : time_units             ! time units
+ USE dataTypes,   ONLY : remap                  ! remapping data type
+ USE dataTypes,   ONLY : runoff                 ! runoff data type
+ USE read_runoff, ONLY : read_runoff_metadata   ! read meta data from runoff data
+ USE read_remap,  ONLY : get_remap_data         ! read remap data
+ USE globalData,  ONLY : basinID                ! basin ID
 
  implicit none
  ! data structures
@@ -675,13 +691,13 @@ contains
 
  endif
 
- end subroutine init_runoff
+ END SUBROUTINE init_runoff
 
  ! *****
  ! private subroutine: get indices of mapping points within runoff file...
  ! ***********************************************************************
- subroutine get_qix(qid,qidMaster,qix,ierr,message)
- USE nr_utility_module, ONLY: indexx  ! get rank of data value
+ SUBROUTINE get_qix(qid,qidMaster,qix,ierr,message)
+
  implicit none
  ! input
  integer(i4b), intent(in)  :: qid(:)                       ! ID of input vector
@@ -753,7 +769,7 @@ contains
   endif
  end do
 
- end subroutine get_qix
+ END SUBROUTINE get_qix
 
-end module model_setup
+END MODULE model_setup
 
