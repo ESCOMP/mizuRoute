@@ -1055,11 +1055,11 @@ contains
         if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinPrecip_main]'; return; endif
       endif
 
-      ! runoff, evaporation and precipitation 
+      ! runoff, evaporation and precipitation
       basinRunoff_local(1:nHRU) = runoff_data%basinRunoff(1:nHRU)
       basinEvapo_local (1:nHRU) = runoff_data%basinEvapo(1:nHRU)
       basinPrecip_local(1:nHRU) = runoff_data%basinPrecip(1:nHRU)
-      
+
       ! runoff, evaporation and precipitation at main channel
       basinRunoff_main(1:nHRU_mainstem) = basinRunoff_local(1:nHRU_mainstem)
       basinEvapo_main (1:nHRU_mainstem) = basinEvapo_local (1:nHRU_mainstem)
@@ -1076,15 +1076,15 @@ contains
                           ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call shr_mpi_scatterV(basinEvapo_local(nHRU_mainstem+1:nContribHRU), &
-                          hru_per_proc(0:nNodes-1),                        &
-                          basinEvapo_trib,                                &
+    call shr_mpi_scatterV(basinEvapo_local(nHRU_mainstem+1:nHRU),  &
+                          hru_per_proc(0:nNodes-1),                &
+                          basinEvapo_trib,                         &
                           ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call shr_mpi_scatterV(basinPrecip_local(nHRU_mainstem+1:nContribHRU), &
-                          hru_per_proc(0:nNodes-1),                        &
-                          basinPrecip_trib,                                &
+    call shr_mpi_scatterV(basinPrecip_local(nHRU_mainstem+1:nHRU), &
+                          hru_per_proc(0:nNodes-1),                &
+                          basinPrecip_trib,                        &
                           ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
