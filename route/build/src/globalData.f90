@@ -108,7 +108,8 @@ module globalData
   real(dp)                       , public :: endJulday            ! julian day: end of routing simulation
   real(dp)                       , public :: refJulday            ! julian day: reference
   real(dp)                       , public :: modJulday            ! julian day: simulation time step
-  real(dp)        , allocatable  , public :: timeVar(:)           ! time variables (unit given by runoff data)
+  real(dp)        , allocatable  , public :: roJulday(:)          ! julian day: runoff input time
+  real(dp)        , allocatable  , public :: timeVar(:)           ! time variables (unit given by time variable)
   real(dp)                       , public :: TSEC(0:1)            ! begning and end of time step (sec)
   type(time)                     , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
 

@@ -15,7 +15,6 @@ implicit none
 private
 
 public::irf_route
-public::irf_route_orig
 
 contains
 
@@ -286,91 +285,6 @@ contains
  rflux%QFUTURE_IRF(ntdh) = 0._dp
 
  end subroutine conv_upsbas_qr
-
-   ! *********************************************************************
-   ! subroutine: perform network UH routing
-   ! *********************************************************************
-   subroutine irf_route_orig(iEns,         &  ! input: index of runoff ensemble to be processed
-                             river_basin,  &  ! input: river basin information (mainstem, tributary outlet etc.)
-                             ixDesire,     &  ! input: reachID to be checked by on-screen pringing
-                             NETOPO_in,    &  ! input: reach topology data structure
-                             RCHFLX_out,   &  ! inout: reach flux data structure
-                             ierr, message,&  ! output: error control
-                             ixSubRch)        ! optional input: subset of reach indices to be processed
-   ! ----------------------------------------------------------------------------------------
-   ! Purpose:
-   !
-   !   Convolute routed basisn flow volume at top of each of the upstream segment at one time step and at each segment
-   !
-   ! ----------------------------------------------------------------------------------------
-
-   ! global routing data
-   USE dataTypes,         only : subbasin_omp  ! mainstem+tributary data strucuture
-
-   implicit none
-   ! Input
-   integer(I4B), intent(in)                     :: iEns              ! runoff ensemble to be routed
-   type(subbasin_omp), intent(in), allocatable  :: river_basin(:)    ! river basin information (mainstem, tributary outlet etc.)
-   integer(I4B), intent(in)                     :: ixDesire          ! index of the reach for verbose output
-   type(RCHTOPO),intent(in),    allocatable     :: NETOPO_in(:)      ! River Network topology
-   ! inout
-   TYPE(STRFLX), intent(inout), allocatable     :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
-   ! Output
-   integer(i4b), intent(out)                    :: ierr              ! error code
-   character(*), intent(out)                    :: message           ! error message
-   ! input (optional)
-   integer(i4b), intent(in),   optional         :: ixSubRch(:)       ! subset of reach indices to be processed
-   ! Local variables to
-   INTEGER(I4B)                                 :: nSeg              ! number of reach segments in the network
-   INTEGER(I4B)                                 :: iSeg, jSeg        ! reach segment index
-   logical(lgt), allocatable                    :: doRoute(:)        ! logical to indicate which reaches are processed
-   character(len=strLen)                        :: cmessage          ! error message from subroutine
-   integer*8                                    :: cr                ! rate
-   integer*8                                    :: startTime,endTime ! date/time for the start and end of the initialization
-   real(dp)                                     :: elapsedTime       ! elapsed time for the process
-
-   ! initialize error control
-   ierr=0; message='irf_route_orig/'
-
-   call system_clock(count_rate=cr)
-   call system_clock(startTime)
-
-   ! check
-   if (size(NETOPO_in)/=size(RCHFLX_out(iens,:))) then
-    ierr=20; message=trim(message)//'sizes of NETOPO and RCHFLX mismatch'; return
-   endif
-
-   ! Initialize CHEC_IRF to False.
-   RCHFLX_out(iEns,:)%CHECK_IRF=.False.
-
-   nSeg = size(RCHFLX_out(iens,:))
-
-   allocate(doRoute(nSeg), stat=ierr)
-
-   if (present(ixSubRch))then
-    doRoute(:)=.false.
-    doRoute(ixSubRch) = .true. ! only subset of reaches are on
-   else
-    doRoute(:)=.true. ! every reach is on
-   endif
-
-   ! route streamflow through the river network
-   do iSeg=1,nSeg
-
-    jSeg = NETOPO_in(iSeg)%RHORDER
-
-    if (.not. doRoute(jSeg)) cycle
-
-    call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, message)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   end do
-
-   call system_clock(endTime)
-   elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-!   write(*,"(A,1PG15.7,A)") '  total elapsed entire = ', elapsedTime, ' s'
-
- end subroutine irf_route_orig
 
 end module irf_route_module
 

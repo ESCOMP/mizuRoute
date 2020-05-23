@@ -79,8 +79,6 @@ contains
 
  ! ---------- allocate space for higher-level structure components -------------------------------------------------
 
- print*, 'Allocating space for the higher-level structure components'; call flush(6)
-
  ! allocate the spatial dimension in all data structures
  allocate(structHRU(nHRU), structHRU2seg(nHRU), structSeg(nSeg), structNTOPO(nSeg), structPFAF(nSeg), stat=ierr)
  if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating [structHRU,structHRU2seg,structNTOPO,structPFAF]'; return; endif
@@ -98,8 +96,6 @@ contains
  end do
 
  ! ---------- allocate space for the scalar variables --------------------------------------------------------------
-
- print*, 'Allocating space for the scalar variables'; call flush(6)
 
  ! loop through data structures
  do iStruct=1,nStructures
