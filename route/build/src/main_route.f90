@@ -19,7 +19,8 @@ USE basinUH_module, ONLY: IRF_route_basin    ! perform UH convolution for basin 
 
 ! subroutines: river routing
 USE accum_runoff_module, ONLY: accum_runoff  ! upstream flow accumulation
-USE kwt_route_module,    ONLY: kwt_route     ! kinematic wave routing method
+USE kwt_route_module,    ONLY: kwt_route     ! Lagrangian kinematic wave routing method
+USE kwe_route_module,    ONLY: kwe_route     ! Eulerian kinematic wave routing method
 USE irf_route_module,    ONLY: irf_route     ! unit hydrograph (impulse response function) routing method
 
 implicit none
@@ -62,6 +63,7 @@ CONTAINS
    USE public_var, ONLY: doesAccumRunoff
    USE public_var, ONLY: allRoutingMethods
    USE public_var, ONLY: kinematicWave
+   USE public_var, ONLY: kinematicWaveEuler
    USE public_var, ONLY: impulseResponseFunc
    USE globalData, ONLY: TSEC                    ! beginning/ending of simulation time step [sec]
 
@@ -176,7 +178,7 @@ CONTAINS
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    endif
 
-   ! perform KWT routing
+   ! perform Lagrangian KWT routing
    if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
     call kwt_route(iens,                 & ! input: ensemble index
                    river_basin,          & ! input: river basin data type
@@ -190,6 +192,21 @@ CONTAINS
                    ixRchProcessed)         ! optional input: indices of reach to be routed
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    endif
+
+   ! perform Eulerian KWT routing
+   if (routOpt==kinematicWaveEuler) then
+    call kwe_route(iens,                 & ! input: ensemble index
+                   river_basin,          & ! input: river basin data type
+                   T0,T1,                & ! input: start and end of the time step
+                   ixDesire,             & ! input: index of verbose reach
+                   NETOPO_in,            & ! input: reach topology data structure
+                   RPARAM_in,            & ! input: reach parameter data structure
+                   RCHSTA_out,           & ! inout: reach state data structure
+                   RCHFLX_out,           & ! inout: reach flux data structure
+                   ierr,cmessage,        & ! output: error control
+                   ixRchProcessed)         ! optional input: indices of reach to be routed
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
 
    ! perform IRF routing
    if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then

@@ -11,6 +11,7 @@ module globalData
   USE dataTypes, ONLY: struct_info   ! metadata type
   USE dataTypes, ONLY: dim_info      ! metadata type
   USE dataTypes, ONLY: var_info      ! metadata type
+  USE objTypes,  ONLY: var_info_new  ! metadata type
 
   ! input data file info
   USE dataTypes, ONLY: infileinfo    ! strture for getting the information of input files
@@ -53,6 +54,7 @@ module globalData
   USE var_lookup, ONLY: nVarsIRFbas   ! number of variables for data structure
   USE var_lookup, ONLY: nVarsIRF      ! number of variables for data structure
   USE var_lookup, ONLY: nVarsKWT      ! number of variables for data structure
+  USE var_lookup, ONLY: nVarsKWE      ! number of variables for data structure
 
   implicit none
 
@@ -97,9 +99,10 @@ module globalData
 
   integer(i4b)                   , public :: mpicom_route              ! communicator for this program
   integer(i4b)                   , public :: pid                       ! process id
-  integer(i4b)                   , public :: nNodes                    ! number of nodes
+  integer(i4b)                   , public :: nNodes                    ! number of MPI processors
   integer(i4b)                   , public :: nThreads                  ! number of threads
   logical(lgt)                   , public :: masterproc                ! root logical. root processor => true, other => false
+  logical(lgt)                   , public :: multiProcs                ! MPI multi-processors logical. => number of processors>1 true, other => false
   character(len=strLen)          , public :: pio_netcdf_format = "64bit_offset"
   character(len=strLen)          , public :: pio_typename      = "pnetcdf"
   integer(i4b)                   , public :: pio_numiotasks    = -99
@@ -137,10 +140,11 @@ module globalData
   type(var_info)                 , public :: meta_SEG    (nVarsSEG    ) ! stream segment properties
   type(var_info)                 , public :: meta_NTOPO  (nVarsNTOPO  ) ! network topology
   type(var_info)                 , public :: meta_PFAF   (nVarsPFAF   ) ! pfafstetter code
-  type(var_info)                 , public :: meta_rflx   (nVarsRFLX )   ! reach flux variables
-  type(var_info)                 , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
-  type(var_info)                 , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
-  type(var_info)                 , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
+  type(var_info_new)             , public :: meta_rflx   (nVarsRFLX   ) ! reach flux variables
+  type(var_info_new)             , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
+  type(var_info_new)             , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
+  type(var_info_new)             , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
+  type(var_info_new)             , public :: meta_kwe    (nVarsKWE    ) ! KWE routing fluxes/states
 
   ! ---------- shared data structures ----------------------------------------------------------------------
 

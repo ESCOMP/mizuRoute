@@ -28,6 +28,7 @@ contains
  USE globalData, ONLY: meta_SEG             ! stream segment properties
  USE globalData, ONLY: meta_NTOPO           ! network topology
  USE globalData, ONLY: meta_PFAF            ! pfafstetter code
+ USE globalData, ONLY: meta_rflx            ! river flux variables
 
  ! named variables in each structure
  USE var_lookup, ONLY: ixHRU                ! index of variables for data structure
@@ -35,6 +36,7 @@ contains
  USE var_lookup, ONLY: ixSEG                ! index of variables for data structure
  USE var_lookup, ONLY: ixNTOPO              ! index of variables for data structure
  USE var_lookup, ONLY: ixPFAF               ! index of variables for data structure
+ USE var_lookup, ONLY: ixRFLX               ! index of variables for data structure
 
  ! external subroutines
  USE ascii_util_module, ONLY:file_open        ! open file (performs a few checks as well)
@@ -75,6 +77,9 @@ contains
  close(iunit)
 
  ! loop through the non-comment lines in the input file, and extract the name and the information
+ if (masterproc) then
+   write(iulog,'(2a)') new_line('a'), '---- read control file --- '
+ end if
  do iLine=1,size(cLines)
 
    ! initialize io_error
@@ -90,7 +95,7 @@ contains
    cName = adjustl(cLines(iLine)(ibeg_name:iend_name))
    cData = adjustl(cLines(iLine)(iend_name+1:iend_data-1))
    if (masterproc) then
-    write(iulog,*) trim(cName), ' --> ', trim(cData)
+     write(iulog,'(x,a,a,a)') trim(cName), ' --> ', trim(cData)
    endif
 
    ! populate variables
@@ -148,13 +153,20 @@ contains
    case('<topoNetworkOption>');    read(cData,*,iostat=io_error) topoNetworkOption ! option for network topology calculations (0=read from file, 1=compute)
    case('<computeReachList>');     read(cData,*,iostat=io_error) computeReachList  ! option to compute list of upstream reaches (0=do not compute, 1=compute)
    ! TIME
-   case('<time_units>');           time_units = trim(cData)                        ! time units (seconds, hours, or days)
+   case('<time_units>');           time_units = trim(cData)                        ! time units. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
    case('<calendar>');             calendar   = trim(cData)                        ! calendar name
    ! MISCELLANEOUS
    case('<desireId>'   );          read(cData,*,iostat=io_error) desireId          ! turn off checks or speficy reach ID if necessary to print on screen
    ! PFAFCODE
    case('<maxPfafLen>');           read(cData,*,iostat=io_error) maxPfafLen        ! maximum digit of pfafstetter code (default 32)
    case('<pfafMissing>');          pfafMissing = trim(cData)                       ! missing pfafcode (e.g., reach without any upstream area)
+   ! OUTPUT OPTIONS
+   case('<basRunoff>');            read(cData,*,iostat=io_error) meta_rflx(ixRFLX%basRunoff        )%varFile
+   case('<instRunoff>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%instRunoff       )%varFile
+   case('<dlayRunoff>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%dlayRunoff       )%varFile
+   case('<sumUpstreamRunoff>');    read(cData,*,iostat=io_error) meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile
+   case('<KWTroutedRunoff>');      read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWTroutedRunoff  )%varFile
+   case('<IRFroutedRunoff>');      read(cData,*,iostat=io_error) meta_rflx(ixRFLX%IRFroutedRunoff  )%varFile
 
    ! VARIABLE NAMES for data (overwrite default name in popMeta.f90)
    ! HRU structure
@@ -208,7 +220,7 @@ contains
    ! if not in list then keep going
    case default
     message=trim(message)//'unexpected text in control file -- provided '//trim(cName)&
-                         //' (note strings in control file must match the variable names in var_lookup.f90)'
+                         //' (note strings in control file must match the variable names in public_var.f90)'
     err=20; return
 
   end select
@@ -221,7 +233,7 @@ contains
 
  end do  ! looping through lines in the control file
 
- ! control river network writing option
+ ! ---------- control river network writing option  ---------------------------------------------------------------------
  ! Case1- river network subset mode (idSegOut>0):  Write the network variables read from file over only upstream network specified idSegOut
  ! Case2- river network augment mode: Write full network variables over the entire network
  ! River network subset mode turnes off augmentation mode.
@@ -230,8 +242,12 @@ contains
    ntopAugmentMode = .false.
  endif
 
- ! ---------- unit conversion --------------------------------------------------------------------------------------------
+ ! ---------- runoff unit conversion --------------------------------------------------------------------------------------------
 
+ if (masterproc) then
+   write(iulog,'(2a)') new_line('a'), '---- runoff unit --- '
+   write(iulog,'(a)') '  runoff unit is provided as: '//trim(units_qsim)
+ end if
  ! find the position of the "/" character
  ipos = index(trim(units_qsim),'/')
  if(ipos==0)then
@@ -248,7 +264,7 @@ contains
   case('m');  length_conv = 1._dp
   case('mm'); length_conv = 1._dp/1000._dp
   case default
-   message=trim(message)//'expect the length units to be "m" or "mm" [units='//trim(cLength)//']'
+   message=trim(message)//'expect the length units of runoff to be "m" or "mm" [units='//trim(cLength)//']'
    err=81; return
  end select
 
@@ -258,7 +274,7 @@ contains
   case('h','hour');   time_conv = 1._dp/secprhour
   case('s','second'); time_conv = 1._dp
   case default
-   message=trim(message)//'cannot identify the time units [time units = '//trim(cTime)//']'
+   message=trim(message)//'expect the time units of to be "day"("d"), "hour"("h") or "second"("s") [time units = '//trim(cTime)//']'
    err=81; return
  end select
 
