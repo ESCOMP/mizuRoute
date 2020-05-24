@@ -110,7 +110,7 @@ CONTAINS
 
  ! saved public variables (usually parameters, or values not modified)
  USE public_var,          only : output_dir        ! output directory
- USE public_var,          only : fname_output      ! output netcdf name (header)
+ USE public_var,          only : case_name         ! simulation name ==> output filename head
  USE public_var,          only : calendar          ! calendar name
  USE public_var,          only : newFileFrequency  ! frequency for new output files (day, month, annual)
  USE public_var,          only : time_units        ! time units (seconds, hours, or days)
@@ -130,8 +130,10 @@ CONTAINS
  integer(i4b), intent(out)       :: ierr             ! error code
  character(*), intent(out)       :: message          ! error message
  ! local variables
- logical(lgt)                    :: defnewoutputfile ! flag to define new output file
  character(len=strLen)           :: cmessage         ! error message of downwind routine
+ integer(i4b)                    :: sec_in_day       ! second within day
+ logical(lgt)                    :: defnewoutputfile ! flag to define new output file
+ character(len=50),parameter     :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
 
  ! initialize error control
  ierr=0; message='prep_output/'
@@ -169,8 +171,10 @@ CONTAINS
    jTime=1
 
    ! update filename
-   write(fileout,'(a,3(i0,a))') trim(output_dir)//trim(fname_output)//'_', modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '.nc'
 
+   sec_in_day = modTime(1)%ih*60*60+modTime(1)%imin*60+nint(modTime(1)%dsec)
+   write(fileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuRoute.h.', &
+                           modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '-',sec_in_day,'.nc'
    ! define output file
    call defineFile(trim(fileout),                         &  ! input: file name
                    nEns,                                  &  ! input: number of ensembles

@@ -104,12 +104,12 @@ module public_var
   character(len=strLen),public    :: dname_hru_remap      = ''              ! dimension name for river network HRU
   character(len=strLen),public    :: dname_data_remap     = ''              ! dimension name for runoff HRU ID
   ! ROUTED FLOW OUTPUT
-  character(len=strLen),public    :: fname_output         = ''              ! name of output file
+  character(len=strLen),public    :: case_name            = ''              ! name of simulation. used as head of model output and restart file
   character(len=strLen),public    :: newFileFrequency     = 'annual'        ! frequency for new output files (day, month, annual, single)
   ! STATES
-  logical(lgt)         ,public    :: isRestart            = .false.         ! restart option: True-> model run with restart, F -> model run with empty channels
-  character(len=strLen),public    :: fname_state_in       = ''              ! name of state file
-  character(len=strLen),public    :: fname_state_out      = ''              ! name of state file
+  character(len=strLen),public    :: restart_write        = 'never'         ! restart write option: never-> N[n]ever write, L[l]ast -> write at last time step, S[s]pecified
+  character(len=strLen),public    :: restart_date         = charMissing     ! specifed restart date
+  character(len=strLen),public    :: fname_state_in       = charMissing     ! name of state file
   ! SPATIAL CONSTANT PARAMETERS
   character(len=strLen),public    :: param_nml            = ''              ! name of the namelist file
   ! USER OPTIONS
