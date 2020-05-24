@@ -132,12 +132,12 @@ contains
    case('<dname_hru_remap>');      dname_hru_remap      = trim(cData)              ! name of dimension of river network HRU ID
    case('<dname_data_remap>');     dname_data_remap     = trim(cData)              ! name of dimension of runoff HRU overlapping with river network HRU
    ! ROUTED FLOW OUTPUT
-   case('<fname_output>');         fname_output     = trim(cData)                  ! filename for the model output
-   case('<newFileFrequency>');     newFileFrequency = trim(cData)                  ! frequency for new output files (day, month, annual, single)
+   case('<case_name>');            case_name            = trim(cData)              ! name of simulation. used as head of model output and restart file
+   case('<newFileFrequency>');     newFileFrequency     = trim(cData)              ! frequency for new output files (day, month, annual, single)
    ! STATES
-   case('<restart_opt>');          read(cData,*,iostat=io_error) isRestart         ! restart option: True-> model run with restart, F -> model run with empty channels
-   case('<fname_state_in>');       fname_state_in  = trim(cData)                   ! filename for the channel states
-   case('<fname_state_out>');      fname_state_out = trim(cData)                   ! filename for the channel states
+   case('<restart_write>');        restart_write        = trim(cData)              ! restart write option: N[n]ever, L[l]ast
+   case('<restart_date>');         restart_date         = trim(cData)              ! specified restart date, yyyy-mm-dd (hh:mm:ss)
+   case('<fname_state_in>');       fname_state_in       = trim(cData)              ! filename for the channel states
    ! SPATIAL CONSTANT PARAMETERS
    case('<param_nml>');            param_nml       = trim(cData)                   ! name of namelist including routing parameter value
    ! USER OPTIONS: Define options to include/skip calculations
@@ -270,9 +270,9 @@ contains
 
  ! get the conversion factor for time
  select case(trim(cTime))
-  case('d','day');    time_conv = 1._dp/secprday
-  case('h','hour');   time_conv = 1._dp/secprhour
-  case('s','second'); time_conv = 1._dp
+  case('d','day');          time_conv = 1._dp/secprday
+  case('h','hr','hour');    time_conv = 1._dp/secprhour
+  case('s','sec','second'); time_conv = 1._dp
   case default
    message=trim(message)//'expect the time units to be "day"("d"), "hour"("h") or "second"("s") [time units = '//trim(cTime)//']'
    err=81; return

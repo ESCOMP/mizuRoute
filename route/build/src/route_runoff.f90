@@ -9,7 +9,6 @@ program route_runoff
 ! ****************************************************
 ! variable types
 USE nrtype                                       ! variable types, etc.
-USE globalData,          only : nThreads         ! a number of threads
 ! subroutines: model set up
 USE model_setup,         only : init_model       ! model setupt - reading control file, populate metadata, read parameter file
 USE model_setup,         only : init_data        ! initialize river reach data
@@ -32,7 +31,6 @@ integer(i4b)                  :: ierr                ! error code
 character(len=strLen)         :: cmessage            ! error message of downwind routine
 integer(i4b)                  :: iens = 1
 logical(lgt)                  :: finished=.false.
-integer(i4b)                  :: omp_get_num_threads ! number of threads used for openMP
 !Timing
 integer*8                     :: cr, startTime, endTime
 real(dp)                      :: elapsedTime
@@ -46,12 +44,6 @@ call system_clock(count_rate=cr)
 ! ***********************************
  call getarg(1,cfile_name)
  if(len_trim(cfile_name)==0) call handle_err(50,'need to supply name of the control file as a command-line argument')
-
-!  Get number of threads
-nThreads = 1
-!$OMP PARALLEL
-!$ nThreads = omp_get_num_threads()
-!$OMP END PARALLEL
 
 ! *****
 ! *** model setup
@@ -102,14 +94,14 @@ call system_clock(endTime)
 elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,1PG15.7,A)") '   elapsed-time [output] = ', elapsedTime, ' s'
 
+  ! write state netCDF
+  call output_state(ierr, cmessage)
+  if(ierr/=0) call handle_err(ierr, cmessage)
+
   call update_time(finished, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
 
 end do  ! looping through time
-
-! write state netCDF
-call output_state(ierr, cmessage)
-if(ierr/=0) call handle_err(ierr, cmessage)
 
 stop
 

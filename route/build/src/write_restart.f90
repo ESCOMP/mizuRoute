@@ -17,36 +17,64 @@ implicit none
 
 private
 
-public::define_state_nc
 public::output_state
 
 CONTAINS
 
- subroutine output_state(ierr, message)
+ SUBROUTINE output_state(ierr, message)
 
   ! Saved Data
   USE public_var, ONLY: output_dir
-  USE public_var, ONLY: fname_state_out
+  USE public_var, ONLY: case_name         ! simulation name ==> output filename head
   USE public_var, ONLY: routOpt
-  USE globalData, ONLY: runoff_data         ! runoff data for one time step for LSM HRUs and River network HRUs
+  USE public_var, ONLY: time_units
+  USE public_var, ONLY: dt
+  USE globalData, ONLY: runoff_data       ! runoff data for one time step for LSM HRUs and River network HRUs
   USE globalData, ONLY: TSEC
   USE globalData, ONLY: reachID
+  USE globalData, ONLY: modTime           ! previous and current model time
+  USE globalData, ONLY: modJulday         ! current model Julian day
+  USE globalData, ONLY: restartJulday     ! restart Julian day
 
   implicit none
   ! output variables
   integer(i4b),   intent(out)          :: ierr             ! error code
   character(*),   intent(out)          :: message          ! error message
   ! local variables
+  real(dp)                             :: TSEC1, TSEC2
   character(len=strLen)                :: cmessage         ! error message of downwind routine
+  integer(i4b)                         :: sec_in_day      ! second within day
+  character(len=strLen)                :: fileout_state    ! name of the output file
+  character(len=50),parameter          :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
+  character(len=50),parameter          :: fmtYMDHMS='(2a,I0.4,a,I0.2,a,I0.2,x,I0.2,a,I0.2,a,I0.2)'
 
-  call write_state_nc(trim(output_dir)//trim(fname_state_out), &  ! Input: state netcdf name
-                      routOpt,                                 &  ! input: which routing options
-                      runoff_data%time, 1, TSEC(0), TSEC(1),   &  ! Input: time, time step, start and end time [sec]
-                      reachID,                                 &  ! Input: segment id vector
-                      ierr, message)                              ! Output: error control
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if (abs(restartJulday-modJulday)<verySmall) then
 
- end subroutine output_state
+    write(iulog,fmtYMDHMS) new_line('a'),'Write restart file at ', &
+                           modTime(1)%iy,'-',modTime(1)%im, '-', modTime(1)%id,modTime(1)%ih,':',modTime(1)%imin,':',nint(modTime(1)%dsec)
+
+    sec_in_day = modTime(1)%ih*60*60+modTime(1)%imin*60+nint(modTime(1)%dsec)
+
+    write(fileout_state, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuRoute.r.', &
+                            modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '-',sec_in_day,'.nc'
+
+    call define_state_nc(fileout_state, time_units, routOpt, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! update model time step bound
+   TSEC1 = TSEC(0) + dt
+   TSEC2 = TSEC1   + dt
+
+    call write_state_nc(fileout_state,                           &  ! Input: state netcdf name
+                        routOpt,                                 &  ! input: which routing options
+                        runoff_data%time, 1, TSEC1, TSEC2,       &  ! Input: time, time step, start and end time [sec]
+                        reachID,                                 &  ! Input: segment id vector
+                        ierr, message)                              ! Output: error control
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  end if
+
+ END SUBROUTINE output_state
 
  ! *********************************************************************
  ! subroutine: define restart NetCDF file
@@ -153,8 +181,6 @@ CONTAINS
    ! output
    integer(i4b), intent(out)  :: ierr     ! error code
    character(*), intent(out)  :: message1  ! error message
-   ! local
-   character(len=strLen),allocatable :: dim_IRFbas(:)  ! dimensions combination case 4
 
    ! initialize error control
    ierr=0; message1='set_dim_len/'
@@ -335,8 +361,7 @@ CONTAINS
  ! *********************************************************************
  ! public subroutine: writing routing state NetCDF file
  ! *********************************************************************
- SUBROUTINE write_state_nc(&
-                           fname,                &   ! Input: state netcdf name
+ SUBROUTINE write_state_nc(fname,                &   ! Input: state netcdf name
                            opt,                  &   ! input: which routing options
                            time, iTime, T0, T1,  &   ! Input: time, time step, start and end time [sec]
                            seg_id,               &   ! Input: segment id vector
