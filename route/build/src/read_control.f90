@@ -270,9 +270,9 @@ contains
 
  ! get the conversion factor for time
  select case(trim(cTime))
-  case('d','day');    time_conv = 1._dp/secprday
-  case('h','hour');   time_conv = 1._dp/secprhour
-  case('s','second'); time_conv = 1._dp
+  case('d','day');          time_conv = 1._dp/secprday
+  case('h','hr','hour');    time_conv = 1._dp/secprhour
+  case('s','sec','second'); time_conv = 1._dp
   case default
    message=trim(message)//'expect the time units to be "day"("d"), "hour"("h") or "second"("s") [time units = '//trim(cTime)//']'
    err=81; return
