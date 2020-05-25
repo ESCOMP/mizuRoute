@@ -12,7 +12,7 @@
 # Define fortran compiler - gnu, intel or pgi
 FC  =
 
-# Define the compiler exe, e.g., gnu=>gfortran, intel=>intel, pgi=>pgf90
+# Define the compiler exe, e.g., gnu=>gfortran, intel=>ifort, pgi=>pgf90
 FC_EXE =
 
 # Define the compiled executable
