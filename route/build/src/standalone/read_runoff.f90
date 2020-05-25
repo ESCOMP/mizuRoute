@@ -3,10 +3,9 @@ module read_runoff
 USE netcdf
 USE nrtype
 USE public_var
+USE io_netcdf, only:open_nc
 USE io_netcdf, only:get_nc
-USE io_netcdf, only:get_var_attr_real
-USE io_netcdf, only:get_var_attr_char
-
+USE io_netcdf, only:get_var_attr
 USE io_netcdf, only:get_nc_dim_len
 USE dataTypes, only:runoff                 ! runoff data type
 
@@ -49,8 +48,8 @@ contains
  ierr=0; message='read_runoff_metadata/'
 
  ! open NetCDF file
- ierr = nf90_open(trim(fname), nf90_nowrite, ncid)
- if(ierr/=0)then; message=trim(message)//'['//trim(nf90_strerror(ierr))//'; file='//trim(fname)//']'; return; endif
+ call open_nc(trim(fname), 'r', ncid, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the ID of runoff variable
  ierr = nf90_inq_varid(ncid, trim(vname_qsim), ivarID)
@@ -109,13 +108,13 @@ contains
 
  ! get the time units
  if (trim(timeUnits) == charMissing) then
-   call get_var_attr_char(fname, trim(vname_time), 'units', timeUnits, ierr, cmessage)
+   call get_var_attr(fname, trim(vname_time), 'units', timeUnits, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
  ! get the calendar
  if (trim(calendar) == charMissing) then
-   call get_var_attr_char(fname, trim(vname_time), 'calendar', calendar, ierr, cmessage)
+   call get_var_attr(fname, trim(vname_time), 'calendar', calendar, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
@@ -166,13 +165,13 @@ contains
 
  ! get the time units
  if (trim(timeUnits) == charMissing) then
-   call get_var_attr_char(fname, trim(vname_time), 'units', timeUnits, ierr, cmessage)
+   call get_var_attr(fname, trim(vname_time), 'units', timeUnits, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
  ! get the calendar
  if (trim(calendar) == charMissing) then
-   call get_var_attr_char(fname, trim(vname_time), 'calendar', calendar, ierr, cmessage)
+   call get_var_attr(fname, trim(vname_time), 'calendar', calendar, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
@@ -254,7 +253,7 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the _fill_values for runoff variable
- call get_var_attr_real(trim(fname), vname_qsim, '_FillValue', fill_value, ierr, cmessage)
+ call get_var_attr(trim(fname), vname_qsim, '_FillValue', fill_value, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! replace _fill_value with -999 for dummy
@@ -296,7 +295,7 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the _fill_values for runoff variable
- call get_var_attr_real(trim(fname), vname_qsim, '_FillValue', fill_value, ierr, cmessage)
+ call get_var_attr(trim(fname), vname_qsim, '_FillValue', fill_value, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! replace _fill_value with -999 for dummy
