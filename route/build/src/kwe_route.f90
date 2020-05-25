@@ -198,10 +198,10 @@ contains
    write(iulog,'(A)') 'CHECK Euler Kinematic wave'
    if (nUps>0) then
      do iUps = 1,nUps
-       write(iulog,'(A,X,I6,X,G11.5)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),uprflux(iUps)%REACH_Q
+       write(iulog,'(A,X,I6,X,G12.5)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),uprflux(iUps)%REACH_Q
      enddo
    end if
-   write(iulog,'(A,X,G11.5)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+   write(iulog,'(A,X,G12.5)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
  endif
 
  ! perform river network UH routing
@@ -218,7 +218,7 @@ contains
  RCHFLX_out(iEns,segIndex)%isRoute=.True.
 
  if(doCheck)then
-  write(iulog,'(A,X,G11.5)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%REACH_Q
+  write(iulog,'(A,X,G12.5)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%REACH_Q
  endif
 
  END SUBROUTINE kwe_rch
@@ -309,9 +309,9 @@ contains
    A(1,0) = (Q(1,0)/alpha)**(1/beta)
 
    if (doCheck) then
-     write(iulog,'(3(A,X,G11.5))') ' R_SLOPE=',rch_param%R_SLOPE,' R_WIDTH=',rch_param%R_WIDTH,' R_MANN=',rch_param%R_MAN_N
-     write(iulog,'(3(A,X,G11.5))') ' Q(0,0)=',Q(0,0),' Q(0,1)=',Q(0,1),' Q(1,0)=',Q(1,0)
-     write(iulog,'(3(A,X,G11.5))') ' A(0,0)=',A(0,0),' A(0,1)=',A(0,1),' A(1,0)=',A(1,0)
+     write(iulog,'(3(A,X,G12.5))') ' R_SLOPE=',rch_param%R_SLOPE,' R_WIDTH=',rch_param%R_WIDTH,' R_MANN=',rch_param%R_MAN_N
+     write(iulog,'(3(A,X,G12.5))') ' Q(0,0)=',Q(0,0),' Q(0,1)=',Q(0,1),' Q(1,0)=',Q(1,0)
+     write(iulog,'(3(A,X,G12.5))') ' A(0,0)=',A(0,0),' A(0,1)=',A(0,1),' A(1,0)=',A(1,0)
    end if
 
 ! ----- Need adaptive time step forward Euler --------
@@ -325,7 +325,7 @@ contains
 !   theta = beta*(dT/dX)*(Qbar)/(Abar)
 !
 !   if (doCheck) then
-!     write(iulog,'(5(a,G11.5,x))') ' dT= ', dt, 'dX=', dX, 'Qbar= ', Qbar, 'Abar= ', ABar, 'theta= ', theta
+!     write(iulog,'(5(a,G12.5,x))') ' dT= ', dt, 'dX=', dX, 'Qbar= ', Qbar, 'Abar= ', ABar, 'theta= ', theta
 !   end if
 
    ! ----------
@@ -346,7 +346,7 @@ contains
    Q(1,1) = Q(1,1)/(dT/dX + alpha1*beta1*Qbar**(beta1-1))
 
    if (doCheck) then
-     write(iulog,'(2(A,X,G11.5))') ' A(1,1)=',A(1,1),' Q(1,1)=',Q(1,1)
+     write(iulog,'(2(A,X,G12.5))') ' A(1,1)=',A(1,1),' Q(1,1)=',Q(1,1)
    end if
 
  else ! if head-water
@@ -366,7 +366,7 @@ contains
 
    if (doCheck) then
      write(iulog,'(A)')            ' This is headwater '
-     write(iulog,'(2(A,X,G11.5))') ' A(1,1)=',A(1,1),' Q(1,1)=',Q(1,1)
+     write(iulog,'(2(A,X,G12.5))') ' A(1,1)=',A(1,1),' Q(1,1)=',Q(1,1)
    endif
 
  endif

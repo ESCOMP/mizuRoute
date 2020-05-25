@@ -8,6 +8,9 @@ module public_var
 
   save
 
+  ! ---------- mizuRoute version -------------------------------------------------------------------
+  character(len=strLen), parameter, public    :: mizuRouteVersion='v2.0'
+
   ! ---------- common constants ---------------------------------------------------------------------
 
   ! physical constants
@@ -42,6 +45,7 @@ module public_var
   real(dp),    parameter,public   :: MinPosVal=1.e-10_dp    ! minimum value for positive value
   integer(i4b),parameter,public   :: integerMissing=-9999   ! missing value for integers
   real(dp),    parameter,public   :: realMissing=-9999._dp  ! missing value for real numbers
+  character(5),parameter,public   :: charMissing='empty'    ! missing value for character
 
   ! mpi related parameters
   integer(i4b),parameter,public   :: root=0                 ! root node id
@@ -125,9 +129,10 @@ module public_var
   integer(i4b)         ,public    :: topoNetworkOption    = compute         ! option for network topology calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: computeReachList     = compute         ! option to compute list of upstream reaches (0=do not compute, 1=compute)
   ! TIME
-  character(len=strLen),public    :: time_units           = ''              ! time units: format must be "seconds (hours, or days) since yyyy-mo-da hh:mm:ss"
-  character(len=strLen),public    :: calendar             = ''              ! calendar name
+  character(len=strLen),public    :: time_units           = charMissing     ! time units time units. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
+  character(len=strLen),public    :: calendar             = charMissing     ! calendar name
   ! MISCELLANEOUS
+  logical(lgt)         ,public    :: debug                = .false.         ! print out detaled information
   integer(i4b)         ,public    :: desireId             = integerMissing  ! turn off checks or speficy reach ID if necessary to print on screen
   ! PFAFCODE
   integer(i4b)         ,public    :: maxPfafLen           = 32              ! maximum digit of pfafstetter code (default 32).

@@ -64,7 +64,7 @@ contains
  select case( nDims )
   case(2); call read_1D_runoff_metadata(fname, runoff_data_in, timeUnits, calendar, ierr, cmessage)
   case(3); call read_2D_runoff_metadata(fname, runoff_data_in, timeUnits, calendar, ierr, cmessage)
-  case default; ierr=20; message=trim(message)//'runoff array nDimensions must be 2 or 3'; return
+  case default; ierr=20; message=trim(message)//'runoff input must be 2-dimension (e.g, [time, hru]) or 3-dimension (e.g., [time, lat, lon]'; return
  end select
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -108,12 +108,16 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the time units
- call get_var_attr_char(fname, trim(vname_time), 'units', timeUnits, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (trim(timeUnits) == charMissing) then
+   call get_var_attr_char(fname, trim(vname_time), 'units', timeUnits, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
 
  ! get the calendar
- call get_var_attr_char(fname, trim(vname_time), 'calendar', calendar, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (trim(calendar) == charMissing) then
+   call get_var_attr_char(fname, trim(vname_time), 'calendar', calendar, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
 
  ! allocate space for hru_id
  allocate(runoff_data_in%hru_id(runoff_data_in%nSpace(1)), stat=ierr)
@@ -161,12 +165,16 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the time units
- call get_var_attr_char(fname, trim(vname_time), 'units', timeUnits, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (trim(timeUnits) == charMissing) then
+   call get_var_attr_char(fname, trim(vname_time), 'units', timeUnits, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
 
  ! get the calendar
- call get_var_attr_char(fname, trim(vname_time), 'calendar', calendar, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (trim(calendar) == charMissing) then
+   call get_var_attr_char(fname, trim(vname_time), 'calendar', calendar, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
 
  ! get size of ylat dimension
  call get_nc_dim_len(fname, trim(dname_ylat), runoff_data_in%nSpace(1), ierr, cmessage)
