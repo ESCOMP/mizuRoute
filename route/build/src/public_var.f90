@@ -87,9 +87,10 @@ module public_var
   character(len=strLen),public    :: case_name            = ''              ! name of simulation
   character(len=strLen),public    :: simStart             = ''              ! date string defining the start of the simulation
   character(len=strLen),public    :: simEnd               = ''              ! date string defining the end of the simulation
-  character(len=strLen),public    :: newFileFrequency     = 'annual'        ! frequency for new output files (day, month, annual)
-  logical(lgt)         ,public    :: isRestart            = .false.         ! restart option: True-> model run with restart, F -> model run with empty channels
-  character(len=strLen),public    :: fname_state_in       = ''              ! netCDF name of restart file if isRestart is true
+  character(len=strLen),public    :: newFileFrequency     = 'annual'        ! frequency for new output files (day, month, annual, single)
+  character(len=strLen),public    :: restart_write        = 'never'         ! restart write option: never-> N[n]ever write, L[l]ast -> write at last time step, S[s]pecified
+  character(len=strLen),public    :: restart_date         = charMissing     ! specifed restart date
+  character(len=strLen),public    :: fname_state_in       = charMissing     ! name of state file
   integer(i4b)         ,public    :: routOpt              = integerMissing  ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
   integer(i4b)         ,public    :: doesAccumRunoff      = 1               ! option to delayed runoff accumulation over all the upstream reaches
