@@ -100,13 +100,13 @@ do while (.not.finished)
   if(ierr/=0) call handle_err(ierr, cmessage)
   call t_stopf ('output')
 
+  call output_state(ierr, cmessage)
+  if(ierr/=0) call handle_err(ierr, cmessage)
+
   call update_time(finished, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
 
 end do
-
-call output_state(ierr, cmessage)
-if(ierr/=0) call handle_err(ierr, cmessage)
 
 call model_finalize(mpicom_route)
 

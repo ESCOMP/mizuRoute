@@ -410,9 +410,6 @@ end subroutine augment_ntopo
   ! loop through stream segments
   do iSeg=1,nSeg
 
-   ! print progress
-   if(mod(iSeg,1000000)==0) write(iulog,*) 'Copying to the old data structures: iSeg, nSeg = ', iSeg, nSeg
-
    ! ----- reach parameters -----
 
    ! copy data into the reach parameter structure

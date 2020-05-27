@@ -50,7 +50,7 @@ integer(i4b),parameter  :: mainstem=1
 integer(i4b),parameter  :: tributary=2
 integer(i4b),parameter  :: endorheic=3
 
-logical(lgt), parameter :: debug=.false.
+logical(lgt), parameter :: debug_mpi=.false.
 
 private
 
@@ -265,7 +265,7 @@ contains
     reachID(1:nRch_in) = reachID( ixRch_order )
     basinID(1:nHRU_in) = basinID( ixHRU_order )
 
-    if (debug) then
+    if (debug_mpi) then
       write(iulog,'(a)') 'ix, segId, ixRch_order, domain-index, proc-id'
       do ix = 1,nRch_in
         write(iulog,*) ix, segId(ix), ixRch_order(ix), ixDomain(ix), ixNode(ix)
@@ -1947,7 +1947,6 @@ contains
  ! *********************************************************************
  ! send all the necessary public/global variables neccesary in task
  subroutine pass_global_data(comm, ierr,message)   ! output: error control
-  USE globalData, ONLY: convTime2Days     ! conversion multipliers for time unit of runoff input to day
   USE globalData, ONLY: nRch,nHRU         ! number of reaches and hrus in whole network
   USE globalData, ONLY: timeVar           ! time variable
   USE globalData, ONLY: iTime             ! time index
@@ -1955,6 +1954,8 @@ contains
   USE globalData, ONLY: startJulday       ! julian day: start
   USE globalData, ONLY: endJulday         ! julian day: end
   USE globalData, ONLY: modJulday         ! julian day: at simulation time step
+  USE globalData, ONLY: restartJulday     ! julian day: at restart
+  USE globalData, ONLY: roJulday          ! julian day: runoff input time
   USE globalData, ONLY: reachID
   USE globalData, ONLY: basinID
   implicit none
@@ -1974,12 +1975,13 @@ contains
   call MPI_BCAST(nHRU,        1,     MPI_INTEGER,          root, comm, ierr)
   call MPI_BCAST(calendar,  strLen,  MPI_CHARACTER,        root, comm, ierr)
   call MPI_BCAST(time_units,strLen,  MPI_CHARACTER,        root, comm, ierr)
-  call MPI_BCAST(convTime2Days,1,    MPI_DOUBLE_PRECISION, root, comm, ierr)
-  call MPI_BCAST(refJulday,   1,     MPI_DOUBLE_PRECISION, root, comm, ierr)
-  call MPI_BCAST(startJulday, 1,     MPI_DOUBLE_PRECISION, root, comm, ierr)
-  call MPI_BCAST(endJulday,   1,     MPI_DOUBLE_PRECISION, root, comm, ierr)
-  call MPI_BCAST(modJulday,   1,     MPI_DOUBLE_PRECISION, root, comm, ierr)
+  call MPI_BCAST(refJulday,     1,   MPI_DOUBLE_PRECISION, root, comm, ierr)
+  call MPI_BCAST(startJulday,   1,   MPI_DOUBLE_PRECISION, root, comm, ierr)
+  call MPI_BCAST(endJulday,     1,   MPI_DOUBLE_PRECISION, root, comm, ierr)
+  call MPI_BCAST(modJulday,     1,   MPI_DOUBLE_PRECISION, root, comm, ierr)
+  call MPI_BCAST(restartJulday, 1,   MPI_DOUBLE_PRECISION, root, comm, ierr)
 
+  call shr_mpi_bcast(roJulday,ierr, message)
   call shr_mpi_bcast(timeVar,ierr, message)
   call shr_mpi_bcast(reachID,ierr, message)
   call shr_mpi_bcast(basinID,ierr, message)

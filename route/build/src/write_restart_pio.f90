@@ -1,15 +1,32 @@
 MODULE write_restart_pio
 
-! Moudle wide shared data
+! Moudle wide shared data/external routines
 USE nrtype
+
+USE var_lookup,        ONLY: ixStateDims, nStateDims
+USE var_lookup,        ONLY: ixIRF, nVarsIRF
+USE var_lookup,        ONLY: ixIRFbas, nVarsIRFbas
+USE var_lookup,        ONLY: ixKWE, nVarsKWE
+USE var_lookup,        ONLY: ixKWT, nVarsKWT
+USE var_lookup,        ONLY: ixIRFbas, nVarsIRFbas
+
 USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
 USE dataTypes,         ONLY: STRSTA            ! state in each reach
 USE dataTypes,         ONLY: RCHTOPO           ! Network topology
 USE dataTypes,         ONLY: states
+
 USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: integerMissing
 USE public_var,        ONLY: realMissing
+USE public_var,        ONLY: verySmall
 USE public_var,        ONLY: rpntfil           ! ascii containing last restart file (used in coupled mode)
+
+USE globalData,        ONLY: meta_stateDims  ! states dimension meta
+USE globalData,        ONLY: meta_irf        ! IRF routing
+USE globalData,        ONLY: meta_irf_bas
+USE globalData,        ONLY: meta_kwt
+USE globalData,        ONLY: meta_kwe
+
 USE globalData,        ONLY: pid, nNodes
 USE globalData,        ONLY: masterproc
 USE globalData,        ONLY: mpicom_route
@@ -19,7 +36,7 @@ USE globalData,        ONLY: pio_numiotasks
 USE globalData,        ONLY: pio_rearranger
 USE globalData,        ONLY: pio_root
 USE globalData,        ONLY: pio_stride
-! Moudle wide external modules
+
 USE nr_utility_module, ONLY: arth
 USE pio_utils
 
@@ -50,11 +67,13 @@ CONTAINS
  ! *********************************************************************
  ! Public subroutine: output restart netcdf
  ! *********************************************************************
- subroutine output_state(ierr, message)
+ SUBROUTINE output_state(ierr, message)
 
   USE public_var, ONLY: output_dir
   USE public_var, ONLY: case_name         ! simulation name ==> output filename head
   USE globalData, ONLY: modTime           ! previous and current model time
+  USE globalData, ONLY: modJulday         ! current model Julian day
+  USE globalData, ONLY: restartJulday     ! restart Julian day
 
   implicit none
   ! output variables
@@ -62,34 +81,45 @@ CONTAINS
   character(*),   intent(out)          :: message          ! error message
   ! local variables
   character(len=strLen)                :: fileout_state    ! name of the output file
-  character(*),parameter               :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
-  integer(i4b)                         :: sec_in_day      ! second within day
+  integer(i4b)                         :: sec_in_day       ! second within day
   character(len=strLen)                :: cmessage         ! error message of downwind routine
+  character(len=50),parameter          :: fmtYMDS   = '(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
+  character(len=50),parameter          :: fmtYMDHMS = '(2a,I0.4,a,I0.2,a,I0.2,x,I0.2,a,I0.2,a,I0.2)'
 
-  ! Define filename
-  sec_in_day = 0
-  write(fileout_state, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuRoute.r.', &
-                          modTime(0)%iy, '-', modTime(0)%im, '-', modTime(0)%id, '-',sec_in_day,'.nc'
+  if (abs(restartJulday-modJulday)<verySmall) then
 
-  ! Define output state netCDF
-  call define_state_nc(trim(fileout_state), ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if (masterproc) then
+      write(iulog,fmtYMDHMS) new_line('a'),'Write restart file at ', &
+                             modTime(1)%iy,'-',modTime(1)%im, '-', modTime(1)%id, &
+                             modTime(1)%ih,':',modTime(1)%imin,':',nint(modTime(1)%dsec)
+    end if
 
-  call write_state_nc(fileout_state, ierr, message)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! Define filename
+    sec_in_day = modTime(1)%ih*60*60+modTime(1)%imin*60+nint(modTime(1)%dsec)
+    write(fileout_state, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuRoute.r.', &
+                                  modTime(0)%iy, '-', modTime(0)%im, '-', modTime(0)%id, '-',sec_in_day,'.nc'
 
-  open(1, file = trim(output_dir)//trim(rpntfil), status='replace', action='write')
-  write(1,*) fileout_state
+    ! Define output state netCDF
+    call define_state_nc(trim(fileout_state), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- end subroutine output_state
+    call write_state_nc(fileout_state, ierr, message)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    open (1, file = trim(output_dir)//trim(rpntfil), status='replace', action='write')
+    write(1,*) trim(fileout_state)
+    close(1)
+
+  end if
+
+ END SUBROUTINE output_state
 
  ! *********************************************************************
  ! subroutine: define restart NetCDF file
  ! *********************************************************************
  SUBROUTINE define_state_nc(fname,           &  ! input: filename
                             ierr, message)      ! output: error control
- ! External modules
- USE var_lookup, ONLY: ixStateDims, nStateDims  ! name index and number for state dimensions
+
  USE public_var, ONLY: time_units               ! time units (seconds, hours, or days)
  USE public_var, ONLY: calendar                 ! calendar name
  USE public_var, ONLY: routOpt
@@ -98,7 +128,6 @@ CONTAINS
  USE public_var, ONLY: kinematicWave
  USE public_var, ONLY: kinematicWaveEuler
  USE public_var, ONLY: impulseResponseFunc
- USE globalData, ONLY: meta_stateDims           ! dimension meta for state
  USE globalData, ONLY: rch_per_proc             ! number of reaches assigned to each proc (size = num of procs+1)
  USE globalData, ONLY: nRch                     ! number of ensembles and river reaches
 
@@ -153,20 +182,20 @@ CONTAINS
    call set_dim_len(ixDim, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage)//' for '//trim(meta_stateDims(ixDim)%dimName); return; endif
   endif
-  call defdim(pioFileDescState, trim(meta_stateDims(ixDim)%dimName), meta_stateDims(ixDim)%dimLength, meta_stateDims(ixDim)%dimId)
+  call def_dim(pioFileDescState, trim(meta_stateDims(ixDim)%dimName), meta_stateDims(ixDim)%dimLength, meta_stateDims(ixDim)%dimId)
   end associate
  end do
 
  ! ----------------------------------
  ! Define variable
  ! ----------------------------------
- call defvar(pioFileDescState, 'reachID', [dim_seg], ncd_int, ierr, cmessage, vdesc='reach ID',  vunit='-' )
+ call def_var(pioFileDescState, 'reachID', [dim_seg], ncd_int, ierr, cmessage, vdesc='reach ID',  vunit='-' )
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call defVar(pioFileDescState, 'time', [dim_time], ncd_float, ierr, cmessage, vdesc='time', vunit=trim(time_units), vcal=calendar)
+ call def_var(pioFileDescState, 'time', [dim_time], ncd_float, ierr, cmessage, vdesc='time', vunit=trim(time_units), vcal=calendar)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call defVar(pioFileDescState, 'time_bound', [dim_tbound, dim_time], ncd_float, ierr, cmessage, vdesc='time bound at last time step', vunit='sec')
+ call def_var(pioFileDescState, 'time_bound', [dim_tbound, dim_time], ncd_float, ierr, cmessage, vdesc='time bound at last time step', vunit='sec')
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end associate
@@ -272,7 +301,7 @@ CONTAINS
  end associate
 
  ! Finishing up definition -------
- call endDef(pioFileDescState, ierr, cmessage)
+ call end_def(pioFileDescState, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  CONTAINS
@@ -280,7 +309,6 @@ CONTAINS
   SUBROUTINE set_dim_len(ixDim, ierr, message1)
    ! populate state netCDF dimension size
    USE public_var, ONLY: MAXQPAR
-   USE globalData, ONLY: meta_stateDims  ! states dimension meta
    USE globalData, ONLY: FRAC_FUTURE     ! To get size of q future for basin IRF
    USE globalData, ONLY: nEns, nRch      ! number of ensembles and river reaches
    implicit none
@@ -304,20 +332,17 @@ CONTAINS
     case default; ierr=20; message1=trim(message1)//'unable to identify dimension variable index'; return
    end select
 
-  END SUBROUTINE
+  END SUBROUTINE set_dim_len
 
   SUBROUTINE define_IRFbas_state(ierr, message1)
-   ! External modules
-   USE globalData, ONLY: meta_irf_bas
-   USE var_lookup, ONLY: ixIRFbas, nVarsIRFbas
    implicit none
    ! output
-   integer(i4b), intent(out) :: ierr          ! error code
-   character(*), intent(out) :: message1       ! error message
+   integer(i4b), intent(out)         :: ierr          ! error code
+   character(*), intent(out)         :: message1      ! error message
    ! local
-   integer(i4b)              :: iVar          ! index loop for variables
-   integer(i4b)              :: dim_IRFbas(4) ! dimensions combination case 4
-   integer(i4b)              :: dim_q(3)      ! dimensions combination case 4
+   integer(i4b)                      :: iVar, ixDim   ! index loop
+   integer(i4b)                      :: nDims         ! number of dimensions
+   integer(i4b),allocatable          :: dim_IRFbas(:) ! dimension id array
 
    ! initialize error control
    ierr=0; message1='define_IRFbas_state/'
@@ -328,44 +353,36 @@ CONTAINS
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%tdh)%dimName); return; endif
    end if
 
-   call defdim(pioFileDescState, trim(meta_stateDims(ixStateDims%tdh)%dimName), meta_stateDims(ixStateDims%tdh)%dimLength, meta_stateDims(ixStateDims%tdh)%dimId)
+   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%tdh)%dimName), meta_stateDims(ixStateDims%tdh)%dimLength, meta_stateDims(ixStateDims%tdh)%dimId)
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
-   associate(dim_seg    => meta_stateDims(ixStateDims%seg)%dimId,     &
-             dim_ens    => meta_stateDims(ixStateDims%ens)%dimId,     &
-             dim_time   => meta_stateDims(ixStateDims%time)%dimId,    &
-             dim_tdh    => meta_stateDims(ixStateDims%tdh)%dimId)
-
-   ! Array dimension sets
-   dim_IRFbas(:) = [dim_seg, dim_tdh, dim_ens, dim_time]
-   dim_q(:)      = [dim_seg, dim_ens, dim_time]
-
    do iVar=1,nVarsIRFbas
-    select case(iVar)
-     case(ixIRFbas%qfuture); call defVar(pioFileDescState, trim(meta_irf_bas(iVar)%varName), dim_IRFbas, ncd_double, ierr, cmessage, vdesc=trim(meta_irf_bas(iVar)%varDesc), vunit=trim(meta_irf_bas(iVar)%varUnit))
-     case(ixIRFbas%q);       call defVar(pioFileDescState, trim(meta_irf_bas(iVar)%varName), dim_q,      ncd_double, ierr, cmessage, vdesc=trim(meta_irf_bas(iVar)%varDesc), vunit=trim(meta_irf_bas(iVar)%varUnit))
-     case default; ierr=20; message1=trim(message1)//'unable to identify hill-slope routing state variable index'; return
-    end select
-    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
-   end do
 
-  end associate
+     nDims = size(meta_irf_bas(iVar)%varDim)
+     if (allocated(dim_IRFbas)) then
+       deallocate(dim_IRFbas)
+     end if
+     allocate(dim_IRFbas(nDims))
+     do ixDim = 1, nDims
+       dim_IRFbas(ixDim) = meta_stateDims(meta_irf_bas(iVar)%varDim(ixDim))%dimId
+     end do
+
+     call def_var(pioFileDescState, trim(meta_irf_bas(iVar)%varName), dim_IRFbas, meta_irf_bas(iVar)%varType, ierr, cmessage, vdesc=trim(meta_irf_bas(iVar)%varDesc), vunit=trim(meta_irf_bas(iVar)%varUnit))
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+   end do
 
   END SUBROUTINE define_IRFbas_state
 
-
   SUBROUTINE define_KWE_state(ierr, message1)
-   ! External modules
-   USE globalData, ONLY: meta_KWE
-   USE var_lookup, ONLY: ixKWE, nVarsKWE
    implicit none
    ! output
-   integer(i4b), intent(out) :: ierr          ! error code
-   character(*), intent(out) :: message1       ! error message
+   integer(i4b), intent(out)         :: ierr          ! error code
+   character(*), intent(out)         :: message1      ! error message
    ! local
-   integer(i4b)              :: iVar          ! index loop for variables
-   integer(i4b)              :: dim_a(4)      ! dimensions combination case 4
-   integer(i4b)              :: dim_q(4)      ! dimensions combination case 4
+   integer(i4b)                      :: iVar,ixDim    ! index loop for variables
+   integer(i4b)                      :: nDims         ! number of dimensions
+   integer(i4b),allocatable          :: dim_KWE(:)    ! dimension Id array
 
    ! initialize error control
    ierr=0; message1='define_KWE_state/'
@@ -376,43 +393,37 @@ CONTAINS
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%fdmesh)%dimName); return; endif
    end if
 
-   call defdim(pioFileDescState, trim(meta_stateDims(ixStateDims%fdmesh)%dimName), meta_stateDims(ixStateDims%fdmesh)%dimLength, meta_stateDims(ixStateDims%fdmesh)%dimId)
+   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%fdmesh)%dimName), meta_stateDims(ixStateDims%fdmesh)%dimLength, meta_stateDims(ixStateDims%fdmesh)%dimId)
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
-   associate(dim_seg    => meta_stateDims(ixStateDims%seg)%dimId,     &
-             dim_ens    => meta_stateDims(ixStateDims%ens)%dimId,     &
-             dim_time   => meta_stateDims(ixStateDims%time)%dimId,    &
-             dim_fdmesh => meta_stateDims(ixStateDims%fdmesh)%dimId)
-
-   ! Array dimension sets
-   dim_a(:) = [dim_seg, dim_fdmesh, dim_ens, dim_time]
-   dim_q(:) = [dim_seg, dim_fdmesh, dim_ens, dim_time]
-
    do iVar=1,nVarsKWE
-    select case(iVar)
-     case(ixKWE%a); call defVar(pioFileDescState, trim(meta_KWE(iVar)%varName), dim_a, ncd_double, ierr, cmessage, vdesc=trim(meta_KWE(iVar)%varDesc), vunit=trim(meta_KWE(iVar)%varUnit))
-     case(ixKWE%q); call defVar(pioFileDescState, trim(meta_KWE(iVar)%varName), dim_q, ncd_double, ierr, cmessage, vdesc=trim(meta_KWE(iVar)%varDesc), vunit=trim(meta_KWE(iVar)%varUnit))
-     case default; ierr=20; message1=trim(message1)//'unable to identify Euler kinematic wave routing state variable index'; return
-    end select
-    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
-   end do
 
-  end associate
+     nDims = size(meta_KWE(iVar)%varDim)
+     if (allocated(dim_KWE)) then
+       deallocate(dim_KWE)
+     end if
+     allocate(dim_KWE(nDims))
+
+     do ixDim = 1, nDims
+       dim_KWE(ixDim) = meta_stateDims(meta_KWE(iVar)%varDim(ixDim))%dimId
+     end do
+
+     call def_var(pioFileDescState, trim(meta_KWE(iVar)%varName), dim_KWE, meta_KWE(iVar)%varType, ierr, cmessage, vdesc=trim(meta_KWE(iVar)%varDesc), vunit=trim(meta_KWE(iVar)%varUnit))
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+   end do
 
   END SUBROUTINE define_KWE_state
 
-
   SUBROUTINE define_KWT_state(ierr, message1)
-   ! External modules
-   USE globalData, ONLY: meta_kwt
-   USE var_lookup, ONLY: ixKWT, nVarsKWT
    implicit none
    ! output
-   integer(i4b), intent(out)  :: ierr        ! error code
-   character(*), intent(out)  :: message1     ! error message
+   integer(i4b), intent(out)         :: ierr        ! error code
+   character(*), intent(out)         :: message1    ! error message
    ! local
-   integer(i4b)               :: iVar        ! index loop for variables
-   integer(i4b)               :: dim_kwt(4)  ! dimensions combination case 4
+   integer(i4b)                      :: iVar,ixDim  ! index loop for variables
+   integer(i4b)                      :: nDims       ! number of dimensions
+   integer(i4b),allocatable          :: dim_kwt(:)  ! dimensions ID array
 
    ! initialize error control
    ierr=0; message1='define_KWT_state/'
@@ -424,7 +435,7 @@ CONTAINS
    end if
 
    ! Define dimension needed for this routing specific state variables
-   call defdim(pioFileDescState, trim(meta_stateDims(ixStateDims%wave)%dimName), meta_stateDims(ixStateDims%wave)%dimLength, meta_stateDims(ixStateDims%wave)%dimId)
+   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%wave)%dimName), meta_stateDims(ixStateDims%wave)%dimLength, meta_stateDims(ixStateDims%wave)%dimId)
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
    associate(dim_seg     => meta_stateDims(ixStateDims%seg)%dimId,     &
@@ -432,22 +443,23 @@ CONTAINS
              dim_time    => meta_stateDims(ixStateDims%time)%dimId,    &
              dim_wave    => meta_stateDims(ixStateDims%wave)%dimId)
 
-   dim_kwt(:) = [dim_seg, dim_wave, dim_ens, dim_time]
-
-   call defVar(pioFileDescState, 'numWaves', [dim_seg,dim_ens,dim_time], ncd_int, ierr, cmessage, vdesc='number of waves in a reach', vunit='-')
+   call def_var(pioFileDescState, 'numWaves', [dim_seg,dim_ens,dim_time], ncd_int, ierr, cmessage, vdesc='number of waves in a reach', vunit='-')
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
    do iVar=1,nVarsKWT
-    if (iVar==ixKWT%q) cycle  !skip writing final discharge
-    select case(iVar)
-     case(ixKWT%tentry);    call defVar(pioFileDescState, trim(meta_kwt(iVar)%varName), dim_kwt, ncd_double, ierr, cmessage, vdesc=trim(meta_kwt(iVar)%varDesc), vunit=trim(meta_kwt(iVar)%varUnit))
-     case(ixKWT%texit);     call defVar(pioFileDescState, trim(meta_kwt(iVar)%varName), dim_kwt, ncd_double, ierr, cmessage, vdesc=trim(meta_kwt(iVar)%varDesc), vunit=trim(meta_kwt(iVar)%varUnit))
-     case(ixKWT%qwave);     call defVar(pioFileDescState, trim(meta_kwt(iVar)%varName), dim_kwt, ncd_double, ierr, cmessage, vdesc=trim(meta_kwt(iVar)%varDesc), vunit=trim(meta_kwt(iVar)%varUnit))
-     case(ixKWT%qwave_mod); call defVar(pioFileDescState, trim(meta_kwt(iVar)%varName), dim_kwt, ncd_double, ierr, cmessage, vdesc=trim(meta_kwt(iVar)%varDesc), vunit=trim(meta_kwt(iVar)%varUnit))
-     case(ixKWT%routed);    call defVar(pioFileDescState, trim(meta_kwt(iVar)%varName), dim_kwt, ncd_int,   ierr, cmessage, vdesc=trim(meta_kwt(iVar)%varDesc), vunit=trim(meta_kwt(iVar)%varUnit))
-     case default; ierr=20; message1=trim(message1)//'unable to identify KWT routing state variable index'; return
-    end select
-    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+     nDims = size(meta_kwt(iVar)%varDim)
+     if (allocated(dim_kwt)) then
+       deallocate(dim_kwt)
+     endif
+     allocate(dim_kwt(nDims))
+     do ixDim = 1, nDims
+       dim_kwt(ixDim) = meta_stateDims(meta_kwt(iVar)%varDim(ixDim))%dimId
+     end do
+
+     call def_var(pioFileDescState, trim(meta_kwt(iVar)%varName), dim_kwt, meta_kwt(iVar)%varType, ierr, cmessage, vdesc=trim(meta_kwt(iVar)%varDesc), vunit=trim(meta_kwt(iVar)%varUnit))
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
    end do
 
    end associate
@@ -455,26 +467,25 @@ CONTAINS
   END SUBROUTINE define_KWT_state
 
   SUBROUTINE define_IRF_state(ierr, message1)
-   ! External modules
-   USE globalData, ONLY: meta_irf
-   USE var_lookup, ONLY: ixIRF, nVarsIRF
    implicit none
    ! output
-   integer(i4b), intent(out)  :: ierr        ! error code
-   character(*), intent(out)  :: message1    ! error message
+   integer(i4b), intent(out)         :: ierr        ! error code
+   character(*), intent(out)         :: message1    ! error message
    ! local
-   integer(i4b)               :: iVar        ! index loop for variables
-   integer(i4b)               :: dim_irf(4)  ! dimensions combination case 4
+   integer(i4b)                      :: iVar,ixDim  ! index loop for variables
+   integer(i4b)                      :: nDims       ! number of dimensions
+   integer(i4b),allocatable          :: dim_irf(:)  ! dimensions combination case 4
+
    ! initialize error control
    ierr=0; message1='define_IRF_state/'
 
+   ! Define dimension needed for this routing specific state variables
    if (meta_stateDims(ixStateDims%tdh_irf)%dimLength == integerMissing) then
      call set_dim_len(ixStateDims%tdh_irf, ierr, cmessage)
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%tdh_irf)%dimName); return; endif
    endif
 
-   ! Define dimension needed for this routing specific state variables
-   call defdim(pioFileDescState, trim(meta_stateDims(ixStateDims%tdh_irf)%dimName), meta_stateDims(ixStateDims%tdh_irf)%dimLength, meta_stateDims(ixStateDims%tdh_irf)%dimId)
+   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%tdh_irf)%dimName), meta_stateDims(ixStateDims%tdh_irf)%dimLength, meta_stateDims(ixStateDims%tdh_irf)%dimId)
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
    associate(dim_seg     => meta_stateDims(ixStateDims%seg)%dimId,     &
@@ -482,18 +493,23 @@ CONTAINS
              dim_time    => meta_stateDims(ixStateDims%time)%dimId,    &
              dim_tdh_irf => meta_stateDims(ixStateDims%tdh_irf)%dimId)
 
-   dim_irf(:) = [dim_seg, dim_tdh_irf, dim_ens, dim_time]
-
-   call defVar(pioFileDescState, 'numQF', [dim_seg,dim_ens,dim_time], ncd_int, ierr, cmessage, vdesc='number of future q time steps in a reach', vunit='-')
+   call def_var(pioFileDescState, 'numQF', [dim_seg,dim_ens,dim_time], ncd_int, ierr, cmessage, vdesc='number of future q time steps in a reach', vunit='-')
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
    do iVar=1,nVarsIRF
-    if (iVar==ixIRF%q) cycle  ! skip writing final discharge
-    select case(iVar)
-     case(ixIRF%qfuture); call defVar(pioFileDescState, trim(meta_irf(iVar)%varName), dim_irf, ncd_double, ierr, cmessage, vdesc=trim(meta_irf(iVar)%varDesc), vunit=trim(meta_irf(iVar)%varUnit))
-     case default; ierr=20; message1=trim(message1)//'unable to identify IRF routing state variable index'; return
-    end select
-    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+     nDims = size(meta_irf(iVar)%varDim)
+     if (allocated(dim_irf)) then
+       deallocate(dim_irf)
+     endif
+     allocate(dim_irf(nDims))
+     do ixDim = 1, nDims
+       dim_irf(ixDim) = meta_stateDims(meta_irf(iVar)%varDim(ixDim))%dimId
+     end do
+
+     call def_var(pioFileDescState, trim(meta_irf(iVar)%varName), dim_irf, meta_irf(iVar)%varType, ierr, cmessage, vdesc=trim(meta_irf(iVar)%varDesc), vunit=trim(meta_irf(iVar)%varUnit))
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
    end do
 
    end associate
@@ -508,12 +524,7 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE write_state_nc(fname,                &   ! Input: state netcdf name
                            ierr, message)            ! Output: error control
- ! External module
- ! meta data
- USE globalData, ONLY: meta_stateDims  ! dimension for state variables
- ! Named variables
- USE var_lookup, ONLY: ixStateDims, nStateDims
- ! global/public data
+
  USE public_var, ONLY: routOpt
  USE public_var, ONLY: doesBasinRoute
  USE public_var, ONLY: allRoutingMethods
@@ -528,12 +539,14 @@ CONTAINS
  USE globalData, ONLY: RCHSTA_trib         ! tributary reach state (ensembles, reaches)
  USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
  USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
- USE globalData, ONLY: reachID         ! reach ID in network
- USE globalData, ONLY: nRch            ! number of reaches in network
- USE globalData, ONLY: TSEC            ! beginning/ending of simulation time step [sec]
- USE globalData, ONLY: timeVar         ! time variable
- USE globalData, ONLY: iTime           ! time index
+ USE globalData, ONLY: reachID             ! reach ID in network
+ USE globalData, ONLY: nRch                ! number of reaches in network
+ USE globalData, ONLY: TSEC                ! beginning/ending of simulation time step [sec]
+ USE globalData, ONLY: timeVar             ! time variable
+ USE globalData, ONLY: iTime               ! time index
+
  implicit none
+
  ! input variables
  character(*), intent(in)        :: fname           ! filename
  ! output variables
@@ -619,9 +632,6 @@ CONTAINS
 
   ! Basin IRF writing procedures
   SUBROUTINE write_IRFbas_state(ierr, message1)
-  ! external module
-  USE globalData, ONLY: meta_irf_bas
-  USE var_lookup, ONLY: ixIRFbas, nVarsIRFbas
   implicit none
   ! output
   integer(i4b), intent(out)  :: ierr            ! error code
@@ -680,9 +690,6 @@ CONTAINS
 
   ! KWE writing procedures
   SUBROUTINE write_KWE_state(ierr, message1)
-  ! External module
-  USE globalData, ONLY: meta_kwe
-  USE var_lookup, ONLY: ixKWE, nVarsKWE
   implicit none
   ! output
   integer(i4b), intent(out)  :: ierr            ! error code
@@ -742,9 +749,6 @@ CONTAINS
 
   ! KWT writing procedures
   SUBROUTINE write_KWT_state(ierr, message1)
-  ! External module
-  USE globalData, ONLY: meta_kwt
-  USE var_lookup, ONLY: ixKWT, nVarsKWT
   implicit none
   ! output
   integer(i4b), intent(out)  :: ierr            ! error code
@@ -768,7 +772,7 @@ CONTAINS
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsKWT
-    if (iVar==ixKWT%q) cycle  ! not writing out river flow in state file
+
     select case(iVar)
      case(ixKWT%routed); allocate(state(kinematicWave)%var(iVar)%array_3d_int(nSeg, nWave, nEns), stat=ierr)
      case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
@@ -785,8 +789,6 @@ CONTAINS
     numWaves(iens,iseg) = size(RCHSTA_local(iseg)%LKW_ROUTE%KWAVE)
 
     do iVar=1,nVarsKWT
-
-     if (iVar==ixKWT%q) cycle ! not writing out KWT routed flow
 
      select case(iVar)
       case(ixKWT%tentry)
@@ -819,8 +821,6 @@ CONTAINS
 
   do iVar=1,nVarsKWT
 
-    if (iVar==ixKWT%q) cycle  ! not writing out river flow in state file
-
     select case(iVar)
      case(ixKWT%routed)
        call write_pnetcdf_recdim(pioFileDescState, trim(meta_kwt(iVar)%varName), state(kinematicWave)%var(iVar)%array_3d_int, iodesc_wave_int, kTime, ierr, cmessage)
@@ -839,9 +839,6 @@ CONTAINS
 
   ! IRF writing procedures
   SUBROUTINE write_IRF_state(ierr, message1)
-  ! external module
-  USE globalData, ONLY: meta_irf        ! IRF routing
-  USE var_lookup, ONLY: ixIRF, nVarsIRF
   implicit none
   ! output
   integer(i4b), intent(out)  :: ierr            ! error code
@@ -864,7 +861,6 @@ CONTAINS
   if(ierr/=0)then; message1=trim(message1)//'problem allocating space for numQF'; return; endif
 
   do iVar=1,nVarsIRF
-   if (iVar==ixIRF%q) cycle
    select case(iVar)
     case(ixIRF%qfuture); allocate(state(impulseResponseFunc)%var(iVar)%array_3d_dp(nSeg, ntdh_irf, nEns), stat=ierr)
     case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
@@ -879,8 +875,6 @@ CONTAINS
     numQF(iens,iseg) = size(NETOPO_local(iSeg)%UH)
 
     do iVar=1,nVarsIRF
-
-     if (iVar==ixIRF%q) cycle ! not writing out IRF routed flow
 
      select case(iVar)
       case(ixIRF%qfuture)
@@ -898,8 +892,6 @@ CONTAINS
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsIRF
-
-   if (iVar==ixIRF%q) cycle  ! not writing out river flow in state file
 
    select case(iVar)
     case(ixIRF%qfuture)

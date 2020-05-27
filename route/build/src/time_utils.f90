@@ -374,7 +374,7 @@ contains
 
  ! Convert fractions of a day to time
  ! now find hour,min,second
- frac_day = julday - floor(julday)
+ frac_day = days - real(id, kind(dp))
  ih = floor((frac_day+1e-9)*hr_per_day)
 
  remainder = (frac_day+1e-9)*hr_per_day - ih

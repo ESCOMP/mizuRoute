@@ -11,6 +11,7 @@ module globalData
   USE dataTypes, ONLY: struct_info   ! metadata type
   USE dataTypes, ONLY: dim_info      ! metadata type
   USE dataTypes, ONLY: var_info      ! metadata type
+  USE objTypes,  ONLY: var_info_new  ! metadata type
 
   ! parameter structures
   USE dataTypes, ONLY: RCHPRP        ! Reach parameters (properties)
@@ -36,21 +37,21 @@ module globalData
   ! time data structure
   USE dataTypes, ONLY: time         ! time data
 
-  ! data size
-  USE var_lookup, ONLY: nStructures   ! number of variables for data structure
-  USE var_lookup, ONLY: nDimensions   ! number of variables for data structure
-  USE var_lookup, ONLY: nStateDims    ! number of variables for data structure
-  USE var_lookup, ONLY: nQdims        ! number of variables for data structure
-  USE var_lookup, ONLY: nVarsHRU      ! number of variables for data structure
-  USE var_lookup, ONLY: nVarsHRU2SEG  ! number of variables for data structure
-  USE var_lookup, ONLY: nVarsSEG      ! number of variables for data structure
-  USE var_lookup, ONLY: nVarsNTOPO    ! number of variables for data structure
-  USE var_lookup, ONLY: nVarsPFAF     ! number of variables for data structure
-  USE var_lookup, ONLY: nVarsRFLX     ! number of variables for data structure
-  USE var_lookup, ONLY: nVarsIRFbas   ! number of variables for data structure
-  USE var_lookup, ONLY: nVarsIRF      ! number of variables for data structure
-  USE var_lookup, ONLY: nVarsKWT      ! number of variables for data structure
-  USE var_lookup, ONLY: nVarsKWE      ! number of variables for data structure
+  ! number of variables for data structure
+  USE var_lookup, ONLY: nStructures
+  USE var_lookup, ONLY: nDimensions
+  USE var_lookup, ONLY: nStateDims
+  USE var_lookup, ONLY: nQdims
+  USE var_lookup, ONLY: nVarsHRU
+  USE var_lookup, ONLY: nVarsHRU2SEG
+  USE var_lookup, ONLY: nVarsSEG
+  USE var_lookup, ONLY: nVarsNTOPO
+  USE var_lookup, ONLY: nVarsPFAF
+  USE var_lookup, ONLY: nVarsRFLX
+  USE var_lookup, ONLY: nVarsIRFbas
+  USE var_lookup, ONLY: nVarsIRF
+  USE var_lookup, ONLY: nVarsKWT
+  USE var_lookup, ONLY: nVarsKWE
 
   implicit none
 
@@ -66,13 +67,15 @@ module globalData
   integer(i4b)    , allocatable  , public :: basinID(:)           ! HRU id
   integer(i4b)    , allocatable  , public :: reachID(:)           ! reach id
 
-  ! ---------- Data/Time data  -------------------------------------------------------------------------
+  ! ---------- Date/Time data  -------------------------------------------------------------------------
 
   integer(i4b)                   , public :: iTime                ! time index at simulation time step
   real(dp)                       , public :: startJulday          ! julian day: start of routing simulation
   real(dp)                       , public :: endJulday            ! julian day: end of routing simulation
   real(dp)                       , public :: refJulday            ! julian day: reference
   real(dp)                       , public :: modJulday            ! julian day: simulation time step
+  real(dp)                       , public :: restartJulday        ! julian day: restart drop off
+  real(dp)        , allocatable  , public :: roJulday(:)          ! julian day: runoff input time
   real(dp)        , allocatable  , public :: timeVar(:)           ! time variables (unit given by runoff data)
   real(dp)                       , public :: TSEC(0:1)            ! begning and end of time step (sec)
   type(time)                     , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
@@ -102,7 +105,6 @@ module globalData
 
   ! ---------- conversion factors -------------------------------------------------------------------
 
-  real(dp)                       , public :: convTime2Days              ! conversion factor to convert time to units of days
   real(dp)                       , public :: time_conv                  ! time conversion factor -- used to convert to mm/s
   real(dp)                       , public :: length_conv                ! length conversion factor -- used to convert to mm/s
 
@@ -130,11 +132,11 @@ module globalData
   type(var_info)                 , public :: meta_SEG    (nVarsSEG    ) ! stream segment properties
   type(var_info)                 , public :: meta_NTOPO  (nVarsNTOPO  ) ! network topology
   type(var_info)                 , public :: meta_PFAF   (nVarsPFAF   ) ! pfafstetter code
-  type(var_info)                 , public :: meta_rflx   (nVarsRFLX )   ! reach flux variables
-  type(var_info)                 , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
-  type(var_info)                 , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
-  type(var_info)                 , public :: meta_kwe    (nVarsKWE    ) ! KWE routing fluxes/states
-  type(var_info)                 , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
+  type(var_info_new)             , public :: meta_rflx   (nVarsRFLX   ) ! reach flux variables
+  type(var_info_new)             , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
+  type(var_info_new)             , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
+  type(var_info_new)             , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
+  type(var_info_new)             , public :: meta_kwe    (nVarsKWE    ) ! KWE routing fluxes/states
 
   ! ---------- shared data structures ----------------------------------------------------------------------
 

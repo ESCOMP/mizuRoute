@@ -16,6 +16,7 @@ USE public_var, ONLY: iulog              ! i/o logical unit number
 USE public_var, ONLY: verySmall
 USE public_var, ONLY: integerMissing
 USE public_var, ONLY: realMissing
+USE public_var, ONLY: charMissing
 
 implicit none
 
@@ -270,13 +271,10 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE update_time(finished, ierr, message)
 
-  ! Shared data
-  USE public_var, ONLY: dt
+  USE public_var, ONLY: dt            ! time step [sec]
   USE globalData, ONLY: TSEC          ! beginning/ending of simulation time step [sec]
-  USE globalData, ONLY: timeVar       ! time variables (unit given by runoff data)
   USE globalData, ONLY: iTime         ! time index at simulation time step
-  USE globalData, ONLY: convTime2Days ! conversion multipliers for time unit of runoff input to day
-  USE globalData, ONLY: refJulday     ! julian day: reference
+  USE globalData, ONLY: roJulday      ! julian day: runoff input time
   USE globalData, ONLY: modJulday     ! julian day: at model time step
   USE globalData, ONLY: endJulday     ! julian day: at end of simulation
   ! external routine
@@ -291,20 +289,20 @@ CONTAINS
    ! initialize error control
    ierr=0; message='update_time/'
 
-   ! update model time step bound
-   TSEC(0) = TSEC(0) + dt
-   TSEC(1) = TSEC(0) + dt
-
    if (abs(modJulday-endJulday)<verySmall) then
      call close_output_nc()
      finished=.true.;return
    endif
 
+   ! update model time step bound
+   TSEC(0) = TSEC(0) + dt
+   TSEC(1) = TSEC(0) + dt
+
    ! update time index
    iTime=iTime+1
 
    ! update the julian day of the model simulation
-   modJulday = refJulday + timeVar(iTime)/convTime2Days
+   modJulday = roJulday(iTime)
 
  END SUBROUTINE update_time
 
@@ -317,13 +315,11 @@ CONTAINS
   ! external routines
   USE read_restart,      ONLY: read_state_nc     ! read netcdf state output file
   USE mpi_routine,       ONLY: mpi_restart
-  ! global data
+  ! shared data
   USE public_var, ONLY: dt                ! simulation time step (seconds)
-  USE public_var, ONLY: isRestart         ! restart option: True-> model run with restart, F -> model run with empty channels
   USE public_var, ONLY: routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-  USE public_var, ONLY: fname_state_in    ! name of state input file
   USE public_var, ONLY: output_dir        ! directory containing output data
-  USE public_var, ONLY: routOpt           ! routing scheme options
+  USE public_var, ONLY: fname_state_in    ! name of state input file
   USE public_var, ONLY: kinematicWaveEuler!
   USE globalData, ONLY: masterproc        ! root proc logical
   USE globalData, ONLY: nRch_mainstem     ! number of mainstem reaches
@@ -354,13 +350,14 @@ CONTAINS
   iens = 1_i4b
 
   ! read restart file and initialize states
-  if (isRestart) then
+  if (trim(fname_state_in)/=charMissing) then
 
    if (masterproc) then
     call read_state_nc(trim(output_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    TSEC(0)=T0; TSEC(1)=T1
+    ! time bound [sec] is at previous time step, so need to add dt for curent time step
+    TSEC(0)=T0+dt; TSEC(1)=T1+dt
 
    end if
 
