@@ -523,6 +523,7 @@ contains
        write(iulog,*) "iam, gindex(min,max,mid) = ", iam, minval(gindex), maxval(gindex), gindex(lsize/2)
        call shr_sys_flush(iulog)
     end if
+
     ! create distGrid from global index array
     DistGrid = ESMF_DistGridCreate(arbSeqIndexList=gindex, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -533,6 +534,7 @@ contains
     end if
     call ESMF_DistGridValidate( DistGrid, rc=rc )
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
     ! Get global dist grid attributes
     call ESMF_DistGridGet( DistGrid, dimCount=dimCount, tileCount=tileCount, deCount=deCount, localDeCount=localDeCount, &
      regDecompFlag=regDecompFlag, connectionCount=connectionCount, rc=rc )
@@ -559,21 +561,22 @@ contains
     ! Create the mesh in one step using the above distGrid
     EMesh = ESMF_MeshCreate(filename=trim(cvalue), fileformat=ESMF_FILEFORMAT_ESMFMESH, elementDistgrid=Distgrid, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    if ( debug_write )then
-       write(iulog,*) ' After ESMF_MeshCreate'
-       call shr_sys_flush(iulog)
-    end if
-    call ESMF_MeshGet( EMesh,  parametricDim=parametricDim, spatialDim=spatialDim, numOwnedNodes=numOwnedNodes, &
-                       numOwnedElements=numOwnedElements, isMemFreed=isMemFreed, rc=rc)
-    if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    if ( debug_write )then
-       write(iulog,*) ' parametricDim = ', parametricDim
-       write(iulog,*) ' spatialDim = ', spatialDim
-       write(iulog,*) ' numOwnedNodes = ', numOwnedNodes
-       write(iulog,*) ' numOwnedElements = ', numOwnedElements
-       write(iulog,*) ' isMemFreed = ', isMemFreed
-       call shr_sys_flush(iulog)
-    end if
+
+!    if ( debug_write )then
+!       write(iulog,*) ' After ESMF_MeshCreate'
+!       call shr_sys_flush(iulog)
+!    end if
+!    call ESMF_MeshGet( EMesh,  parametricDim=parametricDim, spatialDim=spatialDim, numOwnedNodes=numOwnedNodes, &
+!                       numOwnedElements=numOwnedElements, isMemFreed=isMemFreed, rc=rc)
+!    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+!    if ( debug_write )then
+!       write(iulog,*) ' parametricDim = ', parametricDim
+!       write(iulog,*) ' spatialDim = ', spatialDim
+!       write(iulog,*) ' numOwnedNodes = ', numOwnedNodes
+!       write(iulog,*) ' numOwnedElements = ', numOwnedElements
+!       write(iulog,*) ' isMemFreed = ', isMemFreed
+!       call shr_sys_flush(iulog)
+!    end if
 
     !--------------------------------
     ! realize actively coupled fields

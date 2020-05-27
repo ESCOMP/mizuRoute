@@ -198,36 +198,24 @@ contains
     endr = rtmCTL%endr
 
     ! determine output array and scale by unit convertsion
-    ! NOTE: the call to state_getimport will convert from input kg/m2s to m3/s
-
-    call state_getimport(importState, 'Flrl_rofsur', begr, endr, rtmCTL%area, output=rtmCTL%qsur(:,nliq), rc=rc)
+    ! NOTE: the call to state_getimport will not convert input unit kg/m2s (mm/s)
+    call state_getimport(importState, 'Flrl_rofsur', begr, endr, output=rtmCTL%qsur(:,nliq), rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    call state_getimport(importState, 'Flrl_rofsub', begr, endr, rtmCTL%area, output=rtmCTL%qsub(:,nliq), rc=rc)
+    call state_getimport(importState, 'Flrl_rofsub', begr, endr, output=rtmCTL%qsub(:,nliq), rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    call state_getimport(importState, 'Flrl_rofgwl', begr, endr, rtmCTL%area, output=rtmCTL%qgwl(:,nliq), rc=rc)
+    call state_getimport(importState, 'Flrl_rofgwl', begr, endr, output=rtmCTL%qgwl(:,nliq), rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    call state_getimport(importState, 'Flrl_rofi', begr, endr, rtmCTL%area, output=rtmCTL%qsur(:,nfrz), rc=rc)
+    call state_getimport(importState, 'Flrl_rofi', begr, endr, output=rtmCTL%qsur(:,nfrz), rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    call state_getimport(importState, 'Flrl_irrig', begr, endr, rtmCTL%area, output=rtmCTL%qirrig(:), rc=rc)
+    call state_getimport(importState, 'Flrl_irrig', begr, endr, output=rtmCTL%qirrig(:), rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     rtmCTL%qsub(begr:endr, nfrz) = 0.0_r8
     rtmCTL%qgwl(begr:endr, nfrz) = 0.0_r8
-
-    if (debug_write.and. masterproc .and. iTime < 5) then
-       do n = begr,endr
-          write(iulog,F01)'import: nstep, n, Flrl_rofsur = ',iTime,n,rtmCTL%qsur(n,nliq)
-          write(iulog,F01)'import: nstep, n, Flrl_rofsub = ',iTime,n,rtmCTL%qsub(n,nliq)
-          write(iulog,F01)'import: nstep, n, Flrl_rofgwl = ',iTime,n,rtmCTL%qgwl(n,nliq)
-          write(iulog,F01)'import: nstep, n, Flrl_rofi   = ',iTime,n,rtmCTL%qsur(n,nfrz)
-          write(iulog,F01)'import: nstep, n, Flrl_irrig  = ',iTime,n,rtmCTL%qirrig(n)
-       end do
-       call shr_sys_flush(iulog)
-    end if
 
   end subroutine import_fields
 
@@ -343,17 +331,6 @@ contains
 
     call state_setexport(exportState, 'Flrr_volrmch', begr, endr, input=volrmch, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
-    if (debug_write .and. masterproc .and. iTime <  5) then
-       do n = begr,endr
-          write(iulog,F01)'export: nstep, n, Flrr_flood   = ',iTime, n, flood(n)
-          write(iulog,F01)'export: nstep, n, Flrr_volr    = ',iTime, n, volr(n)
-          write(iulog,F01)'export: nstep, n, Flrr_volrmch = ',iTime, n, volrmch(n)
-          write(iulog,F01)'export: nstep, n, Forr_rofl    = ',iTime ,n, rofl(n)
-          write(iulog,F01)'export: nstep, n, Forr_rofi    = ',iTime ,n, rofi(n)
-       end do
-       call shr_sys_flush(iulog)
-    end if
 
     deallocate(rofl, rofi, flood, volr, volrmch)
 
@@ -483,7 +460,7 @@ contains
 
   !===============================================================================
 
-  subroutine state_getimport(state, fldname, begr, endr, area, output, rc)
+  subroutine state_getimport(state, fldname, begr, endr, output, rc, unit_conversion)
 
     ! ----------------------------------------------
     ! Map import state field to output array
@@ -494,13 +471,14 @@ contains
     character(len=*)    , intent(in)    :: fldname
     integer             , intent(in)    :: begr
     integer             , intent(in)    :: endr
-    real(r8)            , intent(in)    :: area(begr:endr)
     real(r8)            , intent(out)   :: output(begr:endr)
     integer             , intent(out)   :: rc
+    real(r8),optional   , intent(in)    :: unit_conversion(begr:endr)
 
     ! local variables
     integer                     :: g, i
     real(R8), pointer           :: fldptr(:)
+    real(r8)                    :: unitConversion(begr:endr)
     type(ESMF_StateItem_Flag)   :: itemFlag
     integer                     :: dbrc
     character(len=*), parameter :: subname='(rof_import_export:state_getimport)'
@@ -519,19 +497,27 @@ contains
        call state_getfldptr(state, trim(fldname), fldptr,  rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-       ! determine output array and scale by unit convertsion
+       ! determine runoff flux array and scale by unit convertsion. runoff flux from lnd model is mm/s
+       ! mizuRoute expect runoff over area in length/time. length: mm or m, time: second, hour, second
+       ! unit of runoff flux is specified in variable units_qsim in src/public_var.f90 and unit conversion
+       ! from depth per time to m3/s in mizuRoute.
+
+       unitConversion = 1.0_r8
+       if (present(unit_conversion)) then
+          unitConversion = unit_conversion
+       end if
+
        do g = begr,endr
-          output(g) = fldptr(g-begr+1) * area(g)*0.001_r8
+          output(g) = fldptr(g-begr+1) * unitConversion(g)
        end do
 
        ! write debug output if appropriate
        if (masterproc .and. debug_write .and. iTime < 5) then
           do g = begr,endr
              i = 1 + g - begr
-             if (output(g) /= 0._r8) then
-!                write(iulog,F01)'import: nstep, n, '//trim(fldname)//' = ',iTime, g,output(g)
-             end if
+             write(iulog,F01)'import: nstep, n, '//trim(fldname)//' = ',iTime, g, output(g)
           end do
+          call shr_sys_flush(iulog)
        end if
 
        ! check for nans
@@ -590,9 +576,7 @@ contains
        if (masterproc .and. debug_write .and. iTime < 5) then
           do g = begr,endr
              i = 1 + g - begr
-             if (input(g) /= 0._r8) then
-                 write(iulog,F01)'export: nstep, n, '//trim(fldname)//' = ',iTime,i,input(g)
-             end if
+             write(iulog,F01)'export: nstep, n, '//trim(fldname)//' = ',iTime,i,input(g)
           end do
           call shr_sys_flush(iulog)
        end if

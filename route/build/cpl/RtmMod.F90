@@ -24,7 +24,7 @@ MODULE RtmMod
   USE globalData    , ONLY : mpicom_rof => mpicom_route
   USE globalData    , ONLY : masterproc
   USE globalData    , ONLY : pio_netcdf_format, pio_typename, pio_rearranger, &
-                             pio_root
+                             pio_root, pio_stride
 
 ! !PUBLIC TYPES:
   implicit none
@@ -40,70 +40,67 @@ CONTAINS
 ! public subroutine: initialize
 ! *********************************************************************!
   SUBROUTINE route_ini(rtm_active,flood_active)
-!
-! !DESCRIPTION:
-! Initialize mizuRoute network, decomp
-! !CALLED FROM:
-! subroutine initialize in module initializeMod
-  USE public_var,      ONLY: isRestart
-  USE globalData,      ONLY: ixHRU_order                ! global HRU index in the order of proc assignment (size = num of hrus contributing reach in entire network)
-  USE globalData,      ONLY: hru_per_proc               ! number of hrus assigned to each proc (size = num of procs
-  USE init_model_data, ONLY: init_ntopo_data, init_model
-  USE init_model_data, ONLY: init_state_data
-  USE mpi_routine,     ONLY: pass_global_data
 
-! !ARGUMENTS:
-  implicit none
-  logical, intent(out)       :: rtm_active
-  logical, intent(out)       :: flood_active
-  ! LOCAL VARIABLES:
-  character(len=CL)          :: rtm_trstr                 ! tracer string
-  integer                    :: ierr                      ! error code
-  integer                    :: n, ix1, ix2, myid
-  character(len= 7)          :: runtyp(4)                 ! run type
-  character(len=CL)          :: cmessage
-  character(len=*),parameter :: subname = '(route_ini) '
-!-----------------------------------------------------------------------
+    ! !DESCRIPTION:
+    ! Initialize mizuRoute network, decomp
+    ! !CALLED FROM:
+    ! subroutine initialize in module initializeMod
+    USE globalData,      ONLY: ixHRU_order                 ! global HRU index in the order of proc assignment (size = num of hrus contributing reach in entire network)
+    USE globalData,      ONLY: hru_per_proc                ! number of hrus assigned to each proc (size = num of procs
+    USE globalData,      ONLY: nHRU_mainstem               ! number of mainstem HRUs
+    USE init_model_data, ONLY: init_ntopo_data, init_model !
+    USE init_model_data, ONLY: init_state_data
+    USE mpi_routine,     ONLY: pass_global_data
 
-  !-------------------------------------------------------
-  ! mizuRoute setup
-  !-------------------------------------------------------
-  ! 1. populate meta data
-  ! 2. read control file
-  ! 3. read routing parameters
+    !ARGUMENTS:
+    implicit none
+    logical, intent(out)       :: rtm_active
+    logical, intent(out)       :: flood_active
+    ! LOCAL VARIABLES:
+    character(len=CL)          :: rtm_trstr                 ! tracer string
+    integer                    :: ierr                      ! error code
+    integer                    :: nt, ix, ix1, ix2
+    character(len= 7)          :: runtyp(4)                 ! run type
+    character(len=CL)          :: cmessage
+    character(len=*),parameter :: subname = '(route_ini) '
+   !-----------------------------------------------------------------------
+
+    !-------------------------------------------------------
+    ! mizuRoute setup
+    !-------------------------------------------------------
+    ! 1. populate meta data
+    ! 2. read control file
+    ! 3. read routing parameters
 
 !  call init_model(cfile_name, ierr, cmessage)
 !  if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
-  ! If routing time step dt [sec] and coupling time step coupling_period [day] is different, match dt to coupling_period.
-  if (dt/=coupling_period) then
-    if (masterproc) then
-      write(iulog,*) 'WARNING: Adjust mizuRoute dt to coupling_period'
+    ! If routing time step dt [sec] and coupling time step coupling_period [day] is different, match dt to coupling_period.
+    if (dt/=coupling_period) then
+      if (masterproc) then
+        write(iulog,*) 'WARNING: Adjust mizuRoute dt to coupling_period'
+      endif
+      dt = coupling_period*60.0*60.0*24.0
     endif
-    dt = coupling_period*60.0*60.0*24.0
-  endif
 
-  ! Obtain restart file if appropriate
-  if ((nsrest == nsrContinue) .or. &
+    ! Obtain restart file if appropriate
+    if ((nsrest == nsrContinue) .or. &
       (nsrest == nsrBranch  )) then
-     isRestart = .true.
-     call RtmRestGetfile()
-  else if (nsrest == nsrStartup ) then
-     isRestart = .false.
-  endif
+      call RtmRestGetfile()
+    endif
 
-  runtyp(:)               = 'missing'
-  runtyp(nsrStartup  + 1) = 'initial'
-  runtyp(nsrContinue + 1) = 'restart'
-  runtyp(nsrBranch   + 1) = 'branch '
+    runtyp(:)               = 'missing'
+    runtyp(nsrStartup  + 1) = 'initial'
+    runtyp(nsrContinue + 1) = 'restart'
+    runtyp(nsrBranch   + 1) = 'branch '
 
-  if (masterproc) then
-     write(iulog,*) 'define run:'
-     write(iulog,*) '   run type              = ',runtyp(nsrest+1)
-     write(iulog,*) '   coupling_period       = ',coupling_period, '[day]'
-     write(iulog,*) '   delt_mizuRoute        = ',dt, '[sec]'
-     call shr_sys_flush(iulog)
-  endif
+    if (masterproc) then
+      write(iulog,*) 'define run:'
+      write(iulog,*) '   run type              = ',runtyp(nsrest+1)
+      write(iulog,*) '   coupling_period       = ',coupling_period, '[day]'
+      write(iulog,*) '   delt_mizuRoute        = ',dt, '[sec]'
+      call shr_sys_flush(iulog)
+    endif
 
     rtm_active   = do_rtm
     flood_active = do_rtmflood
@@ -134,27 +131,34 @@ CONTAINS
       case default; call shr_sys_abort(trim(subname)//'unexpected netcdf format index')
     end select
 
-    select case(shr_pio_getiotype(inst_name))
-      case(pio_iotype_netcdf);   pio_typename = 'netcdf'
-      case(pio_iotype_pnetcdf);  pio_typename = 'pnetcdf'
-      case(pio_iotype_netcdf4c); pio_typename = 'netcdf4c'
-      case(pio_iotype_NETCDF4p); pio_typename = 'netcdf4p'
-      case default; call shr_sys_abort(trim(subname)//'unexpected netcdf io type index')
-    end select
+    !select case(shr_pio_getiotype(inst_name))
+    !  case(pio_iotype_netcdf);   pio_typename = 'netcdf'
+    !  case(pio_iotype_pnetcdf);  pio_typename = 'pnetcdf'
+    !  case(pio_iotype_netcdf4c); pio_typename = 'netcdf4c'
+    !  case(pio_iotype_NETCDF4p); pio_typename = 'netcdf4p'
+    !  case default; call shr_sys_abort(trim(subname)//'unexpected netcdf io type index')
+    !end select
 
     !pio_numiotasks    = shr_pio_(inst_name)    ! there is no function to extract pio_numiotasks in cime/src/drivers/nuops/nems/util/shr_pio_mod.F90
-    pio_rearranger    = shr_pio_getrearranger(inst_name)
-    pio_root          = shr_pio_getioroot(inst_name)
+     pio_rearranger    = shr_pio_getrearranger(inst_name)
+     pio_root          = shr_pio_getioroot(inst_name)
     !pio_stride        = shr_pio_(inst_name)    ! there is no function to extract pio_stride
+
+    write(iulog,*) 'pio_netcdf_format = ', trim(pio_netcdf_format)
+    write(iulog,*) 'pio_typename      = ', trim(pio_typename)
+    write(iulog,*) 'pio_rearranger    = ', pio_rearranger
+    write(iulog,*) 'pio_root          = ', pio_root
+    write(iulog,*) 'pio_stride        = ', pio_stride
 
     !-------------------------------------------------------
     ! Initialize rtm_trstr
     !-------------------------------------------------------
 
     rtm_trstr = trim(rtm_tracers(1))
-    do n = 2,nt_rtm
-       rtm_trstr = trim(rtm_trstr)//':'//trim(rtm_tracers(n))
+    do nt = 2,nt_rtm
+       rtm_trstr = trim(rtm_trstr)//':'//trim(rtm_tracers(nt))
     enddo
+
     if (masterproc) then
        write(iulog,*)'mizuRoute tracers = ',nt_rtm, trim(rtm_trstr)
     end if
@@ -165,11 +169,8 @@ CONTAINS
 
     call init_ntopo_data(iam, npes, mpicom_rof, ierr, cmessage)
     if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-    if ( .not. allocated(hru_per_proc) )then
-       call shr_sys_abort(trim(subname)//trim(cmessage))
-    endif
 
-    call  pass_global_data(mpicom_rof, ierr, cmessage)
+    call pass_global_data(mpicom_rof, ierr, cmessage)
     if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
     !-------------------------------------------------------
@@ -181,18 +182,25 @@ CONTAINS
     ! total elements in whole domain
     rtmCTL%numr   = sum(hru_per_proc)
 
-    if (masterproc) then
-      ! MAster proc uses the first two HRU sections
-      rtmCTL%endr  = sum(hru_per_proc(-1:0))
-      rtmCTL%lnumr = rtmCTL%endr
+    if (npes==1) then
+      rtmCTL%endr  = rtmCTL%numr
+      rtmCTL%lnumr = rtmCTL%numr
       ix1 = 1
       ix2 = rtmCTL%lnumr
     else
-      rtmCTL%endr  = hru_per_proc(iam)
-      rtmCTL%lnumr = hru_per_proc(iam)
-      ix1 = sum(hru_per_proc(-1:iam-1)) + 1
-      ix2 = ix1 + hru_per_proc(iam) - 1
-    end if
+      if (masterproc) then
+        ! MAster proc uses the first two HRU sections
+        rtmCTL%endr  = sum(hru_per_proc(-1:0))
+        rtmCTL%lnumr = rtmCTL%endr
+        ix1 = 1
+        ix2 = rtmCTL%lnumr
+      else
+        rtmCTL%endr  = hru_per_proc(iam)
+        rtmCTL%lnumr = hru_per_proc(iam)
+        ix1 = sum(hru_per_proc(-1:iam-1)) + 1
+        ix2 = ix1 + hru_per_proc(iam) - 1
+      end if
+    endif
 
     call RunoffInit(rtmCTL%begr, rtmCTL%endr, rtmCTL%numr)
 
@@ -328,8 +336,9 @@ CONTAINS
         allocate(basinRunoff_main(nHRU_mainstem), stat=ierr)
         if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [basinRunoff_main]'); endif
       end if
-        do nr = 1,nHRU_mainstem
-          basinRunoff_main(:) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
+      do nr = 1,nHRU_mainstem
+        basinRunoff_main(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)!+rtmCTL%qgwl(nr,1)
+        write(iulog,'(a,2x,i8,2x,d21.14)')'nr, basinRunoff_main = ',nr, basinRunoff_main(nr)
       end do
 
     else
@@ -343,8 +352,7 @@ CONTAINS
             if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [basinRunoff_main]'); endif
           end if
           do nr = 1,nHRU_mainstem
-!            write(iulog,'(a,i4,x,i5,x,g10.5,x,g10.5,x,g10.5)') 'CHECK: pid, nr, qsur, qsub, qgwl= ', iam, nr, rtmCTL%qsur(nr,1), rtmCTL%qsub(nr,1), rtmCTL%qgwl(nr,1)
-            basinRunoff_main(nr) = 1.0 !rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
+            basinRunoff_main(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)!+rtmCTL%qgwl(nr,1)
           end do
         end if
 
@@ -355,8 +363,7 @@ CONTAINS
 
         do nr = 1, nHRU_trib
           ix = nr + nHRU_mainstem
-!          write(iulog,'(a,i4,x,i5,x,g10.5,x,g10.5,x,g10.5)') 'CHECK: pid, nr, qsur, qsub, qgwl= ', iam, nr, rtmCTL%qsur(nr,1), rtmCTL%qsub(nr,1), rtmCTL%qgwl(nr,1)
-          basinRunoff_trib(nr) = 1.0 !rtmCTL%qsur(ix,1)+rtmCTL%qsub(ix,1)+rtmCTL%qgwl(nr,1)
+          basinRunoff_trib(nr) = rtmCTL%qsur(ix,1)+rtmCTL%qsub(ix,1)!+rtmCTL%qgwl(ix,1)
         end do
         end associate
 
@@ -368,8 +375,7 @@ CONTAINS
         end if
 
         do nr = rtmCTL%begr,rtmCTL%endr
-!          write(iulog,'(a,i4,x,i5,x,g10.5,x,g10.5,x,g10.5)') 'CHECK: pid, nr, qsur, qsub, qgwl= ', iam, nr, rtmCTL%qsur(nr,1), rtmCTL%qsub(nr,1), rtmCTL%qgwl(nr,1)
-          basinRunoff_trib(nr) = 1.0 !rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
+          basinRunoff_trib(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)!+rtmCTL%qgwl(nr,1)
         end do
 
       end if
@@ -405,29 +411,49 @@ CONTAINS
     iens = 1
     do ns = 1,nsub
 
+      if (masterproc) then
+        if (.not. allocated(basinRunoff_main)) then
+          basinRunoff_main = basinRunoff_main/float(nsub)
+        end if
+        if (.not. allocated(basinRunoff_trib)) then
+          basinRunoff_trib = basinRunoff_trib/float(nsub)
+        end if
+      else
+        basinRunoff_trib = basinRunoff_trib/float(nsub)
+      end if
+
       call mpi_route(iam, npes, mpicom_rof, iens, ierr, cmessage, scatter_ro=.false.)
       if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
+    enddo
+
+    if (npes==1) then
+      allocate(RCHFLX_local(rch_per_proc(-1)), stat=ierr)
+      RCHFLX_local(1:rch_per_proc(-1)) = RCHFLX_main(iens,1:rch_per_proc(-1))
+    else
       if (masterproc) then
         associate(nRch_main => rch_per_proc(-1), nRch_trib => rch_per_proc(0))
         allocate(RCHFLX_local(nRch_main+nRch_trib), stat=ierr)
         if (nRch_main/=0) then
           RCHFLX_local(1:nRch_main) = RCHFLX_main(iens, 1:nRch_main)
         end if
-        RCHFLX_local(nRch_main+1:nRch_main+nRch_trib) = RCHFLX_trib(iens,1:nRch_trib)
+        if (nRch_trib/=0) then
+          RCHFLX_local(nRch_main+1:nRch_main+nRch_trib) = RCHFLX_trib(iens,1:nRch_trib)
+        end if
         end associate
       else
         allocate(RCHFLX_local(rch_per_proc(iam)), stat=ierr)
-        RCHFLX_local(:) = RCHFLX_trib(iens, :)
+        RCHFLX_local(1:rch_per_proc(iam)) = RCHFLX_trib(iens, 1:rch_per_proc(iam))
       endif
+    endif
 
-      do nr = rtmCTL%begr,rtmCTL%endr
-        rtmCTL%volr(nr)      = 0._r8
-        rtmCTL%flood(nr)     = 0._r8
-        rtmCTL%discharge(nr,1) = rtmCTL%discharge(nr,1) + RCHFLX_local(nr)%REACH_Q/float(nsub) !
-      enddo
-
+    do nr = rtmCTL%begr,rtmCTL%endr
+      rtmCTL%volr(nr)      = 0._r8
+      rtmCTL%flood(nr)     = 0._r8
+      rtmCTL%discharge(nr,1) = rtmCTL%discharge(nr,1) + RCHFLX_local(nr)%REACH_Q
     enddo
+
+
     call t_stopf('mizuRoute_subcycling')
 
     !-----------------------------------

@@ -49,7 +49,6 @@ CONTAINS
   USE public_var, ONLY: calendar               ! calendar name
   USE globalData, ONLY: timeVar                ! time variables (unit given by runoff data)
   USE globalData, ONLY: iTime                  ! time index at simulation time step
-  USE globalData, ONLY: convTime2Days          ! conversion multipliers for time unit of runoff input to day
   USE globalData, ONLY: refJulday              ! julian day: reference
   USE globalData, ONLY: startJulday            ! julian day: start of routing simulation
   USE globalData, ONLY: endJulday              ! julian day: end of routing simulation
@@ -65,6 +64,7 @@ CONTAINS
   ! local variable
   integer                                  :: nTime
   integer                                  :: ix
+  real(dp)                                 :: convTime2Days
   character(len=256)                       :: cmessage         ! error message of downwind routine
 
   ! initialize error control
@@ -72,10 +72,12 @@ CONTAINS
 
   ! get the time multiplier needed to convert time to units of days
   select case( trim( time_units(1:index(time_units,' ')) ) )
-   case('seconds'); convTime2Days=86400._r8
-   case('hours');   convTime2Days=24._r8
-   case('days');    convTime2Days=1._r8
-   case default;    ierr=20; message=trim(message)//'unable to identify time units'; return
+    case('seconds','second','sec','s'); convTime2Days=86400._dp
+    case('minutes','minute','min');     convTime2Days=1440._dp
+    case('hours','hour','hr','h');      convTime2Days=24._dp
+    case('days','day','d');             convTime2Days=1._dp
+    case default
+      ierr=20; message=trim(message)//'<time_units>= '//trim(t_unit)//': <time_units> must be seconds, minutes, hours or days.'; return
   end select
 
   ! extract time information from the control information
