@@ -92,6 +92,7 @@ module public_var
   character(len=strLen),public    :: dname_ylat           = ''              ! dimension name for y (i, latitude) dimension
   character(len=strLen),public    :: units_qsim           = ''              ! units of simulated runoff data
   real(dp)             ,public    :: dt                   = realMissing     ! time step (seconds)
+  real(dp)             ,public    :: ro_fillvalue         = realMissing     ! fillvalue used for runoff depth variable
   ! RUNOFF REMAPPING
   logical(lgt),public             :: is_remap             = .false.         ! logical whether or not runnoff needs to be mapped to river network HRU
   character(len=strLen),public    :: fname_remap          = ''              ! runoff mapping netCDF name
