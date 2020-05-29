@@ -80,7 +80,7 @@ CONTAINS
   integer(i4b),   intent(out)          :: ierr             ! error code
   character(*),   intent(out)          :: message          ! error message
   ! local variables
-  character(len=strLen)                :: fileout_state    ! name of the output file
+  character(len=300)                   :: fileout_state    ! name of the output file
   integer(i4b)                         :: sec_in_day       ! second within day
   character(len=strLen)                :: cmessage         ! error message of downwind routine
   character(len=50),parameter          :: fmtYMDS   = '(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'

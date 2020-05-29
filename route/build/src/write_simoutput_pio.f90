@@ -30,7 +30,7 @@ USE pio_utils
 implicit none
 
 ! The following variables used only in this module
-character(len=strLen),save :: fileout              ! name of the output file
+character(300),       save :: fileout              ! name of the output file
 integer(i4b),         save :: jTime                ! time step in output netCDF
 type(iosystem_desc_t),save :: pioSystem            ! PIO I/O system data
 type(file_desc_t),    save :: pioFileDesc          ! PIO data identifying the file
