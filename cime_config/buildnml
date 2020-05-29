@@ -133,7 +133,6 @@ def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_
 
     fname_state_in = ctl.get("fname_state_in")
     if run_type == 'branch' or run_type == 'hybrid':
-        restart_opt = "T"
         run_refcase = case.get_value("RUN_REFCASE")
         run_refdate = case.get_value("RUN_REFDATE")
         run_tod = case.get_value("RUN_REFTOD")
@@ -144,16 +143,11 @@ def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_
         ctl.set( "fname_state_in", filename )
 
     elif fname_state_in.strip() == '':
-        restart_opt = "F"
-        fname_state_in = "UNUSED"
+        fname_state_in = "empty"
     else:
         if ctl.get('fname_state_in') == 'STATE_IN_NC':
-            restart_opt = "F"
-            fname_state_in = "UNUSED"
-        else:
-            restart_opt = "T"
+            fname_state_in = "empty"
 
-    ctl.set( "restart_opt", restart_opt )
     ctl.set( "fname_state_in", fname_state_in )
 
     #----------------------------------------------------

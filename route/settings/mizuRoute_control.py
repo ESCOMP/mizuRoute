@@ -136,7 +136,7 @@ class mizuRoute_control(object):
        """
        if ( self.is_read() ):
           try:
-             idx =  self.keyList.index(name) 
+             idx =  self.keyList.index(name)
              return( True )
           except  ValueError:
              return( False )
@@ -168,17 +168,17 @@ class test_mizuRoute_control(unittest.TestCase):
    def test_get_list_of_elments( self ):
        self.ctl.read( "SAMPLE.control" )
        elist = self.ctl.get_elmList( )
-       expected = ['ancil_dir', 'input_dir', 'output_dir', 'sim_start', 'sim_end', 'fname_ntopOld', 
+       expected = ['ancil_dir', 'input_dir', 'output_dir', 'sim_start', 'sim_end', 'fname_ntopOld',
                    'dname_sseg', 'dname_nhru',
-                   'ntopWriteOption', 'fname_ntopNew', 'seg_outlet', 'fname_qsim', 'vname_qsim', 
+                   'fname_ntopNew', 'seg_outlet', 'fname_qsim', 'vname_qsim',
                    'vname_time', 'vname_hruid', 'dname_xlon',
-                   'dname_ylat', 'dname_time', 'dname_hruid', 'units_qsim', 'dt_qsim', 
+                   'dname_ylat', 'dname_time', 'dname_hruid', 'units_qsim', 'dt_qsim',
                    'is_remap', 'fname_remap', 'vname_hruid_in_remap',
-                   'vname_weight', 'vname_qhruid', 'vname_num_qhru', 'dname_hru_remap', 
+                   'vname_weight', 'vname_qhruid', 'vname_num_qhru', 'dname_hru_remap',
                    'dname_data_remap', 'vname_i_index', 'vname_j_index',
-                   'restart_opt', 'route_opt', 'fname_output', 'fname_state_in', 
-                   'fname_state_out', 'hydGeometryOption', 'topoNetworkOption',
-                   'computeReachList', 'param_nml', 'varname_area', 'varname_length', 
+                   'route_opt', 'fname_state_in',
+                   'hydGeometryOption', 'topoNetworkOption',
+                   'computeReachList', 'param_nml', 'varname_area', 'varname_length',
                    'varname_slope', 'varname_HRUid', 'varname_hruSegId',
                    'varname_segId', 'varname_downSegId']
        self.assertEqual( expected, elist )
@@ -237,7 +237,7 @@ class test_mizuRoute_control(unittest.TestCase):
        self.assertEqual( [], newctl.get_elmList() )
 
    def test_write( self ):
-       infile = "SAMPLE.control" 
+       infile = "SAMPLE.control"
        self.ctl.read( infile )
        outfile = "mizuRoute_in"
        self.ctl.write( outfile )
