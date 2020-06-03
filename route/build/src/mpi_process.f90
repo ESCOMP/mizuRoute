@@ -320,7 +320,7 @@ contains
 
     call shr_mpi_scatterV(segId    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), segId_local,     ierr, cmessage)
     call shr_mpi_scatterV(downSegId(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), downSegId_local, ierr, cmessage)
-    call shr_mpi_scatterV(islake   (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), islake_local,    ierr, cmessage)
+    call shr_mpi_scatterV(islake   (nHRU_mainstem+1:nRch_in), hru_per_proc(0:nNodes-1), islake_local,    ierr, cmessage)
     call shr_mpi_scatterV(slope    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), slope_local,     ierr, cmessage)
     call shr_mpi_scatterV(length   (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), length_local,    ierr, cmessage)
     call shr_mpi_scatterV(RATECVA  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVA_local,   ierr, cmessage)
