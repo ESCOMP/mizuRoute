@@ -14,7 +14,6 @@ MODULE RtmMod
                              caseid, brnch_retain_casename, inst_suffix, inst_name, &
                              barrier_timers
   USE RtmFileUtils,   ONLY : relavu, getavu, opnfil, getfil
-  USE RtmTimeManager, ONLY : init_time
   USE RunoffMod     , ONLY : rtmCTL, RunoffInit
   USE public_var,     ONLY : dt                         ! routing time step
   USE public_var    , ONLY : iulog
@@ -237,6 +236,8 @@ CONTAINS
     USE globalData,          ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
     USE globalData,          ONLY: basinRunoff_main ! mainstem only HRU runoff
     USE globalData,          ONLY: basinRunoff_trib ! tributary only HRU runoff
+    USE globalData,          ONLY: modJulday        ! julian day: current model time step
+    USE globalData,          ONLY: restartJulday    ! julian dat: restart dropoff time
     USE write_simoutput_pio, ONLY: prep_output
     USE mpi_routine,         ONLY: mpi_route        ! MPI routing call
     USE write_simoutput_pio, ONLY: output
@@ -285,6 +286,7 @@ CONTAINS
     ! Initialize mizuRoute history handler and fields
     !-------------------------------------------------------
     call t_startf('mizuRoute_histinit')
+    restartJulday = modJulday
     call prep_output(ierr, cmessage)
     call t_stopf('mizuRoute_histinit')
 
@@ -412,10 +414,10 @@ CONTAINS
     do ns = 1,nsub
 
       if (masterproc) then
-        if (.not. allocated(basinRunoff_main)) then
+        if (allocated(basinRunoff_main)) then
           basinRunoff_main = basinRunoff_main/float(nsub)
         end if
-        if (.not. allocated(basinRunoff_trib)) then
+        if (allocated(basinRunoff_trib)) then
           basinRunoff_trib = basinRunoff_trib/float(nsub)
         end if
       else
