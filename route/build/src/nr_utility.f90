@@ -1,17 +1,27 @@
-module nr_utility_module
+MODULE nr_utility_module
+
 USE nrtype
+
 ! contains functions that should really be part of the fortran standard, but are not
 implicit none
+
 INTERFACE arth
  MODULE PROCEDURE arth_r, arth_d, arth_i
 END INTERFACE
+
+INTERFACE sizeo
+  MODULE PROCEDURE sizeo_i4b, sizeo_dp, sizeo_sp
+END INTERFACE
+
 ! (everything private unless otherwise specifed)
 private
 public::arth
 public::indexx
 public::findIndex
 public::indexTrue
-contains
+public::sizeo
+
+CONTAINS
 
  ! *************************************************************************************************
  ! * the arth function, used to build a vector of regularly spaced numbers
@@ -201,4 +211,40 @@ contains
 
  end subroutine indexTrue
 
-end module nr_utility_module
+ ! *************************************************************************************************
+ ! * size of array, if not allocated, return zero
+ ! *************************************************************************************************
+ FUNCTION sizeo_i4b(var) RESULT(asize)
+   implicit none
+   integer(i4b), allocatable, intent(in) :: var(:)
+   integer(i4b)                          :: asize
+   if (.not.(allocated(var))) then
+     asize = 0
+   else
+     asize = size(var)
+   end if
+ END FUNCTION sizeo_i4b
+ ! ------------------------------------------------------------------------------------------------
+ FUNCTION sizeo_dp(var) RESULT(asize)
+   implicit none
+   real(dp), allocatable, intent(in) :: var(:)
+   integer(i4b)                      :: asize
+   if (.not.(allocated(var))) then
+     asize = 0
+   else
+     asize = size(var)
+   end if
+ END FUNCTION sizeo_dp
+ ! ------------------------------------------------------------------------------------------------
+ FUNCTION sizeo_sp(var) RESULT(asize)
+   implicit none
+   real(sp), allocatable, intent(in) :: var(:)
+   integer(i4b)                      :: asize
+   if (.not.(allocated(var))) then
+     asize = 0
+   else
+     asize = size(var)
+   end if
+ END FUNCTION sizeo_sp
+
+END MODULE nr_utility_module

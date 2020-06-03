@@ -10,7 +10,6 @@ PROGRAM route_runoff
 ! variable types
 USE nrtype                                     ! variable types, etc.
 ! shared data
-USE public_var, ONLY: iulog                   ! i/o logical unit number
 USE globalData, ONLY: pid, nNodes             ! procs id and number of procs
 USE globalData, ONLY: mpicom_route            ! communicator
 
@@ -18,6 +17,8 @@ USE globalData, ONLY: mpicom_route            ! communicator
 ! provide access to desired subroutines...
 ! ****************************************
 ! subroutines: model set up
+USE perf_mod,            ONLY: t_initf          ! initialize timing routines (GPTL library)
+USE perf_mod,            ONLY: t_startf,t_stopf ! timing start/stop (GPTL library)
 USE model_setup,         ONLY: init_mpi         ! initialize MPI for this program
 USE model_setup,         ONLY: init_data        ! initialize river reach data
 USE model_setup,         ONLY: infile_name      ! updating the file name and iTime_local
@@ -45,14 +46,6 @@ integer(i4b)                  :: ierr                ! error code
 character(len=strLen)         :: cmessage            ! error message of downwind routine
 integer(i4b)                  :: iens = 1
 logical(lgt)                  :: finished=.false.
-!Timing
-integer*8                     :: cr, startTime, endTime
-real(dp)                      :: elapsedTime
-
-! ******
-! Initialize the system_clock
-! ***********************************
-call system_clock(count_rate=cr)
 
 ! ******
 ! get command-line argument defining the full path to the control file
@@ -61,14 +54,14 @@ call system_clock(count_rate=cr)
  if(len_trim(cfile_name)==0) call handle_err(50,'need to supply name of the control file as a command-line argument')
 
 ! *****
-! *** MPI initialization ....
+! *** MPI/timer initialization ....
 ! ***********************************
 call init_mpi()
+call t_initf('dummy_empty_namelist', LogPrint=.true., mpicom=mpicom_route, mastertask=.true.)
 
 ! *****
 ! *** model setup
 !    - read control files and namelist
-!    - broadcast to all processors
 ! ************************
 call init_model(cfile_name, ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
@@ -85,6 +78,7 @@ call infile_pop(ierr, cmessage)
 !    - runoff data (datetime, domain)
 !    - runoff remapping data
 !    - channel states
+!    - broadcast to all processors
 ! ***********************************
 call init_data(pid, nNodes, mpicom_route, ierr, cmessage)
 if(ierr/=0) call handle_err(ierr, cmessage)
@@ -101,27 +95,21 @@ do while (.not.finished)
   if(ierr/=0) call handle_err(ierr, cmessage)
 
   if(pid==0)then
-call system_clock(startTime)
+    call t_startf ('input')
     call get_hru_runoff(ierr, cmessage)
     if(ierr/=0) call handle_err(ierr, cmessage)
-call system_clock(endTime)
-elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-write(iulog,"(A,1PG15.7,A)") '   elapsed-time [read_ro] = ', elapsedTime, ' s'
+    call t_stopf ('input')
   endif
 
-call system_clock(startTime)
+  call t_startf ('route-total')
   call mpi_route(pid, nNodes, mpicom_route, iens, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
-call system_clock(endTime)
-elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-write(iulog,"(A,1PG15.7,A)") '   elapsed-time [routing] = ', elapsedTime, ' s'
+  call t_stopf ('route-total')
 
-call system_clock(startTime)
+  call t_startf ('output')
   call output(ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
-call system_clock(endTime)
-elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-write(iulog,"(A,1PG15.7,A)") '   elapsed-time [output] = ', elapsedTime, ' s'
+  call t_stopf ('output')
 
   call update_time(finished, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)

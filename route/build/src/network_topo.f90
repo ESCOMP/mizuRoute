@@ -151,9 +151,11 @@ contains
   iSeg = segHRUix(iHRU)
 
   ! if there is no stream segment associated with current hru
-  if (iSeg == integerMissing) cycle
+  if (iSeg == integerMissing) then
+    structHRU2seg(iHRU)%var(ixHRU2SEG%HRUindex)%dat(1) = integerMissing
+    cycle
+  endif
 
-  ! associate variables in data structure
   associate(nContrib       => structNTOPO(iSeg)%var(ixNTOPO%nHRU)%dat(1),      & ! contributing HRUs
             hruContribIx   => structNTOPO(iSeg)%var(ixNTOPO%hruContribIx)%dat, & ! index of contributing HRU
             hruContribId   => structNTOPO(iSeg)%var(ixNTOPO%hruContribId)%dat  ) ! unique ids of contributing HRU
@@ -165,7 +167,6 @@ contains
   hruContribIx(nContrib)   = iHRU
   hruContribId(nContrib)   = structHRU2seg(iHRU)%var(ixHRU2SEG%HRUid)%dat(1)
 
-  ! end associations
   end associate
 
   ! save the HRU index

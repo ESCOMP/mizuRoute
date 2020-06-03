@@ -246,8 +246,8 @@ implicit none
 
  ! ---------- Eulerian kinematic wave ---------------------------------
  type, public :: EKWRCH
-   real(dp), allocatable    :: volsub(:)      ! volume in sub-reach (m3/s)
-   real(dp), allocatable    :: qsub(:,:)      ! discharge from sub-reach (m3/s)
+   real(dp)    :: Q(1:4)          ! Discharge at upstream and downstream of reach at current and previous time step(m3/s)
+   real(dp)    :: A(1:4)          ! Flow area at upstream and downstream of reach at current and previous time step(m3/s)
  end type EKWRCH
 
  ! ---------- irf states (future flow series ) ---------------------------------
@@ -323,3 +323,47 @@ implicit none
  END TYPE LKFLX
 
 END MODULE dataTypes
+
+MODULE objTypes
+
+ USE nrtype,     only: i4b,dp,lgt
+ USE nrtype,     only: strLen   ! string length
+ USE public_var, only: realMissing
+ USE public_var, only: integerMissing
+
+ ! define derived type for model variables, including name, description, and units
+ type, public :: var_info_new
+   character(len=strLen)    :: varName  = 'empty'         ! variable name
+   character(len=strLen)    :: varDesc  = 'empty'         ! variable description
+   character(len=strLen)    :: varUnit  = 'empty'         ! variable units
+   integer(i4b)             :: varType  = integerMissing  ! variable type
+   integer(i4b),allocatable :: varDim(:)                  ! dimension ID associated with variable
+   logical(lgt)             :: varFile  = .true.          ! .true. if the variable should be read from a file
+ CONTAINS
+   procedure, pass :: init
+ end type var_info_new
+
+ CONTAINS
+
+  SUBROUTINE init(this, vName, vDesc, vUnit, vType, vDim, vFile)
+    implicit none
+    class(var_info_new)                 :: this
+    character(*),            intent(in) :: vName    ! variable name
+    character(*),            intent(in) :: vDesc    ! variable description
+    character(*),            intent(in) :: vUnit    ! variable units
+    integer(i4b),            intent(in) :: vType    ! variable type
+    integer(i4b),            intent(in) :: vDim(:)  ! dimension ID
+    logical(lgt),            intent(in) :: vFile    ! .true. if the variable should be read from a file
+    integer(i4b)                        :: n        ! size of dimension
+
+    n = size(vDim)
+    allocate(this%varDim(n))
+    this%varName      = vName
+    this%varDesc      = vDesc
+    this%varUnit      = vUnit
+    this%varType      = vType
+    this%varDim(1:n) = vDim(1:n)
+    this%varFile      = vFile
+  END SUBROUTINE init
+
+END MODULE objTypes

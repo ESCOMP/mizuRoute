@@ -2,15 +2,18 @@ MODULE write_simoutput_pio
 
 ! Moudle wide shared data
 USE nrtype
+USE var_lookup,        ONLY: ixRFLX, nVarsRFLX
 USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
 USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: integerMissing
 USE public_var,        ONLY: doesBasinRoute      ! basin routing options   0-> no, 1->IRF, otherwise error
 USE public_var,        ONLY: doesAccumRunoff     ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
 USE public_var,        ONLY: routOpt             ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-USE public_var,        ONLY: kinematicWave       ! kinematic wave
+USE public_var,        ONLY: kinematicWave       ! Lagrangian kinematic wave
+USE public_var,        ONLY: kinematicWaveEuler  ! Eulerian kinematic wave
 USE public_var,        ONLY: impulseResponseFunc ! impulse response function
 USE public_var,        ONLY: allRoutingMethods   ! all routing methods
+USE globalData,        ONLY: meta_rflx
 USE globalData,        ONLY: pid, nNodes
 USE globalData,        ONLY: masterproc
 USE globalData,        ONLY: mpicom_route
@@ -49,15 +52,17 @@ contains
  ! *********************************************************************
  subroutine output(ierr, message)
 
-  !Dependent modules
-  USE globalData, ONLY: nHRU                ! number of ensembles, HRUs and river reaches
+  ! global data required only this routine
   USE globalData, ONLY: RCHFLX_main         ! mainstem Reach fluxes (ensembles, space [reaches])
   USE globalData, ONLY: RCHFLX_trib         ! tributary Reach fluxes (ensembles, space [reaches])
+  USE globalData, ONLY: basinRunoff_main    ! mainstem only HRU runoff
+  USE globalData, ONLY: basinRunoff_trib    ! tributary only HRU runoff
+  USE globalData, ONLY: nHRU_mainstem       ! number of mainstem HRUs
   USE globalData, ONLY: iTime               ! time index at simulation time step
   USE globalData, ONLY: timeVar             ! time variables (unit given by runoff data)
-  USE globalData, ONLY: runoff_data         ! runoff data for one time step for LSM HRUs and River network HRUs
   USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
   USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
+  USE globalData, ONLY: hru_per_proc        ! number of hrus assigned to each proc (size = num of procs+1)
 
   implicit none
 
@@ -93,10 +98,18 @@ contains
   endif
 
   if (masterproc) then
-   allocate(basinRunoff(nHRU))
-   basinRunoff = runoff_data%basinRunoff
+    associate(nHRU_trib => hru_per_proc(0))
+    allocate(basinRunoff(nHRU_mainstem+nHRU_trib), stat=ierr)
+    if (nHRU_mainstem>0) then
+      basinRunoff(1:nHRU_mainstem) = basinRunoff_main(1:nHRU_mainstem)
+    end if
+    if (nHRU_trib>0) then
+      basinRunoff(nHRU_mainstem+1:nHRU_mainstem+nHRU_trib) = basinRunoff_trib(1:nHRU_trib)
+    endif
+    end associate
   else
-   allocate(basinRunoff(1))
+    allocate(basinRunoff(hru_per_proc(pid)), stat=ierr)
+    basinRunoff = basinRunoff_trib
   endif
 
   ! write time -- note time is just carried across from the input
@@ -104,35 +117,45 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! write the basin runoff to the netcdf file
-  call write_pnetcdf_recdim(pioFileDesc, 'basRunoff',basinRunoff, iodesc_hru_ro, jTime, ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  if (doesBasinRoute == 1) then
-   ! write instataneous local runoff in each stream segment (m3/s)
-   call write_pnetcdf_recdim(pioFileDesc, 'instRunoff', RCHFLX_local(:)%BASIN_QI, iodesc_rch_flx, jTime, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if (meta_rflx(ixRFLX%basRunoff)%varFile) then
+    call write_pnetcdf_recdim(pioFileDesc, 'basRunoff',basinRunoff, iodesc_hru_ro, jTime, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
-  ! write routed local runoff in each stream segment (m3/s)
-  call write_pnetcdf_recdim(pioFileDesc, 'dlayRunoff', RCHFLX_local(:)%BASIN_QR(1), iodesc_rch_flx, jTime, ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  ! write accumulated runoff (m3/s)
-  if (doesAccumRunoff == 1) then
-   call write_pnetcdf_recdim(pioFileDesc, 'sumUpstreamRunoff', RCHFLX_local(:)%UPSTREAM_QI, iodesc_rch_flx, jTime, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if (meta_rflx(ixRFLX%instRunoff)%varFile) then
+    ! write instataneous local runoff in each stream segment (m3/s)
+    call write_pnetcdf_recdim(pioFileDesc, 'instRunoff', RCHFLX_local(:)%BASIN_QI, iodesc_rch_flx, jTime, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
-  if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
-   ! write routed runoff (m3/s)
-   call write_pnetcdf_recdim(pioFileDesc, 'KWTroutedRunoff', RCHFLX_local(:)%REACH_Q, iodesc_rch_flx, jTime, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if (meta_rflx(ixRFLX%dlayRunoff)%varFile) then
+    ! write routed local runoff in each stream segment (m3/s)
+    call write_pnetcdf_recdim(pioFileDesc, 'dlayRunoff', RCHFLX_local(:)%BASIN_QR(1), iodesc_rch_flx, jTime, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
-  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
-   ! write routed runoff (m3/s)
-   call write_pnetcdf_recdim(pioFileDesc, 'IRFroutedRunoff', RCHFLX_local(:)%REACH_Q_IRF, iodesc_rch_flx, jTime, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if (meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile) then
+    ! write accumulated runoff (m3/s)
+    call write_pnetcdf_recdim(pioFileDesc, 'sumUpstreamRunoff', RCHFLX_local(:)%UPSTREAM_QI, iodesc_rch_flx, jTime, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+  if (meta_rflx(ixRFLX%KWTroutedRunoff)%varFile) then
+    ! write routed runoff (m3/s)
+    call write_pnetcdf_recdim(pioFileDesc, 'KWTroutedRunoff', RCHFLX_local(:)%REACH_Q, iodesc_rch_flx, jTime, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+  if (meta_rflx(ixRFLX%KWEroutedRunoff)%varFile) then
+    ! write routed runoff (m3/s)
+    call write_pnetcdf_recdim(pioFileDesc, 'KWEroutedRunoff', RCHFLX_local(:)%REACH_Q, iodesc_rch_flx, jTime, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+  if (meta_rflx(ixRFLX%IRFroutedRunoff)%varFile) then
+     ! write routed runoff (m3/s)
+     call write_pnetcdf_recdim(pioFileDesc, 'IRFroutedRunoff', RCHFLX_local(:)%REACH_Q_IRF, iodesc_rch_flx, jTime, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
@@ -159,7 +182,7 @@ contains
  USE globalData, ONLY: basinID,reachID   ! HRU and reach ID in network
  USE globalData, ONLY: modJulday         ! julian day: at model time step
  USE globalData, ONLY: modTime           ! previous and current model time
- USE globalData, ONLY: nHRU, nRch        ! number of ensembles, HRUs and river reaches
+ USE globalData, ONLY: nEns, nHRU, nRch  ! number of ensembles, HRUs and river reaches
  USE globalData, ONLY: isFileOpen        ! file open/close status
  ! subroutines
  USE time_utils_module, ONLy: compCalday        ! compute calendar day
@@ -222,6 +245,9 @@ contains
 
    ! define output file
    call defineFile(trim(fileout),                         &  ! input: file name
+                   nEns,                                  &  ! input: number of ensembles
+                   nHRU,                                  &  ! input: number of HRUs
+                   nRch,                                  &  ! input: number of stream segments
                    time_units,                            &  ! input: time units
                    calendar,                              &  ! input: calendar
                    ierr,cmessage)                            ! output: error control
@@ -252,71 +278,83 @@ contains
 
  END SUBROUTINE prep_output
 
- SUBROUTINE close_output_nc()
 
+ SUBROUTINE close_output_nc()
   USE globalData, ONLY: isFileOpen   ! file open/close status
   implicit none
   if (isFileOpen) then
    call closeFile(pioFileDesc)
    isFileOpen=.false.
   endif
-
  END SUBROUTINE close_output_nc
+
 
  ! *********************************************************************
  ! private subroutine: define routing output NetCDF file
  ! *********************************************************************
  SUBROUTINE defineFile(fname,           &  ! input: filename
+                       nEns_in,         &  ! input: number of ensembles
+                       nHRU_in,         &  ! input: number of HRUs
+                       nRch_in,         &  ! input: number of stream segments
                        units_time,      &  ! input: time units
                        calendar,        &  ! input: calendar
                        ierr, message)      ! output: error control
  !Dependent modules
  USE var_lookup, ONLY: ixQdims, nQdims
- USE var_lookup, ONLY: ixRFLX, nVarsRFLX
- USE globalData, ONLY: meta_rflx
  USE globalData, ONLY: meta_qDims
  USE globalData, ONLY: rch_per_proc             ! number of reaches assigned to each proc (size = num of procs+1)
- USE globalData, ONLY: nEns, nHRU, nRch         ! number of ensembles, HRUs and river reaches
+ USE globalData, ONLY: hru_per_proc             ! number of hrus assigned to each proc (size = num of procs+1)
 
  implicit none
  ! input variables
- character(*), intent(in)    :: fname             ! filename
- character(*), intent(in)    :: units_time        ! time units
- character(*), intent(in)    :: calendar          ! calendar
+ character(*), intent(in)          :: fname             ! filename
+ integer(i4b), intent(in)          :: nEns_in           ! number of ensembles
+ integer(i4b), intent(in)          :: nHRU_in           ! number of HRUs
+ integer(i4b), intent(in)          :: nRch_in           ! number of stream segments
+ character(*), intent(in)          :: units_time        ! time units
+ character(*), intent(in)          :: calendar          ! calendar
  ! output variables
- integer(i4b), intent(out)   :: ierr              ! error code
- character(*), intent(out)   :: message           ! error message
+ integer(i4b), intent(out)         :: ierr              ! error code
+ character(*), intent(out)         :: message           ! error message
  ! local variables
- character(len=strLen)       :: cmessage          ! error message of downwind routine
- integer(i4b)                :: jDim,iVar         ! dimension, and variable index
- integer(i4b)                :: ix1, ix2          ! frst and last indices of global array for local array chunk
- integer(i4b)                :: ixRch(nRch)        !
- integer(i4b)                :: nHRU_in
- integer(i4b)                :: ixDim
- integer(i4b)                :: dim_array(2)
- integer(i4b),allocatable    :: dof_hru(:)        ! dof for basin runoff
+ integer(i4b),allocatable          :: dim_array(:)      ! dimension
+ integer(i4b)                      :: jDim,iVar         ! dimension, and variable index
+ integer(i4b)                      :: nDims             ! number of dimension
+ integer(i4b)                      :: ix1, ix2          ! frst and last indices of global array for local array chunk
+ integer(i4b)                      :: ixRch(nRch_in)    !
+ integer(i4b)                      :: ixHRU(nHRU_in)    !
+ integer(i4b)                      :: ixDim             !
+ character(len=strLen)             :: cmessage          ! error message of downwind routine
 
  ! initialize error control
  ierr=0; message='defineFile/'
 
  ! populate q dimension meta (not sure if this should be done here...)
- meta_qDims(ixQdims%seg)%dimLength = nRch
- meta_qDims(ixQdims%hru)%dimLength = nHRU
- meta_qDims(ixQdims%ens)%dimLength = nEns
+ meta_qDims(ixQdims%seg)%dimLength = nRch_in
+ meta_qDims(ixQdims%hru)%dimLength = nHRU_in
+ meta_qDims(ixQdims%ens)%dimLength = nEns_in
 
  ! Modify write option
  ! This is temporary
  if (routOpt==kinematicWave) then
-  meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
+   meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
+   meta_rflx(ixRFLX%KWEroutedRunoff)%varFile = .false.
+ elseif (routOpt==kinematicWaveEuler) then
+   meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
+   meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
+ elseif (routOpt==impulseResponseFunc) then
+   meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
+   meta_rflx(ixRFLX%KWEroutedRunoff)%varFile = .false.
+ elseif (routOpt==allRoutingMethods) then
+   meta_rflx(ixRFLX%KWEroutedRunoff)%varFile = .false.
  end if
- if (routOpt==impulseResponseFunc) then
-  meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
- end if
+ ! runoff accumulation option
  if (doesAccumRunoff==0) then
-  meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile = .false.
+   meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile = .false.
  end if
+ ! basin runoff routing option
  if (doesBasinRoute==0) then
-  meta_rflx(ixRFLX%instRunoff)%varFile = .false.
+   meta_rflx(ixRFLX%instRunoff)%varFile = .false.
  end if
 
  ! pio initialization
@@ -326,54 +364,52 @@ contains
                    pio_rearranger, pio_root,   & ! input: PIO related parameters
                    pioSystem)                    ! output: PIO system descriptors
 
+ ! For reach flux/volume
  if (masterproc) then
-   ix1 = 1_i4b
+   ix1 = 1
  else
-   ix1 = sum(rch_per_proc(-1:pid-1))+1_i4b
+   ix1 = sum(rch_per_proc(-1:pid-1))+1
  endif
  ix2 = sum(rch_per_proc(-1:pid))
- ixRch = arth(1,1,nRch)
+ ixRch = arth(1,1,nRch_in)
+
  call pio_decomp(pioSystem,              & ! input: pio system descriptor
                  ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                 [nRch],                 & ! input: dimension length == global array size
+                 [nRch_in],              & ! input: dimension length == global array size
                  ixRch(ix1:ix2),         & ! input:
                  iodesc_rch_flx)
 
-! For runoff
+! For HRU flux/volume
  if (masterproc) then
-  nHRU_in = nHRU
+   ix1 = 1
  else
-  nHRU_in = 1_i4b
+   ix1 = sum(hru_per_proc(-1:pid-1))+1
  endif
-
- allocate(dof_hru(nHRU_in))
-
- if (masterproc) then
-  dof_hru = arth(1,1,nHRU)
- else
-  dof_hru = 0_i4b
- endif
+ ix2 = sum(hru_per_proc(-1:pid))
+ ixHRU = arth(1,1,nHRU_in)
 
  call pio_decomp(pioSystem,     & ! input: pio system descriptor
                  ncd_double,    & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                 [nHRU],        & ! input: dimension length == global array size
-                 dof_hru,       & ! input:
+                 [nHRU_in],     & ! input: dimension length == global array size
+                 ixHRU(ix1:ix2),& ! input:
                  iodesc_hru_ro)
 
+ ! --------------------
+ ! define file
+ ! --------------------
  call createFile(pioSystem, trim(fname), pio_typename, pio_netcdf_format, pioFileDesc, ierr, cmessage)
- if(ierr/=0)then; message=trim(cmessage)//'cannot create netCDF'; return; endif
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  do jDim =1,nQdims
    if (jDim ==ixQdims%time) then ! time dimension (unlimited)
-    call defdim(pioFileDesc, trim(meta_qDims(jDim)%dimName), recordDim, meta_qDims(jDim)%dimId)
+    call def_dim(pioFileDesc, trim(meta_qDims(jDim)%dimName), recordDim, meta_qDims(jDim)%dimId)
    else
-    call defdim(pioFileDesc, trim(meta_qDims(jDim)%dimName), meta_qDims(jDim)%dimLength, meta_qDims(jDim)%dimId)
+    call def_dim(pioFileDesc, trim(meta_qDims(jDim)%dimName), meta_qDims(jDim)%dimLength, meta_qDims(jDim)%dimId)
    endif
-  if(ierr/=0)then; message=trim(message)//'cannot define dimension'; return; endif
  end do
 
  ! define coordinate variable for time
- call defVar(pioFileDesc,                                 &                                        ! pio file descriptor
+ call def_var(pioFileDesc,                                &                                        ! pio file descriptor
              trim(meta_qDims(ixQdims%time)%dimName),      &                                        ! variable name
              [meta_qDims(ixQdims%time)%dimId], ncd_float, &                                        ! dimension array and type
              ierr, cmessage,                              &                                        ! error handle
@@ -381,9 +417,10 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! define hru ID and reach ID variables
- call defvar(pioFileDesc, 'basinID', [meta_qDims(ixQdims%hru)%dimId], ncd_int, ierr, cmessage, vdesc='basin ID', vunit='-')
+ call def_var(pioFileDesc, 'basinID', [meta_qDims(ixQdims%hru)%dimId], ncd_int, ierr, cmessage, vdesc='basin ID', vunit='-')
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- call defvar(pioFileDesc, 'reachID', [meta_qDims(ixQdims%seg)%dimId], ncd_int, ierr, cmessage, vdesc='reach ID', vunit='-')
+
+ call def_var(pioFileDesc, 'reachID', [meta_qDims(ixQdims%seg)%dimId], ncd_int, ierr, cmessage, vdesc='reach ID', vunit='-')
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! define flux variables
@@ -392,11 +429,17 @@ contains
   if (.not.meta_rflx(iVar)%varFile) cycle
 
   ! define dimension ID array
-  ixDim = meta_rflx(iVar)%varType
-  dim_array = [meta_qDims(ixDim)%dimId, meta_qDims(ixQdims%time)%dimId]
+  nDims = size(meta_rflx(iVar)%varDim)
+  if (allocated(dim_array)) then
+    deallocate(dim_array)
+  endif
+  allocate(dim_array(nDims))
+  do ixDim = 1, nDims
+    dim_array(ixDim) = meta_qDims(meta_rflx(iVar)%varDim(ixDim))%dimId
+  end do
 
   ! define variable
-  call defvar(pioFileDesc,             &                 ! pio file descriptor
+  call def_var(pioFileDesc,            &                 ! pio file descriptor
               meta_rflx(iVar)%varName, &                 ! variable name
               dim_array, ncd_float,    &                 ! dimension array and type
               ierr, cmessage,          &                 ! error handling
@@ -406,7 +449,7 @@ contains
  end do
 
  ! end definitions
- call endDef(pioFileDesc, ierr, cmessage)
+ call end_def(pioFileDesc, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  END SUBROUTINE defineFile

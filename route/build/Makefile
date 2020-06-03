@@ -35,7 +35,7 @@ LIBOPENMP =
 # define path to PNETCDF if you want to use it
 isMPISERIAL =
 isPIO = yes
-isGPTL =
+isGPTL = yes
 
 # If isPIO==yes then you can give hints to PIO about the local system
 # gpfs is the specific filesystem used on cheyenne
