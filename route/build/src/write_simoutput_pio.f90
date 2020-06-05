@@ -51,14 +51,16 @@ contains
  subroutine output(ierr, message)
 
   !Dependent modules
-  USE globalData, ONLY: nHRU                ! number of ensembles, HRUs and river reaches
   USE globalData, ONLY: RCHFLX_main         ! mainstem Reach fluxes (ensembles, space [reaches])
   USE globalData, ONLY: RCHFLX_trib         ! tributary Reach fluxes (ensembles, space [reaches])
+  USE globalData, ONLY: basinRunoff_main    ! mainstem only HRU runoff
+  USE globalData, ONLY: basinRunoff_trib    ! tributary only HRU runoff
+  USE globalData, ONLY: nHRU_mainstem       ! number of mainstem HRUs
   USE globalData, ONLY: iTime               ! time index at simulation time step
   USE globalData, ONLY: timeVar             ! time variables (unit given by runoff data)
-  USE globalData, ONLY: runoff_data         ! runoff data for one time step for LSM HRUs and River network HRUs
   USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
   USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
+  USE globalData, ONLY: hru_per_proc        ! number of hrus assigned to each proc (size = num of procs+1)
 
   implicit none
 
@@ -94,10 +96,18 @@ contains
   endif
 
   if (masterproc) then
-   allocate(basinRunoff(nHRU))
-   basinRunoff = runoff_data%basinRunoff
+    associate(nHRU_trib => hru_per_proc(0))
+    allocate(basinRunoff(nHRU_mainstem+nHRU_trib), stat=ierr)
+    if (nHRU_mainstem>0) then
+      basinRunoff(1:nHRU_mainstem) = basinRunoff_main(1:nHRU_mainstem)
+    end if
+    if (nHRU_trib>0) then
+      basinRunoff(nHRU_mainstem+1:nHRU_mainstem+nHRU_trib) = basinRunoff_trib(1:nHRU_trib)
+    endif
+    end associate
   else
-   allocate(basinRunoff(1))
+    allocate(basinRunoff(hru_per_proc(pid)), stat=ierr)
+    basinRunoff = basinRunoff_trib
   endif
 
   ! write time -- note time is just carried across from the input
@@ -274,6 +284,7 @@ contains
  USE globalData, ONLY: meta_rflx
  USE globalData, ONLY: meta_qDims
  USE globalData, ONLY: rch_per_proc             ! number of reaches assigned to each proc (size = num of procs+1)
+ USE globalData, ONLY: hru_per_proc             ! number of hrus assigned to each proc (size = num of procs+1)
  USE globalData, ONLY: nEns, nHRU, nRch         ! number of ensembles, HRUs and river reaches
 
  implicit none
@@ -289,10 +300,9 @@ contains
  integer(i4b)                :: jDim,iVar         ! dimension, and variable index
  integer(i4b)                :: ix1, ix2          ! frst and last indices of global array for local array chunk
  integer(i4b)                :: ixRch(nRch)        !
- integer(i4b)                :: nHRU_in
+ integer(i4b)                :: ixHRU(nHRU)        !
  integer(i4b)                :: ixDim
  integer(i4b)                :: dim_array(2)
- integer(i4b),allocatable    :: dof_hru(:)        ! dof for basin runoff
 
  ! initialize error control
  ierr=0; message='defineFile/'
@@ -333,38 +343,34 @@ contains
                    pio_rearranger, pio_root,   & ! input: PIO related parameters
                    pioSystem)                    ! output: PIO system descriptors
 
+ ! For reach flux/volume
  if (masterproc) then
-   ix1 = 1_i4b
+   ix1 = 1
  else
-   ix1 = sum(rch_per_proc(-1:pid-1))+1_i4b
+   ix1 = sum(rch_per_proc(-1:pid-1))+1
  endif
  ix2 = sum(rch_per_proc(-1:pid))
  ixRch = arth(1,1,nRch)
+
  call pio_decomp(pioSystem,              & ! input: pio system descriptor
                  ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                  [nRch],                 & ! input: dimension length == global array size
                  ixRch(ix1:ix2),         & ! input:
                  iodesc_rch_flx)
 
-! For runoff
+! For HRU flux/volume
  if (masterproc) then
-  nHRU_in = nHRU
+   ix1 = 1
  else
-  nHRU_in = 1_i4b
+   ix1 = sum(hru_per_proc(-1:pid-1))+1
  endif
-
- allocate(dof_hru(nHRU_in))
-
- if (masterproc) then
-  dof_hru = arth(1,1,nHRU)
- else
-  dof_hru = 0_i4b
- endif
+ ix2 = sum(hru_per_proc(-1:pid))
+ ixHRU = arth(1,1,nHRU)
 
  call pio_decomp(pioSystem,     & ! input: pio system descriptor
                  ncd_double,    & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                  [nHRU],        & ! input: dimension length == global array size
-                 dof_hru,       & ! input:
+                 ixHRU(ix1:ix2),& ! input:
                  iodesc_hru_ro)
 
  call createFile(pioSystem, trim(fname), pio_typename, pio_netcdf_format, pioFileDesc, ierr, cmessage)

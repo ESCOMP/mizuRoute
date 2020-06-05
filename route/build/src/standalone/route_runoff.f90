@@ -10,7 +10,6 @@ PROGRAM route_runoff
 ! variable types
 USE nrtype                                     ! variable types, etc.
 ! shared data
-USE public_var, ONLY: iulog                   ! i/o logical unit number
 USE globalData, ONLY: pid, nNodes             ! procs id and number of procs
 USE globalData, ONLY: mpicom_route            ! communicator
 
