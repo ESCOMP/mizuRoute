@@ -9,6 +9,8 @@ USE dataTypes, ONLY: RCHTOPO        ! Network topology
 USE public_var, ONLY: iulog          ! i/o logical unit number
 USE public_var, ONLY: realMissing    ! missing value for real number
 USE public_var, ONLY: integerMissing ! missing value for integer number
+! subroutines: general
+USE perf_mod,  ONLY: t_startf,t_stopf ! timing start/stop
 
 ! privary
 implicit none
@@ -55,14 +57,9 @@ contains
  integer(i4b)                                    :: iSeg, jSeg          ! loop indices - reach
  integer(i4b)                                    :: iTrib               ! loop indices - branch
  integer(i4b)                                    :: ix                  ! loop indices stream order
- ! variables needed for timing
- integer*8                                       :: cr                  ! rate
- integer*8                                       :: startTime,endTime   ! date/time for the start and end of the initialization
- real(dp)                                        :: elapsedTime         ! elapsed time for the process
 
  ! initialize error control
  ierr=0; message='irf_route/'
- call system_clock(count_rate=cr)
 
  ! number of reach check
  if (size(NETOPO_in)/=size(RCHFLX_out(iens,:))) then
@@ -85,7 +82,7 @@ contains
 
  nOrder = size(river_basin)
 
- call system_clock(startTime)
+ call t_startf('route/irf')
 
  do ix = 1,nOrder
 
@@ -113,9 +110,7 @@ contains
 
  end do
 
- call system_clock(endTime)
- elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
- !write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/irf] = ', elapsedTime, ' s'
+ call t_stopf('route/irf')
 
  end subroutine irf_route
 
