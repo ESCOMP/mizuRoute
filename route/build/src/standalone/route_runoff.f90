@@ -18,8 +18,8 @@ USE globalData, ONLY: mpicom_route            ! communicator
 ! provide access to desired subroutines...
 ! ****************************************
 ! subroutines: model set up
-USE perf_mod,            ONLY: t_initf          ! initialize timing routines
-USE perf_mod,            ONLY: t_startf,t_stopf ! timing start/stop
+USE perf_mod,            ONLY: t_initf          ! initialize timing routines (GPTL library)
+USE perf_mod,            ONLY: t_startf,t_stopf ! timing start/stop (GPTL library)
 USE model_setup,         ONLY: init_mpi         ! initialize MPI for this program
 USE model_setup,         ONLY: init_data        ! initialize river reach data
 USE init_model_data,     ONLY: init_model       ! model setupt - reading control file, populate metadata, read parameter file
