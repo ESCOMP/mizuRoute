@@ -1,17 +1,28 @@
-module nr_utility_module
+MODULE nr_utility_module
+
 USE nrtype
+
 ! contains functions that should really be part of the fortran standard, but are not
 implicit none
+
 INTERFACE arth
  MODULE PROCEDURE arth_r, arth_d, arth_i
 END INTERFACE
+
+INTERFACE sizeo
+  MODULE PROCEDURE sizeo_i4b, sizeo_dp, sizeo_sp
+END INTERFACE
+
 ! (everything private unless otherwise specifed)
 private
 public::arth
 public::indexx
 public::findIndex
 public::indexTrue
-contains
+public::unique
+public::sizeo
+
+CONTAINS
 
  ! *************************************************************************************************
  ! * the arth function, used to build a vector of regularly spaced numbers
@@ -201,4 +212,74 @@ contains
 
  end subroutine indexTrue
 
-end module nr_utility_module
+ SUBROUTINE unique(array, unq, idx)
+  implicit none
+  ! Input variables
+  integer(i4b),            intent(in)  :: array(:)             ! integer array including duplicated elements
+  ! outpu variables
+  integer(i4b),allocatable,intent(out) :: unq(:)               ! integer array including unique elements
+  integer(i4b),allocatable,intent(out) :: idx(:)               ! integer array including unique element index
+  ! local
+  integer(i4b)                         :: ranked(size(array))  !
+  integer(i4b)                         :: unq_tmp(size(array)) !
+  logical(lgt)                         :: flg_tmp(size(array)) !
+  integer(i4b)                         :: ix                   ! loop index, counter
+  integer(i4b)                         :: last_unique          ! last unique element
+
+  flg_tmp = .false.
+  call indexx(array, ranked)
+
+  unq_tmp(ranked(1)) = array(ranked(1))
+  flg_tmp(ranked(1)) = .true.
+  last_unique = array(ranked(1))
+  do ix = 2,size(ranked)
+    if (last_unique==array(ranked(ix))) cycle
+    flg_tmp(ranked(ix)) = .true.
+    unq_tmp(ranked(ix)) = array(ranked(ix))
+    last_unique = array(ranked(ix))
+  end do
+
+  allocate(unq(count(flg_tmp)),idx(count(flg_tmp)))
+
+  idx = pack(arth(1,1,size(array)), flg_tmp)
+  unq = unq_tmp(idx)
+
+ END SUBROUTINE unique
+
+ ! *************************************************************************************************
+ ! * size of array, if not allocated, return zero
+ ! *************************************************************************************************
+ FUNCTION sizeo_i4b(var) RESULT(asize)
+   implicit none
+   integer(i4b), allocatable, intent(in) :: var(:)
+   integer(i4b)                          :: asize
+   if (.not.(allocated(var))) then
+     asize = 0
+   else
+     asize = size(var)
+   end if
+ END FUNCTION sizeo_i4b
+ ! ------------------------------------------------------------------------------------------------
+ FUNCTION sizeo_dp(var) RESULT(asize)
+   implicit none
+   real(dp), allocatable, intent(in) :: var(:)
+   integer(i4b)                      :: asize
+   if (.not.(allocated(var))) then
+     asize = 0
+   else
+     asize = size(var)
+   end if
+ END FUNCTION sizeo_dp
+ ! ------------------------------------------------------------------------------------------------
+ FUNCTION sizeo_sp(var) RESULT(asize)
+   implicit none
+   real(sp), allocatable, intent(in) :: var(:)
+   integer(i4b)                      :: asize
+   if (.not.(allocated(var))) then
+     asize = 0
+   else
+     asize = size(var)
+   end if
+ END FUNCTION sizeo_sp
+
+END MODULE nr_utility_module

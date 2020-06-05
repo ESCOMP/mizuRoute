@@ -11,9 +11,9 @@ module pio_utils
   public::pio_sys_init
   public::pio_decomp
   public::createFile
-  public::defDim
-  public::defVar
-  public::endDef
+  public::def_dim
+  public::def_var
+  public::end_def
   public::openFile
   public::closeFile
   public::write_netcdf             ! write non-distributed data
@@ -334,7 +334,7 @@ contains
   end subroutine closeFile
 
   !-----------------------------------------------------------------------
-  subroutine endDef(pioFileDesc, ierr, message)
+  subroutine end_def(pioFileDesc, ierr, message)
     ! !DESCRIPTION:
     ! end definition of netcdf file
     !
@@ -345,15 +345,15 @@ contains
     integer(i4b),      intent(out)   :: ierr         ! error status
     character(*),      intent(out)   :: message      ! error message
 
-    ierr=0; message='endDef/'
+    ierr=0; message='end_def/'
 
     ierr = pio_enddef(pioFileDesc)
     if(ierr/=pio_noerr)then; message=trim(message)//'Could not end define mode'; return; endif
 
-  end subroutine endDef
+  end subroutine end_def
 
   !-----------------------------------------------------------------------
-  subroutine defDim(pioFileDesc,   & ! input: file descriptor
+  subroutine def_dim(pioFileDesc,  & ! input: file descriptor
                     dimname,       & ! input: dimension name
                     dimlen,        & ! input: dimension size negative => record dimension
                     dimid)           ! output: dimension id
@@ -370,17 +370,17 @@ contains
       ierr = pio_def_dim(pioFileDesc, dimname, pio_unlimited, dimid)
     endif
 
-  end subroutine defDim
+  end subroutine def_dim
 
   !-----------------------------------------------------------------------
-  subroutine defVar(pioFileDesc,   & ! input: file descriptor
-                    vname,         & ! input: variable name
-                    pioDimId,      & ! input: dimension ID(s)
-                    ivtype,        & ! input: variable type. pio_int, pio_real, pio_double, pio_char
-                    ierr, message, & ! output: error code and message
-                    vdesc,         & ! input: optional. long_name
-                    vunit,         & ! input: optional. unit
-                    vcal)            ! input: optional. calendar type
+  subroutine def_var(pioFileDesc,   & ! input: file descriptor
+                     vname,         & ! input: variable name
+                     pioDimId,      & ! input: dimension ID(s)
+                     ivtype,        & ! input: variable type. pio_int, pio_real, pio_double, pio_char
+                     ierr, message, & ! output: error code and message
+                     vdesc,         & ! input: optional. long_name
+                     vunit,         & ! input: optional. unit
+                     vcal)            ! input: optional. calendar type
   implicit none
   ! input
   type(file_desc_t),intent(inout)         :: pioFileDesc            ! contains data identifying the file.
@@ -415,7 +415,7 @@ contains
   end if
 
 
-  end subroutine defVar
+  end subroutine def_var
 
   ! -----------------------------
   ! Writing routine

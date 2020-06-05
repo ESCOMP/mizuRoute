@@ -1,19 +1,21 @@
 MODULE model_setup
 
-! data types
 USE nrtype,    ONLY: i4b,dp,lgt          ! variable types, etc.
 USE nrtype,    ONLY: strLen              ! length of characters
 
-! Shared data
 USE public_var, ONLY: iulog              ! i/o logical unit number
+USE public_var, ONLY: debug
 USE public_var, ONLY: integerMissing
 USE public_var, ONLY: realMissing
+USE public_var, ONLY : charMissing
 
-! external routines
 USE init_model_data,  ONLY: init_ntopo_data
 USE init_model_data,  ONLY: init_state_data
 USE init_model_data,  ONLY: get_mpi_omp
 USE init_model_data,  ONLY: update_time
+
+USE nr_utility_module, ONLY : unique  ! get unique element array
+USE nr_utility_module, ONLY : indexx  ! get rank of data value
 
 implicit none
 
@@ -142,26 +144,31 @@ CONTAINS
                       ierr, message)  ! output
 
   ! subroutines:
-  USE process_time_module, ONLY: process_time  ! process time information
-  USE io_netcdf,           ONLY: get_nc        ! netcdf input
+  USE process_time_module, ONLY: process_time   ! process time information
+  USE process_time_module, ONLY: process_calday ! compute data and time from julian day
+  USE io_netcdf,           ONLY: get_nc         ! netcdf input
   ! derived datatype
-  USE dataTypes, ONLY: time           ! time data type
-  ! Shared data
-  USE public_var, ONLY: input_dir     ! directory containing input data
-  USE public_var, ONLY: fname_qsim    ! simulated runoff netCDF name
-  USE public_var, ONLY: vname_time    ! variable name for time
-  USE public_var, ONLY: time_units    ! time units (seconds, hours, or days)
-  USE public_var, ONLY: simStart      ! date string defining the start of the simulation
-  USE public_var, ONLY: simEnd        ! date string defining the end of the simulation
-  USE public_var, ONLY: calendar      ! calendar name
-  USE globalData, ONLY: timeVar       ! time variables (unit given by runoff data)
-  USE globalData, ONLY: iTime         ! time index at simulation time step
-  USE globalData, ONLY: convTime2Days ! conversion multipliers for time unit of runoff input to day
-  USE globalData, ONLY: refJulday     ! julian day: reference
-  USE globalData, ONLY: startJulday   ! julian day: start of routing simulation
-  USE globalData, ONLY: endJulday     ! julian day: end of routing simulation
-  USE globalData, ONLY: modJulday     ! julian day: at model time step
-  USE globalData, ONLY: modTime       ! model time data (yyyy:mm:dd:hh:mm:ss)
+  USE dataTypes, ONLY: time                     ! time data type
+  ! public data
+  USE public_var, ONLY: input_dir               ! directory containing input data
+  USE public_var, ONLY: fname_qsim              ! simulated runoff netCDF name
+  USE public_var, ONLY: vname_time              ! variable name for time
+  USE public_var, ONLY: time_units              ! time units (seconds, hours, or days)
+  USE public_var, ONLY: simStart                ! date string defining the start of the simulation
+  USE public_var, ONLY: simEnd                  ! date string defining the end of the simulation
+  USE public_var, ONLY: calendar                ! calendar name
+  USE public_var, ONLY: restart_write           ! restart write option
+  USE public_var, ONLY: restart_date            ! restart date
+  ! saved time variables
+  USE globalData, ONLY: timeVar                 ! time variables (unit given by runoff data)
+  USE globalData, ONLY: iTime                   ! time index at simulation time step
+  USE globalData, ONLY: refJulday               ! julian day: reference
+  USE globalData, ONLY: roJulday                ! julian day: runoff input time
+  USE globalData, ONLY: startJulday             ! julian day: start of routing simulation
+  USE globalData, ONLY: endJulday               ! julian day: end of routing simulation
+  USE globalData, ONLY: modJulday               ! julian day: at model time step
+  USE globalData, ONLY: restartJulday           ! julian day: at restart
+  USE globalData, ONLY: modTime                 ! model time data (yyyy:mm:dd:hh:mm:ss)
 
   implicit none
 
@@ -172,13 +179,18 @@ CONTAINS
   character(*),              intent(out)   :: message          ! error message
   ! local variable
   integer(i4b)                             :: ix
+  type(time)                               :: rofCal
+  type(time)                               :: simCal
+  real(dp)                                 :: convTime2Days
+  character(len=7)                         :: t_unit
   character(len=strLen)                    :: cmessage         ! error message of downwind routine
+  character(len=50)                        :: fmt1='(a,I4,a,I2.2,a,I2.2,x,I2.2,a,I2.2,a,F5.2)'
 
   ! initialize error control
   ierr=0; message='init_time/'
 
   ! time initialization
-  allocate(timeVar(nTime), stat=ierr)
+  allocate(timeVar(nTime), roJulday(nTime), stat=ierr)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! get the time data
@@ -186,11 +198,14 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! get the time multiplier needed to convert time to units of days
-  select case( trim( time_units(1:index(time_units,' ')) ) )
-   case('seconds'); convTime2Days=86400._dp
-   case('hours');   convTime2Days=24._dp
-   case('days');    convTime2Days=1._dp
-   case default;    ierr=20; message=trim(message)//'unable to identify time units'; return
+  t_unit = trim( time_units(1:index(time_units,' ')) )
+  select case( trim(t_unit) )
+   case('seconds','second','sec','s'); convTime2Days=86400._dp
+   case('minutes','minute','min');     convTime2Days=1440._dp
+   case('hours','hour','hr','h');      convTime2Days=24._dp
+   case('days','day','d');             convTime2Days=1._dp
+   case default
+     ierr=20; message=trim(message)//'<time_units>= '//trim(t_unit)//': <time_units> must be seconds, minutes, hours or days.'; return
   end select
 
   ! extract time information from the control information
@@ -201,21 +216,77 @@ CONTAINS
   call process_time(trim(simEnd),  calendar, endJulday,   ierr, cmessage)
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endJulday]'; return; endif
 
+  ! Julian day at first time step in runoff data
+  ! convert time unit in runoff netCDF to day
+  do ix = 1, nTime
+    roJulday(ix) = refJulday + timeVar(ix)/convTime2Days
+  end do
+
   ! check that the dates are aligned
-  if(endJulday<startJulday) then; ierr=20; message=trim(message)//'simulation end is before simulation start'; return; endif
+  if(endJulday<startJulday) then
+    write(cmessage,'(7a)') 'simulation end is before simulation start:', new_line('a'), '<sim_start>= ', trim(simStart), new_line('a'), '<sim_end>= ', trim(simEnd)
+    ierr=20; message=trim(message)//trim(cmessage); return
+  endif
+
+  ! check sim_start is before the last time step in runoff data
+  if(startJulday>roJulday(nTime)) then
+    call process_calday(roJulday(nTime), calendar, rofCal, ierr, cmessage)
+    call process_calday(startJulday, calendar, simCal, ierr, cmessage)
+    write(iulog,'(2a)') new_line('a'),'ERROR: <sim_start> is after the first time step in input runoff'
+    write(iulog,fmt1)  ' runoff_end  : ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
+    write(iulog,fmt1)  ' <sim_start> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
+    ierr=20; message=trim(message)//'check <sim_start> against runoff input time'; return
+  endif
+
+  ! Compare sim_start vs. time at first time step in runoff data
+  if (startJulday < roJulday(1)) then
+    call process_calday(roJulday(1), calendar, rofCal, ierr, cmessage)
+    call process_calday(startJulday, calendar, simCal, ierr, cmessage)
+    write(iulog,'(2a)') new_line('a'),'WARNING: <sim_start> is before the first time step in input runoff'
+    write(iulog,fmt1)  ' runoff_start: ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
+    write(iulog,fmt1)  ' <sim_start> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
+    write(iulog,'(a)') ' Reset <sim_start> to runoff_start'
+    startJulday = roJulday(1)
+  endif
+
+  ! Compare sim_end vs. time at last time step in runoff data
+  if (endJulday > roJulday(nTime)) then
+    call process_calday(roJulday(nTime), calendar, rofCal, ierr, cmessage)
+    call process_calday(endJulday,       calendar, simCal, ierr, cmessage)
+    write(iulog,'(2a)')  new_line('a'),'WARNING: <sim_end> is after the last time step in input runoff'
+    write(iulog,fmt1)   ' runoff_end: ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
+    write(iulog,fmt1)   ' <sim_end> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
+    write(iulog,'(a)')  ' Reset <sim_end> to runoff_end'
+    endJulday = roJulday(nTime)
+  endif
 
   ! fast forward time to time index at simStart and save iTime and modJulday
-  ! need to convert time unit in timeVar to day
   do ix = 1, nTime
-    modJulday = refJulday + timeVar(ix)/convTime2Days
+    modJulday = roJulday(ix)
     if( modJulday < startJulday ) cycle
     exit
   enddo
   iTime = ix
 
   ! initialize previous model time
-  !modTime(0:1) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
   modTime(0) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
+
+  ! restart drop off time
+  select case(trim(restart_write))
+    case('last','Last')
+      call process_time(trim(simEnd), calendar, restartJulday, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartDate]'; return; endif
+    case('never','Never')
+      restartJulday = 0.0_dp
+    case('specified','Specified')
+      if (trim(restart_date) == charMissing) then
+        ierr=20; message=trim(message)//'<restart_date> must be provided when <restart_write> option is "specified"'; return
+      end if
+      call process_time(trim(restart_date),calendar, restartJulday, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartDate]'; return; endif
+    case default
+      ierr=20; message=trim(message)//'Current accepted <restart_write> options: last[Last], never[Never], specified[Specified]'; return
+  end select
 
  END SUBROUTINE init_time
 
@@ -249,7 +320,8 @@ CONTAINS
  integer(i4b), intent(out)          :: ierr             ! error code
  character(*), intent(out)          :: message          ! error message
  ! local variables
- integer(i4b)                       :: iHRU, jHRU       ! hru loop indices
+ integer(i4b), allocatable          :: unq_qhru_id(:)
+ integer(i4b), allocatable          :: unq_idx(:)
  character(len=strLen)              :: cmessage         ! error message from subroutine
 
  ! initialize error control
@@ -281,6 +353,17 @@ CONTAINS
                 ierr, cmessage)          ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+   if (debug) then
+     write(iulog,'(2a)') new_line('a'), 'DEBUG: Corresponding between River-Network(RN) hru in mapping data and RN hru in river network data'
+     write(iulog,'(2x,a,I15)') '(1) number of RN hru in river-network = ', size(basinID)
+     write(iulog,'(2x,a,I15)') '(2) number of RN hru in mapping       = ', size(remap_data_in%hru_id)
+     write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two  = ', count(remap_data_in%hru_ix/=integerMissing)
+     if(count(remap_data_in%hru_ix/=integerMissing)/=size(basinID))then
+       message=trim(message)//'(1) not equal (2)'
+       ierr=20; return
+     endif
+   end if
+
    if ( runoff_data_in%nSpace(2) == integerMissing ) then
      ! get indices of the "overlap HRUs" (the runoff input) in the runoff vector
      call get_qix(remap_data_in%qhru_id, &  ! input: vector of ids in mapping file
@@ -288,23 +371,15 @@ CONTAINS
                   remap_data_in%qhru_ix, &  ! output: indices of mapping ids in runoff file
                   ierr, cmessage)           ! output: error control
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     if (debug) then
+       call unique(remap_data_in%qhru_id, unq_qhru_id, unq_idx)
+       write(iulog,'(2a)') new_line('a'),'DEBUG: corresponding between Hydro-Model (HM) hru in mapping data and HM hru in runoff data'
+       write(iulog,'(2x,a,I15)') '(1) number of HM hru in hyrdo-model  = ', size(runoff_data_in%hru_id)
+       write(iulog,'(2x,a,I15)') '(2) number of HM hru in mapping      = ', size(unq_qhru_id)
+       write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two = ', count(remap_data_in%qhru_ix(unq_idx)/=integerMissing)
+     end if
    end if
-
-   ! check
-   if(count(remap_data_in%hru_ix/=integerMissing)/=size(basinID))then
-    message=trim(message)//'unable to identify all polygons in the mapping file'
-    ierr=20; return
-   endif
-
-   ! check that the basins match
-   do iHRU = 1, size(remap_data_in%hru_ix)
-     jHRU = remap_data_in%hru_ix(iHRU)
-     if (jHRU == integerMissing) cycle
-     if( remap_data_in%hru_id(iHRU) /= basinID(jHRU) )then
-      message=trim(message)//'mismatch in HRU ids for basins in the routing layer'
-      ierr=20; return
-     endif
-   end do
 
  else ! if runoff given in RN_HRU
 
@@ -318,21 +393,16 @@ CONTAINS
                 ierr, cmessage)              ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! check
-   if(count(runoff_data_in%hru_ix/=integerMissing)/=size(basinID))then
-    message=trim(message)//'unable to identify all polygons in the mapping file'
-    ierr=20; return
-   endif
-
-   ! check that the basins match
-   do iHRU = 1, size(runoff_data_in%hru_ix)
-     jHRU = runoff_data_in%hru_ix(iHRU)
-     if (jHRU == integerMissing) cycle
-     if( runoff_data_in%hru_id(iHRU) /= basinID(jHRU) )then
-      message=trim(message)//'mismatch in HRU ids for basins in the routing layer'
-      ierr=20; return
+   if (debug) then
+     write(iulog,'(2a)') new_line('a'), 'DEBUG: corresponding between River-Network (RN) hru in runoff data and RN hru in river network data'
+     write(iulog,'(2x,a,I15)') '(1) number of RN hru in river-network = ', size(basinID)
+     write(iulog,'(2x,a,I15)') '(2) number of RN hru in hyrdo-model   = ', size(runoff_data_in%hru_id)
+     write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two  = ', count(runoff_data_in%hru_ix/=integerMissing)
+     if(count(runoff_data_in%hru_ix/=integerMissing)/=size(basinID))then
+       message=trim(message)//'(1) not equal (2)'
+       ierr=20; return
      endif
-   end do
+   end if
 
  endif
 
@@ -343,8 +413,6 @@ CONTAINS
  ! private subroutine: get indices of mapping points within runoff file...
  ! ***********************************************************************
  SUBROUTINE get_qix(qid,qidMaster,qix,ierr,message)
-
- USE nr_utility_module, ONLY: indexx  ! get rank of data value
 
  implicit none
  ! input
@@ -404,12 +472,11 @@ CONTAINS
 
  end do  ! looping through the vector
 
- write(iulog,*) 'nMissing = ', count(qix==integerMissing)
-
  ! check again
  do ix=1,size(qid)
   if(qix(ix) /= integerMissing)then
    if(qid(ix) /= qidMaster( qix(ix) ) )then
+    write(iulog,'(a,2(x,I10,x,I15))') 'ERROR Mapping: ix, qid(ix), qix(ix), qidMaster(qix(ix))=', ix, qid(ix), qix(ix), qidMaster(qix(ix))
     message=trim(message)//'unable to find the match'
     ierr=20; return
    endif
@@ -417,6 +484,5 @@ CONTAINS
  end do
 
  END SUBROUTINE get_qix
-
 
 END MODULE model_setup

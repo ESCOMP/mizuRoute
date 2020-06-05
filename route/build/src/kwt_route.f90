@@ -16,6 +16,8 @@ USE public_var, ONLY: realMissing       ! missing value for real number
 USE public_var, ONLY: integerMissing    ! missing value for integer number
 ! utilities
 USE nr_utility_module, ONLY: arth       ! Num. Recipies utilities
+! subroutines: general
+USE perf_mod,  ONLY: t_startf,t_stopf   ! timing start/stop
 
 ! privary
 implicit none
@@ -68,14 +70,9 @@ contains
    integer(i4b)                                   :: iSeg, jSeg           ! loop indices - reach
    integer(i4b)                                   :: iTrib                ! loop indices - branch
    integer(i4b)                                   :: ix                   ! loop indices stream order
-   ! variables needed for timing
-   integer*8                                      :: cr                   ! rate
-   integer*8                                      :: startTime,endTime    ! date/time for the start and end of the initialization
-   real(dp)                                       :: elapsedTime          ! elapsed time for the process
 
    ! initialize error control
    ierr=0; message='kwt_route/'
-   call system_clock(count_rate=cr)
 
    ! number of reach check
    if (size(NETOPO_in)/=size(RCHFLX_out(iens,:))) then
@@ -95,13 +92,13 @@ contains
 
    nOrder = size(river_basin)
 
-   call system_clock(startTime)
+   call t_startf('route/kwt')
 
+   ! route kinematic waves through the river network
    do ix = 1, nOrder
 
      nTrib=size(river_basin(ix)%branch)
 
-     ! 1. Route tributary reaches (parallel)
 !$OMP PARALLEL DO schedule(dynamic,1)                   & ! chunk size of 1
 !$OMP          private(jSeg, iSeg)                      & ! private for a given thread
 !$OMP          private(ierr, cmessage)                  & ! private for a given thread
@@ -119,7 +116,6 @@ contains
        seg:do iSeg=1,river_basin(ix)%branch(iTrib)%nRch
          jSeg  = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
          if (.not. doRoute(jSeg)) cycle
-         ! route kinematic waves through the river network
          call QROUTE_RCH(iEns,jSeg,           & ! input: array indices
                          ixDesire,            & ! input: index of verbose reach
                          T0,T1,               & ! input: start and end of the time step
@@ -136,9 +132,7 @@ contains
 
    end do
 
-   call system_clock(endTime)
-   elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-!   write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/kwt] = ', elapsedTime, ' s'
+   call t_stopf('route/kwt')
 
  END SUBROUTINE kwt_route
 
