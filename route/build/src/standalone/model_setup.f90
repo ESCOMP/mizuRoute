@@ -1,19 +1,21 @@
 MODULE model_setup
 
-! data types
 USE nrtype,    ONLY: i4b,dp,lgt          ! variable types, etc.
 USE nrtype,    ONLY: strLen              ! length of characters
 
-! Shared data
 USE public_var, ONLY: iulog              ! i/o logical unit number
+USE public_var, ONLY: debug
 USE public_var, ONLY: integerMissing
 USE public_var, ONLY: realMissing
+USE public_var, ONLY : charMissing
 
-! external routines
 USE init_model_data,  ONLY: init_ntopo_data
 USE init_model_data,  ONLY: init_state_data
 USE init_model_data,  ONLY: get_mpi_omp
 USE init_model_data,  ONLY: update_time
+
+USE nr_utility_module, ONLY : unique  ! get unique element array
+USE nr_utility_module, ONLY : indexx  ! get rank of data value
 
 implicit none
 
@@ -171,6 +173,7 @@ CONTAINS
   integer(i4b),              intent(out)   :: ierr             ! error code
   character(*),              intent(out)   :: message          ! error message
   ! local variable
+  character(len=7)                         :: t_unit
   integer(i4b)                             :: ix
   character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
@@ -186,11 +189,14 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! get the time multiplier needed to convert time to units of days
-  select case( trim( time_units(1:index(time_units,' ')) ) )
-   case('seconds'); convTime2Days=86400._dp
-   case('hours');   convTime2Days=24._dp
-   case('days');    convTime2Days=1._dp
-   case default;    ierr=20; message=trim(message)//'unable to identify time units'; return
+  t_unit = trim( time_units(1:index(time_units,' ')) )
+  select case( trim(t_unit) )
+   case('seconds','second','sec','s'); convTime2Days=86400._dp
+   case('minutes','minute','min');     convTime2Days=1440._dp
+   case('hours','hour','hr','h');      convTime2Days=24._dp
+   case('days','day','d');             convTime2Days=1._dp
+   case default
+     ierr=20; message=trim(message)//'<time_units>= '//trim(t_unit)//': <time_units> must be seconds, minutes, hours or days.'; return
   end select
 
   ! extract time information from the control information
@@ -202,7 +208,10 @@ CONTAINS
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endJulday]'; return; endif
 
   ! check that the dates are aligned
-  if(endJulday<startJulday) then; ierr=20; message=trim(message)//'simulation end is before simulation start'; return; endif
+  if(endJulday<startJulday) then
+    write(cmessage,'(7a)') 'simulation end is before simulation start:', new_line('a'), '<sim_start>= ', trim(simStart), new_line('a'), '<sim_end>= ', trim(simEnd)
+    ierr=20; message=trim(message)//trim(cmessage); return
+  endif
 
   ! fast forward time to time index at simStart and save iTime and modJulday
   ! need to convert time unit in timeVar to day
@@ -249,7 +258,8 @@ CONTAINS
  integer(i4b), intent(out)          :: ierr             ! error code
  character(*), intent(out)          :: message          ! error message
  ! local variables
- integer(i4b)                       :: iHRU, jHRU       ! hru loop indices
+ integer(i4b), allocatable          :: unq_qhru_id(:)
+ integer(i4b), allocatable          :: unq_idx(:)
  character(len=strLen)              :: cmessage         ! error message from subroutine
 
  ! initialize error control
@@ -281,6 +291,17 @@ CONTAINS
                 ierr, cmessage)          ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+   if (debug) then
+     write(iulog,'(2a)') new_line('a'), 'DEBUG: Corresponding between River-Network(RN) hru in mapping data and RN hru in river network data'
+     write(iulog,'(2x,a,I15)') '(1) number of RN hru in river-network = ', size(basinID)
+     write(iulog,'(2x,a,I15)') '(2) number of RN hru in mapping       = ', size(remap_data_in%hru_id)
+     write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two  = ', count(remap_data_in%hru_ix/=integerMissing)
+     if(count(remap_data_in%hru_ix/=integerMissing)/=size(basinID))then
+       message=trim(message)//'(1) not equal (2)'
+       ierr=20; return
+     endif
+   end if
+
    if ( runoff_data_in%nSpace(2) == integerMissing ) then
      ! get indices of the "overlap HRUs" (the runoff input) in the runoff vector
      call get_qix(remap_data_in%qhru_id, &  ! input: vector of ids in mapping file
@@ -288,23 +309,15 @@ CONTAINS
                   remap_data_in%qhru_ix, &  ! output: indices of mapping ids in runoff file
                   ierr, cmessage)           ! output: error control
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     if (debug) then
+       call unique(remap_data_in%qhru_id, unq_qhru_id, unq_idx)
+       write(iulog,'(2a)') new_line('a'),'DEBUG: corresponding between Hydro-Model (HM) hru in mapping data and HM hru in runoff data'
+       write(iulog,'(2x,a,I15)') '(1) number of HM hru in hyrdo-model  = ', size(runoff_data_in%hru_id)
+       write(iulog,'(2x,a,I15)') '(2) number of HM hru in mapping      = ', size(unq_qhru_id)
+       write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two = ', count(remap_data_in%qhru_ix(unq_idx)/=integerMissing)
+     end if
    end if
-
-   ! check
-   if(count(remap_data_in%hru_ix/=integerMissing)/=size(basinID))then
-    message=trim(message)//'unable to identify all polygons in the mapping file'
-    ierr=20; return
-   endif
-
-   ! check that the basins match
-   do iHRU = 1, size(remap_data_in%hru_ix)
-     jHRU = remap_data_in%hru_ix(iHRU)
-     if (jHRU == integerMissing) cycle
-     if( remap_data_in%hru_id(iHRU) /= basinID(jHRU) )then
-      message=trim(message)//'mismatch in HRU ids for basins in the routing layer'
-      ierr=20; return
-     endif
-   end do
 
  else ! if runoff given in RN_HRU
 
@@ -318,21 +331,16 @@ CONTAINS
                 ierr, cmessage)              ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! check
-   if(count(runoff_data_in%hru_ix/=integerMissing)/=size(basinID))then
-    message=trim(message)//'unable to identify all polygons in the mapping file'
-    ierr=20; return
-   endif
-
-   ! check that the basins match
-   do iHRU = 1, size(runoff_data_in%hru_ix)
-     jHRU = runoff_data_in%hru_ix(iHRU)
-     if (jHRU == integerMissing) cycle
-     if( runoff_data_in%hru_id(iHRU) /= basinID(jHRU) )then
-      message=trim(message)//'mismatch in HRU ids for basins in the routing layer'
-      ierr=20; return
+   if (debug) then
+     write(iulog,'(2a)') new_line('a'), 'DEBUG: corresponding between River-Network (RN) hru in runoff data and RN hru in river network data'
+     write(iulog,'(2x,a,I15)') '(1) number of RN hru in river-network = ', size(basinID)
+     write(iulog,'(2x,a,I15)') '(2) number of RN hru in hyrdo-model   = ', size(runoff_data_in%hru_id)
+     write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two  = ', count(runoff_data_in%hru_ix/=integerMissing)
+     if(count(runoff_data_in%hru_ix/=integerMissing)/=size(basinID))then
+       message=trim(message)//'(1) not equal (2)'
+       ierr=20; return
      endif
-   end do
+   end if
 
  endif
 
@@ -343,8 +351,6 @@ CONTAINS
  ! private subroutine: get indices of mapping points within runoff file...
  ! ***********************************************************************
  SUBROUTINE get_qix(qid,qidMaster,qix,ierr,message)
-
- USE nr_utility_module, ONLY: indexx  ! get rank of data value
 
  implicit none
  ! input
@@ -404,12 +410,11 @@ CONTAINS
 
  end do  ! looping through the vector
 
- write(iulog,*) 'nMissing = ', count(qix==integerMissing)
-
  ! check again
  do ix=1,size(qid)
   if(qix(ix) /= integerMissing)then
    if(qid(ix) /= qidMaster( qix(ix) ) )then
+    write(iulog,'(a,2(x,I10,x,I15))') 'ERROR Mapping: ix, qid(ix), qix(ix), qidMaster(qix(ix))=', ix, qid(ix), qix(ix), qidMaster(qix(ix))
     message=trim(message)//'unable to find the match'
     ierr=20; return
    endif
@@ -417,6 +422,5 @@ CONTAINS
  end do
 
  END SUBROUTINE get_qix
-
 
 END MODULE model_setup

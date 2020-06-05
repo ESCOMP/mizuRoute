@@ -50,7 +50,7 @@ integer(i4b),parameter  :: mainstem=1
 integer(i4b),parameter  :: tributary=2
 integer(i4b),parameter  :: endorheic=3
 
-logical(lgt), parameter :: debug=.false.
+logical(lgt), parameter :: debug_mpi=.false.
 
 private
 
@@ -264,7 +264,7 @@ contains
     reachID(1:nRch_in) = reachID( ixRch_order )
     basinID(1:nHRU_in) = basinID( ixHRU_order )
 
-    if (debug) then
+    if (debug_mpi) then
       write(iulog,'(a)') 'ix, segId, ixRch_order, domain-index, proc-id'
       do ix = 1,nRch_in
         write(iulog,*) ix, segId(ix), ixRch_order(ix), ixDomain(ix), ixNode(ix)

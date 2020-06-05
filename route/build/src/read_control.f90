@@ -106,7 +106,7 @@ contains
    case('<input_dir>');            input_dir   = trim(cData)                       ! directory containing input data
    case('<output_dir>');           output_dir  = trim(cData)                       ! directory containing output data
    ! RUN CONTROL
-   case('<case_name>');            case_name   = trim(cData)                       ! name of simulation
+   case('<case_name>');            case_name   = trim(cData)                       ! name of simulation. used as head of model output and restart file
    case('<sim_start>');            simStart    = trim(cData)                       ! date string defining the start of the simulation
    case('<sim_end>');              simEnd      = trim(cData)                       ! date string defining the end of the simulation
    case('<newFileFrequency>');     newFileFrequency = trim(cData)                  ! frequency for new output files (day, month, annual, single)
@@ -154,6 +154,7 @@ contains
    case('<time_units>');           time_units = trim(cData)                        ! time units. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
    case('<calendar>');             calendar   = trim(cData)                        ! calendar name
    ! MISCELLANEOUS
+   case('<debug>');                read(cData,*,iostat=io_error) debug             ! print out detailed information throught the probram
    case('<desireId>'   );          read(cData,*,iostat=io_error) desireId          ! turn off checks or speficy reach ID if necessary to print on screen
    ! PFAFCODE
    case('<maxPfafLen>');           read(cData,*,iostat=io_error) maxPfafLen        ! maximum digit of pfafstetter code (default 32)
@@ -233,12 +234,28 @@ contains
    ntopAugmentMode = .false.
  endif
 
+ ! ---------- time variables  --------------------------------------------------------------------------------------------
+ if (masterproc) then
+   write(iulog,'(2a)') new_line('a'), '---- calendar --- '
+   if (trim(calendar)/=charMissing) then
+     write(iulog,'(a)') '  calendar is provided in control file: '//trim(calendar)
+   else
+     write(iulog,'(a)') '  calendar will be read from '//trim(fname_qsim)
+   end if
+   if (trim(time_units)/=charMissing) then
+     write(iulog,'(a)') '  time_unit is provided in control file: '//trim(time_units)
+   else
+     write(iulog,'(a)') '  time_unit will be read from '//trim(fname_qsim)
+   end if
+ end if
+
  ! ---------- runoff unit conversion --------------------------------------------------------------------------------------------
 
  if (masterproc) then
    write(iulog,'(2a)') new_line('a'), '---- runoff unit --- '
    write(iulog,'(a)') '  runoff unit is provided as: '//trim(units_qsim)
  end if
+
  ! find the position of the "/" character
  ipos = index(trim(units_qsim),'/')
  if(ipos==0)then
@@ -261,9 +278,9 @@ contains
 
  ! get the conversion factor for time
  select case(trim(cTime))
-  case('d','day');    time_conv = 1._dp/secprday
-  case('h','hour');   time_conv = 1._dp/secprhour
-  case('s','second'); time_conv = 1._dp
+  case('d','day');          time_conv = 1._dp/secprday
+  case('h','hr','hour');    time_conv = 1._dp/secprhour
+  case('s','sec','second'); time_conv = 1._dp
   case default
    message=trim(message)//'expect the time units of to be "day"("d"), "hour"("h") or "second"("s") [time units = '//trim(cTime)//']'
    err=81; return
