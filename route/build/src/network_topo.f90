@@ -373,7 +373,6 @@ contains
  integer(i4b)                    :: rankDownSeg(nUp)    ! rank index of each downstream stream segment
  logical(lgt),parameter          :: checkLink=.false.   ! flag to check the links
  logical(lgt),parameter          :: checkMap=.true.     ! flag to check the mapping
- integer(i4b),parameter          :: nProgress=100000    ! print every nProgress step
 
  ! initialize error control
  ierr=0; message='downReachIndex/'
@@ -391,9 +390,6 @@ contains
  iSeg=1  ! second counter
  ! loop through the upstream elements
  do iUp=1,nUp
-
-  ! print progress
-  if(mod(iUp,nProgress)==0) write(iulog,*) 'Getting downstream link for reach: ', iUp, nUp
 
   ! get Ids for the up2seg mapping vector
   rankDownId = downId( rankDownSeg(iUp) )
@@ -496,10 +492,6 @@ contains
  DO  ! do until all reaches are assigned
   NASSIGN = 0
   DO IRCH=1,NRCH
-   ! print progress
-   if(jCount>0)then
-    if(mod(jCount,100000)==0) write(iulog,*) 'Getting order for reach: ', count(RCHFLAG), nRch
-   endif
    ! check if the reach is assigned yet
    IF(RCHFLAG(IRCH)) THEN
     NASSIGN = NASSIGN + 1
@@ -663,7 +655,6 @@ contains
  integer(i4b)                                   :: nUpstream       ! total number of upstream reaches
  integer(i4b)                                   :: iUps            ! index of upstream reaches
  integer(i4b)                                   :: iPos            ! position in vector
- integer(i4b),parameter                         :: nProgress=100000! print every nProgress step
  ! ----------------------------------------------------------------------------------------
  message='reach_list/'
 
@@ -687,9 +678,6 @@ contains
  do kRch=1,nRch
 
   ! ---------- identify reach in the ordered vector ----------------------------------------
-
-  ! print progress
-  if(mod(kRch,nProgress)==0) write(iulog,*) 'Getting list of all upstream reaches: kRch, nRch = ', kRch, nRch
 
   ! NOTE: Reaches are ordered
   !        -->  kRch cannpt be processed until all upstream reaches are processed

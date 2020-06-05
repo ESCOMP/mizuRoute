@@ -18,6 +18,7 @@ USE dataTypes,         ONLY: states
 USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: integerMissing
 USE public_var,        ONLY: realMissing
+USE public_var,        ONLY: verySmall
 USE public_var,        ONLY: rpntfil           ! ascii containing last restart file (used in coupled mode)
 
 USE globalData,        ONLY: meta_stateDims  ! states dimension meta
@@ -71,6 +72,8 @@ CONTAINS
   USE public_var, ONLY: output_dir
   USE public_var, ONLY: case_name         ! simulation name ==> output filename head
   USE globalData, ONLY: modTime           ! previous and current model time
+  USE globalData, ONLY: modJulday         ! current model Julian day
+  USE globalData, ONLY: restartJulday     ! restart Julian day
 
   implicit none
   ! output variables
@@ -78,24 +81,36 @@ CONTAINS
   character(*),   intent(out)          :: message          ! error message
   ! local variables
   character(len=strLen)                :: fileout_state    ! name of the output file
-  character(*),parameter               :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
-  integer(i4b)                         :: sec_in_day      ! second within day
+  integer(i4b)                         :: sec_in_day       ! second within day
   character(len=strLen)                :: cmessage         ! error message of downwind routine
+  character(len=50),parameter          :: fmtYMDS   = '(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
+  character(len=50),parameter          :: fmtYMDHMS = '(2a,I0.4,a,I0.2,a,I0.2,x,I0.2,a,I0.2,a,I0.2)'
 
-  ! Define filename
-  sec_in_day = 0
-  write(fileout_state, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuRoute.r.', &
-                          modTime(0)%iy, '-', modTime(0)%im, '-', modTime(0)%id, '-',sec_in_day,'.nc'
+  if (abs(restartJulday-modJulday)<verySmall) then
 
-  ! Define output state netCDF
-  call define_state_nc(trim(fileout_state), ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if (masterproc) then
+      write(iulog,fmtYMDHMS) new_line('a'),'Write restart file at ', &
+                             modTime(1)%iy,'-',modTime(1)%im, '-', modTime(1)%id, &
+                             modTime(1)%ih,':',modTime(1)%imin,':',nint(modTime(1)%dsec)
+    end if
 
-  call write_state_nc(fileout_state, ierr, message)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! Define filename
+    sec_in_day = modTime(1)%ih*60*60+modTime(1)%imin*60+nint(modTime(1)%dsec)
+    write(fileout_state, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuRoute.r.', &
+                                  modTime(0)%iy, '-', modTime(0)%im, '-', modTime(0)%id, '-',sec_in_day,'.nc'
 
-  open(1, file = trim(output_dir)//trim(rpntfil), status='replace', action='write')
-  write(1,*) fileout_state
+    ! Define output state netCDF
+    call define_state_nc(trim(fileout_state), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    call write_state_nc(fileout_state, ierr, message)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    open (1, file = trim(output_dir)//trim(rpntfil), status='replace', action='write')
+    write(1,*) trim(fileout_state)
+    close(1)
+
+  end if
 
  END SUBROUTINE output_state
 
@@ -524,11 +539,11 @@ CONTAINS
  USE globalData, ONLY: RCHSTA_trib         ! tributary reach state (ensembles, reaches)
  USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
  USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
- USE globalData, ONLY: reachID         ! reach ID in network
- USE globalData, ONLY: nRch            ! number of reaches in network
- USE globalData, ONLY: TSEC            ! beginning/ending of simulation time step [sec]
- USE globalData, ONLY: timeVar         ! time variable
- USE globalData, ONLY: iTime           ! time index
+ USE globalData, ONLY: reachID             ! reach ID in network
+ USE globalData, ONLY: nRch                ! number of reaches in network
+ USE globalData, ONLY: TSEC                ! beginning/ending of simulation time step [sec]
+ USE globalData, ONLY: timeVar             ! time variable
+ USE globalData, ONLY: iTime               ! time index
 
  implicit none
 

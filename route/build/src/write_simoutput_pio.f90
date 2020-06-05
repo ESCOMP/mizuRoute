@@ -45,12 +45,12 @@ public::prep_output
 public::output
 public::close_output_nc
 
-contains
+CONTAINS
 
  ! *********************************************************************
  ! public subroutine: define routing output NetCDF file
  ! *********************************************************************
- subroutine output(ierr, message)
+ SUBROUTINE output(ierr, message)
 
   ! global data required only this routine
   USE globalData, ONLY: RCHFLX_main         ! mainstem Reach fluxes (ensembles, space [reaches])
@@ -116,8 +116,8 @@ contains
   call write_netcdf(pioFileDesc, 'time', [timeVar(iTime)], [jTime], [1], ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! write the basin runoff to the netcdf file
   if (meta_rflx(ixRFLX%basRunoff)%varFile) then
+    ! write the basin runoff at HRU (unit: the same as runoff input)
     call write_pnetcdf_recdim(pioFileDesc, 'basRunoff',basinRunoff, iodesc_hru_ro, jTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
@@ -158,7 +158,7 @@ contains
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
- end subroutine output
+ END SUBROUTINE output
 
 
  ! *********************************************************************
@@ -199,7 +199,7 @@ contains
 
   ! get the time
   select case(trim(calendar))
-   case('noleap')
+   case('noleap','365_day')
     call compCalday_noleap(modJulday,modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,ierr,cmessage)
    case ('standard','gregorian','proleptic_gregorian')
     call compCalday(modJulday,modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,ierr,cmessage)
@@ -209,7 +209,7 @@ contains
 
   ! print progress
   if (masterproc) then
-    write(iulog,*) modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin
+    write(iulog,'(a,I4,4(x,I4))') new_line('a'), modTime(1)%iy, modTime(1)%im, modTime(1)%id, modTime(1)%ih, modTime(1)%imin
   endif
 
   ! check need for the new file
@@ -231,7 +231,7 @@ contains
    jTime=1
 
    ! Define filename
-   sec_in_day = 0
+   sec_in_day = modTime(1)%ih*60*60+modTime(1)%imin*60+nint(modTime(1)%dsec)
    write(fileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuRoute.h.', &
                            modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '-',sec_in_day,'.nc'
 

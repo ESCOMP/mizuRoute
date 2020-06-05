@@ -144,26 +144,31 @@ CONTAINS
                       ierr, message)  ! output
 
   ! subroutines:
-  USE process_time_module, ONLY: process_time  ! process time information
-  USE io_netcdf,           ONLY: get_nc        ! netcdf input
+  USE process_time_module, ONLY: process_time   ! process time information
+  USE process_time_module, ONLY: process_calday ! compute data and time from julian day
+  USE io_netcdf,           ONLY: get_nc         ! netcdf input
   ! derived datatype
-  USE dataTypes, ONLY: time           ! time data type
-  ! Shared data
-  USE public_var, ONLY: input_dir     ! directory containing input data
-  USE public_var, ONLY: fname_qsim    ! simulated runoff netCDF name
-  USE public_var, ONLY: vname_time    ! variable name for time
-  USE public_var, ONLY: time_units    ! time units (seconds, hours, or days)
-  USE public_var, ONLY: simStart      ! date string defining the start of the simulation
-  USE public_var, ONLY: simEnd        ! date string defining the end of the simulation
-  USE public_var, ONLY: calendar      ! calendar name
-  USE globalData, ONLY: timeVar       ! time variables (unit given by runoff data)
-  USE globalData, ONLY: iTime         ! time index at simulation time step
-  USE globalData, ONLY: convTime2Days ! conversion multipliers for time unit of runoff input to day
-  USE globalData, ONLY: refJulday     ! julian day: reference
-  USE globalData, ONLY: startJulday   ! julian day: start of routing simulation
-  USE globalData, ONLY: endJulday     ! julian day: end of routing simulation
-  USE globalData, ONLY: modJulday     ! julian day: at model time step
-  USE globalData, ONLY: modTime       ! model time data (yyyy:mm:dd:hh:mm:ss)
+  USE dataTypes, ONLY: time                     ! time data type
+  ! public data
+  USE public_var, ONLY: input_dir               ! directory containing input data
+  USE public_var, ONLY: fname_qsim              ! simulated runoff netCDF name
+  USE public_var, ONLY: vname_time              ! variable name for time
+  USE public_var, ONLY: time_units              ! time units (seconds, hours, or days)
+  USE public_var, ONLY: simStart                ! date string defining the start of the simulation
+  USE public_var, ONLY: simEnd                  ! date string defining the end of the simulation
+  USE public_var, ONLY: calendar                ! calendar name
+  USE public_var, ONLY: restart_write           ! restart write option
+  USE public_var, ONLY: restart_date            ! restart date
+  ! saved time variables
+  USE globalData, ONLY: timeVar                 ! time variables (unit given by runoff data)
+  USE globalData, ONLY: iTime                   ! time index at simulation time step
+  USE globalData, ONLY: refJulday               ! julian day: reference
+  USE globalData, ONLY: roJulday                ! julian day: runoff input time
+  USE globalData, ONLY: startJulday             ! julian day: start of routing simulation
+  USE globalData, ONLY: endJulday               ! julian day: end of routing simulation
+  USE globalData, ONLY: modJulday               ! julian day: at model time step
+  USE globalData, ONLY: restartJulday           ! julian day: at restart
+  USE globalData, ONLY: modTime                 ! model time data (yyyy:mm:dd:hh:mm:ss)
 
   implicit none
 
@@ -173,15 +178,19 @@ CONTAINS
   integer(i4b),              intent(out)   :: ierr             ! error code
   character(*),              intent(out)   :: message          ! error message
   ! local variable
-  character(len=7)                         :: t_unit
   integer(i4b)                             :: ix
+  type(time)                               :: rofCal
+  type(time)                               :: simCal
+  real(dp)                                 :: convTime2Days
+  character(len=7)                         :: t_unit
   character(len=strLen)                    :: cmessage         ! error message of downwind routine
+  character(len=50)                        :: fmt1='(a,I4,a,I2.2,a,I2.2,x,I2.2,a,I2.2,a,F5.2)'
 
   ! initialize error control
   ierr=0; message='init_time/'
 
   ! time initialization
-  allocate(timeVar(nTime), stat=ierr)
+  allocate(timeVar(nTime), roJulday(nTime), stat=ierr)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! get the time data
@@ -207,24 +216,77 @@ CONTAINS
   call process_time(trim(simEnd),  calendar, endJulday,   ierr, cmessage)
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endJulday]'; return; endif
 
+  ! Julian day at first time step in runoff data
+  ! convert time unit in runoff netCDF to day
+  do ix = 1, nTime
+    roJulday(ix) = refJulday + timeVar(ix)/convTime2Days
+  end do
+
   ! check that the dates are aligned
   if(endJulday<startJulday) then
     write(cmessage,'(7a)') 'simulation end is before simulation start:', new_line('a'), '<sim_start>= ', trim(simStart), new_line('a'), '<sim_end>= ', trim(simEnd)
     ierr=20; message=trim(message)//trim(cmessage); return
   endif
 
+  ! check sim_start is before the last time step in runoff data
+  if(startJulday>roJulday(nTime)) then
+    call process_calday(roJulday(nTime), calendar, rofCal, ierr, cmessage)
+    call process_calday(startJulday, calendar, simCal, ierr, cmessage)
+    write(iulog,'(2a)') new_line('a'),'ERROR: <sim_start> is after the first time step in input runoff'
+    write(iulog,fmt1)  ' runoff_end  : ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
+    write(iulog,fmt1)  ' <sim_start> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
+    ierr=20; message=trim(message)//'check <sim_start> against runoff input time'; return
+  endif
+
+  ! Compare sim_start vs. time at first time step in runoff data
+  if (startJulday < roJulday(1)) then
+    call process_calday(roJulday(1), calendar, rofCal, ierr, cmessage)
+    call process_calday(startJulday, calendar, simCal, ierr, cmessage)
+    write(iulog,'(2a)') new_line('a'),'WARNING: <sim_start> is before the first time step in input runoff'
+    write(iulog,fmt1)  ' runoff_start: ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
+    write(iulog,fmt1)  ' <sim_start> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
+    write(iulog,'(a)') ' Reset <sim_start> to runoff_start'
+    startJulday = roJulday(1)
+  endif
+
+  ! Compare sim_end vs. time at last time step in runoff data
+  if (endJulday > roJulday(nTime)) then
+    call process_calday(roJulday(nTime), calendar, rofCal, ierr, cmessage)
+    call process_calday(endJulday,       calendar, simCal, ierr, cmessage)
+    write(iulog,'(2a)')  new_line('a'),'WARNING: <sim_end> is after the last time step in input runoff'
+    write(iulog,fmt1)   ' runoff_end: ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
+    write(iulog,fmt1)   ' <sim_end> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
+    write(iulog,'(a)')  ' Reset <sim_end> to runoff_end'
+    endJulday = roJulday(nTime)
+  endif
+
   ! fast forward time to time index at simStart and save iTime and modJulday
-  ! need to convert time unit in timeVar to day
   do ix = 1, nTime
-    modJulday = refJulday + timeVar(ix)/convTime2Days
+    modJulday = roJulday(ix)
     if( modJulday < startJulday ) cycle
     exit
   enddo
   iTime = ix
 
   ! initialize previous model time
-  !modTime(0:1) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
   modTime(0) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
+
+  ! restart drop off time
+  select case(trim(restart_write))
+    case('last','Last')
+      call process_time(trim(simEnd), calendar, restartJulday, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartDate]'; return; endif
+    case('never','Never')
+      restartJulday = 0.0_dp
+    case('specified','Specified')
+      if (trim(restart_date) == charMissing) then
+        ierr=20; message=trim(message)//'<restart_date> must be provided when <restart_write> option is "specified"'; return
+      end if
+      call process_time(trim(restart_date),calendar, restartJulday, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartDate]'; return; endif
+    case default
+      ierr=20; message=trim(message)//'Current accepted <restart_write> options: last[Last], never[Never], specified[Specified]'; return
+  end select
 
  END SUBROUTINE init_time
 
