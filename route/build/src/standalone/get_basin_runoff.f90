@@ -21,7 +21,7 @@ contains
   USE public_var,  only:input_dir               ! directory containing input data
   USE public_var,  only:fname_qsim              ! simulated runoff netCDF name
   USE public_var,  only:is_remap                ! logical whether or not runnoff needs to be mapped to river network HRU
-  USE globalData,  only:iTime
+  USE globalData,  only:iTime_local             ! iTime index for the given netcdf file
   USE globalData,  only:nHRU
   USE globalData,  only:runoff_data             ! data structure to hru runoff data
   USE globalData,  only:remap_data              ! data structure to remap data
@@ -43,7 +43,7 @@ contains
 
   ! get the simulated runoff for the current time step - runoff_data%qsim(:) or %qsim2D(:,:)
   call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
-                        iTime,                             & ! input: time index
+                        iTime_local,                       & ! input: time index
                         runoff_data,                       & ! inout: runoff data structure
                         ierr, cmessage)                      ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif

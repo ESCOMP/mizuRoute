@@ -137,9 +137,9 @@ implicit none
    integer(i4b)                            :: iTimebound(1:2)  ! time index of start and end of the
    real(dp)                 , allocatable  :: timevar(:)       ! the time varibale from the netcdf file
    real(dp)                                :: convTime2Days    ! the time varibale from the netcdf file
-   real(dp)                                :: ncrefjulday      !
-   real(dp)                                :: ncstartjulday    !
-   real(dp)                                :: ncendjulday      !
+   real(dp)                                :: ncrefjulday      ! the julian day for the reference of the nc file
+   real(dp)                                :: ncstartjulday    ! the julian day for the start of the nc file
+   real(dp)                                :: ncendjulday      ! the julian day for the end of the nc file
    character(len=strLen)                   :: infilename       ! the name of the input file name
    character(len=strLen)                   :: calendar         ! the calendar
    character(len=strLen)                   :: unit             ! the unit of time
@@ -178,14 +178,14 @@ implicit none
 
  ! Reach Parameters
  type, public ::  RCHPRP
-  real(dp)                                :: R_SLOPE
-  real(dp)                                :: R_MAN_N
-  real(dp)                                :: R_WIDTH
-  real(dp)                                :: RLENGTH
-  real(dp)                                :: UPSAREA  ! upstream area (zero if headwater basin)
-  real(dp)                                :: BASAREA  ! local basin area
-  real(dp)                                :: TOTAREA  ! UPSAREA + BASAREA
-  real(dp)                                :: MINFLOW  ! minimum environmental flow
+  real(dp)                                   :: R_SLOPE
+  real(dp)                                   :: R_MAN_N
+  real(dp)                                   :: R_WIDTH
+  real(dp)                                   :: RLENGTH
+  real(dp)                                   :: UPSAREA  ! upstream area (zero if headwater basin)
+  real(dp)                                   :: BASAREA  ! local basin area
+  real(dp)                                   :: TOTAREA  ! UPSAREA + BASAREA
+  real(dp)                                   :: MINFLOW  ! minimum environmental flow
  end type RCHPRP
 
  ! River Network topology
