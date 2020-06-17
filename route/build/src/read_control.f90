@@ -124,7 +124,7 @@ contains
    case('<dname_nhru>');           dname_nhru    = trim(cData)                     ! dimension name of the HRUs
    case('<dname_sseg>');           dname_sseg    = trim(cData)                     ! dimension name of the stream segments
    ! RUNOFF FILE
-   case('<fname_qsim>');           fname_qsim   = trim(cData)                      ! name of file containing the runoff
+   case('<fname_qsim>');           fname_qsim   = trim(cData)                      ! name of text file containing file name and their order for runoff
    case('<vname_qsim>');           vname_qsim   = trim(cData)                      ! name of runoff variable
    case('<vname_time>');           vname_time   = trim(cData)                      ! name of time variable in the runoff file
    case('<vname_hruid>');          vname_hruid  = trim(cData)                      ! name of the HRU id
