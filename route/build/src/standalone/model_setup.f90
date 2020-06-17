@@ -192,12 +192,10 @@ CONTAINS
   call get_vlines(unit,dataLines,ierr,cmessage)
   if(ierr/=0)then; ierr=20; message=trim(message)//trim(cmessage); return; end if
   nFile = size(dataLines) ! get the name of the lines in the file
-  print*, 'number of lines in the text file', nFile ! to be deleted
 
   ! allocate space for forcing information
   allocate(infileinfo_data(nFile))
   if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for forcFileInfo'; return; end if
-  print*, "infileinfo is allocated"
 
   ! poputate the forcingInfo structure with filenames, julian day of sart and end of the simulation
   do iFile=1,nFile
@@ -208,37 +206,30 @@ CONTAINS
 
    ! set forcing file name
    infileinfo_data(iFile)%infilename = trim(filenameData)
-   print*, infileinfo_data(iFile)%infilename
 
    ! get the time units
    call get_var_attr(trim(input_dir)//trim(infileinfo_data(iFile)%infilename), &
                           trim(vname_time), 'units', infileinfo_data(iFile)%unit, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   print*, "unit is", infileinfo_data(iFile)%unit
 
    ! get the calendar
    call get_var_attr(trim(input_dir)//trim(infileinfo_data(iFile)%infilename), &
                           trim(vname_time), 'calendar', infileinfo_data(iFile)%calendar, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   print*, "calendar is", infileinfo_data(iFile)%calendar
 
    ! get the dimension of the time to populate nTime and pass it to the get_nc file
    call get_nc_dim_len(trim(input_dir)//trim(infileinfo_data(iFile)%infilename), &
                        trim(dname_time), infileinfo_data(iFile)%nTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   print*, "time dimension is ", infileinfo_data(iFile)%nTime
    nTime = infileinfo_data(iFile)%nTime ! the length of time varibale for each nc file
-   print*, "nTime ", nTime
 
    ! allocate space for time varibale of each file
    if(allocated(infileinfo_data(iFile)%timeVar)) deallocate(infileinfo_data(iFile)%timeVar)
    allocate(infileinfo_data(iFile)%timeVar(nTime))
-   print*, "time var is allocated"
 
    ! get the time varibale
    call get_nc(trim(input_dir)//trim(infileinfo_data(iFile)%infilename), &
                vname_time, infileinfo_data(iFile)%timeVar, 1, nTime, ierr, cmessage) ! does it needs timeVar(:)
-   print*, "time var is", infileinfo_data(iFile)%timeVar
 
    ! get the time multiplier needed to convert time to units of days for each nc file
    select case( trim( infileinfo_data(iFile)%unit(1:index(infileinfo_data(iFile)%unit,' ')) ) )
@@ -249,20 +240,16 @@ CONTAINS
     case default;    ierr=20; message=trim(message)//'time unit must be seconds, minutes, hours or days.'; return
    end select
    infileinfo_data(iFile)%convTime2Days = convTime2Days
-   print*, "conversion", convTime2Days
 
    ! get the reference julian day from the nc file
    call process_time(trim(infileinfo_data(iFile)%unit),infileinfo_data(iFile)%calendar,infileinfo_data(iFile)%ncrefjulday,ierr, cmessage)
    if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [ncrefjulday]'; return; endif
-   print*, "ncrefjulday", infileinfo_data(iFile)%ncrefjulday
 
    ! get the starting julian day of the nc file
    infileinfo_data(iFile)%ncstartjulday = infileinfo_data(iFile)%timeVar(1)/infileinfo_data(iFile)%convTime2Days+infileinfo_data(iFile)%ncrefjulday
-   print*, "ncstartjulday", infileinfo_data(iFile)%ncstartjulday
 
    ! get the ending julian day of the nc file
    infileinfo_data(iFile)%ncendjulday = infileinfo_data(iFile)%timeVar(infileinfo_data(iFile)%nTime)/infileinfo_data(iFile)%convTime2Days+infileinfo_data(iFile)%ncrefjulday
-   print*, "ncendjulday", infileinfo_data(iFile)%ncendjulday
 
    ! populated the index of the iTimebound for each nc file
    if (iFile==1) then ! if only one file is specified in the txt file
@@ -272,8 +259,6 @@ CONTAINS
     infileinfo_data(iFile)%iTimebound(1) = infileinfo_data(iFile-1)%iTimebound(2) + 1 ! the last index from the perivous nc file + 1
     infileinfo_data(iFile)%iTimebound(2) = infileinfo_data(iFile-1)%iTimebound(2) + nTime ! the last index from the perivous nc file + 1
    endif
-
-   print*, "time bound = ",infileinfo_data(iFile)%iTimebound
 
   enddo
 
@@ -286,8 +271,6 @@ CONTAINS
   fname_qsim = trim(infileinfo_data(1)%infilename)
   ! set the calendar to the first calendar calendars should be the same
   calendar = infileinfo_data(1)%calendar
-  print*, "name of the nc file from the pop in file", fname_qsim
-
 
   ! call init_time_new to get the first iTime
   call init_time(ierr, cmessage)
@@ -359,9 +342,6 @@ CONTAINS
   ! time initialization
   allocate(timeVar(nTime), roJulday(nTime), stat=ierr)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  print*, "global time var : ", timeVar
-  print*, "roJulday time var : ", roJulday
 
   ! populate roJulday
   counter = 1; ! counter set to 1
@@ -490,9 +470,6 @@ CONTAINS
   ! initialize error control
   ierr=0; message='infile_name/'
 
-  ! initialize error control
-  print*, "inside infile_name", fname_qsim
-
   ! fast forward time to time index at simStart and save iTime and modJulday
   ! need to convert time unit in timeVar to day
   ixloop: do ix = 1, size(infileinfo_data) !loop over number of file
@@ -502,10 +479,6 @@ CONTAINS
     exit ixloop
    endif
   enddo ixloop
-
-  print*, "inside infile_name iTime", iTime
-  print*, "inside infile_name iTime_local", iTime_local
-  print*, "inside infile_name file name", fname_qsim
 
  END SUBROUTINE infile_name
 
