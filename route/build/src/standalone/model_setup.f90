@@ -195,9 +195,8 @@ CONTAINS
   print*, 'number of lines in the text file', nFile ! to be deleted
 
   ! allocate space for forcing information
-  !if(allocated(infileinfo_data)) deallocate(infileinfo_data) ! delete this line
-  allocate(infileinfo_data(nFile)) ! allocate(infileinfo_data(nFile), stat=ierr)
-  !if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for forcFileInfo'; return; end if
+  allocate(infileinfo_data(nFile))
+  if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for forcFileInfo'; return; end if
   print*, "infileinfo is allocated"
 
   ! poputate the forcingInfo structure with filenames, julian day of sart and end of the simulation
@@ -234,7 +233,6 @@ CONTAINS
    ! allocate space for time varibale of each file
    if(allocated(infileinfo_data(iFile)%timeVar)) deallocate(infileinfo_data(iFile)%timeVar)
    allocate(infileinfo_data(iFile)%timeVar(nTime))
-   !allocated(infileinfo_data(iFile)%timeVar(infileinfo_data(iFile)%nTime))
    print*, "time var is allocated"
 
    ! get the time varibale
@@ -242,13 +240,13 @@ CONTAINS
                vname_time, infileinfo_data(iFile)%timeVar, 1, nTime, ierr, cmessage) ! does it needs timeVar(:)
    print*, "time var is", infileinfo_data(iFile)%timeVar
 
-   ! get the time multiplier needed to convert time to units of days for each file
+   ! get the time multiplier needed to convert time to units of days for each nc file
    select case( trim( infileinfo_data(iFile)%unit(1:index(infileinfo_data(iFile)%unit,' ')) ) )
-    case('seconds'); convTime2Days=86400._dp
-    case('minutes'); convTime2Days=1440._dp
-    case('hours');   convTime2Days=24._dp
-    case('days');    convTime2Days=1._dp
-    case default;    ierr=20; message=trim(message)//'unable to identify time units'; return
+    case('seconds','second','sec','s'); convTime2Days=86400._dp
+    case('minutes','minute','min','m'); convTime2Days=1440._dp
+    case('hours'  ,'hour'  ,'hr' ,'h'); convTime2Days=24._dp
+    case('days'   ,'day'   ,'d');       convTime2Days=1._dp
+    case default;    ierr=20; message=trim(message)//'time unit must be seconds, minutes, hours or days.'; return
    end select
    infileinfo_data(iFile)%convTime2Days = convTime2Days
    print*, "conversion", convTime2Days
@@ -270,8 +268,7 @@ CONTAINS
    if (iFile==1) then ! if only one file is specified in the txt file
     infileinfo_data(iFile)%iTimebound(1) = 1
     infileinfo_data(iFile)%iTimebound(2) = size(infileinfo_data(iFile)%timeVar)
-   endif
-   if (iFile>1) then ! if multiple files specfied in the txt file
+   else ! if multiple files specfied in the txt file
     infileinfo_data(iFile)%iTimebound(1) = infileinfo_data(iFile-1)%iTimebound(2) + 1 ! the last index from the perivous nc file + 1
     infileinfo_data(iFile)%iTimebound(2) = infileinfo_data(iFile-1)%iTimebound(2) + nTime ! the last index from the perivous nc file + 1
    endif
@@ -491,7 +488,7 @@ CONTAINS
   character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
   ! initialize error control
-  ierr=0; message='init_time/'
+  ierr=0; message='infile_name/'
 
   ! initialize error control
   print*, "inside infile_name", fname_qsim
