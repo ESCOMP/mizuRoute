@@ -11,6 +11,7 @@ public::get_nc
 public::get_var_dims
 public::get_nc_dim_len
 public::get_var_attr
+public::check_attr
 public::put_global_attr
 public::def_nc
 public::def_dim
@@ -210,6 +211,33 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  end subroutine
+
+ ! *********************************************************************
+ ! subroutine: get attribute values for a variable
+ ! *********************************************************************
+ FUNCTION check_attr(fname, vname, attr_name)          ! inpu: attribute name
+   implicit none
+   ! input
+   character(*), intent(in)        :: fname        ! filename
+   character(*), intent(in)        :: vname        ! variable name
+   character(*), intent(in)        :: attr_name    ! attribute name
+   logical(lgt)                    :: check_attr
+   ! local
+   integer(i4b)                    :: ierr         ! error code
+   integer(i4b)                    :: ncid         ! NetCDF file ID
+   integer(i4b)                    :: iVarID       ! variable ID
+
+   ! open file for reading
+   ierr = nf90_open(fname, nf90_nowrite, ncid)
+
+   ! get the ID of the variable
+   ierr = nf90_inq_varid(ncid, trim(vname), iVarID)
+
+   ierr = nf90_inquire_attribute(ncid, iVarID, attr_name)
+   check_attr = (ierr == nf90_noerr)
+
+ END FUNCTION check_attr
+
 
  ! *********************************************************************
  ! subroutine: get attribute values for a variable
