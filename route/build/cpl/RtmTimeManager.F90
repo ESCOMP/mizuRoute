@@ -50,6 +50,7 @@ CONTAINS
   USE globalData, ONLY: timeVar                ! time variables (unit given by runoff data)
   USE globalData, ONLY: iTime                  ! time index at simulation time step
   USE globalData, ONLY: refJulday              ! julian day: reference
+  USE globalData, ONLY: roJulday               ! julian day: runoff input time
   USE globalData, ONLY: startJulday            ! julian day: start of routing simulation
   USE globalData, ONLY: endJulday              ! julian day: end of routing simulation
   USE globalData, ONLY: modJulday              ! julian day: at model time step
@@ -91,11 +92,16 @@ CONTAINS
   nTime = int((endJulday - refJulday)*convTime2Days) + 1
 
   if ( allocated(timeVar) )then
-    message=trim(message)//trim(cmessage)//' (allocated)'; return
+    !message=trim(message)//trim(cmessage)//' (allocated)'; return
   end if
 
   allocate(timeVar(nTime), stat=ierr)
   if(ierr/=0)then; message=trim(message)//trim(cmessage)//' (allocate)'; return; endif
+
+  ! time initialization
+  allocate(roJulday(nTime), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
 
   ! Create timeVar array: starting with 0 and increment of model time step in model unit
   timeVar(1) = (startJulday - refJulday)*convTime2Days
