@@ -232,8 +232,9 @@ CONTAINS
 
    ! Define filename
    sec_in_day = modTime(1)%ih*60*60+modTime(1)%imin*60+nint(modTime(1)%dsec)
-   write(fileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuRoute.h.', &
+   write(fileout, fmtYMDS) trim(output_dir)//'mizuRoute.h.', &
                            modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '-',sec_in_day,'.nc'
+   write(iulog,*), trim(fileout)
 
    ! define output file
    call defineFile(trim(fileout),                         &  ! input: file name

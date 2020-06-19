@@ -32,6 +32,7 @@
 <dname_sseg>            DIMNAME_SEG                ! dimension name of the stream segments
 <dname_nhru>            DIMNAME_HRU                ! dimension name of the HRUs
 <fname_ntopNew>         UPDATED_NTOPO_NC           ! netCDF name for augmented River Network
+<units_qsim>            mm/s                       ! units of runoff e.g., mm/s
 <varname_area>          Basin_Area                 ! name of variable holding hru area
 <varname_length>        Length                     ! name of variable holding segment length
 <varname_slope>         Slope                      ! name of variable holding segment slope
@@ -40,7 +41,6 @@
 <varname_segId>         seg_id                     ! name of variable holding the ID of each stream segment  
 <varname_downSegId>     Tosegment                  ! name of variable holding the ID of the next downstream segment
 <varname_pfafCode>      PFAF                       ! name of variable holding the pfafstetter code
-<units_qsim>            mm/s                       ! units of runoff e.g., mm/s
 ! ****************************************************************************************************************************
 ! Define options to include/skip calculations
 ! ----------------------------------------------------

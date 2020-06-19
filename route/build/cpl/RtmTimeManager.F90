@@ -48,6 +48,7 @@ CONTAINS
   USE public_var, ONLY: simEnd                 ! date string defining the end of the simulation
   USE public_var, ONLY: calendar               ! calendar name
   USE globalData, ONLY: timeVar                ! time variables (unit given by runoff data)
+  USE globalData, ONLY: roJulday               !
   USE globalData, ONLY: iTime                  ! time index at simulation time step
   USE globalData, ONLY: refJulday              ! julian day: reference
   USE globalData, ONLY: startJulday            ! julian day: start of routing simulation
@@ -64,18 +65,20 @@ CONTAINS
   ! local variable
   integer                                  :: nTime
   integer                                  :: ix
-  real(dp)                                 :: convTime2Days
+  real(r8)                                 :: convTime2Days
+  character(len=256)                       :: t_unit           ! unit of time
   character(len=256)                       :: cmessage         ! error message of downwind routine
 
   ! initialize error control
   ierr=0; message='init_time/'
 
   ! get the time multiplier needed to convert time to units of days
-  select case( trim( time_units(1:index(time_units,' ')) ) )
-    case('seconds','second','sec','s'); convTime2Days=86400._dp
-    case('minutes','minute','min');     convTime2Days=1440._dp
-    case('hours','hour','hr','h');      convTime2Days=24._dp
-    case('days','day','d');             convTime2Days=1._dp
+  t_unit =  time_units(1:index(time_units,' '))
+  select case( trim(t_unit)  )
+    case('seconds','second','sec','s'); convTime2Days=86400._r8
+    case('minutes','minute','min');     convTime2Days=1440._r8
+    case('hours','hour','hr','h');      convTime2Days=24._r8
+    case('days','day','d');             convTime2Days=1._r8
     case default
       ierr=20; message=trim(message)//'<time_units>= '//trim(t_unit)//': <time_units> must be seconds, minutes, hours or days.'; return
   end select
@@ -90,11 +93,7 @@ CONTAINS
 
   nTime = int((endJulday - refJulday)*convTime2Days) + 1
 
-  if ( allocated(timeVar) )then
-    message=trim(message)//trim(cmessage)//' (allocated)'; return
-  end if
-
-  allocate(timeVar(nTime), stat=ierr)
+  allocate(timeVar(nTime), roJulday(nTime), stat=ierr)
   if(ierr/=0)then; message=trim(message)//trim(cmessage)//' (allocate)'; return; endif
 
   ! Create timeVar array: starting with 0 and increment of model time step in model unit
@@ -104,6 +103,10 @@ CONTAINS
       timeVar(ix) = timeVar(ix-1) + convTime2Days
     end do
   end if
+
+  do ix = 1, nTime
+    roJulday(ix) = refJulday + timeVar(ix)/convTime2Days
+  end do
 
   ! check that the dates are aligned
   if(endJulday<startJulday) then; ierr=20; message=trim(message)//'simulation end is before simulation start'; return; endif

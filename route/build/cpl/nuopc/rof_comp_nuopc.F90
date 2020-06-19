@@ -562,6 +562,8 @@ contains
     EMesh = ESMF_MeshCreate(filename=trim(cvalue), fileformat=ESMF_FILEFORMAT_ESMFMESH, elementDistgrid=Distgrid, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
+    call ESMF_MeshWrite(EMesh, filename='miz_mesh', rc=rc)
+
 !    if ( debug_write )then
 !       write(iulog,*) ' After ESMF_MeshCreate'
 !       call shr_sys_flush(iulog)
