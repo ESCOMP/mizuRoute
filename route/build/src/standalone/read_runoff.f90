@@ -8,6 +8,8 @@ USE io_netcdf, only:get_nc
 USE io_netcdf, only:get_var_attr
 USE io_netcdf, only:get_nc_dim_len
 USE dataTypes, only:runoff                 ! runoff data type
+USE dataTypes, only:runoff_temp            ! runoff_temp data type
+
 
 implicit none
 
@@ -194,29 +196,31 @@ contains
  ! public subroutine: read runoff data
  ! *********************************************************************
  subroutine read_runoff_data(fname,          &  ! input: filename
+                             var_name,       &  ! input: varibale name
                              iTime,          &  ! input: time index
                              runoff_data_in, &  ! inout: runoff data structure
                              ierr, message)     ! output: error control
  implicit none
  ! input variables
- character(*), intent(in)      :: fname              ! filename
- integer(i4b), intent(in)      :: iTime              ! index of time element
+ character(*), intent(in)           :: fname              ! filename
+ character(*), intent(in)           :: var_name           ! variable name
+ integer(i4b), intent(in)           :: iTime              ! index of time element
  ! input/output variables
- type(runoff), intent(inout)   :: runoff_data_in     ! runoff for one time step for all spatial dimension
+ type(runoff_temp), intent(inout)   :: runoff_data_in     ! runoff for one time step for all spatial dimension
  ! output variables
- integer(i4b), intent(out)     :: ierr               ! error code
- character(*), intent(out)     :: message            ! error message
+ integer(i4b), intent(out)          :: ierr               ! error code
+ character(*), intent(out)          :: message            ! error message
  ! local variables
- character(len=strLen)         :: cmessage           ! error message from subroutine
+ character(len=strLen)              :: cmessage           ! error message from subroutine
 
  ! initialize error control
  ierr=0; message='read_runoff_data/'
 
  if (runoff_data_in%nSpace(2) == integerMissing) then
-  call read_1D_runoff(fname, iTime, runoff_data_in%nSpace(1), runoff_data_in, ierr, cmessage)
+  call read_1D_runoff(fname, var_name, iTime, runoff_data_in%nSpace(1), runoff_data_in, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  else
-  call read_2D_runoff(fname, iTime, runoff_data_in%nSpace, runoff_data_in, ierr, cmessage)
+  call read_2D_runoff(fname, var_name, iTime, runoff_data_in%nSpace, runoff_data_in, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  endif
 
@@ -226,41 +230,43 @@ contains
  ! private subroutine: read 2D runoff data
  ! *********************************************************************
  subroutine read_1D_runoff(fname,          &  ! input: filename
+                           var_name,       &  ! input: variable name
                            iTime,          &  ! input: time index
                            nSpace,         &  ! input: size of HRUs
                            runoff_data_in, &  ! inout: runoff data structure
                            ierr, message)     ! output: error control
  implicit none
  ! input variables
- character(*), intent(in)      :: fname              ! filename
- integer(i4b), intent(in)      :: iTime              ! index of time element
- integer(i4b), intent(in)      :: nSpace             ! size of spatial dimensions
+ character(*), intent(in)           :: fname              ! filename
+ character(*), intent(in)           :: var_name           ! variable name
+ integer(i4b), intent(in)           :: iTime              ! index of time element
+ integer(i4b), intent(in)           :: nSpace             ! size of spatial dimensions
  ! input/output variables
- type(runoff), intent(inout)   :: runoff_data_in     ! runoff for one time step for all spatial dimension
+ type(runoff_temp), intent(inout)   :: runoff_data_in     ! runoff for one time step for all spatial dimension
  ! output variables
- integer(i4b), intent(out)     :: ierr               ! error code
- character(*), intent(out)     :: message            ! error message
+ integer(i4b), intent(out)          :: ierr               ! error code
+ character(*), intent(out)          :: message            ! error message
  ! local variables
- real(dp)                      :: fill_value         ! fill_value
- real(dp)                      :: dummy(nSpace,1)    ! data read
- character(len=strLen)         :: cmessage           ! error message from subroutine
+ real(dp)                           :: fill_value         ! fill_value
+ real(dp)                           :: dummy(nSpace,1)    ! data read
+ character(len=strLen)              :: cmessage           ! error message from subroutine
 
  ! initialize error control
  ierr=0; message='read_1D_runoff/'
 
  ! get the simulated runoff data
- call get_nc(trim(fname),vname_qsim, dummy, (/1,iTime/), (/nSpace,1/), ierr, cmessage)
+ call get_nc(trim(fname), trim(var_name), dummy, (/1,iTime/), (/nSpace,1/), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the _fill_values for runoff variable
- call get_var_attr(trim(fname), vname_qsim, '_FillValue', fill_value, ierr, cmessage)
+ call get_var_attr(trim(fname), trim(var_name), '_FillValue', fill_value, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! replace _fill_value with -999 for dummy
  where ( abs(dummy - fill_value) < verySmall ) dummy = realMissing
 
  ! reshape
- runoff_data_in%qsim(1:nSpace) = dummy(1:nSpace,1)
+ runoff_data_in%sim(1:nSpace) = dummy(1:nSpace,1)
 
  end subroutine read_1D_runoff
 
@@ -268,6 +274,7 @@ contains
  ! private subroutine: read 2D runoff data
  ! *********************************************************************
  subroutine read_2D_runoff(fname,          &  ! input: filename
+                           var_name,       &  ! input: variable name
                            iTime,          &  ! input: time index
                            nSpace,         &  ! input: size of HRUs
                            runoff_data_in, &  ! output: runoff data structure
@@ -275,34 +282,35 @@ contains
  implicit none
  ! input variables
  character(*), intent(in)    :: fname            ! filename
+ character(*), intent(in)    :: var_name         ! variable name
  integer(i4b), intent(in)    :: iTime            ! index of time element
  integer(i4b), intent(in)    :: nSpace(1:2)      ! size of spatial dimensions
  ! input/output variables
- type(runoff), intent(inout) :: runoff_data_in     ! runoff for one time step for all spatial dimension
+ type(runoff_temp), intent(inout) :: runoff_data_in   ! runoff for one time step for all spatial dimension
  ! output variables
  integer(i4b), intent(out)   :: ierr             ! error code
  character(*), intent(out)   :: message          ! error message
  ! local variables
- real(dp)                   :: fill_value                   ! fill_value
- real(dp)                   :: dummy(nSpace(2),nSpace(1),1) ! data read
- character(len=strLen)      :: cmessage                     ! error message from subroutine
+ real(dp)                    :: fill_value                   ! fill_value
+ real(dp)                    :: dummy(nSpace(2),nSpace(1),1) ! data read
+ character(len=strLen)       :: cmessage                     ! error message from subroutine
 
  ! initialize error control
  ierr=0; message='read_2D_runoff/'
 
  ! get the simulated runoff data
- call get_nc(trim(fname), vname_qsim, dummy, (/1,1,iTime/), (/nSpace(2), nSpace(1), 1/), ierr, cmessage)
+ call get_nc(trim(fname), trim(var_name), dummy, (/1,1,iTime/), (/nSpace(2), nSpace(1), 1/), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the _fill_values for runoff variable
- call get_var_attr(trim(fname), vname_qsim, '_FillValue', fill_value, ierr, cmessage)
+ call get_var_attr(trim(fname), trim(var_name), '_FillValue', fill_value, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! replace _fill_value with -999 for dummy
  where ( abs(dummy - fill_value) < verySmall ) dummy = realMissing
 
  ! reshape
- runoff_data_in%qsim2d(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)
+ runoff_data_in%sim2d(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)
 
  end subroutine read_2D_runoff
 
