@@ -265,6 +265,14 @@ contains
  ! replace _fill_value with -999 for dummy
  where ( abs(dummy - fill_value) < verySmall ) dummy = realMissing
 
+ !print*, " dummy", dummy
+
+ if ( allocated(runoff_data_in%sim) ) then
+    deallocate(runoff_data_in%sim, stat=ierr)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+ allocate(runoff_data_in%sim(runoff_data_in%nSpace(1)), stat=ierr)
+
  ! reshape
  runoff_data_in%sim(1:nSpace) = dummy(1:nSpace,1)
 
@@ -308,6 +316,12 @@ contains
 
  ! replace _fill_value with -999 for dummy
  where ( abs(dummy - fill_value) < verySmall ) dummy = realMissing
+
+ if ( allocated(runoff_data_in%sim2d) ) then
+    deallocate(runoff_data_in%sim2d, stat=ierr)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+ allocate(runoff_data_in%sim2d(runoff_data_in%nSpace(2),runoff_data_in%nSpace(1)), stat=ierr)
 
  ! reshape
  runoff_data_in%sim2d(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)
