@@ -1,7 +1,7 @@
 MODULE RtmTimeManager
 
   USE ESMF
-  USE shr_kind_mod, only: r8 => shr_kind_r8
+  USE shr_kind_mod, only: dp => shr_kind_r8
   USE shr_sys_mod , only: shr_sys_abort, shr_sys_flush
   USE public_var  , only: iulog
   USE public_var  , ONLY: integerMissing
@@ -77,7 +77,7 @@ CONTAINS
     case('hours','hour','hr','h');      convTime2Days=24._dp
     case('days','day','d');             convTime2Days=1._dp
     case default
-      ierr=20; message=trim(message)//'<time_units>= '//trim(t_unit)//': <time_units> must be seconds, minutes, hours or days.'; return
+      ierr=20; message=trim(message)//'<time_units>= '//trim(time_units)//': <time_units> must be seconds, minutes, hours or days.'; return
   end select
 
   ! extract time information from the control information
