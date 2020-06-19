@@ -3,7 +3,7 @@ module remapping
   ! data types
   USE nrtype
   USE dataTypes, ONLY: remap                ! remapping data type
-  USE dataTypes, ONLY: runoff               ! runoff data type
+  USE dataTypes, ONLY: runoff_temp          ! runoff data type
   USE dataTypes, ONLY: var_ilength          ! integer type:          var(:)%dat
   USE dataTypes, ONLY: var_dlength          ! double precision type: var(:)%dat
 
@@ -36,7 +36,7 @@ module remapping
   subroutine remap_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
   implicit none
   ! input
-  type(runoff)         , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
+  type(runoff_temp)    , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
   type(remap)          , intent(in)  :: remap_data_in    ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
   ! output
   real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
@@ -64,7 +64,7 @@ module remapping
   subroutine remap_2D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
   implicit none
   ! input
-  type(runoff)         , intent(in)  :: runoff_data_in      ! runoff for one time step for all HRUs
+  type(runoff_temp)    , intent(in)  :: runoff_data_in      ! runoff for one time step for all HRUs
   type(remap)          , intent(in)  :: remap_data_in       ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
   ! output
   real(dp)             , intent(out) :: basinRunoff(:)      ! basin runoff
@@ -112,28 +112,28 @@ module remapping
     ii = remap_data_in%i_index(ixOverlap)
 
     ! check i-indices
-    if(ii < lbound(runoff_data_in%qSim2d,1) .or. ii > ubound(runoff_data_in%qSim2d,1))then
+    if(ii < lbound(runoff_data_in%Sim2d,1) .or. ii > ubound(runoff_data_in%Sim2d,1))then
      if(printWarn) write(iulog,'(a,4(i0,a))') trim(message)//'WARNING: When computing weighted runoff at ', jHRU, 'th-HRU, i-index ', ii,' was not found in runoff grid data.'
      ixOverlap = ixOverlap + 1; cycle
     endif
 
     ! check j-indices
-    if(jj < lbound(runoff_data_in%qSim2d,2) .or. jj > ubound(runoff_data_in%qSim2d,2))then
+    if(jj < lbound(runoff_data_in%Sim2d,2) .or. jj > ubound(runoff_data_in%Sim2d,2))then
      if(printWarn) write(iulog,'(a,4(i0,a))') trim(message)//'WARNING: When computing weighted runoff at ', jHRU, 'th-HRU, j-index ', jj, 'was not found in runoff grid data.'
      ixOverlap = ixOverlap + 1; cycle
     endif
 
     ! get the weighted average
-    if(runoff_data_in%qSim2d(ii,jj) > -xTol)then
+    if(runoff_data_in%Sim2d(ii,jj) > -xTol)then
      sumWeights        = sumWeights        + remap_data_in%weight(ixOverlap)
-     basinRunoff(jHRU) = basinRunoff(jHRU) + remap_data_in%weight(ixOverlap)*runoff_data_in%qSim2D(ii,jj)
+     basinRunoff(jHRU) = basinRunoff(jHRU) + remap_data_in%weight(ixOverlap)*runoff_data_in%Sim2d(ii,jj)
     endif
 
     ! check
     if(remap_data_in%i_index(iHRU)==ixCheck .and. remap_data_in%j_index(iHRU)==jxCheck)then
      write(iulog,*) 'remap_data_in%i_index(iHRU),remap_data_in%j_index(iHRU) = ', remap_data_in%i_index(iHRU), remap_data_in%j_index(iHRU)
      write(iulog,*) 'remap_data_in%num_qhru(iHRU)                            = ', remap_data_in%num_qhru(iHRU)
-     write(iulog,*) 'runoff_data_in%qSim2D(ii,jj)                            = ', runoff_data_in%qSim2D(ii,jj)
+     write(iulog,*) 'runoff_data_in%Sim2d(ii,jj)                             = ', runoff_data_in%Sim2d(ii,jj)
     endif
 
     ! increment the overlap index
@@ -162,7 +162,7 @@ module remapping
   subroutine remap_1D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
   implicit none
   ! input
-  type(runoff)         , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
+  type(runoff_temp)    , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
   type(remap)          , intent(in)  :: remap_data_in    ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
   ! output
   real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
@@ -225,20 +225,20 @@ module remapping
     endif
 
     ! get the weighted average
-    if(runoff_data_in%qSim(ixRunoff) > -xTol)then
+    if(runoff_data_in%Sim(ixRunoff) > -xTol)then
      sumWeights        = sumWeights        + remap_data_in%weight(ixOverlap)
-     basinRunoff(jHRU) = basinRunoff(jHRU) + remap_data_in%weight(ixOverlap)*runoff_data_in%qSim(ixRunoff)
+     basinRunoff(jHRU) = basinRunoff(jHRU) + remap_data_in%weight(ixOverlap)*runoff_data_in%Sim(ixRunoff)
     endif
 
     ! check
     if(remap_data_in%hru_id(iHRU)==ixCheck)then
      write(iulog,*) 'remap_data_in%hru_id(iHRU)                         = ', remap_data_in%hru_id(iHRU)
      write(iulog,*) 'remap_data_in%num_qhru(iHRU)                       = ', remap_data_in%num_qhru(iHRU)
-     write(iulog,*) 'ixRunoff, runoff_data_in%qSim(ixRunoff)            = ', ixRunoff, runoff_data_in%qSim(ixRunoff)
+     write(iulog,*) 'ixRunoff, runoff_data_in%Sim(ixRunoff)            = ', ixRunoff, runoff_data_in%Sim(ixRunoff)
     endif
 
-    !write(*,*) 'remap_data_in%qhru_id(ixOverlap), runoff_data_in%hru_id(ixRunoff), remap_data_in%weight(ixOverlap), runoff_data_in%qSim(ixRunoff) = ', &
-    !            remap_data_in%qhru_id(ixOverlap), runoff_data_in%hru_id(ixRunoff), remap_data_in%weight(ixOverlap), runoff_data_in%qSim(ixRunoff)
+    !write(*,*) 'remap_data_in%qhru_id(ixOverlap), runoff_data_in%hru_id(ixRunoff), remap_data_in%weight(ixOverlap), runoff_data_in%Sim(ixRunoff) = ', &
+    !            remap_data_in%qhru_id(ixOverlap), runoff_data_in%hru_id(ixRunoff), remap_data_in%weight(ixOverlap), runoff_data_in%Sim(ixRunoff)
 
     ! increment the overlap index
     ixOverlap = ixOverlap + 1
@@ -266,7 +266,7 @@ module remapping
   subroutine sort_runoff(runoff_data_in, basinRunoff, ierr, message)
   implicit none
   ! input
-  type(runoff)         , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
+  type(runoff_temp)    , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
   ! output
   real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
   integer(i4b)         , intent(out) :: ierr             ! error code
@@ -289,14 +289,14 @@ module remapping
    endif
 
    ! get the weighted average
-   if(runoff_data_in%qsim(iHRU) > -xTol)then
-     basinRunoff(jHRU) = runoff_data_in%qsim(iHRU)
+   if(runoff_data_in%Sim(iHRU) > -xTol)then
+     basinRunoff(jHRU) = runoff_data_in%Sim(iHRU)
    endif
 
    ! check
    if(runoff_data_in%hru_id(iHRU)==ixCheck)then
     write(iulog,*) 'jHRU, runoff_data_in%hru_id(iHRU) = ', jHRU, runoff_data_in%hru_id(iHRU)
-    write(iulog,*) 'runoff_data_in%qsim(iHRU)         = ', runoff_data_in%qsim(iHRU)
+    write(iulog,*) 'runoff_data_in%Sim(iHRU)         = ', runoff_data_in%Sim(iHRU)
     write(iulog,*) 'basinRunoff(jHRU)                 = ', basinRunoff(jHRU)*86400._dp*1000._dp*365._dp
    endif
 

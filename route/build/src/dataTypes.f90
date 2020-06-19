@@ -180,7 +180,7 @@ implicit none
    real(dp)                 , allocatable  :: basinPrecip(:)! remapped river network catchment runoff (size: number of nHRU)
  end type runoff
 
-  ! temporary runoff data to read
+ ! temporary runoff data to read
  type, public :: runoff_temp
    integer(i4b)                            :: nTime         ! number of time steps
    integer(i4b)                            :: nSpace(1:2)   ! number of spatial dimension
@@ -190,7 +190,7 @@ implicit none
    integer(i4b)             , allocatable  :: hru_id(:)     ! id of HM_HRUs or RN_HRUs at which runoff is stored (size: nSpace(1))
    integer(i4b)             , allocatable  :: hru_ix(:)     ! Index of RN_HRUs associated with river network (used only HM_HRUs = RN_HRUs)
    real(dp)                 , allocatable  :: basinsim(:)   ! remapped river network catchment runoff (size: number of nHRU)
- end type runoff
+ end type runoff_temp
 
  ! ---------- reach parameters ----------------------------------------------------------------------------
 

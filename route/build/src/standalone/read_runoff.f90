@@ -203,7 +203,7 @@ contains
  implicit none
  ! input variables
  character(*), intent(in)           :: fname              ! filename
- character(*), intent(in)           :: varname            ! variable name
+ character(*), intent(in)           :: var_name           ! variable name
  integer(i4b), intent(in)           :: iTime              ! index of time element
  ! input/output variables
  type(runoff_temp), intent(inout)   :: runoff_data_in     ! runoff for one time step for all spatial dimension
@@ -230,7 +230,7 @@ contains
  ! private subroutine: read 2D runoff data
  ! *********************************************************************
  subroutine read_1D_runoff(fname,          &  ! input: filename
-                           varname,        &  ! input: variable name
+                           var_name,       &  ! input: variable name
                            iTime,          &  ! input: time index
                            nSpace,         &  ! input: size of HRUs
                            runoff_data_in, &  ! inout: runoff data structure
@@ -238,7 +238,7 @@ contains
  implicit none
  ! input variables
  character(*), intent(in)           :: fname              ! filename
- character(*), intent(in)           :: varname            ! variable name
+ character(*), intent(in)           :: var_name           ! variable name
  integer(i4b), intent(in)           :: iTime              ! index of time element
  integer(i4b), intent(in)           :: nSpace             ! size of spatial dimensions
  ! input/output variables
@@ -255,11 +255,11 @@ contains
  ierr=0; message='read_1D_runoff/'
 
  ! get the simulated runoff data
- call get_nc(trim(fname), trim(varname), dummy, (/1,iTime/), (/nSpace,1/), ierr, cmessage)
+ call get_nc(trim(fname), trim(var_name), dummy, (/1,iTime/), (/nSpace,1/), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the _fill_values for runoff variable
- call get_var_attr(trim(fname), trim(varname), '_FillValue', fill_value, ierr, cmessage)
+ call get_var_attr(trim(fname), trim(var_name), '_FillValue', fill_value, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! replace _fill_value with -999 for dummy
@@ -274,7 +274,7 @@ contains
  ! private subroutine: read 2D runoff data
  ! *********************************************************************
  subroutine read_2D_runoff(fname,          &  ! input: filename
-                           varname,        &  ! input: variable name
+                           var_name,       &  ! input: variable name
                            iTime,          &  ! input: time index
                            nSpace,         &  ! input: size of HRUs
                            runoff_data_in, &  ! output: runoff data structure
@@ -282,11 +282,11 @@ contains
  implicit none
  ! input variables
  character(*), intent(in)    :: fname            ! filename
- character(*), intent(in)    :: varname          ! variable name
+ character(*), intent(in)    :: var_name         ! variable name
  integer(i4b), intent(in)    :: iTime            ! index of time element
  integer(i4b), intent(in)    :: nSpace(1:2)      ! size of spatial dimensions
  ! input/output variables
- type(runoff), intent(inout) :: runoff_data_in   ! runoff for one time step for all spatial dimension
+ type(runoff_temp), intent(inout) :: runoff_data_in   ! runoff for one time step for all spatial dimension
  ! output variables
  integer(i4b), intent(out)   :: ierr             ! error code
  character(*), intent(out)   :: message          ! error message
@@ -299,11 +299,11 @@ contains
  ierr=0; message='read_2D_runoff/'
 
  ! get the simulated runoff data
- call get_nc(trim(fname), trim(varname), dummy, (/1,1,iTime/), (/nSpace(2), nSpace(1), 1/), ierr, cmessage)
+ call get_nc(trim(fname), trim(var_name), dummy, (/1,1,iTime/), (/nSpace(2), nSpace(1), 1/), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the _fill_values for runoff variable
- call get_var_attr(trim(fname), trim(varname), '_FillValue', fill_value, ierr, cmessage)
+ call get_var_attr(trim(fname), trim(var_name), '_FillValue', fill_value, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! replace _fill_value with -999 for dummy
