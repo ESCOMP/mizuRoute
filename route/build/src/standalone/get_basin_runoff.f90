@@ -47,12 +47,14 @@ contains
 
   ! populate the information from runoff_data to runoff_data_temp assuming that that runoff
   runoff_data_temp%nSpace(:) = runoff_data%nSpace(:) ! pass the dimenstion of varibale to the data, this can be better written if evapo and rain are per lake and not model grid
-  runoff_data_temp%hru_id(:) = runoff_data%hru_id(:) !
-  runoff_data_temp%hru_ix(:) = runoff_data%hru_ix(:) !
+  runoff_data_temp%hru_id = runoff_data%hru_id ! should runoff_data_temp%hru_id be allocated first?
+  !print*, "runoff_data%hru_id", runoff_data%hru_id
+  !print*, "runoff_data_temp%hru_id", runoff_data_temp%hru_id
+  !runoff_data_temp%hru_ix(:) = runoff_data%hru_ix(:) !
 
   ! get the first simulated flux, runoff, for the current time step - runoff_data_temp%sim(:) or %sim2D(:,:)
 
-  ! get the simulated runoff for the current time step - runoff_data%qsim(:) or %qsim2D(:,:)
+  ! get the simulated runoff for the current time step - runoff_data_temp%sim(:) or %sim2D(:,:)
   call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
                         trim(vname_qsim),                  & ! input: varname
                         iTime_local,                       & ! input: time index
