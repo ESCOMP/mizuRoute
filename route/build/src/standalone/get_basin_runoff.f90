@@ -18,7 +18,7 @@ contains
  ! populate runoff_data with runoff values at LSM domain and at iTime step
 
   ! shared data strcuture
-  USE datatype,    only:runoff_temp             ! temporary data strcture to pass the read variable to runoff_data
+  USE DataType,    only:runoff_temp             ! temporary data strcture to pass the read variable to runoff_data
   ! shared data
   USE public_var,  only:input_dir               ! directory containing input data
   USE public_var,  only:fname_qsim              ! simulated runoff netCDF name

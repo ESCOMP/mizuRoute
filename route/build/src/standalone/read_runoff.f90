@@ -8,6 +8,8 @@ USE io_netcdf, only:get_nc
 USE io_netcdf, only:get_var_attr
 USE io_netcdf, only:get_nc_dim_len
 USE dataTypes, only:runoff                 ! runoff data type
+USE dataTypes, only:runoff_temp            ! runoff_temp data type
+
 
 implicit none
 
