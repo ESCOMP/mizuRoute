@@ -1,7 +1,7 @@
 MODULE RtmTimeManager
 
   USE ESMF
-  USE shr_kind_mod, only: r8 => shr_kind_r8
+  USE shr_kind_mod, only: dp => shr_kind_r8
   USE shr_sys_mod , only: shr_sys_abort, shr_sys_flush
   USE public_var  , only: iulog
   USE public_var  , ONLY: integerMissing
@@ -51,6 +51,7 @@ CONTAINS
   USE globalData, ONLY: roJulday               !
   USE globalData, ONLY: iTime                  ! time index at simulation time step
   USE globalData, ONLY: refJulday              ! julian day: reference
+  USE globalData, ONLY: roJulday               ! julian day: runoff input time
   USE globalData, ONLY: startJulday            ! julian day: start of routing simulation
   USE globalData, ONLY: endJulday              ! julian day: end of routing simulation
   USE globalData, ONLY: modJulday              ! julian day: at model time step
@@ -80,7 +81,7 @@ CONTAINS
     case('hours','hour','hr','h');      convTime2Days=24._r8
     case('days','day','d');             convTime2Days=1._r8
     case default
-      ierr=20; message=trim(message)//'<time_units>= '//trim(t_unit)//': <time_units> must be seconds, minutes, hours or days.'; return
+      ierr=20; message=trim(message)//'<time_units>= '//trim(time_units)//': <time_units> must be seconds, minutes, hours or days.'; return
   end select
 
   ! extract time information from the control information
@@ -95,6 +96,11 @@ CONTAINS
 
   allocate(timeVar(nTime), roJulday(nTime), stat=ierr)
   if(ierr/=0)then; message=trim(message)//trim(cmessage)//' (allocate)'; return; endif
+
+  ! time initialization
+  allocate(roJulday(nTime), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
 
   ! Create timeVar array: starting with 0 and increment of model time step in model unit
   timeVar(1) = (startJulday - refJulday)*convTime2Days
