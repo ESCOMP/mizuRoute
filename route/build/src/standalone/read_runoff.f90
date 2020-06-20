@@ -264,8 +264,6 @@ contains
  ! replace _fill_value with -999 for dummy
  where ( abs(dummy - fill_value) < verySmall ) dummy = realMissing
 
- print*, " dummy", dummy
-
  ! reshape
  runoff_data_in%sim(1:nSpace) = dummy(1:nSpace,1)
 
