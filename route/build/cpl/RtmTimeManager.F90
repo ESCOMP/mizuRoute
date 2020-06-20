@@ -1,7 +1,7 @@
 MODULE RtmTimeManager
 
   USE ESMF
-  USE shr_kind_mod, only: dp => shr_kind_r8
+  USE shr_kind_mod, only: r8 => shr_kind_r8
   USE shr_sys_mod , only: shr_sys_abort, shr_sys_flush
   USE public_var  , only: iulog
   USE public_var  , ONLY: integerMissing
