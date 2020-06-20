@@ -35,7 +35,7 @@ CONTAINS
  ! *********************************************************************
  ! private subroutine: initialize time data
  ! *********************************************************************
- SUBROUTINE init_time(ierr, message)  ! output
+ SUBROUTINE init_time(ierr, message)
 
   ! Initialize mizuRoute time based on coupler imported clock
 
@@ -95,12 +95,7 @@ CONTAINS
   nTime = int((endJulday - refJulday)*convTime2Days) + 1
 
   allocate(timeVar(nTime), roJulday(nTime), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage)//' (allocate)'; return; endif
-
-  ! time initialization
-  allocate(roJulday(nTime), stat=ierr)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
 
   ! Create timeVar array: starting with 0 and increment of model time step in model unit
   timeVar(1) = (startJulday - refJulday)*convTime2Days

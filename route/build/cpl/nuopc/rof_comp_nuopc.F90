@@ -392,6 +392,7 @@ contains
 
     ! Temporal fix
     call init_model(cfile_name, ierr, cmessage)
+    if(ierr/=0) then; trim(subname)//trim(cmessage); return; endif
 
     !----------------------
     ! Initialize time managers in mizuRoute
@@ -450,6 +451,7 @@ contains
 
     ! mizuRoute time initialize based on time from coupler
     call init_time(ierr, cmessage)
+    if(ierr/=0) then; trim(subname)//trim(cmessage); return; endif
 
     !----------------------
     ! Read namelist, grid and surface data
