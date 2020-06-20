@@ -8,7 +8,6 @@ USE io_netcdf, only:get_nc
 USE io_netcdf, only:get_var_attr
 USE io_netcdf, only:get_nc_dim_len
 USE dataTypes, only:runoff                 ! runoff data type
-USE dataTypes, only:runoff_temp            ! runoff_temp data type
 
 
 implicit none
@@ -125,8 +124,8 @@ contains
  if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data_in%hruId'; return; endif
 
  ! allocate space for simulated runoff
- allocate(runoff_data_in%qSim(runoff_data_in%nSpace(1)), stat=ierr)
- if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data_in%qsim'; return; endif
+ allocate(runoff_data_in%Sim(runoff_data_in%nSpace(1)), stat=ierr)
+ if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data_in%sim'; return; endif
 
  ! get HRU ids from the runoff file
  call get_nc(fname, vname_hruid, runoff_data_in%hru_id, 1, runoff_data_in%nSpace(1), ierr, cmessage)
@@ -185,9 +184,9 @@ contains
  call get_nc_dim_len(fname, trim(dname_xlon), runoff_data_in%nSpace(2), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! allocate space for simulated runoff. qSim2d = runoff(lon, lat)
- allocate(runoff_data_in%qSim2d(runoff_data_in%nSpace(2),runoff_data_in%nSpace(1)), stat=ierr)
- if(ierr/=0)then; message=trim(message)//'problem allocating qsim'; return; endif
+ ! allocate space for simulated runoff. Sim2d = runoff(lon, lat)
+ allocate(runoff_data_in%Sim2d(runoff_data_in%nSpace(2),runoff_data_in%nSpace(1)), stat=ierr)
+ if(ierr/=0)then; message=trim(message)//'problem allocating sim'; return; endif
 
  end subroutine read_2D_runoff_metadata
 
@@ -206,7 +205,7 @@ contains
  character(*), intent(in)           :: var_name           ! variable name
  integer(i4b), intent(in)           :: iTime              ! index of time element
  ! input/output variables
- type(runoff_temp), intent(inout)   :: runoff_data_in     ! runoff for one time step for all spatial dimension
+ type(runoff), intent(inout)        :: runoff_data_in     ! runoff for one time step for all spatial dimension
  ! output variables
  integer(i4b), intent(out)          :: ierr               ! error code
  character(*), intent(out)          :: message            ! error message
@@ -242,7 +241,7 @@ contains
  integer(i4b), intent(in)           :: iTime              ! index of time element
  integer(i4b), intent(in)           :: nSpace             ! size of spatial dimensions
  ! input/output variables
- type(runoff_temp), intent(inout)   :: runoff_data_in     ! runoff for one time step for all spatial dimension
+ type(runoff), intent(inout)        :: runoff_data_in     ! runoff for one time step for all spatial dimension
  ! output variables
  integer(i4b), intent(out)          :: ierr               ! error code
  character(*), intent(out)          :: message            ! error message
@@ -265,13 +264,7 @@ contains
  ! replace _fill_value with -999 for dummy
  where ( abs(dummy - fill_value) < verySmall ) dummy = realMissing
 
- !print*, " dummy", dummy
-
- if ( allocated(runoff_data_in%sim) ) then
-    deallocate(runoff_data_in%sim, stat=ierr)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- end if
- allocate(runoff_data_in%sim(runoff_data_in%nSpace(1)), stat=ierr)
+ print*, " dummy", dummy
 
  ! reshape
  runoff_data_in%sim(1:nSpace) = dummy(1:nSpace,1)
@@ -294,7 +287,7 @@ contains
  integer(i4b), intent(in)    :: iTime            ! index of time element
  integer(i4b), intent(in)    :: nSpace(1:2)      ! size of spatial dimensions
  ! input/output variables
- type(runoff_temp), intent(inout) :: runoff_data_in   ! runoff for one time step for all spatial dimension
+ type(runoff), intent(inout) :: runoff_data_in   ! runoff for one time step for all spatial dimension
  ! output variables
  integer(i4b), intent(out)   :: ierr             ! error code
  character(*), intent(out)   :: message          ! error message
@@ -316,12 +309,6 @@ contains
 
  ! replace _fill_value with -999 for dummy
  where ( abs(dummy - fill_value) < verySmall ) dummy = realMissing
-
- if ( allocated(runoff_data_in%sim2d) ) then
-    deallocate(runoff_data_in%sim2d, stat=ierr)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- end if
- allocate(runoff_data_in%sim2d(runoff_data_in%nSpace(2),runoff_data_in%nSpace(1)), stat=ierr)
 
  ! reshape
  runoff_data_in%sim2d(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)

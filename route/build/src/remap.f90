@@ -3,7 +3,7 @@ module remapping
   ! data types
   USE nrtype
   USE dataTypes, ONLY: remap                ! remapping data type
-  USE dataTypes, ONLY: runoff_temp          ! runoff data type
+  USE dataTypes, ONLY: runoff               ! runoff data type
   USE dataTypes, ONLY: var_ilength          ! integer type:          var(:)%dat
   USE dataTypes, ONLY: var_dlength          ! double precision type: var(:)%dat
 
@@ -36,7 +36,7 @@ module remapping
   subroutine remap_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
   implicit none
   ! input
-  type(runoff_temp)    , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
+  type(runoff)         , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
   type(remap)          , intent(in)  :: remap_data_in    ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
   ! output
   real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
@@ -64,7 +64,7 @@ module remapping
   subroutine remap_2D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
   implicit none
   ! input
-  type(runoff_temp)    , intent(in)  :: runoff_data_in      ! runoff for one time step for all HRUs
+  type(runoff)         , intent(in)  :: runoff_data_in      ! runoff for one time step for all HRUs
   type(remap)          , intent(in)  :: remap_data_in       ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
   ! output
   real(dp)             , intent(out) :: basinRunoff(:)      ! basin runoff
@@ -162,7 +162,7 @@ module remapping
   subroutine remap_1D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
   implicit none
   ! input
-  type(runoff_temp)    , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
+  type(runoff)    , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
   type(remap)          , intent(in)  :: remap_data_in    ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
   ! output
   real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
@@ -266,7 +266,7 @@ module remapping
   subroutine sort_runoff(runoff_data_in, basinRunoff, ierr, message)
   implicit none
   ! input
-  type(runoff_temp)    , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
+  type(runoff)    , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
   ! output
   real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
   integer(i4b)         , intent(out) :: ierr             ! error code
