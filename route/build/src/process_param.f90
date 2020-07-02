@@ -62,8 +62,7 @@ contains
   ! check if the cummulative Gamma distribution is close to 1.00 for given model time step, tscale and fsahpe.
   X_VALUE = alamb*dt
   cumprob = gammp(fshape, X_VALUE)
-  if(cumprob > 0.999_dp) then
-   !print*, cumprob, X_VALUE
+  if(cumprob > 0.999_dp) then ! in case if the cumprob is close to 1 in one model time step
    ntdh_try = 1.999_dp
   else
    ntdh_min = 1._dp
@@ -81,7 +80,6 @@ contains
    end do
   endif
   ntdh = ceiling(ntdh_try)
-  !print*, ntdh
   ! allocate space for the time-delay histogram
   if (.not.allocated(FRAC_FUTURE)) then
     allocate(FRAC_FUTURE(ntdh), stat=ierr)
@@ -254,6 +252,9 @@ contains
     iHrLast=iHr
     if (INTE > 0.9999) exit
   enddo
+
+  ! Re-normalize the UHQ by its sum
+  UHQ = UHQ/INTE
 
   !Aggregate hourly unit hydrograph to simulation time step
   allocate(seg_uh(iSeg)%dat((iHrLast+nTsub-1)/nTsub),stat=ierr,errmsg=cmessage)
