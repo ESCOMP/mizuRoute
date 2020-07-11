@@ -201,17 +201,28 @@ module remapping
    ! but increment index of weight and overlap-poly-id arrays
    if (jHRU == integerMissing)then
     if (remap_data_in%num_qhru(iHRU)/=integerMissing)then
-      ixOverlap = ixOverlap + remap_data_in%num_qhru(iHRU)
+      if (remap_data_in%num_qhru(iHRU)==0)then
+        ixOverlap = ixOverlap + 1
+      else
+        ixOverlap = ixOverlap + remap_data_in%num_qhru(iHRU)
+      endif
     endif
     cycle
    endif
 
-   !print*, 'remap_data_in%hru_id(iHRU), structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1), remap_data_in%num_qhru(iHRU) = ', &
-   !         remap_data_in%hru_id(iHRU), structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1), remap_data_in%num_qhru(iHRU)
+   !print*, 'remap_data_in%hru_id(iHRU), basinID(jHRU), remap_data_in%num_qhru(iHRU) = ', &
+   !         remap_data_in%hru_id(iHRU), basinID(jHRU), remap_data_in%num_qhru(iHRU)
 
    ! initialize the weighted average
    sumWeights        = 0._dp
    basinRunoff(jHRU) = 0._dp
+
+   ! Assume data dimension variables (weight/overlapPolyId) are zero if there is no overlapping hydrologic model hrus in routing hru
+   ! this means data dimension index need to increment
+   if (remap_data_in%num_qhru(iHRU)==0)then
+     ixOverlap = ixOverlap + 1
+     cycle
+   endif
 
    ! loop through the overlapping polygons
    do ixPoly=1,remap_data_in%num_qhru(iHRU) ! number of overlapping polygons
