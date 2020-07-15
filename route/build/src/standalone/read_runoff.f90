@@ -124,7 +124,7 @@ contains
  if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data_in%hruId'; return; endif
 
  ! allocate space for simulated runoff
- allocate(runoff_data_in%Sim(runoff_data_in%nSpace(1)), stat=ierr)
+ allocate(runoff_data_in%sim(runoff_data_in%nSpace(1)), stat=ierr)
  if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data_in%sim'; return; endif
 
  ! get HRU ids from the runoff file
@@ -184,8 +184,8 @@ contains
  call get_nc_dim_len(fname, trim(dname_xlon), runoff_data_in%nSpace(2), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! allocate space for simulated runoff. Sim2d = runoff(lon, lat)
- allocate(runoff_data_in%Sim2d(runoff_data_in%nSpace(2),runoff_data_in%nSpace(1)), stat=ierr)
+ ! allocate space for simulated runoff. sim2d = runoff(lon, lat)
+ allocate(runoff_data_in%sim2d(runoff_data_in%nSpace(2),runoff_data_in%nSpace(1)), stat=ierr)
  if(ierr/=0)then; message=trim(message)//'problem allocating sim'; return; endif
 
  end subroutine read_2D_runoff_metadata

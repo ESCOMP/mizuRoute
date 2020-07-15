@@ -112,28 +112,28 @@ module remapping
     ii = remap_data_in%i_index(ixOverlap)
 
     ! check i-indices
-    if(ii < lbound(runoff_data_in%Sim2d,1) .or. ii > ubound(runoff_data_in%Sim2d,1))then
+    if(ii < lbound(runoff_data_in%sim2d,1) .or. ii > ubound(runoff_data_in%sim2d,1))then
      if(printWarn) write(iulog,'(a,4(i0,a))') trim(message)//'WARNING: When computing weighted runoff at ', jHRU, 'th-HRU, i-index ', ii,' was not found in runoff grid data.'
      ixOverlap = ixOverlap + 1; cycle
     endif
 
     ! check j-indices
-    if(jj < lbound(runoff_data_in%Sim2d,2) .or. jj > ubound(runoff_data_in%Sim2d,2))then
+    if(jj < lbound(runoff_data_in%sim2d,2) .or. jj > ubound(runoff_data_in%sim2d,2))then
      if(printWarn) write(iulog,'(a,4(i0,a))') trim(message)//'WARNING: When computing weighted runoff at ', jHRU, 'th-HRU, j-index ', jj, 'was not found in runoff grid data.'
      ixOverlap = ixOverlap + 1; cycle
     endif
 
     ! get the weighted average
-    if(runoff_data_in%Sim2d(ii,jj) > -xTol)then
+    if(runoff_data_in%sim2d(ii,jj) > -xTol)then
      sumWeights        = sumWeights        + remap_data_in%weight(ixOverlap)
-     basinRunoff(jHRU) = basinRunoff(jHRU) + remap_data_in%weight(ixOverlap)*runoff_data_in%Sim2d(ii,jj)
+     basinRunoff(jHRU) = basinRunoff(jHRU) + remap_data_in%weight(ixOverlap)*runoff_data_in%sim2d(ii,jj)
     endif
 
     ! check
     if(remap_data_in%i_index(iHRU)==ixCheck .and. remap_data_in%j_index(iHRU)==jxCheck)then
      write(iulog,*) 'remap_data_in%i_index(iHRU),remap_data_in%j_index(iHRU) = ', remap_data_in%i_index(iHRU), remap_data_in%j_index(iHRU)
      write(iulog,*) 'remap_data_in%num_qhru(iHRU)                            = ', remap_data_in%num_qhru(iHRU)
-     write(iulog,*) 'runoff_data_in%Sim2d(ii,jj)                             = ', runoff_data_in%Sim2d(ii,jj)
+     write(iulog,*) 'runoff_data_in%sim2d(ii,jj)                             = ', runoff_data_in%sim2d(ii,jj)
     endif
 
     ! increment the overlap index
@@ -225,20 +225,20 @@ module remapping
     endif
 
     ! get the weighted average
-    if(runoff_data_in%Sim(ixRunoff) > -xTol)then
+    if(runoff_data_in%sim(ixRunoff) > -xTol)then
      sumWeights        = sumWeights        + remap_data_in%weight(ixOverlap)
-     basinRunoff(jHRU) = basinRunoff(jHRU) + remap_data_in%weight(ixOverlap)*runoff_data_in%Sim(ixRunoff)
+     basinRunoff(jHRU) = basinRunoff(jHRU) + remap_data_in%weight(ixOverlap)*runoff_data_in%sim(ixRunoff)
     endif
 
     ! check
     if(remap_data_in%hru_id(iHRU)==ixCheck)then
      write(iulog,*) 'remap_data_in%hru_id(iHRU)                         = ', remap_data_in%hru_id(iHRU)
      write(iulog,*) 'remap_data_in%num_qhru(iHRU)                       = ', remap_data_in%num_qhru(iHRU)
-     write(iulog,*) 'ixRunoff, runoff_data_in%Sim(ixRunoff)            = ', ixRunoff, runoff_data_in%Sim(ixRunoff)
+     write(iulog,*) 'ixRunoff, runoff_data_in%sim(ixRunoff)             = ', ixRunoff, runoff_data_in%sim(ixRunoff)
     endif
 
-    !write(*,*) 'remap_data_in%qhru_id(ixOverlap), runoff_data_in%hru_id(ixRunoff), remap_data_in%weight(ixOverlap), runoff_data_in%Sim(ixRunoff) = ', &
-    !            remap_data_in%qhru_id(ixOverlap), runoff_data_in%hru_id(ixRunoff), remap_data_in%weight(ixOverlap), runoff_data_in%Sim(ixRunoff)
+    !write(*,*) 'remap_data_in%qhru_id(ixOverlap), runoff_data_in%hru_id(ixRunoff), remap_data_in%weight(ixOverlap), runoff_data_in%sim(ixRunoff) = ', &
+    !            remap_data_in%qhru_id(ixOverlap), runoff_data_in%hru_id(ixRunoff), remap_data_in%weight(ixOverlap), runoff_data_in%sim(ixRunoff)
 
     ! increment the overlap index
     ixOverlap = ixOverlap + 1
@@ -289,14 +289,14 @@ module remapping
    endif
 
    ! get the weighted average
-   if(runoff_data_in%Sim(iHRU) > -xTol)then
-     basinRunoff(jHRU) = runoff_data_in%Sim(iHRU)
+   if(runoff_data_in%sim(iHRU) > -xTol)then
+     basinRunoff(jHRU) = runoff_data_in%sim(iHRU)
    endif
 
    ! check
    if(runoff_data_in%hru_id(iHRU)==ixCheck)then
     write(iulog,*) 'jHRU, runoff_data_in%hru_id(iHRU) = ', jHRU, runoff_data_in%hru_id(iHRU)
-    write(iulog,*) 'runoff_data_in%Sim(iHRU)         = ', runoff_data_in%Sim(iHRU)
+    write(iulog,*) 'runoff_data_in%sim(iHRU)          = ', runoff_data_in%sim(iHRU)
     write(iulog,*) 'basinRunoff(jHRU)                 = ', basinRunoff(jHRU)*86400._dp*1000._dp*365._dp
    endif
 
