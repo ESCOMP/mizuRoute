@@ -215,7 +215,7 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: get attribute values for a variable
  ! *********************************************************************
- FUNCTION check_attr(fname, vname, attr_name)          ! inpu: attribute name
+ FUNCTION check_attr(fname, vname, attr_name)
    implicit none
    ! input
    character(*), intent(in)        :: fname        ! filename
@@ -235,6 +235,9 @@ CONTAINS
 
    ierr = nf90_inquire_attribute(ncid, iVarID, attr_name)
    check_attr = (ierr == nf90_noerr)
+
+  ! close output file
+  ierr = nf90_close(ncid)
 
  END FUNCTION check_attr
 

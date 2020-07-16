@@ -10,25 +10,21 @@
 CC=pgf90
 
 ifeq "$(CC)" "gfortran"
-NCDF_PATH=/opt/netcdf4-gcc
-LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
-            -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
-INCNETCDF = -I$(NCDF_PATH)/include
+ NCDF_PATH=/opt/netcdf4-gcc
 endif
 
 ifeq "$(CC)" "ifort"
-NCDF_PATH = /opt/netcdf4-intel
-LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
- 	-L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
-INCNETCDF = -I$(NCDF_PATH)/include
+ NCDF_PATH = /opt/netcdf4-intel
 endif
 
 ifeq "$(CC)" "pgf90"
  NCDF_PATH = /opt/netcdf4-pgi
- LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
- INCNETCDF = -I$(NCDF_PATH)/include
 endif
- 
+
+LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
+            -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
+INCNETCDF = -I$(NCDF_PATH)/include
+
 # define flags
 ifeq "$(CC)" "gfortran"
  FLAGS = -Wall -g -ffree-line-length-none
@@ -45,7 +41,6 @@ ifeq "$(CC)" "pgf90"
 endif
 
 # define program
-SUBROUTINE = example_netcdf.f90
 PROGRAM = test_netcdf.f90
 
 # define executable
@@ -60,7 +55,7 @@ all: compile link clean
 
 # compile
 compile:
-	$(CC) $(FLAGS) -c $(SUBROUTINE) $(PROGRAM) $(INCNETCDF)
+	$(CC) $(FLAGS) -c $(PROGRAM) $(INCNETCDF)
 
 # link routines
 link:
