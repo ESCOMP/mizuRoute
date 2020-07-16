@@ -66,6 +66,14 @@ implicit none
   type(var),     allocatable :: var(:)
  end type states
 
+ ! ---------- output netcdf structure --------------------------------------------------------------------------
+ !
+ type,public :: nc
+   character(len=strLen)   :: ncname = 'empty'         ! netcdf name
+   integer(i4b)            :: ncid   = integerMissing  ! netcdf id
+   integer(i4b)            :: status = integerMissing  ! status: 1=defined, 2=open, 3=closed
+ end type nc
+
  ! ---------- basin data structures ----------------------------------------------------------------------
  ! segIndex points to the segment in the entire river network data
  type,public :: subdomain

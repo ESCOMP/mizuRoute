@@ -35,6 +35,9 @@ module globalData
   ! time data structure
   use dataTypes,  only : time         ! time data
 
+  ! time data structure
+  use dataTypes,  only : nc           ! netCDF data
+
   ! data size
   USE var_lookup, only : nStructures   ! number of variables for data structure
   USE var_lookup, only : nDimensions   ! number of variables for data structure
@@ -113,6 +116,9 @@ module globalData
   real(dp)        , allocatable  , public :: timeVar(:)           ! time variables (unit given by time variable)
   real(dp)                       , public :: TSEC(0:1)            ! begning and end of time step (sec)
   type(time)                     , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
+
+  ! simulation output netcdf
+  type(nc)                       , public :: simout_nc
 
   ! river topology and parameter structures
   type(RCHPRP)    , allocatable  , public :: RPARAM(:)            ! Reach Parameters for whole domain

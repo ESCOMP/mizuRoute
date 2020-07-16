@@ -10,6 +10,7 @@ USE io_netcdf, only: def_nc                 ! define netcdf
 USE io_netcdf, ONLY: def_var                ! define netcdf variable
 USE io_netcdf, ONLY: def_dim                ! define netcdf dimension
 USE io_netcdf, ONLY: end_def                ! end defining netcdf
+USE io_netcdf, only: open_nc                ! open netcdf
 USE io_netcdf, ONLY: close_nc               ! close netcdf
 USE io_netcdf, ONLY: write_nc
 
@@ -385,21 +386,26 @@ CONTAINS
  integer(i4b), intent(out)       :: ierr            ! error code
  character(*), intent(out)       :: message         ! error message
  ! local variables
+ integer(i4b)                    :: ncid            ! netCDF ID
  type(states)                    :: state(0:2)      ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
  character(len=strLen)           :: cmessage        ! error message of downwind routine
 
  ! initialize error control
  ierr=0; message='write_state_nc/'
 
+ ! -- open netCDF
+ call open_nc(fname, 'w', ncid, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  ! -- Write out to netCDF
  ! Miscellaneous variables - seg id, time etc
- call write_nc(fname,'reachID', seg_id, (/1/), (/size(seg_id)/), ierr, cmessage);
+ call write_nc(ncid,'reachID', seg_id, (/1/), (/size(seg_id)/), ierr, cmessage);
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call write_nc(fname,'time', (/time/), (/iTime/), (/1/), ierr, cmessage)
+ call write_nc(ncid,'time', (/time/), (/iTime/), (/1/), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call write_nc(fname,'time_bound', (/T0,T1/), (/1,iTime/), (/2,1/), ierr, cmessage)
+ call write_nc(ncid,'time_bound', (/T0,T1/), (/1,iTime/), (/2,1/), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  if (doesBasinRoute == 1) then
@@ -416,6 +422,10 @@ CONTAINS
   call write_KWT_state(ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
+
+ ! -- close netCDF
+ call close_nc(ncid, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  CONTAINS
 
@@ -471,8 +481,8 @@ CONTAINS
   do iVar=1,nVarsIRFbas
 
    select case(iVar)
-    case(ixIRFbas%q);       call write_nc(fname, meta_irf_bas(iVar)%varName, state(0)%var(iVar)%array_2d_dp, (/1,1,iTime/), (/nSeg,nens,1/), ierr, cmessage)
-    case(ixIRFbas%qfuture); call write_nc(fname, meta_irf_bas(iVar)%varName, state(0)%var(iVar)%array_3d_dp, (/1,1,1,iTime/), (/nSeg,ntdh,nens,1/), ierr, cmessage)
+    case(ixIRFbas%q);       call write_nc(ncid, meta_irf_bas(iVar)%varName, state(0)%var(iVar)%array_2d_dp, (/1,1,iTime/), (/nSeg,nens,1/), ierr, cmessage)
+    case(ixIRFbas%qfuture); call write_nc(ncid, meta_irf_bas(iVar)%varName, state(0)%var(iVar)%array_3d_dp, (/1,1,1,iTime/), (/nSeg,ntdh,nens,1/), ierr, cmessage)
     case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF variable index for nc writing'; return
    end select
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -556,16 +566,16 @@ CONTAINS
   enddo ! ensemble loop
 
   ! Writing netCDF
-  call write_nc(fname, 'numWaves', numWaves, (/1,1,iTime/), (/nSeg,nens,1/), ierr, cmessage)
+  call write_nc(ncid, 'numWaves', numWaves, (/1,1,iTime/), (/nSeg,nens,1/), ierr, cmessage)
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsKWT
 
     select case(iVar)
      case(ixKWT%routed)
-       call write_nc(fname, trim(meta_kwt(iVar)%varName), state(kinematicWave)%var(iVar)%array_3d_int, (/1,1,1,iTime/), (/nSeg,nwave,nens,1/), ierr, cmessage)
+       call write_nc(ncid, trim(meta_kwt(iVar)%varName), state(kinematicWave)%var(iVar)%array_3d_int, (/1,1,1,iTime/), (/nSeg,nwave,nens,1/), ierr, cmessage)
      case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
-      call write_nc(fname, trim(meta_kwt(iVar)%varName), state(kinematicWave)%var(iVar)%array_3d_dp, (/1,1,1,iTime/), (/nSeg,nwave,nens,1/), ierr, cmessage)
+      call write_nc(ncid, trim(meta_kwt(iVar)%varName), state(kinematicWave)%var(iVar)%array_3d_dp, (/1,1,1,iTime/), (/nSeg,nwave,nens,1/), ierr, cmessage)
      case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc writing'; return
     end select
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -633,14 +643,14 @@ CONTAINS
   enddo ! ensemble loop
 
   ! writing netcdf
-  call write_nc(fname, 'numQF', numQF, (/1,1,iTime/), (/nSeg,nens,1/), ierr, cmessage)
+  call write_nc(ncid, 'numQF', numQF, (/1,1,iTime/), (/nSeg,nens,1/), ierr, cmessage)
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsIRF
 
    select case(iVar)
     case(ixIRF%qfuture)
-     call write_nc(fname, trim(meta_irf(iVar)%varName), state(impulseResponseFunc)%var(iVar)%array_3d_dp, (/1,1,1,iTime/), (/nSeg,ntdh_irf,nens,1/), ierr, cmessage)
+     call write_nc(ncid, trim(meta_irf(iVar)%varName), state(impulseResponseFunc)%var(iVar)%array_3d_dp, (/1,1,1,iTime/), (/nSeg,ntdh_irf,nens,1/), ierr, cmessage)
     case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc writing'; return
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
    end select

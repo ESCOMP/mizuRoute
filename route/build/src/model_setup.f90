@@ -14,6 +14,8 @@ USE public_var, ONLY : integerMissing
 USE public_var, ONLY : realMissing
 USE public_var, ONLY : charMissing
 
+USE io_netcdf, ONLY : close_nc         ! close netcdf
+
 USE nr_utility_module, ONLY : unique  ! get unique element array
 USE nr_utility_module, ONLY : indexx  ! get rank of data value
 
@@ -175,18 +177,27 @@ CONTAINS
   USE globalData, ONLY : roJulday      ! julian day: runoff input time
   USE globalData, ONLY : modJulday     ! julian day: at model time step
   USE globalData, ONLY : endJulday     ! julian day: at end of simulation
+  USE globalData, ONLY : simout_nc     ! netCDF meta data
 
    implicit none
-   ! output: error control
+   ! output
    logical(lgt),              intent(out)   :: finished
    integer(i4b),              intent(out)   :: ierr             ! error code
    character(*),              intent(out)   :: message          ! error message
+   ! local variables
+   character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
    ! initialize error control
    ierr=0; message='update_time/'
 
    if (abs(modJulday-endJulday)<verySmall) then
      finished=.true.
+
+     if (simout_nc%status == 2) then
+       call close_nc(simout_nc%ncid, ierr, cmessage)
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     end if
+
      write(iulog,'(a)') new_line('a'), '--------------------'
      write(iulog,'(a)')                'Finished simulation'
      write(iulog,'(a)')                '--------------------'
