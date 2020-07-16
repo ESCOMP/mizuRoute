@@ -181,8 +181,8 @@ CONTAINS
 
    ! update filename
    sec_in_day = modTime(1)%ih*60*60+modTime(1)%imin*60+nint(modTime(1)%dsec)
-   write(fileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.h.', &
-                           modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '-',sec_in_day,'.nc'
+   write(simout_nc%ncname, fmtYMDS) trim(output_dir)//trim(case_name)//'.h.', &
+                                     modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '-',sec_in_day,'.nc'
    ! define output file
    call defineFile(simout_nc%ncname,                      &  ! input: file name
                    nEns,                                  &  ! input: number of ensembles
