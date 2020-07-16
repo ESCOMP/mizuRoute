@@ -22,6 +22,8 @@ contains
   USE public_var,  only:fname_qsim              ! simulated runoff netCDF name
   USE public_var,  only:vname_qsim              ! varibale runoff in netCDF file
   USE public_var,  only:is_remap                ! logical whether or not runnoff needs to be mapped to river network HRU
+  USE public_var,  only:is_lake_sim             ! logical whether or not lake should be simulated
+  USE public_var,  only:is_wm_sim               ! logical whether or not water management components should be read, abstraction, injection and target volume
   USE globalData,  only:iTime_local             ! iTime index for the given netcdf file
   USE globalData,  only:nHRU                    ! number of routing sub-basin
   USE globalData,  only:runoff_data             ! data structure to hru runoff data
@@ -66,6 +68,10 @@ contains
    call sort_runoff(runoff_data, runoff_data%basinRunoff, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if
+
+  print*, is_lake_sim
+  print*, is_wm_sim
+  stop
 
  end subroutine get_hru_runoff
 
