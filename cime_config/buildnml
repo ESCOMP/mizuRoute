@@ -109,7 +109,7 @@ def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_
     # Set control values that we get from CESM
     #----------------------------------------------------
     ctl.set( "case_name", casename )
-    ctl.set( "output_dir", rundir+"/" )
+    ctl.set( "output_dir", "./" )
     ctl.set( "input_dir", rundir+"/" )
     ctl.set( "ancil_dir", dindir+"/rof/mizuRoute/ancillary_data/" )
     ctl.set( "fname_ntopOld", fname_ntopOld )
