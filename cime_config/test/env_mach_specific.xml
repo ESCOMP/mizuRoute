@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+
+<file id="env_mach_specific.xml" version="2.0">
+
+<!--
+
+-->
+
+<header>
+</header>
+<group id="compliant_values">
+   <entry id="run_exe" value="${EXEROOT}/cesm.exe ">
+      <type>char</type>
+      <desc>executable name</desc>
+   </entry>
+</group>
+<module_system type="none">
+</module_system>
+<mpirun>
+   <executable></executable>
+</mpirun>
+
+
+</file>

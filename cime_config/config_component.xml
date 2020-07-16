@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+
+<?xml-stylesheet type="text/xsl" href="definitions_variables.xsl" ?>
+
+<entry_id version="3.0">
+
+  <!-- modifier_mode allowed values are
+       '*' 0 or more modifiers (default)
+       '1' exactly 1 modifier
+       '?' 0 or 1 modifiers
+       '+' 1 or more modifiers
+       This file may have rof desc entries.
+  -->
+
+  <!-- Descriptions of all the different valid configurations for different model versions -->
+  <description modifier_mode="?">
+    <desc rof="MIZUROUTE">mizuRoute River Routing Model</desc>
+  </description>
+
+  <entry id="COMP_ROF">
+    <type>char</type>
+    <valid_values>mizuRoute</valid_values>
+    <default_value>mizuRoute</default_value>
+    <group>case_comp</group>
+    <file>env_case.xml</file>
+    <desc>Name of river component</desc>
+  </entry>
+
+  <help>
+    =========================================
+    mizuRoute naming conventions
+    =========================================
+  </help>
+
+</entry_id>

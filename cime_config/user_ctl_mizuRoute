@@ -1,0 +1,14 @@
+!----------------------------------------------------------------------------------
+! This is for changes to the mizuRoute control  file only
+! Changes to the namelist file need to go in the user_nl_mizuRoute file
+!
+! THIS FILE MUST BE IN mizuRoute CONTROL FILE FORMAT
+! See ../route/settings/SAMPLE-coupled.control
+!
+! Here are some examples (remove the leading bang):
+!
+! <newFileFrequency>     month    ! Ending comment
+! <route_opt>            2        ! Ending comment
+! <doesAccumRunoff>      1        ! Ending comment
+!
+!----------------------------------------------------------------------------------

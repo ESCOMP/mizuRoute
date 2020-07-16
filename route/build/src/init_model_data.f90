@@ -99,6 +99,7 @@ CONTAINS
 
   ! shared data used
   USE public_var, ONLY: ancil_dir
+  USE public_var, ONLY: input_dir
   USE public_var, ONLY: param_nml
   ! subroutines: populate metadata
   USE popMetadat_module, ONLY: popMetadat       ! populate metadata
@@ -127,7 +128,7 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! read the routing parameter namelist
-  call read_param(trim(ancil_dir)//trim(param_nml),ierr,cmessage)
+  call read_param(trim(input_dir)//trim(param_nml),ierr,cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  END SUBROUTINE init_model
@@ -161,6 +162,7 @@ CONTAINS
   USE model_utils, ONLY: model_finalize
   USE mpi_routine, ONLY: comm_ntopo_data        ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
   USE process_ntopo, ONLY: put_data_struct      ! populate NETOPO and RPARAM data structure
+  USE mpi_mod      , ONLY: shr_mpi_initialized  ! If MPI is being used
   USE domain_decomposition, ONLY: mpi_domain_decomposition ! domain decomposition for mpi
 
    implicit none

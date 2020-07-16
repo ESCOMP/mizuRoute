@@ -1,0 +1,8 @@
+!----------------------------------------------------------------------------------
+! This is for changes to the mizuRoute namelist file only
+! Changes to the control file need to go in the user_ctl_mizuRoute file
+!
+! CHANGES IN HERE SHOULD BE IN FORTRAN NAMELIST FORMAT
+! Example (remove the leading bang):
+! fshape = 2.5
+!----------------------------------------------------------------------------------

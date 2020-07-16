@@ -46,7 +46,7 @@ CONTAINS
    ! External modules
    USE globalData, ONLY: domains                 ! domain data structure - for each domain, pfaf codes and list of segment indices
    USE globalData, ONLY: nDomain                 ! count of decomposed domains (tributaries + mainstems)
-   USE mpi_mod,    ONLY: shr_mpi_abort
+   USE mpi_mod,    ONLY: shr_mpi_abort, shr_mpi_initialized
 
    implicit none
    ! Input variables

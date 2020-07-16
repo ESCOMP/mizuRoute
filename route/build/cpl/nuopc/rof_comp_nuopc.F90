@@ -14,21 +14,22 @@ module rof_comp_nuopc
   use NUOPC_Model           , only : model_label_Finalize       => label_Finalize
   use NUOPC_Model           , only : NUOPC_ModelGet
   use shr_kind_mod          , only : R8=>SHR_KIND_R8, CL=>SHR_KIND_CL
-  use shr_sys_mod           , only : shr_sys_abort
+  use shr_sys_mod           , only : shr_sys_abort, shr_sys_flush
   use shr_file_mod          , only : shr_file_getlogunit, shr_file_setlogunit
   use shr_cal_mod           , only : shr_cal_ymd2date
 
   use public_var            , only : iulog
   use public_var            , only : calendar, simStart, simEnd, time_units
-  use public_var            , only : masterproc  !create this  logical variable  in mizuRoute (masterproc=true => master task, false => other tasks
-  use globalData            , only : pid          => iam
-  use globalData            , only : nNodes       => npes
-  use globalData            , only : mpicom_route => mpicom_rof
+  use globalData            , only : masterproc  !create this  logical variable  in mizuRoute (masterproc=true => master task, false => other tasks
+  use globalData            , only : iam        => pid
+  use globalData            , only : npes       => nNodes
+  use globalData            , only : mpicom_rof => mpicom_route
   use globalData            , only : nHRU
-  use model_setup           , only : get_mpi_omp
+  use init_model_data       , only : get_mpi_omp, init_model
   use RunoffMod             , only : rtmCTL
   use RtmMod                , only : route_ini, route_run
   use RtmTimeManager        , only : init_time, shr_timeStr
+  USE RtmVar                , ONLY : cfile_name
   use RtmVar                , only : inst_index, inst_suffix, inst_name, RtmVarSet
   use RtmVar                , only : nsrStartup, nsrContinue, nsrBranch
   use RtmVar                , only : coupling_period !day
@@ -60,8 +61,12 @@ module rof_comp_nuopc
   integer                 :: flds_scalar_index_nx = 0
   integer                 :: flds_scalar_index_ny = 0
   integer                 :: flds_scalar_index_nextsw_cday = 0._r8
+!#ifdef NDEBUG
+  logical, parameter      :: debug_write = .true.
+!#else
+  !logical, parameter      :: debug_write = .false.
+!#endif
 
-  integer     , parameter :: debug = 1
   character(*), parameter :: modName =  "(rof_comp_nuopc)"
   character(*), parameter :: u_FILE_u = &
        __FILE__
@@ -180,7 +185,7 @@ contains
     call get_mpi_omp(mpicom)
 
 !! WHAT IS THIS? ROFID need for mizuRoute??
-!    ! Set ROFID - needed for the mosart code that requires MCT
+!    ! Set ROFID - needed for the mizuRoute code that requires MCT
 !    call NUOPC_CompAttributeGet(gcomp, name='MCTID', value=cvalue, rc=rc)
 !    if (ChkErr(rc,__LINE__,u_FILE_u)) return
 !    read(cvalue,*) ROFID  ! convert from string to integer
@@ -284,7 +289,7 @@ contains
     integer, intent(out) :: rc
 
     ! local variables
-    type(ESMF_Mesh)             :: Emesh, EMeshTemp
+    type(ESMF_Mesh)             :: Emesh
     type(ESMF_DistGrid)         :: DistGrid              ! esmf global index space descriptor
     type(ESMF_Time)             :: currTime              ! Current time
     type(ESMF_Time)             :: startTime             ! Start time
@@ -307,18 +312,34 @@ contains
     logical                     :: rof_prognostic        ! flag
     integer                     :: shrlogunit            ! original log unit
     integer                     :: lsize                 ! local size ofarrays
+    integer                     :: n,ni                  ! indices
     integer                     :: lbnum                 ! input to memory diagnostic
     integer                     :: nsrest                ! restart type
-    character(CL)               :: username              ! user name
-    character(CL)               :: caseid                ! case identifier name
-    character(CL)               :: ctitle                ! case description title
-    character(CL)               :: hostname              ! hostname of machine running on
-    character(CL)               :: model_version         ! model version
-    character(CL)               :: starttype             ! start-type (startup, continue, branch, hybrid)
-    character(CL)               :: stdname, shortname    ! needed for advertise
+    integer                     :: ierr                  ! error
+    character(len=CL)           :: cmessage              ! error message
+    character(len=CL)           :: simRef                ! date string defining the reference time
+    character(len=CL)           :: username              ! user name
+    character(len=CL)           :: caseid                ! case identifier name
+    character(len=CL)           :: ctitle                ! case description title
+    character(len=CL)           :: hostname              ! hostname of machine running on
+    character(len=CL)           :: model_version         ! model version
+    character(len=CL)           :: starttype             ! start-type (startup, continue, branch, hybrid)
+    character(len=CL)           :: stdname, shortname    ! needed for advertise
     logical                     :: brnch_retain_casename ! flag if should retain the case name on a branch start type
-    character(CL)               :: cvalue
+    character(len=CL)           :: cvalue
     character(ESMF_MAXSTR)      :: convCIM, purpComp
+    integer                     :: parametricDim         ! ESMF Mesh parametic dimension
+    integer                     :: spatialDim            ! ESMF Mesh spatial dimension
+    integer                     :: numOwnedNodes         ! ESMF Mesh number of owned nodes
+    integer                     :: numOwnedElements      ! ESMF Mesh number of owned elements
+    logical                     :: isMemFreed            ! ESMF Mesh if memory is freed or not
+    integer                     :: dimCount              ! ESMF dist-grid dimension count
+    integer                     :: tileCount             ! ESMF dist-grid tile count
+    integer                     :: deCount               ! ESMF dist-grid processor element count
+    integer                     :: localDeCount          ! ESMF dist-grid local processor element count
+    logical                     :: regDecompFlag         ! ESMF dist-grid regular decomposition flag
+    integer                     :: connectionCount       ! ESMF dist-grid connection count
+
     character(len=*), parameter :: subname=trim(modName)//':(InitializeRealize) '
     !---------------------------------------------------------------------------
 
@@ -369,6 +390,9 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     read(cvalue,*) username
 
+    ! Temporal fix
+    call init_model(cfile_name, ierr, cmessage)
+    if(ierr/=0) then; cmessage = trim(subname)//trim(cmessage); return; endif
 
     !----------------------
     ! Initialize time managers in mizuRoute
@@ -381,7 +405,7 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     ! Get coupling interval in day
-    call ESMF_TimeIntervalGet( timeStep, d_r8=coupling_period, rc=rc)
+    call ESMF_TimeIntervalGet( timeStep, d=coupling_period, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     ! get ymd integer and string for start time, end time and reference time
@@ -402,6 +426,8 @@ contains
 
     call ESMF_TimeGet( stopTime, yy=yy, mm=mm, dd=dd, s=stop_tod, rc=rc )
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    ! adjust stopTime for mizuRoute clock
+    stopTime = stopTime - timeStep
     call shr_cal_ymd2date(yy,mm,dd,stop_ymd)
     call shr_timeStr( stopTime, simEnd )
 
@@ -421,20 +447,24 @@ contains
        call shr_sys_abort( subname//'ERROR:: bad calendar for ESMF' )
     end if
 
-    write(time_units,'(a)') 'days since ', simRef
+    time_units = 'days since '//trim(simRef)
 
-    ! time initialize
+    ! mizuRoute time initialize based on time from coupler
     call init_time(ierr, cmessage)
+    if(ierr/=0) then; cmessage = trim(subname)//trim(cmessage); return; endif
 
     !----------------------
     ! Read namelist, grid and surface data
     !----------------------
 
-    if (masterproc) then
+    if (masterproc .and. debug_write) then
        write(iulog,*) "mizuRoute initialization"
        write(iulog,*) ' mizuRoute npes = ',npes
        write(iulog,*) ' mizuRoute iam  = ',iam
+       write(iulog,*) ' mizuRoute cal  = ',trim(calendar)
+       write(iulog,*) ' mizuRoute time = ',trim(time_units)
        write(iulog,*) ' inst_name = ',trim(inst_name)
+       call shr_sys_flush(iulog)
     endif
 
     ! Initialize RtmVar module variables
@@ -486,24 +516,71 @@ contains
        gindex(ni) = rtmCTL%gindex(n)
     end do
 
+    if ( .not. allocated(gindex) )then
+       cmessage = cmessage // " gindex is not allocated"
+       return
+    end if
+    if ( debug_write ) then
+       write(iulog,*) "iam, lsize = ", iam, lsize
+       write(iulog,*) "iam, gindex(min,max,mid) = ", iam, minval(gindex), maxval(gindex), gindex(lsize/2)
+       call shr_sys_flush(iulog)
+    end if
+
     ! create distGrid from global index array
     DistGrid = ESMF_DistGridCreate(arbSeqIndexList=gindex, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     deallocate(gindex)
+    if ( .not. ESMF_DistGridIsCreated( DistGrid, rc=rc ) )then
+       cmessage = cmessage // " DistGrid is NOT created"
+       return
+    end if
+    call ESMF_DistGridValidate( DistGrid, rc=rc )
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+    ! Get global dist grid attributes
+    call ESMF_DistGridGet( DistGrid, dimCount=dimCount, tileCount=tileCount, deCount=deCount, localDeCount=localDeCount, &
+     regDecompFlag=regDecompFlag, connectionCount=connectionCount, rc=rc )
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    if (masterproc .and. debug_write) then
+       write(iulog,*) "dimCount = ", dimCount
+       write(iulog,*) "tileCount = ", tileCount
+       write(iulog,*) "deCount = ", deCount
+       write(iulog,*) "localDeCount = ", localDeCount
+       write(iulog,*) "connectionCount = ", connectionCount
+       write(iulog,*) "regDecompFlag = ", regDecompFlag
+       call shr_sys_flush(iulog)
+    end if
 
     ! read in the mesh
     call NUOPC_CompAttributeGet(gcomp, name='mesh_rof', value=cvalue, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    EMeshTemp = ESMF_MeshCreate(filename=trim(cvalue), fileformat=ESMF_FILEFORMAT_ESMFMESH, rc=rc)
-    if (ChkErr(rc,__LINE__,u_FILE_u)) return
     if (masterproc) then
        write(iulog,*)'mesh file for domain is ',trim(cvalue)
+       call shr_sys_flush(iulog)
     end if
 
-    ! recreate the mesh using the above distGrid
-    EMesh = ESMF_MeshCreate(EMeshTemp, elementDistgrid=Distgrid, rc=rc)
+    ! Create the mesh in one step using the above distGrid
+    EMesh = ESMF_MeshCreate(filename=trim(cvalue), fileformat=ESMF_FILEFORMAT_ESMFMESH, elementDistgrid=Distgrid, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+    call ESMF_MeshWrite(EMesh, filename='miz_mesh', rc=rc)
+
+!    if ( debug_write )then
+!       write(iulog,*) ' After ESMF_MeshCreate'
+!       call shr_sys_flush(iulog)
+!    end if
+!    call ESMF_MeshGet( EMesh,  parametricDim=parametricDim, spatialDim=spatialDim, numOwnedNodes=numOwnedNodes, &
+!                       numOwnedElements=numOwnedElements, isMemFreed=isMemFreed, rc=rc)
+!    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+!    if ( debug_write )then
+!       write(iulog,*) ' parametricDim = ', parametricDim
+!       write(iulog,*) ' spatialDim = ', spatialDim
+!       write(iulog,*) ' numOwnedNodes = ', numOwnedNodes
+!       write(iulog,*) ' numOwnedElements = ', numOwnedElements
+!       write(iulog,*) ' isMemFreed = ', isMemFreed
+!       call shr_sys_flush(iulog)
+!    end if
 
     !--------------------------------
     ! realize actively coupled fields
@@ -540,7 +617,7 @@ contains
     ! diagnostics
     !--------------------------------
 
-    if (debug > 1) then
+    if (debug_write)then
        call State_diagnose(exportState,subname//':ES',rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     endif
@@ -718,7 +795,7 @@ contains
     ! diagnostics
     !--------------------------------
 
-    if (debug > 1) then
+    if (debug_write)then
        call State_diagnose(exportState,subname//':ES',rc=rc)
        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
     end if

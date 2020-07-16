@@ -1,0 +1,89 @@
+<?xml version="1.0"?>
+
+<file id="env_mach_pes.xml" version="2.0">
+  <header>
+  </header>
+  <comment>
+  </comment>
+
+<!--
+
+-->
+  <group id="all">
+    <entry id="TOTALPES" value="72">
+       <type>integer</type>
+       <desc></desc>
+    </entry>
+    <entry id="NINST_MAX" value="1">
+       <type>integer</type>
+       <desc></desc>
+    </entry>
+    <entry id="MAX_TASKS_PER_NODE" value="36">
+       <type>integer</type>
+       <desc></desc>
+    </entry>
+    <entry id="MAX_MPITASKS_PER_NODE" value="36">
+       <type>integer</type>
+       <desc></desc>
+    </entry>
+    <entry id="FORCE_SPARE_NODES" value="-999">
+      <type>integer</type>
+      <desc>Force this exact number of spare nodes to be allocated</desc>
+    </entry>
+
+    <entry id="NTHRDS">
+       <type>integer</type>
+      <values>
+        <value compclass="ATM">1</value>
+        <value compclass="CPL">1</value>
+        <value compclass="ROF">1</value>
+        <value compclass="LND">1</value>
+      </values>
+      <desc></desc>
+    </entry>
+
+    <entry id="NTASKS">
+       <type>integer</type>
+      <values>
+        <value compclass="ATM">-2</value>
+        <value compclass="CPL">-2</value>
+        <value compclass="ROF">-2</value>
+        <value compclass="LND">-2</value>
+      </values>
+      <desc></desc>
+    </entry>
+
+    <entry id="ROOTPE">
+       <type>integer</type>
+      <values>
+        <value compclass="ATM">0</value>
+        <value compclass="CPL">0</value>
+        <value compclass="ROF">0</value>
+        <value compclass="LND">0</value>
+      </values>
+      <desc></desc>
+    </entry>
+
+    <entry id="NINST">
+       <type>integer</type>
+      <values>
+        <value compclass="ATM">1</value>
+        <value compclass="ROF">1</value>
+        <value compclass="LND">1</value>
+      </values>
+      <desc></desc>
+    </entry>
+
+    <entry id="PSTRID">
+       <type>integer</type>
+      <values>
+        <value compclass="ATM">1</value>
+        <value compclass="CPL">1</value>
+        <value compclass="ROF">1</value>
+        <value compclass="LND">1</value>
+      </values>
+      <desc></desc>
+    </entry>
+  </group>
+
+</file>
