@@ -163,8 +163,7 @@ The following variables, besides time, basinID (RN_hru ID) and reachID can be ou
 1. The unit of runoff depth is the same as the unit used in runoff data
 
 
-2. If runoff depth from runoff data is already delayed by hill-slope routing outside mizuRoute, <doesBasinRoute> should be set to 0. 
-In this case, runoff volume computed from basRunoff is populated in <dlayRunoff> and <instRunoff> is not output.  
+2. If runoff depth from runoff data is already delayed by hill-slope routing outside mizuRoute, <doesBasinRoute> should be set to 0. In this case, runoff volume computed from basRunoff is populated in <dlayRunoff> and <instRunoff> is not output.  
 
 
 3. routed runoff corresponding to the scheme is not ouput if users deactivate a particular routing scheme with <route_opt> tag.  
