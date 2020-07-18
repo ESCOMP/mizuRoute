@@ -31,7 +31,9 @@ USE var_lookup,only:ixPFAF,   nVarsPFAF    ! index of variables for the pfafstet
 
 ! netcdf modules
 USE netcdf
-USE io_netcdf, only : write_nc
+USE io_netcdf, only: open_nc               ! open netcdf
+USE io_netcdf, only: close_nc              ! close netcdf
+USE io_netcdf, only: write_nc
 
 ! external utilities
 USE nr_utility_module, ONLY: indexx  ! Num. Recipies utilities
@@ -356,6 +358,7 @@ contains
  integer(i4b)      , intent(out)     :: ierr             ! error code
  character(*)      , intent(out)     :: message          ! error message
  ! ---------------------------------------------------------------------------------------------------------------
+ integer(i4b)                        :: ncid             ! netCDF ID
  integer(i4b)                        :: ix,jx,nx         ! write indices
  integer(i4b)                        :: iVar             ! variable index
  integer(i4b)                        :: jDim             ! dimension index
@@ -377,6 +380,9 @@ contains
  ! initial allocation of the temporary vectors
  allocate(tempVec(nSubset), stat=ierr)
  if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating temporary vector'; return; endif
+
+ call open_nc(fname, 'w', ncid, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! loop through variables
  do iVar=1,size(meta)
@@ -435,7 +441,7 @@ contains
   ! ---------- write the data vector to the NetCDF file -----------------------------------------------------------
 
   ! write data
-  call write_nc(trim(fname), trim(meta(iVar)%varName), tempVec, (/1/), (/dimLength/), ierr, cmessage)
+  call write_nc(ncid, trim(meta(iVar)%varName), tempVec, (/1/), (/dimLength/), ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! write ragged array
@@ -443,16 +449,19 @@ contains
   if(isRaggedArray)then
 
    ! write start index
-   call write_nc(trim(fname), trim(meta_dims(jDim)%dimName)//'_start', ixStart, (/1/), (/nSubset/), ierr, cmessage)
+   call write_nc(ncid, trim(meta_dims(jDim)%dimName)//'_start', ixStart, (/1/), (/nSubset/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! write count
-   call write_nc(trim(fname), trim(meta_dims(jDim)%dimName)//'_count', ixCount, (/1/), (/nSubset/), ierr, cmessage)
+   call write_nc(ncid, trim(meta_dims(jDim)%dimName)//'_count', ixCount, (/1/), (/nSubset/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   endif   ! if a ragged array
 
  end do  ! looping through variables
+
+ call close_nc(ncid, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! ---------- clean up ------------------------------------------------------------------------------------------
 
@@ -485,6 +494,7 @@ contains
  integer(i4b)      , intent(out)     :: ierr             ! error code
  character(*)      , intent(out)     :: message          ! error message
  ! ---------------------------------------------------------------------------------------------------------------
+ integer(i4b)                        :: ncid             ! netCDF ID
  integer(i4b)                        :: ix,jx,nx         ! write indices
  integer(i4b)                        :: iVar             ! variable index
  integer(i4b)                        :: jDim             ! dimension index
@@ -506,6 +516,9 @@ contains
  ! initial allocation of the temporary vectors
  allocate(tempVec(nSubset), stat=ierr)
  if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating temporary vector'; return; endif
+
+ call open_nc(fname, 'w', ncid, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! loop through variables
  do iVar=1,size(meta)
@@ -564,7 +577,7 @@ contains
   ! ---------- write the data vector to the NetCDF file -----------------------------------------------------------
 
   ! write data
-  call write_nc(trim(fname), trim(meta(iVar)%varName), tempVec, (/1/), (/dimLength/), ierr, cmessage)
+  call write_nc(ncid, trim(meta(iVar)%varName), tempVec, (/1/), (/dimLength/), ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! write ragged array
@@ -572,16 +585,19 @@ contains
   if(isRaggedArray)then
 
    ! write start index
-   call write_nc(trim(fname), trim(meta_dims(jDim)%dimName)//'_start', ixStart, (/1/), (/nSubset/), ierr, cmessage)
+   call write_nc(ncid, trim(meta_dims(jDim)%dimName)//'_start', ixStart, (/1/), (/nSubset/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! write count
-   call write_nc(trim(fname), trim(meta_dims(jDim)%dimName)//'_count', ixCount, (/1/), (/nSubset/), ierr, cmessage)
+   call write_nc(ncid, trim(meta_dims(jDim)%dimName)//'_count', ixCount, (/1/), (/nSubset/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   endif   ! if a ragged array
 
  end do  ! looping through variables
+
+ call close_nc(ncid, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! ---------- clean up ------------------------------------------------------------------------------------------
 
@@ -615,6 +631,7 @@ contains
  integer(i4b)      , intent(out)        :: ierr             ! error code
  character(*)      , intent(out)        :: message          ! error message
  ! ---------------------------------------------------------------------------------------------------------------
+ integer(i4b)                           :: ncid             ! netCDF ID
  integer(i4b)                           :: ix,jx,nx         ! write indices
  integer(i4b)                           :: iVar             ! variable index
  integer(i4b)                           :: jDim             ! dimension index
@@ -636,6 +653,9 @@ contains
  ! initial allocation of the temporary vectors
  allocate(tempVec(nSubset), stat=ierr)
  if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating temporary vector'; return; endif
+
+ call open_nc(fname, 'w', ncid, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! loop through variables
  do ivar=1,size(meta)
@@ -694,7 +714,7 @@ contains
   ! ---------- write the data vector to the NetCDF file -----------------------------------------------------------
 
   ! write data
-  call write_nc(trim(fname), trim(meta(ivar)%varName), tempVec, (/1,1/), (/maxPfafLen, dimLength/), ierr, cmessage)
+  call write_nc(ncid, trim(meta(ivar)%varName), tempVec, (/1,1/), (/maxPfafLen, dimLength/), ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! write ragged array
@@ -702,16 +722,19 @@ contains
   if(isRaggedArray)then
 
    ! write start index
-   call write_nc(trim(fname), trim(meta_dims(jDim)%dimName)//'_start', ixStart, (/1,1/), (/maxPfafLen, nSubset/), ierr, cmessage)
+   call write_nc(ncid, trim(meta_dims(jDim)%dimName)//'_start', ixStart, (/1,1/), (/maxPfafLen, nSubset/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! write count
-   call write_nc(trim(fname), trim(meta_dims(jDim)%dimName)//'_count', ixCount, (/1,1/), (/maxPfafLen, nSubset/), ierr, cmessage)
+   call write_nc(ncid, trim(meta_dims(jDim)%dimName)//'_count', ixCount, (/1,1/), (/maxPfafLen, nSubset/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   endif   ! if a ragged array
 
  end do  ! looping through variables
+
+ call close_nc(ncid, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! ---------- clean up ------------------------------------------------------------------------------------------
 

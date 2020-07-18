@@ -12,6 +12,7 @@ USE public_var,only: kinematicWave          ! kinematic wave
 USE public_var,only: impulseResponseFunc    ! impulse response function
 USE public_var,only: allRoutingMethods      ! all routing methods
 USE globalData,only: meta_rflx
+USE globalData,only: simout_nc
 USE io_netcdf, only: ncd_int
 USE io_netcdf, only: ncd_float, ncd_double
 USE io_netcdf, only: ncd_unlimited
@@ -20,13 +21,13 @@ USE io_netcdf, only: def_var                ! define netcdf variable
 USE io_netcdf, only: def_dim                ! define netcdf dimension
 USE io_netcdf, only: put_global_attr        ! write global attributes
 USE io_netcdf, only: end_def                ! end defining netcdf
+USE io_netcdf, only: open_nc                ! open netcdf
 USE io_netcdf, only: close_nc               ! close netcdf
 USE io_netcdf, only: write_nc               ! write a variable to the NetCDF file
 
 implicit none
 
 ! The following variables used only in this module
-character(len=strLen),save        :: fileout          ! name of the output file
 integer(i4b),         save        :: jTime            ! time step in output netCDF
 
 private
@@ -61,42 +62,42 @@ CONTAINS
   iens = 1
 
   ! write time -- note time is just carried across from the input
-  call write_nc(trim(fileout), 'time', (/runoff_data%time/), (/jTime/), (/1/), ierr, cmessage)
+  call write_nc(simout_nc%ncid, 'time', (/runoff_data%time/), (/jTime/), (/1/), ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   if (meta_rflx(ixRFLX%basRunoff)%varFile) then
    ! write the basin runoff at HRU (m/s)
-   call write_nc(trim(fileout), 'basRunoff', runoff_data%basinRunoff, (/1,jTime/), (/nHRU,1/), ierr, cmessage)
+   call write_nc(simout_nc%ncid, 'basRunoff', runoff_data%basinRunoff, (/1,jTime/), (/nHRU,1/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%instRunoff)%varFile) then
    ! write instataneous local runoff in each stream segment (m3/s)
-   call write_nc(trim(fileout), 'instRunoff', RCHFLX(iens,:)%BASIN_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   call write_nc(simout_nc%ncid, 'instRunoff', RCHFLX(iens,:)%BASIN_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%dlayRunoff)%varFile) then
    ! write routed local runoff in each stream segment (m3/s)
-   call write_nc(trim(fileout), 'dlayRunoff', RCHFLX(iens,:)%BASIN_QR(1), (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   call write_nc(simout_nc%ncid, 'dlayRunoff', RCHFLX(iens,:)%BASIN_QR(1), (/1,jTime/), (/nRch,1/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile) then
    ! write accumulated runoff (m3/s)
-   call write_nc(trim(fileout), 'sumUpstreamRunoff', RCHFLX(iens,:)%UPSTREAM_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   call write_nc(simout_nc%ncid, 'sumUpstreamRunoff', RCHFLX(iens,:)%UPSTREAM_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%KWTroutedRunoff)%varFile) then
    ! write routed runoff (m3/s)
-   call write_nc(trim(fileout), 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   call write_nc(simout_nc%ncid, 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,jTime/), (/nRch,1/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%IRFroutedRunoff)%varFile) then
    ! write routed runoff (m3/s)
-   call write_nc(trim(fileout), 'IRFroutedRunoff', RCHFLX(iens,:)%REACH_Q_IRF, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   call write_nc(simout_nc%ncid, 'IRFroutedRunoff', RCHFLX(iens,:)%REACH_Q_IRF, (/1,jTime/), (/nRch,1/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
@@ -167,16 +168,24 @@ CONTAINS
   ! define new file
   if(defNewOutputFile)then
 
+   if (simout_nc%status == 2) then
+     call close_nc(simout_nc%ncid, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     simout_nc%ncname = 'empty'
+     simout_nc%ncid   = integerMissing
+     simout_nc%status = integerMissing
+   endif
+
    ! initialize time
    jTime=1
 
    ! update filename
-
    sec_in_day = modTime(1)%ih*60*60+modTime(1)%imin*60+nint(modTime(1)%dsec)
-   write(fileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuRoute.h.', &
-                           modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '-',sec_in_day,'.nc'
+   write(simout_nc%ncname, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuRoute.h.', &
+                                    modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '-',sec_in_day,'.nc'
+
    ! define output file
-   call defineFile(trim(fileout),                         &  ! input: file name
+   call defineFile(simout_nc%ncname,                      &  ! input: file name
                    nEns,                                  &  ! input: number of ensembles
                    nHRU,                                  &  ! input: number of HRUs
                    nRch,                                  &  ! input: number of stream segments
@@ -185,12 +194,17 @@ CONTAINS
                    ierr,cmessage)                            ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+   call open_nc(simout_nc%ncname, 'w', simout_nc%ncid, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   simout_nc%status = 2
+
    ! define basin ID
-   call write_nc(trim(fileout), 'basinID', basinID, (/1/), (/nHRU/), ierr, cmessage)
+   call write_nc(simout_nc%ncid, 'basinID', basinID, (/1/), (/nHRU/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! define reach ID
-   call write_nc(trim(fileout), 'reachID', reachID, (/1/), (/nRch/), ierr, cmessage)
+   call write_nc(simout_nc%ncid, 'reachID', reachID, (/1/), (/nRch/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! no new file requested: increment time
