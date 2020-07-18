@@ -138,6 +138,37 @@ Often case, river network data has different variable names than defaults. In th
 See :doc:`River parameters <seg_hru_param>`.   
 
 
+Output variables
+---------------------
+
+The following variables, besides time, basinID (RN_hru ID) and reachID can be output in netCDF. Users can control which variables are output by setting <variable_name> to T or F in control file. All the variables are set to T by default.
+
+
++------------------------+------------------------------------------------------------------------------------------------+
+| output variables       | Descriptions                                                                                   |
++========================+================================================================================================+
+| <basRunoff>            | runoff depth at RN_hru, remapped from HM_hru. See note 1 and 2.                                |
++------------------------+------------------------------------------------------------------------------------------------+
+| <instRunoff>           | runoff volume [m3/s] at reach, converted by mulitplying basRunoff by RN_hru area . See note 2  |
++------------------------+------------------------------------------------------------------------------------------------+
+| <dlayRunoff>           | runoff volume [m3/s] at reach, after hillslope routing instRunoff. see Note 2                  |
++------------------------+------------------------------------------------------------------------------------------------+
+| <sumUpstreamRunoff>    | accumulated delayed runoff volume (dlyRunoff) over all upstream reaches.                       |
++------------------------+------------------------------------------------------------------------------------------------+
+| <KWTroutedRunoff>      | runoff volume [m3/s] after KWT reach routing dlayRunoff. See note 3                            |
++------------------------+------------------------------------------------------------------------------------------------+
+| <IRFroutedRunoff>      | runoff volume [m3/s] after IRF reach routing dlayRunoff. See note 3                            |
++------------------------+------------------------------------------------------------------------------------------------+
+
+1. The unit of runoff depth is the same as the unit used in runoff data
+
+
+2. If runoff depth from runoff data is already delayed by hill-slope routing outside mizuRoute, <doesBasinRoute> should be set to 0. In this case, runoff volume computed from basRunoff is populated in <dlayRunoff> and <instRunoff> is not output.  
+
+
+3. routed runoff corresponding to the scheme is not ouput if users deactivate a particular routing scheme with <route_opt> tag.  
+
+
 Control file examples
 ---------------------
 
