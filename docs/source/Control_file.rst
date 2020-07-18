@@ -143,6 +143,7 @@ Output variables
 
 The following variables, besides time, basinID (RN_hru ID) and reachID can be output in netCDF. Users can control which variables are output by setting <variable_name> to T or F in control file. All the variables are set to T by default.
 
+
 +------------------------+------------------------------------------------------------------------------------------------+
 | output variables       | Descriptions                                                                                   |
 +========================+================================================================================================+
@@ -152,7 +153,7 @@ The following variables, besides time, basinID (RN_hru ID) and reachID can be ou
 +------------------------+------------------------------------------------------------------------------------------------+
 | <dlayRunoff>           | runoff volume [m3/s] at reach, after hillslope routing instRunoff. see Note 2                  |
 +------------------------+------------------------------------------------------------------------------------------------+
-| <sumUpstreamRunoff>    | accumulated delayed runoff volume (dlyRunoff) over all upstream RN_hru.                        |
+| <sumUpstreamRunoff>    | accumulated delayed runoff volume (dlyRunoff) over all upstream reaches.                       |
 +------------------------+------------------------------------------------------------------------------------------------+
 | <KWTroutedRunoff>      | runoff volume [m3/s] after KWT reach routing dlayRunoff. See note 3                            |
 +------------------------+------------------------------------------------------------------------------------------------+
