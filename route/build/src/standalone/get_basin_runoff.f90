@@ -20,9 +20,10 @@ contains
   ! shared data
   USE public_var,  only:input_dir               ! directory containing input data
   USE public_var,  only:fname_qsim              ! simulated runoff netCDF name
+  USE public_var,  only:vname_qsim              ! varibale runoff in netCDF file
   USE public_var,  only:is_remap                ! logical whether or not runnoff needs to be mapped to river network HRU
-  USE globalData,  only:iTime
-  USE globalData,  only:nHRU
+  USE globalData,  only:iTime_local             ! iTime index for the given netcdf file
+  USE globalData,  only:nHRU                    ! number of routing sub-basin
   USE globalData,  only:runoff_data             ! data structure to hru runoff data
   USE globalData,  only:remap_data              ! data structure to remap data
   ! subroutines
@@ -41,9 +42,10 @@ contains
   ! initialize error control
   ierr=0; message='get_hru_runoff/'
 
-  ! get the simulated runoff for the current time step - runoff_data%qsim(:) or %qsim2D(:,:)
+  ! get the simulated runoff for the current time step - runoff_data%sim(:) or %sim2D(:,:)
   call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
-                        iTime,                             & ! input: time index
+                        trim(vname_qsim),                  & ! input: varname
+                        iTime_local,                       & ! input: time index
                         runoff_data,                       & ! inout: runoff data structure
                         ierr, cmessage)                      ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -57,16 +59,12 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! Get river network HRU runoff into runoff_data data structure
-  if (is_remap) then ! remap LSM simulated runoff to the HRUs in the river network
-
+  if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
    call remap_runoff(runoff_data, remap_data, runoff_data%basinRunoff, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
   else ! runoff is already remapped to river network HRUs
-
    call sort_runoff(runoff_data, runoff_data%basinRunoff, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
   end if
 
  end subroutine get_hru_runoff
