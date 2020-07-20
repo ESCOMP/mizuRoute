@@ -71,13 +71,7 @@ contains
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if
 
-  !print*, vname_evapo
-  !print*, vname_qsim
-  !print*, runoff_data%basinRunoff
-
-
   if (is_lake_sim) then ! if is_lake_sim if true then read actual evaporation and preciptation
-   print*, "is lake is on"
 
    ! get the actual evaporation - runoff_data%sim(:) or %sim2D(:,:)
    call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
@@ -130,12 +124,6 @@ contains
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
   end if
-
-  !print*, runoff_data%basinPrecip
-  !print*, runoff_data%basinEvapo
-  !print*, runoff_data%basinPrecip
-  print*, is_lake_sim
-  print*, is_wm_sim
 
  end subroutine get_hru_runoff
 
