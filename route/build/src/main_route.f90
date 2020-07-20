@@ -98,12 +98,6 @@ CONTAINS
    ! initialize errors
    ierr=0; message = "main_routing/"
 
-  !print*, "inside the main route, printing basinEvapo_in: "
-  !if (is_lake_sim) then
-  !  print*, basinEvapo_in
-  !  stop
-  !end if
-  !stop
 
   ! define the start and end of the time step
   T0=TSEC(0); T1=TSEC(1)
