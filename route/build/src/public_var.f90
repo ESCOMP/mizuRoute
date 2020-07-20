@@ -94,6 +94,8 @@ module public_var
   integer(i4b)         ,public    :: routOpt              = integerMissing  ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
   integer(i4b)         ,public    :: doesAccumRunoff      = 1               ! option to delayed runoff accumulation over all the upstream reaches
+  logical(lgt),public             :: is_lake_sim          = .false.         ! logical whether or not lakes are activated in simulation
+  logical(lgt),public             :: is_wm_sim            = .false.         ! logical whether or not water management componenets, abstraction, injections and target volums are provided and will be used in the simulation
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
   logical(lgt)         ,public    :: ntopAugmentMode      = .false.         ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
@@ -104,6 +106,8 @@ module public_var
   ! RUNOFF FILE
   character(len=strLen),public    :: fname_qsim           = ''              ! simulated runoff netCDF name
   character(len=strLen),public    :: vname_qsim           = ''              ! variable name for simulated runoff
+  character(len=strLen),public    :: vname_evapo          = ''              ! variable name for actual evapoartion
+  character(len=strLen),public    :: vname_precip         = ''              ! variable name for precipitation
   character(len=strLen),public    :: vname_time           = ''              ! variable name for time
   character(len=strLen),public    :: vname_hruid          = ''              ! variable name for runoff hru id
   character(len=strLen),public    :: dname_time           = ''              ! dimension name for time

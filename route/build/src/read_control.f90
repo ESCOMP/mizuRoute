@@ -117,6 +117,8 @@ contains
    case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute    ! basin routing options   0-> no, 1->IRF, otherwise error
    case('<doesAccumRunoff>');      read(cData,*,iostat=io_error) doesAccumRunoff   ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
    case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut          ! desired outlet reach id (if -9999 --> route over the entire network)
+   case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim       ! logical whether or not lakes are simulated
+   case('<is_wm_sim>');            read(cData,*,iostat=io_error) is_wm_sim         ! logical whether or not water balance components, abstraction, injection and target volumes should be used in simulation
    ! RIVER NETWORK TOPOLOGY
    case('<fname_ntopOld>');        fname_ntopOld = trim(cData)                     ! name of file containing stream network topology information
    case('<ntopAugmentMode>');      read(cData,*,iostat=io_error) ntopAugmentMode   ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
@@ -126,6 +128,8 @@ contains
    ! RUNOFF FILE
    case('<fname_qsim>');           fname_qsim   = trim(cData)                      ! name of text file containing nc file names and their order for runoff
    case('<vname_qsim>');           vname_qsim   = trim(cData)                      ! name of runoff variable
+   case('<vname_evapo>');          vname_evapo  = trim(cData)                      ! name of actual evapoartion variable
+   case('<vname_precip>');         vname_precip = trim(cData)                      ! name of precipitation variable
    case('<vname_time>');           vname_time   = trim(cData)                      ! name of time variable in the runoff file
    case('<vname_hruid>');          vname_hruid  = trim(cData)                      ! name of the HRU id
    case('<dname_time>');           dname_time   = trim(cData)                      ! name of time variable in the runoff file
