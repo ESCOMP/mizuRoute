@@ -55,6 +55,7 @@ module lake_route_module
   INTEGER(I4B)                             :: nUps           ! number of upstream segment
   INTEGER(I4B)                             :: iUps           ! upstream reach index
   INTEGER(I4B)                             :: iRch_ups       ! index of upstream reach in NETOPO
+  INTEGER(I4B)                             :: ntdh           ! number of time steps in IRF
   character(len=strLen)                    :: cmessage       ! error message from subroutine
 
    ! initialize error control
@@ -90,6 +91,10 @@ module lake_route_module
     print*, 'node id that is lake .......= ', NETOPO_in(segIndex)%REACHID ! to check the reach id of lake
     print*, 'lake param RATECVA .........= ', RPARAM_in(segIndex)%RATECVA
     print*, 'lake param RATECVB .........= ', RPARAM_in(segIndex)%RATECVB
+    print*, 'lake param RATECVC .........= ', RPARAM_in(segIndex)%RATECVC
+    print*, 'lake param RATECVD .........= ', RPARAM_in(segIndex)%RATECVD
+    print*, 'lake param RATECVE .........= ', RPARAM_in(segIndex)%RATECVE
+    print*, 'lake param RATECVF .........= ', RPARAM_in(segIndex)%RATECVF
     print*, 'volume before simulation m3.= ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
     print*, 'upstream streamflow m3/s ...= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
     print*, 'upstream precipitation m3/s.= ', RCHFLX_out(iens,segIndex)%basinprecip
@@ -103,8 +108,12 @@ module lake_route_module
    if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) .LT. 0) then; ! set the lake volume as 0 if it goes negative actual evaporation is not calculated here in case low storage mean low evaporaiton...
      RCHFLX_out(iens,segIndex)%REACH_VOL(1)=0
    endif
-   ! A has the dimnesion of 1/s; the flux leaving per second
-   RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RPARAM_in(segIndex)%RATECVA * (RCHFLX_out(iens,segIndex)%REACH_VOL(1) ** RPARAM_in(segIndex)%RATECVB)! simplified level pool liner reservoir Q=AS^B
+   ! RATECVA has the dimnesion of 1/s; the flux leaving per second
+   ! RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RPARAM_in(segIndex)%RATECVA * (RCHFLX_out(iens,segIndex)%REACH_VOL(1) ** &
+   !                                         RPARAM_in(segIndex)%RATECVB) !  Q=AS^B
+   RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RPARAM_in(segIndex)%RATECVA * RCHFLX_out(iens,segIndex)%REACH_VOL(1) * &
+                                           (RCHFLX_out(iens,segIndex)%REACH_VOL(1) / RPARAM_in(segIndex)%RATECVC) ** &
+                                           RPARAM_in(segIndex)%RATECVB! Q = AS(S/Smax)^B based on Eq. 1 Hanasaki et al., 2006 https://doi.org/10.1016/j.jhydrol.2005.11.011
    RCHFLX_out(iens,segIndex)%REACH_Q_IRF = (min(RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt, RCHFLX_out(iens,segIndex)%REACH_VOL(1)) )/dt! in case is the output volume is more than lake volume
    RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt ! updating the storage
    if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) .LT. 0) then; ! set the lake volume as 0 if it goes negative
@@ -133,6 +142,13 @@ module lake_route_module
     ! pass the current storage for the past time step for the next time step simulation
    RCHFLX_out(iens,segIndex)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) !shift on time step back
 
+    ! assign the zero value as lake do not have a QFUTURE_IRF
+   if (.not.allocated(RCHFLX_out(iens,segIndex)%QFUTURE_IRF))then
+    ntdh = size(NETOPO_in(segIndex)%UH)
+    allocate(RCHFLX_out(iens,segIndex)%QFUTURE_IRF(ntdh), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage)//': RCHFLX_out(iens,segIndex)%QFUTURE_IRF'; return; endif
+    RCHFLX_out(iens,segIndex)%QFUTURE_IRF(1:ntdh) = 0._dp
+   end if
 
    end subroutine lake_route
 

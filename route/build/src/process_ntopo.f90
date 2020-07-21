@@ -419,6 +419,10 @@ end subroutine augment_ntopo
    RPARAM_in(iSeg)%R_WIDTH   =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
    RPARAM_in(iSeg)%RATECVA   =     structSEG(iSeg)%var(ixSEG%RATECVA)%dat(1)
    RPARAM_in(iSeg)%RATECVB   =     structSEG(iSeg)%var(ixSEG%RATECVB)%dat(1)
+   RPARAM_in(iSeg)%RATECVC   =     structSEG(iSeg)%var(ixSEG%RATECVC)%dat(1)
+   RPARAM_in(iSeg)%RATECVD   =     structSEG(iSeg)%var(ixSEG%RATECVD)%dat(1)
+   RPARAM_in(iSeg)%RATECVE   =     structSEG(iSeg)%var(ixSEG%RATECVE)%dat(1)
+   RPARAM_in(iSeg)%RATECVF   =     structSEG(iSeg)%var(ixSEG%RATECVF)%dat(1)
 
    ! compute variables
    RPARAM_in(iSeg)%BASAREA = structSEG(iSeg)%var(ixSEG%basArea)%dat(1)
