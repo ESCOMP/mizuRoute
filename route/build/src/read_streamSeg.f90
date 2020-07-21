@@ -61,7 +61,6 @@ contains
                     structPFAF,   & ! ancillary data for pfafstetter code
                     ! output: error control
                     ierr,message)   ! output: error control
-
  implicit none
  ! input variables
  character(*)      , intent(in)               :: fname            ! filename

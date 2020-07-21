@@ -125,9 +125,9 @@ Required runoff mapping netCDF variables
 +--------+------------+-----------+-------+-------+-----------------------------------------------+
 | 2      | HM_hruId   | data      | ``-`` | int   | ID of overlapping HM_HRUs                     |
 +--------+------------+-----------+-------+-------+-----------------------------------------------+
-| 3      | i_index    | data      | ``-`` | int   | i direction index overlapping grid boxes      |
+| 3      | i_index    | data      | ``-`` | int   | i(x) direction index overlapping grid boxes   |
 +        +------------+-----------+-------+-------+-----------------------------------------------+
-|        | j_index    | data      | ``-`` | int   | j direction index overlapping grid boxes      |
+|        | j_index    | data      | ``-`` | int   | j(y) direction index overlapping grid boxes   |
 +--------+------------+-----------+-------+-------+-----------------------------------------------+
 
 Hope this picture helps you understand mapping netCDF variables.
