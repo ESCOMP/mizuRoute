@@ -2,7 +2,6 @@ MODULE read_restart
 ! Moudle wide external modules
 USE nrtype, only: i4b, dp, &
                   strLen
-USE netcdf
 USE public_var
 
 implicit none
@@ -22,13 +21,13 @@ CONTAINS
                           T0, T1,          &   ! output: start and end time [sec]
                           ierr, message)       ! Output: error control
  ! External module
- USE io_netcdf,   ONLY: get_nc, &
-                        get_nc_dim_len
- USE dataTypes,   ONLY: states
+ USE io_netcdf,    ONLY: get_nc, &
+                         get_nc_dim_len
+ USE dataTypes,    ONLY: states
  ! meta data
- USE globalData,  ONLY: meta_stateDims  ! dimension for state variables
+ USE globalData,   ONLY: meta_stateDims  ! dimension for state variables
  ! Named variables
- USE var_lookup,  ONLY: ixStateDims, nStateDims
+ USE var_lookup,   ONLY: ixStateDims, nStateDims
  implicit none
  ! input variables
  character(*), intent(in)      :: fname                ! filename
@@ -184,8 +183,6 @@ CONTAINS
 
   do iVar=1,nVarsIRF
 
-   if (iVar==ixIRF%q) cycle
-
    select case(iVar)
     case(ixIRF%qfuture); allocate(state(impulseResponseFunc)%var(iVar)%array_3d_dp(nSeg, ntdh_irf, nens), stat=ierr)
     case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
@@ -198,8 +195,6 @@ CONTAINS
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsIRF
-
-   if (iVar==ixIRF%q) cycle
 
    select case(iVar)
     case(ixIRF%qfuture); call get_nc(fname, meta_irf(iVar)%varName, state(impulseResponseFunc)%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,ntdh_irf,nens/), ierr, cmessage)
@@ -216,8 +211,6 @@ CONTAINS
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
     do iVar=1,nVarsIRF
-
-     if (iVar==ixIRF%q) cycle ! not writing out IRF routed flow
 
      select case(iVar)
       case(ixIRF%qfuture); RCHFLX(iens,iSeg)%QFUTURE_IRF = state(impulseResponseFunc)%var(iVar)%array_3d_dp(iSeg,1:numQF(iens,iSeg),iens)
@@ -261,8 +254,6 @@ CONTAINS
 
   do iVar=1,nVarsKWT
 
-    if (iVar==ixKWT%q) cycle  ! not writing out river flow in state file
-
     select case(iVar)
      case(ixKWT%routed); allocate(state(kinematicWave)%var(iVar)%array_3d_dp(nSeg, nwave, nens), stat=ierr)
      case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
@@ -276,8 +267,6 @@ CONTAINS
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsKWT
-
-    if (iVar==ixKWT%q) cycle  ! not writing out river flow in state file
 
     select case(iVar)
      case(ixKWT%routed)
@@ -295,8 +284,6 @@ CONTAINS
     allocate(KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1), stat=ierr)
 
     do iVar=1,nVarsKWT
-
-     if (iVar==ixKWT%q) cycle ! not writing out KWT routed flow
 
      select case(iVar)
       case(ixKWT%tentry);    KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%TI = state(kinematicWave)%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
@@ -317,7 +304,6 @@ CONTAINS
   enddo
 
   END SUBROUTINE read_KWT_state
-
 
  END SUBROUTINE read_state_nc
 

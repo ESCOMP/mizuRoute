@@ -96,13 +96,15 @@ contains
 
  ! get the second
  istart = istart+iend
- if(istart > len_trim(refdate)) return
+ ! if second is missing (e.g., yyyy-mm-dd hh:mm)...
+ if(istart > len_trim(refdate)) then
+   dsec=0._dp; return
+ end if
  iend   = index(refdate(istart:n)," ")
  read(refdate(istart:n),*) dsec
  !write(*,'(a,i4,1x,4(i2,1x))') 'refdate: iyyy, im, id, ih, imin = ', iyyy, im, id, ih, imin
 
  contains
-
 
   ! ******************************************************************************************
   ! internal subroutine extract: extract substring
@@ -372,7 +374,7 @@ contains
 
  ! Convert fractions of a day to time
  ! now find hour,min,second
- frac_day = julday - floor(julday)
+ frac_day = days - real(id, kind(dp))
  ih = floor((frac_day+1e-9)*hr_per_day)
 
  remainder = (frac_day+1e-9)*hr_per_day - ih

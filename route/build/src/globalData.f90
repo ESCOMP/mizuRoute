@@ -10,6 +10,7 @@ module globalData
   use dataTypes,  only : struct_info   ! metadata type
   use dataTypes,  only : dim_info      ! metadata type
   use dataTypes,  only : var_info      ! metadata type
+  use objTypes,   only : var_info_new  ! metadata type
 
   ! parameter structures
   USE dataTypes,  only : RCHPRP        ! Reach parameters (properties)
@@ -28,8 +29,14 @@ module globalData
   use dataTypes,  only : remap         ! remapping data type
   use dataTypes,  only : runoff        ! runoff data type
 
+  ! basin data structure
+  use dataTypes,  only : subbasin_omp  ! mainstem+tributary data structures
+
   ! time data structure
   use dataTypes,  only : time         ! time data
+
+  ! time data structure
+  use dataTypes,  only : nc           ! netCDF data
 
   ! data size
   USE var_lookup, only : nStructures   ! number of variables for data structure
@@ -40,6 +47,8 @@ module globalData
   USE var_lookup, only : nVarsHRU2SEG  ! number of variables for data structure
   USE var_lookup, only : nVarsSEG      ! number of variables for data structure
   USE var_lookup, only : nVarsNTOPO    ! number of variables for data structure
+  USE var_lookup, only : nVarsPFAF     ! number of variables for data structure
+  USE var_lookup, only : nVarsRFLX     ! number of variables for data structure
   USE var_lookup, only : nVarsIRFbas   ! number of variables for data structure
   USE var_lookup, only : nVarsIRF      ! number of variables for data structure
   USE var_lookup, only : nVarsKWT      ! number of variables for data structure
@@ -48,18 +57,8 @@ module globalData
 
   save
 
-
-
-  ! ---------- constants ----------------------------------------------------------------------------
-
-  ! true/false
-  integer(i4b)      , parameter  , public :: true=1001                  ! true
-  integer(i4b)      , parameter  , public :: false=1002                 ! false
-
-  ! variable types
-  integer(i4b)      , parameter  , public :: varType_integer   = 1001   ! named variable for an integer
-  integer(i4b)      , parameter  , public :: varType_double    = 1002   ! named variable for a double precision
-  integer(i4b)      , parameter  , public :: varType_character = 1003   ! named variable for a double precision
+  ! ---------- MPI/OMP variables -------------------------------------------------------------------
+  integer(i4b)                  :: nThreads            ! number of threads
 
   ! ---------- conversion factors -------------------------------------------------------------------
 
@@ -90,9 +89,11 @@ module globalData
   type(var_info)                 , public :: meta_HRU2SEG(nVarsHRU2SEG) ! HRU-to-segment mapping
   type(var_info)                 , public :: meta_SEG    (nVarsSEG    ) ! stream segment properties
   type(var_info)                 , public :: meta_NTOPO  (nVarsNTOPO  ) ! network topology
-  type(var_info)                 , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
-  type(var_info)                 , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
-  type(var_info)                 , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
+  type(var_info)                 , public :: meta_PFAF   (nVarsPFAF   ) ! pfafstetter code
+  type(var_info_new)             , public :: meta_rflx   (nVarsRFLX   ) ! reach flux variables
+  type(var_info_new)             , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
+  type(var_info_new)             , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
+  type(var_info_new)             , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
 
   ! ---------- data structures ----------------------------------------------------------------------
   integer(i4b)                   , public :: nEns=1               ! number of ensemble
@@ -110,9 +111,14 @@ module globalData
   real(dp)                       , public :: endJulday            ! julian day: end of routing simulation
   real(dp)                       , public :: refJulday            ! julian day: reference
   real(dp)                       , public :: modJulday            ! julian day: simulation time step
-  real(dp)        , allocatable  , public :: timeVar(:)           ! time variables (unit given by runoff data)
+  real(dp)                       , public :: restartJulday        ! julian day: restart drop off
+  real(dp)        , allocatable  , public :: roJulday(:)          ! julian day: runoff input time
+  real(dp)        , allocatable  , public :: timeVar(:)           ! time variables (unit given by time variable)
   real(dp)                       , public :: TSEC(0:1)            ! begning and end of time step (sec)
   type(time)                     , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
+
+  ! simulation output netcdf
+  type(nc)                       , public :: simout_nc
 
   ! river topology and parameter structures
   type(RCHPRP)    , allocatable  , public :: RPARAM(:)            ! Reach Parameters for whole domain
@@ -133,6 +139,10 @@ module globalData
   ! mapping structures
   type(remap)                    , public :: remap_data           ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
   type(runoff)                   , public :: runoff_data          ! runoff data for one time step for LSM HRUs and River network HRUs
+
+  ! domain data
+  type(subbasin_omp), allocatable, public :: river_basin(:)       ! openMP domain decomposition
+
   ! miscellaneous
   integer(i4b)                   , public :: ixPrint=integerMissing   ! index of desired reach to be on-screen print
 

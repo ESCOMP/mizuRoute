@@ -8,6 +8,9 @@ module public_var
 
   save
 
+  ! ---------- mizuRoute version -------------------------------------------------------------------
+  character(len=strLen), parameter, public    :: mizuRouteVersion='v1.2'
+
   ! ---------- common constants ---------------------------------------------------------------------
 
   ! physical constants
@@ -29,17 +32,28 @@ module public_var
   ! routing related constants
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
 
+  ! domain decomposition parameters
+  integer(i4b),parameter,public   :: maxDomain=150000       ! maximum sub-domains
+
   ! constants for general use
   real(dp),    parameter,public   :: MinPosVal=1.e-10_dp    ! minimum value for positive value
   integer(i4b),parameter,public   :: integerMissing=-9999   ! missing value for integers
   real(dp),    parameter,public   :: realMissing=-9999._dp  ! missing value for real numbers
+  character(5),parameter,public   :: charMissing='empty'    ! missing value for character
+
+  ! I/O related parameters
+  integer(i4b),          public   :: iulog=6                ! logical unit identifier
+
   ! ---------- named variables ----------------------------------------------------------------------
 
-  ! output file frequency
-  integer(i4b) , parameter        :: annual=1001            ! named variable for yearly output files
-  integer(i4b) , parameter        :: month=1002             ! named variable for monthly output files
-  integer(i4b) , parameter        :: day=1003               ! named variable for daily output files
-  integer(i4b) , parameter        :: single=1004            ! named variable for yearly output files
+  ! true/false
+  integer(i4b), parameter, public :: true=1001                  ! true
+  integer(i4b), parameter, public :: false=1002                 ! false
+
+  ! variable types
+  integer(i4b), parameter, public :: varType_integer   = 1001   ! named variable for an integer
+  integer(i4b), parameter, public :: varType_double    = 1002   ! named variable for a double precision
+  integer(i4b), parameter, public :: varType_character = 1003   ! named variable for a double precision
 
   ! compute versus read from file
   integer(i4b), parameter,public  :: compute=1              ! compute given variable
@@ -78,6 +92,7 @@ module public_var
   character(len=strLen),public    :: dname_ylat           = ''              ! dimension name for y (i, latitude) dimension
   character(len=strLen),public    :: units_qsim           = ''              ! units of simulated runoff data
   real(dp)             ,public    :: dt                   = realMissing     ! time step (seconds)
+  real(dp)             ,public    :: ro_fillvalue         = realMissing     ! fillvalue used for runoff depth variable
   ! RUNOFF REMAPPING
   logical(lgt),public             :: is_remap             = .false.         ! logical whether or not runnoff needs to be mapped to river network HRU
   character(len=strLen),public    :: fname_remap          = ''              ! runoff mapping netCDF name
@@ -90,12 +105,12 @@ module public_var
   character(len=strLen),public    :: dname_hru_remap      = ''              ! dimension name for river network HRU
   character(len=strLen),public    :: dname_data_remap     = ''              ! dimension name for runoff HRU ID
   ! ROUTED FLOW OUTPUT
-  character(len=strLen),public    :: fname_output         = ''              ! name of output file
+  character(len=strLen),public    :: case_name            = ''              ! name of simulation. used as head of model output and restart file
   character(len=strLen),public    :: newFileFrequency     = 'annual'        ! frequency for new output files (day, month, annual, single)
   ! STATES
-  logical(lgt)         ,public    :: isRestart            = .false.         ! restart option: True-> model run with restart, F -> model run with empty channels
-  character(len=strLen),public    :: fname_state_in       = ''              ! name of state file
-  character(len=strLen),public    :: fname_state_out      = ''              ! name of state file
+  character(len=strLen),public    :: restart_write        = 'never'         ! restart write option: never-> N[n]ever write, L[l]ast -> write at last time step, S[s]pecified
+  character(len=strLen),public    :: restart_date         = charMissing     ! specifed restart date
+  character(len=strLen),public    :: fname_state_in       = charMissing     ! name of state file
   ! SPATIAL CONSTANT PARAMETERS
   character(len=strLen),public    :: param_nml            = ''              ! name of the namelist file
   ! USER OPTIONS
@@ -103,13 +118,18 @@ module public_var
   integer(i4b)         ,public    :: topoNetworkOption    = compute         ! option for network topology calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: computeReachList     = compute         ! option to compute list of upstream reaches (0=do not compute, 1=compute)
   ! TIME
-  character(len=strLen),public    :: time_units           = ''              ! time units (seconds, hours, or days)
-  character(len=strLen),public    :: calendar             = ''              ! calendar name
+  character(len=strLen),public    :: time_units           = charMissing     ! time units time units. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
+  character(len=strLen),public    :: calendar             = charMissing     ! calendar name
   ! MISCELLANEOUS
+  logical(lgt)         ,public    :: debug                = .false.         ! print out detaled information
   integer(i4b)         ,public    :: idSegOut             = integerMissing  ! id of outlet stream segment
   integer(i4b)         ,public    :: routOpt              = integerMissing  ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
   integer(i4b)         ,public    :: desireId             = integerMissing  ! turn off checks or speficy reach ID if necessary to print on screen
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
   integer(i4b)         ,public    :: doesAccumRunoff      = 1               ! option to delayed runoff accumulation over all the upstream reaches
+  character(len=strLen),public    :: netcdf_format        = 'netcdf4'       ! netcdf format for output
+  ! PFAFCODE
+  integer(i4b)         ,public    :: maxPfafLen           = 32              ! maximum digit of pfafstetter code (default 32).
+  character(len=1)     ,public    :: pfafMissing          = '0'             ! missing pfafcode (e.g., reach without any upstream area)
 
 end module public_var
