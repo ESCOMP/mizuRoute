@@ -19,6 +19,7 @@ CONTAINS
  ! Public subroutine main driver for basin routing
  ! ---------------------------------------------------------------------------------------
  SUBROUTINE accum_runoff(iEns,          & ! input: index of runoff ensemble to be processed
+                         river_basin,   & ! input: river basin information (mainstem, tributary outlet etc.)
                          ixDesire,      & ! input: ReachID to be checked by on-screen printing
                          NETOPO_in,     & ! input: reach topology data structure
                          RCHFLX_out,    & ! inout: reach flux data structure
@@ -32,9 +33,12 @@ CONTAINS
  !
  ! ----------------------------------------------------------------------------------------
 
+ USE dataTypes,         ONLY: subbasin_omp   ! mainstem+tributary data structures
+
  implicit none
  ! input
  integer(i4b),       intent(in)                 :: iens            ! runoff ensemble index
+ type(subbasin_omp), intent(in),    allocatable :: river_basin(:)  ! river basin information (mainstem, tributary outlet etc.)
  integer(i4b),       intent(in)                 :: ixDesire        ! index of the reach for verbose output
  type(RCHTOPO),      intent(in),    allocatable :: NETOPO_in(:)    ! River Network topology
  ! inout
@@ -46,7 +50,10 @@ CONTAINS
  integer(i4b),       intent(in),   optional     :: ixSubRch(:)     ! subset of reach indices to be processed
  ! local variables
  integer(i4b)                                   :: nSeg            ! number of segments in the network
- integer(i4b)                                   :: iSeg,jSeg       ! reach segment indices
+ integer(i4b)                                   :: nTrib           ! number of tributaries
+ integer(i4b)                                   :: nDom            ! number of domains defined by e.g., stream order, tributary/mainstem
+ integer(i4b)                                   :: iSeg, jSeg      ! reach segment indices
+ integer(i4b)                                   :: iTrib, ix       ! loop indices
  logical(lgt), allocatable                      :: doRoute(:)      ! logical to indicate which reaches are processed
  character(len=strLen)                          :: cmessage        ! error message from subroutines
  integer*8                                      :: cr                   ! rate
@@ -55,7 +62,6 @@ CONTAINS
 
  ierr=0; message='accum_runoff/'
  call system_clock(count_rate=cr)
- call system_clock(startTime)
 
  ! check
  if (size(NETOPO_in)/=size(RCHFLX_out(iens,:))) then
@@ -76,15 +82,36 @@ CONTAINS
    doRoute(:)=.true. ! every reach is on
  endif
 
- ! compute the sum of all upstream runoff at each point in the river network
- do iSeg=1,nSeg
+ nDom = size(river_basin)
 
-   jSeg = NETOPO_in(iSeg)%RHORDER
+ call system_clock(startTime)
 
-   if (.not. doRoute(jSeg)) cycle
+ do ix = 1,nDom
+   ! 1. Route tributary reaches (parallel)
+   ! compute the sum of all upstream runoff at each point in the river network
+   nTrib=size(river_basin(ix)%branch)
 
-   call accum_qupstream(iens, jSeg, ixDesire, NETOPO_in, RCHFLX_out, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+!$OMP PARALLEL DO schedule(dynamic,1)         &
+!$OMP          private(jSeg, iSeg)            & ! private for a given thread
+!$OMP          private(ierr, cmessage)        & ! private for a given thread
+!$OMP          shared(river_basin)            & ! data structure shared
+!$OMP          shared(doRoute)                & ! data array shared
+!$OMP          shared(NETOPO_in)              & ! data structure shared
+!$OMP          shared(RCHFLX_out)             & ! data structure shared
+!$OMP          shared(ix, iEns, ixDesire)     & ! indices shared
+!$OMP          firstprivate(nTrib)
+   do iTrib = 1,nTrib
+     do iSeg=1,river_basin(ix)%branch(iTrib)%nRch
+       jSeg = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
+
+       if (.not. doRoute(jSeg)) cycle
+
+       call accum_qupstream(iens, jSeg, ixDesire, NETOPO_in, RCHFLX_out, ierr, cmessage)
+       !if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     end do
+   end do
+!$OMP END PARALLEL DO
 
  end do ! looping through stream segments
 
@@ -145,11 +172,10 @@ CONTAINS
 
  ! check
  if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
-  associate( ixUpstream => NETOPO_in(segIndex)%RCHLIST)
-  print*, 'ixUpstream = ', NETOPO_in(ixUpstream(1:size(ixUpstream)))%REACHIX
-  print*, 'idUpstream = ', NETOPO_in(ixUpstream(1:size(ixUpstream)))%REACHID
-  end associate
-  print*, 'RCHFLX_out%UPSTREAM_QI = ', RCHFLX_out(iens,segIndex)%UPSTREAM_QI
+  print*, 'CHECK ACCUM_RUNOFF'
+  print*, ' UREACHK, uprflux = ', (NETOPO_in(segIndex)%UREACHK(iUps), uprflux(iUps), iUps=1,nUps)
+  print*, ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1) = ', RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+  print*, ' RCHFLX_out%UPSTREAM_QI = ', RCHFLX_out(iens,segIndex)%UPSTREAM_QI
  endif
 
  end subroutine accum_qupstream

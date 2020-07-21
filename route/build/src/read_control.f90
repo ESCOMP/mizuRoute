@@ -26,12 +26,16 @@ contains
  USE globalData, only : meta_HRU2SEG         ! HRU-to-segment mapping
  USE globalData, only : meta_SEG             ! stream segment properties
  USE globalData, only : meta_NTOPO           ! network topology
+ USE globalData, only : meta_PFAF            ! pfafstetter code
+ USE globalData, only : meta_rflx            ! river flux variables
 
  ! named variables in each structure
  USE var_lookup, only : ixHRU                ! index of variables for data structure
  USE var_lookup, only : ixHRU2SEG            ! index of variables for data structure
  USE var_lookup, only : ixSEG                ! index of variables for data structure
  USE var_lookup, only : ixNTOPO              ! index of variables for data structure
+ USE var_lookup, only : ixPFAF               ! index of variables for data structure
+ USE var_lookup, only : ixRFLX               ! index of variables for data structure
 
  ! external subroutines
  USE ascii_util_module,only:file_open        ! open file (performs a few checks as well)
@@ -72,6 +76,7 @@ contains
  close(iunit)
 
  ! loop through the non-comment lines in the input file, and extract the name and the information
+ write(iulog,'(a)') '---- read control file --- '
  do iLine=1,size(cLines)
 
    ! initialize io_error
@@ -86,7 +91,7 @@ contains
    ! extract name of the information, and the information itself
    cName = adjustl(cLines(iLine)(ibeg_name:iend_name))
    cData = adjustl(cLines(iLine)(iend_name+1:iend_data-1))
-   print*, trim(cName), ' --> ', trim(cData)
+   write(iulog,'(x,a,a,a)') trim(cName), ' --> ', trim(cData)
 
    ! populate variables
    select case(trim(cName))
@@ -115,6 +120,7 @@ contains
    case('<dname_ylat>');           dname_ylat   = trim(cData)                      ! name of y (i,lat) dimension
    case('<units_qsim>');           units_qsim   = trim(cData)                      ! units of runoff
    case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                ! time interval of the gridded runoff
+   case('<ro_fillvalue>');         read(cData,*,iostat=io_error) ro_fillvalue      ! fillvalue used for runoff depth variable
    ! RUNOFF REMAPPING
    case('<is_remap>');             read(cData,*,iostat=io_error) is_remap          ! logical whether or not runnoff needs to be mapped to river network HRU
    case('<fname_remap>');          fname_remap          = trim(cData)              ! name of runoff mapping netCDF
@@ -127,12 +133,12 @@ contains
    case('<dname_hru_remap>');      dname_hru_remap      = trim(cData)              ! name of dimension of river network HRU ID
    case('<dname_data_remap>');     dname_data_remap     = trim(cData)              ! name of dimension of runoff HRU overlapping with river network HRU
    ! ROUTED FLOW OUTPUT
-   case('<fname_output>');         fname_output     = trim(cData)                  ! filename for the model output
-   case('<newFileFrequency>');     newFileFrequency = trim(cData)                  ! frequency for new output files (day, month, annual, single)
+   case('<case_name>');            case_name            = trim(cData)              ! name of simulation. used as head of model output and restart file
+   case('<newFileFrequency>');     newFileFrequency     = trim(cData)              ! frequency for new output files (day, month, annual, single)
    ! STATES
-   case('<restart_opt>');          read(cData,*,iostat=io_error) isRestart         ! restart option: True-> model run with restart, F -> model run with empty channels
-   case('<fname_state_in>');       fname_state_in  = trim(cData)                   ! filename for the channel states
-   case('<fname_state_out>');      fname_state_out = trim(cData)                   ! filename for the channel states
+   case('<restart_write>');        restart_write        = trim(cData)              ! restart write option: N[n]ever, L[l]ast
+   case('<restart_date>');         restart_date         = trim(cData)              ! specified restart date, yyyy-mm-dd (hh:mm:ss)
+   case('<fname_state_in>');       fname_state_in       = trim(cData)              ! filename for the channel states
    ! SPATIAL CONSTANT PARAMETERS
    case('<param_nml>');            param_nml       = trim(cData)                   ! name of namelist including routing parameter value
    ! USER OPTIONS: Define options to include/skip calculations
@@ -140,25 +146,35 @@ contains
    case('<topoNetworkOption>');    read(cData,*,iostat=io_error) topoNetworkOption ! option for network topology calculations (0=read from file, 1=compute)
    case('<computeReachList>');     read(cData,*,iostat=io_error) computeReachList  ! option to compute list of upstream reaches (0=do not compute, 1=compute)
    ! TIME
-   case('<time_units>');           time_units = trim(cData)                        ! time units (seconds, hours, or days)
+   case('<time_units>');           time_units = trim(cData)                        ! time units. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
    case('<calendar>');             calendar   = trim(cData)                        ! calendar name
    ! MISCELLANEOUS
+   case('<debug>');                read(cData,*,iostat=io_error) debug             ! print out detailed information throught the probram
    case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut          ! desired outlet reach id (if -9999 --> route over the entire network)
    case('<route_opt>');            read(cData,*,iostat=io_error) routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
    case('<desireId>'   );          read(cData,*,iostat=io_error) desireId          ! turn off checks or speficy reach ID if necessary to print on screen
    case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute    ! basin routing options   0-> no, 1->IRF, otherwise error
    case('<doesAccumRunoff>');      read(cData,*,iostat=io_error) doesAccumRunoff   ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
+   case('<netcdf_format>');        netcdf_format = trim(cData)                     ! netcdf format for output 'classic','64bit_offset','netcdf4'
+   ! PFAFCODE
+   case('<maxPfafLen>');           read(cData,*,iostat=io_error) maxPfafLen        ! maximum digit of pfafstetter code (default 32)
+   case('<pfafMissing>');          pfafMissing = trim(cData)                       ! missing pfafcode (e.g., reach without any upstream area)
+   ! OUTPUT OPTIONS
+   case('<basRunoff>');            read(cData,*,iostat=io_error) meta_rflx(ixRFLX%basRunoff        )%varFile
+   case('<instRunoff>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%instRunoff       )%varFile
+   case('<dlayRunoff>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%dlayRunoff       )%varFile
+   case('<sumUpstreamRunoff>');    read(cData,*,iostat=io_error) meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile
+   case('<KWTroutedRunoff>');      read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWTroutedRunoff  )%varFile
+   case('<IRFroutedRunoff>');      read(cData,*,iostat=io_error) meta_rflx(ixRFLX%IRFroutedRunoff  )%varFile
 
    ! VARIABLE NAMES for data (overwrite default name in popMeta.f90)
    ! HRU structure
    case('<varname_area>'         ); meta_HRU    (ixHRU%area            )%varName = trim(cData) ! HRU area
-
    ! Mapping from HRUs to stream segments
    case('<varname_HRUid>'        ); meta_HRU2SEG(ixHRU2SEG%HRUid       )%varName = trim(cData) ! HRU id
    case('<varname_HRUindex>'     ); meta_HRU2SEG(ixHRU2SEG%HRUindex    )%varName = trim(cData) ! HRU index
    case('<varname_hruSegId>'     ); meta_HRU2SEG(ixHRU2SEG%hruSegId    )%varName = trim(cData) ! the stream segment id below each HRU
    case('<varname_hruSegIndex>'  ); meta_HRU2SEG(ixHRU2SEG%hruSegIndex )%varName = trim(cData) ! the stream segment index below each HRU
-
    ! reach properties
    case('<varname_length>'       ); meta_SEG    (ixSEG%length          )%varName =trim(cData)  ! length of segment  (m)
    case('<varname_slope>'        ); meta_SEG    (ixSEG%slope           )%varName =trim(cData)  ! slope of segment   (-)
@@ -171,7 +187,6 @@ contains
    case('<varname_basUnderLake>' ); meta_SEG    (ixSEG%basUnderLake    )%varName =trim(cData)  ! Area of basin under lake  (m2)
    case('<varname_rchUnderLake>' ); meta_SEG    (ixSEG%rchUnderLake    )%varName =trim(cData)  ! Length of reach under lake (m)
    case('<varname_minFlow>'      ); meta_SEG    (ixSEG%minFlow         )%varName =trim(cData)  ! minimum environmental flow
-
    ! network topology
    case('<varname_hruContribIx>' ); meta_NTOPO  (ixNTOPO%hruContribIx  )%varName =trim(cData)  ! indices of the vector of HRUs that contribute flow to each segment
    case('<varname_hruContribId>' ); meta_NTOPO  (ixNTOPO%hruContribId  )%varName =trim(cData)  ! ids of the vector of HRUs that contribute flow to each segment
@@ -187,11 +202,13 @@ contains
    case('<varname_isLakeInlet>'  ); meta_NTOPO  (ixNTOPO%isLakeInlet   )%varName =trim(cData)  ! flag to define if reach is a lake inlet (1=inlet, 0 otherwise)
    case('<varname_userTake>'     ); meta_NTOPO  (ixNTOPO%userTake      )%varName =trim(cData)  ! flag to define if user takes water from reach (1=extract, 0 otherwise)
    case('<varname_goodBasin>'    ); meta_NTOPO  (ixNTOPO%goodBasin     )%varName =trim(cData)  ! flag to define a good basin (1=good, 0=bad)
+   ! pfafstetter code
+   case('<varname_pfafCode>'     ); meta_PFAF   (ixPFAF%code           )%varName =trim(cData)  ! pfafstetter code
 
    ! if not in list then keep going
    case default
     message=trim(message)//'unexpected text in control file -- provided '//trim(cName)&
-                         //' (note strings in control file must match the variable names in var_lookup.f90)'
+                         //' (note strings in control file must match the variable names in public_var.f90)'
     err=20; return
 
   end select
@@ -204,17 +221,34 @@ contains
 
  end do  ! looping through lines in the control file
 
- ! control river network writing option
+ ! ---------- control river network writing option  ---------------------------------------------------------------------
+
  ! Case1- river network subset mode (idSegOut>0):  Write the network variables read from file over only upstream network specified idSegOut
  ! Case2- river network augment mode: Write full network variables over the entire network
  ! River network subset mode turnes off augmentation mode.
+
  ! Turned off ntopAugmentMode
  if (idSegOut>0) then
    ntopAugmentMode = .false.
  endif
 
- ! ---------- unit conversion --------------------------------------------------------------------------------------------
+ ! ---------- time variables  --------------------------------------------------------------------------------------------
+ write(iulog,'(2a)') new_line('a'), '---- calendar --- '
+ if (trim(calendar)/=charMissing) then
+   write(iulog,'(a)') '  calendar is provided in control file: '//trim(calendar)
+ else
+   write(iulog,'(a)') '  calendar will be read from '//trim(fname_qsim)
+ end if
+ if (trim(time_units)/=charMissing) then
+   write(iulog,'(a)') '  time_unit is provided in control file: '//trim(time_units)
+ else
+   write(iulog,'(a)') '  time_unit will be read from '//trim(fname_qsim)
+ end if
 
+ ! ---------- runoff unit conversion --------------------------------------------------------------------------------------------
+
+ write(iulog,'(2a)') new_line('a'), '---- runoff unit --- '
+ write(iulog,'(a)') '  runoff unit is provided as: '//trim(units_qsim)
  ! find the position of the "/" character
  ipos = index(trim(units_qsim),'/')
  if(ipos==0)then
@@ -237,11 +271,11 @@ contains
 
  ! get the conversion factor for time
  select case(trim(cTime))
-  case('d','day');    time_conv = 1._dp/secprday
-  case('h','hour');   time_conv = 1._dp/secprhour
-  case('s','second'); time_conv = 1._dp
+  case('d','day');          time_conv = 1._dp/secprday
+  case('h','hr','hour');    time_conv = 1._dp/secprhour
+  case('s','sec','second'); time_conv = 1._dp
   case default
-   message=trim(message)//'cannot identify the time units [time units = '//trim(cTime)//']'
+   message=trim(message)//'expect the time units to be "day"("d"), "hour"("h") or "second"("s") [time units = '//trim(cTime)//']'
    err=81; return
  end select
 

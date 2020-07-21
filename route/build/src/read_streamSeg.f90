@@ -5,6 +5,7 @@ USE nrtype,    only : i4b,dp,lgt
 USE nrtype,    only : strLen               ! string length
 USE dataTypes, only : var_ilength          ! integer type:          var(:)%dat
 USE dataTypes, only : var_dlength          ! double precision type: var(:)%dat
+USE dataTypes, only : var_clength          ! character type:        var(:)%dat
 USE dataTypes, only : var_info             ! metadata
 
 ! global data
@@ -16,6 +17,7 @@ USE globalData, only : meta_HRU            ! HRU properties
 USE globalData, only : meta_HRU2SEG        ! HRU-to-segment mapping
 USE globalData, only : meta_SEG            ! stream segment properties
 USE globalData, only : meta_NTOPO          ! network topology
+USE globalData, only : meta_PFAF           ! network topology
 
 ! named variables
 USE var_lookup,only:ixStruct, nStructures  ! index of data structures
@@ -23,6 +25,7 @@ USE var_lookup,only:ixHRU,    nVarsHRU     ! index of variables for the HRUs
 USE var_lookup,only:ixSEG,    nVarsSEG     ! index of variables for the stream segments
 USE var_lookup,only:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
 USE var_lookup,only:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
+USE var_lookup,only:ixPFAF,   nVarsPFAF    ! index of variables for the pfafstetter code
 
 ! netcdf modules
 USE netcdf
@@ -55,6 +58,7 @@ contains
                     structSeg,    & ! ancillary data for stream segments
                     structHRU2seg,& ! ancillary data for mapping hru2basin
                     structNTOPO,  & ! ancillary data for network toopology
+                    structPFAF,   & ! ancillary data for pfafstetter code
                     ! output: error control
                     ierr,message)   ! output: error control
  implicit none
@@ -70,6 +74,7 @@ contains
  type(var_dlength) , intent(out), allocatable :: structSeg(:)     ! stream segment properties
  type(var_ilength) , intent(out), allocatable :: structHRU2seg(:) ! HRU-to-segment mapping
  type(var_ilength) , intent(out), allocatable :: structNTOPO(:)   ! network topology
+ type(var_clength) , intent(out), allocatable :: structPFAF(:)    ! network topology
  ! output: error control
  integer(i4b)      , intent(out)              :: ierr             ! error code
  character(*)      , intent(out)              :: message          ! error message
@@ -88,6 +93,7 @@ contains
  integer(i4b),              allocatable :: ixCount(:)   ! Number of elements in each reach
  integer(i4b),              allocatable :: iTemp(:)     ! temporary integer vector
  real(dp),                  allocatable :: dTemp(:)     ! temporary double precision vector
+ character(Len=maxPfafLen), allocatable :: cTemp(:)     ! temporary charactervector
  integer(i4b)                           :: dimLength    ! dimension length
  logical(lgt)                           :: isVarDesired ! .true. if the variable is desired
  character(len=strLen)                  :: varName      ! variable name
@@ -125,11 +131,12 @@ contains
                    structSeg,    & ! inout: ancillary data for stream segments
                    structHRU2seg,& ! inout: ancillary data for mapping hru2basin
                    structNTOPO,  & ! inout: ancillary data for network toopology
+                   structPFAF,   & ! inout: ancillary data for pfafstetter code
                    ierr,cmessage)  ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! initial allocation of the temporary vectors
- allocate(iTemp(nHRU_in), dTemp(nHRU_in), stat=ierr)
+ allocate(iTemp(nHRU_in), dTemp(nHRU_in), cTemp(nHRU_in), stat=ierr)
  if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating temporary vectors'; return; endif
 
  ! -----------------------------------------------------------------------------------------------------------------
@@ -143,6 +150,7 @@ contains
  endif
 
  ! loop through data structures
+ write(iulog,'(2a)') new_line('a'), '---- Read river network data --- '
  do iStruct=1,nStructures
 
   ! loop through the variables
@@ -156,6 +164,7 @@ contains
     case(ixStruct%HRU2SEG); varName=trim(meta_HRU2SEG(ivar)%varName) ; isVarDesired=(meta_HRU2SEG(ivar)%varFile)
     case(ixStruct%SEG    ); varName=trim(meta_SEG(    ivar)%varName) ; isVarDesired=(meta_SEG(    ivar)%varFile)
     case(ixStruct%NTOPO  ); varName=trim(meta_NTOPO(  ivar)%varName) ; isVarDesired=(meta_NTOPO(  ivar)%varFile)
+    case(ixStruct%PFAF   ); varName=trim(meta_PFAF(   ivar)%varName) ; isVarDesired=(meta_PFAF(   ivar)%varFile)
     case default; ierr=20; message=trim(message)//'unable to identify data structure'; return
    end select
 
@@ -186,7 +195,7 @@ contains
    ! ---------- read data into temporary structures ----------------------------------------------------------------
 
    ! print progress
-   print*, 'Reading '//trim(varName)//' into structure '//trim(meta_struct(iStruct)%structName)
+   write(iulog,'(2x,a)') 'Reading '//trim(varName)//' into structure '//trim(meta_struct(iStruct)%structName)
 
    ! read data from NetCDF files
    select case(iStruct)
@@ -217,6 +226,19 @@ contains
      ierr = nf90_get_var(ncid, ivarID, dTemp)
      if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; varname='//trim(varName); return; endif
 
+    ! character vector 2D character array array (character-dimension x data dimension)
+    case(ixStruct%PFAF)
+
+     ! allocate space
+     if(size(cTemp)/=dimLength)then
+      deallocate(cTemp,stat=ierr);          if(ierr/=0)then; message=trim(message)//'problem deallocating cTemp'; return; endif
+      allocate(cTemp(dimLength),stat=ierr); if(ierr/=0)then; message=trim(message)//'problem allocating cTemp'; return; endif
+     endif
+
+     ! read data
+     ierr = nf90_get_var(ncid, ivarID, cTemp, start=(/1,1/), count=(/maxPfafLen, dimLength/))
+     if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; varname='//trim(varName); return; endif
+
     ! check errors
     case default; ierr=20; message=trim(message)//'unable to identify data structure'; return
    end select   ! selection of the data structure
@@ -237,6 +259,7 @@ contains
      case(ixStruct%HRU2SEG); if(size(structHRU2seg)/=dimLength) allocate(structHRU2seg(iSpace)%var(iVar)%dat( ixCount(iSpace) ), stat=ierr)
      case(ixStruct%SEG    ); if(size(structSeg)    /=dimLength) allocate(structSeg(    iSpace)%var(iVar)%dat( ixCount(iSpace) ), stat=ierr)
      case(ixStruct%NTOPO  ); if(size(structNTOPO)  /=dimLength) allocate(structNTOPO(  iSpace)%var(iVar)%dat( ixCount(iSpace) ), stat=ierr)
+     case(ixStruct%PFAF   ); if(size(structPFAF)   /=dimLength) allocate(structPFAF(   iSpace)%var(iVar)%dat( ixCount(iSpace) ), stat=ierr)
      case default; ierr=20; message=trim(message)//'unable to identify data structure'; return
     end select
     if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for the data vectors'; return; endif
@@ -247,6 +270,7 @@ contains
      case(ixStruct%SEG    ); structSeg(    iSpace)%var(iVar)%dat(1:jxCount) = dTemp(jxStart:jxStart+jxCount-1)  ! dp
      case(ixStruct%HRU2SEG); structHRU2seg(iSpace)%var(iVar)%dat(1:jxCount) = iTemp(jxStart:jxStart+jxCount-1)  ! i4b
      case(ixStruct%NTOPO  ); structNTOPO(  iSpace)%var(iVar)%dat(1:jxCount) = iTemp(jxStart:jxStart+jxCount-1)  ! i4b
+     case(ixStruct%PFAF   ); structPFAF(   iSpace)%var(iVar)%dat(1:jxCount) = cTemp(jxStart:jxStart+jxCount-1)  ! character
      case default; ierr=20; message=trim(message)//'unable to identify data structure'; return
     end select
 
@@ -260,7 +284,7 @@ contains
  end do  ! looping through the structures
 
  ! deallocate space
- deallocate(iTemp, dTemp, stat=ierr)
+ deallocate(iTemp, dTemp, cTemp, stat=ierr)
  if(ierr/=0)then; message=trim(message)//'problem deallocating space for temporary vectors'; return; endif
 
  ! close the NetCDF file

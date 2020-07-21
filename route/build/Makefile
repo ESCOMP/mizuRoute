@@ -2,27 +2,30 @@
 # Makefile to compile the routing model
 #========================================================================
 #
-# Need to edit FC, FC_EXE, EXE, F_MASTER, NCDF_PATH
+# Need to edit FC, FC_EXE, EXE, isOpenMP (if OMP is used), F_MASTER, NCDF_PATH
 # Feel free to modify compiler flag (FLAGS)
 # Do not leave space after your edits
 #
 #========================================================================
-# User configure part 
+# User configure part
 #========================================================================
-# Define fortran compiler - gfortran, ifort or pgf90
+# Define fortran compiler - gnu, intel or pgi
 FC  =
 
-# Define the compiler exe
+# Define the compiler exe, e.g., gnu=>gfortran, intel=>ifort, pgi=>pgf90
 FC_EXE =
 
 # Define the compiled executable
-EXE = route_runoff.develop.exe
+EXE =
 
 # Define optional setting
 # fast:      Enables optimizations
-# debug:     Minimum debug options, still 
+# debug:     Minimum debug options, still
 # profile:   Enables profiling
 MODE = debug
+
+# define open MP option (put yes to activate OMP)
+isOpenMP =
 
 # Define core directory below which everything resides
 # parent directory of the 'build' directory
@@ -30,14 +33,14 @@ MODE = debug
 F_MASTER =
 
 # Define the NetCDF libraries and path to include files
-ifeq "$(FC)" "gfortran"
+ifeq "$(FC)" "gnu"
  NCDF_PATH =
 endif
-ifeq "$(FC)" "ifort"
+ifeq "$(FC)" "intel"
  NCDF_PATH =
 endif
-ifeq "$(FC)" "pgf90"
- NCDF_PATH = 
+ifeq "$(FC)" "pgi"
+ NCDF_PATH =
 endif
 
 LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
@@ -47,39 +50,52 @@ INCNETCDF = -I$(NCDF_PATH)/include
 #========================================================================
 # Define flags
 #========================================================================
-ifeq "$(FC)" "gfortran"
+FLAGS_OMP =
+LIBOPENMP =
+ifeq "$(isOpenMP)" "yes"
+ ifeq "$(FC)" "pgi"
+  FLAGS_OMP = -mp
+ endif
+ ifeq "$(FC)" "gnu"
+  FLAGS_OMP = -fopenmp
+ endif
+ ifeq "$(FC)" "intel"
+  FLAGS_OMP = -qopenmp
+ endif
+endif
+
+ifeq "$(FC)" "gnu"
   ifeq "$(MODE)" "fast"
-    FLAGS = -O3 -fmax-errors=0 -ffree-line-length-none
+    FLAGS = -O3 -fmax-errors=0 -ffree-line-length-none $(FLAGS_OMP)
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none 
+    FLAGS = -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP)
   endif
   ifeq "$(MODE)" "profile"
-    FLAGS = -p -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none 
+    FLAGS = -p -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP)
   endif
 endif
 
-ifeq "$(FC)" "ifort"
+ifeq "$(FC)" "intel"
   ifeq "$(MODE)" "fast"
-    FLAGS = -O3 -FR -auto -fltconsistency -fpe0
+    FLAGS = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -debug -warn all -check all -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency
+    FLAGS = -g -debug all -warn all -check all -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
   endif
   ifeq "$(MODE)" "profile"
-    FLAGS = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency
+    FLAGS = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
   endif
 endif
 
-ifeq "$(FC)" "pgf90"
+ifeq "$(FC)" "pgi"
   ifeq "$(MODE)" "fast"
-    FLAGS = -O2 -mp -c -Mdclchk
+    FLAGS = -fast -O3 -Mdclchk $(FLAGS_OMP)
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -Mbounds -Mlist -Minfo  -Mdclchk
+    FLAGS = -g -Mbounds -Mlist -Minfo -Mdclchk $(FLAGS_OMP)
   endif
 endif
-
 
 #========================================================================
 # Define directory paths
@@ -106,7 +122,7 @@ DATATYPES = \
     var_lookup.f90 \
     globalData.f90 \
     popMetadat.f90 \
-    allocation.f90 
+    allocation.f90
 # define utilities
 UTILS = \
     nr_utility.f90 \
@@ -132,7 +148,9 @@ INIT = \
     process_time.f90 \
     network_topo.f90 \
     process_param.f90 \
-    process_ntopo.f90
+    process_ntopo.f90 \
+    pfafstetter.f90 \
+    domain_decomposition.f90
 # CORE
 CORE = \
     accum_runoff.f90 \
@@ -168,6 +186,7 @@ compile:
 # Remove object files
 clean:
 						rm -f *.o
+						rm -f *.lst
 						rm -f *.mod
 						rm -f *__genmod.f90
 #
