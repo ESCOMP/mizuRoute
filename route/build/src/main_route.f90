@@ -108,8 +108,14 @@ CONTAINS
   allocate(reachRunoff_local(nSeg), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachRunoff_local]'; return; endif
 
-  ! 1. subroutine: map basin runoff to river network HRUs
-  ! map the basin runoff to the stream network...
+  allocate(reachEvapo_local(nSeg), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachEvapo_local]'; return; endif
+
+  allocate(reachPrecip_local(nSeg), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachPrecip_local]'; return; endif
+
+  ! 1. subroutine: map the basin runoff/evapo/precip to the stream network in m3/s
+  ! runoff to stream netwrok in (m3/s)
   call basin2reach(basinRunoff_in,     & ! input: basin runoff (m/s)
                    NETOPO_in,          & ! input: reach topology
                    RPARAM_in,          & ! input: reach parameter
@@ -117,6 +123,22 @@ CONTAINS
                    ierr, cmessage,     & ! output: error control
                    ixRchProcessed)       ! optional input: indices of reach to be routed
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  ! evaporation to stream netwrok in (m3/s)
+   call basin2reach(basinEvapo_in,      & ! input: basin runoff (m/s)
+                    NETOPO_in,          & ! input: reach topology
+                    RPARAM_in,          & ! input: reach parameter
+                    reachEvapo_local,   & ! output: reach Evapo (m3/s)
+                    ierr, cmessage,     & ! output: error control
+                    ixRchProcessed)       ! optional input: indices of reach to be routed
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   ! precipitation to stream netwrok in (m3/s)
+   call basin2reach(basinPrecip_in,     & ! input: basin runoff (m/s)
+                    NETOPO_in,          & ! input: reach topology
+                    RPARAM_in,          & ! input: reach parameter
+                    reachPrecip_local,  & ! output: reach Precip (m3/s)
+                    ierr, cmessage,     & ! output: error control
+                    ixRchProcessed)       ! optional input: indices of reach to be routed
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! 2. subroutine: basin route
   if (doesBasinRoute == 1) then
@@ -126,6 +148,7 @@ CONTAINS
     enddo
     ! perform Basin routing
     call IRF_route_basin(iens,              &  ! input:  ensemble index
+                         NETOPO_in,         &  ! input:  reach topology
                          RCHFLX_out,        &  ! inout:  reach flux data structure
                          ierr, cmessage,    &  ! output: error controls
                          ixRchProcessed)       ! optional input: indices of reach to be routed
@@ -137,6 +160,12 @@ CONTAINS
     RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QR(1) = reachRunoff_local(iSeg)             ! streamflow (m3/s)
     end do
   end if
+
+  ! allocating precipitation and evaporation for
+  do iSeg = 1,nSeg
+   RCHFLX_out(iens,ixRchProcessed(iSeg))%Basinevapo  = reachEvapo_local(iSeg)  ! Evaporation pass to reach flux (m/s)
+   RCHFLX_out(iens,ixRchProcessed(iSeg))%BasinPrecip = reachPrecip_local(iSeg) ! precipitation pass to reach flux (m/s)
+  end do
 
   ! 3. subroutine: river reach routing
    ! perform upstream flow accumulation
@@ -187,6 +216,7 @@ CONTAINS
                    river_basin,         & ! input: river basin data type
                    ixDesire,            & ! input: index of verbose reach
                    NETOPO_in,           & ! input: reach topology data structure
+                   RPARAM_in,           & ! input: reach parameter data structure
                    RCHFLX_out,          & ! inout: reach flux data structure
                    ierr,cmessage,       & ! output: error control
                    ixRchProcessed)        ! optional input: indices of reach to be routed

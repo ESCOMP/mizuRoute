@@ -186,6 +186,12 @@ implicit none
   real(dp)                                   :: BASAREA  ! local basin area
   real(dp)                                   :: TOTAREA  ! UPSAREA + BASAREA
   real(dp)                                   :: MINFLOW  ! minimum environmental flow
+  real(dp)                                   :: RATECVA  ! discharge rating curve parameter A
+  real(dp)                                   :: RATECVB  ! discharge rating curve parameter B
+  real(dp)                                   :: RATECVC  ! discharge rating curve parameter C
+  real(dp)                                   :: RATECVD  ! discharge rating curve parameter D
+  real(dp)                                   :: RATECVE  ! discharge rating curve parameter E
+  real(dp)                                   :: RATECVF  ! discharge rating curve parameter F
  end type RCHPRP
 
  ! River Network topology
@@ -214,6 +220,7 @@ implicit none
   real(dp)                                   :: RCHULAK  ! Length of reach under lake
   logical(lgt)                               :: LAKINLT  ! .TRUE. if reach is lake inlet, .FALSE. otherwise
   logical(lgt)                               :: USRTAKE  ! .TRUE. if user takes from reach, .FALSE. otherwise
+  logical(lgt)                               :: ISLAKE   ! .TRUE. if the object is a reach the network topology should creat this flag
  end type RCHTOPO
 
  ! ---------- reach states --------------------------------------------------------------------
@@ -266,6 +273,8 @@ implicit none
   real(dp)                             :: REACH_VOL(0:1)    ! volume of water at previous and current time step [m3]
   real(dp)                             :: TAKE              ! average take
   logical(lgt)                         :: isRoute           ! .true. if the reach is routed
+  real(dp)                             :: basinEvapo        ! remapped river network catchment Evaporation (size: number of nHRU)
+  real(dp)                             :: basinPrecip       ! remapped river network catchment Precipitation (size: number of nHRU)
  END TYPE strflx
 
  ! ---------- lake data types -----------------------------------------------------------------

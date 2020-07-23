@@ -138,18 +138,32 @@ contains
   integer(i4b),      allocatable              :: downSegId_local(:)        ! downstream reach id for decomposed network
   integer(i4b),      allocatable              :: hruId_local(:)            ! hru id array in decomposed network
   integer(i4b),      allocatable              :: hruSegId_local(:)         ! downstream reach id array in decomposed network
+  integer(i4b),      allocatable              :: islake_local(:)           ! islake flag local
   real(dp),          allocatable              :: slope_local(:)            ! reach slope array in decomposed network
   real(dp),          allocatable              :: length_local(:)           ! reach length array in decomposed network
   real(dp),          allocatable              :: area_local(:)             ! hru area in decomposed network
+  real(dp),          allocatable              :: RATECVA_local(:)          ! stage-discharge relationship parameter A
+  real(dp),          allocatable              :: RATECVB_local(:)          ! stage-discharge relationship parameter B
+  real(dp),          allocatable              :: RATECVC_local(:)          ! stage-discharge relationship parameter C
+  real(dp),          allocatable              :: RATECVD_local(:)          ! stage-discharge relationship parameter D
+  real(dp),          allocatable              :: RATECVE_local(:)          ! stage-discharge relationship parameter E
+  real(dp),          allocatable              :: RATECVF_local(:)          ! stage-discharge relationship parameter F
   logical(lgt),      allocatable              :: tribOutlet_local(:)       ! logical to indicate tributary outlet to mainstems
   ! 1D array for the entire river network
   integer(i4b)                                :: hruId(nHRU_in)            ! hru id for all the HRUs
   integer(i4b)                                :: hruSegId(nHRU_in)         ! hru-to-seg mapping for each hru
   integer(i4b)                                :: segId(nRch_in)            ! reach id for all the segments
   integer(i4b)                                :: downSegId(nRch_in)        ! downstream reach ID for each reach
+  integer(i4b)                                :: islake(nRch_in)           ! islake flag
   real(dp)                                    :: slope(nRch_in)            ! reach slope array for each reach
   real(dp)                                    :: length(nRch_in)           ! reach length array for each reach
   real(dp)                                    :: area(nHRU_in)             ! hru area for each hru
+  real(dp)                                    :: RATECVA(nRch_in)          ! stage-discharge relatioship parameter A
+  real(dp)                                    :: RATECVB(nRch_in)          ! stage-discharge relatioship parameter B
+  real(dp)                                    :: RATECVC(nRch_in)          ! stage-discharge relatioship parameter C
+  real(dp)                                    :: RATECVD(nRch_in)          ! stage-discharge relatioship parameter D
+  real(dp)                                    :: RATECVE(nRch_in)          ! stage-discharge relatioship parameter E
+  real(dp)                                    :: RATECVF(nRch_in)          ! stage-discharge relatioship parameter F
   integer(i4b)                                :: ixNode(nRch_in)           ! node assignment for each reach
   integer(i4b)                                :: ixDomain(nRch_in)         ! domain index for each reach
   logical(lgt),      allocatable              :: tribOutlet(:)             ! logical to indicate tributary outlet to mainstems over entire network
@@ -248,8 +262,15 @@ contains
      jSeg = ixRch_order(iSeg) ! global index, ordered by domain/node
      segId(iSeg)     = structNTOPO(jSeg)%var(ixNTOPO%segId)%dat(1)
      downSegId(iSeg) = structNTOPO(jSeg)%var(ixNTOPO%downSegId)%dat(1)
+     islake(iSeg)    = structNTOPO(jSeg)%var(ixNTOPO%islake)%dat(1)
      slope(iSeg)     = structSEG(  jSeg)%var(ixSEG%slope)%dat(1)
      length(iSeg)    = structSEG(  jSeg)%var(ixSEG%length)%dat(1)
+     RATECVA(iSeg)   = structSEG(  jSeg)%var(ixSEG%RATECVA)%dat(1)
+     RATECVB(iSeg)   = structSEG(  jSeg)%var(ixSEG%RATECVB)%dat(1)
+     RATECVC(iSeg)   = structSEG(  jSeg)%var(ixSEG%RATECVC)%dat(1)
+     RATECVD(iSeg)   = structSEG(  jSeg)%var(ixSEG%RATECVD)%dat(1)
+     RATECVE(iSeg)   = structSEG(  jSeg)%var(ixSEG%RATECVE)%dat(1)
+     RATECVF(iSeg)   = structSEG(  jSeg)%var(ixSEG%RATECVF)%dat(1)
     end do
 
     ! hru array
@@ -301,6 +322,13 @@ contains
     call shr_mpi_scatterV(downSegId(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), downSegId_local, ierr, cmessage)
     call shr_mpi_scatterV(slope    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), slope_local,     ierr, cmessage)
     call shr_mpi_scatterV(length   (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), length_local,    ierr, cmessage)
+    call shr_mpi_scatterV(islake   (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), islake_local,    ierr, cmessage)
+    call shr_mpi_scatterV(RATECVA  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVA_local,   ierr, cmessage)
+    call shr_mpi_scatterV(RATECVB  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVB_local,   ierr, cmessage)
+    call shr_mpi_scatterV(RATECVC  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVC_local,   ierr, cmessage)
+    call shr_mpi_scatterV(RATECVD  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVD_local,   ierr, cmessage)
+    call shr_mpi_scatterV(RATECVE  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVE_local,   ierr, cmessage)
+    call shr_mpi_scatterV(RATECVF  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVF_local,   ierr, cmessage)
 
     call shr_mpi_scatterV(hruId    (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruId_local,    ierr, cmessage)
     call shr_mpi_scatterV(hruSegId (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruSegId_local, ierr, cmessage)
@@ -328,6 +356,13 @@ contains
      structNTOPO_local(ix)%var(ixNTOPO%downSegId)%dat(1) = downSegId_local(ix)
      structSEG_local  (ix)%var(ixSEG%length)%dat(1)      = length_local(ix)
      structSEG_local  (ix)%var(ixSEG%slope)%dat(1)       = slope_local(ix)
+     structNTOPO_local(ix)%var(ixNTOPO%islake)%dat(1)    = islake_local(ix)
+     structSEG_local  (ix)%var(ixSEG%RATECVA)%dat(1)     = RATECVA_local(ix)
+     structSEG_local  (ix)%var(ixSEG%RATECVB)%dat(1)     = RATECVB_local(ix)
+     structSEG_local  (ix)%var(ixSEG%RATECVC)%dat(1)     = RATECVC_local(ix)
+     structSEG_local  (ix)%var(ixSEG%RATECVD)%dat(1)     = RATECVD_local(ix)
+     structSEG_local  (ix)%var(ixSEG%RATECVE)%dat(1)     = RATECVE_local(ix)
+     structSEG_local  (ix)%var(ixSEG%RATECVF)%dat(1)     = RATECVF_local(ix)
     end do reach
 
     hru: do ix=1,hru_per_proc(pid)
@@ -456,6 +491,13 @@ contains
        structNTOPO_main(ix)%var(ixNTOPO%downSegId)%dat(1) = downSegId(ix)
        structSEG_main  (ix)%var(ixSEG%length)%dat(1)      = length(ix)
        structSEG_main  (ix)%var(ixSEG%slope)%dat(1)       = slope(ix)
+       structNTOPO_main(ix)%var(ixNTOPO%islake)%dat(1)    = islake(ix)
+       structSEG_main  (ix)%var(ixSEG%RATECVA)%dat(1)     = RATECVA(ix)
+       structSEG_main  (ix)%var(ixSEG%RATECVB)%dat(1)     = RATECVB(ix)
+       structSEG_main  (ix)%var(ixSEG%RATECVC)%dat(1)     = RATECVC(ix)
+       structSEG_main  (ix)%var(ixSEG%RATECVD)%dat(1)     = RATECVD(ix)
+       structSEG_main  (ix)%var(ixSEG%RATECVE)%dat(1)     = RATECVE(ix)
+       structSEG_main  (ix)%var(ixSEG%RATECVF)%dat(1)     = RATECVF(ix)
      end do main_rch
 
      ups_trib: do ix = 1, nTribOutlet
@@ -464,6 +506,13 @@ contains
        structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%downSegId)%dat(1) = structNTOPO(ixx)%var(ixNTOPO%downSegId)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%length)%dat(1)      = structSEG(ixx)%var(ixSEG%length)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%slope)%dat(1)       = structSEG(ixx)%var(ixSEG%slope)%dat(1)
+       structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%islake)%dat(1)    = structNTOPO(ixx)%var(ixNTOPO%islake)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVA)%dat(1)     = structSEG(ixx)%var(ixSEG%RATECVA)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVB)%dat(1)     = structSEG(ixx)%var(ixSEG%RATECVB)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVC)%dat(1)     = structSEG(ixx)%var(ixSEG%RATECVC)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVD)%dat(1)     = structSEG(ixx)%var(ixSEG%RATECVD)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVE)%dat(1)     = structSEG(ixx)%var(ixSEG%RATECVE)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVF)%dat(1)     = structSEG(ixx)%var(ixSEG%RATECVF)%dat(1)
        global_ix_main(ix) = nRch_mainstem+ix   ! index in mainstem array that is link to tributary outlet
      end do ups_trib
 
