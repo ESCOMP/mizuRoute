@@ -37,8 +37,9 @@ contains
                       ixSubRch)         ! optional input: subset of reach indices to be processed
 
  ! global routing data
- USE dataTypes, ONLY: subbasin_omp   ! mainstem+tributary data structures
+ USE dataTypes,   ONLY: subbasin_omp   ! mainstem+tributary data structures
  USE model_utils, ONLY: handle_err
+ USE public_var,  ONLY: is_lake_sim    ! logical whether or not lake should be simulated
 
  implicit none
  ! Input
@@ -109,7 +110,7 @@ contains
      seg:do iSeg=1,river_basin(ix)%branch(iTrib)%nRch
        jSeg = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
        if (.not. doRoute(jSeg)) cycle
-         if (NETOPO_in(jseg)%islake) then
+         if ((NETOPO_in(jseg)%islake).and.(is_lake_sim))  then
           call lake_route(iEns, jSeg, ixDesire, NETOPO_in, RPARAM_in, RCHFLX_out, ierr, message)
          else
           call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, cmessage)
