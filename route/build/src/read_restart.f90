@@ -50,7 +50,6 @@ CONTAINS
  integer(i4b)                  :: jDim                 ! index loops for dimension
  character(len=strLen)         :: cmessage             ! error message of downwind routine
 
- ! initialize error control
  ierr=0; message='read_state_nc/'
 
  ! get Dimension sizes
@@ -109,7 +108,6 @@ CONTAINS
   integer(i4b)                  :: jSeg           ! index loops for reaches respectively
   integer(i4b)                  :: ntdh           ! dimension size
 
-  ! initialize error control
   ierr=0; message1='read_IRFbas_state/'
 
   call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%tdh)%dimName), ntdh, ierr, cmessage)
@@ -176,7 +174,7 @@ CONTAINS
   integer(i4b)                  :: jSeg           ! index loops for reaches respectively
   integer(i4b), allocatable     :: numQF(:,:)     ! number of future Q time steps for each ensemble and segment
   integer(i4b)                  :: ntdh_irf       ! dimenion sizes
-  ! initialize error control
+
   ierr=0; message1='read_IRF_state/'
 
   call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%tdh_irf)%dimName), ntdh_irf, ierr, cmessage)
@@ -247,7 +245,7 @@ CONTAINS
   integer(i4b)                  :: nwave          ! dimenion sizes
   integer(i4b), allocatable     :: RFvec(:)       ! temporal vector
   integer(i4b), allocatable     :: numWaves(:,:)  ! number of waves for each ensemble and segment
-  ! initialize error control
+
   ierr=0; message1='read_KWT_state/'
 
   allocate(state(kinematicWave)%var(nVarsKWT), stat=ierr, errmsg=cmessage)

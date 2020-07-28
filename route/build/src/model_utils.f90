@@ -1,7 +1,6 @@
 MODULE model_utils
 
-! data types
-USE nrtype,    ONLY: i4b        ! variable types, etc.
+USE nrtype,    ONLY: i4b
 
 implicit none
 

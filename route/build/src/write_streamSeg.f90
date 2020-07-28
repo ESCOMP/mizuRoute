@@ -93,7 +93,7 @@ contains
  integer(i4b)                        :: iVar             ! variable index
  logical(lgt)                        :: dimCheck(nDimensions)  ! dimension used for output
  character(len=strLen)               :: cmessage         ! error message of downwind routine
- ! initialize error control
+
  ierr=0; message='writeData/'
 
  ! ---------- Find dimension needed for output --------------------------------------------------------------------
@@ -174,7 +174,7 @@ contains
  integer(i4b)                        :: iStruct          ! structure index
  integer(i4b),parameter              :: nVars=30         ! number of variables
  character(len=strLen)               :: cmessage         ! error message of downwind routine
- ! initialize error control
+
  ierr=0; message='createFile/'
 
  ! ---------- create file ----------------------------------------------------------------------------------------

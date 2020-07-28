@@ -317,7 +317,7 @@ CONTAINS
    ! output
    integer(i4b), intent(out)  :: ierr     ! error code
    character(*), intent(out)  :: message1  ! error message
-   ! initialize error control
+
    ierr=0; message1='set_dim_len/'
 
    select case(ixDim)
@@ -344,7 +344,6 @@ CONTAINS
    integer(i4b)                      :: nDims         ! number of dimensions
    integer(i4b),allocatable          :: dim_IRFbas(:) ! dimension id array
 
-   ! initialize error control
    ierr=0; message1='define_IRFbas_state/'
 
    ! Check dimension length is populated
@@ -384,7 +383,6 @@ CONTAINS
    integer(i4b)                      :: nDims         ! number of dimensions
    integer(i4b),allocatable          :: dim_KWE(:)    ! dimension Id array
 
-   ! initialize error control
    ierr=0; message1='define_KWE_state/'
 
    ! Check dimension length is populated
@@ -425,7 +423,6 @@ CONTAINS
    integer(i4b)                      :: nDims       ! number of dimensions
    integer(i4b),allocatable          :: dim_kwt(:)  ! dimensions ID array
 
-   ! initialize error control
    ierr=0; message1='define_KWT_state/'
 
    ! Check dimension length is populated
@@ -476,7 +473,6 @@ CONTAINS
    integer(i4b)                      :: nDims       ! number of dimensions
    integer(i4b),allocatable          :: dim_irf(:)  ! dimensions combination case 4
 
-   ! initialize error control
    ierr=0; message1='define_IRF_state/'
 
    ! Define dimension needed for this routing specific state variables
@@ -560,7 +556,6 @@ CONTAINS
  type(STRSTA), allocatable       :: RCHSTA_local(:) ! reordered statedata structure
  character(len=strLen)           :: cmessage        ! error message of downwind routine
 
- ! initialize error control
  ierr=0; message='write_state_nc/'
 
  iens = 1
@@ -639,7 +634,6 @@ CONTAINS
   ! local variables
   integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
 
-  ! initialize error control
   ierr=0; message1='write_IRFbas_state/'
 
   associate(nSeg     => size(RCHFLX_local),                         &
@@ -696,7 +690,7 @@ CONTAINS
   character(*), intent(out)  :: message1        ! error message
   ! local variables
   integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
-  ! initialize error control
+
   ierr=0; message1='write_KWE_state/'
 
   associate(nSeg     => size(RCHFLX_local),                         &
@@ -757,7 +751,7 @@ CONTAINS
   integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
   integer(i4b), allocatable  :: RFvec(:)        ! temporal vector
   integer(i4b), allocatable  :: numWaves(:,:)   ! number of waves for each ensemble and segment
-  ! initialize error control
+
   ierr=0; message1='write_KWT_state/'
 
   associate(nSeg     => size(RCHFLX_local),                         &
@@ -846,7 +840,7 @@ CONTAINS
   ! local variables
   integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
   integer(i4b), allocatable  :: numQF(:,:)      ! number of future Q time steps for each ensemble and segment
-  ! initialize error control
+
   ierr=0; message1='write_IRF_state/'
 
   associate(nSeg     => size(RCHFLX_local),                         &
