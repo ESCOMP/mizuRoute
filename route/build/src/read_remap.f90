@@ -110,7 +110,6 @@ contains
  logical(lgt), allocatable          :: logical_array(:)  !
  real(dp),     allocatable          :: real_array(:)     !
  integer(i8b), allocatable          :: int_array(:)      !
- character(len=strLen)              :: cmessage          ! error message from subroutine
 
  ! initialize error control
  ierr=0; message='check_remap_data/'
