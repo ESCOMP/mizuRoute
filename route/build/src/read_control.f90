@@ -128,6 +128,8 @@ contains
    ! RUNOFF FILE
    case('<fname_qsim>');           fname_qsim   = trim(cData)                      ! name of text file containing nc file names and their order for runoff
    case('<vname_qsim>');           vname_qsim   = trim(cData)                      ! name of runoff variable
+   case('<vname_evapo>');          vname_evapo  = trim(cData)                      ! name of actual evapoartion variable
+   case('<vname_precip>');         vname_precip = trim(cData)                      ! name of precipitation variable
    case('<vname_time>');           vname_time   = trim(cData)                      ! name of time variable in the runoff file
    case('<vname_hruid>');          vname_hruid  = trim(cData)                      ! name of the HRU id
    case('<dname_time>');           dname_time   = trim(cData)                      ! name of time variable in the runoff file

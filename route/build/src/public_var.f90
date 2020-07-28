@@ -106,6 +106,8 @@ module public_var
   ! RUNOFF FILE
   character(len=strLen),public    :: fname_qsim           = ''              ! simulated runoff netCDF name
   character(len=strLen),public    :: vname_qsim           = ''              ! variable name for simulated runoff
+  character(len=strLen),public    :: vname_evapo          = ''              ! variable name for actual evapoartion
+  character(len=strLen),public    :: vname_precip         = ''              ! variable name for precipitation
   character(len=strLen),public    :: vname_time           = ''              ! variable name for time
   character(len=strLen),public    :: vname_hruid          = ''              ! variable name for runoff hru id
   character(len=strLen),public    :: dname_time           = ''              ! dimension name for time
