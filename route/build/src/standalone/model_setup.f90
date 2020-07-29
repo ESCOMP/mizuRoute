@@ -337,7 +337,7 @@ CONTAINS
 
  ! *********************************************************************
  ! private subroutine: get the two infiledata and convert the iTimebound of
- ! in a text file, populates the filed of inFiledata dataType
+ ! the input_info_wm to match the input_info
  ! *********************************************************************
  SUBROUTINE inFile_corr_time(input_info,         & ! input: name of the directory of the txt file
                              input_info_wm,      & ! inout: input file information
@@ -351,8 +351,23 @@ CONTAINS
   integer(i4b),       intent(out)                   :: ierr             ! error code
   character(*),       intent(out)                   :: message          ! error message
 
+  ! local
+  integer(i4b)                                      :: nt
+  integer(i4b)                                      :: nFile ! number of nc files
+  integer(i4b)                                      :: iFile ! for loop over the nc files
+  real(dp)                                          :: convTime2Days    ! conversion of the day to the local time
+
+
   ! initialize error control
   ierr=0; message='inFile_corr_time/'
+
+  ! set the reference julday based on the first nc file
+  refJulday  = input_info(1)%ncrefjulday
+  nFile = len(input_info_wm)
+
+  do iFile=1,nFile
+    nt = infileinfo_data(iFile)%nTime
+     = nfileinfo_data(iFile)%timeVar(1)/infileinfo_data(iFile)%convTime2Days+infileinfo_data(iFile)%ncrefjulday - refJulday
 
 
 
