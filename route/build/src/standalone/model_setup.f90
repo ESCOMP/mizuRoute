@@ -82,7 +82,7 @@ CONTAINS
    ierr=0; message='init_data/'
 
    ! runoff input files initialization
-   call inFile_pop(ierr, message)
+   call init_inFile_name(ierr, message)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! time initialization
@@ -148,7 +148,72 @@ CONTAINS
  ! public subroutine: read the name of the netcdf that is specified
  ! in a text file, populates the filed of inFiledata dataType
  ! *********************************************************************
- SUBROUTINE inFile_pop(ierr, message)  ! output
+
+ SUBROUTINE init_inFile_pop (ierr, message)  ! output
+
+  ! Shared data
+  USE public_var, ONLY: input_dir               ! directory containing input data
+  USE public_var, ONLY: fname_qsim              ! simulated runoff txt file that includes the NetCDF file names
+  USE public_var, ONLY: vname_time              ! variable name for time
+  USE public_var, ONLY: dname_time              ! dimension name for time
+  USE globalData, ONLY: infileinfo_data         ! the information of the input files
+  USE public_var, ONLY: input_dir_wn            ! directory containing input data
+  USE public_var, ONLY: fname_wm                ! simulated runoff txt file that includes the NetCDF file names
+  USE public_var, ONLY: vname_time_wn           ! variable name for time
+  USE public_var, ONLY: dname_time_wm           ! dimension name for time
+  USE globalData, ONLY: infileinfo_data_wm      ! the information of the input files
+  USE public_var, ONLY: is_lake_sim             ! logical whether or not lake should be simulated
+  USE public_var, ONLY: is_wm_sim               ! logical whether or not water management components should be read,
+
+
+  ! output: error control
+  integer(i4b),         intent(out)    :: ierr             ! error code
+  character(*),         intent(out)    :: message          ! error message
+
+  ! initialize error control
+  ierr=0; message='init_inFile_pop/'
+
+  inFile_pop(input_dir,         & ! input: name of the directory of the txt file
+             fname_qsim,        & ! input: name of the txt file hold the nc file names
+             vname_time,        & ! input: name of variable time in the nc files
+             dname_time,        & ! input: name of dimention time in the nc files
+             infileinfo_data,   & ! output: input file information
+             ierr, cmessage)      ! output: error control
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
+
+  ! passing the first nc file as global file name to read
+  fname_qsim = trim(infileinfo_data(1)%infilename)
+
+  if (is_wm_sim) then
+    inFile_pop(input_dir_wm,         & ! input: name of the directory of the txt file
+               fname_wm,             & ! input: name of the txt file hold the nc file names
+               vname_time_wm,        & ! input: name of variable time in the nc files
+               dname_time_wm,        & ! input: name of dimention time in the nc files
+               infileinfo_data_wm,   & ! output: input file information
+               ierr, cmessage)         ! output: error control
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
+
+    ! passing the first nc file as global file name to read
+    fname_wm = trim(infileinfo_data_wm(1)%infilename)
+
+  endif
+
+
+
+
+  END SUBROUTINE init_inFile_pop
+
+
+ ! *********************************************************************
+ ! private subroutine: read the name of the netcdf that is specified
+ ! in a text file, populates the filed of inFiledata dataType
+ ! *********************************************************************
+ SUBROUTINE inFile_pop(dir_name,         & ! input: name of the directory of the txt file
+                       file_name,        & ! input: name of the txt file hold the nc file names
+                       time_var_name,    & ! input: name of variable time in the nc files
+                       time_dim_name,    & ! input: name of dimention time in the nc files
+                       input_info,       & ! output: input file information
+                       ierr, message)      ! output: error control
 
   ! data types
   USE dataTypes, ONLY: infileinfo               ! the data type for storing the infromation of the nc files and its attributes
@@ -161,16 +226,16 @@ CONTAINS
   USE io_netcdf,           ONLY: get_var_attr   ! get the attributes interface
   USE io_netcdf,           ONLY: get_nc_dim_len ! get the nc dimension length
 
-  ! Shared data
-  USE public_var, ONLY: input_dir               ! directory containing input data
-  USE public_var, ONLY: fname_qsim              ! simulated runoff txt file that includes the NetCDF file names
-  USE public_var, ONLY: vname_time              ! variable name for time
-  USE public_var, ONLY: dname_time              !
-  USE globalData, ONLY: infileinfo_data         ! the information of the input files
+  ! input
+  character(len=strLen), intent(in)    :: dir_name         ! the name of the directory that the txt file located
+  character(len=strLen), intent(in)    :: file_name        ! the name of the file that include the nc file names
+  character(len=strLen), intent(in)    :: time_var_name    ! the name of the time variable
+  character(len=strLen), intent(in)    :: time_dim_name    ! the name of dimension time
 
   ! output: error control
-  integer(i4b),         intent(out)    :: ierr             ! error code
-  character(*),         intent(out)    :: message          ! error message
+  type(infileinfo),     intent(out) , allocatable   :: inputfileinfo    ! the name of structure that hold the infile information
+  integer(i4b),         intent(out)                 :: ierr             ! error code
+  character(*),         intent(out)                 :: message          ! error message
 
   ! local varibales
   integer(i4b)                         :: unit             ! file unit (free unit output from file_open)
@@ -188,7 +253,7 @@ CONTAINS
   ierr=0; message='inFile_pop/'
 
   ! build filename and its path containing list of NetCDF files
-  infilename = trim(input_dir)//trim(fname_qsim)
+  infilename = trim(dir_name)//trim(file_name)
 
   ! open the text file
   call file_open(trim(infilename),unit,ierr,cmessage)
@@ -200,7 +265,7 @@ CONTAINS
   nFile = size(dataLines) ! get the name of the lines in the file
 
   ! allocate space for forcing information
-  allocate(infileinfo_data(nFile), stat=ierr)
+  allocate(inputfileinfo(nFile), stat=ierr)
   if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for forcFileInfo'; return; end if
 
   ! poputate the forcingInfo structure with filenames, and time variables/attributes
@@ -211,34 +276,34 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//'problem reading a line of data from file ['//trim(infilename)//']'; return; end if
 
    ! set forcing file name
-   infileinfo_data(iFile)%infilename = trim(filenameData)
+   inputfileinfo(iFile)%infilename = trim(filenameData)
 
    ! get the time units
-   call get_var_attr(trim(input_dir)//trim(infileinfo_data(iFile)%infilename), &
-                     trim(vname_time), 'units', infileinfo_data(iFile)%unit, ierr, cmessage)
+   call get_var_attr(trim(dir_name)//trim(inputfileinfo(iFile)%infilename), &
+                     trim(time_var_name), 'units', inputfileinfo(iFile)%unit, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! get the calendar
-   call get_var_attr(trim(input_dir)//trim(infileinfo_data(iFile)%infilename), &
-                     trim(vname_time), 'calendar', infileinfo_data(iFile)%calendar, ierr, cmessage)
+   call get_var_attr(trim(dir_name)//trim(inputfileinfo(iFile)%infilename), &
+                     trim(time_var_name), 'calendar', inputfileinfo(iFile)%calendar, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! get the dimension of the time to populate nTime and pass it to the get_nc file
-   call get_nc_dim_len(trim(input_dir)//trim(infileinfo_data(iFile)%infilename), &
-                       trim(dname_time), infileinfo_data(iFile)%nTime, ierr, cmessage)
+   call get_nc_dim_len(trim(dir_name)//trim(inputfileinfo(iFile)%infilename), &
+                       trim(time_dim_name), inputfileinfo(iFile)%nTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   nTime = infileinfo_data(iFile)%nTime ! the length of time varibale for each nc file
+   nTime = inputfileinfo(iFile)%nTime ! the length of time varibale for each nc file
 
    ! allocate space for time varibale of each file
-   allocate(infileinfo_data(iFile)%timeVar(nTime))
-   if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for infileinfo_data(:)%timeVar'; return; end if
+   allocate(inputfileinfo(iFile)%timeVar(nTime))
+   if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for inputfileinfo(:)%timeVar'; return; end if
 
    ! get the time varibale
-   call get_nc(trim(input_dir)//trim(infileinfo_data(iFile)%infilename), &
-               vname_time, infileinfo_data(iFile)%timeVar, 1, nTime, ierr, cmessage) ! does it needs timeVar(:)
+   call get_nc(trim(dir_name)//trim(inputfileinfo(iFile)%infilename), &
+               time_var_name, inputfileinfo(iFile)%timeVar, 1, nTime, ierr, cmessage) ! does it needs timeVar(:)
 
    ! get the time multiplier needed to convert time to units of days for each nc file
-   t_unit = trim( infileinfo_data(iFile)%unit(1:index(infileinfo_data(iFile)%unit,' ')) )
+   t_unit = trim( inputfileinfo(iFile)%unit(1:index(inputfileinfo(iFile)%unit,' ')) )
    select case( trim(t_unit) )
     case('seconds','second','sec','s'); convTime2Days=86400._dp
     case('minutes','minute','min','m'); convTime2Days=1440._dp
@@ -247,19 +312,19 @@ CONTAINS
     case default
       ierr=20; message=trim(message)//'<time_units>= '//trim(t_unit)//': <time_units> must be seconds, minutes, hours or days.'; return
    end select
-   infileinfo_data(iFile)%convTime2Days = convTime2Days
+   inputfileinfo(iFile)%convTime2Days = convTime2Days
 
    ! get the reference julian day from the nc file
-   call process_time(trim(infileinfo_data(iFile)%unit),infileinfo_data(iFile)%calendar,infileinfo_data(iFile)%ncrefjulday,ierr, cmessage)
+   call process_time(trim(inputfileinfo(iFile)%unit),inputfileinfo(iFile)%calendar,inputfileinfo(iFile)%ncrefjulday,ierr, cmessage)
    if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [ncrefjulday]'; return; endif
 
    ! populated the index of the iTimebound for each nc file
    if (iFile==1) then
-    infileinfo_data(iFile)%iTimebound(1) = 1
-    infileinfo_data(iFile)%iTimebound(2) = nTime
+    inputfileinfo(iFile)%iTimebound(1) = 1
+    inputfileinfo(iFile)%iTimebound(2) = nTime
    else ! if multiple files specfied in the txt file
-    infileinfo_data(iFile)%iTimebound(1) = infileinfo_data(iFile-1)%iTimebound(2) + 1 ! the last index from the perivous nc file + 1
-    infileinfo_data(iFile)%iTimebound(2) = infileinfo_data(iFile-1)%iTimebound(2) + nTime ! the last index from the perivous nc file + 1
+    inputfileinfo(iFile)%iTimebound(1) = inputfileinfo(iFile-1)%iTimebound(2) + 1 ! the last index from the perivous nc file + 1
+    inputfileinfo(iFile)%iTimebound(2) = inputfileinfo(iFile-1)%iTimebound(2) + nTime ! the last index from the perivous nc file + 1
    endif
 
   enddo
@@ -267,11 +332,31 @@ CONTAINS
   ! close ascii file
   close(unit=unit,iostat=ierr); if(ierr/=0)then;message=trim(message)//'problem closing forcing file list'; return; end if
 
-  ! passing the first nc file as global file name to read
-  fname_qsim = trim(infileinfo_data(1)%infilename)
-
  END SUBROUTINE inFile_pop
 
+
+ ! *********************************************************************
+ ! private subroutine: get the two infiledata and convert the iTimebound of
+ ! in a text file, populates the filed of inFiledata dataType
+ ! *********************************************************************
+ SUBROUTINE inFile_corr_time(input_info,         & ! input: name of the directory of the txt file
+                             input_info_wm,      & ! inout: input file information
+                             ierr, message)      ! output: error control
+
+  ! input
+  type(infileinfo),   intent(out)   , allocatable   :: input_info       ! the name of structure that hold the infile information
+
+  ! inout
+  type(infileinfo),   intent(inout) , allocatable   :: input_info_wm    ! the name of structure that hold the infile information
+  integer(i4b),       intent(out)                   :: ierr             ! error code
+  character(*),       intent(out)                   :: message          ! error message
+
+  ! initialize error control
+  ierr=0; message='inFile_corr_time/'
+
+
+
+ END SUBROUTINE inFile_corr_time
 
  ! *********************************************************************
  ! private subroutine: initialize time data

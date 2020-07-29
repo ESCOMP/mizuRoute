@@ -86,7 +86,8 @@ module globalData
 
   ! ---------- input file information -------------------------------------------------------------------
 
-  type(infileinfo) , allocatable , public :: infileinfo_data(:)   ! conversion factor to convert time to units of days
+  type(infileinfo) , allocatable , public :: infileinfo_data(:)   ! input file information for simulated runoff, evapo and precip
+  type(infileinfo) , allocatable , public :: infileinfo_data_b(:) ! input file information for abstraction and target volume
 
   ! ---------- Misc. data -------------------------------------------------------------------------
 
