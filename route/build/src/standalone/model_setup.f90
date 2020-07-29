@@ -149,7 +149,7 @@ CONTAINS
  ! in a text file, populates the filed of inFiledata dataType
  ! *********************************************************************
 
- SUBROUTINE init_inFile_pop (ierr, message)  ! output
+ SUBROUTINE init_inFile_name (ierr, message)  ! output
 
   ! Shared data
   USE public_var, ONLY: input_dir               ! directory containing input data
@@ -199,9 +199,7 @@ CONTAINS
   endif
 
 
-
-
-  END SUBROUTINE init_inFile_pop
+  END SUBROUTINE init_inFile_name
 
 
  ! *********************************************************************
@@ -343,32 +341,61 @@ CONTAINS
                              input_info_wm,      & ! inout: input file information
                              ierr, message)      ! output: error control
 
+  ! public data
+  USE public_var, ONLY: time_units    ! time units (seconds, hours, or days)
+  USE public_var, ONLY: dt            ! simulation time step in seconds
+  USE public_var, ONLY: secprday      ! conversion of steps in days to seconds
+
   ! input
-  type(infileinfo),   intent(out)   , allocatable   :: input_info       ! the name of structure that hold the infile information
+  type(infileinfo),   intent(out)                   :: input_info       ! the name of structure that hold the infile information
 
   ! inout
-  type(infileinfo),   intent(inout) , allocatable   :: input_info_wm    ! the name of structure that hold the infile information
+  type(infileinfo),   intent(inout)                 :: input_info_wm    ! the name of structure that hold the infile information
   integer(i4b),       intent(out)                   :: ierr             ! error code
   character(*),       intent(out)                   :: message          ! error message
 
   ! local
   integer(i4b)                                      :: nt
-  integer(i4b)                                      :: nFile ! number of nc files
-  integer(i4b)                                      :: iFile ! for loop over the nc files
-  real(dp)                                          :: convTime2Days    ! conversion of the day to the local time
+  integer(i4b)                                      :: nFile             ! number of nc files for the water managent
+  integer(i4b)                                      :: iFile             ! for loop over the nc files
+  real(dp)                                          :: day_start_diff    ! conversion of the day to the local time
+  real(dp)                                          :: day_end_diff      ! conversion of the day to the local time
 
 
   ! initialize error control
   ierr=0; message='inFile_corr_time/'
 
-  ! set the reference julday based on the first nc file
-  refJulday  = input_info(1)%ncrefjulday
-  nFile = len(input_info_wm)
+  ! set the reference julday based on the first nc file of simulation
+  refJulday     = input_info(1)%ncrefjulday
+  nFile         = len(input_info)
+  nFile_wm      = len(input_info_wm)
 
-  do iFile=1,nFile
-    nt = infileinfo_data(iFile)%nTime
-     = nfileinfo_data(iFile)%timeVar(1)/infileinfo_data(iFile)%convTime2Days+infileinfo_data(iFile)%ncrefjulday - refJulday
+  do iFile=1,nFile_wm
 
+    nt = input_info_wm(iFile)%nTime ! get the number of time
+
+    day_start_diff = input_info_wm(iFile)%timeVar(1)/input_info_wm(iFile)%convTime2Days+input_info_wm(iFile)%ncrefjulday - refJulday
+    day_end_diff   = input_info_wm(iFile)%timeVar(nt)/input_info_wm(iFile)%convTime2Days+input_info_wm(iFile)%ncrefjulday - refJulday
+
+    input_info_wm(iFile)%iTimebound(1) = day_start_diff*secprday/dt + 1 ! to convert the day difference into time step difference
+    input_info_wm(iFile)%iTimebound(2) = day_end_diff*secprday/dt       ! to convert the day difference into time step difference
+
+  end do
+
+  ! checks if the staring and ending iTime of the input_info_wm overlap with the input_info of simulated runoff, evapo and precip
+  if (input_info_wm(1)%iTimebound(1) > input_info(1)%iTimebound(1)) then
+    print*, "The first water managment nc file starts later than the first simulted runoff, evapo and precip nc file and may cause crash"
+  endif
+  if (input_info_wm(nFile_wm)%iTimebound(2) < input_info(nFile)%iTimebound(2)) then
+    print*, "The last water managment nc file ends earlier than the last simulted runoff, evapo and precip nc file and may cause crash"
+  endif
+
+  if (input_info_wm(1)%iTimebound(1) < input_info(1)%iTimebound(1)) then
+    print*, "The water managment nc file starts earlier than the last simulted runoff, evapo and precip nc file"
+  endif
+  if (input_info_wm(nFile_wm)%iTimebound(2) > input_info(nFile)%iTimebound(2)) then
+    print*, "The water managment nc file ends later than the last simulted runoff, evapo and precip nc file"
+  endif
 
 
  END SUBROUTINE inFile_corr_time
