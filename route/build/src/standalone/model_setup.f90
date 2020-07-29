@@ -367,8 +367,8 @@ CONTAINS
 
   ! set the reference julday based on the first nc file of simulation
   refJulday     = input_info(1)%ncrefjulday
-  nFile         = len(input_info)
-  nFile_wm      = len(input_info_wm)
+  nFile         = size(input_info)
+  nFile_wm      = size(input_info_wm)
 
   do iFile=1,nFile_wm
 
@@ -562,12 +562,15 @@ CONTAINS
   USE process_time_module, ONLY: process_time  ! process time information
   USE io_netcdf,           ONLY: get_nc        ! netcdf input
   ! derived datatype
-  USE dataTypes, ONLY: time           ! time data type
+  USE dataTypes, ONLY: time                    ! time data type
   ! Shared data
-  USE public_var, ONLY: fname_qsim     ! simulated runoff netCDF name
-  USE globalData, ONLY: iTime           ! time index at simulation time step
-  USE globalData, ONLY: infileinfo_data ! the information of the input files
-  USE globalData, ONLY: iTime_local     ! iTime index for the given netcdf file
+  USE public_var, ONLY: fname_qsim             ! simulated runoff netCDF name
+  USE public_var, ONLY: is_wm_sim              ! logical whether or not water management components should be read,
+  USE globalData, ONLY: iTime                  ! time index at simulation time step
+  USE globalData, ONLY: infileinfo_data        ! the information of the input files
+  USE globalData, ONLY: infileinfo_data_wm     ! the information of the input files
+  USE globalData, ONLY: iTime_local            ! iTime index for the given netcdf file
+  USE globalData, ONLY: iTime_local_wm         ! iTime index for the given netcdf file
 
   implicit none
 
@@ -589,6 +592,17 @@ CONTAINS
     exit ixloop
    endif
   enddo ixloop
+
+  ! fast forward time to time index at simStart and save iTime and modJulday
+  if (is_wm_sim) then
+    ixloop: do ix = 1, size(infileinfo_data_wm) !loop over number of file
+     if ((iTime >= infileinfo_data_wm(ix)%iTimebound(1)).and.(iTime <= infileinfo_data_wm(ix)%iTimebound(2))) then
+      iTime_local_wm = iTime - infileinfo_data_wm(ix)%iTimebound(1) + 1
+      fname_qsim = trim(infileinfo_data_wm(ix)%infilename)
+      exit ixloop
+     endif
+    enddo ixloop
+  endif
 
  END SUBROUTINE infile_name
 
