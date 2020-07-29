@@ -593,7 +593,7 @@ CONTAINS
    endif
   enddo ixloop
 
-  ! fast forward time to time index at simStart and save iTime and modJulday
+  ! fast forward time to time index at simStart and save iTime and modJulday for water management nc file
   if (is_wm_sim) then
     ixloop: do ix = 1, size(infileinfo_data_wm) !loop over number of file
      if ((iTime >= infileinfo_data_wm(ix)%iTimebound(1)).and.(iTime <= infileinfo_data_wm(ix)%iTimebound(2))) then
