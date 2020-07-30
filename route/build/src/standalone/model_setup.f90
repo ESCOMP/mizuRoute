@@ -232,8 +232,11 @@ CONTAINS
   character(len=strLen), intent(in)    :: time_var_name    ! the name of the time variable
   character(len=strLen), intent(in)    :: time_dim_name    ! the name of dimension time
 
-  ! output: error control
-  type(infileinfo),     intent(out) , allocatable   :: inputfileinfo    ! the name of structure that hold the infile information
+  ! inoutput
+  type(infileinfo),     intent(inout), allocatable :: inputfileinfo    ! the name of structure that hold the infile information
+
+  ! output
+  !type(infileinfo),     intent(out) , allocatable   :: inputfileinfo    ! the name of structure that hold the infile information
   integer(i4b),         intent(out)                 :: ierr             ! error code
   character(*),         intent(out)                 :: message          ! error message
 
