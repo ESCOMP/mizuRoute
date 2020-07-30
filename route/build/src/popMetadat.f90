@@ -120,6 +120,7 @@ contains
  meta_SEG    (ixSEG%totalArea        ) = var_info('totalArea'      , 'area above the bottom of the reach -- bas + ups'   ,'m2'    ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%basUnderLake     ) = var_info('basUnderLake'   , 'Area of basin under lake'                          ,'m2'    ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%rchUnderLake     ) = var_info('rchUnderLake'   , 'Length of reach under lake'                        ,'m'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%Qtake            ) = var_info('Qtake'          , 'target abstraction(-)/injection(+)'                ,'m3 s-1',ixDims%seg   , .false.)
  meta_SEG    (ixSEG%minFlow          ) = var_info('minFlow'        , 'minimum environmental flow'                        ,'m s-1' ,ixDims%seg   , .false.)
 
  ! NTOPO                                         varName        varDesc                                                varUnit, varType, varFile
@@ -162,6 +163,7 @@ contains
 
  ! Impulse Response Function       varName         varDesc              unit,     varType,     varDim,                                                                  writeOut
  call meta_irf(ixIRF%qfuture)%init('irf_qfuture', 'future flow series', 'm3/sec' ,nf90_double, [ixStateDims%seg,ixStateDims%tdh_irf,ixStateDims%ens,ixStateDims%time] , .true.)
+ call meta_irf(ixIRF%irfVol) %init('irf_volume' , 'IRF reach volume'  , 'm3'     ,nf90_double, [ixStateDims%seg,ixStateDims%ens,ixStateDims%time]                     , .true.)
 
  ! Basin Impulse Response Function        varName    varDesc               unit,     varType,     varDim,                                                             writeOut
  call meta_irf_bas(ixIRFbas%qfuture)%init('qfuture', 'future flow series', 'm3/sec' ,nf90_double, [ixStateDims%seg,ixStateDims%tdh,ixStateDims%ens,ixStateDims%time], .true.)

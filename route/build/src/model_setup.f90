@@ -258,6 +258,8 @@ CONTAINS
    RCHFLX(:,:)%BASIN_QI = 0._dp
    RCHFLX(:,:)%BASIN_QR(0) = 0._dp
    RCHFLX(:,:)%BASIN_QR(1) = 0._dp
+   RCHFLX(:,:)%REACH_VOL(0) = 0._dp
+   RCHFLX(:,:)%REACH_VOL(1) = 0._dp
 
    ! initialize time
    TSEC(0)=0._dp; TSEC(1)=dt
