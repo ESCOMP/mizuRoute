@@ -151,6 +151,7 @@ contains
                    river_basin,         & ! input: river basin data type
                    ixPrint,             & ! input: index of the desired reach
                    NETOPO,              & ! input: reach topology data structure
+                   RPARAM,              & ! input: reach parameter data structure
                    RCHFLX,              & ! inout: reach flux data structure
                    ierr,cmessage)         ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
