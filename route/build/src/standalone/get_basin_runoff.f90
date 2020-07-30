@@ -31,7 +31,7 @@ contains
   USE public_var,  only:is_AbsInj               ! logical whether or not abstraction, injection are active
   USE public_var,  only:is_TargVol              ! logical whether or not target volume is provided for the lakes
   USE globalData,  only:iTime_local             ! iTime index for the given netcdf file
-  USE globalData,  only:iTime_local_wc          ! iTime index for the given netcdf file
+  USE globalData,  only:iTime_local_wm          ! iTime index for the given netcdf file
   USE globalData,  only:nHRU                    ! number of routing sub-basin
   USE globalData,  only:runoff_data             ! data structure to hru runoff data
   USE globalData,  only:remap_data              ! data structure to remap data

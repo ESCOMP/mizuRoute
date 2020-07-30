@@ -199,6 +199,10 @@ CONTAINS
     ! passing the first nc file as global file name to read
     fname_wm = trim(infileinfo_data_wm(1)%infilename)
 
+    call inFile_corr_time(infileinfo_data,      & ! input: the structure of simulated runoff, evapo and
+                          infileinfo_data_wm,   & ! inout: input file information
+                          ierr, cmessage)         ! output: error control
+
   endif
 
   END SUBROUTINE init_inFile_pop
@@ -233,7 +237,7 @@ CONTAINS
   character(len=strLen), intent(in)    :: time_dim_name    ! the name of dimension time
 
   ! inoutput
-  type(infileinfo),     intent(inout), allocatable :: inputfileinfo    ! the name of structure that hold the infile information
+  type(infileinfo),     intent(inout), allocatable :: inputfileinfo(:)    ! the name of structure that hold the infile information
 
   ! output
   !type(infileinfo),     intent(out) , allocatable   :: inputfileinfo    ! the name of structure that hold the infile information
@@ -355,10 +359,10 @@ CONTAINS
   USE public_var, ONLY: secprday      ! conversion of steps in days to seconds
 
   ! input
-  type(infileinfo),         intent(in)              :: inputfileinfo       ! the name of structure that hold the infile information
+  type(infileinfo),         intent(in)              :: inputfileinfo(:)       ! the name of structure that hold the infile information
 
   ! inout
-  type(infileinfo),         intent(inout)           :: inputfileinfo_wm    ! the name of structure that hold the infile information
+  type(infileinfo),         intent(inout)           :: inputfileinfo_wm(:)    ! the name of structure that hold the infile information
 
   ! output
   integer(i4b),             intent(out)             :: ierr             ! error code
@@ -366,8 +370,10 @@ CONTAINS
 
   ! local
   integer(i4b)                                      :: nt
-  integer(i4b)                                      :: nFile             ! number of nc files for the water managent
+  integer(i4b)                                      :: nFile             ! number of nc files for the simulated runoff
+  integer(i4b)                                      :: nFile_wm          ! number of nc files for the water managent
   integer(i4b)                                      :: iFile             ! for loop over the nc files
+  real(dp)                                          :: refJulday_local   ! the reference julian day based on the first nc file
   real(dp)                                          :: day_start_diff    ! conversion of the day to the local time
   real(dp)                                          :: day_end_diff      ! conversion of the day to the local time
 
@@ -376,33 +382,33 @@ CONTAINS
   ierr=0; message='inFile_corr_time/'
 
   ! set the reference julday based on the first nc file of simulation
-  refJulday     = infileinfo(1)%ncrefjulday
-  nFile         = size(infileinfo)
-  nFile_wm      = size(infileinfo_wm)
+  refJulday_local     = inputfileinfo(1)%ncrefjulday
+  nFile               = size(inputfileinfo)
+  nFile_wm            = size(inputfileinfo_wm)
 
   do iFile=1,nFile_wm
 
-    nt = infileinfo_wm(iFile)%nTime ! get the number of time
+    nt = inputfileinfo_wm(iFile)%nTime ! get the number of time
 
-    day_start_diff = infileinfo_wm(iFile)%timeVar(1) /infileinfo_wm(iFile)%convTime2Days+infileinfo_wm(iFile)%ncrefjulday - refJulday
-    day_end_diff   = infileinfo_wm(iFile)%timeVar(nt)/infileinfo_wm(iFile)%convTime2Days+infileinfo_wm(iFile)%ncrefjulday - refJulday
+    day_start_diff = inputfileinfo_wm(iFile)%timeVar(1) /inputfileinfo_wm(iFile)%convTime2Days+inputfileinfo_wm(iFile)%ncrefjulday - refJulday_local
+    day_end_diff   = inputfileinfo_wm(iFile)%timeVar(nt)/inputfileinfo_wm(iFile)%convTime2Days+inputfileinfo_wm(iFile)%ncrefjulday - refJulday_local
 
-    infileinfo_wm(iFile)%iTimebound(1) = day_start_diff*secprday/dt + 1 ! to convert the day difference into time step difference
-    infileinfo_wm(iFile)%iTimebound(2) = day_end_diff  *secprday/dt     ! to convert the day difference into time step difference
+    inputfileinfo_wm(iFile)%iTimebound(1) = day_start_diff*secprday/dt + 1 ! to convert the day difference into time step difference
+    inputfileinfo_wm(iFile)%iTimebound(2) = day_end_diff  *secprday/dt     ! to convert the day difference into time step difference
 
   end do
 
-  ! checks if the staring and ending iTime of the infileinfo_wm overlap with the infileinfo of simulated runoff, evapo and precip
-  if (infileinfo_wm(1)%iTimebound(1) > infileinfo(1)%iTimebound(1)) then
+  ! checks if the staring and ending iTime of the inputfileinfo_wm overlap with the inputfileinfo of simulated runoff, evapo and precip
+  if (inputfileinfo_wm(1)%iTimebound(1) > inputfileinfo(1)%iTimebound(1)) then
     print*, "The first water managment nc file starts later than the first simulted runoff, evapo and precip nc file and may cause crash"
   endif
-  if (infileinfo_wm(nFile_wm)%iTimebound(2) < infileinfo(nFile)%iTimebound(2)) then
+  if (inputfileinfo_wm(nFile_wm)%iTimebound(2) < inputfileinfo(nFile)%iTimebound(2)) then
     print*, "The last water managment nc file ends earlier than the last simulted runoff, evapo and precip nc file and may cause crash"
   endif
-  if (infileinfo_wm(1)%iTimebound(1) < infileinfo(1)%iTimebound(1)) then
+  if (inputfileinfo_wm(1)%iTimebound(1) < inputfileinfo(1)%iTimebound(1)) then
     print*, "The water managment nc file starts earlier than the last simulted runoff, evapo and precip nc file"
   endif
-  if (infileinfo_wm(nFile_wm)%iTimebound(2) > infileinfo(nFile)%iTimebound(2)) then
+  if (inputfileinfo_wm(nFile_wm)%iTimebound(2) > inputfileinfo(nFile)%iTimebound(2)) then
     print*, "The water managment nc file ends later than the last simulted runoff, evapo and precip nc file"
   endif
 
@@ -565,7 +571,7 @@ CONTAINS
  ! public subroutine: get the name of input file based on iTime, will be called
  ! in get_hru_runoff to ajust for file name given iTime
  ! *********************************************************************
- SUBROUTINE infile_name(ierr, message)  ! output
+ SUBROUTINE infile_name(ierr, message)         ! output
 
   ! subroutines:
   USE process_time_module, ONLY: process_time  ! process time information
@@ -574,6 +580,7 @@ CONTAINS
   USE dataTypes, ONLY: time                    ! time data type
   ! Shared data
   USE public_var, ONLY: fname_qsim             ! simulated runoff netCDF name
+  USE public_var, ONLY: fname_wm               ! water management netCDF name
   USE public_var, ONLY: is_AbsInj              ! logical whether or not abstraction or injection should be read
   USE public_var, ONLY: is_TargVol             ! logical whether or not target volume should be read
   USE globalData, ONLY: iTime                  ! time index at simulation time step
@@ -604,14 +611,14 @@ CONTAINS
   enddo ixloop
 
   ! fast forward time to time index at simStart and save iTime and modJulday for water management nc file
-  if (is_AbsInj) then
-    ixloop: do ix = 1, size(infileinfo_data_wm) !loop over number of file
+  if ((is_AbsInj).or.(is_TargVol)) then
+    iyloop: do ix = 1, size(infileinfo_data_wm) !loop over number of file
      if ((iTime >= infileinfo_data_wm(ix)%iTimebound(1)).and.(iTime <= infileinfo_data_wm(ix)%iTimebound(2))) then
       iTime_local_wm = iTime - infileinfo_data_wm(ix)%iTimebound(1) + 1
       fname_wm = trim(infileinfo_data_wm(ix)%infilename)
-      exit ixloop
+      exit iyloop
      endif
-    enddo ixloop
+    enddo iyloop
   endif
 
  END SUBROUTINE infile_name
