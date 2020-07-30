@@ -95,7 +95,8 @@ module public_var
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
   integer(i4b)         ,public    :: doesAccumRunoff      = 1               ! option to delayed runoff accumulation over all the upstream reaches
   logical(lgt),public             :: is_lake_sim          = .false.         ! logical whether or not lakes are activated in simulation
-  logical(lgt),public             :: is_wm_sim            = .false.         ! logical whether or not water management componenets, abstraction, injections and target volums are provided and will be used in the simulation
+  logical(lgt),public             :: is_AbsInj            = .false.         ! logical whether or not water management componenets, abstraction, injections and target volums are provided and will be used in the simulation
+  logical(lgt),public             :: is_TargVol           = .false.         ! logical whether or not water management componenets, abstraction, injections and target volums are provided and will be used in the simulation
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
   logical(lgt)         ,public    :: ntopAugmentMode      = .false.         ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
@@ -104,7 +105,7 @@ module public_var
   character(len=strLen),public    :: dname_nhru           = ''              ! dimension name of hru in river network data
   integer(i4b)         ,public    :: idSegOut             = integerMissing  ! id of outlet stream segment
   ! RUNOFF FILE
-  character(len=strLen),public    :: fname_qsim           = ''              ! simulated runoff netCDF name
+  character(len=strLen),public    :: fname_qsim           = ''              ! the txt file name that includes nc files with simulated runoff, evapo and precip
   character(len=strLen),public    :: vname_qsim           = ''              ! variable name for simulated runoff
   character(len=strLen),public    :: vname_evapo          = ''              ! variable name for actual evapoartion
   character(len=strLen),public    :: vname_precip         = ''              ! variable name for precipitation
@@ -116,6 +117,14 @@ module public_var
   character(len=strLen),public    :: dname_ylat           = ''              ! dimension name for y (i, latitude) dimension
   character(len=strLen),public    :: units_qsim           = ''              ! units of simulated runoff data
   real(dp)             ,public    :: dt                   = realMissing     ! time step (seconds)
+  ! WATER MANEGMENT FILE, ABSTRACTION, INJECTION AND TARGET VOLUME
+  character(len=strLen),public    :: fname_WM             = ''              ! the txt file name that includes nc files holesing the abstraction, injection, target volume values
+  character(len=strLen),public    :: vname_AbsInj         = ''              ! variable name for abstraction or injection from or to a river segment
+  character(len=strLen),public    :: vname_TargVol        = ''              ! variable name for target volume when lake is_lake_sim is on
+  character(len=strLen),public    :: vname_time_WM        = ''              ! variable name for time
+  character(len=strLen),public    :: vname_hruid_WM       = ''              ! variable name for runoff hru id
+  character(len=strLen),public    :: dname_time_WM        = ''              ! dimension name for time
+  character(len=strLen),public    :: dname_hruid_WM       = ''              ! dimension name for hru in runoff data
   ! RUNOFF REMAPPING
   logical(lgt),public             :: is_remap             = .false.         ! logical whether or not runnoff needs to be mapped to river network HRU
   character(len=strLen),public    :: fname_remap          = ''              ! runoff mapping netCDF name

@@ -118,7 +118,8 @@ contains
    case('<doesAccumRunoff>');      read(cData,*,iostat=io_error) doesAccumRunoff   ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
    case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut          ! desired outlet reach id (if -9999 --> route over the entire network)
    case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim       ! logical whether or not lakes are simulated
-   case('<is_wm_sim>');            read(cData,*,iostat=io_error) is_wm_sim         ! logical whether or not water balance components, abstraction, injection and target volumes should be used in simulation
+   case('<is_AbsInj>');            read(cData,*,iostat=io_error) is_AbsInj         ! logical whether or not abstraction or injection is taken from the river network
+   case('<is_TargVol>');           read(cData,*,iostat=io_error) is_TargVol        ! logical whether or not water balance components, abstraction, injection and target volumes should be used in simulation
    ! RIVER NETWORK TOPOLOGY
    case('<fname_ntopOld>');        fname_ntopOld = trim(cData)                     ! name of file containing stream network topology information
    case('<ntopAugmentMode>');      read(cData,*,iostat=io_error) ntopAugmentMode   ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
@@ -138,6 +139,14 @@ contains
    case('<dname_ylat>');           dname_ylat   = trim(cData)                      ! name of y (i,lat) dimension
    case('<units_qsim>');           units_qsim   = trim(cData)                      ! units of runoff
    case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                ! time interval of the gridded runoff
+   ! WATER MANAGEMENT FILE, ABSTRACTION, INJECTION AND TARGET VOLUME
+   case('<fname_wm>');             fname_wm        = trim(cData)                   ! name of text file containing nc file names for abstraction, injection, target volume
+   case('<vname_AbsInj>');         vname_AbsInj    = trim(cData)                   ! name of abstraction and injection varibale
+   case('<vname_TargVol>');        vname_TargVol   = trim(cData)                   ! name of target volume variable for lakes
+   case('<vname_time_wm>');        vname_time_wm   = trim(cData)                   ! name of time variable in the abstraction, injection and target volume
+   case('<vname_hruid_wm>');       vname_hruid_wm  = trim(cData)                   ! name of the routing HRUs varibale
+   case('<dname_time_wm>');        dname_time_wm   = trim(cData)                   ! name of time dimension
+   case('<dname_hruid_wm>');       dname_hruid_wm  = trim(cData)                   ! name of the routing HRUs dimension
    ! RUNOFF REMAPPING
    case('<is_remap>');             read(cData,*,iostat=io_error) is_remap          ! logical whether or not runnoff needs to be mapped to river network HRU
    case('<fname_remap>');          fname_remap          = trim(cData)              ! name of runoff mapping netCDF

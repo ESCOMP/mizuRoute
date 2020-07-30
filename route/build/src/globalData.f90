@@ -74,6 +74,7 @@ module globalData
 
   integer(i4b)                   , public :: iTime                ! time index at simulation time step
   integer(i4b)                   , public :: iTime_local          ! time index at simulation time step for a given input file
+  integer(i4b)                   , public :: iTime_local_wm       ! time index at simulation time step for a given WM input file
   real(dp)                       , public :: startJulday          ! julian day: start of routing simulation
   real(dp)                       , public :: endJulday            ! julian day: end of routing simulation
   real(dp)                       , public :: refJulday            ! julian day: reference
@@ -86,16 +87,16 @@ module globalData
 
   ! ---------- input file information -------------------------------------------------------------------
 
-  type(infileinfo) , allocatable , public :: infileinfo_data(:)   ! input file information for simulated runoff, evapo and precip
-  type(infileinfo) , allocatable , public :: infileinfo_data_b(:) ! input file information for abstraction and target volume
+  type(infileinfo) , allocatable , public :: infileinfo_data(:)    ! input file information for simulated runoff, evapo and precip
+  type(infileinfo) , allocatable , public :: infileinfo_data_wm(:) ! input file information for abstraction, injection and target volume
 
   ! ---------- Misc. data -------------------------------------------------------------------------
 
   ! I/O stuff
-  logical(lgt)                   , public :: isFileOpen                ! flag to indicate output netcdf is open
+  logical(lgt)                   , public :: isFileOpen                     ! flag to indicate output netcdf is open
   integer(i4b)                   , public :: ixPrint(1:2)=integerMissing    ! index of desired reach to be on-screen print
   ! ennsemble number (maybe to be removed)
-  integer(i4b)                   , public :: nEns=1                    ! number of ensemble
+  integer(i4b)                   , public :: nEns=1                         ! number of ensemble
 
   ! ---------- MPI/OMP/PIO variables ----------------------------------------------------------------
 

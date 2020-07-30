@@ -82,7 +82,7 @@ CONTAINS
    ierr=0; message='init_data/'
 
    ! runoff input files initialization
-   call init_inFile_name(ierr, message)
+   call init_inFile_pop(ierr, message)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! time initialization
@@ -145,52 +145,55 @@ CONTAINS
 
 
  ! *********************************************************************
- ! public subroutine: read the name of the netcdf that is specified
- ! in a text file, populates the filed of inFiledata dataType
+ ! public subroutine: initiate the reading of the netcdf files for runoff
+ ! or abstraction or injection
  ! *********************************************************************
 
- SUBROUTINE init_inFile_name (ierr, message)  ! output
+ SUBROUTINE init_inFile_pop (ierr, message)  ! output
 
   ! Shared data
-  USE public_var, ONLY: input_dir               ! directory containing input data
+  USE public_var, ONLY: input_dir               ! directory containing the text files of fname_qsim and fname_wm
   USE public_var, ONLY: fname_qsim              ! simulated runoff txt file that includes the NetCDF file names
   USE public_var, ONLY: vname_time              ! variable name for time
   USE public_var, ONLY: dname_time              ! dimension name for time
-  USE globalData, ONLY: infileinfo_data         ! the information of the input files
-  USE public_var, ONLY: input_dir_wn            ! directory containing input data
   USE public_var, ONLY: fname_wm                ! simulated runoff txt file that includes the NetCDF file names
-  USE public_var, ONLY: vname_time_wn           ! variable name for time
+  USE public_var, ONLY: vname_time_wm           ! variable name for time
   USE public_var, ONLY: dname_time_wm           ! dimension name for time
-  USE globalData, ONLY: infileinfo_data_wm      ! the information of the input files
+  USE globalData, ONLY: infileinfo_data         ! the information of the input files
+  USE globalData, ONLY: infileinfo_data_wm      ! the information of the input files for abstration, injection and target volume
   USE public_var, ONLY: is_lake_sim             ! logical whether or not lake should be simulated
-  USE public_var, ONLY: is_wm_sim               ! logical whether or not water management components should be read,
+  USE public_var, ONLY: is_AbsInj               ! logical whether or not abstraction and injection should be read from the file
+  USE public_var, ONLY: is_TargVol              ! logical whether or not target volume for lakes should be read
 
 
   ! output: error control
   integer(i4b),         intent(out)    :: ierr             ! error code
   character(*),         intent(out)    :: message          ! error message
 
+  ! local:
+  character(len=strLen)                :: cmessage         ! error message of downwind routine
+
   ! initialize error control
   ierr=0; message='init_inFile_pop/'
 
-  inFile_pop(input_dir,         & ! input: name of the directory of the txt file
-             fname_qsim,        & ! input: name of the txt file hold the nc file names
-             vname_time,        & ! input: name of variable time in the nc files
-             dname_time,        & ! input: name of dimention time in the nc files
-             infileinfo_data,   & ! output: input file information
-             ierr, cmessage)      ! output: error control
+  call inFile_pop(input_dir,         & ! input: name of the directory of the txt file
+                  fname_qsim,        & ! input: name of the txt file hold the nc file names
+                  vname_time,        & ! input: name of variable time in the nc files
+                  dname_time,        & ! input: name of dimention time in the nc files
+                  infileinfo_data,   & ! output: input file information
+                  ierr, cmessage)      ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
 
   ! passing the first nc file as global file name to read
   fname_qsim = trim(infileinfo_data(1)%infilename)
 
-  if (is_wm_sim) then
-    inFile_pop(input_dir_wm,         & ! input: name of the directory of the txt file
-               fname_wm,             & ! input: name of the txt file hold the nc file names
-               vname_time_wm,        & ! input: name of variable time in the nc files
-               dname_time_wm,        & ! input: name of dimention time in the nc files
-               infileinfo_data_wm,   & ! output: input file information
-               ierr, cmessage)         ! output: error control
+  if ((is_AbsInj).or.(is_TargVol)) then     ! if either of abstraction injection or target volume is acticated
+    call inFile_pop(input_dir,            & ! input: name of the directory of the txt file
+                    fname_wm,             & ! input: name of the txt file hold the nc file names
+                    vname_time_wm,        & ! input: name of variable time in the nc files
+                    dname_time_wm,        & ! input: name of dimention time in the nc files
+                    infileinfo_data_wm,   & ! output: input file information
+                    ierr, cmessage)         ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
 
     ! passing the first nc file as global file name to read
@@ -198,8 +201,7 @@ CONTAINS
 
   endif
 
-
-  END SUBROUTINE init_inFile_name
+  END SUBROUTINE init_inFile_pop
 
 
  ! *********************************************************************
@@ -210,7 +212,7 @@ CONTAINS
                        file_name,        & ! input: name of the txt file hold the nc file names
                        time_var_name,    & ! input: name of variable time in the nc files
                        time_dim_name,    & ! input: name of dimention time in the nc files
-                       input_info,       & ! output: input file information
+                       inputfileinfo,    & ! output: input file information
                        ierr, message)      ! output: error control
 
   ! data types
@@ -337,9 +339,12 @@ CONTAINS
  ! private subroutine: get the two infiledata and convert the iTimebound of
  ! the input_info_wm to match the input_info
  ! *********************************************************************
- SUBROUTINE inFile_corr_time(input_info,         & ! input: name of the directory of the txt file
-                             input_info_wm,      & ! inout: input file information
-                             ierr, message)      ! output: error control
+ SUBROUTINE inFile_corr_time(inputfileinfo,      & ! input: the structure of simulated runoff, evapo and
+                             inputfileinfo_wm,   & ! inout: input file information
+                             ierr, message)        ! output: error control
+
+  ! data types
+  USE dataTypes, ONLY: infileinfo               ! the data type for storing the infromation of the nc files and its attributes
 
   ! public data
   USE public_var, ONLY: time_units    ! time units (seconds, hours, or days)
@@ -347,12 +352,14 @@ CONTAINS
   USE public_var, ONLY: secprday      ! conversion of steps in days to seconds
 
   ! input
-  type(infileinfo),   intent(out)                   :: input_info       ! the name of structure that hold the infile information
+  type(infileinfo),         intent(in)              :: inputfileinfo       ! the name of structure that hold the infile information
 
   ! inout
-  type(infileinfo),   intent(inout)                 :: input_info_wm    ! the name of structure that hold the infile information
-  integer(i4b),       intent(out)                   :: ierr             ! error code
-  character(*),       intent(out)                   :: message          ! error message
+  type(infileinfo),         intent(inout)           :: inputfileinfo_wm    ! the name of structure that hold the infile information
+
+  ! output
+  integer(i4b),             intent(out)             :: ierr             ! error code
+  character(*),             intent(out)             :: message          ! error message
 
   ! local
   integer(i4b)                                      :: nt
@@ -366,34 +373,33 @@ CONTAINS
   ierr=0; message='inFile_corr_time/'
 
   ! set the reference julday based on the first nc file of simulation
-  refJulday     = input_info(1)%ncrefjulday
-  nFile         = size(input_info)
-  nFile_wm      = size(input_info_wm)
+  refJulday     = infileinfo(1)%ncrefjulday
+  nFile         = size(infileinfo)
+  nFile_wm      = size(infileinfo_wm)
 
   do iFile=1,nFile_wm
 
-    nt = input_info_wm(iFile)%nTime ! get the number of time
+    nt = infileinfo_wm(iFile)%nTime ! get the number of time
 
-    day_start_diff = input_info_wm(iFile)%timeVar(1)/input_info_wm(iFile)%convTime2Days+input_info_wm(iFile)%ncrefjulday - refJulday
-    day_end_diff   = input_info_wm(iFile)%timeVar(nt)/input_info_wm(iFile)%convTime2Days+input_info_wm(iFile)%ncrefjulday - refJulday
+    day_start_diff = infileinfo_wm(iFile)%timeVar(1) /infileinfo_wm(iFile)%convTime2Days+infileinfo_wm(iFile)%ncrefjulday - refJulday
+    day_end_diff   = infileinfo_wm(iFile)%timeVar(nt)/infileinfo_wm(iFile)%convTime2Days+infileinfo_wm(iFile)%ncrefjulday - refJulday
 
-    input_info_wm(iFile)%iTimebound(1) = day_start_diff*secprday/dt + 1 ! to convert the day difference into time step difference
-    input_info_wm(iFile)%iTimebound(2) = day_end_diff*secprday/dt       ! to convert the day difference into time step difference
+    infileinfo_wm(iFile)%iTimebound(1) = day_start_diff*secprday/dt + 1 ! to convert the day difference into time step difference
+    infileinfo_wm(iFile)%iTimebound(2) = day_end_diff  *secprday/dt     ! to convert the day difference into time step difference
 
   end do
 
-  ! checks if the staring and ending iTime of the input_info_wm overlap with the input_info of simulated runoff, evapo and precip
-  if (input_info_wm(1)%iTimebound(1) > input_info(1)%iTimebound(1)) then
+  ! checks if the staring and ending iTime of the infileinfo_wm overlap with the infileinfo of simulated runoff, evapo and precip
+  if (infileinfo_wm(1)%iTimebound(1) > infileinfo(1)%iTimebound(1)) then
     print*, "The first water managment nc file starts later than the first simulted runoff, evapo and precip nc file and may cause crash"
   endif
-  if (input_info_wm(nFile_wm)%iTimebound(2) < input_info(nFile)%iTimebound(2)) then
+  if (infileinfo_wm(nFile_wm)%iTimebound(2) < infileinfo(nFile)%iTimebound(2)) then
     print*, "The last water managment nc file ends earlier than the last simulted runoff, evapo and precip nc file and may cause crash"
   endif
-
-  if (input_info_wm(1)%iTimebound(1) < input_info(1)%iTimebound(1)) then
+  if (infileinfo_wm(1)%iTimebound(1) < infileinfo(1)%iTimebound(1)) then
     print*, "The water managment nc file starts earlier than the last simulted runoff, evapo and precip nc file"
   endif
-  if (input_info_wm(nFile_wm)%iTimebound(2) > input_info(nFile)%iTimebound(2)) then
+  if (infileinfo_wm(nFile_wm)%iTimebound(2) > infileinfo(nFile)%iTimebound(2)) then
     print*, "The water managment nc file ends later than the last simulted runoff, evapo and precip nc file"
   endif
 
@@ -565,7 +571,8 @@ CONTAINS
   USE dataTypes, ONLY: time                    ! time data type
   ! Shared data
   USE public_var, ONLY: fname_qsim             ! simulated runoff netCDF name
-  USE public_var, ONLY: is_wm_sim              ! logical whether or not water management components should be read,
+  USE public_var, ONLY: is_AbsInj              ! logical whether or not abstraction or injection should be read
+  USE public_var, ONLY: is_TargVol             ! logical whether or not target volume should be read
   USE globalData, ONLY: iTime                  ! time index at simulation time step
   USE globalData, ONLY: infileinfo_data        ! the information of the input files
   USE globalData, ONLY: infileinfo_data_wm     ! the information of the input files
@@ -575,10 +582,10 @@ CONTAINS
   implicit none
 
   ! output:
-  integer(i4b),              intent(out)   :: ierr             ! error code
-  character(*),              intent(out)   :: message          ! error message
+  integer(i4b),              intent(out)    :: ierr             ! error code
+  character(*),              intent(out)    :: message          ! error message
   ! local variable
-  integer(i4b)                             :: ix
+  integer(i4b)                              :: ix
   !character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
   ! initialize error control
@@ -594,11 +601,11 @@ CONTAINS
   enddo ixloop
 
   ! fast forward time to time index at simStart and save iTime and modJulday for water management nc file
-  if (is_wm_sim) then
+  if (is_AbsInj) then
     ixloop: do ix = 1, size(infileinfo_data_wm) !loop over number of file
      if ((iTime >= infileinfo_data_wm(ix)%iTimebound(1)).and.(iTime <= infileinfo_data_wm(ix)%iTimebound(2))) then
       iTime_local_wm = iTime - infileinfo_data_wm(ix)%iTimebound(1) + 1
-      fname_qsim = trim(infileinfo_data_wm(ix)%infilename)
+      fname_wm = trim(infileinfo_data_wm(ix)%infilename)
       exit ixloop
      endif
     enddo ixloop

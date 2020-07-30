@@ -20,13 +20,18 @@ contains
   ! shared data
   USE public_var,  only:input_dir               ! directory containing input data
   USE public_var,  only:fname_qsim              ! simulated runoff netCDF name
+  USE public_var,  only:fname_wm                ! abstraction and injection netCDF name
   USE public_var,  only:vname_qsim              ! varibale runoff in netCDF file
   USE public_var,  only:vname_evapo             ! varibale actual evaporation in netCDF file
   USE public_var,  only:vname_precip            ! varibale precipitation in netCDF file
+  USE public_var,  only:vname_AbsInj            ! varibale precipitation in netCDF file
+  USE public_var,  only:vname_TargVol           ! varibale precipitation in netCDF file
   USE public_var,  only:is_remap                ! logical whether or not runnoff needs to be mapped to river network HRU
   USE public_var,  only:is_lake_sim             ! logical whether or not lake should be simulated
-  USE public_var,  only:is_wm_sim               ! logical whether or not water management components should be read, abstraction, injection and target volume
+  USE public_var,  only:is_AbsInj               ! logical whether or not abstraction, injection are active
+  USE public_var,  only:is_TargVol              ! logical whether or not target volume is provided for the lakes
   USE globalData,  only:iTime_local             ! iTime index for the given netcdf file
+  USE globalData,  only:iTime_local_wc          ! iTime index for the given netcdf file
   USE globalData,  only:nHRU                    ! number of routing sub-basin
   USE globalData,  only:runoff_data             ! data structure to hru runoff data
   USE globalData,  only:remap_data              ! data structure to remap data
