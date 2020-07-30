@@ -51,6 +51,12 @@ contains
   ! initialize error control
   ierr=0; message='get_hru_runoff/'
 
+  print*, "inside get basin runoff"
+  print*, iTime_local
+  print*, iTime_local_wm
+  print*, fname_qsim
+  print*, fname_wm
+
   ! get the simulated runoff for the current time step - runoff_data%sim(:) or %sim2D(:,:)
   call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
                         trim(vname_qsim),                  & ! input: varname
@@ -129,6 +135,8 @@ contains
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
   end if
+
+  stop
 
  end subroutine get_hru_runoff
 
