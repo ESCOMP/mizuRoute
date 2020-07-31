@@ -596,16 +596,17 @@ CONTAINS
   character(*),              intent(out)    :: message          ! error message
   ! local variable
   integer(i4b)                              :: ix
-  !character(len=strLen)                    :: cmessage         ! error message of downwind routine
+  integer(i4b)                              :: counter          ! to check if both iTime_local are read properly
 
   ! initialize error control
-  ierr=0; message='infile_name/'
+  ierr=0; message='infile_name/'; counter = 0 ;
 
   ! fast forward time to time index at simStart and save iTime and modJulday
   ixloop: do ix = 1, size(infileinfo_data) !loop over number of file
    if ((iTime >= infileinfo_data(ix)%iTimebound(1)).and.(iTime <= infileinfo_data(ix)%iTimebound(2))) then
     iTime_local = iTime - infileinfo_data(ix)%iTimebound(1) + 1
     fname_qsim = trim(infileinfo_data(ix)%infilename)
+    counter = counter + 1
     exit ixloop
    endif
   enddo ixloop
@@ -616,10 +617,23 @@ CONTAINS
      if ((iTime >= infileinfo_data_wm(ix)%iTimebound(1)).and.(iTime <= infileinfo_data_wm(ix)%iTimebound(2))) then
       iTime_local_wm = iTime - infileinfo_data_wm(ix)%iTimebound(1) + 1
       fname_wm = trim(infileinfo_data_wm(ix)%infilename)
+      counter = counter + 1
       exit iyloop
      endif
     enddo iyloop
   endif
+
+  print*, counter
+  ! check if the both iTime_local is read
+  if (counter /= 2) then
+    ierr=20; message=trim(message)//'iTime local is out of bound for the netcdf file inputs based on given simulation time'; return
+  endif
+  print*, ierr
+  print*, message
+  print*, infileinfo_data_wm(1)%iTimebound(1)
+  print*, infileinfo_data_wm(1)%iTimebound(2)
+  print*, infileinfo_data(1)%iTimebound(1)
+  print*, infileinfo_data(1)%iTimebound(2)
 
  END SUBROUTINE infile_name
 
