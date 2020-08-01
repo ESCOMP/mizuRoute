@@ -1,8 +1,9 @@
 MODULE write_restart
 
 ! Moudle wide external modules
-USE nrtype, ONLY: i4b, dp, strLen
+USE nrtype, ONLY: i4b, dp, lgt, strLen
 USE public_var
+USE dataTypes, ONLY: time
 USE io_netcdf, ONLY: ncd_int
 USE io_netcdf, ONLY: ncd_float, ncd_double
 USE io_netcdf, ONLY: ncd_unlimited
@@ -22,20 +23,31 @@ public::output_state
 
 CONTAINS
 
+ ! *********************************************************************
+ ! public subroutine: write restart netCDF
+ ! *********************************************************************
  SUBROUTINE output_state(ierr, message)
 
   ! Saved Data
-  USE public_var, ONLY: output_dir
+  USE public_var, ONLY: restart_dir
   USE public_var, ONLY: case_name         ! simulation name ==> output filename head
+  USE public_var, ONLY: restart_write     ! restart write options
   USE public_var, ONLY: routOpt
   USE public_var, ONLY: time_units
   USE public_var, ONLY: dt
+  USE public_var, ONLY: calendar
+  USE public_var, ONLY: restart_day
+  USE public_var, ONLY: secprday
   USE globalData, ONLY: runoff_data       ! runoff data for one time step for LSM HRUs and River network HRUs
   USE globalData, ONLY: TSEC
   USE globalData, ONLY: reachID
   USE globalData, ONLY: modTime           ! previous and current model time
+  USE globalData, ONLY: restCal           ! restart Calendar time
   USE globalData, ONLY: modJulday         ! current model Julian day
-  USE globalData, ONLY: restartJulday     ! restart Julian day
+  ! subroutines
+  USE time_utils_module,   only : ndays_month       ! compute number of days in a month
+  USE time_utils_module,   only : compCalday        ! compute calendar day
+  USE time_utils_module,   only : compCalday_noleap ! compute calendar day
 
   implicit none
   ! output variables
@@ -44,29 +56,76 @@ CONTAINS
   ! local variables
   real(dp)                             :: TSEC1, TSEC2
   character(len=strLen)                :: cmessage         ! error message of downwind routine
-  integer(i4b)                         :: sec_in_day      ! second within day
-  character(len=strLen)                :: fileout_state    ! name of the output file
+  integer(i4b)                         :: sec_in_day       ! second within day
+  integer(i4b)                         :: nDays            ! number of days in a month
+  logical(lgt)                         :: restartAlarm     ! restart alarm
+  real(dp)                             :: nextJulday       ! Julidan days at next time step
+  type(time)                           :: nextCal          ! calendar date at next time step (for restart file name)
+  character(len=strLen)                :: fnameRestart     ! name of the restart file name
   character(len=50),parameter          :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
   character(len=50),parameter          :: fmtYMDHMS='(2a,I0.4,a,I0.2,a,I0.2,x,I0.2,a,I0.2,a,I0.2)'
 
-  if (abs(restartJulday-modJulday)<verySmall) then
+  ierr=0; message='output_state/'
 
-    write(iulog,fmtYMDHMS) new_line('a'),'Write restart file at ', &
-                           modTime(1)%iy,'-',modTime(1)%im, '-', modTime(1)%id,modTime(1)%ih,':',modTime(1)%imin,':',nint(modTime(1)%dsec)
+  ! Adjust if specified day is outside number of days in particular month
+  restCal%id=restart_day
+  call ndays_month(modTime(1)%iy, modTime(1)%im, calendar, nDays, ierr, cmessage)
+  if (restCal%id > nDays) then
+    restCal%id=nDays
+  end if
 
-    sec_in_day = modTime(1)%ih*60*60+modTime(1)%imin*60+nint(modTime(1)%dsec)
+  ! Check restart alarm (temporal implementations)
+  ! restartAlarm = restartAlarm(restCal, modTime, ierr, cmessage)
+  select case(trim(restart_write))
+    case('Specified','specified','Last','last')
+      restartAlarm = (restCal%iy==modTime(1)%iy .and. restCal%im==modTime(1)%im .and. restCal%id==modTime(1)%id .and. &
+                      restCal%ih==modTime(1)%ih .and. restCal%imin==modTime(1)%imin .and. nint(restCal%dsec)==nint(modTime(1)%dsec))
+    case('Annual','annual')
+      restartAlarm = (restCal%im==modTime(1)%im .and. restCal%id==modTime(1)%id .and. &
+                      restCal%ih==modTime(1)%ih .and. restCal%imin==modTime(1)%imin .and. nint(restCal%dsec)==nint(modTime(1)%dsec))
+    case('Monthly','monthly')
+      restartAlarm = (restCal%id==modTime(1)%id .and. &
+                      restCal%ih==modTime(1)%ih .and. restCal%imin==modTime(1)%imin .and. nint(restCal%dsec)==nint(modTime(1)%dsec))
+    case('Daily','daily')
+      restartAlarm = (restCal%ih==modTime(1)%ih .and. restCal%imin==modTime(1)%imin .and. nint(restCal%dsec)==nint(modTime(1)%dsec))
+    case('Never','never')
+      restartAlarm = .false.
+    case default
+      ierr=20; message=trim(message)//'Current accepted <restart_write> options: L[l]ast, N[n]ever, S[s]pecified, Annual, Monthly, or Daily '; return
+  end select
 
-    write(fileout_state, fmtYMDS) trim(output_dir)//trim(case_name)//'.r.', &
-                            modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '-',sec_in_day,'.nc'
+  if (restartAlarm) then
 
-    call define_state_nc(fileout_state, time_units, routOpt, ierr, cmessage)
+    ! Construct restart file name (temporary implementation)
+    ! call restart_name(fnameRestart, ierr, cmessage)
+    nextJulday = modJulday + dt/secprday
+    select case(trim(calendar))
+     case('noleap')
+      call compCalday_noleap(nextJulday,nextCal%iy,nextCal%im,nextCal%id,nextCal%ih,nextCal%imin,nextCal%dsec,ierr,cmessage)
+     case ('standard','gregorian','proleptic_gregorian')
+      call compCalday(nextJulday, nextCal%iy,nextCal%im,nextCal%id,nextCal%ih,nextCal%imin,nextCal%dsec,ierr,cmessage)
+     case default;    ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
+    end select
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! update model time step bound
-   TSEC1 = TSEC(0) + dt
-   TSEC2 = TSEC1   + dt
+    write(iulog,fmtYMDHMS) new_line('a'),'Write restart file at ', &
+                           nextCal%iy,'-',nextCal%im, '-', nextCal%id,nextCal%ih,':',nextCal%imin,':',nint(nextCal%dsec)
 
-    call write_state_nc(fileout_state,                           &  ! Input: state netcdf name
+    sec_in_day = nextCal%ih*60*60+nextCal%imin*60+nint(nextCal%dsec)
+
+    write(fnameRestart, fmtYMDS) trim(restart_dir)//trim(case_name)//'.r.', &
+                            nextCal%iy, '-', nextCal%im, '-', nextCal%id, '-',sec_in_day,'.nc'
+
+    ! Define restart netCDF
+    call define_state_nc(fnameRestart, time_units, routOpt, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! update model time step bound
+    TSEC1 = TSEC(0) + dt
+    TSEC2 = TSEC1   + dt
+
+    ! Define restart netCDF
+    call write_state_nc(fnameRestart,                            &  ! Input: state netcdf name
                         routOpt,                                 &  ! input: which routing options
                         runoff_data%time, 1, TSEC1, TSEC2,       &  ! Input: time, time step, start and end time [sec]
                         reachID,                                 &  ! Input: segment id vector
