@@ -408,8 +408,8 @@ CONTAINS
   select case(trim(restart_write))
     case('last','Last')
       call process_calday(endJulday, calendar, restCal, ierr, cmessage)
-    case('never','Never')
-      restCal = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endJulday]'; return; endif
+      restart_month = restCal%im; restart_day = restCal%id; restart_hour = restCal%ih
     case('specified','Specified')
       if (trim(restart_date) == charMissing) then
         ierr=20; message=trim(message)//'<restart_date> must be provided when <restart_write> option is "specified"'; return
@@ -417,8 +417,12 @@ CONTAINS
       call process_time(trim(restart_date),calendar, restartJulday, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartDate]'; return; endif
       call process_calday(restartJulday, calendar, restCal, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartJulday]'; return; endif
+      restart_month = restCal%im; restart_day = restCal%id; restart_hour = restCal%ih
     case('Annual','Monthly','Daily','annual','monthly','daily')
       restCal = time(integerMissing, restart_month, restart_day, restart_hour, 0, 0._dp)
+    case('never','Never')
+      restCal = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
     case default
       ierr=20; message=trim(message)//'Current accepted <restart_write> options: L[l]ast, N[n]ever, S[s]pecified, A[a]nnual, M[m]onthly, D[d]aily'; return
   end select
