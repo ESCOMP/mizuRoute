@@ -288,6 +288,9 @@ CONTAINS
   USE public_var,          ONLY : calendar      ! calendar name
   USE public_var,          ONLY : restart_write ! restart write option
   USE public_var,          ONLY : restart_date  ! restart date
+  USE public_var,          ONLY : restart_month !
+  USE public_var,          ONLY : restart_day   !
+  USE public_var,          ONLY : restart_hour  !
   ! saved time variables
   USE globalData,          ONLY : timeVar       ! time variables (unit given by runoff data)
   USE globalData,          ONLY : iTime         ! time index at runoff input time step
@@ -296,8 +299,8 @@ CONTAINS
   USE globalData,          ONLY : startJulday   ! julian day: start of routing simulation
   USE globalData,          ONLY : endJulday     ! julian day: end of routing simulation
   USE globalData,          ONLY : modJulday     ! julian day: at model time step
-  USE globalData,          ONLY : restartJulday ! julian day: at restart
   USE globalData,          ONLY : modTime       ! model time data (yyyy:mm:dd:hh:mm:sec)
+  USE globalData,          ONLY : restCal       ! restart time data (yyyy:mm:dd:hh:mm:sec)
 
   implicit none
 
@@ -311,6 +314,7 @@ CONTAINS
   type(time)                               :: rofCal
   type(time)                               :: simCal
   real(dp)                                 :: convTime2Days
+  real(dp)                                 :: restartJulday
   character(len=7)                         :: t_unit
   character(len=strLen)                    :: cmessage         ! error message of downwind routine
   character(len=50)                        :: fmt1='(a,I4,a,I2.2,a,I2.2,x,I2.2,a,I2.2,a,F5.2)'
@@ -403,18 +407,20 @@ CONTAINS
   ! restart drop off time
   select case(trim(restart_write))
     case('last','Last')
-      call process_time(trim(simEnd), calendar, restartJulday, ierr, cmessage)
-      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartDate]'; return; endif
+      call process_calday(endJulday, calendar, restCal, ierr, cmessage)
     case('never','Never')
-      restartJulday = 0.0_dp
+      restCal = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
     case('specified','Specified')
       if (trim(restart_date) == charMissing) then
         ierr=20; message=trim(message)//'<restart_date> must be provided when <restart_write> option is "specified"'; return
       end if
       call process_time(trim(restart_date),calendar, restartJulday, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartDate]'; return; endif
+      call process_calday(restartJulday, calendar, restCal, ierr, cmessage)
+    case('Annual','Monthly','Daily','annual','monthly','daily')
+      restCal = time(integerMissing, restart_month, restart_day, restart_hour, 0, 0._dp)
     case default
-      ierr=20; message=trim(message)//'Current accepted <restart_write> options: last[Last], never[Never], specified[Specified]'; return
+      ierr=20; message=trim(message)//'Current accepted <restart_write> options: L[l]ast, N[n]ever, S[s]pecified, A[a]nnual, M[m]onthly, D[d]aily'; return
   end select
 
  END SUBROUTINE init_time
