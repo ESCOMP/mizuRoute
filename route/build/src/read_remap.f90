@@ -109,8 +109,7 @@ contains
  integer(i4b)                       :: nZero             ! number of array variables with zero
  logical(lgt), allocatable          :: logical_array(:)  !
  real(dp),     allocatable          :: real_array(:)     !
- integer(i4b), allocatable          :: int_array(:)      !
- character(len=strLen)              :: cmessage          ! error message from subroutine
+ integer(i8b), allocatable          :: int_array(:)      !
 
  ! initialize error control
  ierr=0; message='check_remap_data/'

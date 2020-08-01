@@ -73,8 +73,10 @@ CONTAINS
  T0=TB(1); T1=TB(2)
 
  ! routing specific variables
- call read_IRFbas_state(ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return;endif
+ if (doesBasinRoute == 1) then
+   call read_IRFbas_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return;endif
+ endif
 
  if (opt==allRoutingMethods .or. opt==kinematicWave) then
   call read_KWT_state(ierr, cmessage)

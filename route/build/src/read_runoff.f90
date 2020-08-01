@@ -242,6 +242,8 @@ contains
  integer(i4b), intent(out)     :: ierr               ! error code
  character(*), intent(out)     :: message            ! error message
  ! local variables
+ integer(i4b)                  :: iStart(2)
+ integer(i4b)                  :: iCount(2)
  logical(lgt)                  :: existFillVal
  real(dp)                      :: dummy(nSpace,1)    ! data read
  character(len=strLen)         :: cmessage           ! error message from subroutine
@@ -254,7 +256,9 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the simulated runoff data
- call get_nc(trim(fname), vname_qsim, dummy, (/1,iTime/), (/nSpace,1/), ierr, cmessage)
+ iStart = [1,iTime]
+ iCount = [nSpace,1]
+ call get_nc(trim(fname), vname_qsim, dummy, iStart, iCount, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the _fill_values for runoff variable if exist
@@ -292,6 +296,8 @@ contains
  character(*), intent(out)   :: message          ! error message
  ! local variables
  logical(lgt)                :: existFillVal
+ integer(i4b)                :: iStart(3)
+ integer(i4b)                :: iCount(3)
  real(dp)                    :: dummy(nSpace(2),nSpace(1),1) ! data read
  character(len=strLen)       :: cmessage                     ! error message from subroutine
 
@@ -303,7 +309,9 @@ contains
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the simulated runoff data
- call get_nc(trim(fname), vname_qsim, dummy, (/1,1,iTime/), (/nSpace(2), nSpace(1), 1/), ierr, cmessage)
+ iStart = [1,1,iTime]
+ iCount = [nSpace(2),nSpace(1),1]
+ call get_nc(trim(fname), vname_qsim, dummy, iStart, iCount, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the _fill_values for runoff variable

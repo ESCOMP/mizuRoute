@@ -1,7 +1,7 @@
 MODULE model_setup
 
 ! data types
-USE nrtype,    ONLY : i4b,dp,lgt          ! variable types, etc.
+USE nrtype,    ONLY : i4b,i8b,dp,lgt          ! variable types, etc.
 USE nrtype,    ONLY : strLen              ! length of characters
 USE dataTypes, ONLY : var_ilength         ! integer type:          var(:)%dat
 USE dataTypes, ONLY : var_clength         ! integer type:          var(:)%dat
@@ -616,7 +616,7 @@ CONTAINS
  integer(i4b), intent(out)          :: ierr             ! error code
  character(*), intent(out)          :: message          ! error message
  ! local variables
- integer(i4b), allocatable          :: unq_qhru_id(:)
+ integer(i8b), allocatable          :: unq_qhru_id(:)
  integer(i4b), allocatable          :: unq_idx(:)
  character(len=strLen)              :: cmessage         ! error message from subroutine
 
@@ -711,8 +711,8 @@ CONTAINS
 
  implicit none
  ! input
- integer(i4b), intent(in)  :: qid(:)                       ! ID of input vector
- integer(i4b), intent(in)  :: qidMaster(:)                 ! ID of master vector
+ integer(i8b), intent(in)  :: qid(:)                       ! ID of input vector
+ integer(i8b), intent(in)  :: qidMaster(:)                 ! ID of master vector
  ! output
  integer(i4b), intent(out) :: qix(:)                       ! index within master vector
  integer(i4b), intent(out) :: ierr                         ! error code

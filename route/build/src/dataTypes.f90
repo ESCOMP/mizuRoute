@@ -2,7 +2,7 @@ module dataTypes
 
 ! used to create/save specific data types
 
-USE nrtype,     only: i4b,dp,lgt
+USE nrtype,     only: i4b,i8b,dp,lgt
 USE nrtype,     only: strLen   ! string length
 USE public_var, only: realMissing
 USE public_var, only: integerMissing
@@ -144,8 +144,8 @@ end type subdomain
  ! data to remap runoff hru to river network hrus
  type, public :: remap
    ! information in the mapping file
-   integer(i4b)             , allocatable  :: hru_id(:)    ! Id of hrus associated with river network (="hru")
-   integer(i4b)             , allocatable  :: qhru_id(:)   ! Id of hrus associated with runoff simulation (="qhru")
+   integer(i8b)             , allocatable  :: hru_id(:)    ! Id of hrus associated with river network (="hru")
+   integer(i8b)             , allocatable  :: qhru_id(:)   ! Id of hrus associated with runoff simulation (="qhru")
    integer(i4b)             , allocatable  :: num_qhru(:)  ! number of "qhru" within "hru"
    integer(i4b)             , allocatable  :: i_index(:)   ! Index in the y dimension of the runoff grid (starting with 1,1 in LL corner)
    integer(i4b)             , allocatable  :: j_index(:)   ! Index in the x dimension of the runoff grid (starting with 1,1 in LL corner)
@@ -162,7 +162,7 @@ end type subdomain
    real(dp)                                :: time          ! time variable at one time step
    real(dp)                 , allocatable  :: qsim(:)       ! runoff(HM_HRU) at one time step (size: nSpace(1))
    real(dp)                 , allocatable  :: qsim2D(:,:)   ! runoff(x,y) at one time step (size: /nSpace(1),nSpace(2)/)
-   integer(i4b)             , allocatable  :: hru_id(:)     ! id of HM_HRUs or RN_HRUs at which runoff is stored (size: nSpace(1))
+   integer(i8b)             , allocatable  :: hru_id(:)     ! id of HM_HRUs or RN_HRUs at which runoff is stored (size: nSpace(1))
    integer(i4b)             , allocatable  :: hru_ix(:)     ! Index of RN_HRUs associated with river network (used only if HM_HRUs = RN_HRUs)
    real(dp)                 , allocatable  :: basinRunoff(:)! remapped river network catchment runoff (size: number of nHRU)
  end type runoff
