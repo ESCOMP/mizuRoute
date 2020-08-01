@@ -206,8 +206,8 @@ module remapping
     cycle
    endif
 
-   !print*, 'remap_data_in%hru_id(iHRU), structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1), remap_data_in%num_qhru(iHRU) = ', &
-   !         remap_data_in%hru_id(iHRU), structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1), remap_data_in%num_qhru(iHRU)
+   !print*, 'remap_data_in%hru_id(iHRU), basinID(jHRU), remap_data_in%num_qhru(iHRU) = ', &
+   !         remap_data_in%hru_id(iHRU), basinID(jHRU), remap_data_in%num_qhru(iHRU)
 
    ! initialize the weighted average
    sumWeights        = 0._dp

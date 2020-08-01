@@ -102,7 +102,7 @@ module globalData
   integer(i4b)                   , public :: nRch                 ! number of reaches in the whole river network
 
   ! basin and reach IDs (to be removed)
-  integer(i4b)    , allocatable  , public :: basinID(:)           ! HRU id
+  integer(i8b)    , allocatable  , public :: basinID(:)           ! HRU id
   integer(i4b)    , allocatable  , public :: reachID(:)           ! reach id
 
   ! DataTime data/variables
