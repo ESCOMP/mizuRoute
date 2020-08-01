@@ -258,7 +258,7 @@ contains
  ! get the simulated runoff data
  iStart = [1,iTime]
  iCount = [nSpace,1]
- call get_nc(trim(fname), vname_qsim, dummy, (/1,iTime/), (/nSpace,1/), ierr, cmessage)
+ call get_nc(trim(fname), vname_qsim, dummy, iStart, iCount, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the _fill_values for runoff variable if exist
