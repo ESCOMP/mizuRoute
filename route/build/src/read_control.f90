@@ -97,9 +97,10 @@ contains
    select case(trim(cName))
 
    ! DIRECTORIES
-   case('<ancil_dir>');            ancil_dir   = trim(cData)                       ! directory containing ancillary data
-   case('<input_dir>');            input_dir   = trim(cData)                       ! directory containing input data
-   case('<output_dir>');           output_dir  = trim(cData)                       ! directory containing output data
+   case('<ancil_dir>');            ancil_dir   = trim(cData)                       ! directory containing ancillary data (network, mapping, namelist)
+   case('<input_dir>');            input_dir   = trim(cData)                       ! directory containing input runoff netCDF
+   case('<output_dir>');           output_dir  = trim(cData)                       ! directory for routed flow output (netCDF)
+   case('<restart_dir>');          restart_dir = trim(cData)                       ! directory for restart output (netCDF)
    ! SIMULATION TIME
    case('<sim_start>');            simStart    = trim(cData)                       ! date string defining the start of the simulation
    case('<sim_end>');              simEnd      = trim(cData)                       ! date string defining the end of the simulation
@@ -135,9 +136,12 @@ contains
    ! ROUTED FLOW OUTPUT
    case('<case_name>');            case_name            = trim(cData)              ! name of simulation. used as head of model output and restart file
    case('<newFileFrequency>');     newFileFrequency     = trim(cData)              ! frequency for new output files (day, month, annual, single)
-   ! STATES
-   case('<restart_write>');        restart_write        = trim(cData)              ! restart write option: N[n]ever, L[l]ast
-   case('<restart_date>');         restart_date         = trim(cData)              ! specified restart date, yyyy-mm-dd (hh:mm:ss)
+   ! RESTART
+   case('<restart_write>');        restart_write        = trim(cData)              ! restart write option: N[n]ever, L[l]ast, S[s]pecified, Monthly, Daily
+   case('<restart_date>');         restart_date         = trim(cData)              ! specified restart date, yyyy-mm-dd (hh:mm:ss) for Specified option
+   case('<restart_month>');        read(cData,*,iostat=io_error) restart_month     ! restart periodic month
+   case('<restart_day>');          read(cData,*,iostat=io_error) restart_day       ! restart periodic day
+   case('<restart_hour>');         read(cData,*,iostat=io_error) restart_hour      ! restart periodic hour
    case('<fname_state_in>');       fname_state_in       = trim(cData)              ! filename for the channel states
    ! SPATIAL CONSTANT PARAMETERS
    case('<param_nml>');            param_nml       = trim(cData)                   ! name of namelist including routing parameter value
@@ -220,6 +224,11 @@ contains
   endif
 
  end do  ! looping through lines in the control file
+
+ ! ---------- directory option  ---------------------------------------------------------------------
+ if (trim(restart_dir)==charMissing) then
+   restart_dir = output_dir
+ endif
 
  ! ---------- control river network writing option  ---------------------------------------------------------------------
 
