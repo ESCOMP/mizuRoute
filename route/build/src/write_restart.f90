@@ -17,6 +17,9 @@ USE io_netcdf, ONLY: write_nc
 
 implicit none
 
+integer(i4b),  parameter :: currTimeStep = 1
+integer(i4b),  parameter :: nextTimeStep = 2
+
 private
 
 public::output_state
@@ -29,25 +32,19 @@ CONTAINS
  SUBROUTINE output_state(ierr, message)
 
   ! Saved Data
-  USE public_var, ONLY: restart_dir
-  USE public_var, ONLY: case_name         ! simulation name ==> output filename head
   USE public_var, ONLY: restart_write     ! restart write options
   USE public_var, ONLY: routOpt
   USE public_var, ONLY: time_units
   USE public_var, ONLY: dt
   USE public_var, ONLY: calendar
   USE public_var, ONLY: restart_day
-  USE public_var, ONLY: secprday
   USE globalData, ONLY: runoff_data       ! runoff data for one time step for LSM HRUs and River network HRUs
   USE globalData, ONLY: TSEC
   USE globalData, ONLY: reachID
   USE globalData, ONLY: modTime           ! previous and current model time
   USE globalData, ONLY: restCal           ! restart Calendar time
-  USE globalData, ONLY: modJulday         ! current model Julian day
-  ! subroutines
-  USE time_utils_module,   only : ndays_month       ! compute number of days in a month
-  USE time_utils_module,   only : compCalday        ! compute calendar day
-  USE time_utils_module,   only : compCalday_noleap ! compute calendar day
+  ! external routine
+  USE time_utils_module, ONLY: ndays_month  ! compute number of days in a month
 
   implicit none
   ! output variables
@@ -56,13 +53,9 @@ CONTAINS
   ! local variables
   real(dp)                             :: TSEC1, TSEC2
   character(len=strLen)                :: cmessage         ! error message of downwind routine
-  integer(i4b)                         :: sec_in_day       ! second within day
   integer(i4b)                         :: nDays            ! number of days in a month
   logical(lgt)                         :: restartAlarm     ! restart alarm
-  real(dp)                             :: nextJulday       ! Julidan days at next time step
-  type(time)                           :: nextCal          ! calendar date at next time step (for restart file name)
   character(len=strLen)                :: fnameRestart     ! name of the restart file name
-  character(len=50),parameter          :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
   character(len=50),parameter          :: fmtYMDHMS='(2a,I0.4,a,I0.2,a,I0.2,x,I0.2,a,I0.2,a,I0.2)'
 
   ierr=0; message='output_state/'
@@ -75,7 +68,6 @@ CONTAINS
   end if
 
   ! Check restart alarm (temporal implementations)
-  ! restartAlarm = restartAlarm(restCal, modTime, ierr, cmessage)
   select case(trim(restart_write))
     case('Specified','specified','Last','last')
       restartAlarm = (restCal%iy==modTime(1)%iy .and. restCal%im==modTime(1)%im .and. restCal%id==modTime(1)%id .and. &
@@ -96,25 +88,11 @@ CONTAINS
 
   if (restartAlarm) then
 
-    ! Construct restart file name (temporary implementation)
-    ! call restart_name(fnameRestart, ierr, cmessage)
-    nextJulday = modJulday + dt/secprday
-    select case(trim(calendar))
-     case('noleap')
-      call compCalday_noleap(nextJulday,nextCal%iy,nextCal%im,nextCal%id,nextCal%ih,nextCal%imin,nextCal%dsec,ierr,cmessage)
-     case ('standard','gregorian','proleptic_gregorian')
-      call compCalday(nextJulday, nextCal%iy,nextCal%im,nextCal%id,nextCal%ih,nextCal%imin,nextCal%dsec,ierr,cmessage)
-     case default;    ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
-    end select
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
     write(iulog,fmtYMDHMS) new_line('a'),'Write restart file at ', &
-                           nextCal%iy,'-',nextCal%im, '-', nextCal%id,nextCal%ih,':',nextCal%imin,':',nint(nextCal%dsec)
+                           modTime(1)%iy,'-',modTime(1)%im, '-', modTime(1)%id, modTime(1)%ih,':',modTime(1)%imin,':',nint(modTime(1)%dsec)
 
-    sec_in_day = nextCal%ih*60*60+nextCal%imin*60+nint(nextCal%dsec)
-
-    write(fnameRestart, fmtYMDS) trim(restart_dir)//trim(case_name)//'.r.', &
-                            nextCal%iy, '-', nextCal%im, '-', nextCal%id, '-',sec_in_day,'.nc'
+    call restart_fname(fnameRestart, currTimeStep, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! Define restart netCDF
     call define_state_nc(fnameRestart, time_units, routOpt, ierr, cmessage)
@@ -135,6 +113,60 @@ CONTAINS
   end if
 
  END SUBROUTINE output_state
+
+ ! *********************************************************************
+ ! private subroutine: define restart NetCDF file name
+ ! *********************************************************************
+ SUBROUTINE restart_fname(fnameRestart, timeStamp, ierr, message)
+
+   USE public_var,        ONLY: restart_dir
+   USE public_var,        ONLY: case_name         ! simulation name ==> output filename head
+   USE public_var,        ONLY: calendar
+   USE public_var,        ONLY: secprday
+   USE public_var,        ONLY: dt
+   USE globalData,        ONLY: modJulday         ! current model Julian day
+   USE time_utils_module, ONLY: compCalday        ! compute calendar day
+   USE time_utils_module, ONLY: compCalday_noleap
+
+   implicit none
+
+   ! input
+   integer(i4b),   intent(in)           :: timeStamp        ! optional:
+   ! output
+   character(*),   intent(out)          :: fnameRestart     ! name of the restart file name
+   integer(i4b),   intent(out)          :: ierr             ! error code
+   character(*),   intent(out)          :: message          ! error message
+   ! local variables
+   character(len=strLen)                :: cmessage         ! error message of downwind routine
+   real(dp)                             :: timeStampJulday  ! Julidan days corresponding to file name time stamp
+   integer(i4b)                         :: sec_in_day       ! second within day
+   type(time)                           :: timeStampCal     ! calendar date at next time step (for restart file name)
+   character(len=50),parameter          :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
+
+   ierr=0; message='define_state_nc/'
+
+   select case(timeStamp)
+     case(currTimeStep); timeStampJulday = modJulday
+     case(nextTimeStep); timeStampJulday = modJulday + dt/secprday
+     case default;       ierr=20; message=trim(message)//'time stamp option in restart filename: invalid -> 1: current time Step or 2: next time step'; return
+   end select
+
+   select case(trim(calendar))
+     case('noleap')
+       call compCalday_noleap(timeStampJulday,timeStampCal%iy,timeStampCal%im,timeStampCal%id,timeStampCal%ih,timeStampCal%imin,timeStampCal%dsec,ierr,cmessage)
+     case ('standard','gregorian','proleptic_gregorian')
+       call compCalday(timeStampJulday, timeStampCal%iy,timeStampCal%im,timeStampCal%id,timeStampCal%ih,timeStampCal%imin,timeStampCal%dsec,ierr,cmessage)
+     case default;    ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
+   end select
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   sec_in_day = timeStampCal%ih*60*60+timeStampCal%imin*60+nint(timeStampCal%dsec)
+
+   write(fnameRestart, fmtYMDS) trim(restart_dir)//trim(case_name)//'.r.', &
+                                timeStampCal%iy, '-', timeStampCal%im, '-', timeStampCal%id, '-',sec_in_day,'.nc'
+
+ END SUBROUTINE restart_fname
+
 
  ! *********************************************************************
  ! subroutine: define restart NetCDF file
