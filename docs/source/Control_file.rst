@@ -140,7 +140,9 @@ Restart options
 
 mizuRoute does not write restart netCDF as default. The following control variables are used to control restart dropoff timing and use restart file for continuous run from the previous simulations.
 The restart file name includes a time stamp at next time step to the drop off time. For example, if drop off time is 1980-12-31 00:00:00 and the simulation use daily time step, time stamp is 1981-01-01-00000 
+
 The restart file name convension:  <case_name>.r.yyyy-mm-dd-sssss.nc 
+
 
 +---------------------+--------------------------------------------------------------------------------------------------------+
 | tag                 | Description                                                                                            |
@@ -166,6 +168,7 @@ Output variables
 
 The following variables, besides time, basinID (RN_hru ID) and reachID can be output in netCDF. Users can control which variables are output by setting <variable_name> to T or F in control file. All the variables are set to T by default.
 The output file name includes a timie stamp at the first time step.  
+
 The output file name convension:  <case_name>.h.yyyy-mm-dd-sssss.nc
 
 
