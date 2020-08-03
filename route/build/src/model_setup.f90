@@ -275,6 +275,8 @@ CONTAINS
   ! subroutines:
   USE process_time_module, ONLY : process_time  ! process time information
   USE process_time_module, ONLY : process_calday! compute data and time from julian day
+  USE time_utils_module,   ONLY : compjulday_noleap
+  USE time_utils_module,   ONLY : compjulday
   USE io_netcdf,           ONLY : get_nc        ! netcdf input
   ! derived datatype
   USE dataTypes,           ONLY : time          ! time data type
@@ -286,6 +288,8 @@ CONTAINS
   USE public_var,          ONLY : simStart      ! date string defining the start of the simulation
   USE public_var,          ONLY : simEnd        ! date string defining the end of the simulation
   USE public_var,          ONLY : calendar      ! calendar name
+  USE public_var,          ONLY : dt
+  USE public_var,          ONLY : secprday
   USE public_var,          ONLY : restart_write ! restart write option
   USE public_var,          ONLY : restart_date  ! restart date
   USE public_var,          ONLY : restart_month !
@@ -313,8 +317,10 @@ CONTAINS
   integer(i4b)                             :: ix
   type(time)                               :: rofCal
   type(time)                               :: simCal
+  type(time)                               :: tempCal
   real(dp)                                 :: convTime2Days
   real(dp)                                 :: restartJulday
+  real(dp)                                 :: tempJulday
   character(len=7)                         :: t_unit
   character(len=strLen)                    :: cmessage         ! error message of downwind routine
   character(len=50)                        :: fmt1='(a,I4,a,I2.2,a,I2.2,x,I2.2,a,I2.2,a,F5.2)'
@@ -404,7 +410,7 @@ CONTAINS
   ! initialize previous model time
   modTime(0) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
 
-  ! restart drop off time
+  ! restart time
   select case(trim(restart_write))
     case('last','Last')
       call process_calday(endJulday, calendar, restCal, ierr, cmessage)
@@ -416,11 +422,24 @@ CONTAINS
       end if
       call process_time(trim(restart_date),calendar, restartJulday, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartDate]'; return; endif
+      restartJulday = restartJulday - dt/secprday
       call process_calday(restartJulday, calendar, restCal, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartJulday]'; return; endif
       restart_month = restCal%im; restart_day = restCal%id; restart_hour = restCal%ih
     case('Annual','Monthly','Daily','annual','monthly','daily')
-      restCal = time(integerMissing, restart_month, restart_day, restart_hour, 0, 0._dp)
+      select case(trim(calendar))
+        case ('noleap','365_day')
+          call compjulday_noleap(1991,restart_month,restart_day,restart_hour, 0, 0._dp, tempJulday, ierr,cmessage)
+        case ('standard','gregorian','proleptic_gregorian')
+          call compjulday(1991, restart_month, restart_day, restart_hour, 0, 0._dp, tempJulday, ierr,cmessage)
+        case default; ierr=20; message=trim(message)//trim(calendar)//': calendar invalid; accept either noleap, 365_day, standard, gregorian, or proleptic_gregorian'; return
+      end select
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      tempJulday = tempJulday - dt/secprday
+      call process_calday(tempJulday, calendar, tempCal, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [tempJulday]'; return; endif
+      restCal = time(integerMissing, tempCal%im, tempCal%id, tempCal%ih, 0, 0._dp)
+      restart_month = restCal%im; restart_day = restCal%id; restart_hour = restCal%ih
     case('never','Never')
       restCal = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
     case default
