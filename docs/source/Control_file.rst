@@ -140,7 +140,7 @@ Restart options
 
 mizuRoute does not write restart netCDF as default. The following control variables are used to control restart dropoff timing and use restart file for continuous run from the previous simulations.
 The restart file is written at previous time step to the specified time. In other words, if ``Specified`` is used for <restart_write> and ``1981-01-01-00000`` is specified in <restart_date>, mizuRoute writes restart file
-at ``1980-12-31 00:00:00`` with restart file name use time stamp at user specified timing. ``Annual``, ``Monthly``, ``Daily`` options also follow This convention. 
+at ``1980-12-31 00:00:00`` for daily time step. The restart file name uses the time stamp at user specified timing. ``Annual``, ``Monthly``, ``Daily`` options also follow This convention. 
 
 The restart file name convension:  <case_name>.r.yyyy-mm-dd-sssss.nc 
 
