@@ -139,28 +139,29 @@ Restart options
 ---------------------
 
 mizuRoute does not write restart netCDF as default. The following control variables are used to control restart dropoff timing and use restart file for continuous run from the previous simulations.
-The restart file name includes a time stamp at next time step to the drop off time. For example, if drop off time is 1980-12-31 00:00:00 and the simulation use daily time step, time stamp is 1981-01-01-00000 
+The restart file is written at previous time step to the specified time. In other words, if ``Specified`` is used for <restart_write> and ``1981-01-01-00000`` is specified in <restart_date>, mizuRoute writes restart file
+at ``1980-12-31 00:00:00`` with restart file name use time stamp at user specified timing. ``Annual``, ``Monthly``, ``Daily`` options also follow This convention. 
 
 The restart file name convension:  <case_name>.r.yyyy-mm-dd-sssss.nc 
 
 
-+---------------------+--------------------------------------------------------------------------------------------------------+
-| tag                 | Description                                                                                            |
-+=====================+========================================================================================================+
-| <restart_dir>       | directory for restart files. defualt is <output_dir>                                                   | 
-+---------------------+--------------------------------------------------------------------------------------------------------+
-| <restart_write>     | restart ouput timing options. N[n]ever (default), L[l]ast, S[s]pecified, Annual, M[m]onthly, D[d]aily. | 
-+---------------------+--------------------------------------------------------------------------------------------------------+
-| <restart_date>      | restart dropoff time in yyyy-mm-dd (hh:mm:ss). required if <restart_write> = "Specified"               | 
-+---------------------+--------------------------------------------------------------------------------------------------------+
-| <restart_month>     | periodic restart dropoff month (default 1). Effective if <restart_write>="Annual"                      | 
-+---------------------+--------------------------------------------------------------------------------------------------------+
-| <restart_day>       | periodic restart dropoff day. default 1. effective  if <restart_write>="Annual" or "Monthly"           | 
-+---------------------+--------------------------------------------------------------------------------------------------------+
-| <restart_hour>      | periodic restart dropoff hour. default 0. effective if <restart_write>="Annual", "Monthly", or "Daily" | 
-+---------------------+--------------------------------------------------------------------------------------------------------+
-| <fname_state_in>    | input restart netCDF name. If not specified, simulation start with cold start                          | 
-+---------------------+--------------------------------------------------------------------------------------------------------+
++---------------------+---------------------------------------------------------------------------------------------------------+
+| tag                 | Description                                                                                             |
++=====================+=========================================================================================================+
+| <restart_dir>       | directory for restart files. defualt is <output_dir>                                                    | 
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <restart_write>     | restart ouput options. N[n]ever (default), L[l]ast, S[s]pecified, Annual, M[m]onthly, D[d]aily.         | 
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <restart_date>      | restart time in yyyy-mm-dd (hh:mm:ss). required if <restart_write> = "Specified"                        | 
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <restart_month>     | periodic restart month (default 1). Effective if <restart_write>="Annual"                               | 
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <restart_day>       | periodic restart day (default 1). Effective if <restart_write>="Annual" or "Monthly"                    | 
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <restart_hour>      | periodic restart hour (default 0). Effective if <restart_write>="Annual", "Monthly", or "Daily"         | 
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <fname_state_in>    | input restart netCDF name. If not specified, simulation start with cold start                           | 
++---------------------+---------------------------------------------------------------------------------------------------------+
 
 
 Output variables

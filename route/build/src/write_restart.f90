@@ -91,7 +91,7 @@ CONTAINS
     write(iulog,fmtYMDHMS) new_line('a'),'Write restart file at ', &
                            modTime(1)%iy,'-',modTime(1)%im, '-', modTime(1)%id, modTime(1)%ih,':',modTime(1)%imin,':',nint(modTime(1)%dsec)
 
-    call restart_fname(fnameRestart, currTimeStep, ierr, cmessage)
+    call restart_fname(fnameRestart, nextTimeStep, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! Define restart netCDF
