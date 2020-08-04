@@ -14,12 +14,12 @@ USE model_setup,         only : init_model       ! model setupt - reading contro
 USE model_setup,         only : init_data        ! initialize river reach data
 USE model_setup,         only : update_time      ! Update simulation time information at each time step
 ! subroutines: routing
-USE main_route_module,   only : main_route       !
+USE main_route_module,   only : main_route       ! main routing routine
 ! subroutines: model I/O
 USE get_runoff        ,  only : get_hru_runoff   !
 USE write_simoutput,     only : prep_output      !
 USE write_simoutput,     only : output           !
-USE write_restart,       only : output_state     ! write netcdf state output file
+USE write_restart,       only : main_restart     ! write netcdf restart file
 
 implicit none
 
@@ -68,11 +68,9 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 ! ***********************************
 do while (.not.finished)
 
-  ! prepare simulation output netCDF
   call prep_output(ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
 
-  ! Get river network hru runoff at current time step
 call system_clock(startTime)
   call get_hru_runoff(ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
@@ -94,14 +92,13 @@ call system_clock(endTime)
 elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 write(*,"(A,1PG15.7,A)") '   elapsed-time [output] = ', elapsedTime, ' s'
 
-  ! write state netCDF
-  call output_state(ierr, cmessage)
+  call main_restart(ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
 
   call update_time(finished, ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
 
-end do  ! looping through time
+end do
 
 stop
 

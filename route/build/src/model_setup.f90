@@ -274,9 +274,9 @@ CONTAINS
 
   ! subroutines:
   USE process_time_module, ONLY : process_time  ! process time information
-  USE process_time_module, ONLY : process_calday! compute data and time from julian day
-  USE time_utils_module,   ONLY : compjulday_noleap
-  USE time_utils_module,   ONLY : compjulday
+  USE process_time_module, ONLY : conv_julian2cal ! compute data and time from julian day
+  USE process_time_module, ONLY : conv_cal2julian ! compute data and time from julian day
+  USE time_utils_module,   ONLY : ndays_month     ! compute number of days in a month
   USE io_netcdf,           ONLY : get_nc        ! netcdf input
   ! derived datatype
   USE dataTypes,           ONLY : time          ! time data type
@@ -305,6 +305,7 @@ CONTAINS
   USE globalData,          ONLY : modJulday     ! julian day: at model time step
   USE globalData,          ONLY : modTime       ! model time data (yyyy:mm:dd:hh:mm:sec)
   USE globalData,          ONLY : restCal       ! restart time data (yyyy:mm:dd:hh:mm:sec)
+  USE globalData,          ONLY : dropCal       ! restart dropoff calendar date/time
 
   implicit none
 
@@ -317,7 +318,7 @@ CONTAINS
   integer(i4b)                             :: ix
   type(time)                               :: rofCal
   type(time)                               :: simCal
-  type(time)                               :: tempCal
+  integer(i4b)                             :: nDays          ! number of days in a month
   real(dp)                                 :: convTime2Days
   real(dp)                                 :: restartJulday
   real(dp)                                 :: tempJulday
@@ -369,8 +370,8 @@ CONTAINS
 
   ! check sim_start is before the last time step in runoff data
   if(startJulday>roJulday(nTime)) then
-    call process_calday(roJulday(nTime), calendar, rofCal, ierr, cmessage)
-    call process_calday(startJulday, calendar, simCal, ierr, cmessage)
+    call conv_julian2cal(roJulday(nTime), calendar, rofCal, ierr, cmessage)
+    call conv_julian2cal(startJulday, calendar, simCal, ierr, cmessage)
     write(iulog,'(2a)') new_line('a'),'ERROR: <sim_start> is after the first time step in input runoff'
     write(iulog,fmt1)  ' runoff_end  : ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
     write(iulog,fmt1)  ' <sim_start> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
@@ -379,8 +380,8 @@ CONTAINS
 
   ! Compare sim_start vs. time at first time step in runoff data
   if (startJulday < roJulday(1)) then
-    call process_calday(roJulday(1), calendar, rofCal, ierr, cmessage)
-    call process_calday(startJulday, calendar, simCal, ierr, cmessage)
+    call conv_julian2cal(roJulday(1), calendar, rofCal, ierr, cmessage)
+    call conv_julian2cal(startJulday, calendar, simCal, ierr, cmessage)
     write(iulog,'(2a)') new_line('a'),'WARNING: <sim_start> is before the first time step in input runoff'
     write(iulog,fmt1)  ' runoff_start: ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
     write(iulog,fmt1)  ' <sim_start> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
@@ -390,8 +391,8 @@ CONTAINS
 
   ! Compare sim_end vs. time at last time step in runoff data
   if (endJulday > roJulday(nTime)) then
-    call process_calday(roJulday(nTime), calendar, rofCal, ierr, cmessage)
-    call process_calday(endJulday,       calendar, simCal, ierr, cmessage)
+    call conv_julian2cal(roJulday(nTime), calendar, rofCal, ierr, cmessage)
+    call conv_julian2cal(endJulday,       calendar, simCal, ierr, cmessage)
     write(iulog,'(2a)')  new_line('a'),'WARNING: <sim_end> is after the last time step in input runoff'
     write(iulog,fmt1)   ' runoff_end: ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
     write(iulog,fmt1)   ' <sim_end> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
@@ -410,36 +411,44 @@ CONTAINS
   ! initialize previous model time
   modTime(0) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
 
-  ! restart time
+ ! Set restart calendar date/time and dropoff calendar date/time and
+ ! -- For periodic restart options  ---------------------------------------------------------------------
+ ! Ensure that user-input restart month, day are valid.
+ ! "Annual" option:  if user input day exceed number of days given user input month, set to last day
+ ! "Monthly" option: use 2000-01 as template calendar yr/month
+ ! "Daily" option:   use 2000-01-01 as template calendar yr/month/day
+ select case(trim(restart_write))
+   case('Annual','annual')
+     call ndays_month(2000, restart_month, calendar, nDays, ierr, cmessage)
+     if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
+     if (restart_day > nDays) restart_day=nDays
+   case('Monthly','monthly'); restart_month = 1
+   case('Daily','daily');     restart_month = 1; restart_day = 1
+ end select
+
   select case(trim(restart_write))
     case('last','Last')
-      call process_calday(endJulday, calendar, restCal, ierr, cmessage)
-      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endJulday]'; return; endif
-      restart_month = restCal%im; restart_day = restCal%id; restart_hour = restCal%ih
+      call conv_julian2cal(endJulday, calendar, dropCal, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endJulday->dropCal]'; return; endif
+      restart_month = dropCal%im; restart_day = dropCal%id; restart_hour = dropCal%ih
     case('specified','Specified')
       if (trim(restart_date) == charMissing) then
         ierr=20; message=trim(message)//'<restart_date> must be provided when <restart_write> option is "specified"'; return
       end if
       call process_time(trim(restart_date),calendar, restartJulday, ierr, cmessage)
-      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartDate]'; return; endif
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restart_date]'; return; endif
       restartJulday = restartJulday - dt/secprday
-      call process_calday(restartJulday, calendar, restCal, ierr, cmessage)
-      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartJulday]'; return; endif
-      restart_month = restCal%im; restart_day = restCal%id; restart_hour = restCal%ih
+      call conv_julian2cal(restartJulday, calendar, dropCal, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartJulday->dropCal]'; return; endif
+      restart_month = dropCal%im; restart_day = dropCal%id; restart_hour = dropCal%ih
     case('Annual','Monthly','Daily','annual','monthly','daily')
-      select case(trim(calendar))
-        case ('noleap','365_day')
-          call compjulday_noleap(1991,restart_month,restart_day,restart_hour, 0, 0._dp, tempJulday, ierr,cmessage)
-        case ('standard','gregorian','proleptic_gregorian')
-          call compjulday(1991, restart_month, restart_day, restart_hour, 0, 0._dp, tempJulday, ierr,cmessage)
-        case default; ierr=20; message=trim(message)//trim(calendar)//': calendar invalid; accept either noleap, 365_day, standard, gregorian, or proleptic_gregorian'; return
-      end select
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      restCal = time(2000, restart_month, restart_day, restart_hour, 0, 0._dp)
+      call conv_cal2julian(restCal, calendar, tempJulday, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [restCal->tempJulday]'; return; endif
       tempJulday = tempJulday - dt/secprday
-      call process_calday(tempJulday, calendar, tempCal, ierr, cmessage)
-      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [tempJulday]'; return; endif
-      restCal = time(integerMissing, tempCal%im, tempCal%id, tempCal%ih, 0, 0._dp)
-      restart_month = restCal%im; restart_day = restCal%id; restart_hour = restCal%ih
+      call conv_julian2cal(tempJulday, calendar, dropCal, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [tempJulday->dropCal]'; return; endif
+      restart_month = dropCal%im; restart_day = dropCal%id; restart_hour = dropCal%ih
     case('never','Never')
       restCal = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
     case default
