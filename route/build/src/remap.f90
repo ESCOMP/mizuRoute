@@ -263,12 +263,14 @@ module remapping
   ! public subroutine: assign runoff data in runoff layer to hru in river network layer
   ! ***************************************************************************************************************
   ! case 3: hru in runoff layer is hru polygon identical to river network layer (stored in 1-dimension array)
-  subroutine sort_runoff(runoff_data_in, basinRunoff, ierr, message)
+  subroutine sort_runoff(runoff_data_in,            &    ! runoff data strcuture for LSM or absration or injection
+                         basinRunoff,               &    ! basinRunoff or any other fluxes at river network
+                         ierr, message)
   implicit none
   ! input
   type(runoff)         , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
   ! output
-  real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
+  real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff, evaporation, preciptation, abstraction or injection
   integer(i4b)         , intent(out) :: ierr             ! error code
   character(len=strLen), intent(out) :: message          ! error message
   ! local

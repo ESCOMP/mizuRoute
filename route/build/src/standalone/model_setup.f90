@@ -110,40 +110,6 @@ CONTAINS
  END SUBROUTINE init_data
 
 
- ! ********************************************************************************
- ! public subroutine: initialize runoff, and runoff-mapping data - For stand-alone
- ! ********************************************************************************
- SUBROUTINE init_runoff_data(pid,           & ! input: proc id
-                             ierr, message)   ! output: error control
-
-   USE public_var, ONLY: is_remap             ! logical whether or not runnoff needs to be mapped to river network HRU
-   USE globalData, ONLY: remap_data           ! runoff mapping data structure
-   USE globalData, ONLY: runoff_data          ! runoff data structure
-
-   implicit none
-   ! input:
-   integer(i4b),              intent(in)    :: pid              ! proc id
-   ! output: error control
-   integer(i4b),              intent(out)   :: ierr             ! error code
-   character(*),              intent(out)   :: message          ! error message
-   ! local:
-   character(len=strLen)                    :: cmessage         ! error message of downwind routine
-
-   ! initialize error control
-   ierr=0; message='init_runoff_data/'
-
-   if (pid==0) then
-     ! runoff and remap data initialization (TO DO: split runoff and remap initialization)
-     call init_runoff(is_remap,        & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
-                      remap_data,      & ! output: data structure to remap data
-                      runoff_data,     & ! output: data structure for runoff
-                      ierr, cmessage)    ! output: error control
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   end if  ! if processor=0 (root)
-
- END SUBROUTINE init_runoff_data
-
-
  ! *********************************************************************
  ! public subroutine: initiate the reading of the netcdf files for runoff
  ! or abstraction or injection
@@ -566,7 +532,6 @@ CONTAINS
 
  END SUBROUTINE init_time
 
-
  ! *********************************************************************
  ! public subroutine: get the name of input file based on iTime, will be called
  ! in get_hru_runoff to ajust for file name given iTime
@@ -638,12 +603,50 @@ CONTAINS
 
  END SUBROUTINE infile_name
 
+
+ ! ********************************************************************************
+ ! public subroutine: initialize runoff, and runoff-mapping data - For stand-alone
+ ! ********************************************************************************
+ SUBROUTINE init_runoff_data(pid,           & ! input: proc id
+                             ierr, message)   ! output: error control
+
+   USE public_var, ONLY: is_remap             ! logical whether or not runnoff needs to be mapped to river network HRU
+   USE globalData, ONLY: remap_data           ! runoff mapping data structure
+   USE globalData, ONLY: runoff_data          ! runoff data structure
+   USE globalData, ONLY: AbsInj_data          ! abstraction injection data structure
+
+   implicit none
+   ! input:
+   integer(i4b),              intent(in)    :: pid              ! proc id
+   ! output: error control
+   integer(i4b),              intent(out)   :: ierr             ! error code
+   character(*),              intent(out)   :: message          ! error message
+   ! local:
+   character(len=strLen)                    :: cmessage         ! error message of downwind routine
+
+   ! initialize error control
+   ierr=0; message='init_runoff_data/'
+
+   if (pid==0) then
+     ! runoff and remap data initialization (TO DO: split runoff and remap initialization)
+     call init_runoff(is_remap,        & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
+                      remap_data,      & ! output: data structure to remap data
+                      runoff_data,     & ! output: data structure for runoff
+                      AbsInj_data,     & ! output: data structure for abstraction and injection and target volume
+                      ierr, cmessage)    ! output: error control
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if  ! if processor=0 (root)
+
+ END SUBROUTINE init_runoff_data
+
+
  ! *****
  ! private subroutine: get mapping data between runoff hru and river network hru
  ! *********************************************************************
  SUBROUTINE init_runoff(remap_flag,      & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
                         remap_data_in,   & ! output: data structure to remap data
                         runoff_data_in,  & ! output: data structure for runoff
+                        AbsInj_data_in,  & ! output: data strcuture for abstraction injection and target volume
                         ierr, message)     ! output: error control
 
  USE public_var,  ONLY: ancil_dir              ! name of the ancillary directory
@@ -668,6 +671,7 @@ CONTAINS
  USE public_var,  ONLY: fname_remap            ! name of runoff mapping netCDF name
  USE public_var,  ONLY: calendar               ! name of calendar
  USE public_var,  ONLY: time_units             ! time units
+ USE public_var,  ONLY: is_AbsInj              ! logical whether or not abstraction or injection should be read
  USE globalData,  ONLY: basinID                ! basin ID
  USE dataTypes,   ONLY: remap                  ! remapping data type
  USE dataTypes,   ONLY: runoff                 ! runoff data type
@@ -679,6 +683,7 @@ CONTAINS
  logical(lgt), intent(in)           :: remap_flag       ! logical whether or not runnoff needs to be mapped to river network HRU
  type(remap),  intent(out)          :: remap_data_in    ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
  type(runoff), intent(out)          :: runoff_data_in   ! runoff for one time step for all HRUs
+ type(runoff), intent(out)          :: AbsInj_data_in   ! abstraction/injection for one time step for all HRUs
  ! error control
  integer(i4b), intent(out)          :: ierr             ! error code
  character(*), intent(out)          :: message          ! error message
@@ -690,7 +695,7 @@ CONTAINS
  ! initialize error control
  ierr=0; message='init_runoff/'
 
- ! get runoff metadata
+ ! get runoff metadata for simulated runoff, evaporation and precipitation
  call read_runoff_metadata(trim(input_dir)//trim(fname_qsim),  & ! input: filename
                            vname_qsim,                         & ! input: varibale name for simulated runoff
                            vname_time,                         & ! input: varibale name for time
@@ -775,6 +780,36 @@ CONTAINS
    end if
 
  endif
+
+ ! is abstraction and injection flag is active
+ if (is_AbsInj) then
+
+   call read_runoff_metadata(trim(input_dir)//trim(fname_wm),    & ! input: filename
+                             vname_AbsInj,                       & ! input: varibale name for simulated runoff
+                             vname_time_wm,                      & ! input: varibale name for time
+                             dname_time_wm,                      & ! input: dimension of variable time
+                             vname_hruid_wm,                     & ! input: varibale hruid
+                             dname_hruid_wm,                     & ! input: dimension of varibale hru
+                             dname_ylat,                         & ! input: dimension of lat
+                             dname_xlon,                         & ! input: dimension of lon
+                             AbsInj_data_in,                     & ! output: runoff data structure
+                             time_units, calendar,               & ! output: number of time steps, time units, calendar
+                             ierr, cmessage)                       ! output: error control
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   !
+   allocate(AbsInj_data_in%hru_ix(size(AbsInj_data_in%hru_id)), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data_in%hru_ix'; return; endif
+
+   ! get indices of the HRU ids in the runoff file in the routing layer
+   call get_qix(AbsInj_data_in%hru_id,  &    ! input: vector of ids in mapping file
+                basinID,                &    ! input: vector of ids in the routing layer
+                AbsInj_data_in%hru_ix,  &    ! output: indices of hru ids in routing layer
+                ierr, cmessage)              ! output: error control
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  endif
+
 
  END SUBROUTINE init_runoff
 
