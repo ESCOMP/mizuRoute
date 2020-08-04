@@ -115,7 +115,9 @@ module globalData
   real(dp)        , allocatable  , public :: timeVar(:)           ! time variables (unit given by time variable)
   real(dp)                       , public :: TSEC(0:1)            ! begning and end of time step (sec)
   type(time)                     , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
-  type(time)                     , public :: restCal         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
+  type(time)                     , public :: restCal              ! desired restart date/time (yyyy:mm:dd:hh:mm:ss)
+  type(time)                     , public :: dropCal              ! restart dropoff date/time (yyyy:mm:dd:hh:mm:ss)
+  logical(lgt)                   , public :: restartAlarm         ! alarm to triger restart file writing
 
   ! simulation output netcdf
   type(nc)                       , public :: simout_nc
