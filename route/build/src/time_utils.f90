@@ -64,7 +64,7 @@ contains
  ! input
  integer(i4b),intent(in)           :: yr
  integer(i4b),intent(in)           :: mo
- character(len=strLen),intent(in)  :: calendar
+ character(*),intent(in)           :: calendar
  ! output
  integer(i4b)         ,intent(out) :: ndays     !
  integer(i4b),         intent(out) :: ierr         ! error code
