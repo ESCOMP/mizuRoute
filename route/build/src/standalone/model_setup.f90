@@ -624,16 +624,17 @@ CONTAINS
   endif
 
   print*, counter
-  ! check if the both iTime_local is read
-  if (counter /= 2) then
-    ierr=20; message=trim(message)//'iTime local is out of bound for the netcdf file inputs based on given simulation time'; return
-  endif
   print*, ierr
   print*, message
   print*, infileinfo_data_wm(1)%iTimebound(1)
   print*, infileinfo_data_wm(1)%iTimebound(2)
   print*, infileinfo_data(1)%iTimebound(1)
   print*, infileinfo_data(1)%iTimebound(2)
+  ! check if the both iTime_local is read
+  if (counter /= 2) then
+    ierr=20; message=trim(message)//'iTime local is out of bound for the netcdf file inputs based on given simulation time'; print*, ierr ; print*, message ; return ;
+  endif
+
 
  END SUBROUTINE infile_name
 
@@ -659,9 +660,9 @@ CONTAINS
 
  implicit none
  ! data structures
- logical(lgt),      intent(in)      :: remap_flag       ! logical whether or not runnoff needs to be mapped to river network HRU
- type(remap)  , intent(out)         :: remap_data_in    ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
- type(runoff) , intent(out)         :: runoff_data_in   ! runoff for one time step for all HRUs
+ logical(lgt), intent(in)           :: remap_flag       ! logical whether or not runnoff needs to be mapped to river network HRU
+ type(remap),  intent(out)          :: remap_data_in    ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
+ type(runoff), intent(out)          :: runoff_data_in   ! runoff for one time step for all HRUs
  ! error control
  integer(i4b), intent(out)          :: ierr             ! error code
  character(*), intent(out)          :: message          ! error message
