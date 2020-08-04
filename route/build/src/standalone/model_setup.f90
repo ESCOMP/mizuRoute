@@ -797,7 +797,7 @@ CONTAINS
                              ierr, cmessage)                       ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   !
+   ! allocate the hru_ix based on number of hru_id presented in the
    allocate(AbsInj_data_in%hru_ix(size(AbsInj_data_in%hru_id)), stat=ierr)
    if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data_in%hru_ix'; return; endif
 
