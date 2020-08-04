@@ -121,8 +121,7 @@ CONTAINS
  USE globalData,          only : modTime           ! previous and current model time
  USE globalData,          only : nEns, nHRU, nRch  ! number of ensembles, HRUs and river reaches
  ! subroutines
- USE time_utils_module,   only : compCalday        ! compute calendar day
- USE time_utils_module,   only : compCalday_noleap ! compute calendar day
+ USE process_time_module, ONLY : conv_julian2cal   ! compute data and time from julian day
 
  implicit none
 
@@ -136,37 +135,26 @@ CONTAINS
  logical(lgt)                    :: defnewoutputfile ! flag to define new output file
  character(len=50),parameter     :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
 
- ! initialize error control
  ierr=0; message='prep_output/'
 
-  ! get the time
-  select case(trim(calendar))
-   case('noleap')
-    call compCalday_noleap(modJulday,modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,ierr,cmessage)
-   case ('standard','gregorian','proleptic_gregorian')
-    call compCalday(modJulday,modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,ierr,cmessage)
-   case default;    ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
-  end select
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ ! get calendar date/time at current model time step from julian date
+ call conv_julian2cal(modJulday, calendar, modTime(1), ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! print progress
-  write(iulog,'(a,I4,4(x,I4))') new_line('a'), modTime(1)%iy, modTime(1)%im, modTime(1)%id, modTime(1)%ih, modTime(1)%imin
+ ! print progress
+ write(iulog,'(a,I4,4(x,I4))') new_line('a'), modTime(1)%iy, modTime(1)%im, modTime(1)%id, modTime(1)%ih, modTime(1)%imin
 
-  ! *****
-  ! *** Define model output file...
-  ! *******************************
-
-  ! check need for the new file
-  select case(trim(newFileFrequency))
+ ! check need for the new file
+ select case(trim(newFileFrequency))
    case('single'); defNewOutputFile=(modTime(0)%iy==integerMissing)
    case('annual'); defNewOutputFile=(modTime(1)%iy/=modTime(0)%iy)
    case('month');  defNewOutputFile=(modTime(1)%im/=modTime(0)%im)
    case('day');    defNewOutputFile=(modTime(1)%id/=modTime(0)%id)
    case default; ierr=20; message=trim(message)//'unable to identify the option to define new output files'; return
-  end select
+ end select
 
-  ! define new file
-  if(defNewOutputFile)then
+ ! define new file
+ if(defNewOutputFile)then
 
    if (simout_nc%status == 2) then
      call close_nc(simout_nc%ncid, ierr, cmessage)
@@ -183,7 +171,7 @@ CONTAINS
    sec_in_day = modTime(1)%ih*60*60+modTime(1)%imin*60+nint(modTime(1)%dsec)
    write(simout_nc%ncname, fmtYMDS) trim(output_dir)//trim(case_name)//'.h.', &
                                      modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '-',sec_in_day,'.nc'
-   ! define output file
+
    call defineFile(simout_nc%ncname,                      &  ! input: file name
                    nEns,                                  &  ! input: number of ensembles
                    nHRU,                                  &  ! input: number of HRUs
@@ -198,22 +186,20 @@ CONTAINS
 
    simout_nc%status = 2
 
-   ! define basin ID
    call write_nc(simout_nc%ncid, 'basinID', int(basinID,kind(i4b)), (/1/), (/nHRU/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! define reach ID
    call write_nc(simout_nc%ncid, 'reachID', reachID, (/1/), (/nRch/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! no new file requested: increment time
-  else
+ else
 
    jTime = jTime+1
 
-  endif
+ endif
 
-  modTime(0) = modTime(1)
+ modTime(0) = modTime(1)
 
  END SUBROUTINE prep_output
 
@@ -323,15 +309,12 @@ CONTAINS
 
  end do
 
- ! put global attribute
  call put_global_attr(ncid, 'version', trim(mizuRouteVersion) ,ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! end definitions
  call end_def(ncid, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! close NetCDF file
  call close_nc(ncid, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
