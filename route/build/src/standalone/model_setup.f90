@@ -648,7 +648,23 @@ CONTAINS
 
  USE public_var,  ONLY: ancil_dir              ! name of the ancillary directory
  USE public_var,  ONLY: input_dir              ! name of the runoff input directory
- USE public_var,  ONLY: fname_qsim             ! name of simulated runoff netCDF
+ USE public_var,  ONLY: fname_qsim             ! name of simulated runoff file
+ USE public_var,  ONLY: vname_qsim             ! name of simulated runoff varibale
+ USE public_var,  ONLY: vname_evapo            ! name of simulated evaporation varibale
+ USE public_var,  ONLY: vname_precip           ! name of simulated precipitation varibale
+ USE public_var,  ONLY: vname_hruid            ! name of name of varibale hruid
+ USE public_var,  ONLY: vname_time             ! name of varibale time
+ USE public_var,  ONLY: dname_time             ! name of dimension for variable time
+ USE public_var,  ONLY: dname_hruid            ! name of dimension for varibale hruid
+ USE public_var,  ONLY: dname_xlon             ! name of dimension for lon
+ USE public_var,  ONLY: dname_ylat             ! name of dimension for lat
+ USE public_var,  ONLY: fname_wm               ! name of abstraction/injection file name
+ USE public_var,  ONLY: vname_AbsInj           ! name of varibale abstraction/injection
+ USE public_var,  ONLY: vname_TargVol          ! name of varibale target volume
+ USE public_var,  ONLY: vname_time_wm          ! name of varibale time for abstraction/injection
+ USE public_var,  ONLY: vname_hruid_wm         ! name of varibale river network hruid for abs/inj
+ USE public_var,  ONLY: dname_time_wm          ! name of dimension time for ans/inj
+ USE public_var,  ONLY: dname_hruid_wm         ! name of dimension hruid
  USE public_var,  ONLY: fname_remap            ! name of runoff mapping netCDF name
  USE public_var,  ONLY: calendar               ! name of calendar
  USE public_var,  ONLY: time_units             ! time units
@@ -675,10 +691,17 @@ CONTAINS
  ierr=0; message='init_runoff/'
 
  ! get runoff metadata
- call read_runoff_metadata(trim(input_dir)//trim(fname_qsim), & ! input: filename
-                          runoff_data_in,                     & ! output: runoff data structure
-                          time_units, calendar,               & ! output: number of time steps, time units, calendar
-                          ierr, cmessage)                       ! output: error control
+ call read_runoff_metadata(trim(input_dir)//trim(fname_qsim),  & ! input: filename
+                           vname_qsim,                         & ! input: varibale name for simulated runoff
+                           vname_time,                         & ! input: varibale name for time
+                           dname_time,                         & ! input: dimension of variable time
+                           vname_hruid,                        & ! input: varibale hruid
+                           dname_hruid,                        & ! input: dimension of varibale hru
+                           dname_ylat,                         & ! input: dimension of lat
+                           dname_xlon,                         & ! input: dimension of lon
+                           runoff_data_in,                     & ! output: runoff data structure
+                           time_units, calendar,               & ! output: number of time steps, time units, calendar
+                           ierr, cmessage)                       ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  !write(*,*) 'runoff_data_in%nSpace, nTime, trim(time_units) = ', runoff_data_in%nSpace(:), runoff_data_in%nTime, trim(time_units)

@@ -22,21 +22,21 @@ contains
  ! public subroutine: get runoff  metadata...
  ! ******************************************
  subroutine read_runoff_metadata(&
-                                ! input
-                                fname          , &  ! filename including directory
-                                var_name       , &  ! varibale name
-                                var_time_name  , &  ! name of varibale time
-                                dim_time_name  , &  ! name of dimension time
-                                var_hru_name   , &  ! name of varibale HRUs
-                                dim_hru_name   , &  ! name of dimension HRUs
-                                dim_ylat_name  , &  ! name of dimension lat in case of a 2D input varibale
-                                dim_xlon_name  , &  ! name of dimension lon in case of a 2D input varibale
-                                ! output
-                                runoff_data_in , &  ! runoff data structure
-                                timeUnits      , &  ! time units
-                                calendar       , &  ! calendar
-                                ! error control
-                                ierr, message)      ! output: error control
+                                 ! input
+                                 fname          , & ! filename including directory
+                                 var_name       , & ! varibale name
+                                 var_time_name  , & ! name of varibale time
+                                 dim_time_name  , & ! name of dimension time
+                                 var_hru_name   , & ! name of varibale HRUs
+                                 dim_hru_name   , & ! name of dimension HRUs
+                                 dim_ylat_name  , & ! name of dimension lat in case of a 2D input varibale
+                                 dim_xlon_name  , & ! name of dimension lon in case of a 2D input varibale
+                                 ! output
+                                 runoff_data_in , & ! runoff data structure
+                                 timeUnits      , & ! time units
+                                 calendar       , & ! calendar
+                                 ! error control
+                                 ierr, message)     ! output: error control
  implicit none
  ! input variables
  character(*), intent(in)        :: fname           ! filename
@@ -76,20 +76,20 @@ contains
 
  ! get runoff metadata
  select case( nDims )
-  case(2); call read_1D_runoff_metadata(fname,            &
-                                        var_time_name,    &
-                                        dim_time_name,    &
-                                        var_hru_name,     &
-                                        dim_hru_name,     &
+  case(2); call read_1D_runoff_metadata(fname,            & ! name of dile including its directory
+                                        var_time_name,    & ! name of varibale time
+                                        dim_time_name,    & ! dimension of varibale time
+                                        var_hru_name,     & ! name of varibale hrus
+                                        dim_hru_name,     & ! dimension of varibales hrus
                                         runoff_data_in,   &
                                         timeUnits,        &
                                         calendar,         &
                                         ierr, cmessage)
-  case(3); call read_2D_runoff_metadata(fname,            &
-                                        var_time_name,    &
-                                        dim_time_name,    &
-                                        dim_ylat_name,    &
-                                        dim_xlon_name,    &
+  case(3); call read_2D_runoff_metadata(fname,            & ! name of file including its directory
+                                        var_time_name,    & ! name of varibale time
+                                        dim_time_name,    & ! dimension of varibale time
+                                        dim_ylat_name,    & ! dimesnion of lat
+                                        dim_xlon_name,    & ! dimension of lon
                                         runoff_data_in,   &
                                         timeUnits,        &
                                         calendar,         &
@@ -118,20 +118,20 @@ contains
                                    ierr, message)     ! output: error control
  implicit none
  ! input variables
- character(*), intent(in)                :: fname           ! filename
- character(*), intent(in)                :: var_time_name   ! name of the varibale time
- character(*), intent(in)                :: dim_time_name   ! name of dimension for time
- character(*), intent(in)                :: var_hru_name    ! name of the varibale hru
- character(*), intent(in)                :: dim_hru_name    ! name of dimension for hydrological HRUs
+ character(*), intent(in)          :: fname           ! filename
+ character(*), intent(in)          :: var_time_name   ! name of the varibale time
+ character(*), intent(in)          :: dim_time_name   ! name of dimension for time
+ character(*), intent(in)          :: var_hru_name    ! name of the varibale hru
+ character(*), intent(in)          :: dim_hru_name    ! name of dimension for hydrological HRUs
  ! output variables
- type(runoff), intent(out)               :: runoff_data_in  ! runoff for one time step for all HRUs
- character(*), intent(out)               :: timeUnits       ! time units
- character(*), intent(out)               :: calendar        ! calendar
+ type(runoff), intent(out)         :: runoff_data_in  ! runoff for one time step for all HRUs
+ character(*), intent(out)         :: timeUnits       ! time units
+ character(*), intent(out)         :: calendar        ! calendar
  ! error control
- integer(i4b), intent(out)               :: ierr            ! error code
- character(*), intent(out)               :: message         ! error message
+ integer(i4b), intent(out)         :: ierr            ! error code
+ character(*), intent(out)         :: message         ! error message
  ! local variables
- character(len=strLen)                   :: cmessage        ! error message from subroutine
+ character(len=strLen)             :: cmessage        ! error message from subroutine
  ! initialize error control
  ierr=0; message='read_1D_runoff_metadata/'
 
@@ -189,20 +189,20 @@ contains
                                     ierr, message)     ! output: error control
  implicit none
  ! input variables
- character(*), intent(in)                :: fname           ! filename
- character(*), intent(in)                :: var_time_name   ! name of the varibale time
- character(*), intent(in)                :: dim_time_name   ! name of dimension for time
- character(*), intent(in)                :: dim_ylat_name   ! name of dimension along lat
- character(*), intent(in)                :: dim_xlon_name   ! name of dimension along lon
+ character(*), intent(in)           :: fname           ! filename
+ character(*), intent(in)           :: var_time_name   ! name of the varibale time
+ character(*), intent(in)           :: dim_time_name   ! name of dimension for time
+ character(*), intent(in)           :: dim_ylat_name   ! name of dimension along lat
+ character(*), intent(in)           :: dim_xlon_name   ! name of dimension along lon
  ! output variables
- type(runoff), intent(out)               :: runoff_data_in  ! runoff for one time step for all HRUs
- character(*), intent(out)               :: timeUnits       ! time units
- character(*), intent(out)               :: calendar        ! calendar
+ type(runoff), intent(out)          :: runoff_data_in  ! runoff for one time step for all HRUs
+ character(*), intent(out)          :: timeUnits       ! time units
+ character(*), intent(out)          :: calendar        ! calendar
  ! error control
- integer(i4b), intent(out)               :: ierr            ! error code
- character(*), intent(out)               :: message         ! error message
+ integer(i4b), intent(out)          :: ierr            ! error code
+ character(*), intent(out)          :: message         ! error message
  ! local variables
- character(len=strLen)                   :: cmessage        ! error message from subroutine
+ character(len=strLen)              :: cmessage        ! error message from subroutine
  ! initialize error control
  ierr=0; message='read_2D_runoff_metadata/'
 
