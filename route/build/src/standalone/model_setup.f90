@@ -206,9 +206,9 @@ CONTAINS
   type(infileinfo),     intent(inout), allocatable :: inputfileinfo(:)    ! the name of structure that hold the infile information
 
   ! output
-  !type(infileinfo),     intent(out) , allocatable   :: inputfileinfo    ! the name of structure that hold the infile information
-  integer(i4b),         intent(out)                 :: ierr             ! error code
-  character(*),         intent(out)                 :: message          ! error message
+  !type(infileinfo),    intent(out)  , allocatable :: inputfileinfo    ! the name of structure that hold the infile information
+  integer(i4b),         intent(out)                :: ierr             ! error code
+  character(*),         intent(out)                :: message          ! error message
 
   ! local varibales
   integer(i4b)                         :: unit             ! file unit (free unit output from file_open)
@@ -672,6 +672,7 @@ CONTAINS
  USE public_var,  ONLY: calendar               ! name of calendar
  USE public_var,  ONLY: time_units             ! time units
  USE public_var,  ONLY: is_AbsInj              ! logical whether or not abstraction or injection should be read
+ USE public_var,  ONLY: is_TargVol             ! logical whether or not target volume should be read
  USE globalData,  ONLY: basinID                ! basin ID
  USE dataTypes,   ONLY: remap                  ! remapping data type
  USE dataTypes,   ONLY: runoff                 ! runoff data type
@@ -782,7 +783,7 @@ CONTAINS
  endif
 
  ! is abstraction and injection flag is active
- if (is_AbsInj) then
+ if ((is_AbsInj).or.(is_TargVol)) then
 
    call read_runoff_metadata(trim(input_dir)//trim(fname_wm),    & ! input: filename
                              vname_AbsInj,                       & ! input: varibale name for simulated runoff
