@@ -104,14 +104,12 @@ CONTAINS
    case('<ancil_dir>');            ancil_dir   = trim(cData)                       ! directory containing ancillary data
    case('<input_dir>');            input_dir   = trim(cData)                       ! directory containing input data
    case('<output_dir>');           output_dir  = trim(cData)                       ! directory containing output data
+   case('<restart_dir>');          restart_dir = trim(cData)                       ! directory for restart output (netCDF)
    ! RUN CONTROL
    case('<case_name>');            case_name   = trim(cData)                       ! name of simulation. used as head of model output and restart file
    case('<sim_start>');            simStart    = trim(cData)                       ! date string defining the start of the simulation
    case('<sim_end>');              simEnd      = trim(cData)                       ! date string defining the end of the simulation
    case('<newFileFrequency>');     newFileFrequency = trim(cData)                  ! frequency for new output files (day, month, annual, single)
-   case('<restart_write>');        restart_write        = trim(cData)              ! restart write option: N[n]ever, L[l]ast
-   case('<restart_date>');         restart_date         = trim(cData)              ! specified restart date, yyyy-mm-dd (hh:mm:ss)
-   case('<fname_state_in>');       fname_state_in  = trim(cData)                   ! filename for the channel states
    case('<route_opt>');            read(cData,*,iostat=io_error) routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
    case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute    ! basin routing options   0-> no, 1->IRF, otherwise error
    case('<doesAccumRunoff>');      read(cData,*,iostat=io_error) doesAccumRunoff   ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
@@ -149,6 +147,13 @@ CONTAINS
    case('<vname_j_index>');        vname_j_index        = trim(cData)              ! name of variable containing index of ylat dimension in runoff grid (if runoff file is grid)
    case('<dname_hru_remap>');      dname_hru_remap      = trim(cData)              ! name of dimension of river network HRU ID
    case('<dname_data_remap>');     dname_data_remap     = trim(cData)              ! name of dimension of runoff HRU overlapping with river network HRU
+   ! RESTART
+   case('<restart_write>');        restart_write        = trim(cData)              ! restart write option: N[n]ever, L[l]ast, S[s]pecified, Monthly, Daily
+   case('<restart_date>');         restart_date         = trim(cData)              ! specified restart date, yyyy-mm-dd (hh:mm:ss) for Specified option
+   case('<restart_month>');        read(cData,*,iostat=io_error) restart_month     ! restart periodic month
+   case('<restart_day>');          read(cData,*,iostat=io_error) restart_day       ! restart periodic day
+   case('<restart_hour>');         read(cData,*,iostat=io_error) restart_hour      ! restart periodic hour
+   case('<fname_state_in>');       fname_state_in       = trim(cData)              ! filename for the channel states
    ! SPATIAL CONSTANT PARAMETERS
    case('<param_nml>');            param_nml       = trim(cData)                   ! name of namelist including routing parameter value
    ! USER OPTIONS: Define options to include/skip calculations
@@ -229,6 +234,11 @@ CONTAINS
   endif
 
  end do  ! looping through lines in the control file
+
+ ! ---------- directory option  ---------------------------------------------------------------------
+ if (trim(restart_dir)==charMissing) then
+   restart_dir = output_dir
+ endif
 
  ! ---------- control river network writing option  ---------------------------------------------------------------------
  ! Case1- river network subset mode (idSegOut>0):  Write the network variables read from file over only upstream network specified idSegOut
