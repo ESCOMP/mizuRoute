@@ -1,8 +1,8 @@
 MODULE init_model_data
 
 ! data types
-USE nrtype,    ONLY: i4b,dp,lgt          ! variable types, etc.
-USE nrtype,    ONLY: strLen              ! length of characters
+USE nrtype,    ONLY: i4b,dp,lgt
+USE nrtype,    ONLY: strLen
 USE dataTypes, ONLY: var_ilength         ! integer type:          var(:)%dat
 USE dataTypes, ONLY: var_clength         ! integer type:          var(:)%dat
 USE dataTypes, ONLY: var_dlength         ! double precision type: var(:)%dat, or dat
@@ -12,7 +12,7 @@ USE var_lookup, ONLY: ixHRU2SEG          ! index of variables for data structure
 USE var_lookup, ONLY: ixPFAF             ! index of variables for the pfafstetter code
 
 ! Shared data
-USE public_var, ONLY: iulog              ! i/o logical unit number
+USE public_var, ONLY: iulog
 USE public_var, ONLY: verySmall
 USE public_var, ONLY: integerMissing
 USE public_var, ONLY: realMissing
@@ -60,7 +60,6 @@ CONTAINS
   character(len=strLen)      :: message             ! error message
   integer(i4b)               :: omp_get_num_threads ! number of threads used for openMP
 
-  ! initialize error control
   message='get_mpi_omp/'
 
   ! Get the number of processes
@@ -115,18 +114,14 @@ CONTAINS
   ! local variables
   character(len=strLen)       :: cmessage          ! error message of downwind routine
 
-  ! initialize error control
   ierr=0; message='init_model/'
 
-  ! populate the metadata files
   call popMetadat(ierr,cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! read the control file
   call read_control(trim(cfile_name), ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! read the routing parameter namelist
   call read_param(trim(ancil_dir)//trim(param_nml),ierr,cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -172,7 +167,6 @@ CONTAINS
    integer(i4b),              intent(out)   :: ierr             ! error code
    character(*),              intent(out)   :: message          ! error message
    ! local variable
-   ! river network data structures for the entire domain
    type(var_dlength), allocatable           :: structHRU(:)     ! HRU properties
    type(var_dlength), allocatable           :: structSeg(:)     ! stream segment properties
    type(var_ilength), allocatable           :: structHRU2SEG(:) ! HRU-to-segment mapping
@@ -182,7 +176,6 @@ CONTAINS
    integer(i4b)                             :: iHRU, iRch       ! loop index
    character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
-   ! initialize error control
    ierr=0; message='init_ntopo_data/'
 
    ! populate various river network data strucutures for each proc
@@ -219,7 +212,7 @@ CONTAINS
 
    if (multiProcs) then
 
-     ! spatial domain decomposition for MPI parallelization
+     ! spatial domain decomposition and distribution for MPI parallelization
      if (masterproc) then
        call mpi_domain_decomposition(nNodes, nRch,               & ! input:
                                      structNTOPO, structHRU2SEG, & ! input:  input data structures
@@ -228,7 +221,6 @@ CONTAINS
        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
      end if
 
-     ! distribute network topology data and network parameters to the different processors
      call comm_ntopo_data(pid, nNodes, comm,                                    & ! input: proc id, # of procs and commnicator
                           nRch, nHRU,                                           & ! input: number of reach and HRUs that contribut to any reaches
                           structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
@@ -237,7 +229,6 @@ CONTAINS
 
    else
 
-     ! Count a number of contributory HRUs
      nContribHRU = 0
      do iRch = 1, nRch
        nContribHRU = nContribHRU + structNTOPO(iRch)%var(ixNTOPO%nHRU)%dat(1)
@@ -284,7 +275,6 @@ CONTAINS
    integer(i4b),              intent(out)   :: ierr             ! error code
    character(*),              intent(out)   :: message          ! error message
 
-   ! initialize error control
    ierr=0; message='update_time/'
 
    if (abs(modJulday-endJulday)<verySmall) then
@@ -292,14 +282,12 @@ CONTAINS
      finished=.true.;return
    endif
 
-   ! update model time step bound
+   ! update model time step bound,  time index and julian day
    TSEC(0) = TSEC(0) + dt
    TSEC(1) = TSEC(0) + dt
 
-   ! update time index
    iTime=iTime+1
 
-   ! update the julian day of the model simulation
    modJulday = roJulday(iTime)
 
  END SUBROUTINE update_time
@@ -342,7 +330,6 @@ CONTAINS
   integer(i4b)                     :: ix               ! loop index
   character(len=strLen)            :: cmessage         ! error message of downwind routine
 
-  ! initialize error control
   ierr=0; message='init_state_data/'
 
   iens = 1_i4b
@@ -461,7 +448,6 @@ CONTAINS
   integer(i4b)   , parameter                  :: maxUpstreamFile=10000000 ! 10 million: maximum number of upstream reaches to enable writing
   character(len=strLen)                       :: cmessage                 ! error message of downwind routine
 
-  ! initialize error control
   ierr=0; message='init_ntopo/'
 
   ! get the variable dimensions
@@ -473,7 +459,6 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   maxPfafLen = dummy(1)
 
-  ! read river network data
   call getData(&
                ! input
                trim(ancil_dir)//trim(fname_ntopOld), & ! input: file name
@@ -495,7 +480,6 @@ CONTAINS
   call check_river_properties(structNTOPO, structHRU, structSEG, ierr, cmessage) ! input: data structure for physical river network data
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! compute additional network attributes
   call augment_ntopo(&
                      ! input: model control
                      nHRU_out,                         & ! number of HRUs
@@ -525,10 +509,8 @@ CONTAINS
     !        --> users can modify the hard-coded parameter "maxUpstreamFile" if desired
     if(tot_upstream > maxUpstreamFile) tot_upstream=0
 
-    ! remove file if it exists
     call system('rm -f '//trim(ancil_dir)//trim(fname_ntopNew))
 
-    ! write data
     call writeData(&
                    ! input
                    trim(ancil_dir)//trim(fname_ntopNew), & ! input: file name
@@ -598,7 +580,6 @@ CONTAINS
   nRch_tmp = size(structNTOPO)
   nHRU_tmp = size(structHRU2SEG)
 
-  ! allocate local and global indices
   allocate(rch_per_proc(-1:0), hru_per_proc(-1:0), stat=ierr, errmsg=cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -622,7 +603,6 @@ CONTAINS
     ixHRU_order(iHRU) = structHRU2SEG(iHRU)%var(ixHRU2SEG%HRUindex)%dat(1)
   end do
 
-  ! OMP domain decomposition
   call omp_domain_decomposition(stream_order, rch_per_proc(-1), structNTOPO, river_basin_main, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 

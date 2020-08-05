@@ -42,7 +42,7 @@ contains
  ! local variables
  type(time)                      :: timeStruct       ! time data structure
  character(len=strLen)           :: cmessage         ! error message of downwind routine
- ! initialize error control
+
  ierr=0; message='process_time/'
 
  ! extract time from the units string
@@ -82,7 +82,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------
  ! local variables
  character(len=strLen)           :: cmessage         ! error message of downwind routine
- ! initialize error control
+
  ierr=0; message='process_calday/'
 
  ! calculate the julian day for the start time

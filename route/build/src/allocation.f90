@@ -74,7 +74,6 @@ contains
  integer(i4b)                                   :: iVar         ! variable index
  logical(lgt)                                   :: isDimScalar  ! .true. if the dimension is a scalar
 
- ! initialize error control
  ierr=0; message='alloct_struc/'
 
  ! ---------- allocate space for higher-level structure components -------------------------------------------------

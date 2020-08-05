@@ -1,4 +1,4 @@
-module read_control_module
+MODULE read_control_module
 
 USE nrtype
 USE public_var
@@ -8,17 +8,16 @@ implicit none
 ! privacy
 private
 public::read_control
-contains
+
+CONTAINS
 
  ! =======================================================================================================
  ! * new subroutine: read the control file
  ! =======================================================================================================
  ! read the control file
- subroutine read_control(ctl_fname, err, message)
+ SUBROUTINE read_control(ctl_fname, err, message)
 
- ! data types
  USE nrtype                                  ! variable types, etc.
-
  ! global vars
  USE globalData, ONLY: time_conv,length_conv  ! conversion factors
 
@@ -61,7 +60,7 @@ contains
  integer(i4b)                      :: iunit          ! file unit
  integer(i4b)                      :: io_error       ! error in I/O
  character(len=strLen)             :: cmessage       ! error message from subroutine
- ! initialize error control
+
  err=0; message='read_control/'
 
  ! *** get a list of character strings from non-comment lines ****
@@ -73,13 +72,13 @@ contains
  call get_vlines(iunit,cLines,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage);return;endif
 
- ! close the file unit
  close(iunit)
 
- ! loop through the non-comment lines in the input file, and extract the name and the information
  if (masterproc) then
    write(iulog,'(2a)') new_line('a'), '---- read control file --- '
  end if
+
+ ! loop through the non-comment lines in the input file, and extract the name and the information
  do iLine=1,size(cLines)
 
    ! initialize io_error
@@ -291,6 +290,6 @@ contains
    err=81; return
  end select
 
- end subroutine read_control
+ END SUBROUTINE read_control
 
-end module read_control_module
+END MODULE read_control_module

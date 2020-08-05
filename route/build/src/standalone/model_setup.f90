@@ -23,7 +23,6 @@ implicit none
 private
 public :: init_mpi
 public :: init_data
-public :: infile_name
 
 CONTAINS
 
@@ -425,45 +424,6 @@ CONTAINS
  END SUBROUTINE init_time
 
 
- ! *********************************************************************
- ! public subroutine: get the name of input file based on iTime, will be called
- ! in get_hru_runoff to ajust for file name given iTime
- ! *********************************************************************
- SUBROUTINE infile_name(ierr, message)  ! output
-
-  ! subroutines:
-  USE process_time_module, ONLY: process_time  ! process time information
-  USE io_netcdf,           ONLY: get_nc        ! netcdf input
-  ! derived datatype
-  USE dataTypes, ONLY: time           ! time data type
-  ! Shared data
-  USE public_var, ONLY: fname_qsim     ! simulated runoff netCDF name
-  USE globalData, ONLY: iTime           ! time index at simulation time step
-  USE globalData, ONLY: infileinfo_data ! the information of the input files
-  USE globalData, ONLY: iTime_local     ! iTime index for the given netcdf file
-
-  implicit none
-
-  ! output:
-  integer(i4b),              intent(out)   :: ierr             ! error code
-  character(*),              intent(out)   :: message          ! error message
-  ! local variable
-  integer(i4b)                             :: ix
-  !character(len=strLen)                    :: cmessage         ! error message of downwind routine
-
-  ! initialize error control
-  ierr=0; message='infile_name/'
-
-  ! fast forward time to time index at simStart and save iTime and modJulday
-  ixloop: do ix = 1, size(infileinfo_data) !loop over number of file
-   if ((iTime >= infileinfo_data(ix)%iTimebound(1)).and.(iTime <= infileinfo_data(ix)%iTimebound(2))) then
-    iTime_local = iTime - infileinfo_data(ix)%iTimebound(1) + 1
-    fname_qsim = trim(infileinfo_data(ix)%infilename)
-    exit ixloop
-   endif
-  enddo ixloop
-
- END SUBROUTINE infile_name
 
  ! *****
  ! private subroutine: get mapping data between runoff hru and river network hru
