@@ -34,6 +34,7 @@ contains
   USE globalData,  only:iTime_local_wm          ! iTime index for the given netcdf file
   USE globalData,  only:nHRU                    ! number of routing sub-basin
   USE globalData,  only:runoff_data             ! data structure to hru runoff data
+  USE globalData,  only:AbsInj_data             ! data structure to hru abstraction/injection data
   USE globalData,  only:remap_data              ! data structure to remap data
   ! subroutines
   USE read_runoff, only:read_runoff_data        ! read runoff value into runoff_data data strucuture
@@ -135,6 +136,30 @@ contains
     call sort_runoff(runoff_data, runoff_data%basinPrecip, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
+  end if
+
+  if (is_AbsInj) then     ! if either of abstraction injection or target volume is activated
+   ! initialize runoff_data%AbsInj
+   if ( allocated(runoff_data%AbsInj) ) then
+    deallocate(runoff_data%AbsInj, stat=ierr)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
+   allocate(runoff_data%AbsInj(nHRU), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   call sort_runoff(AbsInj_data, runoff_data%AbsInj, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  if ((is_TargVol).and.(is_lake_sim)) then     ! if there is target volume assigned for the lakes
+   ! initialize runoff_data%lakeTargVol
+   if ( allocated(runoff_data%lakeTargVol) ) then
+    deallocate(runoff_data%lakeTargVol, stat=ierr)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
+   allocate(runoff_data%lakeTargVol(nHRU), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   call sort_runoff(AbsInj_data, runoff_data%lakeTargVol, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if
 
 print*, runoff_data%hru_ix(:)

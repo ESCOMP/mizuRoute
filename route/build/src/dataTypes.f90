@@ -172,6 +172,8 @@ implicit none
    real(dp)                 , allocatable  :: basinRunoff(:)! remapped river network catchment runoff (size: number of nHRU)
    real(dp)                 , allocatable  :: basinEvapo(:) ! remapped river network catchment runoff (size: number of nHRU)
    real(dp)                 , allocatable  :: basinPrecip(:)! remapped river network catchment runoff (size: number of nHRU)
+   real(dp)                 , allocatable  :: AbsInj(:)     ! river network catchment anstraction or injection (size: number of nHRU)
+   real(dp)                 , allocatable  :: lakeTargVol(:)! lake target volume (size: number of nHRU)
  end type runoff
 
  ! ---------- reach parameters ----------------------------------------------------------------------------
