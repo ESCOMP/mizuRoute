@@ -32,7 +32,7 @@ USE mpi_routine,         ONLY: mpi_route        ! Distribute runoff to proc, rou
 USE get_runoff,          ONLY: get_hru_runoff   !
 USE write_simoutput_pio, ONLY: prep_output      !
 USE write_simoutput_pio, ONLY: output           !
-USE write_restart_pio,   ONLY: output_state     ! write netcdf state output file
+USE write_restart_pio,   ONLY: main_restart     ! write netcdf state output file
 
 implicit none
 
@@ -100,7 +100,7 @@ do while (.not.finished)
   if(ierr/=0) call handle_err(ierr, cmessage)
   call t_stopf ('output')
 
-  call output_state(ierr, cmessage)
+  call main_restart(ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
 
   call update_time(finished, ierr, cmessage)
