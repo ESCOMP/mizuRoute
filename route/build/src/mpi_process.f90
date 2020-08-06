@@ -163,7 +163,7 @@ contains
   integer(i4b)                                :: iUps                      ! immediate upstream loop indices
   integer(i4b),     allocatable               :: jUps(:)                   ! immediate upstream loop indices
   ! miscellaneous
-  integer(i4b), allocatable                   :: seq_array(:)
+  integer(i4b),     allocatable               :: seq_array(:)
   integer(i4b)                                :: nUps
   integer(i4b)                                :: iSeg,iHru                 ! reach and hru loop indices
   integer(i4b)                                :: ix1, ix2

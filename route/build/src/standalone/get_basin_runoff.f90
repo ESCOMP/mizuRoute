@@ -139,12 +139,23 @@ contains
   end if
 
   if (is_AbsInj) then     ! if either of abstraction injection or target volume is activated
+
+   ! get the precepitation - runoff_data%sim(:) or %sim2D(:,:)
+   call read_runoff_data(trim(input_dir)//trim(fname_wm),   & ! input: filename
+                         trim(vname_AbsInj),                & ! input: varname
+                         iTime_local_wm,                    & ! input: time index
+                         AbsInj_data,                       & ! inout: runoff data structure
+                         ierr, cmessage)                      ! output: error control
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
    ! initialize runoff_data%AbsInj
    if ( allocated(runoff_data%AbsInj) ) then
     deallocate(runoff_data%AbsInj, stat=ierr)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
    allocate(runoff_data%AbsInj(nHRU), stat=ierr)
+   runoff_data%AbsInj = AbsInj_data%sim ! pass to the runoff_data strcuture
+   print*, runoff_data%AbsInj(1:100)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    call sort_runoff(AbsInj_data, runoff_data%AbsInj, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -164,10 +175,9 @@ contains
 
 !print*, runoff_data%hru_ix(:)
 !print*, runoff_data%hru_id(:)
-print*, AbsInj_data%hru_ix(:)
-print*, AbsInj_data%hru_id(:)
-
-stop
+print*, runoff_data%AbsInj
+!print*, AbsInj_data%hru_ix(:)
+!print*, AbsInj_data%hru_id(:)
 
  end subroutine get_hru_runoff
 

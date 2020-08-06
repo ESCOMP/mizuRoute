@@ -249,6 +249,7 @@ contains
 
  ! Add local routed flow
  rflux%REACH_Q_IRF = rflux%QFUTURE_IRF(1) + rflux%BASIN_QR(1)
+ print*, rflux%REACH_Q_IRF, "  -  ", rflux%AbsInj
 
  ! move array back   use eoshift
  !rflux%QFUTURE_IRF=eoshift(rflux%QFUTURE_IRF,shift=1)
