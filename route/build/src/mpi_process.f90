@@ -703,14 +703,18 @@ contains
   USE globalData, ONLY: RCHSTA_trib         ! tributary reach state data structure
   USE globalData, ONLY: RCHSTA_main         ! Reach state data structures (master proc, mainstem)
   USE globalData, ONLY: nHRU_mainstem       ! number of mainstem HRUs
-  USE globalData, ONLY: basinRunoff_main    ! mainstem only HRU runoff
-  USE globalData, ONLY: basinRunoff_trib    ! tributary only HRU runoff
-  USE globalData, ONLY: basinEvapo_main     ! mainstem only HRU Evaporation
-  USE globalData, ONLY: basinEvapo_trib     ! tributary only HRU Evaporation
-  USE globalData, ONLY: basinPrecip_main    ! mainstem only HRU Precipitation
-  USE globalData, ONLY: basinPrecip_trib    ! tributary only HRU Precipitation
-  USE globalData, ONLY: river_basin_trib    ! tributary OMP domain data structure
+  USE globalData, ONLY: basinRunoff_main    ! mainstem only HRU runoff (m/s)
+  USE globalData, ONLY: basinRunoff_trib    ! tributary only HRU runoff (m/s)
+  USE globalData, ONLY: basinEvapo_main     ! mainstem only HRU Evaporation (m/s)
+  USE globalData, ONLY: basinEvapo_trib     ! tributary only HRU Evaporation (m/s)
+  USE globalData, ONLY: basinPrecip_main    ! mainstem only HRU Precipitation (m/s)
+  USE globalData, ONLY: basinPrecip_trib    ! tributary only HRU Precipitation (m/s)
+  USE globalData, ONLY: basinAbsInj_main    ! mainstem only HRU abstraction and injection (m3/s)
+  USE globalData, ONLY: basinAbsInj_trib    ! tributary only HRU abstraction and injection (m3/s)
+  USE globalData, ONLY: basinTargVol_main   ! mainstem only HRU target volume (m3)
+  USE globalData, ONLY: basinTargVol_trib   ! tributary only HRU target volume (m3)
   USE globalData, ONLY: river_basin_main    ! mainstem OMP domain data structure
+  USE globalData, ONLY: river_basin_trib    ! tributary OMP domain data structure
   USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
   USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc
   USE globalData, ONLY: tribOutlet_per_proc ! number of tributary outlets per proc (array size = nNodes)
@@ -804,6 +808,8 @@ contains
                   basinRunoff_trib,  &  ! input: basin (i.e.,HRU) runoff (m/s)
                   basinEvapo_trib,   &  ! input: basin (i.e. HRU) Evapo  (m/s)
                   basinPrecip_trib,  &  ! input: basin (i.e. HRU) Precip (m/s)
+                  basinAbsInj_trib,  &  ! input: basin (i.e. HRU) Abs/Inj(m3/s)
+                  basinTargVol_trib, &  ! input: basin (i.e. HRU) TargetVol (m3)
                   ixRchProcessed,    &  ! input: indices of reach to be routed
                   river_basin_trib,  &  ! input: OMP basin decomposition
                   NETOPO_trib,       &  ! input: reach topology data structure
@@ -882,6 +888,8 @@ contains
                     basinRunoff_main,        &  ! input: basin (i.e.,HRU) runoff (m/s)
                     basinEvapo_main,         &  ! input: basin (i.e. HRU) Evapo  (m/s)
                     basinPrecip_main,        &  ! input: basin (i.e. HRU) Precip (m/s)
+                    basinAbsInj_main,        &  ! input: basin (i.e. HRU) Abs/Inj(m3/s)
+                    basinTargVol_main,       &  ! input: basin (i.e. HRU) TargetVol (m3)
                     ixRchProcessed,          &  ! input: indices of reach to be routed
                     river_basin_main,        &  ! input: OMP basin decomposition
                     NETOPO_main,             &  ! input: reach topology data structure
@@ -945,7 +953,13 @@ contains
   USE globalData, ONLY: basinEvapo_trib   ! HRU evaporation holder for tributary
   USE globalData, ONLY: basinPrecip_main  ! HRU precipitation holder for mainstem
   USE globalData, ONLY: basinPrecip_trib  ! HRU precipitation holder for tributary
+  USE globalData, ONLY: basinAbsInj_main  ! HRU abstraction or injection array (m3/s) for mainstem
+  USE globalData, ONLY: basinAbsInj_trib  ! HRU abstraction or injection array (m3/s) for tributaries
+  USE globalData, ONLY: basinTargVol_main ! lake target volume array (m3) for mainstem
+  USE globalData, ONLY: basinTargVol_trib ! lake target volume array (m3) for tributaries
   USE public_var, ONLY: is_lake_sim       ! logical whether or not lake should be simulated
+  USE public_var, ONLY: is_AbsInj         ! logical whether or not abstraction or injection is activated
+  USE public_var, ONLY: is_TargVol        ! logical whether or not lake target volume is activated
 
 
   ! input variables
@@ -959,6 +973,8 @@ contains
   real(dp)                            :: basinRunoff_local(nHRU)         ! temporal basin runoff (m/s) for whole domain
   real(dp)                            :: basinEvapo_local(nHRU)          ! temporal basin runoff (m/s) for whole domain
   real(dp)                            :: basinPrecip_local(nHRU)         ! temporal basin runoff (m/s) for whole domain
+  real(dp)                            :: basinAbsInj_local(nHRU)         ! temporal basin abstraction/injection (m3/s) for whole domain
+  real(dp)                            :: basinTargVol_local(nHRU)        ! temporal basin (lake) target volume (m3) for whole domain
   character(len=strLen)               :: cmessage                        ! error message from a subroutine
 
   ierr=0; message='scatter_runoff/'
@@ -990,6 +1006,28 @@ contains
 
     end if
 
+    if (is_AbsInj) then
+
+      ! if only single proc is used, all abstraction and injection is stored in mainstem runoff array
+      if (.not. allocated(basinAbsInj_main)) then
+        allocate(basinAbsInj_main(nHRU), stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinAbsInj_main]'; return; endif
+      end if
+      basinAbsInj_main(:) = runoff_data%AbsInj(:)
+
+    end if
+
+    if ((is_lake_sim).and.(is_TargVol)) then
+
+      ! if only single proc is used, all abstraction and injection is stored in mainstem runoff array
+      if (.not. allocated(basinTargVol_main)) then
+        allocate(basinTargVol_main(nHRU), stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinTargVol_main]'; return; endif
+      end if
+      basinTargVol_main(:) = runoff_data%lakeTargVol(:)
+
+    end if
+
   else
 
     ! sort the basin runoff, precipitation and evaporation in terms of nodes/domains
@@ -1005,12 +1043,29 @@ contains
         if (.not. allocated(basinEvapo_main)) then
           allocate(basinEvapo_main(nHRU_mainstem), stat=ierr)
           if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinEvapo_main]'; return; endif
-
         endif
 
         if (.not. allocated(basinPrecip_main)) then
           allocate(basinPrecip_main(nHRU_mainstem), stat=ierr)
           if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinPrecip_main]'; return; endif
+        endif
+
+      end if
+
+      if (is_AbsInj) then
+
+        if (.not. allocated(basinAbsInj_main)) then
+          allocate(basinAbsInj_main(nHRU_mainstem), stat=ierr)
+          if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinAbsInj_main]'; return; endif
+        endif
+
+      end if
+
+      if ((is_lake_sim).and.(is_TargVol)) then
+
+        if (.not. allocated(basinTargVol_main)) then
+          allocate(basinTargVol_main(nHRU_mainstem), stat=ierr)
+          if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinTargVol_main]'; return; endif
         endif
 
       end if
@@ -1027,7 +1082,19 @@ contains
         basinPrecip_local(1:nHRU) = runoff_data%basinPrecip(1:nHRU)
         basinEvapo_main (1:nHRU_mainstem) = basinEvapo_local (1:nHRU_mainstem)
         basinPrecip_main(1:nHRU_mainstem) = basinPrecip_local(1:nHRU_mainstem)
-      end if
+      endif
+
+      ! abstraction or injection at main channel and tributaries
+      if (is_AbsInj) then
+        basinAbsInj_local(1:nHRU) = runoff_data%AbsInj(1:nHRU)
+        basinAbsInj_main(1:nHRU_mainstem) = basinAbsInj_local(1:nHRU_mainstem)
+      endif
+
+      ! target volume for lakes at main channel and tributaries
+      if ((is_lake_sim).and.(is_TargVol)) then
+        basinTargVol_local(1:nHRU) = runoff_data%lakeTargVol(1:nHRU)
+        basinTargVol_main(1:nHRU_mainstem) = basinTargVol_local(1:nHRU_mainstem)
+      endif
 
     end if
 
@@ -1040,6 +1107,7 @@ contains
                           ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+    ! if lake is activated then pass precipitation and abstraction
     if (is_lake_sim) then
       call shr_mpi_scatterV(basinEvapo_local(nHRU_mainstem+1:nHRU),  &
                             hru_per_proc(0:nNodes-1),                &
@@ -1050,6 +1118,24 @@ contains
       call shr_mpi_scatterV(basinPrecip_local(nHRU_mainstem+1:nHRU), &
                             hru_per_proc(0:nNodes-1),                &
                             basinPrecip_trib,                        &
+                            ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+
+    ! if abstraction injections are provided from river seg
+    if (is_AbsInj) then
+      call shr_mpi_scatterV(basinAbsInj_local(nHRU_mainstem+1:nHRU), &
+                            hru_per_proc(0:nNodes-1),                &
+                            basinAbsInj_trib,                        &
+                            ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+
+    ! if lakes are simulated and target volume is provided
+    if ((is_lake_sim).and.(is_TargVol)) then
+      call shr_mpi_scatterV(basinTargVol_local(nHRU_mainstem+1:nHRU),&
+                            hru_per_proc(0:nNodes-1),                &
+                            basinTargVol_trib,                       &
                             ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     end if

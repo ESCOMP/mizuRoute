@@ -153,7 +153,7 @@ CONTAINS
   ! passing the first nc file as global file name to read
   fname_qsim = trim(infileinfo_data(1)%infilename)
 
-  if ((is_AbsInj).or.(is_TargVol)) then     ! if either of abstraction injection or target volume is acticated
+  if ((is_AbsInj).or.(is_TargVol)) then     ! if either of abstraction injection or target volume is activated
     call inFile_pop(input_dir,            & ! input: name of the directory of the txt file
                     fname_wm,             & ! input: name of the txt file hold the nc file names
                     vname_time_wm,        & ! input: name of variable time in the nc files
@@ -596,7 +596,7 @@ CONTAINS
   print*, infileinfo_data(1)%iTimebound(1)
   print*, infileinfo_data(1)%iTimebound(2)
   ! check if the both iTime_local is read
-  if (counter /= 2) then
+  if ((counter /= 2).and.((is_AbsInj).or.(is_TargVol))) then
     ierr=20; message=trim(message)//'iTime local is out of bound for the netcdf file inputs based on given simulation time'; print*, ierr ; print*, message ; return ;
   endif
 

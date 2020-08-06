@@ -267,6 +267,8 @@ implicit none
   real(dp)                             :: UPSTREAM_QI       ! sum of upstream streamflow (m3/s)
   real(dp)                             :: REACH_VOL(0:1)    ! volume of water at previous and current time step [m3]
   real(dp)                             :: TAKE              ! average take
+  real(dp)                             :: AbsInj            ! abstraction injection from a reach (m3/s)
+  real(dp)                             :: TargVol           ! target volume for lakes (m3)
   logical(lgt)                         :: isRoute           ! .true. if the reach is routed
  END TYPE strflx
 

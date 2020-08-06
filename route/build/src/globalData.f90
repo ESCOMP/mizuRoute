@@ -187,10 +187,10 @@ module globalData
   real(dp)        , allocatable  , public :: basinEvapo_main(:)   ! HRU evaporation array (m/s) for mainstem
   real(dp)        , allocatable  , public :: basinPrecip_trib(:)  ! HRU precipitation array (m/s) for tributaries
   real(dp)        , allocatable  , public :: basinPrecip_main(:)  ! HRU precipitation array (m/s) for mainstem
-  real(dp)        , allocatable  , public :: basinAbsInj_trib(:)  ! HRU precipitation array (m/s) for tributaries
-  real(dp)        , allocatable  , public :: basinAbsInj_main(:)  ! HRU precipitation array (m/s) for mainstem
-  real(dp)        , allocatable  , public :: basinTargVol_trib(:) ! HRU precipitation array (m/s) for tributaries
-  real(dp)        , allocatable  , public :: basinTargVol_main(:) ! HRU precipitation array (m/s) for mainstem
+  real(dp)        , allocatable  , public :: basinAbsInj_trib(:)  ! HRU abstraction or injection array (m3/s) for tributaries
+  real(dp)        , allocatable  , public :: basinAbsInj_main(:)  ! HRU abstraction or injection array (m3/s) for mainstem
+  real(dp)        , allocatable  , public :: basinTargVol_trib(:) ! lake target volume array (m3) for tributaries
+  real(dp)        , allocatable  , public :: basinTargVol_main(:) ! lake target volume array (m3) for mainstem
 
   ! domain data
   ! MPI

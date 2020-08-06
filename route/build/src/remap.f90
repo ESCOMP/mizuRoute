@@ -176,7 +176,7 @@ module remapping
   real(dp)                           :: sumWeights       ! used to check that the sum of weights equals one
   real(dp)    , parameter            :: xTol=1.e-6_dp    ! tolerance to avoid divide by zero
   integer(i4b), parameter            :: ixCheck=-huge(iHRU) ! basin to check
-  !integer(i4b), parameter            :: ixCheck=24001479 ! basin to check
+  !integer(i4b), parameter           :: ixCheck=24001479 ! basin to check
 
   ierr=0; message="remap_1D_runoff/"
 

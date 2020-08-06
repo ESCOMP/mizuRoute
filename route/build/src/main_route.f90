@@ -40,6 +40,8 @@ CONTAINS
                        basinRunoff_in, &  ! basin (i.e.,HRU) runoff (m/s)
                        basinEvapo_in,  &  ! basin (i.e.,HRU) evaporation (m/s)
                        basinPrecip_in, &  ! basin (i.e.,HRU) precipitation (m/s)
+                       basinAbsInj_in, &  ! basin (i.e.,HRU) abstraction/injection (m3/s)
+                       basinTargVol_in,&  ! basin (i.e.,HRU) Target Volume (m3)
                        ixRchProcessed, &  ! indices of reach to be routed
                        river_basin,    &  ! OMP basin decomposition
                        NETOPO_in,      &  ! reach topology data structure
@@ -67,6 +69,8 @@ CONTAINS
    USE public_var, ONLY: impulseResponseFunc
    USE globalData, ONLY: TSEC                    ! beginning/ending of simulation time step [sec]
    USE public_var, ONLY: is_lake_sim             ! logical whether or not lake should be simulated
+   USE public_var, ONLY: is_AbsInj               ! logical whether or not abstraction or injection is presence
+   USE public_var, ONLY: is_TargVol              ! logical whether or not Target Volume for lake is presence
 
    implicit none
 
@@ -75,6 +79,8 @@ CONTAINS
    real(dp),           allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
    real(dp),           allocatable, intent(in)    :: basinEvapo_in(:)     ! basin (i.e.,HRU) evaporation (m/s)
    real(dp),           allocatable, intent(in)    :: basinPrecip_in(:)    ! basin (i.e.,HRU) precipitation (m/s)
+   real(dp),           allocatable, intent(in)    :: basinAbsInj_in(:)    ! basin (i.e.,HRU) Abs/Inj (m3/s)
+   real(dp),           allocatable, intent(in)    :: basinTargVol_in(:)   ! basin (i.e.,HRU) target volume (m3)
    integer(i4b),       allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
    type(subbasin_omp), allocatable, intent(in)    :: river_basin(:)       ! OMP basin decomposition
    type(RCHTOPO),      allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology
@@ -92,6 +98,8 @@ CONTAINS
    real(dp),           allocatable                :: reachRunoff_local(:) ! reach runoff (m/s)
    real(dp),           allocatable                :: reachEvapo_local(:)  ! reach evaporation (m/s)
    real(dp),           allocatable                :: reachPrecip_local(:) ! reach precipitation (m/s)
+   real(dp),           allocatable                :: reachAbjInj_local(:) ! reach abstraction/injection (m3/s)
+   real(dp),           allocatable                :: reachTargVol_local(:)! reach/lake target volume (m3)
    integer(i4b)                                   :: nSeg                 ! number of reach to be processed
    integer(i4b)                                   :: iSeg                 ! index of reach
 

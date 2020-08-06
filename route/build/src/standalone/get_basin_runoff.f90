@@ -162,8 +162,10 @@ contains
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if
 
-print*, runoff_data%hru_ix(:)
-print*, runoff_data%hru_id(:)
+!print*, runoff_data%hru_ix(:)
+!print*, runoff_data%hru_id(:)
+print*, AbsInj_data%hru_ix(:)
+print*, AbsInj_data%hru_id(:)
 
 stop
 
