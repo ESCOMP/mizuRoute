@@ -154,6 +154,8 @@ contains
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
    allocate(runoff_data%AbsInj(nHRU), stat=ierr)
+   print*, size (runoff_data%AbsInj)
+   print*, size (AbsInj_data%sim)
    runoff_data%AbsInj = AbsInj_data%sim ! pass to the runoff_data strcuture
    print*, runoff_data%AbsInj(1:100)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
