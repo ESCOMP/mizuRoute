@@ -1,4 +1,4 @@
-module read_control_module
+MODULE read_control_module
 
 USE nrtype
 USE public_var
@@ -8,17 +8,16 @@ implicit none
 ! privacy
 private
 public::read_control
-contains
+
+CONTAINS
 
  ! =======================================================================================================
  ! * new subroutine: read the control file
  ! =======================================================================================================
  ! read the control file
- subroutine read_control(ctl_fname, err, message)
+ SUBROUTINE read_control(ctl_fname, err, message)
 
- ! data types
  USE nrtype                                  ! variable types, etc.
-
  ! global vars
  USE globalData, ONLY: time_conv,length_conv  ! conversion factors
 
@@ -61,7 +60,7 @@ contains
  integer(i4b)                      :: iunit          ! file unit
  integer(i4b)                      :: io_error       ! error in I/O
  character(len=strLen)             :: cmessage       ! error message from subroutine
- ! initialize error control
+
  err=0; message='read_control/'
 
  ! *** get a list of character strings from non-comment lines ****
@@ -73,13 +72,13 @@ contains
  call get_vlines(iunit,cLines,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage);return;endif
 
- ! close the file unit
  close(iunit)
 
- ! loop through the non-comment lines in the input file, and extract the name and the information
  if (masterproc) then
    write(iulog,'(2a)') new_line('a'), '---- read control file --- '
  end if
+
+ ! loop through the non-comment lines in the input file, and extract the name and the information
  do iLine=1,size(cLines)
 
    ! initialize io_error
@@ -105,18 +104,18 @@ contains
    case('<ancil_dir>');            ancil_dir   = trim(cData)                       ! directory containing ancillary data
    case('<input_dir>');            input_dir   = trim(cData)                       ! directory containing input data
    case('<output_dir>');           output_dir  = trim(cData)                       ! directory containing output data
+   case('<restart_dir>');          restart_dir = trim(cData)                       ! directory for restart output (netCDF)
    ! RUN CONTROL
    case('<case_name>');            case_name   = trim(cData)                       ! name of simulation. used as head of model output and restart file
    case('<sim_start>');            simStart    = trim(cData)                       ! date string defining the start of the simulation
    case('<sim_end>');              simEnd      = trim(cData)                       ! date string defining the end of the simulation
    case('<newFileFrequency>');     newFileFrequency = trim(cData)                  ! frequency for new output files (day, month, annual, single)
-   case('<restart_write>');        restart_write        = trim(cData)              ! restart write option: N[n]ever, L[l]ast
-   case('<restart_date>');         restart_date         = trim(cData)              ! specified restart date, yyyy-mm-dd (hh:mm:ss)
-   case('<fname_state_in>');       fname_state_in  = trim(cData)                   ! filename for the channel states
    case('<route_opt>');            read(cData,*,iostat=io_error) routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
    case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute    ! basin routing options   0-> no, 1->IRF, otherwise error
    case('<doesAccumRunoff>');      read(cData,*,iostat=io_error) doesAccumRunoff   ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
    case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut          ! desired outlet reach id (if -9999 --> route over the entire network)
+   case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim       ! logical whether or not lakes are simulated
+   case('<is_wm_sim>');            read(cData,*,iostat=io_error) is_wm_sim         ! logical whether or not water balance components, abstraction, injection and target volumes should be used in simulation
    ! RIVER NETWORK TOPOLOGY
    case('<fname_ntopOld>');        fname_ntopOld = trim(cData)                     ! name of file containing stream network topology information
    case('<ntopAugmentMode>');      read(cData,*,iostat=io_error) ntopAugmentMode   ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
@@ -126,6 +125,8 @@ contains
    ! RUNOFF FILE
    case('<fname_qsim>');           fname_qsim   = trim(cData)                      ! name of text file containing nc file names and their order for runoff
    case('<vname_qsim>');           vname_qsim   = trim(cData)                      ! name of runoff variable
+   case('<vname_evapo>');          vname_evapo  = trim(cData)                      ! name of actual evapoartion variable
+   case('<vname_precip>');         vname_precip = trim(cData)                      ! name of precipitation variable
    case('<vname_time>');           vname_time   = trim(cData)                      ! name of time variable in the runoff file
    case('<vname_hruid>');          vname_hruid  = trim(cData)                      ! name of the HRU id
    case('<dname_time>');           dname_time   = trim(cData)                      ! name of time variable in the runoff file
@@ -134,6 +135,7 @@ contains
    case('<dname_ylat>');           dname_ylat   = trim(cData)                      ! name of y (i,lat) dimension
    case('<units_qsim>');           units_qsim   = trim(cData)                      ! units of runoff
    case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                ! time interval of the gridded runoff
+   case('<input_fillvalue>');      read(cData,*,iostat=io_error) input_fillvalue   ! fillvalue used for input variable
    ! RUNOFF REMAPPING
    case('<is_remap>');             read(cData,*,iostat=io_error) is_remap          ! logical whether or not runnoff needs to be mapped to river network HRU
    case('<fname_remap>');          fname_remap          = trim(cData)              ! name of runoff mapping netCDF
@@ -145,6 +147,13 @@ contains
    case('<vname_j_index>');        vname_j_index        = trim(cData)              ! name of variable containing index of ylat dimension in runoff grid (if runoff file is grid)
    case('<dname_hru_remap>');      dname_hru_remap      = trim(cData)              ! name of dimension of river network HRU ID
    case('<dname_data_remap>');     dname_data_remap     = trim(cData)              ! name of dimension of runoff HRU overlapping with river network HRU
+   ! RESTART
+   case('<restart_write>');        restart_write        = trim(cData)              ! restart write option: N[n]ever, L[l]ast, S[s]pecified, Monthly, Daily
+   case('<restart_date>');         restart_date         = trim(cData)              ! specified restart date, yyyy-mm-dd (hh:mm:ss) for Specified option
+   case('<restart_month>');        read(cData,*,iostat=io_error) restart_month     ! restart periodic month
+   case('<restart_day>');          read(cData,*,iostat=io_error) restart_day       ! restart periodic day
+   case('<restart_hour>');         read(cData,*,iostat=io_error) restart_hour      ! restart periodic hour
+   case('<fname_state_in>');       fname_state_in       = trim(cData)              ! filename for the channel states
    ! SPATIAL CONSTANT PARAMETERS
    case('<param_nml>');            param_nml       = trim(cData)                   ! name of namelist including routing parameter value
    ! USER OPTIONS: Define options to include/skip calculations
@@ -226,6 +235,11 @@ contains
 
  end do  ! looping through lines in the control file
 
+ ! ---------- directory option  ---------------------------------------------------------------------
+ if (trim(restart_dir)==charMissing) then
+   restart_dir = output_dir
+ endif
+
  ! ---------- control river network writing option  ---------------------------------------------------------------------
  ! Case1- river network subset mode (idSegOut>0):  Write the network variables read from file over only upstream network specified idSegOut
  ! Case2- river network augment mode: Write full network variables over the entire network
@@ -287,6 +301,6 @@ contains
    err=81; return
  end select
 
- end subroutine read_control
+ END SUBROUTINE read_control
 
-end module read_control_module
+END MODULE read_control_module

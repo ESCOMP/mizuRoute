@@ -76,7 +76,6 @@ CONTAINS
   type(STRFLX),allocatable        :: RCHFLX_local(:)
   real(dp),    allocatable        :: basinRunoff(:)
 
-  ! initialize error control
   ierr=0; message='output/'
 
   iens = 1
@@ -153,9 +152,9 @@ CONTAINS
   endif
 
   if (meta_rflx(ixRFLX%IRFroutedRunoff)%varFile) then
-     ! write routed runoff (m3/s)
-     call write_pnetcdf_recdim(pioFileDesc, 'IRFroutedRunoff', RCHFLX_local(:)%REACH_Q_IRF, iodesc_rch_flx, jTime, ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! write routed runoff (m3/s)
+    call write_pnetcdf_recdim(pioFileDesc, 'IRFroutedRunoff', RCHFLX_local(:)%REACH_Q_IRF, iodesc_rch_flx, jTime, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
  END SUBROUTINE output
@@ -194,7 +193,6 @@ CONTAINS
  character(len=strLen)           :: cmessage         ! error message of downwind routine
  character(*),parameter          :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
 
- ! initialize error control
  ierr=0; message='prep_output/'
 
   ! get the time
@@ -221,13 +219,11 @@ CONTAINS
    case default; ierr=20; message=trim(message)//'unable to identify the option to define new output files'; return
   end select
 
-  ! define new file
   if(defNewOutputFile)then
 
    ! close netcdf only if is is open
    call close_output_nc()
 
-   ! initialize time
    jTime=1
 
    ! Define filename
@@ -236,7 +232,6 @@ CONTAINS
                            modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '-',sec_in_day,'.nc'
    write(iulog,*), trim(fileout)
 
-   ! define output file
    call defineFile(trim(fileout),                         &  ! input: file name
                    nEns,                                  &  ! input: number of ensembles
                    nHRU,                                  &  ! input: number of HRUs
@@ -249,17 +244,14 @@ CONTAINS
    call openFile(pioSystem, pioFileDesc, trim(fileout), pio_typename, ncd_write, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! define basin ID
    call write_netcdf(pioFileDesc, 'basinID', basinID, [1], [nHRU], ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! define reach ID
    call write_netcdf(pioFileDesc, 'reachID', reachID, [1], [nRch], ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    isFileOpen = .True.
 
-  ! no new file requested: increment time
   else
 
    jTime = jTime+1
@@ -318,7 +310,6 @@ CONTAINS
  integer(i4b)                      :: ixDim             !
  character(len=strLen)             :: cmessage          ! error message of downwind routine
 
- ! initialize error control
  ierr=0; message='defineFile/'
 
  ! populate q dimension meta (not sure if this should be done here...)

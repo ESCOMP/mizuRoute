@@ -38,6 +38,8 @@ CONTAINS
                        ! input
                        iens,           &  ! ensemble index
                        basinRunoff_in, &  ! basin (i.e.,HRU) runoff (m/s)
+                       basinEvapo_in,  &  ! basin (i.e.,HRU) evaporation (m/s)
+                       basinPrecip_in, &  ! basin (i.e.,HRU) precipitation (m/s)
                        ixRchProcessed, &  ! indices of reach to be routed
                        river_basin,    &  ! OMP basin decomposition
                        NETOPO_in,      &  ! reach topology data structure
@@ -64,12 +66,15 @@ CONTAINS
    USE public_var, ONLY: kinematicWaveEuler
    USE public_var, ONLY: impulseResponseFunc
    USE globalData, ONLY: TSEC                    ! beginning/ending of simulation time step [sec]
+   USE public_var, ONLY: is_lake_sim             ! logical whether or not lake should be simulated
 
    implicit none
 
    ! input
    integer(i4b),                    intent(in)    :: iens                 ! ensemble member
    real(dp),           allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
+   real(dp),           allocatable, intent(in)    :: basinEvapo_in(:)     ! basin (i.e.,HRU) evaporation (m/s)
+   real(dp),           allocatable, intent(in)    :: basinPrecip_in(:)    ! basin (i.e.,HRU) precipitation (m/s)
    integer(i4b),       allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
    type(subbasin_omp), allocatable, intent(in)    :: river_basin(:)       ! OMP basin decomposition
    type(RCHTOPO),      allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology
@@ -85,11 +90,13 @@ CONTAINS
    character(len=strLen)                          :: cmessage             ! error message of downwind routine
    real(dp)                                       :: T0,T1                ! beginning/ending of simulation time step [sec]
    real(dp),           allocatable                :: reachRunoff_local(:) ! reach runoff (m/s)
+   real(dp),           allocatable                :: reachEvapo_local(:)  ! reach evaporation (m/s)
+   real(dp),           allocatable                :: reachPrecip_local(:) ! reach precipitation (m/s)
    integer(i4b)                                   :: nSeg                 ! number of reach to be processed
    integer(i4b)                                   :: iSeg                 ! index of reach
 
-   ! initialize errors
    ierr=0; message = "main_routing/"
+
 
   ! define the start and end of the time step
   T0=TSEC(0); T1=TSEC(1)
