@@ -26,6 +26,7 @@ CONTAINS
   USE public_var,  ONLY:is_remap                ! logical whether or not runnoff needs to be mapped to river network HRU
   USE public_var,  ONLY:is_lake_sim             ! logical whether or not lake should be simulated
   USE public_var,  ONLY:is_wm_sim               ! logical whether or not water management components should be read, abstraction, injection and target volume
+  USE globalData,  ONLY:basinID                 ! basin ID
   USE globalData,  ONLY:iTime_local             ! iTime index for the given netcdf file
   USE globalData,  ONLY:nHRU                    ! number of routing sub-basin
   USE globalData,  ONLY:runoff_data             ! data structure to hru runoff data
@@ -33,7 +34,7 @@ CONTAINS
   ! subroutines
   USE read_runoff, ONLY:read_runoff_data        ! read runoff value into runoff_data data strucuture
   USE remapping,   ONLY:remap_runoff            ! mapping HM runoff to river network HRU runoff (HM_HRU /= RN_HRU)
-  USE remapping,   ONLY:sort_runoff             ! mapping HM runoff to river network HRU runoff (HM_HRU == RN_HRU)
+  USE remapping,   ONLY:sort_flux               ! mapping HM runoff to river network HRU runoff (HM_HRU == RN_HRU)
 
   implicit none
   ! input variables: none
@@ -68,7 +69,12 @@ CONTAINS
    call remap_runoff(runoff_data, remap_data, runoff_data%basinRunoff, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   else ! runoff is already remapped to river network HRUs
-   call sort_runoff(runoff_data, runoff_data%basinRunoff, ierr, cmessage)
+   call sort_flux  (runoff_data%hru_id,         &
+                    runoff_data%hru_ix,         &
+                    runoff_data%sim,            &
+                    basinID,                    &
+                    runoff_data%basinRunoff,    &
+                    ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if
 
@@ -94,7 +100,12 @@ CONTAINS
     call remap_runoff(runoff_data, remap_data, runoff_data%basinEvapo, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    else ! runoff is already remapped to river network HRUs
-    call sort_runoff(runoff_data, runoff_data%basinEvapo, ierr, cmessage)
+    call sort_flux  (runoff_data%hru_id,        &
+                     runoff_data%hru_ix,        &
+                     runoff_data%sim,           &
+                     basinID,                   &
+                     runoff_data%basinEvapo,    &
+                     ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
 
@@ -118,7 +129,12 @@ CONTAINS
     call remap_runoff(runoff_data, remap_data, runoff_data%basinPrecip, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    else ! runoff is already remapped to river network HRUs
-    call sort_runoff(runoff_data, runoff_data%basinPrecip, ierr, cmessage)
+    call sort_flux  (runoff_data%hru_id,        &
+                     runoff_data%hru_ix,        &
+                     runoff_data%sim,           &
+                     basinID,                   &
+                     runoff_data%basinPrecip,   &
+                     ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
   end if

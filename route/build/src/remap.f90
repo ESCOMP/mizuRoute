@@ -25,7 +25,7 @@ module remapping
   implicit none
   private
   public ::remap_runoff
-  public ::sort_runoff
+  public ::sort_flux
   public ::basin2reach
 
   contains
@@ -260,49 +260,69 @@ module remapping
   end subroutine remap_1D_runoff
 
   ! *****
-  ! public subroutine: assign runoff data in runoff layer to hru in river network layer
+  ! public subroutine: assign (sort) fluxes and states from a given ID array to another ID array
   ! ***************************************************************************************************************
-  ! case 3: hru in runoff layer is hru polygon identical to river network layer (stored in 1-dimension array)
-  subroutine sort_runoff(runoff_data_in, basinRunoff, ierr, message)
+  ! case 3: sort a given input flux and its ID based on a second given ID array,
+  ! hru in runoff layer is hru polygon identical to river network layer (stored in 1-dimension array)
+  subroutine sort_flux  (ID_in,            & ! input: the array of ids for HRU/seg (can be from 1 to nHRU or nSeg)
+                         IX_in,            & ! input: the array of location of ids for HRU/seg (the same size as ID_in)
+                         flux_in,          & ! input: the array of input fluxes, should be the same size as ID_in
+                         ID_total_in,      & ! input: the sorted array of ids for HRU/seg (should be with nHRU or nSeg) just for check the size
+                         basin_flux_sort,  & ! output: sorted input states and fluxes based on ID_total_in (the same size as ID_total_in)
+                         ierr, message)
   implicit none
   ! input
-  type(runoff)         , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
+  integer(i4b)         , intent(in)    :: ID_in(:)            ! input: the array of ids for HRU/seg (can be from 1 to nHRU or nSeg)
+  integer(i4b)         , intent(in)    :: IX_in(:)            ! input: the array of location of ids for HRU/seg in ID_total_in (can be from 1 to nHRU or nSeg)
+  real(dp)             , intent(in)    :: flux_in(:)          ! input: the array of input fluxes, should be the same size as ID_in
+  integer(i4b)         , intent(in)    :: ID_total_in(:)      ! input: the sorted array of ids for HRU/seg (should be with nHRU or nSeg)
+  ! input/output
+  real(dp)             , intent(inout) :: basin_flux_sort(:)  ! inout: sorted input states and fluxes based on ID_total_in (the same size as ID_total_in)
   ! output
-  real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
-  integer(i4b)         , intent(out) :: ierr             ! error code
-  character(len=strLen), intent(out) :: message          ! error message
+  integer(i4b)         , intent(out)   :: ierr             ! error code
+  character(len=strLen), intent(out)   :: message          ! error message
   ! local
-  integer(i4b)                       :: iHRU,jHRU        ! index of basin in the routing layer
-  real(dp)    , parameter            :: xTol=1.e-6_dp    ! tolerance to avoid divide by zero
-  integer(i4b), parameter            :: ixCheck=-huge(iHRU) ! basin to check
+  integer(i4b)                         :: i,j              ! index of basin in the routing layer
 
-  ierr=0; message="sort_runoff/"
+  ierr=0; message="sort_flux/"
 
-  ! loop through hrus in the runoff layer
-  do iHRU=1,size(runoff_data_in%hru_ix)
+!  ! allocate basin_flux_sort is not allocated
+!  if (.not.allocated(basin_flux_sort)) then
+!    ierr = 10
+!    if(ierr/=0)then; message=trim(message)//'basin_flux_sort is not allocated'; return; endif
+!  endif
 
-   ! define the HRU index in the routing vector
-   jHRU = runoff_data_in%hru_ix(iHRU)
+!  ! the size of basin_flux_sort and ID_total_in
+!  if (size(basin_flux_sort)/=size(ID_total_in)) then
+!    ierr = 20
+!    if(ierr/=0)then; message=trim(message)//'basin_flux_sort and ID are not the same size'; return; endif
+!  endif
+
+!  ! check the size of ID_in, IX_in and flux_in
+!  if ((size(ID_in)/=size(IX_in)).or.(size(IX_in)/=size(flux_in)).or.(size(flux_in)/=size(ID_in))) then
+!    ierr = 30
+!    if(ierr/=0)then; message=trim(message)//'ID_in, IX_in and flux_in not the same size'; return; endif
+!  endif
+
+  ! initializing the basin_flux_sort to zero, assuming non existing elements are all set to zero
+  basin_flux_sort = 0._dp
+
+  ! loop through given ID that the flux or state should be mapped to (ID_total_in)
+  do i=1,size(ID_in)
+
+   ! define the index of ID_in in ID_total_in
+   j = IX_in(i)
    ! if no hru associated any segments in network data, skip it
-   if(jHRU==integerMissing)then
+   if(j==integerMissing)then
     cycle
    endif
 
-   ! get the weighted average
-   if(runoff_data_in%sim(iHRU) > -xTol)then
-     basinRunoff(jHRU) = runoff_data_in%sim(iHRU)
-   endif
-
-   ! check
-   if(runoff_data_in%hru_id(iHRU)==ixCheck)then
-    write(iulog,*) 'jHRU, runoff_data_in%hru_id(iHRU) = ', jHRU, runoff_data_in%hru_id(iHRU)
-    write(iulog,*) 'runoff_data_in%sim(iHRU)          = ', runoff_data_in%sim(iHRU)
-    write(iulog,*) 'basinRunoff(jHRU)                 = ', basinRunoff(jHRU)*86400._dp*1000._dp*365._dp
-   endif
+   ! assign the flux to basin_flux_sort
+   basin_flux_sort(j) = flux_in(i)
 
   end do   ! looping through basins in the mapping layer
 
-  end subroutine sort_runoff
+  end subroutine sort_flux
 
   ! *****
   ! * public subroutine: used to obtain streamflow for each stream segment...
