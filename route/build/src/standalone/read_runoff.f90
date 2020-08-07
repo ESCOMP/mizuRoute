@@ -6,9 +6,9 @@ USE public_var
 USE io_netcdf, only:open_nc
 USE io_netcdf, only:get_nc
 USE io_netcdf, only:get_var_attr
+USE io_netcdf, only:check_attr
 USE io_netcdf, only:get_nc_dim_len
 USE dataTypes, only:runoff                 ! runoff data type
-
 
 implicit none
 
@@ -246,7 +246,9 @@ contains
  integer(i4b), intent(out)          :: ierr               ! error code
  character(*), intent(out)          :: message            ! error message
  ! local variables
- real(dp)                           :: fill_value         ! fill_value
+ integer(i4b)                       :: iStart(2)
+ integer(i4b)                       :: iCount(2)
+ logical(lgt)                       :: existFillVal
  real(dp)                           :: dummy(nSpace,1)    ! data read
  character(len=strLen)              :: cmessage           ! error message from subroutine
 
@@ -254,15 +256,20 @@ contains
  ierr=0; message='read_1D_runoff/'
 
  ! get the simulated runoff data
- call get_nc(trim(fname), trim(var_name), dummy, (/1,iTime/), (/nSpace,1/), ierr, cmessage)
+ iStart = [1,iTime]
+ iCount = [nSpace,1]
+ call get_nc(fname, var_name, dummy, iStart, iCount, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! get the _fill_values for runoff variable
- call get_var_attr(trim(fname), trim(var_name), '_FillValue', fill_value, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ ! get the _fill_values for runoff variable if exist
+ existFillVal = check_attr(fname, var_name, '_FillValue')
+ if (existFillval) then
+   call get_var_attr(fname, var_name, '_FillValue', input_fillvalue, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
 
  ! replace _fill_value with -999 for dummy
- where ( abs(dummy - fill_value) < verySmall ) dummy = realMissing
+ where ( abs(dummy - input_fillvalue) < verySmall ) dummy = realMissing
 
  ! reshape
  runoff_data_in%sim(1:nSpace) = dummy(1:nSpace,1)
@@ -290,7 +297,9 @@ contains
  integer(i4b), intent(out)   :: ierr             ! error code
  character(*), intent(out)   :: message          ! error message
  ! local variables
- real(dp)                    :: fill_value                   ! fill_value
+ logical(lgt)                :: existFillVal
+ integer(i4b)                :: iStart(3)
+ integer(i4b)                :: iCount(3)
  real(dp)                    :: dummy(nSpace(2),nSpace(1),1) ! data read
  character(len=strLen)       :: cmessage                     ! error message from subroutine
 
@@ -298,15 +307,20 @@ contains
  ierr=0; message='read_2D_runoff/'
 
  ! get the simulated runoff data
- call get_nc(trim(fname), trim(var_name), dummy, (/1,1,iTime/), (/nSpace(2), nSpace(1), 1/), ierr, cmessage)
+ iStart = [1,1,iTime]
+ iCount = [nSpace(2),nSpace(1),1]
+ call get_nc(fname, var_name, dummy, iStart, iCount, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the _fill_values for runoff variable
- call get_var_attr(trim(fname), trim(var_name), '_FillValue', fill_value, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ existFillVal = check_attr(fname, var_name, '_FillValue')
+ if (existFillval) then
+   call get_var_attr(fname, var_name, '_FillValue', input_fillvalue, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
 
  ! replace _fill_value with -999 for dummy
- where ( abs(dummy - fill_value) < verySmall ) dummy = realMissing
+ where ( abs(dummy - input_fillvalue) < verySmall ) dummy = realMissing
 
  ! reshape
  runoff_data_in%sim2d(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)

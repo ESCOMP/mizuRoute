@@ -340,7 +340,6 @@ module remapping
   integer(i4b), allocatable               :: ixRch(:)         ! a list of reach indices to be processed
   integer(i4b)                            :: iSeg, jSeg       ! array index for reaches
 
-  ! initialize error control
   ierr=0; message='basin2reach/'
 
   ! optional: if a subset of reaches is processed

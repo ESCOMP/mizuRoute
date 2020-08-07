@@ -95,7 +95,6 @@ CONTAINS
    integer(i4b)                                   :: nSeg                 ! number of reach to be processed
    integer(i4b)                                   :: iSeg                 ! index of reach
 
-   ! initialize errors
    ierr=0; message = "main_routing/"
 
 
