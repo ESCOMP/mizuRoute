@@ -227,7 +227,7 @@ CONTAINS
   USE public_var,    ONLY : dt                ! simulation time step (seconds)
   USE public_var,    ONLY : routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
   USE public_var,    ONLY : fname_state_in    ! name of state input file
-  USE public_var,    ONLY : output_dir        ! directory containing output data
+  USE public_var,    ONLY : restart_dir       ! directory containing output data
   USE globalData,    ONLY : RCHFLX            ! reach flux structure
   USE globalData,    ONLY : TSEC              ! begining/ending of simulation time step [sec]
 
@@ -246,7 +246,7 @@ CONTAINS
   ! read restart file and initialize states
   if (trim(fname_state_in)/=charMissing) then
 
-   call read_state_nc(trim(output_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
+   call read_state_nc(trim(restart_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    TSEC(0)=T0; TSEC(1)=T1
