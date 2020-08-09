@@ -19,7 +19,7 @@ module remapping
 
   ! global data
   USE public_var, ONLY:iulog                  ! i/o logical unit number
-  USE public_var, ONLY:runoffMin, negRunoffTol, integerMissing
+  USE public_var, ONLY:runoffMin, negRunoffTol, integerMissing, realMissing
   USE globalData, ONLY:time_conv,length_conv  ! conversion factors
 
   implicit none
@@ -267,45 +267,25 @@ module remapping
   subroutine sort_flux  (ID_in,            & ! input: the array of ids for HRU/seg (can be from 1 to nHRU or nSeg)
                          IX_in,            & ! input: the array of location of ids for HRU/seg (the same size as ID_in)
                          flux_in,          & ! input: the array of input fluxes, should be the same size as ID_in
-                         ID_total_in,      & ! input: the sorted array of ids for HRU/seg (should be with nHRU or nSeg) just for check the size
-                         basin_flux_sort,  & ! output: sorted input states and fluxes based on ID_total_in (the same size as ID_total_in)
+                         sorted_flux,      & ! output: sorted input states and fluxes based on ID_total_in (the same size as ID_total_in)
                          ierr, message)
   implicit none
   ! input
-  integer(i4b)         , intent(in)    :: ID_in(:)            ! input: the array of ids for HRU/seg (can be from 1 to nHRU or nSeg)
+  integer(i4b)         , intent(in)    :: ID_in(:)            ! input: the array of ids for HRU/seg
   integer(i4b)         , intent(in)    :: IX_in(:)            ! input: the array of location of ids for HRU/seg in ID_total_in (can be from 1 to nHRU or nSeg)
   real(dp)             , intent(in)    :: flux_in(:)          ! input: the array of input fluxes, should be the same size as ID_in
-  integer(i4b)         , intent(in)    :: ID_total_in(:)      ! input: the sorted array of ids for HRU/seg (should be with nHRU or nSeg)
   ! input/output
-  real(dp)             , intent(inout) :: basin_flux_sort(:)  ! inout: sorted input states and fluxes based on ID_total_in (the same size as ID_total_in)
+  real(dp)             , intent(inout) :: sorted_flux(:)      ! inout: sorted input states and fluxes based on ID_total_in (the same size as ID_total_in)
   ! output
-  integer(i4b)         , intent(out)   :: ierr             ! error code
-  character(len=strLen), intent(out)   :: message          ! error message
+  integer(i4b)         , intent(out)   :: ierr                ! error code
+  character(len=strLen), intent(out)   :: message             ! error message
   ! local
-  integer(i4b)                         :: i,j              ! index of basin in the routing layer
+  integer(i4b)                         :: i,j                 ! index of basin in the routing layer
 
   ierr=0; message="sort_flux/"
 
-!  ! allocate basin_flux_sort is not allocated
-!  if (.not.allocated(basin_flux_sort)) then
-!    ierr = 10
-!    if(ierr/=0)then; message=trim(message)//'basin_flux_sort is not allocated'; return; endif
-!  endif
-
-!  ! the size of basin_flux_sort and ID_total_in
-!  if (size(basin_flux_sort)/=size(ID_total_in)) then
-!    ierr = 20
-!    if(ierr/=0)then; message=trim(message)//'basin_flux_sort and ID are not the same size'; return; endif
-!  endif
-
-!  ! check the size of ID_in, IX_in and flux_in
-!  if ((size(ID_in)/=size(IX_in)).or.(size(IX_in)/=size(flux_in)).or.(size(flux_in)/=size(ID_in))) then
-!    ierr = 30
-!    if(ierr/=0)then; message=trim(message)//'ID_in, IX_in and flux_in not the same size'; return; endif
-!  endif
-
-  ! initializing the basin_flux_sort to zero, assuming non existing elements are all set to zero
-  basin_flux_sort = 0._dp
+  ! initializing the sorted_flux to realMissing, non existing elements are all set to realMissing
+  sorted_flux = realMissing
 
   ! loop through given ID that the flux or state should be mapped to (ID_total_in)
   do i=1,size(ID_in)
@@ -317,8 +297,8 @@ module remapping
     cycle
    endif
 
-   ! assign the flux to basin_flux_sort
-   basin_flux_sort(j) = flux_in(i)
+   ! assign the flux to sorted_flux
+   sorted_flux(j) = flux_in(i)
 
   end do   ! looping through basins in the mapping layer
 
