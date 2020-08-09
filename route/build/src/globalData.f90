@@ -88,6 +88,7 @@ module globalData
   ! ---------- input file information -------------------------------------------------------------------
 
   type(infileinfo) , allocatable , public :: infileinfo_data(:)   ! conversion factor to convert time to units of days
+  type(infileinfo) , allocatable , public :: infileinfo_data_wm(:)! conversion factor to convert time to units of days
 
   ! ---------- Misc. data -------------------------------------------------------------------------
 
@@ -185,6 +186,13 @@ module globalData
   real(dp)        , allocatable  , public :: basinEvapo_main(:)   ! HRU evaporation array (m/s) for mainstem
   real(dp)        , allocatable  , public :: basinPrecip_trib(:)  ! HRU precipitation array (m/s) for tributaries
   real(dp)        , allocatable  , public :: basinPrecip_main(:)  ! HRU precipitation array (m/s) for mainstem
+
+  ! seg water management fluxes and target volume
+  type(wm)                       , public :: wm_data              ! SEG flux and target vol data structure for one time step for river network
+  real(dp)        , allocatable  , public :: flux_wm_trib(:)      ! SEG flux array (m3/s) for tributaries
+  real(dp)        , allocatable  , public :: flux_wm_main(:)      ! SEG flux array (m3/s) for mainstem
+  real(dp)        , allocatable  , public :: vol_wm_trib(:)       ! SEG target volume (for lakes) (m3) for tributaries
+  real(dp)        , allocatable  , public :: vol_wm_main(:)       ! SEG target volume (for lakes) (m3) for mainstem
 
   ! domain data
   ! MPI
