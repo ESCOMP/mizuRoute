@@ -387,9 +387,10 @@ CONTAINS
  SUBROUTINE init_time(ierr, message)  ! output
 
   ! subroutines:
-  USE process_time_module, ONLY: process_time   ! process time information
-  USE process_time_module, ONLY: process_calday ! compute data and time from julian day
-  USE io_netcdf,           ONLY: get_nc         ! netcdf input
+  USE process_time_module, ONLY: process_time    ! process time information
+  USE process_time_module, ONLY: conv_julian2cal ! compute data and time from julian day
+  USE process_time_module, ONLY: conv_cal2julian ! compute data and time from julian day
+  USE time_utils_module,   ONLY: ndays_month     ! compute number of days in a month
   ! derived datatype
   USE dataTypes,  ONLY: time                    ! time data type
   ! public data
@@ -397,8 +398,13 @@ CONTAINS
   USE public_var, ONLY: simStart                ! date string defining the start of the simulation
   USE public_var, ONLY: simEnd                  ! date string defining the end of the simulation
   USE public_var, ONLY: calendar                ! calendar name
+  USE public_var, ONLY: dt
+  USE public_var, ONLY: secprday
   USE public_var, ONLY: restart_write           ! restart write option
   USE public_var, ONLY: restart_date            ! restart date
+  USE public_var, ONLY: restart_month           ! periodic restart month
+  USE public_var, ONLY: restart_day             ! periodic restart day
+  USE public_var, ONLY: restart_hour            ! periodic restart hr
   ! saved time variables
   USE globalData, ONLY: timeVar                 ! time variables (unit given by runoff data)
   USE globalData, ONLY: iTime                   ! time index at simulation time step
@@ -407,8 +413,9 @@ CONTAINS
   USE globalData, ONLY: startJulday             ! julian day: start of routing simulation
   USE globalData, ONLY: endJulday               ! julian day: end of routing simulation
   USE globalData, ONLY: modJulday               ! julian day: at model time step
-  USE globalData, ONLY: restartJulday           ! julian day: at restart
   USE globalData, ONLY: modTime                 ! model time data (yyyy:mm:dd:hh:mm:ss)
+  USE globalData, ONLY: restCal                 ! restart time data (yyyy:mm:dd:hh:mm:sec)
+  USE globalData, ONLY: dropCal                 ! restart dropoff calendar date/time
   USE globalData, ONLY: infileinfo_data         ! the information of the input files
 
   implicit none
@@ -425,6 +432,9 @@ CONTAINS
   integer(i4b)                             :: iFile ! for loop over the nc files
   type(time)                               :: rofCal
   type(time)                               :: simCal
+  integer(i4b)                             :: nDays          ! number of days in a month
+  real(dp)                                 :: restartJulday
+  real(dp)                                 :: tempJulday
   character(len=strLen)                    :: cmessage         ! error message of downwind routine
   character(len=50)                        :: fmt1='(a,I4,a,I2.2,a,I2.2,x,I2.2,a,I2.2,a,F5.2)'
 
@@ -472,8 +482,8 @@ CONTAINS
 
   ! check sim_start is before the last time step in runoff data
   if(startJulday>roJulday(nTime)) then
-    call process_calday(roJulday(nTime), calendar, rofCal, ierr, cmessage)
-    call process_calday(startJulday, calendar, simCal, ierr, cmessage)
+    call conv_julian2cal(roJulday(nTime), calendar, rofCal, ierr, cmessage)
+    call conv_julian2cal(startJulday, calendar, simCal, ierr, cmessage)
     write(iulog,'(2a)') new_line('a'),'ERROR: <sim_start> is after the first time step in input runoff'
     write(iulog,fmt1)  ' runoff_end  : ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
     write(iulog,fmt1)  ' <sim_start> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
@@ -482,8 +492,8 @@ CONTAINS
 
   ! Compare sim_start vs. time at first time step in runoff data
   if (startJulday < roJulday(1)) then
-    call process_calday(roJulday(1), calendar, rofCal, ierr, cmessage)
-    call process_calday(startJulday, calendar, simCal, ierr, cmessage)
+    call conv_julian2cal(roJulday(1), calendar, rofCal, ierr, cmessage)
+    call conv_julian2cal(startJulday, calendar, simCal, ierr, cmessage)
     write(iulog,'(2a)') new_line('a'),'WARNING: <sim_start> is before the first time step in input runoff'
     write(iulog,fmt1)  ' runoff_start: ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
     write(iulog,fmt1)  ' <sim_start> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
@@ -493,8 +503,8 @@ CONTAINS
 
   ! Compare sim_end vs. time at last time step in runoff data
   if (endJulday > roJulday(nTime)) then
-    call process_calday(roJulday(nTime), calendar, rofCal, ierr, cmessage)
-    call process_calday(endJulday,       calendar, simCal, ierr, cmessage)
+    call conv_julian2cal(roJulday(nTime), calendar, rofCal, ierr, cmessage)
+    call conv_julian2cal(endJulday,       calendar, simCal, ierr, cmessage)
     write(iulog,'(2a)')  new_line('a'),'WARNING: <sim_end> is after the last time step in input runoff'
     write(iulog,fmt1)   ' runoff_end: ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
     write(iulog,fmt1)   ' <sim_end> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
@@ -513,24 +523,52 @@ CONTAINS
   ! initialize previous model time
   modTime(0) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
 
-  ! restart drop off time
+ ! Set restart calendar date/time and dropoff calendar date/time and
+ ! -- For periodic restart options  ---------------------------------------------------------------------
+ ! Ensure that user-input restart month, day are valid.
+ ! "Annual" option:  if user input day exceed number of days given user input month, set to last day
+ ! "Monthly" option: use 2000-01 as template calendar yr/month
+ ! "Daily" option:   use 2000-01-01 as template calendar yr/month/day
+ select case(trim(restart_write))
+   case('Annual','annual')
+     call ndays_month(2000, restart_month, calendar, nDays, ierr, cmessage)
+     if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
+     if (restart_day > nDays) restart_day=nDays
+   case('Monthly','monthly'); restart_month = 1
+   case('Daily','daily');     restart_month = 1; restart_day = 1
+ end select
+
   select case(trim(restart_write))
     case('last','Last')
-      call process_time(trim(simEnd), calendar, restartJulday, ierr, cmessage)
-      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartDate]'; return; endif
-    case('never','Never')
-      restartJulday = 0.0_dp
+      call conv_julian2cal(endJulday, calendar, dropCal, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endJulday->dropCal]'; return; endif
+      restart_month = dropCal%im; restart_day = dropCal%id; restart_hour = dropCal%ih
     case('specified','Specified')
       if (trim(restart_date) == charMissing) then
         ierr=20; message=trim(message)//'<restart_date> must be provided when <restart_write> option is "specified"'; return
       end if
       call process_time(trim(restart_date),calendar, restartJulday, ierr, cmessage)
-      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartDate]'; return; endif
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restart_date]'; return; endif
+      restartJulday = restartJulday - dt/secprday
+      call conv_julian2cal(restartJulday, calendar, dropCal, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartJulday->dropCal]'; return; endif
+      restart_month = dropCal%im; restart_day = dropCal%id; restart_hour = dropCal%ih
+    case('Annual','Monthly','Daily','annual','monthly','daily')
+      restCal = time(2000, restart_month, restart_day, restart_hour, 0, 0._dp)
+      call conv_cal2julian(restCal, calendar, tempJulday, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [restCal->tempJulday]'; return; endif
+      tempJulday = tempJulday - dt/secprday
+      call conv_julian2cal(tempJulday, calendar, dropCal, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [tempJulday->dropCal]'; return; endif
+      restart_month = dropCal%im; restart_day = dropCal%id; restart_hour = dropCal%ih
+    case('never','Never')
+      restCal = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
     case default
-      ierr=20; message=trim(message)//'Current accepted <restart_write> options: last[Last], never[Never], specified[Specified]'; return
+      ierr=20; message=trim(message)//'Current accepted <restart_write> options: L[l]ast, N[n]ever, S[s]pecified, A[a]nnual, M[m]onthly, D[d]aily'; return
   end select
 
  END SUBROUTINE init_time
+
 
  ! ********************************************************************************
  ! public subroutine: initialize runoff, and runoff-mapping data - For stand-alone
@@ -541,7 +579,7 @@ CONTAINS
    USE public_var, ONLY: is_remap             ! logical whether or not runnoff needs to be mapped to river network HRU
    USE globalData, ONLY: remap_data           ! runoff mapping data structure
    USE globalData, ONLY: runoff_data          ! runoff data structure
-   USE globalData, ONLY: AbsInj_data          ! abstraction injection data structure
+   USE globalData, ONLY: wm_data              ! abstraction injection data structure
 
    implicit none
    ! input:
@@ -560,7 +598,7 @@ CONTAINS
      call init_runoff(is_remap,        & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
                       remap_data,      & ! output: data structure to remap data
                       runoff_data,     & ! output: data structure for runoff
-                      AbsInj_data,     & ! output: data structure for abstraction and injection and target volume
+                      wm_data,         & ! output: data structure for abstraction and injection and target volume
                       ierr, cmessage)    ! output: error control
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if  ! if processor=0 (root)
@@ -574,7 +612,7 @@ CONTAINS
  SUBROUTINE init_runoff(remap_flag,      & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
                         remap_data_in,   & ! output: data structure to remap data
                         runoff_data_in,  & ! output: data structure for runoff
-                        AbsInj_data_in,  & ! output: data strcuture for abstraction injection and target volume
+                        wm_data_in,      & ! output: data strcuture for abstraction injection and target volume
                         ierr, message)     ! output: error control
 
  USE public_var,  ONLY: ancil_dir              ! name of the ancillary directory
@@ -599,8 +637,8 @@ CONTAINS
  USE public_var,  ONLY: fname_remap            ! name of runoff mapping netCDF name
  USE public_var,  ONLY: calendar               ! name of calendar
  USE public_var,  ONLY: time_units             ! time units
- USE public_var,  ONLY: is_AbsInj              ! logical whether or not abstraction or injection should be read
- USE public_var,  ONLY: is_TargVol             ! logical whether or not target volume should be read
+ USE public_var,  ONLY: is_flux_wm             ! logical whether or not abstraction or injection should be read
+ USE public_var,  ONLY: is_vol_wm              ! logical whether or not target volume should be read
  USE globalData,  ONLY: basinID                ! basin ID
  USE dataTypes,   ONLY: remap                  ! remapping data type
  USE dataTypes,   ONLY: runoff                 ! runoff data type
@@ -727,13 +765,13 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! allocate the hru_ix based on number of hru_id presented in the
-   allocate(AbsInj_data_in%hru_ix(size(AbsInj_data_in%hru_id)), stat=ierr)
+   allocate(wm_data_in%seg_ix(size(wm_data_in%seg_id)), stat=ierr)
    if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data_in%hru_ix'; return; endif
 
    ! get indices of the HRU ids in the runoff file in the routing layer
-   call get_qix(AbsInj_data_in%hru_id,  &    ! input: vector of ids in mapping file
+   call get_qix(wm_data_in%seg_id,  &    ! input: vector of ids in mapping file
                 basinID,                &    ! input: vector of ids in the routing layer
-                AbsInj_data_in%hru_ix,  &    ! output: indices of hru ids in routing layer
+                wm_data_in%seg_ix,  &    ! output: indices of hru ids in routing layer
                 ierr, cmessage)              ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
