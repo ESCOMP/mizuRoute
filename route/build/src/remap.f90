@@ -264,18 +264,18 @@ module remapping
   ! ***************************************************************************************************************
   ! case 3: sort a given input flux and its ID based on a second given ID array,
   ! hru in runoff layer is hru polygon identical to river network layer (stored in 1-dimension array)
-  subroutine sort_flux  (ID_in,            & ! input: the array of ids for HRU/seg (can be from 1 to nHRU or nSeg)
-                         IX_in,            & ! input: the array of location of ids for HRU/seg (the same size as ID_in)
+  subroutine sort_flux  (ID_in,            & ! input: the array of ids for HRU/seg
+                         IX_in,            & ! input: the array of location of ids for HRU/seg
                          flux_in,          & ! input: the array of input fluxes, should be the same size as ID_in
-                         sorted_flux,      & ! output: sorted input states and fluxes based on ID_total_in (the same size as ID_total_in)
+                         sorted_flux,      & ! inout: sorted input states and fluxes based on hru/seg in network topology
                          ierr, message)
   implicit none
   ! input
   integer(i4b)         , intent(in)    :: ID_in(:)            ! input: the array of ids for HRU/seg
-  integer(i4b)         , intent(in)    :: IX_in(:)            ! input: the array of location of ids for HRU/seg in ID_total_in (can be from 1 to nHRU or nSeg)
+  integer(i4b)         , intent(in)    :: IX_in(:)            ! input: the array of location of ids for HRU/seg in network topology
   real(dp)             , intent(in)    :: flux_in(:)          ! input: the array of input fluxes, should be the same size as ID_in
   ! input/output
-  real(dp)             , intent(inout) :: sorted_flux(:)      ! inout: sorted input states and fluxes based on ID_total_in (the same size as ID_total_in)
+  real(dp)             , intent(inout) :: sorted_flux(:)      ! inout: sorted input states and fluxes based on hru/seg in network topology
   ! output
   integer(i4b)         , intent(out)   :: ierr                ! error code
   character(len=strLen), intent(out)   :: message             ! error message
