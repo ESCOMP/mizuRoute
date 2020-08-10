@@ -286,24 +286,6 @@ module remapping
 
   ierr=0; message="sort_flux/"
 
-!  ! allocate basin_flux_sort is not allocated
-!  if (.not.allocated(basin_flux_sort)) then
-!    ierr = 10
-!    if(ierr/=0)then; message=trim(message)//'basin_flux_sort is not allocated'; return; endif
-!  endif
-
-!  ! the size of basin_flux_sort and ID_total_in
-!  if (size(basin_flux_sort)/=size(ID_total_in)) then
-!    ierr = 20
-!    if(ierr/=0)then; message=trim(message)//'basin_flux_sort and ID are not the same size'; return; endif
-!  endif
-
-!  ! check the size of ID_in, IX_in and flux_in
-!  if ((size(ID_in)/=size(IX_in)).or.(size(IX_in)/=size(flux_in)).or.(size(flux_in)/=size(ID_in))) then
-!    ierr = 30
-!    if(ierr/=0)then; message=trim(message)//'ID_in, IX_in and flux_in not the same size'; return; endif
-!  endif
-
   ! initializing the basin_flux_sort to zero, assuming non existing elements are all set to zero
   basin_flux_sort = 0._dp
 
