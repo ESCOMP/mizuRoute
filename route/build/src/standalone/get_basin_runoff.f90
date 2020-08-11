@@ -80,7 +80,6 @@ CONTAINS
    call sort_flux  (runoff_data%hru_id,         &
                     runoff_data%hru_ix,         &
                     runoff_data%sim,            &
-                    basinID,                    &
                     runoff_data%basinRunoff,    &
                     ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -111,7 +110,6 @@ CONTAINS
     call sort_flux  (runoff_data%hru_id,        &
                      runoff_data%hru_ix,        &
                      runoff_data%sim,           &
-                     basinID,                   &
                      runoff_data%basinEvapo,    &
                      ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -140,7 +138,6 @@ CONTAINS
     call sort_flux  (runoff_data%hru_id,        &
                      runoff_data%hru_ix,        &
                      runoff_data%sim,           &
-                     basinID,                   &
                      runoff_data%basinPrecip,   &
                      ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif

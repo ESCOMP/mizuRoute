@@ -19,7 +19,7 @@ module remapping
 
   ! global data
   USE public_var, ONLY:iulog                  ! i/o logical unit number
-  USE public_var, ONLY:runoffMin, negRunoffTol, integerMissing
+  USE public_var, ONLY:runoffMin, negRunoffTol, integerMissing, realMissing
   USE globalData, ONLY:time_conv,length_conv  ! conversion factors
 
   implicit none
@@ -264,30 +264,28 @@ module remapping
   ! ***************************************************************************************************************
   ! case 3: sort a given input flux and its ID based on a second given ID array,
   ! hru in runoff layer is hru polygon identical to river network layer (stored in 1-dimension array)
-  subroutine sort_flux  (ID_in,            & ! input: the array of ids for HRU/seg (can be from 1 to nHRU or nSeg)
-                         IX_in,            & ! input: the array of location of ids for HRU/seg (the same size as ID_in)
+  subroutine sort_flux  (ID_in,            & ! input: the array of ids for HRU/seg
+                         IX_in,            & ! input: the array of location of ids for HRU/seg
                          flux_in,          & ! input: the array of input fluxes, should be the same size as ID_in
-                         ID_total_in,      & ! input: the sorted array of ids for HRU/seg (should be with nHRU or nSeg) just for check the size
-                         basin_flux_sort,  & ! output: sorted input states and fluxes based on ID_total_in (the same size as ID_total_in)
+                         sorted_flux,      & ! inout: sorted input states and fluxes based on hru/seg in network topology
                          ierr, message)
   implicit none
   ! input
-  integer(i4b)         , intent(in)    :: ID_in(:)            ! input: the array of ids for HRU/seg (can be from 1 to nHRU or nSeg)
-  integer(i4b)         , intent(in)    :: IX_in(:)            ! input: the array of location of ids for HRU/seg in ID_total_in (can be from 1 to nHRU or nSeg)
+  integer(i4b)         , intent(in)    :: ID_in(:)            ! input: the array of ids for HRU/seg
+  integer(i4b)         , intent(in)    :: IX_in(:)            ! input: the array of location of ids for HRU/seg in network topology
   real(dp)             , intent(in)    :: flux_in(:)          ! input: the array of input fluxes, should be the same size as ID_in
-  integer(i4b)         , intent(in)    :: ID_total_in(:)      ! input: the sorted array of ids for HRU/seg (should be with nHRU or nSeg)
   ! input/output
-  real(dp)             , intent(inout) :: basin_flux_sort(:)  ! inout: sorted input states and fluxes based on ID_total_in (the same size as ID_total_in)
+  real(dp)             , intent(inout) :: sorted_flux(:)      ! inout: sorted input states and fluxes based on hru/seg in network topology
   ! output
-  integer(i4b)         , intent(out)   :: ierr             ! error code
-  character(len=strLen), intent(out)   :: message          ! error message
+  integer(i4b)         , intent(out)   :: ierr                ! error code
+  character(len=strLen), intent(out)   :: message             ! error message
   ! local
-  integer(i4b)                         :: i,j              ! index of basin in the routing layer
+  integer(i4b)                         :: i,j                 ! index of basin in the routing layer
 
   ierr=0; message="sort_flux/"
 
-  ! initializing the basin_flux_sort to zero, assuming non existing elements are all set to zero
-  basin_flux_sort = 0._dp
+  ! initializing the sorted_flux to realMissing, non existing elements are all set to realMissing
+  sorted_flux = realMissing
 
   ! loop through given ID that the flux or state should be mapped to (ID_total_in)
   do i=1,size(ID_in)
@@ -299,8 +297,8 @@ module remapping
     cycle
    endif
 
-   ! assign the flux to basin_flux_sort
-   basin_flux_sort(j) = flux_in(i)
+   ! assign the flux to sorted_flux
+   sorted_flux(j) = flux_in(i)
 
   end do   ! looping through basins in the mapping layer
 
