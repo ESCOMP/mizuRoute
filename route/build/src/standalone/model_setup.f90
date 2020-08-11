@@ -23,8 +23,6 @@ implicit none
 private
 public :: init_mpi
 public :: init_data
-public :: infile_name
-
 CONTAINS
 
  ! *********************************************************************
@@ -642,6 +640,7 @@ CONTAINS
  USE globalData,  ONLY: basinID                ! basin ID
  USE dataTypes,   ONLY: remap                  ! remapping data type
  USE dataTypes,   ONLY: runoff                 ! runoff data type
+ USE dataTypes,   ONLY: wm                     ! wm data type
  USE read_runoff, ONLY: read_runoff_metadata   ! read meta data from runoff data
  USE read_remap,  ONLY: get_remap_data         ! read remap data
 
