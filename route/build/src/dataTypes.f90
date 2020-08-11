@@ -174,6 +174,18 @@ implicit none
    real(dp)                 , allocatable  :: basinPrecip(:)! remapped river network catchment runoff (size: number of nHRU)
  end type runoff
 
+ ! water management data; fluxes to/from reaches or target volume
+ type, public :: wm
+   integer(i4b)                            :: nTime           ! number of time steps
+   integer(i4b)                            :: nSpace          ! number of spatial dimension, in this case only one dimentonal
+   real(dp)                                :: time            ! time variable at one time step
+   real(dp)                 , allocatable  :: sim(:)          ! user specified flux add/subtract, or volume at one time step (size: nSpace)
+   integer(i4b)             , allocatable  :: seg_id(:)       ! id of reach in data (size: nSpace)
+   integer(i4b)             , allocatable  :: seg_ix(:)       ! Index of river network reach IDs corresponding reach ID in data
+   real(dp)                 , allocatable  :: flux_wm(:)      ! allocated flux to existing river network using sort_flux (size: number of nRCH)
+   real(dp)                 , allocatable  :: vol_wm(:)       ! allocated target vol to existing river network using sort_flux (size: number of nRCH)
+end type
+
  ! ---------- reach parameters ----------------------------------------------------------------------------
 
  ! Reach Parameters
