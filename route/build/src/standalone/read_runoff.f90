@@ -51,13 +51,13 @@ contains
  character(*), intent(in)        :: dim_ylat_name   ! name of dimension along lat
  character(*), intent(in)        :: dim_xlon_name   ! name of dimension along lon
  ! output variables
- integer(i4b), intent(out)       :: nSpace(1:2)     ! nSpace of the input in runoff or wm strcuture
- integer(i4b), intent(out)       :: nTime           ! nTime of the input in runoff or wm strcuture
- real(dp),  allocatable,   intent(out)       :: sim(:)             ! 1D simulation
- real(dp),  allocatable,   intent(out)       :: sim2D(:,:)          ! 2D simulation
- integer(i4b),allocatable, intent(out)       :: ID_array(:)       ! ID of seg or hru in data
- character(*), intent(out)       :: timeUnits       ! time units
- character(*), intent(out)       :: calendar        ! calendar
+ integer(i4b),                intent(out)   :: nSpace(1:2)     ! nSpace of the input in runoff or wm strcuture
+ integer(i4b),                intent(out)   :: nTime           ! nTime of the input in runoff or wm strcuture
+ real(dp),      allocatable,  intent(out)   :: sim(:)          ! 1D simulation
+ real(dp),      allocatable,  intent(out)   :: sim2D(:,:)      ! 2D simulation
+ integer(i4b),  allocatable,  intent(out)   :: ID_array(:)     ! ID of seg or hru in data
+ character(*),                intent(out)   :: timeUnits       ! time units
+ character(*),                intent(out)   :: calendar        ! calendar
  ! error control
  integer(i4b), intent(out)       :: ierr            ! error code
  character(*), intent(out)       :: message         ! error message

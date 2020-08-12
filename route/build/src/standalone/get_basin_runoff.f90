@@ -37,6 +37,7 @@ CONTAINS
   USE globalData,  ONLY:nHRU                    ! number of routing sub-basin
   USE globalData,  ONLY:nRch                    ! number of routing seg (reaches and lakes)
   USE globalData,  ONLY:runoff_data             ! data structure to hru runoff data
+  USE globalData,  ONLY:wm_data                 ! data strcuture for water management
   USE globalData,  ONLY:wm_data                 ! data structure to hru runoff data
   USE globalData,  ONLY:remap_data              ! data structure to remap data
   ! subroutines
@@ -76,78 +77,136 @@ CONTAINS
 
   ! Get river network HRU runoff into runoff_data data structure
   if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
-   call remap_runoff(runoff_data, remap_data, runoff_data%basinRunoff, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call remap_runoff(runoff_data, remap_data, runoff_data%basinRunoff, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   else ! runoff is already remapped to river network HRUs
-   call sort_flux  (runoff_data%hru_id,         &
+    call sort_flux (runoff_data%hru_id,         &
                     runoff_data%hru_ix,         &
                     runoff_data%sim,            &
                     runoff_data%basinRunoff,    &
                     ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if
 
   if (is_lake_sim) then ! if is_lake_sim if true then read actual evaporation and preciptation
 
-   ! get the actual evaporation - runoff_data%sim(:) or %sim2D(:,:)
-   call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
-                         trim(vname_evapo),                 & ! input: varname
-                         iTime_local,                       & ! input: time index
-                         runoff_data%nSpace,                & ! inout: runoff data structure
-                        runoff_data%sim,                & ! inout: runoff data structure
-                        runoff_data%sim2D,                & ! inout: runoff data structure
-                         ierr, cmessage)                      ! output: error control
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   if ( allocated(runoff_data%basinEvapo) ) then
-     deallocate(runoff_data%basinEvapo, stat=ierr)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   end if
-   allocate(runoff_data%basinEvapo(nHRU), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   ! Get river network HRU runoff into runoff_data data structure
-   if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
-    call remap_runoff(runoff_data, remap_data, runoff_data%basinEvapo, ierr, cmessage)
+    ! get the actual evaporation - runoff_data%sim(:) or %sim2D(:,:)
+    call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
+                          trim(vname_evapo),                 & ! input: varname
+                          iTime_local,                       & ! input: time index
+                          runoff_data%nSpace,                & ! inout: runoff data structure
+                          runoff_data%sim,                   & ! inout: runoff data structure
+                          runoff_data%sim2D,                 & ! inout: runoff data structure
+                          ierr, cmessage)                      ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   else ! runoff is already remapped to river network HRUs
-    call sort_flux  (runoff_data%hru_id,        &
-                     runoff_data%hru_ix,        &
-                     runoff_data%sim,           &
-                     runoff_data%basinEvapo,    &
+
+    if ( allocated(runoff_data%basinEvapo) ) then
+      deallocate(runoff_data%basinEvapo, stat=ierr)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+    allocate(runoff_data%basinEvapo(nHRU), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! Get river network HRU runoff into runoff_data data structure
+    if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
+      call remap_runoff(runoff_data, remap_data, runoff_data%basinEvapo, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    else ! runoff is already remapped to river network HRUs
+      call sort_flux  (runoff_data%hru_id,        &
+                       runoff_data%hru_ix,        &
+                       runoff_data%sim,           &
+                       runoff_data%basinEvapo,    &
+                       ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+
+    ! get the precepitation - runoff_data%sim(:) or %sim2D(:,:)
+    call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
+                          trim(vname_precip),                & ! input: varname
+                          iTime_local,                       & ! input: time index
+                          runoff_data%nSpace,                & ! inout: runoff data structure
+                          runoff_data%sim,                   & ! inout: runoff data structure
+                          runoff_data%sim2D,                 & ! inout: runoff data structure
+                          ierr, cmessage)                      ! output: error control
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    if ( allocated(runoff_data%basinPrecip) ) then
+      deallocate(runoff_data%basinPrecip, stat=ierr)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+    allocate(runoff_data%basinPrecip(nHRU), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! Get river network HRU runoff into runoff_data data structure
+    if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
+      call remap_runoff(runoff_data, remap_data, runoff_data%basinPrecip, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    else ! runoff is already remapped to river network HRUs
+      call sort_flux  (runoff_data%hru_id,        &
+                       runoff_data%hru_ix,        &
+                       runoff_data%sim,           &
+                       runoff_data%basinPrecip,   &
+                       ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+  end if
+
+  ! reading the abstraction and subtraction to river segment
+  if (is_flux_wm) then
+
+    ! get the added or subtracted discharge from river segments
+    call read_runoff_data(trim(input_dir)//trim(fname_wm),   & ! input: filename
+                          trim(vname_flux_wm),               & ! input: varname
+                          iTime_local_wm,                    & ! input: time index
+                          wm_data%nSpace,                    & ! inout: runoff data structure
+                          wm_data%sim,                       & ! inout: runoff data structure
+                          wm_data%sim2D,                     & ! inout: runoff data structure
+                          ierr, cmessage)                      ! output: error control
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    if ( allocated(wm_data%flux_wm) ) then
+      deallocate(wm_data%flux_wm, stat=ierr)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+    allocate(wm_data%flux_wm(nRch), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! sorting the read_runoff into wm_data%flux_wm
+    call sort_flux  (wm_data%seg_id,        &
+                     wm_data%seg_ix,        &
+                     wm_data%sim,           &
+                     wm_data%flux_wm,       &
                      ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   end if
+  end if
 
-   ! get the precepitation - runoff_data%sim(:) or %sim2D(:,:)
-   call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
-                         trim(vname_precip),                & ! input: varname
-                         iTime_local,                       & ! input: time index
-                         runoff_data%nSpace,                & ! inout: runoff data structure
-                        runoff_data%sim,                & ! inout: runoff data structure
-                        runoff_data%sim2D,                & ! inout: runoff data structure
-                         ierr, cmessage)                      ! output: error control
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  ! reading the target volume for lakes if is_lake_sim is activated
+  if ((is_lake_sim).and.(is_vol_wm)) then
 
-   if ( allocated(runoff_data%basinPrecip) ) then
-    deallocate(runoff_data%basinPrecip, stat=ierr)
+    ! get the added or subtracted discharge from river segments
+    call read_runoff_data(trim(input_dir)//trim(fname_wm),   & ! input: filename
+                          trim(vname_vol_wm),                & ! input: varname
+                          iTime_local_wm,                    & ! input: time index
+                          wm_data%nSpace,                    & ! inout: runoff data structure
+                          wm_data%sim,                       & ! inout: runoff data structure
+                          wm_data%sim2D,                     & ! inout: runoff data structure
+                          ierr, cmessage)                      ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   end if
-   allocate(runoff_data%basinPrecip(nHRU), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! Get river network HRU runoff into runoff_data data structure
-   if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
-    call remap_runoff(runoff_data, remap_data, runoff_data%basinPrecip, ierr, cmessage)
+    if ( allocated(wm_data%vol_wm) ) then
+      deallocate(wm_data%vol_wm, stat=ierr)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+    allocate(wm_data%vol_wm(nRch), stat=ierr)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   else ! runoff is already remapped to river network HRUs
-    call sort_flux  (runoff_data%hru_id,        &
-                     runoff_data%hru_ix,        &
-                     runoff_data%sim,           &
-                     runoff_data%basinPrecip,   &
+
+    ! sorting the read_runoff into wm_data%vol_wm
+    call sort_flux  (wm_data%seg_id,        &
+                     wm_data%seg_ix,        &
+                     wm_data%sim,           &
+                     wm_data%vol_wm,        &
                      ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   end if
   end if
 
  END SUBROUTINE get_hru_runoff

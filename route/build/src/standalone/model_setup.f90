@@ -635,6 +635,7 @@ CONTAINS
  USE public_var,  ONLY: fname_remap            ! name of runoff mapping netCDF name
  USE public_var,  ONLY: calendar               ! name of calendar
  USE public_var,  ONLY: time_units             ! time units
+ USE public_var,  ONLY: is_lake_sim            ! logical if lakes simulations are activated
  USE public_var,  ONLY: is_flux_wm             ! logical whether or not abstraction or injection should be read
  USE public_var,  ONLY: is_vol_wm              ! logical whether or not target volume should be read
  USE globalData,  ONLY: basinID                ! basin ID
@@ -670,11 +671,11 @@ CONTAINS
                            dname_hruid,                        & ! input: dimension of varibale hru
                            dname_ylat,                         & ! input: dimension of lat
                            dname_xlon,                         & ! input: dimension of lon
-                           runoff_data_in%nSpace           , & ! nSpace of the input in runoff or wm strcuture
-                           runoff_data_in%nTime            , & ! nTime of the input in runoff or wm strcuture
-                           runoff_data_in%sim              , & ! 1D simulation
-                           runoff_data_in%sim2D            , & ! 2D simulation
-                           runoff_data_in%hru_id         , & ! ID of seg or hru in data
+                           runoff_data_in%nSpace,              & ! nSpace of the input in runoff or wm strcuture
+                           runoff_data_in%nTime,               & ! nTime of the input in runoff or wm strcuture
+                           runoff_data_in%sim,                 & ! 1D simulation
+                           runoff_data_in%sim2D,               & ! 2D simulation
+                           runoff_data_in%hru_id,              & ! ID of seg or hru in data
                            time_units, calendar,               & ! output: number of time steps, time units, calendar
                            ierr, cmessage)                       ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -752,34 +753,34 @@ CONTAINS
  endif
 
  ! is abstraction and injection flag is active
- if ((is_flux_wm).or.(is_vol_wm)) then
+ if ((is_flux_wm).or.((is_vol_wm).and.(is_lake_sim))) then
 
-   call read_runoff_metadata(trim(input_dir)//trim(fname_wm),    & ! input: filename
-                             vname_flux_wm,          & ! input: varibale name for simulated runoff
-                             vname_time_wm,          & ! input: varibale name for time
-                             dname_time_wm,          & ! input: dimension of variable time
-                             vname_segid_wm,         & ! input: varibale hruid
-                             dname_segid_wm,         & ! input: dimension of varibale hru
-                             dname_ylat,             & ! input: dimension of lat
-                             dname_xlon,             & ! input: dimension of lon
-                             wm_data_in%nSpace,      & ! nSpace of the input in runoff or wm strcuture
-                             wm_data_in%nTime,       & ! nTime of the input in runoff or wm strcuture
-                             wm_data_in%sim,         & ! 1D simulation
-                             wm_data_in%sim2D,       & ! 2D simulation
-                             wm_data_in%seg_id,      & ! ID of seg or hru in data
-                             time_units, calendar,   & ! output: number of time steps, time units, calendar
-                             ierr, cmessage)           ! output: error control
+   call read_runoff_metadata(trim(input_dir)//trim(fname_wm),  & ! input: filename
+                             vname_flux_wm,                    & ! input: varibale name for simulated runoff
+                             vname_time_wm,                    & ! input: varibale name for time
+                             dname_time_wm,                    & ! input: dimension of variable time
+                             vname_segid_wm,                   & ! input: varibale hruid
+                             dname_segid_wm,                   & ! input: dimension of varibale hru
+                             dname_ylat,                       & ! input: dimension of lat
+                             dname_xlon,                       & ! input: dimension of lon
+                             wm_data_in%nSpace,                & ! nSpace of the input in runoff or wm strcuture
+                             wm_data_in%nTime,                 & ! nTime of the input in runoff or wm strcuture
+                             wm_data_in%sim,                   & ! 1D simulation
+                             wm_data_in%sim2D,                 & ! 2D simulation
+                             wm_data_in%seg_id,                & ! ID of seg or hru in data
+                             time_units, calendar,             & ! output: number of time steps, time units, calendar
+                             ierr, cmessage)                     ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! allocate the hru_ix based on number of hru_id presented in the
    allocate(wm_data_in%seg_ix(size(wm_data_in%seg_id)), stat=ierr)
    if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data_in%hru_ix'; return; endif
 
-   ! get indices of the HRU ids in the runoff file in the routing layer
+   ! get indices of the seg ids in the input file in the routing layer
    call get_qix(wm_data_in%seg_id,  &    ! input: vector of ids in mapping file
-                basinID,                &    ! input: vector of ids in the routing layer
+                basinID,            &    ! input: vector of ids in the routing layer
                 wm_data_in%seg_ix,  &    ! output: indices of hru ids in routing layer
-                ierr, cmessage)              ! output: error control
+                ierr, cmessage)          ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   endif

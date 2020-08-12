@@ -139,8 +139,8 @@ CONTAINS
    case('<input_fillvalue>');      read(cData,*,iostat=io_error) input_fillvalue   ! fillvalue used for input variable
    ! FLUXES TO/FROM REACHES AND LAKE STATES FILE
    case('<fname_wm>');             fname_wm        = trim(cData)                   ! name of text file containing ordered nc file names
-   case('<vname_flux>');           vname_flux_wm   = trim(cData)                   ! name of varibale for fluxes to and from seg (reachs/lakes)
-   case('<vname_vol>');            vname_vol_wm    = trim(cData)                   ! name of varibale for target volume for managed lakes
+   case('<vname_flux_wm>');        vname_flux_wm   = trim(cData)                   ! name of varibale for fluxes to and from seg (reachs/lakes)
+   case('<vname_vol_wm>');         vname_vol_wm    = trim(cData)                   ! name of varibale for target volume for managed lakes
    case('<vname_time_wm>');        vname_time_wm   = trim(cData)                   ! name of time variable
    case('<vname_segid_wm>');       vname_segid_wm  = trim(cData)                   ! name of the segid varibale in nc files
    case('<dname_time_wm>');        dname_time_wm   = trim(cData)                   ! name of time dimension
