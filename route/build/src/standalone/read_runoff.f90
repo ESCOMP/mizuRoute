@@ -273,7 +273,7 @@ contains
  ! *********************************************************************
  subroutine read_runoff_data(fname,            &  ! input: filename
                              var_name,         &  ! input: varibale name
-                             iTime,            &  ! input: time index
+                             time_index,       &  ! input: time index
                              nSpace,           &  ! input: dimension of data to be read
                              sim,              &  ! output: read data 1D sim
                              sim2D,            &  ! output: read data 2D sim
@@ -282,7 +282,7 @@ contains
  ! input variables
  character(*), intent(in)           :: fname              ! filename
  character(*), intent(in)           :: var_name           ! variable name
- integer(i4b), intent(in)           :: iTime              ! index of time element
+ integer(i4b), intent(in)           :: time_index         ! index of time element
  integer(i4b), intent(in)           :: nSpace(1:2)        ! dimension of data for one time step
  ! output variables
  real(dp), allocatable,  intent(out)              :: sim(:)                ! runoff for one time step for all spatial dimension
@@ -296,10 +296,10 @@ contains
  ierr=0; message='read_runoff_data/'
 
  if (nSpace(2) == integerMissing) then
-  call read_1D_runoff(fname, var_name, iTime, nSpace(1), sim, ierr, cmessage)
+  call read_1D_runoff(fname, var_name, time_index, nSpace(1), sim, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  else
-  call read_2D_runoff(fname, var_name, iTime, nSpace, sim2D, ierr, cmessage)
+  call read_2D_runoff(fname, var_name, time_index, nSpace, sim2D, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  endif
 
@@ -310,7 +310,7 @@ contains
  ! *********************************************************************
  subroutine read_1D_runoff(fname,          &  ! input: filename
                            var_name,       &  ! input: variable name
-                           iTime,          &  ! input: time index
+                           time_index,     &  ! input: time index
                            nSpace,         &  ! input: size of HRUs
                            sim,            &  ! output: runoff data structure
                            ierr, message)     ! output: error control
@@ -318,10 +318,10 @@ contains
  ! input variables
  character(*), intent(in)           :: fname              ! filename
  character(*), intent(in)           :: var_name           ! variable name
- integer(i4b), intent(in)           :: iTime              ! index of time element
+ integer(i4b), intent(in)           :: time_index         ! index of time element
  integer(i4b), intent(in)           :: nSpace             ! size of spatial dimensions
  ! output variables
- real(dp), allocatable, intent(out)   :: sim(:)
+ real(dp), allocatable, intent(out) :: sim(:)
  integer(i4b), intent(out)          :: ierr               ! error code
  character(*), intent(out)          :: message            ! error message
  ! local variables
@@ -333,7 +333,7 @@ contains
  ierr=0; message='read_1D_runoff/'
 
  ! get the simulated runoff data
- call get_nc(trim(fname), trim(var_name), dummy, (/1,iTime/), (/nSpace,1/), ierr, cmessage)
+ call get_nc(trim(fname), trim(var_name), dummy, (/1,time_index/), (/nSpace,1/), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the _fill_values for runoff variable
@@ -353,7 +353,7 @@ contains
  ! *********************************************************************
  subroutine read_2D_runoff(fname,            &  ! input: filename
                            var_name,         &  ! input: variable name
-                           iTime,            &  ! input: time index
+                           time_index,       &  ! input: time index
                            nSpace,           &  ! input: size of HRUs
                            sim2D,            &  ! output: runoff data structure
                            ierr, message)       ! output: error control
@@ -361,7 +361,7 @@ contains
  ! input variables
  character(*), intent(in)    :: fname            ! filename
  character(*), intent(in)    :: var_name         ! variable name
- integer(i4b), intent(in)    :: iTime            ! index of time element
+ integer(i4b), intent(in)    :: time_index       ! index of time element
  integer(i4b), intent(in)    :: nSpace(1:2)      ! size of spatial dimensions
  ! output variables
  real(dp), allocatable,    intent(out)   :: sim2D(:,:)           ! runoff for one time step for all spatial dimension
@@ -376,7 +376,11 @@ contains
  ierr=0; message='read_2D_runoff/'
 
  ! get the simulated runoff data
- call get_nc(trim(fname), trim(var_name), dummy, (/1,1,iTime/), (/nSpace(2), nSpace(1), 1/), ierr, cmessage)
+ print*, fname
+ print*, var_name
+ print*, time_index
+ print*, nSpace
+ call get_nc(trim(fname), trim(var_name), dummy, (/1,1,time_index/), (/nSpace(2), nSpace(1), 1/), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get the _fill_values for runoff variable

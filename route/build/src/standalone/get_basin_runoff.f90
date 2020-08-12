@@ -38,7 +38,6 @@ CONTAINS
   USE globalData,  ONLY:nRch                    ! number of routing seg (reaches and lakes)
   USE globalData,  ONLY:runoff_data             ! data structure to hru runoff data
   USE globalData,  ONLY:wm_data                 ! data strcuture for water management
-  USE globalData,  ONLY:wm_data                 ! data structure to hru runoff data
   USE globalData,  ONLY:remap_data              ! data structure to remap data
   ! subroutines
   USE read_runoff, ONLY:read_runoff_data        ! read runoff value into runoff_data data strucuture
@@ -58,13 +57,19 @@ CONTAINS
   call infile_name(ierr, cmessage) ! read the infile name for given iTime
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+  !print statements
+  print*, iTime_local, iTime_local_wm
+  print*, fname_qsim, fname_wm
+  print*, runoff_data%nSpace
+  print*, wm_data%nSpace
+
   ! get the simulated runoff for the current time step - runoff_data%sim(:) or %sim2D(:,:)
   call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
                         trim(vname_qsim),                  & ! input: varname
                         iTime_local,                       & ! input: time index
                         runoff_data%nSpace,                & ! inout: runoff data structure
-                        runoff_data%sim,                & ! inout: runoff data structure
-                        runoff_data%sim2D,                & ! inout: runoff data structure
+                        runoff_data%sim,                   & ! inout: runoff data structure
+                        runoff_data%sim2D,                 & ! inout: runoff data structure
                         ierr, cmessage)                      ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -208,6 +213,14 @@ CONTAINS
                      ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if
+
+  ! printing statement
+  print*, wm_data%flux_wm
+  print*, wm_data%seg_id
+  print*, wm_data%seg_id
+  print*, iTime_local
+  print*, iTime_local_wm
+  stop
 
  END SUBROUTINE get_hru_runoff
 
