@@ -61,7 +61,9 @@ CONTAINS
   call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
                         trim(vname_qsim),                  & ! input: varname
                         iTime_local,                       & ! input: time index
-                        runoff_data,                       & ! inout: runoff data structure
+                        runoff_data%nSpace,                & ! inout: runoff data structure
+                        runoff_data%sim,                & ! inout: runoff data structure
+                        runoff_data%sim2D,                & ! inout: runoff data structure
                         ierr, cmessage)                      ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -91,7 +93,9 @@ CONTAINS
    call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
                          trim(vname_evapo),                 & ! input: varname
                          iTime_local,                       & ! input: time index
-                         runoff_data,                       & ! inout: runoff data structure
+                         runoff_data%nSpace,                & ! inout: runoff data structure
+                        runoff_data%sim,                & ! inout: runoff data structure
+                        runoff_data%sim2D,                & ! inout: runoff data structure
                          ierr, cmessage)                      ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -119,7 +123,9 @@ CONTAINS
    call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
                          trim(vname_precip),                & ! input: varname
                          iTime_local,                       & ! input: time index
-                         runoff_data,                       & ! inout: runoff data structure
+                         runoff_data%nSpace,                & ! inout: runoff data structure
+                        runoff_data%sim,                & ! inout: runoff data structure
+                        runoff_data%sim2D,                & ! inout: runoff data structure
                          ierr, cmessage)                      ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
