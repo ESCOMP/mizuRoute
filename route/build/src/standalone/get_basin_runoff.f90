@@ -215,12 +215,12 @@ CONTAINS
   end if
 
   ! printing statement
-  print*, wm_data%flux_wm
-  print*, wm_data%seg_id
-  print*, wm_data%seg_id
-  print*, iTime_local
-  print*, iTime_local_wm
-  stop
+  !print*, wm_data%flux_wm
+  !print*, wm_data%seg_id
+  !print*, wm_data%seg_id
+  !print*, iTime_local
+  !print*, iTime_local_wm
+  !stop
 
  END SUBROUTINE get_hru_runoff
 

@@ -276,22 +276,23 @@ contains
                              var_name,         &  ! input: varibale name
                              time_index,       &  ! input: time index
                              nSpace,           &  ! input: dimension of data to be read
-                             sim,              &  ! output: read data 1D sim
-                             sim2D,            &  ! output: read data 2D sim
+                             sim,              &  ! input/output: read data 1D sim
+                             sim2D,            &  ! input/output: read data 2D sim
                              ierr, message)       ! output: error control
  implicit none
  ! input variables
- character(*), intent(in)           :: fname              ! filename
- character(*), intent(in)           :: var_name           ! variable name
- integer(i4b), intent(in)           :: time_index         ! index of time element
- integer(i4b), intent(in)           :: nSpace(1:2)        ! dimension of data for one time step
+ character(*), intent(in)                :: fname              ! filename
+ character(*), intent(in)                :: var_name           ! variable name
+ integer(i4b), intent(in)                :: time_index         ! index of time element
+ integer(i4b), intent(in)                :: nSpace(1:2)        ! dimension of data for one time step
+ ! input/output variables
+ real(dp), allocatable,  intent(inout)   :: sim(:)             ! runoff for one time step for all spatial dimension
+ real(dp), allocatable,  intent(inout)   :: sim2D(:,:)         ! runoff for one time step for all spatial dimension
  ! output variables
- real(dp), allocatable,  intent(out)              :: sim(:)                ! runoff for one time step for all spatial dimension
- real(dp), allocatable,  intent(out)              :: sim2D(:,:)              ! runoff for one time step for all spatial dimension
- integer(i4b), intent(out)          :: ierr               ! error code
- character(*), intent(out)          :: message            ! error message
+ integer(i4b), intent(out)               :: ierr               ! error code
+ character(*), intent(out)               :: message            ! error message
  ! local variables
- character(len=strLen)              :: cmessage           ! error message from subroutine
+ character(len=strLen)                   :: cmessage           ! error message from subroutine
 
  ! initialize error control
  ierr=0; message='read_runoff_data/'
@@ -313,24 +314,25 @@ contains
                            var_name,       &  ! input: variable name
                            time_index,     &  ! input: time index
                            nSpace,         &  ! input: size of HRUs
-                           sim,            &  ! output: runoff data structure
+                           sim,            &  ! input/output: runoff data structure
                            ierr, message)     ! output: error control
  implicit none
  ! input variables
- character(*), intent(in)           :: fname              ! filename
- character(*), intent(in)           :: var_name           ! variable name
- integer(i4b), intent(in)           :: time_index         ! index of time element
- integer(i4b), intent(in)           :: nSpace             ! size of spatial dimensions
+ character(*), intent(in)                :: fname              ! filename
+ character(*), intent(in)                :: var_name           ! variable name
+ integer(i4b), intent(in)                :: time_index         ! index of time element
+ integer(i4b), intent(in)                :: nSpace             ! size of spatial dimensions
+ ! input/output variables
+ real(dp), allocatable,  intent(inout)   :: sim(:)             ! runoff for one time step for all spatial dimension
  ! output variables
- real(dp), allocatable, intent(out) :: sim(:)
- integer(i4b), intent(out)          :: ierr               ! error code
- character(*), intent(out)          :: message            ! error message
+ integer(i4b), intent(out)               :: ierr               ! error code
+ character(*), intent(out)               :: message            ! error message
  ! local variables
- integer(i4b)                       :: iStart(2)
- integer(i4b)                       :: iCount(2)
- logical(lgt)                       :: existFillVal
- real(dp)                           :: dummy(nSpace,1)    ! data read
- character(len=strLen)              :: cmessage           ! error message from subroutine
+ integer(i4b)                            :: iStart(2)
+ integer(i4b)                            :: iCount(2)
+ logical(lgt)                            :: existFillVal
+ real(dp)                                :: dummy(nSpace,1)    ! data read
+ character(len=strLen)                   :: cmessage           ! error message from subroutine
 
  ! initialize error control
  ierr=0; message='read_1D_runoff/'
@@ -363,7 +365,7 @@ contains
                            var_name,         &  ! input: variable name
                            time_index,       &  ! input: time index
                            nSpace,           &  ! input: size of HRUs
-                           sim2D,            &  ! output: runoff data structure
+                           sim2D,            &  ! input/output: runoff data structure
                            ierr, message)       ! output: error control
  implicit none
  ! input variables
@@ -371,8 +373,9 @@ contains
  character(*), intent(in)                :: var_name         ! variable name
  integer(i4b), intent(in)                :: time_index       ! index of time element
  integer(i4b), intent(in)                :: nSpace(1:2)      ! size of spatial dimensions
+ ! input/output variables
+ real(dp), allocatable,  intent(inout)   :: sim2D(:,:)       ! runoff for one time step for all spatial dimension
  ! output variables
- real(dp), allocatable,    intent(out)   :: sim2D(:,:)       ! runoff for one time step for all spatial dimension
  integer(i4b), intent(out)               :: ierr             ! error code
  character(*), intent(out)               :: message          ! error message
  ! local variables

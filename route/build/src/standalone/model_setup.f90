@@ -639,6 +639,7 @@ CONTAINS
  USE public_var,  ONLY: is_flux_wm             ! logical whether or not abstraction or injection should be read
  USE public_var,  ONLY: is_vol_wm              ! logical whether or not target volume should be read
  USE globalData,  ONLY: basinID                ! basin ID
+ USE globalData,  ONLY: reachID                ! reach ID
  USE dataTypes,   ONLY: remap                  ! remapping data type
  USE dataTypes,   ONLY: runoff                 ! runoff data type
  USE dataTypes,   ONLY: wm                     ! wm data type
@@ -777,8 +778,10 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data_in%hru_ix'; return; endif
 
    ! get indices of the seg ids in the input file in the routing layer
+   print*, size(wm_data_in%seg_id)
+   print*, size(reachID)
    call get_qix(wm_data_in%seg_id,  &    ! input: vector of ids in mapping file
-                basinID,            &    ! input: vector of ids in the routing layer
+                reachID,            &    ! input: vector of ids in the routing layer
                 wm_data_in%seg_ix,  &    ! output: indices of hru ids in routing layer
                 ierr, cmessage)          ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
