@@ -273,11 +273,13 @@ CONTAINS
                       ierr, message)  ! output
 
   ! subroutines:
-  USE process_time_module, ONLY : process_time  ! process time information
+  USE process_time_module, ONLY : process_time    ! process time information
   USE process_time_module, ONLY : conv_julian2cal ! compute data and time from julian day
   USE process_time_module, ONLY : conv_cal2julian ! compute data and time from julian day
   USE time_utils_module,   ONLY : ndays_month     ! compute number of days in a month
-  USE io_netcdf,           ONLY : get_nc        ! netcdf input
+  USE io_netcdf,           ONLY : open_nc         ! netcdf input
+  USE io_netcdf,           ONLY : close_nc        ! netcdf input
+  USE io_netcdf,           ONLY : get_nc          ! netcdf input
   ! derived datatype
   USE dataTypes,           ONLY : time          ! time data type
   ! public data
@@ -315,6 +317,7 @@ CONTAINS
   integer(i4b),              intent(out)   :: ierr             ! error code
   character(*),              intent(out)   :: message          ! error message
   ! local variable
+  integer(i4b)                             :: ncidRunoff
   integer(i4b)                             :: ix
   type(time)                               :: rofCal
   type(time)                               :: simCal
@@ -334,7 +337,13 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! get the time data
-  call get_nc(trim(input_dir)//trim(fname_qsim), vname_time, timeVar, 1, nTime, ierr, cmessage)
+  call open_nc(trim(input_dir)//trim(fname_qsim), 'r', ncidRunoff, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  call get_nc(ncidRunoff, vname_time, timeVar, 1, nTime, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  call close_nc(ncidRunoff, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! get the time multiplier needed to convert time to units of days
