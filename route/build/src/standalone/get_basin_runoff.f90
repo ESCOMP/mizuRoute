@@ -281,13 +281,15 @@ CONTAINS
     ierr=20; message=trim(message)//'iTime local is out of bound for the netcdf file inputs based on given simulation time'; print*, ierr ; print*, message ; return ;
   endif
 
-  !print*, counter
-  !print*, ierr
-  !print*, message
-  !print*, infileinfo_data_wm(1)%iTimebound(1)
-  !print*, infileinfo_data_wm(1)%iTimebound(2)
-  !print*, infileinfo_data(1)%iTimebound(1)
-  !print*, infileinfo_data(1)%iTimebound(2)
+  print*, counter
+  print*, ierr
+  print*, message
+  print*, infileinfo_data_wm(1)%iTimebound(1)
+  print*, infileinfo_data_wm(1)%iTimebound(2)
+  print*, infileinfo_data(1)%iTimebound(1)
+  print*, infileinfo_data(1)%iTimebound(2)
+  print*, iTime_local
+  print*, iTime_local_wm
 
  END SUBROUTINE infile_name
 

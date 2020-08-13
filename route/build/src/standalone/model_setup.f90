@@ -298,6 +298,11 @@ CONTAINS
     inputfileinfo(iFile)%iTimebound(2) = inputfileinfo(iFile-1)%iTimebound(2) + nTime ! the last index from the perivous nc file + 1
    endif
 
+   print*, iFile
+   print*, inputfileinfo(iFile)%iTimebound(1)
+   print*, inputfileinfo(iFile)%iTimebound(2)
+   print*, inputfileinfo(iFile)%infilename
+
   enddo
 
   ! close ascii file
@@ -357,8 +362,12 @@ CONTAINS
     day_start_diff = inputfileinfo_wm(iFile)%timeVar(1) /inputfileinfo_wm(iFile)%convTime2Days+inputfileinfo_wm(iFile)%ncrefjulday - refJulday_local
     day_end_diff   = inputfileinfo_wm(iFile)%timeVar(nt)/inputfileinfo_wm(iFile)%convTime2Days+inputfileinfo_wm(iFile)%ncrefjulday - refJulday_local
 
-    inputfileinfo_wm(iFile)%iTimebound(1) = day_start_diff*secprday/dt + 1 ! to convert the day difference into time step difference
-    inputfileinfo_wm(iFile)%iTimebound(2) = day_end_diff  *secprday/dt     ! to convert the day difference into time step difference
+    inputfileinfo_wm(iFile)%iTimebound(1) = day_start_diff * secprday/dt + 1 ! to convert the day difference into time step difference
+    inputfileinfo_wm(iFile)%iTimebound(2) = day_end_diff   * secprday/dt + 1 ! to convert the day difference into time step difference
+
+    print*, iFile
+    print*, inputfileinfo_wm(iFile)%iTimebound(1)
+    print*, inputfileinfo_wm(iFile)%iTimebound(2)
 
   end do
 
