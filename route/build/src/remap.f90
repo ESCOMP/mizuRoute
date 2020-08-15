@@ -19,13 +19,13 @@ module remapping
 
   ! global data
   USE public_var, ONLY:iulog                  ! i/o logical unit number
-  USE public_var, ONLY:runoffMin, negRunoffTol, integerMissing
+  USE public_var, ONLY:runoffMin, negRunoffTol, integerMissing, realMissing
   USE globalData, ONLY:time_conv,length_conv  ! conversion factors
 
   implicit none
   private
   public ::remap_runoff
-  public ::sort_runoff
+  public ::sort_flux
   public ::basin2reach
 
   contains
@@ -260,49 +260,49 @@ module remapping
   end subroutine remap_1D_runoff
 
   ! *****
-  ! public subroutine: assign runoff data in runoff layer to hru in river network layer
+  ! public subroutine: assign (sort) fluxes and states from a given ID array to another ID array
   ! ***************************************************************************************************************
-  ! case 3: hru in runoff layer is hru polygon identical to river network layer (stored in 1-dimension array)
-  subroutine sort_runoff(runoff_data_in, basinRunoff, ierr, message)
+  ! case 3: sort a given input flux and its ID based on a second given ID array,
+  ! hru in runoff layer is hru polygon identical to river network layer (stored in 1-dimension array)
+  subroutine sort_flux  (ID_in,            & ! input: the array of ids for HRU/seg
+                         IX_in,            & ! input: the array of location of ids for HRU/seg
+                         flux_in,          & ! input: the array of input fluxes, should be the same size as ID_in
+                         sorted_flux,      & ! inout: sorted input states and fluxes based on hru/seg in network topology
+                         ierr, message)
   implicit none
   ! input
-  type(runoff)         , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
+  integer(i4b)         , intent(in)    :: ID_in(:)            ! input: the array of ids for HRU/seg
+  integer(i4b)         , intent(in)    :: IX_in(:)            ! input: the array of location of ids for HRU/seg in network topology
+  real(dp)             , intent(in)    :: flux_in(:)          ! input: the array of input fluxes, should be the same size as ID_in
+  ! input/output
+  real(dp)             , intent(inout) :: sorted_flux(:)      ! inout: sorted input states and fluxes based on hru/seg in network topology
   ! output
-  real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
-  integer(i4b)         , intent(out) :: ierr             ! error code
-  character(len=strLen), intent(out) :: message          ! error message
+  integer(i4b)         , intent(out)   :: ierr                ! error code
+  character(len=strLen), intent(out)   :: message             ! error message
   ! local
-  integer(i4b)                       :: iHRU,jHRU        ! index of basin in the routing layer
-  real(dp)    , parameter            :: xTol=1.e-6_dp    ! tolerance to avoid divide by zero
-  integer(i4b), parameter            :: ixCheck=-huge(iHRU) ! basin to check
+  integer(i4b)                         :: i,j                 ! index of basin in the routing layer
 
-  ierr=0; message="sort_runoff/"
+  ierr=0; message="sort_flux/"
 
-  ! loop through hrus in the runoff layer
-  do iHRU=1,size(runoff_data_in%hru_ix)
+  ! initializing the sorted_flux to realMissing, non existing elements are all set to realMissing
+  sorted_flux = realMissing
 
-   ! define the HRU index in the routing vector
-   jHRU = runoff_data_in%hru_ix(iHRU)
+  ! loop through given ID that the flux or state should be mapped to (ID_total_in)
+  do i=1,size(ID_in)
+
+   ! define the index of ID_in in ID_total_in
+   j = IX_in(i)
    ! if no hru associated any segments in network data, skip it
-   if(jHRU==integerMissing)then
+   if(j==integerMissing)then
     cycle
    endif
 
-   ! get the weighted average
-   if(runoff_data_in%sim(iHRU) > -xTol)then
-     basinRunoff(jHRU) = runoff_data_in%sim(iHRU)
-   endif
-
-   ! check
-   if(runoff_data_in%hru_id(iHRU)==ixCheck)then
-    write(iulog,*) 'jHRU, runoff_data_in%hru_id(iHRU) = ', jHRU, runoff_data_in%hru_id(iHRU)
-    write(iulog,*) 'runoff_data_in%sim(iHRU)          = ', runoff_data_in%sim(iHRU)
-    write(iulog,*) 'basinRunoff(jHRU)                 = ', basinRunoff(jHRU)*86400._dp*1000._dp*365._dp
-   endif
+   ! assign the flux to sorted_flux
+   sorted_flux(j) = flux_in(i)
 
   end do   ! looping through basins in the mapping layer
 
-  end subroutine sort_runoff
+  end subroutine sort_flux
 
   ! *****
   ! * public subroutine: used to obtain streamflow for each stream segment...
@@ -340,7 +340,6 @@ module remapping
   integer(i4b), allocatable               :: ixRch(:)         ! a list of reach indices to be processed
   integer(i4b)                            :: iSeg, jSeg       ! array index for reaches
 
-  ! initialize error control
   ierr=0; message='basin2reach/'
 
   ! optional: if a subset of reaches is processed

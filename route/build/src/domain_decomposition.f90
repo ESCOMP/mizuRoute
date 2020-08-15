@@ -165,7 +165,6 @@ CONTAINS
    ! Local variables
    integer(i4b)                                :: nn
 
-   ! initialize error control
    ierr=0; message='omp_domain_decomposition/'
 
    if (present(nDiv)) then

@@ -98,7 +98,7 @@ contains
  logical(lgt)                           :: isVarDesired ! .true. if the variable is desired
  character(len=strLen)                  :: varName      ! variable name
  character(len=strLen)                  :: cmessage     ! error message of downwind routine
- ! initialize error control
+
  ierr=0; message='getData/'
 
  ! ---------- initial reading of dimensions ------------------------------------------------------------------------
@@ -330,7 +330,7 @@ contains
  integer(i4b)                              :: nDims          ! number of dimensions in a variable
  integer(i4b)                              :: iStartID       ! ID for start of ragged array
  integer(i4b)                              :: iCountID       ! ID for count of ragged array
- ! initialize error control
+
  ierr=0; message='getSubetIndices/'
 
  ! get the variable type

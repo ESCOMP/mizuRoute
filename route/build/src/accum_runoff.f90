@@ -3,7 +3,6 @@ MODULE accum_runoff_module
 USE nrtype
 USE public_var
 
-! data type
 USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
 USE dataTypes, ONLY: RCHTOPO        ! Network topology
 ! subroutines: general
@@ -112,7 +111,7 @@ CONTAINS
    end do
 !$OMP END PARALLEL DO
 
- end do ! looping through stream segments
+ end do
 
  call t_stopf('route/accum-runoff')
 
@@ -145,7 +144,6 @@ CONTAINS
  integer(i4b)                             :: iRch_ups       ! index of upstream reach in NETOPO
  character(len=strLen)                    :: cmessage       ! error message from subroutine
 
- ! initialize error control
  ierr=0; message='accum_qupstream/'
 
  ! identify number of upstream segments of the reach being processed
@@ -159,7 +157,7 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage)//': uprflux'; return; endif
 
    do iUps = 1,nUps
-     iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
+     iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)
      uprflux(iUps) = RCHFLX_out(iens,iRch_ups)%UPSTREAM_QI
    end do
 

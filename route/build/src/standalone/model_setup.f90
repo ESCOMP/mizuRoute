@@ -23,7 +23,6 @@ implicit none
 private
 public :: init_mpi
 public :: init_data
-public :: infile_name
 
 CONTAINS
 
@@ -82,7 +81,7 @@ CONTAINS
    ierr=0; message='init_data/'
 
    ! runoff input files initialization
-   call inFile_pop(ierr, message)
+   call inFile_pop(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! time initialization
@@ -166,6 +165,8 @@ CONTAINS
   USE public_var, ONLY: fname_qsim              ! simulated runoff txt file that includes the NetCDF file names
   USE public_var, ONLY: vname_time              ! variable name for time
   USE public_var, ONLY: dname_time              !
+  USE public_var, ONLY: time_units              !
+  USE public_var, ONLY: calendar                !
   USE globalData, ONLY: infileinfo_data         ! the information of the input files
 
   ! output: error control
@@ -214,14 +215,22 @@ CONTAINS
    infileinfo_data(iFile)%infilename = trim(filenameData)
 
    ! get the time units
-   call get_var_attr(trim(input_dir)//trim(infileinfo_data(iFile)%infilename), &
-                     trim(vname_time), 'units', infileinfo_data(iFile)%unit, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if (trim(time_units) == charMissing) then
+     call get_var_attr(trim(input_dir)//trim(infileinfo_data(iFile)%infilename), &
+                       trim(vname_time), 'units', infileinfo_data(iFile)%unit, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   else
+     infileinfo_data(iFile)%unit = trim(time_units)
+   end if
 
    ! get the calendar
-   call get_var_attr(trim(input_dir)//trim(infileinfo_data(iFile)%infilename), &
-                     trim(vname_time), 'calendar', infileinfo_data(iFile)%calendar, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if (trim(calendar) == charMissing) then
+     call get_var_attr(trim(input_dir)//trim(infileinfo_data(iFile)%infilename), &
+                       trim(vname_time), 'calendar', infileinfo_data(iFile)%calendar, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   else
+     infileinfo_data(iFile)%calendar = trim(calendar)
+   end if
 
    ! get the dimension of the time to populate nTime and pass it to the get_nc file
    call get_nc_dim_len(trim(input_dir)//trim(infileinfo_data(iFile)%infilename), &
@@ -279,9 +288,10 @@ CONTAINS
  SUBROUTINE init_time(ierr, message)  ! output
 
   ! subroutines:
-  USE process_time_module, ONLY: process_time   ! process time information
-  USE process_time_module, ONLY: process_calday ! compute data and time from julian day
-  USE io_netcdf,           ONLY: get_nc         ! netcdf input
+  USE process_time_module, ONLY: process_time    ! process time information
+  USE process_time_module, ONLY: conv_julian2cal ! compute data and time from julian day
+  USE process_time_module, ONLY: conv_cal2julian ! compute data and time from julian day
+  USE time_utils_module,   ONLY: ndays_month     ! compute number of days in a month
   ! derived datatype
   USE dataTypes,  ONLY: time                    ! time data type
   ! public data
@@ -289,8 +299,13 @@ CONTAINS
   USE public_var, ONLY: simStart                ! date string defining the start of the simulation
   USE public_var, ONLY: simEnd                  ! date string defining the end of the simulation
   USE public_var, ONLY: calendar                ! calendar name
+  USE public_var, ONLY: dt
+  USE public_var, ONLY: secprday
   USE public_var, ONLY: restart_write           ! restart write option
   USE public_var, ONLY: restart_date            ! restart date
+  USE public_var, ONLY: restart_month           ! periodic restart month
+  USE public_var, ONLY: restart_day             ! periodic restart day
+  USE public_var, ONLY: restart_hour            ! periodic restart hr
   ! saved time variables
   USE globalData, ONLY: timeVar                 ! time variables (unit given by runoff data)
   USE globalData, ONLY: iTime                   ! time index at simulation time step
@@ -299,8 +314,9 @@ CONTAINS
   USE globalData, ONLY: startJulday             ! julian day: start of routing simulation
   USE globalData, ONLY: endJulday               ! julian day: end of routing simulation
   USE globalData, ONLY: modJulday               ! julian day: at model time step
-  USE globalData, ONLY: restartJulday           ! julian day: at restart
   USE globalData, ONLY: modTime                 ! model time data (yyyy:mm:dd:hh:mm:ss)
+  USE globalData, ONLY: restCal                 ! restart time data (yyyy:mm:dd:hh:mm:sec)
+  USE globalData, ONLY: dropCal                 ! restart dropoff calendar date/time
   USE globalData, ONLY: infileinfo_data         ! the information of the input files
 
   implicit none
@@ -317,6 +333,9 @@ CONTAINS
   integer(i4b)                             :: iFile ! for loop over the nc files
   type(time)                               :: rofCal
   type(time)                               :: simCal
+  integer(i4b)                             :: nDays          ! number of days in a month
+  real(dp)                                 :: restartJulday
+  real(dp)                                 :: tempJulday
   character(len=strLen)                    :: cmessage         ! error message of downwind routine
   character(len=50)                        :: fmt1='(a,I4,a,I2.2,a,I2.2,x,I2.2,a,I2.2,a,F5.2)'
 
@@ -364,8 +383,8 @@ CONTAINS
 
   ! check sim_start is before the last time step in runoff data
   if(startJulday>roJulday(nTime)) then
-    call process_calday(roJulday(nTime), calendar, rofCal, ierr, cmessage)
-    call process_calday(startJulday, calendar, simCal, ierr, cmessage)
+    call conv_julian2cal(roJulday(nTime), calendar, rofCal, ierr, cmessage)
+    call conv_julian2cal(startJulday, calendar, simCal, ierr, cmessage)
     write(iulog,'(2a)') new_line('a'),'ERROR: <sim_start> is after the first time step in input runoff'
     write(iulog,fmt1)  ' runoff_end  : ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
     write(iulog,fmt1)  ' <sim_start> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
@@ -374,8 +393,8 @@ CONTAINS
 
   ! Compare sim_start vs. time at first time step in runoff data
   if (startJulday < roJulday(1)) then
-    call process_calday(roJulday(1), calendar, rofCal, ierr, cmessage)
-    call process_calday(startJulday, calendar, simCal, ierr, cmessage)
+    call conv_julian2cal(roJulday(1), calendar, rofCal, ierr, cmessage)
+    call conv_julian2cal(startJulday, calendar, simCal, ierr, cmessage)
     write(iulog,'(2a)') new_line('a'),'WARNING: <sim_start> is before the first time step in input runoff'
     write(iulog,fmt1)  ' runoff_start: ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
     write(iulog,fmt1)  ' <sim_start> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
@@ -385,8 +404,8 @@ CONTAINS
 
   ! Compare sim_end vs. time at last time step in runoff data
   if (endJulday > roJulday(nTime)) then
-    call process_calday(roJulday(nTime), calendar, rofCal, ierr, cmessage)
-    call process_calday(endJulday,       calendar, simCal, ierr, cmessage)
+    call conv_julian2cal(roJulday(nTime), calendar, rofCal, ierr, cmessage)
+    call conv_julian2cal(endJulday,       calendar, simCal, ierr, cmessage)
     write(iulog,'(2a)')  new_line('a'),'WARNING: <sim_end> is after the last time step in input runoff'
     write(iulog,fmt1)   ' runoff_end: ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
     write(iulog,fmt1)   ' <sim_end> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
@@ -405,65 +424,52 @@ CONTAINS
   ! initialize previous model time
   modTime(0) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
 
-  ! restart drop off time
+ ! Set restart calendar date/time and dropoff calendar date/time and
+ ! -- For periodic restart options  ---------------------------------------------------------------------
+ ! Ensure that user-input restart month, day are valid.
+ ! "Annual" option:  if user input day exceed number of days given user input month, set to last day
+ ! "Monthly" option: use 2000-01 as template calendar yr/month
+ ! "Daily" option:   use 2000-01-01 as template calendar yr/month/day
+ select case(trim(restart_write))
+   case('Annual','annual')
+     call ndays_month(2000, restart_month, calendar, nDays, ierr, cmessage)
+     if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
+     if (restart_day > nDays) restart_day=nDays
+   case('Monthly','monthly'); restart_month = 1
+   case('Daily','daily');     restart_month = 1; restart_day = 1
+ end select
+
   select case(trim(restart_write))
     case('last','Last')
-      call process_time(trim(simEnd), calendar, restartJulday, ierr, cmessage)
-      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartDate]'; return; endif
-    case('never','Never')
-      restartJulday = 0.0_dp
+      call conv_julian2cal(endJulday, calendar, dropCal, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endJulday->dropCal]'; return; endif
+      restart_month = dropCal%im; restart_day = dropCal%id; restart_hour = dropCal%ih
     case('specified','Specified')
       if (trim(restart_date) == charMissing) then
         ierr=20; message=trim(message)//'<restart_date> must be provided when <restart_write> option is "specified"'; return
       end if
       call process_time(trim(restart_date),calendar, restartJulday, ierr, cmessage)
-      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartDate]'; return; endif
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restart_date]'; return; endif
+      restartJulday = restartJulday - dt/secprday
+      call conv_julian2cal(restartJulday, calendar, dropCal, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartJulday->dropCal]'; return; endif
+      restart_month = dropCal%im; restart_day = dropCal%id; restart_hour = dropCal%ih
+    case('Annual','Monthly','Daily','annual','monthly','daily')
+      restCal = time(2000, restart_month, restart_day, restart_hour, 0, 0._dp)
+      call conv_cal2julian(restCal, calendar, tempJulday, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [restCal->tempJulday]'; return; endif
+      tempJulday = tempJulday - dt/secprday
+      call conv_julian2cal(tempJulday, calendar, dropCal, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [tempJulday->dropCal]'; return; endif
+      restart_month = dropCal%im; restart_day = dropCal%id; restart_hour = dropCal%ih
+    case('never','Never')
+      restCal = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
     case default
-      ierr=20; message=trim(message)//'Current accepted <restart_write> options: last[Last], never[Never], specified[Specified]'; return
+      ierr=20; message=trim(message)//'Current accepted <restart_write> options: L[l]ast, N[n]ever, S[s]pecified, A[a]nnual, M[m]onthly, D[d]aily'; return
   end select
 
  END SUBROUTINE init_time
 
-
- ! *********************************************************************
- ! public subroutine: get the name of input file based on iTime, will be called
- ! in get_hru_runoff to ajust for file name given iTime
- ! *********************************************************************
- SUBROUTINE infile_name(ierr, message)  ! output
-
-  ! subroutines:
-  USE process_time_module, ONLY: process_time  ! process time information
-  USE io_netcdf,           ONLY: get_nc        ! netcdf input
-  ! derived datatype
-  USE dataTypes, ONLY: time           ! time data type
-  ! Shared data
-  USE public_var, ONLY: fname_qsim     ! simulated runoff netCDF name
-  USE globalData, ONLY: iTime           ! time index at simulation time step
-  USE globalData, ONLY: infileinfo_data ! the information of the input files
-  USE globalData, ONLY: iTime_local     ! iTime index for the given netcdf file
-
-  implicit none
-
-  ! output:
-  integer(i4b),              intent(out)   :: ierr             ! error code
-  character(*),              intent(out)   :: message          ! error message
-  ! local variable
-  integer(i4b)                             :: ix
-  !character(len=strLen)                    :: cmessage         ! error message of downwind routine
-
-  ! initialize error control
-  ierr=0; message='infile_name/'
-
-  ! fast forward time to time index at simStart and save iTime and modJulday
-  ixloop: do ix = 1, size(infileinfo_data) !loop over number of file
-   if ((iTime >= infileinfo_data(ix)%iTimebound(1)).and.(iTime <= infileinfo_data(ix)%iTimebound(2))) then
-    iTime_local = iTime - infileinfo_data(ix)%iTimebound(1) + 1
-    fname_qsim = trim(infileinfo_data(ix)%infilename)
-    exit ixloop
-   endif
-  enddo ixloop
-
- END SUBROUTINE infile_name
 
  ! *****
  ! private subroutine: get mapping data between runoff hru and river network hru
@@ -646,7 +652,7 @@ CONTAINS
 
  end do  ! looping through the vector
 
- ! check again
+ ! check
  do ix=1,size(qid)
   if(qix(ix) /= integerMissing)then
    if(qid(ix) /= qidMaster( qix(ix) ) )then
