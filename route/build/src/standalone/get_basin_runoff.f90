@@ -4,6 +4,8 @@ USE nrtype
 
 implicit none
 
+integer(i4b) :: iTime_local   ! time index at simulation time step for a given input file
+
 private
 
 public::get_hru_runoff
@@ -26,7 +28,6 @@ CONTAINS
   USE public_var,  ONLY:is_remap                ! logical whether or not runnoff needs to be mapped to river network HRU
   USE public_var,  ONLY:is_lake_sim             ! logical whether or not lake should be simulated
   USE public_var,  ONLY:is_wm_sim               ! logical whether or not water management components should be read, abstraction, injection and target volume
-  USE globalData,  ONLY:iTime_local             ! iTime index for the given netcdf file
   USE globalData,  ONLY:nHRU                    ! number of routing sub-basin
   USE globalData,  ONLY:runoff_data             ! data structure to hru runoff data
   USE globalData,  ONLY:remap_data              ! data structure to remap data
@@ -146,7 +147,6 @@ CONTAINS
   USE public_var, ONLY: fname_qsim      ! simulated runoff netCDF name
   USE globalData, ONLY: iTime           ! time index at simulation time step
   USE globalData, ONLY: infileinfo_data ! the information of the input files
-  USE globalData, ONLY: iTime_local     ! iTime index for the given netcdf file
 
   implicit none
 
