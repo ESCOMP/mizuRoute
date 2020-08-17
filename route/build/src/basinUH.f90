@@ -113,11 +113,12 @@ CONTAINS
 
   end if
 
-   FRAC_FUTURE_local = FRAC_FUTURE
+  allocate(FRAC_FUTURE_local, source=FRAC_FUTURE, stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'unable to allocate space for FRAC_FUTURE_local'; return; endif
 
-   if (NETOPO_in(iSeg)%islake) then;
-     FRAC_FUTURE_local(:) = 0._dp
-     FRAC_FUTURE_local(1) = 1._dp
+  if (is_lake_sim .and. NETOPO_in(iSeg)%islake) then;
+    FRAC_FUTURE_local(:) = 0._dp
+    FRAC_FUTURE_local(1) = 1._dp
    endif
 
   ! perform river network UH routing
