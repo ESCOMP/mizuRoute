@@ -80,7 +80,7 @@ CONTAINS
    ierr=0; message='init_data/'
 
    ! runoff input files initialization
-   call init_inFile_pop(ierr, message)
+   call init_inFile_pop(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! time initialization
@@ -194,6 +194,10 @@ CONTAINS
   USE io_netcdf,           ONLY: get_var_attr   ! get the attributes interface
   USE io_netcdf,           ONLY: get_nc_dim_len ! get the nc dimension length
 
+  ! Shared data
+  USE public_var,          ONLY: time_units     ! get the time units from control file and replace if not provided in nc files
+  USE public_var,          ONLY: calendar       ! get the calendar from control file and replace if not provided in nc files
+
   ! input
   character(len=strLen), intent(in)    :: dir_name         ! the name of the directory that the txt file located
   character(len=strLen), intent(in)    :: file_name        ! the name of the file that include the nc file names
@@ -249,15 +253,23 @@ CONTAINS
    ! set forcing file name
    inputfileinfo(iFile)%infilename = trim(filenameData)
 
-   ! get the time units
-   call get_var_attr(trim(dir_name)//trim(inputfileinfo(iFile)%infilename), &
-                     trim(time_var_name), 'units', inputfileinfo(iFile)%unit, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   ! get the time units, assuming the water managment nc files has the same calendar as the first
+   if (trim(time_units) == charMissing) then
+     call get_var_attr(trim(dir_name)//trim(inputfileinfo(iFile)%infilename), &
+                       trim(time_var_name), 'units', inputfileinfo(iFile)%unit, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   else
+     inputfileinfo(iFile)%unit = trim(time_units)
+   end if
 
-   ! get the calendar
-   call get_var_attr(trim(dir_name)//trim(inputfileinfo(iFile)%infilename), &
-                     trim(time_var_name), 'calendar', inputfileinfo(iFile)%calendar, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   ! get the calendar, assuming the water managment nc files has the same calendar as the first
+   if (trim(calendar) == charMissing) then
+     call get_var_attr(trim(dir_name)//trim(inputfileinfo(iFile)%infilename), &
+                       trim(time_var_name), 'calendar', inputfileinfo(iFile)%calendar, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   else
+     inputfileinfo(iFile)%calendar = trim(calendar)
+   end if
 
    ! get the dimension of the time to populate nTime and pass it to the get_nc file
    call get_nc_dim_len(trim(dir_name)//trim(inputfileinfo(iFile)%infilename), &
