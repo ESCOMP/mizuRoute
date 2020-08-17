@@ -1,8 +1,12 @@
 MODULE read_restart
+
 ! Moudle wide external modules
-USE nrtype, only: i4b, dp, &
-                  strLen
+USE nrtype, only: i4b, dp, strLen
 USE public_var
+USE io_netcdf, ONLY: open_nc
+USE io_netcdf, ONLY: close_nc
+USE io_netcdf, ONLY: get_nc
+USE io_netcdf, ONLY: get_nc_dim_len
 
 implicit none
 
@@ -20,14 +24,11 @@ CONTAINS
                           opt,             &   ! input:  which routing options
                           T0, T1,          &   ! output: start and end time [sec]
                           ierr, message)       ! Output: error control
- ! External module
- USE io_netcdf,    ONLY: get_nc, &
-                         get_nc_dim_len
+
  USE dataTypes,    ONLY: states
- ! meta data
  USE globalData,   ONLY: meta_stateDims  ! dimension for state variables
- ! Named variables
  USE var_lookup,   ONLY: ixStateDims, nStateDims
+
  implicit none
  ! input variables
  character(*), intent(in)      :: fname                ! filename
@@ -38,6 +39,7 @@ CONTAINS
  integer(i4b), intent(out)     :: ierr                 ! error code
  character(*), intent(out)     :: message              ! error message
  ! local variables
+ integer(i4b)                  :: ncidRestart          ! restart netcdf id
  real(dp)                      :: TB(2)                ! 2 element-time bound vector
  type(states)                  :: state(0:2)           ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
  integer(i4b)                  :: nSeg,nens            ! dimenion sizes
@@ -46,20 +48,22 @@ CONTAINS
  integer(i4b)                  :: jDim                 ! index loops for dimension
  character(len=strLen)         :: cmessage             ! error message of downwind routine
 
- ! initialize error control
  ierr=0; message='read_state_nc/'
 
  ! get Dimension sizes
  ! For common dimension/variables - seg id, time, time-bound -----------
  ixDim_common = (/ixStateDims%seg, ixStateDims%ens, ixStateDims%time, ixStateDims%tbound/)
 
+ call open_nc(fname, 'r', ncidRestart, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  do jDim=1,size(ixDim_common)
    associate (ixDim_tmp => ixDim_common(jDim))
    select case(ixDim_tmp)
-    case(ixStateDims%seg);     call get_nc_dim_len(fname, trim(meta_stateDims(ixDim_tmp)%dimName), nSeg,    ierr, cmessage)
-    case(ixStateDims%ens);     call get_nc_dim_len(fname, trim(meta_stateDims(ixDim_tmp)%dimName), nens,    ierr, cmessage)
-    case(ixStateDims%time);    call get_nc_dim_len(fname, trim(meta_stateDims(ixDim_tmp)%dimName), nTime,   ierr, cmessage)
-    case(ixStateDims%tbound);  call get_nc_dim_len(fname, trim(meta_stateDims(ixDim_tmp)%dimName), ntbound, ierr, cmessage)
+    case(ixStateDims%seg);     call get_nc_dim_len(ncidRestart, meta_stateDims(ixDim_tmp)%dimName, nSeg,    ierr, cmessage)
+    case(ixStateDims%ens);     call get_nc_dim_len(ncidRestart, meta_stateDims(ixDim_tmp)%dimName, nens,    ierr, cmessage)
+    case(ixStateDims%time);    call get_nc_dim_len(ncidRestart, meta_stateDims(ixDim_tmp)%dimName, nTime,   ierr, cmessage)
+    case(ixStateDims%tbound);  call get_nc_dim_len(ncidRestart, meta_stateDims(ixDim_tmp)%dimName, ntbound, ierr, cmessage)
     case default; ierr=20; message=trim(message)//'unable to identify dimension name index'; return
    end select
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -68,7 +72,7 @@ CONTAINS
 
  ! Read variables
  ! time bound
- call get_nc(fname,'time_bound',TB(:), 1, 2, ierr, cmessage)
+ call get_nc(ncidRestart,'time_bound',TB(:), 1, 2, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  T0=TB(1); T1=TB(2)
 
@@ -87,6 +91,9 @@ CONTAINS
   call read_IRF_state(ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
  end if
+
+ call close_nc(ncidRestart, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  CONTAINS
 
@@ -108,7 +115,7 @@ CONTAINS
   ! initialize error control
   ierr=0; message1='read_IRFbas_state/'
 
-  call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%tdh)%dimName), ntdh, ierr, cmessage)
+  call get_nc_dim_len(ncidRestart, meta_stateDims(ixStateDims%tdh)%dimName, ntdh, ierr, cmessage)
   if(ierr/=0)then;  message1=trim(message1)//trim(cmessage); return; endif
 
   allocate(state(0)%var(nVarsIRFbas), stat=ierr, errmsg=cmessage)
@@ -128,8 +135,8 @@ CONTAINS
   do iVar=1,nVarsIRFbas
 
    select case(iVar)
-    case(ixIRFbas%q);       call get_nc(fname, meta_irf_bas(iVar)%varName, state(0)%var(iVar)%array_2d_dp, (/1,1/), (/nSeg,nens/), ierr, cmessage)
-    case(ixIRFbas%qfuture); call get_nc(fname, meta_irf_bas(iVar)%varName, state(0)%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,ntdh,nens/), ierr, cmessage)
+    case(ixIRFbas%q);       call get_nc(ncidRestart, meta_irf_bas(iVar)%varName, state(0)%var(iVar)%array_2d_dp, (/1,1/), (/nSeg,nens/), ierr, cmessage)
+    case(ixIRFbas%qfuture); call get_nc(ncidRestart, meta_irf_bas(iVar)%varName, state(0)%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,ntdh,nens/), ierr, cmessage)
     case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF variable index for nc writing'; return
    end select
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -174,7 +181,7 @@ CONTAINS
   ! initialize error control
   ierr=0; message1='read_IRF_state/'
 
-  call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%tdh_irf)%dimName), ntdh_irf, ierr, cmessage)
+  call get_nc_dim_len(ncidRestart, meta_stateDims(ixStateDims%tdh_irf)%dimName, ntdh_irf, ierr, cmessage)
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   allocate(state(impulseResponseFunc)%var(nVarsIRF), stat=ierr, errmsg=cmessage)
@@ -193,13 +200,13 @@ CONTAINS
 
   end do
 
-  call get_nc(fname,'numQF',numQF,(/1,1/),(/nSeg,nens/),ierr,cmessage)
+  call get_nc(ncidRestart,'numQF',numQF,(/1,1/),(/nSeg,nens/),ierr,cmessage)
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsIRF
 
    select case(iVar)
-    case(ixIRF%qfuture); call get_nc(fname, meta_irf(iVar)%varName, state(impulseResponseFunc)%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,ntdh_irf,nens/), ierr, cmessage)
+    case(ixIRF%qfuture); call get_nc(ncidRestart, meta_irf(iVar)%varName, state(impulseResponseFunc)%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,ntdh_irf,nens/), ierr, cmessage)
     case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc reading'; return
    end select
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -251,7 +258,7 @@ CONTAINS
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   ! get Dimension sizes
-  call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%wave)%dimName), nwave, ierr, cmessage)
+  call get_nc_dim_len(ncidRestart, meta_stateDims(ixStateDims%wave)%dimName, nwave, ierr, cmessage)
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsKWT
@@ -265,16 +272,16 @@ CONTAINS
     if(ierr/=0)then; message1=trim(message1)//'problem allocating space for KWT routing state '//trim(meta_kwt(iVar)%varName); return; endif
   end do
 
-  call get_nc(fname,'numWaves',numWaves, (/1,1/), (/nSeg,nens/), ierr, cmessage)
+  call get_nc(ncidRestart,'numWaves',numWaves, (/1,1/), (/nSeg,nens/), ierr, cmessage)
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsKWT
 
     select case(iVar)
      case(ixKWT%routed)
-      call get_nc(fname,trim(meta_kwt(iVar)%varName), state(kinematicWave)%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nwave,nens/), ierr, cmessage)
+      call get_nc(ncidRestart, meta_kwt(iVar)%varName, state(kinematicWave)%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nwave,nens/), ierr, cmessage)
      case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
-      call get_nc(fname,trim(meta_kwt(iVar)%varName), state(kinematicWave)%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nwave,nens/), ierr, cmessage)
+      call get_nc(ncidRestart, meta_kwt(iVar)%varName, state(kinematicWave)%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nwave,nens/), ierr, cmessage)
      case default; ierr=20; message1=trim(message)//'unable to identify KWT variable index for nc reading'; return
     end select
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
