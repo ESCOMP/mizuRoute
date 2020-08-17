@@ -361,8 +361,8 @@ contains
       structNTOPO_local(ix)%var(ixNTOPO%downSegId)%dat(1) = downSegId_local(ix)
       structSEG_local  (ix)%var(ixSEG%length)%dat(1)      = length_local(ix)
       structSEG_local  (ix)%var(ixSEG%slope)%dat(1)       = slope_local(ix)
-      structNTOPO_local(ix)%var(ixNTOPO%islake)%dat(1)    = islake_local(ix)
       if (is_lake_sim) then
+        structNTOPO_local(ix)%var(ixNTOPO%islake)%dat(1)    = islake_local(ix)
         structSEG_local  (ix)%var(ixSEG%RATECVA)%dat(1)     = RATECVA_local(ix)
         structSEG_local  (ix)%var(ixSEG%RATECVB)%dat(1)     = RATECVB_local(ix)
         structSEG_local  (ix)%var(ixSEG%RATECVC)%dat(1)     = RATECVC_local(ix)
@@ -646,18 +646,22 @@ contains
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
   integer(i4b)                          :: iSeg,jSeg
   real(dp),     allocatable             :: flux_global(:)           ! basin runoff (m/s) for entire reaches
+  real(dp),     allocatable             :: vol_global(:)            ! reach/lake volume (m3) for entire network
   real(dp),     allocatable             :: flux_local(:)            ! basin runoff (m/s) for tributaries
+  real(dp),     allocatable             :: vol_local(:)             ! reach/lake volume (m3) for tributaries
 
   ierr=0; message='mpi_restart/'
 
   call MPI_BCAST(TSEC, 2, MPI_DOUBLE_PRECISION, root, comm, ierr)
 
-  allocate(flux_global(nRch), flux_local(rch_per_proc(pid)), stat=ierr)
+  allocate(flux_global(nRch), vol_global(nRch))
+  allocate(vol_local(rch_per_proc(pid)), flux_local(rch_per_proc(pid)))
 
   if (masterproc) then
 
     do iSeg = 1, nRch
       flux_global(iSeg) = RCHFLX(iens,iSeg)%BASIN_QR(1)
+      vol_global(iSeg)  = RCHFLX(iens,iSeg)%REACH_VOL(1)
     enddo
 
     ! Distribute global flux/state (RCHFLX & RCHSTA) to mainstem (RCHFLX_main & RCHSTA_main)
@@ -675,6 +679,7 @@ contains
   else
 
     flux_global(:) = realMissing
+    vol_global(:)  = realMissing
 
   endif
 
@@ -734,6 +739,21 @@ contains
                             scatter,                                  & ! communication type
                             ierr, message)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! volume communication
+    call mpi_comm_single_flux(pid, nNodes, comm,                        &
+                              vol_global,                               &
+                              vol_local,                                &
+                              rch_per_proc(root:nNodes-1),              &
+                              ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                              arth(1,1,rch_per_proc(pid)),              &
+                              scatter,                                  &
+                              ierr, message)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    do iSeg = 1, rch_per_proc(pid)
+      RCHFLX_trib(iens,iSeg)%REACH_VOL(1) = vol_local(iSeg)
+    enddo
   endif
 
   ! no need for the entire domain flux/state data strucure

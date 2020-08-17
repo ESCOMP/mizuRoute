@@ -192,6 +192,7 @@ CONTAINS
 
    select case(iVar)
     case(ixIRF%qfuture); allocate(state(impulseResponseFunc)%var(iVar)%array_3d_dp(nSeg, ntdh_irf, nens), stat=ierr)
+    case(ixIRF%irfVol);  allocate(state(impulseResponseFunc)%var(iVar)%array_2d_dp(nSeg, nens), stat=ierr)
     case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
    end select
    if(ierr/=0)then; message1=trim(message1)//'problem allocating space for IRF routing state '//trim(meta_irf(iVar)%varName); return; endif
@@ -205,6 +206,7 @@ CONTAINS
 
    select case(iVar)
     case(ixIRF%qfuture); call get_nc(fname, meta_irf(iVar)%varName, state(impulseResponseFunc)%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,ntdh_irf,nens/), ierr, cmessage)
+    case(ixIRF%irfVol);  call get_nc(fname, meta_irf(iVar)%varName, state(impulseResponseFunc)%var(iVar)%array_2d_dp, (/1,1/), (/nSeg, nens/), ierr, cmessage)
     case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc reading'; return
    end select
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -223,6 +225,7 @@ CONTAINS
 
      select case(iVar)
       case(ixIRF%qfuture); RCHFLX(iens,jSeg)%QFUTURE_IRF = state(impulseResponseFunc)%var(iVar)%array_3d_dp(iSeg,1:numQF(iens,iSeg),iens)
+      case(ixIRF%irfVol);  RCHFLX(iens,jSeg)%REACH_VOL(1) = state(impulseResponseFunc)%var(iVar)%array_2d_dp(iSeg,iens)
       case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
      end select
 
