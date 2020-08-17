@@ -259,18 +259,20 @@ contains
     ! define routing vectors ordered by domain/node
     ! reach array
     do iSeg = 1,nRch_in
-     jSeg = ixRch_order(iSeg) ! global index, ordered by domain/node
-     segId(iSeg)     = structNTOPO(jSeg)%var(ixNTOPO%segId)%dat(1)
-     downSegId(iSeg) = structNTOPO(jSeg)%var(ixNTOPO%downSegId)%dat(1)
-     islake(iSeg)    = structNTOPO(jSeg)%var(ixNTOPO%islake)%dat(1)
-     slope(iSeg)     = structSEG(  jSeg)%var(ixSEG%slope)%dat(1)
-     length(iSeg)    = structSEG(  jSeg)%var(ixSEG%length)%dat(1)
-     RATECVA(iSeg)   = structSEG(  jSeg)%var(ixSEG%RATECVA)%dat(1)
-     RATECVB(iSeg)   = structSEG(  jSeg)%var(ixSEG%RATECVB)%dat(1)
-     RATECVC(iSeg)   = structSEG(  jSeg)%var(ixSEG%RATECVC)%dat(1)
-     RATECVD(iSeg)   = structSEG(  jSeg)%var(ixSEG%RATECVD)%dat(1)
-     RATECVE(iSeg)   = structSEG(  jSeg)%var(ixSEG%RATECVE)%dat(1)
-     RATECVF(iSeg)   = structSEG(  jSeg)%var(ixSEG%RATECVF)%dat(1)
+      jSeg = ixRch_order(iSeg) ! global index, ordered by domain/node
+      segId(iSeg)     = structNTOPO(jSeg)%var(ixNTOPO%segId)%dat(1)
+      downSegId(iSeg) = structNTOPO(jSeg)%var(ixNTOPO%downSegId)%dat(1)
+      slope(iSeg)     = structSEG(  jSeg)%var(ixSEG%slope)%dat(1)
+      length(iSeg)    = structSEG(  jSeg)%var(ixSEG%length)%dat(1)
+      if (is_lake_sim) then
+         islake(iSeg)    = structNTOPO(jSeg)%var(ixNTOPO%islake)%dat(1)
+         RATECVA(iSeg)   = structSEG(  jSeg)%var(ixSEG%RATECVA)%dat(1)
+         RATECVB(iSeg)   = structSEG(  jSeg)%var(ixSEG%RATECVB)%dat(1)
+         RATECVC(iSeg)   = structSEG(  jSeg)%var(ixSEG%RATECVC)%dat(1)
+         RATECVD(iSeg)   = structSEG(  jSeg)%var(ixSEG%RATECVD)%dat(1)
+         RATECVE(iSeg)   = structSEG(  jSeg)%var(ixSEG%RATECVE)%dat(1)
+         RATECVF(iSeg)   = structSEG(  jSeg)%var(ixSEG%RATECVF)%dat(1)
+      end if
     end do
 
     ! hru array
@@ -322,13 +324,16 @@ contains
     call shr_mpi_scatterV(downSegId(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), downSegId_local, ierr, cmessage)
     call shr_mpi_scatterV(slope    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), slope_local,     ierr, cmessage)
     call shr_mpi_scatterV(length   (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), length_local,    ierr, cmessage)
-    call shr_mpi_scatterV(islake   (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), islake_local,    ierr, cmessage)
-    call shr_mpi_scatterV(RATECVA  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVA_local,   ierr, cmessage)
-    call shr_mpi_scatterV(RATECVB  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVB_local,   ierr, cmessage)
-    call shr_mpi_scatterV(RATECVC  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVC_local,   ierr, cmessage)
-    call shr_mpi_scatterV(RATECVD  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVD_local,   ierr, cmessage)
-    call shr_mpi_scatterV(RATECVE  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVE_local,   ierr, cmessage)
-    call shr_mpi_scatterV(RATECVF  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVF_local,   ierr, cmessage)
+
+    if (is_lake_sim) then
+      call shr_mpi_scatterV(islake   (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), islake_local,    ierr, cmessage)
+      call shr_mpi_scatterV(RATECVA  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVA_local,   ierr, cmessage)
+      call shr_mpi_scatterV(RATECVB  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVB_local,   ierr, cmessage)
+      call shr_mpi_scatterV(RATECVC  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVC_local,   ierr, cmessage)
+      call shr_mpi_scatterV(RATECVD  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVD_local,   ierr, cmessage)
+      call shr_mpi_scatterV(RATECVE  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVE_local,   ierr, cmessage)
+      call shr_mpi_scatterV(RATECVF  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVF_local,   ierr, cmessage)
+    end if
 
     call shr_mpi_scatterV(hruId    (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruId_local,    ierr, cmessage)
     call shr_mpi_scatterV(hruSegId (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruSegId_local, ierr, cmessage)
@@ -352,17 +357,19 @@ contains
 
     ! Populate local data structures needed for tributary network augumentation
     reach: do ix = 1,rch_per_proc(pid)
-     structNTOPO_local(ix)%var(ixNTOPO%segId)%dat(1)     = segId_local(ix)
-     structNTOPO_local(ix)%var(ixNTOPO%downSegId)%dat(1) = downSegId_local(ix)
-     structSEG_local  (ix)%var(ixSEG%length)%dat(1)      = length_local(ix)
-     structSEG_local  (ix)%var(ixSEG%slope)%dat(1)       = slope_local(ix)
-     structNTOPO_local(ix)%var(ixNTOPO%islake)%dat(1)    = islake_local(ix)
-     structSEG_local  (ix)%var(ixSEG%RATECVA)%dat(1)     = RATECVA_local(ix)
-     structSEG_local  (ix)%var(ixSEG%RATECVB)%dat(1)     = RATECVB_local(ix)
-     structSEG_local  (ix)%var(ixSEG%RATECVC)%dat(1)     = RATECVC_local(ix)
-     structSEG_local  (ix)%var(ixSEG%RATECVD)%dat(1)     = RATECVD_local(ix)
-     structSEG_local  (ix)%var(ixSEG%RATECVE)%dat(1)     = RATECVE_local(ix)
-     structSEG_local  (ix)%var(ixSEG%RATECVF)%dat(1)     = RATECVF_local(ix)
+      structNTOPO_local(ix)%var(ixNTOPO%segId)%dat(1)     = segId_local(ix)
+      structNTOPO_local(ix)%var(ixNTOPO%downSegId)%dat(1) = downSegId_local(ix)
+      structSEG_local  (ix)%var(ixSEG%length)%dat(1)      = length_local(ix)
+      structSEG_local  (ix)%var(ixSEG%slope)%dat(1)       = slope_local(ix)
+      structNTOPO_local(ix)%var(ixNTOPO%islake)%dat(1)    = islake_local(ix)
+      if (is_lake_sim) then
+        structSEG_local  (ix)%var(ixSEG%RATECVA)%dat(1)     = RATECVA_local(ix)
+        structSEG_local  (ix)%var(ixSEG%RATECVB)%dat(1)     = RATECVB_local(ix)
+        structSEG_local  (ix)%var(ixSEG%RATECVC)%dat(1)     = RATECVC_local(ix)
+        structSEG_local  (ix)%var(ixSEG%RATECVD)%dat(1)     = RATECVD_local(ix)
+        structSEG_local  (ix)%var(ixSEG%RATECVE)%dat(1)     = RATECVE_local(ix)
+        structSEG_local  (ix)%var(ixSEG%RATECVF)%dat(1)     = RATECVF_local(ix)
+      end if
     end do reach
 
     hru: do ix=1,hru_per_proc(pid)
@@ -491,13 +498,15 @@ contains
        structNTOPO_main(ix)%var(ixNTOPO%downSegId)%dat(1) = downSegId(ix)
        structSEG_main  (ix)%var(ixSEG%length)%dat(1)      = length(ix)
        structSEG_main  (ix)%var(ixSEG%slope)%dat(1)       = slope(ix)
-       structNTOPO_main(ix)%var(ixNTOPO%islake)%dat(1)    = islake(ix)
-       structSEG_main  (ix)%var(ixSEG%RATECVA)%dat(1)     = RATECVA(ix)
-       structSEG_main  (ix)%var(ixSEG%RATECVB)%dat(1)     = RATECVB(ix)
-       structSEG_main  (ix)%var(ixSEG%RATECVC)%dat(1)     = RATECVC(ix)
-       structSEG_main  (ix)%var(ixSEG%RATECVD)%dat(1)     = RATECVD(ix)
-       structSEG_main  (ix)%var(ixSEG%RATECVE)%dat(1)     = RATECVE(ix)
-       structSEG_main  (ix)%var(ixSEG%RATECVF)%dat(1)     = RATECVF(ix)
+       if (is_lake_sim) then
+         structNTOPO_main(ix)%var(ixNTOPO%islake)%dat(1)    = islake(ix)
+         structSEG_main  (ix)%var(ixSEG%RATECVA)%dat(1)     = RATECVA(ix)
+         structSEG_main  (ix)%var(ixSEG%RATECVB)%dat(1)     = RATECVB(ix)
+         structSEG_main  (ix)%var(ixSEG%RATECVC)%dat(1)     = RATECVC(ix)
+         structSEG_main  (ix)%var(ixSEG%RATECVD)%dat(1)     = RATECVD(ix)
+         structSEG_main  (ix)%var(ixSEG%RATECVE)%dat(1)     = RATECVE(ix)
+         structSEG_main  (ix)%var(ixSEG%RATECVF)%dat(1)     = RATECVF(ix)
+       end if
      end do main_rch
 
      ups_trib: do ix = 1, nTribOutlet
@@ -506,13 +515,15 @@ contains
        structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%downSegId)%dat(1) = structNTOPO(ixx)%var(ixNTOPO%downSegId)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%length)%dat(1)      = structSEG(ixx)%var(ixSEG%length)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%slope)%dat(1)       = structSEG(ixx)%var(ixSEG%slope)%dat(1)
-       structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%islake)%dat(1)    = structNTOPO(ixx)%var(ixNTOPO%islake)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVA)%dat(1)     = structSEG(ixx)%var(ixSEG%RATECVA)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVB)%dat(1)     = structSEG(ixx)%var(ixSEG%RATECVB)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVC)%dat(1)     = structSEG(ixx)%var(ixSEG%RATECVC)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVD)%dat(1)     = structSEG(ixx)%var(ixSEG%RATECVD)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVE)%dat(1)     = structSEG(ixx)%var(ixSEG%RATECVE)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVF)%dat(1)     = structSEG(ixx)%var(ixSEG%RATECVF)%dat(1)
+       if (is_lake_sim) then
+         structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%islake)%dat(1)    = structNTOPO(ixx)%var(ixNTOPO%islake)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVA)%dat(1)     = structSEG(ixx)%var(ixSEG%RATECVA)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVB)%dat(1)     = structSEG(ixx)%var(ixSEG%RATECVB)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVC)%dat(1)     = structSEG(ixx)%var(ixSEG%RATECVC)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVD)%dat(1)     = structSEG(ixx)%var(ixSEG%RATECVD)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVE)%dat(1)     = structSEG(ixx)%var(ixSEG%RATECVE)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVF)%dat(1)     = structSEG(ixx)%var(ixSEG%RATECVF)%dat(1)
+       end if
        global_ix_main(ix) = nRch_mainstem+ix   ! index in mainstem array that is link to tributary outlet
      end do ups_trib
 
