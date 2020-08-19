@@ -163,7 +163,7 @@ CONTAINS
     ! passing the first nc file as global file name to read
     fname_wm = trim(infileinfo_data_wm(1)%infilename)
 
-    call inFile_corr_time(infileinfo_data,      & ! input: the structure of simulated runoff, evapo and
+    call inFile_sync_time(infileinfo_data,      & ! input: the structure of simulated runoff, evapo and
                           infileinfo_data_wm,   & ! inout: input file information
                           ierr, cmessage)         ! output: error control
 
@@ -310,11 +310,6 @@ CONTAINS
     inputfileinfo(iFile)%iTimebound(2) = inputfileinfo(iFile-1)%iTimebound(2) + nTime ! the last index from the perivous nc file + 1
    endif
 
-   print*, iFile
-   print*, inputfileinfo(iFile)%iTimebound(1)
-   print*, inputfileinfo(iFile)%iTimebound(2)
-   print*, inputfileinfo(iFile)%infilename
-
   enddo
 
   ! close ascii file
@@ -324,10 +319,10 @@ CONTAINS
 
 
  ! *********************************************************************
- ! private subroutine: get the two infiledata and convert the iTimebound of
- ! the input_info_wm to match the input_info
+ ! private subroutine: to synchronize the iTimebound of
+ ! the inputfileinfo_wm to match the inputfileinfo
  ! *********************************************************************
- SUBROUTINE inFile_corr_time(inputfileinfo,      & ! input: the structure of simulated runoff, evapo and
+ SUBROUTINE inFile_sync_time(inputfileinfo,      & ! input: the structure of simulated runoff, evapo and
                              inputfileinfo_wm,   & ! inout: input file information
                              ierr, message)        ! output: error control
 
@@ -377,10 +372,6 @@ CONTAINS
     inputfileinfo_wm(iFile)%iTimebound(1) = day_start_diff * secprday/dt + 1 ! to convert the day difference into time step difference
     inputfileinfo_wm(iFile)%iTimebound(2) = day_end_diff   * secprday/dt + 1 ! to convert the day difference into time step difference
 
-    print*, iFile
-    print*, inputfileinfo_wm(iFile)%iTimebound(1)
-    print*, inputfileinfo_wm(iFile)%iTimebound(2)
-
   end do
 
   ! checks if the staring and ending iTime of the inputfileinfo_wm overlap with the inputfileinfo of simulated runoff, evapo and precip
@@ -398,7 +389,7 @@ CONTAINS
   endif
 
 
- END SUBROUTINE inFile_corr_time
+ END SUBROUTINE inFile_sync_time
 
  ! *********************************************************************
  ! private subroutine: initialize time data
@@ -799,8 +790,6 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data_in%hru_ix'; return; endif
 
    ! get indices of the seg ids in the input file in the routing layer
-   print*, size(wm_data_in%seg_id)
-   print*, size(reachID)
    call get_qix(wm_data_in%seg_id,  &    ! input: vector of ids in mapping file
                 reachID,            &    ! input: vector of ids in the routing layer
                 wm_data_in%seg_ix,  &    ! output: indices of hru ids in routing layer

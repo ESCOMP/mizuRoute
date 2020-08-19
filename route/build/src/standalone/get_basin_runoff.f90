@@ -4,6 +4,9 @@ USE nrtype
 
 implicit none
 
+integer(i4b) :: iTime_local     ! time index at simulation time step for a given runoff file
+integer(i4b) :: iTime_local_wm  ! time index at simulation time step for a given water management file
+
 private
 
 public::get_hru_runoff
@@ -32,8 +35,6 @@ CONTAINS
   USE public_var,  ONLY:is_vol_wm               ! logical water management components target volume should be read
   USE globalData,  ONLY:basinID                 ! basin ID
   USE globalData,  ONLY:reachID                 ! reach ID
-  USE globalData,  ONLY:iTime_local             ! iTime index for the given netcdf file
-  USE globalData,  ONLY:iTime_local_wm          ! iTime index for the given netcdf file
   USE globalData,  ONLY:nHRU                    ! number of routing sub-basin
   USE globalData,  ONLY:nRch                    ! number of routing seg (reaches and lakes)
   USE globalData,  ONLY:runoff_data             ! data structure to hru runoff data
@@ -56,12 +57,6 @@ CONTAINS
 
   call infile_name(ierr, cmessage) ! read the infile name for given iTime
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  !print statements
-  print*, iTime_local, iTime_local_wm
-  print*, fname_qsim, fname_wm
-  print*, runoff_data%nSpace
-  print*, wm_data%nSpace
 
   ! get the simulated runoff for the current time step - runoff_data%sim(:) or %sim2D(:,:)
   call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
@@ -214,14 +209,6 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if
 
-  ! printing statement
-  !print*, wm_data%flux_wm
-  !print*, wm_data%seg_id
-  !print*, wm_data%seg_id
-  !print*, iTime_local
-  !print*, iTime_local_wm
-  !stop
-
  END SUBROUTINE get_hru_runoff
 
 
@@ -238,8 +225,6 @@ CONTAINS
   USE globalData, ONLY: iTime                  ! time index at simulation time step
   USE globalData, ONLY: infileinfo_data        ! the information of the input files for runoff, evapo and precip
   USE globalData, ONLY: infileinfo_data_wm     ! the information of the input files
-  USE globalData, ONLY: iTime_local            ! iTime index for the given netcdf file
-  USE globalData, ONLY: iTime_local_wm         ! iTime index for the given netcdf file
 
   implicit none
 
@@ -248,18 +233,17 @@ CONTAINS
   character(*),              intent(out)    :: message          ! error message
   ! local variable
   integer(i4b)                              :: ix
-  integer(i4b)                              :: counter          ! to check if both iTime_local are read properly
+  logical(lgt)                              :: wm_not_read_flag ! to turn false if there is a iTime_local_wn to be read
   !character(len=strLen)                    :: cmessage         ! error message
 
   ! initialize error control
-  ierr=0; message='infile_name/'; counter = 0 ;
+  ierr=0; message='infile_name/'; wm_not_read_flag = .true.
 
   ! fast forward time to time index at simStart and save iTime and modJulday
   ixloop: do ix = 1, size(infileinfo_data) !loop over number of file
    if ((iTime >= infileinfo_data(ix)%iTimebound(1)).and.(iTime <= infileinfo_data(ix)%iTimebound(2))) then
     iTime_local = iTime - infileinfo_data(ix)%iTimebound(1) + 1
     fname_qsim = trim(infileinfo_data(ix)%infilename)
-    counter = counter + 1
     exit ixloop
    endif
   enddo ixloop
@@ -270,26 +254,16 @@ CONTAINS
      if ((iTime >= infileinfo_data_wm(ix)%iTimebound(1)).and.(iTime <= infileinfo_data_wm(ix)%iTimebound(2))) then
       iTime_local_wm = iTime - infileinfo_data_wm(ix)%iTimebound(1) + 1
       fname_wm = trim(infileinfo_data_wm(ix)%infilename)
-      counter = counter + 1
+      wm_not_read_flag = .false. ! file is read so the not read flag is turned false
       exit iyloop
      endif
     enddo iyloop
   endif
 
   ! check if the two files are identified in case is flux and vol flags are set to true
-  if ((counter /= 2).and.((is_flux_wm).or.(is_vol_wm))) then
-    ierr=20; message=trim(message)//'iTime local is out of bound for the netcdf file inputs based on given simulation time'; print*, ierr ; print*, message ; return ;
+  if ((wm_not_read_flag).and.((is_flux_wm).or.(is_vol_wm))) then
+    ierr=20; message=trim(message)//'iTime local is out of bound for the water management netcdf file inputs based on given simulation date and time in control file'; return ;
   endif
-
-  print*, counter
-  print*, ierr
-  print*, message
-  print*, infileinfo_data_wm(1)%iTimebound(1)
-  print*, infileinfo_data_wm(1)%iTimebound(2)
-  print*, infileinfo_data(1)%iTimebound(1)
-  print*, infileinfo_data(1)%iTimebound(2)
-  print*, iTime_local
-  print*, iTime_local_wm
 
  END SUBROUTINE infile_name
 
