@@ -300,9 +300,7 @@ CONTAINS
   ! saved time variables
   USE globalData,          ONLY : timeVar       ! time variables (unit given by runoff data)
   USE globalData,          ONLY : iTime         ! time index at runoff input time step
-  USE globalData,          ONLY : refJulday     ! julian day: reference
   USE globalData,          ONLY : roJulday      ! julian day: runoff input time
-  USE globalData,          ONLY : startJulday   ! julian day: start of routing simulation
   USE globalData,          ONLY : endJulday     ! julian day: end of routing simulation
   USE globalData,          ONLY : modJulday     ! julian day: at model time step
   USE globalData,          ONLY : modTime       ! model time data (yyyy:mm:dd:hh:mm:sec)
@@ -324,6 +322,8 @@ CONTAINS
   integer(i4b)                             :: nDays          ! number of days in a month
   real(dp)                                 :: convTime2Days
   real(dp)                                 :: restartJulday
+  real(dp)                                 :: startJulday
+  real(dp)                                 :: refJulday
   real(dp)                                 :: tempJulday
   character(len=7)                         :: t_unit
   character(len=strLen)                    :: cmessage         ! error message of downwind routine

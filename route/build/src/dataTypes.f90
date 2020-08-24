@@ -3,9 +3,10 @@ module dataTypes
 ! used to create/save specific data types
 
 USE nrtype,     only: i4b,i8b,dp,lgt
-USE nrtype,     only: strLen   ! string length
+USE nrtype,     only: strLen
 USE public_var, only: realMissing
 USE public_var, only: integerMissing
+USE public_var, only: charMissing
 
 implicit none
 
@@ -69,7 +70,7 @@ implicit none
  ! ---------- output netcdf structure --------------------------------------------------------------------------
  !
  type,public :: nc
-   character(len=strLen)   :: ncname = 'empty'         ! netcdf name
+   character(len=strLen)   :: ncname = charMissing     ! netcdf name
    integer(i4b)            :: ncid   = integerMissing  ! netcdf id
    integer(i4b)            :: status = integerMissing  ! status: 1=defined, 2=open, 3=closed
  end type nc
