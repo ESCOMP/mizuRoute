@@ -450,6 +450,7 @@ CONTAINS
   type(time)                               :: simCal
   integer(i4b)                             :: nDays             ! number of days in a month
   real(dp), allocatable                    :: roJulday_diff(:)  ! the difference of two concequative elements in roJulyday
+  real(dp), allocatable                    :: roJulday_diff_wm(:)! the difference of two concequative elements in roJulyday_wm
   real(dp)                                 :: restartJulday
   real(dp), allocatable                    :: timeVar_wm(:)     !
   real(dp)                                 :: refJulday_wm      !
@@ -595,6 +596,22 @@ CONTAINS
     if(endJulday<roJulday_wm(1)) then
       write(iulog,'(2a)') new_line('a'),'ERROR: <sim_end> is before the last time step in input runoff'
       ierr=20; message=trim(message)//'check <sim_start> against water management input time'; return
+    endif
+
+    ! check if the julian day of contacenated files do not have overlap or gap if nTime_wm is larger than 1
+    if (nTime_wm>1) then
+      ! allocate the difference array
+      allocate(roJulday_diff_wm(nTime_wm-1), stat=ierr)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      ! calculate the difference of consequative time in julian day
+      roJulday_diff_wm = roJulday_wm (1:nTime-1) - roJulday_wm (2:nTime)
+      ! check if the difference are identical otherwise error and terminate
+      do counter = 1, nTime_wm-2
+        if ((abs(roJulday_diff_wm(counter)-roJulday_diff_wm(counter+1)))>verySmall) then
+          write(iulog,'(2a)') new_line('a'),'ERROR: water managmentcontacenated netCDF files have time overlaps or gap'
+          ierr=20; message=trim(message)//'make sure the water management input netCDF files do not have time overlap or gap'; return
+        endif
+      enddo
     endif
 
   endif
