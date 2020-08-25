@@ -402,50 +402,63 @@ CONTAINS
   USE process_time_module, ONLY: conv_cal2julian ! compute data and time from julian day
   USE time_utils_module,   ONLY: ndays_month     ! compute number of days in a month
   ! derived datatype
-  USE dataTypes,  ONLY: time                    ! time data type
+  USE dataTypes,  ONLY: time                     ! time data type
   ! public data
-  USE public_var, ONLY: time_units              ! time units (seconds, hours, or days)
-  USE public_var, ONLY: simStart                ! date string defining the start of the simulation
-  USE public_var, ONLY: simEnd                  ! date string defining the end of the simulation
-  USE public_var, ONLY: calendar                ! calendar name
+  USE public_var, ONLY: time_units               ! time units (seconds, hours, or days)
+  USE public_var, ONLY: simStart                 ! date string defining the start of the simulation
+  USE public_var, ONLY: simEnd                   ! date string defining the end of the simulation
+  USE public_var, ONLY: calendar                 ! calendar name
   USE public_var, ONLY: dt
   USE public_var, ONLY: secprday
-  USE public_var, ONLY: restart_write           ! restart write option
-  USE public_var, ONLY: restart_date            ! restart date
-  USE public_var, ONLY: restart_month           ! periodic restart month
-  USE public_var, ONLY: restart_day             ! periodic restart day
-  USE public_var, ONLY: restart_hour            ! periodic restart hr
+  USE public_var, ONLY: restart_write            ! restart write option
+  USE public_var, ONLY: restart_date             ! restart date
+  USE public_var, ONLY: restart_month            ! periodic restart month
+  USE public_var, ONLY: restart_day              ! periodic restart day
+  USE public_var, ONLY: restart_hour             ! periodic restart hr
+  USE public_var, ONLY: verySmall                ! very small value
   ! saved time variables
-  USE globalData, ONLY: timeVar                 ! time variables (unit given by runoff data)
-  USE globalData, ONLY: iTime                   ! time index at simulation time step
-  USE globalData, ONLY: refJulday               ! julian day: reference
-  USE globalData, ONLY: roJulday                ! julian day: runoff input time
-  USE globalData, ONLY: startJulday             ! julian day: start of routing simulation
-  USE globalData, ONLY: endJulday               ! julian day: end of routing simulation
-  USE globalData, ONLY: modJulday               ! julian day: at model time step
-  USE globalData, ONLY: modTime                 ! model time data (yyyy:mm:dd:hh:mm:ss)
-  USE globalData, ONLY: restCal                 ! restart time data (yyyy:mm:dd:hh:mm:sec)
-  USE globalData, ONLY: dropCal                 ! restart dropoff calendar date/time
-  USE globalData, ONLY: infileinfo_data         ! the information of the input files
+  USE globalData, ONLY: timeVar                  ! time variables (unit given by runoff data)
+  USE globalData, ONLY: iTime                    ! time index at simulation time step
+  USE globalData, ONLY: refJulday                ! julian day: reference
+  USE globalData, ONLY: roJulday                 ! julian day: runoff input time
+  USE globalData, ONLY: startJulday              ! julian day: start of routing simulation
+  USE globalData, ONLY: endJulday                ! julian day: end of routing simulation
+  USE globalData, ONLY: modJulday                ! julian day: at model time step
+  USE globalData, ONLY: modTime                  ! model time data (yyyy:mm:dd:hh:mm:ss)
+  USE globalData, ONLY: restCal                  ! restart time data (yyyy:mm:dd:hh:mm:sec)
+  USE globalData, ONLY: dropCal                  ! restart dropoff calendar date/time
+  USE globalData, ONLY: infileinfo_data          ! the information of the input files
+  USE globalData, ONLY: infileinfo_data_wm       ! the information of the input files
+  USE public_var, ONLY: is_flux_wm               ! logical whether or not abstraction and injection should be read from the file
+  USE public_var, ONLY: is_vol_wm                ! logical whether or not target volume for lakes should be read
 
   implicit none
 
   ! output: error control
-  integer(i4b),              intent(out)   :: ierr             ! error code
-  character(*),              intent(out)   :: message          ! error message
+  integer(i4b),              intent(out)   :: ierr              ! error code
+  character(*),              intent(out)   :: message           ! error message
   ! local variable
   integer(i4b)                             :: ix
   integer(i4b)                             :: counter
   integer(i4b)                             :: nTime
+  integer(i4b)                             :: nTime_wm
   integer(i4b)                             :: nt
-  integer(i4b)                             :: nFile ! number of nc files
-  integer(i4b)                             :: iFile ! for loop over the nc files
+  integer(i4b)                             :: nFile             ! number of nc files
+  integer(i4b)                             :: nFile_wm          ! number of nc files
+  integer(i4b)                             :: iFile             ! for loop over the nc files
   type(time)                               :: rofCal
   type(time)                               :: simCal
-  integer(i4b)                             :: nDays          ! number of days in a month
+  integer(i4b)                             :: nDays             ! number of days in a month
+  real(dp), allocatable                    :: roJulday_diff(:)  ! the difference of two concequative elements in roJulyday
   real(dp)                                 :: restartJulday
-  real(dp)                                 :: tempJulday
-  character(len=strLen)                    :: cmessage         ! error message of downwind routine
+  real(dp), allocatable                    :: timeVar_wm(:)     !
+  real(dp)                                 :: refJulday_wm      !
+  real(dp)                                 :: startJulday_wm    ! time varibale from
+  real(dp)                                 :: endJulday_wm      ! time varibale from
+  real(dp), allocatable                    :: roJulday_wm(:)    ! Julian day of concatenated netCDF for water management
+  real(dp), allocatable                    :: timeVar_diff(:)   ! difference between the concequative timeVar elements
+  real(dp)                                 :: tempJulday        !
+  character(len=strLen)                    :: cmessage          ! error message of downwind routine
   character(len=50)                        :: fmt1='(a,I4,a,I2.2,a,I2.2,x,I2.2,a,I2.2,a,F5.2)'
 
   ! initialize error control
@@ -490,11 +503,11 @@ CONTAINS
     ierr=20; message=trim(message)//trim(cmessage); return
   endif
 
-  ! check sim_start is before the last time step in runoff data
+  ! check sim_start is after the last time step in runoff data
   if(startJulday>roJulday(nTime)) then
     call conv_julian2cal(roJulday(nTime), calendar, rofCal, ierr, cmessage)
     call conv_julian2cal(startJulday, calendar, simCal, ierr, cmessage)
-    write(iulog,'(2a)') new_line('a'),'ERROR: <sim_start> is after the first time step in input runoff'
+    write(iulog,'(2a)') new_line('a'),'ERROR: <sim_start> is after the last time step in input runoff'
     write(iulog,fmt1)  ' runoff_end  : ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
     write(iulog,fmt1)  ' <sim_start> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
     ierr=20; message=trim(message)//'check <sim_start> against runoff input time'; return
@@ -522,6 +535,22 @@ CONTAINS
     endJulday = roJulday(nTime)
   endif
 
+  ! check if the julian day of contacenated files do not have overlap or gap if nTime is larger than 1
+  if (nTime>1) then
+    ! allocate the difference array
+    allocate(roJulday_diff(nTime-1), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! calculate the difference of consequative time in julian day
+    roJulday_diff = roJulday (1:nTime-1) - roJulday (2:nTime)
+    ! check if the difference are identical otherwise error and terminate
+    do counter = 1, nTime-2
+      if ((abs(roJulday_diff(counter)-roJulday_diff(counter+1)))>verySmall) then
+        write(iulog,'(2a)') new_line('a'),'ERROR: contacenated netCDF files have time overlaps or gap'
+        ierr=20; message=trim(message)//'make sure the input netCDF files do not have time overlap or gap'; return
+      endif
+    enddo
+  endif
+
   ! fast forward time to time index at simStart and save iTime and modJulday
   do ix = 1, nTime
     modJulday = roJulday(ix)
@@ -532,6 +561,44 @@ CONTAINS
 
   ! initialize previous model time
   modTime(0) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
+
+  ! if one of the two flags are set it true
+  if ((is_flux_wm).or.(is_vol_wm)) then
+
+    ! get the number of the total time length of all the water management nc files
+    nFile_wm = size(infileinfo_data_wm)
+    nTime_wm = 0
+    do iFile=1,nFile_wm
+     nTime_wm = nTime_wm + infileinfo_data_wm(iFile)%nTime
+    enddo
+
+    ! Define time varialbes: roJulday_wm
+    allocate(roJulday_wm(nTime_wm), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! roJulday_wm: Julian day of concatenated netCDF for water management
+    counter = 1;
+    do iFile=1,nFile_wm
+      nt = infileinfo_data_wm(iFile)%nTime
+      roJulday_wm(counter:counter+nt-1) = &
+      infileinfo_data_wm(iFile)%timeVar(1:nt)/infileinfo_data_wm(iFile)%convTime2Days+infileinfo_data_wm(iFile)%ncrefjulday
+      counter = counter + infileinfo_data_wm(iFile)%nTime
+    enddo
+
+    ! check sim_start is after the last time step in water management data
+    if(startJulday>roJulday_wm(nTime_wm)) then
+      write(iulog,'(2a)') new_line('a'),'ERROR: <sim_start> is after the last time step in input runoff'
+      ierr=20; message=trim(message)//'check <sim_start> against water management input time'; return
+    endif
+
+    ! check sim_end is before the first time step in water management data
+    if(endJulday<roJulday_wm(1)) then
+      write(iulog,'(2a)') new_line('a'),'ERROR: <sim_end> is before the last time step in input runoff'
+      ierr=20; message=trim(message)//'check <sim_start> against water management input time'; return
+    endif
+
+  endif
+
 
  ! Set restart calendar date/time and dropoff calendar date/time and
  ! -- For periodic restart options  ---------------------------------------------------------------------
