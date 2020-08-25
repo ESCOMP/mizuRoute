@@ -450,13 +450,10 @@ CONTAINS
   type(time)                               :: simCal
   integer(i4b)                             :: nDays               ! number of days in a month
   real(dp), allocatable                    :: roJulday_diff(:)    ! the difference of two concequative elements in roJulyday
-  real(dp), allocatable                    :: roJulday_diff_wm(:) ! the difference of two concequative elements in roJulyday_wm
   real(dp)                                 :: restartJulday
   real(dp)                                 :: refJulday_wm        !
-  real(dp)                                 :: startJulday_wm      ! time varibale from
-  real(dp)                                 :: endJulday_wm        ! time varibale from
   real(dp), allocatable                    :: roJulday_wm(:)      ! Julian day of concatenated netCDF for water management
-  real(dp), allocatable                    :: timeVar_diff(:)     ! difference between the concequative timeVar elements
+  real(dp), allocatable                    :: roJulday_diff_wm(:) ! the difference of two concequative elements in roJulyday_wm
   real(dp)                                 :: tempJulday          !
   character(len=strLen)                    :: cmessage            ! error message of downwind routine
   character(len=50)                        :: fmt1='(a,I4,a,I2.2,a,I2.2,x,I2.2,a,I2.2,a,F5.2)'
