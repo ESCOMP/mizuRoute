@@ -33,7 +33,7 @@ module globalData
   use dataTypes,  only : subbasin_omp  ! mainstem+tributary data structures
 
   ! time data structure
-  use dataTypes,  only : time         ! time data
+  use date_time,  only : datetime      ! time data
 
   ! time data structure
   use dataTypes,  only : nc           ! netCDF data
@@ -107,14 +107,12 @@ module globalData
 
   ! DataTime data/variables
   integer(i4b)                   , public :: iTime                ! time index at simulation time step
-  real(dp)                       , public :: endJulday            ! julian day: end of routing simulation
-  real(dp)                       , public :: modJulday            ! julian day: simulation time step
-  real(dp)        , allocatable  , public :: roJulday(:)          ! julian day: runoff input time
   real(dp)        , allocatable  , public :: timeVar(:)           ! time variables (unit given by time variable)
   real(dp)                       , public :: TSEC(0:1)            ! begning and end of time step (sec)
-  type(time)                     , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
-  type(time)                     , public :: restCal              ! desired restart date/time (yyyy:mm:dd:hh:mm:ss)
-  type(time)                     , public :: dropCal              ! restart dropoff date/time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime)                 , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime)                 , public :: endCal               ! simulation end date/time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime)                 , public :: restCal              ! desired restart date/time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime)                 , public :: dropCal              ! restart dropoff date/time (yyyy:mm:dd:hh:mm:ss)
   logical(lgt)                   , public :: restartAlarm         ! alarm to triger restart file writing
 
   ! simulation output netcdf

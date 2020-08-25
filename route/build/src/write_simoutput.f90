@@ -117,11 +117,8 @@ CONTAINS
  USE public_var,          only : time_units        ! time units (seconds, hours, or days)
  ! saved global data
  USE globalData,          only : basinID,reachID   ! HRU and reach ID in network
- USE globalData,          only : modJulday         ! julian day: at model time step
  USE globalData,          only : modTime           ! previous and current model time
  USE globalData,          only : nEns, nHRU, nRch  ! number of ensembles, HRUs and river reaches
- ! subroutines
- USE process_time_module, ONLY : conv_julian2cal   ! compute data and time from julian day
 
  implicit none
 
@@ -137,19 +134,15 @@ CONTAINS
 
  ierr=0; message='prep_output/'
 
- ! get calendar date/time at current model time step from julian date
- call conv_julian2cal(modJulday, calendar, modTime(1), ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
  ! print progress
- write(iulog,'(a,I4,4(x,I4))') new_line('a'), modTime(1)%iy, modTime(1)%im, modTime(1)%id, modTime(1)%ih, modTime(1)%imin
+ write(iulog,'(a,I4,4(x,I4))') new_line('a'), modTime(1)%year(), modTime(1)%month(), modTime(1)%day(), modTime(1)%hour(), modTime(1)%minute()
 
  ! check need for the new file
  select case(trim(newFileFrequency))
-   case('single'); defNewOutputFile=(modTime(0)%iy==integerMissing)
-   case('annual'); defNewOutputFile=(modTime(1)%iy/=modTime(0)%iy)
-   case('month');  defNewOutputFile=(modTime(1)%im/=modTime(0)%im)
-   case('day');    defNewOutputFile=(modTime(1)%id/=modTime(0)%id)
+   case('single'); defNewOutputFile=(modTime(0)%year() ==integerMissing)
+   case('annual'); defNewOutputFile=(modTime(1)%year() /=modTime(0)%year())
+   case('month');  defNewOutputFile=(modTime(1)%month()/=modTime(0)%month())
+   case('day');    defNewOutputFile=(modTime(1)%day()  /=modTime(0)%day())
    case default; ierr=20; message=trim(message)//'unable to identify the option to define new output files'; return
  end select
 
@@ -168,9 +161,9 @@ CONTAINS
    jTime=1
 
    ! update filename
-   sec_in_day = modTime(1)%ih*60*60+modTime(1)%imin*60+nint(modTime(1)%dsec)
+   sec_in_day = modTime(1)%hour()*60*60+modTime(1)%minute()*60+nint(modTime(1)%sec())
    write(simout_nc%ncname, fmtYMDS) trim(output_dir)//trim(case_name)//'.h.', &
-                                     modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '-',sec_in_day,'.nc'
+                                     modTime(1)%year(), '-', modTime(1)%month(), '-', modTime(1)%day(), '-',sec_in_day,'.nc'
 
    call defineFile(simout_nc%ncname,                      &  ! input: file name
                    nEns,                                  &  ! input: number of ensembles
@@ -198,8 +191,6 @@ CONTAINS
    jTime = jTime+1
 
  endif
-
- modTime(0) = modTime(1)
 
  END SUBROUTINE prep_output
 
