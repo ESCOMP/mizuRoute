@@ -949,17 +949,17 @@ contains
 
 
   ! input variables
-  integer(i4b),           intent(in)  :: nNodes                          ! number of processes (MPI)
-  integer(i4b),           intent(in)  :: comm                            ! communicator
+  integer(i4b),           intent(in)      :: nNodes                    ! number of processes (MPI)
+  integer(i4b),           intent(in)      :: comm                      ! communicator
   ! output variables
-  integer(i4b),           intent(out) :: ierr                            ! error code
-  character(len=strLen),  intent(out) :: message                         ! error message
+  integer(i4b),           intent(out)     :: ierr                      ! error code
+  character(len=strLen),  intent(out)     :: message                   ! error message
   ! local variables
-  integer(i4b)                        :: iHru,jHru                       ! loop indices
-  real(dp)                            :: basinRunoff_local(nHRU)         ! temporal basin runoff (m/s) for whole domain
-  real(dp)                            :: basinEvapo_local(nHRU)          ! temporal basin runoff (m/s) for whole domain
-  real(dp)                            :: basinPrecip_local(nHRU)         ! temporal basin runoff (m/s) for whole domain
-  character(len=strLen)               :: cmessage                        ! error message from a subroutine
+  integer(i4b)                            :: iHru,jHru                 ! loop indices
+  real(dp)                                :: basinRunoff_local(nHRU)   ! temporal basin runoff (m/s) for whole domain
+  real(dp)                                :: basinEvapo_local(nHRU)    ! temporal basin evaporation (m/s) for whole domain
+  real(dp)                                :: basinPrecip_local(nHRU)   ! temporal basin precipitation (m/s) for whole domain
+  character(len=strLen)                   :: cmessage                  ! error message from a subroutine
 
   ierr=0; message='scatter_runoff/'
 
@@ -1057,6 +1057,112 @@ contains
   end if
 
  END SUBROUTINE scatter_runoff
+
+
+ ! *********************************************************************
+ ! private subroutine: scatter global domain water management data to local domain
+ ! *********************************************************************
+ SUBROUTINE scatter_wm(nNodes, comm, &    ! mpi variables: number nodes, communicator
+                       ierr, message)     ! error controls
+
+  USE globalData, ONLY: nRch              ! number of all reach
+  USE globalData, ONLY: nRch_mainstem     ! number of mainstem reach
+  USE globalData, ONLY: wm_data           ! water management data structure
+  USE globalData, ONLY: rch_per_proc      ! number of reach assigned to each proc (i.e., node)
+  USE globalData, ONLY: flux_wm_main      ! nRch flux holder for mainstem
+  USE globalData, ONLY: flux_wm_trib      ! nRch flux holder for tributary
+  USE globalData, ONLY: vol_wm_main       ! nRch target vol holder for mainstem
+  USE globalData, ONLY: vol_wm_trib       ! nRch target vol holder for tributary
+  USE public_var, ONLY: is_flux_wm        ! logical whether or not fluxes should be passed
+  USE public_var, ONLY: is_vol_wm         ! logical whether or not target volume should be passed
+
+  ! input variables
+  integer(i4b),           intent(in)  :: nNodes                          ! number of processes (MPI)
+  integer(i4b),           intent(in)  :: comm                            ! communicator
+  ! output variables
+  integer(i4b),           intent(out) :: ierr                            ! error code
+  character(len=strLen),  intent(out) :: message                         ! error message
+  ! local variables
+  integer(i4b)                        :: iHru,jHru                       ! loop indices
+  real(dp)                            :: Rch_flux_local(nRch)            ! temporal reach flux (m3/s) for whole domain
+  real(dp)                            :: Rch_vol_local(nRch)             ! temporal reach (lake) volume (m3) for whole domain
+  character(len=strLen)               :: cmessage                        ! error message from a subroutine
+
+  ierr=0; message='scatter_runoff/'
+
+  if (nNodes==1) then
+
+    if (is_flux_wm) then
+
+      ! if only single proc is used, all fluxes are stored in mainstem runoff array
+      if (.not. allocated(flux_wm_main)) then
+        allocate(flux_wm_main(nRch), stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem allocating array for [flux_wm_main]'; return; endif
+      end if
+      flux_wm_main(:) = wm_data%flux_wm(:)
+
+    endif
+
+    if (is_vol_wm) then
+
+      ! if only single proc is used, all target volumes are stored in mainstem runoff array
+      if (.not. allocated(vol_wm_main)) then
+        allocate(vol_wm_main(nRch), stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem allocating array for [vol_wm_main]'; return; endif
+      end if
+      vol_wm_main(:) = wm_data%vol_wm(:)
+
+    endif
+
+  else
+
+    ! sort the reach flux, target vol in terms of nodes/domains
+    if (masterproc) then ! this is a root process
+
+      if (is_flux_wm) then
+        if (.not. allocated(flux_wm_main)) then
+          allocate(flux_wm_main(nRch_mainstem), stat=ierr)
+          if(ierr/=0)then; message=trim(message)//'problem allocating array for [flux_wm_main]'; return; endif
+        endif
+        ! flux or target vol at reach in mainstem and tributaries
+        Rch_flux_local(1:nRch) = wm_data%flux_wm(1:nRch)
+        flux_wm_main(1:nRch_mainstem) = Rch_flux_local(1:nRch_mainstem)
+      endif
+
+      if (is_vol_wm) then
+        if (.not. allocated(vol_wm_main)) then
+          allocate(vol_wm_main(nRch_mainstem), stat=ierr)
+          if(ierr/=0)then; message=trim(message)//'problem allocating array for [vol_wm_main]'; return; endif
+        endif
+        ! target vol at reach in mainstem and tributaries
+        Rch_vol_local(1:nRch) = wm_data%vol_wm(1:nRch)
+        vol_wm_main(1:nRch_mainstem) = Rch_vol_local(1:nRch_mainstem)
+      end if
+
+    end if
+
+    call shr_mpi_barrier(comm, message)
+
+    ! Distribute the read flux to each process
+    if (is_flux_wm) then
+      call shr_mpi_scatterV(Rch_flux_local(nRch_mainstem+1:nRch),  &
+                            rch_per_proc(0:nNodes-1),              &
+                            flux_wm_trib,                          &
+                            ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+    if (is_vol_wm) then
+      call shr_mpi_scatterV(Rch_vol_local(nRch_mainstem+1:nRch),   &
+                            rch_per_proc(0:nNodes-1),              &
+                            vol_wm_trib,                           &
+                            ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+  end if
+
+ END SUBROUTINE scatter_wm
 
  ! *********************************************************************
  ! subroutine: single flux communication
