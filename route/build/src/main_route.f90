@@ -40,6 +40,8 @@ CONTAINS
                        basinRunoff_in, &  ! basin (i.e.,HRU) runoff (m/s)
                        basinEvapo_in,  &  ! basin (i.e.,HRU) evaporation (m/s)
                        basinPrecip_in, &  ! basin (i.e.,HRU) precipitation (m/s)
+                       reachflux_in,   &  ! reach (i.e.,reach) flux (m3/s)
+                       reachvol_in,    &  ! reach (i.e.,reach) target volume for lakes (m3)
                        ixRchProcessed, &  ! indices of reach to be routed
                        river_basin,    &  ! OMP basin decomposition
                        NETOPO_in,      &  ! reach topology data structure
@@ -75,6 +77,8 @@ CONTAINS
    real(dp),           allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
    real(dp),           allocatable, intent(in)    :: basinEvapo_in(:)     ! basin (i.e.,HRU) evaporation (m/s)
    real(dp),           allocatable, intent(in)    :: basinPrecip_in(:)    ! basin (i.e.,HRU) precipitation (m/s)
+   real(dp),           allocatable, intent(in)    :: reachflux_in(:)      ! reach (i.e.,reach) flux (m3/s)
+   real(dp),           allocatable, intent(in)    :: reachvol_in(:)       ! reach (i.e.,reach) target volume for lakes (m3)
    integer(i4b),       allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
    type(subbasin_omp), allocatable, intent(in)    :: river_basin(:)       ! OMP basin decomposition
    type(RCHTOPO),      allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology

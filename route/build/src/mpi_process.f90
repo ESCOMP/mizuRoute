@@ -938,6 +938,8 @@ contains
                   basinRunoff_trib,  &  ! input: basin (i.e.,HRU) runoff (m/s)
                   basinEvapo_trib,   &  ! input: basin (i.e. HRU) Evapo  (m/s)
                   basinPrecip_trib,  &  ! input: basin (i.e. HRU) Precip (m/s)
+                  flux_wm_trib,      &  ! reach (i.e.,reach) flux (m3/s)
+                  vol_wm_trib,       &  ! reach (i.e.,reach) target volume for lakes (m3)
                   ixRchProcessed,    &  ! input: indices of reach to be routed
                   river_basin_trib,  &  ! input: OMP basin decomposition
                   NETOPO_trib,       &  ! input: reach topology data structure
@@ -1016,6 +1018,8 @@ contains
                     basinRunoff_main,        &  ! input: basin (i.e.,HRU) runoff (m/s)
                     basinEvapo_main,         &  ! input: basin (i.e. HRU) Evapo  (m/s)
                     basinPrecip_main,        &  ! input: basin (i.e. HRU) Precip (m/s)
+                    flux_wm_main,            &  ! reach (i.e.,reach) flux (m3/s)
+                    vol_wm_main,             &  ! reach (i.e.,reach) target volume for lakes (m3)
                     ixRchProcessed,          &  ! input: indices of reach to be routed
                     river_basin_main,        &  ! input: OMP basin decomposition
                     NETOPO_main,             &  ! input: reach topology data structure
