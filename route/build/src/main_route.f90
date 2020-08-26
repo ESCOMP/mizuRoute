@@ -69,6 +69,8 @@ CONTAINS
    USE public_var, ONLY: impulseResponseFunc
    USE globalData, ONLY: TSEC                    ! beginning/ending of simulation time step [sec]
    USE public_var, ONLY: is_lake_sim             ! logical whether or not lake should be simulated
+   USE public_var, ONLY: is_flux_wm              ! logical whether or not fluxes should be passed
+   USE public_var, ONLY: is_vol_wm               ! logical whether or not target volume should be passed
 
    implicit none
 
@@ -110,6 +112,18 @@ CONTAINS
 
   allocate(reachRunoff_local(nSeg), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachRunoff_local]'; return; endif
+
+  ! passing of the water management fluxes and lake target vol if presence
+  if (is_flux_wm) then
+    do iSeg = 1,nSeg
+      RCHFLX_out(iens,ixRchProcessed(iSeg))%REACH_WM_FLUX  =  reachflux_in(iSeg)  ! added or subtracted stremflow for each reach
+    end do
+  end if
+  if (is_vol_wm) then
+    do iSeg = 1,nSeg
+      RCHFLX_out(iens,ixRchProcessed(iSeg))%REACH_WM_VOL   =  reachvol_in(iSeg)   ! target volume for the lakes
+    end do
+  end if
 
   ! 1. subroutine: map basin runoff to river network HRUs
   ! map the basin runoff to the stream network...

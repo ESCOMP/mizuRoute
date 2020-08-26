@@ -277,6 +277,8 @@ implicit none
   real(dp)                             :: REACH_Q_IRF       ! time-step average streamflow (m3/s) from IRF routing
   real(dp)                             :: UPSTREAM_QI       ! sum of upstream streamflow (m3/s)
   real(dp)                             :: REACH_VOL(0:1)    ! volume of water at previous and current time step [m3]
+  real(dp)                             :: REACH_WM_FLUX     ! water management fluxes to and from each reach
+  real(dp)                             :: REACH_WM_VOL      ! target volume from the second water management file (m3)
   real(dp)                             :: TAKE              ! average take
   logical(lgt)                         :: isRoute           ! .true. if the reach is routed
  END TYPE strflx
