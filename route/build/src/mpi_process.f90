@@ -712,11 +712,17 @@ contains
   USE globalData, ONLY: river_basin_trib    ! tributary OMP domain data structure
   USE globalData, ONLY: river_basin_main    ! mainstem OMP domain data structure
   USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
+  USE globalData, ONLY: flux_wm_main        ! nRch flux holder for mainstem
+  USE globalData, ONLY: flux_wm_trib        ! nRch flux holder for tributary
+  USE globalData, ONLY: vol_wm_main         ! nRch target vol holder for mainstem
+  USE globalData, ONLY: vol_wm_trib         ! nRch target vol holder for tributary
   USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc
   USE globalData, ONLY: tribOutlet_per_proc ! number of tributary outlets per proc (array size = nNodes)
   USE globalData, ONLY: global_ix_main      ! reach index at tributary reach outlets to mainstem (size = sum of tributary outlets in all the procs)
   USE globalData, ONLY: local_ix_comm       ! local reach index at tributary reach outlets to mainstem for each proc (size = sum of tributary outlets in proc)
   USE public_var, ONLY: is_lake_sim         ! logical whether or not lake should be simulated
+  USE public_var, ONLY: is_flux_wm          ! logical whether or not fluxes should be passed
+  USE public_var, ONLY: is_vol_wm           ! logical whether or not target volume should be passed
   ! routing driver
   USE main_route_module, ONLY: main_route   ! routing driver
 
@@ -758,6 +764,10 @@ contains
   ! and precipitation array to local runoff arrays
   !  - basinRunoff_main (only at master proc)
   !  - basinRunoff_trib (all procs)
+  !  - basinEvapo_main  (only at master proc)
+  !  - basinEvapo_trib  (all procs)
+  !  - basinPrecip_main (only at master proc)
+  !  - basinPrecip_trib (all procs)
   ! --------------------------------
   if (doesScatterRunoff) then
 
@@ -791,24 +801,22 @@ contains
         if (nHRU_mainstem > 0 .and. .not.allocated(basinRunoff_main)) then
           ierr=10; message=trim(message)//'mainstem runoff array is not allocated/populated'; return
         end if
+        if (.not.allocated(basinRunoff_trib)) then
+          ierr=10; message=trim(message)//'master proc: tributary runoff array is not allocated'; return
+        end if
+
         if (is_lake_sim) then
           if (nHRU_mainstem > 0 .and. .not.allocated(basinEvapo_main)) then
             ierr=10; message=trim(message)//'mainstem evaporation array is not allocated/populated'; return
           end if
-          if (nHRU_mainstem > 0 .and. .not.allocated(basinPrecip_main)) then
-            ierr=10; message=trim(message)//'mainstem precipitation array is not allocated/populated'; return
-          end if
-        end if
-
-        if (.not.allocated(basinRunoff_trib)) then
-          ierr=10; message=trim(message)//'master proc: tributary runoff array is not allocated'; return
-        end if
-        if (is_lake_sim) then
           if (.not.allocated(basinEvapo_trib)) then
             ierr=10; message=trim(message)//'master proc: tributary evaporation array is not allocated'; return
           end if
           if (.not.allocated(basinPrecip_trib)) then
             ierr=10; message=trim(message)//'master proc: tributary precipitation array is not allocated'; return
+          end if
+          if (nHRU_mainstem > 0 .and. .not.allocated(basinPrecip_main)) then
+            ierr=10; message=trim(message)//'mainstem precipitation array is not allocated/populated'; return
           end if
         end if
 
@@ -829,6 +837,86 @@ contains
       end if
     end if
   end if
+
+
+  ! --------------------------------
+  ! distribute (scatter) water managemnt flux and
+  ! volume in the
+  !  - flux_wm_main (only at master proc)
+  !  - flux_wm_trib (all procs)
+  !  - vol_wm_main  (only at master proc)
+  !  - vol_wm_trib  (all procs)
+  ! --------------------------------
+
+  if (is_flux_wm.or.is_vol_wm) then
+
+    if (doesScatterRunoff) then
+
+      call t_startf ('route/scatter-wm')
+      call scatter_wm(nNodes, comm, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      call t_stopf ('route/scatter-wm')
+
+    else
+
+      if (nNodes==1) then
+
+        if (is_flux_wm) then
+          if (.not.allocated(flux_wm_main)) then
+            ierr=10; message=trim(message)//'master proc: mainstem water management flux array is not allocated'; return
+          end if
+        end if
+        if (is_vol_wm) then
+          if (.not.allocated(vol_wm_main)) then
+            ierr=10; message=trim(message)//'master proc: mainstem target volume array (for lakes) is not allocated'; return
+          end if
+        end if
+
+      else
+
+        if (masterproc) then
+
+          write(iulog,*) 'NOTE: reach flux and target volume are already decomposed into mainstems and tributaries. No need for scatter_wm'
+
+          if (is_flux_wm) then
+            if (nRch_mainstem > 0 .and. .not.allocated(flux_wm_main)) then
+              ierr=10; message=trim(message)//'mainstem water management flux array is not allocated/populated'; return
+            end if
+            if (.not.allocated(flux_wm_trib)) then
+              ierr=10; message=trim(message)//'master proc: tributary water management flux array is not allocated'; return
+            end if
+          end if
+
+          if (is_vol_wm) then
+            if (nRch_mainstem > 0 .and. .not.allocated(vol_wm_main)) then
+              ierr=10; message=trim(message)//'mainstem target volume array (for lakes) is not allocated/populated'; return
+            end if
+            if (.not.allocated(vol_wm_trib)) then
+              ierr=10; message=trim(message)//'master proc: tributary target volume array (for lakes) is not allocated'; return
+            end if
+          end if
+
+
+        else
+
+          if (is_flux_wm) then
+            if(.not.allocated(flux_wm_trib)) then
+              ierr=10; message=trim(message)//'tributary water management fluxes array is not allocated/populated'; return
+            end if
+          end if
+
+          if (is_vol_wm) then
+            if(.not.allocated(vol_wm_trib)) then
+              ierr=10; message=trim(message)//'tributary target volume array (for lakes) is not allocated/populated'; return
+            end if
+          end if
+
+        end if
+      end if
+    end if
+
+  end if
+
 
   ! --------------------------------
   ! Perform tributary routing (for all procs)
