@@ -85,7 +85,6 @@ CONTAINS
      call dropCal%set_datetime(dropCal%year(), dropCal%month(), nDays, dropCal%hour(), dropCal%minute(), dropCal%sec())
    end if
 
-write(iulog,*) ' dropCal : ', dropCal%year(),'-',dropCal%month(),'-',dropCal%day(),dropCal%hour(),':',dropCal%minute(),':',dropCal%sec()
    ! adjust dropoff day further if restart day is actually outside number of days in a particular month
    if (restCal%day() > nDays) then
      dropCal = dropCal%add_day(-1, calendar, ierr, cmessage)
