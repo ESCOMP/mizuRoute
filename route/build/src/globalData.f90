@@ -62,7 +62,6 @@ module globalData
 
   ! ---------- conversion factors -------------------------------------------------------------------
 
-  real(dp)                       , public :: convTime2Days              ! conversion factor to convert time to units of days
   real(dp)                       , public :: time_conv                  ! time conversion factor -- used to convert to mm/s
   real(dp)                       , public :: length_conv                ! length conversion factor -- used to convert to mm/s
 
