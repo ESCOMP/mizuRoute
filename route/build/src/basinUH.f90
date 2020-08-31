@@ -36,12 +36,8 @@ CONTAINS
  integer(i4b)                             :: iSeg            ! reach loop indix
  logical(lgt),               allocatable  :: doRoute(:)      ! logical to indicate which reaches are processed
  character(len=strLen)                    :: cmessage        ! error message from subroutines
- integer*8                                :: cr                   ! rate
- integer*8                                :: startTime,endTime    ! date/time for the start and end of the initialization
- real(dp)                                 :: elapsedTime          ! elapsed time for the process
 
  ierr=0; message='IRF_route_basin/'
- call system_clock(count_rate=cr)
 
  nSeg = size(RCHFLX_out(iens,:))
 
@@ -56,7 +52,6 @@ CONTAINS
   doRoute(:) = .true.
  endif
 
- call system_clock(startTime)
 !$OMP PARALLEL DO schedule(dynamic,1)   &
 !$OMP          private(iSeg)            & ! loop index
 !$OMP          private(ierr, cmessage)  & ! private for a given thread
@@ -74,10 +69,6 @@ CONTAINS
 
  end do
 !$OMP END PARALLEL DO
-
- call system_clock(endTime)
- elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-! write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/irf_hru] = ', elapsedTime, ' s'
 
  END SUBROUTINE IRF_route_basin
 

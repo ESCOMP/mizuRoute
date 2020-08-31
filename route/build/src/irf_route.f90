@@ -55,18 +55,13 @@ contains
  integer(i4b)                                    :: iTrib               ! loop indices - branch
  integer(i4b)                                    :: ix                  ! loop indices stream order
  ! variables needed for timing
- integer*8                                       :: cr                  ! rate
- integer*8                                       :: startTime,endTime   ! date/time for the start and end of the initialization
- real(dp)                                        :: elapsedTime         ! elapsed time for the process
  !integer(i4b)                                    :: omp_get_thread_num
  !integer(i4b), allocatable                       :: ixThread(:)         ! thread id
  !integer*8,    allocatable                       :: openMPend(:)        ! time for the start of the parallelization section
  !integer*8,    allocatable                       :: timeTribStart(:)    ! time Tributaries start
  !real(dp),     allocatable                       :: timeTrib(:)         ! time spent on each Tributary
 
- ! initialize error control
  ierr=0; message='irf_route/'
- call system_clock(count_rate=cr)
 
  ! number of reach check
  if (size(NETOPO_in)/=size(RCHFLX_out(iens,:))) then
@@ -89,7 +84,6 @@ contains
 
  nOrder = size(river_basin)
 
- call system_clock(startTime)
 
  do ix = 1,nOrder
 
@@ -137,10 +131,6 @@ contains
 
  end do ! basin loop
 
- call system_clock(endTime)
- elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
- !write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/irf] = ', elapsedTime, ' s'
-
  end subroutine irf_route
 
 
@@ -170,17 +160,16 @@ contains
  integer(i4b), intent(out)                :: ierr           ! error code
  character(*), intent(out)                :: message        ! error message
  ! Local variables to
- type(STRFLX), allocatable                :: uprflux(:)     ! upstream Reach fluxes
+ real(dp)                                 :: q_upstream     ! total discharge at top of the reach being processed
  INTEGER(I4B)                             :: nUps           ! number of upstream segment
  INTEGER(I4B)                             :: iUps           ! upstream reach index
  INTEGER(I4B)                             :: iRch_ups       ! index of upstream reach in NETOPO
  INTEGER(I4B)                             :: ntdh           ! number of time steps in IRF
  character(len=strLen)                    :: cmessage       ! error message from subroutine
 
- ! initialize error control
  ierr=0; message='segment_irf/'
 
- ! route streamflow through the river network
+ ! initialize future discharge array at first time
   if (.not.allocated(RCHFLX_out(iens,segIndex)%QFUTURE_IRF))then
 
    ntdh = size(NETOPO_in(segIndex)%UH)
@@ -192,22 +181,19 @@ contains
 
   end if
 
-  ! identify number of upstream segments of the reach being processed
+  ! get discharge coming from upstream
   nUps = size(NETOPO_in(segIndex)%UREACHI)
-
-  allocate(uprflux(nUps), stat=ierr, errmsg=cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': uprflux'; return; endif
-
+  q_upstream = 0.0_dp
   if (nUps>0) then
     do iUps = 1,nUps
       iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-      uprflux(iUps) = RCHFLX_out(iens,iRch_ups)
+      q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%REACH_Q_IRF
     end do
   endif
 
-  ! perform river network UH routing
+  ! perform UH convolution
   call conv_upsbas_qr(NETOPO_in(segIndex)%UH,    &    ! input: reach unit hydrograph
-                      uprflux,                   &    ! input: upstream reach fluxes
+                      q_upstream,                &    ! input: total discharge at top of the reach being processed
                       RCHFLX_out(iens,segIndex), &    ! inout: updated fluxes at reach
                       ierr, message)                  ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -228,7 +214,7 @@ contains
  ! subroutine: Compute delayed runoff from the upstream segments
  ! *********************************************************************
  subroutine conv_upsbas_qr(reach_uh,   &    ! input: reach unit hydrograph
-                           rflux_ups,  &    ! input: upstream reach fluxes
+                           q_upstream, &    ! input:
                            rflux,      &    ! input: input flux at reach
                            ierr, message)   ! output: error control
  ! ----------------------------------------------------------------------------------------
@@ -238,49 +224,29 @@ contains
  implicit none
  ! Input
  real(dp),     intent(in)               :: reach_uh(:)  ! reach unit hydrograph
- type(STRFLX), intent(in)               :: rflux_ups(:) ! upstream Reach fluxes
+ real(dp),     intent(in)               :: q_upstream   ! total discharge at top of the reach being processed
  ! inout
  type(STRFLX), intent(inout)            :: rflux        ! current Reach fluxes
  ! Output
  integer(i4b), intent(out)              :: ierr         ! error code
  character(*), intent(out)              :: message      ! error message
  ! Local variables to
- real(dp)                               :: q_upstream   ! total discharge at top of the reach being processed
- INTEGER(I4B)                           :: ntdh         ! number of UH data
- INTEGER(I4B)                           :: itdh         ! index of UH data (i.e.,future time step)
- INTEGER(I4B)                           :: nUps         ! number of all upstream segment
- INTEGER(I4B)                           :: iUps         ! loop indices for u/s reaches
+ INTEGER(I4B)                           :: ntdh         ! number of UH data (i.e., number of future time step
+ INTEGER(I4B)                           :: itdh         ! index of UH data
 
- ! initialize error control
  ierr=0; message='conv_upsbas_qr/'
 
- ! identify number of upstream segments of the reach being processed
- nUps = size(rflux_ups)
-
- ! Find out total q at top of a segment
- q_upstream = 0.0_dp
- if(nUps>0)then
-   do iUps = 1,nUps
-     q_upstream = q_upstream + rflux_ups(iUps)%REACH_Q_IRF
-   end do
- endif
-
  ! place a fraction of runoff in future time steps
- ntdh = size(reach_uh) ! identify the number of future time steps of UH for a given segment
+ ntdh = size(reach_uh)
  do itdh=1,ntdh
-   rflux%QFUTURE_IRF(itdh) = rflux%QFUTURE_IRF(itdh) &
-                             + reach_uh(itdh)*q_upstream
+   rflux%QFUTURE_IRF(itdh) = rflux%QFUTURE_IRF(itdh) + reach_uh(itdh)*q_upstream
  enddo
 
  ! Add local routed flow
  rflux%REACH_Q_IRF = rflux%QFUTURE_IRF(1) + rflux%BASIN_QR(1)
 
  ! move array back   use eoshift
- !rflux%QFUTURE_IRF=eoshift(rflux%QFUTURE_IRF,shift=1)
-
- do itdh=2,ntdh
-  rflux%QFUTURE_IRF(itdh-1) = rflux%QFUTURE_IRF(itdh)
- enddo
+ rflux%QFUTURE_IRF=eoshift(rflux%QFUTURE_IRF,shift=1)
 
  rflux%QFUTURE_IRF(ntdh) = 0._dp
 
