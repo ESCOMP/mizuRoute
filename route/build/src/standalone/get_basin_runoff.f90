@@ -209,6 +209,8 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if
 
+  print*, wm_data%flux_wm
+
  END SUBROUTINE get_hru_runoff
 
 

@@ -191,7 +191,7 @@ CONTAINS
   endif
 
   ! print statement to compare the computed REACH_Q_IRF and water management abstraction/injection
-  ! print*, RCHFLX_out(iens,segIndex)%REACH_Q_IRF, RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+  print*, NETOPO_in(segIndex)%REACHID, RCHFLX_out(iens,segIndex)%REACH_Q_IRF, RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
 
  end subroutine segment_irf
 
