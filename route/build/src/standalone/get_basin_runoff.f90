@@ -209,6 +209,9 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if
 
+  ! print statemenets
+  print*, wm_data%flux_wm
+
  END SUBROUTINE get_hru_runoff
 
 
@@ -220,6 +223,7 @@ CONTAINS
   ! Shared data
   USE public_var, ONLY: fname_qsim             ! simulated runoff netCDF name
   USE public_var, ONLY: fname_wm               ! water management netCDF name
+  USE public_var, ONLY: is_lake_sim            ! logical whether or not abstraction or injection should be read
   USE public_var, ONLY: is_flux_wm             ! logical whether or not abstraction or injection should be read
   USE public_var, ONLY: is_vol_wm              ! logical whether or not target volume should be read
   USE globalData, ONLY: iTime                  ! time index at simulation time step
@@ -249,7 +253,7 @@ CONTAINS
   enddo ixloop
 
   ! fast forward time to time index at simStart and save iTime and modJulday for water management nc file
-  if ((is_flux_wm).or.(is_vol_wm)) then
+  if ((is_flux_wm).or.(is_vol_wm.and.is_lake_sim)) then
     iyloop: do ix = 1, size(infileinfo_data_wm) !loop over number of file
      if ((iTime >= infileinfo_data_wm(ix)%iTimebound(1)).and.(iTime <= infileinfo_data_wm(ix)%iTimebound(2))) then
       iTime_local_wm = iTime - infileinfo_data_wm(ix)%iTimebound(1) + 1
@@ -261,7 +265,7 @@ CONTAINS
   endif
 
   ! check if the two files are identified in case is flux and vol flags are set to true
-  if ((wm_not_read_flag).and.((is_flux_wm).or.(is_vol_wm))) then
+  if ((wm_not_read_flag).and.((is_flux_wm).or.(is_vol_wm.and.is_lake_sim))) then
     ierr=20; message=trim(message)//'iTime local is out of bound for the water management netcdf file inputs based on given simulation date and time in control file'; return ;
   endif
 

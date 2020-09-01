@@ -848,7 +848,7 @@ contains
   !  - vol_wm_trib  (all procs)
   ! --------------------------------
 
-  if (is_flux_wm.or.is_vol_wm) then
+  if (is_flux_wm.or.(is_vol_wm.and.is_lake_sim)) then
 
     if (doesScatterRunoff) then
 
@@ -866,7 +866,7 @@ contains
             ierr=10; message=trim(message)//'master proc: mainstem water management flux array is not allocated'; return
           end if
         end if
-        if (is_vol_wm) then
+        if (is_vol_wm.and.is_lake_sim) then
           if (.not.allocated(vol_wm_main)) then
             ierr=10; message=trim(message)//'master proc: mainstem target volume array (for lakes) is not allocated'; return
           end if
@@ -887,7 +887,7 @@ contains
             end if
           end if
 
-          if (is_vol_wm) then
+          if (is_vol_wm.and.is_lake_sim) then
             if (nRch_mainstem > 0 .and. .not.allocated(vol_wm_main)) then
               ierr=10; message=trim(message)//'mainstem target volume array (for lakes) is not allocated/populated'; return
             end if
@@ -905,7 +905,7 @@ contains
             end if
           end if
 
-          if (is_vol_wm) then
+          if (is_vol_wm.and.is_lake_sim) then
             if(.not.allocated(vol_wm_trib)) then
               ierr=10; message=trim(message)//'tributary target volume array (for lakes) is not allocated/populated'; return
             end if
@@ -1211,6 +1211,7 @@ contains
   USE globalData, ONLY: flux_wm_trib      ! nRch flux holder for tributary
   USE globalData, ONLY: vol_wm_main       ! nRch target vol holder for mainstem
   USE globalData, ONLY: vol_wm_trib       ! nRch target vol holder for tributary
+  USE public_var, ONLY: is_lake_sim       ! logical whether or not fluxes should be passed
   USE public_var, ONLY: is_flux_wm        ! logical whether or not fluxes should be passed
   USE public_var, ONLY: is_vol_wm         ! logical whether or not target volume should be passed
 
@@ -1241,7 +1242,7 @@ contains
 
     endif
 
-    if (is_vol_wm) then
+    if (is_vol_wm.and.is_lake_sim) then
 
       ! if only single proc is used, all target volumes are stored in mainstem runoff array
       if (.not. allocated(vol_wm_main)) then
@@ -1267,7 +1268,7 @@ contains
         flux_wm_main(1:nRch_mainstem) = Rch_flux_local(1:nRch_mainstem)
       endif
 
-      if (is_vol_wm) then
+      if (is_vol_wm.and.is_lake_sim) then
         if (.not. allocated(vol_wm_main)) then
           allocate(vol_wm_main(nRch_mainstem), stat=ierr)
           if(ierr/=0)then; message=trim(message)//'problem allocating array for [vol_wm_main]'; return; endif
@@ -1290,7 +1291,7 @@ contains
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
-    if (is_vol_wm) then
+    if (is_vol_wm.and.is_lake_sim) then
       call shr_mpi_scatterV(Rch_vol_local(nRch_mainstem+1:nRch),   &
                             rch_per_proc(0:nNodes-1),              &
                             vol_wm_trib,                           &

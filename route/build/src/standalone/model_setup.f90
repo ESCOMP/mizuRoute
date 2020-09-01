@@ -151,7 +151,7 @@ CONTAINS
   ! passing the first nc file as global file name to read
   fname_qsim = trim(infileinfo_data(1)%infilename)
 
-  if ((is_flux_wm).or.(is_vol_wm)) then     ! if either of abstraction injection or target volume is activated
+  if ((is_flux_wm).or.(is_vol_wm.and.is_lake_sim)) then     ! if either of abstraction injection or target volume is activated
     call inFile_pop(input_dir,            & ! input: name of the directory of the txt file
                     fname_wm,             & ! input: name of the txt file hold the nc file names
                     vname_time_wm,        & ! input: name of variable time in the nc files
@@ -429,6 +429,7 @@ CONTAINS
   USE globalData, ONLY: dropCal                  ! restart dropoff calendar date/time
   USE globalData, ONLY: infileinfo_data          ! the information of the input files
   USE globalData, ONLY: infileinfo_data_wm       ! the information of the input files
+  USE public_var, ONLY: is_lake_sim              ! logical whether or not lake simulations are activated
   USE public_var, ONLY: is_flux_wm               ! logical whether or not abstraction and injection should be read from the file
   USE public_var, ONLY: is_vol_wm                ! logical whether or not target volume for lakes should be read
 
@@ -560,7 +561,7 @@ CONTAINS
   modTime(0) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
 
   ! if one of the two flags are set it true
-  if ((is_flux_wm).or.(is_vol_wm)) then
+  if ((is_flux_wm).or.(is_vol_wm.and.is_lake_sim)) then
 
     ! get the number of the total time length of all the water management nc files
     nFile_wm = size(infileinfo_data_wm)
@@ -600,7 +601,7 @@ CONTAINS
       allocate(roJulday_diff_wm(nTime_wm-1), stat=ierr)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       ! calculate the difference of consequative time in julian day
-      roJulday_diff_wm = roJulday_wm (1:nTime-1) - roJulday_wm (2:nTime)
+      roJulday_diff_wm = roJulday_wm (1:nTime_wm-1) - roJulday_wm (2:nTime_wm)
       ! check if the difference are identical otherwise error and terminate
       do counter = 1, nTime_wm-2
         if ((abs(roJulday_diff_wm(counter)-roJulday_diff_wm(counter+1)))>verySmall) then

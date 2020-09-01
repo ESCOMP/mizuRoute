@@ -190,6 +190,9 @@ CONTAINS
                    RCHFLX_out(iens,segIndex)%BASIN_QR(1),RCHFLX_out(iens,segIndex)%REACH_Q_IRF
   endif
 
+  ! print statement to compare the computed REACH_Q_IRF and water management abstraction/injection
+  print*, RCHFLX_out(iens,segIndex)%REACH_Q_IRF, RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+
  end subroutine segment_irf
 
 

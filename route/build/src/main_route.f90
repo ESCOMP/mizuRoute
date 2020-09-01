@@ -119,7 +119,7 @@ CONTAINS
       RCHFLX_out(iens,ixRchProcessed(iSeg))%REACH_WM_FLUX  =  reachflux_in(iSeg)  ! added or subtracted stremflow for each reach
     end do
   end if
-  if (is_vol_wm) then
+  if (is_vol_wm.and.is_lake_sim) then
     do iSeg = 1,nSeg
       RCHFLX_out(iens,ixRchProcessed(iSeg))%REACH_WM_VOL   =  reachvol_in(iSeg)   ! target volume for the lakes
     end do
