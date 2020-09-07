@@ -662,6 +662,20 @@ contains
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
+  ! KWE state communication
+  if (routOpt==kinematicWaveEuler) then
+    call mpi_comm_kwe_state(pid, nNodes, comm,                        &
+                            iens,                                     &
+                            rch_per_proc(root:nNodes-1),              &
+                            RCHSTA,                                   &
+                            RCHSTA_trib,                              &
+                            ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                            arth(1,1,rch_per_proc(pid)),              &
+                            scatter,                                  & ! communication type
+                            ierr, message)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
   ! IRF state communication
   if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
     call mpi_comm_irf_state(pid, nNodes, comm,                        &
@@ -1643,6 +1657,118 @@ contains
 
  end subroutine mpi_comm_irf_state
 
+
+ ! *********************************************************************
+ ! subroutine: KWE state communication
+ ! *********************************************************************
+ subroutine mpi_comm_kwe_state(pid,          &
+                               nNodes,       &
+                               comm,         & ! input: communicator
+                               iens,         &
+                               nReach,       &
+                               RCHSTA_global,&
+                               RCHSTA_local, &
+                               rchIdxGlobal, &
+                               rchIdxLocal,  &
+                               commType,     &
+                               ierr, message)
+
+  USE dataTypes,  ONLY: EKWRCH
+  USE dataTypes,  ONLY: STRSTA
+
+  ! input variables
+  integer(i4b),             intent(in)    :: pid                   ! process id (MPI)
+  integer(i4b),             intent(in)    :: nNodes                ! number of processes (MPI)
+  integer(i4b),             intent(in)    :: comm                  ! communicator
+  integer(i4b),             intent(in)    :: iens                  ! ensemble index
+  integer(i4b),             intent(in)    :: nReach(0:nNodes-1)    ! number of reaches communicate per node (dimension size == number of proc)
+  type(STRSTA), allocatable,intent(inout) :: RCHSTA_global(:,:)
+  type(STRSTA), allocatable,intent(inout) :: RCHSTA_local(:,:)
+  integer(i4b),             intent(in)    :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
+  integer(i4b),             intent(in)    :: rchIdxLocal(:)        ! reach indices (w.r.t. local) (dimension size depends on procs )
+  integer(i4b),             intent(in)    :: commType              ! communication type 1->scatter, 2->gather otherwise error
+  ! output variables
+  integer(i4b),             intent(out)   :: ierr                  ! error code
+  character(len=strLen),    intent(out)   :: message               ! error message
+  ! local variables
+  character(len=strLen)                   :: cmessage              ! error message from a subroutine
+  type(EKWRCH), allocatable               :: EKW0(:,:)             ! temp KEW data structure to hold updated states
+  real(dp),     allocatable               :: Q(:),Q_trib(:)
+  real(dp),     allocatable               :: A(:),A_trib(:)
+  integer(i4b)                            :: myid
+  integer(i4b)                            :: nSeg                  ! number of reaches
+  integer(i4b)                            :: iSeg, jSeg
+  integer(i4b)                            :: ixMesh
+  integer(i4b)                            :: totMesh(0:nNodes-1)
+  integer(i4b)                            :: totMeshAll
+
+  ierr=0; message='mpi_comm_kwe_state/'
+
+  ! Number of total reaches to be communicated
+  nSeg = sum(nReach)
+
+  if (commType == scatter) then
+
+    if (masterproc) then
+
+     ! extract only tributary reaches
+     allocate(EKW0(1,nSeg), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating array for [EKW0]'; return; endif
+     do iSeg =1,nSeg ! Loop through tributary reaches
+      jSeg = rchIdxGlobal(iSeg)
+      EKW0(1, iSeg) = RCHSTA_global(iens,jSeg)%EKW_ROUTE
+     enddo
+
+     ! convert EKWRCH data strucutre to state arrays
+     call kwe_struc2array(iens, EKW0,   & !input: input state data structure
+                          Q,A,          & !output: states array
+                          ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    endif ! end of root process
+
+    call shr_mpi_barrier(comm, message)
+
+    ! total waves from all the tributary reaches in each proc
+    do myid = 0, nNodes-1
+      totMesh(myid) = 4*nReach(myid)
+    enddo
+
+    ! need to allocate global array to be scattered at the other tasks
+    totMeshAll = nSeg*4
+    if (.not.masterproc) then
+     allocate(Q(totMeshAll), A(totMeshAll), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating array for [Q,A]'; return; endif
+    endif
+    call shr_mpi_barrier(comm, message)
+
+    ! Distribute modified LKW_ROUTE%KWAVE data to each process
+    call shr_mpi_scatterV(Q, totMesh(0:nNodes-1), Q_trib, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    call shr_mpi_scatterV(A, totMesh(0:nNodes-1), A_trib, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! update RCHSTA_local%EKW_ROUTE data structure
+    ixMesh=1
+    do iSeg =1,nReach(pid) ! Loop through reaches per proc
+
+     jSeg = rchIdxLocal(iSeg)
+
+     RCHSTA_local(iens,jSeg)%EKW_ROUTE%Q(1:4) = Q_trib(ixMesh:ixMesh+3)
+     RCHSTA_local(iens,jSeg)%EKW_ROUTE%A(1:4) = A_trib(ixMesh:ixMesh+3)
+
+     ixMesh=ixMesh+4 !update 1st idex of array
+
+    end do
+
+  elseif (commType == gather) then
+
+
+  endif
+
+ end subroutine mpi_comm_kwe_state
+
  ! *********************************************************************
  ! subroutine: kinematic wave state communication
  ! *********************************************************************
@@ -2013,6 +2139,46 @@ contains
   end do
 
  end subroutine kwt_struc2array
+
+ ! *********************************************************************
+ ! private subroutine
+ ! *********************************************************************
+ subroutine kwe_struc2array(iens, EKW_in,     &  ! input:
+                            Q,A,              &  ! output:
+                            ierr, message)
+  USE dataTypes, ONLY: EKWRCH             ! collection of particles in a given reach
+  implicit none
+  ! Input
+  integer(i4b),          intent(in)              :: iens           ! ensemble index
+  type(EKWRCH),          intent(in), allocatable :: EKW_in(:,:)    ! reach state data
+  ! Output error handling variables
+  real(dp),              intent(out),allocatable :: Q(:)           ! flat array for wave Q
+  real(dp),              intent(out),allocatable :: A(:)           ! Flat array for modified Q
+  integer(i4b),          intent(out)             :: ierr           ! error code
+  character(len=strLen), intent(out)             :: message        ! error message
+  ! local variables
+  integer(i4b)                                   :: ixMesh         ! 1st indix of each reach
+  integer(i4b)                                   :: iSeg           ! loop indix
+  integer(i4b)                                   :: nSeg           ! number of reaches
+  integer(i4b)                                   :: totMesh        ! total number of waves from all the reaches
+
+  ierr=0; message='kwe_struc2array/'
+
+  nSeg = size(EKW_in(iens,:))
+
+  totMesh = 4*nSeg
+
+  allocate(Q(totMesh),A(totMesh), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating array for [Q,A]'; return; endif
+
+  ixMesh = 1
+  do iSeg=1,nSeg
+   Q(ixMesh:ixMesh+3) = EKW_in(iens,iSeg)%Q(1:4)
+   A(ixMesh:ixMesh+3) = EKW_in(iens,iSeg)%A(1:4)
+   ixMesh = ixMesh+4
+  end do
+
+ end subroutine kwe_struc2array
 
  ! *********************************************************************
  ! public subroutine: send global data

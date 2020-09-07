@@ -1,8 +1,5 @@
 MODULE kwe_route_module
 
-! WORKING in PROGRESS
-
-!numeric type
 USE nrtype
 ! data types
 USE dataTypes, ONLY: STRFLX            ! fluxes in each reach
@@ -12,8 +9,6 @@ USE dataTypes, ONLY: RCHPRP            ! Reach parameter
 USE dataTypes, ONLY: EKWRCH            ! Eulerian KW state
 ! global data
 USE public_var, ONLY: iulog             ! i/o logical unit number
-USE public_var, ONLY: verySmall         ! a very small value
-USE public_var, ONLY: runoffMin         ! minimum runoff
 USE public_var, ONLY: realMissing       ! missing value for real number
 USE public_var, ONLY: integerMissing    ! missing value for integer number
 ! subroutines: general
@@ -24,6 +19,8 @@ implicit none
 private
 
 public::kwe_route
+
+real(dp), parameter  :: critFactor=0.01
 
 contains
 
@@ -166,11 +163,12 @@ contains
  integer(i4b),  intent(out)                :: ierr              ! error code
  character(*),  intent(out)                :: message           ! error message
  ! Local variables to
- type(STRFLX), allocatable                 :: uprflux(:)        ! upstream Reach fluxes
  logical(lgt)                              :: doCheck           ! check details of variables
+ logical(lgt)                              :: isHW              ! headwater basin?
  integer(i4b)                              :: nUps              ! number of upstream segment
  integer(i4b)                              :: iUps              ! upstream reach index
  integer(i4b)                              :: iRch_ups          ! index of upstream reach in NETOPO
+ real(dp)                                  :: q_upstream        ! total discharge at top of the reach being processed
  character(len=strLen)                     :: cmessage          ! error message from subroutine
 
  ! initialize error control
@@ -181,16 +179,15 @@ contains
    doCheck = .true.
  end if
 
- ! identify number of upstream segments of the reach being processed
+ ! get discharge coming from upstream
  nUps = size(NETOPO_in(segIndex)%UREACHI)
-
- allocate(uprflux(nUps), stat=ierr, errmsg=cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage)//': uprflux'; return; endif
-
+ isHW = .true.
+ q_upstream = 0.0_dp
  if (nUps>0) then
+   isHW = .false.
    do iUps = 1,nUps
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-     uprflux(iUps) = RCHFLX_out(iens,iRch_ups)
+     q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%REACH_Q
    end do
  endif
 
@@ -198,19 +195,20 @@ contains
    write(iulog,'(A)') 'CHECK Euler Kinematic wave'
    if (nUps>0) then
      do iUps = 1,nUps
-       write(iulog,'(A,X,I6,X,G12.5)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),uprflux(iUps)%REACH_Q
+       write(iulog,'(A,X,I6,X,G12.5)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, NETOPO_in(segIndex)%UREACHK(iUps))%REACH_Q
      enddo
    end if
    write(iulog,'(A,X,G12.5)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
  endif
 
- ! perform river network UH routing
+ ! perform river network KWE routing
  call kw_euler(RPARAM_in(segIndex),         &    ! input: parameter at segIndex reach
                T0,T1,                       &    ! input: start and end of the time step
-               uprflux,                     &    ! input: upstream reach fluxes
+               q_upstream,                  &    ! input: total discharge at top of the reach being processed
+               isHW,                        &    ! input: is this headwater basin?
                RCHSTA_out(iens,segIndex),   &    ! inout:
                RCHFLX_out(iens,segIndex),   &    ! inout: updated fluxes at reach
-               doCheck,                    &    ! input: reach index to be examined
+               doCheck,                     &    ! input: reach index to be examined
                ierr, message)                    ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -229,15 +227,14 @@ contains
  ! *********************************************************************
  SUBROUTINE kw_euler(rch_param,     & ! input: river parameter data structure
                      T0,T1,         & ! input: start and end of the time step
-                     uprflux,       & ! input: upstream reach fluxes
+                     q_upstream,    & ! input: discharge from upstream
+                     isHW,          & ! input: is this headwater basin?
                      rstate,        & ! inout: reach state at a reach
                      rflux,         & ! inout: reach flux at a reach
                      doCheck,       & ! input: reach index to be examined
                      ierr,message)
  ! ----------------------------------------------------------------------------------------
  ! Kinematic wave equation is solved based on conservative form the equation
- ! Reference: HEC-HMS technical reference mannual
- ! https://www.hec.usace.army.mil/software/hec-hms/documentation/HEC-HMS_Technical%20Reference%20Manual_(CPD-74B).pdf
  !
  ! Regarding state array:
  ! (time:0:1, loc:0:1) 0-previous time step/inlet, 1-current time step/outlet.
@@ -249,7 +246,8 @@ contains
  ! Input
  type(RCHPRP), intent(in)                 :: rch_param    ! River reach parameter
  real(dp),     intent(in)                 :: T0,T1        ! start and end of the time step (seconds)
- type(STRFLX), intent(in), allocatable    :: uprflux(:)   ! upstream Reach fluxes
+ real(dp),     intent(in)                 :: q_upstream   ! total discharge at top of the reach being processed
+ logical(lgt), intent(in)                 :: isHW         ! is this headwater basin?
  logical(lgt), intent(in)                 :: doCheck      ! reach index to be examined
  ! Input/Output
  type(STRSTA), intent(inout)              :: rstate       ! curent reach states
@@ -258,34 +256,37 @@ contains
  integer(i4b), intent(out)                :: ierr         ! error code
  character(*), intent(out)                :: message      ! error message
  ! LOCAL VAIRABLES
- real(dP)                                 :: alpha        ! sqrt(slope)(/mannings N* width)
- real(dP)                                 :: beta         ! constant, 5/3
- real(dP)                                 :: alpha1       ! sqrt(slope)(/mannings N* width)
- real(dP)                                 :: beta1        ! constant, 5/3
- !real(dp)                                 :: theta        ! Courant number [-]
+ real(dp)                                 :: alpha        ! sqrt(slope)(/mannings N* width)
+ real(dp)                                 :: beta         ! constant, 5/3
+ real(dp)                                 :: alpha1       ! sqrt(slope)(/mannings N* width)
+ real(dp)                                 :: beta1        ! constant, 5/3
+ real(dp)                                 :: theta        ! dT/dX
+ real(dp)                                 :: omega        ! right-hand side of kw finite difference
+ real(dp)                                 :: f0,f1,f2     ! values of function f, 1st and 2nd derivatives at solution
+ real(dp)                                 :: X            !
  real(dp)                                 :: dT           ! interval of time step [sec]
  real(dp)                                 :: dX           ! length of segment [m]
  real(dp)                                 :: A(0:1,0:1)   !
  real(dp)                                 :: Q(0:1,0:1)   !
+ real(dp)                                 :: Qtrial(2)    ! trial solution of kw equation
  real(dp)                                 :: Abar         !
  real(dp)                                 :: Qbar         !
- integer(i4b)                             :: iUps,ix      ! loop index
- integer(i4b)                             :: nUps         ! number of all upstream segment
+ real(dp)                                 :: absErr(2)    ! absolute error of nonliear equation solution
+ real(dp)                                 :: f0eval(2)    !
+ integer(i4b)                             :: imin         ! index at minimum value
+ integer(i4b)                             :: ix           ! loop index
  character(len=strLen)                    :: cmessage     ! error message from subroutine
 
- ! initialize error control
  ierr=0; message='kw_euler/'
 
- nUps = size(uprflux)
+ !  current time and inlet  3 (1,0) -> previous time and inlet  1 (0,0)
+ !  current time and outlet 4 (1,1) -> previous time and outlet 2 (0,1)
+ do ix = 0,1
+   A(0,ix) = rstate%EKW_ROUTE%A(ix+3)
+   Q(0,ix) = rstate%EKW_ROUTE%Q(ix+3)
+ end do
 
- if (nUps>0) then
-
-   !  current time and inlet  3 (1,0) -> previous time and inlet  1 (0,0)
-   !  current time and outlet 4 (1,1) -> previous time and outlet 2 (0,1)
-   do ix = 0,1
-     A(0,ix) = rstate%EKW_ROUTE%A(ix+3)
-     Q(0,ix) = rstate%EKW_ROUTE%Q(ix+3)
-   end do
+ if (.not. isHW) then
 
    A(1,1) = realMissing
    Q(1,1) = realMissing
@@ -299,13 +300,10 @@ contains
    alpha1 = (1.0/alpha)**beta1
    dX = rch_param%RLENGTH
    dT = T1-T0
+   theta = dT/dX
 
-   ! compute flow rate and flow area at upstream end at current time step
-   Q(1,0) = 0.0_dp
-   do iUps = 1,nUps
-     Q(1,0) = Q(1,0) + uprflux(iUps)%REACH_Q
-   end do
-
+   ! compute total flow rate and flow area at upstream end at current time step
+   Q(1,0) = q_upstream
    A(1,0) = (Q(1,0)/alpha)**(1/beta)
 
    if (doCheck) then
@@ -314,49 +312,50 @@ contains
      write(iulog,'(3(A,X,G12.5))') ' A(0,0)=',A(0,0),' A(0,1)=',A(0,1),' A(1,0)=',A(1,0)
    end if
 
-! ----- Need adaptive time step forward Euler --------
-!   ! Compute Courant number == ration of celarity to dx/dt
-!   Qbar = 0.5*(Q(0,1)+Q(1,0))
-!   Abar = 0.5*(A(0,1)+A(1,0))
-!   if (Abar <= 0._dp) then
-!     Qbar = runoffMin
-!     Abar = (Qbar/alpha)**(1/beta)
-!   endif
-!   theta = beta*(dT/dX)*(Qbar)/(Abar)
-!
-!   if (doCheck) then
-!     write(iulog,'(5(a,G12.5,x))') ' dT= ', dt, 'dX=', dX, 'Qbar= ', Qbar, 'Abar= ', ABar, 'theta= ', theta
-!   end if
-
    ! ----------
    ! solve flow rate and flow area at downstream end at current time step
    ! ----------
+   ! initial guess
+   Qbar   = (Q(0,1) + Q(1,0))/2._dp
+   Q(1,1) = (theta*Q(1,0) + alpha1*beta1*Qbar**(beta1-1)*Q(0,1))/(theta + alpha1*beta1*Qbar**(beta1-1))
 
-! ----- Modify for adaptive time step forward Euler --------
-!   if (theta >= 1.0) then
-!     Q(1,1) = Q(1,0) - dX/dT*(A(1,0)-A(0,0))
-!     A(1,1) = (Q(1,1)/alpha)**(1/beta)
-!   else
-!     A(1,1) = A(0,1) + dT/dX*(Q(0,0) - Q(0,1))
-!     Q(1,1) = alpha*A(1,1)**beta
-!   end if
+   omega = theta*Q(1,0)+alpha1*Q(0,1)**(beta1)
 
-   Qbar = (Q(0,1) + Q(1,0))/2
-   Q(1,1) = dT/dX*Q(1,0) + alpha1*beta1*Qbar**(beta1-1)*Q(0,1)
-   Q(1,1) = Q(1,1)/(dT/dX + alpha1*beta1*Qbar**(beta1-1))
+   f0eval(1) = theta*Q(1,1) + alpha1*Q(1,1)**beta1
+   absErr(1) = abs(f0eval(1)-omega)
+
+   if ( abs(Q(1,1)-0.0_dp) < epsilon(Q(1,1))) then
+     Q(1,1) = omega/(theta+alpha1)
+   else if (absErr(1) > critFactor*omega) then
+     ! iterative solution
+     do
+       f0 = theta*Q(1,1) + alpha1*Q(1,1)**beta1
+       f1 = theta + alpha1*beta1*Q(1,1)**(beta1-1)     ! 1st derivative of f w.r.t. Q
+       f2 = alpha1*beta1*(beta1-1)*Q(1,1)**(beta1-2)   ! 2nd derivative of f w.r.t. Q
+
+       X = (f1/f2)**2._dp - 2._dp*(f0-omega)/f2
+       if (X<0) X=0._dp
+
+       ! two solutions
+       Qtrial(1) = abs(Q(1,1) - f1/f2 + sqrt(X))
+       Qtrial(2) = abs(Q(1,1) - f1/f2 - sqrt(X))
+
+       f0eval = theta*Qtrial + alpha1*Qtrial**beta1
+       absErr = abs(f0eval-omega)
+       imin   = minloc(absErr,DIM=1)
+       Q(1,1) = Qtrial(imin)
+
+       if (absErr(imin) < critFactor*omega) exit
+     end do
+   endif
+
+   A(1,1) = (Q(1,1)/alpha)**(1/beta)
 
    if (doCheck) then
      write(iulog,'(2(A,X,G12.5))') ' A(1,1)=',A(1,1),' Q(1,1)=',Q(1,1)
    end if
 
  else ! if head-water
-
-   !  current time and inlet  3 (1,0) -> previous time and inlet (0,0)
-   !  current time and outlet 4 (1,1) -> previous time and outlet (0,1)
-   do ix = 0,1
-     A(0,ix) = rstate%EKW_ROUTE%A(ix+3)
-     Q(0,ix) = rstate%EKW_ROUTE%Q(ix+3)
-   end do
 
    A(1,0) = 0._dp
    Q(1,0) = 0._dp
