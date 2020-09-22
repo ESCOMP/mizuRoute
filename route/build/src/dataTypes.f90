@@ -3,9 +3,10 @@ module dataTypes
 ! used to create/save specific data types
 
 USE nrtype,     only: i4b,i8b,dp,lgt
-USE nrtype,     only: strLen   ! string length
+USE nrtype,     only: strLen
 USE public_var, only: realMissing
 USE public_var, only: integerMissing
+USE public_var, only: charMissing
 
 implicit none
 
@@ -41,16 +42,6 @@ implicit none
    logical(lgt)             :: varFile  = .true.          ! .true. if the variable should be read from a file
  end type var_info
 
- ! ---------- time structures ------------------------------------------------------------------------------
- type,public :: time
-  integer(i4b)           :: iy       = integerMissing  ! year
-  integer(i4b)           :: im       = integerMissing  ! month
-  integer(i4b)           :: id       = integerMissing  ! day
-  integer(i4b)           :: ih       = integerMissing  ! hour
-  integer(i4b)           :: imin     = integerMissing  ! minute
-  real(dp)               :: dsec     = realMissing     ! second
- endtype time
-
  ! ---------- states structure --------------------------------------------------------------------------
  !
  type,public :: var
@@ -69,7 +60,7 @@ implicit none
  ! ---------- output netcdf structure --------------------------------------------------------------------------
  !
  type,public :: nc
-   character(len=strLen)   :: ncname = 'empty'         ! netcdf name
+   character(len=strLen)   :: ncname = charMissing     ! netcdf name
    integer(i4b)            :: ncid   = integerMissing  ! netcdf id
    integer(i4b)            :: status = integerMissing  ! status: 1=defined, 2=open, 3=closed
  end type nc
@@ -298,28 +289,29 @@ END MODULE dataTypes
 
 MODULE objTypes
 
- USE nrtype,     only: i4b,dp,lgt
- USE nrtype,     only: strLen   ! string length
- USE public_var, only: realMissing
- USE public_var, only: integerMissing
+ USE nrtype,     ONLY: i4b,dp,lgt
+ USE nrtype,     ONLY: strLen
+ USE public_var, ONLY: realMissing
+ USE public_var, ONLY: integerMissing
+ USE public_var, ONLY: charMissing
 
  ! define derived type for model variables, including name, description, and units
- type, public :: var_info_new
-   character(len=strLen)    :: varName  = 'empty'         ! variable name
-   character(len=strLen)    :: varDesc  = 'empty'         ! variable description
-   character(len=strLen)    :: varUnit  = 'empty'         ! variable units
+ type, public :: meta_var
+   character(len=strLen)    :: varName  = charMissing     ! variable name
+   character(len=strLen)    :: varDesc  = charMissing     ! variable description
+   character(len=strLen)    :: varUnit  = charMissing     ! variable units
    integer(i4b)             :: varType  = integerMissing  ! variable type
    integer(i4b),allocatable :: varDim(:)                  ! dimension ID associated with variable
    logical(lgt)             :: varFile  = .true.          ! .true. if the variable should be read from a file
  CONTAINS
    procedure, pass :: init
- end type var_info_new
+ end type meta_var
 
  CONTAINS
 
   SUBROUTINE init(this, vName, vDesc, vUnit, vType, vDim, vFile)
     implicit none
-    class(var_info_new)                 :: this
+    class(meta_var)                 :: this
     character(*),            intent(in) :: vName    ! variable name
     character(*),            intent(in) :: vDesc    ! variable description
     character(*),            intent(in) :: vUnit    ! variable units
@@ -334,7 +326,7 @@ MODULE objTypes
     this%varDesc      = vDesc
     this%varUnit      = vUnit
     this%varType      = vType
-    this%varDim(1:n) = vDim(1:n)
+    this%varDim(1:n)  = vDim(1:n)
     this%varFile      = vFile
   END SUBROUTINE init
 

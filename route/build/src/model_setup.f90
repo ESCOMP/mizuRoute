@@ -172,12 +172,12 @@ CONTAINS
  SUBROUTINE update_time(finished, ierr, message)
 
   USE public_var, ONLY : dt
+  USE public_var, ONLY : calendar
   USE globalData, ONLY : TSEC          ! beginning/ending of simulation time step [sec]
   USE globalData, ONLY : iTime         ! time index at simulation time step
-  USE globalData, ONLY : roJulday      ! julian day: runoff input time
-  USE globalData, ONLY : modJulday     ! julian day: at model time step
-  USE globalData, ONLY : endJulday     ! julian day: at end of simulation
   USE globalData, ONLY : simout_nc     ! netCDF meta data
+  USE globalData, ONLY : endCal        ! model ending datetime
+  USE globalData, ONLY : modTime       ! model datetime
 
    implicit none
    ! output
@@ -190,7 +190,7 @@ CONTAINS
    ! initialize error control
    ierr=0; message='update_time/'
 
-   if (abs(modJulday-endJulday)<verySmall) then
+   if (modTime(1)==endCal) then
      finished=.true.
 
      if (simout_nc%status == 2) then
@@ -211,8 +211,9 @@ CONTAINS
    ! update time index
    iTime=iTime+1
 
-   ! update the julian day of the model simulation
-   modJulday = roJulday(iTime)
+   ! increment model calendar
+   modTime(0) = modTime(1)
+   modTime(1) = modTime(1)%add_sec(dt, calendar, ierr, cmessage)
 
  END SUBROUTINE update_time
 
@@ -275,15 +276,11 @@ CONTAINS
                       ierr, message)  ! output
 
   ! subroutines:
-  USE process_time_module, ONLY : process_time    ! process time information
-  USE process_time_module, ONLY : conv_julian2cal ! compute data and time from julian day
-  USE process_time_module, ONLY : conv_cal2julian ! compute data and time from julian day
-  USE time_utils_module,   ONLY : ndays_month     ! compute number of days in a month
   USE io_netcdf,           ONLY : open_nc         ! netcdf input
   USE io_netcdf,           ONLY : close_nc        ! netcdf input
   USE io_netcdf,           ONLY : get_nc          ! netcdf input
   ! derived datatype
-  USE dataTypes,           ONLY : time          ! time data type
+  USE date_time,           ONLY : datetime        ! time data type
   ! public data
   USE public_var,          ONLY : input_dir     ! directory containing input data
   USE public_var,          ONLY : fname_qsim    ! simulated runoff netCDF name
@@ -302,12 +299,8 @@ CONTAINS
   ! saved time variables
   USE globalData,          ONLY : timeVar       ! time variables (unit given by runoff data)
   USE globalData,          ONLY : iTime         ! time index at runoff input time step
-  USE globalData,          ONLY : refJulday     ! julian day: reference
-  USE globalData,          ONLY : roJulday      ! julian day: runoff input time
-  USE globalData,          ONLY : startJulday   ! julian day: start of routing simulation
-  USE globalData,          ONLY : endJulday     ! julian day: end of routing simulation
-  USE globalData,          ONLY : modJulday     ! julian day: at model time step
   USE globalData,          ONLY : modTime       ! model time data (yyyy:mm:dd:hh:mm:sec)
+  USE globalData,          ONLY : endCal        ! simulation end time data (yyyy:mm:dd:hh:mm:sec)
   USE globalData,          ONLY : restCal       ! restart time data (yyyy:mm:dd:hh:mm:sec)
   USE globalData,          ONLY : dropCal       ! restart dropoff calendar date/time
 
@@ -321,12 +314,13 @@ CONTAINS
   ! local variable
   integer(i4b)                             :: ncidRunoff
   integer(i4b)                             :: ix
-  type(time)                               :: rofCal
-  type(time)                               :: simCal
+  type(datetime)                           :: refCal
+  type(datetime)                           :: roCal(nTime)
+  type(datetime)                           :: startCal
+  type(datetime)                           :: dummyCal
   integer(i4b)                             :: nDays          ! number of days in a month
-  real(dp)                                 :: convTime2Days
-  real(dp)                                 :: restartJulday
-  real(dp)                                 :: tempJulday
+  real(dp)                                 :: convTime2sec
+  real(dp)                                 :: sec(nTime)
   character(len=7)                         :: t_unit
   character(len=strLen)                    :: cmessage         ! error message of downwind routine
   character(len=50)                        :: fmt1='(a,I4,a,I2.2,a,I2.2,x,I2.2,a,I2.2,a,F5.2)'
@@ -335,92 +329,81 @@ CONTAINS
   ierr=0; message='init_time/'
 
   ! time initialization
-  allocate(timeVar(nTime), roJulday(nTime), stat=ierr)
+  allocate(timeVar(nTime), stat=ierr)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! get the time data
   call open_nc(trim(input_dir)//trim(fname_qsim), 'r', ncidRunoff, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
   call get_nc(ncidRunoff, vname_time, timeVar, 1, nTime, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
   call close_nc(ncidRunoff, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! get the time multiplier needed to convert time to units of days
   t_unit = trim( time_units(1:index(time_units,' ')) )
   select case( trim(t_unit) )
-   case('seconds','second','sec','s'); convTime2Days=86400._dp
-   case('minutes','minute','min');     convTime2Days=1440._dp
-   case('hours','hour','hr','h');      convTime2Days=24._dp
-   case('days','day','d');             convTime2Days=1._dp
+   case('seconds','second','sec','s'); convTime2sec=1._dp
+   case('minutes','minute','min');     convTime2sec=24._dp
+   case('hours','hour','hr','h');      convTime2sec=1440._dp
+   case('days','day','d');             convTime2sec=86400._dp
    case default
      ierr=20; message=trim(message)//'<time_units>= '//trim(t_unit)//': <time_units> must be seconds, minutes, hours or days.'; return
   end select
 
-  ! extract time information from the control information
-  call process_time(time_units,    calendar, refJulday,   ierr, cmessage)
-  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [refJulday]'; return; endif
-  call process_time(trim(simStart),calendar, startJulday, ierr, cmessage)
-  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [startJulday]'; return; endif
-  call process_time(trim(simEnd),  calendar, endJulday,   ierr, cmessage)
-  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endJulday]'; return; endif
+  ! extract datetime from the control information
+  call refCal%str2datetime(time_units, ierr, cmessage)
+  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [refCal]'; return; endif
+  call startCal%str2datetime(simStart, ierr, cmessage)
+  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [startCal]'; return; endif
+  call endCal%str2datetime(simEnd, ierr, cmessage)
+  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endCal]'; return; endif
 
-  ! Julian day at first time step in runoff data
-  ! convert time unit in runoff netCDF to day
+  ! calendar in runoff data
+  sec(:) = timeVar(:)*convTime2sec
   do ix = 1, nTime
-    roJulday(ix) = refJulday + timeVar(ix)/convTime2Days
+    roCal(ix) = refCal%add_sec(sec(ix), calendar, ierr, cmessage)
   end do
 
   ! check that the dates are aligned
-  if(endJulday<startJulday) then
+  if(endCal<startCal) then
     write(cmessage,'(7a)') 'simulation end is before simulation start:', new_line('a'), '<sim_start>= ', trim(simStart), new_line('a'), '<sim_end>= ', trim(simEnd)
     ierr=20; message=trim(message)//trim(cmessage); return
   endif
 
   ! check sim_start is before the last time step in runoff data
-  if(startJulday>roJulday(nTime)) then
-    call conv_julian2cal(roJulday(nTime), calendar, rofCal, ierr, cmessage)
-    call conv_julian2cal(startJulday, calendar, simCal, ierr, cmessage)
+  if(startCal > roCal(nTime)) then
     write(iulog,'(2a)') new_line('a'),'ERROR: <sim_start> is after the first time step in input runoff'
-    write(iulog,fmt1)  ' runoff_end  : ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
-    write(iulog,fmt1)  ' <sim_start> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
+    write(iulog,fmt1) ' runoff_end  : ', roCal(nTime)%year(),'-',roCal(nTime)%month(),'-',roCal(nTime)%day(),roCal(nTime)%hour(),':',roCal(nTime)%minute(),':',roCal(nTime)%sec()
+    write(iulog,fmt1) ' <sim_start> : ', startCal%year(),'-',startCal%month(),'-',startCal%day(), startCal%hour(),':', startCal%minute(),':',startCal%sec()
     ierr=20; message=trim(message)//'check <sim_start> against runoff input time'; return
   endif
 
   ! Compare sim_start vs. time at first time step in runoff data
-  if (startJulday < roJulday(1)) then
-    call conv_julian2cal(roJulday(1), calendar, rofCal, ierr, cmessage)
-    call conv_julian2cal(startJulday, calendar, simCal, ierr, cmessage)
+  if (startCal < roCal(1)) then
     write(iulog,'(2a)') new_line('a'),'WARNING: <sim_start> is before the first time step in input runoff'
-    write(iulog,fmt1)  ' runoff_start: ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
-    write(iulog,fmt1)  ' <sim_start> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
+    write(iulog,fmt1) ' runoff_start : ', roCal(1)%year(),'-',roCal(1)%month(),'-',roCal(1)%day(), roCal(1)%hour(),':', roCal(1)%minute(),':',roCal(1)%sec()
+    write(iulog,fmt1) ' <sim_start>  : ', startCal%year(),'-',startCal%month(),'-',startCal%day(), startCal%hour(),':', startCal%minute(),':',startCal%sec()
     write(iulog,'(a)') ' Reset <sim_start> to runoff_start'
-    startJulday = roJulday(1)
+    startCal = roCal(1)
   endif
 
   ! Compare sim_end vs. time at last time step in runoff data
-  if (endJulday > roJulday(nTime)) then
-    call conv_julian2cal(roJulday(nTime), calendar, rofCal, ierr, cmessage)
-    call conv_julian2cal(endJulday,       calendar, simCal, ierr, cmessage)
+  if (endCal > roCal(nTime)) then
     write(iulog,'(2a)')  new_line('a'),'WARNING: <sim_end> is after the last time step in input runoff'
-    write(iulog,fmt1)   ' runoff_end: ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
-    write(iulog,fmt1)   ' <sim_end> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
+    write(iulog,fmt1) ' runoff_end : ', roCal(nTime)%year(),'-',roCal(nTime)%month(),'-',roCal(nTime)%day(),roCal(nTime)%hour(),':',roCal(nTime)%minute(),':',roCal(nTime)%sec()
+    write(iulog,fmt1) ' <sim_end>  : ', endCal%year(),'-',endCal%month(),'-',endCal%day(), endCal%hour(),':', endCal%minute(),':',endCal%sec()
     write(iulog,'(a)')  ' Reset <sim_end> to runoff_end'
-    endJulday = roJulday(nTime)
+    endCal = roCal(nTime)
   endif
 
-  ! fast forward time to time index at simStart and save iTime and modJulday
+  ! fast forward time to time index at simStart and save iTime and modTime(1)
   do ix = 1, nTime
-    modJulday = roJulday(ix)
-    if( modJulday < startJulday ) cycle
+    modTime(1) = roCal(ix)
+    if( modTime(1) < startCal ) cycle
     exit
   enddo
   iTime = ix
-
-  ! initialize previous model time
-  modTime(0) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
 
  ! Set restart calendar date/time and dropoff calendar date/time and
  ! -- For periodic restart options  ---------------------------------------------------------------------
@@ -430,7 +413,8 @@ CONTAINS
  ! "Daily" option:   use 2000-01-01 as template calendar yr/month/day
  select case(trim(restart_write))
    case('Annual','annual')
-     call ndays_month(2000, restart_month, calendar, nDays, ierr, cmessage)
+     call dummyCal%set_datetime(2000, restart_month, 1, 0, 0, 0.0_dp)
+     nDays = dummyCal%ndays_month(calendar, ierr, cmessage)
      if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
      if (restart_day > nDays) restart_day=nDays
    case('Monthly','monthly'); restart_month = 1
@@ -439,29 +423,24 @@ CONTAINS
 
   select case(trim(restart_write))
     case('last','Last')
-      call conv_julian2cal(endJulday, calendar, dropCal, ierr, cmessage)
-      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endJulday->dropCal]'; return; endif
-      restart_month = dropCal%im; restart_day = dropCal%id; restart_hour = dropCal%ih
+      dropCal = endCal
+      restart_month = dropCal%month(); restart_day = dropCal%day(); restart_hour = dropCal%hour()
     case('specified','Specified')
       if (trim(restart_date) == charMissing) then
         ierr=20; message=trim(message)//'<restart_date> must be provided when <restart_write> option is "specified"'; return
       end if
-      call process_time(trim(restart_date),calendar, restartJulday, ierr, cmessage)
+      call restCal%str2datetime(restart_date, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restart_date]'; return; endif
-      restartJulday = restartJulday - dt/secprday
-      call conv_julian2cal(restartJulday, calendar, dropCal, ierr, cmessage)
-      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restartJulday->dropCal]'; return; endif
-      restart_month = dropCal%im; restart_day = dropCal%id; restart_hour = dropCal%ih
+      dropCal = restCal%add_sec(-dt, calendar, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restCal->dropCal]'; return; endif
+      restart_month = dropCal%month(); restart_day = dropCal%day(); restart_hour = dropCal%hour()
     case('Annual','Monthly','Daily','annual','monthly','daily')
-      restCal = time(2000, restart_month, restart_day, restart_hour, 0, 0._dp)
-      call conv_cal2julian(restCal, calendar, tempJulday, ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [restCal->tempJulday]'; return; endif
-      tempJulday = tempJulday - dt/secprday
-      call conv_julian2cal(tempJulday, calendar, dropCal, ierr, cmessage)
-      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [tempJulday->dropCal]'; return; endif
-      restart_month = dropCal%im; restart_day = dropCal%id; restart_hour = dropCal%ih
+      call restCal%set_datetime(2000, restart_month, restart_day, restart_hour, 0, 0._dp)
+      dropCal = restCal%add_sec(-dt, calendar, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [ dropCal for periodical restart]'; return; endif
+      restart_month = dropCal%month(); restart_day = dropCal%day(); restart_hour = dropCal%hour()
     case('never','Never')
-      restCal = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
+      call dropCal%set_datetime(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
     case default
       ierr=20; message=trim(message)//'Current accepted <restart_write> options: L[l]ast, N[n]ever, S[s]pecified, A[a]nnual, M[m]onthly, D[d]aily'; return
   end select
@@ -832,4 +811,3 @@ CONTAINS
  END SUBROUTINE get_qix
 
 END MODULE model_setup
-

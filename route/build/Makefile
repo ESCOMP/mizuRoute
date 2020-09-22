@@ -120,6 +120,8 @@ DATATYPES = \
     public_var.f90 \
     dataTypes.f90 \
     var_lookup.f90 \
+    time_utils.f90 \
+    datetime_data.f90 \
     globalData.f90 \
     popMetadat.f90 \
     allocation.f90
@@ -127,12 +129,10 @@ DATATYPES = \
 UTILS = \
     nr_utility.f90 \
     ascii_util.f90 \
-    time_utils.f90 \
     ncio_utils.f90 \
     gamma_func.f90
 # initialization
 INIT = \
-    process_time.f90 \
     network_topo.f90 \
     process_param.f90 \
     process_ntopo.f90 \
