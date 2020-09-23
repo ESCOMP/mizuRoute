@@ -245,6 +245,7 @@ contains
  integer(i4b), intent(out)              :: ierr         ! error code
  character(*), intent(out)              :: message      ! error message
  ! Local variables to
+ real(dp)                               :: QupMod       ! modified total discharge at top of the reach being processed
  real(dp)                               :: Qabs         ! maximum allowable water abstraction rate [m3/s]
  real(dp)                               :: Qmod         ! abstraction rate to be taken from outlet discharge [m3/s]
  integer(i4b)                           :: ntdh         ! number of UH data (i.e., number of future time step
@@ -253,19 +254,20 @@ contains
  ierr=0; message='conv_upsbas_qr/'
 
  ! if there is Q injection, add at top of reach
+ QupMod = q_upstream
  if (Qtake>0) then
-   q_upstream = q_upstream + Qtake
+   QupMod = QupMod+ Qtake
  end if
 
  ! place a fraction of runoff in future time steps
  ntdh = size(reach_uh) ! number of future time steps of UH for a given segment
  do itdh=1,ntdh
-   rflux%QFUTURE_IRF(itdh) = rflux%QFUTURE_IRF(itdh)+ reach_uh(itdh)*q_upstream
+   rflux%QFUTURE_IRF(itdh) = rflux%QFUTURE_IRF(itdh)+ reach_uh(itdh)*QupMod
  enddo
 
  ! compute volume in reach
  rflux%REACH_VOL(0) = rflux%REACH_VOL(1)
- rflux%REACH_VOL(1) = rflux%REACH_VOL(0) + (q_upstream - rflux%QFUTURE_IRF(1))/dt
+ rflux%REACH_VOL(1) = rflux%REACH_VOL(0) + (QupMod - rflux%QFUTURE_IRF(1))/dt
 
  ! Add local routed flow at the bottom of reach
  rflux%REACH_Q_IRF = rflux%QFUTURE_IRF(1) + rflux%BASIN_QR(1)
