@@ -253,7 +253,7 @@ contains
 
  ierr=0; message='conv_upsbas_qr/'
 
- ! if there is Q injection, add at top of reach
+ ! Q injection, add at top of reach
  QupMod = q_upstream
  if (Qtake>0) then
    QupMod = QupMod+ Qtake
@@ -272,15 +272,16 @@ contains
  ! Add local routed flow at the bottom of reach
  rflux%REACH_Q_IRF = rflux%QFUTURE_IRF(1) + rflux%BASIN_QR(1)
 
- ! abstraction
- ! Compute maximum allowable abstraction (Qabs) and
- ! Compute abstraction (Qmod) taken from outlet discharge (REACH_Q_IRF)
- ! Compute REACH_Q_IRF subtracted from abstraction
+ ! Q abstraction
+ ! Compute actual abstraction (Qabs) m3/s - values should be negative
+ ! Compute abstraction (Qmod) m3 taken from outlet discharge (REACH_Q_IRF)
+ ! Compute REACH_Q_IRF subtracted from Qmod abstraction
+ ! Compute REACH_VOL subtracted from total abstraction minus abstraction from outlet discharge
  if (Qtake<0) then
    Qabs               = max(-(rflux%REACH_VOL(1)/dt+rflux%REACH_Q_IRF), Qtake)
    Qmod               = min(rflux%REACH_VOL(1) + Qabs*dt, 0._dp)
    rflux%REACH_Q_IRF  = max(rflux%REACH_Q_IRF + Qmod/dt, Qmin)
-   rflux%REACH_VOL(1) = rflux%REACH_VOL(1) + Qabs
+   rflux%REACH_VOL(1) = rflux%REACH_VOL(1) + (Qabs*dt - Qmod)
  end if
 
  ! move array back   use eoshift
