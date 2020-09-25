@@ -233,7 +233,6 @@ end type subdomain
   REAL(DP), allocatable                :: QFUTURE_IRF(:)    ! runoff volume in future time steps for IRF routing (m3/s)
   REAL(DP)                             :: BASIN_QI          ! instantaneous runoff volume from the local basin (m3/s)
   REAL(DP)                             :: BASIN_QR(0:1)     ! routed runoff volume from the local basin (m3/s)
-  REAL(DP)                             :: UPSBASIN_QR       ! routed runoff depth from the upstream basins (m/s)
   REAL(DP)                             :: BASIN_QR_IRF(0:1) ! routed runoff volume from all the upstream basin (m3/s)
   REAL(DP)                             :: REACH_Q           ! time-step average streamflow (m3/s)
   REAL(DP)                             :: REACH_Q_IRF       ! time-step average streamflow (m3/s) from IRF routing
