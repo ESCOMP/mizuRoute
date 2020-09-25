@@ -169,6 +169,7 @@ end type subdomain
   real(DP)                                :: UPSAREA  ! upstream area (zero if headwater basin)
   real(DP)                                :: BASAREA  ! local basin area
   real(DP)                                :: TOTAREA  ! UPSAREA + BASAREA
+  real(DP)                                :: QTAKE    ! target abstraction/injection [m3/s]
   real(DP)                                :: MINFLOW  ! minimum environmental flow
  end type RCHPRP
 
@@ -237,6 +238,7 @@ end type subdomain
   REAL(DP)                             :: REACH_Q           ! time-step average streamflow (m3/s)
   REAL(DP)                             :: REACH_Q_IRF       ! time-step average streamflow (m3/s) from IRF routing
   REAL(DP)                             :: UPSTREAM_QI       ! sum of upstream streamflow (m3/s)
+  REAL(DP)                             :: REACH_VOL(0:1)    ! volume of water at a reach [m3]
   REAL(DP)                             :: TAKE              ! average take
   logical(lgt)                         :: CHECK_IRF         ! .true. if the reach is routed
  ENDTYPE STRFLX

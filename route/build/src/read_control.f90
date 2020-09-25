@@ -146,6 +146,7 @@ contains
    ! SPATIAL CONSTANT PARAMETERS
    case('<param_nml>');            param_nml       = trim(cData)                   ! name of namelist including routing parameter value
    ! USER OPTIONS: Define options to include/skip calculations
+   case('<qtakeOption>');          read(cData,*,iostat=io_error) qtakeOption       ! option for abstraction/injection option
    case('<hydGeometryOption>');    read(cData,*,iostat=io_error) hydGeometryOption ! option for hydraulic geometry calculations (0=read from file, 1=compute)
    case('<topoNetworkOption>');    read(cData,*,iostat=io_error) topoNetworkOption ! option for network topology calculations (0=read from file, 1=compute)
    case('<computeReachList>');     read(cData,*,iostat=io_error) computeReachList  ! option to compute list of upstream reaches (0=do not compute, 1=compute)
@@ -190,6 +191,7 @@ contains
    case('<varname_upsArea>'      ); meta_SEG    (ixSEG%upsArea         )%varName =trim(cData)  ! area above the top of the reach -- zero if headwater (m2)
    case('<varname_basUnderLake>' ); meta_SEG    (ixSEG%basUnderLake    )%varName =trim(cData)  ! Area of basin under lake  (m2)
    case('<varname_rchUnderLake>' ); meta_SEG    (ixSEG%rchUnderLake    )%varName =trim(cData)  ! Length of reach under lake (m)
+   case('<varname_qtake>'        ); meta_SEG    (ixSEG%Qtake           )%varName =trim(cData)  ! abstraction(-)/injection(+) (m3 s-1)
    case('<varname_minFlow>'      ); meta_SEG    (ixSEG%minFlow         )%varName =trim(cData)  ! minimum environmental flow
    ! network topology
    case('<varname_hruContribIx>' ); meta_NTOPO  (ixNTOPO%hruContribIx  )%varName =trim(cData)  ! indices of the vector of HRUs that contribute flow to each segment
