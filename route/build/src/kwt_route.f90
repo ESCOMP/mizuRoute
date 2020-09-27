@@ -9,6 +9,7 @@ USE dataTypes,  only : STRFLX            ! fluxes in each reach
 USE dataTypes,  only : RCHTOPO           ! Network topology
 USE dataTypes,  only : RCHPRP            ! Reach parameter
 ! global data
+USE public_var, only : runoffMin         ! minimum runoff
 USE public_var, only : verySmall         ! a very small value
 USE public_var, only : realMissing       ! missing value for real number
 USE public_var, only : integerMissing    ! missing value for integer number
@@ -338,6 +339,20 @@ contains
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
     NQ1 = SIZE(Q_JRCH)-1                                     ! -1 because of the zero element
+
+    ! ----------------------------------------------------------------------------------------
+    ! (x) Water use - take out (Qtake is negative)
+    ! ----------------------------------------------------------------------------------------
+    if (RPARAM_in(jrch)%QTAKE < 0) then
+      call extract_from_rch(iens, jrch,                       & ! input: ensemble and reach indices
+                            RPARAM_in, RCHFLX_out,            & ! input: river reach parameters
+                            RPARAM_in(jrch)%QTAKE,            & ! input: target Qtake (minus)
+                            ixDesire,                         & ! input:
+                            Q_JRCH, T_EXIT, TENTRY,           & ! inout: discharge and exit time for particle
+                            ierr,message)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+
     ! ----------------------------------------------------------------------------------------
     ! (3) ROUTE FLOW WITHIN THE CURRENT [JRCH] RIVER SEGMENT
     ! ----------------------------------------------------------------------------------------
@@ -443,6 +458,96 @@ contains
     endif  ! (if JRCH is the last reach)
 
   end subroutine QROUTE_RCH
+
+  ! *********************************************************************
+  ! subroutine: extract flow from the reaches upstream of JRCH
+  ! *********************************************************************
+  SUBROUTINE extract_from_rch(iens, jrch,              & ! input: ensemble and reach indices
+                              RPARAM_in, RCHFLX_in,    & ! input: river reach parameters
+                              Qtake,                   & ! input: target Qtake (minus)
+                              ixDesire,                & ! input:
+                              Q_JRCH, T_EXIT, TENTRY,  & ! inout: discharge and exit time for particle
+                              ierr,message)
+  implicit none
+  ! Input
+  integer(i4b),              intent(in)    :: iens          ! ensemble member
+  integer(i4b),              intent(in)    :: jRch          ! reach to process
+  type(RCHPRP), allocatable, intent(in)    :: RPARAM_in(:)  ! River reach parameter
+  type(STRFLX), allocatable, intent(inout) :: RCHFLX_in(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+  real(dp),                  intent(in)    :: Qtake         ! target Q abstraction [m3/s]
+  integer(i4b),              intent(in)    :: ixDesire      ! index of the reach for verbose output
+  ! inout
+  real(dp),     allocatable, intent(inout) :: Q_JRCH(:)     ! discharge of particle [m2/s]
+  real(dp),     allocatable, intent(inout) :: T_EXIT(:)     ! time flow is expected to exit JR
+  real(dp),     allocatable, intent(inout) :: TENTRY(:)     ! time flow entered JR
+  integer(i4b),              intent(out)   :: ierr          ! error code
+  character(*),              intent(out)   :: message       ! error message
+  ! Local variables
+  real(dp)                                 :: totQ          ! sum of particle Q
+  real(dp)                                 :: Qfrac         !
+  real(dp)                                 :: alfa          ! constant, 5/3
+  real(dp)                                 :: K             ! sqrt(slope)/mannings N
+  real(dp), allocatable                    :: wc(:)         ! wave celerity [m/s]
+  real(dp), allocatable                    :: q_jrch_mod(:) ! merged downstream flow [m2/s]
+  real(dp), allocatable                    :: t_exit_mod(:) ! merged downstream time [sec]
+  integer(i4b)                             :: iw            ! loop index for wave
+  integer(i4b)                             :: NR            ! number of particle (not including zero index)
+  character(len=strLen)                    :: fmt1          ! format string
+  character(len=strLen)                    :: cmessage      ! error message for downwind routine
+
+  ierr=0; message='extract_from_rch/'
+
+  ! uniform flow parameters
+  alfa = 5._dp/3._dp
+  K    = sqrt(RPARAM_in(JRCH)%R_SLOPE)/RPARAM_in(JRCH)%R_MAN_N
+
+  ! number of waves
+  NR = size(Q_JRCH)
+
+  allocate(q_jrch_mod(1:NR-1), t_exit_mod(1:NR-1), wc(1:NR-1))
+
+  ! total discharge in current time step
+  totQ = sum(Q_JRCH(1:NR-1))
+
+  if (abs(Qtake) < totQ) then
+
+    ! modified wave Q [m3/s]
+    Qfrac      = abs(Qtake)/TotQ    ! fraction of total wave Q to target abstracted Q
+    Q_jrch_mod = Q_JRCH(1:NR-1)*(1.0-Qfrac) ! remaining wave Q after abstraction
+
+  else ! everything taken....
+
+    RCHFLX_in(IENS,jRch)%BASIN_QR(1) = RCHFLX_in(IENS,jRch)%BASIN_QR(1) + (totQ+Qtake)
+
+    if (RCHFLX_in(IENS,jRch)%BASIN_QR(1)<0) then
+      RCHFLX_in(IENS,jRch)%BASIN_QR(1) = runoffMin
+    end if
+
+    q_jrch_mod = runoffMin  ! remaining wave Q after abstraction
+
+    Q_JRCH(0)  = runoffMin
+
+  end if
+
+  wc = alfa*K**(1._dp/alfa)*Q_jrch_mod**((alfa-1._dp)/alfa) ! modified wave celerity [m/s]
+  do iw = 1,NR-1
+    t_exit_mod(iw) = min(RPARAM_in(JRCH)%RLENGTH/wc(iw)+TENTRY(iw) , huge(TENTRY(iw)))
+  end do
+
+  ! modified final q_jrch and t_exit
+  Q_JRCH(1:NR-1) = q_jrch_mod(1:NR-1)
+  T_EXIT(1:NR-1) = t_exit_mod(1:NR-1)
+
+  if(JRCH == ixDesire)then
+    write(fmt1,'(A,I5,A)') '(A,1X',NR+1,'(1X,F20.7))'
+    write(*,'(A,X,F20.7,X A)') 'Water abstraction =', Qtake, '[m3/s]'
+    write(*,fmt1) 'Q_JRCH=',(Q_JRCH(iw), iw=0,NR-1)
+    write(*,fmt1) 'TENTRY=',(TENTRY(iw), iw=0,NR-1)
+    write(*,fmt1) 'T_EXIT=',(T_EXIT(iw), iw=0,NR-1)
+  endif
+
+  END SUBROUTINE extract_from_rch
+
 
  ! *********************************************************************
  ! subroutine: extract flow from the reaches upstream of JRCH
