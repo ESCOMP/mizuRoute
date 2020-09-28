@@ -783,9 +783,9 @@ contains
  ! *********************************************************************
  ! new subroutine: identify all reaches above a given reach
  ! *********************************************************************
- SUBROUTINE REACH_MASK(&
+ SUBROUTINE reach_mask(&
                        ! input
-                       desireId,      &  ! input: reach index
+                       outletId,      &  ! input: outlet reach id
                        structNTOPO,   &  ! input: network topology structures
                        structSeg,     &  ! input: Reach property structures
                        nHRU,          &  ! input: number of HRUs
@@ -810,7 +810,7 @@ contains
  USE nr_utility_module, ONLY : arth                                 ! Num. Recipies utilities
  IMPLICIT NONE
  ! input variables
- integer(i4b)      , intent(in)                :: desireId          ! id of the desired reach
+ integer(i4b)      , intent(in)                :: outletId          ! id of the outlet reach
  type(var_ilength) , intent(inout)             :: structNTOPO(:)    ! network topology structure
  type(var_dlength) , intent(in)                :: structSeg(:)      ! stream segment properties
  integer(i4b)      , intent(in)                :: nHRU              ! number of HRUs
@@ -838,10 +838,10 @@ contains
  integer(i4b)                                  :: jxDesire          ! index of desired reach
  ! ----------------------------------------------------------------------------------------
  ! initialize error control
- ierr=0; message='REACH_MASK/'
+ ierr=0; message='reach_mask/'
 
  ! check if we actually want the mask
- if(desireId<0)then
+ if(outletId<0)then
 
   ! ---------- case 1: no mask desired ---------------------------------------------------------------------------------------------------
 
@@ -866,7 +866,7 @@ contains
   do iRch = 1,nRch
    idSeg_vec(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
   end do
-  ixDesire = findIndex(idSeg_vec,desireId,integerMissing)
+  ixDesire = findIndex(idSeg_vec,outletId,integerMissing)
   if(ixDesire==integerMissing)then
    message=trim(message)//'unable to find index of desired reach id'
    ierr=20; return

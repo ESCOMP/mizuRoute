@@ -16,6 +16,7 @@ USE public_var, ONLY : charMissing
 
 USE io_netcdf, ONLY : close_nc         ! close netcdf
 
+USE nr_utility_module, ONLY : findIndex ! get array index of matching element
 USE nr_utility_module, ONLY : unique  ! get unique element array
 USE nr_utility_module, ONLY : indexx  ! get rank of data value
 
@@ -88,6 +89,7 @@ CONTAINS
   USE public_var,  ONLY : is_remap               ! logical whether or not runnoff needs to be mapped to river network HRU
   USE public_var,  ONLY : ntopAugmentMode        ! River network augmentation mode
   USE public_var,  ONLY : idSegOut               ! outlet segment ID (-9999 => no outlet segment specified)
+  USE public_var,  ONLY : desireId               ! ID of reach to be checked by on-screen printing
   USE var_lookup,  ONLY : ixHRU2SEG              ! index of variables for data structure
   USE var_lookup,  ONLY : ixNTOPO                ! index of variables for data structure
   USE globalData,  ONLY : RCHFLX                 ! Reach flux data structures (entire river network)
@@ -97,6 +99,7 @@ CONTAINS
   USE globalData,  ONLY : nEns                   ! number of ensembles
   USE globalData,  ONLY : basinID                ! HRU id vector
   USE globalData,  ONLY : reachID                ! reach ID vector
+  USE globalData,  ONLY : ixPrint                ! reach index to be examined by on-screen printing
   USE globalData,  ONLY : runoff_data            ! runoff data structure
   USE globalData,  ONLY : remap_data             ! runoff mapping data structure
 
@@ -147,6 +150,9 @@ CONTAINS
    do iRch = 1,nRch
      reachID(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
    end do
+
+   ! get reach index to be examined by on-screen printing
+   if (desireId/=integerMissing) ixPrint = findIndex(reachID, desireId, integerMissing)
 
    ! runoff and remap data initialization (TO DO: split runoff and remap initialization)
    call init_runoff(is_remap,        & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
