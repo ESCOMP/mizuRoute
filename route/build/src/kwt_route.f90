@@ -355,8 +355,8 @@ contains
 
     if (RPARAM_in(jrch)%QTAKE < 0) then
       call extract_from_rch(iens, jrch,                       & ! input: ensemble and reach indices
-                            T_START, T_END,                   & ! input: river reach parameters
-                            RPARAM_in, RCHFLX_out,            & ! input: river reach parameters
+                            T_START, T_END,                   & ! input: time [sec] of current time step bounds
+                            RPARAM_in,                        & ! input: river reach parameters
                             RPARAM_in(jrch)%QTAKE,            & ! input: target Qtake (minus)
                             ixDesire,                         & ! input:
                             Q_JRCH, T_EXIT, TENTRY,           & ! inout: discharge and exit time for particle
@@ -467,7 +467,7 @@ contains
   ! *********************************************************************
   SUBROUTINE extract_from_rch(iens, jrch,              & ! input: ensemble and reach indices
                               T_START, T_END,          & ! input: start and end time [sec] for this time step
-                              RPARAM_in, RCHFLX_in,    & ! input: river reach parameters
+                              RPARAM_in,               & ! input: river reach parameters
                               Qtake,                   & ! input: target Qtake (minus)
                               ixDesire,                & ! input:
                               Q_JRCH, T_EXIT, TENTRY,  & ! inout: discharge and exit time for particle
@@ -479,11 +479,10 @@ contains
   real(dp),                  intent(in)    :: T_START       ! start time [s]
   real(dp),                  intent(in)    :: T_END         ! end time [s]
   type(RCHPRP), allocatable, intent(in)    :: RPARAM_in(:)  ! River reach parameter
-  type(STRFLX), allocatable, intent(inout) :: RCHFLX_in(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
   real(dp),                  intent(in)    :: Qtake         ! target Q abstraction [m3/s]
   integer(i4b),              intent(in)    :: ixDesire      ! index of the reach for verbose output
   ! inout
-  real(dp),     allocatable, intent(inout) :: Q_JRCH(:)     ! discharge of particle [m2/s]
+  real(dp),     allocatable, intent(inout) :: Q_JRCH(:)     ! discharge of particle [m2/s] -- discharge for unit channel width
   real(dp),     allocatable, intent(inout) :: T_EXIT(:)     ! time flow is expected to exit JR
   real(dp),     allocatable, intent(inout) :: TENTRY(:)     ! time flow entered JR
   integer(i4b),              intent(out)   :: ierr          ! error code
