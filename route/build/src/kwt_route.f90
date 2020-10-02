@@ -168,7 +168,6 @@ CONTAINS
                        RCHFLX_out,   & ! inout: reach flux data structure
                        ierr,message, & ! output: error control
                        RSTEP)          ! optional input: retrospective time step offset
- ! public data
  USE public_var, ONLY : MAXQPAR        ! maximum number of waves per reach
  ! ----------------------------------------------------------------------------------------
  ! Creator(s):
@@ -263,8 +262,15 @@ CONTAINS
 
     ierr=0; message='qroute_rch/'
 
-    if(JRCH==ixDesire) write(*,"('JRCH=',I10)") JRCH
-    if(JRCH==ixDesire) write(*,"('T0-T1=',F20.7,1x,F20.7)") T0, T1
+    if(JRCH==ixDesire) then
+      write(*,'(a)') new_line('a')
+      write(*,'(a)') '** Check kinematic wave tracking routing **'
+      write(*,"(a,x,I10)")            ' Reach index (JRCH) = ', JRCH
+      write(*,"(a,x,F20.7,1x,F20.7)") ' time step(T0,T1)   = ', T0, T1
+      write(*,'(a,x,F15.7)')          ' RPARAM_in%R_SLOPE  = ', RPARAM_in(JRCH)%R_SLOPE
+      write(*,'(a,x,F15.7)')          ' RPARAM_in%R_MAN_N  = ', RPARAM_in(JRCH)%R_MAN_N
+      write(*,'(a,x,F15.7)')          ' RPARAM_in%R_WIDTH  = ', RPARAM_in(JRCH)%R_WIDTH
+    end if
 
     RCHFLX_out(IENS,JRCH)%TAKE=0.0_dp ! initialize take from this reach
 
@@ -280,19 +286,20 @@ CONTAINS
                       Q_JRCH,TENTRY,T_EXIT,ierr,cmessage,& ! output
                       RSTEP)                               ! optional input
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      ! check for negative flow
+
       if (minval(Q_JRCH).lt.0.0_dp) then
         ierr=20; message=trim(message)//'negative flow extracted from upstream reach'; return
       endif
-      ! check
+
       if(JRCH==ixDesire)then
-        write(fmt1,'(A,I5,A)') '(A,1X',size(Q_JRCH),'(1X,F20.7))'
-        write(*,fmt1) 'Initial_Q_JRCH=', (Q_JRCH(IWV), IWV=0,size(Q_JRCH)-1)
+        write(fmt1,'(A,I5,A)') '(A, 1X',size(Q_JRCH),'(1X,F20.7))'
+        write(*,'(a)') ' * Wave discharge from upstream reaches (Q_JRCH) [m2/s]:'
+        write(*,fmt1)  ' Q_JRCH=',(Q_JRCH(IWV), IWV=0,size(Q_JRCH)-1)
       endif
     else
       ! set flow in headwater reaches to modelled streamflow from time delay histogram
       RCHFLX_out(IENS,JRCH)%REACH_Q = RCHFLX_out(IENS,JRCH)%BASIN_QR(1)
-      if (allocated(KROUTE_out(IENS,JRCH)%KWAVE)) THEN
+      if (allocated(KROUTE_out(IENS,JRCH)%KWAVE)) then
         deallocate(KROUTE_out(IENS,JRCH)%KWAVE,STAT=IERR)
         if(ierr/=0)then; message=trim(message)//'problem deallocating space for KROUTE_out'; return; endif
       endif
@@ -303,8 +310,11 @@ CONTAINS
       KROUTE_out(IENS,JRCH)%KWAVE(0)%TR=-9999
       KROUTE_out(IENS,JRCH)%KWAVE(0)%RF=.False.
       KROUTE_out(IENS,JRCH)%KWAVE(0)%QM=-9999
-      ! check
-      if(JRCH==ixDesire) print*, 'JRCH, RCHFLX_out(IENS,JRCH)%REACH_Q = ', JRCH, RCHFLX_out(IENS,JRCH)%REACH_Q
+
+      if(JRCH==ixDesire) then
+        write(*,'(a)') ' * Final discharge (RCHFLX_out(IENS,JRCH)%REACH_Q) [m3/s]:'
+        write(*,'(x,F20.7)') RCHFLX_out(IENS,JRCH)%REACH_Q
+      end if
       return  ! no upstream reaches (routing for sub-basins done using time-delay histogram)
     endif
 
@@ -358,10 +368,11 @@ CONTAINS
     if(JRCH == ixDesire)then
       write(fmt1,'(A,I5,A)') '(A,1X',NQ1+1,'(1X,F20.7))'
       write(fmt2,'(A,I5,A)') '(A,1X',NQ1+1,'(1X,L))'
-      write(*,fmt1) 'Q_JRCH=',(Q_JRCH(IWV), IWV=0,NQ1)
-      write(*,fmt2) 'FROUTE=',(FROUTE(IWV), IWV=0,NQ1)
-      write(*,fmt1) 'TENTRY=',(TENTRY(IWV), IWV=0,NQ1)
-      write(*,fmt1) 'T_EXIT=',(T_EXIT(IWV), IWV=0,NQ1)
+      write(*,'(a)') ' * After routed: wave discharge (Q_JRCH) [m2/s], isExit(FROUTE), entry time (TENTRY) [s], and exit time (T_EXIT) [s]:'
+      write(*,fmt1)  ' Q_JRCH=',(Q_JRCH(IWV), IWV=0,NQ1)
+      write(*,fmt1)  ' TENTRY=',(TENTRY(IWV), IWV=0,NQ1)
+      write(*,fmt1)  ' T_EXIT=',(T_EXIT(IWV), IWV=0,NQ1)
+      write(*,fmt2)  ' FROUTE=',(FROUTE(IWV), IWV=0,NQ1)
     endif
 
     ! ----------------------------------------------------------------------------------------
@@ -379,8 +390,10 @@ CONTAINS
     RCHFLX_out(IENS,JRCH)%REACH_Q = QNEW(1)*RPARAM_in(JRCH)%R_WIDTH + RCHFLX_out(IENS,JRCH)%BASIN_QR(1)
 
     if(JRCH == ixDesire)then
-     write(*,"('QNEW(1)=',1x,F10.7)") QNEW(1)
-     write(*,"('REACH_Q=',1x,F15.7)") RCHFLX_out(IENS,JRCH)%REACH_Q
+      write(*,'(a)')          ' * Time-ave. wave discharge that exit (QNEW(1)) [m2/s], local-area discharge (RCHFLX_out%BASIN_QR(1)) [m3/s] and Final discharge (RCHFLX_out%REACH_Q) [m3/s]:'
+      write(*,"(A,1x,F15.7)") ' QNEW(1)                =', QNEW(1)
+      write(*,"(A,1x,F15.7)") ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(IENS,JRCH)%BASIN_QR(1)
+      write(*,"(A,1x,F15.7)") ' RCHFLX_out%REACH_Q     =', RCHFLX_out(IENS,JRCH)%REACH_Q
     endif
 
     ! ----------------------------------------------------------------------------------------
@@ -527,10 +540,10 @@ CONTAINS
     Q_jrch_abs = Q_JRCH - Q_jrch_mod
     call interp_rch(TENTRY(0:NR-1),Q_jrch_abs(0:NR-1), TP, Qavg, ierr,cmessage)
     Qabs = Qavg(1)*RPARAM_in(JRCH)%R_WIDTH
-    write(*,'(a)') new_line('a'),'** Discharge abstraction **'
-    write(*,'(a,x,1PG15.7,x a)')   ' Target abstraction =', Qtake, '[m3/s]'
-    write(*,'(a,x,1PG15.7,x a)')   ' Actual abstraction =', Qabs, '[m3/s]'
-    write(*,'(a,x,1PG15.7,x a)')   ' Available discharge =', totQ, '[m3/s]'
+    write(*,'(a)')         ' * Target abstraction (Qtake) [m3/s], Available discharge (totQ) [m3/s], Actual abstraction (Qabs) [m3/s] '
+    write(*,'(a,x,F15.7)') ' Qtake =', Qtake
+    write(*,'(a,x,F15.7)') ' totQ  =', totQ
+    write(*,'(a,x,F15.7)') ' Qabs  =', Qabs
   end if
 
   ! modify wave speed at modified wave discharge and re-compute exit time
@@ -544,10 +557,11 @@ CONTAINS
   T_EXIT(1:NR-1) = t_exit_mod(1:NR-1)
 
   if(JRCH == ixDesire)then
-    write(fmt1,'(A,I5,A)') '(A,1X',NR,'(1X,1PG15.7))'
-    write(*,fmt1) ' Q_JRCH=',(Q_JRCH(iw), iw=0,NR-1)
-    write(*,fmt1) ' TENTRY=',(TENTRY(iw), iw=0,NR-1)
-    write(*,fmt1) ' T_EXIT=',(T_EXIT(iw), iw=0,NR-1)
+    write(fmt1,'(A,I5,A)') '(A,1X',NR,'(1X,E15.7))'
+    write(*,'(a)') ' * After abstracted: wave discharge (Q_JRCH) [m2/s], entry time (TENTRY) [s], and exit time (T_EXIT) [s]:'
+    write(*,fmt1)  ' Q_JRCH=',(Q_JRCH(iw), iw=0,NR-1)
+    write(*,fmt1)  ' TENTRY=',(TENTRY(iw), iw=0,NR-1)
+    write(*,fmt1)  ' T_EXIT=',(T_EXIT(iw), iw=0,NR-1)
   endif
 
   END SUBROUTINE extract_from_rch
@@ -619,10 +633,12 @@ CONTAINS
  real(dp)                                 :: DT           ! model time step
  real(dp), allocatable                    :: QD(:)        ! merged downstream flow
  real(dp), allocatable                    :: TD(:)        ! merged downstream time
- integer(i4b)                             :: ND           ! # points shifted downstream
- integer(i4b)                             :: NJ           ! # points in the JRCH reach
- integer(i4b)                             :: NK           ! # points for routing (NJ+ND)
+ integer(i4b)                             :: iw           ! wave loop index
+ integer(i4b)                             :: ND           ! # of waves routed from upstreams
+ integer(i4b)                             :: NJ           ! # of waves in the JRCH reach
+ integer(i4b)                             :: NK           ! # of waves for routing (NJ+ND)
  integer(i4b)                             :: ILAK         ! lake index
+ character(len=strLen)                    :: fmt1         ! format string
  character(len=strLen)                    :: cmessage     ! error message for downwind routine
 
  ierr=0; message='getusq_rch/'
@@ -671,7 +687,12 @@ CONTAINS
                   ND,QD,TD,ierr,cmessage,        &   ! output
                   RSTEP)                             ! optional input
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  if(JRCH == ixDesire) print*, 'after qexmul_rch: JRCH, ND, QD = ', JRCH, ND, QD
+  if(JRCH == ixDesire) then
+    write(fmt1,'(A,I5,A)') '(A,1X',ND,'(1X,F15.7))'
+    write(*,'(a)')      ' * After qexmul_rch: # of routed wave from upstreams (ND) and wave discharge (QD) [m2/s]:'
+    write(*,'(A,x,I5)') ' ND=', ND
+    write(*,fmt1)       ' QD=', (QD(iw), iw=1,ND)
+  end if
  endif
 
  ! ----------------------------------------------------------------------------------------
@@ -852,7 +873,11 @@ CONTAINS
   ! get flow in m2/s (scaled by with of downstream reach)
   QD(1) = RCHFLX_in(IENS,IR)%BASIN_QR(1)/RPARAM_in(JRCH)%R_WIDTH
   TD(1) = T1
-  if(JRCH == ixDesire) print*, 'special case: JRCH, IR, NETOPO_in(IR)%REACHID = ', JRCH, IR, NETOPO_in(IR)%REACHID
+
+  if(JRCH == ixDesire) then
+    write(*,'(A,x,I8,x,I8)') ' * Special case - This reach has one headwater upstream: IR, NETOPO_in(IR)%REACHID = ', IR, NETOPO_in(IR)%REACHID
+  end if
+
   return
  endif
 
@@ -1344,6 +1369,7 @@ CONTAINS
  integer(i4b)                                :: IROUTE   ! looping variable for routing
  integer(i4b)                                :: JROUTE   ! looping variable for routing
  integer(i4b)                                :: ICOUNT   ! used to account for merged pts
+ character(len=strLen)                       :: fmt1     ! format string
  character(len=strLen)                       :: cmessage ! error message of downwind routine
  ! ----------------------------------------------------------------------------------------
  ! NOTE: If merged particles DO NOT exit the reach in the current time step, they are
@@ -1386,9 +1412,14 @@ CONTAINS
  T0=TENTRY; T1=TENTRY; T2=TENTRY
  ! compute wave celerity for all flow points (array operation)
  WC(1:NN) = ALFA*K**(1./ALFA)*Q1(1:NN)**((ALFA-1.)/ALFA)
- ! check
- if(jRch==ixDesire) print*, 'q1(1:nn), wc(1:nn), RPARAM_in(JRCH)%R_SLOPE, nn = ', &
-                            q1(1:nn), wc(1:nn), RPARAM_in(JRCH)%R_SLOPE, nn
+
+ if(jRch==ixDesire) then
+   write(fmt1,'(A,I5,A)') '(A,1X',NN,'(1X,F15.7))'
+   write(*,'(a)')      ' * Wave discharge (q1) [m2/s] and wave celertiy (wc) [m/s]:'
+   write(*,'(a,x,I3)') ' Number of wave =', NN
+   write(*,fmt1)       ' q1=', (q1(iw), iw=1,NN)
+   write(*,fmt1)       ' wc=', (wc(iw), iw=1,NN)
+ end if
 
  ! handle breaking waves
  GT_ONE: if(NN.GT.1) then                     ! no breaking if just one point
@@ -1441,13 +1472,19 @@ CONTAINS
   end do GOTALL
  endif GT_ONE
 
+ ! check
+ if(jRch==ixDesire) then
+   write(fmt1,'(A,I5,A)') '(A,1X',NN,'(1X,F15.7))'
+   write(*,'(a)')      ' * After wave merge: wave celertiy (wc) [m/s]:'
+   write(*,'(a,x,I3)') ' Number of wave =', NN
+   write(*,fmt1)       ' wc=', (wc(iw), iw=1,NN)
+ end if
+
  ICOUNT=0
  ! ----------------------------------------------------------------------------------------
  ! perform the routing
  ! ----------------------------------------------------------------------------------------
  do IROUTE = 1,NN    ! loop through the remaining particles (shocks,waves) (NM=NI-NN have been merged)
-  ! check
-  if(jRch==ixDesire) print*, 'wc(iRoute), nn = ', wc(iRoute), nn
   ! check that we have non-zero flow
   if(WC(IROUTE) < verySmall)then
    write(message,'(a,i0)') trim(message)//'zero flow for reach id ', NETOPO_in(jRch)%REACHID
@@ -1555,11 +1592,6 @@ CONTAINS
  !     IERR: error code (1 = bad bounds)
  !
  ! ----------------------------------------------------------------------------------------
- ! Structures Used:
- !
- !   NONE
- !
- ! ----------------------------------------------------------------------------------------
  ! Method:
  !
  !   Loop through all output times (can be just 2, start and end of the time step)
@@ -1639,7 +1671,7 @@ CONTAINS
  ! check that the input time series starts before the first required output time
  ! and ends after the last required output time
  if( (TOLD(1).GT.TNEW(1)) .OR. (TOLD(NOLD).LT.TNEW(NNEW)) ) then
-  IERR=1; message=trim(message)//'bad bounds'; RETURN
+  IERR=1; message=trim(message)//'bad bounds'; return
  end if
 
  ! loop through the output times
@@ -1676,7 +1708,7 @@ CONTAINS
    QEST0 = SLOPE*(T0-TOLD(IBEG-1)) + QOLD(IBEG-1)
    QEST1 = SLOPE*(T1-TOLD(IBEG-1)) + QOLD(IBEG-1)
    QNEW(INEWLOOP-1) = 0.5*(QEST0 + QEST1)
-   CYCLE ! loop back to the next desired time
+   cycle ! loop back to the next desired time
   end if
 
   ! estimate the area under the curve at the start of the time step
@@ -1687,11 +1719,11 @@ CONTAINS
   end if
 
   ! estimate the area under the curve at the end of the time step
-  IF(T1.LT.TOLD(IEND)) THEN  ! if equal process as AREAM
+  if (T1.LT.TOLD(IEND)) then  ! if equal process as AREAM
    SLOPE = (QOLD(IEND)-QOLD(IEND-1))/(TOLD(IEND)-TOLD(IEND-1))
    QEST1 = SLOPE*(T1-TOLD(IEND-1)) + QOLD(IEND-1)
    AREAE = (T1-TOLD(IEND-1)) * 0.5*(QOLD(IEND-1) + QEST1)
-  ENDIF
+  endif
 
   ! check if there are extra points to process
   if (IBEG.LT.IEND) then
