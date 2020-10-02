@@ -155,22 +155,24 @@ contains
 
  implicit none
  ! Input
- INTEGER(I4B), intent(IN)                 :: iEns           ! runoff ensemble to be routed
- INTEGER(I4B), intent(IN)                 :: segIndex       ! segment where routing is performed
- INTEGER(I4B), intent(IN)                 :: ixDesire       ! index of the reach for verbose output
+ integer(i4b), intent(in)                 :: iEns           ! runoff ensemble to be routed
+ integer(i4b), intent(in)                 :: segIndex       ! segment where routing is performed
+ integer(i4b), intent(in)                 :: ixDesire       ! index of the reach for verbose output
  type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)   ! River Network topology
  type(RCHPRP), intent(in),    allocatable :: RPARAM_in(:)   ! River reach parameter
  ! inout
- TYPE(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+ type(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  ! Output
  integer(i4b), intent(out)                :: ierr           ! error code
  character(*), intent(out)                :: message        ! error message
  ! Local variables to
  real(dp)                                 :: q_upstream     ! total discharge at top of the reach being processed
- INTEGER(I4B)                             :: nUps           ! number of upstream segment
- INTEGER(I4B)                             :: iUps           ! upstream reach index
- INTEGER(I4B)                             :: iRch_ups       ! index of upstream reach in NETOPO
- INTEGER(I4B)                             :: ntdh           ! number of time steps in IRF
+ integer(i4b)                             :: nUps           ! number of upstream segment
+ integer(i4b)                             :: iUps           ! upstream reach index
+ integer(i4b)                             :: iRch_ups       ! index of upstream reach in NETOPO
+ integer(i4b)                             :: ntdh           ! number of time steps in IRF
+ integer(i4b)                             :: itdh           ! loop index for unit hydrograph
+ character(len=strLen)                    :: fmt1           ! format string
  character(len=strLen)                    :: cmessage       ! error message from subroutine
 
  ierr=0; message='segment_irf/'
@@ -210,9 +212,16 @@ contains
   RCHFLX_out(iEns,segIndex)%CHECK_IRF=.True.
 
   ! check
-  if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
-   print*, 'RCHFLX_out(iens,segIndex)%BASIN_QR(1),RCHFLX_out(iens,segIndex)%REACH_Q_IRF = ', &
-            RCHFLX_out(iens,segIndex)%BASIN_QR(1),RCHFLX_out(iens,segIndex)%REACH_Q_IRF
+  if(segIndex==ixDesire)then
+    ntdh = size(NETOPO_in(segIndex)%UH)
+    write(fmt1,'(A,I5,A)') '(A, 1X',ntdh,'(1X,F20.7))'
+    write(*,'(a)')             '** Check Impulse Response Function routing **'
+    write(*,'(a,x,I10,x,I10)') ' Reach index & ID       =', segIndex, NETOPO_in(segIndex)%REACHID
+    write(*,fmt1)              ' Unit-Hydrograph        =', (NETOPO_in(segIndex)%UH(itdh), itdh=1,ntdh)
+    write(*,'(a)')             ' * total discharge from upstream(q_upstream) [m3/s], local area discharge [m3/s], and Final discharge [m3/s]:'
+    write(*,'(a,x,F15.7)')     ' q_upstream             =', q_upstream
+    write(*,'(a,x,F15.7)')     ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(iens,segIndex)%BASIN_QR(1)
+    write(*,'(a,x,F15.7)')     ' RCHFLX_out%REACH_Q_IRF =', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
   endif
 
  end subroutine segment_irf

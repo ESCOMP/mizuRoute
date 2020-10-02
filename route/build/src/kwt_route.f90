@@ -265,11 +265,11 @@ CONTAINS
     if(JRCH==ixDesire) then
       write(*,'(a)') new_line('a')
       write(*,'(a)') '** Check kinematic wave tracking routing **'
-      write(*,"(a,x,I10)")            ' Reach index (JRCH) = ', JRCH
-      write(*,"(a,x,F20.7,1x,F20.7)") ' time step(T0,T1)   = ', T0, T1
-      write(*,'(a,x,F15.7)')          ' RPARAM_in%R_SLOPE  = ', RPARAM_in(JRCH)%R_SLOPE
-      write(*,'(a,x,F15.7)')          ' RPARAM_in%R_MAN_N  = ', RPARAM_in(JRCH)%R_MAN_N
-      write(*,'(a,x,F15.7)')          ' RPARAM_in%R_WIDTH  = ', RPARAM_in(JRCH)%R_WIDTH
+      write(*,"(a,x,I10,x,I10)")      ' Reach index & ID  =', JRCH, NETOPO_in(JRCH)%REACHID
+      write(*,"(a,x,F20.7,1x,F20.7)") ' time step(T0,T1)  =', T0, T1
+      write(*,'(a,x,F15.7)')          ' RPARAM_in%R_SLOPE =', RPARAM_in(JRCH)%R_SLOPE
+      write(*,'(a,x,F15.7)')          ' RPARAM_in%R_MAN_N =', RPARAM_in(JRCH)%R_MAN_N
+      write(*,'(a,x,F15.7)')          ' RPARAM_in%R_WIDTH =', RPARAM_in(JRCH)%R_WIDTH
     end if
 
     RCHFLX_out(IENS,JRCH)%TAKE=0.0_dp ! initialize take from this reach
