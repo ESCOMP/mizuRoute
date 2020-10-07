@@ -33,7 +33,8 @@ CONTAINS
  !
  ! ----------------------------------------------------------------------------------------
 
- USE dataTypes,         ONLY: subbasin_omp   ! mainstem+tributary data structures
+ USE dataTypes,      ONLY: subbasin_omp   ! mainstem+tributary data structures
+ USE model_finalize, ONLY : handle_err
 
  implicit none
  ! input
@@ -100,7 +101,7 @@ CONTAINS
        if (.not. doRoute(jSeg)) cycle
 
        call accum_qupstream(iens, jSeg, ixDesire, NETOPO_in, RCHFLX_out, ierr, cmessage)
-       !if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
 
      end do
    end do
@@ -161,8 +162,7 @@ CONTAINS
  if(segIndex == ixDesire)then
    write(fmt1,'(A,I5,A)') '(A,1X',nUps,'(1X,I10))'
    write(fmt2,'(A,I5,A)') '(A,1X',nUps,'(1X,F20.7))'
-   write(*,'(a)') new_line('a')
-   write(*,'(a)')             '** Check upstream discharge accumulation **'
+   write(*,'(2a)') new_line('a'),'** Check upstream discharge accumulation **'
    write(*,'(a,x,I10,x,I10)') ' Reach index & ID =', segIndex, NETOPO_in(segIndex)%REACHID
    write(*,'(a)')             ' * upstream reach index (NETOPO_in%UREACH) and discharge (uprflux) [m3/s] :'
    write(*,fmt1)              ' UREACHK =', (NETOPO_in(segIndex)%UREACHK(iUps), iUps=1,nUps)

@@ -16,8 +16,8 @@ USE public_var, ONLY : integerMissing    ! missing value for integer number
 ! utilities
 USE nr_utility_module, ONLY : arth       ! Num. Recipies utilities
 
-! privary
 implicit none
+
 private
 
 public::kwt_route
@@ -38,7 +38,9 @@ CONTAINS
                       ierr,message,         & ! output: error control
                       ixSubRch)               ! optional input: subset of reach indices to be processed
 
-   USE dataTypes,  ONLY : subbasin_omp        ! mainstem+tributary data strucuture
+   USE dataTypes,      ONLY : subbasin_omp        ! mainstem+tributary data strucuture
+   USE model_finalize, ONLY : handle_err
+
    implicit none
    ! Input
    integer(i4b),       intent(in)                 :: iEns                 ! ensemble member
@@ -136,7 +138,7 @@ CONTAINS
                          KROUTE_out,          & ! inout: reach state data structure
                          RCHFLX_out,          & ! inout: reach flux data structure
                          ierr,cmessage)         ! output: error control
-         !if (ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+         if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
        end do seg
 !     call system_clock(openMPend(iTrib))
 !     timeTrib(iTrib) = real(openMPend(iTrib)-timeTribStart(iTrib), kind(dp))
@@ -263,8 +265,7 @@ CONTAINS
     ierr=0; message='qroute_rch/'
 
     if(JRCH==ixDesire) then
-      write(*,'(a)') new_line('a')
-      write(*,'(a)') '** Check kinematic wave tracking routing **'
+      write(*,'(2a)') new_line('a'),'** Check kinematic wave tracking routing **'
       write(*,"(a,x,I10,x,I10)")      ' Reach index & ID  =', JRCH, NETOPO_in(JRCH)%REACHID
       write(*,"(a,x,F20.7,1x,F20.7)") ' time step(T0,T1)  =', T0, T1
       write(*,'(a,x,F15.7)')          ' RPARAM_in%R_SLOPE =', RPARAM_in(JRCH)%R_SLOPE

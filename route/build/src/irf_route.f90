@@ -11,8 +11,8 @@ USE public_var,         only : realMissing    ! missing value for real number
 USE public_var,         only : integerMissing ! missing value for integer number
 USE globalData,         only : nThreads          ! number of threads used for openMP
 
-! privary
 implicit none
+
 private
 
 public::irf_route
@@ -31,8 +31,8 @@ contains
                       ierr, message, &  ! output: error control
                       ixSubRch)         ! optional input: subset of reach indices to be processed
 
- ! global routing data
- USE dataTypes,  only : subbasin_omp   ! mainstem+tributary data structures
+ USE dataTypes,      ONLY : subbasin_omp   ! mainstem+tributary data structures
+ USE model_finalize, ONLY : handle_err
 
  implicit none
  ! Input
@@ -119,7 +119,7 @@ contains
        jSeg = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
        if (.not. doRoute(jSeg)) cycle
        call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RPARAM_in, RCHFLX_out, ierr, cmessage)
-!      if(ierr/=0)then; ixmessage(iTrib)=trim(message)//trim(cmessage); exit; endif
+       if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
      end do seg
 !    call system_clock(openMPend(iTrib))
 !    timeTrib(iTrib) = real(openMPend(iTrib)-timeTribStart(iTrib), kind(dp))
@@ -215,7 +215,7 @@ contains
   if(segIndex==ixDesire)then
     ntdh = size(NETOPO_in(segIndex)%UH)
     write(fmt1,'(A,I5,A)') '(A, 1X',ntdh,'(1X,F20.7))'
-    write(*,'(a)')             '** Check Impulse Response Function routing **'
+    write(*,'(2a)') new_line('a'),'** Check Impulse Response Function routing **'
     write(*,'(a,x,I10,x,I10)') ' Reach index & ID       =', segIndex, NETOPO_in(segIndex)%REACHID
     write(*,fmt1)              ' Unit-Hydrograph        =', (NETOPO_in(segIndex)%UH(itdh), itdh=1,ntdh)
     write(*,'(a)')             ' * total discharge from upstream(q_upstream) [m3/s], local area discharge [m3/s], and Final discharge [m3/s]:'
