@@ -196,17 +196,13 @@ CONTAINS
    ! initialize error control
    ierr=0; message='update_time/'
 
+   finished = .false.
    if (modTime(1)==endCal) then
      finished=.true.
-
      if (simout_nc%status == 2) then
        call close_nc(simout_nc%ncid, ierr, cmessage)
        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
      end if
-
-     write(iulog,'(a)') new_line('a'), '--------------------'
-     write(iulog,'(a)')                'Finished simulation'
-     write(iulog,'(a)')                '--------------------'
      return
    endif
 
