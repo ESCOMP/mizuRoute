@@ -236,11 +236,16 @@ contains
  ! ----------------------------------------------------------------------------------------
  ! Kinematic wave equation is solved based on conservative form the equation
  !
- ! Regarding state array:
+ ! Method: Li, R.‐M., Simons, D. B., and Stevens, M. A. (1975), Nonlinear kinematic wave approximation for water routing,
+ !         Water Resour. Res., 11( 2), 245– 252, doi:10.1029/WR011i002p00245
+ !
+ ! * Use analytical solution (eq 29 in paper) for Q using the 2nd order Talor series of nonlinear kinematic equation: theta*Q + alpha*Q^beta = omega
+ ! * Use initial guess using explicit Euler solution of kinematic approximation equation to start iterative computation of Q
+ ! * iterative Q computation till LHS ~= RHS
+ !
+ ! state array:
  ! (time:0:1, loc:0:1) 0-previous time step/inlet, 1-current time step/outlet.
  ! Q or A(1,2,3,4): 1: (t=0,x=0), 2: (t=0,x=1), 3: (t=1,x=0), 4: (t=1,x=1)
- !
- ! TO-DO: 1. implement adaptive time step Euler
 
  IMPLICIT NONE
  ! Input
