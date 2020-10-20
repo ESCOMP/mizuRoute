@@ -3,14 +3,14 @@ MODULE irf_route_module
 !numeric type
 USE nrtype
 ! data type
-USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
-USE dataTypes, ONLY: RCHTOPO        ! Network topology
+USE dataTypes,  ONLY: STRFLX           ! fluxes in each reach
+USE dataTypes,  ONLY: RCHTOPO          ! Network topology
 ! global parameters
-USE public_var, ONLY: iulog          ! i/o logical unit number
-USE public_var, ONLY: realMissing    ! missing value for real number
-USE public_var, ONLY: integerMissing ! missing value for integer number
+USE public_var, ONLY: iulog            ! i/o logical unit number
+USE public_var, ONLY: realMissing      ! missing value for real number
+USE public_var, ONLY: integerMissing   ! missing value for integer number
 ! subroutines: general
-USE perf_mod,  ONLY: t_startf,t_stopf ! timing start/stop
+USE perf_mod,   ONLY: t_startf,t_stopf ! timing start/stop
 
 ! privary
 implicit none
@@ -128,6 +128,8 @@ CONTAINS
                         ! output
                         ierr, message)   ! output: error control
 
+ ! shared data
+ USE public_var,                          ONLY:is_flux_wm   ! logical water management components fluxes should be read
  implicit none
  ! Input
  INTEGER(I4B), intent(IN)                 :: iEns           ! runoff ensemble to be routed
@@ -141,6 +143,7 @@ CONTAINS
  character(*), intent(out)                :: message        ! error message
  ! Local variables to
  type(STRFLX), allocatable                :: uprflux(:)     ! upstream Reach fluxes
+ real(dp)                                 :: abstract_actual! actual abstraction
  INTEGER(I4B)                             :: nUps           ! number of upstream segment
  INTEGER(I4B)                             :: iUps           ! upstream reach index
  INTEGER(I4B)                             :: iRch_ups       ! index of upstream reach in NETOPO
@@ -191,7 +194,22 @@ CONTAINS
   endif
 
   ! print statement to compare the computed REACH_Q_IRF and water management abstraction/injection
-  print*, NETOPO_in(segIndex)%REACHID, RCHFLX_out(iens,segIndex)%REACH_Q_IRF, RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+  ! print*, NETOPO_in(segIndex)%REACHID, RCHFLX_out(iens,segIndex)%REACH_Q_IRF, RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+
+  ! take out the water from the reach if the wm flag is true and the value are not missing
+  ! here we should make sure the real missing is not injection (or negative abstration)
+  if((RCHFLX_out(iens,segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then
+   abstract_actual = RCHFLX_out(iens,segIndex)%REACH_Q_IRF ! get the reach streamflow as actual abstration
+   ! reach streamflow is updated based on abstration (positive) or injection (negative)
+   RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+   if (RCHFLX_out(iens,segIndex)%REACH_Q_IRF>0) then ! abstration was negative or smaller than reach streamflow
+    abstract_actual  =  RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! actual abstration will be equal to abstration value
+   else
+    RCHFLX_out(iens,segIndex)%REACH_Q_IRF = 0._dp ! all the water is taken and actual abstration is reach streamflow
+   endif
+  endif
+
+  print*, NETOPO_in(segIndex)%REACHID, RCHFLX_out(iens,segIndex)%REACH_Q_IRF, RCHFLX_out(iens,segIndex)%REACH_WM_FLUX, abstract_actual
 
  end subroutine segment_irf
 
