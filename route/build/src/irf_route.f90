@@ -143,7 +143,9 @@ CONTAINS
  character(*), intent(out)                :: message        ! error message
  ! Local variables to
  type(STRFLX), allocatable                :: uprflux(:)     ! upstream Reach fluxes
- real(dp)                                 :: abstract_actual! actual abstraction
+ real(dp)                                 :: abstract_actual! actual abstraction TO BE DELETED
+ real(dp)                                 :: WB_check       ! water balance TO BE DELETED
+ real(dp)                                 :: init_STRQ      ! init TO BE DELETED
  INTEGER(I4B)                             :: nUps           ! number of upstream segment
  INTEGER(I4B)                             :: iUps           ! upstream reach index
  INTEGER(I4B)                             :: iRch_ups       ! index of upstream reach in NETOPO
@@ -200,6 +202,7 @@ CONTAINS
   ! here we should make sure the real missing is not injection (or negative abstration)
   if((RCHFLX_out(iens,segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then
    abstract_actual = RCHFLX_out(iens,segIndex)%REACH_Q_IRF ! get the reach streamflow as actual abstration
+   init_STRQ = RCHFLX_out(iens,segIndex)%REACH_Q_IRF ! TO BE DELETED
    ! reach streamflow is updated based on abstration (positive) or injection (negative)
    RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
    if (RCHFLX_out(iens,segIndex)%REACH_Q_IRF>0) then ! abstration was negative or smaller than reach streamflow
@@ -209,7 +212,9 @@ CONTAINS
    endif
   endif
 
-  print*, NETOPO_in(segIndex)%REACHID, RCHFLX_out(iens,segIndex)%REACH_Q_IRF, RCHFLX_out(iens,segIndex)%REACH_WM_FLUX, abstract_actual
+  WB_check = RCHFLX_out(iens,segIndex)%REACH_Q_IRF + abstract_actual - init_STRQ
+
+  print*, NETOPO_in(segIndex)%REACHID, RCHFLX_out(iens,segIndex)%REACH_Q_IRF, RCHFLX_out(iens,segIndex)%REACH_WM_FLUX, abstract_actual, WB_check
 
  end subroutine segment_irf
 
