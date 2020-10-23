@@ -355,7 +355,7 @@ CONTAINS
 
 
   ! initialize error control
-  ierr=0; message='inFile_corr_time/'
+  ierr=0; message='inFile_sync_time/'
 
   ! set the reference julday based on the first nc file of simulation
   refJulday_local     = inputfileinfo(1)%ncrefjulday

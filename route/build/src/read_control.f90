@@ -124,7 +124,7 @@ CONTAINS
    case('<dname_nhru>');           dname_nhru    = trim(cData)                     ! dimension name of the HRUs
    case('<dname_sseg>');           dname_sseg    = trim(cData)                     ! dimension name of the stream segments
    ! RUNOFF, EVAPORATION AND PRECIPITATION FILE
-   case('<fname_qsim>');           fname_qsim   = trim(cData)                      ! name of text file containing ordered nc file names
+   case('<fname_qsim>');           fname_qsim   = trim(cData)                      ! name of text file listing netcdf names. netCDF include runoff, evaporation and precipitation varialbes
    case('<vname_qsim>');           vname_qsim   = trim(cData)                      ! name of runoff variable
    case('<vname_evapo>');          vname_evapo  = trim(cData)                      ! name of actual evapoartion variable
    case('<vname_precip>');         vname_precip = trim(cData)                      ! name of precipitation variable
