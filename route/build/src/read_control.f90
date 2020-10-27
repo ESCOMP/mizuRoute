@@ -114,16 +114,17 @@ CONTAINS
    case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute    ! basin routing options   0-> no, 1->IRF, otherwise error
    case('<doesAccumRunoff>');      read(cData,*,iostat=io_error) doesAccumRunoff   ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
    case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut          ! desired outlet reach id (if -9999 --> route over the entire network)
-   case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim       ! logical whether or not lakes are simulated
-   case('<is_wm_sim>');            read(cData,*,iostat=io_error) is_wm_sim         ! logical whether or not water balance components, abstraction, injection and target volumes should be used in simulation
+   case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim       ! logical; lakes are simulated
+   case('<is_flux_wm>');           read(cData,*,iostat=io_error) is_flux_wm        ! logical; provided fluxes to or from seg/lakes should be considered
+   case('<is_vol_wm>');            read(cData,*,iostat=io_error) is_vol_wm         ! logical; provided target volume for managed lakes are considered
    ! RIVER NETWORK TOPOLOGY
    case('<fname_ntopOld>');        fname_ntopOld = trim(cData)                     ! name of file containing stream network topology information
    case('<ntopAugmentMode>');      read(cData,*,iostat=io_error) ntopAugmentMode   ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
    case('<fname_ntopNew>');        fname_ntopNew = trim(cData)                     ! name of file containing stream segment information
    case('<dname_nhru>');           dname_nhru    = trim(cData)                     ! dimension name of the HRUs
    case('<dname_sseg>');           dname_sseg    = trim(cData)                     ! dimension name of the stream segments
-   ! RUNOFF FILE
-   case('<fname_qsim>');           fname_qsim   = trim(cData)                      ! name of text file containing nc file names and their order for runoff
+   ! RUNOFF, EVAPORATION AND PRECIPITATION FILE
+   case('<fname_qsim>');           fname_qsim   = trim(cData)                      ! name of text file listing netcdf names. netCDF include runoff, evaporation and precipitation varialbes
    case('<vname_qsim>');           vname_qsim   = trim(cData)                      ! name of runoff variable
    case('<vname_evapo>');          vname_evapo  = trim(cData)                      ! name of actual evapoartion variable
    case('<vname_precip>');         vname_precip = trim(cData)                      ! name of precipitation variable
@@ -136,8 +137,16 @@ CONTAINS
    case('<units_qsim>');           units_qsim   = trim(cData)                      ! units of runoff
    case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                ! time interval of the gridded runoff
    case('<input_fillvalue>');      read(cData,*,iostat=io_error) input_fillvalue   ! fillvalue used for input variable
+   ! FLUXES TO/FROM REACHES AND LAKE STATES FILE
+   case('<fname_wm>');             fname_wm        = trim(cData)                   ! name of text file containing ordered nc file names
+   case('<vname_flux_wm>');        vname_flux_wm   = trim(cData)                   ! name of varibale for fluxes to and from seg (reachs/lakes)
+   case('<vname_vol_wm>');         vname_vol_wm    = trim(cData)                   ! name of varibale for target volume for managed lakes
+   case('<vname_time_wm>');        vname_time_wm   = trim(cData)                   ! name of time variable
+   case('<vname_segid_wm>');       vname_segid_wm  = trim(cData)                   ! name of the segid varibale in nc files
+   case('<dname_time_wm>');        dname_time_wm   = trim(cData)                   ! name of time dimension
+   case('<dname_segid_wm>');       dname_segid_wm  = trim(cData)                   ! name of the routing HRUs dimension
    ! RUNOFF REMAPPING
-   case('<is_remap>');             read(cData,*,iostat=io_error) is_remap          ! logical whether or not runnoff needs to be mapped to river network HRU
+   case('<is_remap>');             read(cData,*,iostat=io_error) is_remap          ! logical case runnoff needs to be mapped to river network HRU
    case('<fname_remap>');          fname_remap          = trim(cData)              ! name of runoff mapping netCDF
    case('<vname_hruid_in_remap>'); vname_hruid_in_remap = trim(cData)              ! name of variable containing ID of river network HRU
    case('<vname_weight>');         vname_weight         = trim(cData)              ! name of variable contating areal weights of runoff HRUs within each river network HRU
