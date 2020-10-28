@@ -54,9 +54,9 @@ def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_
     #----------------------------------------------------
     # Settings that depend on the resolution
     #----------------------------------------------------
-    if (    config['rof_grid'] == "HDMA" ):
-       fname_ntopOld = "ntopo_HDMA_c20191025.nc"
-       varname_area = "Basin_area"
+    if (    config['rof_grid'] == "HDMAmz" ):
+       fname_ntopOld = "ntopo_HDMAmz_Global_cdf5_fill_reorder_c20200828.nc"
+       varname_area = "Basin_Area"
        varname_length = "Length"
        varname_slope  = "Slope"
        varname_HRUid = "hruid"
@@ -64,7 +64,7 @@ def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_
        varname_segId = "seg_id"
        varname_downSegId = "Tosegment"
        varname_pfafCode = "PFAF"
-    elif (  config['rof_grid'] == "r05" ):
+    elif (  config['rof_grid'] == "r05mz" ):
        fname_ntopOld = "ntopo_r05_MOSART_Global_half_20161105a_cdf5_reord_360_c20200427.nc"
        varname_area = "hruArea"
        varname_length = "rlen"
@@ -74,7 +74,17 @@ def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_
        varname_segId = "segID"
        varname_downSegId = "toSegID"
        varname_pfafCode = "pCode"
-    elif (  config['rof_grid'] == "r05_amazon" ):
+    elif (  config['rof_grid'] == "USGS_GFmz" ):
+       fname_ntopOld = "ntopo_USGS-GFmz_Conus_cdf5_c20201008.nc"
+       varname_area = "Basin_Area"
+       varname_length = "Length"
+       varname_slope  = "Slope"
+       varname_HRUid = "hruid"
+       varname_hruSegId = "hru_seg_id"
+       varname_segId = "seg_id"
+       varname_downSegId = "Tosegment"
+       varname_pfafCode = "PFAF"
+    elif (  config['rof_grid'] == "r05mz_amazon" ):
        fname_ntopOld = "ntopo_r05_MOSART_amazon_half_20161105a_cdf5_reord_360_c20200624.nc"
        varname_area = "hruArea"
        varname_length = "rlen"
@@ -84,6 +94,16 @@ def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_
        varname_segId = "segID"
        varname_downSegId = "toSegID"
        varname_pfafCode = "pCode"
+    elif (  config['rof_grid'] == "HDMAmz_amazon" ):
+       fname_ntopOld = "ntopo_HDMAmz_5x5_amazon_cdf5_c20200730.nc"
+       varname_area = "Basin_Area"
+       varname_length = "Length"
+       varname_slope  = "Slope"
+       varname_HRUid = "hruid"
+       varname_hruSegId = "hru_seg_id"
+       varname_segId = "seg_id"
+       varname_downSegId = "Tosegment"
+       varname_pfafCode = "PFAF"
     else:
        expect( False, "mizuRoute does NOT know about this grid: "+config['rof_grid'] )
 
