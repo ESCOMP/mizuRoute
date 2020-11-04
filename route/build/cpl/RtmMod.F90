@@ -236,12 +236,10 @@ CONTAINS
     USE globalData,          ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
     USE globalData,          ONLY: basinRunoff_main ! mainstem only HRU runoff
     USE globalData,          ONLY: basinRunoff_trib ! tributary only HRU runoff
-    USE globalData,          ONLY: modJulday        ! julian day: current model time step
-    USE globalData,          ONLY: restartJulday    ! julian dat: restart dropoff time
     USE write_simoutput_pio, ONLY: prep_output
     USE mpi_routine,         ONLY: mpi_route        ! MPI routing call
     USE write_simoutput_pio, ONLY: output
-    USE write_restart_pio,   ONLY: output_state
+    USE write_restart_pio,   ONLY: restart_output
     USE init_model_data,     ONLY: update_time
 
 ! !DESCRIPTION:
@@ -257,6 +255,7 @@ CONTAINS
     integer                      :: yr, mon, day, ymd, tod ! time information
     integer                      :: nsub                   ! subcyling for cfl
     integer, parameter           :: gather=2
+    integer, parameter           :: currTimeStep=1         ! restart name time stamp option
     integer , save               :: nsub_save              ! previous nsub
     real(r8), save               :: delt_save              ! previous delt
     logical,  save               :: first_call = .true.    ! first time flag (for backwards compatibility)
@@ -286,7 +285,6 @@ CONTAINS
     ! Initialize mizuRoute history handler and fields
     !-------------------------------------------------------
     call t_startf('mizuRoute_histinit')
-    restartJulday = modJulday
     call prep_output(ierr, cmessage)
     call t_stopf('mizuRoute_histinit')
 
@@ -471,8 +469,10 @@ CONTAINS
     !-----------------------------------
     if (rstwr) then
       call t_startf('mizuRoute_rest')
-      call output_state(ierr, cmessage)
+
+      call restart_output(ierr, cmessage)
       if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+
       call t_stopf('mizuRoute_rest')
     end if
 

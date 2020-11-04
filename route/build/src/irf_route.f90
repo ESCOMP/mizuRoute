@@ -1,4 +1,4 @@
-module irf_route_module
+MODULE irf_route_module
 
 !numeric type
 USE nrtype
@@ -18,7 +18,7 @@ private
 
 public::irf_route
 
-contains
+CONTAINS
 
  ! *********************************************************************
  ! subroutine: perform network UH routing
@@ -58,7 +58,6 @@ contains
  integer(i4b)                                    :: iTrib               ! loop indices - branch
  integer(i4b)                                    :: ix                  ! loop indices stream order
 
- ! initialize error control
  ierr=0; message='irf_route/'
 
  ! number of reach check
@@ -148,7 +147,6 @@ contains
  INTEGER(I4B)                             :: ntdh           ! number of time steps in IRF
  character(len=strLen)                    :: cmessage       ! error message from subroutine
 
- ! initialize error control
  ierr=0; message='segment_irf/'
 
  ! route streamflow through the river network
@@ -222,7 +220,6 @@ contains
  INTEGER(I4B)                           :: nUps         ! number of all upstream segment
  INTEGER(I4B)                           :: iUps         ! loop indices for u/s reaches
 
- ! initialize error control
  ierr=0; message='conv_upsbas_qr/'
 
  ! identify number of upstream segments of the reach being processed
@@ -261,5 +258,4 @@ contains
 
  end subroutine conv_upsbas_qr
 
-end module irf_route_module
-
+END MODULE irf_route_module

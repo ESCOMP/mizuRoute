@@ -78,11 +78,12 @@ module globalData
   real(dp)                       , public :: endJulday            ! julian day: end of routing simulation
   real(dp)                       , public :: refJulday            ! julian day: reference
   real(dp)                       , public :: modJulday            ! julian day: simulation time step
-  real(dp)                       , public :: restartJulday        ! julian day: restart drop off
   real(dp)        , allocatable  , public :: roJulday(:)          ! julian day: runoff input time
   real(dp)        , allocatable  , public :: timeVar(:)           ! time variables (unit given by runoff data)
   real(dp)                       , public :: TSEC(0:1)            ! begning and end of time step (sec)
   type(time)                     , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
+  type(time)                     , public :: restCal              ! desired restart date/time (yyyy:mm:dd:hh:mm:ss)
+  type(time)                     , public :: dropCal              ! restart dropoff date/time (yyyy:mm:dd:hh:mm:ss)
 
   ! ---------- input file information -------------------------------------------------------------------
 
@@ -180,6 +181,10 @@ module globalData
   type(runoff)                   , public :: runoff_data          ! HRU runoff data structure for one time step for LSM HRUs and River network HRUs
   real(dp)        , allocatable  , public :: basinRunoff_trib(:)  ! HRU runoff array (m/s) for tributaries
   real(dp)        , allocatable  , public :: basinRunoff_main(:)  ! HRU runoff array (m/s) for mainstem
+  real(dp)        , allocatable  , public :: basinEvapo_trib(:)   ! HRU evaporation array (m/s) for tributaries
+  real(dp)        , allocatable  , public :: basinEvapo_main(:)   ! HRU evaporation array (m/s) for mainstem
+  real(dp)        , allocatable  , public :: basinPrecip_trib(:)  ! HRU precipitation array (m/s) for tributaries
+  real(dp)        , allocatable  , public :: basinPrecip_main(:)  ! HRU precipitation array (m/s) for mainstem
 
   ! domain data
   ! MPI

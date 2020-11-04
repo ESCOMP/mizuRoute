@@ -594,7 +594,6 @@ contains
   ! local variables
   type(var_desc_t)                     :: pioVarId     ! netCDF variable ID
 
-  ! initialize error control
   ierr=0; message='write_int_darray2D/'
 
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
@@ -687,7 +686,6 @@ contains
   ! local variables
   type(var_desc_t)                      :: pioVarId     ! netCDF variable ID
 
-  ! initialize error control
   ierr=0; message='write_int_darray2D_recdim/'
 
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
@@ -722,7 +720,6 @@ contains
   ! local variables
   type(var_desc_t)                      :: pioVarId     ! netCDF variable ID
 
-  ! initialize error control
   ierr=0; message='write_float_darray2D_recdim/'
 
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
@@ -757,7 +754,6 @@ contains
   ! local variables
   type(var_desc_t)                      :: pioVarId     ! netCDF variable ID
 
-  ! initialize error control
   ierr=0; message='write_double_darray2D_recdim/'
 
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
@@ -791,7 +787,6 @@ contains
   ! local variables
   type(var_desc_t)                      :: pioVarId     ! netCDF variable ID
 
-  ! initialize error control
   ierr=0; message='write_int_darray3D_recdim/'
 
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
@@ -826,7 +821,6 @@ contains
   ! local variables
   type(var_desc_t)                      :: pioVarId     ! netCDF variable ID
 
-  ! initialize error control
   ierr=0; message='write_float_darray3D_recdim/'
 
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
@@ -861,7 +855,6 @@ contains
   ! local variables
   type(var_desc_t)                      :: pioVarId     ! netCDF variable ID
 
-  ! initialize error control
   ierr=0; message='write_double_darray3D_recdim/'
 
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
@@ -895,7 +888,6 @@ contains
   ! local variables
   type(var_desc_t)                      :: pioVarId     ! netCDF variable ID
 
-  ! initialize error control
   ierr=0; message='write_int_darray4D_recdim/'
 
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
@@ -930,7 +922,6 @@ contains
   ! local variables
   type(var_desc_t)                      :: pioVarId     ! netCDF variable ID
 
-  ! initialize error control
   ierr=0; message='write_float_darray4D_recdim/'
 
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
@@ -965,7 +956,6 @@ contains
   ! local variables
   type(var_desc_t)                      :: pioVarId     ! netCDF variable ID
 
-  ! initialize error control
   ierr=0; message='write_double_darray4D_recdim/'
 
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)

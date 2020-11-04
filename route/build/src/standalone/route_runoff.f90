@@ -21,7 +21,6 @@ USE perf_mod,            ONLY: t_initf          ! initialize timing routines (GP
 USE perf_mod,            ONLY: t_startf,t_stopf ! timing start/stop (GPTL library)
 USE model_setup,         ONLY: init_mpi         ! initialize MPI for this program
 USE model_setup,         ONLY: init_data        ! initialize river reach data
-USE model_setup,         ONLY: infile_name      ! updating the file name and iTime_local based on iTime
 USE init_model_data,     ONLY: init_model       ! model setupt - reading control file, populate metadata, read parameter file
 USE init_model_data,     ONLY: update_time      ! Update simulation time information at each time step
 ! subroutines: model finalize
@@ -33,7 +32,7 @@ USE mpi_routine,         ONLY: mpi_route        ! Distribute runoff to proc, rou
 USE get_runoff,          ONLY: get_hru_runoff   !
 USE write_simoutput_pio, ONLY: prep_output      !
 USE write_simoutput_pio, ONLY: output           !
-USE write_restart_pio,   ONLY: output_state     ! write netcdf state output file
+USE write_restart_pio,   ONLY: main_restart     ! write netcdf state output file
 
 implicit none
 
@@ -81,9 +80,6 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 ! ***********************************
 do while (.not.finished)
 
-  ! update the name of the file and iTime_local
-  call infile_name(ierr, cmessage)         ! output
-
   call prep_output(ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
 
@@ -104,7 +100,7 @@ do while (.not.finished)
   if(ierr/=0) call handle_err(ierr, cmessage)
   call t_stopf ('output')
 
-  call output_state(ierr, cmessage)
+  call main_restart(ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
 
   call update_time(finished, ierr, cmessage)
