@@ -127,6 +127,7 @@ module lake_route_module
     !if(NETOPO_in(segIndex)%REACHIX == ixDesire)then    ! uncommnet when the ixDesire is fixed and not -9999
     print*, 'lake simulated output m3/s .= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
     print*, 'volume after simulation m3 .= ', RCHFLX_out(iens,segIndex)%REACH_VOL(1)
+    !print*, 'read target volume     m3 .= ', RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
     print*, 'water balance error ........= ', WB
    !endif
 
