@@ -19,6 +19,8 @@ USE public_var
 
 implicit none
 
+logical(lgt) :: domain_debug = .false. ! print out reach info with node assignment for debugging
+
 ! common parameters within this module
 integer(i4b), parameter   :: tributary=1
 integer(i4b), parameter   :: mainstem=2
@@ -60,7 +62,6 @@ CONTAINS
    character(len=strLen),          intent(out) :: message         ! error message
    ! Local variables
    character(len=strLen)                       :: cmessage        ! error message from subroutine
-   logical(lgt)                                :: debug = .false. ! print out reach info with node assignment for debugging
 
    ierr=0; message='mpi_domain_decomposition/'
 
@@ -77,7 +78,7 @@ CONTAINS
    call assign_node(nNodes, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   if (debug) then
+   if (domain_debug) then
      call print_screen()
      call shr_mpi_abort('Evaluate domain decomposition. Terminate program', 20)
    end if
@@ -99,18 +100,18 @@ CONTAINS
        downIndex(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%downSegIndex)%dat(1)
      end do
 
-     write(iulog,*) 'seg_index segid down_index down_id node-id'
+     write(iulog,*) 'seg_index segid down_index down_id domain-id node-id'
      do ix = 1,nDomain
       associate (segIndexSub => domains(ix)%segIndex, nSubSeg => size(domains(ix)%segIndex))
       do iSeg = 1,size(segIndexSub)
        if (downIndex(segIndexSub(iSeg)) > 0) then
-       write(iulog, "(I9,A,I12,A,I9,A,I12,A,I2)") segIndexSub(iSeg),' ',segId(segIndexSub(iSeg)),' ', &
-                                                  downIndex(segIndexSub(iSeg)),' ',segId(downIndex(segIndexSub(iSeg))),' ', &
-                                                  domains(ix)%idNode
+       write(iulog, "(I9,x,I12,x,I9,x,I12,x,I5,x,I3)") segIndexSub(iSeg),segId(segIndexSub(iSeg)), &
+                                                  downIndex(segIndexSub(iSeg)),segId(downIndex(segIndexSub(iSeg))), &
+                                                  ix, domains(ix)%idNode
        else
-       write(iulog, "(I9,A,I12,A,I9,A,I12,A,I2)") segIndexSub(iSeg),' ',segId(segIndexSub(iSeg)),' ', &
-                                                  downIndex(segIndexSub(iSeg)),' ',-999,' ', &
-                                                  domains(ix)%idNode
+       write(iulog, "(I9,x,I12,x,I9,x,I12,x,I5,x,I3)") segIndexSub(iSeg),segId(segIndexSub(iSeg)), &
+                                                  downIndex(segIndexSub(iSeg)),-999, &
+                                                  ix, domains(ix)%idNode
        endif
       end do
       end associate
@@ -164,7 +165,6 @@ CONTAINS
    ! Local variables
    integer(i4b)                                :: nn
 
-   ! initialize error control
    ierr=0; message='omp_domain_decomposition/'
 
    if (present(nDiv)) then

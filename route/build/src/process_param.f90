@@ -54,7 +54,7 @@ contains
   REAL(DP)                               :: CUMPROB     ! cumulative probability at JTIM
   REAL(DP)                               :: PSAVE       ! cumulative probability at JTIM-1
   ! ---------------------------------------------------------------------------------------
-  ! initialize error control
+
   ierr=0; message='basinUH/'
   ! use a Gamma distribution with shape parameter, fshape = 2.5, and time parameter, tscale, input
   alamb = fshape/tscale                  ! scale parameter
@@ -156,7 +156,6 @@ contains
   integer(i4b),parameter                      :: nHr=240       ! Maximum hour of UH [hr] - 10 days times 24hrs
   character(len=strLen)                       :: cmessage      ! error message from subroutine
 
- ! initialize error control
  ierr=0; message='make_uh/'
 
  ! Dynamically assigned parameters

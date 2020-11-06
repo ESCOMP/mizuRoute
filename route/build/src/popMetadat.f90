@@ -61,7 +61,7 @@ contains
  ! dummy variables
  integer(i4b),intent(out)       :: err           ! error code
  character(*),intent(out)       :: message       ! error message
- ! initialize error control
+
  err=0; message='popMetadat/'
 
  ! ---------- define data structures -----------------------------------------------------------------------------------------------------------

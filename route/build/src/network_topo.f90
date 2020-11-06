@@ -88,7 +88,6 @@ contains
  real(dp)                        :: totarea           ! total area of all HRUs feeding into a given stream segment (m2)
  !integer*8                       :: cr, startTime, endTime
 
- ! initialize error control
  ierr=0; message='hru2segment/'
  !call system_clock(count_rate=cr)
 
@@ -127,7 +126,6 @@ contains
 
  ! ---------- allocate space for the mapping structures -----------------------------------------------------
 
- ! loop through stream segments
  do iSeg=1,nSeg
   ! allocate space (number of elements that drain into each segment)
   allocate(structNTOPO(iSeg)%var(ixNTOPO%hruContribIx)%dat( nHRU2seg(iSeg) ), &
@@ -144,7 +142,6 @@ contains
 
  ! ---------- populate structure components for HRU-2-Segment mapping ---------------------------------------
 
- ! loop through HRUs
  do iHRU=1,nHRU
 
   ! identify the index of the stream segment that the HRU drains into
@@ -160,7 +157,6 @@ contains
             hruContribIx   => structNTOPO(iSeg)%var(ixNTOPO%hruContribIx)%dat, & ! index of contributing HRU
             hruContribId   => structNTOPO(iSeg)%var(ixNTOPO%hruContribId)%dat  ) ! unique ids of contributing HRU
 
-  ! increment the HRU counter
   nContrib = nContrib + 1
 
   ! populate structure components
@@ -190,7 +186,6 @@ contains
 
  ! ---------- compute additional variables ------------------------------------------------------------------
 
- ! loop through segments
  do iSeg=1,nSeg
 
   ! skip segments with no HRU drainage
@@ -246,7 +241,7 @@ contains
  integer(i4b)                    :: downIndex(nRch)     ! index of downstream stream segment
  integer(i4b)                    :: nUpstream(nRch)     ! number of elements that drain into each segment
  integer(i4b)                    :: mUpstream(nRch)     ! number of elements that drain into each segment
- ! initialize error control
+
  ierr=0; message='up2downSegment/'
 
  ! populate reach index
@@ -307,7 +302,6 @@ contains
  ! initialize the number of upstream elements in each reach
  mUpstream(:)=0
 
- ! loop through the reaches
  do iRch=1,nRch
 
   ! identify the index of the downstream segment
@@ -374,7 +368,6 @@ contains
  logical(lgt),parameter          :: checkLink=.false.   ! flag to check the links
  logical(lgt),parameter          :: checkMap=.true.     ! flag to check the mapping
 
- ! initialize error control
  ierr=0; message='downReachIndex/'
 
  ! initialize output
@@ -479,7 +472,7 @@ contains
  INTEGER(I4B)                           :: NUPS            ! number of upstream reaches
  INTEGER(I4B)                           :: UINDEX          ! upstream reach index
  integer(i4b)                           :: jCount          ! counter
- ! initialize error control
+
  ierr=0; message='reachorder/'
  ! ----------------------------------------------------------------------------------------
  NASSIGN = 0
@@ -825,7 +818,7 @@ contains
  integer(i4b)                                  :: ixDesire          ! index of desired reach
  integer(i4b)                                  :: jxDesire          ! index of desired reach
  ! ----------------------------------------------------------------------------------------
- ! initialize error control
+
  ierr=0; message='reach_mask/'
 
  ! check if we actually want the mask
@@ -994,7 +987,7 @@ contains
  integer(i4b)                                  :: ixDesire          ! index of desired reach
  integer(i4b),allocatable                      :: ixDownstream(:)   ! indices of downstream reaches
  ! ----------------------------------------------------------------------------------------
- ! initialize error control
+
  ierr=0; message='REACH_MASK_ORIG/'
 
  ! check if we actually want the mask
@@ -1118,7 +1111,6 @@ contains
    ixSeg_map(ixDownstream(1:ixDesire)) = ixDownstream(1:ixDesire)
   endif  ! if the reach is desired
 
-  ! deallocate space
   deallocate(ixDownstream,stat=ierr)
   if(ierr/=0)then; message=trim(message)//'unable to allocate space for downstream reaches'; return; endif
 
@@ -1126,7 +1118,6 @@ contains
 
  ! ---------- check for errors ----------------------------------------------------------------------------------------------------------
 
- ! get the counts
  nRch_desire = count(isDesired)
 
  ! check that we processed all reaches
@@ -1143,7 +1134,6 @@ contains
 
  ! ---------- get the subset of indices -------------------------------------------------------------------------------------------------
 
- ! allocate space
  allocate(ixSeg_desired(nRch_desire), stat=ierr)
  if(ierr/=0) message=trim(message)//'unable to allocate space for the vectors of desired reaches'
 

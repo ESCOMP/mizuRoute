@@ -119,10 +119,8 @@ contains
  integer(i4b), parameter                           :: maxUpstreamFile=10000000 ! 10 million: maximum number of upstream reaches to enable writing
  integer*8                                         :: time0,time1,cr       ! for timing
 
- ! initialize error control
  ierr=0; message='augment_ntopo/'
 
- ! initialize times
  call system_clock(count_rate=cr)
  call system_clock(time0)
 
@@ -342,7 +340,6 @@ end subroutine augment_ntopo
   integer(i4b)                                   :: nSeg,nHru        ! number of stream reaches and HRUs
   integer(i4b)                                   :: iSeg,iHru        ! loop indices
 
-  ! initialize error control
   ierr=0; message='check_river_properties/'
 
   nSeg = size(structSEG)
@@ -396,7 +393,6 @@ end subroutine augment_ntopo
   integer(i4b)                                   :: nUps             ! number of upstream segments for a segment
   integer(i4b)                                   :: iSeg,iUps        ! loop indices
 
-  ! initialize error control
   ierr=0; message='put_data_struct/'
 
   ! get lag times in the basin unit hydrograph (not sure this is right place...)

@@ -99,7 +99,6 @@ CONTAINS
  INTEGER(I4B)                             :: ntdh                  ! number of time steps in IRF
  character(len=strLen)                    :: cmessage              ! error message from subroutine
 
- ! initialize error control
  ierr=0; message='hru_irf/'
 
  ! initialize the first time step q future
@@ -153,10 +152,8 @@ CONTAINS
   integer(i4b)                         :: itdh          ! index loop for basin, time, respectively
   integer(i4b)                         :: ntdh          ! number of time step for future flow
 
-  ! initialize error control
   ierr=0; message='irf_conv/'
 
-  ! route streamflow through the basin
   ntdh = size(qfuture)
 
   ! place a fraction of runoff in future time steps and add to current state of q in the future

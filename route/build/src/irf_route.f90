@@ -1,4 +1,4 @@
-module irf_route_module
+MODULE irf_route_module
 
 !numeric type
 USE nrtype
@@ -6,7 +6,6 @@ USE nrtype
 USE dataTypes, ONLY: STRFLX           ! fluxes in each reach
 USE dataTypes, ONLY: RCHTOPO          ! Network topology
 USE dataTypes, ONLY: RCHPRP           ! reach/lake property parameter
-
 ! global parameters
 USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: realMissing       ! missing value for real number
@@ -15,14 +14,13 @@ USE public_var,        ONLY: integerMissing    ! missing value for integer numbe
 USE perf_mod,          ONLY: t_startf,t_stopf  ! timing start/stop
 USE lake_route_module, ONLY: lake_route        ! lake route module
 
-
 ! privary
 implicit none
 private
 
 public::irf_route
 
-contains
+CONTAINS
 
  ! *********************************************************************
  ! subroutine: perform network UH routing
@@ -65,7 +63,6 @@ contains
  integer(i4b)                                    :: iTrib               ! loop indices - branch
  integer(i4b)                                    :: ix                  ! loop indices stream order
 
- ! initialize error control
  ierr=0; message='irf_route/'
 
  ! number of reach check
@@ -141,6 +138,8 @@ contains
                         ! output
                         ierr, message)   ! output: error control
 
+ ! shared data
+ USE public_var,                          ONLY:is_flux_wm   ! logical water management components fluxes should be read
  implicit none
  ! Input
  INTEGER(I4B), intent(IN)                 :: iEns           ! runoff ensemble to be routed
@@ -154,13 +153,15 @@ contains
  character(*), intent(out)                :: message        ! error message
  ! Local variables to
  type(STRFLX), allocatable                :: uprflux(:)     ! upstream Reach fluxes
+ real(dp)                                 :: abstract_actual! actual abstraction TO BE DELETED
+ real(dp)                                 :: WB_check       ! water balance TO BE DELETED
+ real(dp)                                 :: init_STRQ      ! init TO BE DELETED
  INTEGER(I4B)                             :: nUps           ! number of upstream segment
  INTEGER(I4B)                             :: iUps           ! upstream reach index
  INTEGER(I4B)                             :: iRch_ups       ! index of upstream reach in NETOPO
  INTEGER(I4B)                             :: ntdh           ! number of time steps in IRF
  character(len=strLen)                    :: cmessage       ! error message from subroutine
 
- ! initialize error control
  ierr=0; message='segment_irf/'
 
  ! route streamflow through the river network
@@ -204,6 +205,25 @@ contains
                    RCHFLX_out(iens,segIndex)%BASIN_QR(1),RCHFLX_out(iens,segIndex)%REACH_Q_IRF
   endif
 
+  ! print statement to compare the computed REACH_Q_IRF and water management abstraction/injection
+  ! print*, NETOPO_in(segIndex)%REACHID, RCHFLX_out(iens,segIndex)%REACH_Q_IRF, RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+
+  ! take out the water from the reach if the wm flag is true and the value are not missing
+  ! here we should make sure the real missing is not injection (or negative abstration)
+  if((RCHFLX_out(iens,segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then
+    abstract_actual = RCHFLX_out(iens,segIndex)%REACH_Q_IRF ! get the reach streamflow as actual abstration
+    init_STRQ = RCHFLX_out(iens,segIndex)%REACH_Q_IRF ! TO BE DELETED
+    ! reach streamflow is updated based on abstration (positive) or injection (negative)
+    RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+    if (RCHFLX_out(iens,segIndex)%REACH_Q_IRF>0) then ! abstration was negative or smaller than reach streamflow
+      abstract_actual  =  RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! actual abstration will be equal to abstration value
+    else
+      RCHFLX_out(iens,segIndex)%REACH_Q_IRF = 0._dp ! all the water is taken and actual abstration is reach streamflow
+    endif
+  endif
+
+  WB_check = RCHFLX_out(iens,segIndex)%REACH_Q_IRF + abstract_actual - init_STRQ
+
  end subroutine segment_irf
 
 
@@ -234,7 +254,6 @@ contains
  INTEGER(I4B)                           :: nUps         ! number of all upstream segment
  INTEGER(I4B)                           :: iUps         ! loop indices for u/s reaches
 
- ! initialize error control
  ierr=0; message='conv_upsbas_qr/'
 
  ! identify number of upstream segments of the reach being processed
@@ -273,5 +292,4 @@ contains
 
  end subroutine conv_upsbas_qr
 
-end module irf_route_module
-
+END MODULE irf_route_module

@@ -32,6 +32,7 @@ module globalData
   ! remapping structures
   USE dataTypes, ONLY: remap         ! remapping data type
   USE dataTypes, ONLY: runoff        ! runoff data type
+  USE dataTypes, ONLY: wm            ! water management (flux to/from segment, target volume) data type
 
   ! basin data structure
   USE dataTypes, ONLY: subbasin_omp  ! mainstem+tributary data structures
@@ -73,20 +74,21 @@ module globalData
   ! ---------- Date/Time data  -------------------------------------------------------------------------
 
   integer(i4b)                   , public :: iTime                ! time index at simulation time step
-  integer(i4b)                   , public :: iTime_local          ! time index at simulation time step for a given input file
   real(dp)                       , public :: startJulday          ! julian day: start of routing simulation
   real(dp)                       , public :: endJulday            ! julian day: end of routing simulation
   real(dp)                       , public :: refJulday            ! julian day: reference
   real(dp)                       , public :: modJulday            ! julian day: simulation time step
-  real(dp)                       , public :: restartJulday        ! julian day: restart drop off
   real(dp)        , allocatable  , public :: roJulday(:)          ! julian day: runoff input time
   real(dp)        , allocatable  , public :: timeVar(:)           ! time variables (unit given by runoff data)
   real(dp)                       , public :: TSEC(0:1)            ! begning and end of time step (sec)
   type(time)                     , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
+  type(time)                     , public :: restCal              ! desired restart date/time (yyyy:mm:dd:hh:mm:ss)
+  type(time)                     , public :: dropCal              ! restart dropoff date/time (yyyy:mm:dd:hh:mm:ss)
 
   ! ---------- input file information -------------------------------------------------------------------
 
   type(infileinfo) , allocatable , public :: infileinfo_data(:)   ! conversion factor to convert time to units of days
+  type(infileinfo) , allocatable , public :: infileinfo_data_wm(:)! conversion factor to convert time to units of days
 
   ! ---------- Misc. data -------------------------------------------------------------------------
 
@@ -184,6 +186,13 @@ module globalData
   real(dp)        , allocatable  , public :: basinEvapo_main(:)   ! HRU evaporation array (m/s) for mainstem
   real(dp)        , allocatable  , public :: basinPrecip_trib(:)  ! HRU precipitation array (m/s) for tributaries
   real(dp)        , allocatable  , public :: basinPrecip_main(:)  ! HRU precipitation array (m/s) for mainstem
+
+  ! seg water management fluxes and target volume
+  type(wm)                       , public :: wm_data              ! SEG flux and target vol data structure for one time step for river network
+  real(dp)        , allocatable  , public :: flux_wm_trib(:)      ! SEG flux array (m3/s) for tributaries
+  real(dp)        , allocatable  , public :: flux_wm_main(:)      ! SEG flux array (m3/s) for mainstem
+  real(dp)        , allocatable  , public :: vol_wm_trib(:)       ! SEG target volume (for lakes) (m3) for tributaries
+  real(dp)        , allocatable  , public :: vol_wm_main(:)       ! SEG target volume (for lakes) (m3) for mainstem
 
   ! domain data
   ! MPI

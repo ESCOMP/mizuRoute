@@ -84,19 +84,18 @@ module public_var
   character(len=strLen),public    :: ancil_dir            = ''              ! directory containing ancillary data
   character(len=strLen),public    :: input_dir            = ''              ! directory containing input data
   character(len=strLen),public    :: output_dir           = ''              ! directory containing output data
+  character(len=strLen),public    :: restart_dir          = charMissing     ! directory for restart output (netCDF)
   ! RUN CONTROL
   character(len=strLen),public    :: case_name            = ''              ! name of simulation
   character(len=strLen),public    :: simStart             = ''              ! date string defining the start of the simulation
   character(len=strLen),public    :: simEnd               = ''              ! date string defining the end of the simulation
   character(len=strLen),public    :: newFileFrequency     = 'annual'        ! frequency for new output files (day, month, annual, single)
-  character(len=strLen),public    :: restart_write        = 'never'         ! restart write option: never-> N[n]ever write, L[l]ast -> write at last time step, S[s]pecified
-  character(len=strLen),public    :: restart_date         = charMissing     ! specifed restart date
-  character(len=strLen),public    :: fname_state_in       = charMissing     ! name of state file
   integer(i4b)         ,public    :: routOpt              = integerMissing  ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
   integer(i4b)         ,public    :: doesAccumRunoff      = 1               ! option to delayed runoff accumulation over all the upstream reaches
-  logical(lgt),public             :: is_lake_sim          = .false.         ! logical whether or not lakes are activated in simulation
-  logical(lgt),public             :: is_wm_sim            = .false.         ! logical whether or not water management componenets, abstraction, injections and target volums are provided and will be used in the simulation
+  logical(lgt),public             :: is_lake_sim          = .false.         ! logical if lakes are activated in simulation
+  logical(lgt),public             :: is_flux_wm           = .false.         ! logical if flow is added or removed from a reach
+  logical(lgt),public             :: is_vol_wm            = .false.         ! logical if target volume is considered for a lake
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
   logical(lgt)         ,public    :: ntopAugmentMode      = .false.         ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
@@ -104,7 +103,7 @@ module public_var
   character(len=strLen),public    :: dname_sseg           = ''              ! dimension name of segment in river network data
   character(len=strLen),public    :: dname_nhru           = ''              ! dimension name of hru in river network data
   integer(i4b)         ,public    :: idSegOut             = integerMissing  ! id of outlet stream segment
-  ! RUNOFF FILE
+  ! RUNOFF, EVAPORATION AND PRECIPITATION FILE
   character(len=strLen),public    :: fname_qsim           = ''              ! simulated runoff netCDF name
   character(len=strLen),public    :: vname_qsim           = ''              ! variable name for simulated runoff
   character(len=strLen),public    :: vname_evapo          = ''              ! variable name for actual evapoartion
@@ -117,6 +116,15 @@ module public_var
   character(len=strLen),public    :: dname_ylat           = ''              ! dimension name for y (i, latitude) dimension
   character(len=strLen),public    :: units_qsim           = ''              ! units of simulated runoff data
   real(dp)             ,public    :: dt                   = realMissing     ! time step (seconds)
+  real(dp)             ,public    :: input_fillvalue      = realMissing     ! fillvalue used for input variables (runoff, precipitation, evaporation)
+  ! FLUXES TO/FROM REACHES AND LAKES STATES FILE
+  character(len=strLen),public    :: fname_wm             = ''              ! the txt file name that includes nc files holesing the abstraction, injection, target volume values
+  character(len=strLen),public    :: vname_flux_wm        = ''              ! variable name for abstraction or injection from or to a river segment
+  character(len=strLen),public    :: vname_vol_wm         = ''              ! variable name for target volume when lake is_lake_sim is on
+  character(len=strLen),public    :: vname_time_wm        = ''              ! variable name for time
+  character(len=strLen),public    :: vname_segid_wm       = ''              ! variable name for runoff hru id
+  character(len=strLen),public    :: dname_time_wm        = ''              ! dimension name for time
+  character(len=strLen),public    :: dname_segid_wm       = ''              ! dimension name for hru in runoff data
   ! RUNOFF REMAPPING
   logical(lgt),public             :: is_remap             = .false.         ! logical whether or not runnoff needs to be mapped to river network HRU
   character(len=strLen),public    :: fname_remap          = ''              ! runoff mapping netCDF name
@@ -128,6 +136,13 @@ module public_var
   character(len=strLen),public    :: vname_j_index        = ''              ! variable for numbers of x (longitude) index if runoff file is grid
   character(len=strLen),public    :: dname_hru_remap      = ''              ! dimension name for river network HRU
   character(len=strLen),public    :: dname_data_remap     = ''              ! dimension name for runoff HRU ID
+  ! RESTART OPTION
+  character(len=strLen),public    :: restart_write        = 'never'         ! restart write option: N[n]ever-> never write, L[l]ast -> write at last time step, S[s]pecified, Monthly, Daily
+  character(len=strLen),public    :: restart_date         = charMissing     ! specifed restart date
+  integer(i4b)         ,public    :: restart_month        = 1               ! restart periodic month. Default Jan (write every January of year)
+  integer(i4b)         ,public    :: restart_day          = 1               ! restart periodic day.   Default 1st (write every 1st of month)
+  integer(i4b)         ,public    :: restart_hour         = 0               ! restart periodic hour.  Default 0hr (write every 00 hr of day)
+  character(len=strLen),public    :: fname_state_in       = charMissing     ! name of state file
   ! SPATIAL CONSTANT PARAMETERS
   character(len=strLen),public    :: param_nml            = ''              ! name of the namelist file
   ! COMPUTATION OPTION
