@@ -23,8 +23,6 @@ implicit none
 private
 public :: init_mpi
 public :: init_data
-public :: infile_name
-
 CONTAINS
 
  ! *********************************************************************
@@ -82,7 +80,7 @@ CONTAINS
    ierr=0; message='init_data/'
 
    ! runoff input files initialization
-   call init_inFile_pop(ierr, message)
+   call init_inFile_pop(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! time initialization
@@ -153,7 +151,7 @@ CONTAINS
   ! passing the first nc file as global file name to read
   fname_qsim = trim(infileinfo_data(1)%infilename)
 
-  if ((is_flux_wm).or.(is_vol_wm)) then     ! if either of abstraction injection or target volume is activated
+  if ((is_flux_wm).or.(is_vol_wm.and.is_lake_sim)) then     ! if either of abstraction injection or target volume is activated
     call inFile_pop(input_dir,            & ! input: name of the directory of the txt file
                     fname_wm,             & ! input: name of the txt file hold the nc file names
                     vname_time_wm,        & ! input: name of variable time in the nc files
@@ -165,7 +163,7 @@ CONTAINS
     ! passing the first nc file as global file name to read
     fname_wm = trim(infileinfo_data_wm(1)%infilename)
 
-    call inFile_corr_time(infileinfo_data,      & ! input: the structure of simulated runoff, evapo and
+    call inFile_sync_time(infileinfo_data,      & ! input: the structure of simulated runoff, evapo and
                           infileinfo_data_wm,   & ! inout: input file information
                           ierr, cmessage)         ! output: error control
 
@@ -195,6 +193,10 @@ CONTAINS
   USE io_netcdf,           ONLY: get_nc         ! get the
   USE io_netcdf,           ONLY: get_var_attr   ! get the attributes interface
   USE io_netcdf,           ONLY: get_nc_dim_len ! get the nc dimension length
+
+  ! Shared data
+  USE public_var,          ONLY: time_units     ! get the time units from control file and replace if not provided in nc files
+  USE public_var,          ONLY: calendar       ! get the calendar from control file and replace if not provided in nc files
 
   ! input
   character(len=strLen), intent(in)    :: dir_name         ! the name of the directory that the txt file located
@@ -251,15 +253,23 @@ CONTAINS
    ! set forcing file name
    inputfileinfo(iFile)%infilename = trim(filenameData)
 
-   ! get the time units
-   call get_var_attr(trim(dir_name)//trim(inputfileinfo(iFile)%infilename), &
-                     trim(time_var_name), 'units', inputfileinfo(iFile)%unit, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   ! get the time units, assuming the water managment nc files has the same calendar as the first
+   if (trim(time_units) == charMissing) then
+     call get_var_attr(trim(dir_name)//trim(inputfileinfo(iFile)%infilename), &
+                       trim(time_var_name), 'units', inputfileinfo(iFile)%unit, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   else
+     inputfileinfo(iFile)%unit = trim(time_units)
+   end if
 
-   ! get the calendar
-   call get_var_attr(trim(dir_name)//trim(inputfileinfo(iFile)%infilename), &
-                     trim(time_var_name), 'calendar', inputfileinfo(iFile)%calendar, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   ! get the calendar, assuming the water managment nc files has the same calendar as the first
+   if (trim(calendar) == charMissing) then
+     call get_var_attr(trim(dir_name)//trim(inputfileinfo(iFile)%infilename), &
+                       trim(time_var_name), 'calendar', inputfileinfo(iFile)%calendar, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   else
+     inputfileinfo(iFile)%calendar = trim(calendar)
+   end if
 
    ! get the dimension of the time to populate nTime and pass it to the get_nc file
    call get_nc_dim_len(trim(dir_name)//trim(inputfileinfo(iFile)%infilename), &
@@ -309,10 +319,10 @@ CONTAINS
 
 
  ! *********************************************************************
- ! private subroutine: get the two infiledata and convert the iTimebound of
- ! the input_info_wm to match the input_info
+ ! private subroutine: to synchronize the iTimebound of
+ ! the inputfileinfo_wm to match the inputfileinfo
  ! *********************************************************************
- SUBROUTINE inFile_corr_time(inputfileinfo,      & ! input: the structure of simulated runoff, evapo and
+ SUBROUTINE inFile_sync_time(inputfileinfo,      & ! input: the structure of simulated runoff, evapo and
                              inputfileinfo_wm,   & ! inout: input file information
                              ierr, message)        ! output: error control
 
@@ -345,7 +355,7 @@ CONTAINS
 
 
   ! initialize error control
-  ierr=0; message='inFile_corr_time/'
+  ierr=0; message='inFile_sync_time/'
 
   ! set the reference julday based on the first nc file of simulation
   refJulday_local     = inputfileinfo(1)%ncrefjulday
@@ -359,8 +369,8 @@ CONTAINS
     day_start_diff = inputfileinfo_wm(iFile)%timeVar(1) /inputfileinfo_wm(iFile)%convTime2Days+inputfileinfo_wm(iFile)%ncrefjulday - refJulday_local
     day_end_diff   = inputfileinfo_wm(iFile)%timeVar(nt)/inputfileinfo_wm(iFile)%convTime2Days+inputfileinfo_wm(iFile)%ncrefjulday - refJulday_local
 
-    inputfileinfo_wm(iFile)%iTimebound(1) = day_start_diff*secprday/dt + 1 ! to convert the day difference into time step difference
-    inputfileinfo_wm(iFile)%iTimebound(2) = day_end_diff  *secprday/dt     ! to convert the day difference into time step difference
+    inputfileinfo_wm(iFile)%iTimebound(1) = day_start_diff * secprday/dt + 1 ! to convert the day difference into time step difference
+    inputfileinfo_wm(iFile)%iTimebound(2) = day_end_diff   * secprday/dt + 1 ! to convert the day difference into time step difference
 
   end do
 
@@ -379,7 +389,7 @@ CONTAINS
   endif
 
 
- END SUBROUTINE inFile_corr_time
+ END SUBROUTINE inFile_sync_time
 
  ! *********************************************************************
  ! private subroutine: initialize time data
@@ -392,50 +402,61 @@ CONTAINS
   USE process_time_module, ONLY: conv_cal2julian ! compute data and time from julian day
   USE time_utils_module,   ONLY: ndays_month     ! compute number of days in a month
   ! derived datatype
-  USE dataTypes,  ONLY: time                    ! time data type
+  USE dataTypes,  ONLY: time                     ! time data type
   ! public data
-  USE public_var, ONLY: time_units              ! time units (seconds, hours, or days)
-  USE public_var, ONLY: simStart                ! date string defining the start of the simulation
-  USE public_var, ONLY: simEnd                  ! date string defining the end of the simulation
-  USE public_var, ONLY: calendar                ! calendar name
+  USE public_var, ONLY: time_units               ! time units (seconds, hours, or days)
+  USE public_var, ONLY: simStart                 ! date string defining the start of the simulation
+  USE public_var, ONLY: simEnd                   ! date string defining the end of the simulation
+  USE public_var, ONLY: calendar                 ! calendar name
   USE public_var, ONLY: dt
   USE public_var, ONLY: secprday
-  USE public_var, ONLY: restart_write           ! restart write option
-  USE public_var, ONLY: restart_date            ! restart date
-  USE public_var, ONLY: restart_month           ! periodic restart month
-  USE public_var, ONLY: restart_day             ! periodic restart day
-  USE public_var, ONLY: restart_hour            ! periodic restart hr
+  USE public_var, ONLY: restart_write            ! restart write option
+  USE public_var, ONLY: restart_date             ! restart date
+  USE public_var, ONLY: restart_month            ! periodic restart month
+  USE public_var, ONLY: restart_day              ! periodic restart day
+  USE public_var, ONLY: restart_hour             ! periodic restart hr
+  USE public_var, ONLY: verySmall                ! very small value
   ! saved time variables
-  USE globalData, ONLY: timeVar                 ! time variables (unit given by runoff data)
-  USE globalData, ONLY: iTime                   ! time index at simulation time step
-  USE globalData, ONLY: refJulday               ! julian day: reference
-  USE globalData, ONLY: roJulday                ! julian day: runoff input time
-  USE globalData, ONLY: startJulday             ! julian day: start of routing simulation
-  USE globalData, ONLY: endJulday               ! julian day: end of routing simulation
-  USE globalData, ONLY: modJulday               ! julian day: at model time step
-  USE globalData, ONLY: modTime                 ! model time data (yyyy:mm:dd:hh:mm:ss)
-  USE globalData, ONLY: restCal                 ! restart time data (yyyy:mm:dd:hh:mm:sec)
-  USE globalData, ONLY: dropCal                 ! restart dropoff calendar date/time
-  USE globalData, ONLY: infileinfo_data         ! the information of the input files
+  USE globalData, ONLY: timeVar                  ! time variables (unit given by runoff data)
+  USE globalData, ONLY: iTime                    ! time index at simulation time step
+  USE globalData, ONLY: refJulday                ! julian day: reference
+  USE globalData, ONLY: roJulday                 ! julian day: runoff input time
+  USE globalData, ONLY: startJulday              ! julian day: start of routing simulation
+  USE globalData, ONLY: endJulday                ! julian day: end of routing simulation
+  USE globalData, ONLY: modJulday                ! julian day: at model time step
+  USE globalData, ONLY: modTime                  ! model time data (yyyy:mm:dd:hh:mm:ss)
+  USE globalData, ONLY: restCal                  ! restart time data (yyyy:mm:dd:hh:mm:sec)
+  USE globalData, ONLY: dropCal                  ! restart dropoff calendar date/time
+  USE globalData, ONLY: infileinfo_data          ! the information of the input files
+  USE globalData, ONLY: infileinfo_data_wm       ! the information of the input files
+  USE public_var, ONLY: is_lake_sim              ! logical whether or not lake simulations are activated
+  USE public_var, ONLY: is_flux_wm               ! logical whether or not abstraction and injection should be read from the file
+  USE public_var, ONLY: is_vol_wm                ! logical whether or not target volume for lakes should be read
 
   implicit none
 
   ! output: error control
-  integer(i4b),              intent(out)   :: ierr             ! error code
-  character(*),              intent(out)   :: message          ! error message
+  integer(i4b),              intent(out)   :: ierr                ! error code
+  character(*),              intent(out)   :: message             ! error message
   ! local variable
   integer(i4b)                             :: ix
   integer(i4b)                             :: counter
   integer(i4b)                             :: nTime
+  integer(i4b)                             :: nTime_wm
   integer(i4b)                             :: nt
-  integer(i4b)                             :: nFile ! number of nc files
-  integer(i4b)                             :: iFile ! for loop over the nc files
+  integer(i4b)                             :: nFile               ! number of nc files
+  integer(i4b)                             :: nFile_wm            ! number of nc files
+  integer(i4b)                             :: iFile               ! for loop over the nc files
   type(time)                               :: rofCal
   type(time)                               :: simCal
-  integer(i4b)                             :: nDays          ! number of days in a month
+  integer(i4b)                             :: nDays               ! number of days in a month
+  real(dp), allocatable                    :: roJulday_diff(:)    ! the difference of two concequative elements in roJulyday
   real(dp)                                 :: restartJulday
-  real(dp)                                 :: tempJulday
-  character(len=strLen)                    :: cmessage         ! error message of downwind routine
+  real(dp)                                 :: refJulday_wm        !
+  real(dp), allocatable                    :: roJulday_wm(:)      ! Julian day of concatenated netCDF for water management
+  real(dp), allocatable                    :: roJulday_diff_wm(:) ! the difference of two concequative elements in roJulyday_wm
+  real(dp)                                 :: tempJulday          !
+  character(len=strLen)                    :: cmessage            ! error message of downwind routine
   character(len=50)                        :: fmt1='(a,I4,a,I2.2,a,I2.2,x,I2.2,a,I2.2,a,F5.2)'
 
   ! initialize error control
@@ -480,11 +501,11 @@ CONTAINS
     ierr=20; message=trim(message)//trim(cmessage); return
   endif
 
-  ! check sim_start is before the last time step in runoff data
+  ! check sim_start is after the last time step in runoff data
   if(startJulday>roJulday(nTime)) then
     call conv_julian2cal(roJulday(nTime), calendar, rofCal, ierr, cmessage)
     call conv_julian2cal(startJulday, calendar, simCal, ierr, cmessage)
-    write(iulog,'(2a)') new_line('a'),'ERROR: <sim_start> is after the first time step in input runoff'
+    write(iulog,'(2a)') new_line('a'),'ERROR: <sim_start> is after the last time step in input runoff'
     write(iulog,fmt1)  ' runoff_end  : ', rofCal%iy,'-',rofCal%im,'-',rofCal%id, rofCal%ih,':', rofCal%imin,':',rofCal%dsec
     write(iulog,fmt1)  ' <sim_start> : ', simCal%iy,'-',simCal%im,'-',simCal%id, simCal%ih,':', simCal%imin,':',simCal%dsec
     ierr=20; message=trim(message)//'check <sim_start> against runoff input time'; return
@@ -512,6 +533,22 @@ CONTAINS
     endJulday = roJulday(nTime)
   endif
 
+  ! check if the julian day of contacenated files do not have overlap or gap if nTime is larger than 1
+  if (nTime>1) then
+    ! allocate the difference array
+    allocate(roJulday_diff(nTime-1), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! calculate the difference of consequative time in julian day
+    roJulday_diff = roJulday (1:nTime-1) - roJulday (2:nTime)
+    ! check if the difference are identical otherwise error and terminate
+    do counter = 1, nTime-2
+      if ((abs(roJulday_diff(counter)-roJulday_diff(counter+1)))>verySmall) then
+        write(iulog,'(2a)') new_line('a'),'ERROR: contacenated netCDF files have time overlaps or gap'
+        ierr=20; message=trim(message)//'make sure the input netCDF files do not have time overlap or gap'; return
+      endif
+    enddo
+  endif
+
   ! fast forward time to time index at simStart and save iTime and modJulday
   do ix = 1, nTime
     modJulday = roJulday(ix)
@@ -522,6 +559,60 @@ CONTAINS
 
   ! initialize previous model time
   modTime(0) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
+
+  ! if one of the two flags are set it true
+  if ((is_flux_wm).or.(is_vol_wm.and.is_lake_sim)) then
+
+    ! get the number of the total time length of all the water management nc files
+    nFile_wm = size(infileinfo_data_wm)
+    nTime_wm = 0
+    do iFile=1,nFile_wm
+     nTime_wm = nTime_wm + infileinfo_data_wm(iFile)%nTime
+    enddo
+
+    ! Define time varialbes: roJulday_wm
+    allocate(roJulday_wm(nTime_wm), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! roJulday_wm: Julian day of concatenated netCDF for water management
+    counter = 1;
+    do iFile=1,nFile_wm
+      nt = infileinfo_data_wm(iFile)%nTime
+      roJulday_wm(counter:counter+nt-1) = &
+      infileinfo_data_wm(iFile)%timeVar(1:nt)/infileinfo_data_wm(iFile)%convTime2Days+infileinfo_data_wm(iFile)%ncrefjulday
+      counter = counter + infileinfo_data_wm(iFile)%nTime
+    enddo
+
+    ! check sim_start is after the last time step in water management data
+    if(startJulday>roJulday_wm(nTime_wm)) then
+      write(iulog,'(2a)') new_line('a'),'ERROR: <sim_start> is after the last time step in input runoff'
+      ierr=20; message=trim(message)//'check <sim_start> against water management input time'; return
+    endif
+
+    ! check sim_end is before the first time step in water management data
+    if(endJulday<roJulday_wm(1)) then
+      write(iulog,'(2a)') new_line('a'),'ERROR: <sim_end> is before the last time step in input runoff'
+      ierr=20; message=trim(message)//'check <sim_start> against water management input time'; return
+    endif
+
+    ! check if the julian day of contacenated files do not have overlap or gap if nTime_wm is larger than 1
+    if (nTime_wm>1) then
+      ! allocate the difference array
+      allocate(roJulday_diff_wm(nTime_wm-1), stat=ierr)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      ! calculate the difference of consequative time in julian day
+      roJulday_diff_wm = roJulday_wm (1:nTime_wm-1) - roJulday_wm (2:nTime_wm)
+      ! check if the difference are identical otherwise error and terminate
+      do counter = 1, nTime_wm-2
+        if ((abs(roJulday_diff_wm(counter)-roJulday_diff_wm(counter+1)))>verySmall) then
+          write(iulog,'(2a)') new_line('a'),'ERROR: water managmentcontacenated netCDF files have time overlaps or gap'
+          ierr=20; message=trim(message)//'make sure the water management input netCDF files do not have time overlap or gap'; return
+        endif
+      enddo
+    endif
+
+  endif
+
 
  ! Set restart calendar date/time and dropoff calendar date/time and
  ! -- For periodic restart options  ---------------------------------------------------------------------
@@ -637,11 +728,14 @@ CONTAINS
  USE public_var,  ONLY: fname_remap            ! name of runoff mapping netCDF name
  USE public_var,  ONLY: calendar               ! name of calendar
  USE public_var,  ONLY: time_units             ! time units
+ USE public_var,  ONLY: is_lake_sim            ! logical if lakes simulations are activated
  USE public_var,  ONLY: is_flux_wm             ! logical whether or not abstraction or injection should be read
  USE public_var,  ONLY: is_vol_wm              ! logical whether or not target volume should be read
  USE globalData,  ONLY: basinID                ! basin ID
+ USE globalData,  ONLY: reachID                ! reach ID
  USE dataTypes,   ONLY: remap                  ! remapping data type
  USE dataTypes,   ONLY: runoff                 ! runoff data type
+ USE dataTypes,   ONLY: wm                     ! wm data type
  USE read_runoff, ONLY: read_runoff_metadata   ! read meta data from runoff data
  USE read_remap,  ONLY: get_remap_data         ! read remap data
 
@@ -671,7 +765,11 @@ CONTAINS
                            dname_hruid,                        & ! input: dimension of varibale hru
                            dname_ylat,                         & ! input: dimension of lat
                            dname_xlon,                         & ! input: dimension of lon
-                           runoff_data_in,                     & ! output: runoff data structure
+                           runoff_data_in%nSpace,              & ! nSpace of the input in runoff or wm strcuture
+                           runoff_data_in%nTime,               & ! nTime of the input in runoff or wm strcuture
+                           runoff_data_in%sim,                 & ! 1D simulation
+                           runoff_data_in%sim2D,               & ! 2D simulation
+                           runoff_data_in%hru_id,              & ! ID of seg or hru in data
                            time_units, calendar,               & ! output: number of time steps, time units, calendar
                            ierr, cmessage)                       ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -749,30 +847,34 @@ CONTAINS
  endif
 
  ! is abstraction and injection flag is active
- if ((is_flux_wm).or.(is_vol_wm)) then
+ if ((is_flux_wm).or.((is_vol_wm).and.(is_lake_sim))) then
 
-   call read_runoff_metadata(trim(input_dir)//trim(fname_wm),    & ! input: filename
-                             vname_flux_wm,                      & ! input: varibale name for simulated runoff
-                             vname_time_wm,                      & ! input: varibale name for time
-                             dname_time_wm,                      & ! input: dimension of variable time
-                             vname_segid_wm,                     & ! input: varibale hruid
-                             dname_segid_wm,                     & ! input: dimension of varibale hru
-                             dname_ylat,                         & ! input: dimension of lat
-                             dname_xlon,                         & ! input: dimension of lon
-                             wm_data_in,                         & ! output: water management data structure
-                             time_units, calendar,               & ! output: number of time steps, time units, calendar
-                             ierr, cmessage)                       ! output: error control
+   call read_runoff_metadata(trim(input_dir)//trim(fname_wm),  & ! input: filename
+                             vname_flux_wm,                    & ! input: varibale name for simulated runoff
+                             vname_time_wm,                    & ! input: varibale name for time
+                             dname_time_wm,                    & ! input: dimension of variable time
+                             vname_segid_wm,                   & ! input: varibale hruid
+                             dname_segid_wm,                   & ! input: dimension of varibale hru
+                             dname_ylat,                       & ! input: dimension of lat
+                             dname_xlon,                       & ! input: dimension of lon
+                             wm_data_in%nSpace,                & ! nSpace of the input in runoff or wm strcuture
+                             wm_data_in%nTime,                 & ! nTime of the input in runoff or wm strcuture
+                             wm_data_in%sim,                   & ! 1D simulation
+                             wm_data_in%sim2D,                 & ! 2D simulation
+                             wm_data_in%seg_id,                & ! ID of seg or hru in data
+                             time_units, calendar,             & ! output: number of time steps, time units, calendar
+                             ierr, cmessage)                     ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! allocate the hru_ix based on number of hru_id presented in the
    allocate(wm_data_in%seg_ix(size(wm_data_in%seg_id)), stat=ierr)
    if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data_in%hru_ix'; return; endif
 
-   ! get indices of the HRU ids in the runoff file in the routing layer
+   ! get indices of the seg ids in the input file in the routing layer
    call get_qix(wm_data_in%seg_id,  &    ! input: vector of ids in mapping file
-                basinID,                &    ! input: vector of ids in the routing layer
+                reachID,            &    ! input: vector of ids in the routing layer
                 wm_data_in%seg_ix,  &    ! output: indices of hru ids in routing layer
-                ierr, cmessage)              ! output: error control
+                ierr, cmessage)          ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   endif

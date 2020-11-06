@@ -124,7 +124,7 @@ CONTAINS
    case('<dname_nhru>');           dname_nhru    = trim(cData)                     ! dimension name of the HRUs
    case('<dname_sseg>');           dname_sseg    = trim(cData)                     ! dimension name of the stream segments
    ! RUNOFF, EVAPORATION AND PRECIPITATION FILE
-   case('<fname_qsim>');           fname_qsim   = trim(cData)                      ! name of text file containing ordered nc file names
+   case('<fname_qsim>');           fname_qsim   = trim(cData)                      ! name of text file listing netcdf names. netCDF include runoff, evaporation and precipitation varialbes
    case('<vname_qsim>');           vname_qsim   = trim(cData)                      ! name of runoff variable
    case('<vname_evapo>');          vname_evapo  = trim(cData)                      ! name of actual evapoartion variable
    case('<vname_precip>');         vname_precip = trim(cData)                      ! name of precipitation variable
@@ -139,8 +139,8 @@ CONTAINS
    case('<input_fillvalue>');      read(cData,*,iostat=io_error) input_fillvalue   ! fillvalue used for input variable
    ! FLUXES TO/FROM REACHES AND LAKE STATES FILE
    case('<fname_wm>');             fname_wm        = trim(cData)                   ! name of text file containing ordered nc file names
-   case('<vname_flux>');           vname_flux_wm   = trim(cData)                   ! name of varibale for fluxes to and from seg (reachs/lakes)
-   case('<vname_vol>');            vname_vol_wm    = trim(cData)                   ! name of varibale for target volume for managed lakes
+   case('<vname_flux_wm>');        vname_flux_wm   = trim(cData)                   ! name of varibale for fluxes to and from seg (reachs/lakes)
+   case('<vname_vol_wm>');         vname_vol_wm    = trim(cData)                   ! name of varibale for target volume for managed lakes
    case('<vname_time_wm>');        vname_time_wm   = trim(cData)                   ! name of time variable
    case('<vname_segid_wm>');       vname_segid_wm  = trim(cData)                   ! name of the segid varibale in nc files
    case('<dname_time_wm>');        dname_time_wm   = trim(cData)                   ! name of time dimension

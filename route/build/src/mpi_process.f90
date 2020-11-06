@@ -712,10 +712,17 @@ contains
   USE globalData, ONLY: river_basin_trib    ! tributary OMP domain data structure
   USE globalData, ONLY: river_basin_main    ! mainstem OMP domain data structure
   USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
+  USE globalData, ONLY: flux_wm_main        ! nRch flux holder for mainstem
+  USE globalData, ONLY: flux_wm_trib        ! nRch flux holder for tributary
+  USE globalData, ONLY: vol_wm_main         ! nRch target vol holder for mainstem
+  USE globalData, ONLY: vol_wm_trib         ! nRch target vol holder for tributary
   USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc
   USE globalData, ONLY: tribOutlet_per_proc ! number of tributary outlets per proc (array size = nNodes)
   USE globalData, ONLY: global_ix_main      ! reach index at tributary reach outlets to mainstem (size = sum of tributary outlets in all the procs)
   USE globalData, ONLY: local_ix_comm       ! local reach index at tributary reach outlets to mainstem for each proc (size = sum of tributary outlets in proc)
+  USE public_var, ONLY: is_lake_sim         ! logical whether or not lake should be simulated
+  USE public_var, ONLY: is_flux_wm          ! logical whether or not fluxes should be passed
+  USE public_var, ONLY: is_vol_wm           ! logical whether or not target volume should be passed
   ! routing driver
   USE main_route_module, ONLY: main_route   ! routing driver
 
@@ -753,36 +760,163 @@ contains
   end if
 
   ! --------------------------------
-  ! distribute (scatter) global runoff array to local runoff arrays
+  ! distribute (scatter) global runoff, evaporation
+  ! and precipitation array to local runoff arrays
   !  - basinRunoff_main (only at master proc)
   !  - basinRunoff_trib (all procs)
+  !  - basinEvapo_main  (only at master proc)
+  !  - basinEvapo_trib  (all procs)
+  !  - basinPrecip_main (only at master proc)
+  !  - basinPrecip_trib (all procs)
   ! --------------------------------
   if (doesScatterRunoff) then
+
     call t_startf ('route/scatter-runoff')
     call scatter_runoff(nNodes, comm, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     call t_stopf ('route/scatter-runoff')
+
   else
+
     if (nNodes==1) then
+
       if (.not.allocated(basinRunoff_main)) then
         ierr=10; message=trim(message)//'master proc: mainstem runoff array is not allocated'; return
-      endif
+      end if
+      if (is_lake_sim) then
+        if (.not.allocated(basinEvapo_main)) then
+          ierr=10; message=trim(message)//'master proc: mainstem evaporation array is not allocated'; return
+        end if
+        if (.not.allocated(basinPrecip_main)) then
+          ierr=10; message=trim(message)//'master proc: mainstem precipitation array is not allocated'; return
+        end if
+      end if
+
     else
+
       if (masterproc) then
+
         write(iulog,*) 'NOTE: HRU Runoff is already decomposed into mainstems and tributaries. No need for scatter_runoff'
+
         if (nHRU_mainstem > 0 .and. .not.allocated(basinRunoff_main)) then
           ierr=10; message=trim(message)//'mainstem runoff array is not allocated/populated'; return
-        endif
+        end if
         if (.not.allocated(basinRunoff_trib)) then
           ierr=10; message=trim(message)//'master proc: tributary runoff array is not allocated'; return
-        endif
+        end if
+
+        if (is_lake_sim) then
+          if (nHRU_mainstem > 0 .and. .not.allocated(basinEvapo_main)) then
+            ierr=10; message=trim(message)//'mainstem evaporation array is not allocated/populated'; return
+          end if
+          if (.not.allocated(basinEvapo_trib)) then
+            ierr=10; message=trim(message)//'master proc: tributary evaporation array is not allocated'; return
+          end if
+          if (.not.allocated(basinPrecip_trib)) then
+            ierr=10; message=trim(message)//'master proc: tributary precipitation array is not allocated'; return
+          end if
+          if (nHRU_mainstem > 0 .and. .not.allocated(basinPrecip_main)) then
+            ierr=10; message=trim(message)//'mainstem precipitation array is not allocated/populated'; return
+          end if
+        end if
+
       else
+
         if(.not.allocated(basinRunoff_trib)) then
           ierr=10; message=trim(message)//'tributary runoff array is not allocated/populated'; return
         end if
+        if (is_lake_sim) then
+          if (.not.allocated(basinEvapo_trib)) then
+            ierr=10; message=trim(message)//'tributary evaporation array is not allocated/populated'; return
+          end if
+          if (.not.allocated(basinPrecip_trib)) then
+            ierr=10; message=trim(message)//'tributary precipitation array is not allocated/populated'; return
+          end if
+        end if
+
       end if
     end if
   end if
+
+
+  ! --------------------------------
+  ! distribute (scatter) water managemnt flux and
+  ! volume in the
+  !  - flux_wm_main (only at master proc)
+  !  - flux_wm_trib (all procs)
+  !  - vol_wm_main  (only at master proc)
+  !  - vol_wm_trib  (all procs)
+  ! --------------------------------
+
+  if (is_flux_wm.or.(is_vol_wm.and.is_lake_sim)) then
+
+    if (doesScatterRunoff) then
+
+      call t_startf ('route/scatter-wm')
+      call scatter_wm(nNodes, comm, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      call t_stopf ('route/scatter-wm')
+
+    else
+
+      if (nNodes==1) then
+
+        if (is_flux_wm) then
+          if (.not.allocated(flux_wm_main)) then
+            ierr=10; message=trim(message)//'master proc: mainstem water management flux array is not allocated'; return
+          end if
+        end if
+        if (is_vol_wm.and.is_lake_sim) then
+          if (.not.allocated(vol_wm_main)) then
+            ierr=10; message=trim(message)//'master proc: mainstem target volume array (for lakes) is not allocated'; return
+          end if
+        end if
+
+      else
+
+        if (masterproc) then
+
+          write(iulog,*) 'NOTE: reach flux and target volume are already decomposed into mainstems and tributaries. No need for scatter_wm'
+
+          if (is_flux_wm) then
+            if (nRch_mainstem > 0 .and. .not.allocated(flux_wm_main)) then
+              ierr=10; message=trim(message)//'mainstem water management flux array is not allocated/populated'; return
+            end if
+            if (.not.allocated(flux_wm_trib)) then
+              ierr=10; message=trim(message)//'master proc: tributary water management flux array is not allocated'; return
+            end if
+          end if
+
+          if (is_vol_wm.and.is_lake_sim) then
+            if (nRch_mainstem > 0 .and. .not.allocated(vol_wm_main)) then
+              ierr=10; message=trim(message)//'mainstem target volume array (for lakes) is not allocated/populated'; return
+            end if
+            if (.not.allocated(vol_wm_trib)) then
+              ierr=10; message=trim(message)//'master proc: tributary target volume array (for lakes) is not allocated'; return
+            end if
+          end if
+
+
+        else
+
+          if (is_flux_wm) then
+            if(.not.allocated(flux_wm_trib)) then
+              ierr=10; message=trim(message)//'tributary water management fluxes array is not allocated/populated'; return
+            end if
+          end if
+
+          if (is_vol_wm.and.is_lake_sim) then
+            if(.not.allocated(vol_wm_trib)) then
+              ierr=10; message=trim(message)//'tributary target volume array (for lakes) is not allocated/populated'; return
+            end if
+          end if
+
+        end if
+      end if
+    end if
+
+  end if
+
 
   ! --------------------------------
   ! Perform tributary routing (for all procs)
@@ -804,6 +938,8 @@ contains
                   basinRunoff_trib,  &  ! input: basin (i.e.,HRU) runoff (m/s)
                   basinEvapo_trib,   &  ! input: basin (i.e. HRU) Evapo  (m/s)
                   basinPrecip_trib,  &  ! input: basin (i.e. HRU) Precip (m/s)
+                  flux_wm_trib,      &  ! reach (i.e.,reach) flux (m3/s)
+                  vol_wm_trib,       &  ! reach (i.e.,reach) target volume for lakes (m3)
                   ixRchProcessed,    &  ! input: indices of reach to be routed
                   river_basin_trib,  &  ! input: OMP basin decomposition
                   NETOPO_trib,       &  ! input: reach topology data structure
@@ -882,6 +1018,8 @@ contains
                     basinRunoff_main,        &  ! input: basin (i.e.,HRU) runoff (m/s)
                     basinEvapo_main,         &  ! input: basin (i.e. HRU) Evapo  (m/s)
                     basinPrecip_main,        &  ! input: basin (i.e. HRU) Precip (m/s)
+                    flux_wm_main,            &  ! reach (i.e.,reach) flux (m3/s)
+                    vol_wm_main,             &  ! reach (i.e.,reach) target volume for lakes (m3)
                     ixRchProcessed,          &  ! input: indices of reach to be routed
                     river_basin_main,        &  ! input: OMP basin decomposition
                     NETOPO_main,             &  ! input: reach topology data structure
@@ -949,17 +1087,17 @@ contains
 
 
   ! input variables
-  integer(i4b),           intent(in)  :: nNodes                          ! number of processes (MPI)
-  integer(i4b),           intent(in)  :: comm                            ! communicator
+  integer(i4b),           intent(in)      :: nNodes                    ! number of processes (MPI)
+  integer(i4b),           intent(in)      :: comm                      ! communicator
   ! output variables
-  integer(i4b),           intent(out) :: ierr                            ! error code
-  character(len=strLen),  intent(out) :: message                         ! error message
+  integer(i4b),           intent(out)     :: ierr                      ! error code
+  character(len=strLen),  intent(out)     :: message                   ! error message
   ! local variables
-  integer(i4b)                        :: iHru,jHru                       ! loop indices
-  real(dp)                            :: basinRunoff_local(nHRU)         ! temporal basin runoff (m/s) for whole domain
-  real(dp)                            :: basinEvapo_local(nHRU)          ! temporal basin runoff (m/s) for whole domain
-  real(dp)                            :: basinPrecip_local(nHRU)         ! temporal basin runoff (m/s) for whole domain
-  character(len=strLen)               :: cmessage                        ! error message from a subroutine
+  integer(i4b)                            :: iHru,jHru                 ! loop indices
+  real(dp)                                :: basinRunoff_local(nHRU)   ! temporal basin runoff (m/s) for whole domain
+  real(dp)                                :: basinEvapo_local(nHRU)    ! temporal basin evaporation (m/s) for whole domain
+  real(dp)                                :: basinPrecip_local(nHRU)   ! temporal basin precipitation (m/s) for whole domain
+  character(len=strLen)                   :: cmessage                  ! error message from a subroutine
 
   ierr=0; message='scatter_runoff/'
 
@@ -1057,6 +1195,113 @@ contains
   end if
 
  END SUBROUTINE scatter_runoff
+
+
+ ! *********************************************************************
+ ! private subroutine: scatter global domain water management data to local domain
+ ! *********************************************************************
+ SUBROUTINE scatter_wm(nNodes, comm, &    ! mpi variables: number nodes, communicator
+                       ierr, message)     ! error controls
+
+  USE globalData, ONLY: nRch              ! number of all reach
+  USE globalData, ONLY: nRch_mainstem     ! number of mainstem reach
+  USE globalData, ONLY: wm_data           ! water management data structure
+  USE globalData, ONLY: rch_per_proc      ! number of reach assigned to each proc (i.e., node)
+  USE globalData, ONLY: flux_wm_main      ! nRch flux holder for mainstem
+  USE globalData, ONLY: flux_wm_trib      ! nRch flux holder for tributary
+  USE globalData, ONLY: vol_wm_main       ! nRch target vol holder for mainstem
+  USE globalData, ONLY: vol_wm_trib       ! nRch target vol holder for tributary
+  USE public_var, ONLY: is_lake_sim       ! logical whether or not fluxes should be passed
+  USE public_var, ONLY: is_flux_wm        ! logical whether or not fluxes should be passed
+  USE public_var, ONLY: is_vol_wm         ! logical whether or not target volume should be passed
+
+  ! input variables
+  integer(i4b),           intent(in)  :: nNodes                          ! number of processes (MPI)
+  integer(i4b),           intent(in)  :: comm                            ! communicator
+  ! output variables
+  integer(i4b),           intent(out) :: ierr                            ! error code
+  character(len=strLen),  intent(out) :: message                         ! error message
+  ! local variables
+  integer(i4b)                        :: iHru,jHru                       ! loop indices
+  real(dp)                            :: Rch_flux_local(nRch)            ! temporal reach flux (m3/s) for whole domain
+  real(dp)                            :: Rch_vol_local(nRch)             ! temporal reach (lake) volume (m3) for whole domain
+  character(len=strLen)               :: cmessage                        ! error message from a subroutine
+
+  ierr=0; message='scatter_runoff/'
+
+  if (nNodes==1) then
+
+    if (is_flux_wm) then
+
+      ! if only single proc is used, all fluxes are stored in mainstem runoff array
+      if (.not. allocated(flux_wm_main)) then
+        allocate(flux_wm_main(nRch), stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem allocating array for [flux_wm_main]'; return; endif
+      end if
+      flux_wm_main(:) = wm_data%flux_wm(:)
+
+    endif
+
+    if (is_vol_wm.and.is_lake_sim) then
+
+      ! if only single proc is used, all target volumes are stored in mainstem runoff array
+      if (.not. allocated(vol_wm_main)) then
+        allocate(vol_wm_main(nRch), stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem allocating array for [vol_wm_main]'; return; endif
+      end if
+      vol_wm_main(:) = wm_data%vol_wm(:)
+
+    endif
+
+  else
+
+    ! sort the reach flux, target vol in terms of nodes/domains
+    if (masterproc) then ! this is a root process
+
+      if (is_flux_wm) then
+        if (.not. allocated(flux_wm_main)) then
+          allocate(flux_wm_main(nRch_mainstem), stat=ierr)
+          if(ierr/=0)then; message=trim(message)//'problem allocating array for [flux_wm_main]'; return; endif
+        endif
+        ! flux or target vol at reach in mainstem and tributaries
+        Rch_flux_local(1:nRch) = wm_data%flux_wm(1:nRch)
+        flux_wm_main(1:nRch_mainstem) = Rch_flux_local(1:nRch_mainstem)
+      endif
+
+      if (is_vol_wm.and.is_lake_sim) then
+        if (.not. allocated(vol_wm_main)) then
+          allocate(vol_wm_main(nRch_mainstem), stat=ierr)
+          if(ierr/=0)then; message=trim(message)//'problem allocating array for [vol_wm_main]'; return; endif
+        endif
+        ! target vol at reach in mainstem and tributaries
+        Rch_vol_local(1:nRch) = wm_data%vol_wm(1:nRch)
+        vol_wm_main(1:nRch_mainstem) = Rch_vol_local(1:nRch_mainstem)
+      end if
+
+    end if
+
+    call shr_mpi_barrier(comm, message)
+
+    ! Distribute the read flux to each process
+    if (is_flux_wm) then
+      call shr_mpi_scatterV(Rch_flux_local(nRch_mainstem+1:nRch),  &
+                            rch_per_proc(0:nNodes-1),              &
+                            flux_wm_trib,                          &
+                            ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+    if (is_vol_wm.and.is_lake_sim) then
+      call shr_mpi_scatterV(Rch_vol_local(nRch_mainstem+1:nRch),   &
+                            rch_per_proc(0:nNodes-1),              &
+                            vol_wm_trib,                           &
+                            ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+  end if
+
+ END SUBROUTINE scatter_wm
 
  ! *********************************************************************
  ! subroutine: single flux communication

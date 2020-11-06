@@ -4,6 +4,9 @@ USE nrtype
 
 implicit none
 
+integer(i4b) :: iTime_local     ! time index at simulation time step for a given runoff file
+integer(i4b) :: iTime_local_wm  ! time index at simulation time step for a given water management file
+
 private
 
 public::get_hru_runoff
@@ -32,12 +35,10 @@ CONTAINS
   USE public_var,  ONLY:is_vol_wm               ! logical water management components target volume should be read
   USE globalData,  ONLY:basinID                 ! basin ID
   USE globalData,  ONLY:reachID                 ! reach ID
-  USE globalData,  ONLY:iTime_local             ! iTime index for the given netcdf file
-  USE globalData,  ONLY:iTime_local_wm          ! iTime index for the given netcdf file
   USE globalData,  ONLY:nHRU                    ! number of routing sub-basin
   USE globalData,  ONLY:nRch                    ! number of routing seg (reaches and lakes)
   USE globalData,  ONLY:runoff_data             ! data structure to hru runoff data
-  USE globalData,  ONLY:wm_data                 ! data structure to hru runoff data
+  USE globalData,  ONLY:wm_data                 ! data strcuture for water management
   USE globalData,  ONLY:remap_data              ! data structure to remap data
   ! subroutines
   USE read_runoff, ONLY:read_runoff_data        ! read runoff value into runoff_data data strucuture
@@ -61,7 +62,9 @@ CONTAINS
   call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
                         trim(vname_qsim),                  & ! input: varname
                         iTime_local,                       & ! input: time index
-                        runoff_data,                       & ! inout: runoff data structure
+                        runoff_data%nSpace,                & ! inout: runoff data structure
+                        runoff_data%sim,                   & ! inout: runoff data structure
+                        runoff_data%sim2D,                 & ! inout: runoff data structure
                         ierr, cmessage)                      ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -74,74 +77,136 @@ CONTAINS
 
   ! Get river network HRU runoff into runoff_data data structure
   if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
-   call remap_runoff(runoff_data, remap_data, runoff_data%basinRunoff, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call remap_runoff(runoff_data, remap_data, runoff_data%basinRunoff, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   else ! runoff is already remapped to river network HRUs
-   call sort_flux  (runoff_data%hru_id,         &
+    call sort_flux (runoff_data%hru_id,         &
                     runoff_data%hru_ix,         &
                     runoff_data%sim,            &
                     runoff_data%basinRunoff,    &
                     ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if
 
   if (is_lake_sim) then ! if is_lake_sim if true then read actual evaporation and preciptation
 
-   ! get the actual evaporation - runoff_data%sim(:) or %sim2D(:,:)
-   call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
-                         trim(vname_evapo),                 & ! input: varname
-                         iTime_local,                       & ! input: time index
-                         runoff_data,                       & ! inout: runoff data structure
-                         ierr, cmessage)                      ! output: error control
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   if ( allocated(runoff_data%basinEvapo) ) then
-     deallocate(runoff_data%basinEvapo, stat=ierr)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   end if
-   allocate(runoff_data%basinEvapo(nHRU), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   ! Get river network HRU runoff into runoff_data data structure
-   if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
-    call remap_runoff(runoff_data, remap_data, runoff_data%basinEvapo, ierr, cmessage)
+    ! get the actual evaporation - runoff_data%sim(:) or %sim2D(:,:)
+    call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
+                          trim(vname_evapo),                 & ! input: varname
+                          iTime_local,                       & ! input: time index
+                          runoff_data%nSpace,                & ! inout: runoff data structure
+                          runoff_data%sim,                   & ! inout: runoff data structure
+                          runoff_data%sim2D,                 & ! inout: runoff data structure
+                          ierr, cmessage)                      ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   else ! runoff is already remapped to river network HRUs
-    call sort_flux  (runoff_data%hru_id,        &
-                     runoff_data%hru_ix,        &
-                     runoff_data%sim,           &
-                     runoff_data%basinEvapo,    &
+
+    if ( allocated(runoff_data%basinEvapo) ) then
+      deallocate(runoff_data%basinEvapo, stat=ierr)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+    allocate(runoff_data%basinEvapo(nHRU), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! Get river network HRU runoff into runoff_data data structure
+    if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
+      call remap_runoff(runoff_data, remap_data, runoff_data%basinEvapo, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    else ! runoff is already remapped to river network HRUs
+      call sort_flux  (runoff_data%hru_id,        &
+                       runoff_data%hru_ix,        &
+                       runoff_data%sim,           &
+                       runoff_data%basinEvapo,    &
+                       ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+
+    ! get the precepitation - runoff_data%sim(:) or %sim2D(:,:)
+    call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
+                          trim(vname_precip),                & ! input: varname
+                          iTime_local,                       & ! input: time index
+                          runoff_data%nSpace,                & ! inout: runoff data structure
+                          runoff_data%sim,                   & ! inout: runoff data structure
+                          runoff_data%sim2D,                 & ! inout: runoff data structure
+                          ierr, cmessage)                      ! output: error control
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    if ( allocated(runoff_data%basinPrecip) ) then
+      deallocate(runoff_data%basinPrecip, stat=ierr)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+    allocate(runoff_data%basinPrecip(nHRU), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! Get river network HRU runoff into runoff_data data structure
+    if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
+      call remap_runoff(runoff_data, remap_data, runoff_data%basinPrecip, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    else ! runoff is already remapped to river network HRUs
+      call sort_flux  (runoff_data%hru_id,        &
+                       runoff_data%hru_ix,        &
+                       runoff_data%sim,           &
+                       runoff_data%basinPrecip,   &
+                       ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+  end if
+
+  ! reading the abstraction and subtraction to river segment
+  if (is_flux_wm) then
+
+    ! get the added or subtracted discharge from river segments
+    call read_runoff_data(trim(input_dir)//trim(fname_wm),   & ! input: filename
+                          trim(vname_flux_wm),               & ! input: varname
+                          iTime_local_wm,                    & ! input: time index
+                          wm_data%nSpace,                    & ! inout: runoff data structure
+                          wm_data%sim,                       & ! inout: runoff data structure
+                          wm_data%sim2D,                     & ! inout: runoff data structure
+                          ierr, cmessage)                      ! output: error control
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    if ( allocated(wm_data%flux_wm) ) then
+      deallocate(wm_data%flux_wm, stat=ierr)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+    allocate(wm_data%flux_wm(nRch), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! sorting the read_runoff into wm_data%flux_wm
+    call sort_flux  (wm_data%seg_id,        &
+                     wm_data%seg_ix,        &
+                     wm_data%sim,           &
+                     wm_data%flux_wm,       &
                      ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   end if
+  end if
 
-   ! get the precepitation - runoff_data%sim(:) or %sim2D(:,:)
-   call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
-                         trim(vname_precip),                & ! input: varname
-                         iTime_local,                       & ! input: time index
-                         runoff_data,                       & ! inout: runoff data structure
-                         ierr, cmessage)                      ! output: error control
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  ! reading the target volume for lakes if is_lake_sim is activated
+  if ((is_lake_sim).and.(is_vol_wm)) then
 
-   if ( allocated(runoff_data%basinPrecip) ) then
-    deallocate(runoff_data%basinPrecip, stat=ierr)
+    ! get the added or subtracted discharge from river segments
+    call read_runoff_data(trim(input_dir)//trim(fname_wm),   & ! input: filename
+                          trim(vname_vol_wm),                & ! input: varname
+                          iTime_local_wm,                    & ! input: time index
+                          wm_data%nSpace,                    & ! inout: runoff data structure
+                          wm_data%sim,                       & ! inout: runoff data structure
+                          wm_data%sim2D,                     & ! inout: runoff data structure
+                          ierr, cmessage)                      ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   end if
-   allocate(runoff_data%basinPrecip(nHRU), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! Get river network HRU runoff into runoff_data data structure
-   if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
-    call remap_runoff(runoff_data, remap_data, runoff_data%basinPrecip, ierr, cmessage)
+    if ( allocated(wm_data%vol_wm) ) then
+      deallocate(wm_data%vol_wm, stat=ierr)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+    allocate(wm_data%vol_wm(nRch), stat=ierr)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   else ! runoff is already remapped to river network HRUs
-    call sort_flux  (runoff_data%hru_id,        &
-                     runoff_data%hru_ix,        &
-                     runoff_data%sim,           &
-                     runoff_data%basinPrecip,   &
+
+    ! sorting the read_runoff into wm_data%vol_wm
+    call sort_flux  (wm_data%seg_id,        &
+                     wm_data%seg_ix,        &
+                     wm_data%sim,           &
+                     wm_data%vol_wm,        &
                      ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   end if
   end if
 
  END SUBROUTINE get_hru_runoff
@@ -155,13 +220,12 @@ CONTAINS
   ! Shared data
   USE public_var, ONLY: fname_qsim             ! simulated runoff netCDF name
   USE public_var, ONLY: fname_wm               ! water management netCDF name
+  USE public_var, ONLY: is_lake_sim            ! logical whether or not abstraction or injection should be read
   USE public_var, ONLY: is_flux_wm             ! logical whether or not abstraction or injection should be read
   USE public_var, ONLY: is_vol_wm              ! logical whether or not target volume should be read
   USE globalData, ONLY: iTime                  ! time index at simulation time step
   USE globalData, ONLY: infileinfo_data        ! the information of the input files for runoff, evapo and precip
   USE globalData, ONLY: infileinfo_data_wm     ! the information of the input files
-  USE globalData, ONLY: iTime_local            ! iTime index for the given netcdf file
-  USE globalData, ONLY: iTime_local_wm         ! iTime index for the given netcdf file
 
   implicit none
 
@@ -170,46 +234,37 @@ CONTAINS
   character(*),              intent(out)    :: message          ! error message
   ! local variable
   integer(i4b)                              :: ix
-  integer(i4b)                              :: counter          ! to check if both iTime_local are read properly
+  logical(lgt)                              :: wm_not_read_flag ! to turn false if there is a iTime_local_wn to be read
   !character(len=strLen)                    :: cmessage         ! error message
 
   ! initialize error control
-  ierr=0; message='infile_name/'; counter = 0 ;
+  ierr=0; message='infile_name/'; wm_not_read_flag = .true.
 
   ! fast forward time to time index at simStart and save iTime and modJulday
   ixloop: do ix = 1, size(infileinfo_data) !loop over number of file
    if ((iTime >= infileinfo_data(ix)%iTimebound(1)).and.(iTime <= infileinfo_data(ix)%iTimebound(2))) then
     iTime_local = iTime - infileinfo_data(ix)%iTimebound(1) + 1
     fname_qsim = trim(infileinfo_data(ix)%infilename)
-    counter = counter + 1
     exit ixloop
    endif
   enddo ixloop
 
   ! fast forward time to time index at simStart and save iTime and modJulday for water management nc file
-  if ((is_flux_wm).or.(is_vol_wm)) then
+  if ((is_flux_wm).or.(is_vol_wm.and.is_lake_sim)) then
     iyloop: do ix = 1, size(infileinfo_data_wm) !loop over number of file
      if ((iTime >= infileinfo_data_wm(ix)%iTimebound(1)).and.(iTime <= infileinfo_data_wm(ix)%iTimebound(2))) then
       iTime_local_wm = iTime - infileinfo_data_wm(ix)%iTimebound(1) + 1
       fname_wm = trim(infileinfo_data_wm(ix)%infilename)
-      counter = counter + 1
+      wm_not_read_flag = .false. ! file is read so the not read flag is turned false
       exit iyloop
      endif
     enddo iyloop
   endif
 
   ! check if the two files are identified in case is flux and vol flags are set to true
-  if ((counter /= 2).and.((is_flux_wm).or.(is_vol_wm))) then
-    ierr=20; message=trim(message)//'iTime local is out of bound for the netcdf file inputs based on given simulation time'; print*, ierr ; print*, message ; return ;
+  if ((wm_not_read_flag).and.((is_flux_wm).or.(is_vol_wm.and.is_lake_sim))) then
+    ierr=20; message=trim(message)//'iTime local is out of bound for the water management netcdf file inputs based on given simulation date and time in control file'; return ;
   endif
-
-  !print*, counter
-  !print*, ierr
-  !print*, message
-  !print*, infileinfo_data_wm(1)%iTimebound(1)
-  !print*, infileinfo_data_wm(1)%iTimebound(2)
-  !print*, infileinfo_data(1)%iTimebound(1)
-  !print*, infileinfo_data(1)%iTimebound(2)
 
  END SUBROUTINE infile_name
 

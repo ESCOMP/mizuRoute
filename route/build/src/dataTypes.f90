@@ -177,14 +177,15 @@ implicit none
  ! water management data; fluxes to/from reaches or target volume
  type, public :: wm
    integer(i4b)                            :: nTime           ! number of time steps
-   integer(i4b)                            :: nSpace          ! number of spatial dimension, in this case only one dimentonal
+   integer(i4b)                            :: nSpace(1:2)     ! number of spatial dimension, in this case only one dimentonal
    real(dp)                                :: time            ! time variable at one time step
    real(dp)                 , allocatable  :: sim(:)          ! user specified flux add/subtract, or volume at one time step (size: nSpace)
+   real(dp)                 , allocatable  :: sim2D(:,:)      ! to provide modularity for reading data
    integer(i4b)             , allocatable  :: seg_id(:)       ! id of reach in data (size: nSpace)
    integer(i4b)             , allocatable  :: seg_ix(:)       ! Index of river network reach IDs corresponding reach ID in data
    real(dp)                 , allocatable  :: flux_wm(:)      ! allocated flux to existing river network using sort_flux (size: number of nRCH)
    real(dp)                 , allocatable  :: vol_wm(:)       ! allocated target vol to existing river network using sort_flux (size: number of nRCH)
-end type
+ end type
 
  ! ---------- reach parameters ----------------------------------------------------------------------------
 
@@ -276,6 +277,8 @@ end type
   real(dp)                             :: REACH_Q_IRF       ! time-step average streamflow (m3/s) from IRF routing
   real(dp)                             :: UPSTREAM_QI       ! sum of upstream streamflow (m3/s)
   real(dp)                             :: REACH_VOL(0:1)    ! volume of water at previous and current time step [m3]
+  real(dp)                             :: REACH_WM_FLUX     ! water management fluxes to and from each reach
+  real(dp)                             :: REACH_WM_VOL      ! target volume from the second water management file (m3)
   real(dp)                             :: TAKE              ! average take
   logical(lgt)                         :: isRoute           ! .true. if the reach is routed
  END TYPE strflx
