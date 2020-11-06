@@ -95,6 +95,7 @@ module lake_route_module
     print*, 'lake param RATECVD .........= ', RPARAM_in(segIndex)%RATECVD
     print*, 'lake param RATECVE .........= ', RPARAM_in(segIndex)%RATECVE
     print*, 'lake param RATECVF .........= ', RPARAM_in(segIndex)%RATECVF
+    print*, 'lake target volum ..........= ', NETOPO_in(segIndex)%LakeTargVol
     print*, 'volume before simulation m3.= ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
     print*, 'upstream streamflow m3/s ...= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
     print*, 'upstream precipitation m3/s.= ', RCHFLX_out(iens,segIndex)%basinprecip

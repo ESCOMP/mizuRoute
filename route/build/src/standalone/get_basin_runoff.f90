@@ -33,6 +33,8 @@ CONTAINS
   USE public_var,  ONLY:is_lake_sim             ! logical lake should be simulated
   USE public_var,  ONLY:is_flux_wm              ! logical water management components fluxes should be read
   USE public_var,  ONLY:is_vol_wm               ! logical water management components target volume should be read
+  USE public_var,  ONLY:suppress_runoff         ! logical suppress the read runoff to zero (0)
+  USE public_var,  ONLY:suppress_P_Ep           ! logical suppress the read precipitation/evaporation to zero (0)
   USE globalData,  ONLY:basinID                 ! basin ID
   USE globalData,  ONLY:reachID                 ! reach ID
   USE globalData,  ONLY:nHRU                    ! number of routing sub-basin
@@ -86,6 +88,12 @@ CONTAINS
                     runoff_data%basinRunoff,    &
                     ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  ! suppressing the read runoff or precipitation and evaporation
+  ! this section can be merged with the upper section so that the
+  if (suppress_runoff) then
+    runoff_data%basinRunoff  = runoff_data%basinRunoff * 0.0
   end if
 
   if (is_lake_sim) then ! if is_lake_sim if true then read actual evaporation and preciptation
@@ -149,6 +157,14 @@ CONTAINS
                        ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     end if
+
+    ! suppressing the read runoff or precipitation and evaporation
+    ! this section can be merged with the upper section so that the
+    if (suppress_P_Ep) then
+      runoff_data%basinPrecip = runoff_data%basinPrecip * 0.0
+      runoff_data%basinEvapo  = runoff_data%basinEvapo * 0.0
+    end if
+
   end if
 
   ! reading the abstraction and subtraction to river segment

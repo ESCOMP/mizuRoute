@@ -96,6 +96,8 @@ module public_var
   logical(lgt),public             :: is_lake_sim          = .false.         ! logical if lakes are activated in simulation
   logical(lgt),public             :: is_flux_wm           = .false.         ! logical if flow is added or removed from a reach
   logical(lgt),public             :: is_vol_wm            = .false.         ! logical if target volume is considered for a lake
+  logical(lgt),public             :: suppress_runoff      = .false.         ! logical to suppress the read runoff to zero(0)
+  logical(lgt),public             :: suppress_P_Ep        = .false.         ! logical to suppress evaporation and precipitation to zero(0)
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
   logical(lgt)         ,public    :: ntopAugmentMode      = .false.         ! option for river network augmentation mode. terminate the program after writing augmented ntopo.

@@ -117,6 +117,8 @@ CONTAINS
    case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim       ! logical; lakes are simulated
    case('<is_flux_wm>');           read(cData,*,iostat=io_error) is_flux_wm        ! logical; provided fluxes to or from seg/lakes should be considered
    case('<is_vol_wm>');            read(cData,*,iostat=io_error) is_vol_wm         ! logical; provided target volume for managed lakes are considered
+   case('<suppress_runoff>');      read(cData,*,iostat=io_error) suppress_runoff   ! logical; suppress the read runoff to zero (0) no host model
+   case('<suppress_P_Ep>');        read(cData,*,iostat=io_error) suppress_P_Ep     ! logical; suppress the precipitation/evaporation to zero (0) no host model
    ! RIVER NETWORK TOPOLOGY
    case('<fname_ntopOld>');        fname_ntopOld = trim(cData)                     ! name of file containing stream network topology information
    case('<ntopAugmentMode>');      read(cData,*,iostat=io_error) ntopAugmentMode   ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
@@ -229,6 +231,7 @@ CONTAINS
    case('<varname_lakeIndex>'    ); meta_NTOPO  (ixNTOPO%lakeIndex     )%varName =trim(cData)  ! index of each lake in the river network
    case('<varname_isLakeInlet>'  ); meta_NTOPO  (ixNTOPO%isLakeInlet   )%varName =trim(cData)  ! flag to define if reach is a lake inlet (1=inlet, 0 otherwise)
    case('<varname_islake>'       ); meta_NTOPO  (ixNTOPO%islake        )%varName =trim(cData)  ! flag to define a lake (1=lake, 0=reach)
+   case('<varname_LakeTargVol>'  ); meta_NTOPO  (ixNTOPO%LakeTargVol   )%varName =trim(cData)  ! flag to follow the provided target volume (1=yes, 0=no)
    case('<varname_userTake>'     ); meta_NTOPO  (ixNTOPO%userTake      )%varName =trim(cData)  ! flag to define if user takes water from reach (1=extract, 0 otherwise)
    case('<varname_goodBasin>'    ); meta_NTOPO  (ixNTOPO%goodBasin     )%varName =trim(cData)  ! flag to define a good basin (1=good, 0=bad)
 

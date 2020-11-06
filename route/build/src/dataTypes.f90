@@ -209,31 +209,32 @@ implicit none
 
  ! River Network topology
  type, public :: RCHTOPO
-  integer(i4b)                               :: REACHIX  ! Reach index (1,2,...,nrch)
-  integer(i4b)                               :: REACHID  ! Reach ID (REC code)
-  real(dp)                                   :: RCHLAT1  ! Start latitude
-  real(dp)                                   :: RCHLAT2  ! End latitude
-  real(dp)                                   :: RCHLON1  ! Start longitude
-  real(dp)                                   :: RCHLON2  ! End longitude
-  integer(i4b)                               :: DREACHI  ! Immediate Downstream reach index
-  integer(i4b)                               :: DREACHK  ! Immediate Downstream reach ID
-  integer(i4b),dimension(:),allocatable      :: UREACHI  ! Immediate Upstream reach indices
-  integer(i4b),dimension(:),allocatable      :: UREACHK  ! Immediate Upstream reach IDs
-  integer(i4b),dimension(:),allocatable      :: RCHLIST  ! all upstream reach indices
-  integer(i4b),dimension(:),allocatable      :: HRUID    ! all contributing HRU IDs
-  integer(i4b),dimension(:),allocatable      :: HRUIX    ! all contributing HRU indices
-  real(dp),    dimension(:),allocatable      :: HRUWGT   ! areal weight for contributing HRUs
-  logical(lgt),dimension(:),allocatable      :: goodBas  ! Flag to denote a good basin
-  character(len=32),dimension(:),allocatable :: pfafCode ! pfafstetter code
-  integer(i4b)                               :: RHORDER  ! Processing sequence
-  real(dp)    ,dimension(:),allocatable      :: UH       ! Unit hydrograph for upstream
-  integer(i4b)                               :: LAKE_IX  ! Lake index (1,2,...,nlak)
-  integer(i4b)                               :: LAKE_ID  ! Lake ID (REC code)
-  real(dp)                                   :: BASULAK  ! Area of basin under lake
-  real(dp)                                   :: RCHULAK  ! Length of reach under lake
-  logical(lgt)                               :: LAKINLT  ! .TRUE. if reach is lake inlet, .FALSE. otherwise
-  logical(lgt)                               :: USRTAKE  ! .TRUE. if user takes from reach, .FALSE. otherwise
-  logical(lgt)                               :: ISLAKE   ! .TRUE. if the object is a reach the network topology should creat this flag
+  integer(i4b)                               :: REACHIX      ! Reach index (1,2,...,nrch)
+  integer(i4b)                               :: REACHID      ! Reach ID (REC code)
+  real(dp)                                   :: RCHLAT1      ! Start latitude
+  real(dp)                                   :: RCHLAT2      ! End latitude
+  real(dp)                                   :: RCHLON1      ! Start longitude
+  real(dp)                                   :: RCHLON2      ! End longitude
+  integer(i4b)                               :: DREACHI      ! Immediate Downstream reach index
+  integer(i4b)                               :: DREACHK      ! Immediate Downstream reach ID
+  integer(i4b),dimension(:),allocatable      :: UREACHI      ! Immediate Upstream reach indices
+  integer(i4b),dimension(:),allocatable      :: UREACHK      ! Immediate Upstream reach IDs
+  integer(i4b),dimension(:),allocatable      :: RCHLIST      ! all upstream reach indices
+  integer(i4b),dimension(:),allocatable      :: HRUID        ! all contributing HRU IDs
+  integer(i4b),dimension(:),allocatable      :: HRUIX        ! all contributing HRU indices
+  real(dp),    dimension(:),allocatable      :: HRUWGT       ! areal weight for contributing HRUs
+  logical(lgt),dimension(:),allocatable      :: goodBas      ! Flag to denote a good basin
+  character(len=32),dimension(:),allocatable :: pfafCode     ! pfafstetter code
+  integer(i4b)                               :: RHORDER      ! Processing sequence
+  real(dp)    ,dimension(:),allocatable      :: UH           ! Unit hydrograph for upstream
+  integer(i4b)                               :: LAKE_IX      ! Lake index (1,2,...,nlak)
+  integer(i4b)                               :: LAKE_ID      ! Lake ID (REC code)
+  real(dp)                                   :: BASULAK      ! Area of basin under lake
+  real(dp)                                   :: RCHULAK      ! Length of reach under lake
+  logical(lgt)                               :: LAKINLT      ! .TRUE. if reach is lake inlet, .FALSE. otherwise
+  logical(lgt)                               :: USRTAKE      ! .TRUE. if user takes from reach, .FALSE. otherwise
+  logical(lgt)                               :: ISLAKE       ! .TRUE. if the object is a lake
+  logical(lgt)                               :: LAKETARGVOL  ! .TRUE. if the lake follow a given target volume
  end type RCHTOPO
 
  ! ---------- reach states --------------------------------------------------------------------

@@ -148,6 +148,7 @@ contains
  meta_NTOPO  (ixNTOPO%userTake       ) = var_info('userTake'       , 'flag to define if user takes water (1=true)'        ,'-'    ,ixDims%seg   , .false.)
  meta_NTOPO  (ixNTOPO%goodBasin      ) = var_info('goodBasin'      , 'flag to define a good basin (1=true)'               ,'-'    ,ixDims%upSeg , .false.)
  meta_NTOPO  (ixNTOPO%islake         ) = var_info('islake'         , 'flag to define if the object is lake (1=true)'      ,'-'    ,ixDims%Seg   , .true.)
+ meta_NTOPO  (ixNTOPO%LakeTargVol    ) = var_info('LakeTargVol'    , 'flag to define if lake follow target Vol (1=true)'  ,'-'    ,ixDims%Seg   , .true.)
 
  ! PFAF CODE                                     varName        varDesc                                                varUnit, varType, varFile
  meta_PFAF  (ixPFAF%code             ) = var_info('code'           , 'pfafstetter code'                                   ,'-'    ,ixDims%seg   , .true.)
