@@ -889,7 +889,6 @@ contains
             ierr=10; message=trim(message)//'tributary precipitation array is not allocated/populated'; return
           end if
         end if
-
       end if
     end if
   end if
@@ -966,11 +965,9 @@ contains
               ierr=10; message=trim(message)//'tributary target volume array (for lakes) is not allocated/populated'; return
             end if
           end if
-
         end if
       end if
     end if
-
   end if
 
 

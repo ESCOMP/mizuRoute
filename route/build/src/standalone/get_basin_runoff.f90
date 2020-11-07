@@ -164,7 +164,6 @@ CONTAINS
       runoff_data%basinPrecip = runoff_data%basinPrecip * 0.0
       runoff_data%basinEvapo  = runoff_data%basinEvapo * 0.0
     end if
-
   end if
 
   ! reading the abstraction and subtraction to river segment
