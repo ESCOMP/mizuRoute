@@ -175,6 +175,7 @@ IO = \
 CORE = \
     accum_runoff.f90 \
     basinUH.f90 \
+    lake_route.f90 \
     irf_route.f90 \
     kwt_route.f90 \
     kwe_route.f90 \
