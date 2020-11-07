@@ -83,7 +83,8 @@ CONTAINS
                     RCHFLX_out,   &    ! inout: reach flux data structure
                     ierr, message)     ! output: error control
  ! External modules
- USE globalData, ONLY: FRAC_FUTURE
+ USE globalData, ONLY: FRAC_FUTURE     !
+ USE public_var, ONLY: is_lake_sim     ! logical whether or not lake should be simulated
  implicit none
  ! Input
  INTEGER(I4B), intent(IN)                 :: iEns           ! runoff ensemble to be routed
@@ -115,7 +116,7 @@ CONTAINS
 
    FRAC_FUTURE_local = FRAC_FUTURE
 
-   if (NETOPO_in(iSeg)%islake) then;
+   if ((NETOPO_in(iSeg)%islake).and.(is_lake_sim)) then;
      FRAC_FUTURE_local(:) = 0._dp
      FRAC_FUTURE_local(1) = 1._dp
    endif
