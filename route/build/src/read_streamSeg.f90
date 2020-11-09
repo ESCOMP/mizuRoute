@@ -149,6 +149,18 @@ contains
   meta_SEG(ixSEG%man_n)%varFile = .true.
  endif
 
+ ! set flags if we simulate lake and need lake parameters; was set to false in pop_metadata.f90
+ if(is_lake_sim)then
+  meta_NTOPO(ixNTOPO%islake)%varFile = .true.
+  meta_NTOPO(ixNTOPO%LakeTargVol)%varFile = .true.
+  meta_SEG(ixSEG%RATECVA)%varFile = .true.
+  meta_SEG(ixSEG%RATECVB)%varFile = .true.
+  meta_SEG(ixSEG%RATECVC)%varFile = .true.
+  meta_SEG(ixSEG%RATECVD)%varFile = .true.
+  meta_SEG(ixSEG%RATECVE)%varFile = .true.
+  meta_SEG(ixSEG%RATECVF)%varFile = .true.
+ endif
+
  ! loop through data structures
  write(iulog,'(2a)') new_line('a'), '---- Read river network data --- '
  do iStruct=1,nStructures
