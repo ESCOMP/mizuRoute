@@ -74,6 +74,16 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
        varname_segId = "segID"
        varname_downSegId = "toSegID"
        varname_pfafCode = "pCode"
+    elif (  config['rof_grid'] == "HDMA_CONUSmz" ):
+       fname_ntopOld = "ntopo_HDMAmz_0.125nldas2_cdf5_fill_reorder_c20200828.nc"
+       varname_area = "Basin_Area"
+       varname_length = "Length"
+       varname_slope  = "Slope"
+       varname_HRUid = "hruid"
+       varname_hruSegId = "hru_seg_id"
+       varname_segId = "seg_id"
+       varname_downSegId = "Tosegment"
+       varname_pfafCode = "PFAF"
     elif (  config['rof_grid'] == "USGS_GFmz" ):
        fname_ntopOld = "ntopo_USGS-GFmz_Conus_cdf5_c20201008.nc"
        varname_area = "Basin_Area"
