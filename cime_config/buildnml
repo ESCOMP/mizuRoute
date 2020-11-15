@@ -145,8 +145,6 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     ctl.set( "fname_ntopOld", fname_ntopOld )
     ctl.set( "dname_sseg", "seg" )
     ctl.set( "dname_nhru", "hru" )
-    ctl.set( "sim_start", run_start )
-    ctl.set( "sim_end", "2001-12-31" )
     ctl.set( "param_nml", "mizuRoute_in" )
     ctl.set( "varname_area", varname_area )
     ctl.set( "varname_length", varname_length )
