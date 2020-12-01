@@ -306,6 +306,8 @@ module remapping
     cycle
    endif
 
+   basinRunoff(jHRU) = 0._dp
+
    ! get the weighted average
    if(runoff_data_in%qsim(iHRU) > -xTol)then
      basinRunoff(jHRU) = runoff_data_in%qsim(iHRU)

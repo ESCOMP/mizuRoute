@@ -20,6 +20,8 @@ USE get_runoff        ,  only : get_hru_runoff   !
 USE write_simoutput,     only : prep_output      !
 USE write_simoutput,     only : output           !
 USE write_restart,       only : main_restart     ! write netcdf restart file
+USE model_finalize,      ONLY : finalize
+USE model_finalize,      ONLY : handle_err
 
 implicit none
 
@@ -100,20 +102,6 @@ write(*,"(A,1PG15.7,A)") '   elapsed-time [output] = ', elapsedTime, ' s'
 
 end do
 
-stop
-
-contains
-
- subroutine handle_err(err,message)
- ! handle error codes
- implicit none
- integer(i4b),intent(in)::err             ! error code
- character(*),intent(in)::message         ! error message
- if(err/=0)then
-  print*,'FATAL ERROR: '//trim(message)
-  call flush(6)
-  stop
- endif
- end subroutine handle_err
+call finalize()
 
 end program route_runoff

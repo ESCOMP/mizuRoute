@@ -120,7 +120,6 @@ CONTAINS
   USE globalData, ONLY: runoff_data    ! runoff data for one time step for LSM HRUs and River network HRUs
   USE globalData, ONLY: TSEC
   USE globalData, ONLY: reachID
-  USE globalData, ONLY: modTime           ! previous and current model time
 
   implicit none
 
@@ -131,12 +130,8 @@ CONTAINS
   real(dp)                             :: TSEC1, TSEC2
   character(len=strLen)                :: cmessage         ! error message of downwind routine
   character(len=strLen)                :: fnameRestart     ! name of the restart file name
-  character(len=50),parameter          :: fmtYMDHMS='(2a,I0.4,a,I0.2,a,I0.2,x,I0.2,a,I0.2,a,I0.2)'
 
   ierr=0; message='restart_output/'
-
-  write(iulog,fmtYMDHMS) new_line('a'),'Write restart file at ', &
-                         modTime(1)%year(),'-',modTime(1)%month(), '-', modTime(1)%day(), modTime(1)%hour(),':',modTime(1)%minute(),':',nint(modTime(1)%sec())
 
   call restart_fname(fnameRestart, nextTimeStep, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -183,6 +178,7 @@ CONTAINS
    type(datetime)                       :: timeStampCal     ! datetime corresponding to file name time stamp
    integer(i4b)                         :: sec_in_day       ! second within day
    character(len=50),parameter          :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
+   character(len=50),parameter          :: fmtYMDHMS='(2a,I0.4,a,I0.2,a,I0.2,x,I0.2,a,I0.2,a,I0.2)'
 
    ierr=0; message='restart_fname/'
 
@@ -191,6 +187,9 @@ CONTAINS
      case(nextTimeStep); timeStampCal = modTime(1)%add_sec(dt, calendar, ierr, cmessage)
      case default;       ierr=20; message=trim(message)//'time stamp option in restart filename: invalid -> 1: current time Step or 2: next time step'; return
    end select
+
+   write(iulog,fmtYMDHMS) new_line('a'),'Write restart file for ', &
+                          timeStampCal%year(),'-',timeStampCal%month(),'-',timeStampCal%day(),timeStampCal%hour(),':',timeStampCal%minute(),':',nint(timeStampCal%sec())
 
    sec_in_day = timeStampCal%hour()*60*60+timeStampCal%minute()*60+nint(timeStampCal%sec())
 
@@ -741,6 +740,7 @@ CONTAINS
   do iVar=1,nVarsIRF
    select case(iVar)
     case(ixIRF%qfuture); allocate(state(impulseResponseFunc)%var(iVar)%array_3d_dp(nSeg, ntdh_irf, nens), stat=ierr)
+    case(ixIRF%irfVol);  allocate(state(impulseResponseFunc)%var(iVar)%array_2d_dp(nSeg, nens), stat=ierr)
     case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
    end select
    if(ierr/=0)then; message1=trim(message1)//'problem allocating space for IRF routing state '//trim(meta_irf(iVar)%varName); return; endif
@@ -758,6 +758,8 @@ CONTAINS
       case(ixIRF%qfuture)
        state(impulseResponseFunc)%var(iVar)%array_3d_dp(iSeg,1:numQF(iens,iSeg),iens) = RCHFLX(iens,iSeg)%QFUTURE_IRF
        state(impulseResponseFunc)%var(iVar)%array_3d_dp(iSeg,numQF(iens,iSeg)+1:ntdh_irf,iens) = realMissing
+      case(ixIRF%irfVol)
+       state(impulseResponseFunc)%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX(iens,iSeg)%REACH_VOL(1)
       case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
      end select
 
@@ -774,6 +776,8 @@ CONTAINS
    select case(iVar)
     case(ixIRF%qfuture)
      call write_nc(ncid, trim(meta_irf(iVar)%varName), state(impulseResponseFunc)%var(iVar)%array_3d_dp, (/1,1,1,iTime/), (/nSeg,ntdh_irf,nens,1/), ierr, cmessage)
+    case(ixIRF%irfVol)
+     call write_nc(ncid, trim(meta_irf(iVar)%varName), state(impulseResponseFunc)%var(iVar)%array_2d_dp, (/1,1,iTime/), (/nSeg,nens,1/), ierr, cmessage)
     case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc writing'; return
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
    end select

@@ -33,7 +33,8 @@ CONTAINS
  !
  ! ----------------------------------------------------------------------------------------
 
- USE dataTypes,         ONLY: subbasin_omp   ! mainstem+tributary data structures
+ USE dataTypes,      ONLY: subbasin_omp   ! mainstem+tributary data structures
+ USE model_finalize, ONLY : handle_err
 
  implicit none
  ! input
@@ -100,7 +101,7 @@ CONTAINS
        if (.not. doRoute(jSeg)) cycle
 
        call accum_qupstream(iens, jSeg, ixDesire, NETOPO_in, RCHFLX_out, ierr, cmessage)
-       !if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
 
      end do
    end do
@@ -135,6 +136,7 @@ CONTAINS
  integer(i4b)                             :: nUps           ! number of upstream segment
  integer(i4b)                             :: iUps           ! upstream reach index
  integer(i4b)                             :: iRch_ups       ! index of upstream reach in NETOPO
+ character(len=strLen)                    :: fmt1,fmt2      ! format string
  character(len=strLen)                    :: cmessage       ! error message from subroutine
 
  ierr=0; message='accum_qupstream/'
@@ -157,11 +159,17 @@ CONTAINS
  endif
 
  ! check
- if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
-  print*, 'CHECK ACCUM_RUNOFF'
-  print*, ' UREACHK, uprflux = ', (NETOPO_in(segIndex)%UREACHK(iUps), RCHFLX_out(iens,NETOPO_in(segIndex)%UREACHI(iUps))%UPSTREAM_QI, iUps=1,nUps)
-  print*, ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1) = ', RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
-  print*, ' RCHFLX_out%UPSTREAM_QI = ', RCHFLX_out(iens,segIndex)%UPSTREAM_QI
+ if(segIndex == ixDesire)then
+   write(fmt1,'(A,I5,A)') '(A,1X',nUps,'(1X,I10))'
+   write(fmt2,'(A,I5,A)') '(A,1X',nUps,'(1X,F20.7))'
+   write(*,'(2a)') new_line('a'),'** Check upstream discharge accumulation **'
+   write(*,'(a,x,I10,x,I10)') ' Reach index & ID =', segIndex, NETOPO_in(segIndex)%REACHID
+   write(*,'(a)')             ' * upstream reach index (NETOPO_in%UREACH) and discharge (uprflux) [m3/s] :'
+   write(*,fmt1)              ' UREACHK =', (NETOPO_in(segIndex)%UREACHK(iUps), iUps=1,nUps)
+   write(*,fmt2)              ' prflux  =', (RCHFLX_out(iens,NETOPO_in(segIndex)%UREACHI(iUps))%UPSTREAM_QI, iUps=1,nUps)
+   write(*,'(a)')             ' * local area discharge (RCHFLX_out%BASIN_QR(1)) and final discharge (RCHFLX_out%UPSTREAM_QI) [m3/s] :'
+   write(*,'(a,x,F15.7)')     ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+   write(*,'(a,x,F15.7)')     ' RCHFLX_out%UPSTREAM_QI =', RCHFLX_out(iens,segIndex)%UPSTREAM_QI
  endif
 
  end subroutine accum_qupstream
