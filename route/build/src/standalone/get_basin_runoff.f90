@@ -257,6 +257,7 @@ CONTAINS
 
   ! fast forward time to time index at simStart and save iTime and modJulday
   ixloop: do ix = 1, size(infileinfo_data) !loop over number of file
+   !print*, 'runoff file', infileinfo_data(ix)%iTimebound(1), infileinfo_data(ix)%iTimebound(2)
    if ((iTime >= infileinfo_data(ix)%iTimebound(1)).and.(iTime <= infileinfo_data(ix)%iTimebound(2))) then
     iTime_local = iTime - infileinfo_data(ix)%iTimebound(1) + 1
     fname_qsim = trim(infileinfo_data(ix)%infilename)
@@ -264,9 +265,12 @@ CONTAINS
    endif
   enddo ixloop
 
+  !print*, 'itime, itime_local', iTime, iTime_local
+
   ! fast forward time to time index at simStart and save iTime and modJulday for water management nc file
   if ((is_flux_wm).or.(is_vol_wm.and.is_lake_sim)) then
     iyloop: do ix = 1, size(infileinfo_data_wm) !loop over number of file
+     !print*, 'wm file', infileinfo_data_wm(ix)%iTimebound(1), infileinfo_data_wm(ix)%iTimebound(2)
      if ((iTime >= infileinfo_data_wm(ix)%iTimebound(1)).and.(iTime <= infileinfo_data_wm(ix)%iTimebound(2))) then
       iTime_local_wm = iTime - infileinfo_data_wm(ix)%iTimebound(1) + 1
       fname_wm = trim(infileinfo_data_wm(ix)%infilename)
@@ -275,6 +279,8 @@ CONTAINS
      endif
     enddo iyloop
   endif
+
+    !print*, 'itime, itime_local_wm', iTime, iTime_local_wm
 
   ! check if the two files are identified in case is flux and vol flags are set to true
   if ((wm_not_read_flag).and.((is_flux_wm).or.(is_vol_wm.and.is_lake_sim))) then

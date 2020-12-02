@@ -87,19 +87,19 @@ module lake_route_module
     ! no runoff input is added to the lake; the input are only precipitation and evaporation to the lake
 
     ! if(NETOPO_in(segIndex)%REACHIX == ixDesire)then   ! uncommnet when the ixDesire is fixed and not -9999
-    print*, '------lake-simulation-------- '
-    print*, 'node id that is lake .......= ', NETOPO_in(segIndex)%REACHID ! to check the reach id of lake
-    print*, 'lake param RATECVA .........= ', RPARAM_in(segIndex)%RATECVA
-    print*, 'lake param RATECVB .........= ', RPARAM_in(segIndex)%RATECVB
-    print*, 'lake param RATECVC .........= ', RPARAM_in(segIndex)%RATECVC
-    print*, 'lake param RATECVD .........= ', RPARAM_in(segIndex)%RATECVD
-    print*, 'lake param RATECVE .........= ', RPARAM_in(segIndex)%RATECVE
-    print*, 'lake param RATECVF .........= ', RPARAM_in(segIndex)%RATECVF
-    print*, 'lake target volum ..........= ', NETOPO_in(segIndex)%LakeTargVol
-    print*, 'volume before simulation m3.= ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
-    print*, 'upstream streamflow m3/s ...= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
-    print*, 'upstream precipitation m3/s.= ', RCHFLX_out(iens,segIndex)%basinprecip
-    print*, 'upstream evaporation m3/s ..= ', RCHFLX_out(iens,segIndex)%basinevapo
+    !print*, '------lake-simulation-------- '
+    !print*, 'node id that is lake .......= ', NETOPO_in(segIndex)%REACHID ! to check the reach id of lake
+    !print*, 'lake param RATECVA .........= ', RPARAM_in(segIndex)%RATECVA
+    !print*, 'lake param RATECVB .........= ', RPARAM_in(segIndex)%RATECVB
+    !print*, 'lake param RATECVC .........= ', RPARAM_in(segIndex)%RATECVC
+    !print*, 'lake param RATECVD .........= ', RPARAM_in(segIndex)%RATECVD
+    !print*, 'lake param RATECVE .........= ', RPARAM_in(segIndex)%RATECVE
+    !print*, 'lake param RATECVF .........= ', RPARAM_in(segIndex)%RATECVF
+    !print*, 'lake target volum ..........= ', NETOPO_in(segIndex)%LakeTargVol
+    !print*, 'volume before simulation m3.= ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
+    !print*, 'upstream streamflow m3/s ...= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
+    !print*, 'upstream precipitation m3/s.= ', RCHFLX_out(iens,segIndex)%basinprecip
+    !print*, 'upstream evaporation m3/s ..= ', RCHFLX_out(iens,segIndex)%basinevapo
     ! endif
 
 
@@ -108,7 +108,7 @@ module lake_route_module
     RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) + q_upstream * dt  ! input upstream discharge from m3/s to m3
     RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) + RCHFLX_out(iens,segIndex)%basinprecip * dt ! input lake precipitation
     RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%basinevapo * dt ! output lake evaporaiton
-    if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) .LT. 0) then; ! to avoid negative lake volume
+    if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) < 0) then; ! to avoid negative lake volume
        RCHFLX_out(iens,segIndex)%REACH_VOL(1)=0
     endif
 
@@ -121,6 +121,8 @@ module lake_route_module
         RCHFLX_out(iens,segIndex)%REACH_Q_IRF = (RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_WM_VOL) /dt
         RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_WM_VOL
       endif
+
+      print*, "inside the lake follow target", RCHFLX_out(iens,segIndex)%REACH_WM_VOL, RCHFLX_out(iens,segIndex)%REACH_VOL(1)
 
     else ! if the lake is paraemteric
 
@@ -142,10 +144,10 @@ module lake_route_module
     - RCHFLX_out(iens,segIndex)%basinevapo * dt - (RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_VOL(0))
 
     !if(NETOPO_in(segIndex)%REACHIX == ixDesire)then    ! uncommnet when the ixDesire is fixed and not -9999
-    print*, 'lake simulated output m3/s .= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
-    print*, 'volume after simulation m3 .= ', RCHFLX_out(iens,segIndex)%REACH_VOL(1)
+    !print*, 'lake simulated output m3/s .= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
+    !print*, 'volume after simulation m3 .= ', RCHFLX_out(iens,segIndex)%REACH_VOL(1)
     !print*, 'read target volume     m3 .= ', RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
-    print*, 'water balance error ........= ', WB
+    !print*, 'water balance error ........= ', WB
     !endif
 
     if(lakeWBTol<WB)then;
