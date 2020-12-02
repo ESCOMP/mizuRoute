@@ -346,8 +346,8 @@ CONTAINS
   t_unit = trim( time_units(1:index(time_units,' ')) )
   select case( trim(t_unit) )
    case('seconds','second','sec','s'); convTime2sec=1._dp
-   case('minutes','minute','min');     convTime2sec=24._dp
-   case('hours','hour','hr','h');      convTime2sec=1440._dp
+   case('minutes','minute','min');     convTime2sec=60._dp
+   case('hours','hour','hr','h');      convTime2sec=3600._dp
    case('days','day','d');             convTime2sec=86400._dp
    case default
      ierr=20; message=trim(message)//'<time_units>= '//trim(t_unit)//': <time_units> must be seconds, minutes, hours or days.'; return

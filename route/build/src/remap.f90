@@ -296,6 +296,9 @@ module remapping
 
   ierr=0; message="sort_runoff/"
 
+  ! initialize zero at all the River network HRUs
+  basinRunoff(:) = 0._dp
+
   ! loop through hrus in the runoff layer
   do iHRU=1,size(runoff_data_in%hru_ix)
 
@@ -305,8 +308,6 @@ module remapping
    if(jHRU==integerMissing)then
     cycle
    endif
-
-   basinRunoff(jHRU) = 0._dp
 
    ! get the weighted average
    if(runoff_data_in%qsim(iHRU) > -xTol)then
