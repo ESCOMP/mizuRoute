@@ -302,6 +302,9 @@ module remapping
 
   end do   ! looping through basins in the mapping layer
 
+  ! removing the negative values and also the realmissing
+  where (sorted_flux <0._dp) sorted_flux = 0._dp
+
   end subroutine sort_flux
 
   ! *****

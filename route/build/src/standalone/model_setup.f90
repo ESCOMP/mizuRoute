@@ -322,7 +322,7 @@ CONTAINS
  ! private subroutine: to synchronize the iTimebound of
  ! the inputfileinfo_wm to match the inputfileinfo
  ! *********************************************************************
- SUBROUTINE inFile_sync_time(inputfileinfo,      & ! input: the structure of simulated runoff, evapo and
+  SUBROUTINE inFile_sync_time(inputfileinfo,      & ! input: the structure of simulated runoff, evapo and
                              inputfileinfo_wm,   & ! inout: input file information
                              ierr, message)        ! output: error control
 
@@ -349,7 +349,7 @@ CONTAINS
   integer(i4b)                                      :: nFile             ! number of nc files for the simulated runoff
   integer(i4b)                                      :: nFile_wm          ! number of nc files for the water managent
   integer(i4b)                                      :: iFile             ! for loop over the nc files
-  real(dp)                                          :: refJulday_local   ! the reference julian day based on the first nc file
+  real(dp)                                          :: day_runoff_start  ! the Julian day that runoff starts
   real(dp)                                          :: day_start_diff    ! conversion of the day to the local time
   real(dp)                                          :: day_end_diff      ! conversion of the day to the local time
 
@@ -358,16 +358,16 @@ CONTAINS
   ierr=0; message='inFile_sync_time/'
 
   ! set the reference julday based on the first nc file of simulation
-  refJulday_local     = inputfileinfo(1)%ncrefjulday
   nFile               = size(inputfileinfo)
   nFile_wm            = size(inputfileinfo_wm)
+  day_runoff_start    = inputfileinfo(1)%timeVar(1)/inputfileinfo(1)%convTime2Days+inputfileinfo(1)%ncrefjulday
 
   do iFile=1,nFile_wm
 
     nt = inputfileinfo_wm(iFile)%nTime ! get the number of time
 
-    day_start_diff = inputfileinfo_wm(iFile)%timeVar(1) /inputfileinfo_wm(iFile)%convTime2Days+inputfileinfo_wm(iFile)%ncrefjulday - refJulday_local
-    day_end_diff   = inputfileinfo_wm(iFile)%timeVar(nt)/inputfileinfo_wm(iFile)%convTime2Days+inputfileinfo_wm(iFile)%ncrefjulday - refJulday_local
+    day_start_diff = inputfileinfo_wm(iFile)%timeVar(1) /inputfileinfo_wm(iFile)%convTime2Days+inputfileinfo_wm(iFile)%ncrefjulday - day_runoff_start
+    day_end_diff   = inputfileinfo_wm(iFile)%timeVar(nt)/inputfileinfo_wm(iFile)%convTime2Days+inputfileinfo_wm(iFile)%ncrefjulday - day_runoff_start
 
     inputfileinfo_wm(iFile)%iTimebound(1) = day_start_diff * secprday/dt + 1 ! to convert the day difference into time step difference
     inputfileinfo_wm(iFile)%iTimebound(2) = day_end_diff   * secprday/dt + 1 ! to convert the day difference into time step difference
