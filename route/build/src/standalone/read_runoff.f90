@@ -354,7 +354,7 @@ contains
  where ( abs(dummy - input_fillvalue) < verySmall ) dummy = realMissing
 
  ! replacing the negative values
- where ( dummy < verySmall) dummy = 0._dp
+ !where ( dummy < verySmall) dummy = 0._dp
 
  ! reshape
  sim(1:nSpace) = dummy(1:nSpace,1)
@@ -409,7 +409,7 @@ contains
  where ( abs(dummy - input_fillvalue) < verySmall ) dummy = realMissing
 
  ! replace the negative values with zero
- where ( dummy < verySmall ) dummy = 0._dp
+ !where ( dummy < verySmall ) dummy = 0._dp
 
  ! reshape
  sim2d(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)

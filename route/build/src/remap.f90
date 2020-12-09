@@ -302,6 +302,8 @@ module remapping
 
   end do   ! looping through basins in the mapping layer
 
+  where (sorted_flux <0) sorted_flux = 0._dp
+
   end subroutine sort_flux
 
   ! *****
