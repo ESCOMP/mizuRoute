@@ -138,24 +138,26 @@ contains
                                    ierr, message)     ! output: error control
  implicit none
  ! input variables
- character(*), intent(in)          :: fname           ! filename
- character(*), intent(in)          :: var_time_name   ! name of the varibale time
- character(*), intent(in)          :: dim_time_name   ! name of dimension for time
- character(*), intent(in)          :: var_hru_name    ! name of the varibale hru
- character(*), intent(in)          :: dim_hru_name    ! name of dimension for hydrological HRUs
+ character(*),               intent(in)          :: fname           ! filename
+ character(*),               intent(in)          :: var_time_name   ! name of the varibale time
+ character(*),               intent(in)          :: dim_time_name   ! name of dimension for time
+ character(*),               intent(in)          :: var_hru_name    ! name of the varibale hru
+ character(*),               intent(in)          :: dim_hru_name    ! name of dimension for hydrological HRUs
  ! output variables
- integer(i4b), intent(out)         :: nSpace(1:2)          ! nSpace of the input in runoff or wm strcuture
- integer(i4b), intent(out)         :: nTime           ! nTime of the input in runoff or wm strcuture
- real(dp), allocatable,    intent(out)         :: sim(:)         ! 1D simulation
- real(dp),  allocatable,   intent(out)         :: sim2D(:,:)         ! 2D simulation
- integer(i4b), allocatable, intent(out)         :: ID_array(:)       ! ID of seg or hru in data
- character(*), intent(out)         :: timeUnits       ! time units
- character(*), intent(out)         :: calendar        ! calendar
+ integer(i4b),               intent(out)         :: nSpace(1:2)     ! nSpace of the input in runoff or wm strcuture
+ integer(i4b),               intent(out)         :: nTime           ! nTime of the input in runoff or wm strcuture
+ real(dp),     allocatable,  intent(out)         :: sim(:)          ! 1D simulation
+ real(dp),     allocatable,  intent(out)         :: sim2D(:,:)      ! 2D simulation
+ integer(i4b), allocatable,  intent(out)         :: ID_array(:)     ! ID of seg or hru in data
+ character(*),               intent(out)         :: timeUnits       ! time units
+ character(*),               intent(out)         :: calendar        ! calendar
  ! error control
- integer(i4b), intent(out)         :: ierr            ! error code
- character(*), intent(out)         :: message         ! error message
+ integer(i4b),               intent(out)         :: ierr            ! error code
+ character(*),               intent(out)         :: message         ! error message
  ! local variables
- character(len=strLen)             :: cmessage        ! error message from subroutine
+ character(len=strLen)                           :: cmessage        ! error message from subroutine
+
+
  ! initialize error control
  ierr=0; message='read_1D_runoff_metadata/'
 
@@ -217,24 +219,26 @@ contains
                                     ierr, message)     ! output: error control
  implicit none
  ! input variables
- character(*), intent(in)           :: fname           ! filename
- character(*), intent(in)           :: var_time_name   ! name of the varibale time
- character(*), intent(in)           :: dim_time_name   ! name of dimension for time
- character(*), intent(in)           :: dim_ylat_name   ! name of dimension along lat
- character(*), intent(in)           :: dim_xlon_name   ! name of dimension along lon
+ character(*),                  intent(in)   :: fname           ! filename
+ character(*),                  intent(in)   :: var_time_name   ! name of the varibale time
+ character(*),                  intent(in)   :: dim_time_name   ! name of dimension for time
+ character(*),                  intent(in)   :: dim_ylat_name   ! name of dimension along lat
+ character(*),                  intent(in)   :: dim_xlon_name   ! name of dimension along lon
  ! output variables
- integer(i4b), intent(out)          :: nSpace(1:2)          ! nSpace of the input in runoff or wm strcuture
- integer(i4b), intent(out)          :: nTime           ! nTime of the input in runoff or wm strcuture
- real(dp), allocatable,     intent(out)          :: sim(:)         ! 1D simulation
- real(dp), allocatable,     intent(out)          :: sim2D(:,:)      ! 2D simulation
- integer(i4b), allocatable, intent(out)          :: ID_array(:)        ! ID of seg or hru in data
- character(*), intent(out)          :: timeUnits       ! time units
- character(*), intent(out)          :: calendar        ! calendar
+ integer(i4b),                  intent(out)  :: nSpace(1:2)     ! nSpace of the input in runoff or wm strcuture
+ integer(i4b),                  intent(out)  :: nTime           ! nTime of the input in runoff or wm strcuture
+ real(dp),     allocatable,     intent(out)  :: sim(:)          ! 1D simulation
+ real(dp),     allocatable,     intent(out)  :: sim2D(:,:)      ! 2D simulation
+ integer(i4b), allocatable,     intent(out)  :: ID_array(:)     ! ID of seg or hru in data
+ character(*),                  intent(out)  :: timeUnits       ! time units
+ character(*),                  intent(out)  :: calendar        ! calendar
  ! error control
- integer(i4b), intent(out)          :: ierr            ! error code
- character(*), intent(out)          :: message         ! error message
+ integer(i4b),                  intent(out)  :: ierr            ! error code
+ character(*),                  intent(out)  :: message         ! error message
  ! local variables
- character(len=strLen)              :: cmessage        ! error message from subroutine
+ character(len=strLen)                       :: cmessage        ! error message from subroutine
+
+
  ! initialize error control
  ierr=0; message='read_2D_runoff_metadata/'
 
@@ -353,9 +357,6 @@ contains
  ! replace _fill_value with -999 for dummy
  where ( abs(dummy - input_fillvalue) < verySmall ) dummy = realMissing
 
- ! replacing the negative values
- !where ( dummy < verySmall) dummy = 0._dp
-
  ! reshape
  sim(1:nSpace) = dummy(1:nSpace,1)
 
@@ -407,9 +408,6 @@ contains
 
  ! replace _fill_value with -999 for dummy
  where ( abs(dummy - input_fillvalue) < verySmall ) dummy = realMissing
-
- ! replace the negative values with zero
- !where ( dummy < verySmall ) dummy = 0._dp
 
  ! reshape
  sim2d(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)
