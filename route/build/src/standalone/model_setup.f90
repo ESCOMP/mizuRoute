@@ -322,7 +322,7 @@ CONTAINS
  ! private subroutine: to synchronize the iTimebound of
  ! the inputfileinfo_wm to match the inputfileinfo
  ! *********************************************************************
-  SUBROUTINE inFile_sync_time(inputfileinfo,      & ! input: the structure of simulated runoff, evapo and
+ SUBROUTINE inFile_sync_time(inputfileinfo,      & ! input: the structure of simulated runoff, evapo and
                              inputfileinfo_wm,   & ! inout: input file information
                              ierr, message)        ! output: error control
 
