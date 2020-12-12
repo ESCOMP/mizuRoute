@@ -92,6 +92,7 @@ contains
  integer(i4b), intent(out)               :: ierr            ! error code
  character(*), intent(out)               :: message         ! error message
  ! local variables
+ logical(lgt)                            :: existFillVal
  character(len=strLen)                   :: cmessage        ! error message from subroutine
 
  ierr=0; message='read_1D_runoff_metadata/'
@@ -116,6 +117,18 @@ contains
  if (trim(calendar) == charMissing) then
    call get_var_attr(ncidRunoff, trim(vname_time), 'calendar', calendar, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
+ ! get the _fill_values for runoff variable
+ if (.not.userRunoffFillvalue) then
+   existFillVal = check_attr(ncidRunoff, vname_qsim, '_FillValue')
+   if (existFillVal) then
+     call get_var_attr(ncidRunoff, vname_qsim, '_FillValue', ro_fillvalue, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   else
+     write(iulog,'(a)')        'WARNING: User did not provide runoff fillvalue in control file nor runoff netcdf does not have fillvalue in attribute.'
+     write(iulog,'(a,x,F8.1)') '         Default missing values used is', ro_fillvalue
+   end if
  end if
 
  ! allocate space for hru_id
@@ -151,6 +164,7 @@ contains
  integer(i4b), intent(out)               :: ierr            ! error code
  character(*), intent(out)               :: message         ! error message
  ! local variables
+ logical(lgt)                            :: existFillVal
  character(len=strLen)                   :: cmessage        ! error message from subroutine
  ! initialize error control
  ierr=0; message='read_2D_runoff_metadata/'
@@ -169,6 +183,18 @@ contains
  if (trim(calendar) == charMissing) then
    call get_var_attr(ncidRunoff, trim(vname_time), 'calendar', calendar, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
+ ! get the _fill_values for runoff variable
+ if (.not.userRunoffFillvalue) then
+   existFillVal = check_attr(ncidRunoff, vname_qsim, '_FillValue')
+   if (existFillVal) then
+     call get_var_attr(ncidRunoff, vname_qsim, '_FillValue', ro_fillvalue, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   else
+     write(iulog,'(a)')        'WARNING: User did not provide runoff fillvalue in control file nor runoff netcdf does not have fillvalue attribute.'
+     write(iulog,'(a,x,F8.1)') '         Default missing values used is', ro_fillvalue
+   end if
  end if
 
  ! get size of ylat dimension
@@ -245,7 +271,6 @@ contains
  ! local variables
  integer(i4b)                  :: iStart(2)
  integer(i4b)                  :: iCount(2)
- logical(lgt)                  :: existFillVal
  real(dp)                      :: dummy(nSpace,1)    ! data read
  character(len=strLen)         :: cmessage           ! error message from subroutine
 
@@ -261,13 +286,6 @@ contains
  iCount = [nSpace,1]
  call get_nc(ncidRunoff, vname_qsim, dummy, iStart, iCount, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ! get the _fill_values for runoff variable if exist
- existFillVal = check_attr(ncidRunoff, vname_qsim, '_FillValue')
- if (existFillval) then
-   call get_var_attr(ncidRunoff, vname_qsim, '_FillValue', ro_fillvalue, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- end if
 
  ! replace _fill_value with -999 for dummy
  where ( abs(dummy - ro_fillvalue) < verySmall ) dummy = realMissing
@@ -296,7 +314,6 @@ contains
  integer(i4b), intent(out)   :: ierr             ! error code
  character(*), intent(out)   :: message          ! error message
  ! local variables
- logical(lgt)                :: existFillVal
  integer(i4b)                :: iStart(3)
  integer(i4b)                :: iCount(3)
  real(dp)                    :: dummy(nSpace(2),nSpace(1),1) ! data read
@@ -313,13 +330,6 @@ contains
  iCount = [nSpace(2),nSpace(1),1]
  call get_nc(ncidRunoff, vname_qsim, dummy, iStart, iCount, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ! get the _fill_values for runoff variable
- existFillVal = check_attr(ncidRunoff, vname_qsim, '_FillValue')
- if (existFillval) then
-   call get_var_attr(ncidRunoff, vname_qsim, '_FillValue', ro_fillvalue, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- end if
 
  ! replace _fill_value with -999. for dummy
  where ( abs(dummy - ro_fillvalue) < verySmall ) dummy = realMissing

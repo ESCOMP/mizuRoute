@@ -121,7 +121,9 @@ contains
    case('<dname_ylat>');           dname_ylat   = trim(cData)                      ! name of y (i,lat) dimension
    case('<units_qsim>');           units_qsim   = trim(cData)                      ! units of runoff
    case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                ! time interval of the gridded runoff
-   case('<ro_fillvalue>');         read(cData,*,iostat=io_error) ro_fillvalue      ! fillvalue used for runoff depth variable
+   case('<ro_fillvalue>')
+                                   read(cData,*,iostat=io_error) ro_fillvalue      ! fillvalue used for runoff depth variable
+                                   userRunoffFillvalue = .true.                    ! true -> runoff depth fillvalue used in netcdf is specified here, otherwise -> false
    ! RUNOFF REMAPPING
    case('<is_remap>');             read(cData,*,iostat=io_error) is_remap          ! logical whether or not runnoff needs to be mapped to river network HRU
    case('<fname_remap>');          fname_remap          = trim(cData)              ! name of runoff mapping netCDF
