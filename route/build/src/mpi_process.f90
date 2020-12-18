@@ -51,6 +51,8 @@ integer(i4b),parameter  :: tributary=2
 integer(i4b),parameter  :: endorheic=3
 
 logical(lgt), parameter :: debug_mpi=.false.
+logical(lgt), parameter :: debug_trib_omp=.false.
+logical(lgt), parameter :: debug_main_omp=.false.
 
 private
 
@@ -359,15 +361,18 @@ contains
     call omp_domain_decomposition(upstream_size, rch_per_proc(pid), structNTOPO_local, river_basin_trib, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    !if (pid==2) then
-    !  do ix =1,size(river_basin_trib)
-    !    do ixx = 1, size(river_basin_trib(ix)%branch)
-    !      do iSeg = 1, river_basin_trib(ix)%branch(ixx)%nRch
-    !        print*, structNTOPO_local(river_basin_trib(ix)%branch(ixx)%segIndex(iSeg))%var(ixNTOPO%segId)%dat(1), ix, ixx
-    !      enddo
-    !    enddo
-    !  enddo
-    !endif
+    if (debug_trib_omp .and. pid==3) then
+      write(iulog,'(a)') 'segid, branch, order'
+      do ix =1,size(river_basin_trib)
+        do ixx = 1, size(river_basin_trib(ix)%branch)
+          do iSeg = 1, river_basin_trib(ix)%branch(ixx)%nRch
+            associate (idx_tmp => river_basin_trib(ix)%branch(ixx)%segIndex(iSeg))
+            write(iulog,"(I15,A,I9,A,I9)") structNTOPO_local(idx_tmp)%var(ixNTOPO%segId)%dat(1),',',ixx,',',ix
+            end associate
+          enddo
+        enddo
+      enddo
+    endif
 
     ! -----------------------------------------------------------------------------
     ! Find "dangling reach/hru", or tributary outlet reaches/hrus that link to mainstems
@@ -531,16 +536,18 @@ contains
      call omp_domain_decomposition(stream_order, nRch_mainstem+nTribOutlet, structNTOPO_main, river_basin_main, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! print*,'segid,branch,order'
-    ! do ix = 1, size(river_basin_main)
-    !   do ixx = 1, size(river_basin_main(ix)%branch)
-    !     do iSeg = 1, river_basin_main(ix)%branch(ixx)%nRch
-    !       associate (idx_tmp => river_basin_main(ix)%branch(ixx)%segIndex(iSeg))
-    !       write(*,"(I15,A,I9,A,I9)") structNTOPO(idx_tmp)%var(ixNTOPO%segId)%dat(1),',',ixx,',',ix
-    !       end associate
-    !     end do
-    !   end do
-    ! enddo
+    if (debug_main_omp) then
+      write(iulog,'(a)') 'segid, branch, order'
+      do ix = 1, size(river_basin_main)
+        do ixx = 1, size(river_basin_main(ix)%branch)
+          do iSeg = 1, river_basin_main(ix)%branch(ixx)%nRch
+            associate (idx_tmp => river_basin_main(ix)%branch(ixx)%segIndex(iSeg))
+            write(iulog,"(I15,A,I9,A,I9)") structNTOPO_main(idx_tmp)%var(ixNTOPO%segId)%dat(1),',',ixx,',',ix
+            end associate
+          end do
+        end do
+      enddo
+    endif
 
    end if ! (masterproc)
   end if ! (nRch_mainstem > 0)
