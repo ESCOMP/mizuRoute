@@ -13,8 +13,6 @@
 ! RUN CONTROL 
 ! --------------------------------------------
 <case_name>             CASE_NAME                  ! name of simulation
-<sim_start>             yyyy-mm-dd_hh:mm:ss        ! time of simulation start. hh:mm:ss can be omitted
-<sim_end>               yyyy-mm-dd_hh:mm:ss        ! time of simulation end. hh:mm:ss can be omitted 
 <route_opt>             0                          ! option for routing schemes 0-> both, 1->IRF, 2->KWT otherwise error 
 <doesBasinRoute>        1                          ! basin routing options   0-> no, 1->IRF, otherwise error
 <doesAccumRunoff>       1                          ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
