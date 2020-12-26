@@ -116,6 +116,7 @@ CONTAINS
 
    FRAC_FUTURE_local = FRAC_FUTURE
 
+   ! if the segment is flaged as lake and is_lake is on then no lagged flow for lakes
    if ((NETOPO_in(iSeg)%islake).and.(is_lake_sim)) then;
      FRAC_FUTURE_local(:) = 0._dp
      FRAC_FUTURE_local(1) = 1._dp

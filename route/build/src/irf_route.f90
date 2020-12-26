@@ -206,16 +206,12 @@ CONTAINS
                    RCHFLX_out(iens,segIndex)%BASIN_QR(1),RCHFLX_out(iens,segIndex)%REACH_Q_IRF
   endif
 
-  ! print statement to compare the computed REACH_Q_IRF and water management abstraction/injection
-  ! print*, NETOPO_in(segIndex)%REACHID, RCHFLX_out(iens,segIndex)%REACH_Q_IRF, RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
 
   ! take out the water from the reach if the wm flag is true and the value are not missing
   ! here we should make sure the real missing is not injection (or negative abstration)
   abstract_actual = 0._dp ! this can be removed later (after extensive testing)
   init_STRQ = 0._dp ! this can be removed later (after extensive testing)
-  ! print*, realMissing, RCHFLX_out(iens,segIndex)%REACH_WM_FLUX, is_flux_wm
   if((RCHFLX_out(iens,segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then
-    ! print*, "I am inside the irf abstraction/injection", RCHFLX_out(iens,segIndex)%REACH_WM_FLUX, RCHFLX_out(iens,segIndex)%REACH_Q_IRF
     abstract_actual = RCHFLX_out(iens,segIndex)%REACH_Q_IRF ! get the reach streamflow as actual abstration
     init_STRQ = RCHFLX_out(iens,segIndex)%REACH_Q_IRF ! TO BE DELETED
     ! reach streamflow is updated based on abstration (positive) or injection (negative)
@@ -225,7 +221,6 @@ CONTAINS
     else
       RCHFLX_out(iens,segIndex)%REACH_Q_IRF = 0._dp ! all the water is taken and actual abstration is reach streamflow
     endif
-    ! print*, "I am inside the irf abstraction/injection, end", RCHFLX_out(iens,segIndex)%REACH_Q_IRF
   endif
 
   WB_check = RCHFLX_out(iens,segIndex)%REACH_Q_IRF + abstract_actual - init_STRQ
