@@ -89,9 +89,9 @@ module lake_route_module
     ! if(NETOPO_in(segIndex)%REACHIX == ixDesire)then   ! uncommnet when the ixDesire is fixed and not -9999
     !print*, '------lake-simulation-------- '
     !print*, 'node id that is lake .......= ', NETOPO_in(segIndex)%REACHID ! to check the reach id of lake
-    !print*, 'lake param RATECVA .........= ', RPARAM_in(segIndex)%RATECVA
-    !print*, 'lake param RATECVB .........= ', RPARAM_in(segIndex)%RATECVB
-    !print*, 'lake param RATECVC .........= ', RPARAM_in(segIndex)%RATECVC
+    !print*, 'lake param D03MaxStorage ...= ', RPARAM_in(segIndex)%D03MaxStorage
+    !print*, 'lake param D03Coefficient ..= ', RPARAM_in(segIndex)%D03Coefficient
+    !print*, 'lake param D03Power ........= ', RPARAM_in(segIndex)%D03Power
     !print*, 'lake param RATECVD .........= ', RPARAM_in(segIndex)%RATECVD
     !print*, 'lake param RATECVE .........= ', RPARAM_in(segIndex)%RATECVE
     !print*, 'lake param RATECVF .........= ', RPARAM_in(segIndex)%RATECVF
@@ -126,9 +126,9 @@ module lake_route_module
 
     else ! if the lake is paraemteric
 
-      RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RPARAM_in(segIndex)%RATECVA * RCHFLX_out(iens,segIndex)%REACH_VOL(1) * &
-                                               (RCHFLX_out(iens,segIndex)%REACH_VOL(1) / RPARAM_in(segIndex)%RATECVC) ** &
-                                               RPARAM_in(segIndex)%RATECVB! Q = AS(S/Smax)^B based on Eq. 1 Hanasaki et al., 2006 https://doi.org/10.1016/j.jhydrol.2005.11.011
+      RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RPARAM_in(segIndex)%D03Coefficient * RCHFLX_out(iens,segIndex)%REACH_VOL(1) * &
+                                               (RCHFLX_out(iens,segIndex)%REACH_VOL(1) / RPARAM_in(segIndex)%D03MaxStorage) ** &
+                                               RPARAM_in(segIndex)%D03Power! Q = AS(S/Smax)^B based on Eq. 1 Hanasaki et al., 2006 https://doi.org/10.1016/j.jhydrol.2005.11.011
       ! in case is the output volume is more than lake volume
       RCHFLX_out(iens,segIndex)%REACH_Q_IRF = (min(RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt, RCHFLX_out(iens,segIndex)%REACH_VOL(1)) )/dt
       ! updating the storage

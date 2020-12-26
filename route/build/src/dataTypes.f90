@@ -195,16 +195,16 @@ implicit none
   real(dp)                                   :: R_MAN_N
   real(dp)                                   :: R_WIDTH
   real(dp)                                   :: RLENGTH
-  real(dp)                                   :: UPSAREA  ! upstream area (zero if headwater basin)
-  real(dp)                                   :: BASAREA  ! local basin area
-  real(dp)                                   :: TOTAREA  ! UPSAREA + BASAREA
-  real(dp)                                   :: MINFLOW  ! minimum environmental flow
-  real(dp)                                   :: RATECVA  ! discharge rating curve parameter A
-  real(dp)                                   :: RATECVB  ! discharge rating curve parameter B
-  real(dp)                                   :: RATECVC  ! discharge rating curve parameter C
-  real(dp)                                   :: RATECVD  ! discharge rating curve parameter D
-  real(dp)                                   :: RATECVE  ! discharge rating curve parameter E
-  real(dp)                                   :: RATECVF  ! discharge rating curve parameter F
+  real(dp)                                   :: UPSAREA        ! upstream area (zero if headwater basin)
+  real(dp)                                   :: BASAREA        ! local basin area
+  real(dp)                                   :: TOTAREA        ! UPSAREA + BASAREA
+  real(dp)                                   :: MINFLOW        ! minimum environmental flow
+  real(dp)                                   :: D03MaxStorage  ! Doll 2003 maximume storage
+  real(dp)                                   :: D03Coefficient ! Doll 2003 Coefficient
+  real(dp)                                   :: D03Power       ! Doll 2003 Power
+  real(dp)                                   :: RATECVD        ! discharge rating curve parameter D
+  real(dp)                                   :: RATECVE        ! discharge rating curve parameter E
+  real(dp)                                   :: RATECVF        ! discharge rating curve parameter F
  end type RCHPRP
 
  ! River Network topology
