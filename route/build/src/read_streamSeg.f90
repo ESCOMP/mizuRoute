@@ -153,12 +153,16 @@ contains
  if(is_lake_sim)then
   meta_NTOPO(ixNTOPO%islake)%varFile = .true.
   meta_NTOPO(ixNTOPO%LakeTargVol)%varFile = .true.
-  meta_SEG(ixSEG%RATECVA)%varFile = .true.
-  meta_SEG(ixSEG%RATECVB)%varFile = .true.
-  meta_SEG(ixSEG%RATECVC)%varFile = .true.
-  meta_SEG(ixSEG%RATECVD)%varFile = .true.
-  meta_SEG(ixSEG%RATECVE)%varFile = .true.
-  meta_SEG(ixSEG%RATECVF)%varFile = .true.
+  if (lake_model_D03)then
+    meta_SEG(ixSEG%D03MaxStorage)%varFile = .true.
+    meta_SEG(ixSEG%D03coefficient)%varFile = .true.
+    meta_SEG(ixSEG%D03power)%varFile = .true.
+  endif
+  if (lake_model_H06)then
+    meta_SEG(ixSEG%RATECVD)%varFile = .true.
+    meta_SEG(ixSEG%RATECVE)%varFile = .true.
+    meta_SEG(ixSEG%RATECVF)%varFile = .true.
+  endif
  endif
 
  ! loop through data structures

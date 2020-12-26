@@ -143,9 +143,9 @@ contains
   real(dp),          allocatable              :: slope_local(:)            ! reach slope array in decomposed network
   real(dp),          allocatable              :: length_local(:)           ! reach length array in decomposed network
   real(dp),          allocatable              :: area_local(:)             ! hru area in decomposed network
-  real(dp),          allocatable              :: RATECVA_local(:)          ! stage-discharge relationship parameter A
-  real(dp),          allocatable              :: RATECVB_local(:)          ! stage-discharge relationship parameter B
-  real(dp),          allocatable              :: RATECVC_local(:)          ! stage-discharge relationship parameter C
+  real(dp),          allocatable              :: D03MaxStorage_local(:)    ! maximum active storage for Doll 2003
+  real(dp),          allocatable              :: D03Coefficient_local(:)   ! coefficient for Doll 2003
+  real(dp),          allocatable              :: D03Power_local(:)         ! power for Doll 2003
   real(dp),          allocatable              :: RATECVD_local(:)          ! stage-discharge relationship parameter D
   real(dp),          allocatable              :: RATECVE_local(:)          ! stage-discharge relationship parameter E
   real(dp),          allocatable              :: RATECVF_local(:)          ! stage-discharge relationship parameter F
@@ -160,9 +160,9 @@ contains
   real(dp)                                    :: slope(nRch_in)            ! reach slope array for each reach
   real(dp)                                    :: length(nRch_in)           ! reach length array for each reach
   real(dp)                                    :: area(nHRU_in)             ! hru area for each hru
-  real(dp)                                    :: RATECVA(nRch_in)          ! stage-discharge relatioship parameter A
-  real(dp)                                    :: RATECVB(nRch_in)          ! stage-discharge relatioship parameter B
-  real(dp)                                    :: RATECVC(nRch_in)          ! stage-discharge relatioship parameter C
+  real(dp)                                    :: D03MaxStorage(nRch_in)    ! maximum active storage for Doll 2003
+  real(dp)                                    :: D03Coefficient(nRch_in)   ! coefficient for Doll 2003
+  real(dp)                                    :: D03Power(nRch_in)         ! power for Doll 2003
   real(dp)                                    :: RATECVD(nRch_in)          ! stage-discharge relatioship parameter D
   real(dp)                                    :: RATECVE(nRch_in)          ! stage-discharge relatioship parameter E
   real(dp)                                    :: RATECVF(nRch_in)          ! stage-discharge relatioship parameter F
@@ -268,9 +268,9 @@ contains
      LakeTargVol(iSeg)     = structNTOPO(jSeg)%var(ixNTOPO%LakeTargVol)%dat(1)
      slope(iSeg)           = structSEG(  jSeg)%var(ixSEG%slope)%dat(1)
      length(iSeg)          = structSEG(  jSeg)%var(ixSEG%length)%dat(1)
-     RATECVA(iSeg)         = structSEG(  jSeg)%var(ixSEG%RATECVA)%dat(1)
-     RATECVB(iSeg)         = structSEG(  jSeg)%var(ixSEG%RATECVB)%dat(1)
-     RATECVC(iSeg)         = structSEG(  jSeg)%var(ixSEG%RATECVC)%dat(1)
+     D03MaxStorage(iSeg)   = structSEG(  jSeg)%var(ixSEG%D03MaxStorage)%dat(1)
+     D03Coefficient(iSeg)  = structSEG(  jSeg)%var(ixSEG%D03Coefficient)%dat(1)
+     D03Power(iSeg)        = structSEG(  jSeg)%var(ixSEG%D03Power)%dat(1)
      RATECVD(iSeg)         = structSEG(  jSeg)%var(ixSEG%RATECVD)%dat(1)
      RATECVE(iSeg)         = structSEG(  jSeg)%var(ixSEG%RATECVE)%dat(1)
      RATECVF(iSeg)         = structSEG(  jSeg)%var(ixSEG%RATECVF)%dat(1)
@@ -327,9 +327,9 @@ contains
     call shr_mpi_scatterV(length        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), length_local,        ierr, cmessage)
     call shr_mpi_scatterV(islake        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), islake_local,        ierr, cmessage)
     call shr_mpi_scatterV(LakeTargVol   (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), LakeTargVol_local,   ierr, cmessage)
-    call shr_mpi_scatterV(RATECVA       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVA_local,       ierr, cmessage)
-    call shr_mpi_scatterV(RATECVB       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVB_local,       ierr, cmessage)
-    call shr_mpi_scatterV(RATECVC       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVC_local,       ierr, cmessage)
+    call shr_mpi_scatterV(D03MaxStorage (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03MaxStorage_local, ierr, cmessage)
+    call shr_mpi_scatterV(D03Coefficient(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03Coefficient_local,ierr, cmessage)
+    call shr_mpi_scatterV(D03Power      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03Power_local,      ierr, cmessage)
     call shr_mpi_scatterV(RATECVD       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVD_local,       ierr, cmessage)
     call shr_mpi_scatterV(RATECVE       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVE_local,       ierr, cmessage)
     call shr_mpi_scatterV(RATECVF       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), RATECVF_local,       ierr, cmessage)
@@ -362,9 +362,9 @@ contains
      structSEG_local  (ix)%var(ixSEG%slope)%dat(1)            = slope_local(ix)
      structNTOPO_local(ix)%var(ixNTOPO%islake)%dat(1)         = islake_local(ix)
      structNTOPO_local(ix)%var(ixNTOPO%LakeTargVol)%dat(1)    = LakeTargVol_local(ix)
-     structSEG_local  (ix)%var(ixSEG%RATECVA)%dat(1)          = RATECVA_local(ix)
-     structSEG_local  (ix)%var(ixSEG%RATECVB)%dat(1)          = RATECVB_local(ix)
-     structSEG_local  (ix)%var(ixSEG%RATECVC)%dat(1)          = RATECVC_local(ix)
+     structSEG_local  (ix)%var(ixSEG%D03MaxStorage)%dat(1)    = D03MaxStorage_local(ix)
+     structSEG_local  (ix)%var(ixSEG%D03Coefficient)%dat(1)   = D03Coefficient_local(ix)
+     structSEG_local  (ix)%var(ixSEG%D03Power)%dat(1)         = D03Power_local(ix)
      structSEG_local  (ix)%var(ixSEG%RATECVD)%dat(1)          = RATECVD_local(ix)
      structSEG_local  (ix)%var(ixSEG%RATECVE)%dat(1)          = RATECVE_local(ix)
      structSEG_local  (ix)%var(ixSEG%RATECVF)%dat(1)          = RATECVF_local(ix)
@@ -498,9 +498,9 @@ contains
        structSEG_main  (ix)%var(ixSEG%slope)%dat(1)           = slope(ix)
        structNTOPO_main(ix)%var(ixNTOPO%islake)%dat(1)        = islake(ix)
        structNTOPO_main(ix)%var(ixNTOPO%LakeTargVol)%dat(1)   = LakeTargVol(ix)
-       structSEG_main  (ix)%var(ixSEG%RATECVA)%dat(1)         = RATECVA(ix)
-       structSEG_main  (ix)%var(ixSEG%RATECVB)%dat(1)         = RATECVB(ix)
-       structSEG_main  (ix)%var(ixSEG%RATECVC)%dat(1)         = RATECVC(ix)
+       structSEG_main  (ix)%var(ixSEG%D03MaxStorage)%dat(1)   = D03MaxStorage(ix)
+       structSEG_main  (ix)%var(ixSEG%D03Coefficient)%dat(1)  = D03Coefficient(ix)
+       structSEG_main  (ix)%var(ixSEG%D03Power)%dat(1)        = D03Power(ix)
        structSEG_main  (ix)%var(ixSEG%RATECVD)%dat(1)         = RATECVD(ix)
        structSEG_main  (ix)%var(ixSEG%RATECVE)%dat(1)         = RATECVE(ix)
        structSEG_main  (ix)%var(ixSEG%RATECVF)%dat(1)         = RATECVF(ix)
@@ -514,9 +514,9 @@ contains
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%slope)%dat(1)           = structSEG(ixx)%var(ixSEG%slope)%dat(1)
        structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%islake)%dat(1)        = structNTOPO(ixx)%var(ixNTOPO%islake)%dat(1)
        structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%LakeTargVol)%dat(1)   = structNTOPO(ixx)%var(ixNTOPO%LakeTargVol)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVA)%dat(1)         = structSEG(ixx)%var(ixSEG%RATECVA)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVB)%dat(1)         = structSEG(ixx)%var(ixSEG%RATECVB)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVC)%dat(1)         = structSEG(ixx)%var(ixSEG%RATECVC)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03MaxStorage)%dat(1)   = structSEG(ixx)%var(ixSEG%D03MaxStorage)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03Coefficient)%dat(1)  = structSEG(ixx)%var(ixSEG%D03Coefficient)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03Power)%dat(1)        = structSEG(ixx)%var(ixSEG%D03Power)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVD)%dat(1)         = structSEG(ixx)%var(ixSEG%RATECVD)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVE)%dat(1)         = structSEG(ixx)%var(ixSEG%RATECVE)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%RATECVF)%dat(1)         = structSEG(ixx)%var(ixSEG%RATECVF)%dat(1)

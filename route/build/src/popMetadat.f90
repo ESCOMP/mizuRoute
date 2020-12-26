@@ -111,9 +111,9 @@ contains
  ! SEG                                           varName        varDesc                                                varUnit, varType, varFile
  meta_SEG    (ixSEG%length           ) = var_info('length'         , 'length of segment'                                 ,'m'     ,ixDims%seg   , .true.)
  meta_SEG    (ixSEG%slope            ) = var_info('slope'          , 'slope of segment'                                  ,'-'     ,ixDims%seg   , .true.)
- meta_SEG    (ixSEG%RATECVA          ) = var_info('RATECVA'        , 'stage-discharge relationship parameter A'          ,'-'     ,ixDims%seg   , .false.)
- meta_SEG    (ixSEG%RATECVB          ) = var_info('RATECVB'        , 'stage-discharge relationship parameter B'          ,'-'     ,ixDims%seg   , .false.)
- meta_SEG    (ixSEG%RATECVC          ) = var_info('RATECVC'        , 'stage-discharge relationship parameter C'          ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%D03MaxStorage    ) = var_info('D03MaxStorage'  , 'maximume storage Doll 2003'                        ,'m3'    ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%D03Coefficient   ) = var_info('D03Coefficient' , 'coefficient Doll 2003'                             ,'day-1' ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%D03Power         ) = var_info('D03Power'       , 'power Doll 2003'                                   ,'-'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%RATECVD          ) = var_info('RATECVD'        , 'stage-discharge relationship parameter D'          ,'-'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%RATECVE          ) = var_info('RATECVE'        , 'stage-discharge relationship parameter E'          ,'-'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%RATECVF          ) = var_info('RATECVF'        , 'stage-discharge relationship parameter F'          ,'-'     ,ixDims%seg   , .false.)

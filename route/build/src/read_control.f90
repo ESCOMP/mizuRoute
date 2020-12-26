@@ -115,6 +115,8 @@ CONTAINS
    case('<doesAccumRunoff>');      read(cData,*,iostat=io_error) doesAccumRunoff   ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
    case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut          ! desired outlet reach id (if -9999 --> route over the entire network)
    case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim       ! logical; lakes are simulated
+   case('<lake_model_D03>');       read(cData,*,iostat=io_error) lake_model_D03    ! logical; if Doll 2003, represented by 1 exist in netwrok topology parameter lake_model_type
+   case('<lake_model_H06>');       read(cData,*,iostat=io_error) lake_model_H06    ! logical; if Hanasaki 2006, represented by 2 exist in netwrok topology parameter lake_model_type
    case('<is_flux_wm>');           read(cData,*,iostat=io_error) is_flux_wm        ! logical; provided fluxes to or from seg/lakes should be considered
    case('<is_vol_wm>');            read(cData,*,iostat=io_error) is_vol_wm         ! logical; provided target volume for managed lakes are considered
    case('<suppress_runoff>');      read(cData,*,iostat=io_error) suppress_runoff   ! logical; suppress the read runoff to zero (0) no host model
@@ -210,9 +212,9 @@ CONTAINS
    case('<varname_basUnderLake>' ); meta_SEG    (ixSEG%basUnderLake    )%varName =trim(cData)  ! Area of basin under lake  (m2)
    case('<varname_rchUnderLake>' ); meta_SEG    (ixSEG%rchUnderLake    )%varName =trim(cData)  ! Length of reach under lake (m)
    case('<varname_minFlow>'      ); meta_SEG    (ixSEG%minFlow         )%varName =trim(cData)  ! minimum environmental flow
-   case('<varname_RATECVA>'      ); meta_SEG    (ixSEG%RATECVA         )%varName =trim(cData)  ! stage-discharge relationship parameter A
-   case('<varname_RATECVB>'      ); meta_SEG    (ixSEG%RATECVB         )%varName =trim(cData)  ! stage-discharge relationship parameter B
-   case('<varname_RATECVC>'      ); meta_SEG    (ixSEG%RATECVC         )%varName =trim(cData)  ! stage-discharge relationship parameter C
+   case('<varname_D03MaxStorage>'); meta_SEG    (ixSEG%D03MaxStorage   )%varName =trim(cData)  ! maximum active storage for Doll 2003 formulation
+   case('<varname_D03Coefficient>'); meta_SEG   (ixSEG%D03Coefficient  )%varName =trim(cData)  ! coefficient for Doll 2003 formulation
+   case('<varname_D03Power>'     ); meta_SEG    (ixSEG%D03Power        )%varName =trim(cData)  ! power for Doll 2003 formulation
    case('<varname_RATECVD>'      ); meta_SEG    (ixSEG%RATECVD         )%varName =trim(cData)  ! stage-discharge relationship parameter D
    case('<varname_RATECVE>'      ); meta_SEG    (ixSEG%RATECVE         )%varName =trim(cData)  ! stage-discharge relationship parameter E
    case('<varname_RATECVF>'      ); meta_SEG    (ixSEG%RATECVF         )%varName =trim(cData)  ! stage-discharge relationship parameter F

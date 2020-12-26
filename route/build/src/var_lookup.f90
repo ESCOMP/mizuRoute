@@ -84,9 +84,9 @@ MODULE var_lookup
   ! lakes
   integer(i4b)     :: basUnderLake  = integerMissing  ! Area of basin under lake  (m2)
   integer(i4b)     :: rchUnderLake  = integerMissing  ! Length of reach under lake (m)
-  integer(i4b)     :: RATECVA       = integerMissing  ! stage-dischage parameter A (-)
-  integer(i4b)     :: RATECVB       = integerMissing  ! stage-dischage parameter B (-)
-  integer(i4b)     :: RATECVC       = integerMissing  ! stage-dischage parameter C (-)
+  integer(i4b)     :: D03MaxStorage = integerMissing  ! maximume active storage for Doll 2003 (m3)
+  integer(i4b)     :: D03Coefficient= integerMissing  ! Coefficient for Doll 2003 (day-1)
+  integer(i4b)     :: D03Power      = integerMissing  ! Power for Doll 2003 (-)
   integer(i4b)     :: RATECVD       = integerMissing  ! stage-dischage parameter D (-)
   integer(i4b)     :: RATECVE       = integerMissing  ! stage-dischage parameter E (-)
   integer(i4b)     :: RATECVF       = integerMissing  ! stage-dischage parameter F (-)
