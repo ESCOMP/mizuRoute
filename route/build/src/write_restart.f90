@@ -1,8 +1,9 @@
 MODULE write_restart
 
 ! Moudle wide external modules
-USE nrtype, ONLY: i4b, dp, strLen
+USE nrtype, ONLY: i4b, dp, lgt, strLen
 USE public_var
+USE date_time, ONLY: datetime
 USE io_netcdf, ONLY: ncd_int
 USE io_netcdf, ONLY: ncd_float, ncd_double
 USE io_netcdf, ONLY: ncd_unlimited
@@ -16,66 +17,187 @@ USE io_netcdf, ONLY: write_nc
 
 implicit none
 
+integer(i4b),  parameter :: currTimeStep = 1
+integer(i4b),  parameter :: nextTimeStep = 2
+
 private
 
-public::output_state
+public::main_restart
 
 CONTAINS
 
- SUBROUTINE output_state(ierr, message)
+ ! *********************************************************************
+ ! public subroutine: restart write main routine
+ ! *********************************************************************
+ SUBROUTINE main_restart(ierr, message)
 
-  ! Saved Data
-  USE public_var, ONLY: output_dir
-  USE public_var, ONLY: case_name         ! simulation name ==> output filename head
-  USE public_var, ONLY: routOpt
-  USE public_var, ONLY: time_units
-  USE public_var, ONLY: dt
-  USE globalData, ONLY: runoff_data       ! runoff data for one time step for LSM HRUs and River network HRUs
-  USE globalData, ONLY: TSEC
-  USE globalData, ONLY: reachID
-  USE globalData, ONLY: modTime           ! previous and current model time
-  USE globalData, ONLY: modJulday         ! current model Julian day
-  USE globalData, ONLY: restartJulday     ! restart Julian day
+  USE globalData, ONLY: restartAlarm   ! logical to make alarm for restart writing
 
   implicit none
   ! output variables
   integer(i4b),   intent(out)          :: ierr             ! error code
   character(*),   intent(out)          :: message          ! error message
   ! local variables
-  real(dp)                             :: TSEC1, TSEC2
   character(len=strLen)                :: cmessage         ! error message of downwind routine
-  integer(i4b)                         :: sec_in_day      ! second within day
-  character(len=strLen)                :: fileout_state    ! name of the output file
-  character(len=50),parameter          :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
-  character(len=50),parameter          :: fmtYMDHMS='(2a,I0.4,a,I0.2,a,I0.2,x,I0.2,a,I0.2,a,I0.2)'
 
-  if (abs(restartJulday-modJulday)<verySmall) then
+  ierr=0; message='main_restart/'
 
-    write(iulog,fmtYMDHMS) new_line('a'),'Write restart file at ', &
-                           modTime(1)%iy,'-',modTime(1)%im, '-', modTime(1)%id,modTime(1)%ih,':',modTime(1)%imin,':',nint(modTime(1)%dsec)
+  call restart_alarm(ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    sec_in_day = modTime(1)%ih*60*60+modTime(1)%imin*60+nint(modTime(1)%dsec)
-
-    write(fileout_state, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuRoute.r.', &
-                            modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '-',sec_in_day,'.nc'
-
-    call define_state_nc(fileout_state, time_units, routOpt, ierr, cmessage)
+  if (restartAlarm) then
+    call restart_output(ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   ! update model time step bound
-   TSEC1 = TSEC(0) + dt
-   TSEC2 = TSEC1   + dt
-
-    call write_state_nc(fileout_state,                           &  ! Input: state netcdf name
-                        routOpt,                                 &  ! input: which routing options
-                        runoff_data%time, 1, TSEC1, TSEC2,       &  ! Input: time, time step, start and end time [sec]
-                        reachID,                                 &  ! Input: segment id vector
-                        ierr, message)                              ! Output: error control
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
   end if
 
- END SUBROUTINE output_state
+ END SUBROUTINE main_restart
+
+
+ ! *********************************************************************
+ ! private subroutine: restart alarming
+ ! *********************************************************************
+ SUBROUTINE restart_alarm(ierr, message)
+
+   USE public_var,        ONLY: calendar
+   USE public_var,        ONLY: restart_write  ! restart write options
+   USE public_var,        ONLY: restart_day
+   USE globalData,        ONLY: restartAlarm   ! logical to make alarm for restart writing
+   USE globalData,        ONLY: restCal        ! restart Calendar time
+   USE globalData,        ONLY: dropCal        ! restart drop off Calendar time
+   USE globalData,        ONLY: modTime        ! previous and current model time
+
+   implicit none
+
+   ! output
+   integer(i4b),   intent(out)          :: ierr             ! error code
+   character(*),   intent(out)          :: message          ! error message
+   ! local variables
+   character(len=strLen)                :: cmessage         ! error message of downwind routine
+   integer(i4b)                         :: nDays            ! number of days in a month
+
+   ierr=0; message='restart_alarm/'
+
+   ! adjust restart dropoff day if the dropoff day is outside number of days in particular month
+   call dropCal%set_datetime(dropCal%year(), dropCal%month(), restart_day, dropCal%hour(), dropCal%minute(), dropCal%sec())
+   nDays = modTime(1)%ndays_month(calendar, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if (dropCal%day() > nDays) then
+     call dropCal%set_datetime(dropCal%year(), dropCal%month(), nDays, dropCal%hour(), dropCal%minute(), dropCal%sec())
+   end if
+
+   ! adjust dropoff day further if restart day is actually outside number of days in a particular month
+   if (restCal%day() > nDays) then
+     dropCal = dropCal%add_day(-1, calendar, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
+
+   select case(trim(restart_write))
+     case('Specified','specified','Last','last')
+       restartAlarm = (dropCal==modTime(1))
+     case('Annual','annual')
+       restartAlarm = (dropCal%is_equal_mon(modTime(1)) .and. dropCal%is_equal_day(modTime(1)) .and. dropCal%is_equal_time(modTime(1)))
+     case('Monthly','monthly')
+       restartAlarm = (dropCal%is_equal_day(modTime(1)) .and. dropCal%is_equal_time(modTime(1)))
+     case('Daily','daily')
+       restartAlarm = dropCal%is_equal_time(modTime(1))
+     case('Never','never')
+       restartAlarm = .false.
+     case default
+       ierr=20; message=trim(message)//'Current accepted <restart_write> options: L[l]ast, N[n]ever, S[s]pecified, Annual, Monthly, or Daily '; return
+   end select
+
+ END SUBROUTINE restart_alarm
+
+
+ ! *********************************************************************
+ ! private subroutine: write restart netCDF
+ ! *********************************************************************
+ SUBROUTINE restart_output(ierr, message)
+
+  USE public_var, ONLY: routOpt
+  USE public_var, ONLY: time_units
+  USE public_var, ONLY: dt
+  USE globalData, ONLY: runoff_data    ! runoff data for one time step for LSM HRUs and River network HRUs
+  USE globalData, ONLY: TSEC
+  USE globalData, ONLY: reachID
+
+  implicit none
+
+  ! output variables
+  integer(i4b),   intent(out)          :: ierr             ! error code
+  character(*),   intent(out)          :: message          ! error message
+  ! local variables
+  real(dp)                             :: TSEC1, TSEC2
+  character(len=strLen)                :: cmessage         ! error message of downwind routine
+  character(len=strLen)                :: fnameRestart     ! name of the restart file name
+
+  ierr=0; message='restart_output/'
+
+  call restart_fname(fnameRestart, nextTimeStep, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  call define_state_nc(fnameRestart, time_units, routOpt, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! update model time step bound
+  TSEC1 = TSEC(0) + dt
+  TSEC2 = TSEC1   + dt
+
+  call write_state_nc(fnameRestart,                            &  ! Input: state netcdf name
+                      routOpt,                                 &  ! input: which routing options
+                      runoff_data%time, 1, TSEC1, TSEC2,       &  ! Input: time, time step, start and end time [sec]
+                      reachID,                                 &  ! Input: segment id vector
+                      ierr, message)                              ! Output: error control
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ END SUBROUTINE restart_output
+
+
+ ! *********************************************************************
+ ! private subroutine: define restart NetCDF file name
+ ! *********************************************************************
+ SUBROUTINE restart_fname(fnameRestart, timeStamp, ierr, message)
+
+   USE public_var,          ONLY: restart_dir
+   USE public_var,          ONLY: case_name        ! simulation name ==> output filename head
+   USE public_var,          ONLY: calendar
+   USE public_var,          ONLY: secprday
+   USE public_var,          ONLY: dt
+   USE globalData,          ONLY: modTime          ! current model datetime
+
+   implicit none
+
+   ! input
+   integer(i4b),   intent(in)           :: timeStamp        ! optional:
+   ! output
+   character(*),   intent(out)          :: fnameRestart     ! name of the restart file name
+   integer(i4b),   intent(out)          :: ierr             ! error code
+   character(*),   intent(out)          :: message          ! error message
+   ! local variables
+   character(len=strLen)                :: cmessage         ! error message of downwind routine
+   type(datetime)                       :: timeStampCal     ! datetime corresponding to file name time stamp
+   integer(i4b)                         :: sec_in_day       ! second within day
+   character(len=50),parameter          :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
+   character(len=50),parameter          :: fmtYMDHMS='(2a,I0.4,a,I0.2,a,I0.2,x,I0.2,a,I0.2,a,I0.2)'
+
+   ierr=0; message='restart_fname/'
+
+   select case(timeStamp)
+     case(currTimeStep); timeStampCal = modTime(1)
+     case(nextTimeStep); timeStampCal = modTime(1)%add_sec(dt, calendar, ierr, cmessage)
+     case default;       ierr=20; message=trim(message)//'time stamp option in restart filename: invalid -> 1: current time Step or 2: next time step'; return
+   end select
+
+   write(iulog,fmtYMDHMS) new_line('a'),'Write restart file for ', &
+                          timeStampCal%year(),'-',timeStampCal%month(),'-',timeStampCal%day(),timeStampCal%hour(),':',timeStampCal%minute(),':',nint(timeStampCal%sec())
+
+   sec_in_day = timeStampCal%hour()*60*60+timeStampCal%minute()*60+nint(timeStampCal%sec())
+
+   write(fnameRestart, fmtYMDS) trim(restart_dir)//trim(case_name)//'.r.', &
+                                timeStampCal%year(), '-', timeStampCal%month(), '-', timeStampCal%day(), '-',sec_in_day,'.nc'
+
+ END SUBROUTINE restart_fname
+
 
  ! *********************************************************************
  ! subroutine: define restart NetCDF file
@@ -192,7 +314,7 @@ CONTAINS
     case(ixStateDims%ens);     meta_stateDims(ixStateDims%ens)%dimLength     = 1
     case(ixStateDims%tbound);  meta_stateDims(ixStateDims%tbound)%dimLength  = 2
     case(ixStateDims%tdh);     meta_stateDims(ixStateDims%tdh)%dimLength     = size(FRAC_FUTURE)
-    case(ixStateDims%tdh_irf); meta_stateDims(ixStateDims%tdh_irf)%dimLength = 20   !just temporarily
+    case(ixStateDims%tdh_irf); meta_stateDims(ixStateDims%tdh_irf)%dimLength = 50   !just temporarily
     case(ixStateDims%wave);    meta_stateDims(ixStateDims%wave)%dimLength    = MAXQPAR
     case default; ierr=20; message1=trim(message1)//'unable to identify dimension variable index'; return
    end select
@@ -618,6 +740,7 @@ CONTAINS
   do iVar=1,nVarsIRF
    select case(iVar)
     case(ixIRF%qfuture); allocate(state(impulseResponseFunc)%var(iVar)%array_3d_dp(nSeg, ntdh_irf, nens), stat=ierr)
+    case(ixIRF%irfVol);  allocate(state(impulseResponseFunc)%var(iVar)%array_2d_dp(nSeg, nens), stat=ierr)
     case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
    end select
    if(ierr/=0)then; message1=trim(message1)//'problem allocating space for IRF routing state '//trim(meta_irf(iVar)%varName); return; endif
@@ -635,6 +758,8 @@ CONTAINS
       case(ixIRF%qfuture)
        state(impulseResponseFunc)%var(iVar)%array_3d_dp(iSeg,1:numQF(iens,iSeg),iens) = RCHFLX(iens,iSeg)%QFUTURE_IRF
        state(impulseResponseFunc)%var(iVar)%array_3d_dp(iSeg,numQF(iens,iSeg)+1:ntdh_irf,iens) = realMissing
+      case(ixIRF%irfVol)
+       state(impulseResponseFunc)%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX(iens,iSeg)%REACH_VOL(1)
       case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
      end select
 
@@ -651,6 +776,8 @@ CONTAINS
    select case(iVar)
     case(ixIRF%qfuture)
      call write_nc(ncid, trim(meta_irf(iVar)%varName), state(impulseResponseFunc)%var(iVar)%array_3d_dp, (/1,1,1,iTime/), (/nSeg,ntdh_irf,nens,1/), ierr, cmessage)
+    case(ixIRF%irfVol)
+     call write_nc(ncid, trim(meta_irf(iVar)%varName), state(impulseResponseFunc)%var(iVar)%array_2d_dp, (/1,1,iTime/), (/nSeg,nens,1/), ierr, cmessage)
     case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc writing'; return
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
    end select

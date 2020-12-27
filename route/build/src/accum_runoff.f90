@@ -33,7 +33,8 @@ CONTAINS
  !
  ! ----------------------------------------------------------------------------------------
 
- USE dataTypes,         ONLY: subbasin_omp   ! mainstem+tributary data structures
+ USE dataTypes,      ONLY: subbasin_omp   ! mainstem+tributary data structures
+ USE model_finalize, ONLY : handle_err
 
  implicit none
  ! input
@@ -56,14 +57,9 @@ CONTAINS
  integer(i4b)                                   :: iTrib, ix       ! loop indices
  logical(lgt), allocatable                      :: doRoute(:)      ! logical to indicate which reaches are processed
  character(len=strLen)                          :: cmessage        ! error message from subroutines
- integer*8                                      :: cr                   ! rate
- integer*8                                      :: startTime,endTime    ! date/time for the start and end of the initialization
- real(dp)                                       :: elapsedTime          ! elapsed time for the process
 
  ierr=0; message='accum_runoff/'
- call system_clock(count_rate=cr)
 
- ! check
  if (size(NETOPO_in)/=size(RCHFLX_out(iens,:))) then
   ierr=20; message=trim(message)//'sizes of NETOPO and RCHFLX mismatch'; return
  endif
@@ -83,8 +79,6 @@ CONTAINS
  endif
 
  nDom = size(river_basin)
-
- call system_clock(startTime)
 
  do ix = 1,nDom
    ! 1. Route tributary reaches (parallel)
@@ -107,17 +101,13 @@ CONTAINS
        if (.not. doRoute(jSeg)) cycle
 
        call accum_qupstream(iens, jSeg, ixDesire, NETOPO_in, RCHFLX_out, ierr, cmessage)
-       !if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
 
      end do
    end do
 !$OMP END PARALLEL DO
 
- end do ! looping through stream segments
-
- call system_clock(endTime)
- elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
- !write(*,"(A,1PG15.7,A)") '  elapsed-time [routing/accum] = ', elapsedTime, ' s'
+ end do
 
  END SUBROUTINE accum_runoff
 
@@ -142,13 +132,13 @@ CONTAINS
  integer(i4b), intent(out)                :: ierr           ! error code
  character(*), intent(out)                :: message        ! error message
  ! Local variables to
- real(dp), allocatable                    :: uprflux(:)     ! upstream Reach fluxes
+ real(dp)                                 :: q_upstream     ! upstream Reach fluxes
  integer(i4b)                             :: nUps           ! number of upstream segment
  integer(i4b)                             :: iUps           ! upstream reach index
  integer(i4b)                             :: iRch_ups       ! index of upstream reach in NETOPO
+ character(len=strLen)                    :: fmt1,fmt2      ! format string
  character(len=strLen)                    :: cmessage       ! error message from subroutine
 
- ! initialize error control
  ierr=0; message='accum_qupstream/'
 
  ! identify number of upstream segments of the reach being processed
@@ -156,26 +146,30 @@ CONTAINS
 
  RCHFLX_out(iEns,segIndex)%UPSTREAM_QI = RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
 
+ q_upstream = 0._dp
  if (nUps>0) then
-
-   allocate(uprflux(nUps), stat=ierr, errmsg=cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': uprflux'; return; endif
 
    do iUps = 1,nUps
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-     uprflux(iUps) = RCHFLX_out(iens,iRch_ups)%UPSTREAM_QI
+     q_upstream = q_upstream + RCHFLX_out(iens,iRch_ups)%UPSTREAM_QI
    end do
 
-   RCHFLX_out(iEns,segIndex)%UPSTREAM_QI = RCHFLX_out(iEns,segIndex)%UPSTREAM_QI + sum(uprflux)
+   RCHFLX_out(iEns,segIndex)%UPSTREAM_QI = RCHFLX_out(iEns,segIndex)%UPSTREAM_QI + q_upstream
 
  endif
 
  ! check
- if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
-  print*, 'CHECK ACCUM_RUNOFF'
-  print*, ' UREACHK, uprflux = ', (NETOPO_in(segIndex)%UREACHK(iUps), uprflux(iUps), iUps=1,nUps)
-  print*, ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1) = ', RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
-  print*, ' RCHFLX_out%UPSTREAM_QI = ', RCHFLX_out(iens,segIndex)%UPSTREAM_QI
+ if(segIndex == ixDesire)then
+   write(fmt1,'(A,I5,A)') '(A,1X',nUps,'(1X,I10))'
+   write(fmt2,'(A,I5,A)') '(A,1X',nUps,'(1X,F20.7))'
+   write(*,'(2a)') new_line('a'),'** Check upstream discharge accumulation **'
+   write(*,'(a,x,I10,x,I10)') ' Reach index & ID =', segIndex, NETOPO_in(segIndex)%REACHID
+   write(*,'(a)')             ' * upstream reach index (NETOPO_in%UREACH) and discharge (uprflux) [m3/s] :'
+   write(*,fmt1)              ' UREACHK =', (NETOPO_in(segIndex)%UREACHK(iUps), iUps=1,nUps)
+   write(*,fmt2)              ' prflux  =', (RCHFLX_out(iens,NETOPO_in(segIndex)%UREACHI(iUps))%UPSTREAM_QI, iUps=1,nUps)
+   write(*,'(a)')             ' * local area discharge (RCHFLX_out%BASIN_QR(1)) and final discharge (RCHFLX_out%UPSTREAM_QI) [m3/s] :'
+   write(*,'(a,x,F15.7)')     ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+   write(*,'(a,x,F15.7)')     ' RCHFLX_out%UPSTREAM_QI =', RCHFLX_out(iens,segIndex)%UPSTREAM_QI
  endif
 
  end subroutine accum_qupstream
