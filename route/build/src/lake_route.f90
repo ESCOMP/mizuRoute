@@ -92,9 +92,9 @@ module lake_route_module
     !print*, 'lake param D03MaxStorage ...= ', RPARAM_in(segIndex)%D03MaxStorage
     !print*, 'lake param D03Coefficient ..= ', RPARAM_in(segIndex)%D03Coefficient
     !print*, 'lake param D03Power ........= ', RPARAM_in(segIndex)%D03Power
-    !print*, 'lake param RATECVD .........= ', RPARAM_in(segIndex)%RATECVD
-    !print*, 'lake param RATECVE .........= ', RPARAM_in(segIndex)%RATECVE
-    !print*, 'lake param RATECVF .........= ', RPARAM_in(segIndex)%RATECVF
+    !print*, 'lake param H06TestP1 .......= ', RPARAM_in(segIndex)%H06TestP1
+    !print*, 'lake param H06TestP2 .......= ', RPARAM_in(segIndex)%H06TestP2
+    !print*, 'lake param H06Memory .......= ', RPARAM_in(segIndex)%H06Memory
     !print*, 'lake target volum ..........= ', NETOPO_in(segIndex)%LakeTargVol
     !print*, 'volume before simulation m3.= ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
     !print*, 'upstream streamflow m3/s ...= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF

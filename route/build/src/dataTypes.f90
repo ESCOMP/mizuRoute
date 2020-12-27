@@ -202,9 +202,9 @@ implicit none
   real(dp)                                   :: D03MaxStorage  ! Doll 2003 maximume storage
   real(dp)                                   :: D03Coefficient ! Doll 2003 Coefficient
   real(dp)                                   :: D03Power       ! Doll 2003 Power
-  real(dp)                                   :: RATECVD        ! discharge rating curve parameter D
-  real(dp)                                   :: RATECVE        ! discharge rating curve parameter E
-  real(dp)                                   :: RATECVF        ! discharge rating curve parameter F
+  real(dp)                                   :: H06TestP1      ! Hanasaki 2006 test parameter 1
+  real(dp)                                   :: H06TestP2      ! Hanasaki 2006 test parameter 2
+  real(dp),dimension(:),allocatable          :: H06Memory      ! Hanasaki 2006 pasr array
  end type RCHPRP
 
  ! River Network topology

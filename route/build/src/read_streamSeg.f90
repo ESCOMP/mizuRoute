@@ -159,9 +159,9 @@ contains
     meta_SEG(ixSEG%D03power)%varFile = .true.
   endif
   if (lake_model_H06)then
-    meta_SEG(ixSEG%RATECVD)%varFile = .true.
-    meta_SEG(ixSEG%RATECVE)%varFile = .true.
-    meta_SEG(ixSEG%RATECVF)%varFile = .true.
+    meta_SEG(ixSEG%H06TestP1)%varFile = .true.
+    meta_SEG(ixSEG%H06TestP2)%varFile = .true.
+    !meta_SEG(ixSEG%RATECVF)%varFile = .true.
   endif
  endif
 

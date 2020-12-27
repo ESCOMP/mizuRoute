@@ -215,9 +215,9 @@ CONTAINS
    case('<varname_D03MaxStorage>'); meta_SEG    (ixSEG%D03MaxStorage   )%varName =trim(cData)  ! maximum active storage for Doll 2003 formulation
    case('<varname_D03Coefficient>'); meta_SEG   (ixSEG%D03Coefficient  )%varName =trim(cData)  ! coefficient for Doll 2003 formulation
    case('<varname_D03Power>'     ); meta_SEG    (ixSEG%D03Power        )%varName =trim(cData)  ! power for Doll 2003 formulation
-   case('<varname_RATECVD>'      ); meta_SEG    (ixSEG%RATECVD         )%varName =trim(cData)  ! stage-discharge relationship parameter D
-   case('<varname_RATECVE>'      ); meta_SEG    (ixSEG%RATECVE         )%varName =trim(cData)  ! stage-discharge relationship parameter E
-   case('<varname_RATECVF>'      ); meta_SEG    (ixSEG%RATECVF         )%varName =trim(cData)  ! stage-discharge relationship parameter F
+   case('<varname_H06TestP1>'    ); meta_SEG    (ixSEG%H06TestP1       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 1
+   case('<varname_H06TestP2>'    ); meta_SEG    (ixSEG%H06TestP2       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 2
+   !case('<varname_RATECVF>'      ); meta_SEG    (ixSEG%RATECVF         )%varName =trim(cData)  ! stage-discharge relationship parameter F
 
    ! network topology
    case('<varname_hruContribIx>' ); meta_NTOPO  (ixNTOPO%hruContribIx  )%varName =trim(cData)  ! indices of the vector of HRUs that contribute flow to each segment

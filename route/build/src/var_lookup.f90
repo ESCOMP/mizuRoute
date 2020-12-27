@@ -87,9 +87,9 @@ MODULE var_lookup
   integer(i4b)     :: D03MaxStorage = integerMissing  ! maximume active storage for Doll 2003 (m3)
   integer(i4b)     :: D03Coefficient= integerMissing  ! Coefficient for Doll 2003 (day-1)
   integer(i4b)     :: D03Power      = integerMissing  ! Power for Doll 2003 (-)
-  integer(i4b)     :: RATECVD       = integerMissing  ! stage-dischage parameter D (-)
-  integer(i4b)     :: RATECVE       = integerMissing  ! stage-dischage parameter E (-)
-  integer(i4b)     :: RATECVF       = integerMissing  ! stage-dischage parameter F (-)
+  integer(i4b)     :: H06TestP1     = integerMissing  ! Hanasaki 2006 parameter 1
+  integer(i4b)     :: H06TestP2     = integerMissing  ! Hanasaki 2006 parameter 2
+  integer(i4b)     :: H06Memory     = integerMissing  ! Hanasaki 2006 Memory
   ! constraints
   integer(i4b)     :: minFlow       = integerMissing  ! minimum environmental flow
  endtype iLook_SEG

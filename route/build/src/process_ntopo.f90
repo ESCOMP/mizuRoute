@@ -25,9 +25,9 @@ USE public_var, ONLY: impulseResponseFunc! option for routing methods - IRF only
 USE public_var, ONLY: true,false         ! named integers for true/false
 
 ! named variables
-USE var_lookup, ONLY: ixSEG                 ! index of variables for the stream segments
-USE var_lookup, ONLY: ixNTOPO               ! index of variables for the network topology
-USE var_lookup, ONLY: ixPFAF                ! index of variables for the pfafstetter code
+USE var_lookup, ONLY: ixSEG              ! index of variables for the stream segments
+USE var_lookup, ONLY: ixNTOPO            ! index of variables for the network topology
+USE var_lookup, ONLY: ixPFAF             ! index of variables for the pfafstetter code
 
 ! common variables
 USE public_var, ONLY: compute            ! compute given variable
@@ -416,9 +416,9 @@ end subroutine augment_ntopo
    RPARAM_in(iSeg)%D03MaxStorage   =     structSEG(iSeg)%var(ixSEG%D03MaxStorage)%dat(1)
    RPARAM_in(iSeg)%D03Coefficient  =     structSEG(iSeg)%var(ixSEG%D03Coefficient)%dat(1)
    RPARAM_in(iSeg)%D03Power        =     structSEG(iSeg)%var(ixSEG%D03Power)%dat(1)
-   RPARAM_in(iSeg)%RATECVD         =     structSEG(iSeg)%var(ixSEG%RATECVD)%dat(1)
-   RPARAM_in(iSeg)%RATECVE         =     structSEG(iSeg)%var(ixSEG%RATECVE)%dat(1)
-   RPARAM_in(iSeg)%RATECVF         =     structSEG(iSeg)%var(ixSEG%RATECVF)%dat(1)
+   RPARAM_in(iSeg)%H06TestP1       =     structSEG(iSeg)%var(ixSEG%H06TestP1)%dat(1)
+   RPARAM_in(iSeg)%H06TestP2       =     structSEG(iSeg)%var(ixSEG%H06TestP2)%dat(1)
+   RPARAM_in(iSeg)%H06Memory       =     structSEG(iSeg)%var(ixSEG%H06Memory)%dat(1)
 
    ! compute variables
    RPARAM_in(iSeg)%BASAREA = structSEG(iSeg)%var(ixSEG%basArea)%dat(1)
