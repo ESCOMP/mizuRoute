@@ -161,7 +161,7 @@ contains
   if (lake_model_H06)then
     meta_SEG(ixSEG%H06TestP1)%varFile = .true.
     meta_SEG(ixSEG%H06TestP2)%varFile = .true.
-    !meta_SEG(ixSEG%RATECVF)%varFile = .true.
+    meta_SEG(ixSEG%H06Memory)%varFile = .true.
   endif
  endif
 
