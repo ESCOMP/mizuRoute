@@ -213,11 +213,11 @@ CONTAINS
    case('<varname_rchUnderLake>' ); meta_SEG    (ixSEG%rchUnderLake    )%varName =trim(cData)  ! Length of reach under lake (m)
    case('<varname_minFlow>'      ); meta_SEG    (ixSEG%minFlow         )%varName =trim(cData)  ! minimum environmental flow
    case('<varname_D03MaxStorage>'); meta_SEG    (ixSEG%D03MaxStorage   )%varName =trim(cData)  ! maximum active storage for Doll 2003 formulation
-   case('<varname_D03Coefficient>'); meta_SEG   (ixSEG%D03Coefficient  )%varName =trim(cData)  ! coefficient for Doll 2003 formulation
+   case('<varname_D03Coefficient>'); meta_SEG   (ixSEG%D03Coefficient  )%varName =trim(cData)  ! coefficient for Doll 2003 formulation (day-1)
    case('<varname_D03Power>'     ); meta_SEG    (ixSEG%D03Power        )%varName =trim(cData)  ! power for Doll 2003 formulation
    case('<varname_H06TestP1>'    ); meta_SEG    (ixSEG%H06TestP1       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 1
    case('<varname_H06TestP2>'    ); meta_SEG    (ixSEG%H06TestP2       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 2
-   !case('<varname_RATECVF>'      ); meta_SEG    (ixSEG%RATECVF         )%varName =trim(cData)  ! stage-discharge relationship parameter F
+   case('<varname_H06Memory>'    ); meta_SEG    (ixSEG%H06Memory       )%varName =trim(cData)  ! Hanasaki 2006 Memory of past simulation length (day)
 
    ! network topology
    case('<varname_hruContribIx>' ); meta_NTOPO  (ixNTOPO%hruContribIx  )%varName =trim(cData)  ! indices of the vector of HRUs that contribute flow to each segment
