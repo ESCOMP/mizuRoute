@@ -204,7 +204,7 @@ implicit none
   real(dp)                                   :: D03Power       ! Doll 2003 Power
   real(dp)                                   :: H06TestP1      ! Hanasaki 2006 test parameter 1
   real(dp)                                   :: H06TestP2      ! Hanasaki 2006 test parameter 2
-  real(dp),dimension(:),allocatable          :: H06Memory      ! Hanasaki 2006 pasr array
+  real(dp)                                   :: H06Memory      ! Hanasaki 2006 pasr array
  end type RCHPRP
 
  ! River Network topology
@@ -242,11 +242,11 @@ implicit none
  !---------- Lagrangian kinematic wave states (collection of particles) ---------------------------------
  ! Individual flow particles
  TYPE, public :: FPOINT
-  real(dp)                             :: QF       ! Flow
-  real(dp)                             :: QM       ! Modified flow
-  real(dp)                             :: TI       ! initial time of point in reach
-  real(dp)                             :: TR       ! time point expected to exit reach
-  logical(lgt)                         :: RF       ! routing flag (T if point has exited)
+  real(dp)                                   :: QF           ! Flow
+  real(dp)                                   :: QM           ! Modified flow
+  real(dp)                                   :: TI           ! initial time of point in reach
+  real(dp)                                   :: TR           ! time point expected to exit reach
+  logical(lgt)                               :: RF           ! routing flag (T if point has exited)
  END TYPE FPOINT
 
  ! Collection of flow points within a given reach
@@ -275,10 +275,11 @@ implicit none
 
  ! ---------- reach fluxes --------------------------------------------------------------------
 
- ! fluxes in each reach
+ ! fluxes and states in each reach
  TYPE, public :: strflx
   real(dp), allocatable                :: QFUTURE(:)        ! runoff volume in future time steps (m3/s)
   real(dp), allocatable                :: QFUTURE_IRF(:)    ! runoff volume in future time steps for IRF routing (m3/s)
+  real(dp), allocatable                :: QPASTUP_IRF(:)    ! runoff volume in past time steps for lake formulations (m3/s)
   real(dp)                             :: BASIN_QI          ! instantaneous runoff volume from the local basin (m3/s)
   real(dp)                             :: BASIN_QR(0:1)     ! routed runoff volume from the local basin (m3/s)
   real(dp)                             :: REACH_Q           ! time-step average streamflow (m3/s)
