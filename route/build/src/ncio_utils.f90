@@ -1,4 +1,4 @@
-module io_netcdf
+MODULE io_netcdf
 
 USE nrtype
 USE netcdf
@@ -25,6 +25,7 @@ INTERFACE get_nc
   module procedure get_iscalar
   module procedure get_dscalar
   module procedure get_ivec
+  module procedure get_ivec_long
   module procedure get_dvec
   module procedure get_2d_iarray
   module procedure get_2d_darray
@@ -176,59 +177,46 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: get vector dimension from netCDF
  ! *********************************************************************
- subroutine get_nc_dim_len(fname,           &  ! input: filename
+ subroutine get_nc_dim_len(ncid,            &  ! input: netcdf ID
                            dname,           &  ! input: variable name
                            nDim,            &  ! output: Size of dimension
                            ierr, message)      ! output: error control
   implicit none
   ! input variables
-  character(*), intent(in)        :: fname        ! filename
+  integer(i4b), intent(in)        :: ncid         ! NetCDF file ID
   character(*), intent(in)        :: dname        ! dimension name
   ! output variables
   integer(i4b), intent(out)       :: nDim         ! size of dimension
   integer(i4b), intent(out)       :: ierr         ! error code
   character(*), intent(out)       :: message      ! error message
   ! local variables
-  integer(i4b)                    :: ncid         ! NetCDF file ID
   integer(i4b)                    :: iDimID       ! NetCDF dimension ID
-  ! initialize error control
+
   ierr=0; message='get_nc_dim_len/'
 
-  ! open NetCDF file
-  ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
-  if(ierr/=0)then; message=trim(message)//'['//trim(nf90_strerror(ierr))//'; file='//trim(fname)//']'; return; endif
-
   ! get the ID of the dimension
-  ierr = nf90_inq_dimid(ncid, dname, iDimID)
+  ierr = nf90_inq_dimid(ncid, trim(dname), iDimID)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; name='//trim(dname); return; endif
 
   ! get the length of the dimension
   ierr = nf90_inquire_dimension(ncid, iDimID, len=nDim)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
-  ! close output file
-  ierr = nf90_close(ncid)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
- end subroutine
+ end subroutine get_nc_dim_len
 
  ! *********************************************************************
  ! subroutine: get attribute values for a variable
  ! *********************************************************************
- FUNCTION check_attr(fname, vname, attr_name)
+ FUNCTION check_attr(ncid, vname, attr_name)
    implicit none
    ! input
-   character(*), intent(in)        :: fname        ! filename
+   integer(i4b), intent(in)        :: ncid         ! NetCDF file ID
    character(*), intent(in)        :: vname        ! variable name
    character(*), intent(in)        :: attr_name    ! attribute name
    logical(lgt)                    :: check_attr
    ! local
    integer(i4b)                    :: ierr         ! error code
-   integer(i4b)                    :: ncid         ! NetCDF file ID
    integer(i4b)                    :: iVarID       ! variable ID
-
-   ! open file for reading
-   ierr = nf90_open(fname, nf90_nowrite, ncid)
 
    ! get the ID of the variable
    ierr = nf90_inq_varid(ncid, trim(vname), iVarID)
@@ -236,23 +224,20 @@ CONTAINS
    ierr = nf90_inquire_attribute(ncid, iVarID, attr_name)
    check_attr = (ierr == nf90_noerr)
 
-  ! close output file
-  ierr = nf90_close(ncid)
-
  END FUNCTION check_attr
 
 
  ! *********************************************************************
  ! subroutine: get attribute values for a variable
  ! *********************************************************************
- subroutine get_var_attr_char(fname,           &  ! input: filename
+ subroutine get_var_attr_char(ncid,            &  ! input: netcdf id
                               vname,           &  ! input: variable name
                               attr_name,       &  ! inpu: attribute name
                               attr_value,      &  ! output: attribute value
                               ierr, message)      ! output: error control
  implicit none
  ! input variables
- character(*), intent(in)        :: fname        ! filename
+ integer(i4b), intent(in)        :: ncid         ! NetCDF file ID
  character(*), intent(in)        :: vname        ! variable name
  character(*), intent(in)        :: attr_name    ! attribute name
  ! output variables
@@ -261,14 +246,9 @@ CONTAINS
  character(*), intent(out)       :: message      ! error message
  ! local variables
  integer(i4b)                    :: var_type     ! attribute variable type
- integer(i4b)                    :: ncid         ! NetCDF file ID
  integer(i4b)                    :: iVarID       ! variable ID
- ! initialize error control
- ierr=0; message='get_var_attr_char/'
 
- ! open file for reading
- ierr = nf90_open(fname, nf90_nowrite, ncid)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; name='//trim(fname); return; endif
+ ierr=0; message='get_var_attr_char/'
 
  ! get the ID of the variable
  ierr = nf90_inq_varid(ncid, trim(vname), ivarID)
@@ -276,7 +256,7 @@ CONTAINS
 
  ! Inquire attribute type, NF90_CHAR(=2)
  ierr = nf90_inquire_attribute(ncid, ivarID, attr_name, xtype=var_type)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; nc='//trim(fname)//'; attr='//trim(attr_name); return; endif
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; attr='//trim(attr_name); return; endif
 
  if (var_type /= nf90_char)then; ierr=20; message=trim(message)//'attribute type must be character'; return; endif
 
@@ -284,23 +264,19 @@ CONTAINS
  ierr = nf90_get_att(ncid, ivarID, attr_name, attr_value)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
- ! close the NetCDF file
- ierr = nf90_close(ncid)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
  end subroutine get_var_attr_char
 
  ! *********************************************************************
  ! subroutine: get attribute values for a real variable
  ! *********************************************************************
- subroutine get_var_attr_real(fname,           &  ! input: filename
+ subroutine get_var_attr_real(ncid,            &  ! input: netcdf id
                               vname,           &  ! input: variable name
                               attr_name,       &  ! inpu: attribute name
                               attr_value,      &  ! output: attribute value in real
                               ierr, message)      ! output: error control
  implicit none
  ! input variables
- character(*), intent(in)        :: fname        ! filename
+ integer(i4b), intent(in)        :: ncid         ! NetCDF file ID
  character(*), intent(in)        :: vname        ! variable name
  character(*), intent(in)        :: attr_name    ! attribute name
  ! output variables
@@ -309,14 +285,9 @@ CONTAINS
  character(*), intent(out)       :: message      ! error message
  ! local variables
  integer(i4b)                    :: var_type     ! attribute variable type
- integer(i4b)                    :: ncid         ! NetCDF file ID
  integer(i4b)                    :: iVarID       ! variable ID
- ! initialize error control
- ierr=0; message='get_var_attr_real/'
 
- ! open file for reading
- ierr = nf90_open(fname, nf90_nowrite, ncid)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; name='//trim(fname); return; endif
+ ierr=0; message='get_var_attr_real/'
 
  ! get the ID of the variable
  ierr = nf90_inq_varid(ncid, trim(vname), ivarID)
@@ -324,16 +295,12 @@ CONTAINS
 
  ! Inquire attribute type, NF90_CHAR(=2)
  ierr = nf90_inquire_attribute(ncid, ivarID, attr_name, xtype=var_type)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; nc='//trim(fname)//'; attr='//trim(attr_name); return; endif
+ if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; attr='//trim(attr_name); return; endif
 
  if (var_type /= nf90_float .and. var_type /= nf90_double)then; ierr=20; message=trim(message)//'attribute type must be real'; return; endif
 
  ! get the attribute value
  ierr = nf90_get_att(ncid, ivarID, attr_name, attr_value)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
- ! close the NetCDF file
- ierr = nf90_close(ncid)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  end subroutine get_var_attr_real
@@ -342,14 +309,14 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: get integer scalar value from netCDF
  ! *********************************************************************
- subroutine get_iscalar(fname,           &  ! input:  filename
+ subroutine get_iscalar(ncid,            &  ! input: netcdf id
                         vname,           &  ! input:  variable name
                         array,           &  ! output: variable data
                         iStart,          &  ! input:  start index
                         ierr, message)      ! output: error control
   implicit none
   ! input variables
-  character(*), intent(in)        :: fname     ! filename
+  integer(i4b), intent(in)        :: ncid      ! NetCDF file ID
   character(*), intent(in)        :: vname     ! variable name
   integer(i4b), intent(in)        :: iStart    ! start index
   ! output variables
@@ -360,10 +327,9 @@ CONTAINS
   character(len=strLen)           :: cmessage     ! error message of downwind routine
   integer(i4b)                    :: array_vec(1) ! output variable data
 
- ! initialize error control
  ierr=0; message='get_iscalar/'
 
- call get_ivec(fname, vname, array_vec, iStart, 1, ierr, cmessage)
+ call get_ivec(ncid, vname, array_vec, iStart, 1, ierr, cmessage)
  array = array_vec(1)
 
  end subroutine
@@ -371,14 +337,14 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: double precision scalar value from netCDF
  ! *********************************************************************
- subroutine get_dscalar(fname,           &  ! input:  filename
+ subroutine get_dscalar(ncid,            &  ! input: netcdf id
                         vname,           &  ! input:  variable name
                         array,           &  ! output: variable data
                         iStart,          &  ! input:  start index
                         ierr, message)      ! output: error control
   implicit none
   ! input variables
-  character(*), intent(in)        :: fname     ! filename
+  integer(i4b), intent(in)        :: ncid      ! NetCDF file ID
   character(*), intent(in)        :: vname     ! variable name
   integer(i4b), intent(in)        :: iStart    ! start index
   ! output variables
@@ -389,10 +355,9 @@ CONTAINS
   character(len=strLen)           :: cmessage     ! error message of downwind routine
   real(dp)                        :: array_vec(1) ! output variable data
 
- ! initialize error control
  ierr=0; message='get_dscalar/'
 
- call get_dvec(fname, vname, array_vec, iStart, 1, ierr, cmessage)
+ call get_dvec(ncid, vname, array_vec, iStart, 1, ierr, cmessage)
  array = array_vec(1)
 
  end subroutine
@@ -400,7 +365,7 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: get integer vector value from netCDF
  ! *********************************************************************
- subroutine get_ivec(fname,           &  ! input:  filename
+ subroutine get_ivec(ncid,            &  ! input: netcdf id
                      vname,           &  ! input:  variable name
                      array,           &  ! output: variable data
                      iStart,          &  ! input:  start index
@@ -408,7 +373,7 @@ CONTAINS
                      ierr, message)      ! output: error control
   implicit none
   ! input variables
-  character(*), intent(in)        :: fname     ! filename
+  integer(i4b), intent(in)        :: ncid      ! NetCDF file ID
   character(*), intent(in)        :: vname     ! variable name
   integer(i4b), intent(in)        :: iStart    ! start index
   integer(i4b), intent(in)        :: iCount    ! length of vector to be read in
@@ -417,15 +382,9 @@ CONTAINS
   integer(i4b), intent(out)       :: ierr      ! error code
   character(*), intent(out)       :: message   ! error message
   ! local variables
-  integer(i4b)                    :: ncid      ! NetCDF file ID
   integer(i4b)                    :: iVarID    ! NetCDF variable ID
 
- ! initialize error control
  ierr=0; message='get_ivec/'
-
- ! open NetCDF file
- ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  ! get variable ID
  ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
@@ -435,41 +394,31 @@ CONTAINS
  ierr = nf90_get_var(ncid, iVarID, array, start=(/iStart/), count=(/iCount/))
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
- ! close output file
- ierr = nf90_close(ncid)
- if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
  end subroutine
 
  ! *********************************************************************
- ! subroutine: read a double precision vector
+ ! subroutine: get integer vector value from netCDF
  ! *********************************************************************
- subroutine get_dvec(fname,           &  ! input: filename
-                     vname,           &  ! input: variable name
-                     array,           &  ! output: variable data
-                     iStart,          &  ! input: start index
-                     iCount,          &  ! input: length of vector
-                     ierr, message)      ! output: error control
+ subroutine get_ivec_long(ncid,            &  ! input: netcdf id
+                          vname,           &  ! input:  variable name
+                          array,           &  ! output: variable data
+                          iStart,          &  ! input:  start index
+                          iCount,          &  ! input:  length of vector
+                          ierr, message)      ! output: error control
   implicit none
   ! input variables
-  character(*), intent(in)        :: fname     ! filename
+  integer(i4b), intent(in)        :: ncid      ! NetCDF file ID
   character(*), intent(in)        :: vname     ! variable name
   integer(i4b), intent(in)        :: iStart    ! start index
   integer(i4b), intent(in)        :: iCount    ! length of vector to be read in
   ! output variables
-  real(dp), intent(out)           :: array(:)  ! output variable data
+  integer(i8b), intent(out)       :: array(:)  ! output variable data
   integer(i4b), intent(out)       :: ierr      ! error code
   character(*), intent(out)       :: message   ! error message
   ! local variables
-  integer(i4b)                    :: ncid      ! NetCDF file ID
   integer(i4b)                    :: iVarID    ! NetCDF variable ID
 
-  ! initialize error control
-  ierr=0; message='get_dvec/'
-
-  ! open NetCDF file
-  ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+  ierr=0; message='get_ivec_long/'
 
   ! get variable ID
   ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
@@ -479,8 +428,38 @@ CONTAINS
   ierr = nf90_get_var(ncid, iVarID, array, start=(/iStart/), count=(/iCount/))
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
-  ! close output file
-  ierr = nf90_close(ncid)
+ end subroutine
+
+ ! *********************************************************************
+ ! subroutine: read a double precision vector
+ ! *********************************************************************
+ subroutine get_dvec(ncid,            &  ! input: netcdf id
+                     vname,           &  ! input: variable name
+                     array,           &  ! output: variable data
+                     iStart,          &  ! input: start index
+                     iCount,          &  ! input: length of vector
+                     ierr, message)      ! output: error control
+  implicit none
+  ! input variables
+  integer(i4b), intent(in)        :: ncid      ! NetCDF file ID
+  character(*), intent(in)        :: vname     ! variable name
+  integer(i4b), intent(in)        :: iStart    ! start index
+  integer(i4b), intent(in)        :: iCount    ! length of vector to be read in
+  ! output variables
+  real(dp), intent(out)           :: array(:)  ! output variable data
+  integer(i4b), intent(out)       :: ierr      ! error code
+  character(*), intent(out)       :: message   ! error message
+  ! local variables
+  integer(i4b)                    :: iVarID    ! NetCDF variable ID
+
+  ierr=0; message='get_dvec/'
+
+  ! get variable ID
+  ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
+  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+  ! get the data
+  ierr = nf90_get_var(ncid, iVarID, array, start=(/iStart/), count=(/iCount/))
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  end subroutine
@@ -488,7 +467,7 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: read a integer 2D array
  ! *********************************************************************
- subroutine get_2d_iarray(fname,           &  ! input: filename
+ subroutine get_2d_iarray(ncid,            &  ! input: netcdf id
                           vname,           &  ! input: variable name
                           array,           &  ! output: variable data
                           iStart,          &  ! input: start index
@@ -496,7 +475,7 @@ CONTAINS
                           ierr, message)      ! output: error control
   implicit none
   ! input variables
-  character(*), intent(in)        :: fname        ! filename
+  integer(i4b), intent(in)        :: ncid         ! NetCDF file ID
   character(*), intent(in)        :: vname        ! variable name
   integer(i4b), intent(in)        :: iStart(1:2)  ! start indices
   integer(i4b), intent(in)        :: iCount(1:2)  ! length of vector
@@ -505,15 +484,9 @@ CONTAINS
   integer(i4b), intent(out)       :: ierr         ! error code
   character(*), intent(out)       :: message      ! error message
   ! local variables
-  integer(i4b)                    :: ncid         ! NetCDF file ID
   integer(i4b)                    :: iVarId       ! NetCDF variable ID
 
-  ! initialize error control
   ierr=0; message='get_2d_iarray/'
-
-  ! open NetCDF file
-  ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
   ! get variable ID
   ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
@@ -523,16 +496,12 @@ CONTAINS
   ierr = nf90_get_var(ncid,iVarId,array,start=iStart,count=iCount)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
-  ! close output file
-  ierr = nf90_close(ncid)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
  end subroutine
 
  ! *********************************************************************
  ! subroutine: read a integer 3D array
  ! *********************************************************************
- subroutine get_3d_iarray(fname,          &  ! input: filename
+ subroutine get_3d_iarray(ncid,           &  ! input: netcdf id
                           vname,          &  ! input: variable name
                           array,          &  ! output: variable data
                           iStart,         &  ! input: start index
@@ -540,7 +509,7 @@ CONTAINS
                           ierr, message)     ! output: error control
   implicit none
   ! input variables
-  character(*), intent(in)        :: fname        ! filename
+  integer(i4b), intent(in)        :: ncid         ! NetCDF file ID
   character(*), intent(in)        :: vname        ! variable name
   integer(i4b), intent(in)        :: iStart(1:3)  ! start indices
   integer(i4b), intent(in)        :: iCount(1:3)  ! length of vector
@@ -549,14 +518,9 @@ CONTAINS
   integer(i4b), intent(out)       :: ierr         ! error code
   character(*), intent(out)       :: message      ! error message
   ! local variables
-  integer(i4b)                    :: ncid         ! NetCDF file ID
   integer(i4b)                    :: iVarId       ! NetCDF variable ID
-  ! initialize error control
-  ierr=0; message='get_3d_iarray/'
 
-  ! open NetCDF file
-  ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+  ierr=0; message='get_3d_iarray/'
 
   ! get variable ID
   ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
@@ -566,16 +530,12 @@ CONTAINS
   ierr = nf90_get_var(ncid,iVarId,array,start=iStart,count=iCount)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
-  ! close output file
-  ierr = nf90_close(ncid)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
  end subroutine
 
  ! *********************************************************************
  ! subroutine: read a integer 4D array
  ! *********************************************************************
- subroutine get_4d_iarray(fname,          &  ! input: filename
+ subroutine get_4d_iarray(ncid,           &  ! input: netcdf id
                           vname,          &  ! input: variable name
                           array,          &  ! output: variable data
                           iStart,         &  ! input: start index
@@ -583,7 +543,7 @@ CONTAINS
                           ierr, message)     ! output: error control
   implicit none
   ! input variables
-  character(*), intent(in)        :: fname        ! filename
+  integer(i4b), intent(in)        :: ncid          ! NetCDF file ID
   character(*), intent(in)        :: vname        ! variable name
   integer(i4b), intent(in)        :: iStart(1:4)  ! start indices
   integer(i4b), intent(in)        :: iCount(1:4)  ! length of vector
@@ -592,14 +552,9 @@ CONTAINS
   integer(i4b), intent(out)       :: ierr         ! error code
   character(*), intent(out)       :: message      ! error message
   ! local variables
-  integer(i4b)                    :: ncid         ! NetCDF file ID
   integer(i4b)                    :: iVarId       ! NetCDF variable ID
-  ! initialize error control
-  ierr=0; message='get_4d_iarray/'
 
-  ! open NetCDF file
-  ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+  ierr=0; message='get_4d_iarray/'
 
   ! get variable ID
   ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
@@ -607,10 +562,6 @@ CONTAINS
 
   ! read data
   ierr = nf90_get_var(ncid,iVarId,array,start=iStart,count=iCount)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
-  ! close output file
-  ierr = nf90_close(ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  end subroutine
@@ -619,7 +570,7 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: read a double precision 2D array
  ! *********************************************************************
- subroutine get_2d_darray(fname,          &  ! input: filename
+ subroutine get_2d_darray(ncid,           &  ! input: netcdf id
                           vname,          &  ! input: variable name
                           array,          &  ! output: variable data
                           iStart,         &  ! input: start index
@@ -627,8 +578,8 @@ CONTAINS
                           ierr, message)     ! output: error control
   implicit none
   ! input variables
-  character(*), intent(in)        :: fname        ! filename
-  character(*), intent(in)        :: vname        ! variable name
+  integer(i4b), intent(in)        :: ncid          ! NetCDF file ID
+  character(*), intent(in)        :: vname         ! variable name
   integer(i4b), intent(in)        :: iStart(1:2)  ! start indices
   integer(i4b), intent(in)        :: iCount(1:2)  ! length of vector
   ! output variables
@@ -636,14 +587,9 @@ CONTAINS
   integer(i4b), intent(out)       :: ierr         ! error code
   character(*), intent(out)       :: message      ! error message
   ! local variables
-  integer(i4b)                    :: ncid         ! NetCDF file ID
   integer(i4b)                    :: iVarId       ! NetCDF variable ID
-  ! initialize error control
-  ierr=0; message='get_2d_darray/'
 
-  ! open NetCDF file
-  ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+  ierr=0; message='get_2d_darray/'
 
   ! get variable ID
   ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
@@ -653,16 +599,12 @@ CONTAINS
   ierr = nf90_get_var(ncid,iVarId,array,start=iStart,count=iCount)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
-  ! close output file
-  ierr = nf90_close(ncid)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
  end subroutine
 
  ! *********************************************************************
  ! subroutine: read a double precision 3D array
  ! *********************************************************************
- subroutine get_3d_darray(fname,          &  ! input: filename
+ subroutine get_3d_darray(ncid,           &  ! input: netcdf id
                           vname,          &  ! input: variable name
                           array,          &  ! output: variable data
                           iStart,         &  ! input: start index
@@ -670,7 +612,7 @@ CONTAINS
                           ierr, message)     ! output: error control
   implicit none
   ! input variables
-  character(*), intent(in)        :: fname         ! filename
+  integer(i4b), intent(in)        :: ncid          ! NetCDF file ID
   character(*), intent(in)        :: vname         ! variable name
   integer(i4b), intent(in)        :: iStart(1:3)   ! start indices
   integer(i4b), intent(in)        :: iCount(1:3)   ! length of vector
@@ -679,14 +621,9 @@ CONTAINS
   integer(i4b), intent(out)       :: ierr          ! error code
   character(*), intent(out)       :: message       ! error message
   ! local variables
-  integer(i4b)                    :: ncid          ! NetCDF file ID
   integer(i4b)                    :: iVarId        ! NetCDF variable ID
-  ! initialize error control
-  ierr=0; message='get_3d_darray/'
 
-  ! open NetCDF file
-  ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+  ierr=0; message='get_3d_darray/'
 
   ! get variable ID
   ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
@@ -696,16 +633,12 @@ CONTAINS
   ierr = nf90_get_var(ncid,iVarId,array,start=iStart,count=iCount)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
-  ! close output file
-  ierr = nf90_close(ncid)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
  end subroutine
 
  ! *********************************************************************
  ! subroutine: read a double precision 4D array
  ! *********************************************************************
- subroutine get_4d_darray(fname,          &  ! input: filename
+ subroutine get_4d_darray(ncid,           &  ! input: netcdf id
                           vname,          &  ! input: variable name
                           array,          &  ! output: variable data
                           iStart,         &  ! input: start index
@@ -713,7 +646,7 @@ CONTAINS
                           ierr, message)     ! output: error control
   implicit none
   ! input variables
-  character(*), intent(in)        :: fname         ! filename
+  integer(i4b), intent(in)        :: ncid          ! NetCDF file ID
   character(*), intent(in)        :: vname         ! variable name
   integer(i4b), intent(in)        :: iStart(1:4)   ! start indices
   integer(i4b), intent(in)        :: iCount(1:4)   ! length of vector
@@ -722,14 +655,9 @@ CONTAINS
   integer(i4b), intent(out)       :: ierr          ! error code
   character(*), intent(out)       :: message       ! error message
   ! local variables
-  integer(i4b)                    :: ncid          ! NetCDF file ID
   integer(i4b)                    :: iVarId        ! NetCDF variable ID
-  ! initialize error control
-  ierr=0; message='get_4d_darray/'
 
-  ! open NetCDF file
-  ierr = nf90_open(trim(fname),nf90_nowrite,ncid)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+  ierr=0; message='get_4d_darray/'
 
   ! get variable ID
   ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
@@ -737,10 +665,6 @@ CONTAINS
 
   ! read data
   ierr = nf90_get_var(ncid,iVarId,array,start=iStart,count=iCount)
-  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
-
-  ! close output file
-  ierr = nf90_close(ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  end subroutine
@@ -1144,7 +1068,7 @@ CONTAINS
 
    implicit none
    ! input
-   integer(i4b), intent(in)             :: ncid                   ! Input: netcdf fine ID
+   integer(i4b), intent(in)     :: ncid      ! Input: netcdf fine ID
    ! output
    integer(i4b), intent(out)    :: ierr      ! error code
    character(*), intent(out)    :: message   ! error message

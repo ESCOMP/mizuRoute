@@ -142,6 +142,10 @@ contains
  ! -----------------------------------------------------------------------------------------------------------------
  ! ---------- read in data -----------------------------------------------------------------------------------------
  ! -----------------------------------------------------------------------------------------------------------------
+ ! set flags if we want to turn on abstraction/injection option (require Qtake in network data)
+ if(qtakeOption)then
+  meta_SEG(ixSEG%Qtake)%varFile = .true.
+ endif
 
  ! set flags if we want to read hdraulic geometry from file
  if(hydGeometryOption==readFromFile)then

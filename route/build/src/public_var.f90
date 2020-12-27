@@ -9,7 +9,7 @@ module public_var
   save
 
   ! ---------- mizuRoute version -------------------------------------------------------------------
-  character(len=strLen), parameter, public    :: mizuRouteVersion='v1.2'
+  character(len=strLen), parameter, public    :: mizuRouteVersion='v1.2.1'
 
   ! ---------- common constants ---------------------------------------------------------------------
 
@@ -69,9 +69,10 @@ module public_var
 
   ! Control file variables
   ! DIRECTORIES
-  character(len=strLen),public    :: ancil_dir            = ''              ! directory containing ancillary data
-  character(len=strLen),public    :: input_dir            = ''              ! directory containing input data
-  character(len=strLen),public    :: output_dir           = ''              ! directory containing output data
+  character(len=strLen),public    :: ancil_dir            = ''              ! directory containing ancillary data (network, mapping, namelist)
+  character(len=strLen),public    :: input_dir            = ''              ! directory containing input runoff netCDF
+  character(len=strLen),public    :: output_dir           = ''              ! directory for routed flow output (netCDF)
+  character(len=strLen),public    :: restart_dir          = charMissing     ! directory for restart output (netCDF)
   ! SIMULATION TIME
   character(len=strLen),public    :: simStart             = ''              ! date string defining the start of the simulation
   character(len=strLen),public    :: simEnd               = ''              ! date string defining the end of the simulation
@@ -93,6 +94,7 @@ module public_var
   character(len=strLen),public    :: units_qsim           = ''              ! units of simulated runoff data
   real(dp)             ,public    :: dt                   = realMissing     ! time step (seconds)
   real(dp)             ,public    :: ro_fillvalue         = realMissing     ! fillvalue used for runoff depth variable
+  logical(lgt)         ,public    :: userRunoffFillvalue  = .false.         ! true -> runoff depth fillvalue used in netcdf is specified here, otherwise -> false
   ! RUNOFF REMAPPING
   logical(lgt),public             :: is_remap             = .false.         ! logical whether or not runnoff needs to be mapped to river network HRU
   character(len=strLen),public    :: fname_remap          = ''              ! runoff mapping netCDF name
@@ -108,12 +110,16 @@ module public_var
   character(len=strLen),public    :: case_name            = ''              ! name of simulation. used as head of model output and restart file
   character(len=strLen),public    :: newFileFrequency     = 'annual'        ! frequency for new output files (day, month, annual, single)
   ! STATES
-  character(len=strLen),public    :: restart_write        = 'never'         ! restart write option: never-> N[n]ever write, L[l]ast -> write at last time step, S[s]pecified
+  character(len=strLen),public    :: restart_write        = 'never'         ! restart write option: N[n]ever-> never write, L[l]ast -> write at last time step, S[s]pecified, Monthly, Daily
   character(len=strLen),public    :: restart_date         = charMissing     ! specifed restart date
+  integer(i4b)         ,public    :: restart_month        = 1               ! restart periodic month. Default Jan (write every January of year)
+  integer(i4b)         ,public    :: restart_day          = 1               ! restart periodic day.   Default 1st (write every 1st of month)
+  integer(i4b)         ,public    :: restart_hour         = 0               ! restart periodic hour.  Default 0hr (write every 00 hr of day)
   character(len=strLen),public    :: fname_state_in       = charMissing     ! name of state file
   ! SPATIAL CONSTANT PARAMETERS
   character(len=strLen),public    :: param_nml            = ''              ! name of the namelist file
   ! USER OPTIONS
+  logical(lgt)         ,public    :: qtakeOption          = .false.         ! option for abstraction/injection
   integer(i4b)         ,public    :: hydGeometryOption    = compute         ! option for hydraulic geometry calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: topoNetworkOption    = compute         ! option for network topology calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: computeReachList     = compute         ! option to compute list of upstream reaches (0=do not compute, 1=compute)

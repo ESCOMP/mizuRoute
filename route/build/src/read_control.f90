@@ -97,9 +97,10 @@ contains
    select case(trim(cName))
 
    ! DIRECTORIES
-   case('<ancil_dir>');            ancil_dir   = trim(cData)                       ! directory containing ancillary data
-   case('<input_dir>');            input_dir   = trim(cData)                       ! directory containing input data
-   case('<output_dir>');           output_dir  = trim(cData)                       ! directory containing output data
+   case('<ancil_dir>');            ancil_dir   = trim(cData)                       ! directory containing ancillary data (network, mapping, namelist)
+   case('<input_dir>');            input_dir   = trim(cData)                       ! directory containing input runoff netCDF
+   case('<output_dir>');           output_dir  = trim(cData)                       ! directory for routed flow output (netCDF)
+   case('<restart_dir>');          restart_dir = trim(cData)                       ! directory for restart output (netCDF)
    ! SIMULATION TIME
    case('<sim_start>');            simStart    = trim(cData)                       ! date string defining the start of the simulation
    case('<sim_end>');              simEnd      = trim(cData)                       ! date string defining the end of the simulation
@@ -120,7 +121,9 @@ contains
    case('<dname_ylat>');           dname_ylat   = trim(cData)                      ! name of y (i,lat) dimension
    case('<units_qsim>');           units_qsim   = trim(cData)                      ! units of runoff
    case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                ! time interval of the gridded runoff
-   case('<ro_fillvalue>');         read(cData,*,iostat=io_error) ro_fillvalue      ! fillvalue used for runoff depth variable
+   case('<ro_fillvalue>')
+                                   read(cData,*,iostat=io_error) ro_fillvalue      ! fillvalue used for runoff depth variable
+                                   userRunoffFillvalue = .true.                    ! true -> runoff depth fillvalue used in netcdf is specified here, otherwise -> false
    ! RUNOFF REMAPPING
    case('<is_remap>');             read(cData,*,iostat=io_error) is_remap          ! logical whether or not runnoff needs to be mapped to river network HRU
    case('<fname_remap>');          fname_remap          = trim(cData)              ! name of runoff mapping netCDF
@@ -135,13 +138,17 @@ contains
    ! ROUTED FLOW OUTPUT
    case('<case_name>');            case_name            = trim(cData)              ! name of simulation. used as head of model output and restart file
    case('<newFileFrequency>');     newFileFrequency     = trim(cData)              ! frequency for new output files (day, month, annual, single)
-   ! STATES
-   case('<restart_write>');        restart_write        = trim(cData)              ! restart write option: N[n]ever, L[l]ast
-   case('<restart_date>');         restart_date         = trim(cData)              ! specified restart date, yyyy-mm-dd (hh:mm:ss)
+   ! RESTART
+   case('<restart_write>');        restart_write        = trim(cData)              ! restart write option: N[n]ever, L[l]ast, S[s]pecified, Monthly, Daily
+   case('<restart_date>');         restart_date         = trim(cData)              ! specified restart date, yyyy-mm-dd (hh:mm:ss) for Specified option
+   case('<restart_month>');        read(cData,*,iostat=io_error) restart_month     ! restart periodic month
+   case('<restart_day>');          read(cData,*,iostat=io_error) restart_day       ! restart periodic day
+   case('<restart_hour>');         read(cData,*,iostat=io_error) restart_hour      ! restart periodic hour
    case('<fname_state_in>');       fname_state_in       = trim(cData)              ! filename for the channel states
    ! SPATIAL CONSTANT PARAMETERS
    case('<param_nml>');            param_nml       = trim(cData)                   ! name of namelist including routing parameter value
    ! USER OPTIONS: Define options to include/skip calculations
+   case('<qtakeOption>');          read(cData,*,iostat=io_error) qtakeOption       ! option for abstraction/injection option
    case('<hydGeometryOption>');    read(cData,*,iostat=io_error) hydGeometryOption ! option for hydraulic geometry calculations (0=read from file, 1=compute)
    case('<topoNetworkOption>');    read(cData,*,iostat=io_error) topoNetworkOption ! option for network topology calculations (0=read from file, 1=compute)
    case('<computeReachList>');     read(cData,*,iostat=io_error) computeReachList  ! option to compute list of upstream reaches (0=do not compute, 1=compute)
@@ -186,6 +193,7 @@ contains
    case('<varname_upsArea>'      ); meta_SEG    (ixSEG%upsArea         )%varName =trim(cData)  ! area above the top of the reach -- zero if headwater (m2)
    case('<varname_basUnderLake>' ); meta_SEG    (ixSEG%basUnderLake    )%varName =trim(cData)  ! Area of basin under lake  (m2)
    case('<varname_rchUnderLake>' ); meta_SEG    (ixSEG%rchUnderLake    )%varName =trim(cData)  ! Length of reach under lake (m)
+   case('<varname_qtake>'        ); meta_SEG    (ixSEG%Qtake           )%varName =trim(cData)  ! abstraction(-)/injection(+) (m3 s-1)
    case('<varname_minFlow>'      ); meta_SEG    (ixSEG%minFlow         )%varName =trim(cData)  ! minimum environmental flow
    ! network topology
    case('<varname_hruContribIx>' ); meta_NTOPO  (ixNTOPO%hruContribIx  )%varName =trim(cData)  ! indices of the vector of HRUs that contribute flow to each segment
@@ -220,6 +228,11 @@ contains
   endif
 
  end do  ! looping through lines in the control file
+
+ ! ---------- directory option  ---------------------------------------------------------------------
+ if (trim(restart_dir)==charMissing) then
+   restart_dir = output_dir
+ endif
 
  ! ---------- control river network writing option  ---------------------------------------------------------------------
 

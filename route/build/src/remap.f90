@@ -206,8 +206,8 @@ module remapping
     cycle
    endif
 
-   !print*, 'remap_data_in%hru_id(iHRU), structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1), remap_data_in%num_qhru(iHRU) = ', &
-   !         remap_data_in%hru_id(iHRU), structHRU2seg(jHRU)%var(ixHRU2seg%hruId)%dat(1), remap_data_in%num_qhru(iHRU)
+   !print*, 'remap_data_in%hru_id(iHRU), basinID(jHRU), remap_data_in%num_qhru(iHRU) = ', &
+   !         remap_data_in%hru_id(iHRU), basinID(jHRU), remap_data_in%num_qhru(iHRU)
 
    ! initialize the weighted average
    sumWeights        = 0._dp
@@ -295,6 +295,9 @@ module remapping
   integer(i4b), parameter            :: ixCheck=-huge(iHRU) ! basin to check
 
   ierr=0; message="sort_runoff/"
+
+  ! initialize zero at all the River network HRUs
+  basinRunoff(:) = 0._dp
 
   ! loop through hrus in the runoff layer
   do iHRU=1,size(runoff_data_in%hru_ix)
