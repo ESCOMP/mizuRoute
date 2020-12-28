@@ -233,6 +233,7 @@ CONTAINS
    case('<varname_lakeIndex>'    ); meta_NTOPO  (ixNTOPO%lakeIndex     )%varName =trim(cData)  ! index of each lake in the river network
    case('<varname_isLakeInlet>'  ); meta_NTOPO  (ixNTOPO%isLakeInlet   )%varName =trim(cData)  ! flag to define if reach is a lake inlet (1=inlet, 0 otherwise)
    case('<varname_islake>'       ); meta_NTOPO  (ixNTOPO%islake        )%varName =trim(cData)  ! flag to define a lake (1=lake, 0=reach)
+   case('<varname_lakeModelType>'); meta_NTOPO  (ixNTOPO%lakeModelType )%varName =trim(cData)  ! defines the lake model type (1=Doll, 2=Hanasaki, 3=etc)
    case('<varname_LakeTargVol>'  ); meta_NTOPO  (ixNTOPO%LakeTargVol   )%varName =trim(cData)  ! flag to follow the provided target volume (1=yes, 0=no)
    case('<varname_userTake>'     ); meta_NTOPO  (ixNTOPO%userTake      )%varName =trim(cData)  ! flag to define if user takes water from reach (1=extract, 0 otherwise)
    case('<varname_goodBasin>'    ); meta_NTOPO  (ixNTOPO%goodBasin     )%varName =trim(cData)  ! flag to define a good basin (1=good, 0=bad)

@@ -235,6 +235,7 @@ implicit none
   logical(lgt)                               :: USRTAKE      ! .TRUE. if user takes from reach, .FALSE. otherwise
   logical(lgt)                               :: ISLAKE       ! .TRUE. if the object is a lake
   logical(lgt)                               :: LAKETARGVOL  ! .TRUE. if the lake follow a given target volume
+  integer(i4b)                               :: LAKEMODELTYPE! 1=Doll, 2=Hanasaki, else=non-parameteric
  end type RCHTOPO
 
  ! ---------- reach states --------------------------------------------------------------------
