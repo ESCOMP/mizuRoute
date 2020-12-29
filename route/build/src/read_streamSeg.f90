@@ -330,21 +330,20 @@ subroutine getData(&
             case(ixStruct%SEG    )
             case(ixStruct%PFAF   )
             case(ixStruct%NTOPO) ! just the NTOPO case
-              print*, meta_struct(iStruct)%nVars, iVar, trim(meta_NTOPO(ivar)%varName), meta_struct(iStruct)%nSpace
-              select case (trim(meta_NTOPO(ivar)%varName)) ! get the varibale name
-                case('ISLAKE')
-                  print*, trim(meta_NTOPO(ivar)%varName)
+              !print*, meta_struct(iStruct)%nVars, iVar, trim(meta_NTOPO(ivar)%varName), meta_struct(iStruct)%nSpace
+              print*, trim(meta_NTOPO(ivar)%varName)
+              select case (iVar) ! get the index of the varibale
+                case(ixNTOPO%islake) !iVar is euqal to the location of islake
+                  print*, trim(meta_NTOPO(ivar)%varName), ivar
                   if (allocated(islake_local)) then
                     islake_local(iSpace) = structNTOPO(iSpace)%var(iVar)%dat(1)
                   else
                     allocate(islake_local(meta_struct(iStruct)%nSpace),stat=ierr)
                     if(ierr/=0)then; message=trim(message)//'problem allocating islake_local'; return; endif
                   endif
-                !case('LakeTargVol')
-                case('LAKETARGVOL')
-                  print*, 'LAKETARGVOL'
+                case(ixNTOPO%laketargvol) !iVar is euqal to the location of laketargvol
                   if (is_vol_wm) then
-                    print*, trim(meta_NTOPO(ivar)%varName)
+                    print*, trim(meta_NTOPO(ivar)%varName), ivar
                     if (allocated(LakeTargetVol_local)) then
                       LakeTargetVol_local(iSpace) = structNTOPO(iSpace)%var(iVar)%dat(1)
                     else
@@ -352,9 +351,9 @@ subroutine getData(&
                       if(ierr/=0)then; message=trim(message)//'problem allocating LakeTargetVol_local'; return; endif
                     endif
                   endif
-                case('LakeModelType')
+                case(ixNTOPO%LakeModelType)
                   if ((lake_model_D03).or.(lake_model_H06)) then
-                    print*, trim(meta_NTOPO(ivar)%varName)
+                    print*, trim(meta_NTOPO(ivar)%varName), ivar
                     if (allocated(LakeModelType_local)) then
                       LakeModelType_local(iSpace) = structNTOPO(iSpace)%var(iVar)%dat(1)
                     else
@@ -379,12 +378,12 @@ subroutine getData(&
 
     print*,'after allocation'
 
-    print*,'islake = ', islake_local(1:1000)
+    print*,'islake = ', islake_local(1:100000)
     if (is_vol_wm) then
-      print*,'LakeTargetVol_local = ', LakeTargetVol_local(1:1000)
+      print*,'LakeTargetVol_local = ', LakeTargetVol_local(1:100000)
     endif
     if ((lake_model_D03).or.(lake_model_H06)) then
-      print*,'LakeModelType_local = ', LakeModelType_local(1:1000)
+      print*,'LakeModelType_local = ', LakeModelType_local(1:100000)
     endif
 
     ! check if the information provided is consistant terminate or warning
