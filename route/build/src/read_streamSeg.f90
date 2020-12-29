@@ -331,10 +331,10 @@ subroutine getData(&
             case(ixStruct%PFAF   )
             case(ixStruct%NTOPO) ! just the NTOPO case
               !print*, meta_struct(iStruct)%nVars, iVar, trim(meta_NTOPO(ivar)%varName), meta_struct(iStruct)%nSpace
-              print*, trim(meta_NTOPO(ivar)%varName)
+              !print*, trim(meta_NTOPO(ivar)%varName)
               select case (iVar) ! get the index of the varibale
                 case(ixNTOPO%islake) !iVar is euqal to the location of islake
-                  print*, trim(meta_NTOPO(ivar)%varName), ivar
+                  !print*, trim(meta_NTOPO(ivar)%varName), ivar
                   if (allocated(islake_local)) then
                     islake_local(iSpace) = structNTOPO(iSpace)%var(iVar)%dat(1)
                   else
@@ -343,7 +343,7 @@ subroutine getData(&
                   endif
                 case(ixNTOPO%laketargvol) !iVar is euqal to the location of laketargvol
                   if (is_vol_wm) then
-                    print*, trim(meta_NTOPO(ivar)%varName), ivar
+                    !print*, trim(meta_NTOPO(ivar)%varName), ivar
                     if (allocated(LakeTargetVol_local)) then
                       LakeTargetVol_local(iSpace) = structNTOPO(iSpace)%var(iVar)%dat(1)
                     else
@@ -353,7 +353,7 @@ subroutine getData(&
                   endif
                 case(ixNTOPO%LakeModelType)
                   if ((lake_model_D03).or.(lake_model_H06)) then
-                    print*, trim(meta_NTOPO(ivar)%varName), ivar
+                    !print*, trim(meta_NTOPO(ivar)%varName), ivar
                     if (allocated(LakeModelType_local)) then
                       LakeModelType_local(iSpace) = structNTOPO(iSpace)%var(iVar)%dat(1)
                     else
@@ -361,17 +361,9 @@ subroutine getData(&
                       if(ierr/=0)then; message=trim(message)//'problem allocating LakeModelType_local'; return; endif
                     endif
                   endif
-                !case default; ierr=20; message=trim(message)//'unable to identify lake related varibales'; return
               end select
             case default; ierr=20; message=trim(message)//'unable to identify data structure'; return
           end select
-
-          ! just print
-          !case(ixStruct%HRU    ); varName=trim(meta_HRU(    ivar)%varName) ; if (allocated(structHRU(iSpace)%var(iVar)%dat(:)))     then; print*, varName, structHRU    (iStruct)%var(iVar)%dat(:); endif;
-          !case(ixStruct%HRU2SEG); varName=trim(meta_HRU2SEG(ivar)%varName) ; if (allocated(structHRU2seg(iSpace)%var(iVar)%dat(:))) then; print*, varName, structHRU2seg(iStruct)%var(iVar)%dat(:); endif;
-          !case(ixStruct%SEG    ); varName=trim(meta_SEG(    ivar)%varName) ; if (allocated(structSeg(iSpace)%var(iVar)%dat(:)))     then; print*, varName, structSeg    (iStruct)%var(iVar)%dat(:); endif;
-          !case(ixStruct%NTOPO  ); varName=trim(meta_NTOPO(  ivar)%varName) ; if (allocated(structNTOPO(iSpace)%var(iVar)%dat(:)))   then; print*, varName, structNTOPO  (iStruct)%var(iVar)%dat(:); endif;
-          !case(ixStruct%PFAF   ); varName=trim(meta_PFAF(   ivar)%varName) ; if (allocated(structPFAF(iSpace)%var(iVar)%dat(:)))    then; print*, varName, structPFAF   (iStruct)%var(iVar)%dat(:); endif;
         end do
       end do
     end do
@@ -385,6 +377,7 @@ subroutine getData(&
     if ((lake_model_D03).or.(lake_model_H06)) then
       print*,'LakeModelType_local = ', LakeModelType_local(1:100000)
     endif
+    stop
 
     ! check if the information provided is consistant terminate or warning
     ! check 1- if a segmenet is lake then it should either have target volume 1 and lake model type not equal to 1 or 2 (Doll or Hanasaki) or...
