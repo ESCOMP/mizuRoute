@@ -101,6 +101,10 @@ subroutine getData(&
   integer(i4b),              allocatable       :: islake_local(:)         ! local array to save islake flag
   integer(i4b),              allocatable       :: LakeTargetVol_local(:)  ! local array to save LakeTargetVol flag
   integer(i4b),              allocatable       :: LakeModelType_local(:)  ! local array to save LakeModelType flag
+  logical(lgt)                                 :: Doll_is_called          ! if Doll model is called in lake type varibale
+  logical(lgt)                                 :: Hanasaki_is_called      ! if Hanasaki model is called in lake type varibale
+  integer(i4b)                                 :: i ! counter
+  logical(lgt)                                 :: lake_model_conflict     ! if both parameteric model and non parameteric models are on for a lake
 
   ierr=0; message='getData/'
 
@@ -368,22 +372,61 @@ subroutine getData(&
       end do
     end do
 
-    print*,'after allocation'
 
-    print*,'islake = ', islake_local(1:100000)
-    if (is_vol_wm) then
-      print*,'LakeTargetVol_local = ', LakeTargetVol_local(1:100000)
+    write(iulog,'(2a)') new_line('a'), '---- Check the lake model types and flags for each lake --- '
+
+    !print*,'after allocation'
+
+    Doll_is_called        =  .false. ! initialize the flag to false
+    Hanasaki_is_called    =  .false. ! initialize the flag to false
+    lake_model_conflict   =  .false. ! initialize the flag to false
+
+    ! check if the sizes of the the three local arrays are similar
+    !print*, 'numer of islake_local = '       ,  size (islake_local)
+    !print*, 'numer of LakeTargetVol_local = ',  size (LakeTargetVol_local)
+    !print*, 'numer of LakeModelType_local = ',  size (LakeModelType_local)
+
+    ! check if the length of the local read varibales are equal
+    if (.not.(size (islake_local)==size (LakeTargetVol_local)).and.(size (LakeTargetVol_local)==size (LakeModelType_local)) ) then
+      ierr=20; message=trim(message)//'the lake flags, lake target volume flags and lake model type flags are with different dimensions'; return
     endif
-    if ((lake_model_D03).or.(lake_model_H06)) then
-      print*,'LakeModelType_local = ', LakeModelType_local(1:100000)
+
+    ! specifying which lake models are called and if there is conflict between lake model and data driven
+    do i = 1, size(islake_local)
+      if (islake_local(i) == 1) then ! if the segement is flagged as lake
+        ! check if the lakes are data driven or parameteric
+        if (LakeTargetVol_local(i) /= 1) then ! if lake is not target volume then it should be parametertic
+          select case(LakeModelType_local(i))
+            case(1); Doll_is_called     = .true.
+            case(2); Hanasaki_is_called = .true.
+            case default; ierr=20; message=trim(message)//'unable to identify the lake model type'; return
+          end select
+        else ! if for a lake both parameteric and non parameteric are set to correct
+          select case(LakeModelType_local(i))
+            case(1); ierr=20; message=trim(message)//'both data driven (follow target volume) and Doll are activated for a lake'; return
+            case(2); ierr=20; message=trim(message)//'both data driven (follow target volume) and Hanasaki are activated for a lake'; return
+          end select
+        endif
+      endif
+    enddo
+
+    ! check the local lake model flags with the global flags
+    if ((Doll_is_called).and.(.not.(lake_model_D03))) then
+      ierr=20; message=trim(message)//'Doll 2003 is called in the netwrok topology but the flag is not set to true in control file; set the flag to true in control file'; return
     endif
-    stop
 
-    ! check if the information provided is consistant terminate or warning
-    ! check 1- if a segmenet is lake then it should either have target volume 1 and lake model type not equal to 1 or 2 (Doll or Hanasaki) or...
-    ! if the target volume is 0 then the parameteric should be either 1 or 2 (Doll or Hanasaki)
-    ! check 2- check for parameteric lakes either either the lake model is Doll or Hanasaki, check with global flags from control file and terminate or give warning
+    ! check the local lake model type with the global flags
+    if ((Hanasaki_is_called).and.(.not.(lake_model_H06))) then
+      ierr=20; message=trim(message)//'Hanasaki 2006 is called in the netwrok topology but the flag is not set to true in control file; set the flag to true in control file'; return
+    endif
 
+    !print*,'islake = ', islake_local(1:100000)
+    !if (is_vol_wm) then
+    !  print*,'LakeTargetVol_local = ', LakeTargetVol_local(1:100000)
+    !endif
+    !if ((lake_model_D03).or.(lake_model_H06)) then
+    !  print*,'LakeModelType_local = ', LakeModelType_local(1:100000)
+    !endif
 
   endif
 
