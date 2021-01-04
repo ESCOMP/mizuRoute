@@ -444,11 +444,13 @@ subroutine getData(&
       ierr=20; message=trim(message)//'Hanasaki 2006 is called in the netwrok topology but the flag is not set to true in control file; set the flag to true in control file'; return
     endif
 
+    ! print the numbers
     print*, "total number of lakes             = ", number_lakes
     print*, "lakes with Doll formulation       = ", number_Doll
     print*, "lakes with Hanasaki formulation   = ", number_Hanasaki
     print*, "lakes with target volume          = ", number_Targetvol
 
+    ! check is the number of parameteric lakes and target volume sums up to the total number of lakes
     if (number_Doll+number_Hanasaki+number_Targetvol == number_lakes) then
       print*, "number of lake models and target volume models matches the total number of lakes; should be good to go"
     else
