@@ -375,16 +375,10 @@ subroutine getData(&
 
     write(iulog,'(2a)') new_line('a'), '---- Check the lake model types and flags for each lake --- '
 
-    !print*,'after allocation'
-
+    ! initializing the flags
     Doll_is_called        =  .false. ! initialize the flag to false
     Hanasaki_is_called    =  .false. ! initialize the flag to false
     lake_model_conflict   =  .false. ! initialize the flag to false
-
-    ! check if the sizes of the the three local arrays are similar
-    !print*, 'numer of islake_local = '       ,  size (islake_local)
-    !print*, 'numer of LakeTargetVol_local = ',  size (LakeTargetVol_local)
-    !print*, 'numer of LakeModelType_local = ',  size (LakeModelType_local)
 
     ! check if the length of the local read varibales are equal
     if (.not.(size (islake_local)==size (LakeTargetVol_local)).and.(size (LakeTargetVol_local)==size (LakeModelType_local)) ) then
@@ -419,14 +413,6 @@ subroutine getData(&
     if ((Hanasaki_is_called).and.(.not.(lake_model_H06))) then
       ierr=20; message=trim(message)//'Hanasaki 2006 is called in the netwrok topology but the flag is not set to true in control file; set the flag to true in control file'; return
     endif
-
-    !print*,'islake = ', islake_local(1:100000)
-    !if (is_vol_wm) then
-    !  print*,'LakeTargetVol_local = ', LakeTargetVol_local(1:100000)
-    !endif
-    !if ((lake_model_D03).or.(lake_model_H06)) then
-    !  print*,'LakeModelType_local = ', LakeModelType_local(1:100000)
-    !endif
 
   endif
 
