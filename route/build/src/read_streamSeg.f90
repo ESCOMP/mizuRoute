@@ -99,7 +99,7 @@ subroutine getData(&
   character(len=strLen)                        :: varName                 ! variable name
   character(len=strLen)                        :: cmessage                ! error message of downwind routine
   integer(i4b),              allocatable       :: islake_local(:)         ! local array to save islake flag
-  integer(i4b),              allocatable       :: LakeTargetVol_local(:)  ! local array to save LakeTargetVol flag
+  integer(i4b),              allocatable       :: LakeTargVol_local(:)    ! local array to save LakeTargetVol flag
   integer(i4b),              allocatable       :: LakeModelType_local(:)  ! local array to save LakeModelType flag
   logical(lgt)                                 :: Doll_is_called          ! if Doll model is called in lake type varibale
   logical(lgt)                                 :: Hanasaki_is_called      ! if Hanasaki model is called in lake type varibale
@@ -108,7 +108,7 @@ subroutine getData(&
   integer(i4b)                                 :: number_lakes            !
   integer(i4b)                                 :: number_Doll             !
   integer(i4b)                                 :: number_Hanasaki         !
-  integer(i4b)                                 :: number_Targetvol        !
+  integer(i4b)                                 :: number_TargVol          !
 
   ierr=0; message='getData/'
 
@@ -352,20 +352,20 @@ subroutine getData(&
                 case(ixNTOPO%laketargvol) !iVar is euqal to the location of laketargvol
                   if (is_vol_wm) then
                     !print*, trim(meta_NTOPO(ivar)%varName), ivar
-                    if (allocated(LakeTargetVol_local)) then
-                      LakeTargetVol_local(iSpace) = structNTOPO(iSpace)%var(iVar)%dat(1)
+                    if (allocated(LakeTargVol_local)) then
+                      LakeTargVol_local(iSpace) = structNTOPO(iSpace)%var(iVar)%dat(1)
                     else
-                      allocate(LakeTargetVol_local(meta_struct(iStruct)%nSpace),stat=ierr)
-                      if(ierr/=0)then; message=trim(message)//'problem allocating LakeTargetVol_local'; return; endif
-                      LakeTargetVol_local(iSpace) = structNTOPO(iSpace)%var(iVar)%dat(1)
+                      allocate(LakeTargVol_local(meta_struct(iStruct)%nSpace),stat=ierr)
+                      if(ierr/=0)then; message=trim(message)//'problem allocating LakeTargVol_local'; return; endif
+                      LakeTargVol_local(iSpace) = structNTOPO(iSpace)%var(iVar)%dat(1)
                     endif
                   else
-                    if (allocated(LakeTargetVol_local)) then
-                      LakeTargetVol_local(iSpace) = 0
+                    if (allocated(LakeTargVol_local)) then
+                      LakeTargVol_local(iSpace) = 0
                     else
-                      allocate(LakeTargetVol_local(meta_struct(iStruct)%nSpace),stat=ierr)
-                      if(ierr/=0)then; message=trim(message)//'problem allocating LakeTargetVol_local'; return; endif
-                      LakeTargetVol_local(iSpace) = 0
+                      allocate(LakeTargVol_local(meta_struct(iStruct)%nSpace),stat=ierr)
+                      if(ierr/=0)then; message=trim(message)//'problem allocating LakeTargVol_local'; return; endif
+                      LakeTargVol_local(iSpace) = 0
                     endif
                   endif
                 case(ixNTOPO%LakeModelType)
@@ -403,7 +403,7 @@ subroutine getData(&
     lake_model_conflict   =  .false. ! initialize the flag to false
 
     ! check if the length of the local read varibales are equal
-    if (.not.(size (islake_local)==size (LakeTargetVol_local)).and.(size (LakeTargetVol_local)==size (LakeModelType_local)) ) then
+    if (.not.(size (islake_local)==size (LakeTargVol_local)).and.(size (LakeTargVol_local)==size (LakeModelType_local)) ) then
       ierr=20; message=trim(message)//'the lake flags, lake target volume flags and lake model type flags are with different dimensions'; return
     endif
 
@@ -411,21 +411,21 @@ subroutine getData(&
     number_lakes      =  0
     number_Doll       =  0
     number_Hanasaki   =  0
-    number_Targetvol  =  0
+    number_TargVol    =  0
 
     ! specifying which lake models are called and if there is conflict between lake model type and data driven flag
     do i = 1, size(islake_local)
       if (islake_local(i) == 1) then ! if the segement is flagged as lake
         number_lakes = number_lakes + 1 ! total number of lakes
         ! check if the lakes are data driven or parameteric
-        if (LakeTargetVol_local(i) /= 1) then ! if lake is not target volume then it should be parametertic
+        if (LakeTargVol_local(i) /= 1) then ! if lake is not target volume then it should be parametertic
           select case(LakeModelType_local(i))
             case(1); Doll_is_called     = .true.; number_Doll     = number_Doll     + 1; ! add number of Doll lakes
             case(2); Hanasaki_is_called = .true.; number_Hanasaki = number_Hanasaki + 1; ! add number of Hanasaki lakes
             case default; ierr=20; message=trim(message)//'unable to identify the lake model type'; return
           end select
         else ! if for a lake both parameteric and non parameteric are set to correct
-          number_Targetvol = number_Targetvol + 1 ! add number of target volume case
+          number_TargVol = number_TargVol + 1 ! add number of target volume case
           select case(LakeModelType_local(i))
             case(1); ierr=20; message=trim(message)//'both data driven (follow target volume) and Doll are activated for a lake'; return
             case(2); ierr=20; message=trim(message)//'both data driven (follow target volume) and Hanasaki are activated for a lake'; return
@@ -448,10 +448,10 @@ subroutine getData(&
     print*, "total number of lakes             = ", number_lakes
     print*, "lakes with Doll formulation       = ", number_Doll
     print*, "lakes with Hanasaki formulation   = ", number_Hanasaki
-    print*, "lakes with target volume          = ", number_Targetvol
+    print*, "lakes with target volume          = ", number_TargVol
 
     ! check is the number of parameteric lakes and target volume sums up to the total number of lakes
-    if (number_Doll+number_Hanasaki+number_Targetvol == number_lakes) then
+    if (number_Doll+number_Hanasaki+number_TargVol == number_lakes) then
       print*, "number of lake models and target volume models matches the total number of lakes; should be good to go"
     else
       ! print*, "number of lake models and target volume models do not match the total number of lakes"

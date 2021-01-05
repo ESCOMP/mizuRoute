@@ -35,6 +35,8 @@ module lake_route_module
                          ierr, message)   ! output: error control
 
   USE public_var, ONLY: dt, lakeWBTol     ! lake water balance tolerance
+  USE public_var, ONLY: lake_model_D03    ! logical whether or not lake should be simulated
+  USE public_var, ONLY: lake_model_H06    ! logical whether or not lake should be simulated
 
   implicit none
   ! Input
@@ -83,20 +85,6 @@ module lake_route_module
       end do
     endif
 
-    ! preserving the past upstream discharge for lake models
-    if (allocated(RCHFLX_out(iens,segIndex)%QPASTUP_IRF)) then
-      RCHFLX_out(iens,segIndex)%QPASTUP_IRF(2:10) = RCHFLX_out(iens,segIndex)%QPASTUP_IRF(1:9) ! here the length is 10 as a randome varibale
-      RCHFLX_out(iens,segIndex)%QPASTUP_IRF(1) = q_upstream ! code needed to shift this as well.
-    else
-      allocate(RCHFLX_out(iens,segIndex)%QPASTUP_IRF(10),stat=ierr) ! 10 a random value for now
-      if(ierr/=0)then; message=trim(message)//'problem allocating QPASTUP_IRF'; return; endif
-      RCHFLX_out(iens,segIndex)%QPASTUP_IRF(:) = 0._dp
-      RCHFLX_out(iens,segIndex)%QPASTUP_IRF(1) = q_upstream
-    endif
-    print*, RCHFLX_out(iens,segIndex)%QPASTUP_IRF
-
-
-
     ! perform lake routing based on a fixed storage discharge relationship Q=kS
     ! no runoff input is added to the lake; the input are only precipitation and evaporation to the lake
 
@@ -139,16 +127,38 @@ module lake_route_module
 
     else ! if the lake is paraemteric
 
-      RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RPARAM_in(segIndex)%D03Coefficient * RCHFLX_out(iens,segIndex)%REACH_VOL(1) * &
-                                               (RCHFLX_out(iens,segIndex)%REACH_VOL(1) / RPARAM_in(segIndex)%D03MaxStorage) ** &
-                                               RPARAM_in(segIndex)%D03Power! Q = AS(S/Smax)^B based on Eq. 1 Hanasaki et al., 2006 https://doi.org/10.1016/j.jhydrol.2005.11.011
-      ! in case is the output volume is more than lake volume
-      RCHFLX_out(iens,segIndex)%REACH_Q_IRF = (min(RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt, RCHFLX_out(iens,segIndex)%REACH_VOL(1)) )/dt
-      ! updating the storage
-      RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt
-      if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) < 0) then; ! set the lake volume as 0 if it goes negative
-        RCHFLX_out(iens,segIndex)%REACH_VOL(1)=0
-      endif
+
+      select case(NETOPO_in(segIndex)%LakeModelType)
+
+        case (1)
+          ! the model is Doll03
+          RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RPARAM_in(segIndex)%D03Coefficient * RCHFLX_out(iens,segIndex)%REACH_VOL(1) * &
+                                                   (RCHFLX_out(iens,segIndex)%REACH_VOL(1) / RPARAM_in(segIndex)%D03MaxStorage) ** &
+                                                   RPARAM_in(segIndex)%D03Power! Q = AS(S/Smax)^B based on Eq. 1 Hanasaki et al., 2006 https://doi.org/10.1016/j.jhydrol.2005.11.011
+          ! in case is the output volume is more than lake volume
+          RCHFLX_out(iens,segIndex)%REACH_Q_IRF = (min(RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt, RCHFLX_out(iens,segIndex)%REACH_VOL(1)) )/dt
+          ! updating the storage
+          RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt
+          if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) < 0) then; ! set the lake volume as 0 if it goes negative
+            RCHFLX_out(iens,segIndex)%REACH_VOL(1)=0
+          endif
+
+        case (2)
+          ! the model is Hanasaki06
+          ! preserving the past upstream discharge for lake models
+          if (allocated(RCHFLX_out(iens,segIndex)%QPASTUP_IRF)) then
+            RCHFLX_out(iens,segIndex)%QPASTUP_IRF(2:10) = RCHFLX_out(iens,segIndex)%QPASTUP_IRF(1:9) ! here the length is 10 as a randome varibale
+            RCHFLX_out(iens,segIndex)%QPASTUP_IRF(1) = q_upstream ! code needed to shift this as well.
+          else
+            allocate(RCHFLX_out(iens,segIndex)%QPASTUP_IRF(10),stat=ierr) ! 10 a random value for now
+            if(ierr/=0)then; message=trim(message)//'problem allocating QPASTUP_IRF'; return; endif
+            RCHFLX_out(iens,segIndex)%QPASTUP_IRF(:) = 0._dp
+            RCHFLX_out(iens,segIndex)%QPASTUP_IRF(1) = q_upstream
+          endif
+          print*, RCHFLX_out(iens,segIndex)%QPASTUP_IRF
+
+        case default; ierr=20; message=trim(message)//'unable to identify the parametric lake model type'; return
+      end select
 
     endif
 

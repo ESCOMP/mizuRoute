@@ -140,6 +140,7 @@ contains
   integer(i4b),      allocatable              :: hruSegId_local(:)         ! downstream reach id array in decomposed network
   integer(i4b),      allocatable              :: islake_local(:)           ! islake flag local
   integer(i4b),      allocatable              :: LakeTargVol_local(:)      ! LakeTargVol flag local
+  integer(i4b),      allocatable              :: LakeModelType_local(:)    ! LakeModelType flag local
   real(dp),          allocatable              :: slope_local(:)            ! reach slope array in decomposed network
   real(dp),          allocatable              :: length_local(:)           ! reach length array in decomposed network
   real(dp),          allocatable              :: area_local(:)             ! hru area in decomposed network
@@ -157,6 +158,7 @@ contains
   integer(i4b)                                :: downSegId(nRch_in)        ! downstream reach ID for each reach
   integer(i4b)                                :: islake(nRch_in)           ! islake flag
   integer(i4b)                                :: LakeTargVol(nRch_in)      ! LakeTargVol flag
+  integer(i4b)                                :: LakeModelType(nRch_in)    ! LakeModelType flag local
   real(dp)                                    :: slope(nRch_in)            ! reach slope array for each reach
   real(dp)                                    :: length(nRch_in)           ! reach length array for each reach
   real(dp)                                    :: area(nHRU_in)             ! hru area for each hru
@@ -266,6 +268,7 @@ contains
      downSegId(iSeg)       = structNTOPO(jSeg)%var(ixNTOPO%downSegId)%dat(1)
      islake(iSeg)          = structNTOPO(jSeg)%var(ixNTOPO%islake)%dat(1)
      LakeTargVol(iSeg)     = structNTOPO(jSeg)%var(ixNTOPO%LakeTargVol)%dat(1)
+     LakeModelType(iSeg)   = structNTOPO(jSeg)%var(ixNTOPO%LakeModelType)%dat(1)
      slope(iSeg)           = structSEG(  jSeg)%var(ixSEG%slope)%dat(1)
      length(iSeg)          = structSEG(  jSeg)%var(ixSEG%length)%dat(1)
      D03MaxStorage(iSeg)   = structSEG(  jSeg)%var(ixSEG%D03MaxStorage)%dat(1)
@@ -327,6 +330,7 @@ contains
     call shr_mpi_scatterV(length        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), length_local,        ierr, cmessage)
     call shr_mpi_scatterV(islake        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), islake_local,        ierr, cmessage)
     call shr_mpi_scatterV(LakeTargVol   (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), LakeTargVol_local,   ierr, cmessage)
+    call shr_mpi_scatterV(LakeModelType (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), LakeModelType_local, ierr, cmessage)
     call shr_mpi_scatterV(D03MaxStorage (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03MaxStorage_local, ierr, cmessage)
     call shr_mpi_scatterV(D03Coefficient(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03Coefficient_local,ierr, cmessage)
     call shr_mpi_scatterV(D03Power      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03Power_local,      ierr, cmessage)
@@ -362,6 +366,7 @@ contains
      structSEG_local  (ix)%var(ixSEG%slope)%dat(1)            = slope_local(ix)
      structNTOPO_local(ix)%var(ixNTOPO%islake)%dat(1)         = islake_local(ix)
      structNTOPO_local(ix)%var(ixNTOPO%LakeTargVol)%dat(1)    = LakeTargVol_local(ix)
+     structNTOPO_local(ix)%var(ixNTOPO%LakeModelType)%dat(1)  = LakeModelType_local(ix)
      structSEG_local  (ix)%var(ixSEG%D03MaxStorage)%dat(1)    = D03MaxStorage_local(ix)
      structSEG_local  (ix)%var(ixSEG%D03Coefficient)%dat(1)   = D03Coefficient_local(ix)
      structSEG_local  (ix)%var(ixSEG%D03Power)%dat(1)         = D03Power_local(ix)
@@ -498,6 +503,7 @@ contains
        structSEG_main  (ix)%var(ixSEG%slope)%dat(1)           = slope(ix)
        structNTOPO_main(ix)%var(ixNTOPO%islake)%dat(1)        = islake(ix)
        structNTOPO_main(ix)%var(ixNTOPO%LakeTargVol)%dat(1)   = LakeTargVol(ix)
+       structNTOPO_main(ix)%var(ixNTOPO%LakeModelType)%dat(1) = LakeModelType(ix)
        structSEG_main  (ix)%var(ixSEG%D03MaxStorage)%dat(1)   = D03MaxStorage(ix)
        structSEG_main  (ix)%var(ixSEG%D03Coefficient)%dat(1)  = D03Coefficient(ix)
        structSEG_main  (ix)%var(ixSEG%D03Power)%dat(1)        = D03Power(ix)
@@ -514,6 +520,7 @@ contains
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%slope)%dat(1)           = structSEG(ixx)%var(ixSEG%slope)%dat(1)
        structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%islake)%dat(1)        = structNTOPO(ixx)%var(ixNTOPO%islake)%dat(1)
        structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%LakeTargVol)%dat(1)   = structNTOPO(ixx)%var(ixNTOPO%LakeTargVol)%dat(1)
+       structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%LakeModelType)%dat(1) = structNTOPO(ixx)%var(ixNTOPO%LakeModelType)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03MaxStorage)%dat(1)   = structSEG(ixx)%var(ixSEG%D03MaxStorage)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03Coefficient)%dat(1)  = structSEG(ixx)%var(ixSEG%D03Coefficient)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03Power)%dat(1)        = structSEG(ixx)%var(ixSEG%D03Power)%dat(1)
