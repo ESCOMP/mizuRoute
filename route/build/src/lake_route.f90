@@ -19,7 +19,7 @@ module lake_route_module
 
   contains
 
-   ! *********************************************************************
+  ! *********************************************************************
   ! subroutine: perform one segment lake routing
   ! *********************************************************************
   subroutine lake_route(&
@@ -40,11 +40,11 @@ module lake_route_module
 
   implicit none
   ! Input
-  INTEGER(I4B), intent(IN)                 :: iEns           ! runoff ensemble to be routed
-  INTEGER(I4B), intent(IN)                 :: segIndex       ! segment where routing is performed
-  INTEGER(I4B), intent(IN)                 :: ixDesire       ! index of the reach for verbose output
-  type(RCHTOPO), intent(IN),   allocatable :: NETOPO_in(:)   ! River Network topology
-  type(RCHPRP),  intent(IN),   allocatable :: RPARAM_in(:)   ! River Network topology
+  INTEGER(I4B), intent(in)                 :: iEns           ! runoff ensemble to be routed
+  INTEGER(I4B), intent(in)                 :: segIndex       ! segment where routing is performed
+  INTEGER(I4B), intent(in)                 :: ixDesire       ! index of the reach for verbose output
+  type(RCHTOPO), intent(in),   allocatable :: NETOPO_in(:)   ! River Network topology
+  type(RCHPRP),  intent(in),   allocatable :: RPARAM_in(:)   ! River Network topology
   ! inout
   TYPE(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
   ! Output
@@ -102,6 +102,7 @@ module lake_route_module
     !print*, 'upstream streamflow m3/s ...= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
     !print*, 'upstream precipitation m3/s.= ', RCHFLX_out(iens,segIndex)%basinprecip
     !print*, 'upstream evaporation m3/s ..= ', RCHFLX_out(iens,segIndex)%basinevapo
+    print*, 'paraemters', RPARAM_in(segIndex)%D03MaxStorage, RPARAM_in(segIndex)%D03Coefficient, RPARAM_in(segIndex)%D03Power, NETOPO_in(segIndex)%LakeTargVol, NETOPO_in(segIndex)%islake, NETOPO_in(segIndex)%LakeModelType
 
 
     ! add upstream, precipitation and subtract evaporation from the lake volume
@@ -127,11 +128,12 @@ module lake_route_module
 
     else ! if the lake is paraemteric
 
-
+      print*, "lake model is Doll 2003", NETOPO_in(segIndex)%LakeModelType
       select case(NETOPO_in(segIndex)%LakeModelType)
 
         case (1)
           ! the model is Doll03
+          print*, "lake model is Doll 2003"
           RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RPARAM_in(segIndex)%D03Coefficient * RCHFLX_out(iens,segIndex)%REACH_VOL(1) * &
                                                    (RCHFLX_out(iens,segIndex)%REACH_VOL(1) / RPARAM_in(segIndex)%D03MaxStorage) ** &
                                                    RPARAM_in(segIndex)%D03Power! Q = AS(S/Smax)^B based on Eq. 1 Hanasaki et al., 2006 https://doi.org/10.1016/j.jhydrol.2005.11.011
@@ -146,6 +148,7 @@ module lake_route_module
         case (2)
           ! the model is Hanasaki06
           ! preserving the past upstream discharge for lake models
+          print*, "lake model is Hanasaki 2006"
           if (allocated(RCHFLX_out(iens,segIndex)%QPASTUP_IRF)) then
             RCHFLX_out(iens,segIndex)%QPASTUP_IRF(2:10) = RCHFLX_out(iens,segIndex)%QPASTUP_IRF(1:9) ! here the length is 10 as a randome varibale
             RCHFLX_out(iens,segIndex)%QPASTUP_IRF(1) = q_upstream ! code needed to shift this as well.

@@ -474,7 +474,7 @@ end subroutine augment_ntopo
    ! USED
    NETOPO_in(iSeg)%isLake       = (structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)==true)
    NETOPO_in(iSeg)%LakeTargVol  = (structNTOPO(iSeg)%var(ixNTOPO%LakeTargVol)%dat(1)==true)
-   NETOPO_in(iSeg)%LakeModelType= (structNTOPO(iSeg)%var(ixNTOPO%LakeModelType)%dat(1)==true)
+   NETOPO_in(iSeg)%LakeModelType= structNTOPO(iSeg)%var(ixNTOPO%LakeModelType)%dat(1) ! type of the parameteric lake
    ! NOT USED: lake parameters
    NETOPO_in(iSeg)%LAKE_IX = integerMissing  ! Lake index (0,1,2,...,nlak-1)
    NETOPO_in(iSeg)%LAKE_ID = integerMissing  ! Lake ID (REC code?)

@@ -103,12 +103,12 @@ subroutine getData(&
   integer(i4b),              allocatable       :: LakeModelType_local(:)  ! local array to save LakeModelType flag
   logical(lgt)                                 :: Doll_is_called          ! if Doll model is called in lake type varibale
   logical(lgt)                                 :: Hanasaki_is_called      ! if Hanasaki model is called in lake type varibale
-  integer(i4b)                                 :: i ! counter
+  integer(i4b)                                 :: i                       ! counter
   logical(lgt)                                 :: lake_model_conflict     ! if both parameteric model and non parameteric models are on for a lake
-  integer(i4b)                                 :: number_lakes            !
-  integer(i4b)                                 :: number_Doll             !
-  integer(i4b)                                 :: number_Hanasaki         !
-  integer(i4b)                                 :: number_TargVol          !
+  integer(i4b)                                 :: number_lakes            ! number of lakes in network topology
+  integer(i4b)                                 :: number_Doll             ! number of lakes with parameteric Doll 2003 formulation
+  integer(i4b)                                 :: number_Hanasaki         ! number of lakes with parameteric Hanasaki 2006 formulation
+  integer(i4b)                                 :: number_TargVol          ! number of lakes with target volume
 
   ierr=0; message='getData/'
 
@@ -328,7 +328,6 @@ subroutine getData(&
 
   if (is_lake_sim) then
     ! check which lakes model are specified in segment
-    write(iulog,'(2a)') new_line('a'), '---- Lakes are active; check the lake model types --- '
     do iStruct=1,nStructures
       do iVar=1,meta_struct(iStruct)%nVars
         do iSpace=1,meta_struct(iStruct)%nSpace
@@ -394,7 +393,6 @@ subroutine getData(&
       end do
     end do
 
-
     write(iulog,'(2a)') new_line('a'), '---- Check the lake model types and flags for each lake --- '
 
     ! initializing the flags
@@ -457,8 +455,6 @@ subroutine getData(&
       ! print*, "number of lake models and target volume models do not match the total number of lakes"
       ierr=20; message=trim(message)//'number of lake models and target volume models do not match the total number of lakes'; return
     endif
-
-
   endif
 
 end subroutine getData
