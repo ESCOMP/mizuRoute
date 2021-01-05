@@ -408,10 +408,10 @@ subroutine getData(&
     endif
 
     ! assign the initial values
-    number_lakes      = 0
-    number_Doll       = 0
-    number_Hanasaki   = 0
-    number_Targetvol  = 0
+    number_lakes      =  0
+    number_Doll       =  0
+    number_Hanasaki   =  0
+    number_Targetvol  =  0
 
     ! specifying which lake models are called and if there is conflict between lake model type and data driven flag
     do i = 1, size(islake_local)

@@ -83,6 +83,20 @@ module lake_route_module
       end do
     endif
 
+    ! preserving the past upstream discharge for lake models
+    if (allocated(RCHFLX_out(iens,segIndex)%QPASTUP_IRF)) then
+      RCHFLX_out(iens,segIndex)%QPASTUP_IRF(2:10) = RCHFLX_out(iens,segIndex)%QPASTUP_IRF(1:9) ! here the length is 10 as a randome varibale
+      RCHFLX_out(iens,segIndex)%QPASTUP_IRF(1) = q_upstream ! code needed to shift this as well.
+    else
+      allocate(RCHFLX_out(iens,segIndex)%QPASTUP_IRF(10),stat=ierr) ! 10 a random value for now
+      if(ierr/=0)then; message=trim(message)//'problem allocating QPASTUP_IRF'; return; endif
+      RCHFLX_out(iens,segIndex)%QPASTUP_IRF(:) = 0._dp
+      RCHFLX_out(iens,segIndex)%QPASTUP_IRF(1) = q_upstream
+    endif
+    print*, RCHFLX_out(iens,segIndex)%QPASTUP_IRF
+
+
+
     ! perform lake routing based on a fixed storage discharge relationship Q=kS
     ! no runoff input is added to the lake; the input are only precipitation and evaporation to the lake
 
@@ -100,7 +114,6 @@ module lake_route_module
     !print*, 'upstream streamflow m3/s ...= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
     !print*, 'upstream precipitation m3/s.= ', RCHFLX_out(iens,segIndex)%basinprecip
     !print*, 'upstream evaporation m3/s ..= ', RCHFLX_out(iens,segIndex)%basinevapo
-    ! endif
 
 
     ! add upstream, precipitation and subtract evaporation from the lake volume
