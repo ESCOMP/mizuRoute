@@ -656,24 +656,26 @@ contains
   character(len=strLen),    intent(out) :: message                  ! error message
   ! local variables
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
-  integer(i4b)                          :: iSeg,jSeg
+  integer(i4b)                          :: iSeg,jSeg,iTbound        ! loop indices
+  integer(i4b)                          :: nTbound = 2
   real(dp),     allocatable             :: flux_global(:)           ! basin runoff (m/s) for entire reaches
-  real(dp),     allocatable             :: vol_global(:)            ! reach/lake volume (m3) for entire network
+  real(dp),     allocatable             :: vol_global(:,:)          ! reach/lake volume (m3) for entire network
+  real(dp),     allocatable             :: vol_global_tmp(:)        ! temporary reach/lake volume (m3) for entire network
   real(dp),     allocatable             :: flux_local(:)            ! basin runoff (m/s) for tributaries
   real(dp),     allocatable             :: vol_local(:)             ! reach/lake volume (m3) for tributaries
 
   ierr=0; message='mpi_restart/'
 
-  call MPI_BCAST(TSEC, 2, MPI_DOUBLE_PRECISION, root, comm, ierr)
+  call MPI_BCAST(TSEC, nTbound, MPI_DOUBLE_PRECISION, root, comm, ierr)
 
-  allocate(flux_global(nRch), vol_global(nRch))
+  allocate(flux_global(nRch), vol_global(nRch,nTbound), vol_global_tmp(nRch))
   allocate(vol_local(rch_per_proc(pid)), flux_local(rch_per_proc(pid)))
 
   if (masterproc) then
 
     do iSeg = 1, nRch
       flux_global(iSeg) = RCHFLX(iens,iSeg)%BASIN_QR(1)
-      vol_global(iSeg)  = RCHFLX(iens,iSeg)%REACH_VOL(1)
+      vol_global(iSeg,1:2) = RCHFLX(iens,iSeg)%REACH_VOL(0:1)
     enddo
 
     ! Distribute global flux/state (RCHFLX & RCHSTA) to mainstem (RCHFLX_main & RCHSTA_main)
@@ -690,8 +692,8 @@ contains
 
   else
 
-    flux_global(:) = realMissing
-    vol_global(:)  = realMissing
+    flux_global(:)  = realMissing
+    vol_global(:,:) = realMissing
 
   endif
 
@@ -767,19 +769,24 @@ contains
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! volume communication
-    call mpi_comm_single_flux(pid, nNodes, comm,                        &
-                              vol_global,                               &
-                              vol_local,                                &
-                              rch_per_proc(root:nNodes-1),              &
-                              ixRch_order(rch_per_proc(root-1)+1:nRch), &
-                              arth(1,1,rch_per_proc(pid)),              &
-                              scatter,                                  &
-                              ierr, message)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    do iTbound =1,nTbound
+      vol_global_tmp(:) = vol_global(:,iTbound)
+      call mpi_comm_single_flux(pid, nNodes, comm,                        &
+                                vol_global_tmp,                           &
+                                vol_local,                                &
+                                rch_per_proc(root:nNodes-1),              &
+                                ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                                arth(1,1,rch_per_proc(pid)),              &
+                                scatter,                                  &
+                                ierr, message)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    do iSeg = 1, rch_per_proc(pid)
-      RCHFLX_trib(iens,iSeg)%REACH_VOL(1) = vol_local(iSeg)
-    enddo
+      do iSeg = 1, rch_per_proc(pid)
+        RCHFLX_trib(iens,iSeg)%REACH_VOL(iTbound-1) = vol_local(iSeg)
+      enddo
+
+    end do
+
   endif
 
   ! no need for the entire domain flux/state data strucure
