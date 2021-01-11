@@ -383,7 +383,7 @@ CONTAINS
      RCHFLX_trib(:,:)%BASIN_QR(1)  = 0._dp
      RCHFLX_trib(:,:)%REACH_Q      = 0._dp      ! Initializing the flux which is used in lake route
      RCHFLX_trib(:,:)%REACH_VOL(0) = 0._dp      ! initializing the storage of lake volume for tributaries; layer may be read from an input file
-     RCHFLX_trib(:,:)%REACH_VOL(0) = 0._dp      ! initializing the storage of lake volume for tributaries; later may be read from an input file
+     RCHFLX_trib(:,:)%REACH_VOL(1) = 0._dp      ! initializing the storage of lake volume for tributaries; later may be read from an input file
 
      if (routOpt==kinematicWaveEuler) then
        do ix = 1,4
