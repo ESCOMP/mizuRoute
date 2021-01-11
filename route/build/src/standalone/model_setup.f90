@@ -362,6 +362,8 @@ CONTAINS
   nFile_wm            = size(inputfileinfo_wm)
   day_runoff_start    = inputfileinfo(1)%timeVar(1)/inputfileinfo(1)%convTime2Days+inputfileinfo(1)%ncrefjulday
 
+  day_runoff_start = inputfileinfo(1)%timeVar(1)/inputfileinfo(1)%convTime2Days+inputfileinfo(1)%ncrefjulday
+
   do iFile=1,nFile_wm
 
     nt = inputfileinfo_wm(iFile)%nTime ! get the number of time

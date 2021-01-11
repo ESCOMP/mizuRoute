@@ -199,34 +199,42 @@ implicit none
   real(dp)                                   :: BASAREA  ! local basin area
   real(dp)                                   :: TOTAREA  ! UPSAREA + BASAREA
   real(dp)                                   :: MINFLOW  ! minimum environmental flow
+  real(dp)                                   :: RATECVA  ! discharge rating curve parameter A
+  real(dp)                                   :: RATECVB  ! discharge rating curve parameter B
+  real(dp)                                   :: RATECVC  ! discharge rating curve parameter C
+  real(dp)                                   :: RATECVD  ! discharge rating curve parameter D
+  real(dp)                                   :: RATECVE  ! discharge rating curve parameter E
+  real(dp)                                   :: RATECVF  ! discharge rating curve parameter F
  end type RCHPRP
 
  ! River Network topology
  type, public :: RCHTOPO
-  integer(i4b)                               :: REACHIX  ! Reach index (1,2,...,nrch)
-  integer(i4b)                               :: REACHID  ! Reach ID (REC code)
-  real(dp)                                   :: RCHLAT1  ! Start latitude
-  real(dp)                                   :: RCHLAT2  ! End latitude
-  real(dp)                                   :: RCHLON1  ! Start longitude
-  real(dp)                                   :: RCHLON2  ! End longitude
-  integer(i4b)                               :: DREACHI  ! Immediate Downstream reach index
-  integer(i4b)                               :: DREACHK  ! Immediate Downstream reach ID
-  integer(i4b),dimension(:),allocatable      :: UREACHI  ! Immediate Upstream reach indices
-  integer(i4b),dimension(:),allocatable      :: UREACHK  ! Immediate Upstream reach IDs
-  integer(i4b),dimension(:),allocatable      :: RCHLIST  ! all upstream reach indices
-  integer(i4b),dimension(:),allocatable      :: HRUID    ! all contributing HRU IDs
-  integer(i4b),dimension(:),allocatable      :: HRUIX    ! all contributing HRU indices
-  real(dp),    dimension(:),allocatable      :: HRUWGT   ! areal weight for contributing HRUs
-  logical(lgt),dimension(:),allocatable      :: goodBas  ! Flag to denote a good basin
-  character(len=32),dimension(:),allocatable :: pfafCode ! pfafstetter code
-  integer(i4b)                               :: RHORDER  ! Processing sequence
-  real(dp)    ,dimension(:),allocatable      :: UH       ! Unit hydrograph for upstream
-  integer(i4b)                               :: LAKE_IX  ! Lake index (1,2,...,nlak)
-  integer(i4b)                               :: LAKE_ID  ! Lake ID (REC code)
-  real(dp)                                   :: BASULAK  ! Area of basin under lake
-  real(dp)                                   :: RCHULAK  ! Length of reach under lake
-  logical(lgt)                               :: LAKINLT  ! .TRUE. if reach is lake inlet, .FALSE. otherwise
-  logical(lgt)                               :: USRTAKE  ! .TRUE. if user takes from reach, .FALSE. otherwise
+  integer(i4b)                               :: REACHIX      ! Reach index (1,2,...,nrch)
+  integer(i4b)                               :: REACHID      ! Reach ID (REC code)
+  real(dp)                                   :: RCHLAT1      ! Start latitude
+  real(dp)                                   :: RCHLAT2      ! End latitude
+  real(dp)                                   :: RCHLON1      ! Start longitude
+  real(dp)                                   :: RCHLON2      ! End longitude
+  integer(i4b)                               :: DREACHI      ! Immediate Downstream reach index
+  integer(i4b)                               :: DREACHK      ! Immediate Downstream reach ID
+  integer(i4b),dimension(:),allocatable      :: UREACHI      ! Immediate Upstream reach indices
+  integer(i4b),dimension(:),allocatable      :: UREACHK      ! Immediate Upstream reach IDs
+  integer(i4b),dimension(:),allocatable      :: RCHLIST      ! all upstream reach indices
+  integer(i4b),dimension(:),allocatable      :: HRUID        ! all contributing HRU IDs
+  integer(i4b),dimension(:),allocatable      :: HRUIX        ! all contributing HRU indices
+  real(dp),    dimension(:),allocatable      :: HRUWGT       ! areal weight for contributing HRUs
+  logical(lgt),dimension(:),allocatable      :: goodBas      ! Flag to denote a good basin
+  character(len=32),dimension(:),allocatable :: pfafCode     ! pfafstetter code
+  integer(i4b)                               :: RHORDER      ! Processing sequence
+  real(dp)    ,dimension(:),allocatable      :: UH           ! Unit hydrograph for upstream
+  integer(i4b)                               :: LAKE_IX      ! Lake index (1,2,...,nlak)
+  integer(i4b)                               :: LAKE_ID      ! Lake ID (REC code)
+  real(dp)                                   :: BASULAK      ! Area of basin under lake
+  real(dp)                                   :: RCHULAK      ! Length of reach under lake
+  logical(lgt)                               :: LAKINLT      ! .TRUE. if reach is lake inlet, .FALSE. otherwise
+  logical(lgt)                               :: USRTAKE      ! .TRUE. if user takes from reach, .FALSE. otherwise
+  logical(lgt)                               :: ISLAKE       ! .TRUE. if the object is a lake
+  logical(lgt)                               :: LAKETARGVOL  ! .TRUE. if the lake follow a given target volume
  end type RCHTOPO
 
  ! ---------- reach states --------------------------------------------------------------------
@@ -281,6 +289,8 @@ implicit none
   real(dp)                             :: REACH_WM_VOL      ! target volume from the second water management file (m3)
   real(dp)                             :: TAKE              ! average take
   logical(lgt)                         :: isRoute           ! .true. if the reach is routed
+  real(dp)                             :: basinEvapo        ! remapped river network catchment Evaporation (size: number of nHRU)
+  real(dp)                             :: basinPrecip       ! remapped river network catchment Precipitation (size: number of nHRU)
  END TYPE strflx
 
  ! ---------- lake data types -----------------------------------------------------------------

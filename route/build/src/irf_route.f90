@@ -3,14 +3,17 @@ MODULE irf_route_module
 !numeric type
 USE nrtype
 ! data type
-USE dataTypes,  ONLY: STRFLX           ! fluxes in each reach
-USE dataTypes,  ONLY: RCHTOPO          ! Network topology
+
+USE dataTypes, ONLY: STRFLX           ! fluxes in each reach
+USE dataTypes, ONLY: RCHTOPO          ! Network topology
+USE dataTypes, ONLY: RCHPRP           ! reach/lake property parameter
 ! global parameters
-USE public_var, ONLY: iulog            ! i/o logical unit number
-USE public_var, ONLY: realMissing      ! missing value for real number
-USE public_var, ONLY: integerMissing   ! missing value for integer number
+USE public_var,        ONLY: iulog             ! i/o logical unit number
+USE public_var,        ONLY: realMissing       ! missing value for real number
+USE public_var,        ONLY: integerMissing    ! missing value for integer number
 ! subroutines: general
-USE perf_mod,   ONLY: t_startf,t_stopf ! timing start/stop
+USE perf_mod,          ONLY: t_startf,t_stopf  ! timing start/stop
+USE lake_route_module, ONLY: lake_route        ! lake route module
 
 ! privary
 implicit none
@@ -27,13 +30,15 @@ CONTAINS
                       river_basin,   &  ! input: river basin information (mainstem, tributary outlet etc.)
                       ixDesire,      &  ! input: reachID to be checked by on-screen pringing
                       NETOPO_in,     &  ! input: reach topology data structure
+                      RPARAM_in,     &  ! input: reach parameter data structure
                       RCHFLX_out,    &  ! inout: reach flux data structure
                       ierr, message, &  ! output: error control
                       ixSubRch)         ! optional input: subset of reach indices to be processed
 
  ! global routing data
- USE dataTypes, ONLY: subbasin_omp   ! mainstem+tributary data structures
+ USE dataTypes,   ONLY: subbasin_omp   ! mainstem+tributary data structures
  USE model_utils, ONLY: handle_err
+ USE public_var,  ONLY: is_lake_sim    ! logical whether or not lake should be simulated
 
  implicit none
  ! Input
@@ -41,6 +46,7 @@ CONTAINS
  type(subbasin_omp), intent(in),    allocatable  :: river_basin(:)      ! river basin information (mainstem, tributary outlet etc.)
  integer(i4b),       intent(in)                  :: ixDesire            ! index of the reach for verbose output ! Output
  type(RCHTOPO),      intent(in),    allocatable  :: NETOPO_in(:)        ! River Network topology
+ type(RCHPRP),       intent(in),    allocatable  :: RPARAM_in(:)        ! River Network parameters
  ! inout
  TYPE(STRFLX),       intent(inout), allocatable  :: RCHFLX_out(:,:)     ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  ! output variables
@@ -94,6 +100,7 @@ CONTAINS
 !$OMP          shared(river_basin)                      & ! data structure shared
 !$OMP          shared(doRoute)                          & ! data array shared
 !$OMP          shared(NETOPO_in)                        & ! data structure shared
+!$OMP          shared(RPARAM_in)                        & ! data structure shared
 !$OMP          shared(RCHFLX_out)                       & ! data structure shared
 !$OMP          shared(ix, iEns, ixDesire)               & ! indices shared
 !$OMP          firstprivate(nTrib)
@@ -101,7 +108,11 @@ CONTAINS
      seg:do iSeg=1,river_basin(ix)%branch(iTrib)%nRch
        jSeg = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
        if (.not. doRoute(jSeg)) cycle
-       call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, cmessage)
+         if ((NETOPO_in(jseg)%islake).and.(is_lake_sim))  then
+          call lake_route(iEns, jSeg, ixDesire, NETOPO_in, RPARAM_in, RCHFLX_out, ierr, message)
+         else
+          call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, cmessage)
+         endif
        if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
      end do seg
    end do trib
@@ -195,8 +206,6 @@ CONTAINS
                    RCHFLX_out(iens,segIndex)%BASIN_QR(1),RCHFLX_out(iens,segIndex)%REACH_Q_IRF
   endif
 
-  ! print statement to compare the computed REACH_Q_IRF and water management abstraction/injection
-  ! print*, NETOPO_in(segIndex)%REACHID, RCHFLX_out(iens,segIndex)%REACH_Q_IRF, RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
 
   ! take out the water from the reach if the wm flag is true and the value are not missing
   ! here we should make sure the real missing is not injection (or negative abstration)
