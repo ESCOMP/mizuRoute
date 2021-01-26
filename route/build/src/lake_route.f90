@@ -151,9 +151,14 @@ module lake_route_module
     !endif
 
     if(lakeWBTol<WB)then;
-      print*, 'Water balance for lake ID = ', NETOPO_in(segIndex)%REACHID, 'excees the Tolerance'
-      cmessage = 'Water balance for lake ID = excees the Tolerance'
-      ierr = 1; message=trim(message)//trim(cmessage);
+      ! NOTE: The lake discharge and storage need to be solved iterative way to reduce water balance error
+      write(iulog,*) 'Water balance for lake ID = ', NETOPO_in(segIndex)%REACHID, ' excees the Tolerance'
+      write(iulog,'(A,1PG15.7)') 'WBerr [m3]       = ', WB
+      write(iulog,'(A,1PG15.7)') 'dS [m3]          = ', RCHFLX_out(iens,segIndex)%REACH_VOL(1)-RCHFLX_out(iens,segIndex)%REACH_VOL(0)
+      write(iulog,'(A,1PG15.7)') 'inflow [m3]      = ', q_upstream*dt
+      write(iulog,'(A,1PG15.7)') 'outflow [m3]     = ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF*dt
+      write(iulog,'(A,1PG15.7)') 'precip [m3]      = ', RCHFLX_out(iens,segIndex)%basinprecip*dt
+      write(iulog,'(A,1PG15.7)') 'evaporation [m3] = ', RCHFLX_out(iens,segIndex)%basinevapo*dt
     endif
 
     ! set the routed flag as .True.
