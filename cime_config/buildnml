@@ -114,6 +114,16 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
        varname_segId = "seg_id"
        varname_downSegId = "Tosegment"
        varname_pfafCode = "PFAF"
+    elif (  config['rof_grid'] == "MERITmz" ):
+       fname_ntopOld = "ntopo_MERIT_Hydro_Global_cdf5_fill_reorder_v1_c20210113.nc"
+       varname_area = "Basin_Area"
+       varname_length = "length"
+       varname_slope  = "Slope"
+       varname_HRUid = "hruid"
+       varname_hruSegId = "hru_seg_id"
+       varname_segId = "seg_id"
+       varname_downSegId = "Tosegment"
+       varname_pfafCode = "pfaf"
     else:
        expect( False, "mizuRoute does NOT know about this grid: "+config['rof_grid'] )
 
