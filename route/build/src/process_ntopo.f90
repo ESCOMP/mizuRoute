@@ -416,9 +416,15 @@ end subroutine augment_ntopo
    RPARAM_in(iSeg)%D03MaxStorage   =     structSEG(iSeg)%var(ixSEG%D03MaxStorage)%dat(1)
    RPARAM_in(iSeg)%D03Coefficient  =     structSEG(iSeg)%var(ixSEG%D03Coefficient)%dat(1)
    RPARAM_in(iSeg)%D03Power        =     structSEG(iSeg)%var(ixSEG%D03Power)%dat(1)
-   RPARAM_in(iSeg)%H06TestP1       =     structSEG(iSeg)%var(ixSEG%H06TestP1)%dat(1)
-   RPARAM_in(iSeg)%H06TestP2       =     structSEG(iSeg)%var(ixSEG%H06TestP2)%dat(1)
-   RPARAM_in(iSeg)%H06Memory       =     structSEG(iSeg)%var(ixSEG%H06Memory)%dat(1)
+
+   RPARAM_in(iSeg)%H06realP1       =     structSEG(iSeg)%var(ixSEG%H06realP1)%dat(1)
+   RPARAM_in(iSeg)%H06realP2       =     structSEG(iSeg)%var(ixSEG%H06realP2)%dat(1)
+   RPARAM_in(iSeg)%H06realP3       =     structSEG(iSeg)%var(ixSEG%H06realP3)%dat(1)
+   RPARAM_in(iSeg)%H06realP4       =     structSEG(iSeg)%var(ixSEG%H06realP4)%dat(1)
+   RPARAM_in(iSeg)%H06intP1        =     structSEG(iSeg)%var(ixSEG%H06intP1 )%dat(1)
+   RPARAM_in(iSeg)%H06intP2        =     structSEG(iSeg)%var(ixSEG%H06intP2 )%dat(1)
+   RPARAM_in(iSeg)%H06intP3        =     structSEG(iSeg)%var(ixSEG%H06intP3 )%dat(1)
+   RPARAM_in(iSeg)%H06intP4        =     structSEG(iSeg)%var(ixSEG%H06intP4 )%dat(1)
 
    ! compute variables
    RPARAM_in(iSeg)%BASAREA = structSEG(iSeg)%var(ixSEG%basArea)%dat(1)

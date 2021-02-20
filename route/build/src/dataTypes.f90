@@ -202,9 +202,14 @@ implicit none
   real(dp)                                   :: D03MaxStorage  ! Doll 2003 maximume storage
   real(dp)                                   :: D03Coefficient ! Doll 2003 Coefficient
   real(dp)                                   :: D03Power       ! Doll 2003 Power
-  real(dp)                                   :: H06TestP1      ! Hanasaki 2006 test parameter 1
-  real(dp)                                   :: H06TestP2      ! Hanasaki 2006 test parameter 2
-  real(dp)                                   :: H06Memory      ! Hanasaki 2006 pasr array
+  real(dp)                                   :: H06realP1      ! Hanasaki 2006 test parameter 1 real
+  real(dp)                                   :: H06realP2      ! Hanasaki 2006 test parameter 2 real
+  real(dp)                                   :: H06realP3      ! Hanasaki 2006 test parameter 3 real
+  real(dp)                                   :: H06realP4      ! Hanasaki 2006 test parameter 4 real
+  integer(i4b)                               :: H06intP1       ! Hanasaki 2006 test parameter 1 int
+  integer(i4b)                               :: H06intP2       ! Hanasaki 2006 test parameter 2 int
+  integer(i4b)                               :: H06intP3       ! Hanasaki 2006 test parameter 3 int
+  integer(i4b)                               :: H06intP4       ! Hanasaki 2006 test parameter 4 int
  end type RCHPRP
 
  ! River Network topology

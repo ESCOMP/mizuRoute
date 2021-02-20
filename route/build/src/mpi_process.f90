@@ -147,9 +147,14 @@ contains
   real(dp),          allocatable              :: D03MaxStorage_local(:)    ! maximum active storage for Doll 2003
   real(dp),          allocatable              :: D03Coefficient_local(:)   ! coefficient for Doll 2003
   real(dp),          allocatable              :: D03Power_local(:)         ! power for Doll 2003
-  real(dp),          allocatable              :: H06TestP1_local(:)        ! Hanasaki 2006 test parameter 1
-  real(dp),          allocatable              :: H06TestP2_local(:)        ! Hanasaki 2006 test parameter 2
-  real(dp),          allocatable              :: H06Memory_local(:)        ! Hanasaki 2006 memory array
+  real(dp),          allocatable              :: H06realP1_local(:)        ! Hanasaki 2006 test parameter 1 real
+  real(dp),          allocatable              :: H06realP2_local(:)        ! Hanasaki 2006 test parameter 2 real
+  real(dp),          allocatable              :: H06realP3_local(:)        ! Hanasaki 2006 test parameter 3 real
+  real(dp),          allocatable              :: H06realP4_local(:)        ! Hanasaki 2006 test parameter 4 real
+  integer(i4b),      allocatable              :: H06intP1_local(:)         ! Hanasaki 2006 test parameter 1 int
+  integer(i4b),      allocatable              :: H06intP2_local(:)         ! Hanasaki 2006 test parameter 2 int
+  integer(i4b),      allocatable              :: H06intP3_local(:)         ! Hanasaki 2006 test parameter 3 int
+  integer(i4b),      allocatable              :: H06intP4_local(:)         ! Hanasaki 2006 test parameter 4 int
   logical(lgt),      allocatable              :: tribOutlet_local(:)       ! logical to indicate tributary outlet to mainstems
   ! 1D array for the entire river network
   integer(i4b)                                :: hruId(nHRU_in)            ! hru id for all the HRUs
@@ -165,9 +170,14 @@ contains
   real(dp)                                    :: D03MaxStorage(nRch_in)    ! maximum active storage for Doll 2003
   real(dp)                                    :: D03Coefficient(nRch_in)   ! coefficient for Doll 2003
   real(dp)                                    :: D03Power(nRch_in)         ! power for Doll 2003
-  real(dp)                                    :: H06TestP1(nRch_in)        ! Hanasaki 2006 test parameter 1
-  real(dp)                                    :: H06TestP2(nRch_in)        ! Hanasaki 2006 test parameter 2
-  real(dp)                                    :: H06Memory(nRch_in)        ! Hanasaki 2006 memory array
+  real(dp)                                    :: H06realP1(nRch_in)        ! Hanasaki 2006 test parameter 1 real
+  real(dp)                                    :: H06realP2(nRch_in)        ! Hanasaki 2006 test parameter 2 real
+  real(dp)                                    :: H06realP3(nRch_in)        ! Hanasaki 2006 test parameter 3 real
+  real(dp)                                    :: H06realP4(nRch_in)        ! Hanasaki 2006 test parameter 4 real
+  integer(i4b)                                :: H06intP1(nRch_in)         ! Hanasaki 2006 test parameter 1 int
+  integer(i4b)                                :: H06intP2(nRch_in)         ! Hanasaki 2006 test parameter 2 int
+  integer(i4b)                                :: H06intP3(nRch_in)         ! Hanasaki 2006 test parameter 3 int
+  integer(i4b)                                :: H06intP4(nRch_in)         ! Hanasaki 2006 test parameter 4 int
   integer(i4b)                                :: ixNode(nRch_in)           ! node assignment for each reach
   integer(i4b)                                :: ixDomain(nRch_in)         ! domain index for each reach
   logical(lgt),      allocatable              :: tribOutlet(:)             ! logical to indicate tributary outlet to mainstems over entire network
@@ -274,9 +284,15 @@ contains
      D03MaxStorage(iSeg)   = structSEG(  jSeg)%var(ixSEG%D03MaxStorage)%dat(1)
      D03Coefficient(iSeg)  = structSEG(  jSeg)%var(ixSEG%D03Coefficient)%dat(1)
      D03Power(iSeg)        = structSEG(  jSeg)%var(ixSEG%D03Power)%dat(1)
-     H06TestP1(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06TestP1)%dat(1)
-     H06TestP2(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06TestP2)%dat(1)
-     H06Memory(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06Memory)%dat(1)
+     H06realP1(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP1)%dat(1)
+     H06realP2(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP2)%dat(1)
+     H06realP3(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP3)%dat(1)
+     H06realP4(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP4)%dat(1)
+     H06intP1(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06intP1)%dat(1)
+     H06intP2(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06intP2)%dat(1)
+     H06intP3(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06intP3)%dat(1)
+     H06intP4(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06intP4)%dat(1)
+
     end do
 
     ! hru array
@@ -334,10 +350,14 @@ contains
     call shr_mpi_scatterV(D03MaxStorage (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03MaxStorage_local, ierr, cmessage)
     call shr_mpi_scatterV(D03Coefficient(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03Coefficient_local,ierr, cmessage)
     call shr_mpi_scatterV(D03Power      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03Power_local,      ierr, cmessage)
-    call shr_mpi_scatterV(H06TestP1     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06TestP1_local,     ierr, cmessage)
-    call shr_mpi_scatterV(H06TestP2     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06TestP2_local,     ierr, cmessage)
-    call shr_mpi_scatterV(H06Memory     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06Memory_local,     ierr, cmessage)
-
+    call shr_mpi_scatterV(H06realP1     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP1_local,     ierr, cmessage)
+    call shr_mpi_scatterV(H06realP2     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP2_local,     ierr, cmessage)
+    call shr_mpi_scatterV(H06realP3     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP3_local,     ierr, cmessage)
+    call shr_mpi_scatterV(H06realP4     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP4_local,     ierr, cmessage)
+    call shr_mpi_scatterV(H06intP1      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06intP1_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06intP2      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06intP2_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06intP3      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06intP3_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06intP4      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06intP4_local,      ierr, cmessage)
     call shr_mpi_scatterV(hruId         (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruId_local,         ierr, cmessage)
     call shr_mpi_scatterV(hruSegId      (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruSegId_local,      ierr, cmessage)
     call shr_mpi_scatterV(area          (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), area_local,          ierr, cmessage)
@@ -370,9 +390,14 @@ contains
      structSEG_local  (ix)%var(ixSEG%D03MaxStorage)%dat(1)    = D03MaxStorage_local(ix)
      structSEG_local  (ix)%var(ixSEG%D03Coefficient)%dat(1)   = D03Coefficient_local(ix)
      structSEG_local  (ix)%var(ixSEG%D03Power)%dat(1)         = D03Power_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06TestP1)%dat(1)        = H06TestP1_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06TestP2)%dat(1)        = H06TestP2_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06Memory)%dat(1)        = H06Memory_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP1)%dat(1)        = H06realP1_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP2)%dat(1)        = H06realP2_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP3)%dat(1)        = H06realP3_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP4)%dat(1)        = H06realP4_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06intP1)%dat(1)         = H06intP1_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06intP2)%dat(1)         = H06intP2_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06intP3)%dat(1)         = H06intP3_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06intP4)%dat(1)         = H06intP4_local(ix)
     end do reach
 
     hru: do ix=1,hru_per_proc(pid)
@@ -507,9 +532,14 @@ contains
        structSEG_main  (ix)%var(ixSEG%D03MaxStorage)%dat(1)   = D03MaxStorage(ix)
        structSEG_main  (ix)%var(ixSEG%D03Coefficient)%dat(1)  = D03Coefficient(ix)
        structSEG_main  (ix)%var(ixSEG%D03Power)%dat(1)        = D03Power(ix)
-       structSEG_main  (ix)%var(ixSEG%H06TestP1)%dat(1)       = H06TestP1(ix)
-       structSEG_main  (ix)%var(ixSEG%H06TestP2)%dat(1)       = H06TestP2(ix)
-       structSEG_main  (ix)%var(ixSEG%H06Memory)%dat(1)       = H06Memory(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP1)%dat(1)       = H06realP1(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP2)%dat(1)       = H06realP2(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP3)%dat(1)       = H06realP3(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP4)%dat(1)       = H06realP4(ix)
+       structSEG_main  (ix)%var(ixSEG%H06intP1)%dat(1)        = H06intP1(ix)
+       structSEG_main  (ix)%var(ixSEG%H06intP2)%dat(1)        = H06intP2(ix)
+       structSEG_main  (ix)%var(ixSEG%H06intP3)%dat(1)        = H06intP3(ix)
+       structSEG_main  (ix)%var(ixSEG%H06intP4)%dat(1)        = H06intP4(ix)
      end do main_rch
 
      ups_trib: do ix = 1, nTribOutlet
@@ -524,9 +554,16 @@ contains
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03MaxStorage)%dat(1)   = structSEG(ixx)%var(ixSEG%D03MaxStorage)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03Coefficient)%dat(1)  = structSEG(ixx)%var(ixSEG%D03Coefficient)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03Power)%dat(1)        = structSEG(ixx)%var(ixSEG%D03Power)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06TestP1)%dat(1)       = structSEG(ixx)%var(ixSEG%H06TestP1)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06TestP2)%dat(1)       = structSEG(ixx)%var(ixSEG%H06TestP2)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06Memory)%dat(1)       = structSEG(ixx)%var(ixSEG%H06Memory)%dat(1)
+
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP1)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP1)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP2)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP2)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP3)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP3)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP4)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP4)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06intP1)%dat(1)        = structSEG(ixx)%var(ixSEG%H06intP1)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06intP2)%dat(1)        = structSEG(ixx)%var(ixSEG%H06intP2)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06intP3)%dat(1)        = structSEG(ixx)%var(ixSEG%H06intP3)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06intP4)%dat(1)        = structSEG(ixx)%var(ixSEG%H06intP4)%dat(1)
+
        global_ix_main(ix) = nRch_mainstem+ix   ! index in mainstem array that is link to tributary outlet
      end do ups_trib
 

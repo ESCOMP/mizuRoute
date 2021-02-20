@@ -111,12 +111,6 @@ contains
  ! SEG                                           varName        varDesc                                                varUnit, varType, varFile
  meta_SEG    (ixSEG%length           ) = var_info('length'         , 'length of segment'                                 ,'m'     ,ixDims%seg   , .true.)
  meta_SEG    (ixSEG%slope            ) = var_info('slope'          , 'slope of segment'                                  ,'-'     ,ixDims%seg   , .true.)
- meta_SEG    (ixSEG%D03MaxStorage    ) = var_info('D03MaxStorage'  , 'maximume storage Doll 2003'                        ,'m3'    ,ixDims%seg   , .false.)
- meta_SEG    (ixSEG%D03Coefficient   ) = var_info('D03Coefficient' , 'coefficient Doll 2003'                             ,'day-1' ,ixDims%seg   , .false.)
- meta_SEG    (ixSEG%D03Power         ) = var_info('D03Power'       , 'power Doll 2003'                                   ,'-'     ,ixDims%seg   , .false.)
- meta_SEG    (ixSEG%H06TestP1        ) = var_info('H06TestP1'      , 'stage-discharge relationship parameter D'          ,'-'     ,ixDims%seg   , .false.)
- meta_SEG    (ixSEG%H06TestP2        ) = var_info('H06TestP2'      , 'stage-discharge relationship parameter E'          ,'-'     ,ixDims%seg   , .false.)
- meta_SEG    (ixSEG%H06Memory        ) = var_info('H06Memory'      , 'stage-discharge relationship parameter F'          ,'-'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%width            ) = var_info('width'          , 'width of segment'                                  ,'m'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%man_n            ) = var_info('man_n'          , 'Mannings n'                                        ,'weird' ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%hruArea          ) = var_info('hruArea'        , 'area of each contributing HRU'                     ,'m2'    ,ixDims%upHRU , .false.)
@@ -128,6 +122,19 @@ contains
  meta_SEG    (ixSEG%basUnderLake     ) = var_info('basUnderLake'   , 'Area of basin under lake'                          ,'m2'    ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%rchUnderLake     ) = var_info('rchUnderLake'   , 'Length of reach under lake'                        ,'m'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%minFlow          ) = var_info('minFlow'        , 'minimum environmental flow'                        ,'m s-1' ,ixDims%seg   , .false.)
+
+ meta_SEG    (ixSEG%D03MaxStorage    ) = var_info('D03MaxStorage'  , 'maximume storage Doll 2003'                        ,'m3'    ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%D03Coefficient   ) = var_info('D03Coefficient' , 'coefficient Doll 2003'                             ,'day-1' ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%D03Power         ) = var_info('D03Power'       , 'power Doll 2003'                                   ,'-'     ,ixDims%seg   , .false.)
+
+ meta_SEG    (ixSEG%H06realP1        ) = var_info('H06realP1'      , 'Hanasaki 2006 P1 real'                             ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06realP2        ) = var_info('H06realP2'      , 'Hanasaki 2006 P2 real'                             ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06realP3        ) = var_info('H06realP3'      , 'Hanasaki 2006 P3 real'                             ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06realP4        ) = var_info('H06realP4'      , 'Hanasaki 2006 P4 real'                             ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06intP1         ) = var_info('H06intP1'       , 'Hanasaki 2006 P1 int'                              ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06intP2         ) = var_info('H06intP2'       , 'Hanasaki 2006 P2 int'                              ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06intP3         ) = var_info('H06intP3'       , 'Hanasaki 2006 P3 int'                              ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06intP4         ) = var_info('H06intP4'       , 'Hanasaki 2006 P4 int'                              ,'-'     ,ixDims%seg   , .false.)
 
  ! NTOPO                                         varName        varDesc                                                varUnit, varType, varFile
  meta_NTOPO  (ixNTOPO%nHRU           ) = var_info('nHRU'           , 'number of HRUs contributing flow to each segment'   ,'-'    ,ixDims%seg   , .false.)

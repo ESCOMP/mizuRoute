@@ -11,6 +11,9 @@ module lake_route_module
  USE public_var, ONLY: realMissing    ! missing value for real number
  USE public_var, ONLY: integerMissing ! missing value for integer number
 
+
+ modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec
+
   ! privary
  implicit none
  private
@@ -33,6 +36,8 @@ module lake_route_module
                          RCHFLX_out, &    ! inout: reach flux data structure
                          ! output
                          ierr, message)   ! output: error control
+
+  USE globalData, ONLY: modTime           ! previous and current model time
 
   USE public_var, ONLY: dt, lakeWBTol     ! lake water balance tolerance
   USE public_var, ONLY: lake_model_D03    ! logical whether or not lake should be simulated
@@ -59,6 +64,9 @@ module lake_route_module
   INTEGER(I4B)                             :: iRch_ups       ! index of upstream reach in NETOPO
   INTEGER(I4B)                             :: ntdh           ! number of time steps in IRF
   character(len=strLen)                    :: cmessage       ! error message from subroutine
+
+
+  print*, modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec
 
     ! initialize error control
     ierr=0; message='lake_route/'
@@ -147,16 +155,15 @@ module lake_route_module
 
         case (2)
           ! the model is Hanasaki06
-          ! preserving the past upstream discharge for lake models
-          !print*, "lake model is Hanasaki 2006"
-          if (allocated(RCHFLX_out(iens,segIndex)%QPASTUP_IRF)) then
-            RCHFLX_out(iens,segIndex)%QPASTUP_IRF(2:10) = RCHFLX_out(iens,segIndex)%QPASTUP_IRF(1:9) ! here the length is 10 as a randome varibale
-            RCHFLX_out(iens,segIndex)%QPASTUP_IRF(1) = q_upstream ! code needed to shift this as well.
+          ! preserving the past upstrem discharge for lake models
+          ! print*, "lake model is Hanasaki 2006"
+
+          ! create memory of upstream inflow for Hanasaki formulation
+          if (.not.allocated(RCHFLX_out(iens,segIndex)%QPASTUP_IRF)) then ! it is the first time step and should be allocated
+            allocate(RCHFLX_out(iens,segIndex)%QPASTUP_IRF(10),stat=ierr)
           else
-            allocate(RCHFLX_out(iens,segIndex)%QPASTUP_IRF(10),stat=ierr) ! 10 a random value for now
-            if(ierr/=0)then; message=trim(message)//'problem allocating QPASTUP_IRF'; return; endif
-            RCHFLX_out(iens,segIndex)%QPASTUP_IRF(:) = 0._dp
-            RCHFLX_out(iens,segIndex)%QPASTUP_IRF(1) = q_upstream
+            RCHFLX_out(iens,segIndex)%QPASTUP_IRF(2:10) = RCHFLX_out(iens,segIndex)%QPASTUP_IRF(1:9) ! here the length is 10 as a randome varibale
+            RCHFLX_out(iens,segIndex)%QPASTUP_IRF(1)    = q_upstream ! code needed to shift this as well.
           endif
           !print*, RCHFLX_out(iens,segIndex)%QPASTUP_IRF
 

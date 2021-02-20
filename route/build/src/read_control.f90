@@ -215,9 +215,15 @@ CONTAINS
    case('<varname_D03MaxStorage>'); meta_SEG    (ixSEG%D03MaxStorage   )%varName =trim(cData)  ! maximum active storage for Doll 2003 formulation
    case('<varname_D03Coefficient>'); meta_SEG   (ixSEG%D03Coefficient  )%varName =trim(cData)  ! coefficient for Doll 2003 formulation (day-1)
    case('<varname_D03Power>'     ); meta_SEG    (ixSEG%D03Power        )%varName =trim(cData)  ! power for Doll 2003 formulation
-   case('<varname_H06TestP1>'    ); meta_SEG    (ixSEG%H06TestP1       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 1
-   case('<varname_H06TestP2>'    ); meta_SEG    (ixSEG%H06TestP2       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 2
-   case('<varname_H06Memory>'    ); meta_SEG    (ixSEG%H06Memory       )%varName =trim(cData)  ! Hanasaki 2006 Memory of past simulation length (day)
+
+   case('<varname_H06realP1>'    ); meta_SEG    (ixSEG%H06realP1       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 1
+   case('<varname_H06realP2>'    ); meta_SEG    (ixSEG%H06realP2       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 2
+   case('<varname_H06realP3>'    ); meta_SEG    (ixSEG%H06realP3       )%varName =trim(cData)  ! Hanasaki 2006 Memory of past simulation length (day)
+   case('<varname_H06realP4>'    ); meta_SEG    (ixSEG%H06realP4       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 1
+   case('<varname_H06intP1>'     ); meta_SEG    (ixSEG%H06intP1        )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 2
+   case('<varname_H06intP2>'     ); meta_SEG    (ixSEG%H06intP2        )%varName =trim(cData)  ! Hanasaki 2006 Memory of past simulation length (day)
+   case('<varname_H06intP3>'     ); meta_SEG    (ixSEG%H06intP3        )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 1
+   case('<varname_H06intP4>'     ); meta_SEG    (ixSEG%H06intP4        )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 2
 
    ! network topology
    case('<varname_hruContribIx>' ); meta_NTOPO  (ixNTOPO%hruContribIx  )%varName =trim(cData)  ! indices of the vector of HRUs that contribute flow to each segment

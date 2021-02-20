@@ -176,9 +176,14 @@ subroutine getData(&
       meta_SEG(ixSEG%D03power)%varFile          = .true.    ! Doll parameter
     endif
     if (lake_model_H06) then
-      meta_SEG(ixSEG%H06TestP1)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06TestP2)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06Memory)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06realP1)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06realP2)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06realP3)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06realP4)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06intP1 )%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06intP2 )%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06intP3 )%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06intP4 )%varFile         = .true.    ! Hanasaki parameter
     endif
   endif
 
