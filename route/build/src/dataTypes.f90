@@ -206,10 +206,44 @@ implicit none
   real(dp)                                   :: H06realP2      ! Hanasaki 2006 test parameter 2 real
   real(dp)                                   :: H06realP3      ! Hanasaki 2006 test parameter 3 real
   real(dp)                                   :: H06realP4      ! Hanasaki 2006 test parameter 4 real
+  real(dp)                                   :: H06realP5      ! Hanasaki 2006 test parameter 5 real
+  real(dp)                                   :: H06realP6      ! Hanasaki 2006 test parameter 6 real
+  real(dp)                                   :: H06realP7      ! Hanasaki 2006 test parameter 7 real
+  real(dp)                                   :: H06realP8      ! Hanasaki 2006 test parameter 8 real
+  real(dp)                                   :: H06realP9      ! Hanasaki 2006 test parameter 9 real
+  real(dp)                                   :: H06realP10     ! Hanasaki 2006 test parameter 10 real
+  real(dp)                                   :: H06realP11     ! Hanasaki 2006 test parameter 11 real
+  real(dp)                                   :: H06realP12     ! Hanasaki 2006 test parameter 12 real
+  real(dp)                                   :: H06realP13     ! Hanasaki 2006 test parameter 13 real
+  real(dp)                                   :: H06realP14     ! Hanasaki 2006 test parameter 14 real
+  real(dp)                                   :: H06realP15     ! Hanasaki 2006 test parameter 15 real
+  real(dp)                                   :: H06realP16     ! Hanasaki 2006 test parameter 16 real
+  real(dp)                                   :: H06realP17     ! Hanasaki 2006 test parameter 17 real
+  real(dp)                                   :: H06realP18     ! Hanasaki 2006 test parameter 18 real
+  real(dp)                                   :: H06realP19     ! Hanasaki 2006 test parameter 19 real
+  real(dp)                                   :: H06realP20     ! Hanasaki 2006 test parameter 20 real
+  real(dp)                                   :: H06realP21     ! Hanasaki 2006 test parameter 21 real
+  real(dp)                                   :: H06realP22     ! Hanasaki 2006 test parameter 22 real
+  real(dp)                                   :: H06realP23     ! Hanasaki 2006 test parameter 23 real
+  real(dp)                                   :: H06realP24     ! Hanasaki 2006 test parameter 24 real
+  real(dp)                                   :: H06realP25     ! Hanasaki 2006 test parameter 25 real
+  real(dp)                                   :: H06realP26     ! Hanasaki 2006 test parameter 26 real
+  real(dp)                                   :: H06realP27     ! Hanasaki 2006 test parameter 27 real
+  real(dp)                                   :: H06realP28     ! Hanasaki 2006 test parameter 28 real
+  real(dp)                                   :: H06realP29     ! Hanasaki 2006 test parameter 29 real
+  real(dp)                                   :: H06realP30     ! Hanasaki 2006 test parameter 30 real
+  real(dp)                                   :: H06realP31     ! Hanasaki 2006 test parameter 31 real
+  real(dp)                                   :: H06realP32     ! Hanasaki 2006 test parameter 32 real
+  real(dp)                                   :: H06realP33     ! Hanasaki 2006 test parameter 33 real
+  real(dp)                                   :: H06realP34     ! Hanasaki 2006 test parameter 34 real
+  real(dp)                                   :: H06realP35     ! Hanasaki 2006 test parameter 35 real
+  real(dp)                                   :: H06realP36     ! Hanasaki 2006 test parameter 36 real
   integer(i4b)                               :: H06intP1       ! Hanasaki 2006 test parameter 1 int
   integer(i4b)                               :: H06intP2       ! Hanasaki 2006 test parameter 2 int
   integer(i4b)                               :: H06intP3       ! Hanasaki 2006 test parameter 3 int
   integer(i4b)                               :: H06intP4       ! Hanasaki 2006 test parameter 4 int
+  integer(i4b)                               :: H06intP5       ! Hanasaki 2006 test parameter 5 int
+  integer(i4b)                               :: H06intP6       ! Hanasaki 2006 test parameter 6 int
  end type RCHPRP
 
  ! River Network topology

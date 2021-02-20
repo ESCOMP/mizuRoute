@@ -90,12 +90,47 @@ MODULE var_lookup
 
   integer(i4b)     :: H06realP1     = integerMissing  ! Hanasaki 2006 parameter 1
   integer(i4b)     :: H06realP2     = integerMissing  ! Hanasaki 2006 parameter 2
-  integer(i4b)     :: H06realP3     = integerMissing  ! Hanasaki 2006 Memory
-  integer(i4b)     :: H06realP4     = integerMissing  ! Hanasaki 2006 parameter 1
-  integer(i4b)     :: H06intP1      = integerMissing  ! Hanasaki 2006 parameter 2
-  integer(i4b)     :: H06intP2      = integerMissing  ! Hanasaki 2006 Memory
-  integer(i4b)     :: H06intP3      = integerMissing  ! Hanasaki 2006 parameter 1
-  integer(i4b)     :: H06intP4      = integerMissing  ! Hanasaki 2006 parameter 2
+  integer(i4b)     :: H06realP3     = integerMissing  ! Hanasaki 2006 parameter 3
+  integer(i4b)     :: H06realP4     = integerMissing  ! Hanasaki 2006 parameter 4
+  integer(i4b)     :: H06realP5     = integerMissing  ! Hanasaki 2006 parameter 5
+  integer(i4b)     :: H06realP6     = integerMissing  ! Hanasaki 2006 parameter 6
+  integer(i4b)     :: H06realP7     = integerMissing  ! Hanasaki 2006 parameter 7
+  integer(i4b)     :: H06realP8     = integerMissing  ! Hanasaki 2006 parameter 8
+  integer(i4b)     :: H06realP9     = integerMissing  ! Hanasaki 2006 parameter 9
+  integer(i4b)     :: H06realP10    = integerMissing  ! Hanasaki 2006 parameter 10
+  integer(i4b)     :: H06realP11    = integerMissing  ! Hanasaki 2006 parameter 11
+  integer(i4b)     :: H06realP12    = integerMissing  ! Hanasaki 2006 parameter 12
+  integer(i4b)     :: H06realP13    = integerMissing  ! Hanasaki 2006 parameter 13
+  integer(i4b)     :: H06realP14    = integerMissing  ! Hanasaki 2006 parameter 14
+  integer(i4b)     :: H06realP15    = integerMissing  ! Hanasaki 2006 parameter 15
+  integer(i4b)     :: H06realP16    = integerMissing  ! Hanasaki 2006 parameter 16
+  integer(i4b)     :: H06realP17    = integerMissing  ! Hanasaki 2006 parameter 17
+  integer(i4b)     :: H06realP18    = integerMissing  ! Hanasaki 2006 parameter 18
+  integer(i4b)     :: H06realP19    = integerMissing  ! Hanasaki 2006 parameter 19
+  integer(i4b)     :: H06realP20    = integerMissing  ! Hanasaki 2006 parameter 20
+  integer(i4b)     :: H06realP21    = integerMissing  ! Hanasaki 2006 parameter 21
+  integer(i4b)     :: H06realP22    = integerMissing  ! Hanasaki 2006 parameter 22
+  integer(i4b)     :: H06realP23    = integerMissing  ! Hanasaki 2006 parameter 23
+  integer(i4b)     :: H06realP24    = integerMissing  ! Hanasaki 2006 parameter 24
+  integer(i4b)     :: H06realP25    = integerMissing  ! Hanasaki 2006 parameter 25
+  integer(i4b)     :: H06realP26    = integerMissing  ! Hanasaki 2006 parameter 26
+  integer(i4b)     :: H06realP27    = integerMissing  ! Hanasaki 2006 parameter 27
+  integer(i4b)     :: H06realP28    = integerMissing  ! Hanasaki 2006 parameter 28
+  integer(i4b)     :: H06realP29    = integerMissing  ! Hanasaki 2006 parameter 29
+  integer(i4b)     :: H06realP30    = integerMissing  ! Hanasaki 2006 parameter 30
+  integer(i4b)     :: H06realP31    = integerMissing  ! Hanasaki 2006 parameter 31
+  integer(i4b)     :: H06realP32    = integerMissing  ! Hanasaki 2006 parameter 32
+  integer(i4b)     :: H06realP33    = integerMissing  ! Hanasaki 2006 parameter 33
+  integer(i4b)     :: H06realP34    = integerMissing  ! Hanasaki 2006 parameter 34
+  integer(i4b)     :: H06realP35    = integerMissing  ! Hanasaki 2006 parameter 35
+  integer(i4b)     :: H06realP36    = integerMissing  ! Hanasaki 2006 parameter 36
+
+  integer(i4b)     :: H06intP1      = integerMissing  ! Hanasaki 2006 parameter 1
+  integer(i4b)     :: H06intP2      = integerMissing  ! Hanasaki 2006 parameter 2
+  integer(i4b)     :: H06intP3      = integerMissing  ! Hanasaki 2006 parameter 3
+  integer(i4b)     :: H06intP4      = integerMissing  ! Hanasaki 2006 parameter 4
+  integer(i4b)     :: H06intP5      = integerMissing  ! Hanasaki 2006 parameter 5
+  integer(i4b)     :: H06intP6      = integerMissing  ! Hanasaki 2006 parameter 6
 
   ! constraints
   integer(i4b)     :: minFlow       = integerMissing  ! minimum environmental flow
@@ -186,7 +221,7 @@ MODULE var_lookup
  type(iLook_qDims)    ,public,parameter :: ixqDims     = iLook_qDims    (1,2,3,4)
  type(iLook_HRU)      ,public,parameter :: ixHRU       = iLook_HRU      (1)
  type(iLook_HRU2SEG)  ,public,parameter :: ixHRU2SEG   = iLook_HRU2SEG  (1,2,3,4)
- type(iLook_SEG)      ,public,parameter :: ixSEG       = iLook_SEG      (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24)
+ type(iLook_SEG)      ,public,parameter :: ixSEG       = iLook_SEG      (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58)
  type(iLook_NTOPO)    ,public,parameter :: ixNTOPO     = iLook_NTOPO    (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20)
  type(iLook_PFAF)     ,public,parameter :: ixPFAF      = iLook_PFAF     (1)
  type(iLook_rflx)     ,public,parameter :: ixRFLX      = iLook_rflx     (1,2,3,4,5,6,7,8)

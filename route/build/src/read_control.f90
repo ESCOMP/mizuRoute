@@ -218,12 +218,47 @@ CONTAINS
 
    case('<varname_H06realP1>'    ); meta_SEG    (ixSEG%H06realP1       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 1
    case('<varname_H06realP2>'    ); meta_SEG    (ixSEG%H06realP2       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 2
-   case('<varname_H06realP3>'    ); meta_SEG    (ixSEG%H06realP3       )%varName =trim(cData)  ! Hanasaki 2006 Memory of past simulation length (day)
-   case('<varname_H06realP4>'    ); meta_SEG    (ixSEG%H06realP4       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 1
-   case('<varname_H06intP1>'     ); meta_SEG    (ixSEG%H06intP1        )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 2
-   case('<varname_H06intP2>'     ); meta_SEG    (ixSEG%H06intP2        )%varName =trim(cData)  ! Hanasaki 2006 Memory of past simulation length (day)
-   case('<varname_H06intP3>'     ); meta_SEG    (ixSEG%H06intP3        )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 1
-   case('<varname_H06intP4>'     ); meta_SEG    (ixSEG%H06intP4        )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 2
+   case('<varname_H06realP3>'    ); meta_SEG    (ixSEG%H06realP3       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 3
+   case('<varname_H06realP4>'    ); meta_SEG    (ixSEG%H06realP4       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 4
+   case('<varname_H06realP5>'    ); meta_SEG    (ixSEG%H06realP5       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 5
+   case('<varname_H06realP6>'    ); meta_SEG    (ixSEG%H06realP6       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 6
+   case('<varname_H06realP7>'    ); meta_SEG    (ixSEG%H06realP7       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 7
+   case('<varname_H06realP8>'    ); meta_SEG    (ixSEG%H06realP8       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 8
+   case('<varname_H06realP9>'    ); meta_SEG    (ixSEG%H06realP9       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 9
+   case('<varname_H06realP10>'   ); meta_SEG    (ixSEG%H06realP10      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 10
+   case('<varname_H06realP11>'   ); meta_SEG    (ixSEG%H06realP11      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 11
+   case('<varname_H06realP12>'   ); meta_SEG    (ixSEG%H06realP12      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 12
+   case('<varname_H06realP13>'   ); meta_SEG    (ixSEG%H06realP13      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 13
+   case('<varname_H06realP14>'   ); meta_SEG    (ixSEG%H06realP14      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 14
+   case('<varname_H06realP15>'   ); meta_SEG    (ixSEG%H06realP15      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 15
+   case('<varname_H06realP16>'   ); meta_SEG    (ixSEG%H06realP16      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 16
+   case('<varname_H06realP17>'   ); meta_SEG    (ixSEG%H06realP17      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 17
+   case('<varname_H06realP18>'   ); meta_SEG    (ixSEG%H06realP18      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 18
+   case('<varname_H06realP19>'   ); meta_SEG    (ixSEG%H06realP19      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 19
+   case('<varname_H06realP20>'   ); meta_SEG    (ixSEG%H06realP20      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 20
+   case('<varname_H06realP21>'   ); meta_SEG    (ixSEG%H06realP21      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 21
+   case('<varname_H06realP22>'   ); meta_SEG    (ixSEG%H06realP22      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 22
+   case('<varname_H06realP23>'   ); meta_SEG    (ixSEG%H06realP23      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 23
+   case('<varname_H06realP24>'   ); meta_SEG    (ixSEG%H06realP24      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 24
+   case('<varname_H06realP25>'   ); meta_SEG    (ixSEG%H06realP25      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 25
+   case('<varname_H06realP26>'   ); meta_SEG    (ixSEG%H06realP26      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 26
+   case('<varname_H06realP27>'   ); meta_SEG    (ixSEG%H06realP27      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 27
+   case('<varname_H06realP28>'   ); meta_SEG    (ixSEG%H06realP28      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 28
+   case('<varname_H06realP29>'   ); meta_SEG    (ixSEG%H06realP29      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 29
+   case('<varname_H06realP30>'   ); meta_SEG    (ixSEG%H06realP30      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 30
+   case('<varname_H06realP31>'   ); meta_SEG    (ixSEG%H06realP31      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 31
+   case('<varname_H06realP32>'   ); meta_SEG    (ixSEG%H06realP32      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 32
+   case('<varname_H06realP33>'   ); meta_SEG    (ixSEG%H06realP33      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 33
+   case('<varname_H06realP34>'   ); meta_SEG    (ixSEG%H06realP34      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 34
+   case('<varname_H06realP35>'   ); meta_SEG    (ixSEG%H06realP35      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 35
+   case('<varname_H06realP36>'   ); meta_SEG    (ixSEG%H06realP36      )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 36
+
+   case('<varname_H06intP1>'     ); meta_SEG    (ixSEG%H06intP1        )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 1
+   case('<varname_H06intP2>'     ); meta_SEG    (ixSEG%H06intP2        )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 2
+   case('<varname_H06intP3>'     ); meta_SEG    (ixSEG%H06intP3        )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 3
+   case('<varname_H06intP4>'     ); meta_SEG    (ixSEG%H06intP4        )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 4
+   case('<varname_H06intP5>'     ); meta_SEG    (ixSEG%H06intP5        )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 5
+   case('<varname_H06intP6>'     ); meta_SEG    (ixSEG%H06intP6        )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 6
 
    ! network topology
    case('<varname_hruContribIx>' ); meta_NTOPO  (ixNTOPO%hruContribIx  )%varName =trim(cData)  ! indices of the vector of HRUs that contribute flow to each segment

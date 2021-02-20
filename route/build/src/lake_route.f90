@@ -11,9 +11,6 @@ module lake_route_module
  USE public_var, ONLY: realMissing    ! missing value for real number
  USE public_var, ONLY: integerMissing ! missing value for integer number
 
-
- modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec
-
   ! privary
  implicit none
  private
@@ -66,7 +63,7 @@ module lake_route_module
   character(len=strLen)                    :: cmessage       ! error message from subroutine
 
 
-  print*, modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec
+  print*, 'inside lake, time at the mdoel simulation',modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec
 
     ! initialize error control
     ierr=0; message='lake_route/'

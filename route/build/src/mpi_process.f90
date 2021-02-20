@@ -144,17 +144,55 @@ contains
   real(dp),          allocatable              :: slope_local(:)            ! reach slope array in decomposed network
   real(dp),          allocatable              :: length_local(:)           ! reach length array in decomposed network
   real(dp),          allocatable              :: area_local(:)             ! hru area in decomposed network
+
   real(dp),          allocatable              :: D03MaxStorage_local(:)    ! maximum active storage for Doll 2003
   real(dp),          allocatable              :: D03Coefficient_local(:)   ! coefficient for Doll 2003
   real(dp),          allocatable              :: D03Power_local(:)         ! power for Doll 2003
+
   real(dp),          allocatable              :: H06realP1_local(:)        ! Hanasaki 2006 test parameter 1 real
   real(dp),          allocatable              :: H06realP2_local(:)        ! Hanasaki 2006 test parameter 2 real
   real(dp),          allocatable              :: H06realP3_local(:)        ! Hanasaki 2006 test parameter 3 real
   real(dp),          allocatable              :: H06realP4_local(:)        ! Hanasaki 2006 test parameter 4 real
+  real(dp),          allocatable              :: H06realP5_local(:)        ! Hanasaki 2006 test parameter 5 real
+  real(dp),          allocatable              :: H06realP6_local(:)        ! Hanasaki 2006 test parameter 6 real
+  real(dp),          allocatable              :: H06realP7_local(:)        ! Hanasaki 2006 test parameter 7 real
+  real(dp),          allocatable              :: H06realP8_local(:)        ! Hanasaki 2006 test parameter 8 real
+  real(dp),          allocatable              :: H06realP9_local(:)        ! Hanasaki 2006 test parameter 9 real
+  real(dp),          allocatable              :: H06realP10_local(:)       ! Hanasaki 2006 test parameter 10 real
+  real(dp),          allocatable              :: H06realP11_local(:)       ! Hanasaki 2006 test parameter 11 real
+  real(dp),          allocatable              :: H06realP12_local(:)       ! Hanasaki 2006 test parameter 12 real
+  real(dp),          allocatable              :: H06realP13_local(:)       ! Hanasaki 2006 test parameter 13 real
+  real(dp),          allocatable              :: H06realP14_local(:)       ! Hanasaki 2006 test parameter 14 real
+  real(dp),          allocatable              :: H06realP15_local(:)       ! Hanasaki 2006 test parameter 15 real
+  real(dp),          allocatable              :: H06realP16_local(:)       ! Hanasaki 2006 test parameter 16 real
+  real(dp),          allocatable              :: H06realP17_local(:)       ! Hanasaki 2006 test parameter 17 real
+  real(dp),          allocatable              :: H06realP18_local(:)       ! Hanasaki 2006 test parameter 18 real
+  real(dp),          allocatable              :: H06realP19_local(:)       ! Hanasaki 2006 test parameter 19 real
+  real(dp),          allocatable              :: H06realP20_local(:)       ! Hanasaki 2006 test parameter 20 real
+  real(dp),          allocatable              :: H06realP21_local(:)       ! Hanasaki 2006 test parameter 21 real
+  real(dp),          allocatable              :: H06realP22_local(:)       ! Hanasaki 2006 test parameter 22 real
+  real(dp),          allocatable              :: H06realP23_local(:)       ! Hanasaki 2006 test parameter 23 real
+  real(dp),          allocatable              :: H06realP24_local(:)       ! Hanasaki 2006 test parameter 24 real
+  real(dp),          allocatable              :: H06realP25_local(:)       ! Hanasaki 2006 test parameter 25 real
+  real(dp),          allocatable              :: H06realP26_local(:)       ! Hanasaki 2006 test parameter 26 real
+  real(dp),          allocatable              :: H06realP27_local(:)       ! Hanasaki 2006 test parameter 27 real
+  real(dp),          allocatable              :: H06realP28_local(:)       ! Hanasaki 2006 test parameter 28 real
+  real(dp),          allocatable              :: H06realP29_local(:)       ! Hanasaki 2006 test parameter 29 real
+  real(dp),          allocatable              :: H06realP30_local(:)       ! Hanasaki 2006 test parameter 30 real
+  real(dp),          allocatable              :: H06realP31_local(:)       ! Hanasaki 2006 test parameter 31 real
+  real(dp),          allocatable              :: H06realP32_local(:)       ! Hanasaki 2006 test parameter 32 real
+  real(dp),          allocatable              :: H06realP33_local(:)       ! Hanasaki 2006 test parameter 33 real
+  real(dp),          allocatable              :: H06realP34_local(:)       ! Hanasaki 2006 test parameter 34 real
+  real(dp),          allocatable              :: H06realP35_local(:)       ! Hanasaki 2006 test parameter 35 real
+  real(dp),          allocatable              :: H06realP36_local(:)       ! Hanasaki 2006 test parameter 36 real
+
   integer(i4b),      allocatable              :: H06intP1_local(:)         ! Hanasaki 2006 test parameter 1 int
   integer(i4b),      allocatable              :: H06intP2_local(:)         ! Hanasaki 2006 test parameter 2 int
   integer(i4b),      allocatable              :: H06intP3_local(:)         ! Hanasaki 2006 test parameter 3 int
   integer(i4b),      allocatable              :: H06intP4_local(:)         ! Hanasaki 2006 test parameter 4 int
+  integer(i4b),      allocatable              :: H06intP5_local(:)         ! Hanasaki 2006 test parameter 5 int
+  integer(i4b),      allocatable              :: H06intP6_local(:)         ! Hanasaki 2006 test parameter 6 int
+
   logical(lgt),      allocatable              :: tribOutlet_local(:)       ! logical to indicate tributary outlet to mainstems
   ! 1D array for the entire river network
   integer(i4b)                                :: hruId(nHRU_in)            ! hru id for all the HRUs
@@ -170,14 +208,51 @@ contains
   real(dp)                                    :: D03MaxStorage(nRch_in)    ! maximum active storage for Doll 2003
   real(dp)                                    :: D03Coefficient(nRch_in)   ! coefficient for Doll 2003
   real(dp)                                    :: D03Power(nRch_in)         ! power for Doll 2003
+
   real(dp)                                    :: H06realP1(nRch_in)        ! Hanasaki 2006 test parameter 1 real
   real(dp)                                    :: H06realP2(nRch_in)        ! Hanasaki 2006 test parameter 2 real
   real(dp)                                    :: H06realP3(nRch_in)        ! Hanasaki 2006 test parameter 3 real
   real(dp)                                    :: H06realP4(nRch_in)        ! Hanasaki 2006 test parameter 4 real
+  real(dp)                                    :: H06realP5(nRch_in)        ! Hanasaki 2006 test parameter 5 real
+  real(dp)                                    :: H06realP6(nRch_in)        ! Hanasaki 2006 test parameter 6 real
+  real(dp)                                    :: H06realP7(nRch_in)        ! Hanasaki 2006 test parameter 7 real
+  real(dp)                                    :: H06realP8(nRch_in)        ! Hanasaki 2006 test parameter 8 real
+  real(dp)                                    :: H06realP9(nRch_in)        ! Hanasaki 2006 test parameter 9 real
+  real(dp)                                    :: H06realP10(nRch_in)       ! Hanasaki 2006 test parameter 10 real
+  real(dp)                                    :: H06realP11(nRch_in)       ! Hanasaki 2006 test parameter 11 real
+  real(dp)                                    :: H06realP12(nRch_in)       ! Hanasaki 2006 test parameter 12 real
+  real(dp)                                    :: H06realP13(nRch_in)       ! Hanasaki 2006 test parameter 13 real
+  real(dp)                                    :: H06realP14(nRch_in)       ! Hanasaki 2006 test parameter 14 real
+  real(dp)                                    :: H06realP15(nRch_in)       ! Hanasaki 2006 test parameter 15 real
+  real(dp)                                    :: H06realP16(nRch_in)       ! Hanasaki 2006 test parameter 16 real
+  real(dp)                                    :: H06realP17(nRch_in)       ! Hanasaki 2006 test parameter 17 real
+  real(dp)                                    :: H06realP18(nRch_in)       ! Hanasaki 2006 test parameter 18 real
+  real(dp)                                    :: H06realP19(nRch_in)       ! Hanasaki 2006 test parameter 19 real
+  real(dp)                                    :: H06realP20(nRch_in)       ! Hanasaki 2006 test parameter 20 real
+  real(dp)                                    :: H06realP21(nRch_in)       ! Hanasaki 2006 test parameter 21 real
+  real(dp)                                    :: H06realP22(nRch_in)       ! Hanasaki 2006 test parameter 22 real
+  real(dp)                                    :: H06realP23(nRch_in)       ! Hanasaki 2006 test parameter 23 real
+  real(dp)                                    :: H06realP24(nRch_in)       ! Hanasaki 2006 test parameter 24 real
+  real(dp)                                    :: H06realP25(nRch_in)       ! Hanasaki 2006 test parameter 25 real
+  real(dp)                                    :: H06realP26(nRch_in)       ! Hanasaki 2006 test parameter 26 real
+  real(dp)                                    :: H06realP27(nRch_in)       ! Hanasaki 2006 test parameter 27 real
+  real(dp)                                    :: H06realP28(nRch_in)       ! Hanasaki 2006 test parameter 28 real
+  real(dp)                                    :: H06realP29(nRch_in)       ! Hanasaki 2006 test parameter 29 real
+  real(dp)                                    :: H06realP30(nRch_in)       ! Hanasaki 2006 test parameter 30 real
+  real(dp)                                    :: H06realP31(nRch_in)       ! Hanasaki 2006 test parameter 31 real
+  real(dp)                                    :: H06realP32(nRch_in)       ! Hanasaki 2006 test parameter 32 real
+  real(dp)                                    :: H06realP33(nRch_in)       ! Hanasaki 2006 test parameter 33 real
+  real(dp)                                    :: H06realP34(nRch_in)       ! Hanasaki 2006 test parameter 34 real
+  real(dp)                                    :: H06realP35(nRch_in)       ! Hanasaki 2006 test parameter 35 real
+  real(dp)                                    :: H06realP36(nRch_in)       ! Hanasaki 2006 test parameter 36 real
+
   integer(i4b)                                :: H06intP1(nRch_in)         ! Hanasaki 2006 test parameter 1 int
   integer(i4b)                                :: H06intP2(nRch_in)         ! Hanasaki 2006 test parameter 2 int
   integer(i4b)                                :: H06intP3(nRch_in)         ! Hanasaki 2006 test parameter 3 int
   integer(i4b)                                :: H06intP4(nRch_in)         ! Hanasaki 2006 test parameter 4 int
+  integer(i4b)                                :: H06intP5(nRch_in)         ! Hanasaki 2006 test parameter 5 int
+  integer(i4b)                                :: H06intP6(nRch_in)         ! Hanasaki 2006 test parameter 6 int
+
   integer(i4b)                                :: ixNode(nRch_in)           ! node assignment for each reach
   integer(i4b)                                :: ixDomain(nRch_in)         ! domain index for each reach
   logical(lgt),      allocatable              :: tribOutlet(:)             ! logical to indicate tributary outlet to mainstems over entire network
@@ -281,17 +356,54 @@ contains
      LakeModelType(iSeg)   = structNTOPO(jSeg)%var(ixNTOPO%LakeModelType)%dat(1)
      slope(iSeg)           = structSEG(  jSeg)%var(ixSEG%slope)%dat(1)
      length(iSeg)          = structSEG(  jSeg)%var(ixSEG%length)%dat(1)
+
      D03MaxStorage(iSeg)   = structSEG(  jSeg)%var(ixSEG%D03MaxStorage)%dat(1)
      D03Coefficient(iSeg)  = structSEG(  jSeg)%var(ixSEG%D03Coefficient)%dat(1)
      D03Power(iSeg)        = structSEG(  jSeg)%var(ixSEG%D03Power)%dat(1)
+
      H06realP1(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP1)%dat(1)
      H06realP2(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP2)%dat(1)
      H06realP3(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP3)%dat(1)
      H06realP4(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP4)%dat(1)
+     H06realP5(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP5)%dat(1)
+     H06realP6(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP6)%dat(1)
+     H06realP7(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP7)%dat(1)
+     H06realP8(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP8)%dat(1)
+     H06realP9(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP9)%dat(1)
+     H06realP10(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP10)%dat(1)
+     H06realP11(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP11)%dat(1)
+     H06realP12(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP12)%dat(1)
+     H06realP13(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP13)%dat(1)
+     H06realP14(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP14)%dat(1)
+     H06realP15(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP15)%dat(1)
+     H06realP16(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP16)%dat(1)
+     H06realP17(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP17)%dat(1)
+     H06realP18(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP18)%dat(1)
+     H06realP19(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP19)%dat(1)
+     H06realP20(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP20)%dat(1)
+     H06realP21(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP21)%dat(1)
+     H06realP22(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP22)%dat(1)
+     H06realP23(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP23)%dat(1)
+     H06realP24(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP24)%dat(1)
+     H06realP25(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP25)%dat(1)
+     H06realP26(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP26)%dat(1)
+     H06realP27(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP27)%dat(1)
+     H06realP28(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP28)%dat(1)
+     H06realP29(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP29)%dat(1)
+     H06realP30(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP30)%dat(1)
+     H06realP31(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP31)%dat(1)
+     H06realP32(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP32)%dat(1)
+     H06realP33(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP33)%dat(1)
+     H06realP34(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP34)%dat(1)
+     H06realP35(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP35)%dat(1)
+     H06realP36(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP36)%dat(1)
+
      H06intP1(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06intP1)%dat(1)
      H06intP2(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06intP2)%dat(1)
      H06intP3(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06intP3)%dat(1)
      H06intP4(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06intP4)%dat(1)
+     H06intP5(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06intP5)%dat(1)
+     H06intP6(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06intP6)%dat(1)
 
     end do
 
@@ -350,14 +462,53 @@ contains
     call shr_mpi_scatterV(D03MaxStorage (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03MaxStorage_local, ierr, cmessage)
     call shr_mpi_scatterV(D03Coefficient(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03Coefficient_local,ierr, cmessage)
     call shr_mpi_scatterV(D03Power      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03Power_local,      ierr, cmessage)
+
     call shr_mpi_scatterV(H06realP1     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP1_local,     ierr, cmessage)
     call shr_mpi_scatterV(H06realP2     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP2_local,     ierr, cmessage)
     call shr_mpi_scatterV(H06realP3     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP3_local,     ierr, cmessage)
     call shr_mpi_scatterV(H06realP4     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP4_local,     ierr, cmessage)
+    call shr_mpi_scatterV(H06realP5     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP5_local,     ierr, cmessage)
+    call shr_mpi_scatterV(H06realP6     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP6_local,     ierr, cmessage)
+    call shr_mpi_scatterV(H06realP7     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP7_local,     ierr, cmessage)
+    call shr_mpi_scatterV(H06realP8     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP8_local,     ierr, cmessage)
+    call shr_mpi_scatterV(H06realP9     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP9_local,     ierr, cmessage)
+    call shr_mpi_scatterV(H06realP10    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP10_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP11    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP11_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP12    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP12_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP13    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP13_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP14    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP14_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP15    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP15_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP16    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP16_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP17    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP17_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP18    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP18_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP19    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP19_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP20    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP20_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP21    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP21_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP22    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP22_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP23    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP23_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP24    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP24_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP25    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP25_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP26    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP26_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP27    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP27_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP28    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP28_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP29    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP29_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP30    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP30_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP31    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP31_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP32    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP32_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP33    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP33_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP34    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP34_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP35    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP35_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06realP36    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP36_local,    ierr, cmessage)
+
+
     call shr_mpi_scatterV(H06intP1      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06intP1_local,      ierr, cmessage)
     call shr_mpi_scatterV(H06intP2      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06intP2_local,      ierr, cmessage)
     call shr_mpi_scatterV(H06intP3      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06intP3_local,      ierr, cmessage)
     call shr_mpi_scatterV(H06intP4      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06intP4_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06intP5      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06intP5_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06intP6      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06intP6_local,      ierr, cmessage)
+
+
     call shr_mpi_scatterV(hruId         (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruId_local,         ierr, cmessage)
     call shr_mpi_scatterV(hruSegId      (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruSegId_local,      ierr, cmessage)
     call shr_mpi_scatterV(area          (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), area_local,          ierr, cmessage)
@@ -390,14 +541,50 @@ contains
      structSEG_local  (ix)%var(ixSEG%D03MaxStorage)%dat(1)    = D03MaxStorage_local(ix)
      structSEG_local  (ix)%var(ixSEG%D03Coefficient)%dat(1)   = D03Coefficient_local(ix)
      structSEG_local  (ix)%var(ixSEG%D03Power)%dat(1)         = D03Power_local(ix)
+
      structSEG_local  (ix)%var(ixSEG%H06realP1)%dat(1)        = H06realP1_local(ix)
      structSEG_local  (ix)%var(ixSEG%H06realP2)%dat(1)        = H06realP2_local(ix)
      structSEG_local  (ix)%var(ixSEG%H06realP3)%dat(1)        = H06realP3_local(ix)
      structSEG_local  (ix)%var(ixSEG%H06realP4)%dat(1)        = H06realP4_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP5)%dat(1)        = H06realP5_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP6)%dat(1)        = H06realP6_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP7)%dat(1)        = H06realP7_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP8)%dat(1)        = H06realP8_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP9)%dat(1)        = H06realP9_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP10)%dat(1)       = H06realP10_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP11)%dat(1)       = H06realP11_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP12)%dat(1)       = H06realP12_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP13)%dat(1)       = H06realP13_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP14)%dat(1)       = H06realP14_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP15)%dat(1)       = H06realP15_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP16)%dat(1)       = H06realP16_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP17)%dat(1)       = H06realP17_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP18)%dat(1)       = H06realP18_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP19)%dat(1)       = H06realP19_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP20)%dat(1)       = H06realP20_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP21)%dat(1)       = H06realP21_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP22)%dat(1)       = H06realP22_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP23)%dat(1)       = H06realP23_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP24)%dat(1)       = H06realP24_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP25)%dat(1)       = H06realP25_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP26)%dat(1)       = H06realP26_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP27)%dat(1)       = H06realP27_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP28)%dat(1)       = H06realP28_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP29)%dat(1)       = H06realP29_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP30)%dat(1)       = H06realP30_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP31)%dat(1)       = H06realP31_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP32)%dat(1)       = H06realP32_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP33)%dat(1)       = H06realP33_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP34)%dat(1)       = H06realP34_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP35)%dat(1)       = H06realP35_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06realP36)%dat(1)       = H06realP36_local(ix)
+
      structSEG_local  (ix)%var(ixSEG%H06intP1)%dat(1)         = H06intP1_local(ix)
      structSEG_local  (ix)%var(ixSEG%H06intP2)%dat(1)         = H06intP2_local(ix)
      structSEG_local  (ix)%var(ixSEG%H06intP3)%dat(1)         = H06intP3_local(ix)
      structSEG_local  (ix)%var(ixSEG%H06intP4)%dat(1)         = H06intP4_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06intP5)%dat(1)         = H06intP5_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06intP6)%dat(1)         = H06intP6_local(ix)
     end do reach
 
     hru: do ix=1,hru_per_proc(pid)
@@ -532,14 +719,51 @@ contains
        structSEG_main  (ix)%var(ixSEG%D03MaxStorage)%dat(1)   = D03MaxStorage(ix)
        structSEG_main  (ix)%var(ixSEG%D03Coefficient)%dat(1)  = D03Coefficient(ix)
        structSEG_main  (ix)%var(ixSEG%D03Power)%dat(1)        = D03Power(ix)
+
        structSEG_main  (ix)%var(ixSEG%H06realP1)%dat(1)       = H06realP1(ix)
        structSEG_main  (ix)%var(ixSEG%H06realP2)%dat(1)       = H06realP2(ix)
        structSEG_main  (ix)%var(ixSEG%H06realP3)%dat(1)       = H06realP3(ix)
        structSEG_main  (ix)%var(ixSEG%H06realP4)%dat(1)       = H06realP4(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP5)%dat(1)       = H06realP5(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP6)%dat(1)       = H06realP6(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP7)%dat(1)       = H06realP7(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP8)%dat(1)       = H06realP8(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP9)%dat(1)       = H06realP9(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP10)%dat(1)      = H06realP10(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP11)%dat(1)      = H06realP11(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP12)%dat(1)      = H06realP12(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP13)%dat(1)      = H06realP13(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP14)%dat(1)      = H06realP14(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP15)%dat(1)      = H06realP15(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP16)%dat(1)      = H06realP16(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP17)%dat(1)      = H06realP17(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP18)%dat(1)      = H06realP18(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP19)%dat(1)      = H06realP19(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP20)%dat(1)      = H06realP20(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP21)%dat(1)      = H06realP21(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP22)%dat(1)      = H06realP22(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP23)%dat(1)      = H06realP23(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP24)%dat(1)      = H06realP24(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP25)%dat(1)      = H06realP25(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP26)%dat(1)      = H06realP26(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP27)%dat(1)      = H06realP27(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP28)%dat(1)      = H06realP28(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP29)%dat(1)      = H06realP29(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP30)%dat(1)      = H06realP30(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP31)%dat(1)      = H06realP31(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP32)%dat(1)      = H06realP32(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP33)%dat(1)      = H06realP33(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP34)%dat(1)      = H06realP34(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP35)%dat(1)      = H06realP35(ix)
+       structSEG_main  (ix)%var(ixSEG%H06realP36)%dat(1)      = H06realP36(ix)
+
+
        structSEG_main  (ix)%var(ixSEG%H06intP1)%dat(1)        = H06intP1(ix)
        structSEG_main  (ix)%var(ixSEG%H06intP2)%dat(1)        = H06intP2(ix)
        structSEG_main  (ix)%var(ixSEG%H06intP3)%dat(1)        = H06intP3(ix)
        structSEG_main  (ix)%var(ixSEG%H06intP4)%dat(1)        = H06intP4(ix)
+       structSEG_main  (ix)%var(ixSEG%H06intP5)%dat(1)        = H06intP5(ix)
+       structSEG_main  (ix)%var(ixSEG%H06intP6)%dat(1)        = H06intP6(ix)
      end do main_rch
 
      ups_trib: do ix = 1, nTribOutlet
@@ -551,6 +775,7 @@ contains
        structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%islake)%dat(1)        = structNTOPO(ixx)%var(ixNTOPO%islake)%dat(1)
        structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%LakeTargVol)%dat(1)   = structNTOPO(ixx)%var(ixNTOPO%LakeTargVol)%dat(1)
        structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%LakeModelType)%dat(1) = structNTOPO(ixx)%var(ixNTOPO%LakeModelType)%dat(1)
+
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03MaxStorage)%dat(1)   = structSEG(ixx)%var(ixSEG%D03MaxStorage)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03Coefficient)%dat(1)  = structSEG(ixx)%var(ixSEG%D03Coefficient)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03Power)%dat(1)        = structSEG(ixx)%var(ixSEG%D03Power)%dat(1)
@@ -559,10 +784,45 @@ contains
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP2)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP2)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP3)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP3)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP4)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP4)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP5)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP5)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP6)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP6)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP7)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP7)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP8)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP8)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP9)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP9)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP10)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP10)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP11)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP11)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP12)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP12)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP13)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP13)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP14)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP14)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP15)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP15)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP16)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP16)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP17)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP17)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP18)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP18)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP19)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP19)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP20)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP20)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP21)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP21)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP22)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP22)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP23)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP23)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP24)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP24)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP25)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP25)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP26)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP26)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP27)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP27)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP28)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP28)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP29)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP29)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP30)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP30)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP31)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP31)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP32)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP32)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP33)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP33)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP34)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP34)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP35)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP35)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP36)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP36)%dat(1)
+
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06intP1)%dat(1)        = structSEG(ixx)%var(ixSEG%H06intP1)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06intP2)%dat(1)        = structSEG(ixx)%var(ixSEG%H06intP2)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06intP3)%dat(1)        = structSEG(ixx)%var(ixSEG%H06intP3)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06intP4)%dat(1)        = structSEG(ixx)%var(ixSEG%H06intP4)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06intP5)%dat(1)        = structSEG(ixx)%var(ixSEG%H06intP5)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06intP6)%dat(1)        = structSEG(ixx)%var(ixSEG%H06intP6)%dat(1)
 
        global_ix_main(ix) = nRch_mainstem+ix   ! index in mainstem array that is link to tributary outlet
      end do ups_trib
