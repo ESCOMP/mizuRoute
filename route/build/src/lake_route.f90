@@ -99,9 +99,9 @@ module lake_route_module
     !print*, 'lake param D03_MaxStorage ..= ', RPARAM_in(segIndex)%D03_MaxStorage
     !print*, 'lake param D03_Coefficient .= ', RPARAM_in(segIndex)%D03_Coefficient
     !print*, 'lake param D03_Power .......= ', RPARAM_in(segIndex)%D03_Power
-    !print*, 'lake param H06TestP1 .......= ', RPARAM_in(segIndex)%H06TestP1
-    !print*, 'lake param H06TestP2 .......= ', RPARAM_in(segIndex)%H06TestP2
-    !print*, 'lake param H06Memory .......= ', RPARAM_in(segIndex)%H06Memory
+    !print*, 'lake param H06_Smax ........= ', RPARAM_in(segIndex)%H06_Smax
+    !print*, 'lake param H06_alpha .......= ', RPARAM_in(segIndex)%H06_alpha
+    !print*, 'lake param H06_S_ini .......= ', RPARAM_in(segIndex)%H06_S_ini
     !print*, 'lake target volum ..........= ', NETOPO_in(segIndex)%LakeTargVol
     !print*, 'volume before simulation m3.= ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
     !print*, 'upstream streamflow m3/s ...= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
@@ -163,6 +163,11 @@ module lake_route_module
             RCHFLX_out(iens,segIndex)%QPASTUP_IRF(1)    = q_upstream ! code needed to shift this as well.
           endif
           !print*, RCHFLX_out(iens,segIndex)%QPASTUP_IRF
+
+
+          !print*, modTime(1)%im ! month of the simulations
+          print*, 'Hanasaki parameters'
+          print*, RPARAM_in(segIndex)%H06_Smax, RPARAM_in(segIndex)%H06_alpha, RPARAM_in(segIndex)%H06_envfact, RPARAM_in(segIndex)%H06_S_ini, RPARAM_in(segIndex)%H06_c1, RPARAM_in(segIndex)%H06_c2, RPARAM_in(segIndex)%H06_exponent
 
         case default; ierr=20; message=trim(message)//'unable to identify the parametric lake model type'; return
       end select
