@@ -96,9 +96,9 @@ module lake_route_module
     ! if(NETOPO_in(segIndex)%REACHIX == ixDesire)then   ! uncommnet when the ixDesire is fixed and not -9999
     !print*, '------lake-simulation-------- '
     !print*, 'node id that is lake .......= ', NETOPO_in(segIndex)%REACHID ! to check the reach id of lake
-    !print*, 'lake param D03MaxStorage ...= ', RPARAM_in(segIndex)%D03MaxStorage
-    !print*, 'lake param D03Coefficient ..= ', RPARAM_in(segIndex)%D03Coefficient
-    !print*, 'lake param D03Power ........= ', RPARAM_in(segIndex)%D03Power
+    !print*, 'lake param D03_MaxStorage ..= ', RPARAM_in(segIndex)%D03_MaxStorage
+    !print*, 'lake param D03_Coefficient .= ', RPARAM_in(segIndex)%D03_Coefficient
+    !print*, 'lake param D03_Power .......= ', RPARAM_in(segIndex)%D03_Power
     !print*, 'lake param H06TestP1 .......= ', RPARAM_in(segIndex)%H06TestP1
     !print*, 'lake param H06TestP2 .......= ', RPARAM_in(segIndex)%H06TestP2
     !print*, 'lake param H06Memory .......= ', RPARAM_in(segIndex)%H06Memory
@@ -107,7 +107,7 @@ module lake_route_module
     !print*, 'upstream streamflow m3/s ...= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
     !print*, 'upstream precipitation m3/s.= ', RCHFLX_out(iens,segIndex)%basinprecip
     !print*, 'upstream evaporation m3/s ..= ', RCHFLX_out(iens,segIndex)%basinevapo
-    !print*, 'paraemters', RPARAM_in(segIndex)%D03MaxStorage, RPARAM_in(segIndex)%D03Coefficient, RPARAM_in(segIndex)%D03Power, NETOPO_in(segIndex)%LakeTargVol, NETOPO_in(segIndex)%islake, NETOPO_in(segIndex)%LakeModelType
+    !print*, 'paraemters', RPARAM_in(segIndex)%D03_MaxStorage, RPARAM_in(segIndex)%D03_Coefficient, RPARAM_in(segIndex)%D03_Power, NETOPO_in(segIndex)%LakeTargVol, NETOPO_in(segIndex)%islake, NETOPO_in(segIndex)%LakeModelType
 
 
     ! add upstream, precipitation and subtract evaporation from the lake volume
@@ -139,9 +139,9 @@ module lake_route_module
         case (1)
           ! the model is Doll03
           !print*, "lake model is Doll 2003"
-          RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RPARAM_in(segIndex)%D03Coefficient * RCHFLX_out(iens,segIndex)%REACH_VOL(1) * &
-                                                   (RCHFLX_out(iens,segIndex)%REACH_VOL(1) / RPARAM_in(segIndex)%D03MaxStorage) ** &
-                                                   RPARAM_in(segIndex)%D03Power! Q = AS(S/Smax)^B based on Eq. 1 Hanasaki et al., 2006 https://doi.org/10.1016/j.jhydrol.2005.11.011
+          RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RPARAM_in(segIndex)%D03_Coefficient * RCHFLX_out(iens,segIndex)%REACH_VOL(1) * &
+                                                   (RCHFLX_out(iens,segIndex)%REACH_VOL(1) / RPARAM_in(segIndex)%D03_MaxStorage) ** &
+                                                   RPARAM_in(segIndex)%D03_Power! Q = AS(S/Smax)^B based on Eq. 1 Hanasaki et al., 2006 https://doi.org/10.1016/j.jhydrol.2005.11.011
           ! in case is the output volume is more than lake volume
           RCHFLX_out(iens,segIndex)%REACH_Q_IRF = (min(RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt, RCHFLX_out(iens,segIndex)%REACH_VOL(1)) )/dt
           ! updating the storage

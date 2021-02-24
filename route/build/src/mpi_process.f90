@@ -145,53 +145,52 @@ contains
   real(dp),          allocatable              :: length_local(:)           ! reach length array in decomposed network
   real(dp),          allocatable              :: area_local(:)             ! hru area in decomposed network
 
-  real(dp),          allocatable              :: D03MaxStorage_local(:)    ! maximum active storage for Doll 2003
-  real(dp),          allocatable              :: D03Coefficient_local(:)   ! coefficient for Doll 2003
-  real(dp),          allocatable              :: D03Power_local(:)         ! power for Doll 2003
+  real(dp),          allocatable              :: D03_MaxStorage_local(:)   ! Doll 2003; maximum active storage for Doll 2003
+  real(dp),          allocatable              :: D03_Coefficient_local(:)  ! Doll 2003; coefficient for Doll 2003
+  real(dp),          allocatable              :: D03_Power_local(:)        ! Doll 2003; power for Doll 2003
 
-  real(dp),          allocatable              :: H06realP1_local(:)        ! Hanasaki 2006 test parameter 1 real
-  real(dp),          allocatable              :: H06realP2_local(:)        ! Hanasaki 2006 test parameter 2 real
-  real(dp),          allocatable              :: H06realP3_local(:)        ! Hanasaki 2006 test parameter 3 real
-  real(dp),          allocatable              :: H06realP4_local(:)        ! Hanasaki 2006 test parameter 4 real
-  real(dp),          allocatable              :: H06realP5_local(:)        ! Hanasaki 2006 test parameter 5 real
-  real(dp),          allocatable              :: H06realP6_local(:)        ! Hanasaki 2006 test parameter 6 real
-  real(dp),          allocatable              :: H06realP7_local(:)        ! Hanasaki 2006 test parameter 7 real
-  real(dp),          allocatable              :: H06realP8_local(:)        ! Hanasaki 2006 test parameter 8 real
-  real(dp),          allocatable              :: H06realP9_local(:)        ! Hanasaki 2006 test parameter 9 real
-  real(dp),          allocatable              :: H06realP10_local(:)       ! Hanasaki 2006 test parameter 10 real
-  real(dp),          allocatable              :: H06realP11_local(:)       ! Hanasaki 2006 test parameter 11 real
-  real(dp),          allocatable              :: H06realP12_local(:)       ! Hanasaki 2006 test parameter 12 real
-  real(dp),          allocatable              :: H06realP13_local(:)       ! Hanasaki 2006 test parameter 13 real
-  real(dp),          allocatable              :: H06realP14_local(:)       ! Hanasaki 2006 test parameter 14 real
-  real(dp),          allocatable              :: H06realP15_local(:)       ! Hanasaki 2006 test parameter 15 real
-  real(dp),          allocatable              :: H06realP16_local(:)       ! Hanasaki 2006 test parameter 16 real
-  real(dp),          allocatable              :: H06realP17_local(:)       ! Hanasaki 2006 test parameter 17 real
-  real(dp),          allocatable              :: H06realP18_local(:)       ! Hanasaki 2006 test parameter 18 real
-  real(dp),          allocatable              :: H06realP19_local(:)       ! Hanasaki 2006 test parameter 19 real
-  real(dp),          allocatable              :: H06realP20_local(:)       ! Hanasaki 2006 test parameter 20 real
-  real(dp),          allocatable              :: H06realP21_local(:)       ! Hanasaki 2006 test parameter 21 real
-  real(dp),          allocatable              :: H06realP22_local(:)       ! Hanasaki 2006 test parameter 22 real
-  real(dp),          allocatable              :: H06realP23_local(:)       ! Hanasaki 2006 test parameter 23 real
-  real(dp),          allocatable              :: H06realP24_local(:)       ! Hanasaki 2006 test parameter 24 real
-  real(dp),          allocatable              :: H06realP25_local(:)       ! Hanasaki 2006 test parameter 25 real
-  real(dp),          allocatable              :: H06realP26_local(:)       ! Hanasaki 2006 test parameter 26 real
-  real(dp),          allocatable              :: H06realP27_local(:)       ! Hanasaki 2006 test parameter 27 real
-  real(dp),          allocatable              :: H06realP28_local(:)       ! Hanasaki 2006 test parameter 28 real
-  real(dp),          allocatable              :: H06realP29_local(:)       ! Hanasaki 2006 test parameter 29 real
-  real(dp),          allocatable              :: H06realP30_local(:)       ! Hanasaki 2006 test parameter 30 real
-  real(dp),          allocatable              :: H06realP31_local(:)       ! Hanasaki 2006 test parameter 31 real
-  real(dp),          allocatable              :: H06realP32_local(:)       ! Hanasaki 2006 test parameter 32 real
-  real(dp),          allocatable              :: H06realP33_local(:)       ! Hanasaki 2006 test parameter 33 real
-  real(dp),          allocatable              :: H06realP34_local(:)       ! Hanasaki 2006 test parameter 34 real
-  real(dp),          allocatable              :: H06realP35_local(:)       ! Hanasaki 2006 test parameter 35 real
-  real(dp),          allocatable              :: H06realP36_local(:)       ! Hanasaki 2006 test parameter 36 real
+  real(dp),          allocatable              :: H06_Smax_local(:)         ! Hanasaki 2006; maximume reservoir storage [m3]
+  real(dp),          allocatable              :: H06_alpha_local(:)        ! Hanasaki 2006; fraction of active storage compared to total storage [-]
+  real(dp),          allocatable              :: H06_envfact_local(:)      ! Hanasaki 2006; fraction of inflow that can be used to meet demand [-]
+  real(dp),          allocatable              :: H06_S_ini_local(:)        ! Hanasaki 2006; initial storage used for initial estimation of release coefficient [m3]
+  real(dp),          allocatable              :: H06_c1_local(:)           ! Hanasaki 2006; coefficient 1 for target release for irrigation reseroir [-]
+  real(dp),          allocatable              :: H06_c2_local(:)           ! Hanasaki 2006; coefficient 2 for target release for irrigation reseroir [-]
+  real(dp),          allocatable              :: H06_exponent_local(:)     ! Hanasaki 2006; Exponenet of actual release for "within-a-year" reservoir [-]
+  real(dp),          allocatable              :: H06_denominator_local(:)  ! Hanasaki 2006; Denominator of actual release for "within-a-year" reservoir [-]
+  real(dp),          allocatable              :: H06_c_compare_local(:)    ! Hanasaki 2006; Criterion for distinguish of "within-a-year" or "multi-year" reservoir [-]
+  real(dp),          allocatable              :: H06_frac_Sdead_local(:)   ! Hanasaki 2006; Fraction of dead storage to maximume storage [-]
+  real(dp),          allocatable              :: H06_I_Jan_local(:)        ! Hanasaki 2006; Average January   inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_Feb_local(:)        ! Hanasaki 2006; Average Februrary inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_Mar_local(:)        ! Hanasaki 2006; Average March     inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_Apr_local(:)        ! Hanasaki 2006; Average April     inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_May_local(:)        ! Hanasaki 2006; Average May       inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_Jun_local(:)        ! Hanasaki 2006; Average June      inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_Jul_local(:)        ! Hanasaki 2006; Average July      inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_Aug_local(:)        ! Hanasaki 2006; Average August    inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_Sep_local(:)        ! Hanasaki 2006; Average September inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_Oct_local(:)        ! Hanasaki 2006; Average October   inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_Nov_local(:)        ! Hanasaki 2006; Average November  inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_Dec_local(:)        ! Hanasaki 2006; Average December  inflow [m3/s]
+  real(dp),          allocatable              :: H06_D_Jan_local(:)        ! Hanasaki 2006; Average January   demand [m3/s]
+  real(dp),          allocatable              :: H06_D_Feb_local(:)        ! Hanasaki 2006; Average Februrary demand [m3/s]
+  real(dp),          allocatable              :: H06_D_Mar_local(:)        ! Hanasaki 2006; Average March     demand [m3/s]
+  real(dp),          allocatable              :: H06_D_Apr_local(:)        ! Hanasaki 2006; Average April     demand [m3/s]
+  real(dp),          allocatable              :: H06_D_May_local(:)        ! Hanasaki 2006; Average May       demand [m3/s]
+  real(dp),          allocatable              :: H06_D_Jun_local(:)        ! Hanasaki 2006; Average June      demand [m3/s]
+  real(dp),          allocatable              :: H06_D_Jul_local(:)        ! Hanasaki 2006; Average July      demand [m3/s]
+  real(dp),          allocatable              :: H06_D_Aug_local(:)        ! Hanasaki 2006; Average Agust     demand [m3/s]
+  real(dp),          allocatable              :: H06_D_Sep_local(:)        ! Hanasaki 2006; Average September demand [m3/s]
+  real(dp),          allocatable              :: H06_D_Oct_local(:)        ! Hanasaki 2006; Average October   demand [m3/s]
+  real(dp),          allocatable              :: H06_D_Nov_local(:)        ! Hanasaki 2006; Average Novermber demand [m3/s]
+  real(dp),          allocatable              :: H06_D_Dec_local(:)        ! Hanasaki 2006; Average December  demand [m3/s]
 
-  integer(i4b),      allocatable              :: H06intP1_local(:)         ! Hanasaki 2006 test parameter 1 int
-  integer(i4b),      allocatable              :: H06intP2_local(:)         ! Hanasaki 2006 test parameter 2 int
-  integer(i4b),      allocatable              :: H06intP3_local(:)         ! Hanasaki 2006 test parameter 3 int
-  integer(i4b),      allocatable              :: H06intP4_local(:)         ! Hanasaki 2006 test parameter 4 int
-  integer(i4b),      allocatable              :: H06intP5_local(:)         ! Hanasaki 2006 test parameter 5 int
-  integer(i4b),      allocatable              :: H06intP6_local(:)         ! Hanasaki 2006 test parameter 6 int
+  integer(i4b),      allocatable              :: H06_purpose_local(:)      ! Hanasaki 2006; reservoir purpose; (0= non-irrigation, 1=irrigation) [-]
+  integer(i4b),      allocatable              :: H06_I_mem_F_local(:)      ! Hanasaki 2006; Flag to transition to modelled inflow [-]
+  integer(i4b),      allocatable              :: H06_D_mem_F_local(:)      ! Hanasaki 2006; Flag to transition to modelled/provided demand [-]
+  integer(i4b),      allocatable              :: H06_I_mem_L_local(:)      ! Hanasaki 2006; Memory length in years for inflow [year]
+  integer(i4b),      allocatable              :: H06_D_mem_L_local(:)      ! Hanasaki 2006; Memory length in years for demand [year]
+
+
 
   logical(lgt),      allocatable              :: tribOutlet_local(:)       ! logical to indicate tributary outlet to mainstems
   ! 1D array for the entire river network
@@ -205,53 +204,48 @@ contains
   real(dp)                                    :: slope(nRch_in)            ! reach slope array for each reach
   real(dp)                                    :: length(nRch_in)           ! reach length array for each reach
   real(dp)                                    :: area(nHRU_in)             ! hru area for each hru
-  real(dp)                                    :: D03MaxStorage(nRch_in)    ! maximum active storage for Doll 2003
-  real(dp)                                    :: D03Coefficient(nRch_in)   ! coefficient for Doll 2003
-  real(dp)                                    :: D03Power(nRch_in)         ! power for Doll 2003
-
-  real(dp)                                    :: H06realP1(nRch_in)        ! Hanasaki 2006 test parameter 1 real
-  real(dp)                                    :: H06realP2(nRch_in)        ! Hanasaki 2006 test parameter 2 real
-  real(dp)                                    :: H06realP3(nRch_in)        ! Hanasaki 2006 test parameter 3 real
-  real(dp)                                    :: H06realP4(nRch_in)        ! Hanasaki 2006 test parameter 4 real
-  real(dp)                                    :: H06realP5(nRch_in)        ! Hanasaki 2006 test parameter 5 real
-  real(dp)                                    :: H06realP6(nRch_in)        ! Hanasaki 2006 test parameter 6 real
-  real(dp)                                    :: H06realP7(nRch_in)        ! Hanasaki 2006 test parameter 7 real
-  real(dp)                                    :: H06realP8(nRch_in)        ! Hanasaki 2006 test parameter 8 real
-  real(dp)                                    :: H06realP9(nRch_in)        ! Hanasaki 2006 test parameter 9 real
-  real(dp)                                    :: H06realP10(nRch_in)       ! Hanasaki 2006 test parameter 10 real
-  real(dp)                                    :: H06realP11(nRch_in)       ! Hanasaki 2006 test parameter 11 real
-  real(dp)                                    :: H06realP12(nRch_in)       ! Hanasaki 2006 test parameter 12 real
-  real(dp)                                    :: H06realP13(nRch_in)       ! Hanasaki 2006 test parameter 13 real
-  real(dp)                                    :: H06realP14(nRch_in)       ! Hanasaki 2006 test parameter 14 real
-  real(dp)                                    :: H06realP15(nRch_in)       ! Hanasaki 2006 test parameter 15 real
-  real(dp)                                    :: H06realP16(nRch_in)       ! Hanasaki 2006 test parameter 16 real
-  real(dp)                                    :: H06realP17(nRch_in)       ! Hanasaki 2006 test parameter 17 real
-  real(dp)                                    :: H06realP18(nRch_in)       ! Hanasaki 2006 test parameter 18 real
-  real(dp)                                    :: H06realP19(nRch_in)       ! Hanasaki 2006 test parameter 19 real
-  real(dp)                                    :: H06realP20(nRch_in)       ! Hanasaki 2006 test parameter 20 real
-  real(dp)                                    :: H06realP21(nRch_in)       ! Hanasaki 2006 test parameter 21 real
-  real(dp)                                    :: H06realP22(nRch_in)       ! Hanasaki 2006 test parameter 22 real
-  real(dp)                                    :: H06realP23(nRch_in)       ! Hanasaki 2006 test parameter 23 real
-  real(dp)                                    :: H06realP24(nRch_in)       ! Hanasaki 2006 test parameter 24 real
-  real(dp)                                    :: H06realP25(nRch_in)       ! Hanasaki 2006 test parameter 25 real
-  real(dp)                                    :: H06realP26(nRch_in)       ! Hanasaki 2006 test parameter 26 real
-  real(dp)                                    :: H06realP27(nRch_in)       ! Hanasaki 2006 test parameter 27 real
-  real(dp)                                    :: H06realP28(nRch_in)       ! Hanasaki 2006 test parameter 28 real
-  real(dp)                                    :: H06realP29(nRch_in)       ! Hanasaki 2006 test parameter 29 real
-  real(dp)                                    :: H06realP30(nRch_in)       ! Hanasaki 2006 test parameter 30 real
-  real(dp)                                    :: H06realP31(nRch_in)       ! Hanasaki 2006 test parameter 31 real
-  real(dp)                                    :: H06realP32(nRch_in)       ! Hanasaki 2006 test parameter 32 real
-  real(dp)                                    :: H06realP33(nRch_in)       ! Hanasaki 2006 test parameter 33 real
-  real(dp)                                    :: H06realP34(nRch_in)       ! Hanasaki 2006 test parameter 34 real
-  real(dp)                                    :: H06realP35(nRch_in)       ! Hanasaki 2006 test parameter 35 real
-  real(dp)                                    :: H06realP36(nRch_in)       ! Hanasaki 2006 test parameter 36 real
-
-  integer(i4b)                                :: H06intP1(nRch_in)         ! Hanasaki 2006 test parameter 1 int
-  integer(i4b)                                :: H06intP2(nRch_in)         ! Hanasaki 2006 test parameter 2 int
-  integer(i4b)                                :: H06intP3(nRch_in)         ! Hanasaki 2006 test parameter 3 int
-  integer(i4b)                                :: H06intP4(nRch_in)         ! Hanasaki 2006 test parameter 4 int
-  integer(i4b)                                :: H06intP5(nRch_in)         ! Hanasaki 2006 test parameter 5 int
-  integer(i4b)                                :: H06intP6(nRch_in)         ! Hanasaki 2006 test parameter 6 int
+  real(dp)                                    :: D03_MaxStorage(nRch_in)   ! Doll 2003; maximum active storage for Doll 2003
+  real(dp)                                    :: D03_Coefficient(nRch_in)  ! Doll 2003; coefficient for Doll 2003
+  real(dp)                                    :: D03_Power(nRch_in)        ! Doll 2003; power for Doll 2003
+  real(dp)                                    :: H06_Smax(nRch_in)         ! Hanasaki 2006; maximume reservoir storage [m3]
+  real(dp)                                    :: H06_alpha(nRch_in)        ! Hanasaki 2006; fraction of active storage compared to total storage [-]
+  real(dp)                                    :: H06_envfact(nRch_in)      ! Hanasaki 2006; fraction of inflow that can be used to meet demand [-]
+  real(dp)                                    :: H06_S_ini(nRch_in)        ! Hanasaki 2006; initial storage used for initial estimation of release coefficient [m3]
+  real(dp)                                    :: H06_c1(nRch_in)           ! Hanasaki 2006; coefficient 1 for target release for irrigation reseroir [-]
+  real(dp)                                    :: H06_c2(nRch_in)           ! Hanasaki 2006; coefficient 2 for target release for irrigation reseroir [-]
+  real(dp)                                    :: H06_exponent(nRch_in)     ! Hanasaki 2006; Exponenet of actual release for "within-a-year" reservoir [-]
+  real(dp)                                    :: H06_denominator(nRch_in)  ! Hanasaki 2006; Denominator of actual release for "within-a-year" reservoir [-]
+  real(dp)                                    :: H06_c_compare(nRch_in)    ! Hanasaki 2006; Criterion for distinguish of "within-a-year" or "multi-year" reservoir [-]
+  real(dp)                                    :: H06_frac_Sdead(nRch_in)   ! Hanasaki 2006; Fraction of dead storage to maximume storage [-]
+  real(dp)                                    :: H06_I_Jan(nRch_in)        ! Hanasaki 2006; Average January   inflow [m3/s]
+  real(dp)                                    :: H06_I_Feb(nRch_in)        ! Hanasaki 2006; Average Februrary inflow [m3/s]
+  real(dp)                                    :: H06_I_Mar(nRch_in)        ! Hanasaki 2006; Average March     inflow [m3/s]
+  real(dp)                                    :: H06_I_Apr(nRch_in)        ! Hanasaki 2006; Average April     inflow [m3/s]
+  real(dp)                                    :: H06_I_May(nRch_in)        ! Hanasaki 2006; Average May       inflow [m3/s]
+  real(dp)                                    :: H06_I_Jun(nRch_in)        ! Hanasaki 2006; Average June      inflow [m3/s]
+  real(dp)                                    :: H06_I_Jul(nRch_in)        ! Hanasaki 2006; Average July      inflow [m3/s]
+  real(dp)                                    :: H06_I_Aug(nRch_in)        ! Hanasaki 2006; Average August    inflow [m3/s]
+  real(dp)                                    :: H06_I_Sep(nRch_in)        ! Hanasaki 2006; Average September inflow [m3/s]
+  real(dp)                                    :: H06_I_Oct(nRch_in)        ! Hanasaki 2006; Average October   inflow [m3/s]
+  real(dp)                                    :: H06_I_Nov(nRch_in)        ! Hanasaki 2006; Average November  inflow [m3/s]
+  real(dp)                                    :: H06_I_Dec(nRch_in)        ! Hanasaki 2006; Average December  inflow [m3/s]
+  real(dp)                                    :: H06_D_Jan(nRch_in)        ! Hanasaki 2006; Average January   demand [m3/s]
+  real(dp)                                    :: H06_D_Feb(nRch_in)        ! Hanasaki 2006; Average Februrary demand [m3/s]
+  real(dp)                                    :: H06_D_Mar(nRch_in)        ! Hanasaki 2006; Average March     demand [m3/s]
+  real(dp)                                    :: H06_D_Apr(nRch_in)        ! Hanasaki 2006; Average April     demand [m3/s]
+  real(dp)                                    :: H06_D_May(nRch_in)        ! Hanasaki 2006; Average May       demand [m3/s]
+  real(dp)                                    :: H06_D_Jun(nRch_in)        ! Hanasaki 2006; Average June      demand [m3/s]
+  real(dp)                                    :: H06_D_Jul(nRch_in)        ! Hanasaki 2006; Average July      demand [m3/s]
+  real(dp)                                    :: H06_D_Aug(nRch_in)        ! Hanasaki 2006; Average Agust     demand [m3/s]
+  real(dp)                                    :: H06_D_Sep(nRch_in)        ! Hanasaki 2006; Average September demand [m3/s]
+  real(dp)                                    :: H06_D_Oct(nRch_in)        ! Hanasaki 2006; Average October   demand [m3/s]
+  real(dp)                                    :: H06_D_Nov(nRch_in)        ! Hanasaki 2006; Average Novermber demand [m3/s]
+  real(dp)                                    :: H06_D_Dec(nRch_in)        ! Hanasaki 2006; Average December  demand [m3/s]
+  integer(i4b)                                :: H06_purpose(nRch_in)      ! Hanasaki 2006; reservoir purpose; (0= non-irrigation, 1=irrigation) [-]
+  integer(i4b)                                :: H06_I_mem_F(nRch_in)      ! Hanasaki 2006; Flag to transition to modelled inflow [-]
+  integer(i4b)                                :: H06_D_mem_F(nRch_in)      ! Hanasaki 2006; Flag to transition to modelled/provided demand [-]
+  integer(i4b)                                :: H06_I_mem_L(nRch_in)      ! Hanasaki 2006; Memory length in years for inflow [year]
+  integer(i4b)                                :: H06_D_mem_L(nRch_in)      ! Hanasaki 2006; Memory length in years for demand [year]
 
   integer(i4b)                                :: ixNode(nRch_in)           ! node assignment for each reach
   integer(i4b)                                :: ixDomain(nRch_in)         ! domain index for each reach
@@ -357,53 +351,50 @@ contains
      slope(iSeg)           = structSEG(  jSeg)%var(ixSEG%slope)%dat(1)
      length(iSeg)          = structSEG(  jSeg)%var(ixSEG%length)%dat(1)
 
-     D03MaxStorage(iSeg)   = structSEG(  jSeg)%var(ixSEG%D03MaxStorage)%dat(1)
-     D03Coefficient(iSeg)  = structSEG(  jSeg)%var(ixSEG%D03Coefficient)%dat(1)
-     D03Power(iSeg)        = structSEG(  jSeg)%var(ixSEG%D03Power)%dat(1)
+     D03_MaxStorage(iSeg)  = structSEG(  jSeg)%var(ixSEG%D03_MaxStorage)%dat(1)
+     D03_Coefficient(iSeg) = structSEG(  jSeg)%var(ixSEG%D03_Coefficient)%dat(1)
+     D03_Power(iSeg)       = structSEG(  jSeg)%var(ixSEG%D03_Power)%dat(1)
 
-     H06realP1(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP1)%dat(1)
-     H06realP2(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP2)%dat(1)
-     H06realP3(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP3)%dat(1)
-     H06realP4(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP4)%dat(1)
-     H06realP5(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP5)%dat(1)
-     H06realP6(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP6)%dat(1)
-     H06realP7(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP7)%dat(1)
-     H06realP8(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP8)%dat(1)
-     H06realP9(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06realP9)%dat(1)
-     H06realP10(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP10)%dat(1)
-     H06realP11(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP11)%dat(1)
-     H06realP12(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP12)%dat(1)
-     H06realP13(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP13)%dat(1)
-     H06realP14(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP14)%dat(1)
-     H06realP15(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP15)%dat(1)
-     H06realP16(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP16)%dat(1)
-     H06realP17(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP17)%dat(1)
-     H06realP18(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP18)%dat(1)
-     H06realP19(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP19)%dat(1)
-     H06realP20(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP20)%dat(1)
-     H06realP21(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP21)%dat(1)
-     H06realP22(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP22)%dat(1)
-     H06realP23(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP23)%dat(1)
-     H06realP24(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP24)%dat(1)
-     H06realP25(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP25)%dat(1)
-     H06realP26(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP26)%dat(1)
-     H06realP27(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP27)%dat(1)
-     H06realP28(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP28)%dat(1)
-     H06realP29(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP29)%dat(1)
-     H06realP30(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP30)%dat(1)
-     H06realP31(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP31)%dat(1)
-     H06realP32(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP32)%dat(1)
-     H06realP33(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP33)%dat(1)
-     H06realP34(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP34)%dat(1)
-     H06realP35(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP35)%dat(1)
-     H06realP36(iSeg)      = structSEG(  jSeg)%var(ixSEG%H06realP36)%dat(1)
+     H06_Smax(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06_Smax)%dat(1)
+     H06_alpha(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_alpha)%dat(1)
+     H06_envfact(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_envfact)%dat(1)
+     H06_S_ini(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_S_ini)%dat(1)
+     H06_c1(iSeg)          = structSEG(  jSeg)%var(ixSEG%H06_c1)%dat(1)
+     H06_c2(iSeg)          = structSEG(  jSeg)%var(ixSEG%H06_c2)%dat(1)
+     H06_exponent(iSeg)    = structSEG(  jSeg)%var(ixSEG%H06_exponent)%dat(1)
+     H06_denominator(iSeg) = structSEG(  jSeg)%var(ixSEG%H06_denominator)%dat(1)
+     H06_c_compare(iSeg)   = structSEG(  jSeg)%var(ixSEG%H06_c_compare)%dat(1)
+     H06_frac_Sdead(iSeg)  = structSEG(  jSeg)%var(ixSEG%H06_frac_Sdead)%dat(1)
+     H06_I_Jan(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Jan)%dat(1)
+     H06_I_Feb(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Feb)%dat(1)
+     H06_I_Mar(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Mar)%dat(1)
+     H06_I_Apr(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Apr)%dat(1)
+     H06_I_May(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_May)%dat(1)
+     H06_I_Jun(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Jun)%dat(1)
+     H06_I_Jul(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Jul)%dat(1)
+     H06_I_Aug(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Aug)%dat(1)
+     H06_I_Sep(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Sep)%dat(1)
+     H06_I_Oct(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Oct)%dat(1)
+     H06_I_Nov(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Nov)%dat(1)
+     H06_I_Dec(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Dec)%dat(1)
+     H06_D_Jan(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Jan)%dat(1)
+     H06_D_Feb(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Feb)%dat(1)
+     H06_D_Mar(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Mar)%dat(1)
+     H06_D_Apr(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Apr)%dat(1)
+     H06_D_May(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_May)%dat(1)
+     H06_D_Jun(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Jun)%dat(1)
+     H06_D_Jul(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Jul)%dat(1)
+     H06_D_Aug(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Aug)%dat(1)
+     H06_D_Sep(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Sep)%dat(1)
+     H06_D_Oct(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Oct)%dat(1)
+     H06_D_Nov(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Nov)%dat(1)
+     H06_D_Dec(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Dec)%dat(1)
 
-     H06intP1(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06intP1)%dat(1)
-     H06intP2(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06intP2)%dat(1)
-     H06intP3(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06intP3)%dat(1)
-     H06intP4(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06intP4)%dat(1)
-     H06intP5(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06intP5)%dat(1)
-     H06intP6(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06intP6)%dat(1)
+     H06_purpose(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_purpose)%dat(1)
+     H06_I_mem_F(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_I_mem_F)%dat(1)
+     H06_D_mem_F(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_D_mem_F)%dat(1)
+     H06_I_mem_L(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_I_mem_L)%dat(1)
+     H06_D_mem_L(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_D_mem_L)%dat(1)
 
     end do
 
@@ -452,61 +443,58 @@ contains
     !  Send the information for tributaries to individual processors
     ! -----------------------------------------------------------------------------
 
-    call shr_mpi_scatterV(segId         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), segId_local,         ierr, cmessage)
-    call shr_mpi_scatterV(downSegId     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), downSegId_local,     ierr, cmessage)
-    call shr_mpi_scatterV(slope         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), slope_local,         ierr, cmessage)
-    call shr_mpi_scatterV(length        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), length_local,        ierr, cmessage)
-    call shr_mpi_scatterV(islake        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), islake_local,        ierr, cmessage)
-    call shr_mpi_scatterV(LakeTargVol   (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), LakeTargVol_local,   ierr, cmessage)
-    call shr_mpi_scatterV(LakeModelType (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), LakeModelType_local, ierr, cmessage)
-    call shr_mpi_scatterV(D03MaxStorage (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03MaxStorage_local, ierr, cmessage)
-    call shr_mpi_scatterV(D03Coefficient(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03Coefficient_local,ierr, cmessage)
-    call shr_mpi_scatterV(D03Power      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03Power_local,      ierr, cmessage)
+    call shr_mpi_scatterV(segId           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), segId_local,           ierr, cmessage)
+    call shr_mpi_scatterV(downSegId       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), downSegId_local,       ierr, cmessage)
+    call shr_mpi_scatterV(slope           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), slope_local,           ierr, cmessage)
+    call shr_mpi_scatterV(length          (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), length_local,          ierr, cmessage)
+    call shr_mpi_scatterV(islake          (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), islake_local,          ierr, cmessage)
+    call shr_mpi_scatterV(LakeTargVol     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), LakeTargVol_local,     ierr, cmessage)
+    call shr_mpi_scatterV(LakeModelType   (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), LakeModelType_local,   ierr, cmessage)
+    call shr_mpi_scatterV(D03_MaxStorage  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03_MaxStorage_local,  ierr, cmessage)
+    call shr_mpi_scatterV(D03_Coefficient (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03_Coefficient_local, ierr, cmessage)
+    call shr_mpi_scatterV(D03_Power       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03_Power_local,       ierr, cmessage)
 
-    call shr_mpi_scatterV(H06realP1     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP1_local,     ierr, cmessage)
-    call shr_mpi_scatterV(H06realP2     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP2_local,     ierr, cmessage)
-    call shr_mpi_scatterV(H06realP3     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP3_local,     ierr, cmessage)
-    call shr_mpi_scatterV(H06realP4     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP4_local,     ierr, cmessage)
-    call shr_mpi_scatterV(H06realP5     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP5_local,     ierr, cmessage)
-    call shr_mpi_scatterV(H06realP6     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP6_local,     ierr, cmessage)
-    call shr_mpi_scatterV(H06realP7     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP7_local,     ierr, cmessage)
-    call shr_mpi_scatterV(H06realP8     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP8_local,     ierr, cmessage)
-    call shr_mpi_scatterV(H06realP9     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP9_local,     ierr, cmessage)
-    call shr_mpi_scatterV(H06realP10    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP10_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP11    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP11_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP12    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP12_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP13    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP13_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP14    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP14_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP15    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP15_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP16    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP16_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP17    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP17_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP18    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP18_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP19    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP19_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP20    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP20_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP21    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP21_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP22    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP22_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP23    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP23_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP24    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP24_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP25    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP25_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP26    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP26_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP27    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP27_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP28    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP28_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP29    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP29_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP30    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP30_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP31    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP31_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP32    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP32_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP33    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP33_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP34    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP34_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP35    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP35_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06realP36    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06realP36_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06_Smax_local        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_Smax_local,       ierr, cmessage)
+    call shr_mpi_scatterV(H06_alpha_local       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_alpha_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_envfact_local     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_envfact_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06_S_ini_local       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_S_ini_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_c1_local          (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_c1_local,         ierr, cmessage)
+    call shr_mpi_scatterV(H06_c2_local          (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_c2_local,         ierr, cmessage)
+    call shr_mpi_scatterV(H06_exponent_local    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_exponent_local,   ierr, cmessage)
+    call shr_mpi_scatterV(H06_denominator_local (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_denominator_local,ierr, cmessage)
+    call shr_mpi_scatterV(H06_c_compare_local   (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_c_compare_local,  ierr, cmessage)
+    call shr_mpi_scatterV(H06_frac_Sdead_local  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_frac_Sdead_local, ierr, cmessage)
+    call shr_mpi_scatterV(H06_I_Jan             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Jan_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_I_Feb             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Feb_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_I_Mar             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Mar_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_I_Apr             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Apr_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_I_May             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_May_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_I_Jun             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Jun_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_I_Jul             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Jul_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_I_Aug             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Aug_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_I_Sep             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Sep_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_I_Oct             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Oct_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_I_Nov             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Nov_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_I_Dec             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Dec_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_D_Jan             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Jan_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_D_Feb             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Feb_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_D_Mar             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Mar_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_D_Apr             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Apr_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_D_May             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_May_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_D_Jun             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Jun_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_D_Jul             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Jul_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_D_Aug             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Aug_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_D_Sep             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Sep_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_D_Oct             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Oct_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_D_Nov             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Nov_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_D_Dec             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Dec_local,      ierr, cmessage)
 
 
-    call shr_mpi_scatterV(H06intP1      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06intP1_local,      ierr, cmessage)
-    call shr_mpi_scatterV(H06intP2      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06intP2_local,      ierr, cmessage)
-    call shr_mpi_scatterV(H06intP3      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06intP3_local,      ierr, cmessage)
-    call shr_mpi_scatterV(H06intP4      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06intP4_local,      ierr, cmessage)
-    call shr_mpi_scatterV(H06intP5      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06intP5_local,      ierr, cmessage)
-    call shr_mpi_scatterV(H06intP6      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06intP6_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_purpose           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_purpose_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_I_mem_F           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_mem_F_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_D_mem_F           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_mem_F_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_I_mem_L           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_mem_L_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_D_mem_L           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_mem_L_local,      ierr, cmessage)
 
 
     call shr_mpi_scatterV(hruId         (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruId_local,         ierr, cmessage)
@@ -538,53 +526,50 @@ contains
      structNTOPO_local(ix)%var(ixNTOPO%islake)%dat(1)         = islake_local(ix)
      structNTOPO_local(ix)%var(ixNTOPO%LakeTargVol)%dat(1)    = LakeTargVol_local(ix)
      structNTOPO_local(ix)%var(ixNTOPO%LakeModelType)%dat(1)  = LakeModelType_local(ix)
-     structSEG_local  (ix)%var(ixSEG%D03MaxStorage)%dat(1)    = D03MaxStorage_local(ix)
-     structSEG_local  (ix)%var(ixSEG%D03Coefficient)%dat(1)   = D03Coefficient_local(ix)
-     structSEG_local  (ix)%var(ixSEG%D03Power)%dat(1)         = D03Power_local(ix)
+     structSEG_local  (ix)%var(ixSEG%D03_MaxStorage)%dat(1)   = D03_MaxStorage_local(ix)
+     structSEG_local  (ix)%var(ixSEG%D03_Coefficient)%dat(1)  = D03_Coefficient_local(ix)
+     structSEG_local  (ix)%var(ixSEG%D03_Power)%dat(1)        = D03_Power_local(ix)
 
-     structSEG_local  (ix)%var(ixSEG%H06realP1)%dat(1)        = H06realP1_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP2)%dat(1)        = H06realP2_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP3)%dat(1)        = H06realP3_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP4)%dat(1)        = H06realP4_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP5)%dat(1)        = H06realP5_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP6)%dat(1)        = H06realP6_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP7)%dat(1)        = H06realP7_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP8)%dat(1)        = H06realP8_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP9)%dat(1)        = H06realP9_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP10)%dat(1)       = H06realP10_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP11)%dat(1)       = H06realP11_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP12)%dat(1)       = H06realP12_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP13)%dat(1)       = H06realP13_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP14)%dat(1)       = H06realP14_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP15)%dat(1)       = H06realP15_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP16)%dat(1)       = H06realP16_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP17)%dat(1)       = H06realP17_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP18)%dat(1)       = H06realP18_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP19)%dat(1)       = H06realP19_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP20)%dat(1)       = H06realP20_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP21)%dat(1)       = H06realP21_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP22)%dat(1)       = H06realP22_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP23)%dat(1)       = H06realP23_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP24)%dat(1)       = H06realP24_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP25)%dat(1)       = H06realP25_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP26)%dat(1)       = H06realP26_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP27)%dat(1)       = H06realP27_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP28)%dat(1)       = H06realP28_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP29)%dat(1)       = H06realP29_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP30)%dat(1)       = H06realP30_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP31)%dat(1)       = H06realP31_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP32)%dat(1)       = H06realP32_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP33)%dat(1)       = H06realP33_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP34)%dat(1)       = H06realP34_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP35)%dat(1)       = H06realP35_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06realP36)%dat(1)       = H06realP36_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_Smax)%dat(1)         = H06_Smax_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_alpha)%dat(1)        = H06_alpha_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_envfact)%dat(1)      = H06_envfact_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_S_ini)%dat(1)        = H06_S_ini_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_c1)%dat(1)           = H06_c1_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_c2)%dat(1)           = H06_c2_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_exponent)%dat(1)     = H06_exponent_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_denominator)%dat(1)  = H06_denominator_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_c_compare)%dat(1)    = H06_c_compare_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_frac_Sdead)%dat(1)   = H06_frac_Sdead_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_I_Jan)%dat(1)        = H06_I_Jan_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_I_Feb)%dat(1)        = H06_I_Feb_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_I_Mar)%dat(1)        = H06_I_Mar_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_I_Apr)%dat(1)        = H06_I_Apr_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_I_May)%dat(1)        = H06_I_May_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_I_Jun)%dat(1)        = H06_I_Jun_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_I_Jul)%dat(1)        = H06_I_Jul_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_I_Aug)%dat(1)        = H06_I_Aug_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_I_Sep)%dat(1)        = H06_I_Sep_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_I_Oct)%dat(1)        = H06_I_Oct_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_I_Nov)%dat(1)        = H06_I_Nov_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_I_Dec)%dat(1)        = H06_I_Dec_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_D_Jan)%dat(1)        = H06_D_Jan_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_D_Feb)%dat(1)        = H06_D_Feb_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_D_Mar)%dat(1)        = H06_D_Mar_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_D_Apr)%dat(1)        = H06_D_Apr_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_D_May)%dat(1)        = H06_D_May_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_D_Jun)%dat(1)        = H06_D_Jun_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_D_Jul)%dat(1)        = H06_D_Jul_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_D_Aug)%dat(1)        = H06_D_Aug_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_D_Sep)%dat(1)        = H06_D_Sep_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_D_Oct)%dat(1)        = H06_D_Oct_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_D_Nov)%dat(1)        = H06_D_Nov_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_D_Dec)%dat(1)        = H06_D_Dec_local(ix)
 
-     structSEG_local  (ix)%var(ixSEG%H06intP1)%dat(1)         = H06intP1_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06intP2)%dat(1)         = H06intP2_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06intP3)%dat(1)         = H06intP3_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06intP4)%dat(1)         = H06intP4_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06intP5)%dat(1)         = H06intP5_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06intP6)%dat(1)         = H06intP6_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_purpose)%dat(1)      = H06_purpose_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_I_mem_F)%dat(1)      = H06_I_mem_F_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_D_mem_F)%dat(1)      = H06_D_mem_F_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_I_mem_L)%dat(1)      = H06_I_mem_L_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_D_mem_L)%dat(1)      = H06_D_mem_L_local(ix)
     end do reach
 
     hru: do ix=1,hru_per_proc(pid)
@@ -716,54 +701,51 @@ contains
        structNTOPO_main(ix)%var(ixNTOPO%islake)%dat(1)        = islake(ix)
        structNTOPO_main(ix)%var(ixNTOPO%LakeTargVol)%dat(1)   = LakeTargVol(ix)
        structNTOPO_main(ix)%var(ixNTOPO%LakeModelType)%dat(1) = LakeModelType(ix)
-       structSEG_main  (ix)%var(ixSEG%D03MaxStorage)%dat(1)   = D03MaxStorage(ix)
-       structSEG_main  (ix)%var(ixSEG%D03Coefficient)%dat(1)  = D03Coefficient(ix)
-       structSEG_main  (ix)%var(ixSEG%D03Power)%dat(1)        = D03Power(ix)
+       structSEG_main  (ix)%var(ixSEG%D03_MaxStorage)%dat(1)  = D03_MaxStorage(ix)
+       structSEG_main  (ix)%var(ixSEG%D03_Coefficient)%dat(1) = D03_Coefficient(ix)
+       structSEG_main  (ix)%var(ixSEG%D03_Power)%dat(1)       = D03_Power(ix)
 
-       structSEG_main  (ix)%var(ixSEG%H06realP1)%dat(1)       = H06realP1(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP2)%dat(1)       = H06realP2(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP3)%dat(1)       = H06realP3(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP4)%dat(1)       = H06realP4(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP5)%dat(1)       = H06realP5(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP6)%dat(1)       = H06realP6(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP7)%dat(1)       = H06realP7(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP8)%dat(1)       = H06realP8(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP9)%dat(1)       = H06realP9(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP10)%dat(1)      = H06realP10(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP11)%dat(1)      = H06realP11(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP12)%dat(1)      = H06realP12(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP13)%dat(1)      = H06realP13(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP14)%dat(1)      = H06realP14(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP15)%dat(1)      = H06realP15(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP16)%dat(1)      = H06realP16(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP17)%dat(1)      = H06realP17(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP18)%dat(1)      = H06realP18(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP19)%dat(1)      = H06realP19(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP20)%dat(1)      = H06realP20(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP21)%dat(1)      = H06realP21(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP22)%dat(1)      = H06realP22(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP23)%dat(1)      = H06realP23(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP24)%dat(1)      = H06realP24(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP25)%dat(1)      = H06realP25(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP26)%dat(1)      = H06realP26(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP27)%dat(1)      = H06realP27(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP28)%dat(1)      = H06realP28(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP29)%dat(1)      = H06realP29(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP30)%dat(1)      = H06realP30(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP31)%dat(1)      = H06realP31(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP32)%dat(1)      = H06realP32(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP33)%dat(1)      = H06realP33(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP34)%dat(1)      = H06realP34(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP35)%dat(1)      = H06realP35(ix)
-       structSEG_main  (ix)%var(ixSEG%H06realP36)%dat(1)      = H06realP36(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_Smax)%dat(1)        = H06_Smax(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_alpha)%dat(1)       = H06_alpha(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_envfact)%dat(1)     = H06_envfact(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_S_ini)%dat(1)       = H06_S_ini(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_c1)%dat(1)          = H06_c1(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_c2)%dat(1)          = H06_c2(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_exponent)%dat(1)    = H06_exponent(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_denominator)%dat(1) = H06_denominator(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_c_compare)%dat(1)   = H06_c_compare(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_frac_Sdead)%dat(1)  = H06_frac_Sdead(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_I_Jan)%dat(1)       = H06_I_Jan(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_I_Feb)%dat(1)       = H06_I_Feb(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_I_Mar)%dat(1)       = H06_I_Mar(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_I_Apr)%dat(1)       = H06_I_Apr(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_I_May)%dat(1)       = H06_I_May(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_I_Jun)%dat(1)       = H06_I_Jun(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_I_Jul)%dat(1)       = H06_I_Jul(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_I_Aug)%dat(1)       = H06_I_Aug(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_I_Sep)%dat(1)       = H06_I_Sep(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_I_Oct)%dat(1)       = H06_I_Oct(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_I_Nov)%dat(1)       = H06_I_Nov(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_I_Dec)%dat(1)       = H06_I_Dec(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_D_Jan)%dat(1)       = H06_D_Jan(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_D_Feb)%dat(1)       = H06_D_Feb(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_D_Mar)%dat(1)       = H06_D_Mar(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_D_Apr)%dat(1)       = H06_D_Apr(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_D_May)%dat(1)       = H06_D_May(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_D_Jun)%dat(1)       = H06_D_Jun(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_D_Jul)%dat(1)       = H06_D_Jul(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_D_Aug)%dat(1)       = H06_D_Aug(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_D_Sep)%dat(1)       = H06_D_Sep(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_D_Oct)%dat(1)       = H06_D_Oct(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_D_Nov)%dat(1)       = H06_D_Nov(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_D_Dec)%dat(1)       = H06_D_Dec(ix)
 
+       structSEG_main  (ix)%var(ixSEG%H06_purpose)%dat(1)     = H06_purpose(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_I_mem_F)%dat(1)     = H06_I_mem_F(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_D_mem_F)%dat(1)     = H06_D_mem_F(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_I_mem_L)%dat(1)     = H06_I_mem_L(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_D_mem_L)%dat(1)     = H06_D_mem_L(ix)
 
-       structSEG_main  (ix)%var(ixSEG%H06intP1)%dat(1)        = H06intP1(ix)
-       structSEG_main  (ix)%var(ixSEG%H06intP2)%dat(1)        = H06intP2(ix)
-       structSEG_main  (ix)%var(ixSEG%H06intP3)%dat(1)        = H06intP3(ix)
-       structSEG_main  (ix)%var(ixSEG%H06intP4)%dat(1)        = H06intP4(ix)
-       structSEG_main  (ix)%var(ixSEG%H06intP5)%dat(1)        = H06intP5(ix)
-       structSEG_main  (ix)%var(ixSEG%H06intP6)%dat(1)        = H06intP6(ix)
      end do main_rch
 
      ups_trib: do ix = 1, nTribOutlet
@@ -776,53 +758,50 @@ contains
        structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%LakeTargVol)%dat(1)   = structNTOPO(ixx)%var(ixNTOPO%LakeTargVol)%dat(1)
        structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%LakeModelType)%dat(1) = structNTOPO(ixx)%var(ixNTOPO%LakeModelType)%dat(1)
 
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03MaxStorage)%dat(1)   = structSEG(ixx)%var(ixSEG%D03MaxStorage)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03Coefficient)%dat(1)  = structSEG(ixx)%var(ixSEG%D03Coefficient)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03Power)%dat(1)        = structSEG(ixx)%var(ixSEG%D03Power)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03_MaxStorage)%dat(1)  = structSEG(ixx)%var(ixSEG%D03_MaxStorage)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03_Coefficient)%dat(1) = structSEG(ixx)%var(ixSEG%D03_Coefficient)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03_Power)%dat(1)       = structSEG(ixx)%var(ixSEG%D03_Power)%dat(1)
 
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP1)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP1)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP2)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP2)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP3)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP3)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP4)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP4)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP5)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP5)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP6)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP6)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP7)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP7)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP8)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP8)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP9)%dat(1)       = structSEG(ixx)%var(ixSEG%H06realP9)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP10)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP10)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP11)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP11)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP12)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP12)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP13)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP13)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP14)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP14)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP15)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP15)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP16)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP16)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP17)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP17)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP18)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP18)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP19)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP19)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP20)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP20)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP21)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP21)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP22)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP22)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP23)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP23)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP24)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP24)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP25)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP25)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP26)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP26)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP27)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP27)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP28)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP28)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP29)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP29)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP30)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP30)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP31)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP31)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP32)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP32)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP33)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP33)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP34)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP34)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP35)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP35)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06realP36)%dat(1)      = structSEG(ixx)%var(ixSEG%H06realP36)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_Smax)%dat(1)        = structSEG(ixx)%var(ixSEG%H06_Smax)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_alpha)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_alpha)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_envfact)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_envfact)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_S_ini)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_S_ini)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_c1)%dat(1)          = structSEG(ixx)%var(ixSEG%H06_c1)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_c2)%dat(1)          = structSEG(ixx)%var(ixSEG%H06_c1)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_exponent)%dat(1)    = structSEG(ixx)%var(ixSEG%H06_exponent)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_denominator)%dat(1) = structSEG(ixx)%var(ixSEG%H06_denominator)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_c_compare)%dat(1)   = structSEG(ixx)%var(ixSEG%H06_c_compare)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_frac_Sdead)%dat(1)  = structSEG(ixx)%var(ixSEG%H06_frac_Sdead)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Jan)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Jan)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Feb)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Feb)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Mar)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Mar)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Apr)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Apr)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_May)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_May)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Jun)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Jun)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Jul)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Jul)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Aug)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Aug)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Sep)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Sep)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Oct)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Oct)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Nov)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Nov)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Dec)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Dec)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Jan)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Jan)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Feb)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Feb)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Mar)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Mar)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Apr)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Apr)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_May)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_May)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Jun)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Jun)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Jul)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Jul)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Aug)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Aug)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Sep)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Sep)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Oct)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Oct)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Nov)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Nov)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Dec)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Dec)%dat(1)
 
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06intP1)%dat(1)        = structSEG(ixx)%var(ixSEG%H06intP1)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06intP2)%dat(1)        = structSEG(ixx)%var(ixSEG%H06intP2)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06intP3)%dat(1)        = structSEG(ixx)%var(ixSEG%H06intP3)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06intP4)%dat(1)        = structSEG(ixx)%var(ixSEG%H06intP4)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06intP5)%dat(1)        = structSEG(ixx)%var(ixSEG%H06intP5)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06intP6)%dat(1)        = structSEG(ixx)%var(ixSEG%H06intP6)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_purpose)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_purpose)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_mem_F)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_I_mem_F)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_mem_F)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_D_mem_F)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_mem_L)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_I_mem_L)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_mem_L)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_I_mem_L)%dat(1)
 
        global_ix_main(ix) = nRch_mainstem+ix   ! index in mainstem array that is link to tributary outlet
      end do ups_trib

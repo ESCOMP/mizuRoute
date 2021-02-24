@@ -171,55 +171,50 @@ subroutine getData(&
       meta_NTOPO(ixNTOPO%LakeTargVol)%varFile   = .true.    ! if target volume flag is on, varibale should be provided
     endif
     if (lake_model_D03) then
-      meta_SEG(ixSEG%D03MaxStorage)%varFile     = .true.    ! Doll parameter
-      meta_SEG(ixSEG%D03coefficient)%varFile    = .true.    ! Doll parameter
-      meta_SEG(ixSEG%D03power)%varFile          = .true.    ! Doll parameter
+      meta_SEG(ixSEG%D03_MaxStorage)%varFile    = .true.    ! Doll parameter
+      meta_SEG(ixSEG%D03_coefficient)%varFile   = .true.    ! Doll parameter
+      meta_SEG(ixSEG%D03_power)%varFile         = .true.    ! Doll parameter
     endif
     if (lake_model_H06) then
-      meta_SEG(ixSEG%H06realP1)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP2)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP3)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP4)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP5)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP6)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP7)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP8)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP9)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP10)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP11)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP12)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP13)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP14)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP15)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP16)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP17)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP18)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP19)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP20)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP21)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP22)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP23)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP24)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP25)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP26)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP27)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP28)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP29)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP30)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP31)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP32)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP33)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP34)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP35)%varFile        = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06realP36)%varFile        = .true.    ! Hanasaki parameter
-
-
-      meta_SEG(ixSEG%H06intP1 )%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06intP2 )%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06intP3 )%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06intP4 )%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06intP5 )%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06intP6 )%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_Smax)%varFile          = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_alpha)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_envfact)%varFile       = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_S_ini)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_c1)%varFile            = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_c2)%varFile            = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_exponent)%varFile      = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_denominator)%varFile   = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_c_compare)%varFile     = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_frac_Sdead)%varFile    = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Jan)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Feb)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Mar)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Apr)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_May)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Jun)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Jul)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Aug)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Sep)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Oct)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Nov)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Dec)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Jan)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Feb)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Mar)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Apr)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_May)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Jun)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Jul)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Aug)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Sep)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Oct)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Nov)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Dec)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_purpose)%varFile       = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_mem_F)%varFile       = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_mem_F)%varFile       = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_mem_L)%varFile       = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_mem_L)%varFile       = .true.    ! Hanasaki parameter
 
     endif
   endif

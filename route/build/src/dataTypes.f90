@@ -199,51 +199,48 @@ implicit none
   real(dp)                                   :: BASAREA        ! local basin area
   real(dp)                                   :: TOTAREA        ! UPSAREA + BASAREA
   real(dp)                                   :: MINFLOW        ! minimum environmental flow
-  real(dp)                                   :: D03MaxStorage  ! Doll 2003 maximume storage
-  real(dp)                                   :: D03Coefficient ! Doll 2003 Coefficient
-  real(dp)                                   :: D03Power       ! Doll 2003 Power
-  real(dp)                                   :: H06realP1      ! Hanasaki 2006 test parameter 1 real
-  real(dp)                                   :: H06realP2      ! Hanasaki 2006 test parameter 2 real
-  real(dp)                                   :: H06realP3      ! Hanasaki 2006 test parameter 3 real
-  real(dp)                                   :: H06realP4      ! Hanasaki 2006 test parameter 4 real
-  real(dp)                                   :: H06realP5      ! Hanasaki 2006 test parameter 5 real
-  real(dp)                                   :: H06realP6      ! Hanasaki 2006 test parameter 6 real
-  real(dp)                                   :: H06realP7      ! Hanasaki 2006 test parameter 7 real
-  real(dp)                                   :: H06realP8      ! Hanasaki 2006 test parameter 8 real
-  real(dp)                                   :: H06realP9      ! Hanasaki 2006 test parameter 9 real
-  real(dp)                                   :: H06realP10     ! Hanasaki 2006 test parameter 10 real
-  real(dp)                                   :: H06realP11     ! Hanasaki 2006 test parameter 11 real
-  real(dp)                                   :: H06realP12     ! Hanasaki 2006 test parameter 12 real
-  real(dp)                                   :: H06realP13     ! Hanasaki 2006 test parameter 13 real
-  real(dp)                                   :: H06realP14     ! Hanasaki 2006 test parameter 14 real
-  real(dp)                                   :: H06realP15     ! Hanasaki 2006 test parameter 15 real
-  real(dp)                                   :: H06realP16     ! Hanasaki 2006 test parameter 16 real
-  real(dp)                                   :: H06realP17     ! Hanasaki 2006 test parameter 17 real
-  real(dp)                                   :: H06realP18     ! Hanasaki 2006 test parameter 18 real
-  real(dp)                                   :: H06realP19     ! Hanasaki 2006 test parameter 19 real
-  real(dp)                                   :: H06realP20     ! Hanasaki 2006 test parameter 20 real
-  real(dp)                                   :: H06realP21     ! Hanasaki 2006 test parameter 21 real
-  real(dp)                                   :: H06realP22     ! Hanasaki 2006 test parameter 22 real
-  real(dp)                                   :: H06realP23     ! Hanasaki 2006 test parameter 23 real
-  real(dp)                                   :: H06realP24     ! Hanasaki 2006 test parameter 24 real
-  real(dp)                                   :: H06realP25     ! Hanasaki 2006 test parameter 25 real
-  real(dp)                                   :: H06realP26     ! Hanasaki 2006 test parameter 26 real
-  real(dp)                                   :: H06realP27     ! Hanasaki 2006 test parameter 27 real
-  real(dp)                                   :: H06realP28     ! Hanasaki 2006 test parameter 28 real
-  real(dp)                                   :: H06realP29     ! Hanasaki 2006 test parameter 29 real
-  real(dp)                                   :: H06realP30     ! Hanasaki 2006 test parameter 30 real
-  real(dp)                                   :: H06realP31     ! Hanasaki 2006 test parameter 31 real
-  real(dp)                                   :: H06realP32     ! Hanasaki 2006 test parameter 32 real
-  real(dp)                                   :: H06realP33     ! Hanasaki 2006 test parameter 33 real
-  real(dp)                                   :: H06realP34     ! Hanasaki 2006 test parameter 34 real
-  real(dp)                                   :: H06realP35     ! Hanasaki 2006 test parameter 35 real
-  real(dp)                                   :: H06realP36     ! Hanasaki 2006 test parameter 36 real
-  integer(i4b)                               :: H06intP1       ! Hanasaki 2006 test parameter 1 int
-  integer(i4b)                               :: H06intP2       ! Hanasaki 2006 test parameter 2 int
-  integer(i4b)                               :: H06intP3       ! Hanasaki 2006 test parameter 3 int
-  integer(i4b)                               :: H06intP4       ! Hanasaki 2006 test parameter 4 int
-  integer(i4b)                               :: H06intP5       ! Hanasaki 2006 test parameter 5 int
-  integer(i4b)                               :: H06intP6       ! Hanasaki 2006 test parameter 6 int
+  real(dp)                                   :: D03_MaxStorage ! Doll 2003; maximume storage [m3]
+  real(dp)                                   :: D03_Coefficient! Doll 2003; Coefficient [?]
+  real(dp)                                   :: D03_Power      ! Doll 2003; Power [-]
+  real(dp)                                   :: H06_Smax       ! Hanasaki 2006; maximume reservoir storage [m3]
+  real(dp)                                   :: H06_alpha      ! Hanasaki 2006; fraction of active storage compared to total storage [-]
+  real(dp)                                   :: H06_envfact    ! Hanasaki 2006; fraction of inflow that can be used to meet demand [-]
+  real(dp)                                   :: H06_S_ini      ! Hanasaki 2006; initial storage used for initial estimation of release coefficient [m3]
+  real(dp)                                   :: H06_c1         ! Hanasaki 2006; coefficient 1 for target release for irrigation reseroir [-]
+  real(dp)                                   :: H06_c2         ! Hanasaki 2006; coefficient 2 for target release for irrigation reseroir [-]
+  real(dp)                                   :: H06_exponent   ! Hanasaki 2006; Exponenet of actual release for "within-a-year" reservoir [-]
+  real(dp)                                   :: H06_denominator! Hanasaki 2006; Denominator of actual release for "within-a-year" reservoir [-]
+  real(dp)                                   :: H06_c_compare  ! Hanasaki 2006; Criterion for distinguish of "within-a-year" or "multi-year" reservoir [-]
+  real(dp)                                   :: H06_frac_Sdead ! Hanasaki 2006; Fraction of dead storage to maximume storage [-]
+  real(dp)                                   :: H06_I_Jan      ! Hanasaki 2006; Average January   inflow [m3/s]
+  real(dp)                                   :: H06_I_Feb      ! Hanasaki 2006; Average Februrary inflow [m3/s]
+  real(dp)                                   :: H06_I_Mar      ! Hanasaki 2006; Average March     inflow [m3/s]
+  real(dp)                                   :: H06_I_Apr      ! Hanasaki 2006; Average April     inflow [m3/s]
+  real(dp)                                   :: H06_I_May      ! Hanasaki 2006; Average May       inflow [m3/s]
+  real(dp)                                   :: H06_I_Jun      ! Hanasaki 2006; Average June      inflow [m3/s]
+  real(dp)                                   :: H06_I_Jul      ! Hanasaki 2006; Average July      inflow [m3/s]
+  real(dp)                                   :: H06_I_Aug      ! Hanasaki 2006; Average August    inflow [m3/s]
+  real(dp)                                   :: H06_I_Sep      ! Hanasaki 2006; Average September inflow [m3/s]
+  real(dp)                                   :: H06_I_Oct      ! Hanasaki 2006; Average October   inflow [m3/s]
+  real(dp)                                   :: H06_I_Nov      ! Hanasaki 2006; Average November  inflow [m3/s]
+  real(dp)                                   :: H06_I_Dec      ! Hanasaki 2006; Average December  inflow [m3/s]
+  real(dp)                                   :: H06_D_Jan      ! Hanasaki 2006; Average January   demand [m3/s]
+  real(dp)                                   :: H06_D_Feb      ! Hanasaki 2006; Average Februrary demand [m3/s]
+  real(dp)                                   :: H06_D_Mar      ! Hanasaki 2006; Average March     demand [m3/s]
+  real(dp)                                   :: H06_D_Apr      ! Hanasaki 2006; Average April     demand [m3/s]
+  real(dp)                                   :: H06_D_May      ! Hanasaki 2006; Average May       demand [m3/s]
+  real(dp)                                   :: H06_D_Jun      ! Hanasaki 2006; Average June      demand [m3/s]
+  real(dp)                                   :: H06_D_Jul      ! Hanasaki 2006; Average July      demand [m3/s]
+  real(dp)                                   :: H06_D_Aug      ! Hanasaki 2006; Average Agust     demand [m3/s]
+  real(dp)                                   :: H06_D_Sep      ! Hanasaki 2006; Average September demand [m3/s]
+  real(dp)                                   :: H06_D_Oct      ! Hanasaki 2006; Average October   demand [m3/s]
+  real(dp)                                   :: H06_D_Nov      ! Hanasaki 2006; Average November  demand [m3/s]
+  real(dp)                                   :: H06_D_Dec      ! Hanasaki 2006; Average December  demand [m3/s]
+  integer(i4b)                               :: H06_purpose    ! Hanasaki 2006; reservoir purpose; (0= non-irrigation, 1=irrigation) [-]
+  integer(i4b)                               :: H06_I_mem_F    ! Hanasaki 2006; Flag to transition to modelled inflow [-]
+  integer(i4b)                               :: H06_D_mem_F    ! Hanasaki 2006; Flag to transition to modelled/provided demand [-]
+  integer(i4b)                               :: H06_I_mem_L    ! Hanasaki 2006; Memory length in years for inflow [year]
+  integer(i4b)                               :: H06_D_mem_L    ! Hanasaki 2006; Memory length in years for demand [year]
  end type RCHPRP
 
  ! River Network topology
