@@ -151,6 +151,7 @@ contains
  meta_SEG    (ixSEG%H06_D_Feb        ) = var_info('H06_D_Feb'      , 'Hanasaki 2006; Average Februrary demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
  meta_SEG    (ixSEG%H06_D_Mar        ) = var_info('H06_D_Mar'      , 'Hanasaki 2006; Average March     demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
  meta_SEG    (ixSEG%H06_D_Apr        ) = var_info('H06_D_Apr'      , 'Hanasaki 2006; Average April     demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_D_May        ) = var_info('H06_D_May'      , 'Hanasaki 2006; Average April     demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
  meta_SEG    (ixSEG%H06_D_Jun        ) = var_info('H06_D_Jun'      , 'Hanasaki 2006; Average May       demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
  meta_SEG    (ixSEG%H06_D_Jul        ) = var_info('H06_D_Jul'      , 'Hanasaki 2006; Average June      demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
  meta_SEG    (ixSEG%H06_D_Aug        ) = var_info('H06_D_Aug'      , 'Hanasaki 2006; Average July      demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)

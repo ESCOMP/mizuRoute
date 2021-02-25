@@ -167,7 +167,6 @@ subroutine getData(&
       meta_NTOPO(ixNTOPO%lakeModelType)%varFile = .true.    ! lake model type varibale should be provided
     endif
     if (is_vol_wm) then
-      print*,'in'
       meta_NTOPO(ixNTOPO%LakeTargVol)%varFile   = .true.    ! if target volume flag is on, varibale should be provided
     endif
     if (lake_model_D03) then
@@ -384,6 +383,7 @@ subroutine getData(&
                   else
                     allocate(islake_local(meta_struct(iStruct)%nSpace),stat=ierr)
                     if(ierr/=0)then; message=trim(message)//'problem allocating islake_local'; return; endif
+                    islake_local(iSpace) = structNTOPO(iSpace)%var(iVar)%dat(1)
                   endif
                 case(ixNTOPO%laketargvol) !iVar is euqal to the location of laketargvol
                   if (is_vol_wm) then
