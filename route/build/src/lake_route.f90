@@ -181,16 +181,16 @@ module lake_route_module
           ! create array with monthly inflow
           I_months = (/ RPARAM_in(segIndex)%H06_I_Jan, RPARAM_in(segIndex)%H06_I_Feb, RPARAM_in(segIndex)%H06_I_Mar, RPARAM_in(segIndex)%H06_I_Apr, RPARAM_in(segIndex)%H06_I_May, RPARAM_in(segIndex)%H06_I_Jun, & 
                       RPARAM_in(segIndex)%H06_I_Jul, RPARAM_in(segIndex)%H06_I_Aug, RPARAM_in(segIndex)%H06_I_Sep, RPARAM_in(segIndex)%H06_I_Oct, RPARAM_in(segIndex)%H06_I_Nov, RPARAM_in(segIndex)%H06_I_Dec /)
-                      
+          
           ! there is a problem with reading monthly inflow parameters, for testing puposes, replace by hardcoded values. 
-          I_months = (/9,9,10,18,58,132,59,41,42,27,12,10 /)
+          print*,'I_months',I_months            
+          I_months = (/8.64614286,   8.58854822,   9.8415576 ,  18.64570952,  57.96402304, 132.58282381, 59.53373272, 41.27400922, 42.0379619, 27.56602765, 12.10262381, 9.80076959 /)
 
           ! create array with monthly inflow
           D_months = (/ RPARAM_in(segIndex)%H06_D_Jan, RPARAM_in(segIndex)%H06_D_Feb, RPARAM_in(segIndex)%H06_D_Mar, RPARAM_in(segIndex)%H06_D_Apr, RPARAM_in(segIndex)%H06_D_May, RPARAM_in(segIndex)%H06_D_Jun, & 
                       RPARAM_in(segIndex)%H06_D_Jul, RPARAM_in(segIndex)%H06_D_Aug, RPARAM_in(segIndex)%H06_D_Sep, RPARAM_in(segIndex)%H06_D_Oct, RPARAM_in(segIndex)%H06_D_Nov, RPARAM_in(segIndex)%H06_D_Dec /)
-                      
-          ! there is a problem with reading monthly inflow parameters, for testing puposes, replace by hardcoded values. 
-          D_months = (/9,9,10,18,58,132,59,41,42,27,12,10 /)
+          print*,'D_months',D_months            
+             
           
           ! calculate mean annual inflow and demand (to be integrated in condition not using of memory)
           I_yearly = SUM(I_months)/months_per_yr
