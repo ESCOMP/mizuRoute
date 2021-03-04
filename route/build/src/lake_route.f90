@@ -66,11 +66,11 @@ module lake_route_module
 
   ! local variables for H06 routine
   real(dp)                                 :: c              ! storage to yearly activity ratio
-  real(dp)                                 :: I_yearly, D_yearly   ! mean annual inflow and demand
+  real(dp)                                 :: I_yearly, D_yearly  ! mean annual inflow and demand
   real(dp), dimension(12)                  :: I_months, D_months  ! mean monthly inflow and demand  
-  INTEGER(I4B)                             :: start_month    ! start month of the operational year
-  ! INTEGER(I4B)                             :: i, j          ! indices
-  real(dp)                                 :: E_release      ! release coefficient
+  INTEGER(I4B)                             :: start_month=0     ! start month of the operational year
+  INTEGER(I4B)                             :: i             ! index
+  real(dp)                                 :: E_release     ! release coefficient
   real(dp)                                 :: target_r      ! target release
 
 
@@ -188,7 +188,7 @@ module lake_route_module
           ! create array with monthly inflow
           D_months = (/ RPARAM_in(segIndex)%H06_D_Jan, RPARAM_in(segIndex)%H06_D_Feb, RPARAM_in(segIndex)%H06_D_Mar, RPARAM_in(segIndex)%H06_D_Apr, RPARAM_in(segIndex)%H06_D_May, RPARAM_in(segIndex)%H06_D_Jun, & 
                       RPARAM_in(segIndex)%H06_D_Jul, RPARAM_in(segIndex)%H06_D_Aug, RPARAM_in(segIndex)%H06_D_Sep, RPARAM_in(segIndex)%H06_D_Oct, RPARAM_in(segIndex)%H06_D_Nov, RPARAM_in(segIndex)%H06_D_Dec /)
-          
+                      
           ! there is a problem with reading monthly inflow parameters, for testing puposes, replace by hardcoded values. 
           D_months = (/9,9,10,18,58,132,59,41,42,27,12,10 /)
           
@@ -200,24 +200,23 @@ module lake_route_module
           ! calculate storage to yearly activity ratio
           c = RPARAM_in(segIndex)%H06_Smax/(I_yearly * days_per_yr * secprday)
           
+          ! find start month of operational year 
+          do i=1,months_per_yr
+            if (I_yearly <= I_months(i)) then 
+                start_month = i + 1
+            endif
+          enddo
           
-          ! assign initial value to release coefficient and replace value if start of operational year
-          ! temp = ! add in range from 0 to 12
-          
-          ! loop over array
-          !  for i in temp:
-          !    if I_yearly <= Par_I_month[i-1]: # finding the first month
-          !     start_month = i+1 ! start of the month; this can be passed once in the mizuRoute real code -> what does Shervan means with this? 
-      
-          
-          ! if operational year has not yet started (find condition!!), determine based on initial storage
+          print*, 'start month', start_month
+
+          ! if operational year has not yet started (add condition!!), determine based on initial storage
           E_release = RPARAM_in(segIndex)%H06_S_ini/(RPARAM_in(segIndex)%H06_alpha * RPARAM_in(segIndex)%H06_Smax)
           
-          ! find start of operational year (add hour 1 when run hourly?)
-         ! if (modTime(1)%im = start_month .AND. modTime(1)%id = 1 ) then
-         !   E_release = RCHFLX_out(iens,segIndex)%REACH_VOL(1) / (RPARAM_in(segIndex)%H06_alpha * RPARAM_in(segIndex)%H06_Smax)
-          ! Feed E_release as parameter in model? 
 
+          ! find start of operational year (add hour 1 when run hourly?) Once determined, this E_release should be communicated to the next timestep. 
+          if (modTime(1)%im == start_month .AND. modTime(1)%id == 1 ) then
+             E_release = RCHFLX_out(iens,segIndex)%REACH_VOL(1) / (RPARAM_in(segIndex)%H06_alpha * RPARAM_in(segIndex)%H06_Smax)
+          endif
           
           ! Calculate target release
           if (RPARAM_in(segIndex)%H06_purpose == 1) then ! irrigation reservoir
@@ -227,23 +226,27 @@ module lake_route_module
             else 
                 target_r = I_yearly + D_months(modTime(1)%im) - D_yearly
             endif
-          
+    
           else ! non-irrigation reservoir
             target_r = I_yearly
             
           endif
           
-          
           ! Calculate actual release
           if (c >= RPARAM_in(segIndex)%H06_c_compare) then ! multi-year reservoir
-          
             RCHFLX_out(iens,segIndex)%REACH_Q_IRF = target_r * E_release
-            
           else if (0 <= c .AND. c < RPARAM_in(segIndex)%H06_c_compare) then
-          
            RCHFLX_out(iens,segIndex)%REACH_Q_IRF = (c / RPARAM_in(segIndex)%H06_denominator)** RPARAM_in(segIndex)%H06_exponent * E_release * target_r + & 
                                                    (1 - (c /RPARAM_in(segIndex)%H06_denominator)** RPARAM_in(segIndex)%H06_exponent) * RCHFLX_out(iens,segIndex)%UPSTREAM_QI
           end if 
+          
+          ! make sure reservoir volume does not drop below dead storage
+          if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) < (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead)) then
+            RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead - RCHFLX_out(iens,segIndex)%REACH_VOL(1) )
+          ! Account for spil overflow if reservoir is completely filled.
+          else if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) > RPARAM_in(segIndex)%H06_Smax) then
+            RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF + (RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RPARAM_in(segIndex)%H06_Smax)/ secprday
+          end if
           
           !print*, modTime(1)%im ! month of the simulations
           print*, 'Hanasaki parameters'
@@ -266,8 +269,8 @@ module lake_route_module
     !endif
 
     if(lakeWBTol<WB)then;
-      print*, 'Water balance for lake ID = ', NETOPO_in(segIndex)%REACHID, 'excees the Tolerance'
-      cmessage = 'Water balance for lake ID = excees the Tolerance'
+      print*, 'Water balance for lake ID = ', NETOPO_in(segIndex)%REACHID, 'exceeds the Tolerance'
+      cmessage = 'Water balance for lake ID = exceeds the Tolerance'
       ierr = 1; message=trim(message)//trim(cmessage);
     endif
 
