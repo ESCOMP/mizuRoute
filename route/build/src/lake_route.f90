@@ -63,13 +63,15 @@ module lake_route_module
   INTEGER(I4B)                             :: ntdh           ! number of time steps in IRF
   character(len=strLen)                    :: cmessage       ! error message from subroutine
 
+
   ! local variables for H06 routine
   real(dp)                                 :: c              ! storage to yearly activity ratio
-  real(dp)                                 :: I_yearly       ! mean annual inflow
-  real(dp), dimension(12)                  :: I_months       ! mean monthly inflow  
+  real(dp)                                 :: I_yearly, D_yearly   ! mean annual inflow and demand
+  real(dp), dimension(12)                  :: I_months, D_months  ! mean monthly inflow and demand  
   INTEGER(I4B)                             :: start_month    ! start month of the operational year
-  ! INTEGER(I4B)                             :: i, j           ! indices
+  ! INTEGER(I4B)                             :: i, j          ! indices
   real(dp)                                 :: E_release      ! release coefficient
+  real(dp)                                 :: target_r      ! target release
 
 
   print*, 'inside lake, time at the mdoel simulation',modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec
@@ -165,6 +167,8 @@ module lake_route_module
           ! print*, "lake model is Hanasaki 2006"
 
           ! create memory of upstream inflow for Hanasaki formulation
+          
+   
           if (.not.allocated(RCHFLX_out(iens,segIndex)%QPASTUP_IRF)) then ! it is the first time step and should be allocated
             allocate(RCHFLX_out(iens,segIndex)%QPASTUP_IRF(10),stat=ierr)
           else
@@ -173,13 +177,25 @@ module lake_route_module
           endif
           !print*, RCHFLX_out(iens,segIndex)%QPASTUP_IRF
 
-          ! create array based on input monthly releases? calculate inflow based on that. (also used to select inflow of current month)
+
+          ! create array with monthly inflow
           I_months = (/ RPARAM_in(segIndex)%H06_I_Jan, RPARAM_in(segIndex)%H06_I_Feb, RPARAM_in(segIndex)%H06_I_Mar, RPARAM_in(segIndex)%H06_I_Apr, RPARAM_in(segIndex)%H06_I_May, RPARAM_in(segIndex)%H06_I_Jun, & 
                       RPARAM_in(segIndex)%H06_I_Jul, RPARAM_in(segIndex)%H06_I_Aug, RPARAM_in(segIndex)%H06_I_Sep, RPARAM_in(segIndex)%H06_I_Oct, RPARAM_in(segIndex)%H06_I_Nov, RPARAM_in(segIndex)%H06_I_Dec /)
+                      
+          ! there is a problem with reading monthly inflow parameters, for testing puposes, replace by hardcoded values. 
+          I_months = (/9,9,10,18,58,132,59,41,42,27,12,10 /)
+
+          ! create array with monthly inflow
+          D_months = (/ RPARAM_in(segIndex)%H06_D_Jan, RPARAM_in(segIndex)%H06_D_Feb, RPARAM_in(segIndex)%H06_D_Mar, RPARAM_in(segIndex)%H06_D_Apr, RPARAM_in(segIndex)%H06_D_May, RPARAM_in(segIndex)%H06_D_Jun, & 
+                      RPARAM_in(segIndex)%H06_D_Jul, RPARAM_in(segIndex)%H06_D_Aug, RPARAM_in(segIndex)%H06_D_Sep, RPARAM_in(segIndex)%H06_D_Oct, RPARAM_in(segIndex)%H06_D_Nov, RPARAM_in(segIndex)%H06_D_Dec /)
           
-          ! calculate mean annual inflow (to be integrated in condition not using of memory)
-          I_yearly = (RPARAM_in(segIndex)%H06_I_Jan + RPARAM_in(segIndex)%H06_I_Feb + RPARAM_in(segIndex)%H06_I_Mar + RPARAM_in(segIndex)%H06_I_Apr + RPARAM_in(segIndex)%H06_I_May + RPARAM_in(segIndex)%H06_I_Jun + & 
-                      RPARAM_in(segIndex)%H06_I_Jul + RPARAM_in(segIndex)%H06_I_Aug + RPARAM_in(segIndex)%H06_I_Sep + RPARAM_in(segIndex)%H06_I_Oct + RPARAM_in(segIndex)%H06_I_Nov + RPARAM_in(segIndex)%H06_I_Dec)/months_per_yr
+          ! there is a problem with reading monthly inflow parameters, for testing puposes, replace by hardcoded values. 
+          D_months = (/9,9,10,18,58,132,59,41,42,27,12,10 /)
+          
+          ! calculate mean annual inflow and demand (to be integrated in condition not using of memory)
+          I_yearly = SUM(I_months)/months_per_yr
+ 
+          D_yearly = SUM(D_months)/months_per_yr
           
           ! calculate storage to yearly activity ratio
           c = RPARAM_in(segIndex)%H06_Smax/(I_yearly * days_per_yr * secprday)
@@ -201,13 +217,34 @@ module lake_route_module
          ! if (modTime(1)%im = start_month .AND. modTime(1)%id = 1 ) then
          !   E_release = RCHFLX_out(iens,segIndex)%REACH_VOL(1) / (RPARAM_in(segIndex)%H06_alpha * RPARAM_in(segIndex)%H06_Smax)
           ! Feed E_release as parameter in model? 
-          
-          
-          ! Define target release
-          !if 
-          
 
-        
+          
+          ! Calculate target release
+          if (RPARAM_in(segIndex)%H06_purpose == 1) then ! irrigation reservoir
+          
+            if (RPARAM_in(segIndex)%H06_envfact * I_yearly <= D_yearly) then ! larger demand than environmental flow requirement
+                target_r = I_months(modTime(1)%im) * RPARAM_in(segIndex)%H06_c1 + I_yearly * RPARAM_in(segIndex)%H06_c2 * (D_months(modTime(1)%im) / D_yearly ) 
+            else 
+                target_r = I_yearly + D_months(modTime(1)%im) - D_yearly
+            endif
+          
+          else ! non-irrigation reservoir
+            target_r = I_yearly
+            
+          endif
+          
+          
+          ! Calculate actual release
+          if (c >= RPARAM_in(segIndex)%H06_c_compare) then ! multi-year reservoir
+          
+            RCHFLX_out(iens,segIndex)%REACH_Q_IRF = target_r * E_release
+            
+          else if (0 <= c .AND. c < RPARAM_in(segIndex)%H06_c_compare) then
+          
+           RCHFLX_out(iens,segIndex)%REACH_Q_IRF = (c / RPARAM_in(segIndex)%H06_denominator)** RPARAM_in(segIndex)%H06_exponent * E_release * target_r + & 
+                                                   (1 - (c /RPARAM_in(segIndex)%H06_denominator)** RPARAM_in(segIndex)%H06_exponent) * RCHFLX_out(iens,segIndex)%UPSTREAM_QI
+          end if 
+          
           !print*, modTime(1)%im ! month of the simulations
           print*, 'Hanasaki parameters'
           print*, RPARAM_in(segIndex)%H06_Smax, RPARAM_in(segIndex)%H06_alpha, RPARAM_in(segIndex)%H06_envfact, RPARAM_in(segIndex)%H06_S_ini, RPARAM_in(segIndex)%H06_c1, RPARAM_in(segIndex)%H06_c2, RPARAM_in(segIndex)%H06_exponent

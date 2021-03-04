@@ -4,7 +4,7 @@
 /
 &IRF_UH
   velo   = 1.5
-  diff   = 800.0
+  diff   = 5000.0
 /
 &KWT
   mann_n = 0.01
