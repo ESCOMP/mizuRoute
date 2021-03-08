@@ -39,6 +39,7 @@ module lake_route_module
   USE public_var, ONLY: dt, lakeWBTol     ! lake water balance tolerance
   USE public_var, ONLY: lake_model_D03    ! logical whether or not lake should be simulated
   USE public_var, ONLY: lake_model_H06    ! logical whether or not lake should be simulated
+  USE public_var, ONLY: secprday, days_per_yr, months_per_yr    ! time constants
 
   implicit none
   ! Input
@@ -61,6 +62,16 @@ module lake_route_module
   INTEGER(I4B)                             :: iRch_ups       ! index of upstream reach in NETOPO
   INTEGER(I4B)                             :: ntdh           ! number of time steps in IRF
   character(len=strLen)                    :: cmessage       ! error message from subroutine
+
+
+  ! local variables for H06 routine
+  real(dp)                                 :: c              ! storage to yearly activity ratio
+  real(dp)                                 :: I_yearly, D_yearly  ! mean annual inflow and demand
+  real(dp), dimension(12)                  :: I_months, D_months  ! mean monthly inflow and demand  
+  INTEGER(I4B)                             :: start_month=0     ! start month of the operational year
+  INTEGER(I4B)                             :: i             ! index
+  real(dp)                                 :: E_release     ! release coefficient
+  real(dp)                                 :: target_r      ! target release
 
 
   print*, 'inside lake, time at the mdoel simulation',modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec
@@ -165,6 +176,92 @@ module lake_route_module
           !print*, RCHFLX_out(iens,segIndex)%QPASTUP_IRF
 
 
+          ! create array with monthly inflow
+          I_months = (/ RPARAM_in(segIndex)%H06_I_Jan, RPARAM_in(segIndex)%H06_I_Feb, RPARAM_in(segIndex)%H06_I_Mar, RPARAM_in(segIndex)%H06_I_Apr, RPARAM_in(segIndex)%H06_I_May, RPARAM_in(segIndex)%H06_I_Jun, & 
+                      RPARAM_in(segIndex)%H06_I_Jul, RPARAM_in(segIndex)%H06_I_Aug, RPARAM_in(segIndex)%H06_I_Sep, RPARAM_in(segIndex)%H06_I_Oct, RPARAM_in(segIndex)%H06_I_Nov, RPARAM_in(segIndex)%H06_I_Dec /)
+          
+          ! there is a problem with reading monthly inflow parameters, for testing puposes, replace by hardcoded values. 
+          ! print*,'I_months',I_months 
+          I_months = (/8.64614286,   8.58854822,   9.8415576 ,  18.64570952,  57.96402304, 132.58282381, 59.53373272, 41.27400922, 42.0379619, 27.56602765, 12.10262381, 9.80076959 /)
+         
+          ! Bhumiboi inflow
+          ! I_months =  (/42.80004759, 23.10134666,  10.9559713,   15.51464843,  63.09036455, 121.77380353, 115.38119685, 291.89079013, 511.78662059, 423.13451822, 237.26578135,  98.9666038 /)
+          
+
+          ! create array with monthly inflow
+          D_months = (/ RPARAM_in(segIndex)%H06_D_Jan, RPARAM_in(segIndex)%H06_D_Feb, RPARAM_in(segIndex)%H06_D_Mar, RPARAM_in(segIndex)%H06_D_Apr, RPARAM_in(segIndex)%H06_D_May, RPARAM_in(segIndex)%H06_D_Jun, & 
+                      RPARAM_in(segIndex)%H06_D_Jul, RPARAM_in(segIndex)%H06_D_Aug, RPARAM_in(segIndex)%H06_D_Sep, RPARAM_in(segIndex)%H06_D_Oct, RPARAM_in(segIndex)%H06_D_Nov, RPARAM_in(segIndex)%H06_D_Dec /)
+          ! print*,'D_months',D_months            
+          ! D_months = (/0,150,200,250,200,75,50,50,20,0,30,0/)
+          
+          ! calculate mean annual inflow and demand (to be integrated in condition not using of memory)
+          I_yearly = SUM(I_months)/months_per_yr
+          print*,'I_yearly',I_yearly
+ 
+          D_yearly = SUM(D_months)/months_per_yr
+          
+          ! calculate storage to yearly activity ratio
+          c = RPARAM_in(segIndex)%H06_Smax/(I_yearly * days_per_yr * secprday)
+          print*,'c', c
+
+          ! find start month of operational year 
+          do i=1,months_per_yr
+            if (I_yearly <= I_months(i)) then 
+                start_month = i + 1
+            endif
+          enddo
+          
+          print*, 'start month', start_month
+
+          ! if operational year has not yet started (add condition!!), determine based on initial storage
+          E_release = RPARAM_in(segIndex)%H06_S_ini/(RPARAM_in(segIndex)%H06_alpha * RPARAM_in(segIndex)%H06_Smax)
+          
+
+          ! find start of operational year (add hour 1 when run hourly?) Once determined, this E_release should be communicated to the next timestep. 
+          if (modTime(1)%im == start_month .AND. modTime(1)%id == 1 ) then
+             E_release = RCHFLX_out(iens,segIndex)%REACH_VOL(1) / (RPARAM_in(segIndex)%H06_alpha * RPARAM_in(segIndex)%H06_Smax)
+          endif
+          
+          print*,'E_release', E_release
+          
+          ! Calculate target release
+          if (RPARAM_in(segIndex)%H06_purpose == 1) then ! irrigation reservoir
+          
+            if (RPARAM_in(segIndex)%H06_envfact * I_yearly <= D_yearly) then ! larger demand than environmental flow requirement
+                target_r = I_months(modTime(1)%im) * RPARAM_in(segIndex)%H06_c1 + I_yearly * RPARAM_in(segIndex)%H06_c2 * (D_months(modTime(1)%im) / D_yearly ) 
+            else 
+                target_r = I_yearly + D_months(modTime(1)%im) - D_yearly
+            endif
+    
+          else ! non-irrigation reservoir
+            target_r = I_yearly
+            
+          endif
+          
+          ! Calculate actual release
+          if (c >= RPARAM_in(segIndex)%H06_c_compare) then ! multi-year reservoir
+            RCHFLX_out(iens,segIndex)%REACH_Q_IRF = target_r * E_release
+            print*,'multi-year reservoir'
+            print*, 'target_r*E_release', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
+          else if (0 <= c .AND. c < RPARAM_in(segIndex)%H06_c_compare) then
+            RCHFLX_out(iens,segIndex)%REACH_Q_IRF = E_release * target_r * (c / RPARAM_in(segIndex)%H06_denominator)**RPARAM_in(segIndex)%H06_exponent  + & 
+                                                   q_upstream * (1 - (c /RPARAM_in(segIndex)%H06_denominator)**RPARAM_in(segIndex)%H06_exponent) 
+            print*,'whithin-a-year reservoir'
+            print*, 'first part', E_release * target_r * (c / RPARAM_in(segIndex)%H06_denominator)**RPARAM_in(segIndex)%H06_exponent 
+            print*, 'second part', q_upstream * (1 - (c /RPARAM_in(segIndex)%H06_denominator)**RPARAM_in(segIndex)%H06_exponent) 
+            print*, 'q_upstream', q_upstream
+            print*, 'RCHFLX_out(iens,segIndex)%REACH_Q_IRF', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
+          end if 
+          
+          ! make sure reservoir volume does not drop below dead storage
+          if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) < (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead)) then
+            RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead - RCHFLX_out(iens,segIndex)%REACH_VOL(1) )
+          ! Account for spil overflow if reservoir is completely filled.
+          else if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) > RPARAM_in(segIndex)%H06_Smax) then
+            print*, 'overflow evoked'
+            RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF + (RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RPARAM_in(segIndex)%H06_Smax)/ secprday
+          end if
+          
           !print*, modTime(1)%im ! month of the simulations
           print*, 'Hanasaki parameters'
           print*, RPARAM_in(segIndex)%H06_Smax, RPARAM_in(segIndex)%H06_alpha, RPARAM_in(segIndex)%H06_envfact, RPARAM_in(segIndex)%H06_S_ini, RPARAM_in(segIndex)%H06_c1, RPARAM_in(segIndex)%H06_c2, RPARAM_in(segIndex)%H06_exponent
@@ -186,8 +283,8 @@ module lake_route_module
     !endif
 
     if(lakeWBTol<WB)then;
-      print*, 'Water balance for lake ID = ', NETOPO_in(segIndex)%REACHID, 'excees the Tolerance'
-      cmessage = 'Water balance for lake ID = excees the Tolerance'
+      print*, 'Water balance for lake ID = ', NETOPO_in(segIndex)%REACHID, 'exceeds the Tolerance'
+      cmessage = 'Water balance for lake ID = exceeds the Tolerance'
       ierr = 1; message=trim(message)//trim(cmessage);
     endif
 

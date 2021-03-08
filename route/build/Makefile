@@ -10,14 +10,14 @@
 # User configure part
 #========================================================================
 # Define fortran compiler - gnu, intel or pgi
-FC  =
+FC  = intel
 
 # Define the compiler exe
 # For MPI use, mpifort, mpif77, mpif90, mpif08
-FC_EXE =
+FC_EXE = mpif90
 
 # Define the executable
-EXE =
+EXE = route_runoff_develop.exe
 
 # Define optional setting
 # fast:      Enables optimizations
@@ -46,7 +46,7 @@ PIO_FILESYSTEM_HINTS = gpfs
 # Define core directory below which everything resides
 # parent directory of the 'build' directory
 # do not put space at the end of path
-F_MASTER =
+F_MASTER = /glade/work/ivanderk/mizuRoute_test/route/
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gnu"
@@ -54,8 +54,8 @@ ifeq "$(FC)" "gnu"
  PNETCDF_PATH =
 endif
 ifeq "$(FC)" "intel"
- NCDF_PATH =
- PNETCDF_PATH =
+ NCDF_PATH = /glade/u/apps/ch/opt/netcdf/4.6.3/intel/18.0.5
+ PNETCDF_PATH = /glade/u/apps/ch/opt/pnetcdf/1.11.1/mpt/2.19/intel/18.0.5
 endif
 ifeq "$(FC)" "pgi"
  NCDF_PATH =
