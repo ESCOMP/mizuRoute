@@ -225,6 +225,7 @@ CONTAINS
    case('<varname_H06_denominator>'); meta_SEG    (ixSEG%H06_denominator )%varName =trim(cData)   ! Hanasaki 2006; Denominator of actual release for "within-a-year" reservoir [-]
    case('<varname_H06_c_compare>'  ); meta_SEG    (ixSEG%H06_c_compare   )%varName =trim(cData)   ! Hanasaki 2006; Criterion for distinguish of "within-a-year" or "multi-year" reservoir [-]
    case('<varname_H06_frac_Sdead>' ); meta_SEG    (ixSEG%H06_frac_Sdead  )%varName =trim(cData)   ! Hanasaki 2006; Fraction of dead storage to maximume storage [-]
+   case('<varname_H06_E_rel_ini>'  ); meta_SEG    (ixSEG%H06_E_rel_ini   )%varName =trim(cData)   ! Hanasaki 2006; Initial release coefficient [-]
    case('<varname_H06_I_Jan>'      ); meta_SEG    (ixSEG%H06_I_Jan       )%varName =trim(cData)   ! Hanasaki 2006; Average January   inflow [m3/s]
    case('<varname_H06_I_Feb>'      ); meta_SEG    (ixSEG%H06_I_Feb       )%varName =trim(cData)   ! Hanasaki 2006; Average Februrary inflow [m3/s]
    case('<varname_H06_I_Mar>'      ); meta_SEG    (ixSEG%H06_I_Mar       )%varName =trim(cData)   ! Hanasaki 2006; Average March     inflow [m3/s]

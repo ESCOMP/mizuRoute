@@ -212,6 +212,7 @@ implicit none
   real(dp)                                   :: H06_denominator! Hanasaki 2006; Denominator of actual release for "within-a-year" reservoir [-]
   real(dp)                                   :: H06_c_compare  ! Hanasaki 2006; Criterion for distinguish of "within-a-year" or "multi-year" reservoir [-]
   real(dp)                                   :: H06_frac_Sdead ! Hanasaki 2006; Fraction of dead storage to maximume storage [-]
+  real(dp)                                   :: H06_E_rel_ini  ! Hanasaki 2006; Initial release coefficient [-]
   real(dp)                                   :: H06_I_Jan      ! Hanasaki 2006; Average January   inflow [m3/s]
   real(dp)                                   :: H06_I_Feb      ! Hanasaki 2006; Average Februrary inflow [m3/s]
   real(dp)                                   :: H06_I_Mar      ! Hanasaki 2006; Average March     inflow [m3/s]

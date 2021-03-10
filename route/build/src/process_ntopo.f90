@@ -428,6 +428,7 @@ end subroutine augment_ntopo
    RPARAM_in(iSeg)%H06_denominator =     structSEG(iSeg)%var(ixSEG%H06_denominator)%dat(1)
    RPARAM_in(iSeg)%H06_c_compare   =     structSEG(iSeg)%var(ixSEG%H06_c_compare)%dat(1)
    RPARAM_in(iSeg)%H06_frac_Sdead  =     structSEG(iSeg)%var(ixSEG%H06_frac_Sdead)%dat(1)
+   RPARAM_in(iSeg)%H06_E_rel_ini   =     structSEG(iSeg)%var(ixSEG%H06_E_rel_ini)%dat(1)
    RPARAM_in(iSeg)%H06_I_Jan       =     structSEG(iSeg)%var(ixSEG%H06_I_Jan)%dat(1)
    RPARAM_in(iSeg)%H06_I_Feb       =     structSEG(iSeg)%var(ixSEG%H06_I_Feb)%dat(1)
    RPARAM_in(iSeg)%H06_I_Mar       =     structSEG(iSeg)%var(ixSEG%H06_I_Mar)%dat(1)

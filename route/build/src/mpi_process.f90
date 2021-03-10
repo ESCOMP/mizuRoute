@@ -144,11 +144,9 @@ contains
   real(dp),          allocatable              :: slope_local(:)            ! reach slope array in decomposed network
   real(dp),          allocatable              :: length_local(:)           ! reach length array in decomposed network
   real(dp),          allocatable              :: area_local(:)             ! hru area in decomposed network
-
   real(dp),          allocatable              :: D03_MaxStorage_local(:)   ! Doll 2003; maximum active storage for Doll 2003
   real(dp),          allocatable              :: D03_Coefficient_local(:)  ! Doll 2003; coefficient for Doll 2003
   real(dp),          allocatable              :: D03_Power_local(:)        ! Doll 2003; power for Doll 2003
-
   real(dp),          allocatable              :: H06_Smax_local(:)         ! Hanasaki 2006; maximume reservoir storage [m3]
   real(dp),          allocatable              :: H06_alpha_local(:)        ! Hanasaki 2006; fraction of active storage compared to total storage [-]
   real(dp),          allocatable              :: H06_envfact_local(:)      ! Hanasaki 2006; fraction of inflow that can be used to meet demand [-]
@@ -159,6 +157,7 @@ contains
   real(dp),          allocatable              :: H06_denominator_local(:)  ! Hanasaki 2006; Denominator of actual release for "within-a-year" reservoir [-]
   real(dp),          allocatable              :: H06_c_compare_local(:)    ! Hanasaki 2006; Criterion for distinguish of "within-a-year" or "multi-year" reservoir [-]
   real(dp),          allocatable              :: H06_frac_Sdead_local(:)   ! Hanasaki 2006; Fraction of dead storage to maximume storage [-]
+  real(dp),          allocatable              :: H06_E_rel_ini_local(:)    ! Hanasaki 2006; Initial release coefficient [-]
   real(dp),          allocatable              :: H06_I_Jan_local(:)        ! Hanasaki 2006; Average January   inflow [m3/s]
   real(dp),          allocatable              :: H06_I_Feb_local(:)        ! Hanasaki 2006; Average Februrary inflow [m3/s]
   real(dp),          allocatable              :: H06_I_Mar_local(:)        ! Hanasaki 2006; Average March     inflow [m3/s]
@@ -183,7 +182,6 @@ contains
   real(dp),          allocatable              :: H06_D_Oct_local(:)        ! Hanasaki 2006; Average October   demand [m3/s]
   real(dp),          allocatable              :: H06_D_Nov_local(:)        ! Hanasaki 2006; Average Novermber demand [m3/s]
   real(dp),          allocatable              :: H06_D_Dec_local(:)        ! Hanasaki 2006; Average December  demand [m3/s]
-
   integer(i4b),      allocatable              :: H06_purpose_local(:)      ! Hanasaki 2006; reservoir purpose; (0= non-irrigation, 1=irrigation) [-]
   integer(i4b),      allocatable              :: H06_I_mem_F_local(:)      ! Hanasaki 2006; Flag to transition to modelled inflow [-]
   integer(i4b),      allocatable              :: H06_D_mem_F_local(:)      ! Hanasaki 2006; Flag to transition to modelled/provided demand [-]
@@ -217,6 +215,7 @@ contains
   real(dp)                                    :: H06_denominator(nRch_in)  ! Hanasaki 2006; Denominator of actual release for "within-a-year" reservoir [-]
   real(dp)                                    :: H06_c_compare(nRch_in)    ! Hanasaki 2006; Criterion for distinguish of "within-a-year" or "multi-year" reservoir [-]
   real(dp)                                    :: H06_frac_Sdead(nRch_in)   ! Hanasaki 2006; Fraction of dead storage to maximume storage [-]
+  real(dp)                                    :: H06_E_rel_ini(nRch_in)    ! Hanasaki 2006; Initial release coefficient [-]
   real(dp)                                    :: H06_I_Jan(nRch_in)        ! Hanasaki 2006; Average January   inflow [m3/s]
   real(dp)                                    :: H06_I_Feb(nRch_in)        ! Hanasaki 2006; Average Februrary inflow [m3/s]
   real(dp)                                    :: H06_I_Mar(nRch_in)        ! Hanasaki 2006; Average March     inflow [m3/s]
@@ -350,11 +349,9 @@ contains
      LakeModelType(iSeg)   = structNTOPO(jSeg)%var(ixNTOPO%LakeModelType)%dat(1)
      slope(iSeg)           = structSEG(  jSeg)%var(ixSEG%slope)%dat(1)
      length(iSeg)          = structSEG(  jSeg)%var(ixSEG%length)%dat(1)
-
      D03_MaxStorage(iSeg)  = structSEG(  jSeg)%var(ixSEG%D03_MaxStorage)%dat(1)
      D03_Coefficient(iSeg) = structSEG(  jSeg)%var(ixSEG%D03_Coefficient)%dat(1)
      D03_Power(iSeg)       = structSEG(  jSeg)%var(ixSEG%D03_Power)%dat(1)
-
      H06_Smax(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06_Smax)%dat(1)
      H06_alpha(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_alpha)%dat(1)
      H06_envfact(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_envfact)%dat(1)
@@ -365,6 +362,7 @@ contains
      H06_denominator(iSeg) = structSEG(  jSeg)%var(ixSEG%H06_denominator)%dat(1)
      H06_c_compare(iSeg)   = structSEG(  jSeg)%var(ixSEG%H06_c_compare)%dat(1)
      H06_frac_Sdead(iSeg)  = structSEG(  jSeg)%var(ixSEG%H06_frac_Sdead)%dat(1)
+     H06_E_rel_ini(iSeg)   = structSEG(  jSeg)%var(ixSEG%H06_E_rel_ini)%dat(1)
      H06_I_Jan(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Jan)%dat(1)
      H06_I_Feb(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Feb)%dat(1)
      H06_I_Mar(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Mar)%dat(1)
@@ -389,7 +387,6 @@ contains
      H06_D_Oct(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Oct)%dat(1)
      H06_D_Nov(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Nov)%dat(1)
      H06_D_Dec(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Dec)%dat(1)
-
      H06_purpose(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_purpose)%dat(1)
      H06_I_mem_F(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_I_mem_F)%dat(1)
      H06_D_mem_F(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_D_mem_F)%dat(1)
@@ -443,27 +440,27 @@ contains
     !  Send the information for tributaries to individual processors
     ! -----------------------------------------------------------------------------
 
-    call shr_mpi_scatterV(segId           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), segId_local,           ierr, cmessage)
-    call shr_mpi_scatterV(downSegId       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), downSegId_local,       ierr, cmessage)
-    call shr_mpi_scatterV(slope           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), slope_local,           ierr, cmessage)
-    call shr_mpi_scatterV(length          (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), length_local,          ierr, cmessage)
-    call shr_mpi_scatterV(islake          (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), islake_local,          ierr, cmessage)
-    call shr_mpi_scatterV(LakeTargVol     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), LakeTargVol_local,     ierr, cmessage)
-    call shr_mpi_scatterV(LakeModelType   (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), LakeModelType_local,   ierr, cmessage)
-    call shr_mpi_scatterV(D03_MaxStorage  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03_MaxStorage_local,  ierr, cmessage)
-    call shr_mpi_scatterV(D03_Coefficient (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03_Coefficient_local, ierr, cmessage)
-    call shr_mpi_scatterV(D03_Power       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03_Power_local,       ierr, cmessage)
-
-    call shr_mpi_scatterV(H06_Smax_local        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_Smax_local,       ierr, cmessage)
-    call shr_mpi_scatterV(H06_alpha_local       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_alpha_local,      ierr, cmessage)
-    call shr_mpi_scatterV(H06_envfact_local     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_envfact_local,    ierr, cmessage)
-    call shr_mpi_scatterV(H06_S_ini_local       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_S_ini_local,      ierr, cmessage)
-    call shr_mpi_scatterV(H06_c1_local          (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_c1_local,         ierr, cmessage)
-    call shr_mpi_scatterV(H06_c2_local          (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_c2_local,         ierr, cmessage)
-    call shr_mpi_scatterV(H06_exponent_local    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_exponent_local,   ierr, cmessage)
-    call shr_mpi_scatterV(H06_denominator_local (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_denominator_local,ierr, cmessage)
-    call shr_mpi_scatterV(H06_c_compare_local   (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_c_compare_local,  ierr, cmessage)
-    call shr_mpi_scatterV(H06_frac_Sdead_local  (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_frac_Sdead_local, ierr, cmessage)
+    call shr_mpi_scatterV(segId                 (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), segId_local,          ierr, cmessage)
+    call shr_mpi_scatterV(downSegId             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), downSegId_local,      ierr, cmessage)
+    call shr_mpi_scatterV(slope                 (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), slope_local,          ierr, cmessage)
+    call shr_mpi_scatterV(length                (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), length_local,         ierr, cmessage)
+    call shr_mpi_scatterV(islake                (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), islake_local,         ierr, cmessage)
+    call shr_mpi_scatterV(LakeTargVol           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), LakeTargVol_local,    ierr, cmessage)
+    call shr_mpi_scatterV(LakeModelType         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), LakeModelType_local,  ierr, cmessage)
+    call shr_mpi_scatterV(D03_MaxStorage        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03_MaxStorage_local, ierr, cmessage)
+    call shr_mpi_scatterV(D03_Coefficient       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03_Coefficient_local,ierr, cmessage)
+    call shr_mpi_scatterV(D03_Power             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03_Power_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_Smax              (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_Smax_local,       ierr, cmessage)
+    call shr_mpi_scatterV(H06_alpha             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_alpha_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_envfact           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_envfact_local,    ierr, cmessage)
+    call shr_mpi_scatterV(H06_S_ini             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_S_ini_local,      ierr, cmessage)
+    call shr_mpi_scatterV(H06_c1                (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_c1_local,         ierr, cmessage)
+    call shr_mpi_scatterV(H06_c2                (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_c2_local,         ierr, cmessage)
+    call shr_mpi_scatterV(H06_exponent          (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_exponent_local,   ierr, cmessage)
+    call shr_mpi_scatterV(H06_denominator       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_denominator_local,ierr, cmessage)
+    call shr_mpi_scatterV(H06_c_compare         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_c_compare_local,  ierr, cmessage)
+    call shr_mpi_scatterV(H06_frac_Sdead        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_frac_Sdead_local, ierr, cmessage)
+    call shr_mpi_scatterV(H06_E_rel_ini         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_E_rel_ini_local,  ierr, cmessage)
     call shr_mpi_scatterV(H06_I_Jan             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Jan_local,      ierr, cmessage)
     call shr_mpi_scatterV(H06_I_Feb             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Feb_local,      ierr, cmessage)
     call shr_mpi_scatterV(H06_I_Mar             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Mar_local,      ierr, cmessage)
@@ -488,8 +485,6 @@ contains
     call shr_mpi_scatterV(H06_D_Oct             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Oct_local,      ierr, cmessage)
     call shr_mpi_scatterV(H06_D_Nov             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Nov_local,      ierr, cmessage)
     call shr_mpi_scatterV(H06_D_Dec             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Dec_local,      ierr, cmessage)
-
-
     call shr_mpi_scatterV(H06_purpose           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_purpose_local,      ierr, cmessage)
     call shr_mpi_scatterV(H06_I_mem_F           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_mem_F_local,      ierr, cmessage)
     call shr_mpi_scatterV(H06_D_mem_F           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_mem_F_local,      ierr, cmessage)
@@ -529,7 +524,6 @@ contains
      structSEG_local  (ix)%var(ixSEG%D03_MaxStorage)%dat(1)   = D03_MaxStorage_local(ix)
      structSEG_local  (ix)%var(ixSEG%D03_Coefficient)%dat(1)  = D03_Coefficient_local(ix)
      structSEG_local  (ix)%var(ixSEG%D03_Power)%dat(1)        = D03_Power_local(ix)
-
      structSEG_local  (ix)%var(ixSEG%H06_Smax)%dat(1)         = H06_Smax_local(ix)
      structSEG_local  (ix)%var(ixSEG%H06_alpha)%dat(1)        = H06_alpha_local(ix)
      structSEG_local  (ix)%var(ixSEG%H06_envfact)%dat(1)      = H06_envfact_local(ix)
@@ -540,6 +534,7 @@ contains
      structSEG_local  (ix)%var(ixSEG%H06_denominator)%dat(1)  = H06_denominator_local(ix)
      structSEG_local  (ix)%var(ixSEG%H06_c_compare)%dat(1)    = H06_c_compare_local(ix)
      structSEG_local  (ix)%var(ixSEG%H06_frac_Sdead)%dat(1)   = H06_frac_Sdead_local(ix)
+     structSEG_local  (ix)%var(ixSEG%H06_E_rel_ini)%dat(1)    = H06_E_rel_ini_local(ix)
      structSEG_local  (ix)%var(ixSEG%H06_I_Jan)%dat(1)        = H06_I_Jan_local(ix)
      structSEG_local  (ix)%var(ixSEG%H06_I_Feb)%dat(1)        = H06_I_Feb_local(ix)
      structSEG_local  (ix)%var(ixSEG%H06_I_Mar)%dat(1)        = H06_I_Mar_local(ix)
@@ -564,7 +559,6 @@ contains
      structSEG_local  (ix)%var(ixSEG%H06_D_Oct)%dat(1)        = H06_D_Oct_local(ix)
      structSEG_local  (ix)%var(ixSEG%H06_D_Nov)%dat(1)        = H06_D_Nov_local(ix)
      structSEG_local  (ix)%var(ixSEG%H06_D_Dec)%dat(1)        = H06_D_Dec_local(ix)
-
      structSEG_local  (ix)%var(ixSEG%H06_purpose)%dat(1)      = H06_purpose_local(ix)
      structSEG_local  (ix)%var(ixSEG%H06_I_mem_F)%dat(1)      = H06_I_mem_F_local(ix)
      structSEG_local  (ix)%var(ixSEG%H06_D_mem_F)%dat(1)      = H06_D_mem_F_local(ix)
@@ -704,7 +698,6 @@ contains
        structSEG_main  (ix)%var(ixSEG%D03_MaxStorage)%dat(1)  = D03_MaxStorage(ix)
        structSEG_main  (ix)%var(ixSEG%D03_Coefficient)%dat(1) = D03_Coefficient(ix)
        structSEG_main  (ix)%var(ixSEG%D03_Power)%dat(1)       = D03_Power(ix)
-
        structSEG_main  (ix)%var(ixSEG%H06_Smax)%dat(1)        = H06_Smax(ix)
        structSEG_main  (ix)%var(ixSEG%H06_alpha)%dat(1)       = H06_alpha(ix)
        structSEG_main  (ix)%var(ixSEG%H06_envfact)%dat(1)     = H06_envfact(ix)
@@ -715,6 +708,7 @@ contains
        structSEG_main  (ix)%var(ixSEG%H06_denominator)%dat(1) = H06_denominator(ix)
        structSEG_main  (ix)%var(ixSEG%H06_c_compare)%dat(1)   = H06_c_compare(ix)
        structSEG_main  (ix)%var(ixSEG%H06_frac_Sdead)%dat(1)  = H06_frac_Sdead(ix)
+       structSEG_main  (ix)%var(ixSEG%H06_E_rel_ini)%dat(1)   = H06_E_rel_ini(ix)
        structSEG_main  (ix)%var(ixSEG%H06_I_Jan)%dat(1)       = H06_I_Jan(ix)
        structSEG_main  (ix)%var(ixSEG%H06_I_Feb)%dat(1)       = H06_I_Feb(ix)
        structSEG_main  (ix)%var(ixSEG%H06_I_Mar)%dat(1)       = H06_I_Mar(ix)
@@ -739,7 +733,6 @@ contains
        structSEG_main  (ix)%var(ixSEG%H06_D_Oct)%dat(1)       = H06_D_Oct(ix)
        structSEG_main  (ix)%var(ixSEG%H06_D_Nov)%dat(1)       = H06_D_Nov(ix)
        structSEG_main  (ix)%var(ixSEG%H06_D_Dec)%dat(1)       = H06_D_Dec(ix)
-
        structSEG_main  (ix)%var(ixSEG%H06_purpose)%dat(1)     = H06_purpose(ix)
        structSEG_main  (ix)%var(ixSEG%H06_I_mem_F)%dat(1)     = H06_I_mem_F(ix)
        structSEG_main  (ix)%var(ixSEG%H06_D_mem_F)%dat(1)     = H06_D_mem_F(ix)
@@ -757,11 +750,9 @@ contains
        structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%islake)%dat(1)        = structNTOPO(ixx)%var(ixNTOPO%islake)%dat(1)
        structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%LakeTargVol)%dat(1)   = structNTOPO(ixx)%var(ixNTOPO%LakeTargVol)%dat(1)
        structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%LakeModelType)%dat(1) = structNTOPO(ixx)%var(ixNTOPO%LakeModelType)%dat(1)
-
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03_MaxStorage)%dat(1)  = structSEG(ixx)%var(ixSEG%D03_MaxStorage)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03_Coefficient)%dat(1) = structSEG(ixx)%var(ixSEG%D03_Coefficient)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03_Power)%dat(1)       = structSEG(ixx)%var(ixSEG%D03_Power)%dat(1)
-
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_Smax)%dat(1)        = structSEG(ixx)%var(ixSEG%H06_Smax)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_alpha)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_alpha)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_envfact)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_envfact)%dat(1)
@@ -772,6 +763,7 @@ contains
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_denominator)%dat(1) = structSEG(ixx)%var(ixSEG%H06_denominator)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_c_compare)%dat(1)   = structSEG(ixx)%var(ixSEG%H06_c_compare)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_frac_Sdead)%dat(1)  = structSEG(ixx)%var(ixSEG%H06_frac_Sdead)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_E_rel_ini)%dat(1)   = structSEG(ixx)%var(ixSEG%H06_E_rel_ini)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Jan)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Jan)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Feb)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Feb)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Mar)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Mar)%dat(1)
@@ -796,7 +788,6 @@ contains
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Oct)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Oct)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Nov)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Nov)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Dec)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Dec)%dat(1)
-
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_purpose)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_purpose)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_mem_F)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_I_mem_F)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_mem_F)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_D_mem_F)%dat(1)

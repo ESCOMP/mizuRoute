@@ -35,7 +35,7 @@ module lake_route_module
                          ierr, message)   ! output: error control
 
   USE globalData, ONLY: modTime           ! previous and current model time
-
+  USE public_var, ONLY: is_flux_wm        ! logical water management components fluxes should be read
   USE public_var, ONLY: dt, lakeWBTol     ! lake water balance tolerance
   USE public_var, ONLY: lake_model_D03    ! logical whether or not lake should be simulated
   USE public_var, ONLY: lake_model_H06    ! logical whether or not lake should be simulated
@@ -73,6 +73,9 @@ module lake_route_module
   real(dp)                                 :: E_release     ! release coefficient
   real(dp)                                 :: target_r      ! target release
 
+  if((RCHFLX_out(iens,segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then
+    print*, RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+  endif
 
   print*, 'inside lake, time at the mdoel simulation',modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec
 

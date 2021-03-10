@@ -185,6 +185,7 @@ subroutine getData(&
       meta_SEG(ixSEG%H06_denominator)%varFile   = .true.    ! Hanasaki parameter
       meta_SEG(ixSEG%H06_c_compare)%varFile     = .true.    ! Hanasaki parameter
       meta_SEG(ixSEG%H06_frac_Sdead)%varFile    = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_E_rel_ini)%varFile     = .true.    ! Hanasaki parameter
       meta_SEG(ixSEG%H06_I_Jan)%varFile         = .true.    ! Hanasaki parameter
       meta_SEG(ixSEG%H06_I_Feb)%varFile         = .true.    ! Hanasaki parameter
       meta_SEG(ixSEG%H06_I_Mar)%varFile         = .true.    ! Hanasaki parameter
