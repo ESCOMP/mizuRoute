@@ -72,9 +72,7 @@ module lake_route_module
   INTEGER(I4B)                             :: i             ! index
   real(dp)                                 :: target_r      ! target release
 
-  if((RCHFLX_out(iens,segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then
-    print*, RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
-  endif
+
 
   print*, 'inside lake, time at the model simulation',modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec
 
@@ -116,7 +114,7 @@ module lake_route_module
     !print*, 'lake param H06_alpha .......= ', RPARAM_in(segIndex)%H06_alpha
     !print*, 'lake param H06_S_ini .......= ', RPARAM_in(segIndex)%H06_S_ini
     !print*, 'lake target volum ..........= ', NETOPO_in(segIndex)%LakeTargVol
-    !print*, 'volume before simulation m3.= ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
+     print*, 'volume before simulation m3.= ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
     !print*, 'upstream streamflow m3/s ...= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
     !print*, 'upstream precipitation m3/s.= ', RCHFLX_out(iens,segIndex)%basinprecip
     !print*, 'upstream evaporation m3/s ..= ', RCHFLX_out(iens,segIndex)%basinevapo
@@ -127,7 +125,7 @@ module lake_route_module
     RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(0) ! updating storage for current time
     RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) + q_upstream * dt  ! input upstream discharge from m3/s to m3
     RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) + RCHFLX_out(iens,segIndex)%basinprecip * dt ! input lake precipitation
-    RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%basinevapo * dt ! output lake evaporaiton
+    RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%basinevapo * dt ! output lake evaporation
     if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) < 0) then; ! to avoid negative lake volume
        RCHFLX_out(iens,segIndex)%REACH_VOL(1)=0
     endif
@@ -168,6 +166,8 @@ module lake_route_module
           ! preserving the past upstrem discharge for lake models
           ! print*, "lake model is Hanasaki 2006"
 
+
+
           ! create memory of upstream inflow for Hanasaki formulation
           if (.not.allocated(RCHFLX_out(iens,segIndex)%QPASTUP_IRF)) then ! it is the first time step and should be allocated
             allocate(RCHFLX_out(iens,segIndex)%QPASTUP_IRF(10),stat=ierr)
@@ -178,23 +178,23 @@ module lake_route_module
           !print*, RCHFLX_out(iens,segIndex)%QPASTUP_IRF
 
 
-          ! create array with monthly inflow
+          ! get demand - this should be included in memory code
+          if((RCHFLX_out(iens,segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then ! demand is given by input file
+            print*, 'Demand is given in input file', RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+            ! D_months = ! the code requires here monthly demand, while daily values can be read in.
+          else ! use monthly mean demand values from parameters
+                      ! create array with monthly inflow
+
+          endif
+
+          ! create array with monthly inflow - this should also be integrated in memory code
           I_months = (/ RPARAM_in(segIndex)%H06_I_Jan, RPARAM_in(segIndex)%H06_I_Feb, RPARAM_in(segIndex)%H06_I_Mar, RPARAM_in(segIndex)%H06_I_Apr, RPARAM_in(segIndex)%H06_I_May, RPARAM_in(segIndex)%H06_I_Jun, &
                       RPARAM_in(segIndex)%H06_I_Jul, RPARAM_in(segIndex)%H06_I_Aug, RPARAM_in(segIndex)%H06_I_Sep, RPARAM_in(segIndex)%H06_I_Oct, RPARAM_in(segIndex)%H06_I_Nov, RPARAM_in(segIndex)%H06_I_Dec /)
 
-          ! there is a problem with reading monthly inflow parameters, for testing puposes, replace by hardcoded values.
-          ! print*,'I_months',I_months
-          I_months = (/8.64614286,   8.58854822,   9.8415576 ,  18.64570952,  57.96402304, 132.58282381, 59.53373272, 41.27400922, 42.0379619, 27.56602765, 12.10262381, 9.80076959 /)
 
-          ! Bhumiboi inflow
-          ! I_months =  (/42.80004759, 23.10134666,  10.9559713,   15.51464843,  63.09036455, 121.77380353, 115.38119685, 291.89079013, 511.78662059, 423.13451822, 237.26578135,  98.9666038 /)
-
-
-          ! create array with monthly inflow
           D_months = (/ RPARAM_in(segIndex)%H06_D_Jan, RPARAM_in(segIndex)%H06_D_Feb, RPARAM_in(segIndex)%H06_D_Mar, RPARAM_in(segIndex)%H06_D_Apr, RPARAM_in(segIndex)%H06_D_May, RPARAM_in(segIndex)%H06_D_Jun, &
                       RPARAM_in(segIndex)%H06_D_Jul, RPARAM_in(segIndex)%H06_D_Aug, RPARAM_in(segIndex)%H06_D_Sep, RPARAM_in(segIndex)%H06_D_Oct, RPARAM_in(segIndex)%H06_D_Nov, RPARAM_in(segIndex)%H06_D_Dec /)
-          ! print*,'D_months',D_months
-          ! D_months = (/0,150,200,250,200,75,50,50,20,0,30,0/)
+
 
           ! calculate mean annual inflow and demand (to be integrated in condition not using of memory)
           I_yearly = SUM(I_months)/months_per_yr
@@ -203,7 +203,6 @@ module lake_route_module
 
           ! calculate storage to yearly activity ratio
           c = RPARAM_in(segIndex)%H06_Smax/(I_yearly * days_per_yr * secprday)
-          print*,'c', c
 
           ! find start month of operational year
           do i=1,months_per_yr
@@ -213,8 +212,6 @@ module lake_route_module
           enddo
 
           print*, 'start month', start_month
-
-
 
           ! find start of operational year (add hour 1 when run hourly?) Once determined, this E_release should be communicated to the next timestep.
           if (modTime(1)%im == start_month .AND. modTime(1)%id == 1 ) then
@@ -241,26 +238,35 @@ module lake_route_module
           if (c >= RPARAM_in(segIndex)%H06_c_compare) then ! multi-year reservoir
             RCHFLX_out(iens,segIndex)%REACH_Q_IRF = target_r * RPARAM_in(segIndex)%H06_E_rel_ini
             print*,'multi-year reservoir'
-            print*, 'target_r*E_release', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
           else if (0 <= c .AND. c < RPARAM_in(segIndex)%H06_c_compare) then
             RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RPARAM_in(segIndex)%H06_E_rel_ini * target_r * (c / RPARAM_in(segIndex)%H06_denominator)**RPARAM_in(segIndex)%H06_exponent  + &
                                                    q_upstream * (1 - (c /RPARAM_in(segIndex)%H06_denominator)**RPARAM_in(segIndex)%H06_exponent)
             print*,'whithin-a-year reservoir'
-            print*, 'RCHFLX_out(iens,segIndex)%REACH_Q_IRF', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
           end if
 
           ! make sure reservoir volume does not drop below dead storage
           if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) < (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead)) then
             RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead - RCHFLX_out(iens,segIndex)%REACH_VOL(1) )
+            print*, 'below dead storage'
+            ! set negative outflow to zero
+            if (RCHFLX_out(iens,segIndex)%REACH_Q_IRF<0) then
+                RCHFLX_out(iens,segIndex)%REACH_Q_IRF=0
+            end if
+
+
+
           ! Account for spil overflow if reservoir is completely filled.
           else if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) > RPARAM_in(segIndex)%H06_Smax) then
             print*, 'overflow evoked'
             RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF + (RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RPARAM_in(segIndex)%H06_Smax)/ secprday
           end if
 
-          !print*, modTime(1)%im ! month of the simulations
+          ! update the storage
+          RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt
+
+          ! print*, modTime(1)%im ! month of the simulations
           ! print*, 'Hanasaki parameters'
-          ! print*, RPARAM_in(segIndex)%H06_Smax, RPARAM_in(segIndex)%H06_alpha, RPARAM_in(segIndex)%H06_envfact, RPARAM_in(segIndex)%H06_S_ini, RPARAM_in(segIndex)%H06_c1, RPARAM_in(segIndex)%H06_c2, RPARAM_in(segIndex)%H06_exponent, RPARAM_in(segIndex)%H06_I_Feb, RPARAM_in(segIndex)%H06_D_Feb
+          print*, RPARAM_in(segIndex)%H06_Smax, RPARAM_in(segIndex)%H06_alpha, RPARAM_in(segIndex)%H06_envfact, RPARAM_in(segIndex)%H06_S_ini, RPARAM_in(segIndex)%H06_c1, RPARAM_in(segIndex)%H06_c2, RPARAM_in(segIndex)%H06_exponent, RPARAM_in(segIndex)%H06_I_Feb, RPARAM_in(segIndex)%H06_D_Feb
 
         case default; ierr=20; message=trim(message)//'unable to identify the parametric lake model type'; return
       end select
@@ -270,6 +276,7 @@ module lake_route_module
     ! calculate water balance (in this water balance we dont have the actual evaporation, assuming there is enough water for evaporation)
     WB = q_upstream * dt + RCHFLX_out(iens,segIndex)%basinprecip * dt - RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt &
     - RCHFLX_out(iens,segIndex)%basinevapo * dt - (RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_VOL(0))
+
 
     !if(NETOPO_in(segIndex)%REACHIX == ixDesire)then    ! uncommnet when the ixDesire is fixed and not -9999
     !print*, 'lake simulated output m3/s .= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
