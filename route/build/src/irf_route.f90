@@ -46,7 +46,7 @@ CONTAINS
  type(subbasin_omp), intent(in),    allocatable  :: river_basin(:)      ! river basin information (mainstem, tributary outlet etc.)
  integer(i4b),       intent(in)                  :: ixDesire            ! index of the reach for verbose output ! Output
  type(RCHTOPO),      intent(in),    allocatable  :: NETOPO_in(:)        ! River Network topology
- type(RCHPRP),       intent(in),    allocatable  :: RPARAM_in(:)        ! River Network parameters
+ type(RCHPRP),       intent(inout),    allocatable  :: RPARAM_in(:)        ! River Network parameters
  ! inout
  TYPE(STRFLX),       intent(inout), allocatable  :: RCHFLX_out(:,:)     ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  ! output variables
