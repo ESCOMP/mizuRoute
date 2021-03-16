@@ -218,7 +218,7 @@ module lake_route_module
              RPARAM_in(segIndex)%H06_E_rel_ini = RCHFLX_out(iens,segIndex)%REACH_VOL(1) / (RPARAM_in(segIndex)%H06_alpha * RPARAM_in(segIndex)%H06_Smax)
           endif
 
-          print*,'E_release ', RPARAM_in(segIndex)%H06_E_rel_ini
+          ! print*,'E_release ', RPARAM_in(segIndex)%H06_E_rel_ini
 
           ! Calculate target release
           if (RPARAM_in(segIndex)%H06_purpose == 1) then ! irrigation reservoir
@@ -246,14 +246,12 @@ module lake_route_module
 
           ! make sure reservoir volume does not drop below dead storage
           if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) < (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead)) then
-            RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead - RCHFLX_out(iens,segIndex)%REACH_VOL(1) )
+            RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead - RCHFLX_out(iens,segIndex)%REACH_VOL(1) )/secprday
             print*, 'below dead storage'
             ! set negative outflow to zero
             if (RCHFLX_out(iens,segIndex)%REACH_Q_IRF<0) then
                 RCHFLX_out(iens,segIndex)%REACH_Q_IRF=0
             end if
-
-
 
           ! Account for spil overflow if reservoir is completely filled.
           else if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) > RPARAM_in(segIndex)%H06_Smax) then
@@ -261,6 +259,7 @@ module lake_route_module
             RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF + (RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RPARAM_in(segIndex)%H06_Smax)/ secprday
           end if
 
+          print*,'outflow ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
           ! update the storage
           RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt
 
