@@ -41,11 +41,93 @@ integer(i4b),parameter     :: recordDim=-999       ! record dimension Indicator
 
 private
 
+public::main_new_file
 public::prep_output
 public::output
 public::close_output_nc
 
 CONTAINS
+
+ ! *********************************************************************
+ ! public subroutine: main routine to define new output file
+ ! *********************************************************************
+ SUBROUTINE main_new_file(ierr, message)
+
+   USE globalData,        ONLY: modTime           ! previous and current model time
+
+  implicit none
+  ! output variables
+  integer(i4b),   intent(out)          :: ierr             ! error code
+  character(*),   intent(out)          :: message          ! error message
+  ! local variables
+  logical(lgt)                         :: newFileAlarm     ! logical to make alarm for restart writing
+  character(len=strLen)                :: cmessage         ! error message of downwind routine
+
+  ierr=0; message='main_new_file/'
+
+  call new_file_alarm(newFileAlarm, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  if (newFileAlarm) then
+    call prep_output(ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  modTime(0) = modTime(1)
+
+ END SUBROUTINE main_new_file
+
+
+ ! *********************************************************************
+ ! private subroutine: restart alarming
+ ! *********************************************************************
+ SUBROUTINE new_file_alarm(newFileAlarm, ierr, message)
+
+   USE public_var,        ONLY: calendar
+   USE public_var,        ONLY: newFileFrequency  ! frequency for new output files (day, month, annual, single)
+   USE globalData,        ONLY: modTime           ! previous and current model time
+   USE globalData,        ONLY: modJulday         ! julian day: at model time step
+   ! subroutines
+   USE time_utils_module, ONLy: compCalday        ! compute calendar day
+   USE time_utils_module, ONLy: compCalday_noleap ! compute calendar day
+
+   implicit none
+
+   ! output
+   logical(lgt),   intent(out)          :: newFileAlarm     ! logical to make alarm for creating new output file
+   integer(i4b),   intent(out)          :: ierr             ! error code
+   character(*),   intent(out)          :: message          ! error message
+   ! local variables
+   character(len=strLen)                :: cmessage         ! error message of downwind routine
+
+   ierr=0; message='new_file_alarm/'
+
+   ! get the time
+   select case(trim(calendar))
+     case('noleap','365_day')
+       call compCalday_noleap(modJulday,modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,ierr,cmessage)
+     case ('standard','gregorian','proleptic_gregorian')
+       call compCalday(modJulday,modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,ierr,cmessage)
+     case default;    ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
+   end select
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! print progress
+   if (masterproc) then
+     write(iulog,'(a,I4,4(x,I4))') new_line('a'), modTime(1)%iy, modTime(1)%im, modTime(1)%id, modTime(1)%ih, modTime(1)%imin
+   endif
+
+   ! check need for the new file
+   select case(newFileFrequency)
+     case('single'); newFileAlarm=(modTime(0)%iy==integerMissing)
+     case('annual'); newFileAlarm=(modTime(1)%iy/=modTime(0)%iy)
+     case('month');  newFileAlarm=(modTime(1)%im/=modTime(0)%im)
+     case('day');    newFileAlarm=(modTime(1)%id/=modTime(0)%id)
+     case default; ierr=20; message=trim(message)//'unable to identify the option to define new output files'; return
+   end select
+
+ END SUBROUTINE new_file_alarm
+
 
  ! *********************************************************************
  ! public subroutine: define routing output NetCDF file
@@ -79,6 +161,8 @@ CONTAINS
   ierr=0; message='output/'
 
   iens = 1
+
+  jTime = jTime+1
 
   ! Need to combine mainstem RCHFLX and tributary RCHFLX into RCHFLX_local for root node
   if (masterproc) then
@@ -169,7 +253,6 @@ CONTAINS
  USE public_var, ONLY: output_dir        ! output directory
  USE public_var, ONLY: case_name         ! simulation name ==> output filename head
  USE public_var, ONLY: calendar          ! calendar name
- USE public_var, ONLY: newFileFrequency  ! frequency for new output files (day, month, annual, single)
  USE public_var, ONLY: time_units        ! time units (seconds, hours, or days)
  ! saved global data
  USE globalData, ONLY: basinID,reachID   ! HRU and reach ID in network
@@ -188,49 +271,21 @@ CONTAINS
  integer(i4b), intent(out)       :: ierr             ! error code
  character(*), intent(out)       :: message          ! error message
  ! local variables
- logical(lgt)                    :: defNewOutputFile ! flag to define new output file
  integer(i4b)                    :: sec_in_day       ! second within day
  character(len=strLen)           :: cmessage         ! error message of downwind routine
  character(*),parameter          :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
 
  ierr=0; message='prep_output/'
 
-  ! get the time
-  select case(trim(calendar))
-   case('noleap','365_day')
-    call compCalday_noleap(modJulday,modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,ierr,cmessage)
-   case ('standard','gregorian','proleptic_gregorian')
-    call compCalday(modJulday,modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,ierr,cmessage)
-   case default;    ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
-  end select
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  ! print progress
-  if (masterproc) then
-    write(iulog,'(a,I4,4(x,I4))') new_line('a'), modTime(1)%iy, modTime(1)%im, modTime(1)%id, modTime(1)%ih, modTime(1)%imin
-  endif
-
-  ! check need for the new file
-  select case(newFileFrequency)
-   case('single'); defNewOutputFile=(modTime(0)%iy==integerMissing)
-   case('annual'); defNewOutputFile=(modTime(1)%iy/=modTime(0)%iy)
-   case('month');  defNewOutputFile=(modTime(1)%im/=modTime(0)%im)
-   case('day');    defNewOutputFile=(modTime(1)%id/=modTime(0)%id)
-   case default; ierr=20; message=trim(message)//'unable to identify the option to define new output files'; return
-  end select
-
-  if(defNewOutputFile)then
-
    ! close netcdf only if is is open
    call close_output_nc()
 
-   jTime=1
+   jTime=0
 
    ! Define filename
    sec_in_day = modTime(1)%ih*60*60+modTime(1)%imin*60+nint(modTime(1)%dsec)
    write(fileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuRoute.h.', &
                            modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '-',sec_in_day,'.nc'
-   write(iulog,*), trim(fileout)
 
    call defineFile(trim(fileout),                         &  ! input: file name
                    nEns,                                  &  ! input: number of ensembles
@@ -251,14 +306,6 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    isFileOpen = .True.
-
-  else
-
-   jTime = jTime+1
-
-  endif
-
-  modTime(0) = modTime(1)
 
  END SUBROUTINE prep_output
 
