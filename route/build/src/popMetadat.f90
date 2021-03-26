@@ -111,12 +111,12 @@ contains
  ! SEG                                           varName        varDesc                                                varUnit, varType, varFile
  meta_SEG    (ixSEG%length           ) = var_info('length'         , 'length of segment'                                 ,'m'     ,ixDims%seg   , .true.)
  meta_SEG    (ixSEG%slope            ) = var_info('slope'          , 'slope of segment'                                  ,'-'     ,ixDims%seg   , .true.)
- meta_SEG    (ixSEG%RATECVA          ) = var_info('RATECVA'        , 'stage-discharge relationship parameter A'          ,'-'     ,ixDims%seg   , .false.)
- meta_SEG    (ixSEG%RATECVB          ) = var_info('RATECVB'        , 'stage-discharge relationship parameter B'          ,'-'     ,ixDims%seg   , .false.)
- meta_SEG    (ixSEG%RATECVC          ) = var_info('RATECVC'        , 'stage-discharge relationship parameter C'          ,'-'     ,ixDims%seg   , .false.)
- meta_SEG    (ixSEG%RATECVD          ) = var_info('RATECVD'        , 'stage-discharge relationship parameter D'          ,'-'     ,ixDims%seg   , .false.)
- meta_SEG    (ixSEG%RATECVE          ) = var_info('RATECVE'        , 'stage-discharge relationship parameter E'          ,'-'     ,ixDims%seg   , .false.)
- meta_SEG    (ixSEG%RATECVF          ) = var_info('RATECVF'        , 'stage-discharge relationship parameter F'          ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%D03MaxStorage    ) = var_info('D03MaxStorage'  , 'maximume storage Doll 2003'                        ,'m3'    ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%D03Coefficient   ) = var_info('D03Coefficient' , 'coefficient Doll 2003'                             ,'day-1' ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%D03Power         ) = var_info('D03Power'       , 'power Doll 2003'                                   ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06TestP1        ) = var_info('H06TestP1'      , 'stage-discharge relationship parameter D'          ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06TestP2        ) = var_info('H06TestP2'      , 'stage-discharge relationship parameter E'          ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06Memory        ) = var_info('H06Memory'      , 'stage-discharge relationship parameter F'          ,'-'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%width            ) = var_info('width'          , 'width of segment'                                  ,'m'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%man_n            ) = var_info('man_n'          , 'Mannings n'                                        ,'weird' ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%hruArea          ) = var_info('hruArea'        , 'area of each contributing HRU'                     ,'m2'    ,ixDims%upHRU , .false.)
@@ -149,6 +149,7 @@ contains
  meta_NTOPO  (ixNTOPO%goodBasin      ) = var_info('goodBasin'      , 'flag to define a good basin (1=true)'               ,'-'    ,ixDims%upSeg , .false.)
  meta_NTOPO  (ixNTOPO%islake         ) = var_info('islake'         , 'flag to define if the object is lake (1=true)'      ,'-'    ,ixDims%Seg   , .false.)
  meta_NTOPO  (ixNTOPO%LakeTargVol    ) = var_info('LakeTargVol'    , 'flag to define if lake follow target Vol (1=true)'  ,'-'    ,ixDims%Seg   , .false.)
+ meta_NTOPO  (ixNTOPO%LakeModelType  ) = var_info('LakeModelType'  , 'lake model type (1=Doll, 2=Hanasaki, etc=none-para)','-'    ,ixDims%Seg   , .false.)
 
  ! PFAF CODE                                     varName        varDesc                                                varUnit, varType, varFile
  meta_PFAF  (ixPFAF%code             ) = var_info('code'           , 'pfafstetter code'                                   ,'-'    ,ixDims%seg   , .true.)

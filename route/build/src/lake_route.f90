@@ -19,7 +19,7 @@ module lake_route_module
 
   contains
 
-   ! *********************************************************************
+  ! *********************************************************************
   ! subroutine: perform one segment lake routing
   ! *********************************************************************
   subroutine lake_route(&
@@ -35,14 +35,16 @@ module lake_route_module
                          ierr, message)   ! output: error control
 
   USE public_var, ONLY: dt, lakeWBTol     ! lake water balance tolerance
+  USE public_var, ONLY: lake_model_D03    ! logical whether or not lake should be simulated
+  USE public_var, ONLY: lake_model_H06    ! logical whether or not lake should be simulated
 
   implicit none
   ! Input
-  INTEGER(I4B), intent(IN)                 :: iEns           ! runoff ensemble to be routed
-  INTEGER(I4B), intent(IN)                 :: segIndex       ! segment where routing is performed
-  INTEGER(I4B), intent(IN)                 :: ixDesire       ! index of the reach for verbose output
-  type(RCHTOPO), intent(IN),   allocatable :: NETOPO_in(:)   ! River Network topology
-  type(RCHPRP),  intent(IN),   allocatable :: RPARAM_in(:)   ! River Network topology
+  INTEGER(I4B), intent(in)                 :: iEns           ! runoff ensemble to be routed
+  INTEGER(I4B), intent(in)                 :: segIndex       ! segment where routing is performed
+  INTEGER(I4B), intent(in)                 :: ixDesire       ! index of the reach for verbose output
+  type(RCHTOPO), intent(in),   allocatable :: NETOPO_in(:)   ! River Network topology
+  type(RCHPRP),  intent(in),   allocatable :: RPARAM_in(:)   ! River Network topology
   ! inout
   TYPE(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
   ! Output
@@ -89,18 +91,18 @@ module lake_route_module
     ! if(NETOPO_in(segIndex)%REACHIX == ixDesire)then   ! uncommnet when the ixDesire is fixed and not -9999
     !print*, '------lake-simulation-------- '
     !print*, 'node id that is lake .......= ', NETOPO_in(segIndex)%REACHID ! to check the reach id of lake
-    !print*, 'lake param RATECVA .........= ', RPARAM_in(segIndex)%RATECVA
-    !print*, 'lake param RATECVB .........= ', RPARAM_in(segIndex)%RATECVB
-    !print*, 'lake param RATECVC .........= ', RPARAM_in(segIndex)%RATECVC
-    !print*, 'lake param RATECVD .........= ', RPARAM_in(segIndex)%RATECVD
-    !print*, 'lake param RATECVE .........= ', RPARAM_in(segIndex)%RATECVE
-    !print*, 'lake param RATECVF .........= ', RPARAM_in(segIndex)%RATECVF
+    !print*, 'lake param D03MaxStorage ...= ', RPARAM_in(segIndex)%D03MaxStorage
+    !print*, 'lake param D03Coefficient ..= ', RPARAM_in(segIndex)%D03Coefficient
+    !print*, 'lake param D03Power ........= ', RPARAM_in(segIndex)%D03Power
+    !print*, 'lake param H06TestP1 .......= ', RPARAM_in(segIndex)%H06TestP1
+    !print*, 'lake param H06TestP2 .......= ', RPARAM_in(segIndex)%H06TestP2
+    !print*, 'lake param H06Memory .......= ', RPARAM_in(segIndex)%H06Memory
     !print*, 'lake target volum ..........= ', NETOPO_in(segIndex)%LakeTargVol
     !print*, 'volume before simulation m3.= ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
     !print*, 'upstream streamflow m3/s ...= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
     !print*, 'upstream precipitation m3/s.= ', RCHFLX_out(iens,segIndex)%basinprecip
     !print*, 'upstream evaporation m3/s ..= ', RCHFLX_out(iens,segIndex)%basinevapo
-    ! endif
+    !print*, 'paraemters', RPARAM_in(segIndex)%D03MaxStorage, RPARAM_in(segIndex)%D03Coefficient, RPARAM_in(segIndex)%D03Power, NETOPO_in(segIndex)%LakeTargVol, NETOPO_in(segIndex)%islake, NETOPO_in(segIndex)%LakeModelType
 
 
     ! add upstream, precipitation and subtract evaporation from the lake volume
@@ -122,20 +124,44 @@ module lake_route_module
         RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_WM_VOL
       endif
 
-      print*, "inside the lake follow target", RCHFLX_out(iens,segIndex)%REACH_WM_VOL, RCHFLX_out(iens,segIndex)%REACH_VOL(1)
+      !print*, "inside the lake follow target", RCHFLX_out(iens,segIndex)%REACH_WM_VOL, RCHFLX_out(iens,segIndex)%REACH_VOL(1)
 
     else ! if the lake is paraemteric
 
-      RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RPARAM_in(segIndex)%RATECVA * RCHFLX_out(iens,segIndex)%REACH_VOL(1) * &
-                                               (RCHFLX_out(iens,segIndex)%REACH_VOL(1) / RPARAM_in(segIndex)%RATECVC) ** &
-                                               RPARAM_in(segIndex)%RATECVB! Q = AS(S/Smax)^B based on Eq. 1 Hanasaki et al., 2006 https://doi.org/10.1016/j.jhydrol.2005.11.011
-      ! in case is the output volume is more than lake volume
-      RCHFLX_out(iens,segIndex)%REACH_Q_IRF = (min(RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt, RCHFLX_out(iens,segIndex)%REACH_VOL(1)) )/dt
-      ! updating the storage
-      RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt
-      if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) < 0) then; ! set the lake volume as 0 if it goes negative
-        RCHFLX_out(iens,segIndex)%REACH_VOL(1)=0
-      endif
+      !print*, "lake model is Doll 2003", NETOPO_in(segIndex)%LakeModelType
+      select case(NETOPO_in(segIndex)%LakeModelType)
+
+        case (1)
+          ! the model is Doll03
+          !print*, "lake model is Doll 2003"
+          RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RPARAM_in(segIndex)%D03Coefficient * RCHFLX_out(iens,segIndex)%REACH_VOL(1) * &
+                                                   (RCHFLX_out(iens,segIndex)%REACH_VOL(1) / RPARAM_in(segIndex)%D03MaxStorage) ** &
+                                                   RPARAM_in(segIndex)%D03Power! Q = AS(S/Smax)^B based on Eq. 1 Hanasaki et al., 2006 https://doi.org/10.1016/j.jhydrol.2005.11.011
+          ! in case is the output volume is more than lake volume
+          RCHFLX_out(iens,segIndex)%REACH_Q_IRF = (min(RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt, RCHFLX_out(iens,segIndex)%REACH_VOL(1)) )/dt
+          ! updating the storage
+          RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt
+          if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) < 0) then; ! set the lake volume as 0 if it goes negative
+            RCHFLX_out(iens,segIndex)%REACH_VOL(1)=0
+          endif
+
+        case (2)
+          ! the model is Hanasaki06
+          ! preserving the past upstream discharge for lake models
+          !print*, "lake model is Hanasaki 2006"
+          if (allocated(RCHFLX_out(iens,segIndex)%QPASTUP_IRF)) then
+            RCHFLX_out(iens,segIndex)%QPASTUP_IRF(2:10) = RCHFLX_out(iens,segIndex)%QPASTUP_IRF(1:9) ! here the length is 10 as a randome varibale
+            RCHFLX_out(iens,segIndex)%QPASTUP_IRF(1) = q_upstream ! code needed to shift this as well.
+          else
+            allocate(RCHFLX_out(iens,segIndex)%QPASTUP_IRF(10),stat=ierr) ! 10 a random value for now
+            if(ierr/=0)then; message=trim(message)//'problem allocating QPASTUP_IRF'; return; endif
+            RCHFLX_out(iens,segIndex)%QPASTUP_IRF(:) = 0._dp
+            RCHFLX_out(iens,segIndex)%QPASTUP_IRF(1) = q_upstream
+          endif
+          !print*, RCHFLX_out(iens,segIndex)%QPASTUP_IRF
+
+        case default; ierr=20; message=trim(message)//'unable to identify the parametric lake model type'; return
+      end select
 
     endif
 

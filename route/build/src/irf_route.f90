@@ -143,9 +143,9 @@ CONTAINS
  USE public_var,                          ONLY:is_flux_wm   ! logical water management components fluxes should be read
  implicit none
  ! Input
- INTEGER(I4B), intent(IN)                 :: iEns           ! runoff ensemble to be routed
- INTEGER(I4B), intent(IN)                 :: segIndex       ! segment where routing is performed
- INTEGER(I4B), intent(IN)                 :: ixDesire       ! index of the reach for verbose output
+ INTEGER(I4B), intent(in)                 :: iEns           ! runoff ensemble to be routed
+ INTEGER(I4B), intent(in)                 :: segIndex       ! segment where routing is performed
+ INTEGER(I4B), intent(in)                 :: ixDesire       ! index of the reach for verbose output
  type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)   ! River Network topology
  ! inout
  TYPE(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
