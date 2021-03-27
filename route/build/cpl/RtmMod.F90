@@ -236,7 +236,7 @@ CONTAINS
     USE globalData,          ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
     USE globalData,          ONLY: basinRunoff_main ! mainstem only HRU runoff
     USE globalData,          ONLY: basinRunoff_trib ! tributary only HRU runoff
-    USE write_simoutput_pio, ONLY: prep_output
+    USE write_simoutput_pio, ONLY: main_new_file    !
     USE mpi_routine,         ONLY: mpi_route        ! MPI routing call
     USE write_simoutput_pio, ONLY: output
     USE write_restart_pio,   ONLY: restart_output
@@ -427,31 +427,32 @@ CONTAINS
 
     enddo
 
-    if (npes==1) then
-      allocate(RCHFLX_local(rch_per_proc(-1)), stat=ierr)
-      RCHFLX_local(1:rch_per_proc(-1)) = RCHFLX_main(iens,1:rch_per_proc(-1))
-    else
-      if (masterproc) then
-        associate(nRch_main => rch_per_proc(-1), nRch_trib => rch_per_proc(0))
-        allocate(RCHFLX_local(nRch_main+nRch_trib), stat=ierr)
-        if (nRch_main/=0) then
-          RCHFLX_local(1:nRch_main) = RCHFLX_main(iens, 1:nRch_main)
-        end if
-        if (nRch_trib/=0) then
-          RCHFLX_local(nRch_main+1:nRch_main+nRch_trib) = RCHFLX_trib(iens,1:nRch_trib)
-        end if
-        end associate
-      else
-        allocate(RCHFLX_local(rch_per_proc(iam)), stat=ierr)
-        RCHFLX_local(1:rch_per_proc(iam)) = RCHFLX_trib(iens, 1:rch_per_proc(iam))
-      endif
-    endif
+!    if (npes==1) then
+!      allocate(RCHFLX_local(rch_per_proc(-1)), stat=ierr)
+!      RCHFLX_local(1:rch_per_proc(-1)) = RCHFLX_main(iens,1:rch_per_proc(-1))
+!    else
+!      if (masterproc) then
+!        associate(nRch_main => rch_per_proc(-1), nRch_trib => rch_per_proc(0))
+!        allocate(RCHFLX_local(nRch_main+nRch_trib), stat=ierr)
+!        if (nRch_main/=0) then
+!          RCHFLX_local(1:nRch_main) = RCHFLX_main(iens, 1:nRch_main)
+!        end if
+!        if (nRch_trib/=0) then
+!          RCHFLX_local(nRch_main+1:nRch_main+nRch_trib) = RCHFLX_trib(iens,1:nRch_trib)
+!        end if
+!        end associate
+!      else
+!        allocate(RCHFLX_local(rch_per_proc(iam)), stat=ierr)
+!        RCHFLX_local(1:rch_per_proc(iam)) = RCHFLX_trib(iens, 1:rch_per_proc(iam))
+!      endif
+!    endif
 
-    do nr = rtmCTL%begr,rtmCTL%endr
-      rtmCTL%volr(nr)      = 0._r8
-      rtmCTL%flood(nr)     = 0._r8
-      rtmCTL%discharge(nr,1) = rtmCTL%discharge(nr,1) + RCHFLX_local(nr)%REACH_Q
-    enddo
+    ! Need to fix nr index is for hru. if hru number and rch number are different, this does not work
+!    do nr = rtmCTL%begr,rtmCTL%endr
+!      rtmCTL%volr(nr)      = 0._r8
+!      rtmCTL%flood(nr)     = 0._r8
+!      rtmCTL%discharge(nr,1) = rtmCTL%discharge(nr,1) + RCHFLX_local(nr)%REACH_Q
+!    enddo
 
 
     call t_stopf('mizuRoute_subcycling')
