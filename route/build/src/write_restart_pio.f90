@@ -166,7 +166,7 @@ CONTAINS
   character(*),   intent(out)          :: message          ! error message
   ! local variables
   character(len=strLen)                :: cmessage         ! error message of downwind routine
-  character(len=strLen)                :: fnameRestart     ! name of the restart file name
+  character(len=300)                   :: fnameRestart     ! name of the restart file name
   character(len=50),parameter          :: fmtYMDHMS = '(2a,I0.4,a,I0.2,a,I0.2,x,I0.2,a,I0.2,a,I0.2)'
 
   ierr=0; message='restart_output/'
@@ -187,7 +187,7 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   open (1, file = trim(restart_dir)//trim(rpntfil), status='replace', action='write')
-  write(1,*) trim(fnameRestart)
+  write(1,'(a)') trim(fnameRestart)
   close(1)
 
  END SUBROUTINE restart_output
