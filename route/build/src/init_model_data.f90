@@ -307,7 +307,7 @@ CONTAINS
   ! shared data
   USE public_var, ONLY: dt                ! simulation time step (seconds)
   USE public_var, ONLY: routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-  USE public_var, ONLY: output_dir        ! directory containing output data
+  USE public_var, ONLY: restart_dir       ! directory containing output data
   USE public_var, ONLY: fname_state_in    ! name of state input file
   USE public_var, ONLY: kinematicWaveEuler!
   USE globalData, ONLY: masterproc        ! root proc logical
@@ -341,7 +341,7 @@ CONTAINS
   if (trim(fname_state_in)/=charMissing) then
 
    if (masterproc) then
-    call read_state_nc(trim(output_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
+    call read_state_nc(trim(restart_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! time bound [sec] is at previous time step, so need to add dt for curent time step
@@ -455,12 +455,14 @@ CONTAINS
 
   ! get the variable dimensions
   ! NOTE: need to update maxPfafLen to the exact character size for pfaf code in netCDF
-  call get_var_dims(trim(ancil_dir)//trim(fname_ntopOld), & ! input: file name
-                    trim(meta_PFAF(ixPFAF%code)%varName), & ! input: pfaf code variable name in netcdf
-                    ierr, cmessage,                       & ! output: error control
-                    dlen=dummy)                             ! output optional: dimension length
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  maxPfafLen = dummy(1)
+  if (meta_PFAF(ixPFAF%code)%varFile) then
+    call get_var_dims(trim(ancil_dir)//trim(fname_ntopOld), & ! input: file name
+                      trim(meta_PFAF(ixPFAF%code)%varName), & ! input: pfaf code variable name in netcdf
+                      ierr, cmessage,                       & ! output: error control
+                      dlen=dummy)                             ! output optional: dimension length
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    maxPfafLen = dummy(1)
+  end if
 
   call getData(&
                ! input

@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
 ####################################################################################
-def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_list_path):
+def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile, nmlgen, ctl, data_list_path):
 ####################################################################################
     """Write out the input configuration file for mizuRoute
 
@@ -54,9 +54,9 @@ def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_
     #----------------------------------------------------
     # Settings that depend on the resolution
     #----------------------------------------------------
-    if (    config['rof_grid'] == "HDMA" ):
-       fname_ntopOld = "ntopo_HDMA_c20191025.nc"
-       varname_area = "Basin_area"
+    if (    config['rof_grid'] == "HDMAmz" ):
+       fname_ntopOld = "ntopo_HDMAmz_Global_cdf5_fill_reorder_c20200828.nc"
+       varname_area = "Basin_Area"
        varname_length = "Length"
        varname_slope  = "Slope"
        varname_HRUid = "hruid"
@@ -64,7 +64,7 @@ def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_
        varname_segId = "seg_id"
        varname_downSegId = "Tosegment"
        varname_pfafCode = "PFAF"
-    elif (  config['rof_grid'] == "r05" ):
+    elif (  config['rof_grid'] == "r05mz" ):
        fname_ntopOld = "ntopo_r05_MOSART_Global_half_20161105a_cdf5_reord_360_c20200427.nc"
        varname_area = "hruArea"
        varname_length = "rlen"
@@ -74,7 +74,27 @@ def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_
        varname_segId = "segID"
        varname_downSegId = "toSegID"
        varname_pfafCode = "pCode"
-    elif (  config['rof_grid'] == "r05_amazon" ):
+    elif (  config['rof_grid'] == "HDMA_CONUSmz" ):
+       fname_ntopOld = "ntopo_HDMAmz_0.125nldas2_cdf5_fill_reorder_c20200828.nc"
+       varname_area = "Basin_Area"
+       varname_length = "Length"
+       varname_slope  = "Slope"
+       varname_HRUid = "hruid"
+       varname_hruSegId = "hru_seg_id"
+       varname_segId = "seg_id"
+       varname_downSegId = "Tosegment"
+       varname_pfafCode = "PFAF"
+    elif (  config['rof_grid'] == "USGS_GFmz" ):
+       fname_ntopOld = "ntopo_USGS-GFmz_Conus_cdf5_c20201008.nc"
+       varname_area = "Basin_Area"
+       varname_length = "Length"
+       varname_slope  = "Slope"
+       varname_HRUid = "hruid"
+       varname_hruSegId = "hru_seg_id"
+       varname_segId = "seg_id"
+       varname_downSegId = "Tosegment"
+       varname_pfafCode = "PFAF"
+    elif (  config['rof_grid'] == "r05mz_amazon" ):
        fname_ntopOld = "ntopo_r05_MOSART_amazon_half_20161105a_cdf5_reord_360_c20200624.nc"
        varname_area = "hruArea"
        varname_length = "rlen"
@@ -84,6 +104,26 @@ def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_
        varname_segId = "segID"
        varname_downSegId = "toSegID"
        varname_pfafCode = "pCode"
+    elif (  config['rof_grid'] == "HDMAmz_amazon" ):
+       fname_ntopOld = "ntopo_HDMAmz_5x5_amazon_cdf5_c20200730.nc"
+       varname_area = "Basin_Area"
+       varname_length = "Length"
+       varname_slope  = "Slope"
+       varname_HRUid = "hruid"
+       varname_hruSegId = "hru_seg_id"
+       varname_segId = "seg_id"
+       varname_downSegId = "Tosegment"
+       varname_pfafCode = "PFAF"
+    elif (  config['rof_grid'] == "MERITmz" ):
+       fname_ntopOld = "ntopo_MERIT_Hydro_Global_cdf5_fill_reorder_v1_c20210113.nc"
+       varname_area = "Basin_Area"
+       varname_length = "length"
+       varname_slope  = "Slope"
+       varname_HRUid = "hruid"
+       varname_hruSegId = "hru_seg_id"
+       varname_segId = "seg_id"
+       varname_downSegId = "Tosegment"
+       varname_pfafCode = "pfaf"
     else:
        expect( False, "mizuRoute does NOT know about this grid: "+config['rof_grid'] )
 
@@ -115,8 +155,6 @@ def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_
     ctl.set( "fname_ntopOld", fname_ntopOld )
     ctl.set( "dname_sseg", "seg" )
     ctl.set( "dname_nhru", "hru" )
-    ctl.set( "sim_start", run_start )
-    ctl.set( "sim_end", "2001-12-31" )
     ctl.set( "param_nml", "mizuRoute_in" )
     ctl.set( "varname_area", varname_area )
     ctl.set( "varname_length", varname_length )
@@ -149,6 +187,18 @@ def _create_control_files(case, confdir, inst_string, infile, nmlgen, ctl, data_
             fname_state_in = "empty"
 
     ctl.set( "fname_state_in", fname_state_in )
+
+    # Read in the user control file for the case and change settings to it
+    file_src = "user_ctl_mizuRoute"
+    user_ctl_file = os.path.join(caseroot, file_src + inst_string)
+    if ( not os.path.exists( user_ctl_file ) ):
+       shutil.copy( os.path.join( srcroot, "cime_config", file_src), user_ctl_file )
+    usrctl = mizuRoute_control()
+    usrctl.read( user_ctl_file, allowEmpty=True )
+    for element in usrctl.get_elmList():
+       value = ctl.get( element )
+       expect( value != "UNSET", "Element in the user_ctl_mizuRoute file is NOT in the control file: "+element )
+       ctl.set( element, usrctl.get( element ) )
 
     #----------------------------------------------------
     # Write output files
@@ -220,24 +270,12 @@ def buildnml(case, caseroot, compname):
     create_namelist_infile(case, user_nl_file, infile)
     control_infile = [infile]
 
-    # Read in the user control file for the case and change settings to it
-    file_src = "user_ctl_mizuRoute"
-    user_ctl_file = os.path.join(caseroot, file_src + inst_string)
-    if ( not os.path.exists( user_ctl_file ) ):
-       shutil.copy( os.path.join( srcroot, "cime_config", file_src), user_ctl_file )
-    usrctl = mizuRoute_control()
-    usrctl.read( user_ctl_file, allowEmpty=True )
-    for element in usrctl.get_elmList():
-       value = ctl.get( element )
-       expect( value != "UNSET", "Element in the user_ctl_mizuRoute file is NOT in the control file: "+element )
-       ctl.set( element, usrctl.get( element ) )
-
     # Create the namelist generator object - independent of instance
     definition_files = [srcroot + "/cime_config/namelist_definition_mizuRoute.xml"]
     nmlgen = NamelistGenerator(case, definition_files)
 
     # create control files
-    _create_control_files(case, confdir, inst_string, control_infile, nmlgen, ctl, data_list_path)
+    _create_control_files(case, caseroot, srcroot, confdir, inst_string, control_infile, nmlgen, ctl, data_list_path)
 
     # copy control files to rundir
     if os.path.isdir(rundir):
