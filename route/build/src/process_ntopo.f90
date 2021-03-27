@@ -375,6 +375,7 @@ end subroutine augment_ntopo
   USE globalData,    ONLY: fshape, tscale     ! basin IRF routing parameters (Transfer function parameters)
   USE public_var,    ONLY: min_slope          ! minimum slope
   USE public_var,    ONLY: dt                 ! simulation time step [sec]
+  USE public_var,    ONLY: is_lake_sim        ! lake simulation option
   ! external subroutines
   USE routing_param, ONLY: basinUH            ! construct basin unit hydrograph
   implicit none
@@ -413,12 +414,15 @@ end subroutine augment_ntopo
    RPARAM_in(iSeg)%R_SLOPE         = max(structSEG(iSeg)%var(ixSEG%slope)%dat(1), min_slope)
    RPARAM_in(iSeg)%R_MAN_N         =     structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
    RPARAM_in(iSeg)%R_WIDTH         =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
-   RPARAM_in(iSeg)%D03MaxStorage   =     structSEG(iSeg)%var(ixSEG%D03MaxStorage)%dat(1)
-   RPARAM_in(iSeg)%D03Coefficient  =     structSEG(iSeg)%var(ixSEG%D03Coefficient)%dat(1)
-   RPARAM_in(iSeg)%D03Power        =     structSEG(iSeg)%var(ixSEG%D03Power)%dat(1)
-   RPARAM_in(iSeg)%H06TestP1       =     structSEG(iSeg)%var(ixSEG%H06TestP1)%dat(1)
-   RPARAM_in(iSeg)%H06TestP2       =     structSEG(iSeg)%var(ixSEG%H06TestP2)%dat(1)
-   RPARAM_in(iSeg)%H06Memory       =     structSEG(iSeg)%var(ixSEG%H06Memory)%dat(1)
+
+   if (is_lake_sim) then
+     RPARAM_in(iSeg)%D03MaxStorage   =     structSEG(iSeg)%var(ixSEG%D03MaxStorage)%dat(1)
+     RPARAM_in(iSeg)%D03Coefficient  =     structSEG(iSeg)%var(ixSEG%D03Coefficient)%dat(1)
+     RPARAM_in(iSeg)%D03Power        =     structSEG(iSeg)%var(ixSEG%D03Power)%dat(1)
+     RPARAM_in(iSeg)%H06TestP1       =     structSEG(iSeg)%var(ixSEG%H06TestP1)%dat(1)
+     RPARAM_in(iSeg)%H06TestP2       =     structSEG(iSeg)%var(ixSEG%H06TestP2)%dat(1)
+     RPARAM_in(iSeg)%H06Memory       =     structSEG(iSeg)%var(ixSEG%H06Memory)%dat(1)
+   end if
 
    ! compute variables
    RPARAM_in(iSeg)%BASAREA = structSEG(iSeg)%var(ixSEG%basArea)%dat(1)
@@ -469,19 +473,19 @@ end subroutine augment_ntopo
      end do  ! Loop through contributing HRU loop
    end if
 
-
    ! lake parameters
-   ! USED
-   NETOPO_in(iSeg)%isLake       = (structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)==true)
-   NETOPO_in(iSeg)%LakeTargVol  = (structNTOPO(iSeg)%var(ixNTOPO%LakeTargVol)%dat(1)==true)
-   NETOPO_in(iSeg)%LakeModelType= structNTOPO(iSeg)%var(ixNTOPO%LakeModelType)%dat(1) ! type of the parameteric lake
-   ! NOT USED: lake parameters
-   NETOPO_in(iSeg)%LAKE_IX = integerMissing  ! Lake index (0,1,2,...,nlak-1)
-   NETOPO_in(iSeg)%LAKE_ID = integerMissing  ! Lake ID (REC code?)
-   NETOPO_in(iSeg)%BASULAK = realMissing     ! Area of basin under lake
-   NETOPO_in(iSeg)%RCHULAK = realMissing     ! Length of reach under lake
-   NETOPO_in(iSeg)%LAKINLT = .false.         ! .TRUE. if reach is lake inlet, .FALSE. otherwise
-   NETOPO_in(iSeg)%USRTAKE = .false.         ! .TRUE. if user takes from reach, .FALSE. otherwise
+   if (is_lake_sim) then
+     NETOPO_in(iSeg)%isLake       = (structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)==true)
+     NETOPO_in(iSeg)%LakeTargVol  = (structNTOPO(iSeg)%var(ixNTOPO%LakeTargVol)%dat(1)==true)
+     NETOPO_in(iSeg)%LakeModelType= structNTOPO(iSeg)%var(ixNTOPO%LakeModelType)%dat(1) ! type of the parameteric lake
+     ! NOT USED: lake parameters
+     NETOPO_in(iSeg)%LAKE_IX = integerMissing  ! Lake index (0,1,2,...,nlak-1)
+     NETOPO_in(iSeg)%LAKE_ID = integerMissing  ! Lake ID (REC code?)
+     NETOPO_in(iSeg)%BASULAK = realMissing     ! Area of basin under lake
+     NETOPO_in(iSeg)%RCHULAK = realMissing     ! Length of reach under lake
+     NETOPO_in(iSeg)%LAKINLT = .false.         ! .TRUE. if reach is lake inlet, .FALSE. otherwise
+     NETOPO_in(iSeg)%USRTAKE = .false.         ! .TRUE. if user takes from reach, .FALSE. otherwise
+   end if
 
    ! NOT USED: Location (available in the input files)
    NETOPO_in(iSeg)%RCHLAT1 = realMissing     ! Start latitude

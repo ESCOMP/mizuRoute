@@ -169,6 +169,7 @@ MODULE var_lookup
  !IRF state/fluxes
  type, public  ::  iLook_IRF
   integer(i4b)     :: qfuture        = integerMissing  ! future routed flow
+  integer(i4b)     :: irfVol         = integerMissing  ! irf reach volume
  endtype iLook_IRF
  ! ***********************************************************************************************************
  ! ** define data vectors
@@ -185,7 +186,7 @@ MODULE var_lookup
  type(iLook_rflx)     ,public,parameter :: ixRFLX      = iLook_rflx     (1,2,3,4,5,6,7,8)
  type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      (1,2,3,4,5)
  type(iLook_KWE)      ,public,parameter :: ixKWE       = iLook_KWE      (1,2)
- type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      (1)
+ type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      (1,2)
  type(iLook_IRFbas  ) ,public,parameter :: ixIRFbas    = iLook_IRFbas   (1,2)
  ! ***********************************************************************************************************
  ! ** define size of data vectors

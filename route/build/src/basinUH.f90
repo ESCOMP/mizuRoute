@@ -114,13 +114,14 @@ CONTAINS
 
   end if
 
-   FRAC_FUTURE_local = FRAC_FUTURE
+  allocate(FRAC_FUTURE_local, source=FRAC_FUTURE, stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'unable to allocate space for FRAC_FUTURE_local'; return; endif
 
-   ! if the segment is flaged as lake and is_lake is on then no lagged flow for lakes
-   if ((NETOPO_in(iSeg)%islake).and.(is_lake_sim)) then;
-     FRAC_FUTURE_local(:) = 0._dp
-     FRAC_FUTURE_local(1) = 1._dp
-   endif
+  ! if the segment is flaged as lake and is_lake is on then no lagged flow for lakes
+  if ((NETOPO_in(iSeg)%islake).and.(is_lake_sim)) then;
+    FRAC_FUTURE_local(:) = 0._dp
+    FRAC_FUTURE_local(1) = 1._dp
+  endif
 
   ! perform river network UH routing
   call irf_conv(FRAC_FUTURE_local,               &    ! input: unit hydrograph

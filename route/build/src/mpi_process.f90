@@ -51,6 +51,8 @@ integer(i4b),parameter  :: tributary=2
 integer(i4b),parameter  :: endorheic=3
 
 logical(lgt), parameter :: debug_mpi=.false.
+logical(lgt), parameter :: debug_trib_omp=.false.
+logical(lgt), parameter :: debug_main_omp=.false.
 
 private
 
@@ -266,17 +268,19 @@ contains
      jSeg = ixRch_order(iSeg) ! global index, ordered by domain/node
      segId(iSeg)           = structNTOPO(jSeg)%var(ixNTOPO%segId)%dat(1)
      downSegId(iSeg)       = structNTOPO(jSeg)%var(ixNTOPO%downSegId)%dat(1)
-     islake(iSeg)          = structNTOPO(jSeg)%var(ixNTOPO%islake)%dat(1)
-     LakeTargVol(iSeg)     = structNTOPO(jSeg)%var(ixNTOPO%LakeTargVol)%dat(1)
-     LakeModelType(iSeg)   = structNTOPO(jSeg)%var(ixNTOPO%LakeModelType)%dat(1)
      slope(iSeg)           = structSEG(  jSeg)%var(ixSEG%slope)%dat(1)
      length(iSeg)          = structSEG(  jSeg)%var(ixSEG%length)%dat(1)
-     D03MaxStorage(iSeg)   = structSEG(  jSeg)%var(ixSEG%D03MaxStorage)%dat(1)
-     D03Coefficient(iSeg)  = structSEG(  jSeg)%var(ixSEG%D03Coefficient)%dat(1)
-     D03Power(iSeg)        = structSEG(  jSeg)%var(ixSEG%D03Power)%dat(1)
-     H06TestP1(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06TestP1)%dat(1)
-     H06TestP2(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06TestP2)%dat(1)
-     H06Memory(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06Memory)%dat(1)
+      if (is_lake_sim) then
+        islake(iSeg)          = structNTOPO(jSeg)%var(ixNTOPO%islake)%dat(1)
+        LakeTargVol(iSeg)     = structNTOPO(jSeg)%var(ixNTOPO%LakeTargVol)%dat(1)
+        LakeModelType(iSeg)   = structNTOPO(jSeg)%var(ixNTOPO%LakeModelType)%dat(1)
+        D03MaxStorage(iSeg)   = structSEG(  jSeg)%var(ixSEG%D03MaxStorage)%dat(1)
+        D03Coefficient(iSeg)  = structSEG(  jSeg)%var(ixSEG%D03Coefficient)%dat(1)
+        D03Power(iSeg)        = structSEG(  jSeg)%var(ixSEG%D03Power)%dat(1)
+        H06TestP1(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06TestP1)%dat(1)
+        H06TestP2(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06TestP2)%dat(1)
+        H06Memory(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06Memory)%dat(1)
+      end if
     end do
 
     ! hru array
@@ -323,20 +327,22 @@ contains
     ! -----------------------------------------------------------------------------
     !  Send the information for tributaries to individual processors
     ! -----------------------------------------------------------------------------
-
     call shr_mpi_scatterV(segId         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), segId_local,         ierr, cmessage)
     call shr_mpi_scatterV(downSegId     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), downSegId_local,     ierr, cmessage)
     call shr_mpi_scatterV(slope         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), slope_local,         ierr, cmessage)
     call shr_mpi_scatterV(length        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), length_local,        ierr, cmessage)
-    call shr_mpi_scatterV(islake        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), islake_local,        ierr, cmessage)
-    call shr_mpi_scatterV(LakeTargVol   (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), LakeTargVol_local,   ierr, cmessage)
-    call shr_mpi_scatterV(LakeModelType (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), LakeModelType_local, ierr, cmessage)
-    call shr_mpi_scatterV(D03MaxStorage (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03MaxStorage_local, ierr, cmessage)
-    call shr_mpi_scatterV(D03Coefficient(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03Coefficient_local,ierr, cmessage)
-    call shr_mpi_scatterV(D03Power      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03Power_local,      ierr, cmessage)
-    call shr_mpi_scatterV(H06TestP1     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06TestP1_local,     ierr, cmessage)
-    call shr_mpi_scatterV(H06TestP2     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06TestP2_local,     ierr, cmessage)
-    call shr_mpi_scatterV(H06Memory     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06Memory_local,     ierr, cmessage)
+
+    if (is_lake_sim) then
+      call shr_mpi_scatterV(islake        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), islake_local,        ierr, cmessage)
+      call shr_mpi_scatterV(LakeTargVol   (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), LakeTargVol_local,   ierr, cmessage)
+      call shr_mpi_scatterV(LakeModelType (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), LakeModelType_local, ierr, cmessage)
+      call shr_mpi_scatterV(D03MaxStorage (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03MaxStorage_local, ierr, cmessage)
+      call shr_mpi_scatterV(D03Coefficient(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03Coefficient_local,ierr, cmessage)
+      call shr_mpi_scatterV(D03Power      (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03Power_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06TestP1     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06TestP1_local,     ierr, cmessage)
+      call shr_mpi_scatterV(H06TestP2     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06TestP2_local,     ierr, cmessage)
+      call shr_mpi_scatterV(H06Memory     (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06Memory_local,     ierr, cmessage)
+    end if
 
     call shr_mpi_scatterV(hruId         (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruId_local,         ierr, cmessage)
     call shr_mpi_scatterV(hruSegId      (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruSegId_local,      ierr, cmessage)
@@ -360,19 +366,21 @@ contains
 
     ! Populate local data structures needed for tributary network augumentation
     reach: do ix = 1,rch_per_proc(pid)
-     structNTOPO_local(ix)%var(ixNTOPO%segId)%dat(1)          = segId_local(ix)
-     structNTOPO_local(ix)%var(ixNTOPO%downSegId)%dat(1)      = downSegId_local(ix)
-     structSEG_local  (ix)%var(ixSEG%length)%dat(1)           = length_local(ix)
-     structSEG_local  (ix)%var(ixSEG%slope)%dat(1)            = slope_local(ix)
-     structNTOPO_local(ix)%var(ixNTOPO%islake)%dat(1)         = islake_local(ix)
-     structNTOPO_local(ix)%var(ixNTOPO%LakeTargVol)%dat(1)    = LakeTargVol_local(ix)
-     structNTOPO_local(ix)%var(ixNTOPO%LakeModelType)%dat(1)  = LakeModelType_local(ix)
-     structSEG_local  (ix)%var(ixSEG%D03MaxStorage)%dat(1)    = D03MaxStorage_local(ix)
-     structSEG_local  (ix)%var(ixSEG%D03Coefficient)%dat(1)   = D03Coefficient_local(ix)
-     structSEG_local  (ix)%var(ixSEG%D03Power)%dat(1)         = D03Power_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06TestP1)%dat(1)        = H06TestP1_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06TestP2)%dat(1)        = H06TestP2_local(ix)
-     structSEG_local  (ix)%var(ixSEG%H06Memory)%dat(1)        = H06Memory_local(ix)
+      structNTOPO_local(ix)%var(ixNTOPO%segId)%dat(1)          = segId_local(ix)
+      structNTOPO_local(ix)%var(ixNTOPO%downSegId)%dat(1)      = downSegId_local(ix)
+      structSEG_local  (ix)%var(ixSEG%length)%dat(1)           = length_local(ix)
+      structSEG_local  (ix)%var(ixSEG%slope)%dat(1)            = slope_local(ix)
+      if (is_lake_sim) then
+        structNTOPO_local(ix)%var(ixNTOPO%islake)%dat(1)         = islake_local(ix)
+        structNTOPO_local(ix)%var(ixNTOPO%LakeTargVol)%dat(1)    = LakeTargVol_local(ix)
+        structNTOPO_local(ix)%var(ixNTOPO%LakeModelType)%dat(1)  = LakeModelType_local(ix)
+        structSEG_local  (ix)%var(ixSEG%D03MaxStorage)%dat(1)    = D03MaxStorage_local(ix)
+        structSEG_local  (ix)%var(ixSEG%D03Coefficient)%dat(1)   = D03Coefficient_local(ix)
+        structSEG_local  (ix)%var(ixSEG%D03Power)%dat(1)         = D03Power_local(ix)
+        structSEG_local  (ix)%var(ixSEG%H06TestP1)%dat(1)        = H06TestP1_local(ix)
+        structSEG_local  (ix)%var(ixSEG%H06TestP2)%dat(1)        = H06TestP2_local(ix)
+        structSEG_local  (ix)%var(ixSEG%H06Memory)%dat(1)        = H06Memory_local(ix)
+      end if
     end do reach
 
     hru: do ix=1,hru_per_proc(pid)
@@ -404,15 +412,18 @@ contains
     call omp_domain_decomposition(upstream_size, rch_per_proc(pid), structNTOPO_local, river_basin_trib, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    !if (pid==2) then
-    !  do ix =1,size(river_basin_trib)
-    !    do ixx = 1, size(river_basin_trib(ix)%branch)
-    !      do iSeg = 1, river_basin_trib(ix)%branch(ixx)%nRch
-    !        print*, structNTOPO_local(river_basin_trib(ix)%branch(ixx)%segIndex(iSeg))%var(ixNTOPO%segId)%dat(1), ix, ixx
-    !      enddo
-    !    enddo
-    !  enddo
-    !endif
+    if (debug_trib_omp .and. pid==3) then
+      write(iulog,'(a)') 'segid, branch, order'
+      do ix =1,size(river_basin_trib)
+        do ixx = 1, size(river_basin_trib(ix)%branch)
+          do iSeg = 1, river_basin_trib(ix)%branch(ixx)%nRch
+            associate (idx_tmp => river_basin_trib(ix)%branch(ixx)%segIndex(iSeg))
+            write(iulog,"(I15,A,I9,A,I9)") structNTOPO_local(idx_tmp)%var(ixNTOPO%segId)%dat(1),',',ixx,',',ix
+            end associate
+          enddo
+        enddo
+      enddo
+    endif
 
     ! -----------------------------------------------------------------------------
     ! Find "dangling reach/hru", or tributary outlet reaches/hrus that link to mainstems
@@ -501,15 +512,17 @@ contains
        structNTOPO_main(ix)%var(ixNTOPO%downSegId)%dat(1)     = downSegId(ix)
        structSEG_main  (ix)%var(ixSEG%length)%dat(1)          = length(ix)
        structSEG_main  (ix)%var(ixSEG%slope)%dat(1)           = slope(ix)
-       structNTOPO_main(ix)%var(ixNTOPO%islake)%dat(1)        = islake(ix)
-       structNTOPO_main(ix)%var(ixNTOPO%LakeTargVol)%dat(1)   = LakeTargVol(ix)
-       structNTOPO_main(ix)%var(ixNTOPO%LakeModelType)%dat(1) = LakeModelType(ix)
-       structSEG_main  (ix)%var(ixSEG%D03MaxStorage)%dat(1)   = D03MaxStorage(ix)
-       structSEG_main  (ix)%var(ixSEG%D03Coefficient)%dat(1)  = D03Coefficient(ix)
-       structSEG_main  (ix)%var(ixSEG%D03Power)%dat(1)        = D03Power(ix)
-       structSEG_main  (ix)%var(ixSEG%H06TestP1)%dat(1)       = H06TestP1(ix)
-       structSEG_main  (ix)%var(ixSEG%H06TestP2)%dat(1)       = H06TestP2(ix)
-       structSEG_main  (ix)%var(ixSEG%H06Memory)%dat(1)       = H06Memory(ix)
+       if (is_lake_sim) then
+         structNTOPO_main(ix)%var(ixNTOPO%islake)%dat(1)        = islake(ix)
+         structNTOPO_main(ix)%var(ixNTOPO%LakeTargVol)%dat(1)   = LakeTargVol(ix)
+         structNTOPO_main(ix)%var(ixNTOPO%LakeModelType)%dat(1) = LakeModelType(ix)
+         structSEG_main  (ix)%var(ixSEG%D03MaxStorage)%dat(1)   = D03MaxStorage(ix)
+         structSEG_main  (ix)%var(ixSEG%D03Coefficient)%dat(1)  = D03Coefficient(ix)
+         structSEG_main  (ix)%var(ixSEG%D03Power)%dat(1)        = D03Power(ix)
+         structSEG_main  (ix)%var(ixSEG%H06TestP1)%dat(1)       = H06TestP1(ix)
+         structSEG_main  (ix)%var(ixSEG%H06TestP2)%dat(1)       = H06TestP2(ix)
+         structSEG_main  (ix)%var(ixSEG%H06Memory)%dat(1)       = H06Memory(ix)
+       end if
      end do main_rch
 
      ups_trib: do ix = 1, nTribOutlet
@@ -518,15 +531,17 @@ contains
        structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%downSegId)%dat(1)     = structNTOPO(ixx)%var(ixNTOPO%downSegId)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%length)%dat(1)          = structSEG(ixx)%var(ixSEG%length)%dat(1)
        structSEG_main  (nRch_mainstem+ix)%var(ixSEG%slope)%dat(1)           = structSEG(ixx)%var(ixSEG%slope)%dat(1)
-       structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%islake)%dat(1)        = structNTOPO(ixx)%var(ixNTOPO%islake)%dat(1)
-       structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%LakeTargVol)%dat(1)   = structNTOPO(ixx)%var(ixNTOPO%LakeTargVol)%dat(1)
-       structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%LakeModelType)%dat(1) = structNTOPO(ixx)%var(ixNTOPO%LakeModelType)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03MaxStorage)%dat(1)   = structSEG(ixx)%var(ixSEG%D03MaxStorage)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03Coefficient)%dat(1)  = structSEG(ixx)%var(ixSEG%D03Coefficient)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03Power)%dat(1)        = structSEG(ixx)%var(ixSEG%D03Power)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06TestP1)%dat(1)       = structSEG(ixx)%var(ixSEG%H06TestP1)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06TestP2)%dat(1)       = structSEG(ixx)%var(ixSEG%H06TestP2)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06Memory)%dat(1)       = structSEG(ixx)%var(ixSEG%H06Memory)%dat(1)
+       if (is_lake_sim) then
+         structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%islake)%dat(1)        = structNTOPO(ixx)%var(ixNTOPO%islake)%dat(1)
+         structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%LakeTargVol)%dat(1)   = structNTOPO(ixx)%var(ixNTOPO%LakeTargVol)%dat(1)
+         structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%LakeModelType)%dat(1) = structNTOPO(ixx)%var(ixNTOPO%LakeModelType)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03MaxStorage)%dat(1)   = structSEG(ixx)%var(ixSEG%D03MaxStorage)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03Coefficient)%dat(1)  = structSEG(ixx)%var(ixSEG%D03Coefficient)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03Power)%dat(1)        = structSEG(ixx)%var(ixSEG%D03Power)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06TestP1)%dat(1)       = structSEG(ixx)%var(ixSEG%H06TestP1)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06TestP2)%dat(1)       = structSEG(ixx)%var(ixSEG%H06TestP2)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06Memory)%dat(1)       = structSEG(ixx)%var(ixSEG%H06Memory)%dat(1)
+       end if
        global_ix_main(ix) = nRch_mainstem+ix   ! index in mainstem array that is link to tributary outlet
      end do ups_trib
 
@@ -594,16 +609,18 @@ contains
      call omp_domain_decomposition(stream_order, nRch_mainstem+nTribOutlet, structNTOPO_main, river_basin_main, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! print*,'segid,branch,order'
-    ! do ix = 1, size(river_basin_main)
-    !   do ixx = 1, size(river_basin_main(ix)%branch)
-    !     do iSeg = 1, river_basin_main(ix)%branch(ixx)%nRch
-    !       associate (idx_tmp => river_basin_main(ix)%branch(ixx)%segIndex(iSeg))
-    !       write(*,"(I15,A,I9,A,I9)") structNTOPO(idx_tmp)%var(ixNTOPO%segId)%dat(1),',',ixx,',',ix
-    !       end associate
-    !     end do
-    !   end do
-    ! enddo
+    if (debug_main_omp) then
+      write(iulog,'(a)') 'segid, branch, order'
+      do ix = 1, size(river_basin_main)
+        do ixx = 1, size(river_basin_main(ix)%branch)
+          do iSeg = 1, river_basin_main(ix)%branch(ixx)%nRch
+            associate (idx_tmp => river_basin_main(ix)%branch(ixx)%segIndex(iSeg))
+            write(iulog,"(I15,A,I9,A,I9)") structNTOPO_main(idx_tmp)%var(ixNTOPO%segId)%dat(1),',',ixx,',',ix
+            end associate
+          end do
+        end do
+      enddo
+    endif
 
    end if ! (masterproc)
   end if ! (nRch_mainstem > 0)
@@ -647,20 +664,26 @@ contains
   character(len=strLen),    intent(out) :: message                  ! error message
   ! local variables
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
-  integer(i4b)                          :: iSeg,jSeg
+  integer(i4b)                          :: iSeg,jSeg,iTbound        ! loop indices
+  integer(i4b)                          :: nTbound = 2
   real(dp),     allocatable             :: flux_global(:)           ! basin runoff (m/s) for entire reaches
+  real(dp),     allocatable             :: vol_global(:,:)          ! reach/lake volume (m3) for entire network
+  real(dp),     allocatable             :: vol_global_tmp(:)        ! temporary reach/lake volume (m3) for entire network
   real(dp),     allocatable             :: flux_local(:)            ! basin runoff (m/s) for tributaries
+  real(dp),     allocatable             :: vol_local(:)             ! reach/lake volume (m3) for tributaries
 
   ierr=0; message='mpi_restart/'
 
-  call MPI_BCAST(TSEC, 2, MPI_DOUBLE_PRECISION, root, comm, ierr)
+  call MPI_BCAST(TSEC, nTbound, MPI_DOUBLE_PRECISION, root, comm, ierr)
 
-  allocate(flux_global(nRch), flux_local(rch_per_proc(pid)), stat=ierr)
+  allocate(flux_global(nRch), vol_global(nRch,nTbound), vol_global_tmp(nRch))
+  allocate(vol_local(rch_per_proc(pid)), flux_local(rch_per_proc(pid)))
 
   if (masterproc) then
 
     do iSeg = 1, nRch
       flux_global(iSeg) = RCHFLX(iens,iSeg)%BASIN_QR(1)
+      vol_global(iSeg,1:2) = RCHFLX(iens,iSeg)%REACH_VOL(0:1)
     enddo
 
     ! Distribute global flux/state (RCHFLX & RCHSTA) to mainstem (RCHFLX_main & RCHSTA_main)
@@ -677,7 +700,8 @@ contains
 
   else
 
-    flux_global(:) = realMissing
+    flux_global(:)  = realMissing
+    vol_global(:,:) = realMissing
 
   endif
 
@@ -725,6 +749,20 @@ contains
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
+  ! KWE state communication
+  if (routOpt==kinematicWaveEuler) then
+    call mpi_comm_kwe_state(pid, nNodes, comm,                        &
+                            iens,                                     &
+                            rch_per_proc(root:nNodes-1),              &
+                            RCHSTA,                                   &
+                            RCHSTA_trib,                              &
+                            ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                            arth(1,1,rch_per_proc(pid)),              &
+                            scatter,                                  & ! communication type
+                            ierr, message)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
   ! IRF state communication
   if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
     call mpi_comm_irf_state(pid, nNodes, comm,                        &
@@ -737,6 +775,26 @@ contains
                             scatter,                                  & ! communication type
                             ierr, message)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! volume communication
+    do iTbound =1,nTbound
+      vol_global_tmp(:) = vol_global(:,iTbound)
+      call mpi_comm_single_flux(pid, nNodes, comm,                        &
+                                vol_global_tmp,                           &
+                                vol_local,                                &
+                                rch_per_proc(root:nNodes-1),              &
+                                ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                                arth(1,1,rch_per_proc(pid)),              &
+                                scatter,                                  &
+                                ierr, message)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      do iSeg = 1, rch_per_proc(pid)
+        RCHFLX_trib(iens,iSeg)%REACH_VOL(iTbound-1) = vol_local(iSeg)
+      enddo
+
+    end do
+
   endif
 
   ! no need for the entire domain flux/state data strucure
@@ -1948,6 +2006,118 @@ contains
 
  end subroutine mpi_comm_irf_state
 
+
+ ! *********************************************************************
+ ! subroutine: KWE state communication
+ ! *********************************************************************
+ subroutine mpi_comm_kwe_state(pid,          &
+                               nNodes,       &
+                               comm,         & ! input: communicator
+                               iens,         &
+                               nReach,       &
+                               RCHSTA_global,&
+                               RCHSTA_local, &
+                               rchIdxGlobal, &
+                               rchIdxLocal,  &
+                               commType,     &
+                               ierr, message)
+
+  USE dataTypes,  ONLY: EKWRCH
+  USE dataTypes,  ONLY: STRSTA
+
+  ! input variables
+  integer(i4b),             intent(in)    :: pid                   ! process id (MPI)
+  integer(i4b),             intent(in)    :: nNodes                ! number of processes (MPI)
+  integer(i4b),             intent(in)    :: comm                  ! communicator
+  integer(i4b),             intent(in)    :: iens                  ! ensemble index
+  integer(i4b),             intent(in)    :: nReach(0:nNodes-1)    ! number of reaches communicate per node (dimension size == number of proc)
+  type(STRSTA), allocatable,intent(inout) :: RCHSTA_global(:,:)
+  type(STRSTA), allocatable,intent(inout) :: RCHSTA_local(:,:)
+  integer(i4b),             intent(in)    :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
+  integer(i4b),             intent(in)    :: rchIdxLocal(:)        ! reach indices (w.r.t. local) (dimension size depends on procs )
+  integer(i4b),             intent(in)    :: commType              ! communication type 1->scatter, 2->gather otherwise error
+  ! output variables
+  integer(i4b),             intent(out)   :: ierr                  ! error code
+  character(len=strLen),    intent(out)   :: message               ! error message
+  ! local variables
+  character(len=strLen)                   :: cmessage              ! error message from a subroutine
+  type(EKWRCH), allocatable               :: EKW0(:,:)             ! temp KEW data structure to hold updated states
+  real(dp),     allocatable               :: Q(:),Q_trib(:)
+  real(dp),     allocatable               :: A(:),A_trib(:)
+  integer(i4b)                            :: myid
+  integer(i4b)                            :: nSeg                  ! number of reaches
+  integer(i4b)                            :: iSeg, jSeg
+  integer(i4b)                            :: ixMesh
+  integer(i4b)                            :: totMesh(0:nNodes-1)
+  integer(i4b)                            :: totMeshAll
+
+  ierr=0; message='mpi_comm_kwe_state/'
+
+  ! Number of total reaches to be communicated
+  nSeg = sum(nReach)
+
+  if (commType == scatter) then
+
+    if (masterproc) then
+
+     ! extract only tributary reaches
+     allocate(EKW0(1,nSeg), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating array for [EKW0]'; return; endif
+     do iSeg =1,nSeg ! Loop through tributary reaches
+      jSeg = rchIdxGlobal(iSeg)
+      EKW0(1, iSeg) = RCHSTA_global(iens,jSeg)%EKW_ROUTE
+     enddo
+
+     ! convert EKWRCH data strucutre to state arrays
+     call kwe_struc2array(iens, EKW0,   & !input: input state data structure
+                          Q,A,          & !output: states array
+                          ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    endif ! end of root process
+
+    call shr_mpi_barrier(comm, message)
+
+    ! total waves from all the tributary reaches in each proc
+    do myid = 0, nNodes-1
+      totMesh(myid) = 4*nReach(myid)
+    enddo
+
+    ! need to allocate global array to be scattered at the other tasks
+    totMeshAll = nSeg*4
+    if (.not.masterproc) then
+     allocate(Q(totMeshAll), A(totMeshAll), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating array for [Q,A]'; return; endif
+    endif
+    call shr_mpi_barrier(comm, message)
+
+    ! Distribute modified LKW_ROUTE%KWAVE data to each process
+    call shr_mpi_scatterV(Q, totMesh(0:nNodes-1), Q_trib, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    call shr_mpi_scatterV(A, totMesh(0:nNodes-1), A_trib, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! update RCHSTA_local%EKW_ROUTE data structure
+    ixMesh=1
+    do iSeg =1,nReach(pid) ! Loop through reaches per proc
+
+     jSeg = rchIdxLocal(iSeg)
+
+     RCHSTA_local(iens,jSeg)%EKW_ROUTE%Q(1:4) = Q_trib(ixMesh:ixMesh+3)
+     RCHSTA_local(iens,jSeg)%EKW_ROUTE%A(1:4) = A_trib(ixMesh:ixMesh+3)
+
+     ixMesh=ixMesh+4 !update 1st idex of array
+
+    end do
+
+  elseif (commType == gather) then
+
+
+  endif
+
+ end subroutine mpi_comm_kwe_state
+
  ! *********************************************************************
  ! subroutine: kinematic wave state communication
  ! *********************************************************************
@@ -2318,6 +2488,46 @@ contains
   end do
 
  end subroutine kwt_struc2array
+
+ ! *********************************************************************
+ ! private subroutine
+ ! *********************************************************************
+ subroutine kwe_struc2array(iens, EKW_in,     &  ! input:
+                            Q,A,              &  ! output:
+                            ierr, message)
+  USE dataTypes, ONLY: EKWRCH             ! collection of particles in a given reach
+  implicit none
+  ! Input
+  integer(i4b),          intent(in)              :: iens           ! ensemble index
+  type(EKWRCH),          intent(in), allocatable :: EKW_in(:,:)    ! reach state data
+  ! Output error handling variables
+  real(dp),              intent(out),allocatable :: Q(:)           ! flat array for wave Q
+  real(dp),              intent(out),allocatable :: A(:)           ! Flat array for modified Q
+  integer(i4b),          intent(out)             :: ierr           ! error code
+  character(len=strLen), intent(out)             :: message        ! error message
+  ! local variables
+  integer(i4b)                                   :: ixMesh         ! 1st indix of each reach
+  integer(i4b)                                   :: iSeg           ! loop indix
+  integer(i4b)                                   :: nSeg           ! number of reaches
+  integer(i4b)                                   :: totMesh        ! total number of waves from all the reaches
+
+  ierr=0; message='kwe_struc2array/'
+
+  nSeg = size(EKW_in(iens,:))
+
+  totMesh = 4*nSeg
+
+  allocate(Q(totMesh),A(totMesh), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating array for [Q,A]'; return; endif
+
+  ixMesh = 1
+  do iSeg=1,nSeg
+   Q(ixMesh:ixMesh+3) = EKW_in(iens,iSeg)%Q(1:4)
+   A(ixMesh:ixMesh+3) = EKW_in(iens,iSeg)%A(1:4)
+   ixMesh = ixMesh+4
+  end do
+
+ end subroutine kwe_struc2array
 
  ! *********************************************************************
  ! public subroutine: send global data
