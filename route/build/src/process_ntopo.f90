@@ -25,9 +25,9 @@ USE public_var, ONLY: impulseResponseFunc! option for routing methods - IRF only
 USE public_var, ONLY: true,false         ! named integers for true/false
 
 ! named variables
-USE var_lookup, ONLY: ixSEG                 ! index of variables for the stream segments
-USE var_lookup, ONLY: ixNTOPO               ! index of variables for the network topology
-USE var_lookup, ONLY: ixPFAF                ! index of variables for the pfafstetter code
+USE var_lookup, ONLY: ixSEG              ! index of variables for the stream segments
+USE var_lookup, ONLY: ixNTOPO            ! index of variables for the network topology
+USE var_lookup, ONLY: ixPFAF             ! index of variables for the pfafstetter code
 
 ! common variables
 USE public_var, ONLY: compute            ! compute given variable
@@ -410,18 +410,18 @@ end subroutine augment_ntopo
    ! ----- reach parameters -----
 
    ! copy data into the reach parameter structure
-   RPARAM_in(iSeg)%RLENGTH   =     structSEG(iSeg)%var(ixSEG%length)%dat(1)
-   RPARAM_in(iSeg)%R_SLOPE   = max(structSEG(iSeg)%var(ixSEG%slope)%dat(1), min_slope)
-   RPARAM_in(iSeg)%R_MAN_N   =     structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
-   RPARAM_in(iSeg)%R_WIDTH   =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
+   RPARAM_in(iSeg)%RLENGTH         =     structSEG(iSeg)%var(ixSEG%length)%dat(1)
+   RPARAM_in(iSeg)%R_SLOPE         = max(structSEG(iSeg)%var(ixSEG%slope)%dat(1), min_slope)
+   RPARAM_in(iSeg)%R_MAN_N         =     structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
+   RPARAM_in(iSeg)%R_WIDTH         =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
 
    if (is_lake_sim) then
-     RPARAM_in(iSeg)%RATECVA   =     structSEG(iSeg)%var(ixSEG%RATECVA)%dat(1)
-     RPARAM_in(iSeg)%RATECVB   =     structSEG(iSeg)%var(ixSEG%RATECVB)%dat(1)
-     RPARAM_in(iSeg)%RATECVC   =     structSEG(iSeg)%var(ixSEG%RATECVC)%dat(1)
-     RPARAM_in(iSeg)%RATECVD   =     structSEG(iSeg)%var(ixSEG%RATECVD)%dat(1)
-     RPARAM_in(iSeg)%RATECVE   =     structSEG(iSeg)%var(ixSEG%RATECVE)%dat(1)
-     RPARAM_in(iSeg)%RATECVF   =     structSEG(iSeg)%var(ixSEG%RATECVF)%dat(1)
+     RPARAM_in(iSeg)%D03MaxStorage   =     structSEG(iSeg)%var(ixSEG%D03MaxStorage)%dat(1)
+     RPARAM_in(iSeg)%D03Coefficient  =     structSEG(iSeg)%var(ixSEG%D03Coefficient)%dat(1)
+     RPARAM_in(iSeg)%D03Power        =     structSEG(iSeg)%var(ixSEG%D03Power)%dat(1)
+     RPARAM_in(iSeg)%H06TestP1       =     structSEG(iSeg)%var(ixSEG%H06TestP1)%dat(1)
+     RPARAM_in(iSeg)%H06TestP2       =     structSEG(iSeg)%var(ixSEG%H06TestP2)%dat(1)
+     RPARAM_in(iSeg)%H06Memory       =     structSEG(iSeg)%var(ixSEG%H06Memory)%dat(1)
    end if
 
    ! compute variables
@@ -477,7 +477,8 @@ end subroutine augment_ntopo
    if (is_lake_sim) then
      NETOPO_in(iSeg)%isLake       = (structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)==true)
      NETOPO_in(iSeg)%LakeTargVol  = (structNTOPO(iSeg)%var(ixNTOPO%LakeTargVol)%dat(1)==true)
-     ! NOT USED below:
+     NETOPO_in(iSeg)%LakeModelType= structNTOPO(iSeg)%var(ixNTOPO%LakeModelType)%dat(1) ! type of the parameteric lake
+     ! NOT USED: lake parameters
      NETOPO_in(iSeg)%LAKE_IX = integerMissing  ! Lake index (0,1,2,...,nlak-1)
      NETOPO_in(iSeg)%LAKE_ID = integerMissing  ! Lake ID (REC code?)
      NETOPO_in(iSeg)%BASULAK = realMissing     ! Area of basin under lake

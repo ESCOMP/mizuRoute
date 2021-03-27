@@ -195,16 +195,16 @@ implicit none
   real(dp)                                   :: R_MAN_N
   real(dp)                                   :: R_WIDTH
   real(dp)                                   :: RLENGTH
-  real(dp)                                   :: UPSAREA  ! upstream area (zero if headwater basin)
-  real(dp)                                   :: BASAREA  ! local basin area
-  real(dp)                                   :: TOTAREA  ! UPSAREA + BASAREA
-  real(dp)                                   :: MINFLOW  ! minimum environmental flow
-  real(dp)                                   :: RATECVA  ! discharge rating curve parameter A
-  real(dp)                                   :: RATECVB  ! discharge rating curve parameter B
-  real(dp)                                   :: RATECVC  ! discharge rating curve parameter C
-  real(dp)                                   :: RATECVD  ! discharge rating curve parameter D
-  real(dp)                                   :: RATECVE  ! discharge rating curve parameter E
-  real(dp)                                   :: RATECVF  ! discharge rating curve parameter F
+  real(dp)                                   :: UPSAREA        ! upstream area (zero if headwater basin)
+  real(dp)                                   :: BASAREA        ! local basin area
+  real(dp)                                   :: TOTAREA        ! UPSAREA + BASAREA
+  real(dp)                                   :: MINFLOW        ! minimum environmental flow
+  real(dp)                                   :: D03MaxStorage  ! Doll 2003 maximume storage
+  real(dp)                                   :: D03Coefficient ! Doll 2003 Coefficient
+  real(dp)                                   :: D03Power       ! Doll 2003 Power
+  real(dp)                                   :: H06TestP1      ! Hanasaki 2006 test parameter 1
+  real(dp)                                   :: H06TestP2      ! Hanasaki 2006 test parameter 2
+  real(dp)                                   :: H06Memory      ! Hanasaki 2006 pasr array
  end type RCHPRP
 
  ! River Network topology
@@ -235,6 +235,7 @@ implicit none
   logical(lgt)                               :: USRTAKE      ! .TRUE. if user takes from reach, .FALSE. otherwise
   logical(lgt)                               :: ISLAKE       ! .TRUE. if the object is a lake
   logical(lgt)                               :: LAKETARGVOL  ! .TRUE. if the lake follow a given target volume
+  integer(i4b)                               :: LAKEMODELTYPE! 1=Doll, 2=Hanasaki, else=non-parameteric
  end type RCHTOPO
 
  ! ---------- reach states --------------------------------------------------------------------
@@ -242,11 +243,11 @@ implicit none
  !---------- Lagrangian kinematic wave states (collection of particles) ---------------------------------
  ! Individual flow particles
  TYPE, public :: FPOINT
-  real(dp)                             :: QF       ! Flow
-  real(dp)                             :: QM       ! Modified flow
-  real(dp)                             :: TI       ! initial time of point in reach
-  real(dp)                             :: TR       ! time point expected to exit reach
-  logical(lgt)                         :: RF       ! routing flag (T if point has exited)
+  real(dp)                                   :: QF           ! Flow
+  real(dp)                                   :: QM           ! Modified flow
+  real(dp)                                   :: TI           ! initial time of point in reach
+  real(dp)                                   :: TR           ! time point expected to exit reach
+  logical(lgt)                               :: RF           ! routing flag (T if point has exited)
  END TYPE FPOINT
 
  ! Collection of flow points within a given reach
@@ -275,10 +276,11 @@ implicit none
 
  ! ---------- reach fluxes --------------------------------------------------------------------
 
- ! fluxes in each reach
+ ! fluxes and states in each reach
  TYPE, public :: strflx
   real(dp), allocatable                :: QFUTURE(:)        ! runoff volume in future time steps (m3/s)
   real(dp), allocatable                :: QFUTURE_IRF(:)    ! runoff volume in future time steps for IRF routing (m3/s)
+  real(dp), allocatable                :: QPASTUP_IRF(:)    ! runoff volume in the past time steps for lake upstream (m3/s)
   real(dp)                             :: BASIN_QI          ! instantaneous runoff volume from the local basin (m3/s)
   real(dp)                             :: BASIN_QR(0:1)     ! routed runoff volume from the local basin (m3/s)
   real(dp)                             :: REACH_Q           ! time-step average streamflow (m3/s)
