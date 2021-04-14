@@ -189,7 +189,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     ctl.set( "fname_state_in", fname_state_in )
 
     # Read in the user control file for the case and change settings to it
-    file_src = "user_ctl_mizuRoute"
+    file_src = "user_ctl_mizuroute"
     user_ctl_file = os.path.join(caseroot, file_src + inst_string)
     if ( not os.path.exists( user_ctl_file ) ):
        shutil.copy( os.path.join( srcroot, "cime_config", file_src), user_ctl_file )
@@ -197,7 +197,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     usrctl.read( user_ctl_file, allowEmpty=True )
     for element in usrctl.get_elmList():
        value = ctl.get( element )
-       expect( value != "UNSET", "Element in the user_ctl_mizuRoute file is NOT in the control file: "+element )
+       expect( value != "UNSET", "Element in the user_ctl_mizuroute file is NOT in the control file: "+element )
        ctl.set( element, usrctl.get( element ) )
 
     #----------------------------------------------------
@@ -263,7 +263,7 @@ def buildnml(case, caseroot, compname):
         inst_string_label = "\"\""
 
     # create control file output infile using user_nl_file as input
-    user_nl_file = os.path.join(caseroot, "user_nl_mizuRoute" + inst_string)
+    user_nl_file = os.path.join(caseroot, "user_nl_mizuroute" + inst_string)
     expect(os.path.isfile(user_nl_file),
                "Missing required user_nl_file %s " %(user_nl_file))
     infile = os.path.join(confdir, "control_infile")

@@ -234,7 +234,7 @@ CONTAINS
 
    sec_in_day = timeStampCal%ih*60*60+timeStampCal%imin*60+nint(timeStampCal%dsec)
 
-   write(fnameRestart, fmtYMDS) trim(restart_dir)//trim(case_name)//'.mizuRoute.r.', &
+   write(fnameRestart, fmtYMDS) trim(restart_dir)//trim(case_name)//'.mizuroute.r.', &
                                 timeStampCal%iy, '-', timeStampCal%im, '-', timeStampCal%id, '-',sec_in_day,'.nc'
 
  END SUBROUTINE restart_fname
