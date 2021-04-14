@@ -19,8 +19,8 @@
 
   <entry id="COMP_ROF">
     <type>char</type>
-    <valid_values>mizuRoute</valid_values>
-    <default_value>mizuRoute</default_value>
+    <valid_values>mizuroute</valid_values>
+    <default_value>mizuroute</default_value>
     <group>case_comp</group>
     <file>env_case.xml</file>
     <desc>Name of river component</desc>
