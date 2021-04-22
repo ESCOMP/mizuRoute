@@ -375,6 +375,7 @@ end subroutine augment_ntopo
   USE globalData,    ONLY: fshape, tscale     ! basin IRF routing parameters (Transfer function parameters)
   USE public_var,    ONLY: min_slope          ! minimum slope
   USE public_var,    ONLY: dt                 ! simulation time step [sec]
+  USE public_var,    ONLY: is_lake_sim        ! lake simulation option
   ! external subroutines
   USE routing_param, ONLY: basinUH            ! construct basin unit hydrograph
   implicit none
@@ -413,53 +414,53 @@ end subroutine augment_ntopo
    RPARAM_in(iSeg)%R_SLOPE         = max(structSEG(iSeg)%var(ixSEG%slope)%dat(1), min_slope)
    RPARAM_in(iSeg)%R_MAN_N         =     structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
    RPARAM_in(iSeg)%R_WIDTH         =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
-
-   RPARAM_in(iSeg)%D03_MaxStorage  =     structSEG(iSeg)%var(ixSEG%D03_MaxStorage)%dat(1)
-   RPARAM_in(iSeg)%D03_Coefficient =     structSEG(iSeg)%var(ixSEG%D03_Coefficient)%dat(1)
-   RPARAM_in(iSeg)%D03_Power       =     structSEG(iSeg)%var(ixSEG%D03_Power)%dat(1)
-
-   RPARAM_in(iSeg)%H06_Smax        =     structSEG(iSeg)%var(ixSEG%H06_Smax)%dat(1)
-   RPARAM_in(iSeg)%H06_alpha       =     structSEG(iSeg)%var(ixSEG%H06_alpha)%dat(1)
-   RPARAM_in(iSeg)%H06_envfact     =     structSEG(iSeg)%var(ixSEG%H06_envfact)%dat(1)
-   RPARAM_in(iSeg)%H06_S_ini       =     structSEG(iSeg)%var(ixSEG%H06_S_ini)%dat(1)
-   RPARAM_in(iSeg)%H06_c1          =     structSEG(iSeg)%var(ixSEG%H06_c1)%dat(1)
-   RPARAM_in(iSeg)%H06_c2          =     structSEG(iSeg)%var(ixSEG%H06_c2)%dat(1)
-   RPARAM_in(iSeg)%H06_exponent    =     structSEG(iSeg)%var(ixSEG%H06_exponent)%dat(1)
-   RPARAM_in(iSeg)%H06_denominator =     structSEG(iSeg)%var(ixSEG%H06_denominator)%dat(1)
-   RPARAM_in(iSeg)%H06_c_compare   =     structSEG(iSeg)%var(ixSEG%H06_c_compare)%dat(1)
-   RPARAM_in(iSeg)%H06_frac_Sdead  =     structSEG(iSeg)%var(ixSEG%H06_frac_Sdead)%dat(1)
-   RPARAM_in(iSeg)%H06_E_rel_ini   =     structSEG(iSeg)%var(ixSEG%H06_E_rel_ini)%dat(1)
-   RPARAM_in(iSeg)%H06_I_Jan       =     structSEG(iSeg)%var(ixSEG%H06_I_Jan)%dat(1)
-   RPARAM_in(iSeg)%H06_I_Feb       =     structSEG(iSeg)%var(ixSEG%H06_I_Feb)%dat(1)
-   RPARAM_in(iSeg)%H06_I_Mar       =     structSEG(iSeg)%var(ixSEG%H06_I_Mar)%dat(1)
-   RPARAM_in(iSeg)%H06_I_Apr       =     structSEG(iSeg)%var(ixSEG%H06_I_Apr)%dat(1)
-   RPARAM_in(iSeg)%H06_I_May       =     structSEG(iSeg)%var(ixSEG%H06_I_May)%dat(1)
-   RPARAM_in(iSeg)%H06_I_Jun       =     structSEG(iSeg)%var(ixSEG%H06_I_Jun)%dat(1)
-   RPARAM_in(iSeg)%H06_I_Jul       =     structSEG(iSeg)%var(ixSEG%H06_I_Jul)%dat(1)
-   RPARAM_in(iSeg)%H06_I_Aug       =     structSEG(iSeg)%var(ixSEG%H06_I_Aug)%dat(1)
-   RPARAM_in(iSeg)%H06_I_Sep       =     structSEG(iSeg)%var(ixSEG%H06_I_Sep)%dat(1)
-   RPARAM_in(iSeg)%H06_I_Oct       =     structSEG(iSeg)%var(ixSEG%H06_I_Oct)%dat(1)
-   RPARAM_in(iSeg)%H06_I_Nov       =     structSEG(iSeg)%var(ixSEG%H06_I_Nov)%dat(1)
-   RPARAM_in(iSeg)%H06_I_Dec       =     structSEG(iSeg)%var(ixSEG%H06_I_Dec)%dat(1)
-   RPARAM_in(iSeg)%H06_D_Jan       =     structSEG(iSeg)%var(ixSEG%H06_D_Jan)%dat(1)
-   RPARAM_in(iSeg)%H06_D_Feb       =     structSEG(iSeg)%var(ixSEG%H06_D_Feb)%dat(1)
-   RPARAM_in(iSeg)%H06_D_Mar       =     structSEG(iSeg)%var(ixSEG%H06_D_Mar)%dat(1)
-   RPARAM_in(iSeg)%H06_D_Apr       =     structSEG(iSeg)%var(ixSEG%H06_D_Apr)%dat(1)
-   RPARAM_in(iSeg)%H06_D_May       =     structSEG(iSeg)%var(ixSEG%H06_D_May)%dat(1)
-   RPARAM_in(iSeg)%H06_D_Jun       =     structSEG(iSeg)%var(ixSEG%H06_D_Jun)%dat(1)
-   RPARAM_in(iSeg)%H06_D_Jul       =     structSEG(iSeg)%var(ixSEG%H06_D_Jul)%dat(1)
-   RPARAM_in(iSeg)%H06_D_Aug       =     structSEG(iSeg)%var(ixSEG%H06_D_Aug)%dat(1)
-   RPARAM_in(iSeg)%H06_D_Sep       =     structSEG(iSeg)%var(ixSEG%H06_D_Sep)%dat(1)
-   RPARAM_in(iSeg)%H06_D_Oct       =     structSEG(iSeg)%var(ixSEG%H06_D_Oct)%dat(1)
-   RPARAM_in(iSeg)%H06_D_Nov       =     structSEG(iSeg)%var(ixSEG%H06_D_Nov)%dat(1)
-   RPARAM_in(iSeg)%H06_D_Dec       =     structSEG(iSeg)%var(ixSEG%H06_D_Dec)%dat(1)
-
-   RPARAM_in(iSeg)%H06_purpose     =     structSEG(iSeg)%var(ixSEG%H06_purpose )%dat(1)
-   RPARAM_in(iSeg)%H06_I_mem_F     =     structSEG(iSeg)%var(ixSEG%H06_I_mem_F )%dat(1)
-   RPARAM_in(iSeg)%H06_D_mem_F     =     structSEG(iSeg)%var(ixSEG%H06_D_mem_F )%dat(1)
-   RPARAM_in(iSeg)%H06_I_mem_L     =     structSEG(iSeg)%var(ixSEG%H06_I_mem_L )%dat(1)
-   RPARAM_in(iSeg)%H06_D_mem_L     =     structSEG(iSeg)%var(ixSEG%H06_D_mem_L )%dat(1)
-
+   
+   if (is_lake_sim) then
+     RPARAM_in(iSeg)%D03_MaxStorage  =     structSEG(iSeg)%var(ixSEG%D03_MaxStorage)%dat(1)
+     RPARAM_in(iSeg)%D03_Coefficient =     structSEG(iSeg)%var(ixSEG%D03_Coefficient)%dat(1)
+     RPARAM_in(iSeg)%D03_Power       =     structSEG(iSeg)%var(ixSEG%D03_Power)%dat(1)
+     RPARAM_in(iSeg)%H06_Smax        =     structSEG(iSeg)%var(ixSEG%H06_Smax)%dat(1)
+     RPARAM_in(iSeg)%H06_alpha       =     structSEG(iSeg)%var(ixSEG%H06_alpha)%dat(1)
+     RPARAM_in(iSeg)%H06_envfact     =     structSEG(iSeg)%var(ixSEG%H06_envfact)%dat(1)
+     RPARAM_in(iSeg)%H06_S_ini       =     structSEG(iSeg)%var(ixSEG%H06_S_ini)%dat(1)
+     RPARAM_in(iSeg)%H06_c1          =     structSEG(iSeg)%var(ixSEG%H06_c1)%dat(1)
+     RPARAM_in(iSeg)%H06_c2          =     structSEG(iSeg)%var(ixSEG%H06_c2)%dat(1)
+     RPARAM_in(iSeg)%H06_exponent    =     structSEG(iSeg)%var(ixSEG%H06_exponent)%dat(1)
+     RPARAM_in(iSeg)%H06_denominator =     structSEG(iSeg)%var(ixSEG%H06_denominator)%dat(1)
+     RPARAM_in(iSeg)%H06_c_compare   =     structSEG(iSeg)%var(ixSEG%H06_c_compare)%dat(1)
+     RPARAM_in(iSeg)%H06_frac_Sdead  =     structSEG(iSeg)%var(ixSEG%H06_frac_Sdead)%dat(1)
+     RPARAM_in(iSeg)%H06_E_rel_ini   =     structSEG(iSeg)%var(ixSEG%H06_E_rel_ini)%dat(1)
+     RPARAM_in(iSeg)%H06_I_Jan       =     structSEG(iSeg)%var(ixSEG%H06_I_Jan)%dat(1)
+     RPARAM_in(iSeg)%H06_I_Feb       =     structSEG(iSeg)%var(ixSEG%H06_I_Feb)%dat(1)
+     RPARAM_in(iSeg)%H06_I_Mar       =     structSEG(iSeg)%var(ixSEG%H06_I_Mar)%dat(1)
+     RPARAM_in(iSeg)%H06_I_Apr       =     structSEG(iSeg)%var(ixSEG%H06_I_Apr)%dat(1)
+     RPARAM_in(iSeg)%H06_I_May       =     structSEG(iSeg)%var(ixSEG%H06_I_May)%dat(1)
+     RPARAM_in(iSeg)%H06_I_Jun       =     structSEG(iSeg)%var(ixSEG%H06_I_Jun)%dat(1)
+     RPARAM_in(iSeg)%H06_I_Jul       =     structSEG(iSeg)%var(ixSEG%H06_I_Jul)%dat(1)
+     RPARAM_in(iSeg)%H06_I_Aug       =     structSEG(iSeg)%var(ixSEG%H06_I_Aug)%dat(1)
+     RPARAM_in(iSeg)%H06_I_Sep       =     structSEG(iSeg)%var(ixSEG%H06_I_Sep)%dat(1)
+     RPARAM_in(iSeg)%H06_I_Oct       =     structSEG(iSeg)%var(ixSEG%H06_I_Oct)%dat(1)
+     RPARAM_in(iSeg)%H06_I_Nov       =     structSEG(iSeg)%var(ixSEG%H06_I_Nov)%dat(1)
+     RPARAM_in(iSeg)%H06_I_Dec       =     structSEG(iSeg)%var(ixSEG%H06_I_Dec)%dat(1)
+     RPARAM_in(iSeg)%H06_D_Jan       =     structSEG(iSeg)%var(ixSEG%H06_D_Jan)%dat(1)
+     RPARAM_in(iSeg)%H06_D_Feb       =     structSEG(iSeg)%var(ixSEG%H06_D_Feb)%dat(1)
+     RPARAM_in(iSeg)%H06_D_Mar       =     structSEG(iSeg)%var(ixSEG%H06_D_Mar)%dat(1)
+     RPARAM_in(iSeg)%H06_D_Apr       =     structSEG(iSeg)%var(ixSEG%H06_D_Apr)%dat(1)
+     RPARAM_in(iSeg)%H06_D_May       =     structSEG(iSeg)%var(ixSEG%H06_D_May)%dat(1)
+     RPARAM_in(iSeg)%H06_D_Jun       =     structSEG(iSeg)%var(ixSEG%H06_D_Jun)%dat(1)
+     RPARAM_in(iSeg)%H06_D_Jul       =     structSEG(iSeg)%var(ixSEG%H06_D_Jul)%dat(1)
+     RPARAM_in(iSeg)%H06_D_Aug       =     structSEG(iSeg)%var(ixSEG%H06_D_Aug)%dat(1)
+     RPARAM_in(iSeg)%H06_D_Sep       =     structSEG(iSeg)%var(ixSEG%H06_D_Sep)%dat(1)
+     RPARAM_in(iSeg)%H06_D_Oct       =     structSEG(iSeg)%var(ixSEG%H06_D_Oct)%dat(1)
+     RPARAM_in(iSeg)%H06_D_Nov       =     structSEG(iSeg)%var(ixSEG%H06_D_Nov)%dat(1)
+     RPARAM_in(iSeg)%H06_D_Dec       =     structSEG(iSeg)%var(ixSEG%H06_D_Dec)%dat(1)
+     RPARAM_in(iSeg)%H06_purpose     =     structSEG(iSeg)%var(ixSEG%H06_purpose )%dat(1)
+     RPARAM_in(iSeg)%H06_I_mem_F     =     structSEG(iSeg)%var(ixSEG%H06_I_mem_F )%dat(1)
+     RPARAM_in(iSeg)%H06_D_mem_F     =     structSEG(iSeg)%var(ixSEG%H06_D_mem_F )%dat(1)
+     RPARAM_in(iSeg)%H06_I_mem_L     =     structSEG(iSeg)%var(ixSEG%H06_I_mem_L )%dat(1)
+     RPARAM_in(iSeg)%H06_D_mem_L     =     structSEG(iSeg)%var(ixSEG%H06_D_mem_L )%dat(1)
+   end if
+   
    ! compute variables
    RPARAM_in(iSeg)%BASAREA = structSEG(iSeg)%var(ixSEG%basArea)%dat(1)
    RPARAM_in(iSeg)%UPSAREA = structSEG(iSeg)%var(ixSEG%upsArea)%dat(1)
@@ -509,19 +510,19 @@ end subroutine augment_ntopo
      end do  ! Loop through contributing HRU loop
    end if
 
-
    ! lake parameters
-   ! USED
-   NETOPO_in(iSeg)%isLake       = (structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)==true)
-   NETOPO_in(iSeg)%LakeTargVol  = (structNTOPO(iSeg)%var(ixNTOPO%LakeTargVol)%dat(1)==true)
-   NETOPO_in(iSeg)%LakeModelType= structNTOPO(iSeg)%var(ixNTOPO%LakeModelType)%dat(1) ! type of the parameteric lake
-   ! NOT USED: lake parameters
-   NETOPO_in(iSeg)%LAKE_IX = integerMissing  ! Lake index (0,1,2,...,nlak-1)
-   NETOPO_in(iSeg)%LAKE_ID = integerMissing  ! Lake ID (REC code?)
-   NETOPO_in(iSeg)%BASULAK = realMissing     ! Area of basin under lake
-   NETOPO_in(iSeg)%RCHULAK = realMissing     ! Length of reach under lake
-   NETOPO_in(iSeg)%LAKINLT = .false.         ! .TRUE. if reach is lake inlet, .FALSE. otherwise
-   NETOPO_in(iSeg)%USRTAKE = .false.         ! .TRUE. if user takes from reach, .FALSE. otherwise
+   if (is_lake_sim) then
+     NETOPO_in(iSeg)%isLake       = (structNTOPO(iSeg)%var(ixNTOPO%isLake)%dat(1)==true)
+     NETOPO_in(iSeg)%LakeTargVol  = (structNTOPO(iSeg)%var(ixNTOPO%LakeTargVol)%dat(1)==true)
+     NETOPO_in(iSeg)%LakeModelType= structNTOPO(iSeg)%var(ixNTOPO%LakeModelType)%dat(1) ! type of the parameteric lake
+     ! NOT USED: lake parameters
+     NETOPO_in(iSeg)%LAKE_IX = integerMissing  ! Lake index (0,1,2,...,nlak-1)
+     NETOPO_in(iSeg)%LAKE_ID = integerMissing  ! Lake ID (REC code?)
+     NETOPO_in(iSeg)%BASULAK = realMissing     ! Area of basin under lake
+     NETOPO_in(iSeg)%RCHULAK = realMissing     ! Length of reach under lake
+     NETOPO_in(iSeg)%LAKINLT = .false.         ! .TRUE. if reach is lake inlet, .FALSE. otherwise
+     NETOPO_in(iSeg)%USRTAKE = .false.         ! .TRUE. if user takes from reach, .FALSE. otherwise
+   end if
 
    ! NOT USED: Location (available in the input files)
    NETOPO_in(iSeg)%RCHLAT1 = realMissing     ! Start latitude

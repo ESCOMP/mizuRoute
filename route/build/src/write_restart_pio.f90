@@ -50,7 +50,8 @@ type(io_desc_t),      save :: iodesc_state_double
 type(io_desc_t),      save :: iodesc_wave_int
 type(io_desc_t),      save :: iodesc_wave_double
 type(io_desc_t),      save :: iodesc_mesh_double
-type(io_desc_t),      save :: iodesc_irf_float
+type(io_desc_t),      save :: iodesc_irf_double
+type(io_desc_t),      save :: iodesc_vol_double
 type(io_desc_t),      save :: iodesc_irf_bas_double
 
 integer(i4b),         save :: kTime                ! Time index in restart netCDF
@@ -358,6 +359,7 @@ CONTAINS
            nEns     => meta_stateDims(ixStateDims%ens)%dimLength,     &
            ntdh     => meta_stateDims(ixStateDims%tdh)%dimLength,     & ! maximum future q time steps among basins
            ntdh_irf => meta_stateDims(ixStateDims%tdh_irf)%dimLength, & ! maximum future q time steps among reaches
+           nTbound  => meta_stateDims(ixStateDims%tbound)%dimLength,  & ! time bound
            nFdmesh  => meta_stateDims(ixStateDims%fdmesh)%dimLength,  & ! finite difference mesh points
            nWave    => meta_stateDims(ixStateDims%wave)%dimLength)      ! maximum waves allowed in a reach
 
@@ -414,7 +416,14 @@ CONTAINS
                    ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                    [nSeg,ntdh_irf,nEns],   & ! input: dimension length == global array size
                    ixRch(ix1:ix2),         & ! input:
-                   iodesc_irf_float)
+                   iodesc_irf_double)
+
+   ! type: float dim: [dim_seg, dim_ens, dim_time]
+   call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                   [nSeg,nTbound,nEns],    & ! input: dimension length == global array size
+                   ixRch(ix1:ix2),         & ! input:
+                   iodesc_vol_double)
 
  end if
  ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens, dim_time]
@@ -971,6 +980,7 @@ CONTAINS
 
   associate(nSeg     => size(RCHFLX_local),                         &
             nEns     => meta_stateDims(ixStateDims%ens)%dimLength,  &
+            nTbound  => meta_stateDims(ixStateDims%tbound)%dimLength, &
             ntdh_irf => meta_stateDims(ixStateDims%tdh_irf)%dimLength)    ! maximum future q time steps among reaches
 
   allocate(state(impulseResponseFunc)%var(nVarsIRF), stat=ierr, errmsg=cmessage)
@@ -983,6 +993,7 @@ CONTAINS
   do iVar=1,nVarsIRF
    select case(iVar)
     case(ixIRF%qfuture); allocate(state(impulseResponseFunc)%var(iVar)%array_3d_dp(nSeg, ntdh_irf, nEns), stat=ierr)
+    case(ixIRF%irfVol);  allocate(state(impulseResponseFunc)%var(iVar)%array_3d_dp(nSeg, nTbound, nEns), stat=ierr)
     case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
    end select
    if(ierr/=0)then; message1=trim(message1)//'problem allocating space for IRF routing state '//trim(meta_irf(iVar)%varName); return; endif
@@ -1000,6 +1011,8 @@ CONTAINS
       case(ixIRF%qfuture)
        state(impulseResponseFunc)%var(iVar)%array_3d_dp(iSeg,1:numQF(iens,iSeg),iens) = RCHFLX_local(iSeg)%QFUTURE_IRF
        state(impulseResponseFunc)%var(iVar)%array_3d_dp(iSeg,numQF(iens,iSeg)+1:ntdh_irf,iens) = realMissing
+      case(ixIRF%irfVol)
+       state(impulseResponseFunc)%var(iVar)%array_3d_dp(iSeg,1:nTbound,iens) = RCHFLX_local(iSeg)%REACH_VOL(0:1)
       case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
      end select
 
@@ -1015,7 +1028,9 @@ CONTAINS
 
    select case(iVar)
     case(ixIRF%qfuture)
-     call write_pnetcdf_recdim(pioFileDescState, trim(meta_irf(iVar)%varName), state(impulseResponseFunc)%var(iVar)%array_3d_dp, iodesc_irf_float, kTime, ierr, cmessage)
+     call write_pnetcdf_recdim(pioFileDescState, trim(meta_irf(iVar)%varName), state(impulseResponseFunc)%var(iVar)%array_3d_dp, iodesc_irf_double, kTime, ierr, cmessage)
+    case(ixIRF%irfVol)
+     call write_pnetcdf_recdim(pioFileDescState, trim(meta_irf(iVar)%varName), state(impulseResponseFunc)%var(iVar)%array_3d_dp, iodesc_vol_double, kTime, ierr, cmessage)
     case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc writing'; return
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
    end select

@@ -360,6 +360,7 @@ CONTAINS
   ! set the reference julday based on the first nc file of simulation
   nFile               = size(inputfileinfo)
   nFile_wm            = size(inputfileinfo_wm)
+  day_runoff_start    = inputfileinfo(1)%timeVar(1)/inputfileinfo(1)%convTime2Days+inputfileinfo(1)%ncrefjulday
 
   day_runoff_start = inputfileinfo(1)%timeVar(1)/inputfileinfo(1)%convTime2Days+inputfileinfo(1)%ncrefjulday
 
