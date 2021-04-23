@@ -166,7 +166,7 @@ module lake_route_module
 
           ! preserving the past upstrem discharge for lake models
           ! create memory of upstream inflow for Hanasaki formulation if memory flag is active for this lake
-          if H06_I_mem_F then ! if memeory is acive for this case then allocate the past input
+          if RCHFLX_out(iens,segIndex)%H06_I_mem_F then ! if memeory is acive for this case then allocate the past input
             if (.not.allocated(RCHFLX_out(iens,segIndex)%QPASTUP_IRF)) then
               past_length_I = floor(RCHFLX_out(iens,segIndex)%H06_I_mem_L * 31 * 3600 * 24 / dt)
               allocate(RCHFLX_out(iens,segIndex)%QPASTUP_IRF(12,past_length_I,stat=ierr)
@@ -190,32 +190,23 @@ module lake_route_module
             endif
             ! mean and updating the inflow parameters
             past_length_I = floor(RCHFLX_out(iens,segIndex)%H06_I_mem_L * 31 * 3600 * 24 / dt)
-            RPARAM_in(segIndex)%H06_I_Jan = RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 1,1:past_length_I)/past_length_I
+            RPARAM_in(segIndex)%H06_I_Jan = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 1,1:past_length_I))/past_length_I
+            RPARAM_in(segIndex)%H06_I_Mar = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 3,1:past_length_I))/past_length_I
+            RPARAM_in(segIndex)%H06_I_May = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 5,1:past_length_I))/past_length_I
+            RPARAM_in(segIndex)%H06_I_Jul = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 7,1:past_length_I))/past_length_I
+            RPARAM_in(segIndex)%H06_I_Aug = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 8,1:past_length_I))/past_length_I
+            RPARAM_in(segIndex)%H06_I_Oct = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF(10,1:past_length_I))/past_length_I
+            RPARAM_in(segIndex)%H06_I_Dec = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF(12,1:past_length_I))/past_length_I
             past_length_I = floor(RCHFLX_out(iens,segIndex)%H06_I_mem_L * 28.25 * 3600 * 24 / dt)
-            RPARAM_in(segIndex)%H06_I_Feb = RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 1,1:past_length_I)/past_length_I
-            past_length_I = floor(RCHFLX_out(iens,segIndex)%H06_I_mem_L * 31 * 3600 * 24 / dt)
-            RPARAM_in(segIndex)%H06_I_Mar = RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 1,1:past_length_I)/past_length_I
+            RPARAM_in(segIndex)%H06_I_Feb = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 2,1:past_length_I)/past_length_I
             past_length_I = floor(RCHFLX_out(iens,segIndex)%H06_I_mem_L * 30 * 3600 * 24 / dt)
-            RPARAM_in(segIndex)%H06_I_Apr = RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 1,1:past_length_I)/past_length_I
-            past_length_I = floor(RCHFLX_out(iens,segIndex)%H06_I_mem_L * 31 * 3600 * 24 / dt)
-            RPARAM_in(segIndex)%H06_I_May = RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 1,1:past_length_I)/past_length_I
-            past_length_I = floor(RCHFLX_out(iens,segIndex)%H06_I_mem_L * 30 * 3600 * 24 / dt)
-            RPARAM_in(segIndex)%H06_I_Jun = RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 1,1:past_length_I)/past_length_I
-            past_length_I = floor(RCHFLX_out(iens,segIndex)%H06_I_mem_L * 31 * 3600 * 24 / dt)
-            RPARAM_in(segIndex)%H06_I_Jul = RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 1,1:past_length_I)/past_length_I
-            past_length_I = floor(RCHFLX_out(iens,segIndex)%H06_I_mem_L * 31 * 3600 * 24 / dt)
-            RPARAM_in(segIndex)%H06_I_Aug = RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 1,1:past_length_I)/past_length_I
-            past_length_I = floor(RCHFLX_out(iens,segIndex)%H06_I_mem_L * 30 * 3600 * 24 / dt)
-            RPARAM_in(segIndex)%H06_I_Sep = RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 1,1:past_length_I)/past_length_I
-            past_length_I = floor(RCHFLX_out(iens,segIndex)%H06_I_mem_L * 31 * 3600 * 24 / dt)
-            RPARAM_in(segIndex)%H06_I_Oct = RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 1,1:past_length_I)/past_length_I
-            past_length_I = floor(RCHFLX_out(iens,segIndex)%H06_I_mem_L * 30 * 3600 * 24 / dt)
-            RPARAM_in(segIndex)%H06_I_Nov = RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 1,1:past_length_I)/past_length_I
-            past_length_I = floor(RCHFLX_out(iens,segIndex)%H06_I_mem_L * 31 * 3600 * 24 / dt)
-            RPARAM_in(segIndex)%H06_I_Dec = RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 1,1:past_length_I)/past_length_I
+            RPARAM_in(segIndex)%H06_I_Apr = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 4,1:past_length_I))/past_length_I
+            RPARAM_in(segIndex)%H06_I_Jun = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 6,1:past_length_I))/past_length_I
+            RPARAM_in(segIndex)%H06_I_Sep = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 9,1:past_length_I))/past_length_I
+            RPARAM_in(segIndex)%H06_I_Nov = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF(11,1:past_length_I))/past_length_I
           endif
           !print*, RCHFLX_out(iens,segIndex)%QPASTUP_IRF
-          ! create array with monthly inflow - this should also be integrated in memory code
+          ! create array with monthly inflow
           I_months = (/ RPARAM_in(segIndex)%H06_I_Jan, RPARAM_in(segIndex)%H06_I_Feb, &
                         RPARAM_in(segIndex)%H06_I_Mar, RPARAM_in(segIndex)%H06_I_Apr, &
                         RPARAM_in(segIndex)%H06_I_May, RPARAM_in(segIndex)%H06_I_Jun, &
@@ -223,23 +214,56 @@ module lake_route_module
                         RPARAM_in(segIndex)%H06_I_Sep, RPARAM_in(segIndex)%H06_I_Oct, &
                         RPARAM_in(segIndex)%H06_I_Nov, RPARAM_in(segIndex)%H06_I_Dec /)
 
-
-
-          ! get demand - this should be included in memory code
-          if((RCHFLX_out(iens,segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then ! demand is given by input file
-            print*, 'Demand is given in input file', RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
-            ! D_months = ! the code requires here monthly demand, while daily values can be read in.
-          else ! use monthly mean demand values from parameters
-                      ! create array with monthly inflow
-
+          ! preserving the past demand discharge for lake models
+          if ((RCHFLX_out(iens,segIndex)%H06_D_mem_F).and.(RCHFLX_out(iens,segIndex)%REACH_WM_FLUX/=realMissing).and.(is_flux_wm)) then ! if memeory is acive for this case then allocate the past input
+            if (RCHFLX_out(iens,segIndex)%REACH_WM_FLUX<0) then ! demand cannot be negative for lake/reservoir
+              RCHFLX_out(iens,segIndex)%REACH_WM_FLUX = 0._dp
+            endif
+            if (.not.allocated(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF)) then
+              past_length_D = floor(RCHFLX_out(iens,segIndex)%H06_D_mem_L * 31 * 3600 * 24 / dt)
+              allocate(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(12,past_length_D,stat=ierr)
+              RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 1,:) = RPARAM_in(segIndex)%H06_D_Jan
+              RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 2,:) = RPARAM_in(segIndex)%H06_D_Feb
+              RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 3,:) = RPARAM_in(segIndex)%H06_D_Mar
+              RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 4,:) = RPARAM_in(segIndex)%H06_D_Apr
+              RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 5,:) = RPARAM_in(segIndex)%H06_D_May
+              RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 6,:) = RPARAM_in(segIndex)%H06_D_Jun
+              RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 7,:) = RPARAM_in(segIndex)%H06_D_Jul
+              RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 8,:) = RPARAM_in(segIndex)%H06_D_Aug
+              RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 9,:) = RPARAM_in(segIndex)%H06_D_Sep
+              RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(10,:) = RPARAM_in(segIndex)%H06_D_Oct
+              RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(11,:) = RPARAM_in(segIndex)%H06_D_Nov
+              RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(12,:) = RPARAM_in(segIndex)%H06_D_Dec
+            else
+              array_size = size(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF)
+              past_length_D = array_size(2)
+              RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(modTime(1)%im, 2:past_length_D) = RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(modTime(1)%im, 1:past_length_D-1) ! shift the memory
+              RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(modTime(1)%im, 1) = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! allocate the current demand
+            endif
+            ! mean and updating the demand parameters
+            past_length_D = floor(RCHFLX_out(iens,segIndex)%H06_D_mem_L * 31 * 3600 * 24 / dt)
+            RPARAM_in(segIndex)%H06_D_Jan = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 1,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_Mar = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 3,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_May = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 5,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_Jul = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 7,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_Aug = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 8,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_Oct = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(10,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_Dec = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(12,1:past_length_D))/past_length_D
+            past_length_D = floor(RCHFLX_out(iens,segIndex)%H06_D_mem_L * 28.25 * 3600 * 24 / dt)
+            RPARAM_in(segIndex)%H06_D_Feb = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 2,1:past_length_D))/past_length_D
+            past_length_D = floor(RCHFLX_out(iens,segIndex)%H06_D_mem_L * 30 * 3600 * 24 / dt)
+            RPARAM_in(segIndex)%H06_D_Apr = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 4,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_Jun = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 6,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_Sep = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 9,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_Nov = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(11,1:past_length_D))/past_length_D
           endif
-
-
-
-
-          D_months = (/ RPARAM_in(segIndex)%H06_D_Jan, RPARAM_in(segIndex)%H06_D_Feb, RPARAM_in(segIndex)%H06_D_Mar, RPARAM_in(segIndex)%H06_D_Apr, RPARAM_in(segIndex)%H06_D_May, RPARAM_in(segIndex)%H06_D_Jun, &
-                      RPARAM_in(segIndex)%H06_D_Jul, RPARAM_in(segIndex)%H06_D_Aug, RPARAM_in(segIndex)%H06_D_Sep, RPARAM_in(segIndex)%H06_D_Oct, RPARAM_in(segIndex)%H06_D_Nov, RPARAM_in(segIndex)%H06_D_Dec /)
-
+          ! create array with monthly demand
+          D_months = (/ RPARAM_in(segIndex)%H06_D_Jan, RPARAM_in(segIndex)%H06_D_Feb, &
+                        RPARAM_in(segIndex)%H06_D_Mar, RPARAM_in(segIndex)%H06_D_Apr, &
+                        RPARAM_in(segIndex)%H06_D_May, RPARAM_in(segIndex)%H06_D_Jun, &
+                        RPARAM_in(segIndex)%H06_D_Jul, RPARAM_in(segIndex)%H06_D_Aug, &
+                        RPARAM_in(segIndex)%H06_D_Sep, RPARAM_in(segIndex)%H06_D_Oct, &
+                        RPARAM_in(segIndex)%H06_D_Nov, RPARAM_in(segIndex)%H06_D_Dec /)
 
           ! calculate mean annual inflow and demand (to be integrated in condition not using of memory)
           I_yearly = SUM(I_months)/months_per_yr

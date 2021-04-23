@@ -316,7 +316,9 @@ implicit none
  ! fluxes and states in each reach
  TYPE, public :: strflx
   real(dp), allocatable                :: QFUTURE(:)         ! runoff volume in future time steps (m3/s)
-  real(dp), allocatable                :: QFUTURE_IRF(:,:)   ! runoff volume in the past time steps for lake upstream (m3/s)
+  real(dp), allocatable                :: QFUTURE_IRF(:)     ! runoff volume in future time steps for IRF routing (m3/s)
+  real(dp), allocatable                :: QPASTUP_IRF(:,:)   ! runoff volume in the past time steps for lake upstream (m3/s)
+  real(dp), allocatable                :: DEMANDPAST_IRF(:,:)! demand volume for lake (m3/s)
   real(dp)                             :: BASIN_QI           ! instantaneous runoff volume from the local basin (m3/s)
   real(dp)                             :: BASIN_QR(0:1)      ! routed runoff volume from the local basin (m3/s)
   real(dp)                             :: REACH_Q            ! time-step average streamflow (m3/s)
