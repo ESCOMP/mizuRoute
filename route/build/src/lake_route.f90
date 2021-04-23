@@ -40,6 +40,7 @@ module lake_route_module
   USE public_var, ONLY: lake_model_D03    ! logical whether or not lake should be simulated
   USE public_var, ONLY: lake_model_H06    ! logical whether or not lake should be simulated
   USE public_var, ONLY: secprday, days_per_yr, months_per_yr    ! time constants
+  USE public_var, ONLY: calendar          ! calendar name
 
   implicit none
   ! Input
@@ -168,7 +169,7 @@ module lake_route_module
           ! create memory of upstream inflow for Hanasaki formulation if memory flag is active for this lake
           if (RPARAM_in(segIndex)%H06_I_mem_F) then ! if memeory is acive for this case then allocate the past input
             if (.not.allocated(RCHFLX_out(iens,segIndex)%QPASTUP_IRF)) then
-              past_length_I = floor(RPARAM_in(segIndex)%H06_I_mem_L * 31 * 3600 * 24 / dt)
+              past_length_I = floor(RPARAM_in(segIndex)%H06_I_mem_L * 31 * secprday / dt)
               allocate(RCHFLX_out(iens,segIndex)%QPASTUP_IRF(12,past_length_I),stat=ierr)
               RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 1,:) = RPARAM_in(segIndex)%H06_I_Jan
               RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 2,:) = RPARAM_in(segIndex)%H06_I_Feb
@@ -189,7 +190,7 @@ module lake_route_module
               RCHFLX_out(iens,segIndex)%QPASTUP_IRF(modTime(1)%im, 1) = q_upstream ! allocate the current qupstream
             endif
             ! mean and updating the inflow parameters
-            past_length_I = floor(RPARAM_in(segIndex)%H06_I_mem_L * 31    * 3600 * 24 / dt)
+            past_length_I = floor(RPARAM_in(segIndex)%H06_I_mem_L * 31    * secprday / dt)
             RPARAM_in(segIndex)%H06_I_Jan = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 1,1:past_length_I))/past_length_I
             RPARAM_in(segIndex)%H06_I_Mar = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 3,1:past_length_I))/past_length_I
             RPARAM_in(segIndex)%H06_I_May = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 5,1:past_length_I))/past_length_I
@@ -197,13 +198,18 @@ module lake_route_module
             RPARAM_in(segIndex)%H06_I_Aug = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 8,1:past_length_I))/past_length_I
             RPARAM_in(segIndex)%H06_I_Oct = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF(10,1:past_length_I))/past_length_I
             RPARAM_in(segIndex)%H06_I_Dec = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF(12,1:past_length_I))/past_length_I
-            past_length_I = floor(RPARAM_in(segIndex)%H06_I_mem_L * 28.25 * 3600 * 24 / dt)
-            RPARAM_in(segIndex)%H06_I_Feb = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 2,1:past_length_I))/past_length_I
-            past_length_I = floor(RPARAM_in(segIndex)%H06_I_mem_L * 30    * 3600 * 24 / dt)
+            past_length_I = floor(RPARAM_in(segIndex)%H06_I_mem_L * 30    * secprday / dt)
             RPARAM_in(segIndex)%H06_I_Apr = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 4,1:past_length_I))/past_length_I
             RPARAM_in(segIndex)%H06_I_Jun = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 6,1:past_length_I))/past_length_I
             RPARAM_in(segIndex)%H06_I_Sep = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 9,1:past_length_I))/past_length_I
-            RPARAM_in(segIndex)%H06_I_Nov = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF(11,1:past_length_I))/past_length_I
+            select case(trim(calendar))
+              case('noleap','365_day')
+                past_length_I = floor(RPARAM_in(segIndex)%H06_I_mem_L * 28    * secprday / dt)
+              case ('standard','gregorian','proleptic_gregorian')
+                past_length_I = floor(RPARAM_in(segIndex)%H06_I_mem_L * 28.25 * secprday / dt)
+              case default;    ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
+            end select
+            RPARAM_in(segIndex)%H06_I_Feb = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 2,1:past_length_I))/past_length_I
           endif
           !print*, RCHFLX_out(iens,segIndex)%QPASTUP_IRF
           ! create array with monthly inflow
@@ -220,7 +226,7 @@ module lake_route_module
               RCHFLX_out(iens,segIndex)%REACH_WM_FLUX = 0._dp
             endif
             if (.not.allocated(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF)) then
-              past_length_D = floor(RPARAM_in(segIndex)%H06_D_mem_L * 31 * 3600 * 24 / dt)
+              past_length_D = floor(RPARAM_in(segIndex)%H06_D_mem_L * 31 * secprday / dt)
               allocate(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(12,past_length_D),stat=ierr)
               RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 1,:) = RPARAM_in(segIndex)%H06_D_Jan
               RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 2,:) = RPARAM_in(segIndex)%H06_D_Feb
@@ -241,7 +247,7 @@ module lake_route_module
               RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(modTime(1)%im, 1) = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! allocate the current demand
             endif
             ! mean and updating the demand parameters
-            past_length_D = floor(RPARAM_in(segIndex)%H06_D_mem_L * 31    * 3600 * 24 / dt)
+            past_length_D = floor(RPARAM_in(segIndex)%H06_D_mem_L * 31    * secprday / dt)
             RPARAM_in(segIndex)%H06_D_Jan = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 1,1:past_length_D))/past_length_D
             RPARAM_in(segIndex)%H06_D_Mar = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 3,1:past_length_D))/past_length_D
             RPARAM_in(segIndex)%H06_D_May = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 5,1:past_length_D))/past_length_D
@@ -249,13 +255,19 @@ module lake_route_module
             RPARAM_in(segIndex)%H06_D_Aug = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 8,1:past_length_D))/past_length_D
             RPARAM_in(segIndex)%H06_D_Oct = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(10,1:past_length_D))/past_length_D
             RPARAM_in(segIndex)%H06_D_Dec = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(12,1:past_length_D))/past_length_D
-            past_length_D = floor(RPARAM_in(segIndex)%H06_D_mem_L * 28.25 * 3600 * 24 / dt)
-            RPARAM_in(segIndex)%H06_D_Feb = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 2,1:past_length_D))/past_length_D
-            past_length_D = floor(RPARAM_in(segIndex)%H06_D_mem_L * 30    * 3600 * 24 / dt)
+            past_length_D = floor(RPARAM_in(segIndex)%H06_D_mem_L * 30    * secprday / dt)
             RPARAM_in(segIndex)%H06_D_Apr = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 4,1:past_length_D))/past_length_D
             RPARAM_in(segIndex)%H06_D_Jun = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 6,1:past_length_D))/past_length_D
             RPARAM_in(segIndex)%H06_D_Sep = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 9,1:past_length_D))/past_length_D
             RPARAM_in(segIndex)%H06_D_Nov = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(11,1:past_length_D))/past_length_D
+            select case(trim(calendar))
+              case('noleap','365_day')
+                past_length_D = floor(RPARAM_in(segIndex)%H06_D_mem_L * 28    * secprday / dt)
+              case ('standard','gregorian','proleptic_gregorian')
+                past_length_D = floor(RPARAM_in(segIndex)%H06_D_mem_L * 28.25 * secprday / dt)
+              case default;    ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
+            end select
+            RPARAM_in(segIndex)%H06_D_Feb = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 2,1:past_length_D))/past_length_D
           endif
           ! create array with monthly demand
           D_months = (/ RPARAM_in(segIndex)%H06_D_Jan, RPARAM_in(segIndex)%H06_D_Feb, &
