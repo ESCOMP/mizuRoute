@@ -184,8 +184,6 @@ module lake_route_module
               RCHFLX_out(iens,segIndex)%QPASTUP_IRF(12,:) = RPARAM_in(segIndex)%H06_I_Dec
             else
               array_size = shape(RCHFLX_out(iens,segIndex)%QPASTUP_IRF)
-              print*, 'array size variable', array_size
-              print*, 'RCHFLX_out(iens,segIndex)%QPASTUP_IRF', RCHFLX_out(iens,segIndex)%QPASTUP_IRF
               past_length_I = array_size(2)
               RCHFLX_out(iens,segIndex)%QPASTUP_IRF(modTime(1)%im, 2:past_length_I) = RCHFLX_out(iens,segIndex)%QPASTUP_IRF(modTime(1)%im, 1:past_length_I-1) ! shift the memory
               RCHFLX_out(iens,segIndex)%QPASTUP_IRF(modTime(1)%im, 1) = q_upstream ! allocate the current qupstream
