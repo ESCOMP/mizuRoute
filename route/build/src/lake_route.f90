@@ -66,7 +66,7 @@ module lake_route_module
   real(dp)                                 :: c                   ! storage to yearly activity ratio
   real(dp)                                 :: I_yearly, D_yearly  ! mean annual inflow and demand
   real(dp), dimension(12)                  :: I_months, D_months  ! mean monthly inflow and demand
-  INTEGER(I4B), allocatable                :: array_size (:)      ! get the size of array_size
+  INTEGER(I4B), dimension(2)               :: array_size(2)      ! get the size of array_size
   INTEGER(I4B)                             :: start_month=0       ! start month of the operational year
   INTEGER(I4B)                             :: i                   ! index
   INTEGER(I4B)                             :: past_length_I       ! pas length for inflow based on length in year and floor
@@ -183,7 +183,7 @@ module lake_route_module
               RCHFLX_out(iens,segIndex)%QPASTUP_IRF(11,:) = RPARAM_in(segIndex)%H06_I_Nov
               RCHFLX_out(iens,segIndex)%QPASTUP_IRF(12,:) = RPARAM_in(segIndex)%H06_I_Dec
             else
-              array_size = size(RCHFLX_out(iens,segIndex)%QPASTUP_IRF)
+              array_size = shape(RCHFLX_out(iens,segIndex)%QPASTUP_IRF)
               past_length_I = array_size(2)
               RCHFLX_out(iens,segIndex)%QPASTUP_IRF(modTime(1)%im, 2:past_length_I) = RCHFLX_out(iens,segIndex)%QPASTUP_IRF(modTime(1)%im, 1:past_length_I-1) ! shift the memory
               RCHFLX_out(iens,segIndex)%QPASTUP_IRF(modTime(1)%im, 1) = q_upstream ! allocate the current qupstream
@@ -235,7 +235,7 @@ module lake_route_module
               RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(11,:) = RPARAM_in(segIndex)%H06_D_Nov
               RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(12,:) = RPARAM_in(segIndex)%H06_D_Dec
             else
-              array_size = size(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF)
+              array_size = shape(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF)
               past_length_D = array_size(2)
               RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(modTime(1)%im, 2:past_length_D) = RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(modTime(1)%im, 1:past_length_D-1) ! shift the memory
               RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(modTime(1)%im, 1) = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! allocate the current demand
