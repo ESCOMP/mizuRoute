@@ -315,39 +315,38 @@ implicit none
 
  ! fluxes and states in each reach
  TYPE, public :: strflx
-  real(dp), allocatable                :: QFUTURE(:)        ! runoff volume in future time steps (m3/s)
-  real(dp), allocatable                :: QFUTURE_IRF(:)    ! runoff volume in future time steps for IRF routing (m3/s)
-  real(dp), allocatable                :: QPASTUP_IRF(:)    ! runoff volume in the past time steps for lake upstream (m3/s)
-  real(dp)                             :: BASIN_QI          ! instantaneous runoff volume from the local basin (m3/s)
-  real(dp)                             :: BASIN_QR(0:1)     ! routed runoff volume from the local basin (m3/s)
-  real(dp)                             :: REACH_Q           ! time-step average streamflow (m3/s)
-  real(dp)                             :: REACH_Q_IRF       ! time-step average streamflow (m3/s) from IRF routing
-  real(dp)                             :: UPSTREAM_QI       ! sum of upstream streamflow (m3/s)
-  real(dp)                             :: REACH_VOL(0:1)    ! volume of water at previous and current time step [m3]
-  real(dp)                             :: REACH_WM_FLUX     ! water management fluxes to and from each reach
-  real(dp)                             :: REACH_WM_VOL      ! target volume from the second water management file (m3)
-  real(dp)                             :: TAKE              ! average take
-  logical(lgt)                         :: isRoute           ! .true. if the reach is routed
-  real(dp)                             :: basinEvapo        ! remapped river network catchment Evaporation (size: number of nHRU)
-  real(dp)                             :: basinPrecip       ! remapped river network catchment Precipitation (size: number of nHRU)
+  real(dp), allocatable                :: QFUTURE(:)         ! runoff volume in future time steps (m3/s)
+  real(dp), allocatable                :: QFUTURE_IRF(:,:)   ! runoff volume in the past time steps for lake upstream (m3/s)
+  real(dp)                             :: BASIN_QI           ! instantaneous runoff volume from the local basin (m3/s)
+  real(dp)                             :: BASIN_QR(0:1)      ! routed runoff volume from the local basin (m3/s)
+  real(dp)                             :: REACH_Q            ! time-step average streamflow (m3/s)
+  real(dp)                             :: REACH_Q_IRF        ! time-step average streamflow (m3/s) from IRF routing
+  real(dp)                             :: UPSTREAM_QI        ! sum of upstream streamflow (m3/s)
+  real(dp)                             :: REACH_VOL(0:1)     ! volume of water at previous and current time step [m3]
+  real(dp)                             :: REACH_WM_FLUX      ! water management fluxes to and from each reach
+  real(dp)                             :: REACH_WM_VOL       ! target volume from the second water management file (m3)
+  real(dp)                             :: TAKE               ! average take
+  logical(lgt)                         :: isRoute            ! .true. if the reach is routed
+  real(dp)                             :: basinEvapo         ! remapped river network catchment Evaporation (size: number of nHRU)
+  real(dp)                             :: basinPrecip        ! remapped river network catchment Precipitation (size: number of nHRU)
  END TYPE strflx
 
  ! ---------- lake data types -----------------------------------------------------------------
 
  ! Lake Parameters
  TYPE, public :: LAKPRP
-  real(dp)                             :: AREAREF           ! lake area
-  real(dp)                             :: LAKREFLEV         ! lake elevation
-  real(dp)                             :: LAKAVGLEV         ! lake average level (for initialization)
-  real(dp)                             :: HE2AR_C           ! water height-surface area parameter
-  real(dp)                             :: HE2AR_D           ! water height-surface area parameter
-  real(dp)                             :: HGHTLOW           ! minimum water height for discharge
-  real(dp)                             :: HGHTECO           ! minimum height for ecological concerns
-  real(dp)                             :: HGHTSPL           ! spillway height
-  real(dp)                             :: DSCHECO           ! discharge at "ecological" height
-  real(dp)                             :: DSCHSPL           ! discharge at spillway height
-  real(dp)                             :: RATECVA           ! discharge rating curve parameter
-  real(dp)                             :: RATECVB           ! discharge rating curve parameter
+  real(dp)                             :: AREAREF            ! lake area
+  real(dp)                             :: LAKREFLEV          ! lake elevation
+  real(dp)                             :: LAKAVGLEV          ! lake average level (for initialization)
+  real(dp)                             :: HE2AR_C            ! water height-surface area parameter
+  real(dp)                             :: HE2AR_D            ! water height-surface area parameter
+  real(dp)                             :: HGHTLOW            ! minimum water height for discharge
+  real(dp)                             :: HGHTECO            ! minimum height for ecological concerns
+  real(dp)                             :: HGHTSPL            ! spillway height
+  real(dp)                             :: DSCHECO            ! discharge at "ecological" height
+  real(dp)                             :: DSCHSPL            ! discharge at spillway height
+  real(dp)                             :: RATECVA            ! discharge rating curve parameter
+  real(dp)                             :: RATECVB            ! discharge rating curve parameter
  END TYPE LAKPRP
 
  ! Lake topology
