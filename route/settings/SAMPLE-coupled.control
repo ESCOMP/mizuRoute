@@ -17,6 +17,7 @@
 <doesBasinRoute>        1                          ! basin routing options   0-> no, 1->IRF, otherwise error
 <doesAccumRunoff>       1                          ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
 <fname_state_in>        STATE_IN_NC                ! input restart netCDF name. remove for run without any particular initial channel states
+<newFileFrequency>      month                      ! frequency for new output files (day, month, annual, single) 
 ! ****************************************************************************************************************************
 ! DEFINE DIRECTORIES 
 ! --------------------------
