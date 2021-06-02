@@ -43,6 +43,7 @@ $(PIO2DIR):
 
 ifeq "$(isPIO)" "yes"
   INCLDIR += -I$(PIOLIBDIR)/include
+  CPPDEFS += -DPIO2
 endif
 
 ifeq "$(isMPISERIAL)" "yes"
@@ -71,7 +72,7 @@ else
   PIO_ENABLE_TIMING = OFF
 endif
 
-CMAKE_OPTS += -D CMAKE_Fortran_FLAGS:STRING="$(FLAGS) $(CPPDEFS) $(INCLDIR)" \
+CMAKE_OPTS += -Wno-dev -D CMAKE_Fortran_FLAGS:STRING="$(FLAGS) $(CPPDEFS) $(INCLDIR)" \
               -D CMAKE_C_FLAGS:STRING="$(CFLAGS) $(CPPDEFS) $(INCLDIR)" \
               -D CMAKE_CXX_FLAGS:STRING="$(CXXFLAGS) $(CPPDEFS) $(INCLDIR)" \
               -D CMAKE_VERBOSE_MAKEFILE:BOOL=ON \
