@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<testlist version="2.0">
+
+  <test name="SMS_D" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+    <machines>
+      <machine name="cheyenne" compiler="intel" category="mizu"></machine>
+    </machines>
+    <options>
+      <option name="wallclock">00:20:00</option>
+      <option name="comment"  >Smoke test on small regional grid with DEBUG on</option>
+    </options>
+  </test>
+</testlist>
