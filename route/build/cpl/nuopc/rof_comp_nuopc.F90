@@ -20,7 +20,7 @@ module rof_comp_nuopc
 
   use public_var            , only : iulog
   use public_var            , only : calendar, simStart, simEnd, time_units
-  use globalData            , only : masterproc  !create this  logical variable  in mizuRoute (masterproc=true => master task, false => other tasks
+  use globalData            , only : masterproc
   use globalData            , only : iam        => pid
   use globalData            , only : npes       => nNodes
   use globalData            , only : mpicom_rof => mpicom_route
@@ -61,11 +61,11 @@ module rof_comp_nuopc
   integer                 :: flds_scalar_index_nx = 0
   integer                 :: flds_scalar_index_ny = 0
   integer                 :: flds_scalar_index_nextsw_cday = 0._r8
-!#ifdef NDEBUG
-  logical, parameter      :: debug_write = .true.
-!#else
-  !logical, parameter      :: debug_write = .false.
-!#endif
+#ifdef NDEBUG
+  logical, parameter      :: debug_write = .false.
+#else
+  logical, parameter      :: debug_write = .false.
+#endif
 
   character(*), parameter :: modName =  "(rof_comp_nuopc)"
   character(*), parameter :: u_FILE_u = &
@@ -290,6 +290,7 @@ contains
 
     ! local variables
     type(ESMF_Mesh)             :: Emesh
+    type(ESMF_Mesh)             :: mesh
     type(ESMF_DistGrid)         :: DistGrid              ! esmf global index space descriptor
     type(ESMF_Time)             :: currTime              ! Current time
     type(ESMF_Time)             :: startTime             ! Start time
@@ -457,7 +458,7 @@ contains
     ! Read namelist, grid and surface data
     !----------------------
 
-    if (masterproc .and. debug_write) then
+    if (masterproc) then
        write(iulog,*) "mizuRoute initialization"
        write(iulog,*) ' mizuRoute npes = ',npes
        write(iulog,*) ' mizuRoute iam  = ',iam
@@ -539,7 +540,7 @@ contains
 
     ! Get global dist grid attributes
     call ESMF_DistGridGet( DistGrid, dimCount=dimCount, tileCount=tileCount, deCount=deCount, localDeCount=localDeCount, &
-     regDecompFlag=regDecompFlag, connectionCount=connectionCount, rc=rc )
+                           regDecompFlag=regDecompFlag, connectionCount=connectionCount, rc=rc )
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     if (masterproc .and. debug_write) then
        write(iulog,*) "dimCount = ", dimCount
@@ -555,32 +556,33 @@ contains
     call NUOPC_CompAttributeGet(gcomp, name='mesh_rof', value=cvalue, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    if (masterproc) then
+    if (masterproc .and. debug_write) then
        write(iulog,*)'mesh file for domain is ',trim(cvalue)
        call shr_sys_flush(iulog)
     end if
 
-    ! Create the mesh in one step using the above distGrid
-    EMesh = ESMF_MeshCreate(filename=trim(cvalue), fileformat=ESMF_FILEFORMAT_ESMFMESH, elementDistgrid=Distgrid, rc=rc)
+    ! Read the mesh
+    Mesh = ESMF_MeshCreate(filename=trim(cvalue), fileformat=ESMF_FILEFORMAT_ESMFMESH, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    call ESMF_MeshWrite(EMesh, filename='miz_mesh', rc=rc)
+    ! Create the mesh in one step using the above distGrid
+    Emesh = ESMF_MeshCreate(Mesh, elementDistgrid=DistGrid, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-!    if ( debug_write )then
-!       write(iulog,*) ' After ESMF_MeshCreate'
-!       call shr_sys_flush(iulog)
-!    end if
-!    call ESMF_MeshGet( EMesh,  parametricDim=parametricDim, spatialDim=spatialDim, numOwnedNodes=numOwnedNodes, &
-!                       numOwnedElements=numOwnedElements, isMemFreed=isMemFreed, rc=rc)
-!    if (ChkErr(rc,__LINE__,u_FILE_u)) return
-!    if ( debug_write )then
-!       write(iulog,*) ' parametricDim = ', parametricDim
-!       write(iulog,*) ' spatialDim = ', spatialDim
-!       write(iulog,*) ' numOwnedNodes = ', numOwnedNodes
-!       write(iulog,*) ' numOwnedElements = ', numOwnedElements
-!       write(iulog,*) ' isMemFreed = ', isMemFreed
-!       call shr_sys_flush(iulog)
-!    end if
+    if ( debug_write )then
+      call ESMF_MeshWrite(Emesh, filename='miz_mesh', rc=rc)
+      call ESMF_MeshGet( Emesh,  parametricDim=parametricDim, spatialDim=spatialDim, numOwnedNodes=numOwnedNodes, &
+                       numOwnedElements=numOwnedElements, isMemFreed=isMemFreed, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      if (masterproc) then
+        write(iulog,*) ' parametricDim = ', parametricDim
+        write(iulog,*) ' spatialDim = ', spatialDim
+        write(iulog,*) ' numOwnedNodes = ', numOwnedNodes
+        write(iulog,*) ' numOwnedElements = ', numOwnedElements
+        write(iulog,*) ' isMemFreed = ', isMemFreed
+        call shr_sys_flush(iulog)
+      end if
+    end if
 
     !--------------------------------
     ! realize actively coupled fields
