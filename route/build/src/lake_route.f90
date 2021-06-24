@@ -67,7 +67,7 @@ module lake_route_module
   real(dp)                                 :: c                   ! storage to yearly activity ratio
   real(dp)                                 :: I_yearly, D_yearly  ! mean annual inflow and demand
   real(dp), dimension(12)                  :: I_months, D_months  ! mean monthly inflow and demand
-  INTEGER(I4B), dimension(2)               :: array_size(2)      ! get the size of array_size
+  INTEGER(I4B), dimension(2)               :: array_size(2)       ! get the size of array_size
   INTEGER(I4B)                             :: start_month=0       ! start month of the operational year
   INTEGER(I4B)                             :: i                   ! index
   INTEGER(I4B)                             :: past_length_I       ! pas length for inflow based on length in year and floor
@@ -142,7 +142,7 @@ module lake_route_module
 
       !print*, "inside the lake follow target", RCHFLX_out(iens,segIndex)%REACH_WM_VOL, RCHFLX_out(iens,segIndex)%REACH_VOL(1)
 
-    else ! if the lake is paraemteric
+    else ! if the lake is parameteric
 
       !print*, "lake model type", NETOPO_in(segIndex)%LakeModelType
       select case(NETOPO_in(segIndex)%LakeModelType)

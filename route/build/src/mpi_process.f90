@@ -247,7 +247,6 @@ contains
   integer(i4b)                                :: H06_D_mem_F(nRch_in)      ! Hanasaki 2006; Flag to transition to modelled/provided demand [-]
   integer(i4b)                                :: H06_I_mem_L(nRch_in)      ! Hanasaki 2006; Memory length in years for inflow [year]
   integer(i4b)                                :: H06_D_mem_L(nRch_in)      ! Hanasaki 2006; Memory length in years for demand [year]
-
   integer(i4b)                                :: ixNode(nRch_in)           ! node assignment for each reach
   integer(i4b)                                :: ixDomain(nRch_in)         ! domain index for each reach
   logical(lgt),      allocatable              :: tribOutlet(:)             ! logical to indicate tributary outlet to mainstems over entire network
@@ -349,6 +348,9 @@ contains
      slope(iSeg)           = structSEG(  jSeg)%var(ixSEG%slope)%dat(1)
      length(iSeg)          = structSEG(  jSeg)%var(ixSEG%length)%dat(1)
      if (is_lake_sim) then
+       islake(iSeg)          = structNTOPO(jSeg)%var(ixNTOPO%islake)%dat(1)
+       LakeTargVol(iSeg)     = structNTOPO(jSeg)%var(ixNTOPO%LakeTargVol)%dat(1)
+       LakeModelType(iSeg)   = structNTOPO(jSeg)%var(ixNTOPO%LakeModelType)%dat(1)
        D03_MaxStorage(iSeg)  = structSEG(  jSeg)%var(ixSEG%D03_MaxStorage)%dat(1)
        D03_Coefficient(iSeg) = structSEG(  jSeg)%var(ixSEG%D03_Coefficient)%dat(1)
        D03_Power(iSeg)       = structSEG(  jSeg)%var(ixSEG%D03_Power)%dat(1)
