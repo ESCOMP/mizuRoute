@@ -285,7 +285,7 @@ CONTAINS
     ! Initialize mizuRoute history handler and fields
     !-------------------------------------------------------
     call t_startf('mizuRoute_histinit')
-    call prep_output(ierr, cmessage)
+    call main_new_file(ierr, cmessage)
     call t_stopf('mizuRoute_histinit')
 
     rtmCTL%discharge = 0._r8

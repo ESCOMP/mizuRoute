@@ -20,7 +20,7 @@ module rof_comp_nuopc
 
   use public_var            , only : iulog
   use public_var            , only : calendar, simStart, simEnd, time_units
-  use globalData            , only : masterproc  !create this  logical variable  in mizuRoute (masterproc=true => master task, false => other tasks
+  use globalData            , only : masterproc
   use globalData            , only : iam        => pid
   use globalData            , only : npes       => nNodes
   use globalData            , only : mpicom_rof => mpicom_route
@@ -40,6 +40,7 @@ module rof_comp_nuopc
   use rof_shr_methods       , only : chkerr, state_setscalar, state_getscalar, state_diagnose, alarmInit
   use rof_shr_methods       , only : set_component_logging, get_component_instance, log_clock_advance
 
+!$ use omp_lib              , only : omp_set_num_threads
   implicit none
   private ! except
 
@@ -61,11 +62,12 @@ module rof_comp_nuopc
   integer                 :: flds_scalar_index_nx = 0
   integer                 :: flds_scalar_index_ny = 0
   integer                 :: flds_scalar_index_nextsw_cday = 0._r8
-!#ifdef NDEBUG
-  logical, parameter      :: debug_write = .true.
-!#else
-  !logical, parameter      :: debug_write = .false.
-!#endif
+  integer                 :: nthrds
+#ifdef NDEBUG
+  logical, parameter      :: debug_write = .false.
+#else
+  logical, parameter      :: debug_write = .false.
+#endif
 
   character(*), parameter :: modName =  "(rof_comp_nuopc)"
   character(*), parameter :: u_FILE_u = &
@@ -198,7 +200,7 @@ contains
     call get_component_instance(gcomp, inst_suffix, inst_index, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    inst_name = "ROF"//trim(inst_suffix)
+    inst_name = "ROF"
 
     !----------------------------------------------------------------------------
     ! reset shr logging to my log file
@@ -290,14 +292,15 @@ contains
 
     ! local variables
     type(ESMF_Mesh)             :: Emesh
+    type(ESMF_Mesh)             :: mesh
     type(ESMF_DistGrid)         :: DistGrid              ! esmf global index space descriptor
     type(ESMF_Time)             :: currTime              ! Current time
     type(ESMF_Time)             :: startTime             ! Start time
     type(ESMF_Time)             :: stopTime              ! Stop time
     type(ESMF_Time)             :: refTime               ! Ref time
     type(ESMF_TimeInterval)     :: timeStep              ! Model timestep
-    type(ESMF_Calendar)         :: esmf_calendar         ! esmf calendar
     type(ESMF_CalKind_Flag)     :: esmf_caltype          ! esmf calendar type
+    type(ESMF_VM)               :: vm                    ! esmf virtual machine type
     integer , allocatable       :: gindex(:)             ! global index space on my processor
     integer                     :: yy,mm,dd              ! Temporaries for time query
     integer                     :: ref_ymd               ! reference date (YYYYMMDD)
@@ -326,6 +329,7 @@ contains
     character(len=CL)           :: starttype             ! start-type (startup, continue, branch, hybrid)
     character(len=CL)           :: stdname, shortname    ! needed for advertise
     logical                     :: brnch_retain_casename ! flag if should retain the case name on a branch start type
+    integer                     :: localPet,localPeCount ! mpi task and thread count variables
     character(len=CL)           :: cvalue
     character(ESMF_MAXSTR)      :: convCIM, purpComp
     integer                     :: parametricDim         ! ESMF Mesh parametic dimension
@@ -359,6 +363,23 @@ contains
        call memmon_dump_fort('memmon.out','rof_comp_nuopc_InitializeRealize:start::',lbnum)
     endif
 #endif
+   !----------------------
+   ! Obtain threading information
+   !----------------------
+   call ESMF_GridCompGet(gcomp, vm=vm, localpet=localPet, rc=rc)
+   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+   call ESMF_VMGet(vm, pet=localPet, peCount=localPeCount, rc=rc)
+   if (chkerr(rc,__LINE__,u_FILE_u)) return
+
+   if(localPeCount == 1) then
+      call NUOPC_CompAttributeGet(gcomp, "nthreads", value=cvalue, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
+      read(cvalue,*) nthrds
+   else
+      nthrds = localPeCount
+   endif
+
+$  call omp_set_num_threads(nthrds)
 
     !----------------------
     ! Obtain attribute values
@@ -457,7 +478,7 @@ contains
     ! Read namelist, grid and surface data
     !----------------------
 
-    if (masterproc .and. debug_write) then
+    if (masterproc) then
        write(iulog,*) "mizuRoute initialization"
        write(iulog,*) ' mizuRoute npes = ',npes
        write(iulog,*) ' mizuRoute iam  = ',iam
@@ -539,7 +560,7 @@ contains
 
     ! Get global dist grid attributes
     call ESMF_DistGridGet( DistGrid, dimCount=dimCount, tileCount=tileCount, deCount=deCount, localDeCount=localDeCount, &
-     regDecompFlag=regDecompFlag, connectionCount=connectionCount, rc=rc )
+                           regDecompFlag=regDecompFlag, connectionCount=connectionCount, rc=rc )
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     if (masterproc .and. debug_write) then
        write(iulog,*) "dimCount = ", dimCount
@@ -555,32 +576,33 @@ contains
     call NUOPC_CompAttributeGet(gcomp, name='mesh_rof', value=cvalue, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    if (masterproc) then
+    if (masterproc .and. debug_write) then
        write(iulog,*)'mesh file for domain is ',trim(cvalue)
        call shr_sys_flush(iulog)
     end if
 
-    ! Create the mesh in one step using the above distGrid
-    EMesh = ESMF_MeshCreate(filename=trim(cvalue), fileformat=ESMF_FILEFORMAT_ESMFMESH, elementDistgrid=Distgrid, rc=rc)
+    ! Read the mesh
+    Mesh = ESMF_MeshCreate(filename=trim(cvalue), fileformat=ESMF_FILEFORMAT_ESMFMESH, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    call ESMF_MeshWrite(EMesh, filename='miz_mesh', rc=rc)
+    ! Create the mesh in one step using the above distGrid
+    Emesh = ESMF_MeshCreate(Mesh, elementDistgrid=DistGrid, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-!    if ( debug_write )then
-!       write(iulog,*) ' After ESMF_MeshCreate'
-!       call shr_sys_flush(iulog)
-!    end if
-!    call ESMF_MeshGet( EMesh,  parametricDim=parametricDim, spatialDim=spatialDim, numOwnedNodes=numOwnedNodes, &
-!                       numOwnedElements=numOwnedElements, isMemFreed=isMemFreed, rc=rc)
-!    if (ChkErr(rc,__LINE__,u_FILE_u)) return
-!    if ( debug_write )then
-!       write(iulog,*) ' parametricDim = ', parametricDim
-!       write(iulog,*) ' spatialDim = ', spatialDim
-!       write(iulog,*) ' numOwnedNodes = ', numOwnedNodes
-!       write(iulog,*) ' numOwnedElements = ', numOwnedElements
-!       write(iulog,*) ' isMemFreed = ', isMemFreed
-!       call shr_sys_flush(iulog)
-!    end if
+    if ( debug_write )then
+      call ESMF_MeshWrite(Emesh, filename='miz_mesh', rc=rc)
+      call ESMF_MeshGet( Emesh,  parametricDim=parametricDim, spatialDim=spatialDim, numOwnedNodes=numOwnedNodes, &
+                       numOwnedElements=numOwnedElements, isMemFreed=isMemFreed, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+      if (masterproc) then
+        write(iulog,*) ' parametricDim = ', parametricDim
+        write(iulog,*) ' spatialDim = ', spatialDim
+        write(iulog,*) ' numOwnedNodes = ', numOwnedNodes
+        write(iulog,*) ' numOwnedElements = ', numOwnedElements
+        write(iulog,*) ' isMemFreed = ', isMemFreed
+        call shr_sys_flush(iulog)
+      end if
+    end if
 
     !--------------------------------
     ! realize actively coupled fields
@@ -693,6 +715,7 @@ contains
        call memmon_dump_fort('memmon.out','mizuRoute_comp_nuopc_ModelAdvance:start::',lbnum)
     endif
 #endif
+!$  call omp_set_num_threads(nthrds)
 
     !--------------------------------
     ! Query the Component for its clock, importState and exportState
