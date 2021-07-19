@@ -168,7 +168,7 @@ CONTAINS
    case('<restart_hour>');         read(cData,*,iostat=io_error) restart_hour      ! restart periodic hour
    case('<fname_state_in>');       fname_state_in       = trim(cData)              ! filename for the channel states
    ! SPATIAL CONSTANT PARAMETERS
-   case('<param_nml>');            param_nml       = trim(cData)                   ! name of namelist including routing parameter value
+   case('<param_nml>');            param_nml            = trim(cData)              ! name of namelist including routing parameter value
    ! USER OPTIONS: Define options to include/skip calculations
    case('<hydGeometryOption>');    read(cData,*,iostat=io_error) hydGeometryOption ! option for hydraulic geometry calculations (0=read from file, 1=compute)
    case('<topoNetworkOption>');    read(cData,*,iostat=io_error) topoNetworkOption ! option for network topology calculations (0=read from file, 1=compute)
@@ -201,23 +201,60 @@ CONTAINS
    case('<varname_hruSegIndex>'  ); meta_HRU2SEG(ixHRU2SEG%hruSegIndex )%varName = trim(cData) ! the stream segment index below each HRU
 
    ! reach properties
-   case('<varname_length>'       ); meta_SEG    (ixSEG%length          )%varName =trim(cData)  ! length of segment  (m)
-   case('<varname_slope>'        ); meta_SEG    (ixSEG%slope           )%varName =trim(cData)  ! slope of segment   (-)
-   case('<varname_width>'        ); meta_SEG    (ixSEG%width           )%varName =trim(cData)  ! width of segment   (m)
-   case('<varname_man_n>'        ); meta_SEG    (ixSEG%man_n           )%varName =trim(cData)  ! Manning's n        (weird units)
-   case('<varname_hruArea>'      ); meta_SEG    (ixSEG%hruArea         )%varName =trim(cData)  ! local basin area (m2)
-   case('<varname_weight>'       ); meta_SEG    (ixSEG%weight          )%varName =trim(cData)  ! HRU weight
-   case('<varname_timeDelayHist>'); meta_SEG    (ixSEG%timeDelayHist   )%varName =trim(cData)  ! time delay histogram for each reach (s)
-   case('<varname_upsArea>'      ); meta_SEG    (ixSEG%upsArea         )%varName =trim(cData)  ! area above the top of the reach -- zero if headwater (m2)
-   case('<varname_basUnderLake>' ); meta_SEG    (ixSEG%basUnderLake    )%varName =trim(cData)  ! Area of basin under lake  (m2)
-   case('<varname_rchUnderLake>' ); meta_SEG    (ixSEG%rchUnderLake    )%varName =trim(cData)  ! Length of reach under lake (m)
-   case('<varname_minFlow>'      ); meta_SEG    (ixSEG%minFlow         )%varName =trim(cData)  ! minimum environmental flow
-   case('<varname_D03MaxStorage>'); meta_SEG    (ixSEG%D03MaxStorage   )%varName =trim(cData)  ! maximum active storage for Doll 2003 formulation
-   case('<varname_D03Coefficient>'); meta_SEG   (ixSEG%D03Coefficient  )%varName =trim(cData)  ! coefficient for Doll 2003 formulation (day-1)
-   case('<varname_D03Power>'     ); meta_SEG    (ixSEG%D03Power        )%varName =trim(cData)  ! power for Doll 2003 formulation
-   case('<varname_H06TestP1>'    ); meta_SEG    (ixSEG%H06TestP1       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 1
-   case('<varname_H06TestP2>'    ); meta_SEG    (ixSEG%H06TestP2       )%varName =trim(cData)  ! Hanasaki 2006 Test Parameter 2
-   case('<varname_H06Memory>'    ); meta_SEG    (ixSEG%H06Memory       )%varName =trim(cData)  ! Hanasaki 2006 Memory of past simulation length (day)
+   case('<varname_length>'         ); meta_SEG    (ixSEG%length          )%varName =trim(cData)   ! length of segment  (m)
+   case('<varname_slope>'          ); meta_SEG    (ixSEG%slope           )%varName =trim(cData)   ! slope of segment   (-)
+   case('<varname_width>'          ); meta_SEG    (ixSEG%width           )%varName =trim(cData)   ! width of segment   (m)
+   case('<varname_man_n>'          ); meta_SEG    (ixSEG%man_n           )%varName =trim(cData)   ! Manning's n        (weird units)
+   case('<varname_hruArea>'        ); meta_SEG    (ixSEG%hruArea         )%varName =trim(cData)   ! local basin area (m2)
+   case('<varname_weight>'         ); meta_SEG    (ixSEG%weight          )%varName =trim(cData)   ! HRU weight
+   case('<varname_timeDelayHist>'  ); meta_SEG    (ixSEG%timeDelayHist   )%varName =trim(cData)   ! time delay histogram for each reach (s)
+   case('<varname_upsArea>'        ); meta_SEG    (ixSEG%upsArea         )%varName =trim(cData)   ! area above the top of the reach -- zero if headwater (m2)
+   case('<varname_basUnderLake>'   ); meta_SEG    (ixSEG%basUnderLake    )%varName =trim(cData)   ! Area of basin under lake  (m2)
+   case('<varname_rchUnderLake>'   ); meta_SEG    (ixSEG%rchUnderLake    )%varName =trim(cData)   ! Length of reach under lake (m)
+   case('<varname_minFlow>'        ); meta_SEG    (ixSEG%minFlow         )%varName =trim(cData)   ! minimum environmental flow
+   case('<varname_D03_MaxStorage>' ); meta_SEG    (ixSEG%D03_MaxStorage  )%varName =trim(cData)   ! Doll 2006; maximum active storage for Doll 2003 formulation
+   case('<varname_D03_Coefficient>'); meta_SEG    (ixSEG%D03_Coefficient )%varName =trim(cData)   ! Doll 2006; coefficient for Doll 2003 formulation (day-1)
+   case('<varname_D03_Power>'      ); meta_SEG    (ixSEG%D03_Power       )%varName =trim(cData)   ! Doll 2006; power for Doll 2003 formulation
+   case('<varname_H06_Smax>'       ); meta_SEG    (ixSEG%H06_Smax        )%varName =trim(cData)   ! Hanasaki 2006; maximume reservoir storage [m3]
+   case('<varname_H06_alpha>'      ); meta_SEG    (ixSEG%H06_alpha       )%varName =trim(cData)   ! Hanasaki 2006; fraction of active storage compared to total storage [-]
+   case('<varname_H06_envfact>'    ); meta_SEG    (ixSEG%H06_envfact     )%varName =trim(cData)   ! Hanasaki 2006; fraction of inflow that can be used to meet demand [-]
+   case('<varname_H06_S_ini>'      ); meta_SEG    (ixSEG%H06_S_ini       )%varName =trim(cData)   ! Hanasaki 2006; initial storage used for initial estimation of release coefficient [m3]
+   case('<varname_H06_c1>'         ); meta_SEG    (ixSEG%H06_c1          )%varName =trim(cData)   ! Hanasaki 2006; coefficient 1 for target release for irrigation reseroir [-]
+   case('<varname_H06_c2>'         ); meta_SEG    (ixSEG%H06_c2          )%varName =trim(cData)   ! Hanasaki 2006; coefficient 2 for target release for irrigation reseroir [-]
+   case('<varname_H06_exponent>'   ); meta_SEG    (ixSEG%H06_exponent    )%varName =trim(cData)   ! Hanasaki 2006; Exponenet of actual release for "within-a-year" reservoir [-]
+   case('<varname_H06_denominator>'); meta_SEG    (ixSEG%H06_denominator )%varName =trim(cData)   ! Hanasaki 2006; Denominator of actual release for "within-a-year" reservoir [-]
+   case('<varname_H06_c_compare>'  ); meta_SEG    (ixSEG%H06_c_compare   )%varName =trim(cData)   ! Hanasaki 2006; Criterion for distinguish of "within-a-year" or "multi-year" reservoir [-]
+   case('<varname_H06_frac_Sdead>' ); meta_SEG    (ixSEG%H06_frac_Sdead  )%varName =trim(cData)   ! Hanasaki 2006; Fraction of dead storage to maximume storage [-]
+   case('<varname_H06_E_rel_ini>'  ); meta_SEG    (ixSEG%H06_E_rel_ini   )%varName =trim(cData)   ! Hanasaki 2006; Initial release coefficient [-]
+   case('<varname_H06_I_Jan>'      ); meta_SEG    (ixSEG%H06_I_Jan       )%varName =trim(cData)   ! Hanasaki 2006; Average January   inflow [m3/s]
+   case('<varname_H06_I_Feb>'      ); meta_SEG    (ixSEG%H06_I_Feb       )%varName =trim(cData)   ! Hanasaki 2006; Average Februrary inflow [m3/s]
+   case('<varname_H06_I_Mar>'      ); meta_SEG    (ixSEG%H06_I_Mar       )%varName =trim(cData)   ! Hanasaki 2006; Average March     inflow [m3/s]
+   case('<varname_H06_I_Apr>'      ); meta_SEG    (ixSEG%H06_I_Apr       )%varName =trim(cData)   ! Hanasaki 2006; Average April     inflow [m3/s]
+   case('<varname_H06_I_May>'      ); meta_SEG    (ixSEG%H06_I_May       )%varName =trim(cData)   ! Hanasaki 2006; Average May       inflow [m3/s]
+   case('<varname_H06_I_Jun>'      ); meta_SEG    (ixSEG%H06_I_Jun       )%varName =trim(cData)   ! Hanasaki 2006; Average June      inflow [m3/s]
+   case('<varname_H06_I_Jul>'      ); meta_SEG    (ixSEG%H06_I_Jul       )%varName =trim(cData)   ! Hanasaki 2006; Average July      inflow [m3/s]
+   case('<varname_H06_I_Aug>'      ); meta_SEG    (ixSEG%H06_I_Aug       )%varName =trim(cData)   ! Hanasaki 2006; Average August    inflow [m3/s]
+   case('<varname_H06_I_Sep>'      ); meta_SEG    (ixSEG%H06_I_Sep       )%varName =trim(cData)   ! Hanasaki 2006; Average September inflow [m3/s]
+   case('<varname_H06_I_Oct>'      ); meta_SEG    (ixSEG%H06_I_Oct       )%varName =trim(cData)   ! Hanasaki 2006; Average October   inflow [m3/s]
+   case('<varname_H06_I_Nov>'      ); meta_SEG    (ixSEG%H06_I_Nov       )%varName =trim(cData)   ! Hanasaki 2006; Average November  inflow [m3/s]
+   case('<varname_H06_I_Dec>'      ); meta_SEG    (ixSEG%H06_I_Dec       )%varName =trim(cData)   ! Hanasaki 2006; Average December  inflow [m3/s]
+   case('<varname_H06_D_Jan>'      ); meta_SEG    (ixSEG%H06_D_Jan       )%varName =trim(cData)   ! Hanasaki 2006; Average January   demand [m3/s]
+   case('<varname_H06_D_Feb>'      ); meta_SEG    (ixSEG%H06_D_Feb       )%varName =trim(cData)   ! Hanasaki 2006; Average Februrary demand [m3/s]
+   case('<varname_H06_D_Mar>'      ); meta_SEG    (ixSEG%H06_D_Mar       )%varName =trim(cData)   ! Hanasaki 2006; Average March     demand [m3/s]
+   case('<varname_H06_D_Apr>'      ); meta_SEG    (ixSEG%H06_D_Apr       )%varName =trim(cData)   ! Hanasaki 2006; Average April     demand [m3/s]
+   case('<varname_H06_D_May>'      ); meta_SEG    (ixSEG%H06_D_May       )%varName =trim(cData)   ! Hanasaki 2006; Average May       demand [m3/s]
+   case('<varname_H06_D_Jun>'      ); meta_SEG    (ixSEG%H06_D_Jun       )%varName =trim(cData)   ! Hanasaki 2006; Average June      demand [m3/s]
+   case('<varname_H06_D_Jul>'      ); meta_SEG    (ixSEG%H06_D_Jul       )%varName =trim(cData)   ! Hanasaki 2006; Average July      demand [m3/s]
+   case('<varname_H06_D_Aug>'      ); meta_SEG    (ixSEG%H06_D_Aug       )%varName =trim(cData)   ! Hanasaki 2006; Average August    demand [m3/s]
+   case('<varname_H06_D_Sep>'      ); meta_SEG    (ixSEG%H06_D_Sep       )%varName =trim(cData)   ! Hanasaki 2006; Average September demand [m3/s]
+   case('<varname_H06_D_Oct>'      ); meta_SEG    (ixSEG%H06_D_Oct       )%varName =trim(cData)   ! Hanasaki 2006; Average October   demand [m3/s]
+   case('<varname_H06_D_Nov>'      ); meta_SEG    (ixSEG%H06_D_Nov       )%varName =trim(cData)   ! Hanasaki 2006; Average November  demand [m3/s]
+   case('<varname_H06_D_Dec>'      ); meta_SEG    (ixSEG%H06_D_Dec       )%varName =trim(cData)   ! Hanasaki 2006; Average December  demand [m3/s]
+   case('<varname_H06_purpose>'    ); meta_SEG    (ixSEG%H06_purpose     )%varName =trim(cData)   ! Hanasaki 2006; reservoir purpose; (0= non-irrigation, 1=irrigation) [-]
+   case('<varname_H06_I_mem_F>'    ); meta_SEG    (ixSEG%H06_I_mem_F     )%varName =trim(cData)   ! Hanasaki 2006; Flag to transition to modelled inflow [-]
+   case('<varname_H06_D_mem_F>'    ); meta_SEG    (ixSEG%H06_D_mem_F     )%varName =trim(cData)   ! Hanasaki 2006; Flag to transition to modelled/provided demand [-]
+   case('<varname_H06_I_mem_L>'    ); meta_SEG    (ixSEG%H06_I_mem_L     )%varName =trim(cData)   ! Hanasaki 2006; Memory length in years for inflow [year]
+   case('<varname_H06_D_mem_L>'    ); meta_SEG    (ixSEG%H06_D_mem_L     )%varName =trim(cData)   ! Hanasaki 2006; Memory length in years for demand [year]
 
    ! network topology
    case('<varname_hruContribIx>' ); meta_NTOPO  (ixNTOPO%hruContribIx  )%varName =trim(cData)  ! indices of the vector of HRUs that contribute flow to each segment

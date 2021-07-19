@@ -199,12 +199,49 @@ implicit none
   real(dp)                                   :: BASAREA        ! local basin area
   real(dp)                                   :: TOTAREA        ! UPSAREA + BASAREA
   real(dp)                                   :: MINFLOW        ! minimum environmental flow
-  real(dp)                                   :: D03MaxStorage  ! Doll 2003 maximume storage
-  real(dp)                                   :: D03Coefficient ! Doll 2003 Coefficient
-  real(dp)                                   :: D03Power       ! Doll 2003 Power
-  real(dp)                                   :: H06TestP1      ! Hanasaki 2006 test parameter 1
-  real(dp)                                   :: H06TestP2      ! Hanasaki 2006 test parameter 2
-  real(dp)                                   :: H06Memory      ! Hanasaki 2006 pasr array
+  real(dp)                                   :: D03_MaxStorage ! Doll 2003; maximume storage [m3]
+  real(dp)                                   :: D03_Coefficient! Doll 2003; Coefficient [?]
+  real(dp)                                   :: D03_Power      ! Doll 2003; Power [-]
+  real(dp)                                   :: H06_Smax       ! Hanasaki 2006; maximume reservoir storage [m3]
+  real(dp)                                   :: H06_alpha      ! Hanasaki 2006; fraction of active storage compared to total storage [-]
+  real(dp)                                   :: H06_envfact    ! Hanasaki 2006; fraction of inflow that can be used to meet demand [-]
+  real(dp)                                   :: H06_S_ini      ! Hanasaki 2006; initial storage used for initial estimation of release coefficient [m3]
+  real(dp)                                   :: H06_c1         ! Hanasaki 2006; coefficient 1 for target release for irrigation reseroir [-]
+  real(dp)                                   :: H06_c2         ! Hanasaki 2006; coefficient 2 for target release for irrigation reseroir [-]
+  real(dp)                                   :: H06_exponent   ! Hanasaki 2006; Exponenet of actual release for "within-a-year" reservoir [-]
+  real(dp)                                   :: H06_denominator! Hanasaki 2006; Denominator of actual release for "within-a-year" reservoir [-]
+  real(dp)                                   :: H06_c_compare  ! Hanasaki 2006; Criterion for distinguish of "within-a-year" or "multi-year" reservoir [-]
+  real(dp)                                   :: H06_frac_Sdead ! Hanasaki 2006; Fraction of dead storage to maximume storage [-]
+  real(dp)                                   :: H06_E_rel_ini  ! Hanasaki 2006; Initial release coefficient [-]
+  real(dp)                                   :: H06_I_Jan      ! Hanasaki 2006; Average January   inflow [m3/s]
+  real(dp)                                   :: H06_I_Feb      ! Hanasaki 2006; Average Februrary inflow [m3/s]
+  real(dp)                                   :: H06_I_Mar      ! Hanasaki 2006; Average March     inflow [m3/s]
+  real(dp)                                   :: H06_I_Apr      ! Hanasaki 2006; Average April     inflow [m3/s]
+  real(dp)                                   :: H06_I_May      ! Hanasaki 2006; Average May       inflow [m3/s]
+  real(dp)                                   :: H06_I_Jun      ! Hanasaki 2006; Average June      inflow [m3/s]
+  real(dp)                                   :: H06_I_Jul      ! Hanasaki 2006; Average July      inflow [m3/s]
+  real(dp)                                   :: H06_I_Aug      ! Hanasaki 2006; Average August    inflow [m3/s]
+  real(dp)                                   :: H06_I_Sep      ! Hanasaki 2006; Average September inflow [m3/s]
+  real(dp)                                   :: H06_I_Oct      ! Hanasaki 2006; Average October   inflow [m3/s]
+  real(dp)                                   :: H06_I_Nov      ! Hanasaki 2006; Average November  inflow [m3/s]
+  real(dp)                                   :: H06_I_Dec      ! Hanasaki 2006; Average December  inflow [m3/s]
+  real(dp)                                   :: H06_D_Jan      ! Hanasaki 2006; Average January   demand [m3/s]
+  real(dp)                                   :: H06_D_Feb      ! Hanasaki 2006; Average Februrary demand [m3/s]
+  real(dp)                                   :: H06_D_Mar      ! Hanasaki 2006; Average March     demand [m3/s]
+  real(dp)                                   :: H06_D_Apr      ! Hanasaki 2006; Average April     demand [m3/s]
+  real(dp)                                   :: H06_D_May      ! Hanasaki 2006; Average May       demand [m3/s]
+  real(dp)                                   :: H06_D_Jun      ! Hanasaki 2006; Average June      demand [m3/s]
+  real(dp)                                   :: H06_D_Jul      ! Hanasaki 2006; Average July      demand [m3/s]
+  real(dp)                                   :: H06_D_Aug      ! Hanasaki 2006; Average Agust     demand [m3/s]
+  real(dp)                                   :: H06_D_Sep      ! Hanasaki 2006; Average September demand [m3/s]
+  real(dp)                                   :: H06_D_Oct      ! Hanasaki 2006; Average October   demand [m3/s]
+  real(dp)                                   :: H06_D_Nov      ! Hanasaki 2006; Average November  demand [m3/s]
+  real(dp)                                   :: H06_D_Dec      ! Hanasaki 2006; Average December  demand [m3/s]
+  integer(i4b)                               :: H06_purpose    ! Hanasaki 2006; reservoir purpose; (0= non-irrigation, 1=irrigation) [-]
+  integer(i4b)                               :: H06_I_mem_F    ! Hanasaki 2006; Flag to transition to modelled inflow [-]
+  integer(i4b)                               :: H06_D_mem_F    ! Hanasaki 2006; Flag to transition to modelled/provided demand [-]
+  integer(i4b)                               :: H06_I_mem_L    ! Hanasaki 2006; Memory length in years for inflow [year]
+  integer(i4b)                               :: H06_D_mem_L    ! Hanasaki 2006; Memory length in years for demand [year]
  end type RCHPRP
 
  ! River Network topology
@@ -278,39 +315,40 @@ implicit none
 
  ! fluxes and states in each reach
  TYPE, public :: strflx
-  real(dp), allocatable                :: QFUTURE(:)        ! runoff volume in future time steps (m3/s)
-  real(dp), allocatable                :: QFUTURE_IRF(:)    ! runoff volume in future time steps for IRF routing (m3/s)
-  real(dp), allocatable                :: QPASTUP_IRF(:)    ! runoff volume in the past time steps for lake upstream (m3/s)
-  real(dp)                             :: BASIN_QI          ! instantaneous runoff volume from the local basin (m3/s)
-  real(dp)                             :: BASIN_QR(0:1)     ! routed runoff volume from the local basin (m3/s)
-  real(dp)                             :: REACH_Q           ! time-step average streamflow (m3/s)
-  real(dp)                             :: REACH_Q_IRF       ! time-step average streamflow (m3/s) from IRF routing
-  real(dp)                             :: UPSTREAM_QI       ! sum of upstream streamflow (m3/s)
-  real(dp)                             :: REACH_VOL(0:1)    ! volume of water at previous and current time step [m3]
-  real(dp)                             :: REACH_WM_FLUX     ! water management fluxes to and from each reach
-  real(dp)                             :: REACH_WM_VOL      ! target volume from the second water management file (m3)
-  real(dp)                             :: TAKE              ! average take
-  logical(lgt)                         :: isRoute           ! .true. if the reach is routed
-  real(dp)                             :: basinEvapo        ! remapped river network catchment Evaporation (size: number of nHRU)
-  real(dp)                             :: basinPrecip       ! remapped river network catchment Precipitation (size: number of nHRU)
+  real(dp), allocatable                :: QFUTURE(:)         ! runoff volume in future time steps (m3/s)
+  real(dp), allocatable                :: QFUTURE_IRF(:)     ! runoff volume in future time steps for IRF routing (m3/s)
+  real(dp), allocatable                :: QPASTUP_IRF(:,:)   ! runoff volume in the past time steps for lake upstream (m3/s)
+  real(dp), allocatable                :: DEMANDPAST_IRF(:,:)! demand volume for lake (m3/s)
+  real(dp)                             :: BASIN_QI           ! instantaneous runoff volume from the local basin (m3/s)
+  real(dp)                             :: BASIN_QR(0:1)      ! routed runoff volume from the local basin (m3/s)
+  real(dp)                             :: REACH_Q            ! time-step average streamflow (m3/s)
+  real(dp)                             :: REACH_Q_IRF        ! time-step average streamflow (m3/s) from IRF routing
+  real(dp)                             :: UPSTREAM_QI        ! sum of upstream streamflow (m3/s)
+  real(dp)                             :: REACH_VOL(0:1)     ! volume of water at previous and current time step [m3]
+  real(dp)                             :: REACH_WM_FLUX      ! water management fluxes to and from each reach
+  real(dp)                             :: REACH_WM_VOL       ! target volume from the second water management file (m3)
+  real(dp)                             :: TAKE               ! average take
+  logical(lgt)                         :: isRoute            ! .true. if the reach is routed
+  real(dp)                             :: basinEvapo         ! remapped river network catchment Evaporation (size: number of nHRU)
+  real(dp)                             :: basinPrecip        ! remapped river network catchment Precipitation (size: number of nHRU)
  END TYPE strflx
 
  ! ---------- lake data types -----------------------------------------------------------------
 
  ! Lake Parameters
  TYPE, public :: LAKPRP
-  real(dp)                             :: AREAREF           ! lake area
-  real(dp)                             :: LAKREFLEV         ! lake elevation
-  real(dp)                             :: LAKAVGLEV         ! lake average level (for initialization)
-  real(dp)                             :: HE2AR_C           ! water height-surface area parameter
-  real(dp)                             :: HE2AR_D           ! water height-surface area parameter
-  real(dp)                             :: HGHTLOW           ! minimum water height for discharge
-  real(dp)                             :: HGHTECO           ! minimum height for ecological concerns
-  real(dp)                             :: HGHTSPL           ! spillway height
-  real(dp)                             :: DSCHECO           ! discharge at "ecological" height
-  real(dp)                             :: DSCHSPL           ! discharge at spillway height
-  real(dp)                             :: RATECVA           ! discharge rating curve parameter
-  real(dp)                             :: RATECVB           ! discharge rating curve parameter
+  real(dp)                             :: AREAREF            ! lake area
+  real(dp)                             :: LAKREFLEV          ! lake elevation
+  real(dp)                             :: LAKAVGLEV          ! lake average level (for initialization)
+  real(dp)                             :: HE2AR_C            ! water height-surface area parameter
+  real(dp)                             :: HE2AR_D            ! water height-surface area parameter
+  real(dp)                             :: HGHTLOW            ! minimum water height for discharge
+  real(dp)                             :: HGHTECO            ! minimum height for ecological concerns
+  real(dp)                             :: HGHTSPL            ! spillway height
+  real(dp)                             :: DSCHECO            ! discharge at "ecological" height
+  real(dp)                             :: DSCHSPL            ! discharge at spillway height
+  real(dp)                             :: RATECVA            ! discharge rating curve parameter
+  real(dp)                             :: RATECVB            ! discharge rating curve parameter
  END TYPE LAKPRP
 
  ! Lake topology

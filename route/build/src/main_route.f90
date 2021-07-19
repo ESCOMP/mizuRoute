@@ -84,7 +84,7 @@ CONTAINS
    integer(i4b),       allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
    type(subbasin_omp), allocatable, intent(in)    :: river_basin(:)       ! OMP basin decomposition
    type(RCHTOPO),      allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology
-   type(RCHPRP),       allocatable, intent(in)    :: RPARAM_in(:)         ! River reach parameter
+   type(RCHPRP),       allocatable, intent(inout)    :: RPARAM_in(:)         ! River reach parameter
    integer(i4b),                    intent(in)    :: ixDesire             ! index of the reach for verbose output
    ! inout
    type(STRFLX),       allocatable, intent(inout) :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains

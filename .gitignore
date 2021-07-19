@@ -61,3 +61,5 @@ manage_externals.log
 /route/build/lib/piolib/doc
 /route/build/lib/piolib/src
 
+# data folder
+/Hanasaki_test/
