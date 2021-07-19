@@ -167,18 +167,55 @@ subroutine getData(&
       meta_NTOPO(ixNTOPO%lakeModelType)%varFile = .true.    ! lake model type varibale should be provided
     endif
     if (is_vol_wm) then
-      print*,'in'
       meta_NTOPO(ixNTOPO%LakeTargVol)%varFile   = .true.    ! if target volume flag is on, varibale should be provided
     endif
     if (lake_model_D03) then
-      meta_SEG(ixSEG%D03MaxStorage)%varFile     = .true.    ! Doll parameter
-      meta_SEG(ixSEG%D03coefficient)%varFile    = .true.    ! Doll parameter
-      meta_SEG(ixSEG%D03power)%varFile          = .true.    ! Doll parameter
+      meta_SEG(ixSEG%D03_MaxStorage)%varFile    = .true.    ! Doll parameter
+      meta_SEG(ixSEG%D03_coefficient)%varFile   = .true.    ! Doll parameter
+      meta_SEG(ixSEG%D03_power)%varFile         = .true.    ! Doll parameter
     endif
     if (lake_model_H06) then
-      meta_SEG(ixSEG%H06TestP1)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06TestP2)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06Memory)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_Smax)%varFile          = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_alpha)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_envfact)%varFile       = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_S_ini)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_c1)%varFile            = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_c2)%varFile            = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_exponent)%varFile      = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_denominator)%varFile   = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_c_compare)%varFile     = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_frac_Sdead)%varFile    = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_E_rel_ini)%varFile     = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Jan)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Feb)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Mar)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Apr)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_May)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Jun)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Jul)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Aug)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Sep)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Oct)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Nov)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Dec)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Jan)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Feb)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Mar)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Apr)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_May)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Jun)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Jul)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Aug)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Sep)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Oct)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Nov)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Dec)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_purpose)%varFile       = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_mem_F)%varFile       = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_mem_F)%varFile       = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_mem_L)%varFile       = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_mem_L)%varFile       = .true.    ! Hanasaki parameter
+
     endif
   endif
 
@@ -347,6 +384,7 @@ subroutine getData(&
                   else
                     allocate(islake_local(meta_struct(iStruct)%nSpace),stat=ierr)
                     if(ierr/=0)then; message=trim(message)//'problem allocating islake_local'; return; endif
+                    islake_local(iSpace) = structNTOPO(iSpace)%var(iVar)%dat(1)
                   endif
                 case(ixNTOPO%laketargvol) !iVar is euqal to the location of laketargvol
                   if (is_vol_wm) then

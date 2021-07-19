@@ -46,7 +46,7 @@ CONTAINS
  type(subbasin_omp), intent(in),    allocatable  :: river_basin(:)      ! river basin information (mainstem, tributary outlet etc.)
  integer(i4b),       intent(in)                  :: ixDesire            ! index of the reach for verbose output ! Output
  type(RCHTOPO),      intent(in),    allocatable  :: NETOPO_in(:)        ! River Network topology
- type(RCHPRP),       intent(in),    allocatable  :: RPARAM_in(:)        ! River reach parameters
+ type(RCHPRP),       intent(inout), allocatable  :: RPARAM_in(:)        ! River Network parameters
  ! inout
  TYPE(STRFLX),       intent(inout), allocatable  :: RCHFLX_out(:,:)     ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  ! output variables
@@ -109,9 +109,9 @@ CONTAINS
        jSeg = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
        if (.not. doRoute(jSeg)) cycle
          if ((NETOPO_in(jseg)%islake).and.(is_lake_sim))  then
-          call lake_route(iEns, jSeg, ixDesire, NETOPO_in, RPARAM_in, RCHFLX_out, ierr, message)
+          call lake_route (iEns, jSeg, ixDesire, NETOPO_in, RPARAM_in, RCHFLX_out, ierr, message)
          else
-          call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RCHFLX_out, ierr, cmessage)
+          call segment_irf(iEns, jSeg, ixDesire, NETOPO_in,            RCHFLX_out, ierr, cmessage)
          endif
        if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
      end do seg
