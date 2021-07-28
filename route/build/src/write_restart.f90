@@ -115,7 +115,6 @@ CONTAINS
  SUBROUTINE restart_output(ierr, message)
 
   USE public_var, ONLY: routOpt
-  USE public_var, ONLY: time_units
   USE public_var, ONLY: dt
   USE globalData, ONLY: runoff_data    ! runoff data for one time step for LSM HRUs and River network HRUs
   USE globalData, ONLY: TSEC
@@ -136,7 +135,7 @@ CONTAINS
   call restart_fname(fnameRestart, nextTimeStep, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  call define_state_nc(fnameRestart, time_units, routOpt, ierr, cmessage)
+  call define_state_nc(fnameRestart, routOpt, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! update model time step bound
@@ -145,7 +144,7 @@ CONTAINS
 
   call write_state_nc(fnameRestart,                            &  ! Input: state netcdf name
                       routOpt,                                 &  ! input: which routing options
-                      runoff_data%time, 1, TSEC1, TSEC2,       &  ! Input: time, time step, start and end time [sec]
+                      1, TSEC1, TSEC2,                         &  ! Input: time, time step, start and end time [sec]
                       reachID,                                 &  ! Input: segment id vector
                       ierr, message)                              ! Output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -203,7 +202,6 @@ CONTAINS
  ! subroutine: define restart NetCDF file
  ! *********************************************************************
  SUBROUTINE define_state_nc(fname,           &  ! input: filename
-                            units_time,      &  ! input: time units
                             opt,             &  ! input: which routing options (state variables depends on routing options)
                             ierr, message)      ! output: error control
  ! External modules
@@ -213,7 +211,6 @@ CONTAINS
  ! input variables
  character(*),   intent(in)           :: fname            ! filename
  integer(i4b),   intent(in)           :: opt              ! routing option 0=all, 1=kwt, 2=irf
- character(*),   intent(in)           :: units_time       ! time units
  ! output variables
  integer(i4b),   intent(out)          :: ierr             ! error code
  character(*),   intent(out)          :: message          ! error message
@@ -252,9 +249,6 @@ CONTAINS
 
  ! Define variable
  call def_var(ncid, 'reachID', (/dim_seg/), ncd_int, ierr, cmessage, vdesc='reach ID', vunit='-')
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- call def_var(ncid, 'time ', (/dim_time/), ncd_double, ierr, cmessage, vdesc='time', vunit=units_time)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  call def_var(ncid,'time_bound', (/dim_tbound, dim_time/), ncd_double, ierr, cmessage, vdesc='time bound at last time step', vunit='sec')
@@ -486,7 +480,7 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE write_state_nc(fname,                &   ! Input: state netcdf name
                            opt,                  &   ! input: which routing options
-                           time, iTime, T0, T1,  &   ! Input: time, time step, start and end time [sec]
+                           iTime, T0, T1,  &   ! Input: time, time step, start and end time [sec]
                            seg_id,               &   ! Input: segment id vector
                            ierr, message)            ! Output: error control
  ! External module
@@ -499,7 +493,6 @@ CONTAINS
  ! input variables
  character(*), intent(in)        :: fname           ! filename
  integer(i4b), intent(in)        :: opt             ! routing option 0=all, 1=kwt, 2=irf
- real(dp),     intent(in)        :: time            ! calendar time
  integer(i4b), intent(in)        :: iTime           ! ith Time step
  real(dp),     intent(in)        :: T0              ! beginning time [sec] of ith time step - lapse time from the beginning of the simulation
  real(dp),     intent(in)        :: T1              ! ending time [sec] ith time step - lapse time from the beginning of the simulation
@@ -522,9 +515,6 @@ CONTAINS
  ! -- Write out to netCDF
  ! Miscellaneous variables - seg id, time etc
  call write_nc(ncid,'reachID', seg_id, (/1/), (/size(seg_id)/), ierr, cmessage);
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- call write_nc(ncid,'time', (/time/), (/iTime/), (/1/), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  call write_nc(ncid,'time_bound', (/T0,T1/), (/1,iTime/), (/2,1/), ierr, cmessage)
