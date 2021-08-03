@@ -1,11 +1,18 @@
-module ascii_util_module
+MODULE ascii_util_module
+
 USE nrtype
+
 implicit none
+
 private
+
 public::file_open
 public::split_line
 public::get_vlines
-contains
+public::lower
+public::upper
+
+CONTAINS
 
  ! **********************************************************************************************
  ! new subroutine: get unused file unit (modified from DMSL)
@@ -204,4 +211,44 @@ contains
  end subroutine get_vlines
 
 
-end module ascii_util_module
+  FUNCTION upper(strIn) RESULT(strOut)
+    ! convert string to upper-case
+    ! only ASCII character code works
+    implicit none
+
+    character(*), intent(in) :: strIn
+    character(len(strIn))    :: strOut
+    integer, parameter       :: DUC = ichar('A') - ichar('a')
+    character                :: ch
+    integer                  :: i
+
+    do i = 1, len(strIn)
+      ch = strIn(i:i)
+      if (ch>='a' .and. ch<='z') ch = char(ichar(ch)+DUC)
+      strOut(i:i) = ch
+    end do
+
+  END FUNCTION upper
+
+
+  pure FUNCTION lower(strIn) RESULT(strOut)
+    ! convert string to lower-case
+    ! only ASCII character code works
+     implicit none
+
+    character(*), intent(in)  :: strIn
+    character(len(strIn))     :: strOut
+    integer, parameter        :: DUC = ichar('A') - ichar('a')
+    character                 :: ch
+    integer                   :: i
+
+    do i = 1,len(strIn)
+      ch = strIn(i:i)
+      if (ch>='A' .and. ch<='Z') ch = char(ichar(ch)-DUC)
+      strOut(i:i) = ch
+    end do
+
+  END FUNCTION lower
+
+
+END MODULE ascii_util_module

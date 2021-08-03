@@ -114,9 +114,15 @@ EXE_PATH = $(F_MASTER)bin
 #========================================================================
 # Define subroutines
 #
+# define utilities
+UTILS = \
+    nrtype.f90 \
+    nr_utility.f90 \
+    ascii_util.f90 \
+    ncio_utils.f90 \
+    gamma_func.f90
 # data types
 DATATYPES = \
-    nrtype.f90 \
     public_var.f90 \
     dataTypes.f90 \
     var_lookup.f90 \
@@ -125,12 +131,6 @@ DATATYPES = \
     globalData.f90 \
     popMetadat.f90 \
     allocation.f90
-# define utilities
-UTILS = \
-    nr_utility.f90 \
-    ascii_util.f90 \
-    ncio_utils.f90 \
-    gamma_func.f90
 # initialization
 INIT = \
     network_topo.f90 \
@@ -162,7 +162,7 @@ CORE = \
     model_setup.f90
 
 # concatanate model subroutines
-TEMP_MODSUB = $(DATATYPES) $(UTILS) $(INIT) $(IO) $(CORE)
+TEMP_MODSUB =  $(UTILS) $(DATATYPES) $(INIT) $(IO) $(CORE)
 
 # insert appropriate directory name
 MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))

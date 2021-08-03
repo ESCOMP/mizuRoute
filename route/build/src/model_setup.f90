@@ -223,9 +223,10 @@ CONTAINS
  ! *********************************************************************
  ! private subroutine: initialize channel state data
  ! *********************************************************************
- subroutine init_state(ierr, message)
+ SUBROUTINE init_state(ierr, message)
   ! subroutines
-  USE read_restart,  ONLY : read_state_nc     ! read netcdf state output file
+  USE ascii_util_module, ONLY : lower         ! convert string to lower case
+  USE read_restart,      ONLY : read_state_nc ! read netcdf state output file
   ! global data
   USE public_var,    ONLY : dt                ! simulation time step (seconds)
   USE public_var,    ONLY : routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
@@ -247,26 +248,22 @@ CONTAINS
   ierr=0; message='init_state/'
 
   ! read restart file and initialize states
-  if (trim(fname_state_in)/=charMissing) then
+  if (trim(fname_state_in)==charMissing .or. lower(trim(fname_state_in))=='none' .or. lower(trim(fname_state_in))=='coldstart') then
+    ! Cold start .......
+    ! initialize flux structures
+    RCHFLX(:,:)%BASIN_QI = 0._dp
+    RCHFLX(:,:)%BASIN_QR(0) = 0._dp
+    RCHFLX(:,:)%BASIN_QR(1) = 0._dp
+    RCHFLX(:,:)%REACH_VOL(0) = 0._dp
+    RCHFLX(:,:)%REACH_VOL(1) = 0._dp
 
-   call read_state_nc(trim(restart_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   TSEC(0)=T0; TSEC(1)=T1
-
+    ! initialize time
+    TSEC(0)=0._dp; TSEC(1)=dt
   else
+    call read_state_nc(trim(restart_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! Cold start .......
-   ! initialize flux structures
-   RCHFLX(:,:)%BASIN_QI = 0._dp
-   RCHFLX(:,:)%BASIN_QR(0) = 0._dp
-   RCHFLX(:,:)%BASIN_QR(1) = 0._dp
-   RCHFLX(:,:)%REACH_VOL(0) = 0._dp
-   RCHFLX(:,:)%REACH_VOL(1) = 0._dp
-
-   ! initialize time
-   TSEC(0)=0._dp; TSEC(1)=dt
-
+    TSEC(0)=T0; TSEC(1)=T1
   endif
 
  END SUBROUTINE init_state
@@ -278,6 +275,7 @@ CONTAINS
                       ierr, message)  ! output
 
   ! subroutines:
+  USE ascii_util_module,   ONLY : lower           ! convert string to lower case
   USE io_netcdf,           ONLY : open_nc         ! netcdf input
   USE io_netcdf,           ONLY : close_nc        ! netcdf input
   USE io_netcdf,           ONLY : get_nc          ! netcdf input
@@ -413,21 +411,21 @@ CONTAINS
  ! "Annual" option:  if user input day exceed number of days given user input month, set to last day
  ! "Monthly" option: use 2000-01 as template calendar yr/month
  ! "Daily" option:   use 2000-01-01 as template calendar yr/month/day
- select case(trim(restart_write))
-   case('Annual','annual')
+ select case(lower(trim(restart_write)))
+   case('annual')
      call dummyCal%set_datetime(2000, restart_month, 1, 0, 0, 0.0_dp)
      nDays = dummyCal%ndays_month(calendar, ierr, cmessage)
      if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
      if (restart_day > nDays) restart_day=nDays
-   case('Monthly','monthly'); restart_month = 1
-   case('Daily','daily');     restart_month = 1; restart_day = 1
+   case('monthly'); restart_month = 1
+   case('daily');     restart_month = 1; restart_day = 1
  end select
 
-  select case(trim(restart_write))
-    case('last','Last')
+  select case(lower(trim(restart_write)))
+    case('last')
       dropCal = endCal
       restart_month = dropCal%month(); restart_day = dropCal%day(); restart_hour = dropCal%hour()
-    case('specified','Specified')
+    case('specified')
       if (trim(restart_date) == charMissing) then
         ierr=20; message=trim(message)//'<restart_date> must be provided when <restart_write> option is "specified"'; return
       end if
@@ -436,12 +434,12 @@ CONTAINS
       dropCal = restCal%add_sec(-dt, calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restCal->dropCal]'; return; endif
       restart_month = dropCal%month(); restart_day = dropCal%day(); restart_hour = dropCal%hour()
-    case('Annual','Monthly','Daily','annual','monthly','daily')
+    case('annual','monthly','daily')
       call restCal%set_datetime(2000, restart_month, restart_day, restart_hour, 0, 0._dp)
       dropCal = restCal%add_sec(-dt, calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [ dropCal for periodical restart]'; return; endif
       restart_month = dropCal%month(); restart_day = dropCal%day(); restart_hour = dropCal%hour()
-    case('never','Never')
+    case('never')
       call dropCal%set_datetime(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
     case default
       ierr=20; message=trim(message)//'Current accepted <restart_write> options: L[l]ast, N[n]ever, S[s]pecified, A[a]nnual, M[m]onthly, D[d]aily'; return
