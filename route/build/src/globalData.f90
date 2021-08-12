@@ -50,6 +50,7 @@ module globalData
   USE var_lookup, only : nVarsPFAF     ! number of variables for data structure
   USE var_lookup, only : nVarsRFLX     ! number of variables for data structure
   USE var_lookup, only : nVarsIRFbas   ! number of variables for data structure
+  USE var_lookup, only : nVarsBasinQ   ! number of variables for data structure
   USE var_lookup, only : nVarsIRF      ! number of variables for data structure
   USE var_lookup, only : nVarsKWT      ! number of variables for data structure
 
@@ -91,6 +92,7 @@ module globalData
   type(var_info)                 , public :: meta_PFAF   (nVarsPFAF   ) ! pfafstetter code
   type(meta_var)                 , public :: meta_rflx   (nVarsRFLX   ) ! reach flux variables
   type(meta_var)                 , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
+  type(meta_var)                 , public :: meta_basinQ (nVarsBasinQ ) ! reach inflow from basin
   type(meta_var)                 , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
   type(meta_var)                 , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
 
