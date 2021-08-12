@@ -74,9 +74,6 @@ CONTAINS
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  T0=TB(1); T1=TB(2)
 
- call read_basinQ_state(ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return;endif
-
  ! routing specific variables
  if (doesBasinRoute == 1) then
    call read_IRFbas_state(ierr, cmessage)
@@ -84,6 +81,9 @@ CONTAINS
  endif
 
  if (opt==allRoutingMethods .or. opt==kinematicWave) then
+  call read_basinQ_state(ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return;endif
+
   call read_KWT_state(ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
  endif
@@ -267,6 +267,8 @@ CONTAINS
 
   do iVar=1,nVarsIRF
 
+   if (.not. qtakeOption .and. iVar==ixIRF%irfVol) cycle
+
    select case(iVar)
     case(ixIRF%qfuture); call get_nc(ncidRestart, meta_irf(iVar)%varName, state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,ntdh_irf,nens/), ierr, cmessage1)
     case(ixIRF%irfVol);  call get_nc(ncidRestart, meta_irf(iVar)%varName, state%var(iVar)%array_2d_dp, (/1,1/), (/nSeg, nens/), ierr, cmessage1)
@@ -283,6 +285,8 @@ CONTAINS
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
 
     do iVar=1,nVarsIRF
+
+     if (.not. qtakeOption .and. iVar==ixIRF%irfVol) cycle
 
      select case(iVar)
       case(ixIRF%qfuture); RCHFLX(iens,iSeg)%QFUTURE_IRF  = state%var(iVar)%array_3d_dp(iSeg,1:numQF(iens,iSeg),iens)
