@@ -241,6 +241,9 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
+  call sync_file(pioFileDesc, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  END SUBROUTINE output
 
 
