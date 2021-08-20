@@ -37,13 +37,15 @@ USE globalData,        ONLY: pio_numiotasks
 USE globalData,        ONLY: pio_rearranger
 USE globalData,        ONLY: pio_root
 USE globalData,        ONLY: pio_stride
+USE globalData,        ONLY: pioSystem
+USE globalData,        ONLY: isStandalone
 
 USE nr_utility_module, ONLY: arth
 USE pio_utils
 
 implicit none
 
-type(iosystem_desc_t),save :: pioSystemState
+! The following variables used only in this module
 type(file_desc_t),    save :: pioFileDescState     ! contains data identifying the file
 type(io_desc_t),      save :: iodesc_state_int
 type(io_desc_t),      save :: iodesc_state_double
@@ -284,16 +286,18 @@ CONTAINS
  ! ----------------------------------
  ! pio initialization for restart netCDF
  ! ----------------------------------
- pio_numiotasks = nNodes/pio_stride
- call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
-                   pio_stride, pio_numiotasks, & ! input: PIO related parameters
-                   pio_rearranger, pio_root,   & ! input: PIO related parameters
-                   pioSystemState)               ! output: PIO system descriptors
+ if (isStandalone) then
+   pio_numiotasks = nNodes/pio_stride
+   call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
+                     pio_stride, pio_numiotasks, & ! input: PIO related parameters
+                     pio_rearranger, pio_root,   & ! input: PIO related parameters
+                     pioSystem)               ! output: PIO system descriptors
+ end if
 
  ! ----------------------------------
  ! Create file
  ! ----------------------------------
- call createFile(pioSystemState, trim(fname), pio_typename, pio_netcdf_format, pioFileDescState, ierr, cmessage)
+ call createFile(pioSystem, trim(fname), pio_typename, pio_netcdf_format, pioFileDescState, ierr, cmessage)
  if(ierr/=0)then; message=trim(cmessage)//'cannot create state netCDF'; return; endif
 
  ! For common dimension/variables - seg id, time, time-bound -----------
@@ -370,14 +374,14 @@ CONTAINS
  ixRch = arth(1,1,nSeg)
 
  ! type: float  dim: [dim_seg, dim_ens, dim_time]  -- channel runoff coming from hru
- call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+ call pio_decomp(pioSystem,              & ! input: pio system descriptor
                  ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                  [nSeg,nEns],            & ! input: dimension length == global array size
                  ixRch(ix1:ix2),         & ! input:
                  iodesc_state_double)
 
  ! type: int  dim: [dim_seg, dim_ens, dim_time]  -- number of wave or uh future time steps
- call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+ call pio_decomp(pioSystem,              & ! input: pio system descriptor
                  ncd_int,                & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                  [nSeg,nEns],            & ! input: dimension length == global array size
                  ixRch(ix1:ix2),         & ! input:
@@ -385,14 +389,14 @@ CONTAINS
 
  if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
    ! type: int, dim: [dim_seg, dim_wave, dim_ens, dim_time]
-   call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+   call pio_decomp(pioSystem,              & ! input: pio system descriptor
                    ncd_int,                & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                    [nSeg,nWave,nEns],      & ! input: dimension length == global array size
                    ixRch(ix1:ix2),         & ! input:
                    iodesc_wave_int)
 
    ! type: float, dim: [dim_seg, dim_wave, dim_ens, dim_time]
-   call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+   call pio_decomp(pioSystem,              & ! input: pio system descriptor
                    ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                    [nSeg,nWave,nEns],      & ! input: dimension length == global array size
                    ixRch(ix1:ix2),         & ! input:
@@ -401,7 +405,7 @@ CONTAINS
 
  if (routOpt==kinematicWaveEuler) then
    ! type: float, dim: [dim_seg, dim_fdmesh, dim_ens, dim_time]
-   call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+   call pio_decomp(pioSystem,              & ! input: pio system descriptor
                    ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                    [nSeg,nFdmesh,nEns],    & ! input: dimension length == global array size
                    ixRch(ix1:ix2),         & ! input:
@@ -410,7 +414,7 @@ CONTAINS
 
  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
    ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens, dim_time]
-   call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+   call pio_decomp(pioSystem,              & ! input: pio system descriptor
                    ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                    [nSeg,ntdh_irf,nEns],   & ! input: dimension length == global array size
                    ixRch(ix1:ix2),         & ! input:
@@ -418,7 +422,7 @@ CONTAINS
 
  end if
  ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens, dim_time]
- call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+ call pio_decomp(pioSystem,              & ! input: pio system descriptor
                  ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                  [nSeg,ntdh,nEns],       & ! input: dimension length == global array size
                  ixRch(ix1:ix2),         & ! input:
@@ -714,7 +718,7 @@ CONTAINS
 
  ! -- Write out to netCDF
 
- call openFile(pioSystemState, pioFileDescState, trim(fname),pio_typename, ncd_write, ierr, cmessage)
+ call openFile(pioSystem, pioFileDescState, trim(fname),pio_typename, ncd_write, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! Miscellaneous variables - seg id, time etc

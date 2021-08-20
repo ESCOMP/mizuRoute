@@ -1,5 +1,6 @@
 module globalData
   ! This module includes shared data
+  USE pio
 
   USE public_var, ONLY: integerMissing
   USE public_var, ONLY: maxDomain
@@ -90,6 +91,8 @@ module globalData
   type(infileinfo) , allocatable , public :: infileinfo_data(:)   ! conversion factor to convert time to units of days
 
   ! ---------- Misc. data -------------------------------------------------------------------------
+  ! standalone mode
+  logical(lgt)                   , public :: isStandalone=.true.       ! flag to indicate model is running in standalone mode (True), otherwise coupled mode
 
   ! I/O stuff
   logical(lgt)                   , public :: isFileOpen                ! flag to indicate output netcdf is open
@@ -111,6 +114,7 @@ module globalData
   integer(i4b)                   , public :: pio_rearranger    = 2     ! 0=>PIO_rearr_none 1=> PIO_rearr_box 2=> PIO_rearr_subset
   integer(i4b)                   , public :: pio_root          = 1
   integer(i4b)                   , public :: pio_stride        = 1
+  type(iosystem_desc_t)          , public :: pioSystem                  ! PIO I/O system data
 
   ! ---------- conversion factors -------------------------------------------------------------------
 
