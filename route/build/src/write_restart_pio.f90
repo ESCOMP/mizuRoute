@@ -423,7 +423,7 @@ CONTAINS
                    iodesc_irf_double)
 
    ! type: float dim: [dim_seg, dim_ens, dim_time]
-   call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+   call pio_decomp(pioSystem,              & ! input: pio system descriptor
                    ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                    [nSeg,nTbound,nEns],    & ! input: dimension length == global array size
                    ixRch(ix1:ix2),         & ! input:
