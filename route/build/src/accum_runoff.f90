@@ -21,7 +21,7 @@ CONTAINS
  ! ---------------------------------------------------------------------------------------
  SUBROUTINE accum_runoff(iEns,          & ! input: index of runoff ensemble to be processed
                          river_basin,   & ! input: river basin information (mainstem, tributary outlet etc.)
-                         ixDesire,      & ! input: index of verbose reach
+                         ixDesire,      & ! input: ReachID to be checked by on-screen printing
                          NETOPO_in,     & ! input: reach topology data structure
                          RCHFLX_out,    & ! inout: reach flux data structure
                          ierr, message, & ! output: error controls
@@ -30,7 +30,8 @@ CONTAINS
  ! Purpose:
  !
  ! Accumulate all the upstream delayed runoff for each reach
- ! mostly for checking if routed runoff at each reach outlet preserve total upstream runoff.
+ ! This is not used as routed runoff.
+ ! This is used to get total instantaneous upstream runoff at each reach
  !
  ! ----------------------------------------------------------------------------------------
 
@@ -61,7 +62,6 @@ CONTAINS
 
  ierr=0; message='accum_runoff/'
 
- ! check
  if (size(NETOPO_in)/=size(RCHFLX_out(iens,:))) then
   ierr=20; message=trim(message)//'sizes of NETOPO and RCHFLX mismatch'; return
  endif
@@ -120,9 +120,9 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: perform accumulate immediate upstream flow
  ! *********************************************************************
- subroutine accum_qupstream(iEns,       &    ! input: index of runoff ensemble to be processed
+ SUBROUTINE accum_qupstream(iEns,       &    ! input: index of runoff ensemble to be processed
                             segIndex,   &    ! input: index of reach to be processed
-                            ixDesire,   &    ! input: index of verbose reach
+                            ixDesire,   &    ! input: reachID to be checked by on-screen pringing
                             NETOPO_in,  &    ! input: reach topology data structure
                             RCHFLX_out, &    ! inout: reach flux data structure
                             ierr, message)   ! output: error control
@@ -138,10 +138,11 @@ CONTAINS
  integer(i4b), intent(out)                :: ierr           ! error code
  character(*), intent(out)                :: message        ! error message
  ! Local variables to
- real(dp), allocatable                    :: uprflux(:)     ! upstream Reach fluxes
+ real(dp)                                 :: q_upstream     ! upstream Reach fluxes
  integer(i4b)                             :: nUps           ! number of upstream segment
  integer(i4b)                             :: iUps           ! upstream reach index
  integer(i4b)                             :: iRch_ups       ! index of upstream reach in NETOPO
+ character(len=strLen)                    :: fmt1,fmt2      ! format string
  character(len=strLen)                    :: cmessage       ! error message from subroutine
 
  ierr=0; message='accum_qupstream/'
@@ -151,28 +152,32 @@ CONTAINS
 
  RCHFLX_out(iEns,segIndex)%UPSTREAM_QI = RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
 
+ q_upstream = 0._dp
  if (nUps>0) then
 
-   allocate(uprflux(nUps), stat=ierr, errmsg=cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': uprflux'; return; endif
-
    do iUps = 1,nUps
-     iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)
-     uprflux(iUps) = RCHFLX_out(iens,iRch_ups)%UPSTREAM_QI
+     iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
+     q_upstream = q_upstream + RCHFLX_out(iens,iRch_ups)%UPSTREAM_QI
    end do
 
-   RCHFLX_out(iEns,segIndex)%UPSTREAM_QI = RCHFLX_out(iEns,segIndex)%UPSTREAM_QI + sum(uprflux)
+   RCHFLX_out(iEns,segIndex)%UPSTREAM_QI = RCHFLX_out(iEns,segIndex)%UPSTREAM_QI + q_upstream
 
  endif
 
  ! check
- if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
-  write(iulog,*) 'CHECK ACCUM_RUNOFF'
-  write(iulog,*) ' UREACHK, uprflux = ', (NETOPO_in(segIndex)%UREACHK(iUps), uprflux(iUps), iUps=1,nUps)
-  write(iulog,*) ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1) = ', RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
-  write(iulog,*) ' RCHFLX_out%UPSTREAM_QI = ', RCHFLX_out(iens,segIndex)%UPSTREAM_QI
+ if(segIndex == ixDesire)then
+   write(fmt1,'(A,I5,A)') '(A,1X',nUps,'(1X,I10))'
+   write(fmt2,'(A,I5,A)') '(A,1X',nUps,'(1X,F20.7))'
+   write(*,'(2a)') new_line('a'),'** Check upstream discharge accumulation **'
+   write(*,'(a,x,I10,x,I10)') ' Reach index & ID =', segIndex, NETOPO_in(segIndex)%REACHID
+   write(*,'(a)')             ' * upstream reach index (NETOPO_in%UREACH) and discharge (uprflux) [m3/s] :'
+   write(*,fmt1)              ' UREACHK =', (NETOPO_in(segIndex)%UREACHK(iUps), iUps=1,nUps)
+   write(*,fmt2)              ' prflux  =', (RCHFLX_out(iens,NETOPO_in(segIndex)%UREACHI(iUps))%UPSTREAM_QI, iUps=1,nUps)
+   write(*,'(a)')             ' * local area discharge (RCHFLX_out%BASIN_QR(1)) and final discharge (RCHFLX_out%UPSTREAM_QI) [m3/s] :'
+   write(*,'(a,x,F15.7)')     ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+   write(*,'(a,x,F15.7)')     ' RCHFLX_out%UPSTREAM_QI =', RCHFLX_out(iens,segIndex)%UPSTREAM_QI
  endif
 
- end subroutine accum_qupstream
+ END SUBROUTINE accum_qupstream
 
 END MODULE accum_runoff_module
