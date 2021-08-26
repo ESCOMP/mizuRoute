@@ -428,14 +428,16 @@ CONTAINS
                    [nSeg,nTbound,nEns],    & ! input: dimension length == global array size
                    ixRch(ix1:ix2),         & ! input:
                    iodesc_vol_double)
-
  end if
- ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens, dim_time]
- call pio_decomp(pioSystem,              & ! input: pio system descriptor
-                 ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                 [nSeg,ntdh,nEns],       & ! input: dimension length == global array size
-                 ixRch(ix1:ix2),         & ! input:
-                 iodesc_irf_bas_double)
+
+ if (doesBasinRoute == 1) then
+   ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens, dim_time]
+   call pio_decomp(pioSystem,              & ! input: pio system descriptor
+                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                   [nSeg,ntdh,nEns],       & ! input: dimension length == global array size
+                   ixRch(ix1:ix2),         & ! input:
+                   iodesc_irf_bas_double)
+ end if
 
  end associate
 
