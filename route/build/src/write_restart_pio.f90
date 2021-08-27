@@ -9,6 +9,7 @@ USE var_lookup,        ONLY: ixIRFbas, nVarsIRFbas
 USE var_lookup,        ONLY: ixKWE, nVarsKWE
 USE var_lookup,        ONLY: ixKWT, nVarsKWT
 USE var_lookup,        ONLY: ixIRFbas, nVarsIRFbas
+USE var_lookup,        ONLY: ixBasinQ, nVarsBasinQ
 
 USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
 USE dataTypes,         ONLY: STRSTA            ! state in each reach
@@ -25,6 +26,7 @@ USE public_var,        ONLY: rpntfil           ! ascii containing last restart f
 USE globalData,        ONLY: meta_stateDims  ! states dimension meta
 USE globalData,        ONLY: meta_irf        ! IRF routing
 USE globalData,        ONLY: meta_irf_bas
+USE globalData,        ONLY: meta_basinQ
 USE globalData,        ONLY: meta_kwt
 USE globalData,        ONLY: meta_kwe
 
@@ -332,6 +334,10 @@ CONTAINS
  end associate
 
  ! Routing specific variables --------------
+ ! previous-time step hru inflow into reach
+ call define_basinQ_state(ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  ! basin IRF
  if (doesBasinRoute == 1) then
   call define_IRFbas_state(ierr, cmessage)
@@ -474,6 +480,38 @@ CONTAINS
    end select
 
   END SUBROUTINE set_dim_len
+
+
+  SUBROUTINE define_basinQ_state(ierr, message1)
+   implicit none
+   ! output
+   integer(i4b), intent(out)         :: ierr          ! error code
+   character(*), intent(out)         :: message1      ! error message
+   ! local
+   integer(i4b)                      :: iVar, ixDim   ! index loop
+   integer(i4b)                      :: nDims         ! number of dimensions
+   integer(i4b),allocatable          :: dim_basinQ(:) ! dimension id array
+
+   ierr=0; message1='define_basinQ_state/'
+
+   do iVar=1,nVarsBasinQ
+
+     nDims = size(meta_basinQ(iVar)%varDim)
+     if (allocated(dim_basinQ)) then
+       deallocate(dim_basinQ)
+     end if
+     allocate(dim_basinQ(nDims))
+     do ixDim = 1, nDims
+       dim_basinQ(ixDim) = meta_stateDims(meta_basinQ(iVar)%varDim(ixDim))%dimId
+     end do
+
+     call def_var(pioFileDescState, trim(meta_basinQ(iVar)%varName), dim_basinQ, meta_basinQ(iVar)%varType, ierr, cmessage, vdesc=trim(meta_basinQ(iVar)%varDesc), vunit=trim(meta_basinQ(iVar)%varUnit))
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+   end do
+
+  END SUBROUTINE define_basinQ_state
+
 
   SUBROUTINE define_IRFbas_state(ierr, message1)
    implicit none
@@ -741,6 +779,9 @@ CONTAINS
  call write_netcdf(pioFileDescState, 'time_bound', [TSEC(0),TSEC(1)], [1,kTime], [2,1], ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+ call write_basinQ_state(ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  if (doesBasinRoute == 1) then
   call write_IRFbas_state(ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -765,6 +806,57 @@ CONTAINS
 
  CONTAINS
 
+  ! reach inflow writing procedure
+  SUBROUTINE write_basinQ_state(ierr, message1)
+  implicit none
+  ! output
+  integer(i4b), intent(out)  :: ierr            ! error code
+  character(*), intent(out)  :: message1        ! error message
+  ! local variables
+  type(states)               :: state           ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
+  integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
+
+  ! initialize error control
+  ierr=0; message1='write_basinQ_state/'
+
+  associate(nSeg     => size(RCHFLX_local),                         &
+            nens     => meta_stateDims(ixStateDims%ens)%dimLength)
+
+  allocate(state%var(nVarsBasinQ), stat=ierr, errmsg=cmessage)
+  if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+  do iVar=1,nVarsBasinQ
+    select case(iVar)
+      case(ixBasinQ%q); allocate(state%var(iVar)%array_2d_dp(nSeg, nEns), stat=ierr)
+      case default; ierr=20; message1=trim(message1)//'unable to identify basin routing variable index'; return
+    end select
+    if(ierr/=0)then; message1=trim(message1)//'problem allocating space for basin IRF routing state '//trim(meta_basinQ(iVar)%varName); return; endif
+  end do
+
+ ! --Convert data structures to arrays
+  do iens=1,nens
+    do iSeg=1,nSeg
+      do iVar=1,nVarsBasinQ
+        select case(iVar)
+          case(ixBasinQ%q); state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX_local(iSeg)%BASIN_QR(1)
+          case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF state variable index'; return
+        end select
+      enddo
+    enddo
+  enddo
+
+  do iVar=1,nVarsBasinQ
+     select case(iVar)
+      case(ixBasinQ%q); call write_pnetcdf_recdim(pioFileDescState, meta_basinQ(iVar)%varName, state%var(iVar)%array_2d_dp, iodesc_state_double, kTime, ierr, cmessage)
+      case default; ierr=20; message1=trim(message1)//'unable to identify reach inflow variable index for nc writing'; return
+    end select
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+  end do
+
+  end associate
+
+  END SUBROUTINE write_basinQ_state
+
   ! Basin IRF writing procedures
   SUBROUTINE write_IRFbas_state(ierr, message1)
   implicit none
@@ -788,7 +880,6 @@ CONTAINS
 
    select case(iVar)
     case(ixIRFbas%qfuture); allocate(state%var(iVar)%array_3d_dp(nSeg, ntdh, nEns), stat=ierr)
-    case(ixIRFbas%q);       allocate(state%var(iVar)%array_2d_dp(nSeg, nEns),       stat=ierr)
     case default; ierr=20; message1=trim(message1)//'unable to identify basin routing variable index'; return
    end select
    if(ierr/=0)then; message1=trim(message1)//'problem allocating space for basin IRF routing state '//trim(meta_irf_bas(iVar)%varName); return; endif
@@ -801,7 +892,6 @@ CONTAINS
      do iVar=1,nVarsIRFbas
       select case(iVar)
        case(ixIRFbas%qfuture); state%var(iVar)%array_3d_dp(iSeg,:,iens) = RCHFLX_local(iSeg)%QFUTURE
-       case(ixIRFbas%q);       state%var(iVar)%array_2d_dp(iSeg,iens)   = RCHFLX_local(iSeg)%BASIN_QR(1)
        case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF state variable index'; return
       end select
     enddo
@@ -812,7 +902,6 @@ CONTAINS
 
    select case(iVar)
     case(ixIRFbas%qfuture); call write_pnetcdf_recdim(pioFileDescState, meta_irf_bas(iVar)%varName, state%var(iVar)%array_3d_dp, iodesc_irf_bas_double, kTime, ierr, cmessage)
-    case(ixIRFbas%q);       call write_pnetcdf_recdim(pioFileDescState, meta_irf_bas(iVar)%varName, state%var(iVar)%array_2d_dp, iodesc_state_double, kTime, ierr, cmessage)
     case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF variable index for nc writing'; return
    end select
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
