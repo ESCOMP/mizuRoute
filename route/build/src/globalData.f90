@@ -53,6 +53,7 @@ module globalData
   USE var_lookup, ONLY: nVarsNTOPO
   USE var_lookup, ONLY: nVarsPFAF
   USE var_lookup, ONLY: nVarsRFLX
+  USE var_lookup, ONLY: nVarsBasinQ
   USE var_lookup, ONLY: nVarsIRFbas
   USE var_lookup, ONLY: nVarsIRF
   USE var_lookup, ONLY: nVarsKWT
@@ -147,6 +148,7 @@ module globalData
   type(var_info)                 , public :: meta_NTOPO  (nVarsNTOPO  ) ! network topology
   type(var_info)                 , public :: meta_PFAF   (nVarsPFAF   ) ! pfafstetter code
   type(var_info_new)             , public :: meta_rflx   (nVarsRFLX   ) ! reach flux variables
+  type(var_info_new)             , public :: meta_basinQ (nVarsBasinQ ) ! reach inflow from basin
   type(var_info_new)             , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
   type(var_info_new)             , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
   type(var_info_new)             , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states

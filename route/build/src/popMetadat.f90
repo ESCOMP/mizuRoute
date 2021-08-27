@@ -27,6 +27,7 @@ USE globalData, ONLY: meta_NTOPO     ! network topology
 USE globalData, ONLY: meta_PFAF      ! pfafstetter code
 
 USE globalData, ONLY: meta_rflx      ! reach flux variables
+USE globalData, ONLY: meta_basinQ    ! reach inflow from basin
 USE globalData, ONLY: meta_irf_bas   ! within-basin irf routing fluxes and states
 USE globalData, ONLY: meta_irf       ! irf routing fluxes and states in a segment
 USE globalData, ONLY: meta_kwt       ! kinematic wave routing fluxes and states in a segment
@@ -43,11 +44,12 @@ USE var_lookup, ONLY: ixSEG      , nVarsSEG      ! index of variables for data s
 USE var_lookup, ONLY: ixNTOPO    , nVarsNTOPO    ! index of variables for data structure
 USE var_lookup, ONLY: ixPFAF     , nVarsPFAF     ! index of variables for data structure
 
-USE var_lookup, ONLY: ixRFLX     , nVarsRFLX     ! index of variables for data structure
-USE var_lookup, ONLY: ixKWT      , nVarsKWT      ! index of variables for data structure
-USE var_lookup, ONLY: ixKWE      , nVarsKWE      ! index of variables for data structure
-USE var_lookup, ONLY: ixIRF      , nVarsIRF      ! index of variables for data structure
-USE var_lookup, ONLY: ixIRFbas   , nVarsIRFbas   ! index of variables for data structure
+USE var_lookup, ONLY: ixRFLX                     ! index of variables for data structure
+USE var_lookup, ONLY: ixKWT                      ! index of variables for data structure
+USE var_lookup, ONLY: ixKWE                      ! index of variables for data structure
+USE var_lookup, ONLY: ixIRF                      ! index of variables for data structure
+USE var_lookup, ONLY: ixIRFbas                   ! index of variables for data structure
+USE var_lookup, ONLY: ixBasinQ                   ! index of variables for data structure
 
 implicit none
 
@@ -219,7 +221,9 @@ contains
 
  ! Basin Impulse Response Function        varName    varDesc               unit,   varType,    varDim,                                                             writeOut
  call meta_irf_bas(ixIRFbas%qfuture)%init('qfuture', 'future flow series', 'm3/s' ,pio_double, [ixStateDims%seg,ixStateDims%tdh,ixStateDims%ens,ixStateDims%time], .true.)
- call meta_irf_bas(ixIRFbas%q      )%init('basin_q', 'basin routed flow' , 'm3/s' ,pio_double, [ixStateDims%seg,ixStateDims%ens,ixStateDims%time]                , .true.)
+
+! reach inflow from basin                 varName     varDesc              unit,  varType,     varDim,                                                             writeOut
+ call meta_basinQ(ixBasinQ%q      )%init('basin_q', 'basin routed flow' , 'm3/s' ,pio_double, [ixStateDims%seg,ixStateDims%ens,ixStateDims%time]                , .true.)
 
  end subroutine popMetadat
 
