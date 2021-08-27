@@ -27,6 +27,7 @@ USE globalData, ONLY: meta_NTOPO     ! network topology
 USE globalData, ONLY: meta_PFAF      ! pfafstetter code
 
 USE globalData, ONLY: meta_rflx      ! reach flux variables
+USE globalData, ONLY: meta_basinQ    ! reach inflow from basin
 USE globalData, ONLY: meta_irf_bas   ! within-basin irf routing fluxes and states
 USE globalData, ONLY: meta_irf       ! irf routing fluxes and states in a segment
 USE globalData, ONLY: meta_kwt       ! kinematic wave routing fluxes and states in a segment
@@ -43,11 +44,12 @@ USE var_lookup, ONLY: ixSEG      , nVarsSEG      ! index of variables for data s
 USE var_lookup, ONLY: ixNTOPO    , nVarsNTOPO    ! index of variables for data structure
 USE var_lookup, ONLY: ixPFAF     , nVarsPFAF     ! index of variables for data structure
 
-USE var_lookup, ONLY: ixRFLX     , nVarsRFLX     ! index of variables for data structure
-USE var_lookup, ONLY: ixKWT      , nVarsKWT      ! index of variables for data structure
-USE var_lookup, ONLY: ixKWE      , nVarsKWE      ! index of variables for data structure
-USE var_lookup, ONLY: ixIRF      , nVarsIRF      ! index of variables for data structure
-USE var_lookup, ONLY: ixIRFbas   , nVarsIRFbas   ! index of variables for data structure
+USE var_lookup, ONLY: ixRFLX                     ! index of variables for data structure
+USE var_lookup, ONLY: ixKWT                      ! index of variables for data structure
+USE var_lookup, ONLY: ixKWE                      ! index of variables for data structure
+USE var_lookup, ONLY: ixIRF                      ! index of variables for data structure
+USE var_lookup, ONLY: ixIRFbas                   ! index of variables for data structure
+USE var_lookup, ONLY: ixBasinQ                   ! index of variables for data structure
 
 implicit none
 
@@ -122,6 +124,49 @@ contains
  meta_SEG    (ixSEG%basUnderLake     ) = var_info('basUnderLake'   , 'Area of basin under lake'                          ,'m2'    ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%rchUnderLake     ) = var_info('rchUnderLake'   , 'Length of reach under lake'                        ,'m'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%minFlow          ) = var_info('minFlow'        , 'minimum environmental flow'                        ,'m s-1' ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%D03_MaxStorage   ) = var_info('D03_MaxStorage' , 'Doll 2003; maximume storage Doll 2003'             ,'m3'    ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%D03_Coefficient  ) = var_info('D03_Coefficient', 'Doll 2003; coefficient Doll 2003'                  ,'day-1' ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%D03_Power        ) = var_info('D03_Power'      , 'Doll 2003; power Doll 2003'                        ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_Smax         ) = var_info('H06_Smax'       , 'Hanasaki 2006; maximume reservoir storage'                                               ,'m3'    ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_alpha        ) = var_info('H06_alpha'      , 'Hanasaki 2006; fraction of active storage compared to total storage'                     ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_envfact      ) = var_info('H06_envfact'    , 'Hanasaki 2006; fraction of inflow that can be used to meet demand'                       ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_S_ini        ) = var_info('H06_S_ini'      , 'Hanasaki 2006; initial storage used for initial estimation of release coefficient'       ,'m3'    ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_c1           ) = var_info('H06_c1'         , 'Hanasaki 2006; coefficient 1 for target release for irrigation reseroir'                 ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_c2           ) = var_info('H06_c2'         , 'Hanasaki 2006; coefficient 2 for target release for irrigation reseroir'                 ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_exponent     ) = var_info('H06_exponent'   , 'Hanasaki 2006; Exponenet of actual release for "within-a-year" reservoir'                ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_denominator  ) = var_info('H06_denominator', 'Hanasaki 2006; Denominator of actual release for "within-a-year" reservoir'              ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_c_compare    ) = var_info('H06_c_compare'  , 'Hanasaki 2006; Criterion for distinguish of "within-a-year" or "multi-year" reservoir'   ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_frac_Sdead   ) = var_info('H06_frac_Sdead' , 'Hanasaki 2006; Fraction of dead storage to maximume storage'                             ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_E_rel_ini    ) = var_info('H06_E_rel_ini'  , 'Hanasaki 2006; Initial release coefficient'                                              ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_I_Jan        ) = var_info('H06_I_Jan'      , 'Hanasaki 2006; Average January   inflow'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_I_Feb        ) = var_info('H06_I_Feb'      , 'Hanasaki 2006; Average Februrary inflow'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_I_Mar        ) = var_info('H06_I_Mar'      , 'Hanasaki 2006; Average March     inflow'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_I_Apr        ) = var_info('H06_I_Apr'      , 'Hanasaki 2006; Average April     inflow'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_I_May        ) = var_info('H06_I_May'      , 'Hanasaki 2006; Average May       inflow'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_I_Jun        ) = var_info('H06_I_Jun'      , 'Hanasaki 2006; Average June      inflow'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_I_Jul        ) = var_info('H06_I_Jul'      , 'Hanasaki 2006; Average July      inflow'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_I_Aug        ) = var_info('H06_I_Aug'      , 'Hanasaki 2006; Average August    inflow'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_I_Sep        ) = var_info('H06_I_Sep'      , 'Hanasaki 2006; Average September inflow'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_I_Oct        ) = var_info('H06_I_Oct'      , 'Hanasaki 2006; Average October   inflow'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_I_Nov        ) = var_info('H06_I_Nov'      , 'Hanasaki 2006; Average November  inflow'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_I_Dec        ) = var_info('H06_I_Dec'      , 'Hanasaki 2006; Average December  inflow'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_D_Jan        ) = var_info('H06_D_Jan'      , 'Hanasaki 2006; Average January   demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_D_Feb        ) = var_info('H06_D_Feb'      , 'Hanasaki 2006; Average Februrary demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_D_Mar        ) = var_info('H06_D_Mar'      , 'Hanasaki 2006; Average March     demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_D_Apr        ) = var_info('H06_D_Apr'      , 'Hanasaki 2006; Average April     demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_D_May        ) = var_info('H06_D_May'      , 'Hanasaki 2006; Average April     demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_D_Jun        ) = var_info('H06_D_Jun'      , 'Hanasaki 2006; Average May       demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_D_Jul        ) = var_info('H06_D_Jul'      , 'Hanasaki 2006; Average June      demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_D_Aug        ) = var_info('H06_D_Aug'      , 'Hanasaki 2006; Average July      demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_D_Sep        ) = var_info('H06_D_Sep'      , 'Hanasaki 2006; Average Agust     demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_D_Oct        ) = var_info('H06_D_Oct'      , 'Hanasaki 2006; Average September demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_D_Nov        ) = var_info('H06_D_Nov'      , 'Hanasaki 2006; Average November  demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_D_Dec        ) = var_info('H06_D_Dec'      , 'Hanasaki 2006; Average December  demand'                                                 ,'m3 s-1',ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_purpose      ) = var_info('H06intP1'       , 'Hanasaki 2006; reservoir purpose; (0= non-irrigation, 1=irrigation)'                     ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_I_mem_F      ) = var_info('H06intP2'       , 'Hanasaki 2006; Flag to transition to modelled inflow'                                    ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_D_mem_F      ) = var_info('H06intP3'       , 'Hanasaki 2006; Flag to transition to modelled/provided demand'                           ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_I_mem_L      ) = var_info('H06intP4'       , 'Hanasaki 2006; Memory length in years for inflow'                                        ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%H06_D_mem_L      ) = var_info('H06intP5'       , 'Hanasaki 2006; Memory length in years for demand'                                        ,'-'     ,ixDims%seg   , .false.)
 
  ! NTOPO                                         varName        varDesc                                                varUnit, varType, varFile
  meta_NTOPO  (ixNTOPO%nHRU           ) = var_info('nHRU'           , 'number of HRUs contributing flow to each segment'   ,'-'    ,ixDims%seg   , .false.)
@@ -141,6 +186,9 @@ contains
  meta_NTOPO  (ixNTOPO%isLakeInlet    ) = var_info('isLakeInlet'    , 'flag to define if a lake inlet (1=true)'            ,'-'    ,ixDims%seg   , .false.)
  meta_NTOPO  (ixNTOPO%userTake       ) = var_info('userTake'       , 'flag to define if user takes water (1=true)'        ,'-'    ,ixDims%seg   , .false.)
  meta_NTOPO  (ixNTOPO%goodBasin      ) = var_info('goodBasin'      , 'flag to define a good basin (1=true)'               ,'-'    ,ixDims%upSeg , .false.)
+ meta_NTOPO  (ixNTOPO%islake         ) = var_info('islake'         , 'flag to define if the object is lake (1=true)'      ,'-'    ,ixDims%Seg   , .false.)
+ meta_NTOPO  (ixNTOPO%LakeTargVol    ) = var_info('LakeTargVol'    , 'flag to define if lake follow target Vol (1=true)'  ,'-'    ,ixDims%Seg   , .false.)
+ meta_NTOPO  (ixNTOPO%LakeModelType  ) = var_info('LakeModelType'  , 'lake model type (1=Doll, 2=Hanasaki, etc=none-para)','-'    ,ixDims%Seg   , .false.)
 
  ! PFAF CODE                                     varName        varDesc                                                varUnit, varType, varFile
  meta_PFAF  (ixPFAF%code             ) = var_info('code'           , 'pfafstetter code'                                   ,'-'    ,ixDims%seg   , .false.)
@@ -154,6 +202,7 @@ contains
  call meta_rflx(ixRFLX%KWTroutedRunoff  )%init('KWTroutedRunoff'  , 'KWT routed runoff in each reach'     , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
  call meta_rflx(ixRFLX%KWEroutedRunoff  )%init('KWEroutedRunoff'  , 'KWE routed runoff in each reach'     , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
  call meta_rflx(ixRFLX%IRFroutedRunoff  )%init('IRFroutedRunoff'  , 'IRF routed runoff in each reach'     , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
+ call meta_rflx(ixRFLX%IRFlakeVol       )%init('IRFlakeVol'       , 'lake and stream volume for IRF'      , 'm3'  , pio_real, [ixQdims%seg,ixQdims%time], .true.)
 
  ! Lagrangian Kinematic Wave         varName      varDesc                                           unit,   varType,    varDim,                                                              writeOut
  call meta_kwt(ixKWT%tentry   )%init('tentry'   , 'time when a wave enters a segment'             , 's'   , pio_double, [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens,ixStateDims%time], .true.)
@@ -167,11 +216,14 @@ contains
  call meta_kwe(ixKWE%q   )%init('kwe_q'    , 'Kinematic wave routed flow' , 'm2/s', pio_double, [ixStateDims%seg,ixStateDims%fdmesh,ixStateDims%ens,ixStateDims%time], .true.)
 
  ! Impulse Response Function       varName         varDesc              unit,   varType,    varDim,                                                                  writeOut
- call meta_irf(ixIRF%qfuture)%init('irf_qfuture', 'future flow series', 'm3/s' ,pio_double, [ixStateDims%seg,ixStateDims%tdh_irf,ixStateDims%ens,ixStateDims%time] , .true.)
+ call meta_irf(ixIRF%qfuture)%init('irf_qfuture', 'future flow series',   'm3/s' ,pio_double, [ixStateDims%seg,ixStateDims%tdh_irf,ixStateDims%ens,ixStateDims%time] , .true.)
+ call meta_irf(ixIRF%irfVol)%init ('irfVol'     , 'volume in reach/lake', 'm3'   ,pio_double, [ixStateDims%seg,ixStateDims%tbound, ixStateDims%ens,ixStateDims%time] , .true.)
 
  ! Basin Impulse Response Function        varName    varDesc               unit,   varType,    varDim,                                                             writeOut
  call meta_irf_bas(ixIRFbas%qfuture)%init('qfuture', 'future flow series', 'm3/s' ,pio_double, [ixStateDims%seg,ixStateDims%tdh,ixStateDims%ens,ixStateDims%time], .true.)
- call meta_irf_bas(ixIRFbas%q      )%init('basin_q', 'basin routed flow' , 'm3/s' ,pio_double, [ixStateDims%seg,ixStateDims%ens,ixStateDims%time]                , .true.)
+
+! reach inflow from basin                 varName     varDesc              unit,  varType,     varDim,                                                             writeOut
+ call meta_basinQ(ixBasinQ%q      )%init('basin_q', 'basin routed flow' , 'm3/s' ,pio_double, [ixStateDims%seg,ixStateDims%ens,ixStateDims%time]                , .true.)
 
  end subroutine popMetadat
 
