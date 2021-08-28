@@ -51,6 +51,8 @@ integer(i4b),parameter  :: tributary=2
 integer(i4b),parameter  :: endorheic=3
 
 logical(lgt), parameter :: debug_mpi=.false.
+logical(lgt), parameter :: debug_trib_omp=.false.
+logical(lgt), parameter :: debug_main_omp=.false.
 
 private
 
@@ -139,18 +141,113 @@ contains
   integer(i4b),      allocatable              :: downSegId_local(:)        ! downstream reach id for decomposed network
   integer(i4b),      allocatable              :: hruId_local(:)            ! hru id array in decomposed network
   integer(i4b),      allocatable              :: hruSegId_local(:)         ! downstream reach id array in decomposed network
+  integer(i4b),      allocatable              :: islake_local(:)           ! islake flag local
+  integer(i4b),      allocatable              :: LakeTargVol_local(:)      ! LakeTargVol flag local
+  integer(i4b),      allocatable              :: LakeModelType_local(:)    ! LakeModelType flag local
   real(dp),          allocatable              :: slope_local(:)            ! reach slope array in decomposed network
   real(dp),          allocatable              :: length_local(:)           ! reach length array in decomposed network
   real(dp),          allocatable              :: area_local(:)             ! hru area in decomposed network
+  real(dp),          allocatable              :: D03_MaxStorage_local(:)   ! Doll 2003; maximum active storage for Doll 2003
+  real(dp),          allocatable              :: D03_Coefficient_local(:)  ! Doll 2003; coefficient for Doll 2003
+  real(dp),          allocatable              :: D03_Power_local(:)        ! Doll 2003; power for Doll 2003
+  real(dp),          allocatable              :: H06_Smax_local(:)         ! Hanasaki 2006; maximume reservoir storage [m3]
+  real(dp),          allocatable              :: H06_alpha_local(:)        ! Hanasaki 2006; fraction of active storage compared to total storage [-]
+  real(dp),          allocatable              :: H06_envfact_local(:)      ! Hanasaki 2006; fraction of inflow that can be used to meet demand [-]
+  real(dp),          allocatable              :: H06_S_ini_local(:)        ! Hanasaki 2006; initial storage used for initial estimation of release coefficient [m3]
+  real(dp),          allocatable              :: H06_c1_local(:)           ! Hanasaki 2006; coefficient 1 for target release for irrigation reseroir [-]
+  real(dp),          allocatable              :: H06_c2_local(:)           ! Hanasaki 2006; coefficient 2 for target release for irrigation reseroir [-]
+  real(dp),          allocatable              :: H06_exponent_local(:)     ! Hanasaki 2006; Exponenet of actual release for "within-a-year" reservoir [-]
+  real(dp),          allocatable              :: H06_denominator_local(:)  ! Hanasaki 2006; Denominator of actual release for "within-a-year" reservoir [-]
+  real(dp),          allocatable              :: H06_c_compare_local(:)    ! Hanasaki 2006; Criterion for distinguish of "within-a-year" or "multi-year" reservoir [-]
+  real(dp),          allocatable              :: H06_frac_Sdead_local(:)   ! Hanasaki 2006; Fraction of dead storage to maximume storage [-]
+  real(dp),          allocatable              :: H06_E_rel_ini_local(:)    ! Hanasaki 2006; Initial release coefficient [-]
+  real(dp),          allocatable              :: H06_I_Jan_local(:)        ! Hanasaki 2006; Average January   inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_Feb_local(:)        ! Hanasaki 2006; Average Februrary inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_Mar_local(:)        ! Hanasaki 2006; Average March     inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_Apr_local(:)        ! Hanasaki 2006; Average April     inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_May_local(:)        ! Hanasaki 2006; Average May       inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_Jun_local(:)        ! Hanasaki 2006; Average June      inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_Jul_local(:)        ! Hanasaki 2006; Average July      inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_Aug_local(:)        ! Hanasaki 2006; Average August    inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_Sep_local(:)        ! Hanasaki 2006; Average September inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_Oct_local(:)        ! Hanasaki 2006; Average October   inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_Nov_local(:)        ! Hanasaki 2006; Average November  inflow [m3/s]
+  real(dp),          allocatable              :: H06_I_Dec_local(:)        ! Hanasaki 2006; Average December  inflow [m3/s]
+  real(dp),          allocatable              :: H06_D_Jan_local(:)        ! Hanasaki 2006; Average January   demand [m3/s]
+  real(dp),          allocatable              :: H06_D_Feb_local(:)        ! Hanasaki 2006; Average Februrary demand [m3/s]
+  real(dp),          allocatable              :: H06_D_Mar_local(:)        ! Hanasaki 2006; Average March     demand [m3/s]
+  real(dp),          allocatable              :: H06_D_Apr_local(:)        ! Hanasaki 2006; Average April     demand [m3/s]
+  real(dp),          allocatable              :: H06_D_May_local(:)        ! Hanasaki 2006; Average May       demand [m3/s]
+  real(dp),          allocatable              :: H06_D_Jun_local(:)        ! Hanasaki 2006; Average June      demand [m3/s]
+  real(dp),          allocatable              :: H06_D_Jul_local(:)        ! Hanasaki 2006; Average July      demand [m3/s]
+  real(dp),          allocatable              :: H06_D_Aug_local(:)        ! Hanasaki 2006; Average Agust     demand [m3/s]
+  real(dp),          allocatable              :: H06_D_Sep_local(:)        ! Hanasaki 2006; Average September demand [m3/s]
+  real(dp),          allocatable              :: H06_D_Oct_local(:)        ! Hanasaki 2006; Average October   demand [m3/s]
+  real(dp),          allocatable              :: H06_D_Nov_local(:)        ! Hanasaki 2006; Average Novermber demand [m3/s]
+  real(dp),          allocatable              :: H06_D_Dec_local(:)        ! Hanasaki 2006; Average December  demand [m3/s]
+  integer(i4b),      allocatable              :: H06_purpose_local(:)      ! Hanasaki 2006; reservoir purpose; (0= non-irrigation, 1=irrigation) [-]
+  integer(i4b),      allocatable              :: H06_I_mem_F_local(:)      ! Hanasaki 2006; Flag to transition to modelled inflow [-]
+  integer(i4b),      allocatable              :: H06_D_mem_F_local(:)      ! Hanasaki 2006; Flag to transition to modelled/provided demand [-]
+  integer(i4b),      allocatable              :: H06_I_mem_L_local(:)      ! Hanasaki 2006; Memory length in years for inflow [year]
+  integer(i4b),      allocatable              :: H06_D_mem_L_local(:)      ! Hanasaki 2006; Memory length in years for demand [year]
+
+
+
   logical(lgt),      allocatable              :: tribOutlet_local(:)       ! logical to indicate tributary outlet to mainstems
   ! 1D array for the entire river network
   integer(i4b)                                :: hruId(nHRU_in)            ! hru id for all the HRUs
   integer(i4b)                                :: hruSegId(nHRU_in)         ! hru-to-seg mapping for each hru
   integer(i4b)                                :: segId(nRch_in)            ! reach id for all the segments
   integer(i4b)                                :: downSegId(nRch_in)        ! downstream reach ID for each reach
+  integer(i4b)                                :: islake(nRch_in)           ! islake flag
+  integer(i4b)                                :: LakeTargVol(nRch_in)      ! LakeTargVol flag
+  integer(i4b)                                :: LakeModelType(nRch_in)    ! LakeModelType flag local
   real(dp)                                    :: slope(nRch_in)            ! reach slope array for each reach
   real(dp)                                    :: length(nRch_in)           ! reach length array for each reach
   real(dp)                                    :: area(nHRU_in)             ! hru area for each hru
+  real(dp)                                    :: D03_MaxStorage(nRch_in)   ! Doll 2003; maximum active storage for Doll 2003
+  real(dp)                                    :: D03_Coefficient(nRch_in)  ! Doll 2003; coefficient for Doll 2003
+  real(dp)                                    :: D03_Power(nRch_in)        ! Doll 2003; power for Doll 2003
+  real(dp)                                    :: H06_Smax(nRch_in)         ! Hanasaki 2006; maximume reservoir storage [m3]
+  real(dp)                                    :: H06_alpha(nRch_in)        ! Hanasaki 2006; fraction of active storage compared to total storage [-]
+  real(dp)                                    :: H06_envfact(nRch_in)      ! Hanasaki 2006; fraction of inflow that can be used to meet demand [-]
+  real(dp)                                    :: H06_S_ini(nRch_in)        ! Hanasaki 2006; initial storage used for initial estimation of release coefficient [m3]
+  real(dp)                                    :: H06_c1(nRch_in)           ! Hanasaki 2006; coefficient 1 for target release for irrigation reseroir [-]
+  real(dp)                                    :: H06_c2(nRch_in)           ! Hanasaki 2006; coefficient 2 for target release for irrigation reseroir [-]
+  real(dp)                                    :: H06_exponent(nRch_in)     ! Hanasaki 2006; Exponenet of actual release for "within-a-year" reservoir [-]
+  real(dp)                                    :: H06_denominator(nRch_in)  ! Hanasaki 2006; Denominator of actual release for "within-a-year" reservoir [-]
+  real(dp)                                    :: H06_c_compare(nRch_in)    ! Hanasaki 2006; Criterion for distinguish of "within-a-year" or "multi-year" reservoir [-]
+  real(dp)                                    :: H06_frac_Sdead(nRch_in)   ! Hanasaki 2006; Fraction of dead storage to maximume storage [-]
+  real(dp)                                    :: H06_E_rel_ini(nRch_in)    ! Hanasaki 2006; Initial release coefficient [-]
+  real(dp)                                    :: H06_I_Jan(nRch_in)        ! Hanasaki 2006; Average January   inflow [m3/s]
+  real(dp)                                    :: H06_I_Feb(nRch_in)        ! Hanasaki 2006; Average Februrary inflow [m3/s]
+  real(dp)                                    :: H06_I_Mar(nRch_in)        ! Hanasaki 2006; Average March     inflow [m3/s]
+  real(dp)                                    :: H06_I_Apr(nRch_in)        ! Hanasaki 2006; Average April     inflow [m3/s]
+  real(dp)                                    :: H06_I_May(nRch_in)        ! Hanasaki 2006; Average May       inflow [m3/s]
+  real(dp)                                    :: H06_I_Jun(nRch_in)        ! Hanasaki 2006; Average June      inflow [m3/s]
+  real(dp)                                    :: H06_I_Jul(nRch_in)        ! Hanasaki 2006; Average July      inflow [m3/s]
+  real(dp)                                    :: H06_I_Aug(nRch_in)        ! Hanasaki 2006; Average August    inflow [m3/s]
+  real(dp)                                    :: H06_I_Sep(nRch_in)        ! Hanasaki 2006; Average September inflow [m3/s]
+  real(dp)                                    :: H06_I_Oct(nRch_in)        ! Hanasaki 2006; Average October   inflow [m3/s]
+  real(dp)                                    :: H06_I_Nov(nRch_in)        ! Hanasaki 2006; Average November  inflow [m3/s]
+  real(dp)                                    :: H06_I_Dec(nRch_in)        ! Hanasaki 2006; Average December  inflow [m3/s]
+  real(dp)                                    :: H06_D_Jan(nRch_in)        ! Hanasaki 2006; Average January   demand [m3/s]
+  real(dp)                                    :: H06_D_Feb(nRch_in)        ! Hanasaki 2006; Average Februrary demand [m3/s]
+  real(dp)                                    :: H06_D_Mar(nRch_in)        ! Hanasaki 2006; Average March     demand [m3/s]
+  real(dp)                                    :: H06_D_Apr(nRch_in)        ! Hanasaki 2006; Average April     demand [m3/s]
+  real(dp)                                    :: H06_D_May(nRch_in)        ! Hanasaki 2006; Average May       demand [m3/s]
+  real(dp)                                    :: H06_D_Jun(nRch_in)        ! Hanasaki 2006; Average June      demand [m3/s]
+  real(dp)                                    :: H06_D_Jul(nRch_in)        ! Hanasaki 2006; Average July      demand [m3/s]
+  real(dp)                                    :: H06_D_Aug(nRch_in)        ! Hanasaki 2006; Average Agust     demand [m3/s]
+  real(dp)                                    :: H06_D_Sep(nRch_in)        ! Hanasaki 2006; Average September demand [m3/s]
+  real(dp)                                    :: H06_D_Oct(nRch_in)        ! Hanasaki 2006; Average October   demand [m3/s]
+  real(dp)                                    :: H06_D_Nov(nRch_in)        ! Hanasaki 2006; Average Novermber demand [m3/s]
+  real(dp)                                    :: H06_D_Dec(nRch_in)        ! Hanasaki 2006; Average December  demand [m3/s]
+  integer(i4b)                                :: H06_purpose(nRch_in)      ! Hanasaki 2006; reservoir purpose; (0= non-irrigation, 1=irrigation) [-]
+  integer(i4b)                                :: H06_I_mem_F(nRch_in)      ! Hanasaki 2006; Flag to transition to modelled inflow [-]
+  integer(i4b)                                :: H06_D_mem_F(nRch_in)      ! Hanasaki 2006; Flag to transition to modelled/provided demand [-]
+  integer(i4b)                                :: H06_I_mem_L(nRch_in)      ! Hanasaki 2006; Memory length in years for inflow [year]
+  integer(i4b)                                :: H06_D_mem_L(nRch_in)      ! Hanasaki 2006; Memory length in years for demand [year]
   integer(i4b)                                :: ixNode(nRch_in)           ! node assignment for each reach
   integer(i4b)                                :: ixDomain(nRch_in)         ! domain index for each reach
   logical(lgt),      allocatable              :: tribOutlet(:)             ! logical to indicate tributary outlet to mainstems over entire network
@@ -247,10 +344,58 @@ contains
     ! reach array
     do iSeg = 1,nRch_in
      jSeg = ixRch_order(iSeg) ! global index, ordered by domain/node
-     segId(iSeg)     = structNTOPO(jSeg)%var(ixNTOPO%segId)%dat(1)
-     downSegId(iSeg) = structNTOPO(jSeg)%var(ixNTOPO%downSegId)%dat(1)
-     slope(iSeg)     = structSEG(  jSeg)%var(ixSEG%slope)%dat(1)
-     length(iSeg)    = structSEG(  jSeg)%var(ixSEG%length)%dat(1)
+     segId(iSeg)           = structNTOPO(jSeg)%var(ixNTOPO%segId)%dat(1)
+     downSegId(iSeg)       = structNTOPO(jSeg)%var(ixNTOPO%downSegId)%dat(1)
+     slope(iSeg)           = structSEG(  jSeg)%var(ixSEG%slope)%dat(1)
+     length(iSeg)          = structSEG(  jSeg)%var(ixSEG%length)%dat(1)
+     if (is_lake_sim) then
+       islake(iSeg)          = structNTOPO(jSeg)%var(ixNTOPO%islake)%dat(1)
+       LakeTargVol(iSeg)     = structNTOPO(jSeg)%var(ixNTOPO%LakeTargVol)%dat(1)
+       LakeModelType(iSeg)   = structNTOPO(jSeg)%var(ixNTOPO%LakeModelType)%dat(1)
+       D03_MaxStorage(iSeg)  = structSEG(  jSeg)%var(ixSEG%D03_MaxStorage)%dat(1)
+       D03_Coefficient(iSeg) = structSEG(  jSeg)%var(ixSEG%D03_Coefficient)%dat(1)
+       D03_Power(iSeg)       = structSEG(  jSeg)%var(ixSEG%D03_Power)%dat(1)
+       H06_Smax(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06_Smax)%dat(1)
+       H06_alpha(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_alpha)%dat(1)
+       H06_envfact(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_envfact)%dat(1)
+       H06_S_ini(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_S_ini)%dat(1)
+       H06_c1(iSeg)          = structSEG(  jSeg)%var(ixSEG%H06_c1)%dat(1)
+       H06_c2(iSeg)          = structSEG(  jSeg)%var(ixSEG%H06_c2)%dat(1)
+       H06_exponent(iSeg)    = structSEG(  jSeg)%var(ixSEG%H06_exponent)%dat(1)
+       H06_denominator(iSeg) = structSEG(  jSeg)%var(ixSEG%H06_denominator)%dat(1)
+       H06_c_compare(iSeg)   = structSEG(  jSeg)%var(ixSEG%H06_c_compare)%dat(1)
+       H06_frac_Sdead(iSeg)  = structSEG(  jSeg)%var(ixSEG%H06_frac_Sdead)%dat(1)
+       H06_E_rel_ini(iSeg)   = structSEG(  jSeg)%var(ixSEG%H06_E_rel_ini)%dat(1)
+       H06_I_Jan(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Jan)%dat(1)
+       H06_I_Feb(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Feb)%dat(1)
+       H06_I_Mar(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Mar)%dat(1)
+       H06_I_Apr(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Apr)%dat(1)
+       H06_I_May(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_May)%dat(1)
+       H06_I_Jun(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Jun)%dat(1)
+       H06_I_Jul(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Jul)%dat(1)
+       H06_I_Aug(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Aug)%dat(1)
+       H06_I_Sep(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Sep)%dat(1)
+       H06_I_Oct(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Oct)%dat(1)
+       H06_I_Nov(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Nov)%dat(1)
+       H06_I_Dec(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Dec)%dat(1)
+       H06_D_Jan(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Jan)%dat(1)
+       H06_D_Feb(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Feb)%dat(1)
+       H06_D_Mar(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Mar)%dat(1)
+       H06_D_Apr(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Apr)%dat(1)
+       H06_D_May(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_May)%dat(1)
+       H06_D_Jun(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Jun)%dat(1)
+       H06_D_Jul(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Jul)%dat(1)
+       H06_D_Aug(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Aug)%dat(1)
+       H06_D_Sep(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Sep)%dat(1)
+       H06_D_Oct(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Oct)%dat(1)
+       H06_D_Nov(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Nov)%dat(1)
+       H06_D_Dec(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Dec)%dat(1)
+       H06_purpose(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_purpose)%dat(1)
+       H06_I_mem_F(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_I_mem_F)%dat(1)
+       H06_D_mem_F(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_D_mem_F)%dat(1)
+       H06_I_mem_L(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_I_mem_L)%dat(1)
+       H06_D_mem_L(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_D_mem_L)%dat(1)
+     end if
     end do
 
     ! hru array
@@ -297,15 +442,61 @@ contains
     ! -----------------------------------------------------------------------------
     !  Send the information for tributaries to individual processors
     ! -----------------------------------------------------------------------------
-
-    call shr_mpi_scatterV(segId    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), segId_local,     ierr, cmessage)
-    call shr_mpi_scatterV(downSegId(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), downSegId_local, ierr, cmessage)
-    call shr_mpi_scatterV(slope    (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), slope_local,     ierr, cmessage)
-    call shr_mpi_scatterV(length   (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), length_local,    ierr, cmessage)
-
-    call shr_mpi_scatterV(hruId    (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruId_local,    ierr, cmessage)
-    call shr_mpi_scatterV(hruSegId (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruSegId_local, ierr, cmessage)
-    call shr_mpi_scatterV(area     (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), area_local,     ierr, cmessage)
+    call shr_mpi_scatterV(segId                 (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), segId_local,          ierr, cmessage)
+    call shr_mpi_scatterV(downSegId             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), downSegId_local,      ierr, cmessage)
+    call shr_mpi_scatterV(slope                 (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), slope_local,          ierr, cmessage)
+    call shr_mpi_scatterV(length                (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), length_local,         ierr, cmessage)
+    if (is_lake_sim) then
+      call shr_mpi_scatterV(islake                (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), islake_local,         ierr, cmessage)
+      call shr_mpi_scatterV(LakeTargVol           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), LakeTargVol_local,    ierr, cmessage)
+      call shr_mpi_scatterV(LakeModelType         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), LakeModelType_local,  ierr, cmessage)
+      call shr_mpi_scatterV(D03_MaxStorage        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03_MaxStorage_local, ierr, cmessage)
+      call shr_mpi_scatterV(D03_Coefficient       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03_Coefficient_local,ierr, cmessage)
+      call shr_mpi_scatterV(D03_Power             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03_Power_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_Smax              (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_Smax_local,       ierr, cmessage)
+      call shr_mpi_scatterV(H06_alpha             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_alpha_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_envfact           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_envfact_local,    ierr, cmessage)
+      call shr_mpi_scatterV(H06_S_ini             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_S_ini_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_c1                (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_c1_local,         ierr, cmessage)
+      call shr_mpi_scatterV(H06_c2                (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_c2_local,         ierr, cmessage)
+      call shr_mpi_scatterV(H06_exponent          (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_exponent_local,   ierr, cmessage)
+      call shr_mpi_scatterV(H06_denominator       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_denominator_local,ierr, cmessage)
+      call shr_mpi_scatterV(H06_c_compare         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_c_compare_local,  ierr, cmessage)
+      call shr_mpi_scatterV(H06_frac_Sdead        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_frac_Sdead_local, ierr, cmessage)
+      call shr_mpi_scatterV(H06_E_rel_ini         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_E_rel_ini_local,  ierr, cmessage)
+      call shr_mpi_scatterV(H06_I_Jan             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Jan_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_I_Feb             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Feb_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_I_Mar             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Mar_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_I_Apr             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Apr_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_I_May             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_May_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_I_Jun             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Jun_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_I_Jul             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Jul_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_I_Aug             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Aug_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_I_Sep             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Sep_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_I_Oct             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Oct_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_I_Nov             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Nov_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_I_Dec             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Dec_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_D_Jan             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Jan_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_D_Feb             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Feb_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_D_Mar             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Mar_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_D_Apr             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Apr_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_D_May             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_May_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_D_Jun             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Jun_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_D_Jul             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Jul_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_D_Aug             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Aug_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_D_Sep             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Sep_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_D_Oct             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Oct_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_D_Nov             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Nov_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_D_Dec             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Dec_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_purpose           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_purpose_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_I_mem_F           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_mem_F_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_D_mem_F           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_mem_F_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_I_mem_L           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_mem_L_local,      ierr, cmessage)
+      call shr_mpi_scatterV(H06_D_mem_L           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_mem_L_local,      ierr, cmessage)
+    end if
+    call shr_mpi_scatterV(hruId         (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruId_local,         ierr, cmessage)
+    call shr_mpi_scatterV(hruSegId      (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruSegId_local,      ierr, cmessage)
+    call shr_mpi_scatterV(area          (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), area_local,          ierr, cmessage)
 
     ! -----------------------------------------------------------------------------
     !  populate local (tributary) data structures and compute additional ancillary information
@@ -325,10 +516,58 @@ contains
 
     ! Populate local data structures needed for tributary network augumentation
     reach: do ix = 1,rch_per_proc(pid)
-     structNTOPO_local(ix)%var(ixNTOPO%segId)%dat(1)     = segId_local(ix)
-     structNTOPO_local(ix)%var(ixNTOPO%downSegId)%dat(1) = downSegId_local(ix)
-     structSEG_local  (ix)%var(ixSEG%length)%dat(1)      = length_local(ix)
-     structSEG_local  (ix)%var(ixSEG%slope)%dat(1)       = slope_local(ix)
+     structNTOPO_local(ix)%var(ixNTOPO%segId)%dat(1)          = segId_local(ix)
+     structNTOPO_local(ix)%var(ixNTOPO%downSegId)%dat(1)      = downSegId_local(ix)
+     structSEG_local  (ix)%var(ixSEG%length)%dat(1)           = length_local(ix)
+     structSEG_local  (ix)%var(ixSEG%slope)%dat(1)            = slope_local(ix)
+     if (is_lake_sim) then
+       structNTOPO_local(ix)%var(ixNTOPO%islake)%dat(1)         = islake_local(ix)
+       structNTOPO_local(ix)%var(ixNTOPO%LakeTargVol)%dat(1)    = LakeTargVol_local(ix)
+       structNTOPO_local(ix)%var(ixNTOPO%LakeModelType)%dat(1)  = LakeModelType_local(ix)
+       structSEG_local  (ix)%var(ixSEG%D03_MaxStorage)%dat(1)   = D03_MaxStorage_local(ix)
+       structSEG_local  (ix)%var(ixSEG%D03_Coefficient)%dat(1)  = D03_Coefficient_local(ix)
+       structSEG_local  (ix)%var(ixSEG%D03_Power)%dat(1)        = D03_Power_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_Smax)%dat(1)         = H06_Smax_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_alpha)%dat(1)        = H06_alpha_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_envfact)%dat(1)      = H06_envfact_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_S_ini)%dat(1)        = H06_S_ini_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_c1)%dat(1)           = H06_c1_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_c2)%dat(1)           = H06_c2_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_exponent)%dat(1)     = H06_exponent_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_denominator)%dat(1)  = H06_denominator_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_c_compare)%dat(1)    = H06_c_compare_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_frac_Sdead)%dat(1)   = H06_frac_Sdead_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_E_rel_ini)%dat(1)    = H06_E_rel_ini_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_I_Jan)%dat(1)        = H06_I_Jan_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_I_Feb)%dat(1)        = H06_I_Feb_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_I_Mar)%dat(1)        = H06_I_Mar_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_I_Apr)%dat(1)        = H06_I_Apr_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_I_May)%dat(1)        = H06_I_May_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_I_Jun)%dat(1)        = H06_I_Jun_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_I_Jul)%dat(1)        = H06_I_Jul_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_I_Aug)%dat(1)        = H06_I_Aug_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_I_Sep)%dat(1)        = H06_I_Sep_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_I_Oct)%dat(1)        = H06_I_Oct_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_I_Nov)%dat(1)        = H06_I_Nov_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_I_Dec)%dat(1)        = H06_I_Dec_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_D_Jan)%dat(1)        = H06_D_Jan_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_D_Feb)%dat(1)        = H06_D_Feb_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_D_Mar)%dat(1)        = H06_D_Mar_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_D_Apr)%dat(1)        = H06_D_Apr_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_D_May)%dat(1)        = H06_D_May_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_D_Jun)%dat(1)        = H06_D_Jun_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_D_Jul)%dat(1)        = H06_D_Jul_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_D_Aug)%dat(1)        = H06_D_Aug_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_D_Sep)%dat(1)        = H06_D_Sep_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_D_Oct)%dat(1)        = H06_D_Oct_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_D_Nov)%dat(1)        = H06_D_Nov_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_D_Dec)%dat(1)        = H06_D_Dec_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_purpose)%dat(1)      = H06_purpose_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_I_mem_F)%dat(1)      = H06_I_mem_F_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_D_mem_F)%dat(1)      = H06_D_mem_F_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_I_mem_L)%dat(1)      = H06_I_mem_L_local(ix)
+       structSEG_local  (ix)%var(ixSEG%H06_D_mem_L)%dat(1)      = H06_D_mem_L_local(ix)
+     end if
     end do reach
 
     hru: do ix=1,hru_per_proc(pid)
@@ -360,15 +599,18 @@ contains
     call omp_domain_decomposition(upstream_size, rch_per_proc(pid), structNTOPO_local, river_basin_trib, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    !if (pid==2) then
-    !  do ix =1,size(river_basin_trib)
-    !    do ixx = 1, size(river_basin_trib(ix)%branch)
-    !      do iSeg = 1, river_basin_trib(ix)%branch(ixx)%nRch
-    !        print*, structNTOPO_local(river_basin_trib(ix)%branch(ixx)%segIndex(iSeg))%var(ixNTOPO%segId)%dat(1), ix, ixx
-    !      enddo
-    !    enddo
-    !  enddo
-    !endif
+    if (debug_trib_omp .and. pid==3) then
+      write(iulog,'(a)') 'segid, branch, order'
+      do ix =1,size(river_basin_trib)
+        do ixx = 1, size(river_basin_trib(ix)%branch)
+          do iSeg = 1, river_basin_trib(ix)%branch(ixx)%nRch
+            associate (idx_tmp => river_basin_trib(ix)%branch(ixx)%segIndex(iSeg))
+            write(iulog,"(I15,A,I9,A,I9)") structNTOPO_local(idx_tmp)%var(ixNTOPO%segId)%dat(1),',',ixx,',',ix
+            end associate
+          enddo
+        enddo
+      enddo
+    endif
 
     ! -----------------------------------------------------------------------------
     ! Find "dangling reach/hru", or tributary outlet reaches/hrus that link to mainstems
@@ -453,18 +695,114 @@ contains
 
      ! Populate mainstem data structures
      main_rch: do ix = 1, nRch_mainstem
-       structNTOPO_main(ix)%var(ixNTOPO%segId)%dat(1)     = segId(ix)
-       structNTOPO_main(ix)%var(ixNTOPO%downSegId)%dat(1) = downSegId(ix)
-       structSEG_main  (ix)%var(ixSEG%length)%dat(1)      = length(ix)
-       structSEG_main  (ix)%var(ixSEG%slope)%dat(1)       = slope(ix)
+       structNTOPO_main(ix)%var(ixNTOPO%segId)%dat(1)         = segId(ix)
+       structNTOPO_main(ix)%var(ixNTOPO%downSegId)%dat(1)     = downSegId(ix)
+       structSEG_main  (ix)%var(ixSEG%length)%dat(1)          = length(ix)
+       structSEG_main  (ix)%var(ixSEG%slope)%dat(1)           = slope(ix)
+       if (is_lake_sim) then
+         structNTOPO_main(ix)%var(ixNTOPO%islake)%dat(1)        = islake(ix)
+         structNTOPO_main(ix)%var(ixNTOPO%LakeTargVol)%dat(1)   = LakeTargVol(ix)
+         structNTOPO_main(ix)%var(ixNTOPO%LakeModelType)%dat(1) = LakeModelType(ix)
+         structSEG_main  (ix)%var(ixSEG%D03_MaxStorage)%dat(1)  = D03_MaxStorage(ix)
+         structSEG_main  (ix)%var(ixSEG%D03_Coefficient)%dat(1) = D03_Coefficient(ix)
+         structSEG_main  (ix)%var(ixSEG%D03_Power)%dat(1)       = D03_Power(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_Smax)%dat(1)        = H06_Smax(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_alpha)%dat(1)       = H06_alpha(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_envfact)%dat(1)     = H06_envfact(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_S_ini)%dat(1)       = H06_S_ini(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_c1)%dat(1)          = H06_c1(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_c2)%dat(1)          = H06_c2(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_exponent)%dat(1)    = H06_exponent(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_denominator)%dat(1) = H06_denominator(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_c_compare)%dat(1)   = H06_c_compare(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_frac_Sdead)%dat(1)  = H06_frac_Sdead(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_E_rel_ini)%dat(1)   = H06_E_rel_ini(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_I_Jan)%dat(1)       = H06_I_Jan(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_I_Feb)%dat(1)       = H06_I_Feb(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_I_Mar)%dat(1)       = H06_I_Mar(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_I_Apr)%dat(1)       = H06_I_Apr(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_I_May)%dat(1)       = H06_I_May(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_I_Jun)%dat(1)       = H06_I_Jun(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_I_Jul)%dat(1)       = H06_I_Jul(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_I_Aug)%dat(1)       = H06_I_Aug(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_I_Sep)%dat(1)       = H06_I_Sep(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_I_Oct)%dat(1)       = H06_I_Oct(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_I_Nov)%dat(1)       = H06_I_Nov(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_I_Dec)%dat(1)       = H06_I_Dec(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_D_Jan)%dat(1)       = H06_D_Jan(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_D_Feb)%dat(1)       = H06_D_Feb(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_D_Mar)%dat(1)       = H06_D_Mar(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_D_Apr)%dat(1)       = H06_D_Apr(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_D_May)%dat(1)       = H06_D_May(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_D_Jun)%dat(1)       = H06_D_Jun(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_D_Jul)%dat(1)       = H06_D_Jul(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_D_Aug)%dat(1)       = H06_D_Aug(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_D_Sep)%dat(1)       = H06_D_Sep(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_D_Oct)%dat(1)       = H06_D_Oct(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_D_Nov)%dat(1)       = H06_D_Nov(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_D_Dec)%dat(1)       = H06_D_Dec(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_purpose)%dat(1)     = H06_purpose(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_I_mem_F)%dat(1)     = H06_I_mem_F(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_D_mem_F)%dat(1)     = H06_D_mem_F(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_I_mem_L)%dat(1)     = H06_I_mem_L(ix)
+         structSEG_main  (ix)%var(ixSEG%H06_D_mem_L)%dat(1)     = H06_D_mem_L(ix)
+       end if
      end do main_rch
 
      ups_trib: do ix = 1, nTribOutlet
        ixx = global_ix_comm(ix)
-       structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%segId)%dat(1)     = structNTOPO(ixx)%var(ixNTOPO%segId)%dat(1)
-       structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%downSegId)%dat(1) = structNTOPO(ixx)%var(ixNTOPO%downSegId)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%length)%dat(1)      = structSEG(ixx)%var(ixSEG%length)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%slope)%dat(1)       = structSEG(ixx)%var(ixSEG%slope)%dat(1)
+       structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%segId)%dat(1)         = structNTOPO(ixx)%var(ixNTOPO%segId)%dat(1)
+       structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%downSegId)%dat(1)     = structNTOPO(ixx)%var(ixNTOPO%downSegId)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%length)%dat(1)          = structSEG(ixx)%var(ixSEG%length)%dat(1)
+       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%slope)%dat(1)           = structSEG(ixx)%var(ixSEG%slope)%dat(1)
+       if (is_lake_sim) then
+         structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%islake)%dat(1)        = structNTOPO(ixx)%var(ixNTOPO%islake)%dat(1)
+         structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%LakeTargVol)%dat(1)   = structNTOPO(ixx)%var(ixNTOPO%LakeTargVol)%dat(1)
+         structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%LakeModelType)%dat(1) = structNTOPO(ixx)%var(ixNTOPO%LakeModelType)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03_MaxStorage)%dat(1)  = structSEG(ixx)%var(ixSEG%D03_MaxStorage)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03_Coefficient)%dat(1) = structSEG(ixx)%var(ixSEG%D03_Coefficient)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03_Power)%dat(1)       = structSEG(ixx)%var(ixSEG%D03_Power)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_Smax)%dat(1)        = structSEG(ixx)%var(ixSEG%H06_Smax)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_alpha)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_alpha)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_envfact)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_envfact)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_S_ini)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_S_ini)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_c1)%dat(1)          = structSEG(ixx)%var(ixSEG%H06_c1)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_c2)%dat(1)          = structSEG(ixx)%var(ixSEG%H06_c1)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_exponent)%dat(1)    = structSEG(ixx)%var(ixSEG%H06_exponent)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_denominator)%dat(1) = structSEG(ixx)%var(ixSEG%H06_denominator)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_c_compare)%dat(1)   = structSEG(ixx)%var(ixSEG%H06_c_compare)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_frac_Sdead)%dat(1)  = structSEG(ixx)%var(ixSEG%H06_frac_Sdead)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_E_rel_ini)%dat(1)   = structSEG(ixx)%var(ixSEG%H06_E_rel_ini)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Jan)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Jan)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Feb)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Feb)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Mar)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Mar)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Apr)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Apr)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_May)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_May)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Jun)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Jun)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Jul)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Jul)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Aug)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Aug)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Sep)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Sep)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Oct)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Oct)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Nov)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Nov)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Dec)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Dec)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Jan)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Jan)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Feb)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Feb)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Mar)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Mar)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Apr)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Apr)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_May)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_May)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Jun)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Jun)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Jul)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Jul)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Aug)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Aug)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Sep)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Sep)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Oct)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Oct)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Nov)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Nov)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Dec)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Dec)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_purpose)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_purpose)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_mem_F)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_I_mem_F)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_mem_F)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_D_mem_F)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_mem_L)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_I_mem_L)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_mem_L)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_I_mem_L)%dat(1)
+       end if
        global_ix_main(ix) = nRch_mainstem+ix   ! index in mainstem array that is link to tributary outlet
      end do ups_trib
 
@@ -532,16 +870,18 @@ contains
      call omp_domain_decomposition(stream_order, nRch_mainstem+nTribOutlet, structNTOPO_main, river_basin_main, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! print*,'segid,branch,order'
-    ! do ix = 1, size(river_basin_main)
-    !   do ixx = 1, size(river_basin_main(ix)%branch)
-    !     do iSeg = 1, river_basin_main(ix)%branch(ixx)%nRch
-    !       associate (idx_tmp => river_basin_main(ix)%branch(ixx)%segIndex(iSeg))
-    !       write(*,"(I15,A,I9,A,I9)") structNTOPO(idx_tmp)%var(ixNTOPO%segId)%dat(1),',',ixx,',',ix
-    !       end associate
-    !     end do
-    !   end do
-    ! enddo
+    if (debug_main_omp) then
+      write(iulog,'(a)') 'segid, branch, order'
+      do ix = 1, size(river_basin_main)
+        do ixx = 1, size(river_basin_main(ix)%branch)
+          do iSeg = 1, river_basin_main(ix)%branch(ixx)%nRch
+            associate (idx_tmp => river_basin_main(ix)%branch(ixx)%segIndex(iSeg))
+            write(iulog,"(I15,A,I9,A,I9)") structNTOPO_main(idx_tmp)%var(ixNTOPO%segId)%dat(1),',',ixx,',',ix
+            end associate
+          end do
+        end do
+      enddo
+    endif
 
    end if ! (masterproc)
   end if ! (nRch_mainstem > 0)
@@ -585,20 +925,26 @@ contains
   character(len=strLen),    intent(out) :: message                  ! error message
   ! local variables
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
-  integer(i4b)                          :: iSeg,jSeg
+  integer(i4b)                          :: iSeg,jSeg,iTbound        ! loop indices
+  integer(i4b)                          :: nTbound = 2
   real(dp),     allocatable             :: flux_global(:)           ! basin runoff (m/s) for entire reaches
+  real(dp),     allocatable             :: vol_global(:,:)          ! reach/lake volume (m3) for entire network
+  real(dp),     allocatable             :: vol_global_tmp(:)        ! temporary reach/lake volume (m3) for entire network
   real(dp),     allocatable             :: flux_local(:)            ! basin runoff (m/s) for tributaries
+  real(dp),     allocatable             :: vol_local(:)             ! reach/lake volume (m3) for tributaries
 
   ierr=0; message='mpi_restart/'
 
-  call MPI_BCAST(TSEC, 2, MPI_DOUBLE_PRECISION, root, comm, ierr)
+  call MPI_BCAST(TSEC, nTbound, MPI_DOUBLE_PRECISION, root, comm, ierr)
 
-  allocate(flux_global(nRch), flux_local(rch_per_proc(pid)), stat=ierr)
+  allocate(flux_global(nRch), vol_global(nRch,nTbound), vol_global_tmp(nRch))
+  allocate(vol_local(rch_per_proc(pid)), flux_local(rch_per_proc(pid)))
 
   if (masterproc) then
 
     do iSeg = 1, nRch
       flux_global(iSeg) = RCHFLX(iens,iSeg)%BASIN_QR(1)
+      vol_global(iSeg,1:2) = RCHFLX(iens,iSeg)%REACH_VOL(0:1)
     enddo
 
     ! Distribute global flux/state (RCHFLX & RCHSTA) to mainstem (RCHFLX_main & RCHSTA_main)
@@ -615,7 +961,8 @@ contains
 
   else
 
-    flux_global(:) = realMissing
+    flux_global(:)  = realMissing
+    vol_global(:,:) = realMissing
 
   endif
 
@@ -689,6 +1036,26 @@ contains
                             scatter,                                  & ! communication type
                             ierr, message)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! volume communication
+    do iTbound =1,nTbound
+      vol_global_tmp(:) = vol_global(:,iTbound)
+      call mpi_comm_single_flux(pid, nNodes, comm,                        &
+                                vol_global_tmp,                           &
+                                vol_local,                                &
+                                rch_per_proc(root:nNodes-1),              &
+                                ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                                arth(1,1,rch_per_proc(pid)),              &
+                                scatter,                                  &
+                                ierr, message)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      do iSeg = 1, rch_per_proc(pid)
+        RCHFLX_trib(iens,iSeg)%REACH_VOL(iTbound-1) = vol_local(iSeg)
+      enddo
+
+    end do
+
   endif
 
   ! no need for the entire domain flux/state data strucure
@@ -727,10 +1094,17 @@ contains
   USE globalData, ONLY: river_basin_trib    ! tributary OMP domain data structure
   USE globalData, ONLY: river_basin_main    ! mainstem OMP domain data structure
   USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
+  USE globalData, ONLY: flux_wm_main        ! nRch flux holder for mainstem
+  USE globalData, ONLY: flux_wm_trib        ! nRch flux holder for tributary
+  USE globalData, ONLY: vol_wm_main         ! nRch target vol holder for mainstem
+  USE globalData, ONLY: vol_wm_trib         ! nRch target vol holder for tributary
   USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc
   USE globalData, ONLY: tribOutlet_per_proc ! number of tributary outlets per proc (array size = nNodes)
   USE globalData, ONLY: global_ix_main      ! reach index at tributary reach outlets to mainstem (size = sum of tributary outlets in all the procs)
   USE globalData, ONLY: local_ix_comm       ! local reach index at tributary reach outlets to mainstem for each proc (size = sum of tributary outlets in proc)
+  USE public_var, ONLY: is_lake_sim         ! logical whether or not lake should be simulated
+  USE public_var, ONLY: is_flux_wm          ! logical whether or not fluxes should be passed
+  USE public_var, ONLY: is_vol_wm           ! logical whether or not target volume should be passed
   ! routing driver
   USE main_route_module, ONLY: main_route   ! routing driver
 
@@ -768,36 +1142,160 @@ contains
   end if
 
   ! --------------------------------
-  ! distribute (scatter) global runoff array to local runoff arrays
+  ! distribute (scatter) global runoff, evaporation
+  ! and precipitation array to local runoff arrays
   !  - basinRunoff_main (only at master proc)
   !  - basinRunoff_trib (all procs)
+  !  - basinEvapo_main  (only at master proc)
+  !  - basinEvapo_trib  (all procs)
+  !  - basinPrecip_main (only at master proc)
+  !  - basinPrecip_trib (all procs)
   ! --------------------------------
   if (doesScatterRunoff) then
+
     call t_startf ('route/scatter-runoff')
     call scatter_runoff(nNodes, comm, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     call t_stopf ('route/scatter-runoff')
+
   else
+
     if (nNodes==1) then
+
       if (.not.allocated(basinRunoff_main)) then
         ierr=10; message=trim(message)//'master proc: mainstem runoff array is not allocated'; return
-      endif
+      end if
+      if (is_lake_sim) then
+        if (.not.allocated(basinEvapo_main)) then
+          ierr=10; message=trim(message)//'master proc: mainstem evaporation array is not allocated'; return
+        end if
+        if (.not.allocated(basinPrecip_main)) then
+          ierr=10; message=trim(message)//'master proc: mainstem precipitation array is not allocated'; return
+        end if
+      end if
+
     else
+
       if (masterproc) then
+
         write(iulog,*) 'NOTE: HRU Runoff is already decomposed into mainstems and tributaries. No need for scatter_runoff'
+
         if (nHRU_mainstem > 0 .and. .not.allocated(basinRunoff_main)) then
           ierr=10; message=trim(message)//'mainstem runoff array is not allocated/populated'; return
-        endif
+        end if
         if (.not.allocated(basinRunoff_trib)) then
           ierr=10; message=trim(message)//'master proc: tributary runoff array is not allocated'; return
-        endif
+        end if
+
+        if (is_lake_sim) then
+          if (nHRU_mainstem > 0 .and. .not.allocated(basinEvapo_main)) then
+            ierr=10; message=trim(message)//'mainstem evaporation array is not allocated/populated'; return
+          end if
+          if (.not.allocated(basinEvapo_trib)) then
+            ierr=10; message=trim(message)//'master proc: tributary evaporation array is not allocated'; return
+          end if
+          if (.not.allocated(basinPrecip_trib)) then
+            ierr=10; message=trim(message)//'master proc: tributary precipitation array is not allocated'; return
+          end if
+          if (nHRU_mainstem > 0 .and. .not.allocated(basinPrecip_main)) then
+            ierr=10; message=trim(message)//'mainstem precipitation array is not allocated/populated'; return
+          end if
+        end if
+
       else
+
         if(.not.allocated(basinRunoff_trib)) then
           ierr=10; message=trim(message)//'tributary runoff array is not allocated/populated'; return
+        end if
+        if (is_lake_sim) then
+          if (.not.allocated(basinEvapo_trib)) then
+            ierr=10; message=trim(message)//'tributary evaporation array is not allocated/populated'; return
+          end if
+          if (.not.allocated(basinPrecip_trib)) then
+            ierr=10; message=trim(message)//'tributary precipitation array is not allocated/populated'; return
+          end if
         end if
       end if
     end if
   end if
+
+
+  ! --------------------------------
+  ! distribute (scatter) water managemnt flux and
+  ! volume in the
+  !  - flux_wm_main (only at master proc)
+  !  - flux_wm_trib (all procs)
+  !  - vol_wm_main  (only at master proc)
+  !  - vol_wm_trib  (all procs)
+  ! --------------------------------
+
+  if (is_flux_wm.or.(is_vol_wm.and.is_lake_sim)) then
+
+    if (doesScatterRunoff) then
+
+      call t_startf ('route/scatter-wm')
+      call scatter_wm(nNodes, comm, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      call t_stopf ('route/scatter-wm')
+
+    else
+
+      if (nNodes==1) then
+
+        if (is_flux_wm) then
+          if (.not.allocated(flux_wm_main)) then
+            ierr=10; message=trim(message)//'master proc: mainstem water management flux array is not allocated'; return
+          end if
+        end if
+        if (is_vol_wm.and.is_lake_sim) then
+          if (.not.allocated(vol_wm_main)) then
+            ierr=10; message=trim(message)//'master proc: mainstem target volume array (for lakes) is not allocated'; return
+          end if
+        end if
+
+      else
+
+        if (masterproc) then
+
+          write(iulog,*) 'NOTE: reach flux and target volume are already decomposed into mainstems and tributaries. No need for scatter_wm'
+
+          if (is_flux_wm) then
+            if (nRch_mainstem > 0 .and. .not.allocated(flux_wm_main)) then
+              ierr=10; message=trim(message)//'mainstem water management flux array is not allocated/populated'; return
+            end if
+            if (.not.allocated(flux_wm_trib)) then
+              ierr=10; message=trim(message)//'master proc: tributary water management flux array is not allocated'; return
+            end if
+          end if
+
+          if (is_vol_wm.and.is_lake_sim) then
+            if (nRch_mainstem > 0 .and. .not.allocated(vol_wm_main)) then
+              ierr=10; message=trim(message)//'mainstem target volume array (for lakes) is not allocated/populated'; return
+            end if
+            if (.not.allocated(vol_wm_trib)) then
+              ierr=10; message=trim(message)//'master proc: tributary target volume array (for lakes) is not allocated'; return
+            end if
+          end if
+
+
+        else
+
+          if (is_flux_wm) then
+            if(.not.allocated(flux_wm_trib)) then
+              ierr=10; message=trim(message)//'tributary water management fluxes array is not allocated/populated'; return
+            end if
+          end if
+
+          if (is_vol_wm.and.is_lake_sim) then
+            if(.not.allocated(vol_wm_trib)) then
+              ierr=10; message=trim(message)//'tributary target volume array (for lakes) is not allocated/populated'; return
+            end if
+          end if
+        end if
+      end if
+    end if
+  end if
+
 
   ! --------------------------------
   ! Perform tributary routing (for all procs)
@@ -819,6 +1317,8 @@ contains
                   basinRunoff_trib,  &  ! input: basin (i.e.,HRU) runoff (m/s)
                   basinEvapo_trib,   &  ! input: basin (i.e. HRU) Evapo  (m/s)
                   basinPrecip_trib,  &  ! input: basin (i.e. HRU) Precip (m/s)
+                  flux_wm_trib,      &  ! reach (i.e.,reach) flux (m3/s)
+                  vol_wm_trib,       &  ! reach (i.e.,reach) target volume for lakes (m3)
                   ixRchProcessed,    &  ! input: indices of reach to be routed
                   river_basin_trib,  &  ! input: OMP basin decomposition
                   NETOPO_trib,       &  ! input: reach topology data structure
@@ -897,6 +1397,8 @@ contains
                     basinRunoff_main,        &  ! input: basin (i.e.,HRU) runoff (m/s)
                     basinEvapo_main,         &  ! input: basin (i.e. HRU) Evapo  (m/s)
                     basinPrecip_main,        &  ! input: basin (i.e. HRU) Precip (m/s)
+                    flux_wm_main,            &  ! reach (i.e.,reach) flux (m3/s)
+                    vol_wm_main,             &  ! reach (i.e.,reach) target volume for lakes (m3)
                     ixRchProcessed,          &  ! input: indices of reach to be routed
                     river_basin_main,        &  ! input: OMP basin decomposition
                     NETOPO_main,             &  ! input: reach topology data structure
@@ -964,17 +1466,17 @@ contains
 
 
   ! input variables
-  integer(i4b),           intent(in)  :: nNodes                          ! number of processes (MPI)
-  integer(i4b),           intent(in)  :: comm                            ! communicator
+  integer(i4b),           intent(in)      :: nNodes                    ! number of processes (MPI)
+  integer(i4b),           intent(in)      :: comm                      ! communicator
   ! output variables
-  integer(i4b),           intent(out) :: ierr                            ! error code
-  character(len=strLen),  intent(out) :: message                         ! error message
+  integer(i4b),           intent(out)     :: ierr                      ! error code
+  character(len=strLen),  intent(out)     :: message                   ! error message
   ! local variables
-  integer(i4b)                        :: iHru,jHru                       ! loop indices
-  real(dp)                            :: basinRunoff_local(nHRU)         ! temporal basin runoff (m/s) for whole domain
-  real(dp)                            :: basinEvapo_local(nHRU)          ! temporal basin runoff (m/s) for whole domain
-  real(dp)                            :: basinPrecip_local(nHRU)         ! temporal basin runoff (m/s) for whole domain
-  character(len=strLen)               :: cmessage                        ! error message from a subroutine
+  integer(i4b)                            :: iHru,jHru                 ! loop indices
+  real(dp)                                :: basinRunoff_local(nHRU)   ! temporal basin runoff (m/s) for whole domain
+  real(dp)                                :: basinEvapo_local(nHRU)    ! temporal basin evaporation (m/s) for whole domain
+  real(dp)                                :: basinPrecip_local(nHRU)   ! temporal basin precipitation (m/s) for whole domain
+  character(len=strLen)                   :: cmessage                  ! error message from a subroutine
 
   ierr=0; message='scatter_runoff/'
 
@@ -1072,6 +1574,113 @@ contains
   end if
 
  END SUBROUTINE scatter_runoff
+
+
+ ! *********************************************************************
+ ! private subroutine: scatter global domain water management data to local domain
+ ! *********************************************************************
+ SUBROUTINE scatter_wm(nNodes, comm, &    ! mpi variables: number nodes, communicator
+                       ierr, message)     ! error controls
+
+  USE globalData, ONLY: nRch              ! number of all reach
+  USE globalData, ONLY: nRch_mainstem     ! number of mainstem reach
+  USE globalData, ONLY: wm_data           ! water management data structure
+  USE globalData, ONLY: rch_per_proc      ! number of reach assigned to each proc (i.e., node)
+  USE globalData, ONLY: flux_wm_main      ! nRch flux holder for mainstem
+  USE globalData, ONLY: flux_wm_trib      ! nRch flux holder for tributary
+  USE globalData, ONLY: vol_wm_main       ! nRch target vol holder for mainstem
+  USE globalData, ONLY: vol_wm_trib       ! nRch target vol holder for tributary
+  USE public_var, ONLY: is_lake_sim       ! logical whether or not fluxes should be passed
+  USE public_var, ONLY: is_flux_wm        ! logical whether or not fluxes should be passed
+  USE public_var, ONLY: is_vol_wm         ! logical whether or not target volume should be passed
+
+  ! input variables
+  integer(i4b),           intent(in)  :: nNodes                          ! number of processes (MPI)
+  integer(i4b),           intent(in)  :: comm                            ! communicator
+  ! output variables
+  integer(i4b),           intent(out) :: ierr                            ! error code
+  character(len=strLen),  intent(out) :: message                         ! error message
+  ! local variables
+  integer(i4b)                        :: iHru,jHru                       ! loop indices
+  real(dp)                            :: Rch_flux_local(nRch)            ! temporal reach flux (m3/s) for whole domain
+  real(dp)                            :: Rch_vol_local(nRch)             ! temporal reach (lake) volume (m3) for whole domain
+  character(len=strLen)               :: cmessage                        ! error message from a subroutine
+
+  ierr=0; message='scatter_runoff/'
+
+  if (nNodes==1) then
+
+    if (is_flux_wm) then
+
+      ! if only single proc is used, all fluxes are stored in mainstem runoff array
+      if (.not. allocated(flux_wm_main)) then
+        allocate(flux_wm_main(nRch), stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem allocating array for [flux_wm_main]'; return; endif
+      end if
+      flux_wm_main(:) = wm_data%flux_wm(:)
+
+    endif
+
+    if (is_vol_wm.and.is_lake_sim) then
+
+      ! if only single proc is used, all target volumes are stored in mainstem runoff array
+      if (.not. allocated(vol_wm_main)) then
+        allocate(vol_wm_main(nRch), stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem allocating array for [vol_wm_main]'; return; endif
+      end if
+      vol_wm_main(:) = wm_data%vol_wm(:)
+
+    endif
+
+  else
+
+    ! sort the reach flux, target vol in terms of nodes/domains
+    if (masterproc) then ! this is a root process
+
+      if (is_flux_wm) then
+        if (.not. allocated(flux_wm_main)) then
+          allocate(flux_wm_main(nRch_mainstem), stat=ierr)
+          if(ierr/=0)then; message=trim(message)//'problem allocating array for [flux_wm_main]'; return; endif
+        endif
+        ! flux or target vol at reach in mainstem and tributaries
+        Rch_flux_local(1:nRch) = wm_data%flux_wm(1:nRch)
+        flux_wm_main(1:nRch_mainstem) = Rch_flux_local(1:nRch_mainstem)
+      endif
+
+      if (is_vol_wm.and.is_lake_sim) then
+        if (.not. allocated(vol_wm_main)) then
+          allocate(vol_wm_main(nRch_mainstem), stat=ierr)
+          if(ierr/=0)then; message=trim(message)//'problem allocating array for [vol_wm_main]'; return; endif
+        endif
+        ! target vol at reach in mainstem and tributaries
+        Rch_vol_local(1:nRch) = wm_data%vol_wm(1:nRch)
+        vol_wm_main(1:nRch_mainstem) = Rch_vol_local(1:nRch_mainstem)
+      end if
+
+    end if
+
+    call shr_mpi_barrier(comm, message)
+
+    ! Distribute the read flux to each process
+    if (is_flux_wm) then
+      call shr_mpi_scatterV(Rch_flux_local(nRch_mainstem+1:nRch),  &
+                            rch_per_proc(0:nNodes-1),              &
+                            flux_wm_trib,                          &
+                            ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+    if (is_vol_wm.and.is_lake_sim) then
+      call shr_mpi_scatterV(Rch_vol_local(nRch_mainstem+1:nRch),   &
+                            rch_per_proc(0:nNodes-1),              &
+                            vol_wm_trib,                           &
+                            ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+  end if
+
+ END SUBROUTINE scatter_wm
 
  ! *********************************************************************
  ! subroutine: single flux communication

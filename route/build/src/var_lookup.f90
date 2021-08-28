@@ -69,21 +69,65 @@ MODULE var_lookup
  ! ***********************************************************************************************************
  type, public  ::  iLook_SEG
   ! reach properties
-  integer(i4b)     :: length        = integerMissing  ! length of segment  (m)
-  integer(i4b)     :: slope         = integerMissing  ! slope of segment   (-)
-  integer(i4b)     :: width         = integerMissing  ! width of segment   (m)
-  integer(i4b)     :: man_n         = integerMissing  ! Manning's n        (weird units)
+  integer(i4b)     :: length           = integerMissing  ! length of segment  (m)
+  integer(i4b)     :: slope            = integerMissing  ! slope of segment   (-)
+  integer(i4b)     :: width            = integerMissing  ! width of segment   (m)
+  integer(i4b)     :: man_n            = integerMissing  ! Manning's n        (weird units)
   ! contributing HRUs
-  integer(i4b)     :: hruArea       = integerMissing  ! contributing area for each HRU (m2)
-  integer(i4b)     :: weight        = integerMissing  ! weight assigned to each HRU (-)
+  integer(i4b)     :: hruArea          = integerMissing  ! contributing area for each HRU (m2)
+  integer(i4b)     :: weight           = integerMissing  ! weight assigned to each HRU (-)
   ! unit hydrograph routing
-  integer(i4b)     :: timeDelayHist = integerMissing  ! time delay histogram for each reach (s)
-  integer(i4b)     :: basArea       = integerMissing  ! area of the local HRUs contributing to each reach (m2)
-  integer(i4b)     :: upsArea       = integerMissing  ! area above the top of the reach -- zero if headwater (m2)
-  integer(i4b)     :: totalArea     = integerMissing  ! basArea + upsArea -- area at the bottom of the reach (m2)
+  integer(i4b)     :: timeDelayHist    = integerMissing  ! time delay histogram for each reach (s)
+  integer(i4b)     :: basArea          = integerMissing  ! area of the local HRUs contributing to each reach (m2)
+  integer(i4b)     :: upsArea          = integerMissing  ! area above the top of the reach -- zero if headwater (m2)
+  integer(i4b)     :: totalArea        = integerMissing  ! basArea + upsArea -- area at the bottom of the reach (m2)
   ! lakes
-  integer(i4b)     :: basUnderLake  = integerMissing  ! Area of basin under lake  (m2)
-  integer(i4b)     :: rchUnderLake  = integerMissing  ! Length of reach under lake (m)
+  integer(i4b)     :: basUnderLake     = integerMissing  ! Area of basin under lake  (m2)
+  integer(i4b)     :: rchUnderLake     = integerMissing  ! Length of reach under lake (m)
+  integer(i4b)     :: D03_MaxStorage   = integerMissing  ! Doll 2003 parameter
+  integer(i4b)     :: D03_Coefficient  = integerMissing  ! Doll 2003 parameter
+  integer(i4b)     :: D03_Power        = integerMissing  ! Doll 2003 parameter
+  integer(i4b)     :: H06_Smax         = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_alpha        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_envfact      = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_S_ini        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_c1           = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_c2           = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_exponent     = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_denominator  = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_c_compare    = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_frac_Sdead   = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_E_rel_ini    = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_I_Jan        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_I_Feb        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_I_Mar        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_I_Apr        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_I_May        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_I_Jun        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_I_Jul        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_I_Aug        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_I_Sep        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_I_Oct        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_I_Nov        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_I_Dec        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_D_Jan        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_D_Feb        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_D_Mar        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_D_Apr        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_D_May        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_D_Jun        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_D_Jul        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_D_Aug        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_D_Sep        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_D_Oct        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_D_Nov        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_D_Dec        = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_purpose      = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_I_mem_F      = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_D_mem_F      = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_I_mem_L      = integerMissing  ! Hanasaki 2006 parameter
+  integer(i4b)     :: H06_D_mem_L      = integerMissing  ! Hanasaki 2006 parameter
+
   ! constraints
   integer(i4b)     :: minFlow       = integerMissing  ! minimum environmental flow
  endtype iLook_SEG
@@ -113,6 +157,9 @@ MODULE var_lookup
   integer(i4b)     :: lakeId          = integerMissing  ! unique id of each lake in the river network
   integer(i4b)     :: lakeIndex       = integerMissing  ! index of each lake in the river network
   integer(i4b)     :: isLakeInlet     = integerMissing  ! flag to define if reach is a lake inlet (1=inlet, 0 otherwise)
+  integer(i4b)     :: islake          = integerMissing  ! flag to define a lake (1=lake, 0=reach)
+  integer(i4b)     :: LakeTargVol     = integerMissing  ! flag to define if a lake should follow target volume (1=follow, 0=parameteric)
+  integer(i4b)     :: LakeModelType   = integerMissing  ! identifies the lake model (1=Doll, 2=Hanasaki, else=non-parameteric)
   ! irrigation
   integer(i4b)     :: userTake        = integerMissing  ! flag to define if user takes water from reach (1=extract, 0 otherwise)
   ! testing
@@ -137,11 +184,15 @@ MODULE var_lookup
   integer(i4b)     :: KWTroutedRunoff   = integerMissing  ! Lagrangian KWT routed runoff in each reach
   integer(i4b)     :: KWEroutedRunoff   = integerMissing  ! Eulerian KWT routed runoff in each reach
   integer(i4b)     :: IRFroutedRunoff   = integerMissing  ! IRF routed runoff in each reach
+  integer(i4b)     :: IRFlakeVol        = integerMissing  ! IRF lake volume
  endtype iLook_rflx
+ ! Reach inflow from basin
+ type, public  ::  iLook_basinQ
+  integer(i4b)     :: q              = integerMissing  ! final discharge
+ endtype iLook_basinQ
  ! Basin IRF state/fluxes
  type, public  ::  iLook_IRFbas
   integer(i4b)     :: qfuture        = integerMissing  ! future routed flow
-  integer(i4b)     :: q              = integerMissing  ! final discharge
  endtype iLook_IRFbas
  ! KWT state/fluxes
  type, public  ::  iLook_KWT
@@ -159,6 +210,7 @@ MODULE var_lookup
  !IRF state/fluxes
  type, public  ::  iLook_IRF
   integer(i4b)     :: qfuture        = integerMissing  ! future routed flow
+  integer(i4b)     :: irfVol         = integerMissing  ! irf reach volume
  endtype iLook_IRF
  ! ***********************************************************************************************************
  ! ** define data vectors
@@ -169,14 +221,15 @@ MODULE var_lookup
  type(iLook_qDims)    ,public,parameter :: ixqDims     = iLook_qDims    (1,2,3,4)
  type(iLook_HRU)      ,public,parameter :: ixHRU       = iLook_HRU      (1)
  type(iLook_HRU2SEG)  ,public,parameter :: ixHRU2SEG   = iLook_HRU2SEG  (1,2,3,4)
- type(iLook_SEG)      ,public,parameter :: ixSEG       = iLook_SEG      (1,2,3,4,5,6,7,8,9,10,11,12,13)
- type(iLook_NTOPO)    ,public,parameter :: ixNTOPO     = iLook_NTOPO    (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17)
+ type(iLook_SEG)      ,public,parameter :: ixSEG       = iLook_SEG      (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56)
+ type(iLook_NTOPO)    ,public,parameter :: ixNTOPO     = iLook_NTOPO    (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20)
  type(iLook_PFAF)     ,public,parameter :: ixPFAF      = iLook_PFAF     (1)
- type(iLook_rflx)     ,public,parameter :: ixRFLX      = iLook_rflx     (1,2,3,4,5,6,7)
+ type(iLook_rflx)     ,public,parameter :: ixRFLX      = iLook_rflx     (1,2,3,4,5,6,7,8)
  type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      (1,2,3,4,5)
  type(iLook_KWE)      ,public,parameter :: ixKWE       = iLook_KWE      (1,2)
- type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      (1)
- type(iLook_IRFbas  ) ,public,parameter :: ixIRFbas    = iLook_IRFbas   (1,2)
+ type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      (1,2)
+ type(iLook_IRFbas  ) ,public,parameter :: ixIRFbas    = iLook_IRFbas   (1)
+ type(iLook_basinQ )  ,public,parameter :: ixBasinQ    = iLook_basinQ   (1)
  ! ***********************************************************************************************************
  ! ** define size of data vectors
  ! ***********************************************************************************************************
@@ -194,6 +247,7 @@ MODULE var_lookup
  integer(i4b),parameter,public    :: nVarsKWE      = storage_size(ixKWE      )/iLength
  integer(i4b),parameter,public    :: nVarsIRF      = storage_size(ixIRF      )/iLength
  integer(i4b),parameter,public    :: nVarsIRFbas   = storage_size(ixIRFbas   )/iLength
+ integer(i4b),parameter,public    :: nVarsBasinQ   = storage_size(ixBasinQ   )/iLength
  ! ***********************************************************************************************************
 
 END MODULE var_lookup

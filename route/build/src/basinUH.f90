@@ -3,6 +3,7 @@ MODULE basinUH_module
 USE nrtype
 USE public_var
 USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
+USE dataTypes, ONLY: RCHTOPO        ! network tiver topology
 
 implicit none
 
@@ -16,12 +17,14 @@ CONTAINS
  ! Public subroutine main driver for basin routing
  ! ---------------------------------------------------------------------------------------
  SUBROUTINE IRF_route_basin(iens,          & ! input: ensemble index
+                            NETOPO_in,     & ! input: reach topology
                             RCHFLX_out,    & ! inout: reach flux data structure
                             ierr, message, & ! output: error control
                             ixSubRch)        ! optional input: subset of reach indices to be processed
  implicit none
  ! input
  integer(i4b), intent(in)                 :: iens            ! ith ensemble
+ type(RCHTOPO),intent(in),   allocatable  :: NETOPO_in(:)    ! River Network topology
  ! inout
  type(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  ! output
@@ -55,13 +58,14 @@ CONTAINS
 !$OMP          private(ierr, cmessage)  & ! private for a given thread
 !$OMP          shared(doRoute)          & ! data array shared
 !$OMP          shared(RCHFLX_out)       & ! data structure shared
+!$OMP          shared(NETOPO_in)        & ! data structure shared
 !$OMP          shared(iEns)             & ! indices shared
 !$OMP          firstprivate(nSeg)
  do iSeg=1,nSeg
 
   if (.not. doRoute(iSeg)) cycle
 
-  call hru_irf(iEns, iSeg, RCHFLX_out, ierr, cmessage)
+  call hru_irf(iEns, iSeg, NETOPO_in, RCHFLX_out, ierr, cmessage)
 !  f(ierr/=0)then; ixmessage(iSeg)=trim(message)//trim(cmessage); exit; endif
 
  end do
@@ -75,22 +79,26 @@ CONTAINS
  ! *********************************************************************
  subroutine hru_irf(iens,         &    ! input: index of runoff ensemble to be processed
                     iSeg,         &    ! input: index of runoff ensemble to be processed
+                    NETOPO_in,    &    ! input: reach topology
                     RCHFLX_out,   &    ! inout: reach flux data structure
                     ierr, message)     ! output: error control
  ! External modules
- USE globalData, ONLY: FRAC_FUTURE
+ USE globalData, ONLY: FRAC_FUTURE     !
+ USE public_var, ONLY: is_lake_sim     ! logical whether or not lake should be simulated
  implicit none
  ! Input
  INTEGER(I4B), intent(IN)                 :: iEns           ! runoff ensemble to be routed
  INTEGER(I4B), intent(IN)                 :: iSeg           ! segment where routing is performed
+ type(RCHTOPO),intent(in),   allocatable  :: NETOPO_in(:)   ! River Network topology
  ! inout
  TYPE(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  ! Output
- integer(i4b), intent(out)                :: ierr           ! error code
- character(*), intent(out)                :: message        ! error message
+ integer(i4b), intent(out)                :: ierr                  ! error code
+ character(*), intent(out)                :: message               ! error message
  ! Local variables to
- INTEGER(I4B)                             :: ntdh           ! number of time steps in IRF
- character(len=strLen)                    :: cmessage       ! error message from subroutine
+ real(dp),     allocatable                :: FRAC_FUTURE_local (:) ! local FRAC_FUTURE so that it can be changed for lakes to impulse
+ INTEGER(I4B)                             :: ntdh                  ! number of time steps in IRF
+ character(len=strLen)                    :: cmessage              ! error message from subroutine
 
  ierr=0; message='hru_irf/'
 
@@ -106,8 +114,17 @@ CONTAINS
 
   end if
 
+  allocate(FRAC_FUTURE_local, source=FRAC_FUTURE, stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'unable to allocate space for FRAC_FUTURE_local'; return; endif
+
+  ! if the segment is flaged as lake and is_lake is on then no lagged flow for lakes
+  if ((NETOPO_in(iSeg)%islake).and.(is_lake_sim)) then;
+    FRAC_FUTURE_local(:) = 0._dp
+    FRAC_FUTURE_local(1) = 1._dp
+  endif
+
   ! perform river network UH routing
-  call irf_conv(FRAC_FUTURE,                     &    ! input: unit hydrograph
+  call irf_conv(FRAC_FUTURE_local,               &    ! input: unit hydrograph
                 RCHFLX_out(iens,iSeg)%BASIN_QI,  &    ! input: upstream fluxes
                 RCHFLX_out(iens,iSeg)%QFUTURE,   &    ! inout: updated q future time series
                 RCHFLX_out(iens,iSeg)%BASIN_QR,  &    ! inout: updated fluxes at reach

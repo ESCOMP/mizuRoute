@@ -1,5 +1,6 @@
 module globalData
   ! This module includes shared data
+  USE pio
 
   USE public_var, ONLY: integerMissing
   USE public_var, ONLY: maxDomain
@@ -32,6 +33,7 @@ module globalData
   ! remapping structures
   USE dataTypes, ONLY: remap         ! remapping data type
   USE dataTypes, ONLY: runoff        ! runoff data type
+  USE dataTypes, ONLY: wm            ! water management (flux to/from segment, target volume) data type
 
   ! basin data structure
   USE dataTypes, ONLY: subbasin_omp  ! mainstem+tributary data structures
@@ -51,6 +53,7 @@ module globalData
   USE var_lookup, ONLY: nVarsNTOPO
   USE var_lookup, ONLY: nVarsPFAF
   USE var_lookup, ONLY: nVarsRFLX
+  USE var_lookup, ONLY: nVarsBasinQ
   USE var_lookup, ONLY: nVarsIRFbas
   USE var_lookup, ONLY: nVarsIRF
   USE var_lookup, ONLY: nVarsKWT
@@ -73,7 +76,6 @@ module globalData
   ! ---------- Date/Time data  -------------------------------------------------------------------------
 
   integer(i4b)                   , public :: iTime                ! time index at simulation time step
-  integer(i4b)                   , public :: iTime_local          ! time index at simulation time step for a given input file
   real(dp)                       , public :: startJulday          ! julian day: start of routing simulation
   real(dp)                       , public :: endJulday            ! julian day: end of routing simulation
   real(dp)                       , public :: refJulday            ! julian day: reference
@@ -88,8 +90,11 @@ module globalData
   ! ---------- input file information -------------------------------------------------------------------
 
   type(infileinfo) , allocatable , public :: infileinfo_data(:)   ! conversion factor to convert time to units of days
+  type(infileinfo) , allocatable , public :: infileinfo_data_wm(:)! conversion factor to convert time to units of days
 
   ! ---------- Misc. data -------------------------------------------------------------------------
+  ! standalone mode
+  logical(lgt)                   , public :: isStandalone=.true.       ! flag to indicate model is running in standalone mode (True), otherwise coupled mode
 
   ! I/O stuff
   logical(lgt)                   , public :: isFileOpen                ! flag to indicate output netcdf is open
@@ -111,6 +116,7 @@ module globalData
   integer(i4b)                   , public :: pio_rearranger    = 2     ! 0=>PIO_rearr_none 1=> PIO_rearr_box 2=> PIO_rearr_subset
   integer(i4b)                   , public :: pio_root          = 1
   integer(i4b)                   , public :: pio_stride        = 1
+  type(iosystem_desc_t)          , public :: pioSystem                  ! PIO I/O system data
 
   ! ---------- conversion factors -------------------------------------------------------------------
 
@@ -142,6 +148,7 @@ module globalData
   type(var_info)                 , public :: meta_NTOPO  (nVarsNTOPO  ) ! network topology
   type(var_info)                 , public :: meta_PFAF   (nVarsPFAF   ) ! pfafstetter code
   type(var_info_new)             , public :: meta_rflx   (nVarsRFLX   ) ! reach flux variables
+  type(var_info_new)             , public :: meta_basinQ (nVarsBasinQ ) ! reach inflow from basin
   type(var_info_new)             , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
   type(var_info_new)             , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
   type(var_info_new)             , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
@@ -185,6 +192,13 @@ module globalData
   real(dp)        , allocatable  , public :: basinEvapo_main(:)   ! HRU evaporation array (m/s) for mainstem
   real(dp)        , allocatable  , public :: basinPrecip_trib(:)  ! HRU precipitation array (m/s) for tributaries
   real(dp)        , allocatable  , public :: basinPrecip_main(:)  ! HRU precipitation array (m/s) for mainstem
+
+  ! seg water management fluxes and target volume
+  type(wm)                       , public :: wm_data              ! SEG flux and target vol data structure for one time step for river network
+  real(dp)        , allocatable  , public :: flux_wm_trib(:)      ! SEG flux array (m3/s) for tributaries
+  real(dp)        , allocatable  , public :: flux_wm_main(:)      ! SEG flux array (m3/s) for mainstem
+  real(dp)        , allocatable  , public :: vol_wm_trib(:)       ! SEG target volume (for lakes) (m3) for tributaries
+  real(dp)        , allocatable  , public :: vol_wm_main(:)       ! SEG target volume (for lakes) (m3) for mainstem
 
   ! domain data
   ! MPI

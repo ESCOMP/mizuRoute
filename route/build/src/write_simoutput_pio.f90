@@ -23,6 +23,8 @@ USE globalData,        ONLY: pio_numiotasks
 USE globalData,        ONLY: pio_rearranger
 USE globalData,        ONLY: pio_root
 USE globalData,        ONLY: pio_stride
+USE globalData,        ONLY: pioSystem
+USE globalData,        ONLY: isStandalone
 ! Moudle wide external modules
 USE nr_utility_module, ONLY: arth
 USE pio_utils
@@ -32,7 +34,6 @@ implicit none
 ! The following variables used only in this module
 character(300),       save :: fileout              ! name of the output file
 integer(i4b),         save :: jTime                ! time step in output netCDF
-type(iosystem_desc_t),save :: pioSystem            ! PIO I/O system data
 type(file_desc_t),    save :: pioFileDesc          ! PIO data identifying the file
 type(io_desc_t),      save :: iodesc_rch_flx       ! PIO domain decomposition data for reach flux [nRch]
 type(io_desc_t),      save :: iodesc_hru_ro        ! PIO domain decomposition data for hru runoff [nHRU]
@@ -241,6 +242,15 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
+  if (meta_rflx(ixRFLX%IRFlakeVol)%varFile) then
+    ! write lake volume (m3)
+    call write_pnetcdf_recdim(pioFileDesc, 'IRFlakeVol', RCHFLX_local(:)%REACH_VOL(1), iodesc_rch_flx, jTime, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   endif
+
+  call sync_file(pioFileDesc, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  END SUBROUTINE output
 
 
@@ -388,11 +398,13 @@ CONTAINS
  end if
 
  ! pio initialization
- pio_numiotasks = nNodes/pio_stride
- call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
-                   pio_stride, pio_numiotasks, & ! input: PIO related parameters
-                   pio_rearranger, pio_root,   & ! input: PIO related parameters
-                   pioSystem)                    ! output: PIO system descriptors
+ if (isStandalone) then
+   pio_numiotasks = nNodes/pio_stride
+   call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
+                     pio_stride, pio_numiotasks, & ! input: PIO related parameters
+                     pio_rearranger, pio_root,   & ! input: PIO related parameters
+                     pioSystem)                    ! output: PIO system descriptors
+ endif
 
  ! For reach flux/volume
  if (masterproc) then

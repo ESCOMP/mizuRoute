@@ -16,6 +16,7 @@ module pio_utils
   public::end_def
   public::openFile
   public::closeFile
+  public::sync_file
   public::write_netcdf             ! write non-distributed data
   public::write_pnetcdf            ! write distributed data without record dimension
   public::write_pnetcdf_recdim     ! write distributed data at a specified index of record dimension
@@ -332,6 +333,24 @@ contains
     call pio_closefile(pioFileDesc)
 
   end subroutine closeFile
+
+  !-----------------------------------------------------------------------
+  subroutine sync_file(pioFileDesc, ierr, message)
+    ! !DESCRIPTION:
+    ! end definition of netcdf file
+    !
+    implicit none
+    ! input
+    type(file_desc_t), intent(inout) :: pioFileDesc  ! netcdf file id
+    ! output
+    integer(i4b),      intent(out)   :: ierr         ! error status
+    character(*),      intent(out)   :: message      ! error message
+
+    ierr=0; message='sync_file/'
+
+    call PIO_syncfile(pioFileDesc)
+
+  end subroutine sync_file
 
   !-----------------------------------------------------------------------
   subroutine end_def(pioFileDesc, ierr, message)

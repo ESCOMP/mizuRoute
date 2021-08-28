@@ -40,6 +40,8 @@ CONTAINS
                        basinRunoff_in, &  ! basin (i.e.,HRU) runoff (m/s)
                        basinEvapo_in,  &  ! basin (i.e.,HRU) evaporation (m/s)
                        basinPrecip_in, &  ! basin (i.e.,HRU) precipitation (m/s)
+                       reachflux_in,   &  ! reach (i.e.,reach) flux (m3/s)
+                       reachvol_in,    &  ! reach (i.e.,reach) target volume for lakes (m3)
                        ixRchProcessed, &  ! indices of reach to be routed
                        river_basin,    &  ! OMP basin decomposition
                        NETOPO_in,      &  ! reach topology data structure
@@ -67,6 +69,8 @@ CONTAINS
    USE public_var, ONLY: impulseResponseFunc
    USE globalData, ONLY: TSEC                    ! beginning/ending of simulation time step [sec]
    USE public_var, ONLY: is_lake_sim             ! logical whether or not lake should be simulated
+   USE public_var, ONLY: is_flux_wm              ! logical whether or not fluxes should be passed
+   USE public_var, ONLY: is_vol_wm               ! logical whether or not target volume should be passed
 
    implicit none
 
@@ -75,10 +79,12 @@ CONTAINS
    real(dp),           allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
    real(dp),           allocatable, intent(in)    :: basinEvapo_in(:)     ! basin (i.e.,HRU) evaporation (m/s)
    real(dp),           allocatable, intent(in)    :: basinPrecip_in(:)    ! basin (i.e.,HRU) precipitation (m/s)
+   real(dp),           allocatable, intent(in)    :: reachflux_in(:)      ! reach (i.e.,reach) flux (m3/s)
+   real(dp),           allocatable, intent(in)    :: reachvol_in(:)       ! reach (i.e.,reach) target volume for lakes (m3)
    integer(i4b),       allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
    type(subbasin_omp), allocatable, intent(in)    :: river_basin(:)       ! OMP basin decomposition
    type(RCHTOPO),      allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology
-   type(RCHPRP),       allocatable, intent(in)    :: RPARAM_in(:)         ! River reach parameter
+   type(RCHPRP),       allocatable, intent(inout)    :: RPARAM_in(:)         ! River reach parameter
    integer(i4b),                    intent(in)    :: ixDesire             ! index of the reach for verbose output
    ! inout
    type(STRFLX),       allocatable, intent(inout) :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
@@ -104,8 +110,22 @@ CONTAINS
   ! number of reaches to be processed
   nSeg = size(ixRchProcessed)
 
+  ! 1. subroutine: map the basin runoff/evapo/precip to the stream network in m3/s
+  ! runoff to stream netwrok in (m3/s)
   allocate(reachRunoff_local(nSeg), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachRunoff_local]'; return; endif
+
+  ! passing of the water management fluxes and lake target vol if presence
+  if (is_flux_wm) then
+    do iSeg = 1,nSeg
+      RCHFLX_out(iens,ixRchProcessed(iSeg))%REACH_WM_FLUX  =  reachflux_in(iSeg)  ! added or subtracted stremflow for each reach
+    end do
+  end if
+  if (is_vol_wm.and.is_lake_sim) then
+    do iSeg = 1,nSeg
+      RCHFLX_out(iens,ixRchProcessed(iSeg))%REACH_WM_VOL   =  reachvol_in(iSeg)   ! target volume for the lakes
+    end do
+  end if
 
   ! 1. subroutine: map basin runoff to river network HRUs
   ! map the basin runoff to the stream network...
@@ -117,6 +137,36 @@ CONTAINS
                    ixRchProcessed)       ! optional input: indices of reach to be routed
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+  if (is_lake_sim) then
+
+    ! allocate evaporation
+    allocate(reachEvapo_local(nSeg), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachEvapo_local]'; return; endif
+
+    ! evaporation to stream netwrok in (m3/s)
+     call basin2reach(basinEvapo_in,      & ! input: basin runoff (m/s)
+                      NETOPO_in,          & ! input: reach topology
+                      RPARAM_in,          & ! input: reach parameter
+                      reachEvapo_local,   & ! output: reach Evapo (m3/s)
+                      ierr, cmessage,     & ! output: error control
+                      ixRchProcessed)       ! optional input: indices of reach to be routed
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     ! allocate precipitaiton
+     allocate(reachPrecip_local(nSeg), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachPrecip_local]'; return; endif
+
+     ! precipitation to stream netwrok in (m3/s)
+     call basin2reach(basinPrecip_in,     & ! input: basin runoff (m/s)
+                      NETOPO_in,          & ! input: reach topology
+                      RPARAM_in,          & ! input: reach parameter
+                      reachPrecip_local,  & ! output: reach Precip (m3/s)
+                      ierr, cmessage,     & ! output: error control
+                      ixRchProcessed)       ! optional input: indices of reach to be routed
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   endif
+
   ! 2. subroutine: basin route
   if (doesBasinRoute == 1) then
     ! instantaneous runoff volume (m3/s) to data structure
@@ -125,6 +175,7 @@ CONTAINS
     enddo
     ! perform Basin routing
     call IRF_route_basin(iens,              &  ! input:  ensemble index
+                         NETOPO_in,         &  ! input:  reach topology
                          RCHFLX_out,        &  ! inout:  reach flux data structure
                          ierr, cmessage,    &  ! output: error controls
                          ixRchProcessed)       ! optional input: indices of reach to be routed
@@ -136,6 +187,14 @@ CONTAINS
     RCHFLX_out(iens,ixRchProcessed(iSeg))%BASIN_QR(1) = reachRunoff_local(iSeg)             ! streamflow (m3/s)
     end do
   end if
+
+  ! allocating precipitation and evaporation for
+  if (is_lake_sim) then
+   do iSeg = 1,nSeg
+    RCHFLX_out(iens,ixRchProcessed(iSeg))%Basinevapo  = reachEvapo_local(iSeg)  ! Evaporation pass to reach flux (m/s)
+    RCHFLX_out(iens,ixRchProcessed(iSeg))%BasinPrecip = reachPrecip_local(iSeg) ! precipitation pass to reach flux (m/s)
+   end do
+  endif
 
   ! 3. subroutine: river reach routing
    ! perform upstream flow accumulation
@@ -186,6 +245,7 @@ CONTAINS
                    river_basin,         & ! input: river basin data type
                    ixDesire,            & ! input: index of verbose reach
                    NETOPO_in,           & ! input: reach topology data structure
+                   RPARAM_in,           & ! input: reach parameter data structure
                    RCHFLX_out,          & ! inout: reach flux data structure
                    ierr,cmessage,       & ! output: error control
                    ixRchProcessed)        ! optional input: indices of reach to be routed

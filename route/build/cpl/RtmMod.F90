@@ -4,7 +4,7 @@ MODULE RtmMod
   USE pio
   USE perf_mod
   USE shr_pio_mod   , ONLY : shr_pio_getiotype, shr_pio_getioformat, &
-                             shr_pio_getrearranger, shr_pio_getioroot
+                             shr_pio_getrearranger, shr_pio_getioroot, shr_pio_getiosys
   USE shr_kind_mod  , ONLY : r8 => shr_kind_r8, CL => SHR_KIND_CL
   USE shr_sys_mod   , ONLY : shr_sys_flush, shr_sys_abort
   USE RtmVar        , ONLY : nt_rtm, rtm_tracers, &
@@ -18,12 +18,14 @@ MODULE RtmMod
   USE public_var,     ONLY : dt                         ! routing time step
   USE public_var    , ONLY : iulog
   USE public_var    , ONLY : rpntfil
+  USE globalData    , ONLY : isStandalone
   USE globalData    , ONLY : iam        => pid
   USE globalData    , ONLY : npes       => nNodes
   USE globalData    , ONLY : mpicom_rof => mpicom_route
   USE globalData    , ONLY : masterproc
   USE globalData    , ONLY : pio_netcdf_format, pio_typename, pio_rearranger, &
                              pio_root, pio_stride
+  USE globalData    , ONLY : pioSystem
 
 ! !PUBLIC TYPES:
   implicit none
@@ -124,30 +126,34 @@ CONTAINS
     !-------------------------------------------------------
     ! Overwrite PIO parameter from CIME
     !-------------------------------------------------------
+    isStandalone = .false.
+
     select case(shr_pio_getioformat(inst_name))
       case(PIO_64BIT_OFFSET); pio_netcdf_format = '64bit_offset'
       case(PIO_64BIT_DATA);   pio_netcdf_format = '64bit_data'
       case default; call shr_sys_abort(trim(subname)//'unexpected netcdf format index')
     end select
 
-    !select case(shr_pio_getiotype(inst_name))
-    !  case(pio_iotype_netcdf);   pio_typename = 'netcdf'
-    !  case(pio_iotype_pnetcdf);  pio_typename = 'pnetcdf'
-    !  case(pio_iotype_netcdf4c); pio_typename = 'netcdf4c'
-    !  case(pio_iotype_NETCDF4p); pio_typename = 'netcdf4p'
-    !  case default; call shr_sys_abort(trim(subname)//'unexpected netcdf io type index')
-    !end select
+    select case(shr_pio_getiotype(inst_name))
+      case(pio_iotype_netcdf);   pio_typename = 'netcdf'
+      case(pio_iotype_pnetcdf);  pio_typename = 'pnetcdf'
+      case(pio_iotype_netcdf4c); pio_typename = 'netcdf4c'
+      case(pio_iotype_NETCDF4p); pio_typename = 'netcdf4p'
+      case default; call shr_sys_abort(trim(subname)//'unexpected netcdf io type index')
+    end select
 
     !pio_numiotasks    = shr_pio_(inst_name)    ! there is no function to extract pio_numiotasks in cime/src/drivers/nuops/nems/util/shr_pio_mod.F90
-     pio_rearranger    = shr_pio_getrearranger(inst_name)
-     pio_root          = shr_pio_getioroot(inst_name)
-    !pio_stride        = shr_pio_(inst_name)    ! there is no function to extract pio_stride
+    pioSystem         = shr_pio_getiosys(inst_name)
+    pio_rearranger    = shr_pio_getrearranger(inst_name)
+    pio_root          = shr_pio_getioroot(inst_name)
 
-    write(iulog,*) 'pio_netcdf_format = ', trim(pio_netcdf_format)
-    write(iulog,*) 'pio_typename      = ', trim(pio_typename)
-    write(iulog,*) 'pio_rearranger    = ', pio_rearranger
-    write(iulog,*) 'pio_root          = ', pio_root
-    write(iulog,*) 'pio_stride        = ', pio_stride
+    if (masterproc) then
+      write(iulog,*) 'pio_netcdf_format = ', trim(pio_netcdf_format)
+      write(iulog,*) 'pio_typename      = ', trim(pio_typename)
+      write(iulog,*) 'pio_rearranger    = ', pio_rearranger
+      write(iulog,*) 'pio_root          = ', pio_root
+      write(iulog,*) 'pio_stride        = ', pio_stride
+    end if
 
     !-------------------------------------------------------
     ! Initialize rtm_trstr
