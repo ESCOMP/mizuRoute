@@ -54,7 +54,7 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE main_new_file(ierr, message)
 
-   USE globalData,        ONLY: modTime           ! previous and current model time
+   USE globalData, ONLY: simDatetime   ! previous and current model time
 
   implicit none
   ! output variables
@@ -74,7 +74,7 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if
 
-  modTime(0) = modTime(1)
+  simDatetime(0) = simDatetime(1)
 
  END SUBROUTINE main_new_file
 
@@ -86,14 +86,9 @@ CONTAINS
 
    USE public_var,        ONLY: calendar
    USE public_var,        ONLY: newFileFrequency  ! frequency for new output files (day, month, annual, single)
-   USE globalData,        ONLY: modTime           ! previous and current model time
-   USE globalData,        ONLY: modJulday         ! julian day: at model time step
-   ! subroutines
-   USE time_utils_module, ONLy: compCalday        ! compute calendar day
-   USE time_utils_module, ONLy: compCalday_noleap ! compute calendar day
+   USE globalData,        ONLY: simDatetime       ! previous and current model time
 
    implicit none
-
    ! output
    logical(lgt),   intent(out)          :: newFileAlarm     ! logical to make alarm for creating new output file
    integer(i4b),   intent(out)          :: ierr             ! error code
@@ -103,27 +98,17 @@ CONTAINS
 
    ierr=0; message='new_file_alarm/'
 
-   ! get the time
-   select case(trim(calendar))
-     case('noleap','365_day')
-       call compCalday_noleap(modJulday,modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,ierr,cmessage)
-     case ('standard','gregorian','proleptic_gregorian')
-       call compCalday(modJulday,modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,ierr,cmessage)
-     case default;    ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
-   end select
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
    ! print progress
    if (masterproc) then
-     write(iulog,'(a,I4,4(x,I4))') new_line('a'), modTime(1)%iy, modTime(1)%im, modTime(1)%id, modTime(1)%ih, modTime(1)%imin
+     write(iulog,'(a,I4,4(x,I4))') new_line('a'), simDatetime(1)%year(), simDatetime(1)%month(), simDatetime(1)%day(), simDatetime(1)%hour(), simDatetime(1)%minute()
    endif
 
    ! check need for the new file
    select case(newFileFrequency)
-     case('single'); newFileAlarm=(modTime(0)%iy==integerMissing)
-     case('annual'); newFileAlarm=(modTime(1)%iy/=modTime(0)%iy)
-     case('month');  newFileAlarm=(modTime(1)%im/=modTime(0)%im)
-     case('day');    newFileAlarm=(modTime(1)%id/=modTime(0)%id)
+     case('single'); newFileAlarm=(simDatetime(0)%year() ==integerMissing)
+     case('annual'); newFileAlarm=(simDatetime(1)%year() /=simDatetime(0)%year())
+     case('month');  newFileAlarm=(simDatetime(1)%month()/=simDatetime(0)%month())
+     case('day');    newFileAlarm=(simDatetime(1)%day()  /=simDatetime(0)%day())
      case default; ierr=20; message=trim(message)//'unable to identify the option to define new output files'; return
    end select
 
@@ -265,9 +250,8 @@ CONTAINS
  USE public_var, ONLY: calendar          ! calendar name
  USE public_var, ONLY: time_units        ! time units (seconds, hours, or days)
  ! saved global data
- USE globalData, ONLY: basinID,reachID   ! HRU and reach ID in network
- USE globalData, ONLY: modJulday         ! julian day: at model time step
- USE globalData, ONLY: modTime           ! previous and current model time
+ USE globalData, ONLY: basinID, reachID  ! HRU and reach ID in network
+ USE globalData, ONLY: simDatetime       ! previous and current model time
  USE globalData, ONLY: nEns, nHRU, nRch  ! number of ensembles, HRUs and river reaches
  USE globalData, ONLY: isFileOpen        ! file open/close status
  ! subroutines
@@ -293,9 +277,9 @@ CONTAINS
    jTime=0
 
    ! Define filename
-   sec_in_day = modTime(1)%ih*60*60+modTime(1)%imin*60+nint(modTime(1)%dsec)
+   sec_in_day = simDatetime(1)%hour()*60*60+simDatetime(1)%minute()*60+nint(simDatetime(1)%sec())
    write(fileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuroute.h.', &
-                           modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '-',sec_in_day,'.nc'
+                           simDatetime(1)%year(), '-', simDatetime(1)%month(), '-', simDatetime(1)%day(), '-',sec_in_day,'.nc'
 
    call defineFile(trim(fileout),                         &  ! input: file name
                    nEns,                                  &  ! input: number of ensembles

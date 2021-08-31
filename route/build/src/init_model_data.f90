@@ -264,11 +264,11 @@ CONTAINS
  SUBROUTINE update_time(finished, ierr, message)
 
   USE public_var, ONLY: dt            ! time step [sec]
+  USE public_var, ONLY: calendar      ! model calendar
   USE globalData, ONLY: TSEC          ! beginning/ending of simulation time step [sec]
   USE globalData, ONLY: iTime         ! time index at simulation time step
-  USE globalData, ONLY: roJulday      ! julian day: runoff input time
-  USE globalData, ONLY: modJulday     ! julian day: at model time step
-  USE globalData, ONLY: endJulday     ! julian day: at end of simulation
+  USE globalData, ONLY: endDatetime   ! model ending datetime
+  USE globalData, ONLY: simDatetime       ! current model datetime
   ! external routine
   USE write_simoutput_pio, ONLY: close_output_nc
 
@@ -277,10 +277,12 @@ CONTAINS
    logical(lgt),              intent(out)   :: finished
    integer(i4b),              intent(out)   :: ierr             ! error code
    character(*),              intent(out)   :: message          ! error message
+   ! local variables
+   character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
    ierr=0; message='update_time/'
 
-   if (abs(modJulday-endJulday)<verySmall) then
+   if (simDatetime(1)==endDatetime) then
      call close_output_nc()
      finished=.true.;return
    endif
@@ -291,7 +293,9 @@ CONTAINS
 
    iTime=iTime+1
 
-   modJulday = roJulday(iTime)
+   ! increment model calendar
+   simDatetime(0) = simDatetime(1)
+   simDatetime(1) = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
 
  END SUBROUTINE update_time
 
