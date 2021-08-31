@@ -40,7 +40,7 @@ module globalData
   USE dataTypes, ONLY: subbasin_mpi  ! reach category (store mainstem code or pfaf code)
 
   ! time data structure
-  USE dataTypes, ONLY: time         ! time data
+  USE datetime_data, ONLY: datetime  ! datetime data class
 
   ! number of variables for data structure
   USE var_lookup, ONLY: nStructures
@@ -76,21 +76,18 @@ module globalData
   ! ---------- Date/Time data  -------------------------------------------------------------------------
 
   integer(i4b)                   , public :: iTime                ! time index at simulation time step
-  real(dp)                       , public :: startJulday          ! julian day: start of routing simulation
-  real(dp)                       , public :: endJulday            ! julian day: end of routing simulation
-  real(dp)                       , public :: refJulday            ! julian day: reference
-  real(dp)                       , public :: modJulday            ! julian day: simulation time step
-  real(dp)        , allocatable  , public :: roJulday(:)          ! julian day: runoff input time
   real(dp)        , allocatable  , public :: timeVar(:)           ! time variables (unit given by runoff data)
-  real(dp)                       , public :: TSEC(0:1)            ! begning and end of time step (sec)
-  type(time)                     , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
-  type(time)                     , public :: restCal              ! desired restart date/time (yyyy:mm:dd:hh:mm:ss)
-  type(time)                     , public :: dropCal              ! restart dropoff date/time (yyyy:mm:dd:hh:mm:ss)
+  real(dp)                       , public :: TSEC(0:1)            ! begning and end of time step since simulation started (sec)
+  type(datetime)                 , public :: simDatetime(0:1)     ! previous and current simulation time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime)                 , public :: begDatetime          ! simulation start date/time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime)                 , public :: endDatetime          ! simulation end date/time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime)                 , public :: restDatetime         ! desired restart date/time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime)                 , public :: dropDatetime         ! restart dropoff date/time (yyyy:mm:dd:hh:mm:ss)
 
   ! ---------- input file information -------------------------------------------------------------------
 
-  type(infileinfo) , allocatable , public :: infileinfo_data(:)   ! conversion factor to convert time to units of days
-  type(infileinfo) , allocatable , public :: infileinfo_data_wm(:)! conversion factor to convert time to units of days
+  type(infileinfo), allocatable,  public :: infileinfo_data(:)    ! input runoff file information
+  type(infileinfo), allocatable,  public :: infileinfo_data_wm(:) ! input water management (abstaction/injection) file information
 
   ! ---------- Misc. data -------------------------------------------------------------------------
   ! standalone mode

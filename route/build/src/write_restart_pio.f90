@@ -15,7 +15,7 @@ USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
 USE dataTypes,         ONLY: STRSTA            ! state in each reach
 USE dataTypes,         ONLY: RCHTOPO           ! Network topology
 USE dataTypes,         ONLY: states
-USE dataTypes,         ONLY: time
+USE datetime_data,     ONLY: datetime
 
 USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: integerMissing
@@ -106,11 +106,9 @@ CONTAINS
    USE public_var,        ONLY: calendar
    USE public_var,        ONLY: restart_write  ! restart write options
    USE public_var,        ONLY: restart_day
-   USE globalData,        ONLY: restCal        ! restart Calendar time
-   USE globalData,        ONLY: dropCal        ! restart drop off Calendar time
-   USE globalData,        ONLY: modTime        ! previous and current model time
-   ! external routine
-   USE time_utils_module, ONLY: ndays_month    ! compute number of days in a month
+   USE globalData,        ONLY: restDatetime   ! restart Calendar time
+   USE globalData,        ONLY: dropDatetime   ! restart drop off Calendar time
+   USE globalData,        ONLY: simDatetime    ! previous and current model time
 
    implicit none
 
@@ -125,33 +123,34 @@ CONTAINS
    ierr=0; message='restart_alarm/'
 
    ! adjust restart dropoff day if the dropoff day is outside number of days in particular month
-   dropCal%id=restart_day
-   call ndays_month(modTime(1)%iy, modTime(1)%im, calendar, nDays, ierr, cmessage)
-   if (dropCal%id > nDays) then
-     dropCal%id=nDays
+   dropDatetime = datetime(dropDatetime%year(), dropDatetime%month(), restart_day, dropDatetime%hour(), dropDatetime%minute(), dropDatetime%sec())
+
+   nDays = simDatetime(1)%ndays_month(calendar, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   if (dropDatetime%day() > nDays) then
+     dropDatetime = datetime(dropDatetime%year(), dropDatetime%month(), nDays, dropDatetime%hour(), dropDatetime%minute(), dropDatetime%sec())
    end if
 
    ! adjust dropoff day further if restart day is actually outside number of days in a particular month
-   if (restCal%id > nDays) then
-     dropCal%id=dropCal%id-1
+   if (restDatetime%day() > nDays) then
+     dropDatetime = dropDatetime%add_day(-1, calendar, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
 
    select case(trim(restart_write))
      case('Specified','specified','Last','last')
-       restartAlarm = (dropCal%iy==modTime(1)%iy .and. dropCal%im==modTime(1)%im .and. dropCal%id==modTime(1)%id .and. &
-                       dropCal%ih==modTime(1)%ih .and. dropCal%imin==modTime(1)%imin .and. nint(dropCal%dsec)==nint(modTime(1)%dsec))
+       restartAlarm = (dropDatetime==simDatetime(1))
      case('Annual','annual')
-       restartAlarm = (dropCal%im==modTime(1)%im .and. dropCal%id==modTime(1)%id .and. &
-                       dropCal%ih==modTime(1)%ih .and. dropCal%imin==modTime(1)%imin .and. nint(dropCal%dsec)==nint(modTime(1)%dsec))
+       restartAlarm = (dropDatetime%is_equal_mon(simDatetime(1)) .and. dropDatetime%is_equal_day(simDatetime(1)) .and. dropDatetime%is_equal_time(simDatetime(1)))
      case('Monthly','monthly')
-       restartAlarm = (dropCal%id==modTime(1)%id .and. &
-                       dropCal%ih==modTime(1)%ih .and. dropCal%imin==modTime(1)%imin .and. nint(dropCal%dsec)==nint(modTime(1)%dsec))
+       restartAlarm = (dropDatetime%is_equal_day(simDatetime(1)) .and. dropDatetime%is_equal_time(simDatetime(1)))
      case('Daily','daily')
-       restartAlarm = (dropCal%ih==modTime(1)%ih .and. dropCal%imin==modTime(1)%imin .and. nint(dropCal%dsec)==nint(modTime(1)%dsec))
+       restartAlarm = dropDatetime%is_equal_time(simDatetime(1))
      case('Never','never')
        restartAlarm = .false.
      case default
-       ierr=20; message=trim(message)//'Current accepted <restart_write> options: L[l]ast, N[n]ever, S[s]pecified, Annual, Monthly, or Daily '; return
+       ierr=20; message=trim(message)//'Current accepted <restart_write> options: last, never, specified, annual, monthly, or daily '; return
    end select
 
  END SUBROUTINE restart_alarm
@@ -163,7 +162,7 @@ CONTAINS
  SUBROUTINE restart_output(ierr, message)
 
   USE public_var, ONLY: restart_dir
-  USE globalData, ONLY: modTime           ! previous and current model time
+  USE globalData, ONLY: simDatetime           ! previous and current model time
 
   implicit none
   ! output variables
@@ -177,9 +176,9 @@ CONTAINS
   ierr=0; message='restart_output/'
 
   if (masterproc) then
-    write(iulog,fmtYMDHMS) new_line('a'),'Write restart file at ', &
-                           modTime(1)%iy,'-',modTime(1)%im, '-', modTime(1)%id, &
-                           modTime(1)%ih,':',modTime(1)%imin,':',nint(modTime(1)%dsec)
+    write(iulog,fmtYMDHMS) new_line('a'),'Write restart file for ', &
+                           simDatetime(1)%year(),'-',simDatetime(1)%month(), '-', simDatetime(1)%day(), &
+                           simDatetime(1)%hour(),':',simDatetime(1)%minute(),':',nint(simDatetime(1)%sec())
   end if
 
   call restart_fname(fnameRestart, nextTimeStep, ierr, cmessage)
@@ -203,13 +202,12 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE restart_fname(fnameRestart, timeStamp, ierr, message)
 
-   USE public_var,          ONLY: restart_dir
-   USE public_var,          ONLY: case_name        ! simulation name ==> output filename head
-   USE public_var,          ONLY: calendar
-   USE public_var,          ONLY: secprday
-   USE public_var,          ONLY: dt
-   USE globalData,          ONLY: modJulday        ! current model Julian day
-   USE process_time_module, ONLY: conv_julian2cal  ! compute data and time from julian day
+   USE public_var, ONLY: restart_dir
+   USE public_var, ONLY: case_name      ! simulation name ==> output filename head
+   USE public_var, ONLY: calendar
+   USE public_var, ONLY: secprday
+   USE public_var, ONLY: dt
+   USE globalData, ONLY: simDatetime    ! current model datetime
 
    implicit none
 
@@ -221,26 +219,22 @@ CONTAINS
    character(*),   intent(out)          :: message          ! error message
    ! local variables
    character(len=strLen)                :: cmessage         ! error message of downwind routine
-   real(dp)                             :: timeStampJulday  ! Julidan days corresponding to file name time stamp
+   type(datetime)                       :: timeStampCal ! datetime corresponding to file name time stamp
    integer(i4b)                         :: sec_in_day       ! second within day
-   type(time)                           :: timeStampCal     ! calendar date at next time step (for restart file name)
    character(len=50),parameter          :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
 
    ierr=0; message='restart_fname/'
 
    select case(timeStamp)
-     case(currTimeStep); timeStampJulday = modJulday
-     case(nextTimeStep); timeStampJulday = modJulday + dt/secprday
+     case(currTimeStep); timeStampCal = simDatetime(1)
+     case(nextTimeStep); timeStampCal = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
      case default;       ierr=20; message=trim(message)//'time stamp option in restart filename: invalid -> 1: current time Step or 2: next time step'; return
    end select
 
-   call conv_julian2cal(timeStampJulday, calendar, timeStampCal, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   sec_in_day = timeStampCal%ih*60*60+timeStampCal%imin*60+nint(timeStampCal%dsec)
+   sec_in_day = timeStampCal%hour()*60*60+timeStampCal%minute()*60+nint(timeStampCal%sec())
 
    write(fnameRestart, fmtYMDS) trim(restart_dir)//trim(case_name)//'.mizuroute.r.', &
-                                timeStampCal%iy, '-', timeStampCal%im, '-', timeStampCal%id, '-',sec_in_day,'.nc'
+                                timeStampCal%year(), '-', timeStampCal%month(), '-', timeStampCal%day(), '-',sec_in_day,'.nc'
 
  END SUBROUTINE restart_fname
 

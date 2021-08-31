@@ -34,7 +34,7 @@ module lake_route_module
                          ! output
                          ierr, message)   ! output: error control
 
-  USE globalData, ONLY: modTime           ! previous and current model time
+  USE globalData, ONLY: simDatetime           ! previous and current model time
   USE public_var, ONLY: is_flux_wm        ! logical water management components fluxes should be read
   USE public_var, ONLY: dt, lakeWBTol     ! lake water balance tolerance
   USE public_var, ONLY: lake_model_D03    ! logical whether or not lake should be simulated
@@ -74,7 +74,7 @@ module lake_route_module
   INTEGER(I4B)                             :: past_length_D       ! pas length for demand based on length in year and floor
   real(dp)                                 :: target_r            ! target release
 
-  print*, 'inside lake, time at the model simulation',modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec
+  print*, 'inside lake, time at the model simulation',simDatetime(1)%year(),simDatetime(1)%month(),simDatetime(1)%day(),simDatetime(1)%hour(),simDatetime(1)%minute(),simDatetime(1)%sec()
 
     ! initialize error control
     ierr=0; message='lake_route/'
@@ -186,8 +186,8 @@ module lake_route_module
             else
               array_size = shape(RCHFLX_out(iens,segIndex)%QPASTUP_IRF)
               past_length_I = array_size(2)
-              RCHFLX_out(iens,segIndex)%QPASTUP_IRF(modTime(1)%im, 2:past_length_I) = RCHFLX_out(iens,segIndex)%QPASTUP_IRF(modTime(1)%im, 1:past_length_I-1) ! shift the memory
-              RCHFLX_out(iens,segIndex)%QPASTUP_IRF(modTime(1)%im, 1) = q_upstream ! allocate the current qupstream
+              RCHFLX_out(iens,segIndex)%QPASTUP_IRF(simDatetime(1)%month(), 2:past_length_I) = RCHFLX_out(iens,segIndex)%QPASTUP_IRF(simDatetime(1)%month(), 1:past_length_I-1) ! shift the memory
+              RCHFLX_out(iens,segIndex)%QPASTUP_IRF(simDatetime(1)%month(), 1) = q_upstream ! allocate the current qupstream
             endif
             ! mean and updating the inflow parameters
             past_length_I = floor(RPARAM_in(segIndex)%H06_I_mem_L * 31    * secprday / dt)
@@ -243,8 +243,8 @@ module lake_route_module
             else
               array_size = shape(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF)
               past_length_D = array_size(2)
-              RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(modTime(1)%im, 2:past_length_D) = RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(modTime(1)%im, 1:past_length_D-1) ! shift the memory
-              RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(modTime(1)%im, 1) = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! allocate the current demand
+              RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(simDatetime(1)%month(), 2:past_length_D) = RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(simDatetime(1)%month(), 1:past_length_D-1) ! shift the memory
+              RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(simDatetime(1)%month(), 1) = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! allocate the current demand
             endif
             ! mean and updating the demand parameters
             past_length_D = floor(RPARAM_in(segIndex)%H06_D_mem_L * 31    * secprday / dt)
@@ -295,7 +295,7 @@ module lake_route_module
           print*, 'start month', start_month
 
           ! find start of operational year (add hour 1 when run hourly?) Once determined, this E_release should be communicated to the next timestep.
-          if (modTime(1)%im == start_month .AND. modTime(1)%id == 1 ) then
+          if (simDatetime(1)%month() == start_month .AND. simDatetime(1)%day() == 1 ) then
              RPARAM_in(segIndex)%H06_E_rel_ini = RCHFLX_out(iens,segIndex)%REACH_VOL(1) / (RPARAM_in(segIndex)%H06_alpha * RPARAM_in(segIndex)%H06_Smax)
           endif
 
@@ -305,9 +305,9 @@ module lake_route_module
           if (RPARAM_in(segIndex)%H06_purpose == 1) then ! irrigation reservoir
 
             if (RPARAM_in(segIndex)%H06_envfact * I_yearly <= D_yearly) then ! larger demand than environmental flow requirement
-                target_r = I_months(modTime(1)%im) * RPARAM_in(segIndex)%H06_c1 + I_yearly * RPARAM_in(segIndex)%H06_c2 * (D_months(modTime(1)%im) / D_yearly )
+                target_r = I_months(simDatetime(1)%month()) * RPARAM_in(segIndex)%H06_c1 + I_yearly * RPARAM_in(segIndex)%H06_c2 * (D_months(simDatetime(1)%month()) / D_yearly )
             else
-                target_r = I_yearly + D_months(modTime(1)%im) - D_yearly
+                target_r = I_yearly + D_months(simDatetime(1)%month()) - D_yearly
             endif
 
           else ! non-irrigation reservoir
@@ -344,7 +344,7 @@ module lake_route_module
           ! update the storage
           RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt
 
-          ! print*, modTime(1)%im ! month of the simulations
+          ! print*, simDatetime(1)%month() ! month of the simulations
           ! print*, 'Hanasaki parameters'
           print*, RPARAM_in(segIndex)%H06_Smax, RPARAM_in(segIndex)%H06_alpha, RPARAM_in(segIndex)%H06_envfact, RPARAM_in(segIndex)%H06_S_ini, RPARAM_in(segIndex)%H06_c1, RPARAM_in(segIndex)%H06_c2, RPARAM_in(segIndex)%H06_exponent, RPARAM_in(segIndex)%H06_I_Feb, RPARAM_in(segIndex)%H06_D_Feb
 
