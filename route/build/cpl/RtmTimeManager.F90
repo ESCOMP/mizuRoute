@@ -109,7 +109,6 @@ CONTAINS
 
   ! number of time step from reference time to simulation end time
   nTime = int(endJulday - begJulday/dt_day) + 1
-  !nTime = int((endJulday - begJulday)*convTime2Days) + 1
 
   ! Create timeVar array: starting with 0 and increment of model time step in model unit (t_unit)
   allocate(timeVar(nTime), stat=ierr)
@@ -129,20 +128,13 @@ CONTAINS
   iTime = 1
   simDatetime(0) = datetime(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
   simDatetime(1) = begDatetime
-  !do ix = 1, nTime
-  !  simDatetime(1) = simDatetime(1)%add_day(int(convTime2Days), calendar, ierr, cmessage)
-  !  if( simDatetime(1) < begDatetime ) cycle
-  !  exit
-  !enddo
-  !iTime = ix
 
   if (masterproc .and. debug_write) then
     write(iulog,*) 'simStart datetime     = ', trim(simStart)
     write(iulog,*) 'simEnd   datetime     = ', trim(simEnd)
     write(iulog,*) 'reference datetime    = ', refDatetime%year(), refDatetime%month(), refDatetime%day(), refDatetime%hour(), refDatetime%minute(), refDatetime%sec()
     write(iulog,*) 'simDatetime           = ', simDatetime(1)%year(), simDatetime(1)%month(), simDatetime(1)%day(), simDatetime(1)%hour(), simDatetime(1)%minute(), simDatetime(1)%sec()
-    write(iulog,*) 'dt                    = ', dt
-    write(iulog,*) 'dt_day                = ', dt_day
+    write(iulog,*) 'dt [sec]              = ', dt
     write(iulog,*) 'nTime                 = ', nTime
     write(iulog,*) 'iTime, timeVar(iTime) = ', iTime, timeVar(iTime)
     call shr_sys_flush(iulog)
