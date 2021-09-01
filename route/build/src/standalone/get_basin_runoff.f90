@@ -255,7 +255,7 @@ CONTAINS
   ! initialize error control
   ierr=0; message='infile_name/'; wm_not_read_flag = .true.
 
-  ! fast forward time to time index at simStart and save iTime and modJulday
+  ! fast forward time to time index at simStart
   ixloop: do ix = 1, size(infileinfo_data) !loop over number of file
    !print*, 'runoff file', infileinfo_data(ix)%iTimebound(1), infileinfo_data(ix)%iTimebound(2)
    if ((iTime >= infileinfo_data(ix)%iTimebound(1)).and.(iTime <= infileinfo_data(ix)%iTimebound(2))) then
@@ -267,7 +267,7 @@ CONTAINS
 
   !print*, 'itime, itime_local', iTime, iTime_local
 
-  ! fast forward time to time index at simStart and save iTime and modJulday for water management nc file
+  ! fast forward time to time index at simStart for water management nc file
   if ((is_flux_wm).or.(is_vol_wm.and.is_lake_sim)) then
     iyloop: do ix = 1, size(infileinfo_data_wm) !loop over number of file
      !print*, 'wm file', infileinfo_data_wm(ix)%iTimebound(1), infileinfo_data_wm(ix)%iTimebound(2)
