@@ -51,6 +51,7 @@ CONTAINS
     USE globalData,      ONLY: nHRU_mainstem               ! number of mainstem HRUs
     USE init_model_data, ONLY: init_ntopo_data, init_model !
     USE init_model_data, ONLY: init_state_data
+    use RtmTimeManager,  ONLY: init_time
     USE mpi_routine,     ONLY: pass_global_data
 
     !ARGUMENTS:
@@ -69,12 +70,9 @@ CONTAINS
     !-------------------------------------------------------
     ! mizuRoute setup
     !-------------------------------------------------------
-    ! 1. populate meta data
+    ! 1. xxxx
     ! 2. read control file
     ! 3. read routing parameters
-
-!  call init_model(cfile_name, ierr, cmessage)
-!  if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
     ! If routing time step dt [sec] and coupling time step coupling_period [day] is different, match dt to coupling_period.
     if (dt/=coupling_period) then
@@ -83,6 +81,10 @@ CONTAINS
       endif
       dt = coupling_period*60.0*60.0*24.0
     endif
+
+    ! mizuRoute time initialize based on time from coupler
+    call init_time(ierr, cmessage)
+    if(ierr/=0) then; cmessage = trim(subname)//trim(cmessage); return; endif
 
     ! Obtain restart file if appropriate
     if ((nsrest == nsrContinue) .or. &
