@@ -1,9 +1,9 @@
 MODULE RtmTimeManager
 
   USE ESMF
-  USE shr_kind_mod, only: r8 => shr_kind_r8
-  USE shr_sys_mod , only: shr_sys_abort, shr_sys_flush
-  USE public_var  , only: iulog
+  USE shr_kind_mod, ONLY: r8 => shr_kind_r8
+  USE shr_sys_mod , ONLY: shr_sys_abort, shr_sys_flush
+  USE public_var  , ONLY: iulog
   USE public_var  , ONLY: integerMissing
   USE public_var  , ONLY: realMissing
   USE globalData  , ONLY: masterproc
@@ -39,24 +39,19 @@ CONTAINS
 
   ! Initialize mizuRoute time based on coupler imported clock
 
-  ! subroutines:
-  USE process_time_module, ONLY: process_time  ! process time information
   ! Shared data
-  USE dataTypes,  ONLY: time                   ! time data type
   USE public_var, ONLY: time_units             ! time units (seconds, hours, or days)
   USE public_var, ONLY: simStart               ! date string defining the start of the simulation
   USE public_var, ONLY: simEnd                 ! date string defining the end of the simulation
   USE public_var, ONLY: calendar               ! calendar name
+  USE public_var, ONLY: dt                     ! calendar name
+  USE public_var, ONLY: secprday               ! number of second per a day
   USE globalData, ONLY: timeVar                ! time variables (unit given by runoff data)
-  USE globalData, ONLY: roJulday               !
   USE globalData, ONLY: iTime                  ! time index at simulation time step
-  USE globalData, ONLY: refJulday              ! julian day: reference
-  USE globalData, ONLY: roJulday               ! julian day: runoff input time
-  USE globalData, ONLY: startJulday            ! julian day: start of routing simulation
-  USE globalData, ONLY: endJulday              ! julian day: end of routing simulation
-  USE globalData, ONLY: modJulday              ! julian day: at model time step
-  USE globalData, ONLY: modTime                ! model time data (yyyy:mm:dd:hh:mm:ss)
-
+  USE globalData, ONLY: begDatetime            ! datetime: start of routing simulation
+  USE globalData, ONLY: endDatetime            ! datetime: end of routing simulation
+  USE globalData, ONLY: simDatetime            ! current (0) and previous (1) simulation datetime (yyyy:mm:dd:hh:mm:ss)
+  USE datetime_data, ONLY: datetime            ! datetime object definition
   implicit none
 
   ! input:
@@ -66,7 +61,13 @@ CONTAINS
   ! local variable
   integer                                  :: nTime
   integer                                  :: ix
-  real(r8)                                 :: convTime2Days
+  real(r8)                                 :: dt_day           ! simulation time step in day
+  real(r8)                                 :: timePerDay       ! number of time-unit per a day. time-unit is from t_unit
+  real(r8)                                 :: secPerTime       ! number of sec per time-unit. time-unit is from t_unit
+  real(r8)                                 :: refJulday        ! reference julian day
+  real(r8)                                 :: begJulday        ! simulation start julian day
+  real(r8)                                 :: endJulday        ! simulation end julian day
+  type(datetime)                           :: refDatetime      ! datetime: reference
   character(len=256)                       :: t_unit           ! unit of time
   character(len=256)                       :: cmessage         ! error message of downwind routine
 
@@ -76,63 +77,68 @@ CONTAINS
   ! get the time multiplier needed to convert time to units of days
   t_unit =  time_units(1:index(time_units,' '))
   select case( trim(t_unit)  )
-    case('seconds','second','sec','s'); convTime2Days=86400._r8
-    case('minutes','minute','min');     convTime2Days=1440._r8
-    case('hours','hour','hr','h');      convTime2Days=24._r8
-    case('days','day','d');             convTime2Days=1._r8
+    case('seconds','second','sec','s'); secPerTime=1._r8;     timePerDay=86400._r8
+    case('minutes','minute','min');     secPerTime=60._r8;    timePerDay=1440._r8
+    case('hours','hour','hr','h');      secPerTime=3600._r8;  timePerDay=24._r8
+    case('days','day','d');             secPerTime=86400._r8; timePerDay=1._r8
     case default
       ierr=20; message=trim(message)//'<time_units>= '//trim(time_units)//': <time_units> must be seconds, minutes, hours or days.'; return
   end select
 
-  ! extract time information from the control information
-  call process_time(trim(time_units), calendar, refJulday,   ierr, cmessage)
-  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [refJulday]'; return; endif
-  call process_time(trim(simStart),calendar, startJulday, ierr, cmessage)
-  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [startJulday]'; return; endif
-  call process_time(trim(simEnd),  calendar, endJulday,   ierr, cmessage)
-  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endJulday]'; return; endif
+  dt_day = dt/secprday  ! dt [sec] -> dt_day
 
-  nTime = int((endJulday - refJulday)*convTime2Days) + 1
+  ! obtain reference, simulation start and end datetimes
+  call refDatetime%str2datetime(time_units, ierr, cmessage)
+  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [refDatetime]'; return; endif
 
-  allocate(timeVar(nTime), roJulday(nTime), stat=ierr)
+  call begDatetime%str2datetime(simStart, ierr, cmessage)
+  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [startDatetime]'; return; endif
+
+  call endDatetime%str2datetime(simEnd, ierr, cmessage)
+  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endDatetime]'; return; endif
+
+  ! obtain reference, simulation start and end julian days
+  call refDatetime%julianday(calendar, refJulday, ierr, cmessage)
+  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [refDatetime]'; return; endif
+
+  call begDatetime%julianday(calendar, begJulday, ierr, cmessage)
+  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [begDatetime]'; return; endif
+
+  call endDatetime%julianday(calendar, endJulday, ierr, cmessage)
+  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [begDatetime]'; return; endif
+
+  ! number of time step from reference time to simulation end time
+  nTime = int(endJulday - begJulday/dt_day) + 1
+
+  ! Create timeVar array: starting with 0 and increment of model time step in model unit (t_unit)
+  allocate(timeVar(nTime), stat=ierr)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! Create timeVar array: starting with 0 and increment of model time step in model unit
-  timeVar(1) = (startJulday - refJulday)*convTime2Days
+  timeVar(1) = (begJulday - refJulday)*timePerDay
   if (nTime>1) then
     do ix = 2, nTime
-      timeVar(ix) = timeVar(ix-1) + convTime2Days
+      timeVar(ix) = timeVar(ix-1) + dt/secPerTime
     end do
   end if
 
-  do ix = 1, nTime
-    roJulday(ix) = refJulday + timeVar(ix)/convTime2Days
-  end do
-
   ! check that the dates are aligned
-  if(endJulday<startJulday) then; ierr=20; message=trim(message)//'simulation end is before simulation start'; return; endif
+  if(endDatetime < begDatetime) then; ierr=20; message=trim(message)//'simulation end is before simulation start'; return; endif
 
-  ! fast forward time to time index at simStart and save iTime and modJulday
-  ! need to convert time unit in timeVar to day
-  do ix = 1, nTime
-    modJulday = refJulday + timeVar(ix)/convTime2Days
-    if( modJulday < startJulday ) cycle
-    exit
-  enddo
-  iTime = ix
+  ! initialize model time at first time step (1) and previous time step (0)
+  iTime = 1
+  simDatetime(0) = datetime(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
+  simDatetime(1) = begDatetime
 
   if (masterproc .and. debug_write) then
-    write(iulog,*) 'simStart (startJulDay) = ', trim(simStart),'(',startJulday,')'
-    write(iulog,*) 'simEnd   (endJulDay)   = ', trim(simEnd),  '(',endJulday,  ')'
-    write(iulog,*) 'refJulDay              = ', refJulday
-    write(iulog,*) 'modJulDay              = ', modJulday
-    write(iulog,*) 'nTime                  = ', nTime
-    write(iulog,*) 'iTime, timeVar(iTime)  = ', iTime, timeVar(iTime)
+    write(iulog,*) 'simStart datetime     = ', trim(simStart)
+    write(iulog,*) 'simEnd   datetime     = ', trim(simEnd)
+    write(iulog,*) 'reference datetime    = ', refDatetime%year(), refDatetime%month(), refDatetime%day(), refDatetime%hour(), refDatetime%minute(), refDatetime%sec()
+    write(iulog,*) 'simDatetime           = ', simDatetime(1)%year(), simDatetime(1)%month(), simDatetime(1)%day(), simDatetime(1)%hour(), simDatetime(1)%minute(), simDatetime(1)%sec()
+    write(iulog,*) 'dt [sec]              = ', dt
+    write(iulog,*) 'nTime                 = ', nTime
+    write(iulog,*) 'iTime, timeVar(iTime) = ', iTime, timeVar(iTime)
     call shr_sys_flush(iulog)
   end if
-
-  ! initialize previous model time
-  modTime(0) = time(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
 
  END SUBROUTINE init_time
 

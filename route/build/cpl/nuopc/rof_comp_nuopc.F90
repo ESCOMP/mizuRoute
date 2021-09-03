@@ -28,7 +28,7 @@ module rof_comp_nuopc
   use init_model_data       , only : get_mpi_omp, init_model
   use RunoffMod             , only : rtmCTL
   use RtmMod                , only : route_ini, route_run
-  use RtmTimeManager        , only : init_time, shr_timeStr
+  use RtmTimeManager        , only : shr_timeStr
   USE RtmVar                , ONLY : cfile_name
   use RtmVar                , only : inst_index, inst_suffix, inst_name, RtmVarSet
   use RtmVar                , only : nsrStartup, nsrContinue, nsrBranch
@@ -469,10 +469,6 @@ $  call omp_set_num_threads(nthrds)
     end if
 
     time_units = 'days since '//trim(simRef)
-
-    ! mizuRoute time initialize based on time from coupler
-    call init_time(ierr, cmessage)
-    if(ierr/=0) then; cmessage = trim(subname)//trim(cmessage); return; endif
 
     !----------------------
     ! Read namelist, grid and surface data
