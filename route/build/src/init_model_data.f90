@@ -48,8 +48,8 @@ CONTAINS
   USE globalData, ONLY: pid          ! procs id (rank)
   USE globalData, ONLY: nThreads     ! number of OMP threads
   ! subroutines: populate metadata
-  USE mpi_mod, ONLY: shr_mpi_commsize
-  USE mpi_mod, ONLY: shr_mpi_commrank
+  USE mpi_utils, ONLY: shr_mpi_commsize
+  USE mpi_utils, ONLY: shr_mpi_commrank
 
   implicit none
 
@@ -155,10 +155,10 @@ CONTAINS
   USE globalData,  ONLY: basinID                ! HRU id vector
   USE globalData,  ONLY: reachID                ! reach ID vector
   ! external subroutines
-  USE model_utils, ONLY: model_finalize
-  USE mpi_routine, ONLY: comm_ntopo_data        ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
-  USE process_ntopo, ONLY: put_data_struct      ! populate NETOPO and RPARAM data structure
-  USE mpi_mod      , ONLY: shr_mpi_initialized  ! If MPI is being used
+  USE model_utils,          ONLY: model_finalize
+  USE mpi_process,          ONLY: comm_ntopo_data          ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
+  USE process_ntopo,        ONLY: put_data_struct          ! populate NETOPO and RPARAM data structure
+  USE mpi_utils,            ONLY: shr_mpi_initialized      ! If MPI is being used
   USE domain_decomposition, ONLY: mpi_domain_decomposition ! domain decomposition for mpi
 
    implicit none
@@ -307,7 +307,7 @@ CONTAINS
 
   ! external routines
   USE read_restart,      ONLY: read_state_nc     ! read netcdf state output file
-  USE mpi_routine,       ONLY: mpi_restart
+  USE mpi_process,       ONLY: mpi_restart
   ! shared data
   USE public_var, ONLY: dt                ! simulation time step (seconds)
   USE public_var, ONLY: routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
@@ -434,7 +434,7 @@ CONTAINS
   USE read_streamSeg,       ONLY: getData                  ! get the ancillary data
   USE write_streamSeg,      ONLY: writeData                ! write the ancillary data
   USE process_ntopo,        ONLY: check_river_properties   ! check if river network data is physically valid
-  USE io_netcdf,            ONLY: get_var_dims
+  USE ncio_utils,           ONLY: get_var_dims
   USE process_ntopo,        ONLY: augment_ntopo            ! compute all the additional network topology (only compute option = on)
 
   implicit none

@@ -1,4 +1,4 @@
-MODULE mpi_routine
+MODULE mpi_process
 
 USE mpi
 
@@ -30,11 +30,11 @@ USE perf_mod,          ONLY: t_startf       ! timing start
 USE perf_mod,          ONLY: t_stopf        ! timing stop
 
 ! MPI utility
-USE mpi_mod, ONLY: shr_mpi_bcast
-USE mpi_mod, ONLY: shr_mpi_gatherV
-USE mpi_mod, ONLY: shr_mpi_scatterV
-USE mpi_mod, ONLY: shr_mpi_allgather
-USE mpi_mod, ONLY: shr_mpi_barrier
+USE mpi_utils, ONLY: shr_mpi_bcast
+USE mpi_utils, ONLY: shr_mpi_gatherV
+USE mpi_utils, ONLY: shr_mpi_scatterV
+USE mpi_utils, ONLY: shr_mpi_allgather
+USE mpi_utils, ONLY: shr_mpi_barrier
 
 implicit none
 
@@ -104,7 +104,7 @@ contains
   USE globalData,          ONLY: local_ix_comm            ! local reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
   USE globalData,          ONLY: reachID
   USE globalData,          ONLY: basinID
-  USE alloc_data,          ONLY: alloc_struct
+  USE allocation,          ONLY: alloc_struct
   USE process_ntopo,       ONLY: augment_ntopo            ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,       ONLY: put_data_struct          !
   USE domain_decomposition,ONLY: omp_domain_decomposition ! domain decomposition for omp
@@ -2822,5 +2822,4 @@ contains
 
  end subroutine pass_global_data
 
-end module mpi_routine
-
+END MODULE mpi_process

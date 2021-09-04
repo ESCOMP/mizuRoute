@@ -43,9 +43,9 @@ CONTAINS
   USE globalData,  ONLY:wm_data                 ! data strcuture for water management
   USE globalData,  ONLY:remap_data              ! data structure to remap data
   ! subroutines
-  USE read_runoff, ONLY:read_runoff_data        ! read runoff value into runoff_data data strucuture
-  USE remapping,   ONLY:remap_runoff            ! mapping HM runoff to river network HRU runoff (HM_HRU /= RN_HRU)
-  USE remapping,   ONLY:sort_flux               ! mapping runoff, fluxes based on order of HRUs, Reaches in the network
+  USE read_runoff,          ONLY: read_runoff_data ! read runoff value into runoff_data data strucuture
+  USE process_remap_module, ONLY: remap_runoff     ! mapping HM runoff to river network HRU runoff (HM_HRU /= RN_HRU)
+  USE process_remap_module, ONLY: sort_flux        ! mapping runoff, fluxes based on order of HRUs, Reaches in the network
 
   implicit none
   ! input variables: none

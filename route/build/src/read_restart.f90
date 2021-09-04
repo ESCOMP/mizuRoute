@@ -22,9 +22,9 @@ CONTAINS
                           T0, T1,          &   ! output: start and end time [sec]
                           ierr, message)       ! Output: error control
  ! External module
- USE io_netcdf, ONLY: get_nc, &
-                      get_nc_dim_len
- USE dataTypes, ONLY: states
+ USE ncio_utils, ONLY: get_nc, &
+                       get_nc_dim_len
+ USE dataTypes,  ONLY: states
  ! meta data
  USE var_lookup, ONLY: ixStateDims, nStateDims
  USE globalData, ONLY: meta_stateDims            ! dimension for state variables

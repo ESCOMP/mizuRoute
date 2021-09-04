@@ -1,4 +1,4 @@
-module alloc_data
+MODULE allocation
 
 ! data types
 USE nrtype,    ONLY: i4b,dp,lgt
@@ -160,4 +160,4 @@ contains
 
  end subroutine alloc_struct
 
-end module alloc_data
+END MODULE allocation
