@@ -12,7 +12,7 @@ USE dataTypes, ONLY: runoff                  ! runoff data type
 USE dataTypes, ONLY: subbasin_omp            ! mainstem+tributary data structures
 
 ! mapping HRU runoff to reach
-USE remapping, ONLY: basin2reach
+USE process_remap_module, ONLY: basin2reach
 
 ! subroutines: basin routing
 USE basinUH_module, ONLY: IRF_route_basin    ! perform UH convolution for basin routing

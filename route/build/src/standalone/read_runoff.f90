@@ -1,13 +1,13 @@
-module read_runoff
+MODULE read_runoff
 
 USE netcdf
 USE nrtype
 USE public_var
-USE io_netcdf, only:open_nc
-USE io_netcdf, only:get_nc
-USE io_netcdf, only:get_var_attr
-USE io_netcdf, only:check_attr
-USE io_netcdf, only:get_nc_dim_len
+USE ncio_utils, ONLY: open_nc
+USE ncio_utils, ONLY: get_nc
+USE ncio_utils, ONLY: get_var_attr
+USE ncio_utils, ONLY: check_attr
+USE ncio_utils, ONLY: get_nc_dim_len
 
 
 implicit none
@@ -414,4 +414,4 @@ contains
 
  end subroutine read_2D_runoff
 
-end module read_runoff
+END MODULE read_runoff

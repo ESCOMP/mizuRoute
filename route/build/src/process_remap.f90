@@ -1,4 +1,4 @@
-module remapping
+MODULE process_remap_module
 
   ! data types
   USE nrtype
@@ -12,15 +12,17 @@ module remapping
   USE dataTypes,  ONLY: RCHTOPO             ! Network topology
 
   ! look-up variables
-  USE var_lookup, ONLY:ixHRU,    nVarsHRU     ! index of variables for the HRUs
-  USE var_lookup, ONLY:ixSEG,    nVarsSEG     ! index of variables for the stream segments
-  USE var_lookup, ONLY:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
-  USE var_lookup, ONLY:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
+  USE var_lookup, ONLY: ixHRU,    nVarsHRU     ! index of variables for the HRUs
+  USE var_lookup, ONLY: ixSEG,    nVarsSEG     ! index of variables for the stream segments
+  USE var_lookup, ONLY: ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
+  USE var_lookup, ONLY: ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
 
   ! global data
-  USE public_var, ONLY:iulog                  ! i/o logical unit number
-  USE public_var, ONLY:runoffMin, negRunoffTol, integerMissing, realMissing
-  USE globalData, ONLY:time_conv,length_conv  ! conversion factors
+  USE public_var, ONLY: iulog                  ! i/o logical unit number
+  USE public_var, ONLY: runoffMin
+  USE public_var, ONLY: negRunoffTol
+  USE public_var, ONLY: integerMissing, realMissing
+  USE globalData, ONLY: time_conv, length_conv ! conversion factors
 
   implicit none
   private
@@ -28,12 +30,12 @@ module remapping
   public ::sort_flux
   public ::basin2reach
 
-  contains
+  CONTAINS
 
   ! *****
   ! * public subroutine: used to map runoff data (on diferent grids/polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
-  subroutine remap_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
+  SUBROUTINE remap_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
   implicit none
   ! input
   type(runoff)         , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
@@ -55,13 +57,13 @@ module remapping
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
-  end subroutine remap_runoff
+  END SUBROUTINE remap_runoff
 
   ! *****
   ! private subroutine: used to map runoff data (on diferent polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
   ! case 1: hru in runoff layer is grid (stored in 2-dimension array)
-  subroutine remap_2D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
+  SUBROUTINE remap_2D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
   implicit none
   ! input
   type(runoff)         , intent(in)  :: runoff_data_in      ! runoff for one time step for all HRUs
@@ -153,13 +155,13 @@ module remapping
 
   end do   ! looping through basins in the mapping layer
 
-  end subroutine remap_2D_runoff
+  END SUBROUTINE remap_2D_runoff
 
   ! *****
   ! private subroutine: used to map runoff data (on diferent polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
   ! case 2: hru in runoff layer is hru polygon different than river network layer (stored in 1-dimension array)
-  subroutine remap_1D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
+  SUBROUTINE remap_1D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
   implicit none
   ! input
   type(runoff)         , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
@@ -257,14 +259,14 @@ module remapping
 
   end do   ! looping through basins in the mapping layer
 
-  end subroutine remap_1D_runoff
+  END SUBROUTINE remap_1D_runoff
 
   ! *****
   ! public subroutine: assign (sort) fluxes and states from a given ID array to another ID array
   ! ***************************************************************************************************************
   ! case 3: sort a given input flux and its ID based on a second given ID array,
   ! hru in runoff layer is hru polygon identical to river network layer (stored in 1-dimension array)
-  subroutine sort_flux  (ID_in,            & ! input: the array of ids for HRU/seg
+  SUBROUTINE sort_flux  (ID_in,            & ! input: the array of ids for HRU/seg
                          IX_in,            & ! input: the array of location of ids for HRU/seg
                          flux_in,          & ! input: the array of input fluxes, should be the same size as ID_in
                          sorted_flux,      & ! inout: sorted input states and fluxes based on hru/seg in network topology
@@ -305,12 +307,12 @@ module remapping
   ! removing the negative values and also the realmissing
   where (sorted_flux <0._dp) sorted_flux = 0._dp
 
-  end subroutine sort_flux
+  END SUBROUTINE sort_flux
 
   ! *****
   ! * public subroutine: used to obtain streamflow for each stream segment...
   ! *************************************************************************
-  subroutine basin2reach(&
+  SUBROUTINE basin2reach(&
                          ! input
                          basinRunoff,       & ! basin runoff (m/s)
                          NETOPO_in,         & ! reach topology data structure
@@ -407,7 +409,7 @@ module remapping
 
   end do  ! looping through stream segments
 
-  end subroutine basin2reach
+  END SUBROUTINE basin2reach
 
 
 !   ! *****
@@ -485,4 +487,4 @@ module remapping
 !
 !   end subroutine basin2reach_old
 
-end module remapping
+END MODULE process_remap_module

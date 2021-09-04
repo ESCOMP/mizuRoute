@@ -52,7 +52,7 @@ CONTAINS
     USE init_model_data, ONLY: init_ntopo_data, init_model !
     USE init_model_data, ONLY: init_state_data
     use RtmTimeManager,  ONLY: init_time
-    USE mpi_routine,     ONLY: pass_global_data
+    USE mpi_process,     ONLY: pass_global_data
 
     !ARGUMENTS:
     implicit none
@@ -245,7 +245,7 @@ CONTAINS
     USE globalData,          ONLY: basinRunoff_main ! mainstem only HRU runoff
     USE globalData,          ONLY: basinRunoff_trib ! tributary only HRU runoff
     USE write_simoutput_pio, ONLY: main_new_file    !
-    USE mpi_routine,         ONLY: mpi_route        ! MPI routing call
+    USE mpi_process,         ONLY: mpi_route        ! MPI routing call
     USE write_simoutput_pio, ONLY: output
     USE write_restart_pio,   ONLY: restart_output
     USE init_model_data,     ONLY: update_time

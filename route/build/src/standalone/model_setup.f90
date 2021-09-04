@@ -35,7 +35,7 @@ CONTAINS
   ! shared data used
   USE globalData, ONLY: mpicom_route ! communicator id
   ! subroutines: populate metadata
-  USE mpi_mod, ONLY: shr_mpi_init
+  USE mpi_utils,  ONLY: shr_mpi_init
 
   implicit none
 
@@ -64,7 +64,7 @@ CONTAINS
 
    USE globalData,  ONLY: isFileOpen             ! file open/close status
    ! external subroutines
-   USE mpi_routine, ONLY: pass_global_data       ! mpi globaldata copy to slave proc
+   USE mpi_process, ONLY: pass_global_data       ! mpi globaldata copy to slave proc
 
    IMPLICIT NONE
    integer(i4b),              intent(in)    :: pid              ! proc id
@@ -189,9 +189,9 @@ CONTAINS
   ! subroutines
   USE ascii_util_module,   ONLY: file_open      ! open file (performs a few checks as well)
   USE ascii_util_module,   ONLY: get_vlines     ! get a list of character strings from non-comment lines
-  USE io_netcdf,           ONLY: get_nc         ! get the
-  USE io_netcdf,           ONLY: get_var_attr   ! get the attributes interface
-  USE io_netcdf,           ONLY: get_nc_dim_len ! get the nc dimension length
+  USE ncio_utils,          ONLY: get_nc         ! get the
+  USE ncio_utils,          ONLY: get_var_attr   ! get the attributes interface
+  USE ncio_utils,          ONLY: get_nc_dim_len ! get the nc dimension length
   ! Shared data
   USE public_var,          ONLY: time_units     ! get the time units from control file and replace if not provided in nc files
   USE public_var,          ONLY: calendar       ! get the calendar from control file and replace if not provided in nc files
