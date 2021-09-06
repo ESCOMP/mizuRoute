@@ -143,7 +143,6 @@ CONTAINS
  integer(i4b)                             :: iUps           ! upstream reach index
  integer(i4b)                             :: iRch_ups       ! index of upstream reach in NETOPO
  character(len=strLen)                    :: fmt1,fmt2      ! format string
- character(len=strLen)                    :: cmessage       ! error message from subroutine
 
  ierr=0; message='accum_qupstream/'
 

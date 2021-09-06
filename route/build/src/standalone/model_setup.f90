@@ -326,7 +326,6 @@ CONTAINS
   USE dataTypes, ONLY: infileinfo               ! the data type for storing the infromation of the nc files and its attributes
 
   ! public data
-  USE public_var, ONLY: time_units    ! time units (seconds, hours, or days)
   USE public_var, ONLY: dt            ! simulation time step in seconds
   USE public_var, ONLY: secprday      ! conversion of steps in days to seconds
 
@@ -446,7 +445,6 @@ CONTAINS
   real(dp), allocatable                    :: roJulday(:)         ! julian day in runoff data
   real(dp), allocatable                    :: roJulday_diff(:)    ! the difference of two concequative elements in roJulyday
   real(dp)                                 :: refJulday           ! reference julian day in runoff input file
-  real(dp)                                 :: refJulday_wm        ! reference julian day in water management input file
   real(dp), allocatable                    :: roJulday_wm(:)      ! Julian day of concatenated netCDF for water management
   real(dp), allocatable                    :: roJulday_diff_wm(:) ! the difference of two concequative elements in roJulyday_wm
   character(len=strLen)                    :: cmessage            ! error message of downwind routine

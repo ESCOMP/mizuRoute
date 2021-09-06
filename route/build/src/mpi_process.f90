@@ -1472,7 +1472,6 @@ contains
   integer(i4b),           intent(out)     :: ierr                      ! error code
   character(len=strLen),  intent(out)     :: message                   ! error message
   ! local variables
-  integer(i4b)                            :: iHru,jHru                 ! loop indices
   real(dp)                                :: basinRunoff_local(nHRU)   ! temporal basin runoff (m/s) for whole domain
   real(dp)                                :: basinEvapo_local(nHRU)    ! temporal basin evaporation (m/s) for whole domain
   real(dp)                                :: basinPrecip_local(nHRU)   ! temporal basin precipitation (m/s) for whole domain
@@ -1601,7 +1600,6 @@ contains
   integer(i4b),           intent(out) :: ierr                            ! error code
   character(len=strLen),  intent(out) :: message                         ! error message
   ! local variables
-  integer(i4b)                        :: iHru,jHru                       ! loop indices
   real(dp)                            :: Rch_flux_local(nRch)            ! temporal reach flux (m3/s) for whole domain
   real(dp)                            :: Rch_vol_local(nRch)             ! temporal reach (lake) volume (m3) for whole domain
   character(len=strLen)               :: cmessage                        ! error message from a subroutine
