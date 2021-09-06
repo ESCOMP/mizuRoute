@@ -35,8 +35,6 @@ CONTAINS
   USE public_var,  ONLY:is_vol_wm               ! logical water management components target volume should be read
   USE public_var,  ONLY:suppress_runoff         ! logical suppress the read runoff to zero (0)
   USE public_var,  ONLY:suppress_P_Ep           ! logical suppress the read precipitation/evaporation to zero (0)
-  USE globalData,  ONLY:basinID                 ! basin ID
-  USE globalData,  ONLY:reachID                 ! reach ID
   USE globalData,  ONLY:nHRU                    ! number of routing sub-basin
   USE globalData,  ONLY:nRch                    ! number of routing seg (reaches and lakes)
   USE globalData,  ONLY:runoff_data             ! data structure to hru runoff data

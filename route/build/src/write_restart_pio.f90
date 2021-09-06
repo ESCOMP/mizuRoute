@@ -311,7 +311,6 @@ CONTAINS
  call def_var(pioFileDescState, 'reachID', ncd_int, ierr, cmessage, pioDimId=[dim_seg], vdesc='reach ID',  vunit='-' )
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- !call def_var(pioFileDescState, 'restart_time', ncd_char, ierr, cmessage, vdesc='restarting time in yyyy-mm-dd hh:mm:sec')
  call def_var(pioFileDescState, 'restart_time', ncd_float, ierr, cmessage, vdesc='resatart time', vunit=trim(time_units), vcal=calendar)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 

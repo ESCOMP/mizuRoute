@@ -118,7 +118,6 @@ CONTAINS
   type(states)                  :: state          ! temporal state data structures
   integer(i4b)                  :: iVar,iens,iSeg ! loop indices for variables, ensembles, reaches respectively
   integer(i4b)                  :: jSeg           ! sorted index for reaches
-  integer(i4b)                  :: ntdh           ! dimension size
 
   ! initialize error control
   ierr=0; message1='read_basinQ_state/'
