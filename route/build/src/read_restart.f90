@@ -44,23 +44,22 @@ CONTAINS
  ! local variables
  real(dp)                      :: TB(2)                ! 2 element-time bound vector
  integer(i4b)                  :: nSeg,nens            ! dimenion sizes
- integer(i4b)                  :: nTime,ntbound        ! dimenion sizes
- integer(i4b)                  :: ixDim_common(4)      ! custom dimension ID array
+ integer(i4b)                  :: ntbound              ! dimenion sizes
+ integer(i4b)                  :: ixDim_common(3)      ! custom dimension ID array
  integer(i4b)                  :: jDim                 ! index loops for dimension
  character(len=strLen)         :: cmessage             ! error message of downwind routine
 
  ierr=0; message='read_state_nc/'
 
  ! get Dimension sizes
- ! For common dimension/variables - seg id, time, time-bound -----------
- ixDim_common = (/ixStateDims%seg, ixStateDims%ens, ixStateDims%time, ixStateDims%tbound/)
+ ! For common dimension/variables - seg id, time-bound -----------
+ ixDim_common = (/ixStateDims%seg, ixStateDims%ens, ixStateDims%tbound/)
 
  do jDim=1,size(ixDim_common)
    associate (ixDim_tmp => ixDim_common(jDim))
    select case(ixDim_tmp)
     case(ixStateDims%seg);     call get_nc_dim_len(fname, trim(meta_stateDims(ixDim_tmp)%dimName), nSeg,    ierr, cmessage)
     case(ixStateDims%ens);     call get_nc_dim_len(fname, trim(meta_stateDims(ixDim_tmp)%dimName), nens,    ierr, cmessage)
-    case(ixStateDims%time);    call get_nc_dim_len(fname, trim(meta_stateDims(ixDim_tmp)%dimName), nTime,   ierr, cmessage)
     case(ixStateDims%tbound);  call get_nc_dim_len(fname, trim(meta_stateDims(ixDim_tmp)%dimName), ntbound, ierr, cmessage)
     case default; ierr=20; message=trim(message)//'unable to identify dimension name index'; return
    end select
