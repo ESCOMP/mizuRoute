@@ -84,7 +84,6 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE new_file_alarm(newFileAlarm, ierr, message)
 
-   USE public_var,        ONLY: calendar
    USE public_var,        ONLY: newFileFrequency  ! frequency for new output files (day, month, annual, single)
    USE globalData,        ONLY: simDatetime       ! previous and current model time
 
@@ -93,8 +92,6 @@ CONTAINS
    logical(lgt),   intent(out)          :: newFileAlarm     ! logical to make alarm for creating new output file
    integer(i4b),   intent(out)          :: ierr             ! error code
    character(*),   intent(out)          :: message          ! error message
-   ! local variables
-   character(len=strLen)                :: cmessage         ! error message of downwind routine
 
    ierr=0; message='new_file_alarm/'
 
@@ -437,16 +434,17 @@ CONTAINS
  ! define coordinate variable for time
  call def_var(pioFileDesc,                                &                                        ! pio file descriptor
              trim(meta_qDims(ixQdims%time)%dimName),      &                                        ! variable name
-             [meta_qDims(ixQdims%time)%dimId], ncd_float, &                                        ! dimension array and type
+             ncd_float,                                   &                                        ! variable type
              ierr, cmessage,                              &                                        ! error handle
+             pioDimId=[meta_qDims(ixQdims%time)%dimId],   &                                        ! dimension array
              vdesc=trim(meta_qDims(ixQdims%time)%dimName), vunit=trim(units_time), vcal=calendar)  ! optional attributes
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! define hru ID and reach ID variables
- call def_var(pioFileDesc, 'basinID', [meta_qDims(ixQdims%hru)%dimId], ncd_int, ierr, cmessage, vdesc='basin ID', vunit='-')
+ call def_var(pioFileDesc, 'basinID', ncd_int, ierr, cmessage, pioDimId=[meta_qDims(ixQdims%hru)%dimId], vdesc='basin ID', vunit='-')
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call def_var(pioFileDesc, 'reachID', [meta_qDims(ixQdims%seg)%dimId], ncd_int, ierr, cmessage, vdesc='reach ID', vunit='-')
+ call def_var(pioFileDesc, 'reachID', ncd_int, ierr, cmessage, pioDimId=[meta_qDims(ixQdims%seg)%dimId], vdesc='reach ID', vunit='-')
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! define flux variables
@@ -467,8 +465,9 @@ CONTAINS
   ! define variable
   call def_var(pioFileDesc,            &                 ! pio file descriptor
               meta_rflx(iVar)%varName, &                 ! variable name
-              dim_array, ncd_float,    &                 ! dimension array and type
+              ncd_float,               &                 ! dimension array and type
               ierr, cmessage,          &                 ! error handling
+              pioDimId=dim_array,      &                 ! dimension id
               vdesc=meta_rflx(iVar)%varDesc, vunit=meta_rflx(iVar)%varUnit)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
