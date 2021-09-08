@@ -28,6 +28,7 @@ module public_var
   real(dp),    parameter,public   :: min_slope=1.e-6_dp     ! minimum slope
   real(dp),    parameter,public   :: runoffMin=1.e-15_dp    ! minimum runoff from each basin
   real(dp),    parameter,public   :: negRunoffTol=-1.e-3_dp ! nagative runoff tolerance
+  real(dp),    parameter,public   :: lakeWBTol=1.e-3_dp     ! lake water balance tolerance
 
   ! routing related constants
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
@@ -57,8 +58,8 @@ module public_var
   ! ---------- named variables ----------------------------------------------------------------------
 
   ! true/false
-  integer(i4b), parameter, public :: true=1001                  ! true
-  integer(i4b), parameter, public :: false=1002                 ! false
+  integer(i4b), parameter, public :: true=1                     ! true
+  integer(i4b), parameter, public :: false=0                    ! false
 
   ! variable types
   integer(i4b), parameter, public :: varType_integer   = 1001   ! named variable for an integer
@@ -93,8 +94,12 @@ module public_var
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
   integer(i4b)         ,public    :: doesAccumRunoff      = 1               ! option to delayed runoff accumulation over all the upstream reaches
   logical(lgt),public             :: is_lake_sim          = .false.         ! logical if lakes are activated in simulation
+  logical(lgt),public             :: lake_model_D03       = .false.         ! logical if Doll 2003 model is used, specify as 1 in lake_model_type in network topology
+  logical(lgt),public             :: lake_model_H06       = .false.         ! logical if Hanasaki 2006 model is used, specify as 2 in lake_model_type in network topology
   logical(lgt),public             :: is_flux_wm           = .false.         ! logical if flow is added or removed from a reach
   logical(lgt),public             :: is_vol_wm            = .false.         ! logical if target volume is considered for a lake
+  logical(lgt),public             :: suppress_runoff      = .false.         ! logical to suppress the read runoff to zero(0)
+  logical(lgt),public             :: suppress_P_Ep        = .false.         ! logical to suppress evaporation and precipitation to zero(0)
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
   logical(lgt)         ,public    :: ntopAugmentMode      = .false.         ! option for river network augmentation mode. terminate the program after writing augmented ntopo.

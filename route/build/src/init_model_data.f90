@@ -304,7 +304,7 @@ CONTAINS
   ! shared data
   USE public_var, ONLY: dt                ! simulation time step (seconds)
   USE public_var, ONLY: routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-  USE public_var, ONLY: output_dir        ! directory containing output data
+  USE public_var, ONLY: restart_dir       ! directory containing output data
   USE public_var, ONLY: fname_state_in    ! name of state input file
   USE public_var, ONLY: kinematicWaveEuler!
   USE globalData, ONLY: masterproc        ! root proc logical
@@ -338,7 +338,7 @@ CONTAINS
   if (trim(fname_state_in)/=charMissing) then
 
    if (masterproc) then
-    call read_state_nc(trim(output_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
+    call read_state_nc(trim(restart_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! time bound [sec] is at previous time step, so need to add dt for curent time step
@@ -358,9 +358,12 @@ CONTAINS
    if (masterproc) then
 
      if (nRch_mainstem > 0) then
-       RCHFLX_main(:,:)%BASIN_QI = 0._dp
-       RCHFLX_main(:,:)%BASIN_QR(0) = 0._dp
-       RCHFLX_main(:,:)%BASIN_QR(1) = 0._dp
+       RCHFLX_main(:,:)%BASIN_QI     = 0._dp
+       RCHFLX_main(:,:)%BASIN_QR(0)  = 0._dp
+       RCHFLX_main(:,:)%BASIN_QR(1)  = 0._dp
+       RCHFLX_main(:,:)%REACH_Q      = 0._dp    ! Initializing the flux which is used in lake route
+       RCHFLX_main(:,:)%REACH_VOL(0) = 0._dp    ! initializing the storage of lake volume for main channel (root node); later may be read from an input file
+       RCHFLX_main(:,:)%REACH_VOL(1) = 0._dp    ! initializing the storage of lake volume for main channel (root node); later may be read from an input file
 
        if (routOpt==kinematicWaveEuler) then
          do ix = 1,4
@@ -375,9 +378,12 @@ CONTAINS
 
    if (rch_per_proc(pid) > 0) then
 
-     RCHFLX_trib(:,:)%BASIN_QI = 0._dp
-     RCHFLX_trib(:,:)%BASIN_QR(0) = 0._dp
-     RCHFLX_trib(:,:)%BASIN_QR(1) = 0._dp
+     RCHFLX_trib(:,:)%BASIN_QI     = 0._dp
+     RCHFLX_trib(:,:)%BASIN_QR(0)  = 0._dp
+     RCHFLX_trib(:,:)%BASIN_QR(1)  = 0._dp
+     RCHFLX_trib(:,:)%REACH_Q      = 0._dp      ! Initializing the flux which is used in lake route
+     RCHFLX_trib(:,:)%REACH_VOL(0) = 0._dp      ! initializing the storage of lake volume for tributaries; layer may be read from an input file
+     RCHFLX_trib(:,:)%REACH_VOL(1) = 0._dp      ! initializing the storage of lake volume for tributaries; later may be read from an input file
 
      if (routOpt==kinematicWaveEuler) then
        do ix = 1,4

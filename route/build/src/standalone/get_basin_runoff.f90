@@ -33,6 +33,8 @@ CONTAINS
   USE public_var,  ONLY:is_lake_sim             ! logical lake should be simulated
   USE public_var,  ONLY:is_flux_wm              ! logical water management components fluxes should be read
   USE public_var,  ONLY:is_vol_wm               ! logical water management components target volume should be read
+  USE public_var,  ONLY:suppress_runoff         ! logical suppress the read runoff to zero (0)
+  USE public_var,  ONLY:suppress_P_Ep           ! logical suppress the read precipitation/evaporation to zero (0)
   USE globalData,  ONLY:basinID                 ! basin ID
   USE globalData,  ONLY:reachID                 ! reach ID
   USE globalData,  ONLY:nHRU                    ! number of routing sub-basin
@@ -86,6 +88,12 @@ CONTAINS
                     runoff_data%basinRunoff,    &
                     ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  ! suppressing the read runoff or precipitation and evaporation
+  ! this section can be merged with the upper section so that the
+  if (suppress_runoff) then
+    runoff_data%basinRunoff  = runoff_data%basinRunoff * 0.0
   end if
 
   if (is_lake_sim) then ! if is_lake_sim if true then read actual evaporation and preciptation
@@ -148,6 +156,13 @@ CONTAINS
                        runoff_data%basinPrecip,   &
                        ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+
+    ! suppressing the read runoff or precipitation and evaporation
+    ! this section can be merged with the upper section so that the
+    if (suppress_P_Ep) then
+      runoff_data%basinPrecip = runoff_data%basinPrecip * 0.0
+      runoff_data%basinEvapo  = runoff_data%basinEvapo * 0.0
     end if
   end if
 
@@ -242,6 +257,7 @@ CONTAINS
 
   ! fast forward time to time index at simStart and save iTime and modJulday
   ixloop: do ix = 1, size(infileinfo_data) !loop over number of file
+   !print*, 'runoff file', infileinfo_data(ix)%iTimebound(1), infileinfo_data(ix)%iTimebound(2)
    if ((iTime >= infileinfo_data(ix)%iTimebound(1)).and.(iTime <= infileinfo_data(ix)%iTimebound(2))) then
     iTime_local = iTime - infileinfo_data(ix)%iTimebound(1) + 1
     fname_qsim = trim(infileinfo_data(ix)%infilename)
@@ -249,9 +265,12 @@ CONTAINS
    endif
   enddo ixloop
 
+  !print*, 'itime, itime_local', iTime, iTime_local
+
   ! fast forward time to time index at simStart and save iTime and modJulday for water management nc file
   if ((is_flux_wm).or.(is_vol_wm.and.is_lake_sim)) then
     iyloop: do ix = 1, size(infileinfo_data_wm) !loop over number of file
+     !print*, 'wm file', infileinfo_data_wm(ix)%iTimebound(1), infileinfo_data_wm(ix)%iTimebound(2)
      if ((iTime >= infileinfo_data_wm(ix)%iTimebound(1)).and.(iTime <= infileinfo_data_wm(ix)%iTimebound(2))) then
       iTime_local_wm = iTime - infileinfo_data_wm(ix)%iTimebound(1) + 1
       fname_wm = trim(infileinfo_data_wm(ix)%infilename)
@@ -260,6 +279,8 @@ CONTAINS
      endif
     enddo iyloop
   endif
+
+    !print*, 'itime, itime_local_wm', iTime, iTime_local_wm
 
   ! check if the two files are identified in case is flux and vol flags are set to true
   if ((wm_not_read_flag).and.((is_flux_wm).or.(is_vol_wm.and.is_lake_sim))) then
