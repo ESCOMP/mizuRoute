@@ -207,11 +207,11 @@ implicit none
   real(dp)                                   :: HYP_E_min      ! HYPE; elevation below which outflow is zero [m]
   real(dp)                                   :: HYP_Qrate_emr  ! HYPE; emergency rate of flow for each unit of elevation above HYP_E_emr [m3/s]
   real(dp)                                   :: HYP_Erate_emr  ! HYPE; power for the rate of flow for each unit of elevation above HYP_E_emr [-]
-  real(dp)                                   :: HYP_Qrate_main ! HYPE; the average yearly or long term output from main spillway [m3/s]
+  real(dp)                                   :: HYP_Qrate_prim ! HYPE; the average yearly or long term output from primary spillway [m3/s]
   real(dp)                                   :: HYP_Qrate_amp  ! HYPE; amplitude of the Qrate_main [-]
   integer(i4b)                               :: HYP_Qrate_phs  ! HYPE; phase of the Qrate_main based on the day of the year [-]; default 100
-  integer(i4b)                               :: HYP_F_managed  ! HYPE; if the reservoir is managed; primary spillway exists then set to 1 otherwise 0
-  real(dp)                                   :: HYP_A_avg      ! HYPE; average area for the lake
+  integer(i4b)                               :: HYP_prim_F     ! HYPE; if the reservoir has a primary spillway then set to 1 otherwise 0
+  real(dp)                                   :: HYP_A_avg      ! HYPE; average area for the lake; this might not be used if bathymetry is provided
   real(dp)                                   :: H06_Smax       ! Hanasaki 2006; maximume reservoir storage [m3]
   real(dp)                                   :: H06_alpha      ! Hanasaki 2006; fraction of active storage compared to total storage [-]
   real(dp)                                   :: H06_envfact    ! Hanasaki 2006; fraction of inflow that can be used to meet demand [-]
@@ -281,6 +281,7 @@ implicit none
   logical(lgt)                               :: LAKINLT      ! .TRUE. if reach is lake inlet, .FALSE. otherwise
   logical(lgt)                               :: USRTAKE      ! .TRUE. if user takes from reach, .FALSE. otherwise
   logical(lgt)                               :: ISLAKE       ! .TRUE. if the object is a lake
+  logical(lgt)                               :: ISBATHYMETRY ! .TRUE. if the object has bathymetry information
   logical(lgt)                               :: LAKETARGVOL  ! .TRUE. if the lake follow a given target volume
   integer(i4b)                               :: LAKEMODELTYPE! 1=Doll, 2=Hanasaki, 3=HYPE else=non-parameteric
  end type RCHTOPO
@@ -335,6 +336,7 @@ implicit none
   real(dp)                             :: REACH_Q_IRF        ! time-step average streamflow (m3/s) from IRF routing
   real(dp)                             :: UPSTREAM_QI        ! sum of upstream streamflow (m3/s)
   real(dp)                             :: REACH_VOL(0:1)     ! volume of water at previous and current time step [m3]
+  real(dp)                             :: REACH_ELE          ! elevation of the water at the current time step [m]
   real(dp)                             :: REACH_WM_FLUX      ! water management fluxes to and from each reach
   real(dp)                             :: REACH_WM_VOL       ! target volume from the second water management file (m3)
   real(dp)                             :: TAKE               ! average take
