@@ -215,6 +215,17 @@ CONTAINS
    case('<varname_D03_MaxStorage>' ); meta_SEG    (ixSEG%D03_MaxStorage  )%varName =trim(cData)   ! Doll 2006; maximum active storage for Doll 2003 formulation
    case('<varname_D03_Coefficient>'); meta_SEG    (ixSEG%D03_Coefficient )%varName =trim(cData)   ! Doll 2006; coefficient for Doll 2003 formulation (day-1)
    case('<varname_D03_Power>'      ); meta_SEG    (ixSEG%D03_Power       )%varName =trim(cData)   ! Doll 2006; power for Doll 2003 formulation
+
+   case('<varname_HYP_E_emr>'       ); meta_SEG    (ixSEG%HYP_E_emr      )%varName =trim(cData)   !
+   case('<varname_HYP_E_lim>'       ); meta_SEG    (ixSEG%HYP_E_lim      )%varName =trim(cData)   !
+   case('<varname_HYP_E_min>'       ); meta_SEG    (ixSEG%HYP_E_min      )%varName =trim(cData)   !
+   case('<varname_HYP_Qrate_emr>'   ); meta_SEG    (ixSEG%HYP_Qrate_emr  )%varName =trim(cData)   !
+   case('<varname_HYP_Erate_emr>'   ); meta_SEG    (ixSEG%HYP_Erate_emr  )%varName =trim(cData)   !
+   case('<varname_HYP_Qrate_prim>'  ); meta_SEG    (ixSEG%HYP_Qrate_prim )%varName =trim(cData)   !
+   case('<varname_HYP_Qrate_amp>'   ); meta_SEG    (ixSEG%HYP_Qrate_amp  )%varName =trim(cData)   !
+   case('<varname_HYP_Qrate_phs>'   ); meta_SEG    (ixSEG%HYP_Qrate_phs  )%varName =trim(cData)   !
+   case('<varname_HYP_A_avg>'       ); meta_SEG    (ixSEG%HYP_A_avg      )%varName =trim(cData)   !
+
    case('<varname_H06_Smax>'       ); meta_SEG    (ixSEG%H06_Smax        )%varName =trim(cData)   ! Hanasaki 2006; maximume reservoir storage [m3]
    case('<varname_H06_alpha>'      ); meta_SEG    (ixSEG%H06_alpha       )%varName =trim(cData)   ! Hanasaki 2006; fraction of active storage compared to total storage [-]
    case('<varname_H06_envfact>'    ); meta_SEG    (ixSEG%H06_envfact     )%varName =trim(cData)   ! Hanasaki 2006; fraction of inflow that can be used to meet demand [-]

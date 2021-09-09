@@ -419,6 +419,17 @@ end subroutine augment_ntopo
      RPARAM_in(iSeg)%D03_MaxStorage  =     structSEG(iSeg)%var(ixSEG%D03_MaxStorage)%dat(1)
      RPARAM_in(iSeg)%D03_Coefficient =     structSEG(iSeg)%var(ixSEG%D03_Coefficient)%dat(1)
      RPARAM_in(iSeg)%D03_Power       =     structSEG(iSeg)%var(ixSEG%D03_Power)%dat(1)
+
+     RPARAM_in(iSeg)%HYP_E_emr       =     structSEG(iSeg)%var(ixSEG%HYP_E_emr)%dat(1)
+     RPARAM_in(iSeg)%HYP_E_lim       =     structSEG(iSeg)%var(ixSEG%HYP_E_lim)%dat(1)
+     RPARAM_in(iSeg)%HYP_E_min       =     structSEG(iSeg)%var(ixSEG%HYP_E_min)%dat(1)
+     RPARAM_in(iSeg)%HYP_Qrate_emr   =     structSEG(iSeg)%var(ixSEG%HYP_Qrate_emr)%dat(1)
+     RPARAM_in(iSeg)%HYP_Erate_emr   =     structSEG(iSeg)%var(ixSEG%HYP_Erate_emr)%dat(1)
+     RPARAM_in(iSeg)%HYP_Qrate_prim  =     structSEG(iSeg)%var(ixSEG%HYP_Qrate_prim)%dat(1)
+     RPARAM_in(iSeg)%HYP_Qrate_amp   =     structSEG(iSeg)%var(ixSEG%HYP_Qrate_amp)%dat(1)
+     RPARAM_in(iSeg)%HYP_Qrate_phs   =     structSEG(iSeg)%var(ixSEG%HYP_Qrate_phs)%dat(1)
+     RPARAM_in(iSeg)%HYP_A_avg       =     structSEG(iSeg)%var(ixSEG%HYP_A_avg)%dat(1)
+
      RPARAM_in(iSeg)%H06_Smax        =     structSEG(iSeg)%var(ixSEG%H06_Smax)%dat(1)
      RPARAM_in(iSeg)%H06_alpha       =     structSEG(iSeg)%var(ixSEG%H06_alpha)%dat(1)
      RPARAM_in(iSeg)%H06_envfact     =     structSEG(iSeg)%var(ixSEG%H06_envfact)%dat(1)
