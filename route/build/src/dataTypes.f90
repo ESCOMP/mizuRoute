@@ -202,6 +202,7 @@ implicit none
   real(dp)                                   :: D03_MaxStorage ! Doll 2003; maximume storage [m3]
   real(dp)                                   :: D03_Coefficient! Doll 2003; Coefficient [?]
   real(dp)                                   :: D03_Power      ! Doll 2003; Power [-]
+
   real(dp)                                   :: HYP_E_emr      ! HYPE; elevation of emergency spillway [m]
   real(dp)                                   :: HYP_E_lim      ! HYPE; elevation below which primary spillway flow is restrcited [m]
   real(dp)                                   :: HYP_E_min      ! HYPE; elevation below which outflow is zero [m]
@@ -212,6 +213,7 @@ implicit none
   integer(i4b)                               :: HYP_Qrate_phs  ! HYPE; phase of the Qrate_main based on the day of the year [-]; default 100
   integer(i4b)                               :: HYP_prim_F     ! HYPE; if the reservoir has a primary spillway then set to 1 otherwise 0
   real(dp)                                   :: HYP_A_avg      ! HYPE; average area for the lake; this might not be used if bathymetry is provided
+
   real(dp)                                   :: H06_Smax       ! Hanasaki 2006; maximume reservoir storage [m3]
   real(dp)                                   :: H06_alpha      ! Hanasaki 2006; fraction of active storage compared to total storage [-]
   real(dp)                                   :: H06_envfact    ! Hanasaki 2006; fraction of inflow that can be used to meet demand [-]
