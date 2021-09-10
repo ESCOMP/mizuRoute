@@ -767,6 +767,7 @@ contains
          structSEG_main  (ix)%var(ixSEG%D03_Power)%dat(1)       = D03_Power(ix)
 
          structSEG_main  (ix)%var(ixSEG%HYP_E_emr)%dat(1)       = HYP_E_emr(ix)
+         structSEG_main  (ix)%var(ixSEG%HYP_E_lim)%dat(1)       = HYP_E_lim(ix)
          structSEG_main  (ix)%var(ixSEG%HYP_E_min)%dat(1)       = HYP_E_min(ix)
          structSEG_main  (ix)%var(ixSEG%HYP_Qrate_emr)%dat(1)   = HYP_Qrate_emr(ix)
          structSEG_main  (ix)%var(ixSEG%HYP_Erate_emr)%dat(1)   = HYP_Erate_emr(ix)
@@ -831,6 +832,7 @@ contains
          structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%LakeModelType)%dat(1) = structNTOPO(ixx)%var(ixNTOPO%LakeModelType)%dat(1)
 
          structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_E_emr)%dat(1)       = structSEG(ixx)%var(ixSEG%HYP_E_emr)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_E_lim)%dat(1)       = structSEG(ixx)%var(ixSEG%HYP_E_lim)%dat(1)
          structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_E_min)%dat(1)       = structSEG(ixx)%var(ixSEG%HYP_E_min)%dat(1)
          structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_Qrate_emr)%dat(1)   = structSEG(ixx)%var(ixSEG%HYP_Qrate_emr)%dat(1)
          structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_Erate_emr)%dat(1)   = structSEG(ixx)%var(ixSEG%HYP_Erate_emr)%dat(1)
