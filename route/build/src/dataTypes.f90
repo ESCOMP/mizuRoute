@@ -283,7 +283,6 @@ implicit none
   logical(lgt)                               :: LAKINLT      ! .TRUE. if reach is lake inlet, .FALSE. otherwise
   logical(lgt)                               :: USRTAKE      ! .TRUE. if user takes from reach, .FALSE. otherwise
   logical(lgt)                               :: ISLAKE       ! .TRUE. if the object is a lake
-  logical(lgt)                               :: ISBATHYMETRY ! .TRUE. if the object has bathymetry information
   logical(lgt)                               :: LAKETARGVOL  ! .TRUE. if the lake follow a given target volume
   integer(i4b)                               :: LAKEMODELTYPE! 1=Doll, 2=Hanasaki, 3=HYPE else=non-parameteric
  end type RCHTOPO
