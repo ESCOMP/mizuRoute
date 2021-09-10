@@ -63,21 +63,21 @@ subroutine getData(&
 
   implicit none
   ! input variables
-  character(*)      , intent(in)               :: fname            ! filename
-  character(*)      , intent(in)               :: dname_nhru       ! dimension name for HRUs
-  character(*)      , intent(in)               :: dname_sseg       ! dimension name for stream segments
+  character(*)      , intent(in)               :: fname             ! filename
+  character(*)      , intent(in)               :: dname_nhru        ! dimension name for HRUs
+  character(*)      , intent(in)               :: dname_sseg        ! dimension name for stream segments
   ! output: model control
-  integer(i4b)      , intent(out)              :: nHRU_in          ! number of HRUs
-  integer(i4b)      , intent(out)              :: nRch_in          ! number of stream segments
+  integer(i4b)      , intent(out)              :: nHRU_in           ! number of HRUs
+  integer(i4b)      , intent(out)              :: nRch_in           ! number of stream segments
   ! output: data structures
-  type(var_dlength) , intent(out), allocatable :: structHRU(:)     ! HRU properties
-  type(var_dlength) , intent(out), allocatable :: structSeg(:)     ! stream segment properties
-  type(var_ilength) , intent(out), allocatable :: structHRU2seg(:) ! HRU-to-segment mapping
-  type(var_ilength) , intent(out), allocatable :: structNTOPO(:)   ! network topology
-  type(var_clength) , intent(out), allocatable :: structPFAF(:)    ! network topology
+  type(var_dlength) , intent(out), allocatable :: structHRU(:)      ! HRU properties
+  type(var_dlength) , intent(out), allocatable :: structSeg(:)      ! stream segment properties
+  type(var_ilength) , intent(out), allocatable :: structHRU2seg(:)  ! HRU-to-segment mapping
+  type(var_ilength) , intent(out), allocatable :: structNTOPO(:)    ! network topology
+  type(var_clength) , intent(out), allocatable :: structPFAF(:)     ! network topology
   ! output: error control
-  integer(i4b)      , intent(out)              :: ierr             ! error code
-  character(*)      , intent(out)              :: message          ! error message
+  integer(i4b)      , intent(out)              :: ierr              ! error code
+  character(*)      , intent(out)              :: message           ! error message
   ! ==========================================================================================================
   ! local variables
   integer(i4b)                                 :: iStruct                 ! structure index
@@ -103,11 +103,13 @@ subroutine getData(&
   integer(i4b),              allocatable       :: LakeModelType_local(:)  ! local array to save LakeModelType flag
   logical(lgt)                                 :: Doll_is_called          ! if Doll model is called in lake type varibale
   logical(lgt)                                 :: Hanasaki_is_called      ! if Hanasaki model is called in lake type varibale
+  logical(lgt)                                 :: HYPE_is_called          ! if HYPE model is called in lake type varibale
   integer(i4b)                                 :: i                       ! counter
   logical(lgt)                                 :: lake_model_conflict     ! if both parameteric model and non parameteric models are on for a lake
   integer(i4b)                                 :: number_lakes            ! number of lakes in network topology
   integer(i4b)                                 :: number_Doll             ! number of lakes with parameteric Doll 2003 formulation
   integer(i4b)                                 :: number_Hanasaki         ! number of lakes with parameteric Hanasaki 2006 formulation
+  integer(i4b)                                 :: number_HYPE             ! number of lakes with parameteric Hanasaki 2006 formulation
   integer(i4b)                                 :: number_TargVol          ! number of lakes with target volume
 
   ierr=0; message='getData/'
@@ -163,7 +165,7 @@ subroutine getData(&
   ! set flags if we simulate lake and need lake parameters; was set to false in pop_metadata.f90
   if(is_lake_sim)then
     meta_NTOPO(ixNTOPO%islake)%varFile          = .true.    ! if the object is lake should be provided
-    if ((lake_model_D03).or.(lake_model_H06)) then
+    if ((lake_model_D03).or.(lake_model_H06).or.(lake_model_HYPE)) then
       meta_NTOPO(ixNTOPO%lakeModelType)%varFile = .true.    ! lake model type varibale should be provided
     endif
     if (is_vol_wm) then
@@ -173,6 +175,18 @@ subroutine getData(&
       meta_SEG(ixSEG%D03_MaxStorage)%varFile    = .true.    ! Doll parameter
       meta_SEG(ixSEG%D03_coefficient)%varFile   = .true.    ! Doll parameter
       meta_SEG(ixSEG%D03_power)%varFile         = .true.    ! Doll parameter
+    endif
+    if (lake_model_HYPE) then
+      meta_SEG(ixSEG%HYP_E_emr)%varFile         = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_E_lim)%varFile         = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_E_min)%varFile         = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_Qrate_emr)%varFile     = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_Erate_emr)%varFile     = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_Qrate_prim)%varFile    = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_Qrate_amp)%varFile     = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_Qrate_phs)%varFile     = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_prim_F)%varFile        = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_A_avg)%varFile         = .true.    ! HYPE parameter
     endif
     if (lake_model_H06) then
       meta_SEG(ixSEG%H06_Smax)%varFile          = .true.    ! Hanasaki parameter
@@ -406,7 +420,7 @@ subroutine getData(&
                     endif
                   endif
                 case(ixNTOPO%LakeModelType)
-                  if ((lake_model_D03).or.(lake_model_H06)) then
+                  if ((lake_model_D03).or.(lake_model_H06).or.(lake_model_HYPE)) then
                     !print*, trim(meta_NTOPO(ivar)%varName), ivar
                     if (allocated(LakeModelType_local)) then
                       LakeModelType_local(iSpace) = structNTOPO(iSpace)%var(iVar)%dat(1)
@@ -436,6 +450,7 @@ subroutine getData(&
     ! initializing the flags
     Doll_is_called        =  .false. ! initialize the flag to false
     Hanasaki_is_called    =  .false. ! initialize the flag to false
+    HYPE_is_called        =  .false. ! initialize the flag to false
     lake_model_conflict   =  .false. ! initialize the flag to false
 
     ! check if the length of the local read varibales are equal
@@ -447,6 +462,7 @@ subroutine getData(&
     number_lakes      =  0
     number_Doll       =  0
     number_Hanasaki   =  0
+    number_HYPE       =  0
     number_TargVol    =  0
 
     ! specifying which lake models are called and if there is conflict between lake model type and data driven flag
@@ -458,13 +474,15 @@ subroutine getData(&
           select case(LakeModelType_local(i))
             case(1); Doll_is_called     = .true.; number_Doll     = number_Doll     + 1; ! add number of Doll lakes
             case(2); Hanasaki_is_called = .true.; number_Hanasaki = number_Hanasaki + 1; ! add number of Hanasaki lakes
+            case(3); HYPE_is_called     = .true.; number_HYPE     = number_HYPE     + 1; ! add number of HYPE lakes
             case default; ierr=20; message=trim(message)//'unable to identify the lake model type'; return
           end select
         else ! if for a lake both parameteric and non parameteric are set to correct
           number_TargVol = number_TargVol + 1 ! add number of target volume case
           select case(LakeModelType_local(i))
-            case(1); ierr=20; message=trim(message)//'both data driven (follow target volume) and Doll are activated for a lake'; return
-            case(2); ierr=20; message=trim(message)//'both data driven (follow target volume) and Hanasaki are activated for a lake'; return
+            case(1); ierr=20; message=trim(message)//'both data driven (follow target volume) and Doll lake formulation are activated for a lake'; return
+            case(2); ierr=20; message=trim(message)//'both data driven (follow target volume) and Hanasaki lake formulation are activated for a lake'; return
+            case(3); ierr=20; message=trim(message)//'both data driven (follow target volume) and HYPY lake formulation are activated for a lake'; return
           end select
         endif
       endif
@@ -480,15 +498,21 @@ subroutine getData(&
       ierr=20; message=trim(message)//'Hanasaki 2006 is called in the netwrok topology but the flag is not set to true in control file; set the flag to true in control file'; return
     endif
 
+    ! check the local lake model type with the global flags
+    if ((HYPE_is_called).and.(.not.(lake_model_HYPE))) then
+      ierr=20; message=trim(message)//'HYPE is called in the netwrok topology but the flag is not set to true in control file; set the flag to true in control file'; return
+    endif
+
     ! print the numbers
     print*, "total number of lakes             = ", number_lakes
     print*, "lakes with Doll formulation       = ", number_Doll
     print*, "lakes with Hanasaki formulation   = ", number_Hanasaki
+    print*, "lakes with HYPE formulation       = ", number_HYPE
     print*, "lakes with target volume          = ", number_TargVol
 
     ! check is the number of parameteric lakes and target volume sums up to the total number of lakes
-    if (number_Doll+number_Hanasaki+number_TargVol == number_lakes) then
-      print*, "number of lake models and target volume models matches the total number of lakes; should be good to go"
+    if (number_Doll+number_Hanasaki+number_HYPE+number_TargVol == number_lakes) then
+      print*, "number of lake models and target volume models matches the total number of lakes; should be good to go!"
     else
       ! print*, "number of lake models and target volume models do not match the total number of lakes"
       ierr=20; message=trim(message)//'number of lake models and target volume models do not match the total number of lakes'; return

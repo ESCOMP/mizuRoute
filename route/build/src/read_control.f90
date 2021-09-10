@@ -117,6 +117,7 @@ CONTAINS
    case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim       ! logical; lakes are simulated
    case('<lake_model_D03>');       read(cData,*,iostat=io_error) lake_model_D03    ! logical; if Doll 2003, represented by 1 exist in netwrok topology parameter lake_model_type
    case('<lake_model_H06>');       read(cData,*,iostat=io_error) lake_model_H06    ! logical; if Hanasaki 2006, represented by 2 exist in netwrok topology parameter lake_model_type
+   case('<lake_model_HYPE>');      read(cData,*,iostat=io_error) lake_model_HYPE   ! logical; if HYPE, represented by 3 exist in netwrok topology parameter lake_model_type
    case('<is_flux_wm>');           read(cData,*,iostat=io_error) is_flux_wm        ! logical; provided fluxes to or from seg/lakes should be considered
    case('<is_vol_wm>');            read(cData,*,iostat=io_error) is_vol_wm         ! logical; provided target volume for managed lakes are considered
    case('<suppress_runoff>');      read(cData,*,iostat=io_error) suppress_runoff   ! logical; suppress the read runoff to zero (0) no host model
@@ -216,15 +217,16 @@ CONTAINS
    case('<varname_D03_Coefficient>'); meta_SEG    (ixSEG%D03_Coefficient )%varName =trim(cData)   ! Doll 2006; coefficient for Doll 2003 formulation (day-1)
    case('<varname_D03_Power>'      ); meta_SEG    (ixSEG%D03_Power       )%varName =trim(cData)   ! Doll 2006; power for Doll 2003 formulation
 
-   case('<varname_HYP_E_emr>'       ); meta_SEG    (ixSEG%HYP_E_emr      )%varName =trim(cData)   !
-   case('<varname_HYP_E_lim>'       ); meta_SEG    (ixSEG%HYP_E_lim      )%varName =trim(cData)   !
-   case('<varname_HYP_E_min>'       ); meta_SEG    (ixSEG%HYP_E_min      )%varName =trim(cData)   !
-   case('<varname_HYP_Qrate_emr>'   ); meta_SEG    (ixSEG%HYP_Qrate_emr  )%varName =trim(cData)   !
-   case('<varname_HYP_Erate_emr>'   ); meta_SEG    (ixSEG%HYP_Erate_emr  )%varName =trim(cData)   !
-   case('<varname_HYP_Qrate_prim>'  ); meta_SEG    (ixSEG%HYP_Qrate_prim )%varName =trim(cData)   !
-   case('<varname_HYP_Qrate_amp>'   ); meta_SEG    (ixSEG%HYP_Qrate_amp  )%varName =trim(cData)   !
-   case('<varname_HYP_Qrate_phs>'   ); meta_SEG    (ixSEG%HYP_Qrate_phs  )%varName =trim(cData)   !
-   case('<varname_HYP_A_avg>'       ); meta_SEG    (ixSEG%HYP_A_avg      )%varName =trim(cData)   !
+   case('<varname_HYP_E_emr>'      ); meta_SEG    (ixSEG%HYP_E_emr       )%varName =trim(cData)   ! HYPE; elevation of emergency spillway [m]
+   case('<varname_HYP_E_lim>'      ); meta_SEG    (ixSEG%HYP_E_lim       )%varName =trim(cData)   ! HYPE; elevation below which primary spillway flow is restrcited [m]
+   case('<varname_HYP_E_min>'      ); meta_SEG    (ixSEG%HYP_E_min       )%varName =trim(cData)   ! HYPE; elevation below which outflow is zero [m]
+   case('<varname_HYP_Qrate_emr>'  ); meta_SEG    (ixSEG%HYP_Qrate_emr   )%varName =trim(cData)   ! HYPE; emergency rate of flow for each unit of elevation above HYP_E_emr [m3/s]
+   case('<varname_HYP_Erate_emr>'  ); meta_SEG    (ixSEG%HYP_Erate_emr   )%varName =trim(cData)   ! HYPE; power for the rate of flow for each unit of elevation above HYP_E_emr [-]
+   case('<varname_HYP_Qrate_prim>' ); meta_SEG    (ixSEG%HYP_Qrate_prim  )%varName =trim(cData)   ! HYPE; the average yearly or long term output from primary spillway [m3/s]
+   case('<varname_HYP_Qrate_amp>'  ); meta_SEG    (ixSEG%HYP_Qrate_amp   )%varName =trim(cData)   ! HYPE; amplitude of the Qrate_main [-]
+   case('<varname_HYP_Qrate_phs>'  ); meta_SEG    (ixSEG%HYP_Qrate_phs   )%varName =trim(cData)   ! HYPE; phase of the Qrate_main based on the day of the year [-]; default 100
+   case('<varname_HYP_prim_F>'     ); meta_SEG    (ixSEG%HYP_prim_F      )%varName =trim(cData)   ! HYPE; if the reservoir has a primary spillway then set to 1 otherwise 0
+   case('<varname_HYP_A_avg>'      ); meta_SEG    (ixSEG%HYP_A_avg       )%varName =trim(cData)   ! HYPE; average area for the lake; this might not be used if bathymetry is provided [m]
 
    case('<varname_H06_Smax>'       ); meta_SEG    (ixSEG%H06_Smax        )%varName =trim(cData)   ! Hanasaki 2006; maximume reservoir storage [m3]
    case('<varname_H06_alpha>'      ); meta_SEG    (ixSEG%H06_alpha       )%varName =trim(cData)   ! Hanasaki 2006; fraction of active storage compared to total storage [-]

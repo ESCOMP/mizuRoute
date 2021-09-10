@@ -87,6 +87,18 @@ MODULE var_lookup
   integer(i4b)     :: D03_MaxStorage   = integerMissing  ! Doll 2003 parameter
   integer(i4b)     :: D03_Coefficient  = integerMissing  ! Doll 2003 parameter
   integer(i4b)     :: D03_Power        = integerMissing  ! Doll 2003 parameter
+
+  integer(i4b)     :: HYP_E_emr        = integerMissing  ! HYPE parameter
+  integer(i4b)     :: HYP_E_lim        = integerMissing  ! HYPE parameter
+  integer(i4b)     :: HYP_E_min        = integerMissing  ! HYPE parameter
+  integer(i4b)     :: HYP_Qrate_emr    = integerMissing  ! HYPE parameter
+  integer(i4b)     :: HYP_Erate_emr    = integerMissing  ! HYPE parameter
+  integer(i4b)     :: HYP_Qrate_prim   = integerMissing  ! HYPE parameter
+  integer(i4b)     :: HYP_Qrate_amp    = integerMissing  ! HYPE parameter
+  integer(i4b)     :: HYP_Qrate_phs    = integerMissing  ! HYPE parameter
+  integer(i4b)     :: HYP_prim_F       = integerMissing  ! HYPE parameter
+  integer(i4b)     :: HYP_A_avg        = integerMissing  ! HYPE parameter
+
   integer(i4b)     :: H06_Smax         = integerMissing  ! Hanasaki 2006 parameter
   integer(i4b)     :: H06_alpha        = integerMissing  ! Hanasaki 2006 parameter
   integer(i4b)     :: H06_envfact      = integerMissing  ! Hanasaki 2006 parameter

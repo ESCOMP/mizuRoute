@@ -96,6 +96,7 @@ module public_var
   logical(lgt),public             :: is_lake_sim          = .false.         ! logical if lakes are activated in simulation
   logical(lgt),public             :: lake_model_D03       = .false.         ! logical if Doll 2003 model is used, specify as 1 in lake_model_type in network topology
   logical(lgt),public             :: lake_model_H06       = .false.         ! logical if Hanasaki 2006 model is used, specify as 2 in lake_model_type in network topology
+  logical(lgt),public             :: lake_model_HYPE      = .false.         ! logical if HYPE model is used, specify as 3 in lake_model_type in network topology
   logical(lgt),public             :: is_flux_wm           = .false.         ! logical if flow is added or removed from a reach
   logical(lgt),public             :: is_vol_wm            = .false.         ! logical if target volume is considered for a lake
   logical(lgt),public             :: suppress_runoff      = .false.         ! logical to suppress the read runoff to zero(0)
