@@ -1,6 +1,6 @@
 module lake_route_module
 
-  !numeric type
+ !numeric type
  USE nrtype
  ! data type
  USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
@@ -10,8 +10,11 @@ module lake_route_module
  USE public_var, ONLY: iulog          ! i/o logical unit number
  USE public_var, ONLY: realMissing    ! missing value for real number
  USE public_var, ONLY: integerMissing ! missing value for integer number
+ ! subroutines: model time info
+ USE time_utils_module, ONLY: compJulday,&      ! compute julian day
+                              compJulday_noleap ! compute julian day for noleap calendar
 
-  ! privary
+ ! privary
  implicit none
  private
 
@@ -73,6 +76,10 @@ module lake_route_module
   INTEGER(I4B)                             :: past_length_I       ! pas length for inflow based on length in year and floor
   INTEGER(I4B)                             :: past_length_D       ! pas length for demand based on length in year and floor
   real(dp)                                 :: target_r            ! target release
+  ! local varibale for HYPE routine
+  real(dp)                                 :: Julian_day_model    ! the julian day of model simulations
+  real(dp)                                 :: Julian_day_start    ! the julian day of the first day of the simulation year
+  real(dp)                                 :: Day_of_year         ! the day number in a year
 
   print*, 'inside lake, time at the model simulation',modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec
 
@@ -347,6 +354,28 @@ module lake_route_module
           ! print*, modTime(1)%im ! month of the simulations
           ! print*, 'Hanasaki parameters'
           print*, RPARAM_in(segIndex)%H06_Smax, RPARAM_in(segIndex)%H06_alpha, RPARAM_in(segIndex)%H06_envfact, RPARAM_in(segIndex)%H06_S_ini, RPARAM_in(segIndex)%H06_c1, RPARAM_in(segIndex)%H06_c2, RPARAM_in(segIndex)%H06_exponent, RPARAM_in(segIndex)%H06_I_Feb, RPARAM_in(segIndex)%H06_D_Feb
+
+
+        case (3)
+          ! HYPE is called
+
+          ! caclulate the day of calendar from 1st of January of current simulation year; julian day - julian day of the first of January of current year
+          select case(trim(calendar))
+            case('noleap','365_day')
+              call compjulday(modTime(1)%iy,            1,            1,            0,              0,          0._dp,Julian_day_model,ierr,cmessage)
+              call compjulday(modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,Julian_day_start,ierr,cmessage)
+            case ('standard','gregorian','proleptic_gregorian')
+              call compjulday_noleap(modTime(1)%iy,            1,            1,            0,              0,          0._dp,Julian_day_model,ierr,cmessage)
+              call compjulday_noleap(modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,Julian_day_start,ierr,cmessage)
+            case default;    ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
+          end select
+          Day_of_year = Julian_day_model - Julian_day_start
+
+          !
+          !
+          !
+          !
+
 
         case default; ierr=20; message=trim(message)//'unable to identify the parametric lake model type'; return
       end select
