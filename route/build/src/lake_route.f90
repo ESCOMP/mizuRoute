@@ -10,6 +10,7 @@ module lake_route_module
  USE public_var, ONLY: iulog          ! i/o logical unit number
  USE public_var, ONLY: realMissing    ! missing value for real number
  USE public_var, ONLY: integerMissing ! missing value for integer number
+ USE public_var, ONLY: pi             ! pi value of 3.14159265359_dp
  ! subroutines: model time info
  USE time_utils_module, ONLY: compJulday,&      ! compute julian day
                               compJulday_noleap ! compute julian day for noleap calendar
@@ -80,6 +81,12 @@ module lake_route_module
   real(dp)                                 :: Julian_day_model    ! the julian day of model simulations
   real(dp)                                 :: Julian_day_start    ! the julian day of the first day of the simulation year
   real(dp)                                 :: Day_of_year         ! the day number in a year
+  INTEGER(I4B)                             :: F_prim              ! factor for local flag is reservoir has primary spillway
+  real(dp)                                 :: F_sin               ! factor for sin
+  real(dp)                                 :: F_lin               ! factor for linear
+  real(dp)                                 :: Q_prim              ! simulated outflow from main or primary spillway
+  real(dp)                                 :: Q_spill             ! simulated outflow from emergency spillway
+  real(dp)                                 :: Q_sim               ! simulated output from the reservoir
 
   print*, 'inside lake, time at the model simulation',modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec
 
@@ -334,7 +341,7 @@ module lake_route_module
 
           ! make sure reservoir volume does not drop below dead storage
           if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) < (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead)) then
-            RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead - RCHFLX_out(iens,segIndex)%REACH_VOL(1) )/secprday
+            RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead - RCHFLX_out(iens,segIndex)%REACH_VOL(1) )/dt
             print*, 'below dead storage'
             ! set negative outflow to zero
             if (RCHFLX_out(iens,segIndex)%REACH_Q_IRF<0) then
@@ -344,7 +351,7 @@ module lake_route_module
           ! Account for spil overflow if reservoir is completely filled.
           else if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) > RPARAM_in(segIndex)%H06_Smax) then
             print*, 'overflow evoked'
-            RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF + (RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RPARAM_in(segIndex)%H06_Smax)/ secprday
+            RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF + (RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RPARAM_in(segIndex)%H06_Smax)/ dt
           end if
 
           print*,'outflow ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
@@ -355,27 +362,50 @@ module lake_route_module
           ! print*, 'Hanasaki parameters'
           print*, RPARAM_in(segIndex)%H06_Smax, RPARAM_in(segIndex)%H06_alpha, RPARAM_in(segIndex)%H06_envfact, RPARAM_in(segIndex)%H06_S_ini, RPARAM_in(segIndex)%H06_c1, RPARAM_in(segIndex)%H06_c2, RPARAM_in(segIndex)%H06_exponent, RPARAM_in(segIndex)%H06_I_Feb, RPARAM_in(segIndex)%H06_D_Feb
 
-
         case (3)
           ! HYPE is called
+
+          ! update reach elevation
+          !!! WARNING, RPARAM_in(segIndex)%HYP_E_min should be replaces with a newly introduced parameter values current code assume RPARAM_in(segIndex)%HYP_E_min storage will be set to 0
+          RCHFLX_out(iens,segIndex)%REACH_ELE = RCHFLX_out(iens,segIndex)%REACH_VOL(1) / RPARAM_in(segIndex)%HYP_A_avg + RPARAM_in(segIndex)%HYP_E_min
 
           ! caclulate the day of calendar from 1st of January of current simulation year; julian day - julian day of the first of January of current year
           select case(trim(calendar))
             case('noleap','365_day')
-              call compjulday(modTime(1)%iy,            1,            1,            0,              0,          0._dp,Julian_day_model,ierr,cmessage)
-              call compjulday(modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,Julian_day_start,ierr,cmessage)
+              call compjulday(modTime(1)%iy,            1,            1,0,0,0._dp,Julian_day_start,ierr,cmessage)
+              call compjulday(modTime(1)%iy,modTime(1)%im,modTime(1)%id,0,0,0._dp,Julian_day_model,ierr,cmessage)
             case ('standard','gregorian','proleptic_gregorian')
-              call compjulday_noleap(modTime(1)%iy,            1,            1,            0,              0,          0._dp,Julian_day_model,ierr,cmessage)
-              call compjulday_noleap(modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,Julian_day_start,ierr,cmessage)
+              call compjulday_noleap(modTime(1)%iy,            1,            1,0,0,0._dp,Julian_day_start,ierr,cmessage)
+              call compjulday_noleap(modTime(1)%iy,modTime(1)%im,modTime(1)%id,0,0,0._dp,Julian_day_model,ierr,cmessage)
             case default;    ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
           end select
-          Day_of_year = Julian_day_model - Julian_day_start
+          Day_of_year = Julian_day_model - Julian_day_start + 1 ! the day of the year
 
-          !
-          !
-          !
-          !
+          ! calculation of Fsin; sinusoidal aplication of flow
+          F_sin = max(0._dp,(1+RPARAM_in(segIndex)%HYP_Qrate_amp*sin(2*pi*(Day_of_year+RPARAM_in(segIndex)%HYP_Qrate_phs)/365)))
+          ! calculation of Flin; linear change in flow realted to the storage
+          F_lin = min(max((RCHFLX_out(iens,segIndex)%REACH_ELE-RPARAM_in(segIndex)%HYP_E_min)/(RPARAM_in(segIndex)%HYP_E_lim-RPARAM_in(segIndex)%HYP_E_min),0._dp),1._dp)
+          ! flag for the model simulation in which is located in the area
+          F_prim = 0
+          if (RPARAM_in(segIndex)%HYP_prim_F) then
+            F_prim = 1
+          end if
+          ! Q_main
+          Q_prim = F_sin * F_lin * F_prim * RPARAM_in(segIndex)%HYP_Qrate_prim
+          ! Q_spill
+          Q_spill = RPARAM_in(segIndex)%HYP_Qrate_emr * (RCHFLX_out(iens,segIndex)%REACH_ELE - RPARAM_in(segIndex)%HYP_E_emr)
+          ! Q_sim
+          if (RCHFLX_out(iens,segIndex)%REACH_ELE > RPARAM_in(segIndex)%HYP_E_emr) then
+            Q_sim = max(Q_prim, Q_spill)
+          else
+            Q_sim = Q_prim
+          end if
 
+          ! check if the output is not more than the existing stored water
+          RCHFLX_out(iens,segIndex)%REACH_Q_IRF = min (Q_sim, max(0._dp,(RCHFLX_out(iens,segIndex)%REACH_ELE-RPARAM_in(segIndex)%HYP_E_min)*RPARAM_in(segIndex)%HYP_A_avg)/dt)
+
+          ! update the storage
+          RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt
 
         case default; ierr=20; message=trim(message)//'unable to identify the parametric lake model type'; return
       end select
