@@ -220,6 +220,7 @@ CONTAINS
    case('<varname_HYP_E_emr>'      ); meta_SEG    (ixSEG%HYP_E_emr       )%varName =trim(cData)   ! HYPE; elevation of emergency spillway [m]
    case('<varname_HYP_E_lim>'      ); meta_SEG    (ixSEG%HYP_E_lim       )%varName =trim(cData)   ! HYPE; elevation below which primary spillway flow is restrcited [m]
    case('<varname_HYP_E_min>'      ); meta_SEG    (ixSEG%HYP_E_min       )%varName =trim(cData)   ! HYPE; elevation below which outflow is zero [m]
+   case('<varname_HYP_E_zero>'     ); meta_SEG    (ixSEG%HYP_E_zero      )%varName =trim(cData)   ! HYPE; elevation at which lake/reservoir storage is zero [m]
    case('<varname_HYP_Qrate_emr>'  ); meta_SEG    (ixSEG%HYP_Qrate_emr   )%varName =trim(cData)   ! HYPE; emergency rate of flow for each unit of elevation above HYP_E_emr [m3/s]
    case('<varname_HYP_Erate_emr>'  ); meta_SEG    (ixSEG%HYP_Erate_emr   )%varName =trim(cData)   ! HYPE; power for the rate of flow for each unit of elevation above HYP_E_emr [-]
    case('<varname_HYP_Qrate_prim>' ); meta_SEG    (ixSEG%HYP_Qrate_prim  )%varName =trim(cData)   ! HYPE; the average yearly or long term output from primary spillway [m3/s]

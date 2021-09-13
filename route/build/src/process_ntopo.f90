@@ -423,6 +423,7 @@ end subroutine augment_ntopo
      RPARAM_in(iSeg)%HYP_E_emr       =     structSEG(iSeg)%var(ixSEG%HYP_E_emr)%dat(1)
      RPARAM_in(iSeg)%HYP_E_lim       =     structSEG(iSeg)%var(ixSEG%HYP_E_lim)%dat(1)
      RPARAM_in(iSeg)%HYP_E_min       =     structSEG(iSeg)%var(ixSEG%HYP_E_min)%dat(1)
+     RPARAM_in(iSeg)%HYP_E_zero      =     structSEG(iSeg)%var(ixSEG%HYP_E_zero)%dat(1)
      RPARAM_in(iSeg)%HYP_Qrate_emr   =     structSEG(iSeg)%var(ixSEG%HYP_Qrate_emr)%dat(1)
      RPARAM_in(iSeg)%HYP_Erate_emr   =     structSEG(iSeg)%var(ixSEG%HYP_Erate_emr)%dat(1)
      RPARAM_in(iSeg)%HYP_Qrate_prim  =     structSEG(iSeg)%var(ixSEG%HYP_Qrate_prim)%dat(1)

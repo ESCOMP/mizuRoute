@@ -153,6 +153,7 @@ contains
   real(dp),          allocatable              :: HYP_E_emr_local(:)        ! HYPE; elevation of emergency spillway [m]
   real(dp),          allocatable              :: HYP_E_lim_local(:)        ! HYPE; elevation below which primary spillway flow is restrcited [m]
   real(dp),          allocatable              :: HYP_E_min_local(:)        ! HYPE; elevation below which outflow is zero [m]
+  real(dp),          allocatable              :: HYP_E_zero_local(:)       ! HYPE; elevation at which storage is set to zero [m]
   real(dp),          allocatable              :: HYP_Qrate_emr_local(:)    ! HYPE; emergency rate of flow for each unit of elevation above HYP_E_emr [m3/s]
   real(dp),          allocatable              :: HYP_Erate_emr_local(:)    ! HYPE; power for the rate of flow for each unit of elevation above HYP_E_emr [-]
   real(dp),          allocatable              :: HYP_Qrate_prim_local(:)   ! HYPE; the average yearly or long term output from main spillway [m3/s]
@@ -223,6 +224,7 @@ contains
   real(dp)                                    :: HYP_E_emr(nRch_in)        ! HYPE; elevation of emergency spillway [m]
   real(dp)                                    :: HYP_E_lim(nRch_in)        ! HYPE; elevation below which primary spillway flow is restrcited [m]
   real(dp)                                    :: HYP_E_min(nRch_in)        ! HYPE; elevation below which outflow is zero [m]
+  real(dp)                                    :: HYP_E_zero(nRch_in)       ! HYPE; elevation at which storage is set to zero [m]
   real(dp)                                    :: HYP_Qrate_emr(nRch_in)    ! HYPE; emergency rate of flow for each unit of elevation above HYP_E_emr [m3/s]
   real(dp)                                    :: HYP_Erate_emr(nRch_in)    ! HYPE; power for the rate of flow for each unit of elevation above HYP_E_emr [-]
   real(dp)                                    :: HYP_Qrate_prim(nRch_in)   ! HYPE; the average yearly or long term output from main spillway [m3/s]
@@ -382,6 +384,7 @@ contains
        HYP_E_emr(iSeg)       = structSEG(  jSeg)%var(ixSEG%HYP_E_emr)%dat(1)
        HYP_E_lim(iSeg)       = structSEG(  jSeg)%var(ixSEG%HYP_E_lim)%dat(1)
        HYP_E_min(iSeg)       = structSEG(  jSeg)%var(ixSEG%HYP_E_min)%dat(1)
+       HYP_E_zero(iSeg)      = structSEG(  jSeg)%var(ixSEG%HYP_E_zero)%dat(1)
        HYP_Qrate_emr(iSeg)   = structSEG(  jSeg)%var(ixSEG%HYP_Qrate_emr)%dat(1)
        HYP_Erate_emr(iSeg)   = structSEG(  jSeg)%var(ixSEG%HYP_Erate_emr)%dat(1)
        HYP_Qrate_prim(iSeg)  = structSEG(  jSeg)%var(ixSEG%HYP_Qrate_prim)%dat(1)
@@ -492,6 +495,7 @@ contains
       call shr_mpi_scatterV(HYP_E_emr             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_E_emr_local,      ierr, cmessage)
       call shr_mpi_scatterV(HYP_E_lim             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_E_lim_local,      ierr, cmessage)
       call shr_mpi_scatterV(HYP_E_min             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_E_min_local,      ierr, cmessage)
+      call shr_mpi_scatterV(HYP_E_zero            (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_E_zero_local,     ierr, cmessage)
       call shr_mpi_scatterV(HYP_Qrate_emr         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_Qrate_emr_local,  ierr, cmessage)
       call shr_mpi_scatterV(HYP_Erate_emr         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_Erate_emr_local,  ierr, cmessage)
       call shr_mpi_scatterV(HYP_Qrate_prim        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_Qrate_prim_local, ierr, cmessage)
@@ -578,6 +582,7 @@ contains
        structSEG_local  (ix)%var(ixSEG%HYP_E_emr)%dat(1)        = HYP_E_emr_local(ix)
        structSEG_local  (ix)%var(ixSEG%HYP_E_lim)%dat(1)        = HYP_E_lim_local(ix)
        structSEG_local  (ix)%var(ixSEG%HYP_E_min)%dat(1)        = HYP_E_min_local(ix)
+       structSEG_local  (ix)%var(ixSEG%HYP_E_zero)%dat(1)       = HYP_E_zero_local(ix)
        structSEG_local  (ix)%var(ixSEG%HYP_Qrate_emr)%dat(1)    = HYP_Qrate_emr_local(ix)
        structSEG_local  (ix)%var(ixSEG%HYP_Erate_emr)%dat(1)    = HYP_Erate_emr_local(ix)
        structSEG_local  (ix)%var(ixSEG%HYP_Qrate_prim)%dat(1)   = HYP_Qrate_prim_local(ix)
@@ -769,6 +774,7 @@ contains
          structSEG_main  (ix)%var(ixSEG%HYP_E_emr)%dat(1)       = HYP_E_emr(ix)
          structSEG_main  (ix)%var(ixSEG%HYP_E_lim)%dat(1)       = HYP_E_lim(ix)
          structSEG_main  (ix)%var(ixSEG%HYP_E_min)%dat(1)       = HYP_E_min(ix)
+         structSEG_main  (ix)%var(ixSEG%HYP_E_zero)%dat(1)      = HYP_E_zero(ix)
          structSEG_main  (ix)%var(ixSEG%HYP_Qrate_emr)%dat(1)   = HYP_Qrate_emr(ix)
          structSEG_main  (ix)%var(ixSEG%HYP_Erate_emr)%dat(1)   = HYP_Erate_emr(ix)
          structSEG_main  (ix)%var(ixSEG%HYP_Qrate_prim)%dat(1)  = HYP_Qrate_prim(ix)
@@ -834,6 +840,7 @@ contains
          structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_E_emr)%dat(1)       = structSEG(ixx)%var(ixSEG%HYP_E_emr)%dat(1)
          structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_E_lim)%dat(1)       = structSEG(ixx)%var(ixSEG%HYP_E_lim)%dat(1)
          structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_E_min)%dat(1)       = structSEG(ixx)%var(ixSEG%HYP_E_min)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_E_zero)%dat(1)      = structSEG(ixx)%var(ixSEG%HYP_E_zero)%dat(1)
          structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_Qrate_emr)%dat(1)   = structSEG(ixx)%var(ixSEG%HYP_Qrate_emr)%dat(1)
          structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_Erate_emr)%dat(1)   = structSEG(ixx)%var(ixSEG%HYP_Erate_emr)%dat(1)
          structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_Qrate_prim)%dat(1)  = structSEG(ixx)%var(ixSEG%HYP_Qrate_prim)%dat(1)

@@ -129,6 +129,7 @@ contains
  meta_SEG    (ixSEG%HYP_E_emr        ) = var_info('HYP_E_emr'      , 'HYPE; elevation of emergency spillway'                                                   ,'m'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%HYP_E_lim        ) = var_info('HYP_E_lim'      , 'HYPE; elevation below which primary spillway flow is restrcited'                         ,'m'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%HYP_E_min        ) = var_info('HYP_E_min'      , 'HYPE; elevation below which outflow is zero'                                             ,'m'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%HYP_E_min        ) = var_info('HYP_E_zero'     , 'HYPE; elevation at which lake/reservoir is zero'                                         ,'m'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%HYP_Qrate_emr    ) = var_info('HYP_Qrate_emr'  , 'HYPE; emergency rate of flow for each unit of elevation above HYP_E_emr'                 ,'m3 s-1',ixDims%seg   , .false.)
  meta_SEG    (ixSEG%HYP_Erate_emr    ) = var_info('HYP_Erate_emr'  , 'HYPE; power for the rate of flow for each unit of elevation above HYP_E_emr'             ,'-'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%HYP_Qrate_prim   ) = var_info('HYP_Qrate_prim' , 'HYPE; the average yearly or long term output from primary spillway'                      ,'m3 s-1',ixDims%seg   , .false.)

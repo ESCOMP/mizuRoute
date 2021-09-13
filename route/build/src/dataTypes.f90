@@ -206,6 +206,7 @@ implicit none
   real(dp)                                   :: HYP_E_emr      ! HYPE; elevation of emergency spillway [m]
   real(dp)                                   :: HYP_E_lim      ! HYPE; elevation below which primary spillway flow is restrcited [m]
   real(dp)                                   :: HYP_E_min      ! HYPE; elevation below which outflow is zero [m]
+  real(dp)                                   :: HYP_E_zero     ! HYPE; elevation at which the reservoir storage is set to 0, lake/reservoir bottom elevation
   real(dp)                                   :: HYP_Qrate_emr  ! HYPE; emergency rate of flow for each unit of elevation above HYP_E_emr [m3/s]
   real(dp)                                   :: HYP_Erate_emr  ! HYPE; power for the rate of flow for each unit of elevation above HYP_E_emr [-]
   real(dp)                                   :: HYP_Qrate_prim ! HYPE; the average yearly or long term output from primary spillway [m3/s]

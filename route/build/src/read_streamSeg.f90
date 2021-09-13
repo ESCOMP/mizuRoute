@@ -180,6 +180,7 @@ subroutine getData(&
       meta_SEG(ixSEG%HYP_E_emr)%varFile         = .true.    ! HYPE parameter
       meta_SEG(ixSEG%HYP_E_lim)%varFile         = .true.    ! HYPE parameter
       meta_SEG(ixSEG%HYP_E_min)%varFile         = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_E_zero)%varFile        = .true.    ! HYPE parameter
       meta_SEG(ixSEG%HYP_Qrate_emr)%varFile     = .true.    ! HYPE parameter
       meta_SEG(ixSEG%HYP_Erate_emr)%varFile     = .true.    ! HYPE parameter
       meta_SEG(ixSEG%HYP_Qrate_prim)%varFile    = .true.    ! HYPE parameter
