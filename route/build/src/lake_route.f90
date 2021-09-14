@@ -366,8 +366,7 @@ module lake_route_module
           ! HYPE is called
 
           ! update reach elevation
-          !!! WARNING, RPARAM_in(segIndex)%HYP_E_min should be replaces with a newly introduced parameter values current code assume RPARAM_in(segIndex)%HYP_E_min storage will be set to 0
-          RCHFLX_out(iens,segIndex)%REACH_ELE = RCHFLX_out(iens,segIndex)%REACH_VOL(1) / RPARAM_in(segIndex)%HYP_A_avg + RPARAM_in(segIndex)%HYP_E_min
+          RCHFLX_out(iens,segIndex)%REACH_ELE = RCHFLX_out(iens,segIndex)%REACH_VOL(1) / RPARAM_in(segIndex)%HYP_A_avg + RPARAM_in(segIndex)%HYP_E_zero
 
           ! caclulate the day of calendar from 1st of January of current simulation year; julian day - julian day of the first of January of current year
           select case(trim(calendar))
@@ -393,13 +392,19 @@ module lake_route_module
           ! Q_main
           Q_prim = F_sin * F_lin * F_prim * RPARAM_in(segIndex)%HYP_Qrate_prim
           ! Q_spill
-          Q_spill = RPARAM_in(segIndex)%HYP_Qrate_emr * (RCHFLX_out(iens,segIndex)%REACH_ELE - RPARAM_in(segIndex)%HYP_E_emr)
-          ! Q_sim
+          Q_spill = 0._dp
           if (RCHFLX_out(iens,segIndex)%REACH_ELE > RPARAM_in(segIndex)%HYP_E_emr) then
-            Q_sim = max(Q_prim, Q_spill)
-          else
-            Q_sim = Q_prim
+            Q_spill = RPARAM_in(segIndex)%HYP_Qrate_emr * (RCHFLX_out(iens,segIndex)%REACH_ELE - RPARAM_in(segIndex)%HYP_E_emr)**RPARAM_in(segIndex)%HYP_Erate_emr
           end if
+          ! Q_sim
+          Q_sim = Q_prim + Q_spill
+
+          !! original implementation picks the maximume value of output from primary spillway and emergency spillway
+          !if (RCHFLX_out(iens,segIndex)%REACH_ELE > RPARAM_in(segIndex)%HYP_E_emr) then
+          !  Q_sim = max(Q_prim, Q_spill)
+          !else
+          !  Q_sim = Q_prim
+          !end if
 
           ! check if the output is not more than the existing stored water
           RCHFLX_out(iens,segIndex)%REACH_Q_IRF = min (Q_sim, max(0._dp,(RCHFLX_out(iens,segIndex)%REACH_ELE-RPARAM_in(segIndex)%HYP_E_min)*RPARAM_in(segIndex)%HYP_A_avg)/dt)
