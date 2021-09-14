@@ -398,13 +398,8 @@ module lake_route_module
           end if
           ! Q_sim
           Q_sim = Q_prim + Q_spill
-
           !! original implementation picks the maximume value of output from primary spillway and emergency spillway
-          !if (RCHFLX_out(iens,segIndex)%REACH_ELE > RPARAM_in(segIndex)%HYP_E_emr) then
-          !  Q_sim = max(Q_prim, Q_spill)
-          !else
-          !  Q_sim = Q_prim
-          !end if
+          Q_sim = max(Q_prim, Q_spill)
 
           ! check if the output is not more than the existing stored water
           RCHFLX_out(iens,segIndex)%REACH_Q_IRF = min (Q_sim, max(0._dp,(RCHFLX_out(iens,segIndex)%REACH_ELE-RPARAM_in(segIndex)%HYP_E_min)*RPARAM_in(segIndex)%HYP_A_avg)/dt)
