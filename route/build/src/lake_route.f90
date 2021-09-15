@@ -389,6 +389,25 @@ module lake_route_module
           if (RPARAM_in(segIndex)%HYP_prim_F) then
             F_prim = 1
           end if
+
+
+          print*, 'HYP_E_emr .......= ', RPARAM_in(segIndex)%HYP_E_emr
+          print*, 'HYP_E_lim .......= ', RPARAM_in(segIndex)%HYP_E_lim
+          print*, 'HYP_E_min .......= ', RPARAM_in(segIndex)%HYP_E_min
+          print*, 'HYP_E_zero ......= ', RPARAM_in(segIndex)%HYP_E_zero
+          print*, 'HYP_Qrate_emr ...= ', RPARAM_in(segIndex)%HYP_Qrate_emr
+          print*, 'HYP_Erate_emr ...= ', RPARAM_in(segIndex)%HYP_Erate_emr
+          print*, 'HYP_Qrate_prim ..= ', RPARAM_in(segIndex)%HYP_Qrate_prim
+          print*, 'HYP_Qrate_amp ...= ', RPARAM_in(segIndex)%HYP_Qrate_amp
+          print*, 'HYP_Qrate_phs ...= ', RPARAM_in(segIndex)%HYP_Qrate_phs
+          print*, 'HYP_prim_F ......= ', RPARAM_in(segIndex)%HYP_prim_F
+          print*, 'HYP_A_avg .......= ', RPARAM_in(segIndex)%HYP_A_avg
+
+
+          print*, 'F_sin ...........= ', F_sin
+          print*, 'F_lin ...........= ', F_lin
+          print*, 'F_prim ..........= ', F_prim
+
           ! Q_main
           Q_prim = F_sin * F_lin * F_prim * RPARAM_in(segIndex)%HYP_Qrate_prim
           ! Q_spill
@@ -400,6 +419,9 @@ module lake_route_module
           Q_sim = Q_prim + Q_spill
           !! original implementation picks the maximume value of output from primary spillway and emergency spillway
           Q_sim = max(Q_prim, Q_spill)
+
+          print*, 'Q_prim  ..= ', Q_prim
+          print*, 'Q_spill ..= ', Q_spill
 
           ! check if the output is not more than the existing stored water
           RCHFLX_out(iens,segIndex)%REACH_Q_IRF = min (Q_sim, max(0._dp,(RCHFLX_out(iens,segIndex)%REACH_ELE-RPARAM_in(segIndex)%HYP_E_min)*RPARAM_in(segIndex)%HYP_A_avg)/dt)
