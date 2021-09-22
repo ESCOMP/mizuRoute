@@ -239,7 +239,6 @@ CONTAINS
    real(dp)                                    :: Q_END         ! flow at the end of the timestep
    real(dp)                                    :: TIMEI         ! entry time at the end of the timestep
    TYPE(FPOINT),allocatable,dimension(:)       :: NEW_WAVE      ! temporary wave
-   logical(lgt)                                :: INIT=.true.   ! used to initialize pointers
    ! random stuff
    integer(i4b)                                :: IWV           ! rech index
    character(len=strLen)                       :: fmt1,fmt2     ! format string
@@ -255,13 +254,6 @@ CONTAINS
      write(iulog,'(a,x,F15.7)')          ' RPARAM_in%R_MAN_N =', RPARAM_in(JRCH)%R_MAN_N
      write(iulog,'(a,x,F15.7)')          ' RPARAM_in%R_WIDTH =', RPARAM_in(JRCH)%R_WIDTH
    end if
-
-   ! ----------------------------------------------------------------------------------------
-   ! (0) INITIALIZE POINTERS
-   ! ----------------------------------------------------------------------------------------
-   if(INIT) then
-     INIT=.false.
-   endif
 
    RCHFLX_out(IENS,JRCH)%TAKE=0.0_dp ! initialize take from this reach
 
@@ -806,7 +798,6 @@ CONTAINS
  integer(i4b)                                :: NR        ! # routed particles in u/s reach
  integer(i4b)                                :: NQ        ! NR+1, if non-routed particle exists
  type(FPOINT), allocatable                   :: NEW_WAVE(:)  ! temporary wave
- logical(lgt)                                :: INIT=.TRUE. ! used to initialize pointers
  ! Local variables to merge flow
  logical(lgt), dimension(:), allocatable     :: MFLG      ! T = all particles processed
  integer(i4b), dimension(:), allocatable     :: ITIM      ! processing point for all u/s segments
@@ -827,13 +818,6 @@ CONTAINS
  real(dp), allocatable                       :: TD_TEMP(:)! time flow particles entered JRCH
 
  ierr=0; message='qexmul_rch/'
- ! ----------------------------------------------------------------------------------------
- ! (0) INITIALIZE POINTERS
- ! ----------------------------------------------------------------------------------------
- IF(INIT) THEN
-  INIT=.FALSE.
-  !deallocate(USFLOW,NEW_WAVE,QD_TEMP,TD_TEMP)
- ENDIF
 
  ! set the retrospective offset
  if (.NOT.present(RSTEP)) then
