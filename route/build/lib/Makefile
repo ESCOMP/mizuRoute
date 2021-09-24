@@ -24,7 +24,7 @@ MPISERLIB    = $(MPISERLIBDIR)/libmpi-serial.a
 MPISERCONF   = $(MPISERLIBDIR)/Makefile.conf
 MPIINC_PATHLIST  = $(CPATH)
 INCLDIR      = -I.
-CMAKE_OPTS   = -DCMAKE_Fortran_COMPILER=mpif90
+CMAKE_OPTS   = 
 
 all: $(CIMEROOT) $(MCTDIR) $(MPISERIALDIR) $(PIO2DIR)
 
@@ -57,12 +57,15 @@ ifeq "$(isMPISERIAL)" "yes"
       -DMPI_Fortran_INCLUDE_PATH=$(PIOLIBDIR)/include \
       -DMPI_C_LIBRARIES=$(MPISERLIB) \
       -DMPI_Fortran_LIBRARIES=$(MPISERLIB)
+  CMAKE_OPTS += -D PIO_USE_MPISERIAL=TRUE -D MPISERIAL_PATH=$(MPISERLIBDIR)
+  CMAKE_OPTS += -DCMAKE_Fortran_COMPILER=$(FC)
 else
   # Change colon delimited list to space with a -I in front of each
   MPIINC   = $(subst :, -I,$(MPIINC_PATHLIST))
   INCLDIR += -I$(MPIINC)
   CPPDEFS += -DHAVE_MPI
   MPISERIAL = 
+  CMAKE_OPTS += -DCMAKE_Fortran_COMPILER=mpif90
 endif
 
 ifeq "$(isGPTL)" "yes"
