@@ -12,9 +12,9 @@
 #=-====================================
 CPPDEFS      = -DUSE_MPI_ISEND_FOR_FC
 CIMEROOT     = $(F_MASTER)../cime
-MCTDIR       = $(CIMEROOT)/src/externals/mct
+MCTDIR       = $(F_MASTER)../libraries/mct/
 MPISERIALDIR = $(MCTDIR)/mpi-serial
-PIO2DIR      = $(CIMEROOT)/src/externals/pio2
+PIO2DIR      = $(F_MASTER)../libraries/parallelio
 LIBDIR       = $(F_MASTER)build/lib
 PIOLIBDIR    = $(F_MASTER)build/lib/piolib
 PIOLIB       = $(PIOLIBDIR)/lib/libpiof.a $(PIOLIBDIR)/lib/libpioc.a
@@ -82,7 +82,7 @@ CMAKE_OPTS += -Wno-dev -D CMAKE_Fortran_FLAGS:STRING="$(FLAGS) $(CPPDEFS) $(INCL
               -D PIO_ENABLE_TESTS:BOOL=OFF \
               -D CMAKE_INSTALL_PREFIX:PATH=$(PIOLIBDIR) \
               -D PIO_ENABLE_TIMING:BOOL=$(PIO_ENABLE_TIMING) \
-              -D USER_CMAKE_MODULE_PATH:LIST="$(CIMEROOT)/src/CMake;$(CIMEROOT)/src/externals/pio2/cmake"
+              -D USER_CMAKE_MODULE_PATH:LIST="$(CIMEROOT)/src/CMake;$(PIO2DIR)/cmake"
 CMAKE_OPTS += -D NetCDF_PATH:PATH=$(NCDF_PATH)
 
 
@@ -98,7 +98,7 @@ endif
 ifdef PIO_FILESYSTEM_HINTS
         CMAKE_OPTS += -D PIO_FILESYSTEM_HINTS:STRING="$(PIO_FILESYSTEM_HINTS)"
 endif
-CMAKE_OPTS += -D GENF90_PATH=$(CIMEROOT)/src/externals/pio2/scripts
+CMAKE_OPTS += -D GENF90_PATH=$(PIO2DIR)/scripts
 
 $(MPISERCONF):
 	cp -p $(MPISERIALDIR)/*.h $(MPISERLIBDIR)/.
