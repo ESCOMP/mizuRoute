@@ -17,39 +17,39 @@ gmake FC=gnu FC_EXE=gfortran F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff
 
 # For gfortran with MPI and PIO2 libraries
 module purge
-module load gnu/6.3.0
-module load mpt/2.19
-module load netcdf-mpi/4.6.1
+module load gnu
+module load mpt
+module load netcdf-mpi
 
 setenv BLDDIR `pwd`/../
 gmake FC=gnu FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff isPIO=yes
 
 # For gfortran with MPI, PNETCDF, GPTL (timing) and PIO2 libraries
 module purge
-module load gnu/6.3.0
-module load mpt/2.19
-module load netcdf-mpi/4.6.1
-module load pnetcdf/1.11.0
+module load gnu
+module load mpt
+module load netcdf-mpi
+module load pnetcdf
 
 setenv BLDDIR `pwd`/../
 gmake FC=gnu FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff isPIO=yes isGPTL=yes PNETCDF_PATH=$PNETCDF
 
 # For gfortran just with MPI (SO WITHOUT ANY OF THE EXTERNAL LIBRARIES)
 module purge
-module load gnu/6.3.0
-module load mpt/2.19
-module load netcdf-mpi/4.6.1
+module load gnu
+module load mpt
+module load netcdf-mpi
 
 setenv BLDDIR `pwd`/../
 gmake FC=gnu FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff
 
 # For intel with MPI, PNETCDF and installed PIO2 libraries
 module purge
-module load intel/17.0.1
-module load mpt/2.19
-module load netcdf-mpi/4.6.1
-module load pnetcdf/1.11.0
-module load pio/2.4.1
+module load intel
+module load mpt
+module load netcdf-mpi
+module load pnetcdf
+module load pio
 
 setenv BLDDIR `pwd`/../
 gmake FC=intel FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff isPIO=yes isGPTL=yes PNETCDF_PATH=$PNETCDF \
@@ -57,11 +57,11 @@ gmake FC=intel FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff
 
 # For intel with MPI, PNETCDF and PIO2 libraries
 module purge
-module load intel/17.0.1
-module load mpt/2.19
-module load netcdf-mpi/4.6.1
-module load pnetcdf/1.11.0
-module load pio/2.4.1
+module load intel
+module load mpt
+module load netcdf-mpi
+module load pnetcdf
+module load pio
 
 setenv BLDDIR `pwd`/../
 gmake FC=intel FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff isPIO=yes PNETCDF_PATH=$PNETCDF
