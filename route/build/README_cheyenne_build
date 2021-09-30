@@ -13,7 +13,7 @@ module load gnu
 module load netcdf
 
 setenv BLDDIR `pwd`/../
-gmake FC=gfortran FC_EXE=gfortran F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff isMPISERIAL=yes isPIO=yes
+gmake FC=gnu FC_EXE=gfortran F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff isMPISERIAL=yes isPIO=yes
 
 # For gfortran with MPI and PIO2 libraries
 module purge
@@ -22,7 +22,7 @@ module load mpt/2.19
 module load netcdf-mpi/4.6.1
 
 setenv BLDDIR `pwd`/../
-gmake FC=gfortran FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff isPIO=yes
+gmake FC=gnu FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff isPIO=yes
 
 # For gfortran with MPI, PNETCDF, GPTL (timing) and PIO2 libraries
 module purge
@@ -32,7 +32,7 @@ module load netcdf-mpi/4.6.1
 module load pnetcdf/1.11.0
 
 setenv BLDDIR `pwd`/../
-gmake FC=gfortran FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff isPIO=yes isGPTL=yes PNETCDF_PATH=$PNETCDF
+gmake FC=gnu FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff isPIO=yes isGPTL=yes PNETCDF_PATH=$PNETCDF
 
 # For gfortran just with MPI (SO WITHOUT ANY OF THE EXTERNAL LIBRARIES)
 module purge
@@ -41,7 +41,7 @@ module load mpt/2.19
 module load netcdf-mpi/4.6.1
 
 setenv BLDDIR `pwd`/../
-gmake FC=gfortran FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff
+gmake FC=gnu FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff
 
 # For intel with MPI, PNETCDF and installed PIO2 libraries
 module purge
@@ -52,7 +52,7 @@ module load pnetcdf/1.11.0
 module load pio/2.4.1
 
 setenv BLDDIR `pwd`/../
-gmake FC=ifort FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff isPIO=yes isGPTL=yes PNETCDF_PATH=$PNETCDF \
+gmake FC=intel FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff isPIO=yes isGPTL=yes PNETCDF_PATH=$PNETCDF \
       PIOLIBDIR=$PIO_LIBDIR PIOINCDIR=$PIO_INCDIR
 
 # For intel with MPI, PNETCDF and PIO2 libraries
@@ -64,5 +64,5 @@ module load pnetcdf/1.11.0
 module load pio/2.4.1
 
 setenv BLDDIR `pwd`/../
-gmake FC=ifort FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff isPIO=yes PNETCDF_PATH=$PNETCDF
+gmake FC=intel FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff isPIO=yes PNETCDF_PATH=$PNETCDF
 
