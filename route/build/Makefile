@@ -213,6 +213,16 @@ PIOLIB       = $(PIOLIBDIR)/libpiof.a $(PIOLIBDIR)/libpioc.a
 MPISERLIBDIR = $(LIBDIR)/mpi-seriallib
 MPISERLIB    = $(MPISERLIBDIR)/libmpi-serial.a
 
+ifeq "$(isPIO)" "yes"
+  EXTINCLUDES += -I$(PIOINCDIR)
+  EXTLIBS += $(PIOLIB)
+  LDFLAGS += -L$(PIOLIBDIR) -lpiof -lpioc
+
+  ifeq "$(isGPTL)" "yes"
+     LDFLAGS += -lgptl
+  endif
+endif
+
 ifeq "$(isMPISERIAL)" "yes"
   EXTINCLUDES += -I$(MPISERLIBDIR)
   EXTLIBS += $(MPISERLIB)
@@ -223,16 +233,6 @@ ifeq "$(isMPISERIAL)" "yes"
   MPISERIAL = $(MPISERLIB)
 else
   MPISERIAL =
-endif
-
-ifeq "$(isPIO)" "yes"
-  EXTINCLUDES += -I$(PIOINCDIR)
-  EXTLIBS += $(PIOLIB)
-  LDFLAGS += -L$(PIOLIBDIR) -lpiof -lpioc
-
-  ifeq "$(isGPTL)" "yes"
-     LDFLAGS += -lgptl
-  endif
 endif
 
 ifdef PNETCDF_PATH
