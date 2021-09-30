@@ -271,6 +271,7 @@ cleanmpiseriallib:
 compile: $(EXTLIBS)
 	$(FC_EXE) $(FLAGS) $(EXTINCLUDES) $(MODSUB) $(DRIVER) \
 	$(LIBNETCDF) $(INCNETCDF) $(LDFLAGS) -o $(EXE)
+	@echo "Succesfully compiled"
 
 # Remove object files
 clean:
@@ -278,8 +279,10 @@ clean:
 						rm -f *.lst
 						rm -f *.mod
 						rm -f *__genmod.f90
+						@echo "Successfully cleaned object files"
 #
 # Copy the executable to the bin directory
 install:
 	@mkdir -p $(EXE_PATH)
 	@mv $(EXE) $(EXE_PATH)
+	@echo "Successfully installed"
