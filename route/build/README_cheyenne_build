@@ -6,9 +6,6 @@
 # NOTE: Use of the external libraries REQUIRES running the "checkout_externals" as documented in the top
 #       level directory (cd ../../; less README_EXTERNALS.rst)
 
-# For gfortran with both mpi-serial and PIO2 libraries
-# EBK 9/30/2021 this is currently failing to build
-
 module purge
 module load gnu
 module load netcdf
