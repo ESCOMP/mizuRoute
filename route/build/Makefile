@@ -2,7 +2,7 @@
 # Makefile to compile the routing model
 #========================================================================
 #
-# Need to edit FC, FC_EXE, EXE, isOpenMP (if OMP is used), F_MASTER, NCDF_PATH
+# Need to uncomment and edit FC, FC_EXE, EXE, isOpenMP (if OMP is used), F_MASTER, NCDF_PATH
 # Feel free to modify compiler flag (FLAGS)
 # Do not leave space after your edits
 #
@@ -10,38 +10,38 @@
 # User configure part
 #========================================================================
 # Define fortran compiler - gnu, intel or pgi
-FC  =
+## FC  =
 
 # Define the compiler exe, e.g., gnu=>gfortran, intel=>ifort, pgi=>pgf90
-FC_EXE =
+## FC_EXE =
 
 # Define the compiled executable
-EXE =
+## EXE =
 
 # Define optional setting
 # fast:      Enables optimizations
 # debug:     Minimum debug options, still
 # profile:   Enables profiling
-MODE = debug
+## MODE = debug
 
 # define open MP option (put yes to activate OMP)
-isOpenMP =
+## isOpenMP =
 
 # Define core directory below which everything resides
 # parent directory of the 'build' directory
 # do not put space at the end of path
-F_MASTER =
+## F_MASTER =
 
 # Define the NetCDF libraries and path to include files
-ifeq "$(FC)" "gnu"
- NCDF_PATH =
-endif
-ifeq "$(FC)" "intel"
- NCDF_PATH =
-endif
-ifeq "$(FC)" "pgi"
- NCDF_PATH =
-endif
+## ifeq "$(FC)" "gnu"
+##  NCDF_PATH =
+## endif
+## ifeq "$(FC)" "intel"
+##  NCDF_PATH =
+## endif
+## ifeq "$(FC)" "pgi"
+##  NCDF_PATH =
+## endif
 
 LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
             -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
