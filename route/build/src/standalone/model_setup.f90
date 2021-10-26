@@ -417,7 +417,7 @@ CONTAINS
   USE public_var, ONLY: restart_month            ! periodic restart month
   USE public_var, ONLY: restart_day              ! periodic restart day
   USE public_var, ONLY: restart_hour             ! periodic restart hr
-  USE public_var, ONLY: verySmall                ! very small value
+  USE public_var, ONLY: maxTimeDiff              ! time difference tolerance for input checks
   ! saved time variables
   USE globalData, ONLY: timeVar                  ! time variables (unit given by runoff data)
   USE globalData, ONLY: iTime                    ! time index at simulation time step
@@ -544,9 +544,9 @@ CONTAINS
     roJulday_diff = roJulday (1:nTime-1) - roJulday (2:nTime)
     ! check if the difference are identical otherwise error and terminate
     do counter = 1, nTime-2
-      if ((abs(roJulday_diff(counter)-roJulday_diff(counter+1)))>verySmall) then
-        write(iulog,'(2a)') new_line('a'),'ERROR: contacenated netCDF files have time overlaps or gap'
-        ierr=20; message=trim(message)//'make sure the input netCDF files do not have time overlap or gap'; return
+      if ((abs(roJulday_diff(counter)-roJulday_diff(counter+1)))>maxTimeDiff) then
+        write(iulog,'(2a)') new_line('a'),'ERROR: time spacing in netCDF input(s) is not consistent within tolerance maxTimeDiff = ',maxTimeDiff
+        ierr=20; message=trim(message)//'make sure the input netCDF files do not have time overlaps or gaps'; return
       endif
     enddo
   endif
@@ -606,9 +606,9 @@ CONTAINS
       roJulday_diff_wm = roJulday_wm (1:nTime_wm-1) - roJulday_wm (2:nTime_wm)
       ! check if the difference are identical otherwise error and terminate
       do counter = 1, nTime_wm-2
-        if ((abs(roJulday_diff_wm(counter)-roJulday_diff_wm(counter+1)))>verySmall) then
-          write(iulog,'(2a)') new_line('a'),'ERROR: water managmentcontacenated netCDF files have time overlaps or gap'
-          ierr=20; message=trim(message)//'make sure the water management input netCDF files do not have time overlap or gap'; return
+        if ((abs(roJulday_diff_wm(counter)-roJulday_diff_wm(counter+1)))>maxTimeDiff) then
+          write(iulog,'(2a)') new_line('a'),'ERROR: time spacing in water management netCDF input(s) is not consistent within tolerance maxTimeDiff = ',maxTimeDiff
+          ierr=20; message=trim(message)//'make sure the water management input netCDF files do not have time overlaps or gaps'; return
         endif
       enddo
     endif
