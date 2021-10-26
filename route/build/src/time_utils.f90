@@ -18,8 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module time_utils_module
-
+MODULE time_utils_module
 USE nrtype
 USE public_var, ONLY: secprday,secprhour,secprmin, &   ! seconds in an (day, hour, minute)
                       months_per_yr, days_per_yr,  &   ! months and days in year (no leap year)
@@ -29,13 +28,12 @@ private
 public::extractTime
 public::ndays_month
 public::isLeapYear
-public::compjulday
-public::compjulday_noleap
-public::compcalday
-public::compcalday_noleap
+public::compJulday
+public::compJulday_noleap
+public::compCalday
+public::compCalday_noleap
 public::elapsedSec
-
-contains
+CONTAINS
 
  ! ******************************************************************************************
  ! public function: check leap year or not
@@ -80,9 +78,9 @@ contains
 
  select case(trim(calendar))
    case ('standard','gregorian','proleptic_gregorian')
-     call compjulday(yr,mo,1,0,0,0._dp,julday1,ierr,cmessage)
+     call compJulday(yr,mo,1,0,0,0._dp,julday1,ierr,cmessage)
    case('noleap')
-     call compjulday_noleap(yr,mo,1,0,0,0._dp,julday1,ierr,cmessage)
+     call compJulday_noleap(yr,mo,1,0,0,0._dp,julday1,ierr,cmessage)
    case default; ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
  end select
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -96,9 +94,9 @@ contains
  end if
  select case(trim(calendar))
    case ('standard','gregorian','proleptic_gregorian')
-     call compjulday(yr_next,mo_next,1,0,0,0._dp,julday2,ierr,cmessage)
+     call compJulday(yr_next,mo_next,1,0,0,0._dp,julday2,ierr,cmessage)
    case('noleap')
-     call compjulday_noleap(yr_next,mo_next,1,0,0,0._dp,julday2,ierr,cmessage)
+     call compJulday_noleap(yr_next,mo_next,1,0,0,0._dp,julday2,ierr,cmessage)
    case default; ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
  end select
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -179,7 +177,6 @@ contains
 
  contains
 
-
   ! ******************************************************************************************
   ! internal subroutine extract: extract substring
   ! ******************************************************************************************
@@ -211,9 +208,9 @@ contains
 
 
  ! ***************************************************************************************
- ! public subroutine compjulday: convert date to julian day (units of days)
+ ! public subroutine compJulday: convert date to julian day (units of days)
  ! ***************************************************************************************
- subroutine compjulday(iyyy,mm,id,ih,imin,dsec,&  ! input
+ subroutine compJulday(iyyy,mm,id,ih,imin,dsec,&  ! input
                        juldayss,err,message)      ! output
  implicit none
  ! input variables
@@ -255,13 +252,13 @@ contains
  ! and return the julian day, expressed in fraction of a day
  juldayss = real(julday,kind(dp)) + jfrac
 
- end subroutine compjulday
+ end subroutine compJulday
 
  ! ***************************************************************************************
- ! public subroutine compjulday: convert date to julian day (units of days) for noleap calendar
+ ! public subroutine compJulday: convert date to julian day (units of days) for noleap calendar
  ! reference: https://github.com/nmizukami/VIC/blob/VIC.5.0.0/vic/drivers/shared_all/src/vic_time.c
  ! ***************************************************************************************
- subroutine compjulday_noleap(iyyy,mm,id,ih,imin,dsec,&  ! input
+ subroutine compJulday_noleap(iyyy,mm,id,ih,imin,dsec,&  ! input
                        juldayss,err,message)             ! output
  implicit none
  ! input variables
@@ -278,7 +275,7 @@ contains
  real(dp)                  :: dfrac        ! fraction of day
 
  ! initialize errors
- err=0; message="compjulday_noleap"
+ err=0; message="compJulday_noleap"
 
  ! compute fraction of the day
  dfrac = real(id,kind(dp))+(real(ih,kind(dp))*secprhour + real(imin,kind(dp))*secprmin + dsec) / secprday
@@ -294,14 +291,13 @@ contains
  juldayss = real(days_per_yr*(iyyy_tmp + 4716)) + &
             real(floor(30.6001 * real(mm_tmp+1))) + dfrac - 1524.5
 
- end subroutine compjulday_noleap
+ end subroutine compJulday_noleap
 
  ! ***************************************************************************************
  ! public subroutine compgregcal: convert julian day (units of days) to calendar date
  ! source: https://en.wikipedia.org/wiki/Julian_day#Julian_or_Gregorian_calendar_from_Julian_day_number
  ! ***************************************************************************************
-
- subroutine compcalday(julday,                              & !input
+ subroutine compCalday(julday,                              & !input
                        iyyy,mm,id,ih,imin,dsec,err,message)   !output
  implicit none
 
@@ -339,7 +335,7 @@ contains
  real(dp)              :: remainder ! remainder of modulus operation
 
  ! initialize errors
- err=0; message="compcalday"
+ err=0; message="compCalday"
  if(julday<=0)then;err=10;message=trim(message)//"no negative julian days/"; return; end if
 
  ! step 1
@@ -379,13 +375,13 @@ contains
  remainder = remainder*min_per_hour - imin
  dsec = nint(remainder*secprmin)
 
- end subroutine compcalday
+ end subroutine compCalday
 
  ! ***************************************************************************************
  ! public subroutine compgregcal_noleap: compute yy,mm,dd,hr,min,hr from a noleap julian day
  ! source: https://github.com/nmizukami/VIC/blob/VIC.5.0.0/vic/drivers/shared_all/src/vic_time.c
  ! ***************************************************************************************
- subroutine compcalday_noleap(julday,                              & !input
+ subroutine compCalday_noleap(julday,                              & !input
                               iyyy,mm,id,ih,imin,dsec,err,message)   !output
  implicit none
 
@@ -410,7 +406,7 @@ contains
  real(dp)                     :: remainder    ! remainder of modulus operation
 
  ! initialize errors
- err=0; message="compcalday_noleap"
+ err=0; message="compCalday_noleap"
  if(julday<=0)then;err=10;message=trim(message)//"no negative julian days/"; return; end if
 
  A = floor(julday+0.5_dp)
@@ -457,7 +453,7 @@ contains
  remainder = remainder*min_per_hour - imin
  dsec = nint(remainder*secprmin)
 
- end subroutine compcalday_noleap
+ end subroutine compCalday_noleap
 
  ! ***************************************************************************************
  ! public function elapsedSec: calculate difference of two time marks obtained by date_and_time()

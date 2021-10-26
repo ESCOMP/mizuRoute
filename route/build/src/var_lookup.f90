@@ -186,10 +186,13 @@ MODULE var_lookup
   integer(i4b)     :: IRFroutedRunoff   = integerMissing  ! IRF routed runoff in each reach
   integer(i4b)     :: IRFlakeVol        = integerMissing  ! IRF lake volume
  endtype iLook_rflx
+ ! Reach inflow from basin
+ type, public  ::  iLook_basinQ
+  integer(i4b)     :: q              = integerMissing  ! final discharge
+ endtype iLook_basinQ
  ! Basin IRF state/fluxes
  type, public  ::  iLook_IRFbas
   integer(i4b)     :: qfuture        = integerMissing  ! future routed flow
-  integer(i4b)     :: q              = integerMissing  ! final discharge
  endtype iLook_IRFbas
  ! KWT state/fluxes
  type, public  ::  iLook_KWT
@@ -225,7 +228,8 @@ MODULE var_lookup
  type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      (1,2,3,4,5)
  type(iLook_KWE)      ,public,parameter :: ixKWE       = iLook_KWE      (1,2)
  type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      (1,2)
- type(iLook_IRFbas  ) ,public,parameter :: ixIRFbas    = iLook_IRFbas   (1,2)
+ type(iLook_IRFbas  ) ,public,parameter :: ixIRFbas    = iLook_IRFbas   (1)
+ type(iLook_basinQ )  ,public,parameter :: ixBasinQ    = iLook_basinQ   (1)
  ! ***********************************************************************************************************
  ! ** define size of data vectors
  ! ***********************************************************************************************************
@@ -243,6 +247,7 @@ MODULE var_lookup
  integer(i4b),parameter,public    :: nVarsKWE      = storage_size(ixKWE      )/iLength
  integer(i4b),parameter,public    :: nVarsIRF      = storage_size(ixIRF      )/iLength
  integer(i4b),parameter,public    :: nVarsIRFbas   = storage_size(ixIRFbas   )/iLength
+ integer(i4b),parameter,public    :: nVarsBasinQ   = storage_size(ixBasinQ   )/iLength
  ! ***********************************************************************************************************
 
 END MODULE var_lookup

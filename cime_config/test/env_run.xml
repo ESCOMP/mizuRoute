@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+
+<file id="env_run.xml" version="2.0">
+  <header>
+  </header>
+
+
+<!--
+
+Sample env_run.xml file that allows buildnml to be run for testing in this directory.
+
+-->
+<group>
+<entry id="DIN_LOC_ROOT"         value="MYDINLOCROOT"  /> 
+
+    <entry id="CASESTR" value="test">
+    </entry>
+    <entry id="RUNDIR" value="$CASEROOT/run">
+    </entry>
+    <entry id="RUN_TYPE" value="startup">
+    </entry>
+
+    <entry id="RUN_REFDIR" value="cesm2_init">
+    </entry>
+    <entry id="RUN_REFCASE" value="case.std">
+    </entry>
+    <entry id="RUN_REFDATE" value="0001-01-01">
+    </entry>
+    <entry id="RUN_REFTOD" value="00000">
+    </entry>
+    <entry id="GET_REFCASE" value="FALSE">
+    </entry>
+    <entry id="RUN_STARTDATE" value="0001-01-01">
+    </entry>
+
+    <entry id="ROF_DOMAIN_FILE" value="UNSET">
+    </entry>
+    <entry id="ROF_DOMAIN_PATH" value="$DIN_LOC_ROOT/share/domains">
+    </entry>
+</group>
+
+</file>

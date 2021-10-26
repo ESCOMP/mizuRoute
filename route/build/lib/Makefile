@@ -43,6 +43,7 @@ $(PIO2DIR):
 
 ifeq "$(isPIO)" "yes"
   INCLDIR += -I$(PIOLIBDIR)/include
+  CPPDEFS += -DPIO2
 endif
 
 ifeq "$(isMPISERIAL)" "yes"
@@ -71,7 +72,7 @@ else
   PIO_ENABLE_TIMING = OFF
 endif
 
-CMAKE_OPTS += -D CMAKE_Fortran_FLAGS:STRING="$(FLAGS) $(CPPDEFS) $(INCLDIR)" \
+CMAKE_OPTS += -Wno-dev -D CMAKE_Fortran_FLAGS:STRING="$(FLAGS) $(CPPDEFS) $(INCLDIR)" \
               -D CMAKE_C_FLAGS:STRING="$(CFLAGS) $(CPPDEFS) $(INCLDIR)" \
               -D CMAKE_CXX_FLAGS:STRING="$(CXXFLAGS) $(CPPDEFS) $(INCLDIR)" \
               -D CMAKE_VERBOSE_MAKEFILE:BOOL=ON \
@@ -94,7 +95,7 @@ endif
 ifdef PIO_FILESYSTEM_HINTS
         CMAKE_OPTS += -D PIO_FILESYSTEM_HINTS:STRING="$(PIO_FILESYSTEM_HINTS)"
 endif
-CMAKE_OPTS += -D GENF90_PATH=$(CIMEROOT)/src/externals/genf90
+CMAKE_OPTS += -D GENF90_PATH=$(CIMEROOT)/src/externals/pio2/scripts
 
 $(MPISERCONF):
 	cp -p $(MPISERIALDIR)/*.h $(MPISERLIBDIR)/.

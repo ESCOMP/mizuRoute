@@ -27,10 +27,10 @@ USE init_model_data,     ONLY: update_time      ! Update simulation time informa
 USE model_utils,         ONLY: model_finalize
 USE model_utils,         ONLY: handle_err
 ! subroutines: routing
-USE mpi_routine,         ONLY: mpi_route        ! Distribute runoff to proc, route them, and gather,
+USE mpi_process,         ONLY: mpi_route        ! Distribute runoff to proc, route them, and gather,
 ! subroutines: model I/O
 USE get_runoff,          ONLY: get_hru_runoff   !
-USE write_simoutput_pio, ONLY: prep_output      !
+USE write_simoutput_pio, ONLY: main_new_file    !
 USE write_simoutput_pio, ONLY: output           !
 USE write_restart_pio,   ONLY: main_restart     ! write netcdf state output file
 
@@ -80,7 +80,7 @@ if(ierr/=0) call handle_err(ierr, cmessage)
 ! ***********************************
 do while (.not.finished)
 
-  call prep_output(ierr, cmessage)
+  call main_new_file(ierr, cmessage)
   if(ierr/=0) call handle_err(ierr, cmessage)
 
   if(pid==0)then

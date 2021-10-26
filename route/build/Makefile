@@ -27,7 +27,6 @@ MODE = debug
 
 # define open MP flags (yes if used)
 isOpenMP = yes
-FLAGS_OMP =
 LIBOPENMP =
 
 # define if should use external librarys (yes if used)
@@ -66,11 +65,16 @@ LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
             -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
 INCNETCDF = -I$(NCDF_PATH)/include
 
+FLAGS_OMP =
 ifeq "$(isOpenMP)" "yes"
  ifeq "$(FC)" "pgi"
   FLAGS_OMP = -mp
- else
+ endif
+ ifeq "$(FC)" "gnu"
   FLAGS_OMP = -fopenmp
+ endif
+ ifeq "$(FC)" "intel"
+  FLAGS_OMP = -qopenmp
  endif
 endif
 
@@ -137,6 +141,8 @@ DATATYPES = \
     public_var.f90 \
     dataTypes.f90 \
     var_lookup.f90 \
+    time_utils.f90 \
+    datetime_data.f90 \
     globalData.f90 \
     popMetadat.f90 \
     allocation.f90
@@ -144,7 +150,6 @@ DATATYPES = \
 UTILS = \
     nr_utility.f90 \
     ascii_util.f90 \
-    time_utils.f90 \
     ncio_utils.f90 \
     mpi_utils.f90 \
     pio_utils.f90 \
@@ -152,7 +157,6 @@ UTILS = \
     gamma_func.f90
 # initialization
 INIT = \
-    process_time.f90 \
     network_topo.f90 \
     process_param.f90 \
     process_ntopo.f90 \
@@ -160,7 +164,7 @@ INIT = \
     domain_decomposition.f90
 # read/write files
 IO = \
-    remap.f90 \
+    process_remap.f90 \
     read_control.f90 \
     read_param.f90 \
     read_streamSeg.f90 \

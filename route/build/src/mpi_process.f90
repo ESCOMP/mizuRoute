@@ -1,4 +1,4 @@
-MODULE mpi_routine
+MODULE mpi_process
 
 USE mpi
 
@@ -30,11 +30,11 @@ USE perf_mod,          ONLY: t_startf       ! timing start
 USE perf_mod,          ONLY: t_stopf        ! timing stop
 
 ! MPI utility
-USE mpi_mod, ONLY: shr_mpi_bcast
-USE mpi_mod, ONLY: shr_mpi_gatherV
-USE mpi_mod, ONLY: shr_mpi_scatterV
-USE mpi_mod, ONLY: shr_mpi_allgather
-USE mpi_mod, ONLY: shr_mpi_barrier
+USE mpi_utils, ONLY: shr_mpi_bcast
+USE mpi_utils, ONLY: shr_mpi_gatherV
+USE mpi_utils, ONLY: shr_mpi_scatterV
+USE mpi_utils, ONLY: shr_mpi_allgather
+USE mpi_utils, ONLY: shr_mpi_barrier
 
 implicit none
 
@@ -60,6 +60,7 @@ public :: comm_ntopo_data
 public :: mpi_restart
 public :: mpi_route
 public :: pass_global_data
+public :: mpi_comm_single_flux
 
 contains
 
@@ -103,7 +104,7 @@ contains
   USE globalData,          ONLY: local_ix_comm            ! local reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
   USE globalData,          ONLY: reachID
   USE globalData,          ONLY: basinID
-  USE alloc_data,          ONLY: alloc_struct
+  USE allocation,          ONLY: alloc_struct
   USE process_ntopo,       ONLY: augment_ntopo            ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,       ONLY: put_data_struct          !
   USE domain_decomposition,ONLY: omp_domain_decomposition ! domain decomposition for omp
@@ -1471,7 +1472,6 @@ contains
   integer(i4b),           intent(out)     :: ierr                      ! error code
   character(len=strLen),  intent(out)     :: message                   ! error message
   ! local variables
-  integer(i4b)                            :: iHru,jHru                 ! loop indices
   real(dp)                                :: basinRunoff_local(nHRU)   ! temporal basin runoff (m/s) for whole domain
   real(dp)                                :: basinEvapo_local(nHRU)    ! temporal basin evaporation (m/s) for whole domain
   real(dp)                                :: basinPrecip_local(nHRU)   ! temporal basin precipitation (m/s) for whole domain
@@ -1600,7 +1600,6 @@ contains
   integer(i4b),           intent(out) :: ierr                            ! error code
   character(len=strLen),  intent(out) :: message                         ! error message
   ! local variables
-  integer(i4b)                        :: iHru,jHru                       ! loop indices
   real(dp)                            :: Rch_flux_local(nRch)            ! temporal reach flux (m3/s) for whole domain
   real(dp)                            :: Rch_vol_local(nRch)             ! temporal reach (lake) volume (m3) for whole domain
   character(len=strLen)               :: cmessage                        ! error message from a subroutine
@@ -2795,13 +2794,7 @@ contains
  ! send all the necessary public/global variables neccesary in task
  subroutine pass_global_data(comm, ierr,message)   ! output: error control
   USE globalData, ONLY: nRch,nHRU         ! number of reaches and hrus in whole network
-  USE globalData, ONLY: timeVar           ! time variable
   USE globalData, ONLY: iTime             ! time index
-  USE globalData, ONLY: refJulday         ! julian day: reference
-  USE globalData, ONLY: startJulday       ! julian day: start
-  USE globalData, ONLY: endJulday         ! julian day: end
-  USE globalData, ONLY: modJulday         ! julian day: at simulation time step
-  USE globalData, ONLY: roJulday          ! julian day: runoff input time
   USE globalData, ONLY: reachID
   USE globalData, ONLY: basinID
   implicit none
@@ -2821,17 +2814,10 @@ contains
   call MPI_BCAST(nHRU,        1,     MPI_INTEGER,          root, comm, ierr)
   call MPI_BCAST(calendar,  strLen,  MPI_CHARACTER,        root, comm, ierr)
   call MPI_BCAST(time_units,strLen,  MPI_CHARACTER,        root, comm, ierr)
-  call MPI_BCAST(refJulday,     1,   MPI_DOUBLE_PRECISION, root, comm, ierr)
-  call MPI_BCAST(startJulday,   1,   MPI_DOUBLE_PRECISION, root, comm, ierr)
-  call MPI_BCAST(endJulday,     1,   MPI_DOUBLE_PRECISION, root, comm, ierr)
-  call MPI_BCAST(modJulday,     1,   MPI_DOUBLE_PRECISION, root, comm, ierr)
 
-  call shr_mpi_bcast(roJulday,ierr, message)
-  call shr_mpi_bcast(timeVar,ierr, message)
   call shr_mpi_bcast(reachID,ierr, message)
   call shr_mpi_bcast(basinID,ierr, message)
 
  end subroutine pass_global_data
 
-end module mpi_routine
-
+END MODULE mpi_process

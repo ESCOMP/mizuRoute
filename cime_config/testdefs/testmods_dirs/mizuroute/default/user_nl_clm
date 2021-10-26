@@ -1,0 +1,3 @@
+! Have some history output from CLM
+hist_nhtfrq = -24
+hist_mfilt = 5

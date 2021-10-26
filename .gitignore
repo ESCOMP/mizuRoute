@@ -39,6 +39,11 @@ route/bin
 *.swp
 *~
 
+# Compiled python files
+*.pyc
+buildnmlc
+buildlibc
+
 # temp src directory
 /route/build/src/tmp
 

@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+
+<file id="env_case.xml" version="2.0">
+  <header>
+  </header>
+
+<!--
+
+-->
+<group>
+    <entry id="COMP_CLASSES" value="CPL,ATM,LND,ROF"/>
+
+    <entry id="CONFIG_ROF_FILE" value="$COMP_ROOT_DIR_ROF/cime_config/config_component.xml">
+      <type>char</type>
+      <desc>file containing specification of component specific definitions and values(for documentation only - DO NOT EDIT)</desc>
+      <schema version="2.0">$CIMEROOT/config/xml_schemas/entry_id.xsd</schema>
+      <schema version="3.0">$CIMEROOT/config/xml_schemas/entry_id_version3.xsd</schema>
+    </entry>
+
+    <entry id="COMPSET" value="1850_DATM%GSWP3v1_CLM50%BGC-CROP_SICE_SOCN_MIZUROUTE_CISM2%NOEVOLVE_SWAV_SIAC_SESP">
+      <type>char</type>
+      <desc>Component set long name (for documentation only - DO NOT EDIT)</desc>
+    </entry>
+
+    <entry id="COMP_ROOT_DIR_ROF" value="$SRCROOT">
+      <type>char</type>
+      <desc>Root directory of the case river runoff model component  </desc>
+      <schema>$CIMEROOT/config/xml_schemas/config_compsets.xsd</schema>
+    </entry>
+
+    <entry id="COMP_ROF" value="mizuRoute">
+      <type>char</type>
+      <valid_values>mizuRoute</valid_values>
+      <desc>Name of river component</desc>
+    </entry>
+
+    <entry id="SRCROOT" value="$ENV{PWD}/../..">
+      <type>char</type>
+      <desc>full pathname of source root directory</desc>
+    </entry>
+
+    <entry id="CASE" value="CASENAME">
+      <type>char</type>
+      <desc>case name</desc>
+    </entry>
+
+    <entry id="MODEL" value="cesm">
+      <type>char</type>
+      <desc>model system name</desc>
+    </entry>
+
+    <entry id="CASEROOT" value="$ENV{PWD}">
+      <type>char</type>
+      <desc>full pathname of case</desc>
+    </entry>
+</group>
+
+</file>

@@ -8,12 +8,12 @@ module rof_import_export
   use NUOPC           , only : NUOPC_CompAttributeGet, NUOPC_Advertise, NUOPC_IsConnected
   use NUOPC_Model     , only : NUOPC_ModelGet
   use shr_kind_mod    , only : r8 => shr_kind_r8
-  use shr_sys_mod     , only : shr_sys_abort
+  use shr_sys_mod     , only : shr_sys_abort, shr_sys_flush
   use rof_shr_methods , only : chkerr
 
   use public_var      , only : iulog
-  use public_var      , only : masterproc          !create this  logical variable  in mizuRoute (masterproc=true => master task, false => other tasks
-  use globalData      , only : iTime               ! replace RtmTimeManager,  get_nstep in Mosart
+  use globalData      , only : masterproc          !create this  logical variable  in mizuRoute (masterproc=true => master task, false => other tasks
+  use globalData      , only : iTime               ! get step number in mizuRoute
   use RunoffMod       , only : rtmCTL
   use RtmVar          , only : nt_rtm, rtm_tracers
 
@@ -42,7 +42,7 @@ module rof_import_export
   type (fld_list_type)   :: fldsToRof(fldsMax)
   type (fld_list_type)   :: fldsFrRof(fldsMax)
 
-  integer     ,parameter :: debug = 0 ! internal debug level
+  logical     ,parameter :: debug_write = .true. ! internal debug level
   character(*),parameter :: F01 = "('(mizuRoute_import_export) ',a,i5,2x,i8,2x,d21.14)"
   character(*),parameter :: u_FILE_u = &
        __FILE__
@@ -78,10 +78,11 @@ contains
     ! Advertise export fields
     !--------------------------------
     call fldlist_add(fldsFrRof_num, fldsFrRof, trim(flds_scalar_name))
-    call fldlist_add(fldsFrRof_num, fldsFrRof, 'Forr_rofl')    
+    call fldlist_add(fldsFrRof_num, fldsFrRof, 'Forr_rofl')
     call fldlist_add(fldsFrRof_num, fldsFrRof, 'Forr_rofi')
     call fldlist_add(fldsFrRof_num, fldsFrRof, 'Flrr_flood')
     call fldlist_add(fldsFrRof_num, fldsFrRof, 'Flrr_volr')
+    call fldlist_add(fldsFrRof_num, fldsFrRof, 'Flrr_volrmch')
 
     do n = 1,fldsFrRof_num
        call NUOPC_Advertise(exportState, standardName=fldsFrRof(n)%stdname, &
@@ -117,7 +118,7 @@ contains
     type(ESMF_GridComp) , intent(inout) :: gcomp
     type(ESMF_Mesh)     , intent(in)    :: Emesh
     character(len=*)    , intent(in)    :: flds_scalar_name
-    integer             , intent(in)    :: flds_scalar_num 
+    integer             , intent(in)    :: flds_scalar_num
     integer             , intent(out)   :: rc
 
     ! local variables
@@ -169,7 +170,7 @@ contains
     type(ESMF_State) :: importState
     integer          :: n,nt
     integer          :: begr, endr
-    integer          :: nliq, nfrz 
+    integer          :: nliq, nfrz
     integer          :: dbrc
     character(len=*), parameter :: subname='(rof_import_export:import_fields)'
     !---------------------------------------------------------------------------
@@ -197,35 +198,24 @@ contains
     endr = rtmCTL%endr
 
     ! determine output array and scale by unit convertsion
-    ! NOTE: the call to state_getimport will convert from input kg/m2s to m3/s
-    
-    call state_getimport(importState, 'Flrl_rofsur', begr, endr, rtmCTL%area, output=rtmCTL%qsur(:,nliq), rc=rc)
+    ! NOTE: the call to state_getimport will not convert input unit kg/m2s (mm/s)
+    call state_getimport(importState, 'Flrl_rofsur', begr, endr, output=rtmCTL%qsur(:,nliq), rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    call state_getimport(importState, 'Flrl_rofsub', begr, endr, rtmCTL%area, output=rtmCTL%qsub(:,nliq), rc=rc)
+    call state_getimport(importState, 'Flrl_rofsub', begr, endr, output=rtmCTL%qsub(:,nliq), rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    call state_getimport(importState, 'Flrl_rofgwl', begr, endr, rtmCTL%area, output=rtmCTL%qgwl(:,nliq), rc=rc)
+    call state_getimport(importState, 'Flrl_rofgwl', begr, endr, output=rtmCTL%qgwl(:,nliq), rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    call state_getimport(importState, 'Flrl_rofi', begr, endr, rtmCTL%area, output=rtmCTL%qsur(:,nfrz), rc=rc)
+    call state_getimport(importState, 'Flrl_rofi', begr, endr, output=rtmCTL%qsur(:,nfrz), rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    call state_getimport(importState, 'Flrl_irrig', begr, endr, rtmCTL%area, output=rtmCTL%qirrig(:), rc=rc)
+    call state_getimport(importState, 'Flrl_irrig', begr, endr, output=rtmCTL%qirrig(:), rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     rtmCTL%qsub(begr:endr, nfrz) = 0.0_r8
     rtmCTL%qgwl(begr:endr, nfrz) = 0.0_r8
-
-    if (debug > 0 .and. masterproc .and. iTime < 5) then
-       do n = begr,endr
-          write(iulog,F01)'import: nstep, n, Flrl_rofsur = ',iTime,n,rtmCTL%qsur(n,nliq)
-          write(iulog,F01)'import: nstep, n, Flrl_rofsub = ',iTime,n,rtmCTL%qsub(n,nliq)
-          write(iulog,F01)'import: nstep, n, Flrl_rofgwl = ',iTime,n,rtmCTL%qgwl(n,nliq)
-          write(iulog,F01)'import: nstep, n, Flrl_rofi   = ',iTime,n,rtmCTL%qsur(n,nfrz)
-          write(iulog,F01)'import: nstep, n, Flrl_irrig  = ',iTime,n,rtmCTL%qirrig(n)
-       end do
-    end if
 
   end subroutine import_fields
 
@@ -253,6 +243,7 @@ contains
     real(r8), pointer :: rofi(:)
     real(r8), pointer :: flood(:)
     real(r8), pointer :: volr(:)
+    real(r8), pointer :: volrmch(:)
     logical, save     :: first_time = .true.
     integer           :: dbrc
     character(len=*), parameter :: subname='(rof_import_export:export_fields)'
@@ -284,6 +275,7 @@ contains
           else
              write(iulog,*)'Snow capping will flow out in liquid river runoff'
           endif
+          call shr_sys_flush(iulog)
        endif
        first_time = .false.
     end if
@@ -295,9 +287,11 @@ contains
     allocate(rofi(begr:endr))
     allocate(flood(begr:endr))
     allocate(volr(begr:endr))
+    allocate(volrmch(begr:endr))
 
     if ( ice_runoff )then
        ! separate liquid and ice runoff
+       call shr_sys_abort(trim(subname)//': ERROR ice_runoff can NOT be true')
        do n = begr,endr
           rofl(n) = rtmCTL%discharge(n,nliq)
           rofi(n) = rtmCTL%discharge(n,nfrz)
@@ -314,8 +308,13 @@ contains
     ! so if water is sent from rof to land, the flux must be negative.
 
     do n = begr, endr
-       flood(n)   = -rtmCTL%flood(n)    / (rtmCTL%area(n)*0.001_r8)
-       volr(n)    =  rtmCTL%volr(n,nliq)/ rtmCTL%area(n)
+       !flood(n)   = -rtmCTL%flood(n) / (rtmCTL%area(n)*0.001_r8)
+       !flood(n)   = -rtmCTL%flood(n)
+       flood(n)   = 0.0_r8
+       !volr(n)    =  rtmCTL%volr(n)  / rtmCTL%area(n)
+       !volr(n)    =  rtmCTL%volr(n)
+       volr(n)    =  0.0_r8
+       volrmch(n) =  0.0_r8
     end do
 
     call state_setexport(exportState, 'Forr_rofl', begr, endr, input=rofl, rc=rc)
@@ -330,16 +329,10 @@ contains
     call state_setexport(exportState, 'Flrr_volr', begr, endr, input=volr, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    if (debug > 0 .and. masterproc .and. iTime <  5) then
-       do n = begr,endr
-          write(iulog,F01)'export: nstep, n, Flrr_flood   = ',iTime, n, flood(n)
-          write(iulog,F01)'export: nstep, n, Flrr_volr    = ',iTime, n, volr(n)
-          write(iulog,F01)'export: nstep, n, Forr_rofl    = ',iTime ,n, rofl(n)
-          write(iulog,F01)'export: nstep, n, Forr_rofi    = ',iTime ,n, rofi(n)
-       end do
-    end if
+    call state_setexport(exportState, 'Flrr_volrmch', begr, endr, input=volrmch, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    deallocate(rofl, rofi, flood, volr)
+    deallocate(rofl, rofi, flood, volr, volrmch)
 
   end subroutine export_fields
 
@@ -467,7 +460,7 @@ contains
 
   !===============================================================================
 
-  subroutine state_getimport(state, fldname, begr, endr, area, output, rc)
+  subroutine state_getimport(state, fldname, begr, endr, output, rc, unit_conversion)
 
     ! ----------------------------------------------
     ! Map import state field to output array
@@ -476,15 +469,16 @@ contains
     ! input/output variables
     type(ESMF_State)    , intent(in)    :: state
     character(len=*)    , intent(in)    :: fldname
-    integer             , intent(in)    :: begr 
+    integer             , intent(in)    :: begr
     integer             , intent(in)    :: endr
-    real(r8)            , intent(in)    :: area(begr:endr)
     real(r8)            , intent(out)   :: output(begr:endr)
     integer             , intent(out)   :: rc
+    real(r8),optional   , intent(in)    :: unit_conversion(begr:endr)
 
     ! local variables
     integer                     :: g, i
     real(R8), pointer           :: fldptr(:)
+    real(r8)                    :: unitConversion(begr:endr)
     type(ESMF_StateItem_Flag)   :: itemFlag
     integer                     :: dbrc
     character(len=*), parameter :: subname='(rof_import_export:state_getimport)'
@@ -503,19 +497,27 @@ contains
        call state_getfldptr(state, trim(fldname), fldptr,  rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-       ! determine output array and scale by unit convertsion
+       ! determine runoff flux array and scale by unit convertsion. runoff flux from lnd model is mm/s
+       ! mizuRoute expect runoff over area in length/time. length: mm or m, time: second, hour, second
+       ! unit of runoff flux is specified in variable units_qsim in src/public_var.f90 and unit conversion
+       ! from depth per time to m3/s in mizuRoute.
+
+       unitConversion = 1.0_r8
+       if (present(unit_conversion)) then
+          unitConversion = unit_conversion
+       end if
+
        do g = begr,endr
-          output(g) = fldptr(g-begr+1) * area(g)*0.001_r8
+          output(g) = fldptr(g-begr+1) * unitConversion(g)
        end do
 
        ! write debug output if appropriate
-       if (masterproc .and. debug > 0 .and. iTime < 5) then
+       if (masterproc .and. debug_write .and. iTime < 5) then
           do g = begr,endr
              i = 1 + g - begr
-             if (output(g) /= 0._r8) then
-!                write(iulog,F01)'import: nstep, n, '//trim(fldname)//' = ',iTime, g,output(g)
-             end if
+             write(iulog,F01)'import: nstep, n, '//trim(fldname)//' = ',iTime, g, output(g)
           end do
+          call shr_sys_flush(iulog)
        end if
 
        ! check for nans
@@ -531,7 +533,7 @@ contains
     use shr_const_mod, only : fillvalue=>SHR_CONST_SPVAL
 
     ! ----------------------------------------------
-    ! Map input array to export state field 
+    ! Map input array to export state field
     ! ----------------------------------------------
 
     ! input/output variables
@@ -571,13 +573,12 @@ contains
        end do
 
        ! write debug output if appropriate
-       if (masterproc .and. debug > 0 .and. iTime < 5) then
+       if (masterproc .and. debug_write .and. iTime < 5) then
           do g = begr,endr
              i = 1 + g - begr
-             if (input(g) /= 0._r8) then
-!                write(iulog,F01)'export: nstep, n, '//trim(fldname)//' = ',iTime,i,input(g)
-             end if
+             write(iulog,F01)'export: nstep, n, '//trim(fldname)//' = ',iTime,i,input(g)
           end do
+          call shr_sys_flush(iulog)
        end if
 
        ! check for nans
@@ -671,7 +672,7 @@ contains
              write(iulog,*) "NaN found in field ", trim(fname), ' at gridcell index ',begg+i-1
           end if
        end do
-       call shr_sys_abort(' ERROR: One or more of the output from MOSART to the coupler are NaN ' )
+       call shr_sys_abort(' ERROR: One or more of the output from mizuRoute to the coupler are NaN ' )
     end if
   end subroutine check_for_nans
 

@@ -1,4 +1,4 @@
-module io_netcdf
+MODULE ncio_utils
 
 USE nrtype
 USE netcdf
@@ -1220,4 +1220,4 @@ CONTAINS
 
  END SUBROUTINE close_nc
 
-END MODULE io_netcdf
+END MODULE ncio_utils

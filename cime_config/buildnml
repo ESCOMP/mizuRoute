@@ -1,0 +1,308 @@
+#!/usr/bin/env python3
+
+"""Namelist creator for mizuRoute river Routing model
+"""
+
+# Typically ignore this.
+# pylint: disable=invalid-name
+
+# Disable these because this is our standard setup
+# pylint: disable=wildcard-import,unused-wildcard-import,wrong-import-position
+# pylint: disable=multiple-imports
+import os, sys
+
+CIMEROOT = os.environ.get("CIMEROOT")
+if CIMEROOT is None:
+    raise SystemExit("ERROR: must set CIMEROOT environment variable")
+sys.path.append(os.path.join(CIMEROOT, "scripts", "Tools"))
+# Path for mizuRoute/route/settings for both a mizuRoute standalone checkout as well as a CESM checkout
+sys.path.append(os.path.join(CIMEROOT, "..", "route", "settings"))
+sys.path.append(os.path.join(CIMEROOT, "..", "components", "mizuRoute", "route", "settings"))
+
+from standard_script_setup import *
+from CIME.case import Case
+from CIME.nmlgen import NamelistGenerator
+from CIME.utils import expect, safe_copy
+from CIME.buildnml import create_namelist_infile, parse_input
+from mizuRoute_control import mizuRoute_control
+
+logger = logging.getLogger(__name__)
+
+# pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
+####################################################################################
+def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile, nmlgen, ctl, data_list_path):
+####################################################################################
+    """Write out the input configuration file for mizuRoute
+
+    Most arguments are the same as those for `NamelistGenerator`. The
+    `inst_string` argument is used as a suffix to distinguish files for
+    different instances. The `confdir` argument is used to specify the directory
+    in which output files will be placed.
+
+    ctl is for reading/changing/writing mizuRoute control files
+    """
+    #----------------------------------------------------
+    # Create config dictionary, needed for namelists
+    #----------------------------------------------------
+    config = {}
+    config['rof_grid'] = case.get_value("ROF_GRID")
+    config['lnd_grid'] = case.get_value("LND_GRID")
+    config['rof_ncpl'] = case.get_value("ROF_NCPL")
+
+    logger.debug("  mizuRoute lnd grid is %s ", config['lnd_grid'])
+    logger.debug("  mizuRoute rof grid is %s ", config['rof_grid'])
+    #----------------------------------------------------
+    # Settings that depend on the resolution
+    #----------------------------------------------------
+    if (    config['rof_grid'] == "HDMAmz" ):
+       fname_ntopOld = "ntopo_HDMAmz_Global_cdf5_fill_reorder_c20200828.nc"
+       varname_area = "Basin_Area"
+       varname_length = "Length"
+       varname_slope  = "Slope"
+       varname_HRUid = "hruid"
+       varname_hruSegId = "hru_seg_id"
+       varname_segId = "seg_id"
+       varname_downSegId = "Tosegment"
+       varname_pfafCode = "PFAF"
+    elif (  config['rof_grid'] == "r05mz" ):
+       fname_ntopOld = "ntopo_r05_MOSART_Global_half_20161105a_cdf5_reord_360_c20200427.nc"
+       varname_area = "hruArea"
+       varname_length = "rlen"
+       varname_slope  = "rslp"
+       varname_HRUid = "hruID"
+       varname_hruSegId = "hru_seg"
+       varname_segId = "segID"
+       varname_downSegId = "toSegID"
+       varname_pfafCode = "pCode"
+    elif (  config['rof_grid'] == "HDMA_CONUSmz" ):
+       fname_ntopOld = "ntopo_HDMAmz_0.125nldas2_cdf5_fill_reorder_c20200828.nc"
+       varname_area = "Basin_Area"
+       varname_length = "Length"
+       varname_slope  = "Slope"
+       varname_HRUid = "hruid"
+       varname_hruSegId = "hru_seg_id"
+       varname_segId = "seg_id"
+       varname_downSegId = "Tosegment"
+       varname_pfafCode = "PFAF"
+    elif (  config['rof_grid'] == "MERIT_CONUSmz" ):
+       fname_ntopOld = "ntopo_MERITmz_0.125nldas2_cdf5_fill_reorder_c20210625.nc"
+       varname_area = "Basin_Area"
+       varname_length = "length"
+       varname_slope  = "Slope"
+       varname_HRUid = "hruid"
+       varname_hruSegId = "hru_seg_id"
+       varname_segId = "seg_id"
+       varname_downSegId = "Tosegment"
+       varname_pfafCode = "pfaf"
+    elif (  config['rof_grid'] == "USGS_GFmz" ):
+       fname_ntopOld = "ntopo_USGS-GFmz_Conus_cdf5_c20201008.nc"
+       varname_area = "Basin_Area"
+       varname_length = "Length"
+       varname_slope  = "Slope"
+       varname_HRUid = "hruid"
+       varname_hruSegId = "hru_seg_id"
+       varname_segId = "seg_id"
+       varname_downSegId = "Tosegment"
+       varname_pfafCode = "PFAF"
+    elif (  config['rof_grid'] == "r05mz_amazon" ):
+       fname_ntopOld = "ntopo_r05_MOSART_amazon_half_20161105a_cdf5_reord_360_c20200624.nc"
+       varname_area = "hruArea"
+       varname_length = "rlen"
+       varname_slope  = "rslp"
+       varname_HRUid = "hruID"
+       varname_hruSegId = "hru_seg"
+       varname_segId = "segID"
+       varname_downSegId = "toSegID"
+       varname_pfafCode = "pCode"
+    elif (  config['rof_grid'] == "HDMAmz_amazon" ):
+       fname_ntopOld = "ntopo_HDMAmz_5x5_amazon_cdf5_c20200730.nc"
+       varname_area = "Basin_Area"
+       varname_length = "Length"
+       varname_slope  = "Slope"
+       varname_HRUid = "hruid"
+       varname_hruSegId = "hru_seg_id"
+       varname_segId = "seg_id"
+       varname_downSegId = "Tosegment"
+       varname_pfafCode = "PFAF"
+    elif (  config['rof_grid'] == "MERITmz" ):
+       fname_ntopOld = "ntopo_MERIT_Hydro_Global_cdf5_fill_reorder_v1_c20210113.nc"
+       varname_area = "Basin_Area"
+       varname_length = "length"
+       varname_slope  = "Slope"
+       varname_HRUid = "hruid"
+       varname_hruSegId = "hru_seg_id"
+       varname_segId = "seg_id"
+       varname_downSegId = "Tosegment"
+       varname_pfafCode = "pfaf"
+    else:
+       expect( False, "mizuRoute does NOT know about this grid: "+config['rof_grid'] )
+
+    #----------------------------------------------------
+    # Initialize namelist defaults
+    #----------------------------------------------------
+    nmlgen.init_defaults(infile, config)
+
+    #----------------------------------------------------
+    # Check for incompatible options.
+    #----------------------------------------------------
+
+  
+    #----------------------------------------------------
+    # Get some important values from the case
+    #----------------------------------------------------
+    rundir = case.get_value("RUNDIR")
+    dindir = case.get_value("DIN_LOC_ROOT")
+    casename = case.get_value("CASE")
+    run_type = case.get_value("RUN_TYPE")
+    run_start = case.get_value("RUN_STARTDATE")
+    #----------------------------------------------------
+    # Set control values that we get from CESM
+    #----------------------------------------------------
+    ctl.set( "case_name", casename )
+    ctl.set( "output_dir", "./" )
+    ctl.set( "input_dir", rundir+"/" )
+    ctl.set( "ancil_dir", dindir+"/rof/mizuRoute/ancillary_data/" )
+    ctl.set( "fname_ntopOld", fname_ntopOld )
+    ctl.set( "dname_sseg", "seg" )
+    ctl.set( "dname_nhru", "hru" )
+    ctl.set( "param_nml", "mizuRoute_in" )
+    ctl.set( "varname_area", varname_area )
+    ctl.set( "varname_length", varname_length )
+    ctl.set( "varname_slope", varname_slope )
+    ctl.set( "varname_HRUid", varname_HRUid )
+    ctl.set( "varname_hruSegId", varname_hruSegId )
+    ctl.set( "varname_segId", varname_segId )
+    ctl.set( "varname_downSegId", varname_downSegId )
+    ctl.set( "varname_pfafCode", varname_pfafCode )
+
+    #----------------------------------------------------
+    # Set the restart file depending on start type
+    #----------------------------------------------------
+
+    fname_state_in = ctl.get("fname_state_in")
+    if run_type == 'branch' or run_type == 'hybrid':
+        run_refcase = case.get_value("RUN_REFCASE")
+        run_refdate = case.get_value("RUN_REFDATE")
+        run_tod = case.get_value("RUN_REFTOD")
+        filename = "%s.mizuRoute%s.r.%s-%s.nc" %(run_refcase, inst_string, run_refdate, run_tod)
+        if not os.path.exists(os.path.join(rundir, filename)):
+            filename = "%s.mizuRoute.r.%s-%s.nc" %(run_refcase, run_refdate, run_tod)
+
+        ctl.set( "fname_state_in", filename )
+
+    elif fname_state_in.strip() == '':
+        fname_state_in = "empty"
+    else:
+        if ctl.get('fname_state_in') == 'STATE_IN_NC':
+            fname_state_in = "empty"
+
+    ctl.set( "fname_state_in", fname_state_in )
+
+    # Read in the user control file for the case and change settings to it
+    file_src = "user_ctl_mizuroute"
+    user_ctl_file = os.path.join(caseroot, file_src + inst_string)
+    if ( not os.path.exists( user_ctl_file ) ):
+       safe_copy( os.path.join( srcroot, "cime_config", file_src), user_ctl_file )
+    usrctl = mizuRoute_control()
+    usrctl.read( user_ctl_file, allowEmpty=True )
+    for element in usrctl.get_elmList():
+       value = ctl.get( element )
+       expect( value != "UNSET", "Element in the user_ctl_mizuroute file is NOT in the control file: "+element )
+       ctl.set( element, usrctl.get( element ) )
+
+    #----------------------------------------------------
+    # Write output files
+    #----------------------------------------------------
+    control_file = os.path.join(confdir, "mizuRoute.control")
+    nml_file = os.path.join(confdir, "mizuRoute_in")
+    write_nml_in_file(case, nmlgen, confdir, nml_file)
+    ctl.write( control_file )
+
+###############################################################################
+def write_nml_in_file(case, nmlgen, confdir, nml_file):
+###############################################################################
+    data_list_path = os.path.join(case.get_case_root(), "Buildconf", "rof.input_data_list")
+    if os.path.exists(data_list_path):
+        os.remove(data_list_path)
+    namelist_file = os.path.join(confdir, nml_file)
+    nmlgen.write_output_file(namelist_file, data_list_path )
+
+###############################################################################
+def buildnml(case, caseroot, compname):
+###############################################################################
+    """Build the mizuRoute control file """
+
+    # Build the component control file
+    if compname != "mizuRoute":
+        raise AttributeError
+
+    srcroot = case.get_value("COMP_ROOT_DIR_ROF")
+    rundir = case.get_value("RUNDIR")
+    ninst = case.get_value("NINST_ROF")
+
+    # Determine configuration directory
+    confdir = os.path.join(caseroot, "Buildconf", "mizurouteconf")
+    if not os.path.isdir(confdir):
+        os.makedirs(confdir)
+
+    #----------------------------------------------------
+    # Construct the control file generator
+    #----------------------------------------------------
+    sampleFile = srcroot + "/route/settings/SAMPLE-coupled.control"
+    ctl = mizuRoute_control()
+    ctl.read( sampleFile )
+
+    #----------------------------------------------------
+    # Clear out old data.
+    #----------------------------------------------------
+    data_list_path = os.path.join(case.get_case_root(), "Buildconf", "mizuRoute.input_data_list")
+    if os.path.exists(data_list_path):
+        os.remove(data_list_path)
+
+    #----------------------------------------------------
+    # Do some checking
+    #----------------------------------------------------
+    expect( ninst == 1, "mizuRoute can only be run for a single instance" )
+
+    # determine instance string
+    inst_string = ""
+
+    rpointer = "rpointer.rof"
+    inst_string_label = inst_string
+    if not inst_string_label:
+        inst_string_label = "\"\""
+
+    # create control file output infile using user_nl_file as input
+    user_nl_file = os.path.join(caseroot, "user_nl_mizuroute" + inst_string)
+    expect(os.path.isfile(user_nl_file),
+               "Missing required user_nl_file %s " %(user_nl_file))
+    infile = os.path.join(confdir, "control_infile")
+    create_namelist_infile(case, user_nl_file, infile)
+    control_infile = [infile]
+
+    # Create the namelist generator object - independent of instance
+    definition_files = [srcroot + "/cime_config/namelist_definition_mizuRoute.xml"]
+    nmlgen = NamelistGenerator(case, definition_files)
+
+    # create control files
+    _create_control_files(case, caseroot, srcroot, confdir, inst_string, control_infile, nmlgen, ctl, data_list_path)
+
+    # copy control files to rundir
+    if os.path.isdir(rundir):
+       for destdir in [rundir, caseroot+"/CaseDocs"]:
+          for nfile in ["mizuRoute.control", "mizuRoute_in" ]:
+             file_src = os.path.join(confdir, nfile )
+             file_dest = os.path.join(destdir, nfile )
+             if inst_string:
+                file_dest += inst_string
+             safe_copy(file_src, file_dest)
+
+###############################################################################
+def _main_func():
+
+    caseroot = parse_input(sys.argv)
+    with Case(caseroot) as case:
+        buildnml(case, caseroot, "mizuRoute")
+
+if __name__ == "__main__":
+    _main_func()

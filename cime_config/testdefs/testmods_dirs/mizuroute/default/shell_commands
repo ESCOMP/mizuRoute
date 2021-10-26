@@ -1,0 +1,12 @@
+#!/bin/bash
+
+./xmlchange ROF_NCPL="1"
+./xmlchange CREATE_ESMF_PET_FILES="TRUE"
+ROF_GRID=`./xmlquery --value ROF_GRID`
+if [ "$ROF_GRID" == "r05" ]; then
+   ./xmlchange ROF_DOMAIN_MESH='$DIN_LOC_ROOT/rof/mizuRoute/meshes/r05_noocean_ctrcrd_360_c110308_cdf5_ESMFmesh_c20200625.nc'
+fi
+if [ "$ROF_GRID" == "r05_amazon" ]; then
+   ./xmlchange ROF_DOMAIN_MESH='$DIN_LOC_ROOT/rof/mizuRoute/meshes/r05_amazon_c110308_ctrcrd_cdf5_ESMFmesh_c20200624.nc'
+fi
+

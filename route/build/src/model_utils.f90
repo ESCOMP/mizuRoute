@@ -21,7 +21,7 @@ CONTAINS
   USE perf_mod,   ONLY: t_finalizef      ! finalize timing routines
   USE globalData, ONLY: masterproc       ! root proc logical
   USE public_var, ONLY: iulog            ! i/o logical unit number
-  USE mpi_mod,    ONLY: shr_mpi_finalize ! mpi utilities: shut down mpi
+  USE mpi_utils,  ONLY: shr_mpi_finalize ! mpi utilities: shut down mpi
 
   implicit none
 
@@ -47,7 +47,7 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE handle_err(err,message)
 
-  USE mpi_mod,    ONLY: shr_mpi_abort     ! mpi utilities: abort mpi
+  USE mpi_utils,    ONLY: shr_mpi_abort     ! mpi utilities: abort mpi
 
   implicit none
 
