@@ -39,6 +39,7 @@ module lake_route_module
                          ierr, message)   ! output: error control
 
   USE globalData, ONLY: modTime           ! previous and current model time
+  USE globalData, ONLY: iTime             ! current model time step
   USE public_var, ONLY: is_flux_wm        ! logical water management components fluxes should be read
   USE public_var, ONLY: dt, lakeWBTol     ! lake water balance tolerance
   USE public_var, ONLY: lake_model_D03    ! logical whether or not lake should be simulated
@@ -164,6 +165,14 @@ module lake_route_module
         case (1)
           ! the model is Doll03
           ! print*, "lake model is Doll 2003"
+
+          ! temporary solution, this should be removed if there is restart activated...
+          print*, iTime, 'iTime in the area'
+          if (iTIme == 1) then
+            RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RPARAM_in(segIndex)%D03_MaxStorage
+          endif
+
+          !
           RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RPARAM_in(segIndex)%D03_Coefficient * RCHFLX_out(iens,segIndex)%REACH_VOL(1) * &
                                                    (RCHFLX_out(iens,segIndex)%REACH_VOL(1) / RPARAM_in(segIndex)%D03_MaxStorage) ** &
                                                    RPARAM_in(segIndex)%D03_Power! Q = AS(S/Smax)^B based on Eq. 1 Hanasaki et al., 2006 https://doi.org/10.1016/j.jhydrol.2005.11.011

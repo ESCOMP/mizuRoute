@@ -267,6 +267,7 @@ module remapping
   subroutine sort_flux  (ID_in,            & ! input: the array of ids for HRU/seg
                          IX_in,            & ! input: the array of location of ids for HRU/seg
                          flux_in,          & ! input: the array of input fluxes, should be the same size as ID_in
+                         remove_negatives, & ! input: the logical value to replace the negative values with zeros
                          sorted_flux,      & ! inout: sorted input states and fluxes based on hru/seg in network topology
                          ierr, message)
   implicit none
@@ -274,6 +275,7 @@ module remapping
   integer(i4b)         , intent(in)    :: ID_in(:)            ! input: the array of ids for HRU/seg
   integer(i4b)         , intent(in)    :: IX_in(:)            ! input: the array of location of ids for HRU/seg in network topology
   real(dp)             , intent(in)    :: flux_in(:)          ! input: the array of input fluxes, should be the same size as ID_in
+  logical(lgt)         , intent(in)    :: remove_negatives    ! flag to replace negative values to zeros
   ! input/output
   real(dp)             , intent(inout) :: sorted_flux(:)      ! inout: sorted input states and fluxes based on hru/seg in network topology
   ! output
@@ -303,7 +305,9 @@ module remapping
   end do   ! looping through basins in the mapping layer
 
   ! removing the negative values and also the realmissing
-  where (sorted_flux <0._dp) sorted_flux = 0._dp
+  if (remove_negatives) then
+    where (sorted_flux <0._dp) sorted_flux = 0._dp
+  endif
 
   end subroutine sort_flux
 
