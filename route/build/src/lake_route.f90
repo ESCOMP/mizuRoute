@@ -38,14 +38,15 @@ module lake_route_module
                          ! output
                          ierr, message)   ! output: error control
 
-  USE globalData, ONLY: modTime           ! previous and current model time
-  USE globalData, ONLY: iTime             ! current model time step
-  USE public_var, ONLY: is_flux_wm        ! logical water management components fluxes should be read
-  USE public_var, ONLY: dt, lakeWBTol     ! lake water balance tolerance
-  USE public_var, ONLY: lake_model_D03    ! logical whether or not lake should be simulated
-  USE public_var, ONLY: lake_model_H06    ! logical whether or not lake should be simulated
+  USE globalData, ONLY: modTime             ! previous and current model time
+  USE globalData, ONLY: iTime               ! current model time step
+  USE public_var, ONLY: is_flux_wm          ! logical water management components fluxes should be read
+  USE public_var, ONLY: dt, lakeWBTol       ! lake water balance tolerance
+  USE public_var, ONLY: is_vol_wm_jumpstart ! logical whether or not lake should be simulated
+  USE public_var, ONLY: lake_model_D03      ! logical whether or not lake should be simulated
+  USE public_var, ONLY: lake_model_H06      ! logical whether or not lake should be simulated
   USE public_var, ONLY: secprday, days_per_yr, months_per_yr    ! time constants
-  USE public_var, ONLY: calendar          ! calendar name
+  USE public_var, ONLY: calendar            ! calendar name
 
   implicit none
   ! Input
@@ -135,6 +136,11 @@ module lake_route_module
     !print*, 'upstream evaporation m3/s ..= ', RCHFLX_out(iens,segIndex)%basinevapo
     !print*, 'paraemters', RPARAM_in(segIndex)%D03_MaxStorage, RPARAM_in(segIndex)%D03_Coefficient, RPARAM_in(segIndex)%D03_Power, NETOPO_in(segIndex)%LakeTargVol, NETOPO_in(segIndex)%islake, NETOPO_in(segIndex)%LakeModelType
 
+
+    ! jump start the lake volume to the target volume if provided for the first time step
+    if ((is_vol_wm_jumpstart).and.(NETOPO_in(segIndex)%LakeTargVol).and.(iTime==1)) then
+      RCHFLX_out(iens,segIndex)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%REACH_WM_VOL ! update the initial condition with first target volume value
+    endif
 
     ! add upstream, precipitation and subtract evaporation from the lake volume
     RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(0) ! updating storage for current time

@@ -101,88 +101,89 @@ CONTAINS
    select case(trim(cName))
 
    ! DIRECTORIES
-   case('<ancil_dir>');            ancil_dir   = trim(cData)                       ! directory containing ancillary data
-   case('<input_dir>');            input_dir   = trim(cData)                       ! directory containing input data
-   case('<output_dir>');           output_dir  = trim(cData)                       ! directory containing output data
-   case('<restart_dir>');          restart_dir = trim(cData)                       ! directory for restart output (netCDF)
+   case('<ancil_dir>');            ancil_dir   = trim(cData)                           ! directory containing ancillary data
+   case('<input_dir>');            input_dir   = trim(cData)                           ! directory containing input data
+   case('<output_dir>');           output_dir  = trim(cData)                           ! directory containing output data
+   case('<restart_dir>');          restart_dir = trim(cData)                           ! directory for restart output (netCDF)
    ! RUN CONTROL
-   case('<case_name>');            case_name   = trim(cData)                       ! name of simulation. used as head of model output and restart file
-   case('<sim_start>');            simStart    = trim(cData)                       ! date string defining the start of the simulation
-   case('<sim_end>');              simEnd      = trim(cData)                       ! date string defining the end of the simulation
-   case('<newFileFrequency>');     newFileFrequency = trim(cData)                  ! frequency for new output files (day, month, annual, single)
-   case('<route_opt>');            read(cData,*,iostat=io_error) routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-   case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute    ! basin routing options   0-> no, 1->IRF, otherwise error
-   case('<doesAccumRunoff>');      read(cData,*,iostat=io_error) doesAccumRunoff   ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
-   case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut          ! desired outlet reach id (if -9999 --> route over the entire network)
-   case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim       ! logical; lakes are simulated
-   case('<lake_model_D03>');       read(cData,*,iostat=io_error) lake_model_D03    ! logical; if Doll 2003, represented by 1 exist in netwrok topology parameter lake_model_type
-   case('<lake_model_H06>');       read(cData,*,iostat=io_error) lake_model_H06    ! logical; if Hanasaki 2006, represented by 2 exist in netwrok topology parameter lake_model_type
-   case('<lake_model_HYPE>');      read(cData,*,iostat=io_error) lake_model_HYPE   ! logical; if HYPE, represented by 3 exist in netwrok topology parameter lake_model_type
-   case('<is_flux_wm>');           read(cData,*,iostat=io_error) is_flux_wm        ! logical; provided fluxes to or from seg/lakes should be considered
-   case('<is_vol_wm>');            read(cData,*,iostat=io_error) is_vol_wm         ! logical; provided target volume for managed lakes are considered
-   case('<suppress_runoff>');      read(cData,*,iostat=io_error) suppress_runoff   ! logical; suppress the read runoff to zero (0) no host model
-   case('<suppress_P_Ep>');        read(cData,*,iostat=io_error) suppress_P_Ep     ! logical; suppress the precipitation/evaporation to zero (0) no host model
+   case('<case_name>');            case_name   = trim(cData)                           ! name of simulation. used as head of model output and restart file
+   case('<sim_start>');            simStart    = trim(cData)                           ! date string defining the start of the simulation
+   case('<sim_end>');              simEnd      = trim(cData)                           ! date string defining the end of the simulation
+   case('<newFileFrequency>');     newFileFrequency = trim(cData)                      ! frequency for new output files (day, month, annual, single)
+   case('<route_opt>');            read(cData,*,iostat=io_error) routOpt               ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+   case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute        ! basin routing options   0-> no, 1->IRF, otherwise error
+   case('<doesAccumRunoff>');      read(cData,*,iostat=io_error) doesAccumRunoff       ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
+   case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut              ! desired outlet reach id (if -9999 --> route over the entire network)
+   case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim           ! logical; lakes are simulated
+   case('<lake_model_D03>');       read(cData,*,iostat=io_error) lake_model_D03        ! logical; if Doll 2003, represented by 1 exist in netwrok topology parameter lake_model_type
+   case('<lake_model_H06>');       read(cData,*,iostat=io_error) lake_model_H06        ! logical; if Hanasaki 2006, represented by 2 exist in netwrok topology parameter lake_model_type
+   case('<lake_model_HYPE>');      read(cData,*,iostat=io_error) lake_model_HYPE       ! logical; if HYPE, represented by 3 exist in netwrok topology parameter lake_model_type
+   case('<is_flux_wm>');           read(cData,*,iostat=io_error) is_flux_wm            ! logical; provided fluxes to or from seg/lakes should be considered
+   case('<is_vol_wm>');            read(cData,*,iostat=io_error) is_vol_wm             ! logical; provided target volume for managed lakes are considered
+   case('<is_vol_wm_jumpstart>');  read(cData,*,iostat=io_error) is_vol_wm_jumpstart   ! logical; jump to the first time step target volume is set to true
+   case('<suppress_runoff>');      read(cData,*,iostat=io_error) suppress_runoff       ! logical; suppress the read runoff to zero (0) no host model
+   case('<suppress_P_Ep>');        read(cData,*,iostat=io_error) suppress_P_Ep         ! logical; suppress the precipitation/evaporation to zero (0) no host model
    ! RIVER NETWORK TOPOLOGY
-   case('<fname_ntopOld>');        fname_ntopOld = trim(cData)                     ! name of file containing stream network topology information
-   case('<ntopAugmentMode>');      read(cData,*,iostat=io_error) ntopAugmentMode   ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
-   case('<fname_ntopNew>');        fname_ntopNew = trim(cData)                     ! name of file containing stream segment information
-   case('<dname_nhru>');           dname_nhru    = trim(cData)                     ! dimension name of the HRUs
-   case('<dname_sseg>');           dname_sseg    = trim(cData)                     ! dimension name of the stream segments
+   case('<fname_ntopOld>');        fname_ntopOld = trim(cData)                         ! name of file containing stream network topology information
+   case('<ntopAugmentMode>');      read(cData,*,iostat=io_error) ntopAugmentMode       ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
+   case('<fname_ntopNew>');        fname_ntopNew = trim(cData)                         ! name of file containing stream segment information
+   case('<dname_nhru>');           dname_nhru    = trim(cData)                         ! dimension name of the HRUs
+   case('<dname_sseg>');           dname_sseg    = trim(cData)                         ! dimension name of the stream segments
    ! RUNOFF, EVAPORATION AND PRECIPITATION FILE
-   case('<fname_qsim>');           fname_qsim   = trim(cData)                      ! name of text file listing netcdf names. netCDF include runoff, evaporation and precipitation varialbes
-   case('<vname_qsim>');           vname_qsim   = trim(cData)                      ! name of runoff variable
-   case('<vname_evapo>');          vname_evapo  = trim(cData)                      ! name of actual evapoartion variable
-   case('<vname_precip>');         vname_precip = trim(cData)                      ! name of precipitation variable
-   case('<vname_time>');           vname_time   = trim(cData)                      ! name of time variable in the runoff file
-   case('<vname_hruid>');          vname_hruid  = trim(cData)                      ! name of the HRU id
-   case('<dname_time>');           dname_time   = trim(cData)                      ! name of time variable in the runoff file
-   case('<dname_hruid>');          dname_hruid  = trim(cData)                      ! name of the HRU id dimension
-   case('<dname_xlon>');           dname_xlon   = trim(cData)                      ! name of x (j,lon) dimension
-   case('<dname_ylat>');           dname_ylat   = trim(cData)                      ! name of y (i,lat) dimension
-   case('<units_qsim>');           units_qsim   = trim(cData)                      ! units of runoff
-   case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                ! time interval of the gridded runoff
-   case('<input_fillvalue>');      read(cData,*,iostat=io_error) input_fillvalue   ! fillvalue used for input variable
+   case('<fname_qsim>');           fname_qsim   = trim(cData)                          ! name of text file listing netcdf names. netCDF include runoff, evaporation and precipitation varialbes
+   case('<vname_qsim>');           vname_qsim   = trim(cData)                          ! name of runoff variable
+   case('<vname_evapo>');          vname_evapo  = trim(cData)                          ! name of actual evapoartion variable
+   case('<vname_precip>');         vname_precip = trim(cData)                          ! name of precipitation variable
+   case('<vname_time>');           vname_time   = trim(cData)                          ! name of time variable in the runoff file
+   case('<vname_hruid>');          vname_hruid  = trim(cData)                          ! name of the HRU id
+   case('<dname_time>');           dname_time   = trim(cData)                          ! name of time variable in the runoff file
+   case('<dname_hruid>');          dname_hruid  = trim(cData)                          ! name of the HRU id dimension
+   case('<dname_xlon>');           dname_xlon   = trim(cData)                          ! name of x (j,lon) dimension
+   case('<dname_ylat>');           dname_ylat   = trim(cData)                          ! name of y (i,lat) dimension
+   case('<units_qsim>');           units_qsim   = trim(cData)                          ! units of runoff
+   case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                    ! time interval of the gridded runoff
+   case('<input_fillvalue>');      read(cData,*,iostat=io_error) input_fillvalue       ! fillvalue used for input variable
    ! FLUXES TO/FROM REACHES AND LAKE STATES FILE
-   case('<fname_wm>');             fname_wm        = trim(cData)                   ! name of text file containing ordered nc file names
-   case('<vname_flux_wm>');        vname_flux_wm   = trim(cData)                   ! name of varibale for fluxes to and from seg (reachs/lakes)
-   case('<vname_vol_wm>');         vname_vol_wm    = trim(cData)                   ! name of varibale for target volume for managed lakes
-   case('<vname_time_wm>');        vname_time_wm   = trim(cData)                   ! name of time variable
-   case('<vname_segid_wm>');       vname_segid_wm  = trim(cData)                   ! name of the segid varibale in nc files
-   case('<dname_time_wm>');        dname_time_wm   = trim(cData)                   ! name of time dimension
-   case('<dname_segid_wm>');       dname_segid_wm  = trim(cData)                   ! name of the routing HRUs dimension
+   case('<fname_wm>');             fname_wm        = trim(cData)                       ! name of text file containing ordered nc file names
+   case('<vname_flux_wm>');        vname_flux_wm   = trim(cData)                       ! name of varibale for fluxes to and from seg (reachs/lakes)
+   case('<vname_vol_wm>');         vname_vol_wm    = trim(cData)                       ! name of varibale for target volume for managed lakes
+   case('<vname_time_wm>');        vname_time_wm   = trim(cData)                       ! name of time variable
+   case('<vname_segid_wm>');       vname_segid_wm  = trim(cData)                       ! name of the segid varibale in nc files
+   case('<dname_time_wm>');        dname_time_wm   = trim(cData)                       ! name of time dimension
+   case('<dname_segid_wm>');       dname_segid_wm  = trim(cData)                       ! name of the routing HRUs dimension
    ! RUNOFF REMAPPING
-   case('<is_remap>');             read(cData,*,iostat=io_error) is_remap          ! logical case runnoff needs to be mapped to river network HRU
-   case('<fname_remap>');          fname_remap          = trim(cData)              ! name of runoff mapping netCDF
-   case('<vname_hruid_in_remap>'); vname_hruid_in_remap = trim(cData)              ! name of variable containing ID of river network HRU
-   case('<vname_weight>');         vname_weight         = trim(cData)              ! name of variable contating areal weights of runoff HRUs within each river network HRU
-   case('<vname_qhruid>');         vname_qhruid         = trim(cData)              ! name of variable containing ID of runoff HRU
-   case('<vname_num_qhru>');       vname_num_qhru       = trim(cData)              ! name of variable containing numbers of runoff HRUs within each river network HRU
-   case('<vname_i_index>');        vname_i_index        = trim(cData)              ! name of variable containing index of xlon dimension in runoff grid (if runoff file is grid)
-   case('<vname_j_index>');        vname_j_index        = trim(cData)              ! name of variable containing index of ylat dimension in runoff grid (if runoff file is grid)
-   case('<dname_hru_remap>');      dname_hru_remap      = trim(cData)              ! name of dimension of river network HRU ID
-   case('<dname_data_remap>');     dname_data_remap     = trim(cData)              ! name of dimension of runoff HRU overlapping with river network HRU
+   case('<is_remap>');             read(cData,*,iostat=io_error) is_remap              ! logical case runnoff needs to be mapped to river network HRU
+   case('<fname_remap>');          fname_remap          = trim(cData)                  ! name of runoff mapping netCDF
+   case('<vname_hruid_in_remap>'); vname_hruid_in_remap = trim(cData)                  ! name of variable containing ID of river network HRU
+   case('<vname_weight>');         vname_weight         = trim(cData)                  ! name of variable contating areal weights of runoff HRUs within each river network HRU
+   case('<vname_qhruid>');         vname_qhruid         = trim(cData)                  ! name of variable containing ID of runoff HRU
+   case('<vname_num_qhru>');       vname_num_qhru       = trim(cData)                  ! name of variable containing numbers of runoff HRUs within each river network HRU
+   case('<vname_i_index>');        vname_i_index        = trim(cData)                  ! name of variable containing index of xlon dimension in runoff grid (if runoff file is grid)
+   case('<vname_j_index>');        vname_j_index        = trim(cData)                  ! name of variable containing index of ylat dimension in runoff grid (if runoff file is grid)
+   case('<dname_hru_remap>');      dname_hru_remap      = trim(cData)                  ! name of dimension of river network HRU ID
+   case('<dname_data_remap>');     dname_data_remap     = trim(cData)                  ! name of dimension of runoff HRU overlapping with river network HRU
    ! RESTART
-   case('<restart_write>');        restart_write        = trim(cData)              ! restart write option: N[n]ever, L[l]ast, S[s]pecified, Monthly, Daily
-   case('<restart_date>');         restart_date         = trim(cData)              ! specified restart date, yyyy-mm-dd (hh:mm:ss) for Specified option
-   case('<restart_month>');        read(cData,*,iostat=io_error) restart_month     ! restart periodic month
-   case('<restart_day>');          read(cData,*,iostat=io_error) restart_day       ! restart periodic day
-   case('<restart_hour>');         read(cData,*,iostat=io_error) restart_hour      ! restart periodic hour
-   case('<fname_state_in>');       fname_state_in       = trim(cData)              ! filename for the channel states
+   case('<restart_write>');        restart_write        = trim(cData)                  ! restart write option: N[n]ever, L[l]ast, S[s]pecified, Monthly, Daily
+   case('<restart_date>');         restart_date         = trim(cData)                  ! specified restart date, yyyy-mm-dd (hh:mm:ss) for Specified option
+   case('<restart_month>');        read(cData,*,iostat=io_error) restart_month         ! restart periodic month
+   case('<restart_day>');          read(cData,*,iostat=io_error) restart_day           ! restart periodic day
+   case('<restart_hour>');         read(cData,*,iostat=io_error) restart_hour          ! restart periodic hour
+   case('<fname_state_in>');       fname_state_in       = trim(cData)                  ! filename for the channel states
    ! SPATIAL CONSTANT PARAMETERS
-   case('<param_nml>');            param_nml            = trim(cData)              ! name of namelist including routing parameter value
+   case('<param_nml>');            param_nml            = trim(cData)                  ! name of namelist including routing parameter value
    ! USER OPTIONS: Define options to include/skip calculations
-   case('<hydGeometryOption>');    read(cData,*,iostat=io_error) hydGeometryOption ! option for hydraulic geometry calculations (0=read from file, 1=compute)
-   case('<topoNetworkOption>');    read(cData,*,iostat=io_error) topoNetworkOption ! option for network topology calculations (0=read from file, 1=compute)
-   case('<computeReachList>');     read(cData,*,iostat=io_error) computeReachList  ! option to compute list of upstream reaches (0=do not compute, 1=compute)
+   case('<hydGeometryOption>');    read(cData,*,iostat=io_error) hydGeometryOption     ! option for hydraulic geometry calculations (0=read from file, 1=compute)
+   case('<topoNetworkOption>');    read(cData,*,iostat=io_error) topoNetworkOption     ! option for network topology calculations (0=read from file, 1=compute)
+   case('<computeReachList>');     read(cData,*,iostat=io_error) computeReachList      ! option to compute list of upstream reaches (0=do not compute, 1=compute)
    ! TIME
-   case('<time_units>');           time_units = trim(cData)                        ! time units. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
-   case('<calendar>');             calendar   = trim(cData)                        ! calendar name
+   case('<time_units>');           time_units = trim(cData)                            ! time units. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
+   case('<calendar>');             calendar   = trim(cData)                            ! calendar name
    ! MISCELLANEOUS
-   case('<debug>');                read(cData,*,iostat=io_error) debug             ! print out detailed information throught the probram
-   case('<desireId>'   );          read(cData,*,iostat=io_error) desireId          ! turn off checks or speficy reach ID if necessary to print on screen
+   case('<debug>');                read(cData,*,iostat=io_error) debug                 ! print out detailed information throught the probram
+   case('<desireId>'   );          read(cData,*,iostat=io_error) desireId              ! turn off checks or speficy reach ID if necessary to print on screen
    ! PFAFCODE
-   case('<maxPfafLen>');           read(cData,*,iostat=io_error) maxPfafLen        ! maximum digit of pfafstetter code (default 32)
-   case('<pfafMissing>');          pfafMissing = trim(cData)                       ! missing pfafcode (e.g., reach without any upstream area)
+   case('<maxPfafLen>');           read(cData,*,iostat=io_error) maxPfafLen            ! maximum digit of pfafstetter code (default 32)
+   case('<pfafMissing>');          pfafMissing = trim(cData)                           ! missing pfafcode (e.g., reach without any upstream area)
    ! OUTPUT OPTIONS
    case('<basRunoff>');            read(cData,*,iostat=io_error) meta_rflx(ixRFLX%basRunoff        )%varFile
    case('<instRunoff>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%instRunoff       )%varFile

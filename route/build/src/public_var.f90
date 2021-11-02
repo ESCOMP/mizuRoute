@@ -99,6 +99,7 @@ module public_var
   logical(lgt),public             :: lake_model_HYPE      = .false.         ! logical if HYPE model is used, specify as 3 in lake_model_type in network topology
   logical(lgt),public             :: is_flux_wm           = .false.         ! logical if flow is added or removed from a reach
   logical(lgt),public             :: is_vol_wm            = .false.         ! logical if target volume is considered for a lake
+  logical(lgt),public             :: is_vol_wm_jumpstart  = .false.         ! logical if true the volume is reset to target volume for the first time step of modeling
   logical(lgt),public             :: suppress_runoff      = .false.         ! logical to suppress the read runoff to zero(0)
   logical(lgt),public             :: suppress_P_Ep        = .false.         ! logical to suppress evaporation and precipitation to zero(0)
   ! RIVER NETWORK TOPOLOGY
