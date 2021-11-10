@@ -100,10 +100,17 @@ ifdef PIO_FILESYSTEM_HINTS
 endif
 CMAKE_OPTS += -D GENF90_PATH=$(PIO2DIR)/scripts
 
+ifeq "$(MODE)" "debug"
+   MODEARGS := --enable-debug
+else
+   MODEARGS :=
+endif
+
 $(MPISERCONF):
 	cp -p $(MPISERIALDIR)/*.h $(MPISERLIBDIR)/.
 	cd $(MPISERLIBDIR) && $(MPISERIALDIR)/configure FC=$(FC) MPIFC=$(FC_EXE) FCFLAGS="$(FLAGS) \
-                                              -I$(MPISERIALDIR)" MCT_PATH=$(MPISERIALDIR) --srcdir $(MPISERIALDIR)
+                                              -I$(MPISERIALDIR)" MCT_PATH=$(MPISERIALDIR) --srcdir $(MPISERIALDIR) \
+                                              $(MODEARGS)
 	ln -sf $(MPISERIALDIR)/Makefile $(MPISERLIBDIR)/Makefile
 
 $(MPISERLIB): $(MPISERCONF)
@@ -123,7 +130,7 @@ cleanpiolib:
 
 $(PIOLIBMAKE): $(MPISERIAL)
 	cd $(PIOLIBDIR); \
-	$(CMAKE_ENV_VARS) cmake $(CMAKE_OPTS) $(PIO2DIR)
+	$(CMAKE_ENV_VARS) cmake $(CMAKE_OPTS) $(MODEARGS) $(PIO2DIR)
 
 $(PIOLIB): $(PIOLIBMAKE)
 	$(MAKE) $(MFLAGS) -C $(PIOLIBDIR) piof
