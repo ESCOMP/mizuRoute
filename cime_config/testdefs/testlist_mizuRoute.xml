@@ -14,7 +14,7 @@
    <!-- compsets: I2000Clm50SpMizGs -->
 
   <!-- Amazon grids: r5 and HDMA include long tests and mpi-serial -->
-  <test name="SMS_D" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+  <test name="SMS_D" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -26,7 +26,7 @@
       <option name="comment"  >Smoke test on small regional grid with DEBUG on</option>
     </options>
   </test>
-  <test name="SMS" grid="5x5_amazon_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+  <test name="SMS" grid="5x5_amazon_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -37,7 +37,7 @@
       <option name="comment"  >Smoke test on small regional grid but with HDMA mizuRoute with DEBUG off</option>
     </options>
   </test>
-  <test name="ERS" grid="5x5_amazon_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+  <test name="ERS" grid="5x5_amazon_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -48,7 +48,7 @@
       <option name="comment"  >Exact restart test on small regional grid but with HDMA mizuRoute with DEBUG off</option>
     </options>
   </test>
-  <test name="ERS_D" grid="5x5_amazon_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+  <test name="ERS_D" grid="5x5_amazon_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -59,7 +59,7 @@
       <option name="comment"  >Exact restart test on small regional grid but with HDMA mizuRoute with DEBUG on</option>
     </options>
   </test>
-  <test name="SMS_Ly2" grid="5x5_amazon_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuRoute/monthly">
+  <test name="SMS_Ly2" grid="5x5_amazon_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuroute/monthly">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="izumi"    compiler="intel" category="mizu"></machine>
@@ -69,7 +69,7 @@
       <option name="comment"  >Long smoke test on small regional grid but with HDMA mizuRoute with DEBUG off</option>
     </options>
   </test>
-  <test name="SMS_D_Mmpi-serial" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+  <test name="SMS_D_Mmpi-serial" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -83,7 +83,7 @@
       <option name="comment"  >Smoke test on small regional grid with DEBUG on for mpi-serial</option>
     </options>
   </test>
-  <test name="ERS_D_Mmpi-serial" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+  <test name="ERS_D_Mmpi-serial" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="izumi"    compiler="nag"   category="mizu"></machine>
@@ -95,7 +95,7 @@
   </test>
 
   <!-- CONUS grids: r05mz, HDMA, and MERIT include threaded -->
-  <test name="ERS_D" grid="nldas2_rUSGS_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+  <test name="ERS_D" grid="nldas2_rUSGS_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -107,7 +107,7 @@
       <option name="comment"  >Exact restart test on CONUS regional grid with DEBUG on</option>
     </options>
   </test>
-  <test name="ERI" grid="nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+  <test name="ERI" grid="nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -118,7 +118,7 @@
       <option name="comment"  >Exact restart hybrid/startup/branch test on CONUS HDMA regional grid with DEBUG off</option>
     </options>
   </test>
-  <test name="ERI" grid="nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+  <test name="ERI" grid="nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -129,7 +129,7 @@
       <option name="comment"  >Exact restart hybrid/startup/branch test on CONUS HDMA regional grid with DEBUG off</option>
     </options>
   </test>
-  <test name="ERP" grid="nldas2_rMERIT_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+  <test name="ERP" grid="nldas2_rMERIT_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -140,7 +140,7 @@
       <option name="comment"  >Exact restart PE change test on CONUS MERIT regional grid with DEBUG off</option>
     </options>
   </test>
-  <test name="ERT_P720x4" grid="nldas2_rMERIT_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+  <test name="ERT_P720x4" grid="nldas2_rMERIT_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -152,7 +152,7 @@
   </test>
 
   <!-- 2-degree grids r05mz, HDMA, and MERIT all DEBUG off-->
-  <test name="ERS" grid="f19_f19_g17" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+  <test name="ERS" grid="f19_f19_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -163,7 +163,7 @@
       <option name="comment"  >Exact restart on 2-degree grid with DEBUG off</option>
     </options>
   </test>
-  <test name="PFS" grid="f19_f19_mg17_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+  <test name="PFS" grid="f19_f19_mg17_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -173,7 +173,7 @@
       <option name="comment"  >Performance test on 2-degree HDMA grid with DEBUG off</option>
     </options>
   </test>
-  <test name="SMS" grid="f19_f19_mg17_rMERIT" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+  <test name="SMS" grid="f19_f19_mg17_rMERIT" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -185,7 +185,7 @@
   </test>
 
   <!-- 1-degree r05mz, HDMA, and MERIT all DEBUG off not on small machines -->
-  <test name="ERS" grid="f09_f09_g17" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+  <test name="ERS" grid="f09_f09_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
     </machines>
@@ -194,7 +194,7 @@
       <option name="comment"  >Exact restart on 1-degree grid with DEBUG off</option>
     </options>
   </test>
-  <test name="SMS" grid="f09_f09_mg17_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+  <test name="SMS" grid="f09_f09_mg17_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
     </machines>
@@ -203,7 +203,7 @@
       <option name="comment"  >Smoke test on 1-degree HDMA grid with DEBUG off</option>
     </options>
   </test>
-  <test name="SMS" grid="f09_f09_mg17_rMERIT" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+  <test name="SMS" grid="f09_f09_mg17_rMERIT" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
     </machines>
@@ -214,7 +214,7 @@
   </test>
 
   <!-- half-degree: r05mz, HDMA, and MERIT all DEBUG off all smoke test only not on small machines  -->
-  <test name="SMS" grid="hcru_hcru_mt13" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+  <test name="SMS" grid="hcru_hcru_mt13" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
     </machines>
@@ -223,7 +223,7 @@
       <option name="comment"  >Smoke test on half-degree grid with DEBUG off</option>
     </options>
   </test>
-  <test name="SMS" grid="hcru_hcru_mt13_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+  <test name="SMS" grid="hcru_hcru_mt13_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
     </machines>
@@ -232,7 +232,7 @@
       <option name="comment"  >Smoke test on half-degree HDMA grid with DEBUG off</option>
     </options>
   </test>
-  <test name="SMS" grid="hcru_hcru_mt13_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuRoute/default">
+  <test name="SMS" grid="hcru_hcru_mt13_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
     </machines>
