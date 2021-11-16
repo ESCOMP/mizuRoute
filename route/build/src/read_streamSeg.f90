@@ -1,4 +1,4 @@
-module read_streamSeg
+MODULE read_streamSeg
 
 ! data types
 USE nrtype,    ONLY: i4b,dp,lgt
@@ -32,7 +32,7 @@ USE netcdf
 
 ! external utilities
 USE nr_utility_module, ONLY: arth    ! Num. Recipies utilities
-USE alloc_data,        ONLY: alloc_struct
+USE allocation,        ONLY: alloc_struct
 
 implicit none
 

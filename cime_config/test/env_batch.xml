@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<file id="env_batch.xml" version="2.0">
+<header>
+</header>
+
+<!--
+
+-->
+<group id="config_batch">
+  <entry id="BATCH_SYSTEM" value="none">
+    <type>char</type> 
+  </entry>
+</group>
+
+  <batch_system type="none" >
+    <batch_query args=""></batch_query>
+    <batch_submit></batch_submit>
+    <batch_redirect></batch_redirect>
+    <batch_directive></batch_directive>
+    <directives>
+      <directive></directive>
+    </directives>
+  </batch_system>
+
+</file>

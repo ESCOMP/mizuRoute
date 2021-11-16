@@ -6,8 +6,8 @@ use nrtype
 USE public_var
 
 ! Netcdf
-use io_netcdf, only:get_nc
-use io_netcdf, only:get_nc_dim_len
+use ncio_utils, only:get_nc
+use ncio_utils, only:get_nc_dim_len
 
 implicit none
 

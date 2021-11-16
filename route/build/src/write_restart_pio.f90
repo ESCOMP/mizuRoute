@@ -9,12 +9,13 @@ USE var_lookup,        ONLY: ixIRFbas, nVarsIRFbas
 USE var_lookup,        ONLY: ixKWE, nVarsKWE
 USE var_lookup,        ONLY: ixKWT, nVarsKWT
 USE var_lookup,        ONLY: ixIRFbas, nVarsIRFbas
+USE var_lookup,        ONLY: ixBasinQ, nVarsBasinQ
 
 USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
 USE dataTypes,         ONLY: STRSTA            ! state in each reach
 USE dataTypes,         ONLY: RCHTOPO           ! Network topology
 USE dataTypes,         ONLY: states
-USE dataTypes,         ONLY: time
+USE datetime_data,     ONLY: datetime
 
 USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: integerMissing
@@ -25,6 +26,7 @@ USE public_var,        ONLY: rpntfil           ! ascii containing last restart f
 USE globalData,        ONLY: meta_stateDims  ! states dimension meta
 USE globalData,        ONLY: meta_irf        ! IRF routing
 USE globalData,        ONLY: meta_irf_bas
+USE globalData,        ONLY: meta_basinQ
 USE globalData,        ONLY: meta_kwt
 USE globalData,        ONLY: meta_kwe
 
@@ -37,13 +39,15 @@ USE globalData,        ONLY: pio_numiotasks
 USE globalData,        ONLY: pio_rearranger
 USE globalData,        ONLY: pio_root
 USE globalData,        ONLY: pio_stride
+USE globalData,        ONLY: pioSystem
+USE globalData,        ONLY: isStandalone
 
 USE nr_utility_module, ONLY: arth
 USE pio_utils
 
 implicit none
 
-type(iosystem_desc_t),save :: pioSystemState
+! The following variables used only in this module
 type(file_desc_t),    save :: pioFileDescState     ! contains data identifying the file
 type(io_desc_t),      save :: iodesc_state_int
 type(io_desc_t),      save :: iodesc_state_double
@@ -54,9 +58,6 @@ type(io_desc_t),      save :: iodesc_irf_double
 type(io_desc_t),      save :: iodesc_vol_double
 type(io_desc_t),      save :: iodesc_irf_bas_double
 
-integer(i4b),         save :: kTime                ! Time index in restart netCDF
-
-integer(i4b),    parameter :: recordDim=-999       ! record dimension Indicator
 integer(i4b),    parameter :: currTimeStep = 1
 integer(i4b),    parameter :: nextTimeStep = 2
 
@@ -102,11 +103,9 @@ CONTAINS
    USE public_var,        ONLY: calendar
    USE public_var,        ONLY: restart_write  ! restart write options
    USE public_var,        ONLY: restart_day
-   USE globalData,        ONLY: restCal        ! restart Calendar time
-   USE globalData,        ONLY: dropCal        ! restart drop off Calendar time
-   USE globalData,        ONLY: modTime        ! previous and current model time
-   ! external routine
-   USE time_utils_module, ONLY: ndays_month    ! compute number of days in a month
+   USE globalData,        ONLY: restDatetime   ! restart Calendar time
+   USE globalData,        ONLY: dropDatetime   ! restart drop off Calendar time
+   USE globalData,        ONLY: simDatetime    ! previous and current model time
 
    implicit none
 
@@ -121,33 +120,34 @@ CONTAINS
    ierr=0; message='restart_alarm/'
 
    ! adjust restart dropoff day if the dropoff day is outside number of days in particular month
-   dropCal%id=restart_day
-   call ndays_month(modTime(1)%iy, modTime(1)%im, calendar, nDays, ierr, cmessage)
-   if (dropCal%id > nDays) then
-     dropCal%id=nDays
+   dropDatetime = datetime(dropDatetime%year(), dropDatetime%month(), restart_day, dropDatetime%hour(), dropDatetime%minute(), dropDatetime%sec())
+
+   nDays = simDatetime(1)%ndays_month(calendar, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   if (dropDatetime%day() > nDays) then
+     dropDatetime = datetime(dropDatetime%year(), dropDatetime%month(), nDays, dropDatetime%hour(), dropDatetime%minute(), dropDatetime%sec())
    end if
 
    ! adjust dropoff day further if restart day is actually outside number of days in a particular month
-   if (restCal%id > nDays) then
-     dropCal%id=dropCal%id-1
+   if (restDatetime%day() > nDays) then
+     dropDatetime = dropDatetime%add_day(-1, calendar, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
 
    select case(trim(restart_write))
      case('Specified','specified','Last','last')
-       restartAlarm = (dropCal%iy==modTime(1)%iy .and. dropCal%im==modTime(1)%im .and. dropCal%id==modTime(1)%id .and. &
-                       dropCal%ih==modTime(1)%ih .and. dropCal%imin==modTime(1)%imin .and. nint(dropCal%dsec)==nint(modTime(1)%dsec))
+       restartAlarm = (dropDatetime==simDatetime(1))
      case('Annual','annual')
-       restartAlarm = (dropCal%im==modTime(1)%im .and. dropCal%id==modTime(1)%id .and. &
-                       dropCal%ih==modTime(1)%ih .and. dropCal%imin==modTime(1)%imin .and. nint(dropCal%dsec)==nint(modTime(1)%dsec))
+       restartAlarm = (dropDatetime%is_equal_mon(simDatetime(1)) .and. dropDatetime%is_equal_day(simDatetime(1)) .and. dropDatetime%is_equal_time(simDatetime(1)))
      case('Monthly','monthly')
-       restartAlarm = (dropCal%id==modTime(1)%id .and. &
-                       dropCal%ih==modTime(1)%ih .and. dropCal%imin==modTime(1)%imin .and. nint(dropCal%dsec)==nint(modTime(1)%dsec))
+       restartAlarm = (dropDatetime%is_equal_day(simDatetime(1)) .and. dropDatetime%is_equal_time(simDatetime(1)))
      case('Daily','daily')
-       restartAlarm = (dropCal%ih==modTime(1)%ih .and. dropCal%imin==modTime(1)%imin .and. nint(dropCal%dsec)==nint(modTime(1)%dsec))
+       restartAlarm = dropDatetime%is_equal_time(simDatetime(1))
      case('Never','never')
        restartAlarm = .false.
      case default
-       ierr=20; message=trim(message)//'Current accepted <restart_write> options: L[l]ast, N[n]ever, S[s]pecified, Annual, Monthly, or Daily '; return
+       ierr=20; message=trim(message)//'Current accepted <restart_write> options: last, never, specified, annual, monthly, or daily '; return
    end select
 
  END SUBROUTINE restart_alarm
@@ -159,7 +159,6 @@ CONTAINS
  SUBROUTINE restart_output(ierr, message)
 
   USE public_var, ONLY: restart_dir
-  USE globalData, ONLY: modTime           ! previous and current model time
 
   implicit none
   ! output variables
@@ -167,16 +166,9 @@ CONTAINS
   character(*),   intent(out)          :: message          ! error message
   ! local variables
   character(len=strLen)                :: cmessage         ! error message of downwind routine
-  character(len=strLen)                :: fnameRestart     ! name of the restart file name
-  character(len=50),parameter          :: fmtYMDHMS = '(2a,I0.4,a,I0.2,a,I0.2,x,I0.2,a,I0.2,a,I0.2)'
+  character(len=300)                   :: fnameRestart     ! name of the restart file name
 
   ierr=0; message='restart_output/'
-
-  if (masterproc) then
-    write(iulog,fmtYMDHMS) new_line('a'),'Write restart file at ', &
-                           modTime(1)%iy,'-',modTime(1)%im, '-', modTime(1)%id, &
-                           modTime(1)%ih,':',modTime(1)%imin,':',nint(modTime(1)%dsec)
-  end if
 
   call restart_fname(fnameRestart, nextTimeStep, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -188,7 +180,7 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   open (1, file = trim(restart_dir)//trim(rpntfil), status='replace', action='write')
-  write(1,*) trim(fnameRestart)
+  write(1,'(a)') trim(fnameRestart)
   close(1)
 
  END SUBROUTINE restart_output
@@ -199,13 +191,12 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE restart_fname(fnameRestart, timeStamp, ierr, message)
 
-   USE public_var,          ONLY: restart_dir
-   USE public_var,          ONLY: case_name        ! simulation name ==> output filename head
-   USE public_var,          ONLY: calendar
-   USE public_var,          ONLY: secprday
-   USE public_var,          ONLY: dt
-   USE globalData,          ONLY: modJulday        ! current model Julian day
-   USE process_time_module, ONLY: conv_julian2cal  ! compute data and time from julian day
+   USE public_var, ONLY: restart_dir
+   USE public_var, ONLY: case_name      ! simulation name ==> output filename head
+   USE public_var, ONLY: calendar
+   USE public_var, ONLY: secprday
+   USE public_var, ONLY: dt
+   USE globalData, ONLY: simDatetime    ! current model datetime
 
    implicit none
 
@@ -216,27 +207,30 @@ CONTAINS
    integer(i4b),   intent(out)          :: ierr             ! error code
    character(*),   intent(out)          :: message          ! error message
    ! local variables
+   type(datetime)                       :: restartTimeStamp ! datetime corresponding to file name time stamp
    character(len=strLen)                :: cmessage         ! error message of downwind routine
-   real(dp)                             :: timeStampJulday  ! Julidan days corresponding to file name time stamp
    integer(i4b)                         :: sec_in_day       ! second within day
-   type(time)                           :: timeStampCal     ! calendar date at next time step (for restart file name)
+   character(len=50),parameter          :: fmtYMDHMS = '(2a,I0.4,a,I0.2,a,I0.2,x,I0.2,a,I0.2,a,I0.2)'
    character(len=50),parameter          :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
 
    ierr=0; message='restart_fname/'
 
    select case(timeStamp)
-     case(currTimeStep); timeStampJulday = modJulday
-     case(nextTimeStep); timeStampJulday = modJulday + dt/secprday
+     case(currTimeStep); restartTimeStamp = simDatetime(1)
+     case(nextTimeStep); restartTimeStamp = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
      case default;       ierr=20; message=trim(message)//'time stamp option in restart filename: invalid -> 1: current time Step or 2: next time step'; return
    end select
 
-   call conv_julian2cal(timeStampJulday, calendar, timeStampCal, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if (masterproc) then
+    write(iulog,fmtYMDHMS) new_line('a'),'Write restart file for ', &
+                           restartTimeStamp%year(),'-',restartTimeStamp%month(), '-', restartTimeStamp%day(), &
+                           restartTimeStamp%hour(),':',restartTimeStamp%minute(),':',nint(restartTimeStamp%sec())
+  end if
 
-   sec_in_day = timeStampCal%ih*60*60+timeStampCal%imin*60+nint(timeStampCal%dsec)
+   sec_in_day = restartTimeStamp%hour()*60*60+restartTimeStamp%minute()*60+nint(restartTimeStamp%sec())
 
-   write(fnameRestart, fmtYMDS) trim(restart_dir)//trim(case_name)//'.mizuRoute.r.', &
-                                timeStampCal%iy, '-', timeStampCal%im, '-', timeStampCal%id, '-',sec_in_day,'.nc'
+   write(fnameRestart, fmtYMDS) trim(restart_dir)//trim(case_name)//'.mizuroute.r.', &
+                                restartTimeStamp%year(), '-', restartTimeStamp%month(), '-', restartTimeStamp%day(), '-',sec_in_day,'.nc'
 
  END SUBROUTINE restart_fname
 
@@ -268,37 +262,35 @@ CONTAINS
  integer(i4b)                    :: ix1, ix2         ! frst and last indices of global array for local array chunk
  integer(i4b)                    :: ixRch(nRch)      ! global reach index used for output
  integer(i4b)                    :: jDim             ! loop index for dimension
- integer(i4b)                    :: ixDim_common(4)  ! custom dimension ID array
+ integer(i4b)                    :: ixDim_common(3)  ! custom dimension ID array
  character(len=strLen)           :: cmessage         ! error message of downwind routine
 
  ! Initialize error control
  ierr=0; message='define_state_nc/'
 
- ! Initialize netCDF time index
- kTime = 0
-
  associate(dim_seg     => meta_stateDims(ixStateDims%seg)%dimId,     &
            dim_ens     => meta_stateDims(ixStateDims%ens)%dimId,     &
-           dim_time    => meta_stateDims(ixStateDims%time)%dimId,    &
            dim_tbound  => meta_stateDims(ixStateDims%tbound)%dimId)
 
  ! ----------------------------------
  ! pio initialization for restart netCDF
  ! ----------------------------------
- pio_numiotasks = nNodes/pio_stride
- call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
-                   pio_stride, pio_numiotasks, & ! input: PIO related parameters
-                   pio_rearranger, pio_root,   & ! input: PIO related parameters
-                   pioSystemState)               ! output: PIO system descriptors
+ if (isStandalone) then
+   pio_numiotasks = nNodes/pio_stride
+   call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
+                     pio_stride, pio_numiotasks, & ! input: PIO related parameters
+                     pio_rearranger, pio_root,   & ! input: PIO related parameters
+                     pioSystem)               ! output: PIO system descriptors
+ end if
 
  ! ----------------------------------
  ! Create file
  ! ----------------------------------
- call createFile(pioSystemState, trim(fname), pio_typename, pio_netcdf_format, pioFileDescState, ierr, cmessage)
+ call createFile(pioSystem, trim(fname), pio_typename, pio_netcdf_format, pioFileDescState, ierr, cmessage)
  if(ierr/=0)then; message=trim(cmessage)//'cannot create state netCDF'; return; endif
 
  ! For common dimension/variables - seg id, time, time-bound -----------
- ixDim_common = [ixStateDims%seg, ixStateDims%ens, ixStateDims%time, ixStateDims%tbound]
+ ixDim_common = [ixStateDims%seg, ixStateDims%ens, ixStateDims%tbound]
 
  ! ----------------------------------
  ! Define dimensions
@@ -316,18 +308,22 @@ CONTAINS
  ! ----------------------------------
  ! Define variable
  ! ----------------------------------
- call def_var(pioFileDescState, 'reachID', [dim_seg], ncd_int, ierr, cmessage, vdesc='reach ID',  vunit='-' )
+ call def_var(pioFileDescState, 'reachID', ncd_int, ierr, cmessage, pioDimId=[dim_seg], vdesc='reach ID',  vunit='-' )
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call def_var(pioFileDescState, 'time', [dim_time], ncd_float, ierr, cmessage, vdesc='time', vunit=trim(time_units), vcal=calendar)
+ call def_var(pioFileDescState, 'restart_time', ncd_float, ierr, cmessage, vdesc='resatart time', vunit=trim(time_units), vcal=calendar)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call def_var(pioFileDescState, 'time_bound', [dim_tbound, dim_time], ncd_float, ierr, cmessage, vdesc='time bound at last time step', vunit='sec')
+ call def_var(pioFileDescState, 'time_bound', ncd_float, ierr, cmessage, pioDimId=[dim_tbound], vdesc='time bound at last time step', vunit='sec')
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end associate
 
  ! Routing specific variables --------------
+ ! previous-time step hru inflow into reach
+ call define_basinQ_state(ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  ! basin IRF
  if (doesBasinRoute == 1) then
   call define_IRFbas_state(ierr, cmessage)
@@ -371,30 +367,30 @@ CONTAINS
  ix2 = sum(rch_per_proc(-1:pid))
  ixRch = arth(1,1,nSeg)
 
- ! type: float  dim: [dim_seg, dim_ens, dim_time]  -- channel runoff coming from hru
- call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+ ! type: float  dim: [dim_seg, dim_ens]  -- channel runoff coming from hru
+ call pio_decomp(pioSystem,              & ! input: pio system descriptor
                  ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                  [nSeg,nEns],            & ! input: dimension length == global array size
                  ixRch(ix1:ix2),         & ! input:
                  iodesc_state_double)
 
- ! type: int  dim: [dim_seg, dim_ens, dim_time]  -- number of wave or uh future time steps
- call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+ ! type: int  dim: [dim_seg, dim_ens]  -- number of wave or uh future time steps
+ call pio_decomp(pioSystem,              & ! input: pio system descriptor
                  ncd_int,                & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                  [nSeg,nEns],            & ! input: dimension length == global array size
                  ixRch(ix1:ix2),         & ! input:
                  iodesc_state_int)
 
  if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
-   ! type: int, dim: [dim_seg, dim_wave, dim_ens, dim_time]
-   call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+   ! type: int, dim: [dim_seg, dim_wave, dim_ens]
+   call pio_decomp(pioSystem,              & ! input: pio system descriptor
                    ncd_int,                & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                    [nSeg,nWave,nEns],      & ! input: dimension length == global array size
                    ixRch(ix1:ix2),         & ! input:
                    iodesc_wave_int)
 
-   ! type: float, dim: [dim_seg, dim_wave, dim_ens, dim_time]
-   call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+   ! type: float, dim: [dim_seg, dim_wave, dim_ens]
+   call pio_decomp(pioSystem,              & ! input: pio system descriptor
                    ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                    [nSeg,nWave,nEns],      & ! input: dimension length == global array size
                    ixRch(ix1:ix2),         & ! input:
@@ -402,8 +398,8 @@ CONTAINS
  end if
 
  if (routOpt==kinematicWaveEuler) then
-   ! type: float, dim: [dim_seg, dim_fdmesh, dim_ens, dim_time]
-   call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+   ! type: float, dim: [dim_seg, dim_fdmesh, dim_ens]
+   call pio_decomp(pioSystem,              & ! input: pio system descriptor
                    ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                    [nSeg,nFdmesh,nEns],    & ! input: dimension length == global array size
                    ixRch(ix1:ix2),         & ! input:
@@ -411,27 +407,29 @@ CONTAINS
  end if
 
  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
-   ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens, dim_time]
-   call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+   ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens]
+   call pio_decomp(pioSystem,              & ! input: pio system descriptor
                    ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                    [nSeg,ntdh_irf,nEns],   & ! input: dimension length == global array size
                    ixRch(ix1:ix2),         & ! input:
                    iodesc_irf_double)
 
-   ! type: float dim: [dim_seg, dim_ens, dim_time]
-   call pio_decomp(pioSystemState,         & ! input: pio system descriptor
+   ! type: float dim: [dim_seg, dim_ens]
+   call pio_decomp(pioSystem,              & ! input: pio system descriptor
                    ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                    [nSeg,nTbound,nEns],    & ! input: dimension length == global array size
                    ixRch(ix1:ix2),         & ! input:
                    iodesc_vol_double)
-
  end if
- ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens, dim_time]
- call pio_decomp(pioSystemState,         & ! input: pio system descriptor
-                 ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                 [nSeg,ntdh,nEns],       & ! input: dimension length == global array size
-                 ixRch(ix1:ix2),         & ! input:
-                 iodesc_irf_bas_double)
+
+ if (doesBasinRoute == 1) then
+   ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens]
+   call pio_decomp(pioSystem,              & ! input: pio system descriptor
+                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                   [nSeg,ntdh,nEns],       & ! input: dimension length == global array size
+                   ixRch(ix1:ix2),         & ! input:
+                   iodesc_irf_bas_double)
+ end if
 
  end associate
 
@@ -456,7 +454,6 @@ CONTAINS
    ierr=0; message1='set_dim_len/'
 
    select case(ixDim)
-    case(ixStateDims%time);    meta_stateDims(ixStateDims%time)%dimLength    = recordDim
     case(ixStateDims%seg);     meta_stateDims(ixStateDims%seg)%dimLength     = nRch
     case(ixStateDims%ens);     meta_stateDims(ixStateDims%ens)%dimLength     = nEns
     case(ixStateDims%tbound);  meta_stateDims(ixStateDims%tbound)%dimLength  = 2
@@ -468,6 +465,38 @@ CONTAINS
    end select
 
   END SUBROUTINE set_dim_len
+
+
+  SUBROUTINE define_basinQ_state(ierr, message1)
+   implicit none
+   ! output
+   integer(i4b), intent(out)         :: ierr          ! error code
+   character(*), intent(out)         :: message1      ! error message
+   ! local
+   integer(i4b)                      :: iVar, ixDim   ! index loop
+   integer(i4b)                      :: nDims         ! number of dimensions
+   integer(i4b),allocatable          :: dim_basinQ(:) ! dimension id array
+
+   ierr=0; message1='define_basinQ_state/'
+
+   do iVar=1,nVarsBasinQ
+
+     nDims = size(meta_basinQ(iVar)%varDim)
+     if (allocated(dim_basinQ)) then
+       deallocate(dim_basinQ)
+     end if
+     allocate(dim_basinQ(nDims))
+     do ixDim = 1, nDims
+       dim_basinQ(ixDim) = meta_stateDims(meta_basinQ(iVar)%varDim(ixDim))%dimId
+     end do
+
+     call def_var(pioFileDescState, trim(meta_basinQ(iVar)%varName), meta_basinQ(iVar)%varType, ierr, cmessage, pioDimId=dim_basinQ, vdesc=trim(meta_basinQ(iVar)%varDesc), vunit=trim(meta_basinQ(iVar)%varUnit))
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+   end do
+
+  END SUBROUTINE define_basinQ_state
+
 
   SUBROUTINE define_IRFbas_state(ierr, message1)
    implicit none
@@ -501,7 +530,7 @@ CONTAINS
        dim_IRFbas(ixDim) = meta_stateDims(meta_irf_bas(iVar)%varDim(ixDim))%dimId
      end do
 
-     call def_var(pioFileDescState, trim(meta_irf_bas(iVar)%varName), dim_IRFbas, meta_irf_bas(iVar)%varType, ierr, cmessage, vdesc=trim(meta_irf_bas(iVar)%varDesc), vunit=trim(meta_irf_bas(iVar)%varUnit))
+     call def_var(pioFileDescState, trim(meta_irf_bas(iVar)%varName), meta_irf_bas(iVar)%varType, ierr, cmessage, pioDimId=dim_IRFbas, vdesc=trim(meta_irf_bas(iVar)%varDesc), vunit=trim(meta_irf_bas(iVar)%varUnit))
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
    end do
@@ -541,7 +570,7 @@ CONTAINS
        dim_KWE(ixDim) = meta_stateDims(meta_KWE(iVar)%varDim(ixDim))%dimId
      end do
 
-     call def_var(pioFileDescState, trim(meta_KWE(iVar)%varName), dim_KWE, meta_KWE(iVar)%varType, ierr, cmessage, vdesc=trim(meta_KWE(iVar)%varDesc), vunit=trim(meta_KWE(iVar)%varUnit))
+     call def_var(pioFileDescState, trim(meta_KWE(iVar)%varName), meta_KWE(iVar)%varType, ierr, cmessage, pioDimId=dim_KWE, vdesc=trim(meta_KWE(iVar)%varDesc), vunit=trim(meta_KWE(iVar)%varUnit))
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
    end do
@@ -572,10 +601,9 @@ CONTAINS
 
    associate(dim_seg     => meta_stateDims(ixStateDims%seg)%dimId,     &
              dim_ens     => meta_stateDims(ixStateDims%ens)%dimId,     &
-             dim_time    => meta_stateDims(ixStateDims%time)%dimId,    &
              dim_wave    => meta_stateDims(ixStateDims%wave)%dimId)
 
-   call def_var(pioFileDescState, 'numWaves', [dim_seg,dim_ens,dim_time], ncd_int, ierr, cmessage, vdesc='number of waves in a reach', vunit='-')
+   call def_var(pioFileDescState, 'numWaves', ncd_int, ierr, cmessage, pioDimId=[dim_seg,dim_ens], vdesc='number of waves in a reach', vunit='-')
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
    do iVar=1,nVarsKWT
@@ -589,7 +617,7 @@ CONTAINS
        dim_kwt(ixDim) = meta_stateDims(meta_kwt(iVar)%varDim(ixDim))%dimId
      end do
 
-     call def_var(pioFileDescState, trim(meta_kwt(iVar)%varName), dim_kwt, meta_kwt(iVar)%varType, ierr, cmessage, vdesc=trim(meta_kwt(iVar)%varDesc), vunit=trim(meta_kwt(iVar)%varUnit))
+     call def_var(pioFileDescState, trim(meta_kwt(iVar)%varName), meta_kwt(iVar)%varType, ierr, cmessage, pioDimId=dim_kwt, vdesc=trim(meta_kwt(iVar)%varDesc), vunit=trim(meta_kwt(iVar)%varUnit))
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
    end do
@@ -621,10 +649,9 @@ CONTAINS
 
    associate(dim_seg     => meta_stateDims(ixStateDims%seg)%dimId,     &
              dim_ens     => meta_stateDims(ixStateDims%ens)%dimId,     &
-             dim_time    => meta_stateDims(ixStateDims%time)%dimId,    &
              dim_tdh_irf => meta_stateDims(ixStateDims%tdh_irf)%dimId)
 
-   call def_var(pioFileDescState, 'numQF', [dim_seg,dim_ens,dim_time], ncd_int, ierr, cmessage, vdesc='number of future q time steps in a reach', vunit='-')
+   call def_var(pioFileDescState, 'numQF', ncd_int, ierr, cmessage, pioDimId=[dim_seg,dim_ens], vdesc='number of future q time steps in a reach', vunit='-')
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
    do iVar=1,nVarsIRF
@@ -638,7 +665,7 @@ CONTAINS
        dim_irf(ixDim) = meta_stateDims(meta_irf(iVar)%varDim(ixDim))%dimId
      end do
 
-     call def_var(pioFileDescState, trim(meta_irf(iVar)%varName), dim_irf, meta_irf(iVar)%varType, ierr, cmessage, vdesc=trim(meta_irf(iVar)%varDesc), vunit=trim(meta_irf(iVar)%varUnit))
+     call def_var(pioFileDescState, trim(meta_irf(iVar)%varName), meta_irf(iVar)%varType, ierr, cmessage, pioDimId=dim_irf, vdesc=trim(meta_irf(iVar)%varDesc), vunit=trim(meta_irf(iVar)%varUnit))
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
    end do
@@ -656,6 +683,8 @@ CONTAINS
  SUBROUTINE write_state_nc(fname,                &   ! Input: state netcdf name
                            ierr, message)            ! Output: error control
 
+ USE public_var, ONLY: time_units             ! time units (seconds, hours, or days)
+ USE public_var, ONLY: dt                     ! model time step size [sec]
  USE public_var, ONLY: routOpt
  USE public_var, ONLY: doesBasinRoute
  USE public_var, ONLY: allRoutingMethods
@@ -673,27 +702,29 @@ CONTAINS
  USE globalData, ONLY: reachID             ! reach ID in network
  USE globalData, ONLY: nRch                ! number of reaches in network
  USE globalData, ONLY: TSEC                ! beginning/ending of simulation time step [sec]
- USE globalData, ONLY: timeVar             ! time variable
- USE globalData, ONLY: iTime               ! time index
+ USE globalData, ONLY: timeVar             ! time variables (unit given by runoff data)
+ USE globalData, ONLY: iTime               ! time index at simulation time step
 
  implicit none
 
  ! input variables
- character(*), intent(in)        :: fname           ! filename
+ character(*),  intent(in)       :: fname             ! filename
  ! output variables
- integer(i4b), intent(out)       :: ierr            ! error code
- character(*), intent(out)       :: message         ! error message
+ integer(i4b), intent(out)       :: ierr              ! error code
+ character(*), intent(out)       :: message           ! error message
  ! local variables
- integer(i4b)                    :: iens            ! temporal
- type(STRFLX), allocatable       :: RCHFLX_local(:) ! reordered reach flux data structure
- type(RCHTOPO),allocatable       :: NETOPO_local(:) ! reordered topology data structure
- type(STRSTA), allocatable       :: RCHSTA_local(:) ! reordered statedata structure
- character(len=strLen)           :: cmessage        ! error message of downwind routine
+ real(dp)                        :: secPerTime        ! number of sec per time-unit. time-unit is from t_unit
+ real(dp)                        :: restartTimeVar    ! restart timeVar [time_units]
+ integer(i4b)                    :: iens              ! temporal
+ type(STRFLX), allocatable       :: RCHFLX_local(:)   ! reordered reach flux data structure
+ type(RCHTOPO),allocatable       :: NETOPO_local(:)   ! reordered topology data structure
+ type(STRSTA), allocatable       :: RCHSTA_local(:)   ! reordered statedata structure
+ character(len=strLen)           :: t_unit            ! unit of time
+ character(len=strLen)           :: cmessage          ! error message of downwind routine
 
  ierr=0; message='write_state_nc/'
 
  iens = 1
- kTime = kTime + 1
 
  if (masterproc) then
   associate(nRch_trib => rch_per_proc(0))
@@ -720,19 +751,34 @@ CONTAINS
   RCHSTA_local = RCHSTA_trib(iens,:)
  endif
 
+ ! get the time multiplier needed to convert time to units of days
+ t_unit =  time_units(1:index(time_units,' '))
+ select case( trim(t_unit)  )
+   case('seconds','second','sec','s'); secPerTime=1._dp
+   case('minutes','minute','min');     secPerTime=60._dp
+   case('hours','hour','hr','h');      secPerTime=3600._dp
+   case('days','day','d');             secPerTime=86400._dp
+   case default
+     ierr=20; message=trim(message)//'<time_units>= '//trim(time_units)//': <time_units> must be seconds, minutes, hours or days.'; return
+ end select
+
+ restartTimeVar = timeVar(iTime) + dt/secPerTime
+
  ! -- Write out to netCDF
 
- call openFile(pioSystemState, pioFileDescState, trim(fname),pio_typename, ncd_write, ierr, cmessage)
+ call openFile(pioSystem, pioFileDescState, trim(fname),pio_typename, ncd_write, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! Miscellaneous variables - seg id, time etc
  call write_netcdf(pioFileDescState, 'reachID', reachID, [1], [nRch], ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call write_netcdf(pioFileDescState, 'time', [timeVar(iTime)], [kTime], [1], ierr, cmessage)
+ call write_scalar_netcdf(pioFileDescState, 'restart_time', restartTimeVar, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call write_netcdf(pioFileDescState, 'time_bound', [TSEC(0),TSEC(1)], [1,kTime], [2,1], ierr, cmessage)
+ call write_netcdf(pioFileDescState, 'time_bound', [TSEC(0),TSEC(1)], [1], [2], ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ call write_basinQ_state(ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  if (doesBasinRoute == 1) then
@@ -759,6 +805,57 @@ CONTAINS
 
  CONTAINS
 
+  ! reach inflow writing procedure
+  SUBROUTINE write_basinQ_state(ierr, message1)
+  implicit none
+  ! output
+  integer(i4b), intent(out)  :: ierr            ! error code
+  character(*), intent(out)  :: message1        ! error message
+  ! local variables
+  type(states)               :: state           ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
+  integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
+
+  ! initialize error control
+  ierr=0; message1='write_basinQ_state/'
+
+  associate(nSeg     => size(RCHFLX_local),                         &
+            nens     => meta_stateDims(ixStateDims%ens)%dimLength)
+
+  allocate(state%var(nVarsBasinQ), stat=ierr, errmsg=cmessage)
+  if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+  do iVar=1,nVarsBasinQ
+    select case(iVar)
+      case(ixBasinQ%q); allocate(state%var(iVar)%array_2d_dp(nSeg, nEns), stat=ierr)
+      case default; ierr=20; message1=trim(message1)//'unable to identify basin routing variable index'; return
+    end select
+    if(ierr/=0)then; message1=trim(message1)//'problem allocating space for basin IRF routing state '//trim(meta_basinQ(iVar)%varName); return; endif
+  end do
+
+ ! --Convert data structures to arrays
+  do iens=1,nens
+    do iSeg=1,nSeg
+      do iVar=1,nVarsBasinQ
+        select case(iVar)
+          case(ixBasinQ%q); state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX_local(iSeg)%BASIN_QR(1)
+          case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF state variable index'; return
+        end select
+      enddo
+    enddo
+  enddo
+
+  do iVar=1,nVarsBasinQ
+     select case(iVar)
+      case(ixBasinQ%q); call write_pnetcdf(pioFileDescState, meta_basinQ(iVar)%varName, state%var(iVar)%array_2d_dp, iodesc_state_double, ierr, cmessage)
+      case default; ierr=20; message1=trim(message1)//'unable to identify reach inflow variable index for nc writing'; return
+    end select
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+  end do
+
+  end associate
+
+  END SUBROUTINE write_basinQ_state
+
   ! Basin IRF writing procedures
   SUBROUTINE write_IRFbas_state(ierr, message1)
   implicit none
@@ -782,7 +879,6 @@ CONTAINS
 
    select case(iVar)
     case(ixIRFbas%qfuture); allocate(state%var(iVar)%array_3d_dp(nSeg, ntdh, nEns), stat=ierr)
-    case(ixIRFbas%q);       allocate(state%var(iVar)%array_2d_dp(nSeg, nEns),       stat=ierr)
     case default; ierr=20; message1=trim(message1)//'unable to identify basin routing variable index'; return
    end select
    if(ierr/=0)then; message1=trim(message1)//'problem allocating space for basin IRF routing state '//trim(meta_irf_bas(iVar)%varName); return; endif
@@ -795,7 +891,6 @@ CONTAINS
      do iVar=1,nVarsIRFbas
       select case(iVar)
        case(ixIRFbas%qfuture); state%var(iVar)%array_3d_dp(iSeg,:,iens) = RCHFLX_local(iSeg)%QFUTURE
-       case(ixIRFbas%q);       state%var(iVar)%array_2d_dp(iSeg,iens)   = RCHFLX_local(iSeg)%BASIN_QR(1)
        case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF state variable index'; return
       end select
     enddo
@@ -805,8 +900,7 @@ CONTAINS
   do iVar=1,nVarsIRFbas
 
    select case(iVar)
-    case(ixIRFbas%qfuture); call write_pnetcdf_recdim(pioFileDescState, meta_irf_bas(iVar)%varName, state%var(iVar)%array_3d_dp, iodesc_irf_bas_double, kTime, ierr, cmessage)
-    case(ixIRFbas%q);       call write_pnetcdf_recdim(pioFileDescState, meta_irf_bas(iVar)%varName, state%var(iVar)%array_2d_dp, iodesc_state_double, kTime, ierr, cmessage)
+    case(ixIRFbas%qfuture); call write_pnetcdf(pioFileDescState, meta_irf_bas(iVar)%varName, state%var(iVar)%array_3d_dp, iodesc_irf_bas_double, ierr, cmessage)
     case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF variable index for nc writing'; return
    end select
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -865,7 +959,7 @@ CONTAINS
   do iVar=1,nVarsKWE
     select case(iVar)
      case(ixKWE%a, ixKWE%q)
-       call write_pnetcdf_recdim(pioFileDescState, trim(meta_kwe(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_mesh_double, kTime, ierr, cmessage)
+       call write_pnetcdf(pioFileDescState, trim(meta_kwe(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_mesh_double, ierr, cmessage)
      case default; ierr=20; message1=trim(message1)//'unable to identify KWE variable index for nc writing'; return
     end select
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -947,16 +1041,16 @@ CONTAINS
   enddo ! ensemble loop
 
   ! Writing netCDF
-  call write_pnetcdf_recdim(pioFileDescState,'numWaves', numWaves, iodesc_state_int, kTime, ierr, cmessage)
+  call write_pnetcdf(pioFileDescState,'numWaves', numWaves, iodesc_state_int, ierr, cmessage)
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsKWT
 
     select case(iVar)
      case(ixKWT%routed)
-       call write_pnetcdf_recdim(pioFileDescState, trim(meta_kwt(iVar)%varName), state%var(iVar)%array_3d_int, iodesc_wave_int, kTime, ierr, cmessage)
+       call write_pnetcdf(pioFileDescState, trim(meta_kwt(iVar)%varName), state%var(iVar)%array_3d_int, iodesc_wave_int, ierr, cmessage)
      case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
-       call write_pnetcdf_recdim(pioFileDescState, trim(meta_kwt(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_wave_double, kTime, ierr, cmessage)
+       call write_pnetcdf(pioFileDescState, trim(meta_kwt(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_wave_double, ierr, cmessage)
      case default; ierr=20; message1=trim(message1)//'unable to identify KWT variable index for nc writing'; return
     end select
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -1024,16 +1118,16 @@ CONTAINS
   enddo ! ensemble loop
 
   ! writing netcdf
-  call write_pnetcdf_recdim(pioFileDescState, 'numQF', numQF, iodesc_state_int, kTime, ierr, cmessage)
+  call write_pnetcdf(pioFileDescState, 'numQF', numQF, iodesc_state_int, ierr, cmessage)
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsIRF
 
    select case(iVar)
     case(ixIRF%qfuture)
-     call write_pnetcdf_recdim(pioFileDescState, trim(meta_irf(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_irf_double, kTime, ierr, cmessage)
+     call write_pnetcdf(pioFileDescState, trim(meta_irf(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_irf_double, ierr, cmessage)
     case(ixIRF%irfVol)
-     call write_pnetcdf_recdim(pioFileDescState, trim(meta_irf(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_vol_double, kTime, ierr, cmessage)
+     call write_pnetcdf(pioFileDescState, trim(meta_irf(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_vol_double, ierr, cmessage)
     case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc writing'; return
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
    end select

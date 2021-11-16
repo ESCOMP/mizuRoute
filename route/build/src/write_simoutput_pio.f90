@@ -23,6 +23,8 @@ USE globalData,        ONLY: pio_numiotasks
 USE globalData,        ONLY: pio_rearranger
 USE globalData,        ONLY: pio_root
 USE globalData,        ONLY: pio_stride
+USE globalData,        ONLY: pioSystem
+USE globalData,        ONLY: isStandalone
 ! Moudle wide external modules
 USE nr_utility_module, ONLY: arth
 USE pio_utils
@@ -32,7 +34,6 @@ implicit none
 ! The following variables used only in this module
 character(300),       save :: fileout              ! name of the output file
 integer(i4b),         save :: jTime                ! time step in output netCDF
-type(iosystem_desc_t),save :: pioSystem            ! PIO I/O system data
 type(file_desc_t),    save :: pioFileDesc          ! PIO data identifying the file
 type(io_desc_t),      save :: iodesc_rch_flx       ! PIO domain decomposition data for reach flux [nRch]
 type(io_desc_t),      save :: iodesc_hru_ro        ! PIO domain decomposition data for hru runoff [nHRU]
@@ -41,11 +42,75 @@ integer(i4b),parameter     :: recordDim=-999       ! record dimension Indicator
 
 private
 
+public::main_new_file
 public::prep_output
 public::output
 public::close_output_nc
 
 CONTAINS
+
+ ! *********************************************************************
+ ! public subroutine: main routine to define new output file
+ ! *********************************************************************
+ SUBROUTINE main_new_file(ierr, message)
+
+   USE globalData, ONLY: simDatetime   ! previous and current model time
+
+  implicit none
+  ! output variables
+  integer(i4b),   intent(out)          :: ierr             ! error code
+  character(*),   intent(out)          :: message          ! error message
+  ! local variables
+  logical(lgt)                         :: newFileAlarm     ! logical to make alarm for restart writing
+  character(len=strLen)                :: cmessage         ! error message of downwind routine
+
+  ierr=0; message='main_new_file/'
+
+  call new_file_alarm(newFileAlarm, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  if (newFileAlarm) then
+    call prep_output(ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  simDatetime(0) = simDatetime(1)
+
+ END SUBROUTINE main_new_file
+
+
+ ! *********************************************************************
+ ! private subroutine: restart alarming
+ ! *********************************************************************
+ SUBROUTINE new_file_alarm(newFileAlarm, ierr, message)
+
+   USE public_var,        ONLY: newFileFrequency  ! frequency for new output files (day, month, annual, single)
+   USE globalData,        ONLY: simDatetime       ! previous and current model time
+
+   implicit none
+   ! output
+   logical(lgt),   intent(out)          :: newFileAlarm     ! logical to make alarm for creating new output file
+   integer(i4b),   intent(out)          :: ierr             ! error code
+   character(*),   intent(out)          :: message          ! error message
+
+   ierr=0; message='new_file_alarm/'
+
+   ! print progress
+   if (masterproc) then
+     write(iulog,'(a,I4,4(x,I4))') new_line('a'), simDatetime(1)%year(), simDatetime(1)%month(), simDatetime(1)%day(), simDatetime(1)%hour(), simDatetime(1)%minute()
+   endif
+
+   ! check need for the new file
+   select case(newFileFrequency)
+     case('single'); newFileAlarm=(simDatetime(0)%year() ==integerMissing)
+     case('annual'); newFileAlarm=(simDatetime(1)%year() /=simDatetime(0)%year())
+     case('month');  newFileAlarm=(simDatetime(1)%month()/=simDatetime(0)%month())
+     case('day');    newFileAlarm=(simDatetime(1)%day()  /=simDatetime(0)%day())
+     case default; ierr=20; message=trim(message)//'unable to identify the option to define new output files'; return
+   end select
+
+ END SUBROUTINE new_file_alarm
+
 
  ! *********************************************************************
  ! public subroutine: define routing output NetCDF file
@@ -79,6 +144,8 @@ CONTAINS
   ierr=0; message='output/'
 
   iens = 1
+
+  jTime = jTime+1
 
   ! Need to combine mainstem RCHFLX and tributary RCHFLX into RCHFLX_local for root node
   if (masterproc) then
@@ -163,6 +230,9 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    endif
 
+  call sync_file(pioFileDesc, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  END SUBROUTINE output
 
 
@@ -175,12 +245,10 @@ CONTAINS
  USE public_var, ONLY: output_dir        ! output directory
  USE public_var, ONLY: case_name         ! simulation name ==> output filename head
  USE public_var, ONLY: calendar          ! calendar name
- USE public_var, ONLY: newFileFrequency  ! frequency for new output files (day, month, annual, single)
  USE public_var, ONLY: time_units        ! time units (seconds, hours, or days)
  ! saved global data
- USE globalData, ONLY: basinID,reachID   ! HRU and reach ID in network
- USE globalData, ONLY: modJulday         ! julian day: at model time step
- USE globalData, ONLY: modTime           ! previous and current model time
+ USE globalData, ONLY: basinID, reachID  ! HRU and reach ID in network
+ USE globalData, ONLY: simDatetime       ! previous and current model time
  USE globalData, ONLY: nEns, nHRU, nRch  ! number of ensembles, HRUs and river reaches
  USE globalData, ONLY: isFileOpen        ! file open/close status
  ! subroutines
@@ -194,48 +262,21 @@ CONTAINS
  integer(i4b), intent(out)       :: ierr             ! error code
  character(*), intent(out)       :: message          ! error message
  ! local variables
- logical(lgt)                    :: defNewOutputFile ! flag to define new output file
  integer(i4b)                    :: sec_in_day       ! second within day
  character(len=strLen)           :: cmessage         ! error message of downwind routine
  character(*),parameter          :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
 
  ierr=0; message='prep_output/'
 
-  ! get the time
-  select case(trim(calendar))
-   case('noleap','365_day')
-    call compCalday_noleap(modJulday,modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,ierr,cmessage)
-   case ('standard','gregorian','proleptic_gregorian')
-    call compCalday(modJulday,modTime(1)%iy,modTime(1)%im,modTime(1)%id,modTime(1)%ih,modTime(1)%imin,modTime(1)%dsec,ierr,cmessage)
-   case default;    ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
-  end select
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  ! print progress
-  if (masterproc) then
-    write(iulog,'(a,I4,4(x,I4))') new_line('a'), modTime(1)%iy, modTime(1)%im, modTime(1)%id, modTime(1)%ih, modTime(1)%imin
-  endif
-
-  ! check need for the new file
-  select case(newFileFrequency)
-   case('single'); defNewOutputFile=(modTime(0)%iy==integerMissing)
-   case('annual'); defNewOutputFile=(modTime(1)%iy/=modTime(0)%iy)
-   case('month');  defNewOutputFile=(modTime(1)%im/=modTime(0)%im)
-   case('day');    defNewOutputFile=(modTime(1)%id/=modTime(0)%id)
-   case default; ierr=20; message=trim(message)//'unable to identify the option to define new output files'; return
-  end select
-
-  if(defNewOutputFile)then
-
    ! close netcdf only if is is open
    call close_output_nc()
 
-   jTime=1
+   jTime=0
 
    ! Define filename
-   sec_in_day = modTime(1)%ih*60*60+modTime(1)%imin*60+nint(modTime(1)%dsec)
-   write(fileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuRoute.h.', &
-                           modTime(1)%iy, '-', modTime(1)%im, '-', modTime(1)%id, '-',sec_in_day,'.nc'
+   sec_in_day = simDatetime(1)%hour()*60*60+simDatetime(1)%minute()*60+nint(simDatetime(1)%sec())
+   write(fileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuroute.h.', &
+                           simDatetime(1)%year(), '-', simDatetime(1)%month(), '-', simDatetime(1)%day(), '-',sec_in_day,'.nc'
 
    call defineFile(trim(fileout),                         &  ! input: file name
                    nEns,                                  &  ! input: number of ensembles
@@ -256,14 +297,6 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    isFileOpen = .True.
-
-  else
-
-   jTime = jTime+1
-
-  endif
-
-  modTime(0) = modTime(1)
 
  END SUBROUTINE prep_output
 
@@ -346,11 +379,13 @@ CONTAINS
  end if
 
  ! pio initialization
- pio_numiotasks = nNodes/pio_stride
- call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
-                   pio_stride, pio_numiotasks, & ! input: PIO related parameters
-                   pio_rearranger, pio_root,   & ! input: PIO related parameters
-                   pioSystem)                    ! output: PIO system descriptors
+ if (isStandalone) then
+   pio_numiotasks = nNodes/pio_stride
+   call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
+                     pio_stride, pio_numiotasks, & ! input: PIO related parameters
+                     pio_rearranger, pio_root,   & ! input: PIO related parameters
+                     pioSystem)                    ! output: PIO system descriptors
+ endif
 
  ! For reach flux/volume
  if (masterproc) then
@@ -399,16 +434,17 @@ CONTAINS
  ! define coordinate variable for time
  call def_var(pioFileDesc,                                &                                        ! pio file descriptor
              trim(meta_qDims(ixQdims%time)%dimName),      &                                        ! variable name
-             [meta_qDims(ixQdims%time)%dimId], ncd_float, &                                        ! dimension array and type
+             ncd_float,                                   &                                        ! variable type
              ierr, cmessage,                              &                                        ! error handle
+             pioDimId=[meta_qDims(ixQdims%time)%dimId],   &                                        ! dimension array
              vdesc=trim(meta_qDims(ixQdims%time)%dimName), vunit=trim(units_time), vcal=calendar)  ! optional attributes
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! define hru ID and reach ID variables
- call def_var(pioFileDesc, 'basinID', [meta_qDims(ixQdims%hru)%dimId], ncd_int, ierr, cmessage, vdesc='basin ID', vunit='-')
+ call def_var(pioFileDesc, 'basinID', ncd_int, ierr, cmessage, pioDimId=[meta_qDims(ixQdims%hru)%dimId], vdesc='basin ID', vunit='-')
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call def_var(pioFileDesc, 'reachID', [meta_qDims(ixQdims%seg)%dimId], ncd_int, ierr, cmessage, vdesc='reach ID', vunit='-')
+ call def_var(pioFileDesc, 'reachID', ncd_int, ierr, cmessage, pioDimId=[meta_qDims(ixQdims%seg)%dimId], vdesc='reach ID', vunit='-')
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! define flux variables
@@ -429,8 +465,9 @@ CONTAINS
   ! define variable
   call def_var(pioFileDesc,            &                 ! pio file descriptor
               meta_rflx(iVar)%varName, &                 ! variable name
-              dim_array, ncd_float,    &                 ! dimension array and type
+              ncd_float,               &                 ! dimension array and type
               ierr, cmessage,          &                 ! error handling
+              pioDimId=dim_array,      &                 ! dimension id
               vdesc=meta_rflx(iVar)%varDesc, vunit=meta_rflx(iVar)%varUnit)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 

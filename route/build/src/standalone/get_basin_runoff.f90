@@ -35,17 +35,15 @@ CONTAINS
   USE public_var,  ONLY:is_vol_wm               ! logical water management components target volume should be read
   USE public_var,  ONLY:suppress_runoff         ! logical suppress the read runoff to zero (0)
   USE public_var,  ONLY:suppress_P_Ep           ! logical suppress the read precipitation/evaporation to zero (0)
-  USE globalData,  ONLY:basinID                 ! basin ID
-  USE globalData,  ONLY:reachID                 ! reach ID
   USE globalData,  ONLY:nHRU                    ! number of routing sub-basin
   USE globalData,  ONLY:nRch                    ! number of routing seg (reaches and lakes)
   USE globalData,  ONLY:runoff_data             ! data structure to hru runoff data
   USE globalData,  ONLY:wm_data                 ! data strcuture for water management
   USE globalData,  ONLY:remap_data              ! data structure to remap data
   ! subroutines
-  USE read_runoff, ONLY:read_runoff_data        ! read runoff value into runoff_data data strucuture
-  USE remapping,   ONLY:remap_runoff            ! mapping HM runoff to river network HRU runoff (HM_HRU /= RN_HRU)
-  USE remapping,   ONLY:sort_flux               ! mapping runoff, fluxes based on order of HRUs, Reaches in the network
+  USE read_runoff,          ONLY: read_runoff_data ! read runoff value into runoff_data data strucuture
+  USE process_remap_module, ONLY: remap_runoff     ! mapping HM runoff to river network HRU runoff (HM_HRU /= RN_HRU)
+  USE process_remap_module, ONLY: sort_flux        ! mapping runoff, fluxes based on order of HRUs, Reaches in the network
 
   implicit none
   ! input variables: none
@@ -271,7 +269,7 @@ CONTAINS
   ! initialize error control
   ierr=0; message='infile_name/'; wm_not_read_flag = .true.
 
-  ! fast forward time to time index at simStart and save iTime and modJulday
+  ! fast forward time to time index at simStart
   ixloop: do ix = 1, size(infileinfo_data) !loop over number of file
    !print*, 'runoff file', infileinfo_data(ix)%iTimebound(1), infileinfo_data(ix)%iTimebound(2)
    if ((iTime >= infileinfo_data(ix)%iTimebound(1)).and.(iTime <= infileinfo_data(ix)%iTimebound(2))) then
@@ -283,7 +281,7 @@ CONTAINS
 
   !print*, 'itime, itime_local', iTime, iTime_local
 
-  ! fast forward time to time index at simStart and save iTime and modJulday for water management nc file
+  ! fast forward time to time index at simStart for water management nc file
   if ((is_flux_wm).or.(is_vol_wm.and.is_lake_sim)) then
     iyloop: do ix = 1, size(infileinfo_data_wm) !loop over number of file
      !print*, 'wm file', infileinfo_data_wm(ix)%iTimebound(1), infileinfo_data_wm(ix)%iTimebound(2)

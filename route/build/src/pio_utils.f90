@@ -16,6 +16,8 @@ module pio_utils
   public::end_def
   public::openFile
   public::closeFile
+  public::sync_file
+  public::write_scalar_netcdf      ! write non-distributed data
   public::write_netcdf             ! write non-distributed data
   public::write_pnetcdf            ! write distributed data without record dimension
   public::write_pnetcdf_recdim     ! write distributed data at a specified index of record dimension
@@ -39,18 +41,26 @@ module pio_utils
   public var_desc_t
   public io_desc_t
 
+  interface write_scalar_netcdf
+    module procedure write_int_scalar
+    module procedure write_double_scalar
+    module procedure write_char_scalar
+  end interface
+
   interface write_netcdf
     module procedure write_int_array1D
-    module procedure write_real_array1D
     module procedure write_int_array2D
-    module procedure write_real_array2D
+    module procedure write_double_array1D
+    module procedure write_double_array2D
   end interface
 
   interface write_pnetcdf
     module procedure write_int_darray1D
     module procedure write_int_darray2D
-    module procedure write_real_darray1D
-    module procedure write_real_darray2D
+    module procedure write_int_darray3D
+    module procedure write_double_darray1D
+    module procedure write_double_darray2D
+    module procedure write_double_darray3D
   end interface
 
   interface write_pnetcdf_recdim
@@ -334,6 +344,24 @@ contains
   end subroutine closeFile
 
   !-----------------------------------------------------------------------
+  subroutine sync_file(pioFileDesc, ierr, message)
+    ! !DESCRIPTION:
+    ! end definition of netcdf file
+    !
+    implicit none
+    ! input
+    type(file_desc_t), intent(inout) :: pioFileDesc  ! netcdf file id
+    ! output
+    integer(i4b),      intent(out)   :: ierr         ! error status
+    character(*),      intent(out)   :: message      ! error message
+
+    ierr=0; message='sync_file/'
+
+    call PIO_syncfile(pioFileDesc)
+
+  end subroutine sync_file
+
+  !-----------------------------------------------------------------------
   subroutine end_def(pioFileDesc, ierr, message)
     ! !DESCRIPTION:
     ! end definition of netcdf file
@@ -375,9 +403,9 @@ contains
   !-----------------------------------------------------------------------
   subroutine def_var(pioFileDesc,   & ! input: file descriptor
                      vname,         & ! input: variable name
-                     pioDimId,      & ! input: dimension ID(s)
                      ivtype,        & ! input: variable type. pio_int, pio_real, pio_double, pio_char
                      ierr, message, & ! output: error code and message
+                     pioDimId,      & ! input: optional. dimension ID(s)
                      vdesc,         & ! input: optional. long_name
                      vunit,         & ! input: optional. unit
                      vcal)            ! input: optional. calendar type
@@ -385,8 +413,8 @@ contains
   ! input
   type(file_desc_t),intent(inout)         :: pioFileDesc            ! contains data identifying the file.
   character(*),     intent(in)            :: vname                  ! Input: variable name
-  integer(i4b),     intent(in)            :: pioDimId(:)            ! Input: variable dimension IDs
   integer(i4b),     intent(in)            :: ivtype                 ! Input: variable type. pio_int, pio_real, pio_double, pio_char
+  integer(i4b),     intent(in), optional  :: pioDimId(:)            ! Input: variable dimension IDs
   character(*),     intent(in), optional  :: vdesc                  ! Input: variable description
   character(*),     intent(in), optional  :: vunit                  ! Input: variable units
   character(*),     intent(in), optional  :: vcal                   ! Input: calendar (if time variable)
@@ -394,9 +422,16 @@ contains
   integer(i4b),     intent(out)           :: ierr
   character(*),     intent(out)           :: message      ! error message
   ! local variables
+  integer(i4b)                            :: dimid0(1)           ! dimid for no dimension
   type(var_desc_t)                        :: pioVarId
 
-  ierr = pio_def_var(pioFileDesc, trim(vname), ivtype, pioDimId, pioVarId)
+  dimid0 = 0
+
+  if (present(pioDimId)) then
+    ierr = pio_def_var(pioFileDesc, trim(vname), ivtype, pioDimId, pioVarId)
+  else
+    ierr = pio_def_var(pioFileDesc, trim(vname), ivtype, pioVarId)
+  end if
   if(ierr/=pio_noerr)then; message=trim(message)//'Could not define variable'; return; endif
 
   if (present(vdesc)) then ! add long_name
@@ -420,6 +455,87 @@ contains
   ! -----------------------------
   ! Writing routine
   ! -----------------------------
+
+  ! ---------------------------------------------------------------
+  ! write global integer scalar
+  subroutine write_int_scalar(pioFileDesc,     &
+                              vname,           &  ! input: variable name
+                              scalar,          &  ! input: variable data
+                              ierr, message)      ! output: error control
+  implicit none
+  ! input
+  type(file_desc_t),  intent(inout) :: pioFileDesc  ! pio file handle
+  character(*),       intent(in)    :: vname        ! variable name
+  integer(i4b),       intent(in)    :: scalar       ! variable data
+  ! output
+  integer(i4b),       intent(out)   :: ierr
+  character(*),       intent(out)   :: message      ! error message
+  ! local variables
+  type(var_desc_t)                  :: pioVarId
+
+  ierr=0; message='write_int_scalar/'
+
+  ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
+  if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
+
+  ierr = pio_put_var(pioFileDesc, pioVarId, scalar)
+  if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
+
+  end subroutine write_int_scalar
+
+  ! ---------------------------------------------------------------
+  ! write global real scalar
+  subroutine write_double_scalar(pioFileDesc,     &
+                               vname,           &  ! input: variable name
+                               scalar,          &  ! input: variable data
+                               ierr, message)      ! output: error control
+  implicit none
+  ! input
+  type(file_desc_t),  intent(inout) :: pioFileDesc  ! pio file handle
+  character(*),       intent(in)    :: vname        ! variable name
+  real(dp),           intent(in)    :: scalar       ! variable data
+  ! output
+  integer(i4b),       intent(out)   :: ierr
+  character(*),       intent(out)   :: message      ! error message
+  ! local variables
+  type(var_desc_t)                  :: pioVarId
+
+  ierr=0; message='write_double_scalar/'
+
+  ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
+  if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
+
+  ierr = pio_put_var(pioFileDesc, pioVarId, scalar)
+  if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
+
+  end subroutine write_double_scalar
+
+  ! ---------------------------------------------------------------
+  ! write global character scalar
+  subroutine write_char_scalar(pioFileDesc,    &
+                              vname,           &  ! input: variable name
+                              scalar,          &  ! input: variable data
+                              ierr, message)      ! output: error control
+  implicit none
+  ! input
+  type(file_desc_t),  intent(inout) :: pioFileDesc  ! pio file handle
+  character(*),       intent(in)    :: vname        ! variable name
+  character(*),       intent(in)    :: scalar       ! variable data
+  ! output
+  integer(i4b),       intent(out)   :: ierr
+  character(*),       intent(out)   :: message      ! error message
+  ! local variables
+  type(var_desc_t)                  :: pioVarId
+
+  ierr=0; message='write_char_scalar/'
+
+  ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
+  if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
+
+  ierr = pio_put_var(pioFileDesc, pioVarId, scalar)
+  if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
+
+  end subroutine write_char_scalar
 
   ! ---------------------------------------------------------------
   ! write global integer vector into 1D variable
@@ -454,12 +570,12 @@ contains
 
   ! ---------------------------------------------------------------
   ! write global real vector into 1D variable
-  subroutine write_real_array1D(pioFileDesc,     &
-                                vname,           &  ! input: variable name
-                                array,           &  ! input: variable data
-                                iStart,          &  ! input: start index
-                                iCount,          &  ! input: length of vector
-                                ierr, message)      ! output: error control
+  subroutine write_double_array1D(pioFileDesc,    &
+                                 vname,           &  ! input: variable name
+                                 array,           &  ! input: variable data
+                                 iStart,          &  ! input: start index
+                                 iCount,          &  ! input: length of vector
+                                 ierr, message)      ! output: error control
   implicit none
   ! input
   type(file_desc_t),     intent(inout) :: pioFileDesc  ! pio file handle
@@ -473,15 +589,15 @@ contains
   ! local variables
   type(var_desc_t)                     :: pioVarId
 
-  ierr=0; message='write_real_array1D/'
+  ierr=0; message='write_double_array1D/'
 
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
   if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
 
-  ierr = pio_put_var(pioFileDesc, pioVarId, iStart, iCount, real(array,kind=sp))
+  ierr = pio_put_var(pioFileDesc, pioVarId, iStart, iCount, array)
   if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
 
-  end subroutine write_real_array1D
+  end subroutine write_double_array1D
 
   ! ---------------------------------------------------------------
   ! write global integer 2D into 2D variable
@@ -516,12 +632,12 @@ contains
 
   ! ---------------------------------------------------------------
   ! write global real 2D into 2D variable
-  subroutine write_real_array2D(pioFileDesc,     &
-                                vname,           &  ! input: variable name
-                                array,           &  ! input: variable data
-                                iStart,          &  ! input: start index
-                                iCount,          &  ! input: length of vector
-                                ierr, message)      ! output: error control
+  subroutine write_double_array2D(pioFileDesc,     &
+                                  vname,           &  ! input: variable name
+                                  array,           &  ! input: variable data
+                                  iStart,          &  ! input: start index
+                                  iCount,          &  ! input: length of vector
+                                  ierr, message)      ! output: error control
   implicit none
   ! input
   type(file_desc_t),     intent(inout) :: pioFileDesc  ! pio file handle
@@ -535,15 +651,15 @@ contains
   ! local variables
   type(var_desc_t)                     :: pioVarId
 
-  ierr=0; message='write_real_array2D/'
+  ierr=0; message='write_double_array2D/'
 
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
   if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
 
-  ierr = pio_put_var(pioFileDesc, pioVarId, iStart, iCount, real(array,kind=sp))
+  ierr = pio_put_var(pioFileDesc, pioVarId, iStart, iCount, array)
   if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
 
-  end subroutine write_real_array2D
+  end subroutine write_double_array2D
 
 
   ! ---------------------------------------------------------------
@@ -605,8 +721,37 @@ contains
   end subroutine write_int_darray2D
 
   ! ---------------------------------------------------------------
-  ! write distributed real vector into 1D data
-  subroutine write_real_darray1D(pioFileDesc,     &
+  ! write distributed 3D integer array into 2D variable
+  subroutine write_int_darray3D(pioFileDesc,     &
+                                vname,           &  ! input: variable name
+                                array,           &  ! input: variable data
+                                iodesc,          &  ! input: ??? it is from initdecomp routine
+                                ierr, message)      ! output: error control
+  implicit none
+  ! input variables
+  type(file_desc_t),     intent(inout) :: pioFileDesc  ! pio file handle
+  character(*),          intent(in)    :: vname        ! variable name
+  integer(i4b),          intent(in)    :: array(:,:,:) ! variable data
+  type(io_desc_t),       intent(inout) :: iodesc       ! io descriptor handle that is generated in PIO_initdecomp
+  ! output variables
+  integer(i4b),          intent(out)   :: ierr         ! error code
+  character(*),          intent(out)   :: message      ! error message
+  ! local variables
+  type(var_desc_t)                     :: pioVarId     ! netCDF variable ID
+
+  ierr=0; message='write_int_darray3D/'
+
+  ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
+  if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
+
+  call pio_write_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
+  if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
+
+  end subroutine write_int_darray3D
+
+  ! ---------------------------------------------------------------
+  ! write distributed double vector into 1D data
+  subroutine write_double_darray1D(pioFileDesc,   &
                                  vname,           &  ! input: variable name
                                  array,           &  ! input: variable data
                                  iodesc,          &  ! input: ??? it is from initdecomp routine
@@ -623,19 +768,19 @@ contains
   ! local variables
   type(var_desc_t)                     :: pioVarId     ! netCDF variable ID
 
-  ierr=0; message='write_real_darray1D/'
+  ierr=0; message='write_double_darray1D/'
 
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
   if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
 
-  call pio_write_darray(pioFileDesc, pioVarId, iodesc, real(array,kind=sp), ierr)
+  call pio_write_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
   if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
 
-  end subroutine write_real_darray1D
+  end subroutine write_double_darray1D
 
   ! ---------------------------------------------------------------
-  ! write distributed real 2D integer array into 2D variable
-  subroutine write_real_darray2D(pioFileDesc,     &
+  ! write distributed double 2D integer array into 2D variable
+  subroutine write_double_darray2D(pioFileDesc,   &
                                  vname,           &  ! input: variable name
                                  array,           &  ! input: variable data
                                  iodesc,          &  ! input: ??? it is from initdecomp routine
@@ -652,15 +797,44 @@ contains
   ! local variables
   type(var_desc_t)                      :: pioVarId     ! netCDF variable ID
 
-  ierr=0; message='write_real_darray2D/'
+  ierr=0; message='write_double_darray2D/'
 
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
   if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
 
-  call pio_write_darray(pioFileDesc, pioVarId, iodesc, real(array,kind=sp), ierr)
+  call pio_write_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
   if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
 
-  end subroutine write_real_darray2D
+  end subroutine write_double_darray2D
+
+  ! ---------------------------------------------------------------
+  ! write distributed double 3D integer array into 2D variable
+  subroutine write_double_darray3D(pioFileDesc,   &
+                                 vname,           &  ! input: variable name
+                                 array,           &  ! input: variable data
+                                 iodesc,          &  ! input: ??? it is from initdecomp routine
+                                 ierr, message)      ! output: error control
+  implicit none
+  ! input variables
+  type(file_desc_t),     intent(inout)  :: pioFileDesc  ! pio file handle
+  character(*),          intent(in)     :: vname        ! variable name
+  real(dp),              intent(in)     :: array(:,:,:) ! variable data
+  type(io_desc_t),       intent(inout)  :: iodesc       ! io descriptor handle that is generated in PIO_initdecomp
+  ! output variables
+  integer(i4b),          intent(out)    :: ierr         ! error code
+  character(*),          intent(out)    :: message      ! error message
+  ! local variables
+  type(var_desc_t)                      :: pioVarId     ! netCDF variable ID
+
+  ierr=0; message='write_double_darray3D/'
+
+  ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
+  if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
+
+  call pio_write_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
+  if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
+
+  end subroutine write_double_darray3D
 
   !
   ! Writing distributed data in nc variable with record dimension

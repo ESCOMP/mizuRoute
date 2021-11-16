@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+
+<?xml-stylesheet type="text/xsl" ?>
+
+<entry_id>
+
+  <!-- This is the same as the default entry in
+       cime/config/cesm/config_files.xml except for the value for mizuRoute:
+       In a standalone mizuRoute checkout, COMP_ROOT_DIR_ROF is $SRCROOT
+       rather than $SRCROOT/components/mizuRoute.
+
+       However, because of the way overrides are handled, we need to
+       re-specify the full information here rather than just overriding
+       the value for mizuRoute.
+  -->
+
+  <entry id="COMP_ROOT_DIR_ROF">
+    <type>char</type>
+    <default_value>unset</default_value>
+    <values>
+      <value component="mizuroute" >$SRCROOT</value>
+      <value component="rtm"       >$SRCROOT/components/rtm/</value>
+      <value component="mosart"    >$SRCROOT/components/mosart/</value>
+      <value component="drof"      >$CIMEROOT/src/components/data_comps/drof</value>
+      <value component="srof"      >$CIMEROOT/src/components/stub_comps/srof</value>
+      <value component="xrof"      >$CIMEROOT/src/components/xcpl_comps/xrof</value>
+    </values>
+    <group>case_comps</group>
+    <file>env_case.xml</file>
+    <desc>Root directory of the case river runoff model component  </desc>
+    <schema>$CIMEROOT/config/xml_schemas/config_compsets.xsd</schema>
+  </entry>
+
+</entry_id>

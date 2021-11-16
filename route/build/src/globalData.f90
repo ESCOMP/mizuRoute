@@ -1,5 +1,6 @@
 module globalData
   ! This module includes shared data
+  USE pio
 
   USE public_var, ONLY: integerMissing
   USE public_var, ONLY: maxDomain
@@ -39,7 +40,7 @@ module globalData
   USE dataTypes, ONLY: subbasin_mpi  ! reach category (store mainstem code or pfaf code)
 
   ! time data structure
-  USE dataTypes, ONLY: time         ! time data
+  USE datetime_data, ONLY: datetime  ! datetime data class
 
   ! number of variables for data structure
   USE var_lookup, ONLY: nStructures
@@ -52,6 +53,7 @@ module globalData
   USE var_lookup, ONLY: nVarsNTOPO
   USE var_lookup, ONLY: nVarsPFAF
   USE var_lookup, ONLY: nVarsRFLX
+  USE var_lookup, ONLY: nVarsBasinQ
   USE var_lookup, ONLY: nVarsIRFbas
   USE var_lookup, ONLY: nVarsIRF
   USE var_lookup, ONLY: nVarsKWT
@@ -74,23 +76,22 @@ module globalData
   ! ---------- Date/Time data  -------------------------------------------------------------------------
 
   integer(i4b)                   , public :: iTime                ! time index at simulation time step
-  real(dp)                       , public :: startJulday          ! julian day: start of routing simulation
-  real(dp)                       , public :: endJulday            ! julian day: end of routing simulation
-  real(dp)                       , public :: refJulday            ! julian day: reference
-  real(dp)                       , public :: modJulday            ! julian day: simulation time step
-  real(dp)        , allocatable  , public :: roJulday(:)          ! julian day: runoff input time
   real(dp)        , allocatable  , public :: timeVar(:)           ! time variables (unit given by runoff data)
-  real(dp)                       , public :: TSEC(0:1)            ! begning and end of time step (sec)
-  type(time)                     , public :: modTime(0:1)         ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
-  type(time)                     , public :: restCal              ! desired restart date/time (yyyy:mm:dd:hh:mm:ss)
-  type(time)                     , public :: dropCal              ! restart dropoff date/time (yyyy:mm:dd:hh:mm:ss)
+  real(dp)                       , public :: TSEC(0:1)            ! begning and end of time step since simulation started (sec)
+  type(datetime)                 , public :: simDatetime(0:1)     ! previous and current simulation time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime)                 , public :: begDatetime          ! simulation start date/time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime)                 , public :: endDatetime          ! simulation end date/time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime)                 , public :: restDatetime         ! desired restart date/time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime)                 , public :: dropDatetime         ! restart dropoff date/time (yyyy:mm:dd:hh:mm:ss)
 
   ! ---------- input file information -------------------------------------------------------------------
 
-  type(infileinfo) , allocatable , public :: infileinfo_data(:)   ! conversion factor to convert time to units of days
-  type(infileinfo) , allocatable , public :: infileinfo_data_wm(:)! conversion factor to convert time to units of days
+  type(infileinfo), allocatable,  public :: infileinfo_data(:)    ! input runoff file information
+  type(infileinfo), allocatable,  public :: infileinfo_data_wm(:) ! input water management (abstaction/injection) file information
 
   ! ---------- Misc. data -------------------------------------------------------------------------
+  ! standalone mode
+  logical(lgt)                   , public :: isStandalone=.true.       ! flag to indicate model is running in standalone mode (True), otherwise coupled mode
 
   ! I/O stuff
   logical(lgt)                   , public :: isFileOpen                ! flag to indicate output netcdf is open
@@ -112,6 +113,7 @@ module globalData
   integer(i4b)                   , public :: pio_rearranger    = 2     ! 0=>PIO_rearr_none 1=> PIO_rearr_box 2=> PIO_rearr_subset
   integer(i4b)                   , public :: pio_root          = 1
   integer(i4b)                   , public :: pio_stride        = 1
+  type(iosystem_desc_t)          , public :: pioSystem                  ! PIO I/O system data
 
   ! ---------- conversion factors -------------------------------------------------------------------
 
@@ -143,6 +145,7 @@ module globalData
   type(var_info)                 , public :: meta_NTOPO  (nVarsNTOPO  ) ! network topology
   type(var_info)                 , public :: meta_PFAF   (nVarsPFAF   ) ! pfafstetter code
   type(var_info_new)             , public :: meta_rflx   (nVarsRFLX   ) ! reach flux variables
+  type(var_info_new)             , public :: meta_basinQ (nVarsBasinQ ) ! reach inflow from basin
   type(var_info_new)             , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
   type(var_info_new)             , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
   type(var_info_new)             , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states

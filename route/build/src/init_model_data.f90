@@ -48,8 +48,8 @@ CONTAINS
   USE globalData, ONLY: pid          ! procs id (rank)
   USE globalData, ONLY: nThreads     ! number of OMP threads
   ! subroutines: populate metadata
-  USE mpi_mod, ONLY: shr_mpi_commsize
-  USE mpi_mod, ONLY: shr_mpi_commrank
+  USE mpi_utils, ONLY: shr_mpi_commsize
+  USE mpi_utils, ONLY: shr_mpi_commrank
 
   implicit none
 
@@ -98,6 +98,7 @@ CONTAINS
 
   ! shared data used
   USE public_var, ONLY: ancil_dir
+  USE public_var, ONLY: input_dir
   USE public_var, ONLY: param_nml
   ! subroutines: populate metadata
   USE popMetadat_module, ONLY: popMetadat       ! populate metadata
@@ -122,7 +123,8 @@ CONTAINS
   call read_control(trim(cfile_name), ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  call read_param(trim(ancil_dir)//trim(param_nml),ierr,cmessage)
+  ! read the routing parameter namelist
+  call read_param(trim(input_dir)//trim(param_nml),ierr,cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  END SUBROUTINE init_model
@@ -153,9 +155,10 @@ CONTAINS
   USE globalData,  ONLY: basinID                ! HRU id vector
   USE globalData,  ONLY: reachID                ! reach ID vector
   ! external subroutines
-  USE model_utils, ONLY: model_finalize
-  USE mpi_routine, ONLY: comm_ntopo_data        ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
-  USE process_ntopo, ONLY: put_data_struct      ! populate NETOPO and RPARAM data structure
+  USE model_utils,          ONLY: model_finalize
+  USE mpi_process,          ONLY: comm_ntopo_data          ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
+  USE process_ntopo,        ONLY: put_data_struct          ! populate NETOPO and RPARAM data structure
+  USE mpi_utils,            ONLY: shr_mpi_initialized      ! If MPI is being used
   USE domain_decomposition, ONLY: mpi_domain_decomposition ! domain decomposition for mpi
 
    implicit none
@@ -261,11 +264,11 @@ CONTAINS
  SUBROUTINE update_time(finished, ierr, message)
 
   USE public_var, ONLY: dt            ! time step [sec]
+  USE public_var, ONLY: calendar      ! model calendar
   USE globalData, ONLY: TSEC          ! beginning/ending of simulation time step [sec]
   USE globalData, ONLY: iTime         ! time index at simulation time step
-  USE globalData, ONLY: roJulday      ! julian day: runoff input time
-  USE globalData, ONLY: modJulday     ! julian day: at model time step
-  USE globalData, ONLY: endJulday     ! julian day: at end of simulation
+  USE globalData, ONLY: endDatetime   ! model ending datetime
+  USE globalData, ONLY: simDatetime       ! current model datetime
   ! external routine
   USE write_simoutput_pio, ONLY: close_output_nc
 
@@ -274,10 +277,12 @@ CONTAINS
    logical(lgt),              intent(out)   :: finished
    integer(i4b),              intent(out)   :: ierr             ! error code
    character(*),              intent(out)   :: message          ! error message
+   ! local variables
+   character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
    ierr=0; message='update_time/'
 
-   if (abs(modJulday-endJulday)<verySmall) then
+   if (simDatetime(1)==endDatetime) then
      call close_output_nc()
      finished=.true.;return
    endif
@@ -288,7 +293,9 @@ CONTAINS
 
    iTime=iTime+1
 
-   modJulday = roJulday(iTime)
+   ! increment model calendar
+   simDatetime(0) = simDatetime(1)
+   simDatetime(1) = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
 
  END SUBROUTINE update_time
 
@@ -300,7 +307,7 @@ CONTAINS
 
   ! external routines
   USE read_restart,      ONLY: read_state_nc     ! read netcdf state output file
-  USE mpi_routine,       ONLY: mpi_restart
+  USE mpi_process,       ONLY: mpi_restart
   ! shared data
   USE public_var, ONLY: dt                ! simulation time step (seconds)
   USE public_var, ONLY: routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
@@ -427,7 +434,7 @@ CONTAINS
   USE read_streamSeg,       ONLY: getData                  ! get the ancillary data
   USE write_streamSeg,      ONLY: writeData                ! write the ancillary data
   USE process_ntopo,        ONLY: check_river_properties   ! check if river network data is physically valid
-  USE io_netcdf,            ONLY: get_var_dims
+  USE ncio_utils,           ONLY: get_var_dims
   USE process_ntopo,        ONLY: augment_ntopo            ! compute all the additional network topology (only compute option = on)
 
   implicit none
@@ -458,12 +465,14 @@ CONTAINS
 
   ! get the variable dimensions
   ! NOTE: need to update maxPfafLen to the exact character size for pfaf code in netCDF
-  call get_var_dims(trim(ancil_dir)//trim(fname_ntopOld), & ! input: file name
-                    trim(meta_PFAF(ixPFAF%code)%varName), & ! input: pfaf code variable name in netcdf
-                    ierr, cmessage,                       & ! output: error control
-                    dlen=dummy)                             ! output optional: dimension length
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  maxPfafLen = dummy(1)
+  if (meta_PFAF(ixPFAF%code)%varFile) then
+    call get_var_dims(trim(ancil_dir)//trim(fname_ntopOld), & ! input: file name
+                      trim(meta_PFAF(ixPFAF%code)%varName), & ! input: pfaf code variable name in netcdf
+                      ierr, cmessage,                       & ! output: error control
+                      dlen=dummy)                             ! output optional: dimension length
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    maxPfafLen = dummy(1)
+  end if
 
   call getData(&
                ! input
