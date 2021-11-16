@@ -40,11 +40,13 @@ module lake_route_module
 
   USE globalData, ONLY: modTime             ! previous and current model time
   USE globalData, ONLY: iTime               ! current model time step
+  USE globalData, ONLY: simDatetime         ! previous and current model time
   USE public_var, ONLY: is_flux_wm          ! logical water management components fluxes should be read
   USE public_var, ONLY: dt, lakeWBTol       ! lake water balance tolerance
   USE public_var, ONLY: is_vol_wm_jumpstart ! logical whether or not lake should be simulated
   USE public_var, ONLY: lake_model_D03      ! logical whether or not lake should be simulated
   USE public_var, ONLY: lake_model_H06      ! logical whether or not lake should be simulated
+
   USE public_var, ONLY: secprday, days_per_yr, months_per_yr    ! time constants
   USE public_var, ONLY: calendar            ! calendar name
 
