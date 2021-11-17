@@ -1,0 +1,3 @@
+! Monthly history output
+hist_nhtfrq = 0
+hist_mfilt = 1
