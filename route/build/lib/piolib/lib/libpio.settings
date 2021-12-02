@@ -1,0 +1,38 @@
+# PIO Configuration Summary
+==============================
+
+# General
+-------
+PIO Version:		2.5.4
+Configured On:		Thu Dec  2 13:47:40 EST 2021
+Host System:		x86_64-Linux-3.10.0-1160.36.2.el7.x86_64
+Build Directory: 	/home/shg096/mizuRoute/route/build/lib/piolib
+Install Prefix:         /home/shg096/mizuRoute/route/build/../build/lib/piolib
+
+# Compiling Options
+-----------------
+C Compiler:		GNU 7.3.0
+CFLAGS:			 -DUSE_MPI_ISEND_FOR_FC -DPIO2 -DHAVE_MPI -I. -I/home/shg096/mizuRoute/route/build/../build/lib/piolib/include -I/cvmfs/soft.computecanada.ca/easybuild/software/2017/avx2/MPI/intel2018.3/openmpi3.1/pnetcdf/1.9.0/include -I/cvmfs/soft.computecanada.ca/easybuild/software/2017/avx2/Compiler/intel2018.3/netcdf-fortran/4.4.4/include -I/cvmfs/soft.computecanada.ca/easybuild/software/2017/avx2/Compiler/intel2018.3/netcdf/4.6.1/include -I/cvmfs/soft.computecanada.ca/easybuild/software/2017/avx2/Compiler/intel2018.3/hdf5/1.10.3/include -I/cvmfs/soft.computecanada.ca/easybuild/software/2017/avx2/Compiler/intel2018.3/openmpi/3.1.2/include -I/cvmfs/restricted.computecanada.ca/easybuild/software/2017/Core/ifort/2018.3.222/include -I/cvmfs/restricted.computecanada.ca/easybuild/software/2017/Core/icc/2018.3.222/compilers_and_libraries_2018.3.222/linux/tbb/include -I/cvmfs/soft.computecanada.ca/easybuild/software/2017/Core/imkl/2018.3.222/mkl/include/fftw -I/cvmfs/soft.computecanada.ca/easybuild/software/2017/Core/imkl/2018.3.222/mkl/include -std=c99  
+CPPFLAGS:		 -DLINUX -DCPRGNU -DTIMING -I/home/shg096/mizuRoute/route/build/lib/piolib -I/home/shg096/mizuRoute/libraries/parallelio/src/clib -I/home/shg096/mizuRoute/route/build/lib/piolib/src/clib -I/home/shg096/mizuRoute/libraries/parallelio/src/clib -I/home/shg096/mizuRoute/libraries/parallelio/src/clib/../ncint -I/cvmfs/soft.computecanada.ca/easybuild/software/2017/avx2/Compiler/intel2018.3/netcdf/4.6.1/include
+LDFLAGS:		 
+Shared Library:		no
+Static Library:		yes
+Extra libraries:	
+
+Fortran Compiler:       Intel 18.0.3.20180410
+FFLAGS:                 -g -debug all -warn all -check all -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency -qopenmp -DUSE_MPI_ISEND_FOR_FC -DPIO2 -DHAVE_MPI -I. -I/home/shg096/mizuRoute/route/build/../build/lib/piolib/include -I/cvmfs/soft.computecanada.ca/easybuild/software/2017/avx2/MPI/intel2018.3/openmpi3.1/pnetcdf/1.9.0/include -I/cvmfs/soft.computecanada.ca/easybuild/software/2017/avx2/Compiler/intel2018.3/netcdf-fortran/4.4.4/include -I/cvmfs/soft.computecanada.ca/easybuild/software/2017/avx2/Compiler/intel2018.3/netcdf/4.6.1/include -I/cvmfs/soft.computecanada.ca/easybuild/software/2017/avx2/Compiler/intel2018.3/hdf5/1.10.3/include -I/cvmfs/soft.computecanada.ca/easybuild/software/2017/avx2/Compiler/intel2018.3/openmpi/3.1.2/include -I/cvmfs/restricted.computecanada.ca/easybuild/software/2017/Core/ifort/2018.3.222/include -I/cvmfs/restricted.computecanada.ca/easybuild/software/2017/Core/icc/2018.3.222/compilers_and_libraries_2018.3.222/linux/tbb/include -I/cvmfs/soft.computecanada.ca/easybuild/software/2017/Core/imkl/2018.3.222/mkl/include/fftw -I/cvmfs/soft.computecanada.ca/easybuild/software/2017/Core/imkl/2018.3.222/mkl/include -debug minimal
+FCFLAGS:                
+More Fortran Flags:	 -DLINUX -DCPRINTEL -DPIO_GPFS_HINTS -DUSEMPIIO -I/home/shg096/mizuRoute/route/build/lib/piolib -I/home/shg096/mizuRoute/libraries/parallelio/src/flib -I/home/shg096/mizuRoute/route/build/lib/piolib/src/flib -I/cvmfs/soft.computecanada.ca/easybuild/software/2017/avx2/Compiler/intel2018.3/netcdf-fortran/4.4.4/include
+
+# Features
+--------
+PnetCDF Support:	no
+SZIP Write Support:	no
+Parallel Filters:	no
+NetCDF/HDF5 Support:	yes
+NetCDF/HDF5 Par I/O:	no
+NetCDF Integration:	no
+PIO Logging:		no
+MPIEXEC:		mpiexec
+Fortran:		yes
+

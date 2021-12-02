@@ -12,9 +12,9 @@
 #=-====================================
 CPPDEFS      = -DUSE_MPI_ISEND_FOR_FC
 CIMEROOT     = $(F_MASTER)../cime
-MCTDIR       = $(CIMEROOT)/src/externals/mct
+MCTDIR       = $(F_MASTER)../libraries/mct/
 MPISERIALDIR = $(MCTDIR)/mpi-serial
-PIO2DIR      = $(CIMEROOT)/src/externals/pio2
+PIO2DIR      = $(F_MASTER)../libraries/parallelio
 LIBDIR       = $(F_MASTER)build/lib
 PIOLIBDIR    = $(F_MASTER)build/lib/piolib
 PIOLIB       = $(PIOLIBDIR)/lib/libpiof.a $(PIOLIBDIR)/lib/libpioc.a
@@ -24,7 +24,7 @@ MPISERLIB    = $(MPISERLIBDIR)/libmpi-serial.a
 MPISERCONF   = $(MPISERLIBDIR)/Makefile.conf
 MPIINC_PATHLIST  = $(CPATH)
 INCLDIR      = -I.
-CMAKE_OPTS   = -DCMAKE_Fortran_COMPILER=mpif90
+CMAKE_OPTS   =
 
 all: $(CIMEROOT) $(MCTDIR) $(MPISERIALDIR) $(PIO2DIR)
 
@@ -57,12 +57,15 @@ ifeq "$(isMPISERIAL)" "yes"
       -DMPI_Fortran_INCLUDE_PATH=$(PIOLIBDIR)/include \
       -DMPI_C_LIBRARIES=$(MPISERLIB) \
       -DMPI_Fortran_LIBRARIES=$(MPISERLIB)
+  CMAKE_OPTS += -D PIO_USE_MPISERIAL=TRUE -D MPISERIAL_PATH=$(MPISERLIBDIR)
+  CMAKE_OPTS += -DCMAKE_Fortran_COMPILER=$(FC)
 else
   # Change colon delimited list to space with a -I in front of each
   MPIINC   = $(subst :, -I,$(MPIINC_PATHLIST))
   INCLDIR += -I$(MPIINC)
   CPPDEFS += -DHAVE_MPI
-  MPISERIAL = 
+  MPISERIAL =
+  CMAKE_OPTS += -DCMAKE_Fortran_COMPILER=mpif90
 endif
 
 ifeq "$(isGPTL)" "yes"
@@ -79,8 +82,8 @@ CMAKE_OPTS += -Wno-dev -D CMAKE_Fortran_FLAGS:STRING="$(FLAGS) $(CPPDEFS) $(INCL
               -D PIO_ENABLE_TESTS:BOOL=OFF \
               -D CMAKE_INSTALL_PREFIX:PATH=$(PIOLIBDIR) \
               -D PIO_ENABLE_TIMING:BOOL=$(PIO_ENABLE_TIMING) \
-              -D USER_CMAKE_MODULE_PATH:LIST="$(CIMEROOT)/src/CMake;$(CIMEROOT)/src/externals/pio2/cmake"
-CMAKE_OPTS += -D NetCDF_PATH:PATH=$(NCDF_PATH)
+              -D USER_CMAKE_MODULE_PATH:LIST="$(CIMEROOT)/src/CMake;$(PIO2DIR)/cmake"
+CMAKE_OPTS += -D NetCDF_Fortran_PATH:PATH=$(NCDF_FORTRAN_PATH) -D NetCDF_C_PATH:PATH=$(NCDF_C_PATH)
 
 
 
@@ -95,12 +98,19 @@ endif
 ifdef PIO_FILESYSTEM_HINTS
         CMAKE_OPTS += -D PIO_FILESYSTEM_HINTS:STRING="$(PIO_FILESYSTEM_HINTS)"
 endif
-CMAKE_OPTS += -D GENF90_PATH=$(CIMEROOT)/src/externals/pio2/scripts
+CMAKE_OPTS += -D GENF90_PATH=$(PIO2DIR)/scripts
+
+ifeq "$(MODE)" "debug"
+   MODEARGS := --enable-debug
+else
+   MODEARGS :=
+endif
 
 $(MPISERCONF):
 	cp -p $(MPISERIALDIR)/*.h $(MPISERLIBDIR)/.
 	cd $(MPISERLIBDIR) && $(MPISERIALDIR)/configure FC=$(FC) MPIFC=$(FC_EXE) FCFLAGS="$(FLAGS) \
-                                              -I$(MPISERIALDIR)" MCT_PATH=$(MPISERIALDIR) --srcdir $(MPISERIALDIR)
+                                              -I$(MPISERIALDIR)" MCT_PATH=$(MPISERIALDIR) --srcdir $(MPISERIALDIR) \
+                                              $(MODEARGS)
 	ln -sf $(MPISERIALDIR)/Makefile $(MPISERLIBDIR)/Makefile
 
 $(MPISERLIB): $(MPISERCONF)
@@ -120,7 +130,7 @@ cleanpiolib:
 
 $(PIOLIBMAKE): $(MPISERIAL)
 	cd $(PIOLIBDIR); \
-	$(CMAKE_ENV_VARS) cmake $(CMAKE_OPTS) $(PIO2DIR)
+	$(CMAKE_ENV_VARS) cmake $(CMAKE_OPTS) $(MODEARGS) $(PIO2DIR)
 
 $(PIOLIB): $(PIOLIBMAKE)
 	$(MAKE) $(MFLAGS) -C $(PIOLIBDIR) piof

@@ -51,19 +51,21 @@ F_MASTER =
 ifeq "$(FC)" "gnu"
  NCDF_PATH =
  PNETCDF_PATH =
-endif
-ifeq "$(FC)" "intel"
+else ifeq "$(FC)" "intel"
+ NCDF_FORTRAN_PATH =
+ NCDF_C_PATH =
  NCDF_PATH =
  PNETCDF_PATH =
-endif
-ifeq "$(FC)" "pgi"
+else ifeq "$(FC)" "pgi"
  NCDF_PATH =
  PNETCDF_PATH =
+else
+ $(error FC is not set correctly)
 endif
 
-LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
-            -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
-INCNETCDF = -I$(NCDF_PATH)/include
+LIBNETCDF = -Wl,-rpath,$(NCDF_FORTRAN_PATH)/lib -Wl,-rpath,$(NCDF_C_PATH)/lib \
+            -L$(NCDF_FORTRAN_PATH)/lib -lnetcdff -L$(NCDF_C_PATH)/lib -lnetcdf
+INCNETCDF = -I$(NCDF_FORTRAN_PATH)/include -I$(NCDF_C_PATH)/include
 
 FLAGS_OMP =
 ifeq "$(isOpenMP)" "yes"
@@ -213,6 +215,16 @@ PIOLIB       = $(PIOLIBDIR)/libpiof.a $(PIOLIBDIR)/libpioc.a
 MPISERLIBDIR = $(LIBDIR)/mpi-seriallib
 MPISERLIB    = $(MPISERLIBDIR)/libmpi-serial.a
 
+ifeq "$(isPIO)" "yes"
+  EXTINCLUDES += -I$(PIOINCDIR)
+  EXTLIBS += $(PIOLIB)
+  LDFLAGS += -L$(PIOLIBDIR) -lpiof -lpioc
+
+  ifeq "$(isGPTL)" "yes"
+     LDFLAGS += -lgptl
+  endif
+endif
+
 ifeq "$(isMPISERIAL)" "yes"
   EXTINCLUDES += -I$(MPISERLIBDIR)
   EXTLIBS += $(MPISERLIB)
@@ -225,29 +237,20 @@ else
   MPISERIAL =
 endif
 
-ifeq "$(isPIO)" "yes"
-  EXTINCLUDES += -I$(PIOINCDIR)
-  EXTLIBS += $(PIOLIB)
-  LDFLAGS += -L$(PIOLIBDIR) -lpiof -lpioc
-
-  ifeq "$(isGPTL)" "yes"
-     LDFLAGS += -lgptl
-  endif
-endif
-
 ifdef PNETCDF_PATH
         LDFLAGS    += -L$(PNETCDF_PATH)/lib -lpnetcdf
 endif
 
 $(PIOLIB): $(MPISERIAL)
 	cd $(LIBDIR); \
-	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) FC=$(FC) FC_EXE=$(FC_EXE) FLAGS="$(FLAGS)" \
+	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) FC=$(FC_EXE) FC_EXE=$(FC_EXE) FLAGS="$(FLAGS)" \
 	PIO_FILESYSTEM_HINTS=$(PIO_FILESYSTEM_HINTS) PNETCDF_PATH=$(PNETCDF_PATH) isPIO=yes isGPTL=$(isGPTL) \
-	MPIINC_PATHLIST=$(CPATH) NCDF_PATH=$(NCDF_PATH) $(PIOLIB)
+	MPIINC_PATHLIST=$(CPATH) NCDF_FORTRAN_PATH=$(NCDF_FORTRAN_PATH) NCDF_C_PATH=$(NCDF_C_PATH) MODE=$(MODE) $(PIOLIB)
 
 $(MPISERLIB):
 	cd $(LIBDIR); \
-	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) FC=$(FC) FC_EXE=$(FC_EXE) FLAGS="$(FLAGS)" isMPISERIAL=yes $(MPISERLIB)
+	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) FC=$(FC_EXE) FC_EXE=$(FC_EXE) FLAGS="$(FLAGS)" isMPISERIAL=yes \
+	MODE=$(MODE) $(MPISERLIB)
 
 # Clean external libs
 cleanlibs: cleanpiolib cleanmpiseriallib
@@ -271,6 +274,7 @@ cleanmpiseriallib:
 compile: $(EXTLIBS)
 	$(FC_EXE) $(FLAGS) $(EXTINCLUDES) $(MODSUB) $(DRIVER) \
 	$(LIBNETCDF) $(INCNETCDF) $(LDFLAGS) -o $(EXE)
+	@echo "Succesfully compiled"
 
 # Remove object files
 clean:
@@ -278,8 +282,10 @@ clean:
 						rm -f *.lst
 						rm -f *.mod
 						rm -f *__genmod.f90
+						@echo "Successfully cleaned object files"
 #
 # Copy the executable to the bin directory
 install:
 	@mkdir -p $(EXE_PATH)
 	@mv $(EXE) $(EXE_PATH)
+	@echo "Successfully installed"

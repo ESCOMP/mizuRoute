@@ -38,7 +38,6 @@ module lake_route_module
                          ! output
                          ierr, message)   ! output: error control
 
-  USE globalData, ONLY: modTime             ! previous and current model time
   USE globalData, ONLY: iTime               ! current model time step
   USE globalData, ONLY: simDatetime         ! previous and current model time
   USE public_var, ONLY: is_flux_wm          ! logical water management components fluxes should be read
@@ -388,11 +387,11 @@ module lake_route_module
           ! caclulate the day of calendar from 1st of January of current simulation year; julian day - julian day of the first of January of current year
           select case(trim(calendar))
             case('noleap','365_day')
-              call compjulday(modTime(1)%iy,            1,            1,0,0,0._dp,Julian_day_start,ierr,cmessage)
-              call compjulday(modTime(1)%iy,modTime(1)%im,modTime(1)%id,0,0,0._dp,Julian_day_model,ierr,cmessage)
+              call compjulday(simDatetime(1)%year(),                     1,                   1,0,0,0._dp,Julian_day_start,ierr,cmessage)
+              call compjulday(simDatetime(1)%year(),simDatetime(1)%month(),simDatetime(1)%day(),0,0,0._dp,Julian_day_model,ierr,cmessage)
             case ('standard','gregorian','proleptic_gregorian')
-              call compjulday_noleap(modTime(1)%iy,            1,            1,0,0,0._dp,Julian_day_start,ierr,cmessage)
-              call compjulday_noleap(modTime(1)%iy,modTime(1)%im,modTime(1)%id,0,0,0._dp,Julian_day_model,ierr,cmessage)
+              call compjulday_noleap(simDatetime(1)%year(),                     1,                   1,0,0,0._dp,Julian_day_start,ierr,cmessage)
+              call compjulday_noleap(simDatetime(1)%year(),simDatetime(1)%month(),simDatetime(1)%day(),0,0,0._dp,Julian_day_model,ierr,cmessage)
             case default;    ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
           end select
           Day_of_year = Julian_day_model - Julian_day_start + 1 ! the day of the year
