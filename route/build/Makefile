@@ -52,6 +52,8 @@ ifeq "$(FC)" "gnu"
  NCDF_PATH =
  PNETCDF_PATH =
 else ifeq "$(FC)" "intel"
+ NCDF_FORTRAN_PATH =
+ NCDF_C_PATH =
  NCDF_PATH =
  PNETCDF_PATH =
 else ifeq "$(FC)" "pgi"
@@ -61,9 +63,9 @@ else
  $(error FC is not set correctly)
 endif
 
-LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
-            -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
-INCNETCDF = -I$(NCDF_PATH)/include
+LIBNETCDF = -Wl,-rpath,$(NCDF_FORTRAN_PATH)/lib -Wl,-rpath,$(NCDF_C_PATH)/lib \
+            -L$(NCDF_FORTRAN_PATH)/lib -lnetcdff -L$(NCDF_C_PATH)/lib -lnetcdf
+INCNETCDF = -I$(NCDF_FORTRAN_PATH)/include -I$(NCDF_C_PATH)/include
 
 FLAGS_OMP =
 ifeq "$(isOpenMP)" "yes"
@@ -243,7 +245,7 @@ $(PIOLIB): $(MPISERIAL)
 	cd $(LIBDIR); \
 	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) FC=$(FC_EXE) FC_EXE=$(FC_EXE) FLAGS="$(FLAGS)" \
 	PIO_FILESYSTEM_HINTS=$(PIO_FILESYSTEM_HINTS) PNETCDF_PATH=$(PNETCDF_PATH) isPIO=yes isGPTL=$(isGPTL) \
-	MPIINC_PATHLIST=$(CPATH) NCDF_PATH=$(NCDF_PATH) MODE=$(MODE) $(PIOLIB)
+	MPIINC_PATHLIST=$(CPATH) NCDF_FORTRAN_PATH=$(NCDF_FORTRAN_PATH) NCDF_C_PATH=$(NCDF_C_PATH) MODE=$(MODE) $(PIOLIB)
 
 $(MPISERLIB):
 	cd $(LIBDIR); \
