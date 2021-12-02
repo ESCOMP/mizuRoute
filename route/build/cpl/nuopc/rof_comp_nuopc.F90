@@ -379,7 +379,7 @@ contains
       nthrds = localPeCount
    endif
 
-$  call omp_set_num_threads(nthrds)
+   !$  call omp_set_num_threads(nthrds)
 
     !----------------------
     ! Obtain attribute values

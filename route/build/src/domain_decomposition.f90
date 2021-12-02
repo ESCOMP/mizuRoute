@@ -655,8 +655,8 @@ CONTAINS
 
      nDomains = nDomains + 1
 
-     allocate(domains_out(nDomains)%segIndex(nUpSegs), stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating [domains_out(nDomains)%segIndex]'; return; endif
+     allocate(domains_out(nDomains)%segIndex(nUpSegs), stat=ierr, errmsg=cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [domains_out(nDomains)%segIndex]'; return; endif
 
      domains_out(nDomains)%basinType = tributary
      domains_out(nDomains)%segIndex  = structNTOPO(ixOutlets(iOut))%var(ixNTOPO%allUpSegIndices)%dat
@@ -673,8 +673,8 @@ CONTAINS
 
    ! 1. populate domains data structure
    nDomains = nDomains + 1
-   allocate(domains_out(nDomains)%segIndex(nMainstem), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'problem allocating [domains_out(nDomains)%segIndex]'; return; endif
+   allocate(domains_out(nDomains)%segIndex(nMainstem), stat=ierr, errmsg=cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [domains_out(nDomains)%segIndex]'; return; endif
    domains_out(nDomains)%basinType = mainstem
    domains_out(nDomains)%segIndex = segIndex(ixSubset)
 
@@ -711,8 +711,8 @@ CONTAINS
      ! increment number of domain
      nDomains = nDomains + 1
 
-     allocate(domains_out(nDomains)%segIndex(nUpSegs), stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating [domains_out(nDomain)%segIndex]'; return; endif
+     allocate(domains_out(nDomains)%segIndex(nUpSegs), stat=ierr, errmsg=cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [domains_out(nDomain)%segIndex]'; return; endif
 
      domains_out(nDomains)%basinType = tributary
      domains_out(nDomains)%segIndex = structNTOPO(ixTribOutlet(iTrib))%var(ixNTOPO%allUpSegIndices)%dat
