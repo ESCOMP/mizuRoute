@@ -91,7 +91,7 @@ module lake_route_module
   real(dp)                                 :: Q_spill             ! simulated outflow from emergency spillway
   real(dp)                                 :: Q_sim               ! simulated output from the reservoir
 
-  print*, 'inside lake, time at the model simulation',simDatetime(1)%year(),simDatetime(1)%month(),simDatetime(1)%day(),simDatetime(1)%hour(),simDatetime(1)%minute(),simDatetime(1)%sec()
+  !print*, 'inside lake, time at the model simulation',simDatetime(1)%year(),simDatetime(1)%month(),simDatetime(1)%day(),simDatetime(1)%hour(),simDatetime(1)%minute(),simDatetime(1)%sec()
 
     ! initialize error control
     ierr=0; message='lake_route/'
@@ -131,7 +131,7 @@ module lake_route_module
     !print*, 'lake param H06_alpha .......= ', RPARAM_in(segIndex)%H06_alpha
     !print*, 'lake param H06_S_ini .......= ', RPARAM_in(segIndex)%H06_S_ini
     !print*, 'lake target volum ..........= ', NETOPO_in(segIndex)%LakeTargVol
-     print*, 'volume before simulation m3.= ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
+    !print*, 'volume before simulation m3.= ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
     !print*, 'upstream streamflow m3/s ...= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
     !print*, 'upstream precipitation m3/s.= ', RCHFLX_out(iens,segIndex)%basinprecip
     !print*, 'upstream evaporation m3/s ..= ', RCHFLX_out(iens,segIndex)%basinevapo
@@ -174,15 +174,16 @@ module lake_route_module
           ! print*, "lake model is Doll 2003"
 
           ! temporary solution, this should be removed if there is restart activated...
-          print*, iTime, 'iTime in the area'
-          if (iTIme == 1) then
-            RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RPARAM_in(segIndex)%D03_MaxStorage
-          endif
+          ! print*, iTime, 'iTime in the area'
+          ! if (iTIme == 1) then
+          !  RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RPARAM_in(segIndex)%D03_MaxStorage
+          !endif
 
-          !
+          ! The D03_Coefficient is based on d**-1 meaning the result will be m**3 d**-1 and should be converter to m**3 s**-1
           RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RPARAM_in(segIndex)%D03_Coefficient * RCHFLX_out(iens,segIndex)%REACH_VOL(1) * &
                                                    (RCHFLX_out(iens,segIndex)%REACH_VOL(1) / RPARAM_in(segIndex)%D03_MaxStorage) ** &
                                                    RPARAM_in(segIndex)%D03_Power! Q = AS(S/Smax)^B based on Eq. 1 Hanasaki et al., 2006 https://doi.org/10.1016/j.jhydrol.2005.11.011
+          RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF / secprday ! conversion to m**3 s**-1
           ! in case is the output volume is more than lake volume
           RCHFLX_out(iens,segIndex)%REACH_Q_IRF = (min(RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt, RCHFLX_out(iens,segIndex)%REACH_VOL(1)) )/dt
           ! updating the storage
@@ -322,7 +323,7 @@ module lake_route_module
             endif
           enddo
 
-          print*, 'start month', start_month
+          ! print*, 'start month', start_month
 
           ! find start of operational year (add hour 1 when run hourly?) Once determined, this E_release should be communicated to the next timestep.
           if (simDatetime(1)%month() == start_month .AND. simDatetime(1)%day() == 1 ) then
@@ -462,7 +463,8 @@ module lake_route_module
     !print*, 'water balance error ........= ', WB
     !endif
 
-    if(lakeWBTol<WB)then;
+    !if(lakeWBTol<WB)then;
+    if(1<WB) then;
       ! NOTE: The lake discharge and storage need to be solved iterative way to reduce water balance error
       write(iulog,*) 'Water balance for lake ID = ', NETOPO_in(segIndex)%REACHID, ' excees the Tolerance'
       write(iulog,'(A,1PG15.7)') 'WBerr [m3]       = ', WB
