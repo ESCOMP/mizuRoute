@@ -199,23 +199,48 @@ CONTAINS
   ! Check True since now this reach now routed
   RCHFLX_out(iEns,segIndex)%isRoute=.True.
 
+!  ! take out the water from the reach if the wm flag is true and the value are not missing
+!  ! here we should make sure the real missing is not injection (or negative abstration)
+!  abstract_actual = 0._dp ! this can be removed later (after extensive testing)
+!  init_STRQ = 0._dp ! this can be removed later (after extensive testing)
+!  if((RCHFLX_out(iens,segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then
+!    abstract_actual = RCHFLX_out(iens,segIndex)%REACH_Q_IRF ! get the reach streamflow as actual abstration
+!    init_STRQ = RCHFLX_out(iens,segIndex)%REACH_Q_IRF ! TO BE DELETED
+!    ! reach streamflow is updated based on abstration (positive) or injection (negative)
+!    RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+!    if (RCHFLX_out(iens,segIndex)%REACH_Q_IRF>0) then ! abstration was negative or smaller than reach streamflow
+!      abstract_actual  =  RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! actual abstration will be equal to abstration value
+!    else
+!      RCHFLX_out(iens,segIndex)%REACH_Q_IRF = 0._dp ! all the water is taken and actual abstration is reach streamflow
+!    endif
+!  endif
+!  WB_check = RCHFLX_out(iens,segIndex)%REACH_Q_IRF + abstract_actual - init_STRQ
+
+
+
   ! take out the water from the reach if the wm flag is true and the value are not missing
   ! here we should make sure the real missing is not injection (or negative abstration)
   abstract_actual = 0._dp ! this can be removed later (after extensive testing)
   init_STRQ = 0._dp ! this can be removed later (after extensive testing)
   if((RCHFLX_out(iens,segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then
-    abstract_actual = RCHFLX_out(iens,segIndex)%REACH_Q_IRF ! get the reach streamflow as actual abstration
-    init_STRQ = RCHFLX_out(iens,segIndex)%REACH_Q_IRF ! TO BE DELETED
-    ! reach streamflow is updated based on abstration (positive) or injection (negative)
-    RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
-    if (RCHFLX_out(iens,segIndex)%REACH_Q_IRF>0) then ! abstration was negative or smaller than reach streamflow
-      abstract_actual  =  RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! actual abstration will be equal to abstration value
-    else
-      RCHFLX_out(iens,segIndex)%REACH_Q_IRF = 0._dp ! all the water is taken and actual abstration is reach streamflow
+    ! print*, 'before: ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
+    print*, 'abstract: ', RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+    ! injection
+    if (RCHFLX_out(iens,segIndex)%REACH_WM_FLUX <= 0) then ! negative/injection
+      RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+    else ! positive/abstraction
+      if (RCHFLX_out(iens,segIndex)%REACH_WM_FLUX <= RCHFLX_out(iens,segIndex)%REACH_Q_IRF) then ! abstraction is smaller than water in the river
+        RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+      else ! abstraction is larger than water in the river
+        RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+        RCHFLX_out(iens,segIndex)%REACH_Q_IRF = 0._dp
+      endif
     endif
+    ! print*, 'after: ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
   endif
 
-  WB_check = RCHFLX_out(iens,segIndex)%REACH_Q_IRF + abstract_actual - init_STRQ
+
+
 
   ! check
   if(segIndex==ixDesire)then
