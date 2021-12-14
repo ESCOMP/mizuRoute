@@ -150,6 +150,19 @@ contains
   real(dp),          allocatable              :: D03_MaxStorage_local(:)   ! Doll 2003; maximum active storage for Doll 2003
   real(dp),          allocatable              :: D03_Coefficient_local(:)  ! Doll 2003; coefficient for Doll 2003
   real(dp),          allocatable              :: D03_Power_local(:)        ! Doll 2003; power for Doll 2003
+
+  real(dp),          allocatable              :: HYP_E_emr_local(:)        ! HYPE; elevation of emergency spillway [m]
+  real(dp),          allocatable              :: HYP_E_lim_local(:)        ! HYPE; elevation below which primary spillway flow is restrcited [m]
+  real(dp),          allocatable              :: HYP_E_min_local(:)        ! HYPE; elevation below which outflow is zero [m]
+  real(dp),          allocatable              :: HYP_E_zero_local(:)       ! HYPE; elevation at which storage is set to zero [m]
+  real(dp),          allocatable              :: HYP_Qrate_emr_local(:)    ! HYPE; emergency rate of flow for each unit of elevation above HYP_E_emr [m3/s]
+  real(dp),          allocatable              :: HYP_Erate_emr_local(:)    ! HYPE; power for the rate of flow for each unit of elevation above HYP_E_emr [-]
+  real(dp),          allocatable              :: HYP_Qrate_prim_local(:)   ! HYPE; the average yearly or long term output from main spillway [m3/s]
+  real(dp),          allocatable              :: HYP_Qrate_amp_local(:)    ! HYPE; amplitude of the Qrate_main [-]
+  integer(i4b),      allocatable              :: HYP_Qrate_phs_local(:)    ! HYPE; phase of the Qrate_main based on the day of the year [-]; default 100
+  integer(i4b),      allocatable              :: HYP_prim_F_local(:)       ! HYPE; if the reservoir has primary spillway then set to 1 otherwise 0
+  real(dp),          allocatable              :: HYP_A_avg_local(:)        ! HYPE; average area for the lake; this might not be used if bathymetry is provided
+
   real(dp),          allocatable              :: H06_Smax_local(:)         ! Hanasaki 2006; maximume reservoir storage [m3]
   real(dp),          allocatable              :: H06_alpha_local(:)        ! Hanasaki 2006; fraction of active storage compared to total storage [-]
   real(dp),          allocatable              :: H06_envfact_local(:)      ! Hanasaki 2006; fraction of inflow that can be used to meet demand [-]
@@ -208,6 +221,19 @@ contains
   real(dp)                                    :: D03_MaxStorage(nRch_in)   ! Doll 2003; maximum active storage for Doll 2003
   real(dp)                                    :: D03_Coefficient(nRch_in)  ! Doll 2003; coefficient for Doll 2003
   real(dp)                                    :: D03_Power(nRch_in)        ! Doll 2003; power for Doll 2003
+
+  real(dp)                                    :: HYP_E_emr(nRch_in)        ! HYPE; elevation of emergency spillway [m]
+  real(dp)                                    :: HYP_E_lim(nRch_in)        ! HYPE; elevation below which primary spillway flow is restrcited [m]
+  real(dp)                                    :: HYP_E_min(nRch_in)        ! HYPE; elevation below which outflow is zero [m]
+  real(dp)                                    :: HYP_E_zero(nRch_in)       ! HYPE; elevation at which storage is set to zero [m]
+  real(dp)                                    :: HYP_Qrate_emr(nRch_in)    ! HYPE; emergency rate of flow for each unit of elevation above HYP_E_emr [m3/s]
+  real(dp)                                    :: HYP_Erate_emr(nRch_in)    ! HYPE; power for the rate of flow for each unit of elevation above HYP_E_emr [-]
+  real(dp)                                    :: HYP_Qrate_prim(nRch_in)   ! HYPE; the average yearly or long term output from main spillway [m3/s]
+  real(dp)                                    :: HYP_Qrate_amp(nRch_in)    ! HYPE; amplitude of the Qrate_main [-]
+  integer(i4b)                                :: HYP_Qrate_phs(nRch_in)    ! HYPE; phase of the Qrate_main based on the day of the year [-]; default 100
+  integer(i4b)                                :: HYP_prim_F(nRch_in)       ! HYPE; if the reservoir has primary spillway then set to 1 otherwise 0
+  real(dp)                                    :: HYP_A_avg(nRch_in)        ! HYPE; average area for the lake; this might not be used if bathymetry is provided
+
   real(dp)                                    :: H06_Smax(nRch_in)         ! Hanasaki 2006; maximume reservoir storage [m3]
   real(dp)                                    :: H06_alpha(nRch_in)        ! Hanasaki 2006; fraction of active storage compared to total storage [-]
   real(dp)                                    :: H06_envfact(nRch_in)      ! Hanasaki 2006; fraction of inflow that can be used to meet demand [-]
@@ -355,6 +381,19 @@ contains
        D03_MaxStorage(iSeg)  = structSEG(  jSeg)%var(ixSEG%D03_MaxStorage)%dat(1)
        D03_Coefficient(iSeg) = structSEG(  jSeg)%var(ixSEG%D03_Coefficient)%dat(1)
        D03_Power(iSeg)       = structSEG(  jSeg)%var(ixSEG%D03_Power)%dat(1)
+
+       HYP_E_emr(iSeg)       = structSEG(  jSeg)%var(ixSEG%HYP_E_emr)%dat(1)
+       HYP_E_lim(iSeg)       = structSEG(  jSeg)%var(ixSEG%HYP_E_lim)%dat(1)
+       HYP_E_min(iSeg)       = structSEG(  jSeg)%var(ixSEG%HYP_E_min)%dat(1)
+       HYP_E_zero(iSeg)      = structSEG(  jSeg)%var(ixSEG%HYP_E_zero)%dat(1)
+       HYP_Qrate_emr(iSeg)   = structSEG(  jSeg)%var(ixSEG%HYP_Qrate_emr)%dat(1)
+       HYP_Erate_emr(iSeg)   = structSEG(  jSeg)%var(ixSEG%HYP_Erate_emr)%dat(1)
+       HYP_Qrate_prim(iSeg)  = structSEG(  jSeg)%var(ixSEG%HYP_Qrate_prim)%dat(1)
+       HYP_Qrate_amp(iSeg)   = structSEG(  jSeg)%var(ixSEG%HYP_Qrate_amp)%dat(1)
+       HYP_Qrate_phs(iSeg)   = structSEG(  jSeg)%var(ixSEG%HYP_Qrate_phs)%dat(1)
+       HYP_prim_F(iSeg)      = structSEG(  jSeg)%var(ixSEG%HYP_prim_F)%dat(1)
+       HYP_A_avg(iSeg)       = structSEG(  jSeg)%var(ixSEG%HYP_A_avg)%dat(1)
+
        H06_Smax(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06_Smax)%dat(1)
        H06_alpha(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_alpha)%dat(1)
        H06_envfact(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_envfact)%dat(1)
@@ -453,6 +492,19 @@ contains
       call shr_mpi_scatterV(D03_MaxStorage        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03_MaxStorage_local, ierr, cmessage)
       call shr_mpi_scatterV(D03_Coefficient       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03_Coefficient_local,ierr, cmessage)
       call shr_mpi_scatterV(D03_Power             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03_Power_local,      ierr, cmessage)
+
+      call shr_mpi_scatterV(HYP_E_emr             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_E_emr_local,      ierr, cmessage)
+      call shr_mpi_scatterV(HYP_E_lim             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_E_lim_local,      ierr, cmessage)
+      call shr_mpi_scatterV(HYP_E_min             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_E_min_local,      ierr, cmessage)
+      call shr_mpi_scatterV(HYP_E_zero            (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_E_zero_local,     ierr, cmessage)
+      call shr_mpi_scatterV(HYP_Qrate_emr         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_Qrate_emr_local,  ierr, cmessage)
+      call shr_mpi_scatterV(HYP_Erate_emr         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_Erate_emr_local,  ierr, cmessage)
+      call shr_mpi_scatterV(HYP_Qrate_prim        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_Qrate_prim_local, ierr, cmessage)
+      call shr_mpi_scatterV(HYP_Qrate_amp         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_Qrate_amp_local,  ierr, cmessage)
+      call shr_mpi_scatterV(HYP_Qrate_phs         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_Qrate_phs_local,  ierr, cmessage)
+      call shr_mpi_scatterV(HYP_prim_F            (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_prim_F_local,     ierr, cmessage)
+      call shr_mpi_scatterV(HYP_A_avg             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_A_avg_local,      ierr, cmessage)
+
       call shr_mpi_scatterV(H06_Smax              (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_Smax_local,       ierr, cmessage)
       call shr_mpi_scatterV(H06_alpha             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_alpha_local,      ierr, cmessage)
       call shr_mpi_scatterV(H06_envfact           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_envfact_local,    ierr, cmessage)
@@ -527,6 +579,19 @@ contains
        structSEG_local  (ix)%var(ixSEG%D03_MaxStorage)%dat(1)   = D03_MaxStorage_local(ix)
        structSEG_local  (ix)%var(ixSEG%D03_Coefficient)%dat(1)  = D03_Coefficient_local(ix)
        structSEG_local  (ix)%var(ixSEG%D03_Power)%dat(1)        = D03_Power_local(ix)
+
+       structSEG_local  (ix)%var(ixSEG%HYP_E_emr)%dat(1)        = HYP_E_emr_local(ix)
+       structSEG_local  (ix)%var(ixSEG%HYP_E_lim)%dat(1)        = HYP_E_lim_local(ix)
+       structSEG_local  (ix)%var(ixSEG%HYP_E_min)%dat(1)        = HYP_E_min_local(ix)
+       structSEG_local  (ix)%var(ixSEG%HYP_E_zero)%dat(1)       = HYP_E_zero_local(ix)
+       structSEG_local  (ix)%var(ixSEG%HYP_Qrate_emr)%dat(1)    = HYP_Qrate_emr_local(ix)
+       structSEG_local  (ix)%var(ixSEG%HYP_Erate_emr)%dat(1)    = HYP_Erate_emr_local(ix)
+       structSEG_local  (ix)%var(ixSEG%HYP_Qrate_prim)%dat(1)   = HYP_Qrate_prim_local(ix)
+       structSEG_local  (ix)%var(ixSEG%HYP_Qrate_amp)%dat(1)    = HYP_Qrate_amp_local(ix)
+       structSEG_local  (ix)%var(ixSEG%HYP_Qrate_phs)%dat(1)    = HYP_Qrate_phs_local(ix)
+       structSEG_local  (ix)%var(ixSEG%HYP_prim_F)%dat(1)       = HYP_prim_F_local(ix)
+       structSEG_local  (ix)%var(ixSEG%HYP_A_avg)%dat(1)        = HYP_A_avg_local(ix)
+
        structSEG_local  (ix)%var(ixSEG%H06_Smax)%dat(1)         = H06_Smax_local(ix)
        structSEG_local  (ix)%var(ixSEG%H06_alpha)%dat(1)        = H06_alpha_local(ix)
        structSEG_local  (ix)%var(ixSEG%H06_envfact)%dat(1)      = H06_envfact_local(ix)
@@ -706,6 +771,19 @@ contains
          structSEG_main  (ix)%var(ixSEG%D03_MaxStorage)%dat(1)  = D03_MaxStorage(ix)
          structSEG_main  (ix)%var(ixSEG%D03_Coefficient)%dat(1) = D03_Coefficient(ix)
          structSEG_main  (ix)%var(ixSEG%D03_Power)%dat(1)       = D03_Power(ix)
+
+         structSEG_main  (ix)%var(ixSEG%HYP_E_emr)%dat(1)       = HYP_E_emr(ix)
+         structSEG_main  (ix)%var(ixSEG%HYP_E_lim)%dat(1)       = HYP_E_lim(ix)
+         structSEG_main  (ix)%var(ixSEG%HYP_E_min)%dat(1)       = HYP_E_min(ix)
+         structSEG_main  (ix)%var(ixSEG%HYP_E_zero)%dat(1)      = HYP_E_zero(ix)
+         structSEG_main  (ix)%var(ixSEG%HYP_Qrate_emr)%dat(1)   = HYP_Qrate_emr(ix)
+         structSEG_main  (ix)%var(ixSEG%HYP_Erate_emr)%dat(1)   = HYP_Erate_emr(ix)
+         structSEG_main  (ix)%var(ixSEG%HYP_Qrate_prim)%dat(1)  = HYP_Qrate_prim(ix)
+         structSEG_main  (ix)%var(ixSEG%HYP_Qrate_amp)%dat(1)   = HYP_Qrate_amp(ix)
+         structSEG_main  (ix)%var(ixSEG%HYP_Qrate_phs)%dat(1)   = HYP_Qrate_phs(ix)
+         structSEG_main  (ix)%var(ixSEG%HYP_prim_F)%dat(1)      = HYP_prim_F(ix)
+         structSEG_main  (ix)%var(ixSEG%HYP_A_avg)%dat(1)       = HYP_A_avg(ix)
+
          structSEG_main  (ix)%var(ixSEG%H06_Smax)%dat(1)        = H06_Smax(ix)
          structSEG_main  (ix)%var(ixSEG%H06_alpha)%dat(1)       = H06_alpha(ix)
          structSEG_main  (ix)%var(ixSEG%H06_envfact)%dat(1)     = H06_envfact(ix)
@@ -759,6 +837,19 @@ contains
          structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%islake)%dat(1)        = structNTOPO(ixx)%var(ixNTOPO%islake)%dat(1)
          structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%LakeTargVol)%dat(1)   = structNTOPO(ixx)%var(ixNTOPO%LakeTargVol)%dat(1)
          structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%LakeModelType)%dat(1) = structNTOPO(ixx)%var(ixNTOPO%LakeModelType)%dat(1)
+
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_E_emr)%dat(1)       = structSEG(ixx)%var(ixSEG%HYP_E_emr)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_E_lim)%dat(1)       = structSEG(ixx)%var(ixSEG%HYP_E_lim)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_E_min)%dat(1)       = structSEG(ixx)%var(ixSEG%HYP_E_min)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_E_zero)%dat(1)      = structSEG(ixx)%var(ixSEG%HYP_E_zero)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_Qrate_emr)%dat(1)   = structSEG(ixx)%var(ixSEG%HYP_Qrate_emr)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_Erate_emr)%dat(1)   = structSEG(ixx)%var(ixSEG%HYP_Erate_emr)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_Qrate_prim)%dat(1)  = structSEG(ixx)%var(ixSEG%HYP_Qrate_prim)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_Qrate_amp)%dat(1)   = structSEG(ixx)%var(ixSEG%HYP_Qrate_amp)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_Qrate_phs)%dat(1)   = structSEG(ixx)%var(ixSEG%HYP_Qrate_phs)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_prim_F)%dat(1)      = structSEG(ixx)%var(ixSEG%HYP_prim_F)%dat(1)
+         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_A_avg)%dat(1)       = structSEG(ixx)%var(ixSEG%HYP_A_avg)%dat(1)
+
          structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03_MaxStorage)%dat(1)  = structSEG(ixx)%var(ixSEG%D03_MaxStorage)%dat(1)
          structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03_Coefficient)%dat(1) = structSEG(ixx)%var(ixSEG%D03_Coefficient)%dat(1)
          structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03_Power)%dat(1)       = structSEG(ixx)%var(ixSEG%D03_Power)%dat(1)
