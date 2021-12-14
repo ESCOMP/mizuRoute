@@ -3,7 +3,6 @@ module globalData
   USE pio
 
   USE public_var, ONLY: integerMissing
-  USE public_var, ONLY: maxDomain
 
   ! data types
   USE nrtype
@@ -37,7 +36,7 @@ module globalData
 
   ! basin data structure
   USE dataTypes, ONLY: subbasin_omp  ! mainstem+tributary data structures
-  USE dataTypes, ONLY: subbasin_mpi  ! reach category (store mainstem code or pfaf code)
+  USE dataTypes, ONLY: subbasin_mpi  ! mpi domain data structure (list of segments and hru and type of basins)
 
   ! time data structure
   USE datetime_data, ONLY: datetime  ! datetime data class
@@ -199,8 +198,8 @@ module globalData
 
   ! domain data
   ! MPI
-  type(subbasin_mpi)             , public :: domains(maxDomain)   ! domain decomposition data structure (maximum domain is set to maxDomain)
-  integer(i4b)                   , public :: nDomain              ! domain counter
+  type(subbasin_mpi),allocatable , public :: domains_mpi(:)       ! mpi domain decomposition data structure
+  integer(i4b)                   , public :: nDomain_mpi          ! number of mpi domains
   ! OMP
   type(subbasin_omp), allocatable, public :: river_basin_main(:)   ! openMP domain decomposition for mainstem
   type(subbasin_omp), allocatable, public :: river_basin_trib(:)   ! openMP domain decomposition for tributary
