@@ -61,7 +61,6 @@ implicit none
  ! segIndex points to the segment in the entire river network data
  ! segOrder is order within subset of mainstem segments or tributary segments
  type,public :: subbasin_mpi
-  character(32)              :: pfaf                  ! subbasin pfaf code - mainstem starting "-"
   integer(i4b)               :: basinType             ! basin type identifier: tributary->1, mainstem->2
   integer(i4b)               :: idNode                ! node ID
   integer(i4b)               :: outletIndex           ! reach index of a domain outlet
