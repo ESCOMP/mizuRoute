@@ -100,6 +100,7 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE restart_alarm(restartAlarm, ierr, message)
 
+   USE ascii_util_module, ONLY: lower
    USE public_var,        ONLY: calendar
    USE public_var,        ONLY: restart_write  ! restart write options
    USE public_var,        ONLY: restart_day
@@ -135,16 +136,16 @@ CONTAINS
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
 
-   select case(trim(restart_write))
-     case('Specified','specified','Last','last')
+   select case(lower(trim(restart_write)))
+     case('specified','last')
        restartAlarm = (dropDatetime==simDatetime(1))
-     case('Annual','annual')
+     case('annual')
        restartAlarm = (dropDatetime%is_equal_mon(simDatetime(1)) .and. dropDatetime%is_equal_day(simDatetime(1)) .and. dropDatetime%is_equal_time(simDatetime(1)))
-     case('Monthly','monthly')
+     case('monthly')
        restartAlarm = (dropDatetime%is_equal_day(simDatetime(1)) .and. dropDatetime%is_equal_time(simDatetime(1)))
-     case('Daily','daily')
+     case('daily')
        restartAlarm = dropDatetime%is_equal_time(simDatetime(1))
-     case('Never','never')
+     case('never')
        restartAlarm = .false.
      case default
        ierr=20; message=trim(message)//'Current accepted <restart_write> options: last, never, specified, annual, monthly, or daily '; return

@@ -306,6 +306,7 @@ CONTAINS
  SUBROUTINE init_state_data(pid, nNodes, comm, ierr, message)
 
   ! external routines
+  USE ascii_util_module, ONLY: lower             ! convert string to lower case
   USE read_restart,      ONLY: read_state_nc     ! read netcdf state output file
   USE mpi_process,       ONLY: mpi_restart
   ! shared data
@@ -342,67 +343,59 @@ CONTAINS
   iens = 1_i4b
 
   ! read restart file and initialize states
-  if (trim(fname_state_in)/=charMissing) then
+  if (trim(fname_state_in)==charMissing .or. lower(trim(fname_state_in))=='none' .or. lower(trim(fname_state_in))=='coldstart') then
+    ! Cold start ....... initialize flux structures
+    if (masterproc) then
+      if (nRch_mainstem > 0) then
+        RCHFLX_main(:,:)%BASIN_QI     = 0._dp
+        RCHFLX_main(:,:)%BASIN_QR(0)  = 0._dp
+        RCHFLX_main(:,:)%BASIN_QR(1)  = 0._dp
+        RCHFLX_main(:,:)%REACH_Q      = 0._dp    ! Initializing the flux which is used in lake route
+        RCHFLX_main(:,:)%REACH_VOL(0) = 0._dp    ! initializing the storage of lake volume for main channel (root node); later may be read from an input file
+        RCHFLX_main(:,:)%REACH_VOL(1) = 0._dp    ! initializing the storage of lake volume for main channel (root node); later may be read from an input file
 
-   if (masterproc) then
-    call read_state_nc(trim(restart_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+        if (routOpt==kinematicWaveEuler) then
+          do ix = 1,4
+            RCHSTA_main(:,:)%EKW_ROUTE%A(ix) = 0._dp
+            RCHSTA_main(:,:)%EKW_ROUTE%Q(ix) = 0._dp
+          end do
+        end if
+      end if
+    end if
 
-    ! time bound [sec] is at previous time step, so need to add dt for curent time step
-    TSEC(0)=T0+dt; TSEC(1)=T1+dt
+    if (rch_per_proc(pid) > 0) then
+      RCHFLX_trib(:,:)%BASIN_QI     = 0._dp
+      RCHFLX_trib(:,:)%BASIN_QR(0)  = 0._dp
+      RCHFLX_trib(:,:)%BASIN_QR(1)  = 0._dp
+      RCHFLX_trib(:,:)%REACH_Q      = 0._dp      ! Initializing the flux which is used in lake route
+      RCHFLX_trib(:,:)%REACH_VOL(0) = 0._dp      ! initializing the storage of lake volume for tributaries; layer may be read from an input file
+      RCHFLX_trib(:,:)%REACH_VOL(1) = 0._dp      ! initializing the storage of lake volume for tributaries; later may be read from an input file
 
-   end if
+      if (routOpt==kinematicWaveEuler) then
+        do ix = 1,4
+          RCHSTA_trib(:,:)%EKW_ROUTE%A(ix) = 0._dp
+          RCHSTA_trib(:,:)%EKW_ROUTE%Q(ix) = 0._dp
+        end do
+      end if
+    end if
 
-   if (nNodes>0) then
-     call mpi_restart(pid, nNodes, comm, iens, ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   end if
+    ! initialize time
+    TSEC(0)=0._dp; TSEC(1)=dt
 
   else
-   ! Cold start .......
-    ! initialize flux structures
+    if (masterproc) then
+      call read_state_nc(trim(restart_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   if (masterproc) then
+      ! time bound [sec] is at previous time step, so need to add dt for curent time step
+      TSEC(0)=T0+dt; TSEC(1)=T1+dt
 
-     if (nRch_mainstem > 0) then
-       RCHFLX_main(:,:)%BASIN_QI     = 0._dp
-       RCHFLX_main(:,:)%BASIN_QR(0)  = 0._dp
-       RCHFLX_main(:,:)%BASIN_QR(1)  = 0._dp
-       RCHFLX_main(:,:)%REACH_Q      = 0._dp    ! Initializing the flux which is used in lake route
-       RCHFLX_main(:,:)%REACH_VOL(0) = 0._dp    ! initializing the storage of lake volume for main channel (root node); later may be read from an input file
-       RCHFLX_main(:,:)%REACH_VOL(1) = 0._dp    ! initializing the storage of lake volume for main channel (root node); later may be read from an input file
+    end if
 
-       if (routOpt==kinematicWaveEuler) then
-         do ix = 1,4
-           RCHSTA_main(:,:)%EKW_ROUTE%A(ix) = 0._dp
-           RCHSTA_main(:,:)%EKW_ROUTE%Q(ix) = 0._dp
-         end do
-       end if
-
-     end if
-
-   end if
-
-   if (rch_per_proc(pid) > 0) then
-
-     RCHFLX_trib(:,:)%BASIN_QI     = 0._dp
-     RCHFLX_trib(:,:)%BASIN_QR(0)  = 0._dp
-     RCHFLX_trib(:,:)%BASIN_QR(1)  = 0._dp
-     RCHFLX_trib(:,:)%REACH_Q      = 0._dp      ! Initializing the flux which is used in lake route
-     RCHFLX_trib(:,:)%REACH_VOL(0) = 0._dp      ! initializing the storage of lake volume for tributaries; layer may be read from an input file
-     RCHFLX_trib(:,:)%REACH_VOL(1) = 0._dp      ! initializing the storage of lake volume for tributaries; later may be read from an input file
-
-     if (routOpt==kinematicWaveEuler) then
-       do ix = 1,4
-         RCHSTA_trib(:,:)%EKW_ROUTE%A(ix) = 0._dp
-         RCHSTA_trib(:,:)%EKW_ROUTE%Q(ix) = 0._dp
-       end do
-     end if
-
-   end if
-
-   ! initialize time
-   TSEC(0)=0._dp; TSEC(1)=dt
+    if (nNodes>0) then
+      call mpi_restart(pid, nNodes, comm, iens, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
 
   endif
 

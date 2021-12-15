@@ -394,6 +394,7 @@ CONTAINS
   ! - begDatetime, endDatetime:   simulationg start and end datetime
   ! - restDatetime, dropDatetime
 
+  USE ascii_util_module, ONLY : lower            ! convert string to lower case
   ! derived datatype
   USE datetime_data, ONLY : datetime             ! datetime data
   ! public data
@@ -605,21 +606,21 @@ CONTAINS
   ! "Annual" option:  if user input day exceed number of days given user input month, set to last day
   ! "Monthly" option: use 2000-01 as template calendar yr/month
   ! "Daily" option:   use 2000-01-01 as template calendar yr/month/day
-  select case(trim(restart_write))
-    case('Annual','annual')
+  select case(lower(trim(restart_write)))
+    case('annual')
       dummyDatetime = datetime(2000, restart_month, 1, 0, 0, 0.0_dp)
       nDays = dummyDatetime%ndays_month(calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
       if (restart_day > nDays) restart_day=nDays
-    case('Monthly','monthly'); restart_month = 1
-    case('Daily','daily');     restart_month = 1; restart_day = 1
+    case('monthly'); restart_month = 1
+    case('daily');   restart_month = 1; restart_day = 1
   end select
 
-  select case(trim(restart_write))
-    case('last','Last')
+  select case(lower(trim(restart_write)))
+    case('last')
       dropDatetime = endDatetime
       restart_month = dropDatetime%month(); restart_day = dropDatetime%day(); restart_hour = dropDatetime%hour()
-    case('specified','Specified')
+    case('specified')
       if (trim(restart_date) == charMissing) then
         ierr=20; message=trim(message)//'<restart_date> must be provided when <restart_write> option is "specified"'; return
       end if
@@ -628,12 +629,12 @@ CONTAINS
       dropDatetime = restDatetime%add_sec(-dt, calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restDatetime->dropDatetime]'; return; endif
       restart_month = dropDatetime%month(); restart_day = dropDatetime%day(); restart_hour = dropDatetime%hour()
-    case('Annual','Monthly','Daily','annual','monthly','daily')
+    case('annual','monthly','daily')
       restDatetime = datetime(2000, restart_month, restart_day, restart_hour, 0, 0._dp)
       dropDatetime = restDatetime%add_sec(-dt, calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [ dropDatetime for periodical restart]'; return; endif
       restart_month = dropDatetime%month(); restart_day = dropDatetime%day(); restart_hour = dropDatetime%hour()
-    case('never','Never')
+    case('never')
       dropDatetime = datetime(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
     case default
       ierr=20; message=trim(message)//'Current accepted <restart_write> options: last, never, specified, annual, monthly, daily'; return

@@ -60,6 +60,7 @@ CONTAINS
  ! public subroutine: get number of days within a month
  ! ******************************************************************************************
  subroutine ndays_month(yr, mo, calendar, ndays, ierr, message)
+ USE ascii_util_module, ONLY : lower ! convert string to lower case
  implicit none
  ! input
  integer(i4b),intent(in)           :: yr
@@ -76,7 +77,7 @@ CONTAINS
 
  ierr=0; message="ndays_month/"
 
- select case(trim(calendar))
+ select case(lower(trim(calendar)))
    case ('standard','gregorian','proleptic_gregorian')
      call compJulday(yr,mo,1,0,0,0._dp,julday1,ierr,cmessage)
    case('noleap')
@@ -92,7 +93,7 @@ CONTAINS
    yr_next = yr
    mo_next = mo+1
  end if
- select case(trim(calendar))
+ select case(lower(trim(calendar)))
    case ('standard','gregorian','proleptic_gregorian')
      call compJulday(yr_next,mo_next,1,0,0,0._dp,julday2,ierr,cmessage)
    case('noleap')
