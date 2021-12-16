@@ -202,29 +202,42 @@ end type subdomain
   LOGICAL(LGT)                               :: USRTAKE  ! .TRUE. if user takes from reach, .FALSE. otherwise
  end type RCHTOPO
 
- ! ---------- kinematic wave states (collection of particles) ---------------------------------
+ ! ---------- reach states --------------------------------------------------------------------
 
+ !---------- Lagrangian kinematic wave states (collection of particles) ---------------------------------
  ! Individual flow particles
  ! NOTE: type could possibly be private
- TYPE, public :: FPOINT
-  REAL(DP)                             :: QF       ! Flow
-  REAL(DP)                             :: QM       ! Modified flow
-  REAL(DP)                             :: TI       ! initial time of point in reach
-  REAL(DP)                             :: TR       ! time point expected to exit reach
-  LOGICAL(LGT)                         :: RF       ! routing flag (T if point has exited)
- END TYPE FPOINT
+ type, public :: FPOINT
+  real(dp)                             :: QF       ! Flow
+  real(dp)                             :: QM       ! Modified flow
+  real(dp)                             :: TI       ! initial time of point in reach
+  real(dp)                             :: TR       ! time point expected to exit reach
+  logical(lgt)                         :: RF       ! routing flag (T if point has exited)
+ end type FPOINT
 
  ! Collection of flow points within a given reach
- TYPE, public :: KREACH
-  TYPE(FPOINT),allocatable             :: KWAVE(:)
- END TYPE KREACH
+ type, public :: LKWRCH
+  type(FPOINT),allocatable             :: KWAVE(:)
+ end type LKWRCH
+
+ ! ---------- computational molecule ---------------------------------
+ type, public :: SUBRCH
+   real(dp), allocatable  :: Q(:)        ! Discharge at sub-reaches at current step (m3/s)
+   real(dp), allocatable  :: A(:)        ! Flow area at sub-reach at current step (m2)
+   real(dp), allocatable  :: H(:)        ! Flow height at sub-reach at current step (m)
+ end type SUBRCH
 
  ! ---------- irf states (future flow series ) ---------------------------------
-
  ! Future flow series
- TYPE, public :: IRFREACH
-  REAL(DP), allocatable                :: qfuture(:)    ! runoff volume in future time steps for IRF routing (m3/s)
- END TYPE IRFREACH
+ type, public :: IRFRCH
+  real(dp), allocatable   :: qfuture(:)    ! runoff volume in future time steps for IRF routing (m3/s)
+ end type IRFRCH
+
+ type, public :: STRSTA
+   type(IRFRCH)    :: IRF_ROUTE
+   type(LKWRCH)    :: LKW_ROUTE
+   type(SUBRCH)    :: molecule
+ end type STRSTA
 
  ! ---------- reach fluxes --------------------------------------------------------------------
 

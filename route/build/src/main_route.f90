@@ -28,7 +28,7 @@ contains
                        ierr, message)     ! output: error control
    ! Details:
    ! Given HRU (basin) runoff, perform hru routing (optional) to get reach runoff, and then channel routing ! Restriction:
-   ! 1. Reach order in NETOPO, RPARAM, RCHFLX, KROUTE must be in the same orders
+   ! 1. Reach order in NETOPO, RPARAM, RCHFLX, RCHSTA must be in the same orders
    ! 2. Process a list of reach indices (in terms of NETOPO etc.) given by ixRchProcessed
    ! 3. basinRunoff_in is given in the order of NETOPO(:)%HRUIX.
 
@@ -37,15 +37,18 @@ contains
    USE public_var, only : doesBasinRoute
    USE public_var, only : doesAccumRunoff
    USE public_var, only : allRoutingMethods
-   USE public_var, only : kinematicWave
+   USE public_var, only : kinematicWaveTracking
    USE public_var, only : impulseResponseFunc
+   USE public_var, only : kinematicWave
+   USE public_var, only : muskingumCunge
+   USE public_var, only : diffusiveWave
    USE globalData, only : TSEC                    ! beginning/ending of simulation time step [sec]
    USE globalData, only : ixPrint                 ! desired reach index to be on-screen print
 
    USE globalData, only : NETOPO           ! entire river reach netowrk topology structure
    USE globalData, only : RPARAM           ! entire river reach parameter structure
    USE globalData, only : RCHFLX           ! entire reach flux structure
-   USE globalData, only : KROUTE           ! entire river reach kwt sate structure
+   USE globalData, only : RCHSTA           ! entire river reach restart structure
    USE globalData, only : runoff_data      ! runoff data structure
    USE globalData, only : river_basin      ! OMP basin decomposition
    USE globalData, only : nRch             ! number of reaches in the whoel river network
@@ -127,7 +130,7 @@ contains
    endif
 
    ! perform KWT routing
-   if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
+   if (routOpt==allRoutingMethods .or. routOpt==kinematicWaveTracking) then
     call system_clock(startTime)
     call kwt_route(iens,                 & ! input: ensemble index
                    river_basin,          & ! input: river basin data type
@@ -135,7 +138,7 @@ contains
                    ixPrint,              & ! input: index of the desired reach
                    NETOPO,               & ! input: reach topology data structure
                    RPARAM,               & ! input: reach parameter data structure
-                   KROUTE,               & ! inout: reach state data structure
+                   RCHSTA,               & ! inout: reach state data structure
                    RCHFLX,               & ! inout: reach flux data structure
                    ierr,cmessage)          ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif

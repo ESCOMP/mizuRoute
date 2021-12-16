@@ -61,9 +61,12 @@ module public_var
   integer(i4b), parameter,public  :: readFromFile=0         ! read given variable from a file
 
   ! routing methods
-  integer(i4b), parameter,public  :: allRoutingMethods=0    ! all routing methods
-  integer(i4b), parameter,public  :: impulseResponseFunc=1  ! impulse response function
-  integer(i4b), parameter,public  :: kinematicWave=2        ! kinematic wave
+  integer(i4b), parameter,public  :: allRoutingMethods=0     ! all routing methods
+  integer(i4b), parameter,public  :: impulseResponseFunc=1   ! impulse response function
+  integer(i4b), parameter,public  :: kinematicWaveTracking=2 ! Lagrangian kinematic wave
+  integer(i4b), parameter,public  :: kinematicWave=3         ! kinematic wave
+  integer(i4b), parameter,public  :: muskingumCunge=4        ! muskingum-cunge
+  integer(i4b), parameter,public  :: diffusiveWave=5         ! diffusiveWave
 
   ! ---------- variables in the control file --------------------------------------------------------
 

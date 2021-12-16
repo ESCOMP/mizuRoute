@@ -93,7 +93,7 @@ CONTAINS
   USE var_lookup,  ONLY : ixHRU2SEG              ! index of variables for data structure
   USE var_lookup,  ONLY : ixNTOPO                ! index of variables for data structure
   USE globalData,  ONLY : RCHFLX                 ! Reach flux data structures (entire river network)
-  USE globalData,  ONLY : KROUTE                 ! Reach k-wave data structures (entire river network)
+  USE globalData,  ONLY : RCHSTA                 ! Reach state structures (entire river network)
 
   USE globalData,  ONLY : nHRU, nRch             ! number of HRUs and Reaches in the whole network
   USE globalData,  ONLY : nEns                   ! number of ensembles
@@ -134,8 +134,8 @@ CONTAINS
    if (ntopAugmentMode .or. idSegOut>0) stop
 
    ! allocate space for the entire river network
-   allocate(RCHFLX(nEns,nRch), KROUTE(nEns,nRch), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'problem allocating [RCHFLX, KROUTE]'; return; endif
+   allocate(RCHFLX(nEns,nRch), RCHSTA(nEns,nRch), stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'problem allocating [RCHFLX, RCHSTA]'; return; endif
 
    ! populate basiID and reachID vectors for output (in ONLY master processor)
    ! populate runoff data structure (only meta, no runoff values)
@@ -230,9 +230,13 @@ CONTAINS
   ! global data
   USE public_var,    ONLY : dt                ! simulation time step (seconds)
   USE public_var,    ONLY : routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+  USE public_var,    ONLY : muskingumCunge
+  USE public_var,    ONLY : kinematicWave
+  USE public_var,    ONLY : diffusiveWave
   USE public_var,    ONLY : fname_state_in    ! name of state input file
   USE public_var,    ONLY : restart_dir       ! directory containing output data
   USE globalData,    ONLY : RCHFLX            ! reach flux structure
+  USE globalData,    ONLY : RCHSTA            ! reach restart state structure
   USE globalData,    ONLY : TSEC              ! begining/ending of simulation time step [sec]
 
   implicit none
@@ -242,10 +246,14 @@ CONTAINS
   character(*),        intent(out) :: message          ! error message
   ! local variable
   real(dp)                         :: T0,T1            ! begining/ending of simulation time step [sec]
+  integer(i4b)                     :: nMolecule        ! number of computational molecule (used for KW, LKW, MC, DW)
+  integer(i4b)                     :: iens             ! ensemble index (currently only 1)
+  integer(i4b)                     :: ix               ! loop index
   character(len=strLen)            :: cmessage         ! error message of downwind routine
 
-  ! initialize error control
   ierr=0; message='init_state/'
+
+  iens = 1_i4b
 
   ! read restart file and initialize states
   if (trim(fname_state_in)==charMissing .or. lower(trim(fname_state_in))=='none' .or. lower(trim(fname_state_in))=='coldstart') then
@@ -256,6 +264,19 @@ CONTAINS
     RCHFLX(:,:)%BASIN_QR(1) = 0._dp
     RCHFLX(:,:)%REACH_VOL(0) = 0._dp
     RCHFLX(:,:)%REACH_VOL(1) = 0._dp
+
+    if (routOpt==kinematicWave .or. routOpt==muskingumCunge) then
+      nMolecule = 2
+    else if (routOpt==diffusiveWave) then
+      nMolecule = 10
+    end if
+
+    do ix = 1, size(RCHSTA(1,:))
+      allocate(RCHSTA(iens,ix)%molecule%Q(nMolecule), stat=ierr, errmsg=cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA]'; return; endif
+
+      RCHSTA(iens,ix)%molecule%Q(:) = 0._dp
+    end do
 
     ! initialize time
     TSEC(0)=0._dp; TSEC(1)=dt
