@@ -11,14 +11,17 @@ USE dataTypes, only : var_dlength,dlength ! double precision type: var(:)%dat, o
 USE public_var, only : idSegOut           ! ID for stream segment at the bottom of the subset
 
 ! options
-USE public_var, only : qtakeOption        ! option to compute network topology
-USE public_var, only : topoNetworkOption  ! option to compute network topology
-USE public_var, only : computeReachList   ! option to compute reach list
-USE public_var, only : hydGeometryOption  ! option to obtain routing parameters
-USE public_var, only : routOpt            ! option for desired routing method
-USE public_var, only : allRoutingMethods  ! option for routing methods - all the methods
-USE public_var, only : kinematicWave      ! option for routing methods - kinematic wave only
-USE public_var, only : impulseResponseFunc! option for routing methods - IRF only
+USE public_var, only : qtakeOption            ! option to compute network topology
+USE public_var, only : topoNetworkOption      ! option to compute network topology
+USE public_var, only : computeReachList       ! option to compute reach list
+USE public_var, only : hydGeometryOption      ! option to obtain routing parameters
+USE public_var, only : routOpt                ! option for desired routing method
+USE public_var, only : allRoutingMethods      ! option for routing methods - all the methods
+USE public_var, only : kinematicWaveTracking  ! option for routing methods - Lagrangian kinematic wave only
+USE public_var, only : impulseResponseFunc    ! option for routing methods - IRF only
+USE public_var, only : kinematicWave          ! option for routing methods - kinematic wave only
+USE public_var, only : diffusiveWave          ! option for routing methods - diffusive wave only
+USE public_var, only : muskingumCunge         ! option for routing methods - muskingum-cunge only
 
 ! named variables
 USE public_var, only : true,false         ! named integers for true/false
@@ -245,7 +248,7 @@ contains
  if(hydGeometryOption==compute)then
 
   ! (hydraulic geometry only needed for the kinematic wave method)
-  if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
+  if (routOpt==allRoutingMethods .or. routOpt==kinematicWaveTracking .or. routOpt==kinematicWave .or. routOpt==diffusiveWave .or. routOpt==muskingumCunge) then
    do iSeg=1,nSeg
     structSEG(iSeg)%var(ixSEG%width)%dat(1) = wscale * sqrt(structSEG(iSeg)%var(ixSEG%totalArea)%dat(1))  ! channel width (m)
     structSEG(iSeg)%var(ixSEG%man_n)%dat(1) = mann_n                                                      ! Manning's "n" paramater (unitless)

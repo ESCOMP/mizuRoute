@@ -8,7 +8,10 @@ USE public_var,only: integerMissing
 USE public_var,only: routOpt                ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
 USE public_var,only: doesBasinRoute         ! basin routing options   0-> no, 1->IRF, otherwise error
 USE public_var,only: doesAccumRunoff        ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
+USE public_var,only: kinematicWaveTracking  ! Lagrangian kinematic wave
 USE public_var,only: kinematicWave          ! kinematic wave
+USE public_var,only: diffusiveWave          ! diffusive wave
+USE public_var,only: muskingumCunge         ! muskingum cunge
 USE public_var,only: impulseResponseFunc    ! impulse response function
 USE public_var,only: allRoutingMethods      ! all routing methods
 USE globalData,only: meta_rflx
@@ -240,7 +243,7 @@ CONTAINS
 
  ! Modify write option
  ! Routing option
- if (routOpt==kinematicWave) then
+ if (routOpt==kinematicWaveTracking) then
   meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
  elseif (routOpt==impulseResponseFunc) then
   meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.

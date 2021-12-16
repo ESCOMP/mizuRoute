@@ -25,9 +25,12 @@ CONTAINS
                           T0, T1,          &   ! output: start and end time [sec]
                           ierr, message)       ! Output: error control
 
- USE dataTypes,    ONLY: states
- USE globalData,   ONLY: meta_stateDims        ! dimension for state variables
- USE var_lookup,   ONLY: ixStateDims, nStateDims
+ ! State/flux data structures
+ USE globalData, ONLY: RCHFLX                    ! To get q future for basin IRF and IRF (these should not be in this data strucuture)
+ USE globalData, ONLY: RCHSTA                    ! restart state data structure
+ USE dataTypes,  ONLY: states
+ USE globalData, ONLY: meta_stateDims        ! dimension for state variables
+ USE var_lookup, ONLY: ixStateDims, nStateDims
 
  implicit none
  ! input variables
@@ -80,7 +83,7 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return;endif
  endif
 
- if (opt==allRoutingMethods .or. opt==kinematicWave) then
+ if (opt==allRoutingMethods .or. opt==kinematicWaveTracking) then
   call read_basinQ_state(ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return;endif
 
@@ -101,8 +104,6 @@ CONTAINS
   SUBROUTINE read_basinQ_state(ierr, message1)
   ! meta data
   USE globalData, ONLY: meta_basinQ               ! reach inflow from basin at previous time step
-  ! State/flux data structures
-  USE globalData, ONLY: RCHFLX                    ! To get q future for basin IRF and IRF (these should not be in this data strucuture)
   ! Named variables
   USE var_lookup, ONLY: ixBasinQ, nVarsBasinQ
   implicit none
@@ -122,36 +123,32 @@ CONTAINS
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
 
   do iVar=1,nVarsBasinQ
-
-   select case(iVar)
-    case(ixBasinQ%q);       allocate(state%var(iVar)%array_2d_dp(nSeg, nens),       stat=ierr)
-    case default; ierr=20; message1=trim(message1)//'unable to identify basin routing variable index'; return
-   end select
-   if(ierr/=0)then; message1=trim(message1)//'problem allocating space for reach inflow:'//trim(meta_basinQ(iVar)%varName); return; endif
-
+    select case(iVar)
+      case(ixBasinQ%q); allocate(state%var(iVar)%array_2d_dp(nSeg, nens), stat=ierr)
+      case default; ierr=20; message1=trim(message1)//'unable to identify basin routing variable index'; return
+    end select
+    if(ierr/=0)then; message1=trim(message1)//'problem allocating space for reach inflow:'//trim(meta_basinQ(iVar)%varName); return; endif
   end do
 
   do iVar=1,nVarsBasinQ
 
    select case(iVar)
-    case(ixBasinQ%q);       call get_nc(ncidRestart, meta_basinQ(iVar)%varName, state%var(iVar)%array_2d_dp, (/1,1/), (/nSeg,nens/), ierr, cmessage1)
-    case default; ierr=20; message1=trim(message1)//'unable to identify previous time step reach inflow variable index for nc writing'; return
+     case(ixBasinQ%q); call get_nc(ncidRestart, meta_basinQ(iVar)%varName, state%var(iVar)%array_2d_dp, (/1,1/), (/nSeg,nens/), ierr, cmessage1)
+     case default; ierr=20; message1=trim(message1)//'unable to identify previous time step reach inflow variable index for nc writing'; return
    end select
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_basinQ(iVar)%varName); return; endif
 
   enddo
 
   do iens=1,nens
-   do iSeg=1,nSeg
-    do iVar=1,nVarsBasinQ
-
-     select case(iVar)
-      case(ixBasinQ%q);       RCHFLX(iens,iSeg)%BASIN_QR(1) = state%var(iVar)%array_2d_dp(iSeg,iens)
-      case default; ierr=20; message1=trim(message1)//'unable to identify previous time step reach inflow variable index'; return
-     end select
-
+    do iSeg=1,nSeg
+      do iVar=1,nVarsBasinQ
+        select case(iVar)
+          case(ixBasinQ%q); RCHFLX(iens,iSeg)%BASIN_QR(1) = state%var(iVar)%array_2d_dp(iSeg,iens)
+          case default; ierr=20; message1=trim(message1)//'unable to identify previous time step reach inflow variable index'; return
+        end select
+      enddo
     enddo
-   enddo
   enddo
 
   END SUBROUTINE read_basinQ_state
@@ -160,8 +157,6 @@ CONTAINS
   SUBROUTINE read_IRFbas_state(ierr, message1)
   ! meta data
   USE globalData, ONLY: meta_irf_bas              ! basin IRF routing
-  ! State/flux data structures
-  USE globalData, ONLY: RCHFLX                    ! To get q future for basin IRF and IRF (these should not be in this data strucuture)
   ! Named variables
   USE var_lookup, ONLY: ixIRFbas, nVarsIRFbas
   implicit none
@@ -184,40 +179,32 @@ CONTAINS
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
 
   do iVar=1,nVarsIRFbas
-
-   select case(iVar)
-    case(ixIRFbas%qfuture); allocate(state%var(iVar)%array_3d_dp(nSeg, ntdh, nens), stat=ierr)
-    case default; ierr=20; message1=trim(message1)//'unable to identify basin routing variable index'; return
-   end select
-   if(ierr/=0)then; message1=trim(message1)//'problem allocating space for basin IRF routing state:'//trim(meta_irf_bas(iVar)%varName); return; endif
-
+    select case(iVar)
+      case(ixIRFbas%qfuture); allocate(state%var(iVar)%array_3d_dp(nSeg, ntdh, nens), stat=ierr)
+      case default; ierr=20; message1=trim(message1)//'unable to identify basin routing variable index'; return
+    end select
+    if(ierr/=0)then; message1=trim(message1)//'problem allocating space for basin IRF routing state:'//trim(meta_irf_bas(iVar)%varName); return; endif
   end do
 
   do iVar=1,nVarsIRFbas
-
-   select case(iVar)
-    case(ixIRFbas%qfuture); call get_nc(ncidRestart, meta_irf_bas(iVar)%varName, state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,ntdh,nens/), ierr, cmessage1)
-    case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF variable index for nc writing'; return
-   end select
-   if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_irf_bas(iVar)%varName); return; endif
-
+    select case(iVar)
+      case(ixIRFbas%qfuture); call get_nc(ncidRestart, meta_irf_bas(iVar)%varName, state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,ntdh,nens/), ierr, cmessage1)
+      case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF variable index for nc writing'; return
+    end select
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_irf_bas(iVar)%varName); return; endif
   enddo
 
   do iens=1,nens
-   do iSeg=1,nSeg
-
-    allocate(RCHFLX(iens,iSeg)%QFUTURE(ntdh), stat=ierr, errmsg=cmessage1)
-    if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
-
-    do iVar=1,nVarsIRFbas
-
-     select case(iVar)
-      case(ixIRFbas%qfuture); RCHFLX(iens,iSeg)%QFUTURE(:)  = state%var(iVar)%array_3d_dp(iSeg,:,iens)
-      case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF state variable index'; return
-     end select
-
+    do iSeg=1,nSeg
+      allocate(RCHFLX(iens,iSeg)%QFUTURE(ntdh), stat=ierr, errmsg=cmessage1)
+      if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
+      do iVar=1,nVarsIRFbas
+        select case(iVar)
+          case(ixIRFbas%qfuture); RCHFLX(iens,iSeg)%QFUTURE(:)  = state%var(iVar)%array_3d_dp(iSeg,:,iens)
+          case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF state variable index'; return
+        end select
+      enddo
     enddo
-   enddo
   enddo
 
   END SUBROUTINE read_IRFbas_state
@@ -226,8 +213,6 @@ CONTAINS
   SUBROUTINE read_IRF_state(ierr, message1)
   ! meta data
   USE globalData,  ONLY: meta_irf               ! IRF routing
-  ! State/flux data structures
-  USE globalData,  ONLY: RCHFLX                 ! To get q future for basin IRF and IRF (these should not be in this data strucuture)
   ! Named variables
   USE var_lookup,  ONLY: ixIRF, nVarsIRF
   implicit none
@@ -252,50 +237,38 @@ CONTAINS
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
 
   do iVar=1,nVarsIRF
-
-   select case(iVar)
-    case(ixIRF%qfuture); allocate(state%var(iVar)%array_3d_dp(nSeg, ntdh_irf, nens), stat=ierr)
-    case(ixIRF%irfVol);  allocate(state%var(iVar)%array_2d_dp(nSeg, nens), stat=ierr)
-    case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
-   end select
-   if(ierr/=0)then; message1=trim(message1)//'problem allocating space for IRF routing state:'//trim(meta_irf(iVar)%varName); return; endif
-
+    select case(iVar)
+      case(ixIRF%qfuture); allocate(state%var(iVar)%array_3d_dp(nSeg, ntdh_irf, nens), stat=ierr)
+      case(ixIRF%irfVol);  allocate(state%var(iVar)%array_2d_dp(nSeg, nens), stat=ierr)
+      case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
+    end select
+    if(ierr/=0)then; message1=trim(message1)//'problem allocating space for IRF routing state:'//trim(meta_irf(iVar)%varName); return; endif
   end do
 
   call get_nc(ncidRestart,'numQF',numQF,(/1,1/),(/nSeg,nens/),ierr,cmessage1)
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_irf(iVar)%varName); return; endif
 
   do iVar=1,nVarsIRF
-
-   if (.not. qtakeOption .and. iVar==ixIRF%irfVol) cycle
-
-   select case(iVar)
-    case(ixIRF%qfuture); call get_nc(ncidRestart, meta_irf(iVar)%varName, state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,ntdh_irf,nens/), ierr, cmessage1)
-    case(ixIRF%irfVol);  call get_nc(ncidRestart, meta_irf(iVar)%varName, state%var(iVar)%array_2d_dp, (/1,1/), (/nSeg, nens/), ierr, cmessage1)
-    case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc reading'; return
-   end select
-   if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_irf(iVar)%varName); return; endif
-
+    select case(iVar)
+      case(ixIRF%qfuture); call get_nc(ncidRestart, meta_irf(iVar)%varName, state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,ntdh_irf,nens/), ierr, cmessage1)
+      case(ixIRF%irfVol);  call get_nc(ncidRestart, meta_irf(iVar)%varName, state%var(iVar)%array_2d_dp, (/1,1/), (/nSeg, nens/), ierr, cmessage1)
+      case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc reading'; return
+    end select
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_irf(iVar)%varName); return; endif
   end do
 
   do iens=1,nens
-   do iSeg=1,nSeg
-
-    allocate(RCHFLX(iens,iSeg)%QFUTURE_IRF(numQF(iens,iSeg)), stat=ierr, errmsg=cmessage1)
-    if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
-
-    do iVar=1,nVarsIRF
-
-     if (.not. qtakeOption .and. iVar==ixIRF%irfVol) cycle
-
-     select case(iVar)
-      case(ixIRF%qfuture); RCHFLX(iens,iSeg)%QFUTURE_IRF  = state%var(iVar)%array_3d_dp(iSeg,1:numQF(iens,iSeg),iens)
-      case(ixIRF%irfVol);  RCHFLX(iens,iSeg)%REACH_VOL(1) = state%var(iVar)%array_2d_dp(iSeg,iens)
-      case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
-     end select
-
-    enddo ! variable loop
-   enddo ! seg loop
+    do iSeg=1,nSeg
+      allocate(RCHFLX(iens,iSeg)%QFUTURE_IRF(numQF(iens,iSeg)), stat=ierr, errmsg=cmessage1)
+      if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
+      do iVar=1,nVarsIRF
+        select case(iVar)
+          case(ixIRF%qfuture); RCHFLX(iens,iSeg)%QFUTURE_IRF  = state%var(iVar)%array_3d_dp(iSeg,1:numQF(iens,iSeg),iens)
+          case(ixIRF%irfVol);  RCHFLX(iens,iSeg)%REACH_VOL(1) = state%var(iVar)%array_2d_dp(iSeg,iens)
+          case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
+        end select
+      enddo ! variable loop
+    enddo ! seg loop
   enddo ! ensemble loop
 
   END SUBROUTINE read_IRF_state
@@ -303,9 +276,7 @@ CONTAINS
 
   SUBROUTINE read_KWT_state(ierr, message1)
   ! meta data
-  USE globalData, ONLY: meta_kwt                  ! kwt routing
-  ! State/flux data structures
-  USE globalData, ONLY: KROUTE                    ! KWT routing state
+  USE globalData, ONLY: meta_kwt
   ! Named variables
   USE var_lookup, ONLY: ixKWT, nVarsKWT
   implicit none
@@ -346,41 +317,36 @@ CONTAINS
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
 
   do iVar=1,nVarsKWT
-
     select case(iVar)
-     case(ixKWT%routed)
-      call get_nc(ncidRestart, meta_kwt(iVar)%varName, state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nwave,nens/), ierr, cmessage1)
-     case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
-      call get_nc(ncidRestart, meta_kwt(iVar)%varName, state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nwave,nens/), ierr, cmessage1)
-     case default; ierr=20; message1=trim(message1)//'unable to identify KWT variable index for nc reading'; return
+      case(ixKWT%routed)
+        call get_nc(ncidRestart, meta_kwt(iVar)%varName, state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nwave,nens/), ierr, cmessage1)
+      case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
+        call get_nc(ncidRestart, meta_kwt(iVar)%varName, state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nwave,nens/), ierr, cmessage1)
+      case default; ierr=20; message1=trim(message1)//'unable to identify KWT variable index for nc reading'; return
     end select
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_kwt(iVar)%varName); return; endif
   end do
 
   do iens=1,nens
-   do iSeg=1,nSeg
-
-    allocate(KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1), stat=ierr)
-
-    do iVar=1,nVarsKWT
-
-     select case(iVar)
-      case(ixKWT%tentry);    KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%TI = state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
-      case(ixKWT%texit);     KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%TR = state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
-      case(ixKWT%qwave);     KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%QF = state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
-      case(ixKWT%qwave_mod); KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%QM = state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
-      case(ixKWT%routed) ! this is suppposed to be logical variable, but put it as 0 or 1 in double now
-       if (allocated(RFvec)) deallocate(RFvec, stat=ierr)
-       allocate(RFvec(0:numWaves(iens,iSeg)-1),stat=ierr)
-       RFvec = nint(state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens))
-       KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%RF=.False.
-       where (RFvec==1_i4b) KROUTE(iens,iSeg)%KWAVE(0:numWaves(iens,iSeg)-1)%RF=.True.
-      case default; ierr=20; message1=trim(message1)//'unable to identify KWT routing state variable index'; return
-     end select
-
-    enddo
-   enddo
-  enddo
+    do iSeg=1,nSeg
+      allocate(RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1), stat=ierr)
+      do iVar=1,nVarsKWT
+        select case(iVar)
+          case(ixKWT%tentry);    RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%TI = state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
+          case(ixKWT%texit);     RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%TR = state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
+          case(ixKWT%qwave);     RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%QF = state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
+          case(ixKWT%qwave_mod); RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%QM = state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
+          case(ixKWT%routed) ! this is suppposed to be logical variable, but put it as 0 or 1 in double now
+            if (allocated(RFvec)) deallocate(RFvec, stat=ierr)
+            allocate(RFvec(0:numWaves(iens,iSeg)-1),stat=ierr)
+            RFvec = nint(state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens))
+            RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%RF=.False.
+            where (RFvec==1_i4b) RCHSTA(iens,iSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%RF=.True.
+          case default; ierr=20; message1=trim(message1)//'unable to identify KWT routing state variable index'; return
+        end select
+      end do
+    end do
+  end do
 
   END SUBROUTINE read_KWT_state
 
