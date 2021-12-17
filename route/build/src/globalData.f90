@@ -150,5 +150,6 @@ MODULE globalData
 
   ! miscellaneous
   integer(i4b)                   , public :: ixPrint=integerMissing   ! index of desired reach to be on-screen print
+  integer(i4b)                   , public :: nMolecule                ! number of computational molecule (used for KW, MC, DW)
 
 end module globalData

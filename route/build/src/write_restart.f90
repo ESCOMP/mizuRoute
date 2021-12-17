@@ -279,23 +279,24 @@ CONTAINS
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! Routing specific variables --------------
-
- ! basin IRF
  if (doesBasinRoute == 1) then
   call define_IRFbas_state(ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
- ! KWT routing
  if (opt==allRoutingMethods .or. opt==kinematicWaveTracking) then
-  call define_KWT_state(ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   call define_KWT_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
- ! IRF routing
  if (opt==allRoutingMethods .or. opt==impulseResponseFunc) then
-  call define_IRF_state(ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   call define_IRF_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
+ if (opt==muskingumCunge) then
+   call define_MC_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
  ! Finishing up definition -------
@@ -313,6 +314,7 @@ CONTAINS
 
    USE globalData,   ONLY: meta_stateDims  ! states dimension meta
    USE globalData,   ONLY: nRch
+   USE globalData,   ONLY: nMolecule
    USE globalData,   ONLY: FRAC_FUTURE     ! To get size of q future for basin IRF
 
    implicit none
@@ -334,6 +336,7 @@ CONTAINS
      case(ixStateDims%tdh);     meta_stateDims(ixStateDims%tdh)%dimLength     = size(FRAC_FUTURE)
      case(ixStateDims%tdh_irf); meta_stateDims(ixStateDims%tdh_irf)%dimLength = 50   !just temporarily
      case(ixStateDims%wave);    meta_stateDims(ixStateDims%wave)%dimLength    = MAXQPAR
+     case(ixStateDims%fdmesh);  meta_stateDims(ixStateDims%fdmesh)%dimLength  = nMolecule
      case default; ierr=20; message1=trim(message1)//'unable to identify dimension variable index'; return
    end select
 
@@ -528,6 +531,55 @@ CONTAINS
 
   END SUBROUTINE define_IRF_state
 
+  SUBROUTINE define_MC_state(ierr, message1)
+
+   USE globalData, ONLY: meta_mc
+   USE var_lookup, ONLY: ixMC, nVarsMC
+
+   implicit none
+
+   ! output
+   integer(i4b), intent(out)         :: ierr        ! error code
+   character(*), intent(out)         :: message1    ! error message
+   ! local
+   integer(i4b)                      :: iVar,ixDim  ! index loop for variables
+   integer(i4b)                      :: nDims       ! number of dimensions
+   character(len=strLen),allocatable :: dim_mc(:)   ! dimensions combination case 4
+
+   ierr=0; message1='define_MC_state/'
+
+   associate(dim_seg  => meta_stateDims(ixStateDims%seg)%dimName,     &
+             dim_ens  => meta_stateDims(ixStateDims%ens)%dimName,     &
+             dim_mesh => meta_stateDims(ixStateDims%fdmesh)%dimName)
+
+   ! Check dimension length is populated
+   if (meta_stateDims(ixStateDims%fdmesh)%dimLength == integerMissing) then
+     call set_dim_len(ixStateDims%fdmesh, ierr, cmessage)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%fdmesh)%dimName); return; endif
+   end if
+
+   ! Define dimension needed for this routing specific state variables
+   call def_dim(ncid, meta_stateDims(ixStateDims%fdmesh)%dimName, meta_stateDims(ixStateDims%fdmesh)%dimLength, meta_stateDims(ixStateDims%fdmesh)%dimId, ierr, cmessage)
+   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+   do iVar=1,nVarsMC
+     nDims = size(meta_mc(iVar)%varDim)
+     if (allocated(dim_mc)) deallocate(dim_mc)
+     allocate(dim_mc(nDims))
+
+     do ixDim = 1, nDims
+       dim_mc(ixDim) = meta_stateDims(meta_mc(iVar)%varDim(ixDim))%dimName
+     end do
+
+     call def_var(ncid, meta_mc(iVar)%varName, dim_mc, meta_mc(iVar)%varType, ierr, cmessage, vdesc=meta_mc(iVar)%varDesc, vunit=meta_mc(iVar)%varUnit)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+   end do
+
+   end associate
+
+  END SUBROUTINE define_MC_state
+
+
  END SUBROUTINE define_state_nc
 
 
@@ -591,6 +643,11 @@ CONTAINS
 
  if (opt==allRoutingMethods .or. opt==kinematicWaveTracking)then
    call write_KWT_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
+ if (opt==muskingumCunge)then
+   call write_MC_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
@@ -877,6 +934,68 @@ CONTAINS
   end associate
 
   END SUBROUTINE write_IRF_state
+
+  ! MC writing procedures
+  SUBROUTINE write_MC_state(ierr, message1)
+
+    USE globalData,   ONLY: meta_mc
+    USE var_lookup,   ONLY: ixMC, nVarsMC
+
+    implicit none
+
+    ! output
+    integer(i4b), intent(out)  :: ierr            ! error code
+    character(*), intent(out)  :: message1        ! error message
+    ! local variables
+    type(states)               :: state           ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
+    integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
+
+    ierr=0; message1='write_MC_state/'
+
+    associate(nSeg  => size(RCHFLX),                         &
+              nEns  => meta_stateDims(ixStateDims%ens)%dimLength,  &
+              nMesh => meta_stateDims(ixStateDims%fdmesh)%dimLength) ! number of computing molecule used for finite difference
+
+    allocate(state%var(nVarsMC), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+    do iVar=1,nVarsMC
+      select case(iVar)
+       case(ixMC%qsub)
+        allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
+       case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
+      end select
+      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for MC routing state '//trim(meta_mc(iVar)%varName); return; endif
+    end do
+
+    ! --Convert data structures to arrays
+    do iens=1,nEns
+      do iSeg=1,nSeg
+        do iVar=1,nVarsMC
+          select case(iVar)
+            case(ixMC%qsub)
+              state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA(iens, iSeg)%molecule%Q(1:nMesh)
+            case default; ierr=20; message1=trim(message1)//'unable to identify MC routing state variable index'; return
+          end select
+        enddo ! variable loop
+      enddo ! seg loop
+    enddo ! ensemble loop
+
+    ! Writing netCDF
+    do iVar=1,nVarsMC
+      select case(iVar)
+       case(ixMC%qsub)
+         call write_nc(ncid, trim(meta_mc(iVar)%varName), state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nMesh,nens/), ierr, cmessage)
+       case default; ierr=20; message1=trim(message1)//'unable to identify MC variable index for nc writing'; return
+      end select
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+    end do
+
+    end associate
+
+  END SUBROUTINE write_MC_state
+
 
  END SUBROUTINE write_state_nc
 
