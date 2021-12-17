@@ -1,6 +1,5 @@
 MODULE domain_decomposition
 
-! External modules (general modules)
 ! numeric types
 USE nrtype
 ! derived data types
@@ -22,6 +21,8 @@ implicit none
 logical(lgt) :: domain_debug = .false. ! print out reach info with node assignment for debugging
 
 ! common parameters within this module
+integer(i4b), parameter   :: maxDomainOMP=50000       ! maximum omp domains
+integer(i4b), parameter   :: maxDomainMPI=100000      ! maximum mpi domains
 integer(i4b), parameter   :: tributary=1
 integer(i4b), parameter   :: mainstem=2
 integer(i4b), parameter   :: endorheic=3
@@ -38,7 +39,7 @@ CONTAINS
  ! ***************************************************************
  ! public subroutine: MPI Domain decomposition
  ! ***************************************************************
- subroutine mpi_domain_decomposition(nNodes,       & ! input: number of procs
+ SUBROUTINE mpi_domain_decomposition(nNodes,       & ! input: number of procs
                                      nSeg,         & ! input: number of reaches
                                      structNTOPO,  & ! input: river network data structure
                                      structHRU2SEG,& ! input: reach-hru topology data structure
@@ -46,9 +47,9 @@ CONTAINS
                                      ierr, message)  ! output: error handling
 
    ! External modules
-   USE globalData, ONLY: domains                 ! domain data structure - for each domain, pfaf codes and list of segment indices
-   USE globalData, ONLY: nDomain                 ! count of decomposed domains (tributaries + mainstems)
-   USE mpi_utils,  ONLY: shr_mpi_abort, shr_mpi_initialized
+   USE globalData, ONLY: domains_mpi             ! domain data structure - for each domain listing segment and hru indices
+   USE globalData, ONLY: nDomain_mpi             ! count of decomposed domains (tributaries + mainstems)
+   USE mpi_utils,  ONLY: shr_mpi_abort
 
    implicit none
    ! Input variables
@@ -57,6 +58,7 @@ CONTAINS
    type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)  ! network topology
    type(var_ilength), allocatable, intent(in)  :: structHRU2SEG(:)! reach-hru topology
    ! Output variables
+   type(subbasin_mpi),allocatable              :: domains_tmp(:)  ! temporal domain decomposition data structure
    integer(i4b),                   intent(out) :: nContribHRU     ! total number of HRUs that are connected to a reach
    integer(i4b),                   intent(out) :: ierr
    character(len=strLen),          intent(out) :: message         ! error message
@@ -65,18 +67,26 @@ CONTAINS
 
    ierr=0; message='mpi_domain_decomposition/'
 
+   allocate(domains_tmp(maxDomainMPI), stat=ierr, errmsg=cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [domains_tmp]'; return; endif
+
    call classify_river_basin(nNodes,                      & ! input:  number of procs
                              nSeg,                        & ! input:  number of reaches in the entire river network
                              structNTOPO,                 & ! input:  river network data structure
-                             domains,                     & ! output: domain data structure
-                             nDomain,                     & ! output: number of domains
+                             domains_tmp,                 & ! output: domain data structure
+                             nDomain_mpi,                 & ! output: number of domains
                              ierr, cmessage,              & ! output: error handling
                              structHRU2SEG=structHRU2SEG, & ! input(optional): reach-hru topology data structure
                              nContribHRU=nContribHRU)       ! output(optional): number of contributory HRUs within the entire river network
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   call assign_node(nNodes, ierr, cmessage)
+   call assign_node(nNodes, nDomain_mpi, domains_tmp, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   allocate(domains_mpi(nDomain_mpi), stat=ierr, errmsg=cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [domains_mpi]'; return; endif
+
+   domains_mpi(1:nDomain_mpi) = domains_tmp(1:nDomain_mpi)
 
    if (domain_debug) then
      call print_screen()
@@ -88,7 +98,7 @@ CONTAINS
    ! --------------------------------------------------
    !  FOR DEBUGGING
    ! --------------------------------------------------
-   subroutine print_screen()
+   SUBROUTINE print_screen()
      ! debugging variables
      integer(i4b)                           :: segId(nSeg)          ! reach id for all the segments
      integer(i4b)                           :: downIndex(nSeg)      ! down reach id for all the segments
@@ -101,17 +111,17 @@ CONTAINS
      end do
 
      write(iulog,*) 'seg_index segid down_index down_id domain-id node-id'
-     do ix = 1,nDomain
-      associate (segIndexSub => domains(ix)%segIndex, nSubSeg => size(domains(ix)%segIndex))
+     do ix = 1,nDomain_mpi
+      associate (segIndexSub => domains_mpi(ix)%segIndex, nSubSeg => size(domains_mpi(ix)%segIndex))
       do iSeg = 1,size(segIndexSub)
        if (downIndex(segIndexSub(iSeg)) > 0) then
        write(iulog, "(I9,x,I12,x,I9,x,I12,x,I5,x,I3)") segIndexSub(iSeg),segId(segIndexSub(iSeg)), &
                                                   downIndex(segIndexSub(iSeg)),segId(downIndex(segIndexSub(iSeg))), &
-                                                  ix, domains(ix)%idNode
+                                                  ix, domains_mpi(ix)%idNode
        else
        write(iulog, "(I9,x,I12,x,I9,x,I12,x,I5,x,I3)") segIndexSub(iSeg),segId(segIndexSub(iSeg)), &
                                                   downIndex(segIndexSub(iSeg)),-999, &
-                                                  ix, domains(ix)%idNode
+                                                  ix, domains_mpi(ix)%idNode
        endif
       end do
       end associate
@@ -119,8 +129,8 @@ CONTAINS
 
      ! check not-assgined (missing) reaches
      missing = .true.
-     do ix = 1,nDomain
-      associate (segIndexSub => domains(ix)%segIndex)
+     do ix = 1,nDomain_mpi
+      associate (segIndexSub => domains_mpi(ix)%segIndex)
       ! reach index array in order of node assignment
       missing(segIndexSub) = .false.
       end associate
@@ -140,9 +150,9 @@ CONTAINS
        write(iulog,*) 'NO MISSING SEGMENT: ALL SEGMENTS ARE ASSIGNED TO DOMAINS'
      endif
 
-   end subroutine print_screen
+   END SUBROUTINE print_screen
 
- end subroutine mpi_domain_decomposition
+ END SUBROUTINE mpi_domain_decomposition
 
 
  ! ***************************************************************
@@ -178,7 +188,7 @@ CONTAINS
        call omp_domain_decomp_upsize(nSeg, structNTOPO, river_basin_out, ierr, message, nn)
      case(stream_order)
        call omp_domain_decomp_stro(nSeg, structNTOPO, river_basin_out, ierr, message)
-     case default; ierr=20; message=trim(message)//'method id is not valid'; return
+     case default; ierr=20; message=trim(message)//'omp domain decomposition method id is not valid'; return
    end select
 
  END SUBROUTINE omp_domain_decomposition
@@ -186,7 +196,7 @@ CONTAINS
  ! ***************************************************************
  ! private subroutine: OMP domain decomposition - method 1
  ! ***************************************************************
- subroutine omp_domain_decomp_upsize(nSeg, structNTOPO, river_basin_out, ierr, message, nDiv)
+ SUBROUTINE omp_domain_decomp_upsize(nSeg, structNTOPO, river_basin_out, ierr, message, nDiv)
 
    implicit none
    ! Input variables
@@ -198,11 +208,14 @@ CONTAINS
    integer(i4b),                   intent(out) :: ierr
    character(len=strLen),          intent(out) :: message         ! error message
    ! Local variables
-   type(subbasin_mpi)                          :: domains_omp(maxDomain)! domain decomposition data structure (maximum domain is set to maxDomain)
+   type(subbasin_mpi),allocatable              :: domains_omp(:)  ! domain decomposition data structure
    integer(i4b)                                :: nDomain_omp
    character(len=strLen)                       :: cmessage        ! error message from subroutine
 
    ierr=0; message='omp_domain_decomp_upsize/'
+
+   allocate(domains_omp(maxDomainOMP), stat=ierr, errmsg=cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [domains_omp]'; return; endif
 
    call classify_river_basin(nDiv,           &        ! input:  number of reach numbers
                              nSeg,           &        ! input:  number of reaches in the entire river network
@@ -215,12 +228,12 @@ CONTAINS
    call basin_order(nSeg, structNTOPO, domains_omp, nDomain_omp, river_basin_out, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- end subroutine omp_domain_decomp_upsize
+ END SUBROUTINE omp_domain_decomp_upsize
 
  ! ***************************************************************
  ! private subroutine: OMP domain decomposition - method2
  ! ***************************************************************
- subroutine omp_domain_decomp_stro(nSeg, structNTOPO, river_basin_out, ierr, message)
+ SUBROUTINE omp_domain_decomp_stro(nSeg, structNTOPO, river_basin_out, ierr, message)
 
    ! External modules
    USE pfafstetter_module, ONLY: lgc_tributary_outlet
@@ -434,15 +447,15 @@ CONTAINS
 
    end do sorder
 
- end subroutine omp_domain_decomp_stro
+ END SUBROUTINE omp_domain_decomp_stro
 
  ! ***************************************************************
  ! private subroutine: Domain decomposition
  ! ***************************************************************
- subroutine classify_river_basin(nDivs,         & ! input:  number of divisions (nodes or threads)
+ SUBROUTINE classify_river_basin(nDivs,         & ! input:  number of divisions (nodes or threads)
                                  nSeg,          & ! input:  number of reaches in the entire river network
                                  structNTOPO,   & ! input:  river topology data structure
-                                 domains_out,   & ! output: domain data structure
+                                 domains_out,   & ! inout: domain data structure
                                  nDomains,      & ! output: number of domains
                                  ierr, message, & ! output: error handling
                                  structHRU2SEG, & ! input(optional): river-hru topology data structure
@@ -465,22 +478,19 @@ CONTAINS
    !   domain(:)%hruIndex(:)  : hru indix within a basin
    !   domain(:)%idNode       : proc id (-1 through nNode-1) -1 is for mainstem but use pid=0
 
-   ! updated and saved data
-   USE public_var, ONLY: maxDomain
-
    implicit none
 
    ! Input variables
-   integer(i4b),                             intent(in)  :: nDivs               ! number of nodes (root and computing nodes)
+   integer(i4b),                             intent(in)  :: nDivs               ! number of processors (root and child processors)
    integer(i4b),                             intent(in)  :: nSeg                ! number of stream segments
    type(var_ilength),           allocatable, intent(in)  :: structNTOPO(:)      ! river reach topology
    type(var_ilength), optional, allocatable, intent(in)  :: structHRU2SEG(:)    ! river-hru topology
    ! Output variables
-   type(subbasin_mpi),                       intent(out) :: domains_out(maxDomain) ! domain decomposition data structure (maximum domain is set to maxDomain)
-   integer(i4b),                             intent(out) :: nDomains
-   integer(i4b),      optional,              intent(out) :: nContribHRU         ! total number of HRUs that are connected to a reach
-   integer(i4b),                             intent(out) :: ierr
-   character(len=strLen),                    intent(out) :: message             ! error message
+   type(subbasin_mpi),          allocatable, intent(inout) :: domains_out(:)    ! domain decomposition data structure
+   integer(i4b),                             intent(out)   :: nDomains          ! number of decomposed domains
+   integer(i4b),      optional,              intent(out)   :: nContribHRU       ! total number of HRUs that are connected to a reach
+   integer(i4b),                             intent(out)   :: ierr
+   character(len=strLen),                    intent(out)   :: message           ! error message
    ! Local variables
    character(len=strLen)                                 :: cmessage            ! error message from subroutine
    integer(i4b)                                          :: nCat                ! number of HRUs (Catchments)
@@ -528,8 +538,8 @@ CONTAINS
    do ix=1,nDomains
      associate (ixSeg => domains_out(ix)%segIndex)
 
-     allocate(nHruLocal(size(ixSeg)), stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating [nHruLocal]'; return; endif
+     allocate(nHruLocal(size(ixSeg)), stat=ierr, errmsg=cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [nHruLocal]'; return; endif
      sumHruLocal = 0
      do iSeg = 1, size(ixSeg)
        sumHruLocal = sumHruLocal + structNTOPO(ixSeg(iSeg))%var(ixNTOPO%nHRU)%dat(1)
@@ -538,8 +548,8 @@ CONTAINS
 
      if (present(nContribHRU)) nContribHRU=nContribHRU+sumHruLocal
 
-     allocate(domains_out(ix)%hruIndex(sumHruLocal), stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating [domains_out(ix)%hruIndex]'; return; endif
+     allocate(domains_out(ix)%hruIndex(sumHruLocal), stat=ierr, errmsg=cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [domains_out(ix)%hruIndex]'; return; endif
 
      ix2 = 0
      do iSeg = 1, size(ixSeg)
@@ -548,8 +558,8 @@ CONTAINS
        domains_out(ix)%hruIndex(ix1:ix2) = structNTOPO(ixSeg(iSeg))%var(ixNTOPO%hruContribIx)%dat(:)
      enddo
 
-     deallocate(nHruLocal, stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem deallocating [nHruLocal]'; return; endif
+     deallocate(nHruLocal, stat=ierr, errmsg=cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [nHruLocal]'; return; endif
 
      end associate
    enddo
@@ -559,7 +569,7 @@ CONTAINS
 
      nCat = size(structHRU2SEG)
      allocate(HRUindex(nCat), stat=ierr, errmsg=cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [HRUindex]'; return; endif
 
      do iCat = 1, nCat
        HRUindex(iCat) = structHRU2SEG(iCat)%var(ixHRU2SEG%HRUindex)%dat(1)
@@ -570,9 +580,9 @@ CONTAINS
      if (nEndorheic > 0) then
 
        allocate(ixEndorheic(nEndorheic), stat=ierr, errmsg=cmessage)
-       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [ixEndorheic]'; return; endif
        allocate(index_array(nCat), stat=ierr, errmsg=cmessage)
-       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [index_array]'; return; endif
 
        index_array = arth(1,1,nCat)
        ixEndorheic  = pack(index_array, HRUindex==integerMissing)
@@ -580,7 +590,7 @@ CONTAINS
        nDomains = nDomains+1
 
        allocate(domains_out(nDomains)%hruIndex(nEndorheic), stat=ierr, errmsg=cmessage)
-       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [domains_out(nDomains)%hruIndex]'; return; endif
 
        domains_out(nDomains)%basintype = endorheic
        domains_out(nDomains)%hruIndex(1:nEndorheic) = index_array(ixEndorheic)
@@ -588,12 +598,12 @@ CONTAINS
      end if
    end if
 
- end subroutine classify_river_basin
+ END SUBROUTINE classify_river_basin
 
  ! ***************************************************************
  ! private subroutine:
  ! ***************************************************************
- subroutine decomposeDomain(structNTOPO,  & ! input:
+ SUBROUTINE decomposeDomain(structNTOPO,  & ! input:
                             isMainstem,   & ! input:
                             maxSegs,      & ! input:
                             domains_out,  & ! inout: domain data structure
@@ -610,10 +620,10 @@ CONTAINS
 
    implicit none
    ! Input variables
-   type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)               ! network topology
-   logical(lgt),                   intent(in)  :: isMainstem(:)                ! logical to indicate reach is mainstem
-   integer(i4b),                   intent(in)  :: maxSegs                      ! threshold for upstream reach number to  define mainstem
-   type(subbasin_mpi),             intent(inout) :: domains_out(maxDomain)     ! domain decomposition data structure (maximum domain is set to maxDomain)
+   type(var_ilength), allocatable, intent(in)    :: structNTOPO(:)             ! network topology
+   logical(lgt),                   intent(in)    :: isMainstem(:)              ! logical to indicate reach is mainstem
+   integer(i4b),                   intent(in)    :: maxSegs                    ! threshold for upstream reach number to  define mainstem
+   type(subbasin_mpi),allocatable, intent(inout) :: domains_out(:)             ! domain decomposition data structure
    integer(i4b),                   intent(inout) :: nDomains                   ! number of domains (update)
    ! Output variables
    integer(i4b),                   intent(out) :: ierr                         ! error code
@@ -694,8 +704,8 @@ CONTAINS
    nTrib = count(isTribOutlet)
 
    ! Idenfity indices of tributary outlet reaches
-   allocate(ixTribOutlet(nTrib), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'problem allocating [trib_outlet_idx]'; return; endif
+   allocate(ixTribOutlet(nTrib), stat=ierr, errmsg=cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [ixTribOutlet(nDomain)%segIndex]'; return; endif
    call indexTrue(isTribOutlet, ixSubset)
    ixTribOutlet = segIndex(ixSubset)
    deallocate(ixSubset, stat=ierr)
@@ -719,24 +729,22 @@ CONTAINS
 
    end do
 
- end subroutine decomposeDomain
+ END SUBROUTINE decomposeDomain
 
  ! ***************************************************************
  ! private subroutine: Assign decomposed domain into procs
  ! ***************************************************************
- subroutine assign_node(nNodes, ierr, message)
+ SUBROUTINE assign_node(nNodes, nDomain, domains, ierr, message)
    ! assign domains into computing nodes
-
-   ! External modules
-   USE globalData, ONLY: domains                 ! domain data structure - for each domain, pfaf codes and list of segment indices
-   USE globalData, ONLY: nDomain                 ! count of decomposed domains (tributaries + mainstems)
 
    implicit none
    ! Input variables
-   integer(i4b),              intent(in)  :: nNodes           ! nNodes
+   integer(i4b),                   intent(in)    :: nNodes      ! number of processors
+   integer(i4b),                   intent(in)    :: nDomain     ! number of domains
+   type(subbasin_mpi),allocatable, intent(inout) :: domains(:)  ! domain decomposition data structure to be updated
    ! Output variables
-   integer(i4b),              intent(out) :: ierr
-   character(len=strLen),     intent(out) :: message          ! error message
+   integer(i4b),                   intent(out)   :: ierr
+   character(len=strLen),          intent(out)   :: message     ! error message
    ! Local variables
    character(len=strLen)                  :: cmessage         ! error message from subroutine
    integer(i4b)                           :: nTribSeg         ! number of tributary segments
@@ -817,12 +825,12 @@ CONTAINS
      endif
    enddo
 
- end subroutine assign_node
+ END SUBROUTINE assign_node
 
 ! ***************************************************************
  ! private subroutine: Assign decomposed domain into procs
  ! ***************************************************************
- subroutine basin_order(nSeg, structNTOPO_in, domains_omp, nDomain_omp, river_basin_out, ierr, message)
+ SUBROUTINE basin_order(nSeg, structNTOPO_in, domains_omp, nDomain_omp, river_basin_out, ierr, message)
 
    implicit none
    ! Input variables
@@ -943,6 +951,6 @@ CONTAINS
      endif
    enddo
 
- end subroutine basin_order
+ END SUBROUTINE basin_order
 
-end module domain_decomposition
+END MODULE domain_decomposition

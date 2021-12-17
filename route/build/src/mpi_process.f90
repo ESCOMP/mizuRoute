@@ -79,8 +79,8 @@ contains
                             ierr,message)         ! output: error control
 
   USE globalData,          ONLY: ixPrint                  ! reach index to be checked by on-screen pringing
-  USE globalData,          ONLY: domains                  ! domain data structure - for each domain, pfaf codes and list of segment indices
-  USE globalData,          ONLY: nDomain                  ! count of decomposed domains (tributaries + mainstems)
+  USE globalData,          ONLY: domains_mpi              ! MPI domain data structure - for each domain listing segment and hru indices
+  USE globalData,          ONLY: nDomain_mpi              ! count of MPI decomposed domains (tributaries + mainstems)
   USE globalData,          ONLY: river_basin_main         ! OMP domain data structure for mainstem
   USE globalData,          ONLY: river_basin_trib         ! OMP domain data structure for tributaries
   USE globalData,          ONLY: RCHFLX_trib              ! Reach flux data structures (per proc, tributary)
@@ -204,8 +204,6 @@ contains
   integer(i4b),      allocatable              :: H06_I_mem_L_local(:)      ! Hanasaki 2006; Memory length in years for inflow [year]
   integer(i4b),      allocatable              :: H06_D_mem_L_local(:)      ! Hanasaki 2006; Memory length in years for demand [year]
 
-
-
   logical(lgt),      allocatable              :: tribOutlet_local(:)       ! logical to indicate tributary outlet to mainstems
   ! 1D array for the entire river network
   integer(i4b)                                :: hruId(nHRU_in)            ! hru id for all the HRUs
@@ -281,8 +279,8 @@ contains
   integer(i4b)                                :: nRch_trib                 ! number of tributary outlets for each proc (scalar)
   integer(i4b),     allocatable               :: nRch_trib_array(:)        ! number of tributary outlets for each proc (array)
   ! flat array for decomposed river network per domain (sub-basin)
-  integer(i4b)                                :: idNode(nDomain)           ! node id array for each domain
-  integer(i4b)                                :: rnkIdNode(nDomain)        ! ranked node id array for each domain
+  integer(i4b)                                :: idNode(nDomain_mpi)       ! node id array for each domain
+  integer(i4b)                                :: rnkIdNode(nDomain_mpi)    ! ranked node id array for each domain
   integer(i4b)                                :: jHRU,jSeg                 ! ranked indices
   integer(i4b)                                :: iUps                      ! immediate upstream loop indices
   integer(i4b),     allocatable               :: jUps(:)                   ! immediate upstream loop indices
@@ -323,26 +321,26 @@ contains
 
     ! domain is a contiguous collection of reaches/HRUs -- multiple domains may be on a single processor
 
-    do ix=1,nDomain
-      idNode(ix) = domains(ix)%idNode ! extracts the processing node from the "domain" data structire
+    do ix=1,nDomain_mpi
+      idNode(ix) = domains_mpi(ix)%idNode ! extracts the processing node from the "domain" data structire
     enddo
     call indexx(idNode,rnkIdNode) ! rank the processor nodes
 
     ! loop through the domains
     ixSeg2=0; ixHru2=0 ! last indices of domain chunks
-    domain:do ix = 1, nDomain
+    domain:do ix = 1, nDomain_mpi
 
      ! get the number of stream segments and HRUs in each domain
      ixx = rnkIdNode(ix)
-     associate (nSubSeg => size(domains(ixx)%segIndex), nSubHru => size(domains(ixx)%hruIndex) )
+     associate (nSubSeg => size(domains_mpi(ixx)%segIndex), nSubHru => size(domains_mpi(ixx)%hruIndex) )
 
      ! define reach global index array in order of node assignment
-     if (domains(ixx)%basinType /= endorheic ) then   ! endorheic domain does not have reaches
+     if (domains_mpi(ixx)%basinType /= endorheic ) then   ! endorheic domain does not have reaches
        ixSeg1 = ixSeg2+1
        ixSeg2 = ixSeg1+nSubSeg-1
-       ixRch_order(ixSeg1:ixSeg2) = domains(ixx)%segIndex(1:nSubSeg)
+       ixRch_order(ixSeg1:ixSeg2) = domains_mpi(ixx)%segIndex(1:nSubSeg)
        ! extra information (debugging)
-       ixNode(ixSeg1:ixSeg2)      = domains(ixx)%idNode
+       ixNode(ixSeg1:ixSeg2)      = domains_mpi(ixx)%idNode
        ixDomain(ixSeg1:ixSeg2)    = ixx
      end if
 
@@ -350,7 +348,7 @@ contains
      if (nSubHru>0) then
        ixHru1 = ixHru2+1
        ixHru2 = ixHru1+nSubHru-1
-       ixHRU_order(ixHru1:ixHru2) = domains(ixx)%hruIndex(1:nSubHru) ! global hru index per node
+       ixHRU_order(ixHru1:ixHru2) = domains_mpi(ixx)%hruIndex(1:nSubHru) ! global hru index per node
      end if
 
      end associate
@@ -360,10 +358,10 @@ contains
     ! index of seg_per_proc and hru_per_proc: -1 -> mainstem, 0 -> small tributaries, 1 through nNodes-1 -> large tributaries
     rch_per_proc = 0
     hru_per_proc = 0
-    do ix = 1,nDomain
-     idx = domains(ix)%idNode
-     rch_per_proc(idx) = rch_per_proc(idx) + sizeo(domains(ix)%segIndex)
-     hru_per_proc(idx) = hru_per_proc(idx) + sizeo(domains(ix)%hruIndex)
+    do ix = 1,nDomain_mpi
+     idx = domains_mpi(ix)%idNode
+     rch_per_proc(idx) = rch_per_proc(idx) + sizeo(domains_mpi(ix)%segIndex)
+     hru_per_proc(idx) = hru_per_proc(idx) + sizeo(domains_mpi(ix)%hruIndex)
     end do
 
     ! define routing vectors ordered by domain/node
