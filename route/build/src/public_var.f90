@@ -34,9 +34,6 @@ module public_var
   ! routing related constants
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
 
-  ! MPI domain decomposition parameters
-  integer(i4b),parameter,public   :: maxDomain=900000       ! maximum domains
-
   ! openMP domain decompostion parameters
   integer(i4b),parameter,public   :: maxSegs=100            ! maximum reach numbers within tributaries
   integer(i4b),parameter,public   :: maxLevel=20            ! maximum mainstem levels used for OMP domain decomposition
@@ -97,8 +94,10 @@ module public_var
   logical(lgt),public             :: is_lake_sim          = .false.         ! logical if lakes are activated in simulation
   logical(lgt),public             :: lake_model_D03       = .false.         ! logical if Doll 2003 model is used, specify as 1 in lake_model_type in network topology
   logical(lgt),public             :: lake_model_H06       = .false.         ! logical if Hanasaki 2006 model is used, specify as 2 in lake_model_type in network topology
+  logical(lgt),public             :: lake_model_HYPE      = .false.         ! logical if HYPE model is used, specify as 3 in lake_model_type in network topology
   logical(lgt),public             :: is_flux_wm           = .false.         ! logical if flow is added or removed from a reach
   logical(lgt),public             :: is_vol_wm            = .false.         ! logical if target volume is considered for a lake
+  logical(lgt),public             :: is_vol_wm_jumpstart  = .false.         ! logical if true the volume is reset to target volume for the first time step of modeling
   logical(lgt),public             :: suppress_runoff      = .false.         ! logical to suppress the read runoff to zero(0)
   logical(lgt),public             :: suppress_P_Ep        = .false.         ! logical to suppress evaporation and precipitation to zero(0)
   ! RIVER NETWORK TOPOLOGY

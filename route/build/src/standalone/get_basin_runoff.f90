@@ -51,7 +51,9 @@ CONTAINS
   integer(i4b), intent(out)     :: ierr               ! error code
   character(*), intent(out)     :: message            ! error message
   ! local variables
+  logical(lgt)                  :: remove_negatives   ! flag to replace the negative values to zeros
   character(len=strLen)         :: cmessage           ! error message from subroutine
+
 
   ierr=0; message='get_hru_runoff/'
 
@@ -80,9 +82,11 @@ CONTAINS
     call remap_runoff(runoff_data, remap_data, runoff_data%basinRunoff, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   else ! runoff is already remapped to river network HRUs
+    remove_negatives = .TRUE.
     call sort_flux (runoff_data%hru_id,         &
                     runoff_data%hru_ix,         &
                     runoff_data%sim,            &
+                    remove_negatives,           &
                     runoff_data%basinRunoff,    &
                     ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -118,9 +122,11 @@ CONTAINS
       call remap_runoff(runoff_data, remap_data, runoff_data%basinEvapo, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     else ! runoff is already remapped to river network HRUs
+      remove_negatives = .TRUE.
       call sort_flux  (runoff_data%hru_id,        &
                        runoff_data%hru_ix,        &
                        runoff_data%sim,           &
+                       remove_negatives,          &
                        runoff_data%basinEvapo,    &
                        ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -148,9 +154,11 @@ CONTAINS
       call remap_runoff(runoff_data, remap_data, runoff_data%basinPrecip, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     else ! runoff is already remapped to river network HRUs
+      remove_negatives = .TRUE.
       call sort_flux  (runoff_data%hru_id,        &
                        runoff_data%hru_ix,        &
                        runoff_data%sim,           &
+                       remove_negatives,          &
                        runoff_data%basinPrecip,   &
                        ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -177,6 +185,10 @@ CONTAINS
                           ierr, cmessage)                      ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+    !!!! should be removed...
+    print*, 'water balance: ',wm_data%sim
+
+
     if ( allocated(wm_data%flux_wm) ) then
       deallocate(wm_data%flux_wm, stat=ierr)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -185,9 +197,11 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! sorting the read_runoff into wm_data%flux_wm
+    remove_negatives = .FALSE.
     call sort_flux  (wm_data%seg_id,        &
                      wm_data%seg_ix,        &
                      wm_data%sim,           &
+                     remove_negatives,      &
                      wm_data%flux_wm,       &
                      ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -214,9 +228,11 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! sorting the read_runoff into wm_data%vol_wm
+    remove_negatives = .TRUE.
     call sort_flux  (wm_data%seg_id,        &
                      wm_data%seg_ix,        &
                      wm_data%sim,           &
+                     remove_negatives,      &
                      wm_data%vol_wm,        &
                      ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif

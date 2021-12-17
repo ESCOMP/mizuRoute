@@ -1,6 +1,6 @@
 module lake_route_module
 
-  !numeric type
+ !numeric type
  USE nrtype
  ! data type
  USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
@@ -10,8 +10,12 @@ module lake_route_module
  USE public_var, ONLY: iulog          ! i/o logical unit number
  USE public_var, ONLY: realMissing    ! missing value for real number
  USE public_var, ONLY: integerMissing ! missing value for integer number
+ USE public_var, ONLY: pi             ! pi value of 3.14159265359_dp
+ ! subroutines: model time info
+ USE time_utils_module, ONLY: compJulday,&      ! compute julian day
+                              compJulday_noleap ! compute julian day for noleap calendar
 
-  ! privary
+ ! privary
  implicit none
  private
 
@@ -34,13 +38,16 @@ module lake_route_module
                          ! output
                          ierr, message)   ! output: error control
 
-  USE globalData, ONLY: simDatetime           ! previous and current model time
-  USE public_var, ONLY: is_flux_wm        ! logical water management components fluxes should be read
-  USE public_var, ONLY: dt, lakeWBTol     ! lake water balance tolerance
-  USE public_var, ONLY: lake_model_D03    ! logical whether or not lake should be simulated
-  USE public_var, ONLY: lake_model_H06    ! logical whether or not lake should be simulated
+  USE globalData, ONLY: iTime               ! current model time step
+  USE globalData, ONLY: simDatetime         ! previous and current model time
+  USE public_var, ONLY: is_flux_wm          ! logical water management components fluxes should be read
+  USE public_var, ONLY: dt, lakeWBTol       ! lake water balance tolerance
+  USE public_var, ONLY: is_vol_wm_jumpstart ! logical whether or not lake should be simulated
+  USE public_var, ONLY: lake_model_D03      ! logical whether or not lake should be simulated
+  USE public_var, ONLY: lake_model_H06      ! logical whether or not lake should be simulated
+
   USE public_var, ONLY: secprday, days_per_yr, months_per_yr    ! time constants
-  USE public_var, ONLY: calendar          ! calendar name
+  USE public_var, ONLY: calendar            ! calendar name
 
   implicit none
   ! Input
@@ -73,8 +80,18 @@ module lake_route_module
   INTEGER(I4B)                             :: past_length_I       ! pas length for inflow based on length in year and floor
   INTEGER(I4B)                             :: past_length_D       ! pas length for demand based on length in year and floor
   real(dp)                                 :: target_r            ! target release
+  ! local varibale for HYPE routine
+  real(dp)                                 :: Julian_day_model    ! the julian day of model simulations
+  real(dp)                                 :: Julian_day_start    ! the julian day of the first day of the simulation year
+  real(dp)                                 :: Day_of_year         ! the day number in a year
+  INTEGER(I4B)                             :: F_prim              ! factor for local flag is reservoir has primary spillway
+  real(dp)                                 :: F_sin               ! factor for sin
+  real(dp)                                 :: F_lin               ! factor for linear
+  real(dp)                                 :: Q_prim              ! simulated outflow from main or primary spillway
+  real(dp)                                 :: Q_spill             ! simulated outflow from emergency spillway
+  real(dp)                                 :: Q_sim               ! simulated output from the reservoir
 
-  print*, 'inside lake, time at the model simulation',simDatetime(1)%year(),simDatetime(1)%month(),simDatetime(1)%day(),simDatetime(1)%hour(),simDatetime(1)%minute(),simDatetime(1)%sec()
+  !print*, 'inside lake, time at the model simulation',simDatetime(1)%year(),simDatetime(1)%month(),simDatetime(1)%day(),simDatetime(1)%hour(),simDatetime(1)%minute(),simDatetime(1)%sec()
 
     ! initialize error control
     ierr=0; message='lake_route/'
@@ -114,12 +131,17 @@ module lake_route_module
     !print*, 'lake param H06_alpha .......= ', RPARAM_in(segIndex)%H06_alpha
     !print*, 'lake param H06_S_ini .......= ', RPARAM_in(segIndex)%H06_S_ini
     !print*, 'lake target volum ..........= ', NETOPO_in(segIndex)%LakeTargVol
-     print*, 'volume before simulation m3.= ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
+    !print*, 'volume before simulation m3.= ', RCHFLX_out(iens,segIndex)%REACH_VOL(0)
     !print*, 'upstream streamflow m3/s ...= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
     !print*, 'upstream precipitation m3/s.= ', RCHFLX_out(iens,segIndex)%basinprecip
     !print*, 'upstream evaporation m3/s ..= ', RCHFLX_out(iens,segIndex)%basinevapo
     !print*, 'paraemters', RPARAM_in(segIndex)%D03_MaxStorage, RPARAM_in(segIndex)%D03_Coefficient, RPARAM_in(segIndex)%D03_Power, NETOPO_in(segIndex)%LakeTargVol, NETOPO_in(segIndex)%islake, NETOPO_in(segIndex)%LakeModelType
 
+
+    ! jump start the lake volume to the target volume if provided for the first time step
+    if ((is_vol_wm_jumpstart).and.(NETOPO_in(segIndex)%LakeTargVol).and.(iTime==1)) then
+      RCHFLX_out(iens,segIndex)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%REACH_WM_VOL ! update the initial condition with first target volume value
+    endif
 
     ! add upstream, precipitation and subtract evaporation from the lake volume
     RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(0) ! updating storage for current time
@@ -150,9 +172,18 @@ module lake_route_module
         case (1)
           ! the model is Doll03
           ! print*, "lake model is Doll 2003"
+
+          ! temporary solution, this should be removed if there is restart activated...
+          ! print*, iTime, 'iTime in the area'
+          ! if (iTIme == 1) then
+          !  RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RPARAM_in(segIndex)%D03_MaxStorage
+          !endif
+
+          ! The D03_Coefficient is based on d**-1 meaning the result will be m**3 d**-1 and should be converter to m**3 s**-1
           RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RPARAM_in(segIndex)%D03_Coefficient * RCHFLX_out(iens,segIndex)%REACH_VOL(1) * &
                                                    (RCHFLX_out(iens,segIndex)%REACH_VOL(1) / RPARAM_in(segIndex)%D03_MaxStorage) ** &
                                                    RPARAM_in(segIndex)%D03_Power! Q = AS(S/Smax)^B based on Eq. 1 Hanasaki et al., 2006 https://doi.org/10.1016/j.jhydrol.2005.11.011
+          RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF / secprday ! conversion to m**3 s**-1
           ! in case is the output volume is more than lake volume
           RCHFLX_out(iens,segIndex)%REACH_Q_IRF = (min(RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt, RCHFLX_out(iens,segIndex)%REACH_VOL(1)) )/dt
           ! updating the storage
@@ -292,7 +323,7 @@ module lake_route_module
             endif
           enddo
 
-          print*, 'start month', start_month
+          ! print*, 'start month', start_month
 
           ! find start of operational year (add hour 1 when run hourly?) Once determined, this E_release should be communicated to the next timestep.
           if (simDatetime(1)%month() == start_month .AND. simDatetime(1)%day() == 1 ) then
@@ -327,7 +358,7 @@ module lake_route_module
 
           ! make sure reservoir volume does not drop below dead storage
           if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) < (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead)) then
-            RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead - RCHFLX_out(iens,segIndex)%REACH_VOL(1) )/secprday
+            RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead - RCHFLX_out(iens,segIndex)%REACH_VOL(1) )/dt
             print*, 'below dead storage'
             ! set negative outflow to zero
             if (RCHFLX_out(iens,segIndex)%REACH_Q_IRF<0) then
@@ -337,7 +368,7 @@ module lake_route_module
           ! Account for spil overflow if reservoir is completely filled.
           else if (RCHFLX_out(iens,segIndex)%REACH_VOL(1) > RPARAM_in(segIndex)%H06_Smax) then
             print*, 'overflow evoked'
-            RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF + (RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RPARAM_in(segIndex)%H06_Smax)/ secprday
+            RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF + (RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RPARAM_in(segIndex)%H06_Smax)/ dt
           end if
 
           print*,'outflow ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
@@ -347,6 +378,73 @@ module lake_route_module
           ! print*, simDatetime(1)%month() ! month of the simulations
           ! print*, 'Hanasaki parameters'
           print*, RPARAM_in(segIndex)%H06_Smax, RPARAM_in(segIndex)%H06_alpha, RPARAM_in(segIndex)%H06_envfact, RPARAM_in(segIndex)%H06_S_ini, RPARAM_in(segIndex)%H06_c1, RPARAM_in(segIndex)%H06_c2, RPARAM_in(segIndex)%H06_exponent, RPARAM_in(segIndex)%H06_I_Feb, RPARAM_in(segIndex)%H06_D_Feb
+
+        case (3)
+          ! HYPE is called
+
+          ! update reach elevation
+          RCHFLX_out(iens,segIndex)%REACH_ELE = RCHFLX_out(iens,segIndex)%REACH_VOL(1) / RPARAM_in(segIndex)%HYP_A_avg + RPARAM_in(segIndex)%HYP_E_zero
+
+          ! caclulate the day of calendar from 1st of January of current simulation year; julian day - julian day of the first of January of current year
+          select case(trim(calendar))
+            case('noleap','365_day')
+              call compjulday(simDatetime(1)%year(),                     1,                   1,0,0,0._dp,Julian_day_start,ierr,cmessage)
+              call compjulday(simDatetime(1)%year(),simDatetime(1)%month(),simDatetime(1)%day(),0,0,0._dp,Julian_day_model,ierr,cmessage)
+            case ('standard','gregorian','proleptic_gregorian')
+              call compjulday_noleap(simDatetime(1)%year(),                     1,                   1,0,0,0._dp,Julian_day_start,ierr,cmessage)
+              call compjulday_noleap(simDatetime(1)%year(),simDatetime(1)%month(),simDatetime(1)%day(),0,0,0._dp,Julian_day_model,ierr,cmessage)
+            case default;    ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
+          end select
+          Day_of_year = Julian_day_model - Julian_day_start + 1 ! the day of the year
+
+          ! calculation of Fsin; sinusoidal aplication of flow
+          F_sin = max(0._dp,(1+RPARAM_in(segIndex)%HYP_Qrate_amp*sin(2*pi*(Day_of_year+RPARAM_in(segIndex)%HYP_Qrate_phs)/365)))
+          ! calculation of Flin; linear change in flow realted to the storage
+          F_lin = min(max((RCHFLX_out(iens,segIndex)%REACH_ELE-RPARAM_in(segIndex)%HYP_E_min)/(RPARAM_in(segIndex)%HYP_E_lim-RPARAM_in(segIndex)%HYP_E_min),0._dp),1._dp)
+          ! flag for the model simulation in which is located in the area
+          F_prim = 0
+          if (RPARAM_in(segIndex)%HYP_prim_F) then
+            F_prim = 1
+          end if
+
+
+          print*, 'HYP_E_emr .......= ', RPARAM_in(segIndex)%HYP_E_emr
+          print*, 'HYP_E_lim .......= ', RPARAM_in(segIndex)%HYP_E_lim
+          print*, 'HYP_E_min .......= ', RPARAM_in(segIndex)%HYP_E_min
+          print*, 'HYP_E_zero ......= ', RPARAM_in(segIndex)%HYP_E_zero
+          print*, 'HYP_Qrate_emr ...= ', RPARAM_in(segIndex)%HYP_Qrate_emr
+          print*, 'HYP_Erate_emr ...= ', RPARAM_in(segIndex)%HYP_Erate_emr
+          print*, 'HYP_Qrate_prim ..= ', RPARAM_in(segIndex)%HYP_Qrate_prim
+          print*, 'HYP_Qrate_amp ...= ', RPARAM_in(segIndex)%HYP_Qrate_amp
+          print*, 'HYP_Qrate_phs ...= ', RPARAM_in(segIndex)%HYP_Qrate_phs
+          print*, 'HYP_prim_F ......= ', RPARAM_in(segIndex)%HYP_prim_F
+          print*, 'HYP_A_avg .......= ', RPARAM_in(segIndex)%HYP_A_avg
+
+
+          print*, 'F_sin ...........= ', F_sin
+          print*, 'F_lin ...........= ', F_lin
+          print*, 'F_prim ..........= ', F_prim
+
+          ! Q_main
+          Q_prim = F_sin * F_lin * F_prim * RPARAM_in(segIndex)%HYP_Qrate_prim
+          ! Q_spill
+          Q_spill = 0._dp
+          if (RCHFLX_out(iens,segIndex)%REACH_ELE > RPARAM_in(segIndex)%HYP_E_emr) then
+            Q_spill = RPARAM_in(segIndex)%HYP_Qrate_emr * (RCHFLX_out(iens,segIndex)%REACH_ELE - RPARAM_in(segIndex)%HYP_E_emr)**RPARAM_in(segIndex)%HYP_Erate_emr
+          end if
+          ! Q_sim
+          Q_sim = Q_prim + Q_spill
+          !! original implementation picks the maximume value of output from primary spillway and emergency spillway
+          Q_sim = max(Q_prim, Q_spill)
+
+          print*, 'Q_prim  ..= ', Q_prim
+          print*, 'Q_spill ..= ', Q_spill
+
+          ! check if the output is not more than the existing stored water
+          RCHFLX_out(iens,segIndex)%REACH_Q_IRF = min (Q_sim, max(0._dp,(RCHFLX_out(iens,segIndex)%REACH_ELE-RPARAM_in(segIndex)%HYP_E_min)*RPARAM_in(segIndex)%HYP_A_avg)/dt)
+
+          ! update the storage
+          RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt
 
         case default; ierr=20; message=trim(message)//'unable to identify the parametric lake model type'; return
       end select
@@ -365,7 +463,8 @@ module lake_route_module
     !print*, 'water balance error ........= ', WB
     !endif
 
-    if(lakeWBTol<WB)then;
+    !if(lakeWBTol<WB)then;
+    if(1<WB) then;
       ! NOTE: The lake discharge and storage need to be solved iterative way to reduce water balance error
       write(iulog,*) 'Water balance for lake ID = ', NETOPO_in(segIndex)%REACHID, ' excees the Tolerance'
       write(iulog,'(A,1PG15.7)') 'WBerr [m3]       = ', WB

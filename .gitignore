@@ -58,6 +58,9 @@ manage_externals.log
 /cime/
 
 # External library build artifacts
+/libraries
+/route/build/lib
+
 /route/build/lib/mpi-seriallib/*.h
 /route/build/lib/mpi-seriallib/Makefile*
 
