@@ -1,17 +1,18 @@
 module main_route_module
 
 ! variable types
-USE nrtype                                                  ! variable types, etc.
+USE nrtype                                                 ! variable types, etc.
 
 ! mapping HRU runoff to reach
 USE remapping,           only : basin2reach
 ! subroutines: basin routing
-USE basinUH_module,      only : IRF_route_basin             ! perform UH convolution for basin routing
+USE basinUH_module,      only : IRF_route_basin            ! perform UH convolution for basin routing
 
 ! subroutines: river routing
-USE accum_runoff_module, only : accum_runoff                ! upstream flow accumulation
-USE kwt_route_module,    only : kwt_route                  ! kinematic wave routing method
+USE accum_runoff_module, only : accum_runoff               ! upstream flow accumulation
+USE kwt_route_module,    only : kwt_route                  ! lagrangian kinematic wave routing method
 USE irf_route_module,    only : irf_route                  ! unit hydrograph (impulse response function) routing method
+USE mc_route_module,     only : mc_route                   ! muskingum-cunge routing method
 
 implicit none
 
@@ -161,6 +162,24 @@ contains
     call system_clock(endTime)
     elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
     write(*,"(A,1PG15.7,A)") '      elapsed-time [irf_route] = ', elapsedTime, ' s'
+   endif
+
+   ! perform MC routing
+   if (routOpt==muskingumCunge) then
+    call system_clock(startTime)
+    call mc_route(iens,                & ! input: ensemble index
+                  river_basin,         & ! input: river basin data type
+                  T0,T1,               & ! input: start and end of the time step
+                  ixPrint,             & ! input: index of the desired reach
+                  NETOPO,              & ! input: reach topology data structure
+                  RPARAM,              & ! input: reach parameter data structure
+                  RCHSTA,              & ! inout: reach state data structure
+                  RCHFLX,              & ! inout: reach flux data structure
+                  ierr,cmessage)         ! output: error control
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call system_clock(endTime)
+    elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+    write(*,"(A,1PG15.7,A)") '      elapsed-time [mc_route] = ', elapsedTime, ' s'
    endif
 
  end subroutine main_route

@@ -158,6 +158,7 @@ CORE = \
     basinUH.f90 \
     irf_route.f90 \
     kwt_route.f90 \
+    mc_route.f90 \
     main_route.f90 \
     model_setup.f90
 

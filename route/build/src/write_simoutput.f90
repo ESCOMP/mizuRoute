@@ -93,14 +93,17 @@ CONTAINS
   endif
 
   if (meta_rflx(ixRFLX%KWTroutedRunoff)%varFile) then
-   ! write routed runoff (m3/s)
    call write_nc(simout_nc%ncid, 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,jTime/), (/nRch,1/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%IRFroutedRunoff)%varFile) then
-   ! write routed runoff (m3/s)
    call write_nc(simout_nc%ncid, 'IRFroutedRunoff', RCHFLX(iens,:)%REACH_Q_IRF, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+  if (meta_rflx(ixRFLX%MCroutedRunoff)%varFile) then
+   call write_nc(simout_nc%ncid, 'MCroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,jTime/), (/nRch,1/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
@@ -241,20 +244,28 @@ CONTAINS
  meta_qDims(ixQdims%hru)%dimLength = nHRU_in
  meta_qDims(ixQdims%ens)%dimLength = nEns_in
 
- ! Modify write option
- ! Routing option
- if (routOpt==kinematicWaveTracking) then
-  meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
- elseif (routOpt==impulseResponseFunc) then
-  meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
- endif
+ ! Make sure to turn off write option for routines not used
+ ! Routing options
+ ! ----- this (allRoutingMethods) is to be removed
+ if (routOpt==allRoutingMethods) then
+    meta_rflx(ixRFLX%MCroutedRunoff)%varFile = .false.
+    meta_rflx(ixRFLX%KWroutedRunoff)%varFile = .false.
+    meta_rflx(ixRFLX%DWroutedRunoff)%varFile = .false.
+ end if
+ ! ----- this (allRoutingMethods) is to be removed
+ if (routOpt/=kinematicWaveTracking) meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
+ if (routOpt/=impulseResponseFunc) meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
+ if (routOpt/=muskingumCunge) meta_rflx(ixRFLX%MCroutedRunoff)%varFile = .false.
+ if (routOpt/=kinematicWave) meta_rflx(ixRFLX%KWroutedRunoff)%varFile = .false.
+ if (routOpt/=diffusiveWave) meta_rflx(ixRFLX%DWroutedRunoff)%varFile = .false.
+
  ! runoff accumulation option
  if (doesAccumRunoff==0) then
-  meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile = .false.
+   meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile = .false.
  endif
  ! basin runoff routing option
  if (doesBasinRoute==0) then
-  meta_rflx(ixRFLX%instRunoff)%varFile = .false.
+   meta_rflx(ixRFLX%instRunoff)%varFile = .false.
  endif
 
  ! --------------------

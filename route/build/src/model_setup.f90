@@ -235,6 +235,7 @@ CONTAINS
   USE public_var,    ONLY : diffusiveWave
   USE public_var,    ONLY : fname_state_in    ! name of state input file
   USE public_var,    ONLY : restart_dir       ! directory containing output data
+  USE globalData,    ONLY : nMolecule         ! number of computational molecule for finite difference
   USE globalData,    ONLY : RCHFLX            ! reach flux structure
   USE globalData,    ONLY : RCHSTA            ! reach restart state structure
   USE globalData,    ONLY : TSEC              ! begining/ending of simulation time step [sec]
@@ -246,7 +247,6 @@ CONTAINS
   character(*),        intent(out) :: message          ! error message
   ! local variable
   real(dp)                         :: T0,T1            ! begining/ending of simulation time step [sec]
-  integer(i4b)                     :: nMolecule        ! number of computational molecule (used for KW, LKW, MC, DW)
   integer(i4b)                     :: iens             ! ensemble index (currently only 1)
   integer(i4b)                     :: ix               ! loop index
   character(len=strLen)            :: cmessage         ! error message of downwind routine
