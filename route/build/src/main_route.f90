@@ -1,17 +1,16 @@
 module main_route_module
 
-! variable types
 USE nrtype                                                 ! variable types, etc.
 
 ! mapping HRU runoff to reach
 USE remapping,           only : basin2reach
 ! subroutines: basin routing
 USE basinUH_module,      only : IRF_route_basin            ! perform UH convolution for basin routing
-
 ! subroutines: river routing
 USE accum_runoff_module, only : accum_runoff               ! upstream flow accumulation
 USE kwt_route_module,    only : kwt_route                  ! lagrangian kinematic wave routing method
 USE irf_route_module,    only : irf_route                  ! unit hydrograph (impulse response function) routing method
+USE kw_route_module,     only : kw_route                   ! kinematic routing method
 USE mc_route_module,     only : mc_route                   ! muskingum-cunge routing method
 
 implicit none
@@ -130,7 +129,7 @@ contains
      write(*,"(A,1PG15.7,A)") '      elapsed-time [accum_runoff] = ', elapsedTime, ' s'
    endif
 
-   ! perform KWT routing
+   ! Lagrangian kinematic wave option
    if (routOpt==allRoutingMethods .or. routOpt==kinematicWaveTracking) then
     call system_clock(startTime)
     call kwt_route(iens,                 & ! input: ensemble index
@@ -148,7 +147,7 @@ contains
     write(*,"(A,1PG15.7,A)") '      elapsed-time [kwt_route] = ', elapsedTime, ' s'
    endif
 
-   ! perform IRF routing
+   ! unit-hydrograph routing option
    if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
     call system_clock(startTime)
     call irf_route(iens,                & ! input: ensemble index
@@ -164,7 +163,25 @@ contains
     write(*,"(A,1PG15.7,A)") '      elapsed-time [irf_route] = ', elapsedTime, ' s'
    endif
 
-   ! perform MC routing
+   ! kinematic wave routing option
+   if (routOpt==kinematicWave) then
+    call system_clock(startTime)
+    call kw_route(iens,                & ! input: ensemble index
+                  river_basin,         & ! input: river basin data type
+                  T0,T1,               & ! input: start and end of the time step
+                  ixPrint,             & ! input: index of the desired reach
+                  NETOPO,              & ! input: reach topology data structure
+                  RPARAM,              & ! input: reach parameter data structure
+                  RCHSTA,              & ! inout: reach state data structure
+                  RCHFLX,              & ! inout: reach flux data structure
+                  ierr,cmessage)         ! output: error control
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call system_clock(endTime)
+    elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+    write(*,"(A,1PG15.7,A)") '      elapsed-time [kw_route] = ', elapsedTime, ' s'
+   endif
+
+   ! muskingum-cunge option
    if (routOpt==muskingumCunge) then
     call system_clock(startTime)
     call mc_route(iens,                & ! input: ensemble index

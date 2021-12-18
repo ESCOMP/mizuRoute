@@ -294,6 +294,11 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
+ if (opt==kinematicWave) then
+   call define_KW_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
  if (opt==muskingumCunge) then
    call define_MC_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -356,7 +361,7 @@ CONTAINS
    ! local
    integer(i4b)                      :: iVar,ixDim    ! index loop for variables
    integer(i4b)                      :: nDims         ! number of dimensions
-   character(len=strLen),allocatable :: dim_basinQ(:) ! dimensions combination
+   character(len=strLen),allocatable :: dim_set(:)    ! dimensions combination
 
    ! initialize error control
    ierr=0; message1='define_basinQ_state/'
@@ -366,14 +371,14 @@ CONTAINS
 
    do iVar=1,nVarsBasinQ
      nDims = size(meta_basinQ(iVar)%varDim)
-     if (allocated(dim_basinQ)) deallocate(dim_basinQ)
-     allocate(dim_basinQ(nDims))
+     if (allocated(dim_set)) deallocate(dim_set)
+     allocate(dim_set(nDims))
 
      do ixDim = 1, nDims
-       dim_basinQ(ixDim) = meta_stateDims(meta_basinQ(iVar)%varDim(ixDim))%dimName
+       dim_set(ixDim) = meta_stateDims(meta_basinQ(iVar)%varDim(ixDim))%dimName
      end do
 
-     call def_var(ncid, meta_basinQ(iVar)%varName, dim_basinQ, meta_basinQ(iVar)%varType, ierr, cmessage, vdesc=meta_basinQ(iVar)%varDesc, vunit=meta_basinQ(iVar)%varUnit )
+     call def_var(ncid, meta_basinQ(iVar)%varName, dim_set, meta_basinQ(iVar)%varType, ierr, cmessage, vdesc=meta_basinQ(iVar)%varDesc, vunit=meta_basinQ(iVar)%varUnit )
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
    end do
   end associate
@@ -394,7 +399,7 @@ CONTAINS
    ! local
    integer(i4b)                      :: iVar,ixDim    ! index loop for variables
    integer(i4b)                      :: nDims         ! number of dimensions
-   character(len=strLen),allocatable :: dim_IRFbas(:) ! dimensions combination case 4
+   character(len=strLen),allocatable :: dim_set(:)    ! dimensions combination case 4
 
    ierr=0; message1='define_IRFbas_state/'
 
@@ -413,14 +418,14 @@ CONTAINS
 
    do iVar=1,nVarsIRFbas
      nDims = size(meta_irf_bas(iVar)%varDim)
-     if (allocated(dim_IRFbas)) deallocate(dim_IRFbas)
-     allocate(dim_IRFbas(nDims))
+     if (allocated(dim_set)) deallocate(dim_set)
+     allocate(dim_set(nDims))
 
      do ixDim = 1, nDims
-       dim_IRFbas(ixDim) = meta_stateDims(meta_irf_bas(iVar)%varDim(ixDim))%dimName
+       dim_set(ixDim) = meta_stateDims(meta_irf_bas(iVar)%varDim(ixDim))%dimName
      end do
 
-     call def_var(ncid, meta_irf_bas(iVar)%varName, dim_IRFbas, meta_irf_bas(iVar)%varType, ierr, cmessage, vdesc=meta_irf_bas(iVar)%varDesc, vunit=meta_irf_bas(iVar)%varUnit )
+     call def_var(ncid, meta_irf_bas(iVar)%varName, dim_set, meta_irf_bas(iVar)%varType, ierr, cmessage, vdesc=meta_irf_bas(iVar)%varDesc, vunit=meta_irf_bas(iVar)%varUnit )
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
    end do
   end associate
@@ -441,7 +446,7 @@ CONTAINS
    ! local
    integer(i4b)                      :: iVar,ixDim  ! index loop for variables
    integer(i4b)                      :: nDims       ! number of dimensions
-   character(len=strLen),allocatable :: dim_kwt(:)  ! dimensions combination case 4
+   character(len=strLen),allocatable :: dim_set(:)  ! dimensions combination case 4
 
    ierr=0; message1='define_KWT_state/'
 
@@ -464,14 +469,14 @@ CONTAINS
 
    do iVar=1,nVarsKWT
      nDims = size(meta_kwt(iVar)%varDim)
-     if (allocated(dim_kwt)) deallocate(dim_kwt)
-     allocate(dim_kwt(nDims))
+     if (allocated(dim_set)) deallocate(dim_set)
+     allocate(dim_set(nDims))
 
      do ixDim = 1, nDims
-       dim_kwt(ixDim) = meta_stateDims(meta_kwt(iVar)%varDim(ixDim))%dimName
+       dim_set(ixDim) = meta_stateDims(meta_kwt(iVar)%varDim(ixDim))%dimName
      end do
 
-     call def_var(ncid, meta_kwt(iVar)%varName, dim_kwt, meta_kwt(iVar)%varType, ierr, cmessage, vdesc=meta_kwt(iVar)%varDesc, vunit=meta_kwt(iVar)%varUnit)
+     call def_var(ncid, meta_kwt(iVar)%varName, dim_set, meta_kwt(iVar)%varType, ierr, cmessage, vdesc=meta_kwt(iVar)%varDesc, vunit=meta_kwt(iVar)%varUnit)
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
    end do
 
@@ -493,7 +498,7 @@ CONTAINS
    ! local
    integer(i4b)                      :: iVar,ixDim  ! index loop for variables
    integer(i4b)                      :: nDims       ! number of dimensions
-   character(len=strLen),allocatable :: dim_irf(:)  ! dimensions combination case 4
+   character(len=strLen),allocatable :: dim_set(:)  ! dimensions combination case 4
 
    ierr=0; message1='define_IRF_state/'
 
@@ -516,20 +521,70 @@ CONTAINS
 
    do iVar=1,nVarsIRF
      nDims = size(meta_irf(iVar)%varDim)
-     if (allocated(dim_irf)) deallocate(dim_irf)
-     allocate(dim_irf(nDims))
+     if (allocated(dim_set)) deallocate(dim_set)
+     allocate(dim_set(nDims))
 
      do ixDim = 1, nDims
-       dim_irf(ixDim) = meta_stateDims(meta_irf(iVar)%varDim(ixDim))%dimName
+       dim_set(ixDim) = meta_stateDims(meta_irf(iVar)%varDim(ixDim))%dimName
      end do
 
-     call def_var(ncid, meta_irf(iVar)%varName, dim_irf, meta_irf(iVar)%varType, ierr, cmessage, vdesc=meta_irf(iVar)%varDesc, vunit=meta_irf(iVar)%varUnit)
+     call def_var(ncid, meta_irf(iVar)%varName, dim_set, meta_irf(iVar)%varType, ierr, cmessage, vdesc=meta_irf(iVar)%varDesc, vunit=meta_irf(iVar)%varUnit)
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
    end do
 
    end associate
 
   END SUBROUTINE define_IRF_state
+
+
+  SUBROUTINE define_KW_state(ierr, message1)
+
+   USE globalData, ONLY: meta_kw
+   USE var_lookup, ONLY: ixKW, nVarsKW
+
+   implicit none
+
+   ! output
+   integer(i4b), intent(out)         :: ierr        ! error code
+   character(*), intent(out)         :: message1    ! error message
+   ! local
+   integer(i4b)                      :: iVar,ixDim  ! index loop for variables
+   integer(i4b)                      :: nDims       ! number of dimensions
+   character(len=strLen),allocatable :: dim_set(:)  ! dimensions combination
+
+   ierr=0; message1='define_KW_state/'
+
+   associate(dim_seg  => meta_stateDims(ixStateDims%seg)%dimName,     &
+             dim_ens  => meta_stateDims(ixStateDims%ens)%dimName,     &
+             dim_mesh => meta_stateDims(ixStateDims%fdmesh)%dimName)
+
+   ! Check dimension length is populated
+   if (meta_stateDims(ixStateDims%fdmesh)%dimLength == integerMissing) then
+     call set_dim_len(ixStateDims%fdmesh, ierr, cmessage)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%fdmesh)%dimName); return; endif
+   end if
+
+   ! Define dimension needed for this routing specific state variables
+   call def_dim(ncid, meta_stateDims(ixStateDims%fdmesh)%dimName, meta_stateDims(ixStateDims%fdmesh)%dimLength, meta_stateDims(ixStateDims%fdmesh)%dimId, ierr, cmessage)
+   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+   do iVar=1,nVarsKW
+     nDims = size(meta_kw(iVar)%varDim)
+     if (allocated(dim_set)) deallocate(dim_set)
+     allocate(dim_set(nDims))
+
+     do ixDim = 1, nDims
+       dim_set(ixDim) = meta_stateDims(meta_kw(iVar)%varDim(ixDim))%dimName
+     end do
+
+     call def_var(ncid, meta_kw(iVar)%varName, dim_set, meta_kw(iVar)%varType, ierr, cmessage, vdesc=meta_kw(iVar)%varDesc, vunit=meta_kw(iVar)%varUnit)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+   end do
+
+   end associate
+
+  END SUBROUTINE define_KW_state
+
 
   SUBROUTINE define_MC_state(ierr, message1)
 
@@ -544,7 +599,7 @@ CONTAINS
    ! local
    integer(i4b)                      :: iVar,ixDim  ! index loop for variables
    integer(i4b)                      :: nDims       ! number of dimensions
-   character(len=strLen),allocatable :: dim_mc(:)   ! dimensions combination case 4
+   character(len=strLen),allocatable :: dim_set(:)   ! dimensions combination case 4
 
    ierr=0; message1='define_MC_state/'
 
@@ -564,14 +619,14 @@ CONTAINS
 
    do iVar=1,nVarsMC
      nDims = size(meta_mc(iVar)%varDim)
-     if (allocated(dim_mc)) deallocate(dim_mc)
-     allocate(dim_mc(nDims))
+     if (allocated(dim_set)) deallocate(dim_set)
+     allocate(dim_set(nDims))
 
      do ixDim = 1, nDims
-       dim_mc(ixDim) = meta_stateDims(meta_mc(iVar)%varDim(ixDim))%dimName
+       dim_set(ixDim) = meta_stateDims(meta_mc(iVar)%varDim(ixDim))%dimName
      end do
 
-     call def_var(ncid, meta_mc(iVar)%varName, dim_mc, meta_mc(iVar)%varType, ierr, cmessage, vdesc=meta_mc(iVar)%varDesc, vunit=meta_mc(iVar)%varUnit)
+     call def_var(ncid, meta_mc(iVar)%varName, dim_set, meta_mc(iVar)%varType, ierr, cmessage, vdesc=meta_mc(iVar)%varDesc, vunit=meta_mc(iVar)%varUnit)
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
    end do
 
@@ -643,6 +698,11 @@ CONTAINS
 
  if (opt==allRoutingMethods .or. opt==kinematicWaveTracking)then
    call write_KWT_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
+ if (opt==kinematicWave)then
+   call write_KW_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
@@ -934,6 +994,67 @@ CONTAINS
   end associate
 
   END SUBROUTINE write_IRF_state
+
+  ! KW writing procedures
+  SUBROUTINE write_KW_state(ierr, message1)
+
+    USE globalData,   ONLY: meta_kw
+    USE var_lookup,   ONLY: ixKW, nVarsKW
+
+    implicit none
+
+    ! output
+    integer(i4b), intent(out)  :: ierr            ! error code
+    character(*), intent(out)  :: message1        ! error message
+    ! local variables
+    type(states)               :: state           ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
+    integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
+
+    ierr=0; message1='write_KW_state/'
+
+    associate(nSeg  => size(RCHFLX),                         &
+              nEns  => meta_stateDims(ixStateDims%ens)%dimLength,  &
+              nMesh => meta_stateDims(ixStateDims%fdmesh)%dimLength) ! number of computing molecule used for finite difference
+
+    allocate(state%var(nVarsKW), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+    do iVar=1,nVarsKW
+      select case(iVar)
+       case(ixKW%qsub)
+        allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
+       case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
+      end select
+      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for KW routing state '//trim(meta_kw(iVar)%varName); return; endif
+    end do
+
+    ! --Convert data structures to arrays
+    do iens=1,nEns
+      do iSeg=1,nSeg
+        do iVar=1,nVarsKW
+          select case(iVar)
+            case(ixKW%qsub)
+              state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA(iens, iSeg)%molecule%Q(1:nMesh)
+            case default; ierr=20; message1=trim(message1)//'unable to identify KW routing state variable index'; return
+          end select
+        enddo ! variable loop
+      enddo ! seg loop
+    enddo ! ensemble loop
+
+    ! Writing netCDF
+    do iVar=1,nVarsKW
+      select case(iVar)
+       case(ixKW%qsub)
+         call write_nc(ncid, trim(meta_kw(iVar)%varName), state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nMesh,nens/), ierr, cmessage)
+       case default; ierr=20; message1=trim(message1)//'unable to identify KW variable index for nc writing'; return
+      end select
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+    end do
+
+    end associate
+
+  END SUBROUTINE write_KW_state
 
   ! MC writing procedures
   SUBROUTINE write_MC_state(ierr, message1)
