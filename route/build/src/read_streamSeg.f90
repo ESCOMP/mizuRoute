@@ -111,6 +111,7 @@ subroutine getData(&
   integer(i4b)                                 :: number_Hanasaki         ! number of lakes with parameteric Hanasaki 2006 formulation
   integer(i4b)                                 :: number_HYPE             ! number of lakes with parameteric Hanasaki 2006 formulation
   integer(i4b)                                 :: number_TargVol          ! number of lakes with target volume
+  integer(i4b),              allocatable       :: lake_type               ! lake type array
 
   ierr=0; message='getData/'
 
@@ -164,10 +165,33 @@ subroutine getData(&
 
   ! set flags if we simulate lake and need lake parameters; was set to false in pop_metadata.f90
   if(is_lake_sim)then
+
     meta_NTOPO(ixNTOPO%islake)%varFile          = .true.    ! if the object is lake should be provided
-    if ((lake_model_D03).or.(lake_model_H06).or.(lake_model_HYPE)) then
-      meta_NTOPO(ixNTOPO%lakeModelType)%varFile = .true.    ! lake model type varibale should be provided
-    endif
+    meta_NTOPO(ixNTOPO%lakeModelType)%varFile   = .true.    ! if the object is lake, lake type should be provided
+
+    ! get the netCDF variable ID and read lake type
+    varName = trim(meta_NTOPO(ixNTOPO%lakeModelType)%varName
+    ierr = nf90_inq_varid(ncid, varName, ivarID)
+    if(ierr/=0)then; ierr=20; message=trim(message)//'problem reading varibale ID for lakeModelType'; return; endif
+    ! get the ID of the stream segment dimension
+    ierr = nf90_inq_dimid(ncid, dname_sseg, idimID_sseg)
+    ierr = nf90_inquire_dimension(ncid, idimID_sseg, len=nRch_in)
+    if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating temporary vectors'; return; endif
+    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; name='//trim(varName); return; endif
+    allocate (lake_type(nRch_in), stat=ierr)
+    ierr = nf90_get_var(ncid, ivarID, lake_type)
+    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; varname='//trim(varName); return; endif
+
+    ! check the lake type and
+    do i = 1, size(lake_type)
+      select case(LakeModelType_local(i))
+        case(1); lake_model_D03     = .true. ! add number of Doll lakes
+        case(2); lake_model_HYPE    = .true. ! add number of Hanasaki lakes
+        case(3); lake_model_H06     = .true. ! add number of HYPE lakes
+        case default; ierr=20; message=trim(message)//'unable to identify the lake model type'; return
+      end select
+    end do
+
     if (is_vol_wm) then
       meta_NTOPO(ixNTOPO%LakeTargVol)%varFile   = .true.    ! if target volume flag is on, varibale should be provided
     endif
