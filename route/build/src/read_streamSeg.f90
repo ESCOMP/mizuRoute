@@ -101,11 +101,11 @@ subroutine getData(&
   integer(i4b),              allocatable       :: islake_local(:)         ! local array to save islake flag
   integer(i4b),              allocatable       :: LakeTargVol_local(:)    ! local array to save LakeTargetVol flag
   integer(i4b),              allocatable       :: LakeModelType_local(:)  ! local array to save LakeModelType flag
-  logical(lgt)                                 :: Doll_is_called          ! if Doll model is called in lake type varibale
-  logical(lgt)                                 :: Hanasaki_is_called      ! if Hanasaki model is called in lake type varibale
-  logical(lgt)                                 :: HYPE_is_called          ! if HYPE model is called in lake type varibale
+  ! logical(lgt)                                 :: Doll_is_called          ! if Doll model is called in lake type varibale
+  ! logical(lgt)                                 :: Hanasaki_is_called      ! if Hanasaki model is called in lake type varibale
+  ! logical(lgt)                                 :: HYPE_is_called          ! if HYPE model is called in lake type varibale
   integer(i4b)                                 :: i                       ! counter
-  logical(lgt)                                 :: lake_model_conflict     ! if both parameteric model and non parameteric models are on for a lake
+  !logical(lgt)                                 :: lake_model_conflict     ! if both parameteric model and non parameteric models are on for a lake
   integer(i4b)                                 :: number_lakes            ! number of lakes in network topology
   integer(i4b)                                 :: number_Endorheic        ! number of Endorheic lakes
   integer(i4b)                                 :: number_Doll             ! number of lakes with parameteric Doll 2003 formulation
@@ -218,26 +218,38 @@ subroutine getData(&
     number_HYPE       =  0
     number_TargVol    =  0
 
+    !is_flux_wm
+    !is_vol_wm
+
     ! specifying which lake models are called and if there is conflict between lake model type and data driven flag
     do i = 1, size(islake_local)
       if (islake_local(i) == 1) then ! if the segement is flagged as lake
         number_lakes = number_lakes + 1 ! total number of lakes
-        ! check if the lakes are data driven or parameteric
-        if (LakeTargVol_local(i) /= 1) then ! if lake is not target volume then it should be parametertic
+        if (is_vol_wm) then
+          if (LakeTargVol_local(i) == 1) then ! if lake is not target volume then it should be parametertic
+            number_TargVol = number_TargVol + 1 ! add number of target volume case
+            select case(LakeModelType_local(i))
+              case(0); ierr=20; message=trim(message)//'both data driven (follow target volume) and Endorheic lake are activated for a lake'; return
+              case(1); ierr=20; message=trim(message)//'both data driven (follow target volume) and Doll lake formulation are activated for a lake'; return
+              case(2); ierr=20; message=trim(message)//'both data driven (follow target volume) and Hanasaki lake formulation are activated for a lake'; return
+              case(3); ierr=20; message=trim(message)//'both data driven (follow target volume) and HYPY lake formulation are activated for a lake'; return
+            end select
+          else
+            select case(LakeModelType_local(i))
+              case(0);                              number_Endorheic = number_Endorheic + 1; ! add number of Endorheic lakes
+              case(1); lake_model_D03     = .true.; number_Doll      = number_Doll      + 1; ! add number of Doll lakes
+              case(2); lake_model_H06     = .true.; number_Hanasaki  = number_Hanasaki  + 1; ! add number of Hanasaki lakes
+              case(3); lake_model_HYPE    = .true.; number_HYPE      = number_HYPE      + 1; ! add number of HYPE lakes
+              case default; ierr=20; message=trim(message)//'unable to identify the lake model type'; return
+            end select
+          endif
+        else
           select case(LakeModelType_local(i))
             case(0);                              number_Endorheic = number_Endorheic + 1; ! add number of Endorheic lakes
-            case(1); Doll_is_called     = .true.; number_Doll      = number_Doll      + 1; ! add number of Doll lakes
-            case(2); Hanasaki_is_called = .true.; number_Hanasaki  = number_Hanasaki  + 1; ! add number of Hanasaki lakes
-            case(3); HYPE_is_called     = .true.; number_HYPE      = number_HYPE      + 1; ! add number of HYPE lakes
+            case(1); lake_model_D03     = .true.; number_Doll      = number_Doll      + 1; ! add number of Doll lakes
+            case(2); lake_model_H06     = .true.; number_Hanasaki  = number_Hanasaki  + 1; ! add number of Hanasaki lakes
+            case(3); lake_model_HYPE    = .true.; number_HYPE      = number_HYPE      + 1; ! add number of HYPE lakes
             case default; ierr=20; message=trim(message)//'unable to identify the lake model type'; return
-          end select
-        else ! if for a lake both parameteric and non parameteric are set to correct
-          number_TargVol = number_TargVol + 1 ! add number of target volume case
-          select case(LakeModelType_local(i))
-            case(0); ierr=20; message=trim(message)//'both data driven (follow target volume) and Endorheic lake are activated for a lake'; return
-            case(1); ierr=20; message=trim(message)//'both data driven (follow target volume) and Doll lake formulation are activated for a lake'; return
-            case(2); ierr=20; message=trim(message)//'both data driven (follow target volume) and Hanasaki lake formulation are activated for a lake'; return
-            case(3); ierr=20; message=trim(message)//'both data driven (follow target volume) and HYPY lake formulation are activated for a lake'; return
           end select
         endif
       endif
