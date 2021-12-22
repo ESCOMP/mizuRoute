@@ -355,7 +355,7 @@ contains
      end if
    end do
 
-   Q(1,1) = sum(QoutLocal(1:nTsub))/nTsub
+   Q(1,1) = QoutLocal(nTsub)
 
  else ! if head-water
 
