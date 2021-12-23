@@ -202,8 +202,11 @@ contains
                      RCHSTA_out(iens,segIndex),   &    ! inout:
                      RCHFLX_out(iens,segIndex),   &    ! inout: updated fluxes at reach
                      doCheck,                     &    ! input: reach index to be examined
-                     ierr, message)                    ! output: error control
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+                     ierr, cmessage)                   ! output: error control
+ if(ierr/=0)then
+    write(message, '(A,X,I10,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage)
+    return
+ endif
 
  if(doCheck)then
   write(iulog,'(A,X,G12.5)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%REACH_Q
@@ -263,13 +266,11 @@ contains
  real(dp)                                 :: dX           ! length of segment [m]
  real(dp)                                 :: Q(0:1,0:1)   !
  real(dp)                                 :: Qtrial(2)    ! trial solution of kw equation
- real(dp)                                 :: Abar         !
  real(dp)                                 :: Qbar         !
  real(dp)                                 :: absErr(2)    ! absolute error of nonliear equation solution
  real(dp)                                 :: f0eval(2)    !
  integer(i4b)                             :: imin         ! index at minimum value
  integer(i4b)                             :: ix           ! loop index
- character(len=strLen)                    :: cmessage     ! error message from subroutine
 
  ierr=0; message='kinematic_wave/'
 
