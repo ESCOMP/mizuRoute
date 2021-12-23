@@ -102,6 +102,11 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
+  if (meta_rflx(ixRFLX%KWroutedRunoff)%varFile) then
+   call write_nc(simout_nc%ncid, 'KWroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
   if (meta_rflx(ixRFLX%MCroutedRunoff)%varFile) then
    call write_nc(simout_nc%ncid, 'MCroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,jTime/), (/nRch,1/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -246,13 +251,13 @@ CONTAINS
 
  ! Make sure to turn off write option for routines not used
  ! Routing options
- ! ----- this (allRoutingMethods) is to be removed
+ ! ----- beg: this (allRoutingMethods) is to be removed
  if (routOpt==allRoutingMethods) then
     meta_rflx(ixRFLX%MCroutedRunoff)%varFile = .false.
     meta_rflx(ixRFLX%KWroutedRunoff)%varFile = .false.
     meta_rflx(ixRFLX%DWroutedRunoff)%varFile = .false.
  end if
- ! ----- this (allRoutingMethods) is to be removed
+ ! ----- end: this (allRoutingMethods) is to be removed
  if (routOpt/=kinematicWaveTracking) meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
  if (routOpt/=impulseResponseFunc) meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
  if (routOpt/=muskingumCunge) meta_rflx(ixRFLX%MCroutedRunoff)%varFile = .false.
