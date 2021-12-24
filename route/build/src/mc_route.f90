@@ -322,13 +322,12 @@ contains
    allocate(QoutLocal(0:ntSub), QinLocal(0:ntSub), stat=ierr, errmsg=cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    QoutLocal(:) = realMissing
-   QoutLocal(0) = Q(0,1)
-   QinLocal(:)  = realMissing
-   QinLocal(0)  = Q(0,0)
+   QoutLocal(0) = Q(0,1)        ! outfloe last time step
+   QinLocal(0)  = Q(0,0)        ! inflow at last time step
+   QinLocal(1:ntSub)  = Q(1,0)  ! infllow at sub-time step in current time step
 
    ! solve outflow at each sub time step
    do ix = 1, nTsub
-     QinLocal(ix) = Q(0,0)+(Q(1,0)-Q(0,0))*(ix)/nTsub
 
      Qbar = (QinLocal(ix)+QinLocal(ix-1)+QoutLocal(ix-1))/3.0 ! 3 point average discharge [m3/s]
      Abar = (Qbar/alpha)**(1/beta)                            ! flow area [m2] (manning equation)
@@ -355,7 +354,7 @@ contains
      end if
    end do
 
-   Q(1,1) = QoutLocal(nTsub)
+   Q(1,1) = sum(QoutLocal(1:nTsub))/real(nTsub,kind=dp)
 
  else ! if head-water
 
