@@ -111,15 +111,13 @@
   <test name="ERI" grid="nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
-      <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
-      <machine name="izumi"    compiler="gnu"   category="mizu"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
       <option name="comment"  >Exact restart hybrid/startup/branch test on CONUS HDMA regional grid with DEBUG off</option>
     </options>
   </test>
-  <test name="ERI" grid="nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="ERS" grid="nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -127,7 +125,7 @@
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
-      <option name="comment"  >Exact restart hybrid/startup/branch test on CONUS HDMA regional grid with DEBUG off</option>
+      <option name="comment"  >Exact restart on CONUS HDMA regional grid with DEBUG off</option>
     </options>
   </test>
   <test name="PEM" grid="nldas2_rMERIT_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
