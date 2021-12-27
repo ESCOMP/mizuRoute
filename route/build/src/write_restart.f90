@@ -1,18 +1,17 @@
 MODULE write_restart
 
-! Moudle wide external modules
-USE nrtype, ONLY: i4b, dp, lgt, strLen
+USE nrtype
 USE public_var
 USE date_time, ONLY: datetime
 USE io_netcdf, ONLY: ncd_int
 USE io_netcdf, ONLY: ncd_float, ncd_double
 USE io_netcdf, ONLY: ncd_unlimited
-USE io_netcdf, only: def_nc                 ! define netcdf
+USE io_netcdf, ONLY: def_nc                 ! define netcdf
 USE io_netcdf, ONLY: def_var                ! define netcdf variable
 USE io_netcdf, ONLY: put_global_attr        ! write global attribute
 USE io_netcdf, ONLY: def_dim                ! define netcdf dimension
 USE io_netcdf, ONLY: end_def                ! end defining netcdf
-USE io_netcdf, only: open_nc                ! open netcdf
+USE io_netcdf, ONLY: open_nc                ! open netcdf
 USE io_netcdf, ONLY: close_nc               ! close netcdf
 USE io_netcdf, ONLY: write_nc
 
@@ -118,7 +117,6 @@ CONTAINS
 
   USE public_var, ONLY: routOpt
   USE public_var, ONLY: dt
-  USE globalData, ONLY: runoff_data    ! runoff data for one time step for LSM HRUs and River network HRUs
   USE globalData, ONLY: TSEC
   USE globalData, ONLY: reachID
 
@@ -301,6 +299,11 @@ CONTAINS
 
  if (opt==muskingumCunge) then
    call define_MC_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
+ if (opt==diffusiveWave) then
+   call define_DW_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
@@ -635,6 +638,54 @@ CONTAINS
   END SUBROUTINE define_MC_state
 
 
+  SUBROUTINE define_DW_state(ierr, message1)
+
+   USE globalData, ONLY: meta_dw
+   USE var_lookup, ONLY: ixDW, nVarsDW
+
+   implicit none
+
+   ! output
+   integer(i4b), intent(out)         :: ierr        ! error code
+   character(*), intent(out)         :: message1    ! error message
+   ! local
+   integer(i4b)                      :: iVar,ixDim  ! index loop for variables
+   integer(i4b)                      :: nDims       ! number of dimensions
+   character(len=strLen),allocatable :: dim_set(:)   ! dimensions combination case 4
+
+   ierr=0; message1='define_DW_state/'
+
+   associate(dim_seg  => meta_stateDims(ixStateDims%seg)%dimName,     &
+             dim_ens  => meta_stateDims(ixStateDims%ens)%dimName,     &
+             dim_mesh => meta_stateDims(ixStateDims%fdmesh)%dimName)
+
+   ! Check dimension length is populated
+   if (meta_stateDims(ixStateDims%fdmesh)%dimLength == integerMissing) then
+     call set_dim_len(ixStateDims%fdmesh, ierr, cmessage)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%fdmesh)%dimName); return; endif
+   end if
+
+   ! Define dimension needed for this routing specific state variables
+   call def_dim(ncid, meta_stateDims(ixStateDims%fdmesh)%dimName, meta_stateDims(ixStateDims%fdmesh)%dimLength, meta_stateDims(ixStateDims%fdmesh)%dimId, ierr, cmessage)
+   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+   do iVar=1,nVarsDW
+     nDims = size(meta_dw(iVar)%varDim)
+     if (allocated(dim_set)) deallocate(dim_set)
+     allocate(dim_set(nDims))
+
+     do ixDim = 1, nDims
+       dim_set(ixDim) = meta_stateDims(meta_dw(iVar)%varDim(ixDim))%dimName
+     end do
+
+     call def_var(ncid, meta_dw(iVar)%varName, dim_set, meta_dw(iVar)%varType, ierr, cmessage, vdesc=meta_dw(iVar)%varDesc, vunit=meta_dw(iVar)%varUnit)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+   end do
+
+   end associate
+
+  END SUBROUTINE define_DW_state
+
  END SUBROUTINE define_state_nc
 
 
@@ -708,6 +759,11 @@ CONTAINS
 
  if (opt==muskingumCunge)then
    call write_MC_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
+ if (opt==diffusiveWave)then
+   call write_DW_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
@@ -1068,7 +1124,7 @@ CONTAINS
     integer(i4b), intent(out)  :: ierr            ! error code
     character(*), intent(out)  :: message1        ! error message
     ! local variables
-    type(states)               :: state           ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
+    type(states)               :: state           ! temporal state data structures
     integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
 
     ierr=0; message1='write_MC_state/'
@@ -1117,6 +1173,67 @@ CONTAINS
 
   END SUBROUTINE write_MC_state
 
+
+  ! DW writing procedures
+  SUBROUTINE write_Dw_state(ierr, message1)
+
+    USE globalData,   ONLY: meta_dw
+    USE var_lookup,   ONLY: ixDW, nVarsDW
+
+    implicit none
+
+    ! output
+    integer(i4b), intent(out)  :: ierr            ! error code
+    character(*), intent(out)  :: message1        ! error message
+    ! local variables
+    type(states)               :: state           ! temporal state data structures
+    integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
+
+    ierr=0; message1='write_DW_state/'
+
+    associate(nSeg  => size(RCHFLX),                         &
+              nEns  => meta_stateDims(ixStateDims%ens)%dimLength,  &
+              nMesh => meta_stateDims(ixStateDims%fdmesh)%dimLength) ! number of computing molecule used for finite difference
+
+    allocate(state%var(nVarsDW), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+    do iVar=1,nVarsDW
+      select case(iVar)
+       case(ixDW%qsub)
+        allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
+       case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
+      end select
+      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for DW routing state '//trim(meta_dw(iVar)%varName); return; endif
+    end do
+
+    ! --Convert data structures to arrays
+    do iens=1,nEns
+      do iSeg=1,nSeg
+        do iVar=1,nVarsDW
+          select case(iVar)
+            case(ixDW%qsub)
+              state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA(iens, iSeg)%molecule%Q(1:nMesh)
+            case default; ierr=20; message1=trim(message1)//'unable to identify DW routing state variable index'; return
+          end select
+        enddo ! variable loop
+      enddo ! seg loop
+    enddo ! ensemble loop
+
+    ! Writing netCDF
+    do iVar=1,nVarsDW
+      select case(iVar)
+       case(ixDW%qsub)
+         call write_nc(ncid, trim(meta_dw(iVar)%varName), state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nMesh,nens/), ierr, cmessage)
+       case default; ierr=20; message1=trim(message1)//'unable to identify DW variable index for nc writing'; return
+      end select
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+    end do
+
+    end associate
+
+  END SUBROUTINE write_DW_state
 
  END SUBROUTINE write_state_nc
 
