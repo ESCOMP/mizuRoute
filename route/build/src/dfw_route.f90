@@ -225,18 +225,31 @@ CONTAINS
                            doCheck,       & ! input: reach index to be examined
                            ierr,message)
  ! ----------------------------------------------------------------------------------------
- ! Crank-Nicoloson method to solve linearlized diffusive wave equation per reach
+ ! Solve linearlized diffusive wave equation per reach and time step.
+ !  dQ/dt + ck*dQ/dx = dk*d2Q/dx2  - a)
  !
+ !  ck (celerity) and dk (diffusivity) are computed with previous inflow and outflow and current inflow
  !
+ !  1) dQ/dt   = (Q(t,x) - Q(t-1,x))/dt
+ !  2) dQ/dx   = [(1-wck)(Q(t-1,x+1)-Q(t-1,x-1)) + wck*(Q(t,x+1)-Q(t,x-1))]/2dx
+ !  3) d2Q/dx2 = [(1-wdk)(Q(t-1,x+1)-2Q(t-1,x)+Q(t-1,x-1)) + wdk*(Q(t,x+1)-2Q(t,x)+Q(t,x-1))]/2dx
  !
+ !  upstream B.C:   Dirchlet BC with inflow at current time-step,t, from upstream basin
+ !  downstream B.C: Neumann BC with prescribed Q gradient (Sbc)
+ !                  dQ/dx|x=N = Sbc ->  4) Q(t,N)-Q(t,N-1)) = Sbc*dx
+ !  Another downstream B.C option is absorbing boundary condition
+ !                  dQ/dt|x=N + ck*dQ/dx|x=N = 0
  !
+ !  Inserting 1), 2), 3) and 4) into a) and moving Q(t,*) terms to left-hand side and Q(t-1,*) terms to the righ-hand side
+ !  results in tridiagonal matrix equation A*Q = b
+ !  where A is [N x N] matrix, Q is [N x 1] vector to be solved (next time step Q) and b is [N x 1] vector
+ !  N (nMolecule is used in the code) is the number of internal nodes including upstream and downstream boundaries
  !
+ !  Since A is a tridiagonal matrix, the code stores only three diagnoal elements - upper, diagonal, and lower
+ !  solving the matrix equation use thomas algorithm
  !
- !
- !
- ! state array:
-
- USE globalData, ONLY : nMolecule   ! number of computational molecule for finite difference (including upstream and downstream boundaries)
+ ! ----------------------------------------------------------------------------------------
+ USE globalData, ONLY : nMolecule   ! number of internal nodes for finite difference (including upstream and downstream boundaries)
  implicit none
  ! Input
  type(RCHPRP), intent(in)        :: rch_param      ! River reach parameter
@@ -250,11 +263,11 @@ CONTAINS
  ! Output
  integer(i4b), intent(out)       :: ierr           ! error code
  character(*), intent(out)       :: message        ! error message
- ! LOCAL VAIRABLES
+ ! Local variables
  real(dp)                        :: alpha          ! sqrt(slope)(/mannings N* width)
  real(dp)                        :: beta           ! constant, 5/3
- real(dp)                        :: Cd             ! coefficient of discretize diffusive wave equation
- real(dp)                        :: Ca             ! coefficient of discretize diffusive wave equation
+ real(dp)                        :: Cd             ! Fourier number
+ real(dp)                        :: Ca             ! Courant number
  real(dp)                        :: dt             ! interval of time step [sec]
  real(dp)                        :: dx             ! length of segment [m]
  real(dp)                        :: Qbar           ! 3-point average discharge [m3/s]
@@ -262,32 +275,35 @@ CONTAINS
  real(dp)                        :: Vbar           ! 3-point average velocity [m/s]
  real(dp)                        :: ck             ! kinematic wave celerity [m/s]
  real(dp)                        :: dk             ! diffusivity [m2/s]
- real(dp), allocatable           :: diagonal(:,:)  !
- real(dp), allocatable           :: b(:)           !
- real(dp), allocatable           :: Qlocal(:,:)    ! sub-reach discharge at previous time step [m3/s]
- real(dp), allocatable           :: Qprev(:)       ! sub-reach discharge at current time step [m3/s]
- real(dp)                        :: dTsub          ! time inteval for sut time-step [sec]
+ real(dp)                        :: Sbc            ! neumann BC slope
+ real(dp), allocatable           :: diagonal(:,:)  ! diagonal part of matrix
+ real(dp), allocatable           :: b(:)           ! right-hand side of the matrix equation
+ real(dp), allocatable           :: Qlocal(:,:)    ! sub-reach & sub-time step discharge at previous and current time step [m3/s]
+ real(dp), allocatable           :: Qprev(:)       ! sub-reach discharge at previous time step [m3/s]
+ real(dp)                        :: dTsub          ! time inteval for sub time-step [sec]
  real(dp)                        :: wck            ! weight for advection
  real(dp)                        :: wdk            ! weight for diffusion
- integer(i4b)                    :: counter        ! loop counter
  integer(i4b)                    :: ix,it          ! loop index
- integer(i4b)                    :: ntSub          !
+ integer(i4b)                    :: ntSub          ! number of sub time-step
  integer(i4b)                    :: Nx             ! number of internal reach segments
- integer(i4b)                    :: Npt            ! number of actual point
+ integer(i4b)                    :: downstreamBC   ! method of B.C condition - absorbing or Neumann
  character(len=strLen)           :: fmt1           ! format string
  character(len=strLen)           :: cmessage       ! error message from subroutine
-
- integer(i4b), parameter  :: maxCounter=1
+ ! Local parameters
+ integer(i4b), parameter         :: absorbingBC=1
+ integer(i4b), parameter         :: neumannBC=2
 
  ierr=0; message='diffusive_wave/'
 
- Npt = 4
- ntSub = 1
- wck = 1.0
- wdk = 1.0
+ ! hard-coded parameters
+ downstreamBC = neumannBC
+ Sbc = 0._dp
 
- !Nx = nMolecule - 1  ! Nx: number of internal reach segments
- Nx = Npt - 1  ! Nx: number of internal reach segments
+ ntSub = 1  ! number of sub-time step
+ wck = 1.0  ! weight in advection term
+ wdk = 1.0  ! weight in diffusion term 0.0-> fully explicit, 0.5-> Crank-Nicolson, 1.0 -> fully implicit
+
+ Nx = nMolecule - 1  ! Nx: number of internal reach segments
 
  if (.not. isHW) then
 
@@ -315,18 +331,6 @@ CONTAINS
      write(iulog,'(4(A,X,G15.4))') ' length [m] =',rch_param%RLENGTH,'slope [-] =',rch_param%R_SLOPE,'channel width [m] =',rch_param%R_WIDTH,'manning coef =',rch_param%R_MAN_N
    end if
 
-   ! Use average flow from previous time step in computational molecule to compute celerity, diffusivity, matrix coefficient
-   Qbar = (Qprev(1)+Qprev(Npt)+q_upstream)/3._dp  ! average discharge [m3/s] from previous time step
-   Abar = (abs(Qbar)/alpha)**(1/beta)                   ! average flow area [m2] (from manning equation)
-   Vbar = 0._dp
-   if (Abar>0._dp) Vbar = Qbar/Abar                     ! average velocity [m/s]
-   ck   = beta*Vbar                                     ! kinematic wave celerity [m/s]
-   dk   = Qbar/(2*rch_param%R_WIDTH*rch_param%R_SLOPE)  ! diffusivity [m2/s]
-
-   ! create a matrix - current time step (left-hand side of the system of the liear equation )
-   Cd = dk*dt/dx**2
-   Ca = ck*dt/dx
-
    ! time-step adjustment so Courant number is less than 1
    dTsub = dt/ntSub
 
@@ -337,66 +341,75 @@ CONTAINS
    allocate(Qlocal(0:1, 1:nMolecule), stat=ierr, errmsg=cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    Qlocal(0:1,:) = realMissing
-   Qlocal(0,1:nMolecule) = Qprev
-   Qlocal(1,1)  = q_upstream ! infllow at sub-time step in current time step
+   Qlocal(0,1:nMolecule) = Qprev ! previous time step
+   Qlocal(1,1)  = q_upstream     ! infllow at sub-time step in current time step
 
    do it = 1, nTsub
 
-     Qbar = (Qlocal(1,1)+Qlocal(0,1)+Qlocal(0,Npt))/3.0 ! 3 point average discharge [m3/s]
+     Qbar = (Qlocal(1,1)+Qlocal(0,1)+Qlocal(0,nMolecule))/3.0 ! 3 point average discharge [m3/s]
      Abar = (abs(Qbar)/alpha)**(1/beta)                            ! flow area [m2] (manning equation)
      Vbar = 0._dp
      if (Abar>0._dp) Vbar = Qbar/Abar                     ! average velocity [m/s]
      ck   = beta*Vbar                                     ! kinematic wave celerity [m/s]
      dk   = Qbar/(2*rch_param%R_WIDTH*rch_param%R_SLOPE)  ! diffusivity [m2/s]
 
-     ! create a matrix - current time step (left-hand side of the system of the liear equation )
      Cd = dk*dTsub/dx**2
      Ca = ck*dTsub/dx
 
-     ! populate diagonal elements
-     diagonal(:,2)             = 1._dp
-     diagonal(2:nMolecule-1,2) = 2._dp+4._dp*wdk*Cd    ! diagonal
+     ! create a matrix - current time step
+     ! populate tridiagonal elements
+     ! diagonal
+     diagonal(1,2)             = 1._dp
+     diagonal(2:nMolecule-1,2) = 2._dp + 4*wdk*Cd
+     if (downstreamBC == absorbingBC) then
+       diagonal(nMolecule,2)     = 1._dp + wck*Ca
+     else if (downstreamBC == neumannBC) then
+       diagonal(nMolecule,2)     = 1._dp
+     end if
 
+     ! upper
      diagonal(:,1)           = 0._dp
-     diagonal(3:nMolecule,1) = wck*Ca-2._dp*wdk*Cd          ! upper
+     diagonal(3:nMolecule,1) = wck*Ca - 2._dp*wdk*Cd
 
+     ! lower
      diagonal(:,3)             = 0._dp
-     diagonal(1:nMolecule-2,3) = -wck*Ca-2._dp*wdk*Cd         ! lower
+     diagonal(1:nMolecule-2,3) = -wck*Ca - 2._dp*wdk*Cd
+     if (downstreamBC == absorbingBC) then
+       diagonal(nMolecule-1,3)   = -wck*Ca
+     else if (downstreamBC == neumannBC) then
+       diagonal(nMolecule-1,3)     = -1._dp
+     end if
 
-     b(1)  = Qlocal(1,1)                                    ! upstream boundary condition
-     b(nMolecule) = Qlocal(0,Npt)                           ! downstream boundary condition (this is actually unknow)
+     ! populate left-hand side
+     ! upstream boundary condition
+     b(1)             = Qlocal(1,1)
+     ! downstream boundary condition
+     if (downstreamBC == absorbingBC) then
+       b(nMolecule)     = (1._dp-(1._dp-wck)*Ca)*Qlocal(0,nMolecule) + (1-wck)*Ca*Qlocal(0,nMolecule-1)
+     else if (downstreamBC == neumannBC) then
+       b(nMolecule)     = Sbc*dx
+     end if
+     ! internal node points
+     b(2:nMolecule-1) = ((1._dp-wck)*Ca+2._dp*(1._dp-wdk))*Cd*Qlocal(0,1:nMolecule-2)  &
+                      + (2._dp-4._dp*(1._dp-wdk)*Cd)*Qlocal(0,2:nMolecule-1)           &
+                      - ((1._dp-wck)*Ca - (1._dp-wdk)*Cd)*Qlocal(0,3:nMolecule)
 
-     ! write side of matrix equation
-     b(2:nMolecule-1) = (2._dp*(1._dp-wdk)*Cd + (1._dp-wck)*Ca)*Qlocal(0,1:nMolecule-2)  &
-                      + (2._dp - 4._dp*(1._dp-wdk)*Cd)*Qlocal(0,2:nMolecule-1)           &
-                      + (2._dp*(1._dp-wdk)*Cd - (1._dp-wck)*Ca)*Qlocal(0,3:nMolecule)
+     ! solve matrix equation - get updated Qlocal
+     call TDMA(nMolecule, diagonal, b, Qlocal(1,:))
 
-     counter = 0
+     if (doCheck) then
+       write(fmt1,'(A,I5,A)') '(A,1X',nMolecule,'(1X,F15.7))'
+       write(*,fmt1) ' Q sub_reqch=', (Qlocal(1,ix), ix=1,nMolecule)
+     end if
 
-     do while (counter < maxCounter)
-
-       ! solve matrix equation - get updated Qlocal
-       call TDMA(nMolecule, diagonal, b, Qlocal(1,:))
-
-       if (doCheck) then
-         write(fmt1,'(A,I5,A)') '(A,1X',nMolecule,'(1X,F15.7))'
-         write(*,fmt1) ' Q sub_reqch=', (Qlocal(1,ix), ix=1,nMolecule)
-       end if
-
-       b(nMolecule) = Qlocal(1,Npt) ! update downstream boundary condition
-
-       counter = counter+1
-
-     end do
      Qlocal(0,:) = Qlocal(1,:)
    end do
 
    ! store final outflow in data structure
-   rflux%REACH_Q = Qlocal(1, Npt) + rflux%BASIN_QR(1)
+   rflux%REACH_Q = Qlocal(1, nMolecule) + rflux%BASIN_QR(1)
 
    if (doCheck) then
      write(iulog,*) 'rflux%REACH_Q= ', rflux%REACH_Q
-     write(iulog,*) 'R_WIDTH, R_SLOPE, RLENGTH= ', rch_param%R_WIDTH, rch_param%R_SLOPE, rch_param%RLENGTH
      write(iulog,*) 'Qprev(1:nMolecule)= ', Qprev(1:nMolecule)
      write(iulog,*) 'Qbar, Abar, Vbar, ck, dk= ',Qbar, Abar, Vbar, ck, dk
      write(iulog,*) 'Cd, Ca= ', Cd, Ca
@@ -408,7 +421,7 @@ CONTAINS
 
    ! compute volume
    rflux%REACH_VOL(0) = rflux%REACH_VOL(1)
-   rflux%REACH_VOL(1) = rflux%REACH_VOL(0) + (Qlocal(1,1) - Qlocal(1,nMolecule-1))*dT
+   rflux%REACH_VOL(1) = rflux%REACH_VOL(0) + (Qlocal(1,1) - Qlocal(1,nMolecule))*dT
 
    ! update state
    rstate%molecule%Q = Qlocal(1,:)
