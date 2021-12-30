@@ -105,6 +105,11 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
  end if
 
+ if (opt==diffusiveWave) then
+   call read_DW_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
+ end if
+
  call close_nc(ncidRestart, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -121,7 +126,6 @@ CONTAINS
     character(len=strLen)         :: cmessage1      ! error message of downwind routine
     type(states)                  :: state          ! temporal state data structures
     integer(i4b)                  :: iVar,iens,iSeg ! index loops for variables, ensembles, reaches respectively
-    integer(i4b)                  :: ntdh           ! dimension size
 
     ! initialize error control
     ierr=0; message1='read_basinQ_state/'
@@ -457,6 +461,58 @@ CONTAINS
 
   END SUBROUTINE read_MC_state
 
+
+  SUBROUTINE read_DW_state(ierr, message1)
+    USE globalData, ONLY: meta_dw
+    USE globalData, ONLY: nMolecule
+    USE var_lookup, ONLY: ixDW, nVarsDW
+    implicit none
+    integer(i4b), intent(out)     :: ierr           ! error code
+    character(*), intent(out)     :: message1       ! error message
+    ! local variables
+    character(len=strLen)         :: cmessage1      ! error message of downwind routine
+    type(states)                  :: state          ! temporal state data structures
+    integer(i4b)                  :: iVar,iens,iSeg ! index loops for variables, ensembles, reaches respectively
+
+    ierr=0; message1='read_DW_state/'
+
+    allocate(state%var(nVarsDW), stat=ierr, errmsg=cmessage1)
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
+
+    ! get Dimension sizes
+    call get_nc_dim_len(ncidRestart, trim(meta_stateDims(ixStateDims%fdmesh)%dimName), nMolecule, ierr, cmessage1)
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
+
+    do iVar=1,nVarsDW
+      select case(iVar)
+        case(ixDW%qsub); allocate(state%var(iVar)%array_3d_dp(nSeg, nMolecule, nens), stat=ierr)
+        case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
+      end select
+      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for DW routing state:'//trim(meta_dw(iVar)%varName); return; endif
+    end do
+
+    do iVar=1,nVarsDW
+      select case(iVar)
+        case(ixDW%qsub)
+          call get_nc(ncidRestart, trim(meta_dw(iVar)%varName), state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nMolecule,nens/), ierr, cmessage1)
+        case default; ierr=20; message1=trim(message1)//'unable to identify DW variable index for nc reading'; return
+      end select
+      if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_dw(iVar)%varName); return; endif
+    end do
+
+    do iens=1,nens
+      do iSeg=1,nSeg
+        allocate(RCHSTA(iens,iSeg)%molecule%Q(nMolecule), stat=ierr)
+        do iVar=1,nVarsDW
+          select case(iVar)
+            case(ixDW%qsub); RCHSTA(iens,iSeg)%molecule%Q(1:nMolecule) = state%var(iVar)%array_3d_dp(iSeg,1:nMolecule,iens)
+            case default; ierr=20; message1=trim(message1)//'unable to identify DW routing state variable index'; return
+          end select
+        enddo
+      enddo
+    enddo
+
+  END SUBROUTINE read_DW_state
 
  END SUBROUTINE read_state_nc
 

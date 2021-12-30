@@ -112,6 +112,11 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
+  if (meta_rflx(ixRFLX%DWroutedRunoff)%varFile) then
+   call write_nc(simout_nc%ncid, 'DWroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
  END SUBROUTINE output
 
 

@@ -268,7 +268,7 @@ CONTAINS
     if (routOpt==kinematicWave .or. routOpt==muskingumCunge) then
       nMolecule = 2
     else if (routOpt==diffusiveWave) then
-      nMolecule = 10
+      nMolecule = 5
     end if
 
     do ix = 1, size(RCHSTA(1,:))
