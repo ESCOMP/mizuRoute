@@ -161,11 +161,11 @@ contains
  call meta_rflx(ixRFLX%instRunoff       )%init('instRunoff'       , 'instantaneous runoff in each reach'                , 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .true.)
  call meta_rflx(ixRFLX%dlayRunoff       )%init('dlayRunoff'       , 'delayed runoff in each reach'                      , 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .true.)
  call meta_rflx(ixRFLX%sumUpstreamRunoff)%init('sumUpstreamRunoff', 'sum of upstream runoff in each reach'              , 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .true.)
- call meta_rflx(ixRFLX%KWTroutedRunoff  )%init('KWTroutedRunoff'  , 'routed runoff in reach - lagrangian kinematic wave', 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .false.)
- call meta_rflx(ixRFLX%MCroutedRunoff   )%init('MCroutedRunoff'   , 'routed runoff in reach - muskingum-cunge'          , 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .false.)
- call meta_rflx(ixRFLX%DWroutedRunoff   )%init('DWroutedRunoff'   , 'routed runoff in reach - diffusive wave'           , 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .false.)
- call meta_rflx(ixRFLX%KWroutedRunoff   )%init('KWroutedRunoff'   , 'routed runoff in reach - lagrangian kinematic wave', 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .false.)
- call meta_rflx(ixRFLX%IRFroutedRunoff  )%init('IRFroutedRunoff'  , 'routed runoff in reach - Impulse Response Function', 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%KWTroutedRunoff  )%init('KWTroutedRunoff'  , 'routed runoff in reach - lagrangian kinematic wave', 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .true.)
+ call meta_rflx(ixRFLX%MCroutedRunoff   )%init('MCroutedRunoff'   , 'routed runoff in reach - muskingum-cunge'          , 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .true.)
+ call meta_rflx(ixRFLX%DWroutedRunoff   )%init('DWroutedRunoff'   , 'routed runoff in reach - diffusive wave'           , 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .true.)
+ call meta_rflx(ixRFLX%KWroutedRunoff   )%init('KWroutedRunoff'   , 'routed runoff in reach - lagrangian kinematic wave', 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .true.)
+ call meta_rflx(ixRFLX%IRFroutedRunoff  )%init('IRFroutedRunoff'  , 'routed runoff in reach - Impulse Response Function', 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .true.)
  call meta_rflx(ixRFLX%volume           )%init('volume'           , 'lake and stream volume'                            , 'm3'  , nf90_float, [ixQdims%seg,ixQdims%time], .false.)
 
  ! Lagrangian kinematic Wave restart state
