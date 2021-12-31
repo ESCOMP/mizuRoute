@@ -5,15 +5,6 @@ USE nrtype
 USE var_lookup,only: ixRFLX, nVarsRFLX
 USE public_var,only: iulog
 USE public_var,only: integerMissing
-USE public_var,only: routOpt                ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-USE public_var,only: doesBasinRoute         ! basin routing options   0-> no, 1->IRF, otherwise error
-USE public_var,only: doesAccumRunoff        ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
-USE public_var,only: kinematicWaveTracking  ! Lagrangian kinematic wave
-USE public_var,only: kinematicWave          ! kinematic wave
-USE public_var,only: diffusiveWave          ! diffusive wave
-USE public_var,only: muskingumCunge         ! muskingum cunge
-USE public_var,only: impulseResponseFunc    ! impulse response function
-USE public_var,only: allRoutingMethods      ! all routing methods
 USE globalData,only: meta_rflx
 USE globalData,only: simout_nc
 USE io_netcdf, only: ncd_int
@@ -253,30 +244,6 @@ CONTAINS
  meta_qDims(ixQdims%seg)%dimLength = nRch_in
  meta_qDims(ixQdims%hru)%dimLength = nHRU_in
  meta_qDims(ixQdims%ens)%dimLength = nEns_in
-
- ! Make sure to turn off write option for routines not used
- ! Routing options
- ! ----- beg: this (allRoutingMethods) is to be removed
- if (routOpt==allRoutingMethods) then
-    meta_rflx(ixRFLX%MCroutedRunoff)%varFile = .false.
-    meta_rflx(ixRFLX%KWroutedRunoff)%varFile = .false.
-    meta_rflx(ixRFLX%DWroutedRunoff)%varFile = .false.
- end if
- ! ----- end: this (allRoutingMethods) is to be removed
- if (routOpt/=kinematicWaveTracking) meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
- if (routOpt/=impulseResponseFunc) meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
- if (routOpt/=muskingumCunge) meta_rflx(ixRFLX%MCroutedRunoff)%varFile = .false.
- if (routOpt/=kinematicWave) meta_rflx(ixRFLX%KWroutedRunoff)%varFile = .false.
- if (routOpt/=diffusiveWave) meta_rflx(ixRFLX%DWroutedRunoff)%varFile = .false.
-
- ! runoff accumulation option
- if (doesAccumRunoff==0) then
-   meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile = .false.
- endif
- ! basin runoff routing option
- if (doesBasinRoute==0) then
-   meta_rflx(ixRFLX%instRunoff)%varFile = .false.
- endif
 
  ! --------------------
  ! define file

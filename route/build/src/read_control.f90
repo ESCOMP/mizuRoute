@@ -295,6 +295,33 @@ contains
    err=81; return
  end select
 
+ ! ---------- output options --------------------------------------------------------------------------------------------
+ ! Make sure to turn off write option for routines not used
+ ! Routing options
+ if (routOpt==allRoutingMethods) then
+    meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = (.true. .and. meta_rflx(ixRFLX%KWTroutedRunoff)%varFile)
+    meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = (.true. .and. meta_rflx(ixRFLX%IRFroutedRunoff)%varFile)
+    meta_rflx(ixRFLX%MCroutedRunoff)%varFile = .false.
+    meta_rflx(ixRFLX%KWroutedRunoff)%varFile = .false.
+    meta_rflx(ixRFLX%DWroutedRunoff)%varFile = .false.
+ else
+ ! ----- end: this (allRoutingMethods) is to be removed
+ if (routOpt/=kinematicWaveTracking) meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
+ if (routOpt/=impulseResponseFunc) meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
+ if (routOpt/=muskingumCunge) meta_rflx(ixRFLX%MCroutedRunoff)%varFile = .false.
+ if (routOpt/=kinematicWave) meta_rflx(ixRFLX%KWroutedRunoff)%varFile = .false.
+ if (routOpt/=diffusiveWave) meta_rflx(ixRFLX%DWroutedRunoff)%varFile = .false.
+ endif
+
+ ! runoff accumulation option
+ if (doesAccumRunoff==0) then
+   meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile = .false.
+ endif
+ ! basin runoff routing option
+ if (doesBasinRoute==0) then
+   meta_rflx(ixRFLX%instRunoff)%varFile = .false.
+ endif
+
  end subroutine read_control
 
 end module read_control_module
