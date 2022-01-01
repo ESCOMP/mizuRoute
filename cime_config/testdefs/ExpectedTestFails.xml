@@ -1,0 +1,64 @@
+<?xml version= "1.0"?>
+
+<expectedFails version="1.1">
+
+  <!-- Notes about the format of this file:
+
+       The required elements for a given failure are just:
+
+         <test name="...">
+           <phase name="...">
+             <status>...</status>
+           </phase>
+         </test>
+
+       There can be multiple phase blocks in a given test block.
+
+       In addition, a number of optional elements are allowed, which
+       currently are just for human consumption (not parsed by any
+       scripts):
+
+       - A phase block can contain an "issue" element, which gives the
+       issue number associated with this failure. (#123 refers to issue
+       #123 in the ESCOMP/mizuRoute repository. Issues in other repositories
+       should be specified as ORG/repo#123 - e.g., ESMCI/cime#123.)
+
+       - A phase block can contain a "comment" element, which gives any
+       sort of comment you desire.
+  -->
+
+
+  <!-- mizutest suite failures -->
+
+  <test name="SMS.f09_f09_mg17_rMERIT.I2000Clm50SpMizGs.cheyenne_gnu.mizuroute-default">
+    <phase name="RUN">
+      <status>FAIL</status>
+      <issue>#227</issue>
+    </phase>
+  </test>
+  <test name="SMS.f19_f19_mg17_rMERIT.I2000Clm50SpMizGs.cheyenne_gnu.mizuroute-default">
+    <phase name="RUN">
+      <status>FAIL</status>
+      <issue>#227</issue>
+    </phase>
+  </test>
+  <test name="SMS.hcru_hcru_mt13.I2000Clm50SpMizGs.cheyenne_intel.mizuroute-default">
+    <phase name="PEND">
+      <status>FAIL</status>
+      <issue>#226</issue>
+    </phase>
+  </test>
+  <test name="SMS.hcru_hcru_mt13_rHDMA.I2000Clm50SpMizGs.cheyenne_intel.mizuroute-default">
+    <phase name="PEND">
+      <status>FAIL</status>
+      <issue>#226</issue>
+    </phase>
+  </test>
+  <test name="ERI.nldas2_rHDMA_mnldas2.I2000Clm50SpMizGs.cheyenne_intel.mizuroute-default">
+    <phase name="RUN">
+      <status>FAIL</status>
+      <issue>#238</issue>
+    </phase>
+  </test>
+
+</expectedFails>

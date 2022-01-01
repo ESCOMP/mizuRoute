@@ -8,7 +8,8 @@
    <!-- half-degree: hcru_hcru_mt13, hcru_hcru_mt13_rMERIT, hcru_hcru_mt13_rHDMA -->
    <!-- Machines: cheyennea and izumi   Compilers: intel, gnu, nag, pgi -->
    <!-- Run course resolutions only on izumi, on cheyenne run all -->
-   <!-- Test types: ERS, SMS, ERP, ERT, ERI, PFS DEBUG on and off -->
+   <!-- Test types: ERS, SMS, ERT, ERI, PEM, PFS DEBUG on and off -->
+   <!-- NOTE: ERP tests are known NOT to work since the MPI task count must remain the same on restart -->
    <!-- MPI: mpi-serial and regular  threaded -->
    <!-- Short tests: minimum 1-day    Longer tests: a year to two, good to do past year boundary -->
    <!-- compsets: I2000Clm50SpMizGs -->
@@ -110,15 +111,13 @@
   <test name="ERI" grid="nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
-      <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
-      <machine name="izumi"    compiler="gnu"   category="mizu"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
       <option name="comment"  >Exact restart hybrid/startup/branch test on CONUS HDMA regional grid with DEBUG off</option>
     </options>
   </test>
-  <test name="ERI" grid="nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="ERS" grid="nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -126,10 +125,10 @@
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
-      <option name="comment"  >Exact restart hybrid/startup/branch test on CONUS HDMA regional grid with DEBUG off</option>
+      <option name="comment"  >Exact restart on CONUS HDMA regional grid with DEBUG off</option>
     </options>
   </test>
-  <test name="ERP" grid="nldas2_rMERIT_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="PEM" grid="nldas2_rMERIT_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
