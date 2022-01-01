@@ -154,9 +154,6 @@ CONTAINS
  character(*), intent(out)                :: message        ! error message
  ! Local variables to
  real(dp)                                 :: q_upstream     ! total discharge at top of the reach being processed
- real(dp)                                 :: abstract_actual! actual abstraction TO BE DELETED
- real(dp)                                 :: WB_check       ! water balance TO BE DELETED
- real(dp)                                 :: init_STRQ      ! init TO BE DELETED
  integer(i4b)                             :: nUps           ! number of upstream segment
  integer(i4b)                             :: iUps           ! upstream reach index
  integer(i4b)                             :: iRch_ups       ! index of upstream reach in NETOPO
@@ -220,27 +217,21 @@ CONTAINS
 
   ! take out the water from the reach if the wm flag is true and the value are not missing
   ! here we should make sure the real missing is not injection (or negative abstration)
-  abstract_actual = 0._dp ! this can be removed later (after extensive testing)
-  init_STRQ = 0._dp ! this can be removed later (after extensive testing)
   if((RCHFLX_out(iens,segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then
-    ! print*, 'before: ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
-    print*, 'abstract: ', RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
-    ! injection
+    !allocate(RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual, stat=ierr, errmsg=cmessage)
+    !if(ierr/=0)then; message=trim(message)//trim(cmessage)//': RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual'; return; endif
+    ! abstraction or injection
     if (RCHFLX_out(iens,segIndex)%REACH_WM_FLUX <= 0) then ! negative/injection
-      RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+      RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
     else ! positive/abstraction
       if (RCHFLX_out(iens,segIndex)%REACH_WM_FLUX <= RCHFLX_out(iens,segIndex)%REACH_Q_IRF) then ! abstraction is smaller than water in the river
-        RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+        RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
       else ! abstraction is larger than water in the river
-        RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
-        RCHFLX_out(iens,segIndex)%REACH_Q_IRF = 0._dp
+        RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_Q_IRF
       endif
     endif
-    ! print*, 'after: ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
+    RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual
   endif
-
-
-
 
   ! check
   if(segIndex==ixDesire)then

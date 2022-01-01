@@ -317,23 +317,24 @@ implicit none
 
  ! fluxes and states in each reach
  TYPE, public :: strflx
-  real(dp), allocatable                :: QFUTURE(:)         ! runoff volume in future time steps (m3/s)
-  real(dp), allocatable                :: QFUTURE_IRF(:)     ! runoff volume in future time steps for IRF routing (m3/s)
-  real(dp), allocatable                :: QPASTUP_IRF(:,:)   ! runoff volume in the past time steps for lake upstream (m3/s)
-  real(dp), allocatable                :: DEMANDPAST_IRF(:,:)! demand volume for lake (m3/s)
-  real(dp)                             :: BASIN_QI           ! instantaneous runoff volume from the local basin (m3/s)
-  real(dp)                             :: BASIN_QR(0:1)      ! routed runoff volume from the local basin (m3/s)
-  real(dp)                             :: REACH_Q            ! time-step average streamflow (m3/s)
-  real(dp)                             :: REACH_Q_IRF        ! time-step average streamflow (m3/s) from IRF routing
-  real(dp)                             :: UPSTREAM_QI        ! sum of upstream streamflow (m3/s)
-  real(dp)                             :: REACH_VOL(0:1)     ! volume of water at previous and current time step [m3]
-  real(dp)                             :: REACH_ELE          ! elevation of the water at the current time step [m]
-  real(dp)                             :: REACH_WM_FLUX      ! water management fluxes to and from each reach
-  real(dp)                             :: REACH_WM_VOL       ! target volume from the second water management file (m3)
-  real(dp)                             :: TAKE               ! average take
-  logical(lgt)                         :: isRoute            ! .true. if the reach is routed
-  real(dp)                             :: basinEvapo         ! remapped river network catchment Evaporation (size: number of nHRU)
-  real(dp)                             :: basinPrecip        ! remapped river network catchment Precipitation (size: number of nHRU)
+  real(dp), allocatable                :: QFUTURE(:)             ! runoff volume in future time steps (m3/s)
+  real(dp), allocatable                :: QFUTURE_IRF(:)         ! runoff volume in future time steps for IRF routing (m3/s)
+  real(dp), allocatable                :: QPASTUP_IRF(:,:)       ! runoff volume in the past time steps for lake upstream (m3/s)
+  real(dp), allocatable                :: DEMANDPAST_IRF(:,:)    ! demand volume for lake (m3/s)
+  real(dp)                             :: BASIN_QI               ! instantaneous runoff volume from the local basin (m3/s)
+  real(dp)                             :: BASIN_QR(0:1)          ! routed runoff volume from the local basin (m3/s)
+  real(dp)                             :: REACH_Q                ! time-step average streamflow (m3/s)
+  real(dp)                             :: REACH_Q_IRF            ! time-step average streamflow (m3/s) from IRF routing
+  real(dp)                             :: UPSTREAM_QI            ! sum of upstream streamflow (m3/s)
+  real(dp)                             :: REACH_VOL(0:1)         ! volume of water at previous and current time step [m3]
+  real(dp)                             :: REACH_ELE              ! elevation of the water at the current time step [m]
+  real(dp)                             :: REACH_WM_FLUX          ! water management fluxes to and from each reach
+  real(dp)                             :: REACH_WM_FLUX_actual   ! water management fluxes to and from each reach
+  real(dp)                             :: REACH_WM_VOL           ! target volume from the second water management file (m3)
+  real(dp)                             :: TAKE                   ! average take
+  logical(lgt)                         :: isRoute                ! .true. if the reach is routed
+  real(dp)                             :: basinEvapo             ! remapped river network catchment Evaporation (size: number of nHRU)
+  real(dp)                             :: basinPrecip            ! remapped river network catchment Precipitation (size: number of nHRU)
  END TYPE strflx
 
  ! ---------- lake data types -----------------------------------------------------------------

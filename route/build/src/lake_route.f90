@@ -152,6 +152,27 @@ module lake_route_module
        RCHFLX_out(iens,segIndex)%REACH_VOL(1)=0
     endif
 
+
+    ! take out the water from the reach if the wm flag is true and the value are not missing
+    ! here we should make sure the real missing is not injection (or negative abstration)
+    if((RCHFLX_out(iens,segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then
+      !allocate(RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual, stat=ierr, errmsg=cmessage)
+      !if(ierr/=0)then; message=trim(message)//trim(cmessage)//': RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual'; return; endif
+      ! abstraction or injection
+      if (RCHFLX_out(iens,segIndex)%REACH_WM_FLUX <= 0) then ! negative/injection
+        RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX*dt
+        RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+      else ! positive/abstraction
+        if (RCHFLX_out(iens,segIndex)%REACH_WM_FLUX*dt <= RCHFLX_out(iens,segIndex)%REACH_VOL(1)) then ! abstraction is smaller than water in the lake
+          RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX*dt
+          RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+        else ! abstraction is larger than water in the river
+          RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_VOL(1)/dt
+          RCHFLX_out(iens,segIndex)%REACH_VOL(1) = 0._dp
+        endif
+      endif
+    endif
+
     ! simulating lake/reservoir output
     if (NETOPO_in(segIndex)%LakeTargVol) then ! The lake should follow the given target volume
 
@@ -169,8 +190,11 @@ module lake_route_module
       !print*, "lake model type", NETOPO_in(segIndex)%LakeModelType
       select case(NETOPO_in(segIndex)%LakeModelType)
 
-        case (1)
-          ! the model is Doll03
+        case (0)
+          ! lake lake is Endorheic
+          ! no action needed, pass
+
+        case (1)! the model is Doll03
           ! print*, "lake model is Doll 2003"
 
           ! temporary solution, this should be removed if there is restart activated...
@@ -192,8 +216,7 @@ module lake_route_module
             RCHFLX_out(iens,segIndex)%REACH_VOL(1)=0
           endif
 
-        case (2)
-          ! the model is Hanasaki06
+        case (2) ! the model is Hanasaki06
           ! print*, "lake model is Hanasaki 2006"
 
           ! preserving the past upstrem discharge for lake models
@@ -379,9 +402,7 @@ module lake_route_module
           ! print*, 'Hanasaki parameters'
           print*, RPARAM_in(segIndex)%H06_Smax, RPARAM_in(segIndex)%H06_alpha, RPARAM_in(segIndex)%H06_envfact, RPARAM_in(segIndex)%H06_S_ini, RPARAM_in(segIndex)%H06_c1, RPARAM_in(segIndex)%H06_c2, RPARAM_in(segIndex)%H06_exponent, RPARAM_in(segIndex)%H06_I_Feb, RPARAM_in(segIndex)%H06_D_Feb
 
-        case (3)
-          ! HYPE is called
-
+        case (3) ! HYPE is called
           ! update reach elevation
           RCHFLX_out(iens,segIndex)%REACH_ELE = RCHFLX_out(iens,segIndex)%REACH_VOL(1) / RPARAM_in(segIndex)%HYP_A_avg + RPARAM_in(segIndex)%HYP_E_zero
 
@@ -453,28 +474,27 @@ module lake_route_module
 
     ! calculate water balance (in this water balance we dont have the actual evaporation, assuming there is enough water for evaporation)
     WB = q_upstream * dt + RCHFLX_out(iens,segIndex)%basinprecip * dt - RCHFLX_out(iens,segIndex)%REACH_Q_IRF * dt &
-    - RCHFLX_out(iens,segIndex)%basinevapo * dt - (RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_VOL(0))
-
-
-    !if(NETOPO_in(segIndex)%REACHIX == ixDesire)then    ! uncommnet when the ixDesire is fixed and not -9999
-    !print*, 'lake simulated output m3/s .= ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
-    !print*, 'volume after simulation m3 .= ', RCHFLX_out(iens,segIndex)%REACH_VOL(1)
-    !print*, 'read target volume     m3 .= ', RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
-    !print*, 'water balance error ........= ', WB
-    !endif
+    - RCHFLX_out(iens,segIndex)%basinevapo * dt - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual * dt &
+    - (RCHFLX_out(iens,segIndex)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_VOL(0))
 
     !if(lakeWBTol<WB)then;
-    if(1<WB) then;
+    if ((1<WB).or.(segIndex==ixDesire)) then; ! larger than 1 cubic meter or desired lake
       ! NOTE: The lake discharge and storage need to be solved iterative way to reduce water balance error
       write(iulog,*) 'Water balance for lake ID = ', NETOPO_in(segIndex)%REACHID, ' excees the Tolerance'
       write(iulog,'(A,1PG15.7)') 'WBerr [m3]       = ', WB
       write(iulog,'(A,1PG15.7)') 'dS [m3]          = ', RCHFLX_out(iens,segIndex)%REACH_VOL(1)-RCHFLX_out(iens,segIndex)%REACH_VOL(0)
+      write(iulog,'(A,1PG15.7)') 'S [m3]           = ', RCHFLX_out(iens,segIndex)%REACH_VOL(1)
       write(iulog,'(A,1PG15.7)') 'inflow [m3]      = ', q_upstream*dt
       write(iulog,'(A,1PG15.7)') 'outflow [m3]     = ', RCHFLX_out(iens,segIndex)%REACH_Q_IRF*dt
       write(iulog,'(A,1PG15.7)') 'precip [m3]      = ', RCHFLX_out(iens,segIndex)%basinprecip*dt
       write(iulog,'(A,1PG15.7)') 'evaporation [m3] = ', RCHFLX_out(iens,segIndex)%basinevapo*dt
-      cmessage = 'Water balance for lake ID = exceeds the Tolerance'
-      ierr = 1; message=trim(message)//trim(cmessage);
+      if (is_flux_wm) then
+        write(iulog,'(A,1PG15.7)') 'actual abstraction [m3] = ', RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual
+      endif
+      if (1<WB) then
+        cmessage = 'Water balance for lake ID = exceeds the Tolerance'
+        ierr = 1; message=trim(message)//trim(cmessage);
+      endif
     endif
 
     ! set the routed flag as .True.

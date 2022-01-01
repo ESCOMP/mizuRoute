@@ -115,9 +115,6 @@ CONTAINS
    case('<doesAccumRunoff>');      read(cData,*,iostat=io_error) doesAccumRunoff       ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
    case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut              ! desired outlet reach id (if -9999 --> route over the entire network)
    case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim           ! logical; lakes are simulated
-   case('<lake_model_D03>');       read(cData,*,iostat=io_error) lake_model_D03        ! logical; if Doll 2003, represented by 1 exist in netwrok topology parameter lake_model_type
-   case('<lake_model_H06>');       read(cData,*,iostat=io_error) lake_model_H06        ! logical; if Hanasaki 2006, represented by 2 exist in netwrok topology parameter lake_model_type
-   case('<lake_model_HYPE>');      read(cData,*,iostat=io_error) lake_model_HYPE       ! logical; if HYPE, represented by 3 exist in netwrok topology parameter lake_model_type
    case('<is_flux_wm>');           read(cData,*,iostat=io_error) is_flux_wm            ! logical; provided fluxes to or from seg/lakes should be considered
    case('<is_vol_wm>');            read(cData,*,iostat=io_error) is_vol_wm             ! logical; provided target volume for managed lakes are considered
    case('<is_vol_wm_jumpstart>');  read(cData,*,iostat=io_error) is_vol_wm_jumpstart   ! logical; jump to the first time step target volume is set to true
