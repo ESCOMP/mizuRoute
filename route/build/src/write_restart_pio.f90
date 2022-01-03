@@ -4,10 +4,12 @@ MODULE write_restart_pio
 USE nrtype
 
 USE var_lookup,        ONLY: ixStateDims, nStateDims
-USE var_lookup,        ONLY: ixIRF, nVarsIRF
 USE var_lookup,        ONLY: ixIRFbas, nVarsIRFbas
-USE var_lookup,        ONLY: ixKWE, nVarsKWE
+USE var_lookup,        ONLY: ixIRF, nVarsIRF
 USE var_lookup,        ONLY: ixKWT, nVarsKWT
+USE var_lookup,        ONLY: ixKW, nVarsKW
+USE var_lookup,        ONLY: ixMC, nVarsMC
+USE var_lookup,        ONLY: ixDW, nVarsDW
 USE var_lookup,        ONLY: ixIRFbas, nVarsIRFbas
 USE var_lookup,        ONLY: ixBasinQ, nVarsBasinQ
 
@@ -24,11 +26,13 @@ USE public_var,        ONLY: verySmall
 USE public_var,        ONLY: rpntfil           ! ascii containing last restart file (used in coupled mode)
 
 USE globalData,        ONLY: meta_stateDims  ! states dimension meta
-USE globalData,        ONLY: meta_irf        ! IRF routing
 USE globalData,        ONLY: meta_irf_bas
 USE globalData,        ONLY: meta_basinQ
+USE globalData,        ONLY: meta_irf
 USE globalData,        ONLY: meta_kwt
-USE globalData,        ONLY: meta_kwe
+USE globalData,        ONLY: meta_kw
+USE globalData,        ONLY: meta_mc
+USE globalData,        ONLY: meta_dw
 
 USE globalData,        ONLY: pid, nNodes
 USE globalData,        ONLY: masterproc
@@ -177,7 +181,7 @@ CONTAINS
   call define_state_nc(fnameRestart, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  call write_state_nc(fnameRestart, ierr, message)
+  call write_state_nc(fnameRestart, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   open (1, file = trim(restart_dir)//trim(rpntfil), status='replace', action='write')
@@ -247,9 +251,11 @@ CONTAINS
  USE public_var, ONLY: routOpt
  USE public_var, ONLY: allRoutingMethods
  USE public_var, ONLY: doesBasinRoute
- USE public_var, ONLY: kinematicWave
- USE public_var, ONLY: kinematicWaveEuler
  USE public_var, ONLY: impulseResponseFunc
+ USE public_var, ONLY: kinematicWaveTracking
+ USE public_var, ONLY: kinematicWave
+ USE public_var, ONLY: muskingumCunge
+ USE public_var, ONLY: diffusiveWave
  USE globalData, ONLY: rch_per_proc             ! number of reaches assigned to each proc (size = num of procs+1)
  USE globalData, ONLY: nRch                     ! number of ensembles and river reaches
 
@@ -320,33 +326,40 @@ CONTAINS
 
  end associate
 
- ! Routing specific variables --------------
  ! previous-time step hru inflow into reach
  call define_basinQ_state(ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+ ! Routing specific variables --------------
  ! basin IRF
  if (doesBasinRoute == 1) then
-  call define_IRFbas_state(ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   call define_IRFbas_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
- ! KWT routing
- if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
-  call define_KWT_state(ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- end if
-
- ! KWE routing
- if (routOpt==kinematicWaveEuler) then
-  call define_KWE_state(ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- end if
-
- ! IRF routing
  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
-  call define_IRF_state(ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   call define_IRF_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
+ if (routOpt==allRoutingMethods .or. routOpt==kinematicWaveTracking) then
+   call define_KWT_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
+ if (routOpt==kinematicWave) then
+   call define_KW_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
+ if (routOpt==muskingumCunge) then
+   call define_MC_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
+ if (routOpt==diffusiveWave) then
+   call define_DW_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
  ! ----------------------------------
@@ -382,29 +395,13 @@ CONTAINS
                  ixRch(ix1:ix2),         & ! input:
                  iodesc_state_int)
 
- if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
-   ! type: int, dim: [dim_seg, dim_wave, dim_ens]
-   call pio_decomp(pioSystem,              & ! input: pio system descriptor
-                   ncd_int,                & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                   [nSeg,nWave,nEns],      & ! input: dimension length == global array size
-                   ixRch(ix1:ix2),         & ! input:
-                   iodesc_wave_int)
-
-   ! type: float, dim: [dim_seg, dim_wave, dim_ens]
+ if (doesBasinRoute == 1) then
+   ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens]
    call pio_decomp(pioSystem,              & ! input: pio system descriptor
                    ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                   [nSeg,nWave,nEns],      & ! input: dimension length == global array size
+                   [nSeg,ntdh,nEns],       & ! input: dimension length == global array size
                    ixRch(ix1:ix2),         & ! input:
-                   iodesc_wave_double)
- end if
-
- if (routOpt==kinematicWaveEuler) then
-   ! type: float, dim: [dim_seg, dim_fdmesh, dim_ens]
-   call pio_decomp(pioSystem,              & ! input: pio system descriptor
-                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                   [nSeg,nFdmesh,nEns],    & ! input: dimension length == global array size
-                   ixRch(ix1:ix2),         & ! input:
-                   iodesc_mesh_double)
+                   iodesc_irf_bas_double)
  end if
 
  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
@@ -423,13 +420,29 @@ CONTAINS
                    iodesc_vol_double)
  end if
 
- if (doesBasinRoute == 1) then
-   ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens]
+ if (routOpt==allRoutingMethods .or. routOpt==kinematicWaveTracking) then
+   ! type: int, dim: [dim_seg, dim_wave, dim_ens]
+   call pio_decomp(pioSystem,              & ! input: pio system descriptor
+                   ncd_int,                & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                   [nSeg,nWave,nEns],      & ! input: dimension length == global array size
+                   ixRch(ix1:ix2),         & ! input:
+                   iodesc_wave_int)
+
+   ! type: float, dim: [dim_seg, dim_wave, dim_ens]
    call pio_decomp(pioSystem,              & ! input: pio system descriptor
                    ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                   [nSeg,ntdh,nEns],       & ! input: dimension length == global array size
+                   [nSeg,nWave,nEns],      & ! input: dimension length == global array size
                    ixRch(ix1:ix2),         & ! input:
-                   iodesc_irf_bas_double)
+                   iodesc_wave_double)
+ end if
+
+ if (routOpt==kinematicWave .or. routOpt==muskingumCunge .or. routOpt==diffusiveWave) then
+   ! type: float, dim: [dim_seg, dim_fdmesh, dim_ens]
+   call pio_decomp(pioSystem,              & ! input: pio system descriptor
+                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                   [nSeg,nFdmesh,nEns],    & ! input: dimension length == global array size
+                   ixRch(ix1:ix2),         & ! input:
+                   iodesc_mesh_double)
  end if
 
  end associate
@@ -443,6 +456,7 @@ CONTAINS
   SUBROUTINE set_dim_len(ixDim, ierr, message1)
    ! populate state netCDF dimension size
    USE public_var, ONLY: MAXQPAR
+   USE globalData, ONLY: nMolecule
    USE globalData, ONLY: FRAC_FUTURE     ! To get size of q future for basin IRF
    USE globalData, ONLY: nEns, nRch      ! number of ensembles and river reaches
    implicit none
@@ -450,7 +464,7 @@ CONTAINS
    integer(i4b), intent(in)   :: ixDim    ! ixDim
    ! output
    integer(i4b), intent(out)  :: ierr     ! error code
-   character(*), intent(out)  :: message1  ! error message
+   character(*), intent(out)  :: message1 ! error message
 
    ierr=0; message1='set_dim_len/'
 
@@ -460,7 +474,7 @@ CONTAINS
     case(ixStateDims%tbound);  meta_stateDims(ixStateDims%tbound)%dimLength  = 2
     case(ixStateDims%tdh);     meta_stateDims(ixStateDims%tdh)%dimLength     = size(FRAC_FUTURE)
     case(ixStateDims%tdh_irf); meta_stateDims(ixStateDims%tdh_irf)%dimLength = 20   !just temporarily
-    case(ixStateDims%fdmesh);  meta_stateDims(ixStateDims%fdmesh)%dimLength  = 4
+    case(ixStateDims%fdmesh);  meta_stateDims(ixStateDims%fdmesh)%dimLength  = nMolecule
     case(ixStateDims%wave);    meta_stateDims(ixStateDims%wave)%dimLength    = MAXQPAR
     case default; ierr=20; message1=trim(message1)//'unable to identify dimension variable index'; return
    end select
@@ -538,45 +552,49 @@ CONTAINS
 
   END SUBROUTINE define_IRFbas_state
 
-  SUBROUTINE define_KWE_state(ierr, message1)
+  SUBROUTINE define_IRF_state(ierr, message1)
    implicit none
    ! output
-   integer(i4b), intent(out)         :: ierr          ! error code
-   character(*), intent(out)         :: message1      ! error message
+   integer(i4b), intent(out)         :: ierr        ! error code
+   character(*), intent(out)         :: message1    ! error message
    ! local
-   integer(i4b)                      :: iVar,ixDim    ! index loop for variables
-   integer(i4b)                      :: nDims         ! number of dimensions
-   integer(i4b),allocatable          :: dim_KWE(:)    ! dimension Id array
+   integer(i4b)                      :: iVar,ixDim  ! index loop for variables
+   integer(i4b)                      :: nDims       ! number of dimensions
+   integer(i4b),allocatable          :: dim_set(:)  ! dimensions combination case 4
 
-   ierr=0; message1='define_KWE_state/'
+   ierr=0; message1='define_IRF_state/'
 
-   ! Check dimension length is populated
-   if (meta_stateDims(ixStateDims%fdmesh)%dimLength == integerMissing) then
-     call set_dim_len(ixStateDims%fdmesh, ierr, cmessage)
-     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%fdmesh)%dimName); return; endif
-   end if
+   ! Define dimension needed for this routing specific state variables
+   if (meta_stateDims(ixStateDims%tdh_irf)%dimLength == integerMissing) then
+     call set_dim_len(ixStateDims%tdh_irf, ierr, cmessage)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%tdh_irf)%dimName); return; endif
+   endif
 
-   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%fdmesh)%dimName), meta_stateDims(ixStateDims%fdmesh)%dimLength, meta_stateDims(ixStateDims%fdmesh)%dimId)
+   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%tdh_irf)%dimName), meta_stateDims(ixStateDims%tdh_irf)%dimLength, meta_stateDims(ixStateDims%tdh_irf)%dimId)
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
-   do iVar=1,nVarsKWE
+   associate(dim_seg     => meta_stateDims(ixStateDims%seg)%dimId,     &
+             dim_ens     => meta_stateDims(ixStateDims%ens)%dimId,     &
+             dim_tdh_irf => meta_stateDims(ixStateDims%tdh_irf)%dimId)
 
-     nDims = size(meta_KWE(iVar)%varDim)
-     if (allocated(dim_KWE)) then
-       deallocate(dim_KWE)
-     end if
-     allocate(dim_KWE(nDims))
+   call def_var(pioFileDescState, 'numQF', ncd_int, ierr, cmessage, pioDimId=[dim_seg,dim_ens], vdesc='number of future q time steps in a reach', vunit='-')
+   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
+   do iVar=1,nVarsIRF
+     nDims = size(meta_irf(iVar)%varDim)
+     if (allocated(dim_set)) deallocate(dim_set)
+     allocate(dim_set(nDims))
      do ixDim = 1, nDims
-       dim_KWE(ixDim) = meta_stateDims(meta_KWE(iVar)%varDim(ixDim))%dimId
+       dim_set(ixDim) = meta_stateDims(meta_irf(iVar)%varDim(ixDim))%dimId
      end do
 
-     call def_var(pioFileDescState, trim(meta_KWE(iVar)%varName), meta_KWE(iVar)%varType, ierr, cmessage, pioDimId=dim_KWE, vdesc=trim(meta_KWE(iVar)%varDesc), vunit=trim(meta_KWE(iVar)%varUnit))
+     call def_var(pioFileDescState, trim(meta_irf(iVar)%varName), meta_irf(iVar)%varType, ierr, cmessage, pioDimId=dim_set, vdesc=trim(meta_irf(iVar)%varDesc), vunit=trim(meta_irf(iVar)%varUnit))
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
-
    end do
 
-  END SUBROUTINE define_KWE_state
+   end associate
+
+  END SUBROUTINE define_IRF_state
 
   SUBROUTINE define_KWT_state(ierr, message1)
    implicit none
@@ -586,7 +604,7 @@ CONTAINS
    ! local
    integer(i4b)                      :: iVar,ixDim  ! index loop for variables
    integer(i4b)                      :: nDims       ! number of dimensions
-   integer(i4b),allocatable          :: dim_kwt(:)  ! dimensions ID array
+   integer(i4b),allocatable          :: dim_set(:)  ! dimensions ID array
 
    ierr=0; message1='define_KWT_state/'
 
@@ -608,72 +626,128 @@ CONTAINS
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
    do iVar=1,nVarsKWT
-
      nDims = size(meta_kwt(iVar)%varDim)
-     if (allocated(dim_kwt)) then
-       deallocate(dim_kwt)
-     endif
-     allocate(dim_kwt(nDims))
+     if (allocated(dim_set)) deallocate(dim_set)
+     allocate(dim_set(nDims))
      do ixDim = 1, nDims
-       dim_kwt(ixDim) = meta_stateDims(meta_kwt(iVar)%varDim(ixDim))%dimId
+       dim_set(ixDim) = meta_stateDims(meta_kwt(iVar)%varDim(ixDim))%dimId
      end do
 
-     call def_var(pioFileDescState, trim(meta_kwt(iVar)%varName), meta_kwt(iVar)%varType, ierr, cmessage, pioDimId=dim_kwt, vdesc=trim(meta_kwt(iVar)%varDesc), vunit=trim(meta_kwt(iVar)%varUnit))
+     call def_var(pioFileDescState, trim(meta_kwt(iVar)%varName), meta_kwt(iVar)%varType, ierr, cmessage, pioDimId=dim_set, vdesc=trim(meta_kwt(iVar)%varDesc), vunit=trim(meta_kwt(iVar)%varUnit))
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
-
    end do
 
    end associate
 
   END SUBROUTINE define_KWT_state
 
-  SUBROUTINE define_IRF_state(ierr, message1)
+  SUBROUTINE define_KW_state(ierr, message1)
    implicit none
    ! output
-   integer(i4b), intent(out)         :: ierr        ! error code
-   character(*), intent(out)         :: message1    ! error message
+   integer(i4b), intent(out)         :: ierr          ! error code
+   character(*), intent(out)         :: message1      ! error message
    ! local
-   integer(i4b)                      :: iVar,ixDim  ! index loop for variables
-   integer(i4b)                      :: nDims       ! number of dimensions
-   integer(i4b),allocatable          :: dim_irf(:)  ! dimensions combination case 4
+   integer(i4b)                      :: iVar,ixDim    ! index loop for variables
+   integer(i4b)                      :: nDims         ! number of dimensions
+   integer(i4b),allocatable          :: dim_set(:)    ! dimension Id array
 
-   ierr=0; message1='define_IRF_state/'
+   ierr=0; message1='define_KW_state/'
 
-   ! Define dimension needed for this routing specific state variables
-   if (meta_stateDims(ixStateDims%tdh_irf)%dimLength == integerMissing) then
-     call set_dim_len(ixStateDims%tdh_irf, ierr, cmessage)
-     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%tdh_irf)%dimName); return; endif
-   endif
+   ! Check dimension length is populated
+   if (meta_stateDims(ixStateDims%fdmesh)%dimLength == integerMissing) then
+     call set_dim_len(ixStateDims%fdmesh, ierr, cmessage)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%fdmesh)%dimName); return; endif
+   end if
 
-   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%tdh_irf)%dimName), meta_stateDims(ixStateDims%tdh_irf)%dimLength, meta_stateDims(ixStateDims%tdh_irf)%dimId)
+   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%fdmesh)%dimName), meta_stateDims(ixStateDims%fdmesh)%dimLength, meta_stateDims(ixStateDims%fdmesh)%dimId)
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
-   associate(dim_seg     => meta_stateDims(ixStateDims%seg)%dimId,     &
-             dim_ens     => meta_stateDims(ixStateDims%ens)%dimId,     &
-             dim_tdh_irf => meta_stateDims(ixStateDims%tdh_irf)%dimId)
+   do iVar=1,nVarsKW
+     nDims = size(meta_KW(iVar)%varDim)
+     if (allocated(dim_set)) deallocate(dim_set)
+     allocate(dim_set(nDims))
 
-   call def_var(pioFileDescState, 'numQF', ncd_int, ierr, cmessage, pioDimId=[dim_seg,dim_ens], vdesc='number of future q time steps in a reach', vunit='-')
-   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
-
-   do iVar=1,nVarsIRF
-
-     nDims = size(meta_irf(iVar)%varDim)
-     if (allocated(dim_irf)) then
-       deallocate(dim_irf)
-     endif
-     allocate(dim_irf(nDims))
      do ixDim = 1, nDims
-       dim_irf(ixDim) = meta_stateDims(meta_irf(iVar)%varDim(ixDim))%dimId
+       dim_set(ixDim) = meta_stateDims(meta_KW(iVar)%varDim(ixDim))%dimId
      end do
 
-     call def_var(pioFileDescState, trim(meta_irf(iVar)%varName), meta_irf(iVar)%varType, ierr, cmessage, pioDimId=dim_irf, vdesc=trim(meta_irf(iVar)%varDesc), vunit=trim(meta_irf(iVar)%varUnit))
+     call def_var(pioFileDescState, trim(meta_KW(iVar)%varName), meta_KW(iVar)%varType, ierr, cmessage, pioDimId=dim_set, vdesc=trim(meta_KW(iVar)%varDesc), vunit=trim(meta_KW(iVar)%varUnit))
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
-
    end do
 
-   end associate
+  END SUBROUTINE define_KW_state
 
-  END SUBROUTINE define_IRF_state
+  SUBROUTINE define_MC_state(ierr, message1)
+   implicit none
+   ! output
+   integer(i4b), intent(out)         :: ierr          ! error code
+   character(*), intent(out)         :: message1      ! error message
+   ! local
+   integer(i4b)                      :: iVar,ixDim    ! index loop for variables
+   integer(i4b)                      :: nDims         ! number of dimensions
+   integer(i4b),allocatable          :: dim_set(:)    ! dimension Id array
+
+   ierr=0; message1='define_MC_state/'
+
+   ! Check dimension length is populated
+   if (meta_stateDims(ixStateDims%fdmesh)%dimLength == integerMissing) then
+     call set_dim_len(ixStateDims%fdmesh, ierr, cmessage)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%fdmesh)%dimName); return; endif
+   end if
+
+   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%fdmesh)%dimName), meta_stateDims(ixStateDims%fdmesh)%dimLength, meta_stateDims(ixStateDims%fdmesh)%dimId)
+   if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
+
+   do iVar=1,nVarsMC
+     nDims = size(meta_mc(iVar)%varDim)
+     if (allocated(dim_set)) deallocate(dim_set)
+     allocate(dim_set(nDims))
+
+     do ixDim = 1, nDims
+       dim_set(ixDim) = meta_stateDims(meta_mc(iVar)%varDim(ixDim))%dimId
+     end do
+
+     call def_var(pioFileDescState, trim(meta_mc(iVar)%varName), meta_mc(iVar)%varType, ierr, cmessage, pioDimId=dim_set, vdesc=trim(meta_mc(iVar)%varDesc), vunit=trim(meta_mc(iVar)%varUnit))
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+   end do
+
+  END SUBROUTINE define_MC_state
+
+  SUBROUTINE define_DW_state(ierr, message1)
+   implicit none
+   ! output
+   integer(i4b), intent(out)         :: ierr          ! error code
+   character(*), intent(out)         :: message1      ! error message
+   ! local
+   integer(i4b)                      :: iVar,ixDim    ! index loop for variables
+   integer(i4b)                      :: nDims         ! number of dimensions
+   integer(i4b),allocatable          :: dim_set(:)    ! dimension Id array
+
+   ierr=0; message1='define_DW_state/'
+
+   ! Check dimension length is populated
+   if (meta_stateDims(ixStateDims%fdmesh)%dimLength == integerMissing) then
+     call set_dim_len(ixStateDims%fdmesh, ierr, cmessage)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%fdmesh)%dimName); return; endif
+   end if
+
+   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%fdmesh)%dimName), meta_stateDims(ixStateDims%fdmesh)%dimLength, meta_stateDims(ixStateDims%fdmesh)%dimId)
+   if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
+
+   do iVar=1,nVarsDW
+     nDims = size(meta_dw(iVar)%varDim)
+     if (allocated(dim_set)) deallocate(dim_set)
+     allocate(dim_set(nDims))
+
+     do ixDim = 1, nDims
+       dim_set(ixDim) = meta_stateDims(meta_dw(iVar)%varDim(ixDim))%dimId
+     end do
+
+     call def_var(pioFileDescState, trim(meta_dw(iVar)%varName), meta_dw(iVar)%varType, ierr, cmessage, pioDimId=dim_set, vdesc=trim(meta_dw(iVar)%varDesc), vunit=trim(meta_dw(iVar)%varUnit))
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+   end do
+
+  END SUBROUTINE define_DW_state
 
  END SUBROUTINE define_state_nc
 
@@ -689,9 +763,11 @@ CONTAINS
  USE public_var, ONLY: routOpt
  USE public_var, ONLY: doesBasinRoute
  USE public_var, ONLY: allRoutingMethods
- USE public_var, ONLY: kinematicWave
- USE public_var, ONLY: kinematicWaveEuler
  USE public_var, ONLY: impulseResponseFunc
+ USE public_var, ONLY: kinematicWaveTracking
+ USE public_var, ONLY: kinematicWave
+ USE public_var, ONLY: muskingumCunge
+ USE public_var, ONLY: diffusiveWave
  USE globalData, ONLY: RCHFLX_main         ! mainstem reach fluxes (ensembles, reaches)
  USE globalData, ONLY: RCHFLX_trib         ! tributary reach fluxes (ensembles, reaches)
  USE globalData, ONLY: NETOPO_main         ! mainstem reach topology
@@ -792,13 +868,23 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
- if (routOpt==kinematicWaveEuler) then
-  call write_KWE_state(ierr, cmessage)
+ if (routOpt==allRoutingMethods .or. routOpt==kinematicWaveTracking) then
+  call write_KWT_state(ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
- if (routOpt==allRoutingMethods .or. routOpt==kinematicWave) then
-  call write_KWT_state(ierr, cmessage)
+ if (routOpt==kinematicWave) then
+  call write_KW_state(ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
+ if (routOpt==muskingumCunge) then
+  call write_MC_state(ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
+ if (routOpt==diffusiveWave) then
+  call write_DW_state(ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
@@ -806,173 +892,177 @@ CONTAINS
 
  CONTAINS
 
-  ! reach inflow writing procedure
   SUBROUTINE write_basinQ_state(ierr, message1)
-  implicit none
-  ! output
-  integer(i4b), intent(out)  :: ierr            ! error code
-  character(*), intent(out)  :: message1        ! error message
-  ! local variables
-  type(states)               :: state           ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
-  integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
+    implicit none
+    ! output
+    integer(i4b), intent(out)  :: ierr            ! error code
+    character(*), intent(out)  :: message1        ! error message
+    ! local variables
+    type(states)               :: state           ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
+    integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
 
-  ! initialize error control
-  ierr=0; message1='write_basinQ_state/'
+    ! initialize error control
+    ierr=0; message1='write_basinQ_state/'
 
-  associate(nSeg     => size(RCHFLX_local),                         &
-            nens     => meta_stateDims(ixStateDims%ens)%dimLength)
+    associate(nSeg     => size(RCHFLX_local),                         &
+              nens     => meta_stateDims(ixStateDims%ens)%dimLength)
 
-  allocate(state%var(nVarsBasinQ), stat=ierr, errmsg=cmessage)
-  if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+    allocate(state%var(nVarsBasinQ), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
-  do iVar=1,nVarsBasinQ
-    select case(iVar)
-      case(ixBasinQ%q); allocate(state%var(iVar)%array_2d_dp(nSeg, nEns), stat=ierr)
-      case default; ierr=20; message1=trim(message1)//'unable to identify basin routing variable index'; return
-    end select
-    if(ierr/=0)then; message1=trim(message1)//'problem allocating space for basin IRF routing state '//trim(meta_basinQ(iVar)%varName); return; endif
-  end do
+    do iVar=1,nVarsBasinQ
+      select case(iVar)
+        case(ixBasinQ%q); allocate(state%var(iVar)%array_2d_dp(nSeg, nEns), stat=ierr)
+        case default; ierr=20; message1=trim(message1)//'unable to identify basin routing variable index'; return
+      end select
+      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for basin IRF routing state '//trim(meta_basinQ(iVar)%varName); return; endif
+    end do
 
- ! --Convert data structures to arrays
-  do iens=1,nens
-    do iSeg=1,nSeg
-      do iVar=1,nVarsBasinQ
-        select case(iVar)
-          case(ixBasinQ%q); state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX_local(iSeg)%BASIN_QR(1)
-          case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF state variable index'; return
-        end select
+    ! --Convert data structures to arrays
+    do iens=1,nens
+      do iSeg=1,nSeg
+        do iVar=1,nVarsBasinQ
+          select case(iVar)
+            case(ixBasinQ%q); state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX_local(iSeg)%BASIN_QR(1)
+            case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF state variable index'; return
+          end select
+        enddo
       enddo
     enddo
-  enddo
 
-  do iVar=1,nVarsBasinQ
-     select case(iVar)
-      case(ixBasinQ%q); call write_pnetcdf(pioFileDescState, meta_basinQ(iVar)%varName, state%var(iVar)%array_2d_dp, iodesc_state_double, ierr, cmessage)
-      case default; ierr=20; message1=trim(message1)//'unable to identify reach inflow variable index for nc writing'; return
-    end select
-    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
-  end do
+    do iVar=1,nVarsBasinQ
+      select case(iVar)
+        case(ixBasinQ%q); call write_pnetcdf(pioFileDescState, meta_basinQ(iVar)%varName, state%var(iVar)%array_2d_dp, iodesc_state_double, ierr, cmessage)
+        case default; ierr=20; message1=trim(message1)//'unable to identify reach inflow variable index for nc writing'; return
+      end select
+      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+    end do
 
-  end associate
+    end associate
 
   END SUBROUTINE write_basinQ_state
 
-  ! Basin IRF writing procedures
   SUBROUTINE write_IRFbas_state(ierr, message1)
-  implicit none
-  ! output
-  integer(i4b), intent(out)  :: ierr            ! error code
-  character(*), intent(out)  :: message1        ! error message
-  ! local variables
-  type(states)               :: state           ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
-  integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
+    implicit none
+    ! output
+    integer(i4b), intent(out)  :: ierr            ! error code
+    character(*), intent(out)  :: message1        ! error message
+    ! local variables
+    type(states)               :: state           ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
+    integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
 
-  ierr=0; message1='write_IRFbas_state/'
+    ierr=0; message1='write_IRFbas_state/'
 
-  associate(nSeg     => size(RCHFLX_local),                         &
-            nEns     => meta_stateDims(ixStateDims%ens)%dimLength,  &
-            ntdh     => meta_stateDims(ixStateDims%tdh)%dimLength)      ! maximum future q time steps among basins
+    associate(nSeg     => size(RCHFLX_local),                         &
+              nEns     => meta_stateDims(ixStateDims%ens)%dimLength,  &
+              ntdh     => meta_stateDims(ixStateDims%tdh)%dimLength)      ! maximum future q time steps among basins
 
-  allocate(state%var(nVarsIRFbas), stat=ierr, errmsg=cmessage)
-  if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+    allocate(state%var(nVarsIRFbas), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
-  do iVar=1,nVarsIRFbas
+    do iVar=1,nVarsIRFbas
 
-   select case(iVar)
-    case(ixIRFbas%qfuture); allocate(state%var(iVar)%array_3d_dp(nSeg, ntdh, nEns), stat=ierr)
-    case default; ierr=20; message1=trim(message1)//'unable to identify basin routing variable index'; return
-   end select
-   if(ierr/=0)then; message1=trim(message1)//'problem allocating space for basin IRF routing state '//trim(meta_irf_bas(iVar)%varName); return; endif
+     select case(iVar)
+      case(ixIRFbas%qfuture); allocate(state%var(iVar)%array_3d_dp(nSeg, ntdh, nEns), stat=ierr)
+      case default; ierr=20; message1=trim(message1)//'unable to identify basin routing variable index'; return
+     end select
+     if(ierr/=0)then; message1=trim(message1)//'problem allocating space for basin IRF routing state '//trim(meta_irf_bas(iVar)%varName); return; endif
 
-  end do
+    end do
 
- ! --Convert data structures to arrays
-  do iens=1,nEns
-   do iSeg=1,nSeg
-     do iVar=1,nVarsIRFbas
-      select case(iVar)
-       case(ixIRFbas%qfuture); state%var(iVar)%array_3d_dp(iSeg,:,iens) = RCHFLX_local(iSeg)%QFUTURE
-       case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF state variable index'; return
-      end select
+    ! --Convert data structures to arrays
+    do iens=1,nEns
+      do iSeg=1,nSeg
+        do iVar=1,nVarsIRFbas
+          select case(iVar)
+            case(ixIRFbas%qfuture); state%var(iVar)%array_3d_dp(iSeg,:,iens) = RCHFLX_local(iSeg)%QFUTURE
+            case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF state variable index'; return
+          end select
+        enddo
+      enddo
     enddo
-   enddo
-  enddo
 
-  do iVar=1,nVarsIRFbas
+    do iVar=1,nVarsIRFbas
+      select case(iVar)
+        case(ixIRFbas%qfuture); call write_pnetcdf(pioFileDescState, meta_irf_bas(iVar)%varName, state%var(iVar)%array_3d_dp, iodesc_irf_bas_double, ierr, cmessage)
+        case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF variable index for nc writing'; return
+      end select
+      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+    enddo
 
-   select case(iVar)
-    case(ixIRFbas%qfuture); call write_pnetcdf(pioFileDescState, meta_irf_bas(iVar)%varName, state%var(iVar)%array_3d_dp, iodesc_irf_bas_double, ierr, cmessage)
-    case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF variable index for nc writing'; return
-   end select
-   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
-
-  enddo
-
-  end associate
+    end associate
 
   END SUBROUTINE write_IRFbas_state
 
-  ! KWE writing procedures
-  SUBROUTINE write_KWE_state(ierr, message1)
-  implicit none
-  ! output
-  integer(i4b), intent(out)  :: ierr            ! error code
-  character(*), intent(out)  :: message1        ! error message
-  ! local variables
-  type(states)               :: state           ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
-  integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
+  SUBROUTINE write_IRF_state(ierr, message1)
+    implicit none
+    ! output
+    integer(i4b), intent(out)  :: ierr            ! error code
+    character(*), intent(out)  :: message1        ! error message
+    ! local variables
+    type(states)               :: state           ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
+    integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
+    integer(i4b), allocatable  :: numQF(:,:)      ! number of future Q time steps for each ensemble and segment
 
-  ierr=0; message1='write_KWE_state/'
+    ierr=0; message1='write_IRF_state/'
 
-  associate(nSeg     => size(RCHFLX_local),                         &
-            nEns     => meta_stateDims(ixStateDims%ens)%dimLength,  &
-            nMesh    => meta_stateDims(ixStateDims%fdmesh)%dimLength)     ! maximum waves allowed in a reach
+    associate(nSeg     => size(RCHFLX_local),                         &
+              nEns     => meta_stateDims(ixStateDims%ens)%dimLength,  &
+              nTbound  => meta_stateDims(ixStateDims%tbound)%dimLength, &
+              ntdh_irf => meta_stateDims(ixStateDims%tdh_irf)%dimLength)    ! maximum future q time steps among reaches
 
-  allocate(state%var(nVarsKWE), stat=ierr, errmsg=cmessage)
-  if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+    allocate(state%var(nVarsIRF), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
-  do iVar=1,nVarsKWE
-    select case(iVar)
-     case(ixKWE%a, ixKWE%q)
-      allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
-     case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
-    end select
-    if(ierr/=0)then; message1=trim(message1)//'problem allocating space for KWE routing state '//trim(meta_kwe(iVar)%varName); return; endif
-  end do
+    ! array to store number of wave per segment and ensemble
+    allocate(numQF(nEns,nSeg), stat=ierr)
+    if(ierr/=0)then; message1=trim(message1)//'problem allocating space for numQF'; return; endif
 
-  ! --Convert data structures to arrays
-  do iens=1,nEns
-   do iSeg=1,nSeg
+    do iVar=1,nVarsIRF
+      select case(iVar)
+        case(ixIRF%qfuture); allocate(state%var(iVar)%array_3d_dp(nSeg, ntdh_irf, nEns), stat=ierr)
+        case(ixIRF%vol);     allocate(state%var(iVar)%array_3d_dp(nSeg, nTbound, nEns), stat=ierr)
+        case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
+      end select
+      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for IRF routing state '//trim(meta_irf(iVar)%varName); return; endif
+    end do
 
-    do iVar=1,nVarsKWE
-     select case(iVar)
-      case(ixKWE%a)
-       state%var(iVar)%array_3d_dp(iSeg,1:4,iens) = RCHSTA_local(iSeg)%EKW_ROUTE%A(:)
-      case(ixKWE%q)
-       state%var(iVar)%array_3d_dp(iSeg,1:4,iens) = RCHSTA_local(iSeg)%EKW_ROUTE%Q(:)
-      case default; ierr=20; message1=trim(message1)//'unable to identify KWE routing state variable index'; return
-     end select
-    enddo ! variable loop
-   enddo ! seg loop
-  enddo ! ensemble loop
+    ! --Convert data structures to arrays
+    do iens=1,nEns
+      do iSeg=1,nSeg
+        numQF(iens,iseg) = size(NETOPO_local(iSeg)%UH)
+        do iVar=1,nVarsIRF
+          select case(iVar)
+            case(ixIRF%qfuture)
+              state%var(iVar)%array_3d_dp(iSeg,1:numQF(iens,iSeg),iens) = RCHFLX_local(iSeg)%QFUTURE_IRF
+              state%var(iVar)%array_3d_dp(iSeg,numQF(iens,iSeg)+1:ntdh_irf,iens) = realMissing
+            case(ixIRF%vol)
+              state%var(iVar)%array_3d_dp(iSeg,1:nTbound,iens) = RCHFLX_local(iSeg)%REACH_VOL(0:1)
+            case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
+          end select
+        enddo ! variable loop
+      enddo ! seg loop
+    enddo ! ensemble loop
 
-  ! Writing netCDF
-  do iVar=1,nVarsKWE
-    select case(iVar)
-     case(ixKWE%a, ixKWE%q)
-       call write_pnetcdf(pioFileDescState, trim(meta_kwe(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_mesh_double, ierr, cmessage)
-     case default; ierr=20; message1=trim(message1)//'unable to identify KWE variable index for nc writing'; return
-    end select
-   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+    ! writing netcdf
+    call write_pnetcdf(pioFileDescState, 'numQF', numQF, iodesc_state_int, ierr, cmessage)
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
-  end do
+    do iVar=1,nVarsIRF
+      select case(iVar)
+        case(ixIRF%qfuture)
+          call write_pnetcdf(pioFileDescState, trim(meta_irf(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_irf_double, ierr, cmessage)
+        case(ixIRF%vol)
+          call write_pnetcdf(pioFileDescState, trim(meta_irf(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_vol_double, ierr, cmessage)
+        case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc writing'; return
+        if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+      end select
+    end do
 
-  end associate
+    end associate
 
-  END SUBROUTINE write_KWE_state
+  END SUBROUTINE write_IRF_state
 
-
-  ! KWT writing procedures
   SUBROUTINE write_KWT_state(ierr, message1)
   implicit none
   ! output
@@ -998,47 +1088,43 @@ CONTAINS
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsKWT
-
     select case(iVar)
-     case(ixKWT%routed); allocate(state%var(iVar)%array_3d_int(nSeg, nWave, nEns), stat=ierr)
-     case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
-      allocate(state%var(iVar)%array_3d_dp(nSeg, nWave, nEns), stat=ierr)
-     case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
+      case(ixKWT%routed); allocate(state%var(iVar)%array_3d_int(nSeg, nWave, nEns), stat=ierr)
+      case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
+        allocate(state%var(iVar)%array_3d_dp(nSeg, nWave, nEns), stat=ierr)
+      case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
     end select
     if(ierr/=0)then; message1=trim(message1)//'problem allocating space for KWT routing state '//trim(meta_kwt(iVar)%varName); return; endif
   end do
 
   ! --Convert data structures to arrays
   do iens=1,nEns
-   do iSeg=1,nSeg
-
-    numWaves(iens,iseg) = size(RCHSTA_local(iseg)%LKW_ROUTE%KWAVE)
-
-    do iVar=1,nVarsKWT
-
-     select case(iVar)
-      case(ixKWT%tentry)
-       state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%TI
-       state%var(iVar)%array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
-      case(ixKWT%texit)
-       state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%TR
-       state%var(iVar)%array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
-      case(ixKWT%qwave)
-       state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%QF
-       state%var(iVar)%array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
-      case(ixKWT%qwave_mod)
-       state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%QM
-       state%var(iVar)%array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
-      case(ixKWT%routed) ! this is suppposed to be logical variable, but put it as 0 or 1 in double now
-       if (allocated(RFvec)) deallocate(RFvec, stat=ierr)
-       allocate(RFvec(numWaves(iens,iSeg)),stat=ierr); RFvec=0_i4b
-       where (RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%RF) RFvec=1_i4b
-       state%var(iVar)%array_3d_int(iSeg,1:numWaves(iens,iSeg),iens) = RFvec
-       state%var(iVar)%array_3d_int(iSeg,numWaves(iens,iSeg)+1:,iens) = integerMissing
-      case default; ierr=20; message1=trim(message1)//'unable to identify KWT routing state variable index'; return
-     end select
-    enddo ! variable loop
-   enddo ! seg loop
+    do iSeg=1,nSeg
+      numWaves(iens,iseg) = size(RCHSTA_local(iseg)%LKW_ROUTE%KWAVE)
+      do iVar=1,nVarsKWT
+        select case(iVar)
+          case(ixKWT%tentry)
+            state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%TI
+            state%var(iVar)%array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
+          case(ixKWT%texit)
+            state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%TR
+            state%var(iVar)%array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
+          case(ixKWT%qwave)
+            state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%QF
+            state%var(iVar)%array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
+          case(ixKWT%qwave_mod)
+            state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens) = RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%QM
+            state%var(iVar)%array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
+          case(ixKWT%routed) ! this is suppposed to be logical variable, but put it as 0 or 1 in double now
+            if (allocated(RFvec)) deallocate(RFvec, stat=ierr)
+            allocate(RFvec(numWaves(iens,iSeg)),stat=ierr); RFvec=0_i4b
+            where (RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%RF) RFvec=1_i4b
+            state%var(iVar)%array_3d_int(iSeg,1:numWaves(iens,iSeg),iens) = RFvec
+            state%var(iVar)%array_3d_int(iSeg,numWaves(iens,iSeg)+1:,iens) = integerMissing
+          case default; ierr=20; message1=trim(message1)//'unable to identify KWT routing state variable index'; return
+        end select
+      enddo ! variable loop
+    enddo ! seg loop
   enddo ! ensemble loop
 
   ! Writing netCDF
@@ -1046,98 +1132,186 @@ CONTAINS
   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
   do iVar=1,nVarsKWT
-
     select case(iVar)
-     case(ixKWT%routed)
-       call write_pnetcdf(pioFileDescState, trim(meta_kwt(iVar)%varName), state%var(iVar)%array_3d_int, iodesc_wave_int, ierr, cmessage)
-     case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
-       call write_pnetcdf(pioFileDescState, trim(meta_kwt(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_wave_double, ierr, cmessage)
-     case default; ierr=20; message1=trim(message1)//'unable to identify KWT variable index for nc writing'; return
+      case(ixKWT%routed)
+        call write_pnetcdf(pioFileDescState, trim(meta_kwt(iVar)%varName), state%var(iVar)%array_3d_int, iodesc_wave_int, ierr, cmessage)
+      case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
+        call write_pnetcdf(pioFileDescState, trim(meta_kwt(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_wave_double, ierr, cmessage)
+      case default; ierr=20; message1=trim(message1)//'unable to identify KWT variable index for nc writing'; return
     end select
-   if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
-
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
   end do
 
   end associate
 
   END SUBROUTINE write_KWT_state
 
+  SUBROUTINE write_KW_state(ierr, message1)
+    implicit none
+    ! output
+    integer(i4b), intent(out)  :: ierr            ! error code
+    character(*), intent(out)  :: message1        ! error message
+    ! local variables
+    type(states)               :: state           ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
+    integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
 
-  ! IRF writing procedures
-  SUBROUTINE write_IRF_state(ierr, message1)
-  implicit none
-  ! output
-  integer(i4b), intent(out)  :: ierr            ! error code
-  character(*), intent(out)  :: message1        ! error message
-  ! local variables
-  type(states)               :: state           ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
-  integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
-  integer(i4b), allocatable  :: numQF(:,:)      ! number of future Q time steps for each ensemble and segment
+    ierr=0; message1='write_KW_state/'
 
-  ierr=0; message1='write_IRF_state/'
+    associate(nSeg     => size(RCHFLX_local),                         &
+              nEns     => meta_stateDims(ixStateDims%ens)%dimLength,  &
+              nMesh    => meta_stateDims(ixStateDims%fdmesh)%dimLength)     ! maximum waves allowed in a reach
 
-  associate(nSeg     => size(RCHFLX_local),                         &
-            nEns     => meta_stateDims(ixStateDims%ens)%dimLength,  &
-            nTbound  => meta_stateDims(ixStateDims%tbound)%dimLength, &
-            ntdh_irf => meta_stateDims(ixStateDims%tdh_irf)%dimLength)    ! maximum future q time steps among reaches
-
-  allocate(state%var(nVarsIRF), stat=ierr, errmsg=cmessage)
-  if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
-
-  ! array to store number of wave per segment and ensemble
-  allocate(numQF(nEns,nSeg), stat=ierr)
-  if(ierr/=0)then; message1=trim(message1)//'problem allocating space for numQF'; return; endif
-
-  do iVar=1,nVarsIRF
-   select case(iVar)
-    case(ixIRF%qfuture); allocate(state%var(iVar)%array_3d_dp(nSeg, ntdh_irf, nEns), stat=ierr)
-    case(ixIRF%irfVol);  allocate(state%var(iVar)%array_3d_dp(nSeg, nTbound, nEns), stat=ierr)
-    case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
-   end select
-   if(ierr/=0)then; message1=trim(message1)//'problem allocating space for IRF routing state '//trim(meta_irf(iVar)%varName); return; endif
-  end do
-
-  ! --Convert data structures to arrays
-  do iens=1,nEns
-   do iSeg=1,nSeg
-
-    numQF(iens,iseg) = size(NETOPO_local(iSeg)%UH)
-
-    do iVar=1,nVarsIRF
-
-     select case(iVar)
-      case(ixIRF%qfuture)
-       state%var(iVar)%array_3d_dp(iSeg,1:numQF(iens,iSeg),iens) = RCHFLX_local(iSeg)%QFUTURE_IRF
-       state%var(iVar)%array_3d_dp(iSeg,numQF(iens,iSeg)+1:ntdh_irf,iens) = realMissing
-      case(ixIRF%irfVol)
-       state%var(iVar)%array_3d_dp(iSeg,1:nTbound,iens) = RCHFLX_local(iSeg)%REACH_VOL(0:1)
-      case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
-     end select
-
-    enddo ! variable loop
-   enddo ! seg loop
-  enddo ! ensemble loop
-
-  ! writing netcdf
-  call write_pnetcdf(pioFileDescState, 'numQF', numQF, iodesc_state_int, ierr, cmessage)
-  if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
-
-  do iVar=1,nVarsIRF
-
-   select case(iVar)
-    case(ixIRF%qfuture)
-     call write_pnetcdf(pioFileDescState, trim(meta_irf(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_irf_double, ierr, cmessage)
-    case(ixIRF%irfVol)
-     call write_pnetcdf(pioFileDescState, trim(meta_irf(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_vol_double, ierr, cmessage)
-    case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc writing'; return
+    allocate(state%var(nVarsKW), stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
-   end select
 
-  end do
+    do iVar=1,nVarsKW
+      select case(iVar)
+       case(ixKW%qsub); allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
+       case(ixKW%vol)
+       case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
+      end select
+      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for KW routing state '//trim(meta_kw(iVar)%varName); return; endif
+    end do
 
-  end associate
+    ! --Convert data structures to arrays
+    do iens=1,nEns
+      do iSeg=1,nSeg
+        do iVar=1,nVarsKW
+          select case(iVar)
+            case(ixKW%qsub); state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA_local(iSeg)%molecule%Q(1:nMesh)
+            case(ixKW%vol)
+            case default; ierr=20; message1=trim(message1)//'unable to identify KW routing state variable index'; return
+          end select
+        enddo ! variable loop
+      enddo ! seg loop
+    enddo ! ensemble loop
 
-  END SUBROUTINE write_IRF_state
+    ! Writing netCDF
+    do iVar=1,nVarsKW
+      select case(iVar)
+       case(ixKW%qsub)
+         call write_pnetcdf(pioFileDescState, trim(meta_kw(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_mesh_double, ierr, cmessage)
+       case(ixKW%vol)
+       case default; ierr=20; message1=trim(message1)//'unable to identify KW variable index for nc writing'; return
+      end select
+      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+    end do
+
+    end associate
+
+  END SUBROUTINE write_KW_state
+
+  SUBROUTINE write_MC_state(ierr, message1)
+    implicit none
+    ! output
+    integer(i4b), intent(out)  :: ierr            ! error code
+    character(*), intent(out)  :: message1        ! error message
+    ! local variables
+    type(states)               :: state           ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
+    integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
+
+    ierr=0; message1='write_MC_state/'
+
+    associate(nSeg     => size(RCHFLX_local),                         &
+              nEns     => meta_stateDims(ixStateDims%ens)%dimLength,  &
+              nMesh    => meta_stateDims(ixStateDims%fdmesh)%dimLength)     ! maximum waves allowed in a reach
+
+    allocate(state%var(nVarsMC), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+    do iVar=1,nVarsMC
+      select case(iVar)
+       case(ixMC%qsub)
+        allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
+       case(ixMC%vol)
+       case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
+      end select
+      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for MC routing state '//trim(meta_mc(iVar)%varName); return; endif
+    end do
+
+    ! --Convert data structures to arrays
+    do iens=1,nEns
+      do iSeg=1,nSeg
+        do iVar=1,nVarsMC
+          select case(iVar)
+            case(ixMC%qsub); state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA_local(iSeg)%molecule%Q(1:nMesh)
+            case(ixMC%vol)
+            case default; ierr=20; message1=trim(message1)//'unable to identify MC routing state variable index'; return
+          end select
+        enddo ! variable loop
+      enddo ! seg loop
+    enddo ! ensemble loop
+
+    ! Writing netCDF
+    do iVar=1,nVarsMC
+      select case(iVar)
+       case(ixMC%qsub)
+         call write_pnetcdf(pioFileDescState, trim(meta_mc(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_mesh_double, ierr, cmessage)
+       case(ixMC%vol)
+       case default; ierr=20; message1=trim(message1)//'unable to identify MC variable index for nc writing'; return
+      end select
+      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+    end do
+
+    end associate
+
+  END SUBROUTINE write_MC_state
+
+  SUBROUTINE write_DW_state(ierr, message1)
+    implicit none
+    ! output
+    integer(i4b), intent(out)  :: ierr            ! error code
+    character(*), intent(out)  :: message1        ! error message
+    ! local variables
+    type(states)               :: state           ! temporal state data structures -currently 2 river routing scheme + basin IRF routing
+    integer(i4b)               :: iVar,iens,iSeg  ! index loops for variables, ensembles and segments respectively
+
+    ierr=0; message1='write_DW_state/'
+
+    associate(nSeg     => size(RCHFLX_local),                         &
+              nEns     => meta_stateDims(ixStateDims%ens)%dimLength,  &
+              nMesh    => meta_stateDims(ixStateDims%fdmesh)%dimLength)     ! maximum waves allowed in a reach
+
+    allocate(state%var(nVarsDW), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+
+    do iVar=1,nVarsDW
+      select case(iVar)
+        case(ixDW%qsub); allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
+        case(ixDW%vol)
+       case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
+      end select
+      if(ierr/=0)then; message1=trim(message1)//'problem allocating space for DW routing state '//trim(meta_dw(iVar)%varName); return; endif
+    end do
+
+    ! --Convert data structures to arrays
+    do iens=1,nEns
+      do iSeg=1,nSeg
+        do iVar=1,nVarsDW
+          select case(iVar)
+            case(ixDW%qsub); state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA_local(iSeg)%molecule%Q(1:nMesh)
+            case(ixDW%vol)
+            case default; ierr=20; message1=trim(message1)//'unable to identify DW routing state variable index'; return
+          end select
+        enddo ! variable loop
+      enddo ! seg loop
+    enddo ! ensemble loop
+
+    ! Writing netCDF
+    do iVar=1,nVarsDW
+      select case(iVar)
+       case(ixDW%qsub)
+         call write_pnetcdf(pioFileDescState, trim(meta_dw(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_mesh_double, ierr, cmessage)
+       case(ixDW%vol)
+       case default; ierr=20; message1=trim(message1)//'unable to identify DW variable index for nc writing'; return
+      end select
+      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
+    end do
+
+    end associate
+
+  END SUBROUTINE write_DW_state
+
 
  END SUBROUTINE write_state_nc
 
