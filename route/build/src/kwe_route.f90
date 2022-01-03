@@ -1,4 +1,4 @@
-MODULE kwe_route_module
+MODULE kw_route_module
 
 USE nrtype
 ! data types
@@ -6,40 +6,38 @@ USE dataTypes, ONLY: STRFLX            ! fluxes in each reach
 USE dataTypes, ONLY: STRSTA            ! state in each reach
 USE dataTypes, ONLY: RCHTOPO           ! Network topology
 USE dataTypes, ONLY: RCHPRP            ! Reach parameter
-USE dataTypes, ONLY: EKWRCH            ! Eulerian KW state
+USE dataTypes, ONLY: subbasin_omp      ! mainstem+tributary data strucuture
 ! global data
 USE public_var, ONLY: iulog             ! i/o logical unit number
 USE public_var, ONLY: realMissing       ! missing value for real number
 USE public_var, ONLY: integerMissing    ! missing value for integer number
 ! subroutines: general
 USE perf_mod,  ONLY: t_startf,t_stopf   ! timing start/stop
+USE model_utils, ONLY: handle_err
 
 ! privary
 implicit none
 private
 
-public::kwe_route
+public::kw_route
 
 real(dp), parameter  :: critFactor=0.01
 
-contains
+CONTAINS
 
  ! *********************************************************************
  ! subroutine: route kinematic waves with Euler solution through the river network
  ! *********************************************************************
- SUBROUTINE kwe_route(iens,                 & ! input: ensemble index
-                      river_basin,          & ! input: river basin information (mainstem, tributary outlet etc.)
-                      T0,T1,                & ! input: start and end of the time step
-                      ixDesire,             & ! input: reachID to be checked by on-screen pringing
-                      NETOPO_in,            & ! input: reach topology data structure
-                      RPARAM_in,            & ! input: reach parameter data structure
-                      RCHSTA_out,           & ! inout: reach state data structure
-                      RCHFLX_out,           & ! inout: reach flux data structure
-                      ierr,message,         & ! output: error control
-                      ixSubRch)               ! optional input: subset of reach indices to be processed
-
-   USE dataTypes, ONLY: subbasin_omp          ! mainstem+tributary data strucuture
-   USE model_utils, ONLY: handle_err
+ SUBROUTINE kw_route(iens,                 & ! input: ensemble index
+                     river_basin,          & ! input: river basin information (mainstem, tributary outlet etc.)
+                     T0,T1,                & ! input: start and end of the time step
+                     ixDesire,             & ! input: reachID to be checked by on-screen pringing
+                     NETOPO_in,            & ! input: reach topology data structure
+                     RPARAM_in,            & ! input: reach parameter data structure
+                     RCHSTA_out,           & ! inout: reach state data structure
+                     RCHFLX_out,           & ! inout: reach flux data structure
+                     ierr,message,         & ! output: error control
+                     ixSubRch)               ! optional input: subset of reach indices to be processed
 
    implicit none
    ! Input
@@ -68,12 +66,11 @@ contains
    integer(i4b)                                   :: iTrib                ! loop indices - branch
    integer(i4b)                                   :: ix                   ! loop indices stream order
 
-   ! initialize error control
-   ierr=0; message='kwe_route/'
+   ierr=0; message='kw_route/'
 
    ! number of reach check
    if (size(NETOPO_in)/=size(RCHFLX_out(iens,:))) then
-    ierr=20; message=trim(message)//'sizes of NETOPO and RCHFLX mismatch'; return
+     ierr=20; message=trim(message)//'sizes of NETOPO and RCHFLX mismatch'; return
    endif
 
    nSeg = size(RCHFLX_out(iens,:))
@@ -89,7 +86,7 @@ contains
 
    nOrder = size(river_basin)
 
-   call t_startf('route/kwe')
+   call t_startf('route/kw')
 
    ! route kinematic waves through the river network
    do ix = 1, nOrder
@@ -113,15 +110,15 @@ contains
        seg:do iSeg=1,river_basin(ix)%branch(iTrib)%nRch
          jSeg  = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
          if (.not. doRoute(jSeg)) cycle
-         call kwe_rch(iEns,jSeg,           & ! input: array indices
-                      ixDesire,            & ! input: index of the desired reach
-                      T0,T1,               & ! input: start and end of the time step
-                      LAKEFLAG,            & ! input: flag if lakes are to be processed
-                      NETOPO_in,           & ! input: reach topology data structure
-                      RPARAM_in,           & ! input: reach parameter data structure
-                      RCHSTA_out,          & ! inout: reach state data structure
-                      RCHFLX_out,          & ! inout: reach flux data structure
-                      ierr,cmessage)         ! output: error control
+         call kw_rch(iEns,jSeg,           & ! input: array indices
+                     ixDesire,            & ! input: index of the desired reach
+                     T0,T1,               & ! input: start and end of the time step
+                     LAKEFLAG,            & ! input: flag if lakes are to be processed
+                     NETOPO_in,           & ! input: reach topology data structure
+                     RPARAM_in,           & ! input: reach parameter data structure
+                     RCHSTA_out,          & ! inout: reach state data structure
+                     RCHFLX_out,          & ! inout: reach flux data structure
+                     ierr,cmessage)         ! output: error control
          if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
        end do  seg
      end do trib
@@ -129,25 +126,23 @@ contains
 
    end do
 
-   call t_stopf('route/kwe')
+   call t_stopf('route/kw')
 
- END SUBROUTINE kwe_route
+ END SUBROUTINE kw_route
 
  ! *********************************************************************
  ! subroutine: perform one segment route KW routing
  ! *********************************************************************
- SUBROUTINE kwe_rch(iEns, segIndex, & ! input: index of runoff ensemble to be processed
-                    ixDesire,       & ! input: reachID to be checked by on-screen pringing
-                    T0,T1,          & ! input: start and end of the time step
-                    LAKEFLAG,       & ! input: flag if lakes are to be processed
-                    NETOPO_in,      & ! input: reach topology data structure
-                    RPARAM_in,      & ! input: reach parameter data structure
-                    RCHSTA_out,     & ! inout: reach state data structure
-                    RCHFLX_out,     & ! inout: reach flux data structure
-                    ierr, message)    ! output: error control
-
+ SUBROUTINE kw_rch(iEns, segIndex, & ! input: index of runoff ensemble to be processed
+                   ixDesire,       & ! input: reachID to be checked by on-screen pringing
+                   T0,T1,          & ! input: start and end of the time step
+                   LAKEFLAG,       & ! input: flag if lakes are to be processed
+                   NETOPO_in,      & ! input: reach topology data structure
+                   RPARAM_in,      & ! input: reach parameter data structure
+                   RCHSTA_out,     & ! inout: reach state data structure
+                   RCHFLX_out,     & ! inout: reach flux data structure
+                   ierr, message)    ! output: error control
  implicit none
-
  ! Input
  integer(i4b),  intent(in)                 :: iEns              ! runoff ensemble to be routed
  integer(i4b),  intent(in)                 :: segIndex          ! segment where routing is performed
@@ -171,8 +166,7 @@ contains
  real(dp)                                  :: q_upstream        ! total discharge at top of the reach being processed
  character(len=strLen)                     :: cmessage          ! error message from subroutine
 
- ! initialize error control
- ierr=0; message='kwe_rch/'
+ ierr=0; message='kw_rch/'
 
  doCheck = .false.
  if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
@@ -192,47 +186,47 @@ contains
  endif
 
  if(doCheck)then
-   write(iulog,'(A)') 'CHECK Euler Kinematic wave'
+   write(iulog,'(A)') 'CHECK Kinematic wave routing'
    if (nUps>0) then
      do iUps = 1,nUps
-       write(iulog,'(A,X,I6,X,G12.5)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, NETOPO_in(segIndex)%UREACHK(iUps))%REACH_Q
+       write(iulog,'(A,X,I12,X,G15.4)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, NETOPO_in(segIndex)%UREACHK(iUps))%REACH_Q
      enddo
    end if
-   write(iulog,'(A,X,G12.5)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+   write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
  endif
 
- ! perform river network KWE routing
- call kw_euler(RPARAM_in(segIndex),         &    ! input: parameter at segIndex reach
-               T0,T1,                       &    ! input: start and end of the time step
-               q_upstream,                  &    ! input: total discharge at top of the reach being processed
-               isHW,                        &    ! input: is this headwater basin?
-               RCHSTA_out(iens,segIndex),   &    ! inout:
-               RCHFLX_out(iens,segIndex),   &    ! inout: updated fluxes at reach
-               doCheck,                     &    ! input: reach index to be examined
-               ierr, message)                    ! output: error control
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ! Check True since now this reach now routed
- RCHFLX_out(iEns,segIndex)%isRoute=.True.
+ ! perform river network KW routing
+ call kinematic_wave(RPARAM_in(segIndex),         &    ! input: parameter at segIndex reach
+                     T0,T1,                       &    ! input: start and end of the time step
+                     q_upstream,                  &    ! input: total discharge at top of the reach being processed
+                     isHW,                        &    ! input: is this headwater basin?
+                     RCHSTA_out(iens,segIndex),   &    ! inout:
+                     RCHFLX_out(iens,segIndex),   &    ! inout: updated fluxes at reach
+                     doCheck,                     &    ! input: reach index to be examined
+                     ierr, cmessage)                   ! output: error control
+ if(ierr/=0)then
+    write(message, '(A,X,I12,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage)
+    return
+ endif
 
  if(doCheck)then
-  write(iulog,'(A,X,G12.5)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%REACH_Q
+   write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%REACH_Q
  endif
 
- END SUBROUTINE kwe_rch
+ END SUBROUTINE kw_rch
 
 
  ! *********************************************************************
  ! subroutine: route kinematic waves at one segment
  ! *********************************************************************
- SUBROUTINE kw_euler(rch_param,     & ! input: river parameter data structure
-                     T0,T1,         & ! input: start and end of the time step
-                     q_upstream,    & ! input: discharge from upstream
-                     isHW,          & ! input: is this headwater basin?
-                     rstate,        & ! inout: reach state at a reach
-                     rflux,         & ! inout: reach flux at a reach
-                     doCheck,       & ! input: reach index to be examined
-                     ierr,message)
+ SUBROUTINE kinematic_wave(rch_param,     & ! input: river parameter data structure
+                           T0,T1,         & ! input: start and end of the time step
+                           q_upstream,    & ! input: discharge from upstream
+                           isHW,          & ! input: is this headwater basin?
+                           rstate,        & ! inout: reach state at a reach
+                           rflux,         & ! inout: reach flux at a reach
+                           doCheck,       & ! input: reach index to be examined
+                           ierr,message)
  ! ----------------------------------------------------------------------------------------
  ! Kinematic wave equation is solved based on conservative form the equation
  !
@@ -260,7 +254,7 @@ contains
  ! Output
  integer(i4b), intent(out)                :: ierr         ! error code
  character(*), intent(out)                :: message      ! error message
- ! LOCAL VAIRABLES
+ ! Local variables
  real(dp)                                 :: alpha        ! sqrt(slope)(/mannings N* width)
  real(dp)                                 :: beta         ! constant, 5/3
  real(dp)                                 :: alpha1       ! sqrt(slope)(/mannings N* width)
@@ -271,29 +265,23 @@ contains
  real(dp)                                 :: X            !
  real(dp)                                 :: dT           ! interval of time step [sec]
  real(dp)                                 :: dX           ! length of segment [m]
- real(dp)                                 :: A(0:1,0:1)   !
  real(dp)                                 :: Q(0:1,0:1)   !
  real(dp)                                 :: Qtrial(2)    ! trial solution of kw equation
- real(dp)                                 :: Abar         !
  real(dp)                                 :: Qbar         !
  real(dp)                                 :: absErr(2)    ! absolute error of nonliear equation solution
  real(dp)                                 :: f0eval(2)    !
  integer(i4b)                             :: imin         ! index at minimum value
  integer(i4b)                             :: ix           ! loop index
- character(len=strLen)                    :: cmessage     ! error message from subroutine
 
- ierr=0; message='kw_euler/'
+ ierr=0; message='kinematic_wave/'
 
  !  current time and inlet  3 (1,0) -> previous time and inlet  1 (0,0)
  !  current time and outlet 4 (1,1) -> previous time and outlet 2 (0,1)
- do ix = 0,1
-   A(0,ix) = rstate%EKW_ROUTE%A(ix+3)
-   Q(0,ix) = rstate%EKW_ROUTE%Q(ix+3)
- end do
+ Q(0,0) = rstate%molecule%Q(1)
+ Q(0,1) = rstate%molecule%Q(2)
 
  if (.not. isHW) then
 
-   A(1,1) = realMissing
    Q(1,1) = realMissing
 
    ! Get the reach parameters
@@ -309,12 +297,10 @@ contains
 
    ! compute total flow rate and flow area at upstream end at current time step
    Q(1,0) = q_upstream
-   A(1,0) = (Q(1,0)/alpha)**(1/beta)
 
    if (doCheck) then
      write(iulog,'(3(A,X,G12.5))') ' R_SLOPE=',rch_param%R_SLOPE,' R_WIDTH=',rch_param%R_WIDTH,' R_MANN=',rch_param%R_MAN_N
      write(iulog,'(3(A,X,G12.5))') ' Q(0,0)=',Q(0,0),' Q(0,1)=',Q(0,1),' Q(1,0)=',Q(1,0)
-     write(iulog,'(3(A,X,G12.5))') ' A(0,0)=',A(0,0),' A(0,1)=',A(0,1),' A(1,0)=',A(1,0)
    end if
 
    ! ----------
@@ -354,40 +340,35 @@ contains
      end do
    endif
 
-   A(1,1) = (Q(1,1)/alpha)**(1/beta)
-
    if (doCheck) then
-     write(iulog,'(2(A,X,G12.5))') ' A(1,1)=',A(1,1),' Q(1,1)=',Q(1,1)
+     write(iulog,'(1(A,X,G15.4))') ' Q(1,1)=',Q(1,1)
    end if
 
  else ! if head-water
 
-   A(1,0) = 0._dp
    Q(1,0) = 0._dp
-
    Q(1,1) = 0._dp
-   A(1,1) = 0._dp
 
    if (doCheck) then
      write(iulog,'(A)')            ' This is headwater '
-     write(iulog,'(2(A,X,G12.5))') ' A(1,1)=',A(1,1),' Q(1,1)=',Q(1,1)
+     write(iulog,'(1(A,X,G15.4))') ' Q(1,1)=',Q(1,1)
    endif
 
  endif
+
+ ! compute volume
+ rflux%REACH_VOL(0) = rflux%REACH_VOL(1)
+ rflux%REACH_VOL(1) = rflux%REACH_VOL(0) + (Q(1,0)-Q(1,1))*dT
+ rflux%REACH_VOL(1) = max(rflux%REACH_VOL(1), 0._dp)
 
  ! add catchment flow
  rflux%REACH_Q = Q(1,1)+rflux%BASIN_QR(1)
 
  ! update state
- do ix = 0,1
-   rstate%EKW_ROUTE%Q(ix+1) = Q(0,ix)
-   rstate%EKW_ROUTE%Q(ix+3) = Q(1,ix)
+ rstate%molecule%Q(1) = Q(1,0)
+ rstate%molecule%Q(2) = Q(1,1)
 
-   rstate%EKW_ROUTE%A(ix+1) = A(0,ix)
-   rstate%EKW_ROUTE%A(ix+3) = A(1,ix)
- end do
-
- END SUBROUTINE kw_euler
+ END SUBROUTINE kinematic_wave
 
 
-END MODULE kwe_route_module
+END MODULE kw_route_module
