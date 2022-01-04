@@ -314,7 +314,9 @@ CONTAINS
   USE public_var, ONLY: routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
   USE public_var, ONLY: restart_dir       ! directory containing output data
   USE public_var, ONLY: fname_state_in    ! name of state input file
-  USE public_var, ONLY: kinematicWaveEuler!
+  USE public_var, ONLY: kinematicWave     !
+  USE public_var, ONLY: muskingumCunge    !
+  USE public_var, ONLY: diffusiveWave     !
   USE globalData, ONLY: masterproc        ! root proc logical
   USE globalData, ONLY: nRch_mainstem     ! number of mainstem reaches
   USE globalData, ONLY: rch_per_proc      ! number of tributary reaches
@@ -323,6 +325,7 @@ CONTAINS
   USE globalData, ONLY: RCHSTA_main       ! reach flux structure
   USE globalData, ONLY: RCHSTA_trib       ! reach flux structure
   USE globalData, ONLY: TSEC              ! begining/ending of simulation time step [sec]
+  USE globalData, ONLY: nMolecule         !
 
   implicit none
   ! input:
@@ -341,8 +344,12 @@ CONTAINS
   ierr=0; message='init_state_data/'
 
   iens = 1_i4b
+  if (routOpt==kinematicWave .or. routOpt==muskingumCunge) then
+    nMolecule = 2
+  else if (routOpt==diffusiveWave) then
+    nMolecule = 5
+  end if
 
-  ! read restart file and initialize states
   if (trim(fname_state_in)==charMissing .or. lower(trim(fname_state_in))=='none' .or. lower(trim(fname_state_in))=='coldstart') then
     ! Cold start ....... initialize flux structures
     if (masterproc) then
@@ -354,10 +361,11 @@ CONTAINS
         RCHFLX_main(:,:)%REACH_VOL(0) = 0._dp    ! initializing the storage of lake volume for main channel (root node); later may be read from an input file
         RCHFLX_main(:,:)%REACH_VOL(1) = 0._dp    ! initializing the storage of lake volume for main channel (root node); later may be read from an input file
 
-        if (routOpt==kinematicWaveEuler) then
-          do ix = 1,4
-            RCHSTA_main(:,:)%EKW_ROUTE%A(ix) = 0._dp
-            RCHSTA_main(:,:)%EKW_ROUTE%Q(ix) = 0._dp
+        if (routOpt==kinematicWave .or. routOpt==muskingumCunge .or. routOpt==diffusiveWave) then
+          do ix = 1, size(RCHSTA_main(iens,:))
+            allocate(RCHSTA_main(iens,ix)%molecule%Q(nMolecule), stat=ierr, errmsg=cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA]'; return; endif
+            RCHSTA_main(iens,ix)%molecule%Q(:) = 0._dp
           end do
         end if
       end if
@@ -371,32 +379,31 @@ CONTAINS
       RCHFLX_trib(:,:)%REACH_VOL(0) = 0._dp      ! initializing the storage of lake volume for tributaries; layer may be read from an input file
       RCHFLX_trib(:,:)%REACH_VOL(1) = 0._dp      ! initializing the storage of lake volume for tributaries; later may be read from an input file
 
-      if (routOpt==kinematicWaveEuler) then
-        do ix = 1,4
-          RCHSTA_trib(:,:)%EKW_ROUTE%A(ix) = 0._dp
-          RCHSTA_trib(:,:)%EKW_ROUTE%Q(ix) = 0._dp
+      if (routOpt==kinematicWave .or. routOpt==muskingumCunge .or. routOpt==diffusiveWave) then
+        do ix = 1, size(RCHSTA_trib(iens,:))
+          allocate(RCHSTA_trib(iens,ix)%molecule%Q(nMolecule), stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA]'; return; endif
+          RCHSTA_trib(iens,ix)%molecule%Q(:) = 0._dp
         end do
       end if
     end if
 
     ! initialize time
     TSEC(0)=0._dp; TSEC(1)=dt
-
   else
+    ! start with restart condition
     if (masterproc) then
       call read_state_nc(trim(restart_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! time bound [sec] is at previous time step, so need to add dt for curent time step
       TSEC(0)=T0+dt; TSEC(1)=T1+dt
-
     end if
 
     if (nNodes>0) then
       call mpi_restart(pid, nNodes, comm, iens, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     end if
-
   endif
 
  END SUBROUTINE init_state_data

@@ -6,13 +6,15 @@ USE var_lookup,        ONLY: ixRFLX, nVarsRFLX
 USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
 USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: integerMissing
-USE public_var,        ONLY: doesBasinRoute      ! basin routing options   0-> no, 1->IRF, otherwise error
-USE public_var,        ONLY: doesAccumRunoff     ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
-USE public_var,        ONLY: routOpt             ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-USE public_var,        ONLY: kinematicWave       ! Lagrangian kinematic wave
-USE public_var,        ONLY: kinematicWaveEuler  ! Eulerian kinematic wave
-USE public_var,        ONLY: impulseResponseFunc ! impulse response function
-USE public_var,        ONLY: allRoutingMethods   ! all routing methods
+USE public_var,        ONLY: doesBasinRoute        ! basin routing options   0-> no, 1->IRF, otherwise error
+USE public_var,        ONLY: doesAccumRunoff       ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
+USE public_var,        ONLY: routOpt               ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+USE public_var,        ONLY: kinematicWaveTracking ! Lagrangian kinematic wave
+USE public_var,        ONLY: kinematicWave         ! kinematic wave routing
+USE public_var,        ONLY: diffusiveWave         ! diffusive wave routing
+USE public_var,        ONLY: muskingumCunge        ! muskingum-cunge routing
+USE public_var,        ONLY: impulseResponseFunc   ! impulse response function
+USE public_var,        ONLY: allRoutingMethods     ! all routing methods
 USE globalData,        ONLY: meta_rflx
 USE globalData,        ONLY: pid, nNodes
 USE globalData,        ONLY: masterproc
@@ -149,29 +151,21 @@ CONTAINS
 
   ! Need to combine mainstem RCHFLX and tributary RCHFLX into RCHFLX_local for root node
   if (masterproc) then
-   associate(nRch_trib => rch_per_proc(0))
-   allocate(RCHFLX_local(nRch_mainstem+nRch_trib), stat=ierr)
-   if (nRch_mainstem>0) then
-     RCHFLX_local(1:nRch_mainstem) = RCHFLX_main(iens,1:nRch_mainstem)
-   end if
-   if (nRch_trib>0) then
-     RCHFLX_local(nRch_mainstem+1:nRch_mainstem+nRch_trib) = RCHFLX_trib(iens,:)
-   endif
-   end associate
+    associate(nRch_trib => rch_per_proc(0))
+    allocate(RCHFLX_local(nRch_mainstem+nRch_trib), stat=ierr)
+    if (nRch_mainstem>0) RCHFLX_local(1:nRch_mainstem) = RCHFLX_main(iens,1:nRch_mainstem)
+    if (nRch_trib>0) RCHFLX_local(nRch_mainstem+1:nRch_mainstem+nRch_trib) = RCHFLX_trib(iens,:)
+    end associate
   else
-   allocate(RCHFLX_local(rch_per_proc(pid)), stat=ierr)
-   RCHFLX_local = RCHFLX_trib(iens,:)
+    allocate(RCHFLX_local(rch_per_proc(pid)), stat=ierr)
+    RCHFLX_local = RCHFLX_trib(iens,:)
   endif
 
   if (masterproc) then
     associate(nHRU_trib => hru_per_proc(0))
     allocate(basinRunoff(nHRU_mainstem+nHRU_trib), stat=ierr)
-    if (nHRU_mainstem>0) then
-      basinRunoff(1:nHRU_mainstem) = basinRunoff_main(1:nHRU_mainstem)
-    end if
-    if (nHRU_trib>0) then
-      basinRunoff(nHRU_mainstem+1:nHRU_mainstem+nHRU_trib) = basinRunoff_trib(1:nHRU_trib)
-    endif
+    if (nHRU_mainstem>0) basinRunoff(1:nHRU_mainstem) = basinRunoff_main(1:nHRU_mainstem)
+    if (nHRU_trib>0) basinRunoff(nHRU_mainstem+1:nHRU_mainstem+nHRU_trib) = basinRunoff_trib(1:nHRU_trib)
     end associate
   else
     allocate(basinRunoff(hru_per_proc(pid)), stat=ierr)
@@ -207,28 +201,34 @@ CONTAINS
   endif
 
   if (meta_rflx(ixRFLX%KWTroutedRunoff)%varFile) then
-    ! write routed runoff (m3/s)
     call write_pnetcdf_recdim(pioFileDesc, 'KWTroutedRunoff', RCHFLX_local(:)%REACH_Q, iodesc_rch_flx, jTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
-  if (meta_rflx(ixRFLX%KWEroutedRunoff)%varFile) then
-    ! write routed runoff (m3/s)
-    call write_pnetcdf_recdim(pioFileDesc, 'KWEroutedRunoff', RCHFLX_local(:)%REACH_Q, iodesc_rch_flx, jTime, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
-
   if (meta_rflx(ixRFLX%IRFroutedRunoff)%varFile) then
-    ! write routed runoff (m3/s)
     call write_pnetcdf_recdim(pioFileDesc, 'IRFroutedRunoff', RCHFLX_local(:)%REACH_Q_IRF, iodesc_rch_flx, jTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
-  if (meta_rflx(ixRFLX%IRFlakeVol)%varFile) then
-    ! write lake volume (m3)
-    call write_pnetcdf_recdim(pioFileDesc, 'IRFlakeVol', RCHFLX_local(:)%REACH_VOL(1), iodesc_rch_flx, jTime, ierr, cmessage)
+  if (meta_rflx(ixRFLX%KWroutedRunoff)%varFile) then
+    call write_pnetcdf_recdim(pioFileDesc, 'KWroutedRunoff', RCHFLX_local(:)%REACH_Q, iodesc_rch_flx, jTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   endif
+  endif
+
+  if (meta_rflx(ixRFLX%MCroutedRunoff)%varFile) then
+    call write_pnetcdf_recdim(pioFileDesc, 'MCroutedRunoff', RCHFLX_local(:)%REACH_Q, iodesc_rch_flx, jTime, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+  if (meta_rflx(ixRFLX%DWroutedRunoff)%varFile) then
+    call write_pnetcdf_recdim(pioFileDesc, 'DWroutedRunoff', RCHFLX_local(:)%REACH_Q, iodesc_rch_flx, jTime, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+  if (meta_rflx(ixRFLX%volume)%varFile) then
+    call write_pnetcdf_recdim(pioFileDesc, 'volume', RCHFLX_local(:)%REACH_VOL(1), iodesc_rch_flx, jTime, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
 
   call sync_file(pioFileDesc, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -354,29 +354,6 @@ CONTAINS
  meta_qDims(ixQdims%seg)%dimLength = nRch_in
  meta_qDims(ixQdims%hru)%dimLength = nHRU_in
  meta_qDims(ixQdims%ens)%dimLength = nEns_in
-
- ! Modify write option
- ! This is temporary
- if (routOpt==kinematicWave) then
-   meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
-   meta_rflx(ixRFLX%KWEroutedRunoff)%varFile = .false.
- elseif (routOpt==kinematicWaveEuler) then
-   meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
-   meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
- elseif (routOpt==impulseResponseFunc) then
-   meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
-   meta_rflx(ixRFLX%KWEroutedRunoff)%varFile = .false.
- elseif (routOpt==allRoutingMethods) then
-   meta_rflx(ixRFLX%KWEroutedRunoff)%varFile = .false.
- end if
- ! runoff accumulation option
- if (doesAccumRunoff==0) then
-   meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile = .false.
- end if
- ! basin runoff routing option
- if (doesBasinRoute==0) then
-   meta_rflx(ixRFLX%instRunoff)%varFile = .false.
- end if
 
  ! pio initialization
  if (isStandalone) then

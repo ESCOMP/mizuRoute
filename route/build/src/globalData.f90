@@ -56,7 +56,9 @@ module globalData
   USE var_lookup, ONLY: nVarsIRFbas
   USE var_lookup, ONLY: nVarsIRF
   USE var_lookup, ONLY: nVarsKWT
-  USE var_lookup, ONLY: nVarsKWE
+  USE var_lookup, ONLY: nVarsKW
+  USE var_lookup, ONLY: nVarsDW
+  USE var_lookup, ONLY: nVarsMC
 
   implicit none
 
@@ -97,6 +99,8 @@ module globalData
   integer(i4b)                   , public :: ixPrint(1:2)=integerMissing    ! index of desired reach to be on-screen print
   ! ennsemble number (maybe to be removed)
   integer(i4b)                   , public :: nEns=1                    ! number of ensemble
+  ! numerical computing
+  integer(i4b)                   , public :: nMolecule                ! number of computational molecule (used for KW, MC, DW)
 
   ! ---------- MPI/OMP/PIO variables ----------------------------------------------------------------
 
@@ -146,9 +150,11 @@ module globalData
   type(var_info_new)             , public :: meta_rflx   (nVarsRFLX   ) ! reach flux variables
   type(var_info_new)             , public :: meta_basinQ (nVarsBasinQ ) ! reach inflow from basin
   type(var_info_new)             , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
-  type(var_info_new)             , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
   type(var_info_new)             , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
-  type(var_info_new)             , public :: meta_kwe    (nVarsKWE    ) ! KWE routing fluxes/states
+  type(var_info_new)             , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
+  type(var_info_new)             , public :: meta_kw     (nVarsKW     ) ! KW routing fluxes/states
+  type(var_info_new)             , public :: meta_mc     (nVarsMC     ) ! MC routing restart fluxes/states
+  type(var_info_new)             , public :: meta_dw     (nVarsDW     ) ! DW routing restart fluxes/states
 
   ! ---------- shared data structures ----------------------------------------------------------------------
 

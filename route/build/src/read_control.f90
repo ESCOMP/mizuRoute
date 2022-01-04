@@ -110,7 +110,7 @@ CONTAINS
    case('<sim_start>');            simStart    = trim(cData)                           ! date string defining the start of the simulation
    case('<sim_end>');              simEnd      = trim(cData)                           ! date string defining the end of the simulation
    case('<newFileFrequency>');     newFileFrequency = trim(cData)                      ! frequency for new output files (day, month, annual, single)
-   case('<route_opt>');            read(cData,*,iostat=io_error) routOpt               ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+   case('<route_opt>');            read(cData,*,iostat=io_error) routOpt               ! routing scheme options  0-> IRF+KWT (to be removed), 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW
    case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute        ! basin routing options   0-> no, 1->IRF, otherwise error
    case('<doesAccumRunoff>');      read(cData,*,iostat=io_error) doesAccumRunoff       ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
    case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut              ! desired outlet reach id (if -9999 --> route over the entire network)
@@ -188,6 +188,10 @@ CONTAINS
    case('<sumUpstreamRunoff>');    read(cData,*,iostat=io_error) meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile
    case('<KWTroutedRunoff>');      read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWTroutedRunoff  )%varFile
    case('<IRFroutedRunoff>');      read(cData,*,iostat=io_error) meta_rflx(ixRFLX%IRFroutedRunoff  )%varFile
+   case('<KWroutedRunoff>');       read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWroutedRunoff   )%varFile
+   case('<DWroutedRunoff>');       read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWroutedRunoff   )%varFile
+   case('<MCroutedRunoff>');       read(cData,*,iostat=io_error) meta_rflx(ixRFLX%MCroutedRunoff   )%varFile
+   case('<volume>');               read(cData,*,iostat=io_error) meta_rflx(ixRFLX%volume           )%varFile
 
    ! VARIABLE NAMES for data (overwrite default name in popMeta.f90)
    ! HRU structure
@@ -336,12 +340,10 @@ CONTAINS
  end if
 
  ! ---------- runoff unit conversion --------------------------------------------------------------------------------------------
-
  if (masterproc) then
    write(iulog,'(2a)') new_line('a'), '---- runoff unit --- '
    write(iulog,'(a)') '  runoff unit is provided as: '//trim(units_qsim)
  end if
-
  ! find the position of the "/" character
  ipos = index(trim(units_qsim),'/')
  if(ipos==0)then
@@ -371,6 +373,33 @@ CONTAINS
    message=trim(message)//'expect the time units of to be "day"("d"), "hour"("h") or "second"("s") [time units = '//trim(cTime)//']'
    err=81; return
  end select
+
+ ! ---------- output options --------------------------------------------------------------------------------------------
+ ! Make sure to turn off write option for routines not used
+ ! Routing options
+ if (routOpt==allRoutingMethods) then
+    meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = (.true. .and. meta_rflx(ixRFLX%KWTroutedRunoff)%varFile)
+    meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = (.true. .and. meta_rflx(ixRFLX%IRFroutedRunoff)%varFile)
+    meta_rflx(ixRFLX%MCroutedRunoff)%varFile = .false.
+    meta_rflx(ixRFLX%KWroutedRunoff)%varFile = .false.
+    meta_rflx(ixRFLX%DWroutedRunoff)%varFile = .false.
+ else
+ ! ----- end: this (allRoutingMethods) is to be removed
+ if (routOpt/=kinematicWaveTracking) meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
+ if (routOpt/=impulseResponseFunc) meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
+ if (routOpt/=muskingumCunge) meta_rflx(ixRFLX%MCroutedRunoff)%varFile = .false.
+ if (routOpt/=kinematicWave) meta_rflx(ixRFLX%KWroutedRunoff)%varFile = .false.
+ if (routOpt/=diffusiveWave) meta_rflx(ixRFLX%DWroutedRunoff)%varFile = .false.
+ endif
+
+ ! runoff accumulation option
+ if (doesAccumRunoff==0) then
+   meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile = .false.
+ endif
+ ! basin runoff routing option
+ if (doesBasinRoute==0) then
+   meta_rflx(ixRFLX%instRunoff)%varFile = .false.
+ endif
 
  END SUBROUTINE read_control
 

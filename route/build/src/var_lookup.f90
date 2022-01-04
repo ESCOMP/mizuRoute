@@ -38,7 +38,7 @@ MODULE var_lookup
   integer(i4b)     :: tbound       = integerMissing   ! 2 elelment time bound vector
   integer(i4b)     :: ens          = integerMissing   ! runoff ensemble
   integer(i4b)     :: wave         = integerMissing   ! waves in a channel
-  integer(i4b)     :: fdmesh       = integerMissing   ! finite difference 4 coners
+  integer(i4b)     :: fdmesh       = integerMissing   ! finite difference computational molecule
   integer(i4b)     :: tdh_irf      = integerMissing   ! irf routed future channel flow in a segment
   integer(i4b)     :: tdh          = integerMissing   ! uh routed future overland flow
  endtype iLook_stateDims
@@ -189,16 +189,18 @@ MODULE var_lookup
  ! ** define variables for segment fluxes/states variables
  ! ***********************************************************************************************************
  ! Reach fluxes
- type, public  ::  iLook_rflx
+ type, public  ::  iLook_RFLX
   integer(i4b)     :: basRunoff         = integerMissing  ! basin runoff
   integer(i4b)     :: instRunoff        = integerMissing  ! instantaneous runoff in each reach
   integer(i4b)     :: dlayRunoff        = integerMissing  ! delayed runoff in each reac
   integer(i4b)     :: sumUpstreamRunoff = integerMissing  ! sum of upstream runoff in each reach
   integer(i4b)     :: KWTroutedRunoff   = integerMissing  ! Lagrangian KWT routed runoff in each reach
-  integer(i4b)     :: KWEroutedRunoff   = integerMissing  ! Eulerian KWT routed runoff in each reach
+  integer(i4b)     :: KWroutedRunoff    = integerMissing  ! KW routed runoff in each reach
+  integer(i4b)     :: MCroutedRunoff    = integerMissing  ! muskingum-cunge routed runoff in each reach
+  integer(i4b)     :: DWroutedRunoff    = integerMissing  ! diffusive wave routed runoff in each reach
   integer(i4b)     :: IRFroutedRunoff   = integerMissing  ! IRF routed runoff in each reach
-  integer(i4b)     :: IRFlakeVol        = integerMissing  ! IRF lake volume
- endtype iLook_rflx
+  integer(i4b)     :: volume            = integerMissing  ! water volume
+ endtype iLook_RFLX
  ! Reach inflow from basin
  type, public  ::  iLook_basinQ
   integer(i4b)     :: q              = integerMissing  ! final discharge
@@ -207,6 +209,11 @@ MODULE var_lookup
  type, public  ::  iLook_IRFbas
   integer(i4b)     :: qfuture        = integerMissing  ! future routed flow
  endtype iLook_IRFbas
+ !IRF state/fluxes
+ type, public  ::  iLook_IRF
+  integer(i4b)     :: qfuture        = integerMissing  ! future routed flow
+  integer(i4b)     :: vol            = integerMissing  ! reach volume
+ endtype iLook_IRF
  ! KWT state/fluxes
  type, public  ::  iLook_KWT
   integer(i4b)     :: tentry         = integerMissing  ! wave entry time at a segment
@@ -215,16 +222,21 @@ MODULE var_lookup
   integer(i4b)     :: qwave_mod      = integerMissing  ! wave flow after merged
   integer(i4b)     :: routed         = integerMissing  ! Routed out of a segment or not
  endtype iLook_KWT
- ! KWE state/fluxes
- type, public  ::  iLook_KWE
-  integer(i4b)     :: a              = integerMissing  ! flow area
-  integer(i4b)     :: q              = integerMissing  ! discharge
- endtype iLook_KWE
- !IRF state/fluxes
- type, public  ::  iLook_IRF
-  integer(i4b)     :: qfuture        = integerMissing  ! future routed flow
-  integer(i4b)     :: irfVol         = integerMissing  ! irf reach volume
- endtype iLook_IRF
+ ! KW state/fluxes
+ type, public  ::  iLook_KW
+  integer(i4b)     :: qsub           = integerMissing  ! discharge
+  integer(i4b)     :: vol            = integerMissing  ! reach volume
+ endtype iLook_KW
+ ! DW state/fluxes
+ type, public  ::  iLook_DW
+  integer(i4b)     :: qsub           = integerMissing  ! discharge
+  integer(i4b)     :: vol            = integerMissing  ! reach volume
+ endtype iLook_DW
+ ! MC state/fluxes
+ type, public  ::  iLook_MC
+  integer(i4b)     :: qsub           = integerMissing  ! discharge
+  integer(i4b)     :: vol            = integerMissing  ! reach volume
+ endtype iLook_MC
  ! ***********************************************************************************************************
  ! ** define data vectors
  ! ***********************************************************************************************************
@@ -237,12 +249,14 @@ MODULE var_lookup
  type(iLook_SEG)      ,public,parameter :: ixSEG       = iLook_SEG      (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67)
  type(iLook_NTOPO)    ,public,parameter :: ixNTOPO     = iLook_NTOPO    (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20)
  type(iLook_PFAF)     ,public,parameter :: ixPFAF      = iLook_PFAF     (1)
- type(iLook_rflx)     ,public,parameter :: ixRFLX      = iLook_rflx     (1,2,3,4,5,6,7,8)
- type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      (1,2,3,4,5)
- type(iLook_KWE)      ,public,parameter :: ixKWE       = iLook_KWE      (1,2)
+ type(iLook_RFLX)     ,public,parameter :: ixRFLX      = iLook_RFLX     (1,2,3,4,5,6,7,8,9,10)
+ type(iLook_basinQ)   ,public,parameter :: ixBasinQ    = iLook_basinQ   (1)
+ type(iLook_IRFbas)   ,public,parameter :: ixIRFbas    = iLook_IRFbas   (1)
  type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      (1,2)
- type(iLook_IRFbas  ) ,public,parameter :: ixIRFbas    = iLook_IRFbas   (1)
- type(iLook_basinQ )  ,public,parameter :: ixBasinQ    = iLook_basinQ   (1)
+ type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      (1,2,3,4,5)
+ type(iLook_KW)       ,public,parameter :: ixKW        = iLook_KW       (1,2)
+ type(iLook_DW)       ,public,parameter :: ixDW        = iLook_DW       (1,2)
+ type(iLook_MC)       ,public,parameter :: ixMC        = iLook_MC       (1,2)
  ! ***********************************************************************************************************
  ! ** define size of data vectors
  ! ***********************************************************************************************************
@@ -255,12 +269,14 @@ MODULE var_lookup
  integer(i4b),parameter,public    :: nVarsSEG     = storage_size(ixSEG      )/iLength
  integer(i4b),parameter,public    :: nVarsNTOPO   = storage_size(ixNTOPO    )/iLength
  integer(i4b),parameter,public    :: nVarsPFAF     = storage_size(ixPFAF    )/iLength
- integer(i4b),parameter,public    :: nVarsRFLX     = storage_size(ixRFLX     )/iLength
- integer(i4b),parameter,public    :: nVarsKWT      = storage_size(ixKWT      )/iLength
- integer(i4b),parameter,public    :: nVarsKWE      = storage_size(ixKWE      )/iLength
- integer(i4b),parameter,public    :: nVarsIRF      = storage_size(ixIRF      )/iLength
- integer(i4b),parameter,public    :: nVarsIRFbas   = storage_size(ixIRFbas   )/iLength
- integer(i4b),parameter,public    :: nVarsBasinQ   = storage_size(ixBasinQ   )/iLength
+ integer(i4b),parameter,public    :: nVarsRFLX     = storage_size(ixRFLX    )/iLength
+ integer(i4b),parameter,public    :: nVarsKWT      = storage_size(ixKWT     )/iLength
+ integer(i4b),parameter,public    :: nVarsKW       = storage_size(ixKW      )/iLength
+ integer(i4b),parameter,public    :: nVarsDW       = storage_size(ixDW      )/iLength
+ integer(i4b),parameter,public    :: nVarsMC       = storage_size(ixMC      )/iLength
+ integer(i4b),parameter,public    :: nVarsIRF      = storage_size(ixIRF     )/iLength
+ integer(i4b),parameter,public    :: nVarsIRFbas   = storage_size(ixIRFbas  )/iLength
+ integer(i4b),parameter,public    :: nVarsBasinQ   = storage_size(ixBasinQ  )/iLength
  ! ***********************************************************************************************************
 
 END MODULE var_lookup

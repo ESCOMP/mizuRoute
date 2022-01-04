@@ -294,11 +294,12 @@ implicit none
   type(FPOINT),allocatable             :: KWAVE(:)
  END TYPE LKWRCH
 
- ! ---------- Eulerian kinematic wave ---------------------------------
- type, public :: EKWRCH
-   real(dp)    :: Q(1:4)          ! Discharge at upstream and downstream of reach at current and previous time step(m3/s)
-   real(dp)    :: A(1:4)          ! Flow area at upstream and downstream of reach at current and previous time step(m3/s)
- end type EKWRCH
+ ! ---------- computational node kw, dw, and mc ---------------------------------
+ type, public :: SUBRCH
+   real(dp), allocatable  :: Q(:)        ! Discharge at sub-reaches at current step (m3/s)
+   real(dp), allocatable  :: A(:)        ! Flow area at sub-reach at current step (m2)
+   real(dp), allocatable  :: H(:)        ! Flow height at sub-reach at current step (m)
+ end type SUBRCH
 
  ! ---------- irf states (future flow series ) ---------------------------------
  ! Future flow series
@@ -309,7 +310,7 @@ implicit none
  type, public :: STRSTA
   type(IRFRCH)       :: IRF_ROUTE
   type(LKWRCH)       :: LKW_ROUTE
-  type(EKWRCH)       :: EKW_ROUTE
+  type(SUBRCH)       :: molecule
  end type STRSTA
 
 
