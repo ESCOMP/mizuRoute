@@ -271,7 +271,6 @@ CONTAINS
  real(dp)                                 :: absErr(2)    ! absolute error of nonliear equation solution
  real(dp)                                 :: f0eval(2)    !
  integer(i4b)                             :: imin         ! index at minimum value
- integer(i4b)                             :: ix           ! loop index
 
  ierr=0; message='kinematic_wave/'
 
