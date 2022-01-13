@@ -18,11 +18,11 @@ USE public_var
 
 implicit none
 
-logical(lgt) :: domain_debug = .false. ! print out reach info with node assignment for debugging
+logical(lgt) :: domain_debug = .false. ! print out reach info with node assignment for debugging purpose
 
 ! common parameters within this module
 integer(i4b), parameter   :: maxDomainOMP=50000       ! maximum omp domains
-integer(i4b), parameter   :: maxDomainMPI=100000      ! maximum mpi domains
+integer(i4b), parameter   :: maxDomainMPI=150000      ! maximum mpi domains
 integer(i4b), parameter   :: tributary=1
 integer(i4b), parameter   :: mainstem=2
 integer(i4b), parameter   :: endorheic=3
@@ -666,7 +666,7 @@ CONTAINS
      nDomains = nDomains + 1
 
      allocate(domains_out(nDomains)%segIndex(nUpSegs), stat=ierr, errmsg=cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [domains_out(nDomains)%segIndex]'; return; endif
+     if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [1. domains_out(nDomains)%segIndex]'; return; endif
 
      domains_out(nDomains)%basinType = tributary
      domains_out(nDomains)%segIndex  = structNTOPO(ixOutlets(iOut))%var(ixNTOPO%allUpSegIndices)%dat
@@ -684,7 +684,7 @@ CONTAINS
    ! 1. populate domains data structure
    nDomains = nDomains + 1
    allocate(domains_out(nDomains)%segIndex(nMainstem), stat=ierr, errmsg=cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [domains_out(nDomains)%segIndex]'; return; endif
+   if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [2. domains_out(nDomains)%segIndex]'; return; endif
    domains_out(nDomains)%basinType = mainstem
    domains_out(nDomains)%segIndex = segIndex(ixSubset)
 
@@ -722,7 +722,7 @@ CONTAINS
      nDomains = nDomains + 1
 
      allocate(domains_out(nDomains)%segIndex(nUpSegs), stat=ierr, errmsg=cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [domains_out(nDomain)%segIndex]'; return; endif
+     if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [3. domains_out(nDomain)%segIndex]'; return; endif
 
      domains_out(nDomains)%basinType = tributary
      domains_out(nDomains)%segIndex = structNTOPO(ixTribOutlet(iTrib))%var(ixNTOPO%allUpSegIndices)%dat
