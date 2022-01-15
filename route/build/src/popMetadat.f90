@@ -213,9 +213,9 @@ contains
  ! ---------- populate segment fluxes/state metadata structures -------------------------------------------------------------------------------------------------------------------
  ! Reach Flux                                  varName              varDesc                                                  unit,   varType,  varDim,                     writeOut
  call meta_rflx(ixRFLX%basRunoff        )%init('basRunoff'        , 'basin runoff'                                         , 'm/s' , pio_real, [ixQdims%hru,ixQdims%time], .true.)
- call meta_rflx(ixRFLX%instRunoff       )%init('instRunoff'       , 'instantaneous runoff in each reach'                   , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
- call meta_rflx(ixRFLX%dlayRunoff       )%init('dlayRunoff'       , 'delayed runoff in each reach'                         , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
- call meta_rflx(ixRFLX%sumUpstreamRunoff)%init('sumUpstreamRunoff', 'sum of upstream runoff in each reach'                 , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
+ call meta_rflx(ixRFLX%instRunoff       )%init('instRunoff'       , 'instantaneous runoff in each reach'                   , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%dlayRunoff       )%init('dlayRunoff'       , 'delayed runoff in each reach'                         , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%sumUpstreamRunoff)%init('sumUpstreamRunoff', 'sum of upstream runoff in each reach'                 , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%IRFroutedRunoff  )%init('IRFroutedRunoff'  , 'routed runoff in each reach-impulse response function', 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
  call meta_rflx(ixRFLX%KWTroutedRunoff  )%init('KWTroutedRunoff'  , 'routed runoff in each reach-lagrangian kinematic wave', 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
  call meta_rflx(ixRFLX%KWroutedRunoff   )%init('KWroutedRunoff'   , 'routed runoff in each reach-kinematic wave'           , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
