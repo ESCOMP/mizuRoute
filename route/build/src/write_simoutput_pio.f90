@@ -141,7 +141,9 @@ CONTAINS
   integer(i4b)                    :: iens             ! temporal
   character(len=strLen)           :: cmessage         ! error message of downwind routine
   type(STRFLX),allocatable        :: RCHFLX_local(:)
+  integer(i4b)                    :: nRch_local
   real(dp),    allocatable        :: basinRunoff(:)
+  real(dp),    allocatable        :: array_temp(:)
 
   ierr=0; message='output/'
 
@@ -151,24 +153,34 @@ CONTAINS
 
   ! Need to combine mainstem RCHFLX and tributary RCHFLX into RCHFLX_local for root node
   if (masterproc) then
-    associate(nRch_trib => rch_per_proc(0))
-    allocate(RCHFLX_local(nRch_mainstem+nRch_trib), stat=ierr)
-    if (nRch_mainstem>0) RCHFLX_local(1:nRch_mainstem) = RCHFLX_main(iens,1:nRch_mainstem)
-    if (nRch_trib>0) RCHFLX_local(nRch_mainstem+1:nRch_mainstem+nRch_trib) = RCHFLX_trib(iens,:)
-    end associate
+    nRch_local = nRch_mainstem+rch_per_proc(0)
+    allocate(RCHFLX_local(nRch_local), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHFLX_local]'; return; endif
+    allocate(array_temp(nRch_local), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [array_temp]'; return; endif
+
+    if (nRch_mainstem>0) RCHFLX_local(1:nRch_mainstem) = RCHFLX_main(iens, 1:nRch_mainstem)
+    if (rch_per_proc(0)>0) RCHFLX_local(nRch_mainstem+1:nRch_local) = RCHFLX_trib(iens,:)
   else
-    allocate(RCHFLX_local(rch_per_proc(pid)), stat=ierr)
+    nRch_local = rch_per_proc(pid)
+    allocate(RCHFLX_local(nRch_local), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHFLX_local]'; return; endif
+    allocate(array_temp(nRch_local), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [array_temp]'; return; endif
+
     RCHFLX_local = RCHFLX_trib(iens,:)
   endif
 
   if (masterproc) then
     associate(nHRU_trib => hru_per_proc(0))
-    allocate(basinRunoff(nHRU_mainstem+nHRU_trib), stat=ierr)
+    allocate(basinRunoff(nHRU_mainstem+nHRU_trib), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [basinRunoff]'; return; endif
     if (nHRU_mainstem>0) basinRunoff(1:nHRU_mainstem) = basinRunoff_main(1:nHRU_mainstem)
     if (nHRU_trib>0) basinRunoff(nHRU_mainstem+1:nHRU_mainstem+nHRU_trib) = basinRunoff_trib(1:nHRU_trib)
     end associate
   else
-    allocate(basinRunoff(hru_per_proc(pid)), stat=ierr)
+    allocate(basinRunoff(hru_per_proc(pid)), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [basinRunoff]'; return; endif
     basinRunoff = basinRunoff_trib
   endif
 
@@ -182,51 +194,60 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
+  ! write instataneous local runoff in each stream segment (m3/s)
   if (meta_rflx(ixRFLX%instRunoff)%varFile) then
-    ! write instataneous local runoff in each stream segment (m3/s)
-    call write_pnetcdf_recdim(pioFileDesc, 'instRunoff', RCHFLX_local(:)%BASIN_QI, iodesc_rch_flx, jTime, ierr, cmessage)
+    array_temp(1:nRch_local) = RCHFLX_local(:)%BASIN_QI
+    call write_pnetcdf_recdim(pioFileDesc, 'instRunoff', array_temp, iodesc_rch_flx, jTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
+  ! write routed local runoff in each stream segment (m3/s)
   if (meta_rflx(ixRFLX%dlayRunoff)%varFile) then
-    ! write routed local runoff in each stream segment (m3/s)
-    call write_pnetcdf_recdim(pioFileDesc, 'dlayRunoff', RCHFLX_local(:)%BASIN_QR(1), iodesc_rch_flx, jTime, ierr, cmessage)
+    array_temp(1:nRch_local) = RCHFLX_local(:)%BASIN_QR(1)
+    call write_pnetcdf_recdim(pioFileDesc, 'dlayRunoff', array_temp, iodesc_rch_flx, jTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
+  ! write accumulated runoff (m3/s)
   if (meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile) then
-    ! write accumulated runoff (m3/s)
-    call write_pnetcdf_recdim(pioFileDesc, 'sumUpstreamRunoff', RCHFLX_local(:)%UPSTREAM_QI, iodesc_rch_flx, jTime, ierr, cmessage)
+    array_temp(1:nRch_local) = RCHFLX_local(:)%UPSTREAM_QI
+    call write_pnetcdf_recdim(pioFileDesc, 'sumUpstreamRunoff', array_temp, iodesc_rch_flx, jTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%KWTroutedRunoff)%varFile) then
-    call write_pnetcdf_recdim(pioFileDesc, 'KWTroutedRunoff', RCHFLX_local(:)%REACH_Q, iodesc_rch_flx, jTime, ierr, cmessage)
+    array_temp(1:nRch_local) = RCHFLX_local(:)%REACH_Q
+    call write_pnetcdf_recdim(pioFileDesc, 'KWTroutedRunoff', array_temp, iodesc_rch_flx, jTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%IRFroutedRunoff)%varFile) then
-    call write_pnetcdf_recdim(pioFileDesc, 'IRFroutedRunoff', RCHFLX_local(:)%REACH_Q_IRF, iodesc_rch_flx, jTime, ierr, cmessage)
+    array_temp(1:nRch_local) = RCHFLX_local(:)%REACH_Q_IRF
+    call write_pnetcdf_recdim(pioFileDesc, 'IRFroutedRunoff', array_temp, iodesc_rch_flx, jTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%KWroutedRunoff)%varFile) then
-    call write_pnetcdf_recdim(pioFileDesc, 'KWroutedRunoff', RCHFLX_local(:)%REACH_Q, iodesc_rch_flx, jTime, ierr, cmessage)
+    array_temp(1:nRch_local) = RCHFLX_local(:)%REACH_Q
+    call write_pnetcdf_recdim(pioFileDesc, 'KWroutedRunoff', array_temp, iodesc_rch_flx, jTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%MCroutedRunoff)%varFile) then
-    call write_pnetcdf_recdim(pioFileDesc, 'MCroutedRunoff', RCHFLX_local(:)%REACH_Q, iodesc_rch_flx, jTime, ierr, cmessage)
+    array_temp(1:nRch_local) = RCHFLX_local(:)%REACH_Q
+    call write_pnetcdf_recdim(pioFileDesc, 'MCroutedRunoff', array_temp, iodesc_rch_flx, jTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%DWroutedRunoff)%varFile) then
-    call write_pnetcdf_recdim(pioFileDesc, 'DWroutedRunoff', RCHFLX_local(:)%REACH_Q, iodesc_rch_flx, jTime, ierr, cmessage)
+    array_temp(1:nRch_local) = RCHFLX_local(:)%REACH_Q
+    call write_pnetcdf_recdim(pioFileDesc, 'DWroutedRunoff', array_temp, iodesc_rch_flx, jTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%volume)%varFile) then
-    call write_pnetcdf_recdim(pioFileDesc, 'volume', RCHFLX_local(:)%REACH_VOL(1), iodesc_rch_flx, jTime, ierr, cmessage)
+    array_temp(1:nRch_local) = RCHFLX_local(:)%REACH_VOL(1)
+    call write_pnetcdf_recdim(pioFileDesc, 'volume', array_temp, iodesc_rch_flx, jTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 

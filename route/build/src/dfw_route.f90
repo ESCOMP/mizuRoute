@@ -283,6 +283,7 @@ CONTAINS
  real(dp), allocatable           :: diagonal(:,:)  ! diagonal part of matrix
  real(dp), allocatable           :: b(:)           ! right-hand side of the matrix equation
  real(dp), allocatable           :: Qlocal(:,:)    ! sub-reach & sub-time step discharge at previous and current time step [m3/s]
+ real(dp), allocatable           :: Qsolved(:)     ! solved Q at sub-reach at current time step [m3/s]
  real(dp), allocatable           :: Qprev(:)       ! sub-reach discharge at previous time step [m3/s]
  real(dp)                        :: dTsub          ! time inteval for sub time-step [sec]
  real(dp)                        :: wck            ! weight for advection
@@ -342,15 +343,19 @@ CONTAINS
      write(iulog,'(A,X,I3,A,X,G12.5)') ' No. sub timestep=',nTsub,' sub time-step [sec]=',dTsub
    end if
 
-   allocate(Qlocal(0:1, 1:nMolecule), stat=ierr, errmsg=cmessage)
+   allocate(Qlocal(1:nMolecule, 0:1), stat=ierr, errmsg=cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   Qlocal(0:1,:) = realMissing
-   Qlocal(0,1:nMolecule) = Qprev ! previous time step
+
+   allocate(Qsolved(1:nMolecule), stat=ierr, errmsg=cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   Qlocal(:,0:1) = realMissing
+   Qlocal(1:nMolecule, 0) = Qprev ! previous time step
    Qlocal(1,1)  = q_upstream     ! infllow at sub-time step in current time step
 
    do it = 1, nTsub
 
-     Qbar = (Qlocal(1,1)+Qlocal(0,1)+Qlocal(0,nMolecule))/3.0 ! 3 point average discharge [m3/s]
+     Qbar = (Qlocal(1,1)+Qlocal(1,0)+Qlocal(nMolecule,0))/3.0 ! 3 point average discharge [m3/s]
      Abar = (abs(Qbar)/alpha)**(1/beta)                            ! flow area [m2] (manning equation)
      Vbar = 0._dp
      if (Abar>0._dp) Vbar = Qbar/Abar                     ! average velocity [m/s]
@@ -389,28 +394,29 @@ CONTAINS
      b(1)             = Qlocal(1,1)
      ! downstream boundary condition
      if (downstreamBC == absorbingBC) then
-       b(nMolecule)     = (1._dp-(1._dp-wck)*Ca)*Qlocal(0,nMolecule) + (1-wck)*Ca*Qlocal(0,nMolecule-1)
+       b(nMolecule)     = (1._dp-(1._dp-wck)*Ca)*Qlocal(nMolecule,0) + (1-wck)*Ca*Qlocal(nMolecule-1,0)
      else if (downstreamBC == neumannBC) then
        b(nMolecule)     = Sbc*dx
      end if
      ! internal node points
-     b(2:nMolecule-1) = ((1._dp-wck)*Ca+2._dp*(1._dp-wdk))*Cd*Qlocal(0,1:nMolecule-2)  &
-                      + (2._dp-4._dp*(1._dp-wdk)*Cd)*Qlocal(0,2:nMolecule-1)           &
-                      - ((1._dp-wck)*Ca - (1._dp-wdk)*Cd)*Qlocal(0,3:nMolecule)
+     b(2:nMolecule-1) = ((1._dp-wck)*Ca+2._dp*(1._dp-wdk))*Cd*Qlocal(1:nMolecule-2,0)  &
+                      + (2._dp-4._dp*(1._dp-wdk)*Cd)*Qlocal(2:nMolecule-1,0)           &
+                      - ((1._dp-wck)*Ca - (1._dp-wdk)*Cd)*Qlocal(3:nMolecule,0)
 
      ! solve matrix equation - get updated Qlocal
-     call TDMA(nMolecule, diagonal, b, Qlocal(1,:))
+     call TDMA(nMolecule, diagonal, b, Qsolved)
 
      if (doCheck) then
        write(fmt1,'(A,I5,A)') '(A,1X',nMolecule,'(1X,F15.7))'
-       write(*,fmt1) ' Q sub_reqch=', (Qlocal(1,ix), ix=1,nMolecule)
+       write(*,fmt1) ' Q sub_reqch=', (Qlocal(ix,1), ix=1,nMolecule)
      end if
 
-     Qlocal(0,:) = Qlocal(1,:)
+     Qlocal(:,1) = Qsolved
+     Qlocal(:,0) = Qlocal(:,1)
    end do
 
    ! store final outflow in data structure
-   rflux%REACH_Q = Qlocal(1, nMolecule) + rflux%BASIN_QR(1)
+   rflux%REACH_Q = Qlocal(nMolecule,1) + rflux%BASIN_QR(1)
 
    if (doCheck) then
      write(iulog,*) 'rflux%REACH_Q= ', rflux%REACH_Q
@@ -425,10 +431,10 @@ CONTAINS
 
    ! compute volume
    rflux%REACH_VOL(0) = rflux%REACH_VOL(1)
-   rflux%REACH_VOL(1) = rflux%REACH_VOL(0) + (Qlocal(1,1) - Qlocal(1,nMolecule))*dT
+   rflux%REACH_VOL(1) = rflux%REACH_VOL(0) + (Qlocal(1,1) - Qlocal(nMolecule,1))*dT
 
    ! update state
-   rstate%molecule%Q = Qlocal(1,:)
+   rstate%molecule%Q = Qlocal(:,1)
 
  else ! if head-water
 

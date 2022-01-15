@@ -1808,10 +1808,10 @@ contains
 
   if (commType == scatter) then
 
-    if (masterproc) then
+    allocate(flux_global_tmp(nSeg), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux_global_tmp]'; return; endif
 
-      allocate(flux_global_tmp(nSeg), stat=ierr)
-      if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux_global_tmp]'; return; endif
+    if (masterproc) then
 
       do iSeg =1,nSeg ! Loop through global reach
        jSeg = rchIdxGlobal(iSeg)
@@ -2058,28 +2058,32 @@ contains
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [ntdh]'; return; endif
 
     if (masterproc) then
+      ! extract only tributary reaches
+      allocate(RCHFLX0(1,nSeg), stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem allocating array for [RCHFLX0]'; return; endif
 
-     ! extract only tributary reaches
-     allocate(RCHFLX0(1,nSeg), stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating array for [RCHFLX0]'; return; endif
-     do iSeg =1,nSeg ! Loop through tributary reaches
-      jSeg = rchIdxGlobal(iSeg)
-      RCHFLX0(1, iSeg) = RCHFLX_global(iens,jSeg)
-     enddo
+      do iSeg =1,nSeg ! Loop through tributary reaches
+       jSeg = rchIdxGlobal(iSeg)
+       RCHFLX0(1, iSeg) = RCHFLX_global(iens,jSeg)
+      enddo
 
-     ! convert RCHFLX data strucutre to state arrays
-     call irf_bas_struc2array(iens, RCHFLX0,  & !input: input state data structure
-                          qfuture,            & !output: states array
-                          ntdh,               & !output: number of qfuture per reach
-                          ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
+      ! convert RCHFLX data strucutre to state arrays
+      call irf_bas_struc2array(iens, RCHFLX0,  & !input: input state data structure
+                           qfuture,            & !output: states array
+                           ntdh,               & !output: number of qfuture per reach
+                           ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif ! end of root process
 
     call shr_mpi_barrier(comm, message)
 
     ! will have to broadcast updated ntdh to all proc
     call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, comm, ierr)
+
+    if (.not.masterproc) then
+      allocate(qfuture(sum(ntdh)),stat=ierr, errmsg=cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage)//'qfuture'; return; endif
+    end if
 
     ! total waves from all the tributary reaches in each proc
     ix2=0
@@ -2233,28 +2237,32 @@ contains
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [ntdh]'; return; endif
 
     if (masterproc) then
+      ! extract only tributary reaches
+      allocate(RCHFLX0(1,nSeg), stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem allocating array for [RCHFLX0]'; return; endif
 
-     ! extract only tributary reaches
-     allocate(RCHFLX0(1,nSeg), stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating array for [RCHFLX0]'; return; endif
-     do iSeg =1,nSeg ! Loop through tributary reaches
-      jSeg = rchIdxGlobal(iSeg)
-      RCHFLX0(1, iSeg) = RCHFLX_global(iens,jSeg)
-     enddo
+      do iSeg =1,nSeg ! Loop through tributary reaches
+       jSeg = rchIdxGlobal(iSeg)
+       RCHFLX0(1, iSeg) = RCHFLX_global(iens,jSeg)
+      enddo
 
-     ! convert RCHFLX data strucutre to state arrays
-     call irf_struc2array(iens, RCHFLX0,  & !input: input state data structure
-                          qfuture,        & !output: states array
-                          ntdh,           & !output: number of qfuture per reach
-                          ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
+      ! convert RCHFLX data strucutre to state arrays
+      call irf_struc2array(iens, RCHFLX0,  & !input: input state data structure
+                           qfuture,        & !output: states array
+                           ntdh,           & !output: number of qfuture per reach
+                           ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif ! end of root process
 
     call shr_mpi_barrier(comm, message)
 
     ! will have to broadcast updated ntdh to all proc
     call MPI_BCAST(ntdh, nSeg, MPI_INTEGER, root, comm, ierr)
+
+    if (.not.masterproc) then
+      allocate(qfuture(sum(ntdh)),stat=ierr, errmsg=cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage)//'qfuture'; return; endif
+    end if
 
     ! total waves from all the tributary reaches in each proc
     ix2=0

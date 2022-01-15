@@ -796,7 +796,9 @@ CONTAINS
  ! local variables
  real(dp)                        :: secPerTime        ! number of sec per time-unit. time-unit is from t_unit
  real(dp)                        :: restartTimeVar    ! restart timeVar [time_units]
+ real(dp)                        :: tb_array(2)       ! restart timeVar [time_units]
  integer(i4b)                    :: iens              ! temporal
+ integer(i4b)                    :: nRch_local        ! number of reach in each processors
  type(STRFLX), allocatable       :: RCHFLX_local(:)   ! reordered reach flux data structure
  type(RCHTOPO),allocatable       :: NETOPO_local(:)   ! reordered topology data structure
  type(STRSTA), allocatable       :: RCHSTA_local(:)   ! reordered statedata structure
@@ -808,28 +810,28 @@ CONTAINS
  iens = 1
 
  if (masterproc) then
-  associate(nRch_trib => rch_per_proc(0))
-  allocate(RCHFLX_local(nRch_mainstem+nRch_trib), &
-           NETOPO_local(nRch_mainstem+nRch_trib), &
-           RCHSTA_local(nRch_mainstem+nRch_trib), stat=ierr)
-  if (nRch_mainstem>0) then
-    RCHFLX_local(1:nRch_mainstem) = RCHFLX_main(iens,1:nRch_mainstem)
-    NETOPO_local(1:nRch_mainstem) = NETOPO_main(1:nRch_mainstem)
-    RCHSTA_local(1:nRch_mainstem) = RCHSTA_main(iens,1:nRch_mainstem)
-  end if
-   if (nRch_trib>0) then
-     RCHFLX_local(nRch_mainstem+1:nRch_mainstem+nRch_trib) = RCHFLX_trib(iens,:)
-     NETOPO_local(nRch_mainstem+1:nRch_mainstem+nRch_trib) = NETOPO_trib(:)
-     RCHSTA_local(nRch_mainstem+1:nRch_mainstem+nRch_trib) = RCHSTA_trib(iens,:)
+   nRch_local = nRch_mainstem+rch_per_proc(0)
+   allocate(RCHFLX_local(nRch_local), &
+            NETOPO_local(nRch_local), &
+            RCHSTA_local(nRch_local), stat=ierr, errmsg=cmessage)
+   if (nRch_mainstem>0) then
+     RCHFLX_local(1:nRch_mainstem) = RCHFLX_main(iens,1:nRch_mainstem)
+     NETOPO_local(1:nRch_mainstem) = NETOPO_main(1:nRch_mainstem)
+     RCHSTA_local(1:nRch_mainstem) = RCHSTA_main(iens,1:nRch_mainstem)
+   end if
+   if (rch_per_proc(0)>0) then
+     RCHFLX_local(nRch_mainstem+1:nRch_local) = RCHFLX_trib(iens,:)
+     NETOPO_local(nRch_mainstem+1:nRch_local) = NETOPO_trib(:)
+     RCHSTA_local(nRch_mainstem+1:nRch_local) = RCHSTA_trib(iens,:)
    endif
-   end associate
  else
-  allocate(RCHFLX_local(rch_per_proc(pid)), &
-           NETOPO_local(rch_per_proc(pid)), &
-           RCHSTA_local(rch_per_proc(pid)),stat=ierr)
-  RCHFLX_local = RCHFLX_trib(iens,:)
-  NETOPO_local = NETOPO_trib(:)
-  RCHSTA_local = RCHSTA_trib(iens,:)
+   nRch_local = rch_per_proc(pid)
+   allocate(RCHFLX_local(nRch_local), &
+            NETOPO_local(nRch_local), &
+            RCHSTA_local(nRch_local),stat=ierr, errmsg=cmessage)
+   RCHFLX_local = RCHFLX_trib(iens,:)
+   NETOPO_local = NETOPO_trib(:)
+   RCHSTA_local = RCHSTA_trib(iens,:)
  endif
 
  ! get the time multiplier needed to convert time to units of days
@@ -859,7 +861,8 @@ CONTAINS
  call write_scalar_netcdf(pioFileDescState, 'restart_time', restartTimeVar, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call write_netcdf(pioFileDescState, 'time_bound', [TSEC(0),TSEC(1)], [1], [2], ierr, cmessage)
+ tb_array = [TSEC(0),TSEC(1)]
+ call write_netcdf(pioFileDescState, 'time_bound', tb_array, [1], [2], ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  call write_basinQ_state(ierr, cmessage)

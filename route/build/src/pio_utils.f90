@@ -478,7 +478,7 @@ contains
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
   if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
 
-  ierr = pio_put_var(pioFileDesc, pioVarId, scalar)
+  ierr = pio_put_var(pioFileDesc, pioVarId, [scalar])
   if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
 
   end subroutine write_int_scalar
@@ -505,7 +505,7 @@ contains
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
   if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
 
-  ierr = pio_put_var(pioFileDesc, pioVarId, scalar)
+  ierr = pio_put_var(pioFileDesc, pioVarId, [scalar])
   if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
 
   end subroutine write_double_scalar
@@ -532,7 +532,7 @@ contains
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
   if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
 
-  ierr = pio_put_var(pioFileDesc, pioVarId, scalar)
+  ierr = pio_put_var(pioFileDesc, pioVarId, [scalar])
   if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
 
   end subroutine write_char_scalar
