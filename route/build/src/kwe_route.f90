@@ -189,7 +189,8 @@ CONTAINS
    write(iulog,'(A)') 'CHECK Kinematic wave routing'
    if (nUps>0) then
      do iUps = 1,nUps
-       write(iulog,'(A,X,I12,X,G15.4)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, NETOPO_in(segIndex)%UREACHK(iUps))%REACH_Q
+       iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
+       write(iulog,'(A,X,I12,X,G15.4)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, iRch_ups)%REACH_Q
      enddo
    end if
    write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
