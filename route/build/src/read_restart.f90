@@ -77,6 +77,7 @@ CONTAINS
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  if ( nNodes /= nNodes_in )then
     write(cmessage,'(i4)') nNodes_in
+    ierr = 100
     message=trim(message)//'Number of MPI tasks on restart file is different from number using now' // &
             ', they must be the same, nNodes_in='//trim(cmessage)
     return
