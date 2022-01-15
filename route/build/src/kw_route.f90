@@ -22,7 +22,7 @@ public::kw_route
 
 real(dp), parameter  :: critFactor=0.01
 
-contains
+CONTAINS
 
  ! *********************************************************************
  ! subroutine: route kinematic waves with Euler solution through the river network
@@ -65,12 +65,11 @@ contains
    integer(i4b)                                   :: iTrib                ! loop indices - branch
    integer(i4b)                                   :: ix                   ! loop indices stream order
 
-   ! initialize error control
    ierr=0; message='kw_route/'
 
    ! number of reach check
    if (size(NETOPO_in)/=size(RCHFLX_out(iens,:))) then
-    ierr=20; message=trim(message)//'sizes of NETOPO and RCHFLX mismatch'; return
+     ierr=20; message=trim(message)//'sizes of NETOPO and RCHFLX mismatch'; return
    endif
 
    nSeg = size(RCHFLX_out(iens,:))
@@ -138,9 +137,7 @@ contains
                    RCHSTA_out,     & ! inout: reach state data structure
                    RCHFLX_out,     & ! inout: reach flux data structure
                    ierr, message)    ! output: error control
-
  implicit none
-
  ! Input
  integer(i4b),  intent(in)                 :: iEns              ! runoff ensemble to be routed
  integer(i4b),  intent(in)                 :: segIndex          ! segment where routing is performed
@@ -164,7 +161,6 @@ contains
  real(dp)                                  :: q_upstream        ! total discharge at top of the reach being processed
  character(len=strLen)                     :: cmessage          ! error message from subroutine
 
- ! initialize error control
  ierr=0; message='kw_rch/'
 
  doCheck = .false.
@@ -185,13 +181,14 @@ contains
  endif
 
  if(doCheck)then
-   write(iulog,'(A)') 'CHECK Euler Kinematic wave'
+   write(iulog,'(A)') 'CHECK Kinematic wave routing'
    if (nUps>0) then
      do iUps = 1,nUps
-       write(iulog,'(A,X,I6,X,G12.5)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, NETOPO_in(segIndex)%UREACHK(iUps))%REACH_Q
+       iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
+       write(iulog,'(A,X,I6,X,G12.5)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, iRch_ups)%REACH_Q
      enddo
    end if
-   write(iulog,'(A,X,G12.5)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+   write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
  endif
 
  ! perform river network KW routing
@@ -204,12 +201,12 @@ contains
                      doCheck,                     &    ! input: reach index to be examined
                      ierr, cmessage)                   ! output: error control
  if(ierr/=0)then
-    write(message, '(A,X,I10,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage)
+    write(message, '(A,X,I12,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage)
     return
  endif
 
  if(doCheck)then
-  write(iulog,'(A,X,G12.5)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%REACH_Q
+   write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%REACH_Q
  endif
 
  END SUBROUTINE kw_rch
@@ -253,7 +250,7 @@ contains
  ! Output
  integer(i4b), intent(out)                :: ierr         ! error code
  character(*), intent(out)                :: message      ! error message
- ! LOCAL VAIRABLES
+ ! Local variables
  real(dp)                                 :: alpha        ! sqrt(slope)(/mannings N* width)
  real(dp)                                 :: beta         ! constant, 5/3
  real(dp)                                 :: alpha1       ! sqrt(slope)(/mannings N* width)
@@ -270,7 +267,6 @@ contains
  real(dp)                                 :: absErr(2)    ! absolute error of nonliear equation solution
  real(dp)                                 :: f0eval(2)    !
  integer(i4b)                             :: imin         ! index at minimum value
- integer(i4b)                             :: ix           ! loop index
 
  ierr=0; message='kinematic_wave/'
 
@@ -340,7 +336,7 @@ contains
    endif
 
    if (doCheck) then
-     write(iulog,'(1(A,X,G12.5))') ' Q(1,1)=',Q(1,1)
+     write(iulog,'(1(A,X,G15.4))') ' Q(1,1)=',Q(1,1)
    end if
 
  else ! if head-water
@@ -350,7 +346,7 @@ contains
 
    if (doCheck) then
      write(iulog,'(A)')            ' This is headwater '
-     write(iulog,'(1(A,X,G12.5))') ' Q(1,1)=',Q(1,1)
+     write(iulog,'(1(A,X,G15.4))') ' Q(1,1)=',Q(1,1)
    endif
 
  endif
@@ -364,10 +360,8 @@ contains
  rflux%REACH_Q = Q(1,1)+rflux%BASIN_QR(1)
 
  ! update state
- do ix = 0,1
-   rstate%molecule%Q(1) = Q(1,0)
-   rstate%molecule%Q(2) = Q(1,1)
- end do
+ rstate%molecule%Q(1) = Q(1,0)
+ rstate%molecule%Q(2) = Q(1,1)
 
  END SUBROUTINE kinematic_wave
 
