@@ -31,6 +31,7 @@ CONTAINS
  USE globalData, ONLY: RCHFLX                    ! reach flux data structure for the entire domain
  USE globalData, ONLY: RCHSTA                    ! reach state data structure for the entire domain
  USE globalData, ONLY: ixRch_order
+ USE globalData, ONLY: nNodes                    ! number of MPI tasks
 
  implicit none
  ! input variables
@@ -47,6 +48,7 @@ CONTAINS
  integer(i4b)                  :: ntbound              ! dimenion sizes
  integer(i4b)                  :: ixDim_common(3)      ! custom dimension ID array
  integer(i4b)                  :: jDim                 ! index loops for dimension
+ integer(i4b)                  :: nNodes_in            ! number of MPI tasks for restart file
  character(len=strLen)         :: cmessage             ! error message of downwind routine
 
  ierr=0; message='read_state_nc/'
@@ -71,6 +73,16 @@ CONTAINS
  if(ierr/=0)then; message=trim(message)//'problem allocating [RCHFLX, RCHSTA]'; return; endif
 
  ! Read variables
+ call get_nc(fname,'nNodes',nNodes_in, 1, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if ( nNodes /= nNodes_in )then
+    write(cmessage,'(i4)') nNodes_in
+    ierr = 100
+    message=trim(message)//'Number of MPI tasks on restart file is different from number using now' // &
+            ', they must be the same, nNodes_in='//trim(cmessage)
+    return
+ end if
+
  ! time bound
  call get_nc(fname,'time_bound',TB(:), 1, 2, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
