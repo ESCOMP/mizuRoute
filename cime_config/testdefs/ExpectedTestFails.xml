@@ -36,6 +36,12 @@
       <issue>#227</issue>
     </phase>
   </test>
+  <test name="SMS_D.nldas2_rUSGS_mnldas2.I2000Clm50SpMizGs.cheyenne_intel.mizuroute-default">
+    <phase name="RUN">
+      <status>FAIL</status>
+      <issue>ESMCI/cime#143</issue>
+    </phase>
+  </test>
   <test name="SMS.f19_f19_mg17_rMERIT.I2000Clm50SpMizGs.cheyenne_gnu.mizuroute-default">
     <phase name="RUN">
       <status>FAIL</status>
