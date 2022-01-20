@@ -58,7 +58,7 @@
       <machine name="izumi"    compiler="nag"   category="mizu"></machine>
     </machines>
     <options>
-      <option name="wallclock">00:20:00</option>
+      <option name="wallclock">00:40:00</option>
       <option name="comment"  >Exact restart test on small regional grid but with HDMA mizuRoute with DEBUG on</option>
     </options>
   </test>
