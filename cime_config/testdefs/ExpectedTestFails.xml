@@ -72,5 +72,11 @@
       <issue>#252</issue>
     </phase>
   </test>
+  <test name="PEM_Ld10.nldas2_rMERIT_mnldas2.I2000Clm50SpMizGs.cheyenne_intel.mizuroute-default">
+    <phase name="COMPARE_base_rest">
+      <status>FAIL</status>
+      <issue>#256</issue>
+    </phase>
+  </test>
 
 </expectedFails>
