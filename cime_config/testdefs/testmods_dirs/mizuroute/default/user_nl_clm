@@ -1,3 +1,4 @@
 ! Have some history output from CLM
 hist_nhtfrq = -24
-hist_mfilt = 5
+hist_ndens = 1
+hist_mfilt = 1

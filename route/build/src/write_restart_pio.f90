@@ -315,6 +315,9 @@ CONTAINS
  ! ----------------------------------
  ! Define variable
  ! ----------------------------------
+ call def_var(pioFileDescState, 'nNodes', ncd_int, ierr, cmessage, vdesc='Number of MPI tasks',  vunit='-' )
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  call def_var(pioFileDescState, 'reachID', ncd_int, ierr, cmessage, pioDimId=[dim_seg], vdesc='reach ID',  vunit='-' )
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -777,6 +780,7 @@ CONTAINS
  USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
  USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
  USE globalData, ONLY: reachID             ! reach ID in network
+ USE globalData, ONLY: nNodes              ! number of MPI tasks
  USE globalData, ONLY: nRch                ! number of reaches in network
  USE globalData, ONLY: TSEC                ! beginning/ending of simulation time step [sec]
  USE globalData, ONLY: timeVar             ! time variables (unit given by runoff data)
@@ -846,6 +850,9 @@ CONTAINS
  ! -- Write out to netCDF
 
  call openFile(pioSystem, pioFileDescState, trim(fname),pio_typename, ncd_write, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ call write_scalar_netcdf(pioFileDescState, 'nNodes', nNodes, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  call write_netcdf(pioFileDescState, 'reachID', reachID, [1], [nRch], ierr, cmessage)
