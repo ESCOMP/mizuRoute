@@ -186,8 +186,10 @@ CONTAINS
 
    simout_nc%status = 2
 
-   call write_nc(simout_nc%ncid, 'basinID', int(basinID,kind(i4b)), (/1/), (/nHRU/), ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if (meta_rflx(ixRFLX%basRunoff)%varFile) then
+     call write_nc(simout_nc%ncid, 'basinID', int(basinID,kind(i4b)), (/1/), (/nHRU/), ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
 
    call write_nc(simout_nc%ncid, 'reachID', reachID, (/1/), (/nRch/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -253,11 +255,15 @@ CONTAINS
 
  do jDim =1,nQdims
    if (jDim ==ixQdims%time) then ! time dimension (unlimited)
-    call def_dim(ncid, trim(meta_qDims(jDim)%dimName), ncd_unlimited, meta_qDims(jDim)%dimId, ierr, cmessage)
+     call def_dim(ncid, trim(meta_qDims(jDim)%dimName), ncd_unlimited, meta_qDims(jDim)%dimId, ierr, cmessage)
+   else if (jDim==ixQdims%hru) then
+     if (meta_rflx(ixRFLX%basRunoff)%varFile) then
+       call def_dim(ncid, trim(meta_qDims(jDim)%dimName), meta_qDims(jDim)%dimLength ,meta_qDims(jDim)%dimId, ierr, cmessage)
+     end if
    else
-    call def_dim(ncid, trim(meta_qDims(jDim)%dimName), meta_qDims(jDim)%dimLength ,meta_qDims(jDim)%dimId, ierr, cmessage)
+     call def_dim(ncid, trim(meta_qDims(jDim)%dimName), meta_qDims(jDim)%dimLength ,meta_qDims(jDim)%dimId, ierr, cmessage)
    endif
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do
 
  ! Define coordinate variable for time
@@ -268,8 +274,10 @@ CONTAINS
  call def_var(ncid, 'reachID', (/meta_qDims(ixQdims%seg)%dimName/), ncd_int, ierr, cmessage, vdesc='reach ID', vunit='-')
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call def_var(ncid, 'basinID', (/meta_qDims(ixQdims%hru)%dimName/), ncd_int, ierr, cmessage, vdesc='basin ID', vunit='-')
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (meta_rflx(ixRFLX%basRunoff)%varFile) then
+   call def_var(ncid, 'basinID', (/meta_qDims(ixQdims%hru)%dimName/), ncd_int, ierr, cmessage, vdesc='basin ID', vunit='-')
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
 
  ! define variables
  do iVar=1, nVarsRFLX
