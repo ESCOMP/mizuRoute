@@ -204,7 +204,7 @@
       <option name="comment"  >Smoke test on 2-degree MERIT grid with DEBUG off</option>
     </options>
   </test>
-  <test name="SMS_P40x36" grid="f19_f19_mg17_rMERIT" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="SMS_P80x18" grid="f19_f19_mg17_rMERIT" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
     </machines>
