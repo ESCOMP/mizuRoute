@@ -87,6 +87,7 @@ module public_var
   character(len=strLen),public    :: restart_dir          = charMissing     ! directory for restart output (netCDF)
   ! RUN CONTROL
   character(len=strLen),public    :: case_name            = ''              ! name of simulation
+  logical(lgt),public             :: continue_run         = .true.          ! T-> append output in existing history files. F-> write output in new history file
   character(len=strLen),public    :: simStart             = ''              ! date string defining the start of the simulation
   character(len=strLen),public    :: simEnd               = ''              ! date string defining the end of the simulation
   character(len=strLen),public    :: newFileFrequency     = 'annual'        ! frequency for new output files (day, month, annual, single)

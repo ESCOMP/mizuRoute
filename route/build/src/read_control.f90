@@ -109,6 +109,7 @@ CONTAINS
    case('<case_name>');            case_name   = trim(cData)                           ! name of simulation. used as head of model output and restart file
    case('<sim_start>');            simStart    = trim(cData)                           ! date string defining the start of the simulation
    case('<sim_end>');              simEnd      = trim(cData)                           ! date string defining the end of the simulation
+   case('<continue_run>');         read(cData,*,iostat=io_error) continue_run          ! logical; T-> append output in existing history files. F-> write output in new history file
    case('<newFileFrequency>');     newFileFrequency = trim(cData)                      ! frequency for new output files (day, month, annual, single)
    case('<route_opt>');            read(cData,*,iostat=io_error) routOpt               ! routing scheme options  0-> IRF+KWT (to be removed), 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW
    case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute        ! basin routing options   0-> no, 1->IRF, otherwise error
