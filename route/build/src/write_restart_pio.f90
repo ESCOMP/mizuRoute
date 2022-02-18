@@ -44,7 +44,7 @@ USE globalData,        ONLY: pio_rearranger
 USE globalData,        ONLY: pio_root
 USE globalData,        ONLY: pio_stride
 USE globalData,        ONLY: pioSystem
-USE globalData,        ONLY: isStandalone
+USE globalData,        ONLY: runMode
 
 USE nr_utility_module, ONLY: arth
 USE pio_utils
@@ -234,8 +234,15 @@ CONTAINS
 
    sec_in_day = restartTimeStamp%hour()*60*60+restartTimeStamp%minute()*60+nint(restartTimeStamp%sec())
 
-   write(fnameRestart, fmtYMDS) trim(restart_dir)//trim(case_name)//'.mizuroute.r.', &
-                                restartTimeStamp%year(), '-', restartTimeStamp%month(), '-', restartTimeStamp%day(), '-',sec_in_day,'.nc'
+   select case(trim(runMode))
+     case('cesm-coupling')
+       write(fnameRestart, fmtYMDS) trim(restart_dir)//trim(case_name)//'.mizuroute.r.', &
+                                    restartTimeStamp%year(),'-',restartTimeStamp%month(),'-',restartTimeStamp%day(),'-',sec_in_day,'.nc'
+     case('standalone')
+       write(fnameRestart, fmtYMDS) trim(restart_dir)//trim(case_name)//'.r.', &
+                                    restartTimeStamp%year(),'-',restartTimeStamp%month(),'-',restartTimeStamp%day(),'-',sec_in_day,'.nc'
+     case default; ierr=20; message=trim(message)//'unable to identify the run option. Avaliable options are standalone and cesm-coupling'; return
+   end select
 
  END SUBROUTINE restart_fname
 
@@ -282,12 +289,12 @@ CONTAINS
  ! ----------------------------------
  ! pio initialization for restart netCDF
  ! ----------------------------------
- if (isStandalone) then
+ if (trim(runMode)=='standalone') then
    pio_numiotasks = nNodes/pio_stride
    call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
                      pio_stride, pio_numiotasks, & ! input: PIO related parameters
                      pio_rearranger, pio_root,   & ! input: PIO related parameters
-                     pioSystem)               ! output: PIO system descriptors
+                     pioSystem)                    ! output: PIO system descriptors
  end if
 
  ! ----------------------------------

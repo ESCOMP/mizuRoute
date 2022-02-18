@@ -81,7 +81,7 @@ MODULE globalData
   type(infileinfo), allocatable,   public :: infileinfo_data_wm(:) ! input water management (abstaction/injection) file information
 
   ! ---------- Misc. data -------------------------------------------------------------------------
-  logical(lgt),                    public :: isStandalone=.true.         ! flag to indicate model is running in standalone mode (True), otherwise coupled mode
+  character(len=strLen),           public :: runMode='standalone'        ! run options: standalone or cesm-coupling
   logical(lgt),                    public :: isHistFileOpen=.false.      ! flag to indicate history output netcdf is open
   integer(i4b),                    public :: ixPrint(1:2)=integerMissing ! index of desired reach to be on-screen print
   integer(i4b),                    public :: nEns=1                      ! number of ensemble

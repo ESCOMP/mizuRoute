@@ -18,7 +18,7 @@ MODULE RtmMod
   USE public_var,     ONLY : dt                         ! routing time step
   USE public_var    , ONLY : iulog
   USE public_var    , ONLY : rpntfil
-  USE globalData    , ONLY : isStandalone
+  USE globalData    , ONLY : runMode
   USE globalData    , ONLY : iam        => pid
   USE globalData    , ONLY : npes       => nNodes
   USE globalData    , ONLY : mpicom_rof => mpicom_route
@@ -128,7 +128,7 @@ CONTAINS
     !-------------------------------------------------------
     ! Overwrite PIO parameter from CIME
     !-------------------------------------------------------
-    isStandalone = .false.
+    runMode='cesm-coupling'
 
     select case(shr_pio_getioformat(inst_name))
       case(PIO_64BIT_OFFSET); pio_netcdf_format = '64bit_offset'
