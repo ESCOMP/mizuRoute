@@ -14,6 +14,7 @@ module pio_utils
   public::def_dim
   public::def_var
   public::end_def
+  public::inq_dim_len
   public::openFile
   public::closeFile
   public::sync_file
@@ -88,7 +89,7 @@ contains
                           idxBase,   &  !input
                           pioIOsystem)  !output
     implicit none
-    ! input variables
+    ! ARGUMENTS:
     integer(i4b),          intent(in)  :: pid
     integer(i4b),          intent(in)  :: comm
     integer(i4b),          intent(in)  :: stride       ! stride in MPI rank between IO tasks.
@@ -127,12 +128,11 @@ contains
     ! gidx_local doesn't need to be sequential but it will work a lot better if it's monotonically increasing on each task
 
     implicit none
-    ! input variables
+    ! ARGUMENTS:
     type(iosystem_desc_t),intent(inout) :: pioIoSystem    ! pio system descriptor
     integer(i4b),         intent(in)    :: piotype        ! pio data type
     integer(i4b),         intent(in)    :: dimLen(:)      ! length of dimension for global array
     integer(i4b),         intent(in)    :: gidx_local(:)  ! indices of global array describing the decomposition of the data
-    ! output variables
     type(io_desc_t),      intent(inout) :: iodesc         ! io descriptor handle that is generated in PIO_initdecomp
     ! Local variables
     integer(i4b),         allocatable   :: compdof(:)     ! indices of global array describing the decomposition of the data
@@ -210,7 +210,7 @@ contains
     !  - netcdf4p ==> pio_iotype_NETCDF4p = 4   NetCDF4 (HDF5) parallel
 
     implicit none
-    ! input variables
+    ! ARGUMENTS:
     character(*), intent(in)  :: iotype    ! Input: netcdf type
     ! local variable
     integer(i4b), intent(out) :: ierr      ! error code
@@ -231,6 +231,7 @@ contains
 
   end function iotype_id
 
+  !-----------------------------------------------------------------------
   function ioformat_id(ioformat,     &  ! input:  netcdf format name, default="64bit_offset"
                        ierr, message)   ! output: error handling
     ! Valid netcdf format: "64bit_offset"
@@ -238,9 +239,8 @@ contains
     !  - 64bit_offset,
 
     implicit none
-    ! input variables
+    ! ARGUMENTS:
     character(*), intent(in)  :: ioformat    ! Input: netcdf format name
-    ! output variable
     integer(i4b), intent(out) :: ierr        ! error code
     character(*), intent(out) :: message     ! error message
     integer(i4b)              :: ioformat_id ! netcdf format id
@@ -266,12 +266,11 @@ contains
                         ierr, message)    ! output: error handling
 
     implicit none
-    ! input variable
+    ! ARGUMENTS:
     type(iosystem_desc_t), intent(inout):: pioIoSystem   ! input: pio system descriptor
     character(*),          intent(in)   :: fileName      ! input: netcdf name
     character(*),          intent(in)   :: netcdf_type   ! input: netcdf type name
     character(*),          intent(in)   :: netcdf_format ! input: netcdf format name
-    ! output variable
     type(file_desc_t),     intent(out)  :: pioFileDesc   ! contains data identifying the file.
     integer(i4b),          intent(out)  :: ierr          ! error code
     character(*),          intent(out)  :: message       ! error message
@@ -299,7 +298,7 @@ contains
   end subroutine createFile
 
   !-----------------------------------------------------------------------
-  subroutine openFile(pioIoSystem, pioFileDesc, fname, netcdf_type, mode, ierr, message)
+  subroutine openFile(pioIoSystem, pioFileDesc, fname, netcdf_type, mode, fileOpen, ierr, message)
     !
     ! DESCRIPTION:
     ! Open a NetCDF PIO file
@@ -311,7 +310,7 @@ contains
     character(*),          intent(in)    :: fname        ! filename
     character(*),          intent(in)    :: netcdf_type  ! input: netcdf type name
     integer(i4b),          intent(in)    :: mode         ! file mode: pio_nowrite or pio_write
-    ! output
+    logical(lgt),          intent(inout) :: fileOpen     ! logical to indicate file open or not
     integer(i4b),          intent(out)   :: ierr         ! error status
     character(*),          intent(out)   :: message      ! error message
     ! local variable
@@ -325,21 +324,24 @@ contains
 
     ierr = pio_openfile(pioIoSystem, pioFileDesc, iotype, trim(fname), mode)
     if(ierr/=pio_noerr)then; message=trim(message)//'Could not open netCDF'; return; endif
-    !call shr_sys_abort('ncd_pio_openfile ERROR: Failed to open file')
+
+    fileOpen = .true.
 
   end subroutine openFile
 
   !-----------------------------------------------------------------------
-  subroutine closeFile(pioFileDesc)
+  subroutine closeFile(pioFileDesc, fileOpen)
     ! !DESCRIPTION:
     ! Close a NetCDF PIO file
     !
     implicit none
-    ! !ARGUMENTS:
+    ! ARGUMENTS:
     type(file_desc_t), intent(inout) :: pioFileDesc   ! PIO file handle to close
-    !-----------------------------------------------------------------------
+    logical(lgt),      intent(inout) :: fileOpen      ! logical to indicate file open or not
 
     call pio_closefile(pioFileDesc)
+
+    fileOpen = .false.
 
   end subroutine closeFile
 
@@ -349,9 +351,8 @@ contains
     ! end definition of netcdf file
     !
     implicit none
-    ! input
+    ! ARGUMENTS:
     type(file_desc_t), intent(inout) :: pioFileDesc  ! netcdf file id
-    ! output
     integer(i4b),      intent(out)   :: ierr         ! error status
     character(*),      intent(out)   :: message      ! error message
 
@@ -367,9 +368,8 @@ contains
     ! end definition of netcdf file
     !
     implicit none
-    ! input
+    ! ARGUMENTS:
     type(file_desc_t), intent(inout) :: pioFileDesc  ! netcdf file id
-    ! output
     integer(i4b),      intent(out)   :: ierr         ! error status
     character(*),      intent(out)   :: message      ! error message
 
@@ -386,12 +386,13 @@ contains
                     dimlen,        & ! input: dimension size negative => record dimension
                     dimid)           ! output: dimension id
     implicit none
+    ! ARGUMENTS:
     type(file_desc_t),      intent(in) :: pioFileDesc  ! netcdf file id
     character(len=*),       intent(in) :: dimname      ! netcdf attrib
     integer(i4b),           intent(in) :: dimlen       ! netcdf attrib value
     integer(i4b),           intent(out):: dimid        ! netcdf dimension id
     integer(i4b)                       :: ierr
-    !-----------------------------------------------------------------------
+
     if (dimlen>0) then
       ierr = pio_def_dim(pioFileDesc, dimname, dimlen, dimid)
     else
@@ -399,6 +400,24 @@ contains
     endif
 
   end subroutine def_dim
+
+  !-----------------------------------------------------------------------
+  subroutine inq_dim_len(pioFileDesc,  & ! input: file descriptor
+                         dimname,      & ! input: dimension name
+                         dimlen)         ! output: dimension id
+    implicit none
+    ! ARGUMENTS:
+    type(file_desc_t),      intent(in)  :: pioFileDesc  ! netcdf file id
+    character(len=*),       intent(in)  :: dimname      ! name of a dimension
+    integer(i4b),           intent(out) :: dimlen       ! length of a dimension
+    ! local variables
+    integer(i4b)                        :: dimid        ! dimension IDs
+    integer(i4b)                        :: ierr
+
+    ierr = pio_inq_dimid(pioFileDesc, trim(dimname), dimid)
+    ierr = pio_inq_dimlen(pioFileDesc, dimid, dimlen)
+
+  end subroutine inq_dim_len
 
   !-----------------------------------------------------------------------
   subroutine def_var(pioFileDesc,   & ! input: file descriptor
@@ -410,7 +429,7 @@ contains
                      vunit,         & ! input: optional. unit
                      vcal)            ! input: optional. calendar type
   implicit none
-  ! input
+  ! ARGUMENTS:
   type(file_desc_t),intent(inout)         :: pioFileDesc            ! contains data identifying the file.
   character(*),     intent(in)            :: vname                  ! Input: variable name
   integer(i4b),     intent(in)            :: ivtype                 ! Input: variable type. pio_int, pio_real, pio_double, pio_char
@@ -418,7 +437,6 @@ contains
   character(*),     intent(in), optional  :: vdesc                  ! Input: variable description
   character(*),     intent(in), optional  :: vunit                  ! Input: variable units
   character(*),     intent(in), optional  :: vcal                   ! Input: calendar (if time variable)
-  ! output
   integer(i4b),     intent(out)           :: ierr
   character(*),     intent(out)           :: message      ! error message
   ! local variables

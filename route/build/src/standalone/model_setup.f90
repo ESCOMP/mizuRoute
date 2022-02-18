@@ -62,11 +62,11 @@ CONTAINS
                       comm,          & ! input: communicator
                       ierr, message)   ! output: error control
 
-   USE globalData,  ONLY: isFileOpen             ! file open/close status
-   ! external subroutines
-   USE mpi_process, ONLY: pass_global_data       ! mpi globaldata copy to slave proc
+   USE public_var,          ONLY: continue_run        ! T-> append output in existing history files. F-> write output in new history file
+   USE mpi_process,         ONLY: pass_global_data    ! mpi globaldata copy to slave proc
+   USE write_simoutput_pio, ONLY: init_histFile       ! open existing history file to append (only continue_run is true)
 
-   IMPLICIT NONE
+   implicit none
    integer(i4b),              intent(in)    :: pid              ! proc id
    integer(i4b),              intent(in)    :: nNodes           ! number of procs
    integer(i4b),              intent(in)    :: comm             ! communicator
@@ -76,7 +76,6 @@ CONTAINS
    ! local variable
    character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
-   ! initialize error control
    ierr=0; message='init_data/'
 
    ! runoff input files initialization
@@ -103,7 +102,10 @@ CONTAINS
    call init_state_data(pid, nNodes, comm, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   isFileOpen=.false.
+   if (continue_run) then
+     call init_histFile(ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
 
  END SUBROUTINE init_data
 
@@ -403,6 +405,7 @@ CONTAINS
   USE public_var, ONLY: simEnd                   ! date string defining the end of the simulation
   USE public_var, ONLY: calendar                 ! calendar used for simulation
   USE public_var, ONLY: dt                       ! simulation time step in second
+  USE public_var, ONLY: continue_run             ! logical to indicate sppend output in existing history file
   USE public_var, ONLY: secprday                 ! unit conversion from day to sec
   USE public_var, ONLY: restart_write            ! restart write option
   USE public_var, ONLY: restart_date             ! restart datetime
@@ -545,6 +548,10 @@ CONTAINS
     exit
   end do
   iTime = ix
+
+  if (continue_run) then
+    simDatetime(0) = simDatetime(1)%add_sec(-dt, calendar, ierr, cmessage)
+  end if
 
   ! if one of the two flags are set it true
   if ((is_flux_wm).or.(is_vol_wm.and.is_lake_sim)) then

@@ -45,6 +45,7 @@ integer(i4b),parameter     :: recordDim=-999       ! record dimension Indicator
 private
 
 public::main_new_file
+public::init_histFile
 public::prep_output
 public::output
 public::close_output_nc
@@ -267,11 +268,13 @@ CONTAINS
  USE public_var, ONLY: case_name         ! simulation name ==> output filename head
  USE public_var, ONLY: calendar          ! calendar name
  USE public_var, ONLY: time_units        ! time units (seconds, hours, or days)
+ USE public_var, ONLY: restart_dir       ! directory for restart output
+ USE public_var, ONLY: rpntfil           ! ascii containing last restart and history files
  ! saved global data
  USE globalData, ONLY: basinID, reachID  ! HRU and reach ID in network
  USE globalData, ONLY: simDatetime       ! previous and current model time
  USE globalData, ONLY: nEns, nHRU, nRch  ! number of ensembles, HRUs and river reaches
- USE globalData, ONLY: isFileOpen        ! file open/close status
+ USE globalData, ONLY: isHistFileOpen    ! history file open/close status
  ! subroutines
  USE time_utils_module, ONLy: compCalday        ! compute calendar day
  USE time_utils_module, ONLy: compCalday_noleap ! compute calendar day
@@ -286,11 +289,12 @@ CONTAINS
  integer(i4b)                    :: sec_in_day       ! second within day
  character(len=strLen)           :: cmessage         ! error message of downwind routine
  character(*),parameter          :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
+ logical(lgt),parameter          :: createNewFile=.true.
 
  ierr=0; message='prep_output/'
 
    ! close netcdf only if is is open
-   call close_output_nc()
+   call close_output_nc(isHistFileOpen)
 
    jTime=0
 
@@ -305,10 +309,11 @@ CONTAINS
                    nRch,                                  &  ! input: number of stream segments
                    time_units,                            &  ! input: time units
                    calendar,                              &  ! input: calendar
+                   createNewFile,                         &
                    ierr,cmessage)                            ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   call openFile(pioSystem, pioFileDesc, trim(fileout), pio_typename, ncd_write, ierr, cmessage)
+   call openFile(pioSystem, pioFileDesc, trim(fileout), pio_typename, ncd_write, isHistFileOpen, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    call write_netcdf(pioFileDesc, 'basinID', basinID, [1], [nHRU], ierr, cmessage)
@@ -317,17 +322,18 @@ CONTAINS
    call write_netcdf(pioFileDesc, 'reachID', reachID, [1], [nRch], ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   isFileOpen = .True.
+   open(1, file = trim(restart_dir)//trim(rpntfil), status='replace', action='write')
+   write(1,'(a)') trim(fileout)
+   close(1)
 
  END SUBROUTINE prep_output
 
 
- SUBROUTINE close_output_nc()
-  USE globalData, ONLY: isFileOpen   ! file open/close status
+ SUBROUTINE close_output_nc(fileStatus)
   implicit none
-  if (isFileOpen) then
-   call closeFile(pioFileDesc)
-   isFileOpen=.false.
+  logical(lgt), intent(inout) :: fileStatus
+  if (fileStatus) then
+   call closeFile(pioFileDesc, fileStatus)
   endif
  END SUBROUTINE close_output_nc
 
@@ -341,6 +347,7 @@ CONTAINS
                        nRch_in,         &  ! input: number of stream segments
                        units_time,      &  ! input: time units
                        calendar,        &  ! input: calendar
+                       createNewFile,   &
                        ierr, message)      ! output: error control
  !Dependent modules
  USE var_lookup, ONLY: ixQdims, nQdims
@@ -356,6 +363,7 @@ CONTAINS
  integer(i4b), intent(in)          :: nRch_in           ! number of stream segments
  character(*), intent(in)          :: units_time        ! time units
  character(*), intent(in)          :: calendar          ! calendar
+ logical(lgt), intent(in)          :: createNewFile     !
  ! output variables
  integer(i4b), intent(out)         :: ierr              ! error code
  character(*), intent(out)         :: message           ! error message
@@ -415,6 +423,7 @@ CONTAINS
                  ixHRU(ix1:ix2),& ! input:
                  iodesc_hru_ro)
 
+ if (createNewFile) then
  ! --------------------
  ! define file
  ! --------------------
@@ -475,7 +484,54 @@ CONTAINS
  call end_def(pioFileDesc, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+ end if
+
  END SUBROUTINE defineFile
 
+ SUBROUTINE init_histFile(ierr, message)
+
+   USE public_var,        ONLY: calendar          ! calendar name
+   USE public_var,        ONLY: time_units        ! time units (seconds, hours, or days)
+   USE public_var,        ONLY: output_dir        ! output directory
+   USE public_var,        ONLY: restart_dir       ! restart directory
+   USE public_var,        ONLY: rpntfil           !
+   USE globalData,        ONLY: isHistFileOpen    ! history file open/close status
+   USE globalData,        ONLY: nEns, nHRU, nRch  ! number of ensembles, HRUs and river reaches
+
+   implicit none
+   ! output
+   integer(i4b),   intent(out)          :: ierr             ! error code
+   character(*),   intent(out)          :: message          ! error message
+   ! local variables
+   character(len=strLen)                :: cmessage         ! error message of downwind routine
+   logical(lgt),parameter               :: createNewFile=.false.
+
+   ierr=0; message='init_histFile/'
+
+   open(1, file = trim(restart_dir)//trim(rpntfil), status='old', action='read')
+   read(1, '(A)') fileout
+   close(1)
+
+   call defineFile(trim(fileout),                         &  ! input: file name
+                   nEns,                                  &  ! input: number of ensembles
+                   nHRU,                                  &  ! input: number of HRUs
+                   nRch,                                  &  ! input: number of stream segments
+                   time_units,                            &  ! input: time units
+                   calendar,                              &  ! input: calendar
+                   createNewFile,                         &
+                   ierr,cmessage)                            ! output: error control
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! if file is not exist, get not-descriptive error
+   call openFile(pioSystem, pioFileDesc, trim(fileout), pio_typename, ncd_write, isHistFileOpen, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   call inq_dim_len(pioFileDesc, 'time', jTime)
+
+   open(1, file = trim(restart_dir)//trim(rpntfil), status='replace', action='write')
+   write(1,'(a)') trim(fileout)
+   close(1)
+
+ END SUBROUTINE init_histFile
 
 END MODULE write_simoutput_pio

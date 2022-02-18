@@ -184,8 +184,8 @@ CONTAINS
   call write_state_nc(fnameRestart, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  open (1, file = trim(restart_dir)//trim(rpntfil), status='replace', action='write')
-  write(1,'(a)') trim(fnameRestart)
+  open(1, file = trim(restart_dir)//trim(rpntfil), status='unknown', action='write', position='append')
+  write(1,'(a)', advance='no') trim(fnameRestart)
   close(1)
 
  END SUBROUTINE restart_output
@@ -802,6 +802,7 @@ CONTAINS
  type(STRFLX), allocatable       :: RCHFLX_local(:)   ! reordered reach flux data structure
  type(RCHTOPO),allocatable       :: NETOPO_local(:)   ! reordered topology data structure
  type(STRSTA), allocatable       :: RCHSTA_local(:)   ! reordered statedata structure
+ logical(lgt)                    :: restartOpen       ! logical to indicate restart file is open
  character(len=strLen)           :: t_unit            ! unit of time
  character(len=strLen)           :: cmessage          ! error message of downwind routine
 
@@ -849,7 +850,7 @@ CONTAINS
 
  ! -- Write out to netCDF
 
- call openFile(pioSystem, pioFileDescState, trim(fname),pio_typename, ncd_write, ierr, cmessage)
+ call openFile(pioSystem, pioFileDescState, trim(fname),pio_typename, ncd_write, restartOpen, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  call write_scalar_netcdf(pioFileDescState, 'nNodes', nNodes, ierr, cmessage)
@@ -898,7 +899,7 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
- call closeFile(pioFileDescState)
+ call closeFile(pioFileDescState, restartOpen)
 
  CONTAINS
 
