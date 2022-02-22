@@ -26,7 +26,7 @@ USE globalData,        ONLY: pio_rearranger
 USE globalData,        ONLY: pio_root
 USE globalData,        ONLY: pio_stride
 USE globalData,        ONLY: pioSystem
-USE globalData,        ONLY: isStandalone
+USE globalData,        ONLY: runMode
 ! Moudle wide external modules
 USE nr_utility_module, ONLY: arth
 USE pio_utils
@@ -300,8 +300,15 @@ CONTAINS
 
    ! Define filename
    sec_in_day = simDatetime(1)%hour()*60*60+simDatetime(1)%minute()*60+nint(simDatetime(1)%sec())
-   write(fileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuroute.h.', &
-                           simDatetime(1)%year(), '-', simDatetime(1)%month(), '-', simDatetime(1)%day(), '-',sec_in_day,'.nc'
+   select case(trim(runMode))
+     case('cesm-coupling')
+       write(fileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuroute.h.', &
+                               simDatetime(1)%year(),'-',simDatetime(1)%month(),'-',simDatetime(1)%day(),'-',sec_in_day,'.nc'
+     case('standalone')
+       write(fileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.h.', &
+                               simDatetime(1)%year(),'-',simDatetime(1)%month(),'-',simDatetime(1)%day(),'-',sec_in_day,'.nc'
+     case default; ierr=20; message=trim(message)//'unable to identify the run option. Avaliable options are standalone and cesm-coupling'; return
+   end select
 
    call defineFile(trim(fileout),                         &  ! input: file name
                    nEns,                                  &  ! input: number of ensembles
@@ -385,7 +392,7 @@ CONTAINS
  meta_qDims(ixQdims%ens)%dimLength = nEns_in
 
  ! pio initialization
- if (isStandalone) then
+ if (trim(runMode)=='standalone') then
    pio_numiotasks = nNodes/pio_stride
    call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
                      pio_stride, pio_numiotasks, & ! input: PIO related parameters
