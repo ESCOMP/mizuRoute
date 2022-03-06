@@ -7,6 +7,7 @@ USE public_var,only: iulog
 USE public_var,only: integerMissing
 USE globalData,only: meta_rflx
 USE globalData,only: simout_nc
+USE globalData,only: idxIRF, idxKWT, idxKW, idxMC, idxDW
 USE io_netcdf, only: ncd_int
 USE io_netcdf, only: ncd_float, ncd_double
 USE io_netcdf, only: ncd_unlimited
@@ -47,6 +48,8 @@ CONTAINS
   integer(i4b), intent(out)       :: ierr             ! error code
   character(*), intent(out)       :: message          ! error message
   ! local variables
+  real(dp),    allocatable        :: array_temp(:)
+  integer(i4b)                    :: ix               ! loop index 
   integer(i4b)                    :: iens             ! temporal
   character(len=strLen)           :: cmessage         ! error message of downwind routine
 
@@ -54,6 +57,9 @@ CONTAINS
   ierr=0; message='output/'
 
   iens = 1
+
+  allocate(array_temp(nRch), stat=ierr, errmsg=cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [array_temp]'; return; endif
 
   ! write time -- note time is just carried across from the input
   call write_nc(simout_nc%ncid, 'time', (/runoff_data%time/), (/jTime/), (/1/), ierr, cmessage)
@@ -84,27 +90,42 @@ CONTAINS
   endif
 
   if (meta_rflx(ixRFLX%KWTroutedRunoff)%varFile) then
-   call write_nc(simout_nc%ncid, 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   do ix=1,nRCH
+     array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxKWT)%REACH_Q
+   end do
+   call write_nc(simout_nc%ncid, 'KWTroutedRunoff', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%IRFroutedRunoff)%varFile) then
-   call write_nc(simout_nc%ncid, 'IRFroutedRunoff', RCHFLX(iens,:)%REACH_Q_IRF, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   do ix=1,nRCH
+     array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxIRF)%REACH_Q
+   end do
+   call write_nc(simout_nc%ncid, 'IRFroutedRunoff', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%KWroutedRunoff)%varFile) then
-   call write_nc(simout_nc%ncid, 'KWroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   do ix=1,nRCH
+     array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxKW)%REACH_Q
+   end do
+   call write_nc(simout_nc%ncid, 'KWroutedRunoff', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%MCroutedRunoff)%varFile) then
-   call write_nc(simout_nc%ncid, 'MCroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   do ix=1,nRCH
+     array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxMC)%REACH_Q
+   end do
+   call write_nc(simout_nc%ncid, 'MCroutedRunoff', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%DWroutedRunoff)%varFile) then
-   call write_nc(simout_nc%ncid, 'DWroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+   do ix=1,nRCH
+     array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxDW)%REACH_Q
+   end do
+   call write_nc(simout_nc%ncid, 'DWroutedRunoff', array_temp(1:nRch), (/1,jTime/), (/nRch,1/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 

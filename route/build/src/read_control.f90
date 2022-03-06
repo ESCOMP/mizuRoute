@@ -13,7 +13,7 @@ contains
  ! * new subroutine: read the control file
  ! =======================================================================================================
  ! read the control file
- subroutine read_control(ctl_fname, err, message)
+ SUBROUTINE read_control(ctl_fname, err, message)
 
  ! data types
  USE nrtype                                  ! variable types, etc.
@@ -28,6 +28,11 @@ contains
  USE globalData, only : meta_NTOPO           ! network topology
  USE globalData, only : meta_PFAF            ! pfafstetter code
  USE globalData, only : meta_rflx            ! river flux variables
+
+ USE globalData, only : nRoutes              ! number of active routing methods 
+ USE globalData, only : routeMethods         ! active routing method index and id 
+ USE globalData, only : idxIRF, idxKWT, &
+                        idxKW, idxMC, idxDW
 
  ! named variables in each structure
  USE var_lookup, only : ixHRU                ! index of variables for data structure
@@ -59,6 +64,7 @@ contains
  integer(i4b)                      :: iLine          ! index of line in cLines
  integer(i4b)                      :: iunit          ! file unit
  integer(i4b)                      :: io_error       ! error in I/O
+ integer(i4b)                      :: ix             ! loop index
  character(len=strLen)             :: cmessage       ! error message from subroutine
  ! initialize error control
  err=0; message='read_control/'
@@ -298,20 +304,20 @@ contains
  ! ---------- output options --------------------------------------------------------------------------------------------
  ! Make sure to turn off write option for routines not used
  ! Routing options
- if (routOpt==allRoutingMethods) then
-    meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = (.true. .and. meta_rflx(ixRFLX%KWTroutedRunoff)%varFile)
-    meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = (.true. .and. meta_rflx(ixRFLX%IRFroutedRunoff)%varFile)
-    meta_rflx(ixRFLX%MCroutedRunoff)%varFile = .false.
-    meta_rflx(ixRFLX%KWroutedRunoff)%varFile = .false.
-    meta_rflx(ixRFLX%DWroutedRunoff)%varFile = .false.
- else
- ! ----- end: this (allRoutingMethods) is to be removed
- if (routOpt/=kinematicWaveTracking) meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
- if (routOpt/=impulseResponseFunc) meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
- if (routOpt/=muskingumCunge) meta_rflx(ixRFLX%MCroutedRunoff)%varFile = .false.
- if (routOpt/=kinematicWave) meta_rflx(ixRFLX%KWroutedRunoff)%varFile = .false.
- if (routOpt/=diffusiveWave) meta_rflx(ixRFLX%DWroutedRunoff)%varFile = .false.
- endif
+ routeMethods = get_digits(routOpt)
+ nRoutes = size(routeMethods)
+ do ix = 1, nRoutes 
+   select case(routeMethods(ix))
+    case(kinematicWaveTracking); idxKWT = ix; meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
+    case(impulseResponseFunc);   idxIRF = ix; meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
+    case(muskingumCunge);        idxMC  = ix; meta_rflx(ixRFLX%MCroutedRunoff)%varFile  = .false.
+    case(kinematicWave);         idxKW  = ix; meta_rflx(ixRFLX%KWroutedRunoff)%varFile  = .false.
+    case(diffusiveWave);         idxDW  = ix; meta_rflx(ixRFLX%DWroutedRunoff)%varFile  = .false.
+    case default
+     message=trim(message)//'expect include any digits from 1 and 5 in routOpt'
+     err=81; return
+   end select
+ end do
 
  ! runoff accumulation option
  if (doesAccumRunoff==0) then
@@ -322,6 +328,21 @@ contains
    meta_rflx(ixRFLX%instRunoff)%varFile = .false.
  endif
 
- end subroutine read_control
+ CONTAINS
 
-end module read_control_module
+   FUNCTION get_digits(num) result(digs)
+     integer(i4b), intent(in)  :: num
+     integer(i4b), allocatable :: digs(:)
+     integer(i4b)              :: num_digits, ix, rem
+     num_digits = floor(log10(real(num))+1)
+     allocate(digs(num_digits))
+     rem = num
+     do ix = 1, num_digits
+        digs(num_digits-ix+1) = rem - (rem/10)*10  ! Take advantage of integer division
+        rem = rem/10
+     end do
+   END FUNCTION get_digits
+
+ END SUBROUTINE read_control
+
+END MODULE read_control_module

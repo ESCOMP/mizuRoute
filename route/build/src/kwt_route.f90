@@ -4,16 +4,17 @@ MODULE kwt_route_module
 USE nrtype
 ! data types
 USE dataTypes, ONLY: FPOINT            ! particle
-USE dataTypes, ONLY: LKWRCH            ! collection of particles in a given reach
 USE dataTypes, ONLY: STRFLX            ! fluxes in each reach
 USE dataTypes, ONLY: STRSTA            ! states in each reach
 USE dataTypes, ONLY: RCHTOPO           ! Network topology
 USE dataTypes, ONLY: RCHPRP            ! Reach parameter
+USE dataTypes, ONLY: kwtRCH            ! kwt specific state data structure 
 ! global data
 USE public_var, ONLY: runoffMin         ! minimum runoff
 USE public_var, ONLY: verySmall         ! a very small value
 USE public_var, ONLY: realMissing       ! missing value for real number
 USE public_var, ONLY: integerMissing    ! missing value for integer number
+USE globalData, ONLY: idxKWT            ! index of KWT method 
 ! utilities
 USE nr_utility_module, ONLY: arth       ! Num. Recipies utilities
 
@@ -299,7 +300,7 @@ CONTAINS
       endif
     else
       ! set flow in headwater reaches to modelled streamflow from time delay histogram
-      RCHFLX_out(IENS,JRCH)%REACH_Q = RCHFLX_out(IENS,JRCH)%BASIN_QR(1)
+      RCHFLX_out(IENS,JRCH)%ROUTE(idxKWT)%REACH_Q = RCHFLX_out(IENS,JRCH)%BASIN_QR(1)
       if (allocated(RCHSTA_out(IENS,JRCH)%LKW_ROUTE%KWAVE)) then
         deallocate(RCHSTA_out(IENS,JRCH)%LKW_ROUTE%KWAVE,STAT=IERR)
         if(ierr/=0)then; message=trim(message)//'problem deallocating space for RCHSTA_out'; return; endif
@@ -314,7 +315,7 @@ CONTAINS
 
       if(JRCH==ixDesire) then
         write(*,'(a)') ' * Final discharge (RCHFLX_out(IENS,JRCH)%REACH_Q) [m3/s]:'
-        write(*,'(x,F20.7)') RCHFLX_out(IENS,JRCH)%REACH_Q
+        write(*,'(x,F20.7)') RCHFLX_out(IENS,JRCH)%ROUTE(idxKWT)%REACH_Q
       end if
       return  ! no upstream reaches (routing for sub-basins done using time-delay histogram)
     endif
@@ -388,13 +389,13 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! m2/s --> m3/s + instantaneous runoff from basin
-    RCHFLX_out(IENS,JRCH)%REACH_Q = QNEW(1)*RPARAM_in(JRCH)%R_WIDTH + RCHFLX_out(IENS,JRCH)%BASIN_QR(1)
+    RCHFLX_out(IENS,JRCH)%ROUTE(idxKWT)%REACH_Q = QNEW(1)*RPARAM_in(JRCH)%R_WIDTH + RCHFLX_out(IENS,JRCH)%BASIN_QR(1)
 
     if(JRCH == ixDesire)then
       write(*,'(a)')          ' * Time-ave. wave discharge that exit (QNEW(1)) [m2/s], local-area discharge (RCHFLX_out%BASIN_QR(1)) [m3/s] and Final discharge (RCHFLX_out%REACH_Q) [m3/s]:'
       write(*,"(A,1x,F15.7)") ' QNEW(1)                =', QNEW(1)
       write(*,"(A,1x,F15.7)") ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(IENS,JRCH)%BASIN_QR(1)
-      write(*,"(A,1x,F15.7)") ' RCHFLX_out%REACH_Q     =', RCHFLX_out(IENS,JRCH)%REACH_Q
+      write(*,"(A,1x,F15.7)") ' RCHFLX_out%REACH_Q     =', RCHFLX_out(IENS,JRCH)%ROUTE(idxKWT)%REACH_Q
     endif
 
     ! ----------------------------------------------------------------------------------------
@@ -801,7 +802,7 @@ CONTAINS
  integer(i4b)                                :: INDX      ! index of the IUPS u/s reach
  integer(i4b)                                :: MUPR      ! # reaches u/s of IUPS u/s reach
  integer(i4b)                                :: NUPS      ! number of upstream elements
- TYPE(LKWRCH), allocatable                   :: USFLOW(:) ! waves for all upstream segments
+ TYPE(kwtRCH), allocatable                   :: USFLOW(:) ! waves for all upstream segments
  real(dp),     allocatable                   :: UWIDTH(:) ! width of all upstream segments
  integer(i4b)                                :: IMAX      ! max number of upstream particles
  integer(i4b)                                :: IUPR      ! counter for reaches with particles
