@@ -243,7 +243,7 @@ CONTAINS
   USE globalData,    ONLY : routeMethods
   USE globalData,    ONLY : RCHFLX            ! reach flux structure
   USE globalData,    ONLY : RCHSTA            ! reach restart state structure
-  USE globalData,    ONLY : nMolecule         ! computational molecule 
+  USE globalData,    ONLY : nMolecule         ! computational molecule
   USE globalData,    ONLY : TSEC              ! begining/ending of simulation time step [sec]
 
   implicit none
@@ -278,7 +278,7 @@ CONTAINS
           if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA]'; return; endif
           RCHSTA(iens,ix)%KW_ROUTE%molecule%Q(:) = 0._dp
         end do
-      else if (routeMethods(ix)==muskingumCunge) then
+      else if (routeMethods(iRoute)==muskingumCunge) then
         nMolecule%MC_ROUTE = 2
         do ix = 1, size(RCHSTA(1,:))
           RCHFLX(iens,ix)%ROUTE(iRoute)%REACH_VOL(0:1) = 0._dp
@@ -286,7 +286,7 @@ CONTAINS
           if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA]'; return; endif
           RCHSTA(iens,ix)%MC_ROUTE%molecule%Q(:) = 0._dp
         end do
-      else if (routeMethods(ix)==diffusiveWave) then
+      else if (routeMethods(iRoute)==diffusiveWave) then
         nMolecule%DW_ROUTE = 5
         do ix = 1, size(RCHSTA(1,:))
           RCHFLX(iens,ix)%ROUTE(iRoute)%REACH_VOL(0:1) = 0._dp

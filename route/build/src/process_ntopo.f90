@@ -15,7 +15,6 @@ USE public_var, only : qtakeOption            ! option to compute network topolo
 USE public_var, only : topoNetworkOption      ! option to compute network topology
 USE public_var, only : computeReachList       ! option to compute reach list
 USE public_var, only : hydGeometryOption      ! option to obtain routing parameters
-USE public_var, only : allRoutingMethods      ! option for routing methods - all the methods
 USE public_var, only : kinematicWaveTracking  ! option for routing methods - Lagrangian kinematic wave only
 USE public_var, only : impulseResponseFunc    ! option for routing methods - IRF only
 USE public_var, only : kinematicWave          ! option for routing methods - kinematic wave only
@@ -110,7 +109,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------
  ! local variables
  character(len=strLen)                             :: cmessage             ! error message of downwind routine
- integer(i4b)                                      :: ix                   ! loop index 
+ integer(i4b)                                      :: ix                   ! loop index
  integer(i4b)                                      :: tot_upstream_tmp     ! temporal storage for tot_upstream
  integer(i4b)                                      :: tot_upseg_tmp        ! temporal storage tot_upseg_tmp
  integer(i4b)                                      :: tot_hru_tmp          ! temporal storage tot_hru_tmp
@@ -257,7 +256,7 @@ contains
         structSEG(iSeg)%var(ixSEG%width)%dat(1) = wscale * sqrt(structSEG(iSeg)%var(ixSEG%totalArea)%dat(1))  ! channel width (m)
         structSEG(iSeg)%var(ixSEG%man_n)%dat(1) = mann_n                                                      ! Manning's "n" paramater (unitless)
       end do
-      exit 
+      exit
     end if
   end do
 

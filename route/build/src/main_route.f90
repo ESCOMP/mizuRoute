@@ -34,7 +34,6 @@ contains
 
    USE public_var, only : doesBasinRoute
    USE public_var, only : doesAccumRunoff
-   USE public_var, only : allRoutingMethods
    USE public_var, only : kinematicWaveTracking
    USE public_var, only : impulseResponseFunc
    USE public_var, only : kinematicWave
@@ -129,7 +128,7 @@ contains
      elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
      write(*,"(A,1PG15.7,A)") '      elapsed-time [accum_runoff] = ', elapsedTime, ' s'
    endif
-   
+
    do iRoute = 1, nRoutes
      if (routeMethods(iRoute)==kinematicWaveTracking) then
        call system_clock(startTime)

@@ -29,8 +29,8 @@ contains
  USE globalData, only : meta_PFAF            ! pfafstetter code
  USE globalData, only : meta_rflx            ! river flux variables
 
- USE globalData, only : nRoutes              ! number of active routing methods 
- USE globalData, only : routeMethods         ! active routing method index and id 
+ USE globalData, only : nRoutes              ! number of active routing methods
+ USE globalData, only : routeMethods         ! active routing method index and id
  USE globalData, only : idxIRF, idxKWT, &
                         idxKW, idxMC, idxDW
 
@@ -40,7 +40,7 @@ contains
  USE var_lookup, only : ixSEG                ! index of variables for data structure
  USE var_lookup, only : ixNTOPO              ! index of variables for data structure
  USE var_lookup, only : ixPFAF               ! index of variables for data structure
- USE var_lookup, only : ixRFLX               ! index of variables for data structure
+ USE var_lookup, only : ixRFLX, nVarsRFLX     ! index of variables for data structure
 
  ! external subroutines
  USE ascii_util_module,only:file_open        ! open file (performs a few checks as well)
@@ -306,13 +306,13 @@ contains
  ! Routing options
  routeMethods = get_digits(routOpt)
  nRoutes = size(routeMethods)
- do ix = 1, nRoutes 
+ do ix = 1, nRoutes
    select case(routeMethods(ix))
-    case(kinematicWaveTracking); idxKWT = ix; meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
-    case(impulseResponseFunc);   idxIRF = ix; meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
-    case(muskingumCunge);        idxMC  = ix; meta_rflx(ixRFLX%MCroutedRunoff)%varFile  = .false.
-    case(kinematicWave);         idxKW  = ix; meta_rflx(ixRFLX%KWroutedRunoff)%varFile  = .false.
-    case(diffusiveWave);         idxDW  = ix; meta_rflx(ixRFLX%DWroutedRunoff)%varFile  = .false.
+    case(kinematicWaveTracking); idxKWT = ix
+    case(impulseResponseFunc);   idxIRF = ix
+    case(muskingumCunge);        idxMC  = ix
+    case(kinematicWave);         idxKW  = ix
+    case(diffusiveWave);         idxDW  = ix
     case default
      message=trim(message)//'expect include any digits from 1 and 5 in routOpt'
      err=81; return

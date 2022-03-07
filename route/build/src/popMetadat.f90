@@ -178,13 +178,13 @@ contains
  call meta_kwt(ixKWT%routed   )%init('routed'   , 'routing flag'                                  , '-'     , nf90_int,    [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
 
  ! Kinematic Wave
- call meta_kw(ixKW%qsub)%init('q_sub', 'flow at computational moelcule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_kw,ixStateDims%ens], .false.)
+ call meta_kw(ixKW%qsub)%init('q_sub_kw', 'flow at computational moelcule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_kw,ixStateDims%ens], .false.)
 
  ! Diffusive Wave
- call meta_dw(ixDW%qsub)%init('q_sub', 'flow at computational moelcule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_dw,ixStateDims%ens], .false.)
+ call meta_dw(ixDW%qsub)%init('q_sub_dw', 'flow at computational moelcule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_dw,ixStateDims%ens], .false.)
 
  ! Muskingum-cunge
- call meta_mc(ixMC%qsub)%init('q_sub', 'flow at computational molecule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_mc,ixStateDims%ens], .false.)
+ call meta_mc(ixMC%qsub)%init('q_sub_mc', 'flow at computational molecule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_mc,ixStateDims%ens], .false.)
 
  ! Impulse Response Function
  call meta_irf(ixIRF%qfuture)%init('irf_qfuture', 'future flow series', 'm3/sec' ,nf90_double, [ixStateDims%seg,ixStateDims%tdh_irf,ixStateDims%ens] , .true.)
