@@ -38,7 +38,7 @@ MODULE globalData
   ! time data structure
   USE dataTypes,  ONLY : nc            ! netCDF data
 
-  USE dataTypes,  ONLY : cMolecule     ! 
+  USE dataTypes,  ONLY : cMolecule     !
 
   ! data size
   USE var_lookup, ONLY : nStructures   ! number of variables for data structure
@@ -110,9 +110,9 @@ MODULE globalData
   integer(i4b)                   , public :: nHRU                 ! number of HRUs in the whole river network
   integer(i4b)                   , public :: nRch                 ! number of reaches in the whole river network
 
-  ! index of routing method 
+  ! routing methods
   integer(i4b)                   , public :: nRoutes              ! number of active routing methods
-  integer(i4b)    , allocatable  , public :: routeMethods(:)      ! active routing method id 
+  integer(i4b)    , allocatable  , public :: routeMethods(:)      ! active routing method id
   integer(i4b)                   , public :: idxIRF               ! index of IRF method
   integer(i4b)                   , public :: idxKWT               ! index of KWT method
   integer(i4b)                   , public :: idxKW                ! index of KW method

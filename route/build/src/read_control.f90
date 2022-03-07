@@ -1,4 +1,4 @@
-module read_control_module
+MODULE read_control_module
 
 USE nrtype
 USE public_var
@@ -64,7 +64,8 @@ contains
  integer(i4b)                      :: iLine          ! index of line in cLines
  integer(i4b)                      :: iunit          ! file unit
  integer(i4b)                      :: io_error       ! error in I/O
- integer(i4b)                      :: ix             ! loop index
+ integer(i4b)                      :: iRoute         ! loop index
+ logical(lgt)                      :: onRoute(nRouteMethods)   ! logical to indicate which routing method(s) is on
  character(len=strLen)             :: cmessage       ! error message from subroutine
  ! initialize error control
  err=0; message='read_control/'
@@ -306,27 +307,37 @@ contains
  ! Routing options
  routeMethods = get_digits(routOpt)
  nRoutes = size(routeMethods)
- do ix = 1, nRoutes
-   select case(routeMethods(ix))
-    case(kinematicWaveTracking); idxKWT = ix
-    case(impulseResponseFunc);   idxIRF = ix
-    case(muskingumCunge);        idxMC  = ix
-    case(kinematicWave);         idxKW  = ix
-    case(diffusiveWave);         idxDW  = ix
+ onRoute = .false.
+ do iRoute = 1, nRoutes
+   select case(routeMethods(iRoute))
+    case(kinematicWaveTracking); idxKWT = iRoute; onRoute(kinematicWaveTracking)=.true.
+    case(impulseResponseFunc);   idxIRF = iRoute; onRoute(impulseResponseFunc)=.true.
+    case(muskingumCunge);        idxMC  = iRoute; onRoute(muskingumCunge)=.true.
+    case(kinematicWave);         idxKW  = iRoute; onRoute(kinematicWave)=.true.
+    case(diffusiveWave);         idxDW  = iRoute; onRoute(diffusiveWave)=.true.
     case default
      message=trim(message)//'expect include any digits from 1 and 5 in routOpt'
      err=81; return
    end select
  end do
 
+ do iRoute = 1, nRouteMethods
+   select case(iRoute)
+    case(kinematicWaveTracking); if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
+    case(impulseResponseFunc);   if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
+    case(muskingumCunge);        if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%MCroutedRunoff)%varFile = .false.
+    case(kinematicWave);         if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%KWroutedRunoff)%varFile = .false.
+    case(diffusiveWave);         if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%DWroutedRunoff)%varFile = .false.
+    case default
+     message=trim(message)//'expect include any digits from 1 and 5'
+     err=81; return
+   end select
+ end do
+
  ! runoff accumulation option
- if (doesAccumRunoff==0) then
-   meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile = .false.
- endif
+ if (doesAccumRunoff==0) meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile = .false.
  ! basin runoff routing option
- if (doesBasinRoute==0) then
-   meta_rflx(ixRFLX%instRunoff)%varFile = .false.
- endif
+ if (doesBasinRoute==0) meta_rflx(ixRFLX%instRunoff)%varFile = .false.
 
  CONTAINS
 

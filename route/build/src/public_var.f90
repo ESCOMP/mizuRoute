@@ -14,7 +14,7 @@ module public_var
   ! ---------- common constants ---------------------------------------------------------------------
 
   ! physical constants
-  real(dp),    parameter,public    :: pi=3.14159265359_dp   ! pi
+  real(dp),    parameter,public   :: pi=3.14159265359_dp   ! pi
 
   ! some common constant variables (not likely to change value)
   real(dp),    parameter,public   :: secprmin=60._dp        ! number of seconds in a minute
@@ -61,6 +61,7 @@ module public_var
   integer(i4b), parameter,public  :: readFromFile=0         ! read given variable from a file
 
   ! routing methods
+  integer(i4b), parameter,public  :: nRouteMethods=5         ! number of routing methods available
   integer(i4b), parameter,public  :: impulseResponseFunc=1   ! impulse response function
   integer(i4b), parameter,public  :: kinematicWaveTracking=2 ! Lagrangian kinematic wave
   integer(i4b), parameter,public  :: kinematicWave=3         ! kinematic wave
