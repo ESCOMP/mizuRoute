@@ -40,13 +40,7 @@ CONTAINS
   USE globalData, ONLY: nHRU, nRch          ! number of ensembles, HRUs and river reaches
   USE globalData, ONLY: RCHFLX              ! Reach fluxes (ensembles, space [reaches])
   USE globalData, ONLY: runoff_data         ! runoff data for one time step for LSM HRUs and River network HRUs
-  USE globalData, ONLY: routeMethods
   USE globalData, ONLY: nRoutes             ! number of active routing methods
-  USE public_var, ONLY: kinematicWaveTracking
-  USE public_var, ONLY: impulseResponseFunc
-  USE public_var, ONLY: kinematicWave
-  USE public_var, ONLY: muskingumCunge
-  USE public_var, ONLY: diffusiveWave
 
   implicit none
 
@@ -97,39 +91,45 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
-  do iRoute = 1, nRoutes
-    if (routeMethods(iRoute)==kinematicWaveTracking .and. meta_rflx(ixRFLX%KWTroutedRunoff)%varFile) then
-      do ix=1,nRCH
-        array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxKWT)%REACH_Q
-      end do
-      call write_nc(simout_nc%ncid, 'KWTroutedRunoff', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    else if (routeMethods(iRoute)==impulseResponseFunc .and. meta_rflx(ixRFLX%IRFroutedRunoff)%varFile) then
-      do ix=1,nRCH
-        array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxIRF)%REACH_Q
-      end do
-      call write_nc(simout_nc%ncid, 'IRFroutedRunoff', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    else if (routeMethods(iRoute)==kinematicWave .and. meta_rflx(ixRFLX%KWroutedRunoff)%varFile) then
-      do ix=1,nRCH
-        array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxKW)%REACH_Q
-      end do
-      call write_nc(simout_nc%ncid, 'KWroutedRunoff', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    else if (routeMethods(iRoute)==muskingumCunge .and. meta_rflx(ixRFLX%MCroutedRunoff)%varFile) then
-      do ix=1,nRCH
-        array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxMC)%REACH_Q
-      end do
-      call write_nc(simout_nc%ncid, 'MCroutedRunoff', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    else if (routeMethods(iRoute)==diffusiveWave .and. meta_rflx(ixRFLX%DWroutedRunoff)%varFile) then
-      do ix=1,nRCH
-        array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxDW)%REACH_Q
-      end do
-      call write_nc(simout_nc%ncid, 'DWroutedRunoff', array_temp(1:nRch), (/1,jTime/), (/nRch,1/), ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    endif
-  end do
+  if (meta_rflx(ixRFLX%KWTroutedRunoff)%varFile) then
+    do ix=1,nRCH
+      array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxKWT)%REACH_Q
+    end do
+    call write_nc(simout_nc%ncid, 'KWTroutedRunoff', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  if (meta_rflx(ixRFLX%IRFroutedRunoff)%varFile) then
+    do ix=1,nRCH
+      array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxIRF)%REACH_Q
+    end do
+    call write_nc(simout_nc%ncid, 'IRFroutedRunoff', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  if (meta_rflx(ixRFLX%KWroutedRunoff)%varFile) then
+    do ix=1,nRCH
+      array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxKW)%REACH_Q
+    end do
+    call write_nc(simout_nc%ncid, 'KWroutedRunoff', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  if (meta_rflx(ixRFLX%MCroutedRunoff)%varFile) then
+    do ix=1,nRCH
+      array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxMC)%REACH_Q
+    end do
+    call write_nc(simout_nc%ncid, 'MCroutedRunoff', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  if (meta_rflx(ixRFLX%DWroutedRunoff)%varFile) then
+    do ix=1,nRCH
+      array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxDW)%REACH_Q
+    end do
+    call write_nc(simout_nc%ncid, 'DWroutedRunoff', array_temp(1:nRch), (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
 
  END SUBROUTINE output
 
