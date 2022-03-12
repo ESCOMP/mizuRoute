@@ -40,7 +40,6 @@ CONTAINS
   USE globalData, ONLY: nHRU, nRch          ! number of ensembles, HRUs and river reaches
   USE globalData, ONLY: RCHFLX              ! Reach fluxes (ensembles, space [reaches])
   USE globalData, ONLY: runoff_data         ! runoff data for one time step for LSM HRUs and River network HRUs
-  USE globalData, ONLY: nRoutes             ! number of active routing methods
 
   implicit none
 
@@ -51,7 +50,6 @@ CONTAINS
   ! local variables
   real(dp),    allocatable        :: array_temp(:)
   integer(i4b)                    :: ix               ! loop index
-  integer(i4b)                    :: iRoute           ! loop index
   integer(i4b)                    :: iens             ! temporal
   character(len=strLen)           :: cmessage         ! error message of downwind routine
 
