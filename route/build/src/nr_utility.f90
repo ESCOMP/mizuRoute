@@ -1,34 +1,38 @@
-module nr_utility_module
-USE nrtype
+MODULE nr_utility_module
 ! contains functions that should really be part of the fortran standard, but are not
+
+USE nrtype
+
 implicit none
-INTERFACE arth
- MODULE PROCEDURE arth_r, arth_d, arth_i4b, arth_i8b
-END INTERFACE
+
+interface arth
+  MODULE PROCEDURE arth_r, arth_d, arth_i4b, arth_i8b
+end interface
 
 interface indexx
-module procedure indexx_i4b
-module procedure indexx_i8b
+  module procedure indexx_i4b
+  module procedure indexx_i8b
 end interface
 
 interface swap
-module procedure swap_i4b
-module procedure swap_i8b
+  module procedure swap_i4b
+  module procedure swap_i8b
 end interface
 
 interface unique
-module procedure unique_i4b
-module procedure unique_i8b
+  module procedure unique_i4b
+  module procedure unique_i8b
 end interface
 
-! (everything private unless otherwise specifed)
 private
 public::arth
 public::indexx
 public::findIndex
 public::indexTrue
 public::unique
-contains
+public::get_digits
+
+CONTAINS
 
  ! *************************************************************************************************
  ! * the arth function, used to build a vector of regularly spaced numbers
@@ -351,7 +355,7 @@ contains
   unq = unq_tmp(idx)
 
  END SUBROUTINE unique_i4b
-
+ ! ------------------------------------------------------------------------------------------------
  SUBROUTINE unique_i8b(array, unq, idx)
   implicit none
   ! Input variables
@@ -386,4 +390,21 @@ contains
 
  END SUBROUTINE unique_i8b
 
-end module nr_utility_module
+ FUNCTION get_digits(num) result(digs)
+   integer(i4b), intent(in)  :: num
+   integer(i4b), allocatable :: digs(:)
+   integer(i4b)              :: num_digits, ix, rem
+   if (num==0) then
+     digs=0
+   else
+     num_digits = floor(log10(real(num))+1)
+     allocate(digs(num_digits))
+     rem = num
+     do ix = 1, num_digits
+        digs(num_digits-ix+1) = rem - (rem/10)*10  ! Take advantage of integer division
+        rem = rem/10
+     end do
+   end if
+ END FUNCTION get_digits
+
+END MODULE nr_utility_module

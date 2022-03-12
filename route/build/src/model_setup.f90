@@ -230,21 +230,23 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE init_state(ierr, message)
   ! subroutines
-  USE ascii_util_module, ONLY : lower         ! convert string to lower case
-  USE read_restart,      ONLY : read_state_nc ! read netcdf state output file
+  USE ascii_util_module, ONLY : lower             ! convert string to lower case
+  USE read_restart,      ONLY : read_state_nc     ! read netcdf state output file
   ! global data
-  USE public_var,    ONLY : dt                ! simulation time step (seconds)
-  USE public_var,    ONLY : muskingumCunge
-  USE public_var,    ONLY : kinematicWave
-  USE public_var,    ONLY : diffusiveWave
-  USE public_var,    ONLY : fname_state_in    ! name of state input file
-  USE public_var,    ONLY : restart_dir       ! directory containing output data
-  USE globalData,    ONLY : nRoutes
-  USE globalData,    ONLY : routeMethods
-  USE globalData,    ONLY : RCHFLX            ! reach flux structure
-  USE globalData,    ONLY : RCHSTA            ! reach restart state structure
-  USE globalData,    ONLY : nMolecule         ! computational molecule
-  USE globalData,    ONLY : TSEC              ! begining/ending of simulation time step [sec]
+  USE public_var,    ONLY : dt                    ! simulation time step (seconds)
+  USE public_var,    ONLY : impulseResponseFunc   ! IRF routing ID = 1
+  USE public_var,    ONLY : kinematicWaveTracking ! KWT routing ID = 2
+  USE public_var,    ONLY : kinematicWave         ! KW routing ID = 3
+  USE public_var,    ONLY : muskingumCunge        ! MC routing ID = 4
+  USE public_var,    ONLY : diffusiveWave         ! DW routing ID = 5
+  USE public_var,    ONLY : fname_state_in        ! name of state input file
+  USE public_var,    ONLY : restart_dir           ! directory containing output data
+  USE globalData,    ONLY : nRoutes               !
+  USE globalData,    ONLY : routeMethods          ! ID of active routing method
+  USE globalData,    ONLY : RCHFLX                ! reach flux structure
+  USE globalData,    ONLY : RCHSTA                ! reach restart state structure
+  USE globalData,    ONLY : nMolecule             ! computational molecule
+  USE globalData,    ONLY : TSEC                  ! begining/ending of simulation time step [sec]
 
   implicit none
 
@@ -270,7 +272,15 @@ CONTAINS
     RCHFLX(:,:)%BASIN_QR(1) = 0._dp
 
     do iRoute = 1, nRoutes
-      if (routeMethods(iRoute)==kinematicWave) then
+      if (routeMethods(iRoute)==impulseResponseFunc) then
+        do ix = 1, size(RCHSTA(1,:))
+          RCHFLX(iens,ix)%ROUTE(iRoute)%REACH_VOL(0:1) = 0._dp
+        end do
+      else if (routeMethods(iRoute)==kinematicWaveTracking) then
+        do ix = 1, size(RCHSTA(1,:))
+          RCHFLX(iens,ix)%ROUTE(iRoute)%REACH_VOL(0:1) = 0._dp
+        end do
+      else if (routeMethods(iRoute)==kinematicWave) then
         nMolecule%KW_ROUTE = 2
         do ix = 1, size(RCHSTA(1,:))
           RCHFLX(iens,ix)%ROUTE(iRoute)%REACH_VOL(0:1) = 0._dp
