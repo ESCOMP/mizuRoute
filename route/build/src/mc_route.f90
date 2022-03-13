@@ -8,11 +8,13 @@ USE dataTypes,   ONLY: STRFLX            ! fluxes in each reach
 USE dataTypes,   ONLY: STRSTA            ! state in each reach
 USE dataTypes,   ONLY: RCHTOPO           ! Network topology
 USE dataTypes,   ONLY: RCHPRP            ! Reach parameter
+USE dataTypes,   ONLY: mcRCH             ! MC specific state data structure 
 USE dataTypes,   ONLY: subbasin_omp      ! mainstem+tributary data strucuture
 ! global data
 USE public_var,  ONLY: iulog             ! i/o logical unit number
 USE public_var,  ONLY: realMissing       ! missing value for real number
 USE public_var,  ONLY: integerMissing    ! missing value for integer number
+USE globalData,  ONLY: idxMC             ! index of IRF method 
 ! subroutines: general
 USE model_finalize, ONLY : handle_err
 
@@ -178,7 +180,7 @@ contains
    isHW = .false.
    do iUps = 1,nUps
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-     q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%REACH_Q
+     q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxMC)%REACH_Q
    end do
  endif
 
@@ -187,28 +189,28 @@ contains
    if (nUps>0) then
      do iUps = 1,nUps
        iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-       write(iulog,'(A,X,I6,X,G12.5)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, iRch_ups)%REACH_Q
+       write(iulog,'(A,X,I6,X,G12.5)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, iRch_ups)%ROUTE(idxMC)%REACH_Q
      enddo
    end if
    write(iulog,'(A,X,G12.5)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
  endif
 
  ! solve muskingum-cunge alogorithm
- call muskingum_cunge(RPARAM_in(segIndex),         &    ! input: parameter at segIndex reach
-                      T0,T1,                       &    ! input: start and end of the time step
-                      q_upstream,                  &    ! input: total discharge at top of the reach being processed
-                      isHW,                        &    ! input: is this headwater basin?
-                      RCHSTA_out(iens,segIndex),   &    ! inout:
-                      RCHFLX_out(iens,segIndex),   &    ! inout: updated fluxes at reach
-                      doCheck,                     &    ! input: reach index to be examined
-                      ierr, cmessage)                    ! output: error control
+ call muskingum_cunge(RPARAM_in(segIndex),                & ! input: parameter at segIndex reach
+                      T0,T1,                              & ! input: start and end of the time step
+                      q_upstream,                         & ! input: total discharge at top of the reach being processed
+                      isHW,                               & ! input: is this headwater basin?
+                      RCHSTA_out(iens,segIndex)%MC_ROUTE, & ! inout:
+                      RCHFLX_out(iens,segIndex),          & ! inout: updated fluxes at reach
+                      doCheck,                            & ! input: reach index to be examined
+                      ierr, cmessage)                       ! output: error control
  if(ierr/=0)then
     write(message, '(A,X,I10,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage)
     return
  endif
 
  if(doCheck)then
-  write(iulog,'(A,X,G12.5)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%REACH_Q
+  write(iulog,'(A,X,G12.5)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_Q
  endif
 
  END SUBROUTINE mc_rch
@@ -247,7 +249,7 @@ contains
  logical(lgt), intent(in)                 :: isHW         ! is this headwater basin?
  logical(lgt), intent(in)                 :: doCheck      ! reach index to be examined
  ! Input/Output
- type(STRSTA), intent(inout)              :: rstate       ! curent reach states
+ type(mcRCH),  intent(inout)              :: rstate       ! curent reach states
  type(STRFLX), intent(inout)              :: rflux        ! current Reach fluxes
  ! Output
  integer(i4b), intent(out)                :: ierr         ! error code
@@ -368,12 +370,12 @@ contains
  endif
 
  ! compute volume
- rflux%REACH_VOL(0) = rflux%REACH_VOL(1)
- rflux%REACH_VOL(1) = rflux%REACH_VOL(0) + (Q(1,0)-Q(1,1))*dT
- rflux%REACH_VOL(1) = max(rflux%REACH_VOL(1), 0._dp)
+ rflux%ROUTE(idxMC)%REACH_VOL(0) = rflux%ROUTE(idxMC)%REACH_VOL(1)
+ rflux%ROUTE(idxMC)%REACH_VOL(1) = rflux%ROUTE(idxMC)%REACH_VOL(0) + (Q(1,0)-Q(1,1))*dT
+ rflux%ROUTE(idxMC)%REACH_VOL(1) = max(rflux%ROUTE(idxMC)%REACH_VOL(1), 0._dp)
 
  ! add catchment flow
- rflux%REACH_Q = Q(1,1)+rflux%BASIN_QR(1)
+ rflux%ROUTE(idxMC)%REACH_Q = Q(1,1)+rflux%BASIN_QR(1)
 
  if (doCheck) then
    write(iulog,'(A,X,G12.5)') ' Qout(t)=',Q(1,1)

@@ -216,44 +216,65 @@ end type subdomain
  end type FPOINT
 
  ! Collection of flow points within a given reach
- type, public :: LKWRCH
+ type, public :: kwtRCH
   type(FPOINT),allocatable             :: KWAVE(:)
- end type LKWRCH
+ end type kwtRCH
+
+ ! ---------- irf states (future flow series ) ---------------------------------
+ ! Future flow series
+ type, public :: irfRCH
+  real(dp), allocatable   :: qfuture(:)    ! runoff volume in future time steps for IRF routing (m3/s)
+ end type irfRCH
 
  ! ---------- computational molecule ---------------------------------
+ type, public :: cMolecule 
+   integer(i4b)           :: KW_ROUTE 
+   integer(i4b)           :: MC_ROUTE 
+   integer(i4b)           :: DW_ROUTE 
+ end type cMolecule
+
  type, public :: SUBRCH
    real(dp), allocatable  :: Q(:)        ! Discharge at sub-reaches at current step (m3/s)
    real(dp), allocatable  :: A(:)        ! Flow area at sub-reach at current step (m2)
    real(dp), allocatable  :: H(:)        ! Flow height at sub-reach at current step (m)
  end type SUBRCH
 
- ! ---------- irf states (future flow series ) ---------------------------------
- ! Future flow series
- type, public :: IRFRCH
-  real(dp), allocatable   :: qfuture(:)    ! runoff volume in future time steps for IRF routing (m3/s)
- end type IRFRCH
+ type, public :: kwRch
+   type(SUBRCH)    :: molecule
+ end type kwRCH
+
+ type, public :: mcRch
+   type(SUBRCH)    :: molecule
+ end type mcRCH
+
+ type, public :: dwRch
+   type(SUBRCH)    :: molecule
+ end type dwRCH
 
  type, public :: STRSTA
-   type(IRFRCH)    :: IRF_ROUTE
-   type(LKWRCH)    :: LKW_ROUTE
-   type(SUBRCH)    :: molecule
+   type(irfRCH)    :: IRF_ROUTE
+   type(kwtRCH)    :: LKW_ROUTE
+   type(kwRCH)     :: KW_ROUTE
+   type(mcRCH)     :: MC_ROUTE
+   type(dwRCH)     :: DW_ROUTE
  end type STRSTA
 
  ! ---------- reach fluxes --------------------------------------------------------------------
+ type, public :: fluxes
+   real(dp)        :: REACH_Q
+   real(dp)        :: REACH_VOL(0:1)
+ end type fluxes
 
  ! fluxes in each reach
  TYPE, public :: STRFLX
-  REAL(DP), allocatable                :: QFUTURE(:)        ! runoff volume in future time steps (m3/s)
-  REAL(DP), allocatable                :: QFUTURE_IRF(:)    ! runoff volume in future time steps for IRF routing (m3/s)
-  REAL(DP)                             :: BASIN_QI          ! instantaneous runoff volume from the local basin (m3/s)
-  REAL(DP)                             :: BASIN_QR(0:1)     ! routed runoff volume from the local basin (m3/s)
-  REAL(DP)                             :: BASIN_QR_IRF(0:1) ! routed runoff volume from all the upstream basin (m3/s)
-  REAL(DP)                             :: REACH_Q           ! time-step average streamflow (m3/s)
-  REAL(DP)                             :: REACH_Q_IRF       ! time-step average streamflow (m3/s) from IRF routing
-  REAL(DP)                             :: UPSTREAM_QI       ! sum of upstream streamflow (m3/s)
-  REAL(DP)                             :: REACH_VOL(0:1)    ! volume of water at a reach [m3]
-  REAL(DP)                             :: TAKE              ! average take
-  logical(lgt)                         :: CHECK_IRF         ! .true. if the reach is routed
+  real(dp), allocatable                :: QFUTURE(:)        ! runoff volume in future time steps (m3/s)
+  real(dp), allocatable                :: QFUTURE_IRF(:)    ! runoff volume in future time steps for IRF routing (m3/s)
+  real(dp)                             :: BASIN_QI          ! instantaneous runoff volume from the local basin (m3/s)
+  real(dp)                             :: BASIN_QR(0:1)     ! routed runoff volume from the local basin (m3/s)
+  real(dp)                             :: BASIN_QR_IRF(0:1) ! routed runoff volume from all the upstream basin (m3/s)
+  type(fluxes), allocatable            :: ROUTE(:)          ! reach fluxes and states for each routing method
+  real(dp)                             :: UPSTREAM_QI       ! sum of upstream streamflow (m3/s)
+  real(dp)                             :: TAKE              ! average take
  ENDTYPE STRFLX
 
  ! ---------- lake data types -----------------------------------------------------------------

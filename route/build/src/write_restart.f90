@@ -115,7 +115,6 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE restart_output(ierr, message)
 
-  USE public_var, ONLY: routOpt
   USE public_var, ONLY: dt
   USE globalData, ONLY: TSEC
   USE globalData, ONLY: reachID
@@ -135,7 +134,7 @@ CONTAINS
   call restart_fname(fnameRestart, nextTimeStep, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  call define_state_nc(fnameRestart, routOpt, ierr, cmessage)
+  call define_state_nc(fnameRestart, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! update model time step bound
@@ -143,7 +142,6 @@ CONTAINS
   TSEC2 = TSEC1   + dt
 
   call write_state_nc(fnameRestart,                            &  ! Input: state netcdf name
-                      routOpt,                                 &  ! input: which routing options
                       TSEC1, TSEC2,                            &  ! Input: time, time step, start and end time [sec]
                       reachID,                                 &  ! Input: segment id vector
                       ierr, message)                              ! Output: error control
@@ -202,11 +200,12 @@ CONTAINS
  ! subroutine: define restart NetCDF file
  ! *********************************************************************
  SUBROUTINE define_state_nc(fname,           &  ! input: filename
-                            opt,             &  ! input: which routing options (state variables depends on routing options)
                             ierr, message)      ! output: error control
 
  USE globalData, ONLY: meta_stateDims
  USE globalData, ONLY: modTime                 ! current model datetime
+ USE globalData, ONLY: nRoutes                 ! number of active routing methods 
+ USE globalData, ONLY: routeMethods            ! active routing method index and id 
  USE public_var, ONLY: calendar
  USE var_lookup, ONLY: ixStateDims, nStateDims
 
@@ -214,7 +213,6 @@ CONTAINS
 
  ! input variables
  character(*),   intent(in)           :: fname            ! filename
- integer(i4b),   intent(in)           :: opt              ! routing option 0=all, 1=kwt, 2=irf
  ! output variables
  integer(i4b),   intent(out)          :: ierr             ! error code
  character(*),   intent(out)          :: message          ! error message
@@ -222,6 +220,7 @@ CONTAINS
  type(datetime)                       :: timeStampCal     ! datetime corresponding to file name time stamp
  character(len=50),parameter          :: fmtYMDHMS='(I0.4,a,I0.2,a,I0.2,x,I0.2,a,I0.2,a,I0.2)'
  character(len=strLen)                :: globalDesc       ! global attributes: description
+ integer(i4b)                         :: ix               ! loop index 
  integer(i4b)                         :: jDim             ! loop index for dimension
  integer(i4b)                         :: ncid             ! NetCDF file ID
  integer(i4b)                         :: ixDim_common(3)  ! custom dimension ID array
@@ -281,31 +280,29 @@ CONTAINS
   call define_IRFbas_state(ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
+ 
+ do ix = 1, nRoutes
+   if (routeMethods(ix)==kinematicWaveTracking) then
+     call define_KWT_state(ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- if (opt==allRoutingMethods .or. opt==kinematicWaveTracking) then
-   call define_KWT_state(ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- end if
+   else if (routeMethods(ix)==impulseResponseFunc)then
+     call define_IRF_state(ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- if (opt==allRoutingMethods .or. opt==impulseResponseFunc) then
-   call define_IRF_state(ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- end if
+   else if (routeMethods(ix)==kinematicWave) then
+     call define_KW_state(ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- if (opt==kinematicWave) then
-   call define_KW_state(ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- end if
+   else if (routeMethods(ix)==muskingumCunge) then
+     call define_MC_state(ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- if (opt==muskingumCunge) then
-   call define_MC_state(ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- end if
-
- if (opt==diffusiveWave) then
-   call define_DW_state(ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- end if
+   else if (routeMethods(ix)==diffusiveWave) then
+     call define_DW_state(ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
+ end do
 
  ! Finishing up definition -------
  ! end definitions
@@ -344,7 +341,9 @@ CONTAINS
      case(ixStateDims%tdh);     meta_stateDims(ixStateDims%tdh)%dimLength     = size(FRAC_FUTURE)
      case(ixStateDims%tdh_irf); meta_stateDims(ixStateDims%tdh_irf)%dimLength = 50   !just temporarily
      case(ixStateDims%wave);    meta_stateDims(ixStateDims%wave)%dimLength    = MAXQPAR
-     case(ixStateDims%fdmesh);  meta_stateDims(ixStateDims%fdmesh)%dimLength  = nMolecule
+     case(ixStateDims%mol_kw);  meta_stateDims(ixStateDims%mol_kw)%dimLength  = nMolecule%KW_ROUTE
+     case(ixStateDims%mol_mc);  meta_stateDims(ixStateDims%mol_mc)%dimLength  = nMolecule%MC_ROUTE
+     case(ixStateDims%mol_dw);  meta_stateDims(ixStateDims%mol_dw)%dimLength  = nMolecule%DW_ROUTE
      case default; ierr=20; message1=trim(message1)//'unable to identify dimension variable index'; return
    end select
 
@@ -559,16 +558,18 @@ CONTAINS
 
    associate(dim_seg  => meta_stateDims(ixStateDims%seg)%dimName,     &
              dim_ens  => meta_stateDims(ixStateDims%ens)%dimName,     &
-             dim_mesh => meta_stateDims(ixStateDims%fdmesh)%dimName)
+             dim_mesh => meta_stateDims(ixStateDims%mol_kw)%dimName)
 
    ! Check dimension length is populated
-   if (meta_stateDims(ixStateDims%fdmesh)%dimLength == integerMissing) then
-     call set_dim_len(ixStateDims%fdmesh, ierr, cmessage)
-     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%fdmesh)%dimName); return; endif
+   if (meta_stateDims(ixStateDims%mol_kw)%dimLength == integerMissing) then
+     call set_dim_len(ixStateDims%mol_kw, ierr, cmessage)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%mol_kw)%dimName); return; endif
    end if
 
    ! Define dimension needed for this routing specific state variables
-   call def_dim(ncid, meta_stateDims(ixStateDims%fdmesh)%dimName, meta_stateDims(ixStateDims%fdmesh)%dimLength, meta_stateDims(ixStateDims%fdmesh)%dimId, ierr, cmessage)
+   call def_dim(ncid, meta_stateDims(ixStateDims%mol_kw)%dimName,   &
+                      meta_stateDims(ixStateDims%mol_kw)%dimLength, &
+                      meta_stateDims(ixStateDims%mol_kw)%dimId, ierr, cmessage)
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
    do iVar=1,nVarsKW
@@ -608,16 +609,18 @@ CONTAINS
 
    associate(dim_seg  => meta_stateDims(ixStateDims%seg)%dimName,     &
              dim_ens  => meta_stateDims(ixStateDims%ens)%dimName,     &
-             dim_mesh => meta_stateDims(ixStateDims%fdmesh)%dimName)
+             dim_mesh => meta_stateDims(ixStateDims%mol_mc)%dimName)
 
    ! Check dimension length is populated
-   if (meta_stateDims(ixStateDims%fdmesh)%dimLength == integerMissing) then
-     call set_dim_len(ixStateDims%fdmesh, ierr, cmessage)
-     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%fdmesh)%dimName); return; endif
+   if (meta_stateDims(ixStateDims%mol_mc)%dimLength == integerMissing) then
+     call set_dim_len(ixStateDims%mol_mc, ierr, cmessage)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%mol_mc)%dimName); return; endif
    end if
 
    ! Define dimension needed for this routing specific state variables
-   call def_dim(ncid, meta_stateDims(ixStateDims%fdmesh)%dimName, meta_stateDims(ixStateDims%fdmesh)%dimLength, meta_stateDims(ixStateDims%fdmesh)%dimId, ierr, cmessage)
+   call def_dim(ncid, meta_stateDims(ixStateDims%mol_mc)%dimName,   &
+                      meta_stateDims(ixStateDims%mol_mc)%dimLength, &
+                      meta_stateDims(ixStateDims%mol_mc)%dimId, ierr, cmessage)
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
    do iVar=1,nVarsMC
@@ -657,16 +660,18 @@ CONTAINS
 
    associate(dim_seg  => meta_stateDims(ixStateDims%seg)%dimName,     &
              dim_ens  => meta_stateDims(ixStateDims%ens)%dimName,     &
-             dim_mesh => meta_stateDims(ixStateDims%fdmesh)%dimName)
+             dim_mesh => meta_stateDims(ixStateDims%mol_dw)%dimName)
 
    ! Check dimension length is populated
-   if (meta_stateDims(ixStateDims%fdmesh)%dimLength == integerMissing) then
-     call set_dim_len(ixStateDims%fdmesh, ierr, cmessage)
-     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%fdmesh)%dimName); return; endif
+   if (meta_stateDims(ixStateDims%mol_dw)%dimLength == integerMissing) then
+     call set_dim_len(ixStateDims%mol_dw, ierr, cmessage)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%mol_dw)%dimName); return; endif
    end if
 
    ! Define dimension needed for this routing specific state variables
-   call def_dim(ncid, meta_stateDims(ixStateDims%fdmesh)%dimName, meta_stateDims(ixStateDims%fdmesh)%dimLength, meta_stateDims(ixStateDims%fdmesh)%dimId, ierr, cmessage)
+   call def_dim(ncid, meta_stateDims(ixStateDims%mol_dw)%dimName,   &
+                      meta_stateDims(ixStateDims%mol_dw)%dimLength, & 
+                      meta_stateDims(ixStateDims%mol_dw)%dimId, ierr, cmessage)
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
    do iVar=1,nVarsDW
@@ -693,7 +698,6 @@ CONTAINS
  ! public subroutine: writing routing state NetCDF file
  ! *********************************************************************
  SUBROUTINE write_state_nc(fname,                &   ! Input: state netcdf name
-                           opt,                  &   ! input: which routing options
                            T0, T1,               &   ! Input: time, time step, start and end time [sec]
                            seg_id,               &   ! Input: segment id vector
                            ierr, message)            ! Output: error control
@@ -702,13 +706,14 @@ CONTAINS
  USE globalData,   ONLY: RCHFLX
  USE globalData,   ONLY: RCHSTA
  USE globalData,   ONLY: meta_stateDims  ! dimension meta for state variables
+ USE globalData,   ONLY: nRoutes         ! number of active routing methods 
+ USE globalData,   ONLY: routeMethods    ! active routing method index and id 
  USE var_lookup,   ONLY: ixStateDims, nStateDims
 
  implicit none
 
  ! input variables
  character(*), intent(in)        :: fname           ! filename
- integer(i4b), intent(in)        :: opt             ! routing option 0=all, 1=kwt, 2=irf
  real(dp),     intent(in)        :: T0              ! beginning time [sec] of ith time step - lapse time from the beginning of the simulation
  real(dp),     intent(in)        :: T1              ! ending time [sec] ith time step - lapse time from the beginning of the simulation
  integer(i4b), intent(in)        :: seg_id(:)       ! segment id vector
@@ -716,6 +721,7 @@ CONTAINS
  integer(i4b), intent(out)       :: ierr            ! error code
  character(*), intent(out)       :: message         ! error message
  ! local variables
+ integer(i4b)                    :: ix              ! loop index 
  integer(i4b)                    :: ncid            ! netCDF ID
  character(len=strLen)           :: cmessage        ! error message of downwind routine
 
@@ -742,30 +748,28 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
- if (opt==allRoutingMethods .or. opt==impulseResponseFunc)then
-   call write_IRF_state(ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- end if
+ do ix = 1, nRoutes
+   if (routeMethods(ix)==impulseResponseFunc)then
+     call write_IRF_state(ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- if (opt==allRoutingMethods .or. opt==kinematicWaveTracking)then
-   call write_KWT_state(ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- end if
+   else if (routeMethods(ix)==kinematicWaveTracking)then
+     call write_KWT_state(ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- if (opt==kinematicWave)then
-   call write_KW_state(ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- end if
+   else if (routeMethods(ix)==kinematicWave)then
+     call write_KW_state(ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- if (opt==muskingumCunge)then
-   call write_MC_state(ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- end if
+   else if (routeMethods(ix)==muskingumCunge)then
+     call write_MC_state(ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- if (opt==diffusiveWave)then
-   call write_DW_state(ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- end if
+   else if (routeMethods(ix)==diffusiveWave)then
+     call write_DW_state(ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
+ end do
 
  ! -- close netCDF
  call close_nc(ncid, ierr, cmessage)
@@ -980,6 +984,7 @@ CONTAINS
   SUBROUTINE write_IRF_state(ierr, message1)
 
   USE globalData,   ONLY: meta_irf
+  USE globalData,   ONLY: idxIRF
   USE var_lookup,   ONLY: ixIRF, nVarsIRF
   USE globalData,   ONLY: NETOPO          ! To get UH (this should not be in this data strucuture)
 
@@ -1025,7 +1030,7 @@ CONTAINS
             state%var(iVar)%array_3d_dp(iSeg,1:numQF(iens,iSeg),iens) = RCHFLX(iens,iSeg)%QFUTURE_IRF
             state%var(iVar)%array_3d_dp(iSeg,numQF(iens,iSeg)+1:ntdh_irf,iens) = realMissing
           case(ixIRF%irfVol)
-            state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX(iens,iSeg)%REACH_VOL(1)
+            state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX(iens,iSeg)%ROUTE(idxIRF)%REACH_VOL(1)
           case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
         end select
       enddo ! variable loop
@@ -1070,7 +1075,7 @@ CONTAINS
 
     associate(nSeg  => size(RCHFLX),                         &
               nEns  => meta_stateDims(ixStateDims%ens)%dimLength,  &
-              nMesh => meta_stateDims(ixStateDims%fdmesh)%dimLength) ! number of computing molecule used for finite difference
+              nMesh => meta_stateDims(ixStateDims%mol_kw)%dimLength) ! number of computing molecule used for finite difference
 
     allocate(state%var(nVarsKW), stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -1090,7 +1095,7 @@ CONTAINS
         do iVar=1,nVarsKW
           select case(iVar)
             case(ixKW%qsub)
-              state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA(iens, iSeg)%molecule%Q(1:nMesh)
+              state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA(iens, iSeg)%KW_ROUTE%molecule%Q(1:nMesh)
             case default; ierr=20; message1=trim(message1)//'unable to identify KW routing state variable index'; return
           end select
         enddo ! variable loop
@@ -1131,7 +1136,7 @@ CONTAINS
 
     associate(nSeg  => size(RCHFLX),                         &
               nEns  => meta_stateDims(ixStateDims%ens)%dimLength,  &
-              nMesh => meta_stateDims(ixStateDims%fdmesh)%dimLength) ! number of computing molecule used for finite difference
+              nMesh => meta_stateDims(ixStateDims%mol_mc)%dimLength) ! number of computing molecule used for finite difference
 
     allocate(state%var(nVarsMC), stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -1151,7 +1156,7 @@ CONTAINS
         do iVar=1,nVarsMC
           select case(iVar)
             case(ixMC%qsub)
-              state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA(iens, iSeg)%molecule%Q(1:nMesh)
+              state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA(iens, iSeg)%MC_ROUTE%molecule%Q(1:nMesh)
             case default; ierr=20; message1=trim(message1)//'unable to identify MC routing state variable index'; return
           end select
         enddo ! variable loop
@@ -1175,7 +1180,7 @@ CONTAINS
 
 
   ! DW writing procedures
-  SUBROUTINE write_Dw_state(ierr, message1)
+  SUBROUTINE write_DW_state(ierr, message1)
 
     USE globalData,   ONLY: meta_dw
     USE var_lookup,   ONLY: ixDW, nVarsDW
@@ -1193,7 +1198,7 @@ CONTAINS
 
     associate(nSeg  => size(RCHFLX),                         &
               nEns  => meta_stateDims(ixStateDims%ens)%dimLength,  &
-              nMesh => meta_stateDims(ixStateDims%fdmesh)%dimLength) ! number of computing molecule used for finite difference
+              nMesh => meta_stateDims(ixStateDims%mol_dw)%dimLength) ! number of computing molecule used for finite difference
 
     allocate(state%var(nVarsDW), stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -1213,7 +1218,7 @@ CONTAINS
         do iVar=1,nVarsDW
           select case(iVar)
             case(ixDW%qsub)
-              state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA(iens, iSeg)%molecule%Q(1:nMesh)
+              state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA(iens, iSeg)%DW_ROUTE%molecule%Q(1:nMesh)
             case default; ierr=20; message1=trim(message1)//'unable to identify DW routing state variable index'; return
           end select
         enddo ! variable loop

@@ -1,34 +1,38 @@
-module nr_utility_module
-USE nrtype
+MODULE nr_utility_module
 ! contains functions that should really be part of the fortran standard, but are not
+
+USE nrtype
+
 implicit none
-INTERFACE arth
- MODULE PROCEDURE arth_r, arth_d, arth_i4b, arth_i8b
-END INTERFACE
+
+interface arth
+  MODULE PROCEDURE arth_r, arth_d, arth_i4b, arth_i8b
+end interface
 
 interface indexx
-module procedure indexx_i4b
-module procedure indexx_i8b
+  module procedure indexx_i4b
+  module procedure indexx_i8b
 end interface
 
 interface swap
-module procedure swap_i4b
-module procedure swap_i8b
+  module procedure swap_i4b
+  module procedure swap_i8b
 end interface
 
 interface unique
-module procedure unique_i4b
-module procedure unique_i8b
+  module procedure unique_i4b
+  module procedure unique_i8b
 end interface
 
-! (everything private unless otherwise specifed)
 private
 public::arth
 public::indexx
 public::findIndex
 public::indexTrue
 public::unique
-contains
+public::get_digits
+
+CONTAINS
 
  ! *************************************************************************************************
  ! * the arth function, used to build a vector of regularly spaced numbers
@@ -271,7 +275,7 @@ contains
  !  -- if the index does not exist, returns zero
  ! NOTE: workaround for (not-yet-implemented) f2008 intrinsic findloc
  implicit none
- ! dummy variables
+ ! argument variables
  integer(i4b),intent(in)            :: vector(:)    ! vector to search
  integer(i4b),intent(in)            :: desiredValue ! desired value in the vector
  integer(i4b),intent(in),optional   :: missingValue ! desired missing value if desiredValue is not found
@@ -283,10 +287,8 @@ contains
  if(any(vector==desiredValue))then
 
   ! get the index: merge provides a vector with 1s where mask is true and 0s otherwise, so maxloc(merge) is the first index of value=1
-  ! NOTE: workaround for (not-yet-implemented) f2008 intrinsic findloc
   vecIndex=maxloc( merge(1, 0, vector==desiredValue) )
 
- ! value does not exist
  else
   if(present(missingValue))then
    vecIndex=missingValue
@@ -295,7 +297,6 @@ contains
   endif
  endif
 
- ! return function value (extract into a scalar)
  findIndex=vecIndex(1)
 
  end function findIndex
@@ -303,11 +304,10 @@ contains
  subroutine indexTrue(TF,pos)
   ! Return indices of True in TF array
   implicit none
-  ! Inlet variables
+  ! argument variables
   logical(lgt),intent(in)                :: TF(:)           ! Logical vector (True or False)
-  ! Outlet variables
   integer(i4b), allocatable, intent(out) :: pos(:)          ! position of "true" conditions
-  ! Local variable
+  ! Local variables
   integer(i4b)                           :: npos            ! number of "true" conditions
   integer(i4b)                           :: idx(size(TF))   ! vector of all positions
 
@@ -320,12 +320,11 @@ contains
 
  SUBROUTINE unique_i4b(array, unq, idx)
   implicit none
-  ! Input variables
+  ! argument variables
   integer(i4b),            intent(in)  :: array(:)             ! integer array including duplicated elements
-  ! outpu variables
   integer(i4b),allocatable,intent(out) :: unq(:)               ! integer array including unique elements
   integer(i4b),allocatable,intent(out) :: idx(:)               ! integer array including unique element index
-  ! local
+  ! local variables
   integer(i4b)                         :: ranked(size(array))  !
   integer(i4b)                         :: unq_tmp(size(array)) !
   logical(lgt)                         :: flg_tmp(size(array)) !
@@ -351,15 +350,14 @@ contains
   unq = unq_tmp(idx)
 
  END SUBROUTINE unique_i4b
-
+ ! ------------------------------------------------------------------------------------------------
  SUBROUTINE unique_i8b(array, unq, idx)
   implicit none
-  ! Input variables
+  ! argument variables
   integer(i8b),            intent(in)  :: array(:)             ! integer array including duplicated elements
-  ! outpu variables
   integer(i8b),allocatable,intent(out) :: unq(:)               ! integer array including unique elements
   integer(i4b),allocatable,intent(out) :: idx(:)               ! integer array including unique element index
-  ! local
+  ! local variables
   integer(i4b)                         :: ranked(size(array))  !
   integer(i8b)                         :: unq_tmp(size(array)) !
   logical(lgt)                         :: flg_tmp(size(array)) !
@@ -386,4 +384,25 @@ contains
 
  END SUBROUTINE unique_i8b
 
-end module nr_utility_module
+ FUNCTION get_digits(num) result(digs)
+   implicit none
+   ! argument variables
+   integer(i4b), intent(in)  :: num
+   ! local variables
+   integer(i4b), allocatable :: digs(:)
+   integer(i4b)              :: num_digits, ix, rem
+   if (num==0) then
+     allocate(digs(1))
+     digs=0
+   else
+     num_digits = floor(log10(real(num))+1)
+     allocate(digs(num_digits))
+     rem = num
+     do ix = 1, num_digits
+        digs(num_digits-ix+1) = rem - (rem/10)*10  ! Take advantage of integer division
+        rem = rem/10
+     end do
+   end if
+ END FUNCTION get_digits
+
+END MODULE nr_utility_module

@@ -6,11 +6,13 @@ USE dataTypes, ONLY: STRFLX            ! fluxes in each reach
 USE dataTypes, ONLY: STRSTA            ! state in each reach
 USE dataTypes, ONLY: RCHTOPO           ! Network topology
 USE dataTypes, ONLY: RCHPRP            ! Reach parameter
+USE dataTypes, ONLY: kwRCH             ! kw specific state data structure 
 USE dataTypes, ONLY: subbasin_omp      ! mainstem+tributary data strucuture
 ! global data
 USE public_var, ONLY: iulog             ! i/o logical unit number
 USE public_var, ONLY: realMissing       ! missing value for real number
 USE public_var, ONLY: integerMissing    ! missing value for integer number
+USE globalData, ONLY: idxKW
 ! subroutines: general
 USE model_finalize, ONLY : handle_err
 
@@ -176,7 +178,7 @@ CONTAINS
    isHW = .false.
    do iUps = 1,nUps
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-     q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%REACH_Q
+     q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxKW)%REACH_Q
    end do
  endif
 
@@ -185,28 +187,28 @@ CONTAINS
    if (nUps>0) then
      do iUps = 1,nUps
        iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-       write(iulog,'(A,X,I6,X,G12.5)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, iRch_ups)%REACH_Q
+       write(iulog,'(A,X,I6,X,G12.5)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, iRch_ups)%ROUTE(idxKW)%REACH_Q
      enddo
    end if
    write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
  endif
 
  ! perform river network KW routing
- call kinematic_wave(RPARAM_in(segIndex),         &    ! input: parameter at segIndex reach
-                     T0,T1,                       &    ! input: start and end of the time step
-                     q_upstream,                  &    ! input: total discharge at top of the reach being processed
-                     isHW,                        &    ! input: is this headwater basin?
-                     RCHSTA_out(iens,segIndex),   &    ! inout:
-                     RCHFLX_out(iens,segIndex),   &    ! inout: updated fluxes at reach
-                     doCheck,                     &    ! input: reach index to be examined
-                     ierr, cmessage)                   ! output: error control
+ call kinematic_wave(RPARAM_in(segIndex),                & ! input: parameter at segIndex reach
+                     T0,T1,                              & ! input: start and end of the time step
+                     q_upstream,                         & ! input: total discharge at top of the reach being processed
+                     isHW,                               & ! input: is this headwater basin?
+                     RCHSTA_out(iens,segIndex)%KW_ROUTE, & ! inout:
+                     RCHFLX_out(iens,segIndex),          & ! inout: updated fluxes at reach
+                     doCheck,                            & ! input: reach index to be examined
+                     ierr, cmessage)                       ! output: error control
  if(ierr/=0)then
     write(message, '(A,X,I12,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage)
     return
  endif
 
  if(doCheck)then
-   write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%REACH_Q
+   write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_Q
  endif
 
  END SUBROUTINE kw_rch
@@ -245,7 +247,7 @@ CONTAINS
  logical(lgt), intent(in)                 :: isHW         ! is this headwater basin?
  logical(lgt), intent(in)                 :: doCheck      ! reach index to be examined
  ! Input/Output
- type(STRSTA), intent(inout)              :: rstate       ! curent reach states
+ type(kwRCH),  intent(inout)              :: rstate       ! curent reach states
  type(STRFLX), intent(inout)              :: rflux        ! current Reach fluxes
  ! Output
  integer(i4b), intent(out)                :: ierr         ! error code
@@ -352,12 +354,12 @@ CONTAINS
  endif
 
  ! compute volume
- rflux%REACH_VOL(0) = rflux%REACH_VOL(1)
- rflux%REACH_VOL(1) = rflux%REACH_VOL(0) + (Q(1,0)-Q(1,1))*dT
- rflux%REACH_VOL(1) = max(rflux%REACH_VOL(1), 0._dp)
+ rflux%ROUTE(idxKW)%REACH_VOL(0) = rflux%ROUTE(idxKW)%REACH_VOL(1)
+ rflux%ROUTE(idxKW)%REACH_VOL(1) = rflux%ROUTE(idxKW)%REACH_VOL(0) + (Q(1,0)-Q(1,1))*dT
+ rflux%ROUTE(idxKW)%REACH_VOL(1) = max(rflux%ROUTE(idxKW)%REACH_VOL(1), 0._dp)
 
  ! add catchment flow
- rflux%REACH_Q = Q(1,1)+rflux%BASIN_QR(1)
+ rflux%ROUTE(idxKW)%REACH_Q = Q(1,1)+rflux%BASIN_QR(1)
 
  ! update state
  rstate%molecule%Q(1) = Q(1,0)

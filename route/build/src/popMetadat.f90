@@ -97,7 +97,9 @@ contains
  meta_stateDims(ixStateDims%tbound  ) = dim_info('tbound',  integerMissing, 2)               ! time bound (alway 2 - start and end)
  meta_stateDims(ixStateDims%ens     ) = dim_info('ens',     integerMissing, integerMissing)  ! runoff ensemble
  meta_stateDims(ixStateDims%wave    ) = dim_info('wave',    integerMissing, MAXQPAR)         ! reach waves vector (max. number is defined as MAXQPAR)
- meta_stateDims(ixStateDims%fdmesh  ) = dim_info('fdmesh',  integerMissing, integerMissing)  ! finite difference mesh points
+ meta_stateDims(ixStateDims%mol_kw  ) = dim_info('mol_kw',  integerMissing, integerMissing)  ! kw finite difference mesh points
+ meta_stateDims(ixStateDims%mol_mc  ) = dim_info('mol_mc',  integerMissing, integerMissing)  ! mc finite difference mesh points
+ meta_stateDims(ixStateDims%mol_dw  ) = dim_info('mol_dw',  integerMissing, integerMissing)  ! dw finite difference mesh points
  meta_stateDims(ixStateDims%tdh_irf ) = dim_info('tdh_irf', integerMissing, integerMissing)  ! future time steps for irf routing
  meta_stateDims(ixStateDims%tdh     ) = dim_info('tdh',     integerMissing, integerMissing)  ! future time steps for bsasin irf routing
 
@@ -176,13 +178,13 @@ contains
  call meta_kwt(ixKWT%routed   )%init('routed'   , 'routing flag'                                  , '-'     , nf90_int,    [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
 
  ! Kinematic Wave
- call meta_kw(ixKW%qsub)%init('q_sub', 'flow at computational moelcule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%fdmesh,ixStateDims%ens], .false.)
+ call meta_kw(ixKW%qsub)%init('q_sub_kw', 'flow at computational moelcule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_kw,ixStateDims%ens], .false.)
 
  ! Diffusive Wave
- call meta_dw(ixDW%qsub)%init('q_sub', 'flow at computational moelcule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%fdmesh,ixStateDims%ens], .false.)
+ call meta_dw(ixDW%qsub)%init('q_sub_dw', 'flow at computational moelcule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_dw,ixStateDims%ens], .false.)
 
  ! Muskingum-cunge
- call meta_mc(ixMC%qsub)%init('q_sub', 'flow at computational molecule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%fdmesh,ixStateDims%ens], .false.)
+ call meta_mc(ixMC%qsub)%init('q_sub_mc', 'flow at computational molecule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_mc,ixStateDims%ens], .false.)
 
  ! Impulse Response Function
  call meta_irf(ixIRF%qfuture)%init('irf_qfuture', 'future flow series', 'm3/sec' ,nf90_double, [ixStateDims%seg,ixStateDims%tdh_irf,ixStateDims%ens] , .true.)

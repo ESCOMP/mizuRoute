@@ -36,7 +36,9 @@ MODULE globalData
   USE date_time,  ONLY : datetime      ! time data
 
   ! time data structure
-  USE dataTypes,  ONLY : nc           ! netCDF data
+  USE dataTypes,  ONLY : nc            ! netCDF data
+
+  USE dataTypes,  ONLY : cMolecule     !
 
   ! data size
   USE var_lookup, ONLY : nStructures   ! number of variables for data structure
@@ -108,6 +110,15 @@ MODULE globalData
   integer(i4b)                   , public :: nHRU                 ! number of HRUs in the whole river network
   integer(i4b)                   , public :: nRch                 ! number of reaches in the whole river network
 
+  ! routing methods
+  integer(i4b)                   , public :: nRoutes              ! number of active routing methods
+  integer(i4b)    , allocatable  , public :: routeMethods(:)      ! active routing method id
+  integer(i4b)                   , public :: idxIRF               ! index of IRF method
+  integer(i4b)                   , public :: idxKWT               ! index of KWT method
+  integer(i4b)                   , public :: idxKW                ! index of KW method
+  integer(i4b)                   , public :: idxMC                ! index of MC method
+  integer(i4b)                   , public :: idxDW                ! index of DW method
+
   ! basin and reach IDs (to be removed)
   integer(i8b)    , allocatable  , public :: basinID(:)           ! HRU id
   integer(i4b)    , allocatable  , public :: reachID(:)           ! reach id
@@ -150,6 +161,6 @@ MODULE globalData
 
   ! miscellaneous
   integer(i4b)                   , public :: ixPrint=integerMissing   ! index of desired reach to be on-screen print
-  integer(i4b)                   , public :: nMolecule                ! number of computational molecule (used for KW, MC, DW)
+  type(cMolecule)                , public :: nMolecule                ! number of computational molecule (used for KW, MC, DW)
 
 end module globalData

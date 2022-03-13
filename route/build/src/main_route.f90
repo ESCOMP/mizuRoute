@@ -32,10 +32,8 @@ contains
    ! 2. Process a list of reach indices (in terms of NETOPO etc.) given by ixRchProcessed
    ! 3. basinRunoff_in is given in the order of NETOPO(:)%HRUIX.
 
-   USE public_var, only : routOpt
    USE public_var, only : doesBasinRoute
    USE public_var, only : doesAccumRunoff
-   USE public_var, only : allRoutingMethods
    USE public_var, only : kinematicWaveTracking
    USE public_var, only : impulseResponseFunc
    USE public_var, only : kinematicWave
@@ -51,6 +49,8 @@ contains
    USE globalData, only : runoff_data      ! runoff data structure
    USE globalData, only : river_basin      ! OMP basin decomposition
    USE globalData, only : nRch             ! number of reaches in the whoel river network
+   USE globalData, only : routeMethods
+   USE globalData, only : nRoutes          ! number of active routing methods
 
    implicit none
 
@@ -64,6 +64,7 @@ contains
    real(dp)                                  :: T0,T1                ! beginning/ending of simulation time step [sec]
    real(dp),      allocatable                :: reachRunoff_local(:) ! reach runoff (m/s)
    integer(i4b)                              :: iSeg                 ! index of reach
+   integer(i4b)                              :: iRoute               ! index of reach
    ! timing variables
    integer*8                                 :: cr, startTime, endTime ! rate, start and end time stamps
    real(dp)                                  :: elapsedTime            ! elapsed time for the process
@@ -128,95 +129,87 @@ contains
      write(*,"(A,1PG15.7,A)") '      elapsed-time [accum_runoff] = ', elapsedTime, ' s'
    endif
 
-   ! Lagrangian kinematic wave option
-   if (routOpt==allRoutingMethods .or. routOpt==kinematicWaveTracking) then
-     call system_clock(startTime)
-     call kwt_route(iens,                 & ! input: ensemble index
-                    river_basin,          & ! input: river basin data type
-                    T0,T1,                & ! input: start and end of the time step
-                    ixPrint,              & ! input: index of the desired reach
-                    NETOPO,               & ! input: reach topology data structure
-                    RPARAM,               & ! input: reach parameter data structure
-                    RCHSTA,               & ! inout: reach state data structure
-                    RCHFLX,               & ! inout: reach flux data structure
-                    ierr,cmessage)          ! output: error control
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-     call system_clock(endTime)
-     elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-     write(*,"(A,1PG15.7,A)") '      elapsed-time [kwt_route] = ', elapsedTime, ' s'
-   endif
+   do iRoute = 1, nRoutes
+     if (routeMethods(iRoute)==kinematicWaveTracking) then
+       call system_clock(startTime)
+       call kwt_route(iens,                 & ! input: ensemble index
+                      river_basin,          & ! input: river basin data type
+                      T0,T1,                & ! input: start and end of the time step
+                      ixPrint,              & ! input: index of the desired reach
+                      NETOPO,               & ! input: reach topology data structure
+                      RPARAM,               & ! input: reach parameter data structure
+                      RCHSTA,               & ! inout: reach state data structure
+                      RCHFLX,               & ! inout: reach flux data structure
+                      ierr,cmessage)          ! output: error control
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       call system_clock(endTime)
+       elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+       write(*,"(A,1PG15.7,A)") '      elapsed-time [kwt_route] = ', elapsedTime, ' s'
 
-   ! unit-hydrograph routing option
-   if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
-     call system_clock(startTime)
-     call irf_route(iens,                & ! input: ensemble index
-                    river_basin,         & ! input: river basin data type
-                    ixPrint,             & ! input: index of the desired reach
-                    NETOPO,              & ! input: reach topology data structure
-                    RPARAM,              & ! input: reach parameter data structure
-                    RCHFLX,              & ! inout: reach flux data structure
-                    ierr,cmessage)         ! output: error control
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-     call system_clock(endTime)
-     elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-     write(*,"(A,1PG15.7,A)") '      elapsed-time [irf_route] = ', elapsedTime, ' s'
-   endif
+     else if (routeMethods(iRoute)==impulseResponseFunc) then
+       call system_clock(startTime)
+       call irf_route(iens,                & ! input: ensemble index
+                      river_basin,         & ! input: river basin data type
+                      ixPrint,             & ! input: index of the desired reach
+                      NETOPO,              & ! input: reach topology data structure
+                      RPARAM,              & ! input: reach parameter data structure
+                      RCHFLX,              & ! inout: reach flux data structure
+                      ierr,cmessage)         ! output: error control
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       call system_clock(endTime)
+       elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+       write(*,"(A,1PG15.7,A)") '      elapsed-time [irf_route] = ', elapsedTime, ' s'
 
-   ! kinematic wave routing option
-   if (routOpt==kinematicWave) then
-     call system_clock(startTime)
-     call kw_route(iens,                & ! input: ensemble index
-                   river_basin,         & ! input: river basin data type
-                   T0,T1,               & ! input: start and end of the time step
-                   ixPrint,             & ! input: index of the desired reach
-                   NETOPO,              & ! input: reach topology data structure
-                   RPARAM,              & ! input: reach parameter data structure
-                   RCHSTA,              & ! inout: reach state data structure
-                   RCHFLX,              & ! inout: reach flux data structure
-                   ierr,cmessage)         ! output: error control
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-     call system_clock(endTime)
-     elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-     write(*,"(A,1PG15.7,A)") '      elapsed-time [kw_route] = ', elapsedTime, ' s'
-   endif
+     else if (routeMethods(iRoute)==kinematicWave) then
+       call system_clock(startTime)
+       call kw_route(iens,                & ! input: ensemble index
+                     river_basin,         & ! input: river basin data type
+                     T0,T1,               & ! input: start and end of the time step
+                     ixPrint,             & ! input: index of the desired reach
+                     NETOPO,              & ! input: reach topology data structure
+                     RPARAM,              & ! input: reach parameter data structure
+                     RCHSTA,              & ! inout: reach state data structure
+                     RCHFLX,              & ! inout: reach flux data structure
+                     ierr,cmessage)         ! output: error control
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       call system_clock(endTime)
+       elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+       write(*,"(A,1PG15.7,A)") '      elapsed-time [kw_route] = ', elapsedTime, ' s'
 
-   ! muskingum-cunge option
-   if (routOpt==muskingumCunge) then
-     call system_clock(startTime)
-     call mc_route(iens,                & ! input: ensemble index
-                   river_basin,         & ! input: river basin data type
-                   T0,T1,               & ! input: start and end of the time step
-                   ixPrint,             & ! input: index of the desired reach
-                   NETOPO,              & ! input: reach topology data structure
-                   RPARAM,              & ! input: reach parameter data structure
-                   RCHSTA,              & ! inout: reach state data structure
-                   RCHFLX,              & ! inout: reach flux data structure
-                   ierr,cmessage)         ! output: error control
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-     call system_clock(endTime)
-     elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-     write(*,"(A,1PG15.7,A)") '      elapsed-time [mc_route] = ', elapsedTime, ' s'
-   endif
+     else if (routeMethods(iRoute)==muskingumCunge) then
+       call system_clock(startTime)
+       call mc_route(iens,                & ! input: ensemble index
+                     river_basin,         & ! input: river basin data type
+                     T0,T1,               & ! input: start and end of the time step
+                     ixPrint,             & ! input: index of the desired reach
+                     NETOPO,              & ! input: reach topology data structure
+                     RPARAM,              & ! input: reach parameter data structure
+                     RCHSTA,              & ! inout: reach state data structure
+                     RCHFLX,              & ! inout: reach flux data structure
+                     ierr,cmessage)         ! output: error control
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       call system_clock(endTime)
+       elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+       write(*,"(A,1PG15.7,A)") '      elapsed-time [mc_route] = ', elapsedTime, ' s'
 
-   ! diffusive wave routing option
-   if (routOpt==diffusiveWave) then
-     call system_clock(startTime)
-     call dfw_route(iens,                & ! input: ensemble index
-                    river_basin,         & ! input: river basin data type
-                    T0,T1,               & ! input: start and end of the time step
-                    ixPrint,             & ! input: index of the desired reach
-                    NETOPO,              & ! input: reach topology data structure
-                    RPARAM,              & ! input: reach parameter data structure
-                    RCHSTA,              & ! inout: reach state data structure
-                    RCHFLX,              & ! inout: reach flux data structure
-                    ierr,cmessage)         ! output: error control
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-     call system_clock(endTime)
-     elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
-     write(*,"(A,1PG15.7,A)") '      elapsed-time [dfw_route] = ', elapsedTime, ' s'
-   endif
+     else if (routeMethods(iRoute)==diffusiveWave) then
+       call system_clock(startTime)
+       call dfw_route(iens,                & ! input: ensemble index
+                      river_basin,         & ! input: river basin data type
+                      T0,T1,               & ! input: start and end of the time step
+                      ixPrint,             & ! input: index of the desired reach
+                      NETOPO,              & ! input: reach topology data structure
+                      RPARAM,              & ! input: reach parameter data structure
+                      RCHSTA,              & ! inout: reach state data structure
+                      RCHFLX,              & ! inout: reach flux data structure
+                      ierr,cmessage)         ! output: error control
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       call system_clock(endTime)
+       elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
+       write(*,"(A,1PG15.7,A)") '      elapsed-time [dfw_route] = ', elapsedTime, ' s'
+     endif
+   end do
 
  end subroutine main_route
-
 
 end module main_route_module
