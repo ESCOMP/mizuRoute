@@ -275,7 +275,7 @@ CONTAINS
  !  -- if the index does not exist, returns zero
  ! NOTE: workaround for (not-yet-implemented) f2008 intrinsic findloc
  implicit none
- ! dummy variables
+ ! argument variables
  integer(i4b),intent(in)            :: vector(:)    ! vector to search
  integer(i4b),intent(in)            :: desiredValue ! desired value in the vector
  integer(i4b),intent(in),optional   :: missingValue ! desired missing value if desiredValue is not found
@@ -287,10 +287,8 @@ CONTAINS
  if(any(vector==desiredValue))then
 
   ! get the index: merge provides a vector with 1s where mask is true and 0s otherwise, so maxloc(merge) is the first index of value=1
-  ! NOTE: workaround for (not-yet-implemented) f2008 intrinsic findloc
   vecIndex=maxloc( merge(1, 0, vector==desiredValue) )
 
- ! value does not exist
  else
   if(present(missingValue))then
    vecIndex=missingValue
@@ -299,7 +297,6 @@ CONTAINS
   endif
  endif
 
- ! return function value (extract into a scalar)
  findIndex=vecIndex(1)
 
  end function findIndex
@@ -307,11 +304,10 @@ CONTAINS
  subroutine indexTrue(TF,pos)
   ! Return indices of True in TF array
   implicit none
-  ! Inlet variables
+  ! argument variables
   logical(lgt),intent(in)                :: TF(:)           ! Logical vector (True or False)
-  ! Outlet variables
   integer(i4b), allocatable, intent(out) :: pos(:)          ! position of "true" conditions
-  ! Local variable
+  ! Local variables
   integer(i4b)                           :: npos            ! number of "true" conditions
   integer(i4b)                           :: idx(size(TF))   ! vector of all positions
 
@@ -324,12 +320,11 @@ CONTAINS
 
  SUBROUTINE unique_i4b(array, unq, idx)
   implicit none
-  ! Input variables
+  ! argument variables
   integer(i4b),            intent(in)  :: array(:)             ! integer array including duplicated elements
-  ! outpu variables
   integer(i4b),allocatable,intent(out) :: unq(:)               ! integer array including unique elements
   integer(i4b),allocatable,intent(out) :: idx(:)               ! integer array including unique element index
-  ! local
+  ! local variables
   integer(i4b)                         :: ranked(size(array))  !
   integer(i4b)                         :: unq_tmp(size(array)) !
   logical(lgt)                         :: flg_tmp(size(array)) !
@@ -358,12 +353,11 @@ CONTAINS
  ! ------------------------------------------------------------------------------------------------
  SUBROUTINE unique_i8b(array, unq, idx)
   implicit none
-  ! Input variables
+  ! argument variables
   integer(i8b),            intent(in)  :: array(:)             ! integer array including duplicated elements
-  ! outpu variables
   integer(i8b),allocatable,intent(out) :: unq(:)               ! integer array including unique elements
   integer(i4b),allocatable,intent(out) :: idx(:)               ! integer array including unique element index
-  ! local
+  ! local variables
   integer(i4b)                         :: ranked(size(array))  !
   integer(i8b)                         :: unq_tmp(size(array)) !
   logical(lgt)                         :: flg_tmp(size(array)) !
@@ -391,7 +385,10 @@ CONTAINS
  END SUBROUTINE unique_i8b
 
  FUNCTION get_digits(num) result(digs)
+   implicit none
+   ! argument variables
    integer(i4b), intent(in)  :: num
+   ! local variables
    integer(i4b), allocatable :: digs(:)
    integer(i4b)              :: num_digits, ix, rem
    if (num==0) then
