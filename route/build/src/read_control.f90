@@ -302,6 +302,7 @@ CONTAINS
  ! ---------- output options --------------------------------------------------------------------------------------------
  ! Assign index for each active routing method
  ! Make sure to turn off write option for routines not used
+ if (routOpt==0)then; message=trim(message)//'routOpt=0 is terminated. 12 is equivalent to 0 now'; err=10; return; endif
  routeMethods = get_digits(routOpt)
  nRoutes = size(routeMethods)
  onRoute = .false.

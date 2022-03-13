@@ -395,6 +395,7 @@ CONTAINS
    integer(i4b), allocatable :: digs(:)
    integer(i4b)              :: num_digits, ix, rem
    if (num==0) then
+     allocate(digs(1))
      digs=0
    else
      num_digits = floor(log10(real(num))+1)
