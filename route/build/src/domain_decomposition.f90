@@ -21,7 +21,7 @@ implicit none
 logical(lgt) :: domain_debug = .false. ! print out reach info with node assignment for debugging purpose
 
 ! common parameters within this module
-integer(i4b), parameter   :: maxDomainOMP=50000       ! maximum omp domains
+integer(i4b), parameter   :: maxDomainOMP=150000       ! maximum omp domains
 integer(i4b), parameter   :: maxDomainMPI=150000      ! maximum mpi domains
 integer(i4b), parameter   :: tributary=1
 integer(i4b), parameter   :: mainstem=2
