@@ -290,53 +290,73 @@ implicit none
  END TYPE FPOINT
 
  ! Collection of flow points within a given reach
- TYPE, public :: LKWRCH
+ TYPE, public :: kwtRCH
   type(FPOINT),allocatable             :: KWAVE(:)
- END TYPE LKWRCH
+ END TYPE kwtRCH
 
- ! ---------- computational node kw, dw, and mc ---------------------------------
+ ! ---------- irf states (future flow series ) ---------------------------------
+ ! Future flow series
+ type, public :: irfRCH
+  real(dp), allocatable                :: qfuture(:)    ! runoff volume in future time steps for IRF routing (m3/s)
+ end type irfRCH
+
+ ! ---------- computational node for kw, dw, and mc -----------------------------
+ type, public :: cMolecule
+   integer(i4b)           :: KW_ROUTE
+   integer(i4b)           :: MC_ROUTE
+   integer(i4b)           :: DW_ROUTE
+ end type cMolecule
+
  type, public :: SUBRCH
    real(dp), allocatable  :: Q(:)        ! Discharge at sub-reaches at current step (m3/s)
    real(dp), allocatable  :: A(:)        ! Flow area at sub-reach at current step (m2)
    real(dp), allocatable  :: H(:)        ! Flow height at sub-reach at current step (m)
  end type SUBRCH
 
- ! ---------- irf states (future flow series ) ---------------------------------
- ! Future flow series
- type, public :: IRFRCH
-  real(dp), allocatable                :: qfuture(:)    ! runoff volume in future time steps for IRF routing (m3/s)
- END TYPE IRFRCH
+ type, public :: kwRch
+   type(SUBRCH)    :: molecule
+ end type kwRCH
+
+ type, public :: mcRch
+   type(SUBRCH)    :: molecule
+ end type mcRCH
+
+  type, public :: dwRch
+   type(SUBRCH)    :: molecule
+ end type dwRCH
 
  type, public :: STRSTA
-  type(IRFRCH)       :: IRF_ROUTE
-  type(LKWRCH)       :: LKW_ROUTE
-  type(SUBRCH)       :: molecule
+  type(irfRCH)       :: IRF_ROUTE
+  type(kwtRCH)       :: LKW_ROUTE
+  type(kwRCH)        :: KW_ROUTE
+  type(mcRCH)        :: MC_ROUTE
+  type(dwRCH)        :: DW_ROUTE
  end type STRSTA
 
 
  ! ---------- reach fluxes --------------------------------------------------------------------
+ type, public :: fluxes
+   real(dp)        :: REACH_Q
+   real(dp)        :: REACH_VOL(0:1)
+ end type fluxes
 
  ! fluxes and states in each reach
- TYPE, public :: strflx
+ type, public :: strflx
   real(dp), allocatable                :: QFUTURE(:)             ! runoff volume in future time steps (m3/s)
   real(dp), allocatable                :: QFUTURE_IRF(:)         ! runoff volume in future time steps for IRF routing (m3/s)
   real(dp), allocatable                :: QPASTUP_IRF(:,:)       ! runoff volume in the past time steps for lake upstream (m3/s)
   real(dp), allocatable                :: DEMANDPAST_IRF(:,:)    ! demand volume for lake (m3/s)
   real(dp)                             :: BASIN_QI               ! instantaneous runoff volume from the local basin (m3/s)
   real(dp)                             :: BASIN_QR(0:1)          ! routed runoff volume from the local basin (m3/s)
-  real(dp)                             :: REACH_Q                ! time-step average streamflow (m3/s)
-  real(dp)                             :: REACH_Q_IRF            ! time-step average streamflow (m3/s) from IRF routing
   real(dp)                             :: UPSTREAM_QI            ! sum of upstream streamflow (m3/s)
-  real(dp)                             :: REACH_VOL(0:1)         ! volume of water at previous and current time step [m3]
+  type(fluxes), allocatable            :: ROUTE(:)               ! reach fluxes and states for each routing method
   real(dp)                             :: REACH_ELE              ! elevation of the water at the current time step [m]
   real(dp)                             :: REACH_WM_FLUX          ! water management fluxes to and from each reach
   real(dp)                             :: REACH_WM_FLUX_actual   ! water management fluxes to and from each reach
   real(dp)                             :: REACH_WM_VOL           ! target volume from the second water management file (m3)
-  real(dp)                             :: TAKE                   ! average take
-  logical(lgt)                         :: isRoute                ! .true. if the reach is routed
   real(dp)                             :: basinEvapo             ! remapped river network catchment Evaporation (size: number of nHRU)
   real(dp)                             :: basinPrecip            ! remapped river network catchment Precipitation (size: number of nHRU)
- END TYPE strflx
+ end type strflx
 
  ! ---------- lake data types -----------------------------------------------------------------
 

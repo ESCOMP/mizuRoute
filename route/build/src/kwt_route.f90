@@ -4,21 +4,22 @@ MODULE kwt_route_module
 USE nrtype
 ! data types
 USE dataTypes, ONLY: FPOINT            ! particle
-USE dataTypes, ONLY: LKWRCH            ! collection of particles in a given reach
 USE dataTypes, ONLY: STRFLX            ! fluxes in each reach
 USE dataTypes, ONLY: STRSTA            ! states in each reach
 USE dataTypes, ONLY: RCHTOPO           ! Network topology
 USE dataTypes, ONLY: RCHPRP            ! Reach parameter
+USE dataTypes, ONLY: kwtRCH            ! kwt specific state data structure
 ! global data
-USE public_var, ONLY: iulog             ! i/o logical unit number
-USE public_var, ONLY: runoffMin         ! minimum runoff
-USE public_var, ONLY: verySmall         ! a very small value
-USE public_var, ONLY: realMissing       ! missing value for real number
-USE public_var, ONLY: integerMissing    ! missing value for integer number
+USE public_var, ONLY: iulog            ! i/o logical unit number
+USE public_var, ONLY: runoffMin        ! minimum runoff
+USE public_var, ONLY: verySmall        ! a very small value
+USE public_var, ONLY: realMissing      ! missing value for real number
+USE public_var, ONLY: integerMissing   ! missing value for integer number
+USE globalData, ONLY: idxKWT           ! index of KWT method
 ! utilities
-USE nr_utility_module, ONLY: arth       ! Num. Recipies utilities
+USE nr_utility_module, ONLY: arth      ! Num. Recipies utilities
 ! subroutines: general
-USE perf_mod,  ONLY: t_startf,t_stopf   ! timing start/stop
+USE perf_mod,  ONLY: t_startf,t_stopf  ! timing start/stop
 
 implicit none
 
@@ -255,7 +256,7 @@ CONTAINS
      write(iulog,'(a,x,F15.7)')          ' RPARAM_in%R_WIDTH =', RPARAM_in(JRCH)%R_WIDTH
    end if
 
-   RCHFLX_out(IENS,JRCH)%TAKE=0.0_dp ! initialize take from this reach
+   ! RCHFLX_out(IENS,JRCH)%TAKE=0.0_dp ! initialize take from this reach
 
     ! ----------------------------------------------------------------------------------------
     ! (1) EXTRACT FLOW FROM UPSTREAM REACHES & APPEND TO THE NON-ROUTED FLOW PARTICLES IN JRCH
@@ -281,7 +282,7 @@ CONTAINS
       endif
     else
       ! set flow in headwater reaches to modelled streamflow from time delay histogram
-      RCHFLX_out(IENS,JRCH)%REACH_Q = RCHFLX_out(IENS,JRCH)%BASIN_QR(1)
+      RCHFLX_out(IENS,JRCH)%ROUTE(idxKWT)%REACH_Q = RCHFLX_out(IENS,JRCH)%BASIN_QR(1)
       if (allocated(RCHSTA_out(IENS,JRCH)%LKW_ROUTE%KWAVE)) then
         deallocate(RCHSTA_out(IENS,JRCH)%LKW_ROUTE%KWAVE,STAT=IERR)
         if(ierr/=0)then; message=trim(message)//'problem deallocating space for RCHSTA_out'; return; endif
@@ -296,7 +297,7 @@ CONTAINS
 
       if(JRCH==ixDesire) then
         write(iulog,'(a)') ' * Final discharge (RCHFLX_out(IENS,JRCH)%REACH_Q) [m3/s]:'
-        write(iulog,'(x,F20.7)') RCHFLX_out(IENS,JRCH)%REACH_Q
+        write(iulog,'(x,F20.7)') RCHFLX_out(IENS,JRCH)%ROUTE(idxKWT)%REACH_Q
       end if
       return  ! no upstream reaches (routing for sub-basins done using time-delay histogram)
     endif
@@ -370,13 +371,13 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! m2/s --> m3/s + instantaneous runoff from basin
-    RCHFLX_out(IENS,JRCH)%REACH_Q = QNEW(1)*RPARAM_in(JRCH)%R_WIDTH + RCHFLX_out(IENS,JRCH)%BASIN_QR(1)
+    RCHFLX_out(IENS,JRCH)%ROUTE(idxKWT)%REACH_Q = QNEW(1)*RPARAM_in(JRCH)%R_WIDTH + RCHFLX_out(IENS,JRCH)%BASIN_QR(1)
 
     if(JRCH == ixDesire)then
       write(iulog,'(a)')          ' * Time-ave. wave discharge that exit (QNEW(1)) [m2/s], local-area discharge (RCHFLX_out%BASIN_QR(1)) [m3/s] and Final discharge (RCHFLX_out%REACH_Q) [m3/s]:'
       write(iulog,"(A,1x,F15.7)") ' QNEW(1)                =', QNEW(1)
       write(iulog,"(A,1x,F15.7)") ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(IENS,JRCH)%BASIN_QR(1)
-      write(iulog,"(A,1x,F15.7)") ' RCHFLX_out%REACH_Q     =', RCHFLX_out(IENS,JRCH)%REACH_Q
+      write(iulog,"(A,1x,F15.7)") ' RCHFLX_out%REACH_Q     =', RCHFLX_out(IENS,JRCH)%ROUTE(idxKWT)%REACH_Q
     endif
 
     ! ----------------------------------------------------------------------------------------
@@ -410,9 +411,9 @@ CONTAINS
     RCHSTA_out(IENS,JRCH)%LKW_ROUTE%KWAVE(0:NQ2+1)%QM=-9999
 
     ! implement water use
-    !IF (NUSER.GT.0.AND.UCFFLAG.GE.1) THEN
-      !CALL EXTRACT_FROM_RCH(IENS,JRCH,NR,Q_JRCH,T_EXIT,T_END,TNEW)
-    !ENDIF
+    !if (NUSER.GT.0 .and. UCFFLAG.GE.1) then
+      !call extract_from_rch(iens,jRch,NR,Q_JRCH,T_EXIT,T_END,TNEW)
+    !endif
 
     ! free up space for the next reach
     deallocate(Q_JRCH,TENTRY,T_EXIT,FROUTE,STAT=IERR)   ! FROUTE defined in this sub-routine
@@ -789,7 +790,7 @@ CONTAINS
  integer(i4b)                                :: INDX      ! index of the IUPS u/s reach
  integer(i4b)                                :: MUPR      ! # reaches u/s of IUPS u/s reach
  integer(i4b)                                :: NUPS      ! number of upstream elements
- TYPE(LKWRCH), allocatable                   :: USFLOW(:) ! waves for all upstream segments
+ TYPE(kwtRCH), allocatable                   :: USFLOW(:) ! waves for all upstream segments
  real(dp),     allocatable                   :: UWIDTH(:) ! width of all upstream segments
  integer(i4b)                                :: IMAX      ! max number of upstream particles
  integer(i4b)                                :: IUPR      ! counter for reaches with particles
@@ -922,12 +923,12 @@ CONTAINS
 
    ! here a statement where we check for a modification in the upstream reach;
    ! if flow upstream is modified, then copy RCHSTA_out(:,:)%LKW_ROUTE%KWAVE(:)%QM to USFLOW(..)%KWAVE%QF
-   !IF (NUSER.GT.0.AND.SIMDAT%UCFFLAG.GE.1) THEN !if the irrigation module is active and there are users
-   !  IF (RCHFLX_out(IENS,IR)%TAKE.GT.0._DP) THEN !if take from upstream reach is greater then zero
+   !if (NUSER > 0 .and. SIMDAT%UCFFLAG >= 1) then !if the irrigation module is active and there are users
+   !  if (RCHFLX_out(IENS,IR)%TAKE > 0._dp) then !if take from upstream reach is greater then zero
    !    ! replace QF with modified flow (as calculated in extract_from_rch)
    !    USFLOW(NUPB+IUPR)%KWAVE(0:NQ-1)%QF = RCHSTA_out(IENS,IR)%LKW_ROUTE%KWAVE(0:NQ-1)%QM
-   !  ENDIF
-   !ENDIF
+   !  end if
+   !end if
 
    ! ...and REMOVE the routed particles from the upstream reach
    ! (copy the wave to a temporary wave)

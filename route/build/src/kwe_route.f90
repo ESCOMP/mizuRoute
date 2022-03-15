@@ -6,11 +6,13 @@ USE dataTypes, ONLY: STRFLX            ! fluxes in each reach
 USE dataTypes, ONLY: STRSTA            ! state in each reach
 USE dataTypes, ONLY: RCHTOPO           ! Network topology
 USE dataTypes, ONLY: RCHPRP            ! Reach parameter
+USE dataTypes, ONLY: kwRCH             ! kw specific state data structure
 USE dataTypes, ONLY: subbasin_omp      ! mainstem+tributary data strucuture
 ! global data
 USE public_var, ONLY: iulog             ! i/o logical unit number
 USE public_var, ONLY: realMissing       ! missing value for real number
 USE public_var, ONLY: integerMissing    ! missing value for integer number
+USE globalData, ONLY: idxKW             ! loop index of kw routing
 ! subroutines: general
 USE perf_mod,  ONLY: t_startf,t_stopf   ! timing start/stop
 USE model_utils, ONLY: handle_err
@@ -181,7 +183,7 @@ CONTAINS
    isHW = .false.
    do iUps = 1,nUps
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-     q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%REACH_Q
+     q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxKW)%REACH_Q
    end do
  endif
 
@@ -190,28 +192,27 @@ CONTAINS
    if (nUps>0) then
      do iUps = 1,nUps
        iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-       write(iulog,'(A,X,I12,X,G15.4)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, iRch_ups)%REACH_Q
+       write(iulog,'(A,X,I12,X,G15.4)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, iRch_ups)%ROUTE(idxKW)%REACH_Q
      enddo
    end if
    write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
  endif
 
  ! perform river network KW routing
- call kinematic_wave(RPARAM_in(segIndex),         &    ! input: parameter at segIndex reach
-                     T0,T1,                       &    ! input: start and end of the time step
-                     q_upstream,                  &    ! input: total discharge at top of the reach being processed
-                     isHW,                        &    ! input: is this headwater basin?
-                     RCHSTA_out(iens,segIndex),   &    ! inout:
-                     RCHFLX_out(iens,segIndex),   &    ! inout: updated fluxes at reach
-                     doCheck,                     &    ! input: reach index to be examined
-                     ierr, cmessage)                   ! output: error control
+ call kinematic_wave(RPARAM_in(segIndex),                & ! input: parameter at segIndex reach
+                     T0,T1,                              & ! input: start and end of the time step
+                     q_upstream,                         & ! input: total discharge at top of the reach being processed
+                     isHW,                               & ! input: is this headwater basin?
+                     RCHSTA_out(iens,segIndex)%KW_ROUTE, & ! inout:
+                     RCHFLX_out(iens,segIndex),          & ! inout: updated fluxes at reach
+                     doCheck,                            & ! input: reach index to be examined
+                     ierr, cmessage)                       ! output: error control
  if(ierr/=0)then
-    write(message, '(A,X,I12,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage)
-    return
+   write(message, '(A,X,I12,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage); return
  endif
 
  if(doCheck)then
-   write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%REACH_Q
+   write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_Q
  endif
 
  END SUBROUTINE kw_rch
@@ -242,17 +243,15 @@ CONTAINS
  ! (time:0:1, loc:0:1) 0-previous time step/inlet, 1-current time step/outlet.
  ! Q or A(1,2,3,4): 1: (t=0,x=0), 2: (t=0,x=1), 3: (t=1,x=0), 4: (t=1,x=1)
 
- IMPLICIT NONE
- ! Input
+ implicit none
+ ! argument variables
  type(RCHPRP), intent(in)                 :: rch_param    ! River reach parameter
  real(dp),     intent(in)                 :: T0,T1        ! start and end of the time step (seconds)
  real(dp),     intent(in)                 :: q_upstream   ! total discharge at top of the reach being processed
  logical(lgt), intent(in)                 :: isHW         ! is this headwater basin?
- logical(lgt), intent(in)                 :: doCheck      ! reach index to be examined
- ! Input/Output
- type(STRSTA), intent(inout)              :: rstate       ! curent reach states
+ type(kwRCH),  intent(inout)              :: rstate       ! curent reach states
  type(STRFLX), intent(inout)              :: rflux        ! current Reach fluxes
- ! Output
+ logical(lgt), intent(in)                 :: doCheck      ! reach index to be examined
  integer(i4b), intent(out)                :: ierr         ! error code
  character(*), intent(out)                :: message      ! error message
  ! Local variables
@@ -279,6 +278,7 @@ CONTAINS
  !  current time and outlet 4 (1,1) -> previous time and outlet 2 (0,1)
  Q(0,0) = rstate%molecule%Q(1)
  Q(0,1) = rstate%molecule%Q(2)
+ dT = T1-T0
 
  if (.not. isHW) then
 
@@ -292,7 +292,6 @@ CONTAINS
    beta1  = 1._dp/beta
    alpha1 = (1.0/alpha)**beta1
    dX = rch_param%RLENGTH
-   dT = T1-T0
    theta = dT/dX
 
    ! compute total flow rate and flow area at upstream end at current time step
@@ -357,12 +356,12 @@ CONTAINS
  endif
 
  ! compute volume
- rflux%REACH_VOL(0) = rflux%REACH_VOL(1)
- rflux%REACH_VOL(1) = rflux%REACH_VOL(0) + (Q(1,0)-Q(1,1))*dT
- rflux%REACH_VOL(1) = max(rflux%REACH_VOL(1), 0._dp)
+ rflux%ROUTE(idxKW)%REACH_VOL(0) = rflux%ROUTE(idxKW)%REACH_VOL(1)
+ rflux%ROUTE(idxKW)%REACH_VOL(1) = rflux%ROUTE(idxKW)%REACH_VOL(0) + (Q(1,0)-Q(1,1))*dT
+ rflux%ROUTE(idxKW)%REACH_VOL(1) = max(rflux%ROUTE(idxKW)%REACH_VOL(1), 0._dp)
 
  ! add catchment flow
- rflux%REACH_Q = Q(1,1)+rflux%BASIN_QR(1)
+ rflux%ROUTE(idxKW)%REACH_Q = Q(1,1)+rflux%BASIN_QR(1)
 
  ! update state
  rstate%molecule%Q(1) = Q(1,0)

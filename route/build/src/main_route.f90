@@ -1,8 +1,6 @@
 MODULE main_route_module
 
-! variable types
 USE nrtype                                   ! variable types, etc.
-
 ! data structures
 USE dataTypes, ONLY: STRSTA                  ! state in each reach
 USE dataTypes, ONLY: STRFLX                  ! fluxes in each reach
@@ -10,7 +8,6 @@ USE dataTypes, ONLY: RCHTOPO                 ! Network topology
 USE dataTypes, ONLY: RCHPRP                  ! Reach parameter
 USE dataTypes, ONLY: runoff                  ! runoff data type
 USE dataTypes, ONLY: subbasin_omp            ! mainstem+tributary data structures
-
 ! mapping HRU runoff to reach
 USE process_remap_module, ONLY: basin2reach
 ! subroutines: basin routing
@@ -34,23 +31,19 @@ CONTAINS
  ! ******
  ! public subroutine: main HRU/reach routing routines
  ! ************************
- SUBROUTINE main_route(&
-                       ! input
-                       iens,           &  ! ensemble index
-                       basinRunoff_in, &  ! basin (i.e.,HRU) runoff (m/s)
-                       basinEvapo_in,  &  ! basin (i.e.,HRU) evaporation (m/s)
-                       basinPrecip_in, &  ! basin (i.e.,HRU) precipitation (m/s)
-                       reachflux_in,   &  ! reach (i.e.,reach) flux (m3/s)
-                       reachvol_in,    &  ! reach (i.e.,reach) target volume for lakes (m3)
-                       ixRchProcessed, &  ! indices of reach to be routed
-                       river_basin,    &  ! OMP basin decomposition
-                       NETOPO_in,      &  ! reach topology data structure
-                       RPARAM_in,      &  ! reach parameter data structure
-                       ixDesire,       &  ! index of verbose reach
-                       ! inout
-                       RCHFLX_out,     &  ! reach flux data structure
-                       RCHSTA_out,     &  ! reach state data structure
-                       ! output: error handling
+ SUBROUTINE main_route(iens,           &  ! input: ensemble index
+                       basinRunoff_in, &  ! input: basin (i.e.,HRU) runoff (m/s)
+                       basinEvapo_in,  &  ! input: basin (i.e.,HRU) evaporation (m/s)
+                       basinPrecip_in, &  ! input: basin (i.e.,HRU) precipitation (m/s)
+                       reachflux_in,   &  ! input: reach (i.e.,reach) flux (m3/s)
+                       reachvol_in,    &  ! input: reach (i.e.,reach) target volume for lakes (m3)
+                       ixRchProcessed, &  ! input: indices of reach to be routed
+                       river_basin,    &  ! input: OMP basin decomposition
+                       NETOPO_in,      &  ! input: reach topology data structure
+                       RPARAM_in,      &  ! input: reach parameter data structure
+                       ixDesire,       &  ! input: index of verbose reach
+                       RCHFLX_out,     &  ! inout: reach flux data structure
+                       RCHSTA_out,     &  ! inout: reach state data structure
                        ierr, message)     ! output: error control
    ! Details:
    ! Given HRU (basin) runoff, perform hru routing (optional) to get reach runoff, and then channel routing
@@ -59,23 +52,21 @@ CONTAINS
    ! 2. Process a list of reach indices (in terms of NETOPO_in etc.) given by ixRchProcessed
    ! 3. basinRunoff_in is given in the order of NETOPO_in(:)%HRUIX.
 
-   USE public_var, ONLY: routOpt
    USE public_var, ONLY: doesBasinRoute
    USE public_var, ONLY: doesAccumRunoff
-   USE public_var, ONLY: allRoutingMethods
    USE public_var, ONLY: impulseResponseFunc
    USE public_var, ONLY: kinematicWaveTracking
    USE public_var, ONLY: kinematicWave
    USE public_var, ONLY: muskingumCunge
    USE public_var, ONLY: diffusiveWave
+   USE globalData, ONLY: onRoute                 ! logical to indicate which routing method(s) is on
    USE globalData, ONLY: TSEC                    ! beginning/ending of simulation time step [sec]
    USE public_var, ONLY: is_lake_sim             ! logical whether or not lake should be simulated
    USE public_var, ONLY: is_flux_wm              ! logical whether or not fluxes should be passed
    USE public_var, ONLY: is_vol_wm               ! logical whether or not target volume should be passed
 
    implicit none
-
-   ! input
+   ! argument variables
    integer(i4b),                    intent(in)    :: iens                 ! ensemble member
    real(dp),           allocatable, intent(in)    :: basinRunoff_in(:)    ! basin (i.e.,HRU) runoff (m/s)
    real(dp),           allocatable, intent(in)    :: basinEvapo_in(:)     ! basin (i.e.,HRU) evaporation (m/s)
@@ -85,12 +76,10 @@ CONTAINS
    integer(i4b),       allocatable, intent(in)    :: ixRchProcessed(:)    ! indices of reach to be routed
    type(subbasin_omp), allocatable, intent(in)    :: river_basin(:)       ! OMP basin decomposition
    type(RCHTOPO),      allocatable, intent(in)    :: NETOPO_in(:)         ! River Network topology
-   type(RCHPRP),       allocatable, intent(inout)    :: RPARAM_in(:)         ! River reach parameter
+   type(RCHPRP),       allocatable, intent(inout) :: RPARAM_in(:)         ! River reach parameter
    integer(i4b),                    intent(in)    :: ixDesire             ! index of the reach for verbose output
-   ! inout
    type(STRFLX),       allocatable, intent(inout) :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
    type(STRSTA),       allocatable, intent(inout) :: RCHSTA_out(:,:)      ! reach state data structure
-   ! output
    integer(i4b),                    intent(out)   :: ierr                 ! error code
    character(len=strLen),           intent(out)   :: message              ! error message
    ! local variables
@@ -209,7 +198,7 @@ CONTAINS
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    endif
 
-   if (routOpt==allRoutingMethods .or. routOpt==kinematicWaveTracking) then
+   if (onRoute(kinematicWaveTracking)) then
      call kwt_route(iens,                 & ! input: ensemble index
                     river_basin,          & ! input: river basin data type
                     T0,T1,                & ! input: start and end of the time step
@@ -221,9 +210,9 @@ CONTAINS
                     ierr,cmessage,        & ! output: error control
                     ixRchProcessed)         ! optional input: indices of reach to be routed
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   endif
+   end if
 
-   if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+   if (onRoute(impulseResponseFunc)) then
      call irf_route(iens,                & ! input: ensemble index
                     river_basin,         & ! input: river basin data type
                     ixDesire,            & ! input: index of verbose reach
@@ -233,9 +222,9 @@ CONTAINS
                     ierr,cmessage,       & ! output: error control
                     ixRchProcessed)        ! optional input: indices of reach to be routed
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   endif
+   end if
 
-   if (routOpt==kinematicWave) then
+   if (onRoute(kinematicWave)) then
      call kw_route(iens,                 & ! input: ensemble index
                    river_basin,          & ! input: river basin data type
                    T0,T1,                & ! input: start and end of the time step
@@ -249,7 +238,7 @@ CONTAINS
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
 
-   if (routOpt==muskingumCunge) then
+   if (onRoute(muskingumCunge)) then
      call mc_route(iens,                 & ! input: ensemble index
                    river_basin,          & ! input: river basin data type
                    T0,T1,                & ! input: start and end of the time step
@@ -263,7 +252,7 @@ CONTAINS
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
 
-   if (routOpt==diffusiveWave) then
+   if (onRoute(diffusiveWave)) then
      call dfw_route(iens,                 & ! input: ensemble index
                     river_basin,          & ! input: river basin data type
                     T0,T1,                & ! input: start and end of the time step

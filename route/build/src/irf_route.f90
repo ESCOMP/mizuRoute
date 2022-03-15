@@ -1,19 +1,22 @@
 MODULE irf_route_module
 
-!numeric type
 USE nrtype
 ! data type
-
 USE dataTypes, ONLY: STRFLX           ! fluxes in each reach
 USE dataTypes, ONLY: RCHTOPO          ! Network topology
 USE dataTypes, ONLY: RCHPRP           ! reach/lake property parameter
+USE dataTypes, ONLY: irfRCH           ! irf specific state data structure
+USE dataTypes, ONLY: subbasin_omp     ! mainstem+tributary data structures
 ! global parameters
-USE public_var,        ONLY: iulog             ! i/o logical unit number
-USE public_var,        ONLY: realMissing       ! missing value for real number
-USE public_var,        ONLY: integerMissing    ! missing value for integer number
+USE public_var, ONLY: iulog           ! i/o logical unit number
+USE public_var, ONLY: realMissing     ! missing value for real number
+USE public_var, ONLY: integerMissing  ! missing value for integer number
+USE globalData, ONLY: idxIRF          ! index of IRF method
+! lake subroutine
+USE lake_route_module, ONLY: lake_route        ! lake route module
 ! subroutines: general
 USE perf_mod,          ONLY: t_startf,t_stopf  ! timing start/stop
-USE lake_route_module, ONLY: lake_route        ! lake route module
+USE model_utils,       ONLY: handle_err
 
 implicit none
 
@@ -36,23 +39,18 @@ CONTAINS
                       ixSubRch)         ! optional input: subset of reach indices to be processed
 
  ! global routing data
- USE dataTypes,   ONLY: subbasin_omp   ! mainstem+tributary data structures
- USE model_utils, ONLY: handle_err
  USE public_var,  ONLY: is_lake_sim    ! logical whether or not lake should be simulated
 
  implicit none
- ! Input
+ ! argument variables
  integer(i4b),       intent(in)                  :: iEns                ! runoff ensemble to be routed
  type(subbasin_omp), intent(in),    allocatable  :: river_basin(:)      ! river basin information (mainstem, tributary outlet etc.)
  integer(i4b),       intent(in)                  :: ixDesire            ! index of the reach for verbose output ! Output
  type(RCHTOPO),      intent(in),    allocatable  :: NETOPO_in(:)        ! River Network topology
  type(RCHPRP),       intent(inout), allocatable  :: RPARAM_in(:)        ! River Network parameters
- ! inout
  TYPE(STRFLX),       intent(inout), allocatable  :: RCHFLX_out(:,:)     ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
- ! output variables
  integer(i4b),       intent(out)                 :: ierr                ! error code
  character(*),       intent(out)                 :: message             ! error message
- ! input (optional)
  integer(i4b),       intent(in), optional        :: ixSubRch(:)         ! subset of reach indices to be processed
  ! Local variables
  character(len=strLen)                           :: cmessage            ! error message from subroutine
@@ -74,9 +72,6 @@ CONTAINS
  nSeg = size(RCHFLX_out(iens,:))
 
  allocate(doRoute(nSeg), stat=ierr)
-
- ! Initialize CHEC_IRF to False.
- RCHFLX_out(iEns,:)%isRoute=.False.
 
  if (present(ixSubRch))then
   doRoute(:)=.false.
@@ -128,19 +123,15 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: perform one segment route UH routing
  ! *********************************************************************
- subroutine segment_irf(&
-                        ! input
-                        iEns,       &    ! input: index of runoff ensemble to be processed
-                        segIndex,   &    ! input: index of runoff ensemble to be processed
-                        ixDesire,   &    ! input: reachID to be checked by on-screen pringing
-                        NETOPO_in,  &    ! input: reach topology data structure
-                        ! inout
-                        RCHFLX_out, &    ! inout: reach flux data structure
-                        ! output
-                        ierr, message)   ! output: error control
+ subroutine segment_irf(iEns,         & ! input: index of runoff ensemble to be processed
+                        segIndex,     & ! input: index of runoff ensemble to be processed
+                        ixDesire,     & ! input: reachID to be checked by on-screen pringing
+                        NETOPO_in,    & ! input: reach topology data structure
+                        RCHFLX_out,   & ! inout: reach flux data structure
+                        ierr, message)  ! output: error control
 
  ! shared data
- USE public_var,                          ONLY:is_flux_wm   ! logical water management components fluxes should be read
+ USE public_var, ONLY:is_flux_wm   ! logical water management components fluxes should be read
  implicit none
  ! Input
  INTEGER(I4B), intent(in)                 :: iEns           ! runoff ensemble to be routed
@@ -182,7 +173,7 @@ CONTAINS
   if (nUps>0) then
     do iUps = 1,nUps
       iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-      q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%REACH_Q_IRF
+      q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxIRF)%REACH_Q
     end do
   endif
 
@@ -193,44 +184,37 @@ CONTAINS
                       ierr, message)                  ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! Check True since now this reach now routed
-  RCHFLX_out(iEns,segIndex)%isRoute=.True.
-
 !  ! take out the water from the reach if the wm flag is true and the value are not missing
 !  ! here we should make sure the real missing is not injection (or negative abstration)
 !  abstract_actual = 0._dp ! this can be removed later (after extensive testing)
 !  init_STRQ = 0._dp ! this can be removed later (after extensive testing)
 !  if((RCHFLX_out(iens,segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then
-!    abstract_actual = RCHFLX_out(iens,segIndex)%REACH_Q_IRF ! get the reach streamflow as actual abstration
-!    init_STRQ = RCHFLX_out(iens,segIndex)%REACH_Q_IRF ! TO BE DELETED
+!    abstract_actual = RCHFLX_out(iens,segIndex)%REACH_Q ! get the reach streamflow as actual abstration
+!    init_STRQ = RCHFLX_out(iens,segIndex)%REACH_Q ! TO BE DELETED
 !    ! reach streamflow is updated based on abstration (positive) or injection (negative)
-!    RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
-!    if (RCHFLX_out(iens,segIndex)%REACH_Q_IRF>0) then ! abstration was negative or smaller than reach streamflow
+!    RCHFLX_out(iens,segIndex)%REACH_Q = RCHFLX_out(iens,segIndex)%REACH_Q - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+!    if (RCHFLX_out(iens,segIndex)%REACH_Q>0) then ! abstration was negative or smaller than reach streamflow
 !      abstract_actual  =  RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! actual abstration will be equal to abstration value
 !    else
-!      RCHFLX_out(iens,segIndex)%REACH_Q_IRF = 0._dp ! all the water is taken and actual abstration is reach streamflow
+!      RCHFLX_out(iens,segIndex)%REACH_Q = 0._dp ! all the water is taken and actual abstration is reach streamflow
 !    endif
 !  endif
-!  WB_check = RCHFLX_out(iens,segIndex)%REACH_Q_IRF + abstract_actual - init_STRQ
-
-
+!  WB_check = RCHFLX_out(iens,segIndex)%REACH_Q + abstract_actual - init_STRQ
 
   ! take out the water from the reach if the wm flag is true and the value are not missing
   ! here we should make sure the real missing is not injection (or negative abstration)
   if((RCHFLX_out(iens,segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then
-    !allocate(RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual, stat=ierr, errmsg=cmessage)
-    !if(ierr/=0)then; message=trim(message)//trim(cmessage)//': RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual'; return; endif
     ! abstraction or injection
     if (RCHFLX_out(iens,segIndex)%REACH_WM_FLUX <= 0) then ! negative/injection
       RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
     else ! positive/abstraction
-      if (RCHFLX_out(iens,segIndex)%REACH_WM_FLUX <= RCHFLX_out(iens,segIndex)%REACH_Q_IRF) then ! abstraction is smaller than water in the river
+      if (RCHFLX_out(iens,segIndex)%REACH_WM_FLUX <= RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q) then ! abstraction is smaller than water in the river
         RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
       else ! abstraction is larger than water in the river
-        RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_Q_IRF
+        RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q
       endif
     endif
-    RCHFLX_out(iens,segIndex)%REACH_Q_IRF = RCHFLX_out(iens,segIndex)%REACH_Q_IRF - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual
+    RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual
   endif
 
   ! check
@@ -243,7 +227,7 @@ CONTAINS
     write(*,'(a)')             ' * total discharge from upstream(q_upstream) [m3/s], local area discharge [m3/s], and Final discharge [m3/s]:'
     write(*,'(a,x,F15.7)')     ' q_upstream             =', q_upstream
     write(*,'(a,x,F15.7)')     ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(iens,segIndex)%BASIN_QR(1)
-    write(*,'(a,x,F15.7)')     ' RCHFLX_out%REACH_Q_IRF =', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
+    write(*,'(a,x,F15.7)')     ' RCHFLX_out%REACH_Q =', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q
   endif
 
  end subroutine segment_irf
@@ -286,11 +270,11 @@ CONTAINS
  enddo
 
  ! compute volume in reach
- rflux%REACH_VOL(0) = rflux%REACH_VOL(1)
- rflux%REACH_VOL(1) = rflux%REACH_VOL(0) - (rflux%QFUTURE_IRF(1) - q_upstream)*dt
+ rflux%ROUTE(idxIRF)%REACH_VOL(0) = rflux%ROUTE(idxIRF)%REACH_VOL(1)
+ rflux%ROUTE(idxIRF)%REACH_VOL(1) = rflux%ROUTE(idxIRF)%REACH_VOL(0) - (rflux%QFUTURE_IRF(1) - q_upstream)*dt
 
  ! Add local routed flow at the bottom of reach
- rflux%REACH_Q_IRF = rflux%QFUTURE_IRF(1) + rflux%BASIN_QR(1)
+ rflux%ROUTE(idxIRF)%REACH_Q = rflux%QFUTURE_IRF(1) + rflux%BASIN_QR(1)
 
  ! move array back   use eoshift
  rflux%QFUTURE_IRF=eoshift(rflux%QFUTURE_IRF,shift=1)
