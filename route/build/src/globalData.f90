@@ -2,9 +2,9 @@ MODULE globalData
 
   USE pio
 
-  USE public_var, ONLY: integerMissing
+  USE public_var
 
-  USE nrtype  ! numeric type
+  USE nrtype
 
   USE dataTypes, ONLY: struct_info   ! metadata type - data structure
   USE dataTypes, ONLY: dim_info      ! metadata type - variable dimensions
@@ -29,6 +29,8 @@ MODULE globalData
 
   USE dataTypes, ONLY: subbasin_omp  ! data structure - omp domain decomposition
   USE dataTypes, ONLY: subbasin_mpi  ! data structure - mpi domain decomposition
+
+  USE dataTypes, ONLY : cMolecule    ! data structure - computational molecule number
 
   USE datetime_data, ONLY: datetime  ! datetime data class
 
@@ -64,6 +66,16 @@ MODULE globalData
   integer(i4b),     allocatable,   public :: basinID(:)           ! HRU id in the whole river network
   integer(i4b),     allocatable,   public :: reachID(:)           ! reach id in the whole river network
 
+  ! ---------- routing methods  -------------------------------------------------------------------------
+  integer(i4b)                   , public :: nRoutes                ! number of active routing methods
+  integer(i4b)    , allocatable  , public :: routeMethods(:)        ! active routing method id
+  logical(lgt)                   , public :: onRoute(nRouteMethods) ! logical to indicate active routing method(s)
+  integer(i4b)                   , public :: idxIRF                 ! index of IRF method
+  integer(i4b)                   , public :: idxKWT                 ! index of KWT method
+  integer(i4b)                   , public :: idxKW                  ! index of KW method
+  integer(i4b)                   , public :: idxMC                  ! index of MC method
+  integer(i4b)                   , public :: idxDW                  ! index of DW method
+
   ! ---------- Date/Time data  -------------------------------------------------------------------------
 
   integer(i4b),                    public :: iTime                ! time index at simulation time step
@@ -85,7 +97,7 @@ MODULE globalData
   logical(lgt),                    public :: isHistFileOpen=.false.      ! flag to indicate history output netcdf is open
   integer(i4b),                    public :: ixPrint(1:2)=integerMissing ! index of desired reach to be on-screen print
   integer(i4b),                    public :: nEns=1                      ! number of ensemble
-  integer(i4b),                    public :: nMolecule                   ! number of computational molecule (used for KW, MC, DW)
+  type(cMolecule),                 public :: nMolecule                   ! number of computational molecule (used for KW, MC, DW)
 
   ! ---------- MPI/OMP/PIO variables ----------------------------------------------------------------
 
@@ -152,21 +164,21 @@ MODULE globalData
   type(RCHTOPO),      allocatable, public :: NETOPO_main(:)         ! River Network topology for mainstems
 
   ! time delay histogram
-  REAL(dp),           allocatable, public :: FRAC_FUTURE(:)         ! fraction of runoff in future time steps
+  real(dp),           allocatable, public :: FRAC_FUTURE(:)         ! fraction of runoff in future time steps
 
   ! routing data structures
-  TYPE(STRSTA),       allocatable, public :: RCHSTA(:,:)            ! restart variables (ensembles, space [reaches]) for the entire river network
-  TYPE(STRFLX),       allocatable, public :: RCHFLX(:,:)            ! Reach fluxes (ensembles, space [reaches]) for entire river network
-  TYPE(STRSTA),       allocatable, public :: RCHSTA_trib(:,:)       ! restart variables (ensembles, space [reaches]) for tributary
-  TYPE(STRFLX),       allocatable, public :: RCHFLX_trib(:,:)       ! Reach fluxes (ensembles, space [reaches]) for tributaries
-  TYPE(STRSTA),       allocatable, public :: RCHSTA_main(:,:)       ! restart variables (ensembles, space [reaches]) for mainstem
-  TYPE(STRFLX),       allocatable, public :: RCHFLX_main(:,:)       ! Reach fluxes (ensembles, space [reaches]) for mainstem
+  type(STRSTA),       allocatable, public :: RCHSTA(:,:)            ! restart variables (ensembles, space [reaches]) for the entire river network
+  type(STRFLX),       allocatable, public :: RCHFLX(:,:)            ! Reach fluxes (ensembles, space [reaches]) for entire river network
+  type(STRSTA),       allocatable, public :: RCHSTA_trib(:,:)       ! restart variables (ensembles, space [reaches]) for tributary
+  type(STRFLX),       allocatable, public :: RCHFLX_trib(:,:)       ! Reach fluxes (ensembles, space [reaches]) for tributaries
+  type(STRSTA),       allocatable, public :: RCHSTA_main(:,:)       ! restart variables (ensembles, space [reaches]) for mainstem
+  type(STRFLX),       allocatable, public :: RCHFLX_main(:,:)       ! Reach fluxes (ensembles, space [reaches]) for mainstem
 
   ! lakes data structures
-  TYPE(LAKPRP),       allocatable, public :: LPARAM(:)              ! Lake parameters
-  TYPE(LAKTOPO),      allocatable, public :: LKTOPO(:)              ! Lake topology
-  TYPE(LKFLX),        allocatable, public :: LAKFLX(:,:)            ! Lake fluxes
-  TYPE(LKFLX),        allocatable, public :: LAKFLX_local(:,:)      ! Lake fluxes for decomposed domains
+  type(LAKPRP),       allocatable, public :: LPARAM(:)              ! Lake parameters
+  type(LAKTOPO),      allocatable, public :: LKTOPO(:)              ! Lake topology
+  type(LKFLX),        allocatable, public :: LAKFLX(:,:)            ! Lake fluxes
+  type(LKFLX),        allocatable, public :: LAKFLX_local(:,:)      ! Lake fluxes for decomposed domains
 
   ! mapping structures
   type(remap),                     public :: remap_data             ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
