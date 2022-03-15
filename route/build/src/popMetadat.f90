@@ -95,7 +95,9 @@ contains
  meta_stateDims(ixStateDims%tbound  ) = dim_info('tbound',  integerMissing, 2)               ! time bound (alway 2 - start and end)
  meta_stateDims(ixStateDims%ens     ) = dim_info('ens',     integerMissing, integerMissing)  ! runoff ensemble
  meta_stateDims(ixStateDims%wave    ) = dim_info('wave',    integerMissing, MAXQPAR)         ! reach waves vector (max. number is defined as MAXQPAR)
- meta_stateDims(ixStateDims%fdmesh  ) = dim_info('fdmesh',  integerMissing, integerMissing)  ! finite difference computing molecule numbers
+ meta_stateDims(ixStateDims%mol_kw  ) = dim_info('mol_kw',  integerMissing, integerMissing)  ! kw finite difference computing nodes
+ meta_stateDims(ixStateDims%mol_mc  ) = dim_info('mol_mc',  integerMissing, integerMissing)  ! mc finite difference computing nodes
+ meta_stateDims(ixStateDims%mol_dw  ) = dim_info('mol_dw',  integerMissing, integerMissing)  ! dw finite difference computing nodes
  meta_stateDims(ixStateDims%tdh_irf ) = dim_info('tdh_irf', integerMissing, integerMissing)  ! future time steps for irf routing
  meta_stateDims(ixStateDims%tdh     ) = dim_info('tdh',     integerMissing, integerMissing)  ! future time steps for bsasin irf routing
 
@@ -232,20 +234,20 @@ contains
  call meta_kwt(ixKWT%routed   )%init('routed'   , 'routing flag'                                  , '-'   , pio_int,    [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
 
  ! Kinematic Wave
- call meta_kw(ixKW%qsub)%init('q_sub',  'flow at computational moelcule', 'm3/s', pio_double, [ixStateDims%seg,ixStateDims%fdmesh,ixStateDims%ens], .true.)
- call meta_kw(ixKW%vol )%init('volume', 'volume in reach/lake',           'm3',   pio_double, [ixStateDims%seg,ixStateDims%ens] , .true.)
+ call meta_kw(ixKW%qsub)%init('q_sub_kw' , 'flow at computational moelcule', 'm3/s', pio_double, [ixStateDims%seg,ixStateDims%mol_kw,ixStateDims%ens], .true.)
+ call meta_kw(ixKW%vol )%init('volume_kw', 'volume in reach/lake',           'm3',   pio_double, [ixStateDims%seg,ixStateDims%ens] , .true.)
 
  ! Diffusive Wave
- call meta_dw(ixDW%qsub)%init('q_sub',  'flow at computational moelcule', 'm3/s', pio_double, [ixStateDims%seg,ixStateDims%fdmesh,ixStateDims%ens], .true.)
- call meta_dw(ixDW%vol )%init('volume', 'volume in reach/lake',           'm3',   pio_double, [ixStateDims%seg,ixStateDims%ens] , .true.)
+ call meta_dw(ixDW%qsub)%init('q_sub_dw' , 'flow at computational moelcule', 'm3/s', pio_double, [ixStateDims%seg,ixStateDims%mol_dw,ixStateDims%ens], .true.)
+ call meta_dw(ixDW%vol )%init('volume_dw', 'volume in reach/lake',           'm3',   pio_double, [ixStateDims%seg,ixStateDims%ens] , .true.)
 
  ! Muskingum-cunge
- call meta_mc(ixMC%qsub)%init('q_sub',  'flow at computational molecule', 'm3/s', pio_double, [ixStateDims%seg,ixStateDims%fdmesh,ixStateDims%ens], .true.)
- call meta_mc(ixMC%vol )%init('volume', 'volume in reach/lake',           'm3',   pio_double, [ixStateDims%seg,ixStateDims%ens] , .true.)
+ call meta_mc(ixMC%qsub)%init('q_sub_mc' , 'flow at computational molecule', 'm3/s', pio_double, [ixStateDims%seg,ixStateDims%mol_mc,ixStateDims%ens], .true.)
+ call meta_mc(ixMC%vol )%init('volume_mc', 'volume in reach/lake',           'm3',   pio_double, [ixStateDims%seg,ixStateDims%ens] , .true.)
 
  ! Impulse Response Function
  call meta_irf(ixIRF%qfuture)%init('irf_qfuture', 'future flow series',   'm3/s' ,pio_double, [ixStateDims%seg,ixStateDims%tdh_irf,ixStateDims%ens] , .true.)
- call meta_irf(ixIRF%vol    )%init('volume'     , 'volume in reach/lake', 'm3'   ,pio_double, [ixStateDims%seg,ixStateDims%tbound, ixStateDims%ens] , .true.)
+ call meta_irf(ixIRF%vol    )%init('volume_irf' , 'volume in reach/lake', 'm3'   ,pio_double, [ixStateDims%seg,ixStateDims%tbound, ixStateDims%ens] , .true.)
 
  ! Basin Impulse Response Function
  call meta_irf_bas(ixIRFbas%qfuture)%init('qfuture', 'future flow series', 'm3/s' ,pio_double, [ixStateDims%seg,ixStateDims%tdh,ixStateDims%ens], .true.)

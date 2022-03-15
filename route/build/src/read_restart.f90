@@ -16,11 +16,9 @@ CONTAINS
  ! *********************************************************************
  ! public subroutine: read routing state NetCDF file
  ! *********************************************************************
- SUBROUTINE read_state_nc(&
-                          fname,           &   ! Input:  state netcdf name
-                          opt,             &   ! input:  which routing options
+ SUBROUTINE read_state_nc(fname,           &   ! input:  state netcdf name
                           T0, T1,          &   ! output: start and end time [sec]
-                          ierr, message)       ! Output: error control
+                          ierr, message)       ! output: error control
  ! External module
  USE ncio_utils, ONLY: get_nc, &
                        get_nc_dim_len
@@ -32,12 +30,17 @@ CONTAINS
  USE globalData, ONLY: RCHSTA                    ! reach state data structure for the entire domain
  USE globalData, ONLY: ixRch_order
  USE globalData, ONLY: nNodes                    ! number of MPI tasks
+ USE globalData, ONLY: onRoute                   ! logical to indicate which routing method(s) is on
+ USE globalData, ONLY: nRoutes                   ! number of active routing methods
+ USE public_var, ONLY: impulseResponseFunc
+ USE public_var, ONLY: kinematicWaveTracking
+ USE public_var, ONLY: kinematicWave
+ USE public_var, ONLY: muskingumCunge
+ USE public_var, ONLY: diffusiveWave
 
  implicit none
- ! input variables
+ ! argument variables
  character(*), intent(in)      :: fname                ! filename
- integer(i4b), intent(in)      :: opt                  ! routing option 0=all, 1=kwt, 2=irf
- ! output variables
  real(dp),     intent(out)     :: T0                   ! beginning time [sec] of ith time step - lapse time from the beginning of the simulation
  real(dp),     intent(out)     :: T1                   ! ending time [sec] ith time step - lapse time from the beginning of the simulation
  integer(i4b), intent(out)     :: ierr                 ! error code
@@ -48,6 +51,7 @@ CONTAINS
  integer(i4b)                  :: ntbound              ! dimenion sizes
  integer(i4b)                  :: ixDim_common(3)      ! custom dimension ID array
  integer(i4b)                  :: jDim                 ! index loops for dimension
+ integer(i4b)                  :: iSeg                 ! index loops for reach
  integer(i4b)                  :: nNodes_in            ! number of MPI tasks for restart file
  character(len=strLen)         :: cmessage             ! error message of downwind routine
 
@@ -71,6 +75,10 @@ CONTAINS
 
  allocate(RCHFLX(nens,nSeg), RCHSTA(nens,nSeg), stat=ierr)
  if(ierr/=0)then; message=trim(message)//'problem allocating [RCHFLX, RCHSTA]'; return; endif
+
+ do iSeg=1,nSeg
+   allocate(RCHFLX(nens,iSeg)%ROUTE(nRoutes))
+ end do
 
  ! Read variables
  call get_nc(fname,'nNodes',nNodes_in, 1, ierr, cmessage)
@@ -97,27 +105,27 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return;endif
  endif
 
- if (opt==allRoutingMethods .or. opt==impulseResponseFunc) then
+ if (onRoute(impulseResponseFunc)) then
    call read_IRF_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
  end if
 
- if (opt==allRoutingMethods .or. opt==kinematicWaveTracking) then
+ if (onRoute(kinematicWaveTracking)) then
    call read_KWT_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
- endif
+ end if
 
- if (opt==kinematicWave) then
+ if (onRoute(kinematicWave)) then
    call read_KW_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
  end if
 
- if (opt==muskingumCunge) then
+ if (onRoute(muskingumCunge)) then
    call read_MC_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
  end if
 
- if (opt==diffusiveWave) then
+ if (onRoute(diffusiveWave)) then
    call read_DW_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
  end if
@@ -234,6 +242,7 @@ CONTAINS
   SUBROUTINE read_IRF_state(ierr, message1)
 
     USE globalData,  ONLY: meta_irf               ! IRF routing
+    USE globalData,  ONLY: idxIRF
     USE var_lookup,  ONLY: ixIRF, nVarsIRF
     implicit none
     integer(i4b), intent(out)     :: ierr           ! error code
@@ -287,7 +296,7 @@ CONTAINS
         do iVar=1,nVarsIRF
           select case(iVar)
             case(ixIRF%qfuture); RCHFLX(iens,jSeg)%QFUTURE_IRF    = state%var(iVar)%array_3d_dp(iSeg,1:numQF(iens,iSeg),iens)
-            case(ixIRF%vol);     RCHFLX(iens,jSeg)%REACH_VOL(0:1) = state%var(iVar)%array_3d_dp(iSeg,1:2,iens)
+            case(ixIRF%vol);     RCHFLX(iens,jSeg)%ROUTE(idxIRF)%REACH_VOL(0:1) = state%var(iVar)%array_3d_dp(iSeg,1:2,iens)
             case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
           end select
         enddo ! variable loop
@@ -392,12 +401,12 @@ CONTAINS
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
 
     ! get Dimension sizes
-    call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%fdmesh)%dimName), nMolecule, ierr, cmessage1)
+    call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%mol_kw)%dimName), nMolecule%KW_ROUTE, ierr, cmessage1)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
 
     do iVar=1,nVarsKW
       select case(iVar)
-        case(ixKW%qsub); allocate(state%var(iVar)%array_3d_dp(nSeg, nMolecule, nens), stat=ierr)
+        case(ixKW%qsub); allocate(state%var(iVar)%array_3d_dp(nSeg, nMolecule%KW_ROUTE, nens), stat=ierr)
         case(ixKW%vol)
         case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
@@ -406,7 +415,7 @@ CONTAINS
 
     do iVar=1,nVarsKW
       select case(iVar)
-        case(ixKW%qsub); call get_nc(fname,trim(meta_kw(iVar)%varName), state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nMolecule,nens/), ierr, cmessage1)
+        case(ixKW%qsub); call get_nc(fname,trim(meta_kw(iVar)%varName), state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nMolecule%KW_ROUTE,nens/), ierr, cmessage1)
         case(ixKW%vol)
         case default; ierr=20; message1=trim(message1)//'unable to identify KW variable index for nc reading'; return
       end select
@@ -416,10 +425,10 @@ CONTAINS
     do iens=1,nens
       do iSeg=1,nSeg
         jSeg = ixRch_order(iSeg)
-        allocate(RCHSTA(iens,jSeg)%molecule%Q(nMolecule), stat=ierr, errmsg=cmessage1)
+        allocate(RCHSTA(iens,jSeg)%KW_ROUTE%molecule%Q(nMolecule%KW_ROUTE), stat=ierr, errmsg=cmessage1)
         do iVar=1,nVarsKW
           select case(iVar)
-            case(ixKW%qsub); RCHSTA(iens,jSeg)%molecule%Q(1:nMolecule) = state%var(iVar)%array_3d_dp(iSeg,1:nMolecule,iens)
+            case(ixKW%qsub); RCHSTA(iens,jSeg)%KW_ROUTE%molecule%Q(1:nMolecule%KW_ROUTE) = state%var(iVar)%array_3d_dp(iSeg,1:nMolecule%KW_ROUTE,iens)
             case(ixKW%vol)
             case default; ierr=20; message1=trim(message1)//'unable to identify KW routing state variable index'; return
           end select
@@ -449,12 +458,12 @@ CONTAINS
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
 
     ! get Dimension sizes
-    call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%fdmesh)%dimName), nMolecule, ierr, cmessage1)
+    call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%mol_mc)%dimName), nMolecule%MC_ROUTE, ierr, cmessage1)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
 
     do iVar=1,nVarsMC
       select case(iVar)
-        case(ixMC%qsub); allocate(state%var(iVar)%array_3d_dp(nSeg, nMolecule, nens), stat=ierr)
+        case(ixMC%qsub); allocate(state%var(iVar)%array_3d_dp(nSeg, nMolecule%MC_ROUTE, nens), stat=ierr)
         case(ixMC%vol)
         case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
@@ -463,7 +472,7 @@ CONTAINS
 
     do iVar=1,nVarsMC
       select case(iVar)
-        case(ixMC%qsub); call get_nc(fname,trim(meta_mc(iVar)%varName), state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nMolecule,nens/), ierr, cmessage1)
+        case(ixMC%qsub); call get_nc(fname,trim(meta_mc(iVar)%varName), state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nMolecule%MC_ROUTE,nens/), ierr, cmessage1)
         case(ixMC%vol)
         case default; ierr=20; message1=trim(message1)//'unable to identify MC variable index for nc reading'; return
       end select
@@ -473,10 +482,10 @@ CONTAINS
     do iens=1,nens
       do iSeg=1,nSeg
         jSeg = ixRch_order(iSeg)
-        allocate(RCHSTA(iens,jSeg)%molecule%Q(nMolecule), stat=ierr, errmsg=cmessage1)
+        allocate(RCHSTA(iens,jSeg)%MC_ROUTE%molecule%Q(nMolecule%MC_ROUTE), stat=ierr, errmsg=cmessage1)
         do iVar=1,nVarsMC
           select case(iVar)
-            case(ixMC%qsub); RCHSTA(iens,jSeg)%molecule%Q(:) = state%var(iVar)%array_3d_dp(iSeg,1:nMolecule,iens)
+            case(ixMC%qsub); RCHSTA(iens,jSeg)%MC_ROUTE%molecule%Q(1:nMolecule%MC_ROUTE) = state%var(iVar)%array_3d_dp(iSeg,1:nMolecule%MC_ROUTE,iens)
             case(ixMC%vol)
             case default; ierr=20; message1=trim(message1)//'unable to identify MC routing state variable index'; return
           end select
@@ -506,12 +515,12 @@ CONTAINS
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
 
     ! get Dimension sizes
-    call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%fdmesh)%dimName), nMolecule, ierr, cmessage1)
+    call get_nc_dim_len(fname, trim(meta_stateDims(ixStateDims%mol_dw)%dimName), nMolecule%DW_ROUTE, ierr, cmessage1)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage1); return; endif
 
     do iVar=1,nVarsDW
       select case(iVar)
-        case(ixDW%qsub); allocate(state%var(iVar)%array_3d_dp(nSeg, nMolecule, nens), stat=ierr)
+        case(ixDW%qsub); allocate(state%var(iVar)%array_3d_dp(nSeg, nMolecule%DW_ROUTE, nens), stat=ierr)
         case(ixDW%vol)
         case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
@@ -520,7 +529,7 @@ CONTAINS
 
     do iVar=1,nVarsDW
       select case(iVar)
-        case(ixDW%qsub); call get_nc(fname,trim(meta_dw(iVar)%varName), state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nMolecule,nens/), ierr, cmessage1)
+        case(ixDW%qsub); call get_nc(fname,trim(meta_dw(iVar)%varName), state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nMolecule%DW_ROUTE,nens/), ierr, cmessage1)
         case(ixDW%vol)
         case default; ierr=20; message1=trim(message1)//'unable to identify DW variable index for nc reading'; return
       end select
@@ -530,10 +539,10 @@ CONTAINS
     do iens=1,nens
       do iSeg=1,nSeg
         jSeg = ixRch_order(iSeg)
-        allocate(RCHSTA(iens,jSeg)%molecule%Q(nMolecule), stat=ierr, errmsg=cmessage1)
+        allocate(RCHSTA(iens,jSeg)%DW_ROUTE%molecule%Q(nMolecule%DW_ROUTE), stat=ierr, errmsg=cmessage1)
         do iVar=1,nVarsDW
           select case(iVar)
-            case(ixDW%qsub); RCHSTA(iens,jSeg)%molecule%Q(:) = state%var(iVar)%array_3d_dp(iSeg,1:nMolecule,iens)
+            case(ixDW%qsub); RCHSTA(iens,jSeg)%DW_ROUTE%molecule%Q(1:nMolecule%DW_ROUTE) = state%var(iVar)%array_3d_dp(iSeg,1:nMolecule%DW_ROUTE,iens)
             case(ixDW%vol)
             case default; ierr=20; message1=trim(message1)//'unable to identify DW routing state variable index'; return
           end select
