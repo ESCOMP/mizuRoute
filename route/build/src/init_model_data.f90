@@ -152,6 +152,7 @@ CONTAINS
   USE globalData,  ONLY: RPARAM_main            !
   USE globalData,  ONLY: nContribHRU            ! number of HRUs that are connected to any reaches
   USE globalData,  ONLY: nEns                   ! number of ensembles
+  USE globalData,  ONLY: nRoutes                ! number of active routing methods
   USE globalData,  ONLY: basinID                ! HRU id vector
   USE globalData,  ONLY: reachID                ! reach ID vector
   ! external subroutines
@@ -243,6 +244,10 @@ CONTAINS
      allocate(RCHFLX_main(nEns, nRch_mainstem), RCHSTA_main(nEns, nRch_mainstem), stat=ierr, errmsg=cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+     do iRch = 1, nRch_mainstem
+       allocate(RCHFLX_main(nEns,iRch)%ROUTE(nRoutes))
+     end do
+
      call put_data_struct(nRch_mainstem, structSEG, structNTOPO, & ! input
                           RPARAM_main, NETOPO_main,              & ! output
                           ierr, cmessage)
@@ -311,22 +316,28 @@ CONTAINS
   USE read_restart,      ONLY: read_state_nc     ! read netcdf state output file
   USE mpi_process,       ONLY: mpi_restart
   ! shared data
-  USE public_var, ONLY: dt                ! simulation time step (seconds)
-  USE public_var, ONLY: routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-  USE public_var, ONLY: restart_dir       ! directory containing output data
-  USE public_var, ONLY: fname_state_in    ! name of state input file
-  USE public_var, ONLY: kinematicWave     !
-  USE public_var, ONLY: muskingumCunge    !
-  USE public_var, ONLY: diffusiveWave     !
-  USE globalData, ONLY: masterproc        ! root proc logical
-  USE globalData, ONLY: nRch_mainstem     ! number of mainstem reaches
-  USE globalData, ONLY: rch_per_proc      ! number of tributary reaches
-  USE globalData, ONLY: RCHFLX_main       ! reach flux structure
-  USE globalData, ONLY: RCHFLX_trib       ! reach flux structure
-  USE globalData, ONLY: RCHSTA_main       ! reach flux structure
-  USE globalData, ONLY: RCHSTA_trib       ! reach flux structure
-  USE globalData, ONLY: TSEC              ! begining/ending of simulation time step [sec]
-  USE globalData, ONLY: nMolecule         !
+  USE public_var, ONLY: dt                     ! simulation time step (seconds)
+  USE public_var, ONLY: restart_dir            ! directory containing output data
+  USE public_var, ONLY: fname_state_in         ! name of state input file
+  USE public_var, ONLY: impulseResponseFunc    ! IRF routing ID = 1
+  USE public_var, ONLY: kinematicWaveTracking  ! KWT routing ID = 2
+  USE public_var, ONLY: kinematicWave          ! KW routing ID = 3
+  USE public_var, ONLY: muskingumCunge         ! MC routing ID = 4
+  USE public_var, ONLY: diffusiveWave          ! DW routing ID = 5
+  USE globalData, ONLY: idxIRF, idxKWT, &
+                        idxKW, idxMC, idxDW
+  USE globalData, ONLY: nRoutes                ! number of available routing methods
+  USE globalData, ONLY: routeMethods           ! ID of active routing method
+  USE globalData, ONLY: onRoute                ! logical array for active routing method
+  USE globalData, ONLY: masterproc             ! root proc logical
+  USE globalData, ONLY: nRch_mainstem          ! number of mainstem reaches
+  USE globalData, ONLY: rch_per_proc           ! number of tributary reaches
+  USE globalData, ONLY: RCHFLX_main            ! reach flux structure
+  USE globalData, ONLY: RCHFLX_trib            ! reach flux structure
+  USE globalData, ONLY: RCHSTA_main            ! reach flux structure
+  USE globalData, ONLY: RCHSTA_trib            ! reach flux structure
+  USE globalData, ONLY: nMolecule              ! computational molecule
+  USE globalData, ONLY: TSEC                   ! begining/ending of simulation time step [sec]
 
   implicit none
   ! input:
@@ -339,17 +350,22 @@ CONTAINS
   ! local variable
   real(dp)                         :: T0,T1            ! begining/ending of simulation time step [sec]
   integer(i4b)                     :: iens             ! ensemble index (currently only 1)
-  integer(i4b)                     :: ix               ! loop index
+  integer(i4b)                     :: ix, iRoute       ! loop indices
   character(len=strLen)            :: cmessage         ! error message of downwind routine
 
   ierr=0; message='init_state_data/'
 
   iens = 1_i4b
-  if (routOpt==kinematicWave .or. routOpt==muskingumCunge) then
-    nMolecule = 2
-  else if (routOpt==diffusiveWave) then
-    nMolecule = 5
-  end if
+
+  do iRoute = 1, nRoutes
+    if (routeMethods(iRoute)==kinematicWave) then
+      nMolecule%KW_ROUTE = 2
+    else if (routeMethods(iRoute)==muskingumCunge) then
+      nMolecule%MC_ROUTE = 2
+    else if (routeMethods(iRoute)==diffusiveWave) then
+      nMolecule%DW_ROUTE = 5
+    end if
+  end do
 
   if (trim(fname_state_in)==charMissing .or. lower(trim(fname_state_in))=='none' .or. lower(trim(fname_state_in))=='coldstart') then
     ! Cold start ....... initialize flux structures
@@ -358,15 +374,43 @@ CONTAINS
         RCHFLX_main(:,:)%BASIN_QI     = 0._dp
         RCHFLX_main(:,:)%BASIN_QR(0)  = 0._dp
         RCHFLX_main(:,:)%BASIN_QR(1)  = 0._dp
-        RCHFLX_main(:,:)%REACH_Q      = 0._dp    ! Initializing the flux which is used in lake route
-        RCHFLX_main(:,:)%REACH_VOL(0) = 0._dp    ! initializing the storage of lake volume for main channel (root node); later may be read from an input file
-        RCHFLX_main(:,:)%REACH_VOL(1) = 0._dp    ! initializing the storage of lake volume for main channel (root node); later may be read from an input file
-
-        if (routOpt==kinematicWave .or. routOpt==muskingumCunge .or. routOpt==diffusiveWave) then
+        if (onRoute(impulseResponseFunc)) then
+          do ix = 1, size(RCHFLX_main(1,:))
+            RCHFLX_main(iens,ix)%ROUTE(idxIRF)%REACH_VOL(0:1) = 0._dp
+            RCHFLX_main(iens,ix)%ROUTE(idxIRF)%REACH_Q        = 0._dp
+          end do
+        end if
+        if (onRoute(kinematicWaveTracking)) then
+          do ix = 1, size(RCHFLX_main(1,:))
+            RCHFLX_main(iens,ix)%ROUTE(idxKWT)%REACH_VOL(0:1) = 0._dp
+            RCHFLX_main(iens,ix)%ROUTE(idxKWT)%REACH_Q        = 0._dp
+          end do
+        end if
+        if (onRoute(kinematicWave)) then
           do ix = 1, size(RCHSTA_main(iens,:))
-            allocate(RCHSTA_main(iens,ix)%molecule%Q(nMolecule), stat=ierr, errmsg=cmessage)
-            if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA]'; return; endif
-            RCHSTA_main(iens,ix)%molecule%Q(:) = 0._dp
+            RCHFLX_main(iens,ix)%ROUTE(idxKW)%REACH_VOL(0:1) = 0._dp
+            RCHFLX_main(iens,ix)%ROUTE(idxKW)%REACH_Q        = 0._dp
+            allocate(RCHSTA_main(iens,ix)%KW_ROUTE%molecule%Q(nMolecule%KW_ROUTE), stat=ierr, errmsg=cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_main%KW_ROUTE%molecule%Q]'; return; endif
+            RCHSTA_main(iens,ix)%KW_ROUTE%molecule%Q(:) = 0._dp
+          end do
+        end if
+        if (onRoute(muskingumCunge)) then
+          do ix = 1, size(RCHSTA_main(iens,:))
+            RCHFLX_main(iens,ix)%ROUTE(idxMC)%REACH_VOL(0:1) = 0._dp
+            RCHFLX_main(iens,ix)%ROUTE(idxMC)%REACH_Q        = 0._dp
+            allocate(RCHSTA_main(iens,ix)%MC_ROUTE%molecule%Q(nMolecule%MC_ROUTE), stat=ierr, errmsg=cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_main%MC_ROUTE%molecule%Q]'; return; endif
+            RCHSTA_main(iens,ix)%MC_ROUTE%molecule%Q(:) = 0._dp
+          end do
+        end if
+        if (onRoute(diffusiveWave)) then
+          do ix = 1, size(RCHSTA_main(iens,:))
+            RCHFLX_main(iens,ix)%ROUTE(idxDW)%REACH_VOL(0:1) = 0._dp
+            RCHFLX_main(iens,ix)%ROUTE(idxDW)%REACH_Q        = 0._dp
+            allocate(RCHSTA_main(iens,ix)%DW_ROUTE%molecule%Q(nMolecule%DW_ROUTE), stat=ierr, errmsg=cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_main%DW_ROUTE%molecule%Q]'; return; endif
+            RCHSTA_main(iens,ix)%DW_ROUTE%molecule%Q(:) = 0._dp
           end do
         end if
       end if
@@ -376,15 +420,43 @@ CONTAINS
       RCHFLX_trib(:,:)%BASIN_QI     = 0._dp
       RCHFLX_trib(:,:)%BASIN_QR(0)  = 0._dp
       RCHFLX_trib(:,:)%BASIN_QR(1)  = 0._dp
-      RCHFLX_trib(:,:)%REACH_Q      = 0._dp      ! Initializing the flux which is used in lake route
-      RCHFLX_trib(:,:)%REACH_VOL(0) = 0._dp      ! initializing the storage of lake volume for tributaries; layer may be read from an input file
-      RCHFLX_trib(:,:)%REACH_VOL(1) = 0._dp      ! initializing the storage of lake volume for tributaries; later may be read from an input file
-
-      if (routOpt==kinematicWave .or. routOpt==muskingumCunge .or. routOpt==diffusiveWave) then
+      if (onRoute(impulseResponseFunc)) then
+        do ix = 1, size(RCHFLX_trib(1,:))
+          RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%REACH_VOL(0:1) = 0._dp
+          RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%REACH_Q        = 0._dp
+        end do
+      end if
+      if (onRoute(kinematicWaveTracking)) then
+        do ix = 1, size(RCHFLX_trib(1,:))
+          RCHFLX_trib(iens,ix)%ROUTE(idxKWT)%REACH_VOL(0:1) = 0._dp
+          RCHFLX_trib(iens,ix)%ROUTE(idxKWT)%REACH_Q        = 0._dp
+        end do
+      end if
+      if (onRoute(kinematicWave)) then
         do ix = 1, size(RCHSTA_trib(iens,:))
-          allocate(RCHSTA_trib(iens,ix)%molecule%Q(nMolecule), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA]'; return; endif
-          RCHSTA_trib(iens,ix)%molecule%Q(:) = 0._dp
+          RCHFLX_trib(iens,ix)%ROUTE(idxKW)%REACH_VOL(0:1) = 0._dp
+          RCHFLX_trib(iens,ix)%ROUTE(idxKW)%REACH_Q        = 0._dp
+          allocate(RCHSTA_trib(iens,ix)%KW_ROUTE%molecule%Q(nMolecule%KW_ROUTE), stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%KW_ROUTE%molecule%Q]'; return; endif
+          RCHSTA_trib(iens,ix)%KW_ROUTE%molecule%Q(:) = 0._dp
+        end do
+      end if
+      if (onRoute(muskingumCunge)) then
+        do ix = 1, size(RCHSTA_trib(iens,:))
+          RCHFLX_trib(iens,ix)%ROUTE(idxMC)%REACH_VOL(0:1) = 0._dp
+          RCHFLX_trib(iens,ix)%ROUTE(idxMC)%REACH_Q        = 0._dp
+          allocate(RCHSTA_trib(iens,ix)%MC_ROUTE%molecule%Q(nMolecule%MC_ROUTE), stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%MC_ROUTE%molecule%Q]'; return; endif
+          RCHSTA_trib(iens,ix)%MC_ROUTE%molecule%Q(:) = 0._dp
+        end do
+      end if
+      if (onRoute(diffusiveWave)) then
+        do ix = 1, size(RCHSTA_trib(iens,:))
+          RCHFLX_trib(iens,ix)%ROUTE(idxDW)%REACH_VOL(0:1) = 0._dp
+          RCHFLX_trib(iens,ix)%ROUTE(idxDW)%REACH_Q        = 0._dp
+          allocate(RCHSTA_trib(iens,ix)%DW_ROUTE%molecule%Q(nMolecule%DW_ROUTE), stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%DW_ROUTE%molecule%Q]'; return; endif
+          RCHSTA_trib(iens,ix)%DW_ROUTE%molecule%Q(:) = 0._dp
         end do
       end if
     end if
@@ -394,7 +466,7 @@ CONTAINS
   else
     ! start with restart condition
     if (masterproc) then
-      call read_state_nc(trim(restart_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
+      call read_state_nc(trim(restart_dir)//trim(fname_state_in), T0, T1, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! time bound [sec] is at previous time step, so need to add dt for curent time step

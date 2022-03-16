@@ -38,7 +38,9 @@ MODULE var_lookup
   integer(i4b)     :: tbound       = integerMissing   ! 2 elelment time bound vector
   integer(i4b)     :: ens          = integerMissing   ! runoff ensemble
   integer(i4b)     :: wave         = integerMissing   ! waves in a channel
-  integer(i4b)     :: fdmesh       = integerMissing   ! finite difference computational molecule
+  integer(i4b)     :: mol_kw       = integerMissing   ! kw finite difference computational molecule
+  integer(i4b)     :: mol_mc       = integerMissing   ! mc finite difference computational molecule
+  integer(i4b)     :: mol_dw       = integerMissing   ! kw finite difference computational molecule
   integer(i4b)     :: tdh_irf      = integerMissing   ! irf routed future channel flow in a segment
   integer(i4b)     :: tdh          = integerMissing   ! uh routed future overland flow
  endtype iLook_stateDims
@@ -242,7 +244,7 @@ MODULE var_lookup
  ! ***********************************************************************************************************
  type(iLook_struct)   ,public,parameter :: ixStruct    = iLook_struct   (1,2,3,4,5)
  type(iLook_dims)     ,public,parameter :: ixDims      = iLook_dims     (1,2,3,4,5,6,7)
- type(iLook_stateDims),public,parameter :: ixStateDims = iLook_stateDims(1,2,3,4,5,6,7,8)
+ type(iLook_stateDims),public,parameter :: ixStateDims = iLook_stateDims(1,2,3,4,5,6,7,8,9,10)
  type(iLook_qDims)    ,public,parameter :: ixqDims     = iLook_qDims    (1,2,3,4)
  type(iLook_HRU)      ,public,parameter :: ixHRU       = iLook_HRU      (1)
  type(iLook_HRU2SEG)  ,public,parameter :: ixHRU2SEG   = iLook_HRU2SEG  (1,2,3,4)

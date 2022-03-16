@@ -5,6 +5,10 @@ USE mpi
 ! general public variable
 USE public_var                   ! iulog, integerMissing, realMissing, root, calendar, time_units
 USE globalData, ONLY: masterproc
+USE globalData, ONLY: nRoutes              ! number of active routing method
+USE globalData, ONLY: onRoute              ! logical to indicate which routing method(s) is on
+USE globalData, ONLY: idxIRF, idxKWT, &
+                      idxKW, idxMC, idxDW
 
 ! numeric definition
 USE nrtype
@@ -553,6 +557,9 @@ contains
     ! -----------------------------------------------------------------------------
 
     allocate(RCHFLX_trib(nEns,rch_per_proc(pid)), RCHSTA_trib(nEns,rch_per_proc(pid)), stat=ierr)
+    do ix = 1,rch_per_proc(pid)
+      allocate(RCHFLX_trib(nEns,ix)%ROUTE(nRoutes))
+    end do
 
     call alloc_struct(hru_per_proc(pid),     & ! input: number of HRUs
                       rch_per_proc(pid),     & ! input: number of stream segments
@@ -745,6 +752,10 @@ contains
 
      allocate(RCHFLX_main(nEns, nRch_mainstem+nTribOutlet), RCHSTA_main(nEns, nRch_mainstem+nTribOutlet), stat=ierr, errmsg=cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     do ix = 1, nRch_mainstem+nTribOutlet
+       allocate(RCHFLX_main(nEns,ix)%ROUTE(nRoutes))
+     end do
 
      call alloc_struct(nHRU_mainstem,              & ! input: number of HRUs
                        nRch_mainstem+nTribOutlet,  & ! input: number of stream segments
@@ -1001,6 +1012,7 @@ contains
   USE globalData, ONLY: RCHFLX           ! entire reach flux structure
   USE globalData, ONLY: RCHSTA           !
   USE globalData, ONLY: TSEC             ! beginning/ending of simulation time step [sec]
+  USE globalData, ONLY: idxIRF           ! index of IRF method
 
   implicit none
 
@@ -1026,16 +1038,20 @@ contains
 
   call MPI_BCAST(TSEC, nTbound, MPI_DOUBLE_PRECISION, root, comm, ierr)
 
-  allocate(flux_global(nRch), vol_global(nRch,nTbound), vol_global_tmp(nRch))
-  allocate(vol_local(rch_per_proc(pid)), flux_local(rch_per_proc(pid)))
+  allocate(flux_global(nRch))
+  allocate(flux_local(rch_per_proc(pid)))
+  if (onRoute(impulseResponseFunc)) then
+    allocate(vol_global(nRch,nTbound), vol_global_tmp(nRch))
+    allocate(vol_local(rch_per_proc(pid)))
+  end if
 
   if (masterproc) then
-
     do iSeg = 1, nRch
       flux_global(iSeg) = RCHFLX(iens,iSeg)%BASIN_QR(1)
-      vol_global(iSeg,1:2) = RCHFLX(iens,iSeg)%REACH_VOL(0:1)
+      if (onRoute(impulseResponseFunc)) then
+        vol_global(iSeg,1:2) = RCHFLX(iens,iSeg)%ROUTE(idxIRF)%REACH_VOL(0:1)
+      end if
     enddo
-
     ! Distribute global flux/state (RCHFLX & RCHSTA) to mainstem (RCHFLX_main & RCHSTA_main)
     do iSeg = 1, nRch_mainstem
       jSeg = ixRch_order(iSeg)
@@ -1047,12 +1063,11 @@ contains
       RCHFLX_main(iens, iSeg+nRch_mainstem) = RCHFLX(iens, jSeg)
       RCHSTA_main(iens, iSeg+nRch_mainstem) = RCHSTA(iens, jSeg)
     end do
-
   else
-
     flux_global(:)  = realMissing
-    vol_global(:,:) = realMissing
-
+    if (onRoute(impulseResponseFunc)) then
+      vol_global(:,:) = realMissing
+    end if
   endif
 
   ! Distribute global flux/state (RCHFLX & RCHSTA) to tributary (RCHFLX_trib & RCHSTA_trib)
@@ -1085,8 +1100,7 @@ contains
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
-  ! KWT state communication
-  if (routOpt==allRoutingMethods .or. routOpt==kinematicWaveTracking) then
+  if (onRoute(kinematicWaveTracking))then
     call mpi_comm_kwt_state(pid, nNodes, comm,                        &
                             iens,                                     &
                             rch_per_proc(root:nNodes-1),              &
@@ -1097,24 +1111,51 @@ contains
                             scatter,                                  & ! communication type
                             ierr, message)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
+  end if
 
-  ! KW, MC, and DW state communication
-  if (routOpt==kinematicWave .or. routOpt==muskingumCunge .or. routOpt==diffusiveWave) then
-    call mpi_comm_numeric_state(pid, nNodes, comm,                        &
-                                iens,                                     &
-                                rch_per_proc(root:nNodes-1),              &
-                                RCHSTA,                                   &
-                                RCHSTA_trib,                              &
-                                ixRch_order(rch_per_proc(root-1)+1:nRch), &
-                                arth(1,1,rch_per_proc(pid)),              &
-                                scatter,                                  & ! communication type
-                                ierr, message)
+  if (onRoute(kinematicWave)) then
+    call mpi_comm_molecule_state(pid, nNodes, comm,                        &
+                                 iens,                                     &
+                                 rch_per_proc(root:nNodes-1),              &
+                                 RCHSTA,                                   &
+                                 RCHSTA_trib,                              &
+                                 ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                                 arth(1,1,rch_per_proc(pid)),              &
+                                 kinematicWave,                            & ! routing method
+                                 scatter,                                  & ! communication type
+                                 ierr, message)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
+  end if
 
-  ! IRF state communication
-  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+  if (onRoute(muskingumCunge)) then
+    call mpi_comm_molecule_state(pid, nNodes, comm,                        &
+                                 iens,                                     &
+                                 rch_per_proc(root:nNodes-1),              &
+                                 RCHSTA,                                   &
+                                 RCHSTA_trib,                              &
+                                 ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                                 arth(1,1,rch_per_proc(pid)),              &
+                                 muskingumCunge,                           & ! routing method
+                                 scatter,                                  & ! communication type
+                                 ierr, message)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  if (onRoute(diffusiveWave)) then
+    call mpi_comm_molecule_state(pid, nNodes, comm,                        &
+                                 iens,                                     &
+                                 rch_per_proc(root:nNodes-1),              &
+                                 RCHSTA,                                   &
+                                 RCHSTA_trib,                              &
+                                 ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                                 arth(1,1,rch_per_proc(pid)),              &
+                                 diffusiveWave,                            & ! routing method
+                                 scatter,                                  & ! communication type
+                                 ierr, message)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  if (onRoute(impulseResponseFunc))then
     call mpi_comm_irf_state(pid, nNodes, comm,                        &
                             iens,                                     &
                             rch_per_proc(root:nNodes-1),              &
@@ -1140,7 +1181,7 @@ contains
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       do iSeg = 1, rch_per_proc(pid)
-        RCHFLX_trib(iens,iSeg)%REACH_VOL(iTbound-1) = vol_local(iSeg)
+        RCHFLX_trib(iens,iSeg)%ROUTE(idxIRF)%REACH_VOL(iTbound-1) = vol_local(iSeg)
       enddo
     end do
   endif
@@ -1189,6 +1230,7 @@ contains
   USE globalData, ONLY: tribOutlet_per_proc ! number of tributary outlets per proc (array size = nNodes)
   USE globalData, ONLY: global_ix_main      ! reach index at tributary reach outlets to mainstem (size = sum of tributary outlets in all the procs)
   USE globalData, ONLY: local_ix_comm       ! local reach index at tributary reach outlets to mainstem for each proc (size = sum of tributary outlets in proc)
+  USE globalData, ONLY: onRoute             ! logical to indicate which routing method(s) is on
   USE public_var, ONLY: is_lake_sim         ! logical whether or not lake should be simulated
   USE public_var, ONLY: is_flux_wm          ! logical whether or not fluxes should be passed
   USE public_var, ONLY: is_vol_wm           ! logical whether or not target volume should be passed
@@ -1239,16 +1281,12 @@ contains
   !  - basinPrecip_trib (all procs)
   ! --------------------------------
   if (doesScatterRunoff) then
-
     call t_startf ('route/scatter-runoff')
     call scatter_runoff(nNodes, comm, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     call t_stopf ('route/scatter-runoff')
-
   else
-
     if (nNodes==1) then
-
       if (.not.allocated(basinRunoff_main)) then
         ierr=10; message=trim(message)//'master proc: mainstem runoff array is not allocated'; return
       end if
@@ -1260,11 +1298,8 @@ contains
           ierr=10; message=trim(message)//'master proc: mainstem precipitation array is not allocated'; return
         end if
       end if
-
     else
-
       if (masterproc) then
-
         write(iulog,*) 'NOTE: HRU Runoff is already decomposed into mainstems and tributaries. No need for scatter_runoff'
 
         if (nHRU_mainstem > 0 .and. .not.allocated(basinRunoff_main)) then
@@ -1273,7 +1308,6 @@ contains
         if (.not.allocated(basinRunoff_trib)) then
           ierr=10; message=trim(message)//'master proc: tributary runoff array is not allocated'; return
         end if
-
         if (is_lake_sim) then
           if (nHRU_mainstem > 0 .and. .not.allocated(basinEvapo_main)) then
             ierr=10; message=trim(message)//'mainstem evaporation array is not allocated/populated'; return
@@ -1288,9 +1322,7 @@ contains
             ierr=10; message=trim(message)//'mainstem precipitation array is not allocated/populated'; return
           end if
         end if
-
       else
-
         if(.not.allocated(basinRunoff_trib)) then
           ierr=10; message=trim(message)//'tributary runoff array is not allocated/populated'; return
         end if
@@ -1306,7 +1338,6 @@ contains
     end if
   end if
 
-
   ! --------------------------------
   ! distribute (scatter) water managemnt flux and
   ! volume in the
@@ -1317,18 +1348,13 @@ contains
   ! --------------------------------
 
   if (is_flux_wm.or.(is_vol_wm.and.is_lake_sim)) then
-
     if (doesScatterRunoff) then
-
       call t_startf ('route/scatter-wm')
       call scatter_wm(nNodes, comm, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       call t_stopf ('route/scatter-wm')
-
     else
-
       if (nNodes==1) then
-
         if (is_flux_wm) then
           if (.not.allocated(flux_wm_main)) then
             ierr=10; message=trim(message)//'master proc: mainstem water management flux array is not allocated'; return
@@ -1339,13 +1365,9 @@ contains
             ierr=10; message=trim(message)//'master proc: mainstem target volume array (for lakes) is not allocated'; return
           end if
         end if
-
       else
-
         if (masterproc) then
-
           write(iulog,*) 'NOTE: reach flux and target volume are already decomposed into mainstems and tributaries. No need for scatter_wm'
-
           if (is_flux_wm) then
             if (nRch_mainstem > 0 .and. .not.allocated(flux_wm_main)) then
               ierr=10; message=trim(message)//'mainstem water management flux array is not allocated/populated'; return
@@ -1354,7 +1376,6 @@ contains
               ierr=10; message=trim(message)//'master proc: tributary water management flux array is not allocated'; return
             end if
           end if
-
           if (is_vol_wm.and.is_lake_sim) then
             if (nRch_mainstem > 0 .and. .not.allocated(vol_wm_main)) then
               ierr=10; message=trim(message)//'mainstem target volume array (for lakes) is not allocated/populated'; return
@@ -1363,16 +1384,12 @@ contains
               ierr=10; message=trim(message)//'master proc: tributary target volume array (for lakes) is not allocated'; return
             end if
           end if
-
-
         else
-
           if (is_flux_wm) then
             if(.not.allocated(flux_wm_trib)) then
               ierr=10; message=trim(message)//'tributary water management fluxes array is not allocated/populated'; return
             end if
           end if
-
           if (is_vol_wm.and.is_lake_sim) then
             if(.not.allocated(vol_wm_trib)) then
               ierr=10; message=trim(message)//'tributary target volume array (for lakes) is not allocated/populated'; return
@@ -1383,91 +1400,98 @@ contains
     end if
   end if
 
-
   ! --------------------------------
   ! Perform tributary routing (for all procs)
   ! --------------------------------
   if (nNodes>1) then
 
-  call t_startf ('route/tributary-route')
+    call t_startf ('route/tributary-route')
 
-  !Idenfity number of tributary reaches for each procs
-  nRch_trib = rch_per_proc(pid)
-  allocate(ixRchProcessed(nRch_trib), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating array for [ixRchProcessed]'; return; endif
+    !Idenfity number of tributary reaches for each procs
+    nRch_trib = rch_per_proc(pid)
+    allocate(ixRchProcessed(nRch_trib), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating array for [ixRchProcessed]'; return; endif
 
-  ! Define processing reach indices in terms of tributary data sets
-  ixRchProcessed = arth(1,1,nRch_trib)
+    ! Define processing reach indices in terms of tributary data sets
+    ixRchProcessed = arth(1,1,nRch_trib)
 
-  ! Perform routing
-  call main_route(iens,              &  ! input: ensemble index
-                  basinRunoff_trib,  &  ! input: basin (i.e.,HRU) runoff (m/s)
-                  basinEvapo_trib,   &  ! input: basin (i.e. HRU) Evapo  (m/s)
-                  basinPrecip_trib,  &  ! input: basin (i.e. HRU) Precip (m/s)
-                  flux_wm_trib,      &  ! reach (i.e.,reach) flux (m3/s)
-                  vol_wm_trib,       &  ! reach (i.e.,reach) target volume for lakes (m3)
-                  ixRchProcessed,    &  ! input: indices of reach to be routed
-                  river_basin_trib,  &  ! input: OMP basin decomposition
-                  NETOPO_trib,       &  ! input: reach topology data structure
-                  RPARAM_trib,       &  ! input: reach parameter data structure
-                  ixPrint(2),        &  ! input: reach index to be checked by on-screen pringing
-                  RCHFLX_trib,       &  ! inout: reach flux data structure
-                  RCHSTA_trib,       &  ! inout: reach state data structure
-                  ierr, message)        ! output: error control
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  call t_stopf ('route/tributary-route')
-
-  ! make sure that routing at all the procs finished
-  call shr_mpi_barrier(comm, message)
-
-  if (nRch_mainstem==0) return   ! if there are no mainstem reaches, finished
-
-  ! --------------------------------
-  ! Collect all the tributary flows
-  ! --------------------------------
-  call t_startf('route/gather-state-flux')
-
-  ! flux communication
-  call mpi_comm_flux(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
-                     iens,                & ! input: ensemble index (not used now)
-                     tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
-                     RCHFLX_main,         & ! input:
-                     RCHFLX_trib,         & ! input:
-                     global_ix_main,      & ! input:
-                     local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
-                     gather,              & ! input: communication type
-                     ierr, message)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  ! KWT state communication
-  if (routOpt==allRoutingMethods .or. routOpt==kinematicWaveTracking) then
-
-    call mpi_comm_kwt_state(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
-                            iens,                & ! input:
-                            tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
-                            RCHSTA_main,         & ! input:
-                            RCHSTA_trib,         & ! input:
-                            global_ix_main,      & ! input:
-                            local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
-                            gather,              & ! communication type
-                            ierr, message)
+    ! Perform routing
+    call main_route(iens,              &  ! input: ensemble index
+                    basinRunoff_trib,  &  ! input: basin (i.e.,HRU) runoff (m/s)
+                    basinEvapo_trib,   &  ! input: basin (i.e. HRU) Evapo  (m/s)
+                    basinPrecip_trib,  &  ! input: basin (i.e. HRU) Precip (m/s)
+                    flux_wm_trib,      &  ! reach (i.e.,reach) flux (m3/s)
+                    vol_wm_trib,       &  ! reach (i.e.,reach) target volume for lakes (m3)
+                    ixRchProcessed,    &  ! input: indices of reach to be routed
+                    river_basin_trib,  &  ! input: OMP basin decomposition
+                    NETOPO_trib,       &  ! input: reach topology data structure
+                    RPARAM_trib,       &  ! input: reach parameter data structure
+                    ixPrint(2),        &  ! input: reach index to be checked by on-screen pringing
+                    RCHFLX_trib,       &  ! inout: reach flux data structure
+                    RCHSTA_trib,       &  ! inout: reach state data structure
+                    ierr, message)        ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  endif
+    call t_stopf ('route/tributary-route')
 
-  call t_stopf('route/gather-state-flux')
+    ! make sure that routing at all the procs finished
+    call shr_mpi_barrier(comm, message)
 
-  ! make sure that routing at all the procs finished
-  call shr_mpi_barrier(comm, message)
+    if (nRch_mainstem==0) return   ! if there are no mainstem reaches, finished
 
+    ! --------------------------------
+    ! Collect all the tributary flows
+    ! --------------------------------
+    call t_startf('route/gather-state-flux')
+
+    ! non river flux communication
+    call mpi_comm_flux(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
+                       iens,                & ! input: ensemble index (not used now)
+                       tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
+                       RCHFLX_main,         & ! input:
+                       RCHFLX_trib,         & ! input:
+                       global_ix_main,      & ! input:
+                       local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
+                       gather,              & ! input: communication type
+                       ierr, message)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! non river flux communication
+    call mpi_comm_river_flux(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
+                             iens,                & ! input: ensemble index (not used now)
+                             tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
+                             RCHFLX_main,         & ! input:
+                             RCHFLX_trib,         & ! input:
+                             global_ix_main,      & ! input:
+                             local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
+                             gather,              & ! input: communication type
+                             ierr, message)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! KWT state communication
+    if (onRoute(kinematicWaveTracking)) then
+      call mpi_comm_kwt_state(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
+                              iens,                & ! input:
+                              tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
+                              RCHSTA_main,         & ! input:
+                              RCHSTA_trib,         & ! input:
+                              global_ix_main,      & ! input:
+                              local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
+                              gather,              & ! communication type
+                              ierr, message)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+    call t_stopf('route/gather-state-flux')
+
+    ! make sure that routing at all the procs finished
+    call shr_mpi_barrier(comm, message)
   end if ! (nNodes>1)
 
   ! --------------------------------
   ! perform mainstem routing
   ! --------------------------------
   if (masterproc) then
-
     call t_startf ('route/mainstem_route')
 
     if (allocated(ixRchProcessed)) then
@@ -1497,38 +1521,32 @@ contains
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     call t_stopf ('route/mainstem_route')
-
   endif ! end of root proc
 
   ! make sure that routing at all the procs finished
   call shr_mpi_barrier(comm, message)
 
   if (nNodes>1) then
-  ! --------------------------------
-  ! Distribute updated tributary states (only tributary reaches flowing into mainstem) to processors to update states upstream reaches
-  ! --------------------------------
-  if (routOpt==allRoutingMethods .or. routOpt==kinematicWaveTracking) then
+    ! --------------------------------
+    ! Distribute updated tributary states (only tributary reaches flowing into mainstem) to processors to update states upstream reaches
+    ! --------------------------------
+    if (onRoute(kinematicWaveTracking)) then
+      call t_startf ('route/scatter-kwt-state')
+      call mpi_comm_kwt_state(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
+                              iens,                & ! input:
+                              tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
+                              RCHSTA_main,         & ! input:
+                              RCHSTA_trib,         & ! input:
+                              global_ix_main,      &
+                              local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
+                              scatter,             & ! input: 1 = scatter
+                              ierr, message)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      call t_stopf ('route/scatter-kwt-state')
+    endif ! end of kwt option
 
-    call t_startf ('route/scatter-kwt-state')
-
-    call mpi_comm_kwt_state(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
-                            iens,                & ! input:
-                            tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
-                            RCHSTA_main,         & ! input:
-                            RCHSTA_trib,         & ! input:
-                            global_ix_main,      &
-                            local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
-                            scatter,             & ! input: 1 = scatter
-                            ierr, message)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    call t_stopf ('route/scatter-kwt-state')
-
-  endif ! end of kwt option
-
-  ! make sure that routing at all the procs finished
-  call shr_mpi_barrier(comm, message)
-
+    ! make sure that routing at all the procs finished
+    call shr_mpi_barrier(comm, message)
   endif !(nNodes>1)
 
  end subroutine mpi_route
@@ -1864,7 +1882,7 @@ contains
  end subroutine mpi_comm_single_flux
 
  ! *********************************************************************
- ! subroutine: all fluxes communication
+ ! subroutine: all no-routing method dependent fluxes communication
  ! *********************************************************************
  subroutine mpi_comm_flux(pid,          &
                           nNodes,       &
@@ -1902,7 +1920,7 @@ contains
   integer(i4b)                            :: nSeg                  ! number of reaches
   integer(i4b)                            :: iSeg, jSeg            ! reach looping index
   integer(i4b)                            :: ix                    ! general looping index
-  integer(i4b),parameter                  :: nFluxes=6             ! number of flux variables
+  integer(i4b),parameter                  :: nFluxes=4             ! number of flux variables
 
   ierr=0; message='mpi_comm_flux/'
 
@@ -1910,22 +1928,17 @@ contains
   nSeg = sum(nReach)
 
   if (commType == scatter) then
-
     if (masterproc) then
-
       allocate(flux(nSeg, nFluxes), stat=ierr)
       if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux]'; return; endif
 
       do iSeg =1,nSeg ! Loop through tributary reaches
-       jSeg = rchIdxGlobal(iSeg)
-       flux(iSeg,1) = RCHFLX_global(iens,jSeg)%BASIN_QR(0)  ! HRU routed flow (previous time step)
-       flux(iSeg,2) = RCHFLX_global(iens,jSeg)%BASIN_QR(1)  ! HRU routed flow (current time step)
-       flux(iSeg,3) = RCHFLX_global(iens,jSeg)%UPSTREAM_QI  ! Upstream accumulated flow
-       flux(iSeg,4) = RCHFLX_global(iens,jSeg)%REACH_Q      ! KWT routed flow
-       flux(iSeg,5) = RCHFLX_global(iens,jSeg)%REACH_Q_IRF  ! IRF routed flow
-       flux(iSeg,6) = RCHFLX_global(iens,jSeg)%BASIN_QI     ! HRU non-routed flow
+        jSeg = rchIdxGlobal(iSeg)
+        flux(iSeg,1) = RCHFLX_global(iens,jSeg)%BASIN_QR(0)  ! HRU routed flow (previous time step)
+        flux(iSeg,2) = RCHFLX_global(iens,jSeg)%BASIN_QR(1)  ! HRU routed flow (current time step)
+        flux(iSeg,3) = RCHFLX_global(iens,jSeg)%UPSTREAM_QI  ! Upstream accumulated flow
+        flux(iSeg,4) = RCHFLX_global(iens,jSeg)%BASIN_QI     ! HRU non-routed flow
       enddo
-
     end if ! end of root processor operation
 
     call shr_mpi_barrier(comm, message)
@@ -1933,6 +1946,7 @@ contains
     ! Distribute global flux data to each process
     allocate(flux_local(nReach(pid),nFluxes), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux_local]'; return; endif
+
     do ix = 1,nFluxes
       associate(vec_in => reshape(flux(:,ix),[nSeg]))
       call shr_mpi_scatterV(vec_in, nReach, vec_out, ierr, cmessage)
@@ -1943,34 +1957,23 @@ contains
 
     ! update RCHFLX_trib data structure
     do iSeg =1,nReach(pid) ! Loop through reaches per proc
-
       jSeg = rchIdxLocal(iSeg)
-
       RCHFLX_local(iens,jSeg)%BASIN_QR(0) = flux_local(iSeg,1)  ! HRU routed flow (previous time step)
       RCHFLX_local(iens,jSeg)%BASIN_QR(1) = flux_local(iSeg,2)  ! HRU routed flow (current time step)
       RCHFLX_local(iens,jSeg)%UPSTREAM_QI = flux_local(iSeg,3)  ! Upstream accumulated flow
-      RCHFLX_local(iens,jSeg)%REACH_Q     = flux_local(iSeg,4)  ! KWT routed flow
-      RCHFLX_local(iens,jSeg)%REACH_Q_IRF = flux_local(iSeg,5)  ! IRF routed flow
-      RCHFLX_local(iens,jSeg)%BASIN_QI    = flux_local(iSeg,6)  ! HRU non-routed flow
-
+      RCHFLX_local(iens,jSeg)%BASIN_QI    = flux_local(iSeg,4)  ! HRU non-routed flow
     end do
-
   elseif (commType == gather) then
-
     allocate(flux_local(nReach(pid),nFluxes), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux_local]'; return; endif
 
     do iSeg =1,nReach(pid)  ! Loop through (selected) tributary reaches
-
       jSeg = rchIdxLocal(iSeg)
       ! Transfer reach fluxes to 2D arrays
       flux_local(iSeg,1) = RCHFLX_local(iens,jSeg)%BASIN_QR(0)  ! HRU routed flow (previous time step)
       flux_local(iSeg,2) = RCHFLX_local(iens,jSeg)%BASIN_QR(1)  ! HRU routed flow (current time step)
       flux_local(iSeg,3) = RCHFLX_local(iens,jSeg)%UPSTREAM_QI  ! Upstream accumulated flow
-      flux_local(iSeg,4) = RCHFLX_local(iens,jSeg)%REACH_Q      ! KWT routed flow
-      flux_local(iSeg,5) = RCHFLX_local(iens,jSeg)%REACH_Q_IRF  ! IRF routed flow
-      flux_local(iSeg,6) = RCHFLX_local(iens,jSeg)%BASIN_QI     ! non-HRU routed flow (
-
+      flux_local(iSeg,4) = RCHFLX_local(iens,jSeg)%BASIN_QI     ! non-HRU routed flow (
     end do
 
     allocate(flux(nSeg,nFluxes), stat=ierr)
@@ -1987,20 +1990,163 @@ contains
     ! put it in global RCHFLX data structure
     if (masterproc) then
       do iSeg =1,nSeg ! Loop through all the reaches involved into communication
-
         jSeg = rchIdxGlobal(iSeg)
         RCHFLX_global(iens,jSeg)%BASIN_QR(0) = flux(iSeg,1)
         RCHFLX_global(iens,jSeg)%BASIN_QR(1) = flux(iSeg,2)
         RCHFLX_global(iens,jSeg)%UPSTREAM_QI = flux(iSeg,3)
-        RCHFLX_global(iens,jSeg)%REACH_Q     = flux(iSeg,4)
-        RCHFLX_global(iens,jSeg)%REACH_Q_IRF = flux(iSeg,5)
-        RCHFLX_global(iens,jSeg)%BASIN_QI    = flux(iSeg,6)
+        RCHFLX_global(iens,jSeg)%BASIN_QI    = flux(iSeg,4)
+      end do
+    endif
+  endif
+
+ end subroutine mpi_comm_flux
+
+ ! *********************************************************************
+ ! subroutine: all routing method dependent fluxes communication
+ ! *********************************************************************
+ subroutine mpi_comm_river_flux(pid,          &
+                                nNodes,       &
+                                comm,         & ! input: communicator
+                                iens,         &
+                                nReach,       &
+                                RCHFLX_global,&
+                                RCHFLX_local, &
+                                rchIdxGlobal, &
+                                rchIdxLocal,  &
+                                commType,     &
+                                ierr, message)
+
+  USE dataTypes,  ONLY: STRFLX              ! reach flux data structure
+  USE globalData, ONLY: nRoutes
+  USE globalData, ONLY: routeMethods
+
+  ! input variables
+  integer(i4b),             intent(in)    :: pid                   ! process id (MPI)
+  integer(i4b),             intent(in)    :: nNodes                ! number of processes (MPI)
+  integer(i4b),             intent(in)    :: comm                  ! communicator
+  integer(i4b),             intent(in)    :: iens                  ! ensemble index
+  integer(i4b),             intent(in)    :: nReach(0:nNodes-1)    ! number of reaches communicate per node (dimension size == number of proc)
+  type(STRFLX),allocatable, intent(inout) :: RCHFLX_global(:,:)
+  type(STRFLX),allocatable, intent(inout) :: RCHFLX_local(:,:)
+  integer(i4b),             intent(in)    :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
+  integer(i4b),             intent(in)    :: rchIdxLocal(:)        ! reach indices (w.r.t. local) (dimension size depends on procs )
+  integer(i4b),             intent(in)    :: commType              ! communication type 1->scatter, 2->gather otherwise error
+  ! output variables
+  integer(i4b),             intent(out)   :: ierr                  ! error code
+  character(len=strLen),    intent(out)   :: message               ! error message
+  ! local variables
+  character(len=strLen)                   :: cmessage              ! error message from a subroutine
+  real(dp),     allocatable               :: flux(:,:)             !
+  real(dp),     allocatable               :: flux_local(:,:)       !
+  real(dp),     allocatable               :: vec_out(:)            ! output vector from mpi gather/scatter routine
+  integer(i4b)                            :: nSeg                  ! number of reaches
+  integer(i4b)                            :: iSeg, jSeg            ! reach looping index
+  integer(i4b)                            :: ix                    ! general looping index
+
+  ierr=0; message='mpi_comm_river_flux/'
+
+  ! Number of total reaches to be communicated
+  nSeg = sum(nReach)
+
+  if (commType == scatter) then
+    if (masterproc) then
+      allocate(flux(nSeg, nRoutes), stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux]'; return; endif
+
+      do iSeg =1,nSeg ! Loop through tributary reaches
+        jSeg = rchIdxGlobal(iSeg)
+        do ix=1,nRoutes
+          select case(routeMethods(ix))
+            case(impulseResponseFunc);   flux(iSeg,ix) = RCHFLX_global(iens,jSeg)%ROUTE(idxIRF)%REACH_Q
+            case(kinematicWaveTracking); flux(iSeg,ix) = RCHFLX_global(iens,jSeg)%ROUTE(idxKWT)%REACH_Q
+            case(kinematicWave);         flux(iSeg,ix) = RCHFLX_global(iens,jSeg)%ROUTE(idxKW)%REACH_Q
+            case(muskingumCunge);        flux(iSeg,ix) = RCHFLX_global(iens,jSeg)%ROUTE(idxMC)%REACH_Q
+            case(diffusiveWave);         flux(iSeg,ix) = RCHFLX_global(iens,jSeg)%ROUTE(idxDW)%REACH_Q
+            case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 1-5'; ierr=81; return
+          end select
+        end do
+      end do
+    end if ! end of root processor operation
+
+    call shr_mpi_barrier(comm, message)
+
+    ! Distribute global flux data to each process
+    allocate(flux_local(nReach(pid),nRoutes), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux_local]'; return; endif
+    do ix = 1, nRoutes
+      associate(vec_in => reshape(flux(:,ix),[nSeg]))
+      call shr_mpi_scatterV(vec_in, nReach, vec_out, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      flux_local(:,ix) = vec_out(:)
+      end associate
+    end do
+
+    ! update RCHFLX_trib data structure
+    do iSeg =1,nReach(pid) ! Loop through reaches per proc
+      jSeg = rchIdxLocal(iSeg)
+      do ix=1,nRoutes
+        select case(routeMethods(ix))
+          case(impulseResponseFunc);   RCHFLX_local(iens,jSeg)%ROUTE(idxIRF)%REACH_Q = flux_local(iSeg,ix)  ! HRU routed flow (previous time step)
+          case(kinematicWaveTracking); RCHFLX_local(iens,jSeg)%ROUTE(idxKWT)%REACH_Q = flux_local(iSeg,ix)  ! HRU routed flow (current time step)
+          case(kinematicWave);         RCHFLX_local(iens,jSeg)%ROUTE(idxKW)%REACH_Q  = flux_local(iSeg,ix)  ! Upstream accumulated flow
+          case(muskingumCunge);        RCHFLX_local(iens,jSeg)%ROUTE(idxMC)%REACH_Q  = flux_local(iSeg,ix)  ! HRU non-routed flow
+          case(diffusiveWave);         RCHFLX_local(iens,jSeg)%ROUTE(idxDW)%REACH_Q  = flux_local(iSeg,ix)  ! HRU non-routed flow
+          case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 1-5'; ierr=81; return
+        end select
+      end do
+    end do
+
+  elseif (commType == gather) then
+
+    allocate(flux_local(nReach(pid),nRoutes), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux_local]'; return; endif
+
+    ! Transfer reach fluxes to 2D arrays
+    do iSeg =1,nReach(pid)  ! Loop through (selected) tributary reaches
+      jSeg = rchIdxLocal(iSeg)
+      do ix=1,nRoutes
+        select case(routeMethods(ix))
+          case(impulseResponseFunc);   flux_local(iSeg,ix) = RCHFLX_local(iens,jSeg)%ROUTE(idxIRF)%REACH_Q
+          case(kinematicWaveTracking); flux_local(iSeg,ix) = RCHFLX_local(iens,jSeg)%ROUTE(idxKWT)%REACH_Q
+          case(kinematicWave);         flux_local(iSeg,ix) = RCHFLX_local(iens,jSeg)%ROUTE(idxKW)%REACH_Q
+          case(muskingumCunge);        flux_local(iSeg,ix) = RCHFLX_local(iens,jSeg)%ROUTE(idxMC)%REACH_Q
+          case(diffusiveWave);         flux_local(iSeg,ix) = RCHFLX_local(iens,jSeg)%ROUTE(idxDW)%REACH_Q
+          case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 1-5'; ierr=81; return
+        end select
+      end do
+    end do
+
+    allocate(flux(nSeg,nRoutes), stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux]'; return; endif
+
+    do ix = 1,nRoutes
+      associate(vec_in => reshape(flux_local(:,ix),[nReach(pid)]))
+      call shr_mpi_gatherV(vec_in, nReach, vec_out, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      flux(:,ix) = vec_out(:)
+      end associate
+    end do
+
+    ! put it in global RCHFLX data structure
+    if (masterproc) then
+      do iSeg =1,nSeg ! Loop through all the reaches involved into communication
+        jSeg = rchIdxGlobal(iSeg)
+        do ix=1,nRoutes
+          select case(routeMethods(ix))
+            case(impulseResponseFunc);   RCHFLX_global(iens,jSeg)%ROUTE(idxIRF)%REACH_Q = flux(iSeg,ix)
+            case(kinematicWaveTracking); RCHFLX_global(iens,jSeg)%ROUTE(idxKWT)%REACH_Q = flux(iSeg,ix)
+            case(kinematicWave);         RCHFLX_global(iens,jSeg)%ROUTE(idxKW)%REACH_Q  = flux(iSeg,ix)
+            case(muskingumCunge);        RCHFLX_global(iens,jSeg)%ROUTE(idxMC)%REACH_Q  = flux(iSeg,ix)
+            case(diffusiveWave);         RCHFLX_global(iens,jSeg)%ROUTE(idxDW)%REACH_Q  = flux(iSeg,ix)
+            case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 1-5'; ierr=81; return
+          end select
+        end do
       end do
     endif
 
   endif
 
- end subroutine mpi_comm_flux
+ end subroutine mpi_comm_river_flux
 
  ! *********************************************************************
  ! subroutine: basin IRF state communication
@@ -2364,15 +2510,16 @@ contains
  ! *********************************************************************
  ! subroutine: subreach molecule state communication
  ! *********************************************************************
- subroutine mpi_comm_numeric_state(pid, nNodes, comm, & ! input: mpi variables
-                                   iens,              & ! input:
-                                   nReach,            & ! input: number of reach per MPI processor
-                                   RCHSTA_global,     & ! inout: global restart state data structure
-                                   RCHSTA_local,      & ! inout: distributed restart state data structure
-                                   rchIdxGlobal,      & ! input: global reach index
-                                   rchIdxLocal,       & ! input: distributed reach index
-                                   commType,          & ! input: communication type - scatter or gather
-                                   ierr, message)
+ subroutine mpi_comm_molecule_state(pid, nNodes, comm, & ! input: mpi variables
+                                    iens,              & ! input:
+                                    nReach,            & ! input: number of reach per MPI processor
+                                    RCHSTA_global,     & ! inout: global restart state data structure
+                                    RCHSTA_local,      & ! inout: distributed restart state data structure
+                                    rchIdxGlobal,      & ! input: global reach index
+                                    rchIdxLocal,       & ! input: distributed reach index
+                                    routeMethod,       & ! input: routing mehtod id
+                                    commType,          & ! input: communication type - scatter or gather
+                                    ierr, message)
   USE globalData, ONLY: nMolecule
   USE dataTypes,  ONLY: SUBRCH
   USE dataTypes,  ONLY: STRSTA
@@ -2387,6 +2534,7 @@ contains
   type(STRSTA), allocatable,intent(inout) :: RCHSTA_local(:,:)
   integer(i4b),             intent(in)    :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
   integer(i4b),             intent(in)    :: rchIdxLocal(:)        ! reach indices (w.r.t. local) (dimension size depends on procs )
+  integer(i4b),             intent(in)    :: routeMethod           ! routing mehtod id
   integer(i4b),             intent(in)    :: commType              ! communication type 1->scatter, 2->gather otherwise error
   ! output variables
   integer(i4b),             intent(out)   :: ierr                  ! error code
@@ -2397,15 +2545,24 @@ contains
   real(dp),     allocatable               :: Q(:),Q_trib(:)
   integer(i4b)                            :: myid
   integer(i4b)                            :: nSeg                  ! number of reaches
+  integer(i4b)                            :: nMoles                ! number of computational molecules
   integer(i4b)                            :: iSeg, jSeg
   integer(i4b)                            :: ixMesh
   integer(i4b)                            :: totMesh(0:nNodes-1)
   integer(i4b)                            :: totMeshAll
 
-  ierr=0; message='mpi_comm_numeric_state/'
+  ierr=0; message='mpi_comm_molecule_state/'
 
   ! Number of total reaches to be communicated
   nSeg = sum(nReach)
+
+  if (routeMethod==kinematicWave) then
+    nMoles=nMolecule%KW_ROUTE
+  else if (routeMethod==muskingumCunge) then
+    nMoles=nMolecule%MC_ROUTE
+  else if (routeMethod==diffusiveWave) then
+    nMoles=nMolecule%DW_ROUTE
+  end if
 
   if (commType == scatter) then
 
@@ -2415,12 +2572,18 @@ contains
       if(ierr/=0)then; message=trim(message)//'problem allocating array for [SUBR0]'; return; endif
       do iSeg =1,nSeg ! Loop through tributary reaches
         jSeg = rchIdxGlobal(iSeg)
-        SUBR0(1, iSeg) = RCHSTA_global(iens,jSeg)%molecule
+        if (routeMethod==kinematicWave) then
+          SUBR0(1, iSeg) = RCHSTA_global(iens,jSeg)%KW_ROUTE%molecule
+        else if (routeMethod==muskingumCunge) then
+          SUBR0(1, iSeg) = RCHSTA_global(iens,jSeg)%MC_ROUTE%molecule
+        else if (routeMethod==diffusiveWave) then
+          SUBR0(1, iSeg) = RCHSTA_global(iens,jSeg)%DW_ROUTE%molecule
+        end if
       enddo
 
       ! convert SUBRCH data strucutre to state arrays
       call subrch_struc2array(iens, SUBR0,   & !input: input state data structure
-                              nMolecule,     & !input: number of numerical molecules
+                              nMoles,        & !input: number of numerical molecules
                               Q,             & !output: states array
                               ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -2430,11 +2593,11 @@ contains
 
     ! total waves from all the tributary reaches in each proc
     do myid = 0, nNodes-1
-      totMesh(myid) = nMolecule*nReach(myid)
+      totMesh(myid) = nMoles*nReach(myid)
     enddo
 
     ! need to allocate global array to be scattered at the other tasks
-    totMeshAll = nSeg*nMolecule
+    totMeshAll = nSeg*nMoles
     if (.not.masterproc) then
       allocate(Q(totMeshAll), stat=ierr)
       if(ierr/=0)then; message=trim(message)//'problem allocating array for [Q]'; return; endif
@@ -2450,12 +2613,20 @@ contains
     ixMesh=1
     do iSeg =1,nReach(pid) ! Loop through reaches per proc
       jSeg = rchIdxLocal(iSeg)
-
-      allocate(RCHSTA_local(iens,jSeg)%molecule%Q(nMolecule),stat=ierr, errmsg=cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage)//'RCHSTA_local(iens,jSeg)%molecule%Q'; return; endif
-
-      RCHSTA_local(iens,jSeg)%molecule%Q(1:nMolecule) = Q_trib(ixMesh:ixMesh+nMolecule-1)
-      ixMesh=ixMesh+nMolecule !update 1st idex of array
+      if (routeMethod==kinematicWave) then
+        allocate(RCHSTA_local(iens,jSeg)%KW_ROUTE%molecule%Q(nMoles),stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage)//'RCHSTA_local(iens,jSeg)%KW_ROUTE%molecule%Q'; return; endif
+        RCHSTA_local(iens,jSeg)%KW_ROUTE%molecule%Q(1:nMoles) = Q_trib(ixMesh:ixMesh+nMoles-1)
+      else if (routeMethod==muskingumCunge) then
+        allocate(RCHSTA_local(iens,jSeg)%MC_ROUTE%molecule%Q(nMoles),stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage)//'RCHSTA_local(iens,jSeg)%MC_ROUTE%molecule%Q'; return; endif
+        RCHSTA_local(iens,jSeg)%MC_ROUTE%molecule%Q(1:nMoles) = Q_trib(ixMesh:ixMesh+nMoles-1)
+      else if (routeMethod==diffusiveWave) then
+        allocate(RCHSTA_local(iens,jSeg)%DW_ROUTE%molecule%Q(nMoles),stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage)//'RCHSTA_local(iens,jSeg)%DW_ROUTE%molecule%Q'; return; endif
+        RCHSTA_local(iens,jSeg)%DW_ROUTE%molecule%Q(1:nMoles) = Q_trib(ixMesh:ixMesh+nMoles-1)
+      end if
+      ixMesh=ixMesh+nMoles !update 1st idex of array
     end do
 
   elseif (commType == gather) then
@@ -2463,7 +2634,7 @@ contains
 
   endif
 
- end subroutine mpi_comm_numeric_state
+ end subroutine mpi_comm_molecule_state
 
  ! *********************************************************************
  ! subroutine: kinematic wave state communication
@@ -2480,7 +2651,7 @@ contains
                                commType,     &
                                ierr, message)
 
-  USE dataTypes,  ONLY: LKWRCH
+  USE dataTypes,  ONLY: kwtRCH
   USE dataTypes,  ONLY: STRSTA
 
   ! input variables
@@ -2499,7 +2670,7 @@ contains
   character(len=strLen),    intent(out)   :: message               ! error message
   ! local variables
   character(len=strLen)                   :: cmessage              ! error message from a subroutine
-  type(LKWRCH), allocatable               :: KROUTE0(:,:)          ! temp KROUTE data structure to hold updated states
+  type(kwtRCH), allocatable               :: KROUTE0(:,:)          ! temp KROUTE data structure to hold updated states
   real(dp),     allocatable               :: QF(:),QF_trib(:)
   real(dp),     allocatable               :: QM(:),QM_trib(:)
   real(dp),     allocatable               :: TI(:),TI_trib(:)
@@ -2788,11 +2959,11 @@ contains
                             QF,QM,TI,TR,RF,      &  ! output:
                             nWave,               &
                             ierr, message)
-  USE dataTypes, ONLY: LKWRCH             ! collection of particles in a given reach
+  USE dataTypes, ONLY: kwtRCH             ! collection of particles in a given reach
   implicit none
   ! Input
   integer(i4b),          intent(in)              :: iens           ! ensemble index
-  type(LKWRCH),          intent(in), allocatable :: KROUTE_in(:,:) ! reach state data
+  type(kwtRCH),          intent(in), allocatable :: KROUTE_in(:,:) ! reach state data
   ! Output error handling variables
   real(dp),              intent(out),allocatable :: QF(:)          ! flat array for wave Q
   real(dp),              intent(out),allocatable :: QM(:)          ! Flat array for modified Q

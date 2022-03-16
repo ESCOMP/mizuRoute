@@ -6,15 +6,8 @@ USE var_lookup,        ONLY: ixRFLX, nVarsRFLX
 USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
 USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: integerMissing
-USE public_var,        ONLY: doesBasinRoute        ! basin routing options   0-> no, 1->IRF, otherwise error
-USE public_var,        ONLY: doesAccumRunoff       ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
-USE public_var,        ONLY: routOpt               ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-USE public_var,        ONLY: kinematicWaveTracking ! Lagrangian kinematic wave
-USE public_var,        ONLY: kinematicWave         ! kinematic wave routing
-USE public_var,        ONLY: diffusiveWave         ! diffusive wave routing
-USE public_var,        ONLY: muskingumCunge        ! muskingum-cunge routing
-USE public_var,        ONLY: impulseResponseFunc   ! impulse response function
-USE public_var,        ONLY: allRoutingMethods     ! all routing methods
+USE globalData,        ONLY: idxIRF, idxKWT, &
+                             idxKW, idxMC, idxDW
 USE globalData,        ONLY: meta_rflx
 USE globalData,        ONLY: pid, nNodes
 USE globalData,        ONLY: masterproc
@@ -142,6 +135,7 @@ CONTAINS
   integer(i4b)                    :: iens             ! temporal
   character(len=strLen)           :: cmessage         ! error message of downwind routine
   type(STRFLX),allocatable        :: RCHFLX_local(:)
+  integer(i4b)                    :: ix
   integer(i4b)                    :: nRch_local
   real(dp),    allocatable        :: basinRunoff(:)
   real(dp),    allocatable        :: array_temp(:)
@@ -217,37 +211,49 @@ CONTAINS
   endif
 
   if (meta_rflx(ixRFLX%KWTroutedRunoff)%varFile) then
-    array_temp(1:nRch_local) = RCHFLX_local(:)%REACH_Q
+    do ix=1,nRch_local
+      array_temp(ix) = RCHFLX_local(ix)%ROUTE(idxKWT)%REACH_Q
+    end do
     call write_pnetcdf_recdim(pioFileDesc, 'KWTroutedRunoff', array_temp, iodesc_rch_flx, jTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%IRFroutedRunoff)%varFile) then
-    array_temp(1:nRch_local) = RCHFLX_local(:)%REACH_Q_IRF
+    do ix=1,nRch_local
+      array_temp(ix) = RCHFLX_local(ix)%ROUTE(idxIRF)%REACH_Q
+    end do
     call write_pnetcdf_recdim(pioFileDesc, 'IRFroutedRunoff', array_temp, iodesc_rch_flx, jTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%KWroutedRunoff)%varFile) then
-    array_temp(1:nRch_local) = RCHFLX_local(:)%REACH_Q
+    do ix=1,nRch_local
+      array_temp(ix) = RCHFLX_local(ix)%ROUTE(idxKW)%REACH_Q
+    end do
     call write_pnetcdf_recdim(pioFileDesc, 'KWroutedRunoff', array_temp, iodesc_rch_flx, jTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%MCroutedRunoff)%varFile) then
-    array_temp(1:nRch_local) = RCHFLX_local(:)%REACH_Q
+    do ix=1,nRch_local
+      array_temp(ix) = RCHFLX_local(ix)%ROUTE(idxMC)%REACH_Q
+    end do
     call write_pnetcdf_recdim(pioFileDesc, 'MCroutedRunoff', array_temp, iodesc_rch_flx, jTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%DWroutedRunoff)%varFile) then
-    array_temp(1:nRch_local) = RCHFLX_local(:)%REACH_Q
+    do ix=1,nRch_local
+      array_temp(ix) = RCHFLX_local(ix)%ROUTE(idxDW)%REACH_Q
+    end do
     call write_pnetcdf_recdim(pioFileDesc, 'DWroutedRunoff', array_temp, iodesc_rch_flx, jTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%volume)%varFile) then
-    array_temp(1:nRch_local) = RCHFLX_local(:)%REACH_VOL(1)
+    do ix=1,nRch_local
+      array_temp(ix) = RCHFLX_local(ix)%ROUTE(idxIRF)%REACH_VOL(1)
+    end do
     call write_pnetcdf_recdim(pioFileDesc, 'volume', array_temp, iodesc_rch_flx, jTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
@@ -499,7 +505,6 @@ CONTAINS
 
    USE public_var,        ONLY: calendar          ! calendar name
    USE public_var,        ONLY: time_units        ! time units (seconds, hours, or days)
-   USE public_var,        ONLY: output_dir        ! output directory
    USE public_var,        ONLY: restart_dir       ! restart directory
    USE public_var,        ONLY: rpntfil           !
    USE globalData,        ONLY: isHistFileOpen    ! history file open/close status

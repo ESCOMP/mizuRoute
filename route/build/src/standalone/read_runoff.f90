@@ -16,58 +16,52 @@ private
 public::read_runoff_metadata
 public::read_runoff_data
 
-contains
+CONTAINS
 
  ! *****
  ! public subroutine: get runoff  metadata...
  ! ******************************************
- subroutine read_runoff_metadata(&
-                                 ! input
-                                 fname            , & ! filename including directory
-                                 var_name         , & ! varibale name
-                                 var_time_name    , & ! name of varibale time
-                                 dim_time_name    , & ! name of dimension time
-                                 var_hru_name     , & ! name of varibale HRUs
-                                 dim_hru_name     , & ! name of dimension HRUs
-                                 dim_ylat_name    , & ! name of dimension lat in case of a 2D input varibale
-                                 dim_xlon_name    , & ! name of dimension lon in case of a 2D input varibale
-                                 ! output
-                                 nSpace           , & ! nSpace of the input in runoff or wm strcuture
-                                 nTime            , & ! nTime of the input in runoff or wm strcuture
-                                 sim              , & ! 1D simulation
-                                 sim2D            , & ! 2D simulation
-                                 ID_array         , & ! ID of seg or hru in data
-                                 timeUnits        , & ! time units
-                                 calendar         , & ! calendar
-                                 ! error control
-                                 ierr, message)     ! output: error control
+ SUBROUTINE read_runoff_metadata(fname            , & ! input: filename including directory
+                                 var_name         , & ! input: varibale name
+                                 var_time_name    , & ! input: name of varibale time
+                                 dim_time_name    , & ! input: name of dimension time
+                                 var_hru_name     , & ! input: name of varibale HRUs
+                                 dim_hru_name     , & ! input: name of dimension HRUs
+                                 dim_ylat_name    , & ! input: name of dimension lat in case of a 2D input varibale
+                                 dim_xlon_name    , & ! input: name of dimension lon in case of a 2D input varibale
+                                 nSpace           , & ! output: nSpace of the input in runoff or wm strcuture
+                                 nTime            , & ! output: nTime of the input in runoff or wm strcuture
+                                 sim              , & ! output: 1D simulation
+                                 sim2D            , & ! output: 2D simulation
+                                 ID_array         , & ! output: ID of seg or hru in data
+                                 timeUnits        , & ! output: time units
+                                 calendar         , & ! output: calendar
+                                 ierr, message)       ! output: error control
  implicit none
- ! input variables
- character(*), intent(in)        :: fname           ! filename
- character(*), intent(in)        :: var_name        ! name of the varibale for simulated runoff or abstraction/injection
- character(*), intent(in)        :: var_time_name   ! name of the varibale time
- character(*), intent(in)        :: dim_time_name   ! name of dimension for time
- character(*), intent(in)        :: var_hru_name    ! name of the varibale hru
- character(*), intent(in)        :: dim_hru_name    ! name of dimension for hydrological HRUs
- character(*), intent(in)        :: dim_ylat_name   ! name of dimension along lat
- character(*), intent(in)        :: dim_xlon_name   ! name of dimension along lon
- ! output variables
- integer(i4b),                intent(out)   :: nSpace(1:2)     ! nSpace of the input in runoff or wm strcuture
- integer(i4b),                intent(out)   :: nTime           ! nTime of the input in runoff or wm strcuture
- real(dp),      allocatable,  intent(out)   :: sim(:)          ! 1D simulation
- real(dp),      allocatable,  intent(out)   :: sim2D(:,:)      ! 2D simulation
- integer(i4b),  allocatable,  intent(out)   :: ID_array(:)     ! ID of seg or hru in data
- character(*),                intent(out)   :: timeUnits       ! time units
- character(*),                intent(out)   :: calendar        ! calendar
- ! error control
- integer(i4b), intent(out)       :: ierr            ! error code
- character(*), intent(out)       :: message         ! error message
+ ! argument variables
+ character(*),              intent(in)    :: fname           ! filename
+ character(*),              intent(in)    :: var_name        ! name of the varibale for simulated runoff or abstraction/injection
+ character(*),              intent(in)    :: var_time_name   ! name of the varibale time
+ character(*),              intent(in)    :: dim_time_name   ! name of dimension for time
+ character(*),              intent(in)    :: var_hru_name    ! name of the varibale hru
+ character(*),              intent(in)    :: dim_hru_name    ! name of dimension for hydrological HRUs
+ character(*),              intent(in)    :: dim_ylat_name   ! name of dimension along lat
+ character(*),              intent(in)    :: dim_xlon_name   ! name of dimension along lon
+ integer(i4b),              intent(out)   :: nSpace(1:2)     ! nSpace of the input in runoff or wm strcuture
+ integer(i4b),              intent(out)   :: nTime           ! nTime of the input in runoff or wm strcuture
+ real(dp),     allocatable, intent(out)   :: sim(:)          ! 1D simulation
+ real(dp),     allocatable, intent(out)   :: sim2D(:,:)      ! 2D simulation
+ integer(i4b), allocatable, intent(out)   :: ID_array(:)     ! ID of seg or hru in data
+ character(*),              intent(out)   :: timeUnits       ! time units
+ character(*),              intent(out)   :: calendar        ! calendar
+ integer(i4b),              intent(out)   :: ierr            ! error code
+ character(*),              intent(out)   :: message         ! error message
  ! local variables
- integer(i4b)                    :: ncid            ! netcdf id
- integer(i4b)                    :: ivarID          ! variable id
- integer(i4b)                    :: nDims           ! number of dimension in runoff file
- character(len=strLen)           :: cmessage        ! error message from subroutine
- ! initialize error control
+ integer(i4b)                             :: ncid            ! netcdf id
+ integer(i4b)                             :: ivarID          ! variable id
+ integer(i4b)                             :: nDims           ! number of dimension in runoff file
+ character(len=strLen)                    :: cmessage        ! error message from subroutine
+
  ierr=0; message='read_runoff_metadata/'
 
  ! open NetCDF file
@@ -89,11 +83,10 @@ contains
                                         dim_time_name,    & ! dimension of varibale time
                                         var_hru_name,     & ! name of varibale hrus
                                         dim_hru_name,     & ! dimension of varibales hrus
-                                        nSpace        , & ! nSpace of the input in runoff or wm strcuture
-                                        nTime           , & ! nTime of the input in runoff or wm strcuture
-                                        sim             , & ! 1D simulation
-                                        sim2D           , & ! 2D simulation
-                                        ID_array        , & ! ID of seg or hru in data
+                                        nSpace,           & ! nSpace of the input in runoff or wm strcuture
+                                        nTime,            & ! nTime of the input in runoff or wm strcuture
+                                        sim,              & ! 1D simulation
+                                        ID_array,         & ! ID of seg or hru in data
                                         timeUnits,        &
                                         calendar,         &
                                         ierr, cmessage)
@@ -102,11 +95,10 @@ contains
                                         dim_time_name,    & ! dimension of varibale time
                                         dim_ylat_name,    & ! dimesnion of lat
                                         dim_xlon_name,    & ! dimension of lon
-                                        nSpace        , & ! nSpace of the input in runoff or wm strcuture
-                                        nTime           , & ! nTime of the input in runoff or wm strcuture
-                                        sim             , & ! 1D simulation
-                                        sim2D           , & ! 2D simulation
-                                        ID_array        , & ! ID of seg or hru in data
+                                        nSpace,           & ! nSpace of the input in runoff or wm strcuture
+                                        nTime,            & ! nTime of the input in runoff or wm strcuture
+                                        sim2D,            & ! 2D simulation
+                                        ID_array,         & ! ID of seg or hru in data
                                         timeUnits,        &
                                         calendar,         &
                                         ierr, cmessage)
@@ -114,51 +106,41 @@ contains
  end select
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- end subroutine read_runoff_metadata
+ END SUBROUTINE read_runoff_metadata
 
  ! *****
  ! private subroutine: get 2D runoff (hru, time) metadata...
  ! ******************************************
- subroutine read_1D_runoff_metadata(&
-                                   ! input
-                                   fname            , & ! filename
-                                   var_time_name    , & ! name of varibale time
-                                   dim_time_name    , & ! name of dimension time
-                                   var_hru_name     , & ! name of varibale HRUs
-                                   dim_hru_name     , & ! name of dimension HRUs
-                                   ! output
-                                   nSpace           , & ! nSpace of the input in runoff or wm strcuture
-                                   nTime            , & ! nTime of the input in runoff or wm strcuture
-                                   sim              , & ! 1D simulation
-                                   sim2D            , & ! 2D simulation
-                                   ID_array         , & ! ID of seg or hru in data
-                                   timeUnits        , & ! time units
-                                   calendar         , & ! calendar
-                                   ! error control
-                                   ierr, message)     ! output: error control
+ SUBROUTINE read_1D_runoff_metadata(fname           , & ! input: filename
+                                   var_time_name    , & ! input: name of varibale time
+                                   dim_time_name    , & ! input: name of dimension time
+                                   var_hru_name     , & ! input: name of varibale HRUs
+                                   dim_hru_name     , & ! input: name of dimension HRUs
+                                   nSpace           , & ! output: nSpace of the input in runoff or wm strcuture
+                                   nTime            , & ! output: nTime of the input in runoff or wm strcuture
+                                   sim              , & ! output: 1D simulation
+                                   ID_array         , & ! output: ID of seg or hru in data
+                                   timeUnits        , & ! output: time units
+                                   calendar         , & ! output: calendar
+                                   ierr, message)       ! output: error control
  implicit none
- ! input variables
+ ! argument variables
  character(*),               intent(in)          :: fname           ! filename
  character(*),               intent(in)          :: var_time_name   ! name of the varibale time
  character(*),               intent(in)          :: dim_time_name   ! name of dimension for time
  character(*),               intent(in)          :: var_hru_name    ! name of the varibale hru
  character(*),               intent(in)          :: dim_hru_name    ! name of dimension for hydrological HRUs
- ! output variables
  integer(i4b),               intent(out)         :: nSpace(1:2)     ! nSpace of the input in runoff or wm strcuture
  integer(i4b),               intent(out)         :: nTime           ! nTime of the input in runoff or wm strcuture
  real(dp),     allocatable,  intent(out)         :: sim(:)          ! 1D simulation
- real(dp),     allocatable,  intent(out)         :: sim2D(:,:)      ! 2D simulation
  integer(i4b), allocatable,  intent(out)         :: ID_array(:)     ! ID of seg or hru in data
  character(*),               intent(out)         :: timeUnits       ! time units
  character(*),               intent(out)         :: calendar        ! calendar
- ! error control
  integer(i4b),               intent(out)         :: ierr            ! error code
  character(*),               intent(out)         :: message         ! error message
  ! local variables
  character(len=strLen)                           :: cmessage        ! error message from subroutine
 
-
- ! initialize error control
  ierr=0; message='read_1D_runoff_metadata/'
 
  nSpace(2) = integerMissing
@@ -195,51 +177,41 @@ contains
  call get_nc(fname, var_hru_name, ID_array, 1, nSpace(1), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- end subroutine read_1D_runoff_metadata
+ END SUBROUTINE read_1D_runoff_metadata
 
  ! *****
  ! private subroutine: get 3D runoff (lat, lon, time) metadata...
  ! ******************************************
- subroutine read_2D_runoff_metadata(&
-                                    ! input
-                                    fname            , & ! filename
-                                    var_time_name    , & ! name of varibale time
-                                    dim_time_name    , & ! name of dimension time
-                                    dim_ylat_name    , & ! name of varibale HRUs
-                                    dim_xlon_name    , & ! name of dimension HRUs
-                                    ! output
-                                    nSpace           , & ! nSpace of the input in runoff or wm strcuture
-                                    nTime            , & ! nTime of the input in runoff or wm strcuture
-                                    sim              , & ! 1D simulation
-                                    sim2D            , & ! 2D simulation
-                                    ID_array         , & ! ID of seg or hru in data
-                                    timeUnits        , & ! time units
-                                    calendar         , & ! calendar
-                                    ! error control
-                                    ierr, message)     ! output: error control
+ SUBROUTINE read_2D_runoff_metadata(fname            , & ! input: filename
+                                    var_time_name    , & ! input: name of varibale time
+                                    dim_time_name    , & ! input: name of dimension time
+                                    dim_ylat_name    , & ! input: name of varibale HRUs
+                                    dim_xlon_name    , & ! input: name of dimension HRUs
+                                    nSpace           , & ! output: nSpace of the input in runoff or wm strcuture
+                                    nTime            , & ! output: nTime of the input in runoff or wm strcuture
+                                    sim2D            , & ! output: 2D simulation
+                                    ID_array         , & ! output: ID of seg or hru in data
+                                    timeUnits        , & ! output: time units
+                                    calendar         , & ! output: calendar
+                                    ierr, message)       ! output: error control
  implicit none
- ! input variables
+ ! argument variables
  character(*),                  intent(in)   :: fname           ! filename
  character(*),                  intent(in)   :: var_time_name   ! name of the varibale time
  character(*),                  intent(in)   :: dim_time_name   ! name of dimension for time
  character(*),                  intent(in)   :: dim_ylat_name   ! name of dimension along lat
  character(*),                  intent(in)   :: dim_xlon_name   ! name of dimension along lon
- ! output variables
  integer(i4b),                  intent(out)  :: nSpace(1:2)     ! nSpace of the input in runoff or wm strcuture
  integer(i4b),                  intent(out)  :: nTime           ! nTime of the input in runoff or wm strcuture
- real(dp),     allocatable,     intent(out)  :: sim(:)          ! 1D simulation
  real(dp),     allocatable,     intent(out)  :: sim2D(:,:)      ! 2D simulation
  integer(i4b), allocatable,     intent(out)  :: ID_array(:)     ! ID of seg or hru in data
  character(*),                  intent(out)  :: timeUnits       ! time units
  character(*),                  intent(out)  :: calendar        ! calendar
- ! error control
  integer(i4b),                  intent(out)  :: ierr            ! error code
  character(*),                  intent(out)  :: message         ! error message
  ! local variables
  character(len=strLen)                       :: cmessage        ! error message from subroutine
 
-
- ! initialize error control
  ierr=0; message='read_2D_runoff_metadata/'
 
  ! get number of time steps from the runoff file
@@ -270,13 +242,12 @@ contains
  allocate(sim2d(nSpace(2),nSpace(1)), stat=ierr)
  if(ierr/=0)then; message=trim(message)//'problem allocating sim'; return; endif
 
- end subroutine read_2D_runoff_metadata
-
+ END SUBROUTINE read_2D_runoff_metadata
 
  ! *********************************************************************
  ! public subroutine: read runoff data
  ! *********************************************************************
- subroutine read_runoff_data(fname,            &  ! input: filename
+ SUBROUTINE read_runoff_data(fname,            &  ! input: filename
                              var_name,         &  ! input: varibale name
                              time_index,       &  ! input: time index
                              nSpace,           &  ! input: dimension of data to be read
@@ -284,21 +255,18 @@ contains
                              sim2D,            &  ! input/output: read data 2D sim
                              ierr, message)       ! output: error control
  implicit none
- ! input variables
- character(*), intent(in)                :: fname              ! filename
- character(*), intent(in)                :: var_name           ! variable name
- integer(i4b), intent(in)                :: time_index         ! index of time element
- integer(i4b), intent(in)                :: nSpace(1:2)        ! dimension of data for one time step
- ! input/output variables
- real(dp), allocatable,  intent(inout)   :: sim(:)             ! runoff for one time step for all spatial dimension
- real(dp), allocatable,  intent(inout)   :: sim2D(:,:)         ! runoff for one time step for all spatial dimension
- ! output variables
- integer(i4b), intent(out)               :: ierr               ! error code
- character(*), intent(out)               :: message            ! error message
+ ! argument variables
+ character(*),          intent(in)      :: fname              ! filename
+ character(*),          intent(in)      :: var_name           ! variable name
+ integer(i4b),          intent(in)      :: time_index         ! index of time element
+ integer(i4b),          intent(in)      :: nSpace(1:2)        ! dimension of data for one time step
+ real(dp), allocatable, intent(inout)   :: sim(:)             ! runoff for one time step for all spatial dimension
+ real(dp), allocatable, intent(inout)   :: sim2D(:,:)         ! runoff for one time step for all spatial dimension
+ integer(i4b), intent(out)              :: ierr               ! error code
+ character(*), intent(out)              :: message            ! error message
  ! local variables
- character(len=strLen)                   :: cmessage           ! error message from subroutine
+ character(len=strLen)                  :: cmessage           ! error message from subroutine
 
- ! initialize error control
  ierr=0; message='read_runoff_data/'
 
  if (nSpace(2) == integerMissing) then
@@ -309,36 +277,33 @@ contains
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  endif
 
- end subroutine read_runoff_data
+ END SUBROUTINE read_runoff_data
 
  ! *********************************************************************
  ! private subroutine: read 2D runoff data
  ! *********************************************************************
- subroutine read_1D_runoff(fname,          &  ! input: filename
+ SUBROUTINE read_1D_runoff(fname,          &  ! input: filename
                            var_name,       &  ! input: variable name
                            time_index,     &  ! input: time index
                            nSpace,         &  ! input: size of HRUs
                            sim,            &  ! input/output: runoff data structure
                            ierr, message)     ! output: error control
  implicit none
- ! input variables
- character(*), intent(in)                :: fname              ! filename
- character(*), intent(in)                :: var_name           ! variable name
- integer(i4b), intent(in)                :: time_index         ! index of time element
- integer(i4b), intent(in)                :: nSpace             ! size of spatial dimensions
- ! input/output variables
- real(dp), allocatable,  intent(inout)   :: sim(:)             ! runoff for one time step for all spatial dimension
- ! output variables
- integer(i4b), intent(out)               :: ierr               ! error code
- character(*), intent(out)               :: message            ! error message
+ ! argument variables
+ character(*),          intent(in)      :: fname              ! filename
+ character(*),          intent(in)      :: var_name           ! variable name
+ integer(i4b),          intent(in)      :: time_index         ! index of time element
+ integer(i4b),          intent(in)      :: nSpace             ! size of spatial dimensions
+ real(dp), allocatable, intent(inout)   :: sim(:)             ! runoff for one time step for all spatial dimension
+ integer(i4b),          intent(out)     :: ierr               ! error code
+ character(*),          intent(out)     :: message            ! error message
  ! local variables
- integer(i4b)                            :: iStart(2)
- integer(i4b)                            :: iCount(2)
- logical(lgt)                            :: existFillVal
- real(dp)                                :: dummy(nSpace,1)    ! data read
- character(len=strLen)                   :: cmessage           ! error message from subroutine
+ integer(i4b)                           :: iStart(2)
+ integer(i4b)                           :: iCount(2)
+ logical(lgt)                           :: existFillVal
+ real(dp)                               :: dummy(nSpace,1)    ! data read
+ character(len=strLen)                  :: cmessage           ! error message from subroutine
 
- ! initialize error control
  ierr=0; message='read_1D_runoff/'
 
  ! get the simulated runoff data
@@ -360,12 +325,12 @@ contains
  ! reshape
  sim(1:nSpace) = dummy(1:nSpace,1)
 
- end subroutine read_1D_runoff
+ END SUBROUTINE read_1D_runoff
 
  ! *********************************************************************
  ! private subroutine: read 2D runoff data
  ! *********************************************************************
- subroutine read_2D_runoff(fname,            &  ! input: filename
+ SUBROUTINE read_2D_runoff(fname,            &  ! input: filename
                            var_name,         &  ! input: variable name
                            time_index,       &  ! input: time index
                            nSpace,           &  ! input: size of HRUs
@@ -373,24 +338,20 @@ contains
                            ierr, message)       ! output: error control
  implicit none
  ! input variables
- character(*), intent(in)                :: fname            ! filename
- character(*), intent(in)                :: var_name         ! variable name
- integer(i4b), intent(in)                :: time_index       ! index of time element
- integer(i4b), intent(in)                :: nSpace(1:2)      ! size of spatial dimensions
- ! input/output variables
- real(dp), allocatable,  intent(inout)   :: sim2D(:,:)       ! runoff for one time step for all spatial dimension
- ! output variables
- integer(i4b), intent(out)               :: ierr             ! error code
- character(*), intent(out)               :: message          ! error message
+ character(*),          intent(in)      :: fname            ! filename
+ character(*),          intent(in)      :: var_name         ! variable name
+ integer(i4b),          intent(in)      :: time_index       ! index of time element
+ integer(i4b),          intent(in)      :: nSpace(1:2)      ! size of spatial dimensions
+ real(dp), allocatable, intent(inout)   :: sim2D(:,:)       ! runoff for one time step for all spatial dimension
+ integer(i4b),          intent(out)     :: ierr             ! error code
+ character(*),          intent(out)     :: message          ! error message
  ! local variables
- logical(lgt)                            :: existFillVal
- integer(i4b)                            :: iStart(3)
- integer(i4b)                            :: iCount(3)
- real(dp)                                :: dummy(nSpace(2),nSpace(1),1) ! data read
- character(len=strLen)                   :: cmessage                     ! error message from subroutine
+ logical(lgt)                           :: existFillVal
+ integer(i4b)                           :: iStart(3)
+ integer(i4b)                           :: iCount(3)
+ real(dp)                               :: dummy(nSpace(2),nSpace(1),1) ! data read
+ character(len=strLen)                  :: cmessage                     ! error message from subroutine
 
-
- ! initialize error control
  ierr=0; message='read_2D_runoff/'
 
  ! get the simulated runoff data
@@ -412,6 +373,6 @@ contains
  ! reshape
  sim2d(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)
 
- end subroutine read_2D_runoff
+ END SUBROUTINE read_2D_runoff
 
 END MODULE read_runoff

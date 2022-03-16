@@ -57,7 +57,9 @@ type(io_desc_t),      save :: iodesc_state_int
 type(io_desc_t),      save :: iodesc_state_double
 type(io_desc_t),      save :: iodesc_wave_int
 type(io_desc_t),      save :: iodesc_wave_double
-type(io_desc_t),      save :: iodesc_mesh_double
+type(io_desc_t),      save :: iodesc_mesh_kw_double
+type(io_desc_t),      save :: iodesc_mesh_mc_double
+type(io_desc_t),      save :: iodesc_mesh_dw_double
 type(io_desc_t),      save :: iodesc_irf_double
 type(io_desc_t),      save :: iodesc_vol_double
 type(io_desc_t),      save :: iodesc_irf_bas_double
@@ -255,14 +257,13 @@ CONTAINS
 
  USE public_var, ONLY: time_units               ! time units (seconds, hours, or days)
  USE public_var, ONLY: calendar                 ! calendar name
- USE public_var, ONLY: routOpt
- USE public_var, ONLY: allRoutingMethods
  USE public_var, ONLY: doesBasinRoute
  USE public_var, ONLY: impulseResponseFunc
  USE public_var, ONLY: kinematicWaveTracking
  USE public_var, ONLY: kinematicWave
  USE public_var, ONLY: muskingumCunge
  USE public_var, ONLY: diffusiveWave
+ USE globalData, ONLY: onRoute                  ! logical to indicate which routing method(s) is on
  USE globalData, ONLY: rch_per_proc             ! number of reaches assigned to each proc (size = num of procs+1)
  USE globalData, ONLY: nRch                     ! number of ensembles and river reaches
 
@@ -342,32 +343,32 @@ CONTAINS
 
  ! Routing specific variables --------------
  ! basin IRF
- if (doesBasinRoute == 1) then
+ if (doesBasinRoute==1) then
    call define_IRFbas_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
- if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+ if (onRoute(impulseResponseFunc))then
    call define_IRF_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
- if (routOpt==allRoutingMethods .or. routOpt==kinematicWaveTracking) then
+ if (onRoute(kinematicWaveTracking)) then
    call define_KWT_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
- if (routOpt==kinematicWave) then
+ if (onRoute(kinematicWave)) then
    call define_KW_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
- if (routOpt==muskingumCunge) then
+ if (onRoute(muskingumCunge)) then
    call define_MC_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
- if (routOpt==diffusiveWave) then
+ if (onRoute(diffusiveWave)) then
    call define_DW_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
@@ -380,7 +381,9 @@ CONTAINS
            ntdh     => meta_stateDims(ixStateDims%tdh)%dimLength,     & ! maximum future q time steps among basins
            ntdh_irf => meta_stateDims(ixStateDims%tdh_irf)%dimLength, & ! maximum future q time steps among reaches
            nTbound  => meta_stateDims(ixStateDims%tbound)%dimLength,  & ! time bound
-           nFdmesh  => meta_stateDims(ixStateDims%fdmesh)%dimLength,  & ! finite difference mesh points
+           nMesh_kw => meta_stateDims(ixStateDims%mol_kw)%dimLength,  & ! kw_finite difference mesh points
+           nMesh_mc => meta_stateDims(ixStateDims%mol_mc)%dimLength,  & ! mc_finite difference mesh points
+           nMesh_dw => meta_stateDims(ixStateDims%mol_dw)%dimLength,  & ! dw_finite difference mesh points
            nWave    => meta_stateDims(ixStateDims%wave)%dimLength)      ! maximum waves allowed in a reach
 
  if (masterproc) then
@@ -405,7 +408,7 @@ CONTAINS
                  ixRch(ix1:ix2),         & ! input:
                  iodesc_state_int)
 
- if (doesBasinRoute == 1) then
+ if (doesBasinRoute==1) then
    ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens]
    call pio_decomp(pioSystem,              & ! input: pio system descriptor
                    ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
@@ -414,7 +417,7 @@ CONTAINS
                    iodesc_irf_bas_double)
  end if
 
- if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+ if (onRoute(impulseResponseFunc))then
    ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens]
    call pio_decomp(pioSystem,              & ! input: pio system descriptor
                    ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
@@ -430,7 +433,7 @@ CONTAINS
                    iodesc_vol_double)
  end if
 
- if (routOpt==allRoutingMethods .or. routOpt==kinematicWaveTracking) then
+ if (onRoute(kinematicWaveTracking)) then
    ! type: int, dim: [dim_seg, dim_wave, dim_ens]
    call pio_decomp(pioSystem,              & ! input: pio system descriptor
                    ncd_int,                & ! input: data type (pio_int, pio_real, pio_double, pio_char)
@@ -446,13 +449,31 @@ CONTAINS
                    iodesc_wave_double)
  end if
 
- if (routOpt==kinematicWave .or. routOpt==muskingumCunge .or. routOpt==diffusiveWave) then
-   ! type: float, dim: [dim_seg, dim_fdmesh, dim_ens]
+ if (onRoute(kinematicWave)) then
+   ! type: float, dim: [dim_seg, dim_mesh, dim_ens]
    call pio_decomp(pioSystem,              & ! input: pio system descriptor
                    ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                   [nSeg,nFdmesh,nEns],    & ! input: dimension length == global array size
+                   [nSeg,nMesh_kw,nEns],   & ! input: dimension length == global array size
                    ixRch(ix1:ix2),         & ! input:
-                   iodesc_mesh_double)
+                   iodesc_mesh_kw_double)
+ end if
+
+ if (onRoute(muskingumCunge)) then
+   ! type: float, dim: [dim_seg, dim_mesh, dim_ens]
+   call pio_decomp(pioSystem,              & ! input: pio system descriptor
+                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                   [nSeg,nMesh_mc,nEns],   & ! input: dimension length == global array size
+                   ixRch(ix1:ix2),         & ! input:
+                   iodesc_mesh_mc_double)
+ end if
+
+ if (onRoute(diffusiveWave)) then
+   ! type: float, dim: [dim_seg, dim_mesh, dim_ens]
+   call pio_decomp(pioSystem,              & ! input: pio system descriptor
+                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                   [nSeg,nMesh_dw,nEns],   & ! input: dimension length == global array size
+                   ixRch(ix1:ix2),         & ! input:
+                   iodesc_mesh_dw_double)
  end if
 
  end associate
@@ -484,7 +505,9 @@ CONTAINS
     case(ixStateDims%tbound);  meta_stateDims(ixStateDims%tbound)%dimLength  = 2
     case(ixStateDims%tdh);     meta_stateDims(ixStateDims%tdh)%dimLength     = size(FRAC_FUTURE)
     case(ixStateDims%tdh_irf); meta_stateDims(ixStateDims%tdh_irf)%dimLength = 20   !just temporarily
-    case(ixStateDims%fdmesh);  meta_stateDims(ixStateDims%fdmesh)%dimLength  = nMolecule
+    case(ixStateDims%mol_kw);  meta_stateDims(ixStateDims%mol_kw)%dimLength  = nMolecule%KW_ROUTE
+    case(ixStateDims%mol_mc);  meta_stateDims(ixStateDims%mol_mc)%dimLength  = nMolecule%MC_ROUTE
+    case(ixStateDims%mol_dw);  meta_stateDims(ixStateDims%mol_dw)%dimLength  = nMolecule%DW_ROUTE
     case(ixStateDims%wave);    meta_stateDims(ixStateDims%wave)%dimLength    = MAXQPAR
     case default; ierr=20; message1=trim(message1)//'unable to identify dimension variable index'; return
    end select
@@ -664,12 +687,12 @@ CONTAINS
    ierr=0; message1='define_KW_state/'
 
    ! Check dimension length is populated
-   if (meta_stateDims(ixStateDims%fdmesh)%dimLength == integerMissing) then
-     call set_dim_len(ixStateDims%fdmesh, ierr, cmessage)
-     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%fdmesh)%dimName); return; endif
+   if (meta_stateDims(ixStateDims%mol_kw)%dimLength == integerMissing) then
+     call set_dim_len(ixStateDims%mol_kw, ierr, cmessage)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%mol_kw)%dimName); return; endif
    end if
 
-   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%fdmesh)%dimName), meta_stateDims(ixStateDims%fdmesh)%dimLength, meta_stateDims(ixStateDims%fdmesh)%dimId)
+   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%mol_kw)%dimName), meta_stateDims(ixStateDims%mol_kw)%dimLength, meta_stateDims(ixStateDims%mol_kw)%dimId)
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
    do iVar=1,nVarsKW
@@ -700,12 +723,12 @@ CONTAINS
    ierr=0; message1='define_MC_state/'
 
    ! Check dimension length is populated
-   if (meta_stateDims(ixStateDims%fdmesh)%dimLength == integerMissing) then
-     call set_dim_len(ixStateDims%fdmesh, ierr, cmessage)
-     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%fdmesh)%dimName); return; endif
+   if (meta_stateDims(ixStateDims%mol_mc)%dimLength == integerMissing) then
+     call set_dim_len(ixStateDims%mol_mc, ierr, cmessage)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%mol_mc)%dimName); return; endif
    end if
 
-   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%fdmesh)%dimName), meta_stateDims(ixStateDims%fdmesh)%dimLength, meta_stateDims(ixStateDims%fdmesh)%dimId)
+   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%mol_mc)%dimName), meta_stateDims(ixStateDims%mol_mc)%dimLength, meta_stateDims(ixStateDims%mol_mc)%dimId)
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
    do iVar=1,nVarsMC
@@ -736,12 +759,12 @@ CONTAINS
    ierr=0; message1='define_DW_state/'
 
    ! Check dimension length is populated
-   if (meta_stateDims(ixStateDims%fdmesh)%dimLength == integerMissing) then
-     call set_dim_len(ixStateDims%fdmesh, ierr, cmessage)
-     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%fdmesh)%dimName); return; endif
+   if (meta_stateDims(ixStateDims%mol_dw)%dimLength == integerMissing) then
+     call set_dim_len(ixStateDims%mol_dw, ierr, cmessage)
+     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%mol_dw)%dimName); return; endif
    end if
 
-   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%fdmesh)%dimName), meta_stateDims(ixStateDims%fdmesh)%dimLength, meta_stateDims(ixStateDims%fdmesh)%dimId)
+   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%mol_dw)%dimName), meta_stateDims(ixStateDims%mol_dw)%dimLength, meta_stateDims(ixStateDims%mol_dw)%dimId)
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
    do iVar=1,nVarsDW
@@ -770,14 +793,13 @@ CONTAINS
 
  USE public_var, ONLY: time_units             ! time units (seconds, hours, or days)
  USE public_var, ONLY: dt                     ! model time step size [sec]
- USE public_var, ONLY: routOpt
  USE public_var, ONLY: doesBasinRoute
- USE public_var, ONLY: allRoutingMethods
  USE public_var, ONLY: impulseResponseFunc
  USE public_var, ONLY: kinematicWaveTracking
  USE public_var, ONLY: kinematicWave
  USE public_var, ONLY: muskingumCunge
  USE public_var, ONLY: diffusiveWave
+ USE globalData, ONLY: onRoute               ! logical to indicate which routing method(s) is on
  USE globalData, ONLY: RCHFLX_main         ! mainstem reach fluxes (ensembles, reaches)
  USE globalData, ONLY: RCHFLX_trib         ! tributary reach fluxes (ensembles, reaches)
  USE globalData, ONLY: NETOPO_main         ! mainstem reach topology
@@ -881,29 +903,29 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
- if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
-  call write_IRF_state(ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (onRoute(impulseResponseFunc)) then
+   call write_IRF_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
- if (routOpt==allRoutingMethods .or. routOpt==kinematicWaveTracking) then
-  call write_KWT_state(ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (onRoute(kinematicWaveTracking)) then
+   call write_KWT_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
- if (routOpt==kinematicWave) then
-  call write_KW_state(ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (onRoute(kinematicWave)) then
+   call write_KW_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
- if (routOpt==muskingumCunge) then
-  call write_MC_state(ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (onRoute(muskingumCunge)) then
+   call write_MC_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
- if (routOpt==diffusiveWave) then
-  call write_DW_state(ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (onRoute(diffusiveWave)) then
+   call write_DW_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
  call closeFile(pioFileDescState, restartOpen)
@@ -1013,6 +1035,7 @@ CONTAINS
   END SUBROUTINE write_IRFbas_state
 
   SUBROUTINE write_IRF_state(ierr, message1)
+    USE globalData, ONLY: idxIRF
     implicit none
     ! output
     integer(i4b), intent(out)  :: ierr            ! error code
@@ -1055,7 +1078,7 @@ CONTAINS
               state%var(iVar)%array_3d_dp(iSeg,1:numQF(iens,iSeg),iens) = RCHFLX_local(iSeg)%QFUTURE_IRF
               state%var(iVar)%array_3d_dp(iSeg,numQF(iens,iSeg)+1:ntdh_irf,iens) = realMissing
             case(ixIRF%vol)
-              state%var(iVar)%array_3d_dp(iSeg,1:nTbound,iens) = RCHFLX_local(iSeg)%REACH_VOL(0:1)
+              state%var(iVar)%array_3d_dp(iSeg,1:nTbound,iens) = RCHFLX_local(iSeg)%ROUTE(idxIRF)%REACH_VOL(0:1)
             case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
           end select
         enddo ! variable loop
@@ -1177,7 +1200,7 @@ CONTAINS
 
     associate(nSeg     => size(RCHFLX_local),                         &
               nEns     => meta_stateDims(ixStateDims%ens)%dimLength,  &
-              nMesh    => meta_stateDims(ixStateDims%fdmesh)%dimLength)     ! maximum waves allowed in a reach
+              nMesh    => meta_stateDims(ixStateDims%mol_kw)%dimLength)     ! maximum waves allowed in a reach
 
     allocate(state%var(nVarsKW), stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -1196,7 +1219,7 @@ CONTAINS
       do iSeg=1,nSeg
         do iVar=1,nVarsKW
           select case(iVar)
-            case(ixKW%qsub); state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA_local(iSeg)%molecule%Q(1:nMesh)
+            case(ixKW%qsub); state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA_local(iSeg)%KW_ROUTE%molecule%Q(1:nMesh)
             case(ixKW%vol)
             case default; ierr=20; message1=trim(message1)//'unable to identify KW routing state variable index'; return
           end select
@@ -1208,7 +1231,7 @@ CONTAINS
     do iVar=1,nVarsKW
       select case(iVar)
        case(ixKW%qsub)
-         call write_pnetcdf(pioFileDescState, trim(meta_kw(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_mesh_double, ierr, cmessage)
+         call write_pnetcdf(pioFileDescState, trim(meta_kw(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_mesh_kw_double, ierr, cmessage)
        case(ixKW%vol)
        case default; ierr=20; message1=trim(message1)//'unable to identify KW variable index for nc writing'; return
       end select
@@ -1232,7 +1255,7 @@ CONTAINS
 
     associate(nSeg     => size(RCHFLX_local),                         &
               nEns     => meta_stateDims(ixStateDims%ens)%dimLength,  &
-              nMesh    => meta_stateDims(ixStateDims%fdmesh)%dimLength)     ! maximum waves allowed in a reach
+              nMesh    => meta_stateDims(ixStateDims%mol_mc)%dimLength)     ! maximum waves allowed in a reach
 
     allocate(state%var(nVarsMC), stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -1252,7 +1275,7 @@ CONTAINS
       do iSeg=1,nSeg
         do iVar=1,nVarsMC
           select case(iVar)
-            case(ixMC%qsub); state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA_local(iSeg)%molecule%Q(1:nMesh)
+            case(ixMC%qsub); state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA_local(iSeg)%MC_ROUTE%molecule%Q(1:nMesh)
             case(ixMC%vol)
             case default; ierr=20; message1=trim(message1)//'unable to identify MC routing state variable index'; return
           end select
@@ -1264,7 +1287,7 @@ CONTAINS
     do iVar=1,nVarsMC
       select case(iVar)
        case(ixMC%qsub)
-         call write_pnetcdf(pioFileDescState, trim(meta_mc(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_mesh_double, ierr, cmessage)
+         call write_pnetcdf(pioFileDescState, trim(meta_mc(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_mesh_mc_double, ierr, cmessage)
        case(ixMC%vol)
        case default; ierr=20; message1=trim(message1)//'unable to identify MC variable index for nc writing'; return
       end select
@@ -1288,7 +1311,7 @@ CONTAINS
 
     associate(nSeg     => size(RCHFLX_local),                         &
               nEns     => meta_stateDims(ixStateDims%ens)%dimLength,  &
-              nMesh    => meta_stateDims(ixStateDims%fdmesh)%dimLength)     ! maximum waves allowed in a reach
+              nMesh    => meta_stateDims(ixStateDims%mol_dw)%dimLength)     ! maximum waves allowed in a reach
 
     allocate(state%var(nVarsDW), stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -1307,7 +1330,7 @@ CONTAINS
       do iSeg=1,nSeg
         do iVar=1,nVarsDW
           select case(iVar)
-            case(ixDW%qsub); state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA_local(iSeg)%molecule%Q(1:nMesh)
+            case(ixDW%qsub); state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA_local(iSeg)%DW_ROUTE%molecule%Q(1:nMesh)
             case(ixDW%vol)
             case default; ierr=20; message1=trim(message1)//'unable to identify DW routing state variable index'; return
           end select
@@ -1319,7 +1342,7 @@ CONTAINS
     do iVar=1,nVarsDW
       select case(iVar)
        case(ixDW%qsub)
-         call write_pnetcdf(pioFileDescState, trim(meta_dw(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_mesh_double, ierr, cmessage)
+         call write_pnetcdf(pioFileDescState, trim(meta_dw(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_mesh_dw_double, ierr, cmessage)
        case(ixDW%vol)
        case default; ierr=20; message1=trim(message1)//'unable to identify DW variable index for nc writing'; return
       end select
