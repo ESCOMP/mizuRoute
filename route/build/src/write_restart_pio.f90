@@ -186,9 +186,11 @@ CONTAINS
   call write_state_nc(fnameRestart, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  open(1, file = trim(restart_dir)//trim(rpntfil), status='unknown', action='write', position='append')
-  write(1,'(a)', advance='no') trim(fnameRestart)
-  close(1)
+  if (masterproc) then
+    open(1, file = trim(restart_dir)//trim(rpntfil), status='unknown', action='write', position='append')
+    write(1,'(a)', advance='no') trim(fnameRestart)
+    close(1)
+  end if
 
  END SUBROUTINE restart_output
 

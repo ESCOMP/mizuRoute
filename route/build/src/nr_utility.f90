@@ -12,6 +12,11 @@ INTERFACE sizeo
   module procedure sizeo_i4b, sizeo_dp, sizeo_sp
 END INTERFACE
 
+INTERFACE char2int
+  module procedure :: char2int_1d
+  module procedure :: char2int_2d
+END INTERFACE
+
 private
 public::arth
 public::indexx
@@ -20,6 +25,7 @@ public::indexTrue
 public::unique
 public::sizeo
 public::get_digits
+public::char2int
 
 CONTAINS
 
@@ -296,5 +302,80 @@ CONTAINS
      end do
    end if
  END FUNCTION get_digits
+
+ ! *************************************************************************************************
+ ! character-to-integer routines/functions
+ ! *************************************************************************************************
+ SUBROUTINE char2int_1d(char_array, int_array, invalid_value)
+   ! Convert character array to one digit integer array
+   ! if character array is '-9999' or '0', int_array(:) = [invalid_value,...,invalid_value]
+   implicit none
+   ! argument variables
+   character(*),              intent(in)   :: char_array
+   integer(i4b), allocatable, intent(out)  :: int_array(:)
+   integer(i4b), optional,    intent(in)   :: invalid_value
+   ! local variables
+   character(len=strLen)                   :: string
+   integer(i4b)                            :: str_len
+   integer(i4b)                            :: iChr
+   integer(i4b)                            :: invalValue
+
+   if (present(invalid_value)) then
+     invalValue = invalid_value
+   else
+     invalValue = -1
+   endif
+
+   allocate(int_array(len(char_array)))
+   int_array = invalValue
+
+   string = adjustl(char_array)
+   str_len = len(trim(string))
+
+   if (trim(string)=='-9999' .or. trim(string)=='0') then
+     int_array(1) = invalValue
+   else
+     do iChr =1,str_len
+       read(string(iChr:iChr),'(I1)') int_array(iChr)
+     end do
+   endif
+ END SUBROUTINE char2int_1d
+
+ SUBROUTINE char2int_2d(char_array, int_array, invalid_value)
+   ! convert character array to one digit integer array
+   ! if character array is '-9999' or '0', int_array(:) = [invalid_value,...,invalid_value]
+   implicit none
+   ! Argument variables
+   character(*),              intent(in)   :: char_array(:)
+   integer(i4b), allocatable, intent(out)  :: int_array(:,:)
+   integer(i4b), optional,    intent(in)   :: invalid_value
+   ! local variables
+   character(len=strLen)                   :: string
+   integer(i4b)                            :: str_len
+   integer(i4b)                            :: iSize
+   integer(i4b)                            :: iChr
+   integer(i4b)                            :: invalValue
+
+  if (present(invalid_value)) then
+    invalValue = invalid_value
+  else
+    invalValue = -1
+  endif
+
+   allocate(int_array(size(char_array),len(char_array)))
+   int_array = invalValue
+
+   do iSize = 1, size(char_array)
+     str_len = len(trim(adjustl(char_array(iSize))))
+     string = adjustl(char_array(iSize))
+     if (trim(string) == '-9999' .or. trim(string) == '0') then
+       int_array(iSize, 1) = invalValue
+     else
+       do iChr =1,str_len
+         read(string(iChr:iChr),'(I1)') int_array(iSize, iChr)
+       end do
+     end if
+   end do
+ END SUBROUTINE char2int_2d
 
 END MODULE nr_utility_module

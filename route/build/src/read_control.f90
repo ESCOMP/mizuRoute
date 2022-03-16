@@ -28,8 +28,8 @@ CONTAINS
  USE globalData, ONLY: nRoutes                 ! number of active routing methods
  USE globalData, ONLY: routeMethods            ! active routing method index and id
  USE globalData, ONLY: onRoute                 ! logical to indicate actiive routing method(s)
- USE globalData, ONLY: idxIRF, idxKWT, &
-                       idxKW, idxMC, idxDW
+ USE globalData, ONLY: idxSUM,idxIRF,idxKWT, &
+                       idxKW,idxMC,idxDW
  ! named variables in each structure
  USE var_lookup, ONLY: ixHRU                   ! index of variables for data structure
  USE var_lookup, ONLY: ixHRU2SEG               ! index of variables for data structure
@@ -40,7 +40,7 @@ CONTAINS
  ! external subroutines
  USE ascii_util_module, ONLY: file_open        ! open file (performs a few checks as well)
  USE ascii_util_module, ONLY: get_vlines       ! get a list of character strings from non-comment lines
- USE nr_utility_module, ONLY: get_digits       ! convert integer number to a array containing individual digits
+ USE nr_utility_module, ONLY: char2int         ! convert integer number to a array containing individual digits
 
  implicit none
  ! argument variables
@@ -111,9 +111,8 @@ CONTAINS
    case('<sim_end>');              simEnd      = trim(cData)                           ! date string defining the end of the simulation
    case('<continue_run>');         read(cData,*,iostat=io_error) continue_run          ! logical; T-> append output in existing history files. F-> write output in new history file
    case('<newFileFrequency>');     newFileFrequency = trim(cData)                      ! frequency for new output files (day, month, annual, single)
-   case('<route_opt>');            read(cData,*,iostat=io_error) routOpt               ! routing scheme options  0-> IRF+KWT (to be removed), 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW
+   case('<route_opt>');            routOpt     = trim(cData)                           ! routing scheme options  0-> accumRunoff, 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW
    case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute        ! basin routing options   0-> no, 1->IRF, otherwise error
-   case('<doesAccumRunoff>');      read(cData,*,iostat=io_error) doesAccumRunoff       ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
    case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut              ! desired outlet reach id (if -9999 --> route over the entire network)
    case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim           ! logical; lakes are simulated
    case('<is_flux_wm>');           read(cData,*,iostat=io_error) is_flux_wm            ! logical; provided fluxes to or from seg/lakes should be considered
@@ -376,12 +375,13 @@ CONTAINS
  ! ---------- output options --------------------------------------------------------------------------------------------
  ! Assign index for each active routing method
  ! Make sure to turn off write option for routines not used
- if (routOpt==0)then; message=trim(message)//'routOpt=0 is terminated. 12 is equivalent to 0 now'; err=10; return; endif
- routeMethods = get_digits(routOpt)
+ if (trim(routOpt)=='0')then; write(iulog,'(a)') 'WARNING: routOpt=0 is accumRunoff option now. 12 is previous 0 now'; endif
+ call char2int(trim(routOpt), routeMethods, invalid_value=0)
  nRoutes = size(routeMethods)
  onRoute = .false.
  do iRoute = 1, nRoutes
    select case(routeMethods(iRoute))
+     case(accumRunoff);           idxSUM = iRoute; onRoute(accumRunoff)=.true.
      case(kinematicWaveTracking); idxKWT = iRoute; onRoute(kinematicWaveTracking)=.true.
      case(impulseResponseFunc);   idxIRF = iRoute; onRoute(impulseResponseFunc)=.true.
      case(muskingumCunge);        idxMC  = iRoute; onRoute(muskingumCunge)=.true.
@@ -392,8 +392,9 @@ CONTAINS
    end select
  end do
 
- do iRoute = 1, nRouteMethods
+ do iRoute = 0, nRouteMethods-1
    select case(iRoute)
+     case(accumRunoff);           if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile=.false.
      case(kinematicWaveTracking); if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%KWTroutedRunoff)%varFile=.false.
      case(impulseResponseFunc);   if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%IRFroutedRunoff)%varFile=.false.
      case(muskingumCunge);        if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%MCroutedRunoff)%varFile=.false.
@@ -402,9 +403,6 @@ CONTAINS
      case default; message=trim(message)//'expect digits from 1 and 5'; err=81; return
    end select
  end do
-
- ! runoff accumulation option
- if (doesAccumRunoff==0) meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile = .false.
 
  ! basin runoff routing option
  if (doesBasinRoute==0) meta_rflx(ixRFLX%instRunoff)%varFile = .false.

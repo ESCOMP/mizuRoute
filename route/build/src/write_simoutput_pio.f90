@@ -3,11 +3,11 @@ MODULE write_simoutput_pio
 ! Moudle wide shared data
 USE nrtype
 USE var_lookup,        ONLY: ixRFLX, nVarsRFLX
-USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
-USE public_var,        ONLY: iulog             ! i/o logical unit number
+USE dataTypes,         ONLY: STRFLX
+USE public_var,        ONLY: iulog
 USE public_var,        ONLY: integerMissing
-USE globalData,        ONLY: idxIRF, idxKWT, &
-                             idxKW, idxMC, idxDW
+USE globalData,        ONLY: idxSUM,idxIRF,idxKWT, &
+                             idxKW,idxMC,idxDW
 USE globalData,        ONLY: meta_rflx
 USE globalData,        ONLY: pid, nNodes
 USE globalData,        ONLY: masterproc
@@ -36,7 +36,6 @@ type(io_desc_t),      save :: iodesc_hru_ro        ! PIO domain decomposition da
 integer(i4b),parameter     :: recordDim=-999       ! record dimension Indicator
 
 private
-
 public::main_new_file
 public::init_histFile
 public::prep_output
@@ -203,9 +202,10 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
-  ! write accumulated runoff (m3/s)
   if (meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile) then
-    array_temp(1:nRch_local) = RCHFLX_local(:)%UPSTREAM_QI
+    do ix=1,nRch_local
+      array_temp(ix) = RCHFLX_local(ix)%ROUTE(idxSUM)%REACH_Q
+    end do
     call write_pnetcdf_recdim(pioFileDesc, 'sumUpstreamRunoff', array_temp, iodesc_rch_flx, jTime, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
@@ -335,9 +335,11 @@ CONTAINS
    call write_netcdf(pioFileDesc, 'reachID', reachID, [1], [nRch], ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   open(1, file = trim(restart_dir)//trim(rpntfil), status='replace', action='write')
-   write(1,'(a)') trim(fileout)
-   close(1)
+   if (masterproc) then
+     open(1, file = trim(restart_dir)//trim(rpntfil), status='replace', action='write')
+     write(1,'(a)') trim(fileout)
+     close(1)
+   end if
 
  END SUBROUTINE prep_output
 
@@ -540,9 +542,11 @@ CONTAINS
 
    call inq_dim_len(pioFileDesc, 'time', jTime)
 
-   open(1, file = trim(restart_dir)//trim(rpntfil), status='replace', action='write')
-   write(1,'(a)') trim(fileout)
-   close(1)
+   if (masterproc) then
+     open(1, file = trim(restart_dir)//trim(rpntfil), status='replace', action='write')
+     write(1,'(a)') trim(fileout)
+     close(1)
+   end if
 
  END SUBROUTINE init_histFile
 
