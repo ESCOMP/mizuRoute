@@ -67,14 +67,15 @@ MODULE globalData
   integer(i4b),     allocatable,   public :: reachID(:)           ! reach id in the whole river network
 
   ! ---------- routing methods  -------------------------------------------------------------------------
-  integer(i4b)                   , public :: nRoutes                ! number of active routing methods
-  integer(i4b)    , allocatable  , public :: routeMethods(:)        ! active routing method id
-  logical(lgt)                   , public :: onRoute(nRouteMethods) ! logical to indicate active routing method(s)
-  integer(i4b)                   , public :: idxIRF                 ! index of IRF method
-  integer(i4b)                   , public :: idxKWT                 ! index of KWT method
-  integer(i4b)                   , public :: idxKW                  ! index of KW method
-  integer(i4b)                   , public :: idxMC                  ! index of MC method
-  integer(i4b)                   , public :: idxDW                  ! index of DW method
+  integer(i4b)                   , public :: nRoutes                    ! number of active routing methods
+  integer(i4b)    , allocatable  , public :: routeMethods(:)            ! active routing method id
+  logical(lgt)                   , public :: onRoute(0:nRouteMethods-1) ! logical to indicate active routing method(s)
+  integer(i4b)                   , public :: idxSUM                     ! index of SUM method
+  integer(i4b)                   , public :: idxIRF                     ! index of IRF method
+  integer(i4b)                   , public :: idxKWT                     ! index of KWT method
+  integer(i4b)                   , public :: idxKW                      ! index of KW method
+  integer(i4b)                   , public :: idxMC                      ! index of MC method
+  integer(i4b)                   , public :: idxDW                      ! index of DW method
 
   ! ---------- Date/Time data  -------------------------------------------------------------------------
 

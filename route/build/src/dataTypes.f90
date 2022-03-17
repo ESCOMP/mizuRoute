@@ -348,7 +348,6 @@ implicit none
   real(dp), allocatable                :: DEMANDPAST_IRF(:,:)    ! demand volume for lake (m3/s)
   real(dp)                             :: BASIN_QI               ! instantaneous runoff volume from the local basin (m3/s)
   real(dp)                             :: BASIN_QR(0:1)          ! routed runoff volume from the local basin (m3/s)
-  real(dp)                             :: UPSTREAM_QI            ! sum of upstream streamflow (m3/s)
   type(fluxes), allocatable            :: ROUTE(:)               ! reach fluxes and states for each routing method
   real(dp)                             :: REACH_ELE              ! elevation of the water at the current time step [m]
   real(dp)                             :: REACH_WM_FLUX          ! water management fluxes to and from each reach

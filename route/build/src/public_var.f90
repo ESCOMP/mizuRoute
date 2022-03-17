@@ -70,7 +70,8 @@ module public_var
   integer(i4b), parameter,public  :: readFromFile=0         ! read given variable from a file
 
   ! routing methods
-  integer(i4b), parameter,public  :: nRouteMethods=5         ! number of routing methods available
+  integer(i4b), parameter,public  :: nRouteMethods=6         ! number of routing methods available
+  integer(i4b), parameter,public  :: accumRunoff=0           ! runoff accumulation over all the upstream reaches
   integer(i4b), parameter,public  :: impulseResponseFunc=1   ! impulse response function
   integer(i4b), parameter,public  :: kinematicWaveTracking=2 ! Lagrangian kinematic wave
   integer(i4b), parameter,public  :: kinematicWave=3         ! kinematic wave
@@ -91,9 +92,8 @@ module public_var
   character(len=strLen),public    :: simStart             = ''              ! date string defining the start of the simulation
   character(len=strLen),public    :: simEnd               = ''              ! date string defining the end of the simulation
   character(len=strLen),public    :: newFileFrequency     = 'annual'        ! frequency for new output files (day, month, annual, single)
-  integer(i4b)         ,public    :: routOpt              = integerMissing  ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+  character(len=10)    ,public    :: routOpt              = '0'             ! routing scheme options  0: accum runoff, 1:IRF, 2:KWT, 3:KW, 4:MC, 5:DW
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
-  integer(i4b)         ,public    :: doesAccumRunoff      = 1               ! option to delayed runoff accumulation over all the upstream reaches
   logical(lgt),public             :: is_lake_sim          = .false.         ! logical if lakes are activated in simulation
   logical(lgt),public             :: lake_model_D03       = .false.         ! logical if Doll 2003 model is used, specify as 1 in lake_model_type in network topology
   logical(lgt),public             :: lake_model_H06       = .false.         ! logical if Hanasaki 2006 model is used, specify as 2 in lake_model_type in network topology

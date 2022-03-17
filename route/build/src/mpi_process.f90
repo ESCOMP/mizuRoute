@@ -2,37 +2,32 @@ MODULE mpi_process
 
 USE mpi
 
-! general public variable
-USE public_var                   ! iulog, integerMissing, realMissing, root, calendar, time_units
-USE globalData, ONLY: masterproc
-USE globalData, ONLY: nRoutes              ! number of active routing method
-USE globalData, ONLY: onRoute              ! logical to indicate which routing method(s) is on
-USE globalData, ONLY: idxIRF, idxKWT, &
-                      idxKW, idxMC, idxDW
-
-! numeric definition
 USE nrtype
-
-USE dataTypes, ONLY: var_ilength   ! integer type:     var(:)%dat
-USE dataTypes, ONLY: var_dlength   ! double precision type: var(:)%dat
-USE dataTypes, ONLY: var_clength   ! character type:        var(:)%dat
-USE dataTypes, ONLY: subbasin_omp  ! openMP domain data structure
-
+! general public variable
+USE public_var                                ! iulog, integerMissing, realMissing, root, calendar, time_units
+USE globalData, ONLY: masterproc
+USE globalData, ONLY: nRoutes                 ! number of active routing method
+USE globalData, ONLY: onRoute                 ! logical to indicate which routing method(s) is on
+USE globalData, ONLY: idxSUM,idxIRF,idxKWT, &
+                      idxKW,idxMC,idxDW
+! custum dataType
+USE dataTypes, ONLY: var_ilength              ! integer type:     var(:)%dat
+USE dataTypes, ONLY: var_dlength              ! double precision type: var(:)%dat
+USE dataTypes, ONLY: var_clength              ! character type:        var(:)%dat
+USE dataTypes, ONLY: subbasin_omp             ! openMP domain data structure
 ! named variables
-USE var_lookup, ONLY:ixHRU,    nVarsHRU     ! index of variables for the HRUs
-USE var_lookup, ONLY:ixSEG,    nVarsSEG     ! index of variables for the stream segments
-USE var_lookup, ONLY:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
-USE var_lookup, ONLY:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
-USE var_lookup, ONLY:ixPFAF,   nVarsPFAF    ! index of variables for the pfafstetter code
-
+USE var_lookup, ONLY:ixHRU,    nVarsHRU       ! index of variables for the HRUs
+USE var_lookup, ONLY:ixSEG,    nVarsSEG       ! index of variables for the stream segments
+USE var_lookup, ONLY:ixHRU2SEG,nVarsHRU2SEG   ! index of variables for the hru2segment mapping
+USE var_lookup, ONLY:ixNTOPO,  nVarsNTOPO     ! index of variables for the network topology
+USE var_lookup, ONLY:ixPFAF,   nVarsPFAF      ! index of variables for the pfafstetter code
 ! general utility
-USE nr_utility_module, ONLY: indexx         ! create sorted index array
-USE nr_utility_module, ONLY: arth           ! build a vector of regularly spaced numbers
-USE nr_utility_module, ONLY: sizeo          ! get size of allocatable array (if not allocated, zero)
-USE nr_utility_module, ONLY: findIndex      ! find index within a vector
-USE perf_mod,          ONLY: t_startf       ! timing start
-USE perf_mod,          ONLY: t_stopf        ! timing stop
-
+USE nr_utility_module, ONLY: indexx           ! create sorted index array
+USE nr_utility_module, ONLY: arth             ! build a vector of regularly spaced numbers
+USE nr_utility_module, ONLY: sizeo            ! get size of allocatable array (if not allocated, zero)
+USE nr_utility_module, ONLY: findIndex        ! find index within a vector
+USE perf_mod,          ONLY: t_startf         ! timing start
+USE perf_mod,          ONLY: t_stopf          ! timing stop
 ! MPI utility
 USE mpi_utils, ONLY: shr_mpi_bcast
 USE mpi_utils, ONLY: shr_mpi_gatherV
@@ -59,7 +54,6 @@ logical(lgt), parameter :: debug_trib_omp=.false.
 logical(lgt), parameter :: debug_main_omp=.false.
 
 private
-
 public :: comm_ntopo_data
 public :: mpi_restart
 public :: mpi_route
@@ -1920,7 +1914,7 @@ contains
   integer(i4b)                            :: nSeg                  ! number of reaches
   integer(i4b)                            :: iSeg, jSeg            ! reach looping index
   integer(i4b)                            :: ix                    ! general looping index
-  integer(i4b),parameter                  :: nFluxes=4             ! number of flux variables
+  integer(i4b),parameter                  :: nFluxes=3             ! number of flux variables
 
   ierr=0; message='mpi_comm_flux/'
 
@@ -1936,8 +1930,7 @@ contains
         jSeg = rchIdxGlobal(iSeg)
         flux(iSeg,1) = RCHFLX_global(iens,jSeg)%BASIN_QR(0)  ! HRU routed flow (previous time step)
         flux(iSeg,2) = RCHFLX_global(iens,jSeg)%BASIN_QR(1)  ! HRU routed flow (current time step)
-        flux(iSeg,3) = RCHFLX_global(iens,jSeg)%UPSTREAM_QI  ! Upstream accumulated flow
-        flux(iSeg,4) = RCHFLX_global(iens,jSeg)%BASIN_QI     ! HRU non-routed flow
+        flux(iSeg,3) = RCHFLX_global(iens,jSeg)%BASIN_QI     ! HRU non-routed flow
       enddo
     end if ! end of root processor operation
 
@@ -1960,8 +1953,7 @@ contains
       jSeg = rchIdxLocal(iSeg)
       RCHFLX_local(iens,jSeg)%BASIN_QR(0) = flux_local(iSeg,1)  ! HRU routed flow (previous time step)
       RCHFLX_local(iens,jSeg)%BASIN_QR(1) = flux_local(iSeg,2)  ! HRU routed flow (current time step)
-      RCHFLX_local(iens,jSeg)%UPSTREAM_QI = flux_local(iSeg,3)  ! Upstream accumulated flow
-      RCHFLX_local(iens,jSeg)%BASIN_QI    = flux_local(iSeg,4)  ! HRU non-routed flow
+      RCHFLX_local(iens,jSeg)%BASIN_QI    = flux_local(iSeg,3)  ! HRU non-routed flow
     end do
   elseif (commType == gather) then
     allocate(flux_local(nReach(pid),nFluxes), stat=ierr)
@@ -1972,8 +1964,7 @@ contains
       ! Transfer reach fluxes to 2D arrays
       flux_local(iSeg,1) = RCHFLX_local(iens,jSeg)%BASIN_QR(0)  ! HRU routed flow (previous time step)
       flux_local(iSeg,2) = RCHFLX_local(iens,jSeg)%BASIN_QR(1)  ! HRU routed flow (current time step)
-      flux_local(iSeg,3) = RCHFLX_local(iens,jSeg)%UPSTREAM_QI  ! Upstream accumulated flow
-      flux_local(iSeg,4) = RCHFLX_local(iens,jSeg)%BASIN_QI     ! non-HRU routed flow (
+      flux_local(iSeg,3) = RCHFLX_local(iens,jSeg)%BASIN_QI     ! non-HRU routed flow (
     end do
 
     allocate(flux(nSeg,nFluxes), stat=ierr)
@@ -1993,8 +1984,7 @@ contains
         jSeg = rchIdxGlobal(iSeg)
         RCHFLX_global(iens,jSeg)%BASIN_QR(0) = flux(iSeg,1)
         RCHFLX_global(iens,jSeg)%BASIN_QR(1) = flux(iSeg,2)
-        RCHFLX_global(iens,jSeg)%UPSTREAM_QI = flux(iSeg,3)
-        RCHFLX_global(iens,jSeg)%BASIN_QI    = flux(iSeg,4)
+        RCHFLX_global(iens,jSeg)%BASIN_QI    = flux(iSeg,3)
       end do
     endif
   endif
@@ -2057,12 +2047,13 @@ contains
         jSeg = rchIdxGlobal(iSeg)
         do ix=1,nRoutes
           select case(routeMethods(ix))
+            case(accumRunoff);           flux(iSeg,ix) = RCHFLX_global(iens,jSeg)%ROUTE(idxSUM)%REACH_Q
             case(impulseResponseFunc);   flux(iSeg,ix) = RCHFLX_global(iens,jSeg)%ROUTE(idxIRF)%REACH_Q
             case(kinematicWaveTracking); flux(iSeg,ix) = RCHFLX_global(iens,jSeg)%ROUTE(idxKWT)%REACH_Q
             case(kinematicWave);         flux(iSeg,ix) = RCHFLX_global(iens,jSeg)%ROUTE(idxKW)%REACH_Q
             case(muskingumCunge);        flux(iSeg,ix) = RCHFLX_global(iens,jSeg)%ROUTE(idxMC)%REACH_Q
             case(diffusiveWave);         flux(iSeg,ix) = RCHFLX_global(iens,jSeg)%ROUTE(idxDW)%REACH_Q
-            case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 1-5'; ierr=81; return
+            case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 0-5'; ierr=81; return
           end select
         end do
       end do
@@ -2086,12 +2077,13 @@ contains
       jSeg = rchIdxLocal(iSeg)
       do ix=1,nRoutes
         select case(routeMethods(ix))
+          case(accumRunoff);           RCHFLX_local(iens,jSeg)%ROUTE(idxSUM)%REACH_Q = flux_local(iSeg,ix)  ! HRU routed flow (previous time step)
           case(impulseResponseFunc);   RCHFLX_local(iens,jSeg)%ROUTE(idxIRF)%REACH_Q = flux_local(iSeg,ix)  ! HRU routed flow (previous time step)
           case(kinematicWaveTracking); RCHFLX_local(iens,jSeg)%ROUTE(idxKWT)%REACH_Q = flux_local(iSeg,ix)  ! HRU routed flow (current time step)
           case(kinematicWave);         RCHFLX_local(iens,jSeg)%ROUTE(idxKW)%REACH_Q  = flux_local(iSeg,ix)  ! Upstream accumulated flow
           case(muskingumCunge);        RCHFLX_local(iens,jSeg)%ROUTE(idxMC)%REACH_Q  = flux_local(iSeg,ix)  ! HRU non-routed flow
           case(diffusiveWave);         RCHFLX_local(iens,jSeg)%ROUTE(idxDW)%REACH_Q  = flux_local(iSeg,ix)  ! HRU non-routed flow
-          case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 1-5'; ierr=81; return
+          case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 0-5'; ierr=81; return
         end select
       end do
     end do
@@ -2106,12 +2098,13 @@ contains
       jSeg = rchIdxLocal(iSeg)
       do ix=1,nRoutes
         select case(routeMethods(ix))
+          case(accumRunoff);           flux_local(iSeg,ix) = RCHFLX_local(iens,jSeg)%ROUTE(idxSUM)%REACH_Q
           case(impulseResponseFunc);   flux_local(iSeg,ix) = RCHFLX_local(iens,jSeg)%ROUTE(idxIRF)%REACH_Q
           case(kinematicWaveTracking); flux_local(iSeg,ix) = RCHFLX_local(iens,jSeg)%ROUTE(idxKWT)%REACH_Q
           case(kinematicWave);         flux_local(iSeg,ix) = RCHFLX_local(iens,jSeg)%ROUTE(idxKW)%REACH_Q
           case(muskingumCunge);        flux_local(iSeg,ix) = RCHFLX_local(iens,jSeg)%ROUTE(idxMC)%REACH_Q
           case(diffusiveWave);         flux_local(iSeg,ix) = RCHFLX_local(iens,jSeg)%ROUTE(idxDW)%REACH_Q
-          case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 1-5'; ierr=81; return
+          case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 0-5'; ierr=81; return
         end select
       end do
     end do
@@ -2133,12 +2126,13 @@ contains
         jSeg = rchIdxGlobal(iSeg)
         do ix=1,nRoutes
           select case(routeMethods(ix))
+            case(accumRunoff);           RCHFLX_global(iens,jSeg)%ROUTE(idxSUM)%REACH_Q = flux(iSeg,ix)
             case(impulseResponseFunc);   RCHFLX_global(iens,jSeg)%ROUTE(idxIRF)%REACH_Q = flux(iSeg,ix)
             case(kinematicWaveTracking); RCHFLX_global(iens,jSeg)%ROUTE(idxKWT)%REACH_Q = flux(iSeg,ix)
             case(kinematicWave);         RCHFLX_global(iens,jSeg)%ROUTE(idxKW)%REACH_Q  = flux(iSeg,ix)
             case(muskingumCunge);        RCHFLX_global(iens,jSeg)%ROUTE(idxMC)%REACH_Q  = flux(iSeg,ix)
             case(diffusiveWave);         RCHFLX_global(iens,jSeg)%ROUTE(idxDW)%REACH_Q  = flux(iSeg,ix)
-            case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 1-5'; ierr=81; return
+            case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 0-5'; ierr=81; return
           end select
         end do
       end do

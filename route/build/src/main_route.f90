@@ -53,7 +53,7 @@ CONTAINS
    ! 3. basinRunoff_in is given in the order of NETOPO_in(:)%HRUIX.
 
    USE public_var, ONLY: doesBasinRoute
-   USE public_var, ONLY: doesAccumRunoff
+   USE public_var, ONLY: accumRunoff
    USE public_var, ONLY: impulseResponseFunc
    USE public_var, ONLY: kinematicWaveTracking
    USE public_var, ONLY: kinematicWave
@@ -187,7 +187,7 @@ CONTAINS
 
    ! 3. subroutine: river reach routing
    ! perform upstream flow accumulation
-   if (doesAccumRunoff == 1) then
+   if (onRoute(accumRunoff)) then
      call accum_runoff(iens,              &  ! input: ensemble index
                        river_basin,       &  ! input: river basin data type
                        ixDesire,          &  ! input: index of verbose reach

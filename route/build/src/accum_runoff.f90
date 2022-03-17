@@ -1,17 +1,18 @@
 MODULE accum_runoff_module
 
 USE nrtype
-USE public_var
-
+! data type
 USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
 USE dataTypes, ONLY: RCHTOPO        ! Network topology
+! global parameters
+USE public_var
+USE globalData,ONLY: idxSUM        ! index of IRF method
 ! subroutines: general
 USE perf_mod,  ONLY: t_startf,t_stopf ! timing start/stop
 
 implicit none
 
 private
-
 public::accum_runoff
 
 CONTAINS
@@ -39,18 +40,15 @@ CONTAINS
  USE model_utils, ONLY: handle_err
 
  implicit none
- ! input
- integer(i4b),       intent(in)                 :: iens            ! runoff ensemble index
- type(subbasin_omp), intent(in),    allocatable :: river_basin(:)  ! river basin information (mainstem, tributary outlet etc.)
- integer(i4b),       intent(in)                 :: ixDesire        ! index of the reach for verbose output
- type(RCHTOPO),      intent(in),    allocatable :: NETOPO_in(:)    ! River Network topology
- ! inout
- TYPE(STRFLX),       intent(inout), allocatable :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
- ! output
- integer(i4b),       intent(out)                :: ierr            ! error code
- character(*),       intent(out)                :: message         ! error message
- ! input (optional)
- integer(i4b),       intent(in),   optional     :: ixSubRch(:)     ! subset of reach indices to be processed
+ ! argument variables
+ integer(i4b),                    intent(in)    :: iens            ! runoff ensemble index
+ type(subbasin_omp), allocatable, intent(in)    :: river_basin(:)  ! river basin information (mainstem, tributary outlet etc.)
+ integer(i4b),                    intent(in)    :: ixDesire        ! index of the reach for verbose output
+ type(RCHTOPO),      allocatable, intent(in)    :: NETOPO_in(:)    ! River Network topology
+ type(STRFLX),       allocatable, intent(inout) :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+ integer(i4b),                    intent(out)   :: ierr            ! error code
+ character(*),                    intent(out)   :: message         ! error message
+ integer(i4b),       optional,    intent(in)    :: ixSubRch(:)     ! subset of reach indices to be processed
  ! local variables
  integer(i4b)                                   :: nSeg            ! number of segments in the network
  integer(i4b)                                   :: nTrib           ! number of tributaries
@@ -127,17 +125,15 @@ CONTAINS
                             RCHFLX_out, &    ! inout: reach flux data structure
                             ierr, message)   ! output: error control
  implicit none
- ! Input
- INTEGER(I4B), intent(IN)                 :: iEns           ! runoff ensemble to be routed
- INTEGER(I4B), intent(IN)                 :: segIndex       ! segment where routing is performed
- INTEGER(I4B), intent(IN)                 :: ixDesire       ! index of the reach for verbose output
+ ! argument variables
+ integer(i4b), intent(in)                 :: iEns           ! runoff ensemble to be routed
+ integer(i4b), intent(in)                 :: segIndex       ! segment where routing is performed
+ integer(i4b), intent(in)                 :: ixDesire       ! index of the reach for verbose output
  type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)   ! River Network topology
- ! inout
- TYPE(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
- ! Output
+ type(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  integer(i4b), intent(out)                :: ierr           ! error code
  character(*), intent(out)                :: message        ! error message
- ! Local variables to
+ ! Local variables
  real(dp)                                 :: q_upstream     ! upstream Reach fluxes
  integer(i4b)                             :: nUps           ! number of upstream segment
  integer(i4b)                             :: iUps           ! upstream reach index
@@ -149,17 +145,17 @@ CONTAINS
  ! identify number of upstream segments of the reach being processed
  nUps = size(NETOPO_in(segIndex)%UREACHI)
 
- RCHFLX_out(iEns,segIndex)%UPSTREAM_QI = RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+ RCHFLX_out(iEns,segIndex)%ROUTE(idxSUM)%REACH_Q = RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
 
  q_upstream = 0._dp
  if (nUps>0) then
 
    do iUps = 1,nUps
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-     q_upstream = q_upstream + RCHFLX_out(iens,iRch_ups)%UPSTREAM_QI
+     q_upstream = q_upstream + RCHFLX_out(iens,iRch_ups)%ROUTE(idxSUM)%REACH_Q
    end do
 
-   RCHFLX_out(iEns,segIndex)%UPSTREAM_QI = RCHFLX_out(iEns,segIndex)%UPSTREAM_QI + q_upstream
+   RCHFLX_out(iEns,segIndex)%ROUTE(idxSUM)%REACH_Q = RCHFLX_out(iEns,segIndex)%ROUTE(idxSUM)%REACH_Q + q_upstream
 
  endif
 
@@ -171,10 +167,10 @@ CONTAINS
    write(*,'(a,x,I10,x,I10)') ' Reach index & ID =', segIndex, NETOPO_in(segIndex)%REACHID
    write(*,'(a)')             ' * upstream reach index (NETOPO_in%UREACH) and discharge (uprflux) [m3/s] :'
    write(*,fmt1)              ' UREACHK =', (NETOPO_in(segIndex)%UREACHK(iUps), iUps=1,nUps)
-   write(*,fmt2)              ' prflux  =', (RCHFLX_out(iens,NETOPO_in(segIndex)%UREACHI(iUps))%UPSTREAM_QI, iUps=1,nUps)
-   write(*,'(a)')             ' * local area discharge (RCHFLX_out%BASIN_QR(1)) and final discharge (RCHFLX_out%UPSTREAM_QI) [m3/s] :'
+   write(*,fmt2)              ' prflux  =', (RCHFLX_out(iens,NETOPO_in(segIndex)%UREACHI(iUps))%ROUTE(idxSUM)%REACH_Q, iUps=1,nUps)
+   write(*,'(a)')             ' * local area discharge (RCHFLX_out%BASIN_QR(1)) and final discharge (RCHFLX_out%ROUTE(idxSUM)%REACH_Q) [m3/s] :'
    write(*,'(a,x,F15.7)')     ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
-   write(*,'(a,x,F15.7)')     ' RCHFLX_out%UPSTREAM_QI =', RCHFLX_out(iens,segIndex)%UPSTREAM_QI
+   write(*,'(a,x,F15.7)')     ' RCHFLX_out%ROUTE(idxSUM)%REACH_Q =', RCHFLX_out(iens,segIndex)%ROUTE(idxSUM)%REACH_Q
  endif
 
  END SUBROUTINE accum_qupstream
