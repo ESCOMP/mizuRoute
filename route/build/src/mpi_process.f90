@@ -5,11 +5,15 @@ USE mpi
 USE nrtype
 ! general public variable
 USE public_var                                ! iulog, integerMissing, realMissing, root, calendar, time_units
-USE globalData, ONLY: masterproc
+USE globalData, ONLY: masterproc,multiProcs
 USE globalData, ONLY: nRoutes                 ! number of active routing method
 USE globalData, ONLY: onRoute                 ! logical to indicate which routing method(s) is on
 USE globalData, ONLY: idxSUM,idxIRF,idxKWT, &
                       idxKW,idxMC,idxDW
+USE globalData, ONLY: meta_NTOPO
+USE globalData, ONLY: meta_SEG
+USE globalData, ONLY: meta_HRU2SEG
+USE globalData, ONLY: meta_HRU
 ! custum dataType
 USE dataTypes, ONLY: var_ilength              ! integer type:     var(:)%dat
 USE dataTypes, ONLY: var_dlength              ! double precision type: var(:)%dat
@@ -37,7 +41,7 @@ USE mpi_utils, ONLY: shr_mpi_barrier
 
 implicit none
 
-! common parameters within this module
+! Module-wide parameter
 ! commputation types
 integer(i4b),parameter  :: scatter=1
 integer(i4b),parameter  :: gather=2
@@ -60,12 +64,12 @@ public :: mpi_route
 public :: pass_global_data
 public :: mpi_comm_single_flux
 
-contains
+CONTAINS
 
  ! *********************************************************************
  ! public subroutine: send reach/hru information to tasks and populate data structures
  ! *********************************************************************
- subroutine comm_ntopo_data(pid,                & ! input: proc id
+ SUBROUTINE comm_ntopo_data(pid,                & ! input: proc id
                             nNodes,             & ! input: number of procs
                             comm,               & ! input: communicator
                             nRch_in,            & ! input: number of stream segments in whole domain
@@ -108,7 +112,7 @@ contains
   USE domain_decomposition,ONLY: omp_domain_decomposition ! domain decomposition for omp
 
   implicit none
-  ! Input variables
+  ! argument variables
   integer(i4b),                   intent(in)  :: pid                      ! process id (MPI)
   integer(i4b),                   intent(in)  :: nNodes                   ! number of processes (MPI)
   integer(i4b),                   intent(in)  :: comm                     ! communicator
@@ -118,190 +122,56 @@ contains
   type(var_dlength), allocatable, intent(in)  :: structSEG(:)             ! stream segment properties
   type(var_ilength), allocatable, intent(in)  :: structHRU2SEG(:)         ! HRU to SEG mapping
   type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)           ! network topology
-  ! Output error handling variables
   integer(i4b),                   intent(out) :: ierr
-  character(len=strLen),          intent(out) :: message                   ! error message
+  character(len=strLen),          intent(out) :: message                  ! error message
   ! Local variables
   ! data structure for tributary river network data
-  type(var_dlength), allocatable              :: structHRU_local(:)        ! tributary ancillary data for HRUs
-  type(var_dlength), allocatable              :: structSEG_local(:)        ! tributary ancillary data for stream segments
-  type(var_ilength), allocatable              :: structNTOPO_local(:)      ! tributary network topology
-  type(var_ilength), allocatable              :: structHRU2seg_local(:)    ! tributary ancillary data for mapping hru2basin
-  type(var_clength), allocatable              :: structPFAF_local(:)       ! tributary ancillary data for pfafstetter code
+  type(var_dlength), allocatable              :: structHRU_local(:)       ! tributary ancillary data for HRUs
+  type(var_dlength), allocatable              :: structSEG_local(:)       ! tributary ancillary data for stream segments
+  type(var_ilength), allocatable              :: structNTOPO_local(:)     ! tributary network topology
+  type(var_ilength), allocatable              :: structHRU2seg_local(:)   ! tributary ancillary data for mapping hru2basin
+  type(var_clength), allocatable              :: structPFAF_local(:)      ! tributary ancillary data for pfafstetter code
   ! data structure for mainstem river network data (root node)
-  type(var_dlength), allocatable              :: structHRU_main(:)         ! mainstem ancillary data for HRUs
-  type(var_dlength), allocatable              :: structSEG_main(:)         ! mainstem ancillary data for stream segments
-  type(var_ilength), allocatable              :: structNTOPO_main(:)       ! mainstem network topology
-  type(var_ilength), allocatable              :: structHRU2seg_main(:)     ! mainstem ancillary data for mapping hru2basin
-  type(var_clength), allocatable              :: structPFAF_main(:)        ! mainstem ancillary data for pfafstetter code
-  ! 1D array for decomposed river network data
-  integer(i4b),      allocatable              :: segId_local(:)            ! reach id for decomposed network
-  integer(i4b),      allocatable              :: downSegId_local(:)        ! downstream reach id for decomposed network
-  integer(i4b),      allocatable              :: hruId_local(:)            ! hru id array in decomposed network
-  integer(i4b),      allocatable              :: hruSegId_local(:)         ! downstream reach id array in decomposed network
-  integer(i4b),      allocatable              :: islake_local(:)           ! islake flag local
-  integer(i4b),      allocatable              :: LakeTargVol_local(:)      ! LakeTargVol flag local
-  integer(i4b),      allocatable              :: LakeModelType_local(:)    ! LakeModelType flag local
-  real(dp),          allocatable              :: slope_local(:)            ! reach slope array in decomposed network
-  real(dp),          allocatable              :: length_local(:)           ! reach length array in decomposed network
-  real(dp),          allocatable              :: area_local(:)             ! hru area in decomposed network
-  real(dp),          allocatable              :: D03_MaxStorage_local(:)   ! Doll 2003; maximum active storage for Doll 2003
-  real(dp),          allocatable              :: D03_Coefficient_local(:)  ! Doll 2003; coefficient for Doll 2003
-  real(dp),          allocatable              :: D03_Power_local(:)        ! Doll 2003; power for Doll 2003
-
-  real(dp),          allocatable              :: HYP_E_emr_local(:)        ! HYPE; elevation of emergency spillway [m]
-  real(dp),          allocatable              :: HYP_E_lim_local(:)        ! HYPE; elevation below which primary spillway flow is restrcited [m]
-  real(dp),          allocatable              :: HYP_E_min_local(:)        ! HYPE; elevation below which outflow is zero [m]
-  real(dp),          allocatable              :: HYP_E_zero_local(:)       ! HYPE; elevation at which storage is set to zero [m]
-  real(dp),          allocatable              :: HYP_Qrate_emr_local(:)    ! HYPE; emergency rate of flow for each unit of elevation above HYP_E_emr [m3/s]
-  real(dp),          allocatable              :: HYP_Erate_emr_local(:)    ! HYPE; power for the rate of flow for each unit of elevation above HYP_E_emr [-]
-  real(dp),          allocatable              :: HYP_Qrate_prim_local(:)   ! HYPE; the average yearly or long term output from main spillway [m3/s]
-  real(dp),          allocatable              :: HYP_Qrate_amp_local(:)    ! HYPE; amplitude of the Qrate_main [-]
-  integer(i4b),      allocatable              :: HYP_Qrate_phs_local(:)    ! HYPE; phase of the Qrate_main based on the day of the year [-]; default 100
-  integer(i4b),      allocatable              :: HYP_prim_F_local(:)       ! HYPE; if the reservoir has primary spillway then set to 1 otherwise 0
-  real(dp),          allocatable              :: HYP_A_avg_local(:)        ! HYPE; average area for the lake; this might not be used if bathymetry is provided
-
-  real(dp),          allocatable              :: H06_Smax_local(:)         ! Hanasaki 2006; maximume reservoir storage [m3]
-  real(dp),          allocatable              :: H06_alpha_local(:)        ! Hanasaki 2006; fraction of active storage compared to total storage [-]
-  real(dp),          allocatable              :: H06_envfact_local(:)      ! Hanasaki 2006; fraction of inflow that can be used to meet demand [-]
-  real(dp),          allocatable              :: H06_S_ini_local(:)        ! Hanasaki 2006; initial storage used for initial estimation of release coefficient [m3]
-  real(dp),          allocatable              :: H06_c1_local(:)           ! Hanasaki 2006; coefficient 1 for target release for irrigation reseroir [-]
-  real(dp),          allocatable              :: H06_c2_local(:)           ! Hanasaki 2006; coefficient 2 for target release for irrigation reseroir [-]
-  real(dp),          allocatable              :: H06_exponent_local(:)     ! Hanasaki 2006; Exponenet of actual release for "within-a-year" reservoir [-]
-  real(dp),          allocatable              :: H06_denominator_local(:)  ! Hanasaki 2006; Denominator of actual release for "within-a-year" reservoir [-]
-  real(dp),          allocatable              :: H06_c_compare_local(:)    ! Hanasaki 2006; Criterion for distinguish of "within-a-year" or "multi-year" reservoir [-]
-  real(dp),          allocatable              :: H06_frac_Sdead_local(:)   ! Hanasaki 2006; Fraction of dead storage to maximume storage [-]
-  real(dp),          allocatable              :: H06_E_rel_ini_local(:)    ! Hanasaki 2006; Initial release coefficient [-]
-  real(dp),          allocatable              :: H06_I_Jan_local(:)        ! Hanasaki 2006; Average January   inflow [m3/s]
-  real(dp),          allocatable              :: H06_I_Feb_local(:)        ! Hanasaki 2006; Average Februrary inflow [m3/s]
-  real(dp),          allocatable              :: H06_I_Mar_local(:)        ! Hanasaki 2006; Average March     inflow [m3/s]
-  real(dp),          allocatable              :: H06_I_Apr_local(:)        ! Hanasaki 2006; Average April     inflow [m3/s]
-  real(dp),          allocatable              :: H06_I_May_local(:)        ! Hanasaki 2006; Average May       inflow [m3/s]
-  real(dp),          allocatable              :: H06_I_Jun_local(:)        ! Hanasaki 2006; Average June      inflow [m3/s]
-  real(dp),          allocatable              :: H06_I_Jul_local(:)        ! Hanasaki 2006; Average July      inflow [m3/s]
-  real(dp),          allocatable              :: H06_I_Aug_local(:)        ! Hanasaki 2006; Average August    inflow [m3/s]
-  real(dp),          allocatable              :: H06_I_Sep_local(:)        ! Hanasaki 2006; Average September inflow [m3/s]
-  real(dp),          allocatable              :: H06_I_Oct_local(:)        ! Hanasaki 2006; Average October   inflow [m3/s]
-  real(dp),          allocatable              :: H06_I_Nov_local(:)        ! Hanasaki 2006; Average November  inflow [m3/s]
-  real(dp),          allocatable              :: H06_I_Dec_local(:)        ! Hanasaki 2006; Average December  inflow [m3/s]
-  real(dp),          allocatable              :: H06_D_Jan_local(:)        ! Hanasaki 2006; Average January   demand [m3/s]
-  real(dp),          allocatable              :: H06_D_Feb_local(:)        ! Hanasaki 2006; Average Februrary demand [m3/s]
-  real(dp),          allocatable              :: H06_D_Mar_local(:)        ! Hanasaki 2006; Average March     demand [m3/s]
-  real(dp),          allocatable              :: H06_D_Apr_local(:)        ! Hanasaki 2006; Average April     demand [m3/s]
-  real(dp),          allocatable              :: H06_D_May_local(:)        ! Hanasaki 2006; Average May       demand [m3/s]
-  real(dp),          allocatable              :: H06_D_Jun_local(:)        ! Hanasaki 2006; Average June      demand [m3/s]
-  real(dp),          allocatable              :: H06_D_Jul_local(:)        ! Hanasaki 2006; Average July      demand [m3/s]
-  real(dp),          allocatable              :: H06_D_Aug_local(:)        ! Hanasaki 2006; Average Agust     demand [m3/s]
-  real(dp),          allocatable              :: H06_D_Sep_local(:)        ! Hanasaki 2006; Average September demand [m3/s]
-  real(dp),          allocatable              :: H06_D_Oct_local(:)        ! Hanasaki 2006; Average October   demand [m3/s]
-  real(dp),          allocatable              :: H06_D_Nov_local(:)        ! Hanasaki 2006; Average Novermber demand [m3/s]
-  real(dp),          allocatable              :: H06_D_Dec_local(:)        ! Hanasaki 2006; Average December  demand [m3/s]
-  integer(i4b),      allocatable              :: H06_purpose_local(:)      ! Hanasaki 2006; reservoir purpose; (0= non-irrigation, 1=irrigation) [-]
-  integer(i4b),      allocatable              :: H06_I_mem_F_local(:)      ! Hanasaki 2006; Flag to transition to modelled inflow [-]
-  integer(i4b),      allocatable              :: H06_D_mem_F_local(:)      ! Hanasaki 2006; Flag to transition to modelled/provided demand [-]
-  integer(i4b),      allocatable              :: H06_I_mem_L_local(:)      ! Hanasaki 2006; Memory length in years for inflow [year]
-  integer(i4b),      allocatable              :: H06_D_mem_L_local(:)      ! Hanasaki 2006; Memory length in years for demand [year]
-
-  logical(lgt),      allocatable              :: tribOutlet_local(:)       ! logical to indicate tributary outlet to mainstems
-  ! 1D array for the entire river network
-  integer(i4b)                                :: hruId(nHRU_in)            ! hru id for all the HRUs
-  integer(i4b)                                :: hruSegId(nHRU_in)         ! hru-to-seg mapping for each hru
-  integer(i4b)                                :: segId(nRch_in)            ! reach id for all the segments
-  integer(i4b)                                :: downSegId(nRch_in)        ! downstream reach ID for each reach
-  integer(i4b)                                :: islake(nRch_in)           ! islake flag
-  integer(i4b)                                :: LakeTargVol(nRch_in)      ! LakeTargVol flag
-  integer(i4b)                                :: LakeModelType(nRch_in)    ! LakeModelType flag local
-  real(dp)                                    :: slope(nRch_in)            ! reach slope array for each reach
-  real(dp)                                    :: length(nRch_in)           ! reach length array for each reach
-  real(dp)                                    :: area(nHRU_in)             ! hru area for each hru
-  real(dp)                                    :: D03_MaxStorage(nRch_in)   ! Doll 2003; maximum active storage for Doll 2003
-  real(dp)                                    :: D03_Coefficient(nRch_in)  ! Doll 2003; coefficient for Doll 2003
-  real(dp)                                    :: D03_Power(nRch_in)        ! Doll 2003; power for Doll 2003
-
-  real(dp)                                    :: HYP_E_emr(nRch_in)        ! HYPE; elevation of emergency spillway [m]
-  real(dp)                                    :: HYP_E_lim(nRch_in)        ! HYPE; elevation below which primary spillway flow is restrcited [m]
-  real(dp)                                    :: HYP_E_min(nRch_in)        ! HYPE; elevation below which outflow is zero [m]
-  real(dp)                                    :: HYP_E_zero(nRch_in)       ! HYPE; elevation at which storage is set to zero [m]
-  real(dp)                                    :: HYP_Qrate_emr(nRch_in)    ! HYPE; emergency rate of flow for each unit of elevation above HYP_E_emr [m3/s]
-  real(dp)                                    :: HYP_Erate_emr(nRch_in)    ! HYPE; power for the rate of flow for each unit of elevation above HYP_E_emr [-]
-  real(dp)                                    :: HYP_Qrate_prim(nRch_in)   ! HYPE; the average yearly or long term output from main spillway [m3/s]
-  real(dp)                                    :: HYP_Qrate_amp(nRch_in)    ! HYPE; amplitude of the Qrate_main [-]
-  integer(i4b)                                :: HYP_Qrate_phs(nRch_in)    ! HYPE; phase of the Qrate_main based on the day of the year [-]; default 100
-  integer(i4b)                                :: HYP_prim_F(nRch_in)       ! HYPE; if the reservoir has primary spillway then set to 1 otherwise 0
-  real(dp)                                    :: HYP_A_avg(nRch_in)        ! HYPE; average area for the lake; this might not be used if bathymetry is provided
-
-  real(dp)                                    :: H06_Smax(nRch_in)         ! Hanasaki 2006; maximume reservoir storage [m3]
-  real(dp)                                    :: H06_alpha(nRch_in)        ! Hanasaki 2006; fraction of active storage compared to total storage [-]
-  real(dp)                                    :: H06_envfact(nRch_in)      ! Hanasaki 2006; fraction of inflow that can be used to meet demand [-]
-  real(dp)                                    :: H06_S_ini(nRch_in)        ! Hanasaki 2006; initial storage used for initial estimation of release coefficient [m3]
-  real(dp)                                    :: H06_c1(nRch_in)           ! Hanasaki 2006; coefficient 1 for target release for irrigation reseroir [-]
-  real(dp)                                    :: H06_c2(nRch_in)           ! Hanasaki 2006; coefficient 2 for target release for irrigation reseroir [-]
-  real(dp)                                    :: H06_exponent(nRch_in)     ! Hanasaki 2006; Exponenet of actual release for "within-a-year" reservoir [-]
-  real(dp)                                    :: H06_denominator(nRch_in)  ! Hanasaki 2006; Denominator of actual release for "within-a-year" reservoir [-]
-  real(dp)                                    :: H06_c_compare(nRch_in)    ! Hanasaki 2006; Criterion for distinguish of "within-a-year" or "multi-year" reservoir [-]
-  real(dp)                                    :: H06_frac_Sdead(nRch_in)   ! Hanasaki 2006; Fraction of dead storage to maximume storage [-]
-  real(dp)                                    :: H06_E_rel_ini(nRch_in)    ! Hanasaki 2006; Initial release coefficient [-]
-  real(dp)                                    :: H06_I_Jan(nRch_in)        ! Hanasaki 2006; Average January   inflow [m3/s]
-  real(dp)                                    :: H06_I_Feb(nRch_in)        ! Hanasaki 2006; Average Februrary inflow [m3/s]
-  real(dp)                                    :: H06_I_Mar(nRch_in)        ! Hanasaki 2006; Average March     inflow [m3/s]
-  real(dp)                                    :: H06_I_Apr(nRch_in)        ! Hanasaki 2006; Average April     inflow [m3/s]
-  real(dp)                                    :: H06_I_May(nRch_in)        ! Hanasaki 2006; Average May       inflow [m3/s]
-  real(dp)                                    :: H06_I_Jun(nRch_in)        ! Hanasaki 2006; Average June      inflow [m3/s]
-  real(dp)                                    :: H06_I_Jul(nRch_in)        ! Hanasaki 2006; Average July      inflow [m3/s]
-  real(dp)                                    :: H06_I_Aug(nRch_in)        ! Hanasaki 2006; Average August    inflow [m3/s]
-  real(dp)                                    :: H06_I_Sep(nRch_in)        ! Hanasaki 2006; Average September inflow [m3/s]
-  real(dp)                                    :: H06_I_Oct(nRch_in)        ! Hanasaki 2006; Average October   inflow [m3/s]
-  real(dp)                                    :: H06_I_Nov(nRch_in)        ! Hanasaki 2006; Average November  inflow [m3/s]
-  real(dp)                                    :: H06_I_Dec(nRch_in)        ! Hanasaki 2006; Average December  inflow [m3/s]
-  real(dp)                                    :: H06_D_Jan(nRch_in)        ! Hanasaki 2006; Average January   demand [m3/s]
-  real(dp)                                    :: H06_D_Feb(nRch_in)        ! Hanasaki 2006; Average Februrary demand [m3/s]
-  real(dp)                                    :: H06_D_Mar(nRch_in)        ! Hanasaki 2006; Average March     demand [m3/s]
-  real(dp)                                    :: H06_D_Apr(nRch_in)        ! Hanasaki 2006; Average April     demand [m3/s]
-  real(dp)                                    :: H06_D_May(nRch_in)        ! Hanasaki 2006; Average May       demand [m3/s]
-  real(dp)                                    :: H06_D_Jun(nRch_in)        ! Hanasaki 2006; Average June      demand [m3/s]
-  real(dp)                                    :: H06_D_Jul(nRch_in)        ! Hanasaki 2006; Average July      demand [m3/s]
-  real(dp)                                    :: H06_D_Aug(nRch_in)        ! Hanasaki 2006; Average Agust     demand [m3/s]
-  real(dp)                                    :: H06_D_Sep(nRch_in)        ! Hanasaki 2006; Average September demand [m3/s]
-  real(dp)                                    :: H06_D_Oct(nRch_in)        ! Hanasaki 2006; Average October   demand [m3/s]
-  real(dp)                                    :: H06_D_Nov(nRch_in)        ! Hanasaki 2006; Average Novermber demand [m3/s]
-  real(dp)                                    :: H06_D_Dec(nRch_in)        ! Hanasaki 2006; Average December  demand [m3/s]
-  integer(i4b)                                :: H06_purpose(nRch_in)      ! Hanasaki 2006; reservoir purpose; (0= non-irrigation, 1=irrigation) [-]
-  integer(i4b)                                :: H06_I_mem_F(nRch_in)      ! Hanasaki 2006; Flag to transition to modelled inflow [-]
-  integer(i4b)                                :: H06_D_mem_F(nRch_in)      ! Hanasaki 2006; Flag to transition to modelled/provided demand [-]
-  integer(i4b)                                :: H06_I_mem_L(nRch_in)      ! Hanasaki 2006; Memory length in years for inflow [year]
-  integer(i4b)                                :: H06_D_mem_L(nRch_in)      ! Hanasaki 2006; Memory length in years for demand [year]
-  integer(i4b)                                :: ixNode(nRch_in)           ! node assignment for each reach
-  integer(i4b)                                :: ixDomain(nRch_in)         ! domain index for each reach
-  logical(lgt),      allocatable              :: tribOutlet(:)             ! logical to indicate tributary outlet to mainstems over entire network
-  integer(i4b)                                :: nTribOutlet               ! number of tributary outlet connected to mainstem
-  integer(i4b)                                :: nRch_trib                 ! number of tributary outlets for each proc (scalar)
-  integer(i4b),     allocatable               :: nRch_trib_array(:)        ! number of tributary outlets for each proc (array)
+  type(var_dlength), allocatable              :: structHRU_main(:)        ! mainstem ancillary data for HRUs
+  type(var_dlength), allocatable              :: structSEG_main(:)        ! mainstem ancillary data for stream segments
+  type(var_ilength), allocatable              :: structNTOPO_main(:)      ! mainstem network topology
+  type(var_ilength), allocatable              :: structHRU2seg_main(:)    ! mainstem ancillary data for mapping hru2basin
+  type(var_clength), allocatable              :: structPFAF_main(:)       ! mainstem ancillary data for pfafstetter code
+  logical(lgt),      allocatable              :: tribOutlet_local(:)      ! logical to indicate tributary outlet to mainstems
+  real(dp),          allocatable              :: array_dp_temp(:)         ! double precision temporal array
+  real(dp),          allocatable              :: array_dp_temp_local(:)   ! double precision temporal array
+  integer(i4b),      allocatable              :: array_int_temp(:)        ! integer temporal array
+  integer(i4b),      allocatable              :: array_int_temp_local(:)  ! integer temporal array
+  integer(i4b)                                :: ixNode(nRch_in)          ! node assignment for each reach
+  integer(i4b)                                :: ixDomain(nRch_in)        ! domain index for each reach
+  logical(lgt),      allocatable              :: tribOutlet(:)            ! logical to indicate tributary outlet to mainstems over entire network
+  integer(i4b)                                :: nTribOutlet              ! number of tributary outlet connected to mainstem
+  integer(i4b)                                :: nRch_trib                ! number of tributary outlets for each proc (scalar)
+  integer(i4b),      allocatable              :: nRch_trib_array(:)       ! number of tributary outlets for each proc (array)
   ! flat array for decomposed river network per domain (sub-basin)
-  integer(i4b)                                :: idNode(nDomain_mpi)       ! node id array for each domain
-  integer(i4b)                                :: rnkIdNode(nDomain_mpi)    ! ranked node id array for each domain
-  integer(i4b)                                :: jHRU,jSeg                 ! ranked indices
-  integer(i4b)                                :: iUps                      ! immediate upstream loop indices
-  integer(i4b),     allocatable               :: jUps(:)                   ! immediate upstream loop indices
+  integer(i4b)                                :: idNode(nDomain_mpi)      ! node id array for each domain
+  integer(i4b)                                :: rnkIdNode(nDomain_mpi)   ! ranked node id array for each domain
+  integer(i4b)                                :: jHRU,jSeg                ! ranked indices
+  integer(i4b)                                :: iUps                     ! immediate upstream loop indices
+  integer(i4b),      allocatable              :: jUps(:)                  ! immediate upstream loop indices
   ! miscellaneous
-  integer(i4b), allocatable                   :: seq_array(:)
+  integer(i4b),      allocatable              :: seq_array(:)
   integer(i4b)                                :: nUps
-  integer(i4b)                                :: iSeg,iHru                 ! reach and hru loop indices
+  integer(i4b)                                :: iSeg,iHru                ! reach and hru loop indices
   integer(i4b)                                :: ix1, ix2
-  integer(i4b)                                :: ix,ixx                    ! loop indices
-  integer(i4b)                                :: ixSeg1,ixSeg2             ! starting index and ending index, respectively, for reach array
-  integer(i4b)                                :: ixHru1,ixHru2             ! starting index and ending index, respectively, for HRU array
-  integer(i4b)                                :: idx                       ! node indix (-1, 0, 1, ... , nNodes-1)
-  character(len=strLen)                       :: cmessage                  ! error message from subroutine
+  integer(i4b)                                :: ix,ixx                   ! loop indices
+  integer(i4b)                                :: ixSeg1,ixSeg2            ! starting index and ending index, respectively, for reach array
+  integer(i4b)                                :: ixHru1,ixHru2            ! starting index and ending index, respectively, for HRU array
+  integer(i4b)                                :: idx                      ! node indix (-1, 0, 1, ... , nNodes-1)
+  character(len=strLen)                       :: cmessage                 ! error message from subroutine
 
   ierr=0; message='comm_ntopo_data/'
 
-  ! ********************************************************************************************************************
   ! ********************************************************************************************************************
   ! Part 1: define routing vectors ordered by domain/node
   !  - define the global indices ordered by domain/node
   !  - define the number of reaches/hrus on each processor
   !  - copy the data from the data structures to the ordered routing vectors
-  ! ********************************************************************************************************************
   ! ********************************************************************************************************************
 
   if (masterproc) then ! this is a root process
@@ -324,32 +194,30 @@ contains
     enddo
     call indexx(idNode,rnkIdNode) ! rank the processor nodes
 
-    ! loop through the domains
+    ! loop through the mpi domains
     ixSeg2=0; ixHru2=0 ! last indices of domain chunks
     domain:do ix = 1, nDomain_mpi
+      ! get the number of stream segments and HRUs in each domain
+      ixx = rnkIdNode(ix)
+      associate (nSubSeg => size(domains_mpi(ixx)%segIndex), nSubHru => size(domains_mpi(ixx)%hruIndex) )
 
-     ! get the number of stream segments and HRUs in each domain
-     ixx = rnkIdNode(ix)
-     associate (nSubSeg => size(domains_mpi(ixx)%segIndex), nSubHru => size(domains_mpi(ixx)%hruIndex) )
+      ! define reach global index array in order of node assignment
+      if (domains_mpi(ixx)%basinType /= endorheic ) then   ! endorheic domain does not have reaches
+        ixSeg1 = ixSeg2+1
+        ixSeg2 = ixSeg1+nSubSeg-1
+        ixRch_order(ixSeg1:ixSeg2) = domains_mpi(ixx)%segIndex(1:nSubSeg)
+        ! extra information (debugging)
+        ixNode(ixSeg1:ixSeg2)      = domains_mpi(ixx)%idNode
+        ixDomain(ixSeg1:ixSeg2)    = ixx
+      end if
 
-     ! define reach global index array in order of node assignment
-     if (domains_mpi(ixx)%basinType /= endorheic ) then   ! endorheic domain does not have reaches
-       ixSeg1 = ixSeg2+1
-       ixSeg2 = ixSeg1+nSubSeg-1
-       ixRch_order(ixSeg1:ixSeg2) = domains_mpi(ixx)%segIndex(1:nSubSeg)
-       ! extra information (debugging)
-       ixNode(ixSeg1:ixSeg2)      = domains_mpi(ixx)%idNode
-       ixDomain(ixSeg1:ixSeg2)    = ixx
-     end if
-
-     ! define hru index array in order of node assignment
-     if (nSubHru>0) then
-       ixHru1 = ixHru2+1
-       ixHru2 = ixHru1+nSubHru-1
-       ixHRU_order(ixHru1:ixHru2) = domains_mpi(ixx)%hruIndex(1:nSubHru) ! global hru index per node
-     end if
-
-     end associate
+      ! define hru index array in order of node assignment
+      if (nSubHru>0) then
+        ixHru1 = ixHru2+1
+        ixHru2 = ixHru1+nSubHru-1
+        ixHRU_order(ixHru1:ixHru2) = domains_mpi(ixx)%hruIndex(1:nSubHru) ! global hru index per node
+      end if
+      end associate
     end do domain
 
     ! Count the number of reaches and hrus in each node
@@ -357,89 +225,10 @@ contains
     rch_per_proc = 0
     hru_per_proc = 0
     do ix = 1,nDomain_mpi
-     idx = domains_mpi(ix)%idNode
-     rch_per_proc(idx) = rch_per_proc(idx) + sizeo(domains_mpi(ix)%segIndex)
-     hru_per_proc(idx) = hru_per_proc(idx) + sizeo(domains_mpi(ix)%hruIndex)
+      idx = domains_mpi(ix)%idNode
+      rch_per_proc(idx) = rch_per_proc(idx) + sizeo(domains_mpi(ix)%segIndex)
+      hru_per_proc(idx) = hru_per_proc(idx) + sizeo(domains_mpi(ix)%hruIndex)
     end do
-
-    ! define routing vectors ordered by domain/node
-    ! reach array
-    do iSeg = 1,nRch_in
-     jSeg = ixRch_order(iSeg) ! global index, ordered by domain/node
-     segId(iSeg)           = structNTOPO(jSeg)%var(ixNTOPO%segId)%dat(1)
-     downSegId(iSeg)       = structNTOPO(jSeg)%var(ixNTOPO%downSegId)%dat(1)
-     slope(iSeg)           = structSEG(  jSeg)%var(ixSEG%slope)%dat(1)
-     length(iSeg)          = structSEG(  jSeg)%var(ixSEG%length)%dat(1)
-     if (is_lake_sim) then
-       islake(iSeg)          = structNTOPO(jSeg)%var(ixNTOPO%islake)%dat(1)
-       LakeTargVol(iSeg)     = structNTOPO(jSeg)%var(ixNTOPO%LakeTargVol)%dat(1)
-       LakeModelType(iSeg)   = structNTOPO(jSeg)%var(ixNTOPO%LakeModelType)%dat(1)
-       D03_MaxStorage(iSeg)  = structSEG(  jSeg)%var(ixSEG%D03_MaxStorage)%dat(1)
-       D03_Coefficient(iSeg) = structSEG(  jSeg)%var(ixSEG%D03_Coefficient)%dat(1)
-       D03_Power(iSeg)       = structSEG(  jSeg)%var(ixSEG%D03_Power)%dat(1)
-
-       HYP_E_emr(iSeg)       = structSEG(  jSeg)%var(ixSEG%HYP_E_emr)%dat(1)
-       HYP_E_lim(iSeg)       = structSEG(  jSeg)%var(ixSEG%HYP_E_lim)%dat(1)
-       HYP_E_min(iSeg)       = structSEG(  jSeg)%var(ixSEG%HYP_E_min)%dat(1)
-       HYP_E_zero(iSeg)      = structSEG(  jSeg)%var(ixSEG%HYP_E_zero)%dat(1)
-       HYP_Qrate_emr(iSeg)   = structSEG(  jSeg)%var(ixSEG%HYP_Qrate_emr)%dat(1)
-       HYP_Erate_emr(iSeg)   = structSEG(  jSeg)%var(ixSEG%HYP_Erate_emr)%dat(1)
-       HYP_Qrate_prim(iSeg)  = structSEG(  jSeg)%var(ixSEG%HYP_Qrate_prim)%dat(1)
-       HYP_Qrate_amp(iSeg)   = structSEG(  jSeg)%var(ixSEG%HYP_Qrate_amp)%dat(1)
-       HYP_Qrate_phs(iSeg)   = structSEG(  jSeg)%var(ixSEG%HYP_Qrate_phs)%dat(1)
-       HYP_prim_F(iSeg)      = structSEG(  jSeg)%var(ixSEG%HYP_prim_F)%dat(1)
-       HYP_A_avg(iSeg)       = structSEG(  jSeg)%var(ixSEG%HYP_A_avg)%dat(1)
-
-       H06_Smax(iSeg)        = structSEG(  jSeg)%var(ixSEG%H06_Smax)%dat(1)
-       H06_alpha(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_alpha)%dat(1)
-       H06_envfact(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_envfact)%dat(1)
-       H06_S_ini(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_S_ini)%dat(1)
-       H06_c1(iSeg)          = structSEG(  jSeg)%var(ixSEG%H06_c1)%dat(1)
-       H06_c2(iSeg)          = structSEG(  jSeg)%var(ixSEG%H06_c2)%dat(1)
-       H06_exponent(iSeg)    = structSEG(  jSeg)%var(ixSEG%H06_exponent)%dat(1)
-       H06_denominator(iSeg) = structSEG(  jSeg)%var(ixSEG%H06_denominator)%dat(1)
-       H06_c_compare(iSeg)   = structSEG(  jSeg)%var(ixSEG%H06_c_compare)%dat(1)
-       H06_frac_Sdead(iSeg)  = structSEG(  jSeg)%var(ixSEG%H06_frac_Sdead)%dat(1)
-       H06_E_rel_ini(iSeg)   = structSEG(  jSeg)%var(ixSEG%H06_E_rel_ini)%dat(1)
-       H06_I_Jan(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Jan)%dat(1)
-       H06_I_Feb(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Feb)%dat(1)
-       H06_I_Mar(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Mar)%dat(1)
-       H06_I_Apr(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Apr)%dat(1)
-       H06_I_May(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_May)%dat(1)
-       H06_I_Jun(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Jun)%dat(1)
-       H06_I_Jul(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Jul)%dat(1)
-       H06_I_Aug(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Aug)%dat(1)
-       H06_I_Sep(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Sep)%dat(1)
-       H06_I_Oct(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Oct)%dat(1)
-       H06_I_Nov(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Nov)%dat(1)
-       H06_I_Dec(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_I_Dec)%dat(1)
-       H06_D_Jan(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Jan)%dat(1)
-       H06_D_Feb(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Feb)%dat(1)
-       H06_D_Mar(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Mar)%dat(1)
-       H06_D_Apr(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Apr)%dat(1)
-       H06_D_May(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_May)%dat(1)
-       H06_D_Jun(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Jun)%dat(1)
-       H06_D_Jul(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Jul)%dat(1)
-       H06_D_Aug(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Aug)%dat(1)
-       H06_D_Sep(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Sep)%dat(1)
-       H06_D_Oct(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Oct)%dat(1)
-       H06_D_Nov(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Nov)%dat(1)
-       H06_D_Dec(iSeg)       = structSEG(  jSeg)%var(ixSEG%H06_D_Dec)%dat(1)
-       H06_purpose(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_purpose)%dat(1)
-       H06_I_mem_F(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_I_mem_F)%dat(1)
-       H06_D_mem_F(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_D_mem_F)%dat(1)
-       H06_I_mem_L(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_I_mem_L)%dat(1)
-       H06_D_mem_L(iSeg)     = structSEG(  jSeg)%var(ixSEG%H06_D_mem_L)%dat(1)
-     end if
-    end do
-
-    ! hru array
-    do iHru = 1,nHRU_in
-      jHRU = ixHRU_order(iHru)  ! global index, ordered by domain/node
-      hruId(iHru)    = structHRU2SEG(jHRU)%var(ixHRU2SEG%HRUid)%dat(1)
-      hruSegId(iHru) = structHRU2SEG(jHRU)%var(ixHRU2SEG%hruSegId)%dat(1)
-      area(iHru)     = structHRU(    jHRU)%var(ixHRU%area)%dat(1)
-    enddo
 
     ! Reorder reachID and basinID for output to match up with order of RCHFLX/RCHSTA reach order and basinRunoff hru order
     reachID(1:nRch_in) = reachID( ixRch_order )
@@ -448,7 +237,7 @@ contains
     if (debug_mpi) then
       write(iulog,'(a)') 'ix, segId, ixRch_order, domain-index, proc-id'
       do ix = 1,nRch_in
-        write(iulog,*) ix, segId(ix), ixRch_order(ix), ixDomain(ix), ixNode(ix)
+        write(iulog,*) ix, structNTOPO(ix)%var(ixNTOPO%segId)%dat(1), ixRch_order(ix), ixDomain(ix), ixNode(ix)
       enddo
     endif
 
@@ -468,87 +257,9 @@ contains
   nHRU_mainstem = hru_per_proc(-1)
 
   ! ********************************************************************************************************************
-  ! ********************************************************************************************************************
   ! Optional procedures: Multiple MPI tasks requested
   ! ********************************************************************************************************************
-  ! ********************************************************************************************************************
-  if (nNodes>1) then
-
-    ! -----------------------------------------------------------------------------
-    !  Send the information for tributaries to individual processors
-    ! -----------------------------------------------------------------------------
-    call shr_mpi_scatterV(segId                 (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), segId_local,          ierr, cmessage)
-    call shr_mpi_scatterV(downSegId             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), downSegId_local,      ierr, cmessage)
-    call shr_mpi_scatterV(slope                 (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), slope_local,          ierr, cmessage)
-    call shr_mpi_scatterV(length                (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), length_local,         ierr, cmessage)
-    if (is_lake_sim) then
-      call shr_mpi_scatterV(islake                (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), islake_local,         ierr, cmessage)
-      call shr_mpi_scatterV(LakeTargVol           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), LakeTargVol_local,    ierr, cmessage)
-      call shr_mpi_scatterV(LakeModelType         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), LakeModelType_local,  ierr, cmessage)
-      call shr_mpi_scatterV(D03_MaxStorage        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03_MaxStorage_local, ierr, cmessage)
-      call shr_mpi_scatterV(D03_Coefficient       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03_Coefficient_local,ierr, cmessage)
-      call shr_mpi_scatterV(D03_Power             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), D03_Power_local,      ierr, cmessage)
-
-      call shr_mpi_scatterV(HYP_E_emr             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_E_emr_local,      ierr, cmessage)
-      call shr_mpi_scatterV(HYP_E_lim             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_E_lim_local,      ierr, cmessage)
-      call shr_mpi_scatterV(HYP_E_min             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_E_min_local,      ierr, cmessage)
-      call shr_mpi_scatterV(HYP_E_zero            (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_E_zero_local,     ierr, cmessage)
-      call shr_mpi_scatterV(HYP_Qrate_emr         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_Qrate_emr_local,  ierr, cmessage)
-      call shr_mpi_scatterV(HYP_Erate_emr         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_Erate_emr_local,  ierr, cmessage)
-      call shr_mpi_scatterV(HYP_Qrate_prim        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_Qrate_prim_local, ierr, cmessage)
-      call shr_mpi_scatterV(HYP_Qrate_amp         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_Qrate_amp_local,  ierr, cmessage)
-      call shr_mpi_scatterV(HYP_Qrate_phs         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_Qrate_phs_local,  ierr, cmessage)
-      call shr_mpi_scatterV(HYP_prim_F            (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_prim_F_local,     ierr, cmessage)
-      call shr_mpi_scatterV(HYP_A_avg             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), HYP_A_avg_local,      ierr, cmessage)
-
-      call shr_mpi_scatterV(H06_Smax              (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_Smax_local,       ierr, cmessage)
-      call shr_mpi_scatterV(H06_alpha             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_alpha_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_envfact           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_envfact_local,    ierr, cmessage)
-      call shr_mpi_scatterV(H06_S_ini             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_S_ini_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_c1                (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_c1_local,         ierr, cmessage)
-      call shr_mpi_scatterV(H06_c2                (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_c2_local,         ierr, cmessage)
-      call shr_mpi_scatterV(H06_exponent          (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_exponent_local,   ierr, cmessage)
-      call shr_mpi_scatterV(H06_denominator       (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_denominator_local,ierr, cmessage)
-      call shr_mpi_scatterV(H06_c_compare         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_c_compare_local,  ierr, cmessage)
-      call shr_mpi_scatterV(H06_frac_Sdead        (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_frac_Sdead_local, ierr, cmessage)
-      call shr_mpi_scatterV(H06_E_rel_ini         (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_E_rel_ini_local,  ierr, cmessage)
-      call shr_mpi_scatterV(H06_I_Jan             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Jan_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_I_Feb             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Feb_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_I_Mar             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Mar_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_I_Apr             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Apr_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_I_May             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_May_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_I_Jun             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Jun_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_I_Jul             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Jul_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_I_Aug             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Aug_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_I_Sep             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Sep_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_I_Oct             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Oct_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_I_Nov             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Nov_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_I_Dec             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_Dec_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_D_Jan             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Jan_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_D_Feb             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Feb_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_D_Mar             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Mar_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_D_Apr             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Apr_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_D_May             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_May_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_D_Jun             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Jun_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_D_Jul             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Jul_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_D_Aug             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Aug_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_D_Sep             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Sep_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_D_Oct             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Oct_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_D_Nov             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Nov_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_D_Dec             (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_Dec_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_purpose           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_purpose_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_I_mem_F           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_mem_F_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_D_mem_F           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_mem_F_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_I_mem_L           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_I_mem_L_local,      ierr, cmessage)
-      call shr_mpi_scatterV(H06_D_mem_L           (nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), H06_D_mem_L_local,      ierr, cmessage)
-    end if
-    call shr_mpi_scatterV(hruId         (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruId_local,         ierr, cmessage)
-    call shr_mpi_scatterV(hruSegId      (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), hruSegId_local,      ierr, cmessage)
-    call shr_mpi_scatterV(area          (nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), area_local,          ierr, cmessage)
-
-    ! -----------------------------------------------------------------------------
-    !  populate local (tributary) data structures and compute additional ancillary information
-    ! -----------------------------------------------------------------------------
+  if (multiProcs) then
 
     allocate(RCHFLX_trib(nEns,rch_per_proc(pid)), RCHSTA_trib(nEns,rch_per_proc(pid)), stat=ierr)
     do ix = 1,rch_per_proc(pid)
@@ -565,83 +276,89 @@ contains
                       ierr,cmessage)           ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! Populate local data structures needed for tributary network augumentation
-    reach: do ix = 1,rch_per_proc(pid)
-     structNTOPO_local(ix)%var(ixNTOPO%segId)%dat(1)          = segId_local(ix)
-     structNTOPO_local(ix)%var(ixNTOPO%downSegId)%dat(1)      = downSegId_local(ix)
-     structSEG_local  (ix)%var(ixSEG%length)%dat(1)           = length_local(ix)
-     structSEG_local  (ix)%var(ixSEG%slope)%dat(1)            = slope_local(ix)
-     if (is_lake_sim) then
-       structNTOPO_local(ix)%var(ixNTOPO%islake)%dat(1)         = islake_local(ix)
-       structNTOPO_local(ix)%var(ixNTOPO%LakeTargVol)%dat(1)    = LakeTargVol_local(ix)
-       structNTOPO_local(ix)%var(ixNTOPO%LakeModelType)%dat(1)  = LakeModelType_local(ix)
-       structSEG_local  (ix)%var(ixSEG%D03_MaxStorage)%dat(1)   = D03_MaxStorage_local(ix)
-       structSEG_local  (ix)%var(ixSEG%D03_Coefficient)%dat(1)  = D03_Coefficient_local(ix)
-       structSEG_local  (ix)%var(ixSEG%D03_Power)%dat(1)        = D03_Power_local(ix)
+    ! -----------------------------------------------------------------------------
+    !  Send the information for tributaries to individual processors
+    ! -----------------------------------------------------------------------------
 
-       structSEG_local  (ix)%var(ixSEG%HYP_E_emr)%dat(1)        = HYP_E_emr_local(ix)
-       structSEG_local  (ix)%var(ixSEG%HYP_E_lim)%dat(1)        = HYP_E_lim_local(ix)
-       structSEG_local  (ix)%var(ixSEG%HYP_E_min)%dat(1)        = HYP_E_min_local(ix)
-       structSEG_local  (ix)%var(ixSEG%HYP_E_zero)%dat(1)       = HYP_E_zero_local(ix)
-       structSEG_local  (ix)%var(ixSEG%HYP_Qrate_emr)%dat(1)    = HYP_Qrate_emr_local(ix)
-       structSEG_local  (ix)%var(ixSEG%HYP_Erate_emr)%dat(1)    = HYP_Erate_emr_local(ix)
-       structSEG_local  (ix)%var(ixSEG%HYP_Qrate_prim)%dat(1)   = HYP_Qrate_prim_local(ix)
-       structSEG_local  (ix)%var(ixSEG%HYP_Qrate_amp)%dat(1)    = HYP_Qrate_amp_local(ix)
-       structSEG_local  (ix)%var(ixSEG%HYP_Qrate_phs)%dat(1)    = HYP_Qrate_phs_local(ix)
-       structSEG_local  (ix)%var(ixSEG%HYP_prim_F)%dat(1)       = HYP_prim_F_local(ix)
-       structSEG_local  (ix)%var(ixSEG%HYP_A_avg)%dat(1)        = HYP_A_avg_local(ix)
+    allocate(array_int_temp(nRch_in), array_dp_temp(nRch_in), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-       structSEG_local  (ix)%var(ixSEG%H06_Smax)%dat(1)         = H06_Smax_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_alpha)%dat(1)        = H06_alpha_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_envfact)%dat(1)      = H06_envfact_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_S_ini)%dat(1)        = H06_S_ini_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_c1)%dat(1)           = H06_c1_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_c2)%dat(1)           = H06_c2_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_exponent)%dat(1)     = H06_exponent_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_denominator)%dat(1)  = H06_denominator_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_c_compare)%dat(1)    = H06_c_compare_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_frac_Sdead)%dat(1)   = H06_frac_Sdead_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_E_rel_ini)%dat(1)    = H06_E_rel_ini_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_I_Jan)%dat(1)        = H06_I_Jan_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_I_Feb)%dat(1)        = H06_I_Feb_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_I_Mar)%dat(1)        = H06_I_Mar_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_I_Apr)%dat(1)        = H06_I_Apr_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_I_May)%dat(1)        = H06_I_May_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_I_Jun)%dat(1)        = H06_I_Jun_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_I_Jul)%dat(1)        = H06_I_Jul_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_I_Aug)%dat(1)        = H06_I_Aug_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_I_Sep)%dat(1)        = H06_I_Sep_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_I_Oct)%dat(1)        = H06_I_Oct_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_I_Nov)%dat(1)        = H06_I_Nov_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_I_Dec)%dat(1)        = H06_I_Dec_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_D_Jan)%dat(1)        = H06_D_Jan_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_D_Feb)%dat(1)        = H06_D_Feb_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_D_Mar)%dat(1)        = H06_D_Mar_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_D_Apr)%dat(1)        = H06_D_Apr_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_D_May)%dat(1)        = H06_D_May_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_D_Jun)%dat(1)        = H06_D_Jun_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_D_Jul)%dat(1)        = H06_D_Jul_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_D_Aug)%dat(1)        = H06_D_Aug_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_D_Sep)%dat(1)        = H06_D_Sep_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_D_Oct)%dat(1)        = H06_D_Oct_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_D_Nov)%dat(1)        = H06_D_Nov_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_D_Dec)%dat(1)        = H06_D_Dec_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_purpose)%dat(1)      = H06_purpose_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_I_mem_F)%dat(1)      = H06_I_mem_F_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_D_mem_F)%dat(1)      = H06_D_mem_F_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_I_mem_L)%dat(1)      = H06_I_mem_L_local(ix)
-       structSEG_local  (ix)%var(ixSEG%H06_D_mem_L)%dat(1)      = H06_D_mem_L_local(ix)
-     end if
-    end do reach
+    do ix=1,nVarsNTOPO
+      if (.not. meta_NTOPO(ix)%varFile) cycle
+      if (masterproc) then
+        do iSeg = 1,nRch_in
+          jSeg = ixRch_order(iSeg)
+          array_int_temp(iSeg) = structNTOPO(jSeg)%var(ix)%dat(1)
+        end do
+      end if
+      call shr_mpi_scatterV(array_int_temp(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), array_int_temp_local, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      do iSeg = 1,size(array_int_temp_local)
+        structNTOPO_local(iSeg)%var(ix)%dat(1) = array_int_temp_local(iSeg)
+      end do
+    end do
 
-    hru: do ix=1,hru_per_proc(pid)
-     structHRU2SEG_local(ix)%var(ixHRU2SEG%HRUid)%dat(1)    = hruId_local(ix)
-     structHRU2SEG_local(ix)%var(ixHRU2SEG%hruSegId)%dat(1) = hruSegId_local(ix)
-     structHRU_local    (ix)%var(ixHRU%area)%dat(1)         = area_local(ix)
-    end do hru
+    do ix=1,nVarsSEG
+      if (.not. meta_SEG(ix)%varFile) cycle
+      if (masterproc) then
+        do iSeg = 1,nRch_in
+          jSeg = ixRch_order(iSeg)
+          array_dp_temp(iSeg) = structSEG(jSeg)%var(ix)%dat(1)
+        end do
+      end if
+      call shr_mpi_scatterV(array_dp_temp(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), array_dp_temp_local, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      do iSeg = 1,size(array_dp_temp_local)
+        structSEG_local(iSeg)%var(ix)%dat(1) = array_dp_temp_local(iSeg)
+      end do
+    end do
+
+    deallocate(array_dp_temp, array_int_temp, stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    allocate(array_dp_temp(nRch_in), array_int_temp(nHRU_in), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    do ix=1,nVarsHRU2SEG
+      if (.not. meta_HRU2SEG(ix)%varFile) cycle
+      if (masterproc) then
+        do iHru = 1,nHRU_in
+          jHRU = ixHRU_order(iHru)
+          array_int_temp(iHru) = structHRU2SEG(jHru)%var(ix)%dat(1)
+        end do
+      end if
+      call shr_mpi_scatterV(array_int_temp(nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), array_int_temp_local, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      do iHru = 1,size(array_int_temp_local)
+        structHRU2SEG_local(iHru)%var(ix)%dat(1) = array_int_temp_local(iHru)
+      end do
+    end do
+
+    do ix=1,nVarsHRU
+      if (.not. meta_HRU(ix)%varFile) cycle
+      if (masterproc) then
+        do iHru = 1,nHRU_in
+          jHRU = ixHRU_order(iHru)
+          array_dp_temp(iHru) = structHRU(jHru)%var(ix)%dat(1)
+        end do
+      end if
+      call shr_mpi_scatterV(array_dp_temp(nHRU_mainstem+1:nHRU_in), hru_per_proc(0:nNodes-1), array_dp_temp_local, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      do iHru = 1,size(array_dp_temp_local)
+        structHRU_local(iHru)%var(ix)%dat(1) = array_dp_temp_local(iHru)
+      end do
+    end do
 
     ! find index of desired reach
-    if (desireId/=integerMissing) ixPrint(2) = findIndex(segId_local, desireId, integerMissing)
+    if (desireId/=integerMissing) then
+      if (allocated(array_int_temp_local)) deallocate(array_int_temp_local)
+      allocate(array_int_temp(rch_per_proc(pid)), stat=ierr, errmsg=cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      do iSeg = 1,rch_per_proc(pid)
+        array_int_temp_local(iSeg) = structNTOPO_local(iSeg)%var(ixNTOPO%segId)%dat(1)
+      end do
+      ixPrint(2) = findIndex(array_int_temp_local, desireId, integerMissing)
+    end if
 
     ! compute additional ancillary infomration
     call augment_ntopo(hru_per_proc(pid),            & ! input: number of HRUs
@@ -717,272 +434,179 @@ contains
     seq_array = arth(1,1,rch_per_proc(pid))
     local_ix_comm = pack(seq_array, tribOutlet_local) ! size = number of tributary outlet reaches depending on proc
 
-!       if (pid==0) then
-!       print*, 'ix, local_ix_comm, NETOPO_trib%REACHIX, reachId, downstream ID, downstream local ix'
-!       do ix =1, nRch_trib
-!        print*,  ix, local_ix_comm(ix), NETOPO_trib(local_ix_comm(ix))%REACHIX, NETOPO_trib(local_ix_comm(ix))%REACHID, NETOPO_trib(local_ix_comm(ix))%DREACHK, NETOPO_trib(local_ix_comm(ix))%DREACHI
-!       enddo
-!       do ix =1, size(global_ix_comm)
-!        print*,  ix, global_ix_comm(ix), NETOPO(global_ix_comm(ix))%REACHIX, NETOPO(global_ix_comm(ix))%REACHID, NETOPO(global_ix_comm(ix))%DREACHK, NETOPO(global_ix_comm(ix))%DREACHI
-!       enddo
-!       do ix =1, size(NETOPO_trib)
-!       print*, NETOPO_trib(ix)%REACHID, NETOPO_trib(ix)%DREACHK, NETOPO_trib(ix)%DREACHI, tribOutlet(ix)
-!       enddo
+!       if (masterproc) then
+!         print*, 'ix, local_ix_comm, NETOPO_trib%REACHIX, reachId, downstream ID, downstream local ix'
+!         do ix =1, nRch_trib
+!           print*,  ix, local_ix_comm(ix), NETOPO_trib(local_ix_comm(ix))%REACHIX, NETOPO_trib(local_ix_comm(ix))%REACHID, NETOPO_trib(local_ix_comm(ix))%DREACHK, NETOPO_trib(local_ix_comm(ix))%DREACHI
+!         enddo
+!         do ix =1, size(global_ix_comm)
+!           print*,  ix, global_ix_comm(ix), NETOPO(global_ix_comm(ix))%REACHIX, NETOPO(global_ix_comm(ix))%REACHID, NETOPO(global_ix_comm(ix))%DREACHK, NETOPO(global_ix_comm(ix))%DREACHI
+!         enddo
+!         do ix =1, size(NETOPO_trib)
+!           print*, NETOPO_trib(ix)%REACHID, NETOPO_trib(ix)%DREACHK, NETOPO_trib(ix)%DREACHI, tribOutlet(ix)
+!         enddo
 !       endif
 
-  endif ! (nNodes>1)
+  endif ! (multiProcs)
 
-  ! ********************************************************************************************************************
   ! ********************************************************************************************************************
   ! Optional procedures:  Mainstem decomposition for OMP if mainstem exists as a result of MPI domain docomposition
   ! ********************************************************************************************************************
-  ! ********************************************************************************************************************
   ! Specifics:
+  ! procedure on master proc
   ! Build NTOPO, RPARAM, RCHFLX, RCHSTA (used for routing) data structures (only master proc)
   ! NEED TO TAKE INTO ACCOUNT FOR upstream Area, width, goodBasin
 
   if (nRch_mainstem > 0) then
-   if (masterproc) then
+    if (masterproc) then
+      allocate(RCHFLX_main(nEns, nRch_mainstem+nTribOutlet), RCHSTA_main(nEns, nRch_mainstem+nTribOutlet), stat=ierr, errmsg=cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-     allocate(RCHFLX_main(nEns, nRch_mainstem+nTribOutlet), RCHSTA_main(nEns, nRch_mainstem+nTribOutlet), stat=ierr, errmsg=cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      do ix = 1, nRch_mainstem+nTribOutlet
+        allocate(RCHFLX_main(nEns,ix)%ROUTE(nRoutes))
+      end do
 
-     do ix = 1, nRch_mainstem+nTribOutlet
-       allocate(RCHFLX_main(nEns,ix)%ROUTE(nRoutes))
-     end do
+      call alloc_struct(nHRU_mainstem,              & ! input: number of HRUs
+                        nRch_mainstem+nTribOutlet,  & ! input: number of stream segments
+                        structHRU_main,             & ! inout: ancillary data for HRUs
+                        structSEG_main,             & ! inout: ancillary data for stream segments
+                        structHRU2seg_main,         & ! inout: ancillary data for mapping hru2basin
+                        structNTOPO_main,           & ! inout: ancillary data for network toopology
+                        structPFAF_main,            & ! inout: ancillary data for pfafstetter code
+                        ierr,cmessage)                ! output: error control
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-     call alloc_struct(nHRU_mainstem,              & ! input: number of HRUs
-                       nRch_mainstem+nTribOutlet,  & ! input: number of stream segments
-                       structHRU_main,             & ! inout: ancillary data for HRUs
-                       structSEG_main,             & ! inout: ancillary data for stream segments
-                       structHRU2seg_main,         & ! inout: ancillary data for mapping hru2basin
-                       structNTOPO_main,           & ! inout: ancillary data for network toopology
-                       structPFAF_main,            & ! inout: ancillary data for pfafstetter code
-                       ierr,cmessage)                ! output: error control
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      do ix = 1, nTribOutlet
+        global_ix_main(ix) = nRch_mainstem+ix   ! index in mainstem array that is link to tributary outlet
+      end do
 
-     ! Populate mainstem data structures
-     main_rch: do ix = 1, nRch_mainstem
-       structNTOPO_main(ix)%var(ixNTOPO%segId)%dat(1)         = segId(ix)
-       structNTOPO_main(ix)%var(ixNTOPO%downSegId)%dat(1)     = downSegId(ix)
-       structSEG_main  (ix)%var(ixSEG%length)%dat(1)          = length(ix)
-       structSEG_main  (ix)%var(ixSEG%slope)%dat(1)           = slope(ix)
-       if (is_lake_sim) then
-         structNTOPO_main(ix)%var(ixNTOPO%islake)%dat(1)        = islake(ix)
-         structNTOPO_main(ix)%var(ixNTOPO%LakeTargVol)%dat(1)   = LakeTargVol(ix)
-         structNTOPO_main(ix)%var(ixNTOPO%LakeModelType)%dat(1) = LakeModelType(ix)
-         structSEG_main  (ix)%var(ixSEG%D03_MaxStorage)%dat(1)  = D03_MaxStorage(ix)
-         structSEG_main  (ix)%var(ixSEG%D03_Coefficient)%dat(1) = D03_Coefficient(ix)
-         structSEG_main  (ix)%var(ixSEG%D03_Power)%dat(1)       = D03_Power(ix)
+      ! Populate mainstem data structures
+      do ix=1,nVarsNTOPO
+        if (.not. meta_NTOPO(ix)%varFile) cycle
+        do iSeg = 1, nRch_mainstem
+          jSeg = ixRch_order(iSeg)
+          structNTOPO_main(iSeg)%var(ix)%dat(1) = structNTOPO(jSeg)%var(ix)%dat(1)
+        end do
+        do iSeg = 1, nTribOutlet
+          jSeg = global_ix_comm(iSeg)
+          structNTOPO_main(nRch_mainstem+iSeg)%var(ix)%dat(1) = structNTOPO(jSeg)%var(ix)%dat(1)
+        end do
+      end do
 
-         structSEG_main  (ix)%var(ixSEG%HYP_E_emr)%dat(1)       = HYP_E_emr(ix)
-         structSEG_main  (ix)%var(ixSEG%HYP_E_lim)%dat(1)       = HYP_E_lim(ix)
-         structSEG_main  (ix)%var(ixSEG%HYP_E_min)%dat(1)       = HYP_E_min(ix)
-         structSEG_main  (ix)%var(ixSEG%HYP_E_zero)%dat(1)      = HYP_E_zero(ix)
-         structSEG_main  (ix)%var(ixSEG%HYP_Qrate_emr)%dat(1)   = HYP_Qrate_emr(ix)
-         structSEG_main  (ix)%var(ixSEG%HYP_Erate_emr)%dat(1)   = HYP_Erate_emr(ix)
-         structSEG_main  (ix)%var(ixSEG%HYP_Qrate_prim)%dat(1)  = HYP_Qrate_prim(ix)
-         structSEG_main  (ix)%var(ixSEG%HYP_Qrate_amp)%dat(1)   = HYP_Qrate_amp(ix)
-         structSEG_main  (ix)%var(ixSEG%HYP_Qrate_phs)%dat(1)   = HYP_Qrate_phs(ix)
-         structSEG_main  (ix)%var(ixSEG%HYP_prim_F)%dat(1)      = HYP_prim_F(ix)
-         structSEG_main  (ix)%var(ixSEG%HYP_A_avg)%dat(1)       = HYP_A_avg(ix)
+      do ix=1,nVarsSEG
+        if (.not. meta_SEG(ix)%varFile) cycle
+        do iSeg = 1, nRch_mainstem
+          jSeg = ixRch_order(iSeg)
+          structSEG_main(iSeg)%var(ix)%dat(1) = structSEG(jSeg)%var(ix)%dat(1)
+        end do
+        do iSeg = 1, nTribOutlet
+          jSeg = global_ix_comm(iSeg)
+          structSEG_main(nRch_mainstem+iSeg)%var(ix)%dat(1) = structSEG(jSeg)%var(ix)%dat(1)
+        end do
+      end do
 
-         structSEG_main  (ix)%var(ixSEG%H06_Smax)%dat(1)        = H06_Smax(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_alpha)%dat(1)       = H06_alpha(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_envfact)%dat(1)     = H06_envfact(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_S_ini)%dat(1)       = H06_S_ini(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_c1)%dat(1)          = H06_c1(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_c2)%dat(1)          = H06_c2(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_exponent)%dat(1)    = H06_exponent(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_denominator)%dat(1) = H06_denominator(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_c_compare)%dat(1)   = H06_c_compare(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_frac_Sdead)%dat(1)  = H06_frac_Sdead(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_E_rel_ini)%dat(1)   = H06_E_rel_ini(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_I_Jan)%dat(1)       = H06_I_Jan(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_I_Feb)%dat(1)       = H06_I_Feb(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_I_Mar)%dat(1)       = H06_I_Mar(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_I_Apr)%dat(1)       = H06_I_Apr(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_I_May)%dat(1)       = H06_I_May(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_I_Jun)%dat(1)       = H06_I_Jun(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_I_Jul)%dat(1)       = H06_I_Jul(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_I_Aug)%dat(1)       = H06_I_Aug(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_I_Sep)%dat(1)       = H06_I_Sep(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_I_Oct)%dat(1)       = H06_I_Oct(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_I_Nov)%dat(1)       = H06_I_Nov(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_I_Dec)%dat(1)       = H06_I_Dec(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_D_Jan)%dat(1)       = H06_D_Jan(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_D_Feb)%dat(1)       = H06_D_Feb(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_D_Mar)%dat(1)       = H06_D_Mar(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_D_Apr)%dat(1)       = H06_D_Apr(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_D_May)%dat(1)       = H06_D_May(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_D_Jun)%dat(1)       = H06_D_Jun(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_D_Jul)%dat(1)       = H06_D_Jul(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_D_Aug)%dat(1)       = H06_D_Aug(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_D_Sep)%dat(1)       = H06_D_Sep(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_D_Oct)%dat(1)       = H06_D_Oct(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_D_Nov)%dat(1)       = H06_D_Nov(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_D_Dec)%dat(1)       = H06_D_Dec(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_purpose)%dat(1)     = H06_purpose(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_I_mem_F)%dat(1)     = H06_I_mem_F(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_D_mem_F)%dat(1)     = H06_D_mem_F(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_I_mem_L)%dat(1)     = H06_I_mem_L(ix)
-         structSEG_main  (ix)%var(ixSEG%H06_D_mem_L)%dat(1)     = H06_D_mem_L(ix)
-       end if
-     end do main_rch
+      do ix=1,nVarsHRU2SEG
+        if (.not. meta_HRU2SEG(ix)%varFile) cycle
+        do iHru = 1,nHRU_mainstem
+          jHRU = ixHRU_order(iHru)
+          structHRU2SEG_main(iHru)%var(ix)%dat(1) = structHRU2SEG(jHru)%var(ix)%dat(1)
+        end do
+      end do
 
-     ups_trib: do ix = 1, nTribOutlet
-       ixx = global_ix_comm(ix)
-       structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%segId)%dat(1)         = structNTOPO(ixx)%var(ixNTOPO%segId)%dat(1)
-       structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%downSegId)%dat(1)     = structNTOPO(ixx)%var(ixNTOPO%downSegId)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%length)%dat(1)          = structSEG(ixx)%var(ixSEG%length)%dat(1)
-       structSEG_main  (nRch_mainstem+ix)%var(ixSEG%slope)%dat(1)           = structSEG(ixx)%var(ixSEG%slope)%dat(1)
-       if (is_lake_sim) then
-         structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%islake)%dat(1)        = structNTOPO(ixx)%var(ixNTOPO%islake)%dat(1)
-         structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%LakeTargVol)%dat(1)   = structNTOPO(ixx)%var(ixNTOPO%LakeTargVol)%dat(1)
-         structNTOPO_main(nRch_mainstem+ix)%var(ixNTOPO%LakeModelType)%dat(1) = structNTOPO(ixx)%var(ixNTOPO%LakeModelType)%dat(1)
+      do ix=1,nVarsHRU
+        if (.not. meta_HRU(ix)%varFile) cycle
+        do iHru = 1,nHRU_mainstem
+          jHRU = ixHRU_order(iHru)
+          structHRU_main(iHru)%var(ix)%dat(1) = structHRU(jHru)%var(ix)%dat(1)
+        end do
+      end do
 
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_E_emr)%dat(1)       = structSEG(ixx)%var(ixSEG%HYP_E_emr)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_E_lim)%dat(1)       = structSEG(ixx)%var(ixSEG%HYP_E_lim)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_E_min)%dat(1)       = structSEG(ixx)%var(ixSEG%HYP_E_min)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_E_zero)%dat(1)      = structSEG(ixx)%var(ixSEG%HYP_E_zero)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_Qrate_emr)%dat(1)   = structSEG(ixx)%var(ixSEG%HYP_Qrate_emr)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_Erate_emr)%dat(1)   = structSEG(ixx)%var(ixSEG%HYP_Erate_emr)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_Qrate_prim)%dat(1)  = structSEG(ixx)%var(ixSEG%HYP_Qrate_prim)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_Qrate_amp)%dat(1)   = structSEG(ixx)%var(ixSEG%HYP_Qrate_amp)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_Qrate_phs)%dat(1)   = structSEG(ixx)%var(ixSEG%HYP_Qrate_phs)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_prim_F)%dat(1)      = structSEG(ixx)%var(ixSEG%HYP_prim_F)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%HYP_A_avg)%dat(1)       = structSEG(ixx)%var(ixSEG%HYP_A_avg)%dat(1)
+      ! compute additional ancillary infomration
+      call augment_ntopo(nHRU_mainstem,             & ! input: number of HRUs
+                         nRch_mainstem+nTribOutlet, & ! input: number of stream segments
+                         structHRU_main,            & ! inout: ancillary data for HRUs
+                         structSEG_main,            & ! inout: ancillary data for stream segments
+                         structHRU2seg_main,        & ! inout: ancillary data for mapping hru2basin
+                         structNTOPO_main,          & ! inout: ancillary data for network toopology
+                         ierr, cmessage)              ! output: error control
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03_MaxStorage)%dat(1)  = structSEG(ixx)%var(ixSEG%D03_MaxStorage)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03_Coefficient)%dat(1) = structSEG(ixx)%var(ixSEG%D03_Coefficient)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%D03_Power)%dat(1)       = structSEG(ixx)%var(ixSEG%D03_Power)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_Smax)%dat(1)        = structSEG(ixx)%var(ixSEG%H06_Smax)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_alpha)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_alpha)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_envfact)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_envfact)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_S_ini)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_S_ini)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_c1)%dat(1)          = structSEG(ixx)%var(ixSEG%H06_c1)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_c2)%dat(1)          = structSEG(ixx)%var(ixSEG%H06_c1)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_exponent)%dat(1)    = structSEG(ixx)%var(ixSEG%H06_exponent)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_denominator)%dat(1) = structSEG(ixx)%var(ixSEG%H06_denominator)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_c_compare)%dat(1)   = structSEG(ixx)%var(ixSEG%H06_c_compare)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_frac_Sdead)%dat(1)  = structSEG(ixx)%var(ixSEG%H06_frac_Sdead)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_E_rel_ini)%dat(1)   = structSEG(ixx)%var(ixSEG%H06_E_rel_ini)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Jan)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Jan)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Feb)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Feb)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Mar)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Mar)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Apr)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Apr)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_May)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_May)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Jun)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Jun)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Jul)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Jul)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Aug)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Aug)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Sep)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Sep)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Oct)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Oct)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Nov)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Nov)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_Dec)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Dec)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Jan)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_I_Jan)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Feb)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Feb)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Mar)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Mar)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Apr)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Apr)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_May)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_May)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Jun)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Jun)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Jul)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Jul)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Aug)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Aug)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Sep)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Sep)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Oct)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Oct)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Nov)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Nov)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_Dec)%dat(1)       = structSEG(ixx)%var(ixSEG%H06_D_Dec)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_purpose)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_purpose)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_mem_F)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_I_mem_F)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_D_mem_F)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_D_mem_F)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_mem_L)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_I_mem_L)%dat(1)
-         structSEG_main  (nRch_mainstem+ix)%var(ixSEG%H06_I_mem_L)%dat(1)     = structSEG(ixx)%var(ixSEG%H06_I_mem_L)%dat(1)
-       end if
-       global_ix_main(ix) = nRch_mainstem+ix   ! index in mainstem array that is link to tributary outlet
-     end do ups_trib
-
-     main_hru: do ix=1, nHRU_mainstem
-       structHRU2SEG_main(ix)%var(ixHRU2SEG%HRUid)%dat(1)    = hruId(ix)
-       structHRU2SEG_main(ix)%var(ixHRU2SEG%hruSegId)%dat(1) = hruSegId(ix)
-       structHRU_main    (ix)%var(ixHRU%area)%dat(1)         = area(ix)
-     end do main_hru
-
-     ! compute additional ancillary infomration
-     call augment_ntopo(nHRU_mainstem,             & ! input: number of HRUs
-                        nRch_mainstem+nTribOutlet, & ! input: number of stream segments
-                        structHRU_main,            & ! inout: ancillary data for HRUs
-                        structSEG_main,            & ! inout: ancillary data for stream segments
-                        structHRU2seg_main,        & ! inout: ancillary data for mapping hru2basin
-                        structNTOPO_main,          & ! inout: ancillary data for network toopology
-                        ierr, cmessage)              ! output: error control
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-     do iSeg = 1, nRch_mainstem
-       jSeg = ixRch_order(iSeg) ! global index, ordered by domain/node
-       structSEG_main(iSeg) = structSEG(jSeg)
-       nUps = size(structNTOPO(jSeg)%var(ixNTOPO%upSegIds)%dat)
-       deallocate(structNTOPO_main(iSeg)%var(ixNTOPO%goodBasin)%dat)
-       allocate(structNTOPO_main(iSeg)%var(ixNTOPO%goodBasin)%dat(nUps))
-       structNTOPO_main(iSeg)%var(ixNTOPO%goodBasin)%dat(:) = structNTOPO(jSeg)%var(ixNTOPO%goodBasin)%dat(:)
-       allocate(jUps(nUps))
-       do iUps = 1,nUps
-         do ix = 1,nUps
-           if (structNTOPO_main(iSeg)%var(ixNTOPO%upSegIds)%dat(ix) == structNTOPO(jSeg)%var(ixNTOPO%upSegIds)%dat(iUps)) then
-             jUps(iUps) = ix
-           end if
-         end do
-       end do
-       structNTOPO_main(iSeg)%var(ixNTOPO%upSegIds    )%dat(:) = structNTOPO_main(iSeg)%var(ixNTOPO%upSegIds)%dat(jUps)
-       structNTOPO_main(iSeg)%var(ixNTOPO%upSegIndices)%dat(:) = structNTOPO_main(iSeg)%var(ixNTOPO%upSegIndices)%dat(jUps)
-       deallocate(jUps)
-     end do
-
-     do iSeg = 1, nTribOutlet
-       jSeg = global_ix_comm(iSeg)
-       structSEG_main(global_ix_main(iSeg)) = structSEG(jSeg)
-       nUps = size(structNTOPO(jSeg)%var(ixNTOPO%upSegIds)%dat)
-       deallocate(structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%goodBasin   )%dat, &
-                  structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIds    )%dat, &
-                  structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIndices)%dat)
-       allocate(structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%goodBasin   )%dat(nUps),&
-                structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIds    )%dat(nUps),&
-                structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIndices)%dat(nUps))
-       structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%goodBasin   )%dat(:) = structNTOPO(jSeg)%var(ixNTOPO%goodBasin)%dat(:)
-       structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIds    )%dat(:) = structNTOPO(jSeg)%var(ixNTOPO%upSegIds)%dat(:)
-       structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIndices)%dat(:) = integerMissing
-     enddo
-
-     ! find index of desired reach
-     if (desireId/=integerMissing) ixPrint(1) = findIndex(segId, desireId, integerMissing)
-
-     ! copy data to routing structres RPARAM_trib and NETOPO_trib
-     call put_data_struct(nRch_mainstem+nTribOutlet, structSEG_main, structNTOPO_main, & ! input
-                          RPARAM_main, NETOPO_main,                                    & ! output:
-                          ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-     ! OMP domain decomposition
-     call omp_domain_decomposition(stream_order, nRch_mainstem+nTribOutlet, structNTOPO_main, river_basin_main, ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    if (debug_main_omp) then
-      write(iulog,'(a)') 'segid, branch, order'
-      do ix = 1, size(river_basin_main)
-        do ixx = 1, size(river_basin_main(ix)%branch)
-          do iSeg = 1, river_basin_main(ix)%branch(ixx)%nRch
-            associate (idx_tmp => river_basin_main(ix)%branch(ixx)%segIndex(iSeg))
-            write(iulog,"(I15,A,I9,A,I9)") structNTOPO_main(idx_tmp)%var(ixNTOPO%segId)%dat(1),',',ixx,',',ix
-            end associate
+      do iSeg = 1, nRch_mainstem
+        jSeg = ixRch_order(iSeg) ! global index, ordered by domain/node
+        structSEG_main(iSeg) = structSEG(jSeg)
+        nUps = size(structNTOPO(jSeg)%var(ixNTOPO%upSegIds)%dat)
+        deallocate(structNTOPO_main(iSeg)%var(ixNTOPO%goodBasin)%dat)
+        allocate(structNTOPO_main(iSeg)%var(ixNTOPO%goodBasin)%dat(nUps))
+        structNTOPO_main(iSeg)%var(ixNTOPO%goodBasin)%dat(:) = structNTOPO(jSeg)%var(ixNTOPO%goodBasin)%dat(:)
+        allocate(jUps(nUps))
+        do iUps = 1,nUps
+          do ix = 1,nUps
+            if (structNTOPO_main(iSeg)%var(ixNTOPO%upSegIds)%dat(ix) == structNTOPO(jSeg)%var(ixNTOPO%upSegIds)%dat(iUps)) then
+              jUps(iUps) = ix
+            end if
           end do
         end do
-      enddo
-    endif
+        structNTOPO_main(iSeg)%var(ixNTOPO%upSegIds    )%dat(:) = structNTOPO_main(iSeg)%var(ixNTOPO%upSegIds)%dat(jUps)
+        structNTOPO_main(iSeg)%var(ixNTOPO%upSegIndices)%dat(:) = structNTOPO_main(iSeg)%var(ixNTOPO%upSegIndices)%dat(jUps)
+        deallocate(jUps)
+      end do
 
-   end if ! (masterproc)
+      do iSeg = 1, nTribOutlet
+        jSeg = global_ix_comm(iSeg)
+        structSEG_main(global_ix_main(iSeg)) = structSEG(jSeg)
+        nUps = size(structNTOPO(jSeg)%var(ixNTOPO%upSegIds)%dat)
+        deallocate(structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%goodBasin   )%dat, &
+                   structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIds    )%dat, &
+                   structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIndices)%dat)
+        allocate(structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%goodBasin   )%dat(nUps),&
+                 structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIds    )%dat(nUps),&
+                 structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIndices)%dat(nUps))
+        structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%goodBasin   )%dat(:) = structNTOPO(jSeg)%var(ixNTOPO%goodBasin)%dat(:)
+        structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIds    )%dat(:) = structNTOPO(jSeg)%var(ixNTOPO%upSegIds)%dat(:)
+        structNTOPO_main(global_ix_main(iSeg))%var(ixNTOPO%upSegIndices)%dat(:) = integerMissing
+      enddo
+
+      ! find index of desired reach
+      if (desireId/=integerMissing) then
+        if (allocated(array_int_temp)) deallocate(array_int_temp)
+        allocate(array_int_temp(nRch_mainstem), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        do iSeg = 1, nRch_mainstem
+          array_int_temp(iSeg) = structNTOPO_main(iSeg)%var(ixNTOPO%segId)%dat(1)
+        end do
+        ixPrint(1) = findIndex(array_int_temp, desireId, integerMissing)
+      end if
+
+      ! copy data to routing structres RPARAM_trib and NETOPO_trib
+      call put_data_struct(nRch_mainstem+nTribOutlet, structSEG_main, structNTOPO_main, & ! input
+                           RPARAM_main, NETOPO_main,                                    & ! output:
+                           ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      ! OMP domain decomposition
+      call omp_domain_decomposition(stream_order, nRch_mainstem+nTribOutlet, structNTOPO_main, river_basin_main, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     if (debug_main_omp) then
+       write(iulog,'(a)') 'segid, branch, order'
+       do ix = 1, size(river_basin_main)
+         do ixx = 1, size(river_basin_main(ix)%branch)
+           do iSeg = 1, river_basin_main(ix)%branch(ixx)%nRch
+             associate (idx_tmp => river_basin_main(ix)%branch(ixx)%segIndex(iSeg))
+             write(iulog,"(I15,A,I9,A,I9)") structNTOPO_main(idx_tmp)%var(ixNTOPO%segId)%dat(1),',',ixx,',',ix
+             end associate
+           end do
+         end do
+       enddo
+     endif
+
+    end if ! (masterproc)
   end if ! (nRch_mainstem > 0)
 
   call shr_mpi_barrier(comm, message)
 
- end subroutine comm_ntopo_data
+ END SUBROUTINE comm_ntopo_data
 
 
  ! *********************************************************************
@@ -1009,13 +633,11 @@ contains
   USE globalData, ONLY: idxIRF           ! index of IRF method
 
   implicit none
-
-  ! input variables
+  ! argument variables
   integer(i4b),             intent(in)  :: pid                      ! process id (MPI)
   integer(i4b),             intent(in)  :: nNodes                   ! number of processes (MPI)
   integer(i4b),             intent(in)  :: comm                     ! communicator
   integer(i4b),             intent(in)  :: iens                     ! ensemble index
-  ! Output variables
   integer(i4b),             intent(out) :: ierr
   character(len=strLen),    intent(out) :: message                  ! error message
   ! local variables
@@ -1185,12 +807,12 @@ contains
     deallocate(RCHFLX, RCHSTA)
   end if
 
- end subroutine mpi_restart
+ END SUBROUTINE mpi_restart
 
  ! *********************************************************************
  ! public subroutine: routing routine
  ! *********************************************************************
- subroutine mpi_route(pid,           & ! input: proc id
+ SUBROUTINE mpi_route(pid,           & ! input: proc id
                       nNodes,        & ! input: number of procs
                       comm,          & ! input: communicator
                       iens,          & ! input: ensemble index
@@ -1239,16 +861,13 @@ contains
   ! 4 (if mainstem exist & for a certain routing method). pass updated flow/state variables at "tributary-mainstem junction to other procs
 
   implicit none
-
-  ! input variables
+  ! argument variables
   integer(i4b),             intent(in)  :: pid                      ! process id (MPI)
   integer(i4b),             intent(in)  :: nNodes                   ! number of processes (MPI)
   integer(i4b),             intent(in)  :: comm                     ! communicator
   integer(i4b),             intent(in)  :: iens                     ! ensemble index
-  ! Output variables
   integer(i4b),             intent(out) :: ierr
   character(len=strLen),    intent(out) :: message                  ! error message
-  ! optional input variables
   logical(lgt), optional,   intent(in)  :: scatter_ro               ! logical to indicate if scattering global runoff is required
   ! local variables
   integer(i4b), allocatable             :: ixRchProcessed(:)        ! reach indice list to be processed
@@ -1397,7 +1016,7 @@ contains
   ! --------------------------------
   ! Perform tributary routing (for all procs)
   ! --------------------------------
-  if (nNodes>1) then
+  if (multiProcs) then
 
     call t_startf ('route/tributary-route')
 
@@ -1478,9 +1097,8 @@ contains
 
     call t_stopf('route/gather-state-flux')
 
-    ! make sure that routing at all the procs finished
     call shr_mpi_barrier(comm, message)
-  end if ! (nNodes>1)
+  end if ! (multiProcs)
 
   ! --------------------------------
   ! perform mainstem routing
@@ -1517,10 +1135,9 @@ contains
     call t_stopf ('route/mainstem_route')
   endif ! end of root proc
 
-  ! make sure that routing at all the procs finished
   call shr_mpi_barrier(comm, message)
 
-  if (nNodes>1) then
+  if (multiProcs) then
     ! --------------------------------
     ! Distribute updated tributary states (only tributary reaches flowing into mainstem) to processors to update states upstream reaches
     ! --------------------------------
@@ -1537,13 +1154,12 @@ contains
                               ierr, message)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       call t_stopf ('route/scatter-kwt-state')
-    endif ! end of kwt option
+    endif
 
-    ! make sure that routing at all the procs finished
     call shr_mpi_barrier(comm, message)
-  endif !(nNodes>1)
+  endif !(multiProcs)
 
- end subroutine mpi_route
+ END SUBROUTINE mpi_route
 
  ! *********************************************************************
  ! private subroutine: scatter global domain runoff data to local domain
@@ -1564,10 +1180,9 @@ contains
   USE public_var, ONLY: is_lake_sim       ! logical whether or not lake should be simulated
 
 
-  ! input variables
+  ! argument variables
   integer(i4b),           intent(in)      :: nNodes                    ! number of processes (MPI)
   integer(i4b),           intent(in)      :: comm                      ! communicator
-  ! output variables
   integer(i4b),           intent(out)     :: ierr                      ! error code
   character(len=strLen),  intent(out)     :: message                   ! error message
   ! local variables
@@ -1578,8 +1193,7 @@ contains
 
   ierr=0; message='scatter_runoff/'
 
-  if (nNodes==1) then
-
+  if (.not.multiProcs) then
     ! if only single proc is used, all runoff is stored in mainstem runoff array
     if (.not. allocated(basinRunoff_main)) then
       allocate(basinRunoff_main(nHRU), stat=ierr)
@@ -1604,37 +1218,28 @@ contains
       basinPrecip_main(:) = runoff_data%basinPrecip(:)
 
     end if
-
   else
-
     ! sort the basin runoff, precipitation and evaporation in terms of nodes/domains
     if (masterproc) then ! this is a root process
-
       if (.not. allocated(basinRunoff_main)) then
         allocate(basinRunoff_main(nHRU_mainstem), stat=ierr)
         if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinRunoff_main]'; return; endif
       endif
 
       if (is_lake_sim) then
-
         if (.not. allocated(basinEvapo_main)) then
           allocate(basinEvapo_main(nHRU_mainstem), stat=ierr)
           if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinEvapo_main]'; return; endif
-
         endif
-
         if (.not. allocated(basinPrecip_main)) then
           allocate(basinPrecip_main(nHRU_mainstem), stat=ierr)
           if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinPrecip_main]'; return; endif
         endif
-
       end if
-
 
       ! runoff at hru in mainstem and tributaries
       basinRunoff_local(1:nHRU) = runoff_data%basinRunoff(1:nHRU)
       basinRunoff_main(1:nHRU_mainstem) = basinRunoff_local(1:nHRU_mainstem)
-
 
       ! evaporation and precipitation at main channel and tributaries
       if (is_lake_sim) then
@@ -1643,7 +1248,6 @@ contains
         basinEvapo_main (1:nHRU_mainstem) = basinEvapo_local (1:nHRU_mainstem)
         basinPrecip_main(1:nHRU_mainstem) = basinPrecip_local(1:nHRU_mainstem)
       end if
-
     end if
 
     call shr_mpi_barrier(comm, message)
@@ -1668,11 +1272,9 @@ contains
                             ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     end if
-
   end if
 
  END SUBROUTINE scatter_runoff
-
 
  ! *********************************************************************
  ! private subroutine: scatter global domain water management data to local domain
@@ -1705,35 +1307,27 @@ contains
 
   ierr=0; message='scatter_runoff/'
 
-  if (nNodes==1) then
-
+  if (.not. multiProcs) then
     if (is_flux_wm) then
-
       ! if only single proc is used, all fluxes are stored in mainstem runoff array
       if (.not. allocated(flux_wm_main)) then
         allocate(flux_wm_main(nRch), stat=ierr)
         if(ierr/=0)then; message=trim(message)//'problem allocating array for [flux_wm_main]'; return; endif
       end if
       flux_wm_main(:) = wm_data%flux_wm(:)
-
     endif
 
     if (is_vol_wm.and.is_lake_sim) then
-
       ! if only single proc is used, all target volumes are stored in mainstem runoff array
       if (.not. allocated(vol_wm_main)) then
         allocate(vol_wm_main(nRch), stat=ierr)
         if(ierr/=0)then; message=trim(message)//'problem allocating array for [vol_wm_main]'; return; endif
       end if
       vol_wm_main(:) = wm_data%vol_wm(:)
-
     endif
-
   else
-
     ! sort the reach flux, target vol in terms of nodes/domains
     if (masterproc) then ! this is a root process
-
       if (is_flux_wm) then
         if (.not. allocated(flux_wm_main)) then
           allocate(flux_wm_main(nRch_mainstem), stat=ierr)
@@ -1753,7 +1347,6 @@ contains
         Rch_vol_local(1:nRch) = wm_data%vol_wm(1:nRch)
         vol_wm_main(1:nRch_mainstem) = Rch_vol_local(1:nRch_mainstem)
       end if
-
     end if
 
     call shr_mpi_barrier(comm, message)
@@ -1774,7 +1367,6 @@ contains
                             ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
-
   end if
 
  END SUBROUTINE scatter_wm
@@ -1782,7 +1374,7 @@ contains
  ! *********************************************************************
  ! subroutine: single flux communication
  ! *********************************************************************
- subroutine mpi_comm_single_flux(pid,          &
+ SUBROUTINE mpi_comm_single_flux(pid,          &
                                  nNodes,       &
                                  comm,         & ! input: communicator
                                  flux_global,  &
@@ -1793,7 +1385,7 @@ contains
                                  commType,     &
                                  ierr, message)
 
-  ! input variables
+  ! argument variables
   integer(i4b),             intent(in)    :: pid                   ! process id (MPI)
   integer(i4b),             intent(in)    :: nNodes                ! number of processes (MPI)
   integer(i4b),             intent(in)    :: comm                  ! communicator
@@ -1803,7 +1395,6 @@ contains
   integer(i4b),             intent(in)    :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
   integer(i4b),             intent(in)    :: rchIdxLocal(:)        ! reach indices (w.r.t. local) (dimension size depends on procs )
   integer(i4b),             intent(in)    :: commType              ! communication type 1->scatter, 2->gather otherwise error
-  ! output variables
   integer(i4b),             intent(out)   :: ierr                  ! error code
   character(len=strLen),    intent(out)   :: message               ! error message
   ! local variables
@@ -1873,12 +1464,12 @@ contains
 
   endif
 
- end subroutine mpi_comm_single_flux
+ END SUBROUTINE mpi_comm_single_flux
 
  ! *********************************************************************
  ! subroutine: all no-routing method dependent fluxes communication
  ! *********************************************************************
- subroutine mpi_comm_flux(pid,          &
+ SUBROUTINE mpi_comm_flux(pid,          &
                           nNodes,       &
                           comm,         & ! input: communicator
                           iens,         &
@@ -1892,7 +1483,8 @@ contains
 
   USE dataTypes,  ONLY: STRFLX              ! reach flux data structure
 
-  ! input variables
+  implicit none
+  ! argument variables
   integer(i4b),             intent(in)    :: pid                   ! process id (MPI)
   integer(i4b),             intent(in)    :: nNodes                ! number of processes (MPI)
   integer(i4b),             intent(in)    :: comm                  ! communicator
@@ -1903,7 +1495,6 @@ contains
   integer(i4b),             intent(in)    :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
   integer(i4b),             intent(in)    :: rchIdxLocal(:)        ! reach indices (w.r.t. local) (dimension size depends on procs )
   integer(i4b),             intent(in)    :: commType              ! communication type 1->scatter, 2->gather otherwise error
-  ! output variables
   integer(i4b),             intent(out)   :: ierr                  ! error code
   character(len=strLen),    intent(out)   :: message               ! error message
   ! local variables
@@ -1989,12 +1580,12 @@ contains
     endif
   endif
 
- end subroutine mpi_comm_flux
+ END SUBROUTINE mpi_comm_flux
 
  ! *********************************************************************
  ! subroutine: all routing method dependent fluxes communication
  ! *********************************************************************
- subroutine mpi_comm_river_flux(pid,          &
+ SUBROUTINE mpi_comm_river_flux(pid,          &
                                 nNodes,       &
                                 comm,         & ! input: communicator
                                 iens,         &
@@ -2010,7 +1601,8 @@ contains
   USE globalData, ONLY: nRoutes
   USE globalData, ONLY: routeMethods
 
-  ! input variables
+  implicit none
+  ! argument variables
   integer(i4b),             intent(in)    :: pid                   ! process id (MPI)
   integer(i4b),             intent(in)    :: nNodes                ! number of processes (MPI)
   integer(i4b),             intent(in)    :: comm                  ! communicator
@@ -2021,7 +1613,6 @@ contains
   integer(i4b),             intent(in)    :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
   integer(i4b),             intent(in)    :: rchIdxLocal(:)        ! reach indices (w.r.t. local) (dimension size depends on procs )
   integer(i4b),             intent(in)    :: commType              ! communication type 1->scatter, 2->gather otherwise error
-  ! output variables
   integer(i4b),             intent(out)   :: ierr                  ! error code
   character(len=strLen),    intent(out)   :: message               ! error message
   ! local variables
@@ -2140,12 +1731,12 @@ contains
 
   endif
 
- end subroutine mpi_comm_river_flux
+ END SUBROUTINE mpi_comm_river_flux
 
  ! *********************************************************************
  ! subroutine: basin IRF state communication
  ! *********************************************************************
- subroutine mpi_comm_irf_bas_state(pid,          &
+ SUBROUTINE mpi_comm_irf_bas_state(pid,          &
                                    nNodes,       &
                                    comm,         & ! input: communicator
                                    iens,         &
@@ -2159,7 +1750,8 @@ contains
 
   USE dataTypes,  ONLY: STRFLX              ! reach flux data structure
 
-  ! input variables
+  implicit none
+  ! argument variables
   integer(i4b),             intent(in)    :: pid                   ! process id (MPI)
   integer(i4b),             intent(in)    :: nNodes                ! number of processes (MPI)
   integer(i4b),             intent(in)    :: comm                  ! communicator
@@ -2170,7 +1762,6 @@ contains
   integer(i4b),             intent(in)    :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
   integer(i4b),             intent(in)    :: rchIdxLocal(:)        ! reach indices (w.r.t. local) (dimension size depends on procs )
   integer(i4b),             intent(in)    :: commType              ! communication type 1->scatter, 2->gather otherwise error
-  ! output variables
   integer(i4b),             intent(out)   :: ierr                  ! error code
   character(len=strLen),    intent(out)   :: message               ! error message
   ! local variables
@@ -2319,12 +1910,12 @@ contains
 
   endif
 
- end subroutine mpi_comm_irf_bas_state
+ END SUBROUTINE mpi_comm_irf_bas_state
 
  ! *********************************************************************
  ! subroutine: IRF state communication
  ! *********************************************************************
- subroutine mpi_comm_irf_state(pid,          &
+ SUBROUTINE mpi_comm_irf_state(pid,          &
                                nNodes,       &
                                comm,         & ! input: communicator
                                iens,         &
@@ -2338,7 +1929,8 @@ contains
 
   USE dataTypes,  ONLY: STRFLX              ! reach flux data structure
 
-  ! input variables
+  implicit none
+  ! argument variables
   integer(i4b),             intent(in)    :: pid                   ! process id (MPI)
   integer(i4b),             intent(in)    :: nNodes                ! number of processes (MPI)
   integer(i4b),             intent(in)    :: comm                  ! communicator
@@ -2349,7 +1941,6 @@ contains
   integer(i4b),             intent(in)    :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
   integer(i4b),             intent(in)    :: rchIdxLocal(:)        ! reach indices (w.r.t. local) (dimension size depends on procs )
   integer(i4b),             intent(in)    :: commType              ! communication type 1->scatter, 2->gather otherwise error
-  ! output variables
   integer(i4b),             intent(out)   :: ierr                  ! error code
   character(len=strLen),    intent(out)   :: message               ! error message
   ! local variables
@@ -2498,13 +2089,12 @@ contains
 
   endif
 
- end subroutine mpi_comm_irf_state
-
+ END SUBROUTINE mpi_comm_irf_state
 
  ! *********************************************************************
  ! subroutine: subreach molecule state communication
  ! *********************************************************************
- subroutine mpi_comm_molecule_state(pid, nNodes, comm, & ! input: mpi variables
+ SUBROUTINE mpi_comm_molecule_state(pid, nNodes, comm, & ! input: mpi variables
                                     iens,              & ! input:
                                     nReach,            & ! input: number of reach per MPI processor
                                     RCHSTA_global,     & ! inout: global restart state data structure
@@ -2518,7 +2108,7 @@ contains
   USE dataTypes,  ONLY: SUBRCH
   USE dataTypes,  ONLY: STRSTA
   implicit none
-  ! input variables
+  ! argument variables
   integer(i4b),             intent(in)    :: pid                   ! process id (MPI)
   integer(i4b),             intent(in)    :: nNodes                ! number of processes (MPI)
   integer(i4b),             intent(in)    :: comm                  ! communicator
@@ -2530,7 +2120,6 @@ contains
   integer(i4b),             intent(in)    :: rchIdxLocal(:)        ! reach indices (w.r.t. local) (dimension size depends on procs )
   integer(i4b),             intent(in)    :: routeMethod           ! routing mehtod id
   integer(i4b),             intent(in)    :: commType              ! communication type 1->scatter, 2->gather otherwise error
-  ! output variables
   integer(i4b),             intent(out)   :: ierr                  ! error code
   character(len=strLen),    intent(out)   :: message               ! error message
   ! local variables
@@ -2625,15 +2214,14 @@ contains
 
   elseif (commType == gather) then
 
-
   endif
 
- end subroutine mpi_comm_molecule_state
+ END SUBROUTINE mpi_comm_molecule_state
 
  ! *********************************************************************
  ! subroutine: kinematic wave state communication
  ! *********************************************************************
- subroutine mpi_comm_kwt_state(pid,          & ! input:
+ SUBROUTINE mpi_comm_kwt_state(pid,          & ! input:
                                nNodes,       & ! input: number of node
                                comm,         & ! input: communicator
                                iens,         &
@@ -2648,7 +2236,8 @@ contains
   USE dataTypes,  ONLY: kwtRCH
   USE dataTypes,  ONLY: STRSTA
 
-  ! input variables
+  implicit none
+  ! argument variables
   integer(i4b),             intent(in)    :: pid                   ! process id (MPI)
   integer(i4b),             intent(in)    :: nNodes                ! number of processes (MPI)
   integer(i4b),             intent(in)    :: comm                  ! communicator
@@ -2659,7 +2248,6 @@ contains
   integer(i4b),             intent(in)    :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
   integer(i4b),             intent(in)    :: rchIdxLocal(:)        ! reach indices (w.r.t. local) (dimension size depends on procs )
   integer(i4b),             intent(in)    :: commType              ! communication type 1->scatter, 2->gather otherwise error
-  ! output variables
   integer(i4b),             intent(out)   :: ierr                  ! error code
   character(len=strLen),    intent(out)   :: message               ! error message
   ! local variables
@@ -2849,21 +2437,21 @@ contains
 
   endif
 
- end subroutine mpi_comm_kwt_state
+ END SUBROUTINE mpi_comm_kwt_state
 
  ! *********************************************************************
  ! private subroutine
  ! *********************************************************************
- subroutine irf_bas_struc2array(iens, RCHFLX_in,    &  ! input:
+ SUBROUTINE irf_bas_struc2array(iens, RCHFLX_in,    &  ! input:
                                 qfuture_bas,        &  ! output:
-                                ntdh_bas,               &  ! output:
+                                ntdh_bas,           &  ! output:
                                 ierr, message)
   USE dataTypes, ONLY: STRFLX              ! reach flux data structure
+
   implicit none
-  ! Input
+  ! argument variables
   integer(i4b),          intent(in)              :: iens           ! ensemble index
   type(STRFLX),          intent(in), allocatable :: RCHFLX_in(:,:) ! reach state data
-  ! Output error handling variables
   real(dp),              intent(out),allocatable :: qfuture_bas(:) ! flat array for wave Q
   integer(i4b),          intent(out),allocatable :: ntdh_bas(:)    ! number of waves at each reach
   integer(i4b),          intent(out)             :: ierr           ! error code
@@ -2896,22 +2484,21 @@ contains
    ixTdh = ixTdh+ntdh_bas(iSeg)
   end do
 
- end subroutine irf_bas_struc2array
-
+ END SUBROUTINE irf_bas_struc2array
 
  ! *********************************************************************
  ! private subroutine
  ! *********************************************************************
- subroutine irf_struc2array(iens, RCHFLX_in,    &  ! input:
+ SUBROUTINE irf_struc2array(iens, RCHFLX_in,    &  ! input:
                             qfuture,            &  ! output:
                             ntdh,               &  ! output:
                             ierr, message)
   USE dataTypes, ONLY: STRFLX              ! reach flux data structure
+
   implicit none
-  ! Input
+  ! argument variables
   integer(i4b),          intent(in)              :: iens           ! ensemble index
   type(STRFLX),          intent(in), allocatable :: RCHFLX_in(:,:) ! reach state data
-  ! Output error handling variables
   real(dp),              intent(out),allocatable :: qfuture(:)     ! flat array for wave Q
   integer(i4b),          intent(out),allocatable :: ntdh(:)        ! number of waves at each reach
   integer(i4b),          intent(out)             :: ierr           ! error code
@@ -2944,21 +2531,21 @@ contains
    ixTdh = ixTdh+ntdh(iSeg)
   end do
 
- end subroutine irf_struc2array
+ END SUBROUTINE irf_struc2array
 
  ! *********************************************************************
  ! private subroutine
  ! *********************************************************************
- subroutine kwt_struc2array(iens, KROUTE_in,     &  ! input:
+ SUBROUTINE kwt_struc2array(iens, KROUTE_in,     &  ! input:
                             QF,QM,TI,TR,RF,      &  ! output:
                             nWave,               &
                             ierr, message)
   USE dataTypes, ONLY: kwtRCH             ! collection of particles in a given reach
+
   implicit none
-  ! Input
+  ! argument variables
   integer(i4b),          intent(in)              :: iens           ! ensemble index
   type(kwtRCH),          intent(in), allocatable :: KROUTE_in(:,:) ! reach state data
-  ! Output error handling variables
   real(dp),              intent(out),allocatable :: QF(:)          ! flat array for wave Q
   real(dp),              intent(out),allocatable :: QM(:)          ! Flat array for modified Q
   real(dp),              intent(out),allocatable :: TI(:)          ! flat array for entiry time
@@ -2999,22 +2586,21 @@ contains
    ixWave = ixWave+nWave(iSeg)
   end do
 
- end subroutine kwt_struc2array
+ END SUBROUTINE kwt_struc2array
 
  ! *********************************************************************
  ! private subroutine
  ! *********************************************************************
- subroutine subrch_struc2array(iens, SUBR_in,     &  ! input:
+ SUBROUTINE subrch_struc2array(iens, SUBR_in,     &  ! input:
                                nMesh,             &  ! input:
                                Q,                 &  ! output:
                                ierr, message)
   USE dataTypes, ONLY: SUBRCH                        ! collection of particles in a given reach
   implicit none
-  ! Input
+  ! argument variables
   integer(i4b),          intent(in)              :: iens           ! ensemble index
   type(SUBRCH),          intent(in), allocatable :: SUBR_in(:,:)   ! temp SUBRCH data structure to hold updated states
   integer(i4b),          intent(in)              :: nMesh          ! number of numerical molecule
-  ! Output error handling variables
   real(dp),              intent(out),allocatable :: Q(:)           ! flat array for wave Q
   integer(i4b),          intent(out)             :: ierr           ! error code
   character(len=strLen), intent(out)             :: message        ! error message
@@ -3039,25 +2625,22 @@ contains
    ixMesh = ixMesh+nMesh
   end do
 
- end subroutine subrch_struc2array
+ END SUBROUTINE subrch_struc2array
 
  ! *********************************************************************
  ! public subroutine: send global data
  ! *********************************************************************
  ! send all the necessary public/global variables neccesary in task
- subroutine pass_global_data(comm, ierr,message)   ! output: error control
+ SUBROUTINE pass_global_data(comm, ierr,message)   ! output: error control
   USE globalData, ONLY: nRch,nHRU         ! number of reaches and hrus in whole network
   USE globalData, ONLY: iTime             ! time index
   USE globalData, ONLY: reachID
   USE globalData, ONLY: basinID
   implicit none
-  ! Input variables
+  ! argument variables
   integer(i4b),                   intent(in)  :: comm    ! communicator
-  ! Output error handling variables
   integer(i4b),                   intent(out) :: ierr
   character(len=strLen),          intent(out) :: message ! error message
-  ! Local variables
-  ! None
 
   ierr=0; message='pass_global_data/'
 
@@ -3067,10 +2650,9 @@ contains
   call MPI_BCAST(nHRU,        1,     MPI_INTEGER,          root, comm, ierr)
   call MPI_BCAST(calendar,  strLen,  MPI_CHARACTER,        root, comm, ierr)
   call MPI_BCAST(time_units,strLen,  MPI_CHARACTER,        root, comm, ierr)
-
   call shr_mpi_bcast(reachID,ierr, message)
   call shr_mpi_bcast(basinID,ierr, message)
 
- end subroutine pass_global_data
+ END SUBROUTINE pass_global_data
 
 END MODULE mpi_process
