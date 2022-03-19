@@ -99,6 +99,8 @@ MODULE globalData
   integer(i4b),                    public :: ixPrint(1:2)=integerMissing ! index of desired reach to be on-screen print
   integer(i4b),                    public :: nEns=1                      ! number of ensemble
   type(cMolecule),                 public :: nMolecule                   ! number of computational molecule (used for KW, MC, DW)
+  character(300),                  public :: hfileout=charMissing        ! name of the history output file
+  character(300),                  public :: rfileout=charMissing        ! name of the restart output file
 
   ! ---------- MPI/OMP/PIO variables ----------------------------------------------------------------
 
@@ -125,10 +127,10 @@ MODULE globalData
   ! spatial constant ....
   real(dp),                        public :: fshape                     ! shape parameter in time delay histogram (=gamma distribution) [-]
   real(dp),                        public :: tscale                     ! scaling factor for the time delay histogram [sec]
-  real(dp),                        public :: velo                       ! velocity [m/s] for Saint-Venant equation   added by NM
-  real(dp),                        public :: diff                       ! diffusivity [m2/s] for Saint-Venant equation   added by NM
-  real(dp),                        public :: mann_n                     ! manning's roughness coefficient [unitless]  added by NM
-  real(dp),                        public :: wscale                     ! scaling factor for river width [-] added by NM
+  real(dp),                        public :: velo                       ! velocity [m/s] for Saint-Venant equation
+  real(dp),                        public :: diff                       ! diffusivity [m2/s] for Saint-Venant equation
+  real(dp),                        public :: mann_n                     ! manning's roughness coefficient [unitless]
+  real(dp),                        public :: wscale                     ! scaling factor for river width [-]
 
   ! ---------- general structure information --------------------------------------------------------
 
