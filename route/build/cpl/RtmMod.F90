@@ -577,6 +577,7 @@ CONTAINS
     nio = getavu()
     locfn = './'// trim(rpntfil)//trim(inst_suffix)
     call opnfil (locfn, nio, 'f')
+    read (nio,*)
     read (nio,'(a256)') pnamer
     call relavu (nio)
 
