@@ -20,14 +20,14 @@ USE globalData,        ONLY: pio_root
 USE globalData,        ONLY: pio_stride
 USE globalData,        ONLY: pioSystem
 USE globalData,        ONLY: runMode
+USE globalData,        ONLY: hfileout, rfileout
 ! Moudle wide external modules
 USE nr_utility_module, ONLY: arth
 USE pio_utils
 
 implicit none
 
-! The following variables used only in this module
-character(300),       save :: fileout              ! name of the output file
+! module-wide variables
 integer(i4b),         save :: jTime                ! time step in output netCDF
 type(file_desc_t),    save :: pioFileDesc          ! PIO data identifying the file
 type(io_desc_t),      save :: iodesc_rch_flx       ! PIO domain decomposition data for reach flux [nRch]
@@ -286,9 +286,7 @@ CONTAINS
  USE time_utils_module, ONLy: compCalday_noleap ! compute calendar day
 
  implicit none
-
- ! input variables: none
- ! output variables
+ ! argument variables
  integer(i4b), intent(out)       :: ierr             ! error code
  character(*), intent(out)       :: message          ! error message
  ! local variables
@@ -308,15 +306,15 @@ CONTAINS
    sec_in_day = simDatetime(1)%hour()*60*60+simDatetime(1)%minute()*60+nint(simDatetime(1)%sec())
    select case(trim(runMode))
      case('cesm-coupling')
-       write(fileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuroute.h.', &
+       write(hfileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuroute.h.', &
                                simDatetime(1)%year(),'-',simDatetime(1)%month(),'-',simDatetime(1)%day(),'-',sec_in_day,'.nc'
      case('standalone')
-       write(fileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.h.', &
+       write(hfileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.h.', &
                                simDatetime(1)%year(),'-',simDatetime(1)%month(),'-',simDatetime(1)%day(),'-',sec_in_day,'.nc'
      case default; ierr=20; message=trim(message)//'unable to identify the run option. Avaliable options are standalone and cesm-coupling'; return
    end select
 
-   call defineFile(trim(fileout),                         &  ! input: file name
+   call defineFile(trim(hfileout),                        &  ! input: file name
                    nEns,                                  &  ! input: number of ensembles
                    nHRU,                                  &  ! input: number of HRUs
                    nRch,                                  &  ! input: number of stream segments
@@ -326,7 +324,7 @@ CONTAINS
                    ierr,cmessage)                            ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   call openFile(pioSystem, pioFileDesc, trim(fileout), pio_typename, ncd_write, isHistFileOpen, ierr, cmessage)
+   call openFile(pioSystem, pioFileDesc, trim(hfileout), pio_typename, ncd_write, isHistFileOpen, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    call write_netcdf(pioFileDesc, 'basinID', basinID, [1], [nHRU], ierr, cmessage)
@@ -337,7 +335,8 @@ CONTAINS
 
    if (masterproc) then
      open(1, file = trim(restart_dir)//trim(rpntfil), status='replace', action='write')
-     write(1,'(a)') trim(fileout)
+     write(1,'(a)') trim(hfileout)
+     write(1,'(a)') trim(rfileout)
      close(1)
    end if
 
@@ -371,7 +370,7 @@ CONTAINS
  USE globalData, ONLY: hru_per_proc             ! number of hrus assigned to each proc (size = num of procs+1)
 
  implicit none
- ! input variables
+ ! argument variables
  character(*), intent(in)          :: fname             ! filename
  integer(i4b), intent(in)          :: nEns_in           ! number of ensembles
  integer(i4b), intent(in)          :: nHRU_in           ! number of HRUs
@@ -379,7 +378,6 @@ CONTAINS
  character(*), intent(in)          :: units_time        ! time units
  character(*), intent(in)          :: calendar          ! calendar
  logical(lgt), intent(in)          :: createNewFile     !
- ! output variables
  integer(i4b), intent(out)         :: ierr              ! error code
  character(*), intent(out)         :: message           ! error message
  ! local variables
@@ -513,7 +511,7 @@ CONTAINS
    USE globalData,        ONLY: nEns, nHRU, nRch  ! number of ensembles, HRUs and river reaches
 
    implicit none
-   ! output
+   ! argument variables
    integer(i4b),   intent(out)          :: ierr             ! error code
    character(*),   intent(out)          :: message          ! error message
    ! local variables
@@ -523,28 +521,30 @@ CONTAINS
    ierr=0; message='init_histFile/'
 
    open(1, file = trim(restart_dir)//trim(rpntfil), status='old', action='read')
-   read(1, '(A)') fileout
+   read(1, '(A)') hfileout
+   read(1, '(A)') rfileout
    close(1)
 
-   call defineFile(trim(fileout),                         &  ! input: file name
+   call defineFile(trim(hfileout),                        &  ! input: file name
                    nEns,                                  &  ! input: number of ensembles
                    nHRU,                                  &  ! input: number of HRUs
                    nRch,                                  &  ! input: number of stream segments
                    time_units,                            &  ! input: time units
                    calendar,                              &  ! input: calendar
-                   createNewFile,                         &
+                   createNewFile,                         &  ! input:
                    ierr,cmessage)                            ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! if file is not exist, get not-descriptive error
-   call openFile(pioSystem, pioFileDesc, trim(fileout), pio_typename, ncd_write, isHistFileOpen, ierr, cmessage)
+   call openFile(pioSystem, pioFileDesc, trim(hfileout), pio_typename, ncd_write, isHistFileOpen, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    call inq_dim_len(pioFileDesc, 'time', jTime)
 
    if (masterproc) then
      open(1, file = trim(restart_dir)//trim(rpntfil), status='replace', action='write')
-     write(1,'(a)') trim(fileout)
+     write(1,'(a)') trim(hfileout)
+     write(1,'(a)') trim(rfileout)
      close(1)
    end if
 

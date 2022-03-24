@@ -45,6 +45,7 @@ USE globalData,        ONLY: pio_root
 USE globalData,        ONLY: pio_stride
 USE globalData,        ONLY: pioSystem
 USE globalData,        ONLY: runMode
+USE globalData,        ONLY: hfileout, rfileout
 
 USE nr_utility_module, ONLY: arth
 USE pio_utils
@@ -173,22 +174,22 @@ CONTAINS
   character(*),   intent(out)          :: message          ! error message
   ! local variables
   character(len=strLen)                :: cmessage         ! error message of downwind routine
-  character(len=300)                   :: fnameRestart     ! name of the restart file name
 
   ierr=0; message='restart_output/'
 
-  call restart_fname(fnameRestart, nextTimeStep, ierr, cmessage)
+  call restart_fname(rfileout, nextTimeStep, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  call define_state_nc(fnameRestart, ierr, cmessage)
+  call define_state_nc(rfileout, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  call write_state_nc(fnameRestart, ierr, cmessage)
+  call write_state_nc(rfileout, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   if (masterproc) then
-    open(1, file = trim(restart_dir)//trim(rpntfil), status='unknown', action='write', position='append')
-    write(1,'(a)', advance='no') trim(fnameRestart)
+    open(1, file = trim(restart_dir)//trim(rpntfil), status='replace', action='write')
+    write(1,'(a)') trim(hfileout)
+    write(1,'(a)') trim(rfileout)
     close(1)
   end if
 
@@ -198,7 +199,7 @@ CONTAINS
  ! *********************************************************************
  ! public subroutine: define restart NetCDF file name
  ! *********************************************************************
- SUBROUTINE restart_fname(fnameRestart, timeStamp, ierr, message)
+ SUBROUTINE restart_fname(fname, timeStamp, ierr, message)
 
    USE public_var, ONLY: restart_dir
    USE public_var, ONLY: case_name      ! simulation name ==> output filename head
@@ -212,7 +213,7 @@ CONTAINS
    ! input
    integer(i4b),   intent(in)           :: timeStamp        ! optional:
    ! output
-   character(*),   intent(out)          :: fnameRestart     ! name of the restart file name
+   character(*),   intent(out)          :: fname            ! name of the restart file name
    integer(i4b),   intent(out)          :: ierr             ! error code
    character(*),   intent(out)          :: message          ! error message
    ! local variables
@@ -240,11 +241,11 @@ CONTAINS
 
    select case(trim(runMode))
      case('cesm-coupling')
-       write(fnameRestart, fmtYMDS) trim(restart_dir)//trim(case_name)//'.mizuroute.r.', &
-                                    restartTimeStamp%year(),'-',restartTimeStamp%month(),'-',restartTimeStamp%day(),'-',sec_in_day,'.nc'
+       write(fname, fmtYMDS) trim(restart_dir)//trim(case_name)//'.mizuroute.r.', &
+                                  restartTimeStamp%year(),'-',restartTimeStamp%month(),'-',restartTimeStamp%day(),'-',sec_in_day,'.nc'
      case('standalone')
-       write(fnameRestart, fmtYMDS) trim(restart_dir)//trim(case_name)//'.r.', &
-                                    restartTimeStamp%year(),'-',restartTimeStamp%month(),'-',restartTimeStamp%day(),'-',sec_in_day,'.nc'
+       write(fname, fmtYMDS) trim(restart_dir)//trim(case_name)//'.r.', &
+                                  restartTimeStamp%year(),'-',restartTimeStamp%month(),'-',restartTimeStamp%day(),'-',sec_in_day,'.nc'
      case default; ierr=20; message=trim(message)//'unable to identify the run option. Avaliable options are standalone and cesm-coupling'; return
    end select
 
@@ -270,9 +271,8 @@ CONTAINS
  USE globalData, ONLY: nRch                     ! number of ensembles and river reaches
 
  implicit none
- ! input variables
+ ! argument variables
  character(*),   intent(in)      :: fname            ! filename
- ! output variables
  integer(i4b),   intent(out)     :: ierr             ! error code
  character(*),   intent(out)     :: message          ! error message
  ! local variables
