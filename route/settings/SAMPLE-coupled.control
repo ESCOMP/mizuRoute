@@ -42,8 +42,8 @@
 ! ****************************************************************************************************************************
 ! Define options to include/skip calculations
 ! ----------------------------------------------------
-<hydGeometryOption>     0                          ! option for hydraulic geometry calculations (0=read from file, 1=compute)
-<topoNetworkOption>     0                          ! option for network topology calculations (0=read from file, 1=compute)
+<hydGeometryOption>     1                          ! option for hydraulic geometry calculations (0=read from file, 1=compute)
+<topoNetworkOption>     1                          ! option for network topology calculations (0=read from file, 1=compute)
 <computeReachList>      1                          ! option to compute list of upstream reaches (0=do not compute, 1=compute)
 ! ****************************************************************************************************************************
 ! Namelist file name 

@@ -1,6 +1,7 @@
 MODULE RtmMod
 
   !DESCRIPTION:
+
   USE pio
   USE perf_mod
   USE shr_pio_mod   , ONLY : shr_pio_getiotype, shr_pio_getioformat, &
@@ -27,11 +28,9 @@ MODULE RtmMod
                              pio_root, pio_stride
   USE globalData    , ONLY : pioSystem
 
-! !PUBLIC TYPES:
   implicit none
-  private
 
-! !PUBLIC MEMBER FUNCTIONS:
+  private
   public route_ini          ! Initialize mizuRoute
   public route_run          ! run routing
 
@@ -42,20 +41,25 @@ CONTAINS
 ! *********************************************************************!
   SUBROUTINE route_ini(rtm_active,flood_active)
 
-    ! !DESCRIPTION:
-    ! Initialize mizuRoute network, decomp
-    ! !CALLED FROM:
-    ! subroutine initialize in module initializeMod
-    USE globalData,      ONLY: ixHRU_order                 ! global HRU index in the order of proc assignment (size = num of hrus contributing reach in entire network)
-    USE globalData,      ONLY: hru_per_proc                ! number of hrus assigned to each proc (size = num of procs
-    USE globalData,      ONLY: nHRU_mainstem               ! number of mainstem HRUs
-    USE init_model_data, ONLY: init_ntopo_data, init_model !
-    USE init_model_data, ONLY: init_state_data
-    use RtmTimeManager,  ONLY: init_time
-    USE mpi_process,     ONLY: pass_global_data
+    ! DESCRIPTION: Initialize mizuRoute
+    ! 1. initialize time
+    ! 2. update mizuRoute PIO parameter from CIME
+    ! 3. initialize river network topology, and routing parameters
+    ! 4. Define Decomposed domain
+    ! 5. For continue and/or Branch run-- Initialize restart and history files
+    ! 6. initialize state variables
 
-    !ARGUMENTS:
+    USE globalData,          ONLY: ixHRU_order                 ! global HRU index in the order of proc assignment (size = num of hrus contributing reach in entire network)
+    USE globalData,          ONLY: hru_per_proc                ! number of hrus assigned to each proc (size = num of procs
+    USE globalData,          ONLY: nHRU_mainstem               ! number of mainstem HRUs
+    USE init_model_data,     ONLY: init_ntopo_data, init_model !
+    USE init_model_data,     ONLY: init_state_data
+    USE RtmTimeManager,      ONLY: init_time
+    USE mpi_process,         ONLY: pass_global_data
+    USE write_simoutput_pio, ONLY: init_histFile    !
+
     implicit none
+    !ARGUMENTS:
     logical, intent(out)       :: rtm_active
     logical, intent(out)       :: flood_active
     ! LOCAL VARIABLES:
@@ -65,15 +69,38 @@ CONTAINS
     character(len= 7)          :: runtyp(4)                 ! run type
     character(len=CL)          :: cmessage
     character(len=*),parameter :: subname = '(route_ini) '
-   !-----------------------------------------------------------------------
 
     !-------------------------------------------------------
-    ! mizuRoute setup
+    ! 0. Run types etc.
     !-------------------------------------------------------
-    ! 1. xxxx
-    ! 2. read control file
-    ! 3. read routing parameters
+    runtyp(:)               = 'missing'
+    runtyp(nsrStartup  + 1) = 'initial'
+    runtyp(nsrContinue + 1) = 'restart'
+    runtyp(nsrBranch   + 1) = 'branch '
 
+    rtm_active   = do_rtm
+    flood_active = do_rtmflood
+
+    if ( .not.do_rtm ) then
+      if ( masterproc ) then
+        write(iulog,*)'mizuRoute will not be active '
+      endif
+      return
+    end if
+
+    ! Initialize tracers
+    rtm_trstr = trim(rtm_tracers(1))
+    do nt = 2,nt_rtm
+       rtm_trstr = trim(rtm_trstr)//':'//trim(rtm_tracers(nt))
+    enddo
+
+    if (masterproc) then
+       write(iulog,*)'mizuRoute tracers = ',nt_rtm, trim(rtm_trstr)
+    end if
+
+    !-------------------------------------------------------
+    ! 1. Initialize time
+    !-------------------------------------------------------
     ! If routing time step dt [sec] and coupling time step coupling_period [day] is different, match dt to coupling_period.
     if (dt/=coupling_period) then
       if (masterproc) then
@@ -86,17 +113,6 @@ CONTAINS
     call init_time(ierr, cmessage)
     if(ierr/=0) then; cmessage = trim(subname)//trim(cmessage); return; endif
 
-    ! Obtain restart file if appropriate
-    if ((nsrest == nsrContinue) .or. &
-      (nsrest == nsrBranch  )) then
-      call RtmRestGetfile()
-    endif
-
-    runtyp(:)               = 'missing'
-    runtyp(nsrStartup  + 1) = 'initial'
-    runtyp(nsrContinue + 1) = 'restart'
-    runtyp(nsrBranch   + 1) = 'branch '
-
     if (masterproc) then
       write(iulog,*) 'define run:'
       write(iulog,*) '   run type              = ',runtyp(nsrest+1)
@@ -104,16 +120,6 @@ CONTAINS
       write(iulog,*) '   delt_mizuRoute        = ',dt, '[sec]'
       call shr_sys_flush(iulog)
     endif
-
-    rtm_active   = do_rtm
-    flood_active = do_rtmflood
-
-    if ( .not.do_rtm ) then
-      if ( masterproc ) then
-        write(iulog,*)'mizuRoute will not be active '
-      endif
-      RETURN
-    end if
 
     if (coupling_period <= 0) then
        write(iulog,*) subname,' ERROR mizuRoute coupling_period invalid',coupling_period
@@ -126,7 +132,7 @@ CONTAINS
     endif
 
     !-------------------------------------------------------
-    ! Overwrite PIO parameter from CIME
+    ! 2. update mizuRoute PIO parameter from CIME
     !-------------------------------------------------------
     runMode='cesm-coupling'
 
@@ -158,20 +164,7 @@ CONTAINS
     end if
 
     !-------------------------------------------------------
-    ! Initialize rtm_trstr
-    !-------------------------------------------------------
-
-    rtm_trstr = trim(rtm_tracers(1))
-    do nt = 2,nt_rtm
-       rtm_trstr = trim(rtm_trstr)//':'//trim(rtm_tracers(nt))
-    enddo
-
-    if (masterproc) then
-       write(iulog,*)'mizuRoute tracers = ',nt_rtm, trim(rtm_trstr)
-    end if
-
-    !-------------------------------------------------------
-    ! Initialize river network connectivity (global, all procs)
+    ! 3. Initialize river network topology and routing parameters
     !-------------------------------------------------------
 
     call init_ntopo_data(iam, npes, mpicom_rof, ierr, cmessage)
@@ -181,7 +174,7 @@ CONTAINS
     if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
     !-------------------------------------------------------
-    ! Allocate local flux variables
+    ! 4. Define Decomposed domain
     !-------------------------------------------------------
     ! 1st and last indices and number of elements in local domain
     rtmCTL%begr  = 1
@@ -222,7 +215,20 @@ CONTAINS
     endif
 
     !-------------------------------------------------------
-    ! Read restart/initial info
+    ! 5. For continue and/or Branch run-- Initialize restart and history files
+    !-------------------------------------------------------
+    ! Obtain last restart name, and obtain and open last history file depending on which run types-- contiuous or branch
+    if ((nsrest == nsrContinue) .or. &
+        (nsrest == nsrBranch)) then
+      call RtmRestGetfile()
+      if (nsrest == nsrContinue) then
+        call init_histFile(ierr, cmessage)
+        if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+      end if
+    endif
+
+    !-------------------------------------------------------
+    ! 6. initialize state variables
     !-------------------------------------------------------
 
     call init_state_data(iam, npes, mpicom_rof, ierr, cmessage)
@@ -235,6 +241,8 @@ CONTAINS
 ! public subroutine: run
 ! *********************************************************************!
   SUBROUTINE route_run(rstwr)
+
+    ! DESCRIPTION: Main routine for routing at all the river reaches per coupling period
 
     USE dataTypes,           ONLY: strflx
     USE globalData,          ONLY: RCHFLX_trib      ! Reach flux data structures (per proc, tributary)
@@ -250,13 +258,10 @@ CONTAINS
     USE write_restart_pio,   ONLY: restart_output
     USE init_model_data,     ONLY: update_time
 
-! !DESCRIPTION:
-! Main routine for routing at all the river reaches per coupling period
-
-! !ARGUMENTS:
     implicit none
+    ! ARGUMENTS:
     logical ,         intent(in) :: rstwr                  ! true => write restart file this step)
-! !LOCAL VARIABLES:
+    ! LOCAL VARIABLES:
     integer                      :: iens                   ! ensemble index (1 for now)
     integer                      :: ix                     ! loop index
     integer                      :: nr, ns, nt             ! indices
@@ -277,7 +282,6 @@ CONTAINS
     character(len=*),parameter   :: subname = '(route_run) '
     character(len=CL)            :: cmessage
     integer                      :: ierr                   ! error code
-!-----------------------------------------------------------------------
 
     call t_startf('mizuRoute_tot')
     call shr_sys_flush(iulog)
@@ -300,12 +304,12 @@ CONTAINS
     rtmCTL%volr      = 0._r8
     rtmCTL%flood     = 0._r8
 
-!       !-----------------------------------
-!       ! Compute irrigation flux based on demand from clm
-!       ! Must be calculated before volr is updated to be consistent with lnd
-!       ! Just consider land points and only remove liquid water
-!       !-----------------------------------
-!
+    !-----------------------------------
+    ! Compute irrigation flux based on demand from clm
+    ! Must be calculated before volr is updated to be consistent with lnd
+    ! Just consider land points and only remove liquid water
+    !-----------------------------------
+
 !       call t_startf('mizuRoute_irrig')
 !       nt = 1
 !       rtmCTL%qirrig_actual = 0._r8
@@ -338,7 +342,6 @@ CONTAINS
 
     ! Get total runoff for each catchment
     if (npes==1) then
-
       ! if only single proc is used, all runoff is stored in mainstem runoff array
       if (.not. allocated(basinRunoff_main)) then
         allocate(basinRunoff_main(nHRU_mainstem), stat=ierr)
@@ -348,11 +351,8 @@ CONTAINS
         basinRunoff_main(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)!+rtmCTL%qgwl(nr,1)
         write(iulog,'(a,2x,i8,2x,d21.14)')'nr, basinRunoff_main = ',nr, basinRunoff_main(nr)
       end do
-
     else
-
       if (masterproc) then
-
         associate(nHRU_trib => hru_per_proc(0))
         if (nHRU_mainstem > 0) then
           if (.not. allocated(basinRunoff_main)) then
@@ -363,31 +363,24 @@ CONTAINS
             basinRunoff_main(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)!+rtmCTL%qgwl(nr,1)
           end do
         end if
-
         if (.not. allocated(basinRunoff_trib)) then
           allocate(basinRunoff_trib(nHRU_trib), stat=ierr)
           if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [basinRunoff_trib]'); endif
         end if
-
         do nr = 1, nHRU_trib
           ix = nr + nHRU_mainstem
           basinRunoff_trib(nr) = rtmCTL%qsur(ix,1)+rtmCTL%qsub(ix,1)!+rtmCTL%qgwl(ix,1)
         end do
         end associate
-
       else
-
         if (.not. allocated(basinRunoff_trib)) then
           allocate(basinRunoff_trib(rtmCTL%lnumr), stat=ierr)
           if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [basinRunoff_trib]'); endif
         end if
-
         do nr = rtmCTL%begr,rtmCTL%endr
           basinRunoff_trib(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)!+rtmCTL%qgwl(nr,1)
         end do
-
       end if
-
     end if
 
     if (barrier_timers) then
@@ -502,20 +495,19 @@ CONTAINS
 
 
   SUBROUTINE RtmRestGetfile()
-    !---------------------------------------------------
+
     ! DESCRIPTION:
     ! Determine and obtain netcdf restart file
     USE public_var, ONLY: output_dir
     USE public_var, ONLY: fname_state_in
 
-    ! ARGUMENTS:
     implicit none
+    ! ARGUMENTS: None
     ! LOCAL VARIABLES:
     character(CL)      :: path           ! full pathname of netcdf restart file
     integer            :: status         ! return status
     integer            :: length         ! temporary
     character(len=256) :: ftest,ctest    ! temporaries
-    !---------------------------------------------------
 
     ! Continue run:
     ! Restart file pathname is read restart pointer file
@@ -553,10 +545,9 @@ CONTAINS
     ! !DESCRIPTION:
     ! Setup restart file and perform necessary consistency checks
 
-    ! !ARGUMENTS:
     implicit none
+    ! !ARGUMENTS:
     character(len=*), intent(out) :: pnamer ! full path of restart file
-
     ! !LOCAL VARIABLES:
     integer :: i                  ! indices
     integer :: nio                ! restart unit
@@ -577,6 +568,7 @@ CONTAINS
     nio = getavu()
     locfn = './'// trim(rpntfil)//trim(inst_suffix)
     call opnfil (locfn, nio, 'f')
+    read (nio,*)
     read (nio,'(a256)') pnamer
     call relavu (nio)
 
@@ -585,6 +577,6 @@ CONTAINS
        write(iulog,'(72a1)') ("-",i=1,60)
     end if
 
-  end subroutine restFile_read_pfile
+  END SUBROUTINE restFile_read_pfile
 
 END MODULE RtmMod
