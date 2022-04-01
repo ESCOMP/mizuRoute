@@ -317,7 +317,7 @@ CONTAINS
 
     deallocate(array_dp_temp, array_int_temp, stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    allocate(array_dp_temp(nRch_in), array_int_temp(nHRU_in), stat=ierr, errmsg=cmessage)
+    allocate(array_dp_temp(nHRU_in), array_int_temp(nHRU_in), stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     do ix=1,nVarsHRU2SEG
