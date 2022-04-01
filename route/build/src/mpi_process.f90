@@ -230,6 +230,8 @@ CONTAINS
       hru_per_proc(idx) = hru_per_proc(idx) + sizeo(domains_mpi(ix)%hruIndex)
     end do
 
+    deallocate(domains_mpi)
+
     ! Reorder reachID and basinID for output to match up with order of RCHFLX/RCHSTA reach order and basinRunoff hru order
     reachID(1:nRch_in) = reachID( ixRch_order )
     basinID(1:nHRU_in) = basinID( ixHRU_order )
@@ -315,7 +317,7 @@ CONTAINS
 
     deallocate(array_dp_temp, array_int_temp, stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    allocate(array_dp_temp(nRch_in), array_int_temp(nHRU_in), stat=ierr, errmsg=cmessage)
+    allocate(array_dp_temp(nHRU_in), array_int_temp(nHRU_in), stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     do ix=1,nVarsHRU2SEG

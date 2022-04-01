@@ -327,8 +327,10 @@ CONTAINS
    call openFile(pioSystem, pioFileDesc, trim(hfileout), pio_typename, ncd_write, isHistFileOpen, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   call write_netcdf(pioFileDesc, 'basinID', basinID, [1], [nHRU], ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if (meta_rflx(ixRFLX%basRunoff)%varFile) then
+     call write_netcdf(pioFileDesc, 'basinID', basinID, [1], [nHRU], ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
 
    call write_netcdf(pioFileDesc, 'reachID', reachID, [1], [nRch], ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -436,7 +438,8 @@ CONTAINS
                  ixHRU(ix1:ix2),& ! input:
                  iodesc_hru_ro)
 
- if (createNewFile) then
+ if (.not. createNewFile) return
+
  ! --------------------
  ! define file
  ! --------------------
@@ -445,9 +448,13 @@ CONTAINS
 
  do jDim =1,nQdims
    if (jDim ==ixQdims%time) then ! time dimension (unlimited)
-    call def_dim(pioFileDesc, trim(meta_qDims(jDim)%dimName), recordDim, meta_qDims(jDim)%dimId)
+     call def_dim(pioFileDesc, trim(meta_qDims(jDim)%dimName), recordDim, meta_qDims(jDim)%dimId)
+   else if (jDim==ixQdims%hru) then
+     if (meta_rflx(ixRFLX%basRunoff)%varFile) then
+       call def_dim(pioFileDesc, trim(meta_qDims(jDim)%dimName), meta_qDims(jDim)%dimLength, meta_qDims(jDim)%dimId)
+     end if
    else
-    call def_dim(pioFileDesc, trim(meta_qDims(jDim)%dimName), meta_qDims(jDim)%dimLength, meta_qDims(jDim)%dimId)
+     call def_dim(pioFileDesc, trim(meta_qDims(jDim)%dimName), meta_qDims(jDim)%dimLength, meta_qDims(jDim)%dimId)
    endif
  end do
 
@@ -461,43 +468,41 @@ CONTAINS
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! define hru ID and reach ID variables
- call def_var(pioFileDesc, 'basinID', ncd_int, ierr, cmessage, pioDimId=[meta_qDims(ixQdims%hru)%dimId], vdesc='basin ID', vunit='-')
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (meta_rflx(ixRFLX%basRunoff)%varFile) then
+   call def_var(pioFileDesc, 'basinID', ncd_int, ierr, cmessage, pioDimId=[meta_qDims(ixQdims%hru)%dimId], vdesc='basin ID', vunit='-')
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
 
  call def_var(pioFileDesc, 'reachID', ncd_int, ierr, cmessage, pioDimId=[meta_qDims(ixQdims%seg)%dimId], vdesc='reach ID', vunit='-')
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! define flux variables
  do iVar=1,nVarsRFLX
+   if (.not.meta_rflx(iVar)%varFile) cycle
 
-  if (.not.meta_rflx(iVar)%varFile) cycle
+   ! define dimension ID array
+   nDims = size(meta_rflx(iVar)%varDim)
+   if (allocated(dim_array)) then
+     deallocate(dim_array)
+   endif
+   allocate(dim_array(nDims))
+   do ixDim = 1, nDims
+     dim_array(ixDim) = meta_qDims(meta_rflx(iVar)%varDim(ixDim))%dimId
+   end do
 
-  ! define dimension ID array
-  nDims = size(meta_rflx(iVar)%varDim)
-  if (allocated(dim_array)) then
-    deallocate(dim_array)
-  endif
-  allocate(dim_array(nDims))
-  do ixDim = 1, nDims
-    dim_array(ixDim) = meta_qDims(meta_rflx(iVar)%varDim(ixDim))%dimId
-  end do
-
-  ! define variable
-  call def_var(pioFileDesc,            &                 ! pio file descriptor
-              meta_rflx(iVar)%varName, &                 ! variable name
-              ncd_float,               &                 ! dimension array and type
-              ierr, cmessage,          &                 ! error handling
-              pioDimId=dim_array,      &                 ! dimension id
-              vdesc=meta_rflx(iVar)%varDesc, vunit=meta_rflx(iVar)%varUnit)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
+   ! define variable
+   call def_var(pioFileDesc,             &                 ! pio file descriptor
+                meta_rflx(iVar)%varName, &                 ! variable name
+                ncd_float,               &                 ! dimension array and type
+                ierr, cmessage,          &                 ! error handling
+                pioDimId=dim_array,      &                 ! dimension id
+                vdesc=meta_rflx(iVar)%varDesc, vunit=meta_rflx(iVar)%varUnit)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do
 
  ! end definitions
  call end_def(pioFileDesc, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- end if
 
  END SUBROUTINE defineFile
 
