@@ -24,6 +24,7 @@ MODULE RtmMod
   USE globalData    , ONLY : npes       => nNodes
   USE globalData    , ONLY : mpicom_rof => mpicom_route
   USE globalData    , ONLY : masterproc
+  USE globalData    , ONLY : multiProcs
   USE globalData    , ONLY : pio_netcdf_format, pio_typename, pio_rearranger, &
                              pio_root, pio_stride
   USE globalData    , ONLY : pioSystem
@@ -244,14 +245,16 @@ CONTAINS
 
     ! DESCRIPTION: Main routine for routing at all the river reaches per coupling period
 
-    USE dataTypes,           ONLY: strflx
     USE globalData,          ONLY: RCHFLX_trib      ! Reach flux data structures (per proc, tributary)
     USE globalData,          ONLY: RCHFLX_main      ! Reach flux data structures (master proc, mainstem)
+    USE globalData,          ONLY: NETOPO_trib      ! River Network data structures (per proc, tributary)
+    USE globalData,          ONLY: NETOPO_main      ! River Network data structures (master proc, mainstem)
     USE globalData,          ONLY: nHRU_mainstem    ! number of mainstem HRUs
     USE globalData,          ONLY: hru_per_proc     ! number of hrus assigned to each proc (i.e., node)
     USE globalData,          ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
     USE globalData,          ONLY: basinRunoff_main ! mainstem only HRU runoff
     USE globalData,          ONLY: basinRunoff_trib ! tributary only HRU runoff
+    USE globalData,          ONLY: idxIRF           ! routing method index
     USE write_simoutput_pio, ONLY: main_new_file    !
     USE mpi_process,         ONLY: mpi_route        ! MPI routing call
     USE write_simoutput_pio, ONLY: output
@@ -262,8 +265,9 @@ CONTAINS
     ! ARGUMENTS:
     logical ,         intent(in) :: rstwr                  ! true => write restart file this step)
     ! LOCAL VARIABLES:
-    integer                      :: iens                   ! ensemble index (1 for now)
-    integer                      :: ix                     ! loop index
+    integer                      :: iens=1                 ! ensemble index (1 for now)
+    integer                      :: ix,iRch,iHru           ! loop index
+    integer                      :: nCatch                 ! number of catchments
     integer                      :: nr, ns, nt             ! indices
     integer                      :: yr, mon, day, ymd, tod ! time information
     integer                      :: nsub                   ! subcyling for cfl
@@ -274,7 +278,6 @@ CONTAINS
     logical,  save               :: first_call = .true.    ! first time flag (for backwards compatibility)
     real(r8)                     :: delt                   ! delt associated with subcycling
     real(r8)                     :: delt_coupling          ! real value of coupling_period [sec]
-    type(strflx), allocatable    :: RCHFLX_local(:)
     logical                      :: finished
     ! parameters used in negative runoff partitioning algorithm
     real(r8)                     :: irrig_volume           ! volume of irrigation demand during time step [m3]
@@ -384,9 +387,9 @@ CONTAINS
     end if
 
     if (barrier_timers) then
-       call t_startf('mizuRoute_SMdirect_barrier')
-       call mpi_barrier(mpicom_rof,ierr)
-       call t_stopf ('mizuRoute_SMdirect_barrier')
+      call t_startf('mizuRoute_SMdirect_barrier')
+      call mpi_barrier(mpicom_rof,ierr)
+      call t_stopf ('mizuRoute_SMdirect_barrier')
     endif
 
     !-----------------------------------
@@ -397,21 +400,19 @@ CONTAINS
 
     nsub = delt_coupling/dt
     if (nsub*dt < delt_coupling) then
-       nsub = nsub + 1
+      nsub = nsub + 1
     end if
     delt = delt_coupling/float(nsub)
     if (delt /= delt_save) then
-       if (masterproc) then
-          write(iulog,'(a,2(a,i12,g20.12))') trim(subname),' mizuRoute sub-timestep, dt update from', nsub_save, delt_save, ' to ', nsub, delt
-       end if
+      if (masterproc) then
+        write(iulog,'(a,2(a,i12,g20.12))') trim(subname),' mizuRoute sub-timestep, dt update from', nsub_save, delt_save, ' to ', nsub, delt
+      end if
     endif
 
     nsub_save = nsub
     delt_save = delt
 
-    iens = 1
     do ns = 1,nsub
-
       if (masterproc) then
         if (allocated(basinRunoff_main)) then
           basinRunoff_main = basinRunoff_main/float(nsub)
@@ -425,36 +426,57 @@ CONTAINS
 
       call mpi_route(iam, npes, mpicom_rof, iens, ierr, cmessage, scatter_ro=.false.)
       if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-
     enddo
 
-!    if (npes==1) then
-!      allocate(RCHFLX_local(rch_per_proc(-1)), stat=ierr)
-!      RCHFLX_local(1:rch_per_proc(-1)) = RCHFLX_main(iens,1:rch_per_proc(-1))
-!    else
-!      if (masterproc) then
-!        associate(nRch_main => rch_per_proc(-1), nRch_trib => rch_per_proc(0))
-!        allocate(RCHFLX_local(nRch_main+nRch_trib), stat=ierr)
-!        if (nRch_main/=0) then
-!          RCHFLX_local(1:nRch_main) = RCHFLX_main(iens, 1:nRch_main)
-!        end if
-!        if (nRch_trib/=0) then
-!          RCHFLX_local(nRch_main+1:nRch_main+nRch_trib) = RCHFLX_trib(iens,1:nRch_trib)
-!        end if
-!        end associate
-!      else
-!        allocate(RCHFLX_local(rch_per_proc(iam)), stat=ierr)
-!        RCHFLX_local(1:rch_per_proc(iam)) = RCHFLX_trib(iens, 1:rch_per_proc(iam))
-!      endif
-!    endif
-
-    ! Need to fix nr index is for hru. if hru number and rch number are different, this does not work
-!    do nr = rtmCTL%begr,rtmCTL%endr
-!      rtmCTL%volr(nr)      = 0._r8
-!      rtmCTL%flood(nr)     = 0._r8
-!      rtmCTL%discharge(nr,1) = rtmCTL%discharge(nr,1) + RCHFLX_local(nr)%REACH_Q
-!    enddo
-
+    ! put reach flux variables to associated HRUs
+    if (multiProcs) then
+      if (masterproc) then
+        associate(nRch_main=>rch_per_proc(-1), nRch_trib=>rch_per_proc(0))
+        if (nRch_main/=0) then
+          do iRch =1, nRch_main
+            nCatch = size(NETOPO_main(iRch)%HRUIX)
+            do iHru = 1, nCatch
+              ix = NETOPO_main(iRch)%HRUIX(iHru)
+              rtmCTL%volr(ix)        = 0._r8
+              rtmCTL%flood(ix)       = 0._r8
+              rtmCTL%discharge(ix,1) = RCHFLX_main(iens,iRch)%ROUTE(idxIRF)%REACH_Q
+            end do
+          end do
+        end if
+        if (nRch_trib/=0) then
+          do iRch =1, nRch_trib
+            nCatch = size(NETOPO_trib(iRch)%HRUIX)
+            do iHru = 1, nCatch
+              ix = NETOPO_trib(iRch)%HRUIX(iHru)
+              rtmCTL%volr(ix)        = 0._r8
+              rtmCTL%flood(ix)       = 0._r8
+              rtmCTL%discharge(ix,1) = RCHFLX_trib(iens,iRch)%ROUTE(idxIRF)%REACH_Q
+            end do
+          end do
+        end if
+        end associate
+      else ! other processors
+        do iRch =1, rch_per_proc(iam)
+          nCatch = size(NETOPO_trib(iRch)%HRUIX)
+          do iHru = 1, nCatch
+            ix = NETOPO_trib(iRch)%HRUIX(iHru)
+            rtmCTL%volr(ix)        = 0._r8
+            rtmCTL%flood(ix)       = 0._r8
+            rtmCTL%discharge(ix,1) = RCHFLX_trib(iens,iRch)%ROUTE(idxIRF)%REACH_Q
+          end do
+        end do
+      end if
+    else
+      do iRch =1, rch_per_proc(-1)
+        nCatch = size(NETOPO_main(iRch)%HRUIX)
+        do iHru = 1, nCatch
+          ix = NETOPO_main(iRch)%HRUIX(iHru)
+          rtmCTL%volr(ix)        = 0._r8
+          rtmCTL%flood(ix)       = 0._r8
+          rtmCTL%discharge(ix,1) = RCHFLX_trib(iens,main)%ROUTE(idxIRF)%REACH_Q
+        end do
+      end do
+    end if
 
     call t_stopf('mizuRoute_subcycling')
 
