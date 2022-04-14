@@ -192,10 +192,10 @@ CONTAINS
    if (nUps>0) then
      do iUps = 1,nUps
        iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-       write(iulog,'(A,X,I12,X,G15.4)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q
+       write(iulog,'(A,1X,I12,1X,G15.4)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q
      enddo
    end if
-   write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+   write(iulog,'(A,1X,G15.4)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
  endif
 
  ! solve diffusive wave equation
@@ -208,12 +208,12 @@ CONTAINS
                      doCheck,                                 &  ! input: reach index to be examined
                      ierr, cmessage)                             ! output: error control
  if(ierr/=0)then
-    write(message, '(A,X,I12,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage)
+    write(message, '(A,1X,I12,1X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage)
     return
  endif
 
  if(doCheck)then
-   write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_Q
+   write(iulog,'(A,1X,G15.4)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_Q
  endif
 
  END SUBROUTINE dfw_rch
@@ -333,14 +333,14 @@ CONTAINS
    dt = T1-T0
 
    if (doCheck) then
-     write(iulog,'(4(A,X,G15.4))') ' length [m] =',rch_param%RLENGTH,'slope [-] =',rch_param%R_SLOPE,'channel width [m] =',rch_param%R_WIDTH,'manning coef =',rch_param%R_MAN_N
+     write(iulog,'(4(A,1X,G15.4))') ' length [m] =',rch_param%RLENGTH,'slope [-] =',rch_param%R_SLOPE,'channel width [m] =',rch_param%R_WIDTH,'manning coef =',rch_param%R_MAN_N
    end if
 
    ! time-step adjustment so Courant number is less than 1
    dTsub = dt/ntSub
 
    if (doCheck) then
-     write(iulog,'(A,X,I3,A,X,G12.5)') ' No. sub timestep=',nTsub,' sub time-step [sec]=',dTsub
+     write(iulog,'(A,1X,I3,A,1X,G12.5)') ' No. sub timestep=',nTsub,' sub time-step [sec]=',dTsub
    end if
 
    allocate(Qlocal(1:nMolecule%DW_ROUTE, 0:1), stat=ierr, errmsg=cmessage)
@@ -453,7 +453,7 @@ CONTAINS
  endif
 
  if (doCheck) then
-   write(iulog,'(A,X,G12.5)') ' Qout(t) =', rflux%ROUTE(idxDW)%REACH_Q
+   write(iulog,'(A,1X,G12.5)') ' Qout(t) =', rflux%ROUTE(idxDW)%REACH_Q
  endif
 
  END SUBROUTINE diffusive_wave
