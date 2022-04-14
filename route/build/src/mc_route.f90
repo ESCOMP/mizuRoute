@@ -244,7 +244,7 @@ contains
  ! state array:
  ! (time:0:1, loc:0:1) 0-previous time step/inlet, 1-current time step/outlet.
  ! Q or A(1,2,3,4): 1: (t=0,x=0), 2: (t=0,x=1), 3: (t=1,x=0), 4: (t=1,x=1)
- use shr_infnan_mod, only : isnan => shr_infnan_isnan
+ USE shr_infnan_mod, ONLY: isnan => shr_infnan_isnan
 
  implicit none
  ! argument variables
