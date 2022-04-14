@@ -1,28 +1,21 @@
 MODULE model_setup
 
-USE nrtype,    ONLY: i4b,dp,lgt          ! variable types, etc.
-USE nrtype,    ONLY: strLen              ! length of characters
-
-USE public_var, ONLY: iulog              ! i/o logical unit number
-USE public_var, ONLY: debug
-USE public_var, ONLY: integerMissing
-USE public_var, ONLY: realMissing
-USE public_var, ONLY: charMissing
-
-USE init_model_data,  ONLY: init_ntopo_data
-USE init_model_data,  ONLY: init_state_data
-USE init_model_data,  ONLY: get_mpi_omp
-USE init_model_data,  ONLY: update_time
-
-USE nr_utility_module, ONLY : unique  ! get unique element array
-USE nr_utility_module, ONLY : indexx  ! get rank of data value
+USE nrtype,            ONLY: i4b,dp,lgt
+USE nrtype,            ONLY: strLen
+USE public_var,        ONLY: iulog
+USE public_var,        ONLY: debug
+USE public_var,        ONLY: integerMissing
+USE public_var,        ONLY: realMissing
+USE public_var,        ONLY: charMissing
+USE nr_utility_module, ONLY: unique         ! get unique element array
+USE nr_utility_module, ONLY: indexx         ! get rank of data value
 
 implicit none
 
-! privacy -- everything private unless declared explicitly
 private
 public :: init_mpi
 public :: init_data
+
 CONTAINS
 
  ! *********************************************************************
@@ -32,13 +25,11 @@ CONTAINS
 
   ! Initialize MPI and get OMP thread
 
-  ! shared data used
-  USE globalData, ONLY: mpicom_route ! communicator id
-  ! subroutines: populate metadata
-  USE mpi_utils,  ONLY: shr_mpi_init
+  USE globalData,      ONLY: mpicom_route ! communicator id
+  USE init_model_data, ONLY: get_mpi_omp
+  USE mpi_utils,       ONLY: shr_mpi_init
 
   implicit none
-
   ! input:  None
   ! output: None
   ! local variables
@@ -64,6 +55,8 @@ CONTAINS
 
    USE public_var,          ONLY: continue_run        ! T-> append output in existing history files. F-> write output in new history file
    USE mpi_process,         ONLY: pass_global_data    ! mpi globaldata copy to slave proc
+   USE init_model_data,     ONLY: init_ntopo_data
+   USE init_model_data,     ONLY: init_state_data
    USE write_simoutput_pio, ONLY: init_histFile       ! open existing history file to append (only continue_run is true)
 
    implicit none
