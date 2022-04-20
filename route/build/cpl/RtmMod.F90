@@ -473,7 +473,7 @@ CONTAINS
           ix = NETOPO_main(iRch)%HRUIX(iHru)
           rtmCTL%volr(ix)        = 0._r8
           rtmCTL%flood(ix)       = 0._r8
-          rtmCTL%discharge(ix,1) = RCHFLX_trib(iens,main)%ROUTE(idxIRF)%REACH_Q
+          rtmCTL%discharge(ix,1) = RCHFLX_main(iens,iRch)%ROUTE(idxIRF)%REACH_Q
         end do
       end do
     end if
