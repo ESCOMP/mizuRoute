@@ -99,7 +99,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
        varname_downSegId = "Tosegment"
        varname_pfafCode = "pfaf"
     elif (  config['rof_grid'] == "USGS_GFmz" ):
-       fname_ntopOld = "ntopo_USGS-GFmz_Conus_cdf5_c20201008.nc"
+       fname_ntopOld = "ntopo_USGS-GFmz_Conus_cdf5_c20220427.nc"
        varname_area = "Basin_Area"
        varname_length = "Length"
        varname_slope  = "Slope"
