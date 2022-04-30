@@ -17,10 +17,9 @@ USE globalData, ONLY: idxKW             ! loop index of kw routing
 USE perf_mod,  ONLY: t_startf,t_stopf   ! timing start/stop
 USE model_utils, ONLY: handle_err
 
-! privary
 implicit none
-private
 
+private
 public::kw_route
 
 real(dp), parameter  :: critFactor=0.01
@@ -42,21 +41,18 @@ CONTAINS
                      ixSubRch)               ! optional input: subset of reach indices to be processed
 
    implicit none
-   ! Input
+   ! Argument variables
    integer(i4b),       intent(in)                 :: iEns                 ! ensemble member
    type(subbasin_omp), intent(in),    allocatable :: river_basin(:)       ! river basin information (mainstem, tributary outlet etc.)
    real(dp),           intent(in)                 :: T0,T1                ! start and end of the time step (seconds)
    integer(i4b),       intent(in)                 :: ixDesire             ! index of the reach for verbose output
    type(RCHTOPO),      intent(in),    allocatable :: NETOPO_in(:)         ! River Network topology
    type(RCHPRP),       intent(in),    allocatable :: RPARAM_in(:)         ! River reach parameter
-   ! inout
    type(STRSTA),       intent(inout), allocatable :: RCHSTA_out(:,:)      ! reach state data
    type(STRFLX),       intent(inout), allocatable :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
-   ! output variables
    integer(i4b),       intent(out)                :: ierr                 ! error code
    character(*),       intent(out)                :: message              ! error message
-   ! input (optional)
-   integer(i4b),       intent(in), optional       :: ixSubRch(:)          ! subset of reach indices to be processed
+   integer(i4b),       intent(in),    optional    :: ixSubRch(:)          ! subset of reach indices to be processed
    ! local variables
    character(len=strLen)                          :: cmessage             ! error message for downwind routine
    logical(lgt),                      allocatable :: doRoute(:)           ! logical to indicate which reaches are processed
@@ -145,7 +141,7 @@ CONTAINS
                    RCHFLX_out,     & ! inout: reach flux data structure
                    ierr, message)    ! output: error control
  implicit none
- ! Input
+ ! Argument variables
  integer(i4b),  intent(in)                 :: iEns              ! runoff ensemble to be routed
  integer(i4b),  intent(in)                 :: segIndex          ! segment where routing is performed
  integer(i4b),  intent(in)                 :: ixDesire          ! index of the reach for verbose output
@@ -153,13 +149,11 @@ CONTAINS
  integer(i4b),  intent(in)                 :: LAKEFLAG          ! >0 if processing lakes
  type(RCHTOPO), intent(in),    allocatable :: NETOPO_in(:)      ! River Network topology
  type(RCHPRP),  intent(in),    allocatable :: RPARAM_in(:)      ! River reach parameter
- ! inout
  type(STRSTA),  intent(inout), allocatable :: RCHSTA_out(:,:)   ! reach state data
  type(STRFLX),  intent(inout), allocatable :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
- ! Output
  integer(i4b),  intent(out)                :: ierr              ! error code
  character(*),  intent(out)                :: message           ! error message
- ! Local variables to
+ ! Local variables
  logical(lgt)                              :: doCheck           ! check details of variables
  logical(lgt)                              :: isHW              ! headwater basin?
  integer(i4b)                              :: nUps              ! number of upstream segment
@@ -368,6 +362,5 @@ CONTAINS
  rstate%molecule%Q(2) = Q(1,1)
 
  END SUBROUTINE kinematic_wave
-
 
 END MODULE kw_route_module

@@ -1,6 +1,5 @@
 MODULE kwt_route_module
 
-!numeric type
 USE nrtype
 ! data types
 USE dataTypes, ONLY: FPOINT            ! particle
@@ -24,7 +23,6 @@ USE perf_mod,  ONLY: t_startf,t_stopf  ! timing start/stop
 implicit none
 
 private
-
 public::kwt_route
 
 CONTAINS
@@ -47,20 +45,17 @@ CONTAINS
    USE model_utils, ONLY: handle_err
 
    implicit none
-   ! Input
+   ! Argument variables
    integer(i4b),       intent(in)                 :: iEns                 ! ensemble member
    type(subbasin_omp), intent(in),    allocatable :: river_basin(:)       ! river basin information (mainstem, tributary outlet etc.)
    real(dp),           intent(in)                 :: T0,T1                ! start and end of the time step (seconds)
    integer(i4b),       intent(in)                 :: ixDesire             ! index of the reach for verbose output
    type(RCHTOPO),      intent(in),    allocatable :: NETOPO_in(:)         ! River Network topology
    type(RCHPRP),       intent(in),    allocatable :: RPARAM_in(:)         ! River reach parameter
-   ! inout
    type(STRSTA),       intent(inout), allocatable :: RCHSTA_out(:,:)      ! reach state data
    type(STRFLX),       intent(inout), allocatable :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
-   ! output variables
    integer(i4b),       intent(out)                :: ierr                 ! error code
    character(*),       intent(out)                :: message              ! error message
-   ! input (optional)
    integer(i4b),       intent(in), optional       :: ixSubRch(:)          ! subset of reach indices to be processed
    ! local variables
    character(len=strLen)                          :: cmessage             ! error message for downwind routine
@@ -204,7 +199,7 @@ CONTAINS
  !
  ! ----------------------------------------------------------------------------------------
    implicit none
-   ! Input
+   ! Argument variables
    integer(i4b), intent(in)                    :: IENS          ! ensemble member
    integer(i4b), intent(in)                    :: JRCH          ! reach to process
    integer(i4b), intent(in)                    :: ixDesire      ! index of the reach for verbose output
@@ -213,12 +208,11 @@ CONTAINS
    type(RCHTOPO),intent(in),    allocatable    :: NETOPO_in(:)  ! River Network topology
    type(RCHPRP), intent(in),    allocatable    :: RPARAM_in(:)  ! River reach parameter
    integer(i4b), intent(in), optional          :: RSTEP         ! retrospective time step offset
-   ! inout
    type(STRSTA), intent(inout), allocatable    :: RCHSTA_out(:,:) ! reach state data
    type(STRFLX), intent(inout), allocatable    :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
-   ! output variables
    integer(i4b), intent(out)                   :: ierr          ! error code
    character(*), intent(out)                   :: message       ! error message
+   ! local variables
    ! (1) extract flow from upstream reaches and append to the non-routed flow in JRCH
    integer(i4b)                                :: NUPS          ! number of upstream reaches
    real(dp),dimension(:),allocatable           :: Q_JRCH        ! flow in downstream reach JRCH
@@ -456,7 +450,7 @@ CONTAINS
                               Q_JRCH, T_EXIT, TENTRY,  & ! inout: discharge and exit time for particle
                               ierr,message)
   implicit none
-  ! Input
+  ! Argument variables
   integer(i4b),              intent(in)    :: iens          ! ensemble member
   integer(i4b),              intent(in)    :: jRch          ! index of reach to process
   real(dp),                  intent(in)    :: T_START       ! start time [s]
@@ -464,7 +458,6 @@ CONTAINS
   type(RCHPRP), allocatable, intent(in)    :: RPARAM_in(:)  ! River reach parameter
   real(dp),                  intent(in)    :: Qtake         ! target Q abstraction [m3/s]
   integer(i4b),              intent(in)    :: ixDesire      ! index of the reach for verbose output
-  ! inout
   real(dp),     allocatable, intent(inout) :: Q_JRCH(:)     ! discharge of particle [m2/s] -- discharge for unit channel width
   real(dp),     allocatable, intent(inout) :: T_EXIT(:)     ! time flow is expected to exit JR
   real(dp),     allocatable, intent(inout) :: TENTRY(:)     ! time flow entered JR
@@ -599,8 +592,9 @@ CONTAINS
  ! ----------------------------------------------------------------------------------------
  USE globalData, ONLY: LKTOPO           ! Lake topology
  USE globalData, ONLY: LAKFLX           ! Lake fluxes
+
  implicit none
- ! Input
+ ! Argument variables
  integer(i4b), intent(in)                 :: IENS         ! ensemble member
  integer(i4b), intent(in)                 :: JRCH         ! reach to process
  integer(i4b), intent(in)                 :: LAKEFLAG     ! >0 if processing lakes
@@ -610,9 +604,7 @@ CONTAINS
  type(RCHPRP), intent(in),    allocatable :: RPARAM_in(:) ! River reach parameter
  type(STRFLX), intent(in),    allocatable :: RCHFLX_in(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  integer(i4b), intent(in),    optional    :: RSTEP        ! retrospective time step offset
- ! inout
  type(STRSTA), intent(inout), allocatable :: RCHSTA_out(:,:) ! reach state data
- ! Output
  real(dp),allocatable, intent(out)        :: Q_JRCH(:)    ! merged (non-routed) flow in JRCH
  real(dp),allocatable, intent(out)        :: TENTRY(:)    ! time flow particles entered JRCH
  real(dp),allocatable, intent(out)        :: T_EXIT(:)    ! time flow is expected to exit JR
@@ -763,8 +755,9 @@ CONTAINS
  !      TD(:): Vector of times flow particles entered reach JRCH (exited upstream reaches)
  !
  ! ----------------------------------------------------------------------------------------
+
  implicit none
- ! Input
+ ! Argument variables
  integer(i4b), intent(in)                    :: IENS            ! ensemble member
  integer(i4b), intent(in)                    :: JRCH            ! reach to process
  real(dp),     intent(in)                    :: T0,T1           ! start and end of the time step
@@ -773,9 +766,7 @@ CONTAINS
  type(RCHPRP), intent(in), allocatable       :: RPARAM_in(:)    ! River reach parameter
  type(STRFLX), intent(in), allocatable       :: RCHFLX_in(:,:)  ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  integer(i4b), intent(in), optional          :: RSTEP           ! retrospective time step offset
- ! Inout
  type(STRSTA), intent(inout), allocatable    :: RCHSTA_out(:,:) ! reach state data
- ! Output
  integer(i4b),          intent(out)          :: ND              ! number of routed particles
  real(dp), allocatable, intent(out)          :: QD(:)           ! flow particles just enetered JRCH
  real(dp), allocatable, intent(out)          :: TD(:)           ! time flow particles entered JRCH
@@ -1128,9 +1119,8 @@ CONTAINS
  !
  ! ----------------------------------------------------------------------------------------
  implicit none
- ! Input
+ ! Argument variables
  integer(i4b),          intent(in)           :: MAXQPAR  ! maximum number of flow particles allowed
- ! output
  real(dp), allocatable, intent(inout)        :: Q_JRCH(:)! merged (non-routed) flow in JRCH
  real(dp), allocatable, intent(inout)        :: TENTRY(:)! time flow particles entered JRCH
  real(dp), allocatable, intent(inout)        :: T_EXIT(:)! time flow particles exited JRCH
@@ -1318,23 +1308,21 @@ CONTAINS
  !
  ! ----------------------------------------------------------------------------------------
  implicit none
- ! Input
+ ! Argument variables
  integer(i4b), intent(in)                    :: JRCH     ! Reach to process
  real(dp),     intent(in)                    :: T_START  ! start of the time step
  real(dp),     intent(in)                    :: T_END    ! end of the time step
  integer(i4b), intent(in)                    :: ixDesire ! index of the reach for verbose output
  type(RCHTOPO),intent(in),    allocatable    :: NETOPO_in(:)    ! River Network topology
  type(RCHPRP), intent(in),    allocatable    :: RPARAM_in(:)    ! River reach parameter
- ! Input/Output
  real(dp),     intent(inout)                 :: Q_JRCH(:)! flow to be routed
  real(dp),     intent(inout)                 :: TENTRY(:)! time to be routed
  real(dp),     intent(inout)                 :: T_EXIT(:)! time pts expected exit segment
  logical(lgt), intent(inout)                 :: FROUTE(:)! routing flag, T=routed
- ! Output
  integer(i4b), intent(out)                   :: NQ2      ! # particles (<= input b/c merge)
  integer(i4b), intent(out)                   :: ierr     ! error code
  character(*), intent(out)                   :: message  ! error message
- ! Internal
+ ! Local variables
  real(dp)                                    :: ALFA     ! constant, 5/3
  real(dp)                                    :: K        ! sqrt(slope)/mannings N
  real(dp)                                    :: XMX      ! length of the stream segment
@@ -1628,15 +1616,14 @@ CONTAINS
  !
  ! --------------------------------------------------------------------------------------------
  implicit none
- ! Input
+ ! Argument variables
  real(dp), dimension(:), intent(in)          :: TOLD     ! input time array
  real(dp), dimension(:), intent(in)          :: QOLD     ! input flow array
  real(dp), dimension(:), intent(in)          :: TNEW     ! desired output times
- ! Output
  real(dp), dimension(:), intent(out)         :: QNEW     ! flow averaged for desired times
  integer(i4b), intent(out)                   :: IERR     ! error, 1= bad bounds
  character(*), intent(out)                   :: MESSAGE  ! error message
- ! Internal
+ ! Local variables
  integer(i4b)                                :: NOLD     ! number of elements in input array
  integer(i4b)                                :: NNEW     ! number of desired new times
  integer(i4b)                                :: IOLDLOOP ! loop through input times
