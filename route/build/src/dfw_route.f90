@@ -38,6 +38,8 @@ CONTAINS
                       ierr,message,         & ! output: error control
                       ixSubRch)               ! optional input: subset of reach indices to be processed
 
+   USE public_var,  ONLY: is_lake_sim    ! logical whether or not lake should be simulated
+
    implicit none
    ! Argument variables
    integer(i4b),       intent(in)                 :: iEns                 ! ensemble member
@@ -54,7 +56,6 @@ CONTAINS
    ! local variables
    character(len=strLen)                          :: cmessage             ! error message for downwind routine
    logical(lgt),                      allocatable :: doRoute(:)           ! logical to indicate which reaches are processed
-   integer(i4b)                                   :: LAKEFLAG=0           ! >0 if processing lakes
    integer(i4b)                                   :: nOrder               ! number of stream order
    integer(i4b)                                   :: nTrib                ! number of tributary basins
    integer(i4b)                                   :: nSeg                 ! number of reaches in the network
@@ -92,7 +93,6 @@ CONTAINS
 !$OMP          private(jSeg, iSeg)                      & ! private for a given thread
 !$OMP          private(ierr, cmessage)                  & ! private for a given thread
 !$OMP          shared(T0,T1)                            & ! private for a given thread
-!$OMP          shared(LAKEFLAG)                         & ! private for a given thread
 !$OMP          shared(river_basin)                      & ! data structure shared
 !$OMP          shared(doRoute)                          & ! data array shared
 !$OMP          shared(NETOPO_in)                        & ! data structure shared
@@ -108,7 +108,6 @@ CONTAINS
          call dfw_rch(iEns,jSeg,           & ! input: array indices
                       ixDesire,            & ! input: index of the desired reach
                       T0,T1,               & ! input: start and end of the time step
-                      LAKEFLAG,            & ! input: flag if lakes are to be processed
                       NETOPO_in,           & ! input: reach topology data structure
                       RPARAM_in,           & ! input: reach parameter data structure
                       RCHSTA_out,          & ! inout: reach state data structure
@@ -131,7 +130,6 @@ CONTAINS
  SUBROUTINE dfw_rch(iEns, segIndex, & ! input: index of runoff ensemble to be processed
                     ixDesire,       & ! input: reachID to be checked by on-screen pringing
                     T0,T1,          & ! input: start and end of the time step
-                    LAKEFLAG,       & ! input: flag if lakes are to be processed
                     NETOPO_in,      & ! input: reach topology data structure
                     RPARAM_in,      & ! input: reach parameter data structure
                     RCHSTA_out,     & ! inout: reach state data structure
@@ -144,7 +142,6 @@ CONTAINS
  integer(i4b),  intent(in)                 :: segIndex          ! segment where routing is performed
  integer(i4b),  intent(in)                 :: ixDesire          ! index of the reach for verbose output
  real(dp),      intent(in)                 :: T0,T1             ! start and end of the time step (seconds)
- integer(i4b),  intent(in)                 :: LAKEFLAG          ! >0 if processing lakes
  type(RCHTOPO), intent(in),    allocatable :: NETOPO_in(:)      ! River Network topology
  type(RCHPRP),  intent(in),    allocatable :: RPARAM_in(:)      ! River reach parameter
  type(STRSTA),  intent(inout), allocatable :: RCHSTA_out(:,:)   ! reach state data

@@ -37,7 +37,6 @@ CONTAINS
                       ierr, message, &  ! output: error control
                       ixSubRch)         ! optional input: subset of reach indices to be processed
 
- ! global routing data
  USE public_var,  ONLY: is_lake_sim    ! logical whether or not lake should be simulated
 
  implicit none

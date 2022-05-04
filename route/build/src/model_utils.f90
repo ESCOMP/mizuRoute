@@ -4,9 +4,7 @@ USE nrtype,    ONLY: i4b
 
 implicit none
 
-! privacy -- everything private unless declared explicitly
 private
-
 public :: model_finalize
 public :: handle_err
 
@@ -24,7 +22,6 @@ CONTAINS
   USE mpi_utils,  ONLY: shr_mpi_finalize ! mpi utilities: shut down mpi
 
   implicit none
-
   integer(i4b), intent(in) :: comm   ! communicator
 
   if (masterproc) then
@@ -50,7 +47,6 @@ CONTAINS
   USE mpi_utils,    ONLY: shr_mpi_abort     ! mpi utilities: abort mpi
 
   implicit none
-
   integer(i4b),intent(in)::err             ! error code
   character(*),intent(in)::message         ! error message
 

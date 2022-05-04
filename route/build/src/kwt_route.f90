@@ -8,6 +8,7 @@ USE dataTypes, ONLY: STRSTA            ! states in each reach
 USE dataTypes, ONLY: RCHTOPO           ! Network topology
 USE dataTypes, ONLY: RCHPRP            ! Reach parameter
 USE dataTypes, ONLY: kwtRCH            ! kwt specific state data structure
+USE dataTypes, ONLY: subbasin_omp      ! mainstem+tributary data strucuture
 ! global data
 USE public_var, ONLY: iulog            ! i/o logical unit number
 USE public_var, ONLY: runoffMin        ! minimum runoff
@@ -19,6 +20,7 @@ USE globalData, ONLY: idxKWT           ! index of KWT method
 USE nr_utility_module, ONLY: arth      ! Num. Recipies utilities
 ! subroutines: general
 USE perf_mod,  ONLY: t_startf,t_stopf  ! timing start/stop
+USE model_utils, ONLY: handle_err
 
 implicit none
 
@@ -40,9 +42,6 @@ CONTAINS
                       RCHFLX_out,           & ! inout: reach flux data structure
                       ierr,message,         & ! output: error control
                       ixSubRch)               ! optional input: subset of reach indices to be processed
-
-   USE dataTypes,   ONLY: subbasin_omp          ! mainstem+tributary data strucuture
-   USE model_utils, ONLY: handle_err
 
    implicit none
    ! Argument variables
