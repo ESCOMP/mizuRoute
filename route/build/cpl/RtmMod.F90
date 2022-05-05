@@ -57,7 +57,7 @@ CONTAINS
     USE init_model_data,     ONLY: init_state_data
     USE RtmTimeManager,      ONLY: init_time
     USE mpi_process,         ONLY: pass_global_data
-    USE write_simoutput_pio, ONLY: init_histFile    !
+    USE write_simoutput_pio, ONLY: init_histFile
 
     implicit none
     !ARGUMENTS:
@@ -254,7 +254,6 @@ CONTAINS
     USE globalData,          ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
     USE globalData,          ONLY: basinRunoff_main ! mainstem only HRU runoff
     USE globalData,          ONLY: basinRunoff_trib ! tributary only HRU runoff
-    USE globalData,          ONLY: idxIRF           ! routing method index
     USE write_simoutput_pio, ONLY: main_new_file    !
     USE mpi_process,         ONLY: mpi_route        ! MPI routing call
     USE write_simoutput_pio, ONLY: output
@@ -266,8 +265,7 @@ CONTAINS
     logical ,         intent(in) :: rstwr                  ! true => write restart file this step)
     ! LOCAL VARIABLES:
     integer                      :: iens=1                 ! ensemble index (1 for now)
-    integer                      :: ix,iRch,iHru           ! loop index
-    integer                      :: nCatch                 ! number of catchments
+    integer                      :: ix                     ! loop index
     integer                      :: nr, ns, nt             ! indices
     integer                      :: yr, mon, day, ymd, tod ! time information
     integer                      :: nsub                   ! subcyling for cfl
@@ -433,49 +431,17 @@ CONTAINS
       if (masterproc) then
         associate(nRch_main=>rch_per_proc(-1), nRch_trib=>rch_per_proc(0))
         if (nRch_main/=0) then
-          do iRch =1, nRch_main
-            nCatch = size(NETOPO_main(iRch)%HRUIX)
-            do iHru = 1, nCatch
-              ix = NETOPO_main(iRch)%HRUIX(iHru)
-              rtmCTL%volr(ix)        = 0._r8
-              rtmCTL%flood(ix)       = 0._r8
-              rtmCTL%discharge(ix,1) = RCHFLX_main(iens,iRch)%ROUTE(idxIRF)%REACH_Q
-            end do
-          end do
+          call get_river_export_data(NETOPO_main, RCHFLX_main)
         end if
         if (nRch_trib/=0) then
-          do iRch =1, nRch_trib
-            nCatch = size(NETOPO_trib(iRch)%HRUIX)
-            do iHru = 1, nCatch
-              ix = NETOPO_trib(iRch)%HRUIX(iHru)
-              rtmCTL%volr(ix)        = 0._r8
-              rtmCTL%flood(ix)       = 0._r8
-              rtmCTL%discharge(ix,1) = RCHFLX_trib(iens,iRch)%ROUTE(idxIRF)%REACH_Q
-            end do
-          end do
+          call get_river_export_data(NETOPO_trib, RCHFLX_trib)
         end if
         end associate
       else ! other processors
-        do iRch =1, rch_per_proc(iam)
-          nCatch = size(NETOPO_trib(iRch)%HRUIX)
-          do iHru = 1, nCatch
-            ix = NETOPO_trib(iRch)%HRUIX(iHru)
-            rtmCTL%volr(ix)        = 0._r8
-            rtmCTL%flood(ix)       = 0._r8
-            rtmCTL%discharge(ix,1) = RCHFLX_trib(iens,iRch)%ROUTE(idxIRF)%REACH_Q
-          end do
-        end do
+        call get_river_export_data(NETOPO_trib, RCHFLX_trib)
       end if
-    else
-      do iRch =1, rch_per_proc(-1)
-        nCatch = size(NETOPO_main(iRch)%HRUIX)
-        do iHru = 1, nCatch
-          ix = NETOPO_main(iRch)%HRUIX(iHru)
-          rtmCTL%volr(ix)        = 0._r8
-          rtmCTL%flood(ix)       = 0._r8
-          rtmCTL%discharge(ix,1) = RCHFLX_main(iens,iRch)%ROUTE(idxIRF)%REACH_Q
-        end do
-      end do
+    else ! using single processor
+      call get_river_export_data(NETOPO_main, RCHFLX_main)
     end if
 
     call t_stopf('mizuRoute_subcycling')
@@ -512,6 +478,33 @@ CONTAINS
 
     call shr_sys_flush(iulog)
     call t_stopf('mizuRoute_tot')
+
+    CONTAINS
+
+      SUBROUTINE get_river_export_data(NETOPO_in, RCHFLX_in)
+        USE globalData, ONLY: idxIRF   ! routing method index
+        USE dataTypes, ONLY: RCHTOPO   ! data structure - Network topology
+        USE dataTypes, ONLY: STRFLX    ! data structure - fluxes in each reach
+        implicit none
+        ! ARGUMENTS:
+        type(RCHTOPO), intent(in), allocatable  :: NETOPO_in(:)
+        type(STRFLX),  intent(in), allocatable  :: RCHFLX_in(:,:)
+        ! LOCAL VARIABLES:
+        integer                                 :: ix
+        integer                                 :: iens=1
+        integer                                 :: iRch, iHru
+        integer                                 :: nRch, nCatch
+        nRch=size(NETOPO_in)
+        do iRch =1, nRch
+          nCatch = size(NETOPO_in(iRch)%HRUIX)
+          do iHru = 1, nCatch
+            ix = NETOPO_in(iRch)%HRUIX(iHru)
+            rtmCTL%volr(ix)        = 0._r8
+            rtmCTL%flood(ix)       = 0._r8
+            rtmCTL%discharge(ix,1) = RCHFLX_in(iens, iRch)%ROUTE(idxIRF)%REACH_Q
+          end do
+        end do
+      END SUBROUTINE
 
   END SUBROUTINE route_run
 
