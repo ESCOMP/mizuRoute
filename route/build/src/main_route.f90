@@ -23,7 +23,6 @@ USE dfw_route_module,    ONLY: dfw_route     ! diffusive wave routing method
 implicit none
 
 private
-
 public::main_route
 
 CONTAINS
