@@ -1,7 +1,8 @@
 MODULE read_param_module
 
- USE nrtype, ONLY: i4b,   &
-                   strLen
+ USE nrtype, ONLY: i4b, strLen
+
+ implicit none
 
  private
  public :: read_param
@@ -14,14 +15,14 @@ MODULE read_param_module
                                 velo, diff,     &  ! IRF routing parameters
                                 mann_n, wscale     ! KWT routing parameters
    implicit none
-   ! input variables
+   ! Argument variables
    character(*),intent(in)    :: fname              ! parameter namelist name
-   ! output variables
    integer(i4b),intent(out)   :: ierr               ! error code
    character(*),intent(out)   :: message            ! error message
    ! local variables
    character(len=strLen)      :: cmessage           ! error message from subroutine
    integer(i4b)               :: iunit              ! file unit
+
    namelist /HSLOPE/fshape,tscale  ! route simulated runoff through the local basin
    namelist /IRF_UH/velo,diff      ! route delayed runoff through river network with St.Venant UH
    namelist /KWT/mann_n,wscale     ! route kinematic waves through the river network

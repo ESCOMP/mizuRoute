@@ -17,10 +17,9 @@ USE globalData, ONLY: idxDW
 USE perf_mod,    ONLY: t_startf,t_stopf   ! timing start/stop
 USE model_utils, ONLY: handle_err
 
-! privary
 implicit none
-private
 
+private
 public::dfw_route
 
 CONTAINS
@@ -39,26 +38,24 @@ CONTAINS
                       ierr,message,         & ! output: error control
                       ixSubRch)               ! optional input: subset of reach indices to be processed
 
+   USE public_var,  ONLY: is_lake_sim    ! logical whether or not lake should be simulated
+
    implicit none
-   ! Input
+   ! Argument variables
    integer(i4b),       intent(in)                 :: iEns                 ! ensemble member
    type(subbasin_omp), intent(in),    allocatable :: river_basin(:)       ! river basin information (mainstem, tributary outlet etc.)
    real(dp),           intent(in)                 :: T0,T1                ! start and end of the time step (seconds)
    integer(i4b),       intent(in)                 :: ixDesire             ! index of the reach for verbose output
    type(RCHTOPO),      intent(in),    allocatable :: NETOPO_in(:)         ! River Network topology
    type(RCHPRP),       intent(in),    allocatable :: RPARAM_in(:)         ! River reach parameter
-   ! inout
    type(STRSTA),       intent(inout), allocatable :: RCHSTA_out(:,:)      ! reach state data
    type(STRFLX),       intent(inout), allocatable :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
-   ! output variables
    integer(i4b),       intent(out)                :: ierr                 ! error code
    character(*),       intent(out)                :: message              ! error message
-   ! input (optional)
-   integer(i4b),       intent(in), optional       :: ixSubRch(:)          ! subset of reach indices to be processed
+   integer(i4b),       intent(in),    optional    :: ixSubRch(:)          ! subset of reach indices to be processed
    ! local variables
    character(len=strLen)                          :: cmessage             ! error message for downwind routine
    logical(lgt),                      allocatable :: doRoute(:)           ! logical to indicate which reaches are processed
-   integer(i4b)                                   :: LAKEFLAG=0           ! >0 if processing lakes
    integer(i4b)                                   :: nOrder               ! number of stream order
    integer(i4b)                                   :: nTrib                ! number of tributary basins
    integer(i4b)                                   :: nSeg                 ! number of reaches in the network
@@ -66,7 +63,6 @@ CONTAINS
    integer(i4b)                                   :: iTrib                ! loop indices - branch
    integer(i4b)                                   :: ix                   ! loop indices stream order
 
-   ! initialize error control
    ierr=0; message='dfw_route/'
 
    ! number of reach check
@@ -97,7 +93,6 @@ CONTAINS
 !$OMP          private(jSeg, iSeg)                      & ! private for a given thread
 !$OMP          private(ierr, cmessage)                  & ! private for a given thread
 !$OMP          shared(T0,T1)                            & ! private for a given thread
-!$OMP          shared(LAKEFLAG)                         & ! private for a given thread
 !$OMP          shared(river_basin)                      & ! data structure shared
 !$OMP          shared(doRoute)                          & ! data array shared
 !$OMP          shared(NETOPO_in)                        & ! data structure shared
@@ -113,7 +108,6 @@ CONTAINS
          call dfw_rch(iEns,jSeg,           & ! input: array indices
                       ixDesire,            & ! input: index of the desired reach
                       T0,T1,               & ! input: start and end of the time step
-                      LAKEFLAG,            & ! input: flag if lakes are to be processed
                       NETOPO_in,           & ! input: reach topology data structure
                       RPARAM_in,           & ! input: reach parameter data structure
                       RCHSTA_out,          & ! inout: reach state data structure
@@ -136,7 +130,6 @@ CONTAINS
  SUBROUTINE dfw_rch(iEns, segIndex, & ! input: index of runoff ensemble to be processed
                     ixDesire,       & ! input: reachID to be checked by on-screen pringing
                     T0,T1,          & ! input: start and end of the time step
-                    LAKEFLAG,       & ! input: flag if lakes are to be processed
                     NETOPO_in,      & ! input: reach topology data structure
                     RPARAM_in,      & ! input: reach parameter data structure
                     RCHSTA_out,     & ! inout: reach state data structure
@@ -144,22 +137,18 @@ CONTAINS
                     ierr, message)    ! output: error control
 
  implicit none
-
- ! Input
+ ! Argument variables
  integer(i4b),  intent(in)                 :: iEns              ! runoff ensemble to be routed
  integer(i4b),  intent(in)                 :: segIndex          ! segment where routing is performed
  integer(i4b),  intent(in)                 :: ixDesire          ! index of the reach for verbose output
  real(dp),      intent(in)                 :: T0,T1             ! start and end of the time step (seconds)
- integer(i4b),  intent(in)                 :: LAKEFLAG          ! >0 if processing lakes
  type(RCHTOPO), intent(in),    allocatable :: NETOPO_in(:)      ! River Network topology
  type(RCHPRP),  intent(in),    allocatable :: RPARAM_in(:)      ! River reach parameter
- ! inout
  type(STRSTA),  intent(inout), allocatable :: RCHSTA_out(:,:)   ! reach state data
  type(STRFLX),  intent(inout), allocatable :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
- ! Output
  integer(i4b),  intent(out)                :: ierr              ! error code
  character(*),  intent(out)                :: message           ! error message
- ! Local variables to
+ ! Local variables
  logical(lgt)                              :: doCheck           ! check details of variables
  logical(lgt)                              :: isHW              ! headwater basin?
  integer(i4b)                              :: nUps              ! number of upstream segment
@@ -480,14 +469,13 @@ CONTAINS
  ! MAT(:,2) = [d, d, d, d, d]
  ! MAT(:,3) = [l, l, l, l, 0]
 
-   IMPLICIT NONE
-   ! Input
+   implicit none
+   ! Argument variables
    integer(i4b),  intent(in)     :: NX     ! number of unknown (= number of matrix size, grid point minus two end points)
    real(dp),      intent(in)     :: MAT(NX,3)
    real(dp),      intent(in)     :: b(NX)
-   ! Output
    real(dp),      intent(inout)  :: T(NX)
-   ! Local
+   ! Local variables
    integer(i4b)                  :: ix
    real(dp)                      :: U(NX)
    real(dp)                      :: D(NX)
