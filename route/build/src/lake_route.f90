@@ -1,33 +1,35 @@
-module lake_route_module
+MODULE lake_route_module
 
- !numeric type
- USE nrtype
- ! data type
- USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
- USE dataTypes, ONLY: RCHTOPO        ! Network topology
- USE dataTypes, ONLY: RCHPRP         ! Network parameter
- ! global parameters
- USE public_var, ONLY: iulog          ! i/o logical unit number
- USE public_var, ONLY: realMissing    ! missing value for real number
- USE public_var, ONLY: integerMissing ! missing value for integer number
- USE public_var, ONLY: pi             ! pi value of 3.14159265359_dp
- USE globalData, ONLY: idxIRF         ! index of IRF method
- ! subroutines: model time info
- USE time_utils_module, ONLY: compJulday,&      ! compute julian day
-                              compJulday_noleap ! compute julian day for noleap calendar
+USE nrtype
+! data type
+USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
+USE dataTypes, ONLY: RCHTOPO        ! Network topology
+USE dataTypes, ONLY: RCHPRP         ! Network parameter
+! global parameters
+USE public_var, ONLY: iulog          ! i/o logical unit number
+USE public_var, ONLY: realMissing    ! missing value for real number
+USE public_var, ONLY: integerMissing ! missing value for integer number
+USE public_var, ONLY: pi             ! pi value of 3.14159265359_dp
+USE globalData, ONLY: idxIRF         ! index of IRF method
+! subroutines: model time info
+USE time_utils_module, ONLY: compJulday,&      ! compute julian day
+                             compJulday_noleap ! compute julian day for noleap calendar
 
- ! privary
- implicit none
- private
+implicit none
+integer(i4b),parameter :: endorheic=1
+integer(i4b),parameter :: doll03=1
+integer(i4b),parameter :: hanasaki06=2
+integer(i4b),parameter :: hype=3
 
-  public::lake_route
+private
+public::lake_route
 
-  contains
+CONTAINS
 
   ! *********************************************************************
   ! subroutine: perform one segment lake routing
   ! *********************************************************************
-  subroutine lake_route(&
+  SUBROUTINE lake_route(&
                          ! input
                          iEns,       &    ! input: index of runoff ensemble to be processed
                          segIndex,   &    ! input: index of runoff ensemble to be processed
@@ -48,51 +50,46 @@ module lake_route_module
   USE public_var, ONLY: calendar            ! calendar name
 
   implicit none
-  ! Input
-  INTEGER(I4B), intent(in)                 :: iEns           ! runoff ensemble to be routed
-  INTEGER(I4B), intent(in)                 :: segIndex       ! segment where routing is performed
-  INTEGER(I4B), intent(in)                 :: ixDesire       ! index of the reach for verbose output
+  ! Argument variables:
+  integer(i4b), intent(in)                 :: iEns           ! runoff ensemble to be routed
+  integer(i4b), intent(in)                 :: segIndex       ! segment where routing is performed
+  integer(i4b), intent(in)                 :: ixDesire       ! index of the reach for verbose output
   type(RCHTOPO), intent(in),   allocatable :: NETOPO_in(:)   ! River Network topology
   type(RCHPRP), intent(inout), allocatable :: RPARAM_in(:)   ! River Network topology
-  ! inout
   TYPE(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)! Reach fluxes (ensembles, space [reaches]) for decomposed domains
-  ! Output
   integer(i4b), intent(out)                :: ierr           ! error code
   character(*), intent(out)                :: message        ! error message
-  ! Local variables to
+  ! Local variables:
   real(dp)                                 :: q_upstream     ! total discharge at top of the reach being processed
   real(dp)                                 :: WB             ! water balance component in the lake
   type(STRFLX), allocatable                :: fluxstate(:)   ! upstream Reach fluxes
-  INTEGER(I4B)                             :: nUps           ! number of upstream segment
-  INTEGER(I4B)                             :: iUps           ! upstream reach index
-  INTEGER(I4B)                             :: iRch_ups       ! index of upstream reach in NETOPO
-  INTEGER(I4B)                             :: ntdh           ! number of time steps in IRF
+  integer(i4b)                             :: nUps           ! number of upstream segment
+  integer(i4b)                             :: iUps           ! upstream reach index
+  integer(i4b)                             :: iRch_ups       ! index of upstream reach in NETOPO
+  integer(i4b)                             :: ntdh           ! number of time steps in IRF
   character(len=strLen)                    :: cmessage       ! error message from subroutine
   ! local variables for H06 routine
   real(dp)                                 :: c                   ! storage to yearly activity ratio
   real(dp)                                 :: I_yearly, D_yearly  ! mean annual inflow and demand
   real(dp), dimension(12)                  :: I_months, D_months  ! mean monthly inflow and demand
-  INTEGER(I4B), dimension(2)               :: array_size(2)       ! get the size of array_size
-  INTEGER(I4B)                             :: start_month=0       ! start month of the operational year
-  INTEGER(I4B)                             :: i                   ! index
-  INTEGER(I4B)                             :: past_length_I       ! pas length for inflow based on length in year and floor
-  INTEGER(I4B)                             :: past_length_D       ! pas length for demand based on length in year and floor
+  integer(i4b), dimension(2)               :: array_size(2)       ! get the size of array_size
+  integer(i4b)                             :: start_month=0       ! start month of the operational year
+  integer(i4b)                             :: i                   ! index
+  integer(i4b)                             :: past_length_I       ! pas length for inflow based on length in year and floor
+  integer(i4b)                             :: past_length_D       ! pas length for demand based on length in year and floor
   real(dp)                                 :: target_r            ! target release
   ! local varibale for HYPE routine
   real(dp)                                 :: Julian_day_model    ! the julian day of model simulations
   real(dp)                                 :: Julian_day_start    ! the julian day of the first day of the simulation year
   real(dp)                                 :: Day_of_year         ! the day number in a year
-  INTEGER(I4B)                             :: F_prim              ! factor for local flag is reservoir has primary spillway
+  integer(i4b)                             :: F_prim              ! factor for local flag is reservoir has primary spillway
   real(dp)                                 :: F_sin               ! factor for sin
   real(dp)                                 :: F_lin               ! factor for linear
   real(dp)                                 :: Q_prim              ! simulated outflow from main or primary spillway
   real(dp)                                 :: Q_spill             ! simulated outflow from emergency spillway
   real(dp)                                 :: Q_sim               ! simulated output from the reservoir
 
-  !print*, 'inside lake, time at the model simulation',simDatetime(1)%year(),simDatetime(1)%month(),simDatetime(1)%day(),simDatetime(1)%hour(),simDatetime(1)%minute(),simDatetime(1)%sec()
-
-    ! initialize error control
-    ierr=0; message='lake_route/'
+  ierr=0; message='lake_route/'
 
     ! identify number of upstream segments of the lake being processed
     nUps = size(NETOPO_in(segIndex)%UREACHI)
@@ -184,17 +181,12 @@ module lake_route_module
       !print*, "inside the lake follow target", RCHFLX_out(iens,segIndex)%REACH_WM_VOL, RCHFLX_out(iens,segIndex)%REACH_VOL(1)
 
     else ! if the lake is parameteric
-
       !print*, "lake model type", NETOPO_in(segIndex)%LakeModelType
       select case(NETOPO_in(segIndex)%LakeModelType)
 
-        case (0)
-          ! lake lake is Endorheic
+        case(endorheic)
           ! no action needed, pass
-
-        case (1)! the model is Doll03
-          ! print*, "lake model is Doll 2003"
-
+        case(doll03)
           ! temporary solution, this should be removed if there is restart activated...
           ! print*, iTime, 'iTime in the area'
           ! if (iTIme == 1) then
@@ -213,10 +205,7 @@ module lake_route_module
           if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) < 0) then; ! set the lake volume as 0 if it goes negative
             RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)=0
           endif
-
-        case (2) ! the model is Hanasaki06
-          ! print*, "lake model is Hanasaki 2006"
-
+        case(hanasaki06)
           ! preserving the past upstrem discharge for lake models
           ! create memory of upstream inflow for Hanasaki formulation if memory flag is active for this lake
           if (RPARAM_in(segIndex)%H06_I_mem_F) then ! if memeory is acive for this case then allocate the past input
@@ -243,17 +232,17 @@ module lake_route_module
             endif
             ! mean and updating the inflow parameters
             past_length_I = floor(RPARAM_in(segIndex)%H06_I_mem_L * 31    * secprday / dt)
-            RPARAM_in(segIndex)%H06_I_Jan = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 1,1:past_length_I))/past_length_I
-            RPARAM_in(segIndex)%H06_I_Mar = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 3,1:past_length_I))/past_length_I
-            RPARAM_in(segIndex)%H06_I_May = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 5,1:past_length_I))/past_length_I
-            RPARAM_in(segIndex)%H06_I_Jul = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 7,1:past_length_I))/past_length_I
-            RPARAM_in(segIndex)%H06_I_Aug = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 8,1:past_length_I))/past_length_I
-            RPARAM_in(segIndex)%H06_I_Oct = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF(10,1:past_length_I))/past_length_I
-            RPARAM_in(segIndex)%H06_I_Dec = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF(12,1:past_length_I))/past_length_I
+            RPARAM_in(segIndex)%H06_I_Jan = sum(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 1,1:past_length_I))/past_length_I
+            RPARAM_in(segIndex)%H06_I_Mar = sum(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 3,1:past_length_I))/past_length_I
+            RPARAM_in(segIndex)%H06_I_May = sum(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 5,1:past_length_I))/past_length_I
+            RPARAM_in(segIndex)%H06_I_Jul = sum(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 7,1:past_length_I))/past_length_I
+            RPARAM_in(segIndex)%H06_I_Aug = sum(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 8,1:past_length_I))/past_length_I
+            RPARAM_in(segIndex)%H06_I_Oct = sum(RCHFLX_out(iens,segIndex)%QPASTUP_IRF(10,1:past_length_I))/past_length_I
+            RPARAM_in(segIndex)%H06_I_Dec = sum(RCHFLX_out(iens,segIndex)%QPASTUP_IRF(12,1:past_length_I))/past_length_I
             past_length_I = floor(RPARAM_in(segIndex)%H06_I_mem_L * 30    * secprday / dt)
-            RPARAM_in(segIndex)%H06_I_Apr = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 4,1:past_length_I))/past_length_I
-            RPARAM_in(segIndex)%H06_I_Jun = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 6,1:past_length_I))/past_length_I
-            RPARAM_in(segIndex)%H06_I_Sep = SUM(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 9,1:past_length_I))/past_length_I
+            RPARAM_in(segIndex)%H06_I_Apr = sum(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 4,1:past_length_I))/past_length_I
+            RPARAM_in(segIndex)%H06_I_Jun = sum(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 6,1:past_length_I))/past_length_I
+            RPARAM_in(segIndex)%H06_I_Sep = sum(RCHFLX_out(iens,segIndex)%QPASTUP_IRF( 9,1:past_length_I))/past_length_I
             select case(trim(calendar))
               case('noleap','365_day')
                 past_length_I = floor(RPARAM_in(segIndex)%H06_I_mem_L * 28    * secprday / dt)
@@ -300,18 +289,18 @@ module lake_route_module
             endif
             ! mean and updating the demand parameters
             past_length_D = floor(RPARAM_in(segIndex)%H06_D_mem_L * 31    * secprday / dt)
-            RPARAM_in(segIndex)%H06_D_Jan = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 1,1:past_length_D))/past_length_D
-            RPARAM_in(segIndex)%H06_D_Mar = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 3,1:past_length_D))/past_length_D
-            RPARAM_in(segIndex)%H06_D_May = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 5,1:past_length_D))/past_length_D
-            RPARAM_in(segIndex)%H06_D_Jul = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 7,1:past_length_D))/past_length_D
-            RPARAM_in(segIndex)%H06_D_Aug = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 8,1:past_length_D))/past_length_D
-            RPARAM_in(segIndex)%H06_D_Oct = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(10,1:past_length_D))/past_length_D
-            RPARAM_in(segIndex)%H06_D_Dec = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(12,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_Jan = sum(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 1,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_Mar = sum(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 3,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_May = sum(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 5,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_Jul = sum(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 7,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_Aug = sum(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 8,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_Oct = sum(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(10,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_Dec = sum(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(12,1:past_length_D))/past_length_D
             past_length_D = floor(RPARAM_in(segIndex)%H06_D_mem_L * 30    * secprday / dt)
-            RPARAM_in(segIndex)%H06_D_Apr = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 4,1:past_length_D))/past_length_D
-            RPARAM_in(segIndex)%H06_D_Jun = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 6,1:past_length_D))/past_length_D
-            RPARAM_in(segIndex)%H06_D_Sep = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 9,1:past_length_D))/past_length_D
-            RPARAM_in(segIndex)%H06_D_Nov = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(11,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_Apr = sum(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 4,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_Jun = sum(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 6,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_Sep = sum(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 9,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_Nov = sum(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF(11,1:past_length_D))/past_length_D
             select case(trim(calendar))
               case('noleap','365_day')
                 past_length_D = floor(RPARAM_in(segIndex)%H06_D_mem_L * 28    * secprday / dt)
@@ -319,7 +308,7 @@ module lake_route_module
                 past_length_D = floor(RPARAM_in(segIndex)%H06_D_mem_L * 28.25 * secprday / dt)
               case default;    ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
             end select
-            RPARAM_in(segIndex)%H06_D_Feb = SUM(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 2,1:past_length_D))/past_length_D
+            RPARAM_in(segIndex)%H06_D_Feb = sum(RCHFLX_out(iens,segIndex)%DEMANDPAST_IRF( 2,1:past_length_D))/past_length_D
           endif
           ! create array with monthly demand
           D_months = (/ RPARAM_in(segIndex)%H06_D_Jan, RPARAM_in(segIndex)%H06_D_Feb, &
@@ -330,9 +319,8 @@ module lake_route_module
                         RPARAM_in(segIndex)%H06_D_Nov, RPARAM_in(segIndex)%H06_D_Dec /)
 
           ! calculate mean annual inflow and demand (to be integrated in condition not using of memory)
-          I_yearly = SUM(I_months)/months_per_yr
-
-          D_yearly = SUM(D_months)/months_per_yr
+          I_yearly = sum(I_months)/months_per_yr
+          D_yearly = sum(D_months)/months_per_yr
 
           ! calculate storage to yearly activity ratio
           c = RPARAM_in(segIndex)%H06_Smax/(I_yearly * days_per_yr * secprday)
@@ -340,7 +328,7 @@ module lake_route_module
           ! find start month of operational year
           do i=1,months_per_yr
             if (I_yearly <= I_months(i)) then
-                start_month = i + 1
+              start_month = i + 1
             endif
           enddo
 
@@ -355,16 +343,13 @@ module lake_route_module
 
           ! Calculate target release
           if (RPARAM_in(segIndex)%H06_purpose == 1) then ! irrigation reservoir
-
             if (RPARAM_in(segIndex)%H06_envfact * I_yearly <= D_yearly) then ! larger demand than environmental flow requirement
-                target_r = I_months(simDatetime(1)%month()) * RPARAM_in(segIndex)%H06_c1 + I_yearly * RPARAM_in(segIndex)%H06_c2 * (D_months(simDatetime(1)%month()) / D_yearly )
+              target_r = I_months(simDatetime(1)%month()) * RPARAM_in(segIndex)%H06_c1 + I_yearly * RPARAM_in(segIndex)%H06_c2 * (D_months(simDatetime(1)%month()) / D_yearly )
             else
-                target_r = I_yearly + D_months(simDatetime(1)%month()) - D_yearly
+              target_r = I_yearly + D_months(simDatetime(1)%month()) - D_yearly
             endif
-
           else ! non-irrigation reservoir
             target_r = I_yearly
-
           endif
 
           ! Calculate actual release
@@ -400,7 +385,7 @@ module lake_route_module
           ! print*, 'Hanasaki parameters'
           print*, RPARAM_in(segIndex)%H06_Smax, RPARAM_in(segIndex)%H06_alpha, RPARAM_in(segIndex)%H06_envfact, RPARAM_in(segIndex)%H06_S_ini, RPARAM_in(segIndex)%H06_c1, RPARAM_in(segIndex)%H06_c2, RPARAM_in(segIndex)%H06_exponent, RPARAM_in(segIndex)%H06_I_Feb, RPARAM_in(segIndex)%H06_D_Feb
 
-        case (3) ! HYPE is called
+        case(hype)
           ! update reach elevation
           RCHFLX_out(iens,segIndex)%REACH_ELE = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) / RPARAM_in(segIndex)%HYP_A_avg + RPARAM_in(segIndex)%HYP_E_zero
 
@@ -467,7 +452,6 @@ module lake_route_module
 
         case default; ierr=20; message=trim(message)//'unable to identify the parametric lake model type'; return
       end select
-
     endif
 
     ! calculate water balance (in this water balance we dont have the actual evaporation, assuming there is enough water for evaporation)
@@ -506,6 +490,6 @@ module lake_route_module
       RCHFLX_out(iens,segIndex)%QFUTURE_IRF(1:ntdh) = 0._dp
     end if
 
-  end subroutine lake_route
+  END SUBROUTINE lake_route
 
-end module lake_route_module
+END MODULE lake_route_module
