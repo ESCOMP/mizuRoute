@@ -16,7 +16,7 @@ USE time_utils_module, ONLY: compJulday,&      ! compute julian day
                              compJulday_noleap ! compute julian day for noleap calendar
 
 implicit none
-integer(i4b),parameter :: endorheic=1
+integer(i4b),parameter :: endorheic=0
 integer(i4b),parameter :: doll03=1
 integer(i4b),parameter :: hanasaki06=2
 integer(i4b),parameter :: hype=3
