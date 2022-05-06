@@ -1,19 +1,17 @@
-module routing_param
+MODULE process_param
 
-!numeric type
 USE nrtype
 ! global parameters
 USE public_var, ONLY: realMissing    ! missing value for real number
 USE public_var, ONLY: integerMissing ! missing value for integer number
 
-! privary
 implicit none
-private
 
+private
 public::basinUH
 public::make_uh
 
-contains
+CONTAINS
 
   SUBROUTINE basinUH(dt, fshape, tscale, IERR, MESSAGE)
   ! ---------------------------------------------------------------------------------------
@@ -32,15 +30,14 @@ contains
   ! ---------------------------------------------------------------------------------------
   USE gamma_func_module, ONLY: gammp                   ! interface for the incomplete gamma function
   USE globalData,        ONLY: FRAC_FUTURE             ! fraction of runoff in future time steps
-  IMPLICIT NONE
-  ! input
+  implicit none
+  ! Argument variables
   REAL(DP), INTENT(IN)                   :: dt          ! model time step
   REAL(DP), INTENT(IN)                   :: fshape      ! shape parameter in gamma distribution
   REAL(DP), INTENT(IN)                   :: tscale      ! time scale parameter in gamma distribution
-  ! output
   INTEGER(I4B), INTENT(OUT)              :: IERR        ! error code
   CHARACTER(*), INTENT(OUT)              :: MESSAGE     ! error message
-  ! locals
+  ! local variables
   REAL(DP)                               :: ntdh_min    ! minimum number of time delay points
   REAL(DP)                               :: ntdh_max    ! maximum number of time delay points
   REAL(DP)                               :: ntdh_try    ! trial number of time delay points
@@ -102,7 +99,7 @@ contains
 ! subroutine: compute normalized UH from Saint-Venant Eq. at sim. time step
 !             for all the upstream segment
 ! *********************************************************************
- subroutine make_uh(&
+ SUBROUTINE make_uh(&
                     ! Input
                     length,     &       ! input: river segment array [meter]
                     dt,         &       ! input: time step interval [sec]
@@ -123,12 +120,11 @@ contains
   USE public_var, ONLY: pi      ! pi
   USE dataTypes,  ONLY: dlength
   implicit none
-  ! input variables
+  ! Argument variables
   real(dp),                      intent(in)   :: length(:)     ! river segment length
   real(dp),                      intent(in)   :: dt            ! Time step interval [sec]
   real(dp),                      intent(in)   :: velo          ! Wave velocity C for each segment [m/sec]
   real(dp),                      intent(in)   :: diff          ! Diffusivity D for each segment [m2/sec]
-  ! output variables
   type(dlength),allocatable,     intent(out)  :: seg_uh(:)     ! unit hydrograph ordinates for each segment
   integer(i4b),                  intent(out)  :: ierr          ! error code
   character(*),                  intent(out)  :: message       ! error message
@@ -265,8 +261,6 @@ contains
 
  end do ! sSeg loop
 
- end subroutine make_uh
+ END SUBROUTINE make_uh
 
-
-end module routing_param
-
+END MODULE process_param
