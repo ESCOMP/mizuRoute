@@ -5,7 +5,7 @@ MODULE csv_data
 ! usage example:
 !
 !  ! --initialize csv (must be done)
-!  csv_data = csv(trim(csv_file), mode='r')
+!  csv_data = csv(trim(csv_file), ierr, cmessage,  mode='r')
 !
 !  ! --Read csv file into the csv_data (here header is first row)
 !  call csv_data%csv_read(ierr, cmessage, header_row=1)
@@ -27,7 +27,6 @@ MODULE csv_data
 USE nrtype
 USE public_var
 USE ascii_util_module
-USE model_utils, ONLY: handle_err
 
 implicit none
 integer(i4b), parameter :: type_string  = 1  ! a character string cell
@@ -97,15 +96,16 @@ END INTERFACE csv
 
 CONTAINS
 
-  FUNCTION constructor(fname, mode, delimiter) RESULT(instCSV)
+  FUNCTION constructor(fname, ierr, message, mode, delimiter) RESULT(instCSV)
     implicit none
     type(csv)                            :: instCSV
     ! Argument variables:
     character(*),  intent(in)            :: fname
+    integer(i4b),  intent(out)           :: ierr
+    character(*),  intent(out)           :: message
     character(1),  intent(in), optional  :: mode
     character(1),  intent(in), optional  :: delimiter
-    ! Local variables
-    integer(i4b)                         :: ierr
+    ! Local variables:
     character(len=strLen)                :: cmessage
 
     instCSV%fname     = fname
@@ -117,7 +117,7 @@ CONTAINS
     end if
 
     call instCSV%initCSV(ierr, cmessage)
-    if(ierr/=0)then; call handle_err(ierr, trim(cmessage)); endif
+    if(ierr/=0)then; message="Initialization csv failed: "//trim(cmessage); return; endif
 
   END FUNCTION constructor
 
@@ -151,7 +151,7 @@ CONTAINS
     class(csv),       intent(inout)       :: this
     integer(i4b),     intent(in),optional :: header_row    ! the header row
     integer(i4b),     intent(in),optional :: skip_rows(:)  ! rows to skip
-    integer(i4b),     intent(out)         :: ierr          ! the actual rows to skip
+    integer(i4b),     intent(out)         :: ierr          !
     character(*),     intent(out)         :: message
     ! Local variables
     type(string_array), allocatable       :: row_data(:)      ! a split row
@@ -163,7 +163,7 @@ CONTAINS
     integer(i4b)                          :: nCols            ! number of columns in the file (and output data matrix)
     logical(lgt)                          :: arrays_allocated !
     integer(i4b)                          :: iheader          ! row number of header row
-    character(len=strLen)                 :: cmessage        ! error message from subroutine
+    character(len=strLen)                 :: cmessage         ! error message from subroutine
 
     ierr=0; message="read_data/"
 
