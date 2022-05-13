@@ -205,7 +205,6 @@ CONTAINS
   previous=>current; current=>current%next
   deallocate(previous)
  end do
- if(associated(list)) nullify(list)
  END SUBROUTINE get_vlines
 
  ! **********************************************************************************************
