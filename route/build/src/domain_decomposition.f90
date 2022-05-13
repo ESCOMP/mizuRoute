@@ -1,6 +1,5 @@
 MODULE domain_decomposition
 
-! numeric types
 USE nrtype
 ! derived data types
 USE dataTypes,         ONLY: var_ilength   ! integer type:     var(:)%dat
@@ -21,8 +20,8 @@ implicit none
 logical(lgt) :: domain_debug = .false. ! print out reach info with node assignment for debugging purpose
 
 ! common parameters within this module
-integer(i4b), parameter   :: maxDomainOMP=150000       ! maximum omp domains
-integer(i4b), parameter   :: maxDomainMPI=150000      ! maximum mpi domains
+integer(i4b), parameter   :: maxDomainOMP=700000       ! maximum omp domains
+integer(i4b), parameter   :: maxDomainMPI=500000      ! maximum mpi domains
 integer(i4b), parameter   :: tributary=1
 integer(i4b), parameter   :: mainstem=2
 integer(i4b), parameter   :: endorheic=3
@@ -30,7 +29,6 @@ integer(i4b), parameter   :: upstream_size=1
 integer(i4b), parameter   :: stream_order=2
 
 private
-
 public :: mpi_domain_decomposition
 public :: omp_domain_decomposition
 
@@ -46,7 +44,6 @@ CONTAINS
                                      nContribHRU,  & ! output: number of contributory HRUs within the entire river network
                                      ierr, message)  ! output: error handling
 
-   ! External modules
    USE globalData, ONLY: domains_mpi             ! domain data structure - for each domain listing segment and hru indices
    USE globalData, ONLY: nDomain_mpi             ! count of decomposed domains (tributaries + mainstems)
    USE mpi_utils,  ONLY: shr_mpi_abort
@@ -154,7 +151,6 @@ CONTAINS
 
  END SUBROUTINE mpi_domain_decomposition
 
-
  ! ***************************************************************
  ! public subroutine: OMP domain decomposition - interface
  ! ***************************************************************
@@ -199,11 +195,10 @@ CONTAINS
  SUBROUTINE omp_domain_decomp_upsize(nSeg, structNTOPO, river_basin_out, ierr, message, nDiv)
 
    implicit none
-   ! Input variables
+   ! Argument variables
    integer(i4b),                   intent(in)  :: nSeg            ! number of stream segments
    type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)  ! network topology
    integer(i4b),                   intent(in)  :: nDiv            ! division of reach numbers
-   ! Output variables
    type(subbasin_omp),allocatable, intent(out) :: river_basin_out(:)
    integer(i4b),                   intent(out) :: ierr
    character(len=strLen),          intent(out) :: message         ! error message
@@ -235,15 +230,13 @@ CONTAINS
  ! ***************************************************************
  SUBROUTINE omp_domain_decomp_stro(nSeg, structNTOPO, river_basin_out, ierr, message)
 
-   ! External modules
    USE pfafstetter_module, ONLY: lgc_tributary_outlet
    USE dataTypes,          ONLY: reach               ! reach data structure
 
    implicit none
-   ! Input variables
+   ! Argument variables
    integer(i4b),                   intent(in)  :: nSeg                   ! number of stream segments
    type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)         ! network topology
-   ! Output variables
    type(subbasin_omp),allocatable, intent(out) :: river_basin_out(:)
    integer(i4b),                   intent(out) :: ierr
    character(len=strLen),          intent(out) :: message                ! error message
@@ -301,7 +294,6 @@ CONTAINS
 
    ! Populate stream order reaches
    sorder:do ix = 1, maxStreamOrder
-
      ! Number of basin outlets
      nOut=count(downIndex<0.and.streamOrderMatrix(:,ix))
 
@@ -367,12 +359,10 @@ CONTAINS
 
          end associate
        end do
-
      end if outlet
 
      ! Idenfity indices of i-th order branch outlet reaches
      trib:if (nTrib>0) then
-
        if (allocated(ixTribOutlet)) deallocate(ixTribOutlet)
        allocate(ixTribOutlet(nTrib), stat=ierr)
        if(ierr/=0)then; message=trim(message)//'problem allocating [trib_outlet_idx]'; return; endif
@@ -389,7 +379,6 @@ CONTAINS
          associate(upIndex => structNTOPO(ixTribOutlet(iTrib))%var(ixNTOPO%allUpSegIndices)%dat)
 
          if (ix==1) then
-
            if (allocated(subSegOrder)) deallocate(subSegOrder)
            allocate(subSegOrder(nUpSegs), stat=ierr)
            if(ierr/=0)then; message=trim(message)//'problem allocating [subSegOrder]'; return; endif
@@ -401,9 +390,7 @@ CONTAINS
 
            branch(iTrib+nOut)%segIndex = upIndex(subSegOrder)
            branch(iTrib+nOut)%nRch     = nUpSegs
-
          else
-
            nSegStreamOrder = 0
            do iSeg = 1, nUpSegs
              if (streamOrder(upIndex(iSeg))/=ix) cycle
@@ -428,14 +415,12 @@ CONTAINS
 
            branch(iTrib+nOut)%nRch     = nSegStreamOrder
            branch(iTrib+nOut)%segIndex = ixUpSeg(subSegOrder)
-
          endif
 
          nSegBranch(iTrib+nOut) = branch(iTrib+nOut)%nRch
 
          end associate
        end do
-
      endif trib
 
      ! re-order branch based on number of reaches
@@ -444,7 +429,6 @@ CONTAINS
      do iBrn = nTrib+nOut, 1, -1
        river_basin_out(ix)%branch(iBrn) = branch(rankBranch(iBrn))
      end do
-
    end do sorder
 
  END SUBROUTINE omp_domain_decomp_stro
@@ -479,13 +463,11 @@ CONTAINS
    !   domain(:)%idNode       : proc id (-1 through nNode-1) -1 is for mainstem but use pid=0
 
    implicit none
-
-   ! Input variables
+   ! Argument variables
    integer(i4b),                             intent(in)  :: nDivs               ! number of processors (root and child processors)
    integer(i4b),                             intent(in)  :: nSeg                ! number of stream segments
    type(var_ilength),           allocatable, intent(in)  :: structNTOPO(:)      ! river reach topology
    type(var_ilength), optional, allocatable, intent(in)  :: structHRU2SEG(:)    ! river-hru topology
-   ! Output variables
    type(subbasin_mpi),          allocatable, intent(inout) :: domains_out(:)    ! domain decomposition data structure
    integer(i4b),                             intent(out)   :: nDomains          ! number of decomposed domains
    integer(i4b),      optional,              intent(out)   :: nContribHRU       ! total number of HRUs that are connected to a reach
@@ -615,19 +597,17 @@ CONTAINS
    ! domains(:)%basinType      code to indicate basin type: mainstem -> 1, tributary -> 2, endorheic -> 3
    !           %segIndex(:)    indices of reaches belong to this domain
 
-   ! External modules
    USE pfafstetter_module, ONLY: lgc_tributary_outlet
 
    implicit none
-   ! Input variables
+   ! Argument variables
    type(var_ilength), allocatable, intent(in)    :: structNTOPO(:)             ! network topology
    logical(lgt),                   intent(in)    :: isMainstem(:)              ! logical to indicate reach is mainstem
    integer(i4b),                   intent(in)    :: maxSegs                    ! threshold for upstream reach number to  define mainstem
    type(subbasin_mpi),allocatable, intent(inout) :: domains_out(:)             ! domain decomposition data structure
    integer(i4b),                   intent(inout) :: nDomains                   ! number of domains (update)
-   ! Output variables
-   integer(i4b),                   intent(out) :: ierr                         ! error code
-   character(len=strLen),          intent(out) :: message                      ! error message
+   integer(i4b),                   intent(out)   :: ierr                       ! error code
+   character(len=strLen),          intent(out)   :: message                    ! error message
    ! Local variables
    character(len=strLen)                       :: cmessage                     ! error message from subroutine
    integer(i4b)                                :: segIndex(size(structNTOPO))  ! reach indices for reaches within a basin
@@ -738,11 +718,10 @@ CONTAINS
    ! assign domains into computing nodes
 
    implicit none
-   ! Input variables
+   ! Argument variables
    integer(i4b),                   intent(in)    :: nNodes      ! number of processors
    integer(i4b),                   intent(in)    :: nDomain     ! number of domains
    type(subbasin_mpi),allocatable, intent(inout) :: domains(:)  ! domain decomposition data structure to be updated
-   ! Output variables
    integer(i4b),                   intent(out)   :: ierr
    character(len=strLen),          intent(out)   :: message     ! error message
    ! Local variables
@@ -833,12 +812,11 @@ CONTAINS
  SUBROUTINE basin_order(nSeg, structNTOPO_in, domains_omp, nDomain_omp, river_basin_out, ierr, message)
 
    implicit none
-   ! Input variables
+   ! Argument variables
    integer(i4b),              intent(in)       :: nSeg
    type(var_ilength), allocatable, intent(in)  :: structNTOPO_in(:)  ! network topology
    type(subbasin_mpi),             intent(in)  :: domains_omp(:)     ! domain decomposition data structure (maximum domain is set to maxDomain)
    integer(i4b)                                :: nDomain_omp
-   ! Output variables
    type(subbasin_omp),allocatable, intent(out) :: river_basin_out(:)!
    integer(i4b),              intent(out)      :: ierr
    character(len=strLen),     intent(out)      :: message            ! error message

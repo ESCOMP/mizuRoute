@@ -33,7 +33,6 @@ USE nr_utility_module, ONLY: findIndex     ! Num. Recipies utilities
 USE nr_utility_module, ONLY: indexx        ! Num. Recipies utilities
 USE nr_utility_module, ONLY: arth          ! Num. Recipies utilities
 
-! privacy
 implicit none
 
 private
@@ -45,7 +44,7 @@ public :: reach_list     ! get a list of reaches above each reach
 public :: reach_mask     ! get a mask that defines all segments above a given segment
 public :: reach_mask_orig     ! get a mask that defines all segments above a given segment
 
-contains
+CONTAINS
 
  ! *********************************************************************
  ! new subroutine: compute correspondence between HRUs and segments
@@ -1211,4 +1210,4 @@ contains
  ! ----------------------------------------------------------------------------------------
  END SUBROUTINE REACH_MASK_ORIG
 
-end module network_topo
+END MODULE network_topo

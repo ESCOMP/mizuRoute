@@ -19,13 +19,12 @@ USE globalData,  ONLY: idxMC             ! index of IRF method
 USE perf_mod,    ONLY: t_startf,t_stopf   ! timing start/stop
 USE model_utils, ONLY: handle_err
 
-! privary
 implicit none
-private
 
+private
 public::mc_route
 
-contains
+CONTAINS
 
  ! *********************************************************************
  ! subroutine: perform muskingum-cunge routing through the river network
@@ -41,27 +40,24 @@ contains
                      ierr,message,         & ! output: error control
                      ixSubRch)               ! optional input: subset of reach indices to be processed
 
-   implicit none
+   USE public_var,  ONLY: is_lake_sim    ! logical whether or not lake should be simulated
 
-   ! Input
+   implicit none
+   ! Argument variables
    integer(i4b),       intent(in)                 :: iEns                 ! ensemble member
    type(subbasin_omp), intent(in),    allocatable :: river_basin(:)       ! river basin information (mainstem, tributary outlet etc.)
    real(dp),           intent(in)                 :: T0,T1                ! start and end of the time step (seconds)
    integer(i4b),       intent(in)                 :: ixDesire             ! index of the reach for verbose output
    type(RCHTOPO),      intent(in),    allocatable :: NETOPO_in(:)         ! River Network topology
    type(RCHPRP),       intent(in),    allocatable :: RPARAM_in(:)         ! River reach parameter
-   ! inout
    type(STRSTA),       intent(inout), allocatable :: RCHSTA_out(:,:)      ! reach state data
    type(STRFLX),       intent(inout), allocatable :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
-   ! output variables
    integer(i4b),       intent(out)                :: ierr                 ! error code
    character(*),       intent(out)                :: message              ! error message
-   ! input (optional)
    integer(i4b),       intent(in), optional       :: ixSubRch(:)          ! subset of reach indices to be processed
    ! local variables
    character(len=strLen)                          :: cmessage             ! error message for downwind routine
    logical(lgt),                      allocatable :: doRoute(:)           ! logical to indicate which reaches are processed
-   integer(i4b)                                   :: LAKEFLAG=0           ! >0 if processing lakes
    integer(i4b)                                   :: nOrder               ! number of stream order
    integer(i4b)                                   :: nTrib                ! number of tributary basins
    integer(i4b)                                   :: nSeg                 ! number of reaches in the network
@@ -99,7 +95,6 @@ contains
 !$OMP          private(jSeg, iSeg)                      & ! private for a given thread
 !$OMP          private(ierr, cmessage)                  & ! private for a given thread
 !$OMP          shared(T0,T1)                            & ! private for a given thread
-!$OMP          shared(LAKEFLAG)                         & ! private for a given thread
 !$OMP          shared(river_basin)                      & ! data structure shared
 !$OMP          shared(doRoute)                          & ! data array shared
 !$OMP          shared(NETOPO_in)                        & ! data structure shared
@@ -115,7 +110,6 @@ contains
          call mc_rch(iEns,jSeg,           & ! input: array indices
                      ixDesire,            & ! input: index of the desired reach
                      T0,T1,               & ! input: start and end of the time step
-                     LAKEFLAG,            & ! input: flag if lakes are to be processed
                      NETOPO_in,           & ! input: reach topology data structure
                      RPARAM_in,           & ! input: reach parameter data structure
                      RCHSTA_out,          & ! inout: reach state data structure
@@ -138,7 +132,6 @@ contains
  SUBROUTINE mc_rch(iEns, segIndex, & ! input: index of runoff ensemble to be processed
                    ixDesire,       & ! input: reachID to be checked by on-screen pringing
                    T0,T1,          & ! input: start and end of the time step
-                   LAKEFLAG,       & ! input: flag if lakes are to be processed
                    NETOPO_in,      & ! input: reach topology data structure
                    RPARAM_in,      & ! input: reach parameter data structure
                    RCHSTA_out,     & ! inout: reach state data structure
@@ -146,22 +139,18 @@ contains
                    ierr, message)    ! output: error control
 
  implicit none
-
- ! Input
+ ! Argument variables
  integer(i4b),  intent(in)                 :: iEns              ! runoff ensemble to be routed
  integer(i4b),  intent(in)                 :: segIndex          ! segment where routing is performed
  integer(i4b),  intent(in)                 :: ixDesire          ! index of the reach for verbose output
  real(dp),      intent(in)                 :: T0,T1             ! start and end of the time step (seconds)
- integer(i4b),  intent(in)                 :: LAKEFLAG          ! >0 if processing lakes
  type(RCHTOPO), intent(in),    allocatable :: NETOPO_in(:)      ! River Network topology
  type(RCHPRP),  intent(in),    allocatable :: RPARAM_in(:)      ! River reach parameter
- ! inout
  type(STRSTA),  intent(inout), allocatable :: RCHSTA_out(:,:)   ! reach state data
  type(STRFLX),  intent(inout), allocatable :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
- ! Output
  integer(i4b),  intent(out)                :: ierr              ! error code
  character(*),  intent(out)                :: message           ! error message
- ! Local variables to
+ ! Local variables
  logical(lgt)                              :: doCheck           ! check details of variables
  logical(lgt)                              :: isHW              ! headwater basin?
  integer(i4b)                              :: nUps              ! number of upstream segment
@@ -219,7 +208,6 @@ contains
 
  END SUBROUTINE mc_rch
 
-
  ! *********************************************************************
  ! subroutine: solve muskingum equation
  ! *********************************************************************
@@ -247,7 +235,7 @@ contains
  USE shr_infnan_mod, ONLY: isnan => shr_infnan_isnan
 
  implicit none
- ! argument variables
+ ! Argument variables
  type(RCHPRP), intent(in)                 :: rch_param    ! River reach parameter
  real(dp),     intent(in)                 :: T0,T1        ! start and end of the time step (seconds)
  real(dp),     intent(in)                 :: q_upstream   ! total discharge at top of the reach being processed
@@ -257,7 +245,7 @@ contains
  logical(lgt), intent(in)                 :: doCheck      ! reach index to be examined
  integer(i4b), intent(out)                :: ierr         ! error code
  character(*), intent(out)                :: message      ! error message
- ! LOCAL VAIRABLES
+ ! Local variables
  real(dp)                                 :: alpha        ! sqrt(slope)(/mannings N* width)
  real(dp)                                 :: beta         ! constant, 5/3
  real(dp)                                 :: theta        ! dT/dX
@@ -388,6 +376,5 @@ contains
  rstate%molecule%Q(2) = Q(1,1)
 
  END SUBROUTINE muskingum_cunge
-
 
 END MODULE mc_route_module

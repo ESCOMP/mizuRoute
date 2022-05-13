@@ -23,7 +23,6 @@ implicit none
 integer(i4b),parameter  :: upstream_size=1
 integer(i4b),parameter  :: stream_order=2
 
-! privacy -- everything private unless declared explicitly
 private
 public :: get_mpi_omp
 public :: init_model
@@ -40,22 +39,18 @@ CONTAINS
 
   ! Obtain mpi rank/ntasks and omp thread number
 
-  ! shared data used
   USE public_var, ONLY: root         ! root proce id
   USE globalData, ONLY: nNodes       ! number of tasks
   USE globalData, ONLY: masterproc   ! root proc logical
   USE globalData, ONLY: multiProcs   ! mpi multi-procs logical (.true. -> use more than 1 processors)
   USE globalData, ONLY: pid          ! procs id (rank)
   USE globalData, ONLY: nThreads     ! number of OMP threads
-  ! subroutines: populate metadata
   USE mpi_utils, ONLY: shr_mpi_commsize
   USE mpi_utils, ONLY: shr_mpi_commrank
 
   implicit none
-
-  ! input:  None
+  ! Argument variables
   integer(i4b),  intent(in)  :: comm      ! communicator
-  ! output: None
   ! local variables
   character(len=strLen)      :: message             ! error message
   integer(i4b)               :: omp_get_num_threads ! number of threads used for openMP
@@ -107,12 +102,11 @@ CONTAINS
   USE read_param_module,   ONLY: read_param       ! read the routing parameters
 
   implicit none
-
+  ! Argument variables
   character(*), intent(in)    :: cfile_name        ! name of the control file
-  ! output: error control
   integer(i4b), intent(out)   :: ierr              ! error code
   character(*), intent(out)   :: message           ! error message
-  ! local variables
+  ! Local variables
   character(len=strLen)       :: cmessage          ! error message of downwind routine
 
   ierr=0; message='init_model/'
@@ -162,21 +156,19 @@ CONTAINS
   USE mpi_utils,            ONLY: shr_mpi_initialized      ! If MPI is being used
   USE domain_decomposition, ONLY: mpi_domain_decomposition ! domain decomposition for mpi
 
-   implicit none
-   ! input:
+  implicit none
+  ! Argument variables
    integer(i4b),              intent(in)    :: pid              ! proc id
    integer(i4b),              intent(in)    :: nNodes           ! number of procs
    integer(i4b),              intent(in)    :: comm             ! communicator
-   ! output: error control
    integer(i4b),              intent(out)   :: ierr             ! error code
    character(*),              intent(out)   :: message          ! error message
-   ! local variable
+  ! local variable
    type(var_dlength), allocatable           :: structHRU(:)     ! HRU properties
    type(var_dlength), allocatable           :: structSeg(:)     ! stream segment properties
    type(var_ilength), allocatable           :: structHRU2SEG(:) ! HRU-to-segment mapping
    type(var_ilength), allocatable           :: structNTOPO(:)   ! network topology
    type(var_clength), allocatable           :: structPFAF(:)    ! pfafstetter code
-   ! others
    integer(i4b)                             :: iHRU, iRch       ! loop index
    character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
@@ -184,7 +176,6 @@ CONTAINS
 
    ! populate various river network data strucutures for each proc
    if (masterproc) then
-
      ! read the river network data and compute additonal network attributes (inncludes spatial decomposition)
      call init_ntopo(nHRU, nRch,                                                   & ! output: number of HRU and Reaches
                      structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
@@ -199,7 +190,6 @@ CONTAINS
    end if
 
    if (masterproc) then
-
      ! populate basiID and reachID vectors for output (in only master processor)
 
      allocate(basinID(nHRU), reachID(nRch), stat=ierr)
@@ -211,11 +201,9 @@ CONTAINS
      do iRch = 1,nRch
       reachID(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
      enddo
-
    end if  ! if processor=0 (root)
 
    if (multiProcs) then
-
      ! spatial domain decomposition and distribution for MPI parallelization
      if (masterproc) then
        call mpi_domain_decomposition(nNodes, nRch,               & ! input:
@@ -230,9 +218,7 @@ CONTAINS
                           structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
                           ierr, cmessage)                                         ! output: error controls
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
    else
-
      nContribHRU = 0
      do iRch = 1, nRch
        nContribHRU = nContribHRU + structNTOPO(iRch)%var(ixNTOPO%nHRU)%dat(1)
@@ -257,7 +243,6 @@ CONTAINS
      call all_domain_omp_decomp(structNTOPO, structHRU2SEG, & ! input: river network data structures for the entire network
                                 ierr, cmessage)               ! output: error controls
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
    endif
 
  END SUBROUTINE init_ntopo_data
@@ -279,7 +264,7 @@ CONTAINS
   USE write_simoutput_pio, ONLY: close_output_nc
 
    implicit none
-   ! output: error control
+   ! Argument variables
    logical(lgt),              intent(out)   :: finished
    integer(i4b),              intent(out)   :: ierr             ! error code
    character(*),              intent(out)   :: message          ! error message
@@ -340,11 +325,10 @@ CONTAINS
   USE globalData, ONLY: TSEC                   ! begining/ending of simulation time step [sec]
 
   implicit none
-  ! input:
+  ! Argument variables:
   integer(i4b),        intent(in)  :: pid              ! proc id
   integer(i4b),        intent(in)  :: nNodes           ! number of procs
   integer(i4b),        intent(in)  :: comm             ! communicator
-  ! output: error control
   integer(i4b),        intent(out) :: ierr             ! error code
   character(*),        intent(out) :: message          ! error message
   ! local variable
@@ -512,8 +496,7 @@ CONTAINS
   USE shr_sys_mod,          ONLY: shr_sys_system           ! share system call
 
   implicit none
-  ! input: None
-  ! output (river network data structures for the entire domain)
+  ! Argument variables
   integer(i4b)                  , intent(out) :: nHRU_out                 ! number of HRUs
   integer(i4b)                  , intent(out) :: nRch_out                 ! number of reaches
   type(var_dlength), allocatable, intent(out) :: structHRU(:)             ! HRU properties
@@ -521,10 +504,9 @@ CONTAINS
   type(var_ilength), allocatable, intent(out) :: structHRU2SEG(:)         ! HRU-to-segment mapping
   type(var_ilength), allocatable, intent(out) :: structNTOPO(:)           ! network topology
   type(var_clength), allocatable, intent(out) :: structPFAF(:)            ! pfafstetter code
-  ! output: error control
   integer(i4b)      , intent(out)             :: ierr                     ! error code
   character(*)      , intent(out)             :: message                  ! error message
-  ! local variable
+  ! Local variables
   integer(i4b)                                :: tot_upstream             ! total number of all of the upstream stream segments for all stream segments
   integer(i4b)                                :: tot_upseg                ! total number of immediate upstream segments for all  stream segments
   integer(i4b)                                :: tot_hru                  ! total number of all the upstream hrus for all stream segments
@@ -652,10 +634,9 @@ CONTAINS
   USE nr_utility_module,   ONLY: findIndex                ! find index within a vector
 
   implicit none
-  ! Input variables
+  ! Argument variables
   type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)           ! network topology
   type(var_ilength), allocatable, intent(in)  :: structHRU2SEG(:)         ! HRU-to-segment mapping
-  ! Output error handling variables
   integer(i4b),                   intent(out) :: ierr
   character(len=strLen),          intent(out) :: message                  ! error message
   ! Local variables
@@ -715,6 +696,5 @@ CONTAINS
   ! -------------------
 
  END SUBROUTINE all_domain_omp_decomp
-
 
 END MODULE init_model_data

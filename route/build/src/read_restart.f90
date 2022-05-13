@@ -8,7 +8,6 @@ USE public_var
 implicit none
 
 private
-
 public::read_state_nc
 
 CONTAINS

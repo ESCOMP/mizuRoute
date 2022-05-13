@@ -30,16 +30,15 @@ USE var_lookup, ONLY: ixPFAF,   nVarsPFAF    ! index of variables for the pfafst
 
 implicit none
 
-! privacy
 private
 public::alloc_struct
 
-contains
+CONTAINS
 
  ! *********************************************************************
  ! new subroutine: get ancillary data for HRUs and stream segments
  ! *********************************************************************
- subroutine alloc_struct(&
+ SUBROUTINE alloc_struct(&
                          ! input: model control
                          nHRU,         & ! output: number of HRUs
                          nSeg,         & ! output: number of stream segments
@@ -52,17 +51,14 @@ contains
                          ! output: error control
                          ierr,message)   ! output: error control
  implicit none
- ! input variables
- ! output: model control
+ ! Argument variables
  integer(i4b)      , intent(in)                 :: nHRU             ! number of HRUs
  integer(i4b)      , intent(in)                 :: nSeg             ! number of stream segments
- ! inoutput: data structures
  type(var_dlength) , intent(inout), allocatable :: structHRU(:)     ! HRU properties
  type(var_dlength) , intent(inout), allocatable :: structSeg(:)     ! stream segment properties
  type(var_ilength) , intent(inout), allocatable :: structHRU2seg(:) ! HRU-to-segment mapping
  type(var_ilength) , intent(inout), allocatable :: structNTOPO(:)   ! network topology
  type(var_clength) , intent(inout), allocatable :: structPFAF(:)    ! network topology
- ! output: error control
  integer(i4b)      , intent(out)                :: ierr             ! error code
  character(*)      , intent(out)                :: message          ! error message
  ! ==========================================================================================================
@@ -158,6 +154,6 @@ contains
 
  end do  ! looping through stream segments
 
- end subroutine alloc_struct
+ END SUBROUTINE alloc_struct
 
 END MODULE allocation

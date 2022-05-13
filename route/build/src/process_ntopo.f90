@@ -44,7 +44,7 @@ CONTAINS
  ! *********************************************************************
  ! public subroutine: augment river network data
  ! *********************************************************************
- subroutine augment_ntopo(nHRU,             & ! input: number of HRUs
+ SUBROUTINE augment_ntopo(nHRU,             & ! input: number of HRUs
                           nSeg,             & ! input: number of stream segments
                           structHRU,        & ! input: ancillary data for HRUs
                           structSEG,        & ! input: ancillary data for stream segments
@@ -66,7 +66,7 @@ CONTAINS
  USE network_topo, ONLY: reach_list            ! reach list
  USE network_topo, ONLY: reach_mask            ! identify all reaches upstream of a given reach
  ! Routing parameter estimation routine
- USE routing_param,ONLY: make_uh               ! construct reach unit hydrograph
+ USE process_param,ONLY: make_uh               ! construct reach unit hydrograph
  ! routing spatial constant parameters
  USE globalData,   ONLY: mann_n, wscale        ! KWT routing parameters (Transfer function parameters)
  USE globalData,   ONLY: velo, diff            ! IRF routing parameters (Transfer function parameters)
@@ -74,18 +74,15 @@ CONTAINS
 
  ! This subroutine populate river network topology data strucutres
  implicit none
- ! output: model control
+ ! Argument variable:
  integer(i4b),       intent(in)                    :: nHRU             ! number of HRUs
  integer(i4b),       intent(in)                    :: nSeg             ! number of stream segments
- ! inout: populate data structures
  type(var_dlength), intent(inout), allocatable     :: structHRU(:)     ! HRU properties
  type(var_dlength), intent(inout), allocatable     :: structSEG(:)     ! stream segment properties
  type(var_ilength), intent(inout), allocatable     :: structHRU2seg(:) ! HRU-to-segment mapping
  type(var_ilength), intent(inout), allocatable     :: structNTOPO(:)   ! network topology
- ! output: error control
  integer(i4b)      , intent(out)                   :: ierr             ! error code
  character(*)      , intent(out)                   :: message          ! error message
- ! optional output:
  integer(i4b), optional, intent(out)               :: tot_upstream     ! total number of all of the upstream stream segments for all stream segments
  integer(i4b), optional, intent(out)               :: tot_upseg        ! total number of immediate upstream segments for all  stream segments
  integer(i4b), optional, intent(out)               :: tot_hru          ! total number of all the upstream hrus for all stream segments
@@ -306,12 +303,12 @@ CONTAINS
    ixHRU_desired=ixHRU_desired_tmp
  endif
 
-end subroutine augment_ntopo
+END SUBROUTINE augment_ntopo
 
  ! *********************************************************************
  ! public subroutine: check network data is physically valid
  ! *********************************************************************
- subroutine check_river_properties(structNTOPO, structHRU, structSEG, &  ! input: data structure for physical river network data
+ SUBROUTINE check_river_properties(structNTOPO, structHRU, structSEG, &  ! input: data structure for physical river network data
                                    ierr, message)
   ! saved global data
   USE public_var, ONLY: min_slope          ! minimum slope
@@ -348,13 +345,13 @@ end subroutine augment_ntopo
   ! check somehting for hru properties
   enddo
 
-  end subroutine check_river_properties
+  END SUBROUTINE check_river_properties
 
  ! *********************************************************************
  ! public subroutine: populate old data strucutures
  ! *********************************************************************
  ! ---------- temporary code: populate old data structures --------------------------------------------------
- subroutine put_data_struct(nSeg, structSEG, structNTOPO, &
+ SUBROUTINE put_data_struct(nSeg, structSEG, structNTOPO, &
                             RPARAM_in, NETOPO_in , ierr, message)
   ! saved global data
   USE dataTypes,     ONLY: RCHPRP             ! Reach parameters
@@ -364,7 +361,7 @@ end subroutine augment_ntopo
   USE public_var,    ONLY: dt                 ! simulation time step [sec]
   USE public_var,    ONLY: is_lake_sim        ! lake simulation option
   ! external subroutines
-  USE routing_param, ONLY: basinUH            ! construct basin unit hydrograph
+  USE process_param, ONLY: basinUH            ! construct basin unit hydrograph
 
   implicit none
   ! argument variables
@@ -543,6 +540,6 @@ end subroutine augment_ntopo
 
   end do  ! looping through stream segments
 
- end subroutine put_data_struct
+ END SUBROUTINE put_data_struct
 
-end module process_ntopo
+END MODULE process_ntopo

@@ -5,7 +5,6 @@ USE nrtype
 implicit none
 
 private
-
 public::file_open
 public::split_line
 public::get_vlines

@@ -4,11 +4,14 @@ USE nrtype
 ! data type
 USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
 USE dataTypes, ONLY: RCHTOPO        ! Network topology
+USE dataTypes, ONLY: subbasin_omp   ! mainstem+tributary data structures
+
 ! global parameters
 USE public_var
 USE globalData,ONLY: idxSUM        ! index of IRF method
 ! subroutines: general
 USE perf_mod,  ONLY: t_startf,t_stopf ! timing start/stop
+USE model_utils, ONLY: handle_err
 
 implicit none
 
@@ -35,9 +38,6 @@ CONTAINS
  ! This is used to get total instantaneous upstream runoff at each reach
  !
  ! ----------------------------------------------------------------------------------------
-
- USE dataTypes,   ONLY: subbasin_omp   ! mainstem+tributary data structures
- USE model_utils, ONLY: handle_err
 
  implicit none
  ! argument variables
