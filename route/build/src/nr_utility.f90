@@ -124,7 +124,7 @@ CONTAINS
                  if (arr(index(j)) <= a) exit
              end do
              if (j < i) exit
-             call swap(index(i),index(j))
+             if ( i /= j ) call swap(index(i),index(j))
          end do
          index(l+1)=index(j)
          index(j)=indext
@@ -157,9 +157,11 @@ CONTAINS
  SUBROUTINE swap(a,b)
  INTEGER(I4B), INTENT(INOUT) :: a,b
  INTEGER(I4B) :: dum
- dum=a
- a=b
- b=dum
+ if ( a /= b )then
+   dum=a
+   a=b
+   b=dum
+ end if
  END SUBROUTINE swap
 
  ! ************************************************************************************************
