@@ -2,8 +2,7 @@ module public_var
   ! This module include variables that can be accessed from any other modules and values not altered
   ! except that variables read from control file are populated.
 
-  USE nrtype, only: i4b,dp,lgt
-  USE nrtype, only: strLen  ! string length
+  USE nrtype
   implicit none
 
   save
@@ -43,7 +42,8 @@ module public_var
   real(dp),    parameter,public   :: MaxPosVal=1.e36_dp     ! maximum value for positive value
   real(dp),    parameter,public   :: MinPosVal=1.e-10_dp    ! minimum value for positive value
   integer(i4b),parameter,public   :: integerMissing=-9999   ! missing value for integers
-  real(dp),    parameter,public   :: realMissing=-9999._dp  ! missing value for real numbers
+  real(sp),    parameter,public   :: floatMissing=-9999._sp ! missing value for real32 numbers
+  real(dp),    parameter,public   :: realMissing=-9999._dp  ! missing value for real64 numbers
   character(5),parameter,public   :: charMissing='empty'    ! missing value for character
 
   ! mpi related parameters
