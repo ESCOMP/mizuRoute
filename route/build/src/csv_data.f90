@@ -30,9 +30,10 @@ USE ascii_util_module
 
 implicit none
 integer(i4b), parameter :: type_string  = 1  ! a character string cell
-integer(i4b), parameter :: type_double  = 2  ! a real cell
-integer(i4b), parameter :: type_integer = 3  ! an integer cell
-integer(i4b), parameter :: type_logical = 4  ! a logical cell
+integer(i4b), parameter :: type_double  = 2  ! a real64 cell
+integer(i4b), parameter :: type_float   = 3  ! a real32 cell
+integer(i4b), parameter :: type_integer = 4  ! an integer cell
+integer(i4b), parameter :: type_logical = 5  ! a logical cell
 
 private
 
@@ -44,7 +45,7 @@ type, public :: csv
   private
   character(len=strLen)           :: fname            ! Filename of the opened dataset
   character(1)                    :: mode ='r'        ! File open mode
-  character(1)                    :: delimiter=','    !
+  character(1)                    :: delimiter =','   !
   character(1)                    :: quote     = '"'  ! quotation character
   integer(i4b)                    :: fid       = 1    !
   integer(i4b)                    :: nrows = 0        ! number of rows in the file
@@ -58,11 +59,9 @@ CONTAINS
   procedure, public  :: csv_read => read_data
   procedure, public  :: get_dtype
   procedure, public  :: fclose
-
   procedure, private :: variable_types
   procedure, private :: split_csv_line
   procedure, private :: initCSV
-
   generic,   public  :: get_data => get_csv_data_as_str, &
                                     get_cell_value,      &
                                     get_real_sp_column,  &
@@ -80,11 +79,12 @@ CONTAINS
   procedure, private :: get_logical_column
   procedure, private :: get_character_column
   procedure, private :: get_string_column
-
-  generic,  public   :: get_header => get_header_str, &
+  procedure, private :: get_icol_by_name
+  generic,   public  :: get_header => get_header_str, &
                                      get_header_csv_str
   procedure, private :: get_header_str
   procedure, private :: get_header_csv_str
+  final              :: clean
 
 end type csv
 
@@ -239,10 +239,10 @@ CONTAINS
   SUBROUTINE get_header_csv_str(this, header, ierr, message)
     ! Returns the header as a type(string_array) array.
     implicit none
-    class(csv),                    intent(inout) :: this
+    class(csv),                      intent(in)  :: this
     type(string_array), allocatable, intent(out) :: header(:)
-    integer(i4b),                  intent(out)   :: ierr          ! the actual rows to skip
-    character(*),                  intent(out)   :: message
+    integer(i4b),                    intent(out) :: ierr          ! the actual rows to skip
+    character(*),                    intent(out) :: message
     integer(i4b)                                 :: icol
 
     ierr=0; message="get_header_csv_str/"
@@ -253,8 +253,7 @@ CONTAINS
         header(icol) = this%header(icol)
       end do
     else
-      ierr=10; message=trim(message)//'header array is not populated. call "csv_read" first'
-      return
+      ierr=10; message=trim(message)//'csv data is not populated. call "csv_read" first'
     end if
 
   END SUBROUTINE get_header_csv_str
@@ -262,7 +261,7 @@ CONTAINS
   SUBROUTINE get_header_str(this, header, ierr, message)
     ! Returns the header as a character(len=*) array.
     implicit none
-    class(csv),                    intent(inout) :: this
+    class(csv),                    intent(in)    :: this
     character(len=*), allocatable, intent(out)   :: header(:)
     integer(i4b),                  intent(out)   :: ierr          ! the actual rows to skip
     character(*),                  intent(out)   :: message
@@ -273,20 +272,21 @@ CONTAINS
     if (allocated(this%header)) then
       allocate(header(this%ncols))
       do icol=1, this%ncols
-          header(icol) = this%header(icol)%str
+        header(icol) = this%header(icol)%str
       end do
     else
-      ierr=10; message=trim(message)//'header array is not populated. call "csv_read" first'
-      return
+      ierr=10; message=trim(message)//'csv data is not populated. call "csv_read" first'
     end if
 
   END SUBROUTINE get_header_str
 
-  SUBROUTINE get_dtype(this, dtype)
+  SUBROUTINE get_dtype(this, dtype, ierr, message)
     ! Returns datatype array as a integer array.
     implicit none
     class(csv),                intent(inout) :: this
     integer(i4b), allocatable, intent(out)   :: dtype(:)
+    integer(i4b),              intent(out)   :: ierr          ! the actual rows to skip
+    character(*),              intent(out)   :: message
     integer(i4b)                             :: icol
 
     if (allocated(this%dtype)) then
@@ -294,6 +294,8 @@ CONTAINS
       do icol=1, this%ncols
         dtype(icol) = this%dtype(icol)
       end do
+    else
+      ierr=10; message=trim(message)//'csv data is not populated. call "csv_read" first'
     end if
 
   END SUBROUTINE get_dtype
@@ -318,8 +320,7 @@ CONTAINS
         end do
       end do
     else
-      ierr=10; message=trim(message)//'csv_data array is not populated. call "csv_read" first'
-      return
+      ierr=10; message=trim(message)//'csv_data is not populated. call "csv_read" first'
     end if
 
   END SUBROUTINE get_csv_data_as_str
@@ -328,15 +329,15 @@ CONTAINS
     ! Returns an array indicating the variable type of each columns.
     implicit none
     class(csv), intent(inout) :: this
-    integer(i4b)              :: i
+    integer(i4b)              :: icol
 
     if (allocated(this%csv_data)) then
       allocate(this%dtype(this%ncols))
-      do i=1,this%ncols
-        call infer_variable_type(this%csv_data(1,i)%str, this%dtype(i))
+      do icol=1,this%ncols
+        call infer_variable_type(this%csv_data(1,icol)%str, this%dtype(icol))
       end do
     else
-      write(*,'(A,1X,I5)') 'Error: class has not been initialized'
+      write(*,'(A,1X,I5)') 'Error: csv_data is not populated. call "csv_read" first '
     end if
 
     CONTAINS
@@ -344,33 +345,33 @@ CONTAINS
       SUBROUTINE infer_variable_type(str,itype)
         !  Infers the variable type, assuming the following precedence:
         !  * string  = 1
-        !  * integer = 2
-        !  * double  = 3
-        !  * logical = 4
+        !  * double  = 2
+        !  * integer = 4
+        !  * logical = 5
         implicit none
         character(len=*),intent(in) :: str
         integer,intent(out) :: itype
-        real(dp)            :: rval      ! a real value
+        real(dp)            :: rval      ! a real64 value
         integer(i4b)        :: ival      ! an iteger value
         logical(lgt)        :: lval      ! a logical value
         integer(i4b)        :: ierr      !
 
         call to_integer(str, ival, ierr)
         if (ierr==0) then
-            itype = type_integer
-            return
+          itype = type_integer
+          return
         end if
 
         call to_real_dp(str, rval, ierr)
         if (ierr==0) then
-            itype = type_double
-            return
+          itype = type_double
+          return
         end if
 
         call to_logical(str, lval, ierr)
         if (ierr==0) then
-            itype = type_logical
-            return
+          itype = type_logical
+          return
         end if
 
         ! default is string:
@@ -457,7 +458,7 @@ CONTAINS
     ! `logical`, or `character(len=*)` variable.
 
     implicit none
-    class(csv),    intent(inout) :: this
+    class(csv),    intent(in)    :: this
     integer(i4b),  intent(in)    :: row   !! row number
     integer(i4b),  intent(in)    :: col   !! column number
     class(*),      intent(out)   :: val   !! the returned value
@@ -488,14 +489,43 @@ CONTAINS
 
   END SUBROUTINE get_cell_value
 
+  SUBROUTINE get_icol_by_name(this, col_name, icol, istat)
+    implicit none
+    class(csv),  intent(in)             :: this
+    character(*),intent(in)             :: col_name     ! column name
+    integer(i4b),intent(out)            :: icol
+    integer(i4b), intent(out)           :: istat        ! status flag
+    logical(lgt)                        :: found
+    character(len=strLen), allocatable  :: header(:)
+    character(len=strLen)               :: cmessage
+
+    call this%get_header(header, istat, cmessage)
+
+    found=.false.
+    do icol=1,this%ncols
+      if (trim(header(icol))==trim(col_name)) then
+        found=.true.
+        exit
+      end if
+    end do
+
+    if (found) then
+      istat = 0
+    else
+      write(*,'(A,1X,A)') 'Error: column name is not found: ',trim(col_name)
+      istat = 1
+    end if
+
+  END SUBROUTINE get_icol_by_name
+
 !@note This routine requires that the `r` array already be allocated.
 !      This is because Fortran doesn't want to allow to you pass
 !      a non-polymorphic variable into a routine with a dummy variable
 !      with `class(*),dimension(:),allocatable,intent(out)` attributes.
-  SUBROUTINE get_column(this, icol,col_data, istat)
+  SUBROUTINE get_column(this, icol, col_data, istat)
     ! Return a column from a CSV file vector.
     implicit none
-    class(csv),  intent(inout) :: this
+    class(csv),  intent(in)    :: this
     integer(i4b),intent(in)    :: icol        ! column number
     class(*),    intent(out)   :: col_data(:) ! assumed to have been allocated to
                                               ! the correct size by the caller.
@@ -548,15 +578,23 @@ CONTAINS
 
   END SUBROUTINE get_column
 
-  SUBROUTINE get_real_sp_column(this, icol, col_data, istat)
+  SUBROUTINE get_real_sp_column(this, col, col_data, istat)
     !  Return a column from a CSV file as a `real(sp)` vector.
     implicit none
-    class(csv),            intent(inout) :: this
-    integer(i4b),          intent(in)    :: icol  !! column number
-    real(sp),  allocatable,intent(out) :: col_data(:)
-    integer(i4b),          intent(out)   :: istat  !! column number
+    class(csv),            intent(in)    :: this
+    class(*),              intent(in)    :: col          ! name:character or index:integer
+    real(sp), allocatable, intent(out)   :: col_data(:)
+    integer(i4b),          intent(out)   :: istat
+    integer(i4b)                         :: icol         ! column number
 
     istat=0
+
+    select type (col)
+      type is (integer(i4b))
+       icol=col
+      type is (character(len=*))
+        call this%get_icol_by_name(col, icol, istat)
+    end select
 
     if (allocated(this%csv_data)) then
       allocate(col_data(this%nrows))  ! size the output vector
@@ -568,15 +606,23 @@ CONTAINS
 
   END SUBROUTINE get_real_sp_column
 
-  SUBROUTINE get_real_dp_column(this, icol, col_data, istat)
+  SUBROUTINE get_real_dp_column(this, col, col_data, istat)
     !!!  Return a column from a CSV file as a `real(wp)` vector.
     implicit none
-    class(csv),            intent(inout) :: this
-    integer(i4b),          intent(in)    :: icol  !! column number
+    class(csv),            intent(in)    :: this
+    class(*),              intent(in)    :: col         ! name:character or index:integer
     real(dp), allocatable, intent(out)   :: col_data(:)
-    integer(i4b),          intent(out)   :: istat  !! column number
+    integer(i4b),          intent(out)   :: istat
+    integer(i4b)                         :: icol        ! column number
 
     istat=0
+
+    select type (col)
+      type is (integer(i4b))
+       icol=col
+      type is (character(len=*))
+        call this%get_icol_by_name(col, icol, istat)
+    end select
 
     if (allocated(this%csv_data)) then
       allocate(col_data(this%nrows))  ! size the output vector
@@ -588,16 +634,23 @@ CONTAINS
 
   END SUBROUTINE get_real_dp_column
 
-  SUBROUTINE get_integer_column(this, icol, col_data, istat)
+  SUBROUTINE get_integer_column(this, col, col_data, istat)
     ! Return a column from a CSV file as a `integer(ip)` vector.
-
     implicit none
-    class(csv),               intent(inout) :: this
-    integer(i4b),             intent(in)    :: icol  !! column number
+    class(csv),               intent(in)    :: this
+    class(*),                 intent(in)    :: col         ! name:character or index:integer
     integer(i4b),allocatable, intent(out)   :: col_data(:)
-    integer(i4b),             intent(out)   :: istat  !! column number
+    integer(i4b),             intent(out)   :: istat
+    integer(i4b)                            :: icol        ! column number
 
     istat=0
+
+    select type (col)
+      type is (integer(i4b))
+       icol=col
+      type is (character(len=*))
+        call this%get_icol_by_name(col, icol, istat)
+    end select
 
     if (allocated(this%csv_data)) then
       allocate(col_data(this%nrows))  ! size the output vector
@@ -609,15 +662,23 @@ CONTAINS
 
   END SUBROUTINE get_integer_column
 
-  SUBROUTINE get_logical_column(this, icol, col_data, istat)
+  SUBROUTINE get_logical_column(this, col, col_data, istat)
     ! Convert a column from a `string_array` matrix to a `logical` vector.
     implicit none
-    class(csv),                intent(inout) :: this
-    integer(i4b),              intent(in)    :: icol  !! column number
+    class(csv),                intent(in)    :: this
+    class(*),                  intent(in)    :: col         ! name:character or index:integer
     logical(lgt), allocatable, intent(out)   :: col_data(:)
-    integer(i4b),              intent(out)   :: istat  !! column number
+    integer(i4b),              intent(out)   :: istat
+    integer(i4b)                             :: icol        ! column number
 
     istat=0
+
+    select type (col)
+      type is (integer(i4b))
+       icol=col
+      type is (character(len=*))
+        call this%get_icol_by_name(col, icol, istat)
+    end select
 
     if (allocated(this%csv_data)) then
       allocate(col_data(this%nrows))  ! size the output vector
@@ -629,15 +690,23 @@ CONTAINS
 
   END SUBROUTINE get_logical_column
 
-  SUBROUTINE get_character_column(this, icol, col_data, istat)
-    !  Convert a column from a `string_array` matrix to a `character(len=*)` vector.
+  SUBROUTINE get_character_column(this, col, col_data, istat)
+    ! Convert a column from a `string_array` matrix to a `character(len=*)` vector.
     implicit none
-    class(csv),                    intent(inout) :: this
-    integer(i4b),                  intent(in)    :: icol  !! column number
+    class(csv),                    intent(in)    :: this
+    class(*),                      intent(in)    :: col         ! name:character or index:integer
     character(len=*), allocatable, intent(out)   :: col_data(:)
-    integer(i4b),                  intent(out)   :: istat  !! column number
+    integer(i4b),                  intent(out)   :: istat
+    integer(i4b)                                 :: icol        ! column number
 
     istat=0
+
+    select type (col)
+      type is (integer(i4b))
+       icol=col
+      type is (character(len=*))
+        call this%get_icol_by_name(col, icol, istat)
+    end select
 
     if (allocated(this%csv_data)) then
       allocate(col_data(this%nrows))  ! size the output vector
@@ -649,15 +718,23 @@ CONTAINS
 
   END SUBROUTINE get_character_column
 
-  SUBROUTINE get_string_column(this, icol, col_data, istat)
+  SUBROUTINE get_string_column(this, col, col_data, istat)
     ! Convert a column from a `string_array` matrix to a `type(string_array)` vector.
     implicit none
-    class(csv),                    intent(inout) :: this
-    integer(i4b),                  intent(in)    :: icol  !! column number
+    class(csv),                      intent(in)    :: this
+    class(*),                        intent(in)    :: col         ! name:character or index:integer
     type(string_array), allocatable, intent(out)   :: col_data(:)
-    integer(i4b),                  intent(out)   :: istat  !! column number
+    integer(i4b),                    intent(out)   :: istat
+    integer(i4b)                                   :: icol        ! column number
 
     istat=0
+
+    select type (col)
+      type is (integer(i4b))
+       icol=col
+      type is (character(len=*))
+        call this%get_icol_by_name(col, icol, istat)
+    end select
 
     if (allocated(this%csv_data)) then
       allocate(col_data(this%nrows))  ! size the output vector
@@ -703,6 +780,24 @@ CONTAINS
     end do
 
   END SUBROUTINE split_csv_line
+
+  SUBROUTINE clean(this)
+    implicit none
+    type(csv), intent(inout) :: this
+    integer(i4b)              :: ierr
+    character(len=strLen)     :: message
+
+    if (allocated(this%header)) then
+      deallocate(this%header, stat=ierr, errmsg=message)
+    end if
+    if (allocated(this%dtype)) then
+      deallocate(this%dtype, stat=ierr, errmsg=message)
+    end if
+    if (allocated(this%csv_data)) then
+      deallocate(this%csv_data, stat=ierr, errmsg=message)
+    end if
+
+  END SUBROUTINE clean
 
  ! *********************************************************************
  ! private subroutine: split a string into sub-strings at delimiter
