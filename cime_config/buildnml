@@ -206,7 +206,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     ctl.set( "fname_state_in", fname_state_in )
 
     # Read in the user control file for the case and change settings to it
-    file_src = "user_ctl_mizuroute"
+    file_src = "user_nl_mizuroute_ctl"
     user_ctl_file = os.path.join(caseroot, file_src + inst_string)
     if ( not os.path.exists( user_ctl_file ) ):
        safe_copy( os.path.join( srcroot, "cime_config", file_src), user_ctl_file )
@@ -214,7 +214,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     usrctl.read( user_ctl_file, allowEmpty=True )
     for element in usrctl.get_elmList():
        value = ctl.get( element )
-       expect( value != "UNSET", "Element in the user_ctl_mizuroute file is NOT in the control file: "+element )
+       expect( value != "UNSET", "Element in the user_nl_mizuroute_ctl file is NOT in the control file: "+element )
        ctl.set( element, usrctl.get( element ) )
 
     #----------------------------------------------------
