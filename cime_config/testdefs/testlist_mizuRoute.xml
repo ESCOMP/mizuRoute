@@ -7,7 +7,7 @@
    <!-- 2-degree: f19_f19_mg17, f19_f19_mg17_rHDMA, f19_f19_mg17_rMERIT -->
    <!-- 1-degree: f09_f09_mg17, f09_f09_mg17_rHDMA, f09_f09_mg17_rMERIT -->
    <!-- half-degree: hcru_hcru_mt13, hcru_hcru_mt13_rMERIT, hcru_hcru_mt13_rHDMA -->
-   <!-- Machines: cheyennea and izumi   Compilers: intel, gnu, nag, pgi -->
+   <!-- Machines: cheyennea and izumi   Compilers: intel, gnu, nag, nvhpc -->
    <!-- Run course resolutions only on izumi, on cheyenne run all -->
    <!-- Test types: ERS, SMS, ERI, PEM, PFS DEBUG on and off -->
    <!-- NOTE: ERP tests are known NOT to work since the MPI task count must remain the same on restart -->
@@ -78,10 +78,10 @@
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
+      <machine name="cheyenne" compiler="nvhpc" category="mizu"></machine>
       <machine name="izumi"    compiler="intel" category="mizu"></machine>
       <machine name="izumi"    compiler="gnu"   category="mizu"></machine>
       <machine name="izumi"    compiler="nag"   category="mizu"></machine>
-      <machine name="izumi"    compiler="pgi"   category="mizu"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
