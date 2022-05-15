@@ -163,7 +163,7 @@ CONTAINS
  character(*),intent(out)             :: message     ! error message
  ! declare local variables
  integer(i4b)            :: iline                    ! loop through lines in the file
- integer(i4b),parameter  :: maxLines=1000            ! maximum number of valid lines in a file
+ integer(i4b),parameter  :: maxLines=50000           ! maximum number of valid lines in a file
  character(len=256)      :: temp                     ! character data or a given line
  integer(i4b)            :: icount                   ! counter for the valid lines
  integer(i4b)            :: iend                     ! index to indicate end of the file

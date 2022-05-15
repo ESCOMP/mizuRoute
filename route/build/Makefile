@@ -144,6 +144,7 @@ DATATYPES = \
     var_lookup.f90 \
     time_utils.f90 \
     datetime_data.f90 \
+    csv_data.f90 \
     globalData.f90 \
     popMetadat.f90 \
     allocation.f90
@@ -152,8 +153,8 @@ UTILS = \
     nr_utility.f90 \
     ncio_utils.f90 \
     mpi_utils.f90 \
-    pio_utils.f90 \
     model_utils.f90 \
+    pio_utils.f90 \
     gamma_func.f90
 # initialization
 INIT = \
