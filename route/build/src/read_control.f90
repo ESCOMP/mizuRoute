@@ -175,6 +175,9 @@ CONTAINS
    ! TIME
    case('<time_units>');           time_units = trim(cData)                            ! time units. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
    case('<calendar>');             calendar   = trim(cData)                            ! calendar name
+   ! GAUGE META
+   case('<gageMetaFile>');         gageMetaFile = trim(cData)                          ! name of csv file containing gauge metadata (gauge id, reach id, gauge lat/lon)
+   case('<gageOnlyOutput>');       read(cData,*,iostat=io_error) gageOnlyOutput        ! logical; T-> history file output at only gauge points
    ! MISCELLANEOUS
    case('<debug>');                read(cData,*,iostat=io_error) debug                 ! print out detailed information throught the probram
    case('<desireId>'   );          read(cData,*,iostat=io_error) desireId              ! turn off checks or speficy reach ID if necessary to print on screen

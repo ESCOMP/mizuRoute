@@ -20,6 +20,7 @@ USE globalData, ONLY: meta_struct    ! structure information
 USE globalData, ONLY: meta_dims      ! dimensions
 USE globalData, ONLY: meta_stateDims ! dimensions for routing states output
 USE globalData, ONLY: meta_qDims     ! dimensions for river discharge output
+USE globalData, ONLY: meta_qDims_gage! dimensions for river discharge output
 USE globalData, ONLY: meta_HRU       ! HRU properties
 USE globalData, ONLY: meta_HRU2SEG   ! HRU-to-segment mapping
 USE globalData, ONLY: meta_SEG       ! stream segment properties
@@ -105,6 +106,11 @@ contains
  meta_qDims(ixQdims%seg     ) = dim_info('seg',     integerMissing, integerMissing)   ! stream segment vector
  meta_qDims(ixQdims%hru     ) = dim_info('hru',     integerMissing, integerMissing)   ! hru vector
  meta_qDims(ixQdims%ens     ) = dim_info('ens',     integerMissing, integerMissing)   ! ensemble
+
+ meta_qDims_gage(ixQdims%time    ) = dim_info('time',    integerMissing, integerMissing)   ! time
+ meta_qDims_gage(ixQdims%seg     ) = dim_info('seg',     integerMissing, integerMissing)   ! stream segment vector
+ meta_qDims_gage(ixQdims%hru     ) = dim_info('hru',     integerMissing, integerMissing)   ! hru vector
+ meta_qDims_gage(ixQdims%ens     ) = dim_info('ens',     integerMissing, integerMissing)   ! ensemble
  ! ---------- populate metadata structures -----------------------------------------------------------------------------------------------------
 
  ! HRU                                          varName         varDesc                                                varUnit, varType, varFile

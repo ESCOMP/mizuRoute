@@ -12,6 +12,7 @@ MODULE globalData
   USE objTypes,  ONLY: var_info_new  ! metadata type - variable
 
   USE dataTypes, ONLY: infileinfo    ! data strture - information of input files
+  USE dataTypes, ONLY: gage          ! data structure - gauge metadata
 
   USE dataTypes, ONLY: RCHPRP        ! data structure - Reach parameters (properties)
   USE dataTypes, ONLY: RCHTOPO       ! data structure - Network topology
@@ -137,7 +138,8 @@ MODULE globalData
   type(struct_info),               public :: meta_struct(nStructures)   ! metadata on the data structures
   type(dim_info),                  public :: meta_dims(nDimensions)     ! metadata on the dimensions for network topology
   type(dim_info),                  public :: meta_stateDims(nStateDims) ! metadata on the dimensions for state variables
-  type(dim_info),                  public :: meta_qDims(nQdims)         ! metadata on the dimensions for state variables
+  type(dim_info),                  public :: meta_qDims(nQdims)         ! metadata on the dimensions for flux variables
+  type(dim_info),                  public :: meta_qDims_gage(nQdims)    ! metadata on the dimensions for flux variables
 
   ! ---------- metadata structures ------------------------------------------------------------------
 
@@ -157,6 +159,7 @@ MODULE globalData
   type(var_info_new),              public :: meta_dw     (nVarsDW     ) ! DW routing restart fluxes/states
 
   ! ---------- shared data structures ----------------------------------------------------------------------
+  type(gage),                      public :: gage_data              ! gauge metadata
 
   ! river topology and parameter structures
   type(RCHPRP),       allocatable, public :: RPARAM(:)              ! Reach Parameters for whole domain

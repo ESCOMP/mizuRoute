@@ -42,6 +42,13 @@ implicit none
   logical(lgt)           :: varFile  = .true.          ! .true. if the variable should be read from a file
  endtype var_info
 
+ ! ---------- gauge metadata structures --------------------------------------------------------------------------
+ type, public :: gage
+   integer(i4b)                   :: nGage
+   character(len=30), allocatable :: gageID(:)
+   integer(i4b),      allocatable :: reachID(:)
+ end type gage
+
  ! ---------- states structure --------------------------------------------------------------------------
  !
  type,public :: var

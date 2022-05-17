@@ -95,11 +95,14 @@ CONTAINS
   USE public_var, ONLY: ancil_dir
   USE public_var, ONLY: input_dir
   USE public_var, ONLY: param_nml
+  USE public_var, ONLY: gageMetaFile
+  USE public_var, ONLY: gageOnlyOutput
   ! subroutines: populate metadata
   USE popMetadat_module, ONLY: popMetadat       ! populate metadata
   ! subroutines: model control
   USE read_control_module, ONLY: read_control     ! read the control file
   USE read_param_module,   ONLY: read_param       ! read the routing parameters
+  USE process_gage_meta,   ONLY: read_gage_meta   ! process gauge metadata
 
   implicit none
   ! Argument variables
@@ -120,6 +123,12 @@ CONTAINS
   ! read the routing parameter namelist
   call read_param(trim(input_dir)//trim(param_nml),ierr,cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! read gauge metadata if specified in control file
+  if (gageOnlyOutput .and. trim(gageMetaFile)/=charMissing) then
+    call read_gage_meta(trim(ancil_dir)//trim(gageMetaFile),ierr,cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
 
  END SUBROUTINE init_model
 

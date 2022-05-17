@@ -1181,7 +1181,7 @@ CONTAINS
   USE globalData, ONLY: basinPrecip_trib  ! HRU precipitation holder for tributary
   USE public_var, ONLY: is_lake_sim       ! logical whether or not lake should be simulated
 
-
+  implicit none
   ! argument variables
   integer(i4b),           intent(in)      :: nNodes                    ! number of processes (MPI)
   integer(i4b),           intent(in)      :: comm                      ! communicator
@@ -1296,10 +1296,10 @@ CONTAINS
   USE public_var, ONLY: is_flux_wm        ! logical whether or not fluxes should be passed
   USE public_var, ONLY: is_vol_wm         ! logical whether or not target volume should be passed
 
-  ! input variables
+  implicit none
+  ! argument variables
   integer(i4b),           intent(in)  :: nNodes                          ! number of processes (MPI)
   integer(i4b),           intent(in)  :: comm                            ! communicator
-  ! output variables
   integer(i4b),           intent(out) :: ierr                            ! error code
   character(len=strLen),  intent(out) :: message                         ! error message
   ! local variables
