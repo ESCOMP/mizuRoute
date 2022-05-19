@@ -138,6 +138,7 @@ EXTINCLUDES =
 # data types
 DATATYPES = \
     nrtype.f90 \
+    nr_utility.f90 \
     ascii_util.f90 \
     public_var.f90 \
     dataTypes.f90 \
@@ -150,7 +151,6 @@ DATATYPES = \
     allocation.f90
 # define utilities
 UTILS = \
-    nr_utility.f90 \
     ncio_utils.f90 \
     mpi_utils.f90 \
     model_utils.f90 \
@@ -160,6 +160,7 @@ UTILS = \
 INIT = \
     network_topo.f90 \
     process_param.f90 \
+    process_gage_meta.f90 \
     process_ntopo.f90 \
     pfafstetter.f90 \
     domain_decomposition.f90
