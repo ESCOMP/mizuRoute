@@ -676,17 +676,21 @@ CONTAINS
       RCHFLX_main(iens, iSeg) = RCHFLX(iens, jSeg)
       RCHSTA_main(iens, iSeg) = RCHSTA(iens, jSeg)
     end do
-    do iSeg = 1,size(global_ix_comm)
-      jSeg = global_ix_comm(iSeg)
-      RCHFLX_main(iens, iSeg+nRch_mainstem) = RCHFLX(iens, jSeg)
-      RCHSTA_main(iens, iSeg+nRch_mainstem) = RCHSTA(iens, jSeg)
-    end do
+    if (multiProcs) then
+      do iSeg = 1,size(global_ix_comm)
+        jSeg = global_ix_comm(iSeg)
+        RCHFLX_main(iens, iSeg+nRch_mainstem) = RCHFLX(iens, jSeg)
+        RCHSTA_main(iens, iSeg+nRch_mainstem) = RCHSTA(iens, jSeg)
+      end do
+    end if
   else
     flux_global(:)  = realMissing
     if (onRoute(impulseResponseFunc)) then
       vol_global(:,:) = realMissing
     end if
   endif
+
+  if (.not. multiProcs) return
 
   ! Distribute global flux/state (RCHFLX & RCHSTA) to tributary (RCHFLX_trib & RCHSTA_trib)
   ! flux communication (only basin delayed runoff flux)
