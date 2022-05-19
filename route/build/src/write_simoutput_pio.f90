@@ -150,8 +150,6 @@ CONTAINS
     nRch_local = nRch_mainstem+rch_per_proc(0)
     allocate(RCHFLX_local(nRch_local), stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHFLX_local]'; return; endif
-    allocate(array_temp(nRch_local), stat=ierr, errmsg=cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [array_temp]'; return; endif
 
     if (nRch_mainstem>0) RCHFLX_local(1:nRch_mainstem) = RCHFLX_main(iens, 1:nRch_mainstem)
     if (rch_per_proc(0)>0) RCHFLX_local(nRch_mainstem+1:nRch_local) = RCHFLX_trib(iens,:)
@@ -159,11 +157,11 @@ CONTAINS
     nRch_local = rch_per_proc(pid)
     allocate(RCHFLX_local(nRch_local), stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHFLX_local]'; return; endif
-    allocate(array_temp(nRch_local), stat=ierr, errmsg=cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [array_temp]'; return; endif
-
     RCHFLX_local = RCHFLX_trib(iens,:)
   endif
+
+  allocate(array_temp(nRch_local), stat=ierr, errmsg=cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [array_temp]'; return; endif
 
   if (masterproc) then
     associate(nHRU_trib => hru_per_proc(0))
