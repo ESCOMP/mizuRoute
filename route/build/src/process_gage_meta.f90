@@ -68,13 +68,23 @@ MODULE process_gage_meta
       nGage = count(mask)
 
       if (nGage>0) then
-        allocate(compdof(nGage), index2(nGage))
-        compdof = pack(arth(1,1,gage_data_in%nGage), mask)
-        index2  = pack(index1, mask)
+        if (present(compdof)) then
+          allocate(compdof(nGage))
+          compdof = pack(arth(1,1,gage_data_in%nGage), mask)
+        end if
+        if (present(index2)) then
+          allocate(index2(nGage))
+          index2  = pack(index1, mask)
+        end if
       else
-        allocate(compdof(1))
-        compdof = 0
-        index2 = integerMissing
+        if (present(compdof)) then
+          allocate(compdof(1))
+          compdof = 0
+        end if
+        if (present(index2)) then
+          allocate(index2(1))
+          index2 = integerMissing
+        end if
       end if
 
     END SUBROUTINE reach_subset
