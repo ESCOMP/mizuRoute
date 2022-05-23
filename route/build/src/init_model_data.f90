@@ -268,9 +268,7 @@ CONTAINS
   USE globalData, ONLY: iTime             ! time index at simulation time step
   USE globalData, ONLY: endDatetime       ! model ending datetime
   USE globalData, ONLY: simDatetime       ! current model datetime
-  USE globalData, ONLY: isHistFileOpen    ! history file open/close status
-  ! external routine
-  USE write_simoutput_pio, ONLY: close_output_nc
+  USE write_simoutput_pio, ONLY: close_all
 
    implicit none
    ! Argument variables
@@ -283,7 +281,7 @@ CONTAINS
    ierr=0; message='update_time/'
 
    if (simDatetime(1)==endDatetime) then
-     call close_output_nc(isHistFileOpen)
+     call close_all()
      finished=.true.;return
    endif
 
