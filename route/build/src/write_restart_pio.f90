@@ -23,7 +23,6 @@ USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: integerMissing
 USE public_var,        ONLY: realMissing
 USE public_var,        ONLY: verySmall
-USE public_var,        ONLY: rpntfil           ! ascii containing last restart file (used in coupled mode)
 
 USE globalData,        ONLY: meta_stateDims  ! states dimension meta
 USE globalData,        ONLY: meta_irf_bas
@@ -45,7 +44,7 @@ USE globalData,        ONLY: pio_root
 USE globalData,        ONLY: pio_stride
 USE globalData,        ONLY: pioSystem
 USE globalData,        ONLY: runMode
-USE globalData,        ONLY: hfileout, rfileout
+USE globalData,        ONLY: rfileout
 
 USE nr_utility_module, ONLY: arth
 USE pio_utils
@@ -166,7 +165,7 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE restart_output(ierr, message)
 
-  USE public_var, ONLY: restart_dir
+  USE io_rpointfile, ONLY: io_rpfile
 
   implicit none
   ! output variables
@@ -186,12 +185,8 @@ CONTAINS
   call write_state_nc(rfileout, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  if (masterproc) then
-    open(1, file = trim(restart_dir)//trim(rpntfil), status='replace', action='write')
-    write(1,'(a)') trim(hfileout)
-    write(1,'(a)') trim(rfileout)
-    close(1)
-  end if
+  call io_rpfile('w', ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  END SUBROUTINE restart_output
 
