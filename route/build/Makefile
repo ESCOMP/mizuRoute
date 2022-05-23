@@ -139,6 +139,7 @@ EXTINCLUDES =
 DATATYPES = \
     nrtype.f90 \
     nr_utility.f90 \
+    pio_utils.f90 \
     ascii_util.f90 \
     public_var.f90 \
     dataTypes.f90 \
@@ -147,6 +148,7 @@ DATATYPES = \
     datetime_data.f90 \
     csv_data.f90 \
     globalData.f90 \
+    historyFile.f90 \
     popMetadat.f90 \
     allocation.f90
 # define utilities
@@ -154,7 +156,6 @@ UTILS = \
     ncio_utils.f90 \
     mpi_utils.f90 \
     model_utils.f90 \
-    pio_utils.f90 \
     gamma_func.f90
 # initialization
 INIT = \
@@ -174,6 +175,7 @@ IO = \
     standalone/read_runoff.f90 \
     standalone/get_basin_runoff.f90 \
     standalone/read_remap.f90 \
+    io_rpointfile.f90 \
     read_restart.f90 \
     write_restart_pio.f90 \
     write_simoutput_pio.f90
