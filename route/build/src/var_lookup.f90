@@ -192,7 +192,6 @@ MODULE var_lookup
  ! ***********************************************************************************************************
  ! Reach fluxes
  type, public  ::  iLook_RFLX
-  integer(i4b)     :: basRunoff         = integerMissing  ! basin runoff
   integer(i4b)     :: instRunoff        = integerMissing  ! instantaneous runoff in each reach
   integer(i4b)     :: dlayRunoff        = integerMissing  ! delayed runoff in each reac
   integer(i4b)     :: sumUpstreamRunoff = integerMissing  ! sum of upstream runoff in each reach
@@ -203,6 +202,10 @@ MODULE var_lookup
   integer(i4b)     :: IRFroutedRunoff   = integerMissing  ! IRF routed runoff in each reach
   integer(i4b)     :: volume            = integerMissing  ! water volume
  endtype iLook_RFLX
+ ! HRU fluxes
+ type, public  ::  iLook_HFLX
+  integer(i4b)     :: basRunoff         = integerMissing  ! basin runoff
+ endtype iLook_HFLX
  ! Reach inflow from basin
  type, public  ::  iLook_basinQ
   integer(i4b)     :: q              = integerMissing  ! final discharge
@@ -251,7 +254,8 @@ MODULE var_lookup
  type(iLook_SEG)      ,public,parameter :: ixSEG       = iLook_SEG      (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67)
  type(iLook_NTOPO)    ,public,parameter :: ixNTOPO     = iLook_NTOPO    (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20)
  type(iLook_PFAF)     ,public,parameter :: ixPFAF      = iLook_PFAF     (1)
- type(iLook_RFLX)     ,public,parameter :: ixRFLX      = iLook_RFLX     (1,2,3,4,5,6,7,8,9,10)
+ type(iLook_RFLX)     ,public,parameter :: ixRFLX      = iLook_RFLX     (1,2,3,4,5,6,7,8,9)
+ type(iLook_HFLX)     ,public,parameter :: ixHFLX      = iLook_HFLX     (1)
  type(iLook_basinQ)   ,public,parameter :: ixBasinQ    = iLook_basinQ   (1)
  type(iLook_IRFbas)   ,public,parameter :: ixIRFbas    = iLook_IRFbas   (1)
  type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      (1,2)
@@ -272,6 +276,7 @@ MODULE var_lookup
  integer(i4b),parameter,public    :: nVarsNTOPO   = storage_size(ixNTOPO    )/iLength
  integer(i4b),parameter,public    :: nVarsPFAF     = storage_size(ixPFAF    )/iLength
  integer(i4b),parameter,public    :: nVarsRFLX     = storage_size(ixRFLX    )/iLength
+ integer(i4b),parameter,public    :: nVarsHFLX     = storage_size(ixHFLX    )/iLength
  integer(i4b),parameter,public    :: nVarsKWT      = storage_size(ixKWT     )/iLength
  integer(i4b),parameter,public    :: nVarsKW       = storage_size(ixKW      )/iLength
  integer(i4b),parameter,public    :: nVarsDW       = storage_size(ixDW      )/iLength

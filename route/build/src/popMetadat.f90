@@ -28,6 +28,7 @@ USE globalData, ONLY: meta_NTOPO     ! network topology
 USE globalData, ONLY: meta_PFAF      ! pfafstetter code
 
 USE globalData, ONLY: meta_rflx      ! reach flux variables
+USE globalData, ONLY: meta_hflx      ! hru flux variables
 USE globalData, ONLY: meta_basinQ    ! reach inflow from basin
 USE globalData, ONLY: meta_irf_bas   ! within-basin irf routing fluxes and states
 USE globalData, ONLY: meta_irf       ! irf routing fluxes and states in a segment
@@ -48,6 +49,7 @@ USE var_lookup, ONLY: ixNTOPO    , nVarsNTOPO
 USE var_lookup, ONLY: ixPFAF     , nVarsPFAF
 
 USE var_lookup, ONLY: ixRFLX
+USE var_lookup, ONLY: ixHFLX
 USE var_lookup, ONLY: ixIRFbas
 USE var_lookup, ONLY: ixBasinQ
 USE var_lookup, ONLY: ixIRF
@@ -220,7 +222,6 @@ contains
 
  ! ---------- populate segment fluxes/state metadata structures -------------------------------------------------------------------------------------------------------------------
  ! Reach Flux                                  varName              varDesc                                                  unit,   varType,  varDim,                     writeOut
- call meta_rflx(ixRFLX%basRunoff        )%init('basRunoff'        , 'basin runoff'                                         , 'm/s' , pio_real, [ixQdims%hru,ixQdims%time], .true.)
  call meta_rflx(ixRFLX%instRunoff       )%init('instRunoff'       , 'instantaneous runoff in each reach'                   , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%dlayRunoff       )%init('dlayRunoff'       , 'delayed runoff in each reach'                         , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%sumUpstreamRunoff)%init('sumUpstreamRunoff', 'sum of upstream runoff in each reach'                 , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .false.)
@@ -231,6 +232,7 @@ contains
  call meta_rflx(ixRFLX%DWroutedRunoff   )%init('DWroutedRunoff'   , 'routed runoff in each reach-diffusive wave'           , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
  call meta_rflx(ixRFLX%volume           )%init('volume'           , 'lake and stream volume'                               , 'm3'  , pio_real, [ixQdims%seg,ixQdims%time], .true.)
 
+ call meta_hflx(ixHFLX%basRunoff        )%init('basRunoff'        , 'basin runoff'                                         , 'm/s' , pio_real, [ixQdims%hru,ixQdims%time], .true.)
  ! ---------- populate segment restart metadata structures -------------------------------------------------------------------------------------------------------------------
  ! Lagrangian Kinematic Wave
  call meta_kwt(ixKWT%tentry   )%init('tentry'   , 'time when a wave enters a segment'             , 's'   , pio_double, [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)

@@ -25,6 +25,7 @@ CONTAINS
  USE globalData, ONLY: meta_NTOPO              ! network topology
  USE globalData, ONLY: meta_PFAF               ! pfafstetter code
  USE globalData, ONLY: meta_rflx               ! river flux variables
+ USE globalData, ONLY: meta_hflx               ! river flux variables
  USE globalData, ONLY: nRoutes                 ! number of active routing methods
  USE globalData, ONLY: routeMethods            ! active routing method index and id
  USE globalData, ONLY: onRoute                 ! logical to indicate actiive routing method(s)
@@ -36,7 +37,8 @@ CONTAINS
  USE var_lookup, ONLY: ixSEG                   ! index of variables for data structure
  USE var_lookup, ONLY: ixNTOPO                 ! index of variables for data structure
  USE var_lookup, ONLY: ixPFAF                  ! index of variables for data structure
- USE var_lookup, ONLY: ixRFLX, nVarsRFLX       ! index of variables for data structure
+ USE var_lookup, ONLY: ixRFLX                  ! index of variables for data structure
+ USE var_lookup, ONLY: ixHFLX                  ! index of variables for data structure
  ! external subroutines
  USE ascii_util_module, ONLY: file_open        ! open file (performs a few checks as well)
  USE ascii_util_module, ONLY: get_vlines       ! get a list of character strings from non-comment lines
@@ -185,7 +187,7 @@ CONTAINS
    case('<maxPfafLen>');           read(cData,*,iostat=io_error) maxPfafLen            ! maximum digit of pfafstetter code (default 32)
    case('<pfafMissing>');          pfafMissing = trim(cData)                           ! missing pfafcode (e.g., reach without any upstream area)
    ! OUTPUT OPTIONS
-   case('<basRunoff>');            read(cData,*,iostat=io_error) meta_rflx(ixRFLX%basRunoff        )%varFile  ! default: true
+   case('<basRunoff>');            read(cData,*,iostat=io_error) meta_hflx(ixHFLX%basRunoff        )%varFile  ! default: true
    case('<instRunoff>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%instRunoff       )%varFile  ! default: false
    case('<dlayRunoff>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%dlayRunoff       )%varFile  ! default: false
    case('<sumUpstreamRunoff>');    read(cData,*,iostat=io_error) meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile  ! default: false

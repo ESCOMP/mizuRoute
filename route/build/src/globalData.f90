@@ -45,6 +45,7 @@ MODULE globalData
   USE var_lookup, ONLY: nVarsNTOPO   ! number of variables in data structure (river network topology)
   USE var_lookup, ONLY: nVarsPFAF    ! number of variables in data structure (pfaffstetter related variable)
   USE var_lookup, ONLY: nVarsRFLX    ! number of variables in data structure (river flux/state)
+  USE var_lookup, ONLY: nVarsHFLX    ! number of variables in data structure (HRU flux/state)
   USE var_lookup, ONLY: nVarsBasinQ  ! number of variables in data structure (restart vars for
   USE var_lookup, ONLY: nVarsIRFbas  ! number of variables in data structure (restart vars for overland unit-hydrograph routing)
   USE var_lookup, ONLY: nVarsIRF     ! number of variables in data structure (restart vars for unit-hydrograph routing)
@@ -101,6 +102,7 @@ MODULE globalData
   integer(i4b),                    public :: nEns=1                      ! number of ensemble
   type(cMolecule),                 public :: nMolecule                   ! number of computational molecule (used for KW, MC, DW)
   character(300),                  public :: hfileout=charMissing        ! name of the history output file
+  character(300),                  public :: hfileout_gage=charMissing   ! name of the gage-only history output file
   character(300),                  public :: rfileout=charMissing        ! name of the restart output file
 
   ! ---------- MPI/OMP/PIO variables ----------------------------------------------------------------
@@ -150,6 +152,7 @@ MODULE globalData
   type(var_info),                  public :: meta_NTOPO  (nVarsNTOPO  ) ! network topology
   type(var_info),                  public :: meta_PFAF   (nVarsPFAF   ) ! pfafstetter code
   type(var_info_new),              public :: meta_rflx   (nVarsRFLX   ) ! reach flux variables
+  type(var_info_new),              public :: meta_hflx   (nVarsHFLX   ) ! hru flux variables
   type(var_info_new),              public :: meta_basinQ (nVarsBasinQ ) ! reach inflow from basin
   type(var_info_new),              public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
   type(var_info_new),              public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
