@@ -4,7 +4,6 @@ MODULE historyFile
   USE dataTypes,         ONLY: STRFLX
   USE var_lookup,        ONLY: ixRFLX, nVarsRFLX
   USE var_lookup,        ONLY: ixHFLX, nVarsHFLX
-  USE public_var,        ONLY: integerMissing
   USE globalData,        ONLY: idxSUM,idxIRF,idxKWT, &
                                idxKW,idxMC,idxDW
   USE globalData,        ONLY: meta_rflx
@@ -32,7 +31,7 @@ MODULE historyFile
     integer(i4b)          :: iTime=0             ! time step in output netCDF
     logical(lgt)          :: fileStatus=.false.  ! flag to indicate history output netcdf is open
     logical(lgt)          :: gageOutput=.false.  ! flag to indicate this is at-gage-only output (== output subset of reaches)
-    type(iosystem_desc_t) :: pioSystem           ! PIO system
+    type(iosystem_desc_t) :: pioSystem           ! PIO system (this does not have to be initialize for each history file?)
     type(file_desc_t)     :: pioFileDesc         ! PIO data identifying the file
     type(io_desc_t)       :: ioDescRchFlux       ! PIO domain decomposition data for reach flux [nRch]
     type(io_desc_t)       :: ioDescHruFlux       ! PIO domain decomposition data for hru runoff [nHRU]
@@ -452,15 +451,11 @@ MODULE historyFile
       character(*),              intent(out)   :: message          ! error message
       ! local variables
       real(dp),    allocatable                 :: basinRunoff(:)
-      real(dp),    allocatable                 :: array_temp(:)
-      integer(i4b)                             :: ix
-      integer(i4b)                             :: nRch_write
       character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
       ierr=0; message='write_flux_hru/'
 
       if (meta_hflx(ixHFLX%basRunoff)%varFile) then
-
         call get_proc_flux(ierr, cmessage, basinRunoff=basinRunoff)
 
         ! write the basin runoff at HRU (unit: the same as runoff input)

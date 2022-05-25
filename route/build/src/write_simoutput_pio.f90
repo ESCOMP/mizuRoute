@@ -145,9 +145,7 @@ CONTAINS
    USE public_var, ONLY: gageOnlyOutput    ! ascii containing last restart and history files
    USE globalData, ONLY: iTime
    USE globalData, ONLY: timeVar
-   USE globalData, ONLY: hru_per_proc      ! number of hrus assigned to each proc (size = num of procs+1)
    USE globalData, ONLY: rch_per_proc      ! number of reaches assigned to each proc (size = num of procs+1)
-   USE globalData, ONLY: gage_data
    USE nr_utility_module, ONLY: arth
 
    implicit none
@@ -161,6 +159,7 @@ CONTAINS
 
    ierr=0; message='output/'
 
+   ! need index array for all network output [1,2,...,nRch-1, nRch_local]
    if (masterproc) then
      nRch_local = sum(rch_per_proc(-1:pid))
      allocate(index_write_all(nRch_local))
@@ -274,7 +273,6 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE get_hfilename(inDatetime, ierr, message)
 
-   ! saved public variables (usually parameters, or values not modified)
    USE public_var, ONLY: output_dir        ! output directory
    USE public_var, ONLY: case_name         ! simulation name ==> output filename head
    USE public_var, ONLY: gageOnlyOutput    ! ascii containing last restart and history files
