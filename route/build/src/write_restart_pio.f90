@@ -220,7 +220,7 @@ CONTAINS
    type(datetime)                       :: restartTimeStamp ! datetime corresponding to file name time stamp
    character(len=strLen)                :: cmessage         ! error message of downwind routine
    integer(i4b)                         :: sec_in_day       ! second within day
-   character(len=50),parameter          :: fmtYMDHMS = '(2a,I0.4,a,I0.2,a,I0.2,x,I0.2,a,I0.2,a,I0.2)'
+   character(len=50),parameter          :: fmtYMDHMS = '(2a,I0.4,a,I0.2,a,I0.2,1x,I0.2,a,I0.2,a,I0.2)'
    character(len=50),parameter          :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
 
    ierr=0; message='restart_fname/'

@@ -9,6 +9,7 @@ MODULE mpi_utils
   USE globalData, ONLY: masterproc
   USE public_var, ONLY: root
   USE public_var, ONLY: iulog
+  USE shr_sys_mod,ONLY: shr_sys_flush
 
   implicit none
 
@@ -786,7 +787,7 @@ CONTAINS
     integer(i4b)                :: jerr
 
     write(iulog,*) trim(subName),trim(message),ierr
-    call flush(6)
+    call shr_sys_flush(6)
 
     if (present(comm)) then
       call MPI_ABORT(comm, ierr, jerr)
@@ -824,7 +825,7 @@ CONTAINS
 
       ! finalize MPI
       call MPI_FINALIZE(jerr)
-      call flush(6)
+      call shr_sys_flush(6)
       stop
     endif
 

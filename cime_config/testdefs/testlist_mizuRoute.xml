@@ -3,16 +3,17 @@
 
    <!-- Test list: Need to test all mizuRoute grids: course: r05mz, 5x5_amazon_r05, 5x5_amazon_rHDMA    -->
    <!-- CONUS grids: nldas2_rUSGS_mnldas2, nldas2_rHDMA_mnldas2, nldas2_rMERIT_mnldas2 -->
-   <!--       NOTE: nldas grids have toruble runnign with DEBUG on see cdeps issue 143 -->
+   <!--       NOTE: nldas grids have trouble running with DEBUG on see cdeps issue 143 -->
    <!-- 2-degree: f19_f19_mg17, f19_f19_mg17_rHDMA, f19_f19_mg17_rMERIT -->
    <!-- 1-degree: f09_f09_mg17, f09_f09_mg17_rHDMA, f09_f09_mg17_rMERIT -->
    <!-- half-degree: hcru_hcru_mt13, hcru_hcru_mt13_rMERIT, hcru_hcru_mt13_rHDMA -->
-   <!-- Machines: cheyennea and izumi   Compilers: intel, gnu, nag, pgi -->
+   <!-- Machines: cheyennea and izumi   Compilers: intel, gnu, nag, nvhpc -->
    <!-- Run course resolutions only on izumi, on cheyenne run all -->
    <!-- Test types: ERS, SMS, ERI, PEM, PFS DEBUG on and off -->
    <!-- NOTE: ERP tests are known NOT to work since the MPI task count must remain the same on restart -->
    <!--       ERP tests with only threads can work hoeever -->
    <!--       PEM tests seem to need to be at least 10 days in length (see #239) -->
+   <!--       USFS grid fails currently (see #273) -->
    <!-- MPI: mpi-serial and regular as well as some threaded -->
    <!-- Short tests: minimum 1-day    Longer tests: a year to two, good to do past year boundary -->
    <!-- compsets: I2000Clm50SpMizGs -->
@@ -46,6 +47,7 @@
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
       <machine name="izumi"    compiler="intel" category="mizu"></machine>
+      <machine name="cheyenne" compiler="nvhpc" category="mizu"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
@@ -56,7 +58,6 @@
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
-      <machine name="izumi"    compiler="nag"   category="mizu"></machine>
     </machines>
     <options>
       <option name="wallclock">00:40:00</option>
@@ -80,7 +81,6 @@
       <machine name="izumi"    compiler="intel" category="mizu"></machine>
       <machine name="izumi"    compiler="gnu"   category="mizu"></machine>
       <machine name="izumi"    compiler="nag"   category="mizu"></machine>
-      <machine name="izumi"    compiler="pgi"   category="mizu"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
@@ -104,7 +104,17 @@
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
-      <option name="comment"  >Exact restart test changing number of threads on restart on small regional grid </option>
+      <option name="comment"  >Exact restart test changing number of threads on restart on small regional grid (not MPI) currerntly fails on izumi</option>
+    </options>
+  </test>
+  <test name="SMS_D_P5x5" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+    <machines>
+      <machine name="cheyenne" compiler="intel" category="mizu"></machine>
+      <machine name="izumi"    compiler="intel" category="mizu"></machine>
+    </machines>
+    <options>
+      <option name="wallclock">00:20:00</option>
+      <option name="comment"  >Threaded small region test with DEBUG on to make sure threading works (remove when P1x25 test works on izumi)</option>
     </options>
   </test>
 
@@ -116,19 +126,7 @@
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
-      <option name="comment"  >Smoke test on CONUS regional grid with DEBUG on</option>
-    </options>
-  </test>
-  <test name="ERS" grid="nldas2_rUSGS_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
-    <machines>
-      <machine name="cheyenne" compiler="intel" category="mizu"></machine>
-      <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
-      <machine name="izumi"    compiler="intel" category="mizu"></machine>
-      <machine name="izumi"    compiler="nag"   category="mizu"></machine>
-    </machines>
-    <options>
-      <option name="wallclock">00:20:00</option>
-      <option name="comment"  >Exact restart test on CONUS regional grid with DEBUG off</option>
+      <option name="comment"  >Smoke test on CONUS regional grid with DEBUG on (only one test since this fails)</option>
     </options>
   </test>
   <test name="ERI" grid="nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">

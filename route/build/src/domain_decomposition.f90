@@ -112,11 +112,11 @@ CONTAINS
       associate (segIndexSub => domains_mpi(ix)%segIndex, nSubSeg => size(domains_mpi(ix)%segIndex))
       do iSeg = 1,size(segIndexSub)
        if (downIndex(segIndexSub(iSeg)) > 0) then
-       write(iulog, "(I9,x,I12,x,I9,x,I12,x,I5,x,I3)") segIndexSub(iSeg),segId(segIndexSub(iSeg)), &
+       write(iulog, "(I9,1x,I12,1x,I9,1x,I12,1x,I5,1x,I3)") segIndexSub(iSeg),segId(segIndexSub(iSeg)), &
                                                   downIndex(segIndexSub(iSeg)),segId(downIndex(segIndexSub(iSeg))), &
                                                   ix, domains_mpi(ix)%idNode
        else
-       write(iulog, "(I9,x,I12,x,I9,x,I12,x,I5,x,I3)") segIndexSub(iSeg),segId(segIndexSub(iSeg)), &
+       write(iulog, "(I9,1x,I12,1x,I9,1x,I12,1x,I5,1x,I3)") segIndexSub(iSeg),segId(segIndexSub(iSeg)), &
                                                   downIndex(segIndexSub(iSeg)),-999, &
                                                   ix, domains_mpi(ix)%idNode
        endif

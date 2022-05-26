@@ -92,7 +92,7 @@ CONTAINS
 
    ! print progress
    if (masterproc) then
-     write(iulog,'(a,I4,4(x,I4))') new_line('a'), simDatetime(1)%year(), simDatetime(1)%month(), simDatetime(1)%day(), simDatetime(1)%hour(), simDatetime(1)%minute()
+     write(iulog,'(a,I4,4(1x,I4))') new_line('a'), simDatetime(1)%year(), simDatetime(1)%month(), simDatetime(1)%day(), simDatetime(1)%hour(), simDatetime(1)%minute()
    endif
 
    ! check need for the new file

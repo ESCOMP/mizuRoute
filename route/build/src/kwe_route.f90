@@ -185,10 +185,10 @@ CONTAINS
    if (nUps>0) then
      do iUps = 1,nUps
        iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-       write(iulog,'(A,X,I12,X,G15.4)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, iRch_ups)%ROUTE(idxKW)%REACH_Q
+       write(iulog,'(A,1X,I12,1X,G15.4)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, iRch_ups)%ROUTE(idxKW)%REACH_Q
      enddo
    end if
-   write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+   write(iulog,'(A,1X,G15.4)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
  endif
 
  ! perform river network KW routing
@@ -201,11 +201,11 @@ CONTAINS
                      doCheck,                            & ! input: reach index to be examined
                      ierr, cmessage)                       ! output: error control
  if(ierr/=0)then
-   write(message, '(A,X,I12,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage); return
+   write(message, '(A,1X,I12,1X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage); return
  endif
 
  if(doCheck)then
-   write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_Q
+   write(iulog,'(A,1X,G15.4)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_Q
  endif
 
  END SUBROUTINE kw_rch
@@ -291,8 +291,8 @@ CONTAINS
    Q(1,0) = q_upstream
 
    if (doCheck) then
-     write(iulog,'(3(A,X,G12.5))') ' R_SLOPE=',rch_param%R_SLOPE,' R_WIDTH=',rch_param%R_WIDTH,' R_MANN=',rch_param%R_MAN_N
-     write(iulog,'(3(A,X,G12.5))') ' Q(0,0)=',Q(0,0),' Q(0,1)=',Q(0,1),' Q(1,0)=',Q(1,0)
+     write(iulog,'(3(A,1X,G12.5))') ' R_SLOPE=',rch_param%R_SLOPE,' R_WIDTH=',rch_param%R_WIDTH,' R_MANN=',rch_param%R_MAN_N
+     write(iulog,'(3(A,1X,G12.5))') ' Q(0,0)=',Q(0,0),' Q(0,1)=',Q(0,1),' Q(1,0)=',Q(1,0)
    end if
 
    ! ----------
@@ -333,7 +333,7 @@ CONTAINS
    endif
 
    if (doCheck) then
-     write(iulog,'(1(A,X,G15.4))') ' Q(1,1)=',Q(1,1)
+     write(iulog,'(1(A,1X,G15.4))') ' Q(1,1)=',Q(1,1)
    end if
 
  else ! if head-water
@@ -343,7 +343,7 @@ CONTAINS
 
    if (doCheck) then
      write(iulog,'(A)')            ' This is headwater '
-     write(iulog,'(1(A,X,G15.4))') ' Q(1,1)=',Q(1,1)
+     write(iulog,'(1(A,1X,G15.4))') ' Q(1,1)=',Q(1,1)
    endif
 
  endif

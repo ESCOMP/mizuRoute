@@ -183,10 +183,10 @@ CONTAINS
    if (nUps>0) then
      do iUps = 1,nUps
        iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-       write(iulog,'(A,X,I6,X,G12.5)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, iRch_ups)%ROUTE(idxMC)%REACH_Q
+       write(iulog,'(A,1X,I6,1X,G12.5)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, iRch_ups)%ROUTE(idxMC)%REACH_Q
      enddo
    end if
-   write(iulog,'(A,X,G12.5)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+   write(iulog,'(A,1X,G12.5)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
  endif
 
  ! solve muskingum-cunge alogorithm
@@ -199,11 +199,11 @@ CONTAINS
                       doCheck,                            & ! input: reach index to be examined
                       ierr, cmessage)                       ! output: error control
  if(ierr/=0)then
-   write(message, '(A,X,I10,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage); return
+   write(message, '(A,1X,I10,1X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage); return
  endif
 
  if(doCheck)then
-   write(iulog,'(A,X,G12.5)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_Q
+   write(iulog,'(A,1X,G12.5)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_Q
  endif
 
  END SUBROUTINE mc_rch
@@ -232,6 +232,7 @@ CONTAINS
  ! state array:
  ! (time:0:1, loc:0:1) 0-previous time step/inlet, 1-current time step/outlet.
  ! Q or A(1,2,3,4): 1: (t=0,x=0), 2: (t=0,x=1), 3: (t=1,x=0), 4: (t=1,x=1)
+ USE shr_infnan_mod, ONLY: isnan => shr_infnan_isnan
 
  implicit none
  ! Argument variables
@@ -289,8 +290,8 @@ CONTAINS
    Q(1,0) = q_upstream
 
    if (doCheck) then
-     write(iulog,'(4(A,X,G12.5))') ' length [m] =',rch_param%RLENGTH,'slope [-] =',rch_param%R_SLOPE,'channel width [m] =',rch_param%R_WIDTH,'manning coef =',rch_param%R_MAN_N
-     write(iulog,'(3(A,X,G12.5))') ' Qin(t-1) Q(0,0)=',Q(0,0),' Qin(t) Q(0,1)=',Q(0,1),' Qout(t-1) Q(1,0)=',Q(1,0)
+     write(iulog,'(4(A,1X,G12.5))') ' length [m] =',rch_param%RLENGTH,'slope [-] =',rch_param%R_SLOPE,'channel width [m] =',rch_param%R_WIDTH,'manning coef =',rch_param%R_MAN_N
+     write(iulog,'(3(A,1X,G12.5))') ' Qin(t-1) Q(0,0)=',Q(0,0),' Qin(t) Q(0,1)=',Q(0,1),' Qout(t-1) Q(1,0)=',Q(1,0)
    end if
 
    ! first, using 3-point average in computational molecule, check Cournat number is less than 1, otherwise subcycle within one time step
@@ -308,7 +309,7 @@ CONTAINS
      dTsub = dt/ntSub
    end if
    if (doCheck) then
-     write(iulog,'(A,X,I3,A,X,G12.5)') ' No. sub timestep=',nTsub,' sub time-step [sec]=',dTsub
+     write(iulog,'(A,1X,I3,A,1X,G12.5)') ' No. sub timestep=',nTsub,' sub time-step [sec]=',dTsub
    end if
 
    allocate(QoutLocal(0:ntSub), QinLocal(0:ntSub), stat=ierr, errmsg=cmessage)
@@ -341,7 +342,7 @@ CONTAINS
      end if
 
      if (doCheck) then
-       write(iulog,'(A,I3,X,A,G12.5,X,A,G12.5)') '   sub time-step= ',ix,'Courant number= ',Cn, 'Q= ',QoutLocal(ix)
+       write(iulog,'(A,I3,1X,A,G12.5,1X,A,G12.5)') '   sub time-step= ',ix,'Courant number= ',Cn, 'Q= ',QoutLocal(ix)
      end if
    end do
 
@@ -367,7 +368,7 @@ CONTAINS
  rflux%ROUTE(idxMC)%REACH_Q = Q(1,1)+rflux%BASIN_QR(1)
 
  if (doCheck) then
-   write(iulog,'(A,X,G12.5)') ' Qout(t)=',Q(1,1)
+   write(iulog,'(A,1X,G12.5)') ' Qout(t)=',Q(1,1)
  endif
 
  ! save inflow (index 1) and outflow (index 2) at current time step

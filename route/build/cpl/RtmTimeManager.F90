@@ -82,7 +82,9 @@ CONTAINS
     case('hours','hour','hr','h');      secPerTime=3600._r8;  timePerDay=24._r8
     case('days','day','d');             secPerTime=86400._r8; timePerDay=1._r8
     case default
-      ierr=20; message=trim(message)//'<time_units>= '//trim(time_units)//': <time_units> must be seconds, minutes, hours or days.'; return
+      ierr=20
+      message=trim(message)//'<time_units>= '//trim(time_units)//': <time_units> must be seconds, minutes, hours or days.'
+      return
   end select
 
   dt_day = dt/secprday  ! dt [sec] -> dt_day
@@ -122,7 +124,11 @@ CONTAINS
   end if
 
   ! check that the dates are aligned
-  if(endDatetime < begDatetime) then; ierr=20; message=trim(message)//'simulation end is before simulation start'; return; endif
+  if(endDatetime < begDatetime) then
+     ierr=20
+     message=trim(message)//'simulation end is before simulation start'
+     return
+  endif
 
   ! initialize model time at first time step (1) and previous time step (0)
   iTime = 1
@@ -132,8 +138,10 @@ CONTAINS
   if (masterproc .and. debug_write) then
     write(iulog,*) 'simStart datetime     = ', trim(simStart)
     write(iulog,*) 'simEnd   datetime     = ', trim(simEnd)
-    write(iulog,*) 'reference datetime    = ', refDatetime%year(), refDatetime%month(), refDatetime%day(), refDatetime%hour(), refDatetime%minute(), refDatetime%sec()
-    write(iulog,*) 'simDatetime           = ', simDatetime(1)%year(), simDatetime(1)%month(), simDatetime(1)%day(), simDatetime(1)%hour(), simDatetime(1)%minute(), simDatetime(1)%sec()
+    write(iulog,*) 'reference datetime    = ', refDatetime%year(), refDatetime%month(), refDatetime%day() &
+                                             , refDatetime%hour(), refDatetime%minute(), refDatetime%sec()
+    write(iulog,*) 'simDatetime           = ', simDatetime(1)%year(), simDatetime(1)%month(), simDatetime(1)%day() &
+                                             , simDatetime(1)%hour(), simDatetime(1)%minute(), simDatetime(1)%sec()
     write(iulog,*) 'dt [sec]              = ', dt
     write(iulog,*) 'nTime                 = ', nTime
     write(iulog,*) 'iTime, timeVar(iTime) = ', iTime, timeVar(iTime)
@@ -158,7 +166,7 @@ CONTAINS
 
    call ESMF_TimeGet(esmfTime , yy=yy, mm=mm, dd=dd, h=hr, m=mn, s=sec, rc=rc )
 
-   write(timeStr,'(i4.4,a,i2.2,a,i2.2,a,i2.2,a,i2.2,a,i2.2)'), yy,'-',mm,'-',dd,' ',hr,':',mn,':',sec
+   write(timeStr,'(i4.4,a,i2.2,a,i2.2,a,i2.2,a,i2.2,a,i2.2)') yy,'-',mm,'-',dd,' ',hr,':',mn,':',sec
 
  END SUBROUTINE shr_timeStr
 

@@ -164,13 +164,13 @@ CONTAINS
    write(fmt1,'(A,I5,A)') '(A,1X',nUps,'(1X,I10))'
    write(fmt2,'(A,I5,A)') '(A,1X',nUps,'(1X,F20.7))'
    write(*,'(2a)') new_line('a'),'** Check upstream discharge accumulation **'
-   write(*,'(a,x,I10,x,I10)') ' Reach index & ID =', segIndex, NETOPO_in(segIndex)%REACHID
+   write(*,'(a,1x,I10,1x,I10)') ' Reach index & ID =', segIndex, NETOPO_in(segIndex)%REACHID
    write(*,'(a)')             ' * upstream reach index (NETOPO_in%UREACH) and discharge (uprflux) [m3/s] :'
    write(*,fmt1)              ' UREACHK =', (NETOPO_in(segIndex)%UREACHK(iUps), iUps=1,nUps)
    write(*,fmt2)              ' prflux  =', (RCHFLX_out(iens,NETOPO_in(segIndex)%UREACHI(iUps))%ROUTE(idxSUM)%REACH_Q, iUps=1,nUps)
    write(*,'(a)')             ' * local area discharge (RCHFLX_out%BASIN_QR(1)) and final discharge (RCHFLX_out%ROUTE(idxSUM)%REACH_Q) [m3/s] :'
-   write(*,'(a,x,F15.7)')     ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
-   write(*,'(a,x,F15.7)')     ' RCHFLX_out%ROUTE(idxSUM)%REACH_Q =', RCHFLX_out(iens,segIndex)%ROUTE(idxSUM)%REACH_Q
+   write(*,'(a,1x,F15.7)')     ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+   write(*,'(a,1x,F15.7)')     ' RCHFLX_out%ROUTE(idxSUM)%REACH_Q =', RCHFLX_out(iens,segIndex)%ROUTE(idxSUM)%REACH_Q
  endif
 
  END SUBROUTINE accum_qupstream
