@@ -1,7 +1,7 @@
 MODULE io_rpointfile
 
 USE nrtype
-USE public_var,  ONLY: gageOnlyOutput           ! ascii containing last restart and history files
+USE public_var,  ONLY: gageOutput           ! ascii containing last restart and history files
 USE public_var,  ONLY: restart_dir              ! restart directory
 USE public_var,  ONLY: rpntfil                  !
 USE globalData,  ONLY: masterproc
@@ -34,7 +34,7 @@ CONTAINS
           open(1, file = trim(restart_dir)//trim(rpntfil), status='replace', action='write')
           write(1,'(a)') trim(rfileout)
           write(1,'(a)') trim(hfileout)
-          if (gageOnlyOutput) then
+          if (gageOutput) then
             write(1,'(a)') trim(hfileout_gage)
           end if
           close(1)
@@ -43,7 +43,7 @@ CONTAINS
         open(1, file = trim(restart_dir)//trim(rpntfil), status='old', action='read')
         read(1, '(A)') rfileout
         read(1, '(A)') hfileout
-        if (gageOnlyOutput) then
+        if (gageOutput) then
           read(1, '(A)') hfileout_gage
         end if
         close(1)

@@ -154,7 +154,7 @@ module public_var
   character(len=strLen),public    :: param_nml            = ''              ! name of the namelist file
   ! GAUGE METADATA
   character(len=strLen),public    :: gageMetaFile         = charMissing     ! name of the gauge metadata csv
-  logical(lgt),public             :: gageOnlyOutput       = .false.         ! logical; T-> history file output at only gauge points
+  logical(lgt),public             :: gageOutput           = .false.         ! logical; T-> history file output at only gauge points
   ! COMPUTATION OPTION
   integer(i4b)         ,public    :: hydGeometryOption    = compute         ! option for hydraulic geometry calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: topoNetworkOption    = compute         ! option for network topology calculations (0=read from file, 1=compute)

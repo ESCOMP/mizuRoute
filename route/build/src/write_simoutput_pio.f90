@@ -32,7 +32,7 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE main_new_file(ierr, message)
 
-    USE public_var, ONLY: gageOnlyOutput
+    USE public_var, ONLY: gageOutput
     USE public_var, ONLY: newFileFrequency  ! frequency for new output files (day, month, annual, single)
     USE globalData, ONLY: simDatetime       ! previous and current model time
     USE globalData, ONLY: reachID           !
@@ -79,7 +79,7 @@ CONTAINS
       call hist_all_network%write_loc(reachID, basinID, ierr, message)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-      if (gageOnlyOutput) then
+      if (gageOutput) then
         hist_gage = histFile(hfileout_gage, runMode, gageOutput=.true.)
 
         call get_compdof_gage(compdof_rch_gage, ierr, cmessage)
@@ -142,7 +142,7 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE output(ierr, message)
 
-   USE public_var, ONLY: gageOnlyOutput    ! ascii containing last restart and history files
+   USE public_var, ONLY: gageOutput        ! ascii containing last restart and history files
    USE globalData, ONLY: iTime
    USE globalData, ONLY: timeVar
    USE globalData, ONLY: rch_per_proc      ! number of reaches assigned to each proc (size = num of procs+1)
@@ -173,7 +173,7 @@ CONTAINS
    call hist_all_network%write_flux(timeVar(iTime), index_write_all, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   if (gageOnlyOutput) then
+   if (gageOutput) then
      call hist_gage%write_flux(timeVar(iTime), index_write_gage, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
@@ -275,7 +275,7 @@ CONTAINS
 
    USE public_var, ONLY: output_dir        ! output directory
    USE public_var, ONLY: case_name         ! simulation name ==> output filename head
-   USE public_var, ONLY: gageOnlyOutput    ! ascii containing last restart and history files
+   USE public_var, ONLY: gageOutput    ! ascii containing last restart and history files
 
    implicit none
    ! argument variables
@@ -295,14 +295,14 @@ CONTAINS
        write(hfileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuroute.h.', &
                              inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day,'.nc'
 
-       if (gageOnlyOutput) then
+       if (gageOutput) then
          write(hfileout_gage, fmtYMDS) trim(output_dir)//trim(case_name)//'_gauge.mizuroute.h.', &
                                     inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day,'.nc'
        end if
      case('standalone')
        write(hfileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.h.', &
                              inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day,'.nc'
-       if (gageOnlyOutput) then
+       if (gageOutput) then
          write(hfileout_gage, fmtYMDS) trim(output_dir)//trim(case_name)//'_gauge.h.', &
                                     inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day,'.nc'
        end if
@@ -331,7 +331,7 @@ CONTAINS
 
    USE globalData,  ONLY: nHRU, nRch        ! number of HRUs and river reaches
    USE globalData,  ONLY: gage_data
-   USE public_var,  ONLY: gageOnlyOutput    ! ascii containing last restart and history files
+   USE public_var,  ONLY: gageOutput    ! ascii containing last restart and history files
 
    implicit none
    ! argument variables
@@ -359,7 +359,7 @@ CONTAINS
 
    call hist_all_network%set_compdof(compdof_rch, compdof_hru, nRch, nHRU)
 
-   if (gageOnlyOutput) then
+   if (gageOutput) then
      hist_gage = histFile(hfileout_gage, runMode, gageOutput=.true.)
 
      call hist_gage%openNC(ierr, message)

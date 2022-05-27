@@ -96,7 +96,7 @@ CONTAINS
   USE public_var, ONLY: input_dir
   USE public_var, ONLY: param_nml
   USE public_var, ONLY: gageMetaFile
-  USE public_var, ONLY: gageOnlyOutput
+  USE public_var, ONLY: gageOutput
   ! subroutines: populate metadata
   USE popMetadat_module, ONLY: popMetadat       ! populate metadata
   ! subroutines: model control
@@ -125,7 +125,7 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! read gauge metadata if specified in control file
-  if (gageOnlyOutput .and. trim(gageMetaFile)/=charMissing) then
+  if (gageOutput .and. trim(gageMetaFile)/=charMissing) then
     call read_gage_meta(trim(ancil_dir)//trim(gageMetaFile),ierr,cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if
