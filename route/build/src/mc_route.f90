@@ -50,8 +50,8 @@ CONTAINS
    integer(i4b),       intent(in)                 :: ixDesire             ! index of the reach for verbose output
    type(RCHTOPO),      intent(in),    allocatable :: NETOPO_in(:)         ! River Network topology
    type(RCHPRP),       intent(in),    allocatable :: RPARAM_in(:)         ! River reach parameter
-   type(STRSTA),       intent(inout), allocatable :: RCHSTA_out(:,:)      ! reach state data
-   type(STRFLX),       intent(inout), allocatable :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+   type(STRSTA),       intent(inout)              :: RCHSTA_out(:,:)      ! reach state data
+   type(STRFLX),       intent(inout)              :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
    integer(i4b),       intent(out)                :: ierr                 ! error code
    character(*),       intent(out)                :: message              ! error message
    integer(i4b),       intent(in), optional       :: ixSubRch(:)          ! subset of reach indices to be processed
@@ -146,8 +146,8 @@ CONTAINS
  real(dp),      intent(in)                 :: T0,T1             ! start and end of the time step (seconds)
  type(RCHTOPO), intent(in),    allocatable :: NETOPO_in(:)      ! River Network topology
  type(RCHPRP),  intent(in),    allocatable :: RPARAM_in(:)      ! River reach parameter
- type(STRSTA),  intent(inout), allocatable :: RCHSTA_out(:,:)   ! reach state data
- type(STRFLX),  intent(inout), allocatable :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+ type(STRSTA),  intent(inout)              :: RCHSTA_out(:,:)   ! reach state data
+ type(STRFLX),  intent(inout)              :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  integer(i4b),  intent(out)                :: ierr              ! error code
  character(*),  intent(out)                :: message           ! error message
  ! Local variables
@@ -273,6 +273,7 @@ CONTAINS
  Q(0,0) = rstate%molecule%Q(1) ! inflow at previous time step (t-1)
  Q(0,1) = rstate%molecule%Q(2) ! outflow at previous time step (t-1)
  Q(1,1) = realMissing
+ dt = T1-T0
 
  if (.not. isHW) then
 
@@ -282,7 +283,6 @@ CONTAINS
    alpha = sqrt(rch_param%R_SLOPE)/(rch_param%R_MAN_N*rch_param%R_WIDTH**(2._dp/3._dp))
    beta  = 5._dp/3._dp
    dx = rch_param%RLENGTH
-   dt = T1-T0
    theta = dt/dx     ! [s/m]
 
    ! compute total flow rate and flow area at upstream end at current time step

@@ -51,8 +51,8 @@ CONTAINS
    integer(i4b),       intent(in)                 :: ixDesire             ! index of the reach for verbose output
    type(RCHTOPO),      intent(in),    allocatable :: NETOPO_in(:)         ! River Network topology
    type(RCHPRP),       intent(in),    allocatable :: RPARAM_in(:)         ! River reach parameter
-   type(STRSTA),       intent(inout), allocatable :: RCHSTA_out(:,:)      ! reach state data
-   type(STRFLX),       intent(inout), allocatable :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+   type(STRSTA),       intent(inout)              :: RCHSTA_out(:,:)      ! reach state data
+   type(STRFLX),       intent(inout)              :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
    integer(i4b),       intent(out)                :: ierr                 ! error code
    character(*),       intent(out)                :: message              ! error message
    integer(i4b),       intent(in), optional       :: ixSubRch(:)          ! subset of reach indices to be processed
@@ -207,8 +207,8 @@ CONTAINS
    type(RCHTOPO),intent(in),    allocatable    :: NETOPO_in(:)  ! River Network topology
    type(RCHPRP), intent(in),    allocatable    :: RPARAM_in(:)  ! River reach parameter
    integer(i4b), intent(in), optional          :: RSTEP         ! retrospective time step offset
-   type(STRSTA), intent(inout), allocatable    :: RCHSTA_out(:,:) ! reach state data
-   type(STRFLX), intent(inout), allocatable    :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+   type(STRSTA), intent(inout)                 :: RCHSTA_out(:,:) ! reach state data
+   type(STRFLX), intent(inout)                 :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
    integer(i4b), intent(out)                   :: ierr          ! error code
    character(*), intent(out)                   :: message       ! error message
    ! local variables
@@ -601,9 +601,9 @@ CONTAINS
  integer(i4b), intent(in)                 :: ixDesire     ! index of the reach for verbose output
  type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:) ! River Network topology
  type(RCHPRP), intent(in),    allocatable :: RPARAM_in(:) ! River reach parameter
- type(STRFLX), intent(in),    allocatable :: RCHFLX_in(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+ type(STRFLX), intent(in)                 :: RCHFLX_in(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  integer(i4b), intent(in),    optional    :: RSTEP        ! retrospective time step offset
- type(STRSTA), intent(inout), allocatable :: RCHSTA_out(:,:) ! reach state data
+ type(STRSTA), intent(inout)              :: RCHSTA_out(:,:) ! reach state data
  real(dp),allocatable, intent(out)        :: Q_JRCH(:)    ! merged (non-routed) flow in JRCH
  real(dp),allocatable, intent(out)        :: TENTRY(:)    ! time flow particles entered JRCH
  real(dp),allocatable, intent(out)        :: T_EXIT(:)    ! time flow is expected to exit JR
@@ -678,11 +678,6 @@ CONTAINS
  ! ----------------------------------------------------------------------------------------
  ! (2) EXTRACT NON-ROUTED FLOW FROM THE REACH JRCH & APPEND TO THE FLOW JUST ROUTED D/S
  ! ----------------------------------------------------------------------------------------
- ! check that the routing structure is associated
- if (allocated(RCHSTA_out).eqv..false.) then
-  ierr=20; message='routing structure RCHSTA_out is not associated'; return
- endif
-
  ! check that the wave has been initialized
  if (allocated(RCHSTA_out(IENS,JRCH)%LKW_ROUTE%KWAVE).eqv..false.) then
   ! if not initialized, then set initial flow to first flow
@@ -763,9 +758,9 @@ CONTAINS
  integer(i4b), intent(in)                    :: ixDesire        ! index of the reach for verbose output
  type(RCHTOPO),intent(in), allocatable       :: NETOPO_in(:)    ! River Network topology
  type(RCHPRP), intent(in), allocatable       :: RPARAM_in(:)    ! River reach parameter
- type(STRFLX), intent(in), allocatable       :: RCHFLX_in(:,:)  ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+ type(STRFLX), intent(in)                    :: RCHFLX_in(:,:)  ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  integer(i4b), intent(in), optional          :: RSTEP           ! retrospective time step offset
- type(STRSTA), intent(inout), allocatable    :: RCHSTA_out(:,:) ! reach state data
+ type(STRSTA), intent(inout)                 :: RCHSTA_out(:,:) ! reach state data
  integer(i4b),          intent(out)          :: ND              ! number of routed particles
  real(dp), allocatable, intent(out)          :: QD(:)           ! flow particles just enetered JRCH
  real(dp), allocatable, intent(out)          :: TD(:)           ! time flow particles entered JRCH

@@ -56,7 +56,7 @@ CONTAINS
   integer(i4b), intent(in)                 :: ixDesire       ! index of the reach for verbose output
   type(RCHTOPO), intent(in),   allocatable :: NETOPO_in(:)   ! River Network topology
   type(RCHPRP), intent(inout), allocatable :: RPARAM_in(:)   ! River Network topology
-  TYPE(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+  TYPE(STRFLX), intent(inout)              :: RCHFLX_out(:,:)! Reach fluxes (ensembles, space [reaches]) for decomposed domains
   integer(i4b), intent(out)                :: ierr           ! error code
   character(*), intent(out)                :: message        ! error message
   ! Local variables:
