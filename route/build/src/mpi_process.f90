@@ -87,8 +87,6 @@ CONTAINS
   USE globalData,          ONLY: river_basin_trib         ! OMP domain data structure for tributaries
   USE globalData,          ONLY: RCHFLX_trib              ! Reach flux data structures (per proc, tributary)
   USE globalData,          ONLY: RCHSTA_trib              ! Reach state data structures (per proc, tributary)
-  USE globalData,          ONLY: RCHFLX_main              ! Reach flux data structures (master proc, mainstem)
-  USE globalData,          ONLY: RCHSTA_main              ! Reach state data structures (master proc, mainstem)
   USE globalData,          ONLY: NETOPO_trib              ! network topology data structure (per proc, tributary)
   USE globalData,          ONLY: RPARAM_trib              ! reach physical parameter data structure (per proc, tributary)
   USE globalData,          ONLY: NETOPO_main              ! network topology data structure (per proc, tributary)
@@ -103,6 +101,7 @@ CONTAINS
   USE globalData,          ONLY: tribOutlet_per_proc      ! number of tributary outlets per proc (size = nNodes)
   USE globalData,          ONLY: global_ix_main           ! reach index in mainstem array linked to reach outlets in tributary array (size = sum of tributary outlets)
   USE globalData,          ONLY: global_ix_comm           ! global reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
+  USE globalData,          ONLY: nTribOutlet              !
   USE globalData,          ONLY: local_ix_comm            ! local reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
   USE globalData,          ONLY: reachID
   USE globalData,          ONLY: basinID
@@ -145,7 +144,6 @@ CONTAINS
   integer(i4b)                                :: ixNode(nRch_in)          ! node assignment for each reach
   integer(i4b)                                :: ixDomain(nRch_in)        ! domain index for each reach
   logical(lgt),      allocatable              :: tribOutlet(:)            ! logical to indicate tributary outlet to mainstems over entire network
-  integer(i4b)                                :: nTribOutlet              ! number of tributary outlet connected to mainstem
   integer(i4b)                                :: nRch_trib                ! number of tributary outlets for each proc (scalar)
   integer(i4b),      allocatable              :: nRch_trib_array(:)       ! number of tributary outlets for each proc (array)
   ! flat array for decomposed river network per domain (sub-basin)
@@ -262,11 +260,6 @@ CONTAINS
   ! Optional procedures: Multiple MPI tasks requested
   ! ********************************************************************************************************************
   if (multiProcs) then
-
-    allocate(RCHFLX_trib(nEns,rch_per_proc(pid)), RCHSTA_trib(nEns,rch_per_proc(pid)), stat=ierr)
-    do ix = 1,rch_per_proc(pid)
-      allocate(RCHFLX_trib(nEns,ix)%ROUTE(nRoutes))
-    end do
 
     call alloc_struct(hru_per_proc(pid),     & ! input: number of HRUs
                       rch_per_proc(pid),     & ! input: number of stream segments
@@ -449,6 +442,24 @@ CONTAINS
 !         enddo
 !       endif
 
+    if (masterproc) then
+      allocate(RCHFLX_trib(nEns, nRch_mainstem+nTribOutlet+rch_per_proc(0)), stat=ierr, errmsg=cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      do ix = 1, nRch_mainstem+nTribOutlet+rch_per_proc(0)
+        allocate(RCHFLX_trib(nEns,ix)%ROUTE(nRoutes))
+      end do
+      allocate(RCHSTA_trib(nEns, nRch_mainstem+nTribOutlet+rch_per_proc(0)), stat=ierr, errmsg=cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    else
+      allocate(RCHFLX_trib(nEns,rch_per_proc(pid)), stat=ierr, errmsg=cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      do ix = 1,rch_per_proc(pid)
+        allocate(RCHFLX_trib(nEns,ix)%ROUTE(nRoutes))
+      end do
+      allocate(RCHSTA_trib(nEns,rch_per_proc(pid)), stat=ierr, errmsg=cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+
   endif ! (multiProcs)
 
   ! ********************************************************************************************************************
@@ -461,12 +472,16 @@ CONTAINS
 
   if (nRch_mainstem > 0) then
     if (masterproc) then
-      allocate(RCHFLX_main(nEns, nRch_mainstem+nTribOutlet), RCHSTA_main(nEns, nRch_mainstem+nTribOutlet), stat=ierr, errmsg=cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-      do ix = 1, nRch_mainstem+nTribOutlet
-        allocate(RCHFLX_main(nEns,ix)%ROUTE(nRoutes))
-      end do
+      if (.not. multiProcs) then
+        nTribOutlet=0
+        allocate(RCHFLX_trib(nEns, nRch_mainstem), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+        do ix = 1, nRch_mainstem
+          allocate(RCHFLX_trib(nEns,ix)%ROUTE(nRoutes))
+        end do
+        allocate(RCHSTA_trib(nEns, nRch_mainstem), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      end if
 
       call alloc_struct(nHRU_mainstem,              & ! input: number of HRUs
                         nRch_mainstem+nTribOutlet,  & ! input: number of stream segments
@@ -623,12 +638,11 @@ CONTAINS
   USE globalData, ONLY: nRch             ! number of reaches in the whoel river network
   USE globalData, ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
   USE globalData, ONLY: nRch_mainstem    ! number of mainstem reaches
+  USE globalData, ONLY: nTribOutlet      !
   USE globalData, ONLY: ixRch_order      ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
   USE globalData, ONLY: global_ix_comm   ! global reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
   USE globalData, ONLY: RCHFLX_trib      ! tributary reach flux structure
-  USE globalData, ONLY: RCHFLX_main      ! mainstem reach flux structure
   USE globalData, ONLY: RCHSTA_trib      ! tributary reach state structure
-  USE globalData, ONLY: RCHSTA_main      ! mainstem reach state structure
   USE globalData, ONLY: RCHFLX           ! entire reach flux structure
   USE globalData, ONLY: RCHSTA           !
   USE globalData, ONLY: TSEC             ! beginning/ending of simulation time step [sec]
@@ -670,16 +684,16 @@ CONTAINS
         vol_global(iSeg,1:2) = RCHFLX(iens,iSeg)%ROUTE(idxIRF)%REACH_VOL(0:1)
       end if
     enddo
-    ! Distribute global flux/state (RCHFLX & RCHSTA) to mainstem (RCHFLX_main & RCHSTA_main)
+    ! Distribute global flux/state (RCHFLX & RCHSTA) to mainstem
     do iSeg = 1, nRch_mainstem
       jSeg = ixRch_order(iSeg)
-      RCHFLX_main(iens, iSeg) = RCHFLX(iens, jSeg)
-      RCHSTA_main(iens, iSeg) = RCHSTA(iens, jSeg)
+      RCHFLX_trib(iens, iSeg) = RCHFLX(iens, jSeg)
+      RCHSTA_trib(iens, iSeg) = RCHSTA(iens, jSeg)
     end do
     do iSeg = 1,size(global_ix_comm)
       jSeg = global_ix_comm(iSeg)
-      RCHFLX_main(iens, iSeg+nRch_mainstem) = RCHFLX(iens, jSeg)
-      RCHSTA_main(iens, iSeg+nRch_mainstem) = RCHSTA(iens, jSeg)
+      RCHFLX_trib(iens, iSeg+nRch_mainstem) = RCHFLX(iens, jSeg)
+      RCHSTA_trib(iens, iSeg+nRch_mainstem) = RCHSTA(iens, jSeg)
     end do
   else
     flux_global(:)  = realMissing
@@ -700,9 +714,15 @@ CONTAINS
                             ierr, message)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  do iSeg = 1, rch_per_proc(pid)
-    RCHFLX_trib(iens,iSeg)%BASIN_QR(1) = flux_local(iSeg)
-  enddo
+  if (masterproc) then
+    do iSeg = 1, rch_per_proc(pid)
+      RCHFLX_trib(iens,nRch_mainstem+nTribOutlet+iSeg)%BASIN_QR(1) = flux_local(iSeg)
+    enddo
+  else
+    do iSeg = 1, rch_per_proc(pid)
+      RCHFLX_trib(iens,iSeg)%BASIN_QR(1) = flux_local(iSeg)
+    enddo
+  end if
 
   ! basin IRF state communication
   if (doesBasinRoute == 1) then
@@ -798,16 +818,20 @@ CONTAINS
                                 ierr, message)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-      do iSeg = 1, rch_per_proc(pid)
-        RCHFLX_trib(iens,iSeg)%ROUTE(idxIRF)%REACH_VOL(iTbound-1) = vol_local(iSeg)
-      enddo
+      if (masterproc) then
+        do iSeg = 1, rch_per_proc(pid)
+          RCHFLX_trib(iens,nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxIRF)%REACH_VOL(iTbound-1) = vol_local(iSeg)
+        enddo
+      else
+        do iSeg = 1, rch_per_proc(pid)
+          RCHFLX_trib(iens,iSeg)%ROUTE(idxIRF)%REACH_VOL(iTbound-1) = vol_local(iSeg)
+        end do
+      end if
     end do
   endif
 
   ! no need for the entire domain flux/state data strucure
-  if (masterproc) then
-    deallocate(RCHFLX, RCHSTA)
-  end if
+  deallocate(RCHFLX, RCHSTA)
 
  END SUBROUTINE mpi_restart
 
@@ -827,9 +851,7 @@ CONTAINS
   USE globalData, ONLY: RPARAM_trib         ! tributary reach parameter structure
   USE globalData, ONLY: RPARAM_main         ! mainstem reach parameter structure
   USE globalData, ONLY: RCHFLX_trib         ! tributary reach flux structure
-  USE globalData, ONLY: RCHFLX_main         ! Reach flux data structures (master proc, mainstem)
   USE globalData, ONLY: RCHSTA_trib         ! tributary reach state data structure
-  USE globalData, ONLY: RCHSTA_main         ! Reach state data structures (master proc, mainstem)
   USE globalData, ONLY: nHRU_mainstem       ! number of mainstem HRUs
   USE globalData, ONLY: basinRunoff_main    ! mainstem only HRU runoff
   USE globalData, ONLY: basinRunoff_trib    ! tributary only HRU runoff
@@ -846,6 +868,7 @@ CONTAINS
   USE globalData, ONLY: vol_wm_trib         ! nRch target vol holder for tributary
   USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc
   USE globalData, ONLY: tribOutlet_per_proc ! number of tributary outlets per proc (array size = nNodes)
+  USE globalData, ONLY: nTribOutlet         !
   USE globalData, ONLY: global_ix_main      ! reach index at tributary reach outlets to mainstem (size = sum of tributary outlets in all the procs)
   USE globalData, ONLY: local_ix_comm       ! local reach index at tributary reach outlets to mainstem for each proc (size = sum of tributary outlets in proc)
   USE globalData, ONLY: onRoute             ! logical to indicate which routing method(s) is on
@@ -874,6 +897,7 @@ CONTAINS
   ! local variables
   integer(i4b), allocatable             :: ixRchProcessed(:)        ! reach indice list to be processed
   integer(i4b)                          :: nRch_trib                ! number of reaches on one tributary (in a proc)
+  integer(i4b)                          :: ix1,ix2                  !
   logical(lgt)                          :: doesScatterRunoff        ! temporal logical to indicate if scattering global runoff is required
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
 
@@ -1031,6 +1055,13 @@ CONTAINS
     ixRchProcessed = arth(1,1,nRch_trib)
 
     ! Perform routing
+    if (masterproc) then
+      ix1=nRch_mainstem+nTribOutlet+1
+      ix2=nRch_mainstem+nTribOutlet+rch_per_proc(0)
+    else
+      ix1=1
+      ix2=rch_per_proc(pid)
+    end if
     call main_route(iens,              &  ! input: ensemble index
                     basinRunoff_trib,  &  ! input: basin (i.e.,HRU) runoff (m/s)
                     basinEvapo_trib,   &  ! input: basin (i.e. HRU) Evapo  (m/s)
@@ -1042,11 +1073,10 @@ CONTAINS
                     NETOPO_trib,       &  ! input: reach topology data structure
                     RPARAM_trib,       &  ! input: reach parameter data structure
                     ixPrint(2),        &  ! input: reach index to be checked by on-screen pringing
-                    RCHFLX_trib,       &  ! inout: reach flux data structure
-                    RCHSTA_trib,       &  ! inout: reach state data structure
+                    RCHFLX_trib(:,ix1:ix2),   &  ! inout: reach flux data structure
+                    RCHSTA_trib(:,ix1:ix2),   &  ! inout: reach state data structure
                     ierr, message)        ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
     call t_stopf ('route/tributary-route')
 
     ! make sure that routing at all the procs finished
@@ -1063,7 +1093,6 @@ CONTAINS
     call mpi_comm_flux(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
                        iens,                & ! input: ensemble index (not used now)
                        tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
-                       RCHFLX_main,         & ! input:
                        RCHFLX_trib,         & ! input:
                        global_ix_main,      & ! input:
                        local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
@@ -1075,7 +1104,6 @@ CONTAINS
     call mpi_comm_river_flux(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
                              iens,                & ! input: ensemble index (not used now)
                              tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
-                             RCHFLX_main,         & ! input:
                              RCHFLX_trib,         & ! input:
                              global_ix_main,      & ! input:
                              local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
@@ -1088,7 +1116,7 @@ CONTAINS
       call mpi_comm_kwt_state(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
                               iens,                & ! input:
                               tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
-                              RCHSTA_main,         & ! input:
+                              RCHSTA_trib(:,1:nRch_mainstem+nTribOutlet), & ! input:
                               RCHSTA_trib,         & ! input:
                               global_ix_main,      & ! input:
                               local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
@@ -1129,8 +1157,8 @@ CONTAINS
                     NETOPO_main,             &  ! input: reach topology data structure
                     RPARAM_main,             &  ! input: reach parameter data structure
                     ixPrint(1),              &  ! input: reach index to be checked by on-screen pringing
-                    RCHFLX_main,             &  ! inout: reach flux data structure
-                    RCHSTA_main,             &  ! inout: reach state data structure
+                    RCHFLX_trib(:,1:nRch_mainstem+nTribOutlet),  &  ! inout: reach flux data structure
+                    RCHSTA_trib(:,1:nRch_mainstem+nTribOutlet),  &  ! inout: reach state data structure
                     ierr, message)              ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -1148,7 +1176,7 @@ CONTAINS
       call mpi_comm_kwt_state(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
                               iens,                & ! input:
                               tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
-                              RCHSTA_main,         & ! input:
+                              RCHSTA_trib(:,1:nRch_mainstem+nTribOutlet), & ! input:
                               RCHSTA_trib,         & ! input:
                               global_ix_main,      &
                               local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
@@ -1476,14 +1504,15 @@ CONTAINS
                           comm,         & ! input: communicator
                           iens,         &
                           nReach,       &
-                          RCHFLX_global,&
-                          RCHFLX_local, &
+                          RCHFLX_dist, &
                           rchIdxGlobal, &
                           rchIdxLocal,  &
                           commType,     &
                           ierr, message)
 
   USE dataTypes,  ONLY: STRFLX              ! reach flux data structure
+  USE globalData, ONLY: nRch_mainstem
+  USE globalData, ONLY: nTribOutlet
 
   implicit none
   ! argument variables
@@ -1492,8 +1521,7 @@ CONTAINS
   integer(i4b),             intent(in)    :: comm                  ! communicator
   integer(i4b),             intent(in)    :: iens                  ! ensemble index
   integer(i4b),             intent(in)    :: nReach(0:nNodes-1)    ! number of reaches communicate per node (dimension size == number of proc)
-  type(STRFLX),allocatable, intent(inout) :: RCHFLX_global(:,:)
-  type(STRFLX),allocatable, intent(inout) :: RCHFLX_local(:,:)
+  type(STRFLX),allocatable, intent(inout) :: RCHFLX_dist(:,:)
   integer(i4b),             intent(in)    :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
   integer(i4b),             intent(in)    :: rchIdxLocal(:)        ! reach indices (w.r.t. local) (dimension size depends on procs )
   integer(i4b),             intent(in)    :: commType              ! communication type 1->scatter, 2->gather otherwise error
@@ -1521,9 +1549,9 @@ CONTAINS
 
       do iSeg =1,nSeg ! Loop through tributary reaches
         jSeg = rchIdxGlobal(iSeg)
-        flux(iSeg,1) = RCHFLX_global(iens,jSeg)%BASIN_QR(0)  ! HRU routed flow (previous time step)
-        flux(iSeg,2) = RCHFLX_global(iens,jSeg)%BASIN_QR(1)  ! HRU routed flow (current time step)
-        flux(iSeg,3) = RCHFLX_global(iens,jSeg)%BASIN_QI     ! HRU non-routed flow
+        flux(iSeg,1) = RCHFLX_dist(iens,jSeg)%BASIN_QR(0)  ! HRU routed flow (previous time step)
+        flux(iSeg,2) = RCHFLX_dist(iens,jSeg)%BASIN_QR(1)  ! HRU routed flow (current time step)
+        flux(iSeg,3) = RCHFLX_dist(iens,jSeg)%BASIN_QI     ! HRU non-routed flow
       enddo
     end if ! end of root processor operation
 
@@ -1544,9 +1572,12 @@ CONTAINS
     ! update RCHFLX_trib data structure
     do iSeg =1,nReach(pid) ! Loop through reaches per proc
       jSeg = rchIdxLocal(iSeg)
-      RCHFLX_local(iens,jSeg)%BASIN_QR(0) = flux_local(iSeg,1)  ! HRU routed flow (previous time step)
-      RCHFLX_local(iens,jSeg)%BASIN_QR(1) = flux_local(iSeg,2)  ! HRU routed flow (current time step)
-      RCHFLX_local(iens,jSeg)%BASIN_QI    = flux_local(iSeg,3)  ! HRU non-routed flow
+      if (masterproc) then
+        jSeg = jSeg + nRch_mainstem+nTribOutlet
+      end if
+      RCHFLX_dist(iens,jSeg)%BASIN_QR(0) = flux_local(iSeg,1)  ! HRU routed flow (previous time step)
+      RCHFLX_dist(iens,jSeg)%BASIN_QR(1) = flux_local(iSeg,2)  ! HRU routed flow (current time step)
+      RCHFLX_dist(iens,jSeg)%BASIN_QI    = flux_local(iSeg,3)  ! HRU non-routed flow
     end do
   elseif (commType == gather) then
     allocate(flux_local(nReach(pid),nFluxes), stat=ierr)
@@ -1554,10 +1585,13 @@ CONTAINS
 
     do iSeg =1,nReach(pid)  ! Loop through (selected) tributary reaches
       jSeg = rchIdxLocal(iSeg)
+      if (masterproc) then
+        jSeg = jSeg + nRch_mainstem+nTribOutlet
+      end if
       ! Transfer reach fluxes to 2D arrays
-      flux_local(iSeg,1) = RCHFLX_local(iens,jSeg)%BASIN_QR(0)  ! HRU routed flow (previous time step)
-      flux_local(iSeg,2) = RCHFLX_local(iens,jSeg)%BASIN_QR(1)  ! HRU routed flow (current time step)
-      flux_local(iSeg,3) = RCHFLX_local(iens,jSeg)%BASIN_QI     ! non-HRU routed flow (
+      flux_local(iSeg,1) = RCHFLX_dist(iens,jSeg)%BASIN_QR(0)  ! HRU routed flow (previous time step)
+      flux_local(iSeg,2) = RCHFLX_dist(iens,jSeg)%BASIN_QR(1)  ! HRU routed flow (current time step)
+      flux_local(iSeg,3) = RCHFLX_dist(iens,jSeg)%BASIN_QI     ! non-HRU routed flow (
     end do
 
     allocate(flux(nSeg,nFluxes), stat=ierr)
@@ -1575,9 +1609,9 @@ CONTAINS
     if (masterproc) then
       do iSeg =1,nSeg ! Loop through all the reaches involved into communication
         jSeg = rchIdxGlobal(iSeg)
-        RCHFLX_global(iens,jSeg)%BASIN_QR(0) = flux(iSeg,1)
-        RCHFLX_global(iens,jSeg)%BASIN_QR(1) = flux(iSeg,2)
-        RCHFLX_global(iens,jSeg)%BASIN_QI    = flux(iSeg,3)
+        RCHFLX_dist(iens,jSeg)%BASIN_QR(0) = flux(iSeg,1)
+        RCHFLX_dist(iens,jSeg)%BASIN_QR(1) = flux(iSeg,2)
+        RCHFLX_dist(iens,jSeg)%BASIN_QI    = flux(iSeg,3)
       end do
     endif
   endif
@@ -1592,14 +1626,15 @@ CONTAINS
                                 comm,         & ! input: communicator
                                 iens,         &
                                 nReach,       &
-                                RCHFLX_global,&
-                                RCHFLX_local, &
+                                RCHFLX_dist,  &
                                 rchIdxGlobal, &
                                 rchIdxLocal,  &
                                 commType,     &
                                 ierr, message)
 
   USE dataTypes,  ONLY: STRFLX              ! reach flux data structure
+  USE globalData, ONLY: nRch_mainstem
+  USE globalData, ONLY: nTribOutlet
   USE globalData, ONLY: nRoutes
   USE globalData, ONLY: routeMethods
 
@@ -1610,8 +1645,7 @@ CONTAINS
   integer(i4b),             intent(in)    :: comm                  ! communicator
   integer(i4b),             intent(in)    :: iens                  ! ensemble index
   integer(i4b),             intent(in)    :: nReach(0:nNodes-1)    ! number of reaches communicate per node (dimension size == number of proc)
-  type(STRFLX),allocatable, intent(inout) :: RCHFLX_global(:,:)
-  type(STRFLX),allocatable, intent(inout) :: RCHFLX_local(:,:)
+  type(STRFLX),allocatable, intent(inout) :: RCHFLX_dist(:,:)
   integer(i4b),             intent(in)    :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
   integer(i4b),             intent(in)    :: rchIdxLocal(:)        ! reach indices (w.r.t. local) (dimension size depends on procs )
   integer(i4b),             intent(in)    :: commType              ! communication type 1->scatter, 2->gather otherwise error
@@ -1640,12 +1674,12 @@ CONTAINS
         jSeg = rchIdxGlobal(iSeg)
         do ix=1,nRoutes
           select case(routeMethods(ix))
-            case(accumRunoff);           flux(iSeg,ix) = RCHFLX_global(iens,jSeg)%ROUTE(idxSUM)%REACH_Q
-            case(impulseResponseFunc);   flux(iSeg,ix) = RCHFLX_global(iens,jSeg)%ROUTE(idxIRF)%REACH_Q
-            case(kinematicWaveTracking); flux(iSeg,ix) = RCHFLX_global(iens,jSeg)%ROUTE(idxKWT)%REACH_Q
-            case(kinematicWave);         flux(iSeg,ix) = RCHFLX_global(iens,jSeg)%ROUTE(idxKW)%REACH_Q
-            case(muskingumCunge);        flux(iSeg,ix) = RCHFLX_global(iens,jSeg)%ROUTE(idxMC)%REACH_Q
-            case(diffusiveWave);         flux(iSeg,ix) = RCHFLX_global(iens,jSeg)%ROUTE(idxDW)%REACH_Q
+            case(accumRunoff);           flux(iSeg,ix) = RCHFLX_dist(iens,jSeg)%ROUTE(idxSUM)%REACH_Q
+            case(impulseResponseFunc);   flux(iSeg,ix) = RCHFLX_dist(iens,jSeg)%ROUTE(idxIRF)%REACH_Q
+            case(kinematicWaveTracking); flux(iSeg,ix) = RCHFLX_dist(iens,jSeg)%ROUTE(idxKWT)%REACH_Q
+            case(kinematicWave);         flux(iSeg,ix) = RCHFLX_dist(iens,jSeg)%ROUTE(idxKW)%REACH_Q
+            case(muskingumCunge);        flux(iSeg,ix) = RCHFLX_dist(iens,jSeg)%ROUTE(idxMC)%REACH_Q
+            case(diffusiveWave);         flux(iSeg,ix) = RCHFLX_dist(iens,jSeg)%ROUTE(idxDW)%REACH_Q
             case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 0-5'; ierr=81; return
           end select
         end do
@@ -1668,14 +1702,17 @@ CONTAINS
     ! update RCHFLX_trib data structure
     do iSeg =1,nReach(pid) ! Loop through reaches per proc
       jSeg = rchIdxLocal(iSeg)
+      if (masterproc) then
+        jSeg = jSeg + nRch_mainstem+nTribOutlet
+      end if
       do ix=1,nRoutes
         select case(routeMethods(ix))
-          case(accumRunoff);           RCHFLX_local(iens,jSeg)%ROUTE(idxSUM)%REACH_Q = flux_local(iSeg,ix)  ! HRU routed flow (previous time step)
-          case(impulseResponseFunc);   RCHFLX_local(iens,jSeg)%ROUTE(idxIRF)%REACH_Q = flux_local(iSeg,ix)  ! HRU routed flow (previous time step)
-          case(kinematicWaveTracking); RCHFLX_local(iens,jSeg)%ROUTE(idxKWT)%REACH_Q = flux_local(iSeg,ix)  ! HRU routed flow (current time step)
-          case(kinematicWave);         RCHFLX_local(iens,jSeg)%ROUTE(idxKW)%REACH_Q  = flux_local(iSeg,ix)  ! Upstream accumulated flow
-          case(muskingumCunge);        RCHFLX_local(iens,jSeg)%ROUTE(idxMC)%REACH_Q  = flux_local(iSeg,ix)  ! HRU non-routed flow
-          case(diffusiveWave);         RCHFLX_local(iens,jSeg)%ROUTE(idxDW)%REACH_Q  = flux_local(iSeg,ix)  ! HRU non-routed flow
+          case(accumRunoff);           RCHFLX_dist(iens,jSeg)%ROUTE(idxSUM)%REACH_Q = flux_local(iSeg,ix)  ! HRU routed flow (previous time step)
+          case(impulseResponseFunc);   RCHFLX_dist(iens,jSeg)%ROUTE(idxIRF)%REACH_Q = flux_local(iSeg,ix)  ! HRU routed flow (previous time step)
+          case(kinematicWaveTracking); RCHFLX_dist(iens,jSeg)%ROUTE(idxKWT)%REACH_Q = flux_local(iSeg,ix)  ! HRU routed flow (current time step)
+          case(kinematicWave);         RCHFLX_dist(iens,jSeg)%ROUTE(idxKW)%REACH_Q  = flux_local(iSeg,ix)  ! Upstream accumulated flow
+          case(muskingumCunge);        RCHFLX_dist(iens,jSeg)%ROUTE(idxMC)%REACH_Q  = flux_local(iSeg,ix)  ! HRU non-routed flow
+          case(diffusiveWave);         RCHFLX_dist(iens,jSeg)%ROUTE(idxDW)%REACH_Q  = flux_local(iSeg,ix)  ! HRU non-routed flow
           case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 0-5'; ierr=81; return
         end select
       end do
@@ -1689,14 +1726,17 @@ CONTAINS
     ! Transfer reach fluxes to 2D arrays
     do iSeg =1,nReach(pid)  ! Loop through (selected) tributary reaches
       jSeg = rchIdxLocal(iSeg)
+      if (masterproc) then
+        jSeg = jSeg + nRch_mainstem+nTribOutlet
+      end if
       do ix=1,nRoutes
         select case(routeMethods(ix))
-          case(accumRunoff);           flux_local(iSeg,ix) = RCHFLX_local(iens,jSeg)%ROUTE(idxSUM)%REACH_Q
-          case(impulseResponseFunc);   flux_local(iSeg,ix) = RCHFLX_local(iens,jSeg)%ROUTE(idxIRF)%REACH_Q
-          case(kinematicWaveTracking); flux_local(iSeg,ix) = RCHFLX_local(iens,jSeg)%ROUTE(idxKWT)%REACH_Q
-          case(kinematicWave);         flux_local(iSeg,ix) = RCHFLX_local(iens,jSeg)%ROUTE(idxKW)%REACH_Q
-          case(muskingumCunge);        flux_local(iSeg,ix) = RCHFLX_local(iens,jSeg)%ROUTE(idxMC)%REACH_Q
-          case(diffusiveWave);         flux_local(iSeg,ix) = RCHFLX_local(iens,jSeg)%ROUTE(idxDW)%REACH_Q
+          case(accumRunoff);           flux_local(iSeg,ix) = RCHFLX_dist(iens,jSeg)%ROUTE(idxSUM)%REACH_Q
+          case(impulseResponseFunc);   flux_local(iSeg,ix) = RCHFLX_dist(iens,jSeg)%ROUTE(idxIRF)%REACH_Q
+          case(kinematicWaveTracking); flux_local(iSeg,ix) = RCHFLX_dist(iens,jSeg)%ROUTE(idxKWT)%REACH_Q
+          case(kinematicWave);         flux_local(iSeg,ix) = RCHFLX_dist(iens,jSeg)%ROUTE(idxKW)%REACH_Q
+          case(muskingumCunge);        flux_local(iSeg,ix) = RCHFLX_dist(iens,jSeg)%ROUTE(idxMC)%REACH_Q
+          case(diffusiveWave);         flux_local(iSeg,ix) = RCHFLX_dist(iens,jSeg)%ROUTE(idxDW)%REACH_Q
           case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 0-5'; ierr=81; return
         end select
       end do
@@ -1719,12 +1759,12 @@ CONTAINS
         jSeg = rchIdxGlobal(iSeg)
         do ix=1,nRoutes
           select case(routeMethods(ix))
-            case(accumRunoff);           RCHFLX_global(iens,jSeg)%ROUTE(idxSUM)%REACH_Q = flux(iSeg,ix)
-            case(impulseResponseFunc);   RCHFLX_global(iens,jSeg)%ROUTE(idxIRF)%REACH_Q = flux(iSeg,ix)
-            case(kinematicWaveTracking); RCHFLX_global(iens,jSeg)%ROUTE(idxKWT)%REACH_Q = flux(iSeg,ix)
-            case(kinematicWave);         RCHFLX_global(iens,jSeg)%ROUTE(idxKW)%REACH_Q  = flux(iSeg,ix)
-            case(muskingumCunge);        RCHFLX_global(iens,jSeg)%ROUTE(idxMC)%REACH_Q  = flux(iSeg,ix)
-            case(diffusiveWave);         RCHFLX_global(iens,jSeg)%ROUTE(idxDW)%REACH_Q  = flux(iSeg,ix)
+            case(accumRunoff);           RCHFLX_dist(iens,jSeg)%ROUTE(idxSUM)%REACH_Q = flux(iSeg,ix)
+            case(impulseResponseFunc);   RCHFLX_dist(iens,jSeg)%ROUTE(idxIRF)%REACH_Q = flux(iSeg,ix)
+            case(kinematicWaveTracking); RCHFLX_dist(iens,jSeg)%ROUTE(idxKWT)%REACH_Q = flux(iSeg,ix)
+            case(kinematicWave);         RCHFLX_dist(iens,jSeg)%ROUTE(idxKW)%REACH_Q  = flux(iSeg,ix)
+            case(muskingumCunge);        RCHFLX_dist(iens,jSeg)%ROUTE(idxMC)%REACH_Q  = flux(iSeg,ix)
+            case(diffusiveWave);         RCHFLX_dist(iens,jSeg)%ROUTE(idxDW)%REACH_Q  = flux(iSeg,ix)
             case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 0-5'; ierr=81; return
           end select
         end do
@@ -1751,6 +1791,8 @@ CONTAINS
                                    ierr, message)
 
   USE dataTypes,  ONLY: STRFLX              ! reach flux data structure
+  USE globalData, ONLY: nRch_mainstem
+  USE globalData, ONLY: nTribOutlet
 
   implicit none
   ! argument variables
@@ -1836,21 +1878,22 @@ CONTAINS
     ! update RCHFLX_local data structure
     ixTdh=1
     do iSeg =1,nReach(pid) ! Loop through reaches per proc
+      jSeg = rchIdxLocal(iSeg)
+      if (masterproc) then
+        jSeg = jSeg + nRch_mainstem+nTribOutlet
+      end if
 
-     jSeg = rchIdxLocal(iSeg)
+      if (allocated(RCHFLX_local(iens,jSeg)%QFUTURE)) then
+       deallocate(RCHFLX_local(iens,jSeg)%QFUTURE, stat=ierr)
+       if(ierr/=0)then; message=trim(message)//'problem de-allocating array for [RCHFLX_local(iens,jSeg)%QFUTURE_IRF]'; return; endif
+      endif
 
-     if (allocated(RCHFLX_local(iens,jSeg)%QFUTURE)) then
-      deallocate(RCHFLX_local(iens,jSeg)%QFUTURE, stat=ierr)
-      if(ierr/=0)then; message=trim(message)//'problem de-allocating array for [RCHFLX_local(iens,jSeg)%QFUTURE_IRF]'; return; endif
-     endif
+      allocate(RCHFLX_local(iens,jSeg)%QFUTURE(1:ntdh_trib(iSeg)),stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem allocating array for [RCHFLX_local(iens,iRch)%QFUTURE_IRF]'; return; endif
 
-     allocate(RCHFLX_local(iens,jSeg)%QFUTURE(1:ntdh_trib(iSeg)),stat=ierr)
-     if(ierr/=0)then; message=trim(message)//'problem allocating array for [RCHFLX_local(iens,iRch)%QFUTURE_IRF]'; return; endif
+      RCHFLX_local(iens,jSeg)%QFUTURE(1:ntdh_trib(iSeg)) = qfuture_trib(ixTdh:ixTdh+ntdh_trib(iSeg)-1)
 
-     RCHFLX_local(iens,jSeg)%QFUTURE(1:ntdh_trib(iSeg)) = qfuture_trib(ixTdh:ixTdh+ntdh_trib(iSeg)-1)
-
-     ixTdh=ixTdh+ntdh_trib(iSeg) !update 1st idex of array
-
+      ixTdh=ixTdh+ntdh_trib(iSeg) !update 1st idex of array
     end do
 
   elseif (commType == gather) then
@@ -1864,6 +1907,9 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [RCHFLX0]'; return; endif
     do iSeg =1,nReach(pid)  ! Loop through tributary reaches
       jSeg = rchIdxLocal(iSeg)
+      if (masterproc) then
+        jSeg = jSeg + nRch_mainstem+nTribOutlet
+      end if
       RCHFLX0(1, iSeg) = RCHFLX_local(iens,jSeg)
     enddo
 
@@ -1930,6 +1976,8 @@ CONTAINS
                                ierr, message)
 
   USE dataTypes,  ONLY: STRFLX              ! reach flux data structure
+  USE globalData, ONLY: nRch_mainstem
+  USE globalData, ONLY: nTribOutlet
 
   implicit none
   ! argument variables
@@ -2015,8 +2063,10 @@ CONTAINS
     ! update RCHFLX_local data structure
     ixTdh=1
     do iSeg =1,nReach(pid) ! Loop through reaches per proc
-
-     jSeg = rchIdxLocal(iSeg)
+      jSeg = rchIdxLocal(iSeg)
+      if (masterproc) then
+        jSeg = jSeg + nRch_mainstem+nTribOutlet
+      end if
 
      if (allocated(RCHFLX_local(iens,jSeg)%QFUTURE_IRF)) then
       deallocate(RCHFLX_local(iens,jSeg)%QFUTURE_IRF, stat=ierr)
@@ -2043,6 +2093,9 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [RCHFLX0]'; return; endif
     do iSeg =1,nReach(pid)  ! Loop through tributary reaches
       jSeg = rchIdxLocal(iSeg)
+      if (masterproc) then
+        jSeg = jSeg + nRch_mainstem+nTribOutlet
+      end if
       RCHFLX0(1, iSeg) = RCHFLX_local(iens,jSeg)
     enddo
 
@@ -2109,6 +2162,9 @@ CONTAINS
   USE globalData, ONLY: nMolecule
   USE dataTypes,  ONLY: SUBRCH
   USE dataTypes,  ONLY: STRSTA
+  USE globalData, ONLY: nRch_mainstem
+  USE globalData, ONLY: nTribOutlet
+
   implicit none
   ! argument variables
   integer(i4b),             intent(in)    :: pid                   ! process id (MPI)
@@ -2116,8 +2172,8 @@ CONTAINS
   integer(i4b),             intent(in)    :: comm                  ! communicator
   integer(i4b),             intent(in)    :: iens                  ! ensemble index
   integer(i4b),             intent(in)    :: nReach(0:nNodes-1)    ! number of reaches communicate per node (dimension size == number of proc)
-  type(STRSTA), allocatable,intent(inout) :: RCHSTA_global(:,:)
-  type(STRSTA), allocatable,intent(inout) :: RCHSTA_local(:,:)
+  type(STRSTA),             intent(inout) :: RCHSTA_global(:,:)
+  type(STRSTA),             intent(inout) :: RCHSTA_local(:,:)
   integer(i4b),             intent(in)    :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
   integer(i4b),             intent(in)    :: rchIdxLocal(:)        ! reach indices (w.r.t. local) (dimension size depends on procs )
   integer(i4b),             intent(in)    :: routeMethod           ! routing mehtod id
@@ -2197,7 +2253,12 @@ CONTAINS
     ! update RCHSTA_local%molecule data structure
     ixMesh=1
     do iSeg =1,nReach(pid) ! Loop through reaches per proc
+
       jSeg = rchIdxLocal(iSeg)
+      if (masterproc) then
+        jSeg = jSeg + nRch_mainstem+nTribOutlet
+      end if
+
       if (routeMethod==kinematicWave) then
         allocate(RCHSTA_local(iens,jSeg)%KW_ROUTE%molecule%Q(nMoles),stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//'RCHSTA_local(iens,jSeg)%KW_ROUTE%molecule%Q'; return; endif
@@ -2237,6 +2298,8 @@ CONTAINS
 
   USE dataTypes,  ONLY: kwtRCH
   USE dataTypes,  ONLY: STRSTA
+  USE globalData, ONLY: nRch_mainstem
+  USE globalData, ONLY: nTribOutlet
 
   implicit none
   ! argument variables
@@ -2245,8 +2308,8 @@ CONTAINS
   integer(i4b),             intent(in)    :: comm                  ! communicator
   integer(i4b),             intent(in)    :: iens                  ! ensemble index
   integer(i4b),             intent(in)    :: nReach(0:nNodes-1)    ! number of reaches communicate per node (dimension size == number of proc)
-  type(STRSTA), allocatable,intent(inout) :: RCHSTA_global(:,:)
-  type(STRSTA), allocatable,intent(inout) :: RCHSTA_local(:,:)
+  type(STRSTA),             intent(inout) :: RCHSTA_global(:,:)
+  type(STRSTA),             intent(inout) :: RCHSTA_local(:,:)
   integer(i4b),             intent(in)    :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
   integer(i4b),             intent(in)    :: rchIdxLocal(:)        ! reach indices (w.r.t. local) (dimension size depends on procs )
   integer(i4b),             intent(in)    :: commType              ! communication type 1->scatter, 2->gather otherwise error
@@ -2345,6 +2408,9 @@ CONTAINS
     do iSeg =1,nReach(pid) ! Loop through reaches per proc
 
      jSeg = rchIdxLocal(iSeg)
+     if (masterproc) then
+       jSeg = jSeg + nRch_mainstem+nTribOutlet
+     end if
 
      if (allocated(RCHSTA_local(iens,jSeg)%LKW_ROUTE%KWAVE)) then
       deallocate(RCHSTA_local(iens,jSeg)%LKW_ROUTE%KWAVE, stat=ierr)
@@ -2375,6 +2441,9 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [KROUTE0]'; return; endif
     do iSeg =1,nReach(pid)  ! Loop through tributary reaches
       jSeg = rchIdxLocal(iSeg)
+      if (masterproc) then
+        jSeg = jSeg + nRch_mainstem+nTribOutlet
+      end if
       KROUTE0(1, iSeg) = RCHSTA_local(iens,jSeg)%LKW_ROUTE
     enddo
 

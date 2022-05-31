@@ -176,12 +176,10 @@ MODULE globalData
   real(dp),           allocatable, public :: FRAC_FUTURE(:)         ! fraction of runoff in future time steps
 
   ! routing data structures
-  type(STRSTA),       allocatable, public :: RCHSTA(:,:)            ! restart variables (ensembles, space [reaches]) for the entire river network
-  type(STRFLX),       allocatable, public :: RCHFLX(:,:)            ! Reach fluxes (ensembles, space [reaches]) for entire river network
-  type(STRSTA),       allocatable, public :: RCHSTA_trib(:,:)       ! restart variables (ensembles, space [reaches]) for tributary
-  type(STRFLX),       allocatable, public :: RCHFLX_trib(:,:)       ! Reach fluxes (ensembles, space [reaches]) for tributaries
-  type(STRSTA),       allocatable, public :: RCHSTA_main(:,:)       ! restart variables (ensembles, space [reaches]) for mainstem
-  type(STRFLX),       allocatable, public :: RCHFLX_main(:,:)       ! Reach fluxes (ensembles, space [reaches]) for mainstem
+  type(STRSTA),       allocatable, public :: RCHSTA(:,:)            ! restart variables (ensembles, reaches) for the entire domain
+  type(STRFLX),       allocatable, public :: RCHFLX(:,:)            ! Reach fluxes (ensembles, reaches) for entire domain
+  type(STRSTA),       allocatable, public :: RCHSTA_trib(:,:)       ! restart variables (ensembles, reaches) for decomposed domains
+  type(STRFLX),       allocatable, public :: RCHFLX_trib(:,:)       ! Reach fluxes (ensembles, reaches) for decomposed domains
 
   ! lakes data structures
   type(LAKPRP),       allocatable, public :: LPARAM(:)              ! Lake parameters
@@ -221,6 +219,7 @@ MODULE globalData
   integer(i4b),       allocatable, public :: hru_per_proc(:)        ! number of hrus assigned to each proc (size = num of procs
   integer(i4b),       allocatable, public :: rch_per_proc(:)        ! number of reaches assigned to each proc (size = num of procs)
 
+  integer(i4b),       allocatable, public :: nTribOutlet            ! number of tributary reaches flowing into mainstem
   integer(i4b),       allocatable, public :: global_ix_main(:)      ! index array in mainstem array for tributary reach outlet (size = num of tributary outlets)
   integer(i4b),       allocatable, public :: global_ix_comm(:)      ! global index array for tributary reach outlet (size = num of tributary outlets)
   integer(i4b),       allocatable, public :: local_ix_comm(:)       ! local index array for tributary reach outlet (size = num of tributary outlets per proc)

@@ -146,28 +146,35 @@ CONTAINS
    USE globalData, ONLY: iTime
    USE globalData, ONLY: timeVar
    USE globalData, ONLY: rch_per_proc      ! number of reaches assigned to each proc (size = num of procs+1)
+   USE globalData, ONLY: nRch_mainstem     ! number of mainstem reach
+   USE globalData, ONLY: nTribOutlet       ! number of
    USE nr_utility_module, ONLY: arth
 
    implicit none
    ! Argument variables:
-   integer(i4b), intent(out)   :: ierr                  ! error code
-   character(*), intent(out)   :: message               ! error message
+   integer(i4b), intent(out)   :: ierr               ! error code
+   character(*), intent(out)   :: message            ! error message
    ! local variables:
-   integer(i4b)                :: nRch_local
-   integer(i4b), allocatable   :: index_write_all(:)    !
-   character(strLen)           :: cmessage              ! error message of downwind routine
+   integer(i4b)                :: nRch_local         ! number of reaches per processors
+   integer(i4b)                :: nRch_root          ! number of reaches in root processors (including halo reaches)
+   integer(i4b), allocatable   :: index_write_all(:) ! indices in RCHFLX_trib to be written in netcdf
+   character(strLen)           :: cmessage           ! error message of downwind routine
 
    ierr=0; message='output/'
 
-   ! need index array for all network output [1,2,...,nRch-1, nRch_local]
+   ! compute index array for each processors (herer
    if (masterproc) then
      nRch_local = sum(rch_per_proc(-1:pid))
+     nRch_root = nRch_mainstem+nTribOutlet+rch_per_proc(0)
      allocate(index_write_all(nRch_local))
-     index_write_all = arth(1, 1, nRch_local)
+     if (nRch_mainstem>0) then
+       index_write_all(1:nRch_mainstem) = arth(1,1,nRch_mainstem)
+     end if
+     index_write_all(nRch_mainstem+1:nRch_local) = arth(nRch_mainstem+nTribOutlet+1, 1, nRch_root)
    else
      nRch_local = rch_per_proc(pid)
      allocate(index_write_all(nRch_local))
-     index_write_all = arth(1, 1, nRch_local)
+     index_write_all = arth(1,1,nRch_local)
    end if
 
    call hist_all_network%write_flux(timeVar(iTime), index_write_all, ierr, cmessage)

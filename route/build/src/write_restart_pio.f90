@@ -797,14 +797,13 @@ CONTAINS
  USE public_var, ONLY: muskingumCunge
  USE public_var, ONLY: diffusiveWave
  USE globalData, ONLY: onRoute               ! logical to indicate which routing method(s) is on
- USE globalData, ONLY: RCHFLX_main         ! mainstem reach fluxes (ensembles, reaches)
  USE globalData, ONLY: RCHFLX_trib         ! tributary reach fluxes (ensembles, reaches)
  USE globalData, ONLY: NETOPO_main         ! mainstem reach topology
  USE globalData, ONLY: NETOPO_trib         ! tributary reach topology
- USE globalData, ONLY: RCHSTA_main         ! mainstem reach state (ensembles, reaches)
  USE globalData, ONLY: RCHSTA_trib         ! tributary reach state (ensembles, reaches)
  USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
  USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
+ USE globalData, ONLY: nTribOutlet         !
  USE globalData, ONLY: reachID             ! reach ID in network
  USE globalData, ONLY: nNodes              ! number of MPI tasks
  USE globalData, ONLY: nRch                ! number of reaches in network
@@ -825,6 +824,7 @@ CONTAINS
  real(dp)                        :: tb_array(2)       ! restart timeVar [time_units]
  integer(i4b)                    :: iens              ! temporal
  integer(i4b)                    :: nRch_local        ! number of reach in each processors
+ integer(i4b)                    :: nRch_root         ! number of reaches in root processors (including halo reaches)
  type(STRFLX), allocatable       :: RCHFLX_local(:)   ! reordered reach flux data structure
  type(RCHTOPO),allocatable       :: NETOPO_local(:)   ! reordered topology data structure
  type(STRSTA), allocatable       :: RCHSTA_local(:)   ! reordered statedata structure
@@ -838,18 +838,19 @@ CONTAINS
 
  if (masterproc) then
    nRch_local = nRch_mainstem+rch_per_proc(0)
+   nRch_root = nRch_mainstem+nTribOutlet+rch_per_proc(0)
    allocate(RCHFLX_local(nRch_local), &
             NETOPO_local(nRch_local), &
             RCHSTA_local(nRch_local), stat=ierr, errmsg=cmessage)
    if (nRch_mainstem>0) then
-     RCHFLX_local(1:nRch_mainstem) = RCHFLX_main(iens,1:nRch_mainstem)
+     RCHFLX_local(1:nRch_mainstem) = RCHFLX_trib(iens,1:nRch_mainstem)
      NETOPO_local(1:nRch_mainstem) = NETOPO_main(1:nRch_mainstem)
-     RCHSTA_local(1:nRch_mainstem) = RCHSTA_main(iens,1:nRch_mainstem)
+     RCHSTA_local(1:nRch_mainstem) = RCHSTA_trib(iens,1:nRch_mainstem)
    end if
    if (rch_per_proc(0)>0) then
-     RCHFLX_local(nRch_mainstem+1:nRch_local) = RCHFLX_trib(iens,:)
+     RCHFLX_local(nRch_mainstem+1:nRch_local) = RCHFLX_trib(iens,nRch_mainstem+nTribOutlet+1:nRch_root)
      NETOPO_local(nRch_mainstem+1:nRch_local) = NETOPO_trib(:)
-     RCHSTA_local(nRch_mainstem+1:nRch_local) = RCHSTA_trib(iens,:)
+     RCHSTA_local(nRch_mainstem+1:nRch_local) = RCHSTA_trib(iens,nRch_mainstem+nTribOutlet+1:nRch_root)
    endif
  else
    nRch_local = rch_per_proc(pid)
