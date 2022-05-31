@@ -239,6 +239,7 @@ CONTAINS
 
    USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
    USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
+   USE globalData, ONLY: nTribOutlet         ! number of tributary outlets flowing to the mainstem
    USE globalData, ONLY: NETOPO_main         ! mainstem Reach neteork
    USE globalData, ONLY: NETOPO_trib         ! tributary Reach network
    USE globalData, ONLY: gage_data
@@ -250,6 +251,7 @@ CONTAINS
    integer(i4b), intent(out)              :: ierr             ! error code
    character(*), intent(out)              :: message          ! error message
    ! Local variables
+   integer(i4b)                           :: ix
    integer(i4b)                           :: nRch_local
    integer(i4b),allocatable               :: reachID_local(:) !
    character(len=strLen)                  :: cmessage         ! error message of downwind routine
@@ -272,6 +274,19 @@ CONTAINS
    endif
 
    call reach_subset(reachID_local, gage_data, compdof=compdof_rch, index2=index_write_gage)
+
+   ! Need to adjust tributary indices in root processor
+   ! This is because RCHFLX has three components in the order: mainstem, halo, tributary
+   ! mainstem (1,2,..,nRch_mainstem),
+   ! halo(nRch_mainstem+1,..,nRch_mainstem+nTribOutlet), and
+   ! tributary(nRch_mainstem+nTribOutlet+1,...,nRch_total)
+   ! index_write_gage is computed based on reachID consisting of mainstem and tributary
+   if (masterproc) then
+     do ix=1,size(index_write_gage)
+       if (index_write_gage(ix)<=nRch_mainstem) cycle
+       index_write_gage(ix) = index_write_gage(ix) + nTribOutlet
+     end do
+   end if
 
  END SUBROUTINE get_compdof_gage
 
