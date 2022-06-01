@@ -728,7 +728,7 @@ CONTAINS
         RCHFLX_trib(iens,iSeg)%BASIN_QR(1) = flux_local(iSeg)
       enddo
     end if
-    
+
     ! basin IRF state communication
     if (doesBasinRoute == 1) then
       call mpi_comm_irf_bas_state(pid, nNodes, comm,                        &
@@ -797,7 +797,7 @@ CONTAINS
                                    ierr, message)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     end if
-    
+
     if (onRoute(impulseResponseFunc))then
       call mpi_comm_irf_state(pid, nNodes, comm,                        &
                               iens,                                     &
@@ -822,7 +822,7 @@ CONTAINS
                                   scatter,                                  &
                                   ierr, message)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    
+
         if (masterproc) then
           do iSeg = 1, rch_per_proc(pid)
             RCHFLX_trib(iens,nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxIRF)%REACH_VOL(iTbound-1) = vol_local(iSeg)
@@ -831,7 +831,7 @@ CONTAINS
           do iSeg = 1, rch_per_proc(pid)
             RCHFLX_trib(iens,iSeg)%ROUTE(idxIRF)%REACH_VOL(iTbound-1) = vol_local(iSeg)
           end do
-        end if  
+        end if
       end do
     endif ! (onRoute(impulseResponseFunc))
   end if ! (multProc)
