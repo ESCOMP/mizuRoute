@@ -690,11 +690,15 @@ CONTAINS
       RCHFLX_trib(iens, iSeg) = RCHFLX(iens, jSeg)
       RCHSTA_trib(iens, iSeg) = RCHSTA(iens, jSeg)
     end do
-    do iSeg = 1,size(global_ix_comm)
-      jSeg = global_ix_comm(iSeg)
-      RCHFLX_trib(iens, iSeg+nRch_mainstem) = RCHFLX(iens, jSeg)
-      RCHSTA_trib(iens, iSeg+nRch_mainstem) = RCHSTA(iens, jSeg)
-    end do
+    ! Need to add ghost reacheas (==tributary reaches in other procs feeding into mainstem)
+    ! if not multiProc (==single proc), no ghost reach. everything is mainstem.
+    if (multiProcs) then
+      do iSeg = 1,size(global_ix_comm)
+        jSeg = global_ix_comm(iSeg)
+        RCHFLX_trib(iens, iSeg+nRch_mainstem) = RCHFLX(iens, jSeg)
+        RCHSTA_trib(iens, iSeg+nRch_mainstem) = RCHSTA(iens, jSeg)
+      end do
+    end if
   else
     flux_global(:)  = realMissing
     if (onRoute(impulseResponseFunc)) then
@@ -702,133 +706,135 @@ CONTAINS
     end if
   endif
 
-  ! Distribute global flux/state (RCHFLX & RCHSTA) to tributary (RCHFLX_trib & RCHSTA_trib)
-  ! flux communication (only basin delayed runoff flux)
-  call mpi_comm_single_flux(pid, nNodes, comm,                        &
-                            flux_global,                              &
-                            flux_local,                               &
-                            rch_per_proc(root:nNodes-1),              &
-                            ixRch_order(rch_per_proc(root-1)+1:nRch), &
-                            arth(1,1,rch_per_proc(pid)),              &
-                            scatter,                                  &
-                            ierr, message)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  if (masterproc) then
-    do iSeg = 1, rch_per_proc(pid)
-      RCHFLX_trib(iens,nRch_mainstem+nTribOutlet+iSeg)%BASIN_QR(1) = flux_local(iSeg)
-    enddo
-  else
-    do iSeg = 1, rch_per_proc(pid)
-      RCHFLX_trib(iens,iSeg)%BASIN_QR(1) = flux_local(iSeg)
-    enddo
-  end if
-
-  ! basin IRF state communication
-  if (doesBasinRoute == 1) then
-    call mpi_comm_irf_bas_state(pid, nNodes, comm,                        &
-                                iens,                                     &
-                                rch_per_proc(root:nNodes-1),              &
-                                RCHFLX,                                   &
-                                RCHFLX_trib,                              &
-                                ixRch_order(rch_per_proc(root-1)+1:nRch), &
-                                arth(1,1,rch_per_proc(pid)),              &
-                                scatter,                                  & ! communication type
-                                ierr, message)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
-
-  if (onRoute(kinematicWaveTracking))then
-    call mpi_comm_kwt_state(pid, nNodes, comm,                        &
-                            iens,                                     &
-                            rch_per_proc(root:nNodes-1),              &
-                            RCHSTA,                                   &
-                            RCHSTA_trib,                              &
-                            ixRch_order(rch_per_proc(root-1)+1:nRch), &
-                            arth(1,1,rch_per_proc(pid)),              &
-                            scatter,                                  & ! communication type
-                            ierr, message)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  end if
-
-  if (onRoute(kinematicWave)) then
-    call mpi_comm_molecule_state(pid, nNodes, comm,                        &
-                                 iens,                                     &
-                                 rch_per_proc(root:nNodes-1),              &
-                                 RCHSTA,                                   &
-                                 RCHSTA_trib,                              &
-                                 ixRch_order(rch_per_proc(root-1)+1:nRch), &
-                                 arth(1,1,rch_per_proc(pid)),              &
-                                 kinematicWave,                            & ! routing method
-                                 scatter,                                  & ! communication type
-                                 ierr, message)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  end if
-
-  if (onRoute(muskingumCunge)) then
-    call mpi_comm_molecule_state(pid, nNodes, comm,                        &
-                                 iens,                                     &
-                                 rch_per_proc(root:nNodes-1),              &
-                                 RCHSTA,                                   &
-                                 RCHSTA_trib,                              &
-                                 ixRch_order(rch_per_proc(root-1)+1:nRch), &
-                                 arth(1,1,rch_per_proc(pid)),              &
-                                 muskingumCunge,                           & ! routing method
-                                 scatter,                                  & ! communication type
-                                 ierr, message)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  end if
-
-  if (onRoute(diffusiveWave)) then
-    call mpi_comm_molecule_state(pid, nNodes, comm,                        &
-                                 iens,                                     &
-                                 rch_per_proc(root:nNodes-1),              &
-                                 RCHSTA,                                   &
-                                 RCHSTA_trib,                              &
-                                 ixRch_order(rch_per_proc(root-1)+1:nRch), &
-                                 arth(1,1,rch_per_proc(pid)),              &
-                                 diffusiveWave,                            & ! routing method
-                                 scatter,                                  & ! communication type
-                                 ierr, message)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  end if
-
-  if (onRoute(impulseResponseFunc))then
-    call mpi_comm_irf_state(pid, nNodes, comm,                        &
-                            iens,                                     &
-                            rch_per_proc(root:nNodes-1),              &
-                            RCHFLX,                                   &
-                            RCHFLX_trib,                              &
-                            ixRch_order(rch_per_proc(root-1)+1:nRch), &
-                            arth(1,1,rch_per_proc(pid)),              &
-                            scatter,                                  & ! communication type
-                            ierr, message)
+  if (multiProcs) then
+    ! Distribute global flux/state (RCHFLX & RCHSTA) to tributary (RCHFLX_trib & RCHSTA_trib)
+    ! flux communication (only basin delayed runoff flux)
+    call mpi_comm_single_flux(pid, nNodes, comm,                        &
+                              flux_global,                              &
+                              flux_local,                               &
+                              rch_per_proc(root:nNodes-1),              &
+                              ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                              arth(1,1,rch_per_proc(pid)),              &
+                              scatter,                                  &
+                              ierr, message)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! volume communication
-    do iTbound =1,nTbound
-      vol_global_tmp(:) = vol_global(:,iTbound)
-      call mpi_comm_single_flux(pid, nNodes, comm,                        &
-                                vol_global_tmp,                           &
-                                vol_local,                                &
-                                rch_per_proc(root:nNodes-1),              &
-                                ixRch_order(rch_per_proc(root-1)+1:nRch), &
-                                arth(1,1,rch_per_proc(pid)),              &
-                                scatter,                                  &
-                                ierr, message)
+    if (masterproc) then
+      do iSeg = 1, rch_per_proc(pid)
+        RCHFLX_trib(iens,nRch_mainstem+nTribOutlet+iSeg)%BASIN_QR(1) = flux_local(iSeg)
+      enddo
+    else
+      do iSeg = 1, rch_per_proc(pid)
+        RCHFLX_trib(iens,iSeg)%BASIN_QR(1) = flux_local(iSeg)
+      enddo
+    end if
+    
+    ! basin IRF state communication
+    if (doesBasinRoute == 1) then
+      call mpi_comm_irf_bas_state(pid, nNodes, comm,                        &
+                                  iens,                                     &
+                                  rch_per_proc(root:nNodes-1),              &
+                                  RCHFLX,                                   &
+                                  RCHFLX_trib,                              &
+                                  ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                                  arth(1,1,rch_per_proc(pid)),              &
+                                  scatter,                                  & ! communication type
+                                  ierr, message)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+    if (onRoute(kinematicWaveTracking))then
+      call mpi_comm_kwt_state(pid, nNodes, comm,                        &
+                              iens,                                     &
+                              rch_per_proc(root:nNodes-1),              &
+                              RCHSTA,                                   &
+                              RCHSTA_trib,                              &
+                              ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                              arth(1,1,rch_per_proc(pid)),              &
+                              scatter,                                  & ! communication type
+                              ierr, message)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+
+    if (onRoute(kinematicWave)) then
+      call mpi_comm_molecule_state(pid, nNodes, comm,                        &
+                                   iens,                                     &
+                                   rch_per_proc(root:nNodes-1),              &
+                                   RCHSTA,                                   &
+                                   RCHSTA_trib,                              &
+                                   ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                                   arth(1,1,rch_per_proc(pid)),              &
+                                   kinematicWave,                            & ! routing method
+                                   scatter,                                  & ! communication type
+                                   ierr, message)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+
+    if (onRoute(muskingumCunge)) then
+      call mpi_comm_molecule_state(pid, nNodes, comm,                        &
+                                   iens,                                     &
+                                   rch_per_proc(root:nNodes-1),              &
+                                   RCHSTA,                                   &
+                                   RCHSTA_trib,                              &
+                                   ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                                   arth(1,1,rch_per_proc(pid)),              &
+                                   muskingumCunge,                           & ! routing method
+                                   scatter,                                  & ! communication type
+                                   ierr, message)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+
+    if (onRoute(diffusiveWave)) then
+      call mpi_comm_molecule_state(pid, nNodes, comm,                        &
+                                   iens,                                     &
+                                   rch_per_proc(root:nNodes-1),              &
+                                   RCHSTA,                                   &
+                                   RCHSTA_trib,                              &
+                                   ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                                   arth(1,1,rch_per_proc(pid)),              &
+                                   diffusiveWave,                            & ! routing method
+                                   scatter,                                  & ! communication type
+                                   ierr, message)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+    
+    if (onRoute(impulseResponseFunc))then
+      call mpi_comm_irf_state(pid, nNodes, comm,                        &
+                              iens,                                     &
+                              rch_per_proc(root:nNodes-1),              &
+                              RCHFLX,                                   &
+                              RCHFLX_trib,                              &
+                              ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                              arth(1,1,rch_per_proc(pid)),              &
+                              scatter,                                  & ! communication type
+                              ierr, message)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-      if (masterproc) then
-        do iSeg = 1, rch_per_proc(pid)
-          RCHFLX_trib(iens,nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxIRF)%REACH_VOL(iTbound-1) = vol_local(iSeg)
-        enddo
-      else
-        do iSeg = 1, rch_per_proc(pid)
-          RCHFLX_trib(iens,iSeg)%ROUTE(idxIRF)%REACH_VOL(iTbound-1) = vol_local(iSeg)
-        end do
-      end if
-    end do
-  endif
+      ! volume communication
+      do iTbound =1,nTbound
+        vol_global_tmp(:) = vol_global(:,iTbound)
+        call mpi_comm_single_flux(pid, nNodes, comm,                        &
+                                  vol_global_tmp,                           &
+                                  vol_local,                                &
+                                  rch_per_proc(root:nNodes-1),              &
+                                  ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                                  arth(1,1,rch_per_proc(pid)),              &
+                                  scatter,                                  &
+                                  ierr, message)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    
+        if (masterproc) then
+          do iSeg = 1, rch_per_proc(pid)
+            RCHFLX_trib(iens,nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxIRF)%REACH_VOL(iTbound-1) = vol_local(iSeg)
+          enddo
+        else
+          do iSeg = 1, rch_per_proc(pid)
+            RCHFLX_trib(iens,iSeg)%ROUTE(idxIRF)%REACH_VOL(iTbound-1) = vol_local(iSeg)
+          end do
+        end if  
+      end do
+    endif ! (onRoute(impulseResponseFunc))
+  end if ! (multProc)
 
   ! no need for the entire domain flux/state data strucure
   deallocate(RCHFLX, RCHSTA)
