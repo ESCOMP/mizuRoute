@@ -12,6 +12,7 @@ MODULE globalData
   USE objTypes,  ONLY: var_info_new  ! metadata type - variable
 
   USE dataTypes, ONLY: infileinfo    ! data strture - information of input files
+  USE dataTypes, ONLY: gage          ! data structure - gauge metadata
 
   USE dataTypes, ONLY: RCHPRP        ! data structure - Reach parameters (properties)
   USE dataTypes, ONLY: RCHTOPO       ! data structure - Network topology
@@ -44,6 +45,7 @@ MODULE globalData
   USE var_lookup, ONLY: nVarsNTOPO   ! number of variables in data structure (river network topology)
   USE var_lookup, ONLY: nVarsPFAF    ! number of variables in data structure (pfaffstetter related variable)
   USE var_lookup, ONLY: nVarsRFLX    ! number of variables in data structure (river flux/state)
+  USE var_lookup, ONLY: nVarsHFLX    ! number of variables in data structure (HRU flux/state)
   USE var_lookup, ONLY: nVarsBasinQ  ! number of variables in data structure (restart vars for
   USE var_lookup, ONLY: nVarsIRFbas  ! number of variables in data structure (restart vars for overland unit-hydrograph routing)
   USE var_lookup, ONLY: nVarsIRF     ! number of variables in data structure (restart vars for unit-hydrograph routing)
@@ -100,6 +102,7 @@ MODULE globalData
   integer(i4b),                    public :: nEns=1                      ! number of ensemble
   type(cMolecule),                 public :: nMolecule                   ! number of computational molecule (used for KW, MC, DW)
   character(300),                  public :: hfileout=charMissing        ! name of the history output file
+  character(300),                  public :: hfileout_gage=charMissing   ! name of the gage-only history output file
   character(300),                  public :: rfileout=charMissing        ! name of the restart output file
 
   ! ---------- MPI/OMP/PIO variables ----------------------------------------------------------------
@@ -137,7 +140,8 @@ MODULE globalData
   type(struct_info),               public :: meta_struct(nStructures)   ! metadata on the data structures
   type(dim_info),                  public :: meta_dims(nDimensions)     ! metadata on the dimensions for network topology
   type(dim_info),                  public :: meta_stateDims(nStateDims) ! metadata on the dimensions for state variables
-  type(dim_info),                  public :: meta_qDims(nQdims)         ! metadata on the dimensions for state variables
+  type(dim_info),                  public :: meta_qDims(nQdims)         ! metadata on the dimensions for flux variables
+  type(dim_info),                  public :: meta_qDims_gage(nQdims)    ! metadata on the dimensions for flux variables
 
   ! ---------- metadata structures ------------------------------------------------------------------
 
@@ -148,6 +152,7 @@ MODULE globalData
   type(var_info),                  public :: meta_NTOPO  (nVarsNTOPO  ) ! network topology
   type(var_info),                  public :: meta_PFAF   (nVarsPFAF   ) ! pfafstetter code
   type(var_info_new),              public :: meta_rflx   (nVarsRFLX   ) ! reach flux variables
+  type(var_info_new),              public :: meta_hflx   (nVarsHFLX   ) ! hru flux variables
   type(var_info_new),              public :: meta_basinQ (nVarsBasinQ ) ! reach inflow from basin
   type(var_info_new),              public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
   type(var_info_new),              public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
@@ -157,6 +162,7 @@ MODULE globalData
   type(var_info_new),              public :: meta_dw     (nVarsDW     ) ! DW routing restart fluxes/states
 
   ! ---------- shared data structures ----------------------------------------------------------------------
+  type(gage),                      public :: gage_data              ! gauge metadata
 
   ! river topology and parameter structures
   type(RCHPRP),       allocatable, public :: RPARAM(:)              ! Reach Parameters for whole domain
@@ -170,12 +176,10 @@ MODULE globalData
   real(dp),           allocatable, public :: FRAC_FUTURE(:)         ! fraction of runoff in future time steps
 
   ! routing data structures
-  type(STRSTA),       allocatable, public :: RCHSTA(:,:)            ! restart variables (ensembles, space [reaches]) for the entire river network
-  type(STRFLX),       allocatable, public :: RCHFLX(:,:)            ! Reach fluxes (ensembles, space [reaches]) for entire river network
-  type(STRSTA),       allocatable, public :: RCHSTA_trib(:,:)       ! restart variables (ensembles, space [reaches]) for tributary
-  type(STRFLX),       allocatable, public :: RCHFLX_trib(:,:)       ! Reach fluxes (ensembles, space [reaches]) for tributaries
-  type(STRSTA),       allocatable, public :: RCHSTA_main(:,:)       ! restart variables (ensembles, space [reaches]) for mainstem
-  type(STRFLX),       allocatable, public :: RCHFLX_main(:,:)       ! Reach fluxes (ensembles, space [reaches]) for mainstem
+  type(STRSTA),       allocatable, public :: RCHSTA(:,:)            ! restart variables (ensembles, reaches) for the entire domain
+  type(STRFLX),       allocatable, public :: RCHFLX(:,:)            ! Reach fluxes (ensembles, reaches) for entire domain
+  type(STRSTA),       allocatable, public :: RCHSTA_trib(:,:)       ! restart variables (ensembles, reaches) for decomposed domains
+  type(STRFLX),       allocatable, public :: RCHFLX_trib(:,:)       ! Reach fluxes (ensembles, reaches) for decomposed domains
 
   ! lakes data structures
   type(LAKPRP),       allocatable, public :: LPARAM(:)              ! Lake parameters
@@ -215,6 +219,7 @@ MODULE globalData
   integer(i4b),       allocatable, public :: hru_per_proc(:)        ! number of hrus assigned to each proc (size = num of procs
   integer(i4b),       allocatable, public :: rch_per_proc(:)        ! number of reaches assigned to each proc (size = num of procs)
 
+  integer(i4b),       allocatable, public :: nTribOutlet            ! number of tributary reaches flowing into mainstem
   integer(i4b),       allocatable, public :: global_ix_main(:)      ! index array in mainstem array for tributary reach outlet (size = num of tributary outlets)
   integer(i4b),       allocatable, public :: global_ix_comm(:)      ! global index array for tributary reach outlet (size = num of tributary outlets)
   integer(i4b),       allocatable, public :: local_ix_comm(:)       ! local index array for tributary reach outlet (size = num of tributary outlets per proc)

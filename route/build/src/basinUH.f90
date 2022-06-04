@@ -25,7 +25,7 @@ CONTAINS
  ! Argument variables
  integer(i4b), intent(in)                 :: iens            ! ith ensemble
  type(RCHTOPO),intent(in),   allocatable  :: NETOPO_in(:)    ! River Network topology
- type(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+ type(STRFLX), intent(inout)              :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  integer(I4B), intent(out)                :: ierr            ! error code
  character(*), intent(out)                :: message         ! error message
  integer(i4b), intent(in),   optional     :: ixSubRch(:)     ! subset of reach indices to be processed
@@ -84,7 +84,7 @@ CONTAINS
  integer(i4b), intent(in)                 :: iEns           ! runoff ensemble to be routed
  integer(i4b), intent(in)                 :: iSeg           ! segment where routing is performed
  type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)   ! River Network topology
- type(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+ type(STRFLX), intent(inout)              :: RCHFLX_out(:,:)! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  integer(i4b), intent(out)                :: ierr                  ! error code
  character(*), intent(out)                :: message               ! error message
  ! Local variables

@@ -246,10 +246,11 @@ CONTAINS
     ! DESCRIPTION: Main routine for routing at all the river reaches per coupling period
 
     USE globalData,          ONLY: RCHFLX_trib      ! Reach flux data structures (per proc, tributary)
-    USE globalData,          ONLY: RCHFLX_main      ! Reach flux data structures (master proc, mainstem)
     USE globalData,          ONLY: NETOPO_trib      ! River Network data structures (per proc, tributary)
     USE globalData,          ONLY: NETOPO_main      ! River Network data structures (master proc, mainstem)
     USE globalData,          ONLY: nHRU_mainstem    ! number of mainstem HRUs
+    USE globalData,          ONLY: nRch_mainstem    ! number of mainstem reaches
+    USE globalData,          ONLY: nTribOutlet      ! number of tributaries flowing to mainstem
     USE globalData,          ONLY: hru_per_proc     ! number of hrus assigned to each proc (i.e., node)
     USE globalData,          ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
     USE globalData,          ONLY: basinRunoff_main ! mainstem only HRU runoff
@@ -267,6 +268,8 @@ CONTAINS
     integer                      :: iens=1                 ! ensemble index (1 for now)
     integer                      :: ix                     ! loop index
     integer                      :: nr, ns, nt             ! indices
+    integer                      :: lwr,upr                ! lower and upper bounds for array slicing
+    integer                      :: nRch_trib              ! number of tributary reaches
     integer                      :: yr, mon, day, ymd, tod ! time information
     integer                      :: nsub                   ! subcyling for cfl
     integer, parameter           :: gather=2
@@ -426,22 +429,26 @@ CONTAINS
       if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
     enddo
 
+    ! getting ready for exporting
     ! put reach flux variables to associated HRUs
     if (multiProcs) then
       if (masterproc) then
-        associate(nRch_main=>rch_per_proc(-1), nRch_trib=>rch_per_proc(0))
-        if (nRch_main/=0) then
-          call get_river_export_data(NETOPO_main, RCHFLX_main)
+        nRch_trib=rch_per_proc(0)
+        if (nRch_mainstem/=0) then
+          lwr=1
+          upr=nRch_mainstem
+          call get_river_export_data(NETOPO_main, RCHFLX_trib(:,lwr:upr))
         end if
         if (nRch_trib/=0) then
-          call get_river_export_data(NETOPO_trib, RCHFLX_trib)
+          lwr=nRch_mainstem+nTribOutlet+1
+          upr=nRch_mainstem+nTribOutlet+nRch_trib
+          call get_river_export_data(NETOPO_trib, RCHFLX_trib(:,lwr:upr))
         end if
-        end associate
       else ! other processors
         call get_river_export_data(NETOPO_trib, RCHFLX_trib)
       end if
     else ! using single processor
-      call get_river_export_data(NETOPO_main, RCHFLX_main)
+      call get_river_export_data(NETOPO_main, RCHFLX_trib(:,1:nRch_mainstem))
     end if
 
     call t_stopf('mizuRoute_subcycling')
@@ -487,13 +494,13 @@ CONTAINS
         USE dataTypes, ONLY: STRFLX    ! data structure - fluxes in each reach
         implicit none
         ! ARGUMENTS:
-        type(RCHTOPO), intent(in), allocatable  :: NETOPO_in(:)
-        type(STRFLX),  intent(in), allocatable  :: RCHFLX_in(:,:)
+        type(RCHTOPO), intent(in) :: NETOPO_in(:)
+        type(STRFLX),  intent(in) :: RCHFLX_in(:,:)
         ! LOCAL VARIABLES:
-        integer                                 :: ix
-        integer                                 :: iens=1
-        integer                                 :: iRch, iHru
-        integer                                 :: nRch, nCatch
+        integer                   :: ix
+        integer                   :: iens=1
+        integer                   :: iRch, iHru
+        integer                   :: nRch, nCatch
         nRch=size(NETOPO_in)
         do iRch =1, nRch
           nCatch = size(NETOPO_in(iRch)%HRUIX)
