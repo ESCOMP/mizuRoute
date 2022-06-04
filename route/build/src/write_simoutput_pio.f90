@@ -40,7 +40,7 @@ CONTAINS
     USE globalData, ONLY: nRch              !
     USE globalData, ONLY: nHRU              !
     USE globalData, ONLY: gage_data         !
-    USE globalData, ONLY: simDatetime       ! previous and current model time
+    USE globalData, ONLY: pioSystem
 
     implicit none
     ! Argument variables
@@ -64,7 +64,11 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! initialize and create history netcdfs
-      hist_all_network = histFile(hfileout, runMode)
+      select case(trim(runMode))
+        case('standalone');    hist_all_network = histFile(hfileout)
+        case('cesm-coupling'); hist_all_network = histFile(hfileout, pioSys=pioSystem)
+        case default; ierr=20; message=trim(message)//'rumMode: '//trim(runMode)//': must be standalone or cesm-coupling'; return
+      end select
 
       call get_compdof_all_network(compdof_rch, compdof_hru)
 
@@ -80,7 +84,13 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       if (gageOutput) then
-        hist_gage = histFile(hfileout_gage, runMode, gageOutput=.true.)
+
+        ! initialize and create history netcdfs
+        select case(trim(runMode))
+          case('standalone');    hist_gage = histFile(hfileout_gage, gageOutput=.true.)
+          case('cesm-coupling'); hist_gage = histFile(hfileout_gage, pioSys=pioSystem, gageOutput=.true.)
+          case default; ierr=20; message=trim(message)//'rumMode: '//trim(runMode)//': must be standalone or cesm-coupling'; return
+        end select
 
         call get_compdof_gage(compdof_rch_gage, ierr, cmessage)
 
@@ -354,6 +364,7 @@ CONTAINS
    USE globalData,  ONLY: nHRU, nRch        ! number of HRUs and river reaches
    USE globalData,  ONLY: gage_data
    USE public_var,  ONLY: gageOutput    ! ascii containing last restart and history files
+   USE globalData,  ONLY: pioSystem
 
    implicit none
    ! argument variables
@@ -372,7 +383,11 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! initialize and create history netcdfs
-   hist_all_network = histFile(hfileout, runMode)
+   select case(trim(runMode))
+     case('standalone');    hist_all_network = histFile(hfileout)
+     case('cesm-coupling'); hist_all_network = histFile(hfileout, pioSys=pioSystem)
+     case default; ierr=20; message=trim(message)//'rumMode: '//trim(runMode)//': must be standalone or cesm-coupling'; return
+   end select
 
    call hist_all_network%openNc(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -382,7 +397,11 @@ CONTAINS
    call hist_all_network%set_compdof(compdof_rch, compdof_hru, nRch, nHRU)
 
    if (gageOutput) then
-     hist_gage = histFile(hfileout_gage, runMode, gageOutput=.true.)
+     select case(trim(runMode))
+       case('standalone');    hist_gage = histFile(hfileout_gage, gageOutput=.true.)
+       case('cesm-coupling'); hist_gage = histFile(hfileout_gage, pioSys=pioSystem, gageOutput=.true.)
+       case default; ierr=20; message=trim(message)//'rumMode: '//trim(runMode)//': must be standalone or cesm-coupling'; return
+     end select
 
      call hist_gage%openNC(ierr, message)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif

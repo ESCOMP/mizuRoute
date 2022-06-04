@@ -65,12 +65,12 @@ MODULE historyFile
     ! -----------------------------------------------------
     ! set pio local-global mapping index for reach
     ! -----------------------------------------------------
-    FUNCTION constructor(fname, runMode, gageOutput) RESULT(instHistFile)
+    FUNCTION constructor(fname, pioSys, gageOutput) RESULT(instHistFile)
       implicit none
-      type(histFile)                     :: instHistFile
-      character(*),           intent(in) :: fname
-      character(*),           intent(in) :: runMode
-      logical(lgt), optional, intent(in) :: gageOutput
+      type(histFile)                              :: instHistFile
+      character(*),                    intent(in) :: fname
+      logical(lgt),          optional, intent(in) :: gageOutput
+      type(iosystem_desc_t), optional, intent(in) :: pioSys
 
       instHistFile%fname = fname
 
@@ -79,13 +79,15 @@ MODULE historyFile
       end if
 
       ! pio initialization - pioSystem
-      if (trim(runMode)=='standalone') then
+      if (present(pioSys)) then
+          instHistFile%pioSystem=pioSys
+      else
         pio_numiotasks = nNodes/pio_stride
         call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
                           pio_stride, pio_numiotasks, & ! input: PIO related parameters
                           pio_rearranger, pio_root,   & ! input: PIO related parameters
                           instHistFile%pioSystem)       ! output: PIO system descriptors
-      endif
+      end if
 
     END FUNCTION constructor
 
