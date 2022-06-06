@@ -52,17 +52,17 @@ USE pio_utils
 implicit none
 
 ! The following variables used only in this module
-type(file_desc_t),    save :: pioFileDescState     ! contains data identifying the file
-type(io_desc_t),      save :: iodesc_state_int
-type(io_desc_t),      save :: iodesc_state_double
-type(io_desc_t),      save :: iodesc_wave_int
-type(io_desc_t),      save :: iodesc_wave_double
-type(io_desc_t),      save :: iodesc_mesh_kw_double
-type(io_desc_t),      save :: iodesc_mesh_mc_double
-type(io_desc_t),      save :: iodesc_mesh_dw_double
-type(io_desc_t),      save :: iodesc_irf_double
-type(io_desc_t),      save :: iodesc_vol_double
-type(io_desc_t),      save :: iodesc_irf_bas_double
+type(file_desc_t)    :: pioFileDescState     ! contains data identifying the file
+type(io_desc_t)      :: iodesc_state_int
+type(io_desc_t)      :: iodesc_state_double
+type(io_desc_t)      :: iodesc_wave_int
+type(io_desc_t)      :: iodesc_wave_double
+type(io_desc_t)      :: iodesc_mesh_kw_double
+type(io_desc_t)      :: iodesc_mesh_mc_double
+type(io_desc_t)      :: iodesc_mesh_dw_double
+type(io_desc_t)      :: iodesc_irf_double
+type(io_desc_t)      :: iodesc_vol_double
+type(io_desc_t)      :: iodesc_irf_bas_double
 
 integer(i4b),    parameter :: currTimeStep = 1
 integer(i4b),    parameter :: nextTimeStep = 2
@@ -924,6 +924,30 @@ CONTAINS
  if (onRoute(diffusiveWave)) then
    call write_DW_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
+ ! clean decomposition data
+ call freeDecomp(pioFileDescState, iodesc_state_double)
+ call freeDecomp(pioFileDescState, iodesc_state_int)
+ if (doesBasinRoute==1) then
+   call freeDecomp(pioFileDescState, iodesc_irf_bas_double)
+ end if
+ if (onRoute(impulseResponseFunc))then
+   call freeDecomp(pioFileDescState, iodesc_irf_double)
+   call freeDecomp(pioFileDescState, iodesc_vol_double)
+ end if
+ if (onRoute(kinematicWaveTracking)) then
+   call freeDecomp(pioFileDescState, iodesc_wave_int)
+   call freeDecomp(pioFileDescState, iodesc_wave_double)
+ end if
+ if (onRoute(kinematicWave)) then
+   call freeDecomp(pioFileDescState, iodesc_mesh_kw_double)
+ end if
+ if (onRoute(muskingumCunge)) then
+   call freeDecomp(pioFileDescState, iodesc_mesh_mc_double)
+ end if
+ if (onRoute(diffusiveWave)) then
+   call freeDecomp(pioFileDescState, iodesc_mesh_dw_double)
  end if
 
  call closeFile(pioFileDescState, restartOpen)

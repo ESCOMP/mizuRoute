@@ -15,7 +15,9 @@ MODULE pio_utils
   public::end_def
   public::inq_dim_len
   public::openFile
+  public::freeDecomp
   public::closeFile
+  public::finalizeSystem
   public::sync_file
   public::write_scalar_netcdf      ! write non-distributed data
   public::write_netcdf             ! write non-distributed data
@@ -343,6 +345,34 @@ CONTAINS
     fileOpen = .false.
 
   END SUBROUTINE closeFile
+
+  !-----------------------------------------------------------------------
+  SUBROUTINE freeDecomp(pioFileDesc, iodesc)
+    ! !DESCRIPTION:
+    ! Free IO system and releasing all resources
+    !
+    implicit none
+    ! ARGUMENTS:
+    type(file_desc_t), intent(inout) :: pioFileDesc   ! PIO file handle to close
+    type(io_desc_t),   intent(inout) :: iodesc
+
+    call pio_freedecomp(pioFileDesc, ioDesc)
+
+  END SUBROUTINE freeDecomp
+
+  !-----------------------------------------------------------------------
+  SUBROUTINE finalizeSystem(pioIOsystem)
+    ! !DESCRIPTION:
+    ! Free IO system and releasing all resources
+    !
+    implicit none
+    ! ARGUMENTS:
+    type(iosystem_desc_t),intent(inout) :: pioIOsystem   !
+    integer(i4b)                        :: ierr
+
+    call pio_finalize(pioIOsystem, ierr)
+
+  END SUBROUTINE finalizeSystem
 
   !-----------------------------------------------------------------------
   SUBROUTINE sync_file(pioFileDesc, ierr, message)

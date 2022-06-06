@@ -45,6 +45,9 @@ MODULE historyFile
       generic,    public :: write_loc => write_loc_rch, write_loc_rch_hru
       procedure,  public :: write_flux
       procedure,  public :: closeNC
+      procedure,  public :: cleanup
+      procedure, private :: cleanup_rch
+      procedure, private :: cleanup_hru
       procedure, private :: write_flux_hru
       procedure, private :: write_flux_rch
       procedure, private :: createNC_rch
@@ -232,7 +235,7 @@ MODULE historyFile
       integer(i4b)                             :: dim_array(20)    ! dimension id array (max. 20 dimensions
       integer(i4b)                             :: nDims            ! number of dimension
 
-      ierr=0; message='createNC_all_network/'
+      ierr=0; message='createNC_rch_hru/'
 
       ! 1. Create new netCDF
       call createFile(this%pioSystem, trim(this%fname), pio_typename, pio_netcdf_format, this%pioFileDesc, ierr, cmessage)
@@ -354,6 +357,45 @@ MODULE historyFile
         call closeFile(this%pioFileDesc, this%fileStatus)
       endif
     END SUBROUTINE closeNC
+
+    ! ---------------------------------
+    ! clean up decomposition
+    ! ---------------------------------
+    SUBROUTINE cleanup(this)
+      implicit none
+      class(histFile),           intent(inout) :: this
+
+      if (.not.this%gageOutput) then
+        if (meta_hflx(ixHFLX%basRunoff)%varFile) then
+          call this%cleanup_hru()
+        endif
+      end if
+
+      call this%cleanup_rch()
+
+    END SUBROUTINE cleanup
+
+    ! ---------------------------------
+    ! Cleanup rch resources
+    ! ---------------------------------
+    SUBROUTINE cleanup_hru(this)
+      implicit none
+      class(histFile), intent(inout) :: this
+
+      call freeDecomp(this%pioFileDesc, this%ioDescHruFlux)
+
+    END SUBROUTINE cleanup_hru
+
+    ! ---------------------------------
+    ! Cleanup hru resources
+    ! ---------------------------------
+    SUBROUTINE cleanup_rch(this)
+      implicit none
+      class(histFile), intent(inout) :: this
+
+      call freeDecomp(this%pioFileDesc, this%ioDescRchFlux)
+
+    END SUBROUTINE cleanup_rch
 
     ! ---------------------------------
     ! writing location (hru and/or rch)
