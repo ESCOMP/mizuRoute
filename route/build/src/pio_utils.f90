@@ -7,18 +7,18 @@ MODULE pio_utils
   implicit none
 
   private
-  public::pio_sys_init
-  public::pio_decomp
-  public::createFile
-  public::def_dim
-  public::def_var
-  public::end_def
-  public::inq_dim_len
-  public::openFile
-  public::freeDecomp
-  public::closeFile
-  public::finalizeSystem
-  public::sync_file
+  public::pio_sys_init             ! Define pio system descriptor (iosystem_desc_t)
+  public::pio_decomp               ! Define decomposition (io_desc_t)
+  public::createFile               ! Create netcdf
+  public::def_dim                  ! Define dimension
+  public::def_var                  ! Define variable
+  public::end_def                  ! End definition mode
+  public::inq_dim_len              ! inquire dimension size
+  public::openFile                 ! Open netcdf
+  public::freeDecomp               ! free decomposition (io_desc_t)
+  public::closeFile                ! close netcdf (if it's open) and clean file_desc_t
+  public::finalizeSystem           ! free pio system descriptor (iosystem_desc_t)
+  public::sync_file                ! Write out data into disk
   public::write_scalar_netcdf      ! write non-distributed data
   public::write_netcdf             ! write non-distributed data
   public::write_pnetcdf            ! write distributed data without record dimension
@@ -349,7 +349,7 @@ CONTAINS
   !-----------------------------------------------------------------------
   SUBROUTINE freeDecomp(pioFileDesc, iodesc)
     ! !DESCRIPTION:
-    ! Free IO system and releasing all resources
+    ! Free decomposition
     !
     implicit none
     ! ARGUMENTS:
@@ -377,7 +377,7 @@ CONTAINS
   !-----------------------------------------------------------------------
   SUBROUTINE sync_file(pioFileDesc, ierr, message)
     ! !DESCRIPTION:
-    ! end definition of netcdf file
+    ! sync a file to disc (write out all)
     !
     implicit none
     ! ARGUMENTS:
