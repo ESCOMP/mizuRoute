@@ -7,16 +7,18 @@ MODULE pio_utils
   implicit none
 
   private
-  public::pio_sys_init
-  public::pio_decomp
-  public::createFile
-  public::def_dim
-  public::def_var
-  public::end_def
-  public::inq_dim_len
-  public::openFile
-  public::closeFile
-  public::sync_file
+  public::pio_sys_init             ! Define pio system descriptor (iosystem_desc_t)
+  public::pio_decomp               ! Define decomposition (io_desc_t)
+  public::createFile               ! Create netcdf
+  public::def_dim                  ! Define dimension
+  public::def_var                  ! Define variable
+  public::end_def                  ! End definition mode
+  public::inq_dim_len              ! inquire dimension size
+  public::openFile                 ! Open netcdf
+  public::freeDecomp               ! free decomposition (io_desc_t)
+  public::closeFile                ! close netcdf (if it's open) and clean file_desc_t
+  public::finalizeSystem           ! free pio system descriptor (iosystem_desc_t)
+  public::sync_file                ! Write out data into disk
   public::write_scalar_netcdf      ! write non-distributed data
   public::write_netcdf             ! write non-distributed data
   public::write_pnetcdf            ! write distributed data without record dimension
@@ -345,9 +347,37 @@ CONTAINS
   END SUBROUTINE closeFile
 
   !-----------------------------------------------------------------------
+  SUBROUTINE freeDecomp(pioFileDesc, iodesc)
+    ! !DESCRIPTION:
+    ! Free decomposition
+    !
+    implicit none
+    ! ARGUMENTS:
+    type(file_desc_t), intent(inout) :: pioFileDesc   ! PIO file handle to close
+    type(io_desc_t),   intent(inout) :: iodesc
+
+    call pio_freedecomp(pioFileDesc, ioDesc)
+
+  END SUBROUTINE freeDecomp
+
+  !-----------------------------------------------------------------------
+  SUBROUTINE finalizeSystem(pioIOsystem)
+    ! !DESCRIPTION:
+    ! Free IO system and releasing all resources
+    !
+    implicit none
+    ! ARGUMENTS:
+    type(iosystem_desc_t),intent(inout) :: pioIOsystem   !
+    integer(i4b)                        :: ierr
+
+    call pio_finalize(pioIOsystem, ierr)
+
+  END SUBROUTINE finalizeSystem
+
+  !-----------------------------------------------------------------------
   SUBROUTINE sync_file(pioFileDesc, ierr, message)
     ! !DESCRIPTION:
-    ! end definition of netcdf file
+    ! sync a file to disc (write out all)
     !
     implicit none
     ! ARGUMENTS:

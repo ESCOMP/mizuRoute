@@ -59,6 +59,7 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     if (createNewFile) then
+      call close_all()
 
       call get_hfilename(simDatetime(1), ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -349,9 +350,11 @@ CONTAINS
  SUBROUTINE close_all()
    implicit none
    if (hist_all_network%fileOpen()) then
+     call hist_all_network%cleanup()
      call hist_all_network%closeNC()
    end if
    if (hist_gage%fileOpen()) then
+     call hist_gage%cleanup()
      call hist_gage%closeNC()
    end if
  END SUBROUTINE
