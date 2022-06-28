@@ -4,31 +4,24 @@ MODULE RtmMod
 
   USE pio
   USE perf_mod
-  USE shr_pio_mod   , ONLY : shr_pio_getiotype, shr_pio_getioformat, &
-                             shr_pio_getrearranger, shr_pio_getioroot, shr_pio_getiosys
-  USE shr_kind_mod  , ONLY : r8 => shr_kind_r8, CL => SHR_KIND_CL
-  USE shr_sys_mod   , ONLY : shr_sys_flush, shr_sys_abort
-  USE RtmVar        , ONLY : nt_rtm, rtm_tracers, &
-                             ice_runoff, do_rtm, do_rtmflood, &
-                             nsrContinue, nsrBranch, nsrStartup, nsrest, &
-                             cfile_name, coupling_period, &
-                             caseid, brnch_retain_casename, inst_suffix, inst_name, &
-                             barrier_timers
-  USE RtmFileUtils,   ONLY : relavu, getavu, opnfil, getfil
-  USE RunoffMod     , ONLY : rtmCTL, RunoffInit
-  USE public_var,     ONLY : dt                         ! routing time step
-  USE public_var    , ONLY : iulog
-  USE public_var    , ONLY : rpntfil
-  USE globalData    , ONLY : runMode
-  USE globalData    , ONLY : iam        => pid
-  USE globalData    , ONLY : npes       => nNodes
-  USE globalData    , ONLY : mpicom_rof => mpicom_route
-  USE globalData    , ONLY : masterproc
-  USE globalData    , ONLY : multiProcs
-  USE globalData    , ONLY : pio_netcdf_format, pio_typename, pio_rearranger, &
-                             pio_root, pio_stride
-  USE globalData    , ONLY : pioSystem
-  USE nr_utility_module, ONLY : arth
+  USE shr_pio_mod,  ONLY: shr_pio_getiotype, shr_pio_getioformat, &
+                          shr_pio_getrearranger, shr_pio_getioroot, shr_pio_getiosys
+  USE shr_kind_mod, ONLY: r8 => shr_kind_r8, CL => SHR_KIND_CL
+  USE shr_sys_mod,  ONLY: shr_sys_flush, shr_sys_abort
+  USE RtmVar,       ONLY: nt_rtm, rtm_tracers, &
+                          ice_runoff, do_rtm, do_rtmflood, &
+                          nsrContinue, nsrBranch, nsrStartup, nsrest, &
+                          cfile_name, coupling_period, &
+                          caseid, brnch_retain_casename, inst_name, &
+                          barrier_timers
+  USE RunoffMod,    ONLY: rtmCTL, RunoffInit         ! rof related data objects
+  USE public_var,   ONLY: dt                         ! routing time step
+  USE public_var,   ONLY: iulog
+  USE globalData,   ONLY: iam        => pid
+  USE globalData,   ONLY: npes       => nNodes
+  USE globalData,   ONLY: mpicom_rof => mpicom_route
+  USE globalData,   ONLY: masterproc
+  USE globalData,   ONLY: multiProcs
 
   implicit none
 
@@ -38,9 +31,9 @@ MODULE RtmMod
 
 CONTAINS
 
-! *********************************************************************!
-! public subroutine: initialize
-! *********************************************************************!
+  ! *********************************************************************
+  ! public subroutine: initialize
+  ! *********************************************************************
   SUBROUTINE route_ini(rtm_active,flood_active)
 
     ! DESCRIPTION: Initialize mizuRoute
@@ -51,9 +44,15 @@ CONTAINS
     ! 5. For continue and/or Branch run-- Initialize restart and history files
     ! 6. initialize state variables
 
+    USE globalData,          ONLY: runMode                     ! "ctsm-coupling" or "standalone" to differentiate some behaviours in mizuRoute
     USE globalData,          ONLY: ixHRU_order                 ! global HRU index in the order of proc assignment (size = num of hrus contributing reach in entire network)
     USE globalData,          ONLY: hru_per_proc                ! number of hrus assigned to each proc (size = num of procs
     USE globalData,          ONLY: nHRU_mainstem               ! number of mainstem HRUs
+    USE globalData,          ONLY: pio_netcdf_format
+    USE globalData,          ONLY: pio_typename
+    USE globalData,          ONLY: pio_rearranger
+    USE globalData,          ONLY: pio_root, pio_stride
+    USE globalData,          ONLY: pioSystem
     USE init_model_data,     ONLY: init_ntopo_data, init_model !
     USE init_model_data,     ONLY: init_state_data
     USE RtmTimeManager,      ONLY: init_time
@@ -93,11 +92,11 @@ CONTAINS
     ! Initialize tracers
     rtm_trstr = trim(rtm_tracers(1))
     do nt = 2,nt_rtm
-       rtm_trstr = trim(rtm_trstr)//':'//trim(rtm_tracers(nt))
+      rtm_trstr = trim(rtm_trstr)//':'//trim(rtm_tracers(nt))
     enddo
 
     if (masterproc) then
-       write(iulog,*)'mizuRoute tracers = ',nt_rtm, trim(rtm_trstr)
+      write(iulog,*)'mizuRoute tracers = ',nt_rtm, trim(rtm_trstr)
     end if
 
     !-------------------------------------------------------
@@ -129,8 +128,8 @@ CONTAINS
     endif
 
     if (dt <= 0) then
-       write(iulog,*) subname,' ERROR mizuRoute dt invalid',dt
-       call shr_sys_abort( subname//' ERROR: mizuRoute dt invalid' )
+      write(iulog,*) subname,' ERROR mizuRoute dt invalid',dt
+      call shr_sys_abort( subname//' ERROR: mizuRoute dt invalid' )
     endif
 
     !-------------------------------------------------------
@@ -210,10 +209,10 @@ CONTAINS
     rtmCTL%gindex(rtmCTL%begr:rtmCTL%endr) = ixHRU_order(ix1:ix2)
 
     if ( any(rtmCTL%gindex(rtmCTL%begr:rtmCTL%endr) < 1) )then
-       call shr_sys_abort(trim(subname)//"bad gindex < 1")
+      call shr_sys_abort(trim(subname)//"bad gindex < 1")
     endif
     if ( any(rtmCTL%gindex(rtmCTL%begr:rtmCTL%endr) > rtmCTL%numr) )then
-       call shr_sys_abort(trim(subname)//"bad gindex > max")
+      call shr_sys_abort(trim(subname)//"bad gindex > max")
     endif
 
     !-------------------------------------------------------
@@ -239,33 +238,34 @@ CONTAINS
   END SUBROUTINE route_ini
 
 
-! *********************************************************************!
-! public subroutine: run
-! *********************************************************************!
+  ! *********************************************************************!
+  ! public subroutine: run
+  ! *********************************************************************!
   SUBROUTINE route_run(rstwr)
 
     ! DESCRIPTION: Main routine for routing at all the river reaches per coupling period
 
-    USE globalData,          ONLY: RCHFLX_trib      ! Reach flux data structures (per proc, tributary)
-    USE globalData,          ONLY: NETOPO_trib      ! River Network data structures (per proc, tributary)
-    USE globalData,          ONLY: NETOPO_main      ! River Network data structures (master proc, mainstem)
-    USE globalData,          ONLY: RPARAM_main      ! River parameters (per proc, mainstem)
-    USE globalData,          ONLY: RPARAM_trib      ! River parameters (per proc, tributary)
-    USE globalData,          ONLY: nHRU_mainstem    ! number of mainstem HRUs
-    USE globalData,          ONLY: nRch_mainstem    ! number of mainstem reaches
-    USE globalData,          ONLY: nTribOutlet      ! number of tributaries flowing to mainstem
-    USE globalData,          ONLY: hru_per_proc     ! number of hrus assigned to each proc (i.e., node)
-    USE globalData,          ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
-    USE globalData,          ONLY: basinRunoff_main ! mainstem only HRU runoff
-    USE globalData,          ONLY: basinRunoff_trib ! tributary only HRU runoff
-    USE globalData,          ONLY: flux_wm_main     ! mainstem only irrigation demand (water abstract/injection)
-    USE globalData,          ONLY: flux_wm_trib     ! tributary only irrigation demand (water abstract/injection)
-    USE write_simoutput_pio, ONLY: main_new_file    !
-    USE mpi_process,         ONLY: mpi_route        ! MPI routing call
-    USE write_simoutput_pio, ONLY: output
-    USE write_restart_pio,   ONLY: restart_output
-    USE init_model_data,     ONLY: update_time
-    USE process_remap_module, ONLY: basin2reach
+    USE globalData,          ONLY: RCHFLX_trib      ! data structure: Reach flux variables (per proc, tributary)
+    USE globalData,          ONLY: NETOPO_trib      ! data structure: River Network topology (other procs, tributary)
+    USE globalData,          ONLY: NETOPO_main      ! data structure: River Network topology (main proc, mainstem)
+    USE globalData,          ONLY: RPARAM_trib      ! data structure: River parameters (other procs, tributary)
+    USE globalData,          ONLY: RPARAM_main      ! data structure: River parameters (main proc, mainstem)
+    USE globalData,          ONLY: nHRU_mainstem    ! scalar data: number of mainstem HRUs
+    USE globalData,          ONLY: nRch_mainstem    ! scalar data: number of mainstem reaches
+    USE globalData,          ONLY: nTribOutlet      ! scalar data: number of tributaries flowing to mainstem
+    USE globalData,          ONLY: hru_per_proc     ! array data: number of hrus assigned to each proc (i.e., node)
+    USE globalData,          ONLY: rch_per_proc     ! array data: number of reaches assigned to each proc (i.e., node)
+    USE globalData,          ONLY: basinRunoff_main ! array data: mainstem only HRU runoff
+    USE globalData,          ONLY: basinRunoff_trib ! array data: tributary only HRU runoff
+    USE globalData,          ONLY: flux_wm_main     ! array data: mainstem only irrigation demand (water abstract/injection)
+    USE globalData,          ONLY: flux_wm_trib     ! array data: tributary only irrigation demand (water abstract/injection)
+    USE write_simoutput_pio, ONLY: main_new_file    ! subroutine: create new history files if desired
+    USE mpi_process,         ONLY: mpi_route        ! subroutine: MPI routing call
+    USE write_simoutput_pio, ONLY: output           ! subroutine: write out history files
+    USE write_restart_pio,   ONLY: restart_output   ! subroutine: write out restart file
+    USE init_model_data,     ONLY: update_time      ! subroutine: increment time
+    USE process_remap_module, ONLY: basin2reach     ! subroutine: mapping variables in hru domain to reach domian
+    USE nr_utility_module,    ONLY: arth            ! utility: equivalent to python range function
 
     implicit none
     ! ARGUMENTS:
@@ -278,8 +278,6 @@ CONTAINS
     integer                      :: nRch_trib              ! number of tributary reaches
     integer                      :: yr, mon, day, ymd, tod ! time information
     integer                      :: nsub                   ! subcyling for cfl
-    integer, parameter           :: gather=2
-    integer, parameter           :: currTimeStep=1         ! restart name time stamp option
     integer , save               :: nsub_save              ! previous nsub
     real(r8), save               :: delt_save              ! previous delt
     logical,  save               :: first_call = .true.    ! first time flag (for backwards compatibility)
@@ -288,7 +286,6 @@ CONTAINS
     real(r8), allocatable        :: array_temp(:)          ! temp array
     integer,  allocatable        :: ixRch(:)               ! temp array
     logical                      :: finished
-    ! error handling
     character(len=*),parameter   :: subname = '(route_run) '
     character(len=CL)            :: cmessage
     integer                      :: ierr                   ! error code
@@ -298,22 +295,20 @@ CONTAINS
 
     delt_coupling = coupling_period*60.0*60.0*24.0
     if (first_call) then
-       nsub_save = 1
-       delt_save = dt
-       if (masterproc) write(iulog,'(2a,g20.12,a)') trim(subname),' mizuRoute coupling period ',delt_coupling, '[sec]'
+      nsub_save = 1
+      delt_save = dt
+      if (masterproc) write(iulog,'(2a,g20.12,a)') trim(subname),' mizuRoute coupling period ',delt_coupling, '[sec]'
     end if
 
     !-------------------------------------------------------
     ! Initialize mizuRoute history handler and fields
     !-------------------------------------------------------
     call t_startf('mizuRoute_histinit')
+
     call main_new_file(ierr, cmessage)
     if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-    call t_stopf('mizuRoute_histinit')
 
-    rtmCTL%discharge = 0._r8
-    rtmCTL%volr      = 0._r8
-    rtmCTL%flood     = 0._r8
+    call t_stopf('mizuRoute_histinit')
 
     !----------------------------------------------------------
     ! Mapping CLM imported fluxes to mizuRoute HRUs or Reaches
@@ -325,9 +320,9 @@ CONTAINS
     allocate(array_temp(rtmCTL%lnumr))
     array_temp = -1._r8*rtmCTL%qirrig
     if (multiProcs) then
-      associate(nRch_trib => rch_per_proc(iam))
+      associate(nRch_trib => rch_per_proc(iam))   ! number of tributary reaches
       if (masterproc) then
-        if (nRch_mainstem > 0) then
+        if (nRch_mainstem > 0) then ! mainstem
           if (.not. allocated(flux_wm_main)) then
             allocate(flux_wm_main(nRch_mainstem), stat=ierr)
             if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [flux_wm_main]'); endif
@@ -337,7 +332,7 @@ CONTAINS
           call basin2reach(array_temp(1:nHRU_mainstem), NETOPO_main, RPARAM_main, flux_wm_main, ierr, cmessage, ixSubRch=ixRch)
           if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
         end if
-        if (nRch_trib > 0) then
+        if (nRch_trib > 0) then ! tributaries in main processor
           if (.not. allocated(flux_wm_trib)) then
             allocate(flux_wm_trib(nRch_trib), stat=ierr)
             if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [flux_wm_trib]'); endif
@@ -453,19 +448,29 @@ CONTAINS
       if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
     enddo
 
+    call t_stopf('mizuRoute_subcycling')
+
+    !-----------------------------------
     ! getting ready for exporting
+    !-----------------------------------
+    call t_startf('mizuRoute_prep_export')
+
+    rtmCTL%discharge = 0._r8
+    rtmCTL%volr      = 0._r8
+    rtmCTL%flood     = 0._r8
+
     ! put reach flux variables to associated HRUs
     if (multiProcs) then
       if (masterproc) then
         nRch_trib=rch_per_proc(0)
-        if (nRch_mainstem/=0) then
+        if (nRch_mainstem > 0) then
           lwr=1
           upr=nRch_mainstem
           call get_river_export_data(NETOPO_main, RCHFLX_trib(:,lwr:upr))
         end if
-        if (nRch_trib/=0) then
-          lwr=nRch_mainstem+nTribOutlet+1
-          upr=nRch_mainstem+nTribOutlet+nRch_trib
+        if (nRch_trib > 0) then
+          lwr = nRch_mainstem + nTribOutlet + 1
+          upr = nRch_mainstem + nTribOutlet + nRch_trib
           call get_river_export_data(NETOPO_trib, RCHFLX_trib(:,lwr:upr))
         end if
       else ! other processors
@@ -475,7 +480,7 @@ CONTAINS
       call get_river_export_data(NETOPO_main, RCHFLX_trib(:,1:nRch_mainstem))
     end if
 
-    call t_stopf('mizuRoute_subcycling')
+    call t_stopf('mizuRoute_prep_export')
 
     !-----------------------------------
     ! Write out mizuRoute history file
@@ -506,10 +511,10 @@ CONTAINS
     !-----------------------------------
     ! Done
     !-----------------------------------
-
     first_call = .false.
 
     call shr_sys_flush(iulog)
+
     call t_stopf('mizuRoute_tot')
 
     CONTAINS
@@ -546,8 +551,9 @@ CONTAINS
 
     ! DESCRIPTION:
     ! Determine and obtain netcdf restart file
-    USE public_var, ONLY: output_dir
-    USE public_var, ONLY: fname_state_in
+    USE RtmFileUtils, ONLY: getfil
+    USE public_var,   ONLY: output_dir
+    USE public_var,   ONLY: fname_state_in
 
     implicit none
     ! ARGUMENTS: None
@@ -561,28 +567,26 @@ CONTAINS
     ! Restart file pathname is read restart pointer file
     ! use "output_diro" for directory name for restart file
     if (nsrest==nsrContinue) then
-       call restFile_read_pfile( path )
-       call getfil( path, output_dir, fname_state_in, 0 )
+      call restFile_read_pfile( path )
+      call getfil( path, output_dir, fname_state_in, 0 )
     end if
 
     ! Branch run:
     ! Restart file pathname is obtained from namelist "fname_state_in"
     if (nsrest==nsrBranch) then
-
        ! Check case name consistency (case name must be different
        ! for branch run, unless brnch_retain_casename is set)
        ctest = 'xx.'//trim(caseid)//'.mizuRoute'
        ftest = 'xx.'//trim(fname_state_in)
        status = index(trim(ftest),trim(ctest))
        if (status /= 0 .and. .not.(brnch_retain_casename)) then
-          write(iulog,*) 'Must change case name on branch run if ',&
-               'brnch_retain_casename namelist is not set'
-          write(iulog,*) 'previous case filename= ',trim(fname_state_in),&
-               ' current case = ',trim(caseid), ' ctest = ',trim(ctest), &
-               ' ftest = ',trim(ftest)
-          call shr_sys_abort()
+         write(iulog,*) 'Must change case name on branch run if ', &
+                        'brnch_retain_casename namelist is not set'
+         write(iulog,*) 'previous case filename= ',trim(fname_state_in), &
+                        ' current case = ',trim(caseid), ' ctest = ',trim(ctest), &
+                        ' ftest = ',trim(ftest)
+         call shr_sys_abort()
        end if
-
     end if
 
   END SUBROUTINE RtmRestGetfile
@@ -590,8 +594,17 @@ CONTAINS
 
   SUBROUTINE restFile_read_pfile( pnamer )
 
-    ! !DESCRIPTION:
+    ! DESCRIPTION:
     ! Setup restart file and perform necessary consistency checks
+    ! Obtain the restart file from the restart pointer file.
+    ! For restart runs, the restart pointer file contains the full pathname
+    ! of the restart file. For branch runs, the namelist variable
+    ! [fname_state_in] contains the restart file name and restart file must be stored in output_dir.
+    ! New history files are always created for branch runs.
+
+    USE RtmFileUtils, ONLY: relavu, getavu, opnfil
+    USE RtmVar,       ONLY: inst_suffix
+    USE public_var,   ONLY: rpntfil
 
     implicit none
     ! !ARGUMENTS:
@@ -603,14 +616,8 @@ CONTAINS
     character(len=256) :: locfn   ! Restart pointer file name
     !--------------------------------------------------------
 
-    ! Obtain the restart file from the restart pointer file.
-    ! For restart runs, the restart pointer file contains the full pathname
-    ! of the restart file. For branch runs, the namelist variable
-    ! [fname_state_in] contains the restart file name and restart file must be stored in output_dir.
-    ! New history files are always created for branch runs.
-
     if (masterproc) then
-       write(iulog,*) 'Reading restart pointer file....'
+      write(iulog,*) 'Reading restart pointer file....'
     endif
 
     nio = getavu()
@@ -620,8 +627,8 @@ CONTAINS
     call relavu (nio)
 
     if (masterproc) then
-       write(iulog,*) 'Reading restart data.....'
-       write(iulog,'(72a1)') ("-",i=1,60)
+      write(iulog,*) 'Reading restart data.....'
+      write(iulog,'(72a1)') ("-",i=1,60)
     end if
 
   END SUBROUTINE restFile_read_pfile

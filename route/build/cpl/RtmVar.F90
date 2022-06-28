@@ -1,6 +1,6 @@
 module RtmVar
 
-  ! Public variables used for only coupled version mizuRouet
+  ! Public variables used for only coupled version mizuRoute
 
   use shr_kind_mod , only : r8 => shr_kind_r8, CL => SHR_KIND_CL
   use shr_sys_mod  , only : shr_sys_abort

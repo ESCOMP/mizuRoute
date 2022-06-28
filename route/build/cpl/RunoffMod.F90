@@ -1,8 +1,6 @@
 MODULE RunoffMod
 
-! !MODULE: RunoffMod
-!
-! !DESCRIPTION:
+! DESCRIPTION:
 ! Module containing data structures for coupler runoff data
 
   USE nrtype,     ONLY : r8 => dp
@@ -10,30 +8,29 @@ MODULE RunoffMod
   USE rtmVar,     ONLY : nt_rtm
   USE shr_sys_mod,ONLY : shr_sys_abort
 
-! !PUBLIC TYPES:
   implicit none
 
   private
 
   type, public :: runoff_flow
-     integer           :: begr,endr        ! local start/stop indices
-     integer           :: lnumr            ! local number of catchments
-     integer           :: numr             ! gdc global number of catchments
+    integer           :: begr,endr        ! local start/stop indices
+    integer           :: lnumr            ! local number of catchments
+    integer           :: numr             ! gdc global number of catchments
 
-     integer , pointer :: gindex(:)        ! global index consistent with map file
+    integer , pointer :: gindex(:)        ! global index consistent with map file
 
-     real(r8), pointer :: area(:)          ! area of catchment
-     integer , pointer :: mask(:)          ! reach category. 1=non outle, 2=interior basin outlet, 3=ocean outlet
+    real(r8), pointer :: area(:)          ! area of catchment
+    integer , pointer :: mask(:)          ! reach category. 1=non outle, 2=interior basin outlet, 3=ocean outlet
 
-     real(r8), pointer :: qsur(:,:)        ! coupler importing surface forcing [m3/s]
-     real(r8), pointer :: qsub(:,:)        ! coupler importing subsurface forcing [m3/s]
-     real(r8), pointer :: qgwl(:,:)        ! coupler importing glacier/wetland/lake forcing [m3/s]
-     real(r8), pointer :: qirrig(:)        ! coupler importing irrigation [m3/s]
-     real(r8), pointer :: qirrig_actual(:) ! minimum of irrigation and available main channel storage
+    real(r8), pointer :: qsur(:,:)        ! coupler importing surface forcing [m3/s]
+    real(r8), pointer :: qsub(:,:)        ! coupler importing subsurface forcing [m3/s]
+    real(r8), pointer :: qgwl(:,:)        ! coupler importing glacier/wetland/lake forcing [m3/s]
+    real(r8), pointer :: qirrig(:)        ! coupler importing irrigation [m3/s]
+    real(r8), pointer :: qirrig_actual(:) ! minimum of irrigation and available main channel storage
 
-     real(r8), pointer :: discharge(:,:)   ! coupler exporting river discharge [m3/s]
-     real(r8), pointer :: volr(:)          ! coupler exporting river storage (m3)
-     real(r8), pointer :: flood(:)         ! coupler exporting flood water sent back to clm [m3/s]
+    real(r8), pointer :: discharge(:,:)   ! coupler exporting river discharge [m3/s]
+    real(r8), pointer :: volr(:)          ! coupler exporting river storage (m3)
+    real(r8), pointer :: flood(:)         ! coupler exporting flood water sent back to clm [m3/s]
   end type runoff_flow
 
   type(runoff_flow), public :: rtmCTL
