@@ -28,6 +28,7 @@ MODULE RtmMod
   USE globalData    , ONLY : pio_netcdf_format, pio_typename, pio_rearranger, &
                              pio_root, pio_stride
   USE globalData    , ONLY : pioSystem
+  USE nr_utility_module, ONLY : arth
 
   implicit none
 
@@ -248,6 +249,8 @@ CONTAINS
     USE globalData,          ONLY: RCHFLX_trib      ! Reach flux data structures (per proc, tributary)
     USE globalData,          ONLY: NETOPO_trib      ! River Network data structures (per proc, tributary)
     USE globalData,          ONLY: NETOPO_main      ! River Network data structures (master proc, mainstem)
+    USE globalData,          ONLY: RPARAM_main      ! River parameters (per proc, mainstem)
+    USE globalData,          ONLY: RPARAM_trib      ! River parameters (per proc, tributary)
     USE globalData,          ONLY: nHRU_mainstem    ! number of mainstem HRUs
     USE globalData,          ONLY: nRch_mainstem    ! number of mainstem reaches
     USE globalData,          ONLY: nTribOutlet      ! number of tributaries flowing to mainstem
@@ -255,11 +258,14 @@ CONTAINS
     USE globalData,          ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
     USE globalData,          ONLY: basinRunoff_main ! mainstem only HRU runoff
     USE globalData,          ONLY: basinRunoff_trib ! tributary only HRU runoff
+    USE globalData,          ONLY: flux_wm_main     ! mainstem only irrigation demand (water abstract/injection)
+    USE globalData,          ONLY: flux_wm_trib     ! tributary only irrigation demand (water abstract/injection)
     USE write_simoutput_pio, ONLY: main_new_file    !
     USE mpi_process,         ONLY: mpi_route        ! MPI routing call
     USE write_simoutput_pio, ONLY: output
     USE write_restart_pio,   ONLY: restart_output
     USE init_model_data,     ONLY: update_time
+    USE process_remap_module, ONLY: basin2reach
 
     implicit none
     ! ARGUMENTS:
@@ -279,9 +285,9 @@ CONTAINS
     logical,  save               :: first_call = .true.    ! first time flag (for backwards compatibility)
     real(r8)                     :: delt                   ! delt associated with subcycling
     real(r8)                     :: delt_coupling          ! real value of coupling_period [sec]
+    real(r8), allocatable        :: array_temp(:)          ! temp array
+    integer,  allocatable        :: ixRch(:)               ! temp array
     logical                      :: finished
-    ! parameters used in negative runoff partitioning algorithm
-    real(r8)                     :: irrig_volume           ! volume of irrigation demand during time step [m3]
     ! error handling
     character(len=*),parameter   :: subname = '(route_run) '
     character(len=CL)            :: cmessage
@@ -302,49 +308,66 @@ CONTAINS
     !-------------------------------------------------------
     call t_startf('mizuRoute_histinit')
     call main_new_file(ierr, cmessage)
+    if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
     call t_stopf('mizuRoute_histinit')
 
     rtmCTL%discharge = 0._r8
     rtmCTL%volr      = 0._r8
     rtmCTL%flood     = 0._r8
 
-    !-----------------------------------
-    ! Compute irrigation flux based on demand from clm
+    !----------------------------------------------------------
+    ! Mapping CLM imported fluxes to mizuRoute HRUs or Reaches
+    !-----------------------------------------------------------
+    ! --- Mapping irrigation demand [mm/s] at HRU to river reach
     ! Must be calculated before volr is updated to be consistent with lnd
-    ! Just consider land points and only remove liquid water
-    !-----------------------------------
+    call t_startf('mizuRoute_mapping_irrig')
 
-!       call t_startf('mizuRoute_irrig')
-!       nt = 1
-!       rtmCTL%qirrig_actual = 0._r8
-!       do nr = rtmCTL%begr,rtmCTL%endr
-!
-!         ! calculate volume of irrigation flux during timestep
-!         irrig_volume = -rtmCTL%qirrig(nr) * delt_coupling
-!
-!         ! compare irrig_volume to main channel storage;
-!         ! add overage to subsurface runoff
-!         if(irrig_volume > RCHFLX_local(1,nr)%REACH_VOL(1)) then
-!           rtmCTL%qsub(nr,nt) = rtmCTL%qsub(nr,nt) &
-!                              + (RCHFLX_local(1,nr)%REACH_VOL(1) - irrig_volume) / delt_coupling
-!           irrig_volume = RCHFLX_local(1,nr)%REACH_VOL
-!         endif
-!
-!         !scs: how to deal with sink points / river outlets?
-!         !if (rtmCTL%mask(nr) == 1) then
-!
-!         ! actual irrigation rate [m3/s]
-!         ! i.e. the rate actually removed from the main channel
-!         ! if irrig_volume is greater than TRunoff%wr
-!         rtmCTL%qirrig_actual(nr) = - irrig_volume / delt_coupling
-!
-!         ! remove irrigation from wr (main channel)
-!         RCHFLX_local(1,nr)%REACH_VOL(1) = RCHFLX_local(1,nr)%REACH_VOL(1) - irrig_volume
-!         !scs  endif
-!       enddo
-!       call t_stopf('mizuRoute_irrig')
+    allocate(array_temp(rtmCTL%lnumr))
+    array_temp = -1._r8*rtmCTL%qirrig
+    if (multiProcs) then
+      associate(nRch_trib => rch_per_proc(iam))
+      if (masterproc) then
+        if (nRch_mainstem > 0) then
+          if (.not. allocated(flux_wm_main)) then
+            allocate(flux_wm_main(nRch_mainstem), stat=ierr)
+            if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [flux_wm_main]'); endif
+          end if
+          allocate(ixRch(nRch_mainstem), stat=ierr)
+          ixRch = arth(1,1,nRch_mainstem)
+          call basin2reach(array_temp(1:nHRU_mainstem), NETOPO_main, RPARAM_main, flux_wm_main, ierr, cmessage, ixSubRch=ixRch)
+          if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+        end if
+        if (nRch_trib > 0) then
+          if (.not. allocated(flux_wm_trib)) then
+            allocate(flux_wm_trib(nRch_trib), stat=ierr)
+            if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [flux_wm_trib]'); endif
+          end if
+          call basin2reach(array_temp(nHRU_mainstem+1:rtmCTL%lnumr), NETOPO_trib, RPARAM_trib, flux_wm_trib, ierr, cmessage)
+          if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+        end if
+      else ! other processors (tributary)
+        if (.not. allocated(flux_wm_trib)) then
+          allocate(flux_wm_trib(nRch_trib), stat=ierr)
+          if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [flux_wm_trib]'); endif
+        end if
+        call basin2reach(array_temp, NETOPO_trib, RPARAM_trib, flux_wm_trib, ierr, cmessage)
+        if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+      end if
+      end associate
+    else ! if only single proc is used, all irrigation demand is stored in mainstem array
+      if (.not. allocated(flux_wm_main)) then
+        allocate(flux_wm_main(nRch_mainstem), stat=ierr)
+        if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [flux_wm_main]'); endif
+      end if
+      call basin2reach(array_temp, NETOPO_main, RPARAM_main, flux_wm_main, ierr, cmessage)
+      if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+    end if
 
-    ! Get total runoff for each catchment
+    call t_stopf('mizuRoute_mapping_irrig')
+
+    ! --- Transfer total runoff [mm/s] at HRUs to mizuRoute array
+    call t_startf('mizuRoute_mapping_runoff')
+
     if (npes==1) then
       ! if only single proc is used, all runoff is stored in mainstem runoff array
       if (.not. allocated(basinRunoff_main)) then
@@ -353,7 +376,6 @@ CONTAINS
       end if
       do nr = 1,nHRU_mainstem
         basinRunoff_main(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)!+rtmCTL%qgwl(nr,1)
-        write(iulog,'(a,2x,i8,2x,d21.14)')'nr, basinRunoff_main = ',nr, basinRunoff_main(nr)
       end do
     else
       if (masterproc) then
@@ -386,6 +408,8 @@ CONTAINS
         end do
       end if
     end if
+
+    call t_stopf('mizuRoute_mapping_runoff')
 
     if (barrier_timers) then
       call t_startf('mizuRoute_SMdirect_barrier')
@@ -457,8 +481,10 @@ CONTAINS
     ! Write out mizuRoute history file
     !-----------------------------------
     call t_startf('mizuRoute_htapes')
+
     call output(ierr, cmessage)
     if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+
     call t_stopf('mizuRoute_htapes')
 
     !-----------------------------------
@@ -590,7 +616,6 @@ CONTAINS
     nio = getavu()
     locfn = './'// trim(rpntfil)//trim(inst_suffix)
     call opnfil (locfn, nio, 'f')
-    read (nio,*)
     read (nio,'(a256)') pnamer
     call relavu (nio)
 
