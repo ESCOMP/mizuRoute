@@ -176,7 +176,7 @@ class test_mizuRoute_control(unittest.TestCase):
                    'is_remap', 'fname_remap', 'vname_hruid_in_remap',
                    'vname_weight', 'vname_qhruid', 'vname_num_qhru', 'dname_hru_remap',
                    'dname_data_remap', 'vname_i_index', 'vname_j_index',
-                   'route_opt', 'fname_state_in',
+                   'route_opt', 'is_flux_wm','fname_state_in',
                    'hydGeometryOption', 'topoNetworkOption',
                    'computeReachList', 'param_nml', 'varname_area', 'varname_length',
                    'varname_slope', 'varname_HRUid', 'varname_hruSegId',

@@ -15,6 +15,7 @@
 <case_name>             CASE_NAME                  ! name of simulation
 <route_opt>             1                          ! option for routing schemes 0->accum 1->IRF (default) 2->KWT 3->KW 4->MC 5->DW
 <doesBasinRoute>        1                          ! basin routing options   0-> no, 1->IRF, otherwise error
+<is_flux_wm>            T                          ! switch for water abstraction/injection
 <fname_state_in>        STATE_IN_NC                ! input restart netCDF name. remove for run without any particular initial channel states
 <newFileFrequency>      month                      ! frequency for new output files (day, month, annual, single) 
 ! ****************************************************************************************************************************
