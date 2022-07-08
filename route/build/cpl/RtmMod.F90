@@ -8,8 +8,8 @@ MODULE RtmMod
                           shr_pio_getrearranger, shr_pio_getioroot, shr_pio_getiosys
   USE shr_kind_mod, ONLY: r8 => shr_kind_r8, CL => SHR_KIND_CL
   USE shr_sys_mod,  ONLY: shr_sys_flush, shr_sys_abort
-  USE RtmVar,       ONLY: nt_rtm, rtm_tracers, &
-                          ice_runoff, do_rtm, do_rtmflood, &
+  USE RtmVar,       ONLY: nt_rof, rof_tracers, &
+                          ice_runoff, do_rof, do_flood, &
                           nsrContinue, nsrBranch, nsrStartup, nsrest, &
                           cfile_name, coupling_period, &
                           caseid, brnch_retain_casename, inst_name, &
@@ -34,7 +34,7 @@ CONTAINS
   ! *********************************************************************
   ! public subroutine: initialize
   ! *********************************************************************
-  SUBROUTINE route_ini(rtm_active,flood_active)
+  SUBROUTINE route_ini(rof_active,flood_active)
 
     ! DESCRIPTION: Initialize mizuRoute
     ! 1. initialize time
@@ -61,10 +61,10 @@ CONTAINS
 
     implicit none
     !ARGUMENTS:
-    logical, intent(out)       :: rtm_active
+    logical, intent(out)       :: rof_active
     logical, intent(out)       :: flood_active
     ! LOCAL VARIABLES:
-    character(len=CL)          :: rtm_trstr                 ! tracer string
+    character(len=CL)          :: rof_trstr                 ! tracer string
     integer                    :: ierr                      ! error code
     integer                    :: nt, ix, ix1, ix2
     character(len= 7)          :: runtyp(4)                 ! run type
@@ -79,10 +79,10 @@ CONTAINS
     runtyp(nsrContinue + 1) = 'restart'
     runtyp(nsrBranch   + 1) = 'branch '
 
-    rtm_active   = do_rtm
-    flood_active = do_rtmflood
+    rof_active   = do_rof
+    flood_active = do_flood
 
-    if ( .not.do_rtm ) then
+    if ( .not.do_rof ) then
       if ( masterproc ) then
         write(iulog,*)'mizuRoute will not be active '
       endif
@@ -90,13 +90,13 @@ CONTAINS
     end if
 
     ! Initialize tracers
-    rtm_trstr = trim(rtm_tracers(1))
-    do nt = 2,nt_rtm
-      rtm_trstr = trim(rtm_trstr)//':'//trim(rtm_tracers(nt))
+    rof_trstr = trim(rof_tracers(1))
+    do nt = 2,nt_rof
+      rof_trstr = trim(rof_trstr)//':'//trim(rof_tracers(nt))
     enddo
 
     if (masterproc) then
-      write(iulog,*)'mizuRoute tracers = ',nt_rtm, trim(rtm_trstr)
+      write(iulog,*)'mizuRoute tracers = ',nt_rof, trim(rof_trstr)
     end if
 
     !-------------------------------------------------------

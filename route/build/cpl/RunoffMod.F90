@@ -5,7 +5,7 @@ MODULE RunoffMod
 
   USE nrtype,     ONLY : r8 => dp
   USE public_var, ONLY : iulog, MaxPosVal
-  USE rtmVar,     ONLY : nt_rtm
+  USE rtmVar,     ONLY : nt_rof
   USE shr_sys_mod,ONLY : shr_sys_abort
 
   implicit none
@@ -48,12 +48,12 @@ CONTAINS
     allocate(rtmCTL%gindex(begr:endr),            &
              rtmCTL%area(begr:endr),              &
              rtmCTL%mask(begr:endr),              &
-             rtmCTL%qsur(begr:endr,nt_rtm),       &
-             rtmCTL%qsub(begr:endr,nt_rtm),       &
-             rtmCTL%qgwl(begr:endr,nt_rtm),       &
+             rtmCTL%qsur(begr:endr,nt_rof),       &
+             rtmCTL%qsub(begr:endr,nt_rof),       &
+             rtmCTL%qgwl(begr:endr,nt_rof),       &
              rtmCTL%qirrig(begr:endr),            &
              rtmCTL%qirrig_actual(begr:endr),     &
-             rtmCTL%discharge(begr:endr,nt_rtm),  &
+             rtmCTL%discharge(begr:endr,nt_rof),  &
              rtmCTL%volr(begr:endr),              &
              rtmCTL%flood(begr:endr),             &
              stat=ierr)

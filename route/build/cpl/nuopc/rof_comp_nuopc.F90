@@ -518,7 +518,7 @@ contains
     ! - Count and distribute HRUs to rglo2gdc (determine rtmCTL%begr, rtmCTL%endr)
     ! - Initialize runoff datatype (rtmCTL)
 
-    call route_ini(rtm_active=rof_prognostic, flood_active=flood_present)
+    call route_ini(rof_active=rof_prognostic, flood_active=flood_present)
 
     !--------------------------------
     ! generate the mesh and realize fields
