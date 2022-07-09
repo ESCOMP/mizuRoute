@@ -455,10 +455,6 @@ CONTAINS
     !-----------------------------------
     call t_startf('mizuRoute_prep_export')
 
-    rtmCTL%discharge = 0._r8
-    rtmCTL%volr      = 0._r8
-    rtmCTL%flood     = 0._r8
-
     ! put reach flux variables to associated HRUs
     if (multiProcs) then
       if (masterproc) then
@@ -537,7 +533,7 @@ CONTAINS
           nCatch = size(NETOPO_in(iRch)%HRUIX)
           do iHru = 1, nCatch
             ix = NETOPO_in(iRch)%HRUIX(iHru)
-            rtmCTL%volr(ix)        = 0._r8
+            rtmCTL%volr(ix)        = RCHFLX_in(iens, iRch)%ROUTE(idxIRF)%REACH_VOL(1)
             rtmCTL%flood(ix)       = 0._r8
             rtmCTL%discharge(ix,1) = RCHFLX_in(iens, iRch)%ROUTE(idxIRF)%REACH_Q
           end do
