@@ -1,12 +1,15 @@
-module RtmVar
+MODULE RtmVar
 
   ! Public variables used for only coupled version mizuRoute
 
-  use shr_kind_mod , only : r8 => shr_kind_r8, CL => SHR_KIND_CL
-  use shr_sys_mod  , only : shr_sys_abort
-  use globalData   , only : masterproc
+  USE shr_kind_mod , ONLY: r8 => shr_kind_r8, CL => SHR_KIND_CL
+  USE shr_sys_mod  , ONLY: shr_sys_abort
+  USE globalData   , ONLY: masterproc
 
   implicit none
+
+  private
+  public rofVarSet          ! Initialize control variable
 
   save
 
@@ -56,7 +59,7 @@ module RtmVar
 
 CONTAINS
 
-  SUBROUTINE RtmVarSet( caseid_in, ctitle_in, brnch_retain_casename_in,    &
+  SUBROUTINE rofVarSet( caseid_in, ctitle_in, brnch_retain_casename_in,    &
                         nsrest_in, version_in, hostname_in, username_in,   &
                         model_doi_url_in )
 
@@ -75,7 +78,7 @@ CONTAINS
     !-----------------------------------------------------------------------
 
     if ( rofVar_isset )then
-       call shr_sys_abort( 'RtmVarSet ERROR:: control variables already set -- EXIT' )
+       call shr_sys_abort( 'rofVarSet ERROR:: control variables already set -- EXIT' )
     end if
 
     if (present(caseid_in)) caseid = caseid_in
@@ -87,7 +90,7 @@ CONTAINS
     if (present(model_doi_url_in)) model_doi_url = model_doi_url_in
     if (present(brnch_retain_casename_in)) brnch_retain_casename = brnch_retain_casename_in
 
-  END SUBROUTINE RtmVarSet
+  END SUBROUTINE rofVarSet
 
 !================================================================================
 
@@ -109,7 +112,7 @@ CONTAINS
           call shr_sys_abort( 'RtmVarInit ERROR: nsrest NOT set to a valid value' )
        end if
     endif
-    RtmVar_isset = .true.
+    rofVar_isset = .true.
   END SUBROUTINE RtmVarInit
 
 END MODULE RtmVar
