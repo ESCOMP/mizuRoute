@@ -30,7 +30,7 @@ module rof_comp_nuopc
   use RtmMod                , only : route_ini, route_run
   use RtmTimeManager        , only : shr_timeStr
   USE RtmVar                , ONLY : cfile_name
-  use RtmVar                , only : inst_index, inst_suffix, inst_name, RtmVarSet
+  use RtmVar                , only : inst_index, inst_suffix, inst_name, rofVarSet
   use RtmVar                , only : nsrStartup, nsrContinue, nsrBranch
   use RtmVar                , only : coupling_period !day
 
@@ -497,7 +497,7 @@ contains
        call shr_sys_abort( subname//' ERROR: unknown starttype' )
     end if
 
-    call RtmVarSet(&
+    call rofVarSet(&
          caseid_in=caseid, &
          ctitle_in=ctitle,   &
          brnch_retain_casename_in=brnch_retain_casename, &
@@ -518,7 +518,7 @@ contains
     ! - Count and distribute HRUs to rglo2gdc (determine rtmCTL%begr, rtmCTL%endr)
     ! - Initialize runoff datatype (rtmCTL)
 
-    call route_ini(rtm_active=rof_prognostic, flood_active=flood_present)
+    call route_ini(rof_active=rof_prognostic, flood_active=flood_present)
 
     !--------------------------------
     ! generate the mesh and realize fields

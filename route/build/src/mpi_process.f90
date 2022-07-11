@@ -94,6 +94,18 @@ CONTAINS
   USE globalData,          ONLY: nEns                     ! ensemble numbers (currently only 1)
   USE globalData,          ONLY: nRch_mainstem            ! number of mainstem reaches
   USE globalData,          ONLY: nHRU_mainstem            ! number of mainstem HRUs
+  USE globalData,          ONLY: basinRunoff_main         ! mainstem only HRU runoff
+  USE globalData,          ONLY: basinRunoff_trib         ! tributary only HRU runoff
+  USE globalData,          ONLY: basinEvapo_main          ! mainstem only HRU Evaporation
+  USE globalData,          ONLY: basinEvapo_trib          ! tributary only HRU Evaporation
+  USE globalData,          ONLY: basinPrecip_main         ! mainstem only HRU Precipitation
+  USE globalData,          ONLY: basinPrecip_trib         ! tributary only HRU Precipitation
+  USE globalData,          ONLY: flux_wm_main             ! nRch flux holder for mainstem
+  USE globalData,          ONLY: flux_wm_trib             ! nRch flux holder for tributary
+  USE globalData,          ONLY: vol_wm_main              ! nRch target vol holder for mainstem
+  USE globalData,          ONLY: vol_wm_trib              ! nRch target vol holder for mainstem
+  USE globalData,          ONLY: nRch_trib                ! number of tributary reaches
+  USE globalData,          ONLY: nHRU_trib                ! number of tributary HRUs
   USE globalData,          ONLY: hru_per_proc             ! number of hrus assigned to each proc (size = num of procs+1)
   USE globalData,          ONLY: rch_per_proc             ! number of reaches assigned to each proc (size = num of procs+1)
   USE globalData,          ONLY: ixHRU_order              ! global HRU index in the order of proc assignment (size = total number of HRUs contributing to any reaches, nContribHRU)
@@ -105,6 +117,9 @@ CONTAINS
   USE globalData,          ONLY: local_ix_comm            ! local reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
   USE globalData,          ONLY: reachID
   USE globalData,          ONLY: basinID
+  USE public_var,          ONLY: is_flux_wm               ! logical whether or not water abstraction/injection occurs
+  USE public_var,          ONLY: is_lake_sim              ! logical whether or not lake simulation occurs
+  USE public_var,          ONLY: is_vol_wm           ! logical whether or not target volume should be passed
   USE allocation,          ONLY: alloc_struct
   USE process_ntopo,       ONLY: augment_ntopo            ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,       ONLY: put_data_struct          !
@@ -144,7 +159,7 @@ CONTAINS
   integer(i4b)                                :: ixNode(nRch_in)          ! node assignment for each reach
   integer(i4b)                                :: ixDomain(nRch_in)        ! domain index for each reach
   logical(lgt),      allocatable              :: tribOutlet(:)            ! logical to indicate tributary outlet to mainstems over entire network
-  integer(i4b)                                :: nRch_trib                ! number of tributary outlets for each proc (scalar)
+  integer(i4b)                                :: nRch_trib_outlet         ! number of tributary outlets for each proc (scalar)
   integer(i4b),      allocatable              :: nRch_trib_array(:)       ! number of tributary outlets for each proc (array)
   ! flat array for decomposed river network per domain (sub-basin)
   integer(i4b)                                :: idNode(nDomain_mpi)      ! node id array for each domain
@@ -252,9 +267,14 @@ CONTAINS
   call shr_mpi_bcast(ixRch_order, ierr, cmessage)
   call shr_mpi_bcast(ixHRU_order, ierr, cmessage)
 
+  call shr_mpi_bcast(reachID,ierr, message)
+  call shr_mpi_bcast(basinID,ierr, message)
+
   ! define the number of reaches/hrus on the mainstem
   nRch_mainstem = rch_per_proc(-1)
   nHRU_mainstem = hru_per_proc(-1)
+  nRch_trib     = rch_per_proc(pid)
+  nHRU_trib     = hru_per_proc(pid)
 
   ! ********************************************************************************************************************
   ! Optional procedures: Multiple MPI tasks requested
@@ -408,8 +428,8 @@ CONTAINS
     nTribOutlet = count(tribOutlet)
 
     ! gather array for number of tributary outlet reaches from each proc
-    nRch_trib = count(tribOutlet_local) ! number of tributary outlets for each proc
-    call shr_mpi_allgather(nRch_trib, 1, nRch_trib_array, ierr, cmessage)
+    nRch_trib_outlet = count(tribOutlet_local) ! number of tributary outlets for each proc
+    call shr_mpi_allgather(nRch_trib_outlet, 1, nRch_trib_array, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! need to use 0:nNodes-1 bound instead of 1:nNodes
@@ -418,7 +438,7 @@ CONTAINS
     tribOutlet_per_proc(0:nNodes-1) = nRch_trib_array
 
     allocate(global_ix_comm(nTribOutlet), global_ix_main(nTribOutlet), &
-             seq_array(rch_per_proc(pid)), local_ix_comm(nRch_trib), stat=ierr,  errmsg=cmessage)
+             seq_array(nRch_trib), local_ix_comm(nRch_trib_outlet), stat=ierr,  errmsg=cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! mask non-tributary outlet reaches
@@ -431,7 +451,7 @@ CONTAINS
 
 !       if (masterproc) then
 !         print*, 'ix, local_ix_comm, NETOPO_trib%REACHIX, reachId, downstream ID, downstream local ix'
-!         do ix =1, nRch_trib
+!         do ix =1, nRch_trib_outlet
 !           print*,  ix, local_ix_comm(ix), NETOPO_trib(local_ix_comm(ix))%REACHIX, NETOPO_trib(local_ix_comm(ix))%REACHID, NETOPO_trib(local_ix_comm(ix))%DREACHK, NETOPO_trib(local_ix_comm(ix))%DREACHI
 !         enddo
 !         do ix =1, size(global_ix_comm)
@@ -442,22 +462,93 @@ CONTAINS
 !         enddo
 !       endif
 
+    ! allocation, RCHFLX, RCHSTA, basinRunoff, basinEvapo, basinPrecip, flux_wm
     if (masterproc) then
+      ! reach flux data
       allocate(RCHFLX_trib(nEns, nRch_mainstem+nTribOutlet+rch_per_proc(0)), stat=ierr, errmsg=cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       do ix = 1, nRch_mainstem+nTribOutlet+rch_per_proc(0)
         allocate(RCHFLX_trib(nEns,ix)%ROUTE(nRoutes))
       end do
+
+      ! reach restart data
       allocate(RCHSTA_trib(nEns, nRch_mainstem+nTribOutlet+rch_per_proc(0)), stat=ierr, errmsg=cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    else
-      allocate(RCHFLX_trib(nEns,rch_per_proc(pid)), stat=ierr, errmsg=cmessage)
+
+      ! basin runoff array
+      allocate(basinRunoff_main(nHRU_mainstem), stat=ierr, errmsg=cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      do ix = 1,rch_per_proc(pid)
+
+      allocate(basinRunoff_trib(nHRU_trib), stat=ierr, errmsg=cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      ! precipitation and evaporation
+      if (is_lake_sim) then
+        allocate(basinEvapo_main(nHRU_mainstem), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        allocate(basinPrecip_main(nHRU_mainstem), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        allocate(basinEvapo_trib(nHRU_trib), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        allocate(basinPrecip_trib(nHRU_trib), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      end if
+
+      ! reach abstraction array
+      if (is_flux_wm) then
+        allocate(flux_wm_main(nRch_mainstem), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        allocate(flux_wm_trib(nRch_trib), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      end if
+
+      if (is_vol_wm.and.is_lake_sim) then
+        allocate(vol_wm_main(nRch_mainstem), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        allocate(vol_wm_trib(nRch_trib), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      end if
+    else
+      ! reach flux data
+      allocate(RCHFLX_trib(nEns,nRch_trib), stat=ierr, errmsg=cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      do ix = 1, nRch_trib
         allocate(RCHFLX_trib(nEns,ix)%ROUTE(nRoutes))
       end do
-      allocate(RCHSTA_trib(nEns,rch_per_proc(pid)), stat=ierr, errmsg=cmessage)
+
+      ! reach restart data
+      allocate(RCHSTA_trib(nEns,nRch_trib), stat=ierr, errmsg=cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      ! basin runoff array
+      allocate(basinRunoff_trib(nHRU_trib), stat=ierr, errmsg=cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      ! precipitation and evaporation
+      if (is_lake_sim) then
+        allocate(basinEvapo_trib(nHRU_trib), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        allocate(basinPrecip_trib(nHRU_trib), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      end if
+
+      ! reach abstraction array
+      if (is_flux_wm) then
+        allocate(flux_wm_trib(nRch_trib), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      end if
+
+      ! target volume data
+      if (is_vol_wm.and.is_lake_sim) then
+        allocate(vol_wm_trib(nRch_trib), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      end if
     end if
 
   endif ! (multiProcs)
@@ -472,6 +563,7 @@ CONTAINS
 
   if (nRch_mainstem > 0) then
     if (masterproc) then
+      ! allocation, RCHFLX, RCHSTA, basinRunoff, basinEvapo, basinPrecip, flux_wm
       if (.not. multiProcs) then
         nTribOutlet=0
         allocate(RCHFLX_trib(nEns, nRch_mainstem), stat=ierr, errmsg=cmessage)
@@ -479,8 +571,28 @@ CONTAINS
         do ix = 1, nRch_mainstem
           allocate(RCHFLX_trib(nEns,ix)%ROUTE(nRoutes))
         end do
+
         allocate(RCHSTA_trib(nEns, nRch_mainstem), stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        ! basin runoff array
+        allocate(basinRunoff_main(nHRU_mainstem), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        ! basin precipitation and evaporation
+        if (is_lake_sim) then
+          allocate(basinEvapo_main(nHRU_mainstem), stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+          allocate(basinPrecip_main(nHRU_mainstem), stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+        end if
+
+        ! reach abstraction array
+        if (is_flux_wm) then
+          allocate(flux_wm_main(nRch_mainstem), stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+        end if
       end if
 
       call alloc_struct(nHRU_mainstem,              & ! input: number of HRUs
@@ -868,6 +980,7 @@ CONTAINS
   USE globalData, ONLY: river_basin_trib    ! tributary OMP domain data structure
   USE globalData, ONLY: river_basin_main    ! mainstem OMP domain data structure
   USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
+  USE globalData, ONLY: nRch_trib           ! number of tributary reaches
   USE globalData, ONLY: flux_wm_main        ! nRch flux holder for mainstem
   USE globalData, ONLY: flux_wm_trib        ! nRch flux holder for tributary
   USE globalData, ONLY: vol_wm_main         ! nRch target vol holder for mainstem
@@ -902,17 +1015,16 @@ CONTAINS
   logical(lgt), optional,   intent(in)  :: scatter_ro               ! logical to indicate if scattering global runoff is required
   ! local variables
   integer(i4b), allocatable             :: ixRchProcessed(:)        ! reach indice list to be processed
-  integer(i4b)                          :: nRch_trib                ! number of reaches on one tributary (in a proc)
   integer(i4b)                          :: ix1,ix2                  !
-  logical(lgt)                          :: doesScatterRunoff        ! temporal logical to indicate if scattering global runoff is required
+  logical(lgt)                          :: doesScatterData          ! temporal logical to indicate if scattering global flux is required
   character(len=strLen)                 :: cmessage                 ! error message from subroutine
 
   ierr=0; message='mpi_route/'
 
   if (present(scatter_ro)) then
-    doesScatterRunoff = scatter_ro
+    doesScatterData = scatter_ro
   else
-    doesScatterRunoff = .true.
+    doesScatterData = .true.
   end if
 
   ! --------------------------------
@@ -925,61 +1037,14 @@ CONTAINS
   !  - basinPrecip_main (only at master proc)
   !  - basinPrecip_trib (all procs)
   ! --------------------------------
-  if (doesScatterRunoff) then
+  if (doesScatterData) then
     call t_startf ('route/scatter-runoff')
     call scatter_runoff(nNodes, comm, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     call t_stopf ('route/scatter-runoff')
   else
-    if (nNodes==1) then
-      if (.not.allocated(basinRunoff_main)) then
-        ierr=10; message=trim(message)//'master proc: mainstem runoff array is not allocated'; return
-      end if
-      if (is_lake_sim) then
-        if (.not.allocated(basinEvapo_main)) then
-          ierr=10; message=trim(message)//'master proc: mainstem evaporation array is not allocated'; return
-        end if
-        if (.not.allocated(basinPrecip_main)) then
-          ierr=10; message=trim(message)//'master proc: mainstem precipitation array is not allocated'; return
-        end if
-      end if
-    else
-      if (masterproc) then
-        write(iulog,*) 'NOTE: HRU Runoff is already decomposed into mainstems and tributaries. No need for scatter_runoff'
-
-        if (nHRU_mainstem > 0 .and. .not.allocated(basinRunoff_main)) then
-          ierr=10; message=trim(message)//'mainstem runoff array is not allocated/populated'; return
-        end if
-        if (.not.allocated(basinRunoff_trib)) then
-          ierr=10; message=trim(message)//'master proc: tributary runoff array is not allocated'; return
-        end if
-        if (is_lake_sim) then
-          if (nHRU_mainstem > 0 .and. .not.allocated(basinEvapo_main)) then
-            ierr=10; message=trim(message)//'mainstem evaporation array is not allocated/populated'; return
-          end if
-          if (.not.allocated(basinEvapo_trib)) then
-            ierr=10; message=trim(message)//'master proc: tributary evaporation array is not allocated'; return
-          end if
-          if (.not.allocated(basinPrecip_trib)) then
-            ierr=10; message=trim(message)//'master proc: tributary precipitation array is not allocated'; return
-          end if
-          if (nHRU_mainstem > 0 .and. .not.allocated(basinPrecip_main)) then
-            ierr=10; message=trim(message)//'mainstem precipitation array is not allocated/populated'; return
-          end if
-        end if
-      else
-        if(.not.allocated(basinRunoff_trib)) then
-          ierr=10; message=trim(message)//'tributary runoff array is not allocated/populated'; return
-        end if
-        if (is_lake_sim) then
-          if (.not.allocated(basinEvapo_trib)) then
-            ierr=10; message=trim(message)//'tributary evaporation array is not allocated/populated'; return
-          end if
-          if (.not.allocated(basinPrecip_trib)) then
-            ierr=10; message=trim(message)//'tributary precipitation array is not allocated/populated'; return
-          end if
-        end if
-      end if
+    if (masterproc) then
+      write(iulog,*) 'NOTE: HRU Runoff is already decomposed into mainstems and tributaries. No need for scatter_runoff'
     end if
   end if
 
@@ -991,56 +1056,15 @@ CONTAINS
   !  - vol_wm_main  (only at master proc)
   !  - vol_wm_trib  (all procs)
   ! --------------------------------
-
   if (is_flux_wm.or.(is_vol_wm.and.is_lake_sim)) then
-    if (doesScatterRunoff) then
+    if (doesScatterData) then
       call t_startf ('route/scatter-wm')
       call scatter_wm(nNodes, comm, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       call t_stopf ('route/scatter-wm')
     else
-      if (nNodes==1) then
-        if (is_flux_wm) then
-          if (.not.allocated(flux_wm_main)) then
-            ierr=10; message=trim(message)//'master proc: mainstem water management flux array is not allocated'; return
-          end if
-        end if
-        if (is_vol_wm.and.is_lake_sim) then
-          if (.not.allocated(vol_wm_main)) then
-            ierr=10; message=trim(message)//'master proc: mainstem target volume array (for lakes) is not allocated'; return
-          end if
-        end if
-      else
-        if (masterproc) then
-          write(iulog,*) 'NOTE: reach flux and target volume are already decomposed into mainstems and tributaries. No need for scatter_wm'
-          if (is_flux_wm) then
-            if (nRch_mainstem > 0 .and. .not.allocated(flux_wm_main)) then
-              ierr=10; message=trim(message)//'mainstem water management flux array is not allocated/populated'; return
-            end if
-            if (.not.allocated(flux_wm_trib)) then
-              ierr=10; message=trim(message)//'master proc: tributary water management flux array is not allocated'; return
-            end if
-          end if
-          if (is_vol_wm.and.is_lake_sim) then
-            if (nRch_mainstem > 0 .and. .not.allocated(vol_wm_main)) then
-              ierr=10; message=trim(message)//'mainstem target volume array (for lakes) is not allocated/populated'; return
-            end if
-            if (.not.allocated(vol_wm_trib)) then
-              ierr=10; message=trim(message)//'master proc: tributary target volume array (for lakes) is not allocated'; return
-            end if
-          end if
-        else
-          if (is_flux_wm) then
-            if(.not.allocated(flux_wm_trib)) then
-              ierr=10; message=trim(message)//'tributary water management fluxes array is not allocated/populated'; return
-            end if
-          end if
-          if (is_vol_wm.and.is_lake_sim) then
-            if(.not.allocated(vol_wm_trib)) then
-              ierr=10; message=trim(message)//'tributary target volume array (for lakes) is not allocated/populated'; return
-            end if
-          end if
-        end if
+      if (masterproc) then
+        write(iulog,*) 'NOTE: reach flux and target volume are already decomposed into mainstems and tributaries. No need for scatter_wm'
       end if
     end if
   end if
@@ -1053,7 +1077,6 @@ CONTAINS
     call t_startf ('route/tributary-route')
 
     !Idenfity number of tributary reaches for each procs
-    nRch_trib = rch_per_proc(pid)
     allocate(ixRchProcessed(nRch_trib), stat=ierr)
     if(ierr/=0)then; message=trim(message)//'problem allocating array for [ixRchProcessed]'; return; endif
 
@@ -2711,8 +2734,6 @@ CONTAINS
  SUBROUTINE pass_global_data(comm, ierr,message)   ! output: error control
   USE globalData, ONLY: nRch,nHRU         ! number of reaches and hrus in whole network
   USE globalData, ONLY: iTime             ! time index
-  USE globalData, ONLY: reachID
-  USE globalData, ONLY: basinID
   implicit none
   ! argument variables
   integer(i4b),                   intent(in)  :: comm    ! communicator
@@ -2727,8 +2748,6 @@ CONTAINS
   call MPI_BCAST(nHRU,        1,     MPI_INTEGER,          root, comm, ierr)
   call MPI_BCAST(calendar,  strLen,  MPI_CHARACTER,        root, comm, ierr)
   call MPI_BCAST(time_units,strLen,  MPI_CHARACTER,        root, comm, ierr)
-  call shr_mpi_bcast(reachID,ierr, message)
-  call shr_mpi_bcast(basinID,ierr, message)
 
  END SUBROUTINE pass_global_data
 
