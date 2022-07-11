@@ -47,7 +47,6 @@ CONTAINS
     USE globalData,          ONLY: runMode                     ! "ctsm-coupling" or "standalone" to differentiate some behaviours in mizuRoute
     USE globalData,          ONLY: ixHRU_order                 ! global HRU index in the order of proc assignment (size = num of hrus contributing reach in entire network)
     USE globalData,          ONLY: hru_per_proc                ! number of hrus assigned to each proc (size = num of procs
-    USE globalData,          ONLY: nHRU_mainstem               ! number of mainstem HRUs
     USE globalData,          ONLY: pio_netcdf_format
     USE globalData,          ONLY: pio_typename
     USE globalData,          ONLY: pio_rearranger
@@ -252,6 +251,8 @@ CONTAINS
     USE globalData,          ONLY: RPARAM_main      ! data structure: River parameters (main proc, mainstem)
     USE globalData,          ONLY: nHRU_mainstem    ! scalar data: number of mainstem HRUs
     USE globalData,          ONLY: nRch_mainstem    ! scalar data: number of mainstem reaches
+    USE globalData,          ONLY: nHRU_trib        ! scalar data: number of tributary HRUs
+    USE globalData,          ONLY: nRch_trib        ! scalar data: number of tributary reaches
     USE globalData,          ONLY: nTribOutlet      ! scalar data: number of tributaries flowing to mainstem
     USE globalData,          ONLY: hru_per_proc     ! array data: number of hrus assigned to each proc (i.e., node)
     USE globalData,          ONLY: rch_per_proc     ! array data: number of reaches assigned to each proc (i.e., node)
@@ -275,7 +276,6 @@ CONTAINS
     integer                      :: ix                     ! loop index
     integer                      :: nr, ns, nt             ! indices
     integer                      :: lwr,upr                ! lower and upper bounds for array slicing
-    integer                      :: nRch_trib              ! number of tributary reaches
     integer                      :: yr, mon, day, ymd, tod ! time information
     integer                      :: nsub                   ! subcyling for cfl
     integer , save               :: nsub_save              ! previous nsub
@@ -320,40 +320,22 @@ CONTAINS
     allocate(array_temp(rtmCTL%lnumr))
     array_temp = -1._r8*rtmCTL%qirrig
     if (multiProcs) then
-      associate(nRch_trib => rch_per_proc(iam))   ! number of tributary reaches
       if (masterproc) then
         if (nRch_mainstem > 0) then ! mainstem
-          if (.not. allocated(flux_wm_main)) then
-            allocate(flux_wm_main(nRch_mainstem), stat=ierr)
-            if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [flux_wm_main]'); endif
-          end if
           allocate(ixRch(nRch_mainstem), stat=ierr)
           ixRch = arth(1,1,nRch_mainstem)
           call basin2reach(array_temp(1:nHRU_mainstem), NETOPO_main, RPARAM_main, flux_wm_main, ierr, cmessage, ixSubRch=ixRch)
           if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
         end if
         if (nRch_trib > 0) then ! tributaries in main processor
-          if (.not. allocated(flux_wm_trib)) then
-            allocate(flux_wm_trib(nRch_trib), stat=ierr)
-            if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [flux_wm_trib]'); endif
-          end if
           call basin2reach(array_temp(nHRU_mainstem+1:rtmCTL%lnumr), NETOPO_trib, RPARAM_trib, flux_wm_trib, ierr, cmessage)
           if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
         end if
       else ! other processors (tributary)
-        if (.not. allocated(flux_wm_trib)) then
-          allocate(flux_wm_trib(nRch_trib), stat=ierr)
-          if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [flux_wm_trib]'); endif
-        end if
         call basin2reach(array_temp, NETOPO_trib, RPARAM_trib, flux_wm_trib, ierr, cmessage)
         if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
       end if
-      end associate
     else ! if only single proc is used, all irrigation demand is stored in mainstem array
-      if (.not. allocated(flux_wm_main)) then
-        allocate(flux_wm_main(nRch_mainstem), stat=ierr)
-        if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [flux_wm_main]'); endif
-      end if
       call basin2reach(array_temp, NETOPO_main, RPARAM_main, flux_wm_main, ierr, cmessage)
       if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
     end if
@@ -363,45 +345,27 @@ CONTAINS
     ! --- Transfer total runoff [mm/s] at HRUs to mizuRoute array
     call t_startf('mizuRoute_mapping_runoff')
 
-    if (npes==1) then
-      ! if only single proc is used, all runoff is stored in mainstem runoff array
-      if (.not. allocated(basinRunoff_main)) then
-        allocate(basinRunoff_main(nHRU_mainstem), stat=ierr)
-        if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [basinRunoff_main]'); endif
-      end if
-      do nr = 1,nHRU_mainstem
-        basinRunoff_main(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)!+rtmCTL%qgwl(nr,1)
-      end do
-    else
+    if (multiProcs) then
       if (masterproc) then
-        associate(nHRU_trib => hru_per_proc(0))
         if (nHRU_mainstem > 0) then
-          if (.not. allocated(basinRunoff_main)) then
-            allocate(basinRunoff_main(nHRU_mainstem), stat=ierr)
-            if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [basinRunoff_main]'); endif
-          end if
           do nr = 1,nHRU_mainstem
             basinRunoff_main(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)!+rtmCTL%qgwl(nr,1)
           end do
-        end if
-        if (.not. allocated(basinRunoff_trib)) then
-          allocate(basinRunoff_trib(nHRU_trib), stat=ierr)
-          if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [basinRunoff_trib]'); endif
         end if
         do nr = 1, nHRU_trib
           ix = nr + nHRU_mainstem
           basinRunoff_trib(nr) = rtmCTL%qsur(ix,1)+rtmCTL%qsub(ix,1)!+rtmCTL%qgwl(ix,1)
         end do
-        end associate
       else
-        if (.not. allocated(basinRunoff_trib)) then
-          allocate(basinRunoff_trib(rtmCTL%lnumr), stat=ierr)
-          if(ierr/=0)then; call shr_sys_abort(trim(subname)//'problem allocating array for [basinRunoff_trib]'); endif
-        end if
         do nr = rtmCTL%begr,rtmCTL%endr
           basinRunoff_trib(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)!+rtmCTL%qgwl(nr,1)
         end do
       end if
+    else
+      ! if only single proc is used, all runoff is stored in mainstem runoff array
+      do nr = 1,nHRU_mainstem
+        basinRunoff_main(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)!+rtmCTL%qgwl(nr,1)
+      end do
     end if
 
     call t_stopf('mizuRoute_mapping_runoff')
@@ -433,17 +397,6 @@ CONTAINS
     delt_save = delt
 
     do ns = 1,nsub
-      if (masterproc) then
-        if (allocated(basinRunoff_main)) then
-          basinRunoff_main = basinRunoff_main/float(nsub)
-        end if
-        if (allocated(basinRunoff_trib)) then
-          basinRunoff_trib = basinRunoff_trib/float(nsub)
-        end if
-      else
-        basinRunoff_trib = basinRunoff_trib/float(nsub)
-      end if
-
       call mpi_route(iam, npes, mpicom_rof, iens, ierr, cmessage, scatter_ro=.false.)
       if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
     enddo
@@ -458,7 +411,6 @@ CONTAINS
     ! put reach flux variables to associated HRUs
     if (multiProcs) then
       if (masterproc) then
-        nRch_trib=rch_per_proc(0)
         if (nRch_mainstem > 0) then
           lwr=1
           upr=nRch_mainstem
