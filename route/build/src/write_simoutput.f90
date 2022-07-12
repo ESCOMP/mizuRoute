@@ -7,7 +7,7 @@ USE public_var,only: iulog
 USE public_var,only: integerMissing
 USE globalData,only: meta_rflx
 USE globalData,only: simout_nc
-USE globalData,only: idxIRF, idxKWT, idxKW, idxMC, idxDW
+USE globalData,only: idxSUM, idxIRF, idxKWT, idxKW, idxMC, idxDW
 USE io_netcdf, only: ncd_int
 USE io_netcdf, only: ncd_float, ncd_double
 USE io_netcdf, only: ncd_unlimited
@@ -84,9 +84,11 @@ CONTAINS
   endif
 
   if (meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile) then
-   ! write accumulated runoff (m3/s)
-   call write_nc(simout_nc%ncid, 'sumUpstreamRunoff', RCHFLX(iens,:)%UPSTREAM_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    do ix=1,nRCH
+      array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxSUM)%REACH_Q
+    end do
+    call write_nc(simout_nc%ncid, 'sumUpstreamRunoff', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%KWTroutedRunoff)%varFile) then

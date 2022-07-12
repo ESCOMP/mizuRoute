@@ -27,12 +27,11 @@ CONTAINS
  USE globalData, ONLY: meta_NTOPO           ! network topology
  USE globalData, ONLY: meta_PFAF            ! pfafstetter code
  USE globalData, ONLY: meta_rflx            ! river flux variables
-
  USE globalData, ONLY: nRoutes              ! number of active routing methods
  USE globalData, ONLY: routeMethods         ! active routing method index and id
- USE globalData, ONLY: idxIRF, idxKWT, &
+ USE globalData, ONLY: onRoute                 ! logical to indicate actiive routing method(s)
+ USE globalData, ONLY: idxSUM,idxIRF,idxKWT, &
                         idxKW, idxMC, idxDW
-
  ! named variables in each structure
  USE var_lookup, ONLY : ixHRU                ! index of variables for data structure
  USE var_lookup, ONLY : ixHRU2SEG            ! index of variables for data structure
@@ -44,7 +43,7 @@ CONTAINS
  ! external subroutines
  USE ascii_util_module, only: file_open      ! open file (performs a few checks as well)
  USE ascii_util_module, only: get_vlines     ! get a list of character strings from non-comment lines
- USE nr_utility_module, ONLY: get_digits     ! convert integer number to a array containing individual digits
+ USE nr_utility_module, ONLY: char2int       ! convert integer number to a array containing individual digits
 
  implicit none
  ! arguments
@@ -64,7 +63,6 @@ CONTAINS
  integer(i4b)                      :: iunit          ! file unit
  integer(i4b)                      :: io_error       ! error in I/O
  integer(i4b)                      :: iRoute         ! loop index
- logical(lgt)                      :: onRoute(nRouteMethods)   ! logical to indicate which routing method(s) is on
  character(len=strLen)             :: cmessage       ! error message from subroutine
 
  err=0; message='read_control/'
@@ -107,9 +105,6 @@ CONTAINS
    case('<input_dir>');            input_dir   = trim(cData)                       ! directory containing input runoff netCDF
    case('<output_dir>');           output_dir  = trim(cData)                       ! directory for routed flow output (netCDF)
    case('<restart_dir>');          restart_dir = trim(cData)                       ! directory for restart output (netCDF)
-   ! SIMULATION TIME
-   case('<sim_start>');            simStart    = trim(cData)                       ! date string defining the start of the simulation
-   case('<sim_end>');              simEnd      = trim(cData)                       ! date string defining the end of the simulation
    ! RIVER NETWORK TOPOLOGY
    case('<fname_ntopOld>');        fname_ntopOld = trim(cData)                     ! name of file containing stream network topology information
    case('<ntopAugmentMode>');      read(cData,*,iostat=io_error) ntopAugmentMode   ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
@@ -141,8 +136,12 @@ CONTAINS
    case('<vname_j_index>');        vname_j_index        = trim(cData)              ! name of variable containing index of ylat dimension in runoff grid (if runoff file is grid)
    case('<dname_hru_remap>');      dname_hru_remap      = trim(cData)              ! name of dimension of river network HRU ID
    case('<dname_data_remap>');     dname_data_remap     = trim(cData)              ! name of dimension of runoff HRU overlapping with river network HRU
-   ! ROUTED FLOW OUTPUT
+   ! RUN CONTROL
    case('<case_name>');            case_name            = trim(cData)              ! name of simulation. used as head of model output and restart file
+   case('<sim_start>');            simStart    = trim(cData)                       ! date string defining the start of the simulation
+   case('<sim_end>');              simEnd      = trim(cData)                       ! date string defining the end of the simulation
+   case('<route_opt>');            routOpt     = trim(cData)                           ! routing scheme options  0-> accumRunoff, 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW
+   case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute    ! basin routing options   0-> no, 1->IRF, otherwise error
    case('<newFileFrequency>');     newFileFrequency     = trim(cData)              ! frequency for new output files (day, month, annual, single)
    ! RESTART
    case('<restart_write>');        restart_write        = trim(cData)              ! restart write option: N[n]ever, L[l]ast, S[s]pecified, Monthly, Daily
@@ -164,10 +163,7 @@ CONTAINS
    ! MISCELLANEOUS
    case('<debug>');                read(cData,*,iostat=io_error) debug             ! print out detailed information throught the probram
    case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut          ! desired outlet reach id (if -9999 --> route over the entire network)
-   case('<route_opt>');            read(cData,*,iostat=io_error) routOpt           ! routing scheme options  0-> IRF+KWT (to be removed), 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW
    case('<desireId>'   );          read(cData,*,iostat=io_error) desireId          ! turn off checks or speficy reach ID if necessary to print on screen
-   case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute    ! basin routing options   0-> no, 1->IRF, otherwise error
-   case('<doesAccumRunoff>');      read(cData,*,iostat=io_error) doesAccumRunoff   ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
    case('<netcdf_format>');        netcdf_format = trim(cData)                     ! netcdf format for output 'classic','64bit_offset','netcdf4'
    ! PFAFCODE
    case('<maxPfafLen>');           read(cData,*,iostat=io_error) maxPfafLen        ! maximum digit of pfafstetter code (default 32)
@@ -302,12 +298,13 @@ CONTAINS
  ! ---------- output options --------------------------------------------------------------------------------------------
  ! Assign index for each active routing method
  ! Make sure to turn off write option for routines not used
- if (routOpt==0)then; message=trim(message)//'routOpt=0 is terminated. 12 is equivalent to 0 now'; err=10; return; endif
- routeMethods = get_digits(routOpt)
+ if (trim(routOpt)=='0')then; write(iulog,'(a)') 'WARNING: routOpt=0 is accumRunoff option now. 12 is previous 0 now'; endif
+ call char2int(trim(routOpt), routeMethods, invalid_value=0)
  nRoutes = size(routeMethods)
  onRoute = .false.
  do iRoute = 1, nRoutes
    select case(routeMethods(iRoute))
+     case(accumRunoff);           idxSUM = iRoute; onRoute(accumRunoff)=.true.
      case(kinematicWaveTracking); idxKWT = iRoute; onRoute(kinematicWaveTracking)=.true.
      case(impulseResponseFunc);   idxIRF = iRoute; onRoute(impulseResponseFunc)=.true.
      case(muskingumCunge);        idxMC  = iRoute; onRoute(muskingumCunge)=.true.
@@ -318,19 +315,18 @@ CONTAINS
    end select
  end do
 
- do iRoute = 1, nRouteMethods
+ do iRoute = 0, nRouteMethods-1
    select case(iRoute)
+     case(accumRunoff);           if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile=.false.
      case(kinematicWaveTracking); if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%KWTroutedRunoff)%varFile=.false.
      case(impulseResponseFunc);   if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%IRFroutedRunoff)%varFile=.false.
      case(muskingumCunge);        if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%MCroutedRunoff)%varFile=.false.
      case(kinematicWave);         if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%KWroutedRunoff)%varFile=.false.
      case(diffusiveWave);         if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%DWroutedRunoff)%varFile=.false.
-     case default; message=trim(message)//'expect digits from 1 and 5'; err=81; return
+     case default; message=trim(message)//'expect digits from 0 and 5'; err=81; return
    end select
  end do
 
- ! runoff accumulation option
- if (doesAccumRunoff==0) meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile=.false.
  ! basin runoff routing option
  if (doesBasinRoute==0) meta_rflx(ixRFLX%instRunoff)%varFile=.false.
 

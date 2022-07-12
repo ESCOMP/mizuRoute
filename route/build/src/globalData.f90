@@ -1,7 +1,7 @@
 MODULE globalData
   ! This module includes global data structures
 
-  USE public_var, ONLY : integerMissing
+  USE public_var
 
   ! data types
   USE nrtype
@@ -113,6 +113,8 @@ MODULE globalData
   ! routing methods
   integer(i4b)                   , public :: nRoutes              ! number of active routing methods
   integer(i4b)    , allocatable  , public :: routeMethods(:)      ! active routing method id
+  logical(lgt)                   , public :: onRoute(0:nRouteMethods-1) ! logical to indicate active routing method(s)
+  integer(i4b)                   , public :: idxSUM                     ! index of SUM method
   integer(i4b)                   , public :: idxIRF               ! index of IRF method
   integer(i4b)                   , public :: idxKWT               ! index of KWT method
   integer(i4b)                   , public :: idxKW                ! index of KW method
