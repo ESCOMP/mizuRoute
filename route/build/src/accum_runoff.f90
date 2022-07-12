@@ -1,16 +1,19 @@
 MODULE accum_runoff_module
 
 USE nrtype
-USE public_var
-
 ! data type
-USE dataTypes,          only : STRFLX         ! fluxes in each reach
-USE dataTypes,          only : RCHTOPO        ! Network topology
+USE dataTypes,      ONLY: STRFLX         ! fluxes in each reach
+USE dataTypes,      ONLY: RCHTOPO        ! Network topology
+USE dataTypes,      ONLY: subbasin_omp   ! mainstem+tributary data structures
+! global data
+USE public_var,     ONLY: iulog          ! i/o logical unit number
+USE globalData,     ONLY: idxSUM         ! index of accumulation method
+! subroutines: general
+USE model_finalize, ONLY : handle_err
 
 implicit none
 
 private
-
 public::accum_runoff
 
 CONTAINS
@@ -32,9 +35,6 @@ CONTAINS
  ! mostly for checking if routed runoff at each reach outlet preserve total upstream runoff.
  !
  ! ----------------------------------------------------------------------------------------
-
- USE dataTypes,      ONLY: subbasin_omp   ! mainstem+tributary data structures
- USE model_finalize, ONLY : handle_err
 
  implicit none
  ! input
@@ -114,7 +114,7 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: perform accumulate immediate upstream flow
  ! *********************************************************************
- subroutine accum_qupstream(iEns,       &    ! input: index of runoff ensemble to be processed
+ SUBROUTINE accum_qupstream(iEns,       &    ! input: index of runoff ensemble to be processed
                             segIndex,   &    ! input: index of reach to be processed
                             ixDesire,   &    ! input: reachID to be checked by on-screen pringing
                             NETOPO_in,  &    ! input: reach topology data structure
@@ -122,9 +122,9 @@ CONTAINS
                             ierr, message)   ! output: error control
  implicit none
  ! Input
- INTEGER(I4B), intent(IN)                 :: iEns           ! runoff ensemble to be routed
- INTEGER(I4B), intent(IN)                 :: segIndex       ! segment where routing is performed
- INTEGER(I4B), intent(IN)                 :: ixDesire       ! index of the reach for verbose output
+ integer(i4b), intent(in)                 :: iEns           ! runoff ensemble to be routed
+ integer(i4b), intent(in)                 :: segIndex       ! segment where routing is performed
+ integer(i4b), intent(in)                 :: ixDesire       ! index of the reach for verbose output
  type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)   ! River Network topology
  ! inout
  TYPE(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
@@ -143,17 +143,17 @@ CONTAINS
  ! identify number of upstream segments of the reach being processed
  nUps = size(NETOPO_in(segIndex)%UREACHI)
 
- RCHFLX_out(iEns,segIndex)%UPSTREAM_QI = RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+ RCHFLX_out(iEns,segIndex)%ROUTE(idxSUM)%REACH_Q = RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
 
  q_upstream = 0._dp
  if (nUps>0) then
 
    do iUps = 1,nUps
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-     q_upstream = q_upstream + RCHFLX_out(iens,iRch_ups)%UPSTREAM_QI
+     q_upstream = q_upstream + RCHFLX_out(iens,iRch_ups)%ROUTE(idxSUM)%REACH_Q
    end do
 
-   RCHFLX_out(iEns,segIndex)%UPSTREAM_QI = RCHFLX_out(iEns,segIndex)%UPSTREAM_QI + q_upstream
+   RCHFLX_out(iEns,segIndex)%ROUTE(idxSUM)%REACH_Q = RCHFLX_out(iEns,segIndex)%ROUTE(idxSUM)%REACH_Q + q_upstream
 
  endif
 
@@ -161,16 +161,16 @@ CONTAINS
  if(segIndex == ixDesire)then
    write(fmt1,'(A,I5,A)') '(A,1X',nUps,'(1X,I10))'
    write(fmt2,'(A,I5,A)') '(A,1X',nUps,'(1X,F20.7))'
-   write(*,'(2a)') new_line('a'),'** Check upstream discharge accumulation **'
-   write(*,'(a,x,I10,x,I10)') ' Reach index & ID =', segIndex, NETOPO_in(segIndex)%REACHID
-   write(*,'(a)')             ' * upstream reach index (NETOPO_in%UREACH) and discharge (uprflux) [m3/s] :'
-   write(*,fmt1)              ' UREACHK =', (NETOPO_in(segIndex)%UREACHK(iUps), iUps=1,nUps)
-   write(*,fmt2)              ' prflux  =', (RCHFLX_out(iens,NETOPO_in(segIndex)%UREACHI(iUps))%UPSTREAM_QI, iUps=1,nUps)
-   write(*,'(a)')             ' * local area discharge (RCHFLX_out%BASIN_QR(1)) and final discharge (RCHFLX_out%UPSTREAM_QI) [m3/s] :'
-   write(*,'(a,x,F15.7)')     ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
-   write(*,'(a,x,F15.7)')     ' RCHFLX_out%UPSTREAM_QI =', RCHFLX_out(iens,segIndex)%UPSTREAM_QI
+   write(iulog,'(2a)') new_line('a'),'** Check upstream discharge accumulation **'
+   write(iulog,'(a,x,I10,x,I10)') ' Reach index & ID =', segIndex, NETOPO_in(segIndex)%REACHID
+   write(iulog,'(a)')             ' * upstream reach index (NETOPO_in%UREACH) and discharge (uprflux) [m3/s] :'
+   write(iulog,fmt1)              ' UREACHK =', (NETOPO_in(segIndex)%UREACHK(iUps), iUps=1,nUps)
+   write(iulog,fmt2)              ' prflux  =', (RCHFLX_out(iens,NETOPO_in(segIndex)%UREACHI(iUps))%ROUTE(idxSUM)%REACH_Q, iUps=1,nUps)
+   write(iulog,'(a)')             ' * local area discharge (RCHFLX_out%BASIN_QR(1)) and final discharge (RCHFLX_out%ROUTE(idxSUM)%REACH_Q) [m3/s] :'
+   write(iulog,'(a,x,F15.7)')     ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+   write(iulog,'(a,x,F15.7)')     ' RCHFLX_out%ROUTE(idxSUM)%REACH_Q =', RCHFLX_out(iens,segIndex)%ROUTE(idxSUM)%REACH_Q
  endif
 
- end subroutine accum_qupstream
+ END SUBROUTINE accum_qupstream
 
 END MODULE accum_runoff_module

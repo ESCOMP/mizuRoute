@@ -27,9 +27,13 @@ CONTAINS
  USE globalData, ONLY: RCHFLX                    ! To get q future for basin IRF and IRF (these should not be in this data strucuture)
  USE globalData, ONLY: RCHSTA                    ! restart state data structure
  USE dataTypes,  ONLY: states
- USE globalData, ONLY: meta_stateDims        ! dimension for state variables
- USE globalData, ONLY: nRoutes               ! number of active routing methods 
- USE globalData, ONLY: routeMethods          ! active routing method index and id 
+ USE globalData, ONLY: meta_stateDims            ! dimension for state variables
+ USE globalData, ONLY: onRoute                   ! logical to indicate which routing method(s) is on
+ USE public_var, ONLY: impulseResponseFunc
+ USE public_var, ONLY: kinematicWaveTracking
+ USE public_var, ONLY: kinematicWave
+ USE public_var, ONLY: muskingumCunge
+ USE public_var, ONLY: diffusiveWave
  USE var_lookup, ONLY: ixStateDims, nStateDims
 
  implicit none
@@ -46,7 +50,6 @@ CONTAINS
  integer(i4b)                  :: nSeg,nens            ! dimenion sizes
  integer(i4b)                  :: ntbound              ! dimenion sizes
  integer(i4b)                  :: ixDim_common(3)      ! custom dimension ID array
- integer(i4b)                  :: ix                   ! loop index 
  integer(i4b)                  :: jDim                 ! index loops for dimension
  character(len=strLen)         :: cmessage             ! error message of downwind routine
 
@@ -83,31 +86,33 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return;endif
  endif
 
- do ix=1,nRoutes
-   if (routeMethods(ix)==kinematicWaveTracking) then
-     call read_basinQ_state(ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return;endif
+ call read_basinQ_state(ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return;endif
 
-     call read_KWT_state(ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
+ if (onRoute(kinematicWaveTracking)) then
+   call read_KWT_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
+ end if
 
-   else if (routeMethods(ix)==impulseResponseFunc) then
-     call read_IRF_state(ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
+ if (onRoute(impulseResponseFunc)) then
+   call read_IRF_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
+ end if
 
-   else if (routeMethods(ix)==kinematicWave) then
-     call read_KW_state(ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
+ if (onRoute(kinematicWave)) then
+   call read_KW_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
+ end if
 
-   else if (routeMethods(ix)==muskingumCunge) then
-     call read_MC_state(ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
+ if (onRoute(muskingumCunge)) then
+   call read_MC_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
+ end if
 
-   else if (routeMethods(ix)==diffusiveWave) then
-     call read_DW_state(ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
-   end if
- end do
+ if (onRoute(diffusiveWave)) then
+   call read_DW_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
+ end if
 
  call close_nc(ncidRestart, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif

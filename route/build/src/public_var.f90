@@ -61,7 +61,8 @@ module public_var
   integer(i4b), parameter,public  :: readFromFile=0         ! read given variable from a file
 
   ! routing methods
-  integer(i4b), parameter,public  :: nRouteMethods=5         ! number of routing methods available
+  integer(i4b), parameter,public  :: nRouteMethods=6         ! number of routing methods available
+  integer(i4b), parameter,public  :: accumRunoff=0           ! runoff accumulation over all the upstream reaches
   integer(i4b), parameter,public  :: impulseResponseFunc=1   ! impulse response function
   integer(i4b), parameter,public  :: kinematicWaveTracking=2 ! Lagrangian kinematic wave
   integer(i4b), parameter,public  :: kinematicWave=3         ! kinematic wave
@@ -76,9 +77,6 @@ module public_var
   character(len=strLen),public    :: input_dir            = ''              ! directory containing input runoff netCDF
   character(len=strLen),public    :: output_dir           = ''              ! directory for routed flow output (netCDF)
   character(len=strLen),public    :: restart_dir          = charMissing     ! directory for restart output (netCDF)
-  ! SIMULATION TIME
-  character(len=strLen),public    :: simStart             = ''              ! date string defining the start of the simulation
-  character(len=strLen),public    :: simEnd               = ''              ! date string defining the end of the simulation
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
   logical(lgt)         ,public    :: ntopAugmentMode      = .false.         ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
@@ -109,8 +107,12 @@ module public_var
   character(len=strLen),public    :: vname_j_index        = ''              ! variable for numbers of x (longitude) index if runoff file is grid
   character(len=strLen),public    :: dname_hru_remap      = ''              ! dimension name for river network HRU
   character(len=strLen),public    :: dname_data_remap     = ''              ! dimension name for runoff HRU ID
-  ! ROUTED FLOW OUTPUT
+  ! RUN CONTROL
   character(len=strLen),public    :: case_name            = ''              ! name of simulation. used as head of model output and restart file
+  character(len=strLen),public    :: simStart             = ''              ! date string defining the start of the simulation
+  character(len=strLen),public    :: simEnd               = ''              ! date string defining the end of the simulation
+  character(len=10)    ,public    :: routOpt              = '0'             ! routing scheme options  0: accum runoff, 1:IRF, 2:KWT, 3:KW, 4:MC, 5:DW
+  integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
   character(len=strLen),public    :: newFileFrequency     = 'annual'        ! frequency for new output files (day, month, annual, single)
   ! STATES
   character(len=strLen),public    :: restart_write        = 'never'         ! restart write option: N[n]ever-> never write, L[l]ast -> write at last time step, S[s]pecified, Monthly, Daily
@@ -132,10 +134,7 @@ module public_var
   ! MISCELLANEOUS
   logical(lgt)         ,public    :: debug                = .false.         ! print out detaled information
   integer(i4b)         ,public    :: idSegOut             = integerMissing  ! id of outlet stream segment
-  integer(i4b)         ,public    :: routOpt              = integerMissing  ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
   integer(i4b)         ,public    :: desireId             = integerMissing  ! turn off checks or speficy reach ID if necessary to print on screen
-  integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
-  integer(i4b)         ,public    :: doesAccumRunoff      = 1               ! option to delayed runoff accumulation over all the upstream reaches
   character(len=strLen),public    :: netcdf_format        = 'netcdf4'       ! netcdf format for output
   ! PFAFCODE
   integer(i4b)         ,public    :: maxPfafLen           = 32              ! maximum digit of pfafstetter code (default 32).

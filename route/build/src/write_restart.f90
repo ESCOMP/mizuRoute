@@ -1,7 +1,6 @@
 MODULE write_restart
 
 USE nrtype
-USE public_var
 USE date_time, ONLY: datetime
 USE io_netcdf, ONLY: ncd_int
 USE io_netcdf, ONLY: ncd_float, ncd_double
@@ -14,6 +13,17 @@ USE io_netcdf, ONLY: end_def                ! end defining netcdf
 USE io_netcdf, ONLY: open_nc                ! open netcdf
 USE io_netcdf, ONLY: close_nc               ! close netcdf
 USE io_netcdf, ONLY: write_nc
+USE globalData, ONLY: onRoute               ! logical to indicate which routing method(s) is on
+USE public_var, ONLY: iulog                 ! i/o logical unit number
+USE public_var, ONLY: integerMissing
+USE public_var, ONLY: realMissing
+USE public_var, ONLY: dt
+USE public_var, ONLY: doesBasinRoute
+USE public_var, ONLY: impulseResponseFunc
+USE public_var, ONLY: kinematicWaveTracking
+USE public_var, ONLY: kinematicWave
+USE public_var, ONLY: muskingumCunge
+USE public_var, ONLY: diffusiveWave
 
 implicit none
 
@@ -115,7 +125,6 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE restart_output(ierr, message)
 
-  USE public_var, ONLY: dt
   USE globalData, ONLY: TSEC
   USE globalData, ONLY: reachID
 
@@ -159,7 +168,6 @@ CONTAINS
    USE public_var,          ONLY: case_name        ! simulation name ==> output filename head
    USE public_var,          ONLY: calendar
    USE public_var,          ONLY: secprday
-   USE public_var,          ONLY: dt
    USE globalData,          ONLY: modTime          ! current model datetime
 
    implicit none
@@ -204,8 +212,6 @@ CONTAINS
 
  USE globalData, ONLY: meta_stateDims
  USE globalData, ONLY: modTime                 ! current model datetime
- USE globalData, ONLY: nRoutes                 ! number of active routing methods 
- USE globalData, ONLY: routeMethods            ! active routing method index and id 
  USE public_var, ONLY: calendar
  USE var_lookup, ONLY: ixStateDims, nStateDims
 
@@ -220,7 +226,6 @@ CONTAINS
  type(datetime)                       :: timeStampCal     ! datetime corresponding to file name time stamp
  character(len=50),parameter          :: fmtYMDHMS='(I0.4,a,I0.2,a,I0.2,x,I0.2,a,I0.2,a,I0.2)'
  character(len=strLen)                :: globalDesc       ! global attributes: description
- integer(i4b)                         :: ix               ! loop index 
  integer(i4b)                         :: jDim             ! loop index for dimension
  integer(i4b)                         :: ncid             ! NetCDF file ID
  integer(i4b)                         :: ixDim_common(3)  ! custom dimension ID array
@@ -280,29 +285,31 @@ CONTAINS
   call define_IRFbas_state(ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
- 
- do ix = 1, nRoutes
-   if (routeMethods(ix)==kinematicWaveTracking) then
-     call define_KWT_state(ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   else if (routeMethods(ix)==impulseResponseFunc)then
-     call define_IRF_state(ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (onRoute(kinematicWaveTracking)) then
+   call define_KWT_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
 
-   else if (routeMethods(ix)==kinematicWave) then
-     call define_KW_state(ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (onRoute(impulseResponseFunc))then
+   call define_IRF_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
 
-   else if (routeMethods(ix)==muskingumCunge) then
-     call define_MC_state(ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (onRoute(kinematicWave)) then
+   call define_KW_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
 
-   else if (routeMethods(ix)==diffusiveWave) then
-     call define_DW_state(ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   end if
- end do
+ if (onRoute(muskingumCunge)) then
+   call define_MC_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
+ if (onRoute(diffusiveWave)) then
+   call define_DW_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
 
  ! Finishing up definition -------
  ! end definitions
@@ -320,6 +327,7 @@ CONTAINS
    USE globalData,   ONLY: meta_stateDims  ! states dimension meta
    USE globalData,   ONLY: nRch
    USE globalData,   ONLY: nMolecule
+   USE public_var,   ONLY: MAXQPAR
    USE globalData,   ONLY: FRAC_FUTURE     ! To get size of q future for basin IRF
 
    implicit none
@@ -670,7 +678,7 @@ CONTAINS
 
    ! Define dimension needed for this routing specific state variables
    call def_dim(ncid, meta_stateDims(ixStateDims%mol_dw)%dimName,   &
-                      meta_stateDims(ixStateDims%mol_dw)%dimLength, & 
+                      meta_stateDims(ixStateDims%mol_dw)%dimLength, &
                       meta_stateDims(ixStateDims%mol_dw)%dimId, ierr, cmessage)
    if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
@@ -706,8 +714,6 @@ CONTAINS
  USE globalData,   ONLY: RCHFLX
  USE globalData,   ONLY: RCHSTA
  USE globalData,   ONLY: meta_stateDims  ! dimension meta for state variables
- USE globalData,   ONLY: nRoutes         ! number of active routing methods 
- USE globalData,   ONLY: routeMethods    ! active routing method index and id 
  USE var_lookup,   ONLY: ixStateDims, nStateDims
 
  implicit none
@@ -721,7 +727,6 @@ CONTAINS
  integer(i4b), intent(out)       :: ierr            ! error code
  character(*), intent(out)       :: message         ! error message
  ! local variables
- integer(i4b)                    :: ix              ! loop index 
  integer(i4b)                    :: ncid            ! netCDF ID
  character(len=strLen)           :: cmessage        ! error message of downwind routine
 
@@ -748,28 +753,30 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
- do ix = 1, nRoutes
-   if (routeMethods(ix)==impulseResponseFunc)then
-     call write_IRF_state(ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (onRoute(impulseResponseFunc)) then
+   call write_IRF_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
 
-   else if (routeMethods(ix)==kinematicWaveTracking)then
-     call write_KWT_state(ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (onRoute(kinematicWaveTracking)) then
+   call write_KWT_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
 
-   else if (routeMethods(ix)==kinematicWave)then
-     call write_KW_state(ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (onRoute(kinematicWave)) then
+   call write_KW_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
 
-   else if (routeMethods(ix)==muskingumCunge)then
-     call write_MC_state(ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (onRoute(muskingumCunge)) then
+   call write_MC_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
 
-   else if (routeMethods(ix)==diffusiveWave)then
-     call write_DW_state(ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   end if
- end do
+ if (onRoute(diffusiveWave)) then
+   call write_DW_state(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
 
  ! -- close netCDF
  call close_nc(ncid, ierr, cmessage)

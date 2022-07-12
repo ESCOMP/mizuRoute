@@ -227,10 +227,10 @@ end type subdomain
  end type irfRCH
 
  ! ---------- computational molecule ---------------------------------
- type, public :: cMolecule 
-   integer(i4b)           :: KW_ROUTE 
-   integer(i4b)           :: MC_ROUTE 
-   integer(i4b)           :: DW_ROUTE 
+ type, public :: cMolecule
+   integer(i4b)           :: KW_ROUTE
+   integer(i4b)           :: MC_ROUTE
+   integer(i4b)           :: DW_ROUTE
  end type cMolecule
 
  type, public :: SUBRCH
@@ -273,7 +273,6 @@ end type subdomain
   real(dp)                             :: BASIN_QR(0:1)     ! routed runoff volume from the local basin (m3/s)
   real(dp)                             :: BASIN_QR_IRF(0:1) ! routed runoff volume from all the upstream basin (m3/s)
   type(fluxes), allocatable            :: ROUTE(:)          ! reach fluxes and states for each routing method
-  real(dp)                             :: UPSTREAM_QI       ! sum of upstream streamflow (m3/s)
   real(dp)                             :: TAKE              ! average take
  ENDTYPE STRFLX
 
