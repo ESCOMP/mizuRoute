@@ -5,14 +5,9 @@ USE nrtype
 USE var_lookup,only: ixRFLX, nVarsRFLX
 USE public_var,only: iulog
 USE public_var,only: integerMissing
-USE public_var,only: routOpt                ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-USE public_var,only: doesBasinRoute         ! basin routing options   0-> no, 1->IRF, otherwise error
-USE public_var,only: doesAccumRunoff        ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
-USE public_var,only: kinematicWave          ! kinematic wave
-USE public_var,only: impulseResponseFunc    ! impulse response function
-USE public_var,only: allRoutingMethods      ! all routing methods
 USE globalData,only: meta_rflx
 USE globalData,only: simout_nc
+USE globalData,only: idxSUM, idxIRF, idxKWT, idxKW, idxMC, idxDW
 USE io_netcdf, only: ncd_int
 USE io_netcdf, only: ncd_float, ncd_double
 USE io_netcdf, only: ncd_unlimited
@@ -53,6 +48,8 @@ CONTAINS
   integer(i4b), intent(out)       :: ierr             ! error code
   character(*), intent(out)       :: message          ! error message
   ! local variables
+  real(dp),    allocatable        :: array_temp(:)
+  integer(i4b)                    :: ix               ! loop index
   integer(i4b)                    :: iens             ! temporal
   character(len=strLen)           :: cmessage         ! error message of downwind routine
 
@@ -60,6 +57,9 @@ CONTAINS
   ierr=0; message='output/'
 
   iens = 1
+
+  allocate(array_temp(nRch), stat=ierr, errmsg=cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [array_temp]'; return; endif
 
   ! write time -- note time is just carried across from the input
   call write_nc(simout_nc%ncid, 'time', (/runoff_data%time/), (/jTime/), (/1/), ierr, cmessage)
@@ -84,22 +84,52 @@ CONTAINS
   endif
 
   if (meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile) then
-   ! write accumulated runoff (m3/s)
-   call write_nc(simout_nc%ncid, 'sumUpstreamRunoff', RCHFLX(iens,:)%UPSTREAM_QI, (/1,jTime/), (/nRch,1/), ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    do ix=1,nRCH
+      array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxSUM)%REACH_Q
+    end do
+    call write_nc(simout_nc%ncid, 'sumUpstreamRunoff', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   if (meta_rflx(ixRFLX%KWTroutedRunoff)%varFile) then
-   ! write routed runoff (m3/s)
-   call write_nc(simout_nc%ncid, 'KWTroutedRunoff', RCHFLX(iens,:)%REACH_Q, (/1,jTime/), (/nRch,1/), ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
+    do ix=1,nRCH
+      array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxKWT)%REACH_Q
+    end do
+    call write_nc(simout_nc%ncid, 'KWTroutedRunoff', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
 
   if (meta_rflx(ixRFLX%IRFroutedRunoff)%varFile) then
-   ! write routed runoff (m3/s)
-   call write_nc(simout_nc%ncid, 'IRFroutedRunoff', RCHFLX(iens,:)%REACH_Q_IRF, (/1,jTime/), (/nRch,1/), ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
+    do ix=1,nRCH
+      array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxIRF)%REACH_Q
+    end do
+    call write_nc(simout_nc%ncid, 'IRFroutedRunoff', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  if (meta_rflx(ixRFLX%KWroutedRunoff)%varFile) then
+    do ix=1,nRCH
+      array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxKW)%REACH_Q
+    end do
+    call write_nc(simout_nc%ncid, 'KWroutedRunoff', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  if (meta_rflx(ixRFLX%MCroutedRunoff)%varFile) then
+    do ix=1,nRCH
+      array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxMC)%REACH_Q
+    end do
+    call write_nc(simout_nc%ncid, 'MCroutedRunoff', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  if (meta_rflx(ixRFLX%DWroutedRunoff)%varFile) then
+    do ix=1,nRCH
+      array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxDW)%REACH_Q
+    end do
+    call write_nc(simout_nc%ncid, 'DWroutedRunoff', array_temp(1:nRch), (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
 
  END SUBROUTINE output
 
@@ -109,6 +139,7 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE prep_output(ierr, message)    ! out:   error control
 
+ USE ascii_util_module,   ONLY: lower
  ! saved public variables (usually parameters, or values not modified)
  USE public_var,          only : output_dir        ! output directory
  USE public_var,          only : case_name         ! simulation name ==> output filename head
@@ -138,12 +169,12 @@ CONTAINS
  write(iulog,'(a,I4,4(x,I4))') new_line('a'), modTime(1)%year(), modTime(1)%month(), modTime(1)%day(), modTime(1)%hour(), modTime(1)%minute()
 
  ! check need for the new file
- select case(trim(newFileFrequency))
+ select case(lower(trim(newFileFrequency)))
    case('single'); defNewOutputFile=(modTime(0)%year() ==integerMissing)
-   case('annual'); defNewOutputFile=(modTime(1)%year() /=modTime(0)%year())
-   case('month');  defNewOutputFile=(modTime(1)%month()/=modTime(0)%month())
-   case('day');    defNewOutputFile=(modTime(1)%day()  /=modTime(0)%day())
-   case default; ierr=20; message=trim(message)//'unable to identify the option to define new output files'; return
+   case('yearly'); defNewOutputFile=(modTime(1)%year() /=modTime(0)%year())
+   case('monthly');  defNewOutputFile=(modTime(1)%month()/=modTime(0)%month())
+   case('daily');    defNewOutputFile=(modTime(1)%day()  /=modTime(0)%day())
+   case default; ierr=20; message=trim(message)//'Accepted <newFileFrequency> options (case-insensitive): single yearly, monthly, or daily '; return
  end select
 
  ! define new file
@@ -179,8 +210,10 @@ CONTAINS
 
    simout_nc%status = 2
 
-   call write_nc(simout_nc%ncid, 'basinID', int(basinID,kind(i4b)), (/1/), (/nHRU/), ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if (meta_rflx(ixRFLX%basRunoff)%varFile) then
+     call write_nc(simout_nc%ncid, 'basinID', int(basinID,kind(i4b)), (/1/), (/nHRU/), ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
 
    call write_nc(simout_nc%ncid, 'reachID', reachID, (/1/), (/nRch/), ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -238,22 +271,6 @@ CONTAINS
  meta_qDims(ixQdims%hru)%dimLength = nHRU_in
  meta_qDims(ixQdims%ens)%dimLength = nEns_in
 
- ! Modify write option
- ! Routing option
- if (routOpt==kinematicWave) then
-  meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
- elseif (routOpt==impulseResponseFunc) then
-  meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
- endif
- ! runoff accumulation option
- if (doesAccumRunoff==0) then
-  meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile = .false.
- endif
- ! basin runoff routing option
- if (doesBasinRoute==0) then
-  meta_rflx(ixRFLX%instRunoff)%varFile = .false.
- endif
-
  ! --------------------
  ! define file
  ! --------------------
@@ -262,11 +279,15 @@ CONTAINS
 
  do jDim =1,nQdims
    if (jDim ==ixQdims%time) then ! time dimension (unlimited)
-    call def_dim(ncid, trim(meta_qDims(jDim)%dimName), ncd_unlimited, meta_qDims(jDim)%dimId, ierr, cmessage)
+     call def_dim(ncid, trim(meta_qDims(jDim)%dimName), ncd_unlimited, meta_qDims(jDim)%dimId, ierr, cmessage)
+   else if (jDim==ixQdims%hru) then
+     if (meta_rflx(ixRFLX%basRunoff)%varFile) then
+       call def_dim(ncid, trim(meta_qDims(jDim)%dimName), meta_qDims(jDim)%dimLength ,meta_qDims(jDim)%dimId, ierr, cmessage)
+     end if
    else
-    call def_dim(ncid, trim(meta_qDims(jDim)%dimName), meta_qDims(jDim)%dimLength ,meta_qDims(jDim)%dimId, ierr, cmessage)
+     call def_dim(ncid, trim(meta_qDims(jDim)%dimName), meta_qDims(jDim)%dimLength ,meta_qDims(jDim)%dimId, ierr, cmessage)
    endif
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do
 
  ! Define coordinate variable for time
@@ -277,8 +298,10 @@ CONTAINS
  call def_var(ncid, 'reachID', (/meta_qDims(ixQdims%seg)%dimName/), ncd_int, ierr, cmessage, vdesc='reach ID', vunit='-')
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call def_var(ncid, 'basinID', (/meta_qDims(ixQdims%hru)%dimName/), ncd_int, ierr, cmessage, vdesc='basin ID', vunit='-')
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (meta_rflx(ixRFLX%basRunoff)%varFile) then
+   call def_var(ncid, 'basinID', (/meta_qDims(ixQdims%hru)%dimName/), ncd_int, ierr, cmessage, vdesc='basin ID', vunit='-')
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
 
  ! define variables
  do iVar=1, nVarsRFLX

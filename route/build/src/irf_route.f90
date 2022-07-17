@@ -6,10 +6,14 @@ USE nrtype
 USE dataTypes,          only : STRFLX         ! fluxes in each reach
 USE dataTypes,          only : RCHTOPO        ! Network topology
 USE dataTypes,          only : RCHPRP         ! Reach parameter
+USE dataTypes,          only : irfRCH         ! irf specific state data structure 
 ! global parameters
 USE public_var,         only : realMissing    ! missing value for real number
 USE public_var,         only : integerMissing ! missing value for integer number
-USE globalData,         only : nThreads          ! number of threads used for openMP
+USE globalData,         only : nThreads       ! number of threads used for openMP
+USE globalData,         only : idxIRF          ! index of IRF method 
+! subroutines: general
+USE model_finalize, ONLY : handle_err
 
 implicit none
 
@@ -32,7 +36,6 @@ contains
                       ixSubRch)         ! optional input: subset of reach indices to be processed
 
  USE dataTypes,      ONLY : subbasin_omp   ! mainstem+tributary data structures
- USE model_finalize, ONLY : handle_err
 
  implicit none
  ! Input
@@ -74,9 +77,6 @@ contains
  nSeg = size(NETOPO_in)
 
  allocate(doRoute(nSeg), stat=ierr)
-
- ! Initialize CHEC_IRF to False.
- RCHFLX_out(iEns,:)%CHECK_IRF=.False.
 
  if (present(ixSubRch))then
   doRoute(:)=.false.
@@ -195,7 +195,7 @@ contains
   if (nUps>0) then
     do iUps = 1,nUps
       iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-      q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%REACH_Q_IRF
+      q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxIRF)%REACH_Q
     end do
   endif
 
@@ -208,9 +208,6 @@ contains
                       ierr, message)                  ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! Check True since now this reach now routed
-  RCHFLX_out(iEns,segIndex)%CHECK_IRF=.True.
-
   ! check
   if(segIndex==ixDesire)then
     ntdh = size(NETOPO_in(segIndex)%UH)
@@ -221,7 +218,7 @@ contains
     write(*,'(a)')             ' * total discharge from upstream(q_upstream) [m3/s], local area discharge [m3/s], and Final discharge [m3/s]:'
     write(*,'(a,x,F15.7)')     ' q_upstream             =', q_upstream
     write(*,'(a,x,F15.7)')     ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(iens,segIndex)%BASIN_QR(1)
-    write(*,'(a,x,F15.7)')     ' RCHFLX_out%REACH_Q_IRF =', RCHFLX_out(iens,segIndex)%REACH_Q_IRF
+    write(*,'(a,x,F15.7)')     ' RCHFLX_out%ROUTE%REACH_Q =', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q
   endif
 
  end subroutine segment_irf
@@ -275,22 +272,22 @@ contains
  enddo
 
  ! compute volume in reach
- rflux%REACH_VOL(0) = rflux%REACH_VOL(1)
- rflux%REACH_VOL(1) = rflux%REACH_VOL(0) + (QupMod - rflux%QFUTURE_IRF(1))/dt
+ rflux%ROUTE(idxIRF)%REACH_VOL(0) = rflux%ROUTE(idxIRF)%REACH_VOL(1)
+ rflux%ROUTE(idxIRF)%REACH_VOL(1) = rflux%ROUTE(idxIRF)%REACH_VOL(0) + (QupMod - rflux%QFUTURE_IRF(1))/dt
 
  ! Add local routed flow at the bottom of reach
- rflux%REACH_Q_IRF = rflux%QFUTURE_IRF(1) + rflux%BASIN_QR(1)
+ rflux%ROUTE(idxIRF)%REACH_Q = rflux%QFUTURE_IRF(1) + rflux%BASIN_QR(1)
 
  ! Q abstraction
  ! Compute actual abstraction (Qabs) m3/s - values should be negative
- ! Compute abstraction (Qmod) m3 taken from outlet discharge (REACH_Q_IRF)
- ! Compute REACH_Q_IRF subtracted from Qmod abstraction
+ ! Compute abstraction (Qmod) m3 taken from outlet discharge (REACH_Q)
+ ! Compute REACH_Q subtracted from Qmod abstraction
  ! Compute REACH_VOL subtracted from total abstraction minus abstraction from outlet discharge
  if (Qtake<0) then
-   Qabs               = max(-(rflux%REACH_VOL(1)/dt+rflux%REACH_Q_IRF), Qtake)
-   Qmod               = min(rflux%REACH_VOL(1) + Qabs*dt, 0._dp)
-   rflux%REACH_Q_IRF  = max(rflux%REACH_Q_IRF + Qmod/dt, Qmin)
-   rflux%REACH_VOL(1) = rflux%REACH_VOL(1) + (Qabs*dt - Qmod)
+   Qabs               = max(-(rflux%ROUTE(idxIRF)%REACH_VOL(1)/dt+rflux%ROUTE(idxIRF)%REACH_Q), Qtake)
+   Qmod               = min(rflux%ROUTE(idxIRF)%REACH_VOL(1) + Qabs*dt, 0._dp)
+   rflux%ROUTE(idxIRF)%REACH_Q      = max(rflux%ROUTE(idxIRF)%REACH_Q + Qmod/dt, Qmin)
+   rflux%ROUTE(idxIRF)%REACH_VOL(1) = rflux%ROUTE(idxIRF)%REACH_VOL(1) + (Qabs*dt - Qmod)
  end if
 
  ! move array back   use eoshift

@@ -202,45 +202,78 @@ end type subdomain
   LOGICAL(LGT)                               :: USRTAKE  ! .TRUE. if user takes from reach, .FALSE. otherwise
  end type RCHTOPO
 
- ! ---------- kinematic wave states (collection of particles) ---------------------------------
+ ! ---------- reach states --------------------------------------------------------------------
 
+ !---------- Lagrangian kinematic wave states (collection of particles) ---------------------------------
  ! Individual flow particles
  ! NOTE: type could possibly be private
- TYPE, public :: FPOINT
-  REAL(DP)                             :: QF       ! Flow
-  REAL(DP)                             :: QM       ! Modified flow
-  REAL(DP)                             :: TI       ! initial time of point in reach
-  REAL(DP)                             :: TR       ! time point expected to exit reach
-  LOGICAL(LGT)                         :: RF       ! routing flag (T if point has exited)
- END TYPE FPOINT
+ type, public :: FPOINT
+  real(dp)                             :: QF       ! Flow
+  real(dp)                             :: QM       ! Modified flow
+  real(dp)                             :: TI       ! initial time of point in reach
+  real(dp)                             :: TR       ! time point expected to exit reach
+  logical(lgt)                         :: RF       ! routing flag (T if point has exited)
+ end type FPOINT
 
  ! Collection of flow points within a given reach
- TYPE, public :: KREACH
-  TYPE(FPOINT),allocatable             :: KWAVE(:)
- END TYPE KREACH
+ type, public :: kwtRCH
+  type(FPOINT),allocatable             :: KWAVE(:)
+ end type kwtRCH
 
  ! ---------- irf states (future flow series ) ---------------------------------
-
  ! Future flow series
- TYPE, public :: IRFREACH
-  REAL(DP), allocatable                :: qfuture(:)    ! runoff volume in future time steps for IRF routing (m3/s)
- END TYPE IRFREACH
+ type, public :: irfRCH
+  real(dp), allocatable   :: qfuture(:)    ! runoff volume in future time steps for IRF routing (m3/s)
+ end type irfRCH
+
+ ! ---------- computational molecule ---------------------------------
+ type, public :: cMolecule
+   integer(i4b)           :: KW_ROUTE
+   integer(i4b)           :: MC_ROUTE
+   integer(i4b)           :: DW_ROUTE
+ end type cMolecule
+
+ type, public :: SUBRCH
+   real(dp), allocatable  :: Q(:)        ! Discharge at sub-reaches at current step (m3/s)
+   real(dp), allocatable  :: A(:)        ! Flow area at sub-reach at current step (m2)
+   real(dp), allocatable  :: H(:)        ! Flow height at sub-reach at current step (m)
+ end type SUBRCH
+
+ type, public :: kwRch
+   type(SUBRCH)    :: molecule
+ end type kwRCH
+
+ type, public :: mcRch
+   type(SUBRCH)    :: molecule
+ end type mcRCH
+
+ type, public :: dwRch
+   type(SUBRCH)    :: molecule
+ end type dwRCH
+
+ type, public :: STRSTA
+   type(irfRCH)    :: IRF_ROUTE
+   type(kwtRCH)    :: LKW_ROUTE
+   type(kwRCH)     :: KW_ROUTE
+   type(mcRCH)     :: MC_ROUTE
+   type(dwRCH)     :: DW_ROUTE
+ end type STRSTA
 
  ! ---------- reach fluxes --------------------------------------------------------------------
+ type, public :: fluxes
+   real(dp)        :: REACH_Q
+   real(dp)        :: REACH_VOL(0:1)
+ end type fluxes
 
  ! fluxes in each reach
  TYPE, public :: STRFLX
-  REAL(DP), allocatable                :: QFUTURE(:)        ! runoff volume in future time steps (m3/s)
-  REAL(DP), allocatable                :: QFUTURE_IRF(:)    ! runoff volume in future time steps for IRF routing (m3/s)
-  REAL(DP)                             :: BASIN_QI          ! instantaneous runoff volume from the local basin (m3/s)
-  REAL(DP)                             :: BASIN_QR(0:1)     ! routed runoff volume from the local basin (m3/s)
-  REAL(DP)                             :: BASIN_QR_IRF(0:1) ! routed runoff volume from all the upstream basin (m3/s)
-  REAL(DP)                             :: REACH_Q           ! time-step average streamflow (m3/s)
-  REAL(DP)                             :: REACH_Q_IRF       ! time-step average streamflow (m3/s) from IRF routing
-  REAL(DP)                             :: UPSTREAM_QI       ! sum of upstream streamflow (m3/s)
-  REAL(DP)                             :: REACH_VOL(0:1)    ! volume of water at a reach [m3]
-  REAL(DP)                             :: TAKE              ! average take
-  logical(lgt)                         :: CHECK_IRF         ! .true. if the reach is routed
+  real(dp), allocatable                :: QFUTURE(:)        ! runoff volume in future time steps (m3/s)
+  real(dp), allocatable                :: QFUTURE_IRF(:)    ! runoff volume in future time steps for IRF routing (m3/s)
+  real(dp)                             :: BASIN_QI          ! instantaneous runoff volume from the local basin (m3/s)
+  real(dp)                             :: BASIN_QR(0:1)     ! routed runoff volume from the local basin (m3/s)
+  real(dp)                             :: BASIN_QR_IRF(0:1) ! routed runoff volume from all the upstream basin (m3/s)
+  type(fluxes), allocatable            :: ROUTE(:)          ! reach fluxes and states for each routing method
+  real(dp)                             :: TAKE              ! average take
  ENDTYPE STRFLX
 
  ! ---------- lake data types -----------------------------------------------------------------

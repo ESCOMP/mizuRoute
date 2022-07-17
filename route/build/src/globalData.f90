@@ -1,57 +1,63 @@
-module globalData
+MODULE globalData
   ! This module includes global data structures
 
-  use public_var, only : integerMissing
+  USE public_var
 
   ! data types
-  use nrtype
+  USE nrtype
 
   ! metadata types
-  use dataTypes,  only : struct_info   ! metadata type
-  use dataTypes,  only : dim_info      ! metadata type
-  use dataTypes,  only : var_info      ! metadata type
-  use objTypes,   only : meta_var      ! metadata type
+  USE dataTypes,  ONLY : struct_info   ! metadata type
+  USE dataTypes,  ONLY : dim_info      ! metadata type
+  USE dataTypes,  ONLY : var_info      ! metadata type
+  USE objTypes,   ONLY : meta_var      ! metadata type
 
   ! parameter structures
-  USE dataTypes,  only : RCHPRP        ! Reach parameters (properties)
-  USE dataTypes,  only : RCHTOPO       ! Network topology
+  USE dataTypes,  ONLY : RCHPRP        ! Reach parameters (properties)
+  USE dataTypes,  ONLY : RCHTOPO       ! Network topology
 
   ! routing structures
-  USE dataTypes,  only : KREACH        ! Collection of flow particles in each reach
-  USE dataTypes,  only : STRFLX        ! fluxes in each reach
+  USE dataTypes,  ONLY : STRSTA        ! restart state in each reach
+  USE dataTypes,  ONLY : STRFLX        ! fluxes in each reach
 
   ! lake structures
-  USE dataTypes,  only : LAKPRP        ! lake properties
-  USE dataTypes,  only : LAKTOPO       ! lake topology
-  USE dataTypes,  only : LKFLX         ! lake fluxes
+  USE dataTypes,  ONLY : LAKPRP        ! lake properties
+  USE dataTypes,  ONLY : LAKTOPO       ! lake topology
+  USE dataTypes,  ONLY : LKFLX         ! lake fluxes
 
   ! remapping structures
-  use dataTypes,  only : remap         ! remapping data type
-  use dataTypes,  only : runoff        ! runoff data type
+  USE dataTypes,  ONLY : remap         ! remapping data type
+  USE dataTypes,  ONLY : runoff        ! runoff data type
 
   ! basin data structure
-  use dataTypes,  only : subbasin_omp  ! mainstem+tributary data structures
+  USE dataTypes,  ONLY : subbasin_omp  ! mainstem+tributary data structures
 
   ! time data structure
-  use date_time,  only : datetime      ! time data
+  USE date_time,  ONLY : datetime      ! time data
 
   ! time data structure
-  use dataTypes,  only : nc           ! netCDF data
+  USE dataTypes,  ONLY : nc            ! netCDF data
+
+  USE dataTypes,  ONLY : cMolecule     !
 
   ! data size
-  USE var_lookup, only : nStructures   ! number of variables for data structure
-  USE var_lookup, only : nDimensions   ! number of variables for data structure
-  USE var_lookup, only : nStateDims    ! number of variables for data structure
-  USE var_lookup, only : nQdims        ! number of variables for data structure
-  USE var_lookup, only : nVarsHRU      ! number of variables for data structure
-  USE var_lookup, only : nVarsHRU2SEG  ! number of variables for data structure
-  USE var_lookup, only : nVarsSEG      ! number of variables for data structure
-  USE var_lookup, only : nVarsNTOPO    ! number of variables for data structure
-  USE var_lookup, only : nVarsPFAF     ! number of variables for data structure
-  USE var_lookup, only : nVarsRFLX     ! number of variables for data structure
-  USE var_lookup, only : nVarsIRFbas   ! number of variables for data structure
-  USE var_lookup, only : nVarsIRF      ! number of variables for data structure
-  USE var_lookup, only : nVarsKWT      ! number of variables for data structure
+  USE var_lookup, ONLY : nStructures   ! number of variables for data structure
+  USE var_lookup, ONLY : nDimensions   ! number of variables for data structure
+  USE var_lookup, ONLY : nStateDims    ! number of variables for data structure
+  USE var_lookup, ONLY : nQdims        ! number of variables for data structure
+  USE var_lookup, ONLY : nVarsHRU      ! number of variables for data structure
+  USE var_lookup, ONLY : nVarsHRU2SEG  ! number of variables for data structure
+  USE var_lookup, ONLY : nVarsSEG      ! number of variables for data structure
+  USE var_lookup, ONLY : nVarsNTOPO    ! number of variables for data structure
+  USE var_lookup, ONLY : nVarsPFAF     ! number of variables for data structure
+  USE var_lookup, ONLY : nVarsRFLX     ! number of variables for data structure
+  USE var_lookup, ONLY : nVarsIRFbas   ! number of variables for data structure
+  USE var_lookup, ONLY : nVarsBasinQ   ! number of variables for data structure
+  USE var_lookup, ONLY : nVarsIRF      ! number of variables for data structure
+  USE var_lookup, ONLY : nVarsKWT      ! number of variables for data structure
+  USE var_lookup, ONLY : nVarsKW       ! number of variables for data structure
+  USE var_lookup, ONLY : nVarsDW       ! number of variables for data structure
+  USE var_lookup, ONLY : nVarsMC       ! number of variables for data structure
 
   implicit none
 
@@ -91,7 +97,11 @@ module globalData
   type(var_info)                 , public :: meta_PFAF   (nVarsPFAF   ) ! pfafstetter code
   type(meta_var)                 , public :: meta_rflx   (nVarsRFLX   ) ! reach flux variables
   type(meta_var)                 , public :: meta_irf_bas(nVarsIRFbas ) ! basin IRF routing fluxes/states
-  type(meta_var)                 , public :: meta_kwt    (nVarsKWT    ) ! KWT routing fluxes/states
+  type(meta_var)                 , public :: meta_basinQ (nVarsBasinQ ) ! reach inflow from basin
+  type(meta_var)                 , public :: meta_kwt    (nVarsKWT    ) ! KWT routing restart fluxes/states
+  type(meta_var)                 , public :: meta_kw     (nVarsKW     ) ! KW routing restart fluxes/states
+  type(meta_var)                 , public :: meta_dw     (nVarsDW     ) ! DW routing restart fluxes/states
+  type(meta_var)                 , public :: meta_mc     (nVarsMC     ) ! MC routing restart fluxes/states
   type(meta_var)                 , public :: meta_irf    (nVarsIRF    ) ! IRF routing fluxes/states
 
   ! ---------- data structures ----------------------------------------------------------------------
@@ -99,6 +109,17 @@ module globalData
   ! number of spatial elements
   integer(i4b)                   , public :: nHRU                 ! number of HRUs in the whole river network
   integer(i4b)                   , public :: nRch                 ! number of reaches in the whole river network
+
+  ! routing methods
+  integer(i4b)                   , public :: nRoutes              ! number of active routing methods
+  integer(i4b)    , allocatable  , public :: routeMethods(:)      ! active routing method id
+  logical(lgt)                   , public :: onRoute(0:nRouteMethods-1) ! logical to indicate active routing method(s)
+  integer(i4b)                   , public :: idxSUM                     ! index of SUM method
+  integer(i4b)                   , public :: idxIRF               ! index of IRF method
+  integer(i4b)                   , public :: idxKWT               ! index of KWT method
+  integer(i4b)                   , public :: idxKW                ! index of KW method
+  integer(i4b)                   , public :: idxMC                ! index of MC method
+  integer(i4b)                   , public :: idxDW                ! index of DW method
 
   ! basin and reach IDs (to be removed)
   integer(i8b)    , allocatable  , public :: basinID(:)           ! HRU id
@@ -125,7 +146,7 @@ module globalData
   REAL(DP)        , ALLOCATABLE  , public :: FRAC_FUTURE(:)       ! fraction of runoff in future time steps
 
   ! routing data structures
-  TYPE(KREACH)    , allocatable  , public :: KROUTE(:,:)          ! Routing state variables (ensembles, space [reaches]) for the entire river network
+  TYPE(STRSTA)    , allocatable  , public :: RCHSTA(:,:)          ! Routing state variables (ensembles, space [reaches]) for the entire river network
   TYPE(STRFLX)    , allocatable  , public :: RCHFLX(:,:)          ! Reach fluxes (ensembles, space [reaches]) for entire river network
 
   ! lakes data structures
@@ -142,5 +163,6 @@ module globalData
 
   ! miscellaneous
   integer(i4b)                   , public :: ixPrint=integerMissing   ! index of desired reach to be on-screen print
+  type(cMolecule)                , public :: nMolecule                ! number of computational molecule (used for KW, MC, DW)
 
 end module globalData

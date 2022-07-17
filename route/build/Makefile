@@ -15,7 +15,7 @@ FC  =
 # Define the compiler exe, e.g., gnu=>gfortran, intel=>ifort, pgi=>pgf90
 FC_EXE =
 
-# Define the compiled executable
+# Define the executable
 EXE =
 
 # Define optional setting
@@ -35,12 +35,12 @@ F_MASTER =
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gnu"
  NCDF_PATH =
-endif
-ifeq "$(FC)" "intel"
+else ifeq "$(FC)" "intel"
  NCDF_PATH =
-endif
-ifeq "$(FC)" "pgi"
+else ifeq "$(FC)" "pgi"
  NCDF_PATH =
+else
+ $(error FC is not set correctly)
 endif
 
 LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
@@ -114,9 +114,15 @@ EXE_PATH = $(F_MASTER)bin
 #========================================================================
 # Define subroutines
 #
+# define utilities
+UTILS = \
+    nrtype.f90 \
+    nr_utility.f90 \
+    ascii_util.f90 \
+    ncio_utils.f90 \
+    gamma_func.f90
 # data types
 DATATYPES = \
-    nrtype.f90 \
     public_var.f90 \
     dataTypes.f90 \
     var_lookup.f90 \
@@ -125,12 +131,6 @@ DATATYPES = \
     globalData.f90 \
     popMetadat.f90 \
     allocation.f90
-# define utilities
-UTILS = \
-    nr_utility.f90 \
-    ascii_util.f90 \
-    ncio_utils.f90 \
-    gamma_func.f90
 # initialization
 INIT = \
     network_topo.f90 \
@@ -158,11 +158,14 @@ CORE = \
     basinUH.f90 \
     irf_route.f90 \
     kwt_route.f90 \
+    dfw_route.f90 \
+    kw_route.f90 \
+    mc_route.f90 \
     main_route.f90 \
     model_setup.f90
 
 # concatanate model subroutines
-TEMP_MODSUB = $(DATATYPES) $(UTILS) $(INIT) $(IO) $(CORE)
+TEMP_MODSUB = $(UTILS) $(DATATYPES) $(INIT) $(IO) $(CORE)
 
 # insert appropriate directory name
 MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
@@ -183,6 +186,7 @@ all: compile install clean
 compile:
 	$(FC_EXE) $(FLAGS) $(MODSUB) $(DRIVER) \
 	$(LIBNETCDF) $(INCNETCDF) -o $(EXE)
+	@echo "Succesfully compiled"
 
 # Remove object files
 clean:
@@ -190,8 +194,10 @@ clean:
 						rm -f *.lst
 						rm -f *.mod
 						rm -f *__genmod.f90
+						@echo "Successfully cleaned object files"
 #
 # Copy the executable to the bin directory
 install:
 	@mkdir -p $(EXE_PATH)
 	@mv $(EXE) $(EXE_PATH)
+	@echo "Successfully installed"

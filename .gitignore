@@ -27,7 +27,15 @@
 *.out
 *.app
 
+# directories
+bin
+cime
+libraries
+lib
+manage_externals
+
 # other files
 *.local
 *bak*
 *tmp*
+
