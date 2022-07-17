@@ -24,72 +24,76 @@ Some of rules
 
 The following variables (not pre-defined in the code) need to be defined in control file.
 
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| option | tag                    | Description                                                                               |
-+========+========================+===========================================================================================+
-| 1,2,3  | <case_name>            | simulation case name. This used for output netCDF, and restart netCDF name                |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 1,2,3  | <ancil_dir>            | Directory that contains ancillary data (river netowrk, remapping, and parameter namelist) |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 1,2,3  | <input_dir>            | Directory that contains runoff data                                                       |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 1,2,3  | <output_dir>           | Directory that contains runoff data                                                       |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 1,2,3  | <param_nml>            | Spatially constant parameter namelist (should be stored in <ancil_dir>                    |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 1,2,3  | <sim_start>            | time of simulation start. format: yyyy-mm-dd or yyyy-mm-dd hh:mm:ss                       |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 1,2,3  | <sim_end>              | time of simulation end. format:  yyyy-mm-dd or yyyy-mm-dd hh:mm:ss                        |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 1,2,3  | <fname_ntopOld>        | name of input netCDF for River Network                                                    |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 1,2,3  | <dname_sseg>           | dimension name for reach in river network netCDF                                          |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 1,2,3  | <dname_nhru>           | dimension name for RN_HRU in river network netCDF                                         |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 1,2,3  | <fname_qsim>           | netCDF name for HM_HRU runoff                                                             |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 1,2,3  | <vname_qsim>           | variable name for HM_HRU runoff                                                           |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 1,2,3  | <vname_time>           | variable name for time                                                                    |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 2      | <vname_hruid>          | variable name for HM_HRU ID                                                               |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 3      | <dname_xlon>           | dimension name for x, lon, or i dimension                                                 |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 3      | <dname_ylat>           | dimension name for y, lat, or j dimension                                                 |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 1,2,3  | <dname_time>           | dimension name for time                                                                   |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 1,2,3  | <dname_hruid>          | dimension name for HM_HRU                                                                 |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 1,2,3  | <units_qsim>           | units of input runoff. e.g., mm/s                                                         |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 1,2,3  | <dt_qsim>              | time interval of input runoff in second. e.g., 86400 sec for daily step                   |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 1,2,3  | <is_remap>             | Logical to indicate runoff needs to be remapped to RN_HRU. T or F                         |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-|   2,3  | <fname_remap>          | netCDF name of runoff remapping                                                           |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-|   2,3  | <vname_hruid_in_remap> | variable name for RN_HRUs                                                                 |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-|   2,3  | <vname_weight>         | variable name for areal weights of overlapping HM_HRUs                                    |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-|   2    | <vname_qhruid>         | variable name for HM_HRU ID                                                               |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-|     3  | <vname_i_index>        | variable name of xlon index                                                               |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-|     3  | <vname_j_index>        | variable name of ylat index                                                               |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-|   2,3  | <vname_num_qhru>       | variable name for a numbers of overlapping HM_HRUs with RN_HRUs                           |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-|   2,3  | <dname_hru_remap>      | dimension name for HM_HRU                                                                 |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-|   2,3  | <dname_data_remap>     | dimension name for data                                                                   |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
-| 1,2,3  | <route_opt>            | option for routing schemes 0-> both, 1->IRF, 2->KWT, otherwise error                      |
-+--------+------------------------+-------------------------------------------------------------------------------------------+
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| option | tag                    | Description                                                                                      |
++========+========================+==================================================================================================+
+| 1,2,3  | <case_name>            | simulation case name. This used for output netCDF, and restart netCDF name                       |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 1,2,3  | <ancil_dir>            | Directory that contains ancillary data (river netowrk, remapping, and parameter namelist)        |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 1,2,3  | <input_dir>            | Directory that contains runoff data                                                              |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 1,2,3  | <output_dir>           | Directory that contains runoff data                                                              |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 1,2,3  | <param_nml>            | Spatially constant parameter namelist (should be stored in <ancil_dir>                           |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 1,2,3  | <sim_start>            | time of simulation start. format: yyyy-mm-dd or yyyy-mm-dd hh:mm:ss                              |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 1,2,3  | <sim_end>              | time of simulation end. format:  yyyy-mm-dd or yyyy-mm-dd hh:mm:ss                               |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 1,2,3  | <fname_ntopOld>        | name of input netCDF for River Network                                                           |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 1,2,3  | <dname_sseg>           | dimension name for reach in river network netCDF                                                 |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 1,2,3  | <dname_nhru>           | dimension name for RN_HRU in river network netCDF                                                |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 1,2,3  | <fname_qsim>           | netCDF name for HM_HRU runoff                                                                    |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 1,2,3  | <vname_qsim>           | variable name for HM_HRU runoff                                                                  |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 1,2,3  | <vname_time>           | variable name for time                                                                           |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 2      | <vname_hruid>          | variable name for HM_HRU ID                                                                      |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 3      | <dname_xlon>           | dimension name for x, lon, or i dimension                                                        |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 3      | <dname_ylat>           | dimension name for y, lat, or j dimension                                                        |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 1,2,3  | <dname_time>           | dimension name for time                                                                          |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 1,2,3  | <dname_hruid>          | dimension name for HM_HRU                                                                        |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 1,2,3  | <units_qsim>           | units of input runoff. e.g., mm/s                                                                |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 1,2,3  | <dt_qsim>              | time interval of input runoff in second. e.g., 86400 sec for daily step                          |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 1,2,3  | <is_remap>             | Logical to indicate runoff needs to be remapped to RN_HRU. T or F                                |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+|   2,3  | <fname_remap>          | netCDF name of runoff remapping                                                                  |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+|   2,3  | <vname_hruid_in_remap> | variable name for RN_HRUs                                                                        |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+|   2,3  | <vname_weight>         | variable name for areal weights of overlapping HM_HRUs                                           |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+|   2    | <vname_qhruid>         | variable name for HM_HRU ID                                                                      |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+|     3  | <vname_i_index>        | variable name of xlon index                                                                      |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+|     3  | <vname_j_index>        | variable name of ylat index                                                                      |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+|   2,3  | <vname_num_qhru>       | variable name for a numbers of overlapping HM_HRUs with RN_HRUs                                  |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+|   2,3  | <dname_hru_remap>      | dimension name for HM_HRU                                                                        |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+|   2,3  | <dname_data_remap>     | dimension name for data                                                                          |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
+| 1,2,3  | <route_opt>            | routing schem options: 0-> Sum, 1->IRF, 2->KWT, 3->KW, 4->MC, 5->DW, otherwise error. see Note 1 |
++--------+------------------------+--------------------------------------------------------------------------------------------------+
 
+1. routing option 
+
+  * it is possible to specify multiple options (e.g., 0125 -> run with SUM, IRF KWT and DW). 
+ 
 Variables that have default values but can be overwritten 
 
 +------------------------+------------------------+--------------------------------------------------------------------------+
@@ -101,7 +105,7 @@ Variables that have default values but can be overwritten
 +------------------------+------------------------+--------------------------------------------------------------------------+
 | <fname_ntopNew>        | <fname_ntopOld>_new.nc | output netCDF name for augmented river network. See note 1 and 2         |
 +------------------------+------------------------+--------------------------------------------------------------------------+
-| <newFileFrequency>     | annual                 | frequency for new output files (single, day, month, or annual)           |
+| <newFileFrequency>     | yearly                 | frequency for new output files (single, daily, monthly or yearly)        |
 +------------------------+------------------------+--------------------------------------------------------------------------+
 | <hydGeometryOption>    | 1                      | option for hydraulic geometry calculations (0=read from file, 1=compute) |
 +------------------------+------------------------+--------------------------------------------------------------------------+
@@ -140,7 +144,7 @@ Restart options
 
 mizuRoute does not write restart netCDF as default. The following control variables are used to control restart dropoff timing and use restart file for continuous run from the previous simulations.
 The restart file is written at previous time step to the specified time. In other words, if ``Specified`` is used for <restart_write> and ``1981-01-01-00000`` is specified in <restart_date>, mizuRoute writes restart file
-at ``1980-12-31 00:00:00`` for daily time step. The restart file name uses the time stamp at user specified timing. ``Annual``, ``Monthly``, ``Daily`` options also follow This convention. 
+at ``1980-12-31 00:00:00`` for daily time step. The restart file name uses the time stamp at user specified timing. ``yearly``, ``monthly``, ``daily`` options also follow this convention. 
 
 The restart file name convension:  <case_name>.r.yyyy-mm-dd-sssss.nc 
 
@@ -150,15 +154,15 @@ The restart file name convension:  <case_name>.r.yyyy-mm-dd-sssss.nc
 +=====================+=========================================================================================================+
 | <restart_dir>       | directory for restart files. defualt is <output_dir>                                                    | 
 +---------------------+---------------------------------------------------------------------------------------------------------+
-| <restart_write>     | restart ouput options. N[n]ever (default), L[l]ast, S[s]pecified, Annual, M[m]onthly, D[d]aily.         | 
+| <restart_write>     | restart ouput options. never (default), last, specified, yearly, monthly, daily.                        | 
 +---------------------+---------------------------------------------------------------------------------------------------------+
 | <restart_date>      | restart time in yyyy-mm-dd (hh:mm:ss). required if <restart_write> = "Specified"                        | 
 +---------------------+---------------------------------------------------------------------------------------------------------+
-| <restart_month>     | periodic restart month (default 1). Effective if <restart_write>="Annual"                               | 
+| <restart_month>     | periodic restart month (default 1). Effective if <restart_write>="yearly"                               | 
 +---------------------+---------------------------------------------------------------------------------------------------------+
-| <restart_day>       | periodic restart day (default 1). Effective if <restart_write>="Annual" or "Monthly"                    | 
+| <restart_day>       | periodic restart day (default 1). Effective if <restart_write>="yearly" or "monthly"                    | 
 +---------------------+---------------------------------------------------------------------------------------------------------+
-| <restart_hour>      | periodic restart hour (default 0). Effective if <restart_write>="Annual", "Monthly", or "Daily"         | 
+| <restart_hour>      | periodic restart hour (default 0). Effective if <restart_write>="yearly", "monthly", or "daily"         | 
 +---------------------+---------------------------------------------------------------------------------------------------------+
 | <fname_state_in>    | input restart netCDF name. If not specified, simulation start with cold start                           | 
 +---------------------+---------------------------------------------------------------------------------------------------------+
@@ -184,9 +188,15 @@ The output file name convension:  <case_name>.h.yyyy-mm-dd-sssss.nc
 +------------------------+------------------------------------------------------------------------------------------------+
 | <sumUpstreamRunoff>    | accumulated delayed runoff volume (dlyRunoff) over all upstream reaches.                       |
 +------------------------+------------------------------------------------------------------------------------------------+
-| <KWTroutedRunoff>      | runoff volume [m3/s] after KWT reach routing dlayRunoff. See note 3                            |
+| <KWTroutedRunoff>      | runoff volume [m3/s] after Kinematic wave tracking (KWT) reach routing dlayRunoff. See note 3  |
 +------------------------+------------------------------------------------------------------------------------------------+
 | <IRFroutedRunoff>      | runoff volume [m3/s] after IRF reach routing dlayRunoff. See note 3                            |
++------------------------+------------------------------------------------------------------------------------------------+
+| <KWroutedRunoff>       | runoff volume [m3/s] after KW (Kinematic Wave) reach routing dlayRunoff. See note 3            |
++------------------------+------------------------------------------------------------------------------------------------+
+| <MCroutedRunoff>       | runoff volume [m3/s] after MC (Muskingum-Cunge) reach routing dlayRunoff. See note 3           |
++------------------------+------------------------------------------------------------------------------------------------+
+| <DWroutedRunoff>       | runoff volume [m3/s] after DW (Diffusive wave) reach routing dlayRunoff. See note 3            |
 +------------------------+------------------------------------------------------------------------------------------------+
 
 1. The unit of runoff depth is the same as the unit used in runoff data
@@ -228,7 +238,7 @@ Option 1 - runoff input is given at RN_HRU::
   <fname_state_in>        cameo_v1.2.mizuRoute.r.1950-1-1-00000.nc ! netCDF name for the model state input 
   <restart_write>         specified                                ! restart write option. never, last, specified (need to specify date with <restart_date> 
   <restart_date>          1950-08-31 00:00:00                      ! restart date 
-  <route_opt>             0                                        ! option for routing schemes 0-> both, 1->IRF, 2->KWT otherwise error 
+  <route_opt>             012345                                   ! option for routing schemes 0-> SUM, 1->IRF, 2->KWT, 3->KW, 4->MC, 5->DW,  otherwise error 
   ! **************************************************************************************************************************
   ! DEFINE FINE NAME AND DIMENSIONS
   ! ---------------------------------------
@@ -284,7 +294,7 @@ Option 2 - runoff input is given at HM_HRU::
   <fname_state_in>        cameo_v1.2.mizuRoute.r.1950-1-1-00000.nc ! netCDF name for the model state input 
   <restart_write>         specified                                ! restart write option. never, last, specified (need to specify date with <restart_date> 
   <restart_date>          1950-08-31 00:00:00                      ! restart date 
-  <route_opt>             0                                        ! option for routing schemes 0-> both, 1->IRF, 2->KWT otherwise error 
+  <route_opt>             012345                                   ! option for routing schemes 0-> SUM, 1->IRF, 2->KWT, 3->KW, 4->MC, 5->DW,  otherwise error 
   ! **************************************************************************************************************************
   ! DEFINE FINE NAME AND DIMENSIONS
   ! ---------------------------------------
@@ -347,7 +357,7 @@ Option 3 - runoff input is given at grid::
   <fname_state_in>        cameo_v1.2.mizuRoute.r.1950-1-1-00000.nc ! netCDF name for the model state input 
   <restart_write>         specified                                ! restart write option. never, last, specified (need to specify date with <restart_date> 
   <restart_date>          1950-08-31 00:00:00                      ! restart date 
-  <route_opt>             0                                        ! option for routing schemes 0-> both, 1->IRF, 2->KWT otherwise error 
+  <route_opt>             012345                                   ! option for routing schemes 0-> SUM, 1->IRF, 2->KWT, 3->KW, 4->MC, 5->DW,  otherwise error 
   ! **************************************************************************************************************************
   ! DEFINE FINE NAME AND DIMENSIONS
   ! ---------------------------------------
