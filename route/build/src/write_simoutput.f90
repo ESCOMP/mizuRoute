@@ -139,6 +139,7 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE prep_output(ierr, message)    ! out:   error control
 
+ USE ascii_util_module,   ONLY: lower
  ! saved public variables (usually parameters, or values not modified)
  USE public_var,          only : output_dir        ! output directory
  USE public_var,          only : case_name         ! simulation name ==> output filename head
@@ -168,12 +169,12 @@ CONTAINS
  write(iulog,'(a,I4,4(x,I4))') new_line('a'), modTime(1)%year(), modTime(1)%month(), modTime(1)%day(), modTime(1)%hour(), modTime(1)%minute()
 
  ! check need for the new file
- select case(trim(newFileFrequency))
+ select case(lower(trim(newFileFrequency)))
    case('single'); defNewOutputFile=(modTime(0)%year() ==integerMissing)
-   case('annual'); defNewOutputFile=(modTime(1)%year() /=modTime(0)%year())
-   case('month');  defNewOutputFile=(modTime(1)%month()/=modTime(0)%month())
-   case('day');    defNewOutputFile=(modTime(1)%day()  /=modTime(0)%day())
-   case default; ierr=20; message=trim(message)//'unable to identify the option to define new output files'; return
+   case('yearly'); defNewOutputFile=(modTime(1)%year() /=modTime(0)%year())
+   case('monthly');  defNewOutputFile=(modTime(1)%month()/=modTime(0)%month())
+   case('daily');    defNewOutputFile=(modTime(1)%day()  /=modTime(0)%day())
+   case default; ierr=20; message=trim(message)//'Accepted <newFileFrequency> options (case-insensitive): single yearly, monthly, or daily '; return
  end select
 
  ! define new file

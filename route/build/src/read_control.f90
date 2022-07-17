@@ -140,11 +140,11 @@ CONTAINS
    case('<case_name>');            case_name            = trim(cData)              ! name of simulation. used as head of model output and restart file
    case('<sim_start>');            simStart    = trim(cData)                       ! date string defining the start of the simulation
    case('<sim_end>');              simEnd      = trim(cData)                       ! date string defining the end of the simulation
-   case('<route_opt>');            routOpt     = trim(cData)                           ! routing scheme options  0-> accumRunoff, 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW
+   case('<route_opt>');            routOpt     = trim(cData)                       ! routing scheme options  0-> accumRunoff, 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW
    case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute    ! basin routing options   0-> no, 1->IRF, otherwise error
-   case('<newFileFrequency>');     newFileFrequency     = trim(cData)              ! frequency for new output files (day, month, annual, single)
+   case('<newFileFrequency>');     newFileFrequency     = trim(cData)              ! frequency for new output options (case-insensitive): daily, monthly, yearly, or single
    ! RESTART
-   case('<restart_write>');        restart_write        = trim(cData)              ! restart write option: N[n]ever, L[l]ast, S[s]pecified, Monthly, Daily
+   case('<restart_write>');        restart_write        = trim(cData)              ! restart write option (case-insensitive): never, last, specified, yearly, monthly, or daily
    case('<restart_date>');         restart_date         = trim(cData)              ! specified restart date, yyyy-mm-dd (hh:mm:ss) for Specified option
    case('<restart_month>');        read(cData,*,iostat=io_error) restart_month     ! restart periodic month
    case('<restart_day>');          read(cData,*,iostat=io_error) restart_day       ! restart periodic day

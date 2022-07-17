@@ -462,7 +462,7 @@ CONTAINS
  ! "Monthly" option: use 2000-01 as template calendar yr/month
  ! "Daily" option:   use 2000-01-01 as template calendar yr/month/day
  select case(lower(trim(restart_write)))
-   case('annual')
+   case('yearly')
      call dummyCal%set_datetime(2000, restart_month, 1, 0, 0, 0.0_dp)
      nDays = dummyCal%ndays_month(calendar, ierr, cmessage)
      if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
@@ -484,7 +484,7 @@ CONTAINS
       dropCal = restCal%add_sec(-dt, calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restCal->dropCal]'; return; endif
       restart_month = dropCal%month(); restart_day = dropCal%day(); restart_hour = dropCal%hour()
-    case('annual','monthly','daily')
+    case('yearly','monthly','daily')
       call restCal%set_datetime(2000, restart_month, restart_day, restart_hour, 0, 0._dp)
       dropCal = restCal%add_sec(-dt, calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [ dropCal for periodical restart]'; return; endif
@@ -492,7 +492,7 @@ CONTAINS
     case('never')
       call dropCal%set_datetime(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
     case default
-      ierr=20; message=trim(message)//'Current accepted <restart_write> options: L[l]ast, N[n]ever, S[s]pecified, A[a]nnual, M[m]onthly, D[d]aily'; return
+      ierr=20; message=trim(message)//'Current accepted <restart_write> options: last, never, specified, yearly, monthly, daily'; return
   end select
 
  END SUBROUTINE init_time
