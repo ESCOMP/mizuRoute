@@ -1,6 +1,11 @@
-MODULE date_time
+MODULE datetime_data
 
 ! datetime class
+!
+! usage:
+! initialize datetime
+!   datetime1 = datetime(1969, 7,16, 7,32,  0.0)
+!
 
 USE nrtype
 USE public_var,        ONLY: realMissing, integerMissing
@@ -25,7 +30,6 @@ type, public :: datetime
 
 CONTAINS
 
-  procedure, public :: set_datetime  => sub_set_datetime
   procedure, public :: jul2datetime  => sub_jul2datetime
   procedure, public :: str2datetime  => sub_str2datetime
   procedure, public :: year          => fn_get_year
@@ -60,33 +64,37 @@ CONTAINS
 
 end type datetime
 
-private :: sub_set_datetime, sub_jul2datetime, sub_str2datetime
+private :: sub_jul2datetime, sub_str2datetime
 private :: fn_get_year, fn_get_month, fn_get_day, fn_get_hour, fn_get_min, fn_get_sec
 private :: fn_is_leap_year, sub_julian_day, fn_ndays_month
 private :: fn_add_months, fn_add_days, fn_add_hours, fn_add_sec
 private :: fn_is_equal_month, fn_is_equal_day, fn_is_equal_time
 
+INTERFACE datetime
+  module procedure constructor
+END INTERFACE datetime
+
 CONTAINS
 
-  SUBROUTINE sub_set_datetime(this, iy, im, id, ih, imin, dsec)
+  FUNCTION constructor(iyr, imo, ida, ihr, imin, dsec) RESULT(instDatetime)
 
     implicit none
-    class(datetime)              :: this
-    integer(i4b),     intent(in) :: iy
-    integer(i4b),     intent(in) :: im
-    integer(i4b),     intent(in) :: id
-    integer(i4b),     intent(in) :: ih
+    type(datetime)               :: instDatetime
+    integer(i4b),     intent(in) :: iyr
+    integer(i4b),     intent(in) :: imo
+    integer(i4b),     intent(in) :: ida
+    integer(i4b),     intent(in) :: ihr
     integer(i4b),     intent(in) :: imin
     real(dp),         intent(in) :: dsec
 
-    this%iy       = iy
-    this%im       = im
-    this%id       = id
-    this%ih       = ih
-    this%imin     = imin
-    this%dsec     = dsec
+    instDatetime%iy       = iyr
+    instDatetime%im       = imo
+    instDatetime%id       = ida
+    instDatetime%ih       = ihr
+    instDatetime%imin     = imin
+    instDatetime%dsec     = dsec
 
-  END SUBROUTINE sub_set_datetime
+  END FUNCTION constructor
 
   SUBROUTINE sub_jul2datetime(this, julday, calendar, ierr, message)
 
@@ -361,7 +369,7 @@ CONTAINS
   END FUNCTION fn_is_equal
 
   logical(lgt) FUNCTION fn_is_gt(this, that)
-    ! if this >= that T, otherwise F
+    ! if this > that T, otherwise F
     implicit none
     class(datetime),     intent(in)  :: this
     class(datetime),     intent(in)  :: that
@@ -435,4 +443,4 @@ CONTAINS
     end if
   END FUNCTION fn_is_le
 
-END MODULE date_time
+END MODULE datetime_data

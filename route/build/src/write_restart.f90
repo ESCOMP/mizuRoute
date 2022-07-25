@@ -1,7 +1,7 @@
 MODULE write_restart
 
 USE nrtype
-USE date_time, ONLY: datetime
+USE datetime_data, ONLY: datetime
 USE io_netcdf, ONLY: ncd_int
 USE io_netcdf, ONLY: ncd_float, ncd_double
 USE io_netcdf, ONLY: ncd_unlimited
@@ -89,11 +89,11 @@ CONTAINS
    ierr=0; message='restart_alarm/'
 
    ! adjust restart dropoff day if the dropoff day is outside number of days in particular month
-   call dropCal%set_datetime(dropCal%year(), dropCal%month(), restart_day, dropCal%hour(), dropCal%minute(), dropCal%sec())
+   dropCal = datetime(dropCal%year(), dropCal%month(), restart_day, dropCal%hour(), dropCal%minute(), dropCal%sec())
    nDays = modTime(1)%ndays_month(calendar, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    if (dropCal%day() > nDays) then
-     call dropCal%set_datetime(dropCal%year(), dropCal%month(), nDays, dropCal%hour(), dropCal%minute(), dropCal%sec())
+     dropCal = datetime(dropCal%year(), dropCal%month(), nDays, dropCal%hour(), dropCal%minute(), dropCal%sec())
    end if
 
    ! adjust dropoff day further if restart day is actually outside number of days in a particular month

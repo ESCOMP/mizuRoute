@@ -128,6 +128,7 @@ DATATYPES = \
     var_lookup.f90 \
     time_utils.f90 \
     datetime_data.f90 \
+    csv_data.f90 \
     globalData.f90 \
     popMetadat.f90 \
     allocation.f90
