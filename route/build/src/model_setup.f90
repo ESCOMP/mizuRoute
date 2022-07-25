@@ -1,8 +1,7 @@
 MODULE model_setup
 
 ! data types
-USE nrtype,    ONLY : i4b,i8b,dp,lgt          ! variable types, etc.
-USE nrtype,    ONLY : strLen              ! length of characters
+USE nrtype
 USE dataTypes, ONLY : var_ilength         ! integer type:          var(:)%dat
 USE dataTypes, ONLY : var_clength         ! integer type:          var(:)%dat
 USE dataTypes, ONLY : var_dlength,dlength ! double precision type: var(:)%dat, or dat
@@ -330,7 +329,7 @@ CONTAINS
   USE io_netcdf,           ONLY : close_nc        ! netcdf input
   USE io_netcdf,           ONLY : get_nc          ! netcdf input
   ! derived datatype
-  USE date_time,           ONLY : datetime        ! time data type
+  USE datetime_data,       ONLY : datetime        ! time data type
   ! public data
   USE public_var,          ONLY : input_dir     ! directory containing input data
   USE public_var,          ONLY : fname_qsim    ! simulated runoff netCDF name
@@ -463,7 +462,7 @@ CONTAINS
  ! "Daily" option:   use 2000-01-01 as template calendar yr/month/day
  select case(lower(trim(restart_write)))
    case('yearly')
-     call dummyCal%set_datetime(2000, restart_month, 1, 0, 0, 0.0_dp)
+     dummyCal = datetime(2000, restart_month, 1, 0, 0, 0.0_dp)
      nDays = dummyCal%ndays_month(calendar, ierr, cmessage)
      if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
      if (restart_day > nDays) restart_day=nDays
@@ -485,12 +484,12 @@ CONTAINS
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restCal->dropCal]'; return; endif
       restart_month = dropCal%month(); restart_day = dropCal%day(); restart_hour = dropCal%hour()
     case('yearly','monthly','daily')
-      call restCal%set_datetime(2000, restart_month, restart_day, restart_hour, 0, 0._dp)
+      restCal = datetime(2000, restart_month, restart_day, restart_hour, 0, 0._dp)
       dropCal = restCal%add_sec(-dt, calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [ dropCal for periodical restart]'; return; endif
       restart_month = dropCal%month(); restart_day = dropCal%day(); restart_hour = dropCal%hour()
     case('never')
-      call dropCal%set_datetime(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
+      dropCal = datetime(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
     case default
       ierr=20; message=trim(message)//'Current accepted <restart_write> options: last, never, specified, yearly, monthly, daily'; return
   end select
