@@ -2,8 +2,7 @@ module public_var
   ! This module include variables that can be accessed from any other modules and values not altered
   ! except that variables read from control file are populated.
 
-  use nrtype, only: i4b,dp,lgt
-  use nrtype, only: strLen  ! string length
+  USE nrtype
   implicit none
 
   save
@@ -39,6 +38,7 @@ module public_var
   ! constants for general use
   real(dp),    parameter,public   :: MinPosVal=1.e-10_dp    ! minimum value for positive value
   integer(i4b),parameter,public   :: integerMissing=-9999   ! missing value for integers
+  real(sp),    parameter,public   :: floatMissing=-9999._sp ! missing value for real32 numbers
   real(dp),    parameter,public   :: realMissing=-9999._dp  ! missing value for real numbers
   character(5),parameter,public   :: charMissing='empty'    ! missing value for character
 
@@ -124,8 +124,25 @@ module public_var
   character(len=strLen),public    :: fname_state_in       = charMissing     ! name of state file
   ! SPATIAL CONSTANT PARAMETERS
   character(len=strLen),public    :: param_nml            = ''              ! name of the namelist file
+  ! GAUGE DATA
+  character(len=strLen),public    :: gageMetaFile         = charMissing     ! name of the gauge metadata csv
+  logical(lgt),public             :: outputAtGage         = .false.         ! logical; T-> history file output at only gauge points
+  character(len=strLen),public    :: fname_gageObs        = ''              ! gauge data netcdf name
+  character(len=strLen),public    :: vname_gageFlow       = ''              ! variable name for gauge flow data
+  character(len=strLen),public    :: vname_gageSite       = ''              ! variable name for site name data
+  character(len=strLen),public    :: vname_gageTime       = ''              ! variable name for time data
+  character(len=strLen),public    :: dname_gageSite       = ''              ! dimension name for gauge site
+  character(len=strLen),public    :: dname_gageTime       = ''              ! dimension name for time
+  integer(i4b)         ,public    :: strlen_gageSite      = 30              ! maximum character length for site name
+  ! WATER TAKE DATA
+  character(len=strLen),public    :: fname_waterTake      = ''              ! gauge data netcdf name
+  character(len=strLen),public    :: vname_waterTake      = ''              ! variable name for water take (+ abstract, - injection)
+  character(len=strLen),public    :: vname_wtReach        = ''              ! variable name for reach ID data
+  character(len=strLen),public    :: vname_wtTime         = ''              ! variable name for time data
+  character(len=strLen),public    :: dname_wtReach        = ''              ! dimension name for reach ID
+  character(len=strLen),public    :: dname_wtTime         = ''              ! dimension name for time
   ! USER OPTIONS
-  logical(lgt)         ,public    :: qtakeOption          = .false.         ! option for abstraction/injection
+  integer(i4b)         ,public    :: qmodOption           = 0               ! option for streamflow modification
   integer(i4b)         ,public    :: hydGeometryOption    = compute         ! option for hydraulic geometry calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: topoNetworkOption    = compute         ! option for network topology calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: computeReachList     = compute         ! option to compute list of upstream reaches (0=do not compute, 1=compute)
