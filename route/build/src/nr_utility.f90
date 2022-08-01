@@ -493,19 +493,17 @@ CONTAINS
   FUNCTION match_index(array1, array2, missingValue) RESULT(index1)
     implicit none
     ! Argument variables:
-    integer(i4b), allocatable, intent(in)  :: array1(:)
-    integer(i4b), allocatable, intent(in)  :: array2(:)
-    integer(i4b), optional,    intent(in)  :: missingValue ! desired missing value if desiredValue is not found
+    integer(i4b), intent(in)           :: array1(:)
+    integer(i4b), intent(in)           :: array2(:)
+    integer(i4b), optional, intent(in) :: missingValue ! desired missing value if desiredValue is not found
     ! Local variables:
-    integer(i4b), allocatable              :: index1(:)
-    integer(i4b), allocatable              :: rnkArray1(:)
-    integer(i4b), allocatable              :: rnkArray2(:)
-    integer(i4b)                           :: ix, jx, begIx
+    integer(i4b)              :: index1(size(array2))
+    integer(i4b)              :: rnkArray1(size(array1))
+    integer(i4b)              :: rnkArray2(size(array2))
+    integer(i4b)              :: ix, jx, begIx
 
-    allocate(index1(size(array2)), rnkArray1(size(array1)), rnkArray2(size(array2)) )
-
-    if(present(missingValue))then
-      index1=missingValue
+    if (present(missingValue)) then
+      index1 = missingValue
     else
       index1 = -9999
     endif
@@ -513,8 +511,8 @@ CONTAINS
     call indexx(array1, rnkArray1)
     call indexx(array2, rnkArray2)
 
-    begIx=1
-    do ix=1,size(rnkArray2)
+    begIx = 1
+    do ix = 1,size(rnkArray2)
       do jx=begIx,size(rnkArray1)
         if (array2(rnkArray2(ix))==array1(rnkArray1(jx))) then
           index1(rnkArray2(ix)) = rnkArray1(jx)
