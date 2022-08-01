@@ -83,8 +83,6 @@ MODULE var_lookup
   integer(i4b)     :: basArea       = integerMissing  ! area of the local HRUs contributing to each reach (m2)
   integer(i4b)     :: upsArea       = integerMissing  ! area above the top of the reach -- zero if headwater (m2)
   integer(i4b)     :: totalArea     = integerMissing  ! basArea + upsArea -- area at the bottom of the reach (m2)
-  ! abstraction/injection from reach
-  integer(i4b)     :: QTAKE         = integerMissing  ! abstraction(-)/injection(+) coefficient [m3/s]
   ! lakes
   integer(i4b)     :: basUnderLake  = integerMissing  ! Area of basin under lake  (m2)
   integer(i4b)     :: rchUnderLake  = integerMissing  ! Length of reach under lake (m)
@@ -187,7 +185,7 @@ MODULE var_lookup
  type(iLook_qDims)    ,public,parameter :: ixqDims     = iLook_qDims    (1,2,3,4)
  type(iLook_HRU)      ,public,parameter :: ixHRU       = iLook_HRU      (1)
  type(iLook_HRU2SEG)  ,public,parameter :: ixHRU2SEG   = iLook_HRU2SEG  (1,2,3,4)
- type(iLook_SEG)      ,public,parameter :: ixSEG       = iLook_SEG      (1,2,3,4,5,6,7,8,9,10,11,12,13,14)
+ type(iLook_SEG)      ,public,parameter :: ixSEG       = iLook_SEG      (1,2,3,4,5,6,7,8,9,10,11,12,13)
  type(iLook_NTOPO)    ,public,parameter :: ixNTOPO     = iLook_NTOPO    (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17)
  type(iLook_PFAF)     ,public,parameter :: ixPFAF      = iLook_PFAF     (1)
  type(iLook_RFLX)     ,public,parameter :: ixRFLX      = iLook_RFLX     (1,2,3,4,5,6,7,8,9,10)
