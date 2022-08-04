@@ -22,7 +22,6 @@ USE nr_utility_module, ONLY : indexx  ! get rank of data value
 implicit none
 
 private
-
 public :: init_model
 public :: init_data
 public :: update_time
@@ -36,27 +35,22 @@ CONTAINS
 
   ! used to read control files and namelist and broadcast to all processors
 
-  ! shared data used
   USE public_var,          ONLY : ancil_dir
   USE public_var,          ONLY : param_nml
   USE globalData,          ONLY : nThreads         ! a number of threads
-  ! subroutines: populate metadata
   USE popMetadat_module,   ONLY : popMetadat       ! populate metadata
-  ! subroutines: model control
   USE read_control_module, ONLY : read_control     ! read the control file
   USE read_param_module,   ONLY : read_param       ! read the routing parameters
 
   implicit none
-
+  ! Argument variables
   character(*), intent(in)    :: cfile_name          ! name of the control file
-  ! output: error control
   integer(i4b), intent(out)   :: ierr                ! error code
   character(*), intent(out)   :: message             ! error message
   ! local variables
   integer(i4b)                :: omp_get_num_threads ! number of threads used for openMP
   character(len=strLen)       :: cmessage            ! error message of downwind routine
 
-  ! initialize error control
   ierr=0; message='init_model/'
 
   ! Get number of threads
@@ -104,9 +98,7 @@ CONTAINS
   USE globalData,  ONLY : remap_data             ! runoff mapping data structure
 
    implicit none
-   ! input:
-   ! None
-   ! output: error control
+   ! Argument variables
    integer(i4b),              intent(out)   :: ierr             ! error code
    character(*),              intent(out)   :: message          ! error message
    ! local variable
@@ -165,6 +157,9 @@ CONTAINS
                     ierr, cmessage)    ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+   call init_qmod(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
    ! DateTime initialization
    call init_time(runoff_data%ntime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -190,7 +185,7 @@ CONTAINS
   USE globalData, ONLY : modTime       ! model datetime
 
    implicit none
-   ! output
+   ! Argument variables
    logical(lgt),              intent(out)   :: finished
    integer(i4b),              intent(out)   :: ierr             ! error code
    character(*),              intent(out)   :: message          ! error message
@@ -228,10 +223,9 @@ CONTAINS
  ! private subroutine: initialize channel state data
  ! *********************************************************************
  SUBROUTINE init_state(ierr, message)
-  ! subroutines
+
   USE ascii_util_module, ONLY : lower             ! convert string to lower case
   USE read_restart,      ONLY : read_state_nc     ! read netcdf state output file
-  ! global data
   USE public_var,    ONLY : dt                    ! simulation time step (seconds)
   USE public_var,    ONLY : impulseResponseFunc   ! IRF routing ID = 1
   USE public_var,    ONLY : kinematicWaveTracking ! KWT routing ID = 2
@@ -248,8 +242,7 @@ CONTAINS
   USE globalData,    ONLY : TSEC                  ! begining/ending of simulation time step [sec]
 
   implicit none
-
-  ! output: error control
+  ! Argument variables
   integer(i4b),        intent(out) :: ierr             ! error code
   character(*),        intent(out) :: message          ! error message
   ! local variable
@@ -323,14 +316,11 @@ CONTAINS
  SUBROUTINE init_time(nTime,     &    ! input: number of time steps
                       ierr, message)  ! output
 
-  ! subroutines:
   USE ascii_util_module,   ONLY : lower           ! convert string to lower case
   USE io_netcdf,           ONLY : open_nc         ! netcdf input
   USE io_netcdf,           ONLY : close_nc        ! netcdf input
   USE io_netcdf,           ONLY : get_nc          ! netcdf input
-  ! derived datatype
   USE datetime_data,       ONLY : datetime        ! time data type
-  ! public data
   USE public_var,          ONLY : input_dir     ! directory containing input data
   USE public_var,          ONLY : fname_qsim    ! simulated runoff netCDF name
   USE public_var,          ONLY : vname_time    ! variable name for time
@@ -345,7 +335,6 @@ CONTAINS
   USE public_var,          ONLY : restart_month !
   USE public_var,          ONLY : restart_day   !
   USE public_var,          ONLY : restart_hour  !
-  ! saved time variables
   USE globalData,          ONLY : timeVar       ! time variables (unit given by runoff data)
   USE globalData,          ONLY : iTime         ! time index at runoff input time step
   USE globalData,          ONLY : modTime       ! model time data (yyyy:mm:dd:hh:mm:sec)
@@ -354,10 +343,8 @@ CONTAINS
   USE globalData,          ONLY : dropCal       ! restart dropoff calendar date/time
 
   implicit none
-
-  ! input:
+  ! Argument variables:
   integer(i4b),              intent(in)    :: nTime
-  ! output: error control
   integer(i4b),              intent(out)   :: ierr             ! error code
   character(*),              intent(out)   :: message          ! error message
   ! local variable
@@ -503,23 +490,19 @@ CONTAINS
  SUBROUTINE init_ntopo(nHRU_out, nRch_out,                                           & ! output: number of HRU and Reaches
                        structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
                        ierr, message)                                                  ! output: error controls
-  ! public vars
+
   USE public_var,           ONLY : ancil_dir                ! name of the ancillary directory
   USE public_var,           ONLY : fname_ntopOld            ! name of the old network topology file
   USE public_var,           ONLY : fname_ntopNew            ! name of the new network topology file
   USE public_var,           ONLY : dname_nhru               ! dimension name for HRUs
   USE public_var,           ONLY : dname_sseg               ! dimension name for stream segments
   USE public_var,           ONLY : maxPfafLen               ! maximum digit of pfafstetter code (default 32)
-  ! options
   USE public_var,           ONLY : ntopAugmentMode          ! River network augmentation mode
   USE public_var,           ONLY : idSegOut                 ! River network subset mode (idSegOut > 0)
-  ! global data
   USE globalData,           ONLY : meta_PFAF                ! meta for pfafstetter code
   USE globalData,           ONLY : NETOPO, RPARAM           ! network and parameter data structure used in routing routine
   USE globalData,           ONLY : river_basin              ! OMP domain decompostion data strucuture
-  ! variable index
   USE var_lookup,           ONLY : ixPFAF                   ! index of variables for the pfafstetter code
-  ! external subroutines
   USE read_streamSeg,       ONLY : getData                  ! get the ancillary data
   USE write_streamSeg,      ONLY : writeData                ! write the ancillary data
   USE process_ntopo,        ONLY : check_river_properties   ! check if river network data is physically valid
@@ -530,8 +513,7 @@ CONTAINS
 !  USE domain_decomposition, ONLY : omp_domain_decomposition &    ! domain decomposition for omp
 !                                => omp_domain_decomposition_stro
   implicit none
-  ! input: None
-  ! output (river network data structures for the entire domain)
+  ! Argument variables
   integer(i4b)                  , intent(out) :: nHRU_out                 ! number of HRUs
   integer(i4b)                  , intent(out) :: nRch_out                 ! number of reaches
   type(var_dlength), allocatable, intent(out) :: structHRU(:)             ! HRU properties
@@ -539,7 +521,6 @@ CONTAINS
   type(var_ilength), allocatable, intent(out) :: structHRU2SEG(:)         ! HRU-to-segment mapping
   type(var_ilength), allocatable, intent(out) :: structNTOPO(:)           ! network topology
   type(var_clength), allocatable, intent(out) :: structPFAF(:)            ! pfafstetter code
-  ! output: error control
   integer(i4b)      , intent(out)             :: ierr                     ! error code
   character(*)      , intent(out)             :: message                  ! error message
   ! local variable
@@ -685,11 +666,10 @@ CONTAINS
  USE globalData,  ONLY : basinID                ! basin ID
 
  implicit none
- ! data structures
+ ! Argument variables
  logical(lgt),      intent(in)      :: remap_flag       ! logical whether or not runnoff needs to be mapped to river network HRU
  type(remap)  , intent(out)         :: remap_data_in    ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
  type(runoff) , intent(out)         :: runoff_data_in   ! runoff for one time step for all HRUs
- ! error control
  integer(i4b), intent(out)          :: ierr             ! error code
  character(*), intent(out)          :: message          ! error message
  ! local variables
@@ -697,7 +677,6 @@ CONTAINS
  integer(i4b), allocatable          :: unq_idx(:)
  character(len=strLen)              :: cmessage         ! error message from subroutine
 
- ! initialize error control
  ierr=0; message='init_runoff/'
 
  ! get runoff metadata
@@ -780,6 +759,78 @@ CONTAINS
  endif
 
  END SUBROUTINE init_runoff
+
+ ! *****
+ ! public subroutine: initialize data related to water injection/abstraction, or flow mod
+ ! *********************************************************************
+ SUBROUTINE init_qmod(ierr, message)
+
+   USE public_var,    ONLY: qmodOption          ! qmod option - water abstraction/injection or swap with observe
+   USE public_var,    ONLY: ancil_dir           ! name of the ancillary directory
+   USE public_var,    ONLY: fname_waterTake     ! name of water take netCDF
+   USE public_var,    ONLY: vname_waterTake     ! name of water take variable in WT netcdf
+   USE public_var,    ONLY: vname_wtTime        ! name of time variable in WT netcdf
+   USE public_var,    ONLY: dname_wtTime        ! name of time dimention in WT netcdf
+   USE public_var,    ONLY: vname_wtReach       ! name of reach ID variable in WT netcdf
+   USE public_var,    ONLY: dname_wtReach       ! name of reach dimension in WT netcdf
+   USE public_var,    ONLY: fname_gageObs       ! name of gage obseved flow netCDF
+   USE public_var,    ONLY: vname_gageFlow      ! name of observed flow variable in flow netCDF
+   USE public_var,    ONLY: vname_gageTime      ! name of time variable in flow netCDF
+   USE public_var,    ONLY: dname_gageTime      ! name of time dimension in flow netCDF
+   USE public_var,    ONLY: vname_gageSite      ! name of gage site ID (chacter) variable in flow netCDF
+   USE public_var,    ONLY: dname_gageSite      ! name of site dimension in flow netCDF
+   USE public_var,    ONLY: gageMetaFile        ! gage meta csv
+   USE globalData,    ONLY: rch_qtake_data      ! instantiated water take data
+   USE globalData,    ONLY: gage_obs_data       ! instantiated gage obs data
+   USE globalData,    ONLY: gage_meta_data      ! instantiated gage meta data
+   USE globalData,    ONLY: reachID             ! reach ID in network data
+   USE obs_data,      ONLY: gageObs, waterTake  ! gage obs and water take classes
+   USE gageMeta_data, ONLY: gageMeta            ! gage meta class
+
+   implicit none
+   ! argument variables
+   integer(i4b), intent(out)  :: ierr        ! error code
+   character(*), intent(out)  :: message     ! error message
+   ! local variables
+   character(len=strLen)      :: cmessage    ! error message from subroutine
+   integer(i4b), parameter    :: no_mod=0
+   integer(i4b), parameter    :: direct_insert=1
+   integer(i4b), parameter    :: qtake=2
+
+   ierr=0; message='init_qmod/'
+
+   select case(qmodOption)
+     case(no_mod)
+     case(direct_insert)
+       ! initialize gage meta data
+       gage_meta_data = gageMeta(trim(ancil_dir)//trim(gageMetaFile), ierr, cmessage)
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+       ! initialize gage obs data
+       gage_obs_data = gageObs(trim(ancil_dir)//trim(fname_gageObs), &
+                               vname_gageFlow,                       &
+                               vname_gageTime, vname_gageSite,       &
+                               dname_gageTime, dname_gageSite,       &
+                               ierr, cmessage)
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+       ! compute link between gage ID and reach ID (river network domain) - index of reachID for each gage ID
+       call gage_obs_data%comp_link(reachID, gage_meta_data)
+     case(qtake)
+       rch_qtake_data = waterTake(trim(ancil_dir)//trim(fname_waterTake), &
+                                  vname_waterTake,                        &
+                                  vname_wtTime, vname_wtReach,            &
+                                  dname_wtTime, dname_wtReach,            &
+                                  ierr, cmessage)
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+       ! compute link between reach ID in waterTake file and reach ID (river network file) - index of river network reachID for each waterTake reach ID
+       call rch_qtake_data%comp_link(reachID)
+     case default
+       ierr=1; message=trim(message)//"Error: qmodOption invalid"; return
+   end select
+
+ END SUBROUTINE init_qmod
 
  ! *****
  ! private subroutine: get indices of mapping points within runoff file...
