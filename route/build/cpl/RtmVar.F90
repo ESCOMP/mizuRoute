@@ -46,14 +46,17 @@ MODULE RtmVar
   character(len=16), public            :: inst_suffix
 
   ! rof control variables
-  logical,           public            :: do_rof         = .true.          !
-  logical,           public            :: do_flood       = .false.         !
-  character(len=CL), public            :: nrevsn_rtm     = ' '             ! restart data file name for branch run
-  integer,           public            :: coupling_period                  ! coupling period
-  integer,           public            :: rtmhist_ndens  = 1               ! namelist: output density of netcdf history files
-  integer,           public            :: rtmhist_mfilt  = 30              ! namelist: number of time samples per tape
-  integer,           public            :: rtmhist_nhtfrq = 0               ! namelist: history write freq(0=monthly)
-  logical,           public            :: ice_runoff     = .false.         ! true => runoff is split into liquid and ice,
+  logical,           public            :: do_rof         = .true.                   !
+  logical,           public            :: do_flood       = .false.                  !
+  character(len=CL), public            :: nrevsn_rtm     = ' '                      ! restart data file name for branch run
+  character(len=32), public            :: qgwl_runoff_option ='threshold'           ! method for handling qgwl runoff
+  character(len=32), public            :: bypass_routing_option = 'direct_in_place' ! bypass routing model method
+  real(r8),          public            :: river_depth_minimum = 1.e-4               ! gridcell average minimum river depth [m]
+  integer,           public            :: coupling_period                           ! coupling period
+  integer,           public            :: rtmhist_ndens  = 1                        ! namelist: output density of netcdf history files
+  integer,           public            :: rtmhist_mfilt  = 30                       ! namelist: number of time samples per tape
+  integer,           public            :: rtmhist_nhtfrq = 0                        ! namelist: history write freq(0=monthly)
+  logical,           public            :: ice_runoff     = .false.                  ! true => runoff is split into liquid and ice,
   character(len=256),public            :: cfile_name     = 'mizuRoute.control'
   character(len=256),public            :: para_xxxx      = 'mizuRoute_in'
 

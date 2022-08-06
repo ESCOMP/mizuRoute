@@ -10,6 +10,7 @@ MODULE RtmMod
   USE shr_sys_mod,  ONLY: shr_sys_flush, shr_sys_abort
   USE RtmVar,       ONLY: nt_rof, rof_tracers, &
                           ice_runoff, do_rof, do_flood, &
+                          river_depth_minimum, qgwl_runoff_option, &
                           nsrContinue, nsrBranch, nsrStartup, nsrest, &
                           cfile_name, coupling_period, &
                           caseid, brnch_retain_casename, inst_name, &
@@ -24,7 +25,6 @@ MODULE RtmMod
   USE globalData,   ONLY: multiProcs
 
   implicit none
-
   private
   public route_ini          ! Initialize mizuRoute
   public route_run          ! run routing
@@ -47,6 +47,12 @@ CONTAINS
     USE globalData,          ONLY: runMode                     ! "ctsm-coupling" or "standalone" to differentiate some behaviours in mizuRoute
     USE globalData,          ONLY: ixHRU_order                 ! global HRU index in the order of proc assignment (size = num of hrus contributing reach in entire network)
     USE globalData,          ONLY: hru_per_proc                ! number of hrus assigned to each proc (size = num of procs
+    USE globalData,          ONLY: nRch_mainstem               ! scalar data: number of mainstem reaches
+    USE globalData,          ONLY: nRch_trib                   ! scalar data: number of tributary reaches
+    USE globalData,          ONLY: NETOPO_trib                 ! data structure: River Network topology (other procs, tributary)
+    USE globalData,          ONLY: NETOPO_main                 ! data structure: River Network topology (main proc, mainstem)
+    USE globalData,          ONLY: RPARAM_trib                 ! data structure: River parameters (other procs, tributary)
+    USE globalData,          ONLY: RPARAM_main                 ! data structure: River parameters (main proc, mainstem)
     USE globalData,          ONLY: pio_netcdf_format
     USE globalData,          ONLY: pio_typename
     USE globalData,          ONLY: pio_rearranger
@@ -207,6 +213,22 @@ CONTAINS
     ! index wrt global domain
     rtmCTL%gindex(rtmCTL%begr:rtmCTL%endr) = ixHRU_order(ix1:ix2)
 
+    ! hru area
+    if (multiProcs) then
+      if (masterproc) then
+        if (nRch_mainstem > 0) then
+          call get_hru_area(NETOPO_main, RPARAM_main)
+        end if
+        if (nRch_trib > 0) then
+          call get_hru_area(NETOPO_trib, RPARAM_trib)
+        end if
+      else ! other processors
+        call get_hru_area(NETOPO_trib, RPARAM_trib)
+      end if
+    else ! using single processor
+      call get_hru_area(NETOPO_main, RPARAM_main)
+    end if
+
     if ( any(rtmCTL%gindex(rtmCTL%begr:rtmCTL%endr) < 1) )then
       call shr_sys_abort(trim(subname)//"bad gindex < 1")
     endif
@@ -233,6 +255,40 @@ CONTAINS
 
     call init_state_data(iam, npes, mpicom_rof, ierr, cmessage)
     if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+
+    CONTAINS
+
+      SUBROUTINE get_hru_area(NETOPO_in, RPARAM_in)
+
+        ! populate rtmCTL%area
+
+        USE dataTypes, ONLY: RCHTOPO   ! data structure - Network topology
+        USE dataTypes, ONLY: RCHPRP    ! data structure - Reach/hru physical parameters
+
+        implicit none
+        ! ARGUMENTS:
+        type(RCHTOPO), intent(in) :: NETOPO_in(:)
+        type(RCHPRP),  intent(in) :: RPARAM_in(:)
+        ! LOCAL VARIABLES:
+        integer                   :: ix
+        integer                   :: iens=1
+        integer                   :: iRch, iHru
+        integer                   :: nRch, nCatch
+        real(r8)                  :: area_hru
+        real(r8)                  :: vol_hru
+
+        nRch=size(NETOPO_in)
+        do iRch =1, nRch
+          nCatch = size(NETOPO_in(iRch)%HRUIX)
+          do iHru = 1, nCatch
+            ix = NETOPO_in(iRch)%HRUIX(iHru)
+
+            ! BASAREA is total area of multiple HRUs contributing to a segment. To get HRU area, mulitply HRUWGT (areal weight (HRU area / total contributory area)
+            rtmCTL%area(ix) = RPARAM_in(iRch)%BASAREA * NETOPO_in(iRch)%HRUWGT(iHru)
+            !print*, 'reachID, hruID, basin-area, weight, hru-area= ', NETOPO_in(iRch)%REACHID, NETOPO_in(iRch)%HRUID(iHru), RPARAM_in(iRch)%BASAREA, NETOPO_in(iRch)%HRUWGT(iHru), rtmCTL%area(ix)
+          end do
+        end do
+     END SUBROUTINE get_hru_area
 
   END SUBROUTINE route_ini
 
@@ -281,6 +337,7 @@ CONTAINS
     integer , save               :: nsub_save              ! previous nsub
     real(r8), save               :: delt_save              ! previous delt
     logical,  save               :: first_call = .true.    ! first time flag (for backwards compatibility)
+    real(r8)                     :: qgwl_depth             ! depth of qgwl runoff during time step [m]
     real(r8)                     :: delt                   ! delt associated with subcycling
     real(r8)                     :: delt_coupling          ! real value of coupling_period [sec]
     real(r8), allocatable        :: array_temp(:)          ! temp array
@@ -342,6 +399,34 @@ CONTAINS
 
     call t_stopf('mizuRoute_mapping_irrig')
 
+    ! --- Transfer negative flow (qgwl) to ocean [mm/s]
+    ! bypass_routing_option == 'direct_in_place'
+    rtmCTL%direct = 0._r8
+    do nr = rtmCTL%begr,rtmCTL%endr
+      if (trim(qgwl_runoff_option) == 'all') then ! send all qgwl flow to ocean
+        rtmCTL%direct(nr,1) = rtmCTL%qgwl(nr,1)
+        rtmCTL%qgwl(nr,1) = 0._r8
+      else if (trim(qgwl_runoff_option) == 'negative') then ! send only negative qgwl flow to ocean
+        if(rtmCTL%qgwl(nr,1) < 0._r8) then
+          rtmCTL%direct(nr,1) = rtmCTL%qgwl(nr,1)
+          rtmCTL%qgwl(nr,1) = 0._r8
+        endif
+      else if (trim(qgwl_runoff_option) == 'threshold') then
+        ! if qgwl is negative, and adding it to the main channel
+        ! would bring main channel storage below a threshold,
+        ! send qgwl directly to ocean
+
+        ! --- calculate volume of qgwl flux during timestep
+        qgwl_depth = rtmCTL%qgwl(nr,1) * coupling_period
+        if ((qgwl_depth + rtmCTL%volr(nr) < river_depth_minimum) &
+             .and. (rtmCTL%qgwl(nr,1) < 0._r8)) then
+          rtmCTL%direct(nr,1) = rtmCTL%qgwl(nr,1)
+          rtmCTL%qgwl(nr,1) = 0._r8
+        end if
+      end if
+    end do
+    ! --- Transfer negative flow due to excess irrigation demand  to ocean [mm/s]
+
     ! --- Transfer total runoff [mm/s] at HRUs to mizuRoute array
     call t_startf('mizuRoute_mapping_runoff')
 
@@ -349,16 +434,16 @@ CONTAINS
       if (masterproc) then
         if (nHRU_mainstem > 0) then
           do nr = 1,nHRU_mainstem
-            basinRunoff_main(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)!+rtmCTL%qgwl(nr,1)
+            basinRunoff_main(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
           end do
         end if
         do nr = 1, nHRU_trib
           ix = nr + nHRU_mainstem
-          basinRunoff_trib(nr) = rtmCTL%qsur(ix,1)+rtmCTL%qsub(ix,1)!+rtmCTL%qgwl(ix,1)
+          basinRunoff_trib(nr) = rtmCTL%qsur(ix,1)+rtmCTL%qsub(ix,1)+rtmCTL%qgwl(ix,1)
         end do
       else
         do nr = rtmCTL%begr,rtmCTL%endr
-          basinRunoff_trib(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)!+rtmCTL%qgwl(nr,1)
+          basinRunoff_trib(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
         end do
       end if
     else
@@ -471,6 +556,7 @@ CONTAINS
         USE globalData, ONLY: idxIRF   ! routing method index
         USE dataTypes, ONLY: RCHTOPO   ! data structure - Network topology
         USE dataTypes, ONLY: STRFLX    ! data structure - fluxes in each reach
+
         implicit none
         ! ARGUMENTS:
         type(RCHTOPO), intent(in) :: NETOPO_in(:)
@@ -480,14 +566,24 @@ CONTAINS
         integer                   :: iens=1
         integer                   :: iRch, iHru
         integer                   :: nRch, nCatch
+        real(r8)                  :: vol_hru
+
+        rtmCTL%volr(:) = 0._r8
+
         nRch=size(NETOPO_in)
         do iRch =1, nRch
           nCatch = size(NETOPO_in(iRch)%HRUIX)
           do iHru = 1, nCatch
             ix = NETOPO_in(iRch)%HRUIX(iHru)
-            rtmCTL%volr(ix)        = RCHFLX_in(iens, iRch)%ROUTE(idxIRF)%REACH_VOL(1)
-            rtmCTL%flood(ix)       = 0._r8
+
+            ! stream volume is distributed into HRUs based on HRU's areal weight for contributory area
+            vol_hru = RCHFLX_in(iens,iRch)%ROUTE(idxIRF)%REACH_VOL(1) * NETOPO_in(iRch)%HRUWGT(iHru)
+            if (vol_hru > 0._r8) then
+              rtmCTL%volr(ix) = vol_hru/rtmCTL%area(ix)
+            end if
+
             rtmCTL%discharge(ix,1) = RCHFLX_in(iens, iRch)%ROUTE(idxIRF)%REACH_Q
+            rtmCTL%flood(ix)       = 0._r8
           end do
         end do
       END SUBROUTINE

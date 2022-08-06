@@ -28,6 +28,8 @@ MODULE RunoffMod
     real(r8), pointer :: qirrig(:)        ! coupler importing irrigation [m3/s]
     real(r8), pointer :: qirrig_actual(:) ! minimum of irrigation and available main channel storage
 
+    real(r8), pointer :: direct(:,:)      ! coupler return direct flow to ocean [m3/s]
+
     real(r8), pointer :: discharge(:,:)   ! coupler exporting river discharge [m3/s]
     real(r8), pointer :: volr(:)          ! coupler exporting river storage (m3)
     real(r8), pointer :: flood(:)         ! coupler exporting flood water sent back to clm [m3/s]
@@ -54,6 +56,7 @@ CONTAINS
              rtmCTL%qirrig(begr:endr),            &
              rtmCTL%qirrig_actual(begr:endr),     &
              rtmCTL%discharge(begr:endr,nt_rof),  &
+             rtmCTL%direct(begr:endr,nt_rof),     &
              rtmCTL%volr(begr:endr),              &
              rtmCTL%flood(begr:endr),             &
              stat=ierr)
