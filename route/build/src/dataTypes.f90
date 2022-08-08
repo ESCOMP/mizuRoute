@@ -169,7 +169,6 @@ end type subdomain
   real(DP)                                :: UPSAREA  ! upstream area (zero if headwater basin)
   real(DP)                                :: BASAREA  ! local basin area
   real(DP)                                :: TOTAREA  ! UPSAREA + BASAREA
-  real(DP)                                :: QTAKE    ! target abstraction/injection [m3/s]
   real(DP)                                :: MINFLOW  ! minimum environmental flow
  end type RCHPRP
 

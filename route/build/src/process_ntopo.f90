@@ -12,7 +12,6 @@ USE globalData, ONLY: onRoute               ! logical to indicate which routing 
 USE public_var, only : idSegOut           ! ID for stream segment at the bottom of the subset
 
 ! options
-USE public_var, only : qtakeOption            ! option to compute network topology
 USE public_var, only : topoNetworkOption      ! option to compute network topology
 USE public_var, only : computeReachList       ! option to compute reach list
 USE public_var, only : hydGeometryOption      ! option to obtain routing parameters
@@ -237,12 +236,6 @@ contains
    structSEG(iSeg)%var(ixSEG%minFlow)%dat(1) = 1.e-15_dp  ! Minimum environmental flow
  end do
 
- if(.not.qtakeOption)then
-  do iSeg=1,nSeg
-   structSEG(iSeg)%var(ixSEG%Qtake)%dat(1) = 0._dp  ! no abstraction/injection
-  end do
- end if
-
  ! compute hydraulic geometry (width and Manning's "n")
  if(hydGeometryOption==compute)then
 
@@ -456,9 +449,6 @@ end subroutine augment_ntopo
    RPARAM_in(iSeg)%BASAREA = structSEG(iSeg)%var(ixSEG%basArea)%dat(1)
    RPARAM_in(iSeg)%UPSAREA = structSEG(iSeg)%var(ixSEG%upsArea)%dat(1)
    RPARAM_in(iSeg)%TOTAREA = structSEG(iSeg)%var(ixSEG%totalArea)%dat(1)
-
-   ! Abstraction/Injection coefficient
-   RPARAM_in(iSeg)%QTAKE   = structSEG(iSeg)%var(ixSEG%Qtake)%dat(1)
 
    ! MINFLOW -- minimum environmental flow
    RPARAM_in(iSeg)%MINFLOW = structSEG(iSeg)%var(ixSEG%minFlow)%dat(1)

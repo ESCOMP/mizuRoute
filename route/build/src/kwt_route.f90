@@ -8,13 +8,13 @@ USE dataTypes, ONLY: STRFLX            ! fluxes in each reach
 USE dataTypes, ONLY: STRSTA            ! states in each reach
 USE dataTypes, ONLY: RCHTOPO           ! Network topology
 USE dataTypes, ONLY: RCHPRP            ! Reach parameter
-USE dataTypes, ONLY: kwtRCH            ! kwt specific state data structure 
+USE dataTypes, ONLY: kwtRCH            ! kwt specific state data structure
 ! global data
 USE public_var, ONLY: runoffMin         ! minimum runoff
 USE public_var, ONLY: verySmall         ! a very small value
 USE public_var, ONLY: realMissing       ! missing value for real number
 USE public_var, ONLY: integerMissing    ! missing value for integer number
-USE globalData, ONLY: idxKWT            ! index of KWT method 
+USE globalData, ONLY: idxKWT            ! index of KWT method
 ! utilities
 USE nr_utility_module, ONLY: arth       ! Num. Recipies utilities
 
@@ -274,8 +274,6 @@ CONTAINS
      write(*,'(a,x,F15.7)')          ' RPARAM_in%R_WIDTH =', RPARAM_in(JRCH)%R_WIDTH
    end if
 
-   RCHFLX_out(IENS,JRCH)%TAKE=0.0_dp ! initialize take from this reach
-
     ! ----------------------------------------------------------------------------------------
     ! (1) EXTRACT FLOW FROM UPSTREAM REACHES & APPEND TO THE NON-ROUTED FLOW PARTICLES IN JRCH
     ! ----------------------------------------------------------------------------------------
@@ -342,11 +340,11 @@ CONTAINS
     T_START = T0 - (T1 - T0)*ROFFSET
     T_END   = T1 - (T1 - T0)*ROFFSET
 
-    if (RPARAM_in(jrch)%QTAKE < 0._dp) then
+    if (RCHFLX_out(iens, jrch)%TAKE < 0._dp) then
       call extract_from_rch(iens, jrch,                       & ! input: ensemble and reach indices
                             T_START, T_END,                   & ! input: time [sec] of current time step bounds
                             RPARAM_in,                        & ! input: river reach parameters
-                            RPARAM_in(jrch)%QTAKE,            & ! input: target Qtake (minus)
+                            RCHFLX_out(iens, jrch)%TAKE,      & ! input: target Qtake (minus)
                             ixDesire,                         & ! input:
                             Q_JRCH, T_EXIT, TENTRY,           & ! inout: discharge and exit time for particle
                             ierr,cmessage)

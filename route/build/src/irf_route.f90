@@ -6,12 +6,12 @@ USE nrtype
 USE dataTypes,          only : STRFLX         ! fluxes in each reach
 USE dataTypes,          only : RCHTOPO        ! Network topology
 USE dataTypes,          only : RCHPRP         ! Reach parameter
-USE dataTypes,          only : irfRCH         ! irf specific state data structure 
+USE dataTypes,          only : irfRCH         ! irf specific state data structure
 ! global parameters
 USE public_var,         only : realMissing    ! missing value for real number
 USE public_var,         only : integerMissing ! missing value for integer number
 USE globalData,         only : nThreads       ! number of threads used for openMP
-USE globalData,         only : idxIRF          ! index of IRF method 
+USE globalData,         only : idxIRF          ! index of IRF method
 ! subroutines: general
 USE model_finalize, ONLY : handle_err
 
@@ -200,12 +200,12 @@ contains
   endif
 
   ! perform UH convolution
-  call conv_upsbas_qr(NETOPO_in(segIndex)%UH,    &    ! input: reach unit hydrograph
-                      q_upstream,                &    ! input: total discharge at top of the reach being processed
-                      RCHFLX_out(iens,segIndex), &    ! inout: updated fluxes at reach
-                      RPARAM_in(segIndex)%QTAKE, &    ! input: abstraction(-)/injection(+) [m3/s]
-                      RPARAM_in(segIndex)%MINFLOW, &  ! input: minimum environmental flow [m3/s]
-                      ierr, message)                  ! output: error control
+  call conv_upsbas_qr(NETOPO_in(segIndex)%UH,         &  ! input: reach unit hydrograph
+                      q_upstream,                     &  ! input: total discharge at top of the reach being processed
+                      RCHFLX_out(iens,segIndex),      &  ! inout: updated fluxes at reach
+                      RCHFLX_out(iens,segIndex)%TAKE, &  ! input: abstraction(-)/injection(+) [m3/s]
+                      RPARAM_in(segIndex)%MINFLOW,    &  ! input: minimum environmental flow [m3/s]
+                      ierr, message)                     ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! check

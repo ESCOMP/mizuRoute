@@ -12,6 +12,11 @@ MODULE globalData
   USE dataTypes,  ONLY : var_info      ! metadata type
   USE objTypes,   ONLY : meta_var      ! metadata type
 
+  ! gage data strucuture
+  USE gageMeta_data, ONLY : gageMeta
+  USE obs_data,      ONLY : gageObs
+  USE obs_data,      ONLY : waterTake
+
   ! parameter structures
   USE dataTypes,  ONLY : RCHPRP        ! Reach parameters (properties)
   USE dataTypes,  ONLY : RCHTOPO       ! Network topology
@@ -33,7 +38,7 @@ MODULE globalData
   USE dataTypes,  ONLY : subbasin_omp  ! mainstem+tributary data structures
 
   ! time data structure
-  USE date_time,  ONLY : datetime      ! time data
+  USE datetime_data, ONLY : datetime   ! time data
 
   ! time data structure
   USE dataTypes,  ONLY : nc            ! netCDF data
@@ -134,6 +139,11 @@ MODULE globalData
   type(datetime)                 , public :: restCal              ! desired restart date/time (yyyy:mm:dd:hh:mm:ss)
   type(datetime)                 , public :: dropCal              ! restart dropoff date/time (yyyy:mm:dd:hh:mm:ss)
   logical(lgt)                   , public :: restartAlarm         ! alarm to triger restart file writing
+
+  ! obs data - gage data, watertake etc.
+  type(gageMeta),                   public :: gage_meta_data      ! gauge metadata
+  type(gageObs),                    public :: gage_obs_data       ! gauge observed data
+  type(waterTake),                  public :: rch_qtake_data      ! water injetion/abstraction data
 
   ! simulation output netcdf
   type(nc)                       , public :: simout_nc

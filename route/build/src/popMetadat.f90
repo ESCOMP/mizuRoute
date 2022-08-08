@@ -131,7 +131,6 @@ contains
  meta_SEG    (ixSEG%totalArea        ) = var_info('totalArea'      , 'area above the bottom of the reach -- bas + ups'   ,'m2'    ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%basUnderLake     ) = var_info('basUnderLake'   , 'Area of basin under lake'                          ,'m2'    ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%rchUnderLake     ) = var_info('rchUnderLake'   , 'Length of reach under lake'                        ,'m'     ,ixDims%seg   , .false.)
- meta_SEG    (ixSEG%Qtake            ) = var_info('Qtake'          , 'target abstraction(-)/injection(+)'                ,'m3 s-1',ixDims%seg   , .false.)
  meta_SEG    (ixSEG%minFlow          ) = var_info('minFlow'        , 'minimum environmental flow'                        ,'m s-1' ,ixDims%seg   , .false.)
 
  ! NTOPO                                         varName        varDesc                                                varUnit, varType, varFile

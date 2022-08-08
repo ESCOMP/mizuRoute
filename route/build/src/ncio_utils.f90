@@ -27,6 +27,7 @@ INTERFACE get_nc
   module procedure get_ivec
   module procedure get_ivec_long
   module procedure get_dvec
+  module procedure get_charvec
   module procedure get_2d_iarray
   module procedure get_2d_darray
   module procedure get_3d_iarray
@@ -461,6 +462,42 @@ CONTAINS
   ! get the data
   ierr = nf90_get_var(ncid, iVarID, array, start=(/iStart/), count=(/iCount/))
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+ end subroutine
+
+ ! *********************************************************************
+ ! subroutine: read a character vector
+ ! *********************************************************************
+ subroutine get_charvec(ncid,            &  ! input: netcdf id
+                        vname,           &  ! input: variable name
+                        array,           &  ! output: variable data
+                        iStart,          &  ! input: start index
+                        iCount,          &  ! input: length of vector
+                        ierr, message)      ! output: error control
+  implicit none
+  ! input variables
+  integer(i4b), intent(in)        :: ncid        ! NetCDF file ID
+  character(*), intent(in)        :: vname       ! variable name
+  integer(i4b), intent(in)        :: iStart(1:2) ! start index
+  integer(i4b), intent(in)        :: iCount(1:2) ! length of vector to be read in
+  ! output variables
+  character(*), intent(out)       :: array(:)    ! output variable data
+  integer(i4b), intent(out)       :: ierr        ! error code
+  character(*), intent(out)       :: message     ! error message
+  ! local variables
+  integer(i4b)                    :: iVarID      ! NetCDF variable ID
+
+  ierr=0; message='get_charvec/'
+
+  ! get variable ID
+  ierr = nf90_inq_varid(ncid,trim(vname),iVarId)
+  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+  ! get the data
+  ierr = nf90_get_var(ncid, iVarID, array, start=iStart, count=iCount)
+  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+  array = adjustl(array)
 
  end subroutine
 
