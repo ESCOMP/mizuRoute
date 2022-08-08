@@ -730,6 +730,7 @@ MODULE obs_data
       type(datetime), intent(in) :: datetime_in
       integer(i4b)   :: tix
       integer(i4b)   :: ix
+      tix=integerMissing
       do ix = 1, size(datetime_array)
         if (datetime_array(ix) == datetime_in) then
           tix = ix
@@ -744,6 +745,7 @@ MODULE obs_data
       character(*), intent(in) :: site_in
       integer(i4b)   :: six
       integer(i4b)   :: ix
+      six=integerMissing
       do ix = 1, size(site_array)
         if (trim(site_array(ix)) == trim(site_in)) then
           six = ix
@@ -758,6 +760,7 @@ MODULE obs_data
       integer(i4b), intent(in) :: reach_in
       integer(i4b) :: rix
       integer(i4b) :: ix
+      rix=integerMissing
       do ix = 1, size(reach_array)
         if (reach_array(ix) == reach_in) then
           rix = ix
