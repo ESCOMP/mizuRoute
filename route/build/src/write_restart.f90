@@ -1021,7 +1021,7 @@ CONTAINS
   do iVar=1,nVarsIRF
     select case(iVar)
       case(ixIRF%qfuture); allocate(state%var(iVar)%array_3d_dp(nSeg, ntdh_irf, nens), stat=ierr)
-      case(ixIRF%irfVol);  allocate(state%var(iVar)%array_2d_dp(nSeg, nens), stat=ierr)
+      case(ixIRF%volume);  allocate(state%var(iVar)%array_2d_dp(nSeg, nens), stat=ierr)
       case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
     end select
     if(ierr/=0)then; message1=trim(message1)//'problem allocating space for IRF routing state '//trim(meta_irf(iVar)%varName); return; endif
@@ -1036,7 +1036,7 @@ CONTAINS
           case(ixIRF%qfuture)
             state%var(iVar)%array_3d_dp(iSeg,1:numQF(iens,iSeg),iens) = RCHFLX(iens,iSeg)%QFUTURE_IRF
             state%var(iVar)%array_3d_dp(iSeg,numQF(iens,iSeg)+1:ntdh_irf,iens) = realMissing
-          case(ixIRF%irfVol)
+          case(ixIRF%volume)
             state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX(iens,iSeg)%ROUTE(idxIRF)%REACH_VOL(1)
           case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
         end select
@@ -1052,7 +1052,7 @@ CONTAINS
     select case(iVar)
       case(ixIRF%qfuture)
         call write_nc(ncid, trim(meta_irf(iVar)%varName), state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,ntdh_irf,nens/), ierr, cmessage)
-      case(ixIRF%irfVol)
+      case(ixIRF%volume)
         call write_nc(ncid, trim(meta_irf(iVar)%varName), state%var(iVar)%array_2d_dp, (/1,1/), (/nSeg,nens/), ierr, cmessage)
       case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc writing'; return
       if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -1067,6 +1067,7 @@ CONTAINS
   SUBROUTINE write_KW_state(ierr, message1)
 
     USE globalData,   ONLY: meta_kw
+    USE globalData,   ONLY: idxKW
     USE var_lookup,   ONLY: ixKW, nVarsKW
 
     implicit none
@@ -1089,8 +1090,8 @@ CONTAINS
 
     do iVar=1,nVarsKW
       select case(iVar)
-       case(ixKW%qsub)
-        allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
+       case(ixKW%qsub);   allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
+       case(ixKW%volume); allocate(state%var(iVar)%array_2d_dp(nSeg, nens), stat=ierr)
        case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//'problem allocating space for KW routing state '//trim(meta_kw(iVar)%varName); return; endif
@@ -1103,6 +1104,8 @@ CONTAINS
           select case(iVar)
             case(ixKW%qsub)
               state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA(iens, iSeg)%KW_ROUTE%molecule%Q(1:nMesh)
+            case(ixKW%volume)
+              state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX(iens,iSeg)%ROUTE(idxKW)%REACH_VOL(1)
             case default; ierr=20; message1=trim(message1)//'unable to identify KW routing state variable index'; return
           end select
         enddo ! variable loop
@@ -1114,6 +1117,8 @@ CONTAINS
       select case(iVar)
        case(ixKW%qsub)
          call write_nc(ncid, trim(meta_kw(iVar)%varName), state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nMesh,nens/), ierr, cmessage)
+       case(ixKW%volume)
+         call write_nc(ncid, trim(meta_kw(iVar)%varName), state%var(iVar)%array_2d_dp, (/1,1/), (/nSeg,nens/), ierr, cmessage)
        case default; ierr=20; message1=trim(message1)//'unable to identify KW variable index for nc writing'; return
       end select
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -1128,6 +1133,7 @@ CONTAINS
   SUBROUTINE write_MC_state(ierr, message1)
 
     USE globalData,   ONLY: meta_mc
+    USE globalData,   ONLY: idxMC
     USE var_lookup,   ONLY: ixMC, nVarsMC
 
     implicit none
@@ -1150,8 +1156,8 @@ CONTAINS
 
     do iVar=1,nVarsMC
       select case(iVar)
-       case(ixMC%qsub)
-        allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
+       case(ixMC%qsub);   allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
+       case(ixMC%volume); allocate(state%var(iVar)%array_2d_dp(nSeg, nens), stat=ierr)
        case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//'problem allocating space for MC routing state '//trim(meta_mc(iVar)%varName); return; endif
@@ -1164,6 +1170,8 @@ CONTAINS
           select case(iVar)
             case(ixMC%qsub)
               state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA(iens, iSeg)%MC_ROUTE%molecule%Q(1:nMesh)
+            case(ixMC%volume)
+              state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX(iens,iSeg)%ROUTE(idxMC)%REACH_VOL(1)
             case default; ierr=20; message1=trim(message1)//'unable to identify MC routing state variable index'; return
           end select
         enddo ! variable loop
@@ -1175,6 +1183,8 @@ CONTAINS
       select case(iVar)
        case(ixMC%qsub)
          call write_nc(ncid, trim(meta_mc(iVar)%varName), state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nMesh,nens/), ierr, cmessage)
+       case(ixMC%volume)
+         call write_nc(ncid, trim(meta_mc(iVar)%varName), state%var(iVar)%array_2d_dp, (/1,1/), (/nSeg,nens/), ierr, cmessage)
        case default; ierr=20; message1=trim(message1)//'unable to identify MC variable index for nc writing'; return
       end select
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -1190,6 +1200,7 @@ CONTAINS
   SUBROUTINE write_DW_state(ierr, message1)
 
     USE globalData,   ONLY: meta_dw
+    USE globalData,   ONLY: idxDW
     USE var_lookup,   ONLY: ixDW, nVarsDW
 
     implicit none
@@ -1212,8 +1223,8 @@ CONTAINS
 
     do iVar=1,nVarsDW
       select case(iVar)
-       case(ixDW%qsub)
-        allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
+       case(ixDW%qsub);   allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
+       case(ixDW%volume); allocate(state%var(iVar)%array_2d_dp(nSeg, nens), stat=ierr)
        case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//'problem allocating space for DW routing state '//trim(meta_dw(iVar)%varName); return; endif
@@ -1226,6 +1237,8 @@ CONTAINS
           select case(iVar)
             case(ixDW%qsub)
               state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA(iens, iSeg)%DW_ROUTE%molecule%Q(1:nMesh)
+            case(ixDW%volume)
+              state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX(iens,iSeg)%ROUTE(idxDW)%REACH_VOL(1)
             case default; ierr=20; message1=trim(message1)//'unable to identify DW routing state variable index'; return
           end select
         enddo ! variable loop
@@ -1237,6 +1250,8 @@ CONTAINS
       select case(iVar)
        case(ixDW%qsub)
          call write_nc(ncid, trim(meta_dw(iVar)%varName), state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nMesh,nens/), ierr, cmessage)
+       case(ixDW%volume)
+         call write_nc(ncid, trim(meta_dw(iVar)%varName), state%var(iVar)%array_2d_dp, (/1,1/), (/nSeg,nens/), ierr, cmessage)
        case default; ierr=20; message1=trim(message1)//'unable to identify DW variable index for nc writing'; return
       end select
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
