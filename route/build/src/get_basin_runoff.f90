@@ -42,6 +42,9 @@ CONTAINS
   integer(i4b)                  :: iens=1
   integer(i4b)                  :: ix, jx
   integer(i4b), allocatable     :: reach_ix(:)
+  integer(i4b), parameter       :: no_mod=0
+  integer(i4b), parameter       :: direct_insert=1
+  integer(i4b), parameter       :: qtake=2
   ! timing
 !  integer*8                     :: startTime,endTime,cr ! star and end time stamp, rate
 !  real(dp)                      :: elapsedTime          ! elapsed time for the process
@@ -85,30 +88,37 @@ CONTAINS
   ! initialize TAKE for water take or direct insersion
   RCHFLX(:,:)%TAKE = 0.0_dp
   select case(qmodOption)
-    case(0)
-    case(1)
+    case(no_mod) ! do nothing
+    case(direct_insert)
       ! read gage observation [m3/s] at current time
       jx = gage_obs_data%time_ix(modTime(1))
-      call gage_obs_data%read_obs(ierr, cmessage, index_time=jx)
 
-      ! put qmod at right reach
-      reach_ix = gage_obs_data%link_ix()
-      do ix=1,size(reach_ix)
-        if (reach_ix(ix)==integerMissing) cycle
-        RCHFLX(iens,reach_ix(ix))%TAKE = gage_obs_data%get_obs(tix=1, six=ix)
-      end do
-    case(2)
+      if (jx/=integerMissing) then
+        call gage_obs_data%read_obs(ierr, cmessage, index_time=jx)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        ! put qmod at right reach
+        reach_ix = gage_obs_data%link_ix()
+        do ix=1,size(reach_ix)
+          if (reach_ix(ix)==integerMissing) cycle
+          RCHFLX(iens,reach_ix(ix))%TAKE = gage_obs_data%get_obs(tix=1, six=ix)
+        end do
+      end if
+    case(qtake)
       ! read reach water take [m3/s] at current time
       jx = rch_qtake_data%time_ix(modTime(1))
-      call rch_qtake_data%read_obs(ierr, cmessage, index_time=jx)
 
-      ! put qmod at right reach
-      reach_ix = rch_qtake_data%link_ix()
+      if (jx/=integerMissing) then
+        call rch_qtake_data%read_obs(ierr, cmessage, index_time=jx)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-      do ix=1,size(reach_ix)
-        if (reach_ix(ix)==integerMissing) cycle
-        RCHFLX(iens,reach_ix(ix))%TAKE = rch_qtake_data%get_obs(tix=1, six=ix)
-      end do
+        ! put qmod at right reach
+        reach_ix = rch_qtake_data%link_ix()
+        do ix=1,size(reach_ix)
+          if (reach_ix(ix)==integerMissing) cycle
+          RCHFLX(iens,reach_ix(ix))%TAKE = rch_qtake_data%get_obs(tix=1, six=ix)
+        end do
+      end if
     case default
       ierr=1; message=trim(message)//"Error: qmodOption invalid"; return
   end select
