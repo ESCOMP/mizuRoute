@@ -6,7 +6,7 @@ USE dataTypes, ONLY: STRFLX            ! fluxes in each reach
 USE dataTypes, ONLY: STRSTA            ! state in each reach
 USE dataTypes, ONLY: RCHTOPO           ! Network topology
 USE dataTypes, ONLY: RCHPRP            ! Reach parameter
-USE dataTypes, ONLY: kwRCH             ! kw specific state data structure 
+USE dataTypes, ONLY: kwRCH             ! kw specific state data structure
 USE dataTypes, ONLY: subbasin_omp      ! mainstem+tributary data strucuture
 ! global data
 USE public_var, ONLY: iulog             ! i/o logical unit number
@@ -183,11 +183,11 @@ CONTAINS
  endif
 
  if(doCheck)then
-   write(iulog,'(A)') 'CHECK Kinematic wave routing'
+   write(iulog,'(2A)') new_line('a'), '** CHECK Kinematic wave routing **'
    if (nUps>0) then
      do iUps = 1,nUps
        iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-       write(iulog,'(A,X,I6,X,G12.5)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, iRch_ups)%ROUTE(idxKW)%REACH_Q
+       write(iulog,'(A,X,I12,X,G12.5)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, iRch_ups)%ROUTE(idxKW)%REACH_Q
      enddo
    end if
    write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
@@ -197,6 +197,8 @@ CONTAINS
  call kinematic_wave(RPARAM_in(segIndex),                & ! input: parameter at segIndex reach
                      T0,T1,                              & ! input: start and end of the time step
                      q_upstream,                         & ! input: total discharge at top of the reach being processed
+                     RCHFLX_out(iens,segIndex)%TAKE,     & ! input: abstraction(-)/injection(+) [m3/s]
+                     RPARAM_in(segIndex)%MINFLOW,        & ! input: minimum environmental flow [m3/s]
                      isHW,                               & ! input: is this headwater basin?
                      RCHSTA_out(iens,segIndex)%KW_ROUTE, & ! inout:
                      RCHFLX_out(iens,segIndex),          & ! inout: updated fluxes at reach
@@ -220,6 +222,8 @@ CONTAINS
  SUBROUTINE kinematic_wave(rch_param,     & ! input: river parameter data structure
                            T0,T1,         & ! input: start and end of the time step
                            q_upstream,    & ! input: discharge from upstream
+                           Qtake,         & ! input: abstraction(-)/injection(+) [m3/s]
+                           Qmin,          & ! input: minimum environmental flow [m3/s]
                            isHW,          & ! input: is this headwater basin?
                            rstate,        & ! inout: reach state at a reach
                            rflux,         & ! inout: reach flux at a reach
@@ -244,6 +248,8 @@ CONTAINS
  type(RCHPRP), intent(in)                 :: rch_param    ! River reach parameter
  real(dp),     intent(in)                 :: T0,T1        ! start and end of the time step (seconds)
  real(dp),     intent(in)                 :: q_upstream   ! total discharge at top of the reach being processed
+ real(dp),     intent(in)                 :: Qtake        ! abstraction(-)/injection(+) [m3/s]
+ real(dp),     intent(in)                 :: Qmin         ! minimum environmental flow [m3/s]
  logical(lgt), intent(in)                 :: isHW         ! is this headwater basin?
  logical(lgt), intent(in)                 :: doCheck      ! reach index to be examined
  ! Input/Output
@@ -268,6 +274,9 @@ CONTAINS
  real(dp)                                 :: Qbar         !
  real(dp)                                 :: absErr(2)    ! absolute error of nonliear equation solution
  real(dp)                                 :: f0eval(2)    !
+ real(dp)                                 :: QupMod       ! modified total discharge at top of the reach being processed
+ real(dp)                                 :: Qabs         ! maximum allowable water abstraction rate [m3/s]
+ real(dp)                                 :: Qmod         ! abstraction rate to be taken from outlet discharge [m3/s]
  integer(i4b)                             :: imin         ! index at minimum value
 
  ierr=0; message='kinematic_wave/'
@@ -276,6 +285,13 @@ CONTAINS
  !  current time and outlet 4 (1,1) -> previous time and outlet 2 (0,1)
  Q(0,0) = rstate%molecule%Q(1)
  Q(0,1) = rstate%molecule%Q(2)
+ dt = T1-T0
+
+ ! Q injection, add at top of reach
+ QupMod = q_upstream
+ if (Qtake>0) then
+   QupMod = QupMod+ Qtake
+ end if
 
  if (.not. isHW) then
 
@@ -289,14 +305,17 @@ CONTAINS
    beta1  = 1._dp/beta
    alpha1 = (1.0/alpha)**beta1
    dX = rch_param%RLENGTH
-   dT = T1-T0
-   theta = dT/dX
+   theta = dt/dX
 
    ! compute total flow rate and flow area at upstream end at current time step
-   Q(1,0) = q_upstream
+   Q(1,0) = QupMod
 
    if (doCheck) then
-     write(iulog,'(3(A,X,G12.5))') ' R_SLOPE=',rch_param%R_SLOPE,' R_WIDTH=',rch_param%R_WIDTH,' R_MANN=',rch_param%R_MAN_N
+     write(iulog,'(A,X,G12.5)') ' length [m]        =',rch_param%RLENGTH
+     write(iulog,'(A,X,G12.5)') ' slope [-]         =',rch_param%R_SLOPE
+     write(iulog,'(A,X,G12.5)') ' channel width [m] =',rch_param%R_WIDTH
+     write(iulog,'(A,X,G12.5)') ' manning coef. [-] =',rch_param%R_MAN_N
+     write(iulog,'(A)')         ' Initial 3 point discharge [m3/s]: '
      write(iulog,'(3(A,X,G12.5))') ' Q(0,0)=',Q(0,0),' Q(0,1)=',Q(0,1),' Q(1,0)=',Q(1,0)
    end if
 
@@ -355,11 +374,28 @@ CONTAINS
 
  ! compute volume
  rflux%ROUTE(idxKW)%REACH_VOL(0) = rflux%ROUTE(idxKW)%REACH_VOL(1)
- rflux%ROUTE(idxKW)%REACH_VOL(1) = rflux%ROUTE(idxKW)%REACH_VOL(0) + (Q(1,0)-Q(1,1))*dT
+ rflux%ROUTE(idxKW)%REACH_VOL(1) = rflux%ROUTE(idxKW)%REACH_VOL(0) + (Q(1,0)-Q(1,1))*dt
  rflux%ROUTE(idxKW)%REACH_VOL(1) = max(rflux%ROUTE(idxKW)%REACH_VOL(1), 0._dp)
 
  ! add catchment flow
  rflux%ROUTE(idxKW)%REACH_Q = Q(1,1)+rflux%BASIN_QR(1)
+
+ ! Q abstraction
+ ! Compute actual abstraction (Qabs) m3/s - values should be negative
+ ! Compute abstraction (Qmod) m3 taken from outlet discharge (REACH_Q)
+ ! Compute REACH_Q subtracted from Qmod abstraction
+ ! Compute REACH_VOL subtracted from total abstraction minus abstraction from outlet discharge
+ if (Qtake<0) then
+   Qabs = max(-(rflux%ROUTE(idxKW)%REACH_VOL(1)/dt+rflux%ROUTE(idxKW)%REACH_Q-Qmin), Qtake)
+   Qabs = min(Qabs, 0._dp)  ! this should be <=0
+   Qmod = min(rflux%ROUTE(idxKW)%REACH_VOL(1) + Qabs*dt, 0._dp) ! this should be <= 0
+
+   rflux%ROUTE(idxKW)%REACH_Q      = rflux%ROUTE(idxKW)%REACH_Q + Qmod/dt
+   rflux%ROUTE(idxKW)%REACH_VOL(1) = rflux%ROUTE(idxKW)%REACH_VOL(1) + (Qabs*dt - Qmod)
+
+   ! modify computational molecule state (Q)
+   Q(1,1) = Q(1,1) - max(abs(Qmod/dt)-rflux%BASIN_QR(1), 0._dp)
+ end if
 
  ! update state
  rstate%molecule%Q(1) = Q(1,0)
