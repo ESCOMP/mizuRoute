@@ -10,6 +10,7 @@ USE dataTypes,          only : irfRCH         ! irf specific state data structur
 ! global parameters
 USE public_var,         only : realMissing    ! missing value for real number
 USE public_var,         only : integerMissing ! missing value for integer number
+USE public_var,         ONLY : dt             ! routing time step duration [sec]
 USE globalData,         only : nThreads       ! number of threads used for openMP
 USE globalData,         only : idxIRF          ! index of IRF method
 ! subroutines: general
@@ -167,6 +168,7 @@ contains
  character(*), intent(out)                :: message        ! error message
  ! Local variables to
  real(dp)                                 :: q_upstream     ! total discharge at top of the reach being processed
+ real(dp)                                 :: WB_error       ! water balance error [m3/s]
  integer(i4b)                             :: nUps           ! number of upstream segment
  integer(i4b)                             :: iUps           ! upstream reach index
  integer(i4b)                             :: iRch_ups       ! index of upstream reach in NETOPO
@@ -211,14 +213,23 @@ contains
   ! check
   if(segIndex==ixDesire)then
     ntdh = size(NETOPO_in(segIndex)%UH)
+    WB_error = q_upstream - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q + RCHFLX_out(iens,segIndex)%BASIN_QR(1) &
+               - (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0))/dt
     write(fmt1,'(A,I5,A)') '(A, 1X',ntdh,'(1X,F20.7))'
     write(*,'(2a)') new_line('a'),'** Check Impulse Response Function routing **'
     write(*,'(a,x,I10,x,I10)') ' Reach index & ID       =', segIndex, NETOPO_in(segIndex)%REACHID
     write(*,fmt1)              ' Unit-Hydrograph        =', (NETOPO_in(segIndex)%UH(itdh), itdh=1,ntdh)
-    write(*,'(a)')             ' * total discharge from upstream(q_upstream) [m3/s], local area discharge [m3/s], and Final discharge [m3/s]:'
-    write(*,'(a,x,F15.7)')     ' q_upstream             =', q_upstream
-    write(*,'(a,x,F15.7)')     ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(iens,segIndex)%BASIN_QR(1)
-    write(*,'(a,x,F15.7)')     ' RCHFLX_out%ROUTE%REACH_Q =', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q
+    write(*,'(a)')             ' * inflow [m3/s]: q_upstream'
+    write(*,'(a)')             '   local flow [m3/s]: RCHFLX_out(iens,segIndex)%BASIN_QR(1)'
+    write(*,'(a)')             '   outflow [m3/s]: RCHFLX_out%ROUTE%REACH_Q'
+    write(*,'(a)')             '   volume [m3] at end of previous [0] and current [1] time step: REACH_VOL'
+    write(*,'(a)')             '   water balance error [m3/s]: WB error'
+    write(*,'(a,x,G15.4)')     ' inflow     =', q_upstream
+    write(*,'(a,x,G15.4)')     ' local flow =', RCHFLX_out(iens,segIndex)%BASIN_QR(1)
+    write(*,'(a,x,G15.4)')     ' outflow    =', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q - RCHFLX_out(iens,segIndex)%BASIN_QR(1)
+    write(*,'(a,x,G20.4)')     ' volume[0]  =', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0)
+    write(*,'(a,x,G20.4)')     ' volume[1]  =', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)
+    write(*,'(a,x,G15.4)')     ' WB error   =', WB_error
   endif
 
  end subroutine segment_irf
@@ -236,8 +247,6 @@ contains
  ! ----------------------------------------------------------------------------------------
  ! Details: Convolute runoff volume of upstream at one reach at one time step
  ! ----------------------------------------------------------------------------------------
-
- USE public_var, ONLY: dt
 
  implicit none
  ! Input
@@ -273,7 +282,7 @@ contains
 
  ! compute volume in reach
  rflux%ROUTE(idxIRF)%REACH_VOL(0) = rflux%ROUTE(idxIRF)%REACH_VOL(1)
- rflux%ROUTE(idxIRF)%REACH_VOL(1) = rflux%ROUTE(idxIRF)%REACH_VOL(0) + (QupMod - rflux%QFUTURE_IRF(1))/dt
+ rflux%ROUTE(idxIRF)%REACH_VOL(1) = rflux%ROUTE(idxIRF)%REACH_VOL(0) + (QupMod - rflux%QFUTURE_IRF(1))*dt
 
  ! Add local routed flow at the bottom of reach
  rflux%ROUTE(idxIRF)%REACH_Q = rflux%QFUTURE_IRF(1) + rflux%BASIN_QR(1)

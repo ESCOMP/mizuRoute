@@ -292,7 +292,7 @@ CONTAINS
       endif
 
       if(JRCH==ixDesire)then
-        write(fmt1,'(A,I5,A)') '(A, 1X',size(Q_JRCH),'(1X,F20.7))'
+        write(fmt1,'(A,I5,A)') '(A, 1X',size(Q_JRCH),'(1X,G15.4))'
         write(*,'(a)') ' * Wave discharge from upstream reaches (Q_JRCH) [m2/s]:'
         write(*,fmt1)  ' Q_JRCH=',(Q_JRCH(IWV), IWV=0,size(Q_JRCH)-1)
       endif
@@ -313,7 +313,7 @@ CONTAINS
 
       if(JRCH==ixDesire) then
         write(*,'(a)') ' * Final discharge (RCHFLX_out(IENS,JRCH)%REACH_Q) [m3/s]:'
-        write(*,'(x,F20.7)') RCHFLX_out(IENS,JRCH)%ROUTE(idxKWT)%REACH_Q
+        write(*,'(x,G15.4)') RCHFLX_out(IENS,JRCH)%ROUTE(idxKWT)%REACH_Q
       end if
       return  ! no upstream reaches (routing for sub-basins done using time-delay histogram)
     endif
@@ -366,7 +366,7 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     if(JRCH == ixDesire)then
-      write(fmt1,'(A,I5,A)') '(A,1X',NQ1+1,'(1X,F20.7))'
+      write(fmt1,'(A,I5,A)') '(A,1X',NQ1+1,'(1X,G15.4))'
       write(fmt2,'(A,I5,A)') '(A,1X',NQ1+1,'(1X,L))'
       write(*,'(a)') ' * After routed: wave discharge (Q_JRCH) [m2/s], isExit(FROUTE), entry time (TENTRY) [s], and exit time (T_EXIT) [s]:'
       write(*,fmt1)  ' Q_JRCH=',(Q_JRCH(IWV), IWV=0,NQ1)
@@ -391,9 +391,9 @@ CONTAINS
 
     if(JRCH == ixDesire)then
       write(*,'(a)')          ' * Time-ave. wave discharge that exit (QNEW(1)) [m2/s], local-area discharge (RCHFLX_out%BASIN_QR(1)) [m3/s] and Final discharge (RCHFLX_out%REACH_Q) [m3/s]:'
-      write(*,"(A,1x,F15.7)") ' QNEW(1)                =', QNEW(1)
-      write(*,"(A,1x,F15.7)") ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(IENS,JRCH)%BASIN_QR(1)
-      write(*,"(A,1x,F15.7)") ' RCHFLX_out%REACH_Q     =', RCHFLX_out(IENS,JRCH)%ROUTE(idxKWT)%REACH_Q
+      write(*,"(A,1x,G15.4)") ' QNEW(1)                =', QNEW(1)
+      write(*,"(A,1x,G15.4)") ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(IENS,JRCH)%BASIN_QR(1)
+      write(*,"(A,1x,G15.4)") ' RCHFLX_out%REACH_Q     =', RCHFLX_out(IENS,JRCH)%ROUTE(idxKWT)%REACH_Q
     endif
 
     ! ----------------------------------------------------------------------------------------
@@ -541,9 +541,9 @@ CONTAINS
     call interp_rch(TENTRY(0:NR-1),Q_jrch_abs(0:NR-1), TP, Qavg, ierr,cmessage)
     Qabs = Qavg(1)*RPARAM_in(JRCH)%R_WIDTH
     write(*,'(a)')         ' * Target abstraction (Qtake) [m3/s], Available discharge (totQ) [m3/s], Actual abstraction (Qabs) [m3/s] '
-    write(*,'(a,x,F15.7)') ' Qtake =', Qtake
-    write(*,'(a,x,F15.7)') ' totQ  =', totQ
-    write(*,'(a,x,F15.7)') ' Qabs  =', Qabs
+    write(*,'(a,x,G15.4)') ' Qtake =', Qtake
+    write(*,'(a,x,G15.4)') ' totQ  =', totQ
+    write(*,'(a,x,G15.4)') ' Qabs  =', Qabs
   end if
 
   ! modify wave speed at modified wave discharge and re-compute exit time
@@ -557,7 +557,7 @@ CONTAINS
   T_EXIT(1:NR-1) = t_exit_mod(1:NR-1)
 
   if(JRCH == ixDesire)then
-    write(fmt1,'(A,I5,A)') '(A,1X',NR,'(1X,E15.7))'
+    write(fmt1,'(A,I5,A)') '(A,1X',NR,'(1X,G15.4))'
     write(*,'(a)') ' * After abstracted: wave discharge (Q_JRCH) [m2/s], entry time (TENTRY) [s], and exit time (T_EXIT) [s]:'
     write(*,fmt1)  ' Q_JRCH=',(Q_JRCH(iw), iw=0,NR-1)
     write(*,fmt1)  ' TENTRY=',(TENTRY(iw), iw=0,NR-1)
@@ -687,7 +687,7 @@ CONTAINS
                   RSTEP)                             ! optional input
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   if (JRCH == ixDesire) then
-    write(fmt1,'(A,I5,A)') '(A,1X',ND,'(1X,F15.7))'
+    write(fmt1,'(A,I5,A)') '(A,1X',ND,'(1X,G15.4))'
     write(*,'(a)')      ' * After qexmul_rch: # of routed wave from upstreams (ND) and wave discharge (QD) [m2/s]:'
     write(*,'(A,x,I5)') ' ND=', ND
     write(*,fmt1)       ' QD=', (QD(iw), iw=1,ND)
@@ -1414,7 +1414,7 @@ CONTAINS
  WC(1:NN) = ALFA*K**(1./ALFA)*Q1(1:NN)**((ALFA-1.)/ALFA)
 
  if(jRch==ixDesire) then
-   write(fmt1,'(A,I5,A)') '(A,1X',NN,'(1X,F15.7))'
+   write(fmt1,'(A,I5,A)') '(A,1X',NN,'(1X,G15.4))'
    write(*,'(a)')      ' * Wave discharge (q1) [m2/s] and wave celertiy (wc) [m/s]:'
    write(*,'(a,x,I3)') ' Number of wave =', NN
    write(*,fmt1)       ' q1=', (q1(iw), iw=1,NN)
@@ -1474,7 +1474,7 @@ CONTAINS
 
  ! check
  if(jRch==ixDesire) then
-   write(fmt1,'(A,I5,A)') '(A,1X',NN,'(1X,F15.7))'
+   write(fmt1,'(A,I5,A)') '(A,1X',NN,'(1X,G15.4))'
    write(*,'(a)')      ' * After wave merge: wave celertiy (wc) [m/s]:'
    write(*,'(a,x,I3)') ' Number of wave =', NN
    write(*,fmt1)       ' wc=', (wc(iw), iw=1,NN)

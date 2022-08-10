@@ -6,7 +6,7 @@ USE dataTypes,   ONLY: STRFLX            ! fluxes in each reach
 USE dataTypes,   ONLY: STRSTA            ! state in each reach
 USE dataTypes,   ONLY: RCHTOPO           ! Network topology
 USE dataTypes,   ONLY: RCHPRP            ! Reach parameter
-USE dataTypes,   ONLY: dwRCH             ! dw specific state data structure 
+USE dataTypes,   ONLY: dwRCH             ! dw specific state data structure
 USE dataTypes,   ONLY: subbasin_omp      ! mainstem+tributary data strucuture
 ! global data
 USE public_var,  ONLY: iulog             ! i/o logical unit number
@@ -167,7 +167,7 @@ CONTAINS
  ierr=0; message='dfw_rch/'
 
  doCheck = .false.
- if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
+ if(segIndex == ixDesire)then
    doCheck = .true.
  end if
 
@@ -184,7 +184,7 @@ CONTAINS
  endif
 
  if(doCheck)then
-   write(iulog,'(A)') 'CHECK diffusive wave routing'
+   write(iulog,'(2A)') new_line('a'), '** CHECK diffusive wave routing **'
    if (nUps>0) then
      do iUps = 1,nUps
        iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
@@ -198,6 +198,8 @@ CONTAINS
  call diffusive_wave(RPARAM_in(segIndex),                &  ! input: parameter at segIndex reach
                      T0,T1,                              &  ! input: start and end of the time step
                      q_upstream,                         &  ! input: total discharge at top of the reach being processed
+                     RCHFLX_out(iens,segIndex)%TAKE,     &  ! input: abstraction(-)/injection(+) [m3/s]
+                     RPARAM_in(segIndex)%MINFLOW,        &  ! input: minimum environmental flow [m3/s]
                      isHW,                               &  ! input: is this headwater basin?
                      RCHSTA_out(iens,segIndex)%DW_ROUTE, &  ! inout:
                      RCHFLX_out(iens,segIndex),          &  ! inout: updated fluxes at reach
@@ -221,6 +223,8 @@ CONTAINS
  SUBROUTINE diffusive_wave(rch_param,     & ! input: river parameter data structure
                            T0,T1,         & ! input: start and end of the time step
                            q_upstream,    & ! input: discharge from upstream
+                           Qtake,         & ! input: abstraction(-)/injection(+) [m3/s]
+                           Qmin,          & ! input: minimum environmental flow [m3/s]
                            isHW,          & ! input: is this headwater basin?
                            rstate,        & ! inout: reach state at a reach
                            rflux,         & ! inout: reach flux at a reach
@@ -257,6 +261,8 @@ CONTAINS
  type(RCHPRP), intent(in)        :: rch_param      ! River reach parameter
  real(dp),     intent(in)        :: T0,T1          ! start and end of the time step (seconds)
  real(dp),     intent(in)        :: q_upstream     ! total discharge at top of the reach being processed
+ real(dp),     intent(in)        :: Qtake          ! abstraction(-)/injection(+) [m3/s]
+ real(dp),     intent(in)        :: Qmin           ! minimum environmental flow [m3/s]
  logical(lgt), intent(in)        :: isHW           ! is this headwater basin?
  logical(lgt), intent(in)        :: doCheck        ! reach index to be examined
  ! Input/Output
@@ -285,6 +291,9 @@ CONTAINS
  real(dp)                        :: dTsub          ! time inteval for sub time-step [sec]
  real(dp)                        :: wck            ! weight for advection
  real(dp)                        :: wdk            ! weight for diffusion
+ real(dp)                        :: QupMod         ! modified total discharge at top of the reach being processed
+ real(dp)                        :: Qabs           ! maximum allowable water abstraction rate [m3/s]
+ real(dp)                        :: Qmod           ! abstraction rate to be taken from outlet discharge [m3/s]
  integer(i4b)                    :: ix,it          ! loop index
  integer(i4b)                    :: ntSub          ! number of sub time-step
  integer(i4b)                    :: Nx             ! number of internal reach segments
@@ -304,8 +313,15 @@ CONTAINS
  ntSub = 1  ! number of sub-time step
  wck = 1.0  ! weight in advection term
  wdk = 1.0  ! weight in diffusion term 0.0-> fully explicit, 0.5-> Crank-Nicolson, 1.0 -> fully implicit
+ dt = T1-T0
 
  Nx = nMolecule%DW_ROUTE - 1  ! Nx: number of internal reach segments
+
+ ! Q injection, add at top of reach
+ QupMod = q_upstream
+ if (Qtake>0) then
+   QupMod = QupMod+ Qtake
+ end if
 
  if (.not. isHW) then
 
@@ -327,10 +343,12 @@ CONTAINS
    alpha = sqrt(rch_param%R_SLOPE)/(rch_param%R_MAN_N*rch_param%R_WIDTH**(2._dp/3._dp))
    beta  = 5._dp/3._dp
    dx = rch_param%RLENGTH/Nx
-   dt = T1-T0
 
    if (doCheck) then
-     write(iulog,'(4(A,X,G15.4))') ' length [m] =',rch_param%RLENGTH,'slope [-] =',rch_param%R_SLOPE,'channel width [m] =',rch_param%R_WIDTH,'manning coef =',rch_param%R_MAN_N
+     write(iulog,'(A,X,G12.5)') ' length [m]        =',rch_param%RLENGTH
+     write(iulog,'(A,X,G12.5)') ' slope [-]         =',rch_param%R_SLOPE
+     write(iulog,'(A,X,G12.5)') ' channel width [m] =',rch_param%R_WIDTH
+     write(iulog,'(A,X,G12.5)') ' manning coef [-]  =',rch_param%R_MAN_N
    end if
 
    ! time-step adjustment so Courant number is less than 1
@@ -344,7 +362,7 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    Qlocal(0:1,:) = realMissing
    Qlocal(0,1:nMolecule%DW_ROUTE) = Qprev ! previous time step
-   Qlocal(1,1)  = q_upstream     ! infllow at sub-time step in current time step
+   Qlocal(1,1)  = QupMod     ! infllow at sub-time step in current time step
 
    do it = 1, nTsub
 
@@ -400,8 +418,8 @@ CONTAINS
      call TDMA(nMolecule%DW_ROUTE, diagonal, b, Qlocal(1,:))
 
      if (doCheck) then
-       write(fmt1,'(A,I5,A)') '(A,1X',nMolecule%DW_ROUTE,'(1X,F15.7))'
-       write(*,fmt1) ' Q sub_reqch=', (Qlocal(1,ix), ix=1,nMolecule%DW_ROUTE)
+       write(fmt1,'(A,I5,A)') '(A,1X',nMolecule%DW_ROUTE,'(1X,G15.4))'
+       write(iulog,fmt1) ' Q sub_reqch=', (Qlocal(1,ix), ix=1,nMolecule%DW_ROUTE)
      end if
 
      Qlocal(0,:) = Qlocal(1,:)
@@ -411,19 +429,20 @@ CONTAINS
    rflux%ROUTE(idxDW)%REACH_Q = Qlocal(1, nMolecule%DW_ROUTE) + rflux%BASIN_QR(1)
 
    if (doCheck) then
-     write(iulog,*) 'rflux%REACH_Q= ', rflux%ROUTE(idxDW)%REACH_Q
-     write(iulog,*) 'Qprev(1:nMolecule)= ', Qprev(1:nMolecule%DW_ROUTE)
-     write(iulog,*) 'Qbar, Abar, Vbar, ck, dk= ',Qbar, Abar, Vbar, ck, dk
-     write(iulog,*) 'Cd, Ca= ', Cd, Ca
-     write(iulog,*) 'diagonal(:,1)= ', diagonal(:,1)
-     write(iulog,*) 'diagonal(:,2)= ', diagonal(:,2)
-     write(iulog,*) 'diagonal(:,3)= ', diagonal(:,3)
-     write(iulog,*) 'b= ', b(1:nMolecule%DW_ROUTE)
+     write(fmt1,'(A,I5,A)') '(A,1X',nMolecule%DW_ROUTE,'(1X,G15.4))'
+     write(iulog,'(A,X,G12.5)') 'rflux%REACH_Q= ', rflux%ROUTE(idxDW)%REACH_Q
+     write(iulog,fmt1) 'Qprev(1:nMolecule)= ', Qprev(1:nMolecule%DW_ROUTE)
+     write(iulog,'(A,5(1X,G12.5))') 'Qbar, Abar, Vbar, ck, dk= ',Qbar, Abar, Vbar, ck, dk
+     write(iulog,'(A,2(1X,G12.5))') 'Cd, Ca= ', Cd, Ca
+     write(iulog,fmt1) 'diagonal(:,1)= ', diagonal(:,1)
+     write(iulog,fmt1) 'diagonal(:,2)= ', diagonal(:,2)
+     write(iulog,fmt1) 'diagonal(:,3)= ', diagonal(:,3)
+     write(iulog,fmt1) 'b= ', b(1:nMolecule%DW_ROUTE)
    end if
 
    ! compute volume
    rflux%ROUTE(idxDW)%REACH_VOL(0) = rflux%ROUTE(idxDW)%REACH_VOL(1)
-   rflux%ROUTE(idxDW)%REACH_VOL(1) = rflux%ROUTE(idxDW)%REACH_VOL(0) + (Qlocal(1,1) - Qlocal(1,nMolecule%DW_ROUTE))*dT
+   rflux%ROUTE(idxDW)%REACH_VOL(1) = rflux%ROUTE(idxDW)%REACH_VOL(0) + (Qlocal(1,1) - Qlocal(1,nMolecule%DW_ROUTE))*dt
 
    ! update state
    rstate%molecule%Q = Qlocal(1,:)
@@ -443,6 +462,23 @@ CONTAINS
    endif
 
  endif
+
+ ! Q abstraction
+ ! Compute actual abstraction (Qabs) m3/s - values should be negative
+ ! Compute abstraction (Qmod) m3 taken from outlet discharge (REACH_Q)
+ ! Compute REACH_Q subtracted from Qmod abstraction
+ ! Compute REACH_VOL subtracted from total abstraction minus abstraction from outlet discharge
+ if (Qtake<0) then
+   Qabs = max(-(rflux%ROUTE(idxDW)%REACH_VOL(1)/dt+rflux%ROUTE(idxDW)%REACH_Q-Qmin), Qtake)
+   Qabs = min(Qabs, 0._dp)  ! this should be <=0
+   Qmod = min(rflux%ROUTE(idxDW)%REACH_VOL(1) + Qabs*dt, 0._dp) ! this should be <=0
+
+   rflux%ROUTE(idxDW)%REACH_Q      = rflux%ROUTE(idxDW)%REACH_Q + Qmod/dt
+   rflux%ROUTE(idxDW)%REACH_VOL(1) = rflux%ROUTE(idxDW)%REACH_VOL(1) + (Qabs*dt - Qmod)
+
+   ! modify computational molecule state (Q)
+   rstate%molecule%Q(nMolecule%DW_ROUTE) = Qlocal(1, nMolecule%DW_ROUTE) - max(abs(Qmod/dt)-rflux%BASIN_QR(1), 0._dp)
+ end if
 
  if (doCheck) then
    write(iulog,'(A,X,G12.5)') ' Qout(t) =', rflux%ROUTE(idxDW)%REACH_Q
