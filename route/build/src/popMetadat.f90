@@ -177,17 +177,20 @@ contains
  call meta_kwt(ixKWT%routed   )%init('routed'   , 'routing flag'                                  , '-'     , nf90_int,    [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
 
  ! Kinematic Wave
- call meta_kw(ixKW%qsub)%init('q_sub_kw', 'flow at computational moelcule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_kw,ixStateDims%ens], .false.)
+ call meta_kw(ixKW%qsub  )%init('q_sub_kw',  'flow at computational moelcule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_kw,ixStateDims%ens], .false.)
+ call meta_kw(ixKW%volume)%init('volume_kw', 'reach volume'                  , 'm3'  , nf90_double, [ixStateDims%seg,ixStateDims%ens]                   , .false.)
 
  ! Diffusive Wave
- call meta_dw(ixDW%qsub)%init('q_sub_dw', 'flow at computational moelcule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_dw,ixStateDims%ens], .false.)
+ call meta_dw(ixDW%qsub  )%init('q_sub_dw',  'flow at computational moelcule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_dw,ixStateDims%ens], .false.)
+ call meta_dw(ixDW%volume)%init('volume_dw', 'reach volume'                  , 'm3'  , nf90_double, [ixStateDims%seg,ixStateDims%ens]                   , .false.)
 
  ! Muskingum-cunge
- call meta_mc(ixMC%qsub)%init('q_sub_mc', 'flow at computational molecule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_mc,ixStateDims%ens], .false.)
+ call meta_mc(ixMC%qsub  )%init('q_sub_mc',  'flow at computational molecule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_mc,ixStateDims%ens], .false.)
+ call meta_mc(ixMC%volume)%init('volume_mc', 'reach volume'                  , 'm3'  , nf90_double, [ixStateDims%seg,ixStateDims%ens]                   , .false.)
 
  ! Impulse Response Function
  call meta_irf(ixIRF%qfuture)%init('irf_qfuture', 'future flow series', 'm3/sec' ,nf90_double, [ixStateDims%seg,ixStateDims%tdh_irf,ixStateDims%ens] , .true.)
- call meta_irf(ixIRF%irfVol )%init('irf_volume' , 'IRF reach volume'  , 'm3'     ,nf90_double, [ixStateDims%seg,ixStateDims%ens]                     , .true.)
+ call meta_irf(ixIRF%volume )%init('irf_volume' , 'IRF reach volume'  , 'm3'     ,nf90_double, [ixStateDims%seg,ixStateDims%ens]                     , .true.)
 
  ! Basin Impulse Response Function
  call meta_irf_bas(ixIRFbas%qfuture)%init('qfuture', 'future flow series', 'm3/sec' ,nf90_double, [ixStateDims%seg,ixStateDims%tdh,ixStateDims%ens], .true.)
