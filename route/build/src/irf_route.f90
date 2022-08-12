@@ -11,8 +11,9 @@ USE dataTypes,          only : irfRCH         ! irf specific state data structur
 USE public_var,         only : realMissing    ! missing value for real number
 USE public_var,         only : integerMissing ! missing value for integer number
 USE public_var,         ONLY : dt             ! routing time step duration [sec]
+USE public_var,         ONLY : qmodOption     ! qmod option (use 1==direct insertion)
 USE globalData,         only : nThreads       ! number of threads used for openMP
-USE globalData,         only : idxIRF          ! index of IRF method
+USE globalData,         only : idxIRF         ! index of IRF method
 ! subroutines: general
 USE model_finalize, ONLY : handle_err
 
@@ -197,6 +198,9 @@ contains
   if (nUps>0) then
     do iUps = 1,nUps
       iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
+      if (qmodOption==1 .and. RCHFLX_out(iens,iRch_ups)%TAKE>0._dp) then
+        RCHFLX_out(iens, iRch_ups)%ROUTE(idxIRF)%REACH_Q = RCHFLX_out(iens,iRch_ups)%TAKE
+      end if
       q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxIRF)%REACH_Q
     end do
   endif

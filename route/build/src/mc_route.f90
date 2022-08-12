@@ -14,6 +14,7 @@ USE dataTypes,   ONLY: subbasin_omp      ! mainstem+tributary data strucuture
 USE public_var,  ONLY: iulog             ! i/o logical unit number
 USE public_var,  ONLY: realMissing       ! missing value for real number
 USE public_var,  ONLY: integerMissing    ! missing value for integer number
+USE public_var,  ONLY: qmodOption        ! qmod option (use 1==direct insertion)
 USE globalData,  ONLY: idxMC             ! index of IRF method
 ! subroutines: general
 USE model_finalize, ONLY : handle_err
@@ -180,6 +181,9 @@ contains
    isHW = .false.
    do iUps = 1,nUps
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
+     if (qmodOption==1 .and. RCHFLX_out(iens,iRch_ups)%TAKE>0._dp) then
+       RCHFLX_out(iens, iRch_ups)%ROUTE(idxMC)%REACH_Q = RCHFLX_out(iens,iRch_ups)%TAKE
+     end if
      q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxMC)%REACH_Q
    end do
  endif

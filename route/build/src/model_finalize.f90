@@ -1,12 +1,14 @@
 MODULE model_finalize
 
-USE nrtype,     ONLY: i4b
+USE nrtype
 USE public_var, ONLY: iulog            ! i/o logical unit number
+USE public_var, ONLY: qmodOption       !
+USE globalData, ONLY: gage_obs_data
+USE globalData, ONLY: rch_qtake_data
 
 implicit none
 
 private
-
 public :: finalize
 public :: handle_err
 
@@ -17,6 +19,15 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE finalize()
   implicit none
+  integer(i4b)      :: ierr             ! error code
+  character(strLen) :: cmessage         ! error message
+
+  if (qmodOption==1) then
+    call gage_obs_data%closeNC(ierr, cmessage)
+  else if (qmodOption==2) then
+    call rch_qtake_data%closeNC(ierr, cmessage)
+  end if
+
   write(iulog,'(a)') new_line('a'), '--------------------'
   write(iulog,'(a)')                'Finished simulation'
   write(iulog,'(a)')                '--------------------'
