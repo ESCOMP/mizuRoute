@@ -306,13 +306,12 @@ CONTAINS
  character(len=strLen)           :: cmessage       ! error message from subroutine
  ! Local parameters
  integer(i4b), parameter         :: absorbingBC=1
- integer(i4b), parameter         :: neumannBC=2
+ integer(i4b), parameter         :: neumannBC=2    ! flux derivative w.r.t. distance at downstream boundary
 
  ierr=0; message='diffusive_wave/'
 
  ! hard-coded parameters
  downstreamBC = neumannBC
- Sbc = 0._dp
 
  ntSub = 1  ! number of sub-time step
  wck = 1.0  ! weight in advection term
@@ -411,7 +410,8 @@ CONTAINS
      if (downstreamBC == absorbingBC) then
        b(nMolecule%DW_ROUTE)     = (1._dp-(1._dp-wck)*Ca)*Qlocal(0,nMolecule%DW_ROUTE) + (1-wck)*Ca*Qlocal(0,nMolecule%DW_ROUTE-1)
      else if (downstreamBC == neumannBC) then
-       b(nMolecule%DW_ROUTE)     = Sbc*dx
+       Sbc = (Qlocal(0,nMolecule%DW_ROUTE)-Qlocal(0, nMolecule%DW_ROUTE-1))
+       b(nMolecule%DW_ROUTE)     = Sbc
      end if
      ! internal node points
      b(2:nMolecule%DW_ROUTE-1) = ((1._dp-wck)*Ca+2._dp*(1._dp-wdk))*Cd*Qlocal(0,1:nMolecule%DW_ROUTE-2)  &
