@@ -1,8 +1,10 @@
-module public_var
+MODULE public_var
+
   ! This module include variables that can be accessed from any other modules and values not altered
   ! except that variables read from control file are populated.
 
   USE nrtype
+
   implicit none
 
   save
@@ -158,4 +160,4 @@ module public_var
   integer(i4b)         ,public    :: maxPfafLen           = 32              ! maximum digit of pfafstetter code (default 32).
   character(len=1)     ,public    :: pfafMissing          = '0'             ! missing pfafcode (e.g., reach without any upstream area)
 
-end module public_var
+END MODULE public_var

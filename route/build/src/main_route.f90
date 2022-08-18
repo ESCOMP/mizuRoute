@@ -1,30 +1,29 @@
-module main_route_module
+MODULE main_route_module
 
-USE nrtype                                                 ! variable types, etc.
+USE nrtype
 ! mapping HRU runoff to reach
-USE remapping,           only : basin2reach
+USE remapping,           ONLY: basin2reach
 ! subroutines: basin routing
-USE basinUH_module,      only : IRF_route_basin            ! perform UH convolution for basin routing
+USE basinUH_module,      ONLY: IRF_route_basin            ! perform UH convolution for basin routing
 ! subroutines: river routing
-USE accum_runoff_module, only : accum_runoff               ! upstream flow accumulation
-USE kwt_route_module,    only : kwt_route                  ! lagrangian kinematic wave routing method
-USE irf_route_module,    only : irf_route                  ! unit hydrograph (impulse response function) routing method
-USE dfw_route_module,    only : dfw_route                  ! diffusive wave routing method
-USE kw_route_module,     only : kw_route                   ! kinematic wave routing method
-USE mc_route_module,     only : mc_route                   ! muskingum-cunge routing method
+USE accum_runoff_module, ONLY: accum_runoff               ! upstream flow accumulation
+USE kwt_route_module,    ONLY: kwt_route                  ! lagrangian kinematic wave routing method
+USE irf_route_module,    ONLY: irf_route                  ! unit hydrograph (impulse response function) routing method
+USE dfw_route_module,    ONLY: dfw_route                  ! diffusive wave routing method
+USE kw_route_module,     ONLY: kw_route                   ! kinematic wave routing method
+USE mc_route_module,     ONLY: mc_route                   ! muskingum-cunge routing method
 
 implicit none
 
 private
-
 public::main_route
 
-contains
+CONTAINS
 
  ! ******
  ! public subroutine: main HRU/reach routing routines
  ! ************************
- subroutine main_route(iens,           &  ! input:  ensemble index
+ SUBROUTINE main_route(iens,           &  ! input:  ensemble index
                        ierr, message)     ! output: error control
    ! Details:
    ! Given HRU (basin) runoff, perform hru routing (optional) to get reach runoff, and then channel routing ! Restriction:
@@ -52,10 +51,8 @@ contains
    USE globalData, ONLY: nRch             ! number of reaches in the whoel river network
 
    implicit none
-
-   ! input
+   ! Argument variables
    integer(i4b),               intent(in)    :: iens                 ! ensemble member
-   ! output
    integer(i4b),               intent(out)   :: ierr                 ! error code
    character(len=strLen),      intent(out)   :: message              ! error message
    ! local variables
@@ -63,13 +60,11 @@ contains
    real(dp)                                  :: T0,T1                ! beginning/ending of simulation time step [sec]
    real(dp),      allocatable                :: reachRunoff_local(:) ! reach runoff (m/s)
    integer(i4b)                              :: iSeg                 ! index of reach
-   ! timing variables
    integer*8                                 :: cr, startTime, endTime ! rate, start and end time stamps
    real(dp)                                  :: elapsedTime            ! elapsed time for the process
 
   CALL system_clock(count_rate=cr)
 
-  ! initialize errors
   ierr=0; message = "main_routing/"
 
   ! define the start and end of the time step
@@ -209,6 +204,6 @@ contains
     write(*,"(A,1PG15.7,A)") '      elapsed-time [dfw_route] = ', elapsedTime, ' s'
   endif
 
- end subroutine main_route
+ END SUBROUTINE main_route
 
-end module main_route_module
+END MODULE main_route_module

@@ -2,12 +2,11 @@ MODULE basinUH_module
 
 USE nrtype
 USE public_var
-USE dataTypes,          only : STRFLX         ! fluxes in each reach
+USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
 
 implicit none
 
 private
-
 public::IRF_route_basin
 
 CONTAINS
@@ -21,15 +20,12 @@ CONTAINS
                             ierr, message, & ! output: error control
                             ixSubRch)        ! optional input: subset of reach indices to be processed
  implicit none
- ! input
+ ! Argument variables
  integer(i4b), intent(in)                 :: iens            ! ith ensemble
  real(dp)    , intent(in)                 :: reachRunoff(:)  ! instantaneous reach runoff volumen (m3/s)
- ! inout
  type(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
- ! output
  integer(I4B), intent(out)                :: ierr            ! error code
  character(*), intent(out)                :: message         ! error message
- ! input (optional)
  integer(i4b), intent(in),   optional     :: ixSubRch(:)     ! subset of reach indices to be processed
  ! local variables
  integer(i4b)                             :: nSeg            ! number of reaches to be processed
@@ -76,26 +72,24 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: perform one basin UH routing to a iSeg reach at one time
  ! *********************************************************************
- subroutine hru_irf(iens,         &    ! input: index of runoff ensemble to be processed
+ SUBROUTINE hru_irf(iens,         &    ! input: index of runoff ensemble to be processed
                     iSeg,         &    ! input: index of runoff ensemble to be processed
                     RCHFLX_out,   &    ! inout: reach flux data structure
                     ierr, message)     ! output: error control
- ! External modules
- USE globalData,        ONLY : FRAC_FUTURE
+
+ USE globalData, ONLY: FRAC_FUTURE
+
  implicit none
- ! Input
- INTEGER(I4B), intent(IN)                 :: iEns           ! runoff ensemble to be routed
- INTEGER(I4B), intent(IN)                 :: iSeg           ! segment where routing is performed
- ! inout
- TYPE(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)! Reach fluxes (ensembles, space [reaches]) for decomposed domains
- ! Output
+ ! Argument variables
+ integer(i4b), intent(in)                 :: iEns           ! runoff ensemble to be routed
+ integer(i4b), intent(in)                 :: iSeg           ! segment where routing is performed
+ type(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  integer(i4b), intent(out)                :: ierr           ! error code
  character(*), intent(out)                :: message        ! error message
- ! Local variables to
- INTEGER(I4B)                             :: ntdh           ! number of time steps in IRF
+ ! Local variables
+ integer(i4b)                             :: ntdh           ! number of time steps in IRF
  character(len=strLen)                    :: cmessage       ! error message from subroutine
 
- ! initialize error control
  ierr=0; message='hru_irf/'
 
  ! initialize the first time step q future
@@ -118,7 +112,7 @@ CONTAINS
                ierr, message)                            ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- end subroutine hru_irf
+ END SUBROUTINE hru_irf
 
 
  ! ---------------------------------------------------------------------------------------
@@ -130,19 +124,17 @@ CONTAINS
                      delayq,    &    ! inout: delayed runoff to segment at a current and previous time step
                      ierr, message)
   implicit none
-  ! input
+  ! Argument variables
   real(dp),             intent(in)     :: uh(:)         ! normalized unit hydrograph
   real(dp),             intent(in)     :: inq           ! basin instantaneous runoff
   real(dp),             intent(inout)  :: qfuture(:)    ! convoluted runoff including future time steps
   real(dp),             intent(inout)  :: delayq(0:1)   ! delayed runoff to a segment at a current and previous time step
-  ! output
   integer(I4B),         intent(out)    :: ierr          ! error code
   character(*),         intent(out)    :: message       ! error message
   ! local variables
   integer(i4b)                         :: itdh          ! index loop for basin, time, respectively
   integer(i4b)                         :: ntdh          ! number of time step for future flow
 
-  ! initialize error control
   ierr=0; message='irf_conv/'
 
   ! route streamflow through the basin

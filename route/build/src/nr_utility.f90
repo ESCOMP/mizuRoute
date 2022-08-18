@@ -1,28 +1,29 @@
 MODULE nr_utility_module
+
 ! contains functions that should really be part of the fortran standard, but are not
 
 USE nrtype
 
 implicit none
 
-interface arth
+INTERFACE arth
   MODULE PROCEDURE arth_r, arth_d, arth_i4b, arth_i8b
-end interface
+END INTERFACE
 
-interface indexx
+INTERFACE indexx
   module procedure indexx_i4b
   module procedure indexx_i8b
-end interface
+END INTERFACE
 
-interface swap
+INTERFACE swap
   module procedure swap_i4b
   module procedure swap_i8b
-end interface
+END INTERFACE
 
-interface unique
+INTERFACE unique
   module procedure unique_i4b
   module procedure unique_i8b
-end interface
+END INTERFACE
 
 INTERFACE char2int
   module procedure :: char2int_1d

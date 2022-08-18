@@ -18,12 +18,15 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module time_utils_module
+MODULE time_utils_module
+
 USE nrtype
-USE public_var,only:secprday,secprhour,secprmin, &   ! seconds in an (day, hour, minute)
-                    months_per_yr, days_per_yr,  &   ! months and days in year (no leap year)
-                    hr_per_day, min_per_hour         ! hours per day and minutes per hour
+USE public_var, ONLY: secprday,secprhour,secprmin, &   ! seconds in an (day, hour, minute)
+                      months_per_yr, days_per_yr,  &   ! months and days in year (no leap year)
+                      hr_per_day, min_per_hour         ! hours per day and minutes per hour
+
 implicit none
+
 private
 public::extractTime
 public::ndays_month
@@ -33,12 +36,13 @@ public::compJulday_noleap
 public::compCalday
 public::compCalday_noleap
 public::elapsedSec
-contains
+
+CONTAINS
 
  ! ******************************************************************************************
  ! public function: check leap year or not
  ! ******************************************************************************************
- logical(lgt) function isLeapYear(yr)
+ logical(lgt) FUNCTION isLeapYear(yr)
  implicit none
  integer(i4b), intent(in)  :: yr
  if (mod(yr, 4) == 0) then
@@ -54,19 +58,18 @@ contains
  else
    isLeapYear = .False.
  end if
- end function isLeapYear
+ END FUNCTION isLeapYear
 
  ! ******************************************************************************************
  ! public subroutine: get number of days within a month
  ! ******************************************************************************************
- subroutine ndays_month(yr, mo, calendar, ndays, ierr, message)
+ SUBROUTINE ndays_month(yr, mo, calendar, ndays, ierr, message)
   USE ascii_util_module, ONLY : lower         ! convert string to lower case
  implicit none
- ! input
+ ! Argument variables
  integer(i4b),intent(in)           :: yr
  integer(i4b),intent(in)           :: mo
  character(*),intent(in)           :: calendar
- ! output
  integer(i4b)         ,intent(out) :: ndays     !
  integer(i4b),         intent(out) :: ierr         ! error code
  character(len=strLen),intent(out) :: message     ! error message
@@ -104,14 +107,14 @@ contains
 
  ndays = nint(julday2-julday1)
 
- end subroutine ndays_month
+ END SUBROUTINE ndays_month
 
  ! ******************************************************************************************
  ! public subroutine extractTime: extract year/month/day/hour/minute/second from units string
  ! ******************************************************************************************
- subroutine extractTime(refdate,iyyy,im,id,ih,imin,dsec,err,message)
+ SUBROUTINE extractTime(refdate,iyyy,im,id,ih,imin,dsec,err,message)
  implicit none
- ! dummy variables
+ ! Argument variables
  character(*),intent(in)    :: refdate             ! units string (time since...)
  integer(i4b),intent(out)   :: iyyy,im,id,ih,imin  ! time (year/month/day/hour/minute)
  real(dp),intent(out)       :: dsec                ! seconds
@@ -120,7 +123,7 @@ contains
  ! local variables
  integer(i4b)               :: n                   ! length of the string
  integer(i4b)               :: istart,iend         ! position in string
- ! iniitalize error control
+
  err=0; message="extractTime/"
 
  ! get the length of the string
@@ -176,23 +179,23 @@ contains
  read(refdate(istart:n),*) dsec
  !write(*,'(a,i4,1x,4(i2,1x))') 'refdate: iyyy, im, id, ih, imin = ', iyyy, im, id, ih, imin
 
- contains
+ CONTAINS
 
   ! ******************************************************************************************
   ! internal subroutine extract: extract substring
   ! ******************************************************************************************
-  subroutine extract(substring,cdelim,iend,itemp,err,message)
+  SUBROUTINE extract(substring,cdelim,iend,itemp,err,message)
   implicit none
-  ! input
+  ! Argument variables
   character(*),intent(in)     :: substring  ! sub-string to process
   character(len=1),intent(in) :: cdelim     ! string delimiter
-  ! output
   integer(i4b),intent(out)    :: iend       ! index at the end of desired string
   integer(i4b),intent(out)    :: itemp      ! output date
   integer(i4b),intent(out)    :: err        ! error code
   character(*),intent(out)    :: message    ! error message
-  ! initialize error code and message
+
   err=0; message="extract/"
+
   ! identify end-point of string
   iend = index(substring,cdelim)
   ! if sub-string does not exist, assume end is at end of string
@@ -203,22 +206,21 @@ contains
   if (err/=0) then
    err=20; message=trim(message)//"unexpected characters [string='"//trim(substring)//"']"; return
   end if
-  end subroutine extract
+  END SUBROUTINE extract
 
- end subroutine extractTime
+ END SUBROUTINE extractTime
 
 
  ! ***************************************************************************************
  ! public subroutine compJulday: convert date to julian day (units of days)
  ! ***************************************************************************************
- subroutine compJulday(iyyy,mm,id,ih,imin,dsec,&  ! input
+ SUBROUTINE compJulday(iyyy,mm,id,ih,imin,dsec,&  ! input
                        juldayss,err,message)      ! output
  implicit none
- ! input variables
+ ! Argument variables
  integer(i4b),intent(in)   :: iyyy,mm,id   ! year, month, day
  integer(i4b),intent(in)   :: ih,imin      ! hour, minute
  real(dp),intent(in)       :: dsec         ! seconds
- ! output
  real(dp),intent(out)      :: juldayss
   integer(i4b),intent(out) :: err          ! error code
   character(*),intent(out) :: message      ! error message
@@ -228,7 +230,6 @@ contains
  integer(i4b)              :: ja,jm,jy
  real(dp)                  :: jfrac        ! fraction of julian day
 
- ! initialize errors
  err=0; message="compJulday/"
 
  ! compute julian day
@@ -253,29 +254,27 @@ contains
  ! and return the julian day, expressed in fraction of a day
  juldayss = real(julday,kind(dp)) + jfrac
 
- end subroutine compJulday
+ END SUBROUTINE compJulday
 
  ! ***************************************************************************************
  ! public subroutine compJulday: convert date to julian day (units of days) for noleap calendar
  ! reference: https://github.com/nmizukami/VIC/blob/VIC.5.0.0/vic/drivers/shared_all/src/vic_time.c
  ! ***************************************************************************************
- subroutine compJulday_noleap(iyyy,mm,id,ih,imin,dsec,&  ! input
+ SUBROUTINE compJulday_noleap(iyyy,mm,id,ih,imin,dsec,&  ! input
                        juldayss,err,message)             ! output
  implicit none
- ! input variables
+ ! Argument variables
  integer(i4b),intent(in)   :: iyyy,mm,id   ! year, month, day
  integer(i4b),intent(in)   :: ih,imin      ! hour, minute
  real(dp),intent(in)       :: dsec         ! seconds
- ! output
  real(dp),intent(out)      :: juldayss
-  integer(i4b),intent(out) :: err          ! error code
-  character(*),intent(out) :: message      ! error message
+ integer(i4b),intent(out)  :: err          ! error code
+ character(*),intent(out)  :: message      ! error message
  ! local variables
  integer(i4b)              :: mm_tmp       ! adjusted month
  integer(i4b)              :: iyyy_tmp     ! adjusted year
  real(dp)                  :: dfrac        ! fraction of day
 
- ! initialize errors
  err=0; message="compJulday_noleap/"
 
  ! compute fraction of the day
@@ -292,20 +291,18 @@ contains
  juldayss = real(days_per_yr*(iyyy_tmp + 4716)) + &
             real(floor(30.6001 * real(mm_tmp+1))) + dfrac - 1524.5
 
- end subroutine compJulday_noleap
+ END SUBROUTINE compJulday_noleap
 
  ! ***************************************************************************************
  ! public subroutine compgregcal: convert julian day (units of days) to calendar date
  ! source: https://en.wikipedia.org/wiki/Julian_day#Julian_or_Gregorian_calendar_from_Julian_day_number
  ! ***************************************************************************************
- subroutine compCalday(julday,                              & !input
+ SUBROUTINE compCalday(julday,                              & !input
                        iyyy,mm,id,ih,imin,dsec,err,message)   !output
+
  implicit none
-
- ! input variables
+ ! Argument variables
  real(dp), intent(in)          :: julday       ! julian day
-
- ! output varibles
  integer(i4b), intent(out)     :: iyyy         ! year
  integer(i4b), intent(out)     :: mm           ! month
  integer(i4b), intent(out)     :: id           ! day
@@ -314,7 +311,6 @@ contains
  real(dp),     intent(out)     :: dsec         ! seconds
  integer(i4b), intent(out)     :: err          ! error code
  character(*), intent(out)     :: message      ! error message
-
  ! local parameters
  integer(i4b),parameter       :: y = 4716
  integer(i4b),parameter       :: j = 1401
@@ -328,15 +324,14 @@ contains
  integer(i4b),parameter       :: w = 2
  integer(i4b),parameter       :: b = 274277
  integer(i4b),parameter       :: c = -38
-
  ! local variables
  integer(i4b)          :: f,e,g,h                            ! various step variables from wikipedia
  integer(i4b)          :: step_1a,step_1b,step_1c,step_1d    ! temporary variables for calendar calculations
  real(dp)              :: frac_day  ! fractional day
  real(dp)              :: remainder ! remainder of modulus operation
 
- ! initialize errors
  err=0; message="compCalday/"
+
  if(julday<=0)then;err=10;message=trim(message)//"no negative julian days/"; return; end if
 
  ! step 1
@@ -376,19 +371,18 @@ contains
  remainder = remainder*min_per_hour - imin
  dsec = nint(remainder*secprmin)
 
- end subroutine compCalday
+ END SUBROUTINE compCalday
 
  ! ***************************************************************************************
  ! public subroutine compgregcal_noleap: compute yy,mm,dd,hr,min,hr from a noleap julian day
  ! source: https://github.com/nmizukami/VIC/blob/VIC.5.0.0/vic/drivers/shared_all/src/vic_time.c
  ! ***************************************************************************************
- subroutine compCalday_noleap(julday,                              & !input
+ SUBROUTINE compCalday_noleap(julday,                              & !input
                               iyyy,mm,id,ih,imin,dsec,err,message)   !output
- implicit none
 
- ! input variables
+ implicit none
+ ! Argument variables
  real(dp), intent(in)         :: julday       ! julian day
- ! output varibles
  integer(i4b), intent(out)    :: iyyy         ! year
  integer(i4b), intent(out)    :: mm           ! month
  integer(i4b), intent(out)    :: id           ! day
@@ -406,8 +400,8 @@ contains
  real(dp)                     :: days         ! day with a fraction days
  real(dp)                     :: remainder    ! remainder of modulus operation
 
- ! initialize errors
  err=0; message="compCalday_noleap/"
+
  if(julday<=0)then;err=10;message=trim(message)//"no negative julian days/"; return; end if
 
  A = floor(julday+0.5_dp)
@@ -454,12 +448,12 @@ contains
  remainder = remainder*min_per_hour - imin
  dsec = nint(remainder*secprmin)
 
- end subroutine compCalday_noleap
+ END SUBROUTINE compCalday_noleap
 
  ! ***************************************************************************************
  ! public function elapsedSec: calculate difference of two time marks obtained by date_and_time()
  ! ***************************************************************************************
- function elapsedSec(startTime, endTime)
+ FUNCTION elapsedSec(startTime, endTime)
  integer(i4b),intent(in)        :: startTime(8),endTime(8)            ! state time and end time
  real(dp)                       :: elapsedSec                         ! elapsed time in seconds
  ! local variables
@@ -492,6 +486,6 @@ contains
   ! convert to seconds
   elapsedSec = elapsedSec + elapsedDay * secprday
  end if
- end function
+ END FUNCTION
 
-end module time_utils_module
+END MODULE time_utils_module

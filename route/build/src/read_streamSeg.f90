@@ -1,81 +1,67 @@
-module read_streamSeg
+MODULE read_streamSeg
 
 ! data types
-USE nrtype,    only : i4b,dp,lgt
-USE nrtype,    only : strLen               ! string length
-USE dataTypes, only : var_ilength          ! integer type:          var(:)%dat
-USE dataTypes, only : var_dlength          ! double precision type: var(:)%dat
-USE dataTypes, only : var_clength          ! character type:        var(:)%dat
-USE dataTypes, only : var_info             ! metadata
-
+USE nrtype
+USE dataTypes, ONLY: var_ilength          ! integer type:          var(:)%dat
+USE dataTypes, ONLY: var_dlength          ! double precision type: var(:)%dat
+USE dataTypes, ONLY: var_clength          ! character type:        var(:)%dat
+USE dataTypes, ONLY: var_info             ! metadata
 ! global data
 USE public_var
-
 ! metadata on data structures
-USE globalData, only : meta_struct         ! structure information
-USE globalData, only : meta_HRU            ! HRU properties
-USE globalData, only : meta_HRU2SEG        ! HRU-to-segment mapping
-USE globalData, only : meta_SEG            ! stream segment properties
-USE globalData, only : meta_NTOPO          ! network topology
-USE globalData, only : meta_PFAF           ! network topology
-
+USE globalData, ONLY: meta_struct         ! structure information
+USE globalData, ONLY: meta_HRU            ! HRU properties
+USE globalData, ONLY: meta_HRU2SEG        ! HRU-to-segment mapping
+USE globalData, ONLY: meta_SEG            ! stream segment properties
+USE globalData, ONLY: meta_NTOPO          ! network topology
+USE globalData, ONLY: meta_PFAF           ! network topology
 ! named variables
-USE var_lookup,only:ixStruct, nStructures  ! index of data structures
-USE var_lookup,only:ixHRU,    nVarsHRU     ! index of variables for the HRUs
-USE var_lookup,only:ixSEG,    nVarsSEG     ! index of variables for the stream segments
-USE var_lookup,only:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
-USE var_lookup,only:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
-USE var_lookup,only:ixPFAF,   nVarsPFAF    ! index of variables for the pfafstetter code
-
+USE var_lookup, ONLY: ixStruct, nStructures  ! index of data structures
+USE var_lookup, ONLY: ixHRU,    nVarsHRU     ! index of variables for the HRUs
+USE var_lookup, ONLY: ixSEG,    nVarsSEG     ! index of variables for the stream segments
+USE var_lookup, ONLY: ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
+USE var_lookup, ONLY: ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
+USE var_lookup, ONLY: ixPFAF,   nVarsPFAF    ! index of variables for the pfafstetter code
 ! netcdf modules
 USE netcdf
-
 ! external utilities
 USE nr_utility_module, ONLY: arth    ! Num. Recipies utilities
-
 USE alloc_data,        ONLY: alloc_struct
 
 implicit none
 
-! privacy
 private
 public::getData
-contains
+
+CONTAINS
 
  ! *********************************************************************
  ! new subroutine: get ancillary data for HRUs and stream segments
  ! *********************************************************************
- subroutine getData(&
-                    ! input
-                    fname,        & ! input: file name
+ SUBROUTINE getData(fname,        & ! input: file name
                     dname_nhru,   & ! input: dimension name of the HRUs
                     dname_sseg,   & ! input: dimension name of the stream segments
-                    ! output: model control
                     nHRU_in,      & ! output: number of HRUs
                     nRch_in,      & ! output: number of stream segments
-                    ! output: populate data structures
-                    structHRU,    & ! ancillary data for HRUs
-                    structSeg,    & ! ancillary data for stream segments
-                    structHRU2seg,& ! ancillary data for mapping hru2basin
-                    structNTOPO,  & ! ancillary data for network toopology
-                    structPFAF,   & ! ancillary data for pfafstetter code
-                    ! output: error control
+                    structHRU,    & ! output: ancillary data for HRUs
+                    structSeg,    & ! output: ancillary data for stream segments
+                    structHRU2seg,& ! output: ancillary data for mapping hru2basin
+                    structNTOPO,  & ! output: ancillary data for network toopology
+                    structPFAF,   & ! output: ancillary data for pfafstetter code
                     ierr,message)   ! output: error control
+
  implicit none
- ! input variables
+ ! Argument variables
  character(*)      , intent(in)               :: fname            ! filename
  character(*)      , intent(in)               :: dname_nhru       ! dimension name for HRUs
  character(*)      , intent(in)               :: dname_sseg       ! dimension name for stream segments
- ! output: model control
  integer(i4b)      , intent(out)              :: nHRU_in          ! number of HRUs
  integer(i4b)      , intent(out)              :: nRch_in          ! number of stream segments
- ! output: data structures
  type(var_dlength) , intent(out), allocatable :: structHRU(:)     ! HRU properties
  type(var_dlength) , intent(out), allocatable :: structSeg(:)     ! stream segment properties
  type(var_ilength) , intent(out), allocatable :: structHRU2seg(:) ! HRU-to-segment mapping
  type(var_ilength) , intent(out), allocatable :: structNTOPO(:)   ! network topology
  type(var_clength) , intent(out), allocatable :: structPFAF(:)    ! network topology
- ! output: error control
  integer(i4b)      , intent(out)              :: ierr             ! error code
  character(*)      , intent(out)              :: message          ! error message
  ! ==========================================================================================================
@@ -98,7 +84,7 @@ contains
  logical(lgt)                           :: isVarDesired ! .true. if the variable is desired
  character(len=strLen)                  :: varName      ! variable name
  character(len=strLen)                  :: cmessage     ! error message of downwind routine
- ! initialize error control
+
  ierr=0; message='getData/'
 
  ! ---------- initial reading of dimensions ------------------------------------------------------------------------
@@ -291,7 +277,7 @@ contains
  ierr = nf90_close(ncid)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
- end subroutine getData
+ END SUBROUTINE getData
 
  ! ==========================================================================================================
  ! ==========================================================================================================
@@ -302,22 +288,18 @@ contains
  ! *********************************************************************
  ! private subroutine: get start and count vectors
  ! *********************************************************************
- subroutine getSubetIndices(&
-                            ! input
-                            ncid,           &  ! netCDF file id
-                            ivarid,         &  ! netCDF variable id
-                            nSpace,         &  ! length of the spatial dimension
-                            ! output
-                            ixStart,        &  ! vector of start indices
-                            ixCount,        &  ! vector defining number of elements in each reach
-                            dimLength,      &  ! dimension length
-                            ierr,message)      ! error control
+ SUBROUTINE getSubetIndices(ncid,           &  ! input: netCDF file id
+                            ivarid,         &  ! input: netCDF variable id
+                            nSpace,         &  ! input: length of the spatial dimension
+                            ixStart,        &  ! output: vector of start indices
+                            ixCount,        &  ! output: vector defining number of elements in each reach
+                            dimLength,      &  ! output: dimension length
+                            ierr,message)      ! output: error control
  implicit none
- ! input variables
+ ! Argument variables
  integer(i4b)  , intent(in)                :: ncid           ! netCDF file id
  integer(i4b)  , intent(in)                :: ivarid         ! netCDF variable id
  integer(i4b)  , intent(in)                :: nSpace         ! length of the spatial dimension
- ! output variables
  integer(i4b)  , intent(out) , allocatable :: ixStart(:)     ! vector of start indices
  integer(i4b)  , intent(out) , allocatable :: ixCount(:)     ! vector defining number of elements in each reach
  integer(i4b)  , intent(out)               :: dimLength      ! dimension length
@@ -330,7 +312,7 @@ contains
  integer(i4b)                              :: nDims          ! number of dimensions in a variable
  integer(i4b)                              :: iStartID       ! ID for start of ragged array
  integer(i4b)                              :: iCountID       ! ID for count of ragged array
- ! initialize error control
+
  ierr=0; message='getSubetIndices/'
 
  ! get the variable type
@@ -380,6 +362,6 @@ contains
 
  endif
 
- end subroutine getSubetIndices
+ END SUBROUTINE getSubetIndices
 
-end module read_streamSeg
+END MODULE read_streamSeg

@@ -16,22 +16,22 @@ CONTAINS
 
  ! populate runoff_data with runoff values at LSM domain and at iTime step
 
-  USE public_var,  only:input_dir               ! directory containing input data
-  USE public_var,  only:fname_qsim              ! simulated runoff netCDF name
-  USE public_var,  only:is_remap                ! logical whether or not runnoff needs to be mapped to river network HRU
+  USE public_var,  ONLY: input_dir               ! directory containing input data
+  USE public_var,  ONLY: fname_qsim              ! simulated runoff netCDF name
+  USE public_var,  ONLY: is_remap                ! logical whether or not runnoff needs to be mapped to river network HRU
   USE public_var,  ONLY: qmodOption             !
   USE public_var,  ONLY: integerMissing         !
-  USE globalData,  only:iTime
-  USE globalData,  only:nHRU
-  USE globalData,  only:runoff_data             ! data structure to hru runoff data
-  USE globalData,  only:remap_data              ! data structure to remap data
+  USE globalData,  ONLY: iTime
+  USE globalData,  ONLY: nHRU
+  USE globalData,  ONLY: runoff_data             ! data structure to hru runoff data
+  USE globalData,  ONLY: remap_data              ! data structure to remap data
   USE globalData,  ONLY: modTime
   USE globalData,  ONLY: gage_obs_data
   USE globalData,  ONLY: rch_qtake_data
   USE globalData,  ONLY: RCHFLX
-  USE read_runoff, only:read_runoff_data        ! read runoff value into runoff_data data strucuture
-  USE remapping,   only:remap_runoff            ! mapping HM runoff to river network HRU runoff (HM_HRU /= RN_HRU)
-  USE remapping,   only:sort_runoff             ! mapping HM runoff to river network HRU runoff (HM_HRU == RN_HRU)
+  USE read_runoff, ONLY: read_runoff_data        ! read runoff value into runoff_data data strucuture
+  USE remapping,   ONLY: remap_runoff            ! mapping HM runoff to river network HRU runoff (HM_HRU /= RN_HRU)
+  USE remapping,   ONLY: sort_runoff             ! mapping HM runoff to river network HRU runoff (HM_HRU == RN_HRU)
 
   implicit none
   ! argument variables
