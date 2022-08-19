@@ -265,20 +265,24 @@ MODULE obs_data
       implicit none
       ! Argument variables
       class(gageObs),          intent(inout) :: this
-      integer(i4b),            intent(out)   :: ierr            ! error code
-      character(*),            intent(out)   :: message         ! error message
+      integer(i4b),            intent(out)   :: ierr                 ! error code
+      character(*),            intent(out)   :: message              ! error message
       integer(i4b), optional,  intent(in)    :: index_loc(:)
       ! local variables
-      integer(i4b)                           :: nSite           ! total number of sites
-      integer(i4b)                           :: nSite_read      ! number of sites read in
-      integer(i4b)                           :: ix
-      character(clen), allocatable           :: array_temp(:)
-      character(strLen)                      :: cmessage        ! error message of downwind routine
+      integer(i4b)                           :: nSite                ! total number of sites
+      integer(i4b)                           :: nSite_read           ! number of sites read in
+      integer(i4b)                           :: ix                   ! loop index
+      character(clen), allocatable           :: array_temp(:)        ! temporary array holding netcdf value
+      integer(i4b)                           :: iStart(2), nCount(2) ! netCDF start indices and # of elements
+      character(strLen)                      :: cmessage             ! error message of downwind routine
 
       ierr=0; message='read_site/'
 
       call get_nc_dim_len(this%ncid, this%dimName_loc, nSite, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      iStart = [1, 1]
+      nCount = [clen, nSite]
 
       if (present(index_loc)) then
         nSite_read = size(index_loc)
@@ -289,7 +293,7 @@ MODULE obs_data
         allocate(this%site(nSite_read), stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [this%site]'; return; endif
 
-        call get_nc(this%ncid, this%varName_loc, array_temp, [1,1], [clen, nSite], ierr, cmessage)
+        call get_nc(this%ncid, this%varName_loc, array_temp, iStart, nCount, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
         do ix=1,nSite_read
@@ -299,7 +303,7 @@ MODULE obs_data
         allocate(this%site(nSite), stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [this%site]'; return; endif
 
-        call get_nc(this%ncid, this%varName_loc, this%site, [1,1], [clen, nSite], ierr, cmessage)
+        call get_nc(this%ncid, this%varName_loc, this%site, iStart, nCount, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
 
@@ -449,14 +453,15 @@ MODULE obs_data
       integer(i4b), optional,  intent(in)    :: index_loc
       integer(i4b), optional,  intent(in)    :: index_time
       ! local variables
-      real(dp),    allocatable               :: array_temp(:,:)
-      integer(i4b)                           :: nLoc_read        ! number of sites read
-      integer(i4b)                           :: nTime_read       ! number of time read
-      integer(i4b)                           :: nTime            ! number of time
-      integer(i4b)                           :: nLoc             ! number of site
-      integer(i4b)                           :: ix_loc, ix_time  ! starting reading index
-      integer(i4b)                           :: ix,jx
-      character(len=strLen)                  :: cmessage         ! error message of downwind routine
+      real(dp),    allocatable               :: array_temp(:,:)      ! temporary array to hold netcdf value
+      integer(i4b)                           :: nLoc_read            ! number of sites read
+      integer(i4b)                           :: nTime_read           ! number of time read
+      integer(i4b)                           :: nTime                ! number of time
+      integer(i4b)                           :: nLoc                 ! number of site
+      integer(i4b)                           :: ix_loc, ix_time      ! starting reading index
+      integer(i4b)                           :: ix,jx                ! loop indices
+      integer(i4b)                           :: iStart(2), nCount(2) ! netCDF start indices and # of elements
+      character(len=strLen)                  :: cmessage             ! error message of downwind routine
 
       ierr=0; message='read_obs/'
 
@@ -483,7 +488,9 @@ MODULE obs_data
       allocate(array_temp(nLoc_read, nTime_read), stat=ierr, errmsg=cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [array_temp]'; return; endif
 
-      call get_nc(this%ncid, this%varName_obs, array_temp, [ix_loc, ix_time], [nLoc_read, nTime_read], ierr, cmessage)
+      iStart = [ix_loc, ix_time]
+      nCount = [nLoc_read, nTime_read]
+      call get_nc(this%ncid, this%varName_obs, array_temp, iStart, nCount, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       if (allocated(this%obs)) then
