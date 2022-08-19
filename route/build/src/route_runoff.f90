@@ -2,26 +2,26 @@
 !! mizuRoute stand-alone driver
 !!
 !! ======================================================================================================
-program route_runoff
+PROGRAM route_runoff
 
 ! ******
 ! provide access to external data, subroutines
 ! ****************************************************
-! variable types
+! numeric types
 USE nrtype                                       ! variable types, etc.
 ! subroutines: model set up
-USE model_setup,         only : init_model       ! model setupt - reading control file, populate metadata, read parameter file
-USE model_setup,         only : init_data        ! initialize river reach data
-USE model_setup,         only : update_time      ! Update simulation time information at each time step
+USE model_setup,         ONLY: init_model       ! model setupt - reading control file, populate metadata, read parameter file
+USE model_setup,         ONLY: init_data        ! initialize river reach data
+USE model_setup,         ONLY: update_time      ! Update simulation time information at each time step
 ! subroutines: routing
-USE main_route_module,   only : main_route       ! main routing routine
+USE main_route_module,   ONLY: main_route       ! main routing routine
 ! subroutines: model I/O
-USE get_runoff        ,  only : get_hru_runoff   !
-USE write_simoutput,     only : prep_output      !
-USE write_simoutput,     only : output           !
-USE write_restart,       only : main_restart     ! write netcdf restart file
-USE model_finalize,      ONLY : finalize
-USE model_finalize,      ONLY : handle_err
+USE get_runoff        ,  ONLY: get_hru_runoff   !
+USE write_simoutput,     ONLY: prep_output      !
+USE write_simoutput,     ONLY: output           !
+USE write_restart,       ONLY: main_restart     ! write netcdf restart file
+USE model_finalize,      ONLY: finalize
+USE model_finalize,      ONLY: handle_err
 
 implicit none
 
@@ -104,4 +104,4 @@ end do
 
 call finalize()
 
-end program route_runoff
+END PROGRAM route_runoff

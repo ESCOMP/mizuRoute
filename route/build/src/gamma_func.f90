@@ -1,19 +1,22 @@
-module gamma_func_module
+MODULE gamma_func_module
+
 USE nrtype
-USE nr_utility_module,only:arth
-! contains functions that should really be part of the fortran standard, but are not
+USE nr_utility_module, ONLY: arth
+
 implicit none
+
 private
 public::gammp
-contains
+
+CONTAINS
 
  ! ******************************************************************************************************************************
  ! public function gammp: compute cumulative probability using the Gamma distribution
  ! ******************************************************************************************************************************
  FUNCTION gammp(a,x)
- IMPLICIT NONE
- REAL(DP), INTENT(IN) :: a,x
- REAL(DP) :: gammp
+ implicit none
+ real(dp), intent(in) :: a,x
+ real(dp) :: gammp
  if (x<a+1.0_dp) then
   gammp=gser(a,x)
  else
@@ -25,14 +28,14 @@ contains
  ! private function gser: series development of the incomplete Gamma function
  ! ******************************************************************************************************************************
  FUNCTION gser(a,x,gln)
- IMPLICIT NONE
- REAL(DP), INTENT(IN) :: a,x
- REAL(DP), OPTIONAL, INTENT(OUT) :: gln
- REAL(DP) :: gser
- INTEGER(I4B), PARAMETER :: ITMAX=100
- REAL(DP), PARAMETER :: EPS=epsilon(x)
- INTEGER(I4B) :: n
- REAL(DP) :: ap,del,summ
+ implicit none
+ real(dp), intent(in) :: a,x
+ real(dp), optional, intent(out) :: gln
+ real(dp) :: gser
+ integer(i4b), parameter :: ITMAX=100
+ real(dp), parameter :: EPS=epsilon(x)
+ integer(i4b) :: n
+ real(dp) :: ap,del,summ
  if (x == 0.0) then
   gser=0.0
   RETURN
@@ -59,14 +62,14 @@ contains
  ! private function gcf: continued fraction development of the incomplete Gamma function
  ! ******************************************************************************************************************************
  FUNCTION gcf(a,x,gln)
- IMPLICIT NONE
- REAL(DP), INTENT(IN) :: a,x
- REAL(DP), OPTIONAL, INTENT(OUT) :: gln
- REAL(DP) :: gcf
- INTEGER(I4B), PARAMETER :: ITMAX=100
- REAL(DP), PARAMETER :: EPS=epsilon(x),FPMIN=tiny(x)/EPS
- INTEGER(I4B) :: i
- REAL(DP) :: an,b,c,d,del,h
+ implicit none
+ real(dp), intent(in) :: a,x
+ real(dp), optional, intent(out) :: gln
+ real(dp) :: gcf
+ integer(i4b), parameter :: ITMAX=100
+ real(dp), parameter :: EPS=epsilon(x),FPMIN=tiny(x)/EPS
+ integer(i4b) :: i
+ real(dp) :: an,b,c,d,del,h
  if (x == 0.0) then
   gcf=1.0
   RETURN
@@ -100,12 +103,12 @@ contains
  ! private function gammln: gamma function
  ! ******************************************************************************************************************************
  FUNCTION gammln(xx)
- IMPLICIT NONE
- REAL(DP), INTENT(IN) :: xx
- REAL(DP) :: gammln
- REAL(DP) :: tmp,x
- REAL(DP) :: stp = 2.5066282746310005_dp
- REAL(DP), DIMENSION(6) :: coef = (/76.18009172947146_dp,&
+ implicit none
+ real(dp), intent(in) :: xx
+ real(dp) :: gammln
+ real(dp) :: tmp,x
+ real(dp) :: stp = 2.5066282746310005_dp
+ real(dp), dimension(6) :: coef = (/76.18009172947146_dp,&
   -86.50532032941677_dp,24.01409824083091_dp,&
   -1.231739572450155_dp,0.1208650973866179e-2_dp,&
   -0.5395239384953e-5_dp/)
@@ -117,4 +120,4 @@ contains
   sum(coef(:)/arth(x+1.0_dp,1.0_dp,size(coef))))/x)
  END FUNCTION gammln
 
-end module gamma_func_module
+END MODULE gamma_func_module

@@ -59,21 +59,21 @@ USE var_lookup, only : ixBasinQ                   ! index of variables for data 
 
 implicit none
 
-! privacy
 private
 public::popMetadat
-contains
 
- subroutine popMetadat(err,message)
+CONTAINS
+
+ SUBROUTINE popMetadat(err,message)
+
  implicit none
- ! dummy variables
+ ! Argument variables
  integer(i4b),intent(out)       :: err           ! error code
  character(*),intent(out)       :: message       ! error message
- ! initialize error control
+
  err=0; message='popMetadat/'
 
  ! ---------- define data structures -----------------------------------------------------------------------------------------------------------
-
  ! structure index                            name      variable type    length of spatial dimension, number of variables
  meta_struct(ixStruct%HRU    ) = struct_info('HRU',     varType_double,    integerMissing,              nVarsHRU)
  meta_struct(ixStruct%HRU2SEG) = struct_info('HRU2SEG', varType_integer,   integerMissing,              nVarsHRU2SEG)
@@ -82,7 +82,6 @@ contains
  meta_struct(ixStruct%PFAF  )  = struct_info('PFAF',    varType_character, integerMissing,              nVarsPFAF)
 
  ! ---------- define variable dimensions -------------------------------------------------------------------------------------------------------
-
  ! structure index                         name     dimension id   dimension length
  meta_dims  (ixDims%hru      ) = dim_info('hru',   integerMissing, integerMissing)  ! hru vector
  meta_dims  (ixDims%seg      ) = dim_info('seg',   integerMissing, integerMissing)  ! stream segment vector
@@ -107,8 +106,8 @@ contains
  meta_qDims(ixQdims%seg     ) = dim_info('seg',     integerMissing, integerMissing)   ! stream segment vector
  meta_qDims(ixQdims%hru     ) = dim_info('hru',     integerMissing, integerMissing)   ! hru vector
  meta_qDims(ixQdims%ens     ) = dim_info('ens',     integerMissing, integerMissing)   ! ensemble
- ! ---------- populate metadata structures -----------------------------------------------------------------------------------------------------
 
+ ! ---------- populate metadata structures -----------------------------------------------------------------------------------------------------
  ! HRU                                          varName         varDesc                                                varUnit, varType, varFile
  meta_HRU    (ixHRU%area)              = var_info('area'           ,'basin area'                                         ,'m2'    ,ixDims%hru   , .true.)
 
@@ -198,6 +197,6 @@ contains
  ! reach inflow from basin
  call meta_basinQ(ixBasinQ%q)%init('basin_q', 'inflow into reach from hru', 'm3/sec' ,nf90_double, [ixStateDims%seg,ixStateDims%ens], .true.)
 
- end subroutine popMetadat
+ END SUBROUTINE popMetadat
 
-end module popMetadat_module
+END MODULE popMetadat_module

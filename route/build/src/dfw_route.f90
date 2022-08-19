@@ -17,10 +17,9 @@ USE globalData,  ONLY: idxDW
 ! subroutines: general
 USE model_finalize, ONLY : handle_err
 
-! privary
 implicit none
-private
 
+private
 public::dfw_route
 
 CONTAINS
@@ -40,21 +39,18 @@ CONTAINS
                       ixSubRch)               ! optional input: subset of reach indices to be processed
 
    implicit none
-   ! Input
+   ! Argument variables
    integer(i4b),       intent(in)                 :: iEns                 ! ensemble member
    type(subbasin_omp), intent(in),    allocatable :: river_basin(:)       ! river basin information (mainstem, tributary outlet etc.)
    real(dp),           intent(in)                 :: T0,T1                ! start and end of the time step (seconds)
    integer(i4b),       intent(in)                 :: ixDesire             ! index of the reach for verbose output
    type(RCHTOPO),      intent(in),    allocatable :: NETOPO_in(:)         ! River Network topology
    type(RCHPRP),       intent(in),    allocatable :: RPARAM_in(:)         ! River reach parameter
-   ! inout
-   type(STRSTA),       intent(inout), allocatable :: RCHSTA_out(:,:)      ! reach state data
-   type(STRFLX),       intent(inout), allocatable :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
-   ! output variables
+   type(STRSTA),       intent(inout)              :: RCHSTA_out(:,:)      ! reach state data
+   type(STRFLX),       intent(inout)              :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
    integer(i4b),       intent(out)                :: ierr                 ! error code
    character(*),       intent(out)                :: message              ! error message
-   ! input (optional)
-   integer(i4b),       intent(in), optional       :: ixSubRch(:)          ! subset of reach indices to be processed
+   integer(i4b),       intent(in),    optional    :: ixSubRch(:)          ! subset of reach indices to be processed
    ! local variables
    character(len=strLen)                          :: cmessage             ! error message for downwind routine
    logical(lgt),                      allocatable :: doRoute(:)           ! logical to indicate which reaches are processed
@@ -66,7 +62,6 @@ CONTAINS
    integer(i4b)                                   :: iTrib                ! loop indices - branch
    integer(i4b)                                   :: ix                   ! loop indices stream order
 
-   ! initialize error control
    ierr=0; message='dfw_route/'
 
    ! number of reach check
@@ -89,7 +84,6 @@ CONTAINS
 
    do ix = 1, nOrder
 
-   ! route diffusive waves through the river network
      nTrib=size(river_basin(ix)%branch)
 
 !$OMP PARALLEL DO schedule(dynamic,1)                   & ! chunk size of 1
@@ -141,8 +135,7 @@ CONTAINS
                     ierr, message)    ! output: error control
 
  implicit none
-
- ! Input
+ ! Argument variables
  integer(i4b),  intent(in)                 :: iEns              ! runoff ensemble to be routed
  integer(i4b),  intent(in)                 :: segIndex          ! segment where routing is performed
  integer(i4b),  intent(in)                 :: ixDesire          ! index of the reach for verbose output
@@ -150,13 +143,11 @@ CONTAINS
  integer(i4b),  intent(in)                 :: LAKEFLAG          ! >0 if processing lakes
  type(RCHTOPO), intent(in),    allocatable :: NETOPO_in(:)      ! River Network topology
  type(RCHPRP),  intent(in),    allocatable :: RPARAM_in(:)      ! River reach parameter
- ! inout
- type(STRSTA),  intent(inout), allocatable :: RCHSTA_out(:,:)   ! reach state data
- type(STRFLX),  intent(inout), allocatable :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
- ! Output
+ type(STRSTA),  intent(inout)              :: RCHSTA_out(:,:)   ! reach state data
+ type(STRFLX),  intent(inout)              :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  integer(i4b),  intent(out)                :: ierr              ! error code
  character(*),  intent(out)                :: message           ! error message
- ! Local variables to
+ ! Local variables
  logical(lgt)                              :: doCheck           ! check details of variables
  logical(lgt)                              :: isHW              ! headwater basin?
  integer(i4b)                              :: nUps              ! number of upstream segment
@@ -215,7 +206,7 @@ CONTAINS
  endif
 
  if(doCheck)then
-  write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_Q
+   write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_Q
  endif
 
  END SUBROUTINE dfw_rch
@@ -261,18 +252,16 @@ CONTAINS
  ! ----------------------------------------------------------------------------------------
  USE globalData, ONLY : nMolecule   ! number of internal nodes for finite difference (including upstream and downstream boundaries)
  implicit none
- ! Input
+ ! Argument variables
  type(RCHPRP), intent(in)        :: rch_param      ! River reach parameter
  real(dp),     intent(in)        :: T0,T1          ! start and end of the time step (seconds)
  real(dp),     intent(in)        :: q_upstream     ! total discharge at top of the reach being processed
  real(dp),     intent(in)        :: Qtake          ! abstraction(-)/injection(+) [m3/s]
  real(dp),     intent(in)        :: Qmin           ! minimum environmental flow [m3/s]
  logical(lgt), intent(in)        :: isHW           ! is this headwater basin?
- logical(lgt), intent(in)        :: doCheck        ! reach index to be examined
- ! Input/Output
- type(dwRCH),  intent(inout)     :: rstate         ! curent reach states
+ type(dwRch),  intent(inout)     :: rstate         ! curent reach states
  type(STRFLX), intent(inout)     :: rflux          ! current Reach fluxes
- ! Output
+ logical(lgt), intent(in)        :: doCheck        ! reach index to be examined
  integer(i4b), intent(out)       :: ierr           ! error code
  character(*), intent(out)       :: message        ! error message
  ! Local variables
@@ -291,6 +280,7 @@ CONTAINS
  real(dp), allocatable           :: diagonal(:,:)  ! diagonal part of matrix
  real(dp), allocatable           :: b(:)           ! right-hand side of the matrix equation
  real(dp), allocatable           :: Qlocal(:,:)    ! sub-reach & sub-time step discharge at previous and current time step [m3/s]
+ real(dp), allocatable           :: Qsolved(:)     ! solved Q at sub-reach at current time step [m3/s]
  real(dp), allocatable           :: Qprev(:)       ! sub-reach discharge at previous time step [m3/s]
  real(dp)                        :: dTsub          ! time inteval for sub time-step [sec]
  real(dp)                        :: wck            ! weight for advection
@@ -361,15 +351,19 @@ CONTAINS
      write(iulog,'(A,X,I3,A,X,G12.5)') ' No. sub timestep=',nTsub,' sub time-step [sec]=',dTsub
    end if
 
-   allocate(Qlocal(0:1, 1:nMolecule%DW_ROUTE), stat=ierr, errmsg=cmessage)
+   allocate(Qlocal(1:nMolecule%DW_ROUTE, 0:1), stat=ierr, errmsg=cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   Qlocal(0:1,:) = realMissing
-   Qlocal(0,1:nMolecule%DW_ROUTE) = Qprev ! previous time step
+
+   allocate(Qsolved(1:nMolecule%DW_ROUTE), stat=ierr, errmsg=cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   Qlocal(:,0:1) = realMissing
+   Qlocal(1:nMolecule%DW_ROUTE, 0) = Qprev ! previous time step
    Qlocal(1,1)  = QupMod     ! infllow at sub-time step in current time step
 
    do it = 1, nTsub
 
-     Qbar = (Qlocal(1,1)+Qlocal(0,1)+Qlocal(0,nMolecule%DW_ROUTE))/3.0 ! 3 point average discharge [m3/s]
+     Qbar = (Qlocal(1,1)+Qlocal(1,0)+Qlocal(nMolecule%DW_ROUTE,0))/3.0 ! 3 point average discharge [m3/s]
      Abar = (abs(Qbar)/alpha)**(1/beta)                            ! flow area [m2] (manning equation)
      Vbar = 0._dp
      if (Abar>0._dp) Vbar = Qbar/Abar                     ! average velocity [m/s]
@@ -408,29 +402,30 @@ CONTAINS
      b(1)             = Qlocal(1,1)
      ! downstream boundary condition
      if (downstreamBC == absorbingBC) then
-       b(nMolecule%DW_ROUTE)     = (1._dp-(1._dp-wck)*Ca)*Qlocal(0,nMolecule%DW_ROUTE) + (1-wck)*Ca*Qlocal(0,nMolecule%DW_ROUTE-1)
+       b(nMolecule%DW_ROUTE) = (1._dp-(1._dp-wck)*Ca)*Qlocal(nMolecule%DW_ROUTE,0) + (1-wck)*Ca*Qlocal(nMolecule%DW_ROUTE-1,0)
      else if (downstreamBC == neumannBC) then
-       Sbc = (Qlocal(0,nMolecule%DW_ROUTE)-Qlocal(0, nMolecule%DW_ROUTE-1))
-       b(nMolecule%DW_ROUTE)     = Sbc
+       Sbc = (Qlocal(nMolecule%DW_ROUTE,0)-Qlocal(nMolecule%DW_ROUTE-1,0))
+       b(nMolecule%DW_ROUTE)     = 0*Sbc
      end if
      ! internal node points
-     b(2:nMolecule%DW_ROUTE-1) = ((1._dp-wck)*Ca+2._dp*(1._dp-wdk))*Cd*Qlocal(0,1:nMolecule%DW_ROUTE-2)  &
-                      + (2._dp-4._dp*(1._dp-wdk)*Cd)*Qlocal(0,2:nMolecule%DW_ROUTE-1)           &
-                      - ((1._dp-wck)*Ca - (1._dp-wdk)*Cd)*Qlocal(0,3:nMolecule%DW_ROUTE)
+     b(2:nMolecule%DW_ROUTE-1) = ((1._dp-wck)*Ca+2._dp*(1._dp-wdk))*Cd*Qlocal(1:nMolecule%DW_ROUTE-2,0)  &
+                      + (2._dp-4._dp*(1._dp-wdk)*Cd)*Qlocal(2:nMolecule%DW_ROUTE-1,0)           &
+                      - ((1._dp-wck)*Ca - (1._dp-wdk)*Cd)*Qlocal(3:nMolecule%DW_ROUTE,0)
 
      ! solve matrix equation - get updated Qlocal
-     call TDMA(nMolecule%DW_ROUTE, diagonal, b, Qlocal(1,:))
+     call TDMA(nMolecule%DW_ROUTE, diagonal, b, Qsolved)
 
      if (doCheck) then
        write(fmt1,'(A,I5,A)') '(A,1X',nMolecule%DW_ROUTE,'(1X,G15.4))'
        write(iulog,fmt1) ' Q sub_reqch=', (Qlocal(1,ix), ix=1,nMolecule%DW_ROUTE)
      end if
 
-     Qlocal(0,:) = Qlocal(1,:)
+     Qlocal(:,1) = Qsolved
+     Qlocal(:,0) = Qlocal(:,1)
    end do
 
    ! store final outflow in data structure
-   rflux%ROUTE(idxDW)%REACH_Q = Qlocal(1, nMolecule%DW_ROUTE) + rflux%BASIN_QR(1)
+   rflux%ROUTE(idxDW)%REACH_Q = Qlocal(nMolecule%DW_ROUTE,1) + rflux%BASIN_QR(1)
 
    if (doCheck) then
      write(fmt1,'(A,I5,A)') '(A,1X',nMolecule%DW_ROUTE,'(1X,G15.4))'
@@ -446,10 +441,10 @@ CONTAINS
 
    ! compute volume
    rflux%ROUTE(idxDW)%REACH_VOL(0) = rflux%ROUTE(idxDW)%REACH_VOL(1)
-   rflux%ROUTE(idxDW)%REACH_VOL(1) = rflux%ROUTE(idxDW)%REACH_VOL(0) + (Qlocal(1,1) - Qlocal(1,nMolecule%DW_ROUTE))*dt
+   rflux%ROUTE(idxDW)%REACH_VOL(1) = rflux%ROUTE(idxDW)%REACH_VOL(0) + (Qlocal(1,1) - Qlocal(nMolecule%DW_ROUTE,1))*dt
 
    ! update state
-   rstate%molecule%Q = Qlocal(1,:)
+   rstate%molecule%Q = Qlocal(:,1)
 
  else ! if head-water
 
@@ -459,7 +454,7 @@ CONTAINS
    rflux%ROUTE(idxDW)%REACH_VOL(1) = 0._dp
 
    rstate%molecule%Q(1:nMolecule%DW_ROUTE) = 0._dp
-   rstate%molecule%Q(nMolecule%DW_ROUTE) = rflux%ROUTE(idxDW)%REACH_Q
+   rstate%molecule%Q(nMolecule%DW_ROUTE)   = rflux%ROUTE(idxDW)%REACH_Q
 
    if (doCheck) then
      write(iulog,'(A)')            ' This is headwater '
@@ -512,14 +507,13 @@ CONTAINS
  ! MAT(:,2) = [d, d, d, d, d]
  ! MAT(:,3) = [l, l, l, l, 0]
 
-   IMPLICIT NONE
-   ! Input
+   implicit none
+   ! Argument variables
    integer(i4b),  intent(in)     :: NX     ! number of unknown (= number of matrix size, grid point minus two end points)
    real(dp),      intent(in)     :: MAT(NX,3)
    real(dp),      intent(in)     :: b(NX)
-   ! Output
    real(dp),      intent(inout)  :: T(NX)
-   ! Local
+   ! Local variables
    integer(i4b)                  :: ix
    real(dp)                      :: U(NX)
    real(dp)                      :: D(NX)

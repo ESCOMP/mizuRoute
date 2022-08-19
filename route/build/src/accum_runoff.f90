@@ -1,5 +1,7 @@
 MODULE accum_runoff_module
 
+! accumulate upstream flow
+
 USE nrtype
 ! data type
 USE dataTypes,      ONLY: STRFLX         ! fluxes in each reach
@@ -32,23 +34,21 @@ CONTAINS
  ! Purpose:
  !
  ! Accumulate all the upstream delayed runoff for each reach
- ! mostly for checking if routed runoff at each reach outlet preserve total upstream runoff.
+ ! This is not used as routed runoff.
+ ! Just for checking if routed runoff at each reach outlet preserve total upstream runoff.
  !
  ! ----------------------------------------------------------------------------------------
 
  implicit none
- ! input
- integer(i4b),       intent(in)                 :: iens            ! runoff ensemble index
- type(subbasin_omp), intent(in),    allocatable :: river_basin(:)  ! river basin information (mainstem, tributary outlet etc.)
- integer(i4b),       intent(in)                 :: ixDesire        ! index of the reach for verbose output
- type(RCHTOPO),      intent(in),    allocatable :: NETOPO_in(:)    ! River Network topology
- ! inout
- TYPE(STRFLX),       intent(inout), allocatable :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
- ! output
- integer(i4b),       intent(out)                :: ierr            ! error code
- character(*),       intent(out)                :: message         ! error message
- ! input (optional)
- integer(i4b),       intent(in),   optional     :: ixSubRch(:)     ! subset of reach indices to be processed
+ ! argument variables
+ integer(i4b),                    intent(in)    :: iens            ! runoff ensemble index
+ type(subbasin_omp), allocatable, intent(in)    :: river_basin(:)  ! river basin information (mainstem, tributary outlet etc.)
+ integer(i4b),                    intent(in)    :: ixDesire        ! index of the reach for verbose output
+ type(RCHTOPO),      allocatable, intent(in)    :: NETOPO_in(:)    ! River Network topology
+ type(STRFLX),                    intent(inout) :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+ integer(i4b),                    intent(out)   :: ierr            ! error code
+ character(*),                    intent(out)   :: message         ! error message
+ integer(i4b),       optional,    intent(in)    :: ixSubRch(:)     ! subset of reach indices to be processed
  ! local variables
  integer(i4b)                                   :: nSeg            ! number of segments in the network
  integer(i4b)                                   :: nTrib           ! number of tributaries
@@ -121,17 +121,15 @@ CONTAINS
                             RCHFLX_out, &    ! inout: reach flux data structure
                             ierr, message)   ! output: error control
  implicit none
- ! Input
+ ! argument variables
  integer(i4b), intent(in)                 :: iEns           ! runoff ensemble to be routed
  integer(i4b), intent(in)                 :: segIndex       ! segment where routing is performed
  integer(i4b), intent(in)                 :: ixDesire       ! index of the reach for verbose output
  type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)   ! River Network topology
- ! inout
- TYPE(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
- ! Output
+ type(STRFLX), intent(inout)              :: RCHFLX_out(:,:)! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  integer(i4b), intent(out)                :: ierr           ! error code
  character(*), intent(out)                :: message        ! error message
- ! Local variables to
+ ! Local variables
  real(dp)                                 :: q_upstream     ! upstream Reach fluxes
  integer(i4b)                             :: nUps           ! number of upstream segment
  integer(i4b)                             :: iUps           ! upstream reach index

@@ -5,7 +5,6 @@ USE nrtype
 implicit none
 
 private
-
 public::file_open
 public::split_line
 public::get_vlines
@@ -15,9 +14,9 @@ public::upper
 CONTAINS
 
  ! **********************************************************************************************
- ! new subroutine: get unused file unit (modified from DMSL)
+ ! public subroutine: get unused file unit (modified from DMSL)
  ! **********************************************************************************************
- subroutine getSpareUnit(unt,err,message)
+ SUBROUTINE getSpareUnit(unt,err,message)
  ! Purpose: returns un-used file unit
  ! Unit will be in the range 7->2.2billion (see comment below).
  ! Comment:
@@ -26,15 +25,17 @@ CONTAINS
  !   Preconnected units 5 (keyboard) and 6 (screen) can be re-connected
  !   to a different logical device but to avoid silly errors this is avoided
  !   in this procedure.
+
  implicit none
- ! dummies
+ ! Artument variables
  integer(i4b),intent(out)::unt
  integer(i4b),intent(out)::err
  character(*),intent(out)::message
- ! locals
+ ! local variables
  integer(i4b)::i
  logical(lgt)::opened,xist
  integer(i4b),parameter::minUnits=7,maxUnits=2147483639
+
  ! Start procedure here
  do i=minUnits,maxUnits
   inquire(unit=i,opened=opened,exist=xist) ! check unit status
@@ -47,25 +48,25 @@ CONTAINS
        "&(all 2.2billion-u've goda b jokin')"
   endif
  enddo
- endsubroutine getSpareUnit
-
+ END SUBROUTINE getSpareUnit
 
  ! **********************************************************************************************
- ! new subroutine: open file
+ ! public subroutine: open file
  ! **********************************************************************************************
- subroutine file_open(infile,unt,err,message)
+ SUBROUTINE file_open(infile,unt,err,message)
  implicit none
- ! declare dummy variables
+ ! Argument variables
  character(*),intent(in)              :: infile      ! filename
  integer(i4b),intent(out)             :: unt         ! file unit
  integer(i4b),intent(out)             :: err         ! error code
  character(*),intent(out)             :: message     ! error message
- ! declare local variables
+ ! Local variables
  logical(lgt)                         :: xist        ! .TRUE. if the file exists
  logical(lgt)                         :: xopn        ! .TRUE. if the file is already open
  character(len=256)                   :: cmessage    ! error message of downwind routine
- ! initialize errors
+
  err=0; message="f-file_open/"
+
  ! check if the file exists
  inquire(file=trim(infile),exist=xist)
  if(.not.xist)then
@@ -87,21 +88,20 @@ CONTAINS
    message=trim(message)//"OpenError['"//trim(infile)//"']"
    err=30; return
  endif
- end subroutine file_open
-
+ END SUBROUTINE file_open
 
  ! **********************************************************************************************
- ! new subroutine: split a line of characters into an vector of "words"
+ ! public subroutine: split a line of characters into an vector of "words"
  ! **********************************************************************************************
- subroutine split_line(inline,words,err,message)
+ SUBROUTINE split_line(inline,words,err,message)
  ! do not know how many "words", so use linked lists
  implicit none
- ! declare dummy arguments
+ ! Argument variables
  character(*),intent(in)              :: inline     ! line of characters
  character(*),intent(out),allocatable :: words(:) ! vector of "words"
  integer(i4b),intent(out)             :: err      ! error code
  character(*),intent(out)             :: message  ! error message
- ! declare local variables
+ ! local variables
  character(len=256)      :: temp                  ! temporary line of characters
  integer(i4b)            :: iword                 ! loop through words
  integer(i4b),parameter  :: maxWords=100          ! maximum number of words in a line
@@ -117,8 +117,9 @@ CONTAINS
  type(node),pointer      :: list=>null()
  type(node),pointer      :: current=>null()
  type(node),pointer      :: previous=>null()
- ! start procedure here
+
  err=0; message='split_line/'
+
  temp=inline  ! initialize string of characters
  i1=1         ! initialize the index at the start of the first word
  ! ***** loop through the character string
@@ -149,21 +150,20 @@ CONTAINS
   previous=>current; current=>current%next
   deallocate(previous)
  end do
- end subroutine split_line
-
+ END SUBROUTINE split_line
 
  ! **********************************************************************************************
- ! new subroutine: get valid lines of data from file and store as a vector of charater strings
+ ! public subroutine: get valid lines of data from file and store as a vector of charater strings
  ! **********************************************************************************************
- subroutine get_vlines(unt,vlines,err,message)
+ SUBROUTINE get_vlines(unt,vlines,err,message)
  ! do not know how many valid lines, so use linked lists
  implicit none
- ! declare dummy arguments
+ ! Argument variables
  integer(i4b),intent(in)              :: unt         ! file unit
  character(*),intent(out),allocatable :: vlines(:)   ! vector of character strings
  integer(i4b),intent(out)             :: err         ! error code
  character(*),intent(out)             :: message     ! error message
- ! declare local variables
+ ! Local variables
  integer(i4b)            :: iline                    ! loop through lines in the file
  integer(i4b),parameter  :: maxLines=1000            ! maximum number of valid lines in a file
  character(len=256)      :: temp                     ! character data or a given line
@@ -178,8 +178,9 @@ CONTAINS
  type(node),pointer      :: list=>null()
  type(node),pointer      :: current=>null()
  type(node),pointer      :: previous=>null()
- ! start procedure here
+
  err=0; message='get_vlines/'
+
  ! ***** get the valid lines of data from the file and store in linked lists *****
  icount=0  ! initialize the counter for the valid lines
  do iline=1,maxLines
@@ -208,10 +209,12 @@ CONTAINS
   deallocate(previous)
  end do
  if(associated(list)) nullify(list)
- end subroutine get_vlines
+ END SUBROUTINE get_vlines
 
-
-  FUNCTION upper(strIn) RESULT(strOut)
+  ! **********************************************************************************************
+  ! public function: output a string in upper case
+  ! **********************************************************************************************
+  pure FUNCTION upper(strIn) RESULT(strOut)
     ! convert string to upper-case
     ! only ASCII character code works
     implicit none
@@ -227,10 +230,11 @@ CONTAINS
       if (ch>='a' .and. ch<='z') ch = char(ichar(ch)+DUC)
       strOut(i:i) = ch
     end do
-
   END FUNCTION upper
 
-
+  ! **********************************************************************************************
+  ! public function: output a string in lower case
+  ! **********************************************************************************************
   pure FUNCTION lower(strIn) RESULT(strOut)
     ! convert string to lower-case
     ! only ASCII character code works
@@ -249,6 +253,5 @@ CONTAINS
     end do
 
   END FUNCTION lower
-
 
 END MODULE ascii_util_module

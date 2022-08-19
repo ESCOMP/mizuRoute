@@ -1,34 +1,34 @@
-module irf_route_module
+MODULE irf_route_module
 
-!numeric type
 USE nrtype
 ! data type
-USE dataTypes,          only : STRFLX         ! fluxes in each reach
-USE dataTypes,          only : RCHTOPO        ! Network topology
-USE dataTypes,          only : RCHPRP         ! Reach parameter
-USE dataTypes,          only : irfRCH         ! irf specific state data structure
+USE dataTypes, ONLY: STRFLX           ! fluxes in each reach
+USE dataTypes, ONLY: RCHTOPO          ! Network topology
+USE dataTypes, ONLY: RCHPRP           ! Reach parameter
+USE dataTypes, ONLY: irfRCH           ! irf specific state data structure
+ USE dataTypes,ONLY: subbasin_omp     ! mainstem+tributary data structures
 ! global parameters
-USE public_var,         only : realMissing    ! missing value for real number
-USE public_var,         only : integerMissing ! missing value for integer number
-USE public_var,         ONLY : dt             ! routing time step duration [sec]
-USE public_var,         ONLY : qmodOption     ! qmod option (use 1==direct insertion)
-USE globalData,         only : nThreads       ! number of threads used for openMP
-USE globalData,         only : idxIRF         ! index of IRF method
+USE public_var, ONLY: iulog           ! i/o logical unit number
+USE public_var, ONLY: realMissing     ! missing value for real number
+USE public_var, ONLY: integerMissing  ! missing value for integer number
+USE public_var, ONLY: dt              ! routing time step duration [sec]
+USE public_var, ONLY: qmodOption      ! qmod option (use 1==direct insertion)
+USE globalData, ONLY: nThreads        ! number of threads used for openMP
+USE globalData, ONLY: idxIRF          ! index of IRF method
 ! subroutines: general
 USE model_finalize, ONLY : handle_err
 
 implicit none
 
 private
-
 public::irf_route
 
-contains
+CONTAINS
 
  ! *********************************************************************
  ! subroutine: perform network UH routing
  ! *********************************************************************
- subroutine irf_route(iEns,          &  ! input: index of runoff ensemble to be processed
+ SUBROUTINE irf_route(iEns,          &  ! input: index of runoff ensemble to be processed
                       river_basin,   &  ! input: river basin information (mainstem, tributary outlet etc.)
                       ixDesire,      &  ! input: reachID to be checked by on-screen pringing
                       NETOPO_in,     &  ! input: reach topology data structure
@@ -37,22 +37,17 @@ contains
                       ierr, message, &  ! output: error control
                       ixSubRch)         ! optional input: subset of reach indices to be processed
 
- USE dataTypes,      ONLY : subbasin_omp   ! mainstem+tributary data structures
-
  implicit none
- ! Input
+ ! argument variables
  integer(i4b),       intent(in)                  :: iEns                ! runoff ensemble to be routed
  type(subbasin_omp), intent(in),    allocatable  :: river_basin(:)      ! river basin information (mainstem, tributary outlet etc.)
  integer(i4b),       intent(in)                  :: ixDesire            ! index of the reach for verbose output ! Output
  type(RCHTOPO),      intent(in),    allocatable  :: NETOPO_in(:)        ! River Network topology
  type(RCHPRP),       intent(in),    allocatable  :: RPARAM_in(:)        ! River reach parameter
- ! inout
- TYPE(STRFLX),       intent(inout), allocatable  :: RCHFLX_out(:,:)     ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
- ! output variables
+ TYPE(STRFLX),       intent(inout)               :: RCHFLX_out(:,:)     ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  integer(i4b),       intent(out)                 :: ierr                ! error code
  character(*),       intent(out)                 :: message             ! error message
- ! input (optional)
- integer(i4b),       intent(in), optional        :: ixSubRch(:)         ! subset of reach indices to be processed
+ integer(i4b),       intent(in),    optional     :: ixSubRch(:)         ! subset of reach indices to be processed
  ! Local variables
  character(len=strLen)                           :: cmessage            ! error message from subroutine
  logical(lgt),                      allocatable  :: doRoute(:)          ! logical to indicate which reaches are processed
@@ -76,7 +71,7 @@ contains
   ierr=20; message=trim(message)//'sizes of NETOPO and RCHFLX mismatch'; return
  endif
 
- nSeg = size(NETOPO_in)
+ nSeg = size(RCHFLX_out(iens,:))
 
  allocate(doRoute(nSeg), stat=ierr)
 
@@ -120,7 +115,7 @@ contains
      seg:do iSeg=1,river_basin(ix)%branch(iTrib)%nRch
        jSeg = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
        if (.not. doRoute(jSeg)) cycle
-       call segment_irf(iEns, jSeg, ixDesire, NETOPO_IN, RPARAM_in, RCHFLX_out, ierr, cmessage)
+       call irf_rch(iEns, jSeg, ixDesire, NETOPO_IN, RPARAM_in, RCHFLX_out, ierr, cmessage)
        if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
      end do seg
 !    call system_clock(openMPend(iTrib))
@@ -139,35 +134,28 @@ contains
 
  end subroutine irf_route
 
-
  ! *********************************************************************
  ! subroutine: perform one segment route UH routing
  ! *********************************************************************
- subroutine segment_irf(&
-                        ! input
-                        iEns,       &    ! input: index of runoff ensemble to be processed
-                        segIndex,   &    ! input: index of runoff ensemble to be processed
-                        ixDesire,   &    ! input: reachID to be checked by on-screen pringing
-                        NETOPO_in,  &    ! input: reach topology data structure
-                        RPARAM_in,  &    ! input: reach parameter data structure
-                        ! inout
-                        RCHFLX_out, &    ! inout: reach flux data structure
-                        ! output
-                        ierr, message)   ! output: error control
+ SUBROUTINE irf_rch(iEns,         & ! input: index of runoff ensemble to be processed
+                    segIndex,     & ! input: index of runoff ensemble to be processed
+                    ixDesire,     & ! input: reachID to be checked by on-screen pringing
+                    NETOPO_in,    & ! input: reach topology data structure
+                    RPARAM_in,    & ! input: reach parameter data structure
+                    RCHFLX_out,   & ! inout: reach flux data structure
+                    ierr, message)  ! output: error control
 
  implicit none
- ! Input
+ ! Argument variables
  integer(i4b), intent(in)                 :: iEns           ! runoff ensemble to be routed
  integer(i4b), intent(in)                 :: segIndex       ! segment where routing is performed
  integer(i4b), intent(in)                 :: ixDesire       ! index of the reach for verbose output
  type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)   ! River Network topology
  type(RCHPRP), intent(in),    allocatable :: RPARAM_in(:)   ! River reach parameter
- ! inout
- type(STRFLX), intent(inout), allocatable :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
- ! Output
+ type(STRFLX), intent(inout)              :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  integer(i4b), intent(out)                :: ierr           ! error code
  character(*), intent(out)                :: message        ! error message
- ! Local variables to
+ ! Local variables
  real(dp)                                 :: q_upstream     ! total discharge at top of the reach being processed
  real(dp)                                 :: WB_error       ! water balance error [m3/s]
  integer(i4b)                             :: nUps           ! number of upstream segment
@@ -236,13 +224,13 @@ contains
     write(*,'(a,x,G15.4)')     ' WB error   =', WB_error
   endif
 
- end subroutine segment_irf
+ END SUBROUTINE irf_rch
 
 
  ! *********************************************************************
  ! subroutine: Compute delayed runoff from the upstream segments
  ! *********************************************************************
- subroutine conv_upsbas_qr(reach_uh,   &    ! input: reach unit hydrograph
+ SUBROUTINE conv_upsbas_qr(reach_uh,   &    ! input: reach unit hydrograph
                            q_upstream, &    ! input:
                            rflux,      &    ! input: input flux at reach
                            Qtake,      &    ! input: abstraction(-)/injection(+) [m3/s]
@@ -253,22 +241,20 @@ contains
  ! ----------------------------------------------------------------------------------------
 
  implicit none
- ! Input
+ ! Argument variables
  real(dp),     intent(in)               :: reach_uh(:)  ! reach unit hydrograph
  real(dp),     intent(in)               :: q_upstream   ! total discharge at top of the reach being processed
  real(dp),     intent(in)               :: Qtake        ! abstraction(-)/injection(+) [m3/s]
  real(dp),     intent(in)               :: Qmin         ! minimum environmental flow [m3/s]
- ! inout
  type(STRFLX), intent(inout)            :: rflux        ! current Reach fluxes
- ! Output
  integer(i4b), intent(out)              :: ierr         ! error code
  character(*), intent(out)              :: message      ! error message
- ! Local variables to
+ ! Local variables
  real(dp)                               :: QupMod       ! modified total discharge at top of the reach being processed
  real(dp)                               :: Qabs         ! maximum allowable water abstraction rate [m3/s]
  real(dp)                               :: Qmod         ! abstraction rate to be taken from outlet discharge [m3/s]
- integer(i4b)                           :: ntdh         ! number of UH data (i.e., number of future time step
- integer(i4b)                           :: itdh         ! index of UH data
+ integer(i4b)                           :: nTDH         ! number of UH data (i.e., number of future time step
+ integer(i4b)                           :: iTDH         ! index of UH data
 
  ierr=0; message='conv_upsbas_qr/'
 
@@ -279,9 +265,10 @@ contains
  end if
 
  ! place a fraction of runoff in future time steps
- ntdh = size(reach_uh) ! number of future time steps of UH for a given segment
- do itdh=1,ntdh
-   rflux%QFUTURE_IRF(itdh) = rflux%QFUTURE_IRF(itdh)+ reach_uh(itdh)*QupMod
+ nTDH = size(reach_uh) ! identify the number of future time steps of UH for a given segment
+ do iTDH=1,nTDH
+   rflux%QFUTURE_IRF(iTDH) = rflux%QFUTURE_IRF(iTDH) &
+                             + reach_uh(iTDH)*QupMod
  enddo
 
  ! compute volume in reach
@@ -308,6 +295,6 @@ contains
 
  rflux%QFUTURE_IRF(ntdh) = 0._dp
 
- end subroutine conv_upsbas_qr
+ END SUBROUTINE conv_upsbas_qr
 
-end module irf_route_module
+END MODULE irf_route_module

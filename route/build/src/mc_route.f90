@@ -19,13 +19,12 @@ USE globalData,  ONLY: idxMC             ! index of IRF method
 ! subroutines: general
 USE model_finalize, ONLY : handle_err
 
-! privary
 implicit none
-private
 
+private
 public::mc_route
 
-contains
+CONTAINS
 
  ! *********************************************************************
  ! subroutine: perform muskingum-cunge routing through the river network
@@ -42,21 +41,17 @@ contains
                      ixSubRch)               ! optional input: subset of reach indices to be processed
 
    implicit none
-
-   ! Input
+   ! Argument variables
    integer(i4b),       intent(in)                 :: iEns                 ! ensemble member
    type(subbasin_omp), intent(in),    allocatable :: river_basin(:)       ! river basin information (mainstem, tributary outlet etc.)
    real(dp),           intent(in)                 :: T0,T1                ! start and end of the time step (seconds)
    integer(i4b),       intent(in)                 :: ixDesire             ! index of the reach for verbose output
    type(RCHTOPO),      intent(in),    allocatable :: NETOPO_in(:)         ! River Network topology
    type(RCHPRP),       intent(in),    allocatable :: RPARAM_in(:)         ! River reach parameter
-   ! inout
-   type(STRSTA),       intent(inout), allocatable :: RCHSTA_out(:,:)      ! reach state data
-   type(STRFLX),       intent(inout), allocatable :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
-   ! output variables
+   type(STRSTA),       intent(inout)              :: RCHSTA_out(:,:)      ! reach state data
+   type(STRFLX),       intent(inout)              :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
    integer(i4b),       intent(out)                :: ierr                 ! error code
    character(*),       intent(out)                :: message              ! error message
-   ! input (optional)
    integer(i4b),       intent(in), optional       :: ixSubRch(:)          ! subset of reach indices to be processed
    ! local variables
    character(len=strLen)                          :: cmessage             ! error message for downwind routine
@@ -142,8 +137,7 @@ contains
                    ierr, message)    ! output: error control
 
  implicit none
-
- ! Input
+ ! Argument variables
  integer(i4b),  intent(in)                 :: iEns              ! runoff ensemble to be routed
  integer(i4b),  intent(in)                 :: segIndex          ! segment where routing is performed
  integer(i4b),  intent(in)                 :: ixDesire          ! index of the reach for verbose output
@@ -151,13 +145,11 @@ contains
  integer(i4b),  intent(in)                 :: LAKEFLAG          ! >0 if processing lakes
  type(RCHTOPO), intent(in),    allocatable :: NETOPO_in(:)      ! River Network topology
  type(RCHPRP),  intent(in),    allocatable :: RPARAM_in(:)      ! River reach parameter
- ! inout
- type(STRSTA),  intent(inout), allocatable :: RCHSTA_out(:,:)   ! reach state data
- type(STRFLX),  intent(inout), allocatable :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
- ! Output
+ type(STRSTA),  intent(inout)              :: RCHSTA_out(:,:)   ! reach state data
+ type(STRFLX),  intent(inout)              :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  integer(i4b),  intent(out)                :: ierr              ! error code
  character(*),  intent(out)                :: message           ! error message
- ! Local variables to
+ ! Local variables
  logical(lgt)                              :: doCheck           ! check details of variables
  logical(lgt)                              :: isHW              ! headwater basin?
  integer(i4b)                              :: nUps              ! number of upstream segment
@@ -211,16 +203,14 @@ contains
                       doCheck,                            & ! input: reach index to be examined
                       ierr, cmessage)                       ! output: error control
  if(ierr/=0)then
-    write(message, '(A,X,I10,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage)
-    return
+   write(message, '(A,X,I10,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage); return
  endif
 
  if(doCheck)then
-  write(iulog,'(A,X,G12.5)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_Q
+   write(iulog,'(A,X,G12.5)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_Q
  endif
 
  END SUBROUTINE mc_rch
-
 
  ! *********************************************************************
  ! subroutine: solve muskingum equation
@@ -249,22 +239,20 @@ contains
  ! (time:0:1, loc:0:1) 0-previous time step/inlet, 1-current time step/outlet.
  ! Q or A(1,2,3,4): 1: (t=0,x=0), 2: (t=0,x=1), 3: (t=1,x=0), 4: (t=1,x=1)
 
- IMPLICIT NONE
- ! Input
+ implicit none
+ ! Argument variables
  type(RCHPRP), intent(in)                 :: rch_param    ! River reach parameter
  real(dp),     intent(in)                 :: T0,T1        ! start and end of the time step (seconds)
  real(dp),     intent(in)                 :: q_upstream   ! total discharge at top of the reach being processed
  real(dp),     intent(in)                 :: Qtake        ! abstraction(-)/injection(+) [m3/s]
  real(dp),     intent(in)                 :: Qmin         ! minimum environmental flow [m3/s]
  logical(lgt), intent(in)                 :: isHW         ! is this headwater basin?
- logical(lgt), intent(in)                 :: doCheck      ! reach index to be examined
- ! Input/Output
  type(mcRCH),  intent(inout)              :: rstate       ! curent reach states
  type(STRFLX), intent(inout)              :: rflux        ! current Reach fluxes
- ! Output
+ logical(lgt), intent(in)                 :: doCheck      ! reach index to be examined
  integer(i4b), intent(out)                :: ierr         ! error code
  character(*), intent(out)                :: message      ! error message
- ! LOCAL VAIRABLES
+ ! Local variables
  real(dp)                                 :: alpha        ! sqrt(slope)(/mannings N* width)
  real(dp)                                 :: beta         ! constant, 5/3
  real(dp)                                 :: theta        ! dT/dX
@@ -426,6 +414,5 @@ contains
  rstate%molecule%Q(2) = Q(1,1)
 
  END SUBROUTINE muskingum_cunge
-
 
 END MODULE mc_route_module

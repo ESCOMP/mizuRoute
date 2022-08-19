@@ -1,15 +1,15 @@
-module read_runoff
+MODULE read_runoff
 
 USE netcdf
 USE nrtype
 USE public_var
-USE io_netcdf, only:open_nc
-USE io_netcdf, only:close_nc
-USE io_netcdf, only:get_nc
-USE io_netcdf, only:get_var_attr
-USE io_netcdf, only:check_attr
-USE io_netcdf, only:get_nc_dim_len
-USE dataTypes, only:runoff                 ! runoff data type
+USE io_netcdf, ONLY: open_nc
+USE io_netcdf, ONLY: close_nc
+USE io_netcdf, ONLY: get_nc
+USE io_netcdf, ONLY: get_var_attr
+USE io_netcdf, ONLY: check_attr
+USE io_netcdf, ONLY: get_nc_dim_len
+USE dataTypes, ONLY: runoff                 ! runoff data type
 
 implicit none
 
@@ -17,28 +17,22 @@ private
 public::read_runoff_metadata
 public::read_runoff_data
 
-contains
+CONTAINS
 
  ! *****
  ! public subroutine: get runoff  metadata...
  ! ******************************************
- subroutine read_runoff_metadata(&
-                                ! input
-                                fname          , & ! filename
-                                ! output
-                                runoff_data_in , & ! runoff data structure
-                                timeUnits      , & ! time units
-                                calendar       , & ! calendar
-                                ! error control
-                                ierr, message)      ! output: error control
+ SUBROUTINE read_runoff_metadata(fname          , & ! input: filename
+                                 runoff_data_in , & ! output: runoff data structure
+                                 timeUnits      , & ! output: time units
+                                 calendar       , & ! output: calendar
+                                 ierr, message)     ! output: error control
  implicit none
- ! input variables
+ ! Argument variables
  character(*), intent(in)        :: fname           ! filename
- ! output variables
  type(runoff), intent(out)       :: runoff_data_in  ! runoff for one time step for all HRUs
  character(*), intent(out)       :: timeUnits       ! time units
  character(*), intent(out)       :: calendar        ! calendar
- ! error control
  integer(i4b), intent(out)       :: ierr            ! error code
  character(*), intent(out)       :: message         ! error message
  ! local variables
@@ -71,24 +65,22 @@ contains
  call close_nc(ncidRunoff, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- end subroutine read_runoff_metadata
+ END SUBROUTINE read_runoff_metadata
 
  ! *****
  ! private subroutine: get 2D runoff (hru, time) metadata...
  ! ******************************************
- subroutine read_1D_runoff_metadata(ncidRunoff     , & ! input:  netcdf id
+ SUBROUTINE read_1D_runoff_metadata(ncidRunoff     , & ! input:  netcdf id
                                     runoff_data_in , & ! output: runoff data structure
                                     timeUnits      , & ! output: time units
                                     calendar       , & ! output: calendar
                                     ierr, message)     ! output: error control
  implicit none
- ! input variables
+ ! Argument variables
  integer(i4b), intent(in)                :: ncidRunoff      ! netcdf id
- ! output variables
  type(runoff), intent(out)               :: runoff_data_in  ! runoff for one time step for all HRUs
  character(*), intent(out)               :: timeUnits       ! time units
  character(*), intent(out)               :: calendar        ! calendar
- ! error control
  integer(i4b), intent(out)               :: ierr            ! error code
  character(*), intent(out)               :: message         ! error message
  ! local variables
@@ -143,30 +135,28 @@ contains
  call get_nc(ncidRunoff, vname_hruid, runoff_data_in%hru_id, 1, runoff_data_in%nSpace(1), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- end subroutine read_1D_runoff_metadata
+ END SUBROUTINE read_1D_runoff_metadata
 
  ! *****
  ! private subroutine: get 3D runoff (lat, lon, time) metadata...
  ! ******************************************
- subroutine read_2D_runoff_metadata(ncidRunoff     , & ! input: netcdf id
+ SUBROUTINE read_2D_runoff_metadata(ncidRunoff     , & ! input: netcdf id
                                     runoff_data_in , & ! output: runoff data structure
                                     timeUnits      , & ! output: time units
                                     calendar       , & ! output: calendar
                                     ierr, message)     ! output: error control
  implicit none
- ! input variables
+ ! Argument variables
  integer(i4b), intent(in)                :: ncidRunoff      ! netcdf id
- ! output variables
  type(runoff), intent(out)               :: runoff_data_in  ! runoff for one time step for all HRUs
  character(*), intent(out)               :: timeUnits       ! time units
  character(*), intent(out)               :: calendar        ! calendar
- ! error control
  integer(i4b), intent(out)               :: ierr            ! error code
  character(*), intent(out)               :: message         ! error message
  ! local variables
  logical(lgt)                            :: existFillVal
  character(len=strLen)                   :: cmessage        ! error message from subroutine
- ! initialize error control
+
  ierr=0; message='read_2D_runoff_metadata/'
 
  ! get number of time steps from the runoff file
@@ -209,23 +199,21 @@ contains
  allocate(runoff_data_in%qSim2d(runoff_data_in%nSpace(2),runoff_data_in%nSpace(1)), stat=ierr)
  if(ierr/=0)then; message=trim(message)//'problem allocating qsim'; return; endif
 
- end subroutine read_2D_runoff_metadata
+ END SUBROUTINE read_2D_runoff_metadata
 
 
  ! *********************************************************************
  ! public subroutine: read runoff data
  ! *********************************************************************
- subroutine read_runoff_data(fname,          &  ! input: runoff netcdf name
+ SUBROUTINE read_runoff_data(fname,          &  ! input: runoff netcdf name
                              iTime,          &  ! input: time index
                              runoff_data_in, &  ! inout: runoff data structure
                              ierr, message)     ! output: error control
  implicit none
- ! input variables
+ ! Argument variables
  character(*), intent(in)      :: fname              ! filename
  integer(i4b), intent(in)      :: iTime              ! index of time element
- ! input/output variables
  type(runoff), intent(inout)   :: runoff_data_in     ! runoff for one time step for all spatial dimension
- ! output variables
  integer(i4b), intent(out)     :: ierr               ! error code
  character(*), intent(out)     :: message            ! error message
  ! local variables
@@ -248,24 +236,22 @@ contains
  call close_nc(ncidRunoff, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- end subroutine read_runoff_data
+ END SUBROUTINE read_runoff_data
 
  ! *********************************************************************
  ! private subroutine: read 2D runoff data
  ! *********************************************************************
- subroutine read_1D_runoff(ncidRunoff,     &  ! input: runoff netcdf ID
+ SUBROUTINE read_1D_runoff(ncidRunoff,     &  ! input: runoff netcdf ID
                            iTime,          &  ! input: time index
                            nSpace,         &  ! input: size of HRUs
                            runoff_data_in, &  ! inout: runoff data structure
                            ierr, message)     ! output: error control
  implicit none
- ! input variables
+ ! Argument variables
  integer(i4b), intent(in)      :: ncidRunoff         ! runoff netCDF ID
  integer(i4b), intent(in)      :: iTime              ! index of time element
  integer(i4b), intent(in)      :: nSpace             ! size of spatial dimensions
- ! input/output variables
  type(runoff), intent(inout)   :: runoff_data_in     ! runoff for one time step for all spatial dimension
- ! output variables
  integer(i4b), intent(out)     :: ierr               ! error code
  character(*), intent(out)     :: message            ! error message
  ! local variables
@@ -274,7 +260,6 @@ contains
  real(dp)                      :: dummy(nSpace,1)    ! data read
  character(len=strLen)         :: cmessage           ! error message from subroutine
 
- ! initialize error control
  ierr=0; message='read_1D_runoff/'
 
  ! get the time data
@@ -293,24 +278,22 @@ contains
  ! reshape
  runoff_data_in%qsim(1:nSpace) = dummy(1:nSpace,1)
 
- end subroutine read_1D_runoff
+ END SUBROUTINE read_1D_runoff
 
  ! *********************************************************************
  ! private subroutine: read 2D runoff data
  ! *********************************************************************
- subroutine read_2D_runoff(ncidRunoff,     &  ! input: runoff netcdf ID
+ SUBROUTINE read_2D_runoff(ncidRunoff,     &  ! input: runoff netcdf ID
                            iTime,          &  ! input: time index
                            nSpace,         &  ! input: size of HRUs
                            runoff_data_in, &  ! output: runoff data structure
                            ierr, message)     ! output: error control
  implicit none
- ! input variables
+ ! Argument variables
  integer(i4b), intent(in)    :: ncidRunoff       ! runoff netCDF ID
  integer(i4b), intent(in)    :: iTime            ! index of time element
  integer(i4b), intent(in)    :: nSpace(1:2)      ! size of spatial dimensions
- ! input/output variables
  type(runoff), intent(inout) :: runoff_data_in   ! runoff for one time step for all spatial dimension
- ! output variables
  integer(i4b), intent(out)   :: ierr             ! error code
  character(*), intent(out)   :: message          ! error message
  ! local variables
@@ -337,6 +320,6 @@ contains
  ! reshape
  runoff_data_in%qsim2d(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)
 
- end subroutine read_2D_runoff
+ END SUBROUTINE read_2D_runoff
 
-end module read_runoff
+END MODULE read_runoff

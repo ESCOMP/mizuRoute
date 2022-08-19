@@ -31,13 +31,13 @@ CONTAINS
  USE globalData, ONLY: onRoute                 ! logical to indicate actiive routing method(s)
  USE globalData, ONLY: idxSUM,idxIRF,idxKWT, &
                        idxKW,idxMC,idxDW
- ! named variables in each structure
- USE var_lookup, ONLY : ixHRU                ! index of variables for data structure
- USE var_lookup, ONLY : ixHRU2SEG            ! index of variables for data structure
- USE var_lookup, ONLY : ixSEG                ! index of variables for data structure
- USE var_lookup, ONLY : ixNTOPO              ! index of variables for data structure
- USE var_lookup, ONLY : ixPFAF               ! index of variables for data structure
- USE var_lookup, ONLY : ixRFLX               ! index of variables for data structure
+ ! index of named variables in each structure
+ USE var_lookup, ONLY: ixHRU
+ USE var_lookup, ONLY: ixHRU2SEG
+ USE var_lookup, ONLY: ixSEG
+ USE var_lookup, ONLY: ixNTOPO
+ USE var_lookup, ONLY: ixPFAF
+ USE var_lookup, ONLY: ixRFLX
  ! external subroutines
  USE ascii_util_module, ONLY: file_open      ! open file (performs a few checks as well)
  USE ascii_util_module, ONLY: get_vlines     ! get a list of character strings from non-comment lines
