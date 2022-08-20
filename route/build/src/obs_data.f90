@@ -36,7 +36,7 @@ MODULE obs_data
   public:: gageObs
   public:: waterTake
 
-  type, abstract :: obs
+  type, abstract :: obsData
     private
     integer(i4b)                   :: ncid = integerMissing ! netCDF ID
     character(strLen)              :: varName_obs
@@ -72,9 +72,9 @@ MODULE obs_data
       procedure, private :: fn_get_obs_svec
       procedure, private :: fn_get_obs_scalar
 
-  end type obs
+  end type obsData
 
-  type, extends(obs) :: gageObs
+  type, extends(obsData) :: gageObs
     character(25),   allocatable   :: site(:)  ! list of gauge site id
     CONTAINS
       procedure,  public :: read_site
@@ -86,7 +86,7 @@ MODULE obs_data
       procedure, private :: fn_get_gageID_scalar
   end type gageObs
 
-  type, extends(obs) :: waterTake
+  type, extends(obsData) :: waterTake
     integer(i4b),   allocatable   :: reach(:)  ! list of all the reach id
     CONTAINS
       procedure,  public :: read_reach
@@ -212,7 +212,7 @@ MODULE obs_data
     SUBROUTINE openNC(this, fname, ierr, message)
       implicit none
       ! Argument variables
-      class(obs),   intent(inout)  :: this
+      class(obsData),   intent(inout)  :: this
       character(*),     intent(in)     :: fname
       integer(i4b),     intent(out)    :: ierr             ! error code
       character(*),     intent(out)    :: message          ! error message
@@ -233,7 +233,7 @@ MODULE obs_data
     ! ---------------------------------
     logical(lgt) FUNCTION isFileOpen(this)
       implicit none
-      class(obs), intent(inout) :: this
+      class(obsData), intent(inout) :: this
 
       isFileOpen = this%fileOpen
     END FUNCTION
@@ -243,7 +243,7 @@ MODULE obs_data
     ! ---------------------------------
     SUBROUTINE closeNC(this, ierr, message)
       implicit none
-      class(obs), intent(inout) :: this
+      class(obsData), intent(inout) :: this
       integer(i4b),     intent(out)    :: ierr             ! error code
       character(*),     intent(out)    :: message          ! error message
       ! local variables
@@ -265,20 +265,24 @@ MODULE obs_data
       implicit none
       ! Argument variables
       class(gageObs),          intent(inout) :: this
-      integer(i4b),            intent(out)   :: ierr            ! error code
-      character(*),            intent(out)   :: message         ! error message
+      integer(i4b),            intent(out)   :: ierr                 ! error code
+      character(*),            intent(out)   :: message              ! error message
       integer(i4b), optional,  intent(in)    :: index_loc(:)
       ! local variables
-      integer(i4b)                           :: nSite           ! total number of sites
-      integer(i4b)                           :: nSite_read      ! number of sites read in
-      integer(i4b)                           :: ix
-      character(clen), allocatable           :: array_temp(:)
-      character(strLen)                      :: cmessage        ! error message of downwind routine
+      integer(i4b)                           :: nSite                ! total number of sites
+      integer(i4b)                           :: nSite_read           ! number of sites read in
+      integer(i4b)                           :: ix                   ! loop index
+      character(clen), allocatable           :: array_temp(:)        ! temporary array holding netcdf value
+      integer(i4b)                           :: iStart(2), nCount(2) ! netCDF start indices and # of elements
+      character(strLen)                      :: cmessage             ! error message of downwind routine
 
       ierr=0; message='read_site/'
 
       call get_nc_dim_len(this%ncid, this%dimName_loc, nSite, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      iStart = [1, 1]
+      nCount = [clen, nSite]
 
       if (present(index_loc)) then
         nSite_read = size(index_loc)
@@ -289,7 +293,7 @@ MODULE obs_data
         allocate(this%site(nSite_read), stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [this%site]'; return; endif
 
-        call get_nc(this%ncid, this%varName_loc, array_temp, [1,1], [clen, nSite], ierr, cmessage)
+        call get_nc(this%ncid, this%varName_loc, array_temp, iStart, nCount, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
         do ix=1,nSite_read
@@ -299,7 +303,7 @@ MODULE obs_data
         allocate(this%site(nSite), stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [this%site]'; return; endif
 
-        call get_nc(this%ncid, this%varName_loc, this%site, [1,1], [clen, nSite], ierr, cmessage)
+        call get_nc(this%ncid, this%varName_loc, this%site, iStart, nCount, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
 
@@ -360,7 +364,7 @@ MODULE obs_data
 
       implicit none
       ! Argument variables
-      class(obs),             intent(inout) :: this
+      class(obsData),         intent(inout) :: this
       integer(i4b),           intent(out)   :: ierr            ! error code
       character(*),           intent(out)   :: message         ! error message
       integer(i4b), optional, intent(in)    :: index_time(:)
@@ -443,20 +447,21 @@ MODULE obs_data
 
       implicit none
       ! Argument variables
-      class(obs),              intent(inout) :: this
+      class(obsData),          intent(inout) :: this
       integer(i4b),            intent(out)   :: ierr             ! error code
       character(*),            intent(out)   :: message          ! error message
       integer(i4b), optional,  intent(in)    :: index_loc
       integer(i4b), optional,  intent(in)    :: index_time
       ! local variables
-      real(dp),    allocatable               :: array_temp(:,:)
-      integer(i4b)                           :: nLoc_read        ! number of sites read
-      integer(i4b)                           :: nTime_read       ! number of time read
-      integer(i4b)                           :: nTime            ! number of time
-      integer(i4b)                           :: nLoc             ! number of site
-      integer(i4b)                           :: ix_loc, ix_time  ! starting reading index
-      integer(i4b)                           :: ix,jx
-      character(len=strLen)                  :: cmessage         ! error message of downwind routine
+      real(dp),    allocatable               :: array_temp(:,:)      ! temporary array to hold netcdf value
+      integer(i4b)                           :: nLoc_read            ! number of sites read
+      integer(i4b)                           :: nTime_read           ! number of time read
+      integer(i4b)                           :: nTime                ! number of time
+      integer(i4b)                           :: nLoc                 ! number of site
+      integer(i4b)                           :: ix_loc, ix_time      ! starting reading index
+      integer(i4b)                           :: ix,jx                ! loop indices
+      integer(i4b)                           :: iStart(2), nCount(2) ! netCDF start indices and # of elements
+      character(len=strLen)                  :: cmessage             ! error message of downwind routine
 
       ierr=0; message='read_obs/'
 
@@ -483,7 +488,9 @@ MODULE obs_data
       allocate(array_temp(nLoc_read, nTime_read), stat=ierr, errmsg=cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [array_temp]'; return; endif
 
-      call get_nc(this%ncid, this%varName_obs, array_temp, [ix_loc, ix_time], [nLoc_read, nTime_read], ierr, cmessage)
+      iStart = [ix_loc, ix_time]
+      nCount = [nLoc_read, nTime_read]
+      call get_nc(this%ncid, this%varName_obs, array_temp, iStart, nCount, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       if (allocated(this%obs)) then
@@ -504,7 +511,7 @@ MODULE obs_data
     ! -----------------------------------------------------
     FUNCTION fn_get_time_ix(this, datetime_in) result(ix)
       implicit none
-      class(obs), intent(in)     :: this
+      class(obsData), intent(in) :: this
       type(datetime), intent(in) :: datetime_in
       integer(i4b)               :: ix
       ix = get_time_ix(this%time, datetime_in)
@@ -531,7 +538,7 @@ MODULE obs_data
     ! -----------------------------------------------------
     pure FUNCTION fn_get_link_ix(this) result(ix)
       implicit none
-      class(obs), intent(in) :: this
+      class(obsData), intent(in) :: this
       integer(i4b), allocatable  :: ix(:)
       allocate(ix(size(this%link_index)))
       ix = this%link_index
@@ -598,7 +605,7 @@ MODULE obs_data
     ! -----------------------------------------------------
     FUNCTION fn_get_datetime(this) result(out_datetime)
       implicit none
-      class(obs),  intent(in)     :: this
+      class(obsData),  intent(in) :: this
       type(datetime), allocatable :: out_datetime(:)
       integer(i4b)                :: ix
       allocate(out_datetime(size(this%time)))
@@ -609,7 +616,7 @@ MODULE obs_data
 
     FUNCTION fn_get_datetime_vec(this, ix) result(out_datetime)
       implicit none
-      class(obs),   intent(in)    :: this
+      class(obsData), intent(in)  :: this
       integer(i4b), intent(in)    :: ix(:)
       type(datetime), allocatable :: out_datetime(:)
       integer(i4b)                :: jx
@@ -621,8 +628,8 @@ MODULE obs_data
 
     FUNCTION fn_get_datetime_scalar(this, ix) result(out_datetime)
       implicit none
-      class(obs),   intent(in) :: this
-      integer(i4b), intent(in) :: ix
+      class(obsData), intent(in) :: this
+      integer(i4b),   intent(in) :: ix
       type(datetime)           :: out_datetime
       out_datetime = this%time(ix)
     END FUNCTION fn_get_datetime_scalar
@@ -632,48 +639,48 @@ MODULE obs_data
     ! -----------------------------------------------------
     pure FUNCTION fn_get_obs(this) result(flow)
       implicit none
-      class(obs), intent(in) :: this
-      real(dp),allocatable   :: flow(:,:)
+      class(obsData), intent(in) :: this
+      real(dp), allocatable      :: flow(:,:)
       allocate(flow(size(this%obs,1), size(this%obs,2)))
       flow = this%obs
     END FUNCTION fn_get_obs
 
     pure FUNCTION fn_get_obs_vec(this, tix, six) result(flow)
       implicit none
-      class(obs),   intent(in) :: this
-      integer(i4b), intent(in) :: tix(:)
-      integer(i4b), intent(in) :: six(:)
-      real(dp),allocatable     :: flow(:,:)
+      class(obsData), intent(in) :: this
+      integer(i4b),   intent(in) :: tix(:)
+      integer(i4b),   intent(in) :: six(:)
+      real(dp), allocatable     :: flow(:,:)
       allocate(flow(size(tix),size(six)))
       flow = this%obs(tix, six)
     END FUNCTION fn_get_obs_vec
 
     pure FUNCTION fn_get_obs_tvec(this, tix, six) result(flow)
       implicit none
-      class(obs),   intent(in) :: this
-      integer(i4b), intent(in) :: tix(:)
-      integer(i4b), intent(in) :: six
-      real(dp),allocatable     :: flow(:)
+      class(obsData),intent(in) :: this
+      integer(i4b),  intent(in) :: tix(:)
+      integer(i4b),  intent(in) :: six
+      real(dp), allocatable     :: flow(:)
       allocate(flow(size(tix)))
       flow = this%obs(tix, six)
     END FUNCTION fn_get_obs_tvec
 
     pure FUNCTION fn_get_obs_svec(this, tix, six) result(flow)
       implicit none
-      class(obs),   intent(in) :: this
-      integer(i4b), intent(in) :: tix
-      integer(i4b), intent(in) :: six(:)
-      real(dp),allocatable     :: flow(:)
+      class(obsData), intent(in) :: this
+      integer(i4b),   intent(in) :: tix
+      integer(i4b),   intent(in) :: six(:)
+      real(dp), allocatable      :: flow(:)
       allocate(flow(size(six)))
       flow = this%obs(tix, six)
     END FUNCTION fn_get_obs_svec
 
     pure FUNCTION fn_get_obs_scalar(this, tix, six) result(flow)
       implicit none
-      class(obs),   intent(in) :: this
-      integer(i4b), intent(in) :: tix
-      integer(i4b), intent(in) :: six
-      real(dp)                 :: flow
+      class(obsData), intent(in) :: this
+      integer(i4b),  intent(in) :: tix
+      integer(i4b),  intent(in) :: six
+      real(dp)                  :: flow
       flow = this%obs(tix,six)
     END FUNCTION fn_get_obs_scalar
 

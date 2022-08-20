@@ -405,7 +405,7 @@ CONTAINS
        b(nMolecule%DW_ROUTE) = (1._dp-(1._dp-wck)*Ca)*Qlocal(nMolecule%DW_ROUTE,0) + (1-wck)*Ca*Qlocal(nMolecule%DW_ROUTE-1,0)
      else if (downstreamBC == neumannBC) then
        Sbc = (Qlocal(nMolecule%DW_ROUTE,0)-Qlocal(nMolecule%DW_ROUTE-1,0))
-       b(nMolecule%DW_ROUTE)     = 0*Sbc
+       b(nMolecule%DW_ROUTE)     = Sbc
      end if
      ! internal node points
      b(2:nMolecule%DW_ROUTE-1) = ((1._dp-wck)*Ca+2._dp*(1._dp-wdk))*Cd*Qlocal(1:nMolecule%DW_ROUTE-2,0)  &
@@ -476,7 +476,7 @@ CONTAINS
    rflux%ROUTE(idxDW)%REACH_VOL(1) = rflux%ROUTE(idxDW)%REACH_VOL(1) + (Qabs*dt - Qmod)
 
    ! modify computational molecule state (Q)
-   rstate%molecule%Q(nMolecule%DW_ROUTE) = Qlocal(1, nMolecule%DW_ROUTE) - max(abs(Qmod/dt)-rflux%BASIN_QR(1), 0._dp)
+   rstate%molecule%Q(nMolecule%DW_ROUTE) = Qlocal(nMolecule%DW_ROUTE,1) - max(abs(Qmod/dt)-rflux%BASIN_QR(1), 0._dp)
  end if
 
  if (doCheck) then

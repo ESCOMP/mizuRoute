@@ -41,6 +41,7 @@ CONTAINS
   character(len=strLen)         :: cmessage           ! error message from subroutine
   integer(i4b)                  :: iens=1
   integer(i4b)                  :: ix, jx
+  real(dp)                      :: qobs               ! elapsed time for the process
   integer(i4b), allocatable     :: reach_ix(:)
   integer(i4b), parameter       :: no_mod=0
   integer(i4b), parameter       :: direct_insert=1
@@ -101,7 +102,11 @@ CONTAINS
         reach_ix = gage_obs_data%link_ix()
         do ix=1,size(reach_ix)
           if (reach_ix(ix)==integerMissing) cycle
-          RCHFLX(iens,reach_ix(ix))%TAKE = gage_obs_data%get_obs(tix=1, six=ix)
+
+          qobs = gage_obs_data%get_obs(tix=1, six=ix)
+
+          if (isnan(qobs) .or. qobs<0) cycle
+          RCHFLX(iens,reach_ix(ix))%TAKE = qobs
         end do
       end if
     case(qtake)
