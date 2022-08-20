@@ -417,7 +417,7 @@ CONTAINS
 
      if (doCheck) then
        write(fmt1,'(A,I5,A)') '(A,1X',nMolecule%DW_ROUTE,'(1X,G15.4))'
-       write(iulog,fmt1) ' Q sub_reqch=', (Qlocal(1,ix), ix=1,nMolecule%DW_ROUTE)
+       write(iulog,fmt1) ' Q sub_reqch=', (Qlocal(ix,1), ix=1,nMolecule%DW_ROUTE)
      end if
 
      Qlocal(:,1) = Qsolved
