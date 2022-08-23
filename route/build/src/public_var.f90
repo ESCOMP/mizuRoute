@@ -1,4 +1,4 @@
-module public_var
+MODULE public_var
   ! This module include variables that can be accessed from any other modules and values not altered
   ! except that variables read from control file are populated.
 
@@ -169,4 +169,8 @@ module public_var
   integer(i4b)         ,public    :: maxPfafLen           = 32              ! maximum digit of pfafstetter code (default 32).
   character(len=1)     ,public    :: pfafMissing          = '0'             ! missing pfafcode (e.g., reach without any upstream area)
 
-end module public_var
+  ! CESM Coupling variables
+  character(len=32)    ,public    :: bypass_routing_option = 'direct_in_place' ! bypass routing model method
+  character(len=32)    ,public    :: qgwl_runoff_option    = 'threshold'       ! method for handling qgwl runoff
+
+END MODULE public_var
