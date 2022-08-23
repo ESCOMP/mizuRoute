@@ -49,9 +49,7 @@ MODULE RtmVar
   logical,           public            :: do_rof         = .true.                   !
   logical,           public            :: do_flood       = .false.                  !
   character(len=CL), public            :: nrevsn_rtm     = ' '                      ! restart data file name for branch run
-  character(len=32), public            :: qgwl_runoff_option ='threshold'           ! method for handling qgwl runoff
-  character(len=32), public            :: bypass_routing_option = 'direct_in_place' ! bypass routing model method
-  real(r8),          public            :: river_depth_minimum = 1.e-4               ! gridcell average minimum river depth [m]
+  real(r8),          public            :: river_depth_minimum = 1.e-1               ! minimum river depth for water take [mm]
   integer,           public            :: coupling_period                           ! coupling period
   integer,           public            :: rtmhist_ndens  = 1                        ! namelist: output density of netcdf history files
   integer,           public            :: rtmhist_mfilt  = 30                       ! namelist: number of time samples per tape
