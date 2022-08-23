@@ -4,7 +4,8 @@ MODULE RunoffMod
 ! Module containing data structures for coupler runoff data
 
   USE nrtype,     ONLY : r8 => dp
-  USE public_var, ONLY : iulog, MaxPosVal
+  USE public_var, ONLY : iulog
+  USE public_var, ONLY : integerMissing
   USE rtmVar,     ONLY : nt_rof
   USE shr_sys_mod,ONLY : shr_sys_abort
 
@@ -19,19 +20,19 @@ MODULE RunoffMod
 
     integer , pointer :: gindex(:)        ! global index consistent with map file
 
-    real(r8), pointer :: area(:)          ! area of catchment
+    real(r8), pointer :: area(:)          ! area of catchment [m2]
     integer , pointer :: mask(:)          ! reach category. 1=non outle, 2=interior basin outlet, 3=ocean outlet
 
-    real(r8), pointer :: qsur(:,:)        ! coupler importing surface forcing [m3/s]
-    real(r8), pointer :: qsub(:,:)        ! coupler importing subsurface forcing [m3/s]
-    real(r8), pointer :: qgwl(:,:)        ! coupler importing glacier/wetland/lake forcing [m3/s]
-    real(r8), pointer :: qirrig(:)        ! coupler importing irrigation [m3/s]
-    real(r8), pointer :: qirrig_actual(:) ! minimum of irrigation and available main channel storage
+    real(r8), pointer :: qsur(:,:)        ! coupler importing surface forcing [mm/s]
+    real(r8), pointer :: qsub(:,:)        ! coupler importing subsurface forcing [mm/s]
+    real(r8), pointer :: qgwl(:,:)        ! coupler importing glacier/wetland/lake forcing [mm/s]
+    real(r8), pointer :: qirrig(:)        ! coupler importing irrigation [mm/s] - negative
+    real(r8), pointer :: qirrig_actual(:) ! actual irrigation and available main channel storage [mm/s]
 
-    real(r8), pointer :: direct(:,:)      ! coupler return direct flow to ocean [m3/s]
+    real(r8), pointer :: direct(:,:)      ! coupler return direct flow to ocean [mm/s]
 
     real(r8), pointer :: discharge(:,:)   ! coupler exporting river discharge [m3/s]
-    real(r8), pointer :: volr(:)          ! coupler exporting river storage (m3)
+    real(r8), pointer :: volr(:)          ! coupler exporting river storage per unit HRU area (m)
     real(r8), pointer :: flood(:)         ! coupler exporting flood water sent back to clm [m3/s]
   end type runoff_flow
 
@@ -44,7 +45,6 @@ CONTAINS
   SUBROUTINE RunoffInit(begr, endr, numr)
 
     integer, intent(in) :: begr, endr, numr
-
     integer :: ierr
 
     allocate(rtmCTL%gindex(begr:endr),            &
@@ -60,11 +60,13 @@ CONTAINS
              rtmCTL%volr(begr:endr),              &
              rtmCTL%flood(begr:endr),             &
              stat=ierr)
-    if (ierr /= 0) then
-       write(iulog,*)'Rtmini ERROR allocation of runoff local arrays'
-       call shr_sys_abort
+    if (ierr/=0) then
+      write(iulog,*)'Rtmini ERROR allocation of runoff local arrays'
+      call shr_sys_abort
     end if
 
+    rtmCTL%gindex(:)       = integerMissing
+    rtmCTL%area(:)         = 0._r8
     rtmCTL%qirrig(:)       = 0._r8
     rtmCTL%qirrig_actual(:)= 0._r8
     rtmCTL%qsur(:,:)       = 0._r8
