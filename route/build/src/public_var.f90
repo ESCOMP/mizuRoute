@@ -170,7 +170,7 @@ MODULE public_var
   character(len=1)     ,public    :: pfafMissing          = '0'             ! missing pfafcode (e.g., reach without any upstream area)
 
   ! CESM Coupling variables
-  character(len=32)    ,public    :: bypass_routing_option = 'direct_in_place' ! bypass routing model method
-  character(len=32)    ,public    :: qgwl_runoff_option    = 'threshold'       ! method for handling qgwl runoff
+  character(len=32)    ,public    :: bypass_routing_option = 'direct_in_place' ! bypass routing model method: direct_in_place or direct_to_outlet
+  character(len=32)    ,public    :: qgwl_runoff_option    = 'threshold'       ! method for handling qgwl runoff: all, negative, or threshold
 
 END MODULE public_var
