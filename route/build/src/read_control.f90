@@ -299,6 +299,10 @@ CONTAINS
    ! pfafstetter code
    case('<varname_pfafCode>'     ); meta_PFAF   (ixPFAF%code           )%varName =trim(cData)  ! pfafstetter code
 
+   ! CESM coupling variables (not used for stand-alone)
+   case('<qgwl_runoff_option>'   ); qgwl_runoff_option    = trim(cData)  ! handling negative qgwl runoff: all, negative, threshold
+   case('<bypass_routing_option>'); bypass_routing_option = trim(cData)  ! routing bypass option: direct_in_place, direct_to_outlet, none
+
    ! if not in list then keep going
    case default
     message=trim(message)//'unexpected text in control file provided: '//trim(cName)&

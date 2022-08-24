@@ -311,10 +311,8 @@ contains
        !flood(n)   = -rtmCTL%flood(n) / (rtmCTL%area(n)*0.001_r8)
        !flood(n)   = -rtmCTL%flood(n)
        flood(n)   = 0.0_r8
-       !volr(n)    =  rtmCTL%volr(n)  / rtmCTL%area(n)
-       !volr(n)    =  rtmCTL%volr(n)
-       volr(n)    =  0.0_r8
-       volrmch(n) =  0.0_r8
+       volr(n)    =  rtmCTL%volr(n)  ! volume per HRU area in [m]
+       volrmch(n) =  rtmCTL%volr(n)  ! volume per HRU area in [m]
     end do
 
     call state_setexport(exportState, 'Forr_rofl', begr, endr, input=rofl, rc=rc)

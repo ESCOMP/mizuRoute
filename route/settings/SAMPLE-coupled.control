@@ -64,5 +64,10 @@
 <DWroutedRunoff>        T                          ! diffusive wave routed discharge at reach [L3/T]
 <volume>                F                          ! volume at the end of time step at reach [L3] - currently only IRF
 ! ****************************************************************************************************************************
+! cesm-coupler: qgwl runoff handling option
+! ---------------------------
+<qgwl_runoff_option>    threshold                  ! all, negative, or threshold (default)
+<bypass_routing_option> direct_in_place            ! direct_in_place, direct_to_outlet (default), or none:  direct_to_outlet== means send to the river mouth
+! ****************************************************************************************************************************
 ! ****************************************************************************************************************************
 ! ****************************************************************************************************************************
