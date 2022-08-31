@@ -6,6 +6,7 @@ USE var_lookup,     ONLY: ixRFLX, nVarsRFLX
 USE dataTypes,      ONLY: STRFLX
 USE datetime_data,  ONLY: datetime
 USE public_var,     ONLY: iulog
+USE public_var,     ONLY: integerMissing
 USE globalData,     ONLY: runMode           ! 'standalone' or 'cesm-coupling'
 USE globalData,     ONLY: pid, nNodes
 USE globalData,     ONLY: masterproc
@@ -123,8 +124,6 @@ CONTAINS
  ! *********************************************************************
  logical(lgt) FUNCTION newFileAlarm(inDatetime, alarmFrequency, ierr, message)
 
-   USE public_var,        ONLY: integerMissing
-
    implicit none
    ! Argument variables
    type(datetime), intent(in)    :: inDatetime(0:1)    ! datetime at previous and current timestep
@@ -139,7 +138,7 @@ CONTAINS
    endif
 
    ! check need for the new file
-   select case(lower(trim(newFileFrequency)))
+   select case(lower(trim(alarmFrequency)))
      case('single'); newFileAlarm=(inDatetime(0)%year() ==integerMissing)
      case('yearly'); newFileAlarm=(inDatetime(1)%year() /=inDatetime(0)%year())
      case('monthly');newFileAlarm=(inDatetime(1)%month()/=inDatetime(0)%month())
