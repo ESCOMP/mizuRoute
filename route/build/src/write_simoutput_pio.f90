@@ -12,6 +12,7 @@ USE globalData,     ONLY: masterproc
 USE globalData,     ONLY: hfileout, hfileout_gage, rfileout
 USE historyFile,    ONLY: histFile
 USE io_rpointfile,  ONLY: io_rpfile
+USE ascii_util_module, ONLY: lower
 USE pio_utils
 
 implicit none
@@ -32,7 +33,7 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE main_new_file(ierr, message)
 
-    USE public_var, ONLY: gageOutput
+    USE public_var, ONLY: outputAtGage
     USE public_var, ONLY: newFileFrequency  ! frequency for new output files (day, month, annual, single)
     USE globalData, ONLY: simDatetime       ! previous and current model time
     USE globalData, ONLY: reachID           !
@@ -84,7 +85,7 @@ CONTAINS
       call hist_all_network%write_loc(reachID, basinID, ierr, message)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-      if (gageOutput) then
+      if (outputAtGage) then
 
         ! initialize and create history netcdfs
         select case(trim(runMode))
@@ -138,11 +139,11 @@ CONTAINS
    endif
 
    ! check need for the new file
-   select case(trim(alarmFrequency))
+   select case(lower(trim(newFileFrequency)))
      case('single'); newFileAlarm=(inDatetime(0)%year() ==integerMissing)
-     case('annual'); newFileAlarm=(inDatetime(1)%year() /=inDatetime(0)%year())
-     case('month');  newFileAlarm=(inDatetime(1)%month()/=inDatetime(0)%month())
-     case('day');    newFileAlarm=(inDatetime(1)%day()  /=inDatetime(0)%day())
+     case('yearly'); newFileAlarm=(inDatetime(1)%year() /=inDatetime(0)%year())
+     case('monthly');newFileAlarm=(inDatetime(1)%month()/=inDatetime(0)%month())
+     case('daily');  newFileAlarm=(inDatetime(1)%day()  /=inDatetime(0)%day())
      case default; ierr=20; message=trim(message)//'unable to identify the option to define new output files'; return
    end select
 
@@ -153,7 +154,7 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE output(ierr, message)
 
-   USE public_var, ONLY: gageOutput        ! ascii containing last restart and history files
+   USE public_var, ONLY: outputAtGage      ! ascii containing last restart and history files
    USE globalData, ONLY: iTime
    USE globalData, ONLY: timeVar
    USE globalData, ONLY: rch_per_proc      ! number of reaches assigned to each proc (size = num of procs+1)
@@ -191,7 +192,7 @@ CONTAINS
    call hist_all_network%write_flux(timeVar(iTime), index_write_all, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   if (gageOutput) then
+   if (outputAtGage) then
      call hist_gage%write_flux(timeVar(iTime), index_write_gage, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
@@ -308,7 +309,7 @@ CONTAINS
 
    USE public_var, ONLY: output_dir        ! output directory
    USE public_var, ONLY: case_name         ! simulation name ==> output filename head
-   USE public_var, ONLY: gageOutput    ! ascii containing last restart and history files
+   USE public_var, ONLY: outputAtGage      ! ascii containing last restart and history files
 
    implicit none
    ! argument variables
@@ -328,14 +329,14 @@ CONTAINS
        write(hfileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuroute.h.', &
                              inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day,'.nc'
 
-       if (gageOutput) then
+       if (outputAtGage) then
          write(hfileout_gage, fmtYMDS) trim(output_dir)//trim(case_name)//'_gauge.mizuroute.h.', &
                                     inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day,'.nc'
        end if
      case('standalone')
        write(hfileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.h.', &
                              inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day,'.nc'
-       if (gageOutput) then
+       if (outputAtGage) then
          write(hfileout_gage, fmtYMDS) trim(output_dir)//trim(case_name)//'_gauge.h.', &
                                     inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day,'.nc'
        end if
@@ -366,7 +367,7 @@ CONTAINS
 
    USE globalData,  ONLY: nHRU, nRch        ! number of HRUs and river reaches
    USE globalData,  ONLY: gage_data
-   USE public_var,  ONLY: gageOutput    ! ascii containing last restart and history files
+   USE public_var,  ONLY: outputAtGage      ! ascii containing last restart and history files
    USE globalData,  ONLY: pioSystem
 
    implicit none
@@ -399,7 +400,7 @@ CONTAINS
 
    call hist_all_network%set_compdof(compdof_rch, compdof_hru, nRch, nHRU)
 
-   if (gageOutput) then
+   if (outputAtGage) then
      select case(trim(runMode))
        case('standalone');    hist_gage = histFile(hfileout_gage, gageOutput=.true.)
        case('cesm-coupling'); hist_gage = histFile(hfileout_gage, pioSys=pioSystem, gageOutput=.true.)

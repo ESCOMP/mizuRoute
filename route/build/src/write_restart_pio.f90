@@ -145,7 +145,7 @@ CONTAINS
    select case(lower(trim(restart_write)))
      case('specified','last')
        restartAlarm = (dropDatetime==simDatetime(1))
-     case('annual')
+     case('yearly')
        restartAlarm = (dropDatetime%is_equal_mon(simDatetime(1)) .and. dropDatetime%is_equal_day(simDatetime(1)) .and. dropDatetime%is_equal_time(simDatetime(1)))
      case('monthly')
        restartAlarm = (dropDatetime%is_equal_day(simDatetime(1)) .and. dropDatetime%is_equal_time(simDatetime(1)))
@@ -154,7 +154,7 @@ CONTAINS
      case('never')
        restartAlarm = .false.
      case default
-       ierr=20; message=trim(message)//'Current accepted <restart_write> options: last, never, specified, annual, monthly, or daily '; return
+       ierr=20; message=trim(message)//'Accepted <restart_write> options (case insensitive): last, never, specified, yearly, monthly, or daily '; return
    end select
 
  END SUBROUTINE restart_alarm
