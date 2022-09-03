@@ -1,16 +1,17 @@
 MODULE accum_runoff_module
 
+! Accumulate upstream flow instantaneously
+
 USE nrtype
 ! data type
-USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
-USE dataTypes, ONLY: RCHTOPO        ! Network topology
-USE dataTypes, ONLY: subbasin_omp   ! mainstem+tributary data structures
-
-! global parameters
-USE public_var
-USE globalData,ONLY: idxSUM        ! index of IRF method
+USE dataTypes,   ONLY: STRFLX         ! fluxes in each reach
+USE dataTypes,   ONLY: RCHTOPO        ! Network topology
+USE dataTypes,   ONLY: subbasin_omp   ! mainstem+tributary data structures
+! global data
+USE public_var,  ONLY: iulog         ! i/o logical unit number
+USE globalData,  ONLY: idxSUM        ! index of accumulation method
 ! subroutines: general
-USE perf_mod,  ONLY: t_startf,t_stopf ! timing start/stop
+USE perf_mod,    ONLY: t_startf,t_stopf ! timing start/stop
 USE model_utils, ONLY: handle_err
 
 implicit none
@@ -161,16 +162,18 @@ CONTAINS
 
  ! check
  if(segIndex == ixDesire)then
-   write(fmt1,'(A,I5,A)') '(A,1X',nUps,'(1X,I10))'
-   write(fmt2,'(A,I5,A)') '(A,1X',nUps,'(1X,F20.7))'
-   write(*,'(2a)') new_line('a'),'** Check upstream discharge accumulation **'
-   write(*,'(a,x,I10,x,I10)') ' Reach index & ID =', segIndex, NETOPO_in(segIndex)%REACHID
-   write(*,'(a)')             ' * upstream reach index (NETOPO_in%UREACH) and discharge (uprflux) [m3/s] :'
-   write(*,fmt1)              ' UREACHK =', (NETOPO_in(segIndex)%UREACHK(iUps), iUps=1,nUps)
-   write(*,fmt2)              ' prflux  =', (RCHFLX_out(iens,NETOPO_in(segIndex)%UREACHI(iUps))%ROUTE(idxSUM)%REACH_Q, iUps=1,nUps)
-   write(*,'(a)')             ' * local area discharge (RCHFLX_out%BASIN_QR(1)) and final discharge (RCHFLX_out%ROUTE(idxSUM)%REACH_Q) [m3/s] :'
-   write(*,'(a,x,F15.7)')     ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
-   write(*,'(a,x,F15.7)')     ' RCHFLX_out%ROUTE(idxSUM)%REACH_Q =', RCHFLX_out(iens,segIndex)%ROUTE(idxSUM)%REACH_Q
+   write(iulog,'(2a)') new_line('a'),'** Check upstream discharge accumulation **'
+   write(iulog,'(a,x,I10,x,I10)') ' Reach index & ID =', segIndex, NETOPO_in(segIndex)%REACHID
+   if (nUps>0) then
+     write(fmt1,'(A,I5,A)') '(A,1X',nUps,'(1X,I10))'
+     write(fmt2,'(A,I5,A)') '(A,1X',nUps,'(1X,F20.7))'
+     write(iulog,'(a)')             ' * upstream reach index (NETOPO_in%UREACH) and discharge (uprflux) [m3/s] :'
+     write(iulog,fmt1)              ' UREACHK =', (NETOPO_in(segIndex)%UREACHK(iUps), iUps=1,nUps)
+     write(iulog,fmt2)              ' prflux  =', (RCHFLX_out(iens,NETOPO_in(segIndex)%UREACHI(iUps))%ROUTE(idxSUM)%REACH_Q, iUps=1,nUps)
+   end if
+   write(iulog,'(a)')             ' * local area discharge (RCHFLX_out%BASIN_QR(1)) and final discharge (RCHFLX_out%ROUTE(idxSUM)%REACH_Q) [m3/s] :'
+   write(iulog,'(a,x,G15.4)')     ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+   write(iulog,'(a,x,G15.4)')     ' RCHFLX_out%ROUTE(idxSUM)%REACH_Q =', RCHFLX_out(iens,segIndex)%ROUTE(idxSUM)%REACH_Q
  endif
 
  END SUBROUTINE accum_qupstream
