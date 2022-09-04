@@ -181,7 +181,7 @@ CONTAINS
      if (nRch_mainstem>0) then
        index_write_all(1:nRch_mainstem) = arth(1,1,nRch_mainstem)
      end if
-     index_write_all(nRch_mainstem+1:nRch_local) = arth(nRch_mainstem+nTribOutlet+1, 1, nRch_root)
+     index_write_all(nRch_mainstem+1:nRch_local) = arth(nRch_mainstem+nTribOutlet+1, 1, rch_per_proc(0))
    else
      nRch_local = rch_per_proc(pid)
      allocate(index_write_all(nRch_local))
