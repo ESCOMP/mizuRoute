@@ -1,5 +1,7 @@
 MODULE read_control_module
 
+! reading mizuRoute control files and save them in variables defined in public_var.f90
+
 USE nrtype
 USE public_var
 
@@ -11,7 +13,7 @@ public::read_control
 CONTAINS
 
  ! =======================================================================================================
- ! * public subroutine: read the control file
+ ! public subroutine: read the control file
  ! =======================================================================================================
  SUBROUTINE read_control(ctl_fname, err, message)
 
@@ -31,14 +33,14 @@ CONTAINS
  USE globalData, ONLY: onRoute                 ! logical to indicate actiive routing method(s)
  USE globalData, ONLY: idxSUM,idxIRF,idxKWT, &
                        idxKW,idxMC,idxDW
- ! named variables in each structure
- USE var_lookup, ONLY: ixHRU                   ! index of variables for data structure
- USE var_lookup, ONLY: ixHRU2SEG               ! index of variables for data structure
- USE var_lookup, ONLY: ixSEG                   ! index of variables for data structure
- USE var_lookup, ONLY: ixNTOPO                 ! index of variables for data structure
- USE var_lookup, ONLY: ixPFAF                  ! index of variables for data structure
- USE var_lookup, ONLY: ixRFLX                  ! index of variables for data structure
- USE var_lookup, ONLY: ixHFLX                  ! index of variables for data structure
+ ! index of named variables in each structure
+ USE var_lookup, ONLY: ixHRU
+ USE var_lookup, ONLY: ixHRU2SEG
+ USE var_lookup, ONLY: ixSEG
+ USE var_lookup, ONLY: ixNTOPO
+ USE var_lookup, ONLY: ixPFAF
+ USE var_lookup, ONLY: ixRFLX
+ USE var_lookup, ONLY: ixHFLX
  ! external subroutines
  USE ascii_util_module, ONLY: file_open        ! open file (performs a few checks as well)
  USE ascii_util_module, ONLY: get_vlines       ! get a list of character strings from non-comment lines
@@ -115,7 +117,6 @@ CONTAINS
    case('<newFileFrequency>');     newFileFrequency = trim(cData)                      ! frequency for new output files (day, month, annual, single)
    case('<route_opt>');            routOpt     = trim(cData)                           ! routing scheme options  0-> accumRunoff, 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW
    case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute        ! basin routing options   0-> no, 1->IRF, otherwise error
-   case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut              ! desired outlet reach id (if -9999 --> route over the entire network)
    case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim           ! logical; lakes are simulated
    case('<is_flux_wm>');           read(cData,*,iostat=io_error) is_flux_wm            ! logical; provided fluxes to or from seg/lakes should be considered
    case('<is_vol_wm>');            read(cData,*,iostat=io_error) is_vol_wm             ! logical; provided target volume for managed lakes are considered
@@ -177,11 +178,19 @@ CONTAINS
    ! TIME
    case('<time_units>');           time_units = trim(cData)                            ! time units. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
    case('<calendar>');             calendar   = trim(cData)                            ! calendar name
-   ! GAUGE META
+   ! GAUGE DATA
    case('<gageMetaFile>');         gageMetaFile = trim(cData)                          ! name of csv file containing gauge metadata (gauge id, reach id, gauge lat/lon)
-   case('<gageOutput>');           read(cData,*,iostat=io_error) gageOutput            ! logical; T-> history file output at only gauge points
+   case('<outputAtGage>');         read(cData,*,iostat=io_error) outputAtGage          ! logical; T-> history file output at only gauge points
+   case('<fname_gageObs>');        fname_gageObs = trim(cData)                         ! netcdf name of gauge observed data
+   case('<vname_gageFlow>');       vname_gageFlow  = trim(cData)                       ! varialbe name for gauge site flow data
+   case('<vname_gageSite>');       vname_gageSite  = trim(cData)                       ! variable name for site name data
+   case('<vname_gageTime>');       vname_gageTime  = trim(cData)                       ! variable name for time data
+   case('<dname_gageSite>');       dname_gageSite  = trim(cData)                       ! dimension name for gauge site
+   case('<dname_gageTime>');       dname_gageTime  = trim(cData)                       ! dimension name for time
+   case('<strlen_gageSite>');      read(cData,*,iostat=io_error) strlen_gageSite       ! site name max character length
    ! MISCELLANEOUS
    case('<debug>');                read(cData,*,iostat=io_error) debug                 ! print out detailed information throught the probram
+   case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut              ! desired outlet reach id (if -9999 --> route over the entire network)
    case('<desireId>'   );          read(cData,*,iostat=io_error) desireId              ! turn off checks or speficy reach ID if necessary to print on screen
    ! PFAFCODE
    case('<maxPfafLen>');           read(cData,*,iostat=io_error) maxPfafLen            ! maximum digit of pfafstetter code (default 32)
@@ -201,13 +210,11 @@ CONTAINS
    ! VARIABLE NAMES for data (overwrite default name in popMeta.f90)
    ! HRU structure
    case('<varname_area>'         ); meta_HRU    (ixHRU%area            )%varName = trim(cData) ! HRU area
-
    ! Mapping from HRUs to stream segments
    case('<varname_HRUid>'        ); meta_HRU2SEG(ixHRU2SEG%HRUid       )%varName = trim(cData) ! HRU id
    case('<varname_HRUindex>'     ); meta_HRU2SEG(ixHRU2SEG%HRUindex    )%varName = trim(cData) ! HRU index
    case('<varname_hruSegId>'     ); meta_HRU2SEG(ixHRU2SEG%hruSegId    )%varName = trim(cData) ! the stream segment id below each HRU
    case('<varname_hruSegIndex>'  ); meta_HRU2SEG(ixHRU2SEG%hruSegIndex )%varName = trim(cData) ! the stream segment index below each HRU
-
    ! reach properties
    case('<varname_length>'         ); meta_SEG    (ixSEG%length          )%varName =trim(cData)   ! length of segment  (m)
    case('<varname_slope>'          ); meta_SEG    (ixSEG%slope           )%varName =trim(cData)   ! slope of segment   (-)
@@ -295,7 +302,6 @@ CONTAINS
    case('<varname_LakeTargVol>'  ); meta_NTOPO  (ixNTOPO%LakeTargVol   )%varName =trim(cData)  ! flag to follow the provided target volume (1=yes, 0=no)
    case('<varname_userTake>'     ); meta_NTOPO  (ixNTOPO%userTake      )%varName =trim(cData)  ! flag to define if user takes water from reach (1=extract, 0 otherwise)
    case('<varname_goodBasin>'    ); meta_NTOPO  (ixNTOPO%goodBasin     )%varName =trim(cData)  ! flag to define a good basin (1=good, 0=bad)
-
    ! pfafstetter code
    case('<varname_pfafCode>'     ); meta_PFAF   (ixPFAF%code           )%varName =trim(cData)  ! pfafstetter code
 
@@ -377,7 +383,7 @@ CONTAINS
    case('h','hr','hour');    time_conv = 1._dp/secprhour
    case('s','sec','second'); time_conv = 1._dp
    case default
-     message=trim(message)//'expect the time units of to be "day"("d"), "hour"("h") or "second"("s") [time units = '//trim(cTime)//']'
+     message=trim(message)//'expect the time units of runoff to be "day"("d"), "hour"("h") or "second"("s") [time units = '//trim(cTime)//']'
      err=81; return
  end select
 
@@ -409,7 +415,7 @@ CONTAINS
      case(muskingumCunge);        if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%MCroutedRunoff)%varFile=.false.
      case(kinematicWave);         if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%KWroutedRunoff)%varFile=.false.
      case(diffusiveWave);         if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%DWroutedRunoff)%varFile=.false.
-     case default; message=trim(message)//'expect digits from 1 and 5'; err=81; return
+     case default; message=trim(message)//'expect digits from 0 and 5'; err=81; return
    end select
  end do
 

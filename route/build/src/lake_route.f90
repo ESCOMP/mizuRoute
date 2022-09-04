@@ -29,17 +29,13 @@ CONTAINS
   ! *********************************************************************
   ! subroutine: perform one segment lake routing
   ! *********************************************************************
-  SUBROUTINE lake_route(&
-                         ! input
-                         iEns,       &    ! input: index of runoff ensemble to be processed
-                         segIndex,   &    ! input: index of runoff ensemble to be processed
-                         ixDesire,   &    ! input: reachID to be checked by on-screen pringing (here reachID can be lake)
-                         NETOPO_in,  &    ! input: reach topology data structure
-                         RPARAM_in,  &    ! input: reach parameter data strcuture
-                         ! inout
-                         RCHFLX_out, &    ! inout: reach flux data structure
-                         ! output
-                         ierr, message)   ! output: error control
+  SUBROUTINE lake_route(iEns,       &    ! input: index of runoff ensemble to be processed
+                        segIndex,   &    ! input: index of runoff ensemble to be processed
+                        ixDesire,   &    ! input: reachID to be checked by on-screen pringing (here reachID can be lake)
+                        NETOPO_in,  &    ! input: reach topology data structure
+                        RPARAM_in,  &    ! input: reach parameter data strcuture
+                        RCHFLX_out, &    ! inout: reach flux data structure
+                        ierr, message)   ! output: error control
 
   USE globalData, ONLY: iTime               ! current model time step
   USE globalData, ONLY: simDatetime         ! previous and current model time
@@ -387,7 +383,8 @@ CONTAINS
 
         case(hype)
           ! update reach elevation
-          RCHFLX_out(iens,segIndex)%REACH_ELE = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) / RPARAM_in(segIndex)%HYP_A_avg + RPARAM_in(segIndex)%HYP_E_zero
+          RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_ELE = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) / RPARAM_in(segIndex)%HYP_A_avg &
+                                                              + RPARAM_in(segIndex)%HYP_E_zero
 
           ! caclulate the day of calendar from 1st of January of current simulation year; julian day - julian day of the first of January of current year
           select case(trim(calendar))
@@ -404,7 +401,7 @@ CONTAINS
           ! calculation of Fsin; sinusoidal aplication of flow
           F_sin = max(0._dp,(1+RPARAM_in(segIndex)%HYP_Qrate_amp*sin(2*pi*(Day_of_year+RPARAM_in(segIndex)%HYP_Qrate_phs)/365)))
           ! calculation of Flin; linear change in flow realted to the storage
-          F_lin = min(max((RCHFLX_out(iens,segIndex)%REACH_ELE-RPARAM_in(segIndex)%HYP_E_min)/(RPARAM_in(segIndex)%HYP_E_lim-RPARAM_in(segIndex)%HYP_E_min),0._dp),1._dp)
+          F_lin = min(max((RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_ELE-RPARAM_in(segIndex)%HYP_E_min)/(RPARAM_in(segIndex)%HYP_E_lim-RPARAM_in(segIndex)%HYP_E_min),0._dp),1._dp)
           ! flag for the model simulation in which is located in the area
           F_prim = 0
           if (RPARAM_in(segIndex)%HYP_prim_F) then
@@ -433,8 +430,9 @@ CONTAINS
           Q_prim = F_sin * F_lin * F_prim * RPARAM_in(segIndex)%HYP_Qrate_prim
           ! Q_spill
           Q_spill = 0._dp
-          if (RCHFLX_out(iens,segIndex)%REACH_ELE > RPARAM_in(segIndex)%HYP_E_emr) then
-            Q_spill = RPARAM_in(segIndex)%HYP_Qrate_emr * (RCHFLX_out(iens,segIndex)%REACH_ELE - RPARAM_in(segIndex)%HYP_E_emr)**RPARAM_in(segIndex)%HYP_Erate_emr
+          if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_ELE > RPARAM_in(segIndex)%HYP_E_emr) then
+            Q_spill = RPARAM_in(segIndex)%HYP_Qrate_emr* (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_ELE &
+                      - RPARAM_in(segIndex)%HYP_E_emr)**RPARAM_in(segIndex)%HYP_Erate_emr
           end if
           ! Q_sim
           Q_sim = Q_prim + Q_spill
@@ -445,7 +443,7 @@ CONTAINS
           print*, 'Q_spill ..= ', Q_spill
 
           ! check if the output is not more than the existing stored water
-          RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = min (Q_sim, max(0._dp,(RCHFLX_out(iens,segIndex)%REACH_ELE-RPARAM_in(segIndex)%HYP_E_min)*RPARAM_in(segIndex)%HYP_A_avg)/dt)
+          RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = min(Q_sim, max(0._dp,(RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_ELE-RPARAM_in(segIndex)%HYP_E_min)*RPARAM_in(segIndex)%HYP_A_avg)/dt)
 
           ! update the storage
           RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q * dt

@@ -1028,44 +1028,31 @@ CONTAINS
   end if
 
   ! --------------------------------
-  ! distribute (scatter) global runoff, evaporation
-  ! and precipitation array to local runoff arrays
+  ! distribute (i.e., scatter) forcing data from a global array to local ones in each task
+  ! water-balance: 1. runoff, 2. evaporation, 3. precipitation
+  ! water-management: 4. water injection/abstraction, 5. volume threshold for lake release
   !  - basinRunoff_main (only at master proc)
   !  - basinRunoff_trib (all procs)
   !  - basinEvapo_main  (only at master proc)
   !  - basinEvapo_trib  (all procs)
   !  - basinPrecip_main (only at master proc)
   !  - basinPrecip_trib (all procs)
+  !  - flux_wm_main (only at master proc)
+  !  - flux_wm_trib (all procs)
+  !  - vol_wm_main  (only at master proc)
+  !  - vol_wm_trib  (all procs)
   ! --------------------------------
   if (doesScatterData) then
     call t_startf ('route/scatter-runoff')
     call scatter_runoff(nNodes, comm, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     call t_stopf ('route/scatter-runoff')
-  else
-    if (masterproc) then
-      write(iulog,*) 'NOTE: HRU Runoff is already decomposed into mainstems and tributaries. No need for scatter_runoff'
-    end if
-  end if
 
-  ! --------------------------------
-  ! distribute (scatter) water managemnt flux and
-  ! volume in the
-  !  - flux_wm_main (only at master proc)
-  !  - flux_wm_trib (all procs)
-  !  - vol_wm_main  (only at master proc)
-  !  - vol_wm_trib  (all procs)
-  ! --------------------------------
-  if (is_flux_wm.or.(is_vol_wm.and.is_lake_sim)) then
-    if (doesScatterData) then
+    if (is_flux_wm .or. (is_vol_wm .and. is_lake_sim)) then
       call t_startf ('route/scatter-wm')
       call scatter_wm(nNodes, comm, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       call t_stopf ('route/scatter-wm')
-    else
-      if (masterproc) then
-        write(iulog,*) 'NOTE: reach flux and target volume are already decomposed into mainstems and tributaries. No need for scatter_wm'
-      end if
     end if
   end if
 

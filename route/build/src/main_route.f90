@@ -103,16 +103,20 @@ CONTAINS
   allocate(reachRunoff_local(nSeg), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [reachRunoff_local]'; return; endif
 
-  ! passing of the water management fluxes and lake target vol if presence
+  ! Initialize water-management flux (water take, lake volume threshold for release)
   if (is_flux_wm) then
     do iSeg = 1,nSeg
-      RCHFLX_out(iens,ixRchProcessed(iSeg))%REACH_WM_FLUX  =  reachflux_in(iSeg)  ! added or subtracted stremflow for each reach
+      RCHFLX_out(iens,ixRchProcessed(iSeg))%REACH_WM_FLUX = reachflux_in(iSeg)  ! added or subtracted stremflow for each reach
     end do
+  else
+    RCHFLX_out(iens,:)%REACH_WM_FLUX = 0._dp
   end if
-  if (is_vol_wm.and.is_lake_sim) then
+  if (is_vol_wm .and. is_lake_sim) then
     do iSeg = 1,nSeg
-      RCHFLX_out(iens,ixRchProcessed(iSeg))%REACH_WM_VOL   =  reachvol_in(iSeg)   ! target volume for the lakes
+      RCHFLX_out(iens,ixRchProcessed(iSeg))%REACH_WM_VOL = reachvol_in(iSeg)   ! target volume for the lakes
     end do
+  else
+    RCHFLX_out(iens,:)%REACH_WM_VOL = 0._dp
   end if
 
   ! 1. subroutine: map basin runoff to river network HRUs

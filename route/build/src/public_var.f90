@@ -1,8 +1,10 @@
 MODULE public_var
+
   ! This module include variables that can be accessed from any other modules and values not altered
   ! except that variables read from control file are populated.
 
   USE nrtype
+
   implicit none
 
   save
@@ -13,7 +15,7 @@ MODULE public_var
   ! ---------- common constants ---------------------------------------------------------------------
 
   ! physical constants
-  real(dp),    parameter,public    :: pi=3.14159265359_dp   ! pi
+  real(dp),    parameter,public   :: pi=3.14159265359_dp    ! pi
 
   ! some common constant variables (not likely to change value)
   real(dp),    parameter,public   :: secprmin=60._dp        ! number of seconds in a minute
@@ -91,7 +93,7 @@ MODULE public_var
   logical(lgt),public             :: continue_run         = .false.         ! T-> append output in existing history files. F-> write output in new history file
   character(len=strLen),public    :: simStart             = ''              ! date string defining the start of the simulation
   character(len=strLen),public    :: simEnd               = ''              ! date string defining the end of the simulation
-  character(len=strLen),public    :: newFileFrequency     = 'annual'        ! frequency for new output files (day, month, annual, single)
+  character(len=strLen),public    :: newFileFrequency     = 'yearly'        ! frequency for new output files (daily, monthly, yearly, single)
   character(len=10)    ,public    :: routOpt              = '0'             ! routing scheme options  0: accum runoff, 1:IRF, 2:KWT, 3:KW, 4:MC, 5:DW
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
   logical(lgt),public             :: is_lake_sim          = .false.         ! logical if lakes are activated in simulation
@@ -109,7 +111,6 @@ MODULE public_var
   character(len=strLen),public    :: fname_ntopNew        = ''              ! new filename containing stream network topology information
   character(len=strLen),public    :: dname_sseg           = ''              ! dimension name of segment in river network data
   character(len=strLen),public    :: dname_nhru           = ''              ! dimension name of hru in river network data
-  integer(i4b)         ,public    :: idSegOut             = integerMissing  ! id of outlet stream segment
   ! RUNOFF, EVAPORATION AND PRECIPITATION FILE
   character(len=strLen),public    :: fname_qsim           = ''              ! simulated runoff netCDF name
   character(len=strLen),public    :: vname_qsim           = ''              ! variable name for simulated runoff
@@ -152,10 +153,18 @@ MODULE public_var
   character(len=strLen),public    :: fname_state_in       = charMissing     ! name of state file
   ! SPATIAL CONSTANT PARAMETERS
   character(len=strLen),public    :: param_nml            = ''              ! name of the namelist file
-  ! GAUGE METADATA
+  ! GAUGE DATA
   character(len=strLen),public    :: gageMetaFile         = charMissing     ! name of the gauge metadata csv
-  logical(lgt),public             :: gageOutput           = .false.         ! logical; T-> history file output at only gauge points
-  ! COMPUTATION OPTION
+  logical(lgt),public             :: outputAtGage         = .false.         ! logical; T-> history file output at only gauge points
+  character(len=strLen),public    :: fname_gageObs        = ''              ! gauge data netcdf name
+  character(len=strLen),public    :: vname_gageFlow       = ''              ! variable name for gauge flow data
+  character(len=strLen),public    :: vname_gageSite       = ''              ! variable name for site name data
+  character(len=strLen),public    :: vname_gageTime       = ''              ! variable name for time data
+  character(len=strLen),public    :: dname_gageSite       = ''              ! dimension name for gauge site
+  character(len=strLen),public    :: dname_gageTime       = ''              ! dimension name for time
+  integer(i4b)         ,public    :: strlen_gageSite      = 30              ! maximum character length for site name
+  ! USER OPTIONS
+  integer(i4b)         ,public    :: qmodOption           = 0               ! option for streamflow modification
   integer(i4b)         ,public    :: hydGeometryOption    = compute         ! option for hydraulic geometry calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: topoNetworkOption    = compute         ! option for network topology calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: computeReachList     = compute         ! option to compute list of upstream reaches (0=do not compute, 1=compute)
@@ -164,6 +173,7 @@ MODULE public_var
   character(len=strLen),public    :: calendar             = charMissing     ! calendar name
   ! MISCELLANEOUS
   logical(lgt)         ,public    :: debug                = .false.         ! print out detaled information
+  integer(i4b)         ,public    :: idSegOut             = integerMissing  ! id of outlet stream segment
   integer(i4b)         ,public    :: desireId             = integerMissing  ! turn off checks or speficy reach ID if necessary to print on screen
   ! PFAFCODE
   integer(i4b)         ,public    :: maxPfafLen           = 32              ! maximum digit of pfafstetter code (default 32).
