@@ -17,7 +17,7 @@
 <doesBasinRoute>        1                          ! basin routing options   0-> no, 1->IRF, otherwise error
 <is_flux_wm>            T                          ! switch for water abstraction/injection
 <fname_state_in>        STATE_IN_NC                ! input restart netCDF name. remove for run without any particular initial channel states
-<newFileFrequency>      month                      ! frequency for new output files (day, month, annual, single) 
+<newFileFrequency>      monthly                    ! frequency for new output files (daily, monthly, yearly, single)
 ! ****************************************************************************************************************************
 ! DEFINE DIRECTORIES 
 ! --------------------------
@@ -64,10 +64,15 @@
 <DWroutedRunoff>        T                          ! diffusive wave routed discharge at reach [L3/T]
 <volume>                F                          ! volume at the end of time step at reach [L3] - currently only IRF
 ! ****************************************************************************************************************************
-! cesm-coupler: qgwl runoff handling option
+! cesm-coupler: negative flow (qgwl and excess irrigation demand) handling option
 ! ---------------------------
-<qgwl_runoff_option>    threshold                  ! all, negative, or threshold (default)
-<bypass_routing_option> direct_in_place            ! direct_in_place, direct_to_outlet (default), or none:  direct_to_outlet== means send to the river mouth
+! NOTE: <bypass_routing_option> is option of the method of handling negative runoff from land model (qbwl or excess irrigation demand).
+!       direct_in_place: put hru runoff separately from other runoff components and send thme to the nearest ocean point through a coupler.
+!       direct_to_outlet: send hru runoff directly to ocean or endoheic lake outlet and putting the total runoff into the reach.
+!       <qgwl_runoff_option> is option of method of handling qgwl runoff from CLM.
+!       all: apply all qgwl runoff to bypass_routing, negative: apply only negative runoff, threshold: apply runoff below threshold
+<bypass_routing_option> direct_in_place            ! options: direct_in_place, or direct_to_outlet
+<qgwl_runoff_option>    threshold                  ! options: all, negative, or threshold
 ! ****************************************************************************************************************************
 ! ****************************************************************************************************************************
 ! ****************************************************************************************************************************
