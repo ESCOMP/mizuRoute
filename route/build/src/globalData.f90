@@ -28,6 +28,8 @@ MODULE globalData
   USE dataTypes, ONLY: runoff        ! data structure - runoff data type
   USE dataTypes, ONLY: wm            ! data structure - water management (flux to/from segment, target volume) data type
 
+  USE dataTypes, ONLY: commLink      ! data structure - arbitrary element-to-element link
+
   USE dataTypes, ONLY: subbasin_omp  ! data structure - omp domain decomposition
   USE dataTypes, ONLY: subbasin_mpi  ! data structure - mpi domain decomposition
 
@@ -209,22 +211,26 @@ MODULE globalData
   real(dp),           allocatable, public :: vol_wm_main(:)         ! SEG target volume (for lakes) (m3) for mainstem
 
   ! domain data
-  ! MPI
+  ! -- MPI
   type(subbasin_mpi), allocatable, public :: domains_mpi(:)         ! mpi domain decomposition data structure
   integer(i4b),                    public :: nDomain_mpi            ! number of mpi domains
-  ! OMP
+
+  ! -- OMP
   type(subbasin_omp), allocatable, public :: river_basin_main(:)    ! openMP domain decomposition for mainstem
   type(subbasin_omp), allocatable, public :: river_basin_trib(:)    ! openMP domain decomposition for tributary
 
+  ! -- reach and hru ordered index
   integer(i4b),       allocatable, public :: ixHRU_order(:)         ! global HRU index in the order of proc assignment (size = num of hrus contributing reach in entire network)
   integer(i4b),       allocatable, public :: ixRch_order(:)         ! global reach index in the order of proc assignment (size = num of reaches in entire network))
   integer(i4b),       allocatable, public :: hru_per_proc(:)        ! number of hrus assigned to each proc (size = num of procs
   integer(i4b),       allocatable, public :: rch_per_proc(:)        ! number of reaches assigned to each proc (size = num of procs)
-
   integer(i4b),       allocatable, public :: nTribOutlet            ! number of tributary reaches flowing into mainstem
   integer(i4b),       allocatable, public :: global_ix_main(:)      ! index array in mainstem array for tributary reach outlet (size = num of tributary outlets)
   integer(i4b),       allocatable, public :: global_ix_comm(:)      ! global index array for tributary reach outlet (size = num of tributary outlets)
   integer(i4b),       allocatable, public :: local_ix_comm(:)       ! local index array for tributary reach outlet (size = num of tributary outlets per proc)
   integer(i4b),       allocatable, public :: tribOutlet_per_proc(:) ! number of tributary outlet reaches assigned to each proc (size = num of procs)
+
+  ! -- reach to reach connection
+  type(commLink),     allocatable, public :: commRch(:)             ! reach-reach connections for reach flux transfer
 
 END MODULE globalData
