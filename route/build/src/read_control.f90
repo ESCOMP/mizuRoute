@@ -101,6 +101,11 @@ CONTAINS
      write(iulog,'(x,a,a,a)') trim(cName), ' --> ', trim(cData)
    endif
 
+   if (index(cData, achar(9)) > 0) then
+     err=10; message=trim(message)//'Control variable:'//trim(cData)//' includes TABs. Use spaces'
+     return
+   end if
+
    ! populate variables
    select case(trim(cName))
 
