@@ -66,10 +66,10 @@
 ! ****************************************************************************************************************************
 ! cesm-coupler: negative flow (qgwl and excess irrigation demand) handling option
 ! ---------------------------
-! NOTE: <bypass_routing_option> is option of the method of handling negative runoff from land model (qbwl or excess irrigation demand).
-!       direct_in_place: put hru runoff separately from other runoff components and send thme to the nearest ocean point through a coupler.
-!       direct_to_outlet: send hru runoff directly to ocean or endoheic lake outlet and putting the total runoff into the reach.
-!       <qgwl_runoff_option> is option of method of handling qgwl runoff from CLM.
+! NOTE: <bypass_routing_option> is options for handling negative runoff from land model (qbwl or excess irrigation demand).
+!       direct_in_place: separate negative HRU runoff from other runoff components and send it to the nearest ocean point through a coupler.
+!       direct_to_outlet: send negative HRU runoff directly to the basin outlet (ocean or endoheic lake) and putting it into the outlet reach.
+!       <qgwl_runoff_option> is options for handling qgwl runoff from CLM.
 !       all: apply all qgwl runoff to bypass_routing, negative: apply only negative runoff, threshold: apply runoff below threshold
 <bypass_routing_option> direct_in_place            ! options: direct_in_place, or direct_to_outlet
 <qgwl_runoff_option>    threshold                  ! options: all, negative, or threshold

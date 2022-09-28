@@ -1,8 +1,7 @@
 MODULE init_model_data
 
 ! data types
-USE nrtype,    ONLY: i4b,dp,lgt
-USE nrtype,    ONLY: strLen
+USE nrtype,    ONLY: i4b,dp,lgt,strLen
 USE dataTypes, ONLY: var_ilength         ! integer type:          var(:)%dat
 USE dataTypes, ONLY: var_clength         ! integer type:          var(:)%dat
 USE dataTypes, ONLY: var_dlength         ! double precision type: var(:)%dat, or dat
@@ -144,6 +143,7 @@ CONTAINS
   ! Shared data
   USE public_var,  ONLY: ntopAugmentMode        ! River network augmentation mode
   USE public_var,  ONLY: idSegOut               ! outlet segment ID (-9999 => no outlet segment specified)
+  USE public_var,  ONLY: bypass_routing_option  ! cesm-coupling option
   USE globalData,  ONLY: masterproc             ! root proc logical
   USE globalData,  ONLY: multiProcs             ! mpi multi-procs logical (.true. -> use more than 1 processors)
   USE globalData,  ONLY: nHRU, nRch             ! number of HRUs and Reaches in the whole network
@@ -159,12 +159,14 @@ CONTAINS
   USE globalData,  ONLY: nRoutes                ! number of active routing methods
   USE globalData,  ONLY: basinID                ! HRU id vector
   USE globalData,  ONLY: reachID                ! reach ID vector
+  USE globalData,  ONLY: runMode                ! mizuRoute run mode - standalone or ctsm-coupling
   ! external subroutines
   USE model_utils,          ONLY: model_finalize
   USE mpi_process,          ONLY: comm_ntopo_data          ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
   USE process_ntopo,        ONLY: put_data_struct          ! populate NETOPO and RPARAM data structure
   USE mpi_utils,            ONLY: shr_mpi_initialized      ! If MPI is being used
   USE domain_decomposition, ONLY: mpi_domain_decomposition ! domain decomposition for mpi
+  USE network_topo,         ONLY: outletSegment            ! subroutine: find oultlet reach id, index  as a destination reach
 
   implicit none
   ! Argument variables
@@ -192,6 +194,12 @@ CONTAINS
                      ierr, cmessage)                                                 ! output: error controls
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+     ! ----  CESM-coupling only
+     if (trim(runMode)=='cesm-coupling' .and. &
+         trim(bypass_routing_option)=='direct_to_outlet') then
+       call outletSegment(nRch, structNTOPO, ierr, message)
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     end if
    end if
 
    ! check if network topology write option is on. If so, terminate the program

@@ -284,6 +284,14 @@ implicit none
   integer(i4b)                               :: LAKEMODELTYPE! 1=Doll, 2=Hanasaki, 3=HYPE else=non-parameteric
  end type RCHTOPO
 
+ ! arbitrary element-to-element connection
+ type, public :: commLink
+   integer(i4b) :: srcTask   ! source task
+   integer(i4b) :: destTask  ! destination task
+   integer(i4b) :: srcIndex  ! source array index
+   integer(i4b) :: destIndex ! destination array index
+ end type commLink
+
  ! ---------- reach states --------------------------------------------------------------------
 
  !---------- Lagrangian kinematic wave states (collection of particles) ---------------------------------
