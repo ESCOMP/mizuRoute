@@ -324,8 +324,8 @@ MODULE process_remap_module
                          ! output
                          reachRunoff,       & ! intent(out): reach runoff (m/s)
                          ierr, message,     & ! intent(out): error control
-                         ixSubRch)            ! optional input: subset of reach indices to be processed
-
+                         ixSubRch,          & ! optional input: subset of reach indices to be processed
+                         limitRunoff)         ! optional input: true->enforce min. flow, false->allow any flow (e.g., negative)
   ! External modules
   USE nr_utility_module, ONLY : arth
 
@@ -341,6 +341,7 @@ MODULE process_remap_module
   character(len=strLen)     , intent(out) :: message          ! error message
   ! input (optional)
   integer(i4b),  optional   , intent(in)  :: ixSubRch(:)     ! subset of reach indices to be processed
+  logical(lgt),  optional   , intent(in)  :: limitRunoff     ! enforce minimum threshold flow or not
   ! ----------------------------------------------------------------------------------------------
   ! local
   integer(i4b)                            :: nContrib         ! number of contributing HRUs
@@ -348,6 +349,7 @@ MODULE process_remap_module
   integer(i4b)                            :: iHRU             ! array index for contributing HRUs
   integer(i4b), allocatable               :: ixRch(:)         ! a list of reach indices to be processed
   integer(i4b)                            :: iSeg, jSeg       ! array index for reaches
+  logical(lgt)                            :: limit
 
   ierr=0; message='basin2reach/'
 
@@ -365,6 +367,13 @@ MODULE process_remap_module
    ixRch = arth(1,1,nSeg)
   endif
 
+  ! optional: enforcing accesptable minimum flow or not (default: yes==true)
+  if (present(limitRunoff))then
+    limit = limitRunoff
+  else
+    limit = .true.
+  end if
+
   ! interpolate the data to the basins
   do iSeg=1,nSeg
 
@@ -381,31 +390,33 @@ MODULE process_remap_module
    if(nContrib > 0)then
 
     ! intialize the streamflow
-    reachRunoff(iSeg) = 0._dp
+    reachRunoff(jSeg) = 0._dp
 
     ! loop through the HRUs
     do iHRU=1,nContrib
 
      ! error check - runoff depth cannot be negative (no missing value)
-     if( basinRunoff( hruContribIx(iHRU) ) < negRunoffTol )then
-      write(message,'(a,i0)') trim(message)//'exceeded negative runoff tolerance for HRU ', hruContribId(iHRU)
-      ierr=20; return
-     endif
+     if (limit) then
+       if( basinRunoff( hruContribIx(iHRU) ) < negRunoffTol )then
+        write(message,'(a,i0)') trim(message)//'exceeded negative runoff tolerance for HRU ', hruContribId(iHRU)
+        ierr=20; return
+       endif
+     end if
 
      ! compute the weighted average runoff depth (m/s)
-     reachRunoff(iSeg) = reachRunoff(iSeg) + hruWeight(iHRU)*basinRunoff( hruContribIx(iHRU) )*time_conv*length_conv
+     reachRunoff(jSeg) = reachRunoff(jSeg) + hruWeight(iHRU)*basinRunoff( hruContribIx(iHRU) )*time_conv*length_conv
 
     end do  ! (looping through contributing HRUs)
 
     ! ensure that routed streamflow is non-zero
-    if(reachRunoff(iSeg) < runoffMin) reachRunoff(iSeg) = runoffMin
+    if(limit .and. reachRunoff(jSeg)<runoffMin) reachRunoff(jSeg) = runoffMin
 
     ! convert basin average runoff volume (m3/s)
-    reachRunoff(iSeg) = reachRunoff(iSeg)*basArea
+    reachRunoff(jSeg) = reachRunoff(jSeg)*basArea
 
    ! * special case where no HRUs drain into the segment
    else
-    reachRunoff(iSeg) = runoffMin
+    if(limit) reachRunoff(jSeg) = runoffMin
    endif
 
    ! end association to data structures
