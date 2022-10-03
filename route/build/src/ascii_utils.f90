@@ -1,4 +1,4 @@
-MODULE ascii_util_module
+MODULE ascii_utils
 
 USE nrtype
 
@@ -230,4 +230,4 @@ CONTAINS
 
  END FUNCTION lower
 
-END MODULE ascii_util_module
+END MODULE ascii_utils

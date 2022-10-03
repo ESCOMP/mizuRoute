@@ -28,9 +28,9 @@ USE var_lookup, ONLY:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2seg
 USE var_lookup, ONLY:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
 
 ! external utilities
-USE nr_utility_module, ONLY: findIndex     ! Num. Recipies utilities
-USE nr_utility_module, ONLY: indexx        ! Num. Recipies utilities
-USE nr_utility_module, ONLY: arth          ! Num. Recipies utilities
+USE nr_utils, ONLY: findIndex     ! Num. Recipies utilities
+USE nr_utils, ONLY: indexx        ! Num. Recipies utilities
+USE nr_utils, ONLY: arth          ! Num. Recipies utilities
 
 implicit none
 
@@ -675,7 +675,7 @@ CONTAINS
  !     at each point in the river network)
  !
  ! ----------------------------------------------------------------------------------------
- USE nr_utility_module, ONLY: arth                          ! Num. Recipies utilities
+
  IMPLICIT NONE
  ! input variables
  INTEGER(I4B)      , INTENT(IN)                 :: NRCH            ! number of stream segments
@@ -832,7 +832,7 @@ CONTAINS
  !   Generates a list of all reaches upstream of a given reach
  !
  ! ----------------------------------------------------------------------------------------
- USE nr_utility_module, ONLY: arth                                 ! Num. Recipies utilities
+
  IMPLICIT NONE
  ! input variables
  integer(i4b)      , intent(in)                :: desireId          ! id of the desired reach
@@ -1024,7 +1024,7 @@ CONTAINS
  !   Generates a list of all reaches upstream of a given reach
  !
  ! ----------------------------------------------------------------------------------------
- USE nr_utility_module, ONLY: arth                                 ! Num. Recipies utilities
+
  IMPLICIT NONE
  ! input variables
  integer(i4b)      , intent(in)                :: desireId          ! id of the desired reach

@@ -26,13 +26,13 @@ USE var_lookup, ONLY:ixHRU2SEG,nVarsHRU2SEG   ! index of variables for the hru2s
 USE var_lookup, ONLY:ixNTOPO,  nVarsNTOPO     ! index of variables for the network topology
 USE var_lookup, ONLY:ixPFAF,   nVarsPFAF      ! index of variables for the pfafstetter code
 ! general utility
-USE nr_utility_module, ONLY: indexx           ! create sorted index array
-USE nr_utility_module, ONLY: arth             ! build a vector of regularly spaced numbers
-USE nr_utility_module, ONLY: sizeo            ! get size of allocatable array (if not allocated, zero)
-USE nr_utility_module, ONLY: findIndex        ! find index within a vector
-USE nr_utility_module, ONLY: match_index      !
-USE perf_mod,          ONLY: t_startf         ! timing start
-USE perf_mod,          ONLY: t_stopf          ! timing stop
+USE nr_utils,  ONLY: indexx           ! create sorted index array
+USE nr_utils,  ONLY: arth             ! build a vector of regularly spaced numbers
+USE nr_utils,  ONLY: sizeo            ! get size of allocatable array (if not allocated, zero)
+USE nr_utils,  ONLY: findIndex        ! find index within a vector
+USE nr_utils,  ONLY: match_index      !
+USE perf_mod,  ONLY: t_startf         ! timing start
+USE perf_mod,  ONLY: t_stopf          ! timing stop
 ! MPI utility
 USE mpi_utils, ONLY: shr_mpi_bcast
 USE mpi_utils, ONLY: shr_mpi_gatherV

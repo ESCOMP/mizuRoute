@@ -44,9 +44,9 @@ MODULE process_gage_meta
 
     SUBROUTINE reach_subset(reachID_in, gage_data_in, compdof, index2)
 
-      USE nr_utility_module, ONLY: match_index
-      USE nr_utility_module, ONLY: arth
-      USE dataTypes,         ONLY: gage
+      USE nr_utils,  ONLY: match_index
+      USE nr_utils,  ONLY: arth
+      USE dataTypes, ONLY: gage
 
       implicit none
       ! Argument variables

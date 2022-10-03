@@ -1,11 +1,14 @@
-module gamma_func_module
+MODULE gamma_func_module
+
 USE nrtype
-USE nr_utility_module,only:arth
+USE nr_utils, ONLY: arth
+
 ! contains functions that should really be part of the fortran standard, but are not
 implicit none
 private
 public::gammp
-contains
+
+CONTAINS
 
  ! ******************************************************************************************************************************
  ! public function gammp: compute cumulative probability using the Gamma distribution
@@ -117,4 +120,4 @@ contains
   sum(coef(:)/arth(x+1.0_dp,1.0_dp,size(coef))))/x)
  END FUNCTION gammln
 
-end module gamma_func_module
+END MODULE gamma_func_module

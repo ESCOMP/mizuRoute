@@ -327,7 +327,7 @@ MODULE process_remap_module
                          ixSubRch,          & ! optional input: subset of reach indices to be processed
                          limitRunoff)         ! optional input: true->enforce min. flow, false->allow any flow (e.g., negative)
   ! External modules
-  USE nr_utility_module, ONLY : arth
+  USE nr_utils, ONLY : arth
 
   implicit none
 

@@ -13,7 +13,7 @@ USE globalData,     ONLY: masterproc
 USE globalData,     ONLY: hfileout, hfileout_gage, rfileout
 USE historyFile,    ONLY: histFile
 USE io_rpointfile,  ONLY: io_rpfile
-USE ascii_util_module, ONLY: lower
+USE ascii_utils,    ONLY: lower
 USE pio_utils
 
 implicit none
@@ -159,7 +159,7 @@ CONTAINS
    USE globalData, ONLY: rch_per_proc      ! number of reaches assigned to each proc (size = num of procs+1)
    USE globalData, ONLY: nRch_mainstem     ! number of mainstem reach
    USE globalData, ONLY: nTribOutlet       ! number of
-   USE nr_utility_module, ONLY: arth
+   USE nr_utils,   ONLY: arth
 
    implicit none
    ! Argument variables:
@@ -205,7 +205,7 @@ CONTAINS
 
    USE globalData,        ONLY: hru_per_proc      ! number of hrus assigned to each proc (size = num of procs+1)
    USE globalData,        ONLY: rch_per_proc      ! number of reaches assigned to each proc (size = num of procs+1)
-   USE nr_utility_module, ONLY: arth
+   USE nr_utils,          ONLY: arth
 
    implicit none
    ! Argument variables

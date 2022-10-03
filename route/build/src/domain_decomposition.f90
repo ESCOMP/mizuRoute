@@ -9,9 +9,9 @@ USE dataTypes,         ONLY: subbasin_mpi  ! MPI domain data structure
 USE var_lookup,        ONLY: ixNTOPO       ! index of variables for the netowork topolgy
 USE var_lookup,        ONLY: ixHRU2SEG     ! index of variables for the netowork topolgy
 ! General utilities
-USE nr_utility_module, ONLY: indexx        ! sorting array
-USE nr_utility_module, ONLY: indexTrue     ! index at only true in array
-USE nr_utility_module, ONLY: arth          ! generate sequential array
+USE nr_utils,          ONLY: indexx        ! sorting array
+USE nr_utils,          ONLY: indexTrue     ! index at only true in array
+USE nr_utils,          ONLY: arth          ! generate sequential array
 ! updated and saved data
 USE public_var
 

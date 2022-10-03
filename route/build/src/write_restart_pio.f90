@@ -46,7 +46,7 @@ USE globalData,        ONLY: pioSystem
 USE globalData,        ONLY: runMode
 USE globalData,        ONLY: rfileout
 
-USE nr_utility_module, ONLY: arth
+USE nr_utils,          ONLY: arth
 USE pio_utils
 
 implicit none
@@ -106,7 +106,7 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE restart_alarm(restartAlarm, ierr, message)
 
-   USE ascii_util_module, ONLY: lower
+   USE ascii_utils, ONLY: lower
    USE public_var,        ONLY: calendar
    USE public_var,        ONLY: restart_write  ! restart write options
    USE public_var,        ONLY: restart_day

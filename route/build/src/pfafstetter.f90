@@ -2,7 +2,7 @@ MODULE pfafstetter_module
 
 USE nrtype
 USE public_var
-USE nr_utility_module, ONLY: char2int
+USE nr_utils, ONLY: char2int
 
 implicit none
 
