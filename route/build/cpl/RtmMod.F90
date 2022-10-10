@@ -30,7 +30,7 @@ MODULE RtmMod
   USE mpi_utils, ONLY: shr_mpi_barrier
 
   implicit none
-  logical, parameter :: check=.false.
+  logical, parameter :: verbose=.false.
 
   private
   public route_ini          ! Initialize mizuRoute
@@ -225,16 +225,16 @@ CONTAINS
     if (multiProcs) then
       if (masterproc) then
         if (nRch_mainstem > 0) then
-          call get_hru_area(NETOPO_main, RPARAM_main, check=check)
+          call get_hru_area(NETOPO_main, RPARAM_main, verbose=verbose)
         end if
         if (nRch_trib > 0) then
-          call get_hru_area(NETOPO_trib, RPARAM_trib, check=check)
+          call get_hru_area(NETOPO_trib, RPARAM_trib, verbose=verbose)
         end if
       else ! other processors
-        call get_hru_area(NETOPO_trib, RPARAM_trib, check=check)
+        call get_hru_area(NETOPO_trib, RPARAM_trib, verbose=verbose)
       end if
     else ! using single processor
-      call get_hru_area(NETOPO_main, RPARAM_main, check=check)
+      call get_hru_area(NETOPO_main, RPARAM_main, verbose=verbose)
     end if
 
     if ( any(rtmCTL%gindex(rtmCTL%begr:rtmCTL%endr) < 1) )then
@@ -269,7 +269,7 @@ CONTAINS
     !-------------------------------------------------------
     CONTAINS
 
-      SUBROUTINE get_hru_area(NETOPO_in, RPARAM_in, check)
+      SUBROUTINE get_hru_area(NETOPO_in, RPARAM_in, verbose)
 
         ! Descriptions: Compute HRU areas
         ! Note: mizuRoute holds contributory area [m2]-BASAREA, which CAN consists of multiple HRUs
@@ -282,19 +282,19 @@ CONTAINS
         ! Arguments:
         type(RCHTOPO),     intent(in) :: NETOPO_in(:)
         type(RCHPRP),      intent(in) :: RPARAM_in(:)
-        logical, optional, intent(in) :: check
+        logical, optional, intent(in) :: verbose
         ! Local variables:
-        logical                   :: verbose
+        logical                   :: verb
         integer                   :: ix
         integer                   :: iRch, iHru
         integer                   :: nRch, nCatch
         real(r8)                  :: area_hru
         real(r8)                  :: vol_hru
 
-        if (present(check)) then
-          verbose=check
+        if (present(verbose)) then
+          verb=verbose
         else
-          verbose=.false.
+          verb=.false.
         end if
 
         nRch=size(NETOPO_in)
@@ -307,7 +307,7 @@ CONTAINS
             ! To get HRU area [m2], mulitply HRUWGT (areal weight (HRU area/total contributory area)
             rtmCTL%area(ix) = RPARAM_in(iRch)%BASAREA* NETOPO_in(iRch)%HRUWGT(iHru)
 
-            if (verbose) then
+            if (verb) then
               write(iulog, '(a,x,5(g20.12))') &
                  'reachID, hruID, basinArea [m2], weight[-], hruArea [m2]=', &
                  NETOPO_in(iRch)%REACHID, NETOPO_in(iRch)%HRUID(iHru), RPARAM_in(iRch)%BASAREA, &
@@ -409,10 +409,10 @@ CONTAINS
     ! Must be calculated before volr is updated to be consistent with lnd
     call t_startf('mizuRoute_mapping_irrig')
 
-    rtmCTL%take = -1._r8* rtmCTL%qirrig  ! water take [mm/s] - positive (take) or negative (inject)
+    rtmCTL%qirrig_actual = -1._r8* rtmCTL%qirrig  ! actual water take [mm/s] - positive (take) or negative (inject)
     do nr = rtmCTL%begr,rtmCTL%endr
       ! calculate depth of irrigation [mm] during timestep
-      irrig_depth = rtmCTL%take(nr)* coupling_period
+      irrig_depth = rtmCTL%qirrig_actual(nr)* coupling_period
       river_depth = rtmCTL%volr(nr)* 1000._r8 ! m to mm
 
       ! compare irrig_depth [mm] to previous channel storage [mm];
@@ -424,7 +424,7 @@ CONTAINS
 
         ! actual irrigation rate [mm/s]
         ! i.e. the rate actually removed from the river channel
-        rtmCTL%take(nr) = irrig_depth/coupling_period
+        rtmCTL%qirrig_actual(nr) = irrig_depth/coupling_period
       endif
     end do
 
@@ -539,7 +539,7 @@ CONTAINS
     if (multiProcs) then
       if (masterproc) then
         if (nRch_mainstem > 0) then ! mainstem
-          call basin2reach(rtmCTL%take(1:nHRU_mainstem), NETOPO_main, RPARAM_main, flux_wm_main, &
+          call basin2reach(rtmCTL%qirrig_actual(1:nHRU_mainstem), NETOPO_main, RPARAM_main, flux_wm_main, &
                            ierr, cmessage, limitRunoff=.false.)
           if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
           if (trim(bypass_routing_option)=='direct_to_outlet') then
@@ -547,7 +547,7 @@ CONTAINS
           end if
         end if
         if (nRch_trib > 0) then ! tributaries in main processor
-          call basin2reach(rtmCTL%take(nHRU_mainstem+1:rtmCTL%lnumr), NETOPO_trib, RPARAM_trib, flux_wm_trib, ierr, &
+          call basin2reach(rtmCTL%qirrig_actual(nHRU_mainstem+1:rtmCTL%lnumr), NETOPO_trib, RPARAM_trib, flux_wm_trib, ierr, &
                            cmessage, limitRunoff=.false.)
           if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
           if (trim(bypass_routing_option)=='direct_to_outlet') then
@@ -555,14 +555,14 @@ CONTAINS
           end if
         end if
       else ! other processors (tributary)
-        call basin2reach(rtmCTL%take, NETOPO_trib, RPARAM_trib, flux_wm_trib, ierr, cmessage, limitRunoff=.false.)
+        call basin2reach(rtmCTL%qirrig_actual, NETOPO_trib, RPARAM_trib, flux_wm_trib, ierr, cmessage, limitRunoff=.false.)
         if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
         if (trim(bypass_routing_option)=='direct_to_outlet') then
           flux_wm_trib = flux_wm_trib + qvolRecv
         end if
       end if
     else ! if only single proc is used, all irrigation demand is stored in mainstem array
-      call basin2reach(rtmCTL%take, NETOPO_main, RPARAM_main, flux_wm_main, ierr, cmessage, limitRunoff=.false.)
+      call basin2reach(rtmCTL%qirrig_actual, NETOPO_main, RPARAM_main, flux_wm_main, ierr, cmessage, limitRunoff=.false.)
       if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
       if (trim(bypass_routing_option)=='direct_to_outlet') then
         flux_wm_main = flux_wm_main + qvolRecv

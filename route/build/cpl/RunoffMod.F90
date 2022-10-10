@@ -27,7 +27,7 @@ MODULE RunoffMod
     real(r8), pointer :: qsub(:,:)        ! coupler importing subsurface forcing [mm/s]
     real(r8), pointer :: qgwl(:,:)        ! coupler importing glacier/wetland/lake forcing [mm/s]
     real(r8), pointer :: qirrig(:)        ! coupler importing irrigation [mm/s] - negative
-    real(r8), pointer :: take(:)          ! actual water take from river reach [mm/s]
+    real(r8), pointer :: qirrig_actual(:) ! actual water take from river reach [mm/s]
 
     real(r8), pointer :: direct(:,:)      ! coupler return direct flow to ocean [mm/s]
 
@@ -54,7 +54,7 @@ CONTAINS
              rtmCTL%qsub(begr:endr,nt_rof),       &
              rtmCTL%qgwl(begr:endr,nt_rof),       &
              rtmCTL%qirrig(begr:endr),            &
-             rtmCTL%take(begr:endr),              &
+             rtmCTL%qirrig_actual(begr:endr),              &
              rtmCTL%discharge(begr:endr,nt_rof),  &
              rtmCTL%direct(begr:endr,nt_rof),     &
              rtmCTL%volr(begr:endr),              &
@@ -69,7 +69,7 @@ CONTAINS
     rtmCTL%mask(:)         = integerMissing
     rtmCTL%area(:)         = 0._r8
     rtmCTL%qirrig(:)       = 0._r8
-    rtmCTL%take(:)         = 0._r8
+    rtmCTL%qirrig_actual(:)= 0._r8
     rtmCTL%qsur(:,:)       = 0._r8
     rtmCTL%qsub(:,:)       = 0._r8
     rtmCTL%qgwl(:,:)       = 0._r8
