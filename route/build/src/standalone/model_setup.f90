@@ -628,7 +628,7 @@ CONTAINS
       dropDatetime = restDatetime%add_sec(-dt, calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restDatetime->dropDatetime]'; return; endif
       restart_month = dropDatetime%month(); restart_day = dropDatetime%day(); restart_hour = dropDatetime%hour()
-    case('annual','monthly','daily')
+    case('yearly','monthly','daily')
       restDatetime = datetime(2000, restart_month, restart_day, restart_hour, 0, 0._dp)
       dropDatetime = restDatetime%add_sec(-dt, calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [ dropDatetime for periodical restart]'; return; endif
@@ -636,7 +636,7 @@ CONTAINS
     case('never')
       dropDatetime = datetime(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
     case default
-      ierr=20; message=trim(message)//'Current accepted <restart_write> options: last, never, specified, annual, monthly, daily'; return
+      ierr=20; message=trim(message)//'Accepted <restart_write> options (case insensitive): last, never, specified, yearly, monthly, or daily '; return
   end select
 
  END SUBROUTINE init_time
