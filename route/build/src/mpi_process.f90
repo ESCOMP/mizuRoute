@@ -30,6 +30,7 @@ USE nr_utility_module, ONLY: indexx           ! create sorted index array
 USE nr_utility_module, ONLY: arth             ! build a vector of regularly spaced numbers
 USE nr_utility_module, ONLY: sizeo            ! get size of allocatable array (if not allocated, zero)
 USE nr_utility_module, ONLY: findIndex        ! find index within a vector
+USE nr_utility_module, ONLY: match_index      !
 USE perf_mod,          ONLY: t_startf         ! timing start
 USE perf_mod,          ONLY: t_stopf          ! timing stop
 ! MPI utility
@@ -38,6 +39,7 @@ USE mpi_utils, ONLY: shr_mpi_gatherV
 USE mpi_utils, ONLY: shr_mpi_scatterV
 USE mpi_utils, ONLY: shr_mpi_allgather
 USE mpi_utils, ONLY: shr_mpi_barrier
+USE mpi_utils, ONLY: shr_mpi_abort
 
 implicit none
 
@@ -115,11 +117,13 @@ CONTAINS
   USE globalData,          ONLY: global_ix_comm           ! global reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
   USE globalData,          ONLY: nTribOutlet              !
   USE globalData,          ONLY: local_ix_comm            ! local reach index at tributary reach outlets to mainstem (size = sum of tributary outlets within entire network)
+  USE globalData,          ONLY: runMode                  ! mizuRoute run mode - standalone or ctsm-coupling
   USE globalData,          ONLY: reachID
   USE globalData,          ONLY: basinID
+  USE globalData,          ONLY: commRch                  !
   USE public_var,          ONLY: is_flux_wm               ! logical whether or not water abstraction/injection occurs
   USE public_var,          ONLY: is_lake_sim              ! logical whether or not lake simulation occurs
-  USE public_var,          ONLY: is_vol_wm           ! logical whether or not target volume should be passed
+  USE public_var,          ONLY: is_vol_wm                ! logical whether or not target volume should be passed
   USE allocation,          ONLY: alloc_struct
   USE process_ntopo,       ONLY: augment_ntopo            ! compute all the additional network topology (only compute option = on)
   USE process_ntopo,       ONLY: put_data_struct          !
@@ -158,6 +162,17 @@ CONTAINS
   integer(i4b),      allocatable              :: array_int_temp_local(:)  ! integer temporal array
   integer(i4b)                                :: ixNode(nRch_in)          ! node assignment for each reach
   integer(i4b)                                :: ixDomain(nRch_in)        ! domain index for each reach
+  !
+  integer(i4b)                                :: ixDestSeg                !
+  integer(i4b)                                :: ixLocalSeg               !
+  integer(i4b)                                :: nComm                    !
+  integer(i4b),     allocatable               :: destSegId(:)             !
+  integer(i4b),     allocatable               :: destSegIndex(:)          !
+  integer(i4b),     allocatable               :: srcTask(:)               !
+  integer(i4b),     allocatable               :: destTask(:)              !
+  integer(i4b),     allocatable               :: srcIndex(:)              !
+  integer(i4b),     allocatable               :: destIndex(:)             !
+  !
   logical(lgt),      allocatable              :: tribOutlet(:)            ! logical to indicate tributary outlet to mainstems over entire network
   integer(i4b)                                :: nRch_trib_outlet         ! number of tributary outlets for each proc (scalar)
   integer(i4b),      allocatable              :: nRch_trib_array(:)       ! number of tributary outlets for each proc (array)
@@ -249,6 +264,60 @@ CONTAINS
     reachID(1:nRch_in) = reachID( ixRch_order )
     basinID(1:nHRU_in) = basinID( ixHRU_order )
 
+    ! Find destination reach index (in local domain) and task-id
+    if (trim(runMode)=='cesm-coupling' .and. &
+        trim(bypass_routing_option)=='direct_to_outlet') then
+
+      allocate(srcTask(nRch_in),destTask(nRch_in), srcIndex(nRch_in), destIndex(nRch_in))
+      allocate(destSegIndex(nRch_in), destSegId(nRch_in))
+
+      srcTask(:)   = integerMissing
+      destTask(:)  = integerMissing
+      srcIndex(:)  = integerMissing
+      destIndex(:) = integerMissing
+
+      do iSeg=1,nRch_in
+        jSeg = ixRch_order(iSeg)
+        destSegId(iSeg) = structNTOPO(jSeg)%var(ixNTOPO%destSegId)%dat(1)
+      end do
+      ! matching index in reachID
+      destSegIndex = match_index(reachID, destSegId)
+
+      nComm = 0
+      do iSeg = 1,nRch_in
+        ! process only if source and destination reaches are different
+        if (destSegId(iSeg)/=integerMissing .and. reachID(iSeg) /= destSegId(iseg)) then
+          nComm = nComm + 1
+          if (ixNode(iSeg)>0) then ! if this segment is in any non-main tasks
+            ixLocalSeg = iSeg - sum(rch_per_proc(-1:ixNode(iSeg)-1))
+          else
+            ixLocalSeg = iSeg
+          end if
+          if (ixNode(destSegIndex(iSeg))>0) then
+            ixDestSeg = destSegIndex(iSeg)-sum(rch_per_proc(-1:ixNode(destSegIndex(iSeg))-1))
+          else
+            ixDestSeg = destSegIndex(iSeg)
+          end if
+
+          if (ixNode(iSeg)==-1) then
+            srcTask(nComm) = 0
+          else
+            srcTask(nComm) = ixNode(iSeg)
+          end if
+
+          if (ixNode(destSegIndex(iSeg))==-1) then
+            destTask(nComm) = 0
+          else
+            destTask(nComm) = ixNode(destSegIndex(iSeg))
+          end if
+
+          srcIndex(nComm) = ixLocalSeg
+          destIndex(nComm) = ixDestSeg
+        end if
+      end do
+      deallocate(destSegIndex, destSegId)
+    end if
+
     if (debug_mpi) then
       write(iulog,'(a)') 'ix, segId, ixRch_order, domain-index, proc-id'
       do ix = 1,nRch_in
@@ -262,13 +331,43 @@ CONTAINS
 
   ! sends the number of reaches/hrus per proc to all processors
   call shr_mpi_bcast(rch_per_proc, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   call shr_mpi_bcast(hru_per_proc, ierr, cmessage)
-
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   call shr_mpi_bcast(ixRch_order, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   call shr_mpi_bcast(ixHRU_order, ierr, cmessage)
-
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   call shr_mpi_bcast(reachID,ierr, message)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   call shr_mpi_bcast(basinID,ierr, message)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! element-to-element transfer data
+  if (trim(runMode)=='cesm-coupling' .and. &
+      trim(bypass_routing_option)=='direct_to_outlet') then
+
+    call shr_mpi_bcast(nComm, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call shr_mpi_bcast(srcTask, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call shr_mpi_bcast(destTask, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call shr_mpi_bcast(srcIndex, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call shr_mpi_bcast(destIndex, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    allocate(commRch(nComm))
+    do ix = 1, nComm
+      commRch(ix)%srcTask   = srcTask(ix)
+      commRch(ix)%destTask  = destTask(ix)
+      commRch(ix)%srcIndex  = srcIndex(ix)
+      commRch(ix)%destIndex = destIndex(ix)
+    end do
+    call shr_mpi_barrier(comm, message)
+    deallocate(srcTask, destTask, srcIndex, destIndex)
+  end if
 
   ! define the number of reaches/hrus on the mainstem
   nRch_mainstem = rch_per_proc(-1)

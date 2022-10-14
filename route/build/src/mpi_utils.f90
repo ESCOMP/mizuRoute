@@ -13,6 +13,7 @@ MODULE mpi_utils
   implicit none
 
   private
+  public :: shr_mpi_send
   public :: shr_mpi_bcast
   public :: shr_mpi_gatherV
   public :: shr_mpi_scatterV
@@ -26,9 +27,15 @@ MODULE mpi_utils
   public :: shr_mpi_init
   public :: shr_mpi_finalize
 
+  INTERFACE shr_mpi_send; module procedure &
+    shr_mpi_sendReal
+  END INTERFACE
+
   INTERFACE shr_mpi_bcast; module procedure &
-    shr_mpi_bcastInt,    &
-    shr_mpi_bcastReal,   &
+    shr_mpi_bcastInt_scalar,  &
+    shr_mpi_bcastChar_scalar, &
+    shr_mpi_bcastInt,         &
+    shr_mpi_bcastReal,        &
     shr_mpi_bcastLogical
   END INTERFACE
 
@@ -58,6 +65,77 @@ MODULE mpi_utils
   integer(i4b)            :: status(MPI_STATUS_SIZE)
 
 CONTAINS
+
+  ! ----------------------------------
+  ! SEND-RECV - real array element
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_sendReal(sendArray,        & ! in:    an array to be sent
+                              pidSend, ixSend,  & ! in:    source task and index of the array to be sent
+                              recArray,         & ! inout: array to be modified after communication
+                              pidRec, ixRec,    & ! in:    destination task and index of the array to be changed
+                              ierr, message)
+
+    ! Descriptions:
+    !  sending one real element of array in a particular task to the other task
+    !  and add the element value to the values in destination array
+
+    implicit none
+    ! Argument variables:
+    real(dp),         intent(inout) :: sendArray(:)     ! in:    array to be sent
+    integer(i4b),     intent(in)    :: pidSend, ixSend  ! in:    task holding an array to be sent and index of the array
+    real(dp),         intent(inout) :: recArray(:)      ! inout: array to be modified after communication
+    integer(i4b),     intent(in)    :: pidRec, ixRec    ! in:    task holding modifying array and index of the array
+    integer(i4b),     intent(out)   :: ierr             ! out:   error code
+    character(strLen),intent(out)   :: message          ! out:   error message
+    ! local variable
+    real(dp)                        :: dummyArray(1)! temporary reciving element
+
+    ierr=0; message='shr_mpi_sendReal/'
+
+    if (pid==pidSend) then
+      call MPI_SEND(sendArray(ixSend), 1, MPI_DOUBLE_PRECISION, pidRec, send_data_tag, mpicom_route, ierr)
+    else if (pid==pidRec) then
+      call MPI_RECV(dummyArray,  1, MPI_DOUBLE_PRECISION, pidSend, send_data_tag, mpicom_route, status, ierr)
+      recArray(ixRec) = recArray(ixRec) + dummyArray(1)
+    endif
+
+  END SUBROUTINE shr_mpi_sendReal
+
+  ! ----------------------------------
+  ! BROADCAST - integer scalar
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_bcastInt_scalar(scalar,       & ! inout:  array to be broadcasted to each proc
+                                     ierr, message)  ! output: error handling
+
+    implicit none
+    ! Argument variables:
+    integer(i4b),              intent(inout) :: scalar        ! inout:  array to be sent to proc
+    integer(i4b),              intent(out)   :: ierr
+    character(strLen),         intent(out)   :: message       ! error message
+
+    ierr=0; message='shr_mpi_bcastInt/'
+
+    call MPI_BCAST(scalar, 1, MPI_INTEGER, root, mpicom_route, ierr)
+
+  END SUBROUTINE shr_mpi_bcastInt_scalar
+
+  ! ----------------------------------
+  ! BROADCAST - character scalar
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_bcastChar_scalar(scalar,       & ! inout:  array to be broadcasted to each proc
+                                      ierr, message)  ! output: error handling
+
+    implicit none
+    ! Argument variables:
+    character(strLen),         intent(inout) :: scalar        ! inout:  array to be sent to proc
+    integer(i4b),              intent(out)   :: ierr
+    character(strLen),         intent(out)   :: message       ! error message
+
+    ierr=0; message='shr_mpi_bcastInt/'
+
+    call MPI_BCAST(scalar, strLen, MPI_CHARACTER, root, mpicom_route, ierr)
+
+  END SUBROUTINE shr_mpi_bcastChar_scalar
 
   ! ----------------------------------
   ! BROADCAST - integer allocatable array
@@ -519,8 +597,7 @@ CONTAINS
   ! ----------------------------------
   SUBROUTINE shr_mpi_allgatherInt(localScalar,  num,        & ! input
                                   globalArray, ierr, message) ! output
-    USE globalData,  ONLY: nNodes
-    USE public_var,  ONLY: root
+
     implicit none
     ! Argument variables:
     integer(i4b),              intent(in)  :: localScalar        ! local array at each proc
@@ -547,8 +624,7 @@ CONTAINS
   ! ----------------------------------
   SUBROUTINE shr_mpi_allgatherReal(localScalar,  num,        & ! input
                                    globalArray, ierr, message) ! output
-    USE globalData,  ONLY: nNodes
-    USE public_var,  ONLY: root
+
     implicit none
     ! Argument variables:
     real(dp),                  intent(in)  :: localScalar        ! local array at each proc
@@ -575,8 +651,7 @@ CONTAINS
   ! ----------------------------------
   SUBROUTINE shr_mpi_allgatherLogical(localScalar,  num,        & ! input
                                       globalArray, ierr, message) ! output
-    USE globalData,  ONLY: nNodes
-    USE public_var,  ONLY: root
+
     implicit none
     ! Argument variables:
     logical(lgt),              intent(in)  :: localScalar        ! local array at each proc

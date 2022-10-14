@@ -20,14 +20,14 @@ MODULE RunoffMod
 
     integer , pointer :: gindex(:)        ! global index consistent with map file
 
-    real(r8), pointer :: area(:)          ! area of catchment [m2]
+    real(r8), pointer :: area(:)          ! area of hru (AKA catchment) [m2]
     integer , pointer :: mask(:)          ! reach category. 1=non outle, 2=interior basin outlet, 3=ocean outlet
 
     real(r8), pointer :: qsur(:,:)        ! coupler importing surface forcing [mm/s]
     real(r8), pointer :: qsub(:,:)        ! coupler importing subsurface forcing [mm/s]
     real(r8), pointer :: qgwl(:,:)        ! coupler importing glacier/wetland/lake forcing [mm/s]
     real(r8), pointer :: qirrig(:)        ! coupler importing irrigation [mm/s] - negative
-    real(r8), pointer :: qirrig_actual(:) ! actual irrigation and available main channel storage [mm/s]
+    real(r8), pointer :: qirrig_actual(:) ! actual water take from river reach [mm/s]
 
     real(r8), pointer :: direct(:,:)      ! coupler return direct flow to ocean [mm/s]
 
@@ -54,7 +54,7 @@ CONTAINS
              rtmCTL%qsub(begr:endr,nt_rof),       &
              rtmCTL%qgwl(begr:endr,nt_rof),       &
              rtmCTL%qirrig(begr:endr),            &
-             rtmCTL%qirrig_actual(begr:endr),     &
+             rtmCTL%qirrig_actual(begr:endr),              &
              rtmCTL%discharge(begr:endr,nt_rof),  &
              rtmCTL%direct(begr:endr,nt_rof),     &
              rtmCTL%volr(begr:endr),              &
@@ -66,6 +66,7 @@ CONTAINS
     end if
 
     rtmCTL%gindex(:)       = integerMissing
+    rtmCTL%mask(:)         = integerMissing
     rtmCTL%area(:)         = 0._r8
     rtmCTL%qirrig(:)       = 0._r8
     rtmCTL%qirrig_actual(:)= 0._r8
