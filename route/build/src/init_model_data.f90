@@ -314,9 +314,9 @@ CONTAINS
  SUBROUTINE init_state_data(pid, nNodes, comm, ierr, message)
 
   ! external routines
-  USE ascii_util_module, ONLY: lower             ! convert string to lower case
-  USE read_restart,      ONLY: read_state_nc     ! read netcdf state output file
-  USE mpi_process,       ONLY: mpi_restart
+  USE ascii_utils,  ONLY: lower             ! convert string to lower case
+  USE read_restart, ONLY: read_state_nc     ! read netcdf state output file
+  USE mpi_process,  ONLY: mpi_restart
   ! shared data
   USE public_var, ONLY: dt                     ! simulation time step (seconds)
   USE public_var, ONLY: restart_dir            ! directory containing output data
@@ -688,7 +688,7 @@ CONTAINS
   USE globalData,          ONLY: ixRch_order              ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
   USE globalData,          ONLY: ixHRU_order              ! global HRU index in the order of proc assignment (size = total number of HRUs contributing to any reaches, nContribHRU)
   USE domain_decomposition,ONLY: omp_domain_decomposition ! domain decomposition for omp
-  USE nr_utility_module,   ONLY: findIndex                ! find index within a vector
+  USE nr_utils,            ONLY: findIndex                ! find index within a vector
 
   implicit none
   ! Argument variables

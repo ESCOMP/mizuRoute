@@ -42,9 +42,9 @@ CONTAINS
  USE var_lookup, ONLY: ixRFLX
  USE var_lookup, ONLY: ixHFLX
  ! external subroutines
- USE ascii_util_module, ONLY: file_open        ! open file (performs a few checks as well)
- USE ascii_util_module, ONLY: get_vlines       ! get a list of character strings from non-comment lines
- USE nr_utility_module, ONLY: char2int         ! convert integer number to a array containing individual digits
+ USE ascii_utils, ONLY: file_open        ! open file (performs a few checks as well)
+ USE ascii_utils, ONLY: get_vlines       ! get a list of character strings from non-comment lines
+ USE nr_utils,    ONLY: char2int         ! convert integer number to a array containing individual digits
 
  implicit none
  ! argument variables

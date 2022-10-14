@@ -26,85 +26,13 @@ USE public_var, ONLY: secprday,secprhour,secprmin, &   ! seconds in an (day, hou
 implicit none
 private
 public::extractTime
-public::ndays_month
-public::isLeapYear
 public::compJulday
 public::compJulday_noleap
 public::compCalday
 public::compCalday_noleap
 public::elapsedSec
+
 CONTAINS
-
- ! ******************************************************************************************
- ! public function: check leap year or not
- ! ******************************************************************************************
- logical(lgt) function isLeapYear(yr)
- implicit none
- integer(i4b), intent(in)  :: yr
- if (mod(yr, 4) == 0) then
-   if (mod(yr, 100) == 0) then
-     if (mod(yr, 400) == 0) then
-       isLeapYear = .True.
-     else
-       isLeapYear = .False.
-     end if
-   else
-     isLeapYear = .True.
-   end if
- else
-   isLeapYear = .False.
- end if
- end function isLeapYear
-
- ! ******************************************************************************************
- ! public subroutine: get number of days within a month
- ! ******************************************************************************************
- subroutine ndays_month(yr, mo, calendar, ndays, ierr, message)
- USE ascii_util_module, ONLY : lower ! convert string to lower case
- implicit none
- ! input
- integer(i4b),intent(in)           :: yr
- integer(i4b),intent(in)           :: mo
- character(*),intent(in)           :: calendar
- ! output
- integer(i4b)         ,intent(out) :: ndays     !
- integer(i4b),         intent(out) :: ierr         ! error code
- character(len=strLen),intent(out) :: message     ! error message
- ! local variables
- integer(i4b)                      :: yr_next, mo_next
- real(dp)                          :: julday1, julday2
- character(len=strLen)             :: cmessage          ! error message of downwind routine
-
- ierr=0; message="ndays_month/"
-
- select case(lower(trim(calendar)))
-   case ('standard','gregorian','proleptic_gregorian')
-     call compJulday(yr,mo,1,0,0,0._dp,julday1,ierr,cmessage)
-   case('noleap')
-     call compJulday_noleap(yr,mo,1,0,0,0._dp,julday1,ierr,cmessage)
-   case default; ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
- end select
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- if (mo == 12) then
-   mo_next = 1
-   yr_next = yr+1
- else
-   yr_next = yr
-   mo_next = mo+1
- end if
- select case(lower(trim(calendar)))
-   case ('standard','gregorian','proleptic_gregorian')
-     call compJulday(yr_next,mo_next,1,0,0,0._dp,julday2,ierr,cmessage)
-   case('noleap')
-     call compJulday_noleap(yr_next,mo_next,1,0,0,0._dp,julday2,ierr,cmessage)
-   case default; ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
- end select
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ndays = nint(julday2-julday1)
-
- end subroutine ndays_month
 
  ! ******************************************************************************************
  ! public subroutine extractTime: extract year/month/day/hour/minute/second from units string

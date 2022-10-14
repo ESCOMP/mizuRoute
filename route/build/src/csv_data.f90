@@ -26,7 +26,7 @@ MODULE csv_data
 
 USE nrtype
 USE public_var
-USE ascii_util_module
+USE ascii_utils
 
 implicit none
 integer(i4b), parameter :: type_string  = 1  ! a character string cell

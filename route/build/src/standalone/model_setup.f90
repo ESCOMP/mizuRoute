@@ -1,14 +1,13 @@
 MODULE model_setup
 
-USE nrtype,            ONLY: i4b,dp,lgt
-USE nrtype,            ONLY: strLen
+USE nrtype
 USE public_var,        ONLY: iulog
 USE public_var,        ONLY: debug
 USE public_var,        ONLY: integerMissing
 USE public_var,        ONLY: realMissing
 USE public_var,        ONLY: charMissing
-USE nr_utility_module, ONLY: unique         ! get unique element array
-USE nr_utility_module, ONLY: indexx         ! get rank of data value
+USE nr_utils,          ONLY: unique         ! get unique element array
+USE nr_utils,          ONLY: indexx         ! get rank of data value
 
 implicit none
 
@@ -182,8 +181,8 @@ CONTAINS
   USE dataTypes,           ONLY: infileinfo     ! the data type for storing the infromation of the nc files and its attributes
   USE datetime_data,       ONLY: datetime       ! datetime data
   ! subroutines
-  USE ascii_util_module,   ONLY: file_open      ! open file (performs a few checks as well)
-  USE ascii_util_module,   ONLY: get_vlines     ! get a list of character strings from non-comment lines
+  USE ascii_utils,         ONLY: file_open      ! open file (performs a few checks as well)
+  USE ascii_utils,         ONLY: get_vlines     ! get a list of character strings from non-comment lines
   USE ncio_utils,          ONLY: get_nc         ! get the
   USE ncio_utils,          ONLY: get_var_attr   ! get the attributes interface
   USE ncio_utils,          ONLY: get_nc_dim_len ! get the nc dimension length
@@ -389,7 +388,7 @@ CONTAINS
   ! - begDatetime, endDatetime:   simulationg start and end datetime
   ! - restDatetime, dropDatetime
 
-  USE ascii_util_module, ONLY : lower            ! convert string to lower case
+  USE ascii_utils, ONLY : lower            ! convert string to lower case
   ! derived datatype
   USE datetime_data, ONLY : datetime             ! datetime data
   ! public data
@@ -629,7 +628,7 @@ CONTAINS
       dropDatetime = restDatetime%add_sec(-dt, calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restDatetime->dropDatetime]'; return; endif
       restart_month = dropDatetime%month(); restart_day = dropDatetime%day(); restart_hour = dropDatetime%hour()
-    case('annual','monthly','daily')
+    case('yearly','monthly','daily')
       restDatetime = datetime(2000, restart_month, restart_day, restart_hour, 0, 0._dp)
       dropDatetime = restDatetime%add_sec(-dt, calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [ dropDatetime for periodical restart]'; return; endif
@@ -637,7 +636,7 @@ CONTAINS
     case('never')
       dropDatetime = datetime(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
     case default
-      ierr=20; message=trim(message)//'Current accepted <restart_write> options: last, never, specified, annual, monthly, daily'; return
+      ierr=20; message=trim(message)//'Accepted <restart_write> options (case insensitive): last, never, specified, yearly, monthly, or daily '; return
   end select
 
  END SUBROUTINE init_time

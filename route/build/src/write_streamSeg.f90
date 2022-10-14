@@ -1,8 +1,7 @@
 MODULE write_streamSeg
 
 ! data types
-USE nrtype,    ONLY: i4b,dp,lgt
-USE nrtype,    ONLY: strLen               ! string length
+USE nrtype
 USE dataTypes, ONLY: var_ilength          ! integer type:          var(:)%dat
 USE dataTypes, ONLY: var_dlength          ! double precision type: var(:)%dat
 USE dataTypes, ONLY: var_clength          ! character type:        var(:)%dat
@@ -34,8 +33,8 @@ USE netcdf
 USE ncio_utils, ONLY: write_nc
 
 ! external utilities
-USE nr_utility_module, ONLY: indexx  ! Num. Recipies utilities
-USE nr_utility_module, ONLY: arth    ! Num. Recipies utilities
+USE nr_utils, ONLY: indexx  !
+USE nr_utils, ONLY: arth    !
 
 implicit none
 

@@ -1,4 +1,4 @@
-MODULE nr_utility_module
+MODULE nr_utils
 
 USE nrtype
 
@@ -420,4 +420,4 @@ CONTAINS
     end do
   END FUNCTION
 
-END MODULE nr_utility_module
+END MODULE nr_utils

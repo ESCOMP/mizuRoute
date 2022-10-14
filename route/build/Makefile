@@ -138,9 +138,9 @@ EXTINCLUDES =
 # data types
 DATATYPES = \
     nrtype.f90 \
-    nr_utility.f90 \
+    nr_utils.f90 \
     pio_utils.f90 \
-    ascii_util.f90 \
+    ascii_utils.f90 \
     public_var.f90 \
     dataTypes.f90 \
     var_lookup.f90 \

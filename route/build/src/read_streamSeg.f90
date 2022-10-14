@@ -31,8 +31,8 @@ USE var_lookup, ONLY: ixPFAF,   nVarsPFAF    ! index of variables for the pfafst
 USE netcdf
 
 ! external utilities
-USE nr_utility_module, ONLY: arth    ! Num. Recipies utilities
-USE allocation,        ONLY: alloc_struct
+USE nr_utils,   ONLY: arth
+USE allocation, ONLY: alloc_struct
 
 implicit none
 
