@@ -366,7 +366,7 @@ CONTAINS
     else if (routeMethods(iRoute)==muskingumCunge) then
       nMolecule%MC_ROUTE = 2
     else if (routeMethods(iRoute)==diffusiveWave) then
-      nMolecule%DW_ROUTE = 5
+      nMolecule%DW_ROUTE = 20
     end if
   end do
 
@@ -479,47 +479,6 @@ CONTAINS
 
     call mpi_restart(pid, nNodes, comm, iens, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    !!! ------------------------
-    !!! This is temporary fix till proper restart reading for REACH_VOL
-    !!! ------------------------
-    if (masterproc) then
-      nRch_root=nRch_mainstem+nTribOutlet+rch_per_proc(0)
-      if (onRoute(kinematicWave)) then
-        do ix = 1, nRch_root
-          RCHFLX_trib(iens,ix)%ROUTE(idxKW)%REACH_VOL(0:1) = 0._dp
-        end do
-      end if
-      if (onRoute(muskingumCunge)) then
-        do ix = 1, nRch_root
-          RCHFLX_trib(iens,ix)%ROUTE(idxMC)%REACH_VOL(0:1) = 0._dp
-        end do
-      end if
-      if (onRoute(diffusiveWave)) then
-        do ix = 1, nRch_root
-          RCHFLX_trib(iens,ix)%ROUTE(idxDW)%REACH_VOL(0:1) = 0._dp
-        end do
-      end if
-    else
-      if (onRoute(kinematicWave)) then
-        do ix = 1, size(RCHSTA_trib(iens,:))
-          RCHFLX_trib(iens,ix)%ROUTE(idxKW)%REACH_VOL(0:1) = 0._dp
-        end do
-      end if
-      if (onRoute(muskingumCunge)) then
-        do ix = 1, size(RCHSTA_trib(iens,:))
-          RCHFLX_trib(iens,ix)%ROUTE(idxMC)%REACH_VOL(0:1) = 0._dp
-        end do
-      end if
-      if (onRoute(diffusiveWave)) then
-        do ix = 1, size(RCHSTA_trib(iens,:))
-          RCHFLX_trib(iens,ix)%ROUTE(idxDW)%REACH_VOL(0:1) = 0._dp
-        end do
-      end if
-    end if
-    !!! ------------------------
-    !!! ------------------------
-
   endif
 
  END SUBROUTINE init_state_data

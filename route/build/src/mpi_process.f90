@@ -327,7 +327,7 @@ CONTAINS
 
   endif  ! ( masterproc )
 
-  call shr_mpi_barrier(comm, message)
+  call shr_mpi_barrier(comm, cmessage)
 
   ! sends the number of reaches/hrus per proc to all processors
   call shr_mpi_bcast(rch_per_proc, ierr, cmessage)
@@ -338,9 +338,9 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   call shr_mpi_bcast(ixHRU_order, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  call shr_mpi_bcast(reachID,ierr, message)
+  call shr_mpi_bcast(reachID,ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  call shr_mpi_bcast(basinID,ierr, message)
+  call shr_mpi_bcast(basinID,ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! element-to-element transfer data
@@ -465,7 +465,7 @@ CONTAINS
     ! find index of desired reach
     if (desireId/=integerMissing) then
       if (allocated(array_int_temp_local)) deallocate(array_int_temp_local)
-      allocate(array_int_temp(rch_per_proc(pid)), stat=ierr, errmsg=cmessage)
+      allocate(array_int_temp_local(rch_per_proc(pid)), stat=ierr, errmsg=cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       do iSeg = 1,rch_per_proc(pid)
@@ -883,17 +883,12 @@ CONTAINS
 
   allocate(flux_global(nRch))
   allocate(flux_local(rch_per_proc(pid)))
-  if (onRoute(impulseResponseFunc)) then
-    allocate(vol_global(nRch,nTbound), vol_global_tmp(nRch))
-    allocate(vol_local(rch_per_proc(pid)))
-  end if
+  allocate(vol_global(nRch,nTbound), vol_global_tmp(nRch))
+  allocate(vol_local(rch_per_proc(pid)))
 
   if (masterproc) then
     do iSeg = 1, nRch
       flux_global(iSeg) = RCHFLX(iens,iSeg)%BASIN_QR(1)
-      if (onRoute(impulseResponseFunc)) then
-        vol_global(iSeg,1:2) = RCHFLX(iens,iSeg)%ROUTE(idxIRF)%REACH_VOL(0:1)
-      end if
     enddo
     ! Distribute global flux/state (RCHFLX & RCHSTA) to mainstem
     do iSeg = 1, nRch_mainstem
@@ -912,9 +907,6 @@ CONTAINS
     end if
   else
     flux_global(:)  = realMissing
-    if (onRoute(impulseResponseFunc)) then
-      vol_global(:,:) = realMissing
-    end if
   endif
 
   if (multiProcs) then
@@ -940,46 +932,72 @@ CONTAINS
       enddo
     end if
 
-    ! basin IRF state communication
     if (doesBasinRoute == 1) then
-      call mpi_comm_irf_bas_state(pid, nNodes, comm,                        &
-                                  iens,                                     &
-                                  rch_per_proc(root:nNodes-1),              &
-                                  RCHFLX,                                   &
-                                  RCHFLX_trib,                              &
-                                  ixRch_order(rch_per_proc(root-1)+1:nRch), &
-                                  arth(1,1,rch_per_proc(pid)),              &
+      call mpi_comm_irf_bas_state(pid, nNodes, comm,                        & ! MPI parameters
+                                  iens,                                     & !
+                                  rch_per_proc(root:nNodes-1),              & !
+                                  RCHFLX,                                   & ! global reach flux data structure
+                                  RCHFLX_trib,                              & ! local (tributary) reach flux data structure
+                                  ixRch_order(rch_per_proc(root-1)+1:nRch), & !
+                                  arth(1,1,rch_per_proc(pid)),              & !
                                   scatter,                                  & ! communication type
                                   ierr, message)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (onRoute(kinematicWaveTracking))then
-      call mpi_comm_kwt_state(pid, nNodes, comm,                        &
-                              iens,                                     &
-                              rch_per_proc(root:nNodes-1),              &
-                              RCHSTA,                                   &
-                              RCHSTA_trib,                              &
-                              ixRch_order(rch_per_proc(root-1)+1:nRch), &
-                              arth(1,1,rch_per_proc(pid)),              &
+      call mpi_comm_kwt_state(pid, nNodes, comm,                        & !
+                              iens,                                     & !
+                              rch_per_proc(root:nNodes-1),              & !
+                              RCHSTA,                                   & !
+                              RCHSTA_trib,                              & !
+                              ixRch_order(rch_per_proc(root-1)+1:nRch), & !
+                              arth(1,1,rch_per_proc(pid)),              & !
                               scatter,                                  & ! communication type
                               ierr, message)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     end if
 
     if (onRoute(kinematicWave)) then
-      call mpi_comm_molecule_state(pid, nNodes, comm,                        &
-                                   iens,                                     &
-                                   rch_per_proc(root:nNodes-1),              &
-                                   RCHSTA,                                   &
-                                   RCHSTA_trib,                              &
-                                   ixRch_order(rch_per_proc(root-1)+1:nRch), &
-                                   arth(1,1,rch_per_proc(pid)),              &
+      call mpi_comm_molecule_state(pid, nNodes, comm,                        & !
+                                   iens,                                     & !
+                                   rch_per_proc(root:nNodes-1),              & !
+                                   RCHSTA,                                   & !
+                                   RCHSTA_trib,                              & !
+                                   ixRch_order(rch_per_proc(root-1)+1:nRch), & !
+                                   arth(1,1,rch_per_proc(pid)),              & !
                                    kinematicWave,                            & ! routing method
                                    scatter,                                  & ! communication type
                                    ierr, message)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    end if
+
+      if (masterproc) then
+        do iSeg = 1, nRch
+          vol_global_tmp(iSeg) = RCHFLX(iens,iSeg)%ROUTE(idxKW)%REACH_VOL(1)
+        enddo
+      else
+        vol_global_tmp(:) = realMissing
+      endif
+      call mpi_comm_single_flux(pid, nNodes, comm,                        &
+                                vol_global_tmp,                           &
+                                vol_local,                                &
+                                rch_per_proc(root:nNodes-1),              &
+                                ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                                arth(1,1,rch_per_proc(pid)),              &
+                                scatter,                                  &
+                                ierr, message)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      if (masterproc) then
+        do iSeg = 1, rch_per_proc(pid)
+          RCHFLX_trib(iens,nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxKW)%REACH_VOL(1) = vol_local(iSeg)
+        enddo
+      else
+        do iSeg = 1, rch_per_proc(pid)
+          RCHFLX_trib(iens,iSeg)%ROUTE(idxKW)%REACH_VOL(1) = vol_local(iSeg)
+        end do
+      end if
+    end if ! (onRoute(kinematicWave))
 
     if (onRoute(muskingumCunge)) then
       call mpi_comm_molecule_state(pid, nNodes, comm,                        &
@@ -993,7 +1011,35 @@ CONTAINS
                                    scatter,                                  & ! communication type
                                    ierr, message)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    end if
+
+      ! volume communication
+      if (masterproc) then
+        do iSeg = 1, nRch
+          vol_global_tmp(iSeg) = RCHFLX(iens,iSeg)%ROUTE(idxMC)%REACH_VOL(1)
+        enddo
+      else
+        vol_global_tmp(:) = realMissing
+      endif
+      call mpi_comm_single_flux(pid, nNodes, comm,                        &
+                                vol_global_tmp,                           &
+                                vol_local,                                &
+                                rch_per_proc(root:nNodes-1),              &
+                                ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                                arth(1,1,rch_per_proc(pid)),              &
+                                scatter,                                  &
+                                ierr, message)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      if (masterproc) then
+        do iSeg = 1, rch_per_proc(pid)
+          RCHFLX_trib(iens,nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxMC)%REACH_VOL(1) = vol_local(iSeg)
+        enddo
+      else
+        do iSeg = 1, rch_per_proc(pid)
+          RCHFLX_trib(iens,iSeg)%ROUTE(idxMC)%REACH_VOL(1) = vol_local(iSeg)
+        end do
+      end if
+    end if ! (onRoute(MuskingumCunge))
 
     if (onRoute(diffusiveWave)) then
       call mpi_comm_molecule_state(pid, nNodes, comm,                        &
@@ -1007,7 +1053,35 @@ CONTAINS
                                    scatter,                                  & ! communication type
                                    ierr, message)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    end if
+
+      ! volume communication
+      if (masterproc) then
+        do iSeg = 1, nRch
+          vol_global_tmp(iSeg) = RCHFLX(iens,iSeg)%ROUTE(idxDW)%REACH_VOL(1)
+        enddo
+      else
+        vol_global_tmp(:) = realMissing
+      endif
+      call mpi_comm_single_flux(pid, nNodes, comm,                        &
+                                vol_global_tmp,                           &
+                                vol_local,                                &
+                                rch_per_proc(root:nNodes-1),              &
+                                ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                                arth(1,1,rch_per_proc(pid)),              &
+                                scatter,                                  &
+                                ierr, message)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      if (masterproc) then
+        do iSeg = 1, rch_per_proc(pid)
+          RCHFLX_trib(iens,nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxDW)%REACH_VOL(1) = vol_local(iSeg)
+        enddo
+      else
+        do iSeg = 1, rch_per_proc(pid)
+          RCHFLX_trib(iens,iSeg)%ROUTE(idxDW)%REACH_VOL(1) = vol_local(iSeg)
+        end do
+      end if
+    end if ! (onRoute(diffusiveWave))
 
     if (onRoute(impulseResponseFunc))then
       call mpi_comm_irf_state(pid, nNodes, comm,                        &
@@ -1022,6 +1096,13 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! volume communication
+      if (masterproc) then
+        do iSeg = 1, nRch
+          vol_global(iSeg,1:2) = RCHFLX(iens,iSeg)%ROUTE(idxIRF)%REACH_VOL(0:1)
+        enddo
+      else
+        vol_global(:,:) = realMissing
+      endif
       do iTbound =1,nTbound
         vol_global_tmp(:) = vol_global(:,iTbound)
         call mpi_comm_single_flux(pid, nNodes, comm,                        &
@@ -1069,7 +1150,6 @@ CONTAINS
   USE globalData, ONLY: RPARAM_main         ! mainstem reach parameter structure
   USE globalData, ONLY: RCHFLX_trib         ! tributary reach flux structure
   USE globalData, ONLY: RCHSTA_trib         ! tributary reach state data structure
-  USE globalData, ONLY: nHRU_mainstem       ! number of mainstem HRUs
   USE globalData, ONLY: basinRunoff_main    ! mainstem only HRU runoff
   USE globalData, ONLY: basinRunoff_trib    ! tributary only HRU runoff
   USE globalData, ONLY: basinEvapo_main     ! mainstem only HRU Evaporation
@@ -1215,7 +1295,7 @@ CONTAINS
                        ierr, message)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! non river flux communication
+    ! river flux communication
     call mpi_comm_river_flux(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
                              iens,                & ! input: ensemble index (not used now)
                              tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
@@ -1242,7 +1322,7 @@ CONTAINS
 
     call t_stopf('route/gather-state-flux')
 
-    call shr_mpi_barrier(comm, message)
+    call shr_mpi_barrier(comm, cmessage)
   end if ! (multiProcs)
 
   ! --------------------------------

@@ -652,7 +652,6 @@ MODULE historyFile
       character(*),                       intent(out) :: message          ! error message
       ! local variables
       integer(i4b)                          :: nHRU_local
-      integer(i4b)                          :: iens=1
       character(strLen)                     :: cmessage         ! error message of downwind routine
 
       if (present(basinRunoff)) then
