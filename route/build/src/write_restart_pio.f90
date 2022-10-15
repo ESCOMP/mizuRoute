@@ -535,7 +535,8 @@ CONTAINS
        dim_basinQ(ixDim) = meta_stateDims(meta_basinQ(iVar)%varDim(ixDim))%dimId
      end do
 
-     call def_var(pioFileDescState, trim(meta_basinQ(iVar)%varName), meta_basinQ(iVar)%varType, ierr, cmessage, pioDimId=dim_basinQ, vdesc=trim(meta_basinQ(iVar)%varDesc), vunit=trim(meta_basinQ(iVar)%varUnit))
+     call def_var(pioFileDescState, meta_basinQ(iVar)%varName, meta_basinQ(iVar)%varType, ierr, cmessage, &
+                  pioDimId=dim_basinQ, vdesc=meta_basinQ(iVar)%varDesc, vunit=meta_basinQ(iVar)%varUnit)
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
    end do
@@ -561,7 +562,7 @@ CONTAINS
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%tdh)%dimName); return; endif
    end if
 
-   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%tdh)%dimName), meta_stateDims(ixStateDims%tdh)%dimLength, meta_stateDims(ixStateDims%tdh)%dimId)
+   call def_dim(pioFileDescState, meta_stateDims(ixStateDims%tdh)%dimName, meta_stateDims(ixStateDims%tdh)%dimLength, meta_stateDims(ixStateDims%tdh)%dimId)
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
    do iVar=1,nVarsIRFbas
@@ -575,7 +576,8 @@ CONTAINS
        dim_IRFbas(ixDim) = meta_stateDims(meta_irf_bas(iVar)%varDim(ixDim))%dimId
      end do
 
-     call def_var(pioFileDescState, trim(meta_irf_bas(iVar)%varName), meta_irf_bas(iVar)%varType, ierr, cmessage, pioDimId=dim_IRFbas, vdesc=trim(meta_irf_bas(iVar)%varDesc), vunit=trim(meta_irf_bas(iVar)%varUnit))
+     call def_var(pioFileDescState, meta_irf_bas(iVar)%varName, meta_irf_bas(iVar)%varType, ierr, cmessage, &
+                  pioDimId=dim_IRFbas, vdesc=meta_irf_bas(iVar)%varDesc, vunit=meta_irf_bas(iVar)%varUnit)
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
    end do
@@ -600,7 +602,7 @@ CONTAINS
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%tdh_irf)%dimName); return; endif
    endif
 
-   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%tdh_irf)%dimName), meta_stateDims(ixStateDims%tdh_irf)%dimLength, meta_stateDims(ixStateDims%tdh_irf)%dimId)
+   call def_dim(pioFileDescState, meta_stateDims(ixStateDims%tdh_irf)%dimName, meta_stateDims(ixStateDims%tdh_irf)%dimLength, meta_stateDims(ixStateDims%tdh_irf)%dimId)
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
    associate(dim_seg     => meta_stateDims(ixStateDims%seg)%dimId,     &
@@ -618,7 +620,8 @@ CONTAINS
        dim_set(ixDim) = meta_stateDims(meta_irf(iVar)%varDim(ixDim))%dimId
      end do
 
-     call def_var(pioFileDescState, trim(meta_irf(iVar)%varName), meta_irf(iVar)%varType, ierr, cmessage, pioDimId=dim_set, vdesc=trim(meta_irf(iVar)%varDesc), vunit=trim(meta_irf(iVar)%varUnit))
+     call def_var(pioFileDescState, meta_irf(iVar)%varName, meta_irf(iVar)%varType, ierr, cmessage, &
+                  pioDimId=dim_set, vdesc=meta_irf(iVar)%varDesc, vunit=meta_irf(iVar)%varUnit)
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
    end do
 
@@ -645,7 +648,7 @@ CONTAINS
    end if
 
    ! Define dimension needed for this routing specific state variables
-   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%wave)%dimName), meta_stateDims(ixStateDims%wave)%dimLength, meta_stateDims(ixStateDims%wave)%dimId)
+   call def_dim(pioFileDescState, meta_stateDims(ixStateDims%wave)%dimName, meta_stateDims(ixStateDims%wave)%dimLength, meta_stateDims(ixStateDims%wave)%dimId)
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
    associate(dim_seg     => meta_stateDims(ixStateDims%seg)%dimId,     &
@@ -663,7 +666,8 @@ CONTAINS
        dim_set(ixDim) = meta_stateDims(meta_kwt(iVar)%varDim(ixDim))%dimId
      end do
 
-     call def_var(pioFileDescState, trim(meta_kwt(iVar)%varName), meta_kwt(iVar)%varType, ierr, cmessage, pioDimId=dim_set, vdesc=trim(meta_kwt(iVar)%varDesc), vunit=trim(meta_kwt(iVar)%varUnit))
+     call def_var(pioFileDescState, meta_kwt(iVar)%varName, meta_kwt(iVar)%varType, ierr, cmessage, &
+                  pioDimId=dim_set, vdesc=meta_kwt(iVar)%varDesc, vunit=meta_kwt(iVar)%varUnit)
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
    end do
 
@@ -689,7 +693,7 @@ CONTAINS
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%mol_kw)%dimName); return; endif
    end if
 
-   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%mol_kw)%dimName), meta_stateDims(ixStateDims%mol_kw)%dimLength, meta_stateDims(ixStateDims%mol_kw)%dimId)
+   call def_dim(pioFileDescState, meta_stateDims(ixStateDims%mol_kw)%dimName, meta_stateDims(ixStateDims%mol_kw)%dimLength, meta_stateDims(ixStateDims%mol_kw)%dimId)
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
    do iVar=1,nVarsKW
@@ -701,7 +705,8 @@ CONTAINS
        dim_set(ixDim) = meta_stateDims(meta_KW(iVar)%varDim(ixDim))%dimId
      end do
 
-     call def_var(pioFileDescState, trim(meta_KW(iVar)%varName), meta_KW(iVar)%varType, ierr, cmessage, pioDimId=dim_set, vdesc=trim(meta_KW(iVar)%varDesc), vunit=trim(meta_KW(iVar)%varUnit))
+     call def_var(pioFileDescState, meta_KW(iVar)%varName, meta_KW(iVar)%varType, ierr, cmessage, &
+                  pioDimId=dim_set, vdesc=meta_KW(iVar)%varDesc, vunit=meta_KW(iVar)%varUnit)
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
    end do
 
@@ -725,7 +730,7 @@ CONTAINS
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%mol_mc)%dimName); return; endif
    end if
 
-   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%mol_mc)%dimName), meta_stateDims(ixStateDims%mol_mc)%dimLength, meta_stateDims(ixStateDims%mol_mc)%dimId)
+   call def_dim(pioFileDescState, meta_stateDims(ixStateDims%mol_mc)%dimName, meta_stateDims(ixStateDims%mol_mc)%dimLength, meta_stateDims(ixStateDims%mol_mc)%dimId)
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
    do iVar=1,nVarsMC
@@ -737,7 +742,8 @@ CONTAINS
        dim_set(ixDim) = meta_stateDims(meta_mc(iVar)%varDim(ixDim))%dimId
      end do
 
-     call def_var(pioFileDescState, trim(meta_mc(iVar)%varName), meta_mc(iVar)%varType, ierr, cmessage, pioDimId=dim_set, vdesc=trim(meta_mc(iVar)%varDesc), vunit=trim(meta_mc(iVar)%varUnit))
+     call def_var(pioFileDescState, meta_mc(iVar)%varName, meta_mc(iVar)%varType, ierr, cmessage, &
+                  pioDimId=dim_set, vdesc=meta_mc(iVar)%varDesc, vunit=meta_mc(iVar)%varUnit)
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
    end do
 
@@ -761,7 +767,7 @@ CONTAINS
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%mol_dw)%dimName); return; endif
    end if
 
-   call def_dim(pioFileDescState, trim(meta_stateDims(ixStateDims%mol_dw)%dimName), meta_stateDims(ixStateDims%mol_dw)%dimLength, meta_stateDims(ixStateDims%mol_dw)%dimId)
+   call def_dim(pioFileDescState, meta_stateDims(ixStateDims%mol_dw)%dimName, meta_stateDims(ixStateDims%mol_dw)%dimLength, meta_stateDims(ixStateDims%mol_dw)%dimId)
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
    do iVar=1,nVarsDW
@@ -773,7 +779,8 @@ CONTAINS
        dim_set(ixDim) = meta_stateDims(meta_dw(iVar)%varDim(ixDim))%dimId
      end do
 
-     call def_var(pioFileDescState, trim(meta_dw(iVar)%varName), meta_dw(iVar)%varType, ierr, cmessage, pioDimId=dim_set, vdesc=trim(meta_dw(iVar)%varDesc), vunit=trim(meta_dw(iVar)%varUnit))
+     call def_var(pioFileDescState, meta_dw(iVar)%varName, meta_dw(iVar)%varType, ierr, cmessage, &
+                  pioDimId=dim_set, vdesc=meta_dw(iVar)%varDesc, vunit=meta_dw(iVar)%varUnit)
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
    end do
 
@@ -1114,9 +1121,9 @@ CONTAINS
     do iVar=1,nVarsIRF
       select case(iVar)
         case(ixIRF%qfuture)
-          call write_pnetcdf(pioFileDescState, trim(meta_irf(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_irf_double, ierr, cmessage)
+          call write_pnetcdf(pioFileDescState, meta_irf(iVar)%varName, state%var(iVar)%array_3d_dp, iodesc_irf_double, ierr, cmessage)
         case(ixIRF%vol)
-          call write_pnetcdf(pioFileDescState, trim(meta_irf(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_vol_double, ierr, cmessage)
+          call write_pnetcdf(pioFileDescState, meta_irf(iVar)%varName, state%var(iVar)%array_3d_dp, iodesc_vol_double, ierr, cmessage)
         case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc writing'; return
         if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
       end select
@@ -1197,9 +1204,9 @@ CONTAINS
   do iVar=1,nVarsKWT
     select case(iVar)
       case(ixKWT%routed)
-        call write_pnetcdf(pioFileDescState, trim(meta_kwt(iVar)%varName), state%var(iVar)%array_3d_int, iodesc_wave_int, ierr, cmessage)
+        call write_pnetcdf(pioFileDescState, meta_kwt(iVar)%varName, state%var(iVar)%array_3d_int, iodesc_wave_int, ierr, cmessage)
       case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
-        call write_pnetcdf(pioFileDescState, trim(meta_kwt(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_wave_double, ierr, cmessage)
+        call write_pnetcdf(pioFileDescState, meta_kwt(iVar)%varName, state%var(iVar)%array_3d_dp, iodesc_wave_double, ierr, cmessage)
       case default; ierr=20; message1=trim(message1)//'unable to identify KWT variable index for nc writing'; return
     end select
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -1210,6 +1217,7 @@ CONTAINS
   END SUBROUTINE write_KWT_state
 
   SUBROUTINE write_KW_state(ierr, message1)
+    USE globalData, ONLY: idxKW
     implicit none
     ! output
     integer(i4b), intent(out)  :: ierr            ! error code
@@ -1230,7 +1238,7 @@ CONTAINS
     do iVar=1,nVarsKW
       select case(iVar)
        case(ixKW%qsub); allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
-       case(ixKW%vol)
+       case(ixKW%vol);  allocate(state%var(iVar)%array_2d_dp(nSeg, nEns), stat=ierr)
        case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//'problem allocating space for KW routing state '//trim(meta_kw(iVar)%varName); return; endif
@@ -1242,7 +1250,7 @@ CONTAINS
         do iVar=1,nVarsKW
           select case(iVar)
             case(ixKW%qsub); state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA_local(iSeg)%KW_ROUTE%molecule%Q(1:nMesh)
-            case(ixKW%vol)
+            case(ixKW%vol);  state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX_local(iSeg)%ROUTE(idxKW)%REACH_VOL(1)
             case default; ierr=20; message1=trim(message1)//'unable to identify KW routing state variable index'; return
           end select
         enddo ! variable loop
@@ -1253,8 +1261,9 @@ CONTAINS
     do iVar=1,nVarsKW
       select case(iVar)
        case(ixKW%qsub)
-         call write_pnetcdf(pioFileDescState, trim(meta_kw(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_mesh_kw_double, ierr, cmessage)
+         call write_pnetcdf(pioFileDescState, meta_kw(iVar)%varName, state%var(iVar)%array_3d_dp, iodesc_mesh_kw_double, ierr, cmessage)
        case(ixKW%vol)
+         call write_pnetcdf(pioFileDescState, meta_kw(iVar)%varName, state%var(iVar)%array_2d_dp, iodesc_state_double, ierr, cmessage)
        case default; ierr=20; message1=trim(message1)//'unable to identify KW variable index for nc writing'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -1265,6 +1274,7 @@ CONTAINS
   END SUBROUTINE write_KW_state
 
   SUBROUTINE write_MC_state(ierr, message1)
+    USE globalData, ONLY: idxMC
     implicit none
     ! output
     integer(i4b), intent(out)  :: ierr            ! error code
@@ -1284,10 +1294,9 @@ CONTAINS
 
     do iVar=1,nVarsMC
       select case(iVar)
-       case(ixMC%qsub)
-        allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
-       case(ixMC%vol)
-       case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
+        case(ixMC%qsub); allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
+        case(ixMC%vol);  allocate(state%var(iVar)%array_2d_dp(nSeg, nEns), stat=ierr)
+        case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//'problem allocating space for MC routing state '//trim(meta_mc(iVar)%varName); return; endif
     end do
@@ -1298,7 +1307,7 @@ CONTAINS
         do iVar=1,nVarsMC
           select case(iVar)
             case(ixMC%qsub); state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA_local(iSeg)%MC_ROUTE%molecule%Q(1:nMesh)
-            case(ixMC%vol)
+            case(ixMC%vol);  state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX_local(iSeg)%ROUTE(idxMC)%REACH_VOL(1)
             case default; ierr=20; message1=trim(message1)//'unable to identify MC routing state variable index'; return
           end select
         enddo ! variable loop
@@ -1309,8 +1318,9 @@ CONTAINS
     do iVar=1,nVarsMC
       select case(iVar)
        case(ixMC%qsub)
-         call write_pnetcdf(pioFileDescState, trim(meta_mc(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_mesh_mc_double, ierr, cmessage)
+         call write_pnetcdf(pioFileDescState, meta_mc(iVar)%varName, state%var(iVar)%array_3d_dp, iodesc_mesh_mc_double, ierr, cmessage)
        case(ixMC%vol)
+         call write_pnetcdf(pioFileDescState, meta_mc(iVar)%varName, state%var(iVar)%array_2d_dp, iodesc_state_double, ierr, cmessage)
        case default; ierr=20; message1=trim(message1)//'unable to identify MC variable index for nc writing'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -1321,6 +1331,7 @@ CONTAINS
   END SUBROUTINE write_MC_state
 
   SUBROUTINE write_DW_state(ierr, message1)
+    USE globalData, ONLY: idxDW
     implicit none
     ! output
     integer(i4b), intent(out)  :: ierr            ! error code
@@ -1341,7 +1352,7 @@ CONTAINS
     do iVar=1,nVarsDW
       select case(iVar)
         case(ixDW%qsub); allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
-        case(ixDW%vol)
+        case(ixDW%vol);  allocate(state%var(iVar)%array_2d_dp(nSeg, nEns), stat=ierr)
        case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//'problem allocating space for DW routing state '//trim(meta_dw(iVar)%varName); return; endif
@@ -1353,7 +1364,7 @@ CONTAINS
         do iVar=1,nVarsDW
           select case(iVar)
             case(ixDW%qsub); state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA_local(iSeg)%DW_ROUTE%molecule%Q(1:nMesh)
-            case(ixDW%vol)
+            case(ixDW%vol);  state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX_local(iSeg)%ROUTE(idxDW)%REACH_VOL(1)
             case default; ierr=20; message1=trim(message1)//'unable to identify DW routing state variable index'; return
           end select
         enddo ! variable loop
@@ -1364,8 +1375,9 @@ CONTAINS
     do iVar=1,nVarsDW
       select case(iVar)
        case(ixDW%qsub)
-         call write_pnetcdf(pioFileDescState, trim(meta_dw(iVar)%varName), state%var(iVar)%array_3d_dp, iodesc_mesh_dw_double, ierr, cmessage)
+         call write_pnetcdf(pioFileDescState, meta_dw(iVar)%varName, state%var(iVar)%array_3d_dp, iodesc_mesh_dw_double, ierr, cmessage)
        case(ixDW%vol)
+         call write_pnetcdf(pioFileDescState, meta_dw(iVar)%varName, state%var(iVar)%array_2d_dp, iodesc_state_double, ierr, cmessage)
        case default; ierr=20; message1=trim(message1)//'unable to identify DW variable index for nc writing'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif

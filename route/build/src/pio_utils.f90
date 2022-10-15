@@ -423,9 +423,9 @@ CONTAINS
     integer(i4b)                       :: ierr
 
     if (dimlen>0) then
-      ierr = pio_def_dim(pioFileDesc, dimname, dimlen, dimid)
+      ierr = pio_def_dim(pioFileDesc, trim(dimname), dimlen, dimid)
     else
-      ierr = pio_def_dim(pioFileDesc, dimname, pio_unlimited, dimid)
+      ierr = pio_def_dim(pioFileDesc, trim(dimname), pio_unlimited, dimid)
     endif
 
   END SUBROUTINE def_dim
