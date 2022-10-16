@@ -8,6 +8,8 @@ USE dataTypes, ONLY: RCHTOPO                 ! Network topology
 USE dataTypes, ONLY: RCHPRP                  ! Reach parameter
 USE dataTypes, ONLY: runoff                  ! runoff data type
 USE dataTypes, ONLY: subbasin_omp            ! mainstem+tributary data structures
+USE globalData, ONLY: routeMethods
+USE globalData, ONLY: nRoutes
 ! mapping HRU runoff to reach
 USE process_remap_module, ONLY: basin2reach
 ! subroutines: basin routing
@@ -19,6 +21,7 @@ USE kwt_route_module,    ONLY: kwt_route     ! lagrangian kinematic wave routing
 USE kw_route_module,     ONLY: kw_route      ! kinematic wave routing method
 USE mc_route_module,     ONLY: mc_route      ! muskingum-cunge routing method
 USE dfw_route_module,    ONLY: dfw_route     ! diffusive wave routing method
+USE water_balance,       ONLY: accum_wb      !
 
 implicit none
 
@@ -58,6 +61,7 @@ CONTAINS
    USE public_var, ONLY: kinematicWave
    USE public_var, ONLY: muskingumCunge
    USE public_var, ONLY: diffusiveWave
+   USE public_var, ONLY: compWB                  ! logical to indicate compute water balance
    USE globalData, ONLY: onRoute                 ! logical to indicate which routing method(s) is on
    USE globalData, ONLY: TSEC                    ! beginning/ending of simulation time step [sec]
    USE public_var, ONLY: is_lake_sim             ! logical whether or not lake should be simulated
@@ -89,6 +93,7 @@ CONTAINS
    real(dp),           allocatable                :: reachPrecip_local(:) ! reach precipitation (m/s)
    integer(i4b)                                   :: nSeg                 ! number of reach to be processed
    integer(i4b)                                   :: iSeg                 ! index of reach
+   integer(i4b)                                   :: ixRoute              ! index of routing method
 
    ierr=0; message = "main_routing/"
 
@@ -267,6 +272,20 @@ CONTAINS
                     ierr,cmessage,        & ! output: error control
                     ixRchProcessed)         ! optional input: indices of reach to be routed
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
+
+   if (compWB) then
+     do ixRoute=1,nRoutes
+       call accum_wb(iens,                  & ! input: ensemble index
+                     ixRoute,               & ! input: index of routing method
+                     river_basin,           & ! input: river basin data type
+                     ixDesire,              & ! input: index of verbose reach
+                     NETOPO_in,             & ! input: reach topology data structure
+                     RCHFLX_out,            & ! inout: reach flux data structure
+                     ierr, cmessage,        & ! output: error controls
+                     ixRchProcessed)          ! optional input: indices of reach to be routed
+         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     end do
    end if
 
  END SUBROUTINE main_route

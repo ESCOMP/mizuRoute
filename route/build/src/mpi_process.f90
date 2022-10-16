@@ -1170,6 +1170,7 @@ CONTAINS
   USE globalData, ONLY: global_ix_main      ! reach index at tributary reach outlets to mainstem (size = sum of tributary outlets in all the procs)
   USE globalData, ONLY: local_ix_comm       ! local reach index at tributary reach outlets to mainstem for each proc (size = sum of tributary outlets in proc)
   USE globalData, ONLY: onRoute             ! logical to indicate which routing method(s) is on
+  USE public_var, ONLY: compWB              ! logical whether or not water balance error is computed
   USE public_var, ONLY: is_lake_sim         ! logical whether or not lake should be simulated
   USE public_var, ONLY: is_flux_wm          ! logical whether or not fluxes should be passed
   USE public_var, ONLY: is_vol_wm           ! logical whether or not target volume should be passed
@@ -1319,6 +1320,17 @@ CONTAINS
                               ierr, message)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
+
+    if (compWB) then
+      call mpi_comm_wb_error(pid, nNodes, comm,   & ! input: mpi rank, number of tasks, and communicator
+                             iens,                & ! input: ensemble index (not used now)
+                             tribOutlet_per_proc, & ! input: number of reaches communicate per node (dimension size == number of proc)
+                             RCHFLX_trib,         & ! input:
+                             global_ix_main,      & ! input:
+                             local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
+                             ierr, message)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
 
     call t_stopf('route/gather-state-flux')
 
@@ -1969,6 +1981,104 @@ CONTAINS
   endif
 
  END SUBROUTINE mpi_comm_river_flux
+
+ ! *********************************************************************
+ ! subroutine: all routing method dependent fluxes communication
+ ! *********************************************************************
+ SUBROUTINE mpi_comm_wb_error(pid,          &
+                              nNodes,       &
+                              comm,         & ! input: communicator
+                              iens,         &
+                              nReach,       &
+                              RCHFLX_dist,  &
+                              rchIdxGlobal, &
+                              rchIdxLocal,  &
+                              ierr, message)
+
+  USE dataTypes,  ONLY: STRFLX              ! reach flux data structure
+  USE globalData, ONLY: nRch_mainstem
+  USE globalData, ONLY: nTribOutlet
+  USE globalData, ONLY: nRoutes
+  USE globalData, ONLY: routeMethods
+
+  implicit none
+  ! argument variables
+  integer(i4b),             intent(in)    :: pid                   ! process id (MPI)
+  integer(i4b),             intent(in)    :: nNodes                ! number of processes (MPI)
+  integer(i4b),             intent(in)    :: comm                  ! communicator
+  integer(i4b),             intent(in)    :: iens                  ! ensemble index
+  integer(i4b),             intent(in)    :: nReach(0:nNodes-1)    ! number of reaches communicate per node (dimension size == number of proc)
+  type(STRFLX),allocatable, intent(inout) :: RCHFLX_dist(:,:)
+  integer(i4b),             intent(in)    :: rchIdxGlobal(:)       ! reach indices (w.r.t. global) to be transfer (dimension size == sum of nRearch)
+  integer(i4b),             intent(in)    :: rchIdxLocal(:)        ! reach indices (w.r.t. local) (dimension size depends on procs )
+  integer(i4b),             intent(out)   :: ierr                  ! error code
+  character(len=strLen),    intent(out)   :: message               ! error message
+  ! local variables
+  character(len=strLen)                   :: cmessage              ! error message from a subroutine
+  real(dp),     allocatable               :: flux(:,:)             !
+  real(dp),     allocatable               :: flux_local(:,:)       !
+  real(dp),     allocatable               :: vec_out(:)            ! output vector from mpi gather/scatter routine
+  integer(i4b)                            :: nSeg                  ! number of reaches
+  integer(i4b)                            :: iSeg, jSeg            ! reach looping index
+  integer(i4b)                            :: ix                    ! general looping index
+
+  ierr=0; message='mpi_comm_wb_error/'
+
+  ! Number of total reaches to be communicated
+  nSeg = sum(nReach)
+
+  allocate(flux_local(nReach(pid),nRoutes), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux_local]'; return; endif
+
+  ! Transfer reach fluxes to 2D arrays
+  do iSeg =1,nReach(pid)  ! Loop through (selected) tributary reaches
+    jSeg = rchIdxLocal(iSeg)
+    if (masterproc) then
+      jSeg = jSeg + nRch_mainstem+nTribOutlet
+    end if
+    do ix=1,nRoutes
+      select case(routeMethods(ix))
+        case(accumRunoff);           flux_local(iSeg,ix) = RCHFLX_dist(iens,jSeg)%ROUTE(idxSUM)%WBupstream
+        case(impulseResponseFunc);   flux_local(iSeg,ix) = RCHFLX_dist(iens,jSeg)%ROUTE(idxIRF)%WBupstream
+        case(kinematicWaveTracking); flux_local(iSeg,ix) = RCHFLX_dist(iens,jSeg)%ROUTE(idxKWT)%WBupstream
+        case(kinematicWave);         flux_local(iSeg,ix) = RCHFLX_dist(iens,jSeg)%ROUTE(idxKW)%WBupstream
+        case(muskingumCunge);        flux_local(iSeg,ix) = RCHFLX_dist(iens,jSeg)%ROUTE(idxMC)%WBupstream
+        case(diffusiveWave);         flux_local(iSeg,ix) = RCHFLX_dist(iens,jSeg)%ROUTE(idxDW)%WBupstream
+        case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 0-5'; ierr=81; return
+      end select
+    end do
+  end do
+
+  allocate(flux(nSeg,nRoutes), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating arrays for [flux]'; return; endif
+
+  do ix = 1,nRoutes
+    associate(vec_in => reshape(flux_local(:,ix),[nReach(pid)]))
+    call shr_mpi_gatherV(vec_in, nReach, vec_out, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    flux(:,ix) = vec_out(:)
+    end associate
+  end do
+
+  ! put it in global RCHFLX data structure
+  if (masterproc) then
+    do iSeg =1,nSeg ! Loop through all the reaches involved into communication
+      jSeg = rchIdxGlobal(iSeg)
+      do ix=1,nRoutes
+        select case(routeMethods(ix))
+          case(accumRunoff);           RCHFLX_dist(iens,jSeg)%ROUTE(idxSUM)%WBupstream = flux(iSeg,ix)
+          case(impulseResponseFunc);   RCHFLX_dist(iens,jSeg)%ROUTE(idxIRF)%WBupstream = flux(iSeg,ix)
+          case(kinematicWaveTracking); RCHFLX_dist(iens,jSeg)%ROUTE(idxKWT)%WBupstream = flux(iSeg,ix)
+          case(kinematicWave);         RCHFLX_dist(iens,jSeg)%ROUTE(idxKW)%WBupstream  = flux(iSeg,ix)
+          case(muskingumCunge);        RCHFLX_dist(iens,jSeg)%ROUTE(idxMC)%WBupstream  = flux(iSeg,ix)
+          case(diffusiveWave);         RCHFLX_dist(iens,jSeg)%ROUTE(idxDW)%WBupstream  = flux(iSeg,ix)
+          case default; message=trim(message)//'routeMethods may include invalid digits; expect digits 0-5'; ierr=81; return
+        end select
+      end do
+    end do
+  endif
+
+ END SUBROUTINE mpi_comm_wb_error
 
  ! *********************************************************************
  ! subroutine: basin IRF state communication

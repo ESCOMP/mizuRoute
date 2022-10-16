@@ -105,6 +105,7 @@ MODULE public_var
   logical(lgt),public             :: is_vol_wm_jumpstart  = .false.         ! logical if true the volume is reset to target volume for the first time step of modeling
   logical(lgt),public             :: suppress_runoff      = .false.         ! logical to suppress the read runoff to zero(0)
   logical(lgt),public             :: suppress_P_Ep        = .false.         ! logical to suppress evaporation and precipitation to zero(0)
+  logical(lgt),public             :: compWB               = .true.          ! logical if cumulative water balance is computed
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
   logical(lgt)         ,public    :: ntopAugmentMode      = .false.         ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
