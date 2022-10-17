@@ -2,8 +2,7 @@ MODULE dataTypes
 
 ! used to create specific data types
 
-USE nrtype,     ONLY: i4b,dp,lgt
-USE nrtype,     ONLY: strLen
+USE nrtype
 USE public_var, ONLY: realMissing
 USE public_var, ONLY: integerMissing
 
@@ -43,28 +42,15 @@ implicit none
  endtype var_info
 
  ! ---------- gauge metadata structures --------------------------------------------------------------------------
+
  type, public :: gage
    integer(i4b)                   :: nGage
    character(len=30), allocatable :: gageID(:)
    integer(i4b),      allocatable :: reachID(:)
  end type gage
 
- ! ---------- states structure --------------------------------------------------------------------------
- !
- type,public :: var
-  integer(i4b),  allocatable  :: array_2d_int(:,:)
-  integer(i4b),  allocatable  :: array_3d_int(:,:,:)
-  real(dp),      allocatable  :: array_2d_dp(:,:)
-  real(dp),      allocatable  :: array_3d_dp(:,:,:)
-  logical(lgt),  allocatable  :: array_2d_lgt(:,:)
-  logical(lgt),  allocatable  :: array_3d_lgt(:,:,:)
- end type var
-
- type,public :: states
-  type(var),     allocatable :: var(:)
- end type states
-
  ! ---------- basin data structures ----------------------------------------------------------------------
+
  ! segIndex points to the segment in the entire river network data
  ! segOrder is order within subset of mainstem segments or tributary segments
  type,public :: subbasin_mpi
@@ -75,8 +61,8 @@ implicit none
   integer(i4b),  allocatable :: hruIndex(:)           ! hru indices within a subbasin
  end type subbasin_mpi
 
- ! Data structures to reach indices within each leg of stream order separately
- ! Used for openMP
+ ! -- Data structures to reach indices within each leg of stream order separately
+ !    Used for openMP
  type,public :: reach
   integer(i4b), allocatable :: segIndex(:)           ! index of segment index
   integer(i4b)              :: nRch                  ! number of reach
@@ -86,13 +72,14 @@ implicit none
    type(reach), allocatable :: branch(:)
  end type subbasin_omp
 
- ! Data structures to hold mainstem and independent tributary reaches separately
- ! Used for openMP
+ ! -- Data structures to hold mainstem and independent tributary reaches separately
+ !    Used for openMP
  type,public :: subbasin_omp_tmp
   integer(i4b)               :: outIndex             ! index of outlet segment based on segment array
   type(reach), allocatable   :: mainstem(:)          ! mainstem reach
   type(reach), allocatable   :: tributary(:)         ! tributary reach
  end type subbasin_omp_tmp
+
 
  ! ---------- general data structures ----------------------------------------------------------------------
 
@@ -126,8 +113,23 @@ implicit none
   type(clength),allocatable           :: var(:)    ! var(:)%dat
  endtype var_clength
 
+ type,public :: var
+  integer(i4b),  allocatable  :: array_2d_int(:,:)
+  integer(i4b),  allocatable  :: array_3d_int(:,:,:)
+  real(dp),      allocatable  :: array_2d_dp(:,:)
+  real(dp),      allocatable  :: array_3d_dp(:,:,:)
+  logical(lgt),  allocatable  :: array_2d_lgt(:,:)
+  logical(lgt),  allocatable  :: array_3d_lgt(:,:,:)
+ end type var
+
+ type,public :: states
+  type(var),     allocatable :: var(:)
+ end type states
+
+
  ! ---------- forcing input file strcuture -----------------------------------------------------------------
-  ! input file name and strcuture for nc files
+
+ ! -- input file name and strcuture for nc files
   type, public ::  infileinfo
    integer(i4b)                            :: nTime            ! number of time step in a nc file
    integer(i4b)                            :: iTimebound(1:2)  ! time index of start and end of the
@@ -185,7 +187,7 @@ implicit none
 
  ! ---------- reach parameters ----------------------------------------------------------------------------
 
- ! Reach Parameters
+ ! -- Reach physical parameters
  type, public ::  RCHPRP
   real(dp)                                   :: R_SLOPE
   real(dp)                                   :: R_MAN_N
@@ -253,7 +255,7 @@ implicit none
   integer(i4b)                               :: H06_D_mem_L    ! Hanasaki 2006; Memory length in years for demand [year]
  end type RCHPRP
 
- ! River Network topology
+ ! -- River Network topology
  type, public :: RCHTOPO
   integer(i4b)                               :: REACHIX      ! Reach index (1,2,...,nrch)
   integer(i4b)                               :: REACHID      ! Reach ID (REC code)
@@ -292,9 +294,9 @@ implicit none
    integer(i4b) :: destIndex ! destination array index
  end type commLink
 
- ! ---------- reach states --------------------------------------------------------------------
+ ! ---------- Reach restart variables--------------------------------------------------------------------
 
- !---------- Lagrangian kinematic wave states (collection of particles) ---------------------------------
+ ! - Lagrangian kinematic wave states (collection of particles)
  ! Individual flow particles
  TYPE, public :: FPOINT
   real(dp)                                   :: QF           ! Flow
@@ -354,6 +356,8 @@ implicit none
    real(dp)        :: REACH_ELE              ! water height at current time step [m]
    real(dp)        :: REACH_Q                ! discharge at current time step [m3/s]
    real(dp)        :: REACH_VOL(0:1)         ! water volume at previous and current time steps [m3]
+   real(dp)        :: WB                     ! reach water balance error [m3]
+   real(dp)        :: WBupstream             ! upstream area water balance error [m3]
  end type hydraulic
 
  ! fluxes and states in each reach
@@ -418,8 +422,7 @@ END MODULE dataTypes
 
 MODULE objTypes
 
- USE nrtype,     only: i4b,dp,lgt
- USE nrtype,     only: strLen   ! string length
+ USE nrtype
  USE public_var, only: realMissing
  USE public_var, only: integerMissing
 
