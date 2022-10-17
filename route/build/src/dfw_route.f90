@@ -15,6 +15,7 @@ USE public_var,  ONLY: integerMissing    ! missing value for integer number
 USE public_var,  ONLY: qmodOption        ! qmod option (use 1==direct insertion)
 USE globalData,  ONLY: idxDW
 ! subroutines: general
+USE water_balance, ONLY: comp_reach_wb  ! compute water balance error
 USE perf_mod,    ONLY: t_startf,t_stopf   ! timing start/stop
 USE model_utils, ONLY: handle_err
 
@@ -211,6 +212,17 @@ CONTAINS
    write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_Q
  endif
 
+ if(doCheck) then
+   write(iulog,'(a)') ' -------------------------'
+   write(iulog,'(a)') ' -- water balance check --'
+   write(iulog,'(a)') ' -------------------------'
+ endif
+ call comp_reach_wb(idxDW, q_upstream, RCHFLX_out(iens,segIndex), doCheck)
+
+ if (RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(1) < 0) then
+   write(iulog,'(A,X,G12.5,X,A,X,I9)') ' ---- NEGATIVE VOLUME = ', RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(1), 'at ', NETOPO_in(segIndex)%REACHID
+ end if
+
  END SUBROUTINE dfw_rch
 
 
@@ -290,6 +302,7 @@ CONTAINS
  real(dp)                        :: QupMod         ! modified total discharge at top of the reach being processed
  real(dp)                        :: Qabs           ! maximum allowable water abstraction rate [m3/s]
  real(dp)                        :: Qmod           ! abstraction rate to be taken from outlet discharge [m3/s]
+ real(dp)                        :: pcntReduc      ! flow profile adjustment based on storage [-]
  integer(i4b)                    :: ix,it          ! loop index
  integer(i4b)                    :: ntSub          ! number of sub time-step
  integer(i4b)                    :: Nx             ! number of internal reach segments
@@ -337,7 +350,7 @@ CONTAINS
    ! Q = alpha*A**beta
    alpha = sqrt(rch_param%R_SLOPE)/(rch_param%R_MAN_N*rch_param%R_WIDTH**(2._dp/3._dp))
    beta  = 5._dp/3._dp
-   dx = rch_param%RLENGTH/Nx
+   dx = rch_param%RLENGTH/(Nx-1) ! one extra sub-segment beyond outlet
 
    if (doCheck) then
      write(iulog,'(A,X,G12.5)') ' length [m]        =',rch_param%RLENGTH
@@ -365,7 +378,7 @@ CONTAINS
 
    do it = 1, nTsub
 
-     Qbar = (Qlocal(1,1)+Qlocal(1,0)+Qlocal(nMolecule%DW_ROUTE,0))/3.0 ! 3 point average discharge [m3/s]
+     Qbar = (Qlocal(1,1)+Qlocal(1,0)+Qlocal(nMolecule%DW_ROUTE-1,0))/3.0 ! 3 point average discharge [m3/s]
      Abar = (abs(Qbar)/alpha)**(1/beta)                            ! flow area [m2] (manning equation)
      Vbar = 0._dp
      if (Abar>0._dp) Vbar = Qbar/Abar                     ! average velocity [m/s]
@@ -419,34 +432,39 @@ CONTAINS
 
      if (doCheck) then
        write(fmt1,'(A,I5,A)') '(A,1X',nMolecule%DW_ROUTE,'(1X,G15.4))'
-       write(iulog,fmt1) ' Q sub_reqch=', (Qlocal(ix,1), ix=1,nMolecule%DW_ROUTE)
+       write(iulog,fmt1) ' Q sub_reqch=', (Qsolved(ix), ix=1,nMolecule%DW_ROUTE)
      end if
 
      Qlocal(:,1) = Qsolved
      Qlocal(:,0) = Qlocal(:,1)
    end do
 
-   ! store final outflow in data structure
-   rflux%ROUTE(idxDW)%REACH_Q = Qlocal(nMolecule%DW_ROUTE,1) + rflux%BASIN_QR(1)
-
-   if (doCheck) then
-     write(fmt1,'(A,I5,A)') '(A,1X',nMolecule%DW_ROUTE,'(1X,G15.4))'
-     write(iulog,'(A,X,G12.5)') 'rflux%REACH_Q= ', rflux%ROUTE(idxDW)%REACH_Q
-     write(iulog,fmt1) 'Qprev(1:nMolecule)= ', Qprev(1:nMolecule%DW_ROUTE)
-     write(iulog,'(A,5(1X,G12.5))') 'Qbar, Abar, Vbar, ck, dk= ',Qbar, Abar, Vbar, ck, dk
-     write(iulog,'(A,2(1X,G12.5))') 'Cd, Ca= ', Cd, Ca
-     write(iulog,fmt1) 'diagonal(:,1)= ', diagonal(:,1)
-     write(iulog,fmt1) 'diagonal(:,2)= ', diagonal(:,2)
-     write(iulog,fmt1) 'diagonal(:,3)= ', diagonal(:,3)
-     write(iulog,fmt1) 'b= ', b(1:nMolecule%DW_ROUTE)
-   end if
-
    ! compute volume
    rflux%ROUTE(idxDW)%REACH_VOL(0) = rflux%ROUTE(idxDW)%REACH_VOL(1)
-   rflux%ROUTE(idxDW)%REACH_VOL(1) = rflux%ROUTE(idxDW)%REACH_VOL(0) + (Qlocal(1,1) - Qlocal(nMolecule%DW_ROUTE,1))*dt
+
+   ! For very low flow condition, outflow - inflow may exceed current storage, so limit outflow and adjust flow profile
+   pcntReduc = min((rflux%ROUTE(idxDW)%REACH_VOL(0)/dt + Qlocal(1,1) *0.999)/Qlocal(nMolecule%DW_ROUTE-1,1), 1._dp)
+   Qlocal(2:nMolecule%DW_ROUTE,1) = Qlocal(2:nMolecule%DW_ROUTE,1)*pcntReduc
+
+   rflux%ROUTE(idxDW)%REACH_VOL(1) = rflux%ROUTE(idxDW)%REACH_VOL(0) + (Qlocal(1,1) - Qlocal(nMolecule%DW_ROUTE-1,1))*dt
+
+   ! store final outflow in data structure
+   rflux%ROUTE(idxDW)%REACH_Q = Qlocal(nMolecule%DW_ROUTE-1,1) + rflux%BASIN_QR(1)
 
    ! update state
    rstate%molecule%Q = Qlocal(:,1)
+
+   if (doCheck) then
+     write(fmt1,'(A,I5,A)') '(A,1X',nMolecule%DW_ROUTE,'(1X,G15.4))'
+     write(iulog,'(A,X,G12.5)') ' rflux%REACH_Q= ', rflux%ROUTE(idxDW)%REACH_Q
+     write(iulog,fmt1) ' Qprev(1:nMolecule)= ', Qprev(1:nMolecule%DW_ROUTE)
+     write(iulog,'(A,5(1X,G12.5))') ' Qbar, Abar, Vbar, ck, dk= ',Qbar, Abar, Vbar, ck, dk
+     write(iulog,'(A,2(1X,G12.5))') ' Cd, Ca= ', Cd, Ca
+     write(iulog,fmt1) ' diagonal(:,1)= ', diagonal(:,1)
+     write(iulog,fmt1) ' diagonal(:,2)= ', diagonal(:,2)
+     write(iulog,fmt1) ' diagonal(:,3)= ', diagonal(:,3)
+     write(iulog,fmt1) ' b= ', b(1:nMolecule%DW_ROUTE)
+   end if
 
  else ! if head-water
 
@@ -471,19 +489,16 @@ CONTAINS
  ! Compute REACH_VOL subtracted from total abstraction minus abstraction from outlet discharge
  if (Qtake<0) then
    Qabs = max(-(rflux%ROUTE(idxDW)%REACH_VOL(1)/dt+rflux%ROUTE(idxDW)%REACH_Q-Qmin), Qtake)
-   Qabs = min(Qabs, 0._dp)  ! this should be <=0
-   Qmod = min(rflux%ROUTE(idxDW)%REACH_VOL(1) + Qabs*dt, 0._dp) ! this should be <=0
+   Qmod = min(rflux%ROUTE(idxDW)%REACH_VOL(1) + Qabs*dt, 0._dp) ! is taken from outflow and is <= 0
 
    rflux%ROUTE(idxDW)%REACH_Q      = rflux%ROUTE(idxDW)%REACH_Q + Qmod/dt
    rflux%ROUTE(idxDW)%REACH_VOL(1) = rflux%ROUTE(idxDW)%REACH_VOL(1) + (Qabs*dt - Qmod)
 
    ! modify computational molecule state (Q)
-   rstate%molecule%Q(nMolecule%DW_ROUTE) = Qlocal(nMolecule%DW_ROUTE,1) - max(abs(Qmod/dt)-rflux%BASIN_QR(1), 0._dp)
+   ! abstracted flow use lateral flow first, so lateral flow is taken out from total abstracted flow
+   pcntReduc = 1._dp - max(abs(Qmod/dt)-rflux%BASIN_QR(1), 0._dp)/Qlocal(nMolecule%DW_ROUTE-1, 1)
+   rstate%molecule%Q(2:nMolecule%DW_ROUTE) = Qlocal(2:nMolecule%DW_ROUTE,1) *pcntReduc
  end if
-
- if (doCheck) then
-   write(iulog,'(A,X,G12.5)') ' Qout(t) =', rflux%ROUTE(idxDW)%REACH_Q
- endif
 
  END SUBROUTINE diffusive_wave
 

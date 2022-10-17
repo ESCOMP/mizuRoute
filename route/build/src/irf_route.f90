@@ -12,9 +12,9 @@ USE public_var, ONLY: iulog           ! i/o logical unit number
 USE public_var, ONLY: realMissing     ! missing value for real number
 USE public_var, ONLY: integerMissing  ! missing value for integer number
 USE globalData, ONLY: idxIRF          ! index of IRF method
-! lake subroutine
+! external subroutines
 USE lake_route_module, ONLY: lake_route        ! lake route module
-! subroutines: general
+USE water_balance,     ONLY: comp_reach_wb     ! compute water balance error
 USE perf_mod,          ONLY: t_startf,t_stopf  ! timing start/stop
 USE model_utils,       ONLY: handle_err
 
@@ -139,6 +139,7 @@ CONTAINS
  integer(i4b), intent(out)                :: ierr           ! error code
  character(*), intent(out)                :: message        ! error message
  ! Local variables
+ logical(lgt)                             :: doCheck        ! check details of variables
  real(dp)                                 :: q_upstream     ! total discharge at top of the reach being processed
  integer(i4b)                             :: nUps           ! number of upstream segment
  integer(i4b)                             :: iUps           ! upstream reach index
@@ -148,18 +149,19 @@ CONTAINS
  character(len=strLen)                    :: fmt1           ! format string
  character(len=strLen)                    :: cmessage       ! error message from subroutine
 
- ierr=0; message='segment_irf/'
+ ierr=0; message='irf_rch/'
 
- ! initialize future discharge array at first time
+ doCheck = .false.
+ if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
+   doCheck = .true.
+ end if
+
+  ! initialize future discharge array at first time
   if (.not.allocated(RCHFLX_out(iens,segIndex)%QFUTURE_IRF))then
-
-   ntdh = size(NETOPO_in(segIndex)%UH)
-
-   allocate(RCHFLX_out(iens,segIndex)%QFUTURE_IRF(ntdh), stat=ierr, errmsg=cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': RCHFLX_out(iens,segIndex)%QFUTURE_IRF'; return; endif
-
-   RCHFLX_out(iens,segIndex)%QFUTURE_IRF(:) = 0._dp
-
+    ntdh = size(NETOPO_in(segIndex)%UH)
+    allocate(RCHFLX_out(iens,segIndex)%QFUTURE_IRF(ntdh), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage)//': RCHFLX_out(iens,segIndex)%QFUTURE_IRF'; return; endif
+    RCHFLX_out(iens,segIndex)%QFUTURE_IRF(:) = 0._dp
   end if
 
   ! get discharge coming from upstream
@@ -213,7 +215,7 @@ CONTAINS
   endif
 
   ! check
-  if(segIndex==ixDesire)then
+  if(doCheck)then
     ntdh = size(NETOPO_in(segIndex)%UH)
     write(fmt1,'(A,I5,A)') '(A, 1X',ntdh,'(1X,F20.7))'
     write(*,'(2a)') new_line('a'),'** Check Impulse Response Function routing **'
@@ -224,6 +226,13 @@ CONTAINS
     write(*,'(a,x,F15.7)')     ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(iens,segIndex)%BASIN_QR(1)
     write(*,'(a,x,F15.7)')     ' RCHFLX_out%REACH_Q =', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q
   endif
+
+  if(doCheck) then
+    write(iulog,'(a)') ' -------------------------'
+    write(iulog,'(a)') ' -- water balance check --'
+    write(iulog,'(a)') ' -------------------------'
+  endif
+  call comp_reach_wb(idxIRF, q_upstream, RCHFLX_out(iens,segIndex), doCheck)
 
  END SUBROUTINE irf_rch
 

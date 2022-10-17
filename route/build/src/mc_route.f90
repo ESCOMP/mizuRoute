@@ -17,7 +17,8 @@ USE public_var,  ONLY: integerMissing    ! missing value for integer number
 USE public_var,  ONLY: qmodOption        ! qmod option (use 1==direct insertion)
 USE globalData,  ONLY: idxMC             ! index of IRF method
 ! subroutines: general
-USE perf_mod,    ONLY: t_startf,t_stopf   ! timing start/stop
+USE water_balance, ONLY: comp_reach_wb   ! compute water balance error
+USE perf_mod,    ONLY: t_startf,t_stopf  ! timing start/stop
 USE model_utils, ONLY: handle_err
 
 implicit none
@@ -212,6 +213,13 @@ CONTAINS
    write(iulog,'(A,X,G12.5)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_Q
  endif
 
+ if(doCheck) then
+   write(iulog,'(a)') ' -------------------------'
+   write(iulog,'(a)') ' -- water balance check --'
+   write(iulog,'(a)') ' -------------------------'
+ endif
+ call comp_reach_wb(idxMC, q_upstream, RCHFLX_out(iens,segIndex), doCheck)
+
  END SUBROUTINE mc_rch
 
  ! *********************************************************************
@@ -313,7 +321,7 @@ CONTAINS
      write(iulog,'(A,X,G12.5)') ' channel width [m] =',rch_param%R_WIDTH
      write(iulog,'(A,X,G12.5)') ' manning coef [-]  =',rch_param%R_MAN_N
      write(iulog,'(A)')         ' Initial 3 point discharge [m3/s]: '
-     write(iulog,'(3(A,X,G12.5))') ' Qin(t-1) Q(0,0)=',Q(0,0),' Qin(t) Q(0,1)=',Q(0,1),' Qout(t-1) Q(1,0)=',Q(1,0)
+     write(iulog,'(3(A,X,G12.5))') ' Qin(t-1) Q(0,0)=',Q(0,0),' Qin(t) Q(1,0)=',Q(1,0),' Qout(t-1) Q(0,1)=',Q(0,1)
    end if
 
    ! first, using 3-point average in computational molecule, check Cournat number is less than 1, otherwise subcycle within one time step
@@ -385,7 +393,6 @@ CONTAINS
  ! compute volume
  rflux%ROUTE(idxMC)%REACH_VOL(0) = rflux%ROUTE(idxMC)%REACH_VOL(1)
  rflux%ROUTE(idxMC)%REACH_VOL(1) = rflux%ROUTE(idxMC)%REACH_VOL(0) + (Q(1,0)-Q(1,1))*dt
- rflux%ROUTE(idxMC)%REACH_VOL(1) = max(rflux%ROUTE(idxMC)%REACH_VOL(1), 0._dp)
 
  ! add catchment flow
  rflux%ROUTE(idxMC)%REACH_Q = Q(1,1)+rflux%BASIN_QR(1)
