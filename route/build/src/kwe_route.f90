@@ -155,7 +155,7 @@ CONTAINS
  integer(i4b),  intent(out)                :: ierr              ! error code
  character(*),  intent(out)                :: message           ! error message
  ! Local variables
- logical(lgt)                              :: doCheck           ! check details of variables
+ logical(lgt)                              :: verbose           ! check details of variables
  logical(lgt)                              :: isHW              ! headwater basin?
  integer(i4b)                              :: nUps              ! number of upstream segment
  integer(i4b)                              :: iUps              ! upstream reach index
@@ -165,9 +165,9 @@ CONTAINS
 
  ierr=0; message='kw_rch/'
 
- doCheck = .false.
+ verbose = .false.
  if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
-   doCheck = .true.
+   verbose = .true.
  end if
 
  ! get discharge coming from upstream
@@ -185,7 +185,7 @@ CONTAINS
    end do
  endif
 
- if(doCheck)then
+ if(verbose)then
    write(iulog,'(2A)') new_line('a'), '** CHECK Kinematic wave routing **'
    if (nUps>0) then
      do iUps = 1,nUps
@@ -205,22 +205,22 @@ CONTAINS
                      isHW,                                    & ! input: is this headwater basin?
                      RCHSTA_out(iens,segIndex)%KW_ROUTE,      & ! inout:
                      RCHFLX_out(iens,segIndex),               & ! inout: updated fluxes at reach
-                     doCheck,                                 & ! input: reach index to be examined
+                     verbose,                                 & ! input: reach index to be examined
                      ierr, cmessage)                            ! output: error control
  if(ierr/=0)then
    write(message, '(A,X,I12,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage); return
  endif
 
- if(doCheck)then
+ if(verbose)then
    write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_Q
  endif
 
- if(doCheck) then
+ if(verbose) then
    write(iulog,'(a)') ' -------------------------'
    write(iulog,'(a)') ' -- water balance check --'
    write(iulog,'(a)') ' -------------------------'
  endif
- call comp_reach_wb(idxKW, q_upstream, RCHFLX_out(iens,segIndex), doCheck)
+ call comp_reach_wb(idxKW, q_upstream, RCHFLX_out(iens,segIndex), verbose)
 
  if (RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_VOL(1) < 0) then
    write(iulog,'(A,X,G12.5,X,A,X,I9)') ' ---- NEGATIVE VOLUME = ', RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_VOL(1), 'at ', NETOPO_in(segIndex)%REACHID
@@ -240,7 +240,7 @@ CONTAINS
                            isHW,          & ! input: is this headwater basin?
                            rstate,        & ! inout: reach state at a reach
                            rflux,         & ! inout: reach flux at a reach
-                           doCheck,       & ! input: reach index to be examined
+                           verbose,       & ! input: reach index to be examined
                            ierr,message)
  ! ----------------------------------------------------------------------------------------
  ! Kinematic wave equation is solved based on conservative form the equation
@@ -266,7 +266,7 @@ CONTAINS
  logical(lgt), intent(in)                 :: isHW         ! is this headwater basin?
  type(kwRCH),  intent(inout)              :: rstate       ! curent reach states
  type(STRFLX), intent(inout)              :: rflux        ! current Reach fluxes
- logical(lgt), intent(in)                 :: doCheck      ! reach index to be examined
+ logical(lgt), intent(in)                 :: verbose      ! reach index to be examined
  integer(i4b), intent(out)                :: ierr         ! error code
  character(*), intent(out)                :: message      ! error message
  ! Local variables
@@ -319,7 +319,7 @@ CONTAINS
    ! compute total flow rate and flow area at upstream end at current time step
    Q(1,0) = QupMod
 
-   if (doCheck) then
+   if (verbose) then
      write(iulog,'(A,X,G12.5)') ' length [m]        =',rch_param%RLENGTH
      write(iulog,'(A,X,G12.5)') ' slope [-]         =',rch_param%R_SLOPE
      write(iulog,'(A,X,G12.5)') ' channel width [m] =',rch_param%R_WIDTH
@@ -370,7 +370,7 @@ CONTAINS
    Q(1,0) = 0._dp
    Q(1,1) = 0._dp
 
-   if (doCheck) then
+   if (verbose) then
      write(iulog,'(A)')            ' This is headwater '
    endif
 
@@ -385,7 +385,7 @@ CONTAINS
  ! add catchment flow
  rflux%ROUTE(idxKW)%REACH_Q = Q(1,1)+rflux%BASIN_QR(1)
 
- if (doCheck) then
+ if (verbose) then
    write(iulog,'(1(A,X,G15.4))') ' Q(1,1)=',Q(1,1)
  end if
 

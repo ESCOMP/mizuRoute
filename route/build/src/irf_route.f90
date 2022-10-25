@@ -139,7 +139,7 @@ CONTAINS
  integer(i4b), intent(out)                :: ierr           ! error code
  character(*), intent(out)                :: message        ! error message
  ! Local variables
- logical(lgt)                             :: doCheck        ! check details of variables
+ logical(lgt)                             :: verbose        ! check details of variables
  real(dp)                                 :: q_upstream     ! total discharge at top of the reach being processed
  integer(i4b)                             :: nUps           ! number of upstream segment
  integer(i4b)                             :: iUps           ! upstream reach index
@@ -151,9 +151,9 @@ CONTAINS
 
  ierr=0; message='irf_rch/'
 
- doCheck = .false.
+ verbose = .false.
  if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
-   doCheck = .true.
+   verbose = .true.
  end if
 
   ! initialize future discharge array at first time
@@ -215,7 +215,7 @@ CONTAINS
   endif
 
   ! check
-  if(doCheck)then
+  if(verbose)then
     ntdh = size(NETOPO_in(segIndex)%UH)
     write(fmt1,'(A,I5,A)') '(A, 1X',ntdh,'(1X,F20.7))'
     write(*,'(2a)') new_line('a'),'** Check Impulse Response Function routing **'
@@ -227,12 +227,12 @@ CONTAINS
     write(*,'(a,x,F15.7)')     ' RCHFLX_out%REACH_Q =', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q
   endif
 
-  if(doCheck) then
+  if(verbose) then
     write(iulog,'(a)') ' -------------------------'
     write(iulog,'(a)') ' -- water balance check --'
     write(iulog,'(a)') ' -------------------------'
   endif
-  call comp_reach_wb(idxIRF, q_upstream, RCHFLX_out(iens,segIndex), doCheck)
+  call comp_reach_wb(idxIRF, q_upstream, RCHFLX_out(iens,segIndex), verbose)
 
  END SUBROUTINE irf_rch
 
