@@ -17,6 +17,7 @@ USE public_var, ONLY: integerMissing    ! missing value for integer number
 USE public_var, ONLY: qmodOption        ! qmod option (use 1==direct insertion)
 USE globalData, ONLY: idxKW             ! loop index of kw routing
 ! subroutines: general
+USE water_balance, ONLY: comp_reach_wb  ! compute water balance error
 USE perf_mod,  ONLY: t_startf,t_stopf   ! timing start/stop
 USE model_utils, ONLY: handle_err
 
@@ -214,6 +215,17 @@ CONTAINS
    write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_Q
  endif
 
+ if(doCheck) then
+   write(iulog,'(a)') ' -------------------------'
+   write(iulog,'(a)') ' -- water balance check --'
+   write(iulog,'(a)') ' -------------------------'
+ endif
+ call comp_reach_wb(idxKW, q_upstream, RCHFLX_out(iens,segIndex), doCheck)
+
+ if (RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_VOL(1) < 0) then
+   write(iulog,'(A,X,G12.5,X,A,X,I9)') ' ---- NEGATIVE VOLUME = ', RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_VOL(1), 'at ', NETOPO_in(segIndex)%REACHID
+ end if
+
  END SUBROUTINE kw_rch
 
 
@@ -280,10 +292,8 @@ CONTAINS
 
  ierr=0; message='kinematic_wave/'
 
- !  current time and inlet  3 (1,0) -> previous time and inlet  1 (0,0)
- !  current time and outlet 4 (1,1) -> previous time and outlet 2 (0,1)
- Q(0,0) = rstate%molecule%Q(1)
- Q(0,1) = rstate%molecule%Q(2)
+ Q(0,0) = rstate%molecule%Q(1) ! previous time and inlet  1 (0,0)
+ Q(0,1) = rstate%molecule%Q(2) ! previous time and outlet 2 (0,1)
  dt = T1-T0
 
  ! Q injection, add at top of reach
@@ -294,7 +304,7 @@ CONTAINS
 
  if (.not. isHW) then
 
-   Q(1,1) = realMissing
+   Q(1,1) = realMissing ! current time and outlet 4 (1,1)
 
    ! Get the reach parameters
    ! A = (Q/alpha)**(1/beta)
@@ -355,10 +365,6 @@ CONTAINS
      end do
    endif
 
-   if (doCheck) then
-     write(iulog,'(1(A,X,G15.4))') ' Q(1,1)=',Q(1,1)
-   end if
-
  else ! if head-water
 
    Q(1,0) = 0._dp
@@ -366,18 +372,22 @@ CONTAINS
 
    if (doCheck) then
      write(iulog,'(A)')            ' This is headwater '
-     write(iulog,'(1(A,X,G15.4))') ' Q(1,1)=',Q(1,1)
    endif
 
  endif
 
  ! compute volume
  rflux%ROUTE(idxKW)%REACH_VOL(0) = rflux%ROUTE(idxKW)%REACH_VOL(1)
+ ! For very low flow condition, outflow - inflow > current storage, so limit outflow and adjust Q(1,1)
+ Q(1,1) = min(rflux%ROUTE(idxKW)%REACH_VOL(0)/dt + Q(1,0)*0.999, Q(1,1))
  rflux%ROUTE(idxKW)%REACH_VOL(1) = rflux%ROUTE(idxKW)%REACH_VOL(0) + (Q(1,0)-Q(1,1))*dt
- rflux%ROUTE(idxKW)%REACH_VOL(1) = max(rflux%ROUTE(idxKW)%REACH_VOL(1), 0._dp)
 
  ! add catchment flow
  rflux%ROUTE(idxKW)%REACH_Q = Q(1,1)+rflux%BASIN_QR(1)
+
+ if (doCheck) then
+   write(iulog,'(1(A,X,G15.4))') ' Q(1,1)=',Q(1,1)
+ end if
 
  ! Q abstraction
  ! Compute actual abstraction (Qabs) m3/s - values should be negative
@@ -386,8 +396,7 @@ CONTAINS
  ! Compute REACH_VOL subtracted from total abstraction minus abstraction from outlet discharge
  if (Qtake<0) then
    Qabs = max(-(rflux%ROUTE(idxKW)%REACH_VOL(1)/dt+rflux%ROUTE(idxKW)%REACH_Q-Qmin), Qtake)
-   Qabs = min(Qabs, 0._dp)  ! this should be <=0
-   Qmod = min(rflux%ROUTE(idxKW)%REACH_VOL(1) + Qabs*dt, 0._dp) ! this should be <= 0
+   Qmod = min(rflux%ROUTE(idxKW)%REACH_VOL(1) + Qabs*dt, 0._dp) ! Qtake taken from outflow portion, Qmod <=0
 
    rflux%ROUTE(idxKW)%REACH_Q      = rflux%ROUTE(idxKW)%REACH_Q + Qmod/dt
    rflux%ROUTE(idxKW)%REACH_VOL(1) = rflux%ROUTE(idxKW)%REACH_VOL(1) + (Qabs*dt - Qmod)
