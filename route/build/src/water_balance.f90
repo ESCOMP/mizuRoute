@@ -132,6 +132,7 @@ CONTAINS
     type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)   ! River Network topology
     type(STRFLX), intent(inout)              :: RCHFLX_out(:,:)! Reach fluxes (ensembles, space [reaches]) for decomposed domains
     ! Local variables
+    logical(lgt)                             :: verbose        ! check details of variables
     real(dp)                                 :: dVol           ! volume change [m3]
     real(dp)                                 :: Qlat           ! lateral flow [m3]
     real(dp)                                 :: precp          ! precipitation into reach [m3]
@@ -142,6 +143,11 @@ CONTAINS
     integer(i4b)                             :: nUps           ! number of upstream segment
     integer(i4b)                             :: iUps           ! upstream reach index
     integer(i4b)                             :: iRch_ups       ! index of upstream reach in NETOPO
+
+    verbose = .false.
+    if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
+      verbose = .true.
+    end if
 
     ! identify number of upstream segments of the reach being processed
     nUps = size(NETOPO_in(segIndex)%UREACHI)
@@ -169,7 +175,7 @@ CONTAINS
     RCHFLX_out(iens,segIndex)%ROUTE(ixRoute)%WBupstream = RCHFLX_out(iens,segIndex)%ROUTE(ixRoute)%WBupstream &
                                                         + WBupstream
     ! check
-    if(segIndex==ixDesire)then
+    if(verbose)then
       write(iulog,'(A,1PG15.7)') '  Total Upstream WBerr [m3] = ', RCHFLX_out(iens,segIndex)%ROUTE(ixRoute)%WBupstream
     endif
 
@@ -183,7 +189,7 @@ CONTAINS
   SUBROUTINE comp_reach_wb(ixRoute,    &     ! input: index of routing method
                            Qupstream,  &     ! input: inflow from upstream
                            RCHFLX_in,  &     ! inout: reach flux data structure
-                           doCheck)
+                           verbose)
 
   ! Descriptions
   ! Compute water balance per simulation time step and reach/lake
@@ -199,7 +205,7 @@ CONTAINS
   integer(i4b), intent(in)                 :: ixRoute        ! input: routing method index
   real(dp),     intent(in)                 :: Qupstream      ! input: total inflow from upstream reaches
   type(STRFLX), intent(inout)              :: RCHFLX_in      ! inout: Reach fluxes data structure
-  logical(lgt), intent(in)                 :: doCheck        ! input: reach index to be examined
+  logical(lgt), intent(in)                 :: verbose        ! input: reach index to be examined
   ! Local variables:
   real(dp)                                 :: dVol           !
   real(dp)                                 :: Qin            !
@@ -222,7 +228,7 @@ CONTAINS
 
   RCHFLX_in%ROUTE(ixRoute)%WB = dVol - (Qin + Qlateral + precip + Qout + Qtake + evapo)
 
-  if (doCheck) then
+  if (verbose) then
     write(iulog,'(A,1PG15.7)') '  WBerr [m3]        = ', RCHFLX_in%ROUTE(ixRoute)%WB
     write(iulog,'(A,1PG15.7)') '  Vol at t0 [m3]    = ', RCHFLX_in%ROUTE(ixRoute)%REACH_VOL(0)
     write(iulog,'(A,1PG15.7)') '  Vol at t1 [m3]    = ', RCHFLX_in%ROUTE(ixRoute)%REACH_VOL(1)
