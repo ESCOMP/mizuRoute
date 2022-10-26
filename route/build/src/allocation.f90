@@ -143,7 +143,7 @@ CONTAINS
   structSEG(iSeg)%var(ixSEG%upsArea        )%dat(1) = realMissing
   structSEG(iSeg)%var(ixSEG%basUnderLake   )%dat(1) = realMissing
   structSEG(iSeg)%var(ixSEG%rchUnderLake   )%dat(1) = realMissing
-  structSEG(iSeg)%var(ixSEG%minFlow        )%dat(1) = realMissing
+  structSEG(iSeg)%var(ixSEG%minFlow        )%dat(1) = 0._dp
 
   ! initialize variables not yet computed / assigned
   structNTOPO(iSeg)%var(ixNTOPO%rchOrder   )%dat(1) = integerMissing
