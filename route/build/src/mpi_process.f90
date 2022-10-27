@@ -80,7 +80,7 @@ CONTAINS
                             structSEG,          & ! input: data structure for stream segments
                             structHRU2seg,      & ! input: data structure for mapping hru2basin
                             structNTOPO,        & ! input: data structure for network toopology
-                            ierr,message)         ! output: error control
+                            ierr, message)        ! output: error control
 
   USE globalData,          ONLY: ixPrint                  ! reach index to be checked by on-screen pringing
   USE globalData,          ONLY: domains_mpi              ! MPI domain data structure - for each domain listing segment and hru indices
@@ -365,7 +365,7 @@ CONTAINS
       commRch(ix)%srcIndex  = srcIndex(ix)
       commRch(ix)%destIndex = destIndex(ix)
     end do
-    call shr_mpi_barrier(comm, message)
+    call shr_mpi_barrier(comm, cmessage)
     deallocate(srcTask, destTask, srcIndex, destIndex)
   end if
 
@@ -844,7 +844,7 @@ CONTAINS
                         nNodes,        & ! input: number of procs
                         comm,          & ! input: communicator
                         iens,          & ! input: ensemble index
-                        ierr,message)    ! output: error control
+                        ierr, message)    ! output: error control
   ! shared data
   USE globalData, ONLY: nRch             ! number of reaches in the whoel river network
   USE globalData, ONLY: rch_per_proc     ! number of reaches assigned to each proc (i.e., node)
@@ -919,7 +919,7 @@ CONTAINS
                               ixRch_order(rch_per_proc(root-1)+1:nRch), &
                               arth(1,1,rch_per_proc(pid)),              &
                               scatter,                                  &
-                              ierr, message)
+                              ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     if (masterproc) then
@@ -941,7 +941,7 @@ CONTAINS
                                   ixRch_order(rch_per_proc(root-1)+1:nRch), & !
                                   arth(1,1,rch_per_proc(pid)),              & !
                                   scatter,                                  & ! communication type
-                                  ierr, message)
+                                  ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
@@ -954,7 +954,7 @@ CONTAINS
                               ixRch_order(rch_per_proc(root-1)+1:nRch), & !
                               arth(1,1,rch_per_proc(pid)),              & !
                               scatter,                                  & ! communication type
-                              ierr, message)
+                              ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     end if
 
@@ -968,7 +968,7 @@ CONTAINS
                                    arth(1,1,rch_per_proc(pid)),              & !
                                    kinematicWave,                            & ! routing method
                                    scatter,                                  & ! communication type
-                                   ierr, message)
+                                   ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       if (masterproc) then
@@ -985,7 +985,7 @@ CONTAINS
                                 ixRch_order(rch_per_proc(root-1)+1:nRch), &
                                 arth(1,1,rch_per_proc(pid)),              &
                                 scatter,                                  &
-                                ierr, message)
+                                ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       if (masterproc) then
@@ -1009,7 +1009,7 @@ CONTAINS
                                    arth(1,1,rch_per_proc(pid)),              &
                                    muskingumCunge,                           & ! routing method
                                    scatter,                                  & ! communication type
-                                   ierr, message)
+                                   ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! volume communication
@@ -1027,7 +1027,7 @@ CONTAINS
                                 ixRch_order(rch_per_proc(root-1)+1:nRch), &
                                 arth(1,1,rch_per_proc(pid)),              &
                                 scatter,                                  &
-                                ierr, message)
+                                ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       if (masterproc) then
@@ -1051,7 +1051,7 @@ CONTAINS
                                    arth(1,1,rch_per_proc(pid)),              &
                                    diffusiveWave,                            & ! routing method
                                    scatter,                                  & ! communication type
-                                   ierr, message)
+                                   ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! volume communication
@@ -1069,7 +1069,7 @@ CONTAINS
                                 ixRch_order(rch_per_proc(root-1)+1:nRch), &
                                 arth(1,1,rch_per_proc(pid)),              &
                                 scatter,                                  &
-                                ierr, message)
+                                ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       if (masterproc) then
@@ -1092,7 +1092,7 @@ CONTAINS
                               ixRch_order(rch_per_proc(root-1)+1:nRch), &
                               arth(1,1,rch_per_proc(pid)),              &
                               scatter,                                  & ! communication type
-                              ierr, message)
+                              ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! volume communication
@@ -1112,7 +1112,7 @@ CONTAINS
                                   ixRch_order(rch_per_proc(root-1)+1:nRch), &
                                   arth(1,1,rch_per_proc(pid)),              &
                                   scatter,                                  &
-                                  ierr, message)
+                                  ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
         if (masterproc) then
@@ -1140,7 +1140,7 @@ CONTAINS
                       nNodes,        & ! input: number of procs
                       comm,          & ! input: communicator
                       iens,          & ! input: ensemble index
-                      ierr,message,  & ! output: error control
+                      ierr, message, & ! output: error control
                       scatter_ro)      ! optional input: logical. .true. => scatter global hru runoff to mainstem and tributary
   ! shared data
   USE globalData, ONLY: ixPrint             ! desired reach index
@@ -1271,7 +1271,7 @@ CONTAINS
                     ixPrint(2),        &  ! input: reach index to be checked by on-screen pringing
                     RCHFLX_trib(:,ix1:ix2),   &  ! inout: reach flux data structure
                     RCHSTA_trib(:,ix1:ix2),   &  ! inout: reach state data structure
-                    ierr, message)        ! output: error control
+                    ierr, cmessage)        ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     call t_stopf ('route/tributary-route')
 
@@ -1293,7 +1293,7 @@ CONTAINS
                        global_ix_main,      & ! input:
                        local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
                        gather,              & ! input: communication type
-                       ierr, message)
+                       ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! river flux communication
@@ -1304,7 +1304,7 @@ CONTAINS
                              global_ix_main,      & ! input:
                              local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
                              gather,              & ! input: communication type
-                             ierr, message)
+                             ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! KWT state communication
@@ -1317,7 +1317,7 @@ CONTAINS
                               global_ix_main,      & ! input:
                               local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
                               gather,              & ! communication type
-                              ierr, message)
+                              ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
@@ -1328,7 +1328,7 @@ CONTAINS
                              RCHFLX_trib,         & ! input:
                              global_ix_main,      & ! input:
                              local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
-                             ierr, message)
+                             ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     end if
 
@@ -1366,7 +1366,7 @@ CONTAINS
                     ixPrint(1),              &  ! input: reach index to be checked by on-screen pringing
                     RCHFLX_trib(:,1:nRch_mainstem+nTribOutlet),  &  ! inout: reach flux data structure
                     RCHSTA_trib(:,1:nRch_mainstem+nTribOutlet),  &  ! inout: reach state data structure
-                    ierr, message)              ! output: error control
+                    ierr, cmessage)              ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     call t_stopf ('route/mainstem_route')
@@ -1388,12 +1388,12 @@ CONTAINS
                               global_ix_main,      &
                               local_ix_comm,       & ! input: local reach indices per proc (dimension size depends on procs )
                               scatter,             & ! input: 1 = scatter
-                              ierr, message)
+                              ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       call t_stopf ('route/scatter-kwt-state')
     endif
 
-    call shr_mpi_barrier(comm, message)
+    call shr_mpi_barrier(comm, cmessage)
   endif !(multiProcs)
 
  END SUBROUTINE mpi_route
@@ -3007,7 +3007,7 @@ CONTAINS
  ! public subroutine: send global data
  ! *********************************************************************
  ! send all the necessary public/global variables neccesary in task
- SUBROUTINE pass_global_data(comm, ierr,message)   ! output: error control
+ SUBROUTINE pass_global_data(comm, ierr, message)   ! output: error control
   USE globalData, ONLY: nRch,nHRU         ! number of reaches and hrus in whole network
   USE globalData, ONLY: iTime             ! time index
   implicit none
