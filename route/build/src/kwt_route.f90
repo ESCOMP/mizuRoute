@@ -11,7 +11,6 @@ USE dataTypes, ONLY: kwtRCH            ! kwt specific state data structure
 USE dataTypes, ONLY: subbasin_omp      ! mainstem+tributary data strucuture
 ! global data
 USE public_var, ONLY: iulog            ! i/o logical unit number
-USE public_var, ONLY: runoffMin        ! minimum runoff
 USE public_var, ONLY: verySmall        ! a very small value
 USE public_var, ONLY: realMissing      ! missing value for real number
 USE public_var, ONLY: integerMissing   ! missing value for integer number
@@ -510,7 +509,7 @@ CONTAINS
 
   else ! everything taken....
 
-    Q_jrch_mod = runoffMin  ! remaining wave Q after abstraction
+    Q_jrch_mod = RPARAM_in(JRCH)%MINFLOW  ! remaining wave Q after abstraction
 
   end if
 
