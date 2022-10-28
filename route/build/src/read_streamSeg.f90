@@ -1,14 +1,13 @@
 MODULE read_streamSeg
 
 ! data types
-USE nrtype,    ONLY: i4b,dp,lgt
-USE nrtype,    ONLY: strLen               ! string length
+USE nrtype
 USE dataTypes, ONLY: var_ilength          ! integer type:          var(:)%dat
 USE dataTypes, ONLY: var_dlength          ! double precision type: var(:)%dat
 USE dataTypes, ONLY: var_clength          ! character type:        var(:)%dat
 USE dataTypes, ONLY: var_info             ! metadata
 
-! global data
+! public data
 USE public_var
 
 ! metadata on data structures
@@ -38,6 +37,7 @@ implicit none
 
 private
 public::getData
+public::mod_meta_varFile
 
 CONTAINS
 
@@ -95,16 +95,6 @@ SUBROUTINE getData(&
   logical(lgt)                                 :: isVarDesired            ! .true. if the variable is desired
   character(len=strLen)                        :: varName                 ! variable name
   character(len=strLen)                        :: cmessage                ! error message of downwind routine
-  integer(i4b),              allocatable       :: islake_local(:)         ! local array to save islake flag
-  integer(i4b),              allocatable       :: LakeTargVol_local(:)    ! local array to save LakeTargetVol flag
-  integer(i4b),              allocatable       :: LakeModelType_local(:)  ! local array to save LakeModelType flag
-  integer(i4b)                                 :: i                       ! counter
-  integer(i4b)                                 :: number_lakes            ! number of lakes in network topology
-  integer(i4b)                                 :: number_Endorheic        ! number of Endorheic lakes
-  integer(i4b)                                 :: number_Doll             ! number of lakes with parameteric Doll 2003 formulation
-  integer(i4b)                                 :: number_Hanasaki         ! number of lakes with parameteric Hanasaki 2006 formulation
-  integer(i4b)                                 :: number_HYPE             ! number of lakes with parameteric Hanasaki 2006 formulation
-  integer(i4b)                                 :: number_TargVol          ! number of lakes with target volume
 
   ierr=0; message='getData, read_segment/'
 
@@ -149,197 +139,6 @@ SUBROUTINE getData(&
   ! -----------------------------------------------------------------------------------------------------------------
   ! ---------- read in data -----------------------------------------------------------------------------------------
   ! -----------------------------------------------------------------------------------------------------------------
-
-  ! set flags if we want to read hdraulic geometry from file
-  if(hydGeometryOption==readFromFile)then
-    meta_SEG(ixSEG%width)%varFile = .true.
-    meta_SEG(ixSEG%man_n)%varFile = .true.
-  endif
-
-  ! set flags if we simulate lake and need lake parameters; was set to false in pop_metadata.f90
-  if(is_lake_sim)then
-
-    meta_NTOPO(ixNTOPO%islake)%varFile          = .true.       ! if the object is lake should be provided
-    meta_NTOPO(ixNTOPO%lakeModelType)%varFile   = .true.       ! if the object is lake, lake type should be provided
-
-    ! read the lake type variable
-    varName = trim(meta_NTOPO(ixNTOPO%lakeModelType)%varName)  ! get the varibale name of lakeModelType
-    ierr = nf90_inq_varid(ncid, varName, ivarID)               ! get the id of the lakeModelType variable
-    if(ierr/=0)then; ierr=20; message=trim(message)//'problem reading variable ID for lakeModelType'; return; endif
-    allocate (LakeModelType_local(nRch_in), stat=ierr)         ! allocate the lakeModelType_local
-    if(ierr/=0)then; ierr=20; message=trim(message)//'not able to allocate LakeModelType_local'; return; endif
-    ierr = nf90_get_var(ncid, ivarID, LakeModelType_local)     ! read the variable
-    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; varname='//trim(varName); return; endif
-
-    ! read the is_lake flag
-    varName = trim(meta_NTOPO(ixNTOPO%islake)%varName)         ! get the varibale name of islake
-    ierr = nf90_inq_varid(ncid, varName, ivarID)               ! get the id of the islake variable
-    if(ierr/=0)then; ierr=20; message=trim(message)//'problem reading variable ID for islake'; return; endif
-    allocate (islake_local(nRch_in), stat=ierr)                ! allocate the islake_local
-    if(ierr/=0)then; ierr=20; message=trim(message)//'not able to allocate islake_local'; return; endif
-    ierr = nf90_get_var(ncid, ivarID, islake_local)            ! read the variable
-    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; varname='//trim(varName); return; endif
-
-    ! read lake target volume
-    if (is_vol_wm) then
-      meta_NTOPO(ixNTOPO%laketargvol)%varFile   = .true.         ! if target volume flag is on, varibale should be provided
-      ! read the is_lake flag
-      varName = trim(meta_NTOPO(ixNTOPO%laketargvol)%varName)    ! get the varibale name of target volume
-      ierr = nf90_inq_varid(ncid, varName, ivarID)               ! get the id of the target volume variable
-      if(ierr/=0)then; ierr=20; message=trim(message)//'problem reading variable ID for lake target volume'; return; endif
-      allocate (LakeTargVol_local(nRch_in), stat=ierr)           ! allocate the LakeTargVol_local
-      if(ierr/=0)then; ierr=20; message=trim(message)//'not able to allocate LakeTargVol_local'; return; endif
-      ierr = nf90_get_var(ncid, ivarID, LakeTargVol_local)       ! read the variable
-      if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; varname='//trim(varName); return; endif
-      ! check if the size of islake_local and LakeTargVol_local
-      if (size(islake_local)/=size(LakeTargVol_local))then
-        ierr=20; message=trim(message)//'lake flag and lake target volume do not have similar length'; return;
-      endif
-    endif
-
-    ! check if the size of islake_local and LakeModelType_local
-    if (size(islake_local)/=size(LakeModelType_local))then
-      ierr=20; message=trim(message)//'lake flag and lake types do not have similar length'; return;
-    endif
-
-    ! assign the initial values
-    number_lakes      =  0
-    number_Endorheic  =  0
-    number_Doll       =  0
-    number_Hanasaki   =  0
-    number_HYPE       =  0
-    number_TargVol    =  0
-
-    ! specifying which lake models are called and if there is conflict between lake model type and data driven flag
-    do i = 1, size(islake_local)
-      if (islake_local(i) == 1) then ! if the segement is flagged as lake
-        number_lakes = number_lakes + 1 ! total number of lakes
-        if (is_vol_wm) then
-          if (LakeTargVol_local(i) == 1) then ! if lake is not target volume then it should be parametertic
-            number_TargVol = number_TargVol + 1 ! add number of target volume case
-            select case(LakeModelType_local(i))
-              case(0); ierr=20; message=trim(message)//'both data driven (follow target volume) and Endorheic lake are activated for a lake'; return
-              case(1); ierr=20; message=trim(message)//'both data driven (follow target volume) and Doll lake formulation are activated for a lake'; return
-              case(2); ierr=20; message=trim(message)//'both data driven (follow target volume) and Hanasaki lake formulation are activated for a lake'; return
-              case(3); ierr=20; message=trim(message)//'both data driven (follow target volume) and HYPY lake formulation are activated for a lake'; return
-            end select
-          else
-            select case(LakeModelType_local(i))
-              case(0);                              number_Endorheic = number_Endorheic + 1; ! add number of Endorheic lakes
-              case(1); lake_model_D03     = .true.; number_Doll      = number_Doll      + 1; ! add number of Doll lakes
-              case(2); lake_model_H06     = .true.; number_Hanasaki  = number_Hanasaki  + 1; ! add number of Hanasaki lakes
-              case(3); lake_model_HYPE    = .true.; number_HYPE      = number_HYPE      + 1; ! add number of HYPE lakes
-              case default; ierr=20; message=trim(message)//'unable to identify the lake model type'; return
-            end select
-          endif
-        else
-          select case(LakeModelType_local(i))
-            case(0);                              number_Endorheic = number_Endorheic + 1; ! add number of Endorheic lakes
-            case(1); lake_model_D03     = .true.; number_Doll      = number_Doll      + 1; ! add number of Doll lakes
-            case(2); lake_model_H06     = .true.; number_Hanasaki  = number_Hanasaki  + 1; ! add number of Hanasaki lakes
-            case(3); lake_model_HYPE    = .true.; number_HYPE      = number_HYPE      + 1; ! add number of HYPE lakes
-            case default; ierr=20; message=trim(message)//'unable to identify the lake model type'; return
-          end select
-        endif
-      endif
-    enddo
-
-    ! print the numbers
-    print*, "total number of lakes             = ", number_lakes
-    print*, "total number of Endorheic lakes   = ", number_Endorheic
-    print*, "lakes with Doll formulation       = ", number_Doll
-    print*, "lakes with Hanasaki formulation   = ", number_Hanasaki
-    print*, "lakes with HYPE formulation       = ", number_HYPE
-    print*, "lakes with target volume          = ", number_TargVol
-
-    ! check is the number of parameteric lakes and target volume sums up to the total number of lakes
-    if (number_Endorheic+number_Doll+number_Hanasaki+number_HYPE+number_TargVol == number_lakes) then
-      print*, "number of lake models and target volume models matches the total number of lakes; should be good to go!"
-    else
-      ! print*, "number of lake models and target volume models do not match the total number of lakes"
-      ierr=20; message=trim(message)//'number of lake models and target volume models do not match the total number of lakes'; return
-    endif
-
-    ! warning about the Endorheic lakes and absence of evaporation
-    if ((number_Endorheic>0).and.(suppress_P_Ep)) then
-      print*, "The river network topology includes Endorheic lakes while no precipitation and evaporation is provided"
-      print*, "In absence of extraction from lake the Endorheic lake volumns will be always increasing"
-    endif
-
-    ! deallocate the variables
-    deallocate(islake_local, LakeModelType_local, stat=ierr)
-    if(ierr/=0)then; message=trim(message)//'problem deallocating islake_local and LakeModelType_local'; return; endif
-
-    ! print flags
-    print*, "Doll is activated                 = ", lake_model_D03
-    print*, "HYPE is activated                 = ", lake_model_HYPE
-    print*, "Hanasaki is activated             = ", lake_model_H06
-
-
-    if (lake_model_D03) then
-      meta_SEG(ixSEG%D03_MaxStorage)%varFile    = .true.    ! Doll parameter
-      meta_SEG(ixSEG%D03_coefficient)%varFile   = .true.    ! Doll parameter
-      meta_SEG(ixSEG%D03_power)%varFile         = .true.    ! Doll parameter
-    endif
-
-    if (lake_model_HYPE) then
-      meta_SEG(ixSEG%HYP_E_emr)%varFile         = .true.    ! HYPE parameter
-      meta_SEG(ixSEG%HYP_E_lim)%varFile         = .true.    ! HYPE parameter
-      meta_SEG(ixSEG%HYP_E_min)%varFile         = .true.    ! HYPE parameter
-      meta_SEG(ixSEG%HYP_E_zero)%varFile        = .true.    ! HYPE parameter
-      meta_SEG(ixSEG%HYP_Qrate_emr)%varFile     = .true.    ! HYPE parameter
-      meta_SEG(ixSEG%HYP_Erate_emr)%varFile     = .true.    ! HYPE parameter
-      meta_SEG(ixSEG%HYP_Qrate_prim)%varFile    = .true.    ! HYPE parameter
-      meta_SEG(ixSEG%HYP_Qrate_amp)%varFile     = .true.    ! HYPE parameter
-      meta_SEG(ixSEG%HYP_Qrate_phs)%varFile     = .true.    ! HYPE parameter
-      meta_SEG(ixSEG%HYP_prim_F)%varFile        = .true.    ! HYPE parameter
-      meta_SEG(ixSEG%HYP_A_avg)%varFile         = .true.    ! HYPE parameter
-    endif
-
-    if (lake_model_H06) then
-      meta_SEG(ixSEG%H06_Smax)%varFile          = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_alpha)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_envfact)%varFile       = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_S_ini)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_c1)%varFile            = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_c2)%varFile            = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_exponent)%varFile      = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_denominator)%varFile   = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_c_compare)%varFile     = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_frac_Sdead)%varFile    = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_E_rel_ini)%varFile     = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_I_Jan)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_I_Feb)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_I_Mar)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_I_Apr)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_I_May)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_I_Jun)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_I_Jul)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_I_Aug)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_I_Sep)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_I_Oct)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_I_Nov)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_I_Dec)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_D_Jan)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_D_Feb)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_D_Mar)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_D_Apr)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_D_May)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_D_Jun)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_D_Jul)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_D_Aug)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_D_Sep)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_D_Oct)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_D_Nov)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_D_Dec)%varFile         = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_purpose)%varFile       = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_I_mem_F)%varFile       = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_D_mem_F)%varFile       = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_I_mem_L)%varFile       = .true.    ! Hanasaki parameter
-      meta_SEG(ixSEG%H06_D_mem_L)%varFile       = .true.    ! Hanasaki parameter
-    endif
-
-  endif
 
   ! loop through data structures
   write(iulog,'(2a)') new_line('a'), '---- Read river network data --- '
@@ -485,23 +284,251 @@ SUBROUTINE getData(&
 
 END SUBROUTINE getData
 
+
+! *********************************************************************
+! public subroutine: modification of river/lake variable I/O options
+! *********************************************************************
+SUBROUTINE mod_meta_varFile(ierr, message)
+
+  USE public_var, ONLY: ancil_dir
+  USE public_var, ONLY: fname_ntopOld
+  USE public_var, ONLY: dname_sseg
+  USE public_var, ONLY: hydGeometryOption
+  USE public_var, ONLY: readFromFile
+  USE globalData, ONLY: masterproc
+
+  implicit none
+  ! Argument variables
+  integer(i4b)      , intent(out)    :: ierr                    ! error code
+  character(*)      , intent(out)    :: message                 ! error message
+  ! local variables
+  integer(i4b)                       :: ncid                    ! NetCDF file ID
+  integer(i4b)                       :: ivarID                  ! variable ID
+  integer(i4b)                       :: idimID_sseg             ! dimension ID for stream segments
+  integer(i4b)                       :: nRch_local              ! number of stream segments
+  character(len=strLen)              :: varName                 ! variable name
+  integer(i4b)                       :: number_lakes            ! number of lakes in network topology
+  integer(i4b)                       :: number_Endorheic        ! number of Endorheic lakes
+  integer(i4b)                       :: number_Doll             ! number of lakes with parameteric Doll 2003 formulation
+  integer(i4b)                       :: number_Hanasaki         ! number of lakes with parameteric Hanasaki 2006 formulation
+  integer(i4b)                       :: number_HYPE             ! number of lakes with parameteric Hanasaki 2006 formulation
+  integer(i4b)                       :: number_TargVol          ! number of lakes with target volume
+  integer(i4b), allocatable          :: islake_local(:)         ! local array to save islake flag
+  integer(i4b), allocatable          :: LakeTargVol_local(:)    ! local array to save LakeTargetVol flag
+  integer(i4b), allocatable          :: LakeModelType_local(:)  ! local array to save LakeModelType flag
+  integer(i4b)                       :: i                       ! counter
+
+  ierr=0; message='mod_meta_varFile/'
+
+  ! set flags if we want to read hdraulic geometry from file
+  if(hydGeometryOption==readFromFile)then
+    meta_SEG(ixSEG%width)%varFile = .true.
+    meta_SEG(ixSEG%man_n)%varFile = .true.
+  endif
+
+  ! set flags if we simulate lake and need lake parameters; was set to false in pop_metadata.f90
+  if(is_lake_sim)then
+
+    meta_NTOPO(ixNTOPO%islake)%varFile          = .true.       ! if the object is lake should be provided
+    meta_NTOPO(ixNTOPO%lakeModelType)%varFile   = .true.       ! if the object is lake, lake type should be provided
+
+    ! open file for reading
+    ierr = nf90_open(trim(ancil_dir)//trim(fname_ntopOld), nf90_nowrite, ncid)
+    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; file='//trim(fname_ntopOld); return; endif
+
+    ! get the ID of the stream segment dimension
+    ierr = nf90_inq_dimid(ncid, dname_sseg, idimID_sseg)
+    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; name='//trim(dname_sseg); return; endif
+
+    ! get the length of the stream segment dimension
+    ierr = nf90_inquire_dimension(ncid, idimID_sseg, len=nRch_local)
+    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+    ! read the lake type variable
+    varName = trim(meta_NTOPO(ixNTOPO%lakeModelType)%varName)  ! get the varibale name of lakeModelType
+    ierr = nf90_inq_varid(ncid, varName, ivarID)               ! get the id of the lakeModelType variable
+    if(ierr/=0)then; ierr=20; message=trim(message)//'problem reading variable ID for lakeModelType'; return; endif
+    allocate (LakeModelType_local(nRch_local), stat=ierr)      ! allocate the lakeModelType_local
+    if(ierr/=0)then; ierr=20; message=trim(message)//'not able to allocate LakeModelType_local'; return; endif
+    ierr = nf90_get_var(ncid, ivarID, LakeModelType_local)     ! read the variable
+    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; varname='//trim(varName); return; endif
+
+    ! read the is_lake flag
+    varName = trim(meta_NTOPO(ixNTOPO%islake)%varName)         ! get the varibale name of islake
+    ierr = nf90_inq_varid(ncid, varName, ivarID)               ! get the id of the islake variable
+    if(ierr/=0)then; ierr=20; message=trim(message)//'problem reading variable ID for islake'; return; endif
+    allocate (islake_local(nRch_local), stat=ierr)             ! allocate the islake_local
+    if(ierr/=0)then; ierr=20; message=trim(message)//'not able to allocate islake_local'; return; endif
+    ierr = nf90_get_var(ncid, ivarID, islake_local)            ! read the variable
+    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; varname='//trim(varName); return; endif
+
+    ! read lake target volume
+    if (is_vol_wm) then
+      meta_NTOPO(ixNTOPO%laketargvol)%varFile   = .true.         ! if target volume flag is on, varibale should be provided
+      ! read the is_lake flag
+      varName = trim(meta_NTOPO(ixNTOPO%laketargvol)%varName)    ! get the varibale name of target volume
+      ierr = nf90_inq_varid(ncid, varName, ivarID)               ! get the id of the target volume variable
+      if(ierr/=0)then; ierr=20; message=trim(message)//'problem reading variable ID for lake target volume'; return; endif
+      allocate (LakeTargVol_local(nRch_local), stat=ierr)        ! allocate the LakeTargVol_local
+      if(ierr/=0)then; ierr=20; message=trim(message)//'not able to allocate LakeTargVol_local'; return; endif
+      ierr = nf90_get_var(ncid, ivarID, LakeTargVol_local)       ! read the variable
+      if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; varname='//trim(varName); return; endif
+    endif
+
+    ! close the NetCDF file
+    ierr = nf90_close(ncid)
+    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
+
+    ! Check numbers of lakes and modeling types
+    number_lakes      =  0
+    number_Endorheic  =  0
+    number_Doll       =  0
+    number_Hanasaki   =  0
+    number_HYPE       =  0
+    number_TargVol    =  0
+
+    ! specifying which lake models are called and if there is conflict between lake model type and data driven flag
+    do i = 1, nRch_local
+      if (islake_local(i) == 1) then ! if the segement is flagged as lake
+        number_lakes = number_lakes + 1 ! total number of lakes
+        if (is_vol_wm) then
+          if (LakeTargVol_local(i) == 1) then ! if lake is not target volume then it should be parametertic
+            number_TargVol = number_TargVol + 1 ! add number of target volume case
+            select case(LakeModelType_local(i))
+              case(0); ierr=20; message=trim(message)//'both data driven (follow target volume) and Endorheic lake are activated for a lake'; return
+              case(1); ierr=20; message=trim(message)//'both data driven (follow target volume) and Doll lake formulation are activated for a lake'; return
+              case(2); ierr=20; message=trim(message)//'both data driven (follow target volume) and Hanasaki lake formulation are activated for a lake'; return
+              case(3); ierr=20; message=trim(message)//'both data driven (follow target volume) and HYPY lake formulation are activated for a lake'; return
+            end select
+          else
+            select case(LakeModelType_local(i))
+              case(0);                              number_Endorheic = number_Endorheic + 1; ! add number of Endorheic lakes
+              case(1); lake_model_D03     = .true.; number_Doll      = number_Doll      + 1; ! add number of Doll lakes
+              case(2); lake_model_H06     = .true.; number_Hanasaki  = number_Hanasaki  + 1; ! add number of Hanasaki lakes
+              case(3); lake_model_HYPE    = .true.; number_HYPE      = number_HYPE      + 1; ! add number of HYPE lakes
+              case default; ierr=20; message=trim(message)//'unable to identify the lake model type'; return
+            end select
+          endif
+        else
+          select case(LakeModelType_local(i))
+            case(0);                              number_Endorheic = number_Endorheic + 1; ! add number of Endorheic lakes
+            case(1); lake_model_D03     = .true.; number_Doll      = number_Doll      + 1; ! add number of Doll lakes
+            case(2); lake_model_H06     = .true.; number_Hanasaki  = number_Hanasaki  + 1; ! add number of Hanasaki lakes
+            case(3); lake_model_HYPE    = .true.; number_HYPE      = number_HYPE      + 1; ! add number of HYPE lakes
+            case default; ierr=20; message=trim(message)//'unable to identify the lake model type'; return
+          end select
+        endif
+      endif
+    enddo
+
+    if (masterproc) then
+      write(iulog,'(2a)') new_line('a'), '---- Check numbers of lake model types --- '
+      write(iulog,'(A,1X,I10)') "total number of lakes             = ", number_lakes
+      write(iulog,'(A,1X,I10)') "total number of Endorheic lakes   = ", number_Endorheic
+      write(iulog,'(A,1X,I10)') "lakes with Doll formulation       = ", number_Doll
+      write(iulog,'(A,1X,I10)') "lakes with Hanasaki formulation   = ", number_Hanasaki
+      write(iulog,'(A,1X,I10)') "lakes with HYPE formulation       = ", number_HYPE
+      write(iulog,'(A,1X,I10)') "lakes with target volume          = ", number_TargVol
+    end if
+
+    ! check is the number of parameteric lakes and target volume sums up to the total number of lakes
+    if (number_Endorheic+number_Doll+number_Hanasaki+number_HYPE+number_TargVol == number_lakes) then
+      if (masterproc) then
+        write(iulog,'(A)') "number of lake models and target volume models matches the total number of lakes; should be good to go!"
+      end if
+    else
+      ierr=20; message=trim(message)//'number of lake models and target volume models do not match the total number of lakes'; return
+    endif
+
+    ! warning about the Endorheic lakes and absence of evaporation
+    if ((number_Endorheic>0).and.(suppress_P_Ep)) then
+      if (masterproc) then
+        write(iulog,'(A)') "The river network topology includes Endorheic lakes while no precipitation and evaporation is provided"
+        write(iulog,'(A)') "In absence of extraction from lake the Endorheic lake volumns will be always increasing"
+      end if
+    endif
+
+    if (lake_model_D03) then
+      meta_SEG(ixSEG%D03_MaxStorage)%varFile    = .true.    ! Doll parameter
+      meta_SEG(ixSEG%D03_coefficient)%varFile   = .true.    ! Doll parameter
+      meta_SEG(ixSEG%D03_power)%varFile         = .true.    ! Doll parameter
+    endif
+
+    if (lake_model_HYPE) then
+      meta_SEG(ixSEG%HYP_E_emr)%varFile         = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_E_lim)%varFile         = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_E_min)%varFile         = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_E_zero)%varFile        = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_Qrate_emr)%varFile     = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_Erate_emr)%varFile     = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_Qrate_prim)%varFile    = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_Qrate_amp)%varFile     = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_Qrate_phs)%varFile     = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_prim_F)%varFile        = .true.    ! HYPE parameter
+      meta_SEG(ixSEG%HYP_A_avg)%varFile         = .true.    ! HYPE parameter
+    endif
+
+    if (lake_model_H06) then
+      meta_SEG(ixSEG%H06_Smax)%varFile          = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_alpha)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_envfact)%varFile       = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_S_ini)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_c1)%varFile            = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_c2)%varFile            = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_exponent)%varFile      = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_denominator)%varFile   = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_c_compare)%varFile     = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_frac_Sdead)%varFile    = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_E_rel_ini)%varFile     = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Jan)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Feb)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Mar)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Apr)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_May)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Jun)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Jul)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Aug)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Sep)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Oct)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Nov)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_Dec)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Jan)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Feb)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Mar)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Apr)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_May)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Jun)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Jul)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Aug)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Sep)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Oct)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Nov)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_Dec)%varFile         = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_purpose)%varFile       = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_mem_F)%varFile       = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_mem_F)%varFile       = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_I_mem_L)%varFile       = .true.    ! Hanasaki parameter
+      meta_SEG(ixSEG%H06_D_mem_L)%varFile       = .true.    ! Hanasaki parameter
+    endif
+
+  endif
+
+END SUBROUTINE mod_meta_varFile
+
 ! *********************************************************************
 ! private subroutine: get start and count vectors
 ! *********************************************************************
-SUBROUTINE getSubetIndices(&
-                          ! input
-                          ncid,           &  ! netCDF file id
-                          ivarid,         &  ! netCDF variable id
-                          nSpace,         &  ! length of the spatial dimension
-                          ! output
-                          ixStart,        &  ! vector of start indices
-                          ixCount,        &  ! vector defining number of elements in each reach
-                          dimLength,      &  ! dimension length
-                          ierr,message)      ! error control
+SUBROUTINE getSubetIndices(ncid,           &  ! input: netCDF file id
+                           ivarid,         &  ! input: netCDF variable id
+                           nSpace,         &  ! input: length of the spatial dimension
+                           ixStart,        &  ! output: vector of start indices
+                           ixCount,        &  ! output: vector defining number of elements in each reach
+                           dimLength,      &  ! output: dimension length
+                           ierr,message)      ! output: error control
   implicit none
   ! Argument variables
   integer(i4b)  , intent(in)                :: ncid           ! netCDF file id
-  integer(i4b)  , intent(in)                :: ivarid         ! netCDF variable id
+  integer(i4b)  , intent(in)                :: ivarID         ! netCDF variable id
   integer(i4b)  , intent(in)                :: nSpace         ! length of the spatial dimension
   integer(i4b)  , intent(out) , allocatable :: ixStart(:)     ! vector of start indices
   integer(i4b)  , intent(out) , allocatable :: ixCount(:)     ! vector defining number of elements in each reach

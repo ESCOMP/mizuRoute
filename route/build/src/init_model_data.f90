@@ -161,6 +161,7 @@ CONTAINS
   USE globalData,  ONLY: reachID                ! reach ID vector
   USE globalData,  ONLY: runMode                ! mizuRoute run mode - standalone or ctsm-coupling
   ! external subroutines
+  USE read_streamSeg,       ONLY: mod_meta_varFile         ! modify variable I/O options
   USE model_utils,          ONLY: model_finalize
   USE mpi_process,          ONLY: comm_ntopo_data          ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
   USE process_ntopo,        ONLY: put_data_struct          ! populate NETOPO and RPARAM data structure
@@ -186,6 +187,10 @@ CONTAINS
 
    ierr=0; message='init_ntopo_data/'
 
+   ! modify river and lake variable I/O options in meta
+   call mod_meta_varFile(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
    ! populate various river network data strucutures for each proc
    if (masterproc) then
      ! read the river network data and compute additonal network attributes (inncludes spatial decomposition)
@@ -209,7 +214,6 @@ CONTAINS
 
    if (masterproc) then
      ! populate basiID and reachID vectors for output (in only master processor)
-
      allocate(basinID(nHRU), reachID(nRch), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'problem allocating [basinID, reachID]'; return; endif
 
