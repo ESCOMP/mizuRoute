@@ -21,7 +21,6 @@ USE kwt_route_module,    ONLY: kwt_route     ! lagrangian kinematic wave routing
 USE kw_route_module,     ONLY: kw_route      ! kinematic wave routing method
 USE mc_route_module,     ONLY: mc_route      ! muskingum-cunge routing method
 USE dfw_route_module,    ONLY: dfw_route     ! diffusive wave routing method
-USE water_balance,       ONLY: accum_wb      !
 
 implicit none
 
@@ -61,7 +60,6 @@ CONTAINS
    USE public_var, ONLY: kinematicWave
    USE public_var, ONLY: muskingumCunge
    USE public_var, ONLY: diffusiveWave
-   USE public_var, ONLY: compWB                  ! logical to indicate compute water balance
    USE globalData, ONLY: onRoute                 ! logical to indicate which routing method(s) is on
    USE globalData, ONLY: TSEC                    ! beginning/ending of simulation time step [sec]
    USE public_var, ONLY: is_lake_sim             ! logical whether or not lake should be simulated
@@ -272,20 +270,6 @@ CONTAINS
                     ierr,cmessage,        & ! output: error control
                     ixRchProcessed)         ! optional input: indices of reach to be routed
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   end if
-
-   if (compWB) then
-     do ixRoute=1,nRoutes
-       call accum_wb(iens,                  & ! input: ensemble index
-                     ixRoute,               & ! input: index of routing method
-                     river_basin,           & ! input: river basin data type
-                     ixDesire,              & ! input: index of verbose reach
-                     NETOPO_in,             & ! input: reach topology data structure
-                     RCHFLX_out,            & ! inout: reach flux data structure
-                     ierr, cmessage,        & ! output: error controls
-                     ixRchProcessed)          ! optional input: indices of reach to be routed
-         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-     end do
    end if
 
  END SUBROUTINE main_route
