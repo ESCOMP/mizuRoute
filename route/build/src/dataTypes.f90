@@ -357,7 +357,6 @@ implicit none
    real(dp)        :: REACH_Q                ! discharge at current time step [m3/s]
    real(dp)        :: REACH_VOL(0:1)         ! water volume at previous and current time steps [m3]
    real(dp)        :: WB                     ! reach water balance error [m3]
-   real(dp)        :: WBupstream             ! upstream area water balance error [m3]
  end type hydraulic
 
  ! fluxes and states in each reach
