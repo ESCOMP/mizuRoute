@@ -86,15 +86,16 @@ CONTAINS
 !  elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 !  write(*,"(A,1PG15.7,A)") '  elapsed-time [runoff_input/remap] = ', elapsedTime, ' s'
 
-  ! initialize TAKE for water take or direct insersion
-  RCHFLX(:,:)%TAKE = 0.0_dp
+  ! initialize TAKE for water abstract/injection
+  RCHFLX(:,:)%TAKE    = 0.0_dp
+  RCHFLX(:,:)%QOBS(1) = 0.0_dp
   select case(qmodOption)
     case(no_mod) ! do nothing
     case(direct_insert)
       ! read gage observation [m3/s] at current time
       jx = gage_obs_data%time_ix(modTime(1))
 
-      if (jx/=integerMissing) then
+      if (jx/=integerMissing) then ! there is observation at this time step
         call gage_obs_data%read_obs(ierr, cmessage, index_time=jx)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -106,7 +107,7 @@ CONTAINS
           qobs = gage_obs_data%get_obs(tix=1, six=ix)
 
           if (isnan(qobs) .or. qobs<0) cycle
-          RCHFLX(iens,reach_ix(ix))%TAKE = qobs
+          RCHFLX(iens,reach_ix(ix))%QOBS(1) = qobs
         end do
       end if
     case(qtake)

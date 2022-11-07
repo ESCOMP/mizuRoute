@@ -166,7 +166,7 @@ CONTAINS
  character(len=strLen)                    :: fmt1           ! format string
  character(len=strLen)                    :: cmessage       ! error message from subroutine
 
- ierr=0; message='segment_irf/'
+ ierr=0; message='irf_rch/'
 
  ! initialize future discharge array at first time
   if (.not.allocated(RCHFLX_out(iens,segIndex)%QFUTURE_IRF))then
@@ -186,8 +186,13 @@ CONTAINS
   if (nUps>0) then
     do iUps = 1,nUps
       iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-      if (qmodOption==1 .and. RCHFLX_out(iens,iRch_ups)%TAKE>0._dp) then
-        RCHFLX_out(iens, iRch_ups)%ROUTE(idxIRF)%REACH_Q = RCHFLX_out(iens,iRch_ups)%TAKE
+      if (qmodOption==1) then
+        if (RCHFLX_out(iens,iRch_ups)%QOBS(1)>0._dp) then
+          RCHFLX_out(iens, iRch_ups)%QOBS(0) = RCHFLX_out(iens, iRch_ups)%ROUTE(idxIRF)%REACH_Q-RCHFLX_out(iens,iRch_ups)%QOBS(1) ! compute error
+          RCHFLX_out(iens, iRch_ups)%ROUTE(idxIRF)%REACH_Q = RCHFLX_out(iens,iRch_ups)%QOBS(1)
+        else
+          RCHFLX_out(iens, iRch_ups)%ROUTE(idxIRF)%REACH_Q = max(RCHFLX_out(iens, iRch_ups)%ROUTE(idxIRF)%REACH_Q-RCHFLX_out(iens,iRch_ups)%QOBS(0), 0.0001)
+        end if
       end if
       q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxIRF)%REACH_Q
     end do

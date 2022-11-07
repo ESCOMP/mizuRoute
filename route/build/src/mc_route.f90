@@ -173,8 +173,13 @@ CONTAINS
    isHW = .false.
    do iUps = 1,nUps
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-     if (qmodOption==1 .and. RCHFLX_out(iens,iRch_ups)%TAKE>0._dp) then
-       RCHFLX_out(iens, iRch_ups)%ROUTE(idxMC)%REACH_Q = RCHFLX_out(iens,iRch_ups)%TAKE
+     if (qmodOption==1) then
+       if (RCHFLX_out(iens,iRch_ups)%QOBS(1)>0._dp) then ! there is observation
+         RCHFLX_out(iens, iRch_ups)%QOBS(0) = RCHFLX_out(iens, iRch_ups)%ROUTE(idxMC)%REACH_Q - RCHFLX_out(iens,iRch_ups)%QOBS(1) ! compute error
+         RCHFLX_out(iens, iRch_ups)%ROUTE(idxMC)%REACH_Q = RCHFLX_out(iens,iRch_ups)%QOBS(1)
+       else
+         RCHFLX_out(iens, iRch_ups)%ROUTE(idxMC)%REACH_Q = max(RCHFLX_out(iens, iRch_ups)%ROUTE(idxMC)%REACH_Q-RCHFLX_out(iens,iRch_ups)%QOBS(0), 0.0001)
+       end if
      end if
      q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxMC)%REACH_Q
    end do
@@ -383,7 +388,6 @@ CONTAINS
  ! compute volume
  rflux%ROUTE(idxMC)%REACH_VOL(0) = rflux%ROUTE(idxMC)%REACH_VOL(1)
  rflux%ROUTE(idxMC)%REACH_VOL(1) = rflux%ROUTE(idxMC)%REACH_VOL(0) + (Q(1,0)-Q(1,1))*dt
- rflux%ROUTE(idxMC)%REACH_VOL(1) = max(rflux%ROUTE(idxMC)%REACH_VOL(1), 0._dp)
 
  ! add catchment flow
  rflux%ROUTE(idxMC)%REACH_Q = Q(1,1)+rflux%BASIN_QR(1)
