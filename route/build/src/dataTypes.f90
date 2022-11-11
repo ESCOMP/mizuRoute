@@ -274,7 +274,7 @@ end type subdomain
   real(dp)                             :: BASIN_QR_IRF(0:1) ! routed runoff volume from all the upstream basin (m3/s)
   type(fluxes), allocatable            :: ROUTE(:)          ! reach fluxes and states for each routing method
   real(dp)                             :: TAKE              ! water abstraction/injection [m3/s]
-  real(dp)                             :: QOBS(0:1)         ! observed flow [m3/s]
+  real(dp)                             :: QOBS              ! observed flow [m3/s]
  ENDTYPE STRFLX
 
  ! ---------- lake data types -----------------------------------------------------------------

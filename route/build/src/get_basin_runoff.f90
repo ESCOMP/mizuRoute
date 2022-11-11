@@ -87,8 +87,8 @@ CONTAINS
 !  write(*,"(A,1PG15.7,A)") '  elapsed-time [runoff_input/remap] = ', elapsedTime, ' s'
 
   ! initialize TAKE for water abstract/injection
-  RCHFLX(:,:)%TAKE    = 0.0_dp
-  RCHFLX(:,:)%QOBS(1) = 0.0_dp
+  RCHFLX(:,:)%TAKE = 0.0_dp
+  RCHFLX(:,:)%QOBS = 0.0_dp
   select case(qmodOption)
     case(no_mod) ! do nothing
     case(direct_insert)
@@ -107,7 +107,7 @@ CONTAINS
           qobs = gage_obs_data%get_obs(tix=1, six=ix)
 
           if (isnan(qobs) .or. qobs<0) cycle
-          RCHFLX(iens,reach_ix(ix))%QOBS(1) = qobs
+          RCHFLX(iens,reach_ix(ix))%QOBS = qobs
         end do
       end if
     case(qtake)

@@ -262,22 +262,23 @@ CONTAINS
     RCHFLX(:,:)%BASIN_QI = 0._dp
     RCHFLX(:,:)%BASIN_QR(0) = 0._dp
     RCHFLX(:,:)%BASIN_QR(1) = 0._dp
-    RCHFLX(:,:)%QOBS(0) = 0._dp
-    RCHFLX(:,:)%QOBS(1) = 0._dp
 
     do iRoute = 1, nRoutes
       if (routeMethods(iRoute)==impulseResponseFunc) then
         do ix = 1, size(RCHSTA(1,:))
           RCHFLX(iens,ix)%ROUTE(iRoute)%REACH_VOL(0:1) = 0._dp
+          RCHFLX(iens,ix)%ROUTE(iRoute)%Qerror = 0._dp
         end do
       else if (routeMethods(iRoute)==kinematicWaveTracking) then
         do ix = 1, size(RCHSTA(1,:))
           RCHFLX(iens,ix)%ROUTE(iRoute)%REACH_VOL(0:1) = 0._dp
+          RCHFLX(iens,ix)%ROUTE(iRoute)%Qerror = 0._dp
         end do
       else if (routeMethods(iRoute)==kinematicWave) then
         nMolecule%KW_ROUTE = 2
         do ix = 1, size(RCHSTA(1,:))
           RCHFLX(iens,ix)%ROUTE(iRoute)%REACH_VOL(0:1) = 0._dp
+          RCHFLX(iens,ix)%ROUTE(iRoute)%Qerror = 0._dp
           allocate(RCHSTA(iens,ix)%KW_ROUTE%molecule%Q(nMolecule%KW_ROUTE), stat=ierr, errmsg=cmessage)
           if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA]'; return; endif
           RCHSTA(iens,ix)%KW_ROUTE%molecule%Q(:) = 0._dp
@@ -286,6 +287,7 @@ CONTAINS
         nMolecule%MC_ROUTE = 2
         do ix = 1, size(RCHSTA(1,:))
           RCHFLX(iens,ix)%ROUTE(iRoute)%REACH_VOL(0:1) = 0._dp
+          RCHFLX(iens,ix)%ROUTE(iRoute)%Qerror = 0._dp
           allocate(RCHSTA(iens,ix)%MC_ROUTE%molecule%Q(nMolecule%MC_ROUTE), stat=ierr, errmsg=cmessage)
           if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA]'; return; endif
           RCHSTA(iens,ix)%MC_ROUTE%molecule%Q(:) = 0._dp
@@ -294,6 +296,7 @@ CONTAINS
         nMolecule%DW_ROUTE = 5
         do ix = 1, size(RCHSTA(1,:))
           RCHFLX(iens,ix)%ROUTE(iRoute)%REACH_VOL(0:1) = 0._dp
+          RCHFLX(iens,ix)%ROUTE(iRoute)%Qerror = 0._dp
           allocate(RCHSTA(iens,ix)%DW_ROUTE%molecule%Q(nMolecule%DW_ROUTE), stat=ierr, errmsg=cmessage)
           if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA]'; return; endif
           RCHSTA(iens,ix)%DW_ROUTE%molecule%Q(:) = 0._dp

@@ -11,6 +11,7 @@ public::get_nc
 public::get_var_dims
 public::get_nc_dim_len
 public::get_var_attr
+public::check_variable
 public::check_attr
 public::put_global_attr
 public::def_nc
@@ -205,8 +206,29 @@ CONTAINS
 
  end subroutine get_nc_dim_len
 
+
  ! *********************************************************************
- ! subroutine: get attribute values for a variable
+ ! function: check if attribute in a variable exist
+ ! *********************************************************************
+ FUNCTION check_variable(ncid, vname)
+   implicit none
+   ! input
+   integer(i4b), intent(in)        :: ncid         ! NetCDF file ID
+   character(*), intent(in)        :: vname        ! variable name
+   logical(lgt)                    :: check_variable
+   ! local
+   integer(i4b)                    :: ierr         ! error code
+   integer(i4b)                    :: iVarID       ! variable ID
+
+   ! get the ID of the variable
+   ierr = nf90_inq_varid(ncid, trim(vname), iVarID)
+   check_variable = (ierr==nf90_noerr)
+
+ END FUNCTION check_variable
+
+
+ ! *********************************************************************
+ ! function: check if attribute in a variable exist
  ! *********************************************************************
  FUNCTION check_attr(ncid, vname, attr_name)
    implicit none

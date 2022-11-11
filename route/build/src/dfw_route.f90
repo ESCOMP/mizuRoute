@@ -172,11 +172,11 @@ CONTAINS
    do iUps = 1,nUps
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
      if (qmodOption==1) then
-       if (RCHFLX_out(iens,iRch_ups)%QOBS(1)>0._dp) then
-         RCHFLX_out(iens, iRch_ups)%QOBS(0) = RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q - RCHFLX_out(iens,iRch_ups)%QOBS(1) ! compute error
-         RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q = RCHFLX_out(iens,iRch_ups)%QOBS(1)
+       if (RCHFLX_out(iens,iRch_ups)%QOBS>0._dp) then
+         RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%Qerror = RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q - RCHFLX_out(iens,iRch_ups)%QOBS ! compute error
+         RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q = RCHFLX_out(iens,iRch_ups)%QOBS
        else
-         RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q = max(RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q-RCHFLX_out(iens,iRch_ups)%QOBS(0), 0.0001)
+         RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q = max(RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q-RCHFLX_out(iens,iRch_ups)%ROUTE(idxDW)%Qerror, 0.0001)
        end if
      end if
      q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q
