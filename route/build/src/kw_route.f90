@@ -178,10 +178,8 @@ CONTAINS
      if (qmodOption==1) then
        if (RCHFLX_out(iens,iRch_ups)%QOBS>0._dp) then ! there is observation
          RCHFLX_out(iens, iRch_ups)%ROUTE(idxKW)%Qerror = RCHFLX_out(iens, iRch_ups)%ROUTE(idxKW)%REACH_Q - RCHFLX_out(iens,iRch_ups)%QOBS ! compute error
-         RCHFLX_out(iens, iRch_ups)%ROUTE(idxKW)%REACH_Q = RCHFLX_out(iens,iRch_ups)%QOBS
-       else
-         RCHFLX_out(iens, iRch_ups)%ROUTE(idxKW)%REACH_Q = max(RCHFLX_out(iens, iRch_ups)%ROUTE(idxKW)%REACH_Q-RCHFLX_out(iens,iRch_ups)%ROUTE(idxKW)%Qerror, 0.0001)
        end if
+       RCHFLX_out(iens, iRch_ups)%ROUTE(idxKW)%REACH_Q = max(RCHFLX_out(iens, iRch_ups)%ROUTE(idxKW)%REACH_Q-RCHFLX_out(iens,iRch_ups)%ROUTE(idxKW)%Qerror, 0.0001)
      end if
      q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxKW)%REACH_Q
    end do
