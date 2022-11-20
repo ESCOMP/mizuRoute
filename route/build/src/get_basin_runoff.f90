@@ -19,10 +19,10 @@ CONTAINS
   USE public_var,  ONLY: input_dir               ! directory containing input data
   USE public_var,  ONLY: fname_qsim              ! simulated runoff netCDF name
   USE public_var,  ONLY: is_remap                ! logical whether or not runnoff needs to be mapped to river network HRU
-  USE public_var,  ONLY: qmodOption             !
-  USE public_var,  ONLY: integerMissing         !
+  USE public_var,  ONLY: qmodOption              ! options for streamflow modification (DA)
+  USE public_var,  ONLY: takeWater               ! switch for water abstraction/injection
+  USE public_var,  ONLY: integerMissing          !
   USE globalData,  ONLY: iTime
-  USE globalData,  ONLY: nHRU
   USE globalData,  ONLY: runoff_data             ! data structure to hru runoff data
   USE globalData,  ONLY: remap_data              ! data structure to remap data
   USE globalData,  ONLY: modTime
@@ -45,7 +45,6 @@ CONTAINS
   integer(i4b), allocatable     :: reach_ix(:)
   integer(i4b), parameter       :: no_mod=0
   integer(i4b), parameter       :: direct_insert=1
-  integer(i4b), parameter       :: qtake=2
   ! timing
 !  integer*8                     :: startTime,endTime,cr ! star and end time stamp, rate
 !  real(dp)                      :: elapsedTime          ! elapsed time for the process
@@ -65,14 +64,6 @@ CONTAINS
 !  elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 !  write(*,"(A,1PG15.7,A)") '  elapsed-time [runoff_input/read] = ', elapsedTime, ' s'
 
-  ! initialize runoff_data%basinRunoff
-  if ( allocated(runoff_data%basinRunoff) ) then
-    deallocate(runoff_data%basinRunoff, stat=ierr)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  end if
-  allocate(runoff_data%basinRunoff(nHRU), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
 !  call system_clock(startTime)
   ! Get river network HRU runoff into runoff_data data structure
   if (is_remap) then ! remap LSM simulated runoff to the HRUs in the river network
@@ -86,12 +77,10 @@ CONTAINS
 !  elapsedTime = real(endTime-startTime, kind(dp))/real(cr)
 !  write(*,"(A,1PG15.7,A)") '  elapsed-time [runoff_input/remap] = ', elapsedTime, ' s'
 
-  ! initialize TAKE for water abstract/injection
-  RCHFLX(:,:)%TAKE = 0.0_dp
-  RCHFLX(:,:)%QOBS = 0.0_dp
   select case(qmodOption)
     case(no_mod) ! do nothing
     case(direct_insert)
+      RCHFLX(:,:)%QOBS = 0.0_dp
       ! read gage observation [m3/s] at current time
       jx = gage_obs_data%time_ix(modTime(1))
 
@@ -108,26 +97,33 @@ CONTAINS
 
           if (isnan(qobs) .or. qobs<0) cycle
           RCHFLX(iens,reach_ix(ix))%QOBS = qobs
+          RCHFLX(iens,reach_ix(ix))%Qelapsed = 0
         end do
-      end if
-    case(qtake)
-      ! read reach water take [m3/s] at current time
-      jx = rch_qtake_data%time_ix(modTime(1))
-
-      if (jx/=integerMissing) then
-        call rch_qtake_data%read_obs(ierr, cmessage, index_time=jx)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-        ! put qmod at right reach
-        reach_ix = rch_qtake_data%link_ix()
-        do ix=1,size(reach_ix)
-          if (reach_ix(ix)==integerMissing) cycle
-          RCHFLX(iens,reach_ix(ix))%TAKE = rch_qtake_data%get_obs(tix=1, six=ix)
-        end do
+      else
+        RCHFLX(iens,:)%Qelapsed = RCHFLX(iens,:)%Qelapsed + 1 ! change only gauge point
       end if
     case default
       ierr=1; message=trim(message)//"Error: qmodOption invalid"; return
   end select
+
+  ! initialize TAKE for water abstract/injection
+  RCHFLX(:,:)%TAKE = 0.0_dp
+  if (takeWater) then
+    ! read reach water take [m3/s] at current time
+    jx = rch_qtake_data%time_ix(modTime(1))
+
+    if (jx/=integerMissing) then
+      call rch_qtake_data%read_obs(ierr, cmessage, index_time=jx)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      ! put qmod at right reach
+      reach_ix = rch_qtake_data%link_ix()
+      do ix=1,size(reach_ix)
+        if (reach_ix(ix)==integerMissing) cycle
+        RCHFLX(iens,reach_ix(ix))%TAKE = rch_qtake_data%get_obs(tix=1, six=ix)
+      end do
+    end if
+  end if
 
  END SUBROUTINE get_hru_runoff
 

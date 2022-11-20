@@ -13,6 +13,7 @@ USE public_var,  ONLY: iulog             ! i/o logical unit number
 USE public_var,  ONLY: realMissing       ! missing value for real number
 USE public_var,  ONLY: integerMissing    ! missing value for integer number
 USE public_var,  ONLY: qmodOption        ! qmod option (use 1==direct insertion)
+USE public_var,  ONLY: ntsQmodStop       ! number of time steps for which direct insertion is performed
 USE globalData,  ONLY: idxDW
 ! subroutines: general
 USE model_finalize, ONLY : handle_err
@@ -171,12 +172,17 @@ CONTAINS
    isHW = .false.
    do iUps = 1,nUps
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
+
      if (qmodOption==1) then
        if (RCHFLX_out(iens,iRch_ups)%QOBS>0._dp) then
          RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%Qerror = RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q - RCHFLX_out(iens,iRch_ups)%QOBS ! compute error
        end if
+       if (RCHFLX_out(iens,iRch_ups)%Qelapsed > ntsQmodStop) then
+         RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%Qerror=0._dp
+       end if
        RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q = max(RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q-RCHFLX_out(iens,iRch_ups)%ROUTE(idxDW)%Qerror, 0.0001)
      end if
+
      q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q
    end do
  endif

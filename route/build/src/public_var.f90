@@ -144,7 +144,9 @@ MODULE public_var
   character(len=strLen),public    :: dname_wtReach        = ''              ! dimension name for reach ID
   character(len=strLen),public    :: dname_wtTime         = ''              ! dimension name for time
   ! USER OPTIONS
-  integer(i4b)         ,public    :: qmodOption           = 0               ! option for streamflow modification
+  integer(i4b)         ,public    :: qmodOption           = 0               ! options for streamflow modification (DA): 0-> no DA, 1->direct insertion
+  integer(i4b)         ,public    :: ntsQmodStop          = 10              ! number of time steps for which streamflow modification is performed
+  logical(lgt)         ,public    :: takeWater            = .false.         ! switch for water abstraction and injection
   integer(i4b)         ,public    :: hydGeometryOption    = compute         ! option for hydraulic geometry calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: topoNetworkOption    = compute         ! option for network topology calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: computeReachList     = compute         ! option to compute list of upstream reaches (0=do not compute, 1=compute)

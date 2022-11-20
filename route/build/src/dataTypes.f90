@@ -275,6 +275,7 @@ end type subdomain
   type(fluxes), allocatable            :: ROUTE(:)          ! reach fluxes and states for each routing method
   real(dp)                             :: TAKE              ! water abstraction/injection [m3/s]
   real(dp)                             :: QOBS              ! observed flow [m3/s]
+  integer(i4b)                         :: Qelapsed          ! number of time step after observed flow is read [-]
  ENDTYPE STRFLX
 
  ! ---------- lake data types -----------------------------------------------------------------

@@ -152,6 +152,7 @@ CONTAINS
 
    ! runoff and remap data initialization (TO DO: split runoff and remap initialization)
    call init_runoff(is_remap,        & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
+                    nHRU,            & ! input:  number of HRUs
                     remap_data,      & ! output: data structure to remap data
                     runoff_data,     & ! output: data structure for runoff
                     ierr, cmessage)    ! output: error control
@@ -262,6 +263,7 @@ CONTAINS
     RCHFLX(:,:)%BASIN_QI = 0._dp
     RCHFLX(:,:)%BASIN_QR(0) = 0._dp
     RCHFLX(:,:)%BASIN_QR(1) = 0._dp
+    RCHFLX(:,:)%Qelapsed = 0
 
     do iRoute = 1, nRoutes
       if (routeMethods(iRoute)==impulseResponseFunc) then
@@ -654,6 +656,7 @@ CONTAINS
  ! public subroutine: get mapping data between runoff hru and river network hru
  ! *********************************************************************
  SUBROUTINE init_runoff(remap_flag,      & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
+                        nHRU_in,         & ! input:  number of HRUs
                         remap_data_in,   & ! output: data structure to remap data
                         runoff_data_in,  & ! output: data structure for runoff
                         ierr, message)     ! output: error control
@@ -664,6 +667,7 @@ CONTAINS
  USE public_var,  ONLY : fname_remap            ! name of runoff mapping netCDF name
  USE public_var,  ONLY : calendar               ! name of calendar
  USE public_var,  ONLY : time_units             ! time units
+ USE public_var,  ONLY : realMissing            ! real missing value (-9999._dp)
  USE dataTypes,   ONLY : remap                  ! remapping data type
  USE dataTypes,   ONLY : runoff                 ! runoff data type
  USE read_runoff, ONLY : read_runoff_metadata   ! read meta data from runoff data
@@ -672,15 +676,16 @@ CONTAINS
 
  implicit none
  ! Argument variables
- logical(lgt),      intent(in)      :: remap_flag       ! logical whether or not runnoff needs to be mapped to river network HRU
- type(remap)  , intent(out)         :: remap_data_in    ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
- type(runoff) , intent(out)         :: runoff_data_in   ! runoff for one time step for all HRUs
- integer(i4b), intent(out)          :: ierr             ! error code
- character(*), intent(out)          :: message          ! error message
+ logical(lgt), intent(in)          :: remap_flag       ! logical whether or not runnoff needs to be mapped to river network HRU
+ integer(i4b), intent(in)          :: nHRU_in          ! number of HRUs
+ type(remap) , intent(out)         :: remap_data_in    ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
+ type(runoff), intent(out)         :: runoff_data_in   ! runoff for one time step for all HRUs
+ integer(i4b), intent(out)         :: ierr             ! error code
+ character(*), intent(out)         :: message          ! error message
  ! local variables
- integer(i8b), allocatable          :: unq_qhru_id(:)
- integer(i4b), allocatable          :: unq_idx(:)
- character(len=strLen)              :: cmessage         ! error message from subroutine
+ integer(i8b), allocatable         :: unq_qhru_id(:)
+ integer(i4b), allocatable         :: unq_idx(:)
+ character(len=strLen)             :: cmessage         ! error message from subroutine
 
  ierr=0; message='init_runoff/'
 
@@ -691,7 +696,12 @@ CONTAINS
                           ierr, cmessage)                       ! output: error control
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- !print*, 'runoff_data_in%nSpace, nTime, trim(time_units) = ', runoff_data_in%nSpace(:), runoff_data_in%nTime, trim(time_units)
+ ! initialize routing catchment array (runoff_data%basinRunoff)
+ if ( .not. allocated(runoff_data_in%basinRunoff) ) then
+   allocate(runoff_data_in%basinRunoff(nHRU_in), stat=ierr, errmsg=cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   runoff_data_in%basinRunoff(:) = realMissing
+ end if
 
  ! need to remap runoff to HRUs
  if (remap_flag) then
@@ -770,7 +780,8 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE init_qmod(ierr, message)
 
-   USE public_var,    ONLY: qmodOption          ! qmod option - water abstraction/injection or swap with observe
+   USE public_var,    ONLY: qmodOption          ! option for streamflow modification (DA)
+   USE public_var,    ONLY: takeWater           ! switch for abstraction/injection
    USE public_var,    ONLY: ancil_dir           ! name of the ancillary directory
    USE public_var,    ONLY: fname_waterTake     ! name of water take netCDF
    USE public_var,    ONLY: vname_waterTake     ! name of water take variable in WT netcdf
@@ -800,7 +811,6 @@ CONTAINS
    character(len=strLen)      :: cmessage    ! error message from subroutine
    integer(i4b), parameter    :: no_mod=0
    integer(i4b), parameter    :: direct_insert=1
-   integer(i4b), parameter    :: qtake=2
 
    ierr=0; message='init_qmod/'
 
@@ -821,19 +831,21 @@ CONTAINS
 
        ! compute link between gage ID and reach ID (river network domain) - index of reachID for each gage ID
        call gage_obs_data%comp_link(reachID, gage_meta_data)
-     case(qtake)
-       rch_qtake_data = waterTake(trim(ancil_dir)//trim(fname_waterTake), &
-                                  vname_waterTake,                        &
-                                  vname_wtTime, vname_wtReach,            &
-                                  dname_wtTime, dname_wtReach,            &
-                                  ierr, cmessage)
-       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-       ! compute link between reach ID in waterTake file and reach ID (river network file) - index of river network reachID for each waterTake reach ID
-       call rch_qtake_data%comp_link(reachID)
      case default
        ierr=1; message=trim(message)//"Error: qmodOption invalid"; return
    end select
+
+   if (takeWater) then
+     rch_qtake_data = waterTake(trim(ancil_dir)//trim(fname_waterTake), &
+                                vname_waterTake,                        &
+                                vname_wtTime, vname_wtReach,            &
+                                dname_wtTime, dname_wtReach,            &
+                                ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     ! compute link between reach ID in waterTake file and reach ID (river network file) - index of river network reachID for each waterTake reach ID
+     call rch_qtake_data%comp_link(reachID)
+   end if
 
  END SUBROUTINE init_qmod
 
