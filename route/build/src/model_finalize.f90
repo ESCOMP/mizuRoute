@@ -2,7 +2,8 @@ MODULE model_finalize
 
 USE nrtype
 USE public_var, ONLY: iulog            ! i/o logical unit number
-USE public_var, ONLY: qmodOption       !
+USE public_var, ONLY: qmodOption       ! option for streamflow modification (DA)
+USE public_var, ONLY: takeWater        ! switch for water abstraction/injection
 USE globalData, ONLY: gage_obs_data
 USE globalData, ONLY: rch_qtake_data
 
@@ -22,11 +23,8 @@ CONTAINS
   integer(i4b)      :: ierr             ! error code
   character(strLen) :: cmessage         ! error message
 
-  if (qmodOption==1) then
-    call gage_obs_data%closeNC(ierr, cmessage)
-  else if (qmodOption==2) then
-    call rch_qtake_data%closeNC(ierr, cmessage)
-  end if
+  if (qmodOption/=0) call gage_obs_data%closeNC(ierr, cmessage)
+  if (takeWater) call rch_qtake_data%closeNC(ierr, cmessage)
 
   write(iulog,'(a)') new_line('a'), '--------------------'
   write(iulog,'(a)')                'Finished simulation'

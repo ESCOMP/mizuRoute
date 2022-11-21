@@ -163,21 +163,25 @@ MODULE var_lookup
  type, public  ::  iLook_KW
   integer(i4b)     :: qsub           = integerMissing  ! discharge
   integer(i4b)     :: volume         = integerMissing  ! reach volume
+  integer(i4b)     :: qerror         = integerMissing  ! discharge error
  endtype iLook_KW
  ! DW state/fluxes
  type, public  ::  iLook_DW
   integer(i4b)     :: qsub           = integerMissing  ! discharge
   integer(i4b)     :: volume         = integerMissing  ! reach volume
+  integer(i4b)     :: qerror         = integerMissing  ! discharge error
  endtype iLook_DW
  ! MC state/fluxes
  type, public  ::  iLook_MC
   integer(i4b)     :: qsub           = integerMissing  ! discharge
   integer(i4b)     :: volume         = integerMissing  ! reach volume
+  integer(i4b)     :: qerror         = integerMissing  ! discharge error
  endtype iLook_MC
  !IRF state/fluxes
  type, public  ::  iLook_IRF
   integer(i4b)     :: qfuture        = integerMissing  ! future routed flow
   integer(i4b)     :: volume         = integerMissing  ! reach volume
+  integer(i4b)     :: qerror         = integerMissing  ! discharge error
  endtype iLook_IRF
  ! ***********************************************************************************************************
  ! ** define data vectors
@@ -193,10 +197,10 @@ MODULE var_lookup
  type(iLook_PFAF)     ,public,parameter :: ixPFAF      = iLook_PFAF     (1)
  type(iLook_RFLX)     ,public,parameter :: ixRFLX      = iLook_RFLX     (1,2,3,4,5,6,7,8,9,10)
  type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      (1,2,3,4,5)
- type(iLook_KW)       ,public,parameter :: ixKW        = iLook_KW       (1,2)
- type(iLook_DW)       ,public,parameter :: ixDW        = iLook_DW       (1,2)
- type(iLook_MC)       ,public,parameter :: ixMC        = iLook_MC       (1,2)
- type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      (1,2)
+ type(iLook_KW)       ,public,parameter :: ixKW        = iLook_KW       (1,2,3)
+ type(iLook_DW)       ,public,parameter :: ixDW        = iLook_DW       (1,2,3)
+ type(iLook_MC)       ,public,parameter :: ixMC        = iLook_MC       (1,2,3)
+ type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      (1,2,3)
  type(iLook_IRFbas  ) ,public,parameter :: ixIRFbas    = iLook_IRFbas   (1)
  type(iLook_basinQ  ) ,public,parameter :: ixBasinQ    = iLook_basinQ   (1)
  ! ***********************************************************************************************************
