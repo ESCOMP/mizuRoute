@@ -354,7 +354,7 @@ CONTAINS
     USE write_restart_pio,   ONLY: restart_output   ! subroutine: write out restart file
     USE init_model_data,     ONLY: update_time      ! subroutine: increment time
     USE process_remap_module,ONLY: basin2reach      ! subroutine: mapping variables in hru domain to reach domian
-    USE nr_utility_module,   ONLY: arth             ! utility: equivalent to python range function
+    USE nr_utils,            ONLY: arth             ! utility: equivalent to python range function
 
     implicit none
     ! Arguments:
