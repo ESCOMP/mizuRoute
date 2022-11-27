@@ -1,34 +1,30 @@
-module process_ntopo
+MODULE process_ntopo
 
-! data types
 USE nrtype,    ONLY: i4b,dp,lgt          ! variable types, etc.
 USE nrtype,    ONLY: strLen              ! length of characters
+! data types
 USE dataTypes, ONLY: var_ilength         ! integer type:          var(:)%dat
 USE dataTypes, ONLY: var_clength         ! integer type:          var(:)%dat
 USE dataTypes, ONLY: var_dlength,dlength ! double precision type: var(:)%dat, or dat
-
 ! global vars
-USE public_var, ONLY: iulog              ! i/o logical unit number
-USE public_var, ONLY: idSegOut           ! ID for stream segment at the bottom of the subset
-
+USE globalData, ONLY: onRoute               ! logical to indicate which routing method(s) is on
+USE public_var, ONLY: iulog                 ! i/o logical unit number
+USE public_var, ONLY: idSegOut              ! ID for stream segment at the bottom of the subset
 ! options
-USE public_var, ONLY: topoNetworkOption  ! option to compute network topology
-USE public_var, ONLY: computeReachList   ! option to compute reach list
-USE public_var, ONLY: hydGeometryOption  ! option to obtain routing parameters
-USE public_var, ONLY: routOpt            ! option for desired routing method
-USE public_var, ONLY: allRoutingMethods  ! option for routing methods - all the methods
-USE public_var, ONLY: kinematicWave      ! option for routing methods - Lagrangian kinematic wave only
-USE public_var, ONLY: kinematicWaveEuler ! option for routing methods - Euler kinematic wave only
-USE public_var, ONLY: impulseResponseFunc! option for routing methods - IRF only
-
+USE public_var, ONLY: topoNetworkOption     ! option to compute network topology
+USE public_var, ONLY: computeReachList      ! option to compute reach list
+USE public_var, ONLY: hydGeometryOption     ! option to obtain routing parameters
+USE public_var, ONLY: impulseResponseFunc   ! option for routing methods - IRF
+USE public_var, ONLY: kinematicWaveTracking ! option for routing methods - Lagrangian kinematic wave
+USE public_var, ONLY: kinematicWave         ! option for routing methods - kinematic wave
+USE public_var, ONLY: muskingumCunge        ! option for routing methods - muskingum-cunge
+USE public_var, ONLY: diffusiveWave         ! option for routing methods - diffusive wave
 ! named variables
 USE public_var, ONLY: true,false         ! named integers for true/false
-
 ! named variables
 USE var_lookup, ONLY: ixSEG              ! index of variables for the stream segments
 USE var_lookup, ONLY: ixNTOPO            ! index of variables for the network topology
 USE var_lookup, ONLY: ixPFAF             ! index of variables for the pfafstetter code
-
 ! common variables
 USE public_var, ONLY: compute            ! compute given variable
 USE public_var, ONLY: doNotCompute       ! do not compute given variable
@@ -38,66 +34,55 @@ USE public_var, ONLY: integerMissing     ! missing value for integers
 
 implicit none
 
-! privacy -- everything private unless declared explicitly
 private
 public::check_river_properties
 public::augment_ntopo
 public::put_data_struct
 
-contains
+CONTAINS
 
  ! *********************************************************************
  ! public subroutine: augment river network data
  ! *********************************************************************
- subroutine augment_ntopo(&
-                  ! input: model control
-                  nHRU,             & ! number of HRUs
-                  nSeg,             & ! number of stream segments
-                  ! inout: populate data structures
-                  structHRU,        & ! ancillary data for HRUs
-                  structSEG,        & ! ancillary data for stream segments
-                  structHRU2seg,    & ! ancillary data for mapping hru2basin
-                  structNTOPO,      & ! ancillary data for network toopology
-                  ! output:
-                  ierr, message,    & ! error control
-                  ! optional output:
-                  tot_hru,          & ! total number of all the upstream hrus for all stream segments
-                  tot_upseg,        & ! total number of immediate upstream segments for all  stream segments
-                  tot_upstream,     & ! total number of all the upstream segments for all stream segments
-                  tot_uh,           & ! total number of unit hydrograph from all the stream segments
-                  ixHRU_desired,    & ! indices of desired hrus
-                  ixSeg_desired     ) ! indices of desired reaches
+ SUBROUTINE augment_ntopo(nHRU,             & ! input: number of HRUs
+                          nSeg,             & ! input: number of stream segments
+                          structHRU,        & ! input: ancillary data for HRUs
+                          structSEG,        & ! input: ancillary data for stream segments
+                          structHRU2seg,    & ! input: ancillary data for mapping hru2basin
+                          structNTOPO,      & ! input: ancillary data for network toopology
+                          ierr, message,    & ! output: error control
+                          tot_hru,          & ! optional output: total number of all the upstream hrus for all stream segments
+                          tot_upseg,        & ! optional output: total number of immediate upstream segments for all  stream segments
+                          tot_upstream,     & ! optional output: total number of all the upstream segments for all stream segments
+                          tot_uh,           & ! optional output: total number of unit hydrograph from all the stream segments
+                          ixHRU_desired,    & ! optional output: indices of desired hrus
+                          ixSeg_desired     ) ! optional output: indices of desired reaches
 
- ! external subroutines/data
  ! network topology routine
- USE network_topo,     only:hru2segment           ! get the mapping between HRUs and segments
- USE network_topo,     only:up2downSegment        ! get the mapping between upstream and downstream segments
- USE network_topo,     only:reachOrder            ! define the processing order
- USE network_topo,     only:streamOrdering        ! define stream order (Strahler)
- USE network_topo,     only:reach_list            ! reach list
- USE network_topo,     only:reach_mask            ! identify all reaches upstream of a given reach
+ USE network_topo, ONLY: hru2segment           ! get the mapping between HRUs and segments
+ USE network_topo, ONLY: up2downSegment        ! get the mapping between upstream and downstream segments
+ USE network_topo, ONLY: reachOrder            ! define the processing order
+ USE network_topo, ONLY: streamOrdering        ! define stream order (Strahler)
+ USE network_topo, ONLY: reach_list            ! reach list
+ USE network_topo, ONLY: reach_mask            ! identify all reaches upstream of a given reach
  ! Routing parameter estimation routine
- USE routing_param,    only:make_uh               ! construct reach unit hydrograph
+ USE process_param,ONLY: make_uh               ! construct reach unit hydrograph
  ! routing spatial constant parameters
- USE globalData,       only:mann_n, wscale        ! KWT routing parameters (Transfer function parameters)
- USE globalData,       only:velo, diff            ! IRF routing parameters (Transfer function parameters)
-
- USE public_var, ONLY: dt                        ! simulation time step [sec]
+ USE globalData,   ONLY: mann_n, wscale        ! KWT routing parameters (Transfer function parameters)
+ USE globalData,   ONLY: velo, diff            ! IRF routing parameters (Transfer function parameters)
+ USE public_var,   ONLY: dt                    ! simulation time step [sec]
 
  ! This subroutine populate river network topology data strucutres
  implicit none
- ! output: model control
+ ! Argument variable:
  integer(i4b),       intent(in)                    :: nHRU             ! number of HRUs
  integer(i4b),       intent(in)                    :: nSeg             ! number of stream segments
- ! inout: populate data structures
  type(var_dlength), intent(inout), allocatable     :: structHRU(:)     ! HRU properties
  type(var_dlength), intent(inout), allocatable     :: structSEG(:)     ! stream segment properties
  type(var_ilength), intent(inout), allocatable     :: structHRU2seg(:) ! HRU-to-segment mapping
  type(var_ilength), intent(inout), allocatable     :: structNTOPO(:)   ! network topology
- ! output: error control
  integer(i4b)      , intent(out)                   :: ierr             ! error code
  character(*)      , intent(out)                   :: message          ! error message
- ! optional output:
  integer(i4b), optional, intent(out)               :: tot_upstream     ! total number of all of the upstream stream segments for all stream segments
  integer(i4b), optional, intent(out)               :: tot_upseg        ! total number of immediate upstream segments for all  stream segments
  integer(i4b), optional, intent(out)               :: tot_hru          ! total number of all the upstream hrus for all stream segments
@@ -229,12 +214,13 @@ contains
  ! compute hydraulic geometry (width and Manning's "n")
  if(hydGeometryOption==compute)then
 
-  ! (hydraulic geometry only needed for the kinematic wave method)
-  if (routOpt==allRoutingMethods .or. routOpt==kinematicWave .or. routOpt==kinematicWaveEuler) then
-   do iSeg=1,nSeg
-    structSEG(iSeg)%var(ixSEG%width)%dat(1) = wscale * sqrt(structSEG(iSeg)%var(ixSEG%totalArea)%dat(1))  ! channel width (m)
-    structSEG(iSeg)%var(ixSEG%man_n)%dat(1) = mann_n                                                      ! Manning's "n" paramater (unitless)
-   end do
+  ! (hydraulic geometry needed for all the routing methods except impulse response function)
+  if (onRoute(kinematicWaveTracking) .or. onRoute(kinematicWave) .or. &
+      onRoute(diffusiveWave) .or. onRoute(muskingumCunge)) then
+    do iSeg=1,nSeg
+      structSEG(iSeg)%var(ixSEG%width)%dat(1) = wscale * sqrt(structSEG(iSeg)%var(ixSEG%totalArea)%dat(1))  ! channel width (m)
+      structSEG(iSeg)%var(ixSEG%man_n)%dat(1) = mann_n                                                      ! Manning's "n" paramater (unitless)
+    end do
   end if
 
   ! get timing
@@ -247,29 +233,27 @@ contains
  if(topoNetworkOption==compute)then
 
   ! (channel unit hydrograph is only needed for the impulse response function)
-  if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+  if (onRoute(impulseResponseFunc)) then
+    ! extract the length information from the structure and place it in a vector
+    allocate(seg_length(nSeg), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage)//': seg_length'; return; endif
+    do iSeg = 1,nSeg
+      seg_length(iSeg) = structSEG(iSeg)%var(ixSEG%length)%dat(1)
+    end do
 
-   ! extract the length information from the structure and place it in a vector
-   allocate(seg_length(nSeg), stat=ierr, errmsg=cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': seg_length'; return; endif
-   do iSeg = 1,nSeg
-     seg_length(iSeg) = structSEG(iSeg)%var(ixSEG%length)%dat(1)
-   end do
+    ! compute lag times in the channel unit hydrograph
+    call make_uh(seg_length, dt, velo, diff, temp_dat, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! compute lag times in the channel unit hydrograph
-   call make_uh(seg_length, dt, velo, diff, temp_dat, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   ! put the lag times in the data structures
-   tot_uh_tmp = 0
-   do iSeg=1,nSeg
-    allocate(structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat(size(temp_dat(iSeg)%dat)), stat=ierr, errmsg=cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage)//': structSEG%var(ixSEG%uh)%dat'; return; endif
-    structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat(:) = temp_dat(iSeg)%dat(:)
-    tot_uh_tmp = tot_uh_tmp+size(temp_dat(iSeg)%dat)
-   enddo
-
-  endif ! if using the impulse response function
+    ! put the lag times in the data structures
+    tot_uh_tmp = 0
+    do iSeg=1,nSeg
+      allocate(structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat(size(temp_dat(iSeg)%dat)), stat=ierr, errmsg=cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage)//': structSEG%var(ixSEG%uh)%dat'; return; endif
+      structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat(:) = temp_dat(iSeg)%dat(:)
+      tot_uh_tmp = tot_uh_tmp+size(temp_dat(iSeg)%dat)
+    enddo
+  end if ! if using the impulse response function
 
   ! get timing
   call system_clock(time1)
@@ -319,12 +303,12 @@ contains
    ixHRU_desired=ixHRU_desired_tmp
  endif
 
-end subroutine augment_ntopo
+END SUBROUTINE augment_ntopo
 
  ! *********************************************************************
  ! public subroutine: check network data is physically valid
  ! *********************************************************************
- subroutine check_river_properties(structNTOPO, structHRU, structSEG, &  ! input: data structure for physical river network data
+ SUBROUTINE check_river_properties(structNTOPO, structHRU, structSEG, &  ! input: data structure for physical river network data
                                    ierr, message)
   ! saved global data
   USE public_var, ONLY: min_slope          ! minimum slope
@@ -361,13 +345,13 @@ end subroutine augment_ntopo
   ! check somehting for hru properties
   enddo
 
-  end subroutine check_river_properties
+  END SUBROUTINE check_river_properties
 
  ! *********************************************************************
  ! public subroutine: populate old data strucutures
  ! *********************************************************************
  ! ---------- temporary code: populate old data structures --------------------------------------------------
- subroutine put_data_struct(nSeg, structSEG, structNTOPO, &
+ SUBROUTINE put_data_struct(nSeg, structSEG, structNTOPO, &
                             RPARAM_in, NETOPO_in , ierr, message)
   ! saved global data
   USE dataTypes,     ONLY: RCHPRP             ! Reach parameters
@@ -377,16 +361,15 @@ end subroutine augment_ntopo
   USE public_var,    ONLY: dt                 ! simulation time step [sec]
   USE public_var,    ONLY: is_lake_sim        ! lake simulation option
   ! external subroutines
-  USE routing_param, ONLY: basinUH            ! construct basin unit hydrograph
+  USE process_param, ONLY: basinUH            ! construct basin unit hydrograph
+
   implicit none
-  ! input
+  ! argument variables
   integer(i4b)                , intent(in)       :: nSeg             ! number of stream segments
   type(var_dlength)           , intent(in)       :: structSEG(:)     ! stream segment properties
   type(var_ilength)           , intent(in)       :: structNTOPO(:)   ! network topology
-  ! output data structure
   type(RCHPRP)  , allocatable , intent(out)      :: RPARAM_in(:)     ! Reach Parameters
   type(RCHTOPO) , allocatable , intent(out)      :: NETOPO_in(:)     ! River Network topology
-  ! output: error control
   integer(i4b)                , intent(out)      :: ierr             ! error code
   character(*)                , intent(out)      :: message          ! error message
   ! local varialbles
@@ -544,7 +527,7 @@ end subroutine augment_ntopo
    NETOPO_in(iSeg)%RCHLON2 = realMissing     ! End longitude
 
    ! reach unit hydrograph
-   if (routOpt==allRoutingMethods .or. routOpt==impulseResponseFunc) then
+   if (onRoute(impulseResponseFunc)) then
      allocate(NETOPO_in(iSeg)%UH(size(structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat)), stat=ierr, errmsg=cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage)//': NETOPO_in(iSeg)%UH'; return; endif
      NETOPO_in(iSeg)%UH(:) =  structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat(:)
@@ -557,6 +540,6 @@ end subroutine augment_ntopo
 
   end do  ! looping through stream segments
 
- end subroutine put_data_struct
+ END SUBROUTINE put_data_struct
 
-end module process_ntopo
+END MODULE process_ntopo

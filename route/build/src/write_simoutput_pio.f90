@@ -1,51 +1,31 @@
 MODULE write_simoutput_pio
 
-! Moudle wide shared data
+! Moudle wide shared data/routines
 USE nrtype
-USE var_lookup,        ONLY: ixRFLX, nVarsRFLX
-USE dataTypes,         ONLY: STRFLX            ! fluxes in each reach
-USE public_var,        ONLY: iulog             ! i/o logical unit number
-USE public_var,        ONLY: integerMissing
-USE public_var,        ONLY: doesBasinRoute      ! basin routing options   0-> no, 1->IRF, otherwise error
-USE public_var,        ONLY: doesAccumRunoff     ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
-USE public_var,        ONLY: routOpt             ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-USE public_var,        ONLY: kinematicWave       ! Lagrangian kinematic wave
-USE public_var,        ONLY: kinematicWaveEuler  ! Eulerian kinematic wave
-USE public_var,        ONLY: impulseResponseFunc ! impulse response function
-USE public_var,        ONLY: allRoutingMethods   ! all routing methods
-USE globalData,        ONLY: meta_rflx
-USE globalData,        ONLY: pid, nNodes
-USE globalData,        ONLY: masterproc
-USE globalData,        ONLY: mpicom_route
-USE globalData,        ONLY: pio_netcdf_format
-USE globalData,        ONLY: pio_typename
-USE globalData,        ONLY: pio_numiotasks
-USE globalData,        ONLY: pio_rearranger
-USE globalData,        ONLY: pio_root
-USE globalData,        ONLY: pio_stride
-USE globalData,        ONLY: pioSystem
-USE globalData,        ONLY: isStandalone
-! Moudle wide external modules
-USE nr_utility_module, ONLY: arth
+USE var_lookup,     ONLY: ixRFLX, nVarsRFLX
+USE dataTypes,      ONLY: STRFLX
+USE datetime_data,  ONLY: datetime
+USE public_var,     ONLY: iulog
+USE public_var,     ONLY: integerMissing
+USE globalData,     ONLY: runMode           ! 'standalone' or 'cesm-coupling'
+USE globalData,     ONLY: pid, nNodes
+USE globalData,     ONLY: masterproc
+USE globalData,     ONLY: hfileout, hfileout_gage, rfileout
+USE historyFile,    ONLY: histFile
+USE io_rpointfile,  ONLY: io_rpfile
+USE ascii_utils,    ONLY: lower
 USE pio_utils
 
 implicit none
-
-! The following variables used only in this module
-character(300),       save :: fileout              ! name of the output file
-integer(i4b),         save :: jTime                ! time step in output netCDF
-type(file_desc_t),    save :: pioFileDesc          ! PIO data identifying the file
-type(io_desc_t),      save :: iodesc_rch_flx       ! PIO domain decomposition data for reach flux [nRch]
-type(io_desc_t),      save :: iodesc_hru_ro        ! PIO domain decomposition data for hru runoff [nHRU]
-
-integer(i4b),parameter     :: recordDim=-999       ! record dimension Indicator
+type(histFile), save            :: hist_all_network      !
+type(histFile), save            :: hist_gage             !
+integer(i4b), allocatable, save :: index_write_gage(:)   !
 
 private
-
 public::main_new_file
-public::prep_output
 public::output
-public::close_output_nc
+public::close_all
+public::init_histFile
 
 CONTAINS
 
@@ -54,430 +34,387 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE main_new_file(ierr, message)
 
-   USE globalData, ONLY: simDatetime   ! previous and current model time
+    USE public_var, ONLY: outputAtGage
+    USE public_var, ONLY: newFileFrequency  ! frequency for new output files (day, month, annual, single)
+    USE globalData, ONLY: simDatetime       ! previous and current model time
+    USE globalData, ONLY: reachID           !
+    USE globalData, ONLY: basinID           !
+    USE globalData, ONLY: nRch              !
+    USE globalData, ONLY: nHRU              !
+    USE globalData, ONLY: gage_data         !
+    USE globalData, ONLY: pioSystem
 
-  implicit none
-  ! output variables
-  integer(i4b),   intent(out)          :: ierr             ! error code
-  character(*),   intent(out)          :: message          ! error message
-  ! local variables
-  logical(lgt)                         :: newFileAlarm     ! logical to make alarm for restart writing
-  character(len=strLen)                :: cmessage         ! error message of downwind routine
+    implicit none
+    ! Argument variables
+    integer(i4b),   intent(out)     :: ierr             ! error code
+    character(*),   intent(out)     :: message          ! error message
+    ! local variables
+    integer(i4b), allocatable       :: compdof_rch(:)      !
+    integer(i4b), allocatable       :: compdof_rch_gage(:) !
+    integer(i4b), allocatable       :: compdof_hru(:)      !
+    logical(lgt)                    :: createNewFile       ! logical to make alarm for restart writing
+    character(len=strLen)           :: cmessage            ! error message of downwind routine
 
-  ierr=0; message='main_new_file/'
+    ierr=0; message='main_new_file/'
 
-  call new_file_alarm(newFileAlarm, ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  if (newFileAlarm) then
-    call prep_output(ierr, cmessage)
+    createNewFile = newFileAlarm(simDatetime, newFileFrequency, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  end if
 
-  simDatetime(0) = simDatetime(1)
+    if (createNewFile) then
+      call close_all()
+
+      call get_hfilename(simDatetime(1), ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      ! initialize and create history netcdfs
+      select case(trim(runMode))
+        case('standalone');    hist_all_network = histFile(hfileout)
+        case('cesm-coupling'); hist_all_network = histFile(hfileout, pioSys=pioSystem)
+        case default; ierr=20; message=trim(message)//'rumMode: '//trim(runMode)//': must be standalone or cesm-coupling'; return
+      end select
+
+      call get_compdof_all_network(compdof_rch, compdof_hru)
+
+      call hist_all_network%set_compdof(compdof_rch, compdof_hru, nRch, nHRU)
+
+      call hist_all_network%createNC(nRch, nHRU, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      call hist_all_network%openNC(ierr, message)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      call hist_all_network%write_loc(reachID, basinID, ierr, message)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      if (outputAtGage) then
+
+        ! initialize and create history netcdfs
+        select case(trim(runMode))
+          case('standalone');    hist_gage = histFile(hfileout_gage, gageOutput=.true.)
+          case('cesm-coupling'); hist_gage = histFile(hfileout_gage, pioSys=pioSystem, gageOutput=.true.)
+          case default; ierr=20; message=trim(message)//'rumMode: '//trim(runMode)//': must be standalone or cesm-coupling'; return
+        end select
+
+        call get_compdof_gage(compdof_rch_gage, ierr, cmessage)
+
+        call hist_gage%set_compdof(compdof_rch_gage, gage_data%nGage)
+
+        call hist_gage%createNC(gage_data%nGage, ierr, cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        call hist_gage%openNC(ierr, message)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        call hist_gage%write_loc(gage_data%reachID, ierr, message)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      end if
+
+    end if
+
+    simDatetime(0) = simDatetime(1)
+
+    ! update history files
+    call io_rpfile('w', ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  END SUBROUTINE main_new_file
-
 
  ! *********************************************************************
  ! private subroutine: restart alarming
  ! *********************************************************************
- SUBROUTINE new_file_alarm(newFileAlarm, ierr, message)
-
-   USE public_var,        ONLY: newFileFrequency  ! frequency for new output files (day, month, annual, single)
-   USE globalData,        ONLY: simDatetime       ! previous and current model time
+ logical(lgt) FUNCTION newFileAlarm(inDatetime, alarmFrequency, ierr, message)
 
    implicit none
-   ! output
-   logical(lgt),   intent(out)          :: newFileAlarm     ! logical to make alarm for creating new output file
-   integer(i4b),   intent(out)          :: ierr             ! error code
-   character(*),   intent(out)          :: message          ! error message
+   ! Argument variables
+   type(datetime), intent(in)    :: inDatetime(0:1)    ! datetime at previous and current timestep
+   character(*),   intent(in)    :: alarmFrequency   ! new file frequency
+   integer(i4b),   intent(out)   :: ierr             ! error code
+   character(*),   intent(out)   :: message          ! error message
 
    ierr=0; message='new_file_alarm/'
 
-   ! print progress
    if (masterproc) then
-     write(iulog,'(a,I4,4(x,I4))') new_line('a'), simDatetime(1)%year(), simDatetime(1)%month(), simDatetime(1)%day(), simDatetime(1)%hour(), simDatetime(1)%minute()
+     write(iulog,'(a,I4,4(x,I4))') new_line('a'), inDatetime(1)%year(), inDatetime(1)%month(), inDatetime(1)%day(), inDatetime(1)%hour(), inDatetime(1)%minute()
    endif
 
    ! check need for the new file
-   select case(newFileFrequency)
-     case('single'); newFileAlarm=(simDatetime(0)%year() ==integerMissing)
-     case('annual'); newFileAlarm=(simDatetime(1)%year() /=simDatetime(0)%year())
-     case('month');  newFileAlarm=(simDatetime(1)%month()/=simDatetime(0)%month())
-     case('day');    newFileAlarm=(simDatetime(1)%day()  /=simDatetime(0)%day())
+   select case(lower(trim(alarmFrequency)))
+     case('single'); newFileAlarm=(inDatetime(0)%year() ==integerMissing)
+     case('yearly'); newFileAlarm=(inDatetime(1)%year() /=inDatetime(0)%year())
+     case('monthly');newFileAlarm=(inDatetime(1)%month()/=inDatetime(0)%month())
+     case('daily');  newFileAlarm=(inDatetime(1)%day()  /=inDatetime(0)%day())
      case default; ierr=20; message=trim(message)//'unable to identify the option to define new output files'; return
    end select
 
- END SUBROUTINE new_file_alarm
-
+ END FUNCTION newFileAlarm
 
  ! *********************************************************************
- ! public subroutine: define routing output NetCDF file
+ ! public subroutine: output history file
  ! *********************************************************************
  SUBROUTINE output(ierr, message)
 
-  ! global data required only this routine
-  USE globalData, ONLY: RCHFLX_main         ! mainstem Reach fluxes (ensembles, space [reaches])
-  USE globalData, ONLY: RCHFLX_trib         ! tributary Reach fluxes (ensembles, space [reaches])
-  USE globalData, ONLY: basinRunoff_main    ! mainstem only HRU runoff
-  USE globalData, ONLY: basinRunoff_trib    ! tributary only HRU runoff
-  USE globalData, ONLY: nHRU_mainstem       ! number of mainstem HRUs
-  USE globalData, ONLY: iTime               ! time index at simulation time step
-  USE globalData, ONLY: timeVar             ! time variables (unit given by runoff data)
-  USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
-  USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
-  USE globalData, ONLY: hru_per_proc        ! number of hrus assigned to each proc (size = num of procs+1)
+   USE public_var, ONLY: outputAtGage      ! ascii containing last restart and history files
+   USE globalData, ONLY: iTime
+   USE globalData, ONLY: timeVar
+   USE globalData, ONLY: rch_per_proc      ! number of reaches assigned to each proc (size = num of procs+1)
+   USE globalData, ONLY: nRch_mainstem     ! number of mainstem reach
+   USE globalData, ONLY: nTribOutlet       ! number of
+   USE nr_utils,   ONLY: arth
 
-  implicit none
+   implicit none
+   ! Argument variables:
+   integer(i4b), intent(out)   :: ierr               ! error code
+   character(*), intent(out)   :: message            ! error message
+   ! local variables:
+   integer(i4b)                :: nRch_local         ! number of reaches per processors
+   integer(i4b)                :: nRch_root          ! number of reaches in root processors (including halo reaches)
+   integer(i4b), allocatable   :: index_write_all(:) ! indices in RCHFLX_trib to be written in netcdf
+   character(strLen)           :: cmessage           ! error message of downwind routine
 
-  ! input variables: none
-  ! output variables
-  integer(i4b), intent(out)       :: ierr             ! error code
-  character(*), intent(out)       :: message          ! error message
-  ! local variables
-  integer(i4b)                    :: iens             ! temporal
-  character(len=strLen)           :: cmessage         ! error message of downwind routine
-  type(STRFLX),allocatable        :: RCHFLX_local(:)
-  real(dp),    allocatable        :: basinRunoff(:)
+   ierr=0; message='output/'
 
-  ierr=0; message='output/'
-
-  iens = 1
-
-  jTime = jTime+1
-
-  ! Need to combine mainstem RCHFLX and tributary RCHFLX into RCHFLX_local for root node
-  if (masterproc) then
-   associate(nRch_trib => rch_per_proc(0))
-   allocate(RCHFLX_local(nRch_mainstem+nRch_trib), stat=ierr)
-   if (nRch_mainstem>0) then
-     RCHFLX_local(1:nRch_mainstem) = RCHFLX_main(iens,1:nRch_mainstem)
+   ! compute index array for each processors (herer
+   if (masterproc) then
+     nRch_local = sum(rch_per_proc(-1:pid))
+     nRch_root = nRch_mainstem+nTribOutlet+rch_per_proc(0)
+     allocate(index_write_all(nRch_local))
+     if (nRch_mainstem>0) then
+       index_write_all(1:nRch_mainstem) = arth(1,1,nRch_mainstem)
+     end if
+     index_write_all(nRch_mainstem+1:nRch_local) = arth(nRch_mainstem+nTribOutlet+1, 1, rch_per_proc(0))
+   else
+     nRch_local = rch_per_proc(pid)
+     allocate(index_write_all(nRch_local))
+     index_write_all = arth(1,1,nRch_local)
    end if
-   if (nRch_trib>0) then
-     RCHFLX_local(nRch_mainstem+1:nRch_mainstem+nRch_trib) = RCHFLX_trib(iens,:)
-   endif
-   end associate
-  else
-   allocate(RCHFLX_local(rch_per_proc(pid)), stat=ierr)
-   RCHFLX_local = RCHFLX_trib(iens,:)
-  endif
 
-  if (masterproc) then
-    associate(nHRU_trib => hru_per_proc(0))
-    allocate(basinRunoff(nHRU_mainstem+nHRU_trib), stat=ierr)
-    if (nHRU_mainstem>0) then
-      basinRunoff(1:nHRU_mainstem) = basinRunoff_main(1:nHRU_mainstem)
-    end if
-    if (nHRU_trib>0) then
-      basinRunoff(nHRU_mainstem+1:nHRU_mainstem+nHRU_trib) = basinRunoff_trib(1:nHRU_trib)
-    endif
-    end associate
-  else
-    allocate(basinRunoff(hru_per_proc(pid)), stat=ierr)
-    basinRunoff = basinRunoff_trib
-  endif
+   call hist_all_network%write_flux(timeVar(iTime), index_write_all, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! write time -- note time is just carried across from the input
-  call write_netcdf(pioFileDesc, 'time', [timeVar(iTime)], [jTime], [1], ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  if (meta_rflx(ixRFLX%basRunoff)%varFile) then
-    ! write the basin runoff at HRU (unit: the same as runoff input)
-    call write_pnetcdf_recdim(pioFileDesc, 'basRunoff',basinRunoff, iodesc_hru_ro, jTime, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
-
-  if (meta_rflx(ixRFLX%instRunoff)%varFile) then
-    ! write instataneous local runoff in each stream segment (m3/s)
-    call write_pnetcdf_recdim(pioFileDesc, 'instRunoff', RCHFLX_local(:)%BASIN_QI, iodesc_rch_flx, jTime, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
-
-  if (meta_rflx(ixRFLX%dlayRunoff)%varFile) then
-    ! write routed local runoff in each stream segment (m3/s)
-    call write_pnetcdf_recdim(pioFileDesc, 'dlayRunoff', RCHFLX_local(:)%BASIN_QR(1), iodesc_rch_flx, jTime, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
-
-  if (meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile) then
-    ! write accumulated runoff (m3/s)
-    call write_pnetcdf_recdim(pioFileDesc, 'sumUpstreamRunoff', RCHFLX_local(:)%UPSTREAM_QI, iodesc_rch_flx, jTime, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
-
-  if (meta_rflx(ixRFLX%KWTroutedRunoff)%varFile) then
-    ! write routed runoff (m3/s)
-    call write_pnetcdf_recdim(pioFileDesc, 'KWTroutedRunoff', RCHFLX_local(:)%REACH_Q, iodesc_rch_flx, jTime, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
-
-  if (meta_rflx(ixRFLX%KWEroutedRunoff)%varFile) then
-    ! write routed runoff (m3/s)
-    call write_pnetcdf_recdim(pioFileDesc, 'KWEroutedRunoff', RCHFLX_local(:)%REACH_Q, iodesc_rch_flx, jTime, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
-
-  if (meta_rflx(ixRFLX%IRFroutedRunoff)%varFile) then
-    ! write routed runoff (m3/s)
-    call write_pnetcdf_recdim(pioFileDesc, 'IRFroutedRunoff', RCHFLX_local(:)%REACH_Q_IRF, iodesc_rch_flx, jTime, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
-
-  if (meta_rflx(ixRFLX%IRFlakeVol)%varFile) then
-    ! write lake volume (m3)
-    call write_pnetcdf_recdim(pioFileDesc, 'IRFlakeVol', RCHFLX_local(:)%REACH_VOL(1), iodesc_rch_flx, jTime, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   endif
-
-  call sync_file(pioFileDesc, ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if (outputAtGage) then
+     call hist_gage%write_flux(timeVar(iTime), index_write_gage, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
 
  END SUBROUTINE output
 
-
  ! *********************************************************************
- ! public subroutine: define routing output NetCDF file
+ ! private subroutine: get pio local-global mapping data
  ! *********************************************************************
- SUBROUTINE prep_output(ierr, message)
+ SUBROUTINE get_compdof_all_network(compdof_rch, compdof_hru)
 
- ! saved public variables (usually parameters, or values not modified)
- USE public_var, ONLY: output_dir        ! output directory
- USE public_var, ONLY: case_name         ! simulation name ==> output filename head
- USE public_var, ONLY: calendar          ! calendar name
- USE public_var, ONLY: time_units        ! time units (seconds, hours, or days)
- ! saved global data
- USE globalData, ONLY: basinID, reachID  ! HRU and reach ID in network
- USE globalData, ONLY: simDatetime       ! previous and current model time
- USE globalData, ONLY: nEns, nHRU, nRch  ! number of ensembles, HRUs and river reaches
- USE globalData, ONLY: isFileOpen        ! file open/close status
- ! subroutines
- USE time_utils_module, ONLy: compCalday        ! compute calendar day
- USE time_utils_module, ONLy: compCalday_noleap ! compute calendar day
+   USE globalData,        ONLY: hru_per_proc      ! number of hrus assigned to each proc (size = num of procs+1)
+   USE globalData,        ONLY: rch_per_proc      ! number of reaches assigned to each proc (size = num of procs+1)
+   USE nr_utils,          ONLY: arth
 
- implicit none
+   implicit none
+   ! Argument variables
+   integer(i4b), allocatable, intent(out) :: compdof_rch(:) !
+   integer(i4b), allocatable, intent(out) :: compdof_hru(:) !
+   ! Local variables
+   integer(i4b)                :: ix1, ix2               ! frst and last indices of global array for local array chunk
 
- ! input variables: none
- ! output variables
- integer(i4b), intent(out)       :: ierr             ! error code
- character(*), intent(out)       :: message          ! error message
- ! local variables
- integer(i4b)                    :: sec_in_day       ! second within day
- character(len=strLen)           :: cmessage         ! error message of downwind routine
- character(*),parameter          :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
-
- ierr=0; message='prep_output/'
-
-   ! close netcdf only if is is open
-   call close_output_nc()
-
-   jTime=0
-
-   ! Define filename
-   sec_in_day = simDatetime(1)%hour()*60*60+simDatetime(1)%minute()*60+nint(simDatetime(1)%sec())
-   write(fileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuroute.h.', &
-                           simDatetime(1)%year(), '-', simDatetime(1)%month(), '-', simDatetime(1)%day(), '-',sec_in_day,'.nc'
-
-   call defineFile(trim(fileout),                         &  ! input: file name
-                   nEns,                                  &  ! input: number of ensembles
-                   nHRU,                                  &  ! input: number of HRUs
-                   nRch,                                  &  ! input: number of stream segments
-                   time_units,                            &  ! input: time units
-                   calendar,                              &  ! input: calendar
-                   ierr,cmessage)                            ! output: error control
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   call openFile(pioSystem, pioFileDesc, trim(fileout), pio_typename, ncd_write, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   call write_netcdf(pioFileDesc, 'basinID', basinID, [1], [nHRU], ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   call write_netcdf(pioFileDesc, 'reachID', reachID, [1], [nRch], ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   isFileOpen = .True.
-
- END SUBROUTINE prep_output
-
-
- SUBROUTINE close_output_nc()
-  USE globalData, ONLY: isFileOpen   ! file open/close status
-  implicit none
-  if (isFileOpen) then
-   call closeFile(pioFileDesc)
-   isFileOpen=.false.
-  endif
- END SUBROUTINE close_output_nc
-
-
- ! *********************************************************************
- ! private subroutine: define routing output NetCDF file
- ! *********************************************************************
- SUBROUTINE defineFile(fname,           &  ! input: filename
-                       nEns_in,         &  ! input: number of ensembles
-                       nHRU_in,         &  ! input: number of HRUs
-                       nRch_in,         &  ! input: number of stream segments
-                       units_time,      &  ! input: time units
-                       calendar,        &  ! input: calendar
-                       ierr, message)      ! output: error control
- !Dependent modules
- USE var_lookup, ONLY: ixQdims, nQdims
- USE globalData, ONLY: meta_qDims
- USE globalData, ONLY: rch_per_proc             ! number of reaches assigned to each proc (size = num of procs+1)
- USE globalData, ONLY: hru_per_proc             ! number of hrus assigned to each proc (size = num of procs+1)
-
- implicit none
- ! input variables
- character(*), intent(in)          :: fname             ! filename
- integer(i4b), intent(in)          :: nEns_in           ! number of ensembles
- integer(i4b), intent(in)          :: nHRU_in           ! number of HRUs
- integer(i4b), intent(in)          :: nRch_in           ! number of stream segments
- character(*), intent(in)          :: units_time        ! time units
- character(*), intent(in)          :: calendar          ! calendar
- ! output variables
- integer(i4b), intent(out)         :: ierr              ! error code
- character(*), intent(out)         :: message           ! error message
- ! local variables
- integer(i4b),allocatable          :: dim_array(:)      ! dimension
- integer(i4b)                      :: jDim,iVar         ! dimension, and variable index
- integer(i4b)                      :: nDims             ! number of dimension
- integer(i4b)                      :: ix1, ix2          ! frst and last indices of global array for local array chunk
- integer(i4b)                      :: ixRch(nRch_in)    !
- integer(i4b)                      :: ixHRU(nHRU_in)    !
- integer(i4b)                      :: ixDim             !
- character(len=strLen)             :: cmessage          ! error message of downwind routine
-
- ierr=0; message='defineFile/'
-
- ! populate q dimension meta (not sure if this should be done here...)
- meta_qDims(ixQdims%seg)%dimLength = nRch_in
- meta_qDims(ixQdims%hru)%dimLength = nHRU_in
- meta_qDims(ixQdims%ens)%dimLength = nEns_in
-
- ! Modify write option
- ! This is temporary
- if (routOpt==kinematicWave) then
-   meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
-   meta_rflx(ixRFLX%KWEroutedRunoff)%varFile = .false.
- elseif (routOpt==kinematicWaveEuler) then
-   meta_rflx(ixRFLX%IRFroutedRunoff)%varFile = .false.
-   meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
- elseif (routOpt==impulseResponseFunc) then
-   meta_rflx(ixRFLX%KWTroutedRunoff)%varFile = .false.
-   meta_rflx(ixRFLX%KWEroutedRunoff)%varFile = .false.
- elseif (routOpt==allRoutingMethods) then
-   meta_rflx(ixRFLX%KWEroutedRunoff)%varFile = .false.
- end if
- ! runoff accumulation option
- if (doesAccumRunoff==0) then
-   meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile = .false.
- end if
- ! basin runoff routing option
- if (doesBasinRoute==0) then
-   meta_rflx(ixRFLX%instRunoff)%varFile = .false.
- end if
-
- ! pio initialization
- if (isStandalone) then
-   pio_numiotasks = nNodes/pio_stride
-   call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
-                     pio_stride, pio_numiotasks, & ! input: PIO related parameters
-                     pio_rearranger, pio_root,   & ! input: PIO related parameters
-                     pioSystem)                    ! output: PIO system descriptors
- endif
-
- ! For reach flux/volume
- if (masterproc) then
-   ix1 = 1
- else
-   ix1 = sum(rch_per_proc(-1:pid-1))+1
- endif
- ix2 = sum(rch_per_proc(-1:pid))
- ixRch = arth(1,1,nRch_in)
-
- call pio_decomp(pioSystem,              & ! input: pio system descriptor
-                 ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                 [nRch_in],              & ! input: dimension length == global array size
-                 ixRch(ix1:ix2),         & ! input:
-                 iodesc_rch_flx)
-
-! For HRU flux/volume
- if (masterproc) then
-   ix1 = 1
- else
-   ix1 = sum(hru_per_proc(-1:pid-1))+1
- endif
- ix2 = sum(hru_per_proc(-1:pid))
- ixHRU = arth(1,1,nHRU_in)
-
- call pio_decomp(pioSystem,     & ! input: pio system descriptor
-                 ncd_double,    & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                 [nHRU_in],     & ! input: dimension length == global array size
-                 ixHRU(ix1:ix2),& ! input:
-                 iodesc_hru_ro)
-
- ! --------------------
- ! define file
- ! --------------------
- call createFile(pioSystem, trim(fname), pio_typename, pio_netcdf_format, pioFileDesc, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- do jDim =1,nQdims
-   if (jDim ==ixQdims%time) then ! time dimension (unlimited)
-    call def_dim(pioFileDesc, trim(meta_qDims(jDim)%dimName), recordDim, meta_qDims(jDim)%dimId)
+   if (masterproc) then
+     allocate(compdof_rch(sum(rch_per_proc(-1:pid))))
+     allocate(compdof_hru(sum(hru_per_proc(-1:pid))))
    else
-    call def_dim(pioFileDesc, trim(meta_qDims(jDim)%dimName), meta_qDims(jDim)%dimLength, meta_qDims(jDim)%dimId)
+     allocate(compdof_rch(rch_per_proc(pid)))
+     allocate(compdof_hru(hru_per_proc(pid)))
+   end if
+
+   ! For reach flux/volume
+   if (masterproc) then
+     ix1 = 1
+   else
+     ix1 = sum(rch_per_proc(-1:pid-1))+1
    endif
- end do
+   ix2 = sum(rch_per_proc(-1:pid))
+   compdof_rch = arth(ix1, 1, ix2-ix1+1)
 
- ! define coordinate variable for time
- call def_var(pioFileDesc,                                &                                        ! pio file descriptor
-             trim(meta_qDims(ixQdims%time)%dimName),      &                                        ! variable name
-             ncd_float,                                   &                                        ! variable type
-             ierr, cmessage,                              &                                        ! error handle
-             pioDimId=[meta_qDims(ixQdims%time)%dimId],   &                                        ! dimension array
-             vdesc=trim(meta_qDims(ixQdims%time)%dimName), vunit=trim(units_time), vcal=calendar)  ! optional attributes
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   ! For HRU flux/volume
+   if (masterproc) then
+     ix1 = 1
+   else
+     ix1 = sum(hru_per_proc(-1:pid-1))+1
+   endif
+   ix2 = sum(hru_per_proc(-1:pid))
+   compdof_hru = arth(ix1, 1, ix2-ix1+1)
 
- ! define hru ID and reach ID variables
- call def_var(pioFileDesc, 'basinID', ncd_int, ierr, cmessage, pioDimId=[meta_qDims(ixQdims%hru)%dimId], vdesc='basin ID', vunit='-')
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ END SUBROUTINE get_compdof_all_network
 
- call def_var(pioFileDesc, 'reachID', ncd_int, ierr, cmessage, pioDimId=[meta_qDims(ixQdims%seg)%dimId], vdesc='reach ID', vunit='-')
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! define flux variables
- do iVar=1,nVarsRFLX
+ ! *********************************************************************
+ ! private subroutine: get pio local-global mapping data
+ ! *********************************************************************
+ SUBROUTINE get_compdof_gage(compdof_rch, ierr, message)
 
-  if (.not.meta_rflx(iVar)%varFile) cycle
+   USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
+   USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
+   USE globalData, ONLY: nTribOutlet         ! number of tributary outlets flowing to the mainstem
+   USE globalData, ONLY: NETOPO_main         ! mainstem Reach neteork
+   USE globalData, ONLY: NETOPO_trib         ! tributary Reach network
+   USE globalData, ONLY: gage_data
+   USE process_gage_meta, ONLY: reach_subset
 
-  ! define dimension ID array
-  nDims = size(meta_rflx(iVar)%varDim)
-  if (allocated(dim_array)) then
-    deallocate(dim_array)
-  endif
-  allocate(dim_array(nDims))
-  do ixDim = 1, nDims
-    dim_array(ixDim) = meta_qDims(meta_rflx(iVar)%varDim(ixDim))%dimId
-  end do
+   implicit none
+   ! Argument variables
+   integer(i4b), allocatable, intent(out) :: compdof_rch(:)   !
+   integer(i4b), intent(out)              :: ierr             ! error code
+   character(*), intent(out)              :: message          ! error message
+   ! Local variables
+   integer(i4b)                           :: ix
+   integer(i4b)                           :: nRch_local
+   integer(i4b),allocatable               :: reachID_local(:) !
+   character(len=strLen)                  :: cmessage         ! error message of downwind routine
 
-  ! define variable
-  call def_var(pioFileDesc,            &                 ! pio file descriptor
-              meta_rflx(iVar)%varName, &                 ! variable name
-              ncd_float,               &                 ! dimension array and type
-              ierr, cmessage,          &                 ! error handling
-              pioDimId=dim_array,      &                 ! dimension id
-              vdesc=meta_rflx(iVar)%varDesc, vunit=meta_rflx(iVar)%varUnit)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   ierr=0; message='get_compdof_gage/'
 
- end do
+   ! Only For reach flux/volume
+   if (masterproc) then
+     nRch_local = nRch_mainstem+rch_per_proc(0)
+     allocate(reachID_local(nRch_local), stat=ierr, errmsg=cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [reachID_local]'; return; endif
 
- ! end definitions
- call end_def(pioFileDesc, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     if (nRch_mainstem>0)   reachID_local(1:nRch_mainstem) = NETOPO_main(1:nRch_mainstem)%REACHID
+     if (rch_per_proc(0)>0) reachID_local(nRch_mainstem+1:nRch_local) = NETOPO_trib(:)%REACHID
+   else
+     nRch_local = rch_per_proc(pid)
+     allocate(reachID_local(nRch_local), stat=ierr, errmsg=cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [reachID_local]'; return; endif
+     reachID_local = NETOPO_trib(:)%REACHID
+   endif
 
- END SUBROUTINE defineFile
+   call reach_subset(reachID_local, gage_data, compdof=compdof_rch, index2=index_write_gage)
 
+   ! Need to adjust tributary indices in root processor
+   ! This is because RCHFLX has three components in the order: mainstem, halo, tributary
+   ! mainstem (1,2,..,nRch_mainstem),
+   ! halo(nRch_mainstem+1,..,nRch_mainstem+nTribOutlet), and
+   ! tributary(nRch_mainstem+nTribOutlet+1,...,nRch_total)
+   ! index_write_gage is computed based on reachID consisting of mainstem and tributary
+   if (masterproc) then
+     do ix=1,size(index_write_gage)
+       if (index_write_gage(ix)<=nRch_mainstem) cycle
+       index_write_gage(ix) = index_write_gage(ix) + nTribOutlet
+     end do
+   end if
+
+ END SUBROUTINE get_compdof_gage
+
+ ! *********************************************************************
+ ! private subroutine: define history NetCDF file name
+ ! *********************************************************************
+ SUBROUTINE get_hfilename(inDatetime, ierr, message)
+
+   USE public_var, ONLY: output_dir        ! output directory
+   USE public_var, ONLY: case_name         ! simulation name ==> output filename head
+   USE public_var, ONLY: outputAtGage      ! ascii containing last restart and history files
+
+   implicit none
+   ! argument variables
+   type(datetime), intent(in)  :: inDatetime     ! datetime at previous and current timestep
+   integer(i4b),   intent(out) :: ierr           ! error code
+   character(*),   intent(out) :: message        ! error message
+   ! local variables
+   integer(i4b)              :: sec_in_day       ! second within day
+   character(*),parameter    :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
+
+   ierr=0; message='get_hfilename/'
+
+   ! Define history filename
+   sec_in_day = inDatetime%hour()*60*60+inDatetime%minute()*60+nint(inDatetime%sec())
+   select case(trim(runMode))
+     case('cesm-coupling')
+       write(hfileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuroute.h.', &
+                             inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day,'.nc'
+
+       if (outputAtGage) then
+         write(hfileout_gage, fmtYMDS) trim(output_dir)//trim(case_name)//'_gauge.mizuroute.h.', &
+                                    inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day,'.nc'
+       end if
+     case('standalone')
+       write(hfileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.h.', &
+                             inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day,'.nc'
+       if (outputAtGage) then
+         write(hfileout_gage, fmtYMDS) trim(output_dir)//trim(case_name)//'_gauge.h.', &
+                                    inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day,'.nc'
+       end if
+     case default; ierr=20; message=trim(message)//'unable to identify the run option. Avaliable options are standalone and cesm-coupling'; return
+   end select
+
+ END SUBROUTINE get_hfilename
+
+ ! *********************************************************************
+ ! private subroutine: close all history files
+ ! *********************************************************************
+ SUBROUTINE close_all()
+   implicit none
+   if (hist_all_network%fileOpen()) then
+     call hist_all_network%cleanup()
+     call hist_all_network%closeNC()
+   end if
+   if (hist_gage%fileOpen()) then
+     call hist_gage%cleanup()
+     call hist_gage%closeNC()
+   end if
+ END SUBROUTINE
+
+ ! *********************************************************************
+ ! public subroutine: initialize history file for contiue run
+ ! *********************************************************************
+ SUBROUTINE init_histFile(ierr, message)
+
+   USE globalData,  ONLY: nHRU, nRch        ! number of HRUs and river reaches
+   USE globalData,  ONLY: gage_data
+   USE public_var,  ONLY: outputAtGage      ! ascii containing last restart and history files
+   USE globalData,  ONLY: pioSystem
+
+   implicit none
+   ! argument variables
+   integer(i4b),   intent(out)     :: ierr                ! error code
+   character(*),   intent(out)     :: message             ! error message
+   ! local variables
+   integer(i4b), allocatable       :: compdof_rch(:)      !
+   integer(i4b), allocatable       :: compdof_rch_gage(:) !
+   integer(i4b), allocatable       :: compdof_hru(:)      !
+   character(len=strLen)           :: cmessage            ! error message of downwind routine
+
+   ierr=0; message='init_histFile/'
+
+   ! get history file names to append
+   call io_rpfile('r', ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! initialize and create history netcdfs
+   select case(trim(runMode))
+     case('standalone');    hist_all_network = histFile(hfileout)
+     case('cesm-coupling'); hist_all_network = histFile(hfileout, pioSys=pioSystem)
+     case default; ierr=20; message=trim(message)//'rumMode: '//trim(runMode)//': must be standalone or cesm-coupling'; return
+   end select
+
+   call hist_all_network%openNc(ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   call get_compdof_all_network(compdof_rch, compdof_hru)
+
+   call hist_all_network%set_compdof(compdof_rch, compdof_hru, nRch, nHRU)
+
+   if (outputAtGage) then
+     select case(trim(runMode))
+       case('standalone');    hist_gage = histFile(hfileout_gage, gageOutput=.true.)
+       case('cesm-coupling'); hist_gage = histFile(hfileout_gage, pioSys=pioSystem, gageOutput=.true.)
+       case default; ierr=20; message=trim(message)//'rumMode: '//trim(runMode)//': must be standalone or cesm-coupling'; return
+     end select
+
+     call hist_gage%openNC(ierr, message)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     call get_compdof_gage(compdof_rch_gage, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     call hist_gage%set_compdof(compdof_rch_gage, gage_data%nGage)
+   end if
+
+ END SUBROUTINE init_histFile
 
 END MODULE write_simoutput_pio

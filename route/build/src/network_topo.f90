@@ -1,8 +1,7 @@
 MODULE network_topo
 
+USE nrtype
 ! data types
-USE nrtype,    ONLY: i4b,dp,lgt
-USE nrtype,    ONLY: strLen         ! length of a string
 USE dataTypes, ONLY: var_ilength    ! integer type:          var(:)%dat
 USE dataTypes, ONLY: var_dlength    ! double precision type: var(:)%dat
 
@@ -29,11 +28,10 @@ USE var_lookup, ONLY:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2seg
 USE var_lookup, ONLY:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
 
 ! external utilities
-USE nr_utility_module, ONLY: findIndex     ! Num. Recipies utilities
-USE nr_utility_module, ONLY: indexx        ! Num. Recipies utilities
-USE nr_utility_module, ONLY: arth          ! Num. Recipies utilities
+USE nr_utils, ONLY: findIndex     ! Num. Recipies utilities
+USE nr_utils, ONLY: indexx        ! Num. Recipies utilities
+USE nr_utils, ONLY: arth          ! Num. Recipies utilities
 
-! privacy
 implicit none
 
 private
@@ -43,9 +41,11 @@ public :: reachOrder     ! define the processing order
 public :: streamOrdering ! get stream order for each reach
 public :: reach_list     ! get a list of reaches above each reach
 public :: reach_mask     ! get a mask that defines all segments above a given segment
+public :: destSegment    ! get destination reach ID and index for each reach
+public :: outletSegment  ! get the most downstream reach ID and index for each reach
 public :: reach_mask_orig     ! get a mask that defines all segments above a given segment
 
-contains
+CONTAINS
 
  ! *********************************************************************
  ! new subroutine: compute correspondence between HRUs and segments
@@ -333,6 +333,52 @@ contains
  end subroutine up2downSegment
 
  ! *********************************************************************
+ ! public subroutine: find ID and index of target reach for each reach
+ ! *********************************************************************
+ SUBROUTINE destSegment(nRch, structNTOPO, ierr, message)
+
+   ! Descriptions:
+   ! Find destination segment index for reach flux transfer. destination ID needs to be provided through user-input
+   ! integerMissing => no destination
+
+   implicit none
+   ! Argument variables
+   integer(i4b)      , intent(in)                :: nRch              ! number of stream segments
+   type(var_ilength) , intent(inout)             :: structNTOPO(:)    ! network topology structure
+   integer(i4b)      , intent(out)               :: ierr              ! error code
+   character(*)      , intent(out)               :: message           ! error message
+   ! Local variables
+   character(len=strLen)                         :: cmessage          ! error message of downwind routine
+   integer(i4b)                                  :: iRch              ! loop index
+   integer(i4b)                                  :: segId(nRch)       ! temporary array holding segID
+   integer(i4b)                                  :: destSegId(nRch)   ! temporary array holding destination reach ID
+   integer(i4b)                                  :: destIndex(nRch)   ! temporary array holding destination reach index
+   integer(i4b)                                  :: nDest(nRch)       ! number of elements that each reach are connetcted to outlet
+
+   ierr=0; message='destSegment/'
+
+   do iRch=1,nRch
+     segId(iRch)     = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
+     destSegId(iRch) = structNTOPO(iRch)%var(ixNTOPO%destSegId)%dat(1)
+   end do
+
+   ! Get the index of the destination reach ID
+   call downReachIndex(nRch,          & ! input: number of reaches
+                       nRch,          & ! input: number of potential destination reaches
+                       segId,         & ! input: unique identifier of the stream segments
+                       destSegId,     & ! input: unique identifier of the destination segment
+                       destIndex,     & ! output: index of downstream stream segment
+                       nDest,         & ! output: number of destination elements
+                       ierr,cmessage)   ! error control
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   do iRch=1,nRch
+     structNTOPO(iRch)%var(ixNTOPO%destSegIndex)%dat(1) = destIndex(iRch)
+   end do
+
+ END SUBROUTINE destSegment
+
+ ! *********************************************************************
  ! new subroutine: define index of downstream reach
  ! *********************************************************************
  subroutine downReachIndex(&
@@ -345,8 +391,7 @@ contains
                            downSegIndex, & ! index of downstream stream segment
                            nElement2Seg, & ! number of elements that drain into each segment
                            ierr,message)
- ! external modules
- !USE nr_utility_module, ONLY: indexx  ! Num. Recipies utilities
+
  implicit none
  ! input variables
  integer(i4b), intent(in)        :: nUp             ! number of upstream elements
@@ -630,7 +675,7 @@ contains
  !     at each point in the river network)
  !
  ! ----------------------------------------------------------------------------------------
- USE nr_utility_module, ONLY: arth                          ! Num. Recipies utilities
+
  IMPLICIT NONE
  ! input variables
  INTEGER(I4B)      , INTENT(IN)                 :: NRCH            ! number of stream segments
@@ -787,8 +832,7 @@ contains
  !   Generates a list of all reaches upstream of a given reach
  !
  ! ----------------------------------------------------------------------------------------
- USE nrtype
- USE nr_utility_module, ONLY: arth                                 ! Num. Recipies utilities
+
  IMPLICIT NONE
  ! input variables
  integer(i4b)      , intent(in)                :: desireId          ! id of the desired reach
@@ -904,6 +948,44 @@ contains
 
  end subroutine reach_mask
 
+ ! *********************************************************************
+ ! public subroutine: find ID and index of target reach for each reach
+ ! *********************************************************************
+ SUBROUTINE outletSegment(nRch, structNTOPO, ierr, message)
+
+   implicit none
+   ! Argument variables
+   integer(i4b)      , intent(in)                :: nRch              ! number of stream segments
+   type(var_ilength) , intent(inout)             :: structNTOPO(:)    ! network topology structure
+   integer(i4b)      , intent(out)               :: ierr              ! error code
+   character(*)      , intent(out)               :: message           ! error message
+   ! Local variables
+   integer(i4b)                                  :: iRch,jRch         ! loop index
+
+   ierr=0; message='outletSegment/'
+
+   ! initialize: integerMissing => no destination
+   do iRch=1,nRch
+     structNTOPO(iRch)%var(ixNTOPO%destSegId)%dat(1)    = integerMissing
+     structNTOPO(iRch)%var(ixNTOPO%destSegIndex)%dat(1) = integerMissing
+   end do
+
+   ! process only if reach is outlet (i.e.,downstream reach index is missing values)
+   do iRch=1,nRch
+     if (structNTOPO(iRch)%var(ixNTOPO%downSegIndex)%dat(1)==-1 .and. &
+         structNTOPO(iRch)%var(ixNTOPO%downSegId)%dat(1)<=0) then ! downSeg index=-1 -> outlet
+       associate (allUpIdx => structNTOPO(iRch)%var(ixNTOPO%allUpSegIndices)%dat)
+       do jRch=1,size(allUpIdx)
+         structNTOPO(allUpIdx(jRch))%var(ixNTOPO%destSegId)%dat(1)    = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
+         structNTOPO(allUpIdx(jRch))%var(ixNTOPO%destSegIndex)%dat(1) = structNTOPO(iRch)%var(ixNTOPO%segIndex)%dat(1)
+       end do
+       end associate
+     end if
+   end do
+
+ END SUBROUTINE outletSegment
+
+
  ! ====================================================================================================
  ! ====================================================================================================
  ! ====================================================================================================
@@ -943,8 +1025,7 @@ contains
  !   Generates a list of all reaches upstream of a given reach
  !
  ! ----------------------------------------------------------------------------------------
- USE nrtype
- USE nr_utility_module, ONLY: arth                                 ! Num. Recipies utilities
+
  IMPLICIT NONE
  ! input variables
  integer(i4b)      , intent(in)                :: desireId          ! id of the desired reach
@@ -1211,4 +1292,4 @@ contains
  ! ----------------------------------------------------------------------------------------
  END SUBROUTINE REACH_MASK_ORIG
 
-end module network_topo
+END MODULE network_topo

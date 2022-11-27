@@ -31,20 +31,20 @@ USE var_lookup, ONLY: ixPFAF,   nVarsPFAF    ! index of variables for the pfafst
 USE netcdf
 
 ! external utilities
-USE nr_utility_module, ONLY: arth    ! Num. Recipies utilities
-USE allocation,        ONLY: alloc_struct
+USE nr_utils,   ONLY: arth
+USE allocation, ONLY: alloc_struct
 
 implicit none
 
-! privacy
 private
 public::getData
-contains
+
+CONTAINS
 
 ! *********************************************************************
 ! new subroutine: get ancillary data for HRUs and stream segments
 ! *********************************************************************
-subroutine getData(&
+SUBROUTINE getData(&
                   ! input
                   fname,        & ! input: file name
                   dname_nhru,   & ! input: dimension name of the HRUs
@@ -62,20 +62,17 @@ subroutine getData(&
                   ierr,message)   ! output: error control
 
   implicit none
-  ! input variables
+  ! Argument variables
   character(*)      , intent(in)               :: fname             ! filename
   character(*)      , intent(in)               :: dname_nhru        ! dimension name for HRUs
   character(*)      , intent(in)               :: dname_sseg        ! dimension name for stream segments
-  ! output: model control
   integer(i4b)      , intent(out)              :: nHRU_in           ! number of HRUs
   integer(i4b)      , intent(out)              :: nRch_in           ! number of stream segments
-  ! output: data structures
   type(var_dlength) , intent(out), allocatable :: structHRU(:)      ! HRU properties
   type(var_dlength) , intent(out), allocatable :: structSeg(:)      ! stream segment properties
   type(var_ilength) , intent(out), allocatable :: structHRU2seg(:)  ! HRU-to-segment mapping
   type(var_ilength) , intent(out), allocatable :: structNTOPO(:)    ! network topology
   type(var_clength) , intent(out), allocatable :: structPFAF(:)     ! network topology
-  ! output: error control
   integer(i4b)      , intent(out)              :: ierr              ! error code
   character(*)      , intent(out)              :: message           ! error message
   ! ==========================================================================================================
@@ -101,18 +98,13 @@ subroutine getData(&
   integer(i4b),              allocatable       :: islake_local(:)         ! local array to save islake flag
   integer(i4b),              allocatable       :: LakeTargVol_local(:)    ! local array to save LakeTargetVol flag
   integer(i4b),              allocatable       :: LakeModelType_local(:)  ! local array to save LakeModelType flag
-  ! logical(lgt)                                 :: Doll_is_called          ! if Doll model is called in lake type varibale
-  ! logical(lgt)                                 :: Hanasaki_is_called      ! if Hanasaki model is called in lake type varibale
-  ! logical(lgt)                                 :: HYPE_is_called          ! if HYPE model is called in lake type varibale
   integer(i4b)                                 :: i                       ! counter
-  !logical(lgt)                                 :: lake_model_conflict     ! if both parameteric model and non parameteric models are on for a lake
   integer(i4b)                                 :: number_lakes            ! number of lakes in network topology
   integer(i4b)                                 :: number_Endorheic        ! number of Endorheic lakes
   integer(i4b)                                 :: number_Doll             ! number of lakes with parameteric Doll 2003 formulation
   integer(i4b)                                 :: number_Hanasaki         ! number of lakes with parameteric Hanasaki 2006 formulation
   integer(i4b)                                 :: number_HYPE             ! number of lakes with parameteric Hanasaki 2006 formulation
   integer(i4b)                                 :: number_TargVol          ! number of lakes with target volume
-
 
   ierr=0; message='getData, read_segment/'
 
@@ -217,9 +209,6 @@ subroutine getData(&
     number_Hanasaki   =  0
     number_HYPE       =  0
     number_TargVol    =  0
-
-    !is_flux_wm
-    !is_vol_wm
 
     ! specifying which lake models are called and if there is conflict between lake model type and data driven flag
     do i = 1, size(islake_local)
@@ -494,18 +483,12 @@ subroutine getData(&
   ierr = nf90_close(ncid)
   if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
-end subroutine getData
-
-! ==========================================================================================================
-! ==========================================================================================================
-! ==========================================================================================================
-! ==========================================================================================================
-! ==========================================================================================================
+END SUBROUTINE getData
 
 ! *********************************************************************
 ! private subroutine: get start and count vectors
 ! *********************************************************************
-subroutine getSubetIndices(&
+SUBROUTINE getSubetIndices(&
                           ! input
                           ncid,           &  ! netCDF file id
                           ivarid,         &  ! netCDF variable id
@@ -516,11 +499,10 @@ subroutine getSubetIndices(&
                           dimLength,      &  ! dimension length
                           ierr,message)      ! error control
   implicit none
-  ! input variables
+  ! Argument variables
   integer(i4b)  , intent(in)                :: ncid           ! netCDF file id
   integer(i4b)  , intent(in)                :: ivarid         ! netCDF variable id
   integer(i4b)  , intent(in)                :: nSpace         ! length of the spatial dimension
-  ! output variables
   integer(i4b)  , intent(out) , allocatable :: ixStart(:)     ! vector of start indices
   integer(i4b)  , intent(out) , allocatable :: ixCount(:)     ! vector defining number of elements in each reach
   integer(i4b)  , intent(out)               :: dimLength      ! dimension length
@@ -557,7 +539,6 @@ subroutine getSubetIndices(&
   ! check if it is a ragged array
   isRaggedArray=(dimLength/=nSpace)
   if(isRaggedArray)then
-
     ! get the start index in the ragged arrays
     ! -- variable ID
     ierr = nf90_inq_varid(ncid, trim(dimName)//'_start', iStartID)
@@ -573,16 +554,12 @@ subroutine getSubetIndices(&
     ! -- variable data
     ierr = nf90_get_var(ncid, iCountID, ixCount)
     if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; name='//trim(dimName)//'_count'; return; endif
-
-    ! not a ragged array
-  else
-
+  else ! not a ragged array
     ! define array indices
     ixStart(:) = arth(1,1,nSpace)
     ixCount(:) = 1
-
   endif
 
-end subroutine getSubetIndices
+END SUBROUTINE getSubetIndices
 
-end module read_streamSeg
+END MODULE read_streamSeg

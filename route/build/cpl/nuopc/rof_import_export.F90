@@ -15,7 +15,7 @@ module rof_import_export
   use globalData      , only : masterproc          !create this  logical variable  in mizuRoute (masterproc=true => master task, false => other tasks
   use globalData      , only : iTime               ! get step number in mizuRoute
   use RunoffMod       , only : rtmCTL
-  use RtmVar          , only : nt_rtm, rtm_tracers
+  use RtmVar          , only : nt_rof, rof_tracers
 
   implicit none
   private ! except
@@ -185,12 +185,12 @@ contains
     ! Set tracers
     nliq = 0
     nfrz = 0
-    do nt = 1,nt_rtm
-       if (trim(rtm_tracers(nt)) == 'LIQ') nliq = nt
-       if (trim(rtm_tracers(nt)) == 'ICE') nfrz = nt
+    do nt = 1,nt_rof
+       if (trim(rof_tracers(nt)) == 'LIQ') nliq = nt
+       if (trim(rof_tracers(nt)) == 'ICE') nfrz = nt
     enddo
     if (nliq == 0 .or. nfrz == 0) then
-       write(iulog,*) trim(subname),': ERROR in rtm_tracers LIQ ICE ',nliq,nfrz,rtm_tracers
+       write(iulog,*) trim(subname),': ERROR in rof_tracers LIQ ICE ',nliq,nfrz,rof_tracers
        call shr_sys_abort()
     endif
 
@@ -259,12 +259,12 @@ contains
     ! Set tracers
     nliq = 0
     nfrz = 0
-    do nt = 1,nt_rtm
-       if (trim(rtm_tracers(nt)) == 'LIQ') nliq = nt
-       if (trim(rtm_tracers(nt)) == 'ICE') nfrz = nt
+    do nt = 1,nt_rof
+       if (trim(rof_tracers(nt)) == 'LIQ') nliq = nt
+       if (trim(rof_tracers(nt)) == 'ICE') nfrz = nt
     enddo
     if (nliq == 0 .or. nfrz == 0) then
-       write(iulog,*) trim(subname),': ERROR in rtm_tracers LIQ ICE ',nliq,nfrz,rtm_tracers
+       write(iulog,*) trim(subname),': ERROR in rof_tracers LIQ ICE ',nliq,nfrz,rof_tracers
        call shr_sys_abort()
     endif
 
@@ -311,10 +311,8 @@ contains
        !flood(n)   = -rtmCTL%flood(n) / (rtmCTL%area(n)*0.001_r8)
        !flood(n)   = -rtmCTL%flood(n)
        flood(n)   = 0.0_r8
-       !volr(n)    =  rtmCTL%volr(n)  / rtmCTL%area(n)
-       !volr(n)    =  rtmCTL%volr(n)
-       volr(n)    =  0.0_r8
-       volrmch(n) =  0.0_r8
+       volr(n)    =  rtmCTL%volr(n)  ! volume per HRU area in [m]
+       volrmch(n) =  rtmCTL%volr(n)  ! volume per HRU area in [m]
     end do
 
     call state_setexport(exportState, 'Forr_rofl', begr, endr, input=rofl, rc=rc)

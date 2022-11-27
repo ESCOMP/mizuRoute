@@ -1,24 +1,27 @@
-module RtmVar
+MODULE RtmVar
 
-  ! Public variables used for only coupled version mizuRouet
+  ! Public variables used for only coupled version mizuRoute
 
-  use shr_kind_mod , only : r8 => shr_kind_r8, CL => SHR_KIND_CL
-  use shr_sys_mod  , only : shr_sys_abort
-  use globalData   , only : masterproc
+  USE shr_kind_mod , ONLY: r8 => shr_kind_r8, CL => SHR_KIND_CL
+  USE shr_sys_mod  , ONLY: shr_sys_abort
+  USE globalData   , ONLY: masterproc
 
   implicit none
+
+  private
+  public rofVarSet          ! Initialize control variable
 
   save
 
   ! private variables
   integer, private, parameter          :: iundef = -9999999
   integer, private, parameter          :: rundef = -9999999._r8
-  logical, private                     :: RtmVar_isset = .false.
+  logical, private                     :: rofVar_isset = .false.
 
   ! public variables (saved)
-  !TODO - nt_rtm and rtm_tracers need to be removed and set by access to the index array
-  integer,           public, parameter :: nt_rtm = 2                      ! number of tracers
-  character(len=3),  public, parameter :: rtm_tracers(nt_rtm) = (/'LIQ','ICE'/)
+  !TODO - nt_rof and rof_tracers need to be removed and set by access to the index array
+  integer,           public, parameter :: nt_rof = 2                      ! number of tracers
+  character(len=3),  public, parameter :: rof_tracers(nt_rof) = (/'LIQ','ICE'/)
 
   logical,           public            :: barrier_timers = .false.       ! barrier timers
 
@@ -42,21 +45,22 @@ module RtmVar
   character(len=16), public            :: inst_name
   character(len=16), public            :: inst_suffix
 
-  ! Rtm control variables
-  logical,           public            :: do_rtm         = .true.          !
-  logical,           public            :: do_rtmflood    = .false.         !
-  character(len=CL), public            :: nrevsn_rtm     = ' '             ! restart data file name for branch run
-  integer,           public            :: coupling_period                  ! coupling period
-  integer,           public            :: rtmhist_ndens  = 1               ! namelist: output density of netcdf history files
-  integer,           public            :: rtmhist_mfilt  = 30              ! namelist: number of time samples per tape
-  integer,           public            :: rtmhist_nhtfrq = 0               ! namelist: history write freq(0=monthly)
-  logical,           public            :: ice_runoff     = .false.         ! true => runoff is split into liquid and ice,
+  ! rof control variables
+  logical,           public            :: do_rof         = .true.                   !
+  logical,           public            :: do_flood       = .false.                  !
+  character(len=CL), public            :: nrevsn_rtm     = ' '                      ! restart data file name for branch run
+  real(r8),          public            :: river_depth_minimum = 1.e-1               ! minimum river depth for water take [mm]
+  integer,           public            :: coupling_period                           ! coupling period
+  integer,           public            :: rtmhist_ndens  = 1                        ! namelist: output density of netcdf history files
+  integer,           public            :: rtmhist_mfilt  = 30                       ! namelist: number of time samples per tape
+  integer,           public            :: rtmhist_nhtfrq = 0                        ! namelist: history write freq(0=monthly)
+  logical,           public            :: ice_runoff     = .false.                  ! true => runoff is split into liquid and ice,
   character(len=256),public            :: cfile_name     = 'mizuRoute.control'
   character(len=256),public            :: para_xxxx      = 'mizuRoute_in'
 
 CONTAINS
 
-  SUBROUTINE RtmVarSet( caseid_in, ctitle_in, brnch_retain_casename_in,    &
+  SUBROUTINE rofVarSet( caseid_in, ctitle_in, brnch_retain_casename_in,    &
                         nsrest_in, version_in, hostname_in, username_in,   &
                         model_doi_url_in )
 
@@ -74,8 +78,8 @@ CONTAINS
     logical          , optional, intent(in) :: brnch_retain_casename_in ! true => allow case name to
     !-----------------------------------------------------------------------
 
-    if ( RtmVar_isset )then
-       call shr_sys_abort( 'RtmVarSet ERROR:: control variables already set -- EXIT' )
+    if ( rofVar_isset )then
+       call shr_sys_abort( 'rofVarSet ERROR:: control variables already set -- EXIT' )
     end if
 
     if (present(caseid_in)) caseid = caseid_in
@@ -87,7 +91,7 @@ CONTAINS
     if (present(model_doi_url_in)) model_doi_url = model_doi_url_in
     if (present(brnch_retain_casename_in)) brnch_retain_casename = brnch_retain_casename_in
 
-  END SUBROUTINE RtmVarSet
+  END SUBROUTINE rofVarSet
 
 !================================================================================
 
@@ -109,7 +113,7 @@ CONTAINS
           call shr_sys_abort( 'RtmVarInit ERROR: nsrest NOT set to a valid value' )
        end if
     endif
-    RtmVar_isset = .true.
+    rofVar_isset = .true.
   END SUBROUTINE RtmVarInit
 
 END MODULE RtmVar

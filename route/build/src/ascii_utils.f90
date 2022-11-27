@@ -1,18 +1,21 @@
-module ascii_util_module
+MODULE ascii_utils
 
 USE nrtype
+
 implicit none
+
 private
 public::file_open
 public::split_line
 public::get_vlines
+public::lower
 
-contains
+CONTAINS
 
  ! **********************************************************************************************
- ! new subroutine: get unused file unit (modified from DMSL)
+ ! private subroutine: get unused file unit (modified from DMSL)
  ! **********************************************************************************************
- subroutine getSpareUnit(unt,err,message)
+ SUBROUTINE getSpareUnit(unt,err,message)
  ! Purpose: returns un-used file unit
  ! Unit will be in the range 7->2.2billion (see comment below).
  ! Comment:
@@ -42,13 +45,13 @@ contains
        "&(all 2.2billion-u've goda b jokin')"
   endif
  enddo
- endsubroutine getSpareUnit
+ END SUBROUTINE getSpareUnit
 
 
  ! **********************************************************************************************
- ! new subroutine: open file
+ ! public subroutine: open file
  ! **********************************************************************************************
- subroutine file_open(infile,unt,err,message)
+ SUBROUTINE file_open(infile,unt,err,message)
  implicit none
  ! declare dummy variables
  character(*),intent(in)              :: infile      ! filename
@@ -82,13 +85,13 @@ contains
    message=trim(message)//"OpenError['"//trim(infile)//"']"
    err=30; return
  endif
- end subroutine file_open
+ end SUBROUTINE file_open
 
 
  ! **********************************************************************************************
- ! new subroutine: split a line of characters into an vector of "words"
+ ! public subroutine: split a line of characters into an vector of "words"
  ! **********************************************************************************************
- subroutine split_line(inline,words,err,message)
+ SUBROUTINE split_line(inline,words,err,message)
  ! do not know how many "words", so use linked lists
  implicit none
  ! declare dummy arguments
@@ -144,13 +147,13 @@ contains
   previous=>current; current=>current%next
   deallocate(previous)
  end do
- end subroutine split_line
+ END SUBROUTINE split_line
 
 
  ! **********************************************************************************************
- ! new subroutine: get valid lines of data from file and store as a vector of charater strings
+ ! public subroutine: get valid lines of data from file and store as a vector of charater strings
  ! **********************************************************************************************
- subroutine get_vlines(unt,vlines,err,message)
+ SUBROUTINE get_vlines(unt,vlines,err,message)
  ! do not know how many valid lines, so use linked lists
  implicit none
  ! declare dummy arguments
@@ -160,7 +163,7 @@ contains
  character(*),intent(out)             :: message     ! error message
  ! declare local variables
  integer(i4b)            :: iline                    ! loop through lines in the file
- integer(i4b),parameter  :: maxLines=1000            ! maximum number of valid lines in a file
+ integer(i4b),parameter  :: maxLines=50000           ! maximum number of valid lines in a file
  character(len=256)      :: temp                     ! character data or a given line
  integer(i4b)            :: icount                   ! counter for the valid lines
  integer(i4b)            :: iend                     ! index to indicate end of the file
@@ -203,7 +206,28 @@ contains
   deallocate(previous)
  end do
  if(associated(list)) nullify(list)
- end subroutine get_vlines
+ END SUBROUTINE get_vlines
 
+ ! **********************************************************************************************
+ ! public function: convert string to lower case
+ ! **********************************************************************************************
+ pure FUNCTION lower(strIn) RESULT(strOut)
+   ! convert string to lower-case
+   ! only ASCII character code works
+    implicit none
 
-end module ascii_util_module
+   character(*), intent(in)  :: strIn
+   character(len(strIn))     :: strOut
+   integer, parameter        :: DUC = ichar('A') - ichar('a')
+   character                 :: ch
+   integer                   :: i
+
+   do i = 1,len(strIn)
+     ch = strIn(i:i)
+     if (ch>='A' .and. ch<='Z') ch = char(ichar(ch)-DUC)
+     strOut(i:i) = ch
+   end do
+
+ END FUNCTION lower
+
+END MODULE ascii_utils

@@ -13,11 +13,11 @@
 ! RUN CONTROL 
 ! --------------------------------------------
 <case_name>             CASE_NAME                  ! name of simulation
-<route_opt>             0                          ! option for routing schemes 0-> both, 1->IRF, 2->KWT otherwise error 
+<route_opt>             1                          ! option for routing schemes 0->accum 1->IRF (default) 2->KWT 3->KW 4->MC 5->DW
 <doesBasinRoute>        1                          ! basin routing options   0-> no, 1->IRF, otherwise error
-<doesAccumRunoff>       1                          ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
+<is_flux_wm>            T                          ! switch for water abstraction/injection
 <fname_state_in>        STATE_IN_NC                ! input restart netCDF name. remove for run without any particular initial channel states
-<newFileFrequency>      month                      ! frequency for new output files (day, month, annual, single) 
+<newFileFrequency>      monthly                    ! frequency for new output files (daily, monthly, yearly, single)
 ! ****************************************************************************************************************************
 ! DEFINE DIRECTORIES 
 ! --------------------------
@@ -53,12 +53,26 @@
 ! ****************************************************************************************************************************
 ! output options
 ! ---------------------------
-<basRunoff>             T                          ! output options
-<instRunoff>            T                          ! output options
-<dlayRunoff>            T                          ! output options
-<sumUpstreamRunoff>     T                          ! output options
-<KWTroutedRunoff>       T                          ! output options
-<IRFroutedRunoff>       T                          ! output options 
+<basRunoff>             T                          ! HRU average runoff depth at HRU [L/T]
+<instRunoff>            F                          ! intantaneou runoff volume from Local HRUs at reach [L3/T]
+<dlayRunoff>            F                          ! delayed runoff voluem (discharge) from local HRUsi at reach [L3/T] 
+<sumUpstreamRunoff>     F                          ! accumulated total upstream discharge at reach [L3/T]
+<KWTroutedRunoff>       T                          ! kinematic wave tracking routed discharge at reach [L3/T]
+<IRFroutedRunoff>       T                          ! impulse response function routed discharge at reach [L3/T]
+<MCroutedRunoff>        T                          ! kinematic wave routed discharge at reach [L3/T]
+<KWroutedRunoff>        T                          ! muskingum-cunge routed discharge at reach [L3/T]
+<DWroutedRunoff>        T                          ! diffusive wave routed discharge at reach [L3/T]
+<volume>                F                          ! volume at the end of time step at reach [L3] - currently only IRF
+! ****************************************************************************************************************************
+! cesm-coupler: negative flow (qgwl and excess irrigation demand) handling option
+! ---------------------------
+! NOTE: <bypass_routing_option> is options for handling negative runoff from land model (qbwl or excess irrigation demand).
+!       direct_in_place: separate negative HRU runoff from other runoff components and send it to the nearest ocean point through a coupler.
+!       direct_to_outlet: send negative HRU runoff directly to the basin outlet (ocean or endoheic lake) and putting it into the outlet reach.
+!       <qgwl_runoff_option> is options for handling qgwl runoff from CLM.
+!       all: apply all qgwl runoff to bypass_routing, negative: apply only negative runoff, threshold: apply runoff below threshold
+<bypass_routing_option> direct_in_place            ! options: direct_in_place, or direct_to_outlet
+<qgwl_runoff_option>    threshold                  ! options: all, negative, or threshold
 ! ****************************************************************************************************************************
 ! ****************************************************************************************************************************
 ! ****************************************************************************************************************************

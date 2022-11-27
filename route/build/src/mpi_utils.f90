@@ -11,13 +11,14 @@ MODULE mpi_utils
   USE public_var, ONLY: iulog
 
   implicit none
-  private
 
+  private
+  public :: shr_mpi_send
   public :: shr_mpi_bcast
   public :: shr_mpi_gatherV
   public :: shr_mpi_scatterV
   public :: shr_mpi_allgather
-
+  public :: shr_mpi_reduce
   public :: shr_mpi_chkerr
   public :: shr_mpi_commsize
   public :: shr_mpi_commrank
@@ -27,32 +28,44 @@ MODULE mpi_utils
   public :: shr_mpi_init
   public :: shr_mpi_finalize
 
-  interface shr_mpi_bcast; module procedure &
-    shr_mpi_bcastInt,    &
-    shr_mpi_bcastReal,   &
-    shr_mpi_bcastLogical
-  end interface
+  INTERFACE shr_mpi_send; module procedure &
+    shr_mpi_sendReal
+  END INTERFACE
 
-  interface shr_mpi_scatterV ; module procedure &
+  INTERFACE shr_mpi_bcast; module procedure &
+    shr_mpi_bcastInt_scalar,  &
+    shr_mpi_bcastChar_scalar, &
+    shr_mpi_bcastInt,         &
+    shr_mpi_bcastReal,        &
+    shr_mpi_bcastLogical
+  END INTERFACE
+
+  INTERFACE shr_mpi_scatterV ; module procedure &
     shr_mpi_scatterIntV,    &
     shr_mpi_scatterRealV,   &
     shr_mpi_scatterLogicalV
-  end interface
+  END INTERFACE
 
-  interface shr_mpi_gatherV ; module procedure &
+  INTERFACE shr_mpi_gatherV ; module procedure &
     shr_mpi_gatherIntV,    &
     shr_mpi_gatherRealV,   &
     shr_mpi_gatherLogicalV
-  end interface
+  END INTERFACE
 
-  interface shr_mpi_allgather ; module procedure &
+  INTERFACE shr_mpi_allgather ; module procedure &
     shr_mpi_allgatherIntV,    &
     shr_mpi_allgatherRealV,   &
     shr_mpi_allgatherLogicalV,&
     shr_mpi_allgatherInt,     &
     shr_mpi_allgatherReal,    &
     shr_mpi_allgatherLogical
-  end interface
+  END INTERFACE
+
+  INTERFACE shr_mpi_reduce ; module procedure &
+    shr_mpi_reduceReal,   &
+    shr_mpi_reduceInt,    &
+    shr_mpi_reduceRealV
+  END INTERFACE
 
   integer(i4b), parameter :: send_data_tag=2001
   integer(i4b), parameter :: return_data_tag=2002
@@ -61,14 +74,84 @@ MODULE mpi_utils
 CONTAINS
 
   ! ----------------------------------
+  ! SEND-RECV - real array element
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_sendReal(sendArray,        & ! in:    an array to be sent
+                              pidSend, ixSend,  & ! in:    source task and index of the array to be sent
+                              recArray,         & ! inout: array to be modified after communication
+                              pidRec, ixRec,    & ! in:    destination task and index of the array to be changed
+                              ierr, message)
+
+    ! Descriptions:
+    !  sending one real element of array in a particular task to the other task
+    !  and add the element value to the values in destination array
+
+    implicit none
+    ! Argument variables:
+    real(dp),         intent(inout) :: sendArray(:)     ! in:    array to be sent
+    integer(i4b),     intent(in)    :: pidSend, ixSend  ! in:    task holding an array to be sent and index of the array
+    real(dp),         intent(inout) :: recArray(:)      ! inout: array to be modified after communication
+    integer(i4b),     intent(in)    :: pidRec, ixRec    ! in:    task holding modifying array and index of the array
+    integer(i4b),     intent(out)   :: ierr             ! out:   error code
+    character(strLen),intent(out)   :: message          ! out:   error message
+    ! local variable
+    real(dp)                        :: dummyArray(1)! temporary reciving element
+
+    ierr=0; message='shr_mpi_sendReal/'
+
+    if (pid==pidSend) then
+      call MPI_SEND(sendArray(ixSend), 1, MPI_DOUBLE_PRECISION, pidRec, send_data_tag, mpicom_route, ierr)
+    else if (pid==pidRec) then
+      call MPI_RECV(dummyArray,  1, MPI_DOUBLE_PRECISION, pidSend, send_data_tag, mpicom_route, status, ierr)
+      recArray(ixRec) = recArray(ixRec) + dummyArray(1)
+    endif
+
+  END SUBROUTINE shr_mpi_sendReal
+
+  ! ----------------------------------
+  ! BROADCAST - integer scalar
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_bcastInt_scalar(scalar,       & ! inout:  array to be broadcasted to each proc
+                                     ierr, message)  ! output: error handling
+
+    implicit none
+    ! Argument variables:
+    integer(i4b),              intent(inout) :: scalar        ! inout:  array to be sent to proc
+    integer(i4b),              intent(out)   :: ierr
+    character(strLen),         intent(out)   :: message       ! error message
+
+    ierr=0; message='shr_mpi_bcastInt/'
+
+    call MPI_BCAST(scalar, 1, MPI_INTEGER, root, mpicom_route, ierr)
+
+  END SUBROUTINE shr_mpi_bcastInt_scalar
+
+  ! ----------------------------------
+  ! BROADCAST - character scalar
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_bcastChar_scalar(scalar,       & ! inout:  array to be broadcasted to each proc
+                                      ierr, message)  ! output: error handling
+
+    implicit none
+    ! Argument variables:
+    character(strLen),         intent(inout) :: scalar        ! inout:  array to be sent to proc
+    integer(i4b),              intent(out)   :: ierr
+    character(strLen),         intent(out)   :: message       ! error message
+
+    ierr=0; message='shr_mpi_bcastInt/'
+
+    call MPI_BCAST(scalar, strLen, MPI_CHARACTER, root, mpicom_route, ierr)
+
+  END SUBROUTINE shr_mpi_bcastChar_scalar
+
+  ! ----------------------------------
   ! BROADCAST - integer allocatable array
   ! ----------------------------------
   SUBROUTINE shr_mpi_bcastInt(allocArray,   & ! inout:  array to be broadcasted to each proc
                               ierr, message)  ! output: error handling
     implicit none
-    ! Input
+    ! Argument variables:
     integer(i4b), allocatable, intent(inout) :: allocArray(:) ! inout:  array to be sent to proc
-    ! Output error handling variables
     integer(i4b),              intent(out)   :: ierr
     character(strLen),         intent(out)   :: message       ! error message
     ! local variable
@@ -114,9 +197,8 @@ CONTAINS
   SUBROUTINE shr_mpi_bcastReal(allocArray,   & ! input:  array to be broadcasted to each proc
                                ierr, message)  ! output: error handling
     implicit none
-    ! Input
+    ! Argument variables:
     real(dp), allocatable, intent(inout) :: allocArray(:) ! inout:  array to be sent to proc
-    ! Output error handling variables
     integer(i4b),          intent(out)   :: ierr
     character(strLen),     intent(out)   :: message       ! error message
     ! local variable
@@ -162,9 +244,8 @@ CONTAINS
   SUBROUTINE shr_mpi_bcastLogical(allocArray,    & ! inout: array to be broadcasted to each proc
                                   ierr, message)   ! output: error handling
     implicit none
-    ! Input
+    ! Argument variables:
     logical(lgt), allocatable, intent(inout) :: allocArray(:)   ! input:  array to be sent to proc
-    ! Output error handling variables
     integer(i4b),              intent(out)   :: ierr
     character(strLen),         intent(out)   :: message         ! error message
     ! local variable
@@ -211,11 +292,10 @@ CONTAINS
   SUBROUTINE shr_mpi_scatterIntV(globalArray, num_per_proc, & ! input
                                 localArray, ierr, message)   ! output
     implicit none
-    ! Input
+    ! Argument variables:
     integer(i4b),              intent(in)  :: globalArray(:)            ! input: global array at root proc
     integer(i4b),              intent(in)  :: num_per_proc(0:nNodes-1)  ! input: number of elements per proc
     integer(i4b), allocatable, intent(out) :: localArray(:)             ! output: scattered array for each proc
-    ! Output error handling variables
     integer(i4b),              intent(out) :: ierr
     character(strLen),         intent(out) :: message                   ! error message
     ! local variable
@@ -248,11 +328,10 @@ CONTAINS
   SUBROUTINE shr_mpi_scatterRealV(globalArray, num_per_proc, & ! input
                                  localArray, ierr, message)   ! output
     implicit none
-    ! Input
+    ! Argument variables:
     real(dp),              intent(in)  :: globalArray(:)            ! input: global array at root proc
     integer(i4b),          intent(in)  :: num_per_proc(0:nNodes-1)  ! input: number of elements per proc
     real(dp), allocatable, intent(out) :: localArray(:)             ! output: scattered array for each proc
-    ! Output error handling variables
     integer(i4b),          intent(out) :: ierr
     character(strLen),     intent(out) :: message                   ! error message
     ! local variable
@@ -285,11 +364,10 @@ CONTAINS
   SUBROUTINE shr_mpi_scatterLogicalV(globalArray, num_per_proc, & ! input
                                      localArray, ierr, message)   ! output
     implicit none
-    ! Input
+    ! Argument variables:
     logical(lgt),              intent(in)  :: globalArray(:)            ! input: global array at root proc
     integer(i4b),              intent(in)  :: num_per_proc(0:nNodes-1)  ! input: number of elements per proc
     logical(lgt), allocatable, intent(out) :: localArray(:)             ! output: scattered array for each proc
-    ! Output error handling variables
     integer(i4b),              intent(out) :: ierr
     character(strLen),         intent(out) :: message                   ! error message
     ! local variable
@@ -322,10 +400,9 @@ CONTAINS
   SUBROUTINE shr_mpi_gatherIntV(localArray, num_per_proc, & ! input
                                 globalArray, ierr, message) ! output
     implicit none
-    ! Input
+    ! Argument variables:
     integer(i4b),              intent(in)  :: localArray(:)             ! local array at each proc
     integer(i4b),              intent(in)  :: num_per_proc(0:nNodes-1)  ! number of elements per proc (i.e., size of localArray)
-    ! Output
     integer(i4b), allocatable, intent(out) :: globalArray(:)            ! gathered  array at root proc
     integer(i4b),              intent(out) :: ierr
     character(strLen),         intent(out) :: message                   ! error message
@@ -359,10 +436,9 @@ CONTAINS
   SUBROUTINE shr_mpi_gatherRealV(localArray, num_per_proc,  & ! input
                                  globalArray, ierr, message)  ! output
     implicit none
-    ! Input
+    ! Argument variables:
     real(dp),              intent(in)  :: localArray(:)             ! local array at each proc
     integer(i4b),          intent(in)  :: num_per_proc(0:nNodes-1)  ! number of elements per proc (i.e., size of localArray)
-    ! Output
     real(dp), allocatable, intent(out) :: globalArray(:)            ! gathered  array at root proc
     integer(i4b),          intent(out) :: ierr
     character(strLen),     intent(out) :: message                   ! error message
@@ -396,10 +472,9 @@ CONTAINS
   SUBROUTINE shr_mpi_gatherLogicalV(localArray, num_per_proc,  & ! input
                                     globalArray, ierr, message)  ! output
     implicit none
-    ! Input
+    ! Argument variables:
     logical(lgt),              intent(in)  :: localArray(:)             ! local array at each proc
     integer(i4b),              intent(in)  :: num_per_proc(0:nNodes-1)  ! number of elements per proc (i.e., size of localArray)
-    ! Output
     logical(lgt), allocatable, intent(out) :: globalArray(:)            ! gathered  array at root proc
     integer(i4b),              intent(out) :: ierr
     character(strLen),         intent(out) :: message                   ! error message
@@ -434,10 +509,9 @@ CONTAINS
   SUBROUTINE shr_mpi_allgatherIntV(localArray,  num_per_proc, & ! input
                                    globalArray, ierr, message) ! output
     implicit none
-    ! Input
+    ! Argument variables:
     integer(i4b),              intent(in)  :: localArray(:)             ! local array at each proc
     integer(i4b),              intent(in)  :: num_per_proc(0:nNodes-1)  ! number of elements per proc (i.e., size of localArray)
-    ! Output
     integer(i4b), allocatable, intent(out) :: globalArray(:)            ! gathered  array at root proc
     integer(i4b),              intent(out) :: ierr
     character(strLen),         intent(out) :: message                   ! error message
@@ -467,10 +541,9 @@ CONTAINS
   SUBROUTINE shr_mpi_allgatherRealV(localArray,  num_per_proc, & ! input
                                     globalArray, ierr, message) ! output
     implicit none
-    ! Input
+    ! Argument variables:
     real(dp),                  intent(in)  :: localArray(:)             ! local array at each proc
     integer(i4b),              intent(in)  :: num_per_proc(0:nNodes-1)  ! number of elements per proc (i.e., size of localArray)
-    ! Output
     real(dp),     allocatable, intent(out) :: globalArray(:)            ! gathered  array at root proc
     integer(i4b),              intent(out) :: ierr
     character(strLen),         intent(out) :: message                   ! error message
@@ -500,10 +573,9 @@ CONTAINS
   SUBROUTINE shr_mpi_allgatherLogicalV(localArray,  num_per_proc, & ! input
                                        globalArray, ierr, message) ! output
     implicit none
-    ! Input
+    ! Argument variables:
     logical(lgt),              intent(in)  :: localArray(:)             ! local array at each proc
     integer(i4b),              intent(in)  :: num_per_proc(0:nNodes-1)  ! number of elements per proc (i.e., size of localArray)
-    ! Output
     logical(lgt), allocatable, intent(out) :: globalArray(:)            ! gathered  array at root proc
     integer(i4b),              intent(out) :: ierr
     character(strLen),         intent(out) :: message                   ! error message
@@ -532,13 +604,11 @@ CONTAINS
   ! ----------------------------------
   SUBROUTINE shr_mpi_allgatherInt(localScalar,  num,        & ! input
                                   globalArray, ierr, message) ! output
-    USE globalData,  ONLY: nNodes
-    USE public_var,  ONLY: root
+
     implicit none
-    ! Input
+    ! Argument variables:
     integer(i4b),              intent(in)  :: localScalar        ! local array at each proc
     integer(i4b),              intent(in)  :: num                ! number of elements per proc (i.e., size of localArray)
-    ! Output
     integer(i4b), allocatable, intent(out) :: globalArray(:)     ! gathered  array at root proc
     integer(i4b),              intent(out) :: ierr
     character(strLen),         intent(out) :: message            ! error message
@@ -561,13 +631,11 @@ CONTAINS
   ! ----------------------------------
   SUBROUTINE shr_mpi_allgatherReal(localScalar,  num,        & ! input
                                    globalArray, ierr, message) ! output
-    USE globalData,  ONLY: nNodes
-    USE public_var,  ONLY: root
+
     implicit none
-    ! Input
+    ! Argument variables:
     real(dp),                  intent(in)  :: localScalar        ! local array at each proc
     integer(i4b),              intent(in)  :: num                ! number of elements per proc (i.e., size of localArray)
-    ! Output
     real(dp), allocatable,     intent(out) :: globalArray(:)     ! gathered  array at root proc
     integer(i4b),              intent(out) :: ierr
     character(strLen),         intent(out) :: message            ! error message
@@ -590,13 +658,11 @@ CONTAINS
   ! ----------------------------------
   SUBROUTINE shr_mpi_allgatherLogical(localScalar,  num,        & ! input
                                       globalArray, ierr, message) ! output
-    USE globalData,  ONLY: nNodes
-    USE public_var,  ONLY: root
+
     implicit none
-    ! Input
+    ! Argument variables:
     logical(lgt),              intent(in)  :: localScalar        ! local array at each proc
     integer(i4b),              intent(in)  :: num                ! number of elements per proc (i.e., size of localArray)
-    ! Output
     logical(lgt), allocatable, intent(out) :: globalArray(:)     ! gathered  array at root proc
     integer(i4b),              intent(out) :: ierr
     character(strLen),         intent(out) :: message            ! error message
@@ -614,26 +680,126 @@ CONTAINS
 
   END SUBROUTINE shr_mpi_allgatherLogical
 
+  ! ----------------------------------
+  ! REDUCE - real scalar
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_reduceReal(localScalar,  method,       & ! input
+                                reducedScalar, ierr, message) ! output
 
-  !===============================================================================
-  !===============================================================================
+    implicit none
+    ! Argument variables:
+    real(dp),                  intent(in)  :: localScalar        ! local scalar at each proc
+    character(*),              intent(in)  :: method             ! reduction operation
+    real(dp),                  intent(out) :: reducedScalar      ! reduced scalar at root proc
+    integer(i4b),              intent(out) :: ierr
+    character(strLen),         intent(out) :: message            ! error message
+    ! local variable
+    ! None
 
+    ierr=0; message='shr_mpi_reduceReal/'
+
+    select case(trim(method))
+      case('sum')
+        call MPI_REDUCE(localScalar, reducedScalar, 1, MPI_DOUBLE_PRECISION,  &
+                        MPI_SUM, root, mpicom_route, ierr)
+      case('max')
+        call MPI_REDUCE(localScalar, reducedScalar, 1, MPI_DOUBLE_PRECISION,  &
+                        MPI_MAX, root, mpicom_route, ierr)
+      case('min')
+        call MPI_REDUCE(localScalar, reducedScalar, 1, MPI_DOUBLE_PRECISION,  &
+                        MPI_MIN, root, mpicom_route, ierr)
+      case default
+        ierr=20; message=trim(message)//'reduction operation: '//trim(method)//' not available'; return
+    end select
+
+  END SUBROUTINE shr_mpi_reduceReal
+
+  ! ----------------------------------
+  ! REDUCE - integer scalar
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_reduceInt(localScalar,  method,       & ! input
+                                reducedScalar, ierr, message) ! output
+
+    implicit none
+    ! Argument variables:
+    integer(i4b),              intent(in)  :: localScalar        ! local array at each proc
+    character(*),              intent(in)  :: method             ! reduction operation
+    integer(i4b),              intent(out) :: reducedScalar      ! reduced scalar at root proc
+    integer(i4b),              intent(out) :: ierr
+    character(strLen),         intent(out) :: message            ! error message
+    ! local variable
+    ! None
+
+    ierr=0; message='shr_mpi_reduceInt/'
+
+    select case(trim(method))
+      case('sum')
+        call MPI_REDUCE(localScalar, reducedScalar, 1, MPI_INTEGER,  &
+                        MPI_SUM, root, mpicom_route, ierr)
+      case('max')
+        call MPI_REDUCE(localScalar, reducedScalar, 1, MPI_INTEGER,  &
+                        MPI_MAX, root, mpicom_route, ierr)
+      case('min')
+        call MPI_REDUCE(localScalar, reducedScalar, 1, MPI_INTEGER,  &
+                        MPI_MIN, root, mpicom_route, ierr)
+      case default
+        ierr=20; message=trim(message)//'reduction operation: '//trim(method)//' not available'; return
+    end select
+
+  END SUBROUTINE shr_mpi_reduceInt
+
+  ! ----------------------------------
+  ! REDUCE - real array
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_reduceRealV(localArray,  method,       & ! input
+                                 reducedArray, ierr, message) ! output
+
+    implicit none
+    ! Argument variables:
+    real(dp),                  intent(in)  :: localArray(:)     ! local scalar at each proc
+    character(*),              intent(in)  :: method            ! reduction operation
+    real(dp),                  intent(out) :: reducedArray(:)   ! reduced scalar at root proc
+    integer(i4b),              intent(out) :: ierr
+    character(strLen),         intent(out) :: message           ! error message
+    ! local variable
+    integer(i4b)                           :: n
+
+    ierr=0; message='shr_mpi_reduceRealV/'
+
+    n=size(localArray)
+    if (size(reducedArray)/=n)then
+      ierr=20; message=trim(message)//'two array input has different sizes'; return
+    end if
+
+    select case(trim(method))
+      case('sum')
+        call MPI_REDUCE(localArray, reducedArray, n, MPI_DOUBLE_PRECISION,  &
+                        MPI_SUM, root, mpicom_route, ierr)
+      case('max')
+        call MPI_REDUCE(localArray, reducedArray, n, MPI_DOUBLE_PRECISION,  &
+                        MPI_MAX, root, mpicom_route, ierr)
+      case('min')
+        call MPI_REDUCE(localArray, reducedArray, n, MPI_DOUBLE_PRECISION,  &
+                        MPI_MIN, root, mpicom_route, ierr)
+      case default
+        ierr=20; message=trim(message)//'reduction operation: '//trim(method)//' not available'; return
+    end select
+
+  END SUBROUTINE shr_mpi_reduceRealV
+
+  !-------------------------------------------------------------------------------
+  ! PURPOSE: MPI number of tasks
+  !-------------------------------------------------------------------------------
   SUBROUTINE shr_mpi_commsize(comm, ntasks, message)
 
-    IMPLICIT none
-
-    !----- arguments ---
+    implicit none
+    ! Argument variables:
     integer,              intent(in)  :: comm
     integer,              intent(out) :: ntasks
     character(*),optional,intent(in)  :: message   ! message
-
-    !----- local ---
+    ! local variable
     character(strLen),parameter       :: subName = 'shr_mpi_commsize/'
     integer(i4b)                      :: ierr
-
-    !-------------------------------------------------------------------------------
-    ! PURPOSE: MPI number of tasks
-    !-------------------------------------------------------------------------------
 
     call MPI_COMM_SIZE(comm, ntasks, ierr)
     if (present(message)) then
@@ -644,25 +810,19 @@ CONTAINS
 
   END SUBROUTINE shr_mpi_commsize
 
-  !===============================================================================
-  !===============================================================================
-
+  !-------------------------------------------------------------------------------
+  ! PURPOSE: MPI rank
+  !-------------------------------------------------------------------------------
   SUBROUTINE shr_mpi_commrank(comm, rank, message)
 
-    IMPLICIT none
-
-    !----- arguments ---
+    implicit none
+    ! Argument variables:
     integer(i4b),intent(in)            :: comm
     integer(i4b),intent(out)           :: rank
     character(*),optional,intent(in)   :: message   ! message
-
-    !----- local ---
+    ! local variable
     character(strLen),parameter        :: subName = 'shr_mpi_commrank/'
     integer(i4b)                       :: ierr
-
-    !-------------------------------------------------------------------------------
-    ! PURPOSE: MPI rank
-    !-------------------------------------------------------------------------------
 
     call MPI_COMM_RANK(comm,rank,ierr)
     if (present(message)) then
@@ -673,24 +833,18 @@ CONTAINS
 
   END SUBROUTINE shr_mpi_commrank
 
-  !===============================================================================
-  !===============================================================================
-
+  !-------------------------------------------------------------------------------
+  ! PURPOSE: MPI initialized
+  !-------------------------------------------------------------------------------
   SUBROUTINE shr_mpi_initialized(flag, message)
 
-    IMPLICIT none
-
-    !----- arguments ---
+    implicit none
+    ! Argument variables:
     logical,              intent(out)  :: flag
     character(*),optional,intent(in)   :: message   ! message
-
-    !----- local ---
+    ! local variable
     character(strLen),parameter        :: subName = 'shr_mpi_initialized/'
     integer(i4b)                       :: ierr
-
-    !-------------------------------------------------------------------------------
-    ! PURPOSE: MPI initialized
-    !-------------------------------------------------------------------------------
 
     call MPI_INITIALIZED(flag,ierr)
     if (present(message)) then
@@ -701,24 +855,18 @@ CONTAINS
 
   END SUBROUTINE shr_mpi_initialized
 
-  !===============================================================================
-  !===============================================================================
-
+  !-------------------------------------------------------------------------------
+  ! PURPOSE: MPI init
+  !-------------------------------------------------------------------------------
   SUBROUTINE shr_mpi_init(comm, message)
 
-    IMPLICIT none
-
-    !----- arguments ---
+    implicit none
+    ! Argument variables:
     integer(i4b),         intent(out)  :: comm      ! communicator
     character(*),optional,intent(in)   :: message   ! message
-
-    !----- local ---
+    ! local variable
     character(strLen),parameter        :: subName = 'shr_mpi_init/'
     integer(i4b)                       :: ierr
-
-    !-------------------------------------------------------------------------------
-    ! PURPOSE: MPI init
-    !-------------------------------------------------------------------------------
 
     call MPI_INIT(ierr)
     if (present(message)) then
@@ -731,17 +879,16 @@ CONTAINS
 
   END SUBROUTINE shr_mpi_init
 
-  !===============================================================================
-  !===============================================================================
-
+  !-------------------------------------------------------------------------------
+  ! PURPOSE: mpi barrier (wait for the other procs to catch up)
+  !-------------------------------------------------------------------------------
   SUBROUTINE shr_mpi_barrier(comm, message)
 
-    IMPLICIT none
-
-    !----- argument ---
+    implicit none
+    ! Argument variables:
     integer(i4b),           intent(in) :: comm         ! communicator
     character(*), optional, intent(in) :: message      ! error message
-    !----- local variables ---
+    ! local variable
     character(strLen),parameter        :: subName = 'shr_mpi_barrier/'
     integer(i4b)                       :: ierr         ! error code
 
@@ -754,25 +901,20 @@ CONTAINS
 
   END SUBROUTINE shr_mpi_barrier
 
-  !===============================================================================
-  !===============================================================================
-
+  !-------------------------------------------------------------------------------
+  ! PURPOSE: MPI finalize
+  !-------------------------------------------------------------------------------
   SUBROUTINE shr_mpi_finalize(comm, message)
 
-    IMPLICIT none
-
-    !----- arguments ---
+    implicit none
+    ! Argument variables:
     integer(i4b),           intent(in) :: comm      ! communicator
     character(*), optional, intent(in) :: message   ! message
-
-    !----- local ---
+    ! local variable
     character(strLen)                  :: cmessage
     character(strLen),parameter        :: subName = 'shr_mpi_finalize/'
     integer(i4b)                       :: ierr
 
-    !-------------------------------------------------------------------------------
-    ! PURPOSE: MPI finalize
-    !-------------------------------------------------------------------------------
     cmessage=trim(subName)//'shr_mpi_barrier'
     call shr_mpi_barrier(comm, cmessage)
 
@@ -785,29 +927,22 @@ CONTAINS
 
   END SUBROUTINE shr_mpi_finalize
 
-
-  !===============================================================================
-  !===============================================================================
-
+  !-------------------------------------------------------------------------------
+  ! PURPOSE: layer on MPI error checking
+  !-------------------------------------------------------------------------------
   SUBROUTINE shr_mpi_chkerr(ierr, comm, message)
 
-    IMPLICIT none
-
-    !----- arguments ---
+    implicit none
+    ! Argument variables:
     integer(i4b),           intent(in) :: ierr    ! input MPI error code
     integer(i4b), optional, intent(in) :: comm    ! communicator
     character(*), optional, intent(in) :: message ! message
-
-    !----- local ---
+    ! local variable
     character(strLen),parameter        :: subName = 'shr_mpi_chkerr/'
     character(strLen)                  :: cmessage
     character(strLen)                  :: errMsg
     integer(i4b)                       :: errLen
     integer(i4b)                       :: jerr
-
-    !-------------------------------------------------------------------------------
-    ! PURPOSE: layer on MPI error checking
-    !-------------------------------------------------------------------------------
 
     if (ierr /= MPI_SUCCESS) then
       call MPI_ERROR_STRING(ierr, errMsg, errLen, jerr)
@@ -825,25 +960,19 @@ CONTAINS
 
   END SUBROUTINE shr_mpi_chkerr
 
-  !===============================================================================
-  !===============================================================================
-
+  !-------------------------------------------------------------------------------
+  ! PURPOSE: MPI abort
+  !-------------------------------------------------------------------------------
   SUBROUTINE shr_mpi_abort(message, ierr, comm)
 
-    IMPLICIT none
-
-    !----- arguments ---
+    implicit none
+    ! Argument variables:
     character(*),           intent(in) :: message  ! message
     integer(i4b),           intent(in) :: ierr     ! error code
     integer(i4b), optional, intent(in) :: comm     ! communicator
-
-    !----- local ---
+    ! local variables
     character(strLen),parameter :: subName = 'shr_mpi_abort/'
     integer(i4b)                :: jerr
-
-    !-------------------------------------------------------------------------------
-    ! PURPOSE: MPI abort
-    !-------------------------------------------------------------------------------
 
     write(iulog,*) trim(subName),trim(message),ierr
     call flush(6)
@@ -858,41 +987,36 @@ CONTAINS
 
   END SUBROUTINE shr_mpi_abort
 
-  !===============================================================================
-  !===============================================================================
-
-  SUBROUTINE mpi_handle_err(ierr,pid)
+  !-------------------------------------------------------------------------------
   ! handle non-MPI error codes
-  implicit none
-  ! arguments
-  integer(i4b),intent(in):: ierr   ! error code
-  integer(i4b),intent(in):: pid    ! process ID
-  ! local variables
-  integer(i4b)           :: jerr   ! error code with message string call
-  integer(i4b)           :: errLen ! length of error message
-  character(len=strLen)  :: errMsg ! error message
+  !-------------------------------------------------------------------------------
+  SUBROUTINE mpi_handle_err(ierr,pid)
 
-  ! check errors
-  if(ierr/=0)then
+    implicit none
+    ! Argument variables:
+    integer(i4b),intent(in):: ierr   ! error code
+    integer(i4b),intent(in):: pid    ! process ID
+    ! local variables
+    integer(i4b)           :: jerr   ! error code with message string call
+    integer(i4b)           :: errLen ! length of error message
+    character(len=strLen)  :: errMsg ! error message
 
-   ! get error string
-   call MPI_Error_String(ierr, errMsg, errLen, jerr)
-   if(jerr==0)errMsg='problemIdentifyingErrorMessage'
-   if(errLen>strLen)errMsg='errorMessageLengthTooLong'
+    ! check errors
+    if(ierr/=0)then
+      ! get error string
+      call MPI_Error_String(ierr, errMsg, errLen, jerr)
+      if(jerr==0)errMsg='problemIdentifyingErrorMessage'
+      if(errLen>strLen)errMsg='errorMessageLengthTooLong'
 
-   ! include process ID
-   write(*,'(a,1x,i4)') 'FATAL ERROR (MPI): '//trim(errMsg)//' for process ID ', pid
+      ! include process ID
+      write(*,'(a,1x,i4)') 'FATAL ERROR (MPI): '//trim(errMsg)//' for process ID ', pid
 
-   ! finalize MPI
-   call MPI_FINALIZE(jerr)
-   call flush(6)
-   stop
-
-  endif
+      ! finalize MPI
+      call MPI_FINALIZE(jerr)
+      call flush(6)
+      stop
+    endif
 
   END SUBROUTINE mpi_handle_err
-
-  !===============================================================================
-  !===============================================================================
 
 END MODULE mpi_utils

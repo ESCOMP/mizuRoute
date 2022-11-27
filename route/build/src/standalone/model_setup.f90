@@ -1,28 +1,20 @@
 MODULE model_setup
 
-USE nrtype,    ONLY: i4b,dp,lgt          ! variable types, etc.
-USE nrtype,    ONLY: strLen              ! length of characters
-
-USE public_var, ONLY: iulog              ! i/o logical unit number
-USE public_var, ONLY: debug
-USE public_var, ONLY: integerMissing
-USE public_var, ONLY: realMissing
-USE public_var, ONLY: charMissing
-
-USE init_model_data,  ONLY: init_ntopo_data
-USE init_model_data,  ONLY: init_state_data
-USE init_model_data,  ONLY: get_mpi_omp
-USE init_model_data,  ONLY: update_time
-
-USE nr_utility_module, ONLY : unique  ! get unique element array
-USE nr_utility_module, ONLY : indexx  ! get rank of data value
+USE nrtype
+USE public_var,        ONLY: iulog
+USE public_var,        ONLY: debug
+USE public_var,        ONLY: integerMissing
+USE public_var,        ONLY: realMissing
+USE public_var,        ONLY: charMissing
+USE nr_utils,          ONLY: unique         ! get unique element array
+USE nr_utils,          ONLY: indexx         ! get rank of data value
 
 implicit none
 
-! privacy -- everything private unless declared explicitly
 private
 public :: init_mpi
 public :: init_data
+
 CONTAINS
 
  ! *********************************************************************
@@ -32,13 +24,11 @@ CONTAINS
 
   ! Initialize MPI and get OMP thread
 
-  ! shared data used
-  USE globalData, ONLY: mpicom_route ! communicator id
-  ! subroutines: populate metadata
-  USE mpi_utils,  ONLY: shr_mpi_init
+  USE globalData,      ONLY: mpicom_route ! communicator id
+  USE init_model_data, ONLY: get_mpi_omp
+  USE mpi_utils,       ONLY: shr_mpi_init
 
   implicit none
-
   ! input:  None
   ! output: None
   ! local variables
@@ -62,11 +52,13 @@ CONTAINS
                       comm,          & ! input: communicator
                       ierr, message)   ! output: error control
 
-   USE globalData,  ONLY: isFileOpen             ! file open/close status
-   ! external subroutines
-   USE mpi_process, ONLY: pass_global_data       ! mpi globaldata copy to slave proc
+   USE public_var,          ONLY: continue_run        ! T-> append output in existing history files. F-> write output in new history file
+   USE mpi_process,         ONLY: pass_global_data    ! mpi globaldata copy to slave proc
+   USE init_model_data,     ONLY: init_ntopo_data
+   USE init_model_data,     ONLY: init_state_data
+   USE write_simoutput_pio, ONLY: init_histFile       ! open existing history file to append (only continue_run is true)
 
-   IMPLICIT NONE
+   implicit none
    integer(i4b),              intent(in)    :: pid              ! proc id
    integer(i4b),              intent(in)    :: nNodes           ! number of procs
    integer(i4b),              intent(in)    :: comm             ! communicator
@@ -76,7 +68,6 @@ CONTAINS
    ! local variable
    character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
-   ! initialize error control
    ierr=0; message='init_data/'
 
    ! runoff input files initialization
@@ -103,7 +94,10 @@ CONTAINS
    call init_state_data(pid, nNodes, comm, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   isFileOpen=.false.
+   if (continue_run) then
+     call init_histFile(ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
 
  END SUBROUTINE init_data
 
@@ -187,8 +181,8 @@ CONTAINS
   USE dataTypes,           ONLY: infileinfo     ! the data type for storing the infromation of the nc files and its attributes
   USE datetime_data,       ONLY: datetime       ! datetime data
   ! subroutines
-  USE ascii_util_module,   ONLY: file_open      ! open file (performs a few checks as well)
-  USE ascii_util_module,   ONLY: get_vlines     ! get a list of character strings from non-comment lines
+  USE ascii_utils,         ONLY: file_open      ! open file (performs a few checks as well)
+  USE ascii_utils,         ONLY: get_vlines     ! get a list of character strings from non-comment lines
   USE ncio_utils,          ONLY: get_nc         ! get the
   USE ncio_utils,          ONLY: get_var_attr   ! get the attributes interface
   USE ncio_utils,          ONLY: get_nc_dim_len ! get the nc dimension length
@@ -394,6 +388,7 @@ CONTAINS
   ! - begDatetime, endDatetime:   simulationg start and end datetime
   ! - restDatetime, dropDatetime
 
+  USE ascii_utils, ONLY : lower            ! convert string to lower case
   ! derived datatype
   USE datetime_data, ONLY : datetime             ! datetime data
   ! public data
@@ -402,6 +397,7 @@ CONTAINS
   USE public_var, ONLY: simEnd                   ! date string defining the end of the simulation
   USE public_var, ONLY: calendar                 ! calendar used for simulation
   USE public_var, ONLY: dt                       ! simulation time step in second
+  USE public_var, ONLY: continue_run             ! logical to indicate sppend output in existing history file
   USE public_var, ONLY: secprday                 ! unit conversion from day to sec
   USE public_var, ONLY: restart_write            ! restart write option
   USE public_var, ONLY: restart_date             ! restart datetime
@@ -545,6 +541,10 @@ CONTAINS
   end do
   iTime = ix
 
+  if (continue_run) then
+    simDatetime(0) = simDatetime(1)%add_sec(-dt, calendar, ierr, cmessage)
+  end if
+
   ! if one of the two flags are set it true
   if ((is_flux_wm).or.(is_vol_wm.and.is_lake_sim)) then
 
@@ -605,21 +605,21 @@ CONTAINS
   ! "Annual" option:  if user input day exceed number of days given user input month, set to last day
   ! "Monthly" option: use 2000-01 as template calendar yr/month
   ! "Daily" option:   use 2000-01-01 as template calendar yr/month/day
-  select case(trim(restart_write))
-    case('Annual','annual')
+  select case(lower(trim(restart_write)))
+    case('annual')
       dummyDatetime = datetime(2000, restart_month, 1, 0, 0, 0.0_dp)
       nDays = dummyDatetime%ndays_month(calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
       if (restart_day > nDays) restart_day=nDays
-    case('Monthly','monthly'); restart_month = 1
-    case('Daily','daily');     restart_month = 1; restart_day = 1
+    case('monthly'); restart_month = 1
+    case('daily');   restart_month = 1; restart_day = 1
   end select
 
-  select case(trim(restart_write))
-    case('last','Last')
+  select case(lower(trim(restart_write)))
+    case('last')
       dropDatetime = endDatetime
       restart_month = dropDatetime%month(); restart_day = dropDatetime%day(); restart_hour = dropDatetime%hour()
-    case('specified','Specified')
+    case('specified')
       if (trim(restart_date) == charMissing) then
         ierr=20; message=trim(message)//'<restart_date> must be provided when <restart_write> option is "specified"'; return
       end if
@@ -628,15 +628,15 @@ CONTAINS
       dropDatetime = restDatetime%add_sec(-dt, calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restDatetime->dropDatetime]'; return; endif
       restart_month = dropDatetime%month(); restart_day = dropDatetime%day(); restart_hour = dropDatetime%hour()
-    case('Annual','Monthly','Daily','annual','monthly','daily')
+    case('yearly','monthly','daily')
       restDatetime = datetime(2000, restart_month, restart_day, restart_hour, 0, 0._dp)
       dropDatetime = restDatetime%add_sec(-dt, calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [ dropDatetime for periodical restart]'; return; endif
       restart_month = dropDatetime%month(); restart_day = dropDatetime%day(); restart_hour = dropDatetime%hour()
-    case('never','Never')
+    case('never')
       dropDatetime = datetime(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
     case default
-      ierr=20; message=trim(message)//'Current accepted <restart_write> options: last, never, specified, annual, monthly, daily'; return
+      ierr=20; message=trim(message)//'Accepted <restart_write> options (case insensitive): last, never, specified, yearly, monthly, or daily '; return
   end select
 
  END SUBROUTINE init_time

@@ -360,7 +360,6 @@ CONTAINS
   character(len=strLen)           :: cmessage     ! error message of downwind routine
   integer(i4b)                    :: array_vec(1) ! output variable data
 
- ! initialize error control
  ierr=0; message='get_iscalar/'
 
  call get_ivec(fname, vname, array_vec, iStart, 1, ierr, cmessage)
@@ -1077,7 +1076,7 @@ CONTAINS
 
    implicit none
    ! input
-   integer(i4b), intent(in)             :: ncid                   ! Input: netcdf fine ID
+   integer(i4b), intent(in)             :: ncid                   ! Input: netcdf ID
    character(*), intent(in)             :: vname                  ! Input: variable name
    character(*), intent(in)             :: dimNames(:)            ! Input: variable dimension names
    integer(i4b), intent(in)             :: ivtype                 ! Input: variable type
@@ -1207,7 +1206,7 @@ CONTAINS
 
    implicit none
    ! input
-   integer(i4b), intent(in)             :: ncid                   ! Input: netcdf fine ID
+   integer(i4b), intent(in)     :: ncid      ! Input: netcdf fine ID
    ! output
    integer(i4b), intent(out)    :: ierr      ! error code
    character(*), intent(out)    :: message   ! error message

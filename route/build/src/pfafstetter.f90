@@ -2,11 +2,11 @@ MODULE pfafstetter_module
 
 USE nrtype
 USE public_var
+USE nr_utils, ONLY: char2int
 
 implicit none
 
 private
-
 public :: lgc_tributary_outlet
 public :: find_mainstems
 public :: lgc_mainstems
@@ -15,13 +15,7 @@ public :: isUPstream
 public :: find_closed_basin
 public :: get_common_pfaf
 
-interface char2int
-  module procedure :: char2int_1d
-  module procedure :: char2int_2d
-end interface
-
 contains
-
 
  ! ----------------------------------------------------------------------------------------
  ! Tributary related routines/functions
@@ -125,13 +119,11 @@ contains
   integer(i4b)                           :: iLevel
   integer(i4b)                           :: iSeg
   integer(i4b)                           :: idx
-  character(len=strLen)                  :: cmessage         ! error message from subroutine
   character(len=2)                       :: x1               ! string converted from integer
 
   ierr=0; message='lgc_mainstems/'
 
-  call get_common_pfaf(pfafs, pfaf_out, comLevel, ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  call get_common_pfaf(pfafs, pfaf_out, comLevel)
 
   if (nLevel .le. comLevel) then
     write(x1,'(I2)') comLevel ! converting integer to string using a 'internal file'
@@ -145,8 +137,7 @@ contains
   allocate(mainstem(size(pfafs),nLevel), stat=ierr)
   if(ierr/=0)then; message=trim(message)//'problem allocating mainstem'; return; endif
 
-  call char2int(pfafs, pfaf_int, ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  call char2int(pfafs, pfaf_int)
 
   mainstem = .false.
 
@@ -265,36 +256,25 @@ contains
  end function isUPstream
 
 
- subroutine get_common_pfaf(pfafs, pfaf_out, comLevel, ierr, message)
+ subroutine get_common_pfaf(pfafs, pfaf_out, comLevel)
   ! Return level of pfaf code from left side where integers are common to the ones of a given outlet segment
   implicit none
-  ! Input variables
+  ! argument variables
   character(*), intent(in)               :: pfafs(:)
   character(*), intent(in)               :: pfaf_out
-  ! output variables
   integer(i4b), intent(out)              :: comLevel
-  integer(i4b), intent(out)              :: ierr
-  character(len=strLen),intent(out)      :: message          ! error message
   ! Local variables
   integer(i4b)                           :: iLevel
   integer(i4b), allocatable              :: pfaf_int(:,:)
   integer(i4b), allocatable              :: pfaf_out_int(:)
-  character(len=strLen)                  :: cmessage         ! error message from subroutine
 
-  ierr=0; message='get_common_pfaf/'
-
-  call char2int(pfafs, pfaf_int, ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  call char2int(pfaf_out, pfaf_out_int, ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  call char2int(pfafs, pfaf_int)
+  call char2int(pfaf_out, pfaf_out_int)
 
   do iLevel = 1,len(pfafs)
    if ( any(pfaf_int(:,iLevel) /= pfaf_out_int(iLevel) .and. pfaf_int(:,iLevel) /= -1) ) exit
   end do
-
   comLevel = iLevel - 1
-
  end subroutine get_common_pfaf
 
 
@@ -351,83 +331,5 @@ contains
   end do ! seg loop
 
  end subroutine find_closed_basin
-
-
- ! ----------------------------------------------------------------------------------------
- ! character-to-integer routines/functions
- ! ----------------------------------------------------------------------------------------
- subroutine char2int_1d(char_array, int_array, ierr, message)
-  ! Convert character array to one digit integer array
-  ! if character array is '-9999' or '0', int_array(:) = (/-1,...-1/)
-
-  implicit none
-  ! Input variables
-  character(*), intent(in)                :: char_array
-  ! output variables
-  integer(i4b), allocatable, intent(out)  :: int_array(:)
-  integer(i4b), intent(out)               :: ierr
-  character(len=strLen),intent(out)       :: message          ! error message
-  ! local variables
-  character(len=strLen)                   :: string
-  integer(i4b)                            :: str_len
-  integer(i4b)                            :: iChr
-
-  ierr=0; message='char2int_1d/'
-
-  allocate(int_array(len(char_array)), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating int_array'; return; endif
-
-  int_array = -1
-
-  str_len = len(trim(adjustl(char_array)))
-  string = adjustl(char_array)
-
-  if (trim(string) == '-9999' .or. trim(string) == '0') then
-    int_array(1) = -1
-  else
-    do iChr =1,str_len
-      read(string(iChr:iChr),'(I1)') int_array(iChr)
-    end do
-  endif
-
-  end subroutine char2int_1d
-
- subroutine char2int_2d(char_array, int_array, ierr, message)
-  ! convert character array to one digit integer array
-  ! if character array is '-9999' or '0', int_array(i,:) = (/-1,...-1/)
-
-  implicit none
-  ! Input variables
-  character(*), intent(in)                :: char_array(:)
-  ! output variables
-  integer(i4b), allocatable, intent(out)  :: int_array(:,:)
-  integer(i4b), intent(out)               :: ierr
-  character(len=strLen),intent(out)       :: message          ! error message
-  ! local variables
-  character(len=strLen)                   :: string
-  integer(i4b)                            :: str_len
-  integer(i4b)                            :: iSize
-  integer(i4b)                            :: iChr
-
-  ierr=0; message='char2int_2d/'
-
-  allocate(int_array(size(char_array),len(char_array)), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'problem allocating int_array'; return; endif
-
-  int_array = -1
-
-  do iSize = 1, size(char_array)
-    str_len = len(trim(adjustl(char_array(iSize))))
-    string = adjustl(char_array(iSize))
-    if (trim(string) == '-9999' .or. trim(string) == '0') then
-      int_array(iSize, 1) = -1
-    else
-      do iChr =1,str_len
-        read(string(iChr:iChr),'(I1)') int_array(iSize, iChr)
-      end do
-    end if
-  end do
-
-  end subroutine char2int_2d
 
 end module pfafstetter_module

@@ -1,8 +1,7 @@
 MODULE init_model_data
 
 ! data types
-USE nrtype,    ONLY: i4b,dp,lgt
-USE nrtype,    ONLY: strLen
+USE nrtype,    ONLY: i4b,dp,lgt,strLen
 USE dataTypes, ONLY: var_ilength         ! integer type:          var(:)%dat
 USE dataTypes, ONLY: var_clength         ! integer type:          var(:)%dat
 USE dataTypes, ONLY: var_dlength         ! double precision type: var(:)%dat, or dat
@@ -23,7 +22,6 @@ implicit none
 integer(i4b),parameter  :: upstream_size=1
 integer(i4b),parameter  :: stream_order=2
 
-! privacy -- everything private unless declared explicitly
 private
 public :: get_mpi_omp
 public :: init_model
@@ -40,22 +38,18 @@ CONTAINS
 
   ! Obtain mpi rank/ntasks and omp thread number
 
-  ! shared data used
   USE public_var, ONLY: root         ! root proce id
   USE globalData, ONLY: nNodes       ! number of tasks
   USE globalData, ONLY: masterproc   ! root proc logical
   USE globalData, ONLY: multiProcs   ! mpi multi-procs logical (.true. -> use more than 1 processors)
   USE globalData, ONLY: pid          ! procs id (rank)
   USE globalData, ONLY: nThreads     ! number of OMP threads
-  ! subroutines: populate metadata
   USE mpi_utils, ONLY: shr_mpi_commsize
   USE mpi_utils, ONLY: shr_mpi_commrank
 
   implicit none
-
-  ! input:  None
+  ! Argument variables
   integer(i4b),  intent(in)  :: comm      ! communicator
-  ! output: None
   ! local variables
   character(len=strLen)      :: message             ! error message
   integer(i4b)               :: omp_get_num_threads ! number of threads used for openMP
@@ -100,19 +94,21 @@ CONTAINS
   USE public_var, ONLY: ancil_dir
   USE public_var, ONLY: input_dir
   USE public_var, ONLY: param_nml
+  USE public_var, ONLY: gageMetaFile
+  USE public_var, ONLY: outputAtGage
   ! subroutines: populate metadata
   USE popMetadat_module, ONLY: popMetadat       ! populate metadata
   ! subroutines: model control
   USE read_control_module, ONLY: read_control     ! read the control file
   USE read_param_module,   ONLY: read_param       ! read the routing parameters
+  USE process_gage_meta,   ONLY: read_gage_meta   ! process gauge metadata
 
   implicit none
-
+  ! Argument variables
   character(*), intent(in)    :: cfile_name        ! name of the control file
-  ! output: error control
   integer(i4b), intent(out)   :: ierr              ! error code
   character(*), intent(out)   :: message           ! error message
-  ! local variables
+  ! Local variables
   character(len=strLen)       :: cmessage          ! error message of downwind routine
 
   ierr=0; message='init_model/'
@@ -126,6 +122,12 @@ CONTAINS
   ! read the routing parameter namelist
   call read_param(trim(input_dir)//trim(param_nml),ierr,cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! read gauge metadata if specified in control file
+  if (outputAtGage .and. trim(gageMetaFile)/=charMissing) then
+    call read_gage_meta(trim(ancil_dir)//trim(gageMetaFile),ierr,cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
 
  END SUBROUTINE init_model
 
@@ -141,41 +143,44 @@ CONTAINS
   ! Shared data
   USE public_var,  ONLY: ntopAugmentMode        ! River network augmentation mode
   USE public_var,  ONLY: idSegOut               ! outlet segment ID (-9999 => no outlet segment specified)
+  USE public_var,  ONLY: bypass_routing_option  ! cesm-coupling option
   USE globalData,  ONLY: masterproc             ! root proc logical
   USE globalData,  ONLY: multiProcs             ! mpi multi-procs logical (.true. -> use more than 1 processors)
   USE globalData,  ONLY: nHRU, nRch             ! number of HRUs and Reaches in the whole network
   USE globalData,  ONLY: nRch_mainstem          ! number of mainstem reaches
+  USE globalData,  ONLY: nTribOutlet            ! number of tributaries that are link to mainstem
   USE globalData,  ONLY: nHRU_mainstem          ! number of mainstem HRUs
-  USE globalData,  ONLY: RCHFLX_main            ! Reach flux data structures (master proc, mainstem)
-  USE globalData,  ONLY: RCHSTA_main            ! Reach state data structures (master proc, mainstem)
+  USE globalData,  ONLY: RCHFLX_trib            ! Reach flux data structures (master proc, mainstem)
+  USE globalData,  ONLY: RCHSTA_trib            ! Reach state data structures (master proc, mainstem)
   USE globalData,  ONLY: NETOPO_main            !
   USE globalData,  ONLY: RPARAM_main            !
   USE globalData,  ONLY: nContribHRU            ! number of HRUs that are connected to any reaches
   USE globalData,  ONLY: nEns                   ! number of ensembles
+  USE globalData,  ONLY: nRoutes                ! number of active routing methods
   USE globalData,  ONLY: basinID                ! HRU id vector
   USE globalData,  ONLY: reachID                ! reach ID vector
+  USE globalData,  ONLY: runMode                ! mizuRoute run mode - standalone or ctsm-coupling
   ! external subroutines
   USE model_utils,          ONLY: model_finalize
   USE mpi_process,          ONLY: comm_ntopo_data          ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
   USE process_ntopo,        ONLY: put_data_struct          ! populate NETOPO and RPARAM data structure
   USE mpi_utils,            ONLY: shr_mpi_initialized      ! If MPI is being used
   USE domain_decomposition, ONLY: mpi_domain_decomposition ! domain decomposition for mpi
+  USE network_topo,         ONLY: outletSegment            ! subroutine: find oultlet reach id, index  as a destination reach
 
-   implicit none
-   ! input:
+  implicit none
+  ! Argument variables
    integer(i4b),              intent(in)    :: pid              ! proc id
    integer(i4b),              intent(in)    :: nNodes           ! number of procs
    integer(i4b),              intent(in)    :: comm             ! communicator
-   ! output: error control
    integer(i4b),              intent(out)   :: ierr             ! error code
    character(*),              intent(out)   :: message          ! error message
-   ! local variable
+  ! local variable
    type(var_dlength), allocatable           :: structHRU(:)     ! HRU properties
    type(var_dlength), allocatable           :: structSeg(:)     ! stream segment properties
    type(var_ilength), allocatable           :: structHRU2SEG(:) ! HRU-to-segment mapping
    type(var_ilength), allocatable           :: structNTOPO(:)   ! network topology
    type(var_clength), allocatable           :: structPFAF(:)    ! pfafstetter code
-   ! others
    integer(i4b)                             :: iHRU, iRch       ! loop index
    character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
@@ -183,13 +188,18 @@ CONTAINS
 
    ! populate various river network data strucutures for each proc
    if (masterproc) then
-
      ! read the river network data and compute additonal network attributes (inncludes spatial decomposition)
      call init_ntopo(nHRU, nRch,                                                   & ! output: number of HRU and Reaches
                      structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
                      ierr, cmessage)                                                 ! output: error controls
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+     ! ----  CESM-coupling only
+     if (trim(runMode)=='cesm-coupling' .and. &
+         trim(bypass_routing_option)=='direct_to_outlet') then
+       call outletSegment(nRch, structNTOPO, ierr, message)
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     end if
    end if
 
    ! check if network topology write option is on. If so, terminate the program
@@ -198,7 +208,6 @@ CONTAINS
    end if
 
    if (masterproc) then
-
      ! populate basiID and reachID vectors for output (in only master processor)
 
      allocate(basinID(nHRU), reachID(nRch), stat=ierr)
@@ -210,11 +219,9 @@ CONTAINS
      do iRch = 1,nRch
       reachID(iRch) = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)
      enddo
-
    end if  ! if processor=0 (root)
 
    if (multiProcs) then
-
      ! spatial domain decomposition and distribution for MPI parallelization
      if (masterproc) then
        call mpi_domain_decomposition(nNodes, nRch,               & ! input:
@@ -229,19 +236,22 @@ CONTAINS
                           structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
                           ierr, cmessage)                                         ! output: error controls
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
    else
-
      nContribHRU = 0
      do iRch = 1, nRch
        nContribHRU = nContribHRU + structNTOPO(iRch)%var(ixNTOPO%nHRU)%dat(1)
      enddo
 
      nRch_mainstem = nRch
+     nTribOutlet   = 0
      nHRU_mainstem = nHRU
 
-     allocate(RCHFLX_main(nEns, nRch_mainstem), RCHSTA_main(nEns, nRch_mainstem), stat=ierr, errmsg=cmessage)
+     allocate(RCHFLX_trib(nEns, nRch_mainstem), RCHSTA_trib(nEns, nRch_mainstem), stat=ierr, errmsg=cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     do iRch = 1, nRch_mainstem
+       allocate(RCHFLX_trib(nEns,iRch)%ROUTE(nRoutes))
+     end do
 
      call put_data_struct(nRch_mainstem, structSEG, structNTOPO, & ! input
                           RPARAM_main, NETOPO_main,              & ! output
@@ -252,7 +262,6 @@ CONTAINS
      call all_domain_omp_decomp(structNTOPO, structHRU2SEG, & ! input: river network data structures for the entire network
                                 ierr, cmessage)               ! output: error controls
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
    endif
 
  END SUBROUTINE init_ntopo_data
@@ -263,17 +272,16 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE update_time(finished, ierr, message)
 
-  USE public_var, ONLY: dt            ! time step [sec]
-  USE public_var, ONLY: calendar      ! model calendar
-  USE globalData, ONLY: TSEC          ! beginning/ending of simulation time step [sec]
-  USE globalData, ONLY: iTime         ! time index at simulation time step
-  USE globalData, ONLY: endDatetime   ! model ending datetime
+  USE public_var, ONLY: dt                ! time step [sec]
+  USE public_var, ONLY: calendar          ! model calendar
+  USE globalData, ONLY: TSEC              ! beginning/ending of simulation time step [sec]
+  USE globalData, ONLY: iTime             ! time index at simulation time step
+  USE globalData, ONLY: endDatetime       ! model ending datetime
   USE globalData, ONLY: simDatetime       ! current model datetime
-  ! external routine
-  USE write_simoutput_pio, ONLY: close_output_nc
+  USE write_simoutput_pio, ONLY: close_all
 
    implicit none
-   ! output: error control
+   ! Argument variables
    logical(lgt),              intent(out)   :: finished
    integer(i4b),              intent(out)   :: ierr             ! error code
    character(*),              intent(out)   :: message          ! error message
@@ -283,7 +291,7 @@ CONTAINS
    ierr=0; message='update_time/'
 
    if (simDatetime(1)==endDatetime) then
-     call close_output_nc()
+     call close_all()
      finished=.true.;return
    endif
 
@@ -306,104 +314,171 @@ CONTAINS
  SUBROUTINE init_state_data(pid, nNodes, comm, ierr, message)
 
   ! external routines
-  USE read_restart,      ONLY: read_state_nc     ! read netcdf state output file
-  USE mpi_process,       ONLY: mpi_restart
+  USE ascii_utils,  ONLY: lower             ! convert string to lower case
+  USE read_restart, ONLY: read_state_nc     ! read netcdf state output file
+  USE mpi_process,  ONLY: mpi_restart
   ! shared data
-  USE public_var, ONLY: dt                ! simulation time step (seconds)
-  USE public_var, ONLY: routOpt           ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
-  USE public_var, ONLY: restart_dir       ! directory containing output data
-  USE public_var, ONLY: fname_state_in    ! name of state input file
-  USE public_var, ONLY: kinematicWaveEuler!
-  USE globalData, ONLY: masterproc        ! root proc logical
-  USE globalData, ONLY: nRch_mainstem     ! number of mainstem reaches
-  USE globalData, ONLY: rch_per_proc      ! number of tributary reaches
-  USE globalData, ONLY: RCHFLX_main       ! reach flux structure
-  USE globalData, ONLY: RCHFLX_trib       ! reach flux structure
-  USE globalData, ONLY: RCHSTA_main       ! reach flux structure
-  USE globalData, ONLY: RCHSTA_trib       ! reach flux structure
-  USE globalData, ONLY: TSEC              ! begining/ending of simulation time step [sec]
+  USE public_var, ONLY: dt                     ! simulation time step (seconds)
+  USE public_var, ONLY: restart_dir            ! directory containing output data
+  USE public_var, ONLY: fname_state_in         ! name of state input file
+  USE public_var, ONLY: impulseResponseFunc    ! IRF routing ID = 1
+  USE public_var, ONLY: kinematicWaveTracking  ! KWT routing ID = 2
+  USE public_var, ONLY: kinematicWave          ! KW routing ID = 3
+  USE public_var, ONLY: muskingumCunge         ! MC routing ID = 4
+  USE public_var, ONLY: diffusiveWave          ! DW routing ID = 5
+  USE globalData, ONLY: idxIRF, idxKWT, &
+                        idxKW, idxMC, idxDW
+  USE globalData, ONLY: nRoutes                ! number of available routing methods
+  USE globalData, ONLY: routeMethods           ! ID of active routing method
+  USE globalData, ONLY: onRoute                ! logical array for active routing method
+  USE globalData, ONLY: masterproc             ! root proc logical
+  USE globalData, ONLY: nRch_mainstem          ! number of mainstem reaches
+  USE globalData, ONLY: nTribOutlet            ! number of mainstem reaches
+  USE globalData, ONLY: rch_per_proc           ! number of tributary reaches
+  USE globalData, ONLY: RCHFLX_trib            ! reach flux structure
+  USE globalData, ONLY: RCHSTA_trib            ! reach flux structure
+  USE globalData, ONLY: RCHFLX                 ! global Reach flux data structures
+  USE globalData, ONLY: RCHSTA                 ! global Reach state data structures
+  USE globalData, ONLY: nMolecule              ! computational molecule
+  USE globalData, ONLY: TSEC                   ! begining/ending of simulation time step [sec]
 
   implicit none
-  ! input:
+  ! Argument variables:
   integer(i4b),        intent(in)  :: pid              ! proc id
   integer(i4b),        intent(in)  :: nNodes           ! number of procs
   integer(i4b),        intent(in)  :: comm             ! communicator
-  ! output: error control
   integer(i4b),        intent(out) :: ierr             ! error code
   character(*),        intent(out) :: message          ! error message
   ! local variable
   real(dp)                         :: T0,T1            ! begining/ending of simulation time step [sec]
+  integer(i4b)                     :: nRch_root        ! number of reaches in roor processors consisting (mainstem, halo, and tributary)
   integer(i4b)                     :: iens             ! ensemble index (currently only 1)
-  integer(i4b)                     :: ix               ! loop index
+  integer(i4b)                     :: ix, iRoute       ! loop indices
   character(len=strLen)            :: cmessage         ! error message of downwind routine
 
   ierr=0; message='init_state_data/'
 
   iens = 1_i4b
 
-  ! read restart file and initialize states
-  if (trim(fname_state_in)/=charMissing) then
+  do iRoute = 1, nRoutes
+    if (routeMethods(iRoute)==kinematicWave) then
+      nMolecule%KW_ROUTE = 2
+    else if (routeMethods(iRoute)==muskingumCunge) then
+      nMolecule%MC_ROUTE = 2
+    else if (routeMethods(iRoute)==diffusiveWave) then
+      nMolecule%DW_ROUTE = 20
+    end if
+  end do
 
-   if (masterproc) then
-    call read_state_nc(trim(restart_dir)//trim(fname_state_in), routOpt, T0, T1, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    ! time bound [sec] is at previous time step, so need to add dt for curent time step
-    TSEC(0)=T0+dt; TSEC(1)=T1+dt
-
-   end if
-
-   if (nNodes>0) then
-     call mpi_restart(pid, nNodes, comm, iens, ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   end if
-
+  if (trim(fname_state_in)==charMissing .or. lower(trim(fname_state_in))=='none' .or. lower(trim(fname_state_in))=='coldstart') then
+    ! Cold start ....... initialize flux structures
+    if (masterproc) then
+      RCHFLX_trib(:,:)%BASIN_QI     = 0._dp
+      RCHFLX_trib(:,:)%BASIN_QR(0)  = 0._dp
+      RCHFLX_trib(:,:)%BASIN_QR(1)  = 0._dp
+      nRch_root=nRch_mainstem+nTribOutlet+rch_per_proc(0)
+      if (onRoute(impulseResponseFunc)) then
+        do ix = 1,nRch_root
+          RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%REACH_VOL(0:1) = 0._dp
+          RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%REACH_Q        = 0._dp
+        end do
+      end if
+      if (onRoute(kinematicWaveTracking)) then
+        do ix = 1, nRch_root
+          RCHFLX_trib(iens,ix)%ROUTE(idxKWT)%REACH_VOL(0:1) = 0._dp
+          RCHFLX_trib(iens,ix)%ROUTE(idxKWT)%REACH_Q        = 0._dp
+        end do
+      end if
+      if (onRoute(kinematicWave)) then
+        do ix = 1, nRch_root
+          RCHFLX_trib(iens,ix)%ROUTE(idxKW)%REACH_VOL(0:1) = 0._dp
+          RCHFLX_trib(iens,ix)%ROUTE(idxKW)%REACH_Q        = 0._dp
+          allocate(RCHSTA_trib(iens,ix)%KW_ROUTE%molecule%Q(nMolecule%KW_ROUTE), stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%KW_ROUTE%molecule%Q]'; return; endif
+          RCHSTA_trib(iens,ix)%KW_ROUTE%molecule%Q(:) = 0._dp
+        end do
+      end if
+      if (onRoute(muskingumCunge)) then
+        do ix = 1, nRch_root
+          RCHFLX_trib(iens,ix)%ROUTE(idxMC)%REACH_VOL(0:1) = 0._dp
+          RCHFLX_trib(iens,ix)%ROUTE(idxMC)%REACH_Q        = 0._dp
+          allocate(RCHSTA_trib(iens,ix)%MC_ROUTE%molecule%Q(nMolecule%MC_ROUTE), stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%MC_ROUTE%molecule%Q]'; return; endif
+          RCHSTA_trib(iens,ix)%MC_ROUTE%molecule%Q(:) = 0._dp
+        end do
+      end if
+      if (onRoute(diffusiveWave)) then
+        do ix = 1, nRch_root
+          RCHFLX_trib(iens,ix)%ROUTE(idxDW)%REACH_VOL(0:1) = 0._dp
+          RCHFLX_trib(iens,ix)%ROUTE(idxDW)%REACH_Q        = 0._dp
+          allocate(RCHSTA_trib(iens,ix)%DW_ROUTE%molecule%Q(nMolecule%DW_ROUTE), stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%DW_ROUTE%molecule%Q]'; return; endif
+          RCHSTA_trib(iens,ix)%DW_ROUTE%molecule%Q(:) = 0._dp
+        end do
+      end if
+    else
+      if (rch_per_proc(pid) > 0) then
+        RCHFLX_trib(:,:)%BASIN_QI     = 0._dp
+        RCHFLX_trib(:,:)%BASIN_QR(0)  = 0._dp
+        RCHFLX_trib(:,:)%BASIN_QR(1)  = 0._dp
+        if (onRoute(impulseResponseFunc)) then
+          do ix = 1, size(RCHFLX_trib(1,:))
+            RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%REACH_VOL(0:1) = 0._dp
+            RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%REACH_Q        = 0._dp
+          end do
+        end if
+        if (onRoute(kinematicWaveTracking)) then
+          do ix = 1, size(RCHFLX_trib(1,:))
+            RCHFLX_trib(iens,ix)%ROUTE(idxKWT)%REACH_VOL(0:1) = 0._dp
+            RCHFLX_trib(iens,ix)%ROUTE(idxKWT)%REACH_Q        = 0._dp
+          end do
+        end if
+        if (onRoute(kinematicWave)) then
+          do ix = 1, size(RCHSTA_trib(iens,:))
+            RCHFLX_trib(iens,ix)%ROUTE(idxKW)%REACH_VOL(0:1) = 0._dp
+            RCHFLX_trib(iens,ix)%ROUTE(idxKW)%REACH_Q        = 0._dp
+            allocate(RCHSTA_trib(iens,ix)%KW_ROUTE%molecule%Q(nMolecule%KW_ROUTE), stat=ierr, errmsg=cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%KW_ROUTE%molecule%Q]'; return; endif
+            RCHSTA_trib(iens,ix)%KW_ROUTE%molecule%Q(:) = 0._dp
+          end do
+        end if
+        if (onRoute(muskingumCunge)) then
+          do ix = 1, size(RCHSTA_trib(iens,:))
+            RCHFLX_trib(iens,ix)%ROUTE(idxMC)%REACH_VOL(0:1) = 0._dp
+            RCHFLX_trib(iens,ix)%ROUTE(idxMC)%REACH_Q        = 0._dp
+            allocate(RCHSTA_trib(iens,ix)%MC_ROUTE%molecule%Q(nMolecule%MC_ROUTE), stat=ierr, errmsg=cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%MC_ROUTE%molecule%Q]'; return; endif
+            RCHSTA_trib(iens,ix)%MC_ROUTE%molecule%Q(:) = 0._dp
+          end do
+        end if
+        if (onRoute(diffusiveWave)) then
+          do ix = 1, size(RCHSTA_trib(iens,:))
+            RCHFLX_trib(iens,ix)%ROUTE(idxDW)%REACH_VOL(0:1) = 0._dp
+            RCHFLX_trib(iens,ix)%ROUTE(idxDW)%REACH_Q        = 0._dp
+            allocate(RCHSTA_trib(iens,ix)%DW_ROUTE%molecule%Q(nMolecule%DW_ROUTE), stat=ierr, errmsg=cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%DW_ROUTE%molecule%Q]'; return; endif
+            RCHSTA_trib(iens,ix)%DW_ROUTE%molecule%Q(:) = 0._dp
+          end do
+        end if
+      end if
+    end if
+    ! initialize time
+    TSEC(0)=0._dp; TSEC(1)=dt
   else
-   ! Cold start .......
-    ! initialize flux structures
+    ! start with restart condition
+    if (masterproc) then
+      call read_state_nc(trim(restart_dir)//trim(fname_state_in), T0, T1, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   if (masterproc) then
+      ! time bound [sec] is at previous time step, so need to add dt for curent time step
+      TSEC(0)=T0+dt; TSEC(1)=T1+dt
+    else ! if other processors, just allocate RCHSTA for dummy
+      allocate(RCHSTA(1,1),RCHFLX(1,1), stat=ierr, errmsg=cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA,RCHFLX]'; return; endif
+    end if
 
-     if (nRch_mainstem > 0) then
-       RCHFLX_main(:,:)%BASIN_QI     = 0._dp
-       RCHFLX_main(:,:)%BASIN_QR(0)  = 0._dp
-       RCHFLX_main(:,:)%BASIN_QR(1)  = 0._dp
-       RCHFLX_main(:,:)%REACH_Q      = 0._dp    ! Initializing the flux which is used in lake route
-       RCHFLX_main(:,:)%REACH_VOL(0) = 0._dp    ! initializing the storage of lake volume for main channel (root node); later may be read from an input file
-       RCHFLX_main(:,:)%REACH_VOL(1) = 0._dp    ! initializing the storage of lake volume for main channel (root node); later may be read from an input file
-
-       if (routOpt==kinematicWaveEuler) then
-         do ix = 1,4
-           RCHSTA_main(:,:)%EKW_ROUTE%A(ix) = 0._dp
-           RCHSTA_main(:,:)%EKW_ROUTE%Q(ix) = 0._dp
-         end do
-       end if
-
-     end if
-
-   end if
-
-   if (rch_per_proc(pid) > 0) then
-
-     RCHFLX_trib(:,:)%BASIN_QI     = 0._dp
-     RCHFLX_trib(:,:)%BASIN_QR(0)  = 0._dp
-     RCHFLX_trib(:,:)%BASIN_QR(1)  = 0._dp
-     RCHFLX_trib(:,:)%REACH_Q      = 0._dp      ! Initializing the flux which is used in lake route
-     RCHFLX_trib(:,:)%REACH_VOL(0) = 0._dp      ! initializing the storage of lake volume for tributaries; layer may be read from an input file
-     RCHFLX_trib(:,:)%REACH_VOL(1) = 0._dp      ! initializing the storage of lake volume for tributaries; later may be read from an input file
-
-     if (routOpt==kinematicWaveEuler) then
-       do ix = 1,4
-         RCHSTA_trib(:,:)%EKW_ROUTE%A(ix) = 0._dp
-         RCHSTA_trib(:,:)%EKW_ROUTE%Q(ix) = 0._dp
-       end do
-     end if
-
-   end if
-
-   ! initialize time
-   TSEC(0)=0._dp; TSEC(1)=dt
-
+    call mpi_restart(pid, nNodes, comm, iens, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
  END SUBROUTINE init_state_data
@@ -438,8 +513,7 @@ CONTAINS
   USE process_ntopo,        ONLY: augment_ntopo            ! compute all the additional network topology (only compute option = on)
 
   implicit none
-  ! input: None
-  ! output (river network data structures for the entire domain)
+  ! Argument variables
   integer(i4b)                  , intent(out) :: nHRU_out                 ! number of HRUs
   integer(i4b)                  , intent(out) :: nRch_out                 ! number of reaches
   type(var_dlength), allocatable, intent(out) :: structHRU(:)             ! HRU properties
@@ -447,10 +521,9 @@ CONTAINS
   type(var_ilength), allocatable, intent(out) :: structHRU2SEG(:)         ! HRU-to-segment mapping
   type(var_ilength), allocatable, intent(out) :: structNTOPO(:)           ! network topology
   type(var_clength), allocatable, intent(out) :: structPFAF(:)            ! pfafstetter code
-  ! output: error control
   integer(i4b)      , intent(out)             :: ierr                     ! error code
   character(*)      , intent(out)             :: message                  ! error message
-  ! local variable
+  ! Local variables
   integer(i4b)                                :: tot_upstream             ! total number of all of the upstream stream segments for all stream segments
   integer(i4b)                                :: tot_upseg                ! total number of immediate upstream segments for all  stream segments
   integer(i4b)                                :: tot_hru                  ! total number of all the upstream hrus for all stream segments
@@ -574,13 +647,12 @@ CONTAINS
   USE globalData,          ONLY: ixRch_order              ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
   USE globalData,          ONLY: ixHRU_order              ! global HRU index in the order of proc assignment (size = total number of HRUs contributing to any reaches, nContribHRU)
   USE domain_decomposition,ONLY: omp_domain_decomposition ! domain decomposition for omp
-  USE nr_utility_module,   ONLY: findIndex                ! find index within a vector
+  USE nr_utils,            ONLY: findIndex                ! find index within a vector
 
   implicit none
-  ! Input variables
+  ! Argument variables
   type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)           ! network topology
   type(var_ilength), allocatable, intent(in)  :: structHRU2SEG(:)         ! HRU-to-segment mapping
-  ! Output error handling variables
   integer(i4b),                   intent(out) :: ierr
   character(len=strLen),          intent(out) :: message                  ! error message
   ! Local variables
@@ -640,6 +712,5 @@ CONTAINS
   ! -------------------
 
  END SUBROUTINE all_domain_omp_decomp
-
 
 END MODULE init_model_data

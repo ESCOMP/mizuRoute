@@ -1,35 +1,33 @@
-module read_remap
-! data types
-use nrtype
+MODULE read_remap
 
+USE nrtype
 ! global data
 USE public_var
 
 ! Netcdf
-use ncio_utils, only:get_nc
-use ncio_utils, only:get_nc_dim_len
+USE ncio_utils, ONLY: get_nc
+USE ncio_utils, ONLY: get_nc_dim_len
 
 implicit none
 
-! privacy
 private
 public::get_remap_data
 
-contains
+CONTAINS
 
  ! *****
  ! public subroutine: get mapping data between runoff hru and river network hru...
  ! ********************************************************************************
- subroutine get_remap_data(fname,         &   ! input: file name
+ SUBROUTINE get_remap_data(fname,         &   ! input: file name
                            nSpatial,      &   ! input: number of spatial elements
                            remap_data_in, &   ! output: data structure to remap data from a polygon
                            ierr, message)     ! output: error control
- USE dataTypes,  only : remap                 ! remapping data type
+ USE dataTypes, ONLY: remap                 ! remapping data type
+
  implicit none
- ! input variables
+ ! Argument variables
  character(*), intent(in)           :: fname           ! filename
  integer(i4b), intent(in)           :: nSpatial(1:2)   ! number of spatial elements
- ! output variables
  type(remap),  intent(out)          :: remap_data_in   ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
  integer(i4b), intent(out)          :: ierr            ! error code
  character(*), intent(out)          :: message         ! error message
@@ -39,7 +37,6 @@ contains
  integer(i4b)                       :: nData           ! number of data (weight, runoff hru id) in mapping files
  character(len=strLen)              :: cmessage        ! error message from subroutine
 
- ! initialize error control
  ierr=0; message='get_remap_data/'
 
  ! get the number of HRUs
@@ -85,19 +82,20 @@ contains
  call check_remap_data(remap_data_in, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- end subroutine
+ END SUBROUTINE get_remap_data
 
  ! *****
  ! public subroutine: check spatial weight files
  ! ********************************************************************************
- subroutine check_remap_data(remap_data_in, &   ! inout: data structure to remap data
+ SUBROUTINE check_remap_data(remap_data_in, &   ! inout: data structure to remap data
                              ierr, message)     ! output: error control
- USE dataTypes,          ONLY : remap           ! remapping data type
- USE nr_utility_module,  ONLY : arth
+
+ USE dataTypes, ONLY: remap           ! remapping data type
+ USE nr_utils,  ONLY: arth
+
  implicit none
- ! input/output variables
+ ! Argument variables
  type(remap),  intent(inout)        :: remap_data_in     ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
- ! output variables
  integer(i4b), intent(out)          :: ierr              ! error code
  character(*), intent(out)          :: message           ! error message
  ! local variables
@@ -111,7 +109,6 @@ contains
  real(dp),     allocatable          :: real_array(:)     !
  integer(i8b), allocatable          :: int_array(:)      !
 
- ! initialize error control
  ierr=0; message='check_remap_data/'
 
  total_intersects = sum(remap_data_in%num_qhru)
@@ -169,6 +166,6 @@ contains
    end if
  end if
 
- end subroutine
+ END SUBROUTINE check_remap_data
 
-end module read_remap
+END MODULE read_remap

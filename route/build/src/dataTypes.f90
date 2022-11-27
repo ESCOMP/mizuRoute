@@ -2,8 +2,7 @@ MODULE dataTypes
 
 ! used to create specific data types
 
-USE nrtype,     ONLY: i4b,dp,lgt
-USE nrtype,     ONLY: strLen
+USE nrtype
 USE public_var, ONLY: realMissing
 USE public_var, ONLY: integerMissing
 
@@ -42,22 +41,16 @@ implicit none
   logical(lgt)           :: varFile  = .true.          ! .true. if the variable should be read from a file
  endtype var_info
 
- ! ---------- states structure --------------------------------------------------------------------------
- !
- type,public :: var
-  integer(i4b),  allocatable  :: array_2d_int(:,:)
-  integer(i4b),  allocatable  :: array_3d_int(:,:,:)
-  real(dp),      allocatable  :: array_2d_dp(:,:)
-  real(dp),      allocatable  :: array_3d_dp(:,:,:)
-  logical(lgt),  allocatable  :: array_2d_lgt(:,:)
-  logical(lgt),  allocatable  :: array_3d_lgt(:,:,:)
- end type var
+ ! ---------- gauge metadata structures --------------------------------------------------------------------------
 
- type,public :: states
-  type(var),     allocatable :: var(:)
- end type states
+ type, public :: gage
+   integer(i4b)                   :: nGage
+   character(len=30), allocatable :: gageID(:)
+   integer(i4b),      allocatable :: reachID(:)
+ end type gage
 
  ! ---------- basin data structures ----------------------------------------------------------------------
+
  ! segIndex points to the segment in the entire river network data
  ! segOrder is order within subset of mainstem segments or tributary segments
  type,public :: subbasin_mpi
@@ -68,8 +61,8 @@ implicit none
   integer(i4b),  allocatable :: hruIndex(:)           ! hru indices within a subbasin
  end type subbasin_mpi
 
- ! Data structures to reach indices within each leg of stream order separately
- ! Used for openMP
+ ! -- Data structures to reach indices within each leg of stream order separately
+ !    Used for openMP
  type,public :: reach
   integer(i4b), allocatable :: segIndex(:)           ! index of segment index
   integer(i4b)              :: nRch                  ! number of reach
@@ -79,13 +72,14 @@ implicit none
    type(reach), allocatable :: branch(:)
  end type subbasin_omp
 
- ! Data structures to hold mainstem and independent tributary reaches separately
- ! Used for openMP
+ ! -- Data structures to hold mainstem and independent tributary reaches separately
+ !    Used for openMP
  type,public :: subbasin_omp_tmp
   integer(i4b)               :: outIndex             ! index of outlet segment based on segment array
   type(reach), allocatable   :: mainstem(:)          ! mainstem reach
   type(reach), allocatable   :: tributary(:)         ! tributary reach
  end type subbasin_omp_tmp
+
 
  ! ---------- general data structures ----------------------------------------------------------------------
 
@@ -119,8 +113,23 @@ implicit none
   type(clength),allocatable           :: var(:)    ! var(:)%dat
  endtype var_clength
 
+ type,public :: var
+  integer(i4b),  allocatable  :: array_2d_int(:,:)
+  integer(i4b),  allocatable  :: array_3d_int(:,:,:)
+  real(dp),      allocatable  :: array_2d_dp(:,:)
+  real(dp),      allocatable  :: array_3d_dp(:,:,:)
+  logical(lgt),  allocatable  :: array_2d_lgt(:,:)
+  logical(lgt),  allocatable  :: array_3d_lgt(:,:,:)
+ end type var
+
+ type,public :: states
+  type(var),     allocatable :: var(:)
+ end type states
+
+
  ! ---------- forcing input file strcuture -----------------------------------------------------------------
-  ! input file name and strcuture for nc files
+
+ ! -- input file name and strcuture for nc files
   type, public ::  infileinfo
    integer(i4b)                            :: nTime            ! number of time step in a nc file
    integer(i4b)                            :: iTimebound(1:2)  ! time index of start and end of the
@@ -178,7 +187,7 @@ implicit none
 
  ! ---------- reach parameters ----------------------------------------------------------------------------
 
- ! Reach Parameters
+ ! -- Reach physical parameters
  type, public ::  RCHPRP
   real(dp)                                   :: R_SLOPE
   real(dp)                                   :: R_MAN_N
@@ -246,7 +255,7 @@ implicit none
   integer(i4b)                               :: H06_D_mem_L    ! Hanasaki 2006; Memory length in years for demand [year]
  end type RCHPRP
 
- ! River Network topology
+ ! -- River Network topology
  type, public :: RCHTOPO
   integer(i4b)                               :: REACHIX      ! Reach index (1,2,...,nrch)
   integer(i4b)                               :: REACHID      ! Reach ID (REC code)
@@ -277,9 +286,17 @@ implicit none
   integer(i4b)                               :: LAKEMODELTYPE! 1=Doll, 2=Hanasaki, 3=HYPE else=non-parameteric
  end type RCHTOPO
 
- ! ---------- reach states --------------------------------------------------------------------
+ ! arbitrary element-to-element connection
+ type, public :: commLink
+   integer(i4b) :: srcTask   ! source task
+   integer(i4b) :: destTask  ! destination task
+   integer(i4b) :: srcIndex  ! source array index
+   integer(i4b) :: destIndex ! destination array index
+ end type commLink
 
- !---------- Lagrangian kinematic wave states (collection of particles) ---------------------------------
+ ! ---------- Reach restart variables--------------------------------------------------------------------
+
+ ! - Lagrangian kinematic wave states (collection of particles)
  ! Individual flow particles
  TYPE, public :: FPOINT
   real(dp)                                   :: QF           ! Flow
@@ -290,52 +307,74 @@ implicit none
  END TYPE FPOINT
 
  ! Collection of flow points within a given reach
- TYPE, public :: LKWRCH
+ TYPE, public :: kwtRCH
   type(FPOINT),allocatable             :: KWAVE(:)
- END TYPE LKWRCH
-
- ! ---------- Eulerian kinematic wave ---------------------------------
- type, public :: EKWRCH
-   real(dp)    :: Q(1:4)          ! Discharge at upstream and downstream of reach at current and previous time step(m3/s)
-   real(dp)    :: A(1:4)          ! Flow area at upstream and downstream of reach at current and previous time step(m3/s)
- end type EKWRCH
+ END TYPE kwtRCH
 
  ! ---------- irf states (future flow series ) ---------------------------------
  ! Future flow series
- type, public :: IRFRCH
+ type, public :: irfRCH
   real(dp), allocatable                :: qfuture(:)    ! runoff volume in future time steps for IRF routing (m3/s)
- END TYPE IRFRCH
+ end type irfRCH
+
+ ! ---------- computational node for kw, dw, and mc -----------------------------
+ type, public :: cMolecule
+   integer(i4b)           :: KW_ROUTE
+   integer(i4b)           :: MC_ROUTE
+   integer(i4b)           :: DW_ROUTE
+ end type cMolecule
+
+ type, public :: SUBRCH
+   real(dp), allocatable  :: Q(:)        ! Discharge at sub-reaches at current step (m3/s)
+   real(dp), allocatable  :: A(:)        ! Flow area at sub-reach at current step (m2)
+   real(dp), allocatable  :: H(:)        ! Flow height at sub-reach at current step (m)
+ end type SUBRCH
+
+ type, public :: kwRch
+   type(SUBRCH)    :: molecule
+ end type kwRCH
+
+ type, public :: mcRch
+   type(SUBRCH)    :: molecule
+ end type mcRCH
+
+  type, public :: dwRch
+   type(SUBRCH)    :: molecule
+ end type dwRCH
 
  type, public :: STRSTA
-  type(IRFRCH)       :: IRF_ROUTE
-  type(LKWRCH)       :: LKW_ROUTE
-  type(EKWRCH)       :: EKW_ROUTE
+  type(irfRCH)       :: IRF_ROUTE
+  type(kwtRCH)       :: LKW_ROUTE
+  type(kwRCH)        :: KW_ROUTE
+  type(mcRCH)        :: MC_ROUTE
+  type(dwRCH)        :: DW_ROUTE
  end type STRSTA
 
 
  ! ---------- reach fluxes --------------------------------------------------------------------
+ type, public :: hydraulic
+   real(dp)        :: REACH_ELE              ! water height at current time step [m]
+   real(dp)        :: REACH_Q                ! discharge at current time step [m3/s]
+   real(dp)        :: REACH_VOL(0:1)         ! water volume at previous and current time steps [m3]
+   real(dp)        :: WB                     ! reach water balance error [m3]
+ end type hydraulic
 
  ! fluxes and states in each reach
- TYPE, public :: strflx
-  real(dp), allocatable                :: QFUTURE(:)             ! runoff volume in future time steps (m3/s)
-  real(dp), allocatable                :: QFUTURE_IRF(:)         ! runoff volume in future time steps for IRF routing (m3/s)
-  real(dp), allocatable                :: QPASTUP_IRF(:,:)       ! runoff volume in the past time steps for lake upstream (m3/s)
-  real(dp), allocatable                :: DEMANDPAST_IRF(:,:)    ! demand volume for lake (m3/s)
-  real(dp)                             :: BASIN_QI               ! instantaneous runoff volume from the local basin (m3/s)
-  real(dp)                             :: BASIN_QR(0:1)          ! routed runoff volume from the local basin (m3/s)
-  real(dp)                             :: REACH_Q                ! time-step average streamflow (m3/s)
-  real(dp)                             :: REACH_Q_IRF            ! time-step average streamflow (m3/s) from IRF routing
-  real(dp)                             :: UPSTREAM_QI            ! sum of upstream streamflow (m3/s)
-  real(dp)                             :: REACH_VOL(0:1)         ! volume of water at previous and current time step [m3]
-  real(dp)                             :: REACH_ELE              ! elevation of the water at the current time step [m]
-  real(dp)                             :: REACH_WM_FLUX          ! water management fluxes to and from each reach
-  real(dp)                             :: REACH_WM_FLUX_actual   ! water management fluxes to and from each reach
-  real(dp)                             :: REACH_WM_VOL           ! target volume from the second water management file (m3)
-  real(dp)                             :: TAKE                   ! average take
-  logical(lgt)                         :: isRoute                ! .true. if the reach is routed
-  real(dp)                             :: basinEvapo             ! remapped river network catchment Evaporation (size: number of nHRU)
-  real(dp)                             :: basinPrecip            ! remapped river network catchment Precipitation (size: number of nHRU)
- END TYPE strflx
+ type, public :: strflx
+  real(dp), allocatable                :: QFUTURE(:)             ! runoff volume in future time steps [m3/s]
+  real(dp), allocatable                :: QFUTURE_IRF(:)         ! runoff volume in future time steps for IRF routing [m3/s]
+  real(dp), allocatable                :: QPASTUP_IRF(:,:)       ! runoff volume in the past time steps for lake upstream [m3/s]
+  real(dp), allocatable                :: DEMANDPAST_IRF(:,:)    ! demand volume for lake [m3/s]
+  real(dp)                             :: BASIN_QI               ! instantaneous runoff volume from the local basin [m3/s]
+  real(dp)                             :: BASIN_QR(0:1)          ! routed runoff volume from the local basin [m3/s]
+  type(hydraulic), allocatable         :: ROUTE(:)               ! reach fluxes and states for each routing method
+  real(dp)                             :: REACH_WM_FLUX          ! water management fluxes to and from each reach [m3/s]
+  real(dp)                             :: REACH_WM_FLUX_actual   ! water management fluxes to and from each reach [m3/s]
+  real(dp)                             :: REACH_WM_VOL           ! target volume from the second water management file [m3]
+  real(dp)                             :: Qobs                   ! observed discharge [m3/s]
+  real(dp)                             :: basinEvapo             ! remapped river network catchment Evaporation [unit] (size: number of nHRU)
+  real(dp)                             :: basinPrecip            ! remapped river network catchment Precipitation [unit] (size: number of nHRU)
+ end type strflx
 
  ! ---------- lake data types -----------------------------------------------------------------
 
@@ -382,8 +421,7 @@ END MODULE dataTypes
 
 MODULE objTypes
 
- USE nrtype,     only: i4b,dp,lgt
- USE nrtype,     only: strLen   ! string length
+ USE nrtype
  USE public_var, only: realMissing
  USE public_var, only: integerMissing
 

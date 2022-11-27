@@ -1,14 +1,14 @@
 MODULE nrtype
     ! variable types
-    INTEGER, PARAMETER     :: I8B = SELECTED_INT_KIND(15)
-    INTEGER, PARAMETER     :: I4B = SELECTED_INT_KIND(9)
-    INTEGER, PARAMETER     :: I2B = SELECTED_INT_KIND(4)
-    INTEGER, PARAMETER     :: I1B = SELECTED_INT_KIND(2)
-    INTEGER, PARAMETER     :: SP = KIND(1.0)
-    INTEGER, PARAMETER     :: DP = KIND(1.0D0)
-    INTEGER, PARAMETER     :: SPC = KIND((1.0,1.0))
-    INTEGER, PARAMETER     :: DPC = KIND((1.0D0,1.0D0))
-    INTEGER, PARAMETER     :: LGT = KIND(.true.)
+    integer, parameter     :: I8B = SELECTED_INT_KIND(15)
+    integer, parameter     :: I4B = SELECTED_INT_KIND(9)
+    integer, parameter     :: I2B = SELECTED_INT_KIND(4)
+    integer, parameter     :: I1B = SELECTED_INT_KIND(2)
+    integer, parameter     :: SP = KIND(1.0)
+    integer, parameter     :: DP = KIND(1.0D0)
+    integer, parameter     :: SPC = KIND((1.0,1.0))
+    integer, parameter     :: DPC = KIND((1.0D0,1.0D0))
+    integer, parameter     :: LGT = KIND(.true.)
     ! common variables
-    INTEGER(I4B),PARAMETER :: strLen=256            ! string length
+    integer(i4b),parameter :: strLen=256            ! string length
 END MODULE nrtype

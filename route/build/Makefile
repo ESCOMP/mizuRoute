@@ -138,27 +138,30 @@ EXTINCLUDES =
 # data types
 DATATYPES = \
     nrtype.f90 \
+    nr_utils.f90 \
+    pio_utils.f90 \
+    ascii_utils.f90 \
     public_var.f90 \
     dataTypes.f90 \
     var_lookup.f90 \
     time_utils.f90 \
     datetime_data.f90 \
+    csv_data.f90 \
     globalData.f90 \
+    historyFile.f90 \
     popMetadat.f90 \
     allocation.f90
 # define utilities
 UTILS = \
-    nr_utility.f90 \
-    ascii_util.f90 \
     ncio_utils.f90 \
     mpi_utils.f90 \
-    pio_utils.f90 \
     model_utils.f90 \
     gamma_func.f90
 # initialization
 INIT = \
     network_topo.f90 \
     process_param.f90 \
+    process_gage_meta.f90 \
     process_ntopo.f90 \
     pfafstetter.f90 \
     domain_decomposition.f90
@@ -172,6 +175,7 @@ IO = \
     standalone/read_runoff.f90 \
     standalone/get_basin_runoff.f90 \
     standalone/read_remap.f90 \
+    io_rpointfile.f90 \
     read_restart.f90 \
     write_restart_pio.f90 \
     write_simoutput_pio.f90
@@ -179,10 +183,13 @@ IO = \
 CORE = \
     accum_runoff.f90 \
     basinUH.f90 \
+    water_balance.f90 \
     lake_route.f90 \
     irf_route.f90 \
     kwt_route.f90 \
     kwe_route.f90 \
+    mc_route.f90 \
+    dfw_route.f90 \
     main_route.f90 \
     mpi_process.f90 \
     init_model_data.f90 \

@@ -1,65 +1,69 @@
 MODULE read_control_module
 
+! reading mizuRoute control files and save them in variables defined in public_var.f90
+
 USE nrtype
 USE public_var
-USE globalData, ONLY: pid, nNodes, masterproc             ! procs id and number of procs
 
 implicit none
-! privacy
+
 private
 public::read_control
 
 CONTAINS
 
  ! =======================================================================================================
- ! * new subroutine: read the control file
+ ! public subroutine: read the control file
  ! =======================================================================================================
- ! read the control file
  SUBROUTINE read_control(ctl_fname, err, message)
 
- USE nrtype                                  ! variable types, etc.
  ! global vars
- USE globalData, ONLY: time_conv,length_conv  ! conversion factors
-
+ USE globalData, ONLY: time_conv,length_conv   ! conversion factors
+ USE globalData, ONLY: masterproc              ! procs id and number of procs
  ! metadata structures
- USE globalData, ONLY: meta_HRU             ! HRU properties
- USE globalData, ONLY: meta_HRU2SEG         ! HRU-to-segment mapping
- USE globalData, ONLY: meta_SEG             ! stream segment properties
- USE globalData, ONLY: meta_NTOPO           ! network topology
- USE globalData, ONLY: meta_PFAF            ! pfafstetter code
- USE globalData, ONLY: meta_rflx            ! river flux variables
-
- ! named variables in each structure
- USE var_lookup, ONLY: ixHRU                ! index of variables for data structure
- USE var_lookup, ONLY: ixHRU2SEG            ! index of variables for data structure
- USE var_lookup, ONLY: ixSEG                ! index of variables for data structure
- USE var_lookup, ONLY: ixNTOPO              ! index of variables for data structure
- USE var_lookup, ONLY: ixPFAF               ! index of variables for data structure
- USE var_lookup, ONLY: ixRFLX               ! index of variables for data structure
-
+ USE globalData, ONLY: meta_HRU                ! HRU properties
+ USE globalData, ONLY: meta_HRU2SEG            ! HRU-to-segment mapping
+ USE globalData, ONLY: meta_SEG                ! stream segment properties
+ USE globalData, ONLY: meta_NTOPO              ! network topology
+ USE globalData, ONLY: meta_PFAF               ! pfafstetter code
+ USE globalData, ONLY: meta_rflx               ! river flux variables
+ USE globalData, ONLY: meta_hflx               ! river flux variables
+ USE globalData, ONLY: nRoutes                 ! number of active routing methods
+ USE globalData, ONLY: routeMethods            ! active routing method index and id
+ USE globalData, ONLY: onRoute                 ! logical to indicate actiive routing method(s)
+ USE globalData, ONLY: idxSUM,idxIRF,idxKWT, &
+                       idxKW,idxMC,idxDW
+ ! index of named variables in each structure
+ USE var_lookup, ONLY: ixHRU
+ USE var_lookup, ONLY: ixHRU2SEG
+ USE var_lookup, ONLY: ixSEG
+ USE var_lookup, ONLY: ixNTOPO
+ USE var_lookup, ONLY: ixPFAF
+ USE var_lookup, ONLY: ixRFLX
+ USE var_lookup, ONLY: ixHFLX
  ! external subroutines
- USE ascii_util_module, ONLY:file_open        ! open file (performs a few checks as well)
- USE ascii_util_module, ONLY:get_vlines       ! get a list of character strings from non-comment lines
+ USE ascii_utils, ONLY: file_open        ! open file (performs a few checks as well)
+ USE ascii_utils, ONLY: get_vlines       ! get a list of character strings from non-comment lines
+ USE nr_utils,    ONLY: char2int         ! convert integer number to a array containing individual digits
 
  implicit none
- ! input
- character(*), intent(in)          :: ctl_fname      ! name of the control file
- ! output: error control
- integer(i4b),intent(out)          :: err            ! error code
- character(*),intent(out)          :: message        ! error message
- ! ------------------------------------------------------------------------------------------------------
+ ! argument variables
+ character(*), intent(in)          :: ctl_fname               ! name of the control file
+ integer(i4b),intent(out)          :: err                     ! error code
+ character(*),intent(out)          :: message                 ! error message
  ! Local variables
- character(len=strLen),allocatable :: cLines(:)      ! vector of character strings
- character(len=strLen)             :: cName,cData    ! name and data from cLines(iLine)
- character(len=strLen)             :: cLength,cTime  ! length and time units
- integer(i4b)                      :: ipos           ! index of character string
- integer(i4b)                      :: ibeg_name      ! start index of variable name in string cLines(iLine)
- integer(i4b)                      :: iend_name      ! end index of variable name in string cLines(iLine)
- integer(i4b)                      :: iend_data      ! end index of data in string cLines(iLine)
- integer(i4b)                      :: iLine          ! index of line in cLines
- integer(i4b)                      :: iunit          ! file unit
- integer(i4b)                      :: io_error       ! error in I/O
- character(len=strLen)             :: cmessage       ! error message from subroutine
+ character(len=strLen),allocatable :: cLines(:)               ! vector of character strings
+ character(len=strLen)             :: cName,cData             ! name and data from cLines(iLine)
+ character(len=strLen)             :: cLength,cTime           ! length and time units
+ integer(i4b)                      :: ipos                    ! index of character string
+ integer(i4b)                      :: ibeg_name               ! start index of variable name in string cLines(iLine)
+ integer(i4b)                      :: iend_name               ! end index of variable name in string cLines(iLine)
+ integer(i4b)                      :: iend_data               ! end index of data in string cLines(iLine)
+ integer(i4b)                      :: iLine                   ! index of line in cLines
+ integer(i4b)                      :: iunit                   ! file unit
+ integer(i4b)                      :: io_error                ! error in I/O
+ integer(i4b)                      :: iRoute                  ! loop index
+ character(len=strLen)             :: cmessage                ! error message from subroutine
 
  err=0; message='read_control/'
 
@@ -97,6 +101,11 @@ CONTAINS
      write(iulog,'(x,a,a,a)') trim(cName), ' --> ', trim(cData)
    endif
 
+   if (index(cData, achar(9)) > 0) then
+     err=10; message=trim(message)//'Control variable:'//trim(cData)//' includes TABs. Use spaces'
+     return
+   end if
+
    ! populate variables
    select case(trim(cName))
 
@@ -109,11 +118,10 @@ CONTAINS
    case('<case_name>');            case_name   = trim(cData)                           ! name of simulation. used as head of model output and restart file
    case('<sim_start>');            simStart    = trim(cData)                           ! date string defining the start of the simulation
    case('<sim_end>');              simEnd      = trim(cData)                           ! date string defining the end of the simulation
+   case('<continue_run>');         read(cData,*,iostat=io_error) continue_run          ! logical; T-> append output in existing history files. F-> write output in new history file
    case('<newFileFrequency>');     newFileFrequency = trim(cData)                      ! frequency for new output files (day, month, annual, single)
-   case('<route_opt>');            read(cData,*,iostat=io_error) routOpt               ! routing scheme options  0-> both, 1->IRF, 2->KWT, otherwise error
+   case('<route_opt>');            routOpt     = trim(cData)                           ! routing scheme options  0-> accumRunoff, 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW
    case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute        ! basin routing options   0-> no, 1->IRF, otherwise error
-   case('<doesAccumRunoff>');      read(cData,*,iostat=io_error) doesAccumRunoff       ! option to delayed runoff accumulation over all the upstream reaches. 0->no, 1->yes
-   case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut              ! desired outlet reach id (if -9999 --> route over the entire network)
    case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim           ! logical; lakes are simulated
    case('<is_flux_wm>');           read(cData,*,iostat=io_error) is_flux_wm            ! logical; provided fluxes to or from seg/lakes should be considered
    case('<is_vol_wm>');            read(cData,*,iostat=io_error) is_vol_wm             ! logical; provided target volume for managed lakes are considered
@@ -175,30 +183,43 @@ CONTAINS
    ! TIME
    case('<time_units>');           time_units = trim(cData)                            ! time units. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
    case('<calendar>');             calendar   = trim(cData)                            ! calendar name
+   ! GAUGE DATA
+   case('<gageMetaFile>');         gageMetaFile = trim(cData)                          ! name of csv file containing gauge metadata (gauge id, reach id, gauge lat/lon)
+   case('<outputAtGage>');         read(cData,*,iostat=io_error) outputAtGage          ! logical; T-> history file output at only gauge points
+   case('<fname_gageObs>');        fname_gageObs = trim(cData)                         ! netcdf name of gauge observed data
+   case('<vname_gageFlow>');       vname_gageFlow  = trim(cData)                       ! varialbe name for gauge site flow data
+   case('<vname_gageSite>');       vname_gageSite  = trim(cData)                       ! variable name for site name data
+   case('<vname_gageTime>');       vname_gageTime  = trim(cData)                       ! variable name for time data
+   case('<dname_gageSite>');       dname_gageSite  = trim(cData)                       ! dimension name for gauge site
+   case('<dname_gageTime>');       dname_gageTime  = trim(cData)                       ! dimension name for time
+   case('<strlen_gageSite>');      read(cData,*,iostat=io_error) strlen_gageSite       ! site name max character length
    ! MISCELLANEOUS
    case('<debug>');                read(cData,*,iostat=io_error) debug                 ! print out detailed information throught the probram
+   case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut              ! desired outlet reach id (if -9999 --> route over the entire network)
    case('<desireId>'   );          read(cData,*,iostat=io_error) desireId              ! turn off checks or speficy reach ID if necessary to print on screen
    ! PFAFCODE
    case('<maxPfafLen>');           read(cData,*,iostat=io_error) maxPfafLen            ! maximum digit of pfafstetter code (default 32)
    case('<pfafMissing>');          pfafMissing = trim(cData)                           ! missing pfafcode (e.g., reach without any upstream area)
    ! OUTPUT OPTIONS
-   case('<basRunoff>');            read(cData,*,iostat=io_error) meta_rflx(ixRFLX%basRunoff        )%varFile
-   case('<instRunoff>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%instRunoff       )%varFile
-   case('<dlayRunoff>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%dlayRunoff       )%varFile
-   case('<sumUpstreamRunoff>');    read(cData,*,iostat=io_error) meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile
-   case('<KWTroutedRunoff>');      read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWTroutedRunoff  )%varFile
-   case('<IRFroutedRunoff>');      read(cData,*,iostat=io_error) meta_rflx(ixRFLX%IRFroutedRunoff  )%varFile
+   case('<basRunoff>');            read(cData,*,iostat=io_error) meta_hflx(ixHFLX%basRunoff        )%varFile  ! default: true
+   case('<instRunoff>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%instRunoff       )%varFile  ! default: false
+   case('<dlayRunoff>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%dlayRunoff       )%varFile  ! default: false
+   case('<sumUpstreamRunoff>');    read(cData,*,iostat=io_error) meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile  ! default: false
+   case('<KWTroutedRunoff>');      read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWTroutedRunoff  )%varFile  ! default: true (turned off if inactive)
+   case('<IRFroutedRunoff>');      read(cData,*,iostat=io_error) meta_rflx(ixRFLX%IRFroutedRunoff  )%varFile  ! default: true (turned off if inactive)
+   case('<KWroutedRunoff>');       read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWroutedRunoff   )%varFile  ! default: true (turned off if inactive)
+   case('<DWroutedRunoff>');       read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWroutedRunoff   )%varFile  ! default: true (turned off if inactive)
+   case('<MCroutedRunoff>');       read(cData,*,iostat=io_error) meta_rflx(ixRFLX%MCroutedRunoff   )%varFile  ! default: true (turned off if inactive)
+   case('<volume>');               read(cData,*,iostat=io_error) meta_rflx(ixRFLX%volume           )%varFile  ! default: true
 
    ! VARIABLE NAMES for data (overwrite default name in popMeta.f90)
    ! HRU structure
    case('<varname_area>'         ); meta_HRU    (ixHRU%area            )%varName = trim(cData) ! HRU area
-
    ! Mapping from HRUs to stream segments
    case('<varname_HRUid>'        ); meta_HRU2SEG(ixHRU2SEG%HRUid       )%varName = trim(cData) ! HRU id
    case('<varname_HRUindex>'     ); meta_HRU2SEG(ixHRU2SEG%HRUindex    )%varName = trim(cData) ! HRU index
    case('<varname_hruSegId>'     ); meta_HRU2SEG(ixHRU2SEG%hruSegId    )%varName = trim(cData) ! the stream segment id below each HRU
    case('<varname_hruSegIndex>'  ); meta_HRU2SEG(ixHRU2SEG%hruSegIndex )%varName = trim(cData) ! the stream segment index below each HRU
-
    ! reach properties
    case('<varname_length>'         ); meta_SEG    (ixSEG%length          )%varName =trim(cData)   ! length of segment  (m)
    case('<varname_slope>'          ); meta_SEG    (ixSEG%slope           )%varName =trim(cData)   ! slope of segment   (-)
@@ -286,22 +307,23 @@ CONTAINS
    case('<varname_LakeTargVol>'  ); meta_NTOPO  (ixNTOPO%LakeTargVol   )%varName =trim(cData)  ! flag to follow the provided target volume (1=yes, 0=no)
    case('<varname_userTake>'     ); meta_NTOPO  (ixNTOPO%userTake      )%varName =trim(cData)  ! flag to define if user takes water from reach (1=extract, 0 otherwise)
    case('<varname_goodBasin>'    ); meta_NTOPO  (ixNTOPO%goodBasin     )%varName =trim(cData)  ! flag to define a good basin (1=good, 0=bad)
-
    ! pfafstetter code
    case('<varname_pfafCode>'     ); meta_PFAF   (ixPFAF%code           )%varName =trim(cData)  ! pfafstetter code
 
+   ! CESM coupling variables (not used for stand-alone)
+   case('<qgwl_runoff_option>'   ); qgwl_runoff_option    = trim(cData)  ! handling negative qgwl runoff: all, negative, threshold
+   case('<bypass_routing_option>'); bypass_routing_option = trim(cData)  ! routing bypass option: direct_in_place, direct_to_outlet, none
+
    ! if not in list then keep going
    case default
-    message=trim(message)//'unexpected text in control file -- provided '//trim(cName)&
+    message=trim(message)//'unexpected text in control file provided: '//trim(cName)&
                          //' (note strings in control file must match the variable names in public_var.f90)'
     err=20; return
-
   end select
 
   ! check I/O error
   if(io_error/=0)then
-   message=trim(message)//'problem with internal read of '//trim(cName)
-   err=20; return
+    message=trim(message)//'problem with internal read of '//trim(cName); err=20; return
   endif
 
  end do  ! looping through lines in the control file
@@ -336,17 +358,15 @@ CONTAINS
  end if
 
  ! ---------- runoff unit conversion --------------------------------------------------------------------------------------------
-
  if (masterproc) then
    write(iulog,'(2a)') new_line('a'), '---- runoff unit --- '
    write(iulog,'(a)') '  runoff unit is provided as: '//trim(units_qsim)
  end if
-
  ! find the position of the "/" character
  ipos = index(trim(units_qsim),'/')
  if(ipos==0)then
-  message=trim(message)//'expect the character "/" exists in the units string [units='//trim(units_qsim)//']'
-  err=80; return
+   message=trim(message)//'expect the character "/" exists in the units string [units='//trim(units_qsim)//']'
+   err=80; return
  endif
 
  ! get the length and time units
@@ -355,22 +375,57 @@ CONTAINS
 
  ! get the conversion factor for length
  select case(trim(cLength))
-  case('m');  length_conv = 1._dp
-  case('mm'); length_conv = 1._dp/1000._dp
-  case default
-   message=trim(message)//'expect the length units of runoff to be "m" or "mm" [units='//trim(cLength)//']'
-   err=81; return
+   case('m');  length_conv = 1._dp
+   case('mm'); length_conv = 1._dp/1000._dp
+   case default
+     message=trim(message)//'expect the length units of runoff to be "m" or "mm" [units='//trim(cLength)//']'
+     err=81; return
  end select
 
  ! get the conversion factor for time
  select case(trim(cTime))
-  case('d','day');          time_conv = 1._dp/secprday
-  case('h','hr','hour');    time_conv = 1._dp/secprhour
-  case('s','sec','second'); time_conv = 1._dp
-  case default
-   message=trim(message)//'expect the time units of to be "day"("d"), "hour"("h") or "second"("s") [time units = '//trim(cTime)//']'
-   err=81; return
+   case('d','day');          time_conv = 1._dp/secprday
+   case('h','hr','hour');    time_conv = 1._dp/secprhour
+   case('s','sec','second'); time_conv = 1._dp
+   case default
+     message=trim(message)//'expect the time units of runoff to be "day"("d"), "hour"("h") or "second"("s") [time units = '//trim(cTime)//']'
+     err=81; return
  end select
+
+ ! ---------- output options --------------------------------------------------------------------------------------------
+ ! Assign index for each active routing method
+ ! Make sure to turn off write option for routines not used
+ if (trim(routOpt)=='0')then; write(iulog,'(a)') 'WARNING: routOpt=0 is accumRunoff option now. 12 is previous 0 now'; endif
+ call char2int(trim(routOpt), routeMethods, invalid_value=0)
+ nRoutes = size(routeMethods)
+ onRoute = .false.
+ do iRoute = 1, nRoutes
+   select case(routeMethods(iRoute))
+     case(accumRunoff);           idxSUM = iRoute; onRoute(accumRunoff)=.true.
+     case(kinematicWaveTracking); idxKWT = iRoute; onRoute(kinematicWaveTracking)=.true.
+     case(impulseResponseFunc);   idxIRF = iRoute; onRoute(impulseResponseFunc)=.true.
+     case(muskingumCunge);        idxMC  = iRoute; onRoute(muskingumCunge)=.true.
+     case(kinematicWave);         idxKW  = iRoute; onRoute(kinematicWave)=.true.
+     case(diffusiveWave);         idxDW  = iRoute; onRoute(diffusiveWave)=.true.
+     case default
+       message=trim(message)//'routOpt may include invalid digits; expect digits 1-5 in routOpt'; err=81; return
+   end select
+ end do
+
+ do iRoute = 0, nRouteMethods-1
+   select case(iRoute)
+     case(accumRunoff);           if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile=.false.
+     case(kinematicWaveTracking); if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%KWTroutedRunoff)%varFile=.false.
+     case(impulseResponseFunc);   if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%IRFroutedRunoff)%varFile=.false.
+     case(muskingumCunge);        if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%MCroutedRunoff)%varFile=.false.
+     case(kinematicWave);         if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%KWroutedRunoff)%varFile=.false.
+     case(diffusiveWave);         if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%DWroutedRunoff)%varFile=.false.
+     case default; message=trim(message)//'expect digits from 0 and 5'; err=81; return
+   end select
+ end do
+
+ ! basin runoff routing option
+ if (doesBasinRoute==0) meta_rflx(ixRFLX%instRunoff)%varFile = .false.
 
  END SUBROUTINE read_control
 

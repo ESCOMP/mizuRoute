@@ -20,6 +20,7 @@ USE globalData, ONLY: meta_struct    ! structure information
 USE globalData, ONLY: meta_dims      ! dimensions
 USE globalData, ONLY: meta_stateDims ! dimensions for routing states output
 USE globalData, ONLY: meta_qDims     ! dimensions for river discharge output
+USE globalData, ONLY: meta_qDims_gage! dimensions for river discharge output
 USE globalData, ONLY: meta_HRU       ! HRU properties
 USE globalData, ONLY: meta_HRU2SEG   ! HRU-to-segment mapping
 USE globalData, ONLY: meta_SEG       ! stream segment properties
@@ -27,29 +28,35 @@ USE globalData, ONLY: meta_NTOPO     ! network topology
 USE globalData, ONLY: meta_PFAF      ! pfafstetter code
 
 USE globalData, ONLY: meta_rflx      ! reach flux variables
+USE globalData, ONLY: meta_hflx      ! hru flux variables
 USE globalData, ONLY: meta_basinQ    ! reach inflow from basin
 USE globalData, ONLY: meta_irf_bas   ! within-basin irf routing fluxes and states
 USE globalData, ONLY: meta_irf       ! irf routing fluxes and states in a segment
-USE globalData, ONLY: meta_kwt       ! kinematic wave routing fluxes and states in a segment
-USE globalData, ONLY: meta_kwe       ! kinematic wave routing fluxes and states in a segment
+USE globalData, ONLY: meta_kwt       ! lagrangiankinematic wave routing fluxes and states in a segment
+USE globalData, ONLY: meta_kw        ! kinematic wave routing fluxes and states in a segment
+USE globalData, ONLY: meta_mc        ! muskingum-cunge routing fluxes and states in a segment
+USE globalData, ONLY: meta_dw        ! diffusive wave routing fluxes and states in a segment
 
 ! indices of named variables
-USE var_lookup, ONLY: ixStruct   , nStructures   ! index of variables for data structure
-USE var_lookup, ONLY: ixDims     , nDimensions   ! index of variables for data structure
-USE var_lookup, ONLY: ixStateDims, nStateDims    ! index of variables for data structure
-USE var_lookup, ONLY: ixQdims    , nQdims        ! index of variables for data structure
-USE var_lookup, ONLY: ixHRU      , nVarsHRU      ! index of variables for data structure
-USE var_lookup, ONLY: ixHRU2SEG  , nVarsHRU2SEG  ! index of variables for data structure
-USE var_lookup, ONLY: ixSEG      , nVarsSEG      ! index of variables for data structure
-USE var_lookup, ONLY: ixNTOPO    , nVarsNTOPO    ! index of variables for data structure
-USE var_lookup, ONLY: ixPFAF     , nVarsPFAF     ! index of variables for data structure
+USE var_lookup, ONLY: ixStruct   , nStructures
+USE var_lookup, ONLY: ixDims     , nDimensions
+USE var_lookup, ONLY: ixStateDims, nStateDims
+USE var_lookup, ONLY: ixQdims    , nQdims
+USE var_lookup, ONLY: ixHRU      , nVarsHRU
+USE var_lookup, ONLY: ixHRU2SEG  , nVarsHRU2SEG
+USE var_lookup, ONLY: ixSEG      , nVarsSEG
+USE var_lookup, ONLY: ixNTOPO    , nVarsNTOPO
+USE var_lookup, ONLY: ixPFAF     , nVarsPFAF
 
-USE var_lookup, ONLY: ixRFLX                     ! index of variables for data structure
-USE var_lookup, ONLY: ixKWT                      ! index of variables for data structure
-USE var_lookup, ONLY: ixKWE                      ! index of variables for data structure
-USE var_lookup, ONLY: ixIRF                      ! index of variables for data structure
-USE var_lookup, ONLY: ixIRFbas                   ! index of variables for data structure
-USE var_lookup, ONLY: ixBasinQ                   ! index of variables for data structure
+USE var_lookup, ONLY: ixRFLX
+USE var_lookup, ONLY: ixHFLX
+USE var_lookup, ONLY: ixIRFbas
+USE var_lookup, ONLY: ixBasinQ
+USE var_lookup, ONLY: ixIRF
+USE var_lookup, ONLY: ixKWT
+USE var_lookup, ONLY: ixKW
+USE var_lookup, ONLY: ixMC
+USE var_lookup, ONLY: ixDW
 
 implicit none
 
@@ -91,7 +98,9 @@ contains
  meta_stateDims(ixStateDims%tbound  ) = dim_info('tbound',  integerMissing, 2)               ! time bound (alway 2 - start and end)
  meta_stateDims(ixStateDims%ens     ) = dim_info('ens',     integerMissing, integerMissing)  ! runoff ensemble
  meta_stateDims(ixStateDims%wave    ) = dim_info('wave',    integerMissing, MAXQPAR)         ! reach waves vector (max. number is defined as MAXQPAR)
- meta_stateDims(ixStateDims%fdmesh  ) = dim_info('fdmesh',  integerMissing, 4)               ! KWE finite difference mesh points (1->[t0,x0], 2->[t0,x0], 3->[t0,x0],4->[t1,x1]
+ meta_stateDims(ixStateDims%mol_kw  ) = dim_info('mol_kw',  integerMissing, integerMissing)  ! kw finite difference computing nodes
+ meta_stateDims(ixStateDims%mol_mc  ) = dim_info('mol_mc',  integerMissing, integerMissing)  ! mc finite difference computing nodes
+ meta_stateDims(ixStateDims%mol_dw  ) = dim_info('mol_dw',  integerMissing, integerMissing)  ! dw finite difference computing nodes
  meta_stateDims(ixStateDims%tdh_irf ) = dim_info('tdh_irf', integerMissing, integerMissing)  ! future time steps for irf routing
  meta_stateDims(ixStateDims%tdh     ) = dim_info('tdh',     integerMissing, integerMissing)  ! future time steps for bsasin irf routing
 
@@ -99,6 +108,11 @@ contains
  meta_qDims(ixQdims%seg     ) = dim_info('seg',     integerMissing, integerMissing)   ! stream segment vector
  meta_qDims(ixQdims%hru     ) = dim_info('hru',     integerMissing, integerMissing)   ! hru vector
  meta_qDims(ixQdims%ens     ) = dim_info('ens',     integerMissing, integerMissing)   ! ensemble
+
+ meta_qDims_gage(ixQdims%time    ) = dim_info('time',    integerMissing, integerMissing)   ! time
+ meta_qDims_gage(ixQdims%seg     ) = dim_info('seg',     integerMissing, integerMissing)   ! stream segment vector
+ meta_qDims_gage(ixQdims%hru     ) = dim_info('hru',     integerMissing, integerMissing)   ! hru vector
+ meta_qDims_gage(ixQdims%ens     ) = dim_info('ens',     integerMissing, integerMissing)   ! ensemble
  ! ---------- populate metadata structures -----------------------------------------------------------------------------------------------------
 
  ! HRU                                          varName         varDesc                                                varUnit, varType, varFile
@@ -117,7 +131,7 @@ contains
  meta_SEG    (ixSEG%man_n            ) = var_info('man_n'          , 'Mannings n'                                        ,'weird' ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%hruArea          ) = var_info('hruArea'        , 'area of each contributing HRU'                     ,'m2'    ,ixDims%upHRU , .false.)
  meta_SEG    (ixSEG%weight           ) = var_info('weight'         , 'weight assigned to each HRU'                       ,'-'     ,ixDims%upHRU , .false.)
- meta_SEG    (ixSEG%timeDelayHist    ) = var_info('timeDelayHist'  , 'time delay histogram for each reach'               ,'s'     ,ixDims%uh    , .false.)
+ meta_SEG    (ixSEG%timeDelayHist    ) = var_info('timeDelayHist'  , 'time delay histogram for each reach'               ,'-'     ,ixDims%uh    , .false.)
  meta_SEG    (ixSEG%basArea          ) = var_info('basArea'        , 'total area of the contributing HRUs'               ,'m2'    ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%upsArea          ) = var_info('upsArea'        , 'area above the top of the reach -- 0 if headwater' ,'m2'    ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%totalArea        ) = var_info('totalArea'      , 'area above the bottom of the reach -- bas + ups'   ,'m2'    ,ixDims%seg   , .false.)
@@ -198,6 +212,8 @@ contains
  meta_NTOPO  (ixNTOPO%lakeIndex      ) = var_info('lakeIndex'      , 'index of each lake in the river network'            ,'-'    ,ixDims%seg   , .false.)
  meta_NTOPO  (ixNTOPO%isLakeInlet    ) = var_info('isLakeInlet'    , 'flag to define if a lake inlet (1=true)'            ,'-'    ,ixDims%seg   , .false.)
  meta_NTOPO  (ixNTOPO%userTake       ) = var_info('userTake'       , 'flag to define if user takes water (1=true)'        ,'-'    ,ixDims%seg   , .false.)
+ meta_NTOPO  (ixNTOPO%destSegId      ) = var_info('destSegId'      , 'id of destination segment to be sent'               ,'-'    ,ixDims%seg   , .false.)
+ meta_NTOPO  (ixNTOPO%destSegIndex   ) = var_info('destSegIndex'   , 'index of destination segment to be sent'            ,'-'    ,ixDims%seg   , .false.)
  meta_NTOPO  (ixNTOPO%goodBasin      ) = var_info('goodBasin'      , 'flag to define a good basin (1=true)'               ,'-'    ,ixDims%upSeg , .false.)
  meta_NTOPO  (ixNTOPO%islake         ) = var_info('islake'         , 'flag to define if the object is lake (1=true)'      ,'-'    ,ixDims%Seg   , .false.)
  meta_NTOPO  (ixNTOPO%LakeTargVol    ) = var_info('LakeTargVol'    , 'flag to define if lake follow target Vol (1=true)'  ,'-'    ,ixDims%Seg   , .false.)
@@ -206,37 +222,50 @@ contains
  ! PFAF CODE                                     varName        varDesc                                                varUnit, varType, varFile
  meta_PFAF  (ixPFAF%code             ) = var_info('code'           , 'pfafstetter code'                                   ,'-'    ,ixDims%seg   , .false.)
 
- ! ---------- populate segment fluxes/states metadata structures -----------------------------------------------------------------------------------------------------
-! Reach Flux                                   varName              varDesc                                 unit,   varType,  varDim,                     writeOut
- call meta_rflx(ixRFLX%basRunoff        )%init('basRunoff'        , 'basin runoff'                        , 'm/s' , pio_real, [ixQdims%hru,ixQdims%time], .true.)
- call meta_rflx(ixRFLX%instRunoff       )%init('instRunoff'       , 'instantaneous runoff in each reach'  , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
- call meta_rflx(ixRFLX%dlayRunoff       )%init('dlayRunoff'       , 'delayed runoff in each reach'        , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
- call meta_rflx(ixRFLX%sumUpstreamRunoff)%init('sumUpstreamRunoff', 'sum of upstream runoff in each reach', 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
- call meta_rflx(ixRFLX%KWTroutedRunoff  )%init('KWTroutedRunoff'  , 'KWT routed runoff in each reach'     , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
- call meta_rflx(ixRFLX%KWEroutedRunoff  )%init('KWEroutedRunoff'  , 'KWE routed runoff in each reach'     , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
- call meta_rflx(ixRFLX%IRFroutedRunoff  )%init('IRFroutedRunoff'  , 'IRF routed runoff in each reach'     , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
- call meta_rflx(ixRFLX%IRFlakeVol       )%init('IRFlakeVol'       , 'lake and stream volume for IRF'      , 'm3'  , pio_real, [ixQdims%seg,ixQdims%time], .true.)
+ ! ---------- populate segment fluxes/state metadata structures -------------------------------------------------------------------------------------------------------------------
+ ! Reach Flux                                  varName              varDesc                                                  unit,   varType,  varDim,                     writeOut
+ call meta_rflx(ixRFLX%instRunoff       )%init('instRunoff'       , 'instantaneous runoff in each reach'                   , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%dlayRunoff       )%init('dlayRunoff'       , 'delayed runoff in each reach'                         , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%sumUpstreamRunoff)%init('sumUpstreamRunoff', 'sum of upstream runoff in each reach'                 , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%IRFroutedRunoff  )%init('IRFroutedRunoff'  , 'routed runoff in each reach-impulse response function', 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
+ call meta_rflx(ixRFLX%KWTroutedRunoff  )%init('KWTroutedRunoff'  , 'routed runoff in each reach-lagrangian kinematic wave', 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
+ call meta_rflx(ixRFLX%KWroutedRunoff   )%init('KWroutedRunoff'   , 'routed runoff in each reach-kinematic wave'           , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
+ call meta_rflx(ixRFLX%MCroutedRunoff   )%init('MCroutedRunoff'   , 'routed runoff in each reach-muskingum-cunge'          , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
+ call meta_rflx(ixRFLX%DWroutedRunoff   )%init('DWroutedRunoff'   , 'routed runoff in each reach-diffusive wave'           , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
+ call meta_rflx(ixRFLX%volume           )%init('volume'           , 'lake and stream volume'                               , 'm3'  , pio_real, [ixQdims%seg,ixQdims%time], .true.)
 
- ! Lagrangian Kinematic Wave         varName      varDesc                                           unit,   varType,    varDim,                                             writeOut
+ ! HRU flux                                    varName              varDesc                                                  unit,   varType,  varDim,                     writeOut
+ call meta_hflx(ixHFLX%basRunoff        )%init('basRunoff'        , 'basin runoff'                                         , 'm/s' , pio_real, [ixQdims%hru,ixQdims%time], .true.)
+
+ ! ---------- populate segment restart metadata structures -------------------------------------------------------------------------------------------------------------------
+ ! Lagrangian Kinematic Wave
  call meta_kwt(ixKWT%tentry   )%init('tentry'   , 'time when a wave enters a segment'             , 's'   , pio_double, [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
  call meta_kwt(ixKWT%texit    )%init('texit'    , 'time when a wave is expected to exit a segment', 's'   , pio_double, [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
  call meta_kwt(ixKWT%qwave    )%init('qwave'    , 'flow of a wave'                                , 'm2/s', pio_double, [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
  call meta_kwt(ixKWT%qwave_mod)%init('qwave_mod', 'modified flow of a wave'                       , 'm2/s', pio_double, [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
  call meta_kwt(ixKWT%routed   )%init('routed'   , 'routing flag'                                  , '-'   , pio_int,    [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
 
- ! Eulerian Kinematic Wave       varName      varDesc                       unit,   varType,    varDim,                                               writeOut
- call meta_kwe(ixKWE%a   )%init('flow_area', 'flow area'                  , 'm2'  , pio_double, [ixStateDims%seg,ixStateDims%fdmesh,ixStateDims%ens], .true.)
- call meta_kwe(ixKWE%q   )%init('kwe_q'    , 'Kinematic wave routed flow' , 'm2/s', pio_double, [ixStateDims%seg,ixStateDims%fdmesh,ixStateDims%ens], .true.)
+ ! Kinematic Wave
+ call meta_kw(ixKW%qsub)%init('q_sub_kw' , 'flow at computational moelcule', 'm3/s', pio_double, [ixStateDims%seg,ixStateDims%mol_kw,ixStateDims%ens], .true.)
+ call meta_kw(ixKW%vol )%init('volume_kw', 'volume in reach/lake',           'm3',   pio_double, [ixStateDims%seg,ixStateDims%ens] , .true.)
 
- ! Impulse Response Function       varName         varDesc              unit,   varType,    varDim,                                                   writeOut
+ ! Diffusive Wave
+ call meta_dw(ixDW%qsub)%init('q_sub_dw' , 'flow at computational moelcule', 'm3/s', pio_double, [ixStateDims%seg,ixStateDims%mol_dw,ixStateDims%ens], .true.)
+ call meta_dw(ixDW%vol )%init('volume_dw', 'volume in reach/lake',           'm3',   pio_double, [ixStateDims%seg,ixStateDims%ens] , .true.)
+
+ ! Muskingum-cunge
+ call meta_mc(ixMC%qsub)%init('q_sub_mc' , 'flow at computational molecule', 'm3/s', pio_double, [ixStateDims%seg,ixStateDims%mol_mc,ixStateDims%ens], .true.)
+ call meta_mc(ixMC%vol )%init('volume_mc', 'volume in reach/lake',           'm3',   pio_double, [ixStateDims%seg,ixStateDims%ens] , .true.)
+
+ ! Impulse Response Function
  call meta_irf(ixIRF%qfuture)%init('irf_qfuture', 'future flow series',   'm3/s' ,pio_double, [ixStateDims%seg,ixStateDims%tdh_irf,ixStateDims%ens] , .true.)
- call meta_irf(ixIRF%irfVol)%init ('irfVol'     , 'volume in reach/lake', 'm3'   ,pio_double, [ixStateDims%seg,ixStateDims%tbound, ixStateDims%ens] , .true.)
+ call meta_irf(ixIRF%vol    )%init('volume_irf' , 'volume in reach/lake', 'm3'   ,pio_double, [ixStateDims%seg,ixStateDims%tbound, ixStateDims%ens] , .true.)
 
- ! Basin Impulse Response Function        varName    varDesc               unit,   varType,    varDim,                                           writeOut
+ ! Basin Impulse Response Function
  call meta_irf_bas(ixIRFbas%qfuture)%init('qfuture', 'future flow series', 'm3/s' ,pio_double, [ixStateDims%seg,ixStateDims%tdh,ixStateDims%ens], .true.)
 
-! reach inflow from basin                 varName     varDesc              unit,  varType,     varDim,                                           writeOut
- call meta_basinQ(ixBasinQ%q      )%init('basin_q', 'basin routed flow' , 'm3/s' ,pio_double, [ixStateDims%seg,ixStateDims%ens]                , .true.)
+ ! reach inflow from basin
+ call meta_basinQ(ixBasinQ%q)%init('basin_q', 'basin routed flow', 'm3/s' ,pio_double, [ixStateDims%seg,ixStateDims%ens], .true.)
 
  end subroutine popMetadat
 
