@@ -195,7 +195,7 @@ CONTAINS
           endif
 
           ! The D03_Coefficient is based on d**-1 meaning the result will be m**3 d**-1 and should be converter to m**3 s**-1
-          if RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0 > 0 then
+          if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0) > 0 then
             RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = RPARAM_in(segIndex)%D03_Coefficient * &
             (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0) * &
             (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0) / &
