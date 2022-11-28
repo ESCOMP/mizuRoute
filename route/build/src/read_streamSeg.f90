@@ -280,6 +280,7 @@ SUBROUTINE getData(&
       meta_SEG(ixSEG%D03_MaxStorage)%varFile    = .true.    ! Doll parameter
       meta_SEG(ixSEG%D03_coefficient)%varFile   = .true.    ! Doll parameter
       meta_SEG(ixSEG%D03_power)%varFile         = .true.    ! Doll parameter
+      meta_SEG(ixSEG%D03_S0)%varFile            = .true.    ! Doll parameter
     endif
 
     if (lake_model_HYPE) then

@@ -189,17 +189,28 @@ CONTAINS
           !  RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RPARAM_in(segIndex)%D03_MaxStorage
           !endif
 
+          if RPARAM_in(segIndex)%D03_MaxStorage < RPARAM_in(segIndex)%D03_S0 then !
+            cmessage = 'Additional parameter of inactive storage is larger than MaxStorage of Doll formulation, please check and correct'
+            ierr = 1; message=trim(message)//trim(cmessage);
+          endif
+
           ! The D03_Coefficient is based on d**-1 meaning the result will be m**3 d**-1 and should be converter to m**3 s**-1
-          RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = RPARAM_in(segIndex)%D03_Coefficient * RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) * &
-                                                   (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) / RPARAM_in(segIndex)%D03_MaxStorage) ** &
-                                                   RPARAM_in(segIndex)%D03_Power! Q = AS(S/Smax)^B based on Eq. 1 Hanasaki et al., 2006 https://doi.org/10.1016/j.jhydrol.2005.11.011
+          if RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0 > 0 then
+            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = RPARAM_in(segIndex)%D03_Coefficient * &
+            (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0) * &
+            (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0) / &
+            (RPARAM_in(segIndex)%D03_MaxStorage - RPARAM_in(segIndex)%D03_S0) ** &
+            RPARAM_in(segIndex)%D03_Power! Q = AS(S/Smax)^B based on Eq. 1 Hanasaki et al., 2006 https://doi.org/10.1016/j.jhydrol.2005.11.011
+          else
+            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = 0
+          endif
           RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q / secprday ! conversion to m**3 s**-1
           ! in case is the output volume is more than lake volume
           RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = (min(RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q * dt, RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)) )/dt
           ! updating the storage
           RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q * dt
           if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) < 0) then; ! set the lake volume as 0 if it goes negative
-            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)=0
+            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = 0
           endif
         case(hanasaki06)
           ! preserving the past upstrem discharge for lake models
