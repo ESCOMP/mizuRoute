@@ -10,6 +10,7 @@ USE io_netcdf, ONLY: get_var_attr
 USE io_netcdf, ONLY: check_attr
 USE io_netcdf, ONLY: get_nc_dim_len
 USE dataTypes, ONLY: runoff                 ! runoff data type
+USE dataTypes, ONLY: map_time               ! time step mapping data type
 
 implicit none
 
@@ -206,16 +207,16 @@ CONTAINS
  ! public subroutine: read runoff data
  ! *********************************************************************
  SUBROUTINE read_runoff_data(fname,          &  ! input: runoff netcdf name
-                             iTime,          &  ! input: time index
+                             map_sim_ro_in,  &  ! input: time index
                              runoff_data_in, &  ! inout: runoff data structure
                              ierr, message)     ! output: error control
  implicit none
  ! Argument variables
- character(*), intent(in)      :: fname              ! filename
- integer(i4b), intent(in)      :: iTime              ! index of time element
- type(runoff), intent(inout)   :: runoff_data_in     ! runoff for one time step for all spatial dimension
- integer(i4b), intent(out)     :: ierr               ! error code
- character(*), intent(out)     :: message            ! error message
+ character(*),  intent(in)      :: fname              ! filename
+ type(map_time),intent(in)      :: map_sim_ro_in      ! runoff for one time step for all spatial dimension
+ type(runoff),  intent(inout)   :: runoff_data_in     ! runoff for one time step for all spatial dimension
+ integer(i4b),  intent(out)     :: ierr               ! error code
+ character(*),  intent(out)     :: message            ! error message
  ! local variables
  integer(i4b)                  :: ncidRunoff         ! runoff netCDF ID
  character(len=strLen)         :: cmessage           ! error message from subroutine
@@ -226,10 +227,10 @@ CONTAINS
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  if (runoff_data_in%nSpace(2) == integerMissing) then
-  call read_1D_runoff(ncidRunoff, iTime, runoff_data_in%nSpace(1), runoff_data_in, ierr, cmessage)
+  call read_1D_runoff(ncidRunoff, map_sim_ro_in, runoff_data_in%nSpace(1), runoff_data_in, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  else
-  call read_2D_runoff(ncidRunoff, iTime, runoff_data_in%nSpace, runoff_data_in, ierr, cmessage)
+  call read_2D_runoff(ncidRunoff, map_sim_ro_in, runoff_data_in%nSpace, runoff_data_in, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  endif
 
@@ -242,41 +243,49 @@ CONTAINS
  ! private subroutine: read 2D runoff data
  ! *********************************************************************
  SUBROUTINE read_1D_runoff(ncidRunoff,     &  ! input: runoff netcdf ID
-                           iTime,          &  ! input: time index
+                           map_sim_ro_in,  &  ! input: ro-sim time mapping at current sim time step
                            nSpace,         &  ! input: size of HRUs
                            runoff_data_in, &  ! inout: runoff data structure
                            ierr, message)     ! output: error control
  implicit none
  ! Argument variables
- integer(i4b), intent(in)      :: ncidRunoff         ! runoff netCDF ID
- integer(i4b), intent(in)      :: iTime              ! index of time element
- integer(i4b), intent(in)      :: nSpace             ! size of spatial dimensions
- type(runoff), intent(inout)   :: runoff_data_in     ! runoff for one time step for all spatial dimension
- integer(i4b), intent(out)     :: ierr               ! error code
- character(*), intent(out)     :: message            ! error message
+ integer(i4b),   intent(in)      :: ncidRunoff         ! runoff netCDF ID
+ type(map_time), intent(in)      :: map_sim_ro_in      ! ro-sim time mapping at current simulation time-step
+ integer(i4b),   intent(in)      :: nSpace             ! size of spatial dimensions
+ type(runoff),   intent(inout)   :: runoff_data_in     ! runoff for one time step for all spatial dimension
+ integer(i4b),   intent(out)     :: ierr               ! error code
+ character(*),   intent(out)     :: message            ! error message
  ! local variables
- integer(i4b)                  :: iStart(2)
- integer(i4b)                  :: iCount(2)
- real(dp)                      :: dummy(nSpace,1)    ! data read
- character(len=strLen)         :: cmessage           ! error message from subroutine
+ integer(i4b)                    :: ix
+ integer(i4b)                    :: nTime
+ integer(i4b)                    :: iStart(2)
+ integer(i4b)                    :: iCount(2)
+ real(dp)                        :: dummy(nSpace,1)  ! data read
+ character(len=strLen)           :: cmessage         ! error message from subroutine
 
  ierr=0; message='read_1D_runoff/'
 
- ! get the time data
- call get_nc(ncidRunoff, vname_time, runoff_data_in%time, iTime, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ nTime = size(map_sim_ro_in%iTime)
 
  ! get the simulated runoff data
- iStart = [1,iTime]
- iCount = [nSpace,1]
- call get_nc(ncidRunoff, vname_qsim, dummy, iStart, iCount, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ runoff_data_in%qsim(1:nSpace) = 0._dp
+ do ix = 1, nTime
+   iStart = [1,map_sim_ro_in%iTime(ix)]
+   iCount = [nSpace,1]
+   call get_nc(ncidRunoff, vname_qsim, dummy, iStart, iCount, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! replace _fill_value with -999 for dummy
- where ( abs(dummy - ro_fillvalue) < verySmall ) dummy = realMissing
+   ! replace _fill_value with -999 for dummy
+   where ( abs(dummy - ro_fillvalue) < verySmall ) dummy = realMissing
 
- ! reshape
- runoff_data_in%qsim(1:nSpace) = dummy(1:nSpace,1)
+   ! finalize
+   if (nTime>1) then
+     runoff_data_in%qsim(1:nSpace) = runoff_data_in%qsim(1:nSpace) &
+                                   + dummy(1:nSpace,1)*map_sim_ro_in%frac(ix)
+   else
+     runoff_data_in%qsim(1:nSpace) = dummy(1:nSpace,1)
+   end if
+ end do
 
  END SUBROUTINE read_1D_runoff
 
@@ -284,41 +293,49 @@ CONTAINS
  ! private subroutine: read 2D runoff data
  ! *********************************************************************
  SUBROUTINE read_2D_runoff(ncidRunoff,     &  ! input: runoff netcdf ID
-                           iTime,          &  ! input: time index
+                           map_sim_ro_in,  &  ! input: ro-sim time mapping at current sim time step
                            nSpace,         &  ! input: size of HRUs
                            runoff_data_in, &  ! output: runoff data structure
                            ierr, message)     ! output: error control
  implicit none
  ! Argument variables
- integer(i4b), intent(in)    :: ncidRunoff       ! runoff netCDF ID
- integer(i4b), intent(in)    :: iTime            ! index of time element
- integer(i4b), intent(in)    :: nSpace(1:2)      ! size of spatial dimensions
- type(runoff), intent(inout) :: runoff_data_in   ! runoff for one time step for all spatial dimension
- integer(i4b), intent(out)   :: ierr             ! error code
- character(*), intent(out)   :: message          ! error message
+ integer(i4b),   intent(in)    :: ncidRunoff       ! runoff netCDF ID
+ type(map_time), intent(in)    :: map_sim_ro_in      ! ro-sim time mapping at current simulation time-step
+ integer(i4b),   intent(in)    :: nSpace(1:2)      ! size of spatial dimensions
+ type(runoff),   intent(inout) :: runoff_data_in   ! runoff for one time step for all spatial dimension
+ integer(i4b),   intent(out)   :: ierr             ! error code
+ character(*),   intent(out)   :: message          ! error message
  ! local variables
- integer(i4b)                :: iStart(3)
- integer(i4b)                :: iCount(3)
- real(dp)                    :: dummy(nSpace(2),nSpace(1),1) ! data read
- character(len=strLen)       :: cmessage                     ! error message from subroutine
+ integer(i4b)                  :: ix
+ integer(i4b)                  :: nTime
+ integer(i4b)                  :: iStart(3)
+ integer(i4b)                  :: iCount(3)
+ real(dp)                      :: dummy(nSpace(2),nSpace(1),1) ! data read
+ character(len=strLen)         :: cmessage                     ! error message from subroutine
 
  ierr=0; message='read_2D_runoff/'
 
- ! get the time data
- call get_nc(ncidRunoff, vname_time, runoff_data_in%time, iTime, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ nTime = size(map_sim_ro_in%iTime)
 
  ! get the simulated runoff data
- iStart = [1,1,iTime]
- iCount = [nSpace(2),nSpace(1),1]
- call get_nc(ncidRunoff, vname_qsim, dummy, iStart, iCount, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ runoff_data_in%qsim2d(1:nSpace(2),1:nSpace(1)) = 0._dp
+ do ix = 1, nTime
+   iStart = [1,1,map_sim_ro_in%iTime(ix)]
+   iCount = [nSpace(2),nSpace(1),1]
+   call get_nc(ncidRunoff, vname_qsim, dummy, iStart, iCount, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! replace _fill_value with -999. for dummy
- where ( abs(dummy - ro_fillvalue) < verySmall ) dummy = realMissing
+   ! replace _fill_value with -999. for dummy
+   where ( abs(dummy - ro_fillvalue) < verySmall ) dummy = realMissing
 
- ! reshape
- runoff_data_in%qsim2d(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)
+   ! finalize
+   if (nTime>1) then
+     runoff_data_in%qsim2d(1:nSpace(2),1:nSpace(1)) = runoff_data_in%qsim2d(1:nSpace(2),1:nSpace(1)) &
+                                                    + dummy(1:nSpace(2),1:nSpace(1),1)*map_sim_ro_in%frac(ix)
+   else
+     runoff_data_in%qsim2d(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)
+   end if
+ end do
 
  END SUBROUTINE read_2D_runoff
 

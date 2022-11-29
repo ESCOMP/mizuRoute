@@ -25,6 +25,8 @@ MODULE globalData
   USE dataTypes,  ONLY: LKFLX         ! lake fluxes
   ! remapping structures
   USE dataTypes,  ONLY: remap         ! remapping data type
+  USE dataTypes,  ONLY: map_time      ! time step mapping
+  ! runoff forcing structures
   USE dataTypes,  ONLY: runoff        ! runoff data type
   ! basin data structure
   USE dataTypes,  ONLY: subbasin_omp  ! mainstem+tributary data structures
@@ -116,7 +118,7 @@ MODULE globalData
 
   ! DataTime data/variables
   integer(i4b)                   , public :: iTime                      ! time index at simulation time step
-  real(dp)        , allocatable  , public :: timeVar(:)                 ! time variables (unit given by time variable)
+  real(dp)                       , public :: timeVar                    ! time variables (unit given by time variable)
   real(dp)                       , public :: TSEC(0:1)                  ! begning and end of time step (sec)
   type(datetime)                 , public :: modTime(0:1)               ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
   type(datetime)                 , public :: endCal                     ! simulation end date/time (yyyy:mm:dd:hh:mm:ss)
@@ -151,6 +153,7 @@ MODULE globalData
   ! mapping structures
   type(remap)                    , public :: remap_data                 ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
   type(runoff)                   , public :: runoff_data                ! runoff data for one time step for LSM HRUs and River network HRUs
+  type(map_time), allocatable    , public :: tmap_sim_ro(:)             ! mapping between simulation time step and runoff time step
 
   ! domain data
   type(subbasin_omp), allocatable, public :: river_basin(:)             ! openMP domain decomposition

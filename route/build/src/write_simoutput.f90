@@ -40,6 +40,7 @@ CONTAINS
   USE globalData, ONLY: nHRU, nRch          ! number of ensembles, HRUs and river reaches
   USE globalData, ONLY: RCHFLX              ! Reach fluxes (ensembles, space [reaches])
   USE globalData, ONLY: runoff_data         ! runoff data for one time step for LSM HRUs and River network HRUs
+  USE globalData, ONLY: timeVar             ! time variable at current model time step
 
   implicit none
 
@@ -62,7 +63,7 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [array_temp]'; return; endif
 
   ! write time -- note time is just carried across from the input
-  call write_nc(simout_nc%ncid, 'time', (/runoff_data%time/), (/jTime/), (/1/), ierr, cmessage)
+  call write_nc(simout_nc%ncid, 'time', (/timeVar/), (/jTime/), (/1/), ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   if (meta_rflx(ixRFLX%basRunoff)%varFile) then

@@ -14,7 +14,7 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE get_hru_runoff(ierr, message)
 
- ! populate runoff_data with runoff values at LSM domain and at iTime step
+ ! populate runoff_data with runoff values at LSM domain and at simulation time step
 
   USE public_var,  ONLY: input_dir               ! directory containing input data
   USE public_var,  ONLY: fname_qsim              ! simulated runoff netCDF name
@@ -22,13 +22,14 @@ CONTAINS
   USE public_var,  ONLY: qmodOption              ! options for streamflow modification (DA)
   USE public_var,  ONLY: takeWater               ! switch for water abstraction/injection
   USE public_var,  ONLY: integerMissing          !
-  USE globalData,  ONLY: iTime
   USE globalData,  ONLY: runoff_data             ! data structure to hru runoff data
   USE globalData,  ONLY: remap_data              ! data structure to remap data
-  USE globalData,  ONLY: modTime
+  USE globalData,  ONLY: iTime                   !
+  USE globalData,  ONLY: modTime                 !
   USE globalData,  ONLY: gage_obs_data
   USE globalData,  ONLY: rch_qtake_data
   USE globalData,  ONLY: RCHFLX
+  USE globalData,  ONLY: tmap_sim_ro             !
   USE read_runoff, ONLY: read_runoff_data        ! read runoff value into runoff_data data strucuture
   USE remapping,   ONLY: remap_runoff            ! mapping HM runoff to river network HRU runoff (HM_HRU /= RN_HRU)
   USE remapping,   ONLY: sort_runoff             ! mapping HM runoff to river network HRU runoff (HM_HRU == RN_HRU)
@@ -56,7 +57,7 @@ CONTAINS
 !  call system_clock(startTime)
   ! get the simulated runoff for the current time step - runoff_data%qsim(:) or %qsim2D(:,:)
   call read_runoff_data(trim(input_dir)//trim(fname_qsim), & ! input: filename
-                        iTime,                             & ! input: time index
+                        tmap_sim_ro(iTime),                & ! input: ro-sim time mapping at current simulation step
                         runoff_data,                       & ! inout: runoff data structure
                         ierr, cmessage)                      ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
