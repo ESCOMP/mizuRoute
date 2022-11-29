@@ -470,8 +470,6 @@ CONTAINS
     - RCHFLX_out(iens,segIndex)%basinevapo * dt - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual * dt &
     - (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0))
 
-    write(iulog,'(A,1PG15.7)') 'WBerr [m3] in lake_route.f90 = ', WB
-
     if ((1._dp<WB).or.(segIndex==ixDesire)) then; ! larger than 1 cubic meter or desired lake
       ! NOTE: The lake discharge and storage need to be solved iterative way to reduce water balance error
       write(iulog,*) 'Water balance for lake ID = ', NETOPO_in(segIndex)%REACHID, ' excees the Tolerance'
