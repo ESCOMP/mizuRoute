@@ -138,9 +138,11 @@ CONTAINS
     RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) ! updating storage for current time
     RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) + q_upstream * dt  ! input upstream discharge from m3/s to m3
     RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) + RCHFLX_out(iens,segIndex)%basinprecip * dt ! input lake precipitation
-    RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%basinevapo * dt ! output lake evaporation
-    if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) < 0) then; ! to avoid negative lake volume
-       RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)=0
+    if ((RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%basinevapo * dt) > 0) then ! enough water to evaporate
+      RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%basinevapo * dt ! output lake evaporation
+    else ! not enough water to evaporate
+      RCHFLX_out(iens,segIndex)%basinevapo = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) /dt ! update basinevapo
+      RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)=0
     endif
 
 
@@ -189,18 +191,18 @@ CONTAINS
           !  RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RPARAM_in(segIndex)%D03_MaxStorage
           !endif
 
-          if RPARAM_in(segIndex)%D03_MaxStorage < RPARAM_in(segIndex)%D03_S0 then !
+          if (RPARAM_in(segIndex)%D03_MaxStorage < RPARAM_in(segIndex)%D03_S0) then !
             cmessage = 'Additional parameter of inactive storage is larger than MaxStorage of Doll formulation, please check and correct'
             ierr = 1; message=trim(message)//trim(cmessage);
           endif
 
           ! The D03_Coefficient is based on d**-1 meaning the result will be m**3 d**-1 and should be converter to m**3 s**-1
-          if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0) > 0 then
+          if ((RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0) > 0) then
             RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = RPARAM_in(segIndex)%D03_Coefficient * &
             (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0) * &
             (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0) / &
             (RPARAM_in(segIndex)%D03_MaxStorage - RPARAM_in(segIndex)%D03_S0) ** &
-            RPARAM_in(segIndex)%D03_Power! Q = AS(S/Smax)^B based on Eq. 1 Hanasaki et al., 2006 https://doi.org/10.1016/j.jhydrol.2005.11.011
+            RPARAM_in(segIndex)%D03_Power ! Q = AS(S/Smax)^B based on Eq. 1 Hanasaki et al., 2006 https://doi.org/10.1016/j.jhydrol.2005.11.011
           else
             RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = 0
           endif
@@ -468,8 +470,9 @@ CONTAINS
     - RCHFLX_out(iens,segIndex)%basinevapo * dt - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual * dt &
     - (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0))
 
-    !if(lakeWBTol<WB)then;
-    if ((1<WB).or.(segIndex==ixDesire)) then; ! larger than 1 cubic meter or desired lake
+    write(iulog,'(A,1PG15.7)') 'WBerr [m3] in lake_route.f90 = ', WB
+
+    if ((1._dp<WB).or.(segIndex==ixDesire)) then; ! larger than 1 cubic meter or desired lake
       ! NOTE: The lake discharge and storage need to be solved iterative way to reduce water balance error
       write(iulog,*) 'Water balance for lake ID = ', NETOPO_in(segIndex)%REACHID, ' excees the Tolerance'
       write(iulog,'(A,1PG15.7)') 'WBerr [m3]       = ', WB
