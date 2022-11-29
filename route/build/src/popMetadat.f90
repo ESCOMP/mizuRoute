@@ -141,6 +141,7 @@ contains
  meta_SEG    (ixSEG%D03_MaxStorage   ) = var_info('D03_MaxStorage' , 'Doll 2003; maximume storage Doll 2003'             ,'m3'    ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%D03_Coefficient  ) = var_info('D03_Coefficient', 'Doll 2003; coefficient Doll 2003'                  ,'day-1' ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%D03_Power        ) = var_info('D03_Power'      , 'Doll 2003; power Doll 2003'                        ,'-'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%D03_S0           ) = var_info('D03_S0'         , 'Doll 2003; additional parameters, inactive storage','m3'    ,ixDims%seg   , .false.)
 
  meta_SEG    (ixSEG%HYP_E_emr        ) = var_info('HYP_E_emr'      , 'HYPE; elevation of emergency spillway'                                                   ,'m'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%HYP_E_lim        ) = var_info('HYP_E_lim'      , 'HYPE; elevation below which primary spillway flow is restrcited'                         ,'m'     ,ixDims%seg   , .false.)

@@ -402,6 +402,7 @@ END SUBROUTINE augment_ntopo
      RPARAM_in(iSeg)%D03_MaxStorage  =     structSEG(iSeg)%var(ixSEG%D03_MaxStorage)%dat(1)
      RPARAM_in(iSeg)%D03_Coefficient =     structSEG(iSeg)%var(ixSEG%D03_Coefficient)%dat(1)
      RPARAM_in(iSeg)%D03_Power       =     structSEG(iSeg)%var(ixSEG%D03_Power)%dat(1)
+     RPARAM_in(iSeg)%D03_S0          =     structSEG(iSeg)%var(ixSEG%D03_S0)%dat(1)
 
      RPARAM_in(iSeg)%HYP_E_emr       =     structSEG(iSeg)%var(ixSEG%HYP_E_emr)%dat(1)
      RPARAM_in(iSeg)%HYP_E_lim       =     structSEG(iSeg)%var(ixSEG%HYP_E_lim)%dat(1)

@@ -59,7 +59,8 @@ CONTAINS
   Qtake    = -1._dp *RCHFLX_in%REACH_WM_FLUX *dt
   evapo    = -1._dp *RCHFLX_in%basinevapo *dt
 
-  RCHFLX_in%ROUTE(ixRoute)%WB = dVol - (Qin + Qlateral + precip + Qout + Qtake + evapo)
+  ! RCHFLX_in%ROUTE(ixRoute)%WB = dVol - (Qin + Qlateral + precip + Qout + Qtake + evapo)
+  RCHFLX_in%ROUTE(ixRoute)%WB = dVol - (Qin + Qlateral + Qout + Qtake)
 
   if (verbose) then
     write(iulog,'(A,1PG15.7)') '  WBerr [m3]        = ', RCHFLX_in%ROUTE(ixRoute)%WB
