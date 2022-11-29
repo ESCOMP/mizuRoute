@@ -200,6 +200,7 @@ implicit none
   real(dp)                                   :: D03_MaxStorage ! Doll 2003; maximume storage [m3]
   real(dp)                                   :: D03_Coefficient! Doll 2003; Coefficient [?]
   real(dp)                                   :: D03_Power      ! Doll 2003; Power [-]
+  real(dp)                                   :: D03_S0         ! Doll 2003; Additional parameter to represent inactive storage
 
   real(dp)                                   :: HYP_E_emr      ! HYPE; elevation of emergency spillway [m]
   real(dp)                                   :: HYP_E_lim      ! HYPE; elevation below which primary spillway flow is restrcited [m]
@@ -357,7 +358,6 @@ implicit none
    real(dp)        :: REACH_Q                ! discharge at current time step [m3/s]
    real(dp)        :: REACH_VOL(0:1)         ! water volume at previous and current time steps [m3]
    real(dp)        :: WB                     ! reach water balance error [m3]
-   real(dp)        :: WBupstream             ! upstream area water balance error [m3]
  end type hydraulic
 
  ! fluxes and states in each reach

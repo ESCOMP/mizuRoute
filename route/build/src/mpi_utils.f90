@@ -18,6 +18,7 @@ MODULE mpi_utils
   public :: shr_mpi_gatherV
   public :: shr_mpi_scatterV
   public :: shr_mpi_allgather
+  public :: shr_mpi_reduce
   public :: shr_mpi_chkerr
   public :: shr_mpi_commsize
   public :: shr_mpi_commrank
@@ -58,6 +59,12 @@ MODULE mpi_utils
     shr_mpi_allgatherInt,     &
     shr_mpi_allgatherReal,    &
     shr_mpi_allgatherLogical
+  END INTERFACE
+
+  INTERFACE shr_mpi_reduce ; module procedure &
+    shr_mpi_reduceReal,   &
+    shr_mpi_reduceInt,    &
+    shr_mpi_reduceRealV
   END INTERFACE
 
   integer(i4b), parameter :: send_data_tag=2001
@@ -672,6 +679,113 @@ CONTAINS
                         mpicom_route, ierr)
 
   END SUBROUTINE shr_mpi_allgatherLogical
+
+  ! ----------------------------------
+  ! REDUCE - real scalar
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_reduceReal(localScalar,  method,       & ! input
+                                reducedScalar, ierr, message) ! output
+
+    implicit none
+    ! Argument variables:
+    real(dp),                  intent(in)  :: localScalar        ! local scalar at each proc
+    character(*),              intent(in)  :: method             ! reduction operation
+    real(dp),                  intent(out) :: reducedScalar      ! reduced scalar at root proc
+    integer(i4b),              intent(out) :: ierr
+    character(strLen),         intent(out) :: message            ! error message
+    ! local variable
+    ! None
+
+    ierr=0; message='shr_mpi_reduceReal/'
+
+    select case(trim(method))
+      case('sum')
+        call MPI_REDUCE(localScalar, reducedScalar, 1, MPI_DOUBLE_PRECISION,  &
+                        MPI_SUM, root, mpicom_route, ierr)
+      case('max')
+        call MPI_REDUCE(localScalar, reducedScalar, 1, MPI_DOUBLE_PRECISION,  &
+                        MPI_MAX, root, mpicom_route, ierr)
+      case('min')
+        call MPI_REDUCE(localScalar, reducedScalar, 1, MPI_DOUBLE_PRECISION,  &
+                        MPI_MIN, root, mpicom_route, ierr)
+      case default
+        ierr=20; message=trim(message)//'reduction operation: '//trim(method)//' not available'; return
+    end select
+
+  END SUBROUTINE shr_mpi_reduceReal
+
+  ! ----------------------------------
+  ! REDUCE - integer scalar
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_reduceInt(localScalar,  method,       & ! input
+                                reducedScalar, ierr, message) ! output
+
+    implicit none
+    ! Argument variables:
+    integer(i4b),              intent(in)  :: localScalar        ! local array at each proc
+    character(*),              intent(in)  :: method             ! reduction operation
+    integer(i4b),              intent(out) :: reducedScalar      ! reduced scalar at root proc
+    integer(i4b),              intent(out) :: ierr
+    character(strLen),         intent(out) :: message            ! error message
+    ! local variable
+    ! None
+
+    ierr=0; message='shr_mpi_reduceInt/'
+
+    select case(trim(method))
+      case('sum')
+        call MPI_REDUCE(localScalar, reducedScalar, 1, MPI_INTEGER,  &
+                        MPI_SUM, root, mpicom_route, ierr)
+      case('max')
+        call MPI_REDUCE(localScalar, reducedScalar, 1, MPI_INTEGER,  &
+                        MPI_MAX, root, mpicom_route, ierr)
+      case('min')
+        call MPI_REDUCE(localScalar, reducedScalar, 1, MPI_INTEGER,  &
+                        MPI_MIN, root, mpicom_route, ierr)
+      case default
+        ierr=20; message=trim(message)//'reduction operation: '//trim(method)//' not available'; return
+    end select
+
+  END SUBROUTINE shr_mpi_reduceInt
+
+  ! ----------------------------------
+  ! REDUCE - real array
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_reduceRealV(localArray,  method,       & ! input
+                                 reducedArray, ierr, message) ! output
+
+    implicit none
+    ! Argument variables:
+    real(dp),                  intent(in)  :: localArray(:)     ! local scalar at each proc
+    character(*),              intent(in)  :: method            ! reduction operation
+    real(dp),                  intent(out) :: reducedArray(:)   ! reduced scalar at root proc
+    integer(i4b),              intent(out) :: ierr
+    character(strLen),         intent(out) :: message           ! error message
+    ! local variable
+    integer(i4b)                           :: n
+
+    ierr=0; message='shr_mpi_reduceRealV/'
+
+    n=size(localArray)
+    if (size(reducedArray)/=n)then
+      ierr=20; message=trim(message)//'two array input has different sizes'; return
+    end if
+
+    select case(trim(method))
+      case('sum')
+        call MPI_REDUCE(localArray, reducedArray, n, MPI_DOUBLE_PRECISION,  &
+                        MPI_SUM, root, mpicom_route, ierr)
+      case('max')
+        call MPI_REDUCE(localArray, reducedArray, n, MPI_DOUBLE_PRECISION,  &
+                        MPI_MAX, root, mpicom_route, ierr)
+      case('min')
+        call MPI_REDUCE(localArray, reducedArray, n, MPI_DOUBLE_PRECISION,  &
+                        MPI_MIN, root, mpicom_route, ierr)
+      case default
+        ierr=20; message=trim(message)//'reduction operation: '//trim(method)//' not available'; return
+    end select
+
+  END SUBROUTINE shr_mpi_reduceRealV
 
   !-------------------------------------------------------------------------------
   ! PURPOSE: MPI number of tasks

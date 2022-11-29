@@ -4,184 +4,17 @@ USE nrtype
 ! data type
 USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
 USE dataTypes, ONLY: RCHTOPO        ! Network topology
-USE dataTypes, ONLY: subbasin_omp   ! mainstem+tributary data structures
 ! global parameters
 USE public_var, ONLY: iulog         ! i/o logical unit number
 USE public_var, ONLY: dt            ! simulation time step
-! subroutines: general
-USE perf_mod,   ONLY: t_startf,t_stopf ! timing start/stop
 
 implicit none
 
 private
-public:: accum_wb
 public:: comp_reach_wb
+public:: comp_global_wb
 
 CONTAINS
-
-  ! ---------------------------------------------------------------------------------------
-  ! Public subroutine: compute upstream area water balance for each reach
-  ! ---------------------------------------------------------------------------------------
-  SUBROUTINE accum_wb(iens,          & ! input: index of runoff ensemble to be processed
-                      ixRoute,       & ! input: index of routing method
-                      river_basin,   & ! input: river basin information (mainstem, tributary outlet etc.)
-                      ixDesire,      & ! input: ReachID to be checked by on-screen printing
-                      NETOPO_in,     & ! input: reach topology data structure
-                      RCHFLX_out,    & ! inout: reach flux data structure
-                      ierr, message, & ! output: error controls
-                      ixSubRch)        ! optional input: subset of reach indices to be processed
-  ! ----------------------------------------------------------------------------------------
-  ! -- Description:
-  ! Computed drainage basin water balance for each reach
-  ! for each reach, WB = sum(dVol) - (sum(Qlat) - sum(Qtake) - Qout)
-  ! sum() is computed over all the upstream catchments
-  !
-  ! ----------------------------------------------------------------------------------------
-
-  implicit none
-  ! argument variables
-  integer(i4b),                    intent(in)    :: iens            ! input: runoff ensemble index
-  integer(i4b),                    intent(in)    :: ixRoute         ! input: routing method index
-  type(subbasin_omp), allocatable, intent(in)    :: river_basin(:)  ! input: river basin information (mainstem, tributary outlet etc.)
-  integer(i4b),                    intent(in)    :: ixDesire        ! input: index of the reach for verbose output
-  type(RCHTOPO),      allocatable, intent(in)    :: NETOPO_in(:)    ! input: River Network topology
-  type(STRFLX),                    intent(inout) :: RCHFLX_out(:,:) ! inout: Reach fluxes (ensembles, space [reaches]) for decomposed domains
-  integer(i4b),                    intent(out)   :: ierr            ! output: error code
-  character(*),                    intent(out)   :: message         ! output: error message
-  integer(i4b),       optional,    intent(in)    :: ixSubRch(:)     ! optional input: subset of reach indices to be processed
-  ! local variables
-  integer(i4b)                                   :: nSeg            ! number of segments in the network
-  integer(i4b)                                   :: nTrib           ! number of tributaries
-  integer(i4b)                                   :: nDom            ! number of domains defined by e.g., stream order, tributary/mainstem
-  integer(i4b)                                   :: iSeg, jSeg      ! reach segment indices
-  integer(i4b)                                   :: iTrib, ix       ! loop indices
-  logical(lgt), allocatable                      :: doRoute(:)      ! logical to indicate which reaches are processed
-  character(len=strLen)                          :: cmessage        ! error message from subroutines
-
-  ierr=0; message='accum_wb/'
-
-  if (size(NETOPO_in)/=size(RCHFLX_out(iens,:))) then
-   ierr=20; message=trim(message)//'sizes of NETOPO and RCHFLX mismatch'; return
-  endif
-
-  nSeg = size(RCHFLX_out(iens,:))
-
-  allocate(doRoute(nSeg), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//'unable to allocate space for [doRoute]'; return; endif
-
-  ! if a subset of reaches is processed
-  if (present(ixSubRch))then
-    doRoute(:)=.false.
-    doRoute(ixSubRch) = .true. ! only subset of reaches are on
-  ! if all the reaches are processed
-  else
-    doRoute(:)=.true. ! every reach is on
-  endif
-
-  nDom = size(river_basin)
-
-  call t_startf('route/accum-wb')
-
-  do ix = 1,nDom
-    ! 1. Route tributary reaches (parallel)
-    ! compute the sum of all upstream runoff at each point in the river network
-    nTrib=size(river_basin(ix)%branch)
-
-!$OMP PARALLEL DO schedule(dynamic,1)         &
-!$OMP          private(jSeg, iSeg)            & ! private for a given thread
-!$OMP          private(ierr, cmessage)        & ! private for a given thread
-!$OMP          shared(river_basin)            & ! data structure shared
-!$OMP          shared(doRoute)                & ! data array shared
-!$OMP          shared(NETOPO_in)              & ! data structure shared
-!$OMP          shared(RCHFLX_out)             & ! data structure shared
-!$OMP          shared(ix, iens, ixDesire)     & ! indices shared
-!$OMP          firstprivate(nTrib)
-    do iTrib = 1,nTrib
-      do iSeg=1,river_basin(ix)%branch(iTrib)%nRch
-        jSeg = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
-
-        if (.not. doRoute(jSeg)) cycle
-
-        call comp_wb(iens, ixRoute, jSeg, ixDesire, NETOPO_in, RCHFLX_out)
-
-      end do
-    end do
-!$OMP END PARALLEL DO
-
-  end do
-
-  call t_stopf('route/accum-wb')
-
-  CONTAINS
-
-    ! *********************************************************************
-    ! subroutine: perform water balance error for a upstream basin
-    ! *********************************************************************
-    SUBROUTINE comp_wb(iens,       &    ! input: index of runoff ensemble to be processed
-                       ixRoute,    &    ! input: index of routing method
-                       segIndex,   &    ! input: index of reach to be processed
-                       ixDesire,   &    ! input: reachID to be checked by on-screen pringing
-                       NETOPO_in,  &    ! input: reach topology data structure
-                       RCHFLX_out)      ! inout: reach flux data structure
-    implicit none
-    ! Argument variables
-    integer(i4b), intent(in)                 :: iens           ! runoff ensemble to be routed
-    integer(i4b), intent(in)                 :: ixRoute        ! input: routing method index
-    integer(i4b), intent(in)                 :: segIndex       ! segment where routing is performed
-    integer(i4b), intent(in)                 :: ixDesire       ! index of the reach for verbose output
-    type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)   ! River Network topology
-    type(STRFLX), intent(inout)              :: RCHFLX_out(:,:)! Reach fluxes (ensembles, space [reaches]) for decomposed domains
-    ! Local variables
-    logical(lgt)                             :: verbose        ! check details of variables
-    real(dp)                                 :: dVol           ! volume change [m3]
-    real(dp)                                 :: Qlat           ! lateral flow [m3]
-    real(dp)                                 :: precp          ! precipitation into reach [m3]
-    real(dp)                                 :: Qtake          ! water take from reach [m3]
-    real(dp)                                 :: evapo          ! evaporation out of reach[m3]
-    real(dp)                                 :: Qout           ! out flow from reach [m3]
-    real(dp)                                 :: WBupstream     ! water balance error for basin including all upstream areas [m3]
-    integer(i4b)                             :: nUps           ! number of upstream segment
-    integer(i4b)                             :: iUps           ! upstream reach index
-    integer(i4b)                             :: iRch_ups       ! index of upstream reach in NETOPO
-
-    verbose = .false.
-    if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
-      verbose = .true.
-    end if
-
-    ! identify number of upstream segments of the reach being processed
-    nUps = size(NETOPO_in(segIndex)%UREACHI)
-
-    ! local water balance
-    dVol  = RCHFLX_out(iens,segIndex)%ROUTE(ixRoute)%REACH_VOL(1) &
-           -RCHFLX_out(iens,segIndex)%ROUTE(ixRoute)%REACH_VOL(0)         ! volume change for this reach [m3]
-    Qlat  = RCHFLX_out(iens,segIndex)%BASIN_QR(1) *dt                     ! later flow for this reach [m3]
-    precp = RCHFLX_out(iens,segIndex)%basinprecip *dt                     ! precp for this reach [m3]
-    Qtake = -1._dp *RCHFLX_out(iens,segIndex)%REACH_WM_FLUX *dt           ! Water abstraction from this reach [m3]
-    evapo = -1._dp *RCHFLX_out(iens,segIndex)%basinevapo *dt              ! evaporation from this reach [m3]
-    Qout  = -1._dp *RCHFLX_out(iens,segIndex)%ROUTE(ixRoute)%REACH_Q *dt  ! out flow from this reach [m3]
-
-    RCHFLX_out(iens,segIndex)%ROUTE(ixRoute)%WBupstream = dVol - (Qlat+precp+Qtake+evapo+Qout)
-
-    WBupstream = 0._dp
-    if (nUps>0) then
-      do iUps = 1,nUps
-        iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-        WBupstream = WBupstream + RCHFLX_out(iens,iRch_ups)%ROUTE(ixRoute)%WBupstream &
-                                - RCHFLX_out(iens,iRch_ups)%ROUTE(ixRoute)%REACH_Q *dt
-      end do
-    endif
-
-    RCHFLX_out(iens,segIndex)%ROUTE(ixRoute)%WBupstream = RCHFLX_out(iens,segIndex)%ROUTE(ixRoute)%WBupstream &
-                                                        + WBupstream
-    ! check
-    if(verbose)then
-      write(iulog,'(A,1PG15.7)') '  Total Upstream WBerr [m3] = ', RCHFLX_out(iens,segIndex)%ROUTE(ixRoute)%WBupstream
-    endif
-
-    END SUBROUTINE comp_wb
-
-  END SUBROUTINE accum_wb
 
   ! *********************************************************************
   ! public subroutine: compute reach water balance
@@ -226,7 +59,8 @@ CONTAINS
   Qtake    = -1._dp *RCHFLX_in%REACH_WM_FLUX *dt
   evapo    = -1._dp *RCHFLX_in%basinevapo *dt
 
-  RCHFLX_in%ROUTE(ixRoute)%WB = dVol - (Qin + Qlateral + precip + Qout + Qtake + evapo)
+  ! RCHFLX_in%ROUTE(ixRoute)%WB = dVol - (Qin + Qlateral + precip + Qout + Qtake + evapo)
+  RCHFLX_in%ROUTE(ixRoute)%WB = dVol - (Qin + Qlateral + Qout + Qtake)
 
   if (verbose) then
     write(iulog,'(A,1PG15.7)') '  WBerr [m3]        = ', RCHFLX_in%ROUTE(ixRoute)%WB
@@ -240,7 +74,142 @@ CONTAINS
     write(iulog,'(A,1PG15.7)') '  abstraction [m3]  = ', Qtake
     write(iulog,'(A,1PG15.7)') '  evaporation [m3]  = ', evapo
   endif
+  if (abs(RCHFLX_in%ROUTE(ixRoute)%WB) > 1.e-5_dp) then
+    write(iulog,'(A,1PG15.7,1X,A)') ' WARNING: WB error [m3] = ', RCHFLX_in%ROUTE(ixRoute)%WB, '> 1.e-5 [m3]'
+  end if
 
   END SUBROUTINE comp_reach_wb
+
+  ! *********************************************************************
+  ! public subroutine: compute global water balance
+  ! *********************************************************************
+  SUBROUTINE comp_global_wb(ixRoute, verbose, ierr, message)
+
+    USE globalData, ONLY: multiProcs, masterproc
+    USE globalData, ONLY: RCHFLX_trib
+    USE globalData, ONLY: NETOPO_main
+    USE globalData, ONLY: NETOPO_trib
+    USE globalData, ONLY: nRch_mainstem        ! scalar data: number of mainstem reaches
+    USE globalData, ONLY: nRch_trib            ! scalar data: number of tributary reaches
+    USE globalData, ONLY: nTribOutlet
+    USE mpi_utils,  ONLY: shr_mpi_reduce
+
+    ! Descriptions
+    ! Compute water balance per simulation time step over the whole domain
+    ! During a time step dt = t1 - t0 [sec]
+    ! dVol     [m3]   = Vol(t1) - Vol(t0)
+    ! flux_in  [m3/s] = lateral(dt) + Prec(dt)
+    ! flux_out [m3/s] = abstract(dt) + Evap(dt)
+    !                   outflow(dt) where outlet
+    !
+    ! SUM(dVol) - SUM(flux_in - flux_out)*dt
+    ! SUM is SUM over the whole domain
+
+    implicit none
+    ! Argument variables:
+    integer(i4b),      intent(in)     :: ixRoute        ! input: routing method index
+    logical(lgt),      intent(in)     :: verbose        ! input: reach index to be examined
+    integer(i4b),      intent(out)    :: ierr
+    character(strLen), intent(out)    :: message        ! error message
+    ! Local variables:
+    integer(i4b)                      :: lwr,upr        ! loop index
+    real(dp)                          :: wb_local(6)
+    real(dp)                          :: wb_global(6)
+    real(dp)                          :: wb_mainstem(6)
+    real(dp)                          :: wb_trib(6)
+    real(dp)                          :: wb_error
+    character(strLen)                 :: cmessage       ! error message from subroutine
+
+    ierr=0; message='comp_global_wb/'
+
+    if (multiProcs) then
+      if (masterproc) then
+        wb_trib     = 0._dp
+        wb_mainstem = 0._dp
+        if (nRch_mainstem > 0) then
+          call accum_water_balance(NETOPO_main(1:nRch_mainstem), RCHFLX_trib(1,1:nRch_mainstem), wb_mainstem, ierr, cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+        end if
+        if (nRch_trib > 0) then
+          lwr = nRch_mainstem + nTribOutlet + 1
+          upr = nRch_mainstem + nTribOutlet + nRch_trib
+          call accum_water_balance(NETOPO_trib, RCHFLX_trib(1,lwr:upr), wb_trib, ierr, cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+        end if
+        wb_local = wb_mainstem + wb_trib
+      else ! non-main processors
+        call accum_water_balance(NETOPO_trib, RCHFLX_trib(1,:), wb_local, ierr, cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      end if
+    else ! single core use
+      call accum_water_balance(NETOPO_main, RCHFLX_trib(1,1:nRch_mainstem), wb_local, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+
+    ! sum water balance components across all the processors
+    call shr_mpi_reduce(wb_local, 'sum', wb_global, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    wb_error = wb_global(1)-sum(wb_global(2:6))
+
+    if (verbose) then
+      if (masterproc) then
+        write(iulog,'(A)') '  global water balance [m3] '
+        write(iulog,'(A,1PG15.7)') '  dVol [m3]         = ', wb_global(1)
+        write(iulog,'(A,1PG15.7)') '  lateral flow [m3] = ', wb_global(2)
+        write(iulog,'(A,1PG15.7)') '  precip [m3]       = ', wb_global(3)
+        write(iulog,'(A,1PG15.7)') '  abstraction [m3]  = ', wb_global(4)
+        write(iulog,'(A,1PG15.7)') '  evaporation [m3]  = ', wb_global(5)
+        write(iulog,'(A,1PG15.7)') '  outflow [m3]      = ', wb_global(6)
+        write(iulog,'(A,1PG15.7)') '  WBerr [m3]        = ', wb_error
+      end if
+    endif
+
+    if (abs(wb_error) > 1._dp) then ! tolerance is 1 [m3]
+      write(iulog,'(A,1PG15.7,1X,A)') ' WARNING: global WB error [m3] = ', wb_error, '> 1.0 [m3]'
+    end if
+
+    CONTAINS
+
+    SUBROUTINE accum_water_balance(NETOPO_in, RCHFLX_in, water_budget, ierr, message)
+
+      USE dataTypes, ONLY: RCHTOPO   ! data structure - Network topology
+      USE dataTypes, ONLY: STRFLX    ! data structure - fluxes in each reach
+
+      implicit none
+      ! Arguments:
+      type(RCHTOPO),     intent(in)  :: NETOPO_in(:)
+      type(STRFLX),      intent(in)  :: RCHFLX_in(:)
+      real(dp),          intent(out) :: water_budget(6)
+      integer(i4b),      intent(out) :: ierr
+      character(strLen), intent(out) :: message           ! error message
+      ! Local variables:
+      integer(i4b)               :: ix          ! loop index
+      integer(i4b)               :: nRch_local  ! number of reach
+
+      ierr=0; message='accum_water_balance/'
+
+      nRch_local = size(RCHFLX_in)
+      if (nRch_local/=size(NETOPO_in)) then
+        ierr=20; message=trim(message)//'RCHFLX and NETOPO has different sizes'; return
+      end if
+
+      water_budget = 0._dp
+      do ix = 1, nRch_local
+        water_budget(1) = water_budget(1) + (RCHFLX_in(ix)%ROUTE(ixRoute)%REACH_VOL(1)-RCHFLX_in(ix)%ROUTE(ixRoute)%REACH_VOL(0))
+        ! in flux
+        water_budget(2) = water_budget(2) + RCHFLX_in(ix)%BASIN_QR(1) *dt
+        water_budget(3) = water_budget(3) + RCHFLX_in(ix)%basinprecip *dt
+        ! out flux
+        water_budget(4) = water_budget(4) - RCHFLX_in(ix)%basinevapo *dt
+        water_budget(5) = water_budget(5) - RCHFLX_in(ix)%REACH_WM_FLUX *dt
+
+        if (NETOPO_in(ix)%DREACHI==-1 .and. NETOPO_in(ix)%DREACHK<=0) then ! to-do: better way to detect outlet segments
+          water_budget(6) = water_budget(6) - RCHFLX_in(ix)%ROUTE(ixRoute)%REACH_Q *dt
+        end if
+      end do
+    END SUBROUTINE accum_water_balance
+
+  END SUBROUTINE comp_global_wb
 
 END MODULE water_balance

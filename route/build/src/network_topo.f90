@@ -972,7 +972,8 @@ CONTAINS
 
    ! process only if reach is outlet (i.e.,downstream reach index is missing values)
    do iRch=1,nRch
-     if (structNTOPO(iRch)%var(ixNTOPO%downSegIndex)%dat(1)==-1) then ! downSeg index=-1 -> outlet
+     if (structNTOPO(iRch)%var(ixNTOPO%downSegIndex)%dat(1)==-1 .and. &
+         structNTOPO(iRch)%var(ixNTOPO%downSegId)%dat(1)<=0) then ! downSeg index=-1 -> outlet
        associate (allUpIdx => structNTOPO(iRch)%var(ixNTOPO%allUpSegIndices)%dat)
        do jRch=1,size(allUpIdx)
          structNTOPO(allUpIdx(jRch))%var(ixNTOPO%destSegId)%dat(1)    = structNTOPO(iRch)%var(ixNTOPO%segId)%dat(1)

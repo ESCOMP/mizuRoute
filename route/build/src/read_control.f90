@@ -235,6 +235,7 @@ CONTAINS
    case('<varname_D03_MaxStorage>' ); meta_SEG    (ixSEG%D03_MaxStorage  )%varName =trim(cData)   ! Doll 2006; maximum active storage for Doll 2003 formulation
    case('<varname_D03_Coefficient>'); meta_SEG    (ixSEG%D03_Coefficient )%varName =trim(cData)   ! Doll 2006; coefficient for Doll 2003 formulation (day-1)
    case('<varname_D03_Power>'      ); meta_SEG    (ixSEG%D03_Power       )%varName =trim(cData)   ! Doll 2006; power for Doll 2003 formulation
+   case('<varname_D03_S0>'         ); meta_SEG    (ixSEG%D03_S0          )%varName =trim(cData)   ! Doll 2006; additional parameter to represent inactive storage
 
    case('<varname_HYP_E_emr>'      ); meta_SEG    (ixSEG%HYP_E_emr       )%varName =trim(cData)   ! HYPE; elevation of emergency spillway [m]
    case('<varname_HYP_E_lim>'      ); meta_SEG    (ixSEG%HYP_E_lim       )%varName =trim(cData)   ! HYPE; elevation below which primary spillway flow is restrcited [m]
