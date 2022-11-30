@@ -56,6 +56,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     #----------------------------------------------------
     dname_sseg = "seg"
     dname_nhru = "hru"
+    is_lake_sim = "F"
     if (    config['rof_grid'] == "HDMAmz" ):
        fname_ntopOld = "ntopo_HDMAmz_Global_cdf5_fill_reorder_c20200828.nc"
        varname_area = "Basin_Area"
@@ -76,6 +77,8 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
        varname_segId = "ID"
        varname_downSegId = "ID_next"
        varname_pfafCode = "PFAF"
+
+       is_lake_sim = "T"
 
        dname_nhru = "n"
        dname_sseg = "n"
@@ -187,6 +190,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     ctl.set( "varname_HRUid", varname_HRUid )
     ctl.set( "varname_hruSegId", varname_hruSegId )
     ctl.set( "varname_segId", varname_segId )
+    ctl.set( "is_lake_sim", is_lake_sim )
     ctl.set( "varname_downSegId", varname_downSegId )
     ctl.set( "varname_pfafCode", varname_pfafCode )
 
