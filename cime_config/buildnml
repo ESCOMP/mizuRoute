@@ -67,7 +67,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
        varname_downSegId = "Tosegment"
        varname_pfafCode = "PFAF"
     elif (  config['rof_grid'] == "HDMA_lake_mz" ):
-       fname_ntopOld = "ntopo_HDMA_lake_mz_Global_cdf5_fill_reorder_c20221117.nc"
+       fname_ntopOld = "ntopo_HDMA_lake_mz_Global_cdf5_fill_reorder_c20221130.nc"
        varname_area = "area"
        varname_length = "length"
        varname_slope  = "slope"
