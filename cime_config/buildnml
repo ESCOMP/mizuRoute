@@ -54,6 +54,9 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     #----------------------------------------------------
     # Settings that depend on the resolution
     #----------------------------------------------------
+    dname_sseg = "seg"
+    dname_nhru = "hru"
+    is_lake_sim = "F"
     if (    config['rof_grid'] == "HDMAmz" ):
        fname_ntopOld = "ntopo_HDMAmz_Global_cdf5_fill_reorder_c20200828.nc"
        varname_area = "Basin_Area"
@@ -64,6 +67,21 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
        varname_segId = "seg_id"
        varname_downSegId = "Tosegment"
        varname_pfafCode = "PFAF"
+    elif (  config['rof_grid'] == "HDMA_lake_mz" ):
+       fname_ntopOld = "ntopo_HDMA_lake_mz_Global_cdf5_fill_reorder_c20221130.nc"
+       varname_area = "area"
+       varname_length = "length"
+       varname_slope  = "slope"
+       varname_HRUid = "ID"
+       varname_hruSegId = "ID"
+       varname_segId = "ID"
+       varname_downSegId = "ID_next"
+       varname_pfafCode = "PFAF"
+
+       is_lake_sim = "T"
+
+       dname_nhru = "n"
+       dname_sseg = "n"
     elif (  config['rof_grid'] == "r05mz" ):
        fname_ntopOld = "ntopo_r05_MOSART_Global_half_20161105a_cdf5_reord_360_c20200427.nc"
        varname_area = "hruArea"
@@ -163,8 +181,8 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     ctl.set( "input_dir", rundir+"/" )
     ctl.set( "ancil_dir", dindir+"/rof/mizuRoute/ancillary_data/" )
     ctl.set( "fname_ntopOld", fname_ntopOld )
-    ctl.set( "dname_sseg", "seg" )
-    ctl.set( "dname_nhru", "hru" )
+    ctl.set( "dname_sseg", dname_sseg )
+    ctl.set( "dname_nhru", dname_nhru )
     ctl.set( "param_nml", "mizuRoute_in" )
     ctl.set( "varname_area", varname_area )
     ctl.set( "varname_length", varname_length )
@@ -172,6 +190,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     ctl.set( "varname_HRUid", varname_HRUid )
     ctl.set( "varname_hruSegId", varname_hruSegId )
     ctl.set( "varname_segId", varname_segId )
+    ctl.set( "is_lake_sim", is_lake_sim )
     ctl.set( "varname_downSegId", varname_downSegId )
     ctl.set( "varname_pfafCode", varname_pfafCode )
 
