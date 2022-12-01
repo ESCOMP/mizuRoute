@@ -103,13 +103,12 @@ CONTAINS
 
 
  ! *********************************************************************
- ! public subroutine: initiate the reading of the netcdf files for runoff
+ ! private subroutine: initiate the reading of the netcdf files for runoff
  ! or abstraction or injection
  ! *********************************************************************
 
  SUBROUTINE init_inFile_pop (ierr, message)  ! output
 
-  ! Shared data
   USE public_var, ONLY: input_dir               ! directory containing the text files of fname_qsim and fname_wm
   USE public_var, ONLY: fname_qsim              ! simulated runoff txt file that includes the NetCDF file names
   USE public_var, ONLY: vname_time              ! variable name for time
@@ -123,15 +122,12 @@ CONTAINS
   USE public_var, ONLY: is_flux_wm              ! logical whether or not abstraction and injection should be read from the file
   USE public_var, ONLY: is_vol_wm               ! logical whether or not target volume for lakes should be read
 
-
-  ! output: error control
+  ! Argument variables
   integer(i4b),         intent(out)    :: ierr             ! error code
   character(*),         intent(out)    :: message          ! error message
-
-  ! local:
+  ! local variables
   character(len=strLen)                :: cmessage         ! error message of downwind routine
 
-  ! initialize error control
   ierr=0; message='init_inFile_pop/'
 
   call inFile_pop(input_dir,         & ! input: name of the directory of the txt file
@@ -177,43 +173,37 @@ CONTAINS
                        inputfileinfo,    & ! output: input file information
                        ierr, message)      ! output: error control
 
-  ! data types
   USE dataTypes,           ONLY: infileinfo     ! the data type for storing the infromation of the nc files and its attributes
   USE datetime_data,       ONLY: datetime       ! datetime data
-  ! subroutines
   USE ascii_utils,         ONLY: file_open      ! open file (performs a few checks as well)
   USE ascii_utils,         ONLY: get_vlines     ! get a list of character strings from non-comment lines
-  USE ncio_utils,          ONLY: get_nc         ! get the
-  USE ncio_utils,          ONLY: get_var_attr   ! get the attributes interface
+  USE ncio_utils,          ONLY: get_nc         ! Read netCDF variable data
+  USE ncio_utils,          ONLY: get_var_attr   ! Read attributes variables
   USE ncio_utils,          ONLY: get_nc_dim_len ! get the nc dimension length
-  ! Shared data
   USE public_var,          ONLY: time_units     ! get the time units from control file and replace if not provided in nc files
   USE public_var,          ONLY: calendar       ! get the calendar from control file and replace if not provided in nc files
 
-  ! input
-  character(len=strLen), intent(in)    :: dir_name         ! the name of the directory that the txt file located
-  character(len=strLen), intent(in)    :: file_name        ! the name of the file that include the nc file names
-  character(len=strLen), intent(in)    :: time_var_name    ! the name of the time variable
-  character(len=strLen), intent(in)    :: time_dim_name    ! the name of dimension time
-  ! inoutput
-  type(infileinfo),     intent(inout), allocatable :: inputfileinfo(:)    ! the name of structure that hold the infile information
-  ! output
-  integer(i4b),         intent(out)                :: ierr             ! error code
-  character(*),         intent(out)                :: message          ! error message
+  ! Argument variables
+  character(len=strLen), intent(in)                 :: dir_name         ! the name of the directory that the txt file located
+  character(len=strLen), intent(in)                 :: file_name        ! the name of the file that include the nc file names
+  character(len=strLen), intent(in)                 :: time_var_name    ! the name of the time variable
+  character(len=strLen), intent(in)                 :: time_dim_name    ! the name of dimension time
+  type(infileinfo),      intent(inout), allocatable :: inputfileinfo(:) ! the name of structure that hold the infile information
+  integer(i4b),          intent(out)                :: ierr             ! error code
+  character(*),          intent(out)                :: message          ! error message
   ! local varibales
-  integer(i4b)                         :: unit             ! file unit (free unit output from file_open)
-  character(len=7)                     :: t_unit           ! time units. "<time_step> since yyyy-MM-dd hh:mm:ss"
-  integer(i4b)                         :: iFile            ! counter for forcing files
-  integer(i4b)                         :: nFile            ! number of nc files identified in the text file
-  integer(i4b)                         :: nTime            ! hard coded for now
-  type(datetime)                       :: refDatetime      ! reference datetime for each file
-  real(dp)                             :: convTime2Days    ! conversion of the day to the local time
-  character(len=strLen)                :: infilename       ! input filename
-  character(len=strLen),allocatable    :: dataLines(:)     ! vector of lines of information (non-comment lines)
-  character(len=strLen)                :: filenameData     ! name of forcing datafile
-  character(len=strLen)                :: cmessage         ! error message of downwind routine
+  integer(i4b)                                      :: unit             ! file unit (free unit output from file_open)
+  character(len=7)                                  :: t_unit           ! time units. "<time_step> since yyyy-MM-dd hh:mm:ss"
+  integer(i4b)                                      :: iFile            ! counter for forcing files
+  integer(i4b)                                      :: nFile            ! number of nc files identified in the text file
+  integer(i4b)                                      :: nTime            ! hard coded for now
+  type(datetime)                                    :: refDatetime      ! reference datetime for each file
+  real(dp)                                          :: convTime2Days    ! conversion of the day to the local time
+  character(len=strLen)                             :: infilename       ! input filename
+  character(len=strLen),allocatable                 :: dataLines(:)     ! vector of lines of information (non-comment lines)
+  character(len=strLen)                             :: filenameData     ! name of forcing datafile
+  character(len=strLen)                             :: cmessage         ! error message of downwind routine
 
-  ! initialize error control
   ierr=0; message='inFile_pop/'
 
   ! build filename and its path containing list of NetCDF files
@@ -316,31 +306,24 @@ CONTAINS
                              inputfileinfo_wm,   & ! inout: input file information
                              ierr, message)        ! output: error control
 
-  ! data types
-  USE dataTypes, ONLY: infileinfo               ! the data type for storing the infromation of the nc files and its attributes
-
-  ! public data
+  USE dataTypes,  ONLY: infileinfo    ! the data type for storing the infromation of the nc files and its attributes
   USE public_var, ONLY: dt            ! simulation time step in seconds
   USE public_var, ONLY: secprday      ! conversion of steps in days to seconds
 
-  ! input
-  type(infileinfo),         intent(in)              :: inputfileinfo(:)       ! the name of structure that hold the infile information
-  ! inout
-  type(infileinfo),         intent(inout)           :: inputfileinfo_wm(:)    ! the name of structure that hold the infile information
-  ! output
-  integer(i4b),             intent(out)             :: ierr             ! error code
-  character(*),             intent(out)             :: message          ! error message
-  ! local
+  ! Argument variables
+  type(infileinfo),         intent(in)              :: inputfileinfo(:)      ! the name of structure that hold the infile information
+  type(infileinfo),         intent(inout)           :: inputfileinfo_wm(:)   ! the name of structure that hold the infile information
+  integer(i4b),             intent(out)             :: ierr                  ! error code
+  character(*),             intent(out)             :: message               ! error message
+  ! local variables
   integer(i4b)                                      :: nt
-  integer(i4b)                                      :: nFile             ! number of nc files for the simulated runoff
-  integer(i4b)                                      :: nFile_wm          ! number of nc files for the water managent
-  integer(i4b)                                      :: iFile             ! for loop over the nc files
-  real(dp)                                          :: day_runoff_start  ! the Julian day that runoff starts
-  real(dp)                                          :: day_start_diff    ! conversion of the day to the local time
-  real(dp)                                          :: day_end_diff      ! conversion of the day to the local time
+  integer(i4b)                                      :: nFile                 ! number of nc files for the simulated runoff
+  integer(i4b)                                      :: nFile_wm              ! number of nc files for the water managent
+  integer(i4b)                                      :: iFile                 ! for loop over the nc files
+  real(dp)                                          :: day_runoff_start      ! the Julian day that runoff starts
+  real(dp)                                          :: day_start_diff        ! conversion of the day to the local time
+  real(dp)                                          :: day_end_diff          ! conversion of the day to the local time
 
-
-  ! initialize error control
   ierr=0; message='inFile_sync_time/'
 
   ! set the reference julday based on the first nc file of simulation
@@ -388,10 +371,8 @@ CONTAINS
   ! - begDatetime, endDatetime:   simulationg start and end datetime
   ! - restDatetime, dropDatetime
 
-  USE ascii_utils, ONLY : lower            ! convert string to lower case
-  ! derived datatype
+  USE ascii_utils, ONLY : lower                  ! convert string to lower case
   USE datetime_data, ONLY : datetime             ! datetime data
-  ! public data
   USE public_var, ONLY: time_units               ! time units (seconds, hours, or days)
   USE public_var, ONLY: simStart                 ! date string defining the start of the simulation
   USE public_var, ONLY: simEnd                   ! date string defining the end of the simulation
@@ -405,7 +386,6 @@ CONTAINS
   USE public_var, ONLY: restart_day              ! periodic restart day
   USE public_var, ONLY: restart_hour             ! periodic restart hr
   USE public_var, ONLY: maxTimeDiff              ! time difference tolerance for input checks
-  ! saved time variables
   USE globalData, ONLY: timeVar                  ! time variables (unit given by runoff data)
   USE globalData, ONLY: iTime                    ! time index at simulation time step
   USE globalData, ONLY: simDatetime              ! model time data (yyyy:mm:dd:hh:mm:ss)
@@ -421,10 +401,10 @@ CONTAINS
 
   implicit none
 
-  ! output: error control
+  ! Argument variables
   integer(i4b),              intent(out)   :: ierr                ! error code
   character(*),              intent(out)   :: message             ! error message
-  ! local variable
+  ! local variables
   integer(i4b)                             :: ix
   integer(i4b)                             :: counter
   integer(i4b)                             :: nTime
@@ -446,7 +426,6 @@ CONTAINS
   character(len=strLen)                    :: cmessage            ! error message of downwind routine
   character(len=50)                        :: fmt1='(a,I4,a,I2.2,a,I2.2,x,I2.2,a,I2.2,a,F5.2)'
 
-  ! initialize error control
   ierr=0; message='init_time/'
 
   ! Set time attributes for continuous time variables (saved in globalData to use for output)
@@ -654,15 +633,13 @@ CONTAINS
    USE globalData, ONLY: wm_data              ! abstraction injection data structure
 
    implicit none
-   ! input:
+   ! Argument variables
    integer(i4b),              intent(in)    :: pid              ! proc id
-   ! output: error control
    integer(i4b),              intent(out)   :: ierr             ! error code
    character(*),              intent(out)   :: message          ! error message
-   ! local:
+   ! local variables
    character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
-   ! initialize error control
    ierr=0; message='init_runoff_data/'
 
    if (pid==0) then
@@ -721,12 +698,11 @@ CONTAINS
  USE read_remap,  ONLY: get_remap_data         ! read remap data
 
  implicit none
- ! data structures
+ ! Argument variables
  logical(lgt), intent(in)           :: remap_flag       ! logical whether or not runnoff needs to be mapped to river network HRU
  type(remap),  intent(out)          :: remap_data_in    ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
  type(runoff), intent(out)          :: runoff_data_in   ! runoff for one time step for all HRUs
  type(wm),     intent(out)          :: wm_data_in       ! abstraction/injection for one time step for all HRUs
- ! error control
  integer(i4b), intent(out)          :: ierr             ! error code
  character(*), intent(out)          :: message          ! error message
  ! local variables
@@ -734,7 +710,6 @@ CONTAINS
  integer(i4b), allocatable          :: unq_idx(:)
  character(len=strLen)              :: cmessage         ! error message from subroutine
 
- ! initialize error control
  ierr=0; message='init_runoff/'
 
  ! get runoff metadata for simulated runoff, evaporation and precipitation
@@ -864,7 +839,7 @@ CONTAINS
 
 
  ! *****
- ! private subroutine: get indices of mapping points within runoff file...
+ ! private subroutine: get indices of mapping points within runoff file... (To be removed since the same routine in nr_utils)
  ! ***********************************************************************
  SUBROUTINE get_qix(qid,qidMaster,qix,ierr,message)
 
