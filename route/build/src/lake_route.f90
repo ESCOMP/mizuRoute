@@ -130,8 +130,22 @@ CONTAINS
 
 
     ! jump start the lake volume to the target volume if provided for the first time step
-    if ((is_vol_wm_jumpstart).and.(NETOPO_in(segIndex)%LakeTargVol).and.(iTime==1)) then
-      RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%REACH_WM_VOL ! update the initial condition with first target volume value
+    if (iTime==1) then
+      if ((is_vol_wm_jumpstart).and.(NETOPO_in(segIndex)%LakeTargVol)) then
+        RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%REACH_WM_VOL ! update the initial condition with first target volume value
+      else ! the lake volume is not jump started based on lake target volume
+        select case(NETOPO_in(segIndex)%LakeModelType)
+          case(endorheic)
+            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RPARAM_in(segIndex)%D03_S0 ! currently assumes all endorheic max storage are provided under doll formulation
+          case(doll03)
+            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RPARAM_in(segIndex)%D03_MaxStorage
+          case(hanasaki06)
+            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RPARAM_in(segIndex)%H06_Smax
+          case(hype)
+            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = (RPARAM_in(segIndex)%HYP_E_min - RPARAM_in(segIndex)%HYP_E_zero) * RPARAM_in(segIndex)%HYP_A_avg
+          case default; ierr=20; message=trim(message)//'unable to identify the parametric lake model type'; return
+        end select
+      endif
     endif
 
     ! add upstream, precipitation and subtract evaporation from the lake volume
@@ -176,32 +190,24 @@ CONTAINS
         RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_WM_VOL
       endif
 
-      !print*, "inside the lake follow target", RCHFLX_out(iens,segIndex)%REACH_WM_VOL, RCHFLX_out(iens,segIndex)%REACH_VOL(1)
-
     else ! if the lake is parameteric
-      !print*, "lake model type", NETOPO_in(segIndex)%LakeModelType
+
       select case(NETOPO_in(segIndex)%LakeModelType)
 
         case(endorheic)
           ! no action needed, pass
         case(doll03)
-          ! temporary solution, this should be removed if there is restart activated...
-          ! print*, iTime, 'iTime in the area'
-          ! if (iTIme == 1) then
-          !  RCHFLX_out(iens,segIndex)%REACH_VOL(1) = RPARAM_in(segIndex)%D03_MaxStorage
-          !endif
-
+          ! Check if the MaxStorage is larger than S0
           if (RPARAM_in(segIndex)%D03_MaxStorage < RPARAM_in(segIndex)%D03_S0) then !
             cmessage = 'Additional parameter of inactive storage is larger than MaxStorage of Doll formulation, please check and correct'
             ierr = 1; message=trim(message)//trim(cmessage);
           endif
-
           ! The D03_Coefficient is based on d**-1 meaning the result will be m**3 d**-1 and should be converter to m**3 s**-1
           if ((RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0) > 0) then
             RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = RPARAM_in(segIndex)%D03_Coefficient * &
             (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0) * &
-            (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0) / &
-            (RPARAM_in(segIndex)%D03_MaxStorage - RPARAM_in(segIndex)%D03_S0) ** &
+            ((RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0) / &
+            (RPARAM_in(segIndex)%D03_MaxStorage - RPARAM_in(segIndex)%D03_S0)) ** &
             RPARAM_in(segIndex)%D03_Power ! Q = AS(S/Smax)^B based on Eq. 1 Hanasaki et al., 2006 https://doi.org/10.1016/j.jhydrol.2005.11.011
           else
             RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = 0
