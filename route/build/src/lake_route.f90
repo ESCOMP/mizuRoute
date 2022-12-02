@@ -2,18 +2,22 @@ MODULE lake_route_module
 
 USE nrtype
 ! data type
-USE dataTypes, ONLY: STRFLX         ! fluxes in each reach
-USE dataTypes, ONLY: RCHTOPO        ! Network topology
-USE dataTypes, ONLY: RCHPRP         ! Network parameter
+USE dataTypes, ONLY: STRFLX          ! fluxes in each reach
+USE dataTypes, ONLY: RCHTOPO         ! Network topology
+USE dataTypes, ONLY: RCHPRP          ! Network parameter
 ! global parameters
 USE public_var, ONLY: iulog          ! i/o logical unit number
 USE public_var, ONLY: realMissing    ! missing value for real number
 USE public_var, ONLY: integerMissing ! missing value for integer number
 USE public_var, ONLY: pi             ! pi value of 3.14159265359_dp
+USE public_var, ONLY: fname_state_in ! name of state input file
+USE public_var, ONLY: charMissing    ! missing character
 USE globalData, ONLY: idxIRF         ! index of IRF method
 ! subroutines: model time info
 USE time_utils_module, ONLY: compJulday,&      ! compute julian day
                              compJulday_noleap ! compute julian day for noleap calendar
+! external routines
+USE ascii_utils,  ONLY: lower        ! convert string to lower case
 
 implicit none
 integer(i4b),parameter :: endorheic=0
@@ -134,17 +138,19 @@ CONTAINS
       if ((is_vol_wm_jumpstart).and.(NETOPO_in(segIndex)%LakeTargVol)) then
         RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%REACH_WM_VOL ! update the initial condition with first target volume value
       else ! the lake volume is not jump started based on lake target volume
-        select case(NETOPO_in(segIndex)%LakeModelType)
-          case(endorheic)
-            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RPARAM_in(segIndex)%D03_S0 ! currently assumes all endorheic max storage are provided under doll formulation
-          case(doll03)
-            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RPARAM_in(segIndex)%D03_MaxStorage
-          case(hanasaki06)
-            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RPARAM_in(segIndex)%H06_Smax
-          case(hype)
-            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = (RPARAM_in(segIndex)%HYP_E_min - RPARAM_in(segIndex)%HYP_E_zero) * RPARAM_in(segIndex)%HYP_A_avg
-          case default; ierr=20; message=trim(message)//'unable to identify the parametric lake model type'; return
-        end select
+        if (trim(fname_state_in)==charMissing .or. lower(trim(fname_state_in))=='none' .or. lower(trim(fname_state_in))=='coldstart') then
+          select case(NETOPO_in(segIndex)%LakeModelType)
+            case(endorheic)
+              RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RPARAM_in(segIndex)%D03_S0 ! currently assumes all endorheic max storage are provided under doll formulation
+            case(doll03)
+              RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RPARAM_in(segIndex)%D03_MaxStorage
+            case(hanasaki06)
+              RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RPARAM_in(segIndex)%H06_Smax
+            case(hype)
+              RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = (RPARAM_in(segIndex)%HYP_E_min - RPARAM_in(segIndex)%HYP_E_zero) * RPARAM_in(segIndex)%HYP_A_avg
+            case default; ierr=20; message=trim(message)//'unable to identify the parametric lake model type'; return
+          end select
+        endif
       endif
     endif
 
