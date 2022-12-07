@@ -816,7 +816,6 @@ CONTAINS
  USE globalData, ONLY: nRch                ! number of reaches in network
  USE globalData, ONLY: TSEC                ! beginning/ending of simulation time step [sec]
  USE globalData, ONLY: timeVar             ! time variables (unit given by runoff data)
- USE globalData, ONLY: iTime               ! time index at simulation time step
 
  implicit none
 
@@ -880,7 +879,7 @@ CONTAINS
      ierr=20; message=trim(message)//'<time_units>= '//trim(time_units)//': <time_units> must be seconds, minutes, hours or days.'; return
  end select
 
- restartTimeVar = timeVar(iTime) + dt/secPerTime
+ restartTimeVar = timeVar + dt/secPerTime
 
  ! -- Write out to netCDF
 

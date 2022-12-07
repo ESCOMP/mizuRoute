@@ -11,7 +11,7 @@ MODULE globalData
   USE dataTypes, ONLY: var_info      ! metadata type - variable
   USE objTypes,  ONLY: var_info_new  ! metadata type - variable
 
-  USE dataTypes, ONLY: infileinfo    ! data strture - information of input files
+  USE dataTypes, ONLY: inFileInfo    ! data strture - information of input files
   USE dataTypes, ONLY: gage          ! data structure - gauge metadata
 
   USE dataTypes, ONLY: RCHPRP        ! data structure - Reach parameters (properties)
@@ -25,6 +25,8 @@ MODULE globalData
   USE dataTypes, ONLY: LKFLX         ! data structure - lake fluxes
 
   USE dataTypes, ONLY: remap         ! data structure - remapping data type
+  USE dataTypes, ONLY: map_time      ! time step mapping
+
   USE dataTypes, ONLY: runoff        ! data structure - runoff data type
   USE dataTypes, ONLY: wm            ! data structure - water management (flux to/from segment, target volume) data type
 
@@ -86,7 +88,7 @@ MODULE globalData
   ! ---------- Date/Time data  -------------------------------------------------------------------------
 
   integer(i4b),                    public :: iTime                ! time index at simulation time step
-  real(dp),         allocatable,   public :: timeVar(:)           ! time variables (unit given by runoff data)
+  real(dp),                        public :: timeVar              ! time variables (unit given by time variable)
   real(dp),                        public :: TSEC(0:1)            ! begning and end of time step since simulation started (sec)
   type(datetime),                  public :: simDatetime(0:1)     ! previous and current simulation time (yyyy:mm:dd:hh:mm:ss)
   type(datetime),                  public :: begDatetime          ! simulation start date/time (yyyy:mm:dd:hh:mm:ss)
@@ -96,8 +98,8 @@ MODULE globalData
 
   ! ---------- input file information -------------------------------------------------------------------
 
-  type(infileinfo), allocatable,   public :: infileinfo_data(:)    ! input runoff file information
-  type(infileinfo), allocatable,   public :: infileinfo_data_wm(:) ! input water management (abstaction/injection) file information
+  type(infileinfo), allocatable,   public :: inFileInfo_ro(:)    ! input runoff/evapo/precipi file information
+  type(infileinfo), allocatable,   public :: inFileInfo_wm(:)    ! input water management (abstaction/injection) file information
 
   ! ---------- Misc. data -------------------------------------------------------------------------
   character(len=strLen),           public :: runMode='standalone'        ! run options: standalone or cesm-coupling
@@ -193,6 +195,8 @@ MODULE globalData
 
   ! mapping structures
   type(remap),                     public :: remap_data             ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
+  type(map_time), allocatable    , public :: tmap_sim_ro(:)         ! mapping between simulation time step and runoff time step
+  type(map_time), allocatable    , public :: tmap_sim_wm(:)         ! mapping between simulation time step and water management time step
 
   ! hru runoff data
   type(runoff),                    public :: runoff_data            ! HRU runoff data structure for one time step for LSM HRUs and River network HRUs

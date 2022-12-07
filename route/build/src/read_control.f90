@@ -110,9 +110,9 @@ CONTAINS
    select case(trim(cName))
 
    ! DIRECTORIES
-   case('<ancil_dir>');            ancil_dir   = trim(cData)                           ! directory containing ancillary data
-   case('<input_dir>');            input_dir   = trim(cData)                           ! directory containing input data
-   case('<output_dir>');           output_dir  = trim(cData)                           ! directory containing output data
+   case('<ancil_dir>');            ancil_dir   = trim(cData)                           ! directory containing ancillary data (network, mapping, namelist)
+   case('<input_dir>');            input_dir   = trim(cData)                           ! directory containing input forcing netCDF, e.g. runoff
+   case('<output_dir>');           output_dir  = trim(cData)                           ! directory for routed flow output (netCDF)
    case('<restart_dir>');          restart_dir = trim(cData)                           ! directory for restart output (netCDF)
    ! RUN CONTROL
    case('<case_name>');            case_name   = trim(cData)                           ! name of simulation. used as head of model output and restart file
@@ -128,6 +128,7 @@ CONTAINS
    case('<is_vol_wm_jumpstart>');  read(cData,*,iostat=io_error) is_vol_wm_jumpstart   ! logical; jump to the first time step target volume is set to true
    case('<suppress_runoff>');      read(cData,*,iostat=io_error) suppress_runoff       ! logical; suppress the read runoff to zero (0) no host model
    case('<suppress_P_Ep>');        read(cData,*,iostat=io_error) suppress_P_Ep         ! logical; suppress the precipitation/evaporation to zero (0) no host model
+   case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                    ! time interval of the simulation (To-do: change dt to dt_sim)
    ! RIVER NETWORK TOPOLOGY
    case('<fname_ntopOld>');        fname_ntopOld = trim(cData)                         ! name of file containing stream network topology information
    case('<ntopAugmentMode>');      read(cData,*,iostat=io_error) ntopAugmentMode       ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
@@ -146,7 +147,7 @@ CONTAINS
    case('<dname_xlon>');           dname_xlon   = trim(cData)                          ! name of x (j,lon) dimension
    case('<dname_ylat>');           dname_ylat   = trim(cData)                          ! name of y (i,lat) dimension
    case('<units_qsim>');           units_qsim   = trim(cData)                          ! units of runoff
-   case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                    ! time interval of the gridded runoff
+   case('<dt_ro>');                read(cData,*,iostat=io_error) dt_ro                 ! time interval of the runoff input with unit of units_qsim
    case('<input_fillvalue>');      read(cData,*,iostat=io_error) input_fillvalue       ! fillvalue used for input variable
    ! FLUXES TO/FROM REACHES AND LAKE STATES FILE
    case('<fname_wm>');             fname_wm        = trim(cData)                       ! name of text file containing ordered nc file names
@@ -168,7 +169,7 @@ CONTAINS
    case('<dname_hru_remap>');      dname_hru_remap      = trim(cData)                  ! name of dimension of river network HRU ID
    case('<dname_data_remap>');     dname_data_remap     = trim(cData)                  ! name of dimension of runoff HRU overlapping with river network HRU
    ! RESTART
-   case('<restart_write>');        restart_write        = trim(cData)                  ! restart write option: N[n]ever, L[l]ast, S[s]pecified, Monthly, Daily
+   case('<restart_write>');        restart_write        = trim(cData)                  ! restart write option (case-insensitive): never, last, specified, yearly, monthly, or daily
    case('<restart_date>');         restart_date         = trim(cData)                  ! specified restart date, yyyy-mm-dd (hh:mm:ss) for Specified option
    case('<restart_month>');        read(cData,*,iostat=io_error) restart_month         ! restart periodic month
    case('<restart_day>');          read(cData,*,iostat=io_error) restart_day           ! restart periodic day

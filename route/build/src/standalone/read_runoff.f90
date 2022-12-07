@@ -8,13 +8,16 @@ USE ncio_utils, ONLY: get_nc
 USE ncio_utils, ONLY: get_var_attr
 USE ncio_utils, ONLY: check_attr
 USE ncio_utils, ONLY: get_nc_dim_len
+USE dataTypes,  ONLY: inputData           ! input data class (runoff and wm  inheritated)
+USE dataTypes,  ONLY: map_time            ! time step mapping data type
+USE dataTypes,  ONLY: inFileInfo          ! input file metadata
 
 
 implicit none
 
 private
 public::read_runoff_metadata
-public::read_runoff_data
+public::read_forcing_data
 
 CONTAINS
 
@@ -245,134 +248,174 @@ CONTAINS
  END SUBROUTINE read_2D_runoff_metadata
 
  ! *********************************************************************
- ! public subroutine: read runoff data
+ ! public subroutine: main interface for forcing data reading
  ! *********************************************************************
- SUBROUTINE read_runoff_data(fname,            &  ! input: filename
-                             var_name,         &  ! input: varibale name
-                             time_index,       &  ! input: time index
-                             nSpace,           &  ! input: dimension of data to be read
-                             sim,              &  ! input/output: read data 1D sim
-                             sim2D,            &  ! input/output: read data 2D sim
-                             ierr, message)       ! output: error control
+ SUBROUTINE read_forcing_data(indir,            &  ! input: forcing input directory
+                              inFileInfo_in,    &  ! input: forcing input file metadata
+                              var_name,         &  ! input: varibale name
+                              tmap_sim_forc_in, &  ! input: time-step mapping between model and forcing
+                              forcing_data_in,  &  ! inout: forcing data structure
+                              ierr, message)       ! output: error control
  implicit none
  ! argument variables
- character(*),          intent(in)      :: fname              ! filename
- character(*),          intent(in)      :: var_name           ! variable name
- integer(i4b),          intent(in)      :: time_index         ! index of time element
- integer(i4b),          intent(in)      :: nSpace(1:2)        ! dimension of data for one time step
- real(dp), allocatable, intent(inout)   :: sim(:)             ! runoff for one time step for all spatial dimension
- real(dp), allocatable, intent(inout)   :: sim2D(:,:)         ! runoff for one time step for all spatial dimension
- integer(i4b), intent(out)              :: ierr               ! error code
- character(*), intent(out)              :: message            ! error message
+ character(*),     intent(in)      :: indir              ! forcing input directory
+ type(inFileInfo), intent(in)      :: inFileInfo_in(:)   ! input file (forcing or water-management) metadata
+ character(*),     intent(in)      :: var_name           ! variable name
+ type(map_time),   intent(in)      :: tmap_sim_forc_in   ! time-step mapping between model and forcing
+ class(inputData), intent(inout)   :: forcing_data_in    ! forcing data structure
+ integer(i4b),     intent(out)     :: ierr               ! error code
+ character(*),     intent(out)     :: message            ! error message
  ! local variables
- character(len=strLen)                  :: cmessage           ! error message from subroutine
+ character(len=strLen)             :: cmessage           ! error message from subroutine
 
- ierr=0; message='read_runoff_data/'
+ ierr=0; message='read_forcing_data/'
 
- if (nSpace(2) == integerMissing) then
-  call read_1D_runoff(fname, var_name, time_index, nSpace(1), sim, ierr, cmessage)
+ if (forcing_data_in%nSpace(2) == integerMissing) then
+  call read_1D_forcing(indir, inFileInfo_in, var_name, tmap_sim_forc_in, forcing_data_in%nSpace(1), forcing_data_in, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  else
-  call read_2D_runoff(fname, var_name, time_index, nSpace, sim2D, ierr, cmessage)
+  call read_2D_forcing(indir, inFileInfo_in, var_name, tmap_sim_forc_in, forcing_data_in%nSpace, forcing_data_in, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  endif
 
- END SUBROUTINE read_runoff_data
+ END SUBROUTINE read_forcing_data
 
  ! *********************************************************************
- ! private subroutine: read 2D runoff data
+ ! private subroutine: read 1D forcing data
  ! *********************************************************************
- SUBROUTINE read_1D_runoff(fname,          &  ! input: filename
-                           var_name,       &  ! input: variable name
-                           time_index,     &  ! input: time index
-                           nSpace,         &  ! input: size of HRUs
-                           sim,            &  ! input/output: runoff data structure
-                           ierr, message)     ! output: error control
+ SUBROUTINE read_1D_forcing(indir,            &  ! input: forcing input directory
+                            inFileInfo_in,    &  ! input: forcing input file metadata
+                            var_name,         &  ! input: variable name
+                            tmap_sim_forc_in, &  ! input: time-step mapping between model and forcing
+                            nSpace,           &  ! input: size of spatial elements (e.g., HRU or reach)
+                            forc_data_in,     &  ! inout: forcing data structure
+                            ierr, message)       ! output: error control
  implicit none
  ! argument variables
- character(*),          intent(in)      :: fname              ! filename
- character(*),          intent(in)      :: var_name           ! variable name
- integer(i4b),          intent(in)      :: time_index         ! index of time element
- integer(i4b),          intent(in)      :: nSpace             ! size of spatial dimensions
- real(dp), allocatable, intent(inout)   :: sim(:)             ! runoff for one time step for all spatial dimension
- integer(i4b),          intent(out)     :: ierr               ! error code
- character(*),          intent(out)     :: message            ! error message
+ character(*),       intent(in)    :: indir             ! input directory
+ type(inFileInfo),   intent(in)    :: inFileInfo_in(:)  ! input file (forcing or water-management) metadata
+ character(*),       intent(in)    :: var_name          ! variable name
+ type(map_time),     intent(in)    :: tmap_sim_forc_in  ! time-step mapping between model and forcing
+ integer(i4b),       intent(in)    :: nSpace            ! size of spatial dimensions
+ class(inputData),   intent(inout) :: forc_data_in      ! forcing data structure
+ integer(i4b),       intent(out)   :: ierr              ! error code
+ character(*),       intent(out)   :: message           ! error message
  ! local variables
- integer(i4b)                           :: iStart(2)
- integer(i4b)                           :: iCount(2)
- logical(lgt)                           :: existFillVal
- real(dp)                               :: dummy(nSpace,1)    ! data read
- character(len=strLen)                  :: cmessage           ! error message from subroutine
+ character(len=strLen)             :: fname             ! filename
+ integer(i4b)                      :: ix                ! loop index
+ integer(i4b)                      :: nTime             ! number of forcing time step within a simulation time-step
+ integer(i4b)                      :: iStart(2)         ! first indices in the variable to be read
+ integer(i4b)                      :: iCount(2)         ! numbers of elements to be read
+ logical(lgt)                      :: existFillVal      ! logical to indicate whether fillvalue exist in the variable
+ real(dp)                          :: dummy(nSpace,1)   ! array storing the read variable
+ character(len=strLen)             :: cmessage          ! error message from subroutine
 
- ierr=0; message='read_1D_runoff/'
+ ierr=0; message='read_1D_forcing/'
 
- ! get the simulated runoff data
- iStart = [1,time_index]
- iCount = [nSpace,1]
- call get_nc(fname, var_name, dummy, iStart, iCount, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ nTime = size(tmap_sim_forc_in%iTime)
 
- ! get the _fill_values for runoff variable if exist
- existFillVal = check_attr(fname, var_name, '_FillValue')
- if (existFillval) then
-   call get_var_attr(fname, var_name, '_FillValue', input_fillvalue, ierr, cmessage)
+ ! get the forcing data
+ forc_data_in%sim(1:nSpace) = 0._dp
+ do ix = 1, nTime
+
+   fname = trim(indir)//trim(inFileInfo_in(tmap_sim_forc_in%iFile(ix))%infilename)
+
+   iStart = [1, tmap_sim_forc_in%iTime(ix)]
+   iCount = [nSpace,1]
+   call get_nc(fname, var_name, dummy, iStart, iCount, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- end if
 
- ! replace _fill_value with -999 for dummy
- where ( abs(dummy - input_fillvalue) < verySmall ) dummy = realMissing
+   ! get the _fill_values for forcing variable if exist
+   existFillVal = check_attr(fname, var_name, '_FillValue')
+   if (existFillval) then
+     call get_var_attr(fname, var_name, '_FillValue', input_fillvalue, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
 
- ! reshape
- sim(1:nSpace) = dummy(1:nSpace,1)
+   ! replace _fill_value with 0 for dummy
+   where ( abs(dummy - input_fillvalue) < verySmall ) dummy = realMissing
 
- END SUBROUTINE read_1D_runoff
+   ! finalize
+   if (nTime>1) then
+     forc_data_in%sim(1:nSpace) = forc_data_in%sim(1:nSpace) &
+                                 + dummy(1:nSpace,1)*tmap_sim_forc_in%frac(ix)
+   else
+     forc_data_in%sim(1:nSpace) = dummy(1:nSpace,1)
+   end if
+ end do
+
+ END SUBROUTINE read_1D_forcing
 
  ! *********************************************************************
- ! private subroutine: read 2D runoff data
+ ! private subroutine: read 2D forcing data
  ! *********************************************************************
- SUBROUTINE read_2D_runoff(fname,            &  ! input: filename
-                           var_name,         &  ! input: variable name
-                           time_index,       &  ! input: time index
-                           nSpace,           &  ! input: size of HRUs
-                           sim2D,            &  ! input/output: runoff data structure
-                           ierr, message)       ! output: error control
+ SUBROUTINE read_2D_forcing(indir,            &  ! input: input directory
+                            inFileInfo_in,    &  ! input: meta for input file
+                            var_name,         &  ! input: variable name
+                            tmap_sim_forc_in, &  ! input: time-step mapping between model and forcing
+                            nSpace,           &  ! input: size of HRUs
+                            forc_data_in,     &  ! inout: forcing data structure
+                            ierr, message)       ! output: error control
+
+ ! reading 2D variable at one simulation step
+
  implicit none
- ! input variables
- character(*),          intent(in)      :: fname            ! filename
- character(*),          intent(in)      :: var_name         ! variable name
- integer(i4b),          intent(in)      :: time_index       ! index of time element
- integer(i4b),          intent(in)      :: nSpace(1:2)      ! size of spatial dimensions
- real(dp), allocatable, intent(inout)   :: sim2D(:,:)       ! runoff for one time step for all spatial dimension
- integer(i4b),          intent(out)     :: ierr             ! error code
- character(*),          intent(out)     :: message          ! error message
+ ! Argument variables
+ character(*),       intent(in)      :: indir             ! input directory
+ type(inFileInfo),   intent(in)      :: inFileInfo_in(:)  ! input file (forcing or water-management) meta data
+ character(*),       intent(in)      :: var_name          ! variable name
+ type(map_time),     intent(in)      :: tmap_sim_forc_in  ! time-step mapping between model and forcing
+ integer(i4b),       intent(in)      :: nSpace(1:2)       ! size of spatial dimensions
+ class(inputData),   intent(inout)   :: forc_data_in      ! forcing data structure
+ integer(i4b),       intent(out)     :: ierr              ! error code
+ character(*),       intent(out)     :: message           ! error message
  ! local variables
- logical(lgt)                           :: existFillVal
- integer(i4b)                           :: iStart(3)
- integer(i4b)                           :: iCount(3)
- real(dp)                               :: dummy(nSpace(2),nSpace(1),1) ! data read
- character(len=strLen)                  :: cmessage                     ! error message from subroutine
+ character(len=strLen)               :: fname             ! filename
+ integer(i4b)                        :: ix                ! loop index
+ integer(i4b)                        :: nTime             ! number of forcing time step within a simulation time-step
+ integer(i4b)                        :: iStart(3)         ! first indices in the variable to be read
+ integer(i4b)                        :: iCount(3)         ! numbers of elements to be read
+ logical(lgt)                        :: existFillVal      ! logical to indicate whether fillvalue exist in the variable
+ real(dp)                            :: dummy(nSpace(2),&
+                                              nSpace(1),&
+                                              1)          ! array storing the read variable
+ character(len=strLen)               :: cmessage          ! error message from subroutine
 
- ierr=0; message='read_2D_runoff/'
+ ierr=0; message='read_2D_forcing/'
 
- ! get the simulated runoff data
- iStart = [1,1,time_index]
- iCount = [nSpace(2),nSpace(1),1]
- call get_nc(fname, var_name, dummy, iStart, iCount, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ nTime = size(tmap_sim_forc_in%iTime)
 
- ! get the _fill_values for runoff variable
- existFillVal = check_attr(fname, var_name, '_FillValue')
- if (existFillval) then
-   call get_var_attr(fname, var_name, '_FillValue', input_fillvalue, ierr, cmessage)
+ ! get the forcing data
+ forc_data_in%sim2d(1:nSpace(2),1:nSpace(1)) = 0._dp
+ do ix = 1, nTime
+
+   fname = trim(indir)//trim(inFileInfo_in(tmap_sim_forc_in%iFile(ix))%infilename)
+
+   ! get the simulated forcing data
+   iStart = [1,1,tmap_sim_forc_in%iTime(ix)]
+   iCount = [nSpace(2),nSpace(1),1]
+   call get_nc(fname, var_name, dummy, iStart, iCount, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
- end if
 
- ! replace _fill_value with -999 for dummy
- where ( abs(dummy - input_fillvalue) < verySmall ) dummy = realMissing
+   ! get the _fill_values for forcing variable
+   existFillVal = check_attr(fname, var_name, '_FillValue')
+   if (existFillval) then
+     call get_var_attr(fname, var_name, '_FillValue', input_fillvalue, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
 
- ! reshape
- sim2d(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)
+   ! replace _fill_value with -999 for dummy
+   where ( abs(dummy - input_fillvalue) < verySmall ) dummy = realMissing
 
- END SUBROUTINE read_2D_runoff
+   ! finalize
+   if (nTime>1) then
+     forc_data_in%sim2d(1:nSpace(2),1:nSpace(1)) = forc_data_in%sim2d(1:nSpace(2),1:nSpace(1)) &
+                                                 + dummy(1:nSpace(2),1:nSpace(1),1)*tmap_sim_forc_in%frac(ix)
+   else
+     forc_data_in%sim2d(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)
+   end if
+ end do
+
+ END SUBROUTINE read_2D_forcing
 
 END MODULE read_runoff

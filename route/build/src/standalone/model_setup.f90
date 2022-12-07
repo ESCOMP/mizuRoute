@@ -6,6 +6,7 @@ USE public_var,        ONLY: debug
 USE public_var,        ONLY: integerMissing
 USE public_var,        ONLY: realMissing
 USE public_var,        ONLY: charMissing
+USE nr_utils,          ONLY: arth
 USE nr_utils,          ONLY: unique         ! get unique element array
 USE nr_utils,          ONLY: indexx         ! get rank of data value
 
@@ -59,13 +60,13 @@ CONTAINS
    USE write_simoutput_pio, ONLY: init_histFile       ! open existing history file to append (only continue_run is true)
 
    implicit none
+   ! Argument variables
    integer(i4b),              intent(in)    :: pid              ! proc id
    integer(i4b),              intent(in)    :: nNodes           ! number of procs
    integer(i4b),              intent(in)    :: comm             ! communicator
-   ! output: error control
    integer(i4b),              intent(out)   :: ierr             ! error code
    character(*),              intent(out)   :: message          ! error message
-   ! local variable
+   ! local variables
    character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
    ierr=0; message='init_data/'
@@ -82,9 +83,11 @@ CONTAINS
    call init_ntopo_data(pid, nNodes, comm, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! runoff and mapping data initialization
-   call init_runoff_data(pid, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   ! Initialize forcing (ro, pr, evap), water-management data and mapping data(only at main core)
+   if (pid==0) then
+     call init_forc_data(ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
 
    ! broadcast public and some global variables
    call pass_global_data(comm, ierr, cmessage)
@@ -116,8 +119,8 @@ CONTAINS
   USE public_var, ONLY: fname_wm                ! simulated runoff txt file that includes the NetCDF file names
   USE public_var, ONLY: vname_time_wm           ! variable name for time
   USE public_var, ONLY: dname_time_wm           ! dimension name for time
-  USE globalData, ONLY: infileinfo_data         ! the information of the input files
-  USE globalData, ONLY: infileinfo_data_wm      ! the information of the input files for abstration, injection and target volume
+  USE globalData, ONLY: inFileInfo_ro           ! metadata of the ro/evap/p input files
+  USE globalData, ONLY: inFileInfo_wm           ! metadata of the input files for abstration, injection and target volume
   USE public_var, ONLY: is_lake_sim             ! logical whether or not lake should be simulated
   USE public_var, ONLY: is_flux_wm              ! logical whether or not abstraction and injection should be read from the file
   USE public_var, ONLY: is_vol_wm               ! logical whether or not target volume for lakes should be read
@@ -134,33 +137,26 @@ CONTAINS
                   fname_qsim,        & ! input: name of the txt file hold the nc file names
                   vname_time,        & ! input: name of variable time in the nc files
                   dname_time,        & ! input: name of dimention time in the nc files
-                  infileinfo_data,   & ! output: input file information
+                  inFileInfo_ro,     & ! output: input file information
                   ierr, cmessage)      ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
-
-  ! passing the first nc file as global file name to read
-  fname_qsim = trim(infileinfo_data(1)%infilename)
 
   if ((is_flux_wm).or.(is_vol_wm.and.is_lake_sim)) then     ! if either of abstraction injection or target volume is activated
     call inFile_pop(input_dir,            & ! input: name of the directory of the txt file
                     fname_wm,             & ! input: name of the txt file hold the nc file names
                     vname_time_wm,        & ! input: name of variable time in the nc files
                     dname_time_wm,        & ! input: name of dimention time in the nc files
-                    infileinfo_data_wm,   & ! output: input file information
+                    inFileInfo_wm,        & ! output: input file information
                     ierr, cmessage)         ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
 
-    ! passing the first nc file as global file name to read
-    fname_wm = trim(infileinfo_data_wm(1)%infilename)
-
-    call inFile_sync_time(infileinfo_data,      & ! input: the structure of simulated runoff, evapo and
-                          infileinfo_data_wm,   & ! inout: input file information
-                          ierr, cmessage)         ! output: error control
+    call inFile_sync_time(inFileInfo_ro,      & ! input: the structure of simulated runoff, evapo and
+                          inFileInfo_wm,      & ! inout: input file information
+                          ierr, cmessage)       ! output: error control
 
   endif
 
   END SUBROUTINE init_inFile_pop
-
 
  ! *********************************************************************
  ! private subroutine: read the name of the netcdf that is specified
@@ -170,10 +166,10 @@ CONTAINS
                        file_name,        & ! input: name of the txt file hold the nc file names
                        time_var_name,    & ! input: name of variable time in the nc files
                        time_dim_name,    & ! input: name of dimention time in the nc files
-                       inputfileinfo,    & ! output: input file information
+                       inputFileInfo,    & ! output: input file information
                        ierr, message)      ! output: error control
 
-  USE dataTypes,           ONLY: infileinfo     ! the data type for storing the infromation of the nc files and its attributes
+  USE dataTypes,           ONLY: inFileInfo     ! the data type for storing the infromation of the nc files and its attributes
   USE datetime_data,       ONLY: datetime       ! datetime data
   USE ascii_utils,         ONLY: file_open      ! open file (performs a few checks as well)
   USE ascii_utils,         ONLY: get_vlines     ! get a list of character strings from non-comment lines
@@ -188,7 +184,7 @@ CONTAINS
   character(len=strLen), intent(in)                 :: file_name        ! the name of the file that include the nc file names
   character(len=strLen), intent(in)                 :: time_var_name    ! the name of the time variable
   character(len=strLen), intent(in)                 :: time_dim_name    ! the name of dimension time
-  type(infileinfo),      intent(inout), allocatable :: inputfileinfo(:) ! the name of structure that hold the infile information
+  type(infileinfo),      intent(inout), allocatable :: inputFileInfo(:) ! the name of structure that hold the infile information
   integer(i4b),          intent(out)                :: ierr             ! error code
   character(*),          intent(out)                :: message          ! error message
   ! local varibales
@@ -219,7 +215,7 @@ CONTAINS
   nFile = size(dataLines) ! get the name of the lines in the file
 
   ! allocate space for forcing information
-  allocate(inputfileinfo(nFile), stat=ierr)
+  allocate(inputFileInfo(nFile), stat=ierr)
   if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for forcFileInfo'; return; end if
 
   ! poputate the forcingInfo structure with filenames, and time variables/attributes
@@ -230,42 +226,42 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//'problem reading a line of data from file ['//trim(infilename)//']'; return; end if
 
    ! set forcing file name
-   inputfileinfo(iFile)%infilename = trim(filenameData)
+   inputFileInfo(iFile)%infilename = trim(filenameData)
 
    ! get the time units, assuming the water managment nc files has the same calendar as the first
    if (trim(time_units) == charMissing) then
-     call get_var_attr(trim(dir_name)//trim(inputfileinfo(iFile)%infilename), &
-                       trim(time_var_name), 'units', inputfileinfo(iFile)%unit, ierr, cmessage)
+     call get_var_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
+                       trim(time_var_name), 'units', inputFileInfo(iFile)%unit, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    else
-     inputfileinfo(iFile)%unit = trim(time_units)
+     inputFileInfo(iFile)%unit = trim(time_units)
    end if
 
    ! get the calendar, assuming the water managment nc files has the same calendar as the first
    if (trim(calendar) == charMissing) then
-     call get_var_attr(trim(dir_name)//trim(inputfileinfo(iFile)%infilename), &
-                       trim(time_var_name), 'calendar', inputfileinfo(iFile)%calendar, ierr, cmessage)
+     call get_var_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
+                       trim(time_var_name), 'calendar', inputFileInfo(iFile)%calendar, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    else
-     inputfileinfo(iFile)%calendar = trim(calendar)
+     inputFileInfo(iFile)%calendar = trim(calendar)
    end if
 
    ! get the dimension of the time to populate nTime and pass it to the get_nc file
-   call get_nc_dim_len(trim(dir_name)//trim(inputfileinfo(iFile)%infilename), &
-                       trim(time_dim_name), inputfileinfo(iFile)%nTime, ierr, cmessage)
+   call get_nc_dim_len(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
+                       trim(time_dim_name), inputFileInfo(iFile)%nTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   nTime = inputfileinfo(iFile)%nTime ! the length of time varibale for each nc file
+   nTime = inputFileInfo(iFile)%nTime ! the length of time varibale for each nc file
 
    ! allocate space for time varibale of each file
-   allocate(inputfileinfo(iFile)%timeVar(nTime))
-   if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for inputfileinfo(:)%timeVar'; return; end if
+   allocate(inputFileInfo(iFile)%timeVar(nTime))
+   if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for inputFileInfo(:)%timeVar'; return; end if
 
    ! get the time varibale
-   call get_nc(trim(dir_name)//trim(inputfileinfo(iFile)%infilename), &
-               time_var_name, inputfileinfo(iFile)%timeVar, 1, nTime, ierr, cmessage) ! does it needs timeVar(:)
+   call get_nc(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
+               time_var_name, inputFileInfo(iFile)%timeVar, 1, nTime, ierr, cmessage) ! does it needs timeVar(:)
 
    ! get the time multiplier needed to convert time to units of days for each nc file
-   t_unit = trim( inputfileinfo(iFile)%unit(1:index(inputfileinfo(iFile)%unit,' ')) )
+   t_unit = trim( inputFileInfo(iFile)%unit(1:index(inputFileInfo(iFile)%unit,' ')) )
    select case( trim(t_unit) )
     case('seconds','second','sec','s'); convTime2Days=86400._dp
     case('minutes','minute','min','m'); convTime2Days=1440._dp
@@ -274,23 +270,23 @@ CONTAINS
     case default
       ierr=20; message=trim(message)//'<time_units>= '//trim(t_unit)//': <time_units> must be seconds, minutes, hours or days.'; return
    end select
-   inputfileinfo(iFile)%convTime2Days = convTime2Days
+   inputFileInfo(iFile)%convTime2Days = convTime2Days
 
    ! get the reference julian day from the nc file
-   call refDatetime%str2datetime(trim(inputfileinfo(iFile)%unit), ierr, message)
-   call refDatetime%julianday(trim(inputfileinfo(iFile)%calendar), inputfileinfo(iFile)%ncrefjulday, ierr, cmessage)
+   call refDatetime%str2datetime(trim(inputFileInfo(iFile)%unit), ierr, message)
+   call refDatetime%julianday(trim(inputFileInfo(iFile)%calendar), inputFileInfo(iFile)%ncrefjulday, ierr, cmessage)
    if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [ncrefjulday]'; return; endif
 
    ! populated the index of the iTimebound for each nc file
    if (iFile==1) then
-    inputfileinfo(iFile)%iTimebound(1) = 1
-    inputfileinfo(iFile)%iTimebound(2) = nTime
+    inputFileInfo(iFile)%iTimebound(1) = 1
+    inputFileInfo(iFile)%iTimebound(2) = nTime
    else ! if multiple files specfied in the txt file
-    inputfileinfo(iFile)%iTimebound(1) = inputfileinfo(iFile-1)%iTimebound(2) + 1 ! the last index from the perivous nc file + 1
-    inputfileinfo(iFile)%iTimebound(2) = inputfileinfo(iFile-1)%iTimebound(2) + nTime ! the last index from the perivous nc file + 1
+    inputFileInfo(iFile)%iTimebound(1) = inputFileInfo(iFile-1)%iTimebound(2) + 1 ! the last index from the perivous nc file + 1
+    inputFileInfo(iFile)%iTimebound(2) = inputFileInfo(iFile-1)%iTimebound(2) + nTime ! the last index from the perivous nc file + 1
    endif
 
-  enddo
+  end do
 
   ! close ascii file
   close(unit=unit,iostat=ierr); if(ierr/=0)then;message=trim(message)//'problem closing forcing file list'; return; end if
@@ -300,61 +296,61 @@ CONTAINS
 
  ! *********************************************************************
  ! private subroutine: to synchronize the iTimebound of
- ! the inputfileinfo_wm to match the inputfileinfo
+ ! the inputFileInfo_wm to match the inputFileInfo
  ! *********************************************************************
- SUBROUTINE inFile_sync_time(inputfileinfo,      & ! input: the structure of simulated runoff, evapo and
-                             inputfileinfo_wm,   & ! inout: input file information
+ SUBROUTINE inFile_sync_time(inputFileInfo_ro,   & ! input: the structure of simulated runoff, evapo and
+                             inputFileInfo_wm,   & ! inout: input file information
                              ierr, message)        ! output: error control
 
   USE dataTypes,  ONLY: infileinfo    ! the data type for storing the infromation of the nc files and its attributes
-  USE public_var, ONLY: dt            ! simulation time step in seconds
+  USE public_var, ONLY: dt_ro         ! forcing time step in seconds
   USE public_var, ONLY: secprday      ! conversion of steps in days to seconds
 
   ! Argument variables
-  type(infileinfo),         intent(in)              :: inputfileinfo(:)      ! the name of structure that hold the infile information
-  type(infileinfo),         intent(inout)           :: inputfileinfo_wm(:)   ! the name of structure that hold the infile information
-  integer(i4b),             intent(out)             :: ierr                  ! error code
-  character(*),             intent(out)             :: message               ! error message
+  type(infileinfo),    intent(in)       :: inputFileInfo_ro(:)   ! the name of structure that hold the infile information
+  type(infileinfo),    intent(inout)    :: inputFileInfo_wm(:)   ! the name of structure that hold the infile information
+  integer(i4b),        intent(out)      :: ierr                  ! error code
+  character(*),        intent(out)      :: message               ! error message
   ! local variables
-  integer(i4b)                                      :: nt
-  integer(i4b)                                      :: nFile                 ! number of nc files for the simulated runoff
-  integer(i4b)                                      :: nFile_wm              ! number of nc files for the water managent
-  integer(i4b)                                      :: iFile                 ! for loop over the nc files
-  real(dp)                                          :: day_runoff_start      ! the Julian day that runoff starts
-  real(dp)                                          :: day_start_diff        ! conversion of the day to the local time
-  real(dp)                                          :: day_end_diff          ! conversion of the day to the local time
+  integer(i4b)                          :: nt
+  integer(i4b)                          :: nFile                 ! number of nc files for the simulated runoff
+  integer(i4b)                          :: nFile_wm              ! number of nc files for the water managent
+  integer(i4b)                          :: iFile                 ! for loop over the nc files
+  real(dp)                              :: day_runoff_start      ! the Julian day that runoff starts
+  real(dp)                              :: day_start_diff        ! conversion of the day to the local time
+  real(dp)                              :: day_end_diff          ! conversion of the day to the local time
 
   ierr=0; message='inFile_sync_time/'
 
   ! set the reference julday based on the first nc file of simulation
-  nFile               = size(inputfileinfo)
-  nFile_wm            = size(inputfileinfo_wm)
-  day_runoff_start    = inputfileinfo(1)%timeVar(1)/inputfileinfo(1)%convTime2Days+inputfileinfo(1)%ncrefjulday
+  nFile               = size(inputFileInfo_ro)
+  nFile_wm            = size(inputFileInfo_wm)
+  day_runoff_start    = inputFileInfo_ro(1)%timeVar(1)/inputFileInfo_ro(1)%convTime2Days+inputFileInfo_ro(1)%ncrefjulday
 
   do iFile=1,nFile_wm
 
-    nt = inputfileinfo_wm(iFile)%nTime ! get the number of time
+    nt = inputFileInfo_wm(iFile)%nTime ! get the number of time
 
-    day_start_diff = inputfileinfo_wm(iFile)%timeVar(1) /inputfileinfo_wm(iFile)%convTime2Days+inputfileinfo_wm(iFile)%ncrefjulday - day_runoff_start
-    day_end_diff   = inputfileinfo_wm(iFile)%timeVar(nt)/inputfileinfo_wm(iFile)%convTime2Days+inputfileinfo_wm(iFile)%ncrefjulday - day_runoff_start
+    day_start_diff = inputFileInfo_wm(iFile)%timeVar(1) /inputFileInfo_wm(iFile)%convTime2Days+inputFileInfo_wm(iFile)%ncrefjulday - day_runoff_start
+    day_end_diff   = inputFileInfo_wm(iFile)%timeVar(nt)/inputFileInfo_wm(iFile)%convTime2Days+inputFileInfo_wm(iFile)%ncrefjulday - day_runoff_start
 
-    inputfileinfo_wm(iFile)%iTimebound(1) = day_start_diff * secprday/dt + 1 ! to convert the day difference into time step difference
-    inputfileinfo_wm(iFile)%iTimebound(2) = day_end_diff   * secprday/dt + 1 ! to convert the day difference into time step difference
+    inputFileInfo_wm(iFile)%iTimebound(1) = int(day_start_diff * secprday/dt_ro, kind=i4b) + 1 ! to convert the day difference into time step difference
+    inputFileInfo_wm(iFile)%iTimebound(2) = int(day_end_diff   * secprday/dt_ro, kind=i4b) + 1 ! to convert the day difference into time step difference
 
   end do
 
-  ! checks if the staring and ending iTime of the inputfileinfo_wm overlap with the inputfileinfo of simulated runoff, evapo and precip
-  if (inputfileinfo_wm(1)%iTimebound(1) > inputfileinfo(1)%iTimebound(1)) then
-    print*, "The first water managment nc file starts later than the first simulted runoff, evapo and precip nc file and may cause crash"
+  ! checks if the staring and ending iTime of the inputFileInfo_wm overlap with the inputFileInfo of simulated runoff, evapo and precip
+  if (inputFileInfo_wm(1)%iTimebound(1) > inputFileInfo_ro(1)%iTimebound(1)) then
+    print*, "The first water managment netCDF starts later than the first runoff, evapo and precip netCDF and may cause crash"
   endif
-  if (inputfileinfo_wm(nFile_wm)%iTimebound(2) < inputfileinfo(nFile)%iTimebound(2)) then
-    print*, "The last water managment nc file ends earlier than the last simulted runoff, evapo and precip nc file and may cause crash"
+  if (inputFileInfo_wm(nFile_wm)%iTimebound(2) < inputFileInfo_ro(nFile)%iTimebound(2)) then
+    print*, "The last water managment netCDf ends earlier than the last runoff, evapo and precip netCDF and may cause crash"
   endif
-  if (inputfileinfo_wm(1)%iTimebound(1) < inputfileinfo(1)%iTimebound(1)) then
-    print*, "The water managment nc file starts earlier than the last simulted runoff, evapo and precip nc file"
+  if (inputFileInfo_wm(1)%iTimebound(1) < inputFileInfo_ro(1)%iTimebound(1)) then
+    print*, "The water managment netCDF starts earlier than the last runoff, evapo and precip netCDF"
   endif
-  if (inputfileinfo_wm(nFile_wm)%iTimebound(2) > inputfileinfo(nFile)%iTimebound(2)) then
-    print*, "The water managment nc file ends later than the last simulted runoff, evapo and precip nc file"
+  if (inputFileInfo_wm(nFile_wm)%iTimebound(2) > inputFileInfo_ro(nFile)%iTimebound(2)) then
+    print*, "The water managment netCDf ends later than the last runoff, evapo and precip netCDF"
   endif
 
  END SUBROUTINE inFile_sync_time
@@ -371,33 +367,35 @@ CONTAINS
   ! - begDatetime, endDatetime:   simulationg start and end datetime
   ! - restDatetime, dropDatetime
 
-  USE ascii_utils, ONLY : lower                  ! convert string to lower case
-  USE datetime_data, ONLY : datetime             ! datetime data
-  USE public_var, ONLY: time_units               ! time units (seconds, hours, or days)
-  USE public_var, ONLY: simStart                 ! date string defining the start of the simulation
-  USE public_var, ONLY: simEnd                   ! date string defining the end of the simulation
-  USE public_var, ONLY: calendar                 ! calendar used for simulation
-  USE public_var, ONLY: dt                       ! simulation time step in second
-  USE public_var, ONLY: continue_run             ! logical to indicate sppend output in existing history file
-  USE public_var, ONLY: secprday                 ! unit conversion from day to sec
-  USE public_var, ONLY: restart_write            ! restart write option
-  USE public_var, ONLY: restart_date             ! restart datetime
-  USE public_var, ONLY: restart_month            ! periodic restart month
-  USE public_var, ONLY: restart_day              ! periodic restart day
-  USE public_var, ONLY: restart_hour             ! periodic restart hr
-  USE public_var, ONLY: maxTimeDiff              ! time difference tolerance for input checks
-  USE globalData, ONLY: timeVar                  ! time variables (unit given by runoff data)
-  USE globalData, ONLY: iTime                    ! time index at simulation time step
-  USE globalData, ONLY: simDatetime              ! model time data (yyyy:mm:dd:hh:mm:ss)
-  USE globalData, ONLY: begDatetime              ! simulation begin datetime data (yyyy:mm:dd:hh:mm:sec)
-  USE globalData, ONLY: endDatetime              ! simulation end datetime data (yyyy:mm:dd:hh:mm:sec)
-  USE globalData, ONLY: restDatetime             ! restart time data (yyyy:mm:dd:hh:mm:sec)
-  USE globalData, ONLY: dropDatetime             ! restart dropoff calendar date/time
-  USE globalData, ONLY: infileinfo_data          ! the information of the input files
-  USE globalData, ONLY: infileinfo_data_wm       ! the information of the input files
-  USE public_var, ONLY: is_lake_sim              ! logical whether or not lake simulations are activated
-  USE public_var, ONLY: is_flux_wm               ! logical whether or not abstraction and injection should be read from the file
-  USE public_var, ONLY: is_vol_wm                ! logical whether or not target volume for lakes should be read
+  USE ascii_utils,   ONLY: lower                    ! convert string to lower case
+  USE datetime_data, ONLY: datetime                 ! datetime data
+  USE public_var,    ONLY: time_units               ! time units (seconds, hours, or days)
+  USE public_var,    ONLY: simStart                 ! date string defining the start of the simulation
+  USE public_var,    ONLY: simEnd                   ! date string defining the end of the simulation
+  USE public_var,    ONLY: calendar                 ! calendar used for simulation
+  USE public_var,    ONLY: dt                       ! simulation time step in second
+  USE public_var,    ONLY: continue_run             ! logical to indicate sppend output in existing history file
+  USE public_var,    ONLY: secprday                 ! unit conversion from day to sec
+  USE public_var,    ONLY: restart_write            ! restart write option
+  USE public_var,    ONLY: restart_date             ! restart datetime
+  USE public_var,    ONLY: restart_month            ! periodic restart month
+  USE public_var,    ONLY: restart_day              ! periodic restart day
+  USE public_var,    ONLY: restart_hour             ! periodic restart hr
+  USE public_var,    ONLY: maxTimeDiff              ! time difference tolerance for input checks
+  USE globalData,    ONLY: timeVar                  ! time variables (unit given by runoff data)
+  USE globalData,    ONLY: iTime                    ! time index at simulation time step
+  USE globalData,    ONLY: simDatetime              ! model time data (yyyy:mm:dd:hh:mm:ss)
+  USE globalData,    ONLY: begDatetime              ! simulation begin datetime data (yyyy:mm:dd:hh:mm:sec)
+  USE globalData,    ONLY: endDatetime              ! simulation end datetime data (yyyy:mm:dd:hh:mm:sec)
+  USE globalData,    ONLY: restDatetime             ! restart time data (yyyy:mm:dd:hh:mm:sec)
+  USE globalData,    ONLY: dropDatetime             ! restart dropoff calendar date/time
+  USE globalData,    ONLY: tmap_sim_ro              ! time step mapping between simulation and runoff forcing
+  USE globalData,    ONLY: tmap_sim_wm              ! time step mapping between simulation and water management
+  USE globalData,    ONLY: infileinfo_ro            ! the information of the input files
+  USE globalData,    ONLY: infileinfo_wm            ! the information of the input files
+  USE public_var,    ONLY: is_lake_sim              ! logical whether or not lake simulations are activated
+  USE public_var,    ONLY: is_flux_wm               ! logical whether or not abstraction and injection should be read from the file
+  USE public_var,    ONLY: is_vol_wm                ! logical whether or not target volume for lakes should be read
 
   implicit none
 
@@ -410,14 +408,17 @@ CONTAINS
   integer(i4b)                             :: nTime
   integer(i4b)                             :: nTime_wm
   integer(i4b)                             :: nt
+  integer(i4b)                             :: nSim                ! number of simulation time step
   integer(i4b)                             :: nFile               ! number of nc files
   integer(i4b)                             :: nFile_wm            ! number of nc files
   character(len=strLen)                    :: calendar_wm         ! calendar used in water management input file
+  character(len=strLen)                    :: t_unit              ! time units. "<time_step> since yyyy-MM-dd hh:mm:ss"
   integer(i4b)                             :: iFile               ! for loop over the nc files
   type(datetime), allocatable              :: roCal(:)
   type(datetime), allocatable              :: wmCal(:)
   type(datetime)                           :: dummyDatetime       ! temp datetime
   integer(i4b)                             :: nDays               ! number of days in a month
+  real(dp)                                 :: juldaySim           ! julian day of first simulation time
   real(dp), allocatable                    :: roJulday(:)         ! julian day in runoff data
   real(dp), allocatable                    :: roJulday_diff(:)    ! the difference of two concequative elements in roJulyday
   real(dp)                                 :: refJulday           ! reference julian day in runoff input file
@@ -431,35 +432,32 @@ CONTAINS
   ! Set time attributes for continuous time variables (saved in globalData to use for output)
   ! Use from 1st file
   ! These are used for history output
-  calendar   = infileinfo_data(1)%calendar
-  time_units = infileinfo_data(1)%unit
+  calendar   = inFileInfo_ro(1)%calendar
+  time_units = inFileInfo_ro(1)%unit
 
   ! get reference julianday in the 1st file
-  refJulday  = infileinfo_data(1)%ncrefjulday
+  refJulday  = inFileInfo_ro(1)%ncrefjulday
 
   ! get the number of the total time length of all the nc files
-  nFile = size(infileinfo_data)
-  nTime = sum(infileinfo_data(:)%nTime)
+  nFile = size(inFileInfo_ro)
+  nTime = sum(inFileInfo_ro(:)%nTime)
 
   ! Define time varialbes: timeVar and roJulday
-  allocate(timeVar(nTime), roJulday(nTime), roCal(nTime), stat=ierr)
+  allocate(roJulday(nTime), roCal(nTime), stat=ierr)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! roJulday: Julian day series of concatenated netCDF
+  ! Get roJulday: Julian day series of concatenated netCDF
   counter = 1;
   do iFile=1,nFile
-    nt = infileinfo_data(iFile)%nTime
+    nt = inFileInfo_ro(iFile)%nTime
     roJulday(counter:counter+nt-1) = &
-    infileinfo_data(iFile)%timeVar(1:nt)/infileinfo_data(iFile)%convTime2Days+infileinfo_data(iFile)%ncrefjulday
-    counter = counter + infileinfo_data(iFile)%nTime
+    inFileInfo_ro(iFile)%timeVar(1:nt)/inFileInfo_ro(iFile)%convTime2Days+inFileInfo_ro(iFile)%ncrefjulday
+    counter = counter + inFileInfo_ro(iFile)%nTime
   end do
 
   do ix=1,nTime
     call roCal(ix)%jul2datetime(roJulday(ix), calendar, ierr, cmessage)
   end do
-
-  ! timeVar: time variable in unit given by netCDF
-  timeVar(1:nTime) = (roJulday(1:nTime) - refJulday)*infileinfo_data(1)%convTime2Days
 
   call begDatetime%str2datetime(simStart, ierr, cmessage)
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [begDatetime]'; return; endif
@@ -512,26 +510,14 @@ CONTAINS
     end if
   endif
 
-  ! fast forward time to time index at simStart and save iTime and modJulday
-  do ix = 1, nTime
-    simDatetime(1) = roCal(ix)
-    if( simDatetime(1) < begDatetime ) cycle
-    exit
-  end do
-  iTime = ix
-
-  if (continue_run) then
-    simDatetime(0) = simDatetime(1)%add_sec(-dt, calendar, ierr, cmessage)
-  end if
-
-  ! if one of the two flags are set it true
+  ! water management options on
   if ((is_flux_wm).or.(is_vol_wm.and.is_lake_sim)) then
 
-    calendar_wm = infileinfo_data_wm(1)%calendar
+    calendar_wm = inFileInfo_wm(1)%calendar
 
     ! get the number of the total time length of all the water management nc files
-    nFile_wm = size(infileinfo_data_wm)
-    nTime_wm = sum(infileinfo_data_wm(:)%nTime)
+    nFile_wm = size(inFileInfo_wm)
+    nTime_wm = sum(inFileInfo_wm(:)%nTime)
 
     ! Define time varialbes: roJulday_wm
     allocate(roJulday_wm(nTime_wm), wmCal(nTime), stat=ierr)
@@ -540,10 +526,10 @@ CONTAINS
     ! roJulday_wm: Julian day of concatenated netCDF for water management
     counter = 1;
     do iFile=1,nFile_wm
-      nt = infileinfo_data_wm(iFile)%nTime
+      nt = inFileInfo_wm(iFile)%nTime
       roJulday_wm(counter:counter+nt-1) = &
-      infileinfo_data_wm(iFile)%timeVar(1:nt)/infileinfo_data_wm(iFile)%convTime2Days+infileinfo_data_wm(iFile)%ncrefjulday
-      counter = counter + infileinfo_data_wm(iFile)%nTime
+      inFileInfo_wm(iFile)%timeVar(1:nt)/inFileInfo_wm(iFile)%convTime2Days+inFileInfo_wm(iFile)%ncrefjulday
+      counter = counter + inFileInfo_wm(iFile)%nTime
     enddo
 
     do ix=1,nTime
@@ -564,7 +550,6 @@ CONTAINS
 
     ! check if the julian day of contacenated files do not have overlap or gap if nTime_wm is larger than 1
     if (nTime_wm > 1) then
-      ! allocate the difference array
       allocate(roJulday_diff_wm(nTime_wm-1), stat=ierr)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       ! calculate the difference of consequative time in julian day
@@ -577,6 +562,48 @@ CONTAINS
     endif
 
   endif
+
+  ! count a number of simulation time steps
+  nSim = 1
+  dummyDatetime = begDatetime
+  do
+    dummyDatetime = dummyDatetime%add_sec(dt, calendar, ierr, cmessage)
+    if (dummyDatetime > endDatetime) exit
+    nSim = nSim + 1
+  end do
+
+  ! set initial model simulation time (beginning of simulation time step)
+  simDatetime(1) = begDatetime
+
+  ! set simulation time step index (should be one to start)
+  iTime = 1
+
+  ! set time variable first simulation time step
+  call begDatetime%julianday(calendar, juldaySim,  ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  t_unit = trim( time_units(1:index(time_units,' ')) )
+  select case( trim(t_unit) )
+    case('seconds','second','sec','s'); timeVar = (juldaySim - refJulday)*86400._dp
+    case('minutes','minute','min');     timeVar = (juldaySim - refJulday)*1440._dp
+    case('hours','hour','hr','h');      timeVar = (juldaySim - refJulday)*24._dp
+    case('days','day','d');             timeVar = (juldaySim - refJulday)
+    case default
+      ierr=20; message=trim(message)//'<tunit>= '//trim(t_unit)//': <tunit> must be seconds, minutes, hours or days.'; return
+  end select
+
+  ! time step mapping from runoff time step to simulation time step
+  call timeMap_sim_forc(tmap_sim_ro, begDatetime, roCal(1), nSim, nTime, inFileInfo_ro, ierr, cmessage)
+  if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
+
+  if ((is_flux_wm).or.(is_vol_wm.and.is_lake_sim)) then
+    call timeMap_sim_forc(tmap_sim_wm, begDatetime, wmCal(1), nSim, nTime_wm, inFileInfo_wm, ierr, cmessage)
+    if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  if (continue_run) then
+    simDatetime(0) = simDatetime(1)%add_sec(-dt, calendar, ierr, cmessage)
+  end if
 
   ! Set restart calendar date/time and dropoff calendar date/time and
   ! -- For periodic restart options  ---------------------------------------------------------------------
@@ -620,223 +647,346 @@ CONTAINS
 
  END SUBROUTINE init_time
 
+ ! *********************************************************************
+ ! private subroutine: initialize simulation time
+ ! *********************************************************************
+ SUBROUTINE timeMap_sim_forc(tmap_sim_forc,     & ! inout: time-steps mapping data
+                             startSim, startRo, & ! input: starting datetime for simulation and input
+                             nSim, nRo,         & ! input: number of time steps for simulation and input
+                             inputFileInfo,     & ! input: input file metadata
+                             ierr, message)
 
- ! ********************************************************************************
- ! public subroutine: initialize runoff, and runoff-mapping data - For stand-alone
- ! ********************************************************************************
- SUBROUTINE init_runoff_data(pid,           & ! input: proc id
-                             ierr, message)   ! output: error control
-
-   USE public_var, ONLY: is_remap             ! logical whether or not runnoff needs to be mapped to river network HRU
-   USE globalData, ONLY: remap_data           ! runoff mapping data structure
-   USE globalData, ONLY: runoff_data          ! runoff data structure
-   USE globalData, ONLY: wm_data              ! abstraction injection data structure
+   USE dataTypes,         ONLY: inFileInfo     ! data type for storing the infromation of the nc files and its attributes
+   USE dataTypes,         ONLY: map_time       ! data type for time-step mapping between two time series
+   USE datetime_data,     ONLY: datetime       ! data type for datetime
+   USE public_var,        ONLY: verySmall      ! smallest real values
+   USE public_var,        ONLY: secprday       ! day to second conversion factor
+   USE public_var,        ONLY: calendar       ! calender
+   USE public_var,        ONLY: dt             ! simulation time step
+   USE public_var,        ONLY: dt_ro          ! input time step
 
    implicit none
    ! Argument variables
-   integer(i4b),              intent(in)    :: pid              ! proc id
-   integer(i4b),              intent(out)   :: ierr             ! error code
-   character(*),              intent(out)   :: message          ! error message
+   type(map_time), allocatable, intent(inout) :: tmap_sim_forc(:) ! time-steps mapping data
+   type(datetime),              intent(in)    :: startSim         ! simulation start datetime
+   type(datetime),              intent(in)    :: startRo          ! runoff data start datetime
+   integer(i4b),                intent(in)    :: nSim             ! number of simulation time steps
+   integer(i4b),                intent(in)    :: nRo              ! number of runoff data time steps
+   type(inFileInfo),            intent(in)    :: inputFileInfo(:) ! forcing input meta data structure
+   integer(i4b),                intent(out)   :: ierr             ! error code
+   character(*),                intent(out)   :: message          ! error message
+   ! Local variables
+   character(len=strLen)                      :: cmessage         ! error message from subroutine
+   real(dp)                                   :: frcLapse(nRo+1)  !
+   real(dp)                                   :: simLapse(nSim+1) !
+   real(dp)                                   :: startRoSec       ! starting runoff time relative to starting simulation time [sec]
+   real(dp)                                   :: juldayRo         ! starting julian day in runoff time step [day]
+   real(dp)                                   :: juldaySim        ! starting julian day in simulation time step [day]
+   integer(i4b)                               :: ctr              ! counter
+   integer(i4b)                               :: nRoSub           !
+   integer(i4b)                               :: iFile            ! loop index of input file
+   integer(i4b)                               :: iSim             ! loop index of simulation time step
+   integer(i4b)                               :: iRo              ! loop index of runoff time step
+   integer(i4b)                               :: idxFront(nSim)   ! index of soil layer of which top is within ith model layer (i=1..nLyr)
+   integer(i4b)                               :: idxEnd(nSim)     ! index of the lowest soil layer of which bottom is within ith model layer (i=1..nLyr)
+
+   ierr=0; message='timeMap_sim_forc/'
+
+   call startRo%julianday(calendar, juldayRo, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   call startSim%julianday(calendar,juldaySim,  ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   startRoSec = (juldaySim - juldayRo)*secprday ! day->sec
+
+   allocate(tmap_sim_forc(nSim), stat=ierr, errmsg=cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage)//'tmap_sim_forc'; return; endif
+
+   simLapse = arth(startRoSec, dt,   nSim+1)
+   frcLapse = arth(0._dp,      dt_ro, nRo+1)
+
+   !-- Find index of runoff time period of which end is within simulation period
+   ! condition: from beginning to end of runoff time, first index of time period whose end exceeds the beginning of simulation time step
+   do iSim=1,nSim
+     do iRo = 1,nRo
+       if (simLapse(iSim)<frcLapse(iRo+1)) then
+         idxFront(iSim) = iRo; exit
+       end if
+     end do
+   end do
+   !-- Find index of runoff time period of which beginning is within simulation period
+   ! condition: from beginning to end of runoff time, first index of time period whose end exceeds the beginning of simulation time step
+   do iSim=1,nSim
+     do iRo = 1,nRo
+       if ( simLapse(iSim+1)<frcLapse(iRo+1) .or. abs(simLapse(iSim+1)-frcLapse(iRo+1))<verySmall ) then
+         idxEnd(iSim) = iRo; exit
+       end if
+     end do
+   end do
+
+   ! Error check
+   do iSim=1,nSim
+     if (idxFront(iSim)-idxEnd(iSim)>0)then;ierr=30;message=trim(message)//'index of idxFront lower than idxEnd';return;endif
+   end do
+
+   !-- Compute weight of soil layer contributing to each model layer and populate lyrmap variable
+   do iSim = 1,nSim
+     ctr = 1
+     nRoSub = idxFront(iSim)-idxEnd(iSim) + 1
+
+     allocate(tmap_sim_forc(iSim)%iTime(nRoSub), tmap_sim_forc(iSim)%iFile(nRoSub), stat=ierr, errmsg=cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage)//'tmap_sim_forc%iTime or iFile'; return; endif
+
+     if ( idxFront(iSim) == idxEnd(iSim) )then ! if simulation period is completely within runoff period - one runoff time period per simulation period
+       iRo = idxFront(iSim)
+
+       do iFile=1,size(inputFileInfo)
+         if ( iRo >= inputFileInfo(iFile)%iTimebound(1) .and. &
+              iRo <= inputFileInfo(iFile)%iTimebound(2)) then
+           tmap_sim_forc(iSim)%iFile(ctr) = iFile
+           tmap_sim_forc(iSim)%iTime(ctr) = iRo - inputFileInfo(iFile)%iTimebound(1) + 1
+           exit
+         end if
+       end do
+
+     else !
+       allocate(tmap_sim_forc(iSim)%frac(nRoSub), stat=ierr, errmsg=cmessage)
+       if(ierr/=0)then; message=trim(message)//trim(cmessage)//'tmap_sim_forc%frac'; return; endif
+
+       ! loop frm the ealiest runoff time index to the latest, and compute fraction
+       do iRo=idxFront(iSim), idxEnd(iSim)
+
+         do iFile=1,size(inputFileInfo)
+           if ( iRo >= inputFileInfo(iFile)%iTimebound(1) .and. &
+                iRo <= inputFileInfo(iFile)%iTimebound(2)) then
+             tmap_sim_forc(iSim)%iFile(ctr) = iFile
+             tmap_sim_forc(iSim)%iTime(ctr) = iRo- inputFileInfo(iFile)%iTimebound(1) + 1
+             exit
+           end if
+         end do
+
+         if ( iRo == idxFront(iSim) )then      ! front side of simulation time step
+           tmap_sim_forc(iSim)%frac(ctr)   = (frcLapse(iRo) - simLapse(iSim))/dt
+         else if ( iRo == idxEnd(iSim) ) then  ! end side of simulation time step
+           tmap_sim_forc(iSim)%frac(ctr)   = (simLapse(iSim+1)-frcLapse(iRo))/dt
+         else                                    ! for soil layers that completely in model layer
+           tmap_sim_forc(iSim)%frac(ctr)   = (frcLapse(iRo+1)-frcLapse(iRo))/dt
+         endif
+         ctr = ctr+1
+       end do
+     end if
+   end do
+
+ END SUBROUTINE timeMap_sim_forc
+
+ ! ********************************************************************************
+ ! private subroutine: initialize runoff, and runoff-mapping data - For stand-alone
+ ! ********************************************************************************
+ SUBROUTINE init_forc_data(ierr, message)   ! output: error control
+
+   USE public_var,  ONLY: ancil_dir            ! name of the ancillary directory
+   USE public_var,  ONLY: input_dir            ! name of the runoff input directory
+   USE public_var,  ONLY: vname_qsim           ! name of simulated runoff varibale
+   USE public_var,  ONLY: vname_evapo          ! name of simulated evaporation varibale
+   USE public_var,  ONLY: vname_precip         ! name of simulated precipitation varibale
+   USE public_var,  ONLY: vname_hruid          ! name of name of varibale hruid
+   USE public_var,  ONLY: vname_time           ! name of varibale time
+   USE public_var,  ONLY: dname_time           ! name of dimension for variable time
+   USE public_var,  ONLY: dname_hruid          ! name of dimension for varibale hruid
+   USE public_var,  ONLY: dname_xlon           ! name of dimension for lon
+   USE public_var,  ONLY: dname_ylat           ! name of dimension for lat
+   USE public_var,  ONLY: vname_flux_wm        ! name of varibale abstraction/injection
+   USE public_var,  ONLY: vname_vol_wm         ! name of varibale target volume
+   USE public_var,  ONLY: vname_time_wm        ! name of varibale time for abstraction/injection
+   USE public_var,  ONLY: vname_segid_wm       ! name of varibale river network hruid for abs/inj
+   USE public_var,  ONLY: dname_time_wm        ! name of dimension time for ans/inj
+   USE public_var,  ONLY: dname_segid_wm       ! name of dimension hruid
+   USE public_var,  ONLY: fname_remap          ! name of runoff mapping netCDF name
+   USE public_var,  ONLY: calendar             ! name of calendar
+   USE public_var,  ONLY: time_units           ! time units
+   USE public_var,  ONLY: is_remap             ! logical whether or not runnoff needs to be mapped to river network HRU
+   USE public_var,  ONLY: is_lake_sim          ! logical if lakes simulations are activated
+   USE public_var,  ONLY: is_flux_wm           ! logical whether or not abstraction or injection should be read
+   USE public_var,  ONLY: is_vol_wm            ! logical whether or not target volume should be read
+   USE globalData,  ONLY: nHRU                 ! number of HRUs over the entire domain
+   USE globalData,  ONLY: nRch                 ! number of reaches over the entire domain
+   USE globalData,  ONLY: basinID              ! basin ID
+   USE globalData,  ONLY: reachID              ! reach ID
+   USE globalData,  ONLY: inFileInfo_ro        ! metadata of the ro/evap/p input files
+   USE globalData,  ONLY: inFileInfo_wm        ! metadata of the input files for abstration, injection and target volume
+   USE globalData,  ONLY: remap_data           ! runoff mapping data structure
+   USE globalData,  ONLY: runoff_data          ! runoff data structure
+   USE globalData,  ONLY: wm_data              ! abstraction injection data structure
+   USE read_runoff, ONLY: read_runoff_metadata ! read meta data from runoff data
+   USE read_remap,  ONLY: get_remap_data       ! read remap data
+
+   implicit none
+   ! Argument variables
+   integer(i4b), intent(out)          :: ierr             ! error code
+   character(*), intent(out)          :: message          ! error message
    ! local variables
-   character(len=strLen)                    :: cmessage         ! error message of downwind routine
+   character(len=strLen)              :: fname            ! input file name
+   integer(i4b), allocatable          :: unq_qhru_id(:)
+   integer(i4b), allocatable          :: unq_idx(:)
+   character(len=strLen)              :: cmessage         ! error message from subroutine
 
-   ierr=0; message='init_runoff_data/'
+   ierr=0; message='init_forc_data/'
 
-   if (pid==0) then
-     ! runoff and remap data initialization (TO DO: split runoff and remap initialization)
-     call init_runoff(is_remap,        & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
-                      remap_data,      & ! output: data structure to remap data
-                      runoff_data,     & ! output: data structure for runoff
-                      wm_data,         & ! output: data structure for abstraction and injection and target volume
-                      ierr, cmessage)    ! output: error control
+   ! passing the first nc file as global file name to read
+   fname = trim(input_dir)//trim(inFileInfo_ro(1)%infilename)
+
+   ! get runoff metadata for simulated runoff, evaporation and precipitation
+   call read_runoff_metadata(fname,                           & ! input: filename
+                             vname_qsim,                      & ! input: varibale name for simulated runoff
+                             vname_time,                      & ! input: varibale name for time
+                             dname_time,                      & ! input: dimension of variable time
+                             vname_hruid,                     & ! input: varibale hruid
+                             dname_hruid,                     & ! input: dimension of varibale hru
+                             dname_ylat,                      & ! input: dimension of lat
+                             dname_xlon,                      & ! input: dimension of lon
+                             runoff_data%nSpace,              & ! nSpace of the input in runoff or wm strcuture
+                             runoff_data%nTime,               & ! nTime of the input in runoff or wm strcuture
+                             runoff_data%sim,                 & ! 1D simulation
+                             runoff_data%sim2D,               & ! 2D simulation
+                             runoff_data%hru_id,              & ! ID of seg or hru in data
+                             time_units, calendar,            & ! output: number of time steps, time units, calendar
+                             ierr, cmessage)                    ! output: error control
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! initialize routing catchment array (runoff_data%basinRunoff)
+   allocate(runoff_data%basinRunoff(nHRU), stat=ierr, errmsg=cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   runoff_data%basinRunoff(:) = realMissing
+
+   if (is_lake_sim) then
+     allocate(runoff_data%basinEvapo(nHRU), stat=ierr, errmsg=cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   end if  ! if processor=0 (root)
+     runoff_data%basinEvapo(:) = realMissing
 
- END SUBROUTINE init_runoff_data
-
-
- ! *****
- ! private subroutine: get mapping data between runoff hru and river network hru
- ! *********************************************************************
- SUBROUTINE init_runoff(remap_flag,      & ! input:  logical whether or not runnoff needs to be mapped to river network HRU
-                        remap_data_in,   & ! output: data structure to remap data
-                        runoff_data_in,  & ! output: data structure for runoff
-                        wm_data_in,      & ! output: data strcuture for abstraction injection and target volume
-                        ierr, message)     ! output: error control
-
- USE public_var,  ONLY: ancil_dir              ! name of the ancillary directory
- USE public_var,  ONLY: input_dir              ! name of the runoff input directory
- USE public_var,  ONLY: fname_qsim             ! name of simulated runoff file
- USE public_var,  ONLY: vname_qsim             ! name of simulated runoff varibale
- USE public_var,  ONLY: vname_evapo            ! name of simulated evaporation varibale
- USE public_var,  ONLY: vname_precip           ! name of simulated precipitation varibale
- USE public_var,  ONLY: vname_hruid            ! name of name of varibale hruid
- USE public_var,  ONLY: vname_time             ! name of varibale time
- USE public_var,  ONLY: dname_time             ! name of dimension for variable time
- USE public_var,  ONLY: dname_hruid            ! name of dimension for varibale hruid
- USE public_var,  ONLY: dname_xlon             ! name of dimension for lon
- USE public_var,  ONLY: dname_ylat             ! name of dimension for lat
- USE public_var,  ONLY: fname_wm               ! name of abstraction/injection file name
- USE public_var,  ONLY: vname_flux_wm          ! name of varibale abstraction/injection
- USE public_var,  ONLY: vname_vol_wm           ! name of varibale target volume
- USE public_var,  ONLY: vname_time_wm          ! name of varibale time for abstraction/injection
- USE public_var,  ONLY: vname_segid_wm         ! name of varibale river network hruid for abs/inj
- USE public_var,  ONLY: dname_time_wm          ! name of dimension time for ans/inj
- USE public_var,  ONLY: dname_segid_wm         ! name of dimension hruid
- USE public_var,  ONLY: fname_remap            ! name of runoff mapping netCDF name
- USE public_var,  ONLY: calendar               ! name of calendar
- USE public_var,  ONLY: time_units             ! time units
- USE public_var,  ONLY: is_lake_sim            ! logical if lakes simulations are activated
- USE public_var,  ONLY: is_flux_wm             ! logical whether or not abstraction or injection should be read
- USE public_var,  ONLY: is_vol_wm              ! logical whether or not target volume should be read
- USE globalData,  ONLY: basinID                ! basin ID
- USE globalData,  ONLY: reachID                ! reach ID
- USE dataTypes,   ONLY: remap                  ! remapping data type
- USE dataTypes,   ONLY: runoff                 ! runoff data type
- USE dataTypes,   ONLY: wm                     ! wm data type
- USE read_runoff, ONLY: read_runoff_metadata   ! read meta data from runoff data
- USE read_remap,  ONLY: get_remap_data         ! read remap data
-
- implicit none
- ! Argument variables
- logical(lgt), intent(in)           :: remap_flag       ! logical whether or not runnoff needs to be mapped to river network HRU
- type(remap),  intent(out)          :: remap_data_in    ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
- type(runoff), intent(out)          :: runoff_data_in   ! runoff for one time step for all HRUs
- type(wm),     intent(out)          :: wm_data_in       ! abstraction/injection for one time step for all HRUs
- integer(i4b), intent(out)          :: ierr             ! error code
- character(*), intent(out)          :: message          ! error message
- ! local variables
- integer(i4b), allocatable          :: unq_qhru_id(:)
- integer(i4b), allocatable          :: unq_idx(:)
- character(len=strLen)              :: cmessage         ! error message from subroutine
-
- ierr=0; message='init_runoff/'
-
- ! get runoff metadata for simulated runoff, evaporation and precipitation
- call read_runoff_metadata(trim(input_dir)//trim(fname_qsim),  & ! input: filename
-                           vname_qsim,                         & ! input: varibale name for simulated runoff
-                           vname_time,                         & ! input: varibale name for time
-                           dname_time,                         & ! input: dimension of variable time
-                           vname_hruid,                        & ! input: varibale hruid
-                           dname_hruid,                        & ! input: dimension of varibale hru
-                           dname_ylat,                         & ! input: dimension of lat
-                           dname_xlon,                         & ! input: dimension of lon
-                           runoff_data_in%nSpace,              & ! nSpace of the input in runoff or wm strcuture
-                           runoff_data_in%nTime,               & ! nTime of the input in runoff or wm strcuture
-                           runoff_data_in%sim,                 & ! 1D simulation
-                           runoff_data_in%sim2D,               & ! 2D simulation
-                           runoff_data_in%hru_id,              & ! ID of seg or hru in data
-                           time_units, calendar,               & ! output: number of time steps, time units, calendar
-                           ierr, cmessage)                       ! output: error control
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- !write(*,*) 'runoff_data_in%nSpace, nTime, trim(time_units) = ', runoff_data_in%nSpace(:), runoff_data_in%nTime, trim(time_units)
-
- ! need to remap runoff to HRUs
- if (remap_flag) then
-
-   ! get runoff mapping file
-   call get_remap_data(trim(ancil_dir)//trim(fname_remap),     & ! input: file name
-                       runoff_data_in%nSpace,                  & ! input: number of spatial elements
-                       remap_data_in,                          & ! output: data structure to remap data from a polygon
-                       ierr, cmessage)                           ! output: error control
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   ! get indices of the HRU ids in the mapping file in the routing layer
-   call get_qix(remap_data_in%hru_id, &  ! input: vector of ids in mapping file
-                basinID,              &  ! input: vector of ids in the routing layer
-                remap_data_in%hru_ix, &  ! output: indices of hru ids in routing layer
-                ierr, cmessage)          ! output: error control
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   if (debug) then
-     write(iulog,'(2a)') new_line('a'), 'DEBUG: Corresponding between River-Network(RN) hru in mapping data and RN hru in river network data'
-     write(iulog,'(2x,a,I15)') '(1) number of RN hru in river-network = ', size(basinID)
-     write(iulog,'(2x,a,I15)') '(2) number of RN hru in mapping       = ', size(remap_data_in%hru_id)
-     write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two  = ', count(remap_data_in%hru_ix/=integerMissing)
-     if(count(remap_data_in%hru_ix/=integerMissing)/=size(basinID))then
-       message=trim(message)//'(1) not equal (2)'
-       ierr=20; return
-     endif
+     allocate(runoff_data%basinPrecip(nHRU), stat=ierr, errmsg=cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     runoff_data%basinPrecip(:) = realMissing
    end if
 
-   if ( runoff_data_in%nSpace(2) == integerMissing ) then
-     ! get indices of the "overlap HRUs" (the runoff input) in the runoff vector
-     call get_qix(remap_data_in%qhru_id, &  ! input: vector of ids in mapping file
-                  runoff_data_in%hru_id, &  ! input: vector of ids in runoff file
-                  remap_data_in%qhru_ix, &  ! output: indices of mapping ids in runoff file
+   ! need to remap runoff to HRUs
+   if (is_remap) then
+
+     ! get runoff mapping file
+     call get_remap_data(trim(ancil_dir)//trim(fname_remap),  & ! input: file name
+                         runoff_data%nSpace,                  & ! input: number of spatial elements
+                         remap_data,                          & ! output: data structure to remap data from a polygon
+                         ierr, cmessage)                        ! output: error control
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     ! get indices of the HRU ids in the mapping file in the routing layer
+     call get_qix(remap_data%hru_id, &  ! input: vector of ids in mapping file
+                  basinID,           &  ! input: vector of ids in the routing layer
+                  remap_data%hru_ix, &  ! output: indices of hru ids in routing layer
+                  ierr, cmessage)       ! output: error control
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     if (debug) then
+       write(iulog,'(2a)') new_line('a'), 'DEBUG: Corresponding between River-Network(RN) hru in mapping data and RN hru in river network data'
+       write(iulog,'(2x,a,I15)') '(1) number of RN hru in river-network = ', size(basinID)
+       write(iulog,'(2x,a,I15)') '(2) number of RN hru in mapping       = ', size(remap_data%hru_id)
+       write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two  = ', count(remap_data%hru_ix/=integerMissing)
+       if(count(remap_data%hru_ix/=integerMissing)/=size(basinID))then
+         message=trim(message)//'(1) not equal (2)'
+         ierr=20; return
+       endif
+     end if
+
+     if ( runoff_data%nSpace(2) == integerMissing ) then
+       ! get indices of the "overlap HRUs" (the runoff input) in the runoff vector
+       call get_qix(remap_data%qhru_id, &  ! input: vector of ids in mapping file
+                    runoff_data%hru_id, &  ! input: vector of ids in runoff file
+                    remap_data%qhru_ix, &  ! output: indices of mapping ids in runoff file
+                    ierr, cmessage)           ! output: error control
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+       if (debug) then
+         call unique(remap_data%qhru_id, unq_qhru_id, unq_idx)
+         write(iulog,'(2a)') new_line('a'),'DEBUG: corresponding between Hydro-Model (HM) hru in mapping data and HM hru in runoff data'
+         write(iulog,'(2x,a,I15)') '(1) number of HM hru in hyrdo-model  = ', size(runoff_data%hru_id)
+         write(iulog,'(2x,a,I15)') '(2) number of HM hru in mapping      = ', size(unq_qhru_id)
+         write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two = ', count(remap_data%qhru_ix(unq_idx)/=integerMissing)
+       end if
+     end if
+
+   else ! if runoff given in RN_HRU
+
+     allocate(runoff_data%hru_ix(size(runoff_data%hru_id)), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data%hru_ix'; return; endif
+
+     ! get indices of the HRU ids in the runoff file in the routing layer
+     call get_qix(runoff_data%hru_id,  &    ! input: vector of ids in mapping file
+                  basinID,             &    ! input: vector of ids in the routing layer
+                  runoff_data%hru_ix,  &    ! output: indices of hru ids in routing layer
                   ierr, cmessage)           ! output: error control
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      if (debug) then
-       call unique(remap_data_in%qhru_id, unq_qhru_id, unq_idx)
-       write(iulog,'(2a)') new_line('a'),'DEBUG: corresponding between Hydro-Model (HM) hru in mapping data and HM hru in runoff data'
-       write(iulog,'(2x,a,I15)') '(1) number of HM hru in hyrdo-model  = ', size(runoff_data_in%hru_id)
-       write(iulog,'(2x,a,I15)') '(2) number of HM hru in mapping      = ', size(unq_qhru_id)
-       write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two = ', count(remap_data_in%qhru_ix(unq_idx)/=integerMissing)
+       write(iulog,'(2a)') new_line('a'), 'DEBUG: corresponding between River-Network (RN) hru in runoff data and RN hru in river network data'
+       write(iulog,'(2x,a,I15)') '(1) number of RN hru in river-network = ', size(basinID)
+       write(iulog,'(2x,a,I15)') '(2) number of RN hru in hyrdo-model   = ', size(runoff_data%hru_id)
+       write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two  = ', count(runoff_data%hru_ix/=integerMissing)
+       if(count(runoff_data%hru_ix/=integerMissing)/=size(basinID))then
+         message=trim(message)//'(1) not equal (2)'
+         ierr=20; return
+       endif
      end if
-   end if
 
- else ! if runoff given in RN_HRU
+   endif
 
-   allocate(runoff_data_in%hru_ix(size(runoff_data_in%hru_id)), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data_in%hru_ix'; return; endif
+   ! Optionals: lake simulation with target volume or water-management
+   if ((is_flux_wm).or.((is_vol_wm).and.(is_lake_sim))) then
 
-   ! get indices of the HRU ids in the runoff file in the routing layer
-   call get_qix(runoff_data_in%hru_id,  &    ! input: vector of ids in mapping file
-                basinID,                &    ! input: vector of ids in the routing layer
-                runoff_data_in%hru_ix,  &    ! output: indices of hru ids in routing layer
-                ierr, cmessage)              ! output: error control
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     ! passing the first netCDF as global file meta to read
+     fname = trim(input_dir)//trim(inFileInfo_wm(1)%infilename)
 
-   if (debug) then
-     write(iulog,'(2a)') new_line('a'), 'DEBUG: corresponding between River-Network (RN) hru in runoff data and RN hru in river network data'
-     write(iulog,'(2x,a,I15)') '(1) number of RN hru in river-network = ', size(basinID)
-     write(iulog,'(2x,a,I15)') '(2) number of RN hru in hyrdo-model   = ', size(runoff_data_in%hru_id)
-     write(iulog,'(2x,a,I15)') '(3) number of mapped hru between two  = ', count(runoff_data_in%hru_ix/=integerMissing)
-     if(count(runoff_data_in%hru_ix/=integerMissing)/=size(basinID))then
-       message=trim(message)//'(1) not equal (2)'
-       ierr=20; return
-     endif
-   end if
+     call read_runoff_metadata(fname,                         & ! input: filename
+                               vname_flux_wm,                 & ! input: varibale name for simulated runoff
+                               vname_time_wm,                 & ! input: varibale name for time
+                               dname_time_wm,                 & ! input: dimension of variable time
+                               vname_segid_wm,                & ! input: varibale hruid
+                               dname_segid_wm,                & ! input: dimension of varibale hru
+                               dname_ylat,                    & ! input: dimension of lat
+                               dname_xlon,                    & ! input: dimension of lon
+                               wm_data%nSpace,                & ! nSpace of the input in runoff or wm strcuture
+                               wm_data%nTime,                 & ! nTime of the input in runoff or wm strcuture
+                               wm_data%sim,                   & ! 1D simulation
+                               wm_data%sim2D,                 & ! 2D simulation
+                               wm_data%seg_id,                & ! ID of seg or hru in data
+                               time_units, calendar,          & ! output: number of time steps, time units, calendar
+                               ierr, cmessage)                  ! output: error control
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- endif
+     if (is_flux_wm) then
+       allocate(wm_data%flux_wm(nRch), stat=ierr, errmsg=cmessage)
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       wm_data%flux_wm(:) = realMissing
+     end if
 
- ! is abstraction and injection flag is active
- if ((is_flux_wm).or.((is_vol_wm).and.(is_lake_sim))) then
+     if (is_vol_wm) then
+       allocate(wm_data%vol_wm(nRch), stat=ierr, errmsg=cmessage)
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       wm_data%vol_wm(:) = realMissing
+     end if
 
-   call read_runoff_metadata(trim(input_dir)//trim(fname_wm),  & ! input: filename
-                             vname_flux_wm,                    & ! input: varibale name for simulated runoff
-                             vname_time_wm,                    & ! input: varibale name for time
-                             dname_time_wm,                    & ! input: dimension of variable time
-                             vname_segid_wm,                   & ! input: varibale hruid
-                             dname_segid_wm,                   & ! input: dimension of varibale hru
-                             dname_ylat,                       & ! input: dimension of lat
-                             dname_xlon,                       & ! input: dimension of lon
-                             wm_data_in%nSpace,                & ! nSpace of the input in runoff or wm strcuture
-                             wm_data_in%nTime,                 & ! nTime of the input in runoff or wm strcuture
-                             wm_data_in%sim,                   & ! 1D simulation
-                             wm_data_in%sim2D,                 & ! 2D simulation
-                             wm_data_in%seg_id,                & ! ID of seg or hru in data
-                             time_units, calendar,             & ! output: number of time steps, time units, calendar
-                             ierr, cmessage)                     ! output: error control
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     ! allocate the hru_ix based on number of hru_id presented in the
+     allocate(wm_data%seg_ix(size(wm_data%seg_id)), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'problem allocating wm_data%hru_ix'; return; endif
 
-   ! allocate the hru_ix based on number of hru_id presented in the
-   allocate(wm_data_in%seg_ix(size(wm_data_in%seg_id)), stat=ierr)
-   if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data_in%hru_ix'; return; endif
+     ! get indices of the seg ids in the input file in the routing layer
+     call get_qix(wm_data%seg_id,  &    ! input: vector of ids in mapping file
+                  reachID,         &    ! input: vector of ids in the routing layer
+                  wm_data%seg_ix,  &    ! output: indices of hru ids in routing layer
+                  ierr, cmessage)       ! output: error control
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! get indices of the seg ids in the input file in the routing layer
-   call get_qix(wm_data_in%seg_id,  &    ! input: vector of ids in mapping file
-                reachID,            &    ! input: vector of ids in the routing layer
-                wm_data_in%seg_ix,  &    ! output: indices of hru ids in routing layer
-                ierr, cmessage)          ! output: error control
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   endif
 
-  endif
-
- END SUBROUTINE init_runoff
-
+ END SUBROUTINE init_forc_data
 
  ! *****
  ! private subroutine: get indices of mapping points within runoff file... (To be removed since the same routine in nr_utils)
@@ -857,7 +1007,6 @@ CONTAINS
  integer(i4b)             :: ix,jx,ixMaster                ! array indices
  integer(i4b)             :: nx                            ! counter
 
- ! initialize error control
  ierr=0; message='get_qix/'
 
  ! sort the data vector from smallest to largest

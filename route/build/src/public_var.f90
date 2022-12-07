@@ -84,9 +84,9 @@ MODULE public_var
 
   ! Control file variables
   ! DIRECTORIES
-  character(len=strLen),public    :: ancil_dir            = ''              ! directory containing ancillary data
-  character(len=strLen),public    :: input_dir            = ''              ! directory containing input data
-  character(len=strLen),public    :: output_dir           = ''              ! directory containing output data
+  character(len=strLen),public    :: ancil_dir            = ''              ! directory containing ancillary data (network, mapping, namelist)
+  character(len=strLen),public    :: input_dir            = ''              ! directory containing input forcing data
+  character(len=strLen),public    :: output_dir           = ''              ! directory for routed flow output (netCDF)
   character(len=strLen),public    :: restart_dir          = charMissing     ! directory for restart output (netCDF)
   ! RUN CONTROL
   character(len=strLen),public    :: case_name            = ''              ! name of simulation
@@ -105,7 +105,8 @@ MODULE public_var
   logical(lgt),public             :: is_vol_wm_jumpstart  = .false.         ! logical if true the volume is reset to target volume for the first time step of modeling
   logical(lgt),public             :: suppress_runoff      = .false.         ! logical to suppress the read runoff to zero(0)
   logical(lgt),public             :: suppress_P_Ep        = .false.         ! logical to suppress evaporation and precipitation to zero(0)
-  logical(lgt),public             :: compWB               = .true.          ! logical if cumulative water balance is computed
+  logical(lgt),public             :: compWB               = .true.          ! logical if entire domain water balance is computed
+  real(dp)             ,public    :: dt                   = realMissing     ! simulation time step (seconds)
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
   logical(lgt)         ,public    :: ntopAugmentMode      = .false.         ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
@@ -124,7 +125,7 @@ MODULE public_var
   character(len=strLen),public    :: dname_xlon           = ''              ! dimension name for x (j, longitude) dimension
   character(len=strLen),public    :: dname_ylat           = ''              ! dimension name for y (i, latitude) dimension
   character(len=strLen),public    :: units_qsim           = ''              ! units of simulated runoff data
-  real(dp)             ,public    :: dt                   = realMissing     ! time step (seconds)
+  real(dp)             ,public    :: dt_ro                = realMissing     ! runoff time step (seconds)
   real(dp)             ,public    :: input_fillvalue      = realMissing     ! fillvalue used for input variables (runoff, precipitation, evaporation)
   ! FLUXES TO/FROM REACHES AND LAKES STATES FILE
   character(len=strLen),public    :: fname_wm             = ''              ! the txt file name that includes nc files holesing the abstraction, injection, target volume values

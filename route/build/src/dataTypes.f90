@@ -130,7 +130,7 @@ implicit none
  ! ---------- forcing input file strcuture -----------------------------------------------------------------
 
  ! -- input file name and strcuture for nc files
-  type, public ::  infileinfo
+  type, public ::  inFileInfo
    integer(i4b)                            :: nTime            ! number of time step in a nc file
    integer(i4b)                            :: iTimebound(1:2)  ! time index of start and end of the
    real(dp)                 , allocatable  :: timevar(:)       ! the time varibale from the netcdf file
@@ -139,7 +139,7 @@ implicit none
    character(len=strLen)                   :: infilename       ! the name of the input file name
    character(len=strLen)                   :: calendar         ! the calendar
    character(len=strLen)                   :: unit             ! the unit of time
-  end type infileinfo
+  end type inFileInfo
 
 
  ! ---------- mapping data structures ----------------------------------------------------------------------
@@ -158,32 +158,37 @@ implicit none
    integer(i4b)             , allocatable  :: qhru_ix(:)   ! Index of hrus associated with runoff simulation (="qhru")
  end type remap
 
- ! simulated runoff data
- type, public :: runoff
-   integer(i4b)                            :: nTime         ! number of time steps
-   integer(i4b)                            :: nSpace(1:2)   ! number of spatial dimension
-   real(dp)                                :: time          ! time variable at one time step
-   real(dp)                 , allocatable  :: sim(:)        ! flux simulation (HM_HRU) at one time step (size: nSpace(1))
-   real(dp)                 , allocatable  :: sim2D(:,:)    ! flux simulation (x,y) at one time step (size: /nSpace(1),nSpace(2)/)
-   integer(i4b)             , allocatable  :: hru_id(:)     ! id of HM_HRUs or RN_HRUs at which runoff is stored (size: nSpace(1))
-   integer(i4b)             , allocatable  :: hru_ix(:)     ! Index of RN_HRUs associated with river network (used only if HM_HRUs = RN_HRUs)
-   real(dp)                 , allocatable  :: basinRunoff(:)! remapped river network catchment runoff (size: number of nHRU)
-   real(dp)                 , allocatable  :: basinEvapo(:) ! remapped river network catchment runoff (size: number of nHRU)
-   real(dp)                 , allocatable  :: basinPrecip(:)! remapped river network catchment runoff (size: number of nHRU)
+ ! mapping time step between two time series e.g., simulation time step vs runoff time step for one simulation time step
+ type, public :: map_time
+   integer(i4b), allocatable :: iFile(:)
+   integer(i4b), allocatable :: iTime(:)
+   real(dp),     allocatable :: frac(:)
+ end type map_time
+
+ ! ---------- forcing and water management data  ----------------------------------------------------------------------
+
+ type, public :: inputData
+   integer(i4b)                            :: nTime           ! number of time steps
+   integer(i4b)                            :: nSpace(1:2)     ! number of spatial dimension
+   real(dp)                                :: time            ! time variable at one time step
+   real(dp)                 , allocatable  :: sim(:)          ! flux simulation (HM_HRU) at one time step (size: nSpace(1))
+   real(dp)                 , allocatable  :: sim2d(:,:)      ! flux simulation (x,y) at one time step (size: /nSpace(1),nSpace(2)/)
+ end type inputData
+
+ type, public, extends(inputData) :: runoff
+   integer(i4b)             , allocatable  :: hru_id(:)       ! id of HM_HRUs or RN_HRUs at which runoff is stored (size: nSpace(1))
+   integer(i4b)             , allocatable  :: hru_ix(:)       ! Index of RN_HRUs associated with river network (used only if HM_HRUs = RN_HRUs)
+   real(dp)                 , allocatable  :: basinRunoff(:)  ! remapped river network catchment runoff (size: number of nHRU)
+   real(dp)                 , allocatable  :: basinEvapo(:)   ! remapped river network catchment runoff (size: number of nHRU)
+   real(dp)                 , allocatable  :: basinPrecip(:)  ! remapped river network catchment runoff (size: number of nHRU)
  end type runoff
 
- ! water management data; fluxes to/from reaches or target volume
- type, public :: wm
-   integer(i4b)                            :: nTime           ! number of time steps
-   integer(i4b)                            :: nSpace(1:2)     ! number of spatial dimension, in this case only one dimentonal
-   real(dp)                                :: time            ! time variable at one time step
-   real(dp)                 , allocatable  :: sim(:)          ! user specified flux add/subtract, or volume at one time step (size: nSpace)
-   real(dp)                 , allocatable  :: sim2D(:,:)      ! to provide modularity for reading data
+ type, public, extends(inputData) :: wm
    integer(i4b)             , allocatable  :: seg_id(:)       ! id of reach in data (size: nSpace)
    integer(i4b)             , allocatable  :: seg_ix(:)       ! Index of river network reach IDs corresponding reach ID in data
    real(dp)                 , allocatable  :: flux_wm(:)      ! allocated flux to existing river network using sort_flux (size: number of nRCH)
    real(dp)                 , allocatable  :: vol_wm(:)       ! allocated target vol to existing river network using sort_flux (size: number of nRCH)
- end type
+ end type wm
 
  ! ---------- reach parameters ----------------------------------------------------------------------------
 
@@ -298,18 +303,18 @@ implicit none
 
  ! - Lagrangian kinematic wave states (collection of particles)
  ! Individual flow particles
- TYPE, public :: FPOINT
+ type, public :: FPOINT
   real(dp)                                   :: QF           ! Flow
   real(dp)                                   :: QM           ! Modified flow
   real(dp)                                   :: TI           ! initial time of point in reach
   real(dp)                                   :: TR           ! time point expected to exit reach
   logical(lgt)                               :: RF           ! routing flag (T if point has exited)
- END TYPE FPOINT
+ end type FPOINT
 
  ! Collection of flow points within a given reach
- TYPE, public :: kwtRCH
+ type, public :: kwtRCH
   type(FPOINT),allocatable             :: KWAVE(:)
- END TYPE kwtRCH
+ end type kwtRCH
 
  ! ---------- irf states (future flow series ) ---------------------------------
  ! Future flow series
@@ -338,16 +343,16 @@ implicit none
    type(SUBRCH)    :: molecule
  end type mcRCH
 
-  type, public :: dwRch
+ type, public :: dwRch
    type(SUBRCH)    :: molecule
  end type dwRCH
 
  type, public :: STRSTA
-  type(irfRCH)       :: IRF_ROUTE
-  type(kwtRCH)       :: LKW_ROUTE
-  type(kwRCH)        :: KW_ROUTE
-  type(mcRCH)        :: MC_ROUTE
-  type(dwRCH)        :: DW_ROUTE
+   type(irfRCH)       :: IRF_ROUTE
+   type(kwtRCH)       :: LKW_ROUTE
+   type(kwRCH)        :: KW_ROUTE
+   type(mcRCH)        :: MC_ROUTE
+   type(dwRCH)        :: DW_ROUTE
  end type STRSTA
 
 
@@ -456,7 +461,7 @@ MODULE objTypes
     this%varDesc      = vDesc
     this%varUnit      = vUnit
     this%varType      = vType
-    this%varDim(1:n) = vDim(1:n)
+    this%varDim(1:n)  = vDim(1:n)
     this%varFile      = vFile
   END SUBROUTINE init
 
