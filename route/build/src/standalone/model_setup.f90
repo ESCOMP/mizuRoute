@@ -389,8 +389,8 @@ CONTAINS
   USE globalData,    ONLY: endDatetime              ! simulation end datetime data (yyyy:mm:dd:hh:mm:sec)
   USE globalData,    ONLY: restDatetime             ! restart time data (yyyy:mm:dd:hh:mm:sec)
   USE globalData,    ONLY: dropDatetime             ! restart dropoff calendar date/time
-  USE globalData,    ONLY: tmap_sim_ro              ! time step mapping between simulation and runoff forcing
-  USE globalData,    ONLY: tmap_sim_wm              ! time step mapping between simulation and water management
+  USE globalData,    ONLY: roBegDatetime            ! forcing data start datetime data (yyyy:mm:dd:hh:mm:sec)
+  USE globalData,    ONLY: wmBegDatetime            ! water-managment data start datetime data (yyyy:mm:dd:hh:mm:sec)
   USE globalData,    ONLY: infileinfo_ro            ! the information of the input files
   USE globalData,    ONLY: infileinfo_wm            ! the information of the input files
   USE public_var,    ONLY: is_lake_sim              ! logical whether or not lake simulations are activated
@@ -408,7 +408,6 @@ CONTAINS
   integer(i4b)                             :: nTime
   integer(i4b)                             :: nTime_wm
   integer(i4b)                             :: nt
-  integer(i4b)                             :: nSim                ! number of simulation time step
   integer(i4b)                             :: nFile               ! number of nc files
   integer(i4b)                             :: nFile_wm            ! number of nc files
   character(len=strLen)                    :: calendar_wm         ! calendar used in water management input file
@@ -458,6 +457,9 @@ CONTAINS
   do ix=1,nTime
     call roCal(ix)%jul2datetime(roJulday(ix), calendar, ierr, cmessage)
   end do
+
+  ! save water management data starting datetime
+  roBegDatetime = roCal(1)
 
   call begDatetime%str2datetime(simStart, ierr, cmessage)
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [begDatetime]'; return; endif
@@ -536,6 +538,9 @@ CONTAINS
       call wmCal(ix)%jul2datetime(roJulday_wm(ix), calendar_wm, ierr, cmessage)
     end do
 
+    ! save water management data starting datetime
+    wmBegDatetime = wmCal(1)
+
     ! check sim_start is after the last time step in water management data
     if(begDatetime > wmCal(nTime_wm)) then
       write(iulog,'(2a)') new_line('a'),'ERROR: <sim_start> is after the last time step in input runoff'
@@ -563,15 +568,6 @@ CONTAINS
 
   endif
 
-  ! count a number of simulation time steps
-  nSim = 1
-  dummyDatetime = begDatetime
-  do
-    dummyDatetime = dummyDatetime%add_sec(dt, calendar, ierr, cmessage)
-    if (dummyDatetime > endDatetime) exit
-    nSim = nSim + 1
-  end do
-
   ! set initial model simulation time (beginning of simulation time step)
   simDatetime(1) = begDatetime
 
@@ -591,15 +587,6 @@ CONTAINS
     case default
       ierr=20; message=trim(message)//'<tunit>= '//trim(t_unit)//': <tunit> must be seconds, minutes, hours or days.'; return
   end select
-
-  ! time step mapping from runoff time step to simulation time step
-  call timeMap_sim_forc(tmap_sim_ro, begDatetime, roCal(1), nSim, nTime, inFileInfo_ro, ierr, cmessage)
-  if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
-
-  if ((is_flux_wm).or.(is_vol_wm.and.is_lake_sim)) then
-    call timeMap_sim_forc(tmap_sim_wm, begDatetime, wmCal(1), nSim, nTime_wm, inFileInfo_wm, ierr, cmessage)
-    if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
-  end if
 
   if (continue_run) then
     simDatetime(0) = simDatetime(1)%add_sec(-dt, calendar, ierr, cmessage)
@@ -646,138 +633,6 @@ CONTAINS
   end select
 
  END SUBROUTINE init_time
-
- ! *********************************************************************
- ! private subroutine: initialize simulation time
- ! *********************************************************************
- SUBROUTINE timeMap_sim_forc(tmap_sim_forc,     & ! inout: time-steps mapping data
-                             startSim, startRo, & ! input: starting datetime for simulation and input
-                             nSim, nRo,         & ! input: number of time steps for simulation and input
-                             inputFileInfo,     & ! input: input file metadata
-                             ierr, message)
-
-   USE dataTypes,         ONLY: inFileInfo     ! data type for storing the infromation of the nc files and its attributes
-   USE dataTypes,         ONLY: map_time       ! data type for time-step mapping between two time series
-   USE datetime_data,     ONLY: datetime       ! data type for datetime
-   USE public_var,        ONLY: verySmall      ! smallest real values
-   USE public_var,        ONLY: secprday       ! day to second conversion factor
-   USE public_var,        ONLY: calendar       ! calender
-   USE public_var,        ONLY: dt             ! simulation time step
-   USE public_var,        ONLY: dt_ro          ! input time step
-
-   implicit none
-   ! Argument variables
-   type(map_time), allocatable, intent(inout) :: tmap_sim_forc(:) ! time-steps mapping data
-   type(datetime),              intent(in)    :: startSim         ! simulation start datetime
-   type(datetime),              intent(in)    :: startRo          ! runoff data start datetime
-   integer(i4b),                intent(in)    :: nSim             ! number of simulation time steps
-   integer(i4b),                intent(in)    :: nRo              ! number of runoff data time steps
-   type(inFileInfo),            intent(in)    :: inputFileInfo(:) ! forcing input meta data structure
-   integer(i4b),                intent(out)   :: ierr             ! error code
-   character(*),                intent(out)   :: message          ! error message
-   ! Local variables
-   character(len=strLen)                      :: cmessage         ! error message from subroutine
-   real(dp)                                   :: frcLapse(nRo+1)  !
-   real(dp)                                   :: simLapse(nSim+1) !
-   real(dp)                                   :: startRoSec       ! starting runoff time relative to starting simulation time [sec]
-   real(dp)                                   :: juldayRo         ! starting julian day in runoff time step [day]
-   real(dp)                                   :: juldaySim        ! starting julian day in simulation time step [day]
-   integer(i4b)                               :: ctr              ! counter
-   integer(i4b)                               :: nRoSub           !
-   integer(i4b)                               :: iFile            ! loop index of input file
-   integer(i4b)                               :: iSim             ! loop index of simulation time step
-   integer(i4b)                               :: iRo              ! loop index of runoff time step
-   integer(i4b)                               :: idxFront(nSim)   ! index of soil layer of which top is within ith model layer (i=1..nLyr)
-   integer(i4b)                               :: idxEnd(nSim)     ! index of the lowest soil layer of which bottom is within ith model layer (i=1..nLyr)
-
-   ierr=0; message='timeMap_sim_forc/'
-
-   call startRo%julianday(calendar, juldayRo, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   call startSim%julianday(calendar,juldaySim,  ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   startRoSec = (juldaySim - juldayRo)*secprday ! day->sec
-
-   allocate(tmap_sim_forc(nSim), stat=ierr, errmsg=cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage)//'tmap_sim_forc'; return; endif
-
-   simLapse = arth(startRoSec, dt,   nSim+1)
-   frcLapse = arth(0._dp,      dt_ro, nRo+1)
-
-   !-- Find index of runoff time period of which end is within simulation period
-   ! condition: from beginning to end of runoff time, first index of time period whose end exceeds the beginning of simulation time step
-   do iSim=1,nSim
-     do iRo = 1,nRo
-       if (simLapse(iSim)<frcLapse(iRo+1)) then
-         idxFront(iSim) = iRo; exit
-       end if
-     end do
-   end do
-   !-- Find index of runoff time period of which beginning is within simulation period
-   ! condition: from beginning to end of runoff time, first index of time period whose end exceeds the beginning of simulation time step
-   do iSim=1,nSim
-     do iRo = 1,nRo
-       if ( simLapse(iSim+1)<frcLapse(iRo+1) .or. abs(simLapse(iSim+1)-frcLapse(iRo+1))<verySmall ) then
-         idxEnd(iSim) = iRo; exit
-       end if
-     end do
-   end do
-
-   ! Error check
-   do iSim=1,nSim
-     if (idxFront(iSim)-idxEnd(iSim)>0)then;ierr=30;message=trim(message)//'index of idxFront lower than idxEnd';return;endif
-   end do
-
-   !-- Compute weight of soil layer contributing to each model layer and populate lyrmap variable
-   do iSim = 1,nSim
-     ctr = 1
-     nRoSub = idxFront(iSim)-idxEnd(iSim) + 1
-
-     allocate(tmap_sim_forc(iSim)%iTime(nRoSub), tmap_sim_forc(iSim)%iFile(nRoSub), stat=ierr, errmsg=cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage)//'tmap_sim_forc%iTime or iFile'; return; endif
-
-     if ( idxFront(iSim) == idxEnd(iSim) )then ! if simulation period is completely within runoff period - one runoff time period per simulation period
-       iRo = idxFront(iSim)
-
-       do iFile=1,size(inputFileInfo)
-         if ( iRo >= inputFileInfo(iFile)%iTimebound(1) .and. &
-              iRo <= inputFileInfo(iFile)%iTimebound(2)) then
-           tmap_sim_forc(iSim)%iFile(ctr) = iFile
-           tmap_sim_forc(iSim)%iTime(ctr) = iRo - inputFileInfo(iFile)%iTimebound(1) + 1
-           exit
-         end if
-       end do
-
-     else !
-       allocate(tmap_sim_forc(iSim)%frac(nRoSub), stat=ierr, errmsg=cmessage)
-       if(ierr/=0)then; message=trim(message)//trim(cmessage)//'tmap_sim_forc%frac'; return; endif
-
-       ! loop frm the ealiest runoff time index to the latest, and compute fraction
-       do iRo=idxFront(iSim), idxEnd(iSim)
-
-         do iFile=1,size(inputFileInfo)
-           if ( iRo >= inputFileInfo(iFile)%iTimebound(1) .and. &
-                iRo <= inputFileInfo(iFile)%iTimebound(2)) then
-             tmap_sim_forc(iSim)%iFile(ctr) = iFile
-             tmap_sim_forc(iSim)%iTime(ctr) = iRo- inputFileInfo(iFile)%iTimebound(1) + 1
-             exit
-           end if
-         end do
-
-         if ( iRo == idxFront(iSim) )then      ! front side of simulation time step
-           tmap_sim_forc(iSim)%frac(ctr)   = (frcLapse(iRo) - simLapse(iSim))/dt
-         else if ( iRo == idxEnd(iSim) ) then  ! end side of simulation time step
-           tmap_sim_forc(iSim)%frac(ctr)   = (simLapse(iSim+1)-frcLapse(iRo))/dt
-         else                                    ! for soil layers that completely in model layer
-           tmap_sim_forc(iSim)%frac(ctr)   = (frcLapse(iRo+1)-frcLapse(iRo))/dt
-         endif
-         ctr = ctr+1
-       end do
-     end if
-   end do
-
- END SUBROUTINE timeMap_sim_forc
 
  ! ********************************************************************************
  ! private subroutine: initialize runoff, and runoff-mapping data - For stand-alone

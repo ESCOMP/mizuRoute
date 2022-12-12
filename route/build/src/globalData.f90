@@ -25,7 +25,6 @@ MODULE globalData
   USE dataTypes, ONLY: LKFLX         ! data structure - lake fluxes
 
   USE dataTypes, ONLY: remap         ! data structure - remapping data type
-  USE dataTypes, ONLY: map_time      ! time step mapping
 
   USE dataTypes, ONLY: runoff        ! data structure - runoff data type
   USE dataTypes, ONLY: wm            ! data structure - water management (flux to/from segment, target volume) data type
@@ -95,6 +94,8 @@ MODULE globalData
   type(datetime),                  public :: endDatetime          ! simulation end date/time (yyyy:mm:dd:hh:mm:ss)
   type(datetime),                  public :: restDatetime         ! desired restart date/time (yyyy:mm:dd:hh:mm:ss)
   type(datetime),                  public :: dropDatetime         ! restart dropoff date/time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime),                  public :: roBegDatetime        ! forcing data start date/time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime),                  public :: wmBegDatetime        ! water management data start date/time (yyyy:mm:dd:hh:mm:ss)
 
   ! ---------- input file information -------------------------------------------------------------------
 
@@ -195,8 +196,6 @@ MODULE globalData
 
   ! mapping structures
   type(remap),                     public :: remap_data             ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
-  type(map_time), allocatable    , public :: tmap_sim_ro(:)         ! mapping between simulation time step and runoff time step
-  type(map_time), allocatable    , public :: tmap_sim_wm(:)         ! mapping between simulation time step and water management time step
 
   ! hru runoff data
   type(runoff),                    public :: runoff_data            ! HRU runoff data structure for one time step for LSM HRUs and River network HRUs
