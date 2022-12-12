@@ -72,15 +72,6 @@ implicit none
    type(reach), allocatable :: branch(:)
  end type subbasin_omp
 
- ! -- Data structures to hold mainstem and independent tributary reaches separately
- !    Used for openMP
- type,public :: subbasin_omp_tmp
-  integer(i4b)               :: outIndex             ! index of outlet segment based on segment array
-  type(reach), allocatable   :: mainstem(:)          ! mainstem reach
-  type(reach), allocatable   :: tributary(:)         ! tributary reach
- end type subbasin_omp_tmp
-
-
  ! ---------- general data structures ----------------------------------------------------------------------
 
  ! ** double precision type
