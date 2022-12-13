@@ -318,7 +318,7 @@ CONTAINS
    select case( trim(t_unit) )
      case('seconds','second','sec','s'); timeVar = timeVar+ dt
      case('minutes','minute','min');     timeVar = timeVar+ dt/60._dp
-     case('hours','hour','hr','h');      timeVar = timeVar+ dt/1440._dp
+     case('hours','hour','hr','h');      timeVar = timeVar+ dt/3600._dp
      case('days','day','d');             timeVar = timeVar+ dt/86400._dp
      case default
        ierr=20; message=trim(message)//'<tunit>= '//trim(t_unit)//': <tunit> must be seconds, minutes, hours or days.'; return
