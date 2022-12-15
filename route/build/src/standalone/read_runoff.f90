@@ -290,8 +290,11 @@ CONTAINS
                             nSpace,           &  ! input: size of spatial elements (e.g., HRU or reach)
                             forc_data_in,     &  ! inout: forcing data structure
                             ierr, message)       ! output: error control
+
+ ! handle time step aggregation if forcing time step is finer than simulation time step
+
  implicit none
- ! argument variables
+ ! Argument variables
  character(*),       intent(in)    :: indir             ! input directory
  type(inFileInfo),   intent(in)    :: inFileInfo_in(:)  ! input file (forcing or water-management) metadata
  character(*),       intent(in)    :: var_name          ! variable name
@@ -300,49 +303,59 @@ CONTAINS
  class(inputData),   intent(inout) :: forc_data_in      ! forcing data structure
  integer(i4b),       intent(out)   :: ierr              ! error code
  character(*),       intent(out)   :: message           ! error message
- ! local variables
+ ! Local variables
  character(len=strLen)             :: fname             ! filename
- integer(i4b)                      :: ix                ! loop index
+ integer(i4b)                      :: ix,it             ! loop index
  integer(i4b)                      :: nTime             ! number of forcing time step within a simulation time-step
  integer(i4b)                      :: iStart(2)         ! first indices in the variable to be read
  integer(i4b)                      :: iCount(2)         ! numbers of elements to be read
  logical(lgt)                      :: existFillVal      ! logical to indicate whether fillvalue exist in the variable
- real(dp)                          :: dummy(nSpace,1)   ! array storing the read variable
+ real(dp)                          :: sumWeights        ! sum of time weight
+ real(dp), allocatable             :: dummy(:,:)        ! array storing the read variable
  character(len=strLen)             :: cmessage          ! error message from subroutine
 
  ierr=0; message='read_1D_forcing/'
 
  nTime = size(tmap_sim_forc_in%iTime)
 
+ allocate(dummy(nSpace, nTime), stat=ierr, errmsg=cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  ! get the forcing data
  forc_data_in%sim(1:nSpace) = 0._dp
- do ix = 1, nTime
+ do it = 1, nTime
+   fname = trim(indir)//trim(inFileInfo_in(tmap_sim_forc_in%iFile(it))%infilename)
 
-   fname = trim(indir)//trim(inFileInfo_in(tmap_sim_forc_in%iFile(ix))%infilename)
-
-   iStart = [1, tmap_sim_forc_in%iTime(ix)]
+   iStart = [1, tmap_sim_forc_in%iTime(it)]
    iCount = [nSpace,1]
-   call get_nc(fname, var_name, dummy, iStart, iCount, ierr, cmessage)
+   call get_nc(fname, var_name, dummy(1:nSpace,it:it), iStart, iCount, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! get the _fill_values for forcing variable if exist
-   existFillVal = check_attr(fname, var_name, '_FillValue')
-   if (existFillval) then
-     call get_var_attr(fname, var_name, '_FillValue', input_fillvalue, ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   end if
-
-   ! replace _fill_value with 0 for dummy
-   where ( abs(dummy - input_fillvalue) < verySmall ) dummy = realMissing
-
-   ! finalize
-   if (nTime>1) then
-     forc_data_in%sim(1:nSpace) = forc_data_in%sim(1:nSpace) &
-                                 + dummy(1:nSpace,1)*tmap_sim_forc_in%frac(ix)
-   else
-     forc_data_in%sim(1:nSpace) = dummy(1:nSpace,1)
-   end if
  end do
+
+ ! get the _fill_values for forcing variable if exist
+ existFillVal = check_attr(fname, var_name, '_FillValue')
+ if (existFillval) then
+   call get_var_attr(fname, var_name, '_FillValue', input_fillvalue, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
+ ! finalize
+ if (nTime>1) then
+   do ix = 1, nSpace
+     sumWeights = 0._dp
+     do it = 1, nTime
+       if (abs(dummy(ix,it)-input_fillvalue) < verySmall) cycle
+       sumWeights = sumWeights + tmap_sim_forc_in%frac(it)
+       forc_data_in%sim(ix) = forc_data_in%sim(ix) + dummy(ix,it)*tmap_sim_forc_in%frac(it)
+     end do
+    if(abs(0._dp - sumWeights)<verySmall) forc_data_in%sim(ix) = realMissing
+    if(sumWeights > 0._dp .and. sumWeights < 1.0_dp) forc_data_in%sim(ix) = forc_data_in%sim(ix) / sumWeights
+   end do
+ else
+   where ( abs(dummy - input_fillvalue) < verySmall ) dummy = realMissing
+   forc_data_in%sim(1:nSpace) = dummy(1:nSpace,1)
+ end if
 
  END SUBROUTINE read_1D_forcing
 
@@ -357,7 +370,7 @@ CONTAINS
                             forc_data_in,     &  ! inout: forcing data structure
                             ierr, message)       ! output: error control
 
- ! reading 2D variable at one simulation step
+ ! handle time step aggregation if forcing time step is finer than simulation time step
 
  implicit none
  ! Argument variables
@@ -371,50 +384,58 @@ CONTAINS
  character(*),       intent(out)     :: message           ! error message
  ! local variables
  character(len=strLen)               :: fname             ! filename
- integer(i4b)                        :: ix                ! loop index
+ integer(i4b)                        :: ix1,ix2,it        ! loop index
  integer(i4b)                        :: nTime             ! number of forcing time step within a simulation time-step
  integer(i4b)                        :: iStart(3)         ! first indices in the variable to be read
  integer(i4b)                        :: iCount(3)         ! numbers of elements to be read
  logical(lgt)                        :: existFillVal      ! logical to indicate whether fillvalue exist in the variable
- real(dp)                            :: dummy(nSpace(2),&
-                                              nSpace(1),&
-                                              1)          ! array storing the read variable
+ real(dp)                            :: sumWeights        ! sum of time weight
+ real(dp), allocatable               :: dummy(:,:,:)      ! array storing the read variable
  character(len=strLen)               :: cmessage          ! error message from subroutine
 
  ierr=0; message='read_2D_forcing/'
 
  nTime = size(tmap_sim_forc_in%iTime)
 
+ allocate(dummy(nSpace(2), nSpace(1), nTime), stat=ierr, errmsg=cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  ! get the forcing data
  forc_data_in%sim2d(1:nSpace(2),1:nSpace(1)) = 0._dp
- do ix = 1, nTime
+ do it = 1, nTime
+   fname = trim(indir)//trim(inFileInfo_in(tmap_sim_forc_in%iFile(it))%infilename)
 
-   fname = trim(indir)//trim(inFileInfo_in(tmap_sim_forc_in%iFile(ix))%infilename)
-
-   ! get the simulated forcing data
-   iStart = [1,1,tmap_sim_forc_in%iTime(ix)]
+   iStart = [1,1,tmap_sim_forc_in%iTime(it)]
    iCount = [nSpace(2),nSpace(1),1]
-   call get_nc(fname, var_name, dummy, iStart, iCount, ierr, cmessage)
+   call get_nc(fname, var_name, dummy(1:nSpace(2),1:nSpace(1),it:it), iStart, iCount, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   ! get the _fill_values for forcing variable
-   existFillVal = check_attr(fname, var_name, '_FillValue')
-   if (existFillval) then
-     call get_var_attr(fname, var_name, '_FillValue', input_fillvalue, ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   end if
-
-   ! replace _fill_value with -999 for dummy
-   where ( abs(dummy - input_fillvalue) < verySmall ) dummy = realMissing
-
-   ! finalize
-   if (nTime>1) then
-     forc_data_in%sim2d(1:nSpace(2),1:nSpace(1)) = forc_data_in%sim2d(1:nSpace(2),1:nSpace(1)) &
-                                                 + dummy(1:nSpace(2),1:nSpace(1),1)*tmap_sim_forc_in%frac(ix)
-   else
-     forc_data_in%sim2d(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)
-   end if
  end do
+
+ ! get the _fill_values for forcing variable
+ existFillVal = check_attr(fname, var_name, '_FillValue')
+ if (existFillval) then
+   call get_var_attr(fname, var_name, '_FillValue', input_fillvalue, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end if
+
+ ! finalize
+ if (nTime>1) then ! simulation time step includes multiple forcing time steps
+   do ix2 = 1, nSpace(2)
+     do ix1 = 1, nSpace(1)
+       sumWeights = 0._dp
+       do it = 1, nTime
+         if (abs(dummy(ix2,ix1,it)-input_fillvalue) < verySmall) cycle
+         sumWeights = sumWeights + tmap_sim_forc_in%frac(it)
+         forc_data_in%sim2d(ix2,ix1) = forc_data_in%sim2d(ix2,ix1) + dummy(ix2,ix1,it)*tmap_sim_forc_in%frac(it)
+       end do
+       if(abs(0._dp - sumWeights)<verySmall) forc_data_in%sim2d(ix2,ix1) = realMissing
+       if(sumWeights > 0._dp .and. sumWeights < 1.0_dp) forc_data_in%sim2d(ix2,ix1) = forc_data_in%sim2d(ix2,ix1) / sumWeights
+     end do
+   end do
+ else ! if simulation time step include one forcing time step
+   where ( abs(dummy - input_fillvalue) < verySmall ) dummy = realMissing
+   forc_data_in%sim2d(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)
+ end if
 
  END SUBROUTINE read_2D_forcing
 
