@@ -270,7 +270,8 @@ CONTAINS
     case default
       ierr=20; message=trim(message)//'<time_units>= '//trim(t_unit)//': <time_units> must be seconds, minutes, hours or days.'; return
    end select
-   inputFileInfo(iFile)%convTime2Days = convTime2Days
+   ! convert timeValue unit to day
+   inputFileInfo(iFile)%timeVar(:) = inputFileInfo(iFile)%timeVar(:)/convTime2Days
 
    ! get the reference julian day from the nc file
    call refDatetime%str2datetime(trim(inputFileInfo(iFile)%unit), ierr, message)
@@ -325,14 +326,14 @@ CONTAINS
   ! set the reference julday based on the first nc file of simulation
   nFile               = size(inputFileInfo_ro)
   nFile_wm            = size(inputFileInfo_wm)
-  day_runoff_start    = inputFileInfo_ro(1)%timeVar(1)/inputFileInfo_ro(1)%convTime2Days+inputFileInfo_ro(1)%ncrefjulday
+  day_runoff_start    = inputFileInfo_ro(1)%timeVar(1)+inputFileInfo_ro(1)%ncrefjulday
 
   do iFile=1,nFile_wm
 
     nt = inputFileInfo_wm(iFile)%nTime ! get the number of time
 
-    day_start_diff = inputFileInfo_wm(iFile)%timeVar(1) /inputFileInfo_wm(iFile)%convTime2Days+inputFileInfo_wm(iFile)%ncrefjulday - day_runoff_start
-    day_end_diff   = inputFileInfo_wm(iFile)%timeVar(nt)/inputFileInfo_wm(iFile)%convTime2Days+inputFileInfo_wm(iFile)%ncrefjulday - day_runoff_start
+    day_start_diff = inputFileInfo_wm(iFile)%timeVar(1) +inputFileInfo_wm(iFile)%ncrefjulday - day_runoff_start
+    day_end_diff   = inputFileInfo_wm(iFile)%timeVar(nt)+inputFileInfo_wm(iFile)%ncrefjulday - day_runoff_start
 
     inputFileInfo_wm(iFile)%iTimebound(1) = int(day_start_diff * secprday/dt_ro, kind=i4b) + 1 ! to convert the day difference into time step difference
     inputFileInfo_wm(iFile)%iTimebound(2) = int(day_end_diff   * secprday/dt_ro, kind=i4b) + 1 ! to convert the day difference into time step difference
@@ -450,7 +451,7 @@ CONTAINS
   do iFile=1,nFile
     nt = inFileInfo_ro(iFile)%nTime
     roJulday(counter:counter+nt-1) = &
-    inFileInfo_ro(iFile)%timeVar(1:nt)/inFileInfo_ro(iFile)%convTime2Days+inFileInfo_ro(iFile)%ncrefjulday
+    inFileInfo_ro(iFile)%timeVar(1:nt)+inFileInfo_ro(iFile)%ncrefjulday
     counter = counter + inFileInfo_ro(iFile)%nTime
   end do
 
@@ -530,7 +531,7 @@ CONTAINS
     do iFile=1,nFile_wm
       nt = inFileInfo_wm(iFile)%nTime
       roJulday_wm(counter:counter+nt-1) = &
-      inFileInfo_wm(iFile)%timeVar(1:nt)/inFileInfo_wm(iFile)%convTime2Days+inFileInfo_wm(iFile)%ncrefjulday
+      inFileInfo_wm(iFile)%timeVar(1:nt)+inFileInfo_wm(iFile)%ncrefjulday
       counter = counter + inFileInfo_wm(iFile)%nTime
     enddo
 

@@ -124,8 +124,7 @@ implicit none
   type, public ::  inFileInfo
    integer(i4b)                            :: nTime            ! number of time step in a nc file
    integer(i4b)                            :: iTimebound(1:2)  ! time index of start and end of the
-   real(dp)                 , allocatable  :: timevar(:)       ! the time varibale from the netcdf file
-   real(dp)                                :: convTime2Days    ! the time varibale from the netcdf file
+   real(dp)                 , allocatable  :: timeVar(:)       ! the time varibale [day] from the netcdf file
    real(dp)                                :: ncrefjulday      ! the julian day for the reference of the nc file
    character(len=strLen)                   :: infilename       ! the name of the input file name
    character(len=strLen)                   :: calendar         ! the calendar
