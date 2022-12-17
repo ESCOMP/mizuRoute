@@ -1133,6 +1133,7 @@ CONTAINS
   END SUBROUTINE write_IRF_state
 
   SUBROUTINE write_KWT_state(ierr, message1)
+  USE globalData, ONLY: idxKWT
   implicit none
   ! output
   integer(i4b), intent(out)  :: ierr            ! error code
@@ -1161,6 +1162,7 @@ CONTAINS
       case(ixKWT%routed); allocate(state%var(iVar)%array_3d_int(nSeg, nWave, nEns), stat=ierr)
       case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
         allocate(state%var(iVar)%array_3d_dp(nSeg, nWave, nEns), stat=ierr)
+      case(ixKWT%vol);   allocate(state%var(iVar)%array_2d_dp(nSeg, nEns), stat=ierr)
       case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
     end select
     if(ierr/=0)then; message1=trim(message1)//'problem allocating space for KWT routing state '//trim(meta_kwt(iVar)%varName); return; endif
@@ -1190,6 +1192,7 @@ CONTAINS
             where (RCHSTA_local(iSeg)%LKW_ROUTE%KWAVE(:)%RF) RFvec=1_i4b
             state%var(iVar)%array_3d_int(iSeg,1:numWaves(iens,iSeg),iens) = RFvec
             state%var(iVar)%array_3d_int(iSeg,numWaves(iens,iSeg)+1:,iens) = integerMissing
+          case(ixKWT%vol);  state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX_local(iSeg)%ROUTE(idxKWT)%REACH_VOL(1)
           case default; ierr=20; message1=trim(message1)//'unable to identify KWT routing state variable index'; return
         end select
       enddo ! variable loop
@@ -1206,6 +1209,8 @@ CONTAINS
         call write_pnetcdf(pioFileDescState, meta_kwt(iVar)%varName, state%var(iVar)%array_3d_int, iodesc_wave_int, ierr, cmessage)
       case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
         call write_pnetcdf(pioFileDescState, meta_kwt(iVar)%varName, state%var(iVar)%array_3d_dp, iodesc_wave_double, ierr, cmessage)
+      case(ixKWT%vol)
+        call write_pnetcdf(pioFileDescState, meta_kwt(iVar)%varName, state%var(iVar)%array_2d_dp, iodesc_state_double, ierr, cmessage)
       case default; ierr=20; message1=trim(message1)//'unable to identify KWT variable index for nc writing'; return
     end select
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif

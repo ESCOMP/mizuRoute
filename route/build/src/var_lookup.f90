@@ -228,6 +228,7 @@ MODULE var_lookup
   integer(i4b)     :: qwave          = integerMissing  ! 3. wave flow (m3/s)
   integer(i4b)     :: qwave_mod      = integerMissing  ! 4. wave flow after merged (m3/s)
   integer(i4b)     :: routed         = integerMissing  ! 5. Routed out of a segment or not (-)
+  integer(i4b)     :: vol            = integerMissing  ! 6. reach volume (m3)
  endtype iLook_KWT
  ! KW state/fluxes
  type, public  ::  iLook_KW
@@ -269,7 +270,7 @@ MODULE var_lookup
  type(iLook_basinQ)   ,public,parameter :: ixBasinQ    = iLook_basinQ   ( 1)
  type(iLook_IRFbas)   ,public,parameter :: ixIRFbas    = iLook_IRFbas   ( 1)
  type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      ( 1, 2)
- type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      ( 1, 2, 3, 4, 5)
+ type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      ( 1, 2, 3, 4, 5, 6)
  type(iLook_KW)       ,public,parameter :: ixKW        = iLook_KW       ( 1, 2)
  type(iLook_DW)       ,public,parameter :: ixDW        = iLook_DW       ( 1, 2)
  type(iLook_MC)       ,public,parameter :: ixMC        = iLook_MC       ( 1, 2)

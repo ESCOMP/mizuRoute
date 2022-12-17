@@ -956,6 +956,35 @@ CONTAINS
                               scatter,                                  & ! communication type
                               ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      ! volume communication
+      if (masterproc) then
+        do iSeg = 1, nRch
+          vol_global_tmp(iSeg) = RCHFLX(iens,iSeg)%ROUTE(idxKWT)%REACH_VOL(1)
+        enddo
+      else
+        vol_global_tmp(:) = realMissing
+      endif
+      call mpi_comm_single_flux(pid, nNodes, comm,                        &
+                                vol_global_tmp,                           &
+                                vol_local,                                &
+                                rch_per_proc(root:nNodes-1),              &
+                                ixRch_order(rch_per_proc(root-1)+1:nRch), &
+                                arth(1,1,rch_per_proc(pid)),              &
+                                scatter,                                  &
+                                ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      if (masterproc) then
+        do iSeg = 1, rch_per_proc(pid)
+          RCHFLX_trib(iens,nRch_mainstem+nTribOutlet+iSeg)%ROUTE(idxKWT)%REACH_VOL(1) = vol_local(iSeg)
+        enddo
+      else
+        do iSeg = 1, rch_per_proc(pid)
+          RCHFLX_trib(iens,iSeg)%ROUTE(idxKWT)%REACH_VOL(1) = vol_local(iSeg)
+          RCHFLX_trib(iens,iSeg)%ROUTE(idxKWT)%REACH_VOL(0) = 0._dp ! put 0 for now because currently volume is not computed in KWT
+        end do
+      end if
     end if
 
     if (onRoute(kinematicWave)) then

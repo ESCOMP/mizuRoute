@@ -307,6 +307,7 @@ CONTAINS
   SUBROUTINE read_KWT_state(ierr, message1)
 
     USE globalData, ONLY: meta_kwt                  ! kwt routing
+    USE globalData, ONLY: idxKWT
     USE var_lookup, ONLY: ixKWT, nVarsKWT
     implicit none
     integer(i4b), intent(out)     :: ierr           ! error code
@@ -337,6 +338,7 @@ CONTAINS
         case(ixKWT%routed); allocate(state%var(iVar)%array_3d_dp(nSeg, nwave, nens), stat=ierr)
         case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
           allocate(state%var(iVar)%array_3d_dp(nSeg, nwave, nens), stat=ierr)
+        case(ixKWT%vol);  allocate(state%var(iVar)%array_2d_dp(nSeg, nens), stat=ierr)
         case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//'problem allocating space for KWT routing state:'//trim(meta_kwt(iVar)%varName); return; endif
@@ -351,6 +353,8 @@ CONTAINS
           call get_nc(fname,trim(meta_kwt(iVar)%varName), state%var(iVar)%array_3d_dp, [1,1,1], [nSeg,nwave,nens], ierr, cmessage1)
         case(ixKWT%tentry, ixKWT%texit, ixKWT%qwave, ixKWT%qwave_mod)
           call get_nc(fname,trim(meta_kwt(iVar)%varName), state%var(iVar)%array_3d_dp, [1,1,1], [nSeg,nwave,nens], ierr, cmessage1)
+        case(ixKWT%vol)
+          call get_nc(fname, meta_kwt(iVar)%varName, state%var(iVar)%array_2d_dp, [1,1], [nSeg, nens], ierr, cmessage1)
         case default; ierr=20; message1=trim(message1)//'unable to identify KWT variable index for nc reading'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//trim(cmessage1)//':'//trim(meta_kwt(iVar)%varName); return; endif
@@ -366,6 +370,7 @@ CONTAINS
             case(ixKWT%texit);     RCHSTA(iens,jSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%TR = state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
             case(ixKWT%qwave);     RCHSTA(iens,jSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%QF = state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
             case(ixKWT%qwave_mod); RCHSTA(iens,jSeg)%LKW_ROUTE%KWAVE(0:numWaves(iens,iSeg)-1)%QM = state%var(iVar)%array_3d_dp(iSeg,1:numWaves(iens,iSeg),iens)
+            case(ixKWT%vol);       RCHFLX(iens,jSeg)%ROUTE(idxKWT)%REACH_VOL(1) = state%var(iVar)%array_2d_dp(iSeg,iens)
             case(ixKWT%routed) ! this is suppposed to be logical variable, but put it as 0 or 1 in double now
               if (allocated(RFvec)) deallocate(RFvec, stat=ierr)
               allocate(RFvec(0:numWaves(iens,iSeg)-1),stat=ierr)

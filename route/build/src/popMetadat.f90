@@ -239,11 +239,12 @@ contains
 
  ! ---------- populate segment restart metadata structures -------------------------------------------------------------------------------------------------------------------
  ! Lagrangian Kinematic Wave
- call meta_kwt(ixKWT%tentry   )%init('tentry'   , 'time when a wave enters a segment'             , 's'   , pio_double, [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
- call meta_kwt(ixKWT%texit    )%init('texit'    , 'time when a wave is expected to exit a segment', 's'   , pio_double, [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
- call meta_kwt(ixKWT%qwave    )%init('qwave'    , 'flow of a wave'                                , 'm2/s', pio_double, [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
- call meta_kwt(ixKWT%qwave_mod)%init('qwave_mod', 'modified flow of a wave'                       , 'm2/s', pio_double, [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
- call meta_kwt(ixKWT%routed   )%init('routed'   , 'routing flag'                                  , '-'   , pio_int,    [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
+ call meta_kwt(ixKWT%tentry   )%init('tentry'    , 'time when a wave enters a segment'             , 's'   , pio_double, [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
+ call meta_kwt(ixKWT%texit    )%init('texit'     , 'time when a wave is expected to exit a segment', 's'   , pio_double, [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
+ call meta_kwt(ixKWT%qwave    )%init('qwave'     , 'flow of a wave'                                , 'm2/s', pio_double, [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
+ call meta_kwt(ixKWT%qwave_mod)%init('qwave_mod' , 'modified flow of a wave'                       , 'm2/s', pio_double, [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
+ call meta_kwt(ixKWT%routed   )%init('routed'    , 'routing flag'                                  , '-'   , pio_int,    [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
+ call meta_kwt(ixKWT%vol      )%init('volume_kwt', 'volume in reach/lake'                          , 'm3'  , pio_double, [ixStateDims%seg,ixStateDims%ens],                  .true.)
 
  ! Kinematic Wave
  call meta_kw(ixKW%qsub)%init('q_sub_kw' , 'flow at computational moelcule', 'm3/s', pio_double, [ixStateDims%seg,ixStateDims%mol_kw,ixStateDims%ens], .true.)
