@@ -647,7 +647,6 @@ CONTAINS
    USE public_var,  ONLY: vname_precip         ! name of simulated precipitation varibale
    USE public_var,  ONLY: vname_hruid          ! name of name of varibale hruid
    USE public_var,  ONLY: vname_time           ! name of varibale time
-   USE public_var,  ONLY: dname_time           ! name of dimension for variable time
    USE public_var,  ONLY: dname_hruid          ! name of dimension for varibale hruid
    USE public_var,  ONLY: dname_xlon           ! name of dimension for lon
    USE public_var,  ONLY: dname_ylat           ! name of dimension for lat
@@ -655,7 +654,6 @@ CONTAINS
    USE public_var,  ONLY: vname_vol_wm         ! name of varibale target volume
    USE public_var,  ONLY: vname_time_wm        ! name of varibale time for abstraction/injection
    USE public_var,  ONLY: vname_segid_wm       ! name of varibale river network hruid for abs/inj
-   USE public_var,  ONLY: dname_time_wm        ! name of dimension time for ans/inj
    USE public_var,  ONLY: dname_segid_wm       ! name of dimension hruid
    USE public_var,  ONLY: fname_remap          ! name of runoff mapping netCDF name
    USE public_var,  ONLY: calendar             ! name of calendar
@@ -695,13 +693,11 @@ CONTAINS
    call read_runoff_metadata(fname,                           & ! input: filename
                              vname_qsim,                      & ! input: varibale name for simulated runoff
                              vname_time,                      & ! input: varibale name for time
-                             dname_time,                      & ! input: dimension of variable time
                              vname_hruid,                     & ! input: varibale hruid
                              dname_hruid,                     & ! input: dimension of varibale hru
                              dname_ylat,                      & ! input: dimension of lat
                              dname_xlon,                      & ! input: dimension of lon
                              runoff_data%nSpace,              & ! nSpace of the input in runoff or wm strcuture
-                             runoff_data%nTime,               & ! nTime of the input in runoff or wm strcuture
                              runoff_data%sim,                 & ! 1D simulation
                              runoff_data%sim2D,               & ! 2D simulation
                              runoff_data%hru_id,              & ! ID of seg or hru in data
@@ -803,13 +799,11 @@ CONTAINS
      call read_runoff_metadata(fname,                         & ! input: filename
                                vname_flux_wm,                 & ! input: varibale name for simulated runoff
                                vname_time_wm,                 & ! input: varibale name for time
-                               dname_time_wm,                 & ! input: dimension of variable time
                                vname_segid_wm,                & ! input: varibale hruid
                                dname_segid_wm,                & ! input: dimension of varibale hru
                                dname_ylat,                    & ! input: dimension of lat
                                dname_xlon,                    & ! input: dimension of lon
                                wm_data%nSpace,                & ! nSpace of the input in runoff or wm strcuture
-                               wm_data%nTime,                 & ! nTime of the input in runoff or wm strcuture
                                wm_data%sim,                   & ! 1D simulation
                                wm_data%sim2D,                 & ! 2D simulation
                                wm_data%seg_id,                & ! ID of seg or hru in data

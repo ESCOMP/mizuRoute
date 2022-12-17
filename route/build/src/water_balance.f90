@@ -157,8 +157,8 @@ CONTAINS
         write(iulog,'(A,1PG15.7)') '  dVol [m3]         = ', wb_global(1)
         write(iulog,'(A,1PG15.7)') '  lateral flow [m3] = ', wb_global(2)
         write(iulog,'(A,1PG15.7)') '  precip [m3]       = ', wb_global(3)
-        write(iulog,'(A,1PG15.7)') '  abstraction [m3]  = ', wb_global(4)
-        write(iulog,'(A,1PG15.7)') '  evaporation [m3]  = ', wb_global(5)
+        write(iulog,'(A,1PG15.7)') '  evaporation [m3]  = ', wb_global(4)
+        write(iulog,'(A,1PG15.7)') '  abstraction [m3]  = ', wb_global(5)
         write(iulog,'(A,1PG15.7)') '  outflow [m3]      = ', wb_global(6)
         write(iulog,'(A,1PG15.7)') '  WBerr [m3]        = ', wb_error
       end if

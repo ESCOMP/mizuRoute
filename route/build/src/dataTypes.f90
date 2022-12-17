@@ -158,9 +158,7 @@ implicit none
  ! ---------- forcing and water management data  ----------------------------------------------------------------------
 
  type, public :: inputData
-   integer(i4b)                            :: nTime           ! number of time steps
    integer(i4b)                            :: nSpace(1:2)     ! number of spatial dimension
-   real(dp)                                :: time            ! time variable at one time step
    real(dp)                 , allocatable  :: sim(:)          ! flux simulation (HM_HRU) at one time step (size: nSpace(1))
    real(dp)                 , allocatable  :: sim2d(:,:)      ! flux simulation (x,y) at one time step (size: /nSpace(1),nSpace(2)/)
  end type inputData
