@@ -161,6 +161,7 @@ implicit none
    integer(i4b)                            :: nSpace(1:2)     ! number of spatial dimension
    real(dp)                 , allocatable  :: sim(:)          ! flux simulation (HM_HRU) at one time step (size: nSpace(1))
    real(dp)                 , allocatable  :: sim2d(:,:)      ! flux simulation (x,y) at one time step (size: /nSpace(1),nSpace(2)/)
+   real(dp)                                :: fillvalue       ! fillvalue
  end type inputData
 
  type, public, extends(inputData) :: runoff

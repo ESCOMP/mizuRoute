@@ -646,18 +646,14 @@ CONTAINS
    USE public_var,  ONLY: vname_evapo          ! name of simulated evaporation varibale
    USE public_var,  ONLY: vname_precip         ! name of simulated precipitation varibale
    USE public_var,  ONLY: vname_hruid          ! name of name of varibale hruid
-   USE public_var,  ONLY: vname_time           ! name of varibale time
    USE public_var,  ONLY: dname_hruid          ! name of dimension for varibale hruid
    USE public_var,  ONLY: dname_xlon           ! name of dimension for lon
    USE public_var,  ONLY: dname_ylat           ! name of dimension for lat
    USE public_var,  ONLY: vname_flux_wm        ! name of varibale abstraction/injection
    USE public_var,  ONLY: vname_vol_wm         ! name of varibale target volume
-   USE public_var,  ONLY: vname_time_wm        ! name of varibale time for abstraction/injection
    USE public_var,  ONLY: vname_segid_wm       ! name of varibale river network hruid for abs/inj
    USE public_var,  ONLY: dname_segid_wm       ! name of dimension hruid
    USE public_var,  ONLY: fname_remap          ! name of runoff mapping netCDF name
-   USE public_var,  ONLY: calendar             ! name of calendar
-   USE public_var,  ONLY: time_units           ! time units
    USE public_var,  ONLY: is_remap             ! logical whether or not runnoff needs to be mapped to river network HRU
    USE public_var,  ONLY: is_lake_sim          ! logical if lakes simulations are activated
    USE public_var,  ONLY: is_flux_wm           ! logical whether or not abstraction or injection should be read
@@ -692,7 +688,6 @@ CONTAINS
    ! get runoff metadata for simulated runoff, evaporation and precipitation
    call read_runoff_metadata(fname,                           & ! input: filename
                              vname_qsim,                      & ! input: varibale name for simulated runoff
-                             vname_time,                      & ! input: varibale name for time
                              vname_hruid,                     & ! input: varibale hruid
                              dname_hruid,                     & ! input: dimension of varibale hru
                              dname_ylat,                      & ! input: dimension of lat
@@ -701,7 +696,7 @@ CONTAINS
                              runoff_data%sim,                 & ! 1D simulation
                              runoff_data%sim2D,               & ! 2D simulation
                              runoff_data%hru_id,              & ! ID of seg or hru in data
-                             time_units, calendar,            & ! output: number of time steps, time units, calendar
+                             runoff_data%fillvalue,           & ! fillvalue for data
                              ierr, cmessage)                    ! output: error control
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -798,7 +793,6 @@ CONTAINS
 
      call read_runoff_metadata(fname,                         & ! input: filename
                                vname_flux_wm,                 & ! input: varibale name for simulated runoff
-                               vname_time_wm,                 & ! input: varibale name for time
                                vname_segid_wm,                & ! input: varibale hruid
                                dname_segid_wm,                & ! input: dimension of varibale hru
                                dname_ylat,                    & ! input: dimension of lat
@@ -806,8 +800,8 @@ CONTAINS
                                wm_data%nSpace,                & ! nSpace of the input in runoff or wm strcuture
                                wm_data%sim,                   & ! 1D simulation
                                wm_data%sim2D,                 & ! 2D simulation
-                               wm_data%seg_id,                & ! ID of seg or hru in data
-                               time_units, calendar,          & ! output: number of time steps, time units, calendar
+                               wm_data%seg_id,                & ! ID of seg in data
+                               wm_data%fillvalue,             & ! fillvalue for data
                                ierr, cmessage)                  ! output: error control
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
