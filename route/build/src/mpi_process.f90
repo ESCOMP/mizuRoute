@@ -281,7 +281,8 @@ CONTAINS
         destSegId(iSeg) = structNTOPO(jSeg)%var(ixNTOPO%destSegId)%dat(1)
       end do
       ! matching index in reachID
-      destSegIndex = match_index(reachID, destSegId)
+      destSegIndex = match_index(reachID, destSegId, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       nComm = 0
       do iSeg = 1,nRch_in

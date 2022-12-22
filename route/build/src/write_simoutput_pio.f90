@@ -283,7 +283,8 @@ CONTAINS
      reachID_local = NETOPO_trib(:)%REACHID
    endif
 
-   call reach_subset(reachID_local, gage_data, compdof=compdof_rch, index2=index_write_gage)
+   call reach_subset(reachID_local, gage_data, ierr, cmessage, compdof=compdof_rch, index2=index_write_gage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! Need to adjust tributary indices in root processor
    ! This is because RCHFLX has three components in the order: mainstem, halo, tributary

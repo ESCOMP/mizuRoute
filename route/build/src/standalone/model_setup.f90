@@ -6,6 +6,7 @@ USE public_var,        ONLY: debug
 USE public_var,        ONLY: integerMissing
 USE public_var,        ONLY: realMissing
 USE public_var,        ONLY: charMissing
+USE nr_utils,          ONLY: match_index
 USE nr_utils,          ONLY: arth
 USE nr_utils,          ONLY: unique         ! get unique element array
 USE nr_utils,          ONLY: indexx         ! get rank of data value
@@ -726,10 +727,7 @@ CONTAINS
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      ! get indices of the HRU ids in the mapping file in the routing layer
-     call get_qix(remap_data%hru_id, &  ! input: vector of ids in mapping file
-                  basinID,           &  ! input: vector of ids in the routing layer
-                  remap_data%hru_ix, &  ! output: indices of hru ids in routing layer
-                  ierr, cmessage)       ! output: error control
+     remap_data%hru_ix = match_index(basinID, remap_data%hru_id, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      if (debug) then
@@ -745,10 +743,7 @@ CONTAINS
 
      if ( runoff_data%nSpace(2) == integerMissing ) then
        ! get indices of the "overlap HRUs" (the runoff input) in the runoff vector
-       call get_qix(remap_data%qhru_id, &  ! input: vector of ids in mapping file
-                    runoff_data%hru_id, &  ! input: vector of ids in runoff file
-                    remap_data%qhru_ix, &  ! output: indices of mapping ids in runoff file
-                    ierr, cmessage)           ! output: error control
+       remap_data%qhru_ix = match_index(runoff_data%hru_id, remap_data%qhru_id, ierr, cmessage)
        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
        if (debug) then
@@ -766,10 +761,7 @@ CONTAINS
      if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data%hru_ix'; return; endif
 
      ! get indices of the HRU ids in the runoff file in the routing layer
-     call get_qix(runoff_data%hru_id,  &    ! input: vector of ids in mapping file
-                  basinID,             &    ! input: vector of ids in the routing layer
-                  runoff_data%hru_ix,  &    ! output: indices of hru ids in routing layer
-                  ierr, cmessage)           ! output: error control
+     runoff_data%hru_ix = match_index(basinID, runoff_data%hru_id, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      if (debug) then
@@ -822,89 +814,11 @@ CONTAINS
      if(ierr/=0)then; message=trim(message)//'problem allocating wm_data%hru_ix'; return; endif
 
      ! get indices of the seg ids in the input file in the routing layer
-     call get_qix(wm_data%seg_id,  &    ! input: vector of ids in mapping file
-                  reachID,         &    ! input: vector of ids in the routing layer
-                  wm_data%seg_ix,  &    ! output: indices of hru ids in routing layer
-                  ierr, cmessage)       ! output: error control
+     wm_data%seg_ix = match_index(reachID, wm_data%seg_id, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    endif
 
  END SUBROUTINE init_forc_data
-
- ! *****
- ! private subroutine: get indices of mapping points within runoff file... (To be removed since the same routine in nr_utils)
- ! ***********************************************************************
- SUBROUTINE get_qix(qid,qidMaster,qix,ierr,message)
-
- implicit none
- ! input
- integer(i4b), intent(in)  :: qid(:)                       ! ID of input vector
- integer(i4b), intent(in)  :: qidMaster(:)                 ! ID of master vector
- ! output
- integer(i4b), intent(out) :: qix(:)                       ! index within master vector
- integer(i4b), intent(out) :: ierr                         ! error code
- character(*), intent(out) :: message                      ! error message
- ! local
- integer(i4b)             :: rankID( size(qid) )           ! rank of input vector
- integer(i4b)             :: rankMaster( size(qidMaster) ) ! rank of master vector
- integer(i4b)             :: ix,jx,ixMaster                ! array indices
- integer(i4b)             :: nx                            ! counter
-
- ierr=0; message='get_qix/'
-
- ! sort the data vector from smallest to largest
- call indexx(qid,       rankID)
- call indexx(qidMaster, rankMaster)
-
- qix(1:size(qid)) = integerMissing
- nx=0
- jx=1
- ! loop through id vector
- do ix=1,size(qid)
-
-  ! find match
-  do ixMaster=jx,size(qidMaster) ! normally a very short loop
-
-   ! keep track of trials
-   nx=nx+1
-   !write(*,*) 'qid( rankId(ix) ), qidMaster( rankMaster(ixMaster) ) = ', qid( rankId(ix) ), qidMaster( rankMaster(ixMaster) )
-
-   ! find match
-   if( qid( rankId(ix) ) == qidMaster( rankMaster(ixMaster) ) )then
-    qix( rankId(ix) ) = rankMaster(ixMaster)
-    jx = ixMaster
-    exit
-   endif
-
-   ! unable to find match
-   if( qidMaster( rankMaster(ixMaster) ) > qid( rankId(ix) ) )then
-    qix( rankId(ix) ) = integerMissing
-    jx = ixMaster
-    exit
-   endif
-
-  end do  ! ixMaster
-
-  ! print progress
-  if(qix( rankId(ix) )/=integerMissing .and. mod(ix,1000000)==0)then
-   write(iulog,*) trim(message)//'matching ids: ix, qix( rankId(ix) ), qid( rankId(ix) ), qidMaster( qix( rankId(ix) ) ) = ', &
-                                                ix, qix( rankId(ix) ), qid( rankId(ix) ), qidMaster( qix( rankId(ix) ) )
-  endif
-
- end do  ! looping through the vector
-
- ! check again
- do ix=1,size(qid)
-  if(qix(ix) /= integerMissing)then
-   if(qid(ix) /= qidMaster( qix(ix) ) )then
-    write(iulog,'(a,2(x,I10,x,I15))') 'ERROR Mapping: ix, qid(ix), qix(ix), qidMaster(qix(ix))=', ix, qid(ix), qix(ix), qidMaster(qix(ix))
-    message=trim(message)//'unable to find the match'
-    ierr=20; return
-   endif
-  endif
- end do
-
- END SUBROUTINE get_qix
 
 END MODULE model_setup
