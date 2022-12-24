@@ -94,18 +94,19 @@ MODULE public_var
   character(len=strLen),public    :: simStart             = ''              ! date string defining the start of the simulation
   character(len=strLen),public    :: simEnd               = ''              ! date string defining the end of the simulation
   character(len=strLen),public    :: newFileFrequency     = 'yearly'        ! frequency for new output files (daily, monthly, yearly, single)
+  character(len=strLen),public    :: timeAggregation      = 'none'          ! time aggregation for output: 'nh','nd','nm','ny' where n is number or 'none' no aggregation
   character(len=10)    ,public    :: routOpt              = '0'             ! routing scheme options  0: accum runoff, 1:IRF, 2:KWT, 3:KW, 4:MC, 5:DW
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
-  logical(lgt),public             :: is_lake_sim          = .false.         ! logical if lakes are activated in simulation
-  logical(lgt),public             :: lake_model_D03       = .false.         ! logical if Doll 2003 model is used, specify as 1 in lake_model_type in network topology
-  logical(lgt),public             :: lake_model_H06       = .false.         ! logical if Hanasaki 2006 model is used, specify as 2 in lake_model_type in network topology
-  logical(lgt),public             :: lake_model_HYPE      = .false.         ! logical if HYPE model is used, specify as 3 in lake_model_type in network topology
-  logical(lgt),public             :: is_flux_wm           = .false.         ! logical if flow is added or removed from a reach
-  logical(lgt),public             :: is_vol_wm            = .false.         ! logical if target volume is considered for a lake
-  logical(lgt),public             :: is_vol_wm_jumpstart  = .false.         ! logical if true the volume is reset to target volume for the first time step of modeling
-  logical(lgt),public             :: suppress_runoff      = .false.         ! logical to suppress the read runoff to zero(0)
-  logical(lgt),public             :: suppress_P_Ep        = .false.         ! logical to suppress evaporation and precipitation to zero(0)
-  logical(lgt),public             :: compWB               = .true.          ! logical if entire domain water balance is computed
+  logical(lgt)         ,public    :: is_lake_sim          = .false.         ! logical if lakes are activated in simulation
+  logical(lgt)         ,public    :: lake_model_D03       = .false.         ! logical if Doll 2003 model is used, specify as 1 in lake_model_type in network topology
+  logical(lgt)         ,public    :: lake_model_H06       = .false.         ! logical if Hanasaki 2006 model is used, specify as 2 in lake_model_type in network topology
+  logical(lgt)         ,public    :: lake_model_HYPE      = .false.         ! logical if HYPE model is used, specify as 3 in lake_model_type in network topology
+  logical(lgt)         ,public    :: is_flux_wm           = .false.         ! logical if flow is added or removed from a reach
+  logical(lgt)         ,public    :: is_vol_wm            = .false.         ! logical if target volume is considered for a lake
+  logical(lgt)         ,public    :: is_vol_wm_jumpstart  = .false.         ! logical if true the volume is reset to target volume for the first time step of modeling
+  logical(lgt)         ,public    :: suppress_runoff      = .false.         ! logical to suppress the read runoff to zero(0)
+  logical(lgt)         ,public    :: suppress_P_Ep        = .false.         ! logical to suppress evaporation and precipitation to zero(0)
+  logical(lgt)         ,public    :: compWB               = .true.          ! logical if entire domain water balance is computed
   real(dp)             ,public    :: dt                   = realMissing     ! simulation time step (seconds)
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
@@ -114,8 +115,8 @@ MODULE public_var
   character(len=strLen),public    :: dname_sseg           = ''              ! dimension name of segment in river network data
   character(len=strLen),public    :: dname_nhru           = ''              ! dimension name of hru in river network data
   ! RUNOFF, EVAPORATION AND PRECIPITATION FILE
-  character(len=strLen),public    :: fname_qsim           = ''              ! simulated runoff netCDF name
-  character(len=strLen),public    :: vname_qsim           = ''              ! variable name for simulated runoff
+  character(len=strLen),public    :: fname_qsim           = ''              ! runoff netCDF name
+  character(len=strLen),public    :: vname_qsim           = ''              ! variable name for runoff
   character(len=strLen),public    :: vname_evapo          = ''              ! variable name for actual evapoartion
   character(len=strLen),public    :: vname_precip         = ''              ! variable name for precipitation
   character(len=strLen),public    :: vname_time           = ''              ! variable name for time
@@ -124,7 +125,7 @@ MODULE public_var
   character(len=strLen),public    :: dname_hruid          = ''              ! dimension name for hru in runoff data
   character(len=strLen),public    :: dname_xlon           = ''              ! dimension name for x (j, longitude) dimension
   character(len=strLen),public    :: dname_ylat           = ''              ! dimension name for y (i, latitude) dimension
-  character(len=strLen),public    :: units_qsim           = ''              ! units of simulated runoff data
+  character(len=strLen),public    :: units_qsim           = ''              ! units of runoff data
   real(dp)             ,public    :: dt_ro                = realMissing     ! runoff time step (seconds)
   real(dp)             ,public    :: input_fillvalue      = realMissing     ! fillvalue used for input variables (runoff, precipitation, evaporation)
   ! FLUXES TO/FROM REACHES AND LAKES STATES FILE
