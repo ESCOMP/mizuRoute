@@ -222,7 +222,7 @@ contains
  ! PFAF CODE                                     varName        varDesc                                                varUnit, varType, varFile
  meta_PFAF  (ixPFAF%code             ) = var_info('code'           , 'pfafstetter code'                                   ,'-'    ,ixDims%seg   , .false.)
 
- ! ---------- populate segment fluxes/state metadata structures -------------------------------------------------------------------------------------------------------------------
+ ! ---------- populate history output segment fluxes/state metadata structures ----------------------------------------------------------------------------------------------------
  ! Reach Flux                                  varName              varDesc                                                  unit,   varType,  varDim,                     writeOut
  call meta_rflx(ixRFLX%instRunoff       )%init('instRunoff'       , 'instantaneous runoff in each reach'                   , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .false.)
  call meta_rflx(ixRFLX%dlayRunoff       )%init('dlayRunoff'       , 'delayed runoff in each reach'                         , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .false.)
@@ -232,7 +232,11 @@ contains
  call meta_rflx(ixRFLX%KWroutedRunoff   )%init('KWroutedRunoff'   , 'routed runoff in each reach-kinematic wave'           , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
  call meta_rflx(ixRFLX%MCroutedRunoff   )%init('MCroutedRunoff'   , 'routed runoff in each reach-muskingum-cunge'          , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
  call meta_rflx(ixRFLX%DWroutedRunoff   )%init('DWroutedRunoff'   , 'routed runoff in each reach-diffusive wave'           , 'm3/s', pio_real, [ixQdims%seg,ixQdims%time], .true.)
- call meta_rflx(ixRFLX%volume           )%init('volume'           , 'lake and stream volume'                               , 'm3'  , pio_real, [ixQdims%seg,ixQdims%time], .true.)
+ call meta_rflx(ixRFLX%IRFvolume        )%init('IRFvolume'        , 'lake and stream volume-impulse response function'     , 'm3'  , pio_real, [ixQdims%seg,ixQdims%time], .true.)
+ call meta_rflx(ixRFLX%KWTvolume        )%init('KWTvolume'        , 'lake and stream volume-lagrangian kinematic wave'     , 'm3'  , pio_real, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%KWvolume         )%init('KWvolume'        ,  'lake and stream volume-kinematic wave'                , 'm3'  , pio_real, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%MCvolume         )%init('MCvolume'        ,  'lake and stream volume-muskingum-cunge'               , 'm3'  , pio_real, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%DWvolume         )%init('DWvolume'        ,  'lake and stream volume-diffusive wave'                , 'm3'  , pio_real, [ixQdims%seg,ixQdims%time], .false.)
 
  ! HRU flux                                    varName              varDesc                                                  unit,   varType,  varDim,                     writeOut
  call meta_hflx(ixHFLX%basRunoff        )%init('basRunoff'        , 'basin runoff'                                         , 'm/s' , pio_real, [ixQdims%hru,ixQdims%time], .true.)

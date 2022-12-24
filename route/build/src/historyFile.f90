@@ -621,13 +621,13 @@ MODULE historyFile
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       endif
 
-      if (meta_rflx(ixRFLX%Fvolume)%varFile) then
+      if (meta_rflx(ixRFLX%IRFvolume)%varFile) then
         if (nRch_write>0) then
           do ix=1,nRch_write
             array_temp(ix) = RCHFLX_local(1,index_write(ix))%ROUTE(idxIRF)%REACH_VOL(1)
           end do
         end if
-        call write_pnetcdf_recdim(this%pioFileDesc, 'volume', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
+        call write_pnetcdf_recdim(this%pioFileDesc, 'IRFvolume', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       endif
 

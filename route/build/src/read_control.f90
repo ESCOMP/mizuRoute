@@ -119,7 +119,6 @@ CONTAINS
    case('<sim_start>');            simStart    = trim(cData)                           ! date string defining the start of the simulation
    case('<sim_end>');              simEnd      = trim(cData)                           ! date string defining the end of the simulation
    case('<continue_run>');         read(cData,*,iostat=io_error) continue_run          ! logical; T-> append output in existing history files. F-> write output in new history file
-   case('<newFileFrequency>');     newFileFrequency = trim(cData)                      ! frequency for new output files (day, month, annual, single)
    case('<route_opt>');            routOpt     = trim(cData)                           ! routing scheme options  0-> accumRunoff, 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW
    case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute        ! basin routing options   0-> no, 1->IRF, otherwise error
    case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim           ! logical; lakes are simulated
@@ -202,6 +201,8 @@ CONTAINS
    case('<maxPfafLen>');           read(cData,*,iostat=io_error) maxPfafLen            ! maximum digit of pfafstetter code (default 32)
    case('<pfafMissing>');          pfafMissing = trim(cData)                           ! missing pfafcode (e.g., reach without any upstream area)
    ! OUTPUT OPTIONS
+   case('<newFileFrequency>');     newFileFrequency = trim(cData)                      ! frequency for new output files (day, month, annual, single)
+   case('<timeAggregation>');      timeAggregation  = trim(cData)                      ! time aggregation for output: 'nh','nd','nm','ny' where n is number
    case('<basRunoff>');            read(cData,*,iostat=io_error) meta_hflx(ixHFLX%basRunoff        )%varFile  ! default: true
    case('<instRunoff>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%instRunoff       )%varFile  ! default: false
    case('<dlayRunoff>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%dlayRunoff       )%varFile  ! default: false
@@ -211,7 +212,11 @@ CONTAINS
    case('<KWroutedRunoff>');       read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWroutedRunoff   )%varFile  ! default: true (turned off if inactive)
    case('<DWroutedRunoff>');       read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWroutedRunoff   )%varFile  ! default: true (turned off if inactive)
    case('<MCroutedRunoff>');       read(cData,*,iostat=io_error) meta_rflx(ixRFLX%MCroutedRunoff   )%varFile  ! default: true (turned off if inactive)
-   case('<volume>');               read(cData,*,iostat=io_error) meta_rflx(ixRFLX%volume           )%varFile  ! default: true
+   case('<IRFvolume>');            read(cData,*,iostat=io_error) meta_rflx(ixRFLX%IRFvolume        )%varFile  ! default: true (turned off if inactive)
+   case('<KWTvolume>');            read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWTvolume        )%varFile  ! default: true (turned off if inactive)
+   case('<KWvolume>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWvolume         )%varFile  ! default: true (turned off if inactive)
+   case('<MCvolume>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%MCvolume         )%varFile  ! default: true (turned off if inactive)
+   case('<DWvolume>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWvolume         )%varFile  ! default: true (turned off if inactive)
 
    ! VARIABLE NAMES for data (overwrite default name in popMeta.f90)
    ! HRU structure
@@ -415,12 +420,35 @@ CONTAINS
 
  do iRoute = 0, nRouteMethods-1
    select case(iRoute)
-     case(accumRunoff);           if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile=.false.
-     case(kinematicWaveTracking); if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%KWTroutedRunoff)%varFile=.false.
-     case(impulseResponseFunc);   if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%IRFroutedRunoff)%varFile=.false.
-     case(muskingumCunge);        if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%MCroutedRunoff)%varFile=.false.
-     case(kinematicWave);         if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%KWroutedRunoff)%varFile=.false.
-     case(diffusiveWave);         if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%DWroutedRunoff)%varFile=.false.
+     case(accumRunoff)
+        if (.not. onRoute(iRoute)) then
+          meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile=.false.
+        end if
+     case(kinematicWaveTracking)
+       if (.not. onRoute(iRoute)) then
+         meta_rflx(ixRFLX%KWTroutedRunoff)%varFile=.false.
+         meta_rflx(ixRFLX%KWTvolume)%varFile=.false.
+       end if
+     case(impulseResponseFunc)
+        if (.not. onRoute(iRoute)) then
+          meta_rflx(ixRFLX%IRFroutedRunoff)%varFile=.false.
+          meta_rflx(ixRFLX%IRFvolume)%varFile=.false.
+       end if
+     case(muskingumCunge)
+       if (.not. onRoute(iRoute)) then
+         meta_rflx(ixRFLX%MCroutedRunoff)%varFile=.false.
+         meta_rflx(ixRFLX%MCvolume)%varFile=.false.
+       end if
+     case(kinematicWave)
+       if (.not. onRoute(iRoute)) then
+         meta_rflx(ixRFLX%KWroutedRunoff)%varFile=.false.
+         meta_rflx(ixRFLX%KWvolume)%varFile=.false.
+       end if
+     case(diffusiveWave)
+       if (.not. onRoute(iRoute)) then
+         meta_rflx(ixRFLX%DWroutedRunoff)%varFile=.false.
+         meta_rflx(ixRFLX%DWvolume)%varFile=.false.
+       end if
      case default; message=trim(message)//'expect digits from 0 and 5'; err=81; return
    end select
  end do
