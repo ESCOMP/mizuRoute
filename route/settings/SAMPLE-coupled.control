@@ -47,6 +47,15 @@
 <topoNetworkOption>     1                          ! option for network topology calculations (0=read from file, 1=compute)
 <computeReachList>      1                          ! option to compute list of upstream reaches (0=do not compute, 1=compute)
 ! ****************************************************************************************************************************
+! Define options for lake handling
+! ----------------------------------------------------
+<is_lake_sim>              F                       ! Switch lake simulation on/off (T=on/F=off)
+<varname_D03_MaxStorage>   S_max                   ! Maximum lake volume (for Doll 2003 parametrisation)
+<varname_D03_Coefficient>  Coeff                   ! name of varibale holding the coefficnet of stage-discharge relatioship for lake
+<varname_D03_Power>        power                   ! name of varibale holding the coefficnet of stage-discharge relatioship for lake
+<varname_islake>           lake                    ! name of variable holding the islake flage (1=lake, 0=reach)
+<varname_lakeModelType>    lake_type               ! name of varibale holding lake type (0=endo, 1=Doll, 2=Hanasaki, 3=HYPE)
+! ****************************************************************************************************************************
 ! Namelist file name 
 ! ---------------------------
 <param_nml>            PARAMETER_NML               ! Namelist name containing routing parameter values 
