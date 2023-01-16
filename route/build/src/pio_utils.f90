@@ -60,6 +60,7 @@ MODULE pio_utils
     module procedure write_int_darray1D
     module procedure write_int_darray2D
     module procedure write_int_darray3D
+    module procedure write_float_darray1D
     module procedure write_double_darray1D
     module procedure write_double_darray2D
     module procedure write_double_darray3D
@@ -783,6 +784,34 @@ CONTAINS
   if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
 
   END SUBROUTINE write_int_darray3D
+
+  ! ---------------------------------------------------------------
+  ! write distributed double vector into 1D data
+  SUBROUTINE write_float_darray1D(pioFileDesc,   &
+                                  vname,           &  ! input: variable name
+                                  array,           &  ! input: variable data
+                                  iodesc,          &  ! input: ??? it is from initdecomp routine
+                                  ierr, message)      ! output: error control
+  implicit none
+  ! Argument variables:
+  type(file_desc_t),     intent(inout) :: pioFileDesc  ! pio file handle
+  character(*),          intent(in)    :: vname        ! variable name
+  real(sp),              intent(in)    :: array(:)     ! variable data
+  type(io_desc_t),       intent(inout) :: iodesc       ! io descriptor handle that is generated in PIO_initdecomp
+  integer(i4b), intent(out)            :: ierr         ! error code
+  character(*), intent(out)            :: message      ! error message
+  ! local variables
+  type(var_desc_t)                     :: pioVarId     ! netCDF variable ID
+
+  ierr=0; message='write_float_darray1D/'
+
+  ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
+  if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
+
+  call pio_write_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
+  if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
+
+  END SUBROUTINE write_float_darray1D
 
   ! ---------------------------------------------------------------
   ! write distributed double vector into 1D data

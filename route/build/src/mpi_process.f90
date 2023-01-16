@@ -2951,6 +2951,7 @@ CONTAINS
  SUBROUTINE pass_global_data(comm, ierr, message)   ! output: error control
   USE globalData, ONLY: nRch,nHRU         ! number of reaches and hrus in whole network
   USE globalData, ONLY: iTime             ! time index
+  USE globalData, ONLY: maxtdh            !
   implicit none
   ! argument variables
   integer(i4b),                   intent(in)  :: comm    ! communicator
@@ -2965,6 +2966,8 @@ CONTAINS
   call MPI_BCAST(nHRU,        1,     MPI_INTEGER,          root, comm, ierr)
   call MPI_BCAST(calendar,  strLen,  MPI_CHARACTER,        root, comm, ierr)
   call MPI_BCAST(time_units,strLen,  MPI_CHARACTER,        root, comm, ierr)
+
+  CALL MPI_ALLREDUCE(maxtdh, maxtdh, 1, MPI_INTEGER, MPI_MAX, comm, ierr)
 
  END SUBROUTINE pass_global_data
 

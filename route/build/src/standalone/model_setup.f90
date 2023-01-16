@@ -94,7 +94,7 @@ CONTAINS
    call pass_global_data(comm, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! channel state initialization
+   ! restart initialization
    call init_state_data(pid, nNodes, comm, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -111,7 +111,7 @@ CONTAINS
  ! or abstraction or injection
  ! *********************************************************************
 
- SUBROUTINE init_inFile_pop (ierr, message)  ! output
+ SUBROUTINE init_inFile_pop(ierr, message)
 
   USE public_var, ONLY: input_dir               ! directory containing the text files of fname_qsim and fname_wm
   USE public_var, ONLY: fname_qsim              ! simulated runoff txt file that includes the NetCDF file names
@@ -570,8 +570,12 @@ CONTAINS
 
   endif
 
-  ! set initial model simulation time (beginning of simulation time step)
+  ! set initial model simulation time (beginning of simulation time step and next time step)
   simDatetime(1) = begDatetime
+  simDatetime(2) = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
+  if (continue_run) then
+    simDatetime(0) = simDatetime(1)%add_sec(-dt, calendar, ierr, cmessage)
+  end if
 
   ! set simulation time step index (should be one to start)
   iTime = 1
@@ -589,10 +593,6 @@ CONTAINS
     case default
       ierr=20; message=trim(message)//'<tunit>= '//trim(t_unit)//': <tunit> must be seconds, minutes, hours or days.'; return
   end select
-
-  if (continue_run) then
-    simDatetime(0) = simDatetime(1)%add_sec(-dt, calendar, ierr, cmessage)
-  end if
 
   ! Set restart calendar date/time and dropoff calendar date/time and
   ! -- For periodic restart options  ---------------------------------------------------------------------

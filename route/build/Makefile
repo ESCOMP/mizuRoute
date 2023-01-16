@@ -148,8 +148,9 @@ DATATYPES = \
     datetime_data.f90 \
     csv_data.f90 \
     globalData.f90 \
-    historyFile.f90 \
     popMetadat.f90 \
+    histVars_data.f90 \
+    historyFile.f90 \
     allocation.f90
 # define utilities
 UTILS = \
@@ -177,8 +178,8 @@ IO = \
     standalone/read_remap.f90 \
     io_rpointfile.f90 \
     read_restart.f90 \
-    write_restart_pio.f90 \
-    write_simoutput_pio.f90
+    write_simoutput_pio.f90 \
+    write_restart_pio.f90
 # CORE
 CORE = \
     accum_runoff.f90 \
