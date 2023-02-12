@@ -44,7 +44,7 @@ CONTAINS
   real(dp)                               :: ntdh_try    ! trial number of time delay points
   integer(i4b)                           :: itry        ! index of trial value
   integer(i4b), parameter                :: MAXTRY=100  ! maximum number of trial values
-  integer(i4b)                           :: NTDH        ! number of values on the time delay histogram
+  integer(i4b)                           :: ntdh        ! number of values on the time delay histogram
   integer(i4b)                           :: JTIM        ! (loop through future time steps)
   real(dp)                               :: TFUTURE     ! future time (units of dt)
   real(dp)                               :: X_VALUE     ! xvalue to evaluate using gammp
@@ -83,7 +83,7 @@ CONTAINS
   endif
   ! loop through time steps and compute the fraction of runoff in future time steps
   PSAVE = 0.                                                 ! cumulative probability at JTIM-1
-  DO JTIM=1,NTDH
+  DO JTIM=1,ntdh
    TFUTURE            = REAL(JTIM, kind(dp))*DT       ! future time
    CUMPROB            = gammp(fshape,TFUTURE/tscale)   ! cumulative probability at JTIM
    FRAC_FUTURE(JTIM)  = MAX(0._DP, CUMPROB-PSAVE)     ! probability between JTIM-1 and JTIM
@@ -114,8 +114,9 @@ CONTAINS
  !   IRF and UH are used interchangebly.
  !
  ! ----------------------------------------------------------------------------------------
-  USE public_var, only : pi      ! pi
-  USE dataTypes,  only : dlength
+  USE public_var, ONLY: pi      ! pi
+  USE dataTypes,  ONLY: dlength
+  USE globalData, ONLY: maxtdh  ! maximum unit-hydrogrph future time
 
   implicit none
   ! Argument variables
@@ -141,6 +142,7 @@ CONTAINS
   integer(i4b)                                :: iHrStrt       ! index of UH time step where rising limb of UH start
   integer(i4b)                                :: iHrLast       ! index of UH time step where recession limb of UH become zero
   integer(i4b)                                :: nTSub         ! number of time steps where 1/nTsub [m] of runoff is inserted
+  integer(i4b)                                :: ntdh          ! number of values on the time delay histogram
   integer(i4b)                                :: iSeg          ! Loop index
   integer(i4b)                                :: iHr,jHr       ! Loop index of hour
   integer(i4b)                                :: iTagg         ! index for aggregated (i.e. simulation) time step
@@ -154,6 +156,7 @@ CONTAINS
  nTsub=ceiling(dt/dTUH)
  !nTsub=floor(dt/dTUH)
  nSeg = size(length)
+ maxtdh = 0
 
  allocate(seg_uh(nSeg), stat=ierr, errmsg=cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': seg_uh'; return; endif
@@ -247,8 +250,11 @@ CONTAINS
   ! Re-normalize the UHQ by its sum
   UHQ = UHQ/INTE
 
+  ntdh = (iHrLast+nTsub-1)/nTsub
+  maxtdh = max(maxtdh, ntdh)
+
   !Aggregate hourly unit hydrograph to simulation time step
-  allocate(seg_uh(iSeg)%dat((iHrLast+nTsub-1)/nTsub),stat=ierr,errmsg=cmessage)
+  allocate(seg_uh(iSeg)%dat(ntdh),stat=ierr,errmsg=cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': seg_uh%dat'; return; endif
 
   seg_uh(iSeg)%dat(:)=0._dp
