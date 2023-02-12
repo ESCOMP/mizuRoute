@@ -161,6 +161,7 @@ MODULE globalData
 
   ! miscellaneous
   integer(i4b)                   , public :: ixPrint=integerMissing     ! index of desired reach to be on-screen print
+  integer(i4b)                   , public :: maxtdh                     ! maximum unit-hydrograph future time steps
   type(cMolecule)                , public :: nMolecule                  ! number of computational molecule (used for KW, MC, DW)
 
 END MODULE globalData

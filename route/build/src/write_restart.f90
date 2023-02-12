@@ -327,6 +327,7 @@ CONTAINS
    USE globalData,   ONLY: meta_stateDims  ! states dimension meta
    USE globalData,   ONLY: nRch
    USE globalData,   ONLY: nMolecule
+   USE globalData,   ONLY: maxtdh          ! maximum unit-hydrogrph future time
    USE public_var,   ONLY: MAXQPAR
    USE globalData,   ONLY: FRAC_FUTURE     ! To get size of q future for basin IRF
 
@@ -347,7 +348,7 @@ CONTAINS
      case(ixStateDims%ens);     meta_stateDims(ixStateDims%ens)%dimLength     = 1
      case(ixStateDims%tbound);  meta_stateDims(ixStateDims%tbound)%dimLength  = 2
      case(ixStateDims%tdh);     meta_stateDims(ixStateDims%tdh)%dimLength     = size(FRAC_FUTURE)
-     case(ixStateDims%tdh_irf); meta_stateDims(ixStateDims%tdh_irf)%dimLength = 50   !just temporarily
+     case(ixStateDims%tdh_irf); meta_stateDims(ixStateDims%tdh_irf)%dimLength = maxtdh
      case(ixStateDims%wave);    meta_stateDims(ixStateDims%wave)%dimLength    = MAXQPAR
      case(ixStateDims%mol_kw);  meta_stateDims(ixStateDims%mol_kw)%dimLength  = nMolecule%KW_ROUTE
      case(ixStateDims%mol_mc);  meta_stateDims(ixStateDims%mol_mc)%dimLength  = nMolecule%MC_ROUTE
