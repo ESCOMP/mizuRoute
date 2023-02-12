@@ -80,7 +80,7 @@ CONTAINS
  else
    if (input_fillvalue==realMissing) then
      write(iulog, '(3A)')       'WARNING:', trim(var_name), '. No _FillValue exist in attributes nor provided by user in input_fillvalue'
-     write(iulog, '(A,x,F5.2)') '         _FillValue is set to default:', realMissing
+     write(iulog, '(A,x,G15.4)') '         _FillValue is set to default:', realMissing
    end if
    fillvalue = input_fillvalue
  end if
