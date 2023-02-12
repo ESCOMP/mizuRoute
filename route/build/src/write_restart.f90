@@ -73,9 +73,9 @@ CONTAINS
    USE public_var,        ONLY: restart_write  ! restart write options
    USE public_var,        ONLY: restart_day
    USE globalData,        ONLY: restartAlarm   ! logical to make alarm for restart writing
-   USE globalData,        ONLY: restCal        ! restart Calendar time
-   USE globalData,        ONLY: dropCal        ! restart drop off Calendar time
-   USE globalData,        ONLY: modTime        ! previous and current model time
+   USE globalData,        ONLY: restDatetime   ! restart Calendar time
+   USE globalData,        ONLY: dropDatetime   ! restart drop off Calendar time
+   USE globalData,        ONLY: simDatetime    ! previous and current model time
 
    implicit none
 
@@ -89,28 +89,28 @@ CONTAINS
    ierr=0; message='restart_alarm/'
 
    ! adjust restart dropoff day if the dropoff day is outside number of days in particular month
-   dropCal = datetime(dropCal%year(), dropCal%month(), restart_day, dropCal%hour(), dropCal%minute(), dropCal%sec())
-   nDays = modTime(1)%ndays_month(calendar, ierr, cmessage)
+   dropDatetime = datetime(dropDatetime%year(), dropDatetime%month(), restart_day, dropDatetime%hour(), dropDatetime%minute(), dropDatetime%sec())
+   nDays = simDatetime(1)%ndays_month(calendar, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   if (dropCal%day() > nDays) then
-     dropCal = datetime(dropCal%year(), dropCal%month(), nDays, dropCal%hour(), dropCal%minute(), dropCal%sec())
+   if (dropDatetime%day() > nDays) then
+     dropDatetime = datetime(dropDatetime%year(), dropDatetime%month(), nDays, dropDatetime%hour(), dropDatetime%minute(), dropDatetime%sec())
    end if
 
    ! adjust dropoff day further if restart day is actually outside number of days in a particular month
-   if (restCal%day() > nDays) then
-     dropCal = dropCal%add_day(-1, calendar, ierr, cmessage)
+   if (restDatetime%day() > nDays) then
+     dropDatetime = dropDatetime%add_day(-1, calendar, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
 
    select case(lower(trim(restart_write)))
      case('specified','last')
-       restartAlarm = (dropCal==modTime(1))
+       restartAlarm = (dropDatetime==simDatetime(1))
      case('yearly')
-       restartAlarm = (dropCal%is_equal_mon(modTime(1)) .and. dropCal%is_equal_day(modTime(1)) .and. dropCal%is_equal_time(modTime(1)))
+       restartAlarm = (dropDatetime%is_equal_mon(simDatetime(1)) .and. dropDatetime%is_equal_day(simDatetime(1)) .and. dropDatetime%is_equal_time(simDatetime(1)))
      case('monthly')
-       restartAlarm = (dropCal%is_equal_day(modTime(1)) .and. dropCal%is_equal_time(modTime(1)))
+       restartAlarm = (dropDatetime%is_equal_day(simDatetime(1)) .and. dropDatetime%is_equal_time(simDatetime(1)))
      case('daily')
-       restartAlarm = dropCal%is_equal_time(modTime(1))
+       restartAlarm = dropDatetime%is_equal_time(simDatetime(1))
      case('never')
        restartAlarm = .false.
      case default
@@ -168,7 +168,7 @@ CONTAINS
    USE public_var,          ONLY: case_name        ! simulation name ==> output filename head
    USE public_var,          ONLY: calendar
    USE public_var,          ONLY: secprday
-   USE globalData,          ONLY: modTime          ! current model datetime
+   USE globalData,          ONLY: simDatetime      ! current model datetime
 
    implicit none
 
@@ -188,8 +188,8 @@ CONTAINS
    ierr=0; message='restart_fname/'
 
    select case(timeStamp)
-     case(currTimeStep); timeStampCal = modTime(1)
-     case(nextTimeStep); timeStampCal = modTime(1)%add_sec(dt, calendar, ierr, cmessage)
+     case(currTimeStep); timeStampCal = simDatetime(1)
+     case(nextTimeStep); timeStampCal = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
      case default;       ierr=20; message=trim(message)//'time stamp option in restart filename: invalid -> 1: current time Step or 2: next time step'; return
    end select
 
@@ -211,7 +211,7 @@ CONTAINS
                             ierr, message)      ! output: error control
 
  USE globalData, ONLY: meta_stateDims
- USE globalData, ONLY: modTime                 ! current model datetime
+ USE globalData, ONLY: simDatetime                 ! current model datetime
  USE public_var, ONLY: calendar
  USE var_lookup, ONLY: ixStateDims, nStateDims
 
@@ -270,7 +270,7 @@ CONTAINS
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get which time is for restarting
- timeStampCal = modTime(1)%add_sec(dt, calendar, ierr, cmessage)
+ timeStampCal = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
  write(globalDesc, fmtYMDHMS) timeStampCal%year(),'-',timeStampCal%month(),'-',timeStampCal%day(),timeStampCal%hour(),':',timeStampCal%minute(),':',nint(timeStampCal%sec())
 
  call put_global_attr(ncid, 'Restart time', trim(globalDesc), ierr, cmessage)

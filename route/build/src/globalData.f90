@@ -120,10 +120,12 @@ MODULE globalData
   integer(i4b)                   , public :: iTime                      ! time index at simulation time step
   real(dp)                       , public :: timeVar                    ! time variables (unit given by time variable)
   real(dp)                       , public :: TSEC(0:1)                  ! begning and end of time step (sec)
-  type(datetime)                 , public :: modTime(0:1)               ! previous and current model time (yyyy:mm:dd:hh:mm:ss)
-  type(datetime)                 , public :: endCal                     ! simulation end date/time (yyyy:mm:dd:hh:mm:ss)
-  type(datetime)                 , public :: restCal                    ! desired restart date/time (yyyy:mm:dd:hh:mm:ss)
-  type(datetime)                 , public :: dropCal                    ! restart dropoff date/time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime),                  public :: simDatetime(0:1)           ! previous and current simulation time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime)                 , public :: begDatetime                ! simulation begining date/time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime)                 , public :: endDatetime                ! simulation end date/time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime),                  public :: restDatetime               ! desired restart date/time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime),                  public :: dropDatetime               ! restart dropoff date/time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime),                  public :: roBegDatetime              ! forcing data start date/time (yyyy:mm:dd:hh:mm:ss)
   logical(lgt)                   , public :: restartAlarm               ! alarm to triger restart file writing
 
   ! obs data - gage data, watertake etc.
@@ -153,7 +155,6 @@ MODULE globalData
   ! mapping structures
   type(remap)                    , public :: remap_data                 ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
   type(runoff)                   , public :: runoff_data                ! runoff data for one time step for LSM HRUs and River network HRUs
-  type(map_time), allocatable    , public :: tmap_sim_ro(:)             ! mapping between simulation time step and runoff time step
 
   ! domain data
   type(subbasin_omp), allocatable, public :: river_basin(:)             ! openMP domain decomposition

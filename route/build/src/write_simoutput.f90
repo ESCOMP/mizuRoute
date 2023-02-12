@@ -149,7 +149,7 @@ CONTAINS
  USE public_var,          only : time_units        ! time units (seconds, hours, or days)
  ! saved global data
  USE globalData,          only : basinID,reachID   ! HRU and reach ID in network
- USE globalData,          only : modTime           ! previous and current model time
+ USE globalData,          only : simDatetime       ! previous and current model time
  USE globalData,          only : nEns, nHRU, nRch  ! number of ensembles, HRUs and river reaches
 
  implicit none
@@ -167,14 +167,14 @@ CONTAINS
  ierr=0; message='prep_output/'
 
  ! print progress
- write(iulog,'(a,I4,4(x,I4))') new_line('a'), modTime(1)%year(), modTime(1)%month(), modTime(1)%day(), modTime(1)%hour(), modTime(1)%minute()
+ write(iulog,'(a,I4,4(x,I4))') new_line('a'), simDatetime(1)%year(), simDatetime(1)%month(), simDatetime(1)%day(), simDatetime(1)%hour(), simDatetime(1)%minute()
 
  ! check need for the new file
  select case(lower(trim(newFileFrequency)))
-   case('single'); defNewOutputFile=(modTime(0)%year() ==integerMissing)
-   case('yearly'); defNewOutputFile=(modTime(1)%year() /=modTime(0)%year())
-   case('monthly');  defNewOutputFile=(modTime(1)%month()/=modTime(0)%month())
-   case('daily');    defNewOutputFile=(modTime(1)%day()  /=modTime(0)%day())
+   case('single'); defNewOutputFile=(simDatetime(0)%year() ==integerMissing)
+   case('yearly'); defNewOutputFile=(simDatetime(1)%year() /=simDatetime(0)%year())
+   case('monthly');  defNewOutputFile=(simDatetime(1)%month()/=simDatetime(0)%month())
+   case('daily');    defNewOutputFile=(simDatetime(1)%day()  /=simDatetime(0)%day())
    case default; ierr=20; message=trim(message)//'Accepted <newFileFrequency> options (case-insensitive): single yearly, monthly, or daily '; return
  end select
 
@@ -193,9 +193,9 @@ CONTAINS
    jTime=1
 
    ! update filename
-   sec_in_day = modTime(1)%hour()*60*60+modTime(1)%minute()*60+nint(modTime(1)%sec())
+   sec_in_day = simDatetime(1)%hour()*60*60+simDatetime(1)%minute()*60+nint(simDatetime(1)%sec())
    write(simout_nc%ncname, fmtYMDS) trim(output_dir)//trim(case_name)//'.h.', &
-                                     modTime(1)%year(), '-', modTime(1)%month(), '-', modTime(1)%day(), '-',sec_in_day,'.nc'
+                                     simDatetime(1)%year(), '-', simDatetime(1)%month(), '-', simDatetime(1)%day(), '-',sec_in_day,'.nc'
 
    call defineFile(simout_nc%ncname,                      &  ! input: file name
                    nEns,                                  &  ! input: number of ensembles

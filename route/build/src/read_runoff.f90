@@ -256,36 +256,46 @@ CONTAINS
  integer(i4b),   intent(out)     :: ierr               ! error code
  character(*),   intent(out)     :: message            ! error message
  ! local variables
- integer(i4b)                    :: ix
+ integer(i4b)                    :: ix,it              ! loop index
  integer(i4b)                    :: nTime
  integer(i4b)                    :: iStart(2)
  integer(i4b)                    :: iCount(2)
- real(dp)                        :: dummy(nSpace,1)  ! data read
- character(len=strLen)           :: cmessage         ! error message from subroutine
+ real(dp)                        :: sumWeights         ! sum of time weight
+ real(dp), allocatable           :: dummy(:,:)         ! array storing the read variable
+ character(len=strLen)           :: cmessage           ! error message from subroutine
 
  ierr=0; message='read_1D_runoff/'
 
  nTime = size(map_sim_ro_in%iTime)
 
+ allocate(dummy(nSpace, nTime), stat=ierr, errmsg=cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ do it = 1, nTime
+   iStart = [1,map_sim_ro_in%iTime(it)]
+   iCount = [nSpace,1]
+   call get_nc(ncidRunoff, vname_qsim, dummy(1:nSpace,it:it), iStart, iCount, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end do
+
  ! get the simulated runoff data
  runoff_data_in%qsim(1:nSpace) = 0._dp
- do ix = 1, nTime
-   iStart = [1,map_sim_ro_in%iTime(ix)]
-   iCount = [nSpace,1]
-   call get_nc(ncidRunoff, vname_qsim, dummy, iStart, iCount, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! replace _fill_value with -999 for dummy
+ if (nTime>1) then
+   do ix = 1, nSpace
+     sumWeights = 0._dp
+     do it = 1, nTime
+       if (abs(dummy(ix,it)-ro_fillvalue) < verySmall) cycle
+       sumWeights = sumWeights + map_sim_ro_in%frac(it)
+       runoff_data_in%qsim(ix) = runoff_data_in%qsim(ix) + dummy(ix,it)*map_sim_ro_in%frac(it)
+     end do
+    if(abs(0._dp - sumWeights)<verySmall) runoff_data_in%qsim(ix) = realMissing
+    if(sumWeights > 0._dp .and. sumWeights < 1.0_dp) runoff_data_in%qsim(ix) = runoff_data_in%qsim(ix) / sumWeights
+   end do
+ else
    where ( abs(dummy - ro_fillvalue) < verySmall ) dummy = realMissing
-
-   ! finalize
-   if (nTime>1) then
-     runoff_data_in%qsim(1:nSpace) = runoff_data_in%qsim(1:nSpace) &
-                                   + dummy(1:nSpace,1)*map_sim_ro_in%frac(ix)
-   else
-     runoff_data_in%qsim(1:nSpace) = dummy(1:nSpace,1)
-   end if
- end do
+   runoff_data_in%qsim(1:nSpace) = dummy(1:nSpace,1)
+ end if
 
  END SUBROUTINE read_1D_runoff
 
@@ -300,42 +310,54 @@ CONTAINS
  implicit none
  ! Argument variables
  integer(i4b),   intent(in)    :: ncidRunoff       ! runoff netCDF ID
- type(map_time), intent(in)    :: map_sim_ro_in      ! ro-sim time mapping at current simulation time-step
+ type(map_time), intent(in)    :: map_sim_ro_in    ! ro-sim time mapping at current simulation time-step
  integer(i4b),   intent(in)    :: nSpace(1:2)      ! size of spatial dimensions
  type(runoff),   intent(inout) :: runoff_data_in   ! runoff for one time step for all spatial dimension
  integer(i4b),   intent(out)   :: ierr             ! error code
  character(*),   intent(out)   :: message          ! error message
  ! local variables
- integer(i4b)                  :: ix
+ integer(i4b)                  :: ix1,ix2,it        ! loop index
  integer(i4b)                  :: nTime
  integer(i4b)                  :: iStart(3)
  integer(i4b)                  :: iCount(3)
- real(dp)                      :: dummy(nSpace(2),nSpace(1),1) ! data read
- character(len=strLen)         :: cmessage                     ! error message from subroutine
+ real(dp)                      :: sumWeights        ! sum of time weight
+ real(dp), allocatable         :: dummy(:,:,:)      ! array storing the read variable
+ character(len=strLen)         :: cmessage          ! error message from subroutine
 
  ierr=0; message='read_2D_runoff/'
 
  nTime = size(map_sim_ro_in%iTime)
 
+ allocate(dummy(nSpace(2), nSpace(1), nTime), stat=ierr, errmsg=cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ do it = 1, nTime
+   iStart = [1,1,map_sim_ro_in%iTime(it)]
+   iCount = [nSpace(2),nSpace(1),1]
+   call get_nc(ncidRunoff, vname_qsim, dummy(1:nSpace(2),1:nSpace(1),it:it), iStart, iCount, ierr, cmessage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end do
+
  ! get the simulated runoff data
  runoff_data_in%qsim2d(1:nSpace(2),1:nSpace(1)) = 0._dp
- do ix = 1, nTime
-   iStart = [1,1,map_sim_ro_in%iTime(ix)]
-   iCount = [nSpace(2),nSpace(1),1]
-   call get_nc(ncidRunoff, vname_qsim, dummy, iStart, iCount, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! replace _fill_value with -999. for dummy
+ if (nTime>1) then ! simulation time step includes multiple forcing time steps
+   do ix2 = 1, nSpace(2)
+     do ix1 = 1, nSpace(1)
+       sumWeights = 0._dp
+       do it = 1, nTime
+         if (abs(dummy(ix2,ix1,it)-ro_fillvalue) < verySmall) cycle
+         sumWeights = sumWeights + map_sim_ro_in%frac(it)
+         runoff_data_in%qsim2d(ix2,ix1) = runoff_data_in%qsim2d(ix2,ix1) + dummy(ix2,ix1,it)*map_sim_ro_in%frac(it)
+       end do
+       if(abs(0._dp - sumWeights)<verySmall) runoff_data_in%qsim2d(ix2,ix1) = realMissing
+       if(sumWeights > 0._dp .and. sumWeights < 1.0_dp) runoff_data_in%qsim2d(ix2,ix1) = runoff_data_in%qsim2d(ix2,ix1) / sumWeights
+     end do
+   end do
+ else ! if simulation time step include one forcing time step
    where ( abs(dummy - ro_fillvalue) < verySmall ) dummy = realMissing
-
-   ! finalize
-   if (nTime>1) then
-     runoff_data_in%qsim2d(1:nSpace(2),1:nSpace(1)) = runoff_data_in%qsim2d(1:nSpace(2),1:nSpace(1)) &
-                                                    + dummy(1:nSpace(2),1:nSpace(1),1)*map_sim_ro_in%frac(ix)
-   else
-     runoff_data_in%qsim2d(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)
-   end if
- end do
+   runoff_data_in%qsim2d(1:nSpace(2),1:nSpace(1)) = dummy(1:nSpace(2),1:nSpace(1),1)
+ end if
 
  END SUBROUTINE read_2D_runoff
 
