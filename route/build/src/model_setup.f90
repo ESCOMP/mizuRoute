@@ -112,7 +112,6 @@ CONTAINS
    integer(i4b)                             :: iHRU, iRch       ! loop index
    character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
-   ! initialize error control
    ierr=0; message='init_data/'
 
    ! populate various river network data strucutures for each proc
@@ -169,7 +168,7 @@ CONTAINS
    call init_state(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- end subroutine init_data
+ END SUBROUTINE init_data
 
 
  ! *********************************************************************
@@ -177,13 +176,15 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE update_time(finished, ierr, message)
 
-  USE public_var, ONLY : dt
-  USE public_var, ONLY : calendar
-  USE globalData, ONLY : TSEC          ! beginning/ending of simulation time step [sec]
-  USE globalData, ONLY : iTime         ! time index at simulation time step
-  USE globalData, ONLY : simout_nc     ! netCDF meta data
-  USE globalData, ONLY : endCal        ! model ending datetime
-  USE globalData, ONLY : modTime       ! model datetime
+   USE public_var, ONLY : dt
+   USE public_var, ONLY : calendar
+   USE public_var, ONLY : time_units    ! netcdf time units - t_unit since yyyy-mm-dd hh:mm:ss
+   USE globalData, ONLY : iTime         ! current simulation time step index
+   USE globalData, ONLY : timeVar       ! model time variables in time unit since reference time
+   USE globalData, ONLY : TSEC          ! beginning/ending of simulation time step [sec]
+   USE globalData, ONLY : simout_nc     ! netCDF meta data
+   USE globalData, ONLY : endDatetime   ! model ending datetime
+   USE globalData, ONLY : simDatetime   ! current model datetime
 
    implicit none
    ! Argument variables
@@ -191,13 +192,13 @@ CONTAINS
    integer(i4b),              intent(out)   :: ierr             ! error code
    character(*),              intent(out)   :: message          ! error message
    ! local variables
+   character(len=7)                         :: t_unit           ! time unit - sec, min, hr, day
    character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
-   ! initialize error control
    ierr=0; message='update_time/'
 
    finished = .false.
-   if (modTime(1)==endCal) then
+   if (simDatetime(1)>=endDatetime) then
      finished=.true.
      if (simout_nc%status == 2) then
        call close_nc(simout_nc%ncid, ierr, cmessage)
@@ -210,12 +211,23 @@ CONTAINS
    TSEC(0) = TSEC(0) + dt
    TSEC(1) = TSEC(0) + dt
 
-   ! update time index
+   ! update model time index
    iTime=iTime+1
 
-   ! increment model calendar
-   modTime(0) = modTime(1)
-   modTime(1) = modTime(1)%add_sec(dt, calendar, ierr, cmessage)
+   ! increment simulation datetime
+   simDatetime(0) = simDatetime(1)
+   simDatetime(1) = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
+
+   ! model time stamp variable for output
+   t_unit = trim( time_units(1:index(time_units,' ')) )
+   select case( trim(t_unit) )
+     case('seconds','second','sec','s'); timeVar = timeVar+ dt
+     case('minutes','minute','min');     timeVar = timeVar+ dt/60._dp
+     case('hours','hour','hr','h');      timeVar = timeVar+ dt/3600._dp
+     case('days','day','d');             timeVar = timeVar+ dt/86400._dp
+     case default
+       ierr=20; message=trim(message)//'<tunit>= '//trim(t_unit)//': <tunit> must be seconds, minutes, hours or days.'; return
+   end select
 
  END SUBROUTINE update_time
 
@@ -320,65 +332,64 @@ CONTAINS
 ! *********************************************************************
  ! private subroutine: initialize time data
  ! *********************************************************************
- SUBROUTINE init_time(nTime,     &    ! input: number of time steps
+ SUBROUTINE init_time(nRoTime,     &  ! input: number of time steps
                       ierr, message)  ! output
 
-  USE ascii_util_module,   ONLY : lower           ! convert string to lower case
-  USE io_netcdf,           ONLY : open_nc         ! netcdf input
-  USE io_netcdf,           ONLY : close_nc        ! netcdf input
-  USE io_netcdf,           ONLY : get_nc          ! netcdf input
-  USE datetime_data,       ONLY : datetime        ! time data type
-  USE public_var,          ONLY : input_dir     ! directory containing input data
-  USE public_var,          ONLY : fname_qsim    ! simulated runoff netCDF name
-  USE public_var,          ONLY : vname_time    ! variable name for time
-  USE public_var,          ONLY : time_units    ! time units (seconds, hours, or days)
-  USE public_var,          ONLY : simStart      ! date string defining the start of the simulation
-  USE public_var,          ONLY : simEnd        ! date string defining the end of the simulation
-  USE public_var,          ONLY : calendar      ! calendar name
-  USE public_var,          ONLY : dt
-  USE public_var,          ONLY : secprday
-  USE public_var,          ONLY : restart_write ! restart write option
-  USE public_var,          ONLY : restart_date  ! restart date
-  USE public_var,          ONLY : restart_month !
-  USE public_var,          ONLY : restart_day   !
-  USE public_var,          ONLY : restart_hour  !
-  USE globalData,          ONLY : timeVar       ! time variables (unit given by runoff data)
-  USE globalData,          ONLY : iTime         ! time index at runoff input time step
-  USE globalData,          ONLY : modTime       ! model time data (yyyy:mm:dd:hh:mm:sec)
-  USE globalData,          ONLY : endCal        ! simulation end time data (yyyy:mm:dd:hh:mm:sec)
-  USE globalData,          ONLY : restCal       ! restart time data (yyyy:mm:dd:hh:mm:sec)
-  USE globalData,          ONLY : dropCal       ! restart dropoff calendar date/time
+  USE ascii_util_module, ONLY: lower         ! convert string to lower case
+  USE io_netcdf,         ONLY: open_nc       ! netcdf input
+  USE io_netcdf,         ONLY: close_nc      ! netcdf input
+  USE io_netcdf,         ONLY: get_nc        ! netcdf input
+  USE datetime_data,     ONLY: datetime      ! time data type
+  USE public_var,        ONLY: input_dir     ! directory containing input data
+  USE public_var,        ONLY: fname_qsim    ! simulated runoff netCDF name
+  USE public_var,        ONLY: vname_time    ! variable name for time
+  USE public_var,        ONLY: time_units    ! time units (seconds, hours, or days)
+  USE public_var,        ONLY: simStart      ! date string defining the start of the simulation
+  USE public_var,        ONLY: simEnd        ! date string defining the end of the simulation
+  USE public_var,        ONLY: calendar      ! calendar name
+  USE public_var,        ONLY: dt
+  USE public_var,        ONLY: secprday
+  USE public_var,        ONLY: restart_write ! restart write option
+  USE public_var,        ONLY: restart_date  ! restart date
+  USE public_var,        ONLY: restart_month !
+  USE public_var,        ONLY: restart_day   !
+  USE public_var,        ONLY: restart_hour  !
+  USE globalData,        ONLY: timeVar       ! model time variables in time unit since reference time
+  USE globalData,        ONLY: iTime         ! time index at simulation time step
+  USE globalData,        ONLY: simDatetime   ! current model time data (yyyy:mm:dd:hh:mm:sec)
+  USE globalData,        ONLY: begDatetime   ! simulation begin datetime data (yyyy:mm:dd:hh:mm:sec)
+  USE globalData,        ONLY: endDatetime   ! simulation end time data (yyyy:mm:dd:hh:mm:sec)
+  USE globalData,        ONLY: restDatetime  ! restart time data (yyyy:mm:dd:hh:mm:sec)
+  USE globalData,        ONLY: dropDatetime  ! restart dropoff calendar date/time
+  USE globalData,        ONLY: roBegDatetime ! forcing data start datetime data (yyyy:mm:dd:hh:mm:sec)
 
   implicit none
   ! Argument variables:
-  integer(i4b),              intent(in)    :: nTime
+  integer(i4b),              intent(in)    :: nRoTime
   integer(i4b),              intent(out)   :: ierr             ! error code
   character(*),              intent(out)   :: message          ! error message
   ! local variable
   integer(i4b)                             :: ncidRunoff
   integer(i4b)                             :: ix
   type(datetime)                           :: refCal
-  type(datetime)                           :: roCal(nTime)
-  type(datetime)                           :: startCal
-  type(datetime)                           :: dummyCal
-  integer(i4b)                             :: nDays          ! number of days in a month
+  type(datetime)                           :: roCal(nRoTime)
+  type(datetime)                           :: dummyDatetime      ! datetime used temporarily
+  integer(i4b)                             :: nDays              ! number of days in a month
+  real(dp)                                 :: juldayRef
+  real(dp)                                 :: juldaySim
   real(dp)                                 :: convTime2sec
-  real(dp)                                 :: sec(nTime)
+  real(dp)                                 :: roTimeVar(nRoTime)
+  real(dp)                                 :: sec(nRoTime)
   character(len=7)                         :: t_unit
   character(len=strLen)                    :: cmessage         ! error message of downwind routine
   character(len=50)                        :: fmt1='(a,I4,a,I2.2,a,I2.2,x,I2.2,a,I2.2,a,F5.2)'
 
-  ! initialize error control
   ierr=0; message='init_time/'
 
-  ! time initialization
-  allocate(timeVar(nTime), stat=ierr)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  ! get the time data
+  ! get the runoff time data
   call open_nc(trim(input_dir)//trim(fname_qsim), 'r', ncidRunoff, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  call get_nc(ncidRunoff, vname_time, timeVar, 1, nTime, ierr, cmessage)
+  call get_nc(ncidRunoff, vname_time, roTimeVar, 1, nRoTime, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   call close_nc(ncidRunoff, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -397,67 +408,83 @@ CONTAINS
   ! extract datetime from the control information
   call refCal%str2datetime(time_units, ierr, cmessage)
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [refCal]'; return; endif
-  call startCal%str2datetime(simStart, ierr, cmessage)
-  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [startCal]'; return; endif
-  call endCal%str2datetime(simEnd, ierr, cmessage)
-  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endCal]'; return; endif
+  call begDatetime%str2datetime(simStart, ierr, cmessage)
+  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [begDatetime]'; return; endif
+  call endDatetime%str2datetime(simEnd, ierr, cmessage)
+  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endDatetime]'; return; endif
 
   ! calendar in runoff data
-  sec(:) = timeVar(:)*convTime2sec
-  do ix = 1, nTime
+  sec(:) = roTimeVar(:)*convTime2sec
+  do ix = 1, nRoTime
     roCal(ix) = refCal%add_sec(sec(ix), calendar, ierr, cmessage)
   end do
 
+  ! save runoff forcing starting datetime
+  roBegDatetime = roCal(1)
+
   ! check that the dates are aligned
-  if(endCal<startCal) then
+  if(endDatetime<begDatetime) then
     write(cmessage,'(7a)') 'simulation end is before simulation start:', new_line('a'), '<sim_start>= ', trim(simStart), new_line('a'), '<sim_end>= ', trim(simEnd)
     ierr=20; message=trim(message)//trim(cmessage); return
   endif
 
   ! check sim_start is before the last time step in runoff data
-  if(startCal > roCal(nTime)) then
+  if(begDatetime > roCal(nRoTime)) then
     write(iulog,'(2a)') new_line('a'),'ERROR: <sim_start> is after the first time step in input runoff'
-    write(iulog,fmt1) ' runoff_end  : ', roCal(nTime)%year(),'-',roCal(nTime)%month(),'-',roCal(nTime)%day(),roCal(nTime)%hour(),':',roCal(nTime)%minute(),':',roCal(nTime)%sec()
-    write(iulog,fmt1) ' <sim_start> : ', startCal%year(),'-',startCal%month(),'-',startCal%day(), startCal%hour(),':', startCal%minute(),':',startCal%sec()
+    write(iulog,fmt1) ' runoff_end  : ', roCal(nRoTime)%year(),'-',roCal(nRoTime)%month(),'-',roCal(nRoTime)%day(),roCal(nRoTime)%hour(),':',roCal(nRoTime)%minute(),':',roCal(nRoTime)%sec()
+    write(iulog,fmt1) ' <sim_start> : ', begDatetime%year(),'-',begDatetime%month(),'-',begDatetime%day(), begDatetime%hour(),':', begDatetime%minute(),':',begDatetime%sec()
     ierr=20; message=trim(message)//'check <sim_start> against runoff input time'; return
   endif
 
   ! Compare sim_start vs. time at first time step in runoff data
-  if (startCal < roCal(1)) then
+  if (begDatetime < roCal(1)) then
     write(iulog,'(2a)') new_line('a'),'WARNING: <sim_start> is before the first time step in input runoff'
     write(iulog,fmt1) ' runoff_start : ', roCal(1)%year(),'-',roCal(1)%month(),'-',roCal(1)%day(), roCal(1)%hour(),':', roCal(1)%minute(),':',roCal(1)%sec()
-    write(iulog,fmt1) ' <sim_start>  : ', startCal%year(),'-',startCal%month(),'-',startCal%day(), startCal%hour(),':', startCal%minute(),':',startCal%sec()
+    write(iulog,fmt1) ' <sim_start>  : ', begDatetime%year(),'-',begDatetime%month(),'-',begDatetime%day(), begDatetime%hour(),':', begDatetime%minute(),':',begDatetime%sec()
     write(iulog,'(a)') ' Reset <sim_start> to runoff_start'
-    startCal = roCal(1)
+    begDatetime = roCal(1)
   endif
 
   ! Compare sim_end vs. time at last time step in runoff data
-  if (endCal > roCal(nTime)) then
+  if (endDatetime > roCal(nRoTime)) then
     write(iulog,'(2a)')  new_line('a'),'WARNING: <sim_end> is after the last time step in input runoff'
-    write(iulog,fmt1) ' runoff_end : ', roCal(nTime)%year(),'-',roCal(nTime)%month(),'-',roCal(nTime)%day(),roCal(nTime)%hour(),':',roCal(nTime)%minute(),':',roCal(nTime)%sec()
-    write(iulog,fmt1) ' <sim_end>  : ', endCal%year(),'-',endCal%month(),'-',endCal%day(), endCal%hour(),':', endCal%minute(),':',endCal%sec()
+    write(iulog,fmt1) ' runoff_end : ', roCal(nRoTime)%year(),'-',roCal(nRoTime)%month(),'-',roCal(nRoTime)%day(),roCal(nRoTime)%hour(),':',roCal(nRoTime)%minute(),':',roCal(nRoTime)%sec()
+    write(iulog,fmt1) ' <sim_end>  : ', endDatetime%year(),'-',endDatetime%month(),'-',endDatetime%day(), endDatetime%hour(),':', endDatetime%minute(),':',endDatetime%sec()
     write(iulog,'(a)')  ' Reset <sim_end> to runoff_end'
-    endCal = roCal(nTime)
+    endDatetime = roCal(nRoTime)
   endif
 
-  ! fast forward time to time index at simStart and save iTime and modTime(1)
-  do ix = 1, nTime
-    modTime(1) = roCal(ix)
-    if( modTime(1) < startCal ) cycle
-    exit
-  enddo
-  iTime = ix
+  ! set initial model simulation time (beginning of simulation time step)
+  simDatetime(1) = begDatetime
+
+  ! set simulation time step index (should be one to start)
+  iTime = 1
+
+  ! set time variable first simulation time step
+  call refCal%julianday(calendar, juldayRef, ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  call begDatetime%julianday(calendar,juldaySim,  ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  select case( trim(t_unit) )
+    case('seconds','second','sec','s'); timeVar = (juldaySim - juldayRef)*86400._dp
+    case('minutes','minute','min');     timeVar = (juldaySim - juldayRef)*1440._dp
+    case('hours','hour','hr','h');      timeVar = (juldaySim - juldayRef)*24._dp
+    case('days','day','d');             timeVar = (juldaySim - juldayRef)
+    case default
+      ierr=20; message=trim(message)//'<tunit>= '//trim(t_unit)//': <tunit> must be seconds, minutes, hours or days.'; return
+  end select
 
  ! Set restart calendar date/time and dropoff calendar date/time and
  ! -- For periodic restart options  ---------------------------------------------------------------------
  ! Ensure that user-input restart month, day are valid.
- ! "Annual" option:  if user input day exceed number of days given user input month, set to last day
+ ! "yearly" option:  if user input day exceed number of days given user input month, set to last day
  ! "Monthly" option: use 2000-01 as template calendar yr/month
  ! "Daily" option:   use 2000-01-01 as template calendar yr/month/day
  select case(lower(trim(restart_write)))
    case('yearly')
-     dummyCal = datetime(2000, restart_month, 1, 0, 0, 0.0_dp)
-     nDays = dummyCal%ndays_month(calendar, ierr, cmessage)
+     dummyDatetime = datetime(2000, restart_month, 1, 0, 0, 0.0_dp)
+     nDays = dummyDatetime%ndays_month(calendar, ierr, cmessage)
      if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
      if (restart_day > nDays) restart_day=nDays
    case('monthly'); restart_month = 1
@@ -466,24 +493,24 @@ CONTAINS
 
   select case(lower(trim(restart_write)))
     case('last')
-      dropCal = endCal
-      restart_month = dropCal%month(); restart_day = dropCal%day(); restart_hour = dropCal%hour()
+      dropDatetime = endDatetime
+      restart_month = dropDatetime%month(); restart_day = dropDatetime%day(); restart_hour = dropDatetime%hour()
     case('specified')
       if (trim(restart_date) == charMissing) then
         ierr=20; message=trim(message)//'<restart_date> must be provided when <restart_write> option is "specified"'; return
       end if
-      call restCal%str2datetime(restart_date, ierr, cmessage)
+      call restDatetime%str2datetime(restart_date, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restart_date]'; return; endif
-      dropCal = restCal%add_sec(-dt, calendar, ierr, cmessage)
-      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restCal->dropCal]'; return; endif
-      restart_month = dropCal%month(); restart_day = dropCal%day(); restart_hour = dropCal%hour()
+      dropDatetime = restDatetime%add_sec(-dt, calendar, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restDatetime->dropDatetime]'; return; endif
+      restart_month = dropDatetime%month(); restart_day = dropDatetime%day(); restart_hour = dropDatetime%hour()
     case('yearly','monthly','daily')
-      restCal = datetime(2000, restart_month, restart_day, restart_hour, 0, 0._dp)
-      dropCal = restCal%add_sec(-dt, calendar, ierr, cmessage)
-      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [ dropCal for periodical restart]'; return; endif
-      restart_month = dropCal%month(); restart_day = dropCal%day(); restart_hour = dropCal%hour()
+      restDatetime = datetime(2000, restart_month, restart_day, restart_hour, 0, 0._dp)
+      dropDatetime = restDatetime%add_sec(-dt, calendar, ierr, cmessage)
+      if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [ dropDatetime for periodical restart]'; return; endif
+      restart_month = dropDatetime%month(); restart_day = dropDatetime%day(); restart_hour = dropDatetime%hour()
     case('never')
-      dropCal = datetime(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
+      dropDatetime = datetime(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
     case default
       ierr=20; message=trim(message)//'Current accepted <restart_write> options: last, never, specified, yearly, monthly, daily'; return
   end select

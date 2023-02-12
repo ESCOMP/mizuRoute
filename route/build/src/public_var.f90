@@ -96,7 +96,7 @@ MODULE public_var
   character(len=strLen),public    :: dname_xlon           = ''              ! dimension name for x (j, longitude) dimension
   character(len=strLen),public    :: dname_ylat           = ''              ! dimension name for y (i, latitude) dimension
   character(len=strLen),public    :: units_qsim           = ''              ! units of simulated runoff data
-  real(dp)             ,public    :: dt                   = realMissing     ! time step (seconds)
+  real(dp)             ,public    :: dt_ro                = realMissing     ! runoff time step (seconds)
   real(dp)             ,public    :: ro_fillvalue         = realMissing     ! fillvalue used for runoff depth variable
   logical(lgt)         ,public    :: userRunoffFillvalue  = .false.         ! true -> runoff depth fillvalue used in netcdf is specified here, otherwise -> false
   ! RUNOFF REMAPPING
@@ -117,6 +117,7 @@ MODULE public_var
   character(len=10)    ,public    :: routOpt              = '0'             ! routing scheme options  0: accum runoff, 1:IRF, 2:KWT, 3:KW, 4:MC, 5:DW
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
   character(len=strLen),public    :: newFileFrequency     = 'yearly'        ! frequency for new output files (daily, monthly, yearly, single)
+  real(dp)             ,public    :: dt                   = realMissing     ! simulation time step (seconds)
   ! STATES
   character(len=strLen),public    :: restart_write        = 'never'         ! restart write option: never-> never write, last -> write at last time step, specified, yearly, monthly, daily
   character(len=strLen),public    :: restart_date         = charMissing     ! specifed restart date

@@ -146,7 +146,15 @@ end type subdomain
    integer(i4b)             , allocatable  :: qhru_ix(:)   ! Index of hrus associated with runoff simulation (="qhru")
  end type remap
 
- ! simulated runoff data
+ ! mapping time step between two time series e.g., simulation time step vs runoff time step
+ type, public :: map_time
+   integer(i4b), allocatable :: iTime(:)
+   real(dp),     allocatable :: frac(:)
+ end type map_time
+
+ ! ---------- forcing data  ----------------------------------------------------------------------
+
+ ! input runoff data
  type, public :: runoff
    integer(i4b)                            :: nTime         ! number of time steps
    integer(i4b)                            :: nSpace(1:2)   ! number of spatial dimension
