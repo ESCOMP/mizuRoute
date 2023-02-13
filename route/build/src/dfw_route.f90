@@ -149,7 +149,7 @@ CONTAINS
  integer(i4b),  intent(out)                :: ierr              ! error code
  character(*),  intent(out)                :: message           ! error message
  ! Local variables
- logical(lgt)                              :: doCheck           ! check details of variables
+ logical(lgt)                              :: verbose           ! check details of variables
  logical(lgt)                              :: isHW              ! headwater basin?
  integer(i4b)                              :: nUps              ! number of upstream segment
  integer(i4b)                              :: iUps              ! upstream reach index
@@ -159,9 +159,9 @@ CONTAINS
 
  ierr=0; message='dfw_rch/'
 
- doCheck = .false.
+ verbose = .false.
  if(segIndex == ixDesire)then
-   doCheck = .true.
+   verbose = .true.
  end if
 
  ! get discharge coming from upstream
@@ -182,12 +182,11 @@ CONTAINS
        end if
        RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q = max(RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q-RCHFLX_out(iens,iRch_ups)%ROUTE(idxDW)%Qerror, 0.0001)
      end if
-
      q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q
    end do
  endif
 
- if(doCheck)then
+ if(verbose)then
    write(iulog,'(2A)') new_line('a'), '** CHECK diffusive wave routing **'
    if (nUps>0) then
      do iUps = 1,nUps
@@ -207,14 +206,14 @@ CONTAINS
                      isHW,                               &  ! input: is this headwater basin?
                      RCHSTA_out(iens,segIndex)%DW_ROUTE, &  ! inout:
                      RCHFLX_out(iens,segIndex),          &  ! inout: updated fluxes at reach
-                     doCheck,                            &  ! input: reach index to be examined
+                     verbose,                            &  ! input: reach index to be examined
                      ierr, cmessage)                        ! output: error control
  if(ierr/=0)then
     write(message, '(A,X,I12,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage)
     return
  endif
 
- if(doCheck)then
+ if(verbose)then
    write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_Q
  endif
 
@@ -232,7 +231,7 @@ CONTAINS
                            isHW,          & ! input: is this headwater basin?
                            rstate,        & ! inout: reach state at a reach
                            rflux,         & ! inout: reach flux at a reach
-                           doCheck,       & ! input: reach index to be examined
+                           verbose,       & ! input: reach index to be examined
                            ierr,message)
  ! ----------------------------------------------------------------------------------------
  ! Solve linearlized diffusive wave equation per reach and time step.
@@ -270,7 +269,7 @@ CONTAINS
  logical(lgt), intent(in)        :: isHW           ! is this headwater basin?
  type(dwRch),  intent(inout)     :: rstate         ! curent reach states
  type(STRFLX), intent(inout)     :: rflux          ! current Reach fluxes
- logical(lgt), intent(in)        :: doCheck        ! reach index to be examined
+ logical(lgt), intent(in)        :: verbose        ! reach index to be examined
  integer(i4b), intent(out)       :: ierr           ! error code
  character(*), intent(out)       :: message        ! error message
  ! Local variables
@@ -346,7 +345,7 @@ CONTAINS
    beta  = 5._dp/3._dp
    dx = rch_param%RLENGTH/Nx
 
-   if (doCheck) then
+   if (verbose) then
      write(iulog,'(A,X,G12.5)') ' length [m]        =',rch_param%RLENGTH
      write(iulog,'(A,X,G12.5)') ' slope [-]         =',rch_param%R_SLOPE
      write(iulog,'(A,X,G12.5)') ' channel width [m] =',rch_param%R_WIDTH
@@ -356,7 +355,7 @@ CONTAINS
    ! time-step adjustment so Courant number is less than 1
    dTsub = dt/ntSub
 
-   if (doCheck) then
+   if (verbose) then
      write(iulog,'(A,X,I3,A,X,G12.5)') ' No. sub timestep=',nTsub,' sub time-step [sec]=',dTsub
    end if
 
@@ -424,7 +423,7 @@ CONTAINS
      ! solve matrix equation - get updated Qlocal
      call TDMA(nMolecule%DW_ROUTE, diagonal, b, Qsolved)
 
-     if (doCheck) then
+     if (verbose) then
        write(fmt1,'(A,I5,A)') '(A,1X',nMolecule%DW_ROUTE,'(1X,G15.4))'
        write(iulog,fmt1) ' Q sub_reqch=', (Qlocal(ix,1), ix=1,nMolecule%DW_ROUTE)
      end if
@@ -436,7 +435,7 @@ CONTAINS
    ! store final outflow in data structure
    rflux%ROUTE(idxDW)%REACH_Q = Qlocal(nMolecule%DW_ROUTE,1) + rflux%BASIN_QR(1)
 
-   if (doCheck) then
+   if (verbose) then
      write(fmt1,'(A,I5,A)') '(A,1X',nMolecule%DW_ROUTE,'(1X,G15.4))'
      write(iulog,'(A,X,G12.5)') 'rflux%REACH_Q= ', rflux%ROUTE(idxDW)%REACH_Q
      write(iulog,fmt1) 'Qprev(1:nMolecule)= ', Qprev(1:nMolecule%DW_ROUTE)
@@ -465,7 +464,7 @@ CONTAINS
    rstate%molecule%Q(1:nMolecule%DW_ROUTE) = 0._dp
    rstate%molecule%Q(nMolecule%DW_ROUTE)   = rflux%ROUTE(idxDW)%REACH_Q
 
-   if (doCheck) then
+   if (verbose) then
      write(iulog,'(A)')            ' This is headwater '
    endif
 
@@ -488,7 +487,7 @@ CONTAINS
    rstate%molecule%Q(nMolecule%DW_ROUTE) = Qlocal(nMolecule%DW_ROUTE,1) - max(abs(Qmod/dt)-rflux%BASIN_QR(1), 0._dp)
  end if
 
- if (doCheck) then
+ if (verbose) then
    write(iulog,'(A,X,G12.5)') ' Qout(t) =', rflux%ROUTE(idxDW)%REACH_Q
  endif
 
