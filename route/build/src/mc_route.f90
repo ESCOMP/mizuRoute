@@ -167,12 +167,13 @@ CONTAINS
  end if
 
  ! get discharge coming from upstream
- nUps = size(NETOPO_in(segIndex)%UREACHI)
+ nUps = count(NETOPO_in(segIndex)%goodBas)
  isHW = .true.
  q_upstream = 0.0_dp
  if (nUps>0) then
    isHW = .false.
    do iUps = 1,nUps
+     if (.not. NETOPO_in(segIndex)%goodBas(iUps)) cycle
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
 
      if (qmodOption==1) then
@@ -319,7 +320,7 @@ CONTAINS
      write(iulog,'(A,X,G12.5)') ' channel width [m] =',rch_param%R_WIDTH
      write(iulog,'(A,X,G12.5)') ' manning coef [-]  =',rch_param%R_MAN_N
      write(iulog,'(A)')         ' Initial 3 point discharge [m3/s]: '
-     write(iulog,'(3(A,X,G12.5))') ' Qin(t-1) Q(0,0)=',Q(0,0),' Qin(t) Q(0,1)=',Q(0,1),' Qout(t-1) Q(1,0)=',Q(1,0)
+     write(iulog,'(3(A,X,G12.5))') ' Qin(t-1) Q(0,0)=',Q(0,0),' Qin(t) Q(1,0)=',Q(1,0),' Qout(t-1) Q(0,1)=',Q(0,1)
    end if
 
    ! first, using 3-point average in computational molecule, check Cournat number is less than 1, otherwise subcycle within one time step
@@ -390,6 +391,8 @@ CONTAINS
 
  ! compute volume
  rflux%ROUTE(idxMC)%REACH_VOL(0) = rflux%ROUTE(idxMC)%REACH_VOL(1)
+ ! For very low flow condition, outflow - inflow > current storage, so limit outflow and adjust Q(1,1)
+ ! Q(1,1) = min(rflux%ROUTE(idxMC)%REACH_VOL(0)/dt + Q(1,0)*0.999, Q(1,1))
  rflux%ROUTE(idxMC)%REACH_VOL(1) = rflux%ROUTE(idxMC)%REACH_VOL(0) + (Q(1,0)-Q(1,1))*dt
 
  ! add catchment flow
