@@ -162,11 +162,15 @@ CONTAINS
  call meta_rflx(ixRFLX%dlayRunoff       )%init('dlayRunoff'       , 'delayed runoff in each reach'                      , 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .true.)
  call meta_rflx(ixRFLX%sumUpstreamRunoff)%init('sumUpstreamRunoff', 'sum of upstream runoff in each reach'              , 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .true.)
  call meta_rflx(ixRFLX%KWTroutedRunoff  )%init('KWTroutedRunoff'  , 'routed runoff in reach - lagrangian kinematic wave', 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .true.)
+ call meta_rflx(ixRFLX%IRFroutedRunoff  )%init('IRFroutedRunoff'  , 'routed runoff in reach - Impulse Response Function', 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .true.)
  call meta_rflx(ixRFLX%MCroutedRunoff   )%init('MCroutedRunoff'   , 'routed runoff in reach - muskingum-cunge'          , 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .true.)
  call meta_rflx(ixRFLX%DWroutedRunoff   )%init('DWroutedRunoff'   , 'routed runoff in reach - diffusive wave'           , 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .true.)
  call meta_rflx(ixRFLX%KWroutedRunoff   )%init('KWroutedRunoff'   , 'routed runoff in reach - lagrangian kinematic wave', 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .true.)
- call meta_rflx(ixRFLX%IRFroutedRunoff  )%init('IRFroutedRunoff'  , 'routed runoff in reach - Impulse Response Function', 'm3/s', nf90_float, [ixQdims%seg,ixQdims%time], .true.)
- call meta_rflx(ixRFLX%volume           )%init('volume'           , 'lake and stream volume'                            , 'm3'  , nf90_float, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%KWTvolume        )%init('KWTvolume'        , 'lake and stream volume - lagrangian kinematic wave', 'm3'  , nf90_float, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%IRFvolume        )%init('IRFvolume'        , 'lake and stream volume - Impulse Response Function', 'm3'  , nf90_float, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%KWvolume         )%init('KWvolume'         , 'lake and stream volume - diffusive waven'          , 'm3'  , nf90_float, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%MCvolume         )%init('MCvolume'         , 'lake and stream volume - diffusive waven'          , 'm3'  , nf90_float, [ixQdims%seg,ixQdims%time], .false.)
+ call meta_rflx(ixRFLX%DWvolume         )%init('DWvolume'         , 'lake and stream volume - diffusive waven'          , 'm3'  , nf90_float, [ixQdims%seg,ixQdims%time], .false.)
 
  ! Lagrangian kinematic Wave restart state
  call meta_kwt(ixKWT%tentry   )%init('tentry'   , 'time when a wave enters a segment'             , 'sec'   , nf90_double, [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
@@ -176,18 +180,18 @@ CONTAINS
  call meta_kwt(ixKWT%routed   )%init('routed'   , 'routing flag'                                  , '-'     , nf90_int,    [ixStateDims%seg,ixStateDims%wave,ixStateDims%ens], .true.)
 
  ! Kinematic Wave
- call meta_kw(ixKW%qsub  )%init('q_sub_kw',  'flow at computational moelcule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_kw,ixStateDims%ens], .false.)
- call meta_kw(ixKW%volume)%init('volume_kw', 'reach volume'                  , 'm3'  , nf90_double, [ixStateDims%seg,ixStateDims%ens]                   , .false.)
+ call meta_kw(ixKW%qsub  )%init('q_sub_kw',  'flow at computational moelcule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_kw,ixStateDims%ens], .true.)
+ call meta_kw(ixKW%volume)%init('volume_kw', 'reach volume'                  , 'm3'  , nf90_double, [ixStateDims%seg,ixStateDims%ens]                   , .true.)
  call meta_kw(ixKW%qerror)%init('qerror_kw', 'discharge error'               , 'm3'  , nf90_double, [ixStateDims%seg,ixStateDims%ens]                   , .true.)
 
  ! Diffusive Wave
- call meta_dw(ixDW%qsub  )%init('q_sub_dw',  'flow at computational moelcule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_dw,ixStateDims%ens], .false.)
- call meta_dw(ixDW%volume)%init('volume_dw', 'reach volume'                  , 'm3'  , nf90_double, [ixStateDims%seg,ixStateDims%ens]                   , .false.)
+ call meta_dw(ixDW%qsub  )%init('q_sub_dw',  'flow at computational moelcule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_dw,ixStateDims%ens], .true.)
+ call meta_dw(ixDW%volume)%init('volume_dw', 'reach volume'                  , 'm3'  , nf90_double, [ixStateDims%seg,ixStateDims%ens]                   , .true.)
  call meta_dw(ixDW%qerror)%init('qerror_dw', 'discharge error'               , 'm3'  , nf90_double, [ixStateDims%seg,ixStateDims%ens]                   , .true.)
 
  ! Muskingum-cunge
- call meta_mc(ixMC%qsub  )%init('q_sub_mc',  'flow at computational molecule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_mc,ixStateDims%ens], .false.)
- call meta_mc(ixMC%volume)%init('volume_mc', 'reach volume'                  , 'm3'  , nf90_double, [ixStateDims%seg,ixStateDims%ens]                   , .false.)
+ call meta_mc(ixMC%qsub  )%init('q_sub_mc',  'flow at computational molecule', 'm3/s', nf90_double, [ixStateDims%seg,ixStateDims%mol_mc,ixStateDims%ens], .true.)
+ call meta_mc(ixMC%volume)%init('volume_mc', 'reach volume'                  , 'm3'  , nf90_double, [ixStateDims%seg,ixStateDims%ens]                   , .true.)
  call meta_mc(ixMC%qerror)%init('qerror_mc', 'discharge error'               , 'm3'  , nf90_double, [ixStateDims%seg,ixStateDims%ens]                   , .true.)
 
  ! Impulse Response Function

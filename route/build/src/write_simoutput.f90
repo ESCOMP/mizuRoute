@@ -54,7 +54,6 @@ CONTAINS
   integer(i4b)                    :: iens             ! temporal
   character(len=strLen)           :: cmessage         ! error message of downwind routine
 
-  ! initialize error control
   ierr=0; message='output/'
 
   iens = 1
@@ -129,6 +128,38 @@ CONTAINS
       array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxDW)%REACH_Q
     end do
     call write_nc(simout_nc%ncid, 'DWroutedRunoff', array_temp(1:nRch), (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  if (meta_rflx(ixRFLX%IRFvolume)%varFile) then
+    do ix=1,nRCH
+      array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxIRF)%REACH_VOL(1)
+    end do
+    call write_nc(simout_nc%ncid, 'IRFvolume', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  if (meta_rflx(ixRFLX%KWvolume)%varFile) then
+    do ix=1,nRCH
+      array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxKW)%REACH_VOL(1)
+    end do
+    call write_nc(simout_nc%ncid, 'KWvolume', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  if (meta_rflx(ixRFLX%MCvolume)%varFile) then
+    do ix=1,nRCH
+      array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxMC)%REACH_VOL(1)
+    end do
+    call write_nc(simout_nc%ncid, 'MCvolume', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  if (meta_rflx(ixRFLX%DWvolume)%varFile) then
+    do ix=1,nRCH
+      array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxDW)%REACH_VOL(1)
+    end do
+    call write_nc(simout_nc%ncid, 'DWvolume', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if
 
