@@ -136,12 +136,16 @@ MODULE var_lookup
   integer(i4b)     :: instRunoff        = integerMissing  ! instantaneous runoff in each reach
   integer(i4b)     :: dlayRunoff        = integerMissing  ! delayed runoff in each reac
   integer(i4b)     :: sumUpstreamRunoff = integerMissing  ! sum of upstream runoff in each reach
-  integer(i4b)     :: KWTroutedRunoff   = integerMissing  ! Lagrangian KWT routed runoff in each reach
+  integer(i4b)     :: KWTroutedRunoff   = integerMissing  ! Lagrangian kinematic wave routed runoff in each reach
+  integer(i4b)     :: IRFroutedRunoff   = integerMissing  ! IRF routed runoff in each reach
   integer(i4b)     :: KWroutedRunoff    = integerMissing  ! KW routed runoff in each reach
   integer(i4b)     :: MCroutedRunoff    = integerMissing  ! muskingum-cunge routed runoff in each reach
   integer(i4b)     :: DWroutedRunoff    = integerMissing  ! diffusive wave routed runoff in each reach
-  integer(i4b)     :: IRFroutedRunoff   = integerMissing  ! IRF routed runoff in each reach
-  integer(i4b)     :: volume            = integerMissing  ! water volume
+  integer(i4b)     :: KWTvolume         = integerMissing  ! water volume in reach- Lagrangian kinematic wave
+  integer(i4b)     :: IRFvolume         = integerMissing  ! water volume in reach- impulse response function
+  integer(i4b)     :: KWvolume          = integerMissing  ! water volume in reach- kinematic wave
+  integer(i4b)     :: MCvolume          = integerMissing  ! water volume in reach- muskingum-cunge
+  integer(i4b)     :: DWvolume          = integerMissing  ! water volume in reach- diffusive wave
  endtype iLook_RFLX
  ! Reach inflow from basin
  type, public  ::  iLook_basinQ
@@ -195,7 +199,7 @@ MODULE var_lookup
  type(iLook_SEG)      ,public,parameter :: ixSEG       = iLook_SEG      (1,2,3,4,5,6,7,8,9,10,11,12,13)
  type(iLook_NTOPO)    ,public,parameter :: ixNTOPO     = iLook_NTOPO    (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17)
  type(iLook_PFAF)     ,public,parameter :: ixPFAF      = iLook_PFAF     (1)
- type(iLook_RFLX)     ,public,parameter :: ixRFLX      = iLook_RFLX     (1,2,3,4,5,6,7,8,9,10)
+ type(iLook_RFLX)     ,public,parameter :: ixRFLX      = iLook_RFLX     (1,2,3,4,5,6,7,8,9,10,11,12,13,14)
  type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      (1,2,3,4,5)
  type(iLook_KW)       ,public,parameter :: ixKW        = iLook_KW       (1,2,3)
  type(iLook_DW)       ,public,parameter :: ixDW        = iLook_DW       (1,2,3)

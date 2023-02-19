@@ -194,6 +194,11 @@ CONTAINS
    case('<KWroutedRunoff>');       read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWroutedRunoff   )%varFile
    case('<DWroutedRunoff>');       read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWroutedRunoff   )%varFile
    case('<MCroutedRunoff>');       read(cData,*,iostat=io_error) meta_rflx(ixRFLX%MCroutedRunoff   )%varFile
+   case('<KWTvolume>');            read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWTvolume        )%varFile
+   case('<IRFvolume>');            read(cData,*,iostat=io_error) meta_rflx(ixRFLX%IRFvolume        )%varFile
+   case('<KWvolume>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWvolume         )%varFile
+   case('<DWvolume>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWvolume         )%varFile
+   case('<MCvolume>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%MCvolume         )%varFile
 
    ! VARIABLE NAMES for data (overwrite default name in popMeta.f90)
    ! HRU structure
@@ -330,12 +335,35 @@ CONTAINS
 
  do iRoute = 0, nRouteMethods-1
    select case(iRoute)
-     case(accumRunoff);           if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile=.false.
-     case(kinematicWaveTracking); if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%KWTroutedRunoff)%varFile=.false.
-     case(impulseResponseFunc);   if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%IRFroutedRunoff)%varFile=.false.
-     case(muskingumCunge);        if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%MCroutedRunoff)%varFile=.false.
-     case(kinematicWave);         if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%KWroutedRunoff)%varFile=.false.
-     case(diffusiveWave);         if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%DWroutedRunoff)%varFile=.false.
+     case(accumRunoff)
+       if (.not. onRoute(iRoute)) then
+         meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile=.false.
+       end if
+     case(kinematicWaveTracking)
+       if (.not. onRoute(iRoute)) then
+         meta_rflx(ixRFLX%KWTroutedRunoff)%varFile=.false.
+         meta_rflx(ixRFLX%KWTvolume)%varFile=.false.
+       end if
+     case(impulseResponseFunc)
+       if (.not. onRoute(iRoute)) then
+         meta_rflx(ixRFLX%IRFroutedRunoff)%varFile=.false.
+          meta_rflx(ixRFLX%IRFvolume)%varFile=.false.
+       end if
+     case(muskingumCunge)
+       if (.not. onRoute(iRoute)) then
+         meta_rflx(ixRFLX%MCroutedRunoff)%varFile=.false.
+         meta_rflx(ixRFLX%MCvolume)%varFile=.false.
+       end if
+     case(kinematicWave)
+       if (.not. onRoute(iRoute)) then
+         meta_rflx(ixRFLX%KWroutedRunoff)%varFile=.false.
+         meta_rflx(ixRFLX%KWvolume)%varFile=.false.
+       end if
+     case(diffusiveWave)
+       if (.not. onRoute(iRoute)) then
+         meta_rflx(ixRFLX%DWroutedRunoff)%varFile=.false.
+         meta_rflx(ixRFLX%DWvolume)%varFile=.false.
+       end if
      case default; message=trim(message)//'expect digits from 0 and 5'; err=81; return
    end select
  end do
