@@ -9,10 +9,6 @@ MODULE public_var
 
   save
 
-  ! ---------- mizuRoute version -------------------------------------------------------------------
-
-  character(len=strLen), parameter, public    :: mizuRouteVersion='v1.2.2'
-
   ! ---------- common constants ---------------------------------------------------------------------
 
   ! physical constants

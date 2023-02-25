@@ -58,8 +58,14 @@ MODULE globalData
 
   save
 
+  ! ---------- mizuRoute version -------------------------------------------------------------------
+
+  character(len=strLen)          , public :: version='undefined'        ! mizuRoute version
+  character(len=strLen)          , public :: gitBranch='undefined'      ! github branch
+  character(len=strLen)          , public :: gitHash='undefined'        ! github commit hash
+
   ! ---------- MPI/OMP variables -------------------------------------------------------------------
-  integer(i4b)                  :: nThreads            ! number of threads
+  integer(i4b)                   , public :: nThreads                   ! number of threads
 
   ! ---------- conversion factors -------------------------------------------------------------------
   real(dp)                       , public :: time_conv                  ! time conversion factor -- used to convert to mm/s
