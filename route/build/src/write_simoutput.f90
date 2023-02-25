@@ -270,9 +270,11 @@ CONTAINS
                        units_time,      &  ! input: time units
                        calendar,        &  ! input: calendar
                        ierr, message)      ! output: error control
- !Dependent modules
- USE public_var, ONLY: mizuRouteVersion
+
  USE public_var, ONLY: netcdf_format
+ USE globalData, ONLY: version
+ USE globalData, ONLY: gitBranch
+ USE globalData, ONLY: gitHash
  USE globalData, ONLY: meta_qDims
  USE var_lookup, ONLY: ixQdims, nQdims
 
@@ -355,7 +357,13 @@ CONTAINS
 
  end do
 
- call put_global_attr(ncid, 'version', trim(mizuRouteVersion) ,ierr, cmessage)
+ call put_global_attr(ncid, 'mizuRoute-version', trim(version) ,ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ call put_global_attr(ncid, 'gitBranch', trim(gitBranch) ,ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ call put_global_attr(ncid, 'gitHash', trim(gitHash) ,ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  call end_def(ncid, ierr, cmessage)

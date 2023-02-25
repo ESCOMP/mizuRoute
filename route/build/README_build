@@ -3,7 +3,9 @@
 # NOTE: This is example of NCAR cheyenne supercomputer, in other words, $NETCDF is set by module load netcdf, 
 #       For the other machines, users need to find netcdf path and set NCDF_PATH
 
+# ---
 # For gnu compiler
+# ---
 module purge
 module load gnu
 module load netcdf
@@ -12,10 +14,13 @@ setenv BLDDIR `pwd`/../
 # if bash used
 export BLDDIR=`pwd`/../
 # regardless of shell choices
-gmake FC=gnu FC_EXE=gfortran F_MASTER=$BLDDIR NCDF_PATH=$NETCDF isOpenMP=yes EXE=route_runoff
+# to disable openMP, remove isOpenMP=yes 
+# MODE options: fast, debug
+gmake FC=gnu FC_EXE=gfortran F_MASTER=$BLDDIR NCDF_PATH=$NETCDF isOpenMP=yes MODE=fast EXE=route_runoff
 
-
-# For intel with MPI, PNETCDF and installed PIO2 libraries
+# ---
+# For intel compiler
+# ---
 module purge
 module load intel
 module load netcdf
@@ -23,5 +28,7 @@ module load netcdf
 setenv BLDDIR `pwd`/../
 # if bash used 
 export BLDDIR=`pwd`/../
-#regardless of shell choices
-gmake FC=intel FC_EXE=ifort F_MASTER=$BLDDIR NCDF_PATH=$NETCDF isOpenMP=yes EXE=route_runoff
+# regardless of shell choices
+# to disable openMP, remove isOpenMP=yes 
+# MODE options: fast, debug
+gmake FC=intel FC_EXE=ifort F_MASTER=$BLDDIR NCDF_PATH=$NETCDF isOpenMP=yes MODE=fast EXE=route_runoff
