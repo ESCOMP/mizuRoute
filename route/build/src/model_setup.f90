@@ -307,7 +307,7 @@ CONTAINS
           RCHSTA(iens,ix)%MC_ROUTE%molecule%Q(:) = 0._dp
         end do
       else if (routeMethods(iRoute)==diffusiveWave) then
-        nMolecule%DW_ROUTE = 5
+        nMolecule%DW_ROUTE = 20
         do ix = 1, size(RCHSTA(1,:))
           RCHFLX(iens,ix)%ROUTE(iRoute)%REACH_VOL(0:1) = 0._dp
           RCHFLX(iens,ix)%ROUTE(iRoute)%Qerror = 0._dp

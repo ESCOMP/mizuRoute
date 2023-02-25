@@ -218,6 +218,13 @@ CONTAINS
    write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_Q
  endif
 
+ if (RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_Q < 0) then
+   write(iulog,'(A,X,G12.5,X,A,X,I9)') ' ---- NEGATIVE FLOW (Diffusive Wave)= ', RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_Q, 'at ', NETOPO_in(segIndex)%REACHID
+ end if
+ if (RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(1) < 0) then
+   write(iulog,'(A,X,G12.5,X,A,X,I9)') ' ---- NEGATIVE VOLUME (Diffusive Wave)= ', RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(1), 'at ', NETOPO_in(segIndex)%REACHID
+ end if
+
  END SUBROUTINE dfw_rch
 
 
@@ -345,7 +352,7 @@ CONTAINS
    ! Q = alpha*A**beta
    alpha = sqrt(rch_param%R_SLOPE)/(rch_param%R_MAN_N*rch_param%R_WIDTH**(2._dp/3._dp))
    beta  = 5._dp/3._dp
-   dx = rch_param%RLENGTH/Nx
+   dx = rch_param%RLENGTH/(Nx-1) ! one extra sub-segment beyond outlet
 
    if (verbose) then
      write(iulog,'(A,X,G12.5)') ' length [m]        =',rch_param%RLENGTH
@@ -373,7 +380,7 @@ CONTAINS
 
    do it = 1, nTsub
 
-     Qbar = (Qlocal(1,1)+Qlocal(1,0)+Qlocal(nMolecule%DW_ROUTE,0))/3.0 ! 3 point average discharge [m3/s]
+     Qbar = (Qlocal(1,1)+Qlocal(1,0)+Qlocal(nMolecule%DW_ROUTE-1,0))/3.0 ! 3 point average discharge [m3/s]
      Abar = (abs(Qbar)/alpha)**(1/beta)                            ! flow area [m2] (manning equation)
      Vbar = 0._dp
      if (Abar>0._dp) Vbar = Qbar/Abar                     ! average velocity [m/s]
@@ -437,13 +444,13 @@ CONTAINS
    ! compute volume
    rflux%ROUTE(idxDW)%REACH_VOL(0) = rflux%ROUTE(idxDW)%REACH_VOL(1)
    ! For very low flow condition, outflow - inflow may exceed current storage, so limit outflow and adjust flow profile
-   !pcntReduc = min((rflux%ROUTE(idxDW)%REACH_VOL(0)/dt + Qlocal(1,1) *0.999)/Qlocal(nMolecule%DW_ROUTE-1,1), 1._dp)
-   !Qlocal(2:nMolecule%DW_ROUTE,1) = Qlocal(2:nMolecule%DW_ROUTE,1)*pcntReduc
+   pcntReduc = min((rflux%ROUTE(idxDW)%REACH_VOL(0)/dt + Qlocal(1,1) *0.999)/Qlocal(nMolecule%DW_ROUTE-1,1), 1._dp)
+   Qlocal(2:nMolecule%DW_ROUTE,1) = Qlocal(2:nMolecule%DW_ROUTE,1)*pcntReduc
 
-   rflux%ROUTE(idxDW)%REACH_VOL(1) = rflux%ROUTE(idxDW)%REACH_VOL(0) + (Qlocal(1,1) - Qlocal(nMolecule%DW_ROUTE,1))*dt
+   rflux%ROUTE(idxDW)%REACH_VOL(1) = rflux%ROUTE(idxDW)%REACH_VOL(0) + (Qlocal(1,1) - Qlocal(nMolecule%DW_ROUTE-1,1))*dt
 
    ! store final outflow in data structure
-   rflux%ROUTE(idxDW)%REACH_Q = Qlocal(nMolecule%DW_ROUTE,1) + rflux%BASIN_QR(1)
+   rflux%ROUTE(idxDW)%REACH_Q = Qlocal(nMolecule%DW_ROUTE-1,1) + rflux%BASIN_QR(1)
 
    ! update state
    rstate%molecule%Q = Qlocal(:,1)
@@ -490,8 +497,8 @@ CONTAINS
 
    ! modify computational molecule state (Q)
    ! abstracted flow use lateral flow first, so lateral flow is taken out from total abstracted flow
-   !pcntReduc = 1._dp - max(abs(Qmod/dt)-rflux%BASIN_QR(1), 0._dp)/Qlocal(nMolecule%DW_ROUTE-1, 1)
-   rstate%molecule%Q(nMolecule%DW_ROUTE) = Qlocal(nMolecule%DW_ROUTE,1) - max(abs(Qmod/dt)-rflux%BASIN_QR(1), 0._dp)
+   pcntReduc = 1._dp - max(abs(Qmod/dt)-rflux%BASIN_QR(1), 0._dp)/Qlocal(nMolecule%DW_ROUTE-1, 1)
+   rstate%molecule%Q(2:nMolecule%DW_ROUTE) = Qlocal(2:nMolecule%DW_ROUTE,1) *pcntReduc
  end if
 
  END SUBROUTINE diffusive_wave
