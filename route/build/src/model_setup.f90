@@ -38,6 +38,9 @@ CONTAINS
   USE public_var,          ONLY : ancil_dir
   USE public_var,          ONLY : param_nml
   USE globalData,          ONLY : nThreads         ! a number of threads
+  USE globalData,          ONLY : version          ! mizuRoute version
+  USE globalData,          ONLY : gitBranch        ! git branch
+  USE globalData,          ONLY : gitHash          ! git commit hash
   USE popMetadat_module,   ONLY : popMetadat       ! populate metadata
   USE read_control_module, ONLY : read_control     ! read the control file
   USE read_param_module,   ONLY : read_param       ! read the routing parameters
@@ -52,6 +55,17 @@ CONTAINS
   character(len=strLen)       :: cmessage            ! error message of downwind routine
 
   ierr=0; message='init_model/'
+
+  ! Get mizuRoute model information
+#if defined(VERSION)
+  version=VERSION
+#endif
+#if defined(HASH)
+  gitHash=HASH
+#endif
+#if defined(BRANCH)
+  gitBranch=BRANCH
+#endif
 
   ! Get number of threads
   nThreads = 1
