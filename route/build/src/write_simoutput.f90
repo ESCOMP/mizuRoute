@@ -40,6 +40,7 @@ CONTAINS
   USE globalData, ONLY: nHRU, nRch          ! number of ensembles, HRUs and river reaches
   USE globalData, ONLY: RCHFLX              ! Reach fluxes (ensembles, space [reaches])
   USE globalData, ONLY: runoff_data         ! runoff data for one time step for LSM HRUs and River network HRUs
+  USE globalData, ONLY: timeVar             ! time variable at current model time step
 
   implicit none
 
@@ -53,7 +54,6 @@ CONTAINS
   integer(i4b)                    :: iens             ! temporal
   character(len=strLen)           :: cmessage         ! error message of downwind routine
 
-  ! initialize error control
   ierr=0; message='output/'
 
   iens = 1
@@ -62,7 +62,7 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [array_temp]'; return; endif
 
   ! write time -- note time is just carried across from the input
-  call write_nc(simout_nc%ncid, 'time', (/runoff_data%time/), (/jTime/), (/1/), ierr, cmessage)
+  call write_nc(simout_nc%ncid, 'time', (/timeVar/), (/jTime/), (/1/), ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   if (meta_rflx(ixRFLX%basRunoff)%varFile) then
@@ -131,6 +131,38 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if
 
+  if (meta_rflx(ixRFLX%IRFvolume)%varFile) then
+    do ix=1,nRCH
+      array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxIRF)%REACH_VOL(1)
+    end do
+    call write_nc(simout_nc%ncid, 'IRFvolume', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  if (meta_rflx(ixRFLX%KWvolume)%varFile) then
+    do ix=1,nRCH
+      array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxKW)%REACH_VOL(1)
+    end do
+    call write_nc(simout_nc%ncid, 'KWvolume', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  if (meta_rflx(ixRFLX%MCvolume)%varFile) then
+    do ix=1,nRCH
+      array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxMC)%REACH_VOL(1)
+    end do
+    call write_nc(simout_nc%ncid, 'MCvolume', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
+  if (meta_rflx(ixRFLX%DWvolume)%varFile) then
+    do ix=1,nRCH
+      array_temp(ix) = RCHFLX(iens, ix)%ROUTE(idxDW)%REACH_VOL(1)
+    end do
+    call write_nc(simout_nc%ncid, 'DWvolume', array_temp, (/1,jTime/), (/nRch,1/), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end if
+
  END SUBROUTINE output
 
 
@@ -148,7 +180,7 @@ CONTAINS
  USE public_var,          only : time_units        ! time units (seconds, hours, or days)
  ! saved global data
  USE globalData,          only : basinID,reachID   ! HRU and reach ID in network
- USE globalData,          only : modTime           ! previous and current model time
+ USE globalData,          only : simDatetime       ! previous and current model time
  USE globalData,          only : nEns, nHRU, nRch  ! number of ensembles, HRUs and river reaches
 
  implicit none
@@ -166,14 +198,14 @@ CONTAINS
  ierr=0; message='prep_output/'
 
  ! print progress
- write(iulog,'(a,I4,4(x,I4))') new_line('a'), modTime(1)%year(), modTime(1)%month(), modTime(1)%day(), modTime(1)%hour(), modTime(1)%minute()
+ write(iulog,'(a,I4,4(x,I4))') new_line('a'), simDatetime(1)%year(), simDatetime(1)%month(), simDatetime(1)%day(), simDatetime(1)%hour(), simDatetime(1)%minute()
 
  ! check need for the new file
  select case(lower(trim(newFileFrequency)))
-   case('single'); defNewOutputFile=(modTime(0)%year() ==integerMissing)
-   case('yearly'); defNewOutputFile=(modTime(1)%year() /=modTime(0)%year())
-   case('monthly');  defNewOutputFile=(modTime(1)%month()/=modTime(0)%month())
-   case('daily');    defNewOutputFile=(modTime(1)%day()  /=modTime(0)%day())
+   case('single'); defNewOutputFile=(simDatetime(0)%year() ==integerMissing)
+   case('yearly'); defNewOutputFile=(simDatetime(1)%year() /=simDatetime(0)%year())
+   case('monthly');  defNewOutputFile=(simDatetime(1)%month()/=simDatetime(0)%month())
+   case('daily');    defNewOutputFile=(simDatetime(1)%day()  /=simDatetime(0)%day())
    case default; ierr=20; message=trim(message)//'Accepted <newFileFrequency> options (case-insensitive): single yearly, monthly, or daily '; return
  end select
 
@@ -192,9 +224,9 @@ CONTAINS
    jTime=1
 
    ! update filename
-   sec_in_day = modTime(1)%hour()*60*60+modTime(1)%minute()*60+nint(modTime(1)%sec())
+   sec_in_day = simDatetime(1)%hour()*60*60+simDatetime(1)%minute()*60+nint(simDatetime(1)%sec())
    write(simout_nc%ncname, fmtYMDS) trim(output_dir)//trim(case_name)//'.h.', &
-                                     modTime(1)%year(), '-', modTime(1)%month(), '-', modTime(1)%day(), '-',sec_in_day,'.nc'
+                                     simDatetime(1)%year(), '-', simDatetime(1)%month(), '-', simDatetime(1)%day(), '-',sec_in_day,'.nc'
 
    call defineFile(simout_nc%ncname,                      &  ! input: file name
                    nEns,                                  &  ! input: number of ensembles

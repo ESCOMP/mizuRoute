@@ -1,7 +1,7 @@
 MODULE write_restart
 
 USE nrtype
-USE date_time, ONLY: datetime
+USE datetime_data, ONLY: datetime
 USE io_netcdf, ONLY: ncd_int
 USE io_netcdf, ONLY: ncd_float, ncd_double
 USE io_netcdf, ONLY: ncd_unlimited
@@ -73,9 +73,9 @@ CONTAINS
    USE public_var,        ONLY: restart_write  ! restart write options
    USE public_var,        ONLY: restart_day
    USE globalData,        ONLY: restartAlarm   ! logical to make alarm for restart writing
-   USE globalData,        ONLY: restCal        ! restart Calendar time
-   USE globalData,        ONLY: dropCal        ! restart drop off Calendar time
-   USE globalData,        ONLY: modTime        ! previous and current model time
+   USE globalData,        ONLY: restDatetime   ! restart Calendar time
+   USE globalData,        ONLY: dropDatetime   ! restart drop off Calendar time
+   USE globalData,        ONLY: simDatetime    ! previous and current model time
 
    implicit none
 
@@ -89,28 +89,28 @@ CONTAINS
    ierr=0; message='restart_alarm/'
 
    ! adjust restart dropoff day if the dropoff day is outside number of days in particular month
-   call dropCal%set_datetime(dropCal%year(), dropCal%month(), restart_day, dropCal%hour(), dropCal%minute(), dropCal%sec())
-   nDays = modTime(1)%ndays_month(calendar, ierr, cmessage)
+   dropDatetime = datetime(dropDatetime%year(), dropDatetime%month(), restart_day, dropDatetime%hour(), dropDatetime%minute(), dropDatetime%sec())
+   nDays = simDatetime(1)%ndays_month(calendar, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   if (dropCal%day() > nDays) then
-     call dropCal%set_datetime(dropCal%year(), dropCal%month(), nDays, dropCal%hour(), dropCal%minute(), dropCal%sec())
+   if (dropDatetime%day() > nDays) then
+     dropDatetime = datetime(dropDatetime%year(), dropDatetime%month(), nDays, dropDatetime%hour(), dropDatetime%minute(), dropDatetime%sec())
    end if
 
    ! adjust dropoff day further if restart day is actually outside number of days in a particular month
-   if (restCal%day() > nDays) then
-     dropCal = dropCal%add_day(-1, calendar, ierr, cmessage)
+   if (restDatetime%day() > nDays) then
+     dropDatetime = dropDatetime%add_day(-1, calendar, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
 
    select case(lower(trim(restart_write)))
      case('specified','last')
-       restartAlarm = (dropCal==modTime(1))
+       restartAlarm = (dropDatetime==simDatetime(1))
      case('yearly')
-       restartAlarm = (dropCal%is_equal_mon(modTime(1)) .and. dropCal%is_equal_day(modTime(1)) .and. dropCal%is_equal_time(modTime(1)))
+       restartAlarm = (dropDatetime%is_equal_mon(simDatetime(1)) .and. dropDatetime%is_equal_day(simDatetime(1)) .and. dropDatetime%is_equal_time(simDatetime(1)))
      case('monthly')
-       restartAlarm = (dropCal%is_equal_day(modTime(1)) .and. dropCal%is_equal_time(modTime(1)))
+       restartAlarm = (dropDatetime%is_equal_day(simDatetime(1)) .and. dropDatetime%is_equal_time(simDatetime(1)))
      case('daily')
-       restartAlarm = dropCal%is_equal_time(modTime(1))
+       restartAlarm = dropDatetime%is_equal_time(simDatetime(1))
      case('never')
        restartAlarm = .false.
      case default
@@ -168,7 +168,7 @@ CONTAINS
    USE public_var,          ONLY: case_name        ! simulation name ==> output filename head
    USE public_var,          ONLY: calendar
    USE public_var,          ONLY: secprday
-   USE globalData,          ONLY: modTime          ! current model datetime
+   USE globalData,          ONLY: simDatetime      ! current model datetime
 
    implicit none
 
@@ -188,8 +188,8 @@ CONTAINS
    ierr=0; message='restart_fname/'
 
    select case(timeStamp)
-     case(currTimeStep); timeStampCal = modTime(1)
-     case(nextTimeStep); timeStampCal = modTime(1)%add_sec(dt, calendar, ierr, cmessage)
+     case(currTimeStep); timeStampCal = simDatetime(1)
+     case(nextTimeStep); timeStampCal = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
      case default;       ierr=20; message=trim(message)//'time stamp option in restart filename: invalid -> 1: current time Step or 2: next time step'; return
    end select
 
@@ -211,7 +211,7 @@ CONTAINS
                             ierr, message)      ! output: error control
 
  USE globalData, ONLY: meta_stateDims
- USE globalData, ONLY: modTime                 ! current model datetime
+ USE globalData, ONLY: simDatetime                 ! current model datetime
  USE public_var, ONLY: calendar
  USE var_lookup, ONLY: ixStateDims, nStateDims
 
@@ -270,7 +270,7 @@ CONTAINS
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get which time is for restarting
- timeStampCal = modTime(1)%add_sec(dt, calendar, ierr, cmessage)
+ timeStampCal = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
  write(globalDesc, fmtYMDHMS) timeStampCal%year(),'-',timeStampCal%month(),'-',timeStampCal%day(),timeStampCal%hour(),':',timeStampCal%minute(),':',nint(timeStampCal%sec())
 
  call put_global_attr(ncid, 'Restart time', trim(globalDesc), ierr, cmessage)
@@ -327,6 +327,7 @@ CONTAINS
    USE globalData,   ONLY: meta_stateDims  ! states dimension meta
    USE globalData,   ONLY: nRch
    USE globalData,   ONLY: nMolecule
+   USE globalData,   ONLY: maxtdh          ! maximum unit-hydrogrph future time
    USE public_var,   ONLY: MAXQPAR
    USE globalData,   ONLY: FRAC_FUTURE     ! To get size of q future for basin IRF
 
@@ -347,7 +348,7 @@ CONTAINS
      case(ixStateDims%ens);     meta_stateDims(ixStateDims%ens)%dimLength     = 1
      case(ixStateDims%tbound);  meta_stateDims(ixStateDims%tbound)%dimLength  = 2
      case(ixStateDims%tdh);     meta_stateDims(ixStateDims%tdh)%dimLength     = size(FRAC_FUTURE)
-     case(ixStateDims%tdh_irf); meta_stateDims(ixStateDims%tdh_irf)%dimLength = 50   !just temporarily
+     case(ixStateDims%tdh_irf); meta_stateDims(ixStateDims%tdh_irf)%dimLength = maxtdh
      case(ixStateDims%wave);    meta_stateDims(ixStateDims%wave)%dimLength    = MAXQPAR
      case(ixStateDims%mol_kw);  meta_stateDims(ixStateDims%mol_kw)%dimLength  = nMolecule%KW_ROUTE
      case(ixStateDims%mol_mc);  meta_stateDims(ixStateDims%mol_mc)%dimLength  = nMolecule%MC_ROUTE
@@ -1021,7 +1022,7 @@ CONTAINS
   do iVar=1,nVarsIRF
     select case(iVar)
       case(ixIRF%qfuture); allocate(state%var(iVar)%array_3d_dp(nSeg, ntdh_irf, nens), stat=ierr)
-      case(ixIRF%irfVol);  allocate(state%var(iVar)%array_2d_dp(nSeg, nens), stat=ierr)
+      case(ixIRF%volume : ixIRF%qerror);  allocate(state%var(iVar)%array_2d_dp(nSeg, nens), stat=ierr)
       case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
     end select
     if(ierr/=0)then; message1=trim(message1)//'problem allocating space for IRF routing state '//trim(meta_irf(iVar)%varName); return; endif
@@ -1036,8 +1037,10 @@ CONTAINS
           case(ixIRF%qfuture)
             state%var(iVar)%array_3d_dp(iSeg,1:numQF(iens,iSeg),iens) = RCHFLX(iens,iSeg)%QFUTURE_IRF
             state%var(iVar)%array_3d_dp(iSeg,numQF(iens,iSeg)+1:ntdh_irf,iens) = realMissing
-          case(ixIRF%irfVol)
+          case(ixIRF%volume)
             state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX(iens,iSeg)%ROUTE(idxIRF)%REACH_VOL(1)
+          case(ixIRF%qerror)
+            state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX(iens,iSeg)%ROUTE(idxIRF)%Qerror
           case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
         end select
       enddo ! variable loop
@@ -1052,7 +1055,7 @@ CONTAINS
     select case(iVar)
       case(ixIRF%qfuture)
         call write_nc(ncid, trim(meta_irf(iVar)%varName), state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,ntdh_irf,nens/), ierr, cmessage)
-      case(ixIRF%irfVol)
+      case(ixIRF%volume : ixIRF%qerror)
         call write_nc(ncid, trim(meta_irf(iVar)%varName), state%var(iVar)%array_2d_dp, (/1,1/), (/nSeg,nens/), ierr, cmessage)
       case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc writing'; return
       if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -1067,6 +1070,7 @@ CONTAINS
   SUBROUTINE write_KW_state(ierr, message1)
 
     USE globalData,   ONLY: meta_kw
+    USE globalData,   ONLY: idxKW
     USE var_lookup,   ONLY: ixKW, nVarsKW
 
     implicit none
@@ -1089,8 +1093,8 @@ CONTAINS
 
     do iVar=1,nVarsKW
       select case(iVar)
-       case(ixKW%qsub)
-        allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
+       case(ixKW%qsub);   allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
+       case(ixKW%volume : ixKW%qerror); allocate(state%var(iVar)%array_2d_dp(nSeg, nens), stat=ierr)
        case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//'problem allocating space for KW routing state '//trim(meta_kw(iVar)%varName); return; endif
@@ -1103,6 +1107,10 @@ CONTAINS
           select case(iVar)
             case(ixKW%qsub)
               state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA(iens, iSeg)%KW_ROUTE%molecule%Q(1:nMesh)
+            case(ixKW%volume)
+              state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX(iens,iSeg)%ROUTE(idxKW)%REACH_VOL(1)
+            case(ixKW%qerror)
+              state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX(iens,iSeg)%ROUTE(idxKW)%Qerror
             case default; ierr=20; message1=trim(message1)//'unable to identify KW routing state variable index'; return
           end select
         enddo ! variable loop
@@ -1114,6 +1122,8 @@ CONTAINS
       select case(iVar)
        case(ixKW%qsub)
          call write_nc(ncid, trim(meta_kw(iVar)%varName), state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nMesh,nens/), ierr, cmessage)
+       case(ixKW%volume : ixKW%qerror)
+         call write_nc(ncid, trim(meta_kw(iVar)%varName), state%var(iVar)%array_2d_dp, (/1,1/), (/nSeg,nens/), ierr, cmessage)
        case default; ierr=20; message1=trim(message1)//'unable to identify KW variable index for nc writing'; return
       end select
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -1128,6 +1138,7 @@ CONTAINS
   SUBROUTINE write_MC_state(ierr, message1)
 
     USE globalData,   ONLY: meta_mc
+    USE globalData,   ONLY: idxMC
     USE var_lookup,   ONLY: ixMC, nVarsMC
 
     implicit none
@@ -1150,8 +1161,8 @@ CONTAINS
 
     do iVar=1,nVarsMC
       select case(iVar)
-       case(ixMC%qsub)
-        allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
+       case(ixMC%qsub);   allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
+       case(ixMC%volume : ixMC%qerror); allocate(state%var(iVar)%array_2d_dp(nSeg, nens), stat=ierr)
        case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//'problem allocating space for MC routing state '//trim(meta_mc(iVar)%varName); return; endif
@@ -1164,6 +1175,10 @@ CONTAINS
           select case(iVar)
             case(ixMC%qsub)
               state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA(iens, iSeg)%MC_ROUTE%molecule%Q(1:nMesh)
+            case(ixMC%volume)
+              state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX(iens,iSeg)%ROUTE(idxMC)%REACH_VOL(1)
+            case(ixMC%qerror)
+              state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX(iens,iSeg)%ROUTE(idxMC)%Qerror
             case default; ierr=20; message1=trim(message1)//'unable to identify MC routing state variable index'; return
           end select
         enddo ! variable loop
@@ -1175,6 +1190,8 @@ CONTAINS
       select case(iVar)
        case(ixMC%qsub)
          call write_nc(ncid, trim(meta_mc(iVar)%varName), state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nMesh,nens/), ierr, cmessage)
+       case(ixMC%volume : ixMC%qerror)
+         call write_nc(ncid, trim(meta_mc(iVar)%varName), state%var(iVar)%array_2d_dp, (/1,1/), (/nSeg,nens/), ierr, cmessage)
        case default; ierr=20; message1=trim(message1)//'unable to identify MC variable index for nc writing'; return
       end select
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
@@ -1190,6 +1207,7 @@ CONTAINS
   SUBROUTINE write_DW_state(ierr, message1)
 
     USE globalData,   ONLY: meta_dw
+    USE globalData,   ONLY: idxDW
     USE var_lookup,   ONLY: ixDW, nVarsDW
 
     implicit none
@@ -1212,8 +1230,8 @@ CONTAINS
 
     do iVar=1,nVarsDW
       select case(iVar)
-       case(ixDW%qsub)
-        allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
+       case(ixDW%qsub);   allocate(state%var(iVar)%array_3d_dp(nSeg, nMesh, nEns), stat=ierr)
+       case(ixDW%volume : ixDW%qerror); allocate(state%var(iVar)%array_2d_dp(nSeg, nens), stat=ierr)
        case default; ierr=20; message1=trim(message1)//'unable to identify variable index'; return
       end select
       if(ierr/=0)then; message1=trim(message1)//'problem allocating space for DW routing state '//trim(meta_dw(iVar)%varName); return; endif
@@ -1226,6 +1244,10 @@ CONTAINS
           select case(iVar)
             case(ixDW%qsub)
               state%var(iVar)%array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA(iens, iSeg)%DW_ROUTE%molecule%Q(1:nMesh)
+            case(ixDW%volume)
+              state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX(iens,iSeg)%ROUTE(idxDW)%REACH_VOL(1)
+            case(ixDW%qerror)
+              state%var(iVar)%array_2d_dp(iSeg,iens) = RCHFLX(iens,iSeg)%ROUTE(idxDW)%Qerror
             case default; ierr=20; message1=trim(message1)//'unable to identify DW routing state variable index'; return
           end select
         enddo ! variable loop
@@ -1237,6 +1259,8 @@ CONTAINS
       select case(iVar)
        case(ixDW%qsub)
          call write_nc(ncid, trim(meta_dw(iVar)%varName), state%var(iVar)%array_3d_dp, (/1,1,1/), (/nSeg,nMesh,nens/), ierr, cmessage)
+       case(ixDW%volume : ixDW%qerror)
+         call write_nc(ncid, trim(meta_dw(iVar)%varName), state%var(iVar)%array_2d_dp, (/1,1/), (/nSeg,nens/), ierr, cmessage)
        case default; ierr=20; message1=trim(message1)//'unable to identify DW variable index for nc writing'; return
       end select
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif

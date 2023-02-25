@@ -1,12 +1,15 @@
 MODULE model_finalize
 
-USE nrtype,     ONLY: i4b
+USE nrtype
 USE public_var, ONLY: iulog            ! i/o logical unit number
+USE public_var, ONLY: qmodOption       ! option for streamflow modification (DA)
+USE public_var, ONLY: takeWater        ! switch for water abstraction/injection
+USE globalData, ONLY: gage_obs_data
+USE globalData, ONLY: rch_qtake_data
 
 implicit none
 
 private
-
 public :: finalize
 public :: handle_err
 
@@ -17,6 +20,12 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE finalize()
   implicit none
+  integer(i4b)      :: ierr             ! error code
+  character(strLen) :: cmessage         ! error message
+
+  if (qmodOption/=0) call gage_obs_data%closeNC(ierr, cmessage)
+  if (takeWater) call rch_qtake_data%closeNC(ierr, cmessage)
+
   write(iulog,'(a)') new_line('a'), '--------------------'
   write(iulog,'(a)')                'Finished simulation'
   write(iulog,'(a)')                '--------------------'

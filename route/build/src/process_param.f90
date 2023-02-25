@@ -1,19 +1,17 @@
-module routing_param
+MODULE routing_param
 
-!numeric type
 USE nrtype
 ! global parameters
-USE public_var,         only : realMissing    ! missing value for real number
-USE public_var,         only : integerMissing ! missing value for integer number
+USE public_var, ONLY: realMissing    ! missing value for real number
+USE public_var, ONLY: integerMissing ! missing value for integer number
 
-! privary
 implicit none
-private
 
+private
 public::basinUH
 public::make_uh
 
-contains
+CONTAINS
 
   SUBROUTINE basinUH(dt, fshape, tscale, IERR, MESSAGE)
   ! ---------------------------------------------------------------------------------------
@@ -32,33 +30,33 @@ contains
   ! ---------------------------------------------------------------------------------------
   USE gamma_func_module, ONLY : gammp                   ! interface for the incomplete gamma function
   USE globalData,        ONLY : FRAC_FUTURE             ! fraction of runoff in future time steps
-  IMPLICIT NONE
-  ! input
-  REAL(DP), INTENT(IN)                   :: dt          ! model time step
-  REAL(DP), INTENT(IN)                   :: fshape      ! shape parameter in gamma distribution
-  REAL(DP), INTENT(IN)                   :: tscale      ! time scale parameter in gamma distribution
-  ! output
-  INTEGER(I4B), INTENT(OUT)              :: IERR        ! error code
-  CHARACTER(*), INTENT(OUT)              :: MESSAGE     ! error message
-  ! locals
-  REAL(DP)                               :: ntdh_min    ! minimum number of time delay points
-  REAL(DP)                               :: ntdh_max    ! maximum number of time delay points
-  REAL(DP)                               :: ntdh_try    ! trial number of time delay points
-  INTEGER(I4B)                           :: itry        ! index of trial value
-  INTEGER(I4B), PARAMETER                :: MAXTRY=100  ! maximum number of trial values
-  INTEGER(I4B)                           :: NTDH        ! number of values on the time delay histogram
-  INTEGER(I4B)                           :: JTIM        ! (loop through future time steps)
-  REAL(DP)                               :: TFUTURE     ! future time (units of dt)
-  REAL(DP)                               :: X_VALUE     ! xvalue to evaluate using gammp
-  REAL(DP)                               :: CUMPROB     ! cumulative probability at JTIM
-  REAL(DP)                               :: PSAVE       ! cumulative probability at JTIM-1
+
+  implicit none
+  ! Argument variables
+  real(dp), intent(in)                   :: dt          ! model time step
+  real(dp), intent(in)                   :: fshape      ! shape parameter in gamma distribution
+  real(dp), intent(in)                   :: tscale      ! time scale parameter in gamma distribution
+  integer(i4b), intent(out)              :: IERR        ! error code
+  character(*), intent(out)              :: MESSAGE     ! error message
+  ! local variables
+  real(dp)                               :: ntdh_min    ! minimum number of time delay points
+  real(dp)                               :: ntdh_max    ! maximum number of time delay points
+  real(dp)                               :: ntdh_try    ! trial number of time delay points
+  integer(i4b)                           :: itry        ! index of trial value
+  integer(i4b), parameter                :: MAXTRY=100  ! maximum number of trial values
+  integer(i4b)                           :: ntdh        ! number of values on the time delay histogram
+  integer(i4b)                           :: JTIM        ! (loop through future time steps)
+  real(dp)                               :: TFUTURE     ! future time (units of dt)
+  real(dp)                               :: X_VALUE     ! xvalue to evaluate using gammp
+  real(dp)                               :: CUMPROB     ! cumulative probability at JTIM
+  real(dp)                               :: PSAVE       ! cumulative probability at JTIM-1
   ! ---------------------------------------------------------------------------------------
-  ! initialize error control
+
   ierr=0; message='basinUH/'
   ! use a Gamma distribution with shape parameter, fshape, and time parameter, tscale, input
   ! find the desired number of future time steps
   ! check if the cummulative Gamma distribution is close to 1.00 for given model time step, tscale and fsahpe.
-  X_VALUE = dt/tscale 
+  X_VALUE = dt/tscale
   cumprob = gammp(fshape, X_VALUE)
   if(cumprob > 0.999_dp) then ! in case if the cumprob is close to 1 in one model time step
    ntdh_try = 1.999_dp
@@ -85,7 +83,7 @@ contains
   endif
   ! loop through time steps and compute the fraction of runoff in future time steps
   PSAVE = 0.                                                 ! cumulative probability at JTIM-1
-  DO JTIM=1,NTDH
+  DO JTIM=1,ntdh
    TFUTURE            = REAL(JTIM, kind(dp))*DT       ! future time
    CUMPROB            = gammp(fshape,TFUTURE/tscale)   ! cumulative probability at JTIM
    FRAC_FUTURE(JTIM)  = MAX(0._DP, CUMPROB-PSAVE)     ! probability between JTIM-1 and JTIM
@@ -98,17 +96,14 @@ contains
   END SUBROUTINE basinUH
 
 
-! *********************************************************************
-! subroutine: compute normalized UH from Saint-Venant Eq. at sim. time step
-!             for all the upstream segment
-! *********************************************************************
- subroutine make_uh(&
-                    ! Input
-                    length,     &       ! input: river segment array [meter]
+ ! *********************************************************************
+ ! public subroutine: compute normalized UH from Saint-Venant Eq.
+ !                    at sim. time step for all the upstream segment
+ ! *********************************************************************
+ SUBROUTINE make_uh(length,     &       ! input: river segment array [meter]
                     dt,         &       ! input: time step interval [sec]
                     velo,       &       ! input: IRF parameter 1 - celerity C for each stream segment [m/s]
                     diff,       &       ! input: IRF parameter 2 - diffusivity D for each stream segment [m^2/s]
-                    ! Output
                     seg_uh,     &       ! output: unit hydrograph ordinates for a given segment length array
                     ierr, message)   ! output: error control
  ! ----------------------------------------------------------------------------------------
@@ -119,16 +114,16 @@ contains
  !   IRF and UH are used interchangebly.
  !
  ! ----------------------------------------------------------------------------------------
-  ! global variables
-  USE public_var, only : pi      ! pi
-  USE dataTypes,  only : dlength
+  USE public_var, ONLY: pi      ! pi
+  USE dataTypes,  ONLY: dlength
+  USE globalData, ONLY: maxtdh  ! maximum unit-hydrogrph future time
+
   implicit none
-  ! input variables
+  ! Argument variables
   real(dp),                      intent(in)   :: length(:)     ! river segment length
   real(dp),                      intent(in)   :: dt            ! Time step interval [sec]
   real(dp),                      intent(in)   :: velo          ! Wave velocity C for each segment [m/sec]
   real(dp),                      intent(in)   :: diff          ! Diffusivity D for each segment [m2/sec]
-  ! output variables
   type(dlength),allocatable,     intent(out)  :: seg_uh(:)     ! unit hydrograph ordinates for each segment
   integer(i4b),                  intent(out)  :: ierr          ! error code
   character(*),                  intent(out)  :: message       ! error message
@@ -147,6 +142,7 @@ contains
   integer(i4b)                                :: iHrStrt       ! index of UH time step where rising limb of UH start
   integer(i4b)                                :: iHrLast       ! index of UH time step where recession limb of UH become zero
   integer(i4b)                                :: nTSub         ! number of time steps where 1/nTsub [m] of runoff is inserted
+  integer(i4b)                                :: ntdh          ! number of values on the time delay histogram
   integer(i4b)                                :: iSeg          ! Loop index
   integer(i4b)                                :: iHr,jHr       ! Loop index of hour
   integer(i4b)                                :: iTagg         ! index for aggregated (i.e. simulation) time step
@@ -154,15 +150,14 @@ contains
   integer(i4b),parameter                      :: nHr=240       ! Maximum hour of UH [hr] - 10 days times 24hrs
   character(len=strLen)                       :: cmessage      ! error message from subroutine
 
- ! initialize error control
  ierr=0; message='make_uh/'
 
  ! Dynamically assigned parameters
  nTsub=ceiling(dt/dTUH)
  !nTsub=floor(dt/dTUH)
  nSeg = size(length)
+ maxtdh = 0
 
- ! Memory allocation
  allocate(seg_uh(nSeg), stat=ierr, errmsg=cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage)//': seg_uh'; return; endif
  allocate(fr(nTMAX), stat=ierr, errmsg=cmessage)
@@ -255,8 +250,11 @@ contains
   ! Re-normalize the UHQ by its sum
   UHQ = UHQ/INTE
 
+  ntdh = (iHrLast+nTsub-1)/nTsub
+  maxtdh = max(maxtdh, ntdh)
+
   !Aggregate hourly unit hydrograph to simulation time step
-  allocate(seg_uh(iSeg)%dat((iHrLast+nTsub-1)/nTsub),stat=ierr,errmsg=cmessage)
+  allocate(seg_uh(iSeg)%dat(ntdh),stat=ierr,errmsg=cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': seg_uh%dat'; return; endif
 
   seg_uh(iSeg)%dat(:)=0._dp
@@ -267,8 +265,7 @@ contains
 
  end do ! sSeg loop
 
- end subroutine make_uh
+ END SUBROUTINE make_uh
 
 
-end module routing_param
-
+END MODULE routing_param

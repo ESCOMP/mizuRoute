@@ -1,111 +1,88 @@
-module process_ntopo
+MODULE process_ntopo
 
+USE nrtype
 ! data types
-USE nrtype,    only : i4b,dp,lgt          ! variable types, etc.
-USE nrtype,    only : strLen              ! length of characters
-USE dataTypes, only : var_ilength         ! integer type:          var(:)%dat
-USE dataTypes, only : var_clength         ! integer type:          var(:)%dat
-USE dataTypes, only : var_dlength,dlength ! double precision type: var(:)%dat, or dat
-
+USE dataTypes, ONLY: var_ilength             ! integer type:          var(:)%dat
+USE dataTypes, ONLY: var_clength             ! integer type:          var(:)%dat
+USE dataTypes, ONLY: var_dlength,dlength     ! double precision type: var(:)%dat, or dat
 ! global vars
-USE globalData, ONLY: onRoute               ! logical to indicate which routing method(s) is on
-USE public_var, only : idSegOut           ! ID for stream segment at the bottom of the subset
-
+USE globalData, ONLY: onRoute                ! logical to indicate which routing method(s) is on
+USE public_var, ONLY: idSegOut               ! ID for stream segment at the bottom of the subset
 ! options
-USE public_var, only : qtakeOption            ! option to compute network topology
-USE public_var, only : topoNetworkOption      ! option to compute network topology
-USE public_var, only : computeReachList       ! option to compute reach list
-USE public_var, only : hydGeometryOption      ! option to obtain routing parameters
-USE public_var, only : kinematicWaveTracking  ! option for routing methods - Lagrangian kinematic wave only
-USE public_var, only : impulseResponseFunc    ! option for routing methods - IRF only
-USE public_var, only : kinematicWave          ! option for routing methods - kinematic wave only
-USE public_var, only : diffusiveWave          ! option for routing methods - diffusive wave only
-USE public_var, only : muskingumCunge         ! option for routing methods - muskingum-cunge only
-
+USE public_var, ONLY: topoNetworkOption      ! option to compute network topology
+USE public_var, ONLY: computeReachList       ! option to compute reach list
+USE public_var, ONLY: hydGeometryOption      ! option to obtain routing parameters
+USE public_var, ONLY: kinematicWaveTracking  ! option for routing methods - Lagrangian kinematic wave only
+USE public_var, ONLY: impulseResponseFunc    ! option for routing methods - IRF only
+USE public_var, ONLY: kinematicWave          ! option for routing methods - kinematic wave only
+USE public_var, ONLY: diffusiveWave          ! option for routing methods - diffusive wave only
+USE public_var, ONLY: muskingumCunge         ! option for routing methods - muskingum-cunge only
 ! named variables
-USE public_var, only : true,false         ! named integers for true/false
-
+USE public_var, ONLY: true,false             ! named integers for true/false
 ! named variables
-USE var_lookup,only:ixSEG                 ! index of variables for the stream segments
-USE var_lookup,only:ixNTOPO               ! index of variables for the network topology
-USE var_lookup,only:ixPFAF                ! index of variables for the pfafstetter code
-
+USE var_lookup, ONLY: ixSEG                  ! index of variables for the stream segments
+USE var_lookup, ONLY: ixNTOPO                ! index of variables for the network topology
+USE var_lookup, ONLY: ixPFAF                 ! index of variables for the pfafstetter code
 ! common variables
-USE public_var, only : compute            ! compute given variable
-USE public_var, only : doNotCompute       ! do not compute given variable
-USE public_var, only : readFromFile       ! read given variable from a file
-USE public_var, only : realMissing        ! missing value for real
-USE public_var, only : integerMissing     ! missing value for integers
+USE public_var, ONLY: compute                ! compute given variable
+USE public_var, ONLY: doNotCompute           ! do not compute given variable
+USE public_var, ONLY: readFromFile           ! read given variable from a file
+USE public_var, ONLY: realMissing            ! missing value for real
+USE public_var, ONLY: integerMissing         ! missing value for integers
 
 implicit none
 
-! privacy -- everything private unless declared explicitly
 private
 public::check_river_properties
 public::augment_ntopo
 public::put_data_struct
 
-contains
+CONTAINS
 
  ! *********************************************************************
  ! public subroutine: augment river network data
  ! *********************************************************************
- subroutine augment_ntopo(&
-                  ! input: model control
-                  nHRU,             & ! number of HRUs
-                  nSeg,             & ! number of stream segments
-                  ! inout: populate data structures
-                  structHRU,        & ! ancillary data for HRUs
-                  structSEG,        & ! ancillary data for stream segments
-                  structHRU2seg,    & ! ancillary data for mapping hru2basin
-                  structNTOPO,      & ! ancillary data for network toopology
-                  ! output:
-                  ierr, message,    & ! error control
-                  ! optional output:
-                  tot_hru,          & ! total number of all the upstream hrus for all stream segments
-                  tot_upseg,        & ! total number of immediate upstream segments for all  stream segments
-                  tot_upstream,     & ! total number of all the upstream segments for all stream segments
-                  tot_uh,           & ! total number of unit hydrograph from all the stream segments
-                  ixHRU_desired,    & ! indices of desired hrus
-                  ixSeg_desired     ) ! indices of desired reaches
+ SUBROUTINE augment_ntopo(nHRU,           & ! input: number of HRUs
+                          nSeg,           & ! input: number of stream segments
+                          structHRU,      & ! input/output: ancillary data for HRUs
+                          structSEG,      & ! input/output: ancillary data for stream segments
+                          structHRU2seg,  & ! input/output: ancillary data for mapping hru2basin
+                          structNTOPO,    & ! input/output: ancillary data for network toopology
+                          ierr, message,  & ! output: error control
+                          tot_hru,        & ! optional output: total number of all the upstream hrus for all stream segments
+                          tot_upseg,      & ! optional output: total number of immediate upstream segments for all  stream segments
+                          tot_upstream,   & ! optional output: total number of all the upstream segments for all stream segments
+                          tot_uh,         & ! optional output: total number of unit hydrograph from all the stream segments
+                          ixHRU_desired,  & ! optional output: indices of desired hrus
+                          ixSeg_desired )   ! optional output: indices of desired reaches
 
- ! external subroutines/data
- ! network topology routine
  USE network_topo,    ONLY : hru2segment           ! get the mapping between HRUs and segments
  USE network_topo,    ONLY : up2downSegment        ! get the mapping between upstream and downstream segments
  USE network_topo,    ONLY : reachOrder            ! define the processing order
  USE network_topo,    ONLY : streamOrdering        ! define stream order (Strahler)
  USE network_topo,    ONLY : reach_list            ! reach list
  USE network_topo,    ONLY : reach_mask            ! identify all reaches upstream of a given reach
- ! Routing parameter estimation routine
  USE routing_param,   ONLY : make_uh               ! construct reach unit hydrograph
- ! routing spatial constant parameters
  USE globalData,      ONLY : mann_n, wscale        ! KWT routing parameters (Transfer function parameters)
  USE globalData,      ONLY : velo, diff            ! IRF routing parameters (Transfer function parameters)
-
  USE public_var,      ONLY : dt                    ! simulation time step [sec]
 
- ! This subroutine populate river network topology data strucutres
  implicit none
- ! output: model control
+ ! Argument variables
  integer(i4b),       intent(in)                    :: nHRU             ! number of HRUs
  integer(i4b),       intent(in)                    :: nSeg             ! number of stream segments
- ! inout: populate data structures
  type(var_dlength), intent(inout), allocatable     :: structHRU(:)     ! HRU properties
  type(var_dlength), intent(inout), allocatable     :: structSEG(:)     ! stream segment properties
  type(var_ilength), intent(inout), allocatable     :: structHRU2seg(:) ! HRU-to-segment mapping
  type(var_ilength), intent(inout), allocatable     :: structNTOPO(:)   ! network topology
- ! output: error control
  integer(i4b)      , intent(out)                   :: ierr             ! error code
  character(*)      , intent(out)                   :: message          ! error message
- ! optional output:
  integer(i4b), optional, intent(out)               :: tot_upstream     ! total number of all of the upstream stream segments for all stream segments
  integer(i4b), optional, intent(out)               :: tot_upseg        ! total number of immediate upstream segments for all  stream segments
  integer(i4b), optional, intent(out)               :: tot_hru          ! total number of all the upstream hrus for all stream segments
  integer(i4b), optional, intent(out)               :: tot_uh           ! total number of unit hydrograph from all the stream segments
  integer(i4b), optional, intent(out),  allocatable :: ixHRU_desired(:) ! indices of desired hrus
  integer(i4b), optional, intent(out),  allocatable :: ixSeg_desired(:) ! indices of desired reaches
- ! --------------------------------------------------------------------------------------------------------------
  ! local variables
  character(len=strLen)                             :: cmessage             ! error message of downwind routine
  integer(i4b)                                      :: tot_upstream_tmp     ! temporal storage for tot_upstream
@@ -120,7 +97,6 @@ contains
  integer(i4b), parameter                           :: maxUpstreamFile=10000000 ! 10 million: maximum number of upstream reaches to enable writing
  integer*8                                         :: time0,time1,cr       ! for timing
 
- ! initialize error control
  ierr=0; message='augment_ntopo/'
 
  ! initialize times
@@ -133,16 +109,12 @@ contains
  if(topoNetworkOption==compute)then
 
   ! get the mapping between HRUs and basins
-  call hru2segment(&
-                   ! input
-                   nHRU,          & ! input: number of HRUs
+  call hru2segment(nHRU,          & ! input: number of HRUs
                    nSeg,          & ! input: number of stream segments
-                   ! input-output: data structures
-                   structHRU,     & ! ancillary data for HRUs
-                   structSEG,     & ! ancillary data for stream segments
-                   structHRU2seg, & ! ancillary data for mapping hru2basin
-                   structNTOPO,   & ! ancillary data for network toopology
-                   ! output
+                   structHRU,     & ! input/output: ancillary data for HRUs
+                   structSEG,     & ! input/output: ancillary data for stream segments
+                   structHRU2seg, & ! input/output: ancillary data for mapping hru2basin
+                   structNTOPO,   & ! input/output: ancillary data for network toopology
                    tot_hru_tmp,   & ! output: total number of all the upstream hrus for all stream segments
                    ierr, cmessage)  ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -236,12 +208,6 @@ contains
  do iSeg=1,nSeg
    structSEG(iSeg)%var(ixSEG%minFlow)%dat(1) = 1.e-15_dp  ! Minimum environmental flow
  end do
-
- if(.not.qtakeOption)then
-  do iSeg=1,nSeg
-   structSEG(iSeg)%var(ixSEG%Qtake)%dat(1) = 0._dp  ! no abstraction/injection
-  end do
- end if
 
  ! compute hydraulic geometry (width and Manning's "n")
  if(hydGeometryOption==compute)then
@@ -341,21 +307,20 @@ contains
    ixHRU_desired=ixHRU_desired_tmp
  endif
 
-end subroutine augment_ntopo
+END SUBROUTINE augment_ntopo
 
  ! *********************************************************************
  ! public subroutine: check network data is physically valid
  ! *********************************************************************
- subroutine check_river_properties(structNTOPO, structHRU, structSEG, &  ! input: data structure for physical river network data
+ SUBROUTINE check_river_properties(structNTOPO, structHRU, structSEG, &  ! input: data structure for physical river network data
                                    ierr, message)
-  ! saved global data
-  USE public_var,    only : min_slope          ! minimum slope
+  USE public_var,    ONLY: min_slope          ! minimum slope
+
   implicit none
-  ! input
+  ! Argument variables
   type(var_ilength)           , intent(in)       :: structNTOPO(:)   ! network topology
   type(var_dlength)           , intent(inout)    :: structHRU(:)     ! HRU properties
   type(var_dlength)           , intent(inout)    :: structSEG(:)     ! stream reach properties
-  ! output: error control
   integer(i4b)                , intent(out)      :: ierr             ! error code
   character(*)                , intent(out)      :: message          ! error message
   ! local varialbles
@@ -363,7 +328,6 @@ end subroutine augment_ntopo
   integer(i4b)                                   :: iSeg             ! loop indices
   logical(lgt)                                   :: verbose = .false.
 
-  ! initialize error control
   ierr=0; message='check_river_properties/'
 
   nSeg = size(structSEG)
@@ -394,32 +358,29 @@ end subroutine augment_ntopo
   ! check somehting for hru properties
   !enddo
 
-  end subroutine check_river_properties
+  END SUBROUTINE check_river_properties
 
  ! *********************************************************************
  ! public subroutine: populate old data strucutures
  ! *********************************************************************
  ! ---------- temporary code: populate old data structures --------------------------------------------------
- subroutine put_data_struct(nSeg, structSEG, structNTOPO, &
+ SUBROUTINE put_data_struct(nSeg, structSEG, structNTOPO, &
                             RPARAM_in, NETOPO_in , ierr, message)
-  ! saved global data
+
   USE dataTypes,     ONLY : RCHPRP             ! Reach parameters
   USE dataTypes,     ONLY : RCHTOPO            ! Network topology
   USE globalData,    ONLY : fshape, tscale     ! basin IRF routing parameters (Transfer function parameters)
   USE public_var,    ONLY : min_slope          ! minimum slope
   USE public_var,    ONLY : dt                 ! simulation time step [sec]
-  ! external subroutines
   USE routing_param, ONLY : basinUH            ! construct basin unit hydrograph
 
   implicit none
-  ! input
+  ! Argument variables
   integer(i4b)                , intent(in)       :: nSeg             ! number of stream segments
   type(var_dlength)           , intent(in)       :: structSEG(:)     ! stream segment properties
   type(var_ilength)           , intent(in)       :: structNTOPO(:)   ! network topology
-  ! output data structure
   type(RCHPRP)  , allocatable , intent(out)      :: RPARAM_in(:)     ! Reach Parameters
   type(RCHTOPO) , allocatable , intent(out)      :: NETOPO_in(:)     ! River Network topology
-  ! output: error control
   integer(i4b)                , intent(out)      :: ierr             ! error code
   character(*)                , intent(out)      :: message          ! error message
   ! local varialbles
@@ -456,9 +417,6 @@ end subroutine augment_ntopo
    RPARAM_in(iSeg)%BASAREA = structSEG(iSeg)%var(ixSEG%basArea)%dat(1)
    RPARAM_in(iSeg)%UPSAREA = structSEG(iSeg)%var(ixSEG%upsArea)%dat(1)
    RPARAM_in(iSeg)%TOTAREA = structSEG(iSeg)%var(ixSEG%totalArea)%dat(1)
-
-   ! Abstraction/Injection coefficient
-   RPARAM_in(iSeg)%QTAKE   = structSEG(iSeg)%var(ixSEG%Qtake)%dat(1)
 
    ! MINFLOW -- minimum environmental flow
    RPARAM_in(iSeg)%MINFLOW = structSEG(iSeg)%var(ixSEG%minFlow)%dat(1)
@@ -532,6 +490,6 @@ end subroutine augment_ntopo
 
   end do  ! looping through stream segments
 
- end subroutine put_data_struct
+ END SUBROUTINE put_data_struct
 
-end module process_ntopo
+END MODULE process_ntopo

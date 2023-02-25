@@ -1,47 +1,46 @@
-module remapping
+MODULE remapping
 
   ! data types
-  use nrtype
-  use dataTypes, only : remap                ! remapping data type
-  use dataTypes, only : runoff               ! runoff data type
-  use dataTypes, only : var_ilength          ! integer type:          var(:)%dat
-  use dataTypes, only : var_dlength          ! double precision type: var(:)%dat
-
+  USE nrtype
+  USE dataTypes, ONLY: remap                    ! remapping data type
+  USE dataTypes, ONLY: runoff                   ! runoff data type
+  USE dataTypes, ONLY: var_ilength              ! integer type:          var(:)%dat
+  USE dataTypes, ONLY: var_dlength              ! double precision type: var(:)%dat
   ! parameter structures
-  USE dataTypes,  only : RCHPRP              ! Reach parameters (properties)
-  USE dataTypes,  only : RCHTOPO             ! Network topology
-
+  USE dataTypes,  ONLY: RCHPRP                  ! Reach parameters (properties)
+  USE dataTypes,  ONLY: RCHTOPO                 ! Network topology
   ! look-up variables
-  use var_lookup,only:ixHRU,    nVarsHRU     ! index of variables for the HRUs
-  use var_lookup,only:ixSEG,    nVarsSEG     ! index of variables for the stream segments
-  use var_lookup,only:ixHRU2SEG,nVarsHRU2SEG ! index of variables for the hru2segment mapping
-  use var_lookup,only:ixNTOPO,  nVarsNTOPO   ! index of variables for the network topology
-
+  USE var_lookup, ONLY: ixHRU,    nVarsHRU      ! index of variables for the HRUs
+  USE var_lookup, ONLY: ixSEG,    nVarsSEG      ! index of variables for the stream segments
+  USE var_lookup, ONLY: ixHRU2SEG,nVarsHRU2SEG  ! index of variables for the hru2segment mapping
+  USE var_lookup, ONLY: ixNTOPO,  nVarsNTOPO    ! index of variables for the network topology
   ! global data
-  USE public_var,only:runoffMin, negRunoffTol, integerMissing
-  USE globalData,only:time_conv,length_conv  ! conversion factors
+  USE public_var, ONLY: runoffMin, negRunoffTol
+  USE public_var, ONLY: integerMissing
+  USE globalData, ONLY: time_conv,length_conv   ! conversion factors
 
   implicit none
+
   private
   public ::remap_runoff
   public ::sort_runoff
   public ::basin2reach
 
-  contains
+  CONTAINS
 
   ! *****
   ! * public subroutine: used to map runoff data (on diferent grids/polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
-  subroutine remap_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
+  SUBROUTINE remap_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
+
   implicit none
-  ! input
+  ! Argument variables
   type(runoff)         , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
   type(remap)          , intent(in)  :: remap_data_in    ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
-  ! output
   real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
   integer(i4b)         , intent(out) :: ierr             ! error code
   character(len=strLen), intent(out) :: message          ! error message
-  ! local
+  ! local variables
   character(len=strLen)              :: cmessage         ! error message from subroutine
 
   ierr=0; message="remap_runoff/"
@@ -54,22 +53,22 @@ module remapping
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
-  end subroutine remap_runoff
+  END SUBROUTINE remap_runoff
 
   ! *****
   ! private subroutine: used to map runoff data (on diferent polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
   ! case 1: hru in runoff layer is grid (stored in 2-dimension array)
-  subroutine remap_2D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
+  SUBROUTINE remap_2D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
+
   implicit none
-  ! input
+  ! Argument variables
   type(runoff)         , intent(in)  :: runoff_data_in      ! runoff for one time step for all HRUs
   type(remap)          , intent(in)  :: remap_data_in       ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
-  ! output
   real(dp)             , intent(out) :: basinRunoff(:)      ! basin runoff
   integer(i4b)         , intent(out) :: ierr                ! error code
   character(len=strLen), intent(out) :: message             ! error message
-  ! local
+  ! local variables
   integer(i4b)                       :: iHRU,jHRU           ! index of basin in the routing layer
   integer(i4b)                       :: ixOverlap           ! index in ragged array of overlapping polygons
   integer(i4b)                       :: ii,jj               ! index of x and y in grid
@@ -79,6 +78,7 @@ module remapping
   integer(i4b), parameter            :: ixCheck=-huge(iHRU) ! basin to check
   integer(i4b), parameter            :: jxCheck=-huge(iHRU) ! basin to check
   logical(lgt), parameter            :: printWarn=.false.   ! flag to print warnings
+
   ierr=0; message="remap_2D_runoff/"
 
   ! initialize counter for the overlap vector
@@ -161,22 +161,21 @@ module remapping
 
   !!print*, 'PAUSE: after remap_2D_runoff'; read(*,*)
 
-  end subroutine remap_2D_runoff
+  END SUBROUTINE remap_2D_runoff
 
   ! *****
   ! private subroutine: used to map runoff data (on diferent polygons) to the basins in the routing layer...
   ! ***************************************************************************************************************
   ! case 2: hru in runoff layer is hru polygon different than river network layer (stored in 1-dimension array)
-  subroutine remap_1D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
+  SUBROUTINE remap_1D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
   implicit none
-  ! input
+  ! Argument variables
   type(runoff)         , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
   type(remap)          , intent(in)  :: remap_data_in    ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
-  ! output
   real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
   integer(i4b)         , intent(out) :: ierr             ! error code
   character(len=strLen), intent(out) :: message          ! error message
-  ! local
+  ! local variables
   integer(i4b)                       :: iHRU,jHRU        ! index of basin in the routing layer
   integer(i4b)                       :: ixOverlap        ! index in ragged array of overlapping polygons
   integer(i4b)                       :: ixRunoff         ! index in the runoff vector
@@ -275,21 +274,20 @@ module remapping
 
   end do   ! looping through basins in the mapping layer
 
-  end subroutine remap_1D_runoff
+  END SUBROUTINE remap_1D_runoff
 
   ! *****
   ! public subroutine: assign runoff data in runoff layer to hru in river network layer
   ! ***************************************************************************************************************
   ! case 3: hru in runoff layer is hru polygon identical to river network layer (stored in 1-dimension array)
-  subroutine sort_runoff(runoff_data_in, basinRunoff, ierr, message)
+  SUBROUTINE sort_runoff(runoff_data_in, basinRunoff, ierr, message)
   implicit none
-  ! input
+  ! Argument variables
   type(runoff)         , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
-  ! output
   real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
   integer(i4b)         , intent(out) :: ierr             ! error code
   character(len=strLen), intent(out) :: message          ! error message
-  ! local
+  ! local variables
   integer(i4b)                       :: iHRU,jHRU        ! index of basin in the routing layer
   real(dp)    , parameter            :: xTol=1.e-6_dp    ! tolerance to avoid divide by zero
   integer(i4b), parameter            :: ixCheck=-huge(iHRU) ! basin to check
@@ -324,45 +322,36 @@ module remapping
 
   end do   ! looping through basins in the mapping layer
 
-  end subroutine sort_runoff
+  END SUBROUTINE sort_runoff
 
   ! *****
   ! * public subroutine: used to obtain streamflow for each stream segment...
   ! *************************************************************************
-  subroutine basin2reach(&
-                         ! input
-                         basinRunoff,       & ! basin runoff (m/s)
-                         NETOPO_in,         & ! reach topology data structure
-                         RPARAM_in,         & ! reach parameter data structure
-                         ! output
-                         reachRunoff,       & ! intent(out): reach runoff (m/s)
-                         ierr, message,     & ! intent(out): error control
+  subroutine basin2reach(basinRunoff,       & ! input: basin runoff (m/s)
+                         NETOPO_in,         & ! input: reach topology data structure
+                         RPARAM_in,         & ! input: reach parameter data structure
+                         reachRunoff,       & ! output: reach runoff (m/s)
+                         ierr, message,     & ! output: error control
                          ixSubRch)            ! optional input: subset of reach indices to be processed
 
-  ! External modules
   USE nr_utility_module, ONLY : arth
 
   implicit none
-
-  ! input
+  ! Argument variables
   real(dp)                  , intent(in)  :: basinRunoff(:)   ! basin runoff (m/s)
   type(RCHTOPO), allocatable, intent(in)  :: NETOPO_in(:)     ! River Network topology
   type(RCHPRP),  allocatable, intent(in)  :: RPARAM_in(:)     ! River (non-)physical parameters
-  ! output
   real(dp)                  , intent(out) :: reachRunoff(:)   ! reach runoff (m/s)
   integer(i4b)              , intent(out) :: ierr             ! error code
   character(len=strLen)     , intent(out) :: message          ! error message
-  ! input (optional)
   integer(i4b),  optional   , intent(in)  :: ixSubRch(:)     ! subset of reach indices to be processed
-  ! ----------------------------------------------------------------------------------------------
-  ! local
+  ! local variables
   integer(i4b)                            :: nContrib         ! number of contributing HRUs
   integer(i4b)                            :: nSeg             ! number of reaches to be processed
   integer(i4b)                            :: iHRU             ! array index for contributing HRUs
   logical(lgt), allocatable               :: doRoute(:)       ! logical to indicate which reaches are processed
   integer(i4b)                            :: iSeg             ! array index for reaches
 
-  ! initialize error control
   ierr=0; message='basin2reach/'
 
   nSeg = size(NETOPO_in)
@@ -425,6 +414,6 @@ module remapping
 
   end do  ! looping through stream segments
 
-  end subroutine basin2reach
+  END SUBROUTINE basin2reach
 
-end module remapping
+END MODULE remapping

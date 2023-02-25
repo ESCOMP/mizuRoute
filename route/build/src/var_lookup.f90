@@ -83,8 +83,6 @@ MODULE var_lookup
   integer(i4b)     :: basArea       = integerMissing  ! area of the local HRUs contributing to each reach (m2)
   integer(i4b)     :: upsArea       = integerMissing  ! area above the top of the reach -- zero if headwater (m2)
   integer(i4b)     :: totalArea     = integerMissing  ! basArea + upsArea -- area at the bottom of the reach (m2)
-  ! abstraction/injection from reach
-  integer(i4b)     :: QTAKE         = integerMissing  ! abstraction(-)/injection(+) coefficient [m3/s]
   ! lakes
   integer(i4b)     :: basUnderLake  = integerMissing  ! Area of basin under lake  (m2)
   integer(i4b)     :: rchUnderLake  = integerMissing  ! Length of reach under lake (m)
@@ -138,12 +136,16 @@ MODULE var_lookup
   integer(i4b)     :: instRunoff        = integerMissing  ! instantaneous runoff in each reach
   integer(i4b)     :: dlayRunoff        = integerMissing  ! delayed runoff in each reac
   integer(i4b)     :: sumUpstreamRunoff = integerMissing  ! sum of upstream runoff in each reach
-  integer(i4b)     :: KWTroutedRunoff   = integerMissing  ! Lagrangian KWT routed runoff in each reach
+  integer(i4b)     :: KWTroutedRunoff   = integerMissing  ! Lagrangian kinematic wave routed runoff in each reach
+  integer(i4b)     :: IRFroutedRunoff   = integerMissing  ! IRF routed runoff in each reach
   integer(i4b)     :: KWroutedRunoff    = integerMissing  ! KW routed runoff in each reach
   integer(i4b)     :: MCroutedRunoff    = integerMissing  ! muskingum-cunge routed runoff in each reach
   integer(i4b)     :: DWroutedRunoff    = integerMissing  ! diffusive wave routed runoff in each reach
-  integer(i4b)     :: IRFroutedRunoff   = integerMissing  ! IRF routed runoff in each reach
-  integer(i4b)     :: volume            = integerMissing  ! water volume
+  integer(i4b)     :: KWTvolume         = integerMissing  ! water volume in reach- Lagrangian kinematic wave
+  integer(i4b)     :: IRFvolume         = integerMissing  ! water volume in reach- impulse response function
+  integer(i4b)     :: KWvolume          = integerMissing  ! water volume in reach- kinematic wave
+  integer(i4b)     :: MCvolume          = integerMissing  ! water volume in reach- muskingum-cunge
+  integer(i4b)     :: DWvolume          = integerMissing  ! water volume in reach- diffusive wave
  endtype iLook_RFLX
  ! Reach inflow from basin
  type, public  ::  iLook_basinQ
@@ -164,19 +166,26 @@ MODULE var_lookup
  ! KW state/fluxes
  type, public  ::  iLook_KW
   integer(i4b)     :: qsub           = integerMissing  ! discharge
+  integer(i4b)     :: volume         = integerMissing  ! reach volume
+  integer(i4b)     :: qerror         = integerMissing  ! discharge error
  endtype iLook_KW
  ! DW state/fluxes
  type, public  ::  iLook_DW
   integer(i4b)     :: qsub           = integerMissing  ! discharge
+  integer(i4b)     :: volume         = integerMissing  ! reach volume
+  integer(i4b)     :: qerror         = integerMissing  ! discharge error
  endtype iLook_DW
  ! MC state/fluxes
  type, public  ::  iLook_MC
   integer(i4b)     :: qsub           = integerMissing  ! discharge
+  integer(i4b)     :: volume         = integerMissing  ! reach volume
+  integer(i4b)     :: qerror         = integerMissing  ! discharge error
  endtype iLook_MC
  !IRF state/fluxes
  type, public  ::  iLook_IRF
   integer(i4b)     :: qfuture        = integerMissing  ! future routed flow
-  integer(i4b)     :: irfVol         = integerMissing  ! reach volume
+  integer(i4b)     :: volume         = integerMissing  ! reach volume
+  integer(i4b)     :: qerror         = integerMissing  ! discharge error
  endtype iLook_IRF
  ! ***********************************************************************************************************
  ! ** define data vectors
@@ -187,15 +196,15 @@ MODULE var_lookup
  type(iLook_qDims)    ,public,parameter :: ixqDims     = iLook_qDims    (1,2,3,4)
  type(iLook_HRU)      ,public,parameter :: ixHRU       = iLook_HRU      (1)
  type(iLook_HRU2SEG)  ,public,parameter :: ixHRU2SEG   = iLook_HRU2SEG  (1,2,3,4)
- type(iLook_SEG)      ,public,parameter :: ixSEG       = iLook_SEG      (1,2,3,4,5,6,7,8,9,10,11,12,13,14)
+ type(iLook_SEG)      ,public,parameter :: ixSEG       = iLook_SEG      (1,2,3,4,5,6,7,8,9,10,11,12,13)
  type(iLook_NTOPO)    ,public,parameter :: ixNTOPO     = iLook_NTOPO    (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17)
  type(iLook_PFAF)     ,public,parameter :: ixPFAF      = iLook_PFAF     (1)
- type(iLook_RFLX)     ,public,parameter :: ixRFLX      = iLook_RFLX     (1,2,3,4,5,6,7,8,9,10)
+ type(iLook_RFLX)     ,public,parameter :: ixRFLX      = iLook_RFLX     (1,2,3,4,5,6,7,8,9,10,11,12,13,14)
  type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      (1,2,3,4,5)
- type(iLook_KW)       ,public,parameter :: ixKW        = iLook_KW       (1)
- type(iLook_DW)       ,public,parameter :: ixDW        = iLook_DW       (1)
- type(iLook_MC)       ,public,parameter :: ixMC        = iLook_MC       (1)
- type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      (1,2)
+ type(iLook_KW)       ,public,parameter :: ixKW        = iLook_KW       (1,2,3)
+ type(iLook_DW)       ,public,parameter :: ixDW        = iLook_DW       (1,2,3)
+ type(iLook_MC)       ,public,parameter :: ixMC        = iLook_MC       (1,2,3)
+ type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      (1,2,3)
  type(iLook_IRFbas  ) ,public,parameter :: ixIRFbas    = iLook_IRFbas   (1)
  type(iLook_basinQ  ) ,public,parameter :: ixBasinQ    = iLook_basinQ   (1)
  ! ***********************************************************************************************************

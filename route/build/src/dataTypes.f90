@@ -146,7 +146,15 @@ end type subdomain
    integer(i4b)             , allocatable  :: qhru_ix(:)   ! Index of hrus associated with runoff simulation (="qhru")
  end type remap
 
- ! simulated runoff data
+ ! mapping time step between two time series e.g., simulation time step vs runoff time step
+ type, public :: map_time
+   integer(i4b), allocatable :: iTime(:)
+   real(dp),     allocatable :: frac(:)
+ end type map_time
+
+ ! ---------- forcing data  ----------------------------------------------------------------------
+
+ ! input runoff data
  type, public :: runoff
    integer(i4b)                            :: nTime         ! number of time steps
    integer(i4b)                            :: nSpace(1:2)   ! number of spatial dimension
@@ -169,7 +177,6 @@ end type subdomain
   real(DP)                                :: UPSAREA  ! upstream area (zero if headwater basin)
   real(DP)                                :: BASAREA  ! local basin area
   real(DP)                                :: TOTAREA  ! UPSAREA + BASAREA
-  real(DP)                                :: QTAKE    ! target abstraction/injection [m3/s]
   real(DP)                                :: MINFLOW  ! minimum environmental flow
  end type RCHPRP
 
@@ -263,6 +270,7 @@ end type subdomain
  type, public :: fluxes
    real(dp)        :: REACH_Q
    real(dp)        :: REACH_VOL(0:1)
+   real(dp)        :: Qerror
  end type fluxes
 
  ! fluxes in each reach
@@ -273,7 +281,9 @@ end type subdomain
   real(dp)                             :: BASIN_QR(0:1)     ! routed runoff volume from the local basin (m3/s)
   real(dp)                             :: BASIN_QR_IRF(0:1) ! routed runoff volume from all the upstream basin (m3/s)
   type(fluxes), allocatable            :: ROUTE(:)          ! reach fluxes and states for each routing method
-  real(dp)                             :: TAKE              ! average take
+  real(dp)                             :: TAKE              ! water abstraction/injection [m3/s]
+  real(dp)                             :: QOBS              ! observed flow [m3/s]
+  integer(i4b)                         :: Qelapsed          ! number of time step after observed flow is read [-]
  ENDTYPE STRFLX
 
  ! ---------- lake data types -----------------------------------------------------------------
