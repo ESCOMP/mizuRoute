@@ -219,6 +219,14 @@ CONTAINS
    write(iulog,'(A,X,G12.5)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_Q
  endif
 
+ if (RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_Q < 0) then
+   write(iulog,'(A,X,G12.5,X,A,X,I9)') ' ---- NEGATIVE FLOW (Muskingum-Cunge)= ', RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_Q, 'at ', NETOPO_in(segIndex)%REACHID
+ end if
+ if (RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(1) < 0) then
+   write(iulog,'(A,X,G12.5,X,A,X,I9)') ' ---- NEGATIVE VOLUME (Muskingum-Cunge)= ', RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(1), 'at ', NETOPO_in(segIndex)%REACHID
+ end if
+
+
  END SUBROUTINE mc_rch
 
  ! *********************************************************************
@@ -392,7 +400,7 @@ CONTAINS
  ! compute volume
  rflux%ROUTE(idxMC)%REACH_VOL(0) = rflux%ROUTE(idxMC)%REACH_VOL(1)
  ! For very low flow condition, outflow - inflow > current storage, so limit outflow and adjust Q(1,1)
- ! Q(1,1) = min(rflux%ROUTE(idxMC)%REACH_VOL(0)/dt + Q(1,0)*0.999, Q(1,1))
+ Q(1,1) = min(rflux%ROUTE(idxMC)%REACH_VOL(0)/dt + Q(1,0)*0.999, Q(1,1))
  rflux%ROUTE(idxMC)%REACH_VOL(1) = rflux%ROUTE(idxMC)%REACH_VOL(0) + (Q(1,0)-Q(1,1))*dt
 
  ! add catchment flow
