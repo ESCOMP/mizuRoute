@@ -195,7 +195,7 @@ CONTAINS
         if (RCHFLX_out(iens,iRch_ups)%Qelapsed > ntsQmodStop) then
           RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%Qerror=0._dp
         end if
-        RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%REACH_Q = max(RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%REACH_Q-RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%Qerror, 0.0001)
+        RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%REACH_Q = max(RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%REACH_Q-RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%Qerror, 0._dp)
       end if
 
       q_upstream = q_upstream + RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%REACH_Q
