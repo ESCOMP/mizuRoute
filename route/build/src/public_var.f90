@@ -26,6 +26,7 @@ MODULE public_var
   real(dp),    parameter,public   :: min_slope=1.e-6_dp     ! minimum slope
   real(dp),    parameter,public   :: runoffMin=1.e-15_dp    ! minimum runoff from each basin
   real(dp),    parameter,public   :: negRunoffTol=-1.e-3_dp ! nagative runoff tolerance
+  real(dp),    parameter,public   :: maxTimeDiff=1/secprday ! time difference tolerance for input checks
 
   ! routing related constants
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles

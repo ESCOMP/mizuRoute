@@ -361,13 +361,15 @@ CONTAINS
   USE public_var,        ONLY: simStart      ! date string defining the start of the simulation
   USE public_var,        ONLY: simEnd        ! date string defining the end of the simulation
   USE public_var,        ONLY: calendar      ! calendar name
-  USE public_var,        ONLY: dt
+  USE public_var,        ONLY: dt            ! simulation time step [sec]
+  USE public_var,        ONLY: dt_ro         ! runoff input time step [sec]
   USE public_var,        ONLY: secprday
   USE public_var,        ONLY: restart_write ! restart write option
   USE public_var,        ONLY: restart_date  ! restart date
   USE public_var,        ONLY: restart_month !
   USE public_var,        ONLY: restart_day   !
   USE public_var,        ONLY: restart_hour  !
+  USE public_var,        ONLY: maxTimeDiff   ! time difference tolerance for input checks
   USE globalData,        ONLY: timeVar       ! model time variables in time unit since reference time
   USE globalData,        ONLY: iTime         ! time index at simulation time step
   USE globalData,        ONLY: simDatetime   ! current model time data (yyyy:mm:dd:hh:mm:sec)
@@ -394,6 +396,8 @@ CONTAINS
   real(dp)                                 :: convTime2sec
   real(dp)                                 :: roTimeVar(nRoTime)
   real(dp)                                 :: sec(nRoTime)
+  real(dp)                                 :: sec1(nRoTime)
+  real(dp)                                 :: dt_ro_array(nRoTime-1)
   character(len=7)                         :: t_unit
   character(len=strLen)                    :: cmessage         ! error message of downwind routine
   character(len=50)                        :: fmt1='(a,I4,a,I2.2,a,I2.2,x,I2.2,a,I2.2,a,F5.2)'
@@ -427,8 +431,23 @@ CONTAINS
   call endDatetime%str2datetime(simEnd, ierr, cmessage)
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endDatetime]'; return; endif
 
-  ! calendar in runoff data
   sec(:) = roTimeVar(:)*convTime2sec
+
+  ! Get input (runoff) time step [sec] from input data
+  if (abs(dt_ro-realMissing)<=epsilon(dt_ro)) then
+    dt_ro = sec(2)-sec(1)
+    write(iulog,'(2a,x,F9.2)') new_line('a'),'INFO: input time step [s]:',dt_ro
+
+    ! check runoff time interval is consistent
+    sec1 = cshift(sec, 1)
+    dt_ro_array = sec1(1:nRoTime-1) - sec(1:nRoTime-1)
+    if (any(abs(dt_ro_array-dt_ro)>maxTimeDiff)) then
+      write(iulog,'(2a)') new_line('a'),'WARNING: time step [s] in runoff input is not consistent'
+      write(iulog,'(2a)') new_line('a'),'         expect the time step to be equal in the runoff time series'
+    end if
+  end if
+
+  ! runoff data datetime [yyyy-mm-dd hh:mm:ss]
   do ix = 1, nRoTime
     roCal(ix) = refCal%add_sec(sec(ix), calendar, ierr, cmessage)
   end do
@@ -708,7 +727,6 @@ CONTAINS
  USE public_var,  ONLY : fname_remap            ! name of runoff mapping netCDF name
  USE public_var,  ONLY : calendar               ! name of calendar
  USE public_var,  ONLY : time_units             ! time units
- USE public_var,  ONLY : realMissing            ! real missing value (-9999._dp)
  USE dataTypes,   ONLY : remap                  ! remapping data type
  USE dataTypes,   ONLY : runoff                 ! runoff data type
  USE read_runoff, ONLY : read_runoff_metadata   ! read meta data from runoff data
@@ -850,6 +868,7 @@ CONTAINS
    character(*), intent(out)  :: message     ! error message
    ! local variables
    character(len=strLen)      :: cmessage    ! error message from subroutine
+   logical(lgt)               :: fileExist   ! file exists or not
    integer(i4b), parameter    :: no_mod=0
    integer(i4b), parameter    :: direct_insert=1
 
@@ -863,15 +882,20 @@ CONTAINS
        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
        ! initialize gage obs data
-       gage_obs_data = gageObs(trim(ancil_dir)//trim(fname_gageObs), &
-                               vname_gageFlow,                       &
-                               vname_gageTime, vname_gageSite,       &
-                               dname_gageTime, dname_gageSite,       &
-                               ierr, cmessage)
-       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       inquire(file=trim(ancil_dir)//trim(fname_gageObs), exist=fileExist)
+       if (fileExist) then
+         gage_obs_data = gageObs(trim(ancil_dir)//trim(fname_gageObs), &
+                                 vname_gageFlow,                       &
+                                 vname_gageTime, vname_gageSite,       &
+                                 dname_gageTime, dname_gageSite,       &
+                                 ierr, cmessage)
+         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-       ! compute link between gage ID and reach ID (river network domain) - index of reachID for each gage ID
-       call gage_obs_data%comp_link(reachID, gage_meta_data)
+         ! compute link between gage ID and reach ID (river network domain) - index of reachID for each gage ID
+         call gage_obs_data%comp_link(reachID, gage_meta_data)
+       else
+         qmodOption=no_mod
+       end if
      case default
        ierr=1; message=trim(message)//"Error: qmodOption invalid"; return
    end select
