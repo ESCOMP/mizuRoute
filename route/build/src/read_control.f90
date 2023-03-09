@@ -152,6 +152,7 @@ CONTAINS
    ! USER OPTIONS: Define options to include/skip calculations
    case('<qmodOption>');           read(cData,*,iostat=io_error) qmodOption        ! option for streamflow modification (DA): 0->no DA, 1->direct insertion
    case('<ntsQmodStop>');          read(cData,*,iostat=io_error) ntsQmodStop       ! number of time steps for which streamflow modification is performed
+   case('<QerrTrend>');            read(cData,*,iostat=io_error) QerrTrend         ! temporal dischargge error decreasing trend. 1->constant, 2->linear, 3->logistic, 4->exponential
    case('<takeWater>');            read(cData,*,iostat=io_error) takeWater         ! switch for abstraction/injection
    case('<hydGeometryOption>');    read(cData,*,iostat=io_error) hydGeometryOption ! option for hydraulic geometry calculations (0=read from file, 1=compute)
    case('<topoNetworkOption>');    read(cData,*,iostat=io_error) topoNetworkOption ! option for network topology calculations (0=read from file, 1=compute)
