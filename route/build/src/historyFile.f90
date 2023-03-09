@@ -450,12 +450,13 @@ MODULE historyFile
     ! ---------------------------------
     ! writing flux (hru and/or rch)
     ! ---------------------------------
-    SUBROUTINE write_flux(this, time, index_write, ierr, message)
+    SUBROUTINE write_flux(this, time, RCHFLX_local, index_write, ierr, message)
 
       implicit none
       ! Argument variables
       class(histFile),           intent(inout) :: this
       real(dp),                  intent(in)    :: time
+      type(STRFLX),              intent(in)    :: RCHFLX_local(:,:)
       integer(i4b), allocatable, intent(in)    :: index_write(:)
       integer(i4b),              intent(out)   :: ierr             ! error code
       character(*),              intent(out)   :: message          ! error message
@@ -477,7 +478,7 @@ MODULE historyFile
         endif
       end if
 
-      call this%write_flux_rch(index_write, ierr, cmessage)
+      call this%write_flux_rch(RCHFLX_local, index_write, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       call sync_file(this%pioFileDesc, ierr, cmessage)
@@ -510,13 +511,12 @@ MODULE historyFile
     END SUBROUTINE write_flux_hru
 
 
-    SUBROUTINE write_flux_rch(this, index_write, ierr, message)
-
-      USE globalData, ONLY: RCHFLX_trib
+    SUBROUTINE write_flux_rch(this, RCHFLX_local, index_write, ierr, message)
 
       implicit none
       ! Argument variables
       class(histFile),           intent(inout) :: this
+      type(STRFLX),              intent(in)    :: RCHFLX_local(:,:)
       integer(i4b), allocatable, intent(in)    :: index_write(:)
       integer(i4b),              intent(out)   :: ierr             ! error code
       character(*),              intent(out)   :: message          ! error message
@@ -544,7 +544,7 @@ MODULE historyFile
       ! write instataneous local runoff in each stream segment (m3/s)
       if (meta_rflx(ixRFLX%instRunoff)%varFile) then
         if (nRch_write>0) then
-          array_temp(1:nRch_write) = RCHFLX_trib(1,index_write)%BASIN_QI
+          array_temp(1:nRch_write) = RCHFLX_local(1,index_write)%BASIN_QI
         end if
         call write_pnetcdf_recdim(this%pioFileDesc, 'instRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -553,7 +553,7 @@ MODULE historyFile
       ! write routed local runoff in each stream segment (m3/s)
       if (meta_rflx(ixRFLX%dlayRunoff)%varFile) then
         if (nRch_write>0) then
-          array_temp(1:nRch_write) = RCHFLX_trib(1,index_write)%BASIN_QR(1)
+          array_temp(1:nRch_write) = RCHFLX_local(1,index_write)%BASIN_QR(1)
         end if
         call write_pnetcdf_recdim(this%pioFileDesc, 'dlayRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -562,30 +562,28 @@ MODULE historyFile
       if (meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile) then
         if (nRch_write>0) then
           do ix=1,nRch_write
-            array_temp(ix) = RCHFLX_trib(1,index_write(ix))%ROUTE(idxSUM)%REACH_Q
+            array_temp(ix) = RCHFLX_local(1,index_write(ix))%ROUTE(idxSUM)%REACH_Q
           end do
         end if
         call write_pnetcdf_recdim(this%pioFileDesc, 'sumUpstreamRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       endif
 
-      call t_startf ('output/write_flux/kwt')
       if (meta_rflx(ixRFLX%KWTroutedRunoff)%varFile) then
         if (nRch_write>0) then
           do ix=1,nRch_write
-            array_temp(ix) = RCHFLX_trib(1,index_write(ix))%ROUTE(idxKWT)%REACH_Q
+            array_temp(ix) = RCHFLX_local(1,index_write(ix))%ROUTE(idxKWT)%REACH_Q
           end do
         end if
         call write_pnetcdf_recdim(this%pioFileDesc, 'KWTroutedRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       endif
-      call t_stopf ('output/write_flux/kwt')
 
       call t_startf ('output/write_flux/irf')
       if (meta_rflx(ixRFLX%IRFroutedRunoff)%varFile) then
         if (nRch_write>0) then
           do ix=1,nRch_write
-            array_temp(ix) = RCHFLX_trib(1,index_write(ix))%ROUTE(idxIRF)%REACH_Q
+            array_temp(ix) = RCHFLX_local(1,index_write(ix))%ROUTE(idxIRF)%REACH_Q
           end do
         end if
         call write_pnetcdf_recdim(this%pioFileDesc, 'IRFroutedRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
@@ -596,7 +594,7 @@ MODULE historyFile
       if (meta_rflx(ixRFLX%KWroutedRunoff)%varFile) then
         if (nRch_write>0) then
           do ix=1,nRch_write
-            array_temp(ix) = RCHFLX_trib(1,index_write(ix))%ROUTE(idxKW)%REACH_Q
+            array_temp(ix) = RCHFLX_local(1,index_write(ix))%ROUTE(idxKW)%REACH_Q
           end do
         end if
         call write_pnetcdf_recdim(this%pioFileDesc, 'KWroutedRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
@@ -606,7 +604,7 @@ MODULE historyFile
       if (meta_rflx(ixRFLX%MCroutedRunoff)%varFile) then
         if (nRch_write>0) then
           do ix=1,nRch_write
-            array_temp(ix) = RCHFLX_trib(1,index_write(ix))%ROUTE(idxMC)%REACH_Q
+            array_temp(ix) = RCHFLX_local(1,index_write(ix))%ROUTE(idxMC)%REACH_Q
           end do
         end if
         call write_pnetcdf_recdim(this%pioFileDesc, 'MCroutedRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
@@ -616,20 +614,20 @@ MODULE historyFile
       if (meta_rflx(ixRFLX%DWroutedRunoff)%varFile) then
         if (nRch_write>0) then
           do ix=1,nRch_write
-            array_temp(ix) = RCHFLX_trib(1,index_write(ix))%ROUTE(idxDW)%REACH_Q
+            array_temp(ix) = RCHFLX_local(1,index_write(ix))%ROUTE(idxDW)%REACH_Q
           end do
         end if
         call write_pnetcdf_recdim(this%pioFileDesc, 'DWroutedRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       endif
 
-      if (meta_rflx(ixRFLX%volume)%varFile) then
+      if (meta_rflx(ixRFLX%IRFvolume)%varFile) then
         if (nRch_write>0) then
           do ix=1,nRch_write
-            array_temp(ix) = RCHFLX_trib(1,index_write(ix))%ROUTE(idxIRF)%REACH_VOL(1)
+            array_temp(ix) = RCHFLX_local(1,index_write(ix))%ROUTE(idxIRF)%REACH_VOL(1)
           end do
         end if
-        call write_pnetcdf_recdim(this%pioFileDesc, 'volume', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
+        call write_pnetcdf_recdim(this%pioFileDesc, 'IRFvolume', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       endif
 

@@ -152,22 +152,22 @@ CONTAINS
 
     wb_error = wb_global(1)-sum(wb_global(2:6))
 
-    if (verbose) then
-      if (masterproc) then
+    if (masterproc) then
+      if (verbose) then
         write(iulog,'(A)') '  global water balance [m3] '
         write(iulog,'(A,1PG15.7)') '  dVol [m3]         = ', wb_global(1)
         write(iulog,'(A,1PG15.7)') '  lateral flow [m3] = ', wb_global(2)
         write(iulog,'(A,1PG15.7)') '  precip [m3]       = ', wb_global(3)
-        write(iulog,'(A,1PG15.7)') '  abstraction [m3]  = ', wb_global(4)
-        write(iulog,'(A,1PG15.7)') '  evaporation [m3]  = ', wb_global(5)
+        write(iulog,'(A,1PG15.7)') '  evaporation [m3]  = ', wb_global(4)
+        write(iulog,'(A,1PG15.7)') '  abstraction [m3]  = ', wb_global(5)
         write(iulog,'(A,1PG15.7)') '  outflow [m3]      = ', wb_global(6)
         write(iulog,'(A,1PG15.7)') '  WBerr [m3]        = ', wb_error
       end if
-    endif
 
-    if (abs(wb_error) > 1._dp) then ! tolerance is 1 [m3]
-      write(iulog,'(A,1PG15.7,1X,A)') ' WARNING: global WB error [m3] = ', wb_error, '> 1.0 [m3]'
-    end if
+      if (abs(wb_error) > 1._dp) then ! tolerance is 1 [m3]
+        write(iulog,'(A,1PG15.7,1X,A)') ' WARNING: global WB error [m3] = ', wb_error, '> 1.0 [m3]'
+      end if
+    endif
 
     CONTAINS
 

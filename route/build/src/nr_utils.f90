@@ -1,6 +1,7 @@
 MODULE nr_utils
 
 USE nrtype
+USE public_var
 
 implicit none
 
@@ -382,25 +383,24 @@ CONTAINS
   ! ************************************************************************************************
   ! match_index: find array1 indix for each array2 element if array2 includes matching element in array1
   ! ************************************************************************************************
-  FUNCTION match_index(array1, array2, missingValue) RESULT(index1)
+  FUNCTION match_index(array1, array2, ierr, message) RESULT(index1)
     implicit none
     ! Argument variables:
     integer(i4b), allocatable, intent(in)  :: array1(:)
     integer(i4b), allocatable, intent(in)  :: array2(:)
-    integer(i4b), optional,    intent(in)  :: missingValue ! desired missing value if desiredValue is not found
+    integer(i4b),              intent(out) :: ierr         ! error code
+    character(*),              intent(out) :: message      ! error message
     ! Local variables:
     integer(i4b), allocatable              :: index1(:)
     integer(i4b), allocatable              :: rnkArray1(:)
     integer(i4b), allocatable              :: rnkArray2(:)
     integer(i4b)                           :: ix, jx, begIx
 
+    ierr=0; message='match_index/'
+
     allocate(index1(size(array2)), rnkArray1(size(array1)), rnkArray2(size(array2)) )
 
-    if(present(missingValue))then
-      index1=missingValue
-    else
-      index1 = -9999
-    endif
+    index1 = integerMissing
 
     call indexx(array1, rnkArray1)
     call indexx(array2, rnkArray2)
@@ -418,6 +418,17 @@ CONTAINS
         end if
       end do
     end do
+
+    ! check
+    do ix=1,size(array2)
+      if(index1(ix) == integerMissing) cycle
+      if(array2(ix) /= array1( index1(ix) ) )then
+        write(iulog,'(a,2(x,I10,x,I15))') 'ERROR Mapping: ix, ID(ix), index(ix), masterID(index(ix))=', ix, array2(ix), index1(ix), array1(index1(ix))
+        message=trim(message)//'unable to find the match'
+        ierr=20; return
+      endif
+    end do
+
   END FUNCTION
 
 END MODULE nr_utils

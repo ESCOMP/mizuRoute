@@ -18,6 +18,7 @@ MODULE RtmMod
   USE RunoffMod,    ONLY: rtmCTL, RunoffInit         ! rof related data objects
 
   ! mizuRoute share routines
+  USE public_var,   ONLY: secprday                   ! second per day
   USE public_var,   ONLY: dt                         ! routing time step
   USE public_var,   ONLY: iulog
   USE public_var,   ONLY: qgwl_runoff_option
@@ -120,7 +121,7 @@ CONTAINS
       if (masterproc) then
         write(iulog,*) 'WARNING: Adjust mizuRoute dt to coupling_period'
       endif
-      dt = coupling_period*60.0*60.0*24.0
+      dt = coupling_period*secprday ! day->sec
     endif
 
     ! mizuRoute time initialize based on time from coupler
@@ -130,8 +131,8 @@ CONTAINS
     if (masterproc) then
       write(iulog,*) 'define run:'
       write(iulog,*) '   run type              = ',runtyp(nsrest+1)
-      write(iulog,*) '   coupling_period       = ',coupling_period, '[day]'
-      write(iulog,*) '   delt_mizuRoute        = ',dt, '[sec]'
+      write(iulog,*) '   coupling_frequency    = ',coupling_period, '[day]'
+      write(iulog,*) '   mizuRoute timestep    = ',dt, '[sec]'
       call shr_sys_flush(iulog)
     endif
 
@@ -384,7 +385,7 @@ CONTAINS
     call t_startf('mizuRoute_tot')
     call shr_sys_flush(iulog)
 
-    delt_coupling = coupling_period*60.0*60.0*24.0   ! day -> sec
+    delt_coupling = coupling_period*secprday   ! day -> sec
     if (first_call) then
       nsub_save = 1
       delt_save = dt

@@ -154,8 +154,8 @@ CONTAINS
  SUBROUTINE output(ierr, message)
 
    USE public_var, ONLY: outputAtGage      ! ascii containing last restart and history files
-   USE globalData, ONLY: iTime
-   USE globalData, ONLY: timeVar
+   USE globalData, ONLY: timeVar           ! current simulation time variable
+   USE globalData, ONLY: RCHFLX_trib       ! reach flux data structure containing current flux variables
    USE globalData, ONLY: rch_per_proc      ! number of reaches assigned to each proc (size = num of procs+1)
    USE globalData, ONLY: nRch_mainstem     ! number of mainstem reach
    USE globalData, ONLY: nTribOutlet       ! number of
@@ -188,11 +188,12 @@ CONTAINS
      index_write_all = arth(1,1,nRch_local)
    end if
 
-   call hist_all_network%write_flux(timeVar(iTime), index_write_all, ierr, cmessage)
+   ! write out output variables in history files
+   call hist_all_network%write_flux(timeVar, RCHFLX_trib, index_write_all, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    if (outputAtGage) then
-     call hist_gage%write_flux(timeVar(iTime), index_write_gage, ierr, cmessage)
+     call hist_gage%write_flux(timeVar, RCHFLX_trib, index_write_gage, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
 
@@ -284,7 +285,8 @@ CONTAINS
      reachID_local = NETOPO_trib(:)%REACHID
    endif
 
-   call reach_subset(reachID_local, gage_data, compdof=compdof_rch, index2=index_write_gage)
+   call reach_subset(reachID_local, gage_data, ierr, cmessage, compdof=compdof_rch, index2=index_write_gage)
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! Need to adjust tributary indices in root processor
    ! This is because RCHFLX has three components in the order: mainstem, halo, tributary

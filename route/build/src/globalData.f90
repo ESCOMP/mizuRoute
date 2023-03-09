@@ -11,7 +11,7 @@ MODULE globalData
   USE dataTypes, ONLY: var_info      ! metadata type - variable
   USE objTypes,  ONLY: var_info_new  ! metadata type - variable
 
-  USE dataTypes, ONLY: infileinfo    ! data strture - information of input files
+  USE dataTypes, ONLY: inFileInfo    ! data strture - information of input files
   USE dataTypes, ONLY: gage          ! data structure - gauge metadata
 
   USE dataTypes, ONLY: RCHPRP        ! data structure - Reach parameters (properties)
@@ -25,6 +25,7 @@ MODULE globalData
   USE dataTypes, ONLY: LKFLX         ! data structure - lake fluxes
 
   USE dataTypes, ONLY: remap         ! data structure - remapping data type
+
   USE dataTypes, ONLY: runoff        ! data structure - runoff data type
   USE dataTypes, ONLY: wm            ! data structure - water management (flux to/from segment, target volume) data type
 
@@ -86,18 +87,20 @@ MODULE globalData
   ! ---------- Date/Time data  -------------------------------------------------------------------------
 
   integer(i4b),                    public :: iTime                ! time index at simulation time step
-  real(dp),         allocatable,   public :: timeVar(:)           ! time variables (unit given by runoff data)
+  real(dp),                        public :: timeVar              ! time variables (unit given by time variable)
   real(dp),                        public :: TSEC(0:1)            ! begning and end of time step since simulation started (sec)
   type(datetime),                  public :: simDatetime(0:1)     ! previous and current simulation time (yyyy:mm:dd:hh:mm:ss)
   type(datetime),                  public :: begDatetime          ! simulation start date/time (yyyy:mm:dd:hh:mm:ss)
   type(datetime),                  public :: endDatetime          ! simulation end date/time (yyyy:mm:dd:hh:mm:ss)
   type(datetime),                  public :: restDatetime         ! desired restart date/time (yyyy:mm:dd:hh:mm:ss)
   type(datetime),                  public :: dropDatetime         ! restart dropoff date/time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime),                  public :: roBegDatetime        ! forcing data start date/time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime),                  public :: wmBegDatetime        ! water management data start date/time (yyyy:mm:dd:hh:mm:ss)
 
   ! ---------- input file information -------------------------------------------------------------------
 
-  type(infileinfo), allocatable,   public :: infileinfo_data(:)    ! input runoff file information
-  type(infileinfo), allocatable,   public :: infileinfo_data_wm(:) ! input water management (abstaction/injection) file information
+  type(infileinfo), allocatable,   public :: inFileInfo_ro(:)    ! input runoff/evapo/precipi file information
+  type(infileinfo), allocatable,   public :: inFileInfo_wm(:)    ! input water management (abstaction/injection) file information
 
   ! ---------- Misc. data -------------------------------------------------------------------------
   character(len=strLen),           public :: runMode='standalone'        ! run options: standalone or cesm-coupling

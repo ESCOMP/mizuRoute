@@ -91,7 +91,6 @@ CONTAINS
    real(dp),           allocatable                :: reachPrecip_local(:) ! reach precipitation (m/s)
    integer(i4b)                                   :: nSeg                 ! number of reach to be processed
    integer(i4b)                                   :: iSeg                 ! index of reach
-   integer(i4b)                                   :: ixRoute              ! index of routing method
 
    ierr=0; message = "main_routing/"
 
