@@ -148,14 +148,17 @@ implicit none
    integer(i4b)             , allocatable  :: qhru_ix(:)   ! Index of hrus associated with runoff simulation (="qhru")
  end type remap
 
- ! mapping time step between two time series e.g., simulation time step vs runoff time step for one simulation time step
+ ! mapping time step between two time series e.g., simulation time step and runoff time step for one simulation time step
+ ! runoff value used at each simulaition time step is weighted average of runoff(s) across input time step(s)
+ ! (can be one, but several if simulation step is larger than runoff time step)
+ ! This store indices of netCDF files in input file streams and time step weight of input variables from each input timestep
  type, public :: map_time
-   integer(i4b), allocatable :: iFile(:)
-   integer(i4b), allocatable :: iTime(:)
-   real(dp),     allocatable :: frac(:)
+   integer(i4b), allocatable :: iFile(:) ! index of input netCDF file
+   integer(i4b), allocatable :: iTime(:) ! index of time steps within the corresponding netCDF
+   real(dp),     allocatable :: frac(:)  ! weight
  end type map_time
 
- ! ---------- forcing and water management data  ----------------------------------------------------------------------
+ ! ---------- input forcing data  ----------------------------------------------------------------------
 
  type, public :: inputData
    integer(i4b)                            :: nSpace(1:2)     ! number of spatial dimension
@@ -164,19 +167,19 @@ implicit none
    real(dp)                                :: fillvalue       ! fillvalue
  end type inputData
 
- type, public, extends(inputData) :: runoff
+ type, public, extends(inputData) :: runoff  ! runoff data
    integer(i4b)             , allocatable  :: hru_id(:)       ! id of HM_HRUs or RN_HRUs at which runoff is stored (size: nSpace(1))
    integer(i4b)             , allocatable  :: hru_ix(:)       ! Index of RN_HRUs associated with river network (used only if HM_HRUs = RN_HRUs)
-   real(dp)                 , allocatable  :: basinRunoff(:)  ! remapped river network catchment runoff (size: number of nHRU)
-   real(dp)                 , allocatable  :: basinEvapo(:)   ! remapped river network catchment runoff (size: number of nHRU)
-   real(dp)                 , allocatable  :: basinPrecip(:)  ! remapped river network catchment runoff (size: number of nHRU)
+   real(dp)                 , allocatable  :: basinRunoff(:)  ! remapped river network catchment runoff [depth/time] (size: number of nHRU)
+   real(dp)                 , allocatable  :: basinEvapo(:)   ! remapped river network catchment evaporation [depth/time] (size: number of nHRU)
+   real(dp)                 , allocatable  :: basinPrecip(:)  ! remapped river network catchment precipitation [depth/time] (size: number of nHRU)
  end type runoff
 
- type, public, extends(inputData) :: wm
+ type, public, extends(inputData) :: wm  ! water-management
    integer(i4b)             , allocatable  :: seg_id(:)       ! id of reach in data (size: nSpace)
    integer(i4b)             , allocatable  :: seg_ix(:)       ! Index of river network reach IDs corresponding reach ID in data
-   real(dp)                 , allocatable  :: flux_wm(:)      ! allocated flux to existing river network using sort_flux (size: number of nRCH)
-   real(dp)                 , allocatable  :: vol_wm(:)       ! allocated target vol to existing river network using sort_flux (size: number of nRCH)
+   real(dp)                 , allocatable  :: flux_wm(:)      ! allocated flux to existing river network using sort_flux [m3/s] (size: number of nRCH)
+   real(dp)                 , allocatable  :: vol_wm(:)       ! allocated target vol to existing river network using sort_flux [m3/s] (size: number of nRCH)
  end type wm
 
  ! ---------- reach parameters ----------------------------------------------------------------------------

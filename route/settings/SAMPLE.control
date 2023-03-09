@@ -22,10 +22,10 @@
 <fname_state_in>          INPUT_RESTART_NC           ! input restart netCDF name. remove or 'coldstart' for run without any particular restart file
 <newFileFrequency>        month                      ! output netcdf frequency: single, daily, monthly, yearly
 <dt_qsim>                 86400                      ! time interval of the forcing [sec] e.g., 86400 sec for daily step
-! lake mode
+! lake and water management (wm) mode
 <is_lake_sim>             T                          ! switch on (T) or off (F) lake simulation
 <is_flux_wm>              T                          ! switch on (T) or off (F) abstraction from or injection to seg/lakes
-<is_vol_wm>               T                          ! switch on (T) or off (F) target volume
+<is_vol_wm>               T                          ! switch on (T) or off (F) target volume (threshold lake volume where water release is trigerred)
 <is_vol_wm_jumpstart>     T                          ! switch on (T) or off (F) for start for lakes with target volume
 ! ****************************************************************************************************************************
 ! DEFINE DIRECTORIES 
