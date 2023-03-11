@@ -65,7 +65,7 @@ The following variables (not pre-defined in the code) need to be defined in cont
 +--------+------------------------+--------------------------------------------------------------------------------------------------+
 | 1,2,3  | <units_qsim>           | units of input runoff. e.g., mm/s                                                                |
 +--------+------------------------+--------------------------------------------------------------------------------------------------+
-| 1,2,3  | <dt_qsim>              | time interval of input runoff in second. e.g., 86400 sec for daily step                          |
+| 1,2,3  | <dt_qsim>              | time interval of simulation time step in second. e.g., 86400 sec for daily step                  |
 +--------+------------------------+--------------------------------------------------------------------------------------------------+
 | 1,2,3  | <is_remap>             | Logical to indicate runoff needs to be remapped to RN_HRU. T or F                                |
 +--------+------------------------+--------------------------------------------------------------------------------------------------+
@@ -206,6 +206,48 @@ The output file name convension:  <case_name>.h.yyyy-mm-dd-sssss.nc
 
 
 3. routed runoff corresponding to the scheme is not ouput if users deactivate a particular routing scheme with <route_opt> tag.  
+
+
+Data assimilation options
+---------------------
+
+mizuRoute can read gauge observed discharge data (in netCDF) along with gauge meta ascii data. To read gauge observation and gauge metadata, the following control variables need to be specified. 
+
+
++---------------------+---------------------------------------------------------------------------------------------------------+
+| tag                 | Description                                                                                             |
++=====================+=========================================================================================================+
+| <gageMetaFile>      | gauge meta data (two column csv format): gauge_id (non-numeric ID is accepted), seg_id                  |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <fname_gageObs>     | gauge discharge data                                                                                    |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <vname_gageFlow>    | variable name for discharge [m3/s]                                                                      |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <vname_gageSite>    | variable name for gauge site name (character array)                                                     |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <vname_gageTime>    | variable name for time                                                                                  |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <dname_gageSite>    | dimension name for site                                                                                 |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <dname_gageTime>    | imension name for time                                                                                  |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <strlen_gageSite>   | maximum gauge name string length                                                                        | 
++---------------------+---------------------------------------------------------------------------------------------------------+
+
+
+Data assimilation is the direct insertion that is performed at a list of reaches in the metadata. Two parameters-<QerrTrend> and <ntsQmodStop> are needed. 
+<QerrTrend> tells how bias computed at observation time at each reach evolves in the subsequent future <ntsQmodStop> time steps.
+To activate data assimilation of observed discharge into simulated discharge, the following control variables need to be specified.
+
++---------------------+---------------------------------------------------------------------------------------------------------+
+| tag                 | Description                                                                                             |
++=====================+=========================================================================================================+
+| <qmodOption>        | activation of direct insertion. 0 -> do nothing, 1=> discharge direct insertion                         | 
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <QerrTrend>         | temporal discharge error trend. 1->constant, 2->linear, 3->logistic, 4->exponential                     |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <ntsQmodStop>       | the number of time steps when flow correction stops                                                     | 
++---------------------+---------------------------------------------------------------------------------------------------------+
 
 
 Control file examples
