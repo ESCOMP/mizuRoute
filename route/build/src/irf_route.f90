@@ -14,6 +14,7 @@ USE public_var, ONLY: integerMissing  ! missing value for integer number
 USE public_var, ONLY: dt              ! routing time step duration [sec]
 USE public_var, ONLY: qmodOption      ! qmod option (use 1==direct insertion)
 USE public_var, ONLY: ntsQmodStop     ! number of time steps for which direct insertion is performed
+USE public_var, ONLY: QerrTrend       ! temporal discharge error trend: 1->constant,2->linear, 3->logistic
 USE globalData, ONLY: nThreads        ! number of threads used for openMP
 USE globalData, ONLY: idxIRF          ! index of IRF method
 ! subroutines: general
@@ -159,6 +160,10 @@ CONTAINS
  ! Local variables
  real(dp)                                 :: q_upstream     ! total discharge at top of the reach being processed
  real(dp)                                 :: WB_error       ! water balance error [m3/s]
+ real(dp)                                 :: Qcorrect       ! Discharge correction (when qmodOption=1) [m3/s]
+ real(dp)                                 :: k              ! the logistic decay rate or steepness of the curve.
+ real(dp)                                 :: y0             !
+ real(dp)                                 :: x0             !
  integer(i4b)                             :: nUps           ! number of upstream segment
  integer(i4b)                             :: iUps           ! upstream reach index
  integer(i4b)                             :: iRch_ups       ! index of upstream reach in NETOPO
@@ -166,6 +171,10 @@ CONTAINS
  integer(i4b)                             :: itdh           ! loop index for unit hydrograph
  character(len=strLen)                    :: fmt1           ! format string
  character(len=strLen)                    :: cmessage       ! error message from subroutine
+ integer(i4b),parameter                   :: const=1        ! error reduction type: step function
+ integer(i4b),parameter                   :: linear=2       ! error reduction type: linear function
+ integer(i4b),parameter                   :: logistic=3     ! error reduction type: logistic function
+ integer(i4b),parameter                   :: exponential=4  ! error reduction type: exponential function
 
  ierr=0; message='irf_rch/'
 
@@ -195,7 +204,29 @@ CONTAINS
         if (RCHFLX_out(iens,iRch_ups)%Qelapsed > ntsQmodStop) then
           RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%Qerror=0._dp
         end if
-        RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%REACH_Q = max(RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%REACH_Q-RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%Qerror, 0._dp)
+        if (RCHFLX_out(iens,iRch_ups)%Qelapsed <= ntsQmodStop) then
+          select case(QerrTrend)
+            case(const)
+              Qcorrect = RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%Qerror
+            case(linear)
+              Qcorrect = RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%Qerror*(1._dp - real(RCHFLX_out(iens,iRch_ups)%Qelapsed,dp)/real(ntsQmodStop, dp))
+            case(logistic)
+              x0 =0.25; y0 =0.90
+              k = log(1._dp/y0-1._dp)/(ntsQmodStop/2._dp-ntsQmodStop*x0)
+              Qcorrect = RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%Qerror/(1._dp + exp(-k*(1._dp*RCHFLX_out(iens,iRch_ups)%Qelapsed-ntsQmodStop/2._dp)))
+            case(exponential)
+              if (RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%Qerror/=0._dp) then
+                k = log(0.1_dp/abs(RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%Qerror))/(1._dp*ntsQmodStop)
+                Qcorrect = RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%Qerror*exp(k*RCHFLX_out(iens,iRch_ups)%Qelapsed)
+              else
+                Qcorrect = 0._dp
+              end if
+            case default; message=trim(message)//'discharge error trend model must be 1(const),2(liear), or 3(logistic)'; ierr=81; return
+          end select
+        else
+          Qcorrect=0._dp
+        end if
+        RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%REACH_Q = max(RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%REACH_Q-Qcorrect, 0._dp)
       end if
 
       q_upstream = q_upstream + RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%REACH_Q

@@ -176,7 +176,6 @@ CONTAINS
    real(dp)                                   :: juldaySim        ! starting julian day in simulation time step [day]
    integer(i4b)                               :: ctr              ! counter
    integer(i4b)                               :: nRoSub           !
-   integer(i4b)                               :: iFile            ! loop index of input file
    integer(i4b)                               :: iRo              ! loop index of runoff time step
    integer(i4b)                               :: idxFront         ! index of r of which top is within ith model layer (i=1..nLyr)
    integer(i4b)                               :: idxEnd           ! index of the lowest soil layer of which bottom is within ith model layer (i=1..nLyr)
@@ -217,7 +216,7 @@ CONTAINS
    nRoSub = idxEnd-idxFront + 1
 
    allocate(tmap_sim_forc%iTime(nRoSub), stat=ierr, errmsg=cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage)//'tmap_sim_forc%iTime or iFile'; return; endif
+   if(ierr/=0)then; message=trim(message)//trim(cmessage)//'tmap_sim_forc%iTime'; return; endif
 
    if (idxFront == idxEnd)then ! if simulation period is completely within runoff period - one runoff time period per simulation period
      tmap_sim_forc%iTime(ctr) = idxFront
