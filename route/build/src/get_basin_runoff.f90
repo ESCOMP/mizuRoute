@@ -155,7 +155,7 @@ CONTAINS
    USE public_var,        ONLY: verySmall      ! smallest real values
    USE public_var,        ONLY: secprday       ! day to second conversion factor
    USE public_var,        ONLY: calendar       ! calender
-   USE public_var,        ONLY: dt             ! simulation time step
+   USE public_var,        ONLY: dt_sim         ! simulation time step
    USE public_var,        ONLY: dt_ro          ! input time step
 
    implicit none
@@ -189,8 +189,8 @@ CONTAINS
 
    startRoSec = (juldaySim - juldayRo)*secprday ! day->sec
 
-   simLapse(1) = startRoSec+dt*(ixTime-1)
-   simLapse(2) = simLapse(1) + dt
+   simLapse(1) = startRoSec+dt_sim*(ixTime-1)
+   simLapse(2) = simLapse(1) + dt_sim
    frcLapse    = arth(0._dp,      dt_ro, nRo+1)
 
    !-- Find index of runoff time period of which end is within simulation period
@@ -228,11 +228,11 @@ CONTAINS
      do iRo=idxFront, idxEnd
        tmap_sim_forc%iTime(ctr) = iRo
        if (iRo == idxFront)then        ! front side of simulation time step
-         tmap_sim_forc%frac(ctr)   = (frcLapse(iRo+1) - simLapse(1))/dt
+         tmap_sim_forc%frac(ctr)   = (frcLapse(iRo+1) - simLapse(1))/dt_sim
        else if ( iRo == idxEnd ) then  ! end side of simulation time step
-         tmap_sim_forc%frac(ctr)   = (simLapse(2)-frcLapse(iRo))/dt
+         tmap_sim_forc%frac(ctr)   = (simLapse(2)-frcLapse(iRo))/dt_sim
        else                            ! simulation time step is completely with forcing time step
-         tmap_sim_forc%frac(ctr)   = (frcLapse(iRo+1)-frcLapse(iRo))/dt
+         tmap_sim_forc%frac(ctr)   = (frcLapse(iRo+1)-frcLapse(iRo))/dt_sim
        endif
        ctr = ctr+1
      end do

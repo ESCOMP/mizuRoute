@@ -114,7 +114,7 @@ MODULE public_var
   character(len=10)    ,public    :: routOpt              = '0'             ! routing scheme options  0: accum runoff, 1:IRF, 2:KWT, 3:KW, 4:MC, 5:DW
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
   character(len=strLen),public    :: newFileFrequency     = 'yearly'        ! frequency for new output files (daily, monthly, yearly, single)
-  real(dp)             ,public    :: dt                   = realMissing     ! simulation time step (seconds)
+  real(dp)             ,public    :: dt_sim               = realMissing     ! simulation time step (seconds)
   ! STATES
   character(len=strLen),public    :: restart_write        = 'never'         ! restart write option: never-> never write, last -> write at last time step, specified, yearly, monthly, daily
   character(len=strLen),public    :: restart_date         = charMissing     ! specifed restart date

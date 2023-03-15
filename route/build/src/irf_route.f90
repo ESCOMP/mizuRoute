@@ -11,7 +11,7 @@ USE dataTypes, ONLY: irfRCH           ! irf specific state data structure
 USE public_var, ONLY: iulog           ! i/o logical unit number
 USE public_var, ONLY: realMissing     ! missing value for real number
 USE public_var, ONLY: integerMissing  ! missing value for integer number
-USE public_var, ONLY: dt              ! routing time step duration [sec]
+USE public_var, ONLY: dt=>dt_sim      ! routing time step duration [sec]
 USE public_var, ONLY: qmodOption      ! qmod option (use 1==direct insertion)
 USE public_var, ONLY: ntsQmodStop     ! number of time steps for which direct insertion is performed
 USE public_var, ONLY: QerrTrend       ! temporal discharge error trend: 1->constant,2->linear, 3->logistic
