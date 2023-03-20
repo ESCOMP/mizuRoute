@@ -13,11 +13,10 @@ USE public_var,  ONLY: iulog             ! i/o logical unit number
 USE public_var,  ONLY: realMissing       ! missing value for real number
 USE public_var,  ONLY: integerMissing    ! missing value for integer number
 USE public_var,  ONLY: qmodOption        ! qmod option (use 1==direct insertion)
-USE public_var,  ONLY: ntsQmodStop       ! number of time steps for which direct insertion is performed
-USE public_var,  ONLY: QerrTrend         ! temporal discharge error trend: 1->constant,2->linear, 3->logistic
 USE globalData,  ONLY: idxDW
 ! subroutines: general
-USE model_finalize, ONLY : handle_err
+USE data_assimilation, ONLY: direct_insertion ! qmod option (use 1==direct insertion)
+USE model_finalize,    ONLY: handle_err
 
 implicit none
 
@@ -156,15 +155,7 @@ CONTAINS
  integer(i4b)                              :: iUps              ! upstream reach index
  integer(i4b)                              :: iRch_ups          ! index of upstream reach in NETOPO
  real(dp)                                  :: q_upstream        ! total discharge at top of the reach being processed
- real(dp)                                  :: Qcorrect          ! Discharge correction (when qmodOption=1) [m3/s]
- real(dp)                                  :: k                 ! the logistic decay rate or steepness of the curve.
- real(dp)                                  :: y0                !
- real(dp)                                  :: x0                !
  character(len=strLen)                     :: cmessage          ! error message from subroutine
- integer(i4b),parameter                    :: const=1           ! error reduction type: step function
- integer(i4b),parameter                    :: linear=2          ! error reduction type: linear function
- integer(i4b),parameter                    :: logistic=3        ! error reduction type: logistic function
- integer(i4b),parameter                    :: exponential=4     ! error reduction type: exponential function
 
  ierr=0; message='dfw_rch/'
 
@@ -182,39 +173,6 @@ CONTAINS
    do iUps = 1,nUps
      if (.not. NETOPO_in(segIndex)%goodBas(iUps)) cycle
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-
-     if (qmodOption==1) then
-       if (RCHFLX_out(iens,iRch_ups)%QOBS>0._dp) then
-         RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%Qerror = RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q - RCHFLX_out(iens,iRch_ups)%QOBS ! compute error
-       end if
-       if (RCHFLX_out(iens,iRch_ups)%Qelapsed > ntsQmodStop) then
-         RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%Qerror=0._dp
-       end if
-       if (RCHFLX_out(iens,iRch_ups)%Qelapsed <= ntsQmodStop) then
-          select case(QerrTrend)
-            case(const)
-              Qcorrect = RCHFLX_out(iens,iRch_ups)%ROUTE(idxDW)%Qerror
-            case(linear)
-              Qcorrect = RCHFLX_out(iens,iRch_ups)%ROUTE(idxDW)%Qerror*(1._dp - real(RCHFLX_out(iens,iRch_ups)%Qelapsed,dp)/real(ntsQmodStop, dp))
-            case(logistic)
-              x0 =0.25; y0 =0.90
-              k = log(1._dp/y0-1._dp)/(ntsQmodStop/2._dp-ntsQmodStop*x0)
-              Qcorrect = RCHFLX_out(iens,iRch_ups)%ROUTE(idxDW)%Qerror/(1._dp + exp(-k*(1._dp*RCHFLX_out(iens,iRch_ups)%Qelapsed-ntsQmodStop/2._dp)))
-            case(exponential)
-              if (RCHFLX_out(iens,iRch_ups)%ROUTE(idxDW)%Qerror/=0._dp) then
-                k = log(0.1_dp/abs(RCHFLX_out(iens,iRch_ups)%ROUTE(idxDW)%Qerror))/(1._dp*ntsQmodStop)
-                Qcorrect = RCHFLX_out(iens,iRch_ups)%ROUTE(idxDW)%Qerror*exp(k*RCHFLX_out(iens,iRch_ups)%Qelapsed)
-              else
-                Qcorrect = 0._dp
-              end if
-            case default; message=trim(message)//'discharge error trend model must be 1(const),2(liear), or 3(logistic)'; ierr=81; return
-          end select
-       else
-         Qcorrect=0._dp
-       end if
-       RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q = max(RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q-Qcorrect, 0._dp)
-     end if
-
      q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q
    end do
  endif
@@ -255,6 +213,19 @@ CONTAINS
  end if
  if (RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(1) < 0) then
    write(iulog,'(A,X,G12.5,X,A,X,I9)') ' ---- NEGATIVE VOLUME (Diffusive Wave)= ', RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(1), 'at ', NETOPO_in(segIndex)%REACHID
+ end if
+
+ if (qmodOption==1) then
+   call direct_insertion(iens, segIndex, & ! input: reach index
+                         idxDW,          & ! input: routing method id for diffusive wave routing
+                         ixDesire,       & ! input: verbose seg index
+                         NETOPO_in,      & ! input: reach topology data structure
+                         RCHSTA_out,     & ! inout: reach state data structure
+                         RCHFLX_out,     & ! inout: reach fluxes datq structure
+                         ierr, cmessage)   ! output: error control
+   if(ierr/=0)then
+     write(message,'(A,X,I12,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage); return
+   endif
  end if
 
  END SUBROUTINE dfw_rch
