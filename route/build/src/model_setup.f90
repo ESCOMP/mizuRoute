@@ -290,6 +290,7 @@ CONTAINS
     RCHFLX(:,:)%BASIN_QR(0) = 0._dp
     RCHFLX(:,:)%BASIN_QR(1) = 0._dp
     RCHFLX(:,:)%Qelapsed = 0
+    RCHFLX(:,:)%QOBS = 0._dp
 
     do iRoute = 1, nRoutes
       if (routeMethods(iRoute)==impulseResponseFunc) then

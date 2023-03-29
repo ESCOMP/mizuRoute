@@ -93,7 +93,6 @@ CONTAINS
   select case(qmodOption)
     case(no_mod) ! do nothing
     case(direct_insert)
-      RCHFLX(:,:)%QOBS = 0.0_dp
       ! read gage observation [m3/s] at current time
       jx = gage_obs_data%time_ix(simDatetime(1))
 
