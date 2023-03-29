@@ -144,7 +144,7 @@ MODULE public_var
   ! USER OPTIONS
   integer(i4b)         ,public    :: qmodOption           = 0               ! options for streamflow modification (DA): 0-> no DA, 1->direct insertion
   integer(i4b)         ,public    :: QerrTrend            = 1               ! temporal discharge error decreasing trend: 1->constant, 2->linear, 3->logistic, 4->exponential
-  integer(i4b)         ,public    :: ntsQmodStop          = 10              ! number of time steps for which streamflow modification is performed
+  integer(i4b)         ,public    :: qBlendPeriod         = 10              ! number of time steps for which streamflow modification is performed through blending observation
   logical(lgt)         ,public    :: takeWater            = .false.         ! switch for water abstraction and injection
   integer(i4b)         ,public    :: hydGeometryOption    = compute         ! option for hydraulic geometry calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: topoNetworkOption    = compute         ! option for network topology calculations (0=read from file, 1=compute)

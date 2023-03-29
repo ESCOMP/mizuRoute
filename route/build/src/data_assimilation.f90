@@ -11,7 +11,7 @@ USE dataTypes, ONLY: STRSTA            ! state in each reach
 USE dataTypes, ONLY: RCHTOPO           ! Network topology
 ! global data
 USE public_var, ONLY: iulog             ! i/o logical unit number
-USE public_var, ONLY: ntsQmodStop       ! number of time steps for which direct insertion is performed
+USE public_var, ONLY: qBlendPeriod      ! number of time steps for which direct insertion is performed
 USE public_var, ONLY: QerrTrend         ! temporal discharge error trend: 1->constant,2->linear, 3->logistic
 
 implicit none
@@ -65,23 +65,23 @@ CONTAINS
      RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%Qerror = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q - RCHFLX_out(iens,segIndex)%QOBS ! compute error
    end if
 
-   if (RCHFLX_out(iens,segIndex)%Qelapsed > ntsQmodStop) then
+   if (RCHFLX_out(iens,segIndex)%Qelapsed > qBlendPeriod) then
      RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%Qerror=0._dp
    end if
 
-   if (RCHFLX_out(iens,segIndex)%Qelapsed <= ntsQmodStop) then
+   if (RCHFLX_out(iens,segIndex)%Qelapsed <= qBlendPeriod) then
      select case(QerrTrend)
        case(const)
          Qcorrect = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%Qerror
        case(linear)
-         Qcorrect = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%Qerror*(1._dp - real(RCHFLX_out(iens,segIndex)%Qelapsed,dp)/real(ntsQmodStop, dp))
+         Qcorrect = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%Qerror*(1._dp - real(RCHFLX_out(iens,segIndex)%Qelapsed,dp)/real(qBlendPeriod, dp))
        case(logistic)
          x0 =0.25; y0 =0.90
-         k = log(1._dp/y0-1._dp)/(ntsQmodStop/2._dp-ntsQmodStop*x0)
-         Qcorrect = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%Qerror/(1._dp + exp(-k*(1._dp*RCHFLX_out(iens,segIndex)%Qelapsed-ntsQmodStop/2._dp)))
+         k = log(1._dp/y0-1._dp)/(qBlendPeriod/2._dp-qBlendPeriod*x0)
+         Qcorrect = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%Qerror/(1._dp + exp(-k*(1._dp*RCHFLX_out(iens,segIndex)%Qelapsed-qBlendPeriod/2._dp)))
        case(exponential)
          if (RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%Qerror/=0._dp) then
-           k = log(0.1_dp/abs(RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%Qerror))/(1._dp*ntsQmodStop)
+           k = log(0.1_dp/abs(RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%Qerror))/(1._dp*qBlendPeriod)
            Qcorrect = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%Qerror*exp(k*RCHFLX_out(iens,segIndex)%Qelapsed)
          else
            Qcorrect = 0._dp
