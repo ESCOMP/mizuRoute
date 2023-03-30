@@ -312,6 +312,7 @@ CONTAINS
    ! increment model datetime
    simDatetime(0) = simDatetime(1)
    simDatetime(1) = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
+   simDatetime(2) = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
 
    ! model time stamp variable for output - dt is in second
    t_unit = trim( time_units(1:index(time_units,' ')) )

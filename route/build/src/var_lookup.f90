@@ -34,15 +34,16 @@ MODULE var_lookup
  ! For routing state variables
  type, public  ::  iLook_stateDims
   integer(i4b)     :: seg          = integerMissing   !  1. stream segment vector
-  integer(i4b)     :: time         = integerMissing   !  2. time
-  integer(i4b)     :: tbound       = integerMissing   !  3. 2 elelment time bound vector
-  integer(i4b)     :: ens          = integerMissing   !  4. runoff ensemble
-  integer(i4b)     :: wave         = integerMissing   !  5. waves in a channel
-  integer(i4b)     :: mol_kw       = integerMissing   !  6. kw finite difference computational molecule
-  integer(i4b)     :: mol_mc       = integerMissing   !  7. mc finite difference computational molecule
-  integer(i4b)     :: mol_dw       = integerMissing   !  8. kw finite difference computational molecule
-  integer(i4b)     :: tdh_irf      = integerMissing   !  9. irf routed future channel flow in a segment
-  integer(i4b)     :: tdh          = integerMissing   ! 10. uh routed future overland flow
+  integer(i4b)     :: hru          = integerMissing   !  2. catchment hru vector
+  integer(i4b)     :: time         = integerMissing   !  3. time
+  integer(i4b)     :: tbound       = integerMissing   !  4. 2 elelment time bound vector
+  integer(i4b)     :: ens          = integerMissing   !  5. runoff ensemble
+  integer(i4b)     :: wave         = integerMissing   !  6. waves in a channel
+  integer(i4b)     :: mol_kw       = integerMissing   !  7. kw finite difference computational molecule
+  integer(i4b)     :: mol_mc       = integerMissing   !  8. mc finite difference computational molecule
+  integer(i4b)     :: mol_dw       = integerMissing   !  9. kw finite difference computational molecule
+  integer(i4b)     :: tdh_irf      = integerMissing   ! 10. irf routed future channel flow in a segment
+  integer(i4b)     :: tdh          = integerMissing   ! 11. uh routed future overland flow
  endtype iLook_stateDims
  ! For river discharge variables
  type, public  ::  iLook_qDims
@@ -258,7 +259,8 @@ MODULE var_lookup
  ! ***********************************************************************************************************
  type(iLook_struct)   ,public,parameter :: ixStruct    = iLook_struct   ( 1, 2, 3, 4, 5)
  type(iLook_dims)     ,public,parameter :: ixDims      = iLook_dims     ( 1, 2, 3, 4, 5, 6, 7)
- type(iLook_stateDims),public,parameter :: ixStateDims = iLook_stateDims( 1, 2, 3, 4, 5, 6, 7, 8, 9,10)
+ type(iLook_stateDims),public,parameter :: ixStateDims = iLook_stateDims( 1, 2, 3, 4, 5, 6, 7, 8, 9,10, &
+                                                                         11)
  type(iLook_qDims)    ,public,parameter :: ixqDims     = iLook_qDims    ( 1, 2, 3, 4)
  type(iLook_HRU)      ,public,parameter :: ixHRU       = iLook_HRU      ( 1)
  type(iLook_HRU2SEG)  ,public,parameter :: ixHRU2SEG   = iLook_HRU2SEG  ( 1, 2, 3, 4)

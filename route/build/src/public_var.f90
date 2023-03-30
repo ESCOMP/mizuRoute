@@ -94,7 +94,8 @@ MODULE public_var
   character(len=strLen),public    :: simStart             = ''              ! date string defining the start of the simulation
   character(len=strLen),public    :: simEnd               = ''              ! date string defining the end of the simulation
   character(len=strLen),public    :: newFileFrequency     = 'yearly'        ! frequency for new output files (daily, monthly, yearly, single)
-  character(len=strLen),public    :: timeAggregation      = 'none'          ! time aggregation for output: 'nh','nd','nm','ny' where n is number or 'none' no aggregation
+  character(len=strLen),public    :: outputFrequency      = '1'             ! output frequency (integer for multiple of simulation time step or daily, monthly or yearly)
+  integer(i4b)         ,public    :: nOutFreq             = integerMissing  ! integer output frequency
   character(len=10)    ,public    :: routOpt              = '0'             ! routing scheme options  0: accum runoff, 1:IRF, 2:KWT, 3:KW, 4:MC, 5:DW
   integer(i4b)         ,public    :: doesBasinRoute       = 1               ! basin routing options   0-> no, 1->IRF, otherwise error
   logical(lgt)         ,public    :: is_lake_sim          = .false.         ! logical if lakes are activated in simulation
@@ -106,7 +107,7 @@ MODULE public_var
   logical(lgt)         ,public    :: is_vol_wm_jumpstart  = .false.         ! logical if true the volume is reset to target volume for the first time step of modeling
   logical(lgt)         ,public    :: suppress_runoff      = .false.         ! logical to suppress the read runoff to zero(0)
   logical(lgt)         ,public    :: suppress_P_Ep        = .false.         ! logical to suppress evaporation and precipitation to zero(0)
-  logical(lgt)         ,public    :: compWB               = .true.          ! logical if entire domain water balance is computed
+  logical(lgt)         ,public    :: compWB               = .false.          ! logical if entire domain water balance is computed
   real(dp)             ,public    :: dt                   = realMissing     ! simulation time step (seconds)
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information

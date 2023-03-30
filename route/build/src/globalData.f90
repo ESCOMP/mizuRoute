@@ -89,7 +89,7 @@ MODULE globalData
   integer(i4b),                    public :: iTime                ! time index at simulation time step
   real(dp),                        public :: timeVar              ! time variables (unit given by time variable)
   real(dp),                        public :: TSEC(0:1)            ! begning and end of time step since simulation started (sec)
-  type(datetime),                  public :: simDatetime(0:1)     ! previous and current simulation time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime),                  public :: simDatetime(0:2)     ! previous, current and next simulation time (yyyy:mm:dd:hh:mm:ss)
   type(datetime),                  public :: begDatetime          ! simulation start date/time (yyyy:mm:dd:hh:mm:ss)
   type(datetime),                  public :: endDatetime          ! simulation end date/time (yyyy:mm:dd:hh:mm:ss)
   type(datetime),                  public :: restDatetime         ! desired restart date/time (yyyy:mm:dd:hh:mm:ss)
@@ -104,13 +104,13 @@ MODULE globalData
 
   ! ---------- Misc. data -------------------------------------------------------------------------
   character(len=strLen),           public :: runMode='standalone'        ! run options: standalone or cesm-coupling
-  logical(lgt),                    public :: isHistFileOpen=.false.      ! flag to indicate history output netcdf is open
   integer(i4b),                    public :: ixPrint(1:2)=integerMissing ! index of desired reach to be on-screen print
   integer(i4b),                    public :: nEns=1                      ! number of ensemble
+  integer(i4b),                    public :: maxtdh                      ! maximum unit-hydrograph future time steps
   type(cMolecule),                 public :: nMolecule                   ! number of computational molecule (used for KW, MC, DW)
-  character(300),                  public :: hfileout=charMissing        ! name of the history output file
-  character(300),                  public :: hfileout_gage=charMissing   ! name of the gage-only history output file
-  character(300),                  public :: rfileout=charMissing        ! name of the restart output file
+  character(300),                  public :: hfileout=charMissing        ! history output file name
+  character(300),                  public :: hfileout_gage=charMissing   ! gage-only history output file name
+  character(300),                  public :: rfileout=charMissing        ! restart output file name
 
   ! ---------- MPI/OMP/PIO variables ----------------------------------------------------------------
 

@@ -1,7 +1,6 @@
 MODULE historyFile
 
   USE nrtype
-  USE dataTypes,         ONLY: STRFLX
   USE var_lookup,        ONLY: ixRFLX, nVarsRFLX
   USE var_lookup,        ONLY: ixHFLX, nVarsHFLX
   USE globalData,        ONLY: idxSUM,idxIRF,idxKWT, &
@@ -17,6 +16,7 @@ MODULE historyFile
   USE globalData,        ONLY: pio_rearranger
   USE globalData,        ONLY: pio_root
   USE globalData,        ONLY: pio_stride
+  USE histVars_data,     ONLY: histVars
   USE pio_utils
   USE perf_mod,          ONLY: t_startf,t_stopf ! timing start/stop (GPTL library)
 
@@ -106,7 +106,7 @@ MODULE historyFile
 
       ! initialze iodescRchFlux
       call pio_decomp(this%pioSystem,    & ! input: pio system descriptor
-                      ncd_double,        & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                      ncd_float,         & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                       [nRch_in],         & ! input: dimension length == global array size
                       compdof_rch,       & ! input: local->global mapping
                       this%ioDescRchFlux)
@@ -127,13 +127,13 @@ MODULE historyFile
 
       ! initialze iodescRchFlux and ioDescHruFlux
       call pio_decomp(this%pioSystem,    & ! input: pio system descriptor
-                      ncd_double,        & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                      ncd_float,        & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                       [nRch_in],         & ! input: dimension length == global array size
                       compdof_rch,       & ! input: local->global mapping
                       this%ioDescRchFlux)
 
       call pio_decomp(this%pioSystem,    & ! input: pio system descriptor
-                      ncd_double,        & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                      ncd_float,        & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                       [nHRU_in],         & ! input: dimension length == global array size
                       compdof_hru,       & ! input: local->global mapping
                       this%ioDescHruFlux)
@@ -450,13 +450,12 @@ MODULE historyFile
     ! ---------------------------------
     ! writing flux (hru and/or rch)
     ! ---------------------------------
-    SUBROUTINE write_flux(this, time, RCHFLX_local, index_write, ierr, message)
+    SUBROUTINE write_flux(this, hVars_local, index_write, ierr, message)
 
       implicit none
       ! Argument variables
       class(histFile),           intent(inout) :: this
-      real(dp),                  intent(in)    :: time
-      type(STRFLX),              intent(in)    :: RCHFLX_local(:,:)
+      type(histVars),            intent(in)    :: hVars_local
       integer(i4b), allocatable, intent(in)    :: index_write(:)
       integer(i4b),              intent(out)   :: ierr             ! error code
       character(*),              intent(out)   :: message          ! error message
@@ -468,17 +467,17 @@ MODULE historyFile
       this%iTime = this%iTime + 1 ! this is only line to increment time step index
 
       ! write time -- note time is just carried across from the input
-      call write_netcdf(this%pioFileDesc, 'time', [time], [this%iTime], [1], ierr, cmessage)
+      call write_netcdf(this%pioFileDesc, 'time', [hVars_local%timeVar], [this%iTime], [1], ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       if (.not.this%gageOutput) then
         if (meta_hflx(ixHFLX%basRunoff)%varFile) then
-          call this%write_flux_hru(ierr, cmessage)
+          call this%write_flux_hru(hVars_local, ierr, cmessage)
           if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
         endif
       end if
 
-      call this%write_flux_rch(RCHFLX_local, index_write, ierr, cmessage)
+      call this%write_flux_rch(hVars_local, index_write, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       call sync_file(this%pioFileDesc, ierr, cmessage)
@@ -487,42 +486,41 @@ MODULE historyFile
     END SUBROUTINE write_flux
 
 
-    SUBROUTINE write_flux_hru(this, ierr, message)
-      ! currently only basin Runoff to be output
+    SUBROUTINE write_flux_hru(this, hVars_local, ierr, message)
+
+      ! Write HRU flux variables
+      ! currently only basin hru Runoff [m/s]
+
       implicit none
       ! Argument variables
       class(histFile),           intent(inout) :: this
+      type(histVars),            intent(in)    :: hVars_local
       integer(i4b),              intent(out)   :: ierr             ! error code
       character(*),              intent(out)   :: message          ! error message
       ! local variables
-      real(dp),    allocatable                 :: basinRunoff(:)
       character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
       ierr=0; message='write_flux_hru/'
 
       if (meta_hflx(ixHFLX%basRunoff)%varFile) then
-        call get_proc_flux(ierr, cmessage, basinRunoff=basinRunoff)
-
-        ! write the basin runoff at HRU (unit: the same as runoff input)
-        call write_pnetcdf_recdim(this%pioFileDesc, 'basRunoff',basinRunoff, this%ioDescHruFlux, this%iTime, ierr, cmessage)
+        call write_pnetcdf_recdim(this%pioFileDesc, 'basRunoff', hVars_local%basRunoff, this%ioDescHruFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       endif
 
     END SUBROUTINE write_flux_hru
 
 
-    SUBROUTINE write_flux_rch(this, RCHFLX_local, index_write, ierr, message)
+    SUBROUTINE write_flux_rch(this, hVars_local, index_write, ierr, message)
 
       implicit none
       ! Argument variables
       class(histFile),           intent(inout) :: this
-      type(STRFLX),              intent(in)    :: RCHFLX_local(:,:)
+      type(histVars),            intent(in)    :: hVars_local
       integer(i4b), allocatable, intent(in)    :: index_write(:)
       integer(i4b),              intent(out)   :: ierr             ! error code
       character(*),              intent(out)   :: message          ! error message
       ! local variables
-      real(dp),    allocatable                 :: array_temp(:)
-      integer(i4b)                             :: ix
+      real(sp),    allocatable                 :: array_temp(:)
       integer(i4b)                             :: nRch_write
       character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
@@ -544,7 +542,7 @@ MODULE historyFile
       ! write instataneous local runoff in each stream segment (m3/s)
       if (meta_rflx(ixRFLX%instRunoff)%varFile) then
         if (nRch_write>0) then
-          array_temp(1:nRch_write) = RCHFLX_local(1,index_write)%BASIN_QI
+          array_temp(1:nRch_write) = hVars_local%instRunoff(index_write)
         end if
         call write_pnetcdf_recdim(this%pioFileDesc, 'instRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -553,7 +551,7 @@ MODULE historyFile
       ! write routed local runoff in each stream segment (m3/s)
       if (meta_rflx(ixRFLX%dlayRunoff)%varFile) then
         if (nRch_write>0) then
-          array_temp(1:nRch_write) = RCHFLX_local(1,index_write)%BASIN_QR(1)
+          array_temp(1:nRch_write) = hVars_local%dlayRunoff(index_write)
         end if
         call write_pnetcdf_recdim(this%pioFileDesc, 'dlayRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -561,9 +559,7 @@ MODULE historyFile
 
       if (meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile) then
         if (nRch_write>0) then
-          do ix=1,nRch_write
-            array_temp(ix) = RCHFLX_local(1,index_write(ix))%ROUTE(idxSUM)%REACH_Q
-          end do
+          array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxSUM)
         end if
         call write_pnetcdf_recdim(this%pioFileDesc, 'sumUpstreamRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -571,9 +567,7 @@ MODULE historyFile
 
       if (meta_rflx(ixRFLX%KWTroutedRunoff)%varFile) then
         if (nRch_write>0) then
-          do ix=1,nRch_write
-            array_temp(ix) = RCHFLX_local(1,index_write(ix))%ROUTE(idxKWT)%REACH_Q
-          end do
+          array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxKWT)
         end if
         call write_pnetcdf_recdim(this%pioFileDesc, 'KWTroutedRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -582,9 +576,7 @@ MODULE historyFile
       call t_startf ('output/write_flux/irf')
       if (meta_rflx(ixRFLX%IRFroutedRunoff)%varFile) then
         if (nRch_write>0) then
-          do ix=1,nRch_write
-            array_temp(ix) = RCHFLX_local(1,index_write(ix))%ROUTE(idxIRF)%REACH_Q
-          end do
+          array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxIRF)
         end if
         call write_pnetcdf_recdim(this%pioFileDesc, 'IRFroutedRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -593,9 +585,7 @@ MODULE historyFile
 
       if (meta_rflx(ixRFLX%KWroutedRunoff)%varFile) then
         if (nRch_write>0) then
-          do ix=1,nRch_write
-            array_temp(ix) = RCHFLX_local(1,index_write(ix))%ROUTE(idxKW)%REACH_Q
-          end do
+          array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxKW)
         end if
         call write_pnetcdf_recdim(this%pioFileDesc, 'KWroutedRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -603,9 +593,7 @@ MODULE historyFile
 
       if (meta_rflx(ixRFLX%MCroutedRunoff)%varFile) then
         if (nRch_write>0) then
-          do ix=1,nRch_write
-            array_temp(ix) = RCHFLX_local(1,index_write(ix))%ROUTE(idxMC)%REACH_Q
-          end do
+          array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxMC)
         end if
         call write_pnetcdf_recdim(this%pioFileDesc, 'MCroutedRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -613,9 +601,7 @@ MODULE historyFile
 
       if (meta_rflx(ixRFLX%DWroutedRunoff)%varFile) then
         if (nRch_write>0) then
-          do ix=1,nRch_write
-            array_temp(ix) = RCHFLX_local(1,index_write(ix))%ROUTE(idxDW)%REACH_Q
-          end do
+          array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxDW)
         end if
         call write_pnetcdf_recdim(this%pioFileDesc, 'DWroutedRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -623,50 +609,12 @@ MODULE historyFile
 
       if (meta_rflx(ixRFLX%IRFvolume)%varFile) then
         if (nRch_write>0) then
-          do ix=1,nRch_write
-            array_temp(ix) = RCHFLX_local(1,index_write(ix))%ROUTE(idxIRF)%REACH_VOL(1)
-          end do
+          array_temp(1:nRch_write) = hVars_local%volume(index_write, idxIRF)
         end if
         call write_pnetcdf_recdim(this%pioFileDesc, 'IRFvolume', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       endif
 
     END SUBROUTINE write_flux_rch
-
-    ! ---------------------------------
-    ! non-type-bound subroutine - organize flux data array or structure into per processor
-    ! ---------------------------------
-    SUBROUTINE get_proc_flux(ierr, message, basinRunoff)
-
-      USE globalData, ONLY: nHRU_mainstem       ! number of mainstem HRUs
-      USE globalData, ONLY: basinRunoff_main    ! mainstem only HRU runoff
-      USE globalData, ONLY: basinRunoff_trib    ! tributary only HRU runoff
-      USE globalData, ONLY: hru_per_proc        ! number of hrus assigned to each proc (size = num of procs+1)
-
-      implicit none
-      ! Argument variables
-      real(dp),    allocatable, optional, intent(out) :: basinRunoff(:)
-      integer(i4b),                       intent(out) :: ierr             ! error code
-      character(*),                       intent(out) :: message          ! error message
-      ! local variables
-      integer(i4b)                          :: nHRU_local
-      character(strLen)                     :: cmessage         ! error message of downwind routine
-
-      if (present(basinRunoff)) then
-        if (masterproc) then
-          nHRU_local = nHRU_mainstem + hru_per_proc(0)
-          allocate(basinRunoff(nHRU_local), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [basinRunoff]'; return; endif
-          if (nHRU_mainstem>0) basinRunoff(1:nHRU_mainstem) = basinRunoff_main(1:nHRU_mainstem)
-          if (hru_per_proc(0)>0) basinRunoff(nHRU_mainstem+1:nHRU_local) = basinRunoff_trib(:)
-        else
-          nHRU_local = hru_per_proc(pid)
-          allocate(basinRunoff(nHRU_local), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [basinRunoff]'; return; endif
-          basinRunoff = basinRunoff_trib
-        endif
-      end if
-
-    END SUBROUTINE get_proc_flux
 
 END MODULE historyFile
