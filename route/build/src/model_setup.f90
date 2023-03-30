@@ -190,7 +190,7 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE update_time(finished, ierr, message)
 
-   USE public_var, ONLY : dt
+   USE public_var, ONLY : dt_sim
    USE public_var, ONLY : calendar
    USE public_var, ONLY : time_units    ! netcdf time units - t_unit since yyyy-mm-dd hh:mm:ss
    USE globalData, ONLY : iTime         ! current simulation time step index
@@ -222,23 +222,23 @@ CONTAINS
    endif
 
    ! update model time step bound
-   TSEC(0) = TSEC(0) + dt
-   TSEC(1) = TSEC(0) + dt
+   TSEC(0) = TSEC(0) + dt_sim
+   TSEC(1) = TSEC(0) + dt_sim
 
    ! update model time index
    iTime=iTime+1
 
    ! increment simulation datetime
    simDatetime(0) = simDatetime(1)
-   simDatetime(1) = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
+   simDatetime(1) = simDatetime(1)%add_sec(dt_sim, calendar, ierr, cmessage)
 
    ! model time stamp variable for output
    t_unit = trim( time_units(1:index(time_units,' ')) )
    select case( trim(t_unit) )
-     case('seconds','second','sec','s'); timeVar = timeVar+ dt
-     case('minutes','minute','min');     timeVar = timeVar+ dt/60._dp
-     case('hours','hour','hr','h');      timeVar = timeVar+ dt/3600._dp
-     case('days','day','d');             timeVar = timeVar+ dt/86400._dp
+     case('seconds','second','sec','s'); timeVar = timeVar+ dt_sim
+     case('minutes','minute','min');     timeVar = timeVar+ dt_sim/60._dp
+     case('hours','hour','hr','h');      timeVar = timeVar+ dt_sim/3600._dp
+     case('days','day','d');             timeVar = timeVar+ dt_sim/86400._dp
      case default
        ierr=20; message=trim(message)//'<tunit>= '//trim(t_unit)//': <tunit> must be seconds, minutes, hours or days.'; return
    end select
@@ -253,7 +253,7 @@ CONTAINS
 
   USE ascii_util_module, ONLY : lower             ! convert string to lower case
   USE read_restart,      ONLY : read_state_nc     ! read netcdf state output file
-  USE public_var,    ONLY : dt                    ! simulation time step (seconds)
+  USE public_var,    ONLY : dt_sim                ! simulation time step (seconds)
   USE public_var,    ONLY : impulseResponseFunc   ! IRF routing ID = 1
   USE public_var,    ONLY : kinematicWaveTracking ! KWT routing ID = 2
   USE public_var,    ONLY : kinematicWave         ! KW routing ID = 3
@@ -290,6 +290,7 @@ CONTAINS
     RCHFLX(:,:)%BASIN_QR(0) = 0._dp
     RCHFLX(:,:)%BASIN_QR(1) = 0._dp
     RCHFLX(:,:)%Qelapsed = 0
+    RCHFLX(:,:)%QOBS = 0._dp
 
     do iRoute = 1, nRoutes
       if (routeMethods(iRoute)==impulseResponseFunc) then
@@ -333,7 +334,7 @@ CONTAINS
     end do
 
     ! initialize time
-    TSEC(0)=0._dp; TSEC(1)=dt
+    TSEC(0)=0._dp; TSEC(1)=dt_sim
   else
     call read_state_nc(trim(restart_dir)//trim(fname_state_in), T0, T1, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -361,7 +362,7 @@ CONTAINS
   USE public_var,        ONLY: simStart      ! date string defining the start of the simulation
   USE public_var,        ONLY: simEnd        ! date string defining the end of the simulation
   USE public_var,        ONLY: calendar      ! calendar name
-  USE public_var,        ONLY: dt            ! simulation time step [sec]
+  USE public_var,        ONLY: dt_sim        ! simulation time step [sec]
   USE public_var,        ONLY: dt_ro         ! runoff input time step [sec]
   USE public_var,        ONLY: secprday
   USE public_var,        ONLY: restart_write ! restart write option
@@ -534,12 +535,12 @@ CONTAINS
       end if
       call restDatetime%str2datetime(restart_date, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restart_date]'; return; endif
-      dropDatetime = restDatetime%add_sec(-dt, calendar, ierr, cmessage)
+      dropDatetime = restDatetime%add_sec(-dt_sim, calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restDatetime->dropDatetime]'; return; endif
       restart_month = dropDatetime%month(); restart_day = dropDatetime%day(); restart_hour = dropDatetime%hour()
     case('yearly','monthly','daily')
       restDatetime = datetime(2000, restart_month, restart_day, restart_hour, 0, 0._dp)
-      dropDatetime = restDatetime%add_sec(-dt, calendar, ierr, cmessage)
+      dropDatetime = restDatetime%add_sec(-dt_sim, calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [ dropDatetime for periodical restart]'; return; endif
       restart_month = dropDatetime%month(); restart_day = dropDatetime%day(); restart_hour = dropDatetime%hour()
     case('never')

@@ -139,7 +139,7 @@ CONTAINS
    case('<route_opt>');            routOpt     = trim(cData)                       ! routing scheme options  0-> accumRunoff, 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW
    case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute    ! basin routing options   0-> no, 1->IRF, otherwise error
    case('<newFileFrequency>');     newFileFrequency     = trim(cData)              ! frequency for new output options (case-insensitive): daily, monthly, yearly, or single
-   case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                ! time interval of the simulation (To-do: change dt to dt_sim)
+   case('<dt_qsim>');              read(cData,*,iostat=io_error) dt_sim            ! time interval of the simulation
    ! RESTART
    case('<restart_write>');        restart_write        = trim(cData)              ! restart write option (case-insensitive): never, last, specified, yearly, monthly, or daily
    case('<restart_date>');         restart_date         = trim(cData)              ! specified restart date, yyyy-mm-dd (hh:mm:ss) for Specified option
@@ -151,7 +151,7 @@ CONTAINS
    case('<param_nml>');            param_nml       = trim(cData)                   ! name of namelist including routing parameter value
    ! USER OPTIONS: Define options to include/skip calculations
    case('<qmodOption>');           read(cData,*,iostat=io_error) qmodOption        ! option for streamflow modification (DA): 0->no DA, 1->direct insertion
-   case('<ntsQmodStop>');          read(cData,*,iostat=io_error) ntsQmodStop       ! number of time steps for which streamflow modification is performed
+   case('<qBlendPeriod>');         read(cData,*,iostat=io_error) qBlendPeriod      ! number of time steps for which streamflow modification is performed through blending observation
    case('<QerrTrend>');            read(cData,*,iostat=io_error) QerrTrend         ! temporal dischargge error decreasing trend. 1->constant, 2->linear, 3->logistic, 4->exponential
    case('<takeWater>');            read(cData,*,iostat=io_error) takeWater         ! switch for abstraction/injection
    case('<hydGeometryOption>');    read(cData,*,iostat=io_error) hydGeometryOption ! option for hydraulic geometry calculations (0=read from file, 1=compute)

@@ -65,7 +65,7 @@ CONTAINS
  USE routing_param,   ONLY : make_uh               ! construct reach unit hydrograph
  USE globalData,      ONLY : mann_n, wscale        ! KWT routing parameters (Transfer function parameters)
  USE globalData,      ONLY : velo, diff            ! IRF routing parameters (Transfer function parameters)
- USE public_var,      ONLY : dt                    ! simulation time step [sec]
+ USE public_var,      ONLY : dt_sim                ! simulation time step [sec]
 
  implicit none
  ! Argument variables
@@ -243,7 +243,7 @@ CONTAINS
     end do
 
     ! compute lag times in the channel unit hydrograph
-    call make_uh(seg_length, dt, velo, diff, temp_dat, ierr, cmessage)
+    call make_uh(seg_length, dt_sim, velo, diff, temp_dat, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! put the lag times in the data structures
@@ -371,7 +371,7 @@ END SUBROUTINE augment_ntopo
   USE dataTypes,     ONLY : RCHTOPO            ! Network topology
   USE globalData,    ONLY : fshape, tscale     ! basin IRF routing parameters (Transfer function parameters)
   USE public_var,    ONLY : min_slope          ! minimum slope
-  USE public_var,    ONLY : dt                 ! simulation time step [sec]
+  USE public_var,    ONLY : dt_sim             ! simulation time step [sec]
   USE routing_param, ONLY : basinUH            ! construct basin unit hydrograph
 
   implicit none
@@ -392,7 +392,7 @@ END SUBROUTINE augment_ntopo
   ierr=0; message='put_data_struct/'
 
   ! get lag times in the basin unit hydrograph (not sure this is right place...)
-  call basinUH(dt, fshape, tscale, ierr, cmessage)
+  call basinUH(dt_sim, fshape, tscale, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! allocate space
