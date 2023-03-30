@@ -127,7 +127,7 @@ CONTAINS
    case('<is_vol_wm_jumpstart>');  read(cData,*,iostat=io_error) is_vol_wm_jumpstart   ! logical; jump to the first time step target volume is set to true
    case('<suppress_runoff>');      read(cData,*,iostat=io_error) suppress_runoff       ! logical; suppress the read runoff to zero (0) no host model
    case('<suppress_P_Ep>');        read(cData,*,iostat=io_error) suppress_P_Ep         ! logical; suppress the precipitation/evaporation to zero (0) no host model
-   case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                    ! time interval of the simulation [sec]
+   case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                    ! time interval of the simulation [sec] (To-do: change dt to dt_sim)
    ! RIVER NETWORK TOPOLOGY
    case('<fname_ntopOld>');        fname_ntopOld = trim(cData)                         ! name of file containing stream network topology information
    case('<ntopAugmentMode>');      read(cData,*,iostat=io_error) ntopAugmentMode       ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
@@ -415,6 +415,9 @@ CONTAINS
      if (err/=0) then
        message=trim(message)//'<outputFrequency> is invalid: must be daily, monthly, yearly or integer (number of time steps)'; return
      end if
+     if (nOutFreq<0) then
+       message=trim(message)//'<outputFrequency> is invalid: must be positive integer AND outputFrequency x simulation step [sec] must be 86400 [sec] (one day)'; return
+     end if
  end select
 
  ! 2. Check simulation time step
@@ -432,7 +435,7 @@ CONTAINS
  ! 3. Check output frequency against simulation time step if outputFrequency is numeric
  if (nOutFreq/=integerMissing) then
    if (mod(86400._dp, real(nOutFreq,kind=dp)*dt)>0._dp) then
-     write(message, '(2A)') trim(message), 'multiple of output frequency [sec] must end up in one-day (86400 sec)'
+     write(message, '(2A)') trim(message), 'outputFrequency x simulation step [sec] must be 86400 [sec] (one day)'
      err=81; return
    end if
  end if
@@ -440,12 +443,12 @@ CONTAINS
  ! 4. Check new history frequency against output frequency
  if (trim(newFileFrequency)=='daily') then
    if (trim(outputFrequency)=='monthly' .or. trim(outputFrequency)=='yearly') then
-     write(message, '(2A)') trim(message), 'imcompatible <newFileFrequency> and <outputFrequency>'
+     write(message, '(2A)') trim(message), 'you cannot output monthly or yearly output in daily file'
      err=81; return
    end if
  else if (trim(newFileFrequency)=='monthly') then
    if (trim(outputFrequency)=='yearly') then
-     write(message, '(2A)') trim(message), 'imcompatible <newFileFrequency> and <outpFrequency>'
+     write(message, '(2A)') trim(message), 'you cannot output yearly output in monthly file'
      err=81; return
    end if
  end if

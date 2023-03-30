@@ -23,6 +23,10 @@ MODULE histVars_data
   public:: histVars
 
   type :: histVars
+    ! --------
+    ! output varialbes: basRunoff, instRunoff, dlayRunoff, discharge, elev, volume
+    ! if new variables need to be written, need to add here AND each procedure
+    ! --------
     integer(i4b)             :: nt                 ! number of time steps over variables are aggregated
     integer(i4b)             :: nHru               ! number of
     integer(i4b)             :: nRch               ! number of
@@ -36,10 +40,10 @@ MODULE histVars_data
 
     CONTAINS
 
-      procedure,  public :: aggregate
-      procedure,  public :: finalize
-      procedure,  public :: refresh
-      procedure,  public :: clean
+      procedure,  public :: aggregate  ! Accumulating output variables
+      procedure,  public :: finalize   ! Compute aggregated values (currently only mean) to be written in netCDF
+      procedure,  public :: refresh    ! Reset output arrays to zero
+      procedure,  public :: clean      ! Deallocate all the output array memories
 
   end type histVars
 
