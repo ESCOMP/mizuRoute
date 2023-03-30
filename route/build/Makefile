@@ -164,6 +164,7 @@ IO = \
 # CORE
 CORE = \
     model_finalize.f90 \
+    data_assimilation.f90 \
     accum_runoff.f90 \
     basinUH.f90 \
     irf_route.f90 \

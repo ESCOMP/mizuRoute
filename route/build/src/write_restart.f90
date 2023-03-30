@@ -17,7 +17,7 @@ USE globalData, ONLY: onRoute               ! logical to indicate which routing 
 USE public_var, ONLY: iulog                 ! i/o logical unit number
 USE public_var, ONLY: integerMissing
 USE public_var, ONLY: realMissing
-USE public_var, ONLY: dt
+USE public_var, ONLY: dt_sim
 USE public_var, ONLY: doesBasinRoute
 USE public_var, ONLY: impulseResponseFunc
 USE public_var, ONLY: kinematicWaveTracking
@@ -147,8 +147,8 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! update model time step bound
-  TSEC1 = TSEC(0) + dt
-  TSEC2 = TSEC1   + dt
+  TSEC1 = TSEC(0) + dt_sim
+  TSEC2 = TSEC1   + dt_sim
 
   call write_state_nc(fnameRestart,                            &  ! Input: state netcdf name
                       TSEC1, TSEC2,                            &  ! Input: time, time step, start and end time [sec]
@@ -189,7 +189,7 @@ CONTAINS
 
    select case(timeStamp)
      case(currTimeStep); timeStampCal = simDatetime(1)
-     case(nextTimeStep); timeStampCal = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
+     case(nextTimeStep); timeStampCal = simDatetime(1)%add_sec(dt_sim, calendar, ierr, cmessage)
      case default;       ierr=20; message=trim(message)//'time stamp option in restart filename: invalid -> 1: current time Step or 2: next time step'; return
    end select
 
@@ -270,7 +270,7 @@ CONTAINS
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get which time is for restarting
- timeStampCal = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
+ timeStampCal = simDatetime(1)%add_sec(dt_sim, calendar, ierr, cmessage)
  write(globalDesc, fmtYMDHMS) timeStampCal%year(),'-',timeStampCal%month(),'-',timeStampCal%day(),timeStampCal%hour(),':',timeStampCal%minute(),':',nint(timeStampCal%sec())
 
  call put_global_attr(ncid, 'Restart time', trim(globalDesc), ierr, cmessage)

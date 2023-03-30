@@ -13,10 +13,10 @@ USE public_var,  ONLY: iulog             ! i/o logical unit number
 USE public_var,  ONLY: realMissing       ! missing value for real number
 USE public_var,  ONLY: integerMissing    ! missing value for integer number
 USE public_var,  ONLY: qmodOption        ! qmod option (use 1==direct insertion)
-USE public_var,  ONLY: ntsQmodStop       ! number of time steps for which direct insertion is performed
 USE globalData,  ONLY: idxDW
 ! subroutines: general
-USE model_finalize, ONLY : handle_err
+USE data_assimilation, ONLY: direct_insertion ! qmod option (use 1==direct insertion)
+USE model_finalize,    ONLY: handle_err
 
 implicit none
 
@@ -173,16 +173,6 @@ CONTAINS
    do iUps = 1,nUps
      if (.not. NETOPO_in(segIndex)%goodBas(iUps)) cycle
      iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-
-     if (qmodOption==1) then
-       if (RCHFLX_out(iens,iRch_ups)%QOBS>0._dp) then
-         RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%Qerror = RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q - RCHFLX_out(iens,iRch_ups)%QOBS ! compute error
-       end if
-       if (RCHFLX_out(iens,iRch_ups)%Qelapsed > ntsQmodStop) then
-         RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%Qerror=0._dp
-       end if
-       RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q = max(RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q-RCHFLX_out(iens,iRch_ups)%ROUTE(idxDW)%Qerror, 0.0001)
-     end if
      q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q
    end do
  endif
@@ -223,6 +213,19 @@ CONTAINS
  end if
  if (RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(1) < 0) then
    write(iulog,'(A,X,G12.5,X,A,X,I9)') ' ---- NEGATIVE VOLUME (Diffusive Wave)= ', RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(1), 'at ', NETOPO_in(segIndex)%REACHID
+ end if
+
+ if (qmodOption==1) then
+   call direct_insertion(iens, segIndex, & ! input: reach index
+                         idxDW,          & ! input: routing method id for diffusive wave routing
+                         ixDesire,       & ! input: verbose seg index
+                         NETOPO_in,      & ! input: reach topology data structure
+                         RCHSTA_out,     & ! inout: reach state data structure
+                         RCHFLX_out,     & ! inout: reach fluxes datq structure
+                         ierr, cmessage)   ! output: error control
+   if(ierr/=0)then
+     write(message,'(A,X,I12,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage); return
+   endif
  end if
 
  END SUBROUTINE dfw_rch

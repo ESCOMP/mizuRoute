@@ -190,7 +190,7 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE update_time(finished, ierr, message)
 
-   USE public_var, ONLY : dt
+   USE public_var, ONLY : dt_sim
    USE public_var, ONLY : calendar
    USE public_var, ONLY : time_units    ! netcdf time units - t_unit since yyyy-mm-dd hh:mm:ss
    USE globalData, ONLY : iTime         ! current simulation time step index
@@ -222,23 +222,23 @@ CONTAINS
    endif
 
    ! update model time step bound
-   TSEC(0) = TSEC(0) + dt
-   TSEC(1) = TSEC(0) + dt
+   TSEC(0) = TSEC(0) + dt_sim
+   TSEC(1) = TSEC(0) + dt_sim
 
    ! update model time index
    iTime=iTime+1
 
    ! increment simulation datetime
    simDatetime(0) = simDatetime(1)
-   simDatetime(1) = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
+   simDatetime(1) = simDatetime(1)%add_sec(dt_sim, calendar, ierr, cmessage)
 
    ! model time stamp variable for output
    t_unit = trim( time_units(1:index(time_units,' ')) )
    select case( trim(t_unit) )
-     case('seconds','second','sec','s'); timeVar = timeVar+ dt
-     case('minutes','minute','min');     timeVar = timeVar+ dt/60._dp
-     case('hours','hour','hr','h');      timeVar = timeVar+ dt/3600._dp
-     case('days','day','d');             timeVar = timeVar+ dt/86400._dp
+     case('seconds','second','sec','s'); timeVar = timeVar+ dt_sim
+     case('minutes','minute','min');     timeVar = timeVar+ dt_sim/60._dp
+     case('hours','hour','hr','h');      timeVar = timeVar+ dt_sim/3600._dp
+     case('days','day','d');             timeVar = timeVar+ dt_sim/86400._dp
      case default
        ierr=20; message=trim(message)//'<tunit>= '//trim(t_unit)//': <tunit> must be seconds, minutes, hours or days.'; return
    end select
@@ -253,7 +253,7 @@ CONTAINS
 
   USE ascii_util_module, ONLY : lower             ! convert string to lower case
   USE read_restart,      ONLY : read_state_nc     ! read netcdf state output file
-  USE public_var,    ONLY : dt                    ! simulation time step (seconds)
+  USE public_var,    ONLY : dt_sim                ! simulation time step (seconds)
   USE public_var,    ONLY : impulseResponseFunc   ! IRF routing ID = 1
   USE public_var,    ONLY : kinematicWaveTracking ! KWT routing ID = 2
   USE public_var,    ONLY : kinematicWave         ! KW routing ID = 3
@@ -290,6 +290,7 @@ CONTAINS
     RCHFLX(:,:)%BASIN_QR(0) = 0._dp
     RCHFLX(:,:)%BASIN_QR(1) = 0._dp
     RCHFLX(:,:)%Qelapsed = 0
+    RCHFLX(:,:)%QOBS = 0._dp
 
     do iRoute = 1, nRoutes
       if (routeMethods(iRoute)==impulseResponseFunc) then
@@ -333,7 +334,7 @@ CONTAINS
     end do
 
     ! initialize time
-    TSEC(0)=0._dp; TSEC(1)=dt
+    TSEC(0)=0._dp; TSEC(1)=dt_sim
   else
     call read_state_nc(trim(restart_dir)//trim(fname_state_in), T0, T1, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -361,13 +362,15 @@ CONTAINS
   USE public_var,        ONLY: simStart      ! date string defining the start of the simulation
   USE public_var,        ONLY: simEnd        ! date string defining the end of the simulation
   USE public_var,        ONLY: calendar      ! calendar name
-  USE public_var,        ONLY: dt
+  USE public_var,        ONLY: dt_sim        ! simulation time step [sec]
+  USE public_var,        ONLY: dt_ro         ! runoff input time step [sec]
   USE public_var,        ONLY: secprday
   USE public_var,        ONLY: restart_write ! restart write option
   USE public_var,        ONLY: restart_date  ! restart date
   USE public_var,        ONLY: restart_month !
   USE public_var,        ONLY: restart_day   !
   USE public_var,        ONLY: restart_hour  !
+  USE public_var,        ONLY: maxTimeDiff   ! time difference tolerance for input checks
   USE globalData,        ONLY: timeVar       ! model time variables in time unit since reference time
   USE globalData,        ONLY: iTime         ! time index at simulation time step
   USE globalData,        ONLY: simDatetime   ! current model time data (yyyy:mm:dd:hh:mm:sec)
@@ -394,6 +397,8 @@ CONTAINS
   real(dp)                                 :: convTime2sec
   real(dp)                                 :: roTimeVar(nRoTime)
   real(dp)                                 :: sec(nRoTime)
+  real(dp)                                 :: sec1(nRoTime)
+  real(dp)                                 :: dt_ro_array(nRoTime-1)
   character(len=7)                         :: t_unit
   character(len=strLen)                    :: cmessage         ! error message of downwind routine
   character(len=50)                        :: fmt1='(a,I4,a,I2.2,a,I2.2,x,I2.2,a,I2.2,a,F5.2)'
@@ -427,8 +432,23 @@ CONTAINS
   call endDatetime%str2datetime(simEnd, ierr, cmessage)
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endDatetime]'; return; endif
 
-  ! calendar in runoff data
   sec(:) = roTimeVar(:)*convTime2sec
+
+  ! Get input (runoff) time step [sec] from input data
+  if (abs(dt_ro-realMissing)<=epsilon(dt_ro)) then
+    dt_ro = sec(2)-sec(1)
+    write(iulog,'(2a,x,F9.2)') new_line('a'),'INFO: input time step [s]:',dt_ro
+
+    ! check runoff time interval is consistent
+    sec1 = cshift(sec, 1)
+    dt_ro_array = sec1(1:nRoTime-1) - sec(1:nRoTime-1)
+    if (any(abs(dt_ro_array-dt_ro)>maxTimeDiff)) then
+      write(iulog,'(2a)') new_line('a'),'WARNING: time step [s] in runoff input is not consistent'
+      write(iulog,'(2a)') new_line('a'),'         expect the time step to be equal in the runoff time series'
+    end if
+  end if
+
+  ! runoff data datetime [yyyy-mm-dd hh:mm:ss]
   do ix = 1, nRoTime
     roCal(ix) = refCal%add_sec(sec(ix), calendar, ierr, cmessage)
   end do
@@ -515,12 +535,12 @@ CONTAINS
       end if
       call restDatetime%str2datetime(restart_date, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restart_date]'; return; endif
-      dropDatetime = restDatetime%add_sec(-dt, calendar, ierr, cmessage)
+      dropDatetime = restDatetime%add_sec(-dt_sim, calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restDatetime->dropDatetime]'; return; endif
       restart_month = dropDatetime%month(); restart_day = dropDatetime%day(); restart_hour = dropDatetime%hour()
     case('yearly','monthly','daily')
       restDatetime = datetime(2000, restart_month, restart_day, restart_hour, 0, 0._dp)
-      dropDatetime = restDatetime%add_sec(-dt, calendar, ierr, cmessage)
+      dropDatetime = restDatetime%add_sec(-dt_sim, calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [ dropDatetime for periodical restart]'; return; endif
       restart_month = dropDatetime%month(); restart_day = dropDatetime%day(); restart_hour = dropDatetime%hour()
     case('never')
@@ -708,7 +728,6 @@ CONTAINS
  USE public_var,  ONLY : fname_remap            ! name of runoff mapping netCDF name
  USE public_var,  ONLY : calendar               ! name of calendar
  USE public_var,  ONLY : time_units             ! time units
- USE public_var,  ONLY : realMissing            ! real missing value (-9999._dp)
  USE dataTypes,   ONLY : remap                  ! remapping data type
  USE dataTypes,   ONLY : runoff                 ! runoff data type
  USE read_runoff, ONLY : read_runoff_metadata   ! read meta data from runoff data
@@ -850,6 +869,7 @@ CONTAINS
    character(*), intent(out)  :: message     ! error message
    ! local variables
    character(len=strLen)      :: cmessage    ! error message from subroutine
+   logical(lgt)               :: fileExist   ! file exists or not
    integer(i4b), parameter    :: no_mod=0
    integer(i4b), parameter    :: direct_insert=1
 
@@ -863,15 +883,20 @@ CONTAINS
        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
        ! initialize gage obs data
-       gage_obs_data = gageObs(trim(ancil_dir)//trim(fname_gageObs), &
-                               vname_gageFlow,                       &
-                               vname_gageTime, vname_gageSite,       &
-                               dname_gageTime, dname_gageSite,       &
-                               ierr, cmessage)
-       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+       inquire(file=trim(ancil_dir)//trim(fname_gageObs), exist=fileExist)
+       if (fileExist) then
+         gage_obs_data = gageObs(trim(ancil_dir)//trim(fname_gageObs), &
+                                 vname_gageFlow,                       &
+                                 vname_gageTime, vname_gageSite,       &
+                                 dname_gageTime, dname_gageSite,       &
+                                 ierr, cmessage)
+         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-       ! compute link between gage ID and reach ID (river network domain) - index of reachID for each gage ID
-       call gage_obs_data%comp_link(reachID, gage_meta_data)
+         ! compute link between gage ID and reach ID (river network domain) - index of reachID for each gage ID
+         call gage_obs_data%comp_link(reachID, gage_meta_data)
+       else
+         qmodOption=no_mod
+       end if
      case default
        ierr=1; message=trim(message)//"Error: qmodOption invalid"; return
    end select

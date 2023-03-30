@@ -3,21 +3,22 @@ MODULE irf_route_module
 USE nrtype
 ! data type
 USE dataTypes, ONLY: STRFLX           ! fluxes in each reach
+USE dataTypes, ONLY: STRSTA           ! state in each reach
 USE dataTypes, ONLY: RCHTOPO          ! Network topology
 USE dataTypes, ONLY: RCHPRP           ! Reach parameter
 USE dataTypes, ONLY: irfRCH           ! irf specific state data structure
- USE dataTypes,ONLY: subbasin_omp     ! mainstem+tributary data structures
+USE dataTypes, ONLY: subbasin_omp     ! mainstem+tributary data structures
 ! global parameters
 USE public_var, ONLY: iulog           ! i/o logical unit number
 USE public_var, ONLY: realMissing     ! missing value for real number
 USE public_var, ONLY: integerMissing  ! missing value for integer number
-USE public_var, ONLY: dt              ! routing time step duration [sec]
+USE public_var, ONLY: dt=>dt_sim      ! routing time step duration [sec]
 USE public_var, ONLY: qmodOption      ! qmod option (use 1==direct insertion)
-USE public_var, ONLY: ntsQmodStop     ! number of time steps for which direct insertion is performed
 USE globalData, ONLY: nThreads        ! number of threads used for openMP
 USE globalData, ONLY: idxIRF          ! index of IRF method
 ! subroutines: general
-USE model_finalize, ONLY : handle_err
+USE data_assimilation, ONLY: direct_insertion ! qmod option (use 1==direct insertion)
+USE model_finalize,    ONLY: handle_err
 
 implicit none
 
@@ -34,6 +35,7 @@ CONTAINS
                       ixDesire,      &  ! input: reachID to be checked by on-screen pringing
                       NETOPO_in,     &  ! input: reach topology data structure
                       RPARAM_in,     &  ! input: reach parameter data structure
+                      RCHSTA_out,    &  ! inout: reach state data structure
                       RCHFLX_out,    &  ! inout: reach flux data structure
                       ierr, message, &  ! output: error control
                       ixSubRch)         ! optional input: subset of reach indices to be processed
@@ -45,7 +47,8 @@ CONTAINS
  integer(i4b),       intent(in)                  :: ixDesire            ! index of the reach for verbose output ! Output
  type(RCHTOPO),      intent(in),    allocatable  :: NETOPO_in(:)        ! River Network topology
  type(RCHPRP),       intent(in),    allocatable  :: RPARAM_in(:)        ! River reach parameter
- TYPE(STRFLX),       intent(inout)               :: RCHFLX_out(:,:)     ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+ type(STRSTA),       intent(inout)               :: RCHSTA_out(:,:)      ! reach state data
+ type(STRFLX),       intent(inout)               :: RCHFLX_out(:,:)     ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  integer(i4b),       intent(out)                 :: ierr                ! error code
  character(*),       intent(out)                 :: message             ! error message
  integer(i4b),       intent(in),    optional     :: ixSubRch(:)         ! subset of reach indices to be processed
@@ -103,6 +106,7 @@ CONTAINS
 !$OMP          shared(doRoute)                          & ! data array shared
 !$OMP          shared(NETOPO_in)                        & ! data structure shared
 !$OMP          shared(RPARAM_in)                        & ! data structure shared
+!$OMP          shared(RCHSTA_out)                       & ! data structure shared
 !$OMP          shared(RCHFLX_out)                       & ! data structure shared
 !$OMP          shared(ix, iEns, ixDesire)               & ! indices shared
 !$OMP          firstprivate(nTrib)
@@ -116,7 +120,7 @@ CONTAINS
      seg:do iSeg=1,river_basin(ix)%branch(iTrib)%nRch
        jSeg = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
        if (.not. doRoute(jSeg)) cycle
-       call irf_rch(iEns, jSeg, ixDesire, NETOPO_IN, RPARAM_in, RCHFLX_out, ierr, cmessage)
+       call irf_rch(iEns, jSeg, ixDesire, NETOPO_IN, RPARAM_in, RCHSTA_out, RCHFLX_out, ierr, cmessage)
        if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
      end do seg
 !    call system_clock(openMPend(iTrib))
@@ -143,19 +147,21 @@ CONTAINS
                     ixDesire,     & ! input: reachID to be checked by on-screen pringing
                     NETOPO_in,    & ! input: reach topology data structure
                     RPARAM_in,    & ! input: reach parameter data structure
+                    RCHSTA_out,   & ! inout: reach state data structure
                     RCHFLX_out,   & ! inout: reach flux data structure
                     ierr, message)  ! output: error control
 
  implicit none
  ! Argument variables
- integer(i4b), intent(in)                 :: iEns           ! runoff ensemble to be routed
- integer(i4b), intent(in)                 :: segIndex       ! segment where routing is performed
- integer(i4b), intent(in)                 :: ixDesire       ! index of the reach for verbose output
- type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)   ! River Network topology
- type(RCHPRP), intent(in),    allocatable :: RPARAM_in(:)   ! River reach parameter
- type(STRFLX), intent(inout)              :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
- integer(i4b), intent(out)                :: ierr           ! error code
- character(*), intent(out)                :: message        ! error message
+ integer(i4b), intent(in)                 :: iEns            ! runoff ensemble to be routed
+ integer(i4b), intent(in)                 :: segIndex        ! segment where routing is performed
+ integer(i4b), intent(in)                 :: ixDesire        ! index of the reach for verbose output
+ type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:)    ! River Network topology
+ type(RCHPRP), intent(in),    allocatable :: RPARAM_in(:)    ! River reach parameter
+ type(STRSTA), intent(inout)              :: RCHSTA_out(:,:) ! reach state data
+ type(STRFLX), intent(inout)              :: RCHFLX_out(:,:) ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
+ integer(i4b), intent(out)                :: ierr            ! error code
+ character(*), intent(out)                :: message         ! error message
  ! Local variables
  real(dp)                                 :: q_upstream     ! total discharge at top of the reach being processed
  real(dp)                                 :: WB_error       ! water balance error [m3/s]
@@ -171,14 +177,10 @@ CONTAINS
 
  ! initialize future discharge array at first time
   if (.not.allocated(RCHFLX_out(iens,segIndex)%QFUTURE_IRF))then
-
-   ntdh = size(NETOPO_in(segIndex)%UH)
-
-   allocate(RCHFLX_out(iens,segIndex)%QFUTURE_IRF(ntdh), stat=ierr, errmsg=cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': RCHFLX_out(iens,segIndex)%QFUTURE_IRF'; return; endif
-
-   RCHFLX_out(iens,segIndex)%QFUTURE_IRF(:) = 0._dp
-
+    ntdh = size(NETOPO_in(segIndex)%UH)
+    allocate(RCHFLX_out(iens,segIndex)%QFUTURE_IRF(ntdh), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage)//': RCHFLX_out(iens,segIndex)%QFUTURE_IRF'; return; endif
+    RCHFLX_out(iens,segIndex)%QFUTURE_IRF(:) = 0._dp
   end if
 
   ! get discharge coming from upstream
@@ -187,17 +189,6 @@ CONTAINS
   if (nUps>0) then
     do iUps = 1,nUps
       iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-
-      if (qmodOption==1) then
-        if (RCHFLX_out(iens,iRch_ups)%QOBS>0._dp) then ! there is observation
-          RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%Qerror = RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%REACH_Q - RCHFLX_out(iens,iRch_ups)%QOBS ! compute error
-        end if
-        if (RCHFLX_out(iens,iRch_ups)%Qelapsed > ntsQmodStop) then
-          RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%Qerror=0._dp
-        end if
-        RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%REACH_Q = max(RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%REACH_Q-RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%Qerror, 0.0001)
-      end if
-
       q_upstream = q_upstream + RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%REACH_Q
     end do
   endif
@@ -237,6 +228,20 @@ CONTAINS
     write(iulog,'(A,X,G12.5,X,A,X,I9)') ' ---- NEGATIVE VOLUME [m3]= ', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1), 'at ', NETOPO_in(segIndex)%REACHID
 !    RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = 0._dp
   end if
+
+ if (qmodOption==1) then
+   call direct_insertion(iens, segIndex, & ! input: reach index
+                         idxIRF,         & ! input: routing method id for Euler kinematic wave
+                         ixDesire,       & ! input: verbose seg index
+                         NETOPO_in,      & ! input: reach topology data structure
+                         RCHSTA_out,     & ! inout: reach state data structure
+                         RCHFLX_out,     & ! inout: reach fluxes datq structure
+                         ierr, cmessage)   ! output: error control
+   if(ierr/=0)then
+     write(message,'(A,X,I12,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage); return
+   endif
+ end if
+
  END SUBROUTINE irf_rch
 
 
