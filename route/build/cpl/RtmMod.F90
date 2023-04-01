@@ -57,6 +57,8 @@ CONTAINS
     USE globalData,          ONLY: ixHRU_order                 ! global HRU index in the order of proc assignment (size = num of hrus contributing reach in entire network)
     USE globalData,          ONLY: hru_per_proc                ! number of hrus assigned to each proc (size = num of procs
     USE globalData,          ONLY: nRch_mainstem               ! scalar data: number of mainstem reaches
+    USE globalData,          ONLY: nHRU_mainstem               ! scalar data: number of mainstem hrus
+    USE globalData,          ONLY: nHRU_trib                   ! scalar data: number of tributary hrus
     USE globalData,          ONLY: nRch_trib                   ! scalar data: number of tributary reaches
     USE globalData,          ONLY: NETOPO_trib                 ! data structure: River Network topology (other procs, tributary)
     USE globalData,          ONLY: NETOPO_main                 ! data structure: River Network topology (main proc, mainstem)
@@ -229,7 +231,7 @@ CONTAINS
           call get_hru_area(NETOPO_main, RPARAM_main, verbose=verbose)
         end if
         if (nRch_trib > 0) then
-          call get_hru_area(NETOPO_trib, RPARAM_trib, verbose=verbose)
+          call get_hru_area(NETOPO_trib, RPARAM_trib, offset=nHRU_mainstem, verbose=verbose)
         end if
       else ! other processors
         call get_hru_area(NETOPO_trib, RPARAM_trib, verbose=verbose)
@@ -270,7 +272,7 @@ CONTAINS
     !-------------------------------------------------------
     CONTAINS
 
-      SUBROUTINE get_hru_area(NETOPO_in, RPARAM_in, verbose)
+      SUBROUTINE get_hru_area(NETOPO_in, RPARAM_in, offset, verbose)
 
         ! Descriptions: Compute HRU areas
         ! Note: mizuRoute holds contributory area [m2]-BASAREA, which CAN consists of multiple HRUs
@@ -283,6 +285,7 @@ CONTAINS
         ! Arguments:
         type(RCHTOPO),     intent(in) :: NETOPO_in(:)
         type(RCHPRP),      intent(in) :: RPARAM_in(:)
+        integer, optional, intent(in) :: offset
         logical, optional, intent(in) :: verbose
         ! Local variables:
         logical                   :: verb
@@ -290,7 +293,6 @@ CONTAINS
         integer                   :: iRch, iHru
         integer                   :: nRch, nCatch
         real(r8)                  :: area_hru
-        real(r8)                  :: vol_hru
 
         if (present(verbose)) then
           verb=verbose
@@ -303,19 +305,27 @@ CONTAINS
           nCatch = size(NETOPO_in(iRch)%HRUIX)
           do iHru = 1, nCatch
             ix = NETOPO_in(iRch)%HRUIX(iHru)
-
+            if (present(offset)) ix = ix+offset
             ! BASAREA = total area [m2] of multiple HRUs contributing to a reach.
             ! To get HRU area [m2], mulitply HRUWGT (areal weight (HRU area/total contributory area)
             rtmCTL%area(ix) = RPARAM_in(iRch)%BASAREA* NETOPO_in(iRch)%HRUWGT(iHru)
-
-            if (verb) then
-              write(iulog, '(a,x,5(g20.12))') &
-                 'reachID, hruID, basinArea [m2], weight[-], hruArea [m2]=', &
-                 NETOPO_in(iRch)%REACHID, NETOPO_in(iRch)%HRUID(iHru), RPARAM_in(iRch)%BASAREA, &
-                 NETOPO_in(iRch)%HRUWGT(iHru), rtmCTL%area(ix)
-            end if
           end do
         end do
+
+        if (verb) then
+          do iRch =1, nRch
+            nCatch = size(NETOPO_in(iRch)%HRUIX)
+            do iHru = 1, nCatch
+              ix = NETOPO_in(iRch)%HRUIX(iHru)
+              if (present(offset)) ix = ix+offset
+              write(iulog, '(a,x,5(g20.12))') &
+                    'reachID, hruID, basinArea [m2], weight[-], hruArea [m2]=', &
+                    NETOPO_in(iRch)%REACHID, NETOPO_in(iRch)%HRUID(iHru), RPARAM_in(iRch)%BASAREA, &
+                    NETOPO_in(iRch)%HRUWGT(iHru), rtmCTL%area(ix)
+            end do
+          end do
+        end if
+
       END SUBROUTINE get_hru_area
 
   END SUBROUTINE route_ini
@@ -413,19 +423,19 @@ CONTAINS
     rtmCTL%qirrig_actual = -1._r8* rtmCTL%qirrig  ! actual water take [mm/s] - positive (take) or negative (inject)
     do nr = rtmCTL%begr,rtmCTL%endr
       ! calculate depth of irrigation [mm] during timestep
-      irrig_depth = rtmCTL%qirrig_actual(nr)* coupling_period
+      irrig_depth = rtmCTL%qirrig_actual(nr)* delt_coupling
       river_depth = rtmCTL%volr(nr)* 1000._r8 ! m to mm
 
       ! compare irrig_depth [mm] to previous channel storage [mm];
       ! add overage to subsurface runoff
       ! later check negative qsub is handle the same as qgwl
       if(irrig_depth > river_depth) then
-        rtmCTL%qsub(nr,1) = rtmCTL%qsub(nr,1) + (river_depth-irrig_depth)/coupling_period
+        rtmCTL%qsub(nr,1) = rtmCTL%qsub(nr,1) + (river_depth-irrig_depth)/delt_coupling
         irrig_depth = river_depth
 
         ! actual irrigation rate [mm/s]
         ! i.e. the rate actually removed from the river channel
-        rtmCTL%qirrig_actual(nr) = irrig_depth/coupling_period
+        rtmCTL%qirrig_actual(nr) = irrig_depth/delt_coupling
       endif
     end do
 
@@ -456,7 +466,7 @@ CONTAINS
             ! send qgwl directly to ocean
 
             ! --- calculate depth of qgwl flux [mm] during timestep
-            qgwl_depth = rtmCTL%qgwl(nr,1)* coupling_period
+            qgwl_depth = rtmCTL%qgwl(nr,1)* delt_coupling
             river_depth = rtmCTL%volr(nr)* 1000._r8 ! convert m to mm
 
             if ((qgwl_depth + river_depth < river_depth_minimum) &
@@ -638,12 +648,12 @@ CONTAINS
         if (nRch_mainstem > 0) then
           lwr=1
           upr=nRch_mainstem
-          call get_river_export_data(NETOPO_main, RCHFLX_trib(:,lwr:upr))
+          call get_river_export_data(NETOPO_main(lwr:upr), RCHFLX_trib(:,lwr:upr))
         end if
         if (nRch_trib > 0) then
           lwr = nRch_mainstem + nTribOutlet + 1
           upr = nRch_mainstem + nTribOutlet + nRch_trib
-          call get_river_export_data(NETOPO_trib, RCHFLX_trib(:,lwr:upr))
+          call get_river_export_data(NETOPO_trib, RCHFLX_trib(:,lwr:upr), offset=nHRU_mainstem)
         end if
       else ! other processors
         call get_river_export_data(NETOPO_trib, RCHFLX_trib)
@@ -699,7 +709,7 @@ CONTAINS
     !-------------------------------------------------------
     CONTAINS
 
-      SUBROUTINE get_river_export_data(NETOPO_in, RCHFLX_in)
+      SUBROUTINE get_river_export_data(NETOPO_in, RCHFLX_in, offset)
 
         ! Descriptions: get exporting variables
         !  - discharge [m3/s],
@@ -711,30 +721,23 @@ CONTAINS
 
         implicit none
         ! Arguments:
-        type(RCHTOPO), intent(in) :: NETOPO_in(:)
-        type(STRFLX),  intent(in) :: RCHFLX_in(:,:)
+        type(RCHTOPO), intent(in)     :: NETOPO_in(:)
+        type(STRFLX),  intent(in)     :: RCHFLX_in(:,:)
+        integer, optional, intent(in) :: offset
         ! Local variables:
         integer                   :: ix
         integer                   :: iens=1
         integer                   :: iRch, iHru
         integer                   :: nRch, nCatch
-        real(r8)                  :: vol_hru
-
-        ! reset volr to zero
-        rtmCTL%volr(:) = 0._r8
 
         nRch=size(NETOPO_in)
         do iRch =1, nRch
           nCatch = size(NETOPO_in(iRch)%HRUIX)
           do iHru = 1, nCatch
             ix = NETOPO_in(iRch)%HRUIX(iHru)
-
+            if (present(offset)) ix=ix+offset
             ! stream volume is split into HRUs based on HRU's areal weight for contributory area
-            vol_hru = RCHFLX_in(iens,iRch)%ROUTE(idxIRF)%REACH_VOL(1) * NETOPO_in(iRch)%HRUWGT(iHru)
-            if (vol_hru > 0._r8) then
-              rtmCTL%volr(ix) = vol_hru/rtmCTL%area(ix)
-            end if
-
+            rtmCTL%volr(ix) = RCHFLX_in(iens,iRch)%ROUTE(idxIRF)%REACH_VOL(1)*NETOPO_in(iRch)%HRUWGT(iHru)/rtmCTL%area(ix)
             rtmCTL%discharge(ix,1) = RCHFLX_in(iens,iRch)%ROUTE(idxIRF)%REACH_Q* NETOPO_in(iRch)%HRUWGT(iHru)
             rtmCTL%flood(ix)       = 0._r8  ! placeholder
           end do
