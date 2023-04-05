@@ -61,6 +61,12 @@ MODULE globalData
 
   save
 
+  ! ---------- mizuRoute version -------------------------------------------------------------------
+
+  character(len=strLen)          , public :: version='undefined'        ! mizuRoute version
+  character(len=strLen)          , public :: gitBranch='undefined'      ! github branch
+  character(len=strLen)          , public :: gitHash='undefined'        ! github commit hash
+
   ! ---------- Catchment and reach IDs  -------------------------------------------------------------------------
 
   integer(i4b),                    public :: nHRU                 ! number of HRUs in the whole river network
