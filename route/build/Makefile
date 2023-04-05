@@ -79,29 +79,36 @@ ifeq "$(isOpenMP)" "yes"
 endif
 
 #========================================================================
+# generate a Git version string
+#========================================================================
+VERSION = $(shell git describe --tag)
+GITBRCH = $(shell git describe --long --all --always | sed -e's/heads\///')
+GITHASH = $(shell git rev-parse HEAD)
+
+#========================================================================
 # Define flags
 #========================================================================
 ifeq "$(FC)" "gnu"
   ifeq "$(MODE)" "fast"
-    FLAGS = -O3 -fmax-errors=0 -ffree-line-length-none $(FLAGS_OMP)
+    FLAGS = -O3 -fmax-errors=0 -ffree-line-length-none $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP)
+    FLAGS = -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
   ifeq "$(MODE)" "profile"
-    FLAGS = -p -g -Wall -fmax-errors=0 -fbacktrace -fbounds-check -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP)
+    FLAGS = -p -g -Wall -fmax-errors=0 -fbacktrace -fbounds-check -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
 endif
 
 ifeq "$(FC)" "intel"
   ifeq "$(MODE)" "fast"
-    FLAGS = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
+    FLAGS = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -debug all -warn all -check all -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
+    FLAGS = -g -debug all -warn all -check all -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
   ifeq "$(MODE)" "profile"
-    FLAGS = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
+    FLAGS = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
 endif
 

@@ -403,40 +403,40 @@ CONTAINS
  ! ---------- simulation time step, output frequency, file frequency -------
  if (masterproc) then
    write(iulog,'(2a)') new_line('a'), '---- output/simulation time steps --- '
-   write(iulog,'(A,F10.1)') '  simulation frequency:     ', dt
-   write(iulog,'(2A)')      '  history file freqeuncy:   ', trim(newFileFrequency)
-   write(iulog,'(2A)')      '  history output freqeuncy: ', trim(outputFrequency)
+   write(iulog,'(A,F10.1)') '  simulation time step <dt_qsim>:             ', dt
+   write(iulog,'(2A)')      '  history file freqeuncy <newFileFrequency>:  ', trim(newFileFrequency)
+   write(iulog,'(2A)')      '  history output freqeuncy <outputFrequency>: ', trim(outputFrequency)
  end if
 
  ! 1. Process history output frequency
  select case(trim(outputFrequency))
    case('daily', 'monthly', 'yearly') ! do nothing
    case default
-     read(outputFrequency,'(5I)',iostat=err) nOutFreq
+     read(outputFrequency,'(I5)',iostat=err) nOutFreq
      if (err/=0) then
-       message=trim(message)//'<outputFrequency> is invalid: must be daily, monthly, yearly or integer (number of time steps)'; return
+       message=trim(message)//'<outputFrequency> is invalid: must be "daily", "monthly", "yearly" or positive integer (number of time steps)'; return
      end if
      if (nOutFreq<0) then
-       message=trim(message)//'<outputFrequency> is invalid: must be positive integer AND outputFrequency x simulation step [sec] must be 86400 [sec] (one day)'; return
+       message=trim(message)//'<outputFrequency> is invalid: must be positive integer'; return
      end if
  end select
 
  ! 2. Check simulation time step
  ! 2.1 must be less than one day
  if (dt>86400._dp) then
-   write(message, '(2A)') trim(message), 'simulation frequency must be less than one-day (86400 sec)'
+   write(message, '(2A)') trim(message), '<dt_qsim> must be less than one-day (86400 sec)'
    err=81; return
  end if
  ! 2.2. multiple of simulation time step must be one day
  if (mod(86400._dp, dt)>0._dp) then
-   write(message, '(2A)') trim(message), 'multiple of simulation step [sec] must end up in one-day (86400 sec)'
+   write(message, '(2A)') trim(message), 'multiple of <dt_qsim> [sec] must be 86400 [sec] (one day)'
    err=81; return
  end if
 
  ! 3. Check output frequency against simulation time step if outputFrequency is numeric
  if (nOutFreq/=integerMissing) then
    if (mod(86400._dp, real(nOutFreq,kind=dp)*dt)>0._dp) then
-     write(message, '(2A)') trim(message), 'outputFrequency x simulation step [sec] must be 86400 [sec] (one day)'
+     write(message, '(2A)') trim(message), 'multiple of <outputFrequency> x <dt_qsim> [sec] must be 86400 [sec] (one day)'
      err=81; return
    end if
  end if
