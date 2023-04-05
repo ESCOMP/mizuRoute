@@ -52,11 +52,20 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     logger.debug("  mizuRoute lnd grid is %s ", config['lnd_grid'])
     logger.debug("  mizuRoute rof grid is %s ", config['rof_grid'])
     #----------------------------------------------------
+    # Get some important values from the case
+    #----------------------------------------------------
+    rundir = case.get_value("RUNDIR")
+    dindir = case.get_value("DIN_LOC_ROOT")
+    casename = case.get_value("CASE")
+    run_type = case.get_value("RUN_TYPE")
+    run_start = case.get_value("RUN_STARTDATE")
+    #----------------------------------------------------
     # Settings that depend on the resolution
     #----------------------------------------------------
     dname_sseg = "seg"
     dname_nhru = "hru"
     is_lake_sim = "F"
+    ancil_dir = dindir+"/rof/mizuRoute/ancillary_data/"
     if (    config['rof_grid'] == "HDMAmz" ):
        fname_ntopOld = "ntopo_HDMAmz_Global_cdf5_fill_reorder_c20200828.nc"
        varname_area = "Basin_Area"
@@ -162,6 +171,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
        varname_segId = "seg_id"
        varname_downSegId = "Tosegment"
        varname_pfafCode = "pfaf"
+       ancil_dir = "please_set_ancillary_directory_in_user_ctl_mizuroute"
     else:
        expect( False, "mizuRoute does NOT know about this grid: "+config['rof_grid'] )
 
@@ -176,20 +186,12 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
 
   
     #----------------------------------------------------
-    # Get some important values from the case
-    #----------------------------------------------------
-    rundir = case.get_value("RUNDIR")
-    dindir = case.get_value("DIN_LOC_ROOT")
-    casename = case.get_value("CASE")
-    run_type = case.get_value("RUN_TYPE")
-    run_start = case.get_value("RUN_STARTDATE")
-    #----------------------------------------------------
     # Set control values that we get from CESM
     #----------------------------------------------------
     ctl.set( "case_name", casename )
     ctl.set( "output_dir", "./" )
     ctl.set( "input_dir", rundir+"/" )
-    ctl.set( "ancil_dir", dindir+"/rof/mizuRoute/ancillary_data/" )
+    ctl.set( "ancil_dir", ancil_dir )
     ctl.set( "fname_ntopOld", fname_ntopOld )
     ctl.set( "dname_sseg", dname_sseg )
     ctl.set( "dname_nhru", dname_nhru )
