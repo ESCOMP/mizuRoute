@@ -414,7 +414,7 @@ CONTAINS
    case default
      read(outputFrequency,'(I5)',iostat=err) nOutFreq
      if (err/=0) then
-       message=trim(message)//'problem with numeric convertin - <outputFrequency>'; return
+       message=trim(message)//'<outputFrequency> is invalid: must be "daily", "monthly", "yearly" or positive integer (number of time steps)'; return
      end if
      if (nOutFreq<0) then
        message=trim(message)//'<outputFrequency> is invalid: must be positive integer'; return
