@@ -274,19 +274,22 @@ CONTAINS
 
       SUBROUTINE get_hru_area(NETOPO_in, RPARAM_in, offset, verbose)
 
-        ! Descriptions: Compute HRU areas
-        ! Note: mizuRoute holds contributory area [m2]-BASAREA, which CAN consists of multiple HRUs
+        ! Descriptions: Get HRU areas in rtmCTL from mizuRoute NETOPO/RPARAM data structure
+        ! Note: 1) mizuRoute holds contributory area [m2]-BASAREA, which CAN consists of multiple HRUs
         !       To get HRU area associated with each reach, need to compute based on areal weight
+        !       2) offset (optional input): in main processor, index for rtmCTL variable is based on 1 through nHRU_mainstem+nHRU_trib
+        !       (combining mainstem and tributary hru in the order). Therefore, hru index based NETOPO for tributary in main processor
+        !       need to be added by number of nHRU_mainstem. offset can be used for this.
 
         USE dataTypes, ONLY: RCHTOPO   ! data structure - Network topology
         USE dataTypes, ONLY: RCHPRP    ! data structure - Reach/hru physical parameters
 
         implicit none
         ! Arguments:
-        type(RCHTOPO),     intent(in) :: NETOPO_in(:)
-        type(RCHPRP),      intent(in) :: RPARAM_in(:)
-        integer, optional, intent(in) :: offset
-        logical, optional, intent(in) :: verbose
+        type(RCHTOPO),     intent(in) :: NETOPO_in(:) ! network topology data structure
+        type(RCHPRP),      intent(in) :: RPARAM_in(:) ! reach parameter data structure
+        integer, optional, intent(in) :: offset       ! index offset to point correct location in rtmCTL
+        logical, optional, intent(in) :: verbose      ! verbose option
         ! Local variables:
         logical                   :: verb
         integer                   :: ix
@@ -714,6 +717,9 @@ CONTAINS
         ! Descriptions: get exporting variables
         !  - discharge [m3/s],
         !  - water volume per HUC area [m]
+        !  NOTE 1) offset (optional input): in main processor, index for rtmCTL variable is based on 1 through nHRU_mainstem+nHRU_trib
+        !       (combining mainstem and tributary hru in the order). Therefore, hru index based NETOPO for tributary in main processor
+        !       need to be added by number of nHRU_mainstem. offset can be used for this.
 
         USE globalData, ONLY: idxIRF   ! routing method index
         USE dataTypes, ONLY: RCHTOPO   ! data structure - Network topology
@@ -721,9 +727,9 @@ CONTAINS
 
         implicit none
         ! Arguments:
-        type(RCHTOPO), intent(in)     :: NETOPO_in(:)
-        type(STRFLX),  intent(in)     :: RCHFLX_in(:,:)
-        integer, optional, intent(in) :: offset
+        type(RCHTOPO), intent(in)     :: NETOPO_in(:)   ! mizuRoute network topology data structure
+        type(STRFLX),  intent(in)     :: RCHFLX_in(:,:) ! mizuRoute reach flux data structure
+        integer, optional, intent(in) :: offset         ! index offset to point correct location in rtmCTL
         ! Local variables:
         integer                   :: ix
         integer                   :: iens=1
