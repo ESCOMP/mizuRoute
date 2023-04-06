@@ -141,11 +141,11 @@ MODULE histVars_data
       nHru_input = size(basRunoff_local)
       nRch_input = size(RCHFLX_local(1,:))
       if (nHru_input/=this%nHru) then
-        write(message,'(2A,I,A,I)') trim(message),'history buffer hru size:',this%nHru,'/= input data hru size:',nHru_input
+        write(message,'(2A,G0,A,G0)') trim(message),'history buffer hru size:',this%nHru,'/= input data hru size:',nHru_input
         ierr=81; return
       end if
       if (nRch_input/=this%nRch) then
-        write(message,'(2A,I,A,I)') trim(message),'history buffer reach size:',this%nRch,'/= input data reach size:',nRch_input
+        write(message,'(2A,G0,A,G0)') trim(message),'history buffer reach size:',this%nRch,'/= input data reach size:',nRch_input
         ierr=81; return
       end if
 
@@ -175,7 +175,7 @@ MODULE histVars_data
           case(muskingumCunge);        idxMethod=idxMC
           case(diffusiveWave);         idxMethod=idxDW
           case default
-            write(message,'(2A,X,I,X,A)') trim(message), 'routing method index:',routeMethods(iRoute), 'must be 0-5'
+            write(message,'(2A,X,G0,X,A)') trim(message), 'routing method index:',routeMethods(iRoute), 'must be 0-5'
             ierr=81; return
         end select
 
