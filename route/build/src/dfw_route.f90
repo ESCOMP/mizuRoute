@@ -212,16 +212,11 @@ CONTAINS
    write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_Q
  endif
 
- if(verbose) then
-   write(iulog,'(a)') ' -------------------------'
-   write(iulog,'(a)') ' -- water balance check --'
-   write(iulog,'(a)') ' -------------------------'
- endif
- call comp_reach_wb(idxDW, q_upstream, RCHFLX_out(iens,segIndex), verbose)
-
  if (RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(1) < 0) then
    write(iulog,'(A,X,G12.5,X,A,X,I9)') ' ---- NEGATIVE VOLUME = ', RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(1), 'at ', NETOPO_in(segIndex)%REACHID
  end if
+
+ call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxDW, q_upstream, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
 
  END SUBROUTINE dfw_rch
 

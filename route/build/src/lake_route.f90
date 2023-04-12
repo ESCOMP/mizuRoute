@@ -13,6 +13,7 @@ USE public_var, ONLY: pi             ! pi value of 3.14159265359_dp
 USE public_var, ONLY: fname_state_in ! name of state input file
 USE public_var, ONLY: charMissing    ! missing character
 USE globalData, ONLY: idxIRF         ! index of IRF method
+USE water_balance, ONLY: comp_reach_wb     ! compute water balance error
 ! subroutines: model time info
 USE time_utils_module, ONLY: compJulday,&      ! compute julian day
                              compJulday_noleap ! compute julian day for noleap calendar
@@ -60,9 +61,9 @@ CONTAINS
   integer(i4b), intent(out)                :: ierr           ! error code
   character(*), intent(out)                :: message        ! error message
   ! Local variables:
+  logical(lgt)                             :: verbose        ! check details of variables
   real(dp)                                 :: q_upstream     ! total discharge at top of the reach being processed
-  real(dp)                                 :: WB             ! water balance component in the lake
-  type(STRFLX), allocatable                :: fluxstate(:)   ! upstream Reach fluxes
+!  real(dp)                                 :: WB             ! water balance component in the lake
   integer(i4b)                             :: nUps           ! number of upstream segment
   integer(i4b)                             :: iUps           ! upstream reach index
   integer(i4b)                             :: iRch_ups       ! index of upstream reach in NETOPO
@@ -91,25 +92,19 @@ CONTAINS
 
   ierr=0; message='lake_route/'
 
+  verbose = .false.
+  if(NETOPO_in(segIndex)%REACHIX == ixDesire)then
+    verbose = .true.
+  end if
+
     ! identify number of upstream segments of the lake being processed
     nUps = size(NETOPO_in(segIndex)%UREACHI)
 
-    allocate(fluxstate(nUps), stat=ierr, errmsg=cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage)//': fluxstate'; return; endif
-
-    ! loop to get the streamlow of the usptream discharges to the lake
-    if (nUps>0) then
-      do iUps = 1,nUps
-        iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-        fluxstate(iUps) = RCHFLX_out(iens,iRch_ups)
-      end do
-    endif
-
-    ! Find out total q draining into a lake
     q_upstream = 0.0_dp
     if(nUps>0)then
       do iUps = 1,nUps
-        q_upstream = q_upstream + fluxstate(iUps)%ROUTE(idxIRF)%REACH_Q
+        iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
+        q_upstream = q_upstream + RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%REACH_Q
       end do
     endif
 
@@ -131,7 +126,6 @@ CONTAINS
     !print*, 'upstream precipitation m3/s.= ', RCHFLX_out(iens,segIndex)%basinprecip
     !print*, 'upstream evaporation m3/s ..= ', RCHFLX_out(iens,segIndex)%basinevapo
     !print*, 'paraemters', RPARAM_in(segIndex)%D03_MaxStorage, RPARAM_in(segIndex)%D03_Coefficient, RPARAM_in(segIndex)%D03_Power, NETOPO_in(segIndex)%LakeTargVol, NETOPO_in(segIndex)%islake, NETOPO_in(segIndex)%LakeModelType
-
 
     ! jump start the lake volume to the target volume if provided for the first time step
     if (iTime==1) then
@@ -155,16 +149,16 @@ CONTAINS
     endif
 
     ! add upstream, precipitation and subtract evaporation from the lake volume
-    RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) ! updating storage for current time
+    RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) ! updating storage for current time
     RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) + q_upstream * dt  ! input upstream discharge from m3/s to m3
+    RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) + RCHFLX_out(iens,segIndex)%BASIN_QR(1) * dt ! add lateral flow
     RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) + RCHFLX_out(iens,segIndex)%basinprecip * dt ! input lake precipitation
-    if ((RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%basinevapo * dt) > 0) then ! enough water to evaporate
+    if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) > RCHFLX_out(iens,segIndex)%basinevapo*dt) then ! enough water to evaporate
       RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%basinevapo * dt ! output lake evaporation
-    else ! not enough water to evaporate
-      RCHFLX_out(iens,segIndex)%basinevapo = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) /dt ! update basinevapo
-      RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)=0
+    else ! not enough water to evaporate (this cause water balance error in coupling mode)
+      RCHFLX_out(iens,segIndex)%basinevapo = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)/dt ! update basinevapo
+      RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)=0._dp
     endif
-
 
     ! take out the water from the reach if the wm flag is true and the value are not missing
     ! here we should make sure the real missing is not injection (or negative abstration)
@@ -197,11 +191,9 @@ CONTAINS
       endif
 
     else ! if the lake is parameteric
-
       select case(NETOPO_in(segIndex)%LakeModelType)
-
         case(endorheic)
-          ! no action needed, pass
+          RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = 0._dp ! no outflow
         case(doll03)
           ! Check if the MaxStorage is larger than S0
           if (RPARAM_in(segIndex)%D03_MaxStorage < RPARAM_in(segIndex)%D03_S0) then !
@@ -220,12 +212,13 @@ CONTAINS
           endif
           RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q / secprday ! conversion to m**3 s**-1
           ! in case is the output volume is more than lake volume
-          RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = (min(RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q * dt, RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)) )/dt
+          RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = min(RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q, RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)/dt)
           ! updating the storage
           RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q * dt
-          if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) < 0) then; ! set the lake volume as 0 if it goes negative
-            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = 0
-          endif
+
+!          if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) < 0) then; ! set the lake volume as 0 if it goes negative
+!            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)=0
+!          endif
         case(hanasaki06)
           ! preserving the past upstrem discharge for lake models
           ! create memory of upstream inflow for Hanasaki formulation if memory flag is active for this lake
@@ -353,14 +346,10 @@ CONTAINS
             endif
           enddo
 
-          ! print*, 'start month', start_month
-
           ! find start of operational year (add hour 1 when run hourly?) Once determined, this E_release should be communicated to the next timestep.
           if (simDatetime(1)%month() == start_month .AND. simDatetime(1)%day() == 1 ) then
              RPARAM_in(segIndex)%H06_E_rel_ini = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) / (RPARAM_in(segIndex)%H06_alpha * RPARAM_in(segIndex)%H06_Smax)
           endif
-
-          ! print*,'E_release ', RPARAM_in(segIndex)%H06_E_rel_ini
 
           ! Calculate target release
           if (RPARAM_in(segIndex)%H06_purpose == 1) then ! irrigation reservoir
@@ -376,17 +365,14 @@ CONTAINS
           ! Calculate actual release
           if (c >= RPARAM_in(segIndex)%H06_c_compare) then ! multi-year reservoir
             RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = target_r * RPARAM_in(segIndex)%H06_E_rel_ini
-            print*,'multi-year reservoir'
           else if (0 <= c .AND. c < RPARAM_in(segIndex)%H06_c_compare) then
             RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = RPARAM_in(segIndex)%H06_E_rel_ini * target_r * (c / RPARAM_in(segIndex)%H06_denominator)**RPARAM_in(segIndex)%H06_exponent  + &
                                                    q_upstream * (1 - (c /RPARAM_in(segIndex)%H06_denominator)**RPARAM_in(segIndex)%H06_exponent)
-            print*,'whithin-a-year reservoir'
           end if
 
           ! make sure reservoir volume does not drop below dead storage
           if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) < (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead)) then
             RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q - (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) )/dt
-            print*, 'below dead storage'
             ! set negative outflow to zero
             if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q<0) then
                 RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q=0
@@ -394,11 +380,9 @@ CONTAINS
 
           ! Account for spil overflow if reservoir is completely filled.
           else if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) > RPARAM_in(segIndex)%H06_Smax) then
-            print*, 'overflow evoked'
             RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q + (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RPARAM_in(segIndex)%H06_Smax)/ dt
           end if
 
-          print*,'outflow ', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q
           ! update the storage
           RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q * dt
 
@@ -433,7 +417,6 @@ CONTAINS
             F_prim = 1
           end if
 
-
           print*, 'HYP_E_emr .......= ', RPARAM_in(segIndex)%HYP_E_emr
           print*, 'HYP_E_lim .......= ', RPARAM_in(segIndex)%HYP_E_lim
           print*, 'HYP_E_min .......= ', RPARAM_in(segIndex)%HYP_E_min
@@ -445,7 +428,6 @@ CONTAINS
           print*, 'HYP_Qrate_phs ...= ', RPARAM_in(segIndex)%HYP_Qrate_phs
           print*, 'HYP_prim_F ......= ', RPARAM_in(segIndex)%HYP_prim_F
           print*, 'HYP_A_avg .......= ', RPARAM_in(segIndex)%HYP_A_avg
-
 
           print*, 'F_sin ...........= ', F_sin
           print*, 'F_lin ...........= ', F_lin
@@ -477,34 +459,35 @@ CONTAINS
       end select
     endif
 
-    ! calculate water balance (in this water balance we dont have the actual evaporation, assuming there is enough water for evaporation)
-    WB = q_upstream * dt + RCHFLX_out(iens,segIndex)%basinprecip * dt - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q * dt &
-    - RCHFLX_out(iens,segIndex)%basinevapo * dt - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual * dt &
-    - (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0))
+!    TO-do: Make sure that WB check below is performed correctly in comp_reach_wb subroutine
+!    ! calculate water balance (in this water balance we dont have the actual evaporation, assuming there is enough water for evaporation)
+!    WB = q_upstream * dt + RCHFLX_out(iens,segIndex)%basinprecip * dt - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q * dt &
+!    - RCHFLX_out(iens,segIndex)%basinevapo * dt - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual * dt &
+!    - (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0))
+!
+!    if ((1._dp<WB).or.(segIndex==ixDesire)) then; ! larger than 1 cubic meter or desired lake
+!      ! NOTE: The lake discharge and storage need to be solved iterative way to reduce water balance error
+!      write(iulog,*) 'Water balance for lake ID = ', NETOPO_in(segIndex)%REACHID, ' excees the Tolerance'
+!      write(iulog,'(A,1PG15.7)') 'WBerr [m3]       = ', WB
+!      write(iulog,'(A,1PG15.7)') 'dS [m3]          = ', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)-RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0)
+!      write(iulog,'(A,1PG15.7)') 'S [m3]           = ', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)
+!      write(iulog,'(A,1PG15.7)') 'inflow [m3]      = ', q_upstream*dt
+!      write(iulog,'(A,1PG15.7)') 'outflow [m3]     = ', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q*dt
+!      write(iulog,'(A,1PG15.7)') 'precip [m3]      = ', RCHFLX_out(iens,segIndex)%basinprecip*dt
+!      write(iulog,'(A,1PG15.7)') 'evaporation [m3] = ', RCHFLX_out(iens,segIndex)%basinevapo*dt
+!      if (is_flux_wm) then
+!        write(iulog,'(A,1PG15.7)') 'actual abstraction [m3] = ', RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual
+!      endif
+!      if (1<WB) then
+!        cmessage = 'Water balance for lake ID = exceeds the Tolerance'
+!        ierr = 1; message=trim(message)//trim(cmessage);
+!      endif
+!    endif
 
-    if ((1._dp<WB).or.(segIndex==ixDesire)) then; ! larger than 1 cubic meter or desired lake
-      ! NOTE: The lake discharge and storage need to be solved iterative way to reduce water balance error
-      write(iulog,*) 'Water balance for lake ID = ', NETOPO_in(segIndex)%REACHID, ' excees the Tolerance'
-      write(iulog,'(A,1PG15.7)') 'WBerr [m3]       = ', WB
-      write(iulog,'(A,1PG15.7)') 'dS [m3]          = ', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)-RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0)
-      write(iulog,'(A,1PG15.7)') 'S [m3]           = ', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)
-      write(iulog,'(A,1PG15.7)') 'inflow [m3]      = ', q_upstream*dt
-      write(iulog,'(A,1PG15.7)') 'outflow [m3]     = ', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q*dt
-      write(iulog,'(A,1PG15.7)') 'precip [m3]      = ', RCHFLX_out(iens,segIndex)%basinprecip*dt
-      write(iulog,'(A,1PG15.7)') 'evaporation [m3] = ', RCHFLX_out(iens,segIndex)%basinevapo*dt
-      if (is_flux_wm) then
-        write(iulog,'(A,1PG15.7)') 'actual abstraction [m3] = ', RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual
-      endif
-      if (1<WB) then
-        cmessage = 'Water balance for lake ID = exceeds the Tolerance'
-        ierr = 1; message=trim(message)//trim(cmessage);
-      endif
-    endif
-
-    ! pass the current storage for the past time step for the next time step simulation
-    RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) !shift on time step back
+    call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxIRF, q_upstream, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.true.,tolerance=1.e-3_dp)
 
     ! assign the zero value as lake do not have a QFUTURE_IRF
+    ! TO-DO: Need to handle this when construct unit-hydrograph
     if (.not.allocated(RCHFLX_out(iens,segIndex)%QFUTURE_IRF))then
       ntdh = size(NETOPO_in(segIndex)%UH)
       allocate(RCHFLX_out(iens,segIndex)%QFUTURE_IRF(ntdh), stat=ierr, errmsg=cmessage)

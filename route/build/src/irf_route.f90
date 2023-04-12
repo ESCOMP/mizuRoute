@@ -11,6 +11,7 @@ USE dataTypes, ONLY: subbasin_omp     ! mainstem+tributary data structures
 USE public_var, ONLY: iulog           ! i/o logical unit number
 USE public_var, ONLY: realMissing     ! missing value for real number
 USE public_var, ONLY: integerMissing  ! missing value for integer number
+USE public_var, ONLY: dt
 USE globalData, ONLY: idxIRF          ! index of IRF method
 ! external subroutines
 USE lake_route_module, ONLY: lake_route        ! lake route module
@@ -141,6 +142,8 @@ CONTAINS
  ! Local variables
  logical(lgt)                             :: verbose        ! check details of variables
  real(dp)                                 :: q_upstream     ! total discharge at top of the reach being processed
+ real(dp)                                 :: Qabs           ! maximum allowable water abstraction rate [m3/s]
+ real(dp)                                 :: Vmod           ! abstraction rate from storage [m3/s]
  integer(i4b)                             :: nUps           ! number of upstream segment
  integer(i4b)                             :: iUps           ! upstream reach index
  integer(i4b)                             :: iRch_ups       ! index of upstream reach in NETOPO
@@ -214,7 +217,6 @@ CONTAINS
     RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual
   endif
 
-  ! check
   if(verbose)then
     ntdh = size(NETOPO_in(segIndex)%UH)
     write(fmt1,'(A,I5,A)') '(A, 1X',ntdh,'(1X,F20.7))'
@@ -227,12 +229,16 @@ CONTAINS
     write(*,'(a,x,F15.7)')     ' RCHFLX_out%REACH_Q =', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q
   endif
 
-  if(verbose) then
-    write(iulog,'(a)') ' -------------------------'
-    write(iulog,'(a)') ' -- water balance check --'
-    write(iulog,'(a)') ' -------------------------'
-  endif
-  call comp_reach_wb(idxIRF, q_upstream, RCHFLX_out(iens,segIndex), verbose)
+  if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) < 0) then
+    write(iulog,'(A,X,G12.5,X,A,X,I9)') ' ---- NEGATIVE VOLUME [m3]= ', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1), 'at ', NETOPO_in(segIndex)%REACHID
+!    RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = 0._dp
+  end if
+  if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q < 0) then
+    write(iulog,'(A,X,G12.5,X,A,X,I9)') ' ---- NEGATIVE FLOW [m3/s] = ', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q, 'at ', NETOPO_in(segIndex)%REACHID
+!    RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = 0._dp
+  end if
+
+  call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxIRF, q_upstream, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
 
  END SUBROUTINE irf_rch
 
@@ -247,8 +253,6 @@ CONTAINS
  ! ----------------------------------------------------------------------------------------
  ! Details: Convolute runoff volume of upstream at one reach at one time step
  ! ----------------------------------------------------------------------------------------
-
- USE public_var, ONLY: dt
 
  implicit none
  ! Argument variables
@@ -273,6 +277,8 @@ CONTAINS
 
  ! compute volume in reach
  rflux%ROUTE(idxIRF)%REACH_VOL(0) = rflux%ROUTE(idxIRF)%REACH_VOL(1)
+! ! For very low flow condition, outflow - inflow > current storage, so limit outflow and adjust rflux%QFUTURE_IRF(1)
+! rflux%QFUTURE_IRF(1) = min(rflux%ROUTE(idxIRF)%REACH_VOL(0)/dt + q_upstream*0.999, rflux%QFUTURE_IRF(1))
  rflux%ROUTE(idxIRF)%REACH_VOL(1) = rflux%ROUTE(idxIRF)%REACH_VOL(0) - (rflux%QFUTURE_IRF(1) - q_upstream)*dt
 
  ! Add local routed flow at the bottom of reach
