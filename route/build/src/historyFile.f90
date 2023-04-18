@@ -16,6 +16,9 @@ MODULE historyFile
   USE globalData,        ONLY: pio_rearranger
   USE globalData,        ONLY: pio_root
   USE globalData,        ONLY: pio_stride
+  USE globalData,        ONLY: version
+  USE globalData,        ONLY: gitBranch
+  USE globalData,        ONLY: gitHash
   USE histVars_data,     ONLY: histVars
   USE pio_utils
   USE perf_mod,          ONLY: t_startf,t_stopf ! timing start/stop (GPTL library)
@@ -127,13 +130,13 @@ MODULE historyFile
 
       ! initialze iodescRchFlux and ioDescHruFlux
       call pio_decomp(this%pioSystem,    & ! input: pio system descriptor
-                      ncd_float,        & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                      ncd_float,         & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                       [nRch_in],         & ! input: dimension length == global array size
                       compdof_rch,       & ! input: local->global mapping
                       this%ioDescRchFlux)
 
       call pio_decomp(this%pioSystem,    & ! input: pio system descriptor
-                      ncd_float,        & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                      ncd_float,         & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                       [nHRU_in],         & ! input: dimension length == global array size
                       compdof_hru,       & ! input: local->global mapping
                       this%ioDescHruFlux)
@@ -205,6 +208,15 @@ MODULE historyFile
                      vdesc=meta_rflx(iVar)%varDesc, vunit=meta_rflx(iVar)%varUnit)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end do
+
+      call put_attr(this%pioFileDesc, ncd_global, 'mizuRoute-version', version ,ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      call put_attr(this%pioFileDesc, ncd_global, 'gitBranch', gitBranch ,ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      call put_attr(this%pioFileDesc, ncd_global, 'gitHash', gitHash ,ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! 4. End definitions
       call end_def(this%pioFileDesc, ierr, cmessage)
@@ -308,6 +320,15 @@ MODULE historyFile
                      vdesc=meta_rflx(iVar)%varDesc, vunit=meta_rflx(iVar)%varUnit)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end do
+
+      call put_attr(this%pioFileDesc, ncd_global, 'mizuRoute-version', version ,ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      call put_attr(this%pioFileDesc, ncd_global, 'gitBranch', gitBranch ,ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      call put_attr(this%pioFileDesc, ncd_global, 'gitHash', gitHash ,ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! 4. End definitions
       call end_def(this%pioFileDesc, ierr, cmessage)
