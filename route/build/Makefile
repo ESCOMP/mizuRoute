@@ -147,6 +147,7 @@ DATATYPES = \
     nrtype.f90 \
     public_var.f90 \
     nr_utils.f90 \
+    ncio_utils.f90 \
     pio_utils.f90 \
     ascii_utils.f90 \
     dataTypes.f90 \
@@ -161,7 +162,6 @@ DATATYPES = \
     allocation.f90
 # define utilities
 UTILS = \
-    ncio_utils.f90 \
     mpi_utils.f90 \
     model_utils.f90 \
     gamma_func.f90

@@ -133,7 +133,7 @@ MODULE historyFile
                       this%ioDescRchFlux)
 
       call pio_decomp(this%pioSystem,    & ! input: pio system descriptor
-                      ncd_float,        & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                      ncd_float,         & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                       [nHRU_in],         & ! input: dimension length == global array size
                       compdof_hru,       & ! input: local->global mapping
                       this%ioDescHruFlux)

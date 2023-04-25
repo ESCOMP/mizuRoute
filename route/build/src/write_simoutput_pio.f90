@@ -11,6 +11,7 @@ USE globalData,     ONLY: runMode           ! 'standalone' or 'cesm-coupling'
 USE globalData,     ONLY: pid, nNodes
 USE globalData,     ONLY: masterproc
 USE globalData,     ONLY: hfileout, hfileout_gage, rfileout
+USE globalData,     ONLY: initHvars
 USE historyFile,    ONLY: histFile
 USE histVars_data,  ONLY: histVars
 USE io_rpointfile,  ONLY: io_rpfile
@@ -18,7 +19,6 @@ USE ascii_utils,    ONLY: lower
 USE pio_utils
 
 implicit none
-logical(lgt),   save            :: initHvars=.false.     !
 type(histVars), save            :: hVars                 !
 type(histFile), save            :: hist_all_network      !
 type(histFile), save            :: hist_gage             !
