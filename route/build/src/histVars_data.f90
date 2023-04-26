@@ -17,6 +17,24 @@ MODULE histVars_data
   USE globalData,        ONLY: meta_rflx, meta_hflx
   USE globalData,        ONLY: idxSUM,idxIRF,idxKWT, &
                                idxKW,idxMC,idxDW
+  USE globalData,        ONLY: nRch, nRch_mainstem, nRch_trib
+  USE globalData,        ONLY: nHRU, nHRU_mainstem, nHRU_trib
+  USE globalData,        ONLY: nTribOutlet
+  USE globalData,        ONLY: hru_per_proc        ! number of hrus assigned to each proc (size = num of procs
+  USE globalData,        ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs)
+  ! pio stuff
+  USE globalData,        ONLY: pid, nNodes
+  USE globalData,        ONLY: masterproc
+  USE globalData,        ONLY: mpicom_route
+  USE globalData,        ONLY: pio_netcdf_format
+  USE globalData,        ONLY: pio_typename
+  USE globalData,        ONLY: pio_numiotasks
+  USE globalData,        ONLY: pio_rearranger
+  USE globalData,        ONLY: pio_root
+  USE globalData,        ONLY: pio_stride
+  USE nr_utils,          ONLY: arth
+  USE ncio_utils,        ONLY: get_nc
+  USE pio_utils
 
   implicit none
 
@@ -40,6 +58,7 @@ MODULE histVars_data
 
     CONTAINS
 
+      procedure,  public :: read_restart  ! initialize from restart file
       procedure,  public :: aggregate  ! Accumulating output variables
       procedure,  public :: finalize   ! Compute aggregated values (currently only mean) to be written in netCDF
       procedure,  public :: refresh    ! Reset output arrays to zero
@@ -125,7 +144,7 @@ MODULE histVars_data
       integer(i4b)                       :: nHRU_input
       integer(i4b)                       :: nRch_input
       integer(i4b)                       :: ix, iRoute          ! loop indices
-      integer(i4b)                       :: idxMethod           ! temporal method index
+      integer(i4b)                       :: idxMethod             ! temporal method index
 
       ierr=0; message='aggregate/'
 
@@ -148,7 +167,7 @@ MODULE histVars_data
         write(message,'(2A,G0,A,G0)') trim(message),'history buffer reach size:',this%nRch,'/= input data reach size:',nRch_input
         ierr=81; return
       end if
-
+! need to convert double precision to single precision??
       ! ---- aggregate
       ! 1. basin runoff
       if (meta_hflx(ixHFLX%basRunoff)%varFile) then
@@ -259,5 +278,198 @@ MODULE histVars_data
       if (allocated(this%volume))     deallocate(this%volume)
 
     END SUBROUTINE clean
+
+    ! ---------------------------------------------------------------
+    ! instantiate histVars by reading restart file
+    ! ---------------------------------------------------------------
+    SUBROUTINE read_restart(this, restart_name, ierr, message)
+
+      implicit none
+      ! Argument variables
+      class(histVars)                    :: this
+      character(*),         intent(in)   :: restart_name          ! restart file name
+      integer(i4b),         intent(out)  :: ierr                  ! error code
+      character(len=strLen),intent(out)  :: message               ! error message
+      ! local variable
+      character(len=strLen)              :: cmessage              ! error message from subroutines
+      real(sp), allocatable              :: array_tmp(:)          ! temp array
+      integer(i4b)                       :: ixRoute, ix1, ix2     ! loop index
+      integer(i4b)                       :: ixFlow, ixVol         ! temporal method index
+      logical(lgt)                       :: FileStatus            ! file open or close
+      integer(i4b), allocatable          :: compdof_rch(:)        ! global reach index for PIO reading
+      integer(i4b), allocatable          :: compdof_hru(:)        ! globa hru index for PIO reading
+      type(iosystem_desc_t)              :: pioSys                ! PIO I/O system data
+      type(file_desc_t)                  :: pioFileDesc           ! pio file handle
+      type(io_desc_t)                    :: ioDescRchHist         ! PIO domain decomposition data for reach flux [nRch]
+      type(io_desc_t)                    :: ioDescHruHist         ! PIO domain decomposition data for hru runoff [nHRU]
+
+      ierr=0; message='read_restart/'
+
+      ! ----------------------------------
+      ! pio initialization for restart netCDF
+      ! ----------------------------------
+      pio_numiotasks = nNodes/pio_stride
+      call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
+                        pio_stride, pio_numiotasks, & ! input: PIO related parameters
+                        pio_rearranger, pio_root,   & ! input: PIO related parameters
+                        pioSys)                       ! output: PIO system descriptors
+
+      call openFile(pioSys, pioFileDesc, trim(restart_name), pio_typename, ncd_nowrite, FileStatus, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      call get_nc(trim(restart_name), 'restart_time', this%timeVar, 1, ierr, cmessage) ! get restart datetime
+      call get_nc(trim(restart_name), 'nt', this%nt, 1, ierr, cmessage)                ! get number of aggretation time steps
+
+      ! get number of HRUs and Reaches for each core
+      if (masterproc) then
+        this%nHru =nHru_mainstem+nHru_trib
+        this%nRch =nRch_mainstem+nRch_trib+nTribOutlet
+        allocate(array_tmp(nRch_mainstem+nRch_trib))
+      else
+        this%nHru = nHru_trib
+        this%nRch = nRch_trib
+        allocate(array_tmp(nRch_trib))
+      end if
+
+      ! global reach and hru index
+      if (masterproc) then
+        allocate(compdof_rch(sum(rch_per_proc(-1:pid))))
+        allocate(compdof_hru(sum(hru_per_proc(-1:pid))))
+      else
+        allocate(compdof_rch(rch_per_proc(pid)))
+        allocate(compdof_hru(hru_per_proc(pid)))
+      end if
+
+      ! For reach flux/volume
+      if (masterproc) then
+        ix1 = 1
+      else
+        ix1 = sum(rch_per_proc(-1:pid-1))+1
+      endif
+      ix2 = sum(rch_per_proc(-1:pid))
+      compdof_rch = arth(ix1, 1, ix2-ix1+1)
+
+      ! For HRU flux/volume
+      if (masterproc) then
+        ix1 = 1
+      else
+        ix1 = sum(hru_per_proc(-1:pid-1))+1
+      endif
+      ix2 = sum(hru_per_proc(-1:pid))
+      compdof_hru = arth(ix1, 1, ix2-ix1+1)
+
+      ! initialze ioDesc
+      call pio_decomp(pioSys,            & ! input: pio system descriptor
+                      ncd_float,         & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                      [nRch],            & ! input: dimension length == global array size
+                      compdof_rch,       & ! input: local->global mapping
+                      ioDescRchHist)
+
+      call pio_decomp(pioSys,            & ! input: pio system descriptor
+                      ncd_float,         & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                      [nHRU],            & ! input: dimension length == global array size
+                      compdof_hru,       & ! input: local->global mapping
+                      ioDescHruHist)
+
+      ! reading basin runoff (hru dimension)
+      if (meta_hflx(ixHFLX%basRunoff)%varFile) then
+        allocate(this%basRunoff(this%nHru), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%basRunoff]'; return; endif
+
+        call read_pnetcdf(pioFileDesc, meta_hflx(ixHFLX%basRunoff)%varName, this%basRunoff, ioDescHruHist, ierr, cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      end if
+
+      ! reading instantaneous runoff (rch dimension)
+      if (meta_rflx(ixRFLX%instRunoff)%varFile) then
+        allocate(this%instRunoff(this%nRch), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%instRunoff]'; return; endif
+
+        call read_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%instRunoff)%varName, array_tmp, ioDescRchHist, ierr, cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
+        if (masterproc) then
+          this%instRunoff(1:nRch_mainstem) = array_tmp(1:nRch_mainstem)
+          this%instRunoff(nRch_mainstem+nTribOutlet+1:this%nRch) = array_tmp(nRch_mainstem+1:nRch_mainstem+nRch_trib)
+        else
+          this%instRunoff = array_tmp
+        end if
+      end if
+
+      ! reading overland routed runoff (rch dimension)
+      if (meta_rflx(ixRFLX%dlayRunoff)%varFile) then
+        allocate(this%dlayRunoff(this%nRch), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%dlayRunoff]'; return; endif
+
+        call read_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%dlayRunoff)%varName, array_tmp, ioDescRchHist, ierr, cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
+        if (masterproc) then
+          this%dlayRunoff(1:nRch_mainstem) = array_tmp(1:nRch_mainstem)
+          this%dlayRunoff(nRch_mainstem+nTribOutlet+1:this%nRch) = array_tmp(nRch_mainstem+1:nRch_mainstem+nRch_trib)
+        else
+          this%dlayRunoff = array_tmp
+        end if
+      end if
+
+      ! reading reach routed runoff and volume
+      if (nRoutes>0) then
+        allocate(this%discharge(this%nRch, nRoutes), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%discharge]'; return; endif
+        allocate(this%volume(this%nRch, nRoutes), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%discharge]'; return; endif
+
+        this%discharge = 0._sp
+        this%volume    = 0._sp
+
+        do ixRoute=1,nRoutes
+          select case(routeMethods(ixRoute))
+            case(accumRunoff);           ixFlow=ixRFLX%sumUpstreamRunoff
+            case(impulseResponseFunc);   ixFlow=ixRFLX%IRFroutedRunoff;   ixVol=ixRFLX%IRFvolume
+            case(kinematicWaveTracking); ixFlow=ixRFLX%KWTroutedRunoff;   ixVol=ixRFLX%KWTvolume
+            case(kinematicWave);         ixFlow=ixRFLX%KWroutedRunoff;    ixVol=ixRFLX%KWvolume
+            case(muskingumCunge);        ixFlow=ixRFLX%MCroutedRunoff;    ixVol=ixRFLX%MCvolume
+            case(diffusiveWave);         ixFlow=ixRFLX%DWroutedRunoff;    ixVol=ixRFLX%DWvolume
+            case default
+              write(message,'(2A,X,G0,X,A)') trim(message), 'routing method index:',routeMethods(ixRoute), 'must be 0-5'
+              ierr=81; return
+          end select
+
+          if (meta_rflx(ixFlow)%varFile) then
+            call read_pnetcdf(pioFileDesc, meta_rflx(ixFlow)%varName, array_tmp, ioDescRchHist, ierr, cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+          end if
+          ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
+          if (masterproc) then
+            this%discharge(1:nRch_mainstem, ixRoute) = array_tmp(1:nRch_mainstem)
+            this%discharge(nRch_mainstem+nTribOutlet+1:this%nRch, ixRoute) = array_tmp(nRch_mainstem+1:nRch_mainstem+nRch_trib)
+          else
+            this%discharge(:,ixRoute) = array_tmp
+          end if
+
+          if (routeMethods(ixRoute)==accumRunoff) cycle  ! accumuRunoff has only discharge
+
+          if (meta_rflx(ixVol)%varFile) then
+            call read_pnetcdf(pioFileDesc, meta_rflx(ixVol)%varName, this%volume(1:nRch,ixRoute), ioDescRchHist, ierr, cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+          end if
+          ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
+          if (masterproc) then
+            this%volume(1:nRch_mainstem, ixRoute) = array_tmp(1:nRch_mainstem)
+            this%volume(nRch_mainstem+nTribOutlet+1:this%nRch,:) = this%volume(nRch_mainstem+1:nRch_mainstem+nRch_trib,:)
+          else
+            this%volume(:,ixRoute) = array_tmp
+          end if
+        end do
+      end if
+
+      call closeFile(pioFileDesc, FileStatus)
+
+      call pio_sys_finalize(pioSys, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    END SUBROUTINE read_restart
 
 END MODULE histVars_data

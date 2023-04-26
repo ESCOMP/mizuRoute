@@ -376,6 +376,8 @@ CONTAINS
   USE globalData, ONLY: RCHSTA                 ! global Reach state data structures
   USE globalData, ONLY: nMolecule              ! computational molecule
   USE globalData, ONLY: TSEC                   ! begining/ending of simulation time step [sec]
+  USE globalData, ONLY: initHvars              ! status of history variabiable data initialization
+  USE write_simoutput_pio, ONLY: hVars         ! history variable data
 
   implicit none
   ! Argument variables:
@@ -511,6 +513,11 @@ CONTAINS
       allocate(RCHSTA(1,1),RCHFLX(1,1), stat=ierr, errmsg=cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA,RCHFLX]'; return; endif
     end if
+
+    call hVars%read_restart(trim(restart_dir)//trim(fname_state_in), ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage);return; endif
+
+    initHvars = .true.
 
     call mpi_restart(pid, nNodes, comm, iens, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
