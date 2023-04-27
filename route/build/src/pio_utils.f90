@@ -19,6 +19,7 @@ MODULE pio_utils
   public::closeFile                ! close netcdf (if it's open) and clean file_desc_t
   public::finalizeSystem           ! free pio system descriptor (iosystem_desc_t)
   public::sync_file                ! Write out data into disk
+  public::put_attr                 ! write attribute
   public::write_scalar_netcdf      ! write non-distributed data
   public::write_netcdf             ! write non-distributed data
   public::write_pnetcdf            ! write distributed data without record dimension
@@ -502,6 +503,41 @@ CONTAINS
   ! -----------------------------
   ! Writing routine
   ! -----------------------------
+
+  ! ---------------------------------------------------------------
+  ! write attributes
+  subroutine put_attr(pioFileDesc,   &  ! input: netcdf file handle id
+                      varid,         &  ! input: netcdf var id
+                      attname,       &  ! input: attribute name
+                      attval,        &  ! input: attribute values
+                      ierr, message)    ! output: error control
+    implicit none
+    ! Argument variables:
+    type(file_desc_t),  intent(inout) :: pioFileDesc  ! pio file handle
+    integer(i4b)     ,  intent(in)    :: varid        ! netcdf var id
+    character(len=*) ,  intent(in)    :: attname      ! netcdf attrib
+    class(*)         ,  intent(in)    :: attval       ! netcdf attrib value
+    integer(i4b)     ,  intent(out)   :: ierr         ! error code
+    character(*)     ,  intent(out)   :: message      ! error message
+
+    ierr=0; message='put_attr/'
+
+    select type (attval)
+      type is (integer(i4b))
+        ierr = PIO_put_att(pioFileDesc, varid, trim(attname), attval)
+      type is (real(sp))
+        ierr = PIO_put_att(pioFileDesc, varid, trim(attname), attval)
+      type is (real(dp))
+        ierr = PIO_put_att(pioFileDesc, varid, trim(attname), attval)
+      type is (character(len=*))
+        ierr = PIO_put_att(pioFileDesc, varid, trim(attname), trim(attval))
+      class default
+        ierr = 1; message=trim(message)//'ERROR: invalid attribute type'; return
+    end select
+    if(ierr/=0)then; message=trim(message)//'ERROR: putting attribute'; return; endif
+
+  END SUBROUTINE put_attr
+
 
   ! ---------------------------------------------------------------
   ! write global integer scalar

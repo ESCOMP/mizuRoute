@@ -5,6 +5,7 @@ MODULE RtmVar
   USE shr_kind_mod , ONLY: r8 => shr_kind_r8, CL => SHR_KIND_CL
   USE shr_sys_mod  , ONLY: shr_sys_abort
   USE globalData   , ONLY: masterproc
+  USE globalData   , ONLY: version
 
   implicit none
 
@@ -35,7 +36,6 @@ MODULE RtmVar
                                                                          ! by default this is not allowed
   character(len=CL), public            :: hostname = ' '                 ! Hostname of machine running on
   character(len=CL), public            :: username = ' '                 ! username of user running program
-  character(len=CL), public            :: version  = 'v2.0'              ! version of program
   character(len=CL), public            :: conventions = 'CF-1.0'         ! dataset conventions
   character(len=CL), public            :: source   = 'mizuRoute'         ! description of this source
   character(len=CL), public            :: model_doi_url                  ! Web address of the Digital Object Identifier (DOI) for this model version
