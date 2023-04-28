@@ -41,10 +41,6 @@ USE globalData,        ONLY: masterproc
 USE globalData,        ONLY: mpicom_route
 USE globalData,        ONLY: pio_netcdf_format
 USE globalData,        ONLY: pio_typename
-USE globalData,        ONLY: pio_numiotasks
-USE globalData,        ONLY: pio_rearranger
-USE globalData,        ONLY: pio_root
-USE globalData,        ONLY: pio_stride
 USE globalData,        ONLY: pioSystem
 
 USE globalData,        ONLY: runMode
@@ -281,23 +277,11 @@ CONTAINS
  integer(i4b)                    :: ixDim_common(4)  ! custom dimension ID array
  character(len=strLen)           :: cmessage         ! error message of downwind routine
 
- ! Initialize error control
  ierr=0; message='define_state_nc/'
 
  associate(dim_seg     => meta_stateDims(ixStateDims%seg)%dimId,     &
            dim_ens     => meta_stateDims(ixStateDims%ens)%dimId,     &
            dim_tbound  => meta_stateDims(ixStateDims%tbound)%dimId)
-
- ! ----------------------------------
- ! pio initialization for restart netCDF
- ! ----------------------------------
- if (trim(runMode)=='standalone') then
-   pio_numiotasks = nNodes/pio_stride
-   call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
-                     pio_stride, pio_numiotasks, & ! input: PIO related parameters
-                     pio_rearranger, pio_root,   & ! input: PIO related parameters
-                     pioSystem)                    ! output: PIO system descriptors
- end if
 
  ! ----------------------------------
  ! Create file
@@ -334,6 +318,9 @@ CONTAINS
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  call def_var(pioFileDescState, 'restart_time', ncd_float, ierr, cmessage, vdesc='resatart time', vunit=trim(time_units), vcal=calendar)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ call def_var(pioFileDescState, 'history_time', ncd_float, ierr, cmessage, vdesc='history time', vunit=trim(time_units), vcal=calendar)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  call def_var(pioFileDescState, 'time_bound', ncd_float, ierr, cmessage, pioDimId=[dim_tbound], vdesc='time bound at last time step', vunit='sec')
@@ -1433,6 +1420,9 @@ CONTAINS
     allocate(array_sp(nRch_local),stat=ierr, errmsg=cmessage)
 
     call write_scalar_netcdf(pioFileDescState, 'nt', hVars%nt, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    call write_scalar_netcdf(pioFileDescState, 'history_time', hVars%timeVar, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     if (meta_hflx(ixHFLX%basRunoff)%varFile) then

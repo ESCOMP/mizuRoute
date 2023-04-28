@@ -26,12 +26,8 @@ MODULE histVars_data
   USE globalData,        ONLY: pid, nNodes
   USE globalData,        ONLY: masterproc
   USE globalData,        ONLY: mpicom_route
-  USE globalData,        ONLY: pio_netcdf_format
   USE globalData,        ONLY: pio_typename
-  USE globalData,        ONLY: pio_numiotasks
-  USE globalData,        ONLY: pio_rearranger
-  USE globalData,        ONLY: pio_root
-  USE globalData,        ONLY: pio_stride
+  USE globalData,        ONLY: pioSystem
   USE nr_utils,          ONLY: arth
   USE ncio_utils,        ONLY: get_nc
   USE pio_utils
@@ -298,26 +294,16 @@ MODULE histVars_data
       logical(lgt)                       :: FileStatus            ! file open or close
       integer(i4b), allocatable          :: compdof_rch(:)        ! global reach index for PIO reading
       integer(i4b), allocatable          :: compdof_hru(:)        ! globa hru index for PIO reading
-      type(iosystem_desc_t)              :: pioSys                ! PIO I/O system data
       type(file_desc_t)                  :: pioFileDesc           ! pio file handle
       type(io_desc_t)                    :: ioDescRchHist         ! PIO domain decomposition data for reach flux [nRch]
       type(io_desc_t)                    :: ioDescHruHist         ! PIO domain decomposition data for hru runoff [nHRU]
 
       ierr=0; message='read_restart/'
 
-      ! ----------------------------------
-      ! pio initialization for restart netCDF
-      ! ----------------------------------
-      pio_numiotasks = nNodes/pio_stride
-      call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
-                        pio_stride, pio_numiotasks, & ! input: PIO related parameters
-                        pio_rearranger, pio_root,   & ! input: PIO related parameters
-                        pioSys)                       ! output: PIO system descriptors
-
-      call openFile(pioSys, pioFileDesc, trim(restart_name), pio_typename, ncd_nowrite, FileStatus, ierr, cmessage)
+      call openFile(pioSystem, pioFileDesc, trim(restart_name), pio_typename, ncd_nowrite, FileStatus, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-      call get_nc(trim(restart_name), 'restart_time', this%timeVar, 1, ierr, cmessage) ! get restart datetime
+      call get_nc(trim(restart_name), 'history_time', this%timeVar, 1, ierr, cmessage) ! get restart datetime
       call get_nc(trim(restart_name), 'nt', this%nt, 1, ierr, cmessage)                ! get number of aggretation time steps
 
       ! get number of HRUs and Reaches for each core
@@ -359,13 +345,13 @@ MODULE histVars_data
       compdof_hru = arth(ix1, 1, ix2-ix1+1)
 
       ! initialze ioDesc
-      call pio_decomp(pioSys,            & ! input: pio system descriptor
+      call pio_decomp(pioSystem,         & ! input: pio system descriptor
                       ncd_float,         & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                       [nRch],            & ! input: dimension length == global array size
                       compdof_rch,       & ! input: local->global mapping
                       ioDescRchHist)
 
-      call pio_decomp(pioSys,            & ! input: pio system descriptor
+      call pio_decomp(pioSystem,         & ! input: pio system descriptor
                       ncd_float,         & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                       [nHRU],            & ! input: dimension length == global array size
                       compdof_hru,       & ! input: local->global mapping
@@ -466,9 +452,6 @@ MODULE histVars_data
       end if
 
       call closeFile(pioFileDesc, FileStatus)
-
-      call pio_sys_finalize(pioSys, ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     END SUBROUTINE read_restart
 
