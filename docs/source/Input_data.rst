@@ -32,25 +32,25 @@ Dimensions required
 
 Minimum variables required
 
-+------------+------------+-----------+-------+-----------------------------------------+
-| Variable   | Dimension  | Unit      | Type  | Description                             |
-+============+============+===========+=======+=========================================+
-| segId      | seg        | ``-``     | int   | unique id of each stream segment        |
-+------------+------------+-----------+-------+-----------------------------------------+
-| HRUid      | hru        | ``-``     | int   | unique hru ID                           |
-+------------+------------+-----------+-------+-----------------------------------------+
-| downSegId  | seg        | ``-``     | int   | id of the downstream segment            |
-+------------+------------+-----------+-------+-----------------------------------------+
-| hruSegId   | hru        | ``-``     | int   | id of the stream segment below each HRU |
-+------------+------------+-----------+-------+-----------------------------------------+
-| area       | hru        | m2        | real  | hru area                                |
-+------------+------------+-----------+-------+-----------------------------------------+
-| slope      | seg        | ``-``     | real  | slope of segment                        |
-+------------+------------+-----------+-------+-----------------------------------------+
-| length     | seg        | m         | real  | length of segment                       |
-+------------+------------+-----------+-------+-----------------------------------------+
++------------+------------+-----------+-------+---------------------------------------------+
+| Variable   | Dimension  | Unit      | Type  | Description                                 |
++============+============+===========+=======+=============================================+
+| segId      | seg        | ``-``     | int   | unique id of each stream segment            |
++------------+------------+-----------+-------+---------------------------------------------+
+| HRUid      | hru        | ``-``     | int   | unique hru ID                               |
++------------+------------+-----------+-------+---------------------------------------------+
+| downSegId  | seg        | ``-``     | int   | id of the downstream segment                |
++------------+------------+-----------+-------+---------------------------------------------+
+| hruSegId   | hru        | ``-``     | int   | id of the stream segment the HRU flows into |
++------------+------------+-----------+-------+---------------------------------------------+
+| area       | hru        | m2        | real  | hru area                                    |
++------------+------------+-----------+-------+---------------------------------------------+
+| slope      | seg        | ``-``     | real  | slope of segment                            |
++------------+------------+-----------+-------+---------------------------------------------+
+| length     | seg        | m         | real  | length of segment                           |
++------------+------------+-----------+-------+---------------------------------------------+
 
-Negative or zero (<=0) value for downSegId is reserved for no downstream reach, meaning that such reach or hru does not flow into any reach.
+Negative or zero (<=0) value for downSegId and hruSegId is reserved for no downstream reach, meaning that such reach or hru does not flow into any reach.
 (i.e., basin outlet). For this reason, segID is required to use positive integer value (>0).
 
 Runoff data
