@@ -30,7 +30,12 @@ MODULE histVars_data
   USE globalData,        ONLY: pioSystem
   USE nr_utils,          ONLY: arth
   USE ncio_utils,        ONLY: get_nc
-  USE pio_utils
+  USE pio_utils,         ONLY: file_desc_t, io_desc_t
+  USE pio_utils,         ONLY: ncd_float, ncd_double, ncd_nowrite
+  USE pio_utils,         ONLY: pio_decomp
+  USE pio_utils,         ONLY: read_dist_array
+  USE pio_utils,         ONLY: openFile
+  USE pio_utils,         ONLY: closeFile
 
   implicit none
 
@@ -163,7 +168,7 @@ MODULE histVars_data
         write(message,'(2A,G0,A,G0)') trim(message),'history buffer reach size:',this%nRch,'/= input data reach size:',nRch_input
         ierr=81; return
       end if
-! need to convert double precision to single precision??
+
       ! ---- aggregate
       ! 1. basin runoff
       if (meta_hflx(ixHFLX%basRunoff)%varFile) then
@@ -362,7 +367,7 @@ MODULE histVars_data
         allocate(this%basRunoff(this%nHru), stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%basRunoff]'; return; endif
 
-        call read_pnetcdf(pioFileDesc, meta_hflx(ixHFLX%basRunoff)%varName, this%basRunoff, ioDescHruHist, ierr, cmessage)
+        call read_dist_array(pioFileDesc, meta_hflx(ixHFLX%basRunoff)%varName, this%basRunoff, ioDescHruHist, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
 
@@ -371,7 +376,7 @@ MODULE histVars_data
         allocate(this%instRunoff(this%nRch), stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%instRunoff]'; return; endif
 
-        call read_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%instRunoff)%varName, array_tmp, ioDescRchHist, ierr, cmessage)
+        call read_dist_array(pioFileDesc, meta_rflx(ixRFLX%instRunoff)%varName, array_tmp, ioDescRchHist, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
         ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
@@ -388,7 +393,7 @@ MODULE histVars_data
         allocate(this%dlayRunoff(this%nRch), stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%dlayRunoff]'; return; endif
 
-        call read_pnetcdf(pioFileDesc, meta_rflx(ixRFLX%dlayRunoff)%varName, array_tmp, ioDescRchHist, ierr, cmessage)
+        call read_dist_array(pioFileDesc, meta_rflx(ixRFLX%dlayRunoff)%varName, array_tmp, ioDescRchHist, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
         ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
@@ -412,19 +417,30 @@ MODULE histVars_data
 
         do ixRoute=1,nRoutes
           select case(routeMethods(ixRoute))
-            case(accumRunoff);           ixFlow=ixRFLX%sumUpstreamRunoff
-            case(impulseResponseFunc);   ixFlow=ixRFLX%IRFroutedRunoff;   ixVol=ixRFLX%IRFvolume
-            case(kinematicWaveTracking); ixFlow=ixRFLX%KWTroutedRunoff;   ixVol=ixRFLX%KWTvolume
-            case(kinematicWave);         ixFlow=ixRFLX%KWroutedRunoff;    ixVol=ixRFLX%KWvolume
-            case(muskingumCunge);        ixFlow=ixRFLX%MCroutedRunoff;    ixVol=ixRFLX%MCvolume
-            case(diffusiveWave);         ixFlow=ixRFLX%DWroutedRunoff;    ixVol=ixRFLX%DWvolume
+            case(accumRunoff)
+              ixFlow=ixRFLX%sumUpstreamRunoff
+            case(impulseResponseFunc)
+              ixFlow=ixRFLX%IRFroutedRunoff
+              ixVol=ixRFLX%IRFvolume
+            case(kinematicWaveTracking)
+              ixFlow=ixRFLX%KWTroutedRunoff
+              ixVol=ixRFLX%KWTvolume
+            case(kinematicWave)
+              ixFlow=ixRFLX%KWroutedRunoff
+              ixVol=ixRFLX%KWvolume
+            case(muskingumCunge)
+              ixFlow=ixRFLX%MCroutedRunoff
+              ixVol=ixRFLX%MCvolume
+            case(diffusiveWave)
+              ixFlow=ixRFLX%DWroutedRunoff
+              ixVol=ixRFLX%DWvolume
             case default
               write(message,'(2A,X,G0,X,A)') trim(message), 'routing method index:',routeMethods(ixRoute), 'must be 0-5'
               ierr=81; return
           end select
 
           if (meta_rflx(ixFlow)%varFile) then
-            call read_pnetcdf(pioFileDesc, meta_rflx(ixFlow)%varName, array_tmp, ioDescRchHist, ierr, cmessage)
+            call read_dist_array(pioFileDesc, meta_rflx(ixFlow)%varName, array_tmp, ioDescRchHist, ierr, cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
           end if
           ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
@@ -438,7 +454,7 @@ MODULE histVars_data
           if (routeMethods(ixRoute)==accumRunoff) cycle  ! accumuRunoff has only discharge
 
           if (meta_rflx(ixVol)%varFile) then
-            call read_pnetcdf(pioFileDesc, meta_rflx(ixVol)%varName, this%volume(1:nRch,ixRoute), ioDescRchHist, ierr, cmessage)
+            call read_dist_array(pioFileDesc, meta_rflx(ixVol)%varName, this%volume(1:nRch,ixRoute), ioDescRchHist, ierr, cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
           end if
           ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
