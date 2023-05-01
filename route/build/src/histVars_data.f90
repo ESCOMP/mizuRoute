@@ -145,7 +145,7 @@ MODULE histVars_data
       integer(i4b)                       :: nHRU_input
       integer(i4b)                       :: nRch_input
       integer(i4b)                       :: ix, iRoute          ! loop indices
-      integer(i4b)                       :: idxMethod             ! temporal method index
+      integer(i4b)                       :: idxMethod           ! temporal method index
 
       ierr=0; message='aggregate/'
 
