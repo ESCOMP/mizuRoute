@@ -220,6 +220,38 @@ The output file name convension:  <case_name>.h.yyyy-mm-dd-sssss.nc
 3. routed runoff corresponding to the scheme is not ouput if users deactivate a particular routing scheme with <route_opt> tag.
 
 
+gauge data options
+---------------------
+
+mizuRoute can read gauge observed discharge data (in netCDF) along with gauge meta ascii data. To read gauge observation and gauge metadata, the following control variables need to be specified.
+gauge meta ascii file is csv format, and  should include at least gauge id and corresponding reach id
+gauge discharge data is used for data assimilation (current version does not include this at this moment)
+
+
++---------------------+---------------------------------------------------------------------------------------------------------+
+| tag                 | Description                                                                                             |
++=====================+=========================================================================================================+
+| <gageMetaFile>      | gauge meta file (two column csv format): gauge_id (non-numeric ID is accepted), seg_id                  |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <outputAtGage>      | logical value (T or F) to limit history variable output at gauge reaches.                               |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <fname_gageObs>     | gauge discharge data                                                                                    |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <vname_gageFlow>    | variable name for discharge [m3/s]                                                                      |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <vname_gageSite>    | variable name for gauge site name (character array)                                                     |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <vname_gageTime>    | variable name for time                                                                                  |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <dname_gageSite>    | dimension name for site                                                                                 |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <dname_gageTime>    | dimension name for time                                                                                 |
++---------------------+---------------------------------------------------------------------------------------------------------+
+| <strlen_gageSite>   | maximum gauge name string length                                                                        |
++---------------------+---------------------------------------------------------------------------------------------------------+
+
+
+
 Control file examples
 ---------------------
 
