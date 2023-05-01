@@ -20,7 +20,7 @@ MODULE pio_utils
   public::closeFile                ! close netcdf (if it's open) and clean file_desc_t
   public::finalizeSystem           ! free pio system descriptor (iosystem_desc_t)
   public::sync_file                ! Write out data into disk
-  public::read_pnetcdf             ! read distributed data
+  public::read_dist_array          ! read distributed data
   public::put_attr                 ! write attribute
   public::write_scalar_netcdf      ! write non-distributed data
   public::write_netcdf             ! write non-distributed data
@@ -46,7 +46,7 @@ MODULE pio_utils
   public var_desc_t
   public io_desc_t
 
-  INTERFACE read_pnetcdf
+  INTERFACE read_dist_array
     module procedure read_darray1D
     module procedure read_darray2D
   END INTERFACE
