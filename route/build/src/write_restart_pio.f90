@@ -57,8 +57,8 @@ implicit none
 type(file_desc_t)    :: pioFileDescState     ! contains data identifying the file
 type(io_desc_t)      :: iodesc_rch_int
 type(io_desc_t)      :: iodesc_rch_double
-type(io_desc_t)      :: ioDesc_rch_float
-type(io_desc_t)      :: ioDesc_hru_float
+type(io_desc_t)      :: iodesc_hist_rch_double
+type(io_desc_t)      :: iodesc_hist_hru_double
 type(io_desc_t)      :: iodesc_wave_int
 type(io_desc_t)      :: iodesc_wave_double
 type(io_desc_t)      :: iodesc_mesh_kw_double
@@ -398,24 +398,24 @@ CONTAINS
                  compdof_rch,            & ! input:
                  iodesc_rch_int)
 
- ! type: single precision float  dim: [dim_seg, dim_ens]  --
+ ! type: single precision float  dim: [dim_seg]  --
  call pio_decomp(pioSystem,              & ! input: pio system descriptor
-                 ncd_float,              & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                 ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                  [nSeg],                 & ! input: dimension length == global array size
                  compdof_rch,            & ! input:
-                 ioDesc_rch_float)
+                 iodesc_hist_rch_double)
 
  if (meta_hflx(ixHFLX%basRunoff)%varFile) then
-   ! type: single precision float  dim: [dim_hru, dim_ens]  --
+   ! type: single precision float  dim: [dim_hru]  --
    call pio_decomp(pioSystem,              & ! input: pio system descriptor
-                   ncd_float,              & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                    [nHru],                 & ! input: dimension length == global array size
                    compdof_hru,            & ! input:
-                   ioDesc_hru_float)
+                   iodesc_hist_hru_double)
  end if
 
  if (doesBasinRoute==1) then
-   ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens]
+   ! type: float dim: [dim_seg, dim_tdh_irf]
    call pio_decomp(pioSystem,              & ! input: pio system descriptor
                    ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                    [nSeg,ntdh,nEns],       & ! input: dimension length == global array size
@@ -811,7 +811,7 @@ CONTAINS
    do iVar=1,nVarsRFLX
      if (.not. meta_rflx(iVar)%varFile) cycle
      dim_set(1) = meta_stateDims(ixStateDims%seg)%dimId ! this should be seg dimension
-     call def_var(pioFileDescState, meta_rflx(iVar)%varName, meta_rflx(iVar)%varType, ierr, cmessage, &
+     call def_var(pioFileDescState, meta_rflx(iVar)%varName, ncd_double, ierr, cmessage, &
                   pioDimId=dim_set, vdesc=meta_rflx(iVar)%varDesc, vunit=meta_rflx(iVar)%varUnit)
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
    end do
@@ -819,7 +819,7 @@ CONTAINS
    do iVar=1,nVarsHFLX
      if (.not. meta_hflx(iVar)%varFile) cycle
      dim_set(1) = meta_stateDims(ixStateDims%hru)%dimId ! this should be hru dimension
-     call def_var(pioFileDescState, meta_hflx(iVar)%varName, meta_hflx(iVar)%varType, ierr, cmessage, &
+     call def_var(pioFileDescState, meta_hflx(iVar)%varName, ncd_double, ierr, cmessage, &
                   pioDimId=dim_set, vdesc=meta_hflx(iVar)%varDesc, vunit=meta_hflx(iVar)%varUnit)
      if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
    end do
@@ -976,9 +976,9 @@ CONTAINS
  ! clean decomposition data
  call freeDecomp(pioFileDescState, iodesc_rch_double)
  call freeDecomp(pioFileDescState, iodesc_rch_int)
- call freeDecomp(pioFileDescState, iodesc_rch_float)
+ call freeDecomp(pioFileDescState, iodesc_hist_rch_double)
  if (meta_hflx(ixHFLX%basRunoff)%varFile) then
-   call freeDecomp(pioFileDescState, iodesc_hru_float)
+   call freeDecomp(pioFileDescState, iodesc_hist_hru_double)
  end if
  if (doesBasinRoute==1) then
    call freeDecomp(pioFileDescState, iodesc_irf_bas_double)
@@ -1399,7 +1399,7 @@ CONTAINS
     ! local variables
     integer(i4b)               :: nRch_local         ! number of reaches per processors
     integer(i4b), allocatable  :: index_write(:)  ! indices in hVar to be written in netcdf
-    real(sp),     allocatable  :: array_sp(:)
+    real(dp),     allocatable  :: array_dp(:)
 
     ierr=0; message1='write_history_state/'
 
@@ -1417,7 +1417,7 @@ CONTAINS
       index_write = arth(1,1,nRch_local)
     end if
 
-    allocate(array_sp(nRch_local),stat=ierr, errmsg=cmessage)
+    allocate(array_dp(nRch_local),stat=ierr, errmsg=cmessage)
 
     call write_scalar_netcdf(pioFileDescState, 'nt', hVars%nt, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -1426,61 +1426,61 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     if (meta_hflx(ixHFLX%basRunoff)%varFile) then
-      call write_pnetcdf(pioFileDescState, 'basRunoff', hVars%basRunoff, ioDesc_hru_float, ierr, cmessage)
+      call write_pnetcdf(pioFileDescState, 'basRunoff', hVars%basRunoff, iodesc_hist_hru_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     end if
 
     if (meta_rflx(ixRFLX%instRunoff)%varFile) then
-      array_sp(1:nRch_local) = hVars%instRunoff(index_write)
-      call write_pnetcdf(pioFileDescState, 'instRunoff', array_sp, ioDesc_rch_float, ierr, cmessage)
+      array_dp(1:nRch_local) = hVars%instRunoff(index_write)
+      call write_pnetcdf(pioFileDescState, 'instRunoff', array_dp, iodesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%dlayRunoff)%varFile) then
-      array_sp(1:nRch_local) = hVars%dlayRunoff(index_write)
-      call write_pnetcdf(pioFileDescState, 'dlayRunoff', array_sp, ioDesc_rch_float, ierr, cmessage)
+      array_dp(1:nRch_local) = hVars%dlayRunoff(index_write)
+      call write_pnetcdf(pioFileDescState, 'dlayRunoff', array_dp, iodesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile) then
-      array_sp = hVars%discharge(index_write, idxSUM)
-      call write_pnetcdf(pioFileDescState, 'sumUpstreamRunoff', array_sp, ioDesc_rch_float, ierr, cmessage)
+      array_dp = hVars%discharge(index_write, idxSUM)
+      call write_pnetcdf(pioFileDescState, 'sumUpstreamRunoff', array_dp, iodesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%KWTroutedRunoff)%varFile) then
-      array_sp = hVars%discharge(index_write, idxKWT)
-      call write_pnetcdf(pioFileDescState, 'KWTroutedRunoff', array_sp, ioDesc_rch_float, ierr, cmessage)
+      array_dp = hVars%discharge(index_write, idxKWT)
+      call write_pnetcdf(pioFileDescState, 'KWTroutedRunoff', array_dp, iodesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%IRFroutedRunoff)%varFile) then
-      array_sp = hVars%discharge(index_write, idxIRF)
-      call write_pnetcdf(pioFileDescState, 'IRFroutedRunoff', array_sp, ioDesc_rch_float, ierr, cmessage)
+      array_dp = hVars%discharge(index_write, idxIRF)
+      call write_pnetcdf(pioFileDescState, 'IRFroutedRunoff', array_dp, iodesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%KWroutedRunoff)%varFile) then
-      array_sp = hVars%discharge(index_write, idxKW)
-      call write_pnetcdf(pioFileDescState, 'KWroutedRunoff', array_sp, ioDesc_rch_float, ierr, cmessage)
+      array_dp = hVars%discharge(index_write, idxKW)
+      call write_pnetcdf(pioFileDescState, 'KWroutedRunoff', array_dp, iodesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%MCroutedRunoff)%varFile) then
-      array_sp = hVars%discharge(index_write, idxMC)
-      call write_pnetcdf(pioFileDescState, 'MCroutedRunoff', array_sp, ioDesc_rch_float, ierr, cmessage)
+      array_dp = hVars%discharge(index_write, idxMC)
+      call write_pnetcdf(pioFileDescState, 'MCroutedRunoff', array_dp, iodesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%DWroutedRunoff)%varFile) then
-      array_sp = hVars%discharge(index_write, idxDW)
-      call write_pnetcdf(pioFileDescState, 'DWroutedRunoff', array_sp, ioDesc_rch_float, ierr, cmessage)
+      array_dp = hVars%discharge(index_write, idxDW)
+      call write_pnetcdf(pioFileDescState, 'DWroutedRunoff', array_dp, iodesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%IRFvolume)%varFile) then
-      array_sp = hVars%volume(index_write, idxIRF)
-      call write_pnetcdf(pioFileDescState, 'IRFvolume', array_sp, ioDesc_rch_float, ierr, cmessage)
+      array_dp = hVars%volume(index_write, idxIRF)
+      call write_pnetcdf(pioFileDescState, 'IRFvolume', array_dp, iodesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 

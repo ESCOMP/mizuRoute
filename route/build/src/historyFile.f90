@@ -519,12 +519,16 @@ MODULE historyFile
       integer(i4b),              intent(out)   :: ierr             ! error code
       character(*),              intent(out)   :: message          ! error message
       ! local variables
+      real(sp),    allocatable                 :: array_temp(:)
       character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
       ierr=0; message='write_flux_hru/'
 
       if (meta_hflx(ixHFLX%basRunoff)%varFile) then
-        call write_pnetcdf_recdim(this%pioFileDesc, 'basRunoff', hVars_local%basRunoff, this%ioDescHruFlux, this%iTime, ierr, cmessage)
+        allocate(array_temp(hVars_local%nHru), stat=ierr, errmsg=cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [array_temp]'; return; endif
+        array_temp = hVars_local%basRunoff
+        call write_pnetcdf_recdim(this%pioFileDesc, 'basRunoff', array_temp, this%ioDescHruFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       endif
 

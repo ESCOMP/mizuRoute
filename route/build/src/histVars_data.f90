@@ -50,12 +50,12 @@ MODULE histVars_data
     integer(i4b)             :: nHru               ! number of
     integer(i4b)             :: nRch               ! number of
     real(dp)                 :: timeVar            ! time variable [unit] at nt = 1
-    real(sp), allocatable    :: basRunoff(:)       ! catchment average runoff [m/s] [nHru]
-    real(sp), allocatable    :: instRunoff(:)      ! instantaneous lateral inflow into each river/lake [m3/s]  [nRch]
-    real(sp), allocatable    :: dlayRunoff(:)      ! lateral inflow into river or lake [m3/s] for each reach [nRch]
-    real(sp), allocatable    :: discharge(:,:)     ! river/lake discharge [m3/s] for each reach/lake and routing method [nRch,nMethod]
-    real(sp), allocatable    :: elev(:,:)          ! river/lake surface water elevation [m] for each reach/lake and routing method [nRch,nMethod]
-    real(sp), allocatable    :: volume(:,:)        ! river/lake volume [m3] for each reach/lake and routing method [nRch,nMethod]
+    real(dp), allocatable    :: basRunoff(:)       ! catchment average runoff [m/s] [nHru]
+    real(dp), allocatable    :: instRunoff(:)      ! instantaneous lateral inflow into each river/lake [m3/s]  [nRch]
+    real(dp), allocatable    :: dlayRunoff(:)      ! lateral inflow into river or lake [m3/s] for each reach [nRch]
+    real(dp), allocatable    :: discharge(:,:)     ! river/lake discharge [m3/s] for each reach/lake and routing method [nRch,nMethod]
+    real(dp), allocatable    :: elev(:,:)          ! river/lake surface water elevation [m] for each reach/lake and routing method [nRch,nMethod]
+    real(dp), allocatable    :: volume(:,:)        ! river/lake volume [m3] for each reach/lake and routing method [nRch,nMethod]
 
     CONTAINS
 
@@ -97,29 +97,29 @@ MODULE histVars_data
       if (meta_hflx(ixHFLX%basRunoff)%varFile) then
         allocate(instHistVar%basRunoff(nHRU_local), stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%basRunoff]'; return; endif
-        instHistVar%basRunoff(1:nHRU_local) = 0._sp
+        instHistVar%basRunoff(1:nHRU_local) = 0._dp
       end if
 
       if (meta_rflx(ixRFLX%instRunoff)%varFile) then
         allocate(instHistVar%instRunoff(nRch_local), stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%instRunoff]'; return; endif
-        instHistVar%instRunoff(1:nRch_local) = 0._sp
+        instHistVar%instRunoff(1:nRch_local) = 0._dp
       end if
 
       if (meta_rflx(ixRFLX%dlayRunoff)%varFile) then
         allocate(instHistVar%dlayRunoff(nRch_local), stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%instRunoff]'; return; endif
-        instHistVar%dlayRunoff(1:nRch_local) = 0._sp
+        instHistVar%dlayRunoff(1:nRch_local) = 0._dp
       end if
 
       if (nRoutes>0) then ! this should be number of methods that ouput
         allocate(instHistVar%discharge(nRch_local, nRoutes), stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%discharge]'; return; endif
-        instHistVar%discharge(1:nRch_local, 1:nRoutes) = 0._sp
+        instHistVar%discharge(1:nRch_local, 1:nRoutes) = 0._dp
 
         allocate(instHistVar%volume(nRch_local, nRoutes), stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%volume]'; return; endif
-        instHistVar%volume(1:nRch_local, 1:nRoutes) = 0._sp
+        instHistVar%volume(1:nRch_local, 1:nRoutes) = 0._dp
       end if
 
     END FUNCTION constructor
@@ -219,27 +219,27 @@ MODULE histVars_data
       ! ---- aggregate
       ! 1. basin runoff
       if (allocated(this%basRunoff)) then
-        this%basRunoff = this%basRunoff/real(this%nt, kind=sp)
+        this%basRunoff = this%basRunoff/real(this%nt, kind=dp)
       end if
 
       ! 2. instantaneous runoff into reach
       if (allocated(this%instRunoff)) then
-        this%instRunoff = this%instRunoff/real(this%nt, kind=sp)
+        this%instRunoff = this%instRunoff/real(this%nt, kind=dp)
       end if
 
       ! 3. delayed runoff into reach
       if (allocated(this%dlayRunoff)) then
-        this%dlayRunoff = this%dlayRunoff/real(this%nt, kind=sp)
+        this%dlayRunoff = this%dlayRunoff/real(this%nt, kind=dp)
       end if
 
       ! 4. discharge
       if (allocated(this%discharge)) then
-        this%discharge = this%discharge/real(this%nt, kind=sp)
+        this%discharge = this%discharge/real(this%nt, kind=dp)
       end if
 
       ! 5. volume
       if (allocated(this%volume)) then
-        this%volume    = this%volume/real(this%nt, kind=sp)
+        this%volume    = this%volume/real(this%nt, kind=dp)
       end if
 
     END SUBROUTINE finalize
@@ -255,11 +255,11 @@ MODULE histVars_data
 
       this%nt = 0
 
-      if (allocated(this%basRunoff))  this%basRunoff = 0._sp
-      if (allocated(this%instRunoff)) this%instRunoff = 0._sp
-      if (allocated(this%dlayRunoff)) this%dlayRunoff = 0._sp
-      if (allocated(this%discharge))  this%discharge = 0._sp
-      if (allocated(this%volume))     this%volume = 0._sp
+      if (allocated(this%basRunoff))  this%basRunoff = 0._dp
+      if (allocated(this%instRunoff)) this%instRunoff = 0._dp
+      if (allocated(this%dlayRunoff)) this%dlayRunoff = 0._dp
+      if (allocated(this%discharge))  this%discharge = 0._dp
+      if (allocated(this%volume))     this%volume = 0._dp
 
     END SUBROUTINE refresh
 
@@ -293,7 +293,7 @@ MODULE histVars_data
       character(len=strLen),intent(out)  :: message               ! error message
       ! local variable
       character(len=strLen)              :: cmessage              ! error message from subroutines
-      real(sp), allocatable              :: array_tmp(:)          ! temp array
+      real(dp), allocatable              :: array_tmp(:)          ! temp array
       integer(i4b)                       :: ixRoute, ix1, ix2     ! loop index
       integer(i4b)                       :: ixFlow, ixVol         ! temporal method index
       logical(lgt)                       :: FileStatus            ! file open or close
@@ -351,13 +351,13 @@ MODULE histVars_data
 
       ! initialze ioDesc
       call pio_decomp(pioSystem,         & ! input: pio system descriptor
-                      ncd_float,         & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                      ncd_double,        & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                       [nRch],            & ! input: dimension length == global array size
                       compdof_rch,       & ! input: local->global mapping
                       ioDescRchHist)
 
       call pio_decomp(pioSystem,         & ! input: pio system descriptor
-                      ncd_float,         & ! input: data type (pio_int, pio_real, pio_double, pio_char)
+                      ncd_double,        & ! input: data type (pio_int, pio_real, pio_double, pio_char)
                       [nHRU],            & ! input: dimension length == global array size
                       compdof_hru,       & ! input: local->global mapping
                       ioDescHruHist)
@@ -412,8 +412,8 @@ MODULE histVars_data
         allocate(this%volume(this%nRch, nRoutes), stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%discharge]'; return; endif
 
-        this%discharge = 0._sp
-        this%volume    = 0._sp
+        this%discharge = 0._dp
+        this%volume    = 0._dp
 
         do ixRoute=1,nRoutes
           select case(routeMethods(ixRoute))
