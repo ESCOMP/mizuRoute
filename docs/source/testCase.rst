@@ -1,4 +1,4 @@
 testCase data
 ================
 
-Users are encouraged to test with `Cameo basin testCase <https://ral.ucar.edu/sites/default/files/public/projects/mizuroute-stand-alone-river-network-routing-model/testcase-cameo.tar.gz>`_.
+Users are encouraged to test with `Cameo basin testCase <https://doi.org/10.5281/zenodo.7884835>`_.
