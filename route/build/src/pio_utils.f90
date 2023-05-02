@@ -7,7 +7,8 @@ MODULE pio_utils
   implicit none
 
   private
-  public::pio_sys_init             ! Define pio system descriptor (iosystem_desc_t)
+  public::pio_sys_init             ! Create new pio system descriptor (iosystem_desc_t)
+  public::pio_sys_finalize         ! Shut down pio system descriptor (iosystem_desc_t)
   public::pio_decomp               ! Define decomposition (io_desc_t)
   public::createFile               ! Create netcdf
   public::def_dim                  ! Define dimension
@@ -19,6 +20,7 @@ MODULE pio_utils
   public::closeFile                ! close netcdf (if it's open) and clean file_desc_t
   public::finalizeSystem           ! free pio system descriptor (iosystem_desc_t)
   public::sync_file                ! Write out data into disk
+  public::read_dist_array          ! read distributed data
   public::put_attr                 ! write attribute
   public::write_scalar_netcdf      ! write non-distributed data
   public::write_netcdf             ! write non-distributed data
@@ -43,6 +45,11 @@ MODULE pio_utils
   public file_desc_t
   public var_desc_t
   public io_desc_t
+
+  INTERFACE read_dist_array
+    module procedure read_darray1D
+    module procedure read_darray2D
+  END INTERFACE
 
   INTERFACE write_scalar_netcdf
     module procedure write_int_scalar
@@ -115,6 +122,23 @@ CONTAINS
                   base=idxBase)       ! base (optional argument)
 
   END SUBROUTINE pio_sys_init
+
+  ! *********************************************************************
+  ! subroutine: initialize ParallelIO system
+  ! *********************************************************************
+  SUBROUTINE pio_sys_finalize(pioIOsystem, ierr, message)
+    implicit none
+    ! ARGUMENTS:
+    type(iosystem_desc_t), intent(inout) :: pioIoSystem  ! pio system descriptor
+    integer(i4b),          intent(out)   :: ierr         ! error code
+    character(*),          intent(out)   :: message      ! error message
+
+    ierr=0; message='pio_sys_finalize/'
+
+    call PIO_finalize(pioIoSystem, ierr)
+    if(ierr/=0)then; message=trim(message)//'ERR: pio IO system not shut down properly'; return; endif
+
+  END SUBROUTINE pio_sys_finalize
 
   ! *********************************************************************
   ! subroutine: PIO domain decomposition data
@@ -499,6 +523,84 @@ CONTAINS
   end if
 
   END SUBROUTINE def_var
+
+  ! -----------------------------
+  ! Reading routine
+  ! -----------------------------
+
+  ! ---------------------------------------------------------------
+  ! read distributed a vector into 1D data
+  SUBROUTINE read_darray1D(pioFileDesc,     &
+                           vname,           &  ! input: variable name
+                           array,           &  ! input: variable data
+                           iodesc,          &  ! input: ??? it is from initdecomp routine
+                           ierr, message)      ! output: error control
+  implicit none
+  ! Argument variables:
+  type(file_desc_t),     intent(inout) :: pioFileDesc  ! pio file handle
+  character(*),          intent(in)    :: vname        ! variable name
+  class(*),              intent(out)   :: array(:)     ! variable data
+  type(io_desc_t),       intent(inout) :: iodesc       ! io descriptor handle that is generated in PIO_initdecomp
+  integer(i4b), intent(out)            :: ierr         ! error code
+  character(*), intent(out)            :: message      ! error message
+  ! local variables
+  type(var_desc_t)                     :: pioVarId     ! netCDF variable ID
+
+  ierr=0; message='read_darray1D/'
+
+  ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
+  if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
+
+   select type (array)
+      type is (integer(i4b))
+        call pio_read_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
+      type is (real(sp))
+        call pio_read_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
+      type is (real(dp))
+        call pio_read_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
+      class default
+        ierr = 1; message=trim(message)//'ERROR: invalid array type'; return
+    end select
+    if(ierr/=pio_noerr)then; message=trim(message)//'ERROR: reading data'; return; endif
+
+  END SUBROUTINE read_darray1D
+
+  ! ---------------------------------------------------------------
+  ! read distributed a vector into 1D data
+  SUBROUTINE read_darray2D(pioFileDesc,     &
+                           vname,           &  ! input: variable name
+                           array,           &  ! input: variable data
+                           iodesc,          &  ! input: ??? it is from initdecomp routine
+                           ierr, message)      ! output: error control
+  implicit none
+  ! Argument variables:
+  type(file_desc_t),     intent(inout) :: pioFileDesc  ! pio file handle
+  character(*),          intent(in)    :: vname        ! variable name
+  class(*),              intent(out)   :: array(:,:)   ! variable data
+  type(io_desc_t),       intent(inout) :: iodesc       ! io descriptor handle that is generated in PIO_initdecomp
+  integer(i4b), intent(out)            :: ierr         ! error code
+  character(*), intent(out)            :: message      ! error message
+  ! local variables
+  type(var_desc_t)                     :: pioVarId     ! netCDF variable ID
+
+  ierr=0; message='read_darray2D/'
+
+  ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
+  if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
+
+   select type (array)
+      type is (integer(i4b))
+        call pio_read_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
+      type is (real(sp))
+        call pio_read_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
+      type is (real(dp))
+        call pio_read_darray(pioFileDesc, pioVarId, iodesc, array, ierr)
+      class default
+        ierr = 1; message=trim(message)//'ERROR: invalid array type'; return
+    end select
+    if(ierr/=pio_noerr)then; message=trim(message)//'ERROR: reading data'; return; endif
+
+  END SUBROUTINE read_darray2D
 
   ! -----------------------------
   ! Writing routine

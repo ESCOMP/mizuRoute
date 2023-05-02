@@ -10,6 +10,7 @@ USE nr_utils,          ONLY: match_index
 USE nr_utils,          ONLY: arth
 USE nr_utils,          ONLY: unique         ! get unique element array
 USE nr_utils,          ONLY: indexx         ! get rank of data value
+USE pio_utils
 
 implicit none
 
@@ -55,6 +56,13 @@ CONTAINS
                       ierr, message)   ! output: error control
 
    USE public_var,          ONLY: continue_run        ! T-> append output in existing history files. F-> write output in new history file
+   USE globalData,          ONLY: mpicom_route
+   USE globalData,          ONLY: pio_numiotasks
+   USE globalData,          ONLY: pio_rearranger
+   USE globalData,          ONLY: pio_root
+   USE globalData,          ONLY: pio_stride
+   USE globalData,          ONLY: pioSystem
+   USE globalData,          ONLY: runMode
    USE mpi_process,         ONLY: pass_global_data    ! mpi globaldata copy to slave proc
    USE init_model_data,     ONLY: init_ntopo_data
    USE init_model_data,     ONLY: init_state_data
@@ -71,6 +79,15 @@ CONTAINS
    character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
    ierr=0; message='init_data/'
+
+   ! pio initialization
+   if (trim(runMode)=='standalone') then
+     pio_numiotasks = nNodes/pio_stride
+     call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
+                       pio_stride, pio_numiotasks, & ! input: PIO related parameters
+                       pio_rearranger, pio_root,   & ! input: PIO related parameters
+                       pioSystem)                    ! output: PIO system descriptors
+   end if
 
    ! runoff input files initialization
    call init_inFile_pop(ierr, cmessage)
