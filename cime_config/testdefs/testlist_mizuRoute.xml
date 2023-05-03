@@ -4,15 +4,15 @@
    <!-- Test list: Need to test all mizuRoute grids: course: r05mz, 5x5_amazon_r05, 5x5_amazon_rHDMA    -->
    <!-- CONUS grids: nldas2_rUSGS_mnldas2, nldas2_rHDMA_mnldas2, nldas2_rMERIT_mnldas2 -->
    <!--       NOTE: nldas grids have toruble runnign with DEBUG on see cdeps issue 143 -->
-   <!-- 2-degree: f19_f19_mg17, f19_f19_mg17_rHDMA, f19_f19_mg17_rMERIT -->
-   <!-- 1-degree: f09_f09_mg17, f09_f09_mg17_rHDMA, f09_f09_mg17_rMERIT -->
-   <!-- half-degree: hcru_hcru_mt13, hcru_hcru_mt13_rMERIT, hcru_hcru_mt13_rHDMA -->
-   <!-- Machines: cheyennea and izumi   Compilers: intel, gnu, nag, pgi -->
+   <!--       NOTE: Tests with lakes use a grid with lk in the name                    -->
+   <!-- 2-degree: f19_f19_mg17, f19_f19_rHDMA_mg17, f19_f19_rHDMAlk_mg17, f19_f19_rMERIT_mg17 -->
+   <!-- 1-degree: f09_f09_mg17, f09_f09_rHDMA_mg17, f09_f09_rHDMAlk_mg17, f09_f09_rMERIT_mg17 -->
+   <!-- half-degree: hcru_hcru_mt13, hcru_hcru_rMERIT_mt13, hcru_hcru_rHDMA_mt13 -->
+   <!-- Machines: cheyennea and izumi   Compilers: intel, gnu, nag, nvhpc -->
    <!-- Run course resolutions only on izumi, on cheyenne run all -->
    <!-- Test types: ERS, SMS, ERI, PEM, PFS DEBUG on and off -->
    <!-- NOTE: ERP tests are known NOT to work since the MPI task count must remain the same on restart -->
    <!--       ERP tests with only threads can work hoeever -->
-   <!--       PEM tests seem to need to be at least 10 days in length (see #239) -->
    <!-- MPI: mpi-serial and regular as well as some threaded -->
    <!-- Short tests: minimum 1-day    Longer tests: a year to two, good to do past year boundary -->
    <!-- compsets: I2000Clm50SpMizGs -->
@@ -21,9 +21,11 @@
   <test name="SMS_D" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
+      <machine name="cheyenne" compiler="intel" category="prealpha"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
       <machine name="izumi"    compiler="intel" category="mizu"></machine>
       <machine name="izumi"    compiler="nag"   category="mizu"></machine>
+      <machine name="izumi"    compiler="nag"   category="prebeta"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
@@ -80,7 +82,7 @@
       <machine name="izumi"    compiler="intel" category="mizu"></machine>
       <machine name="izumi"    compiler="gnu"   category="mizu"></machine>
       <machine name="izumi"    compiler="nag"   category="mizu"></machine>
-      <machine name="izumi"    compiler="pgi"   category="mizu"></machine>
+      <machine name="izumi"    compiler="nvhpc" category="mizu"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
@@ -100,7 +102,9 @@
   <test name="ERP_D_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
+      <machine name="cheyenne" compiler="intel" category="prealpha"></machine>
       <machine name="izumi"    compiler="intel" category="mizu"></machine>
+      <machine name="izumi"    compiler="intel" category="prealpha"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
@@ -123,8 +127,11 @@
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
+      <machine name="cheyenne" compiler="gnu"   category="prebeta"></machine>
       <machine name="izumi"    compiler="intel" category="mizu"></machine>
+      <machine name="izumi"    compiler="intel" category="prealpha"></machine>
       <machine name="izumi"    compiler="nag"   category="mizu"></machine>
+      <machine name="izumi"    compiler="nag"   category="prebeta"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
@@ -151,7 +158,7 @@
       <option name="comment"  >Exact restart on CONUS HDMA regional grid with DEBUG off</option>
     </options>
   </test>
-  <test name="PEM_Ld10" grid="nldas2_rMERIT_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="PEM" grid="nldas2_rMERIT_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
     </machines>
@@ -183,7 +190,20 @@
       <option name="comment"  >Exact restart on 2-degree grid with DEBUG off</option>
     </options>
   </test>
-  <test name="PFS" grid="f19_f19_mg17_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="ERS" grid="f19_f19_rHDMAlk_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+    <machines>
+      <machine name="cheyenne" compiler="intel" category="mizu"></machine>
+      <machine name="cheyenne" compiler="intel" category="prebeta"></machine>
+      <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
+      <machine name="izumi"    compiler="intel" category="mizu"></machine>
+      <machine name="izumi"    compiler="intel" category="prebeta"></machine>
+    </machines>
+    <options>
+      <option name="wallclock">00:20:00</option>
+      <option name="comment"  >Exact restart on 2-degree grid with DEBUG off</option>
+    </options>
+  </test>
+  <test name="PFS" grid="f19_f19_rHDMA_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -193,7 +213,7 @@
       <option name="comment"  >Performance test on 2-degree HDMA grid with DEBUG off</option>
     </options>
   </test>
-  <test name="SMS" grid="f19_f19_mg17_rMERIT" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="SMS" grid="f19_f19_rMERIT_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -203,9 +223,10 @@
       <option name="comment"  >Smoke test on 2-degree MERIT grid with DEBUG off</option>
     </options>
   </test>
-  <test name="SMS_P80x18" grid="f19_f19_mg17_rMERIT" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="SMS_P80x18" grid="f19_f19_rMERIT_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
+      <machine name="cheyenne" compiler="intel" category="prebeta"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
@@ -223,7 +244,7 @@
       <option name="comment"  >Exact restart on 1-degree grid with DEBUG off</option>
     </options>
   </test>
-  <test name="SMS" grid="f09_f09_mg17_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="SMS" grid="f09_f09_rHDMAlk_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
     </machines>
@@ -232,7 +253,7 @@
       <option name="comment"  >Smoke test on 1-degree HDMA grid with DEBUG off</option>
     </options>
   </test>
-  <test name="SMS" grid="f09_f09_mg17_rMERIT" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="SMS" grid="f09_f09_rMERIT_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
     </machines>
@@ -252,22 +273,13 @@
       <option name="comment"  >Smoke test on half-degree grid with DEBUG off</option>
     </options>
   </test>
-  <test name="SMS" grid="hcru_hcru_mt13_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuroute/hcru">
+  <test name="SMS" grid="hcru_hcru_rHDMAlk_mt13" compset="I2000Clm50SpMizGs" testmods="mizuroute/hcru">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
       <option name="comment"  >Smoke test on half-degree HDMA grid with DEBUG off</option>
-    </options>
-  </test>
-  <test name="SMS" grid="hcru_hcru_mt13_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuroute/hcru">
-    <machines>
-      <machine name="cheyenne" compiler="intel" category="mizu"></machine>
-    </machines>
-    <options>
-      <option name="wallclock">00:20:00</option>
-      <option name="comment"  >Smoke test on half-degree MERIT grid with DEBUG off</option>
     </options>
   </test>
 </testlist>
