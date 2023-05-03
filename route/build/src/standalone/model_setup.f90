@@ -63,6 +63,9 @@ CONTAINS
    USE globalData,          ONLY: pio_stride
    USE globalData,          ONLY: pioSystem
    USE globalData,          ONLY: runMode
+   USE globalData,          ONLY: version             ! mizuRoute version
+   USE globalData,          ONLY: gitBranch           ! git branch
+   USE globalData,          ONLY: gitHash             ! git commit hash
    USE mpi_process,         ONLY: pass_global_data    ! mpi globaldata copy to slave proc
    USE init_model_data,     ONLY: init_ntopo_data
    USE init_model_data,     ONLY: init_state_data
@@ -79,6 +82,17 @@ CONTAINS
    character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
    ierr=0; message='init_data/'
+
+  ! Get mizuRoute model information
+#if defined(VERSION)
+  version=VERSION
+#endif
+#if defined(HASH)
+  gitHash=HASH
+#endif
+#if defined(BRANCH)
+  gitBranch=BRANCH
+#endif
 
    ! pio initialization
    if (trim(runMode)=='standalone') then
@@ -614,11 +628,11 @@ CONTAINS
   ! Set restart calendar date/time and dropoff calendar date/time and
   ! -- For periodic restart options  ---------------------------------------------------------------------
   ! Ensure that user-input restart month, day are valid.
-  ! "Annual" option:  if user input day exceed number of days given user input month, set to last day
-  ! "Monthly" option: use 2000-01 as template calendar yr/month
-  ! "Daily" option:   use 2000-01-01 as template calendar yr/month/day
+  ! "yearly" option:  if user input day exceed number of days given user input month, set to last day
+  ! "monthly" option: use 2000-01 as template calendar yr/month
+  ! "daily" option:   use 2000-01-01 as template calendar yr/month/day
   select case(lower(trim(restart_write)))
-    case('annual')
+    case('yearly')
       dummyDatetime = datetime(2000, restart_month, 1, 0, 0, 0.0_dp)
       nDays = dummyDatetime%ndays_month(calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif

@@ -146,7 +146,7 @@ MODULE public_var
   character(len=strLen),public    :: dname_hru_remap      = ''              ! dimension name for river network HRU
   character(len=strLen),public    :: dname_data_remap     = ''              ! dimension name for runoff HRU ID
   ! RESTART OPTION
-  character(len=strLen),public    :: restart_write        = 'never'         ! restart write option: N[n]ever-> never write, L[l]ast -> write at last time step, S[s]pecified, Monthly, Daily
+  character(len=strLen),public    :: restart_write        = 'never'         ! restart write option (case-insensitive): never, last, specified, yearly, monthly, daily
   character(len=strLen),public    :: restart_date         = charMissing     ! specifed restart date
   integer(i4b)         ,public    :: restart_month        = 1               ! restart periodic month. Default Jan (write every January of year)
   integer(i4b)         ,public    :: restart_day          = 1               ! restart periodic day.   Default 1st (write every 1st of month)
