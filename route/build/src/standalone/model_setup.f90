@@ -628,9 +628,9 @@ CONTAINS
   ! Set restart calendar date/time and dropoff calendar date/time and
   ! -- For periodic restart options  ---------------------------------------------------------------------
   ! Ensure that user-input restart month, day are valid.
-  ! "Annual" option:  if user input day exceed number of days given user input month, set to last day
-  ! "Monthly" option: use 2000-01 as template calendar yr/month
-  ! "Daily" option:   use 2000-01-01 as template calendar yr/month/day
+  ! "yearly" option:  if user input day exceed number of days given user input month, set to last day
+  ! "monthly" option: use 2000-01 as template calendar yr/month
+  ! "daily" option:   use 2000-01-01 as template calendar yr/month/day
   select case(lower(trim(restart_write)))
     case('yearly')
       dummyDatetime = datetime(2000, restart_month, 1, 0, 0, 0.0_dp)
