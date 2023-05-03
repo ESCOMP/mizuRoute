@@ -44,9 +44,6 @@ CONTAINS
   USE globalData, ONLY: multiProcs   ! mpi multi-procs logical (.true. -> use more than 1 processors)
   USE globalData, ONLY: pid          ! procs id (rank)
   USE globalData, ONLY: nThreads     ! number of OMP threads
-  USE globalData, ONLY: version      ! mizuRoute version
-  USE globalData, ONLY: gitBranch    ! git branch
-  USE globalData, ONLY: gitHash      ! git commit hash
   USE mpi_utils, ONLY: shr_mpi_commsize
   USE mpi_utils, ONLY: shr_mpi_commrank
 
@@ -58,17 +55,6 @@ CONTAINS
   integer(i4b)               :: omp_get_num_threads ! number of threads used for openMP
 
   message='get_mpi_omp/'
-
-  ! Get mizuRoute model information
-#if defined(VERSION)
-  version=VERSION
-#endif
-#if defined(HASH)
-  gitHash=HASH
-#endif
-#if defined(BRANCH)
-  gitBranch=BRANCH
-#endif
 
   ! Get the number of processes
   call shr_mpi_commsize(comm, nNodes, message)
