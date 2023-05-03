@@ -2,7 +2,7 @@
 <testlist version="2.0">
 
    <!-- Test list: Need to test all mizuRoute grids: course: r05mz, 5x5_amazon_r05, 5x5_amazon_rHDMA    -->
-   <!-- CONUS grids: nldas2_rUSGS_mnldas2, nldas2_rHDMA_mnldas2, nldas2_rMERIT_mnldas2 -->
+   <!-- CONUS grids: nldas2_nldas2_rUSGS_mnldas2, nldas2_nldas2_rHDMA_mnldas2, nldas2_nldas2_rMERIT_mnldas2 -->
    <!--       NOTE: nldas grids have toruble runnign with DEBUG on see cdeps issue 143 -->
    <!--       NOTE: Tests with lakes use a grid with lk in the name                    -->
    <!-- 2-degree: f19_f19_mg17, f19_f19_rHDMA_mg17, f19_f19_rHDMAlk_mg17, f19_f19_rMERIT_mg17 -->
@@ -115,7 +115,7 @@
 
 
   <!-- CONUS grids: r05mz, HDMA, and MERIT include threaded -->
-  <test name="SMS_D" grid="nldas2_rUSGS_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="SMS_D" grid="nldas2_nldas2_rUSGS_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
     </machines>
@@ -124,7 +124,7 @@
       <option name="comment"  >Smoke test on CONUS regional grid with DEBUG on</option>
     </options>
   </test>
-  <test name="ERS" grid="nldas2_rUSGS_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="ERS" grid="nldas2_nldas2_rUSGS_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -139,7 +139,7 @@
       <option name="comment"  >Exact restart test on CONUS regional grid with DEBUG off</option>
     </options>
   </test>
-  <test name="ERI" grid="nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="ERI" grid="nldas2_nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
     </machines>
@@ -148,7 +148,7 @@
       <option name="comment"  >Exact restart hybrid/startup/branch test on CONUS HDMA regional grid with DEBUG off</option>
     </options>
   </test>
-  <test name="ERS" grid="nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="ERS" grid="nldas2_nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -159,7 +159,7 @@
       <option name="comment"  >Exact restart on CONUS HDMA regional grid with DEBUG off</option>
     </options>
   </test>
-  <test name="PET_P1x36" grid="nldas2_rMERIT_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="PET_P1x36" grid="nldas2_nldas2_rMERIT_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
     </machines>
@@ -168,7 +168,7 @@
       <option name="comment"  >Exact restart thread change test with threads only on CONUS MERIT regional grid with DEBUG off</option>
     </options>
   </test>
-  <test name="SMS_P720x4" grid="nldas2_rMERIT_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="SMS_P720x4" grid="nldas2_nldas2_rMERIT_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
