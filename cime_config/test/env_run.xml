@@ -33,6 +33,11 @@ Sample env_run.xml file that allows buildnml to be run for testing in this direc
     <entry id="RUN_STARTDATE" value="0001-01-01">
     </entry>
 
+    <entry id="ROF_NCPL" value="1">
+    </entry>
+    <entry id="NCPL_BASE_PERIOD" value="day">
+    </entry>
+
     <entry id="ROF_DOMAIN_FILE" value="UNSET">
     </entry>
     <entry id="ROF_DOMAIN_PATH" value="$DIN_LOC_ROOT/share/domains">

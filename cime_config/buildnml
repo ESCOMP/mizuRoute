@@ -48,6 +48,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     config['rof_grid'] = case.get_value("ROF_GRID")
     config['lnd_grid'] = case.get_value("LND_GRID")
     config['rof_ncpl'] = case.get_value("ROF_NCPL")
+    config['ncpl_base_period'] = case.get_value("NCPL_BASE_PERIOD")
 
     logger.debug("  mizuRoute lnd grid is %s ", config['lnd_grid'])
     logger.debug("  mizuRoute rof grid is %s ", config['rof_grid'])
@@ -186,6 +187,13 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
 
   
     #----------------------------------------------------
+    # Convert coupling frequency into seconds
+    #----------------------------------------------------
+    if config['ncpl_base_period'] != "day":
+       expect( False, "NCPL_BASE_PERIOD is expected to be day instead is: "+config['ncpl_base_period'] )
+
+    dt_qsim = 86400 / int(config['rof_ncpl'])
+    #----------------------------------------------------
     # Set control values that we get from CESM
     #----------------------------------------------------
     ctl.set( "case_name", casename )
@@ -193,6 +201,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     ctl.set( "input_dir", rundir+"/" )
     ctl.set( "ancil_dir", ancil_dir )
     ctl.set( "fname_ntopOld", fname_ntopOld )
+    ctl.set( "dt_qsim", str(dt_qsim) )
     ctl.set( "dname_sseg", dname_sseg )
     ctl.set( "dname_nhru", dname_nhru )
     ctl.set( "param_nml", "mizuRoute_in" )
