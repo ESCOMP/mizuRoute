@@ -18,6 +18,7 @@
 <is_flux_wm>            T                          ! switch for water abstraction/injection
 <fname_state_in>        STATE_IN_NC                ! input restart netCDF name. remove for run without any particular initial channel states
 <newFileFrequency>      monthly                    ! frequency for new output files (daily, monthly, yearly, single)
+<dt_qsim>               86400                      ! coupling time interval of the forcing [sec]
 ! ****************************************************************************************************************************
 ! DEFINE DIRECTORIES 
 ! --------------------------
