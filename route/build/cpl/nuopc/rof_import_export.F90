@@ -353,7 +353,7 @@ contains
     if (num > fldsMax) then
        call ESMF_LogWrite(trim(subname)//": ERROR num > fldsMax "//trim(stdname), &
             ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__, rc=dbrc)
-       return
+       call shr_sys_abort(' ERROR: number or fields are higher than the max allowed ' )
     endif
     fldlist(num)%stdname = trim(stdname)
 

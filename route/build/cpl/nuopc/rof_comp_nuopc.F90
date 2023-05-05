@@ -534,7 +534,7 @@ contains
 
     if ( .not. allocated(gindex) )then
        cmessage = cmessage // " gindex is not allocated"
-       return
+       call shr_sys_abort( subname//cmessage )
     end if
     if ( debug_write ) then
        write(iulog,*) "iam, lsize = ", iam, lsize
@@ -548,7 +548,7 @@ contains
     deallocate(gindex)
     if ( .not. ESMF_DistGridIsCreated( DistGrid, rc=rc ) )then
        cmessage = cmessage // " DistGrid is NOT created"
-       return
+       call shr_sys_abort( subname//cmessage )
     end if
     call ESMF_DistGridValidate( DistGrid, rc=rc )
     if (ChkErr(rc,__LINE__,u_FILE_u)) return

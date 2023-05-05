@@ -128,7 +128,7 @@ CONTAINS
 
     ! mizuRoute time initialize based on time from coupler
     call init_time(ierr, cmessage)
-    if(ierr/=0) then; cmessage = trim(subname)//trim(cmessage); return; endif
+    if(ierr/=0) then; cmessage = trim(subname)//trim(cmessage); call shr_sys_abort( subname//cmessage ); endif
 
     if (masterproc) then
       write(iulog,*) 'define run:'
