@@ -504,6 +504,7 @@ CONTAINS
         if (multiProcs) then
           if (masterproc) then
             allocate(qvolSend(nRch_mainstem+nRch_trib), qvolRecv(nRch_mainstem+nRch_trib), stat=ierr)
+            if(ierr/=0)then; call shr_sys_abort(trim(subname)//"allocate qvolSend/qvolRecv error"); endif
             qvolRecv = 0._r8
             if (nRch_mainstem > 0) then ! mainstem
               call basin2reach(qsend(1:nHRU_mainstem), NETOPO_main, RPARAM_main, qvolSend(1:nRch_mainstem), &
@@ -517,12 +518,14 @@ CONTAINS
             end if
           else ! other processors (tributary)
             allocate(qvolSend(nRch_trib), qvolRecv(nRch_trib), stat=ierr)
+            if(ierr/=0)then; call shr_sys_abort(trim(subname)//"allocate qvolSend/qvolRecv error"); endif
             qvolRecv = 0._r8
             call basin2reach(qsend, NETOPO_trib, RPARAM_trib, qvolSend, ierr, cmessage, limitRunoff=.false.)
             if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
           end if
         else ! if only single proc is used, all irrigation demand is stored in mainstem array
           allocate(qvolSend(nRch_mainstem), qvolRecv(nRch_mainstem), stat=ierr)
+          if(ierr/=0)then; call shr_sys_abort(trim(subname)//"allocate qvolSend/qvolRecv error"); endif
           qvolRecv = 0._r8
           call basin2reach(qsend, NETOPO_main, RPARAM_main, qvolSend, ierr, cmessage, limitRunoff=.false.)
           if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
@@ -533,6 +536,7 @@ CONTAINS
           if (commRch(nr)%srcTask/=commRch(nr)%destTask) then
             call shr_mpi_send(qvolSend, commRch(nr)%srcTask, commRch(nr)%srcIndex, &
                               qvolRecv, commRch(nr)%destTask, commRch(nr)%destIndex, ierr, cmessage)
+            if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
           else
             if (iam==commRch(nr)%srcTask) then
               qvolRecv(commRch(nr)%destIndex) = qvolRecv(commRch(nr)%destIndex) + qvolSend(commRch(nr)%srcIndex)
@@ -540,6 +544,7 @@ CONTAINS
           end if
         end do
         call shr_mpi_barrier(mpicom_rof, cmessage)
+        if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
       case default; call shr_sys_abort(trim(subname)//'unexpected bypass_routing_option')
     end select
@@ -610,6 +615,7 @@ CONTAINS
     if (barrier_timers) then
       call t_startf('mizuRoute_SMdirect_barrier')
       call mpi_barrier(mpicom_rof,ierr)
+      if(ierr/=0)then; call shr_sys_abort(trim(subname)//"mpi_barrier error"); endif
       call t_stopf ('mizuRoute_SMdirect_barrier')
     endif
 
