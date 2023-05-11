@@ -145,18 +145,8 @@ CONTAINS
   USE public_var,  ONLY: idSegOut               ! outlet segment ID (-9999 => no outlet segment specified)
   USE public_var,  ONLY: bypass_routing_option  ! cesm-coupling option
   USE globalData,  ONLY: masterproc             ! root proc logical
-  USE globalData,  ONLY: multiProcs             ! mpi multi-procs logical (.true. -> use more than 1 processors)
   USE globalData,  ONLY: nHRU, nRch             ! number of HRUs and Reaches in the whole network
-  USE globalData,  ONLY: nRch_mainstem          ! number of mainstem reaches
-  USE globalData,  ONLY: nTribOutlet            ! number of tributaries that are link to mainstem
-  USE globalData,  ONLY: nHRU_mainstem          ! number of mainstem HRUs
-  USE globalData,  ONLY: RCHFLX_trib            ! Reach flux data structures (master proc, mainstem)
-  USE globalData,  ONLY: RCHSTA_trib            ! Reach state data structures (master proc, mainstem)
-  USE globalData,  ONLY: NETOPO_main            !
-  USE globalData,  ONLY: RPARAM_main            !
   USE globalData,  ONLY: nContribHRU            ! number of HRUs that are connected to any reaches
-  USE globalData,  ONLY: nEns                   ! number of ensembles
-  USE globalData,  ONLY: nRoutes                ! number of active routing methods
   USE globalData,  ONLY: basinID                ! HRU id vector
   USE globalData,  ONLY: reachID                ! reach ID vector
   USE globalData,  ONLY: runMode                ! mizuRoute run mode - standalone or ctsm-coupling
@@ -225,48 +215,20 @@ CONTAINS
      enddo
    end if  ! if processor=0 (root)
 
-   if (multiProcs) then
-     ! spatial domain decomposition and distribution for MPI parallelization
-     if (masterproc) then
-       call mpi_domain_decomposition(nNodes, nRch,               & ! input:
-                                     structNTOPO, structHRU2SEG, & ! input:  input data structures
-                                     nContribHRU,                & ! output: number of HRUs that are connected to any reaches
-                                     ierr, cmessage)               ! output: error controls
-       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-     end if
-
-     call comm_ntopo_data(pid, nNodes, comm,                                    & ! input: proc id, # of procs and commnicator
-                          nRch, nHRU,                                           & ! input: number of reach and HRUs that contribut to any reaches
-                          structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
-                          ierr, cmessage)                                         ! output: error controls
+   ! spatial domain decomposition and distribution for MPI parallelization
+   if (masterproc) then
+     call mpi_domain_decomposition(nNodes, nRch,               & ! input:
+                                   structNTOPO, structHRU2SEG, & ! input:  input data structures
+                                   nContribHRU,                & ! output: number of HRUs that are connected to any reaches
+                                   ierr, cmessage)               ! output: error controls
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   else
-     nContribHRU = 0
-     do iRch = 1, nRch
-       nContribHRU = nContribHRU + structNTOPO(iRch)%var(ixNTOPO%nHRU)%dat(1)
-     enddo
+   end if
 
-     nRch_mainstem = nRch
-     nTribOutlet   = 0
-     nHRU_mainstem = nHRU
-
-     allocate(RCHFLX_trib(nEns, nRch_mainstem), RCHSTA_trib(nEns, nRch_mainstem), stat=ierr, errmsg=cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-     do iRch = 1, nRch_mainstem
-       allocate(RCHFLX_trib(nEns,iRch)%ROUTE(nRoutes))
-     end do
-
-     call put_data_struct(nRch_mainstem, structSEG, structNTOPO, & ! input
-                          RPARAM_main, NETOPO_main,              & ! output
-                          ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-     ! Setup openmp for whole domain
-     call all_domain_omp_decomp(structNTOPO, structHRU2SEG, & ! input: river network data structures for the entire network
-                                ierr, cmessage)               ! output: error controls
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   endif
+   call comm_ntopo_data(pid, nNodes, comm,                                    & ! input: proc id, # of procs and commnicator
+                        nRch, nHRU,                                           & ! input: number of reach and HRUs that contribut to any reaches
+                        structHRU, structSEG, structHRU2SEG, structNTOPO,     & ! input: river network data structures for the entire network
+                        ierr, cmessage)                                         ! output: error controls
+   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  END SUBROUTINE init_ntopo_data
 
@@ -656,89 +618,5 @@ CONTAINS
   endif
 
  END SUBROUTINE init_ntopo
-
-
- ! *********************************************************************
- ! private subroutine: openmp domain decomposition for entire network
- ! *********************************************************************
- SUBROUTINE all_domain_omp_decomp(structNTOPO,structHRU2SEG, & ! input: data structure for network toopology
-                                  ierr,message)                ! output: error control
-
-  ! Perform the entire network openmp domain decomposition
-  ! This sub-routine is called only with single mpi proc use
-
-  USE public_var,          ONLY: desireId
-  USE globalData,          ONLY: ixPrint
-  USE globalData,          ONLY: river_basin_main         ! OMP domain data structure for mainstem
-  USE globalData,          ONLY: rch_per_proc             ! number of reaches assigned to each proc (size = num of procs+1)
-  USE globalData,          ONLY: hru_per_proc             ! number of hrus assigned to each proc (size = num of procs+1)
-  USE globalData,          ONLY: ixRch_order              ! global reach index in the order of proc assignment (size = total number of reaches in the entire network)
-  USE globalData,          ONLY: ixHRU_order              ! global HRU index in the order of proc assignment (size = total number of HRUs contributing to any reaches, nContribHRU)
-  USE domain_decomposition,ONLY: omp_domain_decomposition ! domain decomposition for omp
-  USE nr_utils,            ONLY: findIndex                ! find index within a vector
-
-  implicit none
-  ! Argument variables
-  type(var_ilength), allocatable, intent(in)  :: structNTOPO(:)           ! network topology
-  type(var_ilength), allocatable, intent(in)  :: structHRU2SEG(:)         ! HRU-to-segment mapping
-  integer(i4b),                   intent(out) :: ierr
-  character(len=strLen),          intent(out) :: message                  ! error message
-  ! Local variables
-  integer(i4b)                                :: nRch_tmp                 ! number of total reaches
-  integer(i4b)                                :: nHRU_tmp                 ! number of total HRUs
-  integer(i4b), allocatable                   :: segId(:)                 ! reach id
-  integer(i4b)                                :: iSeg, iHRU               ! reach and hru loop indices
-  character(len=strLen)                       :: cmessage                 ! error message from subroutine
-
-  ierr=0; message='all_domain_omp_decomp/'
-
-  nRch_tmp = size(structNTOPO)
-  nHRU_tmp = size(structHRU2SEG)
-
-  allocate(rch_per_proc(-1:0), hru_per_proc(-1:0), stat=ierr, errmsg=cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  allocate(ixRch_order(nRch_tmp), segId(nRch_tmp), stat=ierr, errmsg=cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  allocate(ixHRU_order(nHRU_tmp), stat=ierr, errmsg=cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  ! Count the number of reaches and hrus in each node (order of hru and reach should be the same as input data
-  rch_per_proc(-1) = nRch_tmp
-  rch_per_proc(0)  = 0
-  do iSeg =1,nRch_tmp
-    segId(iSeg)       = structNTOPO(iSeg)%var(ixNTOPO%segId)%dat(1)
-    ixRch_order(iSeg) = structNTOPO(iSeg)%var(ixNTOPO%segIndex)%dat(1)
-  end do
-
-  hru_per_proc(-1) = nHRU_tmp
-  hru_per_proc(0)  = 0
-  do iHRU =1,nHRU_tmp
-    ixHRU_order(iHRU) = structHRU2SEG(iHRU)%var(ixHRU2SEG%HRUindex)%dat(1)
-  end do
-
-  call omp_domain_decomposition(stream_order, rch_per_proc(-1), structNTOPO, river_basin_main, ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  if (desireId/=integerMissing) then
-    ixPrint(1) = findIndex(segId, desireId, integerMissing);
-    print*, 'desireId=',desireId, 'ixPrint(1)=', ixPrint(1)
-  end if
-
-  ! -------------------
-  ! print*,'segid,branch,order'
-  ! do ix = 1, size(river_basin_main)
-  !   do ixx = 1, size(river_basin_main(ix)%branch)
-  !     do iSeg = 1, river_basin_main(ix)%branch(ixx)%nRch
-  !       associate (idx_tmp => river_basin_main(ix)%branch(ixx)%segIndex(iSeg))
-  !       write(*,"(I15,A,I9,A,I9)") structNTOPO(idx_tmp)%var(ixNTOPO%segId)%dat(1),',',ixx,',',ix
-  !       end associate
-  !     end do
-  !   end do
-  ! enddo
-  ! -------------------
-
- END SUBROUTINE all_domain_omp_decomp
 
 END MODULE init_model_data
