@@ -72,11 +72,10 @@ pygments_style = None
 
 # -- Options for HTML output -------------------------------------------------
 
-# The theme to use for HTML and HTML Help pages.  See the documentation for
-# a list of builtin themes.
-#
-#html_theme = 'alabaster'
-html_theme = 'sphinxdoc'
+# The theme to use for HTML and HTML Help pages.
+# Theme can be changed freely based on personal preference.
+# some themes used before: 'alabaster'(default), 'sphinxdoc'
+# see https://sphinx-themes.org/ (last accessed on May 4th 2023) for more themes
 html_theme = 'sphinx_rtd_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
