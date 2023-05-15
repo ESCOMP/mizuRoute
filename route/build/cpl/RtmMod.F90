@@ -27,7 +27,6 @@ MODULE RtmMod
   USE globalData,   ONLY: npes       => nNodes
   USE globalData,   ONLY: mpicom_rof => mpicom_route
   USE globalData,   ONLY: masterproc
-  USE globalData,   ONLY: multiProcs
   USE mpi_utils, ONLY: shr_mpi_barrier
 
   implicit none
@@ -225,19 +224,15 @@ CONTAINS
     rtmCTL%gindex(rtmCTL%begr:rtmCTL%endr) = ixHRU_order(ix1:ix2)
 
     ! additional river reach & catchment information
-    if (multiProcs) then
-      if (masterproc) then
-        if (nRch_mainstem > 0) then
-          call get_hru_area(NETOPO_main, RPARAM_main, verbose=verbose)
-        end if
-        if (nRch_trib > 0) then
-          call get_hru_area(NETOPO_trib, RPARAM_trib, offset=nHRU_mainstem, verbose=verbose)
-        end if
-      else ! other processors
-        call get_hru_area(NETOPO_trib, RPARAM_trib, verbose=verbose)
+    if (masterproc) then
+      if (nRch_mainstem > 0) then
+        call get_hru_area(NETOPO_main, RPARAM_main, verbose=verbose)
       end if
-    else ! using single processor
-      call get_hru_area(NETOPO_main, RPARAM_main, verbose=verbose)
+      if (nRch_trib > 0) then
+        call get_hru_area(NETOPO_trib, RPARAM_trib, offset=nHRU_mainstem, verbose=verbose)
+      end if
+    else ! other processors
+      call get_hru_area(NETOPO_trib, RPARAM_trib, verbose=verbose)
     end if
 
     if ( any(rtmCTL%gindex(rtmCTL%begr:rtmCTL%endr) < 1) )then
@@ -501,33 +496,25 @@ CONTAINS
         end do
 
         ! Transfer hru negative flow [mm/s] to volume [m3/s] at river segment
-        if (multiProcs) then
-          if (masterproc) then
-            allocate(qvolSend(nRch_mainstem+nRch_trib), qvolRecv(nRch_mainstem+nRch_trib), stat=ierr)
-            if(ierr/=0)then; call shr_sys_abort(trim(subname)//"allocate qvolSend/qvolRecv error"); endif
-            qvolRecv = 0._r8
-            if (nRch_mainstem > 0) then ! mainstem
-              call basin2reach(qsend(1:nHRU_mainstem), NETOPO_main, RPARAM_main, qvolSend(1:nRch_mainstem), &
-                               ierr, cmessage, limitRunoff=.false.)
-              if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-            end if
-            if (nRch_trib > 0) then ! tributaries in main processor
-              call basin2reach(qsend(nHRU_mainstem+1:rtmCTL%lnumr), NETOPO_trib, RPARAM_trib, qvolSend(nRch_mainstem+1:nRch_trib), &
-                               ierr, cmessage, limitRunoff=.false.)
-              if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-            end if
-          else ! other processors (tributary)
-            allocate(qvolSend(nRch_trib), qvolRecv(nRch_trib), stat=ierr)
-            if(ierr/=0)then; call shr_sys_abort(trim(subname)//"allocate qvolSend/qvolRecv error"); endif
-            qvolRecv = 0._r8
-            call basin2reach(qsend, NETOPO_trib, RPARAM_trib, qvolSend, ierr, cmessage, limitRunoff=.false.)
-            if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-          end if
-        else ! if only single proc is used, all irrigation demand is stored in mainstem array
-          allocate(qvolSend(nRch_mainstem), qvolRecv(nRch_mainstem), stat=ierr)
+        if (masterproc) then
+          allocate(qvolSend(nRch_mainstem+nRch_trib), qvolRecv(nRch_mainstem+nRch_trib), stat=ierr)
           if(ierr/=0)then; call shr_sys_abort(trim(subname)//"allocate qvolSend/qvolRecv error"); endif
           qvolRecv = 0._r8
-          call basin2reach(qsend, NETOPO_main, RPARAM_main, qvolSend, ierr, cmessage, limitRunoff=.false.)
+          if (nRch_mainstem > 0) then ! mainstem
+            call basin2reach(qsend(1:nHRU_mainstem), NETOPO_main, RPARAM_main, qvolSend(1:nRch_mainstem), &
+                             ierr, cmessage, limitRunoff=.false.)
+            if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+          end if
+          if (nRch_trib > 0) then ! tributaries in main processor
+            call basin2reach(qsend(nHRU_mainstem+1:rtmCTL%lnumr), NETOPO_trib, RPARAM_trib, qvolSend(nRch_mainstem+1:nRch_trib), &
+                             ierr, cmessage, limitRunoff=.false.)
+            if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+          end if
+        else ! other processors (tributary)
+          allocate(qvolSend(nRch_trib), qvolRecv(nRch_trib), stat=ierr)
+          if(ierr/=0)then; call shr_sys_abort(trim(subname)//"allocate qvolSend/qvolRecv error"); endif
+          qvolRecv = 0._r8
+          call basin2reach(qsend, NETOPO_trib, RPARAM_trib, qvolSend, ierr, cmessage, limitRunoff=.false.)
           if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
         end if
 
@@ -555,58 +542,44 @@ CONTAINS
     call t_startf('mizuRoute_mapping_runoff')
 
     ! Transfer actual irrigation rate [mm/s] to river segment
-    if (multiProcs) then
-      if (masterproc) then
-        if (nRch_mainstem > 0) then ! mainstem
-          call basin2reach(rtmCTL%qirrig_actual(1:nHRU_mainstem), NETOPO_main, RPARAM_main, flux_wm_main, &
-                           ierr, cmessage, limitRunoff=.false.)
-          if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-          if (trim(bypass_routing_option)=='direct_to_outlet') then
-            flux_wm_main = flux_wm_main + qvolRecv(1:nRch_mainstem)
-          end if
-        end if
-        if (nRch_trib > 0) then ! tributaries in main processor
-          call basin2reach(rtmCTL%qirrig_actual(nHRU_mainstem+1:rtmCTL%lnumr), NETOPO_trib, RPARAM_trib, flux_wm_trib, ierr, &
-                           cmessage, limitRunoff=.false.)
-          if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-          if (trim(bypass_routing_option)=='direct_to_outlet') then
-            flux_wm_trib = flux_wm_trib + qvolRecv(nRch_mainstem+1:nRch_trib)
-          end if
-        end if
-      else ! other processors (tributary)
-        call basin2reach(rtmCTL%qirrig_actual, NETOPO_trib, RPARAM_trib, flux_wm_trib, ierr, cmessage, limitRunoff=.false.)
+    if (masterproc) then
+      if (nRch_mainstem > 0) then ! mainstem
+        call basin2reach(rtmCTL%qirrig_actual(1:nHRU_mainstem), NETOPO_main, RPARAM_main, flux_wm_main, &
+                         ierr, cmessage, limitRunoff=.false.)
         if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
         if (trim(bypass_routing_option)=='direct_to_outlet') then
-          flux_wm_trib = flux_wm_trib + qvolRecv
+          flux_wm_main = flux_wm_main + qvolRecv(1:nRch_mainstem)
         end if
       end if
-    else ! if only single proc is used, all irrigation demand is stored in mainstem array
-      call basin2reach(rtmCTL%qirrig_actual, NETOPO_main, RPARAM_main, flux_wm_main, ierr, cmessage, limitRunoff=.false.)
+      if (nRch_trib > 0) then ! tributaries in main processor
+        call basin2reach(rtmCTL%qirrig_actual(nHRU_mainstem+1:rtmCTL%lnumr), NETOPO_trib, RPARAM_trib, flux_wm_trib, &
+                         ierr, cmessage, limitRunoff=.false.)
+        if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+        if (trim(bypass_routing_option)=='direct_to_outlet') then
+          flux_wm_trib = flux_wm_trib + qvolRecv(nRch_mainstem+1:nRch_trib)
+        end if
+      end if
+    else ! other processors (tributary)
+      call basin2reach(rtmCTL%qirrig_actual, NETOPO_trib, RPARAM_trib, flux_wm_trib, ierr, cmessage, limitRunoff=.false.)
       if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
       if (trim(bypass_routing_option)=='direct_to_outlet') then
-        flux_wm_main = flux_wm_main + qvolRecv
+        flux_wm_trib = flux_wm_trib + qvolRecv
       end if
     end if
 
-    if (multiProcs) then
-      if (masterproc) then
-        if (nHRU_mainstem > 0) then
-          do nr = 1,nHRU_mainstem
-            basinRunoff_main(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
-          end do
-        end if
-        do nr = 1, nHRU_trib
-          ix = nr + nHRU_mainstem
-          basinRunoff_trib(nr) = rtmCTL%qsur(ix,1)+rtmCTL%qsub(ix,1)+rtmCTL%qgwl(ix,1)
-        end do
-      else
-        do nr = rtmCTL%begr,rtmCTL%endr
-          basinRunoff_trib(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
+    if (masterproc) then
+      if (nHRU_mainstem > 0) then
+        do nr = 1,nHRU_mainstem
+          basinRunoff_main(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
         end do
       end if
-    else ! if only single proc is used, all runoff is stored in mainstem runoff array
-      do nr = 1,nHRU_mainstem
-        basinRunoff_main(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
+      do nr = 1, nHRU_trib
+        ix = nr + nHRU_mainstem
+        basinRunoff_trib(nr) = rtmCTL%qsur(ix,1)+rtmCTL%qsub(ix,1)+rtmCTL%qgwl(ix,1)
+      end do
+    else
+      do nr = rtmCTL%begr,rtmCTL%endr
+        basinRunoff_trib(nr) = rtmCTL%qsur(nr,1)+rtmCTL%qsub(nr,1)+rtmCTL%qgwl(nr,1)
       end do
     end if
 
@@ -652,23 +625,19 @@ CONTAINS
     call t_startf('mizuRoute_prep_export')
 
     ! put reach flux variables to associated HRUs
-    if (multiProcs) then
-      if (masterproc) then
-        if (nRch_mainstem > 0) then
-          lwr=1
-          upr=nRch_mainstem
-          call get_river_export_data(NETOPO_main(lwr:upr), RCHFLX_trib(:,lwr:upr))
-        end if
-        if (nRch_trib > 0) then
-          lwr = nRch_mainstem + nTribOutlet + 1
-          upr = nRch_mainstem + nTribOutlet + nRch_trib
-          call get_river_export_data(NETOPO_trib, RCHFLX_trib(:,lwr:upr), offset=nHRU_mainstem)
-        end if
-      else ! other processors
-        call get_river_export_data(NETOPO_trib, RCHFLX_trib)
+    if (masterproc) then
+      if (nRch_mainstem > 0) then
+        lwr=1
+        upr=nRch_mainstem
+        call get_river_export_data(NETOPO_main(lwr:upr), RCHFLX_trib(:,lwr:upr))
       end if
-    else ! using single processor
-      call get_river_export_data(NETOPO_main, RCHFLX_trib(:,1:nRch_mainstem))
+      if (nRch_trib > 0) then
+        lwr = nRch_mainstem + nTribOutlet + 1
+        upr = nRch_mainstem + nTribOutlet + nRch_trib
+        call get_river_export_data(NETOPO_trib, RCHFLX_trib(:,lwr:upr), offset=nHRU_mainstem)
+      end if
+    else ! other processors
+      call get_river_export_data(NETOPO_trib, RCHFLX_trib)
     end if
 
     call t_stopf('mizuRoute_prep_export')
