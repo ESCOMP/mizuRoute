@@ -115,7 +115,7 @@
 
 
   <!-- CONUS grids: r05mz, HDMA, and MERIT include threaded -->
-  <test name="SMS_D" grid="nldas2_nldas2_rUSGS_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="SMS_D" grid="nldas2_nldas2_rUSGS_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/MERIT">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
     </machines>
@@ -214,7 +214,7 @@
       <option name="comment"  >Performance test on 2-degree HDMA grid with DEBUG off</option>
     </options>
   </test>
-  <test name="SMS" grid="f19_f19_rMERIT_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="SMS" grid="f19_f19_rMERIT_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/MERIT">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -224,7 +224,7 @@
       <option name="comment"  >Smoke test on 2-degree MERIT grid with DEBUG off</option>
     </options>
   </test>
-  <test name="SMS_P80x18" grid="f19_f19_rMERIT_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="SMS_P80x18" grid="f19_f19_rMERIT_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/MERIT">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="intel" category="prebeta"></machine>
@@ -254,7 +254,7 @@
       <option name="comment"  >Smoke test on 1-degree HDMA grid with DEBUG off</option>
     </options>
   </test>
-  <test name="SMS" grid="f09_f09_rMERIT_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="SMS" grid="f09_f09_rMERIT_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/MERIT">
     <machines>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
     </machines>
