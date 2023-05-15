@@ -177,6 +177,7 @@ CONTAINS
   integer(i4b)                                :: nRch_trib_outlet         ! number of tributary outlets for each proc (scalar)
   integer(i4b),      allocatable              :: nRch_trib_array(:)       ! number of tributary outlets for each proc (array)
   ! flat array for decomposed river network per domain (sub-basin)
+  integer(i4b)                                :: omp_method               ! openMP domain decomposition method ID
   integer(i4b)                                :: idNode(nDomain_mpi)      ! node id array for each domain
   integer(i4b)                                :: rnkIdNode(nDomain_mpi)   ! ranked node id array for each domain
   integer(i4b)                                :: jHRU,jSeg                ! ranked indices
@@ -377,10 +378,8 @@ CONTAINS
   nHRU_trib     = hru_per_proc(pid)
 
   ! ********************************************************************************************************************
-  ! Optional procedures: Multiple MPI tasks requested
+  ! process for processor 0 through nNodes (tributary domains)
   ! ********************************************************************************************************************
-  if (multiProcs) then
-
     call alloc_struct(hru_per_proc(pid),     & ! input: number of HRUs
                       rch_per_proc(pid),     & ! input: number of stream segments
                       structHRU_local,       & ! inout: ancillary data for HRUs
@@ -492,7 +491,12 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! OMP domain decomposition
-    call omp_domain_decomposition(upstream_size, rch_per_proc(pid), structNTOPO_local, river_basin_trib, ierr, cmessage)
+    if (multiProcs) then
+      omp_method = upstream_size
+    else
+      omp_method = stream_order
+    end if
+    call omp_domain_decomposition(omp_method, rch_per_proc(pid), structNTOPO_local, river_basin_trib, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     if (debug_trib_omp .and. pid==3) then
@@ -651,10 +655,8 @@ CONTAINS
       end if
     end if
 
-  endif ! (multiProcs)
-
   ! ********************************************************************************************************************
-  ! Optional procedures:  Mainstem decomposition for OMP if mainstem exists as a result of MPI domain docomposition
+  ! Optional procedures:  Mainstem decomposition for OMP if mainstem exists as a result of MPI domain docomposition if exists
   ! ********************************************************************************************************************
   ! Specifics:
   ! procedure on master proc
@@ -664,36 +666,6 @@ CONTAINS
   if (nRch_mainstem > 0) then
     if (masterproc) then
       ! allocation, RCHFLX, RCHSTA, basinRunoff, basinEvapo, basinPrecip, flux_wm
-      if (.not. multiProcs) then
-        nTribOutlet=0
-        allocate(RCHFLX_trib(nEns, nRch_mainstem), stat=ierr, errmsg=cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-        do ix = 1, nRch_mainstem
-          allocate(RCHFLX_trib(nEns,ix)%ROUTE(nRoutes))
-        end do
-
-        allocate(RCHSTA_trib(nEns, nRch_mainstem), stat=ierr, errmsg=cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-        ! basin runoff array
-        allocate(basinRunoff_main(nHRU_mainstem), stat=ierr, errmsg=cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-        ! basin precipitation and evaporation
-        if (is_lake_sim) then
-          allocate(basinEvapo_main(nHRU_mainstem), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-          allocate(basinPrecip_main(nHRU_mainstem), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-        end if
-
-        ! reach abstraction array
-        if (is_flux_wm) then
-          allocate(flux_wm_main(nRch_mainstem), stat=ierr, errmsg=cmessage)
-          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-        end if
-      end if
 
       call alloc_struct(nHRU_mainstem,              & ! input: number of HRUs
                         nRch_mainstem+nTribOutlet,  & ! input: number of stream segments
@@ -1270,59 +1242,49 @@ CONTAINS
   ! --------------------------------
   ! Perform tributary routing (for all procs)
   ! --------------------------------
-  if (multiProcs) then
+  call t_startf ('route/tributary-route')
 
-    call t_startf ('route/tributary-route')
+  !Idenfity number of tributary reaches for each procs
+  allocate(ixRchProcessed(nRch_trib), stat=ierr)
+  if(ierr/=0)then; message=trim(message)//'problem allocating array for [ixRchProcessed]'; return; endif
 
-    !Idenfity number of tributary reaches for each procs
-    allocate(ixRchProcessed(nRch_trib), stat=ierr)
-    if(ierr/=0)then; message=trim(message)//'problem allocating array for [ixRchProcessed]'; return; endif
+  ! Define processing reach indices in terms of tributary data sets
+  ixRchProcessed = arth(1,1,nRch_trib)
 
-    ! Define processing reach indices in terms of tributary data sets
-    ixRchProcessed = arth(1,1,nRch_trib)
+  ! Perform routing
+  if (masterproc) then
+    ix1=nRch_mainstem+nTribOutlet+1
+    ix2=nRch_mainstem+nTribOutlet+rch_per_proc(0)
+  else
+    ix1=1
+    ix2=rch_per_proc(pid)
+  end if
+  call main_route(iens,              &  ! input: ensemble index
+                  basinRunoff_trib,  &  ! input: basin (i.e.,HRU) runoff (m/s)
+                  basinEvapo_trib,   &  ! input: basin (i.e. HRU) Evapo  (m/s)
+                  basinPrecip_trib,  &  ! input: basin (i.e. HRU) Precip (m/s)
+                  flux_wm_trib,      &  ! reach (i.e.,reach) flux (m3/s)
+                  vol_wm_trib,       &  ! reach (i.e.,reach) target volume for lakes (m3)
+                  ixRchProcessed,    &  ! input: indices of reach to be routed
+                  river_basin_trib,  &  ! input: OMP basin decomposition
+                  NETOPO_trib,       &  ! input: reach topology data structure
+                  RPARAM_trib,       &  ! input: reach parameter data structure
+                  ixPrint(2),        &  ! input: reach index to be checked by on-screen pringing
+                  RCHFLX_trib(:,ix1:ix2),   &  ! inout: reach flux data structure
+                  RCHSTA_trib(:,ix1:ix2),   &  ! inout: reach state data structure
+                  ierr, cmessage)        ! output: error control
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  call t_stopf ('route/tributary-route')
 
-    ! Perform routing
-    if (masterproc) then
-      ix1=nRch_mainstem+nTribOutlet+1
-      ix2=nRch_mainstem+nTribOutlet+rch_per_proc(0)
-    else
-      ix1=1
-      ix2=rch_per_proc(pid)
-    end if
-    call main_route(iens,              &  ! input: ensemble index
-                    basinRunoff_trib,  &  ! input: basin (i.e.,HRU) runoff (m/s)
-                    basinEvapo_trib,   &  ! input: basin (i.e. HRU) Evapo  (m/s)
-                    basinPrecip_trib,  &  ! input: basin (i.e. HRU) Precip (m/s)
-                    flux_wm_trib,      &  ! reach (i.e.,reach) flux (m3/s)
-                    vol_wm_trib,       &  ! reach (i.e.,reach) target volume for lakes (m3)
-                    ixRchProcessed,    &  ! input: indices of reach to be routed
-                    river_basin_trib,  &  ! input: OMP basin decomposition
-                    NETOPO_trib,       &  ! input: reach topology data structure
-                    RPARAM_trib,       &  ! input: reach parameter data structure
-                    ixPrint(2),        &  ! input: reach index to be checked by on-screen pringing
-                    RCHFLX_trib(:,ix1:ix2),   &  ! inout: reach flux data structure
-                    RCHSTA_trib(:,ix1:ix2),   &  ! inout: reach state data structure
-                    ierr, cmessage)        ! output: error control
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    call t_stopf ('route/tributary-route')
+  ! make sure that routing at all the procs finished
+  call shr_mpi_barrier(comm, cmessage)
 
-    ! make sure that routing at all the procs finished
-    call shr_mpi_barrier(comm, cmessage)
-
-    if (nRch_mainstem==0) then   ! if there are no mainstem reaches, finished
-      if (compWB) then
-        call t_startf ('route/comp_global_wb')
-        do ixRoute=1,nRoutes
-          call comp_global_wb(ixRoute, .true., ierr, cmessage)
-          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-        end do
-        call t_stopf ('route/comp_global_wb')
-      end if
-      return
-    end if
-
+  ! --------------------------------
+  ! If mainstem(s) do exist, proceed the followings
+  ! --------------------------------
+  if (nRch_mainstem>0) then
     ! --------------------------------
-    ! Collect all the tributary flows
+    ! collect flow information from upstream tributary at ghost reaches
     ! --------------------------------
     call t_startf('route/gather-state-flux')
 
@@ -1365,46 +1327,44 @@ CONTAINS
     call t_stopf('route/gather-state-flux')
 
     call shr_mpi_barrier(comm, cmessage)
-  end if ! (multiProcs)
 
-  ! --------------------------------
-  ! perform mainstem routing
-  ! --------------------------------
-  if (masterproc) then
-    call t_startf ('route/mainstem_route')
+    ! --------------------------------
+    ! perform mainstem routing (only in main processor)
+    ! --------------------------------
+    if (masterproc) then
+      call t_startf ('route/mainstem_route')
 
-    if (allocated(ixRchProcessed)) then
-      deallocate(ixRchProcessed, stat=ierr)
-      if(ierr/=0)then; message=trim(message)//'problem deallocating array for [ixRchProcessed]'; return; endif
-    end if
-    allocate(ixRchProcessed(nRch_mainstem), stat=ierr)
-    if(ierr/=0)then; message=trim(message)//'problem allocating array for [ixRchProcessed]'; return; endif
+      if (allocated(ixRchProcessed)) then
+        deallocate(ixRchProcessed, stat=ierr)
+        if(ierr/=0)then; message=trim(message)//'problem deallocating array for [ixRchProcessed]'; return; endif
+      end if
+      allocate(ixRchProcessed(nRch_mainstem), stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'problem allocating array for [ixRchProcessed]'; return; endif
 
-    ! Define processing reach indices
-    ixRchProcessed = arth(1,1,nRch_mainstem)
+      ! Define processing reach indices
+      ixRchProcessed = arth(1,1,nRch_mainstem)
 
-    call main_route(iens,                    &  ! input: ensemble index
-                    basinRunoff_main,        &  ! input: basin (i.e.,HRU) runoff (m/s)
-                    basinEvapo_main,         &  ! input: basin (i.e. HRU) Evapo  (m/s)
-                    basinPrecip_main,        &  ! input: basin (i.e. HRU) Precip (m/s)
-                    flux_wm_main,            &  ! reach (i.e.,reach) flux (m3/s)
-                    vol_wm_main,             &  ! reach (i.e.,reach) target volume for lakes (m3)
-                    ixRchProcessed,          &  ! input: indices of reach to be routed
-                    river_basin_main,        &  ! input: OMP basin decomposition
-                    NETOPO_main,             &  ! input: reach topology data structure
-                    RPARAM_main,             &  ! input: reach parameter data structure
-                    ixPrint(1),              &  ! input: reach index to be checked by on-screen pringing
-                    RCHFLX_trib(:,1:nRch_mainstem+nTribOutlet),  &  ! inout: reach flux data structure
-                    RCHSTA_trib(:,1:nRch_mainstem+nTribOutlet),  &  ! inout: reach state data structure
-                    ierr, cmessage)              ! output: error control
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      call main_route(iens,                    &  ! input: ensemble index
+                      basinRunoff_main,        &  ! input: basin (i.e.,HRU) runoff (m/s)
+                      basinEvapo_main,         &  ! input: basin (i.e. HRU) Evapo  (m/s)
+                      basinPrecip_main,        &  ! input: basin (i.e. HRU) Precip (m/s)
+                      flux_wm_main,            &  ! reach (i.e.,reach) flux (m3/s)
+                      vol_wm_main,             &  ! reach (i.e.,reach) target volume for lakes (m3)
+                      ixRchProcessed,          &  ! input: indices of reach to be routed
+                      river_basin_main,        &  ! input: OMP basin decomposition
+                      NETOPO_main,             &  ! input: reach topology data structure
+                      RPARAM_main,             &  ! input: reach parameter data structure
+                      ixPrint(1),              &  ! input: reach index to be checked by on-screen pringing
+                      RCHFLX_trib(:,1:nRch_mainstem+nTribOutlet),  &  ! inout: reach flux data structure
+                      RCHSTA_trib(:,1:nRch_mainstem+nTribOutlet),  &  ! inout: reach state data structure
+                      ierr, cmessage)              ! output: error control
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call t_stopf ('route/mainstem_route')
-  endif ! end of root proc
+      call t_stopf ('route/mainstem_route')
+    endif ! end of root proc
 
-  call shr_mpi_barrier(comm, cmessage)
+    call shr_mpi_barrier(comm, cmessage)
 
-  if (multiProcs) then
     ! --------------------------------
     ! Distribute updated tributary states (only tributary reaches flowing into mainstem) to processors to update states upstream reaches
     ! --------------------------------
@@ -1424,7 +1384,8 @@ CONTAINS
     endif
 
     call shr_mpi_barrier(comm, cmessage)
-  endif !(multiProcs)
+
+  endif !(nRch_mainstem==0)
 
   if (compWB) then
     call t_startf ('route/comp_global_wb')
@@ -1469,85 +1430,62 @@ CONTAINS
 
   ierr=0; message='scatter_runoff/'
 
-  if (.not.multiProcs) then
-    ! if only single proc is used, all runoff is stored in mainstem runoff array
-    if (.not. allocated(basinRunoff_main)) then
-      allocate(basinRunoff_main(nHRU), stat=ierr)
-      if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinRunoff_main]'; return; endif
-    end if
-    basinRunoff_main(:) = runoff_data%basinRunoff(:)
+  ! sort the basin runoff, precipitation and evaporation in terms of nodes/domains
+  if (masterproc) then ! this is a root process
 
+    ! runoff at hru in mainstem and tributaries
+    basinRunoff_local(1:nHRU) = runoff_data%basinRunoff(1:nHRU)
+    ! evaporation and precipitation at main channel and tributaries
     if (is_lake_sim) then
-
-      ! if only single proc is used, all evaporation is stored in mainstem evaporation array
-      if (.not. allocated(basinEvapo_main)) then
-        allocate(basinEvapo_main(nHRU), stat=ierr)
-        if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinEvapo_main]'; return; endif
-      end if
-      basinEvapo_main(:) = runoff_data%basinEvapo(:)
-
-      ! if only single proc is used, all precipitation is stored in mainstem precipitation array
-      if (.not. allocated(basinPrecip_main)) then
-        allocate(basinPrecip_main(nHRU), stat=ierr)
-        if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinPrecip_main]'; return; endif
-      end if
-      basinPrecip_main(:) = runoff_data%basinPrecip(:)
-
+      basinEvapo_local (1:nHRU) = runoff_data%basinEvapo(1:nHRU)
+      basinPrecip_local(1:nHRU) = runoff_data%basinPrecip(1:nHRU)
     end if
-  else
-    ! sort the basin runoff, precipitation and evaporation in terms of nodes/domains
-    if (masterproc) then ! this is a root process
+
+    if (nHRU_mainstem>0) then
       if (.not. allocated(basinRunoff_main)) then
         allocate(basinRunoff_main(nHRU_mainstem), stat=ierr)
         if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinRunoff_main]'; return; endif
       endif
+      basinRunoff_main(1:nHRU_mainstem) = basinRunoff_local(1:nHRU_mainstem)
 
       if (is_lake_sim) then
         if (.not. allocated(basinEvapo_main)) then
           allocate(basinEvapo_main(nHRU_mainstem), stat=ierr)
           if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinEvapo_main]'; return; endif
         endif
+        basinEvapo_main (1:nHRU_mainstem) = basinEvapo_local (1:nHRU_mainstem)
+
         if (.not. allocated(basinPrecip_main)) then
           allocate(basinPrecip_main(nHRU_mainstem), stat=ierr)
           if(ierr/=0)then; message=trim(message)//'problem allocating array for [basinPrecip_main]'; return; endif
         endif
-      end if
-
-      ! runoff at hru in mainstem and tributaries
-      basinRunoff_local(1:nHRU) = runoff_data%basinRunoff(1:nHRU)
-      basinRunoff_main(1:nHRU_mainstem) = basinRunoff_local(1:nHRU_mainstem)
-
-      ! evaporation and precipitation at main channel and tributaries
-      if (is_lake_sim) then
-        basinEvapo_local (1:nHRU) = runoff_data%basinEvapo(1:nHRU)
-        basinPrecip_local(1:nHRU) = runoff_data%basinPrecip(1:nHRU)
-        basinEvapo_main (1:nHRU_mainstem) = basinEvapo_local (1:nHRU_mainstem)
         basinPrecip_main(1:nHRU_mainstem) = basinPrecip_local(1:nHRU_mainstem)
       end if
     end if
 
-    call shr_mpi_barrier(comm, cmessage)
+  end if ! (masterproc)
 
-    ! Distribute the basin runoff to each process
-    call shr_mpi_scatterV(basinRunoff_local(nHRU_mainstem+1:nHRU), &
+  call shr_mpi_barrier(comm, cmessage)
+
+  ! Distribute the basin runoff to each process
+  call shr_mpi_scatterV(basinRunoff_local(nHRU_mainstem+1:nHRU), &
+                        hru_per_proc(0:nNodes-1),                &
+                        basinRunoff_trib,                        &
+                        ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  if (is_lake_sim) then
+    call shr_mpi_scatterV(basinEvapo_local(nHRU_mainstem+1:nHRU),  &
                           hru_per_proc(0:nNodes-1),                &
-                          basinRunoff_trib,                        &
+                          basinEvapo_trib,                         &
                           ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    if (is_lake_sim) then
-      call shr_mpi_scatterV(basinEvapo_local(nHRU_mainstem+1:nHRU),  &
-                            hru_per_proc(0:nNodes-1),                &
-                            basinEvapo_trib,                         &
-                            ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-      call shr_mpi_scatterV(basinPrecip_local(nHRU_mainstem+1:nHRU), &
-                            hru_per_proc(0:nNodes-1),                &
-                            basinPrecip_trib,                        &
-                            ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    end if
+    call shr_mpi_scatterV(basinPrecip_local(nHRU_mainstem+1:nHRU), &
+                          hru_per_proc(0:nNodes-1),                &
+                          basinPrecip_trib,                        &
+                          ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if
 
  END SUBROUTINE scatter_runoff
@@ -1581,36 +1519,25 @@ CONTAINS
   real(dp)                            :: Rch_vol_local(nRch)             ! temporal reach (lake) volume (m3) for whole domain
   character(len=strLen)               :: cmessage                        ! error message from a subroutine
 
-  ierr=0; message='scatter_runoff/'
+  ierr=0; message='scatter_wm/'
 
-  if (.not. multiProcs) then
+  ! sort the reach flux, target vol in terms of nodes/domains
+  if (masterproc) then ! this is a root process
+    ! flux or target vol at reach in mainstem and tributaries
     if (is_flux_wm) then
-      ! if only single proc is used, all fluxes are stored in mainstem runoff array
-      if (.not. allocated(flux_wm_main)) then
-        allocate(flux_wm_main(nRch), stat=ierr)
-        if(ierr/=0)then; message=trim(message)//'problem allocating array for [flux_wm_main]'; return; endif
-      end if
-      flux_wm_main(:) = wm_data%flux_wm(:)
-    endif
-
+      Rch_flux_local(1:nRch) = wm_data%flux_wm(1:nRch)
+    end if
+    ! target vol at reach in mainstem and tributaries
     if (is_vol_wm.and.is_lake_sim) then
-      ! if only single proc is used, all target volumes are stored in mainstem runoff array
-      if (.not. allocated(vol_wm_main)) then
-        allocate(vol_wm_main(nRch), stat=ierr)
-        if(ierr/=0)then; message=trim(message)//'problem allocating array for [vol_wm_main]'; return; endif
-      end if
-      vol_wm_main(:) = wm_data%vol_wm(:)
-    endif
-  else
-    ! sort the reach flux, target vol in terms of nodes/domains
-    if (masterproc) then ! this is a root process
+      Rch_vol_local(1:nRch) = wm_data%vol_wm(1:nRch)
+    end if
+
+    if (nRch_mainstem>0) then
       if (is_flux_wm) then
         if (.not. allocated(flux_wm_main)) then
           allocate(flux_wm_main(nRch_mainstem), stat=ierr)
           if(ierr/=0)then; message=trim(message)//'problem allocating array for [flux_wm_main]'; return; endif
         endif
-        ! flux or target vol at reach in mainstem and tributaries
-        Rch_flux_local(1:nRch) = wm_data%flux_wm(1:nRch)
         flux_wm_main(1:nRch_mainstem) = Rch_flux_local(1:nRch_mainstem)
       endif
 
@@ -1619,31 +1546,30 @@ CONTAINS
           allocate(vol_wm_main(nRch_mainstem), stat=ierr)
           if(ierr/=0)then; message=trim(message)//'problem allocating array for [vol_wm_main]'; return; endif
         endif
-        ! target vol at reach in mainstem and tributaries
-        Rch_vol_local(1:nRch) = wm_data%vol_wm(1:nRch)
         vol_wm_main(1:nRch_mainstem) = Rch_vol_local(1:nRch_mainstem)
       end if
     end if
 
-    call shr_mpi_barrier(comm, cmessage)
+  end if !(masterproc)
 
-    ! Distribute the read flux to each process
-    if (is_flux_wm) then
-      call shr_mpi_scatterV(Rch_flux_local(nRch_mainstem+1:nRch),  &
-                            rch_per_proc(0:nNodes-1),              &
-                            flux_wm_trib,                          &
-                            ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    endif
+  call shr_mpi_barrier(comm, cmessage)
 
-    if (is_vol_wm.and.is_lake_sim) then
-      call shr_mpi_scatterV(Rch_vol_local(nRch_mainstem+1:nRch),   &
-                            rch_per_proc(0:nNodes-1),              &
-                            vol_wm_trib,                           &
-                            ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    endif
-  end if
+  ! Distribute the read flux to each process
+  if (is_flux_wm) then
+    call shr_mpi_scatterV(Rch_flux_local(nRch_mainstem+1:nRch),  &
+                          rch_per_proc(0:nNodes-1),              &
+                          flux_wm_trib,                          &
+                          ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+  if (is_vol_wm.and.is_lake_sim) then
+    call shr_mpi_scatterV(Rch_vol_local(nRch_mainstem+1:nRch),   &
+                          rch_per_proc(0:nNodes-1),              &
+                          vol_wm_trib,                           &
+                          ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
 
  END SUBROUTINE scatter_wm
 
