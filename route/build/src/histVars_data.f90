@@ -454,13 +454,13 @@ MODULE histVars_data
           if (routeMethods(ixRoute)==accumRunoff) cycle  ! accumuRunoff has only discharge
 
           if (meta_rflx(ixVol)%varFile) then
-            call read_dist_array(pioFileDesc, meta_rflx(ixVol)%varName, this%volume(1:nRch,ixRoute), ioDescRchHist, ierr, cmessage)
+            call read_dist_array(pioFileDesc, meta_rflx(ixVol)%varName, array_tmp, ioDescRchHist, ierr, cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
           end if
           ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
           if (masterproc) then
             this%volume(1:nRch_mainstem, ixRoute) = array_tmp(1:nRch_mainstem)
-            this%volume(nRch_mainstem+nTribOutlet+1:this%nRch,:) = this%volume(nRch_mainstem+1:nRch_mainstem+nRch_trib,:)
+            this%volume(nRch_mainstem+nTribOutlet+1:this%nRch,ixRoute) = this%volume(nRch_mainstem+1:nRch_mainstem+nRch_trib,ixRoute)
           else
             this%volume(:,ixRoute) = array_tmp
           end if

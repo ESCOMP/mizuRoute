@@ -27,6 +27,7 @@ MODULE RtmMod
   USE globalData,   ONLY: npes       => nNodes
   USE globalData,   ONLY: mpicom_rof => mpicom_route
   USE globalData,   ONLY: masterproc
+  USE globalData,   ONLY: isRestart                  ! restart flag
   USE mpi_utils, ONLY: shr_mpi_barrier
 
   implicit none
@@ -59,6 +60,8 @@ CONTAINS
     USE globalData,          ONLY: nHRU_mainstem               ! scalar data: number of mainstem hrus
     USE globalData,          ONLY: nHRU_trib                   ! scalar data: number of tributary hrus
     USE globalData,          ONLY: nRch_trib                   ! scalar data: number of tributary reaches
+    USE globalData,          ONLY: nTribOutlet                 ! scalar data: number of tributaries flowing to mainstem
+    USE globalData,          ONLY: RCHFLX_trib                 ! data structure: Reach flux variables (per proc, tributary)
     USE globalData,          ONLY: NETOPO_trib                 ! data structure: River Network topology (other procs, tributary)
     USE globalData,          ONLY: NETOPO_main                 ! data structure: River Network topology (main proc, mainstem)
     USE globalData,          ONLY: RPARAM_trib                 ! data structure: River parameters (other procs, tributary)
@@ -82,6 +85,7 @@ CONTAINS
     character(len=CL)          :: rof_trstr                 ! tracer string
     integer                    :: ierr                      ! error code
     integer                    :: nt, ix, ix1, ix2
+    integer                    :: lwr,upr                ! lower and upper bounds for array slicing
     character(len= 7)          :: runtyp(4)                 ! run type
     character(len=CL)          :: cmessage
     character(len=*),parameter :: subname = '(route_ini) '
@@ -249,6 +253,7 @@ CONTAINS
     if ((nsrest == nsrContinue) .or. &
         (nsrest == nsrBranch)) then
       call RtmRestGetfile()
+      isRestart=.true.
       if (nsrest == nsrContinue) then
         call init_histFile(ierr, cmessage)
         if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
@@ -261,6 +266,24 @@ CONTAINS
 
     call init_state_data(iam, npes, mpicom_rof, ierr, cmessage)
     if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+
+    ! put reach flux variables to associated HRUs
+    if (isRestart) then
+      if (masterproc) then
+        if (nRch_mainstem > 0) then
+          lwr=1
+          upr=nRch_mainstem
+          call get_river_export_data(NETOPO_main(lwr:upr), RCHFLX_trib(:,lwr:upr), discharge=.false.)
+        end if
+        if (nRch_trib > 0) then
+          lwr = nRch_mainstem + nTribOutlet + 1
+          upr = nRch_mainstem + nTribOutlet + nRch_trib
+          call get_river_export_data(NETOPO_trib, RCHFLX_trib(:,lwr:upr), offset=nHRU_mainstem, discharge=.false.)
+        end if
+      else ! other processors
+        call get_river_export_data(NETOPO_trib, RCHFLX_trib, discharge=.false.)
+      end if
+    end if
 
     !-------------------------------------------------------
     ! subroutines used only route_ini
@@ -677,50 +700,75 @@ CONTAINS
 
     call t_stopf('mizuRoute_tot')
 
-    !-------------------------------------------------------
-    ! subroutines used only route_run
-    !-------------------------------------------------------
-    CONTAINS
-
-      SUBROUTINE get_river_export_data(NETOPO_in, RCHFLX_in, offset)
-
-        ! Descriptions: get exporting variables
-        !  - discharge [m3/s],
-        !  - water volume per HUC area [m]
-        !  NOTE 1) offset (optional input): in main processor, index for rtmCTL variable is based on 1 through nHRU_mainstem+nHRU_trib
-        !       (combining mainstem and tributary hru in the order). Therefore, hru index based NETOPO for tributary in main processor
-        !       need to be added by number of nHRU_mainstem. offset can be used for this.
-
-        USE globalData, ONLY: idxIRF   ! routing method index
-        USE dataTypes, ONLY: RCHTOPO   ! data structure - Network topology
-        USE dataTypes, ONLY: STRFLX    ! data structure - fluxes in each reach
-
-        implicit none
-        ! Arguments:
-        type(RCHTOPO), intent(in)     :: NETOPO_in(:)   ! mizuRoute network topology data structure
-        type(STRFLX),  intent(in)     :: RCHFLX_in(:,:) ! mizuRoute reach flux data structure
-        integer, optional, intent(in) :: offset         ! index offset to point correct location in rtmCTL
-        ! Local variables:
-        integer                   :: ix
-        integer                   :: iens=1
-        integer                   :: iRch, iHru
-        integer                   :: nRch, nCatch
-
-        nRch=size(NETOPO_in)
-        do iRch =1, nRch
-          nCatch = size(NETOPO_in(iRch)%HRUIX)
-          do iHru = 1, nCatch
-            ix = NETOPO_in(iRch)%HRUIX(iHru)
-            if (present(offset)) ix=ix+offset
-            ! stream volume is split into HRUs based on HRU's areal weight for contributory area
-            rtmCTL%volr(ix) = RCHFLX_in(iens,iRch)%ROUTE(idxIRF)%REACH_VOL(1)*NETOPO_in(iRch)%HRUWGT(iHru)/rtmCTL%area(ix)
-            rtmCTL%discharge(ix,1) = RCHFLX_in(iens,iRch)%ROUTE(idxIRF)%REACH_Q* NETOPO_in(iRch)%HRUWGT(iHru)
-            rtmCTL%flood(ix)       = 0._r8  ! placeholder
-          end do
-        end do
-      END SUBROUTINE
-
   END SUBROUTINE route_run
+
+  !-------------------------------------------------------
+  ! subroutines used only route_run
+  !-------------------------------------------------------
+  SUBROUTINE get_river_export_data(NETOPO_in, RCHFLX_in, &
+                                   volume, discharge, flood, &
+                                   offset)
+
+    ! Descriptions: get exporting variables
+    !  - discharge [m3/s],
+    !  - water volume per HUC area [m]
+    !  NOTE 1) offset (optional input): in main processor, index for rtmCTL variable is based on 1 through nHRU_mainstem+nHRU_trib
+    !       (combining mainstem and tributary hru in the order). Therefore, hru index based NETOPO for tributary in main processor
+    !       need to be added by number of nHRU_mainstem. offset can be used for this.
+
+    USE globalData, ONLY: idxIRF   ! routing method index
+    USE dataTypes, ONLY: RCHTOPO   ! data structure - Network topology
+    USE dataTypes, ONLY: STRFLX    ! data structure - fluxes in each reach
+
+    implicit none
+    ! Arguments:
+    type(RCHTOPO), intent(in)     :: NETOPO_in(:)   ! mizuRoute network topology data structure
+    type(STRFLX),  intent(in)     :: RCHFLX_in(:,:) ! mizuRoute reach flux data structure
+    integer, optional, intent(in) :: offset         ! index offset to point correct location in rtmCTL
+    logical, optional, intent(in) :: volume         !
+    logical, optional, intent(in) :: discharge      !
+    logical, optional, intent(in) :: flood          !
+    ! Local variables:
+    integer                   :: ix
+    integer                   :: iens=1
+    integer                   :: iRch, iHru
+    integer                   :: nRch, nCatch
+    logical                   :: update_vol      !
+    logical                   :: update_q        !
+    logical                   :: update_fld      !
+
+    update_vol = .true.
+    update_q   = .true.
+    update_fld = .true.
+    if (present(volume)) then
+      update_vol=volume
+    end if
+    if (present(discharge)) then
+      update_q=discharge
+    end if
+    if (present(flood)) then
+      update_fld=flood
+    end if
+
+    nRch=size(NETOPO_in)
+    do iRch =1, nRch
+      nCatch = size(NETOPO_in(iRch)%HRUIX)
+      do iHru = 1, nCatch
+        ix = NETOPO_in(iRch)%HRUIX(iHru)
+        if (present(offset)) ix=ix+offset
+        ! stream volume is split into HRUs based on HRU's areal weight for contributory area
+        if (update_vol) then
+          rtmCTL%volr(ix) = RCHFLX_in(iens,iRch)%ROUTE(idxIRF)%REACH_VOL(1)*NETOPO_in(iRch)%HRUWGT(iHru)/rtmCTL%area(ix)
+        end if
+        if (update_q) then
+          rtmCTL%discharge(ix,1) = RCHFLX_in(iens,iRch)%ROUTE(idxIRF)%REACH_Q* NETOPO_in(iRch)%HRUWGT(iHru)
+        end if
+        if (update_fld) then
+          rtmCTL%flood(ix)       = 0._r8  ! placeholder
+        end if
+      end do
+    end do
+  END SUBROUTINE
 
 
   SUBROUTINE RtmRestGetfile()

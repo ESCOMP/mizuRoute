@@ -118,6 +118,7 @@ MODULE globalData
   character(300),                  public :: hfileout_gage=charMissing   ! gage-only history output file name
   character(300),                  public :: rfileout=charMissing        ! restart output file name
   logical(lgt),                    public :: initHvars=.false.           ! status of history variable data initialization
+  logical(lgt),                    public :: isRestart=.false.           ! restart run or not?
 
   ! ---------- MPI/OMP/PIO variables ----------------------------------------------------------------
 

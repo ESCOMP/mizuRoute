@@ -28,6 +28,7 @@ CONTAINS
  USE globalData, ONLY: meta_PFAF               ! pfafstetter code
  USE globalData, ONLY: meta_rflx               ! river flux variables
  USE globalData, ONLY: meta_hflx               ! river flux variables
+ USE globalData, ONLY: isRestart               ! number of active routing methods
  USE globalData, ONLY: nRoutes                 ! number of active routing methods
  USE globalData, ONLY: routeMethods            ! active routing method index and id
  USE globalData, ONLY: onRoute                 ! logical to indicate actiive routing method(s)
@@ -44,6 +45,7 @@ CONTAINS
  ! external subroutines
  USE ascii_utils, ONLY: file_open        ! open file (performs a few checks as well)
  USE ascii_utils, ONLY: get_vlines       ! get a list of character strings from non-comment lines
+ USE ascii_utils, ONLY: lower            ! convert string to lower case
  USE nr_utils,    ONLY: char2int         ! convert integer number to a array containing individual digits
 
  implicit none
@@ -341,6 +343,13 @@ CONTAINS
  if (trim(restart_dir)==charMissing) then
    restart_dir = output_dir
  endif
+
+ ! ---------- restart option  ---------------------------------------------------------------------
+ if (trim(fname_state_in)==charMissing .or. lower(trim(fname_state_in))=='none' .or. lower(trim(fname_state_in))=='coldstart') then
+   isRestart=.false.
+ else
+   isRestart=.true.
+ end if
 
  ! ---------- control river network writing option  ---------------------------------------------------------------------
  ! option 1- river network subset mode (idSegOut>0):  Write the network variables read from file over only upstream network specified idSegOut
