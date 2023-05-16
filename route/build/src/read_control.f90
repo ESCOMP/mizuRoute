@@ -34,6 +34,7 @@ CONTAINS
  USE globalData, ONLY: onRoute                 ! logical to indicate actiive routing method(s)
  USE globalData, ONLY: idxSUM,idxIRF,idxKWT, &
                        idxKW,idxMC,idxDW
+ USE globalData, ONLY: runMode                 ! mizuRoute run mode: standalone, cesm-coupling
  ! index of named variables in each structure
  USE var_lookup, ONLY: ixHRU
  USE var_lookup, ONLY: ixHRU2SEG
@@ -345,10 +346,12 @@ CONTAINS
  endif
 
  ! ---------- restart option  ---------------------------------------------------------------------
- if (trim(fname_state_in)==charMissing .or. lower(trim(fname_state_in))=='none' .or. lower(trim(fname_state_in))=='coldstart') then
-   isRestart=.false.
- else
-   isRestart=.true.
+ if (trim(runMode)=='standalone') then
+   if (trim(fname_state_in)==charMissing .or. lower(trim(fname_state_in))=='none' .or. lower(trim(fname_state_in))=='coldstart') then
+     isRestart=.false.
+   else
+     isRestart=.true.
+   end if
  end if
 
  ! ---------- control river network writing option  ---------------------------------------------------------------------

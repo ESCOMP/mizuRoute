@@ -53,7 +53,6 @@ CONTAINS
     ! 6. initialize state variables
 
     ! mizuRoute share routines
-    USE globalData,          ONLY: runMode                     ! "ctsm-coupling" or "standalone" to differentiate some behaviours in mizuRoute
     USE globalData,          ONLY: ixHRU_order                 ! global HRU index in the order of proc assignment (size = num of hrus contributing reach in entire network)
     USE globalData,          ONLY: hru_per_proc                ! number of hrus assigned to each proc (size = num of procs
     USE globalData,          ONLY: nRch_mainstem               ! scalar data: number of mainstem reaches
@@ -154,8 +153,6 @@ CONTAINS
     !-------------------------------------------------------
     ! 2. update mizuRoute PIO parameter from CIME
     !-------------------------------------------------------
-    runMode='cesm-coupling'
-
     select case(shr_pio_getioformat(inst_name))
       case(PIO_64BIT_OFFSET); pio_netcdf_format = '64bit_offset'
       case(PIO_64BIT_DATA);   pio_netcdf_format = '64bit_data'
