@@ -219,6 +219,7 @@ contains
        call ESMF_LogWrite(trim(subname)//' flds_scalar_name = '//trim(flds_scalar_name), ESMF_LOGMSG_INFO)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     else
+       call shr_sys_flush(iulog)
        call shr_sys_abort(subname//'Need to set attribute ScalarFieldName')
     endif
 
@@ -230,6 +231,7 @@ contains
        call ESMF_LogWrite(trim(subname)//' flds_scalar_num = '//trim(logmsg), ESMF_LOGMSG_INFO)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     else
+       call shr_sys_flush(iulog)
        call shr_sys_abort(subname//'Need to set attribute ScalarFieldCount')
     endif
 
@@ -241,6 +243,7 @@ contains
        call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_nx = '//trim(logmsg), ESMF_LOGMSG_INFO)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     else
+       call shr_sys_flush(iulog)
        call shr_sys_abort(subname//'Need to set attribute ScalarFieldIdxGridNX')
     endif
 
@@ -252,6 +255,7 @@ contains
        call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_ny = '//trim(logmsg), ESMF_LOGMSG_INFO)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     else
+       call shr_sys_flush(iulog)
        call shr_sys_abort(subname//'Need to set attribute ScalarFieldIdxGridNY')
     endif
 
@@ -263,6 +267,7 @@ contains
        call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_nextsw_cday = '//trim(logmsg), ESMF_LOGMSG_INFO)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     else
+       call shr_sys_flush(iulog)
        call shr_sys_abort(subname//'Need to set attribute ScalarFieldIdxNextSwCday')
     endif
 
@@ -412,7 +417,7 @@ contains
 
     ! Temporal fix
     call init_model(cfile_name, ierr, cmessage)
-    if(ierr/=0) then; cmessage = trim(subname)//trim(cmessage); call shr_sys_abort(cmessage); endif
+    if(ierr/=0) then; cmessage = trim(subname)//trim(cmessage); call shr_sys_flush(iulog); call shr_sys_abort(cmessage); endif
 
     !----------------------
     ! Initialize time managers in mizuRoute
@@ -464,6 +469,7 @@ contains
     else if (esmf_caltype == ESMF_CALKIND_GREGORIAN) then
        calendar = 'gregorian'
     else
+       call shr_sys_flush(iulog)
        call shr_sys_abort( subname//'ERROR:: bad calendar for ESMF' )
     end if
 
@@ -493,6 +499,7 @@ contains
     else if (trim(starttype) == trim('branch')) then
        nsrest = nsrBranch
     else
+       call shr_sys_flush(iulog)
        call shr_sys_abort( subname//' ERROR: unknown starttype' )
     end if
 
@@ -534,6 +541,7 @@ contains
 
     if ( .not. allocated(gindex) )then
        cmessage = cmessage // " gindex is not allocated"
+       call shr_sys_flush(iulog)
        call shr_sys_abort( subname//cmessage )
     end if
     if ( debug_write ) then
@@ -548,6 +556,7 @@ contains
     deallocate(gindex)
     if ( .not. ESMF_DistGridIsCreated( DistGrid, rc=rc ) )then
        cmessage = cmessage // " DistGrid is NOT created"
+       call shr_sys_flush(iulog)
        call shr_sys_abort( subname//cmessage )
     end if
     call ESMF_DistGridValidate( DistGrid, rc=rc )

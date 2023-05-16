@@ -191,6 +191,7 @@ contains
     enddo
     if (nliq == 0 .or. nfrz == 0) then
        write(iulog,*) trim(subname),': ERROR in rof_tracers LIQ ICE ',nliq,nfrz,rof_tracers
+       call shr_sys_flush(iulog)
        call shr_sys_abort()
     endif
 
@@ -265,6 +266,7 @@ contains
     enddo
     if (nliq == 0 .or. nfrz == 0) then
        write(iulog,*) trim(subname),': ERROR in rof_tracers LIQ ICE ',nliq,nfrz,rof_tracers
+       call shr_sys_flush(iulog)
        call shr_sys_abort()
     endif
 
@@ -291,6 +293,7 @@ contains
 
     if ( ice_runoff )then
        ! separate liquid and ice runoff
+       call shr_sys_flush(iulog)
        call shr_sys_abort(trim(subname)//': ERROR ice_runoff can NOT be true')
        do n = begr,endr
           rofl(n) = rtmCTL%discharge(n,nliq)
@@ -353,6 +356,7 @@ contains
     if (num > fldsMax) then
        call ESMF_LogWrite(trim(subname)//": ERROR num > fldsMax "//trim(stdname), &
             ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__, rc=dbrc)
+       call shr_sys_flush(iulog)
        call shr_sys_abort(' ERROR: number or fields are higher than the max allowed ' )
     endif
     fldlist(num)%stdname = trim(stdname)
@@ -670,6 +674,7 @@ contains
              write(iulog,*) "NaN found in field ", trim(fname), ' at gridcell index ',begg+i-1
           end if
        end do
+       call shr_sys_flush(iulog)
        call shr_sys_abort(' ERROR: One or more of the output from mizuRoute to the coupler are NaN ' )
     end if
   end subroutine check_for_nans

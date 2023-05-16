@@ -7,7 +7,7 @@ MODULE RunoffMod
   USE public_var, ONLY : iulog
   USE public_var, ONLY : integerMissing
   USE rtmVar,     ONLY : nt_rof
-  USE shr_sys_mod,ONLY : shr_sys_abort
+  USE shr_sys_mod,ONLY : shr_sys_abort, shr_sys_flush
 
   implicit none
 
@@ -62,6 +62,7 @@ CONTAINS
              stat=ierr)
     if (ierr/=0) then
       write(iulog,*)'Rtmini ERROR allocation of runoff local arrays'
+      call shr_sys_flush(iulog)
       call shr_sys_abort
     end if
 
