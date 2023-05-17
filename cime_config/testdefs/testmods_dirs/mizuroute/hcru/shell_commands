@@ -1,1 +1,2 @@
 ./xmlchange LND_DOMAIN_MESH='$DIN_LOC_ROOT/share/meshes/360x720_120830_ESMFmesh_c20210507_cdf5.nc'
+./xmlchange ATM_DOMAIN_MESH='$DIN_LOC_ROOT/share/meshes/360x720_120830_ESMFmesh_c20210507_cdf5.nc'
