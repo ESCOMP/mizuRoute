@@ -18,7 +18,7 @@ module rof_comp_nuopc
   use shr_file_mod          , only : shr_file_getlogunit, shr_file_setlogunit
   use shr_cal_mod           , only : shr_cal_ymd2date
 
-  use public_var            , only : iulog
+  use public_var            , only : iulog, debug
   use public_var            , only : calendar, simStart, simEnd, time_units
   use globalData            , only : masterproc
   use globalData            , only : iam        => pid
@@ -63,11 +63,6 @@ module rof_comp_nuopc
   integer                 :: flds_scalar_index_ny = 0
   integer                 :: flds_scalar_index_nextsw_cday = 0._r8
   integer                 :: nthrds
-#ifdef NDEBUG
-  logical, parameter      :: debug_write = .false.
-#else
-  logical, parameter      :: debug_write = .false.
-#endif
 
   character(*), parameter :: modName =  "(rof_comp_nuopc)"
   character(*), parameter :: u_FILE_u = &
@@ -544,7 +539,7 @@ contains
        call shr_sys_flush(iulog)
        call shr_sys_abort( subname//cmessage )
     end if
-    if ( debug_write ) then
+    if ( debug ) then
        write(iulog,*) "iam, lsize = ", iam, lsize
        write(iulog,*) "iam, gindex(min,max,mid) = ", iam, minval(gindex), maxval(gindex), gindex(lsize/2)
        call shr_sys_flush(iulog)
@@ -566,7 +561,7 @@ contains
     call ESMF_DistGridGet( DistGrid, dimCount=dimCount, tileCount=tileCount, deCount=deCount, localDeCount=localDeCount, &
                            regDecompFlag=regDecompFlag, connectionCount=connectionCount, rc=rc )
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    if (masterproc .and. debug_write) then
+    if (masterproc .and. debug) then
        write(iulog,*) "dimCount = ", dimCount
        write(iulog,*) "tileCount = ", tileCount
        write(iulog,*) "deCount = ", deCount
@@ -580,7 +575,7 @@ contains
     call NUOPC_CompAttributeGet(gcomp, name='mesh_rof', value=cvalue, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    if (masterproc .and. debug_write) then
+    if (masterproc .and. debug) then
        write(iulog,*)'mesh file for domain is ',trim(cvalue)
        call shr_sys_flush(iulog)
     end if
@@ -593,7 +588,7 @@ contains
     Emesh = ESMF_MeshCreate(Mesh, elementDistgrid=DistGrid, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    if ( debug_write )then
+    if ( debug )then
       call ESMF_MeshWrite(Emesh, filename='miz_mesh', rc=rc)
       call ESMF_MeshGet( Emesh,  parametricDim=parametricDim, spatialDim=spatialDim, numOwnedNodes=numOwnedNodes, &
                        numOwnedElements=numOwnedElements, isMemFreed=isMemFreed, rc=rc)
@@ -643,7 +638,7 @@ contains
     ! diagnostics
     !--------------------------------
 
-    if (debug_write)then
+    if (debug)then
        call State_diagnose(exportState,subname//':ES',rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     endif
@@ -822,7 +817,7 @@ contains
     ! diagnostics
     !--------------------------------
 
-    if (debug_write)then
+    if (debug)then
        call State_diagnose(exportState,subname//':ES',rc=rc)
        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
     end if
