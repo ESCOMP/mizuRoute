@@ -255,6 +255,8 @@ CONTAINS
         call init_histFile(ierr, cmessage)
         if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
       end if
+    else
+      isRestart=.false.
     endif
 
     !-------------------------------------------------------
