@@ -346,7 +346,7 @@ CONTAINS
  endif
 
  ! ---------- restart option  ---------------------------------------------------------------------
- if (trim(runMode)=='standalone') then
+ if (trim(runMode)=='standalone' .or. .not. continue_run) then
    if (trim(fname_state_in)==charMissing .or. lower(trim(fname_state_in))=='none' .or. lower(trim(fname_state_in))=='coldstart') then
      isColdStart=.true.
    else
