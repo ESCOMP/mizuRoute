@@ -580,41 +580,41 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! basin runoff array
-      allocate(basinRunoff_main(nHRU_mainstem), stat=ierr, errmsg=cmessage)
+      allocate(basinRunoff_main(nHRU_mainstem), source=0.0_dp, stat=ierr, errmsg=cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-      allocate(basinRunoff_trib(nHRU_trib), stat=ierr, errmsg=cmessage)
+      allocate(basinRunoff_trib(nHRU_trib), source=0.0_dp, stat=ierr, errmsg=cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! precipitation and evaporation
       if (is_lake_sim) then
-        allocate(basinEvapo_main(nHRU_mainstem), stat=ierr, errmsg=cmessage)
+        allocate(basinEvapo_main(nHRU_mainstem), source=0.0_dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-        allocate(basinPrecip_main(nHRU_mainstem), stat=ierr, errmsg=cmessage)
+        allocate(basinPrecip_main(nHRU_mainstem), source=0.0_dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-        allocate(basinEvapo_trib(nHRU_trib), stat=ierr, errmsg=cmessage)
+        allocate(basinEvapo_trib(nHRU_trib), source=0.0_dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-        allocate(basinPrecip_trib(nHRU_trib), stat=ierr, errmsg=cmessage)
+        allocate(basinPrecip_trib(nHRU_trib), source=0.0_dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
 
       ! reach abstraction array
       if (is_flux_wm) then
-        allocate(flux_wm_main(nRch_mainstem), stat=ierr, errmsg=cmessage)
+        allocate(flux_wm_main(nRch_mainstem), source=0.0_dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-        allocate(flux_wm_trib(nRch_trib), stat=ierr, errmsg=cmessage)
+        allocate(flux_wm_trib(nRch_trib), source=0.0_dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
 
       if (is_vol_wm.and.is_lake_sim) then
-        allocate(vol_wm_main(nRch_mainstem), stat=ierr, errmsg=cmessage)
+        allocate(vol_wm_main(nRch_mainstem), source=0.0_dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-        allocate(vol_wm_trib(nRch_trib), stat=ierr, errmsg=cmessage)
+        allocate(vol_wm_trib(nRch_trib), source=0.0_dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
     else
@@ -630,27 +630,27 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! basin runoff array
-      allocate(basinRunoff_trib(nHRU_trib), stat=ierr, errmsg=cmessage)
+      allocate(basinRunoff_trib(nHRU_trib),source=0.0_dp, stat=ierr, errmsg=cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! precipitation and evaporation
       if (is_lake_sim) then
-        allocate(basinEvapo_trib(nHRU_trib), stat=ierr, errmsg=cmessage)
+        allocate(basinEvapo_trib(nHRU_trib), source=0.0_dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-        allocate(basinPrecip_trib(nHRU_trib), stat=ierr, errmsg=cmessage)
+        allocate(basinPrecip_trib(nHRU_trib),source=0.0_dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
 
       ! reach abstraction array
       if (is_flux_wm) then
-        allocate(flux_wm_trib(nRch_trib), stat=ierr, errmsg=cmessage)
+        allocate(flux_wm_trib(nRch_trib),source=0.0_dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
 
       ! target volume data
       if (is_vol_wm.and.is_lake_sim) then
-        allocate(vol_wm_trib(nRch_trib), stat=ierr, errmsg=cmessage)
+        allocate(vol_wm_trib(nRch_trib),source=0.0_dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
     end if
@@ -665,7 +665,6 @@ CONTAINS
 
   if (nRch_mainstem > 0) then
     if (masterproc) then
-      ! allocation, RCHFLX, RCHSTA, basinRunoff, basinEvapo, basinPrecip, flux_wm
 
       call alloc_struct(nHRU_mainstem,              & ! input: number of HRUs
                         nRch_mainstem+nTribOutlet,  & ! input: number of stream segments
