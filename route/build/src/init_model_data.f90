@@ -325,7 +325,7 @@ CONTAINS
   USE globalData, ONLY: nMolecule              ! computational molecule
   USE globalData, ONLY: TSEC                   ! begining/ending of simulation time step [sec]
   USE globalData, ONLY: initHvars              ! status of history variabiable data initialization
-  USE globalData, ONLY: isRestart              ! restart flag
+  USE globalData, ONLY: isColdStart            ! restart flag
   USE write_simoutput_pio, ONLY: hVars         ! history variable data
 
   implicit none
@@ -356,7 +356,7 @@ CONTAINS
     end if
   end do
 
-  if (.not. isRestart) then    ! Cold start ....... initialize flux structures
+  if (isColdStart) then    ! Cold start ....... initialize flux structures
     if (masterproc) then
       RCHFLX_trib(:,:)%BASIN_QI     = 0._dp
       RCHFLX_trib(:,:)%BASIN_QR(0)  = 0._dp

@@ -27,7 +27,7 @@ MODULE RtmMod
   USE globalData,   ONLY: npes       => nNodes
   USE globalData,   ONLY: mpicom_rof => mpicom_route
   USE globalData,   ONLY: masterproc
-  USE globalData,   ONLY: isRestart                  ! restart flag
+  USE globalData,   ONLY: isColdStart                ! restart flag
   USE mpi_utils, ONLY: shr_mpi_barrier
 
   implicit none
@@ -247,16 +247,13 @@ CONTAINS
     ! 5. For continue and/or Branch run-- Initialize restart and history files
     !-------------------------------------------------------
     ! Obtain last restart name, and obtain and open last history file depending on which run types-- contiuous or branch
-    if ((nsrest == nsrContinue) .or. &
-        (nsrest == nsrBranch)) then
+    if ((nsrest == nsrContinue) then
       call RtmRestGetfile()
-      isRestart=.true.
-      if (nsrest == nsrContinue) then
-        call init_histFile(ierr, cmessage)
-        if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-      end if
+      isColdStart=.false.
+      call init_histFile(ierr, cmessage)
+      if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
     else
-      isRestart=.false.
+      isColdStart=.true.
     endif
 
     !-------------------------------------------------------
@@ -267,7 +264,7 @@ CONTAINS
     if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
 
     ! put reach flux variables to associated HRUs
-    if (isRestart) then
+    if (.not. isColdStart) then
       if (masterproc) then
         if (nRch_mainstem > 0) then
           lwr=1

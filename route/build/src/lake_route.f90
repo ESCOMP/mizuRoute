@@ -12,7 +12,7 @@ USE public_var, ONLY: integerMissing ! missing value for integer number
 USE public_var, ONLY: pi             ! pi value of 3.14159265359_dp
 USE public_var, ONLY: charMissing    ! missing character
 USE globalData, ONLY: idxIRF         ! index of IRF method
-USE globalData, ONLY: isRestart      ! restart flag
+USE globalData, ONLY: isColdStart    ! restart flag
 USE water_balance, ONLY: comp_reach_wb     ! compute water balance error
 ! subroutines: model time info
 USE time_utils_module, ONLY: compJulday,&      ! compute julian day
@@ -132,7 +132,7 @@ CONTAINS
       if ((is_vol_wm_jumpstart).and.(NETOPO_in(segIndex)%LakeTargVol)) then
         RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%REACH_WM_VOL ! update the initial condition with first target volume value
       else ! the lake volume is not jump started based on lake target volume
-        if (.not. isRestart) then    ! Cold start ....... initialize flux structures
+        if (isColdStart) then    ! Cold start ....... initialize flux structures
           select case(NETOPO_in(segIndex)%LakeModelType)
             case(endorheic)
               RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RPARAM_in(segIndex)%D03_S0 ! currently assumes all endorheic max storage are provided under doll formulation

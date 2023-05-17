@@ -28,7 +28,7 @@ CONTAINS
  USE globalData, ONLY: meta_PFAF               ! pfafstetter code
  USE globalData, ONLY: meta_rflx               ! river flux variables
  USE globalData, ONLY: meta_hflx               ! river flux variables
- USE globalData, ONLY: isRestart               ! number of active routing methods
+ USE globalData, ONLY: isColdStart             ! number of active routing methods
  USE globalData, ONLY: nRoutes                 ! number of active routing methods
  USE globalData, ONLY: routeMethods            ! active routing method index and id
  USE globalData, ONLY: onRoute                 ! logical to indicate actiive routing method(s)
@@ -348,9 +348,9 @@ CONTAINS
  ! ---------- restart option  ---------------------------------------------------------------------
  if (trim(runMode)=='standalone') then
    if (trim(fname_state_in)==charMissing .or. lower(trim(fname_state_in))=='none' .or. lower(trim(fname_state_in))=='coldstart') then
-     isRestart=.false.
+     isColdStart=.true.
    else
-     isRestart=.true.
+     isColdStart=.false.
    end if
  end if
 
