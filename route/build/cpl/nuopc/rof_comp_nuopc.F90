@@ -25,7 +25,7 @@ module rof_comp_nuopc
   use globalData            , only : npes       => nNodes
   use globalData            , only : mpicom_rof => mpicom_route
   use globalData            , only : nHRU
-  use globalData,           , only : runMode                     ! "ctsm-coupling" or "standalone" to differentiate some behaviours in mizuRoute
+  use globalData            , only : runMode                     ! "ctsm-coupling" or "standalone" to differentiate some behaviours in mizuRoute
   use init_model_data       , only : get_mpi_omp, init_model
   use RunoffMod             , only : rtmCTL
   use RtmMod                , only : route_ini, route_run
