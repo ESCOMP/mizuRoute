@@ -127,7 +127,7 @@
 
 
   <!-- CONUS grids: r05mz, HDMA, and MERIT include threaded -->
-  <test name="SMS_D" grid="nldas2_nldas2_rUSGS_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/MERIT">
+  <test name="SMS_D" grid="nldas2_nldas2_rUSGS_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
     </machines>
