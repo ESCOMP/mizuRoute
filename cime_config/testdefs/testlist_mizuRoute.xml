@@ -33,6 +33,16 @@
       <option name="comment"  >Smoke test on small regional grid with DEBUG on</option>
     </options>
   </test>
+  <test name="SMS_D" grid="5x5_amazon_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuroute/5x5_amazon_rHDMA">
+    <machines>
+      <machine name="cheyenne" compiler="intel" category="mizu"></machine>
+    </machines>
+    <options>
+      <option name="wallclock">00:20:00</option>
+      <option name="comment"  >DEBUG Smoke test on small regional grid but with HDMA mizuRoute</option>
+    </options>
+  </test>
+  <!--   comment these out because of #382
   <test name="SMS" grid="5x5_amazon_rHDMA" compset="I2000Clm50SpMizGs" testmods="mizuroute/5x5_amazon_rHDMA">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
@@ -76,6 +86,8 @@
       <option name="comment"  >Long smoke test on small regional grid but with HDMA mizuRoute with DEBUG off</option>
     </options>
   </test>
+  end commenting out the 5x5_amazon_rHDMA grid tests -->
+
   <test name="SMS_D_Mmpi-serial" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
