@@ -27,8 +27,8 @@ MODULE RtmMod
   USE globalData,   ONLY: npes       => nNodes
   USE globalData,   ONLY: mpicom_rof => mpicom_route
   USE globalData,   ONLY: masterproc
-  USE globalData,   ONLY: isColdStart                ! restart flag
-  USE mpi_utils, ONLY: shr_mpi_barrier
+  USE globalData,   ONLY: isColdStart                ! initial river state - cold start (T) or from restart file (F)
+  USE mpi_utils,    ONLY: shr_mpi_barrier
 
   implicit none
   logical, parameter :: verbose=.false.
@@ -247,7 +247,7 @@ CONTAINS
     ! 5. For continue and/or Branch run-- Initialize restart and history files
     !-------------------------------------------------------
     ! Obtain last restart name, and obtain and open last history file depending on which run types-- contiuous or branch
-    if ((nsrest == nsrContinue) then
+    if (nsrest == nsrContinue) then
       call RtmRestGetfile()
       isColdStart=.false.
       call init_histFile(ierr, cmessage)

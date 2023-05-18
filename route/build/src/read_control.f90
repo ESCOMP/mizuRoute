@@ -28,7 +28,7 @@ CONTAINS
  USE globalData, ONLY: meta_PFAF               ! pfafstetter code
  USE globalData, ONLY: meta_rflx               ! river flux variables
  USE globalData, ONLY: meta_hflx               ! river flux variables
- USE globalData, ONLY: isColdStart             ! number of active routing methods
+ USE globalData, ONLY: isColdStart             ! initial river state - cold start (T) or from restart file (F)
  USE globalData, ONLY: nRoutes                 ! number of active routing methods
  USE globalData, ONLY: routeMethods            ! active routing method index and id
  USE globalData, ONLY: onRoute                 ! logical to indicate actiive routing method(s)
