@@ -252,8 +252,6 @@ CONTAINS
       isColdStart=.false.
       call init_histFile(ierr, cmessage)
       if(ierr/=0)then; call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-    else
-      isColdStart=.true.
     endif
 
     !-------------------------------------------------------
