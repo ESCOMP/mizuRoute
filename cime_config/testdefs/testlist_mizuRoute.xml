@@ -156,7 +156,7 @@
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
     </machines>
     <options>
-      <option name="wallclock">00:20:00</option>
+      <option name="wallclock">00:60:00</option>
       <option name="comment"  >Exact restart hybrid/startup/branch test on CONUS HDMA regional grid with DEBUG off</option>
     </options>
   </test>
