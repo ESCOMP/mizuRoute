@@ -118,6 +118,7 @@ MODULE globalData
   character(300),                  public :: hfileout_gage=charMissing   ! gage-only history output file name
   character(300),                  public :: rfileout=charMissing        ! restart output file name
   logical(lgt),                    public :: initHvars=.false.           ! status of history variable data initialization
+  logical(lgt),                    public :: isColdStart=.true.          ! initial river state - cold start (T) or from restart file (F)
 
   ! ---------- MPI/OMP/PIO variables ----------------------------------------------------------------
 

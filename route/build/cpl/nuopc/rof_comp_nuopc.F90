@@ -25,6 +25,7 @@ module rof_comp_nuopc
   use globalData            , only : npes       => nNodes
   use globalData            , only : mpicom_rof => mpicom_route
   use globalData            , only : nHRU
+  use globalData            , only : runMode                     ! "ctsm-coupling" or "standalone" to differentiate some behaviours in mizuRoute
   use init_model_data       , only : get_mpi_omp, init_model
   use RunoffMod             , only : rtmCTL
   use RtmMod                , only : route_ini, route_run
@@ -410,7 +411,13 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     read(cvalue,*) username
 
-    ! Temporal fix
+    ! set mizuRoute run mode
+    runMode='cesm-coupling'
+
+    ! mizuRoute model configuration setup
+    ! 1. read control file
+    ! 2. read spatially constant parameter (namelist)
+    ! 3. (optional) gauge information
     call init_model(cfile_name, ierr, cmessage)
     if(ierr/=0) then; cmessage = trim(subname)//trim(cmessage); call shr_sys_flush(iulog); call shr_sys_abort(cmessage); endif
 
