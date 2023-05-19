@@ -1,2 +1,2 @@
 ! History file frequency needs to be daily for ER exact restart tests (see issue #239)
-<newFileFrequency>     day      ! history file frequency is daily
+<newFileFrequency>           daily   !  frequency for new output files (daily, monthly, yearly, single)
