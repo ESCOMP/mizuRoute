@@ -228,7 +228,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
         if not os.path.exists(os.path.join(rundir, filename)):
             filename = "%s.mizuRoute.r.%s-%s.nc" %(run_refcase, run_refdate, run_tod)
 
-        ctl.set( "fname_state_in", filename )
+        fname_state_in = filename
 
     elif fname_state_in.strip() == '':
         fname_state_in = "empty"
