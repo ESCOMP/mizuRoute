@@ -116,12 +116,34 @@
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="intel" category="prealpha"></machine>
+      <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
       <machine name="izumi"    compiler="intel" category="mizu"></machine>
       <machine name="izumi"    compiler="intel" category="prealpha"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
       <option name="comment"  >Exact restart test changing number of threads on restart on small regional grid </option>
+    </options>
+  </test>
+  <test name="PET_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+    <machines>
+      <machine name="cheyenne" compiler="intel" category="mizu"></machine>
+      <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
+      <machine name="izumi"    compiler="intel" category="mizu"></machine>
+    </machines>
+    <options>
+      <option name="wallclock">00:20:00</option>
+      <option name="comment"  >PET test changing number of threads on small regional grid </option>
+    </options>
+  </test>
+  <test name="SMS_D_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+    <machines>
+      <machine name="cheyenne" compiler="intel" category="mizu"></machine>
+      <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
+    </machines>
+    <options>
+      <option name="wallclock">00:20:00</option>
+      <option name="comment"  >Threaded only test to match the ERP test above</option>
     </options>
   </test>
 
@@ -160,6 +182,16 @@
       <option name="comment"  >Exact restart hybrid/startup/branch test on CONUS HDMA regional grid with DEBUG off</option>
     </options>
   </test>
+  <test name="PET_P215x8" grid="nldas2_nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+    <machines>
+      <machine name="cheyenne" compiler="intel" category="mizu"></machine>
+      <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
+    </machines>
+    <options>
+      <option name="wallclock">00:20:00</option>
+      <option name="comment"  >PET test changing threads on CONUS HDMA regional grid with DEBUG off</option>
+    </options>
+  </test>
   <test name="ERS" grid="nldas2_nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
@@ -169,15 +201,6 @@
     <options>
       <option name="wallclock">00:20:00</option>
       <option name="comment"  >Exact restart on CONUS HDMA regional grid with DEBUG off</option>
-    </options>
-  </test>
-  <test name="PET_P1x36" grid="nldas2_nldas2_rMERIT_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
-    <machines>
-      <machine name="cheyenne" compiler="intel" category="mizu"></machine>
-    </machines>
-    <options>
-      <option name="wallclock">00:20:00</option>
-      <option name="comment"  >Exact restart thread change test with threads only on CONUS MERIT regional grid with DEBUG off</option>
     </options>
   </test>
   <test name="SMS_P720x4" grid="nldas2_nldas2_rMERIT_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
