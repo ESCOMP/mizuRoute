@@ -60,6 +60,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     casename = case.get_value("CASE")
     run_type = case.get_value("RUN_TYPE")
     run_start = case.get_value("RUN_STARTDATE")
+    continue_run = str(case.get_value("CONTINUE_RUN"))
     #----------------------------------------------------
     # Settings that depend on the resolution
     #----------------------------------------------------
@@ -163,7 +164,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
        varname_downSegId = "Tosegment"
        varname_pfafCode = "pfaf"
     elif (  config['rof_grid'] == "MIZU_USRDAT" ):
-       fname_ntopOld = "unknownfile-setthis-in-theuser_ctl_mizuroute_file"
+       fname_ntopOld = "unknownfile-setthis-in-theuser_nl_mizuroute_control_file"
        varname_area = "Basin_Area"
        varname_length = "length"
        varname_slope  = "Slope"
@@ -172,7 +173,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
        varname_segId = "seg_id"
        varname_downSegId = "Tosegment"
        varname_pfafCode = "pfaf"
-       ancil_dir = "please_set_ancillary_directory_in_user_ctl_mizuroute"
+       ancil_dir = "please_set_ancillary_directory_in_user_nl_mizuroute_control"
     else:
        expect( False, "mizuRoute does NOT know about this grid: "+config['rof_grid'] )
 
@@ -214,6 +215,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     ctl.set( "is_lake_sim", is_lake_sim )
     ctl.set( "varname_downSegId", varname_downSegId )
     ctl.set( "varname_pfafCode", varname_pfafCode )
+    ctl.set( "continue_run", continue_run )
 
     #----------------------------------------------------
     # Set the restart file depending on start type
@@ -239,7 +241,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     ctl.set( "fname_state_in", fname_state_in )
 
     # Read in the user control file for the case and change settings to it
-    file_src = "user_ctl_mizuroute"
+    file_src = "user_nl_mizuroute_control"
     user_ctl_file = os.path.join(caseroot, file_src + inst_string)
     if ( not os.path.exists( user_ctl_file ) ):
        safe_copy( os.path.join( srcroot, "cime_config", file_src), user_ctl_file )
@@ -247,7 +249,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     usrctl.read( user_ctl_file, allowEmpty=True )
     for element in usrctl.get_elmList():
        value = ctl.get( element )
-       expect( value != "UNSET", "Element in the user_ctl_mizuroute file is NOT in the control file: "+element )
+       expect( value != "UNSET", "Element in the user_nl_mizuroute_control file is NOT in the control file: "+element )
        ctl.set( element, usrctl.get( element ) )
 
     #----------------------------------------------------

@@ -19,6 +19,8 @@ Sample env_run.xml file that allows buildnml to be run for testing in this direc
     </entry>
     <entry id="RUN_TYPE" value="startup">
     </entry>
+    <entry id="CONTINUE_RUN" value="FALSE">
+    </entry>
 
     <entry id="RUN_REFDIR" value="cesm2_init">
     </entry>
