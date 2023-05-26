@@ -226,9 +226,9 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
         run_refcase = case.get_value("RUN_REFCASE")
         run_refdate = case.get_value("RUN_REFDATE")
         run_tod = case.get_value("RUN_REFTOD")
-        filename = "%s.mizuRoute%s.r.%s-%s.nc" %(run_refcase, inst_string, run_refdate, run_tod)
+        filename = "%s.mizuroute%s.r.%s-%s.nc" %(run_refcase, inst_string, run_refdate, run_tod)
         if not os.path.exists(os.path.join(rundir, filename)):
-            filename = "%s.mizuRoute.r.%s-%s.nc" %(run_refcase, run_refdate, run_tod)
+            filename = "%s.mizuroute.r.%s-%s.nc" %(run_refcase, run_refdate, run_tod)
 
         fname_state_in = filename
 
