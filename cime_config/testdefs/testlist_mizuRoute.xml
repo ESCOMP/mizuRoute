@@ -12,6 +12,7 @@
    <!-- Run course resolutions only on izumi, on cheyenne run all -->
    <!-- Test types: ERS, SMS, ERI, PET, PFS DEBUG on and off -->
    <!-- NOTE: ERP tests are known NOT to work since the MPI task count must remain the same on restart -->
+   <!--       ERP tests with threads only are also not working -->
    <!--       ERP tests with only threads can work hoeever -->
    <!--       PEM tests will change answers if tasks change -->
    <!-- MPI: mpi-serial and regular as well as some threaded -->
@@ -115,10 +116,6 @@
   <test name="ERP_D_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
-      <machine name="cheyenne" compiler="intel" category="prealpha"></machine>
-      <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
-      <machine name="izumi"    compiler="intel" category="mizu"></machine>
-      <machine name="izumi"    compiler="intel" category="prealpha"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
