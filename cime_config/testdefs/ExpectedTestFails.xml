@@ -36,5 +36,11 @@
       <issue>#382</issue>
     </phase>
   </test>
+  <test name="ERP_D_P1x25.5x5_amazon_r05.I2000Clm50SpMizGs.cheyenne_gnu.mizuroute-default">
+    <phase name="RUN">
+      <status>FAIL</status>
+      <issue>#389</issue>
+    </phase>
+  </test>
 
 </expectedFails>
