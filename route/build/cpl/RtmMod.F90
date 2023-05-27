@@ -804,7 +804,7 @@ CONTAINS
     if (nsrest==nsrBranch) then
        ! Check case name consistency (case name must be different
        ! for branch run, unless brnch_retain_casename is set)
-       ctest = 'xx.'//trim(caseid)//'.mizuRoute'
+       ctest = 'xx.'//trim(caseid)//'.mizuroute'
        ftest = 'xx.'//trim(fname_state_in)
        status = index(trim(ftest),trim(ctest))
        if (status /= 0 .and. .not.(brnch_retain_casename)) then
