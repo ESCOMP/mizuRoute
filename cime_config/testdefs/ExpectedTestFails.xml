@@ -42,5 +42,15 @@
       <issue>#389</issue>
     </phase>
   </test>
+  <test name="ERI_D.nldas2_nldas2_rHDMA_mnldas2.I2000Clm50SpMizGs.cheyenne_intel.mizuroute-default">
+    <phase name="COMPARE_base_hybrid">
+      <status>FAIL</status>
+      <issue>#388</issue>
+    </phase>
+    <phase name="COMPARE_base_rest">
+      <status>FAIL</status>
+      <issue>#388</issue>
+    </phase>
+  </test>
 
 </expectedFails>
