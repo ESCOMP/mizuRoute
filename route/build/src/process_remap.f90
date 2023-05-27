@@ -394,12 +394,9 @@ MODULE process_remap_module
      ! error check - runoff depth cannot be negative (no missing value)
      if (limit) then
        if( basinRunoff( hruContribIx(iHRU) ) < negRunoffTol )then
-        ! For now just report on where the negative runoff is coming from
         write(iulog,*) 'Exceeded negative runoff tolerance: HRU = ', hruContribId(iHRU), ' runoff = ', basinRunoff( hruContribIx(iHRU) )
-        ! Later we'll abort when this is detected...
-        !write(message,'(a,i12, g12.2)') trim(message)//'exceeded negative runoff tolerance for HRU ', hruContribId(iHRU), &
-               !basinRunoff( hruContribIx(iHRU) )
-        !ierr=20; return
+        write(message,'(a,i12, g12.2)') trim(message)//'exceeded negative runoff tolerance for HRU ', hruContribId(iHRU)
+        ierr=20; return
        endif
      end if
 
