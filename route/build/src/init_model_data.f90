@@ -501,6 +501,7 @@ CONTAINS
   USE process_ntopo,        ONLY: check_river_properties   ! check if river network data is physically valid
   USE ncio_utils,           ONLY: get_var_dims
   USE process_ntopo,        ONLY: augment_ntopo            ! compute all the additional network topology (only compute option = on)
+  USE shr_sys_mod,          ONLY: shr_sys_system
 
   implicit none
   ! Argument variables
@@ -587,7 +588,8 @@ CONTAINS
     !        --> users can modify the hard-coded parameter "maxUpstreamFile" if desired
     if(tot_upstream > maxUpstreamFile) tot_upstream=0
 
-    call system('rm -f '//trim(ancil_dir)//trim(fname_ntopNew))
+    call shr_sys_system('rm -f '//trim(ancil_dir)//trim(fname_ntopNew), ierr)
+    if(ierr/=0)then; message=trim(message)//trim("Error in system call to remove fil"); return; endif
 
     call writeData(&
                    ! input
