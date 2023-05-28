@@ -195,7 +195,7 @@ MODULE histVars_data
           case(muskingumCunge);        idxMethod=idxMC
           case(diffusiveWave);         idxMethod=idxDW
           case default
-            write(message,'(2A,X,G0,X,A)') trim(message), 'routing method index:',routeMethods(iRoute), 'must be 0-5'
+            write(message,'(2A,1X,G0,1X,A)') trim(message), 'routing method index:',routeMethods(iRoute), 'must be 0-5'
             ierr=81; return
         end select
 
@@ -435,7 +435,7 @@ MODULE histVars_data
               ixFlow=ixRFLX%DWroutedRunoff
               ixVol=ixRFLX%DWvolume
             case default
-              write(message,'(2A,X,G0,X,A)') trim(message), 'routing method index:',routeMethods(ixRoute), 'must be 0-5'
+              write(message,'(2A,1X,G0,1X,A)') trim(message), 'routing method index:',routeMethods(ixRoute), 'must be 0-5'
               ierr=81; return
           end select
 

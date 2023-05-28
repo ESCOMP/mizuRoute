@@ -5,6 +5,8 @@ MODULE var_lookup
  USE public_var, ONLY: integerMissing  ! missing value for integers
  implicit none
  private
+ !
+ INTRINSIC :: storage_size
  ! local variables
  integer(i4b),parameter            :: ixVal=1                      ! an example integer
  integer(i4b),parameter            :: iLength=storage_size(ixVal)  ! size of the example integer

@@ -222,20 +222,23 @@ CONTAINS
     ntdh = size(NETOPO_in(segIndex)%UH)
     write(fmt1,'(A,I5,A)') '(A, 1X',ntdh,'(1X,F20.7))'
     write(*,'(2a)') new_line('a'),'** Check Impulse Response Function routing **'
-    write(*,'(a,x,I10,x,I10)') ' Reach index & ID       =', segIndex, NETOPO_in(segIndex)%REACHID
-    write(*,fmt1)              ' Unit-Hydrograph        =', (NETOPO_in(segIndex)%UH(itdh), itdh=1,ntdh)
-    write(*,'(a)')             ' * total discharge from upstream(q_upstream) [m3/s], local area discharge [m3/s], and Final discharge [m3/s]:'
-    write(*,'(a,x,F15.7)')     ' q_upstream             =', q_upstream
-    write(*,'(a,x,F15.7)')     ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(iens,segIndex)%BASIN_QR(1)
-    write(*,'(a,x,F15.7)')     ' RCHFLX_out%REACH_Q =', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q
+    write(*,'(a,1x,I10,1x,I10)')' Reach index & ID       =', segIndex, NETOPO_in(segIndex)%REACHID
+    write(*,fmt1)               ' Unit-Hydrograph        =', (NETOPO_in(segIndex)%UH(itdh), itdh=1,ntdh)
+    write(*,'(a)')              ' * total discharge from upstream(q_upstream) [m3/s], local area discharge [m3/s]' // &
+            ', and Final discharge [m3/s]:'
+    write(*,'(a,1x,F15.7)')     ' q_upstream             =', q_upstream
+    write(*,'(a,1x,F15.7)')     ' RCHFLX_out%BASIN_QR(1) =', RCHFLX_out(iens,segIndex)%BASIN_QR(1)
+    write(*,'(a,1x,F15.7)')     ' RCHFLX_out%REACH_Q =', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q
   endif
 
   if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) < 0) then
-    write(iulog,'(A,X,G12.5,X,A,X,I9)') ' ---- NEGATIVE VOLUME [m3]= ', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1), 'at ', NETOPO_in(segIndex)%REACHID
+    write(iulog,'(A,1X,G12.5,1X,A,1X,I9)') ' ---- NEGATIVE VOLUME [m3]= ', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1), &
+          'at ', NETOPO_in(segIndex)%REACHID
 !    RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = 0._dp
   end if
   if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q < 0) then
-    write(iulog,'(A,X,G12.5,X,A,X,I9)') ' ---- NEGATIVE FLOW [m3/s] = ', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q, 'at ', NETOPO_in(segIndex)%REACHID
+    write(iulog,'(A,1X,G12.5,1X,A,1X,I9)') ' ---- NEGATIVE FLOW [m3/s] = ', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q, &
+           'at ', NETOPO_in(segIndex)%REACHID
 !    RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = 0._dp
   end if
 

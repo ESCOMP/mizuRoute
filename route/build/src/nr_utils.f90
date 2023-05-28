@@ -423,7 +423,7 @@ CONTAINS
     do ix=1,size(array2)
       if(index1(ix) == integerMissing) cycle
       if(array2(ix) /= array1( index1(ix) ) )then
-        write(iulog,'(a,2(x,I10,x,I15))') 'ERROR Mapping: ix, ID(ix), index(ix), masterID(index(ix))=', ix, array2(ix), index1(ix), array1(index1(ix))
+        write(iulog,'(a,2(1x,I10,1x,I15))') 'ERROR Mapping: ix, ID(ix), index(ix), masterID(index(ix))=', ix, array2(ix), index1(ix), array1(index1(ix))
         message=trim(message)//'unable to find the match'
         ierr=20; return
       endif

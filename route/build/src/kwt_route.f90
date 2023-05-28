@@ -241,11 +241,11 @@ CONTAINS
 
    if(JRCH==ixDesire) then
      write(iulog,'(2a)') new_line('a'),'** Check kinematic wave tracking routing **'
-     write(iulog,"(a,x,I10,x,I10)")      ' Reach index & ID  =', JRCH, NETOPO_in(JRCH)%REACHID
-     write(iulog,"(a,x,F20.7,1x,F20.7)") ' time step(T0,T1)  =', T0, T1
-     write(iulog,'(a,x,F15.7)')          ' RPARAM_in%R_SLOPE =', RPARAM_in(JRCH)%R_SLOPE
-     write(iulog,'(a,x,F15.7)')          ' RPARAM_in%R_MAN_N =', RPARAM_in(JRCH)%R_MAN_N
-     write(iulog,'(a,x,F15.7)')          ' RPARAM_in%R_WIDTH =', RPARAM_in(JRCH)%R_WIDTH
+     write(iulog,"(a,1x,I10,1x,I10)")     ' Reach index & ID  =', JRCH, NETOPO_in(JRCH)%REACHID
+     write(iulog,"(a,1x,F20.7,1x,F20.7)") ' time step(T0,T1)  =', T0, T1
+     write(iulog,'(a,1x,F15.7)')          ' RPARAM_in%R_SLOPE =', RPARAM_in(JRCH)%R_SLOPE
+     write(iulog,'(a,1x,F15.7)')          ' RPARAM_in%R_MAN_N =', RPARAM_in(JRCH)%R_MAN_N
+     write(iulog,'(a,1x,F15.7)')          ' RPARAM_in%R_WIDTH =', RPARAM_in(JRCH)%R_WIDTH
    end if
 
     ! ----------------------------------------------------------------------------------------
@@ -278,7 +278,10 @@ CONTAINS
         if(ierr/=0)then; message=trim(message)//'problem deallocating space for RCHSTA_out'; return; endif
       endif
       allocate(RCHSTA_out(IENS,JRCH)%LKW_ROUTE%KWAVE(0:0),STAT=ierr)
-      if(ierr/=0)then; message=trim(message)//'problem allocating space for RCHSTA_out(IENS,JRCH)%LKW_ROUTE%KWAVE(1)'; return; endif
+      if(ierr/=0)then
+         message=trim(message)//'problem allocating space for RCHSTA_out(IENS,JRCH)%LKW_ROUTE%KWAVE(1)'
+         return
+      endif
       RCHSTA_out(IENS,JRCH)%LKW_ROUTE%KWAVE(0)%QF=-9999
       RCHSTA_out(IENS,JRCH)%LKW_ROUTE%KWAVE(0)%TI=-9999
       RCHSTA_out(IENS,JRCH)%LKW_ROUTE%KWAVE(0)%TR=-9999
@@ -287,7 +290,7 @@ CONTAINS
 
       if(JRCH==ixDesire) then
         write(iulog,'(a)') ' * Final discharge (RCHFLX_out(IENS,JRCH)%REACH_Q) [m3/s]:'
-        write(iulog,'(x,G15.4)') RCHFLX_out(IENS,JRCH)%ROUTE(idxKWT)%REACH_Q
+        write(iulog,'(1x,G15.4)') RCHFLX_out(IENS,JRCH)%ROUTE(idxKWT)%REACH_Q
       end if
       return  ! no upstream reaches (routing for sub-basins done using time-delay histogram)
     endif
@@ -520,9 +523,9 @@ CONTAINS
     call interp_rch(TENTRY(0:NR-1),Q_jrch_abs(0:NR-1), TP, Qavg, ierr,cmessage)
     Qabs = Qavg(1)*RPARAM_in(JRCH)%R_WIDTH
     write(*,'(a)')         ' * Target abstraction (Qtake) [m3/s], Available discharge (totQ) [m3/s], Actual abstraction (Qabs) [m3/s] '
-    write(*,'(a,x,G15.4)') ' Qtake =', Qtake
-    write(*,'(a,x,G15.4)') ' totQ  =', totQ
-    write(*,'(a,x,G15.4)') ' Qabs  =', Qabs
+    write(*,'(a,1x,G15.4)') ' Qtake =', Qtake
+    write(*,'(a,1x,G15.4)') ' totQ  =', totQ
+    write(*,'(a,1x,G15.4)') ' Qabs  =', Qabs
   end if
 
   ! modify wave speed at modified wave discharge and re-compute exit time
@@ -666,9 +669,9 @@ CONTAINS
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   if (JRCH == ixDesire) then
     write(fmt1,'(A,I5,A)') '(A,1X',ND,'(1X,G15.4))'
-    write(*,'(a)')      ' * After qexmul_rch: # of routed wave from upstreams (ND) and wave discharge (QD) [m2/s]:'
-    write(*,'(A,x,I5)') ' ND=', ND
-    write(*,fmt1)       ' QD=', (QD(iw), iw=1,ND)
+    write(*,'(a)')       ' * After qexmul_rch: # of routed wave from upstreams (ND) and wave discharge (QD) [m2/s]:'
+    write(*,'(A,1x,I5)') ' ND=', ND
+    write(*,fmt1)        ' QD=', (QD(iw), iw=1,ND)
   end if
  end if
 
@@ -845,7 +848,8 @@ CONTAINS
   TD(1) = T1
 
   if(JRCH == ixDesire) then
-    write(iulog,'(A,x,I8,x,I8)') ' * Special case - This reach has one headwater upstream: IR, NETOPO_in(IR)%REACHID = ', IR, NETOPO_in(IR)%REACHID
+    write(iulog,'(A,1x,I8,1x,I8)') ' * Special case - This reach has one headwater upstream: IR, NETOPO_in(IR)%REACHID = ', &
+          IR, NETOPO_in(IR)%REACHID
   end if
 
   return
@@ -1384,10 +1388,10 @@ CONTAINS
 
  if(jRch==ixDesire) then
    write(fmt1,'(A,I5,A)') '(A,1X',NN,'(1X,G15.4))'
-   write(iulog,'(a)')      ' * Wave discharge (q1) [m2/s] and wave celertiy (wc) [m/s]:'
-   write(iulog,'(a,x,I3)') ' Number of wave =', NN
-   write(iulog,fmt1)       ' q1=', (q1(iw), iw=1,NN)
-   write(iulog,fmt1)       ' wc=', (wc(iw), iw=1,NN)
+   write(iulog,'(a)')       ' * Wave discharge (q1) [m2/s] and wave celertiy (wc) [m/s]:'
+   write(iulog,'(a,1x,I3)') ' Number of wave =', NN
+   write(iulog,fmt1)        ' q1=', (q1(iw), iw=1,NN)
+   write(iulog,fmt1)        ' wc=', (wc(iw), iw=1,NN)
  end if
 
  ! handle breaking waves
@@ -1444,9 +1448,9 @@ CONTAINS
  ! check
  if(jRch==ixDesire) then
    write(fmt1,'(A,I5,A)') '(A,1X',NN,'(1X,G15.4))'
-   write(iulog,'(a)')      ' * After wave merge: wave celertiy (wc) [m/s]:'
-   write(iulog,'(a,x,I3)') ' Number of wave =', NN
-   write(iulog,fmt1)       ' wc=', (wc(iw), iw=1,NN)
+   write(iulog,'(a)')       ' * After wave merge: wave celertiy (wc) [m/s]:'
+   write(iulog,'(a,1x,I3)') ' Number of wave =', NN
+   write(iulog,fmt1)        ' wc=', (wc(iw), iw=1,NN)
  end if
 
  ICOUNT=0

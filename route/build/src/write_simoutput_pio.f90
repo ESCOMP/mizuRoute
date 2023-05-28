@@ -128,7 +128,8 @@ CONTAINS
    ierr=0; message='new_file_alarm/'
 
    if (masterproc) then
-     write(iulog,'(a,I4,4(x,I4))') new_line('a'), inDatetime(1)%year(), inDatetime(1)%month(), inDatetime(1)%day(), inDatetime(1)%hour(), inDatetime(1)%minute()
+     write(iulog,'(a,I4,4(1x,I4))') new_line('a'), inDatetime(1)%year(), inDatetime(1)%month(), &
+           inDatetime(1)%day(), inDatetime(1)%hour(), inDatetime(1)%minute()
    endif
 
    ! check need for the new file
