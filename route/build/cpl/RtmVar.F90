@@ -3,9 +3,10 @@ MODULE RtmVar
   ! Public variables used for only coupled version mizuRoute
 
   USE shr_kind_mod , ONLY: r8 => shr_kind_r8, CL => SHR_KIND_CL
-  USE shr_sys_mod  , ONLY: shr_sys_abort
+  USE shr_sys_mod  , ONLY: shr_sys_abort, shr_sys_flush
   USE globalData   , ONLY: masterproc
   USE globalData   , ONLY: version
+  USE public_var   , ONLY: iulog
 
   implicit none
 
@@ -79,6 +80,7 @@ CONTAINS
     !-----------------------------------------------------------------------
 
     if ( rofVar_isset )then
+       call shr_sys_flush(iulog)
        call shr_sys_abort( 'rofVarSet ERROR:: control variables already set -- EXIT' )
     end if
 
@@ -98,9 +100,11 @@ CONTAINS
   SUBROUTINE RtmVarInit( )
     if (masterproc) then
        if (nsrest == iundef) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort( 'RtmVarInit ERROR:: must set nsrest' )
        end if
        if (nsrest == nsrBranch .and. nrevsn_rtm == ' ') then
+          call shr_sys_flush(iulog)
           call shr_sys_abort( 'RtmVarInit ERROR: need to set restart data file name' )
        end if
        if (nsrest == nsrStartup ) then
@@ -110,6 +114,7 @@ CONTAINS
           nrevsn_rtm = 'set by restart pointer file file'
        end if
        if (nsrest /= nsrStartup .and. nsrest /= nsrContinue .and. nsrest /= nsrBranch ) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort( 'RtmVarInit ERROR: nsrest NOT set to a valid value' )
        end if
     endif

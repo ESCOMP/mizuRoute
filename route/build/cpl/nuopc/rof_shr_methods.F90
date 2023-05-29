@@ -20,8 +20,9 @@ module rof_shr_methods
   use ESMF         , only : ESMF_VM, ESMF_VMGet, ESMF_VMBroadcast, ESMF_VMGetCurrent
   use NUOPC        , only : NUOPC_CompAttributeGet
   use NUOPC_Model  , only : NUOPC_ModelGet
+  use public_var   , only : iulog
   use shr_kind_mod , only : r8 => shr_kind_r8, cl=>shr_kind_cl, cs=>shr_kind_cs
-  use shr_sys_mod  , only : shr_sys_abort
+  use shr_sys_mod  , only : shr_sys_abort, shr_sys_flush
   use shr_file_mod , only : shr_file_setlogunit, shr_file_getLogUnit
 
   implicit none
@@ -550,9 +551,11 @@ contains
 
     case (optDate)
        if (.not. present(opt_ymd)) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' requires opt_ymd')
        end if
        if (lymd < 0 .or. ltod < 0) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//'opt_ymd, opt_tod invalid')
        end if
        call ESMF_TimeIntervalSet(AlarmInterval, yy=9999, rc=rc)
@@ -563,12 +566,15 @@ contains
 
     case (optIfdays0)
        if (.not. present(opt_ymd)) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' requires opt_ymd')
        end if
        if (.not.present(opt_n)) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' requires opt_n')
        end if
        if (opt_n <= 0)  then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' invalid opt_n')
        end if
        call ESMF_TimeIntervalSet(AlarmInterval, mm=1, rc=rc)
@@ -579,9 +585,11 @@ contains
 
     case (optNSteps)
        if (.not.present(opt_n)) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' requires opt_n')
        end if
        if (opt_n <= 0) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' invalid opt_n')
        end if
        call ESMF_ClockGet(clock, TimeStep=AlarmInterval, rc=rc)
@@ -590,8 +598,14 @@ contains
        update_nextalarm  = .true.
 
     case (optNStep)
-       if (.not.present(opt_n)) call shr_sys_abort(subname//trim(option)//' requires opt_n')
-       if (opt_n <= 0)  call shr_sys_abort(subname//trim(option)//' invalid opt_n')
+       if (.not.present(opt_n))then
+          call shr_sys_flush(iulog)
+          call shr_sys_abort(subname//trim(option)//' requires opt_n')
+       end if
+       if (opt_n <= 0)then
+          call shr_sys_flush(iulog)
+          call shr_sys_abort(subname//trim(option)//' invalid opt_n')
+       end if
        call ESMF_ClockGet(clock, TimeStep=AlarmInterval, rc=rc)
        if (chkerr(rc,__LINE__,u_FILE_u)) return
        AlarmInterval = AlarmInterval * opt_n
@@ -599,9 +613,11 @@ contains
 
     case (optNSeconds)
        if (.not.present(opt_n)) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' requires opt_n')
        end if
        if (opt_n <= 0) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' invalid opt_n')
        end if
        call ESMF_TimeIntervalSet(AlarmInterval, s=1, rc=rc)
@@ -611,9 +627,11 @@ contains
 
     case (optNSecond)
        if (.not.present(opt_n)) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' requires opt_n')
        end if
        if (opt_n <= 0) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' invalid opt_n')
        end if
        call ESMF_TimeIntervalSet(AlarmInterval, s=1, rc=rc)
@@ -624,9 +642,11 @@ contains
     case (optNMinutes)
        call ESMF_TimeIntervalSet(AlarmInterval, s=60, rc=rc)
        if (.not.present(opt_n)) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' requires opt_n')
        end if
        if (opt_n <= 0) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' invalid opt_n')
        end if
        AlarmInterval = AlarmInterval * opt_n
@@ -634,9 +654,11 @@ contains
 
     case (optNMinute)
        if (.not.present(opt_n)) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' requires opt_n')
        end if
        if (opt_n <= 0) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' invalid opt_n')
        end if
        call ESMF_TimeIntervalSet(AlarmInterval, s=60, rc=rc)
@@ -646,9 +668,11 @@ contains
 
     case (optNHours)
        if (.not.present(opt_n)) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' requires opt_n')
        end if
        if (opt_n <= 0) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' invalid opt_n')
        end if
        call ESMF_TimeIntervalSet(AlarmInterval, s=3600, rc=rc)
@@ -658,9 +682,11 @@ contains
 
     case (optNHour)
        if (.not.present(opt_n)) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' requires opt_n')
        end if
        if (opt_n <= 0) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' invalid opt_n')
        end if
        call ESMF_TimeIntervalSet(AlarmInterval, s=3600, rc=rc)
@@ -670,9 +696,11 @@ contains
 
     case (optNDays)
        if (.not.present(opt_n)) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' requires opt_n')
        end if
        if (opt_n <= 0) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' invalid opt_n')
        end if
        call ESMF_TimeIntervalSet(AlarmInterval, d=1, rc=rc)
@@ -682,9 +710,11 @@ contains
 
     case (optNDay)
        if (.not.present(opt_n)) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' requires opt_n')
        end if
        if (opt_n <= 0) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' invalid opt_n')
        end if
        call ESMF_TimeIntervalSet(AlarmInterval, d=1, rc=rc)
@@ -694,9 +724,11 @@ contains
 
     case (optNMonths)
        if (.not.present(opt_n)) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' requires opt_n')
        end if
        if (opt_n <= 0) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' invalid opt_n')
        end if
        call ESMF_TimeIntervalSet(AlarmInterval, mm=1, rc=rc)
@@ -706,9 +738,11 @@ contains
 
     case (optNMonth)
        if (.not.present(opt_n)) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' requires opt_n')
        end if
        if (opt_n <= 0) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' invalid opt_n')
        end if
        call ESMF_TimeIntervalSet(AlarmInterval, mm=1, rc=rc)
@@ -725,9 +759,11 @@ contains
 
     case (optNYears)
        if (.not.present(opt_n)) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' requires opt_n')
        end if
        if (opt_n <= 0) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' invalid opt_n')
        end if
        call ESMF_TimeIntervalSet(AlarmInterval, yy=1, rc=rc)
@@ -737,9 +773,11 @@ contains
 
     case (optNYear)
        if (.not.present(opt_n)) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' requires opt_n')
        end if
        if (opt_n <= 0) then
+          call shr_sys_flush(iulog)
           call shr_sys_abort(subname//trim(option)//' invalid opt_n')
        end if
        call ESMF_TimeIntervalSet(AlarmInterval, yy=1, rc=rc)
@@ -755,6 +793,7 @@ contains
        update_nextalarm  = .true.
 
     case default
+       call shr_sys_flush(iulog)
        call shr_sys_abort(subname//'unknown option '//trim(option))
 
     end select
@@ -804,6 +843,7 @@ contains
     rc = ESMF_SUCCESS
 
     if ( (ymd < 0) .or. (tod < 0) .or. (tod > SecPerDay) )then
+       call shr_sys_flush(iulog)
        call shr_sys_abort( subname//'ERROR yymmdd is a negative number or time-of-day out of bounds' )
     end if
 

@@ -1,0 +1,3 @@
+! History file frequency needs to be daily for ER exact restart tests (see issue #239)
+<newFileFrequency>           daily   !  frequency for new output files (daily, monthly, yearly, single)
+<outputFrequency>            daily   ! time frequency used for temporal aggregation of output variables - numeric or daily, monthyly, or yearly

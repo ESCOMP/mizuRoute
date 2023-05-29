@@ -432,14 +432,14 @@ CONTAINS
                              inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day,'.nc'
 
        if (outputAtGage) then
-         write(hfileout_gage, fmtYMDS) trim(output_dir)//trim(case_name)//'_gauge.mizuroute.h.', &
+         write(hfileout_gage, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuroute.h_gauge.', &
                                     inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day,'.nc'
        end if
      case('standalone')
        write(hfileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.h.', &
                              inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day,'.nc'
        if (outputAtGage) then
-         write(hfileout_gage, fmtYMDS) trim(output_dir)//trim(case_name)//'_gauge.h.', &
+         write(hfileout_gage, fmtYMDS) trim(output_dir)//trim(case_name)//'.h_gauge.', &
                                     inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day,'.nc'
        end if
      case default; ierr=20; message=trim(message)//'unable to identify the run option. Avaliable options are standalone and cesm-coupling'; return
