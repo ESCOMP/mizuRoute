@@ -20,7 +20,7 @@
 <restart_write>           last                       ! restart write options: never, daily, monthly, yearly, last, specified
 <restart_date>            yyyy-mm-dd hh:mm:ss        ! restart date.  activated only if <restart_write> is "specified"
 <fname_state_in>          INPUT_RESTART_NC           ! input restart netCDF name. remove or 'coldstart' for run without any particular restart file
-<newFileFrequency>        month                      ! output netcdf frequency: single, daily, monthly, yearly
+<newFileFrequency>        monthly                    ! output netcdf frequency: single, daily, monthly, yearly
 <dt_qsim>                 86400                      ! time interval of the forcing [sec] e.g., 86400 sec for daily step
 ! lake and water management (wm) mode
 <is_lake_sim>             T                          ! switch on (T) or off (F) lake simulation

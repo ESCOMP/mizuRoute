@@ -1,2 +1,0 @@
-! History file frequency can be monthly for longer simulations
-<newFileFrequency>     month    ! history file frequency is monthly

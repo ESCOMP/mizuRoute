@@ -7,7 +7,7 @@
 !
 ! Here are some examples (remove the leading bang):
 !
-! <newFileFrequency>     month    ! Ending comment
+! <newFileFrequency>     monthly  ! Ending comment
 ! <route_opt>            2        ! Ending comment
 ! <doesAccumRunoff>      1        ! Ending comment
 !

@@ -18,7 +18,7 @@ module rof_comp_nuopc
   use shr_file_mod          , only : shr_file_getlogunit, shr_file_setlogunit
   use shr_cal_mod           , only : shr_cal_ymd2date
 
-  use public_var            , only : iulog
+  use public_var            , only : iulog, debug
   use public_var            , only : calendar, simStart, simEnd, time_units
   use globalData            , only : masterproc
   use globalData            , only : iam        => pid
@@ -64,11 +64,6 @@ module rof_comp_nuopc
   integer                 :: flds_scalar_index_ny = 0
   integer                 :: flds_scalar_index_nextsw_cday = 0._r8
   integer                 :: nthrds
-#ifdef NDEBUG
-  logical, parameter      :: debug_write = .false.
-#else
-  logical, parameter      :: debug_write = .false.
-#endif
 
   character(*), parameter :: modName =  "(rof_comp_nuopc)"
   character(*), parameter :: u_FILE_u = &
@@ -113,7 +108,6 @@ contains
 
     call ESMF_MethodRemove(gcomp, label=model_label_SetRunClock, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
     call NUOPC_CompSpecialize(gcomp, specLabel=model_label_SetRunClock, &
          specRoutine=ModelSetRunClock, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -221,6 +215,7 @@ contains
        call ESMF_LogWrite(trim(subname)//' flds_scalar_name = '//trim(flds_scalar_name), ESMF_LOGMSG_INFO)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     else
+       call shr_sys_flush(iulog)
        call shr_sys_abort(subname//'Need to set attribute ScalarFieldName')
     endif
 
@@ -232,6 +227,7 @@ contains
        call ESMF_LogWrite(trim(subname)//' flds_scalar_num = '//trim(logmsg), ESMF_LOGMSG_INFO)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     else
+       call shr_sys_flush(iulog)
        call shr_sys_abort(subname//'Need to set attribute ScalarFieldCount')
     endif
 
@@ -243,6 +239,7 @@ contains
        call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_nx = '//trim(logmsg), ESMF_LOGMSG_INFO)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     else
+       call shr_sys_flush(iulog)
        call shr_sys_abort(subname//'Need to set attribute ScalarFieldIdxGridNX')
     endif
 
@@ -254,6 +251,7 @@ contains
        call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_ny = '//trim(logmsg), ESMF_LOGMSG_INFO)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     else
+       call shr_sys_flush(iulog)
        call shr_sys_abort(subname//'Need to set attribute ScalarFieldIdxGridNY')
     endif
 
@@ -265,6 +263,7 @@ contains
        call ESMF_LogWrite(trim(subname)//' : flds_scalar_index_nextsw_cday = '//trim(logmsg), ESMF_LOGMSG_INFO)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     else
+       call shr_sys_flush(iulog)
        call shr_sys_abort(subname//'Need to set attribute ScalarFieldIdxNextSwCday')
     endif
 
@@ -420,7 +419,7 @@ contains
     ! 2. read spatially constant parameter (namelist)
     ! 3. (optional) gauge information
     call init_model(cfile_name, ierr, cmessage)
-    if(ierr/=0) then; cmessage = trim(subname)//trim(cmessage); return; endif
+    if(ierr/=0) then; cmessage = trim(subname)//trim(cmessage); call shr_sys_flush(iulog); call shr_sys_abort(cmessage); endif
 
     !----------------------
     ! Initialize time managers in mizuRoute
@@ -472,6 +471,7 @@ contains
     else if (esmf_caltype == ESMF_CALKIND_GREGORIAN) then
        calendar = 'gregorian'
     else
+       call shr_sys_flush(iulog)
        call shr_sys_abort( subname//'ERROR:: bad calendar for ESMF' )
     end if
 
@@ -501,6 +501,7 @@ contains
     else if (trim(starttype) == trim('branch')) then
        nsrest = nsrBranch
     else
+       call shr_sys_flush(iulog)
        call shr_sys_abort( subname//' ERROR: unknown starttype' )
     end if
 
@@ -542,9 +543,10 @@ contains
 
     if ( .not. allocated(gindex) )then
        cmessage = cmessage // " gindex is not allocated"
-       return
+       call shr_sys_flush(iulog)
+       call shr_sys_abort( subname//cmessage )
     end if
-    if ( debug_write ) then
+    if ( debug ) then
        write(iulog,*) "iam, lsize = ", iam, lsize
        write(iulog,*) "iam, gindex(min,max,mid) = ", iam, minval(gindex), maxval(gindex), gindex(lsize/2)
        call shr_sys_flush(iulog)
@@ -556,7 +558,8 @@ contains
     deallocate(gindex)
     if ( .not. ESMF_DistGridIsCreated( DistGrid, rc=rc ) )then
        cmessage = cmessage // " DistGrid is NOT created"
-       return
+       call shr_sys_flush(iulog)
+       call shr_sys_abort( subname//cmessage )
     end if
     call ESMF_DistGridValidate( DistGrid, rc=rc )
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -565,7 +568,7 @@ contains
     call ESMF_DistGridGet( DistGrid, dimCount=dimCount, tileCount=tileCount, deCount=deCount, localDeCount=localDeCount, &
                            regDecompFlag=regDecompFlag, connectionCount=connectionCount, rc=rc )
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    if (masterproc .and. debug_write) then
+    if (masterproc .and. debug) then
        write(iulog,*) "dimCount = ", dimCount
        write(iulog,*) "tileCount = ", tileCount
        write(iulog,*) "deCount = ", deCount
@@ -579,7 +582,7 @@ contains
     call NUOPC_CompAttributeGet(gcomp, name='mesh_rof', value=cvalue, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    if (masterproc .and. debug_write) then
+    if (masterproc .and. debug) then
        write(iulog,*)'mesh file for domain is ',trim(cvalue)
        call shr_sys_flush(iulog)
     end if
@@ -592,7 +595,7 @@ contains
     Emesh = ESMF_MeshCreate(Mesh, elementDistgrid=DistGrid, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
-    if ( debug_write )then
+    if ( debug )then
       call ESMF_MeshWrite(Emesh, filename='miz_mesh', rc=rc)
       call ESMF_MeshGet( Emesh,  parametricDim=parametricDim, spatialDim=spatialDim, numOwnedNodes=numOwnedNodes, &
                        numOwnedElements=numOwnedElements, isMemFreed=isMemFreed, rc=rc)
@@ -642,7 +645,7 @@ contains
     ! diagnostics
     !--------------------------------
 
-    if (debug_write)then
+    if (debug)then
        call State_diagnose(exportState,subname//':ES',rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     endif
@@ -821,7 +824,7 @@ contains
     ! diagnostics
     !--------------------------------
 
-    if (debug_write)then
+    if (debug)then
        call State_diagnose(exportState,subname//':ES',rc=rc)
        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=u_FILE_u)) return
     end if
