@@ -141,7 +141,6 @@ CONTAINS
  ! private subroutine: initiate the reading of the netcdf files for runoff
  ! or abstraction or injection
  ! *********************************************************************
-
  SUBROUTINE init_inFile_pop(ierr, message)
 
   USE public_var, ONLY: input_dir               ! directory containing the text files of fname_qsim and fname_wm
@@ -258,30 +257,31 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//'problem reading a line of data from file ['//trim(infilename)//']'; return; end if
 
    ! set forcing file name
-   inputFileInfo(iFile)%infilename = trim(filenameData)
+   inputFileInfo(iFile)%infilename = filenameData
 
    ! get the time units, assuming the water managment nc files has the same calendar as the first
    if (trim(time_units) == charMissing) then
      call get_var_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
-                       trim(time_var_name), 'units', inputFileInfo(iFile)%unit, ierr, cmessage)
+                       time_var_name, 'units', inputFileInfo(iFile)%unit, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    else
-     inputFileInfo(iFile)%unit = trim(time_units)
+     inputFileInfo(iFile)%unit = time_units
    end if
 
    ! get the calendar, assuming the water managment nc files has the same calendar as the first
    if (trim(calendar) == charMissing) then
      call get_var_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
-                       trim(time_var_name), 'calendar', inputFileInfo(iFile)%calendar, ierr, cmessage)
+                       time_var_name, 'calendar', inputFileInfo(iFile)%calendar, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    else
-     inputFileInfo(iFile)%calendar = trim(calendar)
+     inputFileInfo(iFile)%calendar = calendar
    end if
 
    ! get the dimension of the time to populate nTime and pass it to the get_nc file
    call get_nc_dim_len(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
-                       trim(time_dim_name), inputFileInfo(iFile)%nTime, ierr, cmessage)
+                       time_dim_name, inputFileInfo(iFile)%nTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
    nTime = inputFileInfo(iFile)%nTime ! the length of time varibale for each nc file
 
    ! allocate space for time varibale of each file
@@ -407,6 +407,7 @@ CONTAINS
   USE public_var,    ONLY: simEnd                   ! date string defining the end of the simulation
   USE public_var,    ONLY: calendar                 ! calendar used for simulation
   USE public_var,    ONLY: dt                       ! simulation time step in second
+  USE public_var,    ONLY: dt_ro                    ! forcing time step in second
   USE public_var,    ONLY: continue_run             ! logical to indicate sppend output in existing history file
   USE public_var,    ONLY: secprday                 ! unit conversion from day to sec
   USE public_var,    ONLY: restart_write            ! restart write option
@@ -415,7 +416,7 @@ CONTAINS
   USE public_var,    ONLY: restart_day              ! periodic restart day
   USE public_var,    ONLY: restart_hour             ! periodic restart hr
   USE public_var,    ONLY: maxTimeDiff              ! time difference tolerance for input checks
-  USE globalData,    ONLY: timeVar                  ! time variables (unit given by runoff data)
+  USE globalData,    ONLY: timeVar                  ! time variables at time step endpoints (unit given by runoff data)
   USE globalData,    ONLY: iTime                    ! time index at simulation time step
   USE globalData,    ONLY: simDatetime              ! model time data (yyyy:mm:dd:hh:mm:ss)
   USE globalData,    ONLY: begDatetime              ! simulation begin datetime data (yyyy:mm:dd:hh:mm:sec)
@@ -448,8 +449,11 @@ CONTAINS
   integer(i4b)                             :: iFile               ! for loop over the nc files
   type(datetime), allocatable              :: roCal(:)
   type(datetime), allocatable              :: wmCal(:)
+  type(datetime)                           :: roDatetime_end      ! temp datetime
   type(datetime)                           :: dummyDatetime       ! temp datetime
   integer(i4b)                             :: nDays               ! number of days in a month
+  real(dp)                                 :: timePerDay          ! number of times (unit:time-unit) per a day. time-unit is from t_unit
+  real(dp)                                 :: secPerTime          ! number of seconds per time-unit. time-unit is from t_unit
   real(dp)                                 :: juldaySim           ! julian day of first simulation time
   real(dp), allocatable                    :: roJulday(:)         ! julian day in runoff data
   real(dp), allocatable                    :: roJulday_diff(:)    ! the difference of two concequative elements in roJulyday
@@ -491,6 +495,8 @@ CONTAINS
     call roCal(ix)%jul2datetime(roJulday(ix), calendar, ierr, cmessage)
   end do
 
+  roDatetime_end = roCal(nTime)%add_sec(dt_ro, calendar, ierr, cmessage)
+
   ! save water management data starting datetime
   roBegDatetime = roCal(1)
 
@@ -507,7 +513,7 @@ CONTAINS
   endif
 
   ! check sim_start is after the last time step in runoff data
-  if (begDatetime > roCal(nTime)) then
+  if (begDatetime > roDatetime_end) then
     write(iulog,'(2a)') new_line('a'),'ERROR: <sim_start> is after the last time step in input runoff'
     write(iulog,fmt1)  ' runoff_end  : ', roCal(nTime)%year(),'-',roCal(nTime)%month(),'-',roCal(nTime)%day(), roCal(nTime)%hour(),':', roCal(nTime)%minute(),':',roCal(nTime)%sec()
     write(iulog,fmt1)  ' <sim_start> : ', begDatetime%year(),'-',begDatetime%month(),'-',begDatetime%day(), begDatetime%hour(),':', begDatetime%minute(),':',begDatetime%sec()
@@ -524,7 +530,7 @@ CONTAINS
   endif
 
   ! Compare sim_end vs. time at last time step in runoff data
-  if (endDatetime > roCal(nTime)) then
+  if (endDatetime > roDatetime_end) then
     write(iulog,'(2a)')  new_line('a'),'WARNING: <sim_end> is after the last time step in input runoff'
     write(iulog,fmt1)   ' runoff_end: ', roCal(nTime)%year(),'-',roCal(nTime)%month(),'-',roCal(nTime)%day(), roCal(nTime)%hour(),':', roCal(nTime)%minute(),':',roCal(nTime)%sec()
     write(iulog,fmt1)   ' <sim_end> : ', endDatetime%year(),'-',endDatetime%month(),'-',endDatetime%day(), endDatetime%hour(),':', endDatetime%minute(),':',endDatetime%sec()
@@ -617,13 +623,17 @@ CONTAINS
 
   t_unit = trim( time_units(1:index(time_units,' ')) )
   select case( trim(t_unit) )
-    case('seconds','second','sec','s'); timeVar = (juldaySim - refJulday)*86400._dp
-    case('minutes','minute','min');     timeVar = (juldaySim - refJulday)*1440._dp
-    case('hours','hour','hr','h');      timeVar = (juldaySim - refJulday)*24._dp
-    case('days','day','d');             timeVar = (juldaySim - refJulday)
+    case('seconds','second','sec','s'); secPerTime=1._dp; timePerDay=86400._dp
+    case('minutes','minute','min');     secPerTime=60._dp; timePerDay=1440._dp
+    case('hours','hour','hr','h');      secPerTime=3600._dp; timePerDay=24._dp
+    case('days','day','d');             secPerTime=86400._dp; timePerDay=1._dp
     case default
       ierr=20; message=trim(message)//'<tunit>= '//trim(t_unit)//': <tunit> must be seconds, minutes, hours or days.'; return
   end select
+
+  ! Initialize timeVar : model time (time step endpoints) in model time unit (t_unit), used for time output
+  timeVar(1) = (juldaySim - refJulday)*timePerDay
+  timeVar(2) = timeVar(1) + dt/secPerTime
 
   ! Set restart calendar date/time and dropoff calendar date/time and
   ! -- For periodic restart options  ---------------------------------------------------------------------
