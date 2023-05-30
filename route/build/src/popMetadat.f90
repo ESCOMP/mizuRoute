@@ -106,6 +106,7 @@ contains
  meta_stateDims(ixStateDims%tdh     ) = dim_info('tdh',     integerMissing, integerMissing)  ! future time steps for bsasin irf routing
 
  meta_qDims(ixQdims%time    ) = dim_info('time',    integerMissing, integerMissing)   ! time
+ meta_qDims(ixQdims%tbound  ) = dim_info('tbound',  integerMissing, 2)                ! time bound (always 2 - start and end)
  meta_qDims(ixQdims%seg     ) = dim_info('seg',     integerMissing, integerMissing)   ! stream segment vector
  meta_qDims(ixQdims%hru     ) = dim_info('hru',     integerMissing, integerMissing)   ! hru vector
  meta_qDims(ixQdims%ens     ) = dim_info('ens',     integerMissing, integerMissing)   ! ensemble

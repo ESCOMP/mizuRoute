@@ -265,8 +265,8 @@ CONTAINS
    endif
 
    ! update model time step bound
-   TSEC(0) = TSEC(0) + dt
-   TSEC(1) = TSEC(0) + dt
+   TSEC(1) = TSEC(2)
+   TSEC(2) = TSEC(1) + dt
 
    ! update model time index
    iTime=iTime+1
@@ -276,17 +276,18 @@ CONTAINS
    simDatetime(1) = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
    simDatetime(2) = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
 
+   ! increment time variable for history file
    ! model time stamp variable for output - dt is in second
+   timeVar(1) = timeVar(2)
    t_unit = trim( time_units(1:index(time_units,' ')) )
    select case( trim(t_unit) )
-     case('seconds','second','sec','s'); timeVar = timeVar+ dt
-     case('minutes','minute','min');     timeVar = timeVar+ dt/60._dp
-     case('hours','hour','hr','h');      timeVar = timeVar+ dt/3600._dp
-     case('days','day','d');             timeVar = timeVar+ dt/86400._dp
+     case('seconds','second','sec','s'); timeVar(2) = timeVar(1) + dt
+     case('minutes','minute','min');     timeVar(2) = timeVar(1) + dt/60._dp
+     case('hours','hour','hr','h');      timeVar(2) = timeVar(1) + dt/3600._dp
+     case('days','day','d');             timeVar(2) = timeVar(1) + dt/86400._dp
      case default
        ierr=20; message=trim(message)//'<tunit>= '//trim(t_unit)//': <tunit> must be seconds, minutes, hours or days.'; return
    end select
-
 
  END SUBROUTINE update_time
 
@@ -448,7 +449,7 @@ CONTAINS
       end if
     end if
     ! initialize time
-    TSEC(0)=0._dp; TSEC(1)=dt
+    TSEC(1)=0._dp; TSEC(2)=dt
   else
     ! start with restart condition
     if (masterproc) then
@@ -456,7 +457,7 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! time bound [sec] is at previous time step, so need to add dt for curent time step
-      TSEC(0)=T0+dt; TSEC(1)=T1+dt
+      TSEC(1)=T0+dt; TSEC(2)=T1+dt
     else ! if other processors, just allocate RCHSTA for dummy
       allocate(RCHSTA(1,1),RCHFLX(1,1), stat=ierr, errmsg=cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA,RCHFLX]'; return; endif

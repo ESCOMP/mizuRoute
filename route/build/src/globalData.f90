@@ -93,8 +93,8 @@ MODULE globalData
   ! ---------- Date/Time data  -------------------------------------------------------------------------
 
   integer(i4b),                    public :: iTime                ! time index at simulation time step
-  real(dp),                        public :: timeVar              ! time variables (unit given by time variable)
-  real(dp),                        public :: TSEC(0:1)            ! begning and end of time step since simulation started (sec)
+  real(dp),                        public :: timeVar(1:2)         ! time variables at endpoints of a simulation time step (time unit used for time variable in history file)
+  real(dp),                        public :: TSEC(1:2)            ! seconds at endpoints of a simulation time step since simulation started
   type(datetime),                  public :: simDatetime(0:2)     ! previous, current and next simulation time (yyyy:mm:dd:hh:mm:ss)
   type(datetime),                  public :: begDatetime          ! simulation start date/time (yyyy:mm:dd:hh:mm:ss)
   type(datetime),                  public :: endDatetime          ! simulation end date/time (yyyy:mm:dd:hh:mm:ss)
