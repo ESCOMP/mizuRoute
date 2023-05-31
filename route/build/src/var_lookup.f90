@@ -47,10 +47,11 @@ MODULE var_lookup
  endtype iLook_stateDims
  ! For river discharge variables
  type, public  ::  iLook_qDims
-  integer(i4b)     :: time         = integerMissing   ! 1. time
-  integer(i4b)     :: seg          = integerMissing   ! 2. stream segment vector
-  integer(i4b)     :: hru          = integerMissing   ! 3. hru vector
-  integer(i4b)     :: ens          = integerMissing   ! 4. runoff ensemble
+  integer(i4b)     :: time         = integerMissing   ! 1. time stamp
+  integer(i4b)     :: tbound       = integerMissing   ! 2. time bound
+  integer(i4b)     :: seg          = integerMissing   ! 3. stream segment vector
+  integer(i4b)     :: hru          = integerMissing   ! 4. hru vector
+  integer(i4b)     :: ens          = integerMissing   ! 5. runoff ensemble
  endtype iLook_qDims
  ! ***********************************************************************************************************
  ! ** define variables desired for each HRU
@@ -261,7 +262,7 @@ MODULE var_lookup
  type(iLook_dims)     ,public,parameter :: ixDims      = iLook_dims     ( 1, 2, 3, 4, 5, 6, 7)
  type(iLook_stateDims),public,parameter :: ixStateDims = iLook_stateDims( 1, 2, 3, 4, 5, 6, 7, 8, 9,10, &
                                                                          11)
- type(iLook_qDims)    ,public,parameter :: ixqDims     = iLook_qDims    ( 1, 2, 3, 4)
+ type(iLook_qDims)    ,public,parameter :: ixQdims     = iLook_qDims    ( 1, 2, 3, 4, 5)
  type(iLook_HRU)      ,public,parameter :: ixHRU       = iLook_HRU      ( 1)
  type(iLook_HRU2SEG)  ,public,parameter :: ixHRU2SEG   = iLook_HRU2SEG  ( 1, 2, 3, 4)
  type(iLook_SEG)      ,public,parameter :: ixSEG       = iLook_SEG      ( 1, 2, 3, 4, 5, 6, 7, 8, 9,10, &

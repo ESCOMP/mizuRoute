@@ -110,8 +110,9 @@ CONTAINS
   ! number of time step from reference time to simulation end time
   nTime = int(endJulday - begJulday/dt_day) + 1
 
-  ! Initialize timeVar : starting with 0 and increment of model time step in model time unit (t_unit)
-  timeVar = (begJulday - refJulday)*timePerDay
+  ! Initialize timeVar : model time (time step endpoints) in model time unit (t_unit), used for time output
+  timeVar(1) = (begJulday - refJulday)*timePerDay
+  timeVar(2) = timeVar(1) + dt/secPerTime
 
   ! check that the dates are aligned
   if(endDatetime < begDatetime) then; ierr=20; message=trim(message)//'simulation end is before simulation start'; return; endif
@@ -129,7 +130,8 @@ CONTAINS
     write(iulog,*) 'simDatetime           = ', simDatetime(1)%year(), simDatetime(1)%month(), simDatetime(1)%day(), simDatetime(1)%hour(), simDatetime(1)%minute(), simDatetime(1)%sec()
     write(iulog,*) 'dt [sec]              = ', dt
     write(iulog,*) 'nTime                 = ', nTime
-    write(iulog,*) 'iTime, timeVar(iTime) = ', iTime, timeVar
+    write(iulog,*) 'iTime                 = ', iTime
+    write(iulog,*) 'timeVar(1),timeVar(2) = ', timeVar(1), timeVar(2)
     call shr_sys_flush(iulog)
   end if
 

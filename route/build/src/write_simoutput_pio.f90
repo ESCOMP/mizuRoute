@@ -78,7 +78,7 @@ CONTAINS
 
       call hist_all_network%set_compdof(compdof_rch, compdof_hru, nRch, nHRU)
 
-      call hist_all_network%createNC(nRch, nHRU, ierr, cmessage)
+      call hist_all_network%createNC(ierr, cmessage, nRch_in=nRch, nHRU_in=nHRU)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       call hist_all_network%openNC(ierr, message)
@@ -95,7 +95,7 @@ CONTAINS
 
         call hist_gage%set_compdof(compdof_rch_gage, gage_data%nGage)
 
-        call hist_gage%createNC(gage_data%nGage, ierr, cmessage)
+        call hist_gage%createNC(ierr, cmessage, nRch_in=gage_data%nGage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
         call hist_gage%openNC(ierr, message)

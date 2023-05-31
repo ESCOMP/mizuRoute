@@ -320,7 +320,7 @@ CONTAINS
  call def_var(pioFileDescState, 'restart_time', ncd_double, ierr, cmessage, vdesc='resatart time', vunit=trim(time_units), vcal=calendar)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call def_var(pioFileDescState, 'history_time', ncd_double, ierr, cmessage, vdesc='history time', vunit=trim(time_units), vcal=calendar)
+ call def_var(pioFileDescState, 'history_time', ncd_double, ierr, cmessage, pioDimId=[dim_tbound], vdesc='history time', vunit=trim(time_units), vcal=calendar)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  call def_var(pioFileDescState, 'time_bound', ncd_float, ierr, cmessage, pioDimId=[dim_tbound], vdesc='time bound at last time step', vunit='sec')
@@ -835,8 +835,6 @@ CONTAINS
  SUBROUTINE write_state_nc(fname,                &   ! Input: state netcdf name
                            ierr, message)            ! Output: error control
 
- USE public_var, ONLY: time_units             ! time units (seconds, hours, or days)
- USE public_var, ONLY: dt                     ! model time step size [sec]
  USE public_var, ONLY: doesBasinRoute
  USE public_var, ONLY: impulseResponseFunc
  USE public_var, ONLY: kinematicWaveTracking
@@ -866,8 +864,6 @@ CONTAINS
  integer(i4b), intent(out)       :: ierr              ! error code
  character(*), intent(out)       :: message           ! error message
  ! local variables
- real(dp)                        :: secPerTime        ! number of sec per time-unit. time-unit is from t_unit
- real(dp)                        :: restartTimeVar    ! restart timeVar [time_units]
  integer(i4b)                    :: iens              ! temporal
  integer(i4b)                    :: nRch_local        ! number of reach in each processors
  integer(i4b)                    :: nRch_root         ! number of reaches in root processors (including halo reaches)
@@ -875,7 +871,6 @@ CONTAINS
  type(RCHTOPO),allocatable       :: NETOPO_local(:)   ! reordered topology data structure
  type(STRSTA), allocatable       :: RCHSTA_local(:)   ! reordered statedata structure
  logical(lgt)                    :: restartOpen       ! logical to indicate restart file is open
- character(len=strLen)           :: t_unit            ! unit of time
  character(len=strLen)           :: cmessage          ! error message of downwind routine
 
  ierr=0; message='write_state_nc/'
@@ -908,19 +903,6 @@ CONTAINS
    RCHSTA_local = RCHSTA_trib(iens,:)
  endif
 
- ! get the time multiplier needed to convert time to units of days
- t_unit =  time_units(1:index(time_units,' '))
- select case( trim(t_unit)  )
-   case('seconds','second','sec','s'); secPerTime=1._dp
-   case('minutes','minute','min');     secPerTime=60._dp
-   case('hours','hour','hr','h');      secPerTime=3600._dp
-   case('days','day','d');             secPerTime=86400._dp
-   case default
-     ierr=20; message=trim(message)//'<time_units>= '//trim(time_units)//': <time_units> must be seconds, minutes, hours or days.'; return
- end select
-
- restartTimeVar = timeVar + dt/secPerTime
-
  call openFile(pioSystem, pioFileDescState, trim(fname),pio_typename, ncd_write, restartOpen, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -931,7 +913,7 @@ CONTAINS
  call write_netcdf(pioFileDescState, 'reachID', reachID, [1], [nRch], ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call write_scalar_netcdf(pioFileDescState, 'restart_time', restartTimeVar, ierr, cmessage)
+ call write_scalar_netcdf(pioFileDescState, 'restart_time', timeVar(2), ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  call write_netcdf(pioFileDescState, 'time_bound', TSEC, [1], [2], ierr, cmessage)
@@ -1422,7 +1404,7 @@ CONTAINS
     call write_scalar_netcdf(pioFileDescState, 'nt', hVars%nt, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call write_scalar_netcdf(pioFileDescState, 'history_time', hVars%timeVar, ierr, cmessage)
+    call write_netcdf(pioFileDescState, 'history_time', hVars%timeVar, [1], [2], ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     if (meta_hflx(ixHFLX%basRunoff)%varFile) then
