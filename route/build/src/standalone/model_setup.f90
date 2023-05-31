@@ -155,6 +155,8 @@ CONTAINS
   USE public_var, ONLY: is_lake_sim             ! logical whether or not lake should be simulated
   USE public_var, ONLY: is_flux_wm              ! logical whether or not abstraction and injection should be read from the file
   USE public_var, ONLY: is_vol_wm               ! logical whether or not target volume for lakes should be read
+  USE public_var, ONLY: ro_time_units           ! time units used in forcing input netcdfs
+  USE public_var, ONLY: ro_calendar             ! calendar used in forcing input netcdfs
 
   ! Argument variables
   integer(i4b),         intent(out)    :: ierr             ! error code
@@ -168,6 +170,8 @@ CONTAINS
                   fname_qsim,        & ! input: name of the txt file hold the nc file names
                   vname_time,        & ! input: name of variable time in the nc files
                   dname_time,        & ! input: name of dimention time in the nc files
+                  ro_calendar,       & ! input: name of calendar used in runoff netcdf
+                  ro_time_units,     & ! input: time units used in runoff netcdf
                   inFileInfo_ro,     & ! output: input file information
                   ierr, cmessage)      ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
@@ -177,6 +181,8 @@ CONTAINS
                     fname_wm,             & ! input: name of the txt file hold the nc file names
                     vname_time_wm,        & ! input: name of variable time in the nc files
                     dname_time_wm,        & ! input: name of dimention time in the nc files
+                    ro_calendar,          & ! input: name of calendar used in water-management netcdf (assume the same as runoff)
+                    ro_time_units,        & ! input: time units used in water-management netcdf (assume the same as runoff)
                     inFileInfo_wm,        & ! output: input file information
                     ierr, cmessage)         ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
@@ -197,6 +203,8 @@ CONTAINS
                        file_name,        & ! input: name of the txt file hold the nc file names
                        time_var_name,    & ! input: name of variable time in the nc files
                        time_dim_name,    & ! input: name of dimention time in the nc files
+                       calendar_in,      & ! input: name of calendar used in input file
+                       time_units_in,    & ! input: time units used in input file
                        inputFileInfo,    & ! output: input file information
                        ierr, message)      ! output: error control
 
@@ -207,14 +215,14 @@ CONTAINS
   USE ncio_utils,          ONLY: get_nc         ! Read netCDF variable data
   USE ncio_utils,          ONLY: get_var_attr   ! Read attributes variables
   USE ncio_utils,          ONLY: get_nc_dim_len ! get the nc dimension length
-  USE public_var,          ONLY: time_units     ! get the time units from control file and replace if not provided in nc files
-  USE public_var,          ONLY: calendar       ! get the calendar from control file and replace if not provided in nc files
 
   ! Argument variables
   character(len=strLen), intent(in)                 :: dir_name         ! the name of the directory that the txt file located
   character(len=strLen), intent(in)                 :: file_name        ! the name of the file that include the nc file names
   character(len=strLen), intent(in)                 :: time_var_name    ! the name of the time variable
   character(len=strLen), intent(in)                 :: time_dim_name    ! the name of dimension time
+  character(len=strLen), intent(in)                 :: calendar_in      ! name of calendar used in input file
+  character(len=strLen), intent(in)                 :: time_units_in    ! time units used in input file
   type(infileinfo),      intent(inout), allocatable :: inputFileInfo(:) ! the name of structure that hold the infile information
   integer(i4b),          intent(out)                :: ierr             ! error code
   character(*),          intent(out)                :: message          ! error message
@@ -259,22 +267,22 @@ CONTAINS
    ! set forcing file name
    inputFileInfo(iFile)%infilename = filenameData
 
-   ! get the time units, assuming the water managment nc files has the same calendar as the first
-   if (trim(time_units) == charMissing) then
+   ! get the time units. if not exsit in netcdfs, provided from the control file
+   if (trim(time_units_in) == charMissing) then
      call get_var_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
                        time_var_name, 'units', inputFileInfo(iFile)%unit, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    else
-     inputFileInfo(iFile)%unit = time_units
+     inputFileInfo(iFile)%unit = time_units_in
    end if
 
-   ! get the calendar, assuming the water managment nc files has the same calendar as the first
-   if (trim(calendar) == charMissing) then
+   ! get the calendar. if not exsit in netcdfs, provided from the control file
+   if (trim(calendar_in) == charMissing) then
      call get_var_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
                        time_var_name, 'calendar', inputFileInfo(iFile)%calendar, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    else
-     inputFileInfo(iFile)%calendar = calendar
+     inputFileInfo(iFile)%calendar = calendar_in
    end if
 
    ! get the dimension of the time to populate nTime and pass it to the get_nc file
@@ -450,6 +458,7 @@ CONTAINS
   type(datetime), allocatable              :: roCal(:)
   type(datetime), allocatable              :: wmCal(:)
   type(datetime)                           :: roDatetime_end      ! temp datetime
+  type(datetime)                           :: refDatetime         ! reference datetime from unit time
   type(datetime)                           :: dummyDatetime       ! temp datetime
   integer(i4b)                             :: nDays               ! number of days in a month
   real(dp)                                 :: timePerDay          ! number of times (unit:time-unit) per a day. time-unit is from t_unit
@@ -465,14 +474,19 @@ CONTAINS
 
   ierr=0; message='init_time/'
 
-  ! Set time attributes for continuous time variables (saved in globalData to use for output)
-  ! Use from 1st file
-  ! These are used for history output
-  calendar   = inFileInfo_ro(1)%calendar
-  time_units = inFileInfo_ro(1)%unit
-
-  ! get reference julianday in the 1st file
-  refJulday  = inFileInfo_ro(1)%ncrefjulday
+  ! Set simulation time attributes-calendar and time units (used for history file)
+  ! For time units, if they are not provided in control files, Use from 1st runoff input netCDF
+  ! For calendar, always use the same as forcing input
+  calendar = inFileInfo_ro(1)%calendar
+  if (trim(time_units)==charMissing) then
+    time_units = inFileInfo_ro(1)%unit
+    refJulday = inFileInfo_ro(1)%ncrefjulday ! get reference julianday in the 1st file
+  else
+    ! get the reference julian day from time units
+    call refDatetime%str2datetime(time_units, ierr, message)
+    call refDatetime%julianday(calendar, refJulday, ierr, cmessage)
+    if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [refJulday]'; return; endif
+  end if
 
   ! get the number of the total time length of all the nc files
   nFile = size(inFileInfo_ro)

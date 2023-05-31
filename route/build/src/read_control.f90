@@ -151,6 +151,8 @@ CONTAINS
    case('<units_qsim>');           units_qsim   = trim(cData)                          ! units of runoff
    case('<dt_ro>');                read(cData,*,iostat=io_error) dt_ro                 ! time interval of the runoff input with unit of units_qsim
    case('<input_fillvalue>');      read(cData,*,iostat=io_error) input_fillvalue       ! fillvalue used for input variable
+   case('<ro_calendar>');          ro_calendar  = trim(cData)                          ! name of calendar used in runoff input netcdfs
+   case('<ro_time_units>');        ro_time_units = trim(cData)                         ! time units used in runoff input netcdfs
    ! FLUXES TO/FROM REACHES AND LAKE STATES FILE
    case('<fname_wm>');             fname_wm        = trim(cData)                       ! name of text file containing ordered nc file names
    case('<vname_flux_wm>');        vname_flux_wm   = trim(cData)                       ! name of varibale for fluxes to and from seg (reachs/lakes)
@@ -183,9 +185,6 @@ CONTAINS
    case('<hydGeometryOption>');    read(cData,*,iostat=io_error) hydGeometryOption     ! option for hydraulic geometry calculations (0=read from file, 1=compute)
    case('<topoNetworkOption>');    read(cData,*,iostat=io_error) topoNetworkOption     ! option for network topology calculations (0=read from file, 1=compute)
    case('<computeReachList>');     read(cData,*,iostat=io_error) computeReachList      ! option to compute list of upstream reaches (0=do not compute, 1=compute)
-   ! TIME
-   case('<time_units>');           time_units = trim(cData)                            ! time units. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
-   case('<calendar>');             calendar   = trim(cData)                            ! calendar name
    ! GAUGE DATA
    case('<gageMetaFile>');         gageMetaFile = trim(cData)                          ! name of csv file containing gauge metadata (gauge id, reach id, gauge lat/lon)
    case('<outputAtGage>');         read(cData,*,iostat=io_error) outputAtGage          ! logical; T-> history file output at only gauge points
@@ -204,6 +203,7 @@ CONTAINS
    case('<maxPfafLen>');           read(cData,*,iostat=io_error) maxPfafLen            ! maximum digit of pfafstetter code (default 32)
    case('<pfafMissing>');          pfafMissing = trim(cData)                           ! missing pfafcode (e.g., reach without any upstream area)
    ! OUTPUT OPTIONS
+   case('<time_units>');           time_units = trim(cData)                            ! time units used in history file output. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
    case('<newFileFrequency>');     newFileFrequency = trim(cData)                      ! frequency for new history files (daily, monthly, yearly, single)
    case('<outputFrequency>');      outputFrequency  = trim(cData)                      ! output frequency (integer for multiple of simulation time step or daily, monthly or yearly)
    case('<basRunoff>');            read(cData,*,iostat=io_error) meta_hflx(ixHFLX%basRunoff        )%varFile  ! default: true
@@ -364,16 +364,25 @@ CONTAINS
 
  ! ---------- time variables  --------------------------------------------------------------------------------------------
  if (masterproc) then
-   write(iulog,'(2a)') new_line('a'), '---- calendar --- '
-   if (trim(calendar)/=charMissing) then
-     write(iulog,'(a)') '  calendar is provided in control file: '//trim(calendar)
-   else
-     write(iulog,'(a)') '  calendar will be read from '//trim(fname_qsim)
-   end if
-   if (trim(time_units)/=charMissing) then
-     write(iulog,'(a)') '  time_unit is provided in control file: '//trim(time_units)
-   else
-     write(iulog,'(a)') '  time_unit will be read from '//trim(fname_qsim)
+   if (trim(runMode)=='standalone') then
+     write(iulog,'(2a)') new_line('a'), '---- calendar --- '
+     write(iulog,'(a)') '  calendar used for simulation and history output is the same as runoff input'
+     if (trim(ro_calendar)/=charMissing) then
+       write(iulog,'(a)') '  calendar used in runoff input is provided in control file: '//trim(ro_calendar)
+     else
+       write(iulog,'(a)') '  calendar used in runoff input will be read from '//trim(fname_qsim)
+     end if
+     write(iulog,'(2a)') new_line('a'), '---- time units --- '
+     if (trim(time_units)/=charMissing) then
+       write(iulog,'(a)') '  time_unit for history files is provided in control file: '//trim(time_units)
+     else
+       write(iulog,'(a)') '  time_unit for history files will be the same as runoff input'
+       if (trim(ro_time_units)/=charMissing) then
+         write(iulog,'(a)') '  time_unit in runoff input is provided in control file: '//trim(ro_time_units)
+       else
+         write(iulog,'(a)') '  time_unit used in runoff input will be read from '//trim(fname_qsim)
+       end if
+     end if
    end if
  end if
 
