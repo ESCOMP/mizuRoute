@@ -131,18 +131,18 @@ CONTAINS
    ierr=0; message='restart_alarm/'
 
    ! adjust restart dropoff day if the dropoff day is outside number of days in particular month
-   dropDatetime = datetime(dropDatetime%year(), dropDatetime%month(), restart_day, dropDatetime%hour(), dropDatetime%minute(), dropDatetime%sec())
+   dropDatetime = datetime(dropDatetime%year(), dropDatetime%month(), restart_day, dropDatetime%hour(), dropDatetime%minute(), dropDatetime%sec(), calendar=calendar)
 
-   nDays = simDatetime(1)%ndays_month(calendar, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   nDays = simDatetime(1)%ndays_month()
+   if(nDays==integerMissing)then; ierr=10; message=trim(message)//'simDatetime calendar may be unset'; return; endif
 
    if (dropDatetime%day() > nDays) then
-     dropDatetime = datetime(dropDatetime%year(), dropDatetime%month(), nDays, dropDatetime%hour(), dropDatetime%minute(), dropDatetime%sec())
+     dropDatetime = datetime(dropDatetime%year(), dropDatetime%month(), nDays, dropDatetime%hour(), dropDatetime%minute(), dropDatetime%sec(), calendar=calendar)
    end if
 
    ! adjust dropoff day further if restart day is actually outside number of days in a particular month
    if (restDatetime%day() > nDays) then
-     dropDatetime = dropDatetime%add_day(-1, calendar, ierr, cmessage)
+     dropDatetime = dropDatetime%add_day(-1, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end if
 
@@ -854,6 +854,7 @@ CONTAINS
  USE globalData, ONLY: nRch                ! number of reaches in network
  USE globalData, ONLY: TSEC                ! beginning/ending of simulation time step [sec]
  USE globalData, ONLY: timeVar             ! time variables (unit given by runoff data)
+ USE globalData, ONLY: sec2tunit           ! seconds per time unit
  USE write_simoutput_pio, ONLY:hVars       ! current history variable data
 
  implicit none
@@ -867,6 +868,7 @@ CONTAINS
  integer(i4b)                    :: iens              ! temporal
  integer(i4b)                    :: nRch_local        ! number of reach in each processors
  integer(i4b)                    :: nRch_root         ! number of reaches in root processors (including halo reaches)
+ real(dp)                        :: timeVar_local     ! timeVar in simulation time unit converted from second
  type(STRFLX), allocatable       :: RCHFLX_local(:)   ! reordered reach flux data structure
  type(RCHTOPO),allocatable       :: NETOPO_local(:)   ! reordered topology data structure
  type(STRSTA), allocatable       :: RCHSTA_local(:)   ! reordered statedata structure
@@ -876,6 +878,8 @@ CONTAINS
  ierr=0; message='write_state_nc/'
 
  iens = 1
+
+ timeVar_local = timeVar(2)/sec2tunit ! second. restart time is end of current time step
 
  if (masterproc) then
    nRch_local = nRch_mainstem+rch_per_proc(0)
@@ -913,7 +917,7 @@ CONTAINS
  call write_netcdf(pioFileDescState, 'reachID', reachID, [1], [nRch], ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call write_scalar_netcdf(pioFileDescState, 'restart_time', timeVar(2), ierr, cmessage)
+ call write_scalar_netcdf(pioFileDescState, 'restart_time', timeVar_local, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  call write_netcdf(pioFileDescState, 'time_bound', TSEC, [1], [2], ierr, cmessage)

@@ -152,6 +152,7 @@ CONTAINS
    USE public_var, ONLY: outputFrequency   !
    USE globalData, ONLY: simDatetime       ! previous,current and next model datetime
    USE globalData, ONLY: timeVar           ! current simulation time variable
+   USE globalData, ONLY: sec2tunit         ! seconds per time unit
    USE globalData, ONLY: RCHFLX_trib       ! reach flux data structure containing current flux variables
    USE globalData, ONLY: rch_per_proc      ! number of reaches assigned to each proc (size = num of procs+1)
    USE globalData, ONLY: nRch_mainstem     ! number of mainstem reach
@@ -165,6 +166,7 @@ CONTAINS
    ! local variables:
    logical(lgt)                :: writeHistory          !
    integer(i4b)                :: nRch_local         ! number of reaches per processors
+   real(dp)                    :: timeVar_local(1:2)
    real(dp),     allocatable   :: basinRunoff(:)
    integer(i4b), allocatable   :: index_write_all(:) ! indices in RCHFLX_trib to be written in netcdf
    character(strLen)           :: cmessage           ! error message of downwind routine
@@ -181,7 +183,8 @@ CONTAINS
    call get_proc_flux(ierr, cmessage, basinRunoff=basinRunoff)
 
    ! accumulate history variables
-   call hVars%aggregate(timeVar, basinRunoff, RCHFLX_trib, ierr, cmessage)
+   timeVar_local = timeVar/sec2tunit
+   call hVars%aggregate(timeVar_local, basinRunoff, RCHFLX_trib, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! history output alarm
