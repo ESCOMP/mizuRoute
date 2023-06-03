@@ -96,7 +96,9 @@
       <machine name="izumi"    compiler="intel" category="mizu"></machine>
       <machine name="izumi"    compiler="gnu"   category="mizu"></machine>
       <machine name="izumi"    compiler="nag"   category="mizu"></machine>
+      <!-- izumi doens't have nvhpc in older version of ccs_config, and pgi no longer on the machine
       <machine name="izumi"    compiler="nvhpc" category="mizu"></machine>
+      -->
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
@@ -162,8 +164,6 @@
       <machine name="cheyenne" compiler="gnu"   category="prebeta"></machine>
       <machine name="izumi"    compiler="intel" category="mizu"></machine>
       <machine name="izumi"    compiler="intel" category="prealpha"></machine>
-      <machine name="izumi"    compiler="nag"   category="mizu"></machine>
-      <machine name="izumi"    compiler="nag"   category="prebeta"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
