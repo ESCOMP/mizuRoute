@@ -369,6 +369,7 @@ CONTAINS
      write(iulog,'(a)') '  calendar used for simulation and history output is the same as runoff input'
      if (trim(ro_calendar)/=charMissing) then
        write(iulog,'(a)') '  calendar used in runoff input is provided in control file: '//trim(ro_calendar)
+       write(iulog,'(a)') '  However, this will be overwritten the one read from '//trim(fname_qsim)
      else
        write(iulog,'(a)') '  calendar used in runoff input will be read from '//trim(fname_qsim)
      end if
