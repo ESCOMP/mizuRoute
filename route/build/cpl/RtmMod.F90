@@ -385,7 +385,7 @@ CONTAINS
     implicit none
     ! Arguments:
     logical ,         intent(in) :: rstwr                  ! true => write restart file this step)
-    ! Local cariables:
+    ! Local variables:
     integer                      :: iens=1                 ! ensemble index (1 for now)
     integer                      :: ix, nr, ns, nt         ! loop indices
     integer                      :: lwr,upr                ! lower and upper bounds for array slicing
@@ -401,7 +401,6 @@ CONTAINS
     real(r8), allocatable        :: qSend(:)               ! array holding negative lateral flow to be sent to outlet
     real(r8), allocatable        :: qvolSend(:)            ! array holding negative lateral flow to be sent to outlet
     real(r8), allocatable        :: qvolRecv(:)            ! array holding negative lateral flow to be recieved
-!    integer,  allocatable        :: ixRch(:)               ! temp array
     logical                      :: finished               ! dummy arguments (not really used)
     character(len=CL)            :: cmessage               ! error message from subroutines
     integer                      :: ierr                   ! error code
