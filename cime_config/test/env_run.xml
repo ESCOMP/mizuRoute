@@ -11,7 +11,7 @@ Sample env_run.xml file that allows buildnml to be run for testing in this direc
 
 -->
 <group>
-<entry id="DIN_LOC_ROOT"         value="MYDINLOCROOT"  /> 
+<entry id="DIN_LOC_ROOT"         value="/MYDINLOCROOT"  /> 
 
     <entry id="CASESTR" value="test">
     </entry>

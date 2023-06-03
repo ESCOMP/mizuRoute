@@ -1,9 +1,12 @@
 #!/bin/bash
-cd ../../cime >& /dev/null
+# Run the buildnmal for mizuRoute, assing it's under a CTSM or CESM checkout
+cd ../../../../cime >& /dev/null
 if [ $? != 0 ]; then
-   cd ../../../../cime
+   echo "cime directory does not exist where expected"
+   exit -1
 fi
 export CIMEROOT=`pwd`
+echo "CIMEROOT = $CIMEROOT"
     
 cd -
 cp ../user_nl_* .
@@ -22,6 +25,8 @@ if [ $? != 0 ] ; then
 else
    echo "Cat the results...."
    cat Buildconf/mizurouteconf/mizuRoute*
+   echo "input_data_list..."
+   cat Buildconf/mizuroute.input_data_list
 fi
 rm -rf user_* run/* Buildconf/mizurouteconf/* Buildconf/* CaseDocs
 echo "Successfully ran test"
