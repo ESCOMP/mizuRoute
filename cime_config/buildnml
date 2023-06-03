@@ -273,7 +273,7 @@ def write_nml_in_file(case, nmlgen, confdir, nml_file):
         os.remove(data_list_path)
 
     namelist_file = os.path.join(confdir, nml_file)
-    nmlgen.write_output_file(namelist_file, data_list_path=data_list_path, groups=["SLOPE", "IRF_UG", "KWT"])
+    nmlgen.write_output_file(namelist_file, data_list_path=data_list_path, groups=["HSLOPE", "IRF_UH", "KWT"])
 
 ###############################################################################
 def buildnml(case, caseroot, compname):
