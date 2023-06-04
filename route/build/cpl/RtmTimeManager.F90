@@ -98,7 +98,7 @@ CONTAINS
   iTime = 1
   simDatetime(0) = datetime(integerMissing, integerMissing, integerMissing, integerMissing, integerMissing, realMissing)
   simDatetime(1) = begDatetime
-  simDatetime(2) = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
+  simDatetime(2) = simDatetime(1)%add_sec(dt, ierr, cmessage)
 
   if (masterproc .and. debug) then
     write(iulog,*) 'simStart datetime     = ', trim(simStart)
