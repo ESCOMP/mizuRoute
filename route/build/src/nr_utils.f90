@@ -108,7 +108,7 @@ CONTAINS
          jstack=jstack-2
      else
          k=(l+r)/2
-         call swap(index(k),index(l+1))
+         if ( k /= l+1 ) call swap(index(k),index(l+1))
          call icomp_xchg(index(l),index(r))
          call icomp_xchg(index(l+1),index(r))
          call icomp_xchg(index(l),index(l+1))
@@ -126,7 +126,7 @@ CONTAINS
                  if (arr(index(j)) <= a) exit
              end do
              if (j < i) exit
-             call swap(index(i),index(j))
+             if ( i /= j ) call swap(index(i),index(j))
          end do
          index(l+1)=index(j)
          index(j)=indext
