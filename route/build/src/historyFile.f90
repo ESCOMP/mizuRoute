@@ -79,6 +79,7 @@ MODULE historyFile
       type(iosystem_desc_t), optional, intent(in) :: pioSys
 
       instHistFile%fname = fname
+      instHistFile%fileStatus = .false.
 
       if (present(gageOutput)) then
         instHistFile%gageOutput = gageOutput
@@ -374,7 +375,7 @@ MODULE historyFile
       implicit none
       class(histFile), intent(inout) :: this
 
-      if (this%fileStatus) then
+      if (this%fileOpen() ) then
         call closeFile(this%pioFileDesc, this%fileStatus)
       endif
     END SUBROUTINE closeNC
@@ -403,7 +404,7 @@ MODULE historyFile
       implicit none
       class(histFile), intent(inout) :: this
 
-      call freeDecomp(this%pioFileDesc, this%ioDescHruFlux)
+      !call freeDecomp(this%pioFileDesc, this%ioDescHruFlux)
 
     END SUBROUTINE cleanup_hru
 
@@ -414,7 +415,7 @@ MODULE historyFile
       implicit none
       class(histFile), intent(inout) :: this
 
-      call freeDecomp(this%pioFileDesc, this%ioDescRchFlux)
+      !call freeDecomp(this%pioFileDesc, this%ioDescRchFlux)
 
     END SUBROUTINE cleanup_rch
 
