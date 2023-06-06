@@ -115,7 +115,7 @@
       <option name="comment"  >Exact restart test on small regional grid with DEBUG on for mpi-serial</option>
     </options>
   </test>
-  <test name="ERP_D_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="ERP_D_Mmpi-serial_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
     </machines>
@@ -124,7 +124,7 @@
       <option name="comment"  >Exact restart test changing number of threads on restart on small regional grid </option>
     </options>
   </test>
-  <test name="PET_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="PET_Mmpi-serial_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -135,7 +135,7 @@
       <option name="comment"  >PET test changing number of threads on small regional grid </option>
     </options>
   </test>
-  <test name="SMS_D_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="SMS_Mmpi-serial_D_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
