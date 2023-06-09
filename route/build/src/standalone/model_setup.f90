@@ -429,6 +429,8 @@ CONTAINS
   USE public_var,    ONLY: dt_ro                    ! forcing time step in second
   USE public_var,    ONLY: continue_run             ! logical to indicate sppend output in existing history file
   USE public_var,    ONLY: secprday                 ! unit conversion from day to sec
+  USE public_var,    ONLY: secprhour                ! unit conversion from hour to sec
+  USE public_var,    ONLY: secprmin                 ! unit conversion from minute to sec
   USE public_var,    ONLY: restart_write            ! restart write option
   USE public_var,    ONLY: restart_date             ! restart datetime
   USE public_var,    ONLY: restart_month            ! periodic restart month
@@ -639,9 +641,9 @@ CONTAINS
   t_unit = trim( time_units(1:index(time_units,' ')) )
   select case( trim(t_unit) )
     case('seconds','second','sec','s'); sec2tunit=1._dp
-    case('minutes','minute','min');     sec2tunit=60._dp
-    case('hours','hour','hr','h');      sec2tunit=3600._dp
-    case('days','day','d');             sec2tunit=86400._dp
+    case('minutes','minute','min');     sec2tunit=secprmin
+    case('hours','hour','hr','h');      sec2tunit=secprhour
+    case('days','day','d');             sec2tunit=secprday
     case default
       ierr=20; message=trim(message)//'<tunit>= '//trim(t_unit)//': <tunit> must be seconds, minutes, hours or days.'; return
   end select

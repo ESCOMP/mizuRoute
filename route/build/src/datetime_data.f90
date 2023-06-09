@@ -9,7 +9,7 @@ MODULE datetime_data
 
 USE nrtype
 USE public_var,        ONLY: realMissing, integerMissing
-USE public_var,        ONLY: secprday, hr_per_day
+USE public_var,        ONLY: secprday, secprhour, secprmin, hr_per_day
 USE time_utils_module, ONLY: extractTime                 !
 USE time_utils_module, ONLY: compJulday,&                ! compute julian day
                              compJulday_noleap           ! compute julian day for noleap calendar
@@ -214,7 +214,7 @@ CONTAINS
     type(datetime)              :: jan1datetime
 
     jan1datetime = datetime(this%iy, 1, 1, 0, 0, 0.0, calendar=this%calendar)
-    fn_dayofyear = int((this - jan1datetime)/86400._dp) + 1
+    fn_dayofyear = int((this - jan1datetime)/secprday) + 1
 
   END FUNCTION fn_dayofyear
 
@@ -481,8 +481,8 @@ CONTAINS
     real(dp)                         :: julday2
     character(len=strLen)            :: cmessage
 
-    sec_in_day1 = real(this%ih*3600+this%imin*60, kind=dp) +this%dsec
-    sec_in_day2 = real(that%ih*3600+that%imin*60, kind=dp) +that%dsec
+    sec_in_day1 = real(this%ih*secprhour +this%imin*secprmin, kind=dp) +this%dsec
+    sec_in_day2 = real(that%ih*secprhour +that%imin*secprmin, kind=dp) +that%dsec
 
     date1 = datetime(this%iy, this%im, this%id, 0, 0, 0.0, calendar=this%calendar)
     date2 = datetime(that%iy, that%im, that%id, 0, 0, 0.0, calendar=that%calendar)
@@ -492,7 +492,7 @@ CONTAINS
 
     diffDay=julday1-julday2
 
-    ans = diffDay*86400._dp+sec_in_day1-sec_in_day2
+    ans = diffDay*secprday + sec_in_day1 - sec_in_day2
   END FUNCTION fn_delta
 
 
