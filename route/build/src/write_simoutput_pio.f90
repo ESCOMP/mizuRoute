@@ -442,10 +442,12 @@ CONTAINS
        write(timeString, fmtYMDS) inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day
      case('daily')
        if (trim(hfile_dayStamp)=='period-start') then
-         write(timeString, fmtYMD) inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day()
+         sec_in_day = inDatetime%hour()*int(secprhour)+inDatetime%minute()*int(secprmin)+nint(inDatetime%sec())
+         write(timeString, fmtYMDS) inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day
        else if (trim(hfile_dayStamp)=='period-end') then
          datetime_stamp = inDatetime%add_day(1, ierr, cmessage)
-         write(timeString, fmtYMD) datetime_stamp%year(),'-',datetime_stamp%month(),'-',datetime_stamp%day()
+         sec_in_day = datetime_stamp%hour()*int(secprhour)+datetime_stamp%minute()*int(secprmin)+nint(datetime_stamp%sec())
+         write(timeString, fmtYMDS) datetime_stamp%year(),'-',datetime_stamp%month(),'-',datetime_stamp%day(),'-',sec_in_day
        end if
      case('monthly')
        write(timeString, fmtYM) inDatetime%year(),'-',inDatetime%month()
