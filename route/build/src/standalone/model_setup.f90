@@ -445,7 +445,7 @@ CONTAINS
     allocate(roTimeVar_diff(nTime-1), stat=ierr, errmsg=cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     ! calculate the difference of consequative time in julian day
-    roTimeVar_diff = roTimeVar(1:nTime-1) - roTimeVar(2:nTime)
+    roTimeVar_diff = roTimeVar(2:nTime)-roTimeVar(1:nTime-1)
     ! check if the difference are identical otherwise error and terminate
     if ( any(abs(roTimeVar_diff-roTimeVar_diff(1)) > maxTimeDiff) ) then
       write(iulog,'(2a)') new_line('a'),'ERROR: time spacing in netCDF input(s) is not consistent within tolerance maxTimeDiff = ',maxTimeDiff
@@ -477,7 +477,7 @@ CONTAINS
   ! check sim_start is after the last time step in runoff data
   if (begDatetime > roDatetime_end) then
     write(iulog,'(2a)') new_line('a'),'ERROR: <sim_start> is after the last time step in input runoff'
-    write(iulog,fmt1)  ' runoff_end  : ', roCal(nTime)%year(),'-',roCal(nTime)%month(),'-',roCal(nTime)%day(), roCal(nTime)%hour(),':', roCal(nTime)%minute(),':',roCal(nTime)%sec()
+    write(iulog,fmt1)  ' runoff_end  : ', roDatetime_end%year(),'-',roDatetime_end%month(),'-',roDatetime_end%day(), roDatetime_end%hour(),':', roDatetime_end%minute(),':',roDatetime_end%sec()
     write(iulog,fmt1)  ' <sim_start> : ', begDatetime%year(),'-',begDatetime%month(),'-',begDatetime%day(), begDatetime%hour(),':', begDatetime%minute(),':',begDatetime%sec()
     ierr=20; message=trim(message)//'check <sim_start> against runoff input time'; return
   endif
@@ -494,7 +494,7 @@ CONTAINS
   ! Compare sim_end vs. time at last time step in runoff data
   if (endDatetime > roDatetime_end) then
     write(iulog,'(2a)')  new_line('a'),'WARNING: <sim_end> is after the last time step in input runoff'
-    write(iulog,fmt1)   ' runoff_end: ', roCal(nTime)%year(),'-',roCal(nTime)%month(),'-',roCal(nTime)%day(), roCal(nTime)%hour(),':', roCal(nTime)%minute(),':',roCal(nTime)%sec()
+    write(iulog,fmt1)   ' runoff_end: ', roDatetime_end%year(),'-',roDatetime_end%month(),'-',roDatetime_end%day(), roDatetime_end%hour(),':', roDatetime_end%minute(),':',roDatetime_end%sec()
     write(iulog,fmt1)   ' <sim_end> : ', endDatetime%year(),'-',endDatetime%month(),'-',endDatetime%day(), endDatetime%hour(),':', endDatetime%minute(),':',endDatetime%sec()
     write(iulog,'(a)')  ' Reset <sim_end> to runoff_end'
     endDatetime = roCal(nTime)
