@@ -974,7 +974,7 @@ CONTAINS
     character(strLen),parameter :: subName = 'shr_mpi_abort/'
     integer(i4b)                :: jerr
 
-    write(iulog,*) trim(subName),trim(message),ierr
+    write(iulog,*) trim(subName),trim(message)
     call flush(6)
 
     if (present(comm)) then

@@ -284,8 +284,8 @@ CONTAINS
 
   type(datetime) FUNCTION fn_add_months(this, nmonths)
     implicit none
-    class(datetime),     intent(inout)  :: this
-    integer(i4b),         intent(in)    :: nmonths
+    class(datetime),     intent(in)    :: this
+    integer(i4b),        intent(in)    :: nmonths
     fn_add_months%iy   = this%iy + (nmonths/12_i4b)
     fn_add_months%im   = this%im + mod(nmonths,12)
     fn_add_months%id   = this%id
@@ -296,7 +296,7 @@ CONTAINS
 
   type(datetime) FUNCTION fn_add_days(this, days, ierr, message)
     implicit none
-    class(datetime),      intent(inout) :: this
+    class(datetime),      intent(in)    :: this
     integer(i4b),         intent(in)    :: days
     integer(i4b),         intent(out)   :: ierr
     character(len=strLen),intent(out)   :: message
