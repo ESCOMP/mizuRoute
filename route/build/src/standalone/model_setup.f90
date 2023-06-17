@@ -32,12 +32,10 @@ CONTAINS
   USE mpi_utils,       ONLY: shr_mpi_init
 
   implicit none
-  ! input:  None
-  ! output: None
+  ! Argument variables:  None
   ! local variables
   character(len=strLen)       :: message             ! error message
 
-  ! initialize error control
   message='init_mpi/'
 
   call shr_mpi_init(mpicom_route, message)
@@ -355,6 +353,7 @@ CONTAINS
   USE public_var,    ONLY: calendar                 ! calendar used for simulation
   USE public_var,    ONLY: dt                       ! simulation time step in second
   USE public_var,    ONLY: dt_ro                    ! forcing time step in second
+  USE public_var,    ONLY: dt_wm                    ! water-management time step in second
   USE public_var,    ONLY: continue_run             ! logical to indicate sppend output in existing history file
   USE public_var,    ONLY: secprday                 ! unit conversion from day to sec
   USE public_var,    ONLY: secprhour                ! unit conversion from hour to sec
@@ -394,7 +393,6 @@ CONTAINS
   integer(i4b)                             :: nt
   integer(i4b)                             :: nFile               ! number of nc files
   integer(i4b)                             :: nFile_wm            ! number of nc files
-  character(len=strLen)                    :: calendar_wm         ! calendar used in water management input file
   character(len=strLen)                    :: t_unit              ! time units. "<time_step> since yyyy-MM-dd hh:mm:ss"
   integer(i4b)                             :: iFile               ! for loop over the nc files
   type(datetime), allocatable              :: roCal(:)            ! datetime in runoff data
@@ -503,8 +501,6 @@ CONTAINS
   ! water management options on
   if ((is_flux_wm).or.(is_vol_wm.and.is_lake_sim)) then
 
-    calendar_wm = inFileInfo_wm(1)%calendar
-
     ! get the number of the total time length of all the water management nc files
     nFile_wm = size(inFileInfo_wm)
     nTime_wm = sum(inFileInfo_wm(:)%nTime)
@@ -528,13 +524,16 @@ CONTAINS
       allocate(wmTimeVar_diff(nTime_wm-1), stat=ierr)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       ! calculate the difference of consequative time in julian day
-      wmTimeVar_diff = wmTimeVar(1:nTime_wm-1) - wmTimeVar(2:nTime_wm)
+      wmTimeVar_diff = wmTimeVar(2:nTime_wm) - wmTimeVar(1:nTime_wm-1)
       ! check if the difference are identical otherwise error and terminate
       if ( any(abs(wmTimeVar_diff-wmTimeVar_diff(1)) > maxTimeDiff) ) then
         write(iulog,'(2a)') new_line('a'),'ERROR: time spacing in water management netCDF input(s) is not consistent within tolerance maxTimeDiff = ',maxTimeDiff
         ierr=20; message=trim(message)//'make sure the water management input netCDF files do not have time overlaps or gaps'; return
       end if
     endif
+
+    ! water-management data time step [sec]
+    dt_wm = wmTimeVar_diff(1)
 
     ! save water management data starting datetime
     wmBegDatetime = wmCal(1)
@@ -551,7 +550,7 @@ CONTAINS
       ierr=20; message=trim(message)//'check <sim_start> against water management input time'; return
     endif
 
-  endif
+  endif ! end of water manamgemnt option
 
   ! set initial model simulation time (beginning of simulation time step and next time step)
   simDatetime(1) = begDatetime

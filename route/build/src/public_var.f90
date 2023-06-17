@@ -27,7 +27,7 @@ MODULE public_var
   real(dp),    parameter,public   :: min_slope=1.e-6_dp     ! minimum slope
   real(dp),    parameter,public   :: runoffMin=1.e-15_dp    ! minimum runoff from each basin
   real(dp),    parameter,public   :: negRunoffTol=-1.e-3_dp ! nagative runoff tolerance
-  real(dp),    parameter,public   :: lakeWBTol=1.e-3_dp     ! lake water balance tolerance
+  real(dp),    parameter,public   :: lakeWBtol=1.e-3_dp     ! lake water balance tolerance
 
   ! routing related constants
   integer(i4b),parameter,public   :: MAXQPAR=20             ! maximum number of particles
@@ -35,7 +35,6 @@ MODULE public_var
   ! openMP domain decompostion parameters
   integer(i4b),parameter,public   :: maxSegs=100            ! maximum reach numbers within tributaries
   integer(i4b),parameter,public   :: maxLevel=20            ! maximum mainstem levels used for OMP domain decomposition
-
 
   ! constants for general use
   real(dp),    parameter,public   :: MaxPosVal=1.e36_dp     ! maximum value for positive value
@@ -128,7 +127,7 @@ MODULE public_var
   real(dp)             ,public    :: input_fillvalue      = realMissing     ! fillvalue used for input variables (runoff, precipitation, evaporation)
   character(len=strLen),public    :: ro_time_units        = charMissing     ! time units used in ro netcdf. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
   character(len=strLen),public    :: ro_calendar          = charMissing     ! calendar used in ro netcdf
-  ! FLUXES TO/FROM REACHES AND LAKES STATES FILE
+  ! Water-management input netCDF - water abstraction/infjection or lake target volume
   character(len=strLen),public    :: fname_wm             = ''              ! the txt file name that includes nc files holesing the abstraction, injection, target volume values
   character(len=strLen),public    :: vname_flux_wm        = ''              ! variable name for abstraction or injection from or to a river segment
   character(len=strLen),public    :: vname_vol_wm         = ''              ! variable name for target volume when lake is_lake_sim is on
@@ -136,8 +135,9 @@ MODULE public_var
   character(len=strLen),public    :: vname_segid_wm       = ''              ! variable name for runoff hru id
   character(len=strLen),public    :: dname_time_wm        = ''              ! dimension name for time
   character(len=strLen),public    :: dname_segid_wm       = ''              ! dimension name for hru in runoff data
+  real(dp)             ,public    :: dt_wm                = realMissing     ! water-management time step (seconds)
   ! RUNOFF REMAPPING
-  logical(lgt),public             :: is_remap             = .false.         ! logical whether or not runnoff needs to be mapped to river network HRU
+  logical(lgt),         public    :: is_remap             = .false.         ! logical whether or not runnoff needs to be mapped to river network HRU
   character(len=strLen),public    :: fname_remap          = ''              ! runoff mapping netCDF name
   character(len=strLen),public    :: vname_hruid_in_remap = ''              ! variable name for river network hru id
   character(len=strLen),public    :: vname_weight         = ''              ! variable name for areal weights of runoff HRUs within each river network
