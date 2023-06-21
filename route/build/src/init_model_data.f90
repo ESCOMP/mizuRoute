@@ -239,11 +239,9 @@ CONTAINS
  SUBROUTINE update_time(finished, ierr, message)
 
   USE public_var, ONLY: dt                ! time step [sec]
-  USE public_var, ONLY: calendar          ! model calendar
   USE globalData, ONLY: TSEC              ! beginning/ending of simulation time step [sec]
   USE globalData, ONLY: iTime             ! time index at simulation time step
   USE globalData, ONLY: timeVar           ! model time variables in time unit since reference time
-  USE public_var, ONLY: time_units        ! netcdf time units - t_unit since yyyy-mm-dd hh:mm:ss
   USE globalData, ONLY: endDatetime       ! model ending datetime
   USE globalData, ONLY: simDatetime       ! current model datetime
   USE write_simoutput_pio, ONLY: close_all
@@ -254,39 +252,30 @@ CONTAINS
    integer(i4b),              intent(out)   :: ierr             ! error code
    character(*),              intent(out)   :: message          ! error message
    ! local variables
-   character(len=7)                         :: t_unit           ! time unit - sec, min, hr, day
    character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
    ierr=0; message='update_time/'
 
-   if (simDatetime(1)==endDatetime) then
+   if (simDatetime(1)>=endDatetime) then
      call close_all()
      finished=.true.;return
    endif
 
    ! update model time step bound
-   TSEC(0) = TSEC(0) + dt
-   TSEC(1) = TSEC(0) + dt
+   TSEC(1) = TSEC(2)
+   TSEC(2) = TSEC(1) + dt
 
    ! update model time index
    iTime=iTime+1
 
    ! increment model datetime
    simDatetime(0) = simDatetime(1)
-   simDatetime(1) = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
-   simDatetime(2) = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
+   simDatetime(1) = simDatetime(1)%add_sec(dt, ierr, cmessage)
+   simDatetime(2) = simDatetime(1)%add_sec(dt, ierr, cmessage)
 
-   ! model time stamp variable for output - dt is in second
-   t_unit = trim( time_units(1:index(time_units,' ')) )
-   select case( trim(t_unit) )
-     case('seconds','second','sec','s'); timeVar = timeVar+ dt
-     case('minutes','minute','min');     timeVar = timeVar+ dt/60._dp
-     case('hours','hour','hr','h');      timeVar = timeVar+ dt/3600._dp
-     case('days','day','d');             timeVar = timeVar+ dt/86400._dp
-     case default
-       ierr=20; message=trim(message)//'<tunit>= '//trim(t_unit)//': <tunit> must be seconds, minutes, hours or days.'; return
-   end select
-
+   ! increment time variable for history file - keep second now
+   timeVar(1) = timeVar(2)
+   timeVar(2) = timeVar(1) + dt
 
  END SUBROUTINE update_time
 
@@ -448,7 +437,7 @@ CONTAINS
       end if
     end if
     ! initialize time
-    TSEC(0)=0._dp; TSEC(1)=dt
+    TSEC(1)=0._dp; TSEC(2)=dt
   else
     ! start with restart condition
     if (masterproc) then
@@ -456,7 +445,7 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! time bound [sec] is at previous time step, so need to add dt for curent time step
-      TSEC(0)=T0+dt; TSEC(1)=T1+dt
+      TSEC(1)=T0+dt; TSEC(2)=T1+dt
     else ! if other processors, just allocate RCHSTA for dummy
       allocate(RCHSTA(1,1),RCHFLX(1,1), stat=ierr, errmsg=cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA,RCHFLX]'; return; endif

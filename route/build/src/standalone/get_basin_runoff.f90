@@ -210,7 +210,6 @@ CONTAINS
 
    USE public_var,        ONLY: verySmall      ! smallest real values
    USE public_var,        ONLY: secprday       ! day to second conversion factor
-   USE public_var,        ONLY: calendar       ! calender
    USE public_var,        ONLY: dt             ! simulation time step
    USE public_var,        ONLY: dt_ro          ! input time step
 
@@ -240,9 +239,9 @@ CONTAINS
 
    ierr=0; message='timeMap_sim_forc/'
 
-   call startRo%julianday(calendar, juldayRo, ierr, cmessage)
+   call startRo%julianday(juldayRo, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   call startSim%julianday(calendar,juldaySim,  ierr, cmessage)
+   call startSim%julianday(juldaySim,  ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    nRo = sum(inputFileInfo(:)%nTime)

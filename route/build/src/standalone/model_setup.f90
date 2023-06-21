@@ -141,7 +141,6 @@ CONTAINS
  ! private subroutine: initiate the reading of the netcdf files for runoff
  ! or abstraction or injection
  ! *********************************************************************
-
  SUBROUTINE init_inFile_pop(ierr, message)
 
   USE public_var, ONLY: input_dir               ! directory containing the text files of fname_qsim and fname_wm
@@ -156,6 +155,8 @@ CONTAINS
   USE public_var, ONLY: is_lake_sim             ! logical whether or not lake should be simulated
   USE public_var, ONLY: is_flux_wm              ! logical whether or not abstraction and injection should be read from the file
   USE public_var, ONLY: is_vol_wm               ! logical whether or not target volume for lakes should be read
+  USE public_var, ONLY: ro_time_units           ! time units used in forcing input netcdfs
+  USE public_var, ONLY: ro_calendar             ! calendar used in forcing input netcdfs
 
   ! Argument variables
   integer(i4b),         intent(out)    :: ierr             ! error code
@@ -169,6 +170,8 @@ CONTAINS
                   fname_qsim,        & ! input: name of the txt file hold the nc file names
                   vname_time,        & ! input: name of variable time in the nc files
                   dname_time,        & ! input: name of dimention time in the nc files
+                  ro_calendar,       & ! input: name of calendar used in runoff netcdf
+                  ro_time_units,     & ! input: time units used in runoff netcdf
                   inFileInfo_ro,     & ! output: input file information
                   ierr, cmessage)      ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
@@ -178,6 +181,8 @@ CONTAINS
                     fname_wm,             & ! input: name of the txt file hold the nc file names
                     vname_time_wm,        & ! input: name of variable time in the nc files
                     dname_time_wm,        & ! input: name of dimention time in the nc files
+                    ro_calendar,          & ! input: name of calendar used in water-management netcdf (assume the same as runoff)
+                    ro_time_units,        & ! input: time units used in water-management netcdf (assume the same as runoff)
                     inFileInfo_wm,        & ! output: input file information
                     ierr, cmessage)         ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
@@ -198,6 +203,8 @@ CONTAINS
                        file_name,        & ! input: name of the txt file hold the nc file names
                        time_var_name,    & ! input: name of variable time in the nc files
                        time_dim_name,    & ! input: name of dimention time in the nc files
+                       calendar_in,      & ! input: name of calendar used in input file
+                       time_units_in,    & ! input: time units used in input file
                        inputFileInfo,    & ! output: input file information
                        ierr, message)      ! output: error control
 
@@ -206,25 +213,27 @@ CONTAINS
   USE ascii_utils,         ONLY: file_open      ! open file (performs a few checks as well)
   USE ascii_utils,         ONLY: get_vlines     ! get a list of character strings from non-comment lines
   USE ncio_utils,          ONLY: get_nc         ! Read netCDF variable data
+  USE ncio_utils,          ONLY: check_attr     ! check if the attribute exist for a variable
   USE ncio_utils,          ONLY: get_var_attr   ! Read attributes variables
   USE ncio_utils,          ONLY: get_nc_dim_len ! get the nc dimension length
-  USE public_var,          ONLY: time_units     ! get the time units from control file and replace if not provided in nc files
-  USE public_var,          ONLY: calendar       ! get the calendar from control file and replace if not provided in nc files
 
   ! Argument variables
   character(len=strLen), intent(in)                 :: dir_name         ! the name of the directory that the txt file located
   character(len=strLen), intent(in)                 :: file_name        ! the name of the file that include the nc file names
   character(len=strLen), intent(in)                 :: time_var_name    ! the name of the time variable
   character(len=strLen), intent(in)                 :: time_dim_name    ! the name of dimension time
+  character(len=strLen), intent(in)                 :: calendar_in      ! name of calendar used in input file
+  character(len=strLen), intent(in)                 :: time_units_in    ! time units used in input file
   type(infileinfo),      intent(inout), allocatable :: inputFileInfo(:) ! the name of structure that hold the infile information
   integer(i4b),          intent(out)                :: ierr             ! error code
   character(*),          intent(out)                :: message          ! error message
   ! local varibales
-  integer(i4b)                                      :: unit             ! file unit (free unit output from file_open)
+  integer(i4b)                                      :: funit            ! file unit (free unit output from file_open)
   character(len=7)                                  :: t_unit           ! time units. "<time_step> since yyyy-MM-dd hh:mm:ss"
   integer(i4b)                                      :: iFile            ! counter for forcing files
   integer(i4b)                                      :: nFile            ! number of nc files identified in the text file
   integer(i4b)                                      :: nTime            ! hard coded for now
+  logical(lgt)                                      :: existAttr        ! attribute exist or not
   type(datetime)                                    :: refDatetime      ! reference datetime for each file
   real(dp)                                          :: convTime2Days    ! conversion of the day to the local time
   character(len=strLen)                             :: infilename       ! input filename
@@ -237,12 +246,11 @@ CONTAINS
   ! build filename and its path containing list of NetCDF files
   infilename = trim(dir_name)//trim(file_name)
 
-  ! open the text file
-  call file_open(trim(infilename),unit,ierr,cmessage)
+  call file_open(infilename,funit,ierr,cmessage) ! open the text file
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
 
   ! get a list of character strings from non-commented lines
-  call get_vlines(unit,dataLines,ierr,cmessage)
+  call get_vlines(funit,dataLines,ierr,cmessage)
   if(ierr/=0)then; ierr=20; message=trim(message)//trim(cmessage); return; end if
   nFile = size(dataLines) ! get the name of the lines in the file
 
@@ -258,30 +266,41 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//'problem reading a line of data from file ['//trim(infilename)//']'; return; end if
 
    ! set forcing file name
-   inputFileInfo(iFile)%infilename = trim(filenameData)
+   inputFileInfo(iFile)%infilename = filenameData
 
-   ! get the time units, assuming the water managment nc files has the same calendar as the first
-   if (trim(time_units) == charMissing) then
+   ! get the time units. if not exsit in netcdfs, provided from the control file
+   existAttr = check_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), time_var_name, 'units')
+   if (existAttr) then
      call get_var_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
-                       trim(time_var_name), 'units', inputFileInfo(iFile)%unit, ierr, cmessage)
+                       time_var_name, 'units', inputFileInfo(iFile)%unit, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    else
-     inputFileInfo(iFile)%unit = trim(time_units)
+     if (trim(time_units_in)==charMissing) then
+       write(cmessage, '(2A)')  trim(time_var_name), '. No units attribute exist nor provided by user in ro_time_units in control file'
+       ierr=10; message=trim(message)//trim(cmessage); return
+     end if
+     inputFileInfo(iFile)%unit = time_units_in
    end if
 
-   ! get the calendar, assuming the water managment nc files has the same calendar as the first
-   if (trim(calendar) == charMissing) then
+   ! get the calendar. if not exsit in netcdfs, provided from the control file
+   existAttr = check_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), time_var_name, 'calendar')
+   if (existAttr) then
      call get_var_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
-                       trim(time_var_name), 'calendar', inputFileInfo(iFile)%calendar, ierr, cmessage)
+                       time_var_name, 'calendar', inputFileInfo(iFile)%calendar, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    else
-     inputFileInfo(iFile)%calendar = trim(calendar)
+     if (trim(calendar_in)==charMissing) then
+       write(cmessage, '(2A)')  trim(time_var_name), '. No calendar attribute exist nor provided by user in ro_calendar in control file'
+       ierr=10; message=trim(message)//trim(cmessage); return
+     end if
+     inputFileInfo(iFile)%calendar = calendar_in
    end if
 
    ! get the dimension of the time to populate nTime and pass it to the get_nc file
    call get_nc_dim_len(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
-                       trim(time_dim_name), inputFileInfo(iFile)%nTime, ierr, cmessage)
+                       time_dim_name, inputFileInfo(iFile)%nTime, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
    nTime = inputFileInfo(iFile)%nTime ! the length of time varibale for each nc file
 
    ! allocate space for time varibale of each file
@@ -306,8 +325,8 @@ CONTAINS
    inputFileInfo(iFile)%timeVar(:) = inputFileInfo(iFile)%timeVar(:)/convTime2Days
 
    ! get the reference julian day from the nc file
-   call refDatetime%str2datetime(trim(inputFileInfo(iFile)%unit), ierr, message)
-   call refDatetime%julianday(trim(inputFileInfo(iFile)%calendar), inputFileInfo(iFile)%ncrefjulday, ierr, cmessage)
+   call refDatetime%str2datetime(trim(inputFileInfo(iFile)%unit), inputFileInfo(iFile)%calendar, ierr, message)
+   call refDatetime%julianday(inputFileInfo(iFile)%ncrefjulday, ierr, cmessage)
    if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [ncrefjulday]'; return; endif
 
    ! populated the index of the iTimebound for each nc file
@@ -321,8 +340,8 @@ CONTAINS
 
   end do
 
-  ! close ascii file
-  close(unit=unit,iostat=ierr); if(ierr/=0)then;message=trim(message)//'problem closing forcing file list'; return; end if
+  close(unit=funit,iostat=ierr) ! close ascii file
+  if(ierr/=0)then;message=trim(message)//'problem closing forcing file list'; return; end if
 
  END SUBROUTINE inFile_pop
 
@@ -407,16 +426,20 @@ CONTAINS
   USE public_var,    ONLY: simEnd                   ! date string defining the end of the simulation
   USE public_var,    ONLY: calendar                 ! calendar used for simulation
   USE public_var,    ONLY: dt                       ! simulation time step in second
+  USE public_var,    ONLY: dt_ro                    ! forcing time step in second
   USE public_var,    ONLY: continue_run             ! logical to indicate sppend output in existing history file
   USE public_var,    ONLY: secprday                 ! unit conversion from day to sec
+  USE public_var,    ONLY: secprhour                ! unit conversion from hour to sec
+  USE public_var,    ONLY: secprmin                 ! unit conversion from minute to sec
   USE public_var,    ONLY: restart_write            ! restart write option
   USE public_var,    ONLY: restart_date             ! restart datetime
   USE public_var,    ONLY: restart_month            ! periodic restart month
   USE public_var,    ONLY: restart_day              ! periodic restart day
   USE public_var,    ONLY: restart_hour             ! periodic restart hr
   USE public_var,    ONLY: maxTimeDiff              ! time difference tolerance for input checks
-  USE globalData,    ONLY: timeVar                  ! time variables (unit given by runoff data)
+  USE globalData,    ONLY: timeVar                  ! time variables at time step endpoints (unit given by runoff data)
   USE globalData,    ONLY: iTime                    ! time index at simulation time step
+  USE globalData,    ONLY: sec2tunit                ! seconds per time unit
   USE globalData,    ONLY: simDatetime              ! model time data (yyyy:mm:dd:hh:mm:ss)
   USE globalData,    ONLY: begDatetime              ! simulation begin datetime data (yyyy:mm:dd:hh:mm:sec)
   USE globalData,    ONLY: endDatetime              ! simulation end datetime data (yyyy:mm:dd:hh:mm:sec)
@@ -448,12 +471,12 @@ CONTAINS
   integer(i4b)                             :: iFile               ! for loop over the nc files
   type(datetime), allocatable              :: roCal(:)
   type(datetime), allocatable              :: wmCal(:)
+  type(datetime)                           :: roDatetime_end      ! temp datetime
+  type(datetime)                           :: refDatetime         ! reference datetime from unit time
   type(datetime)                           :: dummyDatetime       ! temp datetime
   integer(i4b)                             :: nDays               ! number of days in a month
-  real(dp)                                 :: juldaySim           ! julian day of first simulation time
   real(dp), allocatable                    :: roJulday(:)         ! julian day in runoff data
   real(dp), allocatable                    :: roJulday_diff(:)    ! the difference of two concequative elements in roJulyday
-  real(dp)                                 :: refJulday           ! reference julian day in runoff input file
   real(dp), allocatable                    :: roJulday_wm(:)      ! Julian day of concatenated netCDF for water management
   real(dp), allocatable                    :: roJulday_diff_wm(:) ! the difference of two concequative elements in roJulyday_wm
   character(len=strLen)                    :: cmessage            ! error message of downwind routine
@@ -461,14 +484,15 @@ CONTAINS
 
   ierr=0; message='init_time/'
 
-  ! Set time attributes for continuous time variables (saved in globalData to use for output)
-  ! Use from 1st file
-  ! These are used for history output
-  calendar   = inFileInfo_ro(1)%calendar
-  time_units = inFileInfo_ro(1)%unit
-
-  ! get reference julianday in the 1st file
-  refJulday  = inFileInfo_ro(1)%ncrefjulday
+  ! Set simulation time attributes-calendar and time units (used for history file)
+  ! For time units, if they are not provided in control files, Use from 1st runoff input netCDF
+  ! For calendar, always use the same as forcing input
+  calendar = inFileInfo_ro(1)%calendar
+  if (trim(time_units)==charMissing) then
+    time_units = inFileInfo_ro(1)%unit
+  end if
+  call refDatetime%str2datetime(time_units, calendar, ierr, message)
+  if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [refDatetime]'; return; endif
 
   ! get the number of the total time length of all the nc files
   nFile = size(inFileInfo_ro)
@@ -491,13 +515,15 @@ CONTAINS
     call roCal(ix)%jul2datetime(roJulday(ix), calendar, ierr, cmessage)
   end do
 
+  roDatetime_end = roCal(nTime)%add_sec(dt_ro, ierr, cmessage)
+
   ! save water management data starting datetime
   roBegDatetime = roCal(1)
 
-  call begDatetime%str2datetime(simStart, ierr, cmessage)
+  call begDatetime%str2datetime(simStart, calendar, ierr, cmessage)
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [begDatetime]'; return; endif
 
-  call endDatetime%str2datetime(simEnd, ierr, cmessage)
+  call endDatetime%str2datetime(simEnd, calendar, ierr, cmessage)
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [endDatetime]'; return; endif
 
   ! check that the dates are aligned
@@ -507,7 +533,7 @@ CONTAINS
   endif
 
   ! check sim_start is after the last time step in runoff data
-  if (begDatetime > roCal(nTime)) then
+  if (begDatetime > roDatetime_end) then
     write(iulog,'(2a)') new_line('a'),'ERROR: <sim_start> is after the last time step in input runoff'
     write(iulog,fmt1)  ' runoff_end  : ', roCal(nTime)%year(),'-',roCal(nTime)%month(),'-',roCal(nTime)%day(), roCal(nTime)%hour(),':', roCal(nTime)%minute(),':',roCal(nTime)%sec()
     write(iulog,fmt1)  ' <sim_start> : ', begDatetime%year(),'-',begDatetime%month(),'-',begDatetime%day(), begDatetime%hour(),':', begDatetime%minute(),':',begDatetime%sec()
@@ -524,7 +550,7 @@ CONTAINS
   endif
 
   ! Compare sim_end vs. time at last time step in runoff data
-  if (endDatetime > roCal(nTime)) then
+  if (endDatetime > roDatetime_end) then
     write(iulog,'(2a)')  new_line('a'),'WARNING: <sim_end> is after the last time step in input runoff'
     write(iulog,fmt1)   ' runoff_end: ', roCal(nTime)%year(),'-',roCal(nTime)%month(),'-',roCal(nTime)%day(), roCal(nTime)%hour(),':', roCal(nTime)%minute(),':',roCal(nTime)%sec()
     write(iulog,fmt1)   ' <sim_end> : ', endDatetime%year(),'-',endDatetime%month(),'-',endDatetime%day(), endDatetime%hour(),':', endDatetime%minute(),':',endDatetime%sec()
@@ -603,27 +629,28 @@ CONTAINS
 
   ! set initial model simulation time (beginning of simulation time step and next time step)
   simDatetime(1) = begDatetime
-  simDatetime(2) = simDatetime(1)%add_sec(dt, calendar, ierr, cmessage)
+  simDatetime(2) = simDatetime(1)%add_sec(dt, ierr, cmessage)
   if (continue_run) then
-    simDatetime(0) = simDatetime(1)%add_sec(-dt, calendar, ierr, cmessage)
+    simDatetime(0) = simDatetime(1)%add_sec(-dt, ierr, cmessage)
   end if
 
   ! set simulation time step index (should be one to start)
   iTime = 1
 
-  ! set time variable first simulation time step
-  call begDatetime%julianday(calendar, juldaySim,  ierr, cmessage)
-  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
+  ! unit conversion from second to time unit used in the simulation
   t_unit = trim( time_units(1:index(time_units,' ')) )
   select case( trim(t_unit) )
-    case('seconds','second','sec','s'); timeVar = (juldaySim - refJulday)*86400._dp
-    case('minutes','minute','min');     timeVar = (juldaySim - refJulday)*1440._dp
-    case('hours','hour','hr','h');      timeVar = (juldaySim - refJulday)*24._dp
-    case('days','day','d');             timeVar = (juldaySim - refJulday)
+    case('seconds','second','sec','s'); sec2tunit=1._dp
+    case('minutes','minute','min');     sec2tunit=secprmin
+    case('hours','hour','hr','h');      sec2tunit=secprhour
+    case('days','day','d');             sec2tunit=secprday
     case default
       ierr=20; message=trim(message)//'<tunit>= '//trim(t_unit)//': <tunit> must be seconds, minutes, hours or days.'; return
   end select
+
+  ! Initialize timeVar : model time (time step endpoints) in model time unit (t_unit), used for time output
+  timeVar(1) = begDatetime - refDatetime  ! second since reference datetime
+  timeVar(2) = timeVar(1) + dt
 
   ! Set restart calendar date/time and dropoff calendar date/time and
   ! -- For periodic restart options  ---------------------------------------------------------------------
@@ -633,9 +660,9 @@ CONTAINS
   ! "daily" option:   use 2000-01-01 as template calendar yr/month/day
   select case(lower(trim(restart_write)))
     case('yearly')
-      dummyDatetime = datetime(2000, restart_month, 1, 0, 0, 0.0_dp)
-      nDays = dummyDatetime%ndays_month(calendar, ierr, cmessage)
-      if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
+      dummyDatetime = datetime(2000, restart_month, 1, 0, 0, 0.0_dp, calendar=calendar)
+      nDays = dummyDatetime%ndays_month()
+      if(nDays==integerMissing) then; ierr=10; message=trim(message)//'dummyDatetime calendar may be invalid'; return; endif
       if (restart_day > nDays) restart_day=nDays
     case('monthly'); restart_month = 1
     case('daily');   restart_month = 1; restart_day = 1
@@ -649,14 +676,14 @@ CONTAINS
       if (trim(restart_date) == charMissing) then
         ierr=20; message=trim(message)//'<restart_date> must be provided when <restart_write> option is "specified"'; return
       end if
-      call restDatetime%str2datetime(restart_date, ierr, cmessage)
+      call restDatetime%str2datetime(restart_date, calendar, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restart_date]'; return; endif
-      dropDatetime = restDatetime%add_sec(-dt, calendar, ierr, cmessage)
+      dropDatetime = restDatetime%add_sec(-dt, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [restDatetime->dropDatetime]'; return; endif
       restart_month = dropDatetime%month(); restart_day = dropDatetime%day(); restart_hour = dropDatetime%hour()
     case('yearly','monthly','daily')
-      restDatetime = datetime(2000, restart_month, restart_day, restart_hour, 0, 0._dp)
-      dropDatetime = restDatetime%add_sec(-dt, calendar, ierr, cmessage)
+      restDatetime = datetime(2000, restart_month, restart_day, restart_hour, 0, 0._dp, calendar=calendar)
+      dropDatetime = restDatetime%add_sec(-dt, ierr, cmessage)
       if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [ dropDatetime for periodical restart]'; return; endif
       restart_month = dropDatetime%month(); restart_day = dropDatetime%day(); restart_hour = dropDatetime%hour()
     case('never')

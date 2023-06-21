@@ -78,7 +78,7 @@ CONTAINS
 
       call hist_all_network%set_compdof(compdof_rch, compdof_hru, nRch, nHRU)
 
-      call hist_all_network%createNC(nRch, nHRU, ierr, cmessage)
+      call hist_all_network%createNC(ierr, cmessage, nRch_in=nRch, nHRU_in=nHRU)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       call hist_all_network%openNC(ierr, message)
@@ -95,7 +95,7 @@ CONTAINS
 
         call hist_gage%set_compdof(compdof_rch_gage, gage_data%nGage)
 
-        call hist_gage%createNC(gage_data%nGage, ierr, cmessage)
+        call hist_gage%createNC(ierr, cmessage, nRch_in=gage_data%nGage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
         call hist_gage%openNC(ierr, message)
@@ -153,6 +153,7 @@ CONTAINS
    USE public_var, ONLY: outputFrequency   !
    USE globalData, ONLY: simDatetime       ! previous,current and next model datetime
    USE globalData, ONLY: timeVar           ! current simulation time variable
+   USE globalData, ONLY: sec2tunit         ! seconds per time unit
    USE globalData, ONLY: RCHFLX_trib       ! reach flux data structure containing current flux variables
    USE globalData, ONLY: rch_per_proc      ! number of reaches assigned to each proc (size = num of procs+1)
    USE globalData, ONLY: nRch_mainstem     ! number of mainstem reach
@@ -166,6 +167,7 @@ CONTAINS
    ! local variables:
    logical(lgt)                :: writeHistory          !
    integer(i4b)                :: nRch_local         ! number of reaches per processors
+   real(dp)                    :: timeVar_local(1:2)
    real(dp),     allocatable   :: basinRunoff(:)
    integer(i4b), allocatable   :: index_write_all(:) ! indices in RCHFLX_trib to be written in netcdf
    character(strLen)           :: cmessage           ! error message of downwind routine
@@ -182,7 +184,8 @@ CONTAINS
    call get_proc_flux(ierr, cmessage, basinRunoff=basinRunoff)
 
    ! accumulate history variables
-   call hVars%aggregate(timeVar, basinRunoff, RCHFLX_trib, ierr, cmessage)
+   timeVar_local = timeVar/sec2tunit
+   call hVars%aggregate(timeVar_local, basinRunoff, RCHFLX_trib, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! history output alarm
@@ -409,38 +412,62 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE get_hfilename(inDatetime, ierr, message)
 
-   USE public_var, ONLY: output_dir        ! output directory
-   USE public_var, ONLY: case_name         ! simulation name ==> output filename head
-   USE public_var, ONLY: outputAtGage      ! ascii containing last restart and history files
+   USE public_var, ONLY: output_dir          ! output directory
+   USE public_var, ONLY: case_name           ! simulation name ==> output filename head
+   USE public_var, ONLY: newFileFrequency    ! new file frequency
+   USE public_var, ONLY: outputAtGage        ! ascii containing last restart and history files
+   USE public_var, ONLY: secprhour,secprmin  ! time conversion to sec
+   USE globalData, ONLY: hfile_dayStamp      ! day stamp for history file name - period-start or period-end
 
    implicit none
    ! argument variables
-   type(datetime), intent(in)  :: inDatetime     ! datetime at previous and current timestep
+   type(datetime), intent(in)  :: inDatetime     ! datetime at current timestep
    integer(i4b),   intent(out) :: ierr           ! error code
    character(*),   intent(out) :: message        ! error message
    ! local variables
-   integer(i4b)              :: sec_in_day       ! second within day
-   character(*),parameter    :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
+   character(strLen)           :: cmessage        ! error message from subroutine
+   type(datetime)              :: datetime_stamp  ! datetime used in history file name
+   integer(i4b)                :: sec_in_day      ! second within day
+   character(len=strLen)       :: timeString
+   character(len=27),parameter :: fmtYMDS='(I0.4,a,I0.2,a,I0.2,a,I0.5)'
+   character(len=20),parameter :: fmtYMD ='(I0.4,a,I0.2,a,I0.2)'
+   character(len=13),parameter :: fmtYM  ='(I0.4,a,I0.2)'
+   character(len=6),parameter  :: fmtY   ='(I0.4)'
 
    ierr=0; message='get_hfilename/'
 
-   ! Define history filename
-   sec_in_day = inDatetime%hour()*60*60+inDatetime%minute()*60+nint(inDatetime%sec())
+   ! construct time stamp string in history file: timeString
+   select case(trim(newFileFrequency))
+     case('single')
+       sec_in_day = inDatetime%hour()*int(secprhour)+inDatetime%minute()*int(secprmin)+nint(inDatetime%sec())
+       write(timeString, fmtYMDS) inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day
+     case('daily')
+       if (trim(hfile_dayStamp)=='period-start') then
+         sec_in_day = inDatetime%hour()*int(secprhour)+inDatetime%minute()*int(secprmin)+nint(inDatetime%sec())
+         write(timeString, fmtYMDS) inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day
+       else if (trim(hfile_dayStamp)=='period-end') then
+         datetime_stamp = inDatetime%add_day(1, ierr, cmessage)
+         sec_in_day = datetime_stamp%hour()*int(secprhour)+datetime_stamp%minute()*int(secprmin)+nint(datetime_stamp%sec())
+         write(timeString, fmtYMDS) datetime_stamp%year(),'-',datetime_stamp%month(),'-',datetime_stamp%day(),'-',sec_in_day
+       end if
+     case('monthly')
+       write(timeString, fmtYM) inDatetime%year(),'-',inDatetime%month()
+     case('yearly')
+       write(timeString, fmtY) inDatetime%year()
+     case default; ierr=20; message=trim(message)//'Invalid file frequency'; return
+   end select
+
+   ! construct history file name: hfileout
    select case(trim(runMode))
      case('cesm-coupling')
-       write(hfileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuroute.h.', &
-                             inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day,'.nc'
-
+       write(hfileout,'(a)') trim(output_dir)//trim(case_name)//'.mizuroute.h.'//trim(timeString)//'.nc'
        if (outputAtGage) then
-         write(hfileout_gage, fmtYMDS) trim(output_dir)//trim(case_name)//'.mizuroute.h_gauge.', &
-                                    inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day,'.nc'
+         write(hfileout_gage,'(a)') trim(output_dir)//trim(case_name)//'.mizuroute.h_gauge.'//trim(timeString)//'.nc'
        end if
      case('standalone')
-       write(hfileout, fmtYMDS) trim(output_dir)//trim(case_name)//'.h.', &
-                             inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day,'.nc'
+       write(hfileout, '(a)') trim(output_dir)//trim(case_name)//'.h.'//trim(timeString)//'.nc'
        if (outputAtGage) then
-         write(hfileout_gage, fmtYMDS) trim(output_dir)//trim(case_name)//'.h_gauge.', &
-                                    inDatetime%year(),'-',inDatetime%month(),'-',inDatetime%day(),'-',sec_in_day,'.nc'
+         write(hfileout_gage, '(a)') trim(output_dir)//trim(case_name)//'.h_gauge.'//trim(timeString)//'.nc'
        end if
      case default; ierr=20; message=trim(message)//'unable to identify the run option. Avaliable options are standalone and cesm-coupling'; return
    end select

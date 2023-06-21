@@ -47,9 +47,9 @@ MODULE histVars_data
     ! if new variables need to be written, need to add here AND each procedure
     ! --------
     integer(i4b)             :: nt                 ! number of time steps over variables are aggregated
-    integer(i4b)             :: nHru               ! number of
-    integer(i4b)             :: nRch               ! number of
-    real(dp)                 :: timeVar            ! time variable [unit] at nt = 1
+    integer(i4b)             :: nHru               ! number of HRUs
+    integer(i4b)             :: nRch               ! number of Reaches
+    real(dp)                 :: timeVar(2)         ! time variables [time unit] at end points of current aggregaed step
     real(dp), allocatable    :: basRunoff(:)       ! catchment average runoff [m/s] [nHru]
     real(dp), allocatable    :: instRunoff(:)      ! instantaneous lateral inflow into each river/lake [m3/s]  [nRch]
     real(dp), allocatable    :: dlayRunoff(:)      ! lateral inflow into river or lake [m3/s] for each reach [nRch]
@@ -128,17 +128,17 @@ MODULE histVars_data
     ! accumulate data
     ! ---------------------------------------------------------------
     SUBROUTINE aggregate(this,             & ! inout:
-                         timeVar_local,    & ! input: time variables current
-                         basRunoff_local,  & ! input:
-                         RCHFLX_local,     & ! input:
+                         timeVar_local,    & ! input: time variables [time unit] at endpoints of current simulation step
+                         basRunoff_local,  & ! input: HRU average runoff depth [m/s]
+                         RCHFLX_local,     & ! input: Reach flux data structure
                          ierr, message)      ! output: error handling
 
       implicit none
       ! argument variables
       class(histVars),   intent(inout)   :: this
-      real(dp),          intent(in)      :: timeVar_local
-      real(dp),          intent(in)      :: basRunoff_local(:)
-      type(STRFLX),      intent(in)      :: RCHFLX_local(:,:)
+      real(dp),          intent(in)      :: timeVar_local(2)    ! time variables [time unit] at endpoints of current simulation step
+      real(dp),          intent(in)      :: basRunoff_local(:)  ! HRU average runoff depth [m/s]
+      type(STRFLX),      intent(in)      :: RCHFLX_local(:,:)   ! Reach flux data structure
       integer(i4b),      intent(out)     :: ierr                ! error code
       character(*),      intent(out)     :: message             ! error message
       ! local variables
@@ -153,7 +153,10 @@ MODULE histVars_data
       this%nt = this%nt + 1
 
       if (this%nt == 1) then
-        this%timeVar = timeVar_local
+        this%timeVar(1) = timeVar_local(1)
+        this%timeVar(2) = timeVar_local(2)
+      else
+        this%timeVar(2) = timeVar_local(2)
       end if
 
       ! -- array size checks - input data vs history output buffer
@@ -308,8 +311,8 @@ MODULE histVars_data
       call openFile(pioSystem, pioFileDesc, trim(restart_name), pio_typename, ncd_nowrite, FileStatus, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-      call get_nc(trim(restart_name), 'history_time', this%timeVar, 1, ierr, cmessage) ! get restart datetime
-      call get_nc(trim(restart_name), 'nt', this%nt, 1, ierr, cmessage)                ! get number of aggretation time steps
+      call get_nc(trim(restart_name), 'history_time', this%timeVar, 1, 2, ierr, cmessage) ! get time variables at time step endpoints
+      call get_nc(trim(restart_name), 'nt', this%nt, 1, ierr, cmessage)                   ! get the number of sampled time steps
 
       ! get number of HRUs and Reaches for each core
       if (masterproc) then

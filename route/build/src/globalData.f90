@@ -93,8 +93,9 @@ MODULE globalData
   ! ---------- Date/Time data  -------------------------------------------------------------------------
 
   integer(i4b),                    public :: iTime                ! time index at simulation time step
-  real(dp),                        public :: timeVar              ! time variables (unit given by time variable)
-  real(dp),                        public :: TSEC(0:1)            ! begning and end of time step since simulation started (sec)
+  real(dp),                        public :: sec2tunit            ! time conversion- seconds per time unit used in simulation
+  real(dp),                        public :: timeVar(1:2)         ! time variables [sec] at endpoints of a simulation time step
+  real(dp),                        public :: TSEC(1:2)            ! seconds at endpoints of a simulation time step since simulation started
   type(datetime),                  public :: simDatetime(0:2)     ! previous, current and next simulation time (yyyy:mm:dd:hh:mm:ss)
   type(datetime),                  public :: begDatetime          ! simulation start date/time (yyyy:mm:dd:hh:mm:ss)
   type(datetime),                  public :: endDatetime          ! simulation end date/time (yyyy:mm:dd:hh:mm:ss)
@@ -110,6 +111,7 @@ MODULE globalData
 
   ! ---------- Misc. data -------------------------------------------------------------------------
   character(len=strLen),           public :: runMode='standalone'        ! run options: standalone or cesm-coupling
+  character(len=12),               public :: hfile_dayStamp='period-start' ! day stamp in history file for daily file. period-start or period-end
   integer(i4b),                    public :: ixPrint(1:2)=integerMissing ! index of desired reach to be on-screen print
   integer(i4b),                    public :: nEns=1                      ! number of ensemble
   integer(i4b),                    public :: maxtdh                      ! maximum unit-hydrograph future time steps

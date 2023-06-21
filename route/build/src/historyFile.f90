@@ -41,8 +41,8 @@ MODULE historyFile
 
     CONTAINS
 
-      generic,    public :: createNC => createNC_rch, createNC_rch_hru
       generic,    public :: set_compdof => set_compdof_rch, set_compdof_rch_hru
+      procedure,  public :: createNC
       procedure,  public :: openNC
       procedure,  public :: fileOpen
       generic,    public :: write_loc => write_loc_rch, write_loc_rch_hru
@@ -53,8 +53,6 @@ MODULE historyFile
       procedure, private :: cleanup_hru
       procedure, private :: write_flux_hru
       procedure, private :: write_flux_rch
-      procedure, private :: createNC_rch
-      procedure, private :: createNC_rch_hru
       procedure, private :: set_compdof_rch
       procedure, private :: set_compdof_rch_hru
       procedure, private :: write_loc_rch
@@ -144,9 +142,9 @@ MODULE historyFile
     END SUBROUTINE
 
     ! ---------------------------------------------------------------
-    ! Create netCDF and define dimension and variables - only reach
+    ! Create history netCDF and define dimension and variables
     ! ---------------------------------------------------------------
-    SUBROUTINE createNC_rch(this, nRch_in, ierr, message)
+    SUBROUTINE createNC(this, ierr, message, nRch_in, nHRU_in)
 
       USE var_lookup, ONLY: ixQdims
       USE globalData, ONLY: meta_qDims
@@ -156,171 +154,120 @@ MODULE historyFile
       implicit none
       ! Argument variables
       class(histFile),          intent(inout)  :: this
-      integer(i4b),             intent(in)     :: nRch_in          ! total number of reaches
       integer(i4b),             intent(out)    :: ierr             ! error code
       character(*),             intent(out)    :: message          ! error message
+      integer(i4b), optional,   intent(in)     :: nRch_in
+      integer(i4b), optional,   intent(in)     :: nHRU_in
       ! local variables
       character(strLen)                        :: cmessage         ! error message of downwind routine
+      integer(i4b)                             :: nRch_local
+      integer(i4b)                             :: nHRU_local
       integer(i4b)                             :: ixDim,iVar       ! dimension, and variable index
       integer(i4b)                             :: dim_array(20)    ! dimension id array (max. 20 dimensions
       integer(i4b)                             :: nDims            ! number of dimension
 
-      ierr=0; message='createNC_rch/'
+      ierr=0; message='createNC/'
 
-      ! 1. Create new netCDF - initialize pioFileDesc under pioSystem
-      call createFile(this%pioSys, trim(this%fname), pio_typename, pio_netcdf_format, this%pioFileDesc, ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      nRch_local=0
+      if (present(nRch_in)) then
+        nRch_local=nRch_in
+      end if
 
-      ! 2. Define dimension
-      call def_dim(this%pioFileDesc, trim(meta_qDims(ixQdims%time)%dimName), recordDim, meta_qDims(ixQdims%time)%dimId)
-      call def_dim(this%pioFileDesc, trim(meta_qDims(ixQdims%seg)%dimName),  nRch_in,   meta_qDims(ixQdims%seg)%dimId)
-      call def_dim(this%pioFileDesc, trim(meta_qDims(ixQdims%ens)%dimName),  1,         meta_qDims(ixQdims%ens)%dimId)
+      nHRU_local=0
+      if (present(nHRU_in)) then
+        nHRU_local=nHRU_in
+      end if
 
-      ! 3. Define variables
-      ! --- time variable
-      call def_var(this%pioFileDesc,                           &                                        ! pio file descriptor
-                  trim(meta_qDims(ixQdims%time)%dimName),      &                                        ! variable name
-                  ncd_float,                                   &                                        ! variable type
-                  ierr, cmessage,                              &                                        ! error handle
-                  pioDimId=[meta_qDims(ixQdims%time)%dimId],   &                                        ! dimension array
-                  vdesc=trim(meta_qDims(ixQdims%time)%dimName), vunit=trim(time_units), vcal=calendar)  ! optional attributes
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-      ! --- reach ID variables
-      call def_var(this%pioFileDesc, 'reachID', ncd_int, ierr, cmessage, pioDimId=[meta_qDims(ixQdims%seg)%dimId], vdesc='reach ID', vunit='-')
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-      ! ---- flux variables
-      do iVar=1,nVarsRFLX
-        if (.not.meta_rflx(iVar)%varFile) cycle
-
-        ! define dimension ID array
-        nDims = size(meta_rflx(iVar)%varDim)
-        do ixDim = 1, nDims
-          dim_array(ixDim) = meta_qDims(meta_rflx(iVar)%varDim(ixDim))%dimId
-        end do
-
-        ! define variable
-        call def_var(this%pioFileDesc,            &                 ! pio file descriptor
-                     meta_rflx(iVar)%varName,     &                 ! variable name
-                     ncd_float,                   &                 ! dimension array and type
-                     ierr, cmessage,              &                 ! error handling
-                     pioDimId=dim_array(1:nDims), &                 ! dimension id
-                     vdesc=meta_rflx(iVar)%varDesc, vunit=meta_rflx(iVar)%varUnit)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      end do
-
-      call put_attr(this%pioFileDesc, ncd_global, 'mizuRoute-version', version ,ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-      call put_attr(this%pioFileDesc, ncd_global, 'gitBranch', gitBranch ,ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-      call put_attr(this%pioFileDesc, ncd_global, 'gitHash', gitHash ,ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-      ! 4. End definitions
-      call end_def(this%pioFileDesc, ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    END SUBROUTINE createNC_rch
-
-    ! ---------------------------------------------------------------
-    ! Create netCDF and define dimension and variables - hru & reach
-    ! ---------------------------------------------------------------
-    SUBROUTINE createNC_rch_hru(this, nRch_in, nHRU_in, ierr, message)
-
-      USE var_lookup, ONLY: ixQdims
-      USE globalData, ONLY: meta_qDims
-      USE public_var, ONLY: calendar          ! calendar name
-      USE public_var, ONLY: time_units        ! time units (seconds, hours, or days)
-
-      implicit none
-      ! Argument variables
-      class(histFile),       intent(inout)  :: this
-      integer(i4b),             intent(in)     :: nRch_in
-      integer(i4b),             intent(in)     :: nHru_in
-      integer(i4b),             intent(out)    :: ierr             ! error code
-      character(*),             intent(out)    :: message          ! error message
-      ! local variables
-      character(strLen)                        :: cmessage         ! error message of downwind routine
-      integer(i4b)                             :: ixDim,iVar       ! dimension, and variable index
-      integer(i4b)                             :: dim_array(20)    ! dimension id array (max. 20 dimensions
-      integer(i4b)                             :: nDims            ! number of dimension
-
-      ierr=0; message='createNC_rch_hru/'
+      ! gauge only history file does not include hru fluxes
+      if ( this%gageOutput) then
+        nHRU_local=0
+      end if
 
       ! 1. Create new netCDF
-      call createFile(this%pioSys, trim(this%fname), pio_typename, pio_netcdf_format, this%pioFileDesc, ierr, cmessage)
+      call createFile(this%pioSys, this%fname, pio_typename, pio_netcdf_format, this%pioFileDesc, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! 2. Define dimension
-      call def_dim(this%pioFileDesc, trim(meta_qDims(ixQdims%time)%dimName), recordDim, meta_qDims(ixQdims%time)%dimId)
-      call def_dim(this%pioFileDesc, trim(meta_qDims(ixQdims%seg)%dimName),  nRch_in,   meta_qDims(ixQdims%seg)%dimId)
-      if (meta_hflx(ixHFLX%basRunoff)%varFile) then
-        call def_dim(this%pioFileDesc, trim(meta_qDims(ixQdims%hru)%dimName), nHru_in, meta_qDims(ixQdims%hru)%dimId)
+      call def_dim(this%pioFileDesc, meta_qDims(ixQdims%time)%dimName,   recordDim, meta_qDims(ixQdims%time)%dimId)
+      call def_dim(this%pioFileDesc, meta_qDims(ixQdims%tbound)%dimName, 2,         meta_qDims(ixQdims%tbound)%dimId)
+      call def_dim(this%pioFileDesc, meta_qDims(ixQdims%ens)%dimName,    1,         meta_qDims(ixQdims%ens)%dimId)
+      if (nRch_local>0) then
+        call def_dim(this%pioFileDesc, meta_qDims(ixQdims%seg)%dimName, nRch_in, meta_qDims(ixQdims%seg)%dimId)
       end if
-      call def_dim(this%pioFileDesc, trim(meta_qDims(ixQdims%ens)%dimName),  1,         meta_qDims(ixQdims%ens)%dimId)
+      if (nHRU_local>0) then ! gauge only history file does not include hru fluxes
+        call def_dim(this%pioFileDesc, meta_qDims(ixQdims%hru)%dimName, nHru_in, meta_qDims(ixQdims%hru)%dimId)
+      end if
 
       ! 3. Define variables
       ! --- time variable
-      call def_var(this%pioFileDesc,                           &                                        ! pio file descriptor
-                  trim(meta_qDims(ixQdims%time)%dimName),      &                                        ! variable name
-                  ncd_float,                                   &                                        ! variable type
-                  ierr, cmessage,                              &                                        ! error handle
-                  pioDimId=[meta_qDims(ixQdims%time)%dimId],   &                                        ! dimension array
-                  vdesc=trim(meta_qDims(ixQdims%time)%dimName), vunit=trim(time_units), vcal=calendar)  ! optional attributes
+      call def_var(this%pioFileDesc,                           &                           ! pio file descriptor
+                  meta_qDims(ixQdims%time)%dimName,            &                           ! variable name
+                  ncd_double,                                  &                           ! variable type
+                  ierr, cmessage,                              &                           ! error handle
+                  pioDimId=[meta_qDims(ixQdims%time)%dimId],   &                           ! dimension array
+                  vdesc=meta_qDims(ixQdims%time)%dimName, vunit=time_units, vcal=calendar) ! optional attributes
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-      ! --- hru ID variables
-      if (meta_hflx(ixHFLX%basRunoff)%varFile) then
-        call def_var(this%pioFileDesc, 'basinID', ncd_int, ierr, cmessage, pioDimId=[meta_qDims(ixQdims%hru)%dimId], vdesc='basin ID', vunit='-')
+      ! --- time bound variable
+      call def_var(this%pioFileDesc,                           &                                  ! pio file descriptor
+                  'time_bounds',                               &                                  ! variable name
+                  ncd_double,                                  &                                  ! variable type
+                  ierr, cmessage,                              &                                  ! error handle
+                  pioDimId=[meta_qDims(ixQdims%tbound)%dimId, meta_qDims(ixQdims%time)%dimId], &  ! dimension array
+                  vdesc='time interval endpoints', vunit=time_units, vcal=calendar)               ! optional attributes
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      ! ---- basinID and hru flux variables
+      if (nHRU_local>0) then
+        call def_var(this%pioFileDesc, 'basinID', ncd_int, ierr, cmessage, &
+                     pioDimId=[meta_qDims(ixQdims%hru)%dimId], vdesc='basin ID', vunit='-')
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        do iVar=1,nVarsHFLX
+          if (.not.meta_hflx(iVar)%varFile) cycle
+
+          ! define dimension ID array
+          nDims = size(meta_hflx(iVar)%varDim)
+          do ixDim = 1, nDims
+            dim_array(ixDim) = meta_qDims(meta_hflx(iVar)%varDim(ixDim))%dimId
+          end do
+
+          ! define variable
+          call def_var(this%pioFileDesc,            &                 ! pio file descriptor
+                       meta_hflx(iVar)%varName,     &                 ! variable name
+                       meta_hflx(iVar)%varType,     &                 ! variable type
+                       ierr, cmessage,              &                 ! error handling
+                       pioDimId=dim_array(1:nDims), &                 ! dimension id
+                       vdesc=meta_hflx(iVar)%varDesc, vunit=meta_hflx(iVar)%varUnit)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+        end do
       end if
 
-      ! --- reach ID variables
-      call def_var(this%pioFileDesc, 'reachID', ncd_int, ierr, cmessage, pioDimId=[meta_qDims(ixQdims%seg)%dimId], vdesc='reach ID', vunit='-')
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-      ! ---- hru flux variables
-      do iVar=1,nVarsHFLX
-        if (.not.meta_hflx(iVar)%varFile) cycle
-
-        ! define dimension ID array
-        nDims = size(meta_hflx(iVar)%varDim)
-        do ixDim = 1, nDims
-          dim_array(ixDim) = meta_qDims(meta_hflx(iVar)%varDim(ixDim))%dimId
-        end do
-
-        ! define variable
-        call def_var(this%pioFileDesc,            &                 ! pio file descriptor
-                     meta_hflx(iVar)%varName,     &                 ! variable name
-                     ncd_float,                   &                 ! dimension array and type
-                     ierr, cmessage,              &                 ! error handling
-                     pioDimId=dim_array(1:nDims), &                 ! dimension id
-                     vdesc=meta_hflx(iVar)%varDesc, vunit=meta_hflx(iVar)%varUnit)
+      ! --- reach ID and rch flux variables
+      if (nRch_local>0) then
+        call def_var(this%pioFileDesc, 'reachID', ncd_int, ierr, cmessage, &
+                     pioDimId=[meta_qDims(ixQdims%seg)%dimId], vdesc='reach ID', vunit='-')
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      end do
 
-      ! ---- rch flux variables
-      do iVar=1,nVarsRFLX
-        if (.not.meta_rflx(iVar)%varFile) cycle
+        do iVar=1,nVarsRFLX
+          if (.not.meta_rflx(iVar)%varFile) cycle
 
-        ! define dimension ID array
-        nDims = size(meta_rflx(iVar)%varDim)
-        do ixDim = 1, nDims
-          dim_array(ixDim) = meta_qDims(meta_rflx(iVar)%varDim(ixDim))%dimId
+          ! define dimension ID array
+          nDims = size(meta_rflx(iVar)%varDim)
+          do ixDim = 1, nDims
+            dim_array(ixDim) = meta_qDims(meta_rflx(iVar)%varDim(ixDim))%dimId
+          end do
+
+          ! define variable
+          call def_var(this%pioFileDesc,            &                 ! pio file descriptor
+                       meta_rflx(iVar)%varName,     &                 ! variable name
+                       meta_rflx(iVar)%varType,     &                 ! variable type
+                       ierr, cmessage,              &                 ! error handling
+                       pioDimId=dim_array(1:nDims), &                 ! dimension id
+                       vdesc=meta_rflx(iVar)%varDesc, vunit=meta_rflx(iVar)%varUnit)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
         end do
-
-        ! define variable
-        call def_var(this%pioFileDesc,            &                 ! pio file descriptor
-                     meta_rflx(iVar)%varName,     &                 ! variable name
-                     ncd_float,                   &                 ! dimension array and type
-                     ierr, cmessage,              &                 ! error handling
-                     pioDimId=dim_array(1:nDims), &                 ! dimension id
-                     vdesc=meta_rflx(iVar)%varDesc, vunit=meta_rflx(iVar)%varUnit)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      end do
+      end if
 
       call put_attr(this%pioFileDesc, ncd_global, 'mizuRoute-version', version ,ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -335,7 +282,7 @@ MODULE historyFile
       call end_def(this%pioFileDesc, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    END SUBROUTINE createNC_rch_hru
+    END SUBROUTINE createNC
 
     ! ---------------------------------
     ! open netCDF
@@ -489,7 +436,10 @@ MODULE historyFile
       this%iTime = this%iTime + 1 ! this is only line to increment time step index
 
       ! write time -- note time is just carried across from the input
-      call write_netcdf(this%pioFileDesc, 'time', [hVars_local%timeVar], [this%iTime], [1], ierr, cmessage)
+      call write_netcdf(this%pioFileDesc, 'time', [hVars_local%timeVar(1)], [this%iTime], [1], ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      call write_netcdf(this%pioFileDesc, 'time_bounds', hVars_local%timeVar, [1,this%iTime], [2,1], ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       if (.not.this%gageOutput) then

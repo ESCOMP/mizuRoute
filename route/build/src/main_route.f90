@@ -95,7 +95,7 @@ CONTAINS
    ierr=0; message = "main_routing/"
 
   ! define the start and end of the time step
-  T0=TSEC(0); T1=TSEC(1)
+  T0=TSEC(1); T1=TSEC(2)
 
   ! number of reaches to be processed
   nSeg = size(ixRchProcessed)

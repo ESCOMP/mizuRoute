@@ -26,6 +26,7 @@ module rof_comp_nuopc
   use globalData            , only : mpicom_rof => mpicom_route
   use globalData            , only : nHRU
   use globalData            , only : runMode                     ! "ctsm-coupling" or "standalone" to differentiate some behaviours in mizuRoute
+  use globalData            , only : hfile_dayStamp              ! daily history file time stamp - "period-end" or "period-start:
   use init_model_data       , only : get_mpi_omp, init_model
   use RunoffMod             , only : rtmCTL
   use RtmMod                , only : route_ini, route_run
@@ -411,8 +412,9 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     read(cvalue,*) username
 
-    ! set mizuRoute run mode
+    ! set mizuRoute run mode and daily history file day stamp
     runMode='cesm-coupling'
+    hfile_dayStamp='period-end' ! period-end: daily history file uses end of day for time stamp. This is for current CESM,but may be switched to "period-start"
 
     ! mizuRoute model configuration setup
     ! 1. read control file
