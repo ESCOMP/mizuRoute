@@ -976,7 +976,7 @@ CONTAINS
     integer(i4b)                :: jerr
 
     write(iulog,*) trim(subName),trim(message)
-    call flush(6)
+    flush(6)
 
     if (present(comm)) then
       call MPI_ABORT(comm, ierr, jerr)
