@@ -8,7 +8,7 @@
    <!-- 2-degree: f19_f19_mg17, f19_f19_rHDMA_mg17, f19_f19_rHDMAlk_mg17, f19_f19_rMERIT_mg17 -->
    <!-- 1-degree: f09_f09_mg17, f09_f09_rHDMA_mg17, f09_f09_rHDMAlk_mg17, f09_f09_rMERIT_mg17 -->
    <!-- half-degree: hcru_hcru_mt13, hcru_hcru_rMERIT_mt13, hcru_hcru_rHDMA_mt13 -->
-   <!-- Machines: cheyennea and izumi   Compilers: intel, gnu, nag, nvhpc -->
+   <!-- Machines: cheyenne and izumi   Compilers: intel, gnu, nag, nvhpc -->
    <!-- Run course resolutions only on izumi, on cheyenne run all -->
    <!-- Test types: ERS, SMS, ERI, PET, PFS DEBUG on and off -->
    <!-- NOTE: ERP tests are known NOT to work since the MPI task count must remain the same on restart -->
@@ -115,7 +115,7 @@
       <option name="comment"  >Exact restart test on small regional grid with DEBUG on for mpi-serial</option>
     </options>
   </test>
-  <test name="ERP_D_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="ERP_D_Mmpi-serial_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
     </machines>
@@ -124,7 +124,7 @@
       <option name="comment"  >Exact restart test changing number of threads on restart on small regional grid </option>
     </options>
   </test>
-  <test name="PET_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="PET_Mmpi-serial_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -135,7 +135,7 @@
       <option name="comment"  >PET test changing number of threads on small regional grid </option>
     </options>
   </test>
-  <test name="SMS_D_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="SMS_Mmpi-serial_D_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>

@@ -456,12 +456,12 @@ CONTAINS
  SUBROUTINE close_all()
    implicit none
    if (hist_all_network%fileOpen()) then
-     call hist_all_network%cleanup()
      call hist_all_network%closeNC()
+     call hist_all_network%cleanup()
    end if
    if (hist_gage%fileOpen()) then
-     call hist_gage%cleanup()
      call hist_gage%closeNC()
+     call hist_gage%cleanup()
    end if
  END SUBROUTINE
 
