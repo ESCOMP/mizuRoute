@@ -111,6 +111,7 @@ MODULE globalData
 
   ! ---------- Misc. data -------------------------------------------------------------------------
   character(len=strLen),           public :: runMode='standalone'        ! run options: standalone or cesm-coupling
+  character(len=12),               public :: hfile_dayStamp='period-start' ! day stamp in history file for daily file. period-start or period-end
   integer(i4b),                    public :: ixPrint(1:2)=integerMissing ! index of desired reach to be on-screen print
   integer(i4b),                    public :: nEns=1                      ! number of ensemble
   integer(i4b),                    public :: maxtdh                      ! maximum unit-hydrograph future time steps
