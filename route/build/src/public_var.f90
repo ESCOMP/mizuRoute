@@ -126,6 +126,8 @@ MODULE public_var
   character(len=strLen),public    :: units_qsim           = ''              ! units of runoff data
   real(dp)             ,public    :: dt_ro                = realMissing     ! runoff time step (seconds)
   real(dp)             ,public    :: input_fillvalue      = realMissing     ! fillvalue used for input variables (runoff, precipitation, evaporation)
+  character(len=strLen),public    :: ro_time_units        = charMissing     ! time units used in ro netcdf. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
+  character(len=strLen),public    :: ro_calendar          = charMissing     ! calendar used in ro netcdf
   ! FLUXES TO/FROM REACHES AND LAKES STATES FILE
   character(len=strLen),public    :: fname_wm             = ''              ! the txt file name that includes nc files holesing the abstraction, injection, target volume values
   character(len=strLen),public    :: vname_flux_wm        = ''              ! variable name for abstraction or injection from or to a river segment
@@ -170,7 +172,7 @@ MODULE public_var
   integer(i4b)         ,public    :: topoNetworkOption    = compute         ! option for network topology calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: computeReachList     = compute         ! option to compute list of upstream reaches (0=do not compute, 1=compute)
   ! TIME
-  character(len=strLen),public    :: time_units           = charMissing     ! time units time units. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
+  character(len=strLen),public    :: time_units           = charMissing     ! time units. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
   character(len=strLen),public    :: calendar             = charMissing     ! calendar name
   ! MISCELLANEOUS
   logical(lgt)         ,public    :: debug                = .false.         ! print out detaled information

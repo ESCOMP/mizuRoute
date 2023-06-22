@@ -13,12 +13,9 @@ USE public_var, ONLY: pi             ! pi value of 3.14159265359_dp
 USE public_var, ONLY: charMissing    ! missing character
 USE globalData, ONLY: idxIRF         ! index of IRF method
 USE globalData, ONLY: isColdStart    ! restart flag
-USE water_balance, ONLY: comp_reach_wb     ! compute water balance error
-! subroutines: model time info
-USE time_utils_module, ONLY: compJulday,&      ! compute julian day
-                             compJulday_noleap ! compute julian day for noleap calendar
 ! external routines
-USE ascii_utils,  ONLY: lower        ! convert string to lower case
+USE water_balance, ONLY: comp_reach_wb ! compute water balance error
+USE ascii_utils,   ONLY: lower         ! convert string to lower case
 
 implicit none
 integer(i4b),parameter :: endorheic=0
@@ -45,9 +42,12 @@ CONTAINS
   USE globalData, ONLY: iTime               ! current model time step
   USE globalData, ONLY: simDatetime         ! previous and current model time
   USE public_var, ONLY: is_flux_wm          ! logical water management components fluxes should be read
-  USE public_var, ONLY: dt, lakeWBTol       ! lake water balance tolerance
+  USE public_var, ONLY: dt                  ! simulation time step [sec]
+  USE public_var, ONLY: lakeWBTol           ! lake water balance tolerance
   USE public_var, ONLY: is_vol_wm_jumpstart ! logical whether or not lake should be simulated
-  USE public_var, ONLY: secprday, days_per_yr, months_per_yr    ! time constants
+  USE public_var, ONLY: secprday            ! seconds per day = 86400
+  USE public_var, ONLY: days_per_yr         ! days per a year = 365
+  USE public_var, ONLY: months_per_yr       ! months per a year = 12
   USE public_var, ONLY: calendar            ! calendar name
 
   implicit none
@@ -80,8 +80,6 @@ CONTAINS
   integer(i4b)                             :: past_length_D       ! pas length for demand based on length in year and floor
   real(dp)                                 :: target_r            ! target release
   ! local varibale for HYPE routine
-  real(dp)                                 :: Julian_day_model    ! the julian day of model simulations
-  real(dp)                                 :: Julian_day_start    ! the julian day of the first day of the simulation year
   real(dp)                                 :: Day_of_year         ! the day number in a year
   integer(i4b)                             :: F_prim              ! factor for local flag is reservoir has primary spillway
   real(dp)                                 :: F_sin               ! factor for sin
@@ -395,17 +393,8 @@ CONTAINS
           RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_ELE = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) / RPARAM_in(segIndex)%HYP_A_avg &
                                                               + RPARAM_in(segIndex)%HYP_E_zero
 
-          ! caclulate the day of calendar from 1st of January of current simulation year; julian day - julian day of the first of January of current year
-          select case(trim(calendar))
-            case('noleap','365_day')
-              call compjulday(simDatetime(1)%year(),                     1,                   1,0,0,0._dp,Julian_day_start,ierr,cmessage)
-              call compjulday(simDatetime(1)%year(),simDatetime(1)%month(),simDatetime(1)%day(),0,0,0._dp,Julian_day_model,ierr,cmessage)
-            case ('standard','gregorian','proleptic_gregorian')
-              call compjulday_noleap(simDatetime(1)%year(),                     1,                   1,0,0,0._dp,Julian_day_start,ierr,cmessage)
-              call compjulday_noleap(simDatetime(1)%year(),simDatetime(1)%month(),simDatetime(1)%day(),0,0,0._dp,Julian_day_model,ierr,cmessage)
-            case default;    ierr=20; message=trim(message)//'calendar name: '//trim(calendar)//' invalid'; return
-          end select
-          Day_of_year = Julian_day_model - Julian_day_start + 1 ! the day of the year
+          ! caclulate the day of calendar from 1st of January of current simulation year
+          Day_of_year = simDatetime(1)%dayofyear()
 
           ! calculation of Fsin; sinusoidal aplication of flow
           F_sin = max(0._dp,(1+RPARAM_in(segIndex)%HYP_Qrate_amp*sin(2*pi*(Day_of_year+RPARAM_in(segIndex)%HYP_Qrate_phs)/365)))
@@ -484,7 +473,8 @@ CONTAINS
 !      endif
 !    endif
 
-    call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxIRF, q_upstream, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.true.,tolerance=1.e-3_dp)
+    call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxIRF, q_upstream, RCHFLX_out(iens,segIndex), &
+                       verbose, lakeFlag=.true.,tolerance=lakeWBTol)
 
     ! assign the zero value as lake do not have a QFUTURE_IRF
     ! TO-DO: Need to handle this when construct unit-hydrograph

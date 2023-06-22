@@ -78,7 +78,7 @@ CONTAINS
 
       call hist_all_network%set_compdof(compdof_rch, compdof_hru, nRch, nHRU)
 
-      call hist_all_network%createNC(nRch, nHRU, ierr, cmessage)
+      call hist_all_network%createNC(ierr, cmessage, nRch_in=nRch, nHRU_in=nHRU)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       call hist_all_network%openNC(ierr, message)
@@ -95,7 +95,7 @@ CONTAINS
 
         call hist_gage%set_compdof(compdof_rch_gage, gage_data%nGage)
 
-        call hist_gage%createNC(gage_data%nGage, ierr, cmessage)
+        call hist_gage%createNC(ierr, cmessage, nRch_in=gage_data%nGage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
         call hist_gage%openNC(ierr, message)
@@ -153,6 +153,7 @@ CONTAINS
    USE public_var, ONLY: outputFrequency   !
    USE globalData, ONLY: simDatetime       ! previous,current and next model datetime
    USE globalData, ONLY: timeVar           ! current simulation time variable
+   USE globalData, ONLY: sec2tunit         ! seconds per time unit
    USE globalData, ONLY: RCHFLX_trib       ! reach flux data structure containing current flux variables
    USE globalData, ONLY: rch_per_proc      ! number of reaches assigned to each proc (size = num of procs+1)
    USE globalData, ONLY: nRch_mainstem     ! number of mainstem reach
@@ -166,6 +167,7 @@ CONTAINS
    ! local variables:
    logical(lgt)                :: writeHistory          !
    integer(i4b)                :: nRch_local         ! number of reaches per processors
+   real(dp)                    :: timeVar_local(1:2)
    real(dp),     allocatable   :: basinRunoff(:)
    integer(i4b), allocatable   :: index_write_all(:) ! indices in RCHFLX_trib to be written in netcdf
    character(strLen)           :: cmessage           ! error message of downwind routine
@@ -182,7 +184,8 @@ CONTAINS
    call get_proc_flux(ierr, cmessage, basinRunoff=basinRunoff)
 
    ! accumulate history variables
-   call hVars%aggregate(timeVar, basinRunoff, RCHFLX_trib, ierr, cmessage)
+   timeVar_local = timeVar/sec2tunit
+   call hVars%aggregate(timeVar_local, basinRunoff, RCHFLX_trib, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! history output alarm
