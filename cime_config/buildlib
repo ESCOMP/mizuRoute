@@ -56,7 +56,7 @@ def _main_func():
         complib = os.path.join(libroot,"librof.a")
         makefile = os.path.join(casetools, "Makefile")
 
-        cmd = "{} complib -j {} MODEL=mizuRoute COMPLIB={} -f {} {}" \
+        cmd = "{} complib -j {} COMP_NAME=mizuRoute COMPLIB={} -f {} {}" \
               .format(gmake, gmake_j, complib, makefile, get_standard_makefile_args(case))
 
         rc, out, err = run_cmd(cmd)
