@@ -32,6 +32,8 @@ CONTAINS
   USE public_var,           ONLY: is_vol_wm         ! logical water management components target volume should be read
   USE public_var,           ONLY: suppress_runoff   ! logical suppress the read runoff to zero (0)
   USE public_var,           ONLY: suppress_P_Ep     ! logical suppress the read precipitation/evaporation to zero (0)
+  USE public_var,           ONLY: dt_ro             ! forcing (ro,p,evap) input time step [sec]
+  USE public_var,           ONLY: dt_wm             ! water-management input time step [sec]
   USE globalData,           ONLY: iTime             ! simulation time step index
   USE globalData,           ONLY: runoff_data       ! data structure to hru runoff data
   USE globalData,           ONLY: wm_data           ! data strcuture for water management
@@ -61,7 +63,7 @@ CONTAINS
     runoff_data%basinRunoff = 0._dp
   else
     ! time step mapping from runoff time step to simulation time step
-    call timeMap_sim_forc(tmap_sim_ro, begDatetime, robegDatetime, iTime, inFileInfo_ro, ierr, cmessage)
+    call timeMap_sim_forc(tmap_sim_ro, begDatetime, robegDatetime, dt_ro, iTime, inFileInfo_ro, ierr, cmessage)
     if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
 
     ! get the simulated runoff for the current time step - runoff_data%sim(:) or %sim2D(:,:)
@@ -90,7 +92,7 @@ CONTAINS
   end if
 
   if ((is_flux_wm).or.(is_vol_wm.and.is_lake_sim)) then
-    call timeMap_sim_forc(tmap_sim_wm, begDatetime, wmBegDatetime, iTime, inFileInfo_wm, ierr, cmessage)
+    call timeMap_sim_forc(tmap_sim_wm, begDatetime, wmBegDatetime, dt_wm, iTime, inFileInfo_wm, ierr, cmessage)
     if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
   end if
 
@@ -204,6 +206,7 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE timeMap_sim_forc(tmap_sim_forc,     & ! inout: time-steps mapping data
                              startSim, startRo, & ! input: starting datetime for simulation and input
+                             dt_in,             & ! input: input data time step [sec]
                              ixTime,            & ! input: simulation time index
                              inputFileInfo,     & ! input: input file metadata
                              ierr, message)
@@ -211,13 +214,13 @@ CONTAINS
    USE public_var,        ONLY: verySmall      ! smallest real values
    USE public_var,        ONLY: secprday       ! day to second conversion factor
    USE public_var,        ONLY: dt             ! simulation time step
-   USE public_var,        ONLY: dt_ro          ! input time step
 
    implicit none
    ! Argument variables
    type(map_time),              intent(out)   :: tmap_sim_forc    ! time-steps mapping data
    type(datetime),              intent(in)    :: startSim         ! simulation start datetime
    type(datetime),              intent(in)    :: startRo          ! runoff data start datetime
+   real(dp),                    intent(in)    :: dt_in            ! time step [sec]
    integer(i4b),                intent(in)    :: ixTime           ! number of simulation time steps
    type(inFileInfo),            intent(in)    :: inputFileInfo(:) ! forcing input meta data structure
    integer(i4b),                intent(out)   :: ierr             ! error code
@@ -225,7 +228,7 @@ CONTAINS
    ! Local variables
    character(len=strLen)                      :: cmessage         ! error message from subroutine
    real(dp), allocatable                      :: frcLapse(:)      !
-   real(dp)                                   :: simLapse(2)      !
+   real(dp)                                   :: simLapse(2)      ! time-bounds of current simulation time step from input start datetime [sec]
    real(dp)                                   :: startRoSec       ! starting runoff time relative to starting simulation time [sec]
    real(dp)                                   :: juldayRo         ! starting julian day in runoff time step [day]
    real(dp)                                   :: juldaySim        ! starting julian day in simulation time step [day]
@@ -252,7 +255,7 @@ CONTAINS
 
    simLapse(1) = startRoSec+dt*(ixTime-1)
    simLapse(2) = simLapse(1) + dt
-   frcLapse = arth(0._dp,      dt_ro, nRo+1)
+   frcLapse = arth(0._dp,      dt_in, nRo+1)
 
    !-- Find index of runoff time period of which end is within simulation period
    ! condition: from beginning to end of runoff time, first index of time period whose end exceeds the beginning of simulation time step

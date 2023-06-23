@@ -149,11 +149,11 @@ CONTAINS
    case('<dname_xlon>');           dname_xlon   = trim(cData)                          ! name of x (j,lon) dimension
    case('<dname_ylat>');           dname_ylat   = trim(cData)                          ! name of y (i,lat) dimension
    case('<units_qsim>');           units_qsim   = trim(cData)                          ! units of runoff
-   case('<dt_ro>');                read(cData,*,iostat=io_error) dt_ro                 ! time interval of the runoff input with unit of units_qsim
+   case('<dt_ro>');                read(cData,*,iostat=io_error) dt_ro                 ! time interval of the runoff data [sec]
    case('<input_fillvalue>');      read(cData,*,iostat=io_error) input_fillvalue       ! fillvalue used for input variable
    case('<ro_calendar>');          ro_calendar  = trim(cData)                          ! name of calendar used in runoff input netcdfs
    case('<ro_time_units>');        ro_time_units = trim(cData)                         ! time units used in runoff input netcdfs
-   ! FLUXES TO/FROM REACHES AND LAKE STATES FILE
+   ! Water-management input netCDF - water abstraction/infjection or lake target volume
    case('<fname_wm>');             fname_wm        = trim(cData)                       ! name of text file containing ordered nc file names
    case('<vname_flux_wm>');        vname_flux_wm   = trim(cData)                       ! name of varibale for fluxes to and from seg (reachs/lakes)
    case('<vname_vol_wm>');         vname_vol_wm    = trim(cData)                       ! name of varibale for target volume for managed lakes
@@ -161,6 +161,7 @@ CONTAINS
    case('<vname_segid_wm>');       vname_segid_wm  = trim(cData)                       ! name of the segid varibale in nc files
    case('<dname_time_wm>');        dname_time_wm   = trim(cData)                       ! name of time dimension
    case('<dname_segid_wm>');       dname_segid_wm  = trim(cData)                       ! name of the routing HRUs dimension
+   case('<dt_wm>');                read(cData,*,iostat=io_error) dt_wm                 ! time interval of the water-management data [sec]
    ! RUNOFF REMAPPING
    case('<is_remap>');             read(cData,*,iostat=io_error) is_remap              ! logical case runnoff needs to be mapped to river network HRU
    case('<fname_remap>');          fname_remap          = trim(cData)                  ! name of runoff mapping netCDF
