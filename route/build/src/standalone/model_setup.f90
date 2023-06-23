@@ -209,6 +209,9 @@ CONTAINS
   USE ncio_utils,          ONLY: check_attr     ! check if the attribute exist for a variable
   USE ncio_utils,          ONLY: get_var_attr   ! Read attributes variables
   USE ncio_utils,          ONLY: get_nc_dim_len ! get the nc dimension length
+  USE public_var,          ONLY: secprmin,  &   ! time conversion factor (min->sec)
+                                 secprhour, &   ! time conversion factor (hour->sec)
+                                 secprday       ! time conversion factor (day->sec)
 
   ! Argument variables
   character(len=strLen), intent(in)                 :: dir_name         ! the name of the directory that the txt file located
@@ -304,9 +307,9 @@ CONTAINS
     t_unit = trim( inputFileInfo(iFile)%unit(1:index(inputFileInfo(iFile)%unit,' ')) )
     select case( trim(t_unit) )
       case('seconds','second','sec','s'); convTime2sec=1._dp
-      case('minutes','minute','min','m'); convTime2sec=60._dp
-      case('hours'  ,'hour'  ,'hr' ,'h'); convTime2sec=3600._dp
-      case('days'   ,'day'   ,'d');       convTime2sec=86400._dp
+      case('minutes','minute','min','m'); convTime2sec=secprmin
+      case('hours'  ,'hour'  ,'hr' ,'h'); convTime2sec=secprhour
+      case('days'   ,'day'   ,'d');       convTime2sec=secprday
       case default
         ierr=20; message=trim(message)//'<time_units>= '//trim(t_unit)//': <time_units> must be seconds, minutes, hours or days.'; return
     end select
