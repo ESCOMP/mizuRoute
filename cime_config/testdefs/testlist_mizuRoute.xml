@@ -3,7 +3,7 @@
 
    <!-- Test list: Need to test all mizuRoute grids: course: r05mz, 5x5_amazon_r05, 5x5_amazon_rHDMA    -->
    <!-- CONUS grids: nldas2_nldas2_rUSGS_mnldas2, nldas2_nldas2_rHDMA_mnldas2, nldas2_nldas2_rMERIT_mnldas2 -->
-   <!--       NOTE: nldas grids have toruble runnign with DEBUG on see cdeps issue 143 -->
+   <!--       NOTE: nldas grids have trouble running with DEBUG on see cdeps issue 143 -->
    <!--       NOTE: Tests with lakes use a grid with lk in the name                    -->
    <!-- 2-degree: f19_f19_mg17, f19_f19_rHDMA_mg17, f19_f19_rHDMAlk_mg17, f19_f19_rMERIT_mg17 -->
    <!-- 1-degree: f09_f09_mg17, f09_f09_rHDMA_mg17, f09_f09_rHDMAlk_mg17, f09_f09_rMERIT_mg17 -->
@@ -13,10 +13,10 @@
    <!-- Test types: ERS, SMS, ERI, PET, PFS DEBUG on and off -->
    <!-- NOTE: ERP tests are known NOT to work since the MPI task count must remain the same on restart -->
    <!--       ERP tests with threads only are also not working -->
-   <!--       ERP tests with only threads can work hoeever -->
+   <!--       ERP tests with only threads can work however -->
    <!--       PEM tests will change answers if tasks change -->
    <!-- MPI: mpi-serial and regular as well as some threaded -->
-   <!-- Short tests: minimum 1-day    Longer tests: a year to two, good to do past year boundary -->
+   <!-- Short tests: minimum 1-day    Longer tests: a year to two, good to go past year boundary -->
    <!-- compsets: I2000Clm50SpMizGs -->
 
   <!-- Amazon grids: r5 and HDMA include long tests and mpi-serial -->
@@ -157,7 +157,7 @@
       <option name="comment"  >Smoke test on CONUS regional grid with DEBUG on</option>
     </options>
   </test>
-  <test name="ERS" grid="nldas2_nldas2_rUSGS_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="ERS_PS" grid="nldas2_nldas2_rUSGS_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -189,7 +189,7 @@
       <option name="comment"  >PET test changing threads on CONUS HDMA regional grid with DEBUG off</option>
     </options>
   </test>
-  <test name="ERS" grid="nldas2_nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="ERS_PS" grid="nldas2_nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -212,7 +212,7 @@
   </test>
 
   <!-- 2-degree grids r05mz, HDMA, and MERIT all DEBUG off-->
-  <test name="ERS" grid="f19_f19_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="ERS_PS" grid="f19_f19_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -223,7 +223,7 @@
       <option name="comment"  >Exact restart on 2-degree grid with DEBUG off</option>
     </options>
   </test>
-  <test name="ERS" grid="f19_f19_rHDMAlk_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="ERS_PS" grid="f19_f19_rHDMAlk_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="intel" category="prebeta"></machine>
