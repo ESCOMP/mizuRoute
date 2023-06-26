@@ -32,12 +32,10 @@ CONTAINS
   USE mpi_utils,       ONLY: shr_mpi_init
 
   implicit none
-  ! input:  None
-  ! output: None
+  ! Argument variables:  None
   ! local variables
   character(len=strLen)       :: message             ! error message
 
-  ! initialize error control
   message='init_mpi/'
 
   call shr_mpi_init(mpicom_route, message)
@@ -186,11 +184,6 @@ CONTAINS
                     inFileInfo_wm,        & ! output: input file information
                     ierr, cmessage)         ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; end if
-
-    call inFile_sync_time(inFileInfo_ro,      & ! input: the structure of simulated runoff, evapo and
-                          inFileInfo_wm,      & ! inout: input file information
-                          ierr, cmessage)       ! output: error control
-
   endif
 
   END SUBROUTINE init_inFile_pop
@@ -216,6 +209,9 @@ CONTAINS
   USE ncio_utils,          ONLY: check_attr     ! check if the attribute exist for a variable
   USE ncio_utils,          ONLY: get_var_attr   ! Read attributes variables
   USE ncio_utils,          ONLY: get_nc_dim_len ! get the nc dimension length
+  USE public_var,          ONLY: secprmin,  &   ! time conversion factor (min->sec)
+                                 secprhour, &   ! time conversion factor (hour->sec)
+                                 secprday       ! time conversion factor (day->sec)
 
   ! Argument variables
   character(len=strLen), intent(in)                 :: dir_name         ! the name of the directory that the txt file located
@@ -235,10 +231,9 @@ CONTAINS
   integer(i4b)                                      :: nTime            ! hard coded for now
   logical(lgt)                                      :: existAttr        ! attribute exist or not
   type(datetime)                                    :: refDatetime      ! reference datetime for each file
-  real(dp)                                          :: convTime2Days    ! conversion of the day to the local time
+  real(dp)                                          :: convTime2sec     ! time conversion to second
   character(len=strLen)                             :: infilename       ! input filename
   character(len=strLen),allocatable                 :: dataLines(:)     ! vector of lines of information (non-comment lines)
-  character(len=strLen)                             :: filenameData     ! name of forcing datafile
   character(len=strLen)                             :: cmessage         ! error message of downwind routine
 
   ierr=0; message='inFile_pop/'
@@ -261,82 +256,78 @@ CONTAINS
   ! poputate the forcingInfo structure with filenames, and time variables/attributes
   do iFile=1,nFile
 
-   ! split the line into "words" (expect one word: the file describing forcing data for that index)
-   read(dataLines(iFile),*,iostat=ierr) filenameData
-   if(ierr/=0)then; message=trim(message)//'problem reading a line of data from file ['//trim(infilename)//']'; return; end if
+    ! set forcing file name
+    read(dataLines(iFile),*,iostat=ierr) inputFileInfo(iFile)%infilename
+    if(ierr/=0)then; message=trim(message)//'problem reading a line of data from file ['//trim(infilename)//']'; return; end if
 
-   ! set forcing file name
-   inputFileInfo(iFile)%infilename = filenameData
+    ! get the time units. if not exsit in netcdfs, provided from the control file
+    existAttr = check_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), time_var_name, 'units')
+    if (existAttr) then
+      call get_var_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
+                        time_var_name, 'units', inputFileInfo(iFile)%unit, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    else
+      if (trim(time_units_in)==charMissing) then
+        write(cmessage, '(2A)')  trim(time_var_name), '. No units attribute exist nor provided by user in ro_time_units in control file'
+        ierr=10; message=trim(message)//trim(cmessage); return
+      end if
+      inputFileInfo(iFile)%unit = time_units_in
+    end if
 
-   ! get the time units. if not exsit in netcdfs, provided from the control file
-   existAttr = check_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), time_var_name, 'units')
-   if (existAttr) then
-     call get_var_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
-                       time_var_name, 'units', inputFileInfo(iFile)%unit, ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   else
-     if (trim(time_units_in)==charMissing) then
-       write(cmessage, '(2A)')  trim(time_var_name), '. No units attribute exist nor provided by user in ro_time_units in control file'
-       ierr=10; message=trim(message)//trim(cmessage); return
-     end if
-     inputFileInfo(iFile)%unit = time_units_in
-   end if
+    ! get the calendar. if not exsit in netcdfs, provided from the control file
+    existAttr = check_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), time_var_name, 'calendar')
+    if (existAttr) then
+      call get_var_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
+                        time_var_name, 'calendar', inputFileInfo(iFile)%calendar, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    else
+      if (trim(calendar_in)==charMissing) then
+        write(cmessage, '(2A)')  trim(time_var_name), '. No calendar attribute exist nor provided by user in ro_calendar in control file'
+        ierr=10; message=trim(message)//trim(cmessage); return
+      end if
+      inputFileInfo(iFile)%calendar = calendar_in
+    end if
 
-   ! get the calendar. if not exsit in netcdfs, provided from the control file
-   existAttr = check_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), time_var_name, 'calendar')
-   if (existAttr) then
-     call get_var_attr(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
-                       time_var_name, 'calendar', inputFileInfo(iFile)%calendar, ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-   else
-     if (trim(calendar_in)==charMissing) then
-       write(cmessage, '(2A)')  trim(time_var_name), '. No calendar attribute exist nor provided by user in ro_calendar in control file'
-       ierr=10; message=trim(message)//trim(cmessage); return
-     end if
-     inputFileInfo(iFile)%calendar = calendar_in
-   end if
+    ! get the dimension of the time to populate nTime and pass it to the get_nc file
+    call get_nc_dim_len(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
+                        time_dim_name, inputFileInfo(iFile)%nTime, ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! get the dimension of the time to populate nTime and pass it to the get_nc file
-   call get_nc_dim_len(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
-                       time_dim_name, inputFileInfo(iFile)%nTime, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    nTime = inputFileInfo(iFile)%nTime ! the length of time varibale for each nc file
 
-   nTime = inputFileInfo(iFile)%nTime ! the length of time varibale for each nc file
+    ! allocate space for time varibale of each file
+    allocate(inputFileInfo(iFile)%timeVar(nTime))
+    if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for inputFileInfo(:)%timeVar'; return; end if
 
-   ! allocate space for time varibale of each file
-   allocate(inputFileInfo(iFile)%timeVar(nTime))
-   if(ierr/=0)then; ierr=20; message=trim(message)//'problem allocating space for inputFileInfo(:)%timeVar'; return; end if
+    ! get the time varibale
+    call get_nc(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
+                time_var_name, inputFileInfo(iFile)%timeVar, 1, nTime, ierr, cmessage) ! does it needs timeVar(:)
 
-   ! get the time varibale
-   call get_nc(trim(dir_name)//trim(inputFileInfo(iFile)%infilename), &
-               time_var_name, inputFileInfo(iFile)%timeVar, 1, nTime, ierr, cmessage) ! does it needs timeVar(:)
+    ! get the time multiplier needed to convert time to units of days for each nc file
+    t_unit = trim( inputFileInfo(iFile)%unit(1:index(inputFileInfo(iFile)%unit,' ')) )
+    select case( trim(t_unit) )
+      case('seconds','second','sec','s'); convTime2sec=1._dp
+      case('minutes','minute','min','m'); convTime2sec=secprmin
+      case('hours'  ,'hour'  ,'hr' ,'h'); convTime2sec=secprhour
+      case('days'   ,'day'   ,'d');       convTime2sec=secprday
+      case default
+        ierr=20; message=trim(message)//'<time_units>= '//trim(t_unit)//': <time_units> must be seconds, minutes, hours or days.'; return
+    end select
+    ! convert timeValue unit to second
+    inputFileInfo(iFile)%timeVar(:) = inputFileInfo(iFile)%timeVar(:)*convTime2sec
 
-   ! get the time multiplier needed to convert time to units of days for each nc file
-   t_unit = trim( inputFileInfo(iFile)%unit(1:index(inputFileInfo(iFile)%unit,' ')) )
-   select case( trim(t_unit) )
-    case('seconds','second','sec','s'); convTime2Days=86400._dp
-    case('minutes','minute','min','m'); convTime2Days=1440._dp
-    case('hours'  ,'hour'  ,'hr' ,'h'); convTime2Days=24._dp
-    case('days'   ,'day'   ,'d');       convTime2Days=1._dp
-    case default
-      ierr=20; message=trim(message)//'<time_units>= '//trim(t_unit)//': <time_units> must be seconds, minutes, hours or days.'; return
-   end select
-   ! convert timeValue unit to day
-   inputFileInfo(iFile)%timeVar(:) = inputFileInfo(iFile)%timeVar(:)/convTime2Days
+    ! get the reference datetime from the nc file
+    call inputFileInfo(iFile)%refDatetime%str2datetime(trim(inputFileInfo(iFile)%unit), inputFileInfo(iFile)%calendar, ierr, message)
+    if(ierr/=0) then; message=trim(message)//trim(cmessage)//' inputFileInfo%refDatetime%str2datetime'; return; endif
 
-   ! get the reference julian day from the nc file
-   call refDatetime%str2datetime(trim(inputFileInfo(iFile)%unit), inputFileInfo(iFile)%calendar, ierr, message)
-   call refDatetime%julianday(inputFileInfo(iFile)%ncrefjulday, ierr, cmessage)
-   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [ncrefjulday]'; return; endif
-
-   ! populated the index of the iTimebound for each nc file
-   if (iFile==1) then
-    inputFileInfo(iFile)%iTimebound(1) = 1
-    inputFileInfo(iFile)%iTimebound(2) = nTime
-   else ! if multiple files specfied in the txt file
-    inputFileInfo(iFile)%iTimebound(1) = inputFileInfo(iFile-1)%iTimebound(2) + 1 ! the last index from the perivous nc file + 1
-    inputFileInfo(iFile)%iTimebound(2) = inputFileInfo(iFile-1)%iTimebound(2) + nTime ! the last index from the perivous nc file + 1
-   endif
+    ! populated the index of the iTimebound for each nc file
+    if (iFile==1) then
+      inputFileInfo(iFile)%iTimebound(1) = 1
+      inputFileInfo(iFile)%iTimebound(2) = nTime
+    else ! if multiple files specfied in the txt file
+      inputFileInfo(iFile)%iTimebound(1) = inputFileInfo(iFile-1)%iTimebound(2) + 1 ! the last index from the perivous nc file + 1
+      inputFileInfo(iFile)%iTimebound(2) = inputFileInfo(iFile-1)%iTimebound(2) + nTime ! the last index from the perivous nc file + 1
+    endif
 
   end do
 
@@ -344,68 +335,6 @@ CONTAINS
   if(ierr/=0)then;message=trim(message)//'problem closing forcing file list'; return; end if
 
  END SUBROUTINE inFile_pop
-
-
- ! *********************************************************************
- ! private subroutine: to synchronize the iTimebound of
- ! the inputFileInfo_wm to match the inputFileInfo
- ! *********************************************************************
- SUBROUTINE inFile_sync_time(inputFileInfo_ro,   & ! input: the structure of simulated runoff, evapo and
-                             inputFileInfo_wm,   & ! inout: input file information
-                             ierr, message)        ! output: error control
-
-  USE dataTypes,  ONLY: infileinfo    ! the data type for storing the infromation of the nc files and its attributes
-  USE public_var, ONLY: dt_ro         ! forcing time step in seconds
-  USE public_var, ONLY: secprday      ! conversion of steps in days to seconds
-
-  ! Argument variables
-  type(infileinfo),    intent(in)       :: inputFileInfo_ro(:)   ! the name of structure that hold the infile information
-  type(infileinfo),    intent(inout)    :: inputFileInfo_wm(:)   ! the name of structure that hold the infile information
-  integer(i4b),        intent(out)      :: ierr                  ! error code
-  character(*),        intent(out)      :: message               ! error message
-  ! local variables
-  integer(i4b)                          :: nt
-  integer(i4b)                          :: nFile                 ! number of nc files for the simulated runoff
-  integer(i4b)                          :: nFile_wm              ! number of nc files for the water managent
-  integer(i4b)                          :: iFile                 ! for loop over the nc files
-  real(dp)                              :: day_runoff_start      ! the Julian day that runoff starts
-  real(dp)                              :: day_start_diff        ! conversion of the day to the local time
-  real(dp)                              :: day_end_diff          ! conversion of the day to the local time
-
-  ierr=0; message='inFile_sync_time/'
-
-  ! set the reference julday based on the first nc file of simulation
-  nFile               = size(inputFileInfo_ro)
-  nFile_wm            = size(inputFileInfo_wm)
-  day_runoff_start    = inputFileInfo_ro(1)%timeVar(1)+inputFileInfo_ro(1)%ncrefjulday
-
-  do iFile=1,nFile_wm
-
-    nt = inputFileInfo_wm(iFile)%nTime ! get the number of time
-
-    day_start_diff = inputFileInfo_wm(iFile)%timeVar(1) +inputFileInfo_wm(iFile)%ncrefjulday - day_runoff_start
-    day_end_diff   = inputFileInfo_wm(iFile)%timeVar(nt)+inputFileInfo_wm(iFile)%ncrefjulday - day_runoff_start
-
-    inputFileInfo_wm(iFile)%iTimebound(1) = int(day_start_diff * secprday/dt_ro, kind=i4b) + 1 ! to convert the day difference into time step difference
-    inputFileInfo_wm(iFile)%iTimebound(2) = int(day_end_diff   * secprday/dt_ro, kind=i4b) + 1 ! to convert the day difference into time step difference
-
-  end do
-
-  ! checks if the staring and ending iTime of the inputFileInfo_wm overlap with the inputFileInfo of simulated runoff, evapo and precip
-  if (inputFileInfo_wm(1)%iTimebound(1) > inputFileInfo_ro(1)%iTimebound(1)) then
-    print*, "The first water managment netCDF starts later than the first runoff, evapo and precip netCDF and may cause crash"
-  endif
-  if (inputFileInfo_wm(nFile_wm)%iTimebound(2) < inputFileInfo_ro(nFile)%iTimebound(2)) then
-    print*, "The last water managment netCDf ends earlier than the last runoff, evapo and precip netCDF and may cause crash"
-  endif
-  if (inputFileInfo_wm(1)%iTimebound(1) < inputFileInfo_ro(1)%iTimebound(1)) then
-    print*, "The water managment netCDF starts earlier than the last runoff, evapo and precip netCDF"
-  endif
-  if (inputFileInfo_wm(nFile_wm)%iTimebound(2) > inputFileInfo_ro(nFile)%iTimebound(2)) then
-    print*, "The water managment netCDf ends later than the last runoff, evapo and precip netCDF"
-  endif
-
- END SUBROUTINE inFile_sync_time
 
  ! *********************************************************************
  ! private subroutine: initialize time data
@@ -427,6 +356,7 @@ CONTAINS
   USE public_var,    ONLY: calendar                 ! calendar used for simulation
   USE public_var,    ONLY: dt                       ! simulation time step in second
   USE public_var,    ONLY: dt_ro                    ! forcing time step in second
+  USE public_var,    ONLY: dt_wm                    ! water-management time step in second
   USE public_var,    ONLY: continue_run             ! logical to indicate sppend output in existing history file
   USE public_var,    ONLY: secprday                 ! unit conversion from day to sec
   USE public_var,    ONLY: secprhour                ! unit conversion from hour to sec
@@ -466,19 +396,18 @@ CONTAINS
   integer(i4b)                             :: nt
   integer(i4b)                             :: nFile               ! number of nc files
   integer(i4b)                             :: nFile_wm            ! number of nc files
-  character(len=strLen)                    :: calendar_wm         ! calendar used in water management input file
   character(len=strLen)                    :: t_unit              ! time units. "<time_step> since yyyy-MM-dd hh:mm:ss"
   integer(i4b)                             :: iFile               ! for loop over the nc files
-  type(datetime), allocatable              :: roCal(:)
-  type(datetime), allocatable              :: wmCal(:)
-  type(datetime)                           :: roDatetime_end      ! temp datetime
-  type(datetime)                           :: refDatetime         ! reference datetime from unit time
+  type(datetime), allocatable              :: roCal(:)            ! datetime in runoff data
+  type(datetime), allocatable              :: wmCal(:)            ! datetime in water-management data
+  type(datetime)                           :: roDatetime_end      ! end of datetime in runoff data
+  type(datetime)                           :: refDatetime         ! reference datetime from unit time based on "time_units"
   type(datetime)                           :: dummyDatetime       ! temp datetime
   integer(i4b)                             :: nDays               ! number of days in a month
-  real(dp), allocatable                    :: roJulday(:)         ! julian day in runoff data
-  real(dp), allocatable                    :: roJulday_diff(:)    ! the difference of two concequative elements in roJulyday
-  real(dp), allocatable                    :: roJulday_wm(:)      ! Julian day of concatenated netCDF for water management
-  real(dp), allocatable                    :: roJulday_diff_wm(:) ! the difference of two concequative elements in roJulyday_wm
+  real(dp), allocatable                    :: roTimeVar(:)        ! elapsed seconds from reference datetime in runoff data
+  real(dp), allocatable                    :: roTimeVar_diff(:)   ! time difference in second between two concequative runoff time step
+  real(dp), allocatable                    :: wmTimeVar(:)        ! elapsed seconds from reference datetime in water management
+  real(dp), allocatable                    :: wmTimeVar_diff(:)   ! time difference in second between two concequative water-management time step
   character(len=strLen)                    :: cmessage            ! error message of downwind routine
   character(len=50)                        :: fmt1='(a,I4,a,I2.2,a,I2.2,x,I2.2,a,I2.2,a,F5.2)'
 
@@ -498,26 +427,40 @@ CONTAINS
   nFile = size(inFileInfo_ro)
   nTime = sum(inFileInfo_ro(:)%nTime)
 
-  ! Define time varialbes: timeVar and roJulday
-  allocate(roJulday(nTime), roCal(nTime), stat=ierr)
+  ! runoff data: time variable-roTimeVar [sec] from reference datetime (refDatetime) and datetime (roCal)
+  allocate(roTimeVar(nTime), roCal(nTime), stat=ierr)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! Get roJulday: Julian day series of concatenated netCDF
   counter = 1;
   do iFile=1,nFile
     nt = inFileInfo_ro(iFile)%nTime
-    roJulday(counter:counter+nt-1) = &
-    inFileInfo_ro(iFile)%timeVar(1:nt)+inFileInfo_ro(iFile)%ncrefjulday
-    counter = counter + inFileInfo_ro(iFile)%nTime
+    do ix=1, nt
+      roCal(counter) = inFileInfo_ro(iFile)%refDatetime%add_sec(inFileInfo_ro(iFile)%timeVar(ix), ierr, cmessage)
+      roTimeVar(counter) = roCal(counter) - refDatetime ! sec
+      counter = counter + 1
+    end do
   end do
 
-  do ix=1,nTime
-    call roCal(ix)%jul2datetime(roJulday(ix), calendar, ierr, cmessage)
-  end do
+  ! check if time step in runoff data is consistent
+  if (nTime > 1) then
+    allocate(roTimeVar_diff(nTime-1), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! calculate the difference of consequative time in julian day
+    roTimeVar_diff = roTimeVar(2:nTime)-roTimeVar(1:nTime-1)
+    ! check if the difference are identical otherwise error and terminate
+    if ( any(abs(roTimeVar_diff-roTimeVar_diff(1)) > maxTimeDiff) ) then
+      write(iulog,'(2a)') new_line('a'),'ERROR: time spacing in netCDF input(s) is not consistent within tolerance maxTimeDiff = ',maxTimeDiff
+      ierr=20; message=trim(message)//'make sure the input netCDF files do not have time overlaps or gaps'; return
+    end if
+  endif
 
+  ! runoff data time step [sec]
+  dt_ro = roTimeVar_diff(1)
+
+  ! datetime at end of last runoff data time step
   roDatetime_end = roCal(nTime)%add_sec(dt_ro, ierr, cmessage)
 
-  ! save water management data starting datetime
+  ! datetime at start of first runoff data time step
   roBegDatetime = roCal(1)
 
   call begDatetime%str2datetime(simStart, calendar, ierr, cmessage)
@@ -535,7 +478,7 @@ CONTAINS
   ! check sim_start is after the last time step in runoff data
   if (begDatetime > roDatetime_end) then
     write(iulog,'(2a)') new_line('a'),'ERROR: <sim_start> is after the last time step in input runoff'
-    write(iulog,fmt1)  ' runoff_end  : ', roCal(nTime)%year(),'-',roCal(nTime)%month(),'-',roCal(nTime)%day(), roCal(nTime)%hour(),':', roCal(nTime)%minute(),':',roCal(nTime)%sec()
+    write(iulog,fmt1)  ' runoff_end  : ', roDatetime_end%year(),'-',roDatetime_end%month(),'-',roDatetime_end%day(), roDatetime_end%hour(),':', roDatetime_end%minute(),':',roDatetime_end%sec()
     write(iulog,fmt1)  ' <sim_start> : ', begDatetime%year(),'-',begDatetime%month(),'-',begDatetime%day(), begDatetime%hour(),':', begDatetime%minute(),':',begDatetime%sec()
     ierr=20; message=trim(message)//'check <sim_start> against runoff input time'; return
   endif
@@ -552,50 +495,48 @@ CONTAINS
   ! Compare sim_end vs. time at last time step in runoff data
   if (endDatetime > roDatetime_end) then
     write(iulog,'(2a)')  new_line('a'),'WARNING: <sim_end> is after the last time step in input runoff'
-    write(iulog,fmt1)   ' runoff_end: ', roCal(nTime)%year(),'-',roCal(nTime)%month(),'-',roCal(nTime)%day(), roCal(nTime)%hour(),':', roCal(nTime)%minute(),':',roCal(nTime)%sec()
+    write(iulog,fmt1)   ' runoff_end: ', roDatetime_end%year(),'-',roDatetime_end%month(),'-',roDatetime_end%day(), roDatetime_end%hour(),':', roDatetime_end%minute(),':',roDatetime_end%sec()
     write(iulog,fmt1)   ' <sim_end> : ', endDatetime%year(),'-',endDatetime%month(),'-',endDatetime%day(), endDatetime%hour(),':', endDatetime%minute(),':',endDatetime%sec()
     write(iulog,'(a)')  ' Reset <sim_end> to runoff_end'
     endDatetime = roCal(nTime)
   endif
 
-  ! check if the julian day of contacenated files do not have overlap or gap if nTime is larger than 1
-  if (nTime > 1) then
-    allocate(roJulday_diff(nTime-1), stat=ierr, errmsg=cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    ! calculate the difference of consequative time in julian day
-    roJulday_diff = roJulday(1:nTime-1) - roJulday(2:nTime)
-    ! check if the difference are identical otherwise error and terminate
-    if ( any(abs(roJulday_diff-roJulday_diff(1)) > maxTimeDiff) ) then
-      write(iulog,'(2a)') new_line('a'),'ERROR: time spacing in netCDF input(s) is not consistent within tolerance maxTimeDiff = ',maxTimeDiff
-      ierr=20; message=trim(message)//'make sure the input netCDF files do not have time overlaps or gaps'; return
-    end if
-  endif
-
   ! water management options on
   if ((is_flux_wm).or.(is_vol_wm.and.is_lake_sim)) then
-
-    calendar_wm = inFileInfo_wm(1)%calendar
 
     ! get the number of the total time length of all the water management nc files
     nFile_wm = size(inFileInfo_wm)
     nTime_wm = sum(inFileInfo_wm(:)%nTime)
 
-    ! Define time varialbes: roJulday_wm
-    allocate(roJulday_wm(nTime_wm), wmCal(nTime), stat=ierr)
+    ! elapsed time-wmTimeVar [sec] from reference datetime (refDatetime) and datetime (wmCal)
+    allocate(wmTimeVar(nTime_wm), wmCal(nTime_wm), stat=ierr)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! roJulday_wm: Julian day of concatenated netCDF for water management
     counter = 1;
     do iFile=1,nFile_wm
       nt = inFileInfo_wm(iFile)%nTime
-      roJulday_wm(counter:counter+nt-1) = &
-      inFileInfo_wm(iFile)%timeVar(1:nt)+inFileInfo_wm(iFile)%ncrefjulday
-      counter = counter + inFileInfo_wm(iFile)%nTime
+      do ix=1, nt
+        wmCal(counter) = inFileInfo_wm(iFile)%refDatetime%add_sec(inFileInfo_wm(iFile)%timeVar(ix), ierr, cmessage)
+        wmTimeVar(counter) = wmCal(counter) - refDatetime ! sec
+        counter = counter + 1
+      end do
     enddo
 
-    do ix=1,nTime
-      call wmCal(ix)%jul2datetime(roJulday_wm(ix), calendar_wm, ierr, cmessage)
-    end do
+    ! check if time step in water-management data is consistent
+    if (nTime_wm > 1) then
+      allocate(wmTimeVar_diff(nTime_wm-1), stat=ierr)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      ! calculate the difference of consequative time in julian day
+      wmTimeVar_diff = wmTimeVar(2:nTime_wm) - wmTimeVar(1:nTime_wm-1)
+      ! check if the difference are identical otherwise error and terminate
+      if ( any(abs(wmTimeVar_diff-wmTimeVar_diff(1)) > maxTimeDiff) ) then
+        write(iulog,'(2a)') new_line('a'),'ERROR: time spacing in water management netCDF input(s) is not consistent within tolerance maxTimeDiff = ',maxTimeDiff
+        ierr=20; message=trim(message)//'make sure the water management input netCDF files do not have time overlaps or gaps'; return
+      end if
+    endif
+
+    ! water-management data time step [sec]
+    dt_wm = wmTimeVar_diff(1)
 
     ! save water management data starting datetime
     wmBegDatetime = wmCal(1)
@@ -612,20 +553,7 @@ CONTAINS
       ierr=20; message=trim(message)//'check <sim_start> against water management input time'; return
     endif
 
-    ! check if the julian day of contacenated files do not have overlap or gap if nTime_wm is larger than 1
-    if (nTime_wm > 1) then
-      allocate(roJulday_diff_wm(nTime_wm-1), stat=ierr)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      ! calculate the difference of consequative time in julian day
-      roJulday_diff_wm = roJulday_wm (1:nTime_wm-1) - roJulday_wm (2:nTime_wm)
-      ! check if the difference are identical otherwise error and terminate
-      if ( any(abs(roJulday_diff_wm-roJulday_diff_wm(1)) > maxTimeDiff) ) then
-          write(iulog,'(2a)') new_line('a'),'ERROR: time spacing in water management netCDF input(s) is not consistent within tolerance maxTimeDiff = ',maxTimeDiff
-          ierr=20; message=trim(message)//'make sure the water management input netCDF files do not have time overlaps or gaps'; return
-      end if
-    endif
-
-  endif
+  endif ! end of water manamgemnt option
 
   ! set initial model simulation time (beginning of simulation time step and next time step)
   simDatetime(1) = begDatetime

@@ -150,9 +150,9 @@ DATATYPES = \
     ncio_utils.f90 \
     pio_utils.f90 \
     ascii_utils.f90 \
+    datetime_data.f90 \
     dataTypes.f90 \
     var_lookup.f90 \
-    datetime_data.f90 \
     csv_data.f90 \
     globalData.f90 \
     popMetadat.f90 \

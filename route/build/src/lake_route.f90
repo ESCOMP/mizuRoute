@@ -43,7 +43,7 @@ CONTAINS
   USE globalData, ONLY: simDatetime         ! previous and current model time
   USE public_var, ONLY: is_flux_wm          ! logical water management components fluxes should be read
   USE public_var, ONLY: dt                  ! simulation time step [sec]
-  USE public_var, ONLY: lakeWBTol           ! lake water balance tolerance
+  USE public_var, ONLY: lakeWBtol           ! lake water balance tolerance
   USE public_var, ONLY: is_vol_wm_jumpstart ! logical whether or not lake should be simulated
   USE public_var, ONLY: secprday            ! seconds per day = 86400
   USE public_var, ONLY: days_per_yr         ! days per a year = 365
@@ -474,7 +474,7 @@ CONTAINS
 !    endif
 
     call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxIRF, q_upstream, RCHFLX_out(iens,segIndex), &
-                       verbose, lakeFlag=.true.,tolerance=lakeWBTol)
+                       verbose, lakeFlag=.true.,tolerance=lakeWBtol)
 
     ! assign the zero value as lake do not have a QFUTURE_IRF
     ! TO-DO: Need to handle this when construct unit-hydrograph

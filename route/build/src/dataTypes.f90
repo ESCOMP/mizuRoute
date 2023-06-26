@@ -5,6 +5,7 @@ MODULE dataTypes
 USE nrtype
 USE public_var, ONLY: realMissing
 USE public_var, ONLY: integerMissing
+USE datetime_data, ONLY: datetime
 
 implicit none
 
@@ -122,13 +123,13 @@ implicit none
 
  ! -- input file name and strcuture for nc files
   type, public ::  inFileInfo
-   integer(i4b)                            :: nTime            ! number of time step in a nc file
-   integer(i4b)                            :: iTimebound(1:2)  ! time index of start and end of the
-   real(dp)                 , allocatable  :: timeVar(:)       ! the time varibale [day] from the netcdf file
-   real(dp)                                :: ncrefjulday      ! the julian day for the reference of the nc file
-   character(len=strLen)                   :: infilename       ! the name of the input file name
-   character(len=strLen)                   :: calendar         ! the calendar
-   character(len=strLen)                   :: unit             ! the unit of time
+   integer(i4b)                            :: nTime            ! number of time steps in a netCDF
+   integer(i4b)                            :: iTimebound(1:2)  ! cumulative time indices of 1st and last time steps in a netCDf
+   real(dp)                 , allocatable  :: timeVar(:)       ! elapsed seconds from reference datetime of netCDF
+   type(datetime)                          :: refdatetime      ! reference datetime of netCDF
+   character(len=strLen)                   :: infilename       ! name of a netCDF
+   character(len=strLen)                   :: calendar         ! calendar used in a netCDF
+   character(len=strLen)                   :: unit             ! time unit used in a netCDF
   end type inFileInfo
 
 
