@@ -90,18 +90,15 @@ CONTAINS
 
   ! used to read control files and namelist and broadcast to all processors
 
-  ! shared data used
-  USE public_var, ONLY: ancil_dir
-  USE public_var, ONLY: input_dir
-  USE public_var, ONLY: param_nml
-  USE public_var, ONLY: gageMetaFile
-  USE public_var, ONLY: outputAtGage
-  ! subroutines: populate metadata
-  USE popMetadat_module, ONLY: popMetadat       ! populate metadata
-  ! subroutines: model control
-  USE read_control_module, ONLY: read_control     ! read the control file
-  USE read_param_module,   ONLY: read_param       ! read the routing parameters
-  USE process_gage_meta,   ONLY: read_gage_meta   ! process gauge metadata
+  USE public_var,          ONLY: ancil_dir
+  USE public_var,          ONLY: input_dir
+  USE public_var,          ONLY: param_nml
+  USE public_var,          ONLY: gageMetaFile
+  USE public_var,          ONLY: outputAtGage
+  USE popMetadat_module,   ONLY: popMetadat        ! populate metadata
+  USE read_control_module, ONLY: read_control      ! read the control file
+  USE read_param_module,   ONLY: read_param        ! read the routing parameters
+  USE process_gage_meta,   ONLY: read_gage_meta    ! process gauge metadata
 
   implicit none
   ! Argument variables
@@ -128,6 +125,9 @@ CONTAINS
     call read_gage_meta(trim(ancil_dir)//trim(gageMetaFile),ierr,cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   end if
+
+  call init_route_method(ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  END SUBROUTINE init_model
 
@@ -607,5 +607,62 @@ CONTAINS
   endif
 
  END SUBROUTINE init_ntopo
+
+  ! *********************************************************************
+  ! public subroutine: initialize routing method object
+  ! *********************************************************************
+  SUBROUTINE init_route_method(ierr, message)
+    !
+    ! DESCRIPTION:
+    ! Instantiate a collection of routing method objects
+    !
+    USE globalData,         ONLY: rch_routes            ! routing methods instantiated
+    USE globalData,         ONLY: routeMethods          ! Active routing method
+    USE public_var,         ONLY: accumRunoff           ! routing method ID
+    USE public_var,         ONLY: impulseResponseFunc   ! routing method ID
+    USE public_var,         ONLY: kinematicWaveTracking ! routing method ID
+    USE public_var,         ONLY: kinematicWave         ! routing method ID
+    USE public_var,         ONLY: muskingumCunge        ! routing method ID
+    USE public_var,         ONLY: diffusiveWave         ! routing method ID
+    USE accum_route_module, ONLY: accum_route_rch       ! routing routine: accumulation instantaneous runoff
+    USE irf_route_module,   ONLY: irf_route_rch         ! routing routine: Impulse response function
+    USE kwt_route_module,   ONLY: kwt_route_rch         ! routing routine: Lagrangian kinematic
+    USE kw_route_module,    ONLY: kwe_route_rch         ! routing routine: kinematic
+    USE mc_route_module,    ONLY: mc_route_rch          ! routing routine: muskingum
+    USE dfw_route_module,   ONLY: dfw_route_rch         ! routing routine: diffusive
+
+    implicit none
+    ! Argument variables:
+    integer(i4b),          intent(out)   :: ierr        ! error code
+    character(*),          intent(out)   :: message     ! error message
+    ! Local variables:
+    character(len=strLen)                :: cmessage     ! error message from subroutine
+    integer(i4b)                         :: ix
+
+    ierr=0; message='init_route_method/'
+
+    allocate(rch_routes(size(routeMethods)), stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [rch_routes]'; return; endif
+
+    do ix=1, size(routeMethods)
+      select case (routeMethods(ix))
+        case (accumRunoff)
+          allocate(accum_route_rch :: rch_routes(ix)%rch_route)
+        case (impulseResponseFunc)
+          allocate(irf_route_rch :: rch_routes(ix)%rch_route)
+        case (kinematicWaveTracking)
+          allocate(kwt_route_rch :: rch_routes(ix)%rch_route)
+        case (kinematicWave)
+          allocate(kwe_route_rch :: rch_routes(ix)%rch_route)
+        case (muskingumCunge)
+          allocate(mc_route_rch  :: rch_routes(ix)%rch_route)
+        case (diffusiveWave)
+          allocate(dfw_route_rch :: rch_routes(ix)%rch_route)
+        case default
+          ierr=20; message=trim(message)//'no valid routing method'; return
+      end select
+    end do
+
+  END SUBROUTINE init_route_method
 
 END MODULE init_model_data
