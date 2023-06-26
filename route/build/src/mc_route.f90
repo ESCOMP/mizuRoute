@@ -250,7 +250,10 @@ CONTAINS
  ! (time:0:1, loc:0:1) 0-previous time step/inlet, 1-current time step/outlet.
  ! Q or A(1,2,3,4): 1: (t=0,x=0), 2: (t=0,x=1), 3: (t=1,x=0), 4: (t=1,x=1)
 
- use shr_infnan_mod, only : isnan => shr_infnan_isnan
+ ! -- EBK 06/26/2023 -- comment out isnan check, doesn't seem to be needed
+ ! Use of shr_infnan_isnan will require changes to the standalone build, and
+ ! this version is required to work on all compilers.
+ !use shr_infnan_mod, only : isnan => shr_infnan_isnan
  implicit none
  ! Argument variables
  type(RCHPRP), intent(in)                 :: rch_param    ! River reach parameter
@@ -370,9 +373,10 @@ CONTAINS
      QoutLocal(ix) = C0* QinLocal(ix)+ C1* QinLocal(ix-1)+ C2* QoutLocal(ix-1)
      QoutLocal(ix) = max(0.0, QoutLocal(ix))
 
-     if (isnan(QoutLocal(ix))) then
-       ierr=10; message=trim(message)//'QoutLocal is Nan; activate vodose for this segment for diagnosis';return
-     end if
+     ! -- EBK 06/26/2023 -- comment out isnan check, doesn't seem to be needed.
+     !if (isnan(QoutLocal(ix))) then
+     !  ierr=10; message=trim(message)//'QoutLocal is Nan; activate vodose for this segment for diagnosis';return
+     !end if
 
      if (verbose) then
        write(iulog,'(A,I3,1X,A,G12.5,1X,A,G12.5)') '   sub time-step= ',ix,'Courant number= ',Cn, 'Q= ',QoutLocal(ix)
