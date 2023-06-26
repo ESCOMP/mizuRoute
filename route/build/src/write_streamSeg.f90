@@ -180,7 +180,8 @@ CONTAINS
  ! ---------- create file ----------------------------------------------------------------------------------------
 
  ! create file
- ierr = nf90_create(trim(fname), NF90_64BIT_OFFSET, ncid)
+ ! Clobber an existing file if it exists, and output in 64Bit offset format
+ ierr = nf90_create(trim(fname), (NF90_CLOBBER .or. NF90_64BIT_OFFSET), ncid)
  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
  ! ---------- define dimensions ----------------------------------------------------------------------------------
