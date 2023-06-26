@@ -162,8 +162,6 @@
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="prebeta"></machine>
-      <machine name="izumi"    compiler="intel" category="mizu"></machine>
-      <machine name="izumi"    compiler="intel" category="prealpha"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
@@ -193,7 +191,6 @@
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
-      <machine name="izumi"    compiler="gnu"   category="mizu"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
@@ -216,7 +213,6 @@
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
-      <machine name="izumi"    compiler="intel" category="mizu"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
@@ -228,8 +224,6 @@
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="intel" category="prebeta"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
-      <machine name="izumi"    compiler="intel" category="mizu"></machine>
-      <machine name="izumi"    compiler="intel" category="prebeta"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
