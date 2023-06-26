@@ -9,7 +9,6 @@ MODULE mpi_utils
   USE globalData, ONLY: masterproc
   USE public_var, ONLY: root
   USE public_var, ONLY: iulog
-  USE shr_sys_mod, ONLY: shr_sys_flush
 
   implicit none
 
@@ -1014,7 +1013,7 @@ CONTAINS
 
       ! finalize MPI
       call MPI_FINALIZE(jerr)
-      call shr_sys_flush(6)
+      flush(6)
       stop
     endif
 

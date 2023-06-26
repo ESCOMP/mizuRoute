@@ -7,7 +7,6 @@ USE dataTypes, ONLY: RCHTOPO        ! Network topology
 ! global parameters
 USE public_var, ONLY: iulog         ! i/o logical unit number
 USE public_var, ONLY: dt            ! simulation time step
-USE shr_sys_mod, ONLY: shr_sys_flush
 
 implicit none
 
@@ -201,7 +200,7 @@ CONTAINS
     if (abs(wb_error) > 1._dp) then ! tolerance is 1 [m3]
       write(iulog,'(A,1PG15.7,1X,A)') ' WARNING: global WB error [m3] = ', wb_error, '> 1.0 [m3]'
     end if
-    call shr_sys_flush(iulog)
+    flush(iulog)
 
     CONTAINS
 
