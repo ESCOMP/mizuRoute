@@ -624,7 +624,7 @@ CONTAINS
     USE public_var,         ONLY: kinematicWave         ! routing method ID
     USE public_var,         ONLY: muskingumCunge        ! routing method ID
     USE public_var,         ONLY: diffusiveWave         ! routing method ID
-    USE accum_route_module, ONLY: accum_route_rch       ! routing routine: accumulation instantaneous runoff
+    USE accum_runoff_module,ONLY: accum_runoff_rch      ! routing routine: accumulation instantaneous runoff
     USE irf_route_module,   ONLY: irf_route_rch         ! routing routine: Impulse response function
     USE kwt_route_module,   ONLY: kwt_route_rch         ! routing routine: Lagrangian kinematic
     USE kw_route_module,    ONLY: kwe_route_rch         ! routing routine: kinematic
@@ -647,7 +647,7 @@ CONTAINS
     do ix=1, size(routeMethods)
       select case (routeMethods(ix))
         case (accumRunoff)
-          allocate(accum_route_rch :: rch_routes(ix)%rch_route)
+          allocate(accum_runoff_rch :: rch_routes(ix)%rch_route)
         case (impulseResponseFunc)
           allocate(irf_route_rch :: rch_routes(ix)%rch_route)
         case (kinematicWaveTracking)

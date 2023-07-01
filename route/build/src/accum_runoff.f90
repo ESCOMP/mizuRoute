@@ -1,4 +1,4 @@
-MODULE accum_route_module
+MODULE accum_runoff_module
 
 ! Accumulate upstream flow instantaneously
 ! This is not used as routed runoff.
@@ -16,19 +16,19 @@ USE base_route,  ONLY: base_route_rch
 implicit none
 
 private
-public::accum_route_rch
+public::accum_runoff_rch
 
-type, extends(base_route_rch) :: accum_route_rch
+type, extends(base_route_rch) :: accum_runoff_rch
  CONTAINS
    procedure, pass :: route => accum_inst_runoff
-end type accum_route_rch
+end type accum_runoff_rch
 
 CONTAINS
 
  ! *********************************************************************
  ! subroutine: perform accumulate immediate upstream flow
  ! *********************************************************************
- SUBROUTINE accum_inst_runoff(this,         &
+ SUBROUTINE accum_inst_runoff(this,         &  ! "accum_runoff_rchr" object to bound this procedure
                               iEns,         &  ! input: index of runoff ensemble to be processed
                               segIndex,     &  ! input: index of reach to be processed
                               ixDesire,     &  ! input: reachID to be checked by on-screen pringing
@@ -40,7 +40,7 @@ CONTAINS
                               ierr, message)   ! output: error control
  implicit none
  ! Argument variables
- class(accum_route_rch)                   :: this
+ class(accum_runoff_rch)                  :: this            ! "accum_runoff_rchr" object to bound this procedure
  integer(i4b),  intent(in)                :: iEns            ! runoff ensemble to be routed
  integer(i4b),  intent(in)                :: segIndex        ! segment where routing is performed
  integer(i4b),  intent(in)                :: ixDesire        ! index of the reach for verbose output
@@ -95,4 +95,4 @@ CONTAINS
 
  END SUBROUTINE accum_inst_runoff
 
-END MODULE accum_route_module
+END MODULE accum_runoff_module

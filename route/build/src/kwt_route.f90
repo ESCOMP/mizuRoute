@@ -11,9 +11,9 @@ USE public_var,    ONLY: iulog             ! i/o logical unit number
 USE public_var,    ONLY: verySmall         ! a very small value
 USE public_var,    ONLY: realMissing       ! missing value for real number
 USE public_var,    ONLY: integerMissing    ! missing value for integer number
-USE globalData,    ONLY: idxKWT            ! index of KWT method
+USE globalData,    ONLY: idxKWT            ! routing method index for lagrangian kinematic wave method
 USE nr_utils,      ONLY: arth              ! Num. Recipies utilities
-USE base_route,    ONLY: base_route_rch
+USE base_route,    ONLY: base_route_rch    ! base (abstract) reach routing method class
 
 implicit none
 

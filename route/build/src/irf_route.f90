@@ -9,10 +9,10 @@ USE dataTypes,         ONLY: irfRCH            ! irf specific state data structu
 USE public_var,        ONLY: iulog             ! i/o logical unit number
 USE public_var,        ONLY: realMissing       ! missing value for real number
 USE public_var,        ONLY: integerMissing    ! missing value for integer number
-USE public_var,        ONLY: dt
-USE globalData,        ONLY: idxIRF            ! index of IRF method
+USE public_var,        ONLY: dt                ! simulation time step [sec]
+USE globalData,        ONLY: idxIRF            ! routing method index for IRF method
 USE water_balance,     ONLY: comp_reach_wb     ! compute water balance error
-USE base_route,        ONLY: base_route_rch
+USE base_route,        ONLY: base_route_rch    ! base (abstract) reach routing method class
 
 implicit none
 

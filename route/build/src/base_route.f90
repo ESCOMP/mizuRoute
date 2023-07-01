@@ -1,20 +1,23 @@
 MODULE base_route
 
-  ! Abstract class for routing method
+  ! Description: Definition of base (or template) reach routing method class.
+  ! this abstract class needs to be extended to specific routing method types for instantiation.
 
   implicit none
 
   private
-  public:: base_route_rch
-  public:: routeContainer
+  public:: base_route_rch   ! base (abstract) reach routing method class (to be extended to specific)
+  public:: routeContainer   ! a holder of instantiated reach routing method object
 
   ! --- routing method container
+  ! This container (holder) include instantiated reach routing method
+  !
   type :: routeContainer
     class(base_route_rch), allocatable :: rch_route
   end type
 
 
-  ! --- routing method container
+  ! --- base (abstract or template) reach routing method
   type, abstract :: base_route_rch
     CONTAINS
     procedure(sub_route_rch), deferred :: route
@@ -22,7 +25,7 @@ MODULE base_route
 
   ABSTRACT INTERFACE
 
-    SUBROUTINE sub_route_rch(this,          & !
+    SUBROUTINE sub_route_rch(this,          & ! object to bound the procedure
                              iEns,          & ! input: ensemble index
                              segIndex,      & ! input: reach indice
                              ixDesire,      & ! input: index of verbose reach
@@ -33,6 +36,11 @@ MODULE base_route
                              RCHFLX_out,    & ! inout: reach flux data structure
                              ierr, message)   ! output: error control
 
+      ! Description: perform a routing at a given reach (segIndex) and time step
+      !   reach parameters (RPARAM), river network topology (NETOPO) to get upstream location,
+      !   state (RCHSTA) and flux (RCHFLX) are required for a set of input
+      !   ixDesire is index of reach where more information is writting in log along the computation
+
       USE nrtype
       USE dataTypes, ONLY: STRFLX       ! fluxes in each reach
       USE dataTypes, ONLY: STRSTA       ! states in each reach
@@ -41,7 +49,7 @@ MODULE base_route
 
       import base_route_rch
       ! Arguments
-      class(base_route_rch)                     :: this
+      class(base_route_rch)                     :: this             ! object to bound the procedure
       integer(i4b),  intent(in)                 :: iEns             ! ensemble member
       integer(i4b),  intent(in)                 :: segIndex         ! ensemble member
       integer(i4b),  intent(in)                 :: ixDesire         ! index of the reach for verbose output
