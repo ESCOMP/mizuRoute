@@ -29,7 +29,7 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: perform one segment route UH routing
  ! *********************************************************************
- SUBROUTINE irf_rch(this,         & !
+ SUBROUTINE irf_rch(this,         & ! irf_route_rch object to bound this procedure
                     iEns,         & ! input: index of runoff ensemble
                     segIndex,     & ! input: reach index
                     ixDesire,     & ! input: reachID to be checked by on-screen pringing
@@ -44,7 +44,7 @@ CONTAINS
 
  implicit none
  ! Argument variables
- class(irf_route_rch)                     :: this
+ class(irf_route_rch)                     :: this            ! irf_route_rch object to bound this procedure
  integer(i4b),  intent(in)                :: iEns            ! runoff ensemble to be routed
  integer(i4b),  intent(in)                :: segIndex        ! segment where routing is performed
  integer(i4b),  intent(in)                :: ixDesire        ! index of the reach for verbose output

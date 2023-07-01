@@ -10,8 +10,8 @@ USE dataTypes,   ONLY: STRSTA          ! state in each reach
 USE dataTypes,   ONLY: RCHTOPO         ! Network topology
 USE dataTypes,   ONLY: RCHPRP          ! Reach parameter
 USE public_var,  ONLY: iulog           ! i/o logical unit number
-USE globalData,  ONLY: idxSUM          ! index of accumulation method
-USE base_route,  ONLY: base_route_rch
+USE globalData,  ONLY: idxSUM          ! routing method index for runoff accumulation method
+USE base_route,  ONLY: base_route_rch  ! base (abstract) reach routing method class
 
 implicit none
 

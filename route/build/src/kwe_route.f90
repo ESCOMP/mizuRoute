@@ -33,7 +33,7 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: perform one segment route KW routing
  ! *********************************************************************
- SUBROUTINE kw_rch(this,           &
+ SUBROUTINE kw_rch(this,           & ! kwe_route_rch object to bound this procedure
                    iEns, segIndex, & ! input: index of runoff ensemble to be processed
                    ixDesire,       & ! input: reachID to be checked by on-screen pringing
                    T0,T1,          & ! input: start and end of the time step
@@ -44,7 +44,7 @@ CONTAINS
                    ierr, message)    ! output: error control
  implicit none
  ! Argument variables
- class(kwe_route_rch)                      :: this
+ class(kwe_route_rch)                      :: this              ! kwe_route_rch object to bound this procedure
  integer(i4b),  intent(in)                 :: iEns              ! runoff ensemble to be routed
  integer(i4b),  intent(in)                 :: segIndex          ! segment where routing is performed
  integer(i4b),  intent(in)                 :: ixDesire          ! index of the reach for verbose output

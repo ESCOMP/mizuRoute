@@ -33,7 +33,7 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: route kinematic waves at one segment
  ! *********************************************************************
- SUBROUTINE kwt_rch(this,         &
+ SUBROUTINE kwt_rch(this,         & ! kwt_route_rch object to bound this procedure
                     iEns,         & ! input: ensemble index
                     segIndex,     & ! input: index of reach to be processed
                     ixDesire,     & ! input: index of the reach for verbose output
@@ -96,7 +96,7 @@ CONTAINS
  ! ----------------------------------------------------------------------------------------
    implicit none
    ! Argument variables
-   class(kwt_route_rch)                        :: this
+   class(kwt_route_rch)                        :: this          ! kwt_route_rch object to bound this procedure
    integer(i4b), intent(in)                    :: iEns          ! ensemble member
    integer(i4b), intent(in)                    :: segIndex      ! reach to process
    integer(i4b), intent(in)                    :: ixDesire      ! index of the reach for verbose output

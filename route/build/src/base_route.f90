@@ -1,7 +1,8 @@
 MODULE base_route
 
   ! Description: Definition of base (or template) reach routing method class.
-  ! this abstract class needs to be extended to specific routing method types for instantiation.
+  ! this abstract class needs to be extended to specific routing method types for
+  ! implementation and instantiation.
 
   implicit none
 
@@ -11,7 +12,6 @@ MODULE base_route
 
   ! --- routing method container
   ! This container (holder) include instantiated reach routing method
-  !
   type :: routeContainer
     class(base_route_rch), allocatable :: rch_route
   end type
@@ -36,7 +36,8 @@ MODULE base_route
                              RCHFLX_out,    & ! inout: reach flux data structure
                              ierr, message)   ! output: error control
 
-      ! Description: perform a routing at a given reach (segIndex) and time step
+      ! Description: template interfade for reach routing subroutine
+      !   to perform a routing (after instantiated) at a given reasch (segIndex) and time step
       !   reach parameters (RPARAM), river network topology (NETOPO) to get upstream location,
       !   state (RCHSTA) and flux (RCHFLX) are required for a set of input
       !   ixDesire is index of reach where more information is writting in log along the computation

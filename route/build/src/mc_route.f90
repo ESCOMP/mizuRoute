@@ -31,7 +31,7 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: perform muskingum-cunge routing for one segment
  ! *********************************************************************
- SUBROUTINE mc_rch(this,           &
+ SUBROUTINE mc_rch(this,           & ! mc_route_rch object to bound this procedure
                    iEns, segIndex, & ! input: index of runoff ensemble to be processed
                    ixDesire,       & ! input: reachID to be checked by on-screen pringing
                    T0,T1,          & ! input: start and end of the time step
@@ -43,7 +43,7 @@ CONTAINS
 
  implicit none
  ! Argument variables
- class(mc_route_rch)                       :: this
+ class(mc_route_rch)                       :: this              ! mc_route_rch object to bound this procedure
  integer(i4b),  intent(in)                 :: iEns              ! runoff ensemble to be routed
  integer(i4b),  intent(in)                 :: segIndex          ! segment where routing is performed
  integer(i4b),  intent(in)                 :: ixDesire          ! index of the reach for verbose output
