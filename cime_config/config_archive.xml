@@ -3,7 +3,7 @@
     <rest_file_extension>r</rest_file_extension>
     <hist_file_extension>h.*\.nc$</hist_file_extension>
     <hist_file_extension>h_gauge.*\.nc$</hist_file_extension>
-    <rest_history_varname>restart_history_filenames</rest_history_varname>
+    <rest_history_varname>hist_fil</rest_history_varname>
     <rpointer>
       <rpointer_file>rpointer.rof</rpointer_file>
       <rpointer_content>./$CASE.mizuroute.r.$DATENAME.nc</rpointer_content>
