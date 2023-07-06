@@ -104,6 +104,8 @@ contains
  meta_stateDims(ixStateDims%mol_dw  ) = dim_info('mol_dw',  integerMissing, integerMissing)  ! dw finite difference computing nodes
  meta_stateDims(ixStateDims%tdh_irf ) = dim_info('tdh_irf', integerMissing, integerMissing)  ! future time steps for irf routing
  meta_stateDims(ixStateDims%tdh     ) = dim_info('tdh',     integerMissing, integerMissing)  ! future time steps for bsasin irf routing
+ meta_stateDims(ixStateDims%nchars  ) = dim_info('nchars',  integerMissing, 300)             ! number of characters for strings
+ meta_stateDims(ixStateDims%hist_fil) = dim_info('hist_fil',integerMissing, integerMissing)  ! number of history files on restart file
 
  meta_qDims(ixQdims%time    ) = dim_info('time',    integerMissing, integerMissing)   ! time
  meta_qDims(ixQdims%tbound  ) = dim_info('tbound',  integerMissing, 2)                ! time bound (always 2 - start and end)

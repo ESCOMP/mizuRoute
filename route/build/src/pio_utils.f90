@@ -3,6 +3,7 @@ MODULE pio_utils
   USE mpi
   USE nrtype
   USE pio
+  USE public_var, only : iulog
 
   implicit none
 
@@ -52,6 +53,7 @@ MODULE pio_utils
   END INTERFACE
 
   INTERFACE write_netcdf
+    module procedure write_char1D
     module procedure write_array1D
     module procedure write_array2D
   END INTERFACE
@@ -655,6 +657,44 @@ CONTAINS
   if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
 
   END SUBROUTINE write_scalar_netcdf
+
+  ! ---------------------------------------------------------------
+  ! write global character vector into 1D variable
+  SUBROUTINE write_char1D(pioFileDesc,     &
+                               vname,           &  ! input: variable name
+                               length,          &  ! Input: length of strings
+                               array,           &  ! input: variable data
+                               iStart,          &  ! input: start index
+                               iCount,          &  ! input: length of vector
+                               ierr, message)      ! output: error control
+  implicit none
+  ! Argument variables:
+  type(file_desc_t),     intent(inout) :: pioFileDesc  ! pio file handle
+  character(len=*),      intent(in)    :: vname        ! variable name
+  integer(i4b),          intent(in)    :: length       ! length of strings
+  character(len=*),      intent(in)    :: array(:)     ! variable data
+  integer(i4b),          intent(in)    :: iStart(:)    ! start index
+  integer(i4b),          intent(in)    :: iCount(:)    ! length of vector
+  integer(i4b),          intent(out)   :: ierr
+  character(*),          intent(out)   :: message      ! error message
+  ! local variables
+  type(var_desc_t)                     :: pioVarId
+
+  ierr=0; message='write_char1D/'
+
+  if ( any(len_trim(array(:)) > length)  )then
+      ierr = -100
+      message=trim(message)//'ERROR: string length is greater than allowed size'
+      return
+  end if
+  ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
+  if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
+
+  ierr = pio_put_var(pioFileDesc, pioVarId, iStart, iCount, array)
+  if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
+
+  END SUBROUTINE write_char1D
+
 
   ! ---------------------------------------------------------------
   ! write global integer vector into 1D variable
