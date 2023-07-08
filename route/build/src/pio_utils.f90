@@ -680,7 +680,7 @@ CONTAINS
   integer(i4b)                         :: var_id
   integer(i4b)                         :: start(2)
   integer(i4b)                         :: icount(2)
-  character(len=1)                     :: tmpString(300)     ! temp for manipulating output string
+  character(len=1)                     :: tmpString(199)     ! temp for manipulating output string
 
   ierr=0; message='write_char0D/'
 

@@ -30,7 +30,7 @@ MODULE historyFile
 
   type :: histFile
     private
-    character(300)        :: fname               ! netCDF name
+    character(199)        :: fname               ! netCDF name
     integer(i4b)          :: iTime=0             ! time step in output netCDF
     logical(lgt)          :: fileStatus=.false.  ! flag to indicate history output netcdf is open
     logical(lgt)          :: gageOutput=.false.  ! flag to indicate this is at-gage-only output (== output subset of reaches)
