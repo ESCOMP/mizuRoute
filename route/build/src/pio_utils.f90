@@ -53,6 +53,7 @@ MODULE pio_utils
   END INTERFACE
 
   INTERFACE write_netcdf
+    module procedure write_char0D
     module procedure write_char1D
     module procedure write_array1D
     module procedure write_array2D
@@ -657,6 +658,54 @@ CONTAINS
   if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
 
   END SUBROUTINE write_scalar_netcdf
+
+  ! ---------------------------------------------------------------
+  ! write global character vector into 1D variable
+  SUBROUTINE write_char0D(pioFileDesc,     &
+                               vname,           &  ! input: variable name
+                               string,          &  ! input: variable data
+                               iStart,          &  ! input: start index
+                               ierr, message)      ! output: error control
+  implicit none
+  ! Argument variables:
+  type(file_desc_t),     intent(inout) :: pioFileDesc  ! pio file handle
+  character(len=*),      intent(in)    :: vname        ! variable name
+  character(len=*),      intent(in)    :: string       ! variable data
+  integer(i4b),          intent(in)    :: iStart       ! start index
+  integer(i4b),          intent(out)   :: ierr
+  character(*),          intent(out)   :: message      ! error message
+  ! local variables
+  type(var_desc_t)                     :: pioVarId
+  integer(i4b)                         :: m                  ! Index
+  integer(i4b)                         :: var_id
+  integer(i4b)                         :: start(2)
+  integer(i4b)                         :: icount(2)
+  character(len=1)                     :: tmpString(300)     ! temp for manipulating output string
+
+  ierr=0; message='write_char0D/'
+
+  if ( len(string) > size(tmpString) )then
+      ierr = 1
+      message=trim(message)//'ERROR: length of string being written is larger than tmpString'
+      return
+  end if
+  ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
+  if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
+
+
+  do m = 1,len(string)
+     tmpString(m:m) = string(m:m)
+  end do
+  start(1) = iStart
+  start(2) = 1
+  icount(1) = len(string)
+  icount(2) = 1
+  var_id = pioVarId%varid
+  ierr = pio_put_var(pioFileDesc, var_id, start, icount, ival=tmpString)
+  if(ierr/=pio_noerr)then; message=trim(message)//'cannot write data'; return; endif
+
+  END SUBROUTINE write_char0D
+
 
   ! ---------------------------------------------------------------
   ! write global character vector into 1D variable

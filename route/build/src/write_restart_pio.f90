@@ -937,12 +937,12 @@ CONTAINS
  call write_netcdf(pioFileDescState, 'time_bound', TSEC, [1], [2], ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+ call write_netcdf(pioFileDescState, 'hist_fil', hfileOut, &
+                   iStart=1, ierr=ierr, message=cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  if ( outputAtGage )then
-    call write_netcdf(pioFileDescState, 'hist_fil', length=300, array=[ hfileOut, hfileOut_gage ], &
-                      iStart=[1], iCount=[2], ierr=ierr, message=cmessage)
- else
-    call write_netcdf(pioFileDescState, 'hist_fil', length=300, array=[ hfileOut ], &
-                      iStart=[1], iCount=[1], ierr=ierr, message=cmessage)
+    call write_netcdf(pioFileDescState, 'hist_fil', hfileOut_gage, &
+                      iStart=2, ierr=ierr, message=cmessage)
  end if
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
