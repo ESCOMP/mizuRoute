@@ -328,7 +328,7 @@ CONTAINS
  call def_var(pioFileDescState, 'time_bound', ncd_float, ierr, cmessage, pioDimId=[dim_tbound], vdesc='time bound at last time step', vunit='sec')
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call def_var(pioFileDescState, 'hist_fil', ncd_char, ierr, cmessage, pioDimId=[dim_nchars, dim_hist_fil], vdesc='history files that need to be read with this restart file', vunit='-')
+ call def_var(pioFileDescState, 'history_file', ncd_char, ierr, cmessage, pioDimId=[dim_nchars, dim_hist_fil], vdesc='history files that need to be read with this restart file', vunit='-')
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end associate
@@ -937,11 +937,11 @@ CONTAINS
  call write_netcdf(pioFileDescState, 'time_bound', TSEC, [1], [2], ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call write_netcdf(pioFileDescState, 'hist_fil', hfileOut, &
+ call write_netcdf(pioFileDescState, 'history_file', hfileOut, &
                    iStart=1, ierr=ierr, message=cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
  if ( outputAtGage )then
-    call write_netcdf(pioFileDescState, 'hist_fil', hfileOut_gage, &
+    call write_netcdf(pioFileDescState, 'history_file', hfileOut_gage, &
                       iStart=2, ierr=ierr, message=cmessage)
  end if
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
