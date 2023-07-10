@@ -327,11 +327,21 @@ CONTAINS
     ! local variable
     integer(i4b)                         :: iotype       ! netcdf type ID
     character(len=strLen)                :: cmessage     ! error message from subroutine
+    logical(lgt)                         :: lexist       ! IF file exists or not
 
     ierr=0; message='openFile/'
 
     iotype = iotype_id(netcdf_type, ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    inquire(file=trim(fname), exist=lexist)
+    write(iulog,*) ' opening file: ', trim(fname)
+    flush(iulog)
+    if ( .not. lexist )then
+       ierr = 10
+       message=trim(message)//'file does NOT exist'//trim(fname)
+       return
+    end if
 
     ierr = pio_openfile(pioIoSystem, pioFileDesc, iotype, trim(fname), mode)
     if(ierr/=pio_noerr)then; message=trim(message)//'Could not open netCDF'; return; endif
