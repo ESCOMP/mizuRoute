@@ -207,7 +207,6 @@ CONTAINS
   nullify(previous)
  end do
  nullify(list)
- !if(associated(list)) nullify(list)
  END SUBROUTINE get_vlines
 
  ! **********************************************************************************************
