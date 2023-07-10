@@ -121,7 +121,7 @@
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
-      <option name="comment"  >Exact restart test on small regional grid </option>
+      <option name="comment"  >Exact restart test on small regional grid using threads</option>
     </options>
   </test>
   <test name="ERP_D_Mmpi-serial_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">

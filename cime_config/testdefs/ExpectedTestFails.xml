@@ -54,5 +54,11 @@
       <issue>#390</issue>
     </phase>
   </test>
+  <test name="ERP_Mmpi-serial_P1x25.5x5_amazon_r05.I2000Clm50SpMizGs.cheyenne_intel.mizuroute-default">
+    <phase name="COMPARE_base_rest">
+      <status>FAIL</status>
+      <issue>#390</issue>
+    </phase>
+  </test>
 
 </expectedFails>
