@@ -19,14 +19,12 @@ MODULE RtmTimeManager
   !--------------------------------------------------------------------------
 
   ! Input from CESM driver
-  integer             :: nelapse               = integerMissing, & ! number of timesteps (or days if negative) to extend a run
-                         start_ymd             = integerMissing, & ! starting date for run in yearmmdd format
+  integer             :: start_ymd             = integerMissing, & ! starting date for run in yearmmdd format
                          start_tod             = 0,              & ! starting time of day for run in seconds
                          stop_ymd              = integerMissing, & ! stopping date for run in yearmmdd format
                          stop_tod              = 0,              & ! stopping time of day for run in seconds
                          ref_ymd               = integerMissing, & ! reference date for time coordinate in yearmmdd format
                          ref_tod               = 0                 ! reference time of day for time coordinate in seconds
-  logical             :: tm_first_restart_step = .false.           ! true for first step of a restart or branch run
 
 CONTAINS
 
