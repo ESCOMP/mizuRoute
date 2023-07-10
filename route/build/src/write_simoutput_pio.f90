@@ -108,8 +108,8 @@ CONTAINS
     end if
 
     ! update history files
-    call io_rpfile('w', ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    !call io_rpfile('w', ierr, cmessage)
+    !if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  END SUBROUTINE main_new_file
 
