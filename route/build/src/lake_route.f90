@@ -1,21 +1,18 @@
 MODULE lake_route_module
 
 USE nrtype
-! data type
-USE dataTypes, ONLY: STRFLX          ! fluxes in each reach
-USE dataTypes, ONLY: RCHTOPO         ! Network topology
-USE dataTypes, ONLY: RCHPRP          ! Network parameter
-! global parameters
-USE public_var, ONLY: iulog          ! i/o logical unit number
-USE public_var, ONLY: realMissing    ! missing value for real number
-USE public_var, ONLY: integerMissing ! missing value for integer number
-USE public_var, ONLY: pi             ! pi value of 3.14159265359_dp
-USE public_var, ONLY: charMissing    ! missing character
-USE globalData, ONLY: idxIRF         ! index of IRF method
-USE globalData, ONLY: isColdStart    ! restart flag
-! external routines
-USE water_balance, ONLY: comp_reach_wb ! compute water balance error
-USE ascii_utils,   ONLY: lower         ! convert string to lower case
+USE dataTypes,     ONLY: STRFLX          ! data struct: fluxes in each reach
+USE dataTypes,     ONLY: RCHTOPO         ! data struct: Network topology
+USE dataTypes,     ONLY: RCHPRP          ! data struct: Network parameter
+USE public_var,    ONLY: iulog           ! parameter: i/o logical unit number
+USE public_var,    ONLY: realMissing     ! parameter: missing value for real number
+USE public_var,    ONLY: integerMissing  ! parameter: missing value for integer number
+USE public_var,    ONLY: charMissing     ! parameter: missing character
+USE public_var,    ONLY: pi              ! parameter: pi value of 3.14159265359_dp
+USE globalData,    ONLY: idxIRF          ! parameter: index of IRF method
+USE globalData,    ONLY: isColdStart     ! parameter: restart flag
+USE water_balance, ONLY: comp_reach_wb   ! routine: compute water balance error
+USE ascii_utils,   ONLY: lower           ! routine: convert string to lower case
 
 implicit none
 integer(i4b),parameter :: endorheic=0
@@ -128,18 +125,18 @@ CONTAINS
     ! jump start the lake volume to the target volume if provided for the first time step
     if (iTime==1) then
       if ((is_vol_wm_jumpstart).and.(NETOPO_in(segIndex)%LakeTargVol)) then
-        RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%REACH_WM_VOL ! update the initial condition with first target volume value
+        RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_WM_VOL ! update the initial condition with first target volume value
       else ! the lake volume is not jump started based on lake target volume
         if (isColdStart) then    ! Cold start ....... initialize flux structures
           select case(NETOPO_in(segIndex)%LakeModelType)
             case(endorheic)
-              RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RPARAM_in(segIndex)%D03_S0 ! currently assumes all endorheic max storage are provided under doll formulation
+              RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RPARAM_in(segIndex)%D03_S0 ! currently assumes all endorheic max storage are provided under doll formulation
             case(doll03)
-              RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RPARAM_in(segIndex)%D03_MaxStorage
+              RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RPARAM_in(segIndex)%D03_MaxStorage
             case(hanasaki06)
-              RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RPARAM_in(segIndex)%H06_Smax
+              RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RPARAM_in(segIndex)%H06_Smax
             case(hype)
-              RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = (RPARAM_in(segIndex)%HYP_E_min - RPARAM_in(segIndex)%HYP_E_zero) * RPARAM_in(segIndex)%HYP_A_avg
+              RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = (RPARAM_in(segIndex)%HYP_E_min - RPARAM_in(segIndex)%HYP_E_zero) * RPARAM_in(segIndex)%HYP_A_avg
             case default; ierr=20; message=trim(message)//'unable to identify the parametric lake model type'; return
           end select
         endif
@@ -147,7 +144,7 @@ CONTAINS
     endif
 
     ! add upstream, precipitation and subtract evaporation from the lake volume
-    RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) ! updating storage for current time
+    RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) ! updating storage at previous time step
     RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) + q_upstream * dt  ! input upstream discharge from m3/s to m3
     RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) + RCHFLX_out(iens,segIndex)%BASIN_QR(1) * dt ! add lateral flow
     RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) + RCHFLX_out(iens,segIndex)%basinprecip * dt ! input lake precipitation
