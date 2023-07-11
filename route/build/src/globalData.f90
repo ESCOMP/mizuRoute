@@ -38,6 +38,8 @@ MODULE globalData
 
   USE datetime_data, ONLY: datetime  ! datetime data class
 
+  USE base_route, ONLY: routeContainer ! a container of instantiated routing methods
+
   USE var_lookup, ONLY: nStructures  ! number of variables in data structure (struct_info)
   USE var_lookup, ONLY: nDimensions  ! number of variables in dimensions related to network topology
   USE var_lookup, ONLY: nStateDims   ! number of variables in dimensions related to restart variables
@@ -80,6 +82,7 @@ MODULE globalData
   integer(i4b),     allocatable,   public :: reachID(:)           ! reach id in the whole river network
 
   ! ---------- routing methods  -------------------------------------------------------------------------
+  type(routeContainer), allocatable , public :: rch_routes(:)           ! a collection of routing method objects
   integer(i4b)                   , public :: nRoutes                    ! number of active routing methods
   integer(i4b)    , allocatable  , public :: routeMethods(:)            ! active routing method id
   logical(lgt)                   , public :: onRoute(0:nRouteMethods-1) ! logical to indicate active routing method(s)
