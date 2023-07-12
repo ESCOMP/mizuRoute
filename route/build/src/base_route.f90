@@ -10,18 +10,19 @@ MODULE base_route
   public:: base_route_rch   ! base (abstract) reach routing method class (to be extended to specific)
   public:: routeContainer   ! a holder of instantiated reach routing method object
 
-  ! --- routing method container
-  ! This container (holder) include instantiated reach routing method
-  type :: routeContainer
-    class(base_route_rch), allocatable :: rch_route
-  end type
-
 
   ! --- base (abstract or template) reach routing method
   type, abstract :: base_route_rch
     CONTAINS
     procedure(sub_route_rch), deferred :: route
   end type
+
+  ! --- routing method container
+  ! This container (holder) include instantiated reach routing method
+  type :: routeContainer
+    class(base_route_rch), allocatable :: rch_route
+  end type
+
 
   ABSTRACT INTERFACE
 
