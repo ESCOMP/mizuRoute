@@ -351,7 +351,7 @@ MODULE historyFile
       implicit none
       class(histFile), intent(inout) :: this
 
-      !call freeDecomp(this%pioFileDesc, this%ioDescHruFlux)
+      call freeDecomp(this%pioSys, this%ioDescHruFlux)
 
     END SUBROUTINE cleanup_hru
 
@@ -362,7 +362,7 @@ MODULE historyFile
       implicit none
       class(histFile), intent(inout) :: this
 
-      !call freeDecomp(this%pioFileDesc, this%ioDescRchFlux)
+      call freeDecomp(this%pioSys, this%ioDescRchFlux)
 
     END SUBROUTINE cleanup_rch
 
