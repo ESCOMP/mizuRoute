@@ -982,36 +982,36 @@ CONTAINS
  call write_history_state(ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! clean decomposition data
- !call freeDecomp(pioFileDescState, iodesc_rch_double)
- !call freeDecomp(pioFileDescState, iodesc_rch_int)
- !call freeDecomp(pioFileDescState, iodesc_hist_rch_double)
- !if (meta_hflx(ixHFLX%basRunoff)%varFile) then
-   !call freeDecomp(pioFileDescState, iodesc_hist_hru_double)
- !end if
- !if (doesBasinRoute==1) then
-   !call freeDecomp(pioFileDescState, iodesc_irf_bas_double)
- !end if
- !if (onRoute(impulseResponseFunc))then
-   !call freeDecomp(pioFileDescState, iodesc_irf_double)
-   !call freeDecomp(pioFileDescState, iodesc_vol_double)
- !end if
- !if (onRoute(kinematicWaveTracking)) then
-   !call freeDecomp(pioFileDescState, iodesc_wave_int)
-   !call freeDecomp(pioFileDescState, iodesc_wave_double)
- !end if
- !if (onRoute(kinematicWave)) then
-   !call freeDecomp(pioFileDescState, iodesc_mesh_kw_double)
- !end if
- !if (onRoute(muskingumCunge)) then
-   !call freeDecomp(pioFileDescState, iodesc_mesh_mc_double)
- !end if
- !if (onRoute(diffusiveWave)) then
-   !call freeDecomp(pioFileDescState, iodesc_mesh_dw_double)
- !end if
-
  ! close netCDF
  call closeFile(pioFileDescState, restartOpen)
+
+ ! clean decomposition data
+ call freeDecomp(pioSystem, iodesc_rch_double)
+ call freeDecomp(pioSystem, iodesc_rch_int)
+ call freeDecomp(pioSystem, iodesc_hist_rch_double)
+ if (meta_hflx(ixHFLX%basRunoff)%varFile) then
+   call freeDecomp(pioSystem, iodesc_hist_hru_double)
+ end if
+ if (doesBasinRoute==1) then
+   call freeDecomp(pioSystem, iodesc_irf_bas_double)
+ end if
+ if (onRoute(impulseResponseFunc))then
+   call freeDecomp(pioSystem, iodesc_irf_double)
+   call freeDecomp(pioSystem, iodesc_vol_double)
+ end if
+ if (onRoute(kinematicWaveTracking)) then
+   call freeDecomp(pioSystem, iodesc_wave_int)
+   call freeDecomp(pioSystem, iodesc_wave_double)
+ end if
+ if (onRoute(kinematicWave)) then
+   call freeDecomp(pioSystem, iodesc_mesh_kw_double)
+ end if
+ if (onRoute(muskingumCunge)) then
+   call freeDecomp(pioSystem, iodesc_mesh_mc_double)
+ end if
+ if (onRoute(diffusiveWave)) then
+   call freeDecomp(pioSystem, iodesc_mesh_dw_double)
+ end if
 
  CONTAINS
 

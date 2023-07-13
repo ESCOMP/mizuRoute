@@ -367,16 +367,16 @@ CONTAINS
   END SUBROUTINE closeFile
 
   !-----------------------------------------------------------------------
-  SUBROUTINE freeDecomp(pioFileDesc, iodesc)
+  SUBROUTINE freeDecomp(pioIOsystem, iodesc)
     ! !DESCRIPTION:
     ! Free decomposition
     !
     implicit none
     ! ARGUMENTS:
-    type(file_desc_t), intent(inout) :: pioFileDesc   ! PIO file handle to close
+    type(iosystem_desc_t),intent(inout) :: pioIOsystem   !
     type(io_desc_t),   intent(inout) :: iodesc
 
-    call pio_freedecomp(pioFileDesc, ioDesc)
+    call pio_freedecomp(pioIOsystem, ioDesc)
 
   END SUBROUTINE freeDecomp
 
