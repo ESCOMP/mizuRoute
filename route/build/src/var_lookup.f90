@@ -34,22 +34,24 @@ MODULE var_lookup
  ! For routing state variables
  type, public  ::  iLook_stateDims
   integer(i4b)     :: seg          = integerMissing   !  1. stream segment vector
-  integer(i4b)     :: time         = integerMissing   !  2. time
-  integer(i4b)     :: tbound       = integerMissing   !  3. 2 elelment time bound vector
-  integer(i4b)     :: ens          = integerMissing   !  4. runoff ensemble
-  integer(i4b)     :: wave         = integerMissing   !  5. waves in a channel
-  integer(i4b)     :: mol_kw       = integerMissing   !  6. kw finite difference computational molecule
-  integer(i4b)     :: mol_mc       = integerMissing   !  7. mc finite difference computational molecule
-  integer(i4b)     :: mol_dw       = integerMissing   !  8. kw finite difference computational molecule
-  integer(i4b)     :: tdh_irf      = integerMissing   !  9. irf routed future channel flow in a segment
-  integer(i4b)     :: tdh          = integerMissing   ! 10. uh routed future overland flow
+  integer(i4b)     :: hru          = integerMissing   !  2. catchment hru vector
+  integer(i4b)     :: time         = integerMissing   !  3. time
+  integer(i4b)     :: tbound       = integerMissing   !  4. 2 elelment time bound vector
+  integer(i4b)     :: ens          = integerMissing   !  5. runoff ensemble
+  integer(i4b)     :: wave         = integerMissing   !  6. waves in a channel
+  integer(i4b)     :: mol_kw       = integerMissing   !  7. kw finite difference computational molecule
+  integer(i4b)     :: mol_mc       = integerMissing   !  8. mc finite difference computational molecule
+  integer(i4b)     :: mol_dw       = integerMissing   !  9. kw finite difference computational molecule
+  integer(i4b)     :: tdh_irf      = integerMissing   ! 10. irf routed future channel flow in a segment
+  integer(i4b)     :: tdh          = integerMissing   ! 11. uh routed future overland flow
  endtype iLook_stateDims
  ! For river discharge variables
  type, public  ::  iLook_qDims
-  integer(i4b)     :: time         = integerMissing   ! 1. time
-  integer(i4b)     :: seg          = integerMissing   ! 2. stream segment vector
-  integer(i4b)     :: hru          = integerMissing   ! 3. hru vector
-  integer(i4b)     :: ens          = integerMissing   ! 4. runoff ensemble
+  integer(i4b)     :: time         = integerMissing   ! 1. time stamp
+  integer(i4b)     :: tbound       = integerMissing   ! 2. time bound
+  integer(i4b)     :: seg          = integerMissing   ! 3. stream segment vector
+  integer(i4b)     :: hru          = integerMissing   ! 4. hru vector
+  integer(i4b)     :: ens          = integerMissing   ! 5. runoff ensemble
  endtype iLook_qDims
  ! ***********************************************************************************************************
  ! ** define variables desired for each HRU
@@ -191,24 +193,31 @@ MODULE var_lookup
   integer(i4b)     :: code            = integerMissing  ! 1. pfafstetter code
  endtype iLook_PFAF
  ! ***********************************************************************************************************
- ! ** define variables for segment fluxes/states variables
+ ! ** define history output fluxes/states variables
  ! ***********************************************************************************************************
- ! Reach fluxes
+ ! Reach/lake fluxes
  type, public  ::  iLook_RFLX
-  integer(i4b)     :: instRunoff        = integerMissing  ! 1. instantaneous runoff at reach outlet (m3/s)
-  integer(i4b)     :: dlayRunoff        = integerMissing  ! 2. delayed runoff at reach outlet (m3/s)
-  integer(i4b)     :: sumUpstreamRunoff = integerMissing  ! 3. sum of upstream runoff at reach outlet (m3/s)
-  integer(i4b)     :: KWTroutedRunoff   = integerMissing  ! 4. Lagrangian KWT routed runoff at reach outlet (m3/s)
-  integer(i4b)     :: KWroutedRunoff    = integerMissing  ! 5. KW routed runoff at reach outlet(m3/s)
-  integer(i4b)     :: MCroutedRunoff    = integerMissing  ! 6. muskingum-cunge routed runoff at reach outlet (m3/s)
-  integer(i4b)     :: DWroutedRunoff    = integerMissing  ! 7. diffusive wave routed runoff at reach outlet (m3/s)
-  integer(i4b)     :: IRFroutedRunoff   = integerMissing  ! 8. IRF routed runoff at reach outlet (m3/s)
-  integer(i4b)     :: volume            = integerMissing  ! 9. water volume in reach (m3)
+  integer(i4b)     :: instRunoff        = integerMissing  !  1. instantaneous runoff at reach outlet (m3/s)
+  integer(i4b)     :: dlayRunoff        = integerMissing  !  2. delayed runoff at reach outlet (m3/s)
+  integer(i4b)     :: sumUpstreamRunoff = integerMissing  !  3. sum of upstream runoff at reach outlet (m3/s)
+  integer(i4b)     :: IRFroutedRunoff   = integerMissing  !  4. IRF routed runoff at reach outlet (m3/s)
+  integer(i4b)     :: KWTroutedRunoff   = integerMissing  !  5. Lagrangian KWT routed runoff at reach outlet (m3/s)
+  integer(i4b)     :: KWroutedRunoff    = integerMissing  !  6. KW routed runoff at reach outlet(m3/s)
+  integer(i4b)     :: MCroutedRunoff    = integerMissing  !  7. muskingum-cunge routed runoff at reach outlet (m3/s)
+  integer(i4b)     :: DWroutedRunoff    = integerMissing  !  8. diffusive wave routed runoff at reach outlet (m3/s)
+  integer(i4b)     :: IRFvolume         = integerMissing  !  9. IRF water volume in reach/lake (m3)
+  integer(i4b)     :: KWTvolume         = integerMissing  ! 10. KWT water volume in reach/lake (m3)
+  integer(i4b)     :: KWvolume          = integerMissing  ! 11. KW water volume in reach/lake (m3)
+  integer(i4b)     :: MCvolume          = integerMissing  ! 12. MC water volume in reach/lake (m3)
+  integer(i4b)     :: DWvolume          = integerMissing  ! 13. DW water volume in reach/lake (m3)
  endtype iLook_RFLX
  ! HRU fluxes
  type, public  ::  iLook_HFLX
   integer(i4b)     :: basRunoff         = integerMissing  ! 1. basin runoff (m/s)
  endtype iLook_HFLX
+ ! ***********************************************************************************************************
+ ! ** define restart variables
+ ! ***********************************************************************************************************
  ! Reach inflow from basin
  type, public  ::  iLook_basinQ
   integer(i4b)     :: q              = integerMissing  ! 1. final discharge (m3/s)
@@ -229,6 +238,7 @@ MODULE var_lookup
   integer(i4b)     :: qwave          = integerMissing  ! 3. wave flow (m3/s)
   integer(i4b)     :: qwave_mod      = integerMissing  ! 4. wave flow after merged (m3/s)
   integer(i4b)     :: routed         = integerMissing  ! 5. Routed out of a segment or not (-)
+  integer(i4b)     :: vol            = integerMissing  ! 6. reach volume (m3)
  endtype iLook_KWT
  ! KW state/fluxes
  type, public  ::  iLook_KW
@@ -250,8 +260,9 @@ MODULE var_lookup
  ! ***********************************************************************************************************
  type(iLook_struct)   ,public,parameter :: ixStruct    = iLook_struct   ( 1, 2, 3, 4, 5)
  type(iLook_dims)     ,public,parameter :: ixDims      = iLook_dims     ( 1, 2, 3, 4, 5, 6, 7)
- type(iLook_stateDims),public,parameter :: ixStateDims = iLook_stateDims( 1, 2, 3, 4, 5, 6, 7, 8, 9,10)
- type(iLook_qDims)    ,public,parameter :: ixqDims     = iLook_qDims    ( 1, 2, 3, 4)
+ type(iLook_stateDims),public,parameter :: ixStateDims = iLook_stateDims( 1, 2, 3, 4, 5, 6, 7, 8, 9,10, &
+                                                                         11)
+ type(iLook_qDims)    ,public,parameter :: ixQdims     = iLook_qDims    ( 1, 2, 3, 4, 5)
  type(iLook_HRU)      ,public,parameter :: ixHRU       = iLook_HRU      ( 1)
  type(iLook_HRU2SEG)  ,public,parameter :: ixHRU2SEG   = iLook_HRU2SEG  ( 1, 2, 3, 4)
  type(iLook_SEG)      ,public,parameter :: ixSEG       = iLook_SEG      ( 1, 2, 3, 4, 5, 6, 7, 8, 9,10, &
@@ -265,12 +276,13 @@ MODULE var_lookup
                                                                          11,12,13,14,15,16,17,18,19,20, &
                                                                          21,22)
  type(iLook_PFAF)     ,public,parameter :: ixPFAF      = iLook_PFAF     ( 1)
- type(iLook_RFLX)     ,public,parameter :: ixRFLX      = iLook_RFLX     ( 1, 2, 3, 4, 5, 6, 7, 8, 9)
+ type(iLook_RFLX)     ,public,parameter :: ixRFLX      = iLook_RFLX     ( 1, 2, 3, 4, 5, 6, 7, 8, 9,10, &
+                                                                         11,12,13)
  type(iLook_HFLX)     ,public,parameter :: ixHFLX      = iLook_HFLX     ( 1)
  type(iLook_basinQ)   ,public,parameter :: ixBasinQ    = iLook_basinQ   ( 1)
  type(iLook_IRFbas)   ,public,parameter :: ixIRFbas    = iLook_IRFbas   ( 1)
  type(iLook_IRF)      ,public,parameter :: ixIRF       = iLook_IRF      ( 1, 2)
- type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      ( 1, 2, 3, 4, 5)
+ type(iLook_KWT)      ,public,parameter :: ixKWT       = iLook_KWT      ( 1, 2, 3, 4, 5, 6)
  type(iLook_KW)       ,public,parameter :: ixKW        = iLook_KW       ( 1, 2)
  type(iLook_DW)       ,public,parameter :: ixDW        = iLook_DW       ( 1, 2)
  type(iLook_MC)       ,public,parameter :: ixMC        = iLook_MC       ( 1, 2)

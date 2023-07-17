@@ -79,29 +79,36 @@ ifeq "$(isOpenMP)" "yes"
 endif
 
 #========================================================================
+# generate a Git version string
+#========================================================================
+VERSION = $(shell git describe --tag)
+GITBRCH = $(shell git describe --long --all --always | sed -e's/heads\///')
+GITHASH = $(shell git rev-parse HEAD)
+
+#========================================================================
 # Define flags
 #========================================================================
 ifeq "$(FC)" "gnu"
   ifeq "$(MODE)" "fast"
-    FLAGS = -O3 -fmax-errors=0 -ffree-line-length-none $(FLAGS_OMP)
+    FLAGS = -O3 -fmax-errors=0 -ffree-line-length-none $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP)
+    FLAGS = -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
   ifeq "$(MODE)" "profile"
-    FLAGS = -p -g -Wall -fmax-errors=0 -fbacktrace -fbounds-check -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP)
+    FLAGS = -p -g -Wall -fmax-errors=0 -fbacktrace -fbounds-check -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
 endif
 
 ifeq "$(FC)" "intel"
   ifeq "$(MODE)" "fast"
-    FLAGS = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
+    FLAGS = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -debug all -warn all -check all -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
+    FLAGS = -g -debug all -warn all -check all -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
   ifeq "$(MODE)" "profile"
-    FLAGS = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP)
+    FLAGS = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
 endif
 
@@ -138,22 +145,23 @@ EXTINCLUDES =
 # data types
 DATATYPES = \
     nrtype.f90 \
+    public_var.f90 \
     nr_utils.f90 \
+    ncio_utils.f90 \
     pio_utils.f90 \
     ascii_utils.f90 \
-    public_var.f90 \
+    datetime_data.f90 \
     dataTypes.f90 \
     var_lookup.f90 \
-    time_utils.f90 \
-    datetime_data.f90 \
+    base_route.f90 \
     csv_data.f90 \
     globalData.f90 \
-    historyFile.f90 \
     popMetadat.f90 \
+    histVars_data.f90 \
+    historyFile.f90 \
     allocation.f90
 # define utilities
 UTILS = \
-    ncio_utils.f90 \
     mpi_utils.f90 \
     model_utils.f90 \
     gamma_func.f90
@@ -177,8 +185,8 @@ IO = \
     standalone/read_remap.f90 \
     io_rpointfile.f90 \
     read_restart.f90 \
-    write_restart_pio.f90 \
-    write_simoutput_pio.f90
+    write_simoutput_pio.f90 \
+    write_restart_pio.f90
 # CORE
 CORE = \
     accum_runoff.f90 \

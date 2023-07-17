@@ -18,6 +18,9 @@
 <is_flux_wm>            T                          ! switch for water abstraction/injection
 <fname_state_in>        STATE_IN_NC                ! input restart netCDF name. remove for run without any particular initial channel states
 <newFileFrequency>      monthly                    ! frequency for new output files (daily, monthly, yearly, single)
+<outputFrequency>       monthly                    ! time frequency used for temporal aggregation of output variables - numeric or daily, monthyly, or yearly
+<dt_qsim>               86400                      ! coupling time interval of the forcing [sec]
+<continue_run>          F                          ! logical; T-> append output in existing history files. F-> write output in new history file
 ! ****************************************************************************************************************************
 ! DEFINE DIRECTORIES 
 ! --------------------------
@@ -53,6 +56,7 @@
 <varname_D03_MaxStorage>   S_max                   ! Maximum lake volume (for Doll 2003 parametrisation)
 <varname_D03_Coefficient>  Coeff                   ! name of varibale holding the coefficnet of stage-discharge relatioship for lake
 <varname_D03_Power>        power                   ! name of varibale holding the coefficnet of stage-discharge relatioship for lake
+<varname_D03_S0>           S_0                     ! Maximum lake volume (for Doll 2003 parametrisation)
 <varname_islake>           lake                    ! name of variable holding the islake flage (1=lake, 0=reach)
 <varname_lakeModelType>    lake_type               ! name of varibale holding lake type (0=endo, 1=Doll, 2=Hanasaki, 3=HYPE)
 ! ****************************************************************************************************************************
@@ -71,7 +75,7 @@
 <MCroutedRunoff>        T                          ! kinematic wave routed discharge at reach [L3/T]
 <KWroutedRunoff>        T                          ! muskingum-cunge routed discharge at reach [L3/T]
 <DWroutedRunoff>        T                          ! diffusive wave routed discharge at reach [L3/T]
-<volume>                F                          ! volume at the end of time step at reach [L3] - currently only IRF
+<IRFvolume>             F                          ! volume at the end of time step at reach [L3]
 ! ****************************************************************************************************************************
 ! cesm-coupler: negative flow (qgwl and excess irrigation demand) handling option
 ! ---------------------------

@@ -11,7 +11,7 @@ MODULE globalData
   USE dataTypes, ONLY: var_info      ! metadata type - variable
   USE objTypes,  ONLY: var_info_new  ! metadata type - variable
 
-  USE dataTypes, ONLY: infileinfo    ! data strture - information of input files
+  USE dataTypes, ONLY: inFileInfo    ! data strture - information of input files
   USE dataTypes, ONLY: gage          ! data structure - gauge metadata
 
   USE dataTypes, ONLY: RCHPRP        ! data structure - Reach parameters (properties)
@@ -25,6 +25,7 @@ MODULE globalData
   USE dataTypes, ONLY: LKFLX         ! data structure - lake fluxes
 
   USE dataTypes, ONLY: remap         ! data structure - remapping data type
+
   USE dataTypes, ONLY: runoff        ! data structure - runoff data type
   USE dataTypes, ONLY: wm            ! data structure - water management (flux to/from segment, target volume) data type
 
@@ -36,6 +37,8 @@ MODULE globalData
   USE dataTypes, ONLY : cMolecule    ! data structure - computational molecule number
 
   USE datetime_data, ONLY: datetime  ! datetime data class
+
+  USE base_route, ONLY: routeContainer ! a container of instantiated routing methods
 
   USE var_lookup, ONLY: nStructures  ! number of variables in data structure (struct_info)
   USE var_lookup, ONLY: nDimensions  ! number of variables in dimensions related to network topology
@@ -60,6 +63,12 @@ MODULE globalData
 
   save
 
+  ! ---------- mizuRoute version -------------------------------------------------------------------
+
+  character(len=strLen)          , public :: version='undefined'        ! mizuRoute version
+  character(len=strLen)          , public :: gitBranch='undefined'      ! github branch
+  character(len=strLen)          , public :: gitHash='undefined'        ! github commit hash
+
   ! ---------- Catchment and reach IDs  -------------------------------------------------------------------------
 
   integer(i4b),                    public :: nHRU                 ! number of HRUs in the whole river network
@@ -73,6 +82,7 @@ MODULE globalData
   integer(i4b),     allocatable,   public :: reachID(:)           ! reach id in the whole river network
 
   ! ---------- routing methods  -------------------------------------------------------------------------
+  type(routeContainer), allocatable , public :: rch_routes(:)           ! a collection of routing method objects
   integer(i4b)                   , public :: nRoutes                    ! number of active routing methods
   integer(i4b)    , allocatable  , public :: routeMethods(:)            ! active routing method id
   logical(lgt)                   , public :: onRoute(0:nRouteMethods-1) ! logical to indicate active routing method(s)
@@ -86,28 +96,34 @@ MODULE globalData
   ! ---------- Date/Time data  -------------------------------------------------------------------------
 
   integer(i4b),                    public :: iTime                ! time index at simulation time step
-  real(dp),         allocatable,   public :: timeVar(:)           ! time variables (unit given by runoff data)
-  real(dp),                        public :: TSEC(0:1)            ! begning and end of time step since simulation started (sec)
-  type(datetime),                  public :: simDatetime(0:1)     ! previous and current simulation time (yyyy:mm:dd:hh:mm:ss)
+  real(dp),                        public :: sec2tunit            ! time conversion- seconds per time unit used in simulation
+  real(dp),                        public :: timeVar(1:2)         ! time variables [sec] at endpoints of a simulation time step
+  real(dp),                        public :: TSEC(1:2)            ! seconds at endpoints of a simulation time step since simulation started
+  type(datetime),                  public :: simDatetime(0:2)     ! previous, current and next simulation time (yyyy:mm:dd:hh:mm:ss)
   type(datetime),                  public :: begDatetime          ! simulation start date/time (yyyy:mm:dd:hh:mm:ss)
   type(datetime),                  public :: endDatetime          ! simulation end date/time (yyyy:mm:dd:hh:mm:ss)
   type(datetime),                  public :: restDatetime         ! desired restart date/time (yyyy:mm:dd:hh:mm:ss)
   type(datetime),                  public :: dropDatetime         ! restart dropoff date/time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime),                  public :: roBegDatetime        ! forcing data start date/time (yyyy:mm:dd:hh:mm:ss)
+  type(datetime),                  public :: wmBegDatetime        ! water management data start date/time (yyyy:mm:dd:hh:mm:ss)
 
   ! ---------- input file information -------------------------------------------------------------------
 
-  type(infileinfo), allocatable,   public :: infileinfo_data(:)    ! input runoff file information
-  type(infileinfo), allocatable,   public :: infileinfo_data_wm(:) ! input water management (abstaction/injection) file information
+  type(infileinfo), allocatable,   public :: inFileInfo_ro(:)    ! input runoff/evapo/precipi file information
+  type(infileinfo), allocatable,   public :: inFileInfo_wm(:)    ! input water management (abstaction/injection) file information
 
   ! ---------- Misc. data -------------------------------------------------------------------------
   character(len=strLen),           public :: runMode='standalone'        ! run options: standalone or cesm-coupling
-  logical(lgt),                    public :: isHistFileOpen=.false.      ! flag to indicate history output netcdf is open
+  character(len=12),               public :: hfile_dayStamp='period-start' ! day stamp in history file for daily file. period-start or period-end
   integer(i4b),                    public :: ixPrint(1:2)=integerMissing ! index of desired reach to be on-screen print
   integer(i4b),                    public :: nEns=1                      ! number of ensemble
+  integer(i4b),                    public :: maxtdh                      ! maximum unit-hydrograph future time steps
   type(cMolecule),                 public :: nMolecule                   ! number of computational molecule (used for KW, MC, DW)
-  character(300),                  public :: hfileout=charMissing        ! name of the history output file
-  character(300),                  public :: hfileout_gage=charMissing   ! name of the gage-only history output file
-  character(300),                  public :: rfileout=charMissing        ! name of the restart output file
+  character(300),                  public :: hfileout=charMissing        ! history output file name
+  character(300),                  public :: hfileout_gage=charMissing   ! gage-only history output file name
+  character(300),                  public :: rfileout=charMissing        ! restart output file name
+  logical(lgt),                    public :: initHvars=.false.           ! status of history variable data initialization
+  logical(lgt),                    public :: isColdStart=.true.          ! initial river state - cold start (T) or from restart file (F)
 
   ! ---------- MPI/OMP/PIO variables ----------------------------------------------------------------
 

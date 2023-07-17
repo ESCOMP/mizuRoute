@@ -48,15 +48,26 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     config['rof_grid'] = case.get_value("ROF_GRID")
     config['lnd_grid'] = case.get_value("LND_GRID")
     config['rof_ncpl'] = case.get_value("ROF_NCPL")
+    config['ncpl_base_period'] = case.get_value("NCPL_BASE_PERIOD")
 
     logger.debug("  mizuRoute lnd grid is %s ", config['lnd_grid'])
     logger.debug("  mizuRoute rof grid is %s ", config['rof_grid'])
+    #----------------------------------------------------
+    # Get some important values from the case
+    #----------------------------------------------------
+    rundir = case.get_value("RUNDIR")
+    dindir = case.get_value("DIN_LOC_ROOT")
+    casename = case.get_value("CASE")
+    run_type = case.get_value("RUN_TYPE")
+    run_start = case.get_value("RUN_STARTDATE")
+    continue_run = str(case.get_value("CONTINUE_RUN"))
     #----------------------------------------------------
     # Settings that depend on the resolution
     #----------------------------------------------------
     dname_sseg = "seg"
     dname_nhru = "hru"
     is_lake_sim = "F"
+    ancil_dir = dindir+"/rof/mizuRoute/ancillary_data/"
     if (    config['rof_grid'] == "HDMAmz" ):
        fname_ntopOld = "ntopo_HDMAmz_Global_cdf5_fill_reorder_c20200828.nc"
        varname_area = "Basin_Area"
@@ -68,7 +79,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
        varname_downSegId = "Tosegment"
        varname_pfafCode = "PFAF"
     elif (  config['rof_grid'] == "HDMA_lake_mz" ):
-       fname_ntopOld = "ntopo_HDMA_lake_mz_Global_cdf5_fill_reorder_c20221130.nc"
+       fname_ntopOld = "ntopo_HDMA_lake_mz_Global_cdf5_fill_reorder_c20230503.nc"
        varname_area = "area"
        varname_length = "length"
        varname_slope  = "slope"
@@ -152,6 +163,17 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
        varname_segId = "seg_id"
        varname_downSegId = "Tosegment"
        varname_pfafCode = "pfaf"
+    elif (  config['rof_grid'] == "MIZU_USRDAT" ):
+       fname_ntopOld = "unknownfile-setthis-in-theuser_nl_mizuroute_control_file"
+       varname_area = "Basin_Area"
+       varname_length = "length"
+       varname_slope  = "Slope"
+       varname_HRUid = "hruid"
+       varname_hruSegId = "hru_seg_id"
+       varname_segId = "seg_id"
+       varname_downSegId = "Tosegment"
+       varname_pfafCode = "pfaf"
+       ancil_dir = "please_set_ancillary_directory_in_user_nl_mizuroute_control"
     else:
        expect( False, "mizuRoute does NOT know about this grid: "+config['rof_grid'] )
 
@@ -166,21 +188,21 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
 
   
     #----------------------------------------------------
-    # Get some important values from the case
+    # Convert coupling frequency into seconds
     #----------------------------------------------------
-    rundir = case.get_value("RUNDIR")
-    dindir = case.get_value("DIN_LOC_ROOT")
-    casename = case.get_value("CASE")
-    run_type = case.get_value("RUN_TYPE")
-    run_start = case.get_value("RUN_STARTDATE")
+    if config['ncpl_base_period'] != "day":
+       expect( False, "NCPL_BASE_PERIOD is expected to be day instead is: "+config['ncpl_base_period'] )
+
+    dt_qsim = 86400 / int(config['rof_ncpl'])
     #----------------------------------------------------
     # Set control values that we get from CESM
     #----------------------------------------------------
     ctl.set( "case_name", casename )
     ctl.set( "output_dir", "./" )
     ctl.set( "input_dir", rundir+"/" )
-    ctl.set( "ancil_dir", dindir+"/rof/mizuRoute/ancillary_data/" )
+    ctl.set( "ancil_dir", ancil_dir )
     ctl.set( "fname_ntopOld", fname_ntopOld )
+    ctl.set( "dt_qsim", str(dt_qsim) )
     ctl.set( "dname_sseg", dname_sseg )
     ctl.set( "dname_nhru", dname_nhru )
     ctl.set( "param_nml", "mizuRoute_in" )
@@ -193,6 +215,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     ctl.set( "is_lake_sim", is_lake_sim )
     ctl.set( "varname_downSegId", varname_downSegId )
     ctl.set( "varname_pfafCode", varname_pfafCode )
+    ctl.set( "continue_run", continue_run )
 
     #----------------------------------------------------
     # Set the restart file depending on start type
@@ -203,11 +226,11 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
         run_refcase = case.get_value("RUN_REFCASE")
         run_refdate = case.get_value("RUN_REFDATE")
         run_tod = case.get_value("RUN_REFTOD")
-        filename = "%s.mizuRoute%s.r.%s-%s.nc" %(run_refcase, inst_string, run_refdate, run_tod)
+        filename = "%s.mizuroute%s.r.%s-%s.nc" %(run_refcase, inst_string, run_refdate, run_tod)
         if not os.path.exists(os.path.join(rundir, filename)):
-            filename = "%s.mizuRoute.r.%s-%s.nc" %(run_refcase, run_refdate, run_tod)
+            filename = "%s.mizuroute.r.%s-%s.nc" %(run_refcase, run_refdate, run_tod)
 
-        ctl.set( "fname_state_in", filename )
+        fname_state_in = filename
 
     elif fname_state_in.strip() == '':
         fname_state_in = "empty"
@@ -218,7 +241,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     ctl.set( "fname_state_in", fname_state_in )
 
     # Read in the user control file for the case and change settings to it
-    file_src = "user_ctl_mizuroute"
+    file_src = "user_nl_mizuroute_control"
     user_ctl_file = os.path.join(caseroot, file_src + inst_string)
     if ( not os.path.exists( user_ctl_file ) ):
        safe_copy( os.path.join( srcroot, "cime_config", file_src), user_ctl_file )
@@ -226,7 +249,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     usrctl.read( user_ctl_file, allowEmpty=True )
     for element in usrctl.get_elmList():
        value = ctl.get( element )
-       expect( value != "UNSET", "Element in the user_ctl_mizuroute file is NOT in the control file: "+element )
+       expect( value != "UNSET", "Element in the user_nl_mizuroute_control file is NOT in the control file: "+element )
        ctl.set( element, usrctl.get( element ) )
 
     #----------------------------------------------------

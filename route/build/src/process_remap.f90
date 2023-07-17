@@ -37,14 +37,13 @@ MODULE process_remap_module
   ! ***************************************************************************************************************
   SUBROUTINE remap_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
   implicit none
-  ! input
+  ! Argument variables
   type(runoff)         , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
   type(remap)          , intent(in)  :: remap_data_in    ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
-  ! output
   real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
   integer(i4b)         , intent(out) :: ierr             ! error code
   character(len=strLen), intent(out) :: message          ! error message
-  ! local
+  ! local variables
   character(len=strLen)              :: cmessage         ! error message from subroutine
 
   ierr=0; message="remap_runoff/"
@@ -64,15 +63,15 @@ MODULE process_remap_module
   ! ***************************************************************************************************************
   ! case 1: hru in runoff layer is grid (stored in 2-dimension array)
   SUBROUTINE remap_2D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
+
   implicit none
-  ! input
+  ! Argument variables
   type(runoff)         , intent(in)  :: runoff_data_in      ! runoff for one time step for all HRUs
   type(remap)          , intent(in)  :: remap_data_in       ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
-  ! output
   real(dp)             , intent(out) :: basinRunoff(:)      ! basin runoff
   integer(i4b)         , intent(out) :: ierr                ! error code
   character(len=strLen), intent(out) :: message             ! error message
-  ! local
+  ! Local variables
   integer(i4b)                       :: iHRU,jHRU           ! index of basin in the routing layer
   integer(i4b)                       :: ixOverlap           ! index in ragged array of overlapping polygons
   integer(i4b)                       :: ii,jj               ! index of x and y in grid
@@ -82,6 +81,7 @@ MODULE process_remap_module
   integer(i4b), parameter            :: ixCheck=-huge(iHRU) ! basin to check
   integer(i4b), parameter            :: jxCheck=-huge(iHRU) ! basin to check
   logical(lgt), parameter            :: printWarn=.false.   ! flag to print warnings
+
   ierr=0; message="remap_2D_runoff/"
 
   ! initialize counter for the overlap vector
@@ -162,15 +162,16 @@ MODULE process_remap_module
   ! ***************************************************************************************************************
   ! case 2: hru in runoff layer is hru polygon different than river network layer (stored in 1-dimension array)
   SUBROUTINE remap_1D_runoff(runoff_data_in, remap_data_in, basinRunoff, ierr, message)
+
   implicit none
-  ! input
+
+  ! Argment variables
   type(runoff)         , intent(in)  :: runoff_data_in   ! runoff for one time step for all HRUs
   type(remap)          , intent(in)  :: remap_data_in    ! data structure to remap data from a polygon (e.g., grid) to another polygon (e.g., basin)
-  ! output
   real(dp)             , intent(out) :: basinRunoff(:)   ! basin runoff
   integer(i4b)         , intent(out) :: ierr             ! error code
   character(len=strLen), intent(out) :: message          ! error message
-  ! local
+  ! local variables
   integer(i4b)                       :: iHRU,jHRU        ! index of basin in the routing layer
   integer(i4b)                       :: ixOverlap        ! index in ragged array of overlapping polygons
   integer(i4b)                       :: ixRunoff         ! index in the runoff vector
@@ -273,17 +274,15 @@ MODULE process_remap_module
                          sorted_flux,      & ! inout: sorted input states and fluxes based on hru/seg in network topology
                          ierr, message)
   implicit none
-  ! input
+  ! Argument variables
   integer(i4b)         , intent(in)    :: ID_in(:)            ! input: the array of ids for HRU/seg
   integer(i4b)         , intent(in)    :: IX_in(:)            ! input: the array of location of ids for HRU/seg in network topology
   real(dp)             , intent(in)    :: flux_in(:)          ! input: the array of input fluxes, should be the same size as ID_in
   logical(lgt)         , intent(in)    :: remove_negatives    ! flag to replace negative values to zeros
-  ! input/output
   real(dp)             , intent(inout) :: sorted_flux(:)      ! inout: sorted input states and fluxes based on hru/seg in network topology
-  ! output
   integer(i4b)         , intent(out)   :: ierr                ! error code
   character(len=strLen), intent(out)   :: message             ! error message
-  ! local
+  ! local variables
   integer(i4b)                         :: i,j                 ! index of basin in the routing layer
 
   ierr=0; message="sort_flux/"
@@ -326,24 +325,21 @@ MODULE process_remap_module
                          ierr, message,     & ! intent(out): error control
                          ixSubRch,          & ! optional input: subset of reach indices to be processed
                          limitRunoff)         ! optional input: true->enforce min. flow, false->allow any flow (e.g., negative)
-  ! External modules
+
   USE nr_utils, ONLY : arth
 
   implicit none
-
-  ! input
+  ! Argument variables
   real(dp)                  , intent(in)  :: basinRunoff(:)   ! basin runoff (m/s)
   type(RCHTOPO), allocatable, intent(in)  :: NETOPO_in(:)     ! River Network topology
   type(RCHPRP),  allocatable, intent(in)  :: RPARAM_in(:)     ! River (non-)physical parameters
-  ! output
   real(dp)                  , intent(out) :: reachRunoff(:)   ! reach runoff (m/s)
   integer(i4b)              , intent(out) :: ierr             ! error code
   character(len=strLen)     , intent(out) :: message          ! error message
-  ! input (optional)
   integer(i4b),  optional   , intent(in)  :: ixSubRch(:)     ! subset of reach indices to be processed
   logical(lgt),  optional   , intent(in)  :: limitRunoff     ! enforce minimum threshold flow or not
   ! ----------------------------------------------------------------------------------------------
-  ! local
+  ! local variables
   integer(i4b)                            :: nContrib         ! number of contributing HRUs
   integer(i4b)                            :: nSeg             ! number of reaches to be processed
   integer(i4b)                            :: iHRU             ! array index for contributing HRUs
@@ -398,7 +394,8 @@ MODULE process_remap_module
      ! error check - runoff depth cannot be negative (no missing value)
      if (limit) then
        if( basinRunoff( hruContribIx(iHRU) ) < negRunoffTol )then
-        write(message,'(a,i0)') trim(message)//'exceeded negative runoff tolerance for HRU ', hruContribId(iHRU)
+        write(iulog,*) 'Exceeded negative runoff tolerance: HRU = ', hruContribId(iHRU), ' runoff = ', basinRunoff( hruContribIx(iHRU) )
+        write(message,'(a,i12, g12.2)') trim(message)//'exceeded negative runoff tolerance for HRU ', hruContribId(iHRU)
         ierr=20; return
        endif
      end if

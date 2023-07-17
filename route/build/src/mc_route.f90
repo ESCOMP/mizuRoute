@@ -3,135 +3,36 @@ MODULE mc_route_module
 ! muskingum-cunge routing
 
 USE nrtype
-! data types
-USE dataTypes,   ONLY: STRFLX            ! fluxes in each reach
-USE dataTypes,   ONLY: STRSTA            ! state in each reach
-USE dataTypes,   ONLY: RCHTOPO           ! Network topology
-USE dataTypes,   ONLY: RCHPRP            ! Reach parameter
-USE dataTypes,   ONLY: mcRCH             ! MC specific state data structure
-USE dataTypes,   ONLY: subbasin_omp      ! mainstem+tributary data strucuture
-! global data
-USE public_var,  ONLY: iulog             ! i/o logical unit number
-USE public_var,  ONLY: realMissing       ! missing value for real number
-USE public_var,  ONLY: integerMissing    ! missing value for integer number
-USE public_var,  ONLY: qmodOption        ! qmod option (use 1==direct insertion)
-USE globalData,  ONLY: idxMC             ! index of IRF method
-! subroutines: general
+USE dataTypes,     ONLY: STRFLX          ! fluxes in each reach
+USE dataTypes,     ONLY: STRSTA          ! state in each reach
+USE dataTypes,     ONLY: RCHTOPO         ! Network topology
+USE dataTypes,     ONLY: RCHPRP          ! Reach parameter
+USE dataTypes,     ONLY: mcRCH           ! MC specific state data structure
+USE public_var,    ONLY: iulog           ! i/o logical unit number
+USE public_var,    ONLY: realMissing     ! missing value for real number
+USE public_var,    ONLY: integerMissing  ! missing value for integer number
+USE public_var,    ONLY: qmodOption      ! qmod option (use 1==direct insertion)
+USE globalData,    ONLY: idxMC           ! routing method index for muskingum method
 USE water_balance, ONLY: comp_reach_wb   ! compute water balance error
-USE perf_mod,    ONLY: t_startf,t_stopf  ! timing start/stop
-USE model_utils, ONLY: handle_err
+USE base_route,    ONLY: base_route_rch  ! base (abstract) reach routing method class
 
 implicit none
 
 private
-public::mc_route
+public::mc_route_rch
+
+type, extends(base_route_rch) :: mc_route_rch
+ CONTAINS
+   procedure, pass :: route => mc_rch
+end type mc_route_rch
 
 CONTAINS
 
  ! *********************************************************************
- ! subroutine: perform muskingum-cunge routing through the river network
- ! *********************************************************************
- SUBROUTINE mc_route(iens,                 & ! input: ensemble index
-                     river_basin,          & ! input: river basin information (mainstem, tributary outlet etc.)
-                     T0,T1,                & ! input: start and end of the time step
-                     ixDesire,             & ! input: reachID to be checked by on-screen pringing
-                     NETOPO_in,            & ! input: reach topology data structure
-                     RPARAM_in,            & ! input: reach parameter data structure
-                     RCHSTA_out,           & ! inout: reach state data structure
-                     RCHFLX_out,           & ! inout: reach flux data structure
-                     ierr,message,         & ! output: error control
-                     ixSubRch)               ! optional input: subset of reach indices to be processed
-
-   USE public_var,  ONLY: is_lake_sim    ! logical whether or not lake should be simulated
-
-   implicit none
-   ! Argument variables
-   integer(i4b),       intent(in)                 :: iEns                 ! ensemble member
-   type(subbasin_omp), intent(in),    allocatable :: river_basin(:)       ! river basin information (mainstem, tributary outlet etc.)
-   real(dp),           intent(in)                 :: T0,T1                ! start and end of the time step (seconds)
-   integer(i4b),       intent(in)                 :: ixDesire             ! index of the reach for verbose output
-   type(RCHTOPO),      intent(in),    allocatable :: NETOPO_in(:)         ! River Network topology
-   type(RCHPRP),       intent(in),    allocatable :: RPARAM_in(:)         ! River reach parameter
-   type(STRSTA),       intent(inout)              :: RCHSTA_out(:,:)      ! reach state data
-   type(STRFLX),       intent(inout)              :: RCHFLX_out(:,:)      ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
-   integer(i4b),       intent(out)                :: ierr                 ! error code
-   character(*),       intent(out)                :: message              ! error message
-   integer(i4b),       intent(in), optional       :: ixSubRch(:)          ! subset of reach indices to be processed
-   ! local variables
-   character(len=strLen)                          :: cmessage             ! error message for downwind routine
-   logical(lgt),                      allocatable :: doRoute(:)           ! logical to indicate which reaches are processed
-   integer(i4b)                                   :: nOrder               ! number of stream order
-   integer(i4b)                                   :: nTrib                ! number of tributary basins
-   integer(i4b)                                   :: nSeg                 ! number of reaches in the network
-   integer(i4b)                                   :: iSeg, jSeg           ! loop indices - reach
-   integer(i4b)                                   :: iTrib                ! loop indices - branch
-   integer(i4b)                                   :: ix                   ! loop indices stream order
-
-   ierr=0; message='mc_route/'
-
-   ! number of reach check
-   if (size(NETOPO_in)/=size(RCHFLX_out(iens,:))) then
-    ierr=20; message=trim(message)//'sizes of NETOPO and RCHFLX mismatch'; return
-   endif
-
-   nSeg = size(NETOPO_in)
-
-   allocate(doRoute(nSeg), stat=ierr)
-
-   if (present(ixSubRch))then
-    doRoute(:)=.false.
-    doRoute(ixSubRch) = .true. ! only subset of reaches are on
-   else
-    doRoute(:)=.true. ! every reach is on
-   endif
-
-   nOrder = size(river_basin)
-
-   call t_startf('route/mc')
-
-   do ix = 1, nOrder
-
-     nTrib=size(river_basin(ix)%branch)
-
-!$OMP PARALLEL DO schedule(dynamic,1)                   & ! chunk size of 1
-!$OMP          private(jSeg, iSeg)                      & ! private for a given thread
-!$OMP          private(ierr, cmessage)                  & ! private for a given thread
-!$OMP          shared(T0,T1)                            & ! private for a given thread
-!$OMP          shared(river_basin)                      & ! data structure shared
-!$OMP          shared(doRoute)                          & ! data array shared
-!$OMP          shared(NETOPO_in)                        & ! data structure shared
-!$OMP          shared(RPARAM_in)                        & ! data structure shared
-!$OMP          shared(RCHSTA_out)                       & ! data structure shared
-!$OMP          shared(RCHFLX_out)                       & ! data structure shared
-!$OMP          shared(ix, iEns, ixDesire)               & ! indices shared
-!$OMP          firstprivate(nTrib)
-     trib:do iTrib = 1,nTrib
-       seg:do iSeg=1,river_basin(ix)%branch(iTrib)%nRch
-         jSeg  = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
-         if (.not. doRoute(jSeg)) cycle
-         call mc_rch(iEns,jSeg,           & ! input: array indices
-                     ixDesire,            & ! input: index of the desired reach
-                     T0,T1,               & ! input: start and end of the time step
-                     NETOPO_in,           & ! input: reach topology data structure
-                     RPARAM_in,           & ! input: reach parameter data structure
-                     RCHSTA_out,          & ! inout: reach state data structure
-                     RCHFLX_out,          & ! inout: reach flux data structure
-                     ierr,cmessage)         ! output: error control
-         if(ierr/=0) call handle_err(ierr, trim(message)//trim(cmessage))
-       end do  seg
-     end do trib
-!$OMP END PARALLEL DO
-
-   end do
-
-   call t_stopf('route/mc')
-
- END SUBROUTINE mc_route
-
- ! *********************************************************************
  ! subroutine: perform muskingum-cunge routing for one segment
  ! *********************************************************************
- SUBROUTINE mc_rch(iEns, segIndex, & ! input: index of runoff ensemble to be processed
+ SUBROUTINE mc_rch(this,           & ! mc_route_rch object to bound this procedure
+                   iEns, segIndex, & ! input: index of runoff ensemble to be processed
                    ixDesire,       & ! input: reachID to be checked by on-screen pringing
                    T0,T1,          & ! input: start and end of the time step
                    NETOPO_in,      & ! input: reach topology data structure
@@ -142,12 +43,13 @@ CONTAINS
 
  implicit none
  ! Argument variables
+ class(mc_route_rch)                       :: this              ! mc_route_rch object to bound this procedure
  integer(i4b),  intent(in)                 :: iEns              ! runoff ensemble to be routed
  integer(i4b),  intent(in)                 :: segIndex          ! segment where routing is performed
  integer(i4b),  intent(in)                 :: ixDesire          ! index of the reach for verbose output
  real(dp),      intent(in)                 :: T0,T1             ! start and end of the time step (seconds)
  type(RCHTOPO), intent(in),    allocatable :: NETOPO_in(:)      ! River Network topology
- type(RCHPRP),  intent(in),    allocatable :: RPARAM_in(:)      ! River reach parameter
+ type(RCHPRP),  intent(inout), allocatable :: RPARAM_in(:)      ! River reach parameter
  type(STRSTA),  intent(inout)              :: RCHSTA_out(:,:)   ! reach state data
  type(STRFLX),  intent(inout)              :: RCHFLX_out(:,:)   ! Reach fluxes (ensembles, space [reaches]) for decomposed domains
  integer(i4b),  intent(out)                :: ierr              ! error code
@@ -213,16 +115,11 @@ CONTAINS
    write(iulog,'(A,X,G12.5)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_Q
  endif
 
- if(verbose) then
-   write(iulog,'(a)') ' -------------------------'
-   write(iulog,'(a)') ' -- water balance check --'
-   write(iulog,'(a)') ' -------------------------'
- endif
- call comp_reach_wb(idxMC, q_upstream, RCHFLX_out(iens,segIndex), verbose)
-
  if (RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(1) < 0) then
    write(iulog,'(A,X,G12.5,X,A,X,I9)') ' ---- NEGATIVE VOLUME = ', RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(1), 'at ', NETOPO_in(segIndex)%REACHID
  end if
+
+ call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxMC, q_upstream, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
 
  END SUBROUTINE mc_rch
 

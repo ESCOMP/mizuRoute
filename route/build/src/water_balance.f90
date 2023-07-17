@@ -19,10 +19,13 @@ CONTAINS
   ! *********************************************************************
   ! public subroutine: compute reach water balance
   ! *********************************************************************
-  SUBROUTINE comp_reach_wb(ixRoute,    &     ! input: index of routing method
+  SUBROUTINE comp_reach_wb(seg_id,     &     ! input: reach/lake id
+                           ixRoute,    &     ! input: index of routing method
                            Qupstream,  &     ! input: inflow from upstream
                            RCHFLX_in,  &     ! inout: reach flux data structure
-                           verbose)
+                           verbose,    &     !
+                           lakeFlag,   &     !
+                           tolerance)
 
   ! Descriptions
   ! Compute water balance per simulation time step and reach/lake
@@ -35,47 +38,73 @@ CONTAINS
 
   implicit none
   ! Argument variables:
+  integer(i4b), intent(in)                 :: seg_id         ! input: routing method index
   integer(i4b), intent(in)                 :: ixRoute        ! input: routing method index
   real(dp),     intent(in)                 :: Qupstream      ! input: total inflow from upstream reaches
   type(STRFLX), intent(inout)              :: RCHFLX_in      ! inout: Reach fluxes data structure
+  logical(lgt), intent(in)                 :: lakeFlag       ! input: reach index to be examined
   logical(lgt), intent(in)                 :: verbose        ! input: reach index to be examined
+  real(dp),     optional, intent(in)       :: tolerance      ! input: wb error tolerance trigering print out
   ! Local variables:
+  real(dp)                                 :: wb_tol         !
   real(dp)                                 :: dVol           !
   real(dp)                                 :: Qin            !
   real(dp)                                 :: Qlateral       !
   real(dp)                                 :: Qout           !
   real(dp)                                 :: precip         !
   real(dp)                                 :: evapo          !
-  real(dp)                                 :: Qtake          !
+  real(dp)                                 :: Qtake_demand   !
+  real(dp)                                 :: Qtake_actual   !
+
+  if (present(tolerance)) then
+    wb_tol=tolerance
+  else
+    wb_tol=2.e-5_dp
+  end if
 
   ! volume change
   dVol     = RCHFLX_in%ROUTE(ixRoute)%REACH_VOL(1)-RCHFLX_in%ROUTE(ixRoute)%REACH_VOL(0)
   ! in flux
   Qin      = Qupstream *dt
   Qlateral = RCHFLX_in%BASIN_QR(1) *dt
-  precip   = RCHFLX_in%basinprecip *dt
+  if (lakeFlag) then
+    precip   = RCHFLX_in%basinprecip *dt
+  else
+    precip   = 0._dp
+  end if
   ! out flux
-  Qout     = -1._dp *RCHFLX_in%ROUTE(ixRoute)%REACH_Q *dt
-  Qtake    = -1._dp *RCHFLX_in%REACH_WM_FLUX *dt
-  evapo    = -1._dp *RCHFLX_in%basinevapo *dt
+  Qout         = -1._dp *RCHFLX_in%ROUTE(ixRoute)%REACH_Q *dt
+  Qtake_demand = -1._dp *RCHFLX_in%REACH_WM_FLUX *dt
+  Qtake_actual = -1._dp *RCHFLX_in%REACH_WM_FLUX_actual *dt
+  if (lakeFlag) then
+    evapo    = -1._dp *RCHFLX_in%basinevapo *dt
+  else
+    evapo   = 0._dp
+  end if
 
-  ! RCHFLX_in%ROUTE(ixRoute)%WB = dVol - (Qin + Qlateral + precip + Qout + Qtake + evapo)
-  RCHFLX_in%ROUTE(ixRoute)%WB = dVol - (Qin + Qlateral + Qout + Qtake)
+  RCHFLX_in%ROUTE(ixRoute)%WB = dVol - (Qin+ Qlateral+ precip+ Qtake_actual+ Qout+ evapo)
 
-  if (verbose) then
-    write(iulog,'(A,1PG15.7)') '  WBerr [m3]        = ', RCHFLX_in%ROUTE(ixRoute)%WB
-    write(iulog,'(A,1PG15.7)') '  Vol at t0 [m3]    = ', RCHFLX_in%ROUTE(ixRoute)%REACH_VOL(0)
-    write(iulog,'(A,1PG15.7)') '  Vol at t1 [m3]    = ', RCHFLX_in%ROUTE(ixRoute)%REACH_VOL(1)
-    write(iulog,'(A,1PG15.7)') '  dVol [m3]         = ', dVol
-    write(iulog,'(A,1PG15.7)') '  inflow [m3]       = ', Qin
-    write(iulog,'(A,1PG15.7)') '  lateral flow [m3] = ', Qlateral
-    write(iulog,'(A,1PG15.7)') '  precip [m3]       = ', precip
-    write(iulog,'(A,1PG15.7)') '  outflow [m3]      = ', Qout
-    write(iulog,'(A,1PG15.7)') '  abstraction [m3]  = ', Qtake
-    write(iulog,'(A,1PG15.7)') '  evaporation [m3]  = ', evapo
+  if (verbose .or. abs(RCHFLX_in%ROUTE(ixRoute)%WB) > wb_tol) then
+    write(iulog,'(A)')         ' -------------------------------'
+    write(iulog,'(A)')         ' -- reach water balance check --'
+    write(iulog,'(A)')         ' -------------------------------'
+    write(iulog,'(A,1PG15.7)') '  id                  = ', seg_id
+    write(iulog,'(A,1PG15.7)') '  lake                = ', lakeFlag
+    write(iulog,'(A)')         '  1 = 5-(6+7+8+9+10+12)'
+    write(iulog,'(A,1PG15.7)') '  1 WBerr [m3]        = ', RCHFLX_in%ROUTE(ixRoute)%WB
+    write(iulog,'(A,1PG15.7)') '  3 Vol at t0 [m3]    = ', RCHFLX_in%ROUTE(ixRoute)%REACH_VOL(0)
+    write(iulog,'(A,1PG15.7)') '  4 Vol at t1 [m3]    = ', RCHFLX_in%ROUTE(ixRoute)%REACH_VOL(1)
+    write(iulog,'(A,1PG15.7)') '  5 dVol [m3]         = ', dVol
+    write(iulog,'(A,1PG15.7)') '  6 inflow [m3]       = ', Qin
+    write(iulog,'(A,1PG15.7)') '  7 lateral flow [m3] = ', Qlateral
+    write(iulog,'(A,1PG15.7)') '  8 precip [m3]       = ', precip
+    write(iulog,'(A,1PG15.7)') '  9 outflow [m3]      = ', Qout
+    write(iulog,'(A,1PG15.7)') ' 10 take-actual [m3]  = ', Qtake_actual
+    write(iulog,'(A,1PG15.7)') ' 11 take-demand [m3]  = ', Qtake_demand
+    write(iulog,'(A,1PG15.7)') ' 12 evaporation [m3]  = ', evapo
   endif
-  if (abs(RCHFLX_in%ROUTE(ixRoute)%WB) > 1.e-5_dp) then
-    write(iulog,'(A,1PG15.7,1X,A)') ' WARNING: WB error [m3] = ', RCHFLX_in%ROUTE(ixRoute)%WB, '> 1.e-5 [m3]'
+  if (abs(RCHFLX_in%ROUTE(ixRoute)%WB) > wb_tol) then
+    write(iulog,'(A,1PG15.7,1X,A,1X,1PG15.7)') ' WARNING: abs. WB error [m3] = ', abs(RCHFLX_in%ROUTE(ixRoute)%WB), '>',wb_tol
   end if
 
   END SUBROUTINE comp_reach_wb
@@ -113,10 +142,10 @@ CONTAINS
     character(strLen), intent(out)    :: message        ! error message
     ! Local variables:
     integer(i4b)                      :: lwr,upr        ! loop index
-    real(dp)                          :: wb_local(6)
-    real(dp)                          :: wb_global(6)
-    real(dp)                          :: wb_mainstem(6)
-    real(dp)                          :: wb_trib(6)
+    real(dp)                          :: wb_local(7)
+    real(dp)                          :: wb_global(7)
+    real(dp)                          :: wb_mainstem(7)
+    real(dp)                          :: wb_trib(7)
     real(dp)                          :: wb_error
     character(strLen)                 :: cmessage       ! error message from subroutine
 
@@ -154,20 +183,24 @@ CONTAINS
 
     if (verbose) then
       if (masterproc) then
-        write(iulog,'(A)') '  global water balance [m3] '
-        write(iulog,'(A,1PG15.7)') '  dVol [m3]         = ', wb_global(1)
-        write(iulog,'(A,1PG15.7)') '  lateral flow [m3] = ', wb_global(2)
-        write(iulog,'(A,1PG15.7)') '  precip [m3]       = ', wb_global(3)
-        write(iulog,'(A,1PG15.7)') '  abstraction [m3]  = ', wb_global(4)
-        write(iulog,'(A,1PG15.7)') '  evaporation [m3]  = ', wb_global(5)
-        write(iulog,'(A,1PG15.7)') '  outflow [m3]      = ', wb_global(6)
-        write(iulog,'(A,1PG15.7)') '  WBerr [m3]        = ', wb_error
+        write(iulog,'(A)')         ' ---------------------------'
+        write(iulog,'(A)')         ' -- global water balance  --'
+        write(iulog,'(A)')         ' ---------------------------'
+        write(iulog,'(A)')         ' 8=1-(2+3+4+5+6)'
+        write(iulog,'(A,1PG15.7)') ' 1 dVol [m3]              = ', wb_global(1)
+        write(iulog,'(A,1PG15.7)') ' 2 lateral flow [m3]      = ', wb_global(2)
+        write(iulog,'(A,1PG15.7)') ' 3 precip [m3]            = ', wb_global(3)
+        write(iulog,'(A,1PG15.7)') ' 4 waterTake-actual [m3]  = ', wb_global(4)
+        write(iulog,'(A,1PG15.7)') ' 5 evaporation [m3]       = ', wb_global(5)
+        write(iulog,'(A,1PG15.7)') ' 6 outflow [m3]           = ', wb_global(6)
+        write(iulog,'(A,1PG15.7)') ' 7 waterTake-demand [m3]  = ', wb_global(7)
+        write(iulog,'(A,1PG15.7)') ' 8 WBerr [m3]             = ', wb_error
       end if
     endif
-
     if (abs(wb_error) > 1._dp) then ! tolerance is 1 [m3]
       write(iulog,'(A,1PG15.7,1X,A)') ' WARNING: global WB error [m3] = ', wb_error, '> 1.0 [m3]'
     end if
+    flush(iulog)
 
     CONTAINS
 
@@ -180,7 +213,7 @@ CONTAINS
       ! Arguments:
       type(RCHTOPO),     intent(in)  :: NETOPO_in(:)
       type(STRFLX),      intent(in)  :: RCHFLX_in(:)
-      real(dp),          intent(out) :: water_budget(6)
+      real(dp),          intent(out) :: water_budget(7)
       integer(i4b),      intent(out) :: ierr
       character(strLen), intent(out) :: message           ! error message
       ! Local variables:
@@ -199,14 +232,19 @@ CONTAINS
         water_budget(1) = water_budget(1) + (RCHFLX_in(ix)%ROUTE(ixRoute)%REACH_VOL(1)-RCHFLX_in(ix)%ROUTE(ixRoute)%REACH_VOL(0))
         ! in flux
         water_budget(2) = water_budget(2) + RCHFLX_in(ix)%BASIN_QR(1) *dt
-        water_budget(3) = water_budget(3) + RCHFLX_in(ix)%basinprecip *dt
+        if (NETOPO_in(ix)%isLake) then
+          water_budget(3) = water_budget(3) + RCHFLX_in(ix)%basinprecip *dt
+        end if
         ! out flux
-        water_budget(4) = water_budget(4) - RCHFLX_in(ix)%basinevapo *dt
-        water_budget(5) = water_budget(5) - RCHFLX_in(ix)%REACH_WM_FLUX *dt
-
+        water_budget(4) = water_budget(4) - RCHFLX_in(ix)%REACH_WM_FLUX_actual *dt
+        if (NETOPO_in(ix)%isLake) then
+          water_budget(5) = water_budget(5) - RCHFLX_in(ix)%basinevapo *dt
+        end if
         if (NETOPO_in(ix)%DREACHI==-1 .and. NETOPO_in(ix)%DREACHK<=0) then ! to-do: better way to detect outlet segments
           water_budget(6) = water_budget(6) - RCHFLX_in(ix)%ROUTE(ixRoute)%REACH_Q *dt
         end if
+        ! misc. flux information
+        water_budget(7) = water_budget(7) - RCHFLX_in(ix)%REACH_WM_FLUX *dt
       end do
     END SUBROUTINE accum_water_balance
 

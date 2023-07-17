@@ -4,7 +4,7 @@ module RtmFileUtils
 ! Module containing file I/O utilities
 !
 ! !USES:
-  USE shr_sys_mod , ONLY : shr_sys_abort
+  USE shr_sys_mod , ONLY : shr_sys_abort, shr_sys_flush
   USE shr_file_mod, ONLY : shr_file_get, shr_file_getUnit, shr_file_freeUnit
   USE globalData  , ONLY : masterproc
   USE public_var  , ONLY : iulog
@@ -107,6 +107,7 @@ contains
      dir   = get_dirname ( fulpath )
      if (len_trim(locfn) == 0) then
         if (masterproc) write(iulog,*)'(GETFIL): local filename has zero length'
+        call shr_sys_flush(iulog)
         call shr_sys_abort()
      else
         if (masterproc) write(iulog,*)'(GETFIL): attempting to find local file ',  &
@@ -131,6 +132,7 @@ contains
      else
         if (masterproc) write(iulog,*)'(GETFIL): failed getting file from full path: ', fulpath
         if (iflag==0) then
+           call shr_sys_flush(iulog)
            call shr_sys_abort ('GETFIL: FAILED to get '//trim(fulpath))
         else
            RETURN
@@ -159,6 +161,7 @@ contains
 
      if (len_trim(locfn) == 0) then
         write(iulog,*)'(OPNFIL): local filename has zero length'
+        call shr_sys_flush(iulog)
         call shr_sys_abort()
      endif
      if (form=='u' .or. form=='U') then
@@ -170,6 +173,7 @@ contains
      if (ioe /= 0) then
         write(iulog,*)'(OPNFIL): failed to open file ',trim(locfn),        &
              &     ' on unit ',iun,' ierr=',ioe
+        call shr_sys_flush(iulog)
         call shr_sys_abort()
      else if ( masterproc )then
         write(iulog,*)'(OPNFIL): Successfully opened file ',trim(locfn),   &

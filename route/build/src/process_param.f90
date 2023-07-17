@@ -119,6 +119,7 @@ CONTAINS
   ! global variables
   USE public_var, ONLY: pi      ! pi
   USE dataTypes,  ONLY: dlength
+  USE globalData, ONLY: maxtdh  ! maximum unit-hydrogrph future time
   implicit none
   ! Argument variables
   real(dp),                      intent(in)   :: length(:)     ! river segment length
@@ -143,6 +144,7 @@ CONTAINS
   integer(i4b)                                :: iHrStrt       ! index of UH time step where rising limb of UH start
   integer(i4b)                                :: iHrLast       ! index of UH time step where recession limb of UH become zero
   integer(i4b)                                :: nTSub         ! number of time steps where 1/nTsub [m] of runoff is inserted
+  integer(i4b)                                :: ntdh          ! number of values on the time delay histogram
   integer(i4b)                                :: iSeg          ! Loop index
   integer(i4b)                                :: iHr,jHr       ! Loop index of hour
   integer(i4b)                                :: iTagg         ! index for aggregated (i.e. simulation) time step
@@ -156,6 +158,8 @@ CONTAINS
  nTsub=ceiling(dt/dTUH)
  !nTsub=floor(dt/dTUH)
  nSeg = size(length)
+
+ maxtdh = 0
 
  ! Memory allocation
  allocate(seg_uh(nSeg), stat=ierr, errmsg=cmessage)
@@ -249,8 +253,10 @@ CONTAINS
   ! Re-normalize the UHQ by its sum
   UHQ = UHQ/INTE
 
+  ntdh = (iHrLast+nTsub-1)/nTsub
+  maxtdh = max(maxtdh, ntdh)
   !Aggregate hourly unit hydrograph to simulation time step
-  allocate(seg_uh(iSeg)%dat((iHrLast+nTsub-1)/nTsub),stat=ierr,errmsg=cmessage)
+  allocate(seg_uh(iSeg)%dat(ntdh),stat=ierr,errmsg=cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage)//': seg_uh%dat'; return; endif
 
   seg_uh(iSeg)%dat(:)=0._dp

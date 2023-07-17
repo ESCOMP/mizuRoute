@@ -28,11 +28,13 @@ CONTAINS
  USE globalData, ONLY: meta_PFAF               ! pfafstetter code
  USE globalData, ONLY: meta_rflx               ! river flux variables
  USE globalData, ONLY: meta_hflx               ! river flux variables
+ USE globalData, ONLY: isColdStart             ! initial river state - cold start (T) or from restart file (F)
  USE globalData, ONLY: nRoutes                 ! number of active routing methods
  USE globalData, ONLY: routeMethods            ! active routing method index and id
  USE globalData, ONLY: onRoute                 ! logical to indicate actiive routing method(s)
  USE globalData, ONLY: idxSUM,idxIRF,idxKWT, &
                        idxKW,idxMC,idxDW
+ USE globalData, ONLY: runMode                 ! mizuRoute run mode: standalone, cesm-coupling
  ! index of named variables in each structure
  USE var_lookup, ONLY: ixHRU
  USE var_lookup, ONLY: ixHRU2SEG
@@ -44,6 +46,7 @@ CONTAINS
  ! external subroutines
  USE ascii_utils, ONLY: file_open        ! open file (performs a few checks as well)
  USE ascii_utils, ONLY: get_vlines       ! get a list of character strings from non-comment lines
+ USE ascii_utils, ONLY: lower            ! convert string to lower case
  USE nr_utils,    ONLY: char2int         ! convert integer number to a array containing individual digits
 
  implicit none
@@ -110,16 +113,15 @@ CONTAINS
    select case(trim(cName))
 
    ! DIRECTORIES
-   case('<ancil_dir>');            ancil_dir   = trim(cData)                           ! directory containing ancillary data
-   case('<input_dir>');            input_dir   = trim(cData)                           ! directory containing input data
-   case('<output_dir>');           output_dir  = trim(cData)                           ! directory containing output data
+   case('<ancil_dir>');            ancil_dir   = trim(cData)                           ! directory containing ancillary data (network, mapping, namelist)
+   case('<input_dir>');            input_dir   = trim(cData)                           ! directory containing input forcing netCDF, e.g. runoff
+   case('<output_dir>');           output_dir  = trim(cData)                           ! directory for routed flow output (netCDF)
    case('<restart_dir>');          restart_dir = trim(cData)                           ! directory for restart output (netCDF)
    ! RUN CONTROL
    case('<case_name>');            case_name   = trim(cData)                           ! name of simulation. used as head of model output and restart file
    case('<sim_start>');            simStart    = trim(cData)                           ! date string defining the start of the simulation
    case('<sim_end>');              simEnd      = trim(cData)                           ! date string defining the end of the simulation
    case('<continue_run>');         read(cData,*,iostat=io_error) continue_run          ! logical; T-> append output in existing history files. F-> write output in new history file
-   case('<newFileFrequency>');     newFileFrequency = trim(cData)                      ! frequency for new output files (day, month, annual, single)
    case('<route_opt>');            routOpt     = trim(cData)                           ! routing scheme options  0-> accumRunoff, 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW
    case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute        ! basin routing options   0-> no, 1->IRF, otherwise error
    case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim           ! logical; lakes are simulated
@@ -128,6 +130,7 @@ CONTAINS
    case('<is_vol_wm_jumpstart>');  read(cData,*,iostat=io_error) is_vol_wm_jumpstart   ! logical; jump to the first time step target volume is set to true
    case('<suppress_runoff>');      read(cData,*,iostat=io_error) suppress_runoff       ! logical; suppress the read runoff to zero (0) no host model
    case('<suppress_P_Ep>');        read(cData,*,iostat=io_error) suppress_P_Ep         ! logical; suppress the precipitation/evaporation to zero (0) no host model
+   case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                    ! time interval of the simulation [sec] (To-do: change dt to dt_sim)
    ! RIVER NETWORK TOPOLOGY
    case('<fname_ntopOld>');        fname_ntopOld = trim(cData)                         ! name of file containing stream network topology information
    case('<ntopAugmentMode>');      read(cData,*,iostat=io_error) ntopAugmentMode       ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
@@ -146,9 +149,11 @@ CONTAINS
    case('<dname_xlon>');           dname_xlon   = trim(cData)                          ! name of x (j,lon) dimension
    case('<dname_ylat>');           dname_ylat   = trim(cData)                          ! name of y (i,lat) dimension
    case('<units_qsim>');           units_qsim   = trim(cData)                          ! units of runoff
-   case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                    ! time interval of the gridded runoff
+   case('<dt_ro>');                read(cData,*,iostat=io_error) dt_ro                 ! time interval of the runoff data [sec]
    case('<input_fillvalue>');      read(cData,*,iostat=io_error) input_fillvalue       ! fillvalue used for input variable
-   ! FLUXES TO/FROM REACHES AND LAKE STATES FILE
+   case('<ro_calendar>');          ro_calendar  = trim(cData)                          ! name of calendar used in runoff input netcdfs
+   case('<ro_time_units>');        ro_time_units = trim(cData)                         ! time units used in runoff input netcdfs
+   ! Water-management input netCDF - water abstraction/infjection or lake target volume
    case('<fname_wm>');             fname_wm        = trim(cData)                       ! name of text file containing ordered nc file names
    case('<vname_flux_wm>');        vname_flux_wm   = trim(cData)                       ! name of varibale for fluxes to and from seg (reachs/lakes)
    case('<vname_vol_wm>');         vname_vol_wm    = trim(cData)                       ! name of varibale for target volume for managed lakes
@@ -156,6 +161,7 @@ CONTAINS
    case('<vname_segid_wm>');       vname_segid_wm  = trim(cData)                       ! name of the segid varibale in nc files
    case('<dname_time_wm>');        dname_time_wm   = trim(cData)                       ! name of time dimension
    case('<dname_segid_wm>');       dname_segid_wm  = trim(cData)                       ! name of the routing HRUs dimension
+   case('<dt_wm>');                read(cData,*,iostat=io_error) dt_wm                 ! time interval of the water-management data [sec]
    ! RUNOFF REMAPPING
    case('<is_remap>');             read(cData,*,iostat=io_error) is_remap              ! logical case runnoff needs to be mapped to river network HRU
    case('<fname_remap>');          fname_remap          = trim(cData)                  ! name of runoff mapping netCDF
@@ -168,7 +174,7 @@ CONTAINS
    case('<dname_hru_remap>');      dname_hru_remap      = trim(cData)                  ! name of dimension of river network HRU ID
    case('<dname_data_remap>');     dname_data_remap     = trim(cData)                  ! name of dimension of runoff HRU overlapping with river network HRU
    ! RESTART
-   case('<restart_write>');        restart_write        = trim(cData)                  ! restart write option: N[n]ever, L[l]ast, S[s]pecified, Monthly, Daily
+   case('<restart_write>');        restart_write        = trim(cData)                  ! restart write option (case-insensitive): never, last, specified, yearly, monthly, or daily
    case('<restart_date>');         restart_date         = trim(cData)                  ! specified restart date, yyyy-mm-dd (hh:mm:ss) for Specified option
    case('<restart_month>');        read(cData,*,iostat=io_error) restart_month         ! restart periodic month
    case('<restart_day>');          read(cData,*,iostat=io_error) restart_day           ! restart periodic day
@@ -180,9 +186,6 @@ CONTAINS
    case('<hydGeometryOption>');    read(cData,*,iostat=io_error) hydGeometryOption     ! option for hydraulic geometry calculations (0=read from file, 1=compute)
    case('<topoNetworkOption>');    read(cData,*,iostat=io_error) topoNetworkOption     ! option for network topology calculations (0=read from file, 1=compute)
    case('<computeReachList>');     read(cData,*,iostat=io_error) computeReachList      ! option to compute list of upstream reaches (0=do not compute, 1=compute)
-   ! TIME
-   case('<time_units>');           time_units = trim(cData)                            ! time units. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
-   case('<calendar>');             calendar   = trim(cData)                            ! calendar name
    ! GAUGE DATA
    case('<gageMetaFile>');         gageMetaFile = trim(cData)                          ! name of csv file containing gauge metadata (gauge id, reach id, gauge lat/lon)
    case('<outputAtGage>');         read(cData,*,iostat=io_error) outputAtGage          ! logical; T-> history file output at only gauge points
@@ -201,6 +204,9 @@ CONTAINS
    case('<maxPfafLen>');           read(cData,*,iostat=io_error) maxPfafLen            ! maximum digit of pfafstetter code (default 32)
    case('<pfafMissing>');          pfafMissing = trim(cData)                           ! missing pfafcode (e.g., reach without any upstream area)
    ! OUTPUT OPTIONS
+   case('<time_units>');           time_units = trim(cData)                            ! time units used in history file output. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
+   case('<newFileFrequency>');     newFileFrequency = trim(cData)                      ! frequency for new history files (daily, monthly, yearly, single)
+   case('<outputFrequency>');      outputFrequency  = trim(cData)                      ! output frequency (integer for multiple of simulation time step or daily, monthly or yearly)
    case('<basRunoff>');            read(cData,*,iostat=io_error) meta_hflx(ixHFLX%basRunoff        )%varFile  ! default: true
    case('<instRunoff>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%instRunoff       )%varFile  ! default: false
    case('<dlayRunoff>');           read(cData,*,iostat=io_error) meta_rflx(ixRFLX%dlayRunoff       )%varFile  ! default: false
@@ -210,7 +216,11 @@ CONTAINS
    case('<KWroutedRunoff>');       read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWroutedRunoff   )%varFile  ! default: true (turned off if inactive)
    case('<DWroutedRunoff>');       read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWroutedRunoff   )%varFile  ! default: true (turned off if inactive)
    case('<MCroutedRunoff>');       read(cData,*,iostat=io_error) meta_rflx(ixRFLX%MCroutedRunoff   )%varFile  ! default: true (turned off if inactive)
-   case('<volume>');               read(cData,*,iostat=io_error) meta_rflx(ixRFLX%volume           )%varFile  ! default: true
+   case('<IRFvolume>');            read(cData,*,iostat=io_error) meta_rflx(ixRFLX%IRFvolume        )%varFile  ! default: true (turned off if inactive)
+   case('<KWTvolume>');            read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWTvolume        )%varFile  ! default: true (turned off if inactive)
+   case('<KWvolume>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWvolume         )%varFile  ! default: true (turned off if inactive)
+   case('<MCvolume>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%MCvolume         )%varFile  ! default: true (turned off if inactive)
+   case('<DWvolume>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWvolume         )%varFile  ! default: true (turned off if inactive)
 
    ! VARIABLE NAMES for data (overwrite default name in popMeta.f90)
    ! HRU structure
@@ -329,32 +339,52 @@ CONTAINS
 
  end do  ! looping through lines in the control file
 
+ ! ---------- Perform minor processing and checking control variables ----------------------------------------
+
  ! ---------- directory option  ---------------------------------------------------------------------
  if (trim(restart_dir)==charMissing) then
    restart_dir = output_dir
  endif
 
+ ! ---------- restart option  ---------------------------------------------------------------------
+ if (trim(runMode)=='standalone' .or. .not. continue_run) then
+   if (trim(fname_state_in)==charMissing .or. lower(trim(fname_state_in))=='none' .or. lower(trim(fname_state_in))=='coldstart') then
+     isColdStart=.true.
+   else
+     isColdStart=.false.
+   end if
+ end if
+
  ! ---------- control river network writing option  ---------------------------------------------------------------------
- ! Case1- river network subset mode (idSegOut>0):  Write the network variables read from file over only upstream network specified idSegOut
- ! Case2- river network augment mode: Write full network variables over the entire network
+ ! option 1- river network subset mode (idSegOut>0):  Write the network variables read from file over only upstream network specified idSegOut
+ ! option 2- river network augment mode: Write full network variables over the entire network
  ! River network subset mode turnes off augmentation mode.
- ! Turned off ntopAugmentMode
  if (idSegOut>0) then
    ntopAugmentMode = .false.
  endif
 
  ! ---------- time variables  --------------------------------------------------------------------------------------------
  if (masterproc) then
-   write(iulog,'(2a)') new_line('a'), '---- calendar --- '
-   if (trim(calendar)/=charMissing) then
-     write(iulog,'(a)') '  calendar is provided in control file: '//trim(calendar)
-   else
-     write(iulog,'(a)') '  calendar will be read from '//trim(fname_qsim)
-   end if
-   if (trim(time_units)/=charMissing) then
-     write(iulog,'(a)') '  time_unit is provided in control file: '//trim(time_units)
-   else
-     write(iulog,'(a)') '  time_unit will be read from '//trim(fname_qsim)
+   if (trim(runMode)=='standalone') then
+     write(iulog,'(2a)') new_line('a'), '---- calendar --- '
+     write(iulog,'(a)') '  calendar used for simulation and history output is the same as runoff input'
+     if (trim(ro_calendar)/=charMissing) then
+       write(iulog,'(a)') '  calendar used in runoff input is provided in control file: '//trim(ro_calendar)
+       write(iulog,'(a)') '  However, this will be overwritten the one read from '//trim(fname_qsim)
+     else
+       write(iulog,'(a)') '  calendar used in runoff input will be read from '//trim(fname_qsim)
+     end if
+     write(iulog,'(2a)') new_line('a'), '---- time units --- '
+     if (trim(time_units)/=charMissing) then
+       write(iulog,'(a)') '  time_unit for history files is provided in control file: '//trim(time_units)
+     else
+       write(iulog,'(a)') '  time_unit for history files will be the same as runoff input'
+       if (trim(ro_time_units)/=charMissing) then
+         write(iulog,'(a)') '  time_unit in runoff input is provided in control file: '//trim(ro_time_units)
+       else
+         write(iulog,'(a)') '  time_unit used in runoff input will be read from '//trim(fname_qsim)
+       end if
+     end if
    end if
  end if
 
@@ -393,7 +423,61 @@ CONTAINS
      err=81; return
  end select
 
- ! ---------- output options --------------------------------------------------------------------------------------------
+ ! ---------- simulation time step, output frequency, file frequency -------
+ if (masterproc) then
+   write(iulog,'(2a)') new_line('a'), '---- output/simulation time steps --- '
+   write(iulog,'(A,F10.1)') '  simulation time step <dt_qsim>:             ', dt
+   write(iulog,'(2A)')      '  history file freqeuncy <newFileFrequency>:  ', trim(newFileFrequency)
+   write(iulog,'(2A)')      '  history output freqeuncy <outputFrequency>: ', trim(outputFrequency)
+ end if
+
+ ! 1. Process history output frequency
+ select case(trim(outputFrequency))
+   case('daily', 'monthly', 'yearly') ! do nothing
+   case default
+     read(outputFrequency,'(I5)',iostat=err) nOutFreq
+     if (err/=0) then
+       message=trim(message)//'<outputFrequency> is invalid: must be "daily", "monthly", "yearly" or positive integer (number of time steps)'; return
+     end if
+     if (nOutFreq<0) then
+       message=trim(message)//'<outputFrequency> is invalid: must be positive integer'; return
+     end if
+ end select
+
+ ! 2. Check simulation time step
+ ! 2.1 must be less than one day
+ if (dt>86400._dp) then
+   write(message, '(2A)') trim(message), '<dt_qsim> must be less than one-day (86400 sec)'
+   err=81; return
+ end if
+ ! 2.2. multiple of simulation time step must be one day
+ if (mod(86400._dp, dt)>0._dp) then
+   write(message, '(2A)') trim(message), 'multiple of <dt_qsim> [sec] must be 86400 [sec] (one day)'
+   err=81; return
+ end if
+
+ ! 3. Check output frequency against simulation time step if outputFrequency is numeric
+ if (nOutFreq/=integerMissing) then
+   if (mod(86400._dp, real(nOutFreq,kind=dp)*dt)>0._dp) then
+     write(message, '(2A)') trim(message), 'multiple of <outputFrequency> x <dt_qsim> [sec] must be 86400 [sec] (one day)'
+     err=81; return
+   end if
+ end if
+
+ ! 4. Check new history frequency against output frequency
+ if (trim(newFileFrequency)=='daily') then
+   if (trim(outputFrequency)=='monthly' .or. trim(outputFrequency)=='yearly') then
+     write(message, '(2A)') trim(message), 'you cannot output monthly or yearly output in daily file'
+     err=81; return
+   end if
+ else if (trim(newFileFrequency)=='monthly') then
+   if (trim(outputFrequency)=='yearly') then
+     write(message, '(2A)') trim(message), 'you cannot output yearly output in monthly file'
+     err=81; return
+   end if
+ end if
+
+ ! ---- routing methods
  ! Assign index for each active routing method
  ! Make sure to turn off write option for routines not used
  if (trim(routOpt)=='0')then; write(iulog,'(a)') 'WARNING: routOpt=0 is accumRunoff option now. 12 is previous 0 now'; endif
@@ -413,14 +497,38 @@ CONTAINS
    end select
  end do
 
+ ! ---- history Output variables
  do iRoute = 0, nRouteMethods-1
    select case(iRoute)
-     case(accumRunoff);           if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile=.false.
-     case(kinematicWaveTracking); if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%KWTroutedRunoff)%varFile=.false.
-     case(impulseResponseFunc);   if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%IRFroutedRunoff)%varFile=.false.
-     case(muskingumCunge);        if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%MCroutedRunoff)%varFile=.false.
-     case(kinematicWave);         if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%KWroutedRunoff)%varFile=.false.
-     case(diffusiveWave);         if (.not. onRoute(iRoute)) meta_rflx(ixRFLX%DWroutedRunoff)%varFile=.false.
+     case(accumRunoff)
+        if (.not. onRoute(iRoute)) then
+          meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile=.false.
+        end if
+     case(kinematicWaveTracking)
+       if (.not. onRoute(iRoute)) then
+         meta_rflx(ixRFLX%KWTroutedRunoff)%varFile=.false.
+         meta_rflx(ixRFLX%KWTvolume)%varFile=.false.
+       end if
+     case(impulseResponseFunc)
+        if (.not. onRoute(iRoute)) then
+          meta_rflx(ixRFLX%IRFroutedRunoff)%varFile=.false.
+          meta_rflx(ixRFLX%IRFvolume)%varFile=.false.
+       end if
+     case(muskingumCunge)
+       if (.not. onRoute(iRoute)) then
+         meta_rflx(ixRFLX%MCroutedRunoff)%varFile=.false.
+         meta_rflx(ixRFLX%MCvolume)%varFile=.false.
+       end if
+     case(kinematicWave)
+       if (.not. onRoute(iRoute)) then
+         meta_rflx(ixRFLX%KWroutedRunoff)%varFile=.false.
+         meta_rflx(ixRFLX%KWvolume)%varFile=.false.
+       end if
+     case(diffusiveWave)
+       if (.not. onRoute(iRoute)) then
+         meta_rflx(ixRFLX%DWroutedRunoff)%varFile=.false.
+         meta_rflx(ixRFLX%DWvolume)%varFile=.false.
+       end if
      case default; message=trim(message)//'expect digits from 0 and 5'; err=81; return
    end select
  end do

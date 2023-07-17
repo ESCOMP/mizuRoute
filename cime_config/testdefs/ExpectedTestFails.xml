@@ -30,52 +30,32 @@
 
   <!-- mizutest suite failures -->
 
-  <test name="SMS.f09_f09_mg17_rMERIT.I2000Clm50SpMizGs.cheyenne_gnu.mizuroute-default">
+  <test name="SMS_D.5x5_amazon_rHDMA.I2000Clm50SpMizGs.cheyenne_intel.mizuroute-5x5_amazon_rHDMA">
     <phase name="RUN">
       <status>FAIL</status>
-      <issue>#227</issue>
-    </phase>
-  </test>
-  <test name="SMS_D.nldas2_rUSGS_mnldas2.I2000Clm50SpMizGs.cheyenne_intel.mizuroute-default">
-    <phase name="RUN">
-      <status>FAIL</status>
-      <issue>ESMCI/cime#143</issue>
-    </phase>
-  </test>
-  <test name="SMS.f19_f19_mg17_rMERIT.I2000Clm50SpMizGs.cheyenne_gnu.mizuroute-default">
-    <phase name="RUN">
-      <status>FAIL</status>
-      <issue>#227</issue>
-    </phase>
-  </test>
-  <test name="SMS.hcru_hcru_mt13.I2000Clm50SpMizGs.cheyenne_intel.mizuroute-default">
-    <phase name="PEND">
-      <status>FAIL</status>
-      <issue>#226</issue>
-    </phase>
-  </test>
-  <test name="SMS.hcru_hcru_mt13_rHDMA.I2000Clm50SpMizGs.cheyenne_intel.mizuroute-default">
-    <phase name="PEND">
-      <status>FAIL</status>
-      <issue>#226</issue>
-    </phase>
-  </test>
-  <test name="ERI.nldas2_rHDMA_mnldas2.I2000Clm50SpMizGs.cheyenne_intel.mizuroute-default">
-    <phase name="RUN">
-      <status>FAIL</status>
-      <issue>#238</issue>
+      <issue>#382</issue>
     </phase>
   </test>
   <test name="ERP_D_P1x25.5x5_amazon_r05.I2000Clm50SpMizGs.cheyenne_intel.mizuroute-default">
-    <phase name="COMPARE_base_rest">
+    <phase name="RUN">
       <status>FAIL</status>
-      <issue>#252</issue>
+      <issue>#389</issue>
     </phase>
   </test>
-  <test name="PEM_Ld10.nldas2_rMERIT_mnldas2.I2000Clm50SpMizGs.cheyenne_intel.mizuroute-default">
+  <test name="ERS_D_Mmpi-serial.5x5_amazon_r05.I2000Clm50SpMizGs.cheyenne_intel.mizuroute-default">
     <phase name="COMPARE_base_rest">
       <status>FAIL</status>
-      <issue>#256</issue>
+      <issue>#390</issue>
+    </phase>
+  </test>
+  <test name="ERI.nldas2_nldas2_rHDMA_mnldas2.I2000Clm50SpMizGs.cheyenne_intel.mizuroute-default">
+    <phase name="COMPARE_base_hybrid">
+      <status>FAIL</status>
+      <issue>#388</issue>
+    </phase>
+    <phase name="COMPARE_base_rest">
+      <status>FAIL</status>
+      <issue>#388</issue>
     </phase>
   </test>
 
