@@ -20,32 +20,34 @@ CONTAINS
 
  ! get forcing data at current step at all the hrus
 
-  USE public_var,           ONLY: input_dir         ! directory containing input data
-  USE public_var,           ONLY: vname_qsim        ! varibale runoff in netCDF file
-  USE public_var,           ONLY: vname_evapo       ! varibale actual evaporation in netCDF file
-  USE public_var,           ONLY: vname_precip      ! varibale precipitation in netCDF file
-  USE public_var,           ONLY: vname_flux_wm     ! varibale precipitation in netCDF file
-  USE public_var,           ONLY: vname_vol_wm      ! varibale precipitation in netCDF file
-  USE public_var,           ONLY: is_remap          ! logical runnoff needs to be mapped to river network HRU
-  USE public_var,           ONLY: is_lake_sim       ! logical lake should be simulated
-  USE public_var,           ONLY: is_flux_wm        ! logical water management components fluxes should be read
-  USE public_var,           ONLY: is_vol_wm         ! logical water management components target volume should be read
-  USE public_var,           ONLY: suppress_runoff   ! logical suppress the read runoff to zero (0)
-  USE public_var,           ONLY: suppress_P_Ep     ! logical suppress the read precipitation/evaporation to zero (0)
-  USE public_var,           ONLY: dt_ro             ! forcing (ro,p,evap) input time step [sec]
-  USE public_var,           ONLY: dt_wm             ! water-management input time step [sec]
-  USE globalData,           ONLY: iTime             ! simulation time step index
-  USE globalData,           ONLY: runoff_data       ! data structure to hru runoff data
-  USE globalData,           ONLY: wm_data           ! data strcuture for water management
-  USE globalData,           ONLY: remap_data        ! data structure to remap data
-  USE globalData,           ONLY: inFileInfo_ro     ! metadata for input files for runoff, evapo and precip
-  USE globalData,           ONLY: inFileInfo_wm     ! metadata for water-management input files
-  USE globalData,           ONLY: begDatetime       ! simulation begin datetime data (yyyy:mm:dd:hh:mm:sec)
-  USE globalData,           ONLY: roBegDatetime     ! forcing data start datetime data (yyyy:mm:dd:hh:mm:sec)
-  USE globalData,           ONLY: wmBegDatetime     ! water-managment data start datetime data (yyyy:mm:dd:hh:mm:sec)
-  USE read_runoff,          ONLY: read_forcing_data ! read forcing variable into data data strucuture
-  USE process_remap_module, ONLY: remap_runoff      ! mapping HM runoff to river network HRU runoff (HM_HRU /= RN_HRU)
-  USE process_remap_module, ONLY: sort_flux         ! mapping runoff, fluxes based on order of HRUs, Reaches in the network
+  USE public_var,           ONLY: input_dir           ! directory containing input data
+  USE public_var,           ONLY: vname_qsim          ! varibale runoff in netCDF file
+  USE public_var,           ONLY: vname_evapo         ! varibale actual evaporation in netCDF file
+  USE public_var,           ONLY: vname_precip        ! varibale precipitation in netCDF file
+  USE public_var,           ONLY: vname_flux_wm       ! varibale precipitation in netCDF file
+  USE public_var,           ONLY: vname_vol_wm        ! varibale precipitation in netCDF file
+  USE public_var,           ONLY: is_remap            ! logical runnoff needs to be mapped to river network HRU
+  USE public_var,           ONLY: is_lake_sim         ! logical lake should be simulated
+  USE public_var,           ONLY: is_flux_wm          ! logical water management components fluxes should be read
+  USE public_var,           ONLY: is_vol_wm           ! logical water management components target volume should be read
+  USE public_var,           ONLY: scale_factor_runoff ! float; factor to scale the runoff values
+  USE public_var,           ONLY: scale_factor_Ep     ! float; factor to scale the evaporation values
+  USE public_var,           ONLY: scale_factor_prec   ! float; factor to scale the precipitation values
+  USE public_var,           ONLY: dt_ro               ! forcing (ro,p,evap) input time step [sec]
+  USE public_var,           ONLY: dt_wm               ! water-management input time step [sec]
+  USE public_var,           ONLY: verySmall           ! very small values
+  USE globalData,           ONLY: iTime               ! simulation time step index
+  USE globalData,           ONLY: runoff_data         ! data structure to hru runoff data
+  USE globalData,           ONLY: wm_data             ! data strcuture for water management
+  USE globalData,           ONLY: remap_data          ! data structure to remap data
+  USE globalData,           ONLY: inFileInfo_ro       ! metadata for input files for runoff, evapo and precip
+  USE globalData,           ONLY: inFileInfo_wm       ! metadata for water-management input files
+  USE globalData,           ONLY: begDatetime         ! simulation begin datetime data (yyyy:mm:dd:hh:mm:sec)
+  USE globalData,           ONLY: roBegDatetime       ! forcing data start datetime data (yyyy:mm:dd:hh:mm:sec)
+  USE globalData,           ONLY: wmBegDatetime       ! water-managment data start datetime data (yyyy:mm:dd:hh:mm:sec)
+  USE read_runoff,          ONLY: read_forcing_data   ! read forcing variable into data data strucuture
+  USE process_remap_module, ONLY: remap_runoff        ! mapping HM runoff to river network HRU runoff (HM_HRU /= RN_HRU)
+  USE process_remap_module, ONLY: sort_flux           ! mapping runoff, fluxes based on order of HRUs, Reaches in the network
 
   implicit none
   ! Argument variables
@@ -59,7 +61,7 @@ CONTAINS
 
   ierr=0; message='get_hru_runoff/'
 
-  if (suppress_runoff) then  ! not reading runoff data
+  if (ABS(scale_factor_runoff)<verySmall) then  ! not reading runoff data
     runoff_data%basinRunoff = 0._dp
   else
     ! time step mapping from runoff time step to simulation time step
@@ -99,9 +101,8 @@ CONTAINS
   ! Optional: lake module on -> read actual evaporation and preciptation
   if (is_lake_sim) then
 
-    if (suppress_P_Ep) then
-      ! suppressing the read runoff or precipitation and evaporation
-      runoff_data%basinPrecip = 0._dp
+    if (ABS(scale_factor_Ep)<verySmall) then
+      ! suppressing the read evaporation
       runoff_data%basinEvapo  = 0._dp
     else
       ! get the actual evaporation - runoff_data%sim(:) or %sim2D(:,:)
@@ -126,8 +127,13 @@ CONTAINS
                          runoff_data%basinEvapo,    &
                          ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      end if
+      end if ! is_remap
+    end if ! supress evaporation
 
+    if (ABS(scale_factor_prec)<verySmall) then
+      ! suppressing the read precipitation
+      runoff_data%basinPrecip  = 0._dp
+    else
       ! get the precepitation - runoff_data%sim(:) or %sim2D(:,:)
       call read_forcing_data(input_dir,              & ! input: directory
                              inFileInfo_ro,          & ! input: meta for forcing input files
@@ -151,7 +157,7 @@ CONTAINS
                          ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if ! is_remap
-    end if ! suppress_P_Ep
+    end if ! supress precipitation
 
     ! Optional: target volume based water release on -> read target lake volume
     if (is_vol_wm) then

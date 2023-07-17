@@ -128,8 +128,9 @@ CONTAINS
    case('<is_flux_wm>');           read(cData,*,iostat=io_error) is_flux_wm            ! logical; provided fluxes to or from seg/lakes should be considered
    case('<is_vol_wm>');            read(cData,*,iostat=io_error) is_vol_wm             ! logical; provided target volume for managed lakes are considered
    case('<is_vol_wm_jumpstart>');  read(cData,*,iostat=io_error) is_vol_wm_jumpstart   ! logical; jump to the first time step target volume is set to true
-   case('<suppress_runoff>');      read(cData,*,iostat=io_error) suppress_runoff       ! logical; suppress the read runoff to zero (0) no host model
-   case('<suppress_P_Ep>');        read(cData,*,iostat=io_error) suppress_P_Ep         ! logical; suppress the precipitation/evaporation to zero (0) no host model
+   case('<scale_factor_runoff>');  read(cData,*,iostat=io_error) scale_factor_runoff   ! float; factor to scale the runoff values
+   case('<scale_factor_Ep>');      read(cData,*,iostat=io_error) scale_factor_Ep       ! float; factor to scale the evaporation values
+   case('<scale_factor_prec>');    read(cData,*,iostat=io_error) scale_factor_prec     ! float; factor to scale the precipitation values
    case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                    ! time interval of the simulation [sec] (To-do: change dt to dt_sim)
    ! RIVER NETWORK TOPOLOGY
    case('<fname_ntopOld>');        fname_ntopOld = trim(cData)                         ! name of file containing stream network topology information
