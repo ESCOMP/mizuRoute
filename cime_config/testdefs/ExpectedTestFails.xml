@@ -54,7 +54,17 @@
       <issue>#390</issue>
     </phase>
   </test>
-  <test name=" ERI_Mmpi-serial.5x5_amazon_r05.I2000Clm50SpMizGs.cheyenne_intel.mizuroute-default">
+  <test name="ERI_Mmpi-serial.5x5_amazon_r05.I2000Clm50SpMizGs.cheyenne_intel.mizuroute-default">
+    <phase name="COMPARE_base_rest">
+      <status>FAIL</status>
+      <issue>#390</issue>
+    </phase>
+    <phase name="COMPARE_base_hybrid">
+      <status>FAIL</status>
+      <issue>#390</issue>
+    </phase>
+  </test>
+  <test name="ERI_Mmpi-serial.5x5_amazon_r05.I2000Clm50SpMizGs.izumi_gnu.mizuroute-default">
     <phase name="COMPARE_base_rest">
       <status>FAIL</status>
       <issue>#390</issue>
