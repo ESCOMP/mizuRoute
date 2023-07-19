@@ -21,6 +21,7 @@
 <outputFrequency>       monthly                    ! time frequency used for temporal aggregation of output variables - numeric or daily, monthyly, or yearly
 <dt_qsim>               86400                      ! coupling time interval of the forcing [sec]
 <continue_run>          F                          ! logical; T-> append output in existing history files. F-> write output in new history file
+<debug>                 F                          ! debug verbosity level; T -> extra log output. F-> normal log output
 ! ****************************************************************************************************************************
 ! DEFINE DIRECTORIES 
 ! --------------------------

@@ -337,7 +337,7 @@ CONTAINS
             do iHru = 1, nCatch
               ix = NETOPO_in(iRch)%HRUIX(iHru)
               if (present(offset)) ix = ix+offset
-              write(iulog, '(a,x,5(g20.12))') &
+              write(iulog, '(a,1x,5(g20.12))') &
                     'reachID, hruID, basinArea [m2], weight[-], hruArea [m2]=', &
                     NETOPO_in(iRch)%REACHID, NETOPO_in(iRch)%HRUID(iHru), RPARAM_in(iRch)%BASAREA, &
                     NETOPO_in(iRch)%HRUWGT(iHru), rtmCTL%area(ix)

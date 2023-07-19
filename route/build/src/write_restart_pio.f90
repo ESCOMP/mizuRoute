@@ -216,7 +216,7 @@ CONTAINS
    ! local variables
    type(datetime)                       :: restartTimeStamp ! datetime corresponding to file name time stamp
    integer(i4b)                         :: sec_in_day       ! second within day
-   character(len=50),parameter          :: fmtYMDHMS = '(2a,I0.4,a,I0.2,a,I0.2,x,I0.2,a,I0.2,a,I0.2)'
+   character(len=50),parameter          :: fmtYMDHMS = '(2a,I0.4,a,I0.2,a,I0.2,1x,I0.2,a,I0.2,a,I0.2)'
    character(len=50),parameter          :: fmtYMDS='(a,I0.4,a,I0.2,a,I0.2,a,I0.5,a)'
 
    ierr=0; message='restart_fname/'
@@ -274,14 +274,16 @@ CONTAINS
  integer(i4b), allocatable       :: compdof_rch(:)      !
  integer(i4b), allocatable       :: compdof_hru(:)      !
  integer(i4b)                    :: jDim             ! loop index for dimension
- integer(i4b)                    :: ixDim_common(4)  ! custom dimension ID array
+ integer(i4b)                    :: ixDim_common(6)  ! custom dimension ID array
  character(len=strLen)           :: cmessage         ! error message of downwind routine
 
  ierr=0; message='define_state_nc/'
 
- associate(dim_seg     => meta_stateDims(ixStateDims%seg)%dimId,     &
-           dim_ens     => meta_stateDims(ixStateDims%ens)%dimId,     &
-           dim_tbound  => meta_stateDims(ixStateDims%tbound)%dimId)
+ associate(dim_seg      => meta_stateDims(ixStateDims%seg)%dimId,     &
+           dim_ens      => meta_stateDims(ixStateDims%ens)%dimId,     &
+           dim_tbound   => meta_stateDims(ixStateDims%tbound)%dimId,  &
+           dim_nchars   => meta_stateDims(ixStateDims%nchars)%dimId,  &
+           dim_hist_fil => meta_stateDims(ixStateDims%hist_fil)%dimId)
 
  ! ----------------------------------
  ! Create file
@@ -290,7 +292,7 @@ CONTAINS
  if(ierr/=0)then; message=trim(cmessage)//'cannot create state netCDF'; return; endif
 
  ! For common dimension/variables - seg id, time, time-bound -----------
- ixDim_common = [ixStateDims%seg, ixStateDims%hru, ixStateDims%ens, ixStateDims%tbound]
+ ixDim_common = [ixStateDims%seg, ixStateDims%hru, ixStateDims%ens, ixStateDims%tbound, ixStateDims%nchars, ixStateDims%hist_fil]
 
  ! ----------------------------------
  ! Define dimensions
@@ -324,6 +326,9 @@ CONTAINS
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  call def_var(pioFileDescState, 'time_bound', ncd_float, ierr, cmessage, pioDimId=[dim_tbound], vdesc='time bound at last time step', vunit='sec')
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ call def_var(pioFileDescState, 'history_file', ncd_char, ierr, cmessage, pioDimId=[dim_nchars, dim_hist_fil], vdesc='history files that need to be read with this restart file', vunit='-')
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end associate
@@ -492,7 +497,7 @@ CONTAINS
 
   SUBROUTINE set_dim_len(ixDim, ierr, message1)
    ! populate state netCDF dimension size
-   USE public_var, ONLY: MAXQPAR
+   USE public_var, ONLY: MAXQPAR, outputAtGage
    USE globalData, ONLY: nMolecule
    USE globalData, ONLY: maxtdh           ! maximum unit-hydrogrph future time
    USE globalData, ONLY: FRAC_FUTURE      ! To get size of q future for basin IRF
@@ -517,6 +522,12 @@ CONTAINS
     case(ixStateDims%mol_mc);  meta_stateDims(ixStateDims%mol_mc)%dimLength  = nMolecule%MC_ROUTE
     case(ixStateDims%mol_dw);  meta_stateDims(ixStateDims%mol_dw)%dimLength  = nMolecule%DW_ROUTE
     case(ixStateDims%wave);    meta_stateDims(ixStateDims%wave)%dimLength    = MAXQPAR
+    case(ixStateDims%hist_fil)
+      if (outputAtGage) then
+        meta_stateDims(ixStateDims%hist_fil)%dimLength = 2
+      else
+        meta_stateDims(ixStateDims%hist_fil)%dimLength = 1
+      end if
     case default; ierr=20; message1=trim(message1)//'unable to identify dimension variable index'; return
    end select
 
@@ -841,6 +852,7 @@ CONTAINS
  USE public_var, ONLY: kinematicWave
  USE public_var, ONLY: muskingumCunge
  USE public_var, ONLY: diffusiveWave
+ USE public_var, ONLY: outputAtGage
  USE globalData, ONLY: onRoute               ! logical to indicate which routing method(s) is on
  USE globalData, ONLY: RCHFLX_trib         ! tributary reach fluxes (ensembles, reaches)
  USE globalData, ONLY: NETOPO_main         ! mainstem reach topology
@@ -850,6 +862,8 @@ CONTAINS
  USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
  USE globalData, ONLY: nTribOutlet         !
  USE globalData, ONLY: reachID             ! reach ID in network
+ USE globalData, ONLY: hfileOut            ! Output history file
+ USE globalData, ONLY: hfileOut_gage       ! Output history file for gaguges
  USE globalData, ONLY: nNodes              ! number of MPI tasks
  USE globalData, ONLY: nRch                ! number of reaches in network
  USE globalData, ONLY: TSEC                ! beginning/ending of simulation time step [sec]
@@ -923,6 +937,15 @@ CONTAINS
  call write_netcdf(pioFileDescState, 'time_bound', TSEC, [1], [2], ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+ call write_netcdf(pioFileDescState, 'history_file', hfileOut, &
+                   iStart=1, ierr=ierr, message=cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if ( outputAtGage )then
+    call write_netcdf(pioFileDescState, 'history_file', hfileOut_gage, &
+                      iStart=2, ierr=ierr, message=cmessage)
+ end if
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  call write_basinQ_state(ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -959,36 +982,36 @@ CONTAINS
  call write_history_state(ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! clean decomposition data
- call freeDecomp(pioFileDescState, iodesc_rch_double)
- call freeDecomp(pioFileDescState, iodesc_rch_int)
- call freeDecomp(pioFileDescState, iodesc_hist_rch_double)
- if (meta_hflx(ixHFLX%basRunoff)%varFile) then
-   call freeDecomp(pioFileDescState, iodesc_hist_hru_double)
- end if
- if (doesBasinRoute==1) then
-   call freeDecomp(pioFileDescState, iodesc_irf_bas_double)
- end if
- if (onRoute(impulseResponseFunc))then
-   call freeDecomp(pioFileDescState, iodesc_irf_double)
-   call freeDecomp(pioFileDescState, iodesc_vol_double)
- end if
- if (onRoute(kinematicWaveTracking)) then
-   call freeDecomp(pioFileDescState, iodesc_wave_int)
-   call freeDecomp(pioFileDescState, iodesc_wave_double)
- end if
- if (onRoute(kinematicWave)) then
-   call freeDecomp(pioFileDescState, iodesc_mesh_kw_double)
- end if
- if (onRoute(muskingumCunge)) then
-   call freeDecomp(pioFileDescState, iodesc_mesh_mc_double)
- end if
- if (onRoute(diffusiveWave)) then
-   call freeDecomp(pioFileDescState, iodesc_mesh_dw_double)
- end if
-
  ! close netCDF
  call closeFile(pioFileDescState, restartOpen)
+
+ ! clean decomposition data
+ call freeDecomp(pioSystem, iodesc_rch_double)
+ call freeDecomp(pioSystem, iodesc_rch_int)
+ call freeDecomp(pioSystem, iodesc_hist_rch_double)
+ if (meta_hflx(ixHFLX%basRunoff)%varFile) then
+   call freeDecomp(pioSystem, iodesc_hist_hru_double)
+ end if
+ if (doesBasinRoute==1) then
+   call freeDecomp(pioSystem, iodesc_irf_bas_double)
+ end if
+ if (onRoute(impulseResponseFunc))then
+   call freeDecomp(pioSystem, iodesc_irf_double)
+   call freeDecomp(pioSystem, iodesc_vol_double)
+ end if
+ if (onRoute(kinematicWaveTracking)) then
+   call freeDecomp(pioSystem, iodesc_wave_int)
+   call freeDecomp(pioSystem, iodesc_wave_double)
+ end if
+ if (onRoute(kinematicWave)) then
+   call freeDecomp(pioSystem, iodesc_mesh_kw_double)
+ end if
+ if (onRoute(muskingumCunge)) then
+   call freeDecomp(pioSystem, iodesc_mesh_mc_double)
+ end if
+ if (onRoute(diffusiveWave)) then
+   call freeDecomp(pioSystem, iodesc_mesh_dw_double)
+ end if
 
  CONTAINS
 

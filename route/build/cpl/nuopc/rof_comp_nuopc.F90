@@ -447,11 +447,8 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     call shr_cal_ymd2date(yy,mm,dd,start_ymd)
 
-    if (trim(starttype) == trim('continue') ) then
-      call shr_timeStr( currTime, simStart )
-    else
-      call shr_timeStr( startTime, simStart )
-    endif
+    ! Always have simulation start at current time
+    call shr_timeStr( currTime, simStart )
 
     call ESMF_TimeGet( stopTime, yy=yy, mm=mm, dd=dd, s=stop_tod, rc=rc )
     if (ChkErr(rc,__LINE__,u_FILE_u)) return

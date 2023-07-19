@@ -30,7 +30,7 @@ MODULE historyFile
 
   type :: histFile
     private
-    character(300)        :: fname               ! netCDF name
+    character(FileStrLen) :: fname               ! netCDF name
     integer(i4b)          :: iTime=0             ! time step in output netCDF
     logical(lgt)          :: fileStatus=.false.  ! flag to indicate history output netcdf is open
     logical(lgt)          :: gageOutput=.false.  ! flag to indicate this is at-gage-only output (== output subset of reaches)
@@ -77,6 +77,7 @@ MODULE historyFile
       type(iosystem_desc_t), optional, intent(in) :: pioSys
 
       instHistFile%fname = fname
+      instHistFile%fileStatus = .false.
 
       if (present(gageOutput)) then
         instHistFile%gageOutput = gageOutput
@@ -321,7 +322,7 @@ MODULE historyFile
       implicit none
       class(histFile), intent(inout) :: this
 
-      if (this%fileStatus) then
+      if (this%fileOpen() ) then
         call closeFile(this%pioFileDesc, this%fileStatus)
       endif
     END SUBROUTINE closeNC
@@ -350,7 +351,7 @@ MODULE historyFile
       implicit none
       class(histFile), intent(inout) :: this
 
-      call freeDecomp(this%pioFileDesc, this%ioDescHruFlux)
+      call freeDecomp(this%pioSys, this%ioDescHruFlux)
 
     END SUBROUTINE cleanup_hru
 
@@ -361,7 +362,7 @@ MODULE historyFile
       implicit none
       class(histFile), intent(inout) :: this
 
-      call freeDecomp(this%pioFileDesc, this%ioDescRchFlux)
+      call freeDecomp(this%pioSys, this%ioDescRchFlux)
 
     END SUBROUTINE cleanup_rch
 

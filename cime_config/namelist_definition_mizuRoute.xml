@@ -122,4 +122,27 @@
   </entry>
 
 
+  <!-- =========================== -->
+  <!-- group DATA                  -->
+  <!-- =========================== -->
+ <entry id="fname_ntopold">
+    <type>char</type>
+    <category>datasets</category>
+    <input_pathname>abs</input_pathname>
+    <group>data_files</group>
+    <desc>
+      River network description file
+    </desc>
+  </entry>
+
+ <entry id="fname_state_in">
+    <type>char</type>
+    <category>datasets</category>
+    <input_pathname>abs</input_pathname>
+    <group>data_files</group>
+    <desc>
+      Initial conditions file
+    </desc>
+  </entry>
+
 </entry_id>

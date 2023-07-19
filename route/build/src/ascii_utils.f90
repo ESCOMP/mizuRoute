@@ -204,8 +204,9 @@ CONTAINS
   vlines(current%ix) = current%chardat
   previous=>current; current=>current%next
   deallocate(previous)
+  nullify(previous)
  end do
- if(associated(list)) nullify(list)
+ nullify(list)
  END SUBROUTINE get_vlines
 
  ! **********************************************************************************************

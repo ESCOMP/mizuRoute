@@ -11,4 +11,5 @@ MODULE nrtype
     integer, parameter     :: LGT = KIND(.true.)
     ! common variables
     integer(i4b),parameter :: strLen=256            ! string length
+    integer(i4b),parameter :: FileStrLen=300        ! File string length
 END MODULE nrtype

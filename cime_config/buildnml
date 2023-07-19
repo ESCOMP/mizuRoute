@@ -14,7 +14,8 @@ import os, sys
 CIMEROOT = os.environ.get("CIMEROOT")
 if CIMEROOT is None:
     raise SystemExit("ERROR: must set CIMEROOT environment variable")
-sys.path.append(os.path.join(CIMEROOT, "scripts", "Tools"))
+_LIBDIR = os.path.join(CIMEROOT, "CIME", "Tools")
+sys.path.append(_LIBDIR)
 # Path for mizuRoute/route/settings for both a mizuRoute standalone checkout as well as a CESM checkout
 sys.path.append(os.path.join(CIMEROOT, "..", "route", "settings"))
 sys.path.append(os.path.join(CIMEROOT, "..", "components", "mizuRoute", "route", "settings"))
@@ -22,6 +23,7 @@ sys.path.append(os.path.join(CIMEROOT, "..", "components", "mizuRoute", "route",
 from standard_script_setup import *
 from CIME.case import Case
 from CIME.nmlgen import NamelistGenerator
+from CIME.XML.files import Files
 from CIME.utils import expect, safe_copy
 from CIME.buildnml import create_namelist_infile, parse_input
 from mizuRoute_control import mizuRoute_control
@@ -30,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
 ####################################################################################
-def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile, nmlgen, ctl, data_list_path):
+def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile, nmlgen, ctl):
 ####################################################################################
     """Write out the input configuration file for mizuRoute
 
@@ -124,7 +126,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
        varname_downSegId = "Tosegment"
        varname_pfafCode = "pfaf"
     elif (  config['rof_grid'] == "USGS_GFmz" ):
-       fname_ntopOld = "ntopo_USGS-GFmz_Conus_cdf5_c20201008.nc"
+       fname_ntopOld = "ntopo_USGS-GFmz_Conus_cdf5_c20230602.nc"
        varname_area = "Basin_Area"
        varname_length = "Length"
        varname_slope  = "Slope"
@@ -180,7 +182,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     #----------------------------------------------------
     # Initialize namelist defaults
     #----------------------------------------------------
-    nmlgen.init_defaults(infile, config)
+    nmlgen.init_defaults(infile, config, skip_default_for_groups="data_files",)
 
     #----------------------------------------------------
     # Check for incompatible options.
@@ -202,6 +204,7 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     ctl.set( "input_dir", rundir+"/" )
     ctl.set( "ancil_dir", ancil_dir )
     ctl.set( "fname_ntopOld", fname_ntopOld )
+    nmlgen.set_value( "fname_ntopold", value=os.path.join( ancil_dir, fname_ntopOld ) )
     ctl.set( "dt_qsim", str(dt_qsim) )
     ctl.set( "dname_sseg", dname_sseg )
     ctl.set( "dname_nhru", dname_nhru )
@@ -239,6 +242,8 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
             fname_state_in = "empty"
 
     ctl.set( "fname_state_in", fname_state_in )
+    if fname_state_in is not "empty":
+        nmlgen.set_value( "fname_state_in", value=os.path.join( ancil_dir, fname_ntopOld ) )
 
     # Read in the user control file for the case and change settings to it
     file_src = "user_nl_mizuroute_control"
@@ -257,17 +262,18 @@ def _create_control_files(case, caseroot, srcroot, confdir, inst_string, infile,
     #----------------------------------------------------
     control_file = os.path.join(confdir, "mizuRoute.control")
     nml_file = os.path.join(confdir, "mizuRoute_in")
-    write_nml_in_file(case, nmlgen, confdir, nml_file)
+    write_nml_in_file(case, nmlgen, confdir, nml_file )
     ctl.write( control_file )
 
 ###############################################################################
 def write_nml_in_file(case, nmlgen, confdir, nml_file):
 ###############################################################################
-    data_list_path = os.path.join(case.get_case_root(), "Buildconf", "rof.input_data_list")
+    data_list_path = os.path.join(case.get_case_root(), "Buildconf", "mizuroute.input_data_list")
     if os.path.exists(data_list_path):
         os.remove(data_list_path)
+
     namelist_file = os.path.join(confdir, nml_file)
-    nmlgen.write_output_file(namelist_file, data_list_path )
+    nmlgen.write_output_file(namelist_file, data_list_path=data_list_path, groups=["HSLOPE", "IRF_UH", "KWT"])
 
 ###############################################################################
 def buildnml(case, caseroot, compname):
@@ -295,13 +301,6 @@ def buildnml(case, caseroot, compname):
     ctl.read( sampleFile )
 
     #----------------------------------------------------
-    # Clear out old data.
-    #----------------------------------------------------
-    data_list_path = os.path.join(case.get_case_root(), "Buildconf", "mizuRoute.input_data_list")
-    if os.path.exists(data_list_path):
-        os.remove(data_list_path)
-
-    #----------------------------------------------------
     # Do some checking
     #----------------------------------------------------
     expect( ninst == 1, "mizuRoute can only be run for a single instance" )
@@ -322,12 +321,15 @@ def buildnml(case, caseroot, compname):
     create_namelist_infile(case, user_nl_file, infile)
     control_infile = [infile]
 
+    # NOTE: User definition *replaces* existing definition.
+    files = Files(comp_interface="nuopc")
+
     # Create the namelist generator object - independent of instance
-    definition_files = [srcroot + "/cime_config/namelist_definition_mizuRoute.xml"]
-    nmlgen = NamelistGenerator(case, definition_files)
+    definition_files = [os.path.join( srcroot,  "cime_config/namelist_definition_mizuRoute.xml") ]
+    nmlgen = NamelistGenerator(case, definition_files, files=files)
 
     # create control files
-    _create_control_files(case, caseroot, srcroot, confdir, inst_string, control_infile, nmlgen, ctl, data_list_path)
+    _create_control_files(case, caseroot, srcroot, confdir, inst_string, control_infile, nmlgen, ctl)
 
     # copy control files to rundir
     if os.path.isdir(rundir):
@@ -343,7 +345,7 @@ def buildnml(case, caseroot, compname):
 def _main_func():
 
     caseroot = parse_input(sys.argv)
-    with Case(caseroot) as case:
+    with Case(case_root=caseroot) as case:
         buildnml(case, caseroot, "mizuRoute")
 
 if __name__ == "__main__":

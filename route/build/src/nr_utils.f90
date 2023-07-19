@@ -108,7 +108,7 @@ CONTAINS
          jstack=jstack-2
      else
          k=(l+r)/2
-         call swap(index(k),index(l+1))
+         if ( k /= l+1 ) call swap(index(k),index(l+1))
          call icomp_xchg(index(l),index(r))
          call icomp_xchg(index(l+1),index(r))
          call icomp_xchg(index(l),index(l+1))
@@ -126,7 +126,7 @@ CONTAINS
                  if (arr(index(j)) <= a) exit
              end do
              if (j < i) exit
-             call swap(index(i),index(j))
+             if ( i /= j ) call swap(index(i),index(j))
          end do
          index(l+1)=index(j)
          index(j)=indext
@@ -423,7 +423,7 @@ CONTAINS
     do ix=1,size(array2)
       if(index1(ix) == integerMissing) cycle
       if(array2(ix) /= array1( index1(ix) ) )then
-        write(iulog,'(a,2(x,I10,x,I15))') 'ERROR Mapping: ix, ID(ix), index(ix), masterID(index(ix))=', ix, array2(ix), index1(ix), array1(index1(ix))
+        write(iulog,'(a,2(1x,I10,1x,I15))') 'ERROR Mapping: ix, ID(ix), index(ix), masterID(index(ix))=', ix, array2(ix), index1(ix), array1(index1(ix))
         message=trim(message)//'unable to find the match'
         ierr=20; return
       endif

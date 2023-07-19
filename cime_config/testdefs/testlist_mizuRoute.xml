@@ -3,20 +3,20 @@
 
    <!-- Test list: Need to test all mizuRoute grids: course: r05mz, 5x5_amazon_r05, 5x5_amazon_rHDMA    -->
    <!-- CONUS grids: nldas2_nldas2_rUSGS_mnldas2, nldas2_nldas2_rHDMA_mnldas2, nldas2_nldas2_rMERIT_mnldas2 -->
-   <!--       NOTE: nldas grids have toruble runnign with DEBUG on see cdeps issue 143 -->
+   <!--       NOTE: nldas grids have trouble running with DEBUG on see cdeps issue 143 -->
    <!--       NOTE: Tests with lakes use a grid with lk in the name                    -->
    <!-- 2-degree: f19_f19_mg17, f19_f19_rHDMA_mg17, f19_f19_rHDMAlk_mg17, f19_f19_rMERIT_mg17 -->
    <!-- 1-degree: f09_f09_mg17, f09_f09_rHDMA_mg17, f09_f09_rHDMAlk_mg17, f09_f09_rMERIT_mg17 -->
    <!-- half-degree: hcru_hcru_mt13, hcru_hcru_rMERIT_mt13, hcru_hcru_rHDMA_mt13 -->
-   <!-- Machines: cheyennea and izumi   Compilers: intel, gnu, nag, nvhpc -->
+   <!-- Machines: cheyenne and izumi   Compilers: intel, gnu, nag, nvhpc -->
    <!-- Run course resolutions only on izumi, on cheyenne run all -->
    <!-- Test types: ERS, SMS, ERI, PET, PFS DEBUG on and off -->
    <!-- NOTE: ERP tests are known NOT to work since the MPI task count must remain the same on restart -->
    <!--       ERP tests with threads only are also not working -->
-   <!--       ERP tests with only threads can work hoeever -->
+   <!--       ERP tests with only threads can work however -->
    <!--       PEM tests will change answers if tasks change -->
    <!-- MPI: mpi-serial and regular as well as some threaded -->
-   <!-- Short tests: minimum 1-day    Longer tests: a year to two, good to do past year boundary -->
+   <!-- Short tests: minimum 1-day    Longer tests: a year to two, good to go past year boundary -->
    <!-- compsets: I2000Clm50SpMizGs -->
 
   <!-- Amazon grids: r5 and HDMA include long tests and mpi-serial -->
@@ -96,7 +96,9 @@
       <machine name="izumi"    compiler="intel" category="mizu"></machine>
       <machine name="izumi"    compiler="gnu"   category="mizu"></machine>
       <machine name="izumi"    compiler="nag"   category="mizu"></machine>
+      <!-- izumi doens't have nvhpc in older version of ccs_config, and pgi no longer on the machine
       <machine name="izumi"    compiler="nvhpc" category="mizu"></machine>
+      -->
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
@@ -113,7 +115,26 @@
       <option name="comment"  >Exact restart test on small regional grid with DEBUG on for mpi-serial</option>
     </options>
   </test>
-  <test name="ERP_D_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="ERI_Mmpi-serial" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+    <machines>
+      <machine name="cheyenne" compiler="intel" category="mizu"></machine>
+      <machine name="izumi"    compiler="gnu"   category="mizu"></machine>
+    </machines>
+    <options>
+      <option name="wallclock">00:20:00</option>
+      <option name="comment"  >ERI Exact restart with hybrid and branch test on small regional grid with DEBUG off for mpi-serial</option>
+    </options>
+  </test>
+  <test name="ERS_D_Mmpi-serial_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+    <machines>
+      <machine name="cheyenne" compiler="intel" category="mizu"></machine>
+    </machines>
+    <options>
+      <option name="wallclock">00:20:00</option>
+      <option name="comment"  >Exact restart test on small regional grid using threads</option>
+    </options>
+  </test>
+  <test name="ERP_D_Mmpi-serial_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
     </machines>
@@ -122,7 +143,7 @@
       <option name="comment"  >Exact restart test changing number of threads on restart on small regional grid </option>
     </options>
   </test>
-  <test name="PET_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="PET_Mmpi-serial_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -133,7 +154,7 @@
       <option name="comment"  >PET test changing number of threads on small regional grid </option>
     </options>
   </test>
-  <test name="SMS_D_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="SMS_Mmpi-serial_D_P1x25" grid="5x5_amazon_r05" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
@@ -155,15 +176,11 @@
       <option name="comment"  >Smoke test on CONUS regional grid with DEBUG on</option>
     </options>
   </test>
-  <test name="ERS" grid="nldas2_nldas2_rUSGS_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="ERS_PS" grid="nldas2_nldas2_rUSGS_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="prebeta"></machine>
-      <machine name="izumi"    compiler="intel" category="mizu"></machine>
-      <machine name="izumi"    compiler="intel" category="prealpha"></machine>
-      <machine name="izumi"    compiler="nag"   category="mizu"></machine>
-      <machine name="izumi"    compiler="nag"   category="prebeta"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
@@ -189,11 +206,10 @@
       <option name="comment"  >PET test changing threads on CONUS HDMA regional grid with DEBUG off</option>
     </options>
   </test>
-  <test name="ERS" grid="nldas2_nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="ERS_PS" grid="nldas2_nldas2_rHDMA_mnldas2" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
-      <machine name="izumi"    compiler="gnu"   category="mizu"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
@@ -212,28 +228,34 @@
   </test>
 
   <!-- 2-degree grids r05mz, HDMA, and MERIT all DEBUG off-->
-  <test name="ERS" grid="f19_f19_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="ERS_PS" grid="f19_f19_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
-      <machine name="izumi"    compiler="intel" category="mizu"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
       <option name="comment"  >Exact restart on 2-degree grid with DEBUG off</option>
     </options>
   </test>
-  <test name="ERS" grid="f19_f19_rHDMAlk_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+  <test name="ERS_PS" grid="f19_f19_rHDMAlk_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
     <machines>
       <machine name="cheyenne" compiler="intel" category="mizu"></machine>
       <machine name="cheyenne" compiler="intel" category="prebeta"></machine>
       <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
-      <machine name="izumi"    compiler="intel" category="mizu"></machine>
-      <machine name="izumi"    compiler="intel" category="prebeta"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
       <option name="comment"  >Exact restart on 2-degree grid with DEBUG off</option>
+    </options>
+  </test>
+  <test name="ERI_PS" grid="f19_f19_rHDMAlk_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">
+    <machines>
+      <machine name="cheyenne" compiler="gnu"   category="mizu"></machine>
+    </machines>
+    <options>
+      <option name="wallclock">00:20:00</option>
+      <option name="comment"  >ERI Exact restart for hybrid and branch on 2-degree grid with DEBUG off</option>
     </options>
   </test>
   <test name="PFS" grid="f19_f19_rHDMA_mg17" compset="I2000Clm50SpMizGs" testmods="mizuroute/default">

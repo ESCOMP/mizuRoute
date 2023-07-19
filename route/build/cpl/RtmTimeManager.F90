@@ -1,6 +1,5 @@
 MODULE RtmTimeManager
 
-  USE ESMF
   USE shr_kind_mod, ONLY: r8 => shr_kind_r8
   USE shr_sys_mod , ONLY: shr_sys_abort, shr_sys_flush
   USE public_var  , ONLY: iulog
@@ -20,14 +19,12 @@ MODULE RtmTimeManager
   !--------------------------------------------------------------------------
 
   ! Input from CESM driver
-  integer,  save      :: nelapse               = integerMissing, & ! number of timesteps (or days if negative) to extend a run
-                         start_ymd             = integerMissing, & ! starting date for run in yearmmdd format
+  integer             :: start_ymd             = integerMissing, & ! starting date for run in yearmmdd format
                          start_tod             = 0,              & ! starting time of day for run in seconds
                          stop_ymd              = integerMissing, & ! stopping date for run in yearmmdd format
                          stop_tod              = 0,              & ! stopping time of day for run in seconds
                          ref_ymd               = integerMissing, & ! reference date for time coordinate in yearmmdd format
                          ref_tod               = 0                 ! reference time of day for time coordinate in seconds
-  logical,  save      :: tm_first_restart_step = .false.           ! true for first step of a restart or branch run
 
 CONTAINS
 
@@ -71,7 +68,10 @@ CONTAINS
     case('hours','hour','hr','h');      sec2tunit=3600._r8
     case('days','day','d');             sec2tunit=86400._r8
     case default
-      ierr=20; message=trim(message)//'<time_units>= '//trim(time_units)//': <time_units> must be seconds, minutes, hours or days.'; return
+      ierr=20
+      message=trim(message)//'<time_units>= '//trim(time_units)// &
+      ': <time_units> must be seconds, minutes, hours or days.'
+      return
   end select
 
   ! obtain reference, simulation start and end datetimes
@@ -92,7 +92,11 @@ CONTAINS
   timeVar(2) = timeVar(1) + dt
 
   ! check that the dates are aligned
-  if(endDatetime < begDatetime) then; ierr=20; message=trim(message)//'simulation end is before simulation start'; return; endif
+  if(endDatetime < begDatetime) then
+     ierr=20
+     message=trim(message)//'simulation end is before simulation start'
+     return
+  endif
 
   ! initialize model time at first time step (1) and previous time step (0)
   iTime = 1
@@ -103,7 +107,8 @@ CONTAINS
   if (masterproc .and. debug) then
     write(iulog,*) 'simStart datetime     = ', trim(simStart)
     write(iulog,*) 'simEnd   datetime     = ', trim(simEnd)
-    write(iulog,*) 'reference datetime    = ', refDatetime%year(), refDatetime%month(), refDatetime%day(), refDatetime%hour(), refDatetime%minute(), refDatetime%sec()
+    write(iulog,*) 'reference datetime    = ', refDatetime%year(), refDatetime%month(), refDatetime%day(), &
+                   refDatetime%hour(), refDatetime%minute(), refDatetime%sec()
     write(iulog,*) 'dt [sec]              = ', dt
     write(iulog,*) 'nTime                 = ', nTime
     write(iulog,*) 'iTime                 = ', iTime
@@ -117,6 +122,7 @@ CONTAINS
  ! Public subroutine:
  SUBROUTINE shr_timeStr(esmfTime, timeStr)
 
+   USE ESMF        , ONLY: ESMF_Time, ESMF_TimeGet
    implicit none
 
    ! Arguments
@@ -129,9 +135,8 @@ CONTAINS
 
    call ESMF_TimeGet(esmfTime , yy=yy, mm=mm, dd=dd, h=hr, m=mn, s=sec, rc=rc )
 
-   write(timeStr,'(i4.4,a,i2.2,a,i2.2,a,i2.2,a,i2.2,a,i2.2)'), yy,'-',mm,'-',dd,' ',hr,':',mn,':',sec
+   write(timeStr,'(i4.4,a1,i2.2,a1,i2.2,a1,i2.2,a1,i2.2,a1,i2.2)') yy,'-',mm,'-',dd,' ',hr,':',mn,':',sec
 
  END SUBROUTINE shr_timeStr
-
 
 END MODULE RtmTimeManager

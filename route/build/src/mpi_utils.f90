@@ -975,7 +975,7 @@ CONTAINS
     integer(i4b)                :: jerr
 
     write(iulog,*) trim(subName),trim(message)
-    call flush(6)
+    flush(iulog)
 
     if (present(comm)) then
       call MPI_ABORT(comm, ierr, jerr)
@@ -1009,11 +1009,11 @@ CONTAINS
       if(errLen>strLen)errMsg='errorMessageLengthTooLong'
 
       ! include process ID
-      write(*,'(a,1x,i4)') 'FATAL ERROR (MPI): '//trim(errMsg)//' for process ID ', pid
+      write(iulog,'(a,1x,i4)') 'FATAL ERROR (MPI): '//trim(errMsg)//' for process ID ', pid
 
       ! finalize MPI
       call MPI_FINALIZE(jerr)
-      call flush(6)
+      flush(iulog)
       stop
     endif
 
