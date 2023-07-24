@@ -129,8 +129,12 @@ CONTAINS
    case('<is_vol_wm>');            read(cData,*,iostat=io_error) is_vol_wm             ! logical; provided target volume for managed lakes are considered
    case('<is_vol_wm_jumpstart>');  read(cData,*,iostat=io_error) is_vol_wm_jumpstart   ! logical; jump to the first time step target volume is set to true
    case('<scale_factor_runoff>');  read(cData,*,iostat=io_error) scale_factor_runoff   ! float; factor to scale the runoff values
+   case('<offset_value_runoff>');  read(cData,*,iostat=io_error) offset_value_runoff   ! float; offset for runoff values
    case('<scale_factor_Ep>');      read(cData,*,iostat=io_error) scale_factor_Ep       ! float; factor to scale the evaporation values
+   case('<offset_value_Ep>');      read(cData,*,iostat=io_error) offset_value_Ep       ! float; offset for evaporation values
+   case('<flip_value_Ep>');        read(cData,*,iostat=io_error) flip_value_Ep         ! logical; flip evaporation in case upward direction is negative in input values convention
    case('<scale_factor_prec>');    read(cData,*,iostat=io_error) scale_factor_prec     ! float; factor to scale the precipitation values
+   case('<offset_value_prec>');    read(cData,*,iostat=io_error) offset_value_prec     ! float; offset for precipitation values
    case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                    ! time interval of the simulation [sec] (To-do: change dt to dt_sim)
    ! RIVER NETWORK TOPOLOGY
    case('<fname_ntopOld>');        fname_ntopOld = trim(cData)                         ! name of file containing stream network topology information
