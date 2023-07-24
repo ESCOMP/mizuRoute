@@ -83,8 +83,8 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! scale and offset
-    call scale_forcing (runoff_data%sim(:),      scale_factor_runoff, offset_value_runoff)
-    call scale_forcing (runoff_data%sim2D(:),    scale_factor_runoff, offset_value_runoff)
+    call scale_forcing (runoff_data%sim(:),        scale_factor_runoff, offset_value_runoff)
+    call scale_forcing (runoff_data%sim2D(:,:),    scale_factor_runoff, offset_value_runoff)
 
     ! Get river network HRU runoff into runoff_data data structure
     if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
@@ -129,8 +129,8 @@ CONTAINS
       end if
 
       ! scale and offset
-      call scale_forcing (runoff_data%sim(:),      scale_factor_Ep, offset_value_Ep)
-      call scale_forcing (runoff_data%sim2D(:),    scale_factor_Ep, offset_value_Ep)
+      call scale_forcing (runoff_data%sim(:),        scale_factor_Ep, offset_value_Ep)
+      call scale_forcing (runoff_data%sim2D(:,:),    scale_factor_Ep, offset_value_Ep)
 
       ! Get river network HRU runoff into runoff_data data structure
       if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
@@ -161,8 +161,8 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! scale and offset
-      call scale_forcing (runoff_data%sim(:),      scale_factor_prec, offset_value_prec)
-      call scale_forcing (runoff_data%sim2D(:),    scale_factor_prec, offset_value_prec)
+      call scale_forcing (runoff_data%sim(:),        scale_factor_prec, offset_value_prec)
+      call scale_forcing (runoff_data%sim2D(:,:),    scale_factor_prec, offset_value_prec)
 
       ! Get river network HRU runoff into runoff_data data structure
       if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
