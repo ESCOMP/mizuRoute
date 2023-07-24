@@ -101,7 +101,7 @@ CONTAINS
    cName = adjustl(cLines(iLine)(ibeg_name:iend_name))
    cData = adjustl(cLines(iLine)(iend_name+1:iend_data-1))
    if (masterproc) then
-     write(iulog,'(x,a,a,a)') trim(cName), ' --> ', trim(cData)
+     write(iulog,'(1x,a,a,a)') trim(cName), ' --> ', trim(cData)
    endif
 
    if (index(cData, achar(9)) > 0) then

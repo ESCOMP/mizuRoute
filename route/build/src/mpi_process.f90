@@ -2883,6 +2883,8 @@ CONTAINS
   integer(i4b),                   intent(out) :: ierr
   character(len=strLen),          intent(out) :: message ! error message
 
+  integer(i4b) :: receivemax      ! Receive buffer for MAX over all tasks
+
   ierr=0; message='pass_global_data/'
 
   ! send scalars
@@ -2892,7 +2894,8 @@ CONTAINS
   call MPI_BCAST(calendar,  strLen,  MPI_CHARACTER,        root, comm, ierr)
   call MPI_BCAST(time_units,strLen,  MPI_CHARACTER,        root, comm, ierr)
 
-  CALL MPI_ALLREDUCE(maxtdh, maxtdh, 1, MPI_INTEGER, MPI_MAX, comm, ierr)
+  CALL MPI_ALLREDUCE(maxtdh, receivemax, 1, MPI_INTEGER, MPI_MAX, comm, ierr)
+  maxtdh = receivemax
 
  END SUBROUTINE pass_global_data
 

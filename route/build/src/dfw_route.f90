@@ -90,10 +90,11 @@ CONTAINS
    if (nUps>0) then
      do iUps = 1,nUps
        iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-       write(iulog,'(A,X,I12,X,G15.4)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps),RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q
+       write(iulog,'(A,1X,I12,1X,G15.4)') ' UREACHK, uprflux=',NETOPO_in(segIndex)%UREACHK(iUps), &
+             RCHFLX_out(iens, iRch_ups)%ROUTE(idxDW)%REACH_Q
      enddo
    end if
-   write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
+   write(iulog,'(A,1X,G15.4)') ' RCHFLX_out(iEns,segIndex)%BASIN_QR(1)=',RCHFLX_out(iEns,segIndex)%BASIN_QR(1)
  endif
 
  ! solve diffusive wave equation
@@ -108,16 +109,17 @@ CONTAINS
                      verbose,                                 &  ! input: reach index to be examined
                      ierr, cmessage)                             ! output: error control
  if(ierr/=0)then
-    write(message, '(A,X,I12,X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage)
+    write(message, '(A,1X,I12,1X,A)') trim(message)//'/segment=', NETOPO_in(segIndex)%REACHID, '/'//trim(cmessage)
     return
  endif
 
  if(verbose)then
-   write(iulog,'(A,X,G15.4)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_Q
+   write(iulog,'(A,1X,G15.4)') ' RCHFLX_out(iens,segIndex)%REACH_Q=', RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_Q
  endif
 
  if (RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(1) < 0) then
-   write(iulog,'(A,X,G12.5,X,A,X,I9)') ' ---- NEGATIVE VOLUME = ', RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(1), 'at ', NETOPO_in(segIndex)%REACHID
+   write(iulog,'(A,1X,G12.5,1X,A,1X,I9)') ' ---- NEGATIVE VOLUME = ', RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(1), &
+         'at ', NETOPO_in(segIndex)%REACHID
  end if
 
  call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxDW, q_upstream, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
@@ -252,17 +254,17 @@ CONTAINS
    dx = rch_param%RLENGTH/(Nx-1) ! one extra sub-segment beyond outlet
 
    if (verbose) then
-     write(iulog,'(A,X,G12.5)') ' length [m]        =',rch_param%RLENGTH
-     write(iulog,'(A,X,G12.5)') ' slope [-]         =',rch_param%R_SLOPE
-     write(iulog,'(A,X,G12.5)') ' channel width [m] =',rch_param%R_WIDTH
-     write(iulog,'(A,X,G12.5)') ' manning coef [-]  =',rch_param%R_MAN_N
+     write(iulog,'(A,1X,G12.5)') ' length [m]        =',rch_param%RLENGTH
+     write(iulog,'(A,1X,G12.5)') ' slope [-]         =',rch_param%R_SLOPE
+     write(iulog,'(A,1X,G12.5)') ' channel width [m] =',rch_param%R_WIDTH
+     write(iulog,'(A,1X,G12.5)') ' manning coef [-]  =',rch_param%R_MAN_N
    end if
 
    ! time-step adjustment so Courant number is less than 1
    dTsub = dt/ntSub
 
    if (verbose) then
-     write(iulog,'(A,X,I3,A,X,G12.5)') ' No. sub timestep=',nTsub,' sub time-step [sec]=',dTsub
+     write(iulog,'(A,1X,I3,A,1X,G12.5)') ' No. sub timestep=',nTsub,' sub time-step [sec]=',dTsub
    end if
 
    allocate(Qlocal(1:nMolecule%DW_ROUTE, 0:1), stat=ierr, errmsg=cmessage)
@@ -355,7 +357,7 @@ CONTAINS
 
    if (verbose) then
      write(fmt1,'(A,I5,A)') '(A,1X',nMolecule%DW_ROUTE,'(1X,G15.4))'
-     write(iulog,'(A,X,G12.5)') ' rflux%REACH_Q= ', rflux%ROUTE(idxDW)%REACH_Q
+     write(iulog,'(A,1X,G12.5)') ' rflux%REACH_Q= ', rflux%ROUTE(idxDW)%REACH_Q
      write(iulog,fmt1) ' Qprev(1:nMolecule)= ', Qprev(1:nMolecule%DW_ROUTE)
      write(iulog,'(A,5(1X,G12.5))') ' Qbar, Abar, Vbar, ck, dk= ',Qbar, Abar, Vbar, ck, dk
      write(iulog,'(A,2(1X,G12.5))') ' Cd, Ca= ', Cd, Ca

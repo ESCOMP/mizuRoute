@@ -576,8 +576,6 @@ CONTAINS
     !        --> users can modify the hard-coded parameter "maxUpstreamFile" if desired
     if(tot_upstream > maxUpstreamFile) tot_upstream=0
 
-    call system('rm -f '//trim(ancil_dir)//trim(fname_ntopNew))
-
     call writeData(&
                    ! input
                    trim(ancil_dir)//trim(fname_ntopNew), & ! input: file name

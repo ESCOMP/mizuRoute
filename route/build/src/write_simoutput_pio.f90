@@ -107,10 +107,6 @@ CONTAINS
 
     end if
 
-    ! update history files
-    call io_rpfile('w', ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
  END SUBROUTINE main_new_file
 
  ! *********************************************************************
@@ -128,7 +124,8 @@ CONTAINS
    ierr=0; message='new_file_alarm/'
 
    if (masterproc) then
-     write(iulog,'(a,I4,4(x,I4))') new_line('a'), inDatetime(1)%year(), inDatetime(1)%month(), inDatetime(1)%day(), inDatetime(1)%hour(), inDatetime(1)%minute()
+     write(iulog,'(a,I4,4(1x,I4))') new_line('a'), inDatetime(1)%year(), inDatetime(1)%month(), &
+           inDatetime(1)%day(), inDatetime(1)%hour(), inDatetime(1)%minute()
    endif
 
    ! check need for the new file
@@ -479,12 +476,12 @@ CONTAINS
  SUBROUTINE close_all()
    implicit none
    if (hist_all_network%fileOpen()) then
-     call hist_all_network%cleanup()
      call hist_all_network%closeNC()
+     call hist_all_network%cleanup()
    end if
    if (hist_gage%fileOpen()) then
-     call hist_gage%cleanup()
      call hist_gage%closeNC()
+     call hist_gage%cleanup()
    end if
  END SUBROUTINE
 
