@@ -66,7 +66,7 @@ CONTAINS
 
   ierr=0; message='get_hru_runoff/'
 
-  if (ABS(scale_factor_runoff)<verySmall) .and. ((ABS(offset_value_runoff)<verySmall) .or. (ABS(offset_value_runoff-realmissing)<verySmall)) then  ! not reading runoff data
+  if ((ABS(scale_factor_runoff)<verySmall) .and. ((ABS(offset_value_runoff)<verySmall) .or. (ABS(offset_value_runoff-realmissing)<verySmall))) then  ! not reading runoff data
     runoff_data%basinRunoff = 0._dp ! replacing with zeros
   else
     ! time step mapping from runoff time step to simulation time step
@@ -83,8 +83,7 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! scale and offset
-    call scale_forcing (runoff_data%sim(:),        scale_factor_runoff, offset_value_runoff)
-    call scale_forcing (runoff_data%sim2D(:,:),    scale_factor_runoff, offset_value_runoff)
+    call scale_forcing (runoff_data, scale_factor_runoff, offset_value_runoff)
 
     ! Get river network HRU runoff into runoff_data data structure
     if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
@@ -110,7 +109,7 @@ CONTAINS
   ! Optional: lake module on -> read actual evaporation and preciptation
   if (is_lake_sim) then
 
-    if (ABS(scale_factor_Ep)<verySmall) .and. ((ABS(offset_value_Ep)<verySmall) .or. (ABS(offset_value_Ep-realmissing)<verySmall)) then  ! not reading evaporation
+    if ((ABS(scale_factor_Ep)<verySmall) .and. ((ABS(offset_value_Ep)<verySmall) .or. (ABS(offset_value_Ep-realmissing)<verySmall))) then  ! not reading evaporation
       runoff_data%basinEvapo  = 0._dp ! set evaporation to zero
     else
       ! get the actual evaporation - runoff_data%sim(:) or %sim2D(:,:)
@@ -123,14 +122,12 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! if evaporation are provided in negative values (convention for upward) then flip them
-      if flip_Ep then
-        call scale_forcing (runoff_data%sim(:),      -1._dp, 0._dp)
-        call scale_forcing (runoff_data%sim2D(:,:),  -1._dp, 0._dp)
+      if (flip_Ep) then
+        call scale_forcing (runoff_data,  -1._dp, 0._dp)
       end if
 
       ! scale and offset
-      call scale_forcing (runoff_data%sim(:),        scale_factor_Ep, offset_value_Ep)
-      call scale_forcing (runoff_data%sim2D(:,:),    scale_factor_Ep, offset_value_Ep)
+      call scale_forcing (runoff_data,  scale_factor_Ep, offset_value_Ep)
 
       ! Get river network HRU runoff into runoff_data data structure
       if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
@@ -148,7 +145,7 @@ CONTAINS
       end if ! is_remap
     end if ! supress evaporation
 
-    if (ABS(scale_factor_prec)<verySmall) .and. ((ABS(offset_value_prec)<verySmall) .or. (ABS(offset_value_prec-realmissing)<verySmall)) then  ! not reading precipitation
+    if ((ABS(scale_factor_prec)<verySmall) .and. ((ABS(offset_value_prec)<verySmall) .or. (ABS(offset_value_prec-realmissing)<verySmall))) then  ! not reading precipitation
       runoff_data%basinPrecip  = 0._dp ! set precipitation to zero
     else
       ! get the precepitation - runoff_data%sim(:) or %sim2D(:,:)
@@ -161,8 +158,7 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! scale and offset
-      call scale_forcing (runoff_data%sim(:),        scale_factor_prec, offset_value_prec)
-      call scale_forcing (runoff_data%sim2D(:,:),    scale_factor_prec, offset_value_prec)
+      call scale_forcing (runoff_data, scale_factor_prec, offset_value_prec)
 
       ! Get river network HRU runoff into runoff_data data structure
       if (is_remap) then ! remap LSM simulated flux to the HRUs in the river network
@@ -350,43 +346,52 @@ CONTAINS
  ! *********************************************************************
  ! private subroutine: scale and offset of forcing input
  ! *********************************************************************
- SUBROUTINE scale_forcing (forcing_array,     & ! inout: array of forcing, runoff, evaporation or precipitation
-                          a,                  & ! in: scale factor
-                          b)                    ! in: offset values
+ SUBROUTINE scale_forcing (forcing_data_in,      & ! inout: array of forcing, runoff, evaporation or precipitation
+                           a,                    & ! in: scale factor
+                           b)                      ! in: offset values
 
-  USE public_var,     ONLY: very_small         ! directory containing input data
+  USE public_var,     ONLY: verySmall          ! directory containing input data
   USE public_var,     ONLY: realMissing        ! real missing value
+  USE dataTypes,      ONLY: inputData          ! input data class keeps runoff, evaporation, and precipitation
+
 
   implicit none
   ! input, output
-  REAL(dp), INTENT(inout) :: input_array(:)
-  REAL(dp), INTENT(in)    :: a, b
+  class(inputData), intent(inout)   :: forcing_data_in    ! forcing data structure
+  REAL(dp), INTENT(in)              :: a, b
 
   ! local varibales
-  real(dp)                   :: a_local
-  real(dp)                   :: b_local
+  real(dp)                          :: a_local
+  real(dp)                          :: b_local
 
   ! assign the inputs to local variables
   a_local = a
   b_local = b
 
   ! one of the values of a and b are provided and is not real missing
-  IF ( (very_small < abs(a_local-realMissing)) .OR. (very_small < abs(b_local-realMissing)) ) THEN
+  IF ( (verySmall < abs(a_local-realMissing)) .OR. (verySmall < abs(b_local-realMissing)) ) THEN
 
     ! a is not provided and is set to 1 as multiplier
-    IF (abs(a_local-realMissing)<very_small) THEN
+    IF (abs(a_local-realMissing)<verySmall) THEN
       a_local = 1.0_dp
     END IF
 
     ! b is not provided and is set to zero as offset
-    IF (abs(b_local-realMissing)<very_small) THEN
+    IF (abs(b_local-realMissing)<verySmall) THEN
       b_local = 0.0_dp
     END IF
 
-    ! find the location of input forcing array that its values are not real missing and apply transformation
-    WHERE (very_small < ABS(forcing_array - realMissing))
-      forcing_array = a_local * forcing_array + b_local
-    END WHERE
+    if (allocated(forcing_data_in%sim)) then
+      WHERE (verySmall < ABS(forcing_data_in%sim - realMissing))
+        forcing_data_in%sim = a_local * forcing_data_in%sim + b_local
+      END WHERE
+    end if
+
+    if (allocated(forcing_data_in%sim2d)) then
+      WHERE (verySmall < ABS(forcing_data_in%sim2d - realMissing))
+        forcing_data_in%sim2d = a_local * forcing_data_in%sim2d + b_local
+      END WHERE
+    end if
 
   END IF
 
