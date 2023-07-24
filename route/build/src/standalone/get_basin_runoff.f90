@@ -31,8 +31,12 @@ CONTAINS
   USE public_var,           ONLY: is_flux_wm          ! logical water management components fluxes should be read
   USE public_var,           ONLY: is_vol_wm           ! logical water management components target volume should be read
   USE public_var,           ONLY: scale_factor_runoff ! float; factor to scale the runoff values
+  USE public_var,           ONLY: offset_value_runoff ! float; offset for runoff values
   USE public_var,           ONLY: scale_factor_Ep     ! float; factor to scale the evaporation values
+  USE public_var,           ONLY: offset_value_Ep     ! float; offset for evaporation values
   USE public_var,           ONLY: scale_factor_prec   ! float; factor to scale the precipitation values
+  USE public_var,           ONLY: offset_value_prec   ! float; offset for precipitation values
+  USE public_var,           ONLY: flip_Ep             ! logical; flag to flip evaporation values if convention is negative for upward fluxes
   USE public_var,           ONLY: dt_ro               ! forcing (ro,p,evap) input time step [sec]
   USE public_var,           ONLY: dt_wm               ! water-management input time step [sec]
   USE public_var,           ONLY: verySmall           ! very small values
@@ -119,7 +123,7 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! if evaporation are provided in negative values (convention for upward) then flip them
-      if flip_value_Ep then
+      if flip_Ep then
         call scale_forcing (runoff_data%sim(:),      -1._dp, 0._dp)
         call scale_forcing (runoff_data%sim2D(:,:),  -1._dp, 0._dp)
       end if
