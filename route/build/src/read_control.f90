@@ -132,7 +132,7 @@ CONTAINS
    case('<offset_value_runoff>');  read(cData,*,iostat=io_error) offset_value_runoff   ! float; offset for runoff values
    case('<scale_factor_Ep>');      read(cData,*,iostat=io_error) scale_factor_Ep       ! float; factor to scale the evaporation values
    case('<offset_value_Ep>');      read(cData,*,iostat=io_error) offset_value_Ep       ! float; offset for evaporation values
-   case('<is_Ep_upward_negative>');read(cData,*,iostat=io_error) is_Ep_upward_negative ! logical; flip evaporation in case upward direction is negative in input values convention
+   case('<is_Ep_upward_negative>'); read(cData,*,iostat=io_error) is_Ep_upward_negative ! logical; flip evaporation in case upward direction is negative in input values convention
    case('<scale_factor_prec>');    read(cData,*,iostat=io_error) scale_factor_prec     ! float; factor to scale the precipitation values
    case('<offset_value_prec>');    read(cData,*,iostat=io_error) offset_value_prec     ! float; offset for precipitation values
    case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                    ! time interval of the simulation [sec] (To-do: change dt to dt_sim)
