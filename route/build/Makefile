@@ -1,304 +1,160 @@
 #========================================================================
-# Makefile to compile the routing model
+# Makefile for the external libaries that might need to be built
+# These are all under the top level "cime" directory.
 #========================================================================
-#
-# Need to edit FC, FC_EXE, EXE, isOpenMP (if OMP is used), F_MASTER, NCDF_PATH
-# Feel free to modify compiler flag (FLAGS)
-# Do not leave space after your edits
-#
-#========================================================================
-# User configure part
-#========================================================================
-# Define fortran compiler - gnu, intel or pgi
-FC  =
 
-# Define the compiler exe
-# For MPI use, mpifort, mpif77, mpif90, mpif08
-FC_EXE =
+#=============================================
+# First check that important settings are set
+#=============================================
 
-# Define the executable
-EXE =
-
-# Define optional setting
-# fast:      Enables optimizations
-# debug:     Minimum debug options, still
-# profile:   Enables profiling
-MODE = debug
-
-# define open MP flags (yes if used)
-isOpenMP = yes
-LIBOPENMP =
-
-# define if should use external librarys (yes if used)
-# external librarys are: mpi-serial, Parallel-I/O, and GPTL timing library
-# define path to PNETCDF if you want to use it
-isMPISERIAL =
-isPIO = yes
-isGPTL = yes
-
-# If isPIO==yes then you can give hints to PIO about the local system
-# gpfs is the specific filesystem used on cheyenne
-# (can be gpfs or lustre) Only use it if you know for sure about your filesystem.
-# If not make this setting blank
-PIO_FILESYSTEM_HINTS = gpfs
-
-# Define core directory below which everything resides
-# parent directory of the 'build' directory
-# do not put space at the end of path
-F_MASTER =
-
-# Define the NetCDF libraries and path to include files
-ifeq "$(FC)" "gnu"
- NCDF_PATH =
- PNETCDF_PATH =
-else ifeq "$(FC)" "intel"
- NCDF_PATH =
- PNETCDF_PATH =
-else ifeq "$(FC)" "pgi"
- NCDF_PATH =
- PNETCDF_PATH =
-else
- $(error FC is not set correctly)
-endif
-
-LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
-            -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
-INCNETCDF = -I$(NCDF_PATH)/include
-
-FLAGS_OMP =
-ifeq "$(isOpenMP)" "yes"
- ifeq "$(FC)" "pgi"
-  FLAGS_OMP = -mp
- endif
- ifeq "$(FC)" "gnu"
-  FLAGS_OMP = -fopenmp
- endif
- ifeq "$(FC)" "intel"
-  FLAGS_OMP = -qopenmp
- endif
-endif
-
-#========================================================================
-# generate a Git version string
-#========================================================================
-VERSION = $(shell git describe --tag)
-GITBRCH = $(shell git describe --long --all --always | sed -e's/heads\///')
-GITHASH = $(shell git rev-parse HEAD)
-
-#========================================================================
-# Define flags
-#========================================================================
-ifeq "$(FC)" "gnu"
-  ifeq "$(MODE)" "fast"
-    FLAGS = -O3 -fmax-errors=0 -ffree-line-length-none $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
-  endif
-  ifeq "$(MODE)" "debug"
-    FLAGS = -g -Wall -fmax-errors=0 -fbacktrace -fcheck=all -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
-  endif
-  ifeq "$(MODE)" "profile"
-    FLAGS = -p -g -Wall -fmax-errors=0 -fbacktrace -fbounds-check -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
-  endif
-endif
-
-ifeq "$(FC)" "intel"
-  ifeq "$(MODE)" "fast"
-    FLAGS = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
-  endif
-  ifeq "$(MODE)" "debug"
-    FLAGS = -g -debug all -warn all -check all -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
-  endif
-  ifeq "$(MODE)" "profile"
-    FLAGS = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
-  endif
-endif
-
-ifeq "$(FC)" "pgi"
-  ifeq "$(MODE)" "fast"
-    FLAGS = -fast -O3 -Mdclchk $(FLAGS_OMP)
-  endif
-  ifeq "$(MODE)" "debug"
-    FLAGS = -g -traceback -Mbounds -Mlist -Minfo -Mdclchk $(FLAGS_OMP)
-  endif
-endif
-
-#========================================================================
-# Define directory paths
-#========================================================================
-# Core directory that contains source code
-F_KORE_DIR = $(F_MASTER)build/src/
-
-# Location of the compiled modules
-MOD_PATH = $(F_MASTER)build/
-
-# Define the directory for the executables
-EXE_PATH = $(F_MASTER)bin
-
-# External libraries (if used)
-EXTLIBS =
-EXTINCLUDES =
-
-#========================================================================
-# Assemble all of the sub-routines
-#========================================================================
-# Define subroutines
-#
-# data types
-DATATYPES = \
-    nrtype.f90 \
-    public_var.f90 \
-    nr_utils.f90 \
-    ncio_utils.f90 \
-    pio_utils.f90 \
-    ascii_utils.f90 \
-    datetime_data.f90 \
-    dataTypes.f90 \
-    var_lookup.f90 \
-    base_route.f90 \
-    csv_data.f90 \
-    globalData.f90 \
-    popMetadat.f90 \
-    histVars_data.f90 \
-    historyFile.f90 \
-    allocation.f90
-# define utilities
-UTILS = \
-    mpi_utils.f90 \
-    model_utils.f90 \
-    gamma_func.f90
-# initialization
-INIT = \
-    network_topo.f90 \
-    process_param.f90 \
-    process_gage_meta.f90 \
-    process_ntopo.f90 \
-    pfafstetter.f90 \
-    domain_decomposition.f90
-# read/write files
-IO = \
-    process_remap.f90 \
-    read_control.f90 \
-    read_param.f90 \
-    read_streamSeg.f90 \
-    write_streamSeg.f90 \
-    standalone/read_runoff.f90 \
-    standalone/get_basin_runoff.f90 \
-    standalone/read_remap.f90 \
-    io_rpointfile.f90 \
-    read_restart.f90 \
-    write_simoutput_pio.f90 \
-    write_restart_pio.f90
-# CORE
-CORE = \
-    accum_runoff.f90 \
-    basinUH.f90 \
-    water_balance.f90 \
-    lake_route.f90 \
-    irf_route.f90 \
-    kwt_route.f90 \
-    kwe_route.f90 \
-    mc_route.f90 \
-    dfw_route.f90 \
-    main_route.f90 \
-    mpi_process.f90 \
-    init_model_data.f90 \
-    standalone/model_setup.f90
-
-# concatanate model subroutines
-TEMP_MODSUB = $(DATATYPES) $(UTILS) $(INIT) $(IO) $(CORE)
-
-# insert appropriate directory name
-MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
-
-#========================================================================
-# Define driver programs
-#========================================================================
-# Define the driver routine
-DRIVER = $(F_KORE_DIR)standalone/route_runoff.f90
-
-# tasks
-all: compile install clean
-
-#========================================================================
-# External libaries that might need to be built
-#========================================================================
+#======================================
+# Library definitions
+#=-====================================
+CPPDEFS      = -DUSE_MPI_ISEND_FOR_FC
+CIMEROOT     = $(F_MASTER)../cime
+MCTDIR       = $(F_MASTER)../libraries/mct/
+MPISERIALDIR = $(MCTDIR)/mpi-serial
+PIO2DIR      = $(F_MASTER)../libraries/parallelio
 LIBDIR       = $(F_MASTER)build/lib
-PIOLIBDIR    = $(LIBDIR)/piolib/lib
-PIOINCDIR    = $(LIBDIR)/piolib/include
-PIOLIB       = $(PIOLIBDIR)/libpiof.a $(PIOLIBDIR)/libpioc.a
-MPISERLIBDIR = $(LIBDIR)/mpi-seriallib
+PIOLIBDIR    = $(F_MASTER)build/lib/piolib
+PIOLIB       = $(PIOLIBDIR)/lib/libpiof.a $(PIOLIBDIR)/lib/libpioc.a
+PIOLIBMAKE   = $(PIOLIBDIR)/Makefile
+MPISERLIBDIR = $(F_MASTER)build/lib/mpi-seriallib
 MPISERLIB    = $(MPISERLIBDIR)/libmpi-serial.a
+MPISERCONF   = $(MPISERLIBDIR)/Makefile.conf
+MPIINC_PATHLIST  = $(CPATH)
+INCLDIR      = -I.
+CMAKE_OPTS   =
+
+all: $(CIMEROOT) $(MCTDIR) $(MPISERIALDIR) $(PIO2DIR)
+
+$(CIMEROOT):
+  @echo "Run manage_externals/checkout_externals in the root directory (cd ../../..) first in order to create the cime root directory"
+  @echo "CIMEROOT being looked for: $(CIMEROOT)"
+
+$(MCTDIR):
+  @echo "MCTDIR does not exist: $(MCTDIR)"
+
+$(MPISERIALDIR):
+  @echo "MPISERIALDIR does not exist: $(MPISERIALDIR)"
+
+$(PIO2DIR):
+  @echo "PIO2DIR does not exist: $(PIO2DIR)"
 
 ifeq "$(isPIO)" "yes"
-  EXTINCLUDES += -I$(PIOINCDIR)
-  EXTLIBS += $(PIOLIB)
-  LDFLAGS += -L$(PIOLIBDIR) -lpiof -lpioc
-
-  ifeq "$(isGPTL)" "yes"
-     LDFLAGS += -lgptl
-  endif
+  INCLDIR += -I$(PIOLIBDIR)/include
+  CPPDEFS += -DPIO2
 endif
 
 ifeq "$(isMPISERIAL)" "yes"
-  EXTINCLUDES += -I$(MPISERLIBDIR)
-  EXTLIBS += $(MPISERLIB)
-  LDFLAGS += -L$(MPISERLIBDIR) -lmpi-serial
+  MPISERIAL = $(MPISERLIB)
+  CPPDEFS += -DNO_MPI2
+  INCLDIR += -I$(MPISERIALDIR) -I$(MPISERLIBDIR)
   ifdef PNETCDF_PATH
     undefine PNETCDF_PATH
   endif
-  MPISERIAL = $(MPISERLIB)
+  CMAKE_OPTS += -DMPI_C_INCLUDE_PATH=$(PIOLIBDIR)/include \
+      -DMPI_Fortran_INCLUDE_PATH=$(PIOLIBDIR)/include \
+      -DMPI_C_LIBRARIES=$(MPISERLIB) \
+      -DMPI_Fortran_LIBRARIES=$(MPISERLIB)
+  CMAKE_OPTS += -D PIO_USE_MPISERIAL=TRUE -D MPISERIAL_PATH=$(MPISERLIBDIR)
+  CMAKE_OPTS += -DCMAKE_Fortran_COMPILER=$(FC)
 else
+  # Change colon delimited list to space with a -I in front of each
+  MPIINC   = $(subst :, -I,$(MPIINC_PATHLIST))
+  INCLDIR += -I$(MPIINC)
+  CPPDEFS += -DHAVE_MPI
   MPISERIAL =
+  CMAKE_OPTS += -DCMAKE_Fortran_COMPILER=mpif90
 endif
+
+ifeq "$(isGPTL)" "yes"
+  PIO_ENABLE_TIMING = ON
+  PIOLIB       += $(PIOLIBDIR)/lib/libgptl.a
+else
+  PIO_ENABLE_TIMING = OFF
+endif
+
+CMAKE_OPTS += -Wno-dev -D CMAKE_Fortran_FLAGS:STRING="$(FLAGS) $(CPPDEFS) $(INCLDIR)" \
+              -D CMAKE_C_FLAGS:STRING="$(CFLAGS) $(CPPDEFS) $(INCLDIR)" \
+              -D CMAKE_CXX_FLAGS:STRING="$(CXXFLAGS) $(CPPDEFS) $(INCLDIR)" \
+              -D CMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+              -D PIO_ENABLE_TESTS:BOOL=OFF \
+              -D CMAKE_INSTALL_PREFIX:PATH=$(PIOLIBDIR) \
+              -D PIO_ENABLE_TIMING:BOOL=$(PIO_ENABLE_TIMING) \
+              -D USER_CMAKE_MODULE_PATH:LIST="$(CIMEROOT)/src/CMake;$(PIO2DIR)/cmake"
+CMAKE_OPTS += -D NetCDF_PATH:PATH=$(NCDF_PATH)
+
+
+
 
 ifdef PNETCDF_PATH
-        LDFLAGS    += -L$(PNETCDF_PATH)/lib -lpnetcdf
+        CMAKE_OPTS += -D PnetCDF_PATH:STRING="$(PNETCDF_PATH)"
+        CPPDEFS    += -D_PNETCDF
+        INCLDIR    += -I$(PNETCDF_PATH)/include
+else
+        CMAKE_OPTS += -D WITH_PNETCDF:LOGICAL=FALSE -D PIO_USE_MPIIO:LOGICAL=FALSE
+endif
+ifdef PIO_FILESYSTEM_HINTS
+        CMAKE_OPTS += -D PIO_FILESYSTEM_HINTS:STRING="$(PIO_FILESYSTEM_HINTS)"
+endif
+CMAKE_OPTS += -D GENF90_PATH=$(PIO2DIR)/scripts
+
+ifeq "$(MODE)" "debug"
+   MODEARGS := --enable-debug
+else
+   MODEARGS :=
 endif
 
-$(PIOLIB): $(MPISERIAL)
-	cd $(LIBDIR); \
-	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) FC=$(FC_EXE) FC_EXE=$(FC_EXE) FLAGS="$(FLAGS)" \
-	PIO_FILESYSTEM_HINTS=$(PIO_FILESYSTEM_HINTS) PNETCDF_PATH=$(PNETCDF_PATH) isPIO=yes isGPTL=$(isGPTL) \
-	MPIINC_PATHLIST=$(CPATH) NCDF_PATH=$(NCDF_PATH) MODE=$(MODE) $(PIOLIB)
+$(MPISERCONF):
+  cp -p $(MPISERIALDIR)/*.h $(MPISERLIBDIR)/.
+  cd $(MPISERLIBDIR) && $(MPISERIALDIR)/configure FC=$(FC) MPIFC=$(FC_EXE) FCFLAGS="$(FLAGS) \
+                                              -I$(MPISERIALDIR)" MCT_PATH=$(MPISERIALDIR) --srcdir $(MPISERIALDIR) \
+                                              $(MODEARGS)
+  ln -sf $(MPISERIALDIR)/Makefile $(MPISERLIBDIR)/Makefile
 
-$(MPISERLIB):
-	cd $(LIBDIR); \
-	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) FC=$(FC_EXE) FC_EXE=$(FC_EXE) FLAGS="$(FLAGS)" isMPISERIAL=yes \
-	MODE=$(MODE) $(MPISERLIB)
+$(MPISERLIB): $(MPISERCONF)
+  $(MAKE) $(MFLAGS) -C $(MPISERLIBDIR) SRCDIR=$(MCTDIR)
 
-# Clean external libs
-cleanlibs: cleanpiolib cleanmpiseriallib
-	@echo "Clean the pio and mpi-serial external libraries"
+cleanlibs: cleanmpiseriallib cleanpiolib
+  @echo "Clean the libraries"
 .PHONY : cleanlibs
 
-cleanpiolib:
-	cd $(LIBDIR); \
-	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) cleanpiolib
-.PHONY : cleanpiolib
-
 cleanmpiseriallib:
-	cd $(LIBDIR); \
-	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) cleanmpiseriallib
+  rm $(MPISERLIBDIR)/*.h $(MPISERLIB) $(MPISERCONF) $(MPISERLIBDIR)/Makefile
 .PHONY : cleanmpiseriallib
 
-#========================================================================
-# Compile the puppy
-#========================================================================
-# compile
-compile: $(EXTLIBS)
-	$(FC_EXE) $(FLAGS) $(EXTINCLUDES) $(MODSUB) $(DRIVER) \
-	$(LIBNETCDF) $(INCNETCDF) $(LDFLAGS) -o $(EXE)
-	@echo "Succesfully compiled"
+cleanpiolib:
+  rm -rf $(PIOLIBDIR)/CMake* $(PIOLIBDIR)/*.cmake $(PIOLIBDIR)/*.h $(PIOLIB) $(PIOLIBDIR)/include/* $(PIOLIBMAKE)
+.PHONY : cleanpiolib
 
-# Remove object files
-clean:
-						rm -f *.o
-						rm -f *.lst
-						rm -f *.mod
-						rm -f *__genmod.f90
-						@echo "Successfully cleaned object files"
-#
-# Copy the executable to the bin directory
-install:
-	@mkdir -p $(EXE_PATH)
-	@mv $(EXE) $(EXE_PATH)
-	@echo "Successfully installed"
+$(PIOLIBMAKE): $(MPISERIAL)
+  cd $(PIOLIBDIR); \
+  $(CMAKE_ENV_VARS) cmake $(CMAKE_OPTS) $(MODEARGS) $(PIO2DIR)
+
+$(PIOLIB): $(PIOLIBMAKE)
+  $(MAKE) $(MFLAGS) -C $(PIOLIBDIR) piof
+  $(MAKE) $(MFLAGS) -C $(PIOLIBDIR) pioc
+  $(MAKE) $(MFLAGS) -C $(PIOLIBDIR) install
+
+db_extlibs:
+  @echo "CIMEROOT:  "       $(CIMEROOT)
+  @echo "libdir:    "       $(LIBDIR)
+  @echo "CPP-DEFS:  "       $(CPPDEFS)
+  @echo "mpi-serial:"       $(MPISERIALDIR)
+  @echo "pio2dir:   "       $(PIO2DIR)
+  @echo "mpi-seriallibdir:" $(MPISERLIBDIR)
+  @echo "piolibdir: "       $(PIOLIBDIR)
+  @echo "mpi-seriallib:   " $(MPISERLIB)
+  @echo "mpi-serialconf:  " $(MPISERCONF)
+  @echo "piolib:    "       $(PIOLIB)
+  @echo "piolib:Make"       $(PIOLIBMAKE)
+  @echo "MPIINC_PATHLIST: " $(MPIINC_PATHLIST)
+  @echo "INCLDIR      "     $(INCLDIR)
+  @echo "AR:          "     $(AR)
+  @echo "MAKE:        "     $(MAKE)
+  @echo "MFLAGS:      "     $(MFLAGS)
+  @echo "FLAGS:       "     $(FLAGS)
+  @echo "CMAKE_OPTS:  "     $(CMAKE_OPTS)
+  @echo "CMAKE_ENV_VARS:"   $(CMAKE_ENV_VARS)
+.PHONY : db_extlibs
