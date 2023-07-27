@@ -105,7 +105,7 @@ MODULE public_var
   real(dp)             ,public    :: offset_value_runoff  = realMissing     ! float offset for runoff
   real(dp)             ,public    :: scale_factor_Ep      = realMissing     ! float scale to scale the potential evaporation
   real(dp)             ,public    :: offset_value_Ep      = realMissing     ! float offset for evaporation
-  logical(lgt)         ,public    :: flip_Ep              = .false.         ! set to true when convention of upward evaporation is negative
+  logical(lgt)         ,public    :: is_Ep_upward_negative= .false.         ! set to true when convention of upward evaporation is negative
   real(dp)             ,public    :: scale_factor_prec    = realMissing     ! float scale to scale the precipitation
   real(dp)             ,public    :: offset_value_prec    = realMissing     ! float offset for precipitation
   logical(lgt)         ,public    :: compWB               = .false.         ! logical if entire domain water balance is computed

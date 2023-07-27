@@ -66,7 +66,7 @@ CONTAINS
 
   ierr=0; message='get_hru_runoff/'
 
-  if ((ABS(scale_factor_runoff)<verySmall) .and. ((ABS(offset_value_runoff)<verySmall) .or. (ABS(offset_value_runoff-realmissing)<verySmall))) then  ! not reading runoff data
+  if ((abs(scale_factor_runoff)<verySmall) .and. ((abs(offset_value_runoff)<verySmall) .or. (abs(offset_value_runoff-realmissing)<verySmall))) then  ! not reading runoff data
     runoff_data%basinRunoff = 0._dp ! replacing with zeros
   else
     ! time step mapping from runoff time step to simulation time step
@@ -109,7 +109,7 @@ CONTAINS
   ! Optional: lake module on -> read actual evaporation and preciptation
   if (is_lake_sim) then
 
-    if ((ABS(scale_factor_Ep)<verySmall) .and. ((ABS(offset_value_Ep)<verySmall) .or. (ABS(offset_value_Ep-realmissing)<verySmall))) then  ! not reading evaporation
+    if ((abs(scale_factor_Ep)<verySmall) .and. ((abs(offset_value_Ep)<verySmall) .or. (abs(offset_value_Ep-realmissing)<verySmall))) then  ! not reading evaporation
       runoff_data%basinEvapo  = 0._dp ! set evaporation to zero
     else
       ! get the actual evaporation - runoff_data%sim(:) or %sim2D(:,:)
@@ -122,7 +122,7 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! if evaporation are provided in negative values (convention for upward) then flip them
-      if (flip_Ep) then
+      if (is_Ep_upward_negative) then
         call scale_forcing (runoff_data,  -1._dp, 0._dp)
       end if
 
@@ -145,7 +145,7 @@ CONTAINS
       end if ! is_remap
     end if ! supress evaporation
 
-    if ((ABS(scale_factor_prec)<verySmall) .and. ((ABS(offset_value_prec)<verySmall) .or. (ABS(offset_value_prec-realmissing)<verySmall))) then  ! not reading precipitation
+    if ((abs(scale_factor_prec)<verySmall) .and. ((abs(offset_value_prec)<verySmall) .or. (abs(offset_value_prec-realmissing)<verySmall))) then  ! not reading precipitation
       runoff_data%basinPrecip  = 0._dp ! set precipitation to zero
     else
       ! get the precepitation - runoff_data%sim(:) or %sim2D(:,:)
@@ -347,55 +347,54 @@ CONTAINS
  ! private subroutine: scale and offset of forcing input
  ! *********************************************************************
  SUBROUTINE scale_forcing (forcing_data_in,      & ! inout: array of forcing, runoff, evaporation or precipitation
-                           a,                    & ! in: scale factor
-                           b)                      ! in: offset values
+                           scale,                & ! in: scale factor
+                           offset)                 ! in: offset values
 
   USE public_var,     ONLY: verySmall          ! directory containing input data
   USE public_var,     ONLY: realMissing        ! real missing value
   USE dataTypes,      ONLY: inputData          ! input data class keeps runoff, evaporation, and precipitation
 
-
   implicit none
   ! input, output
   class(inputData), intent(inout)   :: forcing_data_in    ! forcing data structure
-  REAL(dp), INTENT(in)              :: a, b
+  REAL(dp), INTENT(in)              :: scale, offset
 
   ! local varibales
-  real(dp)                          :: a_local
-  real(dp)                          :: b_local
+  real(dp)                          :: scale_local
+  real(dp)                          :: offset_local
 
   ! assign the inputs to local variables
-  a_local = a
-  b_local = b
+  scale_local   = scale
+  offset_local  = offset
 
-  ! one of the values of a and b are provided and is not real missing
-  IF ( (verySmall < abs(a_local-realMissing)) .OR. (verySmall < abs(b_local-realMissing)) ) THEN
+  ! one of the values of scale and offset are provided and is not real missing
+  if ( (verySmall < abs(scale_local-realMissing)) .or. (verySmall < abs(offset_local-realMissing)) ) then
 
-    ! a is not provided and is set to 1 as multiplier
-    IF (abs(a_local-realMissing)<verySmall) THEN
-      a_local = 1.0_dp
-    END IF
+    ! scale is not provided and is set to one
+    if (abs(scale_local-realMissing)<verySmall) then
+      scale_local = 1.0_dp
+    end if
 
-    ! b is not provided and is set to zero as offset
-    IF (abs(b_local-realMissing)<verySmall) THEN
-      b_local = 0.0_dp
-    END IF
+    ! offset is not provided and is set to zero
+    if (abs(offset_local-realMissing)<verySmall) then
+      offset_local = 0.0_dp
+    end if
 
     if (allocated(forcing_data_in%sim)) then
-      WHERE (verySmall < ABS(forcing_data_in%sim - realMissing))
-        forcing_data_in%sim = a_local * forcing_data_in%sim + b_local
-      END WHERE
+      where (verySmall < abs(forcing_data_in%sim - realMissing))
+        forcing_data_in%sim = scale_local * forcing_data_in%sim + offset_local
+      end where
     end if
 
     if (allocated(forcing_data_in%sim2d)) then
-      WHERE (verySmall < ABS(forcing_data_in%sim2d - realMissing))
-        forcing_data_in%sim2d = a_local * forcing_data_in%sim2d + b_local
-      END WHERE
+      where (verySmall < abs(forcing_data_in%sim2d - realMissing))
+        forcing_data_in%sim2d = scale_local * forcing_data_in%sim2d + offset_local
+      end where
     end if
 
-  END IF
+  end if
 
-END SUBROUTINE
+END SUBROUTINE scale_forcing
 
 
 END MODULE get_runoff
