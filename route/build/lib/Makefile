@@ -29,17 +29,17 @@ CMAKE_OPTS   =
 all: $(CIMEROOT) $(MCTDIR) $(MPISERIALDIR) $(PIO2DIR)
 
 $(CIMEROOT):
-	@echo "Run manage_externals/checkout_externals in the root directory (cd ../../..) first in order to create the cime root directory"
-	@echo "CIMEROOT being looked for: $(CIMEROOT)"
+  @echo "Run manage_externals/checkout_externals in the root directory (cd ../../..) first in order to create the cime root directory"
+  @echo "CIMEROOT being looked for: $(CIMEROOT)"
 
 $(MCTDIR):
-	@echo "MCTDIR does not exist: $(MCTDIR)"
+  @echo "MCTDIR does not exist: $(MCTDIR)"
 
 $(MPISERIALDIR):
-	@echo "MPISERIALDIR does not exist: $(MPISERIALDIR)"
+  @echo "MPISERIALDIR does not exist: $(MPISERIALDIR)"
 
 $(PIO2DIR):
-	@echo "PIO2DIR does not exist: $(PIO2DIR)"
+  @echo "PIO2DIR does not exist: $(PIO2DIR)"
 
 ifeq "$(isPIO)" "yes"
   INCLDIR += -I$(PIOLIBDIR)/include
@@ -83,7 +83,7 @@ CMAKE_OPTS += -Wno-dev -D CMAKE_Fortran_FLAGS:STRING="$(FLAGS) $(CPPDEFS) $(INCL
               -D CMAKE_INSTALL_PREFIX:PATH=$(PIOLIBDIR) \
               -D PIO_ENABLE_TIMING:BOOL=$(PIO_ENABLE_TIMING) \
               -D USER_CMAKE_MODULE_PATH:LIST="$(CIMEROOT)/src/CMake;$(PIO2DIR)/cmake"
-CMAKE_OPTS += -D NetCDF_Fortran_PATH:PATH=$(NCDF_FORTRAN_PATH) -D NetCDF_C_PATH:PATH=$(NCDF_C_PATH)
+CMAKE_OPTS += -D NetCDF_PATH:PATH=$(NCDF_PATH)
 
 
 
@@ -107,55 +107,54 @@ else
 endif
 
 $(MPISERCONF):
-	cp -p $(MPISERIALDIR)/*.h $(MPISERLIBDIR)/.
-	cd $(MPISERLIBDIR) && $(MPISERIALDIR)/configure FC=$(FC) MPIFC=$(FC_EXE) FCFLAGS="$(FLAGS) \
+  cp -p $(MPISERIALDIR)/*.h $(MPISERLIBDIR)/.
+  cd $(MPISERLIBDIR) && $(MPISERIALDIR)/configure FC=$(FC) MPIFC=$(FC_EXE) FCFLAGS="$(FLAGS) \
                                               -I$(MPISERIALDIR)" MCT_PATH=$(MPISERIALDIR) --srcdir $(MPISERIALDIR) \
                                               $(MODEARGS)
-	ln -sf $(MPISERIALDIR)/Makefile $(MPISERLIBDIR)/Makefile
+  ln -sf $(MPISERIALDIR)/Makefile $(MPISERLIBDIR)/Makefile
 
 $(MPISERLIB): $(MPISERCONF)
-	$(MAKE) $(MFLAGS) -C $(MPISERLIBDIR) SRCDIR=$(MCTDIR)
+  $(MAKE) $(MFLAGS) -C $(MPISERLIBDIR) SRCDIR=$(MCTDIR)
 
 cleanlibs: cleanmpiseriallib cleanpiolib
-	@echo "Clean the libraries"
+  @echo "Clean the libraries"
 .PHONY : cleanlibs
 
 cleanmpiseriallib:
-	rm $(MPISERLIBDIR)/*.h $(MPISERLIB) $(MPISERCONF) $(MPISERLIBDIR)/Makefile
+  rm $(MPISERLIBDIR)/*.h $(MPISERLIB) $(MPISERCONF) $(MPISERLIBDIR)/Makefile
 .PHONY : cleanmpiseriallib
 
 cleanpiolib:
-	rm -rf $(PIOLIBDIR)/CMake* $(PIOLIBDIR)/*.cmake $(PIOLIBDIR)/*.h $(PIOLIB) $(PIOLIBDIR)/include/* $(PIOLIBMAKE)
+  rm -rf $(PIOLIBDIR)/CMake* $(PIOLIBDIR)/*.cmake $(PIOLIBDIR)/*.h $(PIOLIB) $(PIOLIBDIR)/include/* $(PIOLIBMAKE)
 .PHONY : cleanpiolib
 
 $(PIOLIBMAKE): $(MPISERIAL)
-	cd $(PIOLIBDIR); \
-	$(CMAKE_ENV_VARS) cmake $(CMAKE_OPTS) $(MODEARGS) $(PIO2DIR)
+  cd $(PIOLIBDIR); \
+  $(CMAKE_ENV_VARS) cmake $(CMAKE_OPTS) $(MODEARGS) $(PIO2DIR)
 
 $(PIOLIB): $(PIOLIBMAKE)
-	$(MAKE) $(MFLAGS) -C $(PIOLIBDIR) piof
-	$(MAKE) $(MFLAGS) -C $(PIOLIBDIR) pioc
-	$(MAKE) $(MFLAGS) -C $(PIOLIBDIR) install
+  $(MAKE) $(MFLAGS) -C $(PIOLIBDIR) piof
+  $(MAKE) $(MFLAGS) -C $(PIOLIBDIR) pioc
+  $(MAKE) $(MFLAGS) -C $(PIOLIBDIR) install
 
 db_extlibs:
-	@echo "CIMEROOT:  "       $(CIMEROOT)
-	@echo "libdir:    "       $(LIBDIR)
-	@echo "CPP-DEFS:  "       $(CPPDEFS)
-	@echo "mpi-serial:"       $(MPISERIALDIR)
-	@echo "pio2dir:   "       $(PIO2DIR)
-	@echo "mpi-seriallibdir:" $(MPISERLIBDIR)
-	@echo "piolibdir: "       $(PIOLIBDIR)
-	@echo "mpi-seriallib:   " $(MPISERLIB)
-	@echo "mpi-serialconf:  " $(MPISERCONF)
-	@echo "piolib:    "       $(PIOLIB)
-	@echo "piolib:Make"       $(PIOLIBMAKE)
-	@echo "MPIINC_PATHLIST: " $(MPIINC_PATHLIST)
-	@echo "INCLDIR      "     $(INCLDIR)
-	@echo "AR:          "     $(AR)
-	@echo "MAKE:        "     $(MAKE)
-	@echo "MFLAGS:      "     $(MFLAGS)
-	@echo "FLAGS:       "     $(FLAGS)
-	@echo "CMAKE_OPTS:  "     $(CMAKE_OPTS)
-	@echo "CMAKE_ENV_VARS:"   $(CMAKE_ENV_VARS)
+  @echo "CIMEROOT:  "       $(CIMEROOT)
+  @echo "libdir:    "       $(LIBDIR)
+  @echo "CPP-DEFS:  "       $(CPPDEFS)
+  @echo "mpi-serial:"       $(MPISERIALDIR)
+  @echo "pio2dir:   "       $(PIO2DIR)
+  @echo "mpi-seriallibdir:" $(MPISERLIBDIR)
+  @echo "piolibdir: "       $(PIOLIBDIR)
+  @echo "mpi-seriallib:   " $(MPISERLIB)
+  @echo "mpi-serialconf:  " $(MPISERCONF)
+  @echo "piolib:    "       $(PIOLIB)
+  @echo "piolib:Make"       $(PIOLIBMAKE)
+  @echo "MPIINC_PATHLIST: " $(MPIINC_PATHLIST)
+  @echo "INCLDIR      "     $(INCLDIR)
+  @echo "AR:          "     $(AR)
+  @echo "MAKE:        "     $(MAKE)
+  @echo "MFLAGS:      "     $(MFLAGS)
+  @echo "FLAGS:       "     $(FLAGS)
+  @echo "CMAKE_OPTS:  "     $(CMAKE_OPTS)
+  @echo "CMAKE_ENV_VARS:"   $(CMAKE_ENV_VARS)
 .PHONY : db_extlibs
-
