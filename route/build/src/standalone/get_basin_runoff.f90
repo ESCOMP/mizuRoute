@@ -36,7 +36,7 @@ CONTAINS
   USE public_var,           ONLY: offset_value_Ep     ! float; offset for evaporation values
   USE public_var,           ONLY: scale_factor_prec   ! float; factor to scale the precipitation values
   USE public_var,           ONLY: offset_value_prec   ! float; offset for precipitation values
-  USE public_var,           ONLY: flip_Ep             ! logical; flag to flip evaporation values if convention is negative for upward fluxes
+  USE public_var,           ONLY: is_Ep_upward_negative ! logical; flag to flip evaporation values if convention is negative for upward fluxes
   USE public_var,           ONLY: dt_ro               ! forcing (ro,p,evap) input time step [sec]
   USE public_var,           ONLY: dt_wm               ! water-management input time step [sec]
   USE public_var,           ONLY: verySmall           ! very small values
