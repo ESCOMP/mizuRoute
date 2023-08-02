@@ -441,10 +441,18 @@ SUBROUTINE mod_meta_varFile(ierr, message)
     endif
 
     ! warning about the Endorheic lakes and absence of evaporation
-    if ((number_Endorheic>0).and.(suppress_P_Ep)) then
+    if ((number_Endorheic>0).and.(ABS(scale_factor_Ep)<verySmall)) then
       if (masterproc) then
-        write(iulog,'(A)') "The river network topology includes Endorheic lakes while no precipitation and evaporation is provided"
+        write(iulog,'(A)') "The river network topology includes Endorheic lakes while no evaporation is provided or supressed to zero by scale_factor_Ep"
         write(iulog,'(A)') "In absence of extraction from lake the Endorheic lake volumns will be always increasing"
+      end if
+    endif
+
+    ! warning about the Endorheic lakes and absence of precipitation
+    if ((number_Endorheic>0).and.(ABS(scale_factor_prec)<verySmall)) then
+      if (masterproc) then
+        write(iulog,'(A)') "The river network topology includes Endorheic lakes while no precipitation is provided or supressed to zero by scale_factor_prec"
+        write(iulog,'(A)') "This may result in lake level to be lower than while considering precipitation on lake or reservoir surface"
       end if
     endif
 

@@ -136,7 +136,7 @@ CONTAINS
             case(hanasaki06)
               RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RPARAM_in(segIndex)%H06_Smax
             case(hype)
-              RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = (RPARAM_in(segIndex)%HYP_E_min - RPARAM_in(segIndex)%HYP_E_zero) * RPARAM_in(segIndex)%HYP_A_avg
+              RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = (RPARAM_in(segIndex)%HYP_E_emr - RPARAM_in(segIndex)%HYP_E_zero) * RPARAM_in(segIndex)%HYP_A_avg
             case default; ierr=20; message=trim(message)//'unable to identify the parametric lake model type'; return
           end select
         endif

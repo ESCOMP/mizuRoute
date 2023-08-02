@@ -101,9 +101,14 @@ MODULE public_var
   logical(lgt)         ,public    :: is_flux_wm           = .false.         ! logical if flow is added or removed from a reach
   logical(lgt)         ,public    :: is_vol_wm            = .false.         ! logical if target volume is considered for a lake
   logical(lgt)         ,public    :: is_vol_wm_jumpstart  = .false.         ! logical if true the volume is reset to target volume for the first time step of modeling
-  logical(lgt)         ,public    :: suppress_runoff      = .false.         ! logical to suppress the read runoff to zero(0)
-  logical(lgt)         ,public    :: suppress_P_Ep        = .false.         ! logical to suppress evaporation and precipitation to zero(0)
-  logical(lgt)         ,public    :: compWB               = .false.          ! logical if entire domain water balance is computed
+  real(dp)             ,public    :: scale_factor_runoff  = realMissing     ! float scale to scale the runoff
+  real(dp)             ,public    :: offset_value_runoff  = realMissing     ! float offset for runoff
+  real(dp)             ,public    :: scale_factor_Ep      = realMissing     ! float scale to scale the potential evaporation
+  real(dp)             ,public    :: offset_value_Ep      = realMissing     ! float offset for evaporation
+  logical(lgt)         ,public    :: is_Ep_upward_negative= .false.         ! set to true when convention of upward evaporation is negative
+  real(dp)             ,public    :: scale_factor_prec    = realMissing     ! float scale to scale the precipitation
+  real(dp)             ,public    :: offset_value_prec    = realMissing     ! float offset for precipitation
+  logical(lgt)         ,public    :: compWB               = .false.         ! logical if entire domain water balance is computed
   real(dp)             ,public    :: dt                   = realMissing     ! simulation time step (seconds)
   ! RIVER NETWORK TOPOLOGY
   character(len=strLen),public    :: fname_ntopOld        = ''              ! old filename containing stream network topology information
