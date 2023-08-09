@@ -591,6 +591,30 @@ MODULE historyFile
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       endif
 
+      if (meta_rflx(ixRFLX%KWvolume)%varFile) then
+        if (nRch_write>0) then
+          array_temp(1:nRch_write) = hVars_local%volume(index_write, idxKW)
+        end if
+        call write_pnetcdf_recdim(this%pioFileDesc, 'KWvolume', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      endif
+
+      if (meta_rflx(ixRFLX%MCvolume)%varFile) then
+        if (nRch_write>0) then
+          array_temp(1:nRch_write) = hVars_local%volume(index_write, idxMC)
+        end if
+        call write_pnetcdf_recdim(this%pioFileDesc, 'MCvolume', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      endif
+
+      if (meta_rflx(ixRFLX%DWvolume)%varFile) then
+        if (nRch_write>0) then
+          array_temp(1:nRch_write) = hVars_local%volume(index_write, idxDW)
+        end if
+        call write_pnetcdf_recdim(this%pioFileDesc, 'DWvolume', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      endif
+
     END SUBROUTINE write_flux_rch
 
 END MODULE historyFile
