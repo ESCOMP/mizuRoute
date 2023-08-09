@@ -30,7 +30,7 @@
 
   <!-- mizutest suite failures -->
 
-  <test name="SMS_D.5x5_amazon_rHDMA.I2000Clm50SpMizGs.cheyenne_intel.mizuroute-5x5_amazon_rHDMA">
+  <test name="SMS_D.5x5_amazon_rHDMA.I2000Clm50SpMizGs.cheyenne_intel.mizuroute-default">
     <phase name="RUN">
       <status>FAIL</status>
       <issue>#382</issue>
