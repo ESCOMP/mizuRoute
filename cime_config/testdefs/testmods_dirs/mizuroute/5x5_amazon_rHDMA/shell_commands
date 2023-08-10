@@ -1,2 +1,0 @@
-./xmlchange --force LND2ROF_FMAPNAME='$DIN_LOC_ROOT/rof/mizuRoute/gridmaps/map_5x5_amazon_TO_HDMAmz_5x5_amazon_aave.201028.nc'
-./xmlchange --force ROF2LND_FMAPNAME='$DIN_LOC_ROOT/rof/mizuRoute/gridmaps/map_HDMAmz_5x5_amazon_TO_5x5_amazon_aave.201028.nc'
