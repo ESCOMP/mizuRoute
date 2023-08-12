@@ -405,6 +405,9 @@ CONTAINS
    err=80; return
  endif
 
+ ! set runoff depth units correctly
+ meta_hflx(ixHFLX%basRunoff)%varUnit = units_qsim
+
  ! get the length and time units
  cLength = units_qsim(1:ipos-1)
  cTime   = units_qsim(ipos+1:len_trim(units_qsim))
