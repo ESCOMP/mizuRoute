@@ -692,19 +692,18 @@ CONTAINS
   ierr=0; message='write_char0D/'
 
   if ( len(string) > size(tmpString) )then
-      ierr = 1
-      message=trim(message)//'ERROR: length of string being written is larger than tmpString'
-      return
+    ierr = 1
+    message=trim(message)//'ERROR: length of string being written is larger than tmpString'
+    return
   end if
   ierr = pio_inq_varid(pioFileDesc, trim(vname), pioVarId)
   if(ierr/=0)then; message=trim(message)//'ERROR: getting variable id'; return; endif
 
-
   do m = 1,len(string)
-     tmpString(m:m) = string(m:m)
+    tmpString(m:m) = string(m:m)
   end do
-  start(1) = iStart
-  start(2) = 1
+  start(1) = 1
+  start(2) = iStart
   icount(1) = len(string)
   icount(2) = 1
   var_id = pioVarId%varid
