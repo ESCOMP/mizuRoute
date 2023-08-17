@@ -6,10 +6,7 @@ USE dataTypes,     ONLY: RCHTOPO         ! data struct: Network topology
 USE dataTypes,     ONLY: RCHPRP          ! data struct: Network parameter
 USE public_var,    ONLY: iulog           ! parameter: i/o logical unit number
 USE public_var,    ONLY: realMissing     ! parameter: missing value for real number
-USE public_var,    ONLY: integerMissing  ! parameter: missing value for integer number
-USE public_var,    ONLY: charMissing     ! parameter: missing character
 USE public_var,    ONLY: pi              ! parameter: pi value of 3.14159265359_dp
-USE globalData,    ONLY: idxIRF          ! parameter: index of IRF method
 USE globalData,    ONLY: isColdStart     ! parameter: restart flag
 USE water_balance, ONLY: comp_reach_wb   ! routine: compute water balance error
 USE ascii_utils,   ONLY: lower           ! routine: convert string to lower case
@@ -30,6 +27,7 @@ CONTAINS
   ! *********************************************************************
   SUBROUTINE lake_route(iEns,       &    ! input: index of runoff ensemble to be processed
                         segIndex,   &    ! input: index of runoff ensemble to be processed
+                        idxRoute,   &    ! input: routing method index
                         ixDesire,   &    ! input: reachID to be checked by on-screen pringing (here reachID can be lake)
                         NETOPO_in,  &    ! input: reach topology data structure
                         RPARAM_in,  &    ! input: reach parameter data strcuture
@@ -51,6 +49,7 @@ CONTAINS
   ! Argument variables:
   integer(i4b), intent(in)                 :: iEns           ! runoff ensemble to be routed
   integer(i4b), intent(in)                 :: segIndex       ! segment where routing is performed
+  integer(i4b), intent(in)                 :: idxRoute       ! index of the reach for verbose output
   integer(i4b), intent(in)                 :: ixDesire       ! index of the reach for verbose output
   type(RCHTOPO), intent(in),   allocatable :: NETOPO_in(:)   ! River Network topology
   type(RCHPRP), intent(inout), allocatable :: RPARAM_in(:)   ! River Network topology
@@ -99,7 +98,7 @@ CONTAINS
     if(nUps>0)then
       do iUps = 1,nUps
         iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
-        q_upstream = q_upstream + RCHFLX_out(iens,iRch_ups)%ROUTE(idxIRF)%REACH_Q
+        q_upstream = q_upstream + RCHFLX_out(iens,iRch_ups)%ROUTE(idxRoute)%REACH_Q
       end do
     endif
 
@@ -125,18 +124,18 @@ CONTAINS
     ! jump start the lake volume to the target volume if provided for the first time step
     if (iTime==1) then
       if ((is_vol_wm_jumpstart).and.(NETOPO_in(segIndex)%LakeTargVol)) then
-        RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_WM_VOL ! update the initial condition with first target volume value
+        RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_WM_VOL ! update the initial condition with first target volume value
       else ! the lake volume is not jump started based on lake target volume
         if (isColdStart) then    ! Cold start ....... initialize flux structures
           select case(NETOPO_in(segIndex)%LakeModelType)
             case(endorheic)
-              RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RPARAM_in(segIndex)%D03_S0 ! currently assumes all endorheic max storage are provided under doll formulation
+              RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RPARAM_in(segIndex)%D03_S0 ! currently assumes all endorheic max storage are provided under doll formulation
             case(doll03)
-              RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RPARAM_in(segIndex)%D03_MaxStorage
+              RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RPARAM_in(segIndex)%D03_MaxStorage
             case(hanasaki06)
-              RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RPARAM_in(segIndex)%H06_Smax
+              RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RPARAM_in(segIndex)%H06_Smax
             case(hype)
-              RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = (RPARAM_in(segIndex)%HYP_E_emr - RPARAM_in(segIndex)%HYP_E_zero) * RPARAM_in(segIndex)%HYP_A_avg
+              RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = (RPARAM_in(segIndex)%HYP_E_emr - RPARAM_in(segIndex)%HYP_E_zero) * RPARAM_in(segIndex)%HYP_A_avg
             case default; ierr=20; message=trim(message)//'unable to identify the parametric lake model type'; return
           end select
         endif
@@ -144,33 +143,31 @@ CONTAINS
     endif
 
     ! add upstream, precipitation and subtract evaporation from the lake volume
-    RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) ! updating storage at previous time step
-    RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) + q_upstream * dt  ! input upstream discharge from m3/s to m3
-    RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) + RCHFLX_out(iens,segIndex)%BASIN_QR(1) * dt ! add lateral flow
-    RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) + RCHFLX_out(iens,segIndex)%basinprecip * dt ! input lake precipitation
-    if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) > RCHFLX_out(iens,segIndex)%basinevapo*dt) then ! enough water to evaporate
-      RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%basinevapo * dt ! output lake evaporation
+    RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) ! updating storage at previous time step
+    RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) + q_upstream * dt  ! input upstream discharge from m3/s to m3
+    RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) + RCHFLX_out(iens,segIndex)%BASIN_QR(1) * dt ! add lateral flow
+    RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) + RCHFLX_out(iens,segIndex)%basinprecip * dt ! input lake precipitation
+    if (RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) > RCHFLX_out(iens,segIndex)%basinevapo*dt) then ! enough water to evaporate
+      RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%basinevapo * dt ! output lake evaporation
     else ! not enough water to evaporate (this cause water balance error in coupling mode)
-      RCHFLX_out(iens,segIndex)%basinevapo = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)/dt ! update basinevapo
-      RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)=0._dp
+      RCHFLX_out(iens,segIndex)%basinevapo = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1)/dt ! update basinevapo
+      RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1)=0._dp
     endif
 
     ! take out the water from the reach if the wm flag is true and the value are not missing
     ! here we should make sure the real missing is not injection (or negative abstration)
     if((RCHFLX_out(iens,segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then
-      !allocate(RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual, stat=ierr, errmsg=cmessage)
-      !if(ierr/=0)then; message=trim(message)//trim(cmessage)//': RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual'; return; endif
       ! abstraction or injection
       if (RCHFLX_out(iens,segIndex)%REACH_WM_FLUX <= 0) then ! negative/injection
-        RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX*dt
+        RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX*dt
         RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
       else ! positive/abstraction
-        if (RCHFLX_out(iens,segIndex)%REACH_WM_FLUX*dt <= RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)) then ! abstraction is smaller than water in the lake
-          RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX*dt
+        if (RCHFLX_out(iens,segIndex)%REACH_WM_FLUX*dt <= RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1)) then ! abstraction is smaller than water in the lake
+          RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX*dt
           RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
         else ! abstraction is larger than water in the river
-          RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)/dt
-          RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = 0._dp
+          RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1)/dt
+          RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = 0._dp
         endif
       endif
     endif
@@ -178,17 +175,17 @@ CONTAINS
     ! simulating lake/reservoir output
     if (NETOPO_in(segIndex)%LakeTargVol) then ! The lake should follow the given target volume
 
-      if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) < RCHFLX_out(iens,segIndex)%REACH_WM_VOL) then ! The storage is smaller, accumulate
-        RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = 0 ! lake/reservoir output is set to zero (0)
+      if (RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) < RCHFLX_out(iens,segIndex)%REACH_WM_VOL) then ! The storage is smaller, accumulate
+        RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q = 0 ! lake/reservoir output is set to zero (0)
       else ! The storage is largrt, release to get to the target level
-        RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q      = (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_WM_VOL) /dt
-        RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_WM_VOL
+        RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q      = (RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_WM_VOL) /dt
+        RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%REACH_WM_VOL
       endif
 
     else ! if the lake is parameteric
       select case(NETOPO_in(segIndex)%LakeModelType)
         case(endorheic)
-          RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = 0._dp ! no outflow
+          RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q = 0._dp ! no outflow
         case(doll03)
           ! Check if the MaxStorage is larger than S0
           if (RPARAM_in(segIndex)%D03_MaxStorage < RPARAM_in(segIndex)%D03_S0) then !
@@ -196,23 +193,23 @@ CONTAINS
             ierr = 1; message=trim(message)//trim(cmessage);
           endif
           ! The D03_Coefficient is based on d**-1 meaning the result will be m**3 d**-1 and should be converter to m**3 s**-1
-          if ((RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0) > 0) then
-            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = RPARAM_in(segIndex)%D03_Coefficient * &
-            (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0) * &
-            ((RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0) / &
+          if ((RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0) > 0) then
+            RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q = RPARAM_in(segIndex)%D03_Coefficient * &
+            (RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0) * &
+            ((RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) - RPARAM_in(segIndex)%D03_S0) / &
             (RPARAM_in(segIndex)%D03_MaxStorage - RPARAM_in(segIndex)%D03_S0)) ** &
             RPARAM_in(segIndex)%D03_Power ! Q = AS(S/Smax)^B based on Eq. 1 Hanasaki et al., 2006 https://doi.org/10.1016/j.jhydrol.2005.11.011
           else
-            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = 0
+            RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q = 0
           endif
-          RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q / secprday ! conversion to m**3 s**-1
+          RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q / secprday ! conversion to m**3 s**-1
           ! in case is the output volume is more than lake volume
-          RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = min(RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q, RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)/dt)
+          RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q = min(RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q, RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1)/dt)
           ! updating the storage
-          RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q * dt
+          RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q * dt
 
-!          if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) < 0) then; ! set the lake volume as 0 if it goes negative
-!            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)=0
+!          if (RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) < 0) then; ! set the lake volume as 0 if it goes negative
+!            RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1)=0
 !          endif
         case(hanasaki06)
           ! preserving the past upstrem discharge for lake models
@@ -343,7 +340,7 @@ CONTAINS
 
           ! find start of operational year (add hour 1 when run hourly?) Once determined, this E_release should be communicated to the next timestep.
           if (simDatetime(1)%month() == start_month .AND. simDatetime(1)%day() == 1 ) then
-             RPARAM_in(segIndex)%H06_E_rel_ini = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) / (RPARAM_in(segIndex)%H06_alpha * RPARAM_in(segIndex)%H06_Smax)
+             RPARAM_in(segIndex)%H06_E_rel_ini = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) / (RPARAM_in(segIndex)%H06_alpha * RPARAM_in(segIndex)%H06_Smax)
           endif
 
           ! Calculate target release
@@ -359,27 +356,27 @@ CONTAINS
 
           ! Calculate actual release
           if (c >= RPARAM_in(segIndex)%H06_c_compare) then ! multi-year reservoir
-            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = target_r * RPARAM_in(segIndex)%H06_E_rel_ini
+            RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q = target_r * RPARAM_in(segIndex)%H06_E_rel_ini
           else if (0 <= c .AND. c < RPARAM_in(segIndex)%H06_c_compare) then
-            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = RPARAM_in(segIndex)%H06_E_rel_ini * target_r * (c / RPARAM_in(segIndex)%H06_denominator)**RPARAM_in(segIndex)%H06_exponent  + &
+            RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q = RPARAM_in(segIndex)%H06_E_rel_ini * target_r * (c / RPARAM_in(segIndex)%H06_denominator)**RPARAM_in(segIndex)%H06_exponent  + &
                                                    q_upstream * (1 - (c /RPARAM_in(segIndex)%H06_denominator)**RPARAM_in(segIndex)%H06_exponent)
           end if
 
           ! make sure reservoir volume does not drop below dead storage
-          if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) < (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead)) then
-            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q - (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) )/dt
+          if (RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) < (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead)) then
+            RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q - (RPARAM_in(segIndex)%H06_Smax * RPARAM_in(segIndex)%H06_frac_Sdead - RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) )/dt
             ! set negative outflow to zero
-            if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q<0) then
-                RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q=0
+            if (RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q<0) then
+                RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q=0
             end if
 
           ! Account for spil overflow if reservoir is completely filled.
-          else if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) > RPARAM_in(segIndex)%H06_Smax) then
-            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q + (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RPARAM_in(segIndex)%H06_Smax)/ dt
+          else if (RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) > RPARAM_in(segIndex)%H06_Smax) then
+            RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q + (RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) - RPARAM_in(segIndex)%H06_Smax)/ dt
           end if
 
           ! update the storage
-          RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q * dt
+          RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q * dt
 
           ! print*, simDatetime(1)%month() ! month of the simulations
           ! print*, 'Hanasaki parameters'
@@ -387,7 +384,7 @@ CONTAINS
 
         case(hype)
           ! update reach elevation
-          RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_ELE = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) / RPARAM_in(segIndex)%HYP_A_avg &
+          RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_ELE = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) / RPARAM_in(segIndex)%HYP_A_avg &
                                                               + RPARAM_in(segIndex)%HYP_E_zero
 
           ! caclulate the day of calendar from 1st of January of current simulation year
@@ -396,7 +393,7 @@ CONTAINS
           ! calculation of Fsin; sinusoidal aplication of flow
           F_sin = max(0._dp,(1+RPARAM_in(segIndex)%HYP_Qrate_amp*sin(2*pi*(Day_of_year+RPARAM_in(segIndex)%HYP_Qrate_phs)/365)))
           ! calculation of Flin; linear change in flow realted to the storage
-          F_lin = min(max((RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_ELE-RPARAM_in(segIndex)%HYP_E_min)/(RPARAM_in(segIndex)%HYP_E_lim-RPARAM_in(segIndex)%HYP_E_min),0._dp),1._dp)
+          F_lin = min(max((RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_ELE-RPARAM_in(segIndex)%HYP_E_min)/(RPARAM_in(segIndex)%HYP_E_lim-RPARAM_in(segIndex)%HYP_E_min),0._dp),1._dp)
           ! flag for the model simulation in which is located in the area
           F_prim = 0
           if (RPARAM_in(segIndex)%HYP_prim_F) then
@@ -423,8 +420,8 @@ CONTAINS
           Q_prim = F_sin * F_lin * F_prim * RPARAM_in(segIndex)%HYP_Qrate_prim
           ! Q_spill
           Q_spill = 0._dp
-          if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_ELE > RPARAM_in(segIndex)%HYP_E_emr) then
-            Q_spill = RPARAM_in(segIndex)%HYP_Qrate_emr* (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_ELE &
+          if (RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_ELE > RPARAM_in(segIndex)%HYP_E_emr) then
+            Q_spill = RPARAM_in(segIndex)%HYP_Qrate_emr* (RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_ELE &
                       - RPARAM_in(segIndex)%HYP_E_emr)**RPARAM_in(segIndex)%HYP_Erate_emr
           end if
           ! Q_sim
@@ -436,10 +433,10 @@ CONTAINS
           print*, 'Q_spill ..= ', Q_spill
 
           ! check if the output is not more than the existing stored water
-          RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = min(Q_sim, max(0._dp,(RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_ELE-RPARAM_in(segIndex)%HYP_E_min)*RPARAM_in(segIndex)%HYP_A_avg)/dt)
+          RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q = min(Q_sim, max(0._dp,(RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_ELE-RPARAM_in(segIndex)%HYP_E_min)*RPARAM_in(segIndex)%HYP_A_avg)/dt)
 
           ! update the storage
-          RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q * dt
+          RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q * dt
 
         case default; ierr=20; message=trim(message)//'unable to identify the parametric lake model type'; return
       end select
@@ -447,18 +444,18 @@ CONTAINS
 
 !    TO-do: Make sure that WB check below is performed correctly in comp_reach_wb subroutine
 !    ! calculate water balance (in this water balance we dont have the actual evaporation, assuming there is enough water for evaporation)
-!    WB = q_upstream * dt + RCHFLX_out(iens,segIndex)%basinprecip * dt - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q * dt &
+!    WB = q_upstream * dt + RCHFLX_out(iens,segIndex)%basinprecip * dt - RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q * dt &
 !    - RCHFLX_out(iens,segIndex)%basinevapo * dt - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual * dt &
-!    - (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0))
+!    - (RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(0))
 !
 !    if ((1._dp<WB).or.(segIndex==ixDesire)) then; ! larger than 1 cubic meter or desired lake
 !      ! NOTE: The lake discharge and storage need to be solved iterative way to reduce water balance error
 !      write(iulog,*) 'Water balance for lake ID = ', NETOPO_in(segIndex)%REACHID, ' excees the Tolerance'
 !      write(iulog,'(A,1PG15.7)') 'WBerr [m3]       = ', WB
-!      write(iulog,'(A,1PG15.7)') 'dS [m3]          = ', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)-RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0)
-!      write(iulog,'(A,1PG15.7)') 'S [m3]           = ', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)
+!      write(iulog,'(A,1PG15.7)') 'dS [m3]          = ', RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1)-RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(0)
+!      write(iulog,'(A,1PG15.7)') 'S [m3]           = ', RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1)
 !      write(iulog,'(A,1PG15.7)') 'inflow [m3]      = ', q_upstream*dt
-!      write(iulog,'(A,1PG15.7)') 'outflow [m3]     = ', RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q*dt
+!      write(iulog,'(A,1PG15.7)') 'outflow [m3]     = ', RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_Q*dt
 !      write(iulog,'(A,1PG15.7)') 'precip [m3]      = ', RCHFLX_out(iens,segIndex)%basinprecip*dt
 !      write(iulog,'(A,1PG15.7)') 'evaporation [m3] = ', RCHFLX_out(iens,segIndex)%basinevapo*dt
 !      if (is_flux_wm) then
@@ -470,7 +467,7 @@ CONTAINS
 !      endif
 !    endif
 
-    call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxIRF, q_upstream, RCHFLX_out(iens,segIndex), &
+    call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxRoute, q_upstream, RCHFLX_out(iens,segIndex), &
                        verbose, lakeFlag=.true.,tolerance=lakeWBtol)
 
     ! assign the zero value as lake do not have a QFUTURE_IRF

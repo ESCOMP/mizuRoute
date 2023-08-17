@@ -172,17 +172,18 @@ CONTAINS
 
    ! 3. subroutine: river reach routing
    do ix=1,size(routeMethods)
-     call route_network(rch_routes(ix)%rch_route, &
+     call route_network(rch_routes(ix)%rch_route, &  ! input: instantiated routing object
+                        routeMethods(ix),         &  ! input: routing method index
                         iens,                     &  ! input: ensemble index
                         river_basin,              &  ! input: river basin data type
                         TSEC(1), TSEC(2),         &  ! input: start and end of the time step since simulation start [sec]
                         ixDesire,                 &  ! input: index of verbose reach
                         NETOPO_in,                &  ! input: reach topology data structure
-                        RPARAM_in,                & ! input: reach parameter
+                        RPARAM_in,                &  ! input: reach parameter
                         RCHSTA_out,               &  ! inout: reach state data structure
                         RCHFLX_out,               &  ! inout: reach flux data structure
                         ierr, cmessage,           &  ! output: error controls
-                        ixRchProcessed)             ! optional input: indices of reach to be routed
+                        ixRchProcessed)              ! optional input: indices of reach to be routed
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    end do
 
@@ -191,7 +192,8 @@ CONTAINS
   ! *********************************************************************
   ! private subroutine: route throughout river network
   ! *********************************************************************
-  SUBROUTINE route_network(rch_route,            & ! input:
+  SUBROUTINE route_network(rch_route,            & ! input: instantiated routing object
+                           idRoute,              & ! input: routing method id
                            iens,                 & ! input: ensemble index
                            river_basin,          & ! input: river basin information (mainstem, tributary outlet etc.)
                            T0,T1,                & ! input: start and end of the time step since simulation start [sec]
@@ -207,10 +209,19 @@ CONTAINS
     USE lake_route_module, ONLY: lake_route          ! lake route module
     USE base_route,        ONLY: base_route_rch      !
     USE model_utils,       ONLY: handle_err
+    USE public_var,        ONLY: accumRunoff
+    USE public_var,        ONLY: kinematicWaveTracking
+    USE public_var,        ONLY: impulseResponseFunc
+    USE public_var,        ONLY: muskingumCunge
+    USE public_var,        ONLY: kinematicWave
+    USE public_var,        ONLY: diffusiveWave
+    USE globalData,        ONLY: idxSUM, idxKWT, idxIRF, &
+                                 idxMC, idxKW, idxDW
 
     implicit none
     ! Argument variables
     class(base_route_rch), intent(in),    allocatable :: rch_route
+    integer(i4b),          intent(in)                 :: idRoute              ! routing method id
     integer(i4b),          intent(in)                 :: iEns                 ! ensemble member
     type(subbasin_omp),    intent(in),    allocatable :: river_basin(:)       ! river basin information (mainstem, tributary outlet etc.)
     real(dp),              intent(in)                 :: T0,T1                ! start and end of the time step (seconds)
@@ -225,6 +236,7 @@ CONTAINS
     ! local variables
     character(len=strLen)                             :: cmessage             ! error message for downwind routine
     logical(lgt),                      allocatable    :: doRoute(:)           ! logical to indicate which reaches are processed
+    integer(i4b)                                      :: iRoute               ! routing method index
     integer(i4b)                                      :: nOrder               ! number of stream order
     integer(i4b)                                      :: nTrib                ! number of tributary basins
     integer(i4b)                                      :: nSeg                 ! number of reaches in the network
@@ -233,6 +245,17 @@ CONTAINS
     integer(i4b)                                      :: ix                   ! loop indices stream order
 
     ierr=0; message='route_network/'
+
+    select case(idRoute)
+      case(accumRunoff);           iRoute = idxSUM
+      case(kinematicWaveTracking); iRoute = idxKWT
+      case(impulseResponseFunc);   iRoute = idxIRF
+      case(muskingumCunge);        iRoute = idxMC
+      case(kinematicWave);         iRoute = idxKW
+      case(diffusiveWave);         iRoute = idxDW
+      case default
+        message=trim(message)//'routing method id expect digits 0-5. Check <outOpt> in control file'; ierr=81; return
+    end select
 
     nSeg = size(RCHFLX_out(iens,:))
 
@@ -268,14 +291,15 @@ CONTAINS
 !$OMP          shared(RPARAM_in)                        & ! data structure shared
 !$OMP          shared(RCHSTA_out)                       & ! data structure shared
 !$OMP          shared(RCHFLX_out)                       & ! data structure shared
-!$OMP          shared(ix, iEns, ixDesire)               & ! indices shared
+!$OMP          shared(ix, iEns, ixDesire, iRoute)       & ! indices shared
 !$OMP          firstprivate(nTrib)
       do iTrib = 1,nTrib
         do iSeg = 1,river_basin(ix)%branch(iTrib)%nRch
           jSeg = river_basin(ix)%branch(iTrib)%segIndex(iSeg)
           if (.not. doRoute(jSeg)) cycle
-          if ((NETOPO_in(jseg)%islake).and.(is_lake_sim)) then
+          if ((NETOPO_in(jseg)%islake).and.(is_lake_sim).and.iRoute/=idxSUM) then
             call lake_route(iEns, jSeg,    & ! input: ensemble and reach indices
+                            iRoute,        & ! input: routing method index
                             ixDesire,      & ! input: index of verbose reach
                             NETOPO_in,     & ! input: reach topology data structure
                             RPARAM_in,     & ! input: reach parameter data structure
