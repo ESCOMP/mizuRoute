@@ -8,6 +8,7 @@ USE dataTypes,     ONLY: RCHTOPO           ! Network topology
 USE dataTypes,     ONLY: RCHPRP            ! Reach parameter
 USE dataTypes,     ONLY: kwtRCH            ! kwt specific state data structure
 USE public_var,    ONLY: iulog             ! i/o logical unit number
+USE public_var,    ONLY: is_lake_sim       ! logical if lakes are activated in simulation
 USE public_var,    ONLY: verySmall         ! a very small value
 USE public_var,    ONLY: realMissing       ! missing value for real number
 USE public_var,    ONLY: integerMissing    ! missing value for integer number
@@ -20,7 +21,6 @@ implicit none
 private
 public::kwt_route_rch
 
-integer(i4b) :: LAKEFLAG=0   ! >0 if processing lakes
 integer(i4b) :: RSTEP=0      ! retrospective time step offset (what is this for?? used for optional input)
 
 type, extends(base_route_rch) :: kwt_route_rch
@@ -151,7 +151,7 @@ CONTAINS
     NUPS = count(NETOPO_in(segIndex)%goodBas)        ! number of desired upstream reaches
     !NUPS = size(NETOPO_in(segIndex)%UREACHI)        ! number of upstream reaches
     if (NUPS.GT.0) then
-      call getusq_rch(IENS,segIndex,LAKEFLAG,T0,T1,ixDesire, & ! input
+      call getusq_rch(IENS,segIndex,T0,T1,ixDesire, & ! input
                       NETOPO_in,RPARAM_in,RCHFLX_out,    & ! input
                       RCHSTA_out,                        & ! inout
                       Q_JRCH,TENTRY,T_EXIT,ierr,cmessage,& ! output
@@ -308,8 +308,8 @@ CONTAINS
     ! ***
     ! remove flow particles from the most downstream reach
     ! if the last reach or lake inlet (and lakes are enabled), remove routed elements from memory
-    if ((NETOPO_in(segIndex)%DREACHK<=0 ).OR. &  ! if the last reach (down reach ID:DREACHK is negative), then there is no downstream reach
-        (LAKEFLAG.EQ.1.AND.NETOPO_in(segIndex)%LAKINLT)) then ! if lake inlet
+    if ((NETOPO_in(segIndex)%DREACHK<=0 ).or. &  ! if the last reach (down reach ID:DREACHK is negative), then there is no downstream reach
+        (is_lake_sim.and.NETOPO_in(segIndex)%LAKINLT)) then ! if lake inlet
       ! copy data to a temporary wave
       if (allocated(NEW_WAVE)) then
         deallocate(NEW_WAVE,STAT=IERR)
@@ -445,7 +445,7 @@ CONTAINS
  ! *********************************************************************
  ! subroutine: extract flow from the reaches upstream of JRCH
  ! *********************************************************************
- subroutine getusq_rch(IENS,JRCH,LAKEFLAG,T0,T1,ixDesire, & ! input
+ subroutine getusq_rch(IENS,JRCH,T0,T1,ixDesire,          & ! input
                        NETOPO_in,RPARAM_in,RCHFLX_in,     & ! input
                        RCHSTA_out,                        & ! inout
                        Q_JRCH,TENTRY,T_EXIT,ierr,message, & ! output
@@ -466,7 +466,6 @@ CONTAINS
  !   Input(s):
  !       IENS: Ensemble member
  !       JRCH: Index of the downstream reach
- !   LAKEFLAG: >0 means process lakes
  !         T0: Start of the time step
  !         T1: End of the time step
  !  NETOPO_in: river network topology
@@ -489,7 +488,6 @@ CONTAINS
  ! Argument variables
  integer(i4b), intent(in)                 :: IENS         ! ensemble member
  integer(i4b), intent(in)                 :: JRCH         ! reach to process
- integer(i4b), intent(in)                 :: LAKEFLAG     ! >0 if processing lakes
  real(dp),     intent(in)                 :: T0,T1        ! start and end of the time step
  integer(i4b), intent(in)                 :: ixDesire     ! index of the reach for verbose output
  type(RCHTOPO),intent(in),    allocatable :: NETOPO_in(:) ! River Network topology
@@ -511,7 +509,10 @@ CONTAINS
  integer(i4b)                             :: ND           ! # of waves routed from upstreams
  integer(i4b)                             :: NJ           ! # of waves in the JRCH reach
  integer(i4b)                             :: NK           ! # of waves for routing (NJ+ND)
- integer(i4b)                             :: ILAK         ! lake index
+ integer(i4b)                             :: nUps         ! # of upstream objects (reach or lake)
+ integer(i4b)                             :: iUp          ! index of upstream object (reach or lake)
+ integer(i4b)                             :: ix           ! loop index
+ logical(lgt)                             :: isUpLake     ! indicate if immediate upstream of this reach is a lake
  character(len=strLen)                    :: fmt1         ! format string
  character(len=strLen)                    :: cmessage     ! error message for downwind routine
 
@@ -527,32 +528,34 @@ CONTAINS
  else
    ROFFSET = RSTEP
  end if
- if (LAKEFLAG.EQ.1) then  ! lakes are enabled
-  ! get lake outflow and only lake outflow if reach is a lake outlet reach, else do as normal
-  ILAK = NETOPO_in(JRCH)%LAKE_IX                              ! lake index
-  if (ILAK.GT.0) then                                         ! part of reach is in lake
-   if (NETOPO_in(JRCH)%REACHIX.eq.LKTOPO(ILAK)%DREACHI) then  ! we are in a lake outlet reach
-    ND = 1
-    allocate(QD(1),TD(1),STAT=IERR)
-    if(ierr/=0)then; message=trim(message)//'problem allocating array for QD and TD'; return; endif
-    QD(1) = LAKFLX(IENS,ILAK)%LAKE_Q / RPARAM_in(JRCH)%R_WIDTH  ! lake outflow per unit reach width
-    TD(1) = T1 - DT*ROFFSET
-   else
-    call qexmul_rch(IENS,JRCH,T0,T1,ixDesire,     &   ! input
-                   NETOPO_in,RPARAM_in,RCHFLX_in, &   ! input
-                   RCHSTA_out,                    &   ! inout
-                   ND,QD,TD,ierr,cmessage,        &   ! output
-                   RSTEP)                             ! optional input
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if (is_lake_sim) then  ! lakes are enabled
+   ! get lake outflow and only lake outflow if reach is a lake outlet reach, else do as normal
+   isUpLake = .false.
+   nUps = size(NETOPO_in(JRCH)%UREACHI)
+   do ix=1,nUps
+     if (NETOPO_in(JRCH)%UREACHI(ix) < 0) cycle
+     if (NETOPO_in(NETOPO_in(JRCH)%UREACHI(ix))%ISLAKE) then
+       isUpLake = .true.
+       iUp = NETOPO_in(NETOPO_in(JRCH)%UREACHI(ix))%REACHIX
+     end if
+   end do
+   if (isUpLake .and. nUps>1) then
+     ierr=10; cmessage=trim(message)//'lake outlet reach should have one upstream lake'; return
    end if
-  else
-   call qexmul_rch(IENS,JRCH,T0,T1,ixDesire,      &   ! input
-                   NETOPO_in,RPARAM_in,RCHFLX_in, &   ! input
-                   RCHSTA_out,                    &   ! inout
-                   ND,QD,TD,ierr,cmessage,        &   ! output
-                   RSTEP)                             ! optional input
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
+   if (isUpLake) then                                         ! upstream is a lake
+     ND = 1
+     allocate(QD(1),TD(1),STAT=IERR)
+     if(ierr/=0)then; message=trim(message)//'problem allocating array for QD and TD'; return; endif
+     QD(1) = RCHFLX_in(IENS, iUp)%ROUTE(idxKWT)%REACH_Q / RPARAM_in(JRCH)%R_WIDTH  ! lake outflow per unit reach width
+     TD(1) = T1 - DT*ROFFSET
+   else ! upstream is not lake
+     call qexmul_rch(IENS,JRCH,T0,T1,ixDesire,      &   ! input
+                     NETOPO_in,RPARAM_in,RCHFLX_in, &   ! input
+                     RCHSTA_out,                    &   ! inout
+                     ND,QD,TD,ierr,cmessage,        &   ! output
+                     RSTEP)                             ! optional input
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   endif
  else  ! lakes disabled
   call qexmul_rch(IENS,JRCH,T0,T1,ixDesire,      &   ! input
                   NETOPO_in,RPARAM_in,RCHFLX_in, &   ! input
