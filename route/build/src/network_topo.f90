@@ -41,6 +41,7 @@ public :: reachOrder     ! define the processing order
 public :: streamOrdering ! get stream order for each reach
 public :: reach_list     ! get a list of reaches above each reach
 public :: reach_mask     ! get a mask that defines all segments above a given segment
+public :: lakeInlet      ! Identify lake inlet reach
 public :: destSegment    ! get destination reach ID and index for each reach
 public :: outletSegment  ! get the most downstream reach ID and index for each reach
 public :: reach_mask_orig     ! get a mask that defines all segments above a given segment
@@ -985,6 +986,37 @@ CONTAINS
 
  END SUBROUTINE outletSegment
 
+ ! *********************************************************************
+ ! public subroutine: identify lake inlet reach
+ ! *********************************************************************
+ SUBROUTINE lakeInlet(nRch, structNTOPO, ierr, message)
+
+   ! Identify reach that flowing into a lake (1) otherwise 0
+   ! downstream index needs to be identified before executing this routine
+
+   implicit none
+   ! Argument variables
+   integer(i4b)      , intent(in)                :: nRch              ! number of stream segments
+   type(var_ilength) , intent(inout)             :: structNTOPO(:)    ! network topology structure
+   integer(i4b)      , intent(out)               :: ierr              ! error code
+   character(*)      , intent(out)               :: message           ! error message
+   ! Local variables
+   integer(i4b)                                  :: downIndex
+   integer(i4b)                                  :: iRch,jRch         ! loop index
+
+   ierr=0; message='lakeInlet/'
+
+   do iRch=1,nRch
+     structNTOPO(iRch)%var(ixNTOPO%isLakeInlet)%dat(1) = 0  ! initialize: 0 => no lake inlet
+     downIndex = structNTOPO(iRch)%var(ixNTOPO%downSegIndex)%dat(1)
+     if (downIndex>0) then ! there is donwstream
+       if (structNTOPO(downIndex)%var(ixNTOPO%islake)%dat(1)==1) then
+         structNTOPO(iRch)%var(ixNTOPO%isLakeInlet)%dat(1) = 1
+       end if
+     end if
+   end do
+
+ END SUBROUTINE lakeInlet
 
  ! ====================================================================================================
  ! ====================================================================================================

@@ -144,6 +144,7 @@ CONTAINS
   USE public_var,  ONLY: ntopAugmentMode        ! River network augmentation mode
   USE public_var,  ONLY: idSegOut               ! outlet segment ID (-9999 => no outlet segment specified)
   USE public_var,  ONLY: bypass_routing_option  ! cesm-coupling option
+  USE public_var,  ONLY: is_lake_sim            ! logical if lakes are activated in simulation
   USE globalData,  ONLY: masterproc             ! root proc logical
   USE globalData,  ONLY: nHRU, nRch             ! number of HRUs and Reaches in the whole network
   USE globalData,  ONLY: nContribHRU            ! number of HRUs that are connected to any reaches
@@ -154,9 +155,9 @@ CONTAINS
   USE read_streamSeg,       ONLY: mod_meta_varFile         ! modify variable I/O options
   USE model_utils,          ONLY: model_finalize
   USE mpi_process,          ONLY: comm_ntopo_data          ! mpi routine: initialize river network data in slave procs (incl. river data transfer from root proc)
-  USE process_ntopo,        ONLY: put_data_struct          ! populate NETOPO and RPARAM data structure
   USE mpi_utils,            ONLY: shr_mpi_initialized      ! If MPI is being used
   USE domain_decomposition, ONLY: mpi_domain_decomposition ! domain decomposition for mpi
+  USE network_topo,         ONLY: lakeInlet                ! identify lake inlet reach
   USE network_topo,         ONLY: outletSegment            ! subroutine: find oultlet reach id, index  as a destination reach
 
   implicit none
@@ -188,6 +189,12 @@ CONTAINS
                      structHRU, structSEG, structHRU2SEG, structNTOPO, structPFAF, & ! output: data structure for river data
                      ierr, cmessage)                                                 ! output: error controls
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     ! ---- perform lake option is on
+     if (is_lake_sim) then
+       call lakeInlet(nRch, structNTOPO, ierr, cmessage)
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+     end if
 
      ! ----  CESM-coupling only
      if (trim(runMode)=='cesm-coupling' .and. &
@@ -307,6 +314,8 @@ CONTAINS
   USE globalData, ONLY: nRch_mainstem          ! number of mainstem reaches
   USE globalData, ONLY: nTribOutlet            ! number of mainstem reaches
   USE globalData, ONLY: rch_per_proc           ! number of tributary reaches
+  USE globalData, ONLY: NETOPO_main            ! mainstem reach topology structure
+  USE globalData, ONLY: NETOPO_trib            ! tributary reach topology structure
   USE globalData, ONLY: RCHFLX_trib            ! reach flux structure
   USE globalData, ONLY: RCHSTA_trib            ! reach flux structure
   USE globalData, ONLY: RCHFLX                 ! global Reach flux data structures
@@ -358,6 +367,28 @@ CONTAINS
         end do
       end if
       if (onRoute(kinematicWaveTracking)) then
+        do ix = 1, nRch_mainstem+nTribOutlet
+          if (NETOPO_main(ix)%islake) then
+            allocate(RCHSTA_trib(iens,ix)%LKW_ROUTE%KWAVE(0:0),stat=ierr, errmsg=cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%LKW_ROUTE%KWAVE]'; return; endif
+            RCHSTA_trib(iens,ix)%LKW_ROUTE%KWAVE(0)%QF=-9999
+            RCHSTA_trib(iens,ix)%LKW_ROUTE%KWAVE(0)%TI=-9999
+            RCHSTA_trib(iens,ix)%LKW_ROUTE%KWAVE(0)%TR=-9999
+            RCHSTA_trib(iens,ix)%LKW_ROUTE%KWAVE(0)%RF=.False.
+            RCHSTA_trib(iens,ix)%LKW_ROUTE%KWAVE(0)%QM=-9999
+          end if
+        end do
+        do ix = 1, rch_per_proc(0)
+          if (NETOPO_trib(ix)%islake) then
+            allocate(RCHSTA_trib(iens,nRch_mainstem+nTribOutlet+ix)%LKW_ROUTE%KWAVE(0:0),stat=ierr, errmsg=cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%LKW_ROUTE%KWAVE]'; return; endif
+            RCHSTA_trib(iens,ix+nRch_mainstem+nTribOutlet)%LKW_ROUTE%KWAVE(0)%QF=-9999
+            RCHSTA_trib(iens,ix+nRch_mainstem+nTribOutlet)%LKW_ROUTE%KWAVE(0)%TI=-9999
+            RCHSTA_trib(iens,ix+nRch_mainstem+nTribOutlet)%LKW_ROUTE%KWAVE(0)%TR=-9999
+            RCHSTA_trib(iens,ix+nRch_mainstem+nTribOutlet)%LKW_ROUTE%KWAVE(0)%RF=.False.
+            RCHSTA_trib(iens,ix+nRch_mainstem+nTribOutlet)%LKW_ROUTE%KWAVE(0)%QM=-9999
+          end if
+        end do
         do ix = 1, nRch_root
           RCHFLX_trib(iens,ix)%ROUTE(idxKWT)%REACH_VOL(0:1) = 0._dp
           RCHFLX_trib(iens,ix)%ROUTE(idxKWT)%REACH_Q        = 0._dp
@@ -402,6 +433,17 @@ CONTAINS
           end do
         end if
         if (onRoute(kinematicWaveTracking)) then
+          do ix = 1, size(RCHSTA_trib(iens,:))
+            if (NETOPO_trib(ix)%islake) then
+              allocate(RCHSTA_trib(iens,ix)%LKW_ROUTE%KWAVE(0:0),stat=ierr, errmsg=cmessage)
+              if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%LKW_ROUTE%KWAVE]'; return; endif
+              RCHSTA_trib(iens,ix)%LKW_ROUTE%KWAVE(0)%QF=-9999
+              RCHSTA_trib(iens,ix)%LKW_ROUTE%KWAVE(0)%TI=-9999
+              RCHSTA_trib(iens,ix)%LKW_ROUTE%KWAVE(0)%TR=-9999
+              RCHSTA_trib(iens,ix)%LKW_ROUTE%KWAVE(0)%RF=.False.
+              RCHSTA_trib(iens,ix)%LKW_ROUTE%KWAVE(0)%QM=-9999
+            end if
+          end do
           do ix = 1, size(RCHFLX_trib(1,:))
             RCHFLX_trib(iens,ix)%ROUTE(idxKWT)%REACH_VOL(0:1) = 0._dp
             RCHFLX_trib(iens,ix)%ROUTE(idxKWT)%REACH_Q        = 0._dp

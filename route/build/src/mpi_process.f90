@@ -398,18 +398,19 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     do ix=1,nVarsNTOPO
-      if (.not. meta_NTOPO(ix)%varFile) cycle
-      if (masterproc) then
-        do iSeg = 1,nRch_in
-          jSeg = ixRch_order(iSeg)
-          array_int_temp(iSeg) = structNTOPO(jSeg)%var(ix)%dat(1)
+      if (meta_NTOPO(ix)%varFile .or. ix==ixNTOPO%isLakeInlet) then  ! isLakeInlet also needs to distributed
+        if (masterproc) then
+          do iSeg = 1,nRch_in
+            jSeg = ixRch_order(iSeg)
+            array_int_temp(iSeg) = structNTOPO(jSeg)%var(ix)%dat(1)
+          end do
+        end if
+        call shr_mpi_scatterV(array_int_temp(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), array_int_temp_local, ierr, cmessage)
+        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+        do iSeg = 1,size(array_int_temp_local)
+          structNTOPO_local(iSeg)%var(ix)%dat(1) = array_int_temp_local(iSeg)
         end do
       end if
-      call shr_mpi_scatterV(array_int_temp(nRch_mainstem+1:nRch_in), rch_per_proc(0:nNodes-1), array_int_temp_local, ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      do iSeg = 1,size(array_int_temp_local)
-        structNTOPO_local(iSeg)%var(ix)%dat(1) = array_int_temp_local(iSeg)
-      end do
     end do
 
     do ix=1,nVarsSEG
