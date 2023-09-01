@@ -187,10 +187,12 @@ implicit none
 
  ! -- Reach physical parameters
  type, public ::  RCHPRP
-  real(dp)                                   :: R_SLOPE
-  real(dp)                                   :: R_MAN_N
-  real(dp)                                   :: R_WIDTH
-  real(dp)                                   :: RLENGTH
+  real(dp)                                   :: R_SLOPE        ! channel slope [-]
+  real(dp)                                   :: R_MAN_N        ! channel bed manning coefficient [-]
+  real(dp)                                   :: R_WIDTH        ! channel width [m]
+  real(dp)                                   :: R_DEPTH        ! channel bankfull depth [m]
+  real(dp)                                   :: RLENGTH        ! channel length [m]
+  real(dp)                                   :: FLDP_SLOPE     ! floodplain slope [-]
   real(dp)                                   :: UPSAREA        ! upstream area (zero if headwater basin)
   real(dp)                                   :: BASAREA        ! local basin area
   real(dp)                                   :: TOTAREA        ! UPSAREA + BASAREA
