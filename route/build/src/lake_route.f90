@@ -154,19 +154,21 @@ CONTAINS
       RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1)=0._dp
     endif
 
+    RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initialize actual water abstraction
+
     ! take out the water from the reach if the wm flag is true and the value are not missing
     ! here we should make sure the real missing is not injection (or negative abstration)
     if((RCHFLX_out(iens,segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then
       ! abstraction or injection
       if (RCHFLX_out(iens,segIndex)%REACH_WM_FLUX <= 0) then ! negative/injection
         RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX*dt
-        RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+        RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
       else ! positive/abstraction
         if (RCHFLX_out(iens,segIndex)%REACH_WM_FLUX*dt <= RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1)) then ! abstraction is smaller than water in the lake
           RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX*dt
-          RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+          RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
         else ! abstraction is larger than water in the river
-          RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1)/dt
+          RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1)/dt
           RCHFLX_out(iens,segIndex)%ROUTE(idxRoute)%REACH_VOL(1) = 0._dp
         endif
       endif

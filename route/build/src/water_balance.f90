@@ -75,7 +75,7 @@ CONTAINS
   ! out flux
   Qout         = -1._dp *RCHFLX_in%ROUTE(ixRoute)%REACH_Q *dt
   Qtake_demand = -1._dp *RCHFLX_in%REACH_WM_FLUX *dt
-  Qtake_actual = -1._dp *RCHFLX_in%REACH_WM_FLUX_actual *dt
+  Qtake_actual = -1._dp *RCHFLX_in%ROUTE(ixRoute)%REACH_WM_FLUX_actual *dt
   if (lakeFlag) then
     evapo    = -1._dp *RCHFLX_in%basinevapo *dt
   else
@@ -236,7 +236,7 @@ CONTAINS
           water_budget(3) = water_budget(3) + RCHFLX_in(ix)%basinprecip *dt
         end if
         ! out flux
-        water_budget(4) = water_budget(4) - RCHFLX_in(ix)%REACH_WM_FLUX_actual *dt
+        water_budget(4) = water_budget(4) - RCHFLX_in(ix)%ROUTE(ixRoute)%REACH_WM_FLUX_actual *dt
         if (NETOPO_in(ix)%isLake) then
           water_budget(5) = water_budget(5) - RCHFLX_in(ix)%basinevapo *dt
         end if

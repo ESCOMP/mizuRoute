@@ -357,6 +357,7 @@ implicit none
    real(dp)        :: REACH_ELE              ! water height at current time step [m]
    real(dp)        :: REACH_Q                ! discharge at current time step [m3/s]
    real(dp)        :: REACH_VOL(0:1)         ! water volume at previous and current time steps [m3]
+   real(dp)        :: REACH_WM_FLUX_actual   ! water management fluxes to and from each reach [m3/s]
    real(dp)        :: WB                     ! reach water balance error [m3]
  end type hydraulic
 
@@ -370,7 +371,6 @@ implicit none
   real(dp)                             :: BASIN_QR(0:1)          ! routed runoff volume from the local basin [m3/s]
   type(hydraulic), allocatable         :: ROUTE(:)               ! reach fluxes and states for each routing method
   real(dp)                             :: REACH_WM_FLUX          ! water management fluxes to and from each reach [m3/s]
-  real(dp)                             :: REACH_WM_FLUX_actual   ! water management fluxes to and from each reach [m3/s]
   real(dp)                             :: REACH_WM_VOL           ! target volume from the second water management file [m3]
   real(dp)                             :: Qobs                   ! observed discharge [m3/s]
   real(dp)                             :: basinEvapo             ! remapped river network catchment Evaporation [unit] (size: number of nHRU)
