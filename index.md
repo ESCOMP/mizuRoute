@@ -1,5 +1,3 @@
-# Welcome to mizuRoute webpages 
-
 ## History
 
 Predecessor of mizuRoute is a river channel routing model coupled with TopNet hydrologic Model (Clark et al., 2008), which is used in National Institute of Water and Atmospheric Research (NIWA) in New Zealand. 
