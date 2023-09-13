@@ -152,8 +152,10 @@ MODULE globalData
   real(dp),                        public :: tscale                     ! scaling factor for the time delay histogram [sec]
   real(dp),                        public :: velo                       ! velocity [m/s] for Saint-Venant equation
   real(dp),                        public :: diff                       ! diffusivity [m2/s] for Saint-Venant equation
-  real(dp),                        public :: mann_n                     ! manning's roughness coefficient [unitless]
+  real(dp),                        public :: mann_n                     ! manning's roughness coefficient [-]
   real(dp),                        public :: wscale                     ! scaling factor for river width [-]
+  real(dp),                        public :: channelDepth=10.           ! channel bankfull depth [m]
+  real(dp),                        public :: floodplainSlope=0.001      ! floodplain down slope [-]
 
   ! ---------- general structure information --------------------------------------------------------
 

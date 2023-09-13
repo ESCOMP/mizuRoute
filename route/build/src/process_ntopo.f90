@@ -68,7 +68,9 @@ CONTAINS
  ! Routing parameter estimation routine
  USE process_param,ONLY: make_uh               ! construct reach unit hydrograph
  ! routing spatial constant parameters
- USE globalData,   ONLY: mann_n, wscale        ! KWT routing parameters (Transfer function parameters)
+ USE globalData,   ONLY: mann_n, wscale        ! spatial constant channel parameters
+ USE globalData,   ONLY: channelDepth          ! spatial constant channel bankfull depth [m]
+ USE globalData,   ONLY: floodplainSlope       ! spatial constant floodplain slope
  USE globalData,   ONLY: velo, diff            ! IRF routing parameters (Transfer function parameters)
  USE public_var,   ONLY: dt                    ! simulation time step [sec]
 
@@ -211,7 +213,7 @@ CONTAINS
 
  ! ---------- Compute routing parameters  --------------------------------------------------------------------
 
- ! compute hydraulic geometry (width and Manning's "n")
+ ! compute channel parameters (width, depth, Manning's n, and floodplain slope)
  if(hydGeometryOption==compute)then
 
   ! (hydraulic geometry needed for all the routing methods except impulse response function)
@@ -219,7 +221,9 @@ CONTAINS
       onRoute(diffusiveWave) .or. onRoute(muskingumCunge)) then
     do iSeg=1,nSeg
       structSEG(iSeg)%var(ixSEG%width)%dat(1) = wscale * sqrt(structSEG(iSeg)%var(ixSEG%totalArea)%dat(1))  ! channel width (m)
+      structSEG(iSeg)%var(ixSEG%depth)%dat(1) = channelDepth                                                ! channel bankfull depth (m)
       structSEG(iSeg)%var(ixSEG%man_n)%dat(1) = mann_n                                                      ! Manning's "n" paramater (unitless)
+      structSEG(iSeg)%var(ixSEG%floodplainSlope)%dat(1) = floodplainSlope                                   ! floodplain slope
     end do
   end if
 
@@ -397,6 +401,8 @@ END SUBROUTINE augment_ntopo
    RPARAM_in(iSeg)%R_SLOPE         = max(structSEG(iSeg)%var(ixSEG%slope)%dat(1), min_slope)
    RPARAM_in(iSeg)%R_MAN_N         =     structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
    RPARAM_in(iSeg)%R_WIDTH         =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
+   RPARAM_in(iSeg)%R_DEPTH         =     structSEG(iSeg)%var(ixSEG%depth)%dat(1)
+   RPARAM_in(iSeg)%FLDP_SLOPE      =     structSEG(iSeg)%var(ixSEG%floodplainSlope)%dat(1)
 
    if (is_lake_sim) then
      RPARAM_in(iSeg)%D03_MaxStorage  =     structSEG(iSeg)%var(ixSEG%D03_MaxStorage)%dat(1)

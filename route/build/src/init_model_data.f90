@@ -305,6 +305,7 @@ CONTAINS
   USE public_var, ONLY: kinematicWave          ! KW routing ID = 3
   USE public_var, ONLY: muskingumCunge         ! MC routing ID = 4
   USE public_var, ONLY: diffusiveWave          ! DW routing ID = 5
+  USE public_var, ONLY: is_lake_sim            ! logical if lakes are activated in simulation
   USE globalData, ONLY: idxIRF, idxKWT, &
                         idxKW, idxMC, idxDW
   USE globalData, ONLY: nRoutes                ! number of available routing methods
@@ -368,7 +369,7 @@ CONTAINS
       end if
       if (onRoute(kinematicWaveTracking)) then
         do ix = 1, nRch_mainstem+nTribOutlet
-          if (NETOPO_main(ix)%islake) then
+          if (is_lake_sim .and. NETOPO_main(ix)%islake) then
             allocate(RCHSTA_trib(iens,ix)%LKW_ROUTE%KWAVE(0:0),stat=ierr, errmsg=cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%LKW_ROUTE%KWAVE]'; return; endif
             RCHSTA_trib(iens,ix)%LKW_ROUTE%KWAVE(0)%QF=-9999
@@ -379,7 +380,7 @@ CONTAINS
           end if
         end do
         do ix = 1, rch_per_proc(0)
-          if (NETOPO_trib(ix)%islake) then
+          if (is_lake_sim .and. NETOPO_trib(ix)%islake) then
             allocate(RCHSTA_trib(iens,nRch_mainstem+nTribOutlet+ix)%LKW_ROUTE%KWAVE(0:0),stat=ierr, errmsg=cmessage)
             if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%LKW_ROUTE%KWAVE]'; return; endif
             RCHSTA_trib(iens,ix+nRch_mainstem+nTribOutlet)%LKW_ROUTE%KWAVE(0)%QF=-9999
@@ -434,7 +435,7 @@ CONTAINS
         end if
         if (onRoute(kinematicWaveTracking)) then
           do ix = 1, size(RCHSTA_trib(iens,:))
-            if (NETOPO_trib(ix)%islake) then
+            if (is_lake_sim .and. NETOPO_trib(ix)%islake) then
               allocate(RCHSTA_trib(iens,ix)%LKW_ROUTE%KWAVE(0:0),stat=ierr, errmsg=cmessage)
               if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [RCHSTA_trib%LKW_ROUTE%KWAVE]'; return; endif
               RCHSTA_trib(iens,ix)%LKW_ROUTE%KWAVE(0)%QF=-9999

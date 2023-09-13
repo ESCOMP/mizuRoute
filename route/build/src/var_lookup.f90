@@ -81,77 +81,79 @@ MODULE var_lookup
   integer(i4b)     :: slope            = integerMissing  !  2. slope of segment (-)
   integer(i4b)     :: width            = integerMissing  !  3. width of segment (m)
   integer(i4b)     :: man_n            = integerMissing  !  4. Manning's n (weird units)
+  integer(i4b)     :: depth            = integerMissing  !  5. bankfull depth (m)
+  integer(i4b)     :: floodplainSlope  = integerMissing  !  6. floodplain slope (-)
   ! contributing HRUs
-  integer(i4b)     :: hruArea          = integerMissing  !  5. contributing area for each HRU (m2)
-  integer(i4b)     :: weight           = integerMissing  !  6. weight assigned to each HRU (-)
+  integer(i4b)     :: hruArea          = integerMissing  !  7. contributing area for each HRU (m2)
+  integer(i4b)     :: weight           = integerMissing  !  8. weight assigned to each HRU (-)
   ! unit hydrograph routing
-  integer(i4b)     :: timeDelayHist    = integerMissing  !  7. time delay histogram for each reach (-)
-  integer(i4b)     :: basArea          = integerMissing  !  8. area of the local HRUs contributing to each reach (m2)
-  integer(i4b)     :: upsArea          = integerMissing  !  9. area above the top of the reach -- zero if headwater (m2)
-  integer(i4b)     :: totalArea        = integerMissing  ! 10. basArea + upsArea -- area at the bottom of the reach (m2)
+  integer(i4b)     :: timeDelayHist    = integerMissing  !  9. time delay histogram for each reach (-)
+  integer(i4b)     :: basArea          = integerMissing  ! 10. area of the local HRUs contributing to each reach (m2)
+  integer(i4b)     :: upsArea          = integerMissing  ! 11. area above the top of the reach -- zero if headwater (m2)
+  integer(i4b)     :: totalArea        = integerMissing  ! 12. basArea + upsArea -- area at the bottom of the reach (m2)
   ! lakes
-  integer(i4b)     :: basUnderLake     = integerMissing  ! 11. Area of basin under lake (m2)
-  integer(i4b)     :: rchUnderLake     = integerMissing  ! 12. Length of reach under lake (m)
+  integer(i4b)     :: basUnderLake     = integerMissing  ! 13. Area of basin under lake (m2)
+  integer(i4b)     :: rchUnderLake     = integerMissing  ! 14. Length of reach under lake (m)
   ! Doll 2003 parameter (Natural lake outflow)
-  integer(i4b)     :: D03_MaxStorage   = integerMissing  ! 13. Lake maximum volume (m3)
-  integer(i4b)     :: D03_Coefficient  = integerMissing  ! 14.
-  integer(i4b)     :: D03_Power        = integerMissing  ! 15.
-  integer(i4b)     :: D03_S0           = integerMissing  ! 16.
+  integer(i4b)     :: D03_MaxStorage   = integerMissing  ! 15. Lake maximum volume (m3)
+  integer(i4b)     :: D03_Coefficient  = integerMissing  ! 16.
+  integer(i4b)     :: D03_Power        = integerMissing  ! 17.
+  integer(i4b)     :: D03_S0           = integerMissing  ! 18.
   ! HYPE parameter (reservoir outflow)
-  integer(i4b)     :: HYP_E_emr        = integerMissing  ! 17.
-  integer(i4b)     :: HYP_E_lim        = integerMissing  ! 18.
-  integer(i4b)     :: HYP_E_min        = integerMissing  ! 19.
-  integer(i4b)     :: HYP_E_zero       = integerMissing  ! 20.
-  integer(i4b)     :: HYP_Qrate_emr    = integerMissing  ! 21.
-  integer(i4b)     :: HYP_Erate_emr    = integerMissing  ! 22.
-  integer(i4b)     :: HYP_Qrate_prim   = integerMissing  ! 23.
-  integer(i4b)     :: HYP_Qrate_amp    = integerMissing  ! 24.
-  integer(i4b)     :: HYP_Qrate_phs    = integerMissing  ! 25.
-  integer(i4b)     :: HYP_prim_F       = integerMissing  ! 26.
-  integer(i4b)     :: HYP_A_avg        = integerMissing  ! 27.
+  integer(i4b)     :: HYP_E_emr        = integerMissing  ! 19.
+  integer(i4b)     :: HYP_E_lim        = integerMissing  ! 20.
+  integer(i4b)     :: HYP_E_min        = integerMissing  ! 21.
+  integer(i4b)     :: HYP_E_zero       = integerMissing  ! 22.
+  integer(i4b)     :: HYP_Qrate_emr    = integerMissing  ! 23.
+  integer(i4b)     :: HYP_Erate_emr    = integerMissing  ! 24.
+  integer(i4b)     :: HYP_Qrate_prim   = integerMissing  ! 25.
+  integer(i4b)     :: HYP_Qrate_amp    = integerMissing  ! 26.
+  integer(i4b)     :: HYP_Qrate_phs    = integerMissing  ! 27.
+  integer(i4b)     :: HYP_prim_F       = integerMissing  ! 28.
+  integer(i4b)     :: HYP_A_avg        = integerMissing  ! 29.
   ! Hanasaki 2006 parameter (reservoir outlfow)
-  integer(i4b)     :: H06_Smax         = integerMissing  ! 28.
-  integer(i4b)     :: H06_alpha        = integerMissing  ! 29.
-  integer(i4b)     :: H06_envfact      = integerMissing  ! 30.
-  integer(i4b)     :: H06_S_ini        = integerMissing  ! 31.
-  integer(i4b)     :: H06_c1           = integerMissing  ! 32.
-  integer(i4b)     :: H06_c2           = integerMissing  ! 33.
-  integer(i4b)     :: H06_exponent     = integerMissing  ! 34.
-  integer(i4b)     :: H06_denominator  = integerMissing  ! 35.
-  integer(i4b)     :: H06_c_compare    = integerMissing  ! 36.
-  integer(i4b)     :: H06_frac_Sdead   = integerMissing  ! 37.
-  integer(i4b)     :: H06_E_rel_ini    = integerMissing  ! 38.
-  integer(i4b)     :: H06_I_Jan        = integerMissing  ! 39.
-  integer(i4b)     :: H06_I_Feb        = integerMissing  ! 40.
-  integer(i4b)     :: H06_I_Mar        = integerMissing  ! 41.
-  integer(i4b)     :: H06_I_Apr        = integerMissing  ! 42.
-  integer(i4b)     :: H06_I_May        = integerMissing  ! 43.
-  integer(i4b)     :: H06_I_Jun        = integerMissing  ! 44.
-  integer(i4b)     :: H06_I_Jul        = integerMissing  ! 45.
-  integer(i4b)     :: H06_I_Aug        = integerMissing  ! 46.
-  integer(i4b)     :: H06_I_Sep        = integerMissing  ! 47.
-  integer(i4b)     :: H06_I_Oct        = integerMissing  ! 48.
-  integer(i4b)     :: H06_I_Nov        = integerMissing  ! 49.
-  integer(i4b)     :: H06_I_Dec        = integerMissing  ! 50.
-  integer(i4b)     :: H06_D_Jan        = integerMissing  ! 51.
-  integer(i4b)     :: H06_D_Feb        = integerMissing  ! 52.
-  integer(i4b)     :: H06_D_Mar        = integerMissing  ! 53.
-  integer(i4b)     :: H06_D_Apr        = integerMissing  ! 54.
-  integer(i4b)     :: H06_D_May        = integerMissing  ! 55.
-  integer(i4b)     :: H06_D_Jun        = integerMissing  ! 56.
-  integer(i4b)     :: H06_D_Jul        = integerMissing  ! 57.
-  integer(i4b)     :: H06_D_Aug        = integerMissing  ! 58.
-  integer(i4b)     :: H06_D_Sep        = integerMissing  ! 59.
-  integer(i4b)     :: H06_D_Oct        = integerMissing  ! 60.
-  integer(i4b)     :: H06_D_Nov        = integerMissing  ! 61.
-  integer(i4b)     :: H06_D_Dec        = integerMissing  ! 62.
-  integer(i4b)     :: H06_purpose      = integerMissing  ! 63.
-  integer(i4b)     :: H06_I_mem_F      = integerMissing  ! 64.
-  integer(i4b)     :: H06_D_mem_F      = integerMissing  ! 65.
-  integer(i4b)     :: H06_I_mem_L      = integerMissing  ! 66.
-  integer(i4b)     :: H06_D_mem_L      = integerMissing  ! 67.
+  integer(i4b)     :: H06_Smax         = integerMissing  ! 30.
+  integer(i4b)     :: H06_alpha        = integerMissing  ! 31.
+  integer(i4b)     :: H06_envfact      = integerMissing  ! 32.
+  integer(i4b)     :: H06_S_ini        = integerMissing  ! 33.
+  integer(i4b)     :: H06_c1           = integerMissing  ! 34.
+  integer(i4b)     :: H06_c2           = integerMissing  ! 35.
+  integer(i4b)     :: H06_exponent     = integerMissing  ! 36.
+  integer(i4b)     :: H06_denominator  = integerMissing  ! 37.
+  integer(i4b)     :: H06_c_compare    = integerMissing  ! 38.
+  integer(i4b)     :: H06_frac_Sdead   = integerMissing  ! 39.
+  integer(i4b)     :: H06_E_rel_ini    = integerMissing  ! 40.
+  integer(i4b)     :: H06_I_Jan        = integerMissing  ! 41.
+  integer(i4b)     :: H06_I_Feb        = integerMissing  ! 42.
+  integer(i4b)     :: H06_I_Mar        = integerMissing  ! 43.
+  integer(i4b)     :: H06_I_Apr        = integerMissing  ! 44.
+  integer(i4b)     :: H06_I_May        = integerMissing  ! 45.
+  integer(i4b)     :: H06_I_Jun        = integerMissing  ! 46.
+  integer(i4b)     :: H06_I_Jul        = integerMissing  ! 47.
+  integer(i4b)     :: H06_I_Aug        = integerMissing  ! 48.
+  integer(i4b)     :: H06_I_Sep        = integerMissing  ! 49.
+  integer(i4b)     :: H06_I_Oct        = integerMissing  ! 50.
+  integer(i4b)     :: H06_I_Nov        = integerMissing  ! 51.
+  integer(i4b)     :: H06_I_Dec        = integerMissing  ! 52.
+  integer(i4b)     :: H06_D_Jan        = integerMissing  ! 53.
+  integer(i4b)     :: H06_D_Feb        = integerMissing  ! 54.
+  integer(i4b)     :: H06_D_Mar        = integerMissing  ! 55.
+  integer(i4b)     :: H06_D_Apr        = integerMissing  ! 56.
+  integer(i4b)     :: H06_D_May        = integerMissing  ! 57.
+  integer(i4b)     :: H06_D_Jun        = integerMissing  ! 58.
+  integer(i4b)     :: H06_D_Jul        = integerMissing  ! 59.
+  integer(i4b)     :: H06_D_Aug        = integerMissing  ! 60.
+  integer(i4b)     :: H06_D_Sep        = integerMissing  ! 61.
+  integer(i4b)     :: H06_D_Oct        = integerMissing  ! 62.
+  integer(i4b)     :: H06_D_Nov        = integerMissing  ! 63.
+  integer(i4b)     :: H06_D_Dec        = integerMissing  ! 64.
+  integer(i4b)     :: H06_purpose      = integerMissing  ! 65.
+  integer(i4b)     :: H06_I_mem_F      = integerMissing  ! 66.
+  integer(i4b)     :: H06_D_mem_F      = integerMissing  ! 67.
+  integer(i4b)     :: H06_I_mem_L      = integerMissing  ! 68.
+  integer(i4b)     :: H06_D_mem_L      = integerMissing  ! 69.
   ! constraints
-  integer(i4b)     :: minFlow       = integerMissing     ! 68. minimum environmental flow (m3/s)
+  integer(i4b)     :: minFlow       = integerMissing     ! 70. minimum environmental flow (m3/s)
  endtype iLook_SEG
  ! ***********************************************************************************************************
  ! ** define variables for the network topology (all are unitless)
@@ -275,7 +277,7 @@ MODULE var_lookup
                                                                          31,32,33,34,35,36,37,38,39,40, &
                                                                          41,42,43,44,45,46,47,48,49,50, &
                                                                          51,52,53,54,55,56,57,58,59,60, &
-                                                                         61,62,63,64,65,66,67,68)
+                                                                         61,62,63,64,65,66,67,68,69,70)
  type(iLook_NTOPO)    ,public,parameter :: ixNTOPO     = iLook_NTOPO    ( 1, 2, 3, 4, 5, 6, 7, 8, 9,10, &
                                                                          11,12,13,14,15,16,17,18,19,20, &
                                                                          21,22)

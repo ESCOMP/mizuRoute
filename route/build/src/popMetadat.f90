@@ -133,6 +133,8 @@ contains
  meta_SEG    (ixSEG%slope            ) = var_info('slope'          , 'slope of segment'                                  ,'-'     ,ixDims%seg   , .true.)
  meta_SEG    (ixSEG%width            ) = var_info('width'          , 'width of segment'                                  ,'m'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%man_n            ) = var_info('man_n'          , 'Mannings n'                                        ,'weird' ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%depth            ) = var_info('depth'          , 'bankfull depth of segment'                         ,'m'     ,ixDims%seg   , .false.)
+ meta_SEG    (ixSEG%floodplainSlope  ) = var_info('floodplainSlope', 'slope of floodplain'                               ,'-'     ,ixDims%seg   , .false.)
  meta_SEG    (ixSEG%hruArea          ) = var_info('hruArea'        , 'area of each contributing HRU'                     ,'m2'    ,ixDims%upHRU , .false.)
  meta_SEG    (ixSEG%weight           ) = var_info('weight'         , 'weight assigned to each HRU'                       ,'-'     ,ixDims%upHRU , .false.)
  meta_SEG    (ixSEG%timeDelayHist    ) = var_info('timeDelayHist'  , 'time delay histogram for each reach'               ,'-'     ,ixDims%uh    , .false.)

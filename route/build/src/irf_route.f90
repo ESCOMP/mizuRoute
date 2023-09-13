@@ -93,6 +93,8 @@ CONTAINS
     end do
   endif
 
+  RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initialize actual water abstraction
+
   ! perform UH convolution
   call conv_upsbas_qr(NETOPO_in(segIndex)%UH,    &    ! input: reach unit hydrograph
                       q_upstream,                &    ! input: total discharge at top of the reach being processed
@@ -122,7 +124,7 @@ CONTAINS
   if((RCHFLX_out(iens,segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then
     if (RCHFLX_out(iens,segIndex)%REACH_WM_FLUX <= 0) then ! negative/injection
       RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
-      RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
+      RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
     else ! positive/abstraction
       Qabs = min(RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)/dt+RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q, &
                  RCHFLX_out(iens,segIndex)%REACH_WM_FLUX)
@@ -130,7 +132,7 @@ CONTAINS
 
       RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) + Vmod*dt
       RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q      = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q - (Qabs+Vmod)
-      RCHFLX_out(iens,segIndex)%REACH_WM_FLUX_actual = Qabs
+      RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_WM_FLUX_actual = Qabs
     endif
   endif
 
