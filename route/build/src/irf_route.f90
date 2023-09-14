@@ -58,8 +58,9 @@ CONTAINS
  ! Local variables
  logical(lgt)                             :: verbose        ! check details of variables
  real(dp)                                 :: q_upstream     ! total discharge at top of the reach being processed
+ real(dp)                                 :: q_upstream_mod ! total discharge at top of the reach being processed
+ real(dp)                                 :: Qlat           ! total discharge at top of the reach being processed
  real(dp)                                 :: Qabs           ! maximum allowable water abstraction rate [m3/s]
- real(dp)                                 :: Vmod           ! abstraction rate from storage [m3/s]
  integer(i4b)                             :: nUps           ! number of upstream segment
  integer(i4b)                             :: iUps           ! upstream reach index
  integer(i4b)                             :: iRch_ups       ! index of upstream reach in NETOPO
@@ -93,11 +94,47 @@ CONTAINS
     end do
   endif
 
+  q_upstream_mod  = q_upstream
+  Qlat = RCHFLX_out(iens,segIndex)%BASIN_QR(1)
+  Qabs = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initial water abstraction (positive) or injection (negative)
   RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initialize actual water abstraction
+
+  ! update volume at previous time step
+  RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)
+
+  ! Water management - water injection or abstraction (irrigation or industrial/domestic water usage)
+  ! For water abstraction, water is extracted from the following priorities:
+  ! 1. existing storage(REACH_VOL(0), 2. upstream inflow , 3 lateral flow (BASIN_QR)
+  if((RCHFLX_out(iens,segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then
+    if (Qabs > 0) then ! positive == abstraction
+      if (RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)/dt > Qabs) then ! take out all abstraction from strorage
+        RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - Qabs*dt
+      else ! if inital abstraction is greater than volume
+        Qabs = Qabs - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)/dt ! get residual Qabs after extracting from strorage
+        RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = 0._dp ! voluem gets 0
+        if (q_upstream > Qabs) then ! then take out all residual abstraction from upstream inflow
+          q_upstream_mod = q_upstream - Qabs
+        else ! if residual abstraction is still greater than lateral flow
+          Qabs = Qabs - q_upstream ! get residual abstraction after extracting upstream inflow and storage.
+          q_upstream_mod = 0._dp ! upstream inflow gets 0 (all is gone to abstracted flow).
+          if (Qlat > Qabs) then ! then take residual abstraction out from lateral flow
+            Qlat = Qlat - Qabs
+          else ! if residual abstraction is greater than upstream inflow
+            Qabs = Qabs - Qlat ! take out residual abstraction from lateral flow
+            Qlat = 0._dp ! lateral flow gets 0 (all are gone to abstraction)
+            RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX - Qabs
+          end if
+        end if
+      end if
+    else ! negative == injection
+      Qlat = Qlat - Qabs
+    endif
+  endif
 
   ! perform UH convolution
   call conv_upsbas_qr(NETOPO_in(segIndex)%UH,    &    ! input: reach unit hydrograph
-                      q_upstream,                &    ! input: total discharge at top of the reach being processed
+                      q_upstream_mod,            &    ! input: total discharge from the upstreams
+                      Qlat,                      &    ! input: lateral flow [m3/s]
                       RCHFLX_out(iens,segIndex), &    ! inout: updated fluxes at reach
                       ierr, message)                  ! output: error control
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -118,23 +155,6 @@ CONTAINS
 !    endif
 !  endif
 !  WB_check = RCHFLX_out(iens,segIndex)%REACH_Q + abstract_actual - init_STRQ
-
-  ! take out the water from the reach if the wm flag is true and the value are not missing
-  ! here we should make sure the real missing is not injection (or negative abstration)
-  if((RCHFLX_out(iens,segIndex)%REACH_WM_FLUX /= realMissing).and.(is_flux_wm)) then
-    if (RCHFLX_out(iens,segIndex)%REACH_WM_FLUX <= 0) then ! negative/injection
-      RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q - RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
-      RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX
-    else ! positive/abstraction
-      Qabs = min(RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)/dt+RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q, &
-                 RCHFLX_out(iens,segIndex)%REACH_WM_FLUX)
-      Vmod = min(RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q-Qabs, 0._dp) ! is taken from storage and is <= 0
-
-      RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) + Vmod*dt
-      RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q      = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_Q - (Qabs+Vmod)
-      RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_WM_FLUX_actual = Qabs
-    endif
-  endif
 
   if(verbose)then
     ntdh = size(NETOPO_in(segIndex)%UH)
@@ -170,6 +190,7 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE conv_upsbas_qr(reach_uh,   &    ! input: reach unit hydrograph
                            q_upstream, &    ! input:
+                           q_lat,      &    ! input:
                            rflux,      &    ! input: input flux at reach
                            ierr, message)   ! output: error control
  ! ----------------------------------------------------------------------------------------
@@ -180,6 +201,7 @@ CONTAINS
  ! Argument variables
  real(dp),     intent(in)               :: reach_uh(:)  ! reach unit hydrograph
  real(dp),     intent(in)               :: q_upstream   ! total discharge at top of the reach being processed
+ real(dp),     intent(in)               :: q_lat        ! lataral flow
  type(STRFLX), intent(inout)            :: rflux        ! current Reach fluxes
  integer(i4b), intent(out)              :: ierr         ! error code
  character(*), intent(out)              :: message      ! error message
@@ -198,13 +220,13 @@ CONTAINS
  enddo
 
  ! compute volume in reach
- rflux%ROUTE(idxIRF)%REACH_VOL(0) = rflux%ROUTE(idxIRF)%REACH_VOL(1)
-! ! For very low flow condition, outflow - inflow > current storage, so limit outflow and adjust rflux%QFUTURE_IRF(1)
-! rflux%QFUTURE_IRF(1) = min(rflux%ROUTE(idxIRF)%REACH_VOL(0)/dt + q_upstream*0.999, rflux%QFUTURE_IRF(1))
- rflux%ROUTE(idxIRF)%REACH_VOL(1) = rflux%ROUTE(idxIRF)%REACH_VOL(0) - (rflux%QFUTURE_IRF(1) - q_upstream)*dt
+ ! For very low flow condition, outflow - inflow > current storage, so limit outflow and adjust rflux%QFUTURE_IRF(1)
+! rflux%QFUTURE_IRF(1) = min(0.999*(rflux%ROUTE(idxIRF)%REACH_VOL(1)/dt + q_upstream), rflux%QFUTURE_IRF(1))
+ rflux%QFUTURE_IRF(1) = min(rflux%ROUTE(idxIRF)%REACH_VOL(0)/dt + q_upstream*0.999, rflux%QFUTURE_IRF(1))
+ rflux%ROUTE(idxIRF)%REACH_VOL(1) = rflux%ROUTE(idxIRF)%REACH_VOL(1) - (rflux%QFUTURE_IRF(1) - q_upstream)*dt
 
  ! Add local routed flow at the bottom of reach
- rflux%ROUTE(idxIRF)%REACH_Q = rflux%QFUTURE_IRF(1) + rflux%BASIN_QR(1)
+ rflux%ROUTE(idxIRF)%REACH_Q = rflux%QFUTURE_IRF(1) + q_lat
 
  ! move array back   use eoshift
  rflux%QFUTURE_IRF=eoshift(rflux%QFUTURE_IRF,shift=1)
