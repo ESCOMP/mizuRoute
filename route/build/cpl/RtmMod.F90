@@ -12,7 +12,7 @@ MODULE RtmMod
                           ice_runoff, do_rof, do_flood, &
                           river_depth_minimum, &
                           nsrContinue, nsrBranch, nsrStartup, nsrest, &
-                          cfile_name, coupling_period, &
+                          cfile_name, coupling_period, delt_coupling, nsub, &
                           caseid, brnch_retain_casename, inst_name, &
                           barrier_timers
   USE RunoffMod,    ONLY: rtmCTL, RunoffInit         ! rof related data objects
@@ -21,6 +21,7 @@ MODULE RtmMod
   USE public_var,   ONLY: secprday                   ! second per day
   USE public_var,   ONLY: dt                         ! routing time step
   USE public_var,   ONLY: iulog
+  USE public_var,   ONLY: verySmall                  ! minimum values >0.0
   USE public_var,   ONLY: qgwl_runoff_option
   USE public_var,   ONLY: bypass_routing_option
   USE globalData,   ONLY: iam        => pid
@@ -118,16 +119,30 @@ CONTAINS
     end if
 
     !-------------------------------------------------------
+    ! 1. Get ROF subcycling
+    !-------------------------------------------------------
+    delt_coupling = coupling_period*secprday   ! day -> sec
+
+    if (abs(mod(delt_coupling, dt)-0._r8)>verySmall) then
+      if (masterproc) then
+        write(iulog,'(2a,g20.12,a)') trim(subname),' mizuRoute coupling period ', delt_coupling, '[sec]'
+        write(iulog,'(2a,g20.12,a)') trim(subname),' mizuRoute simulation step <dt_qstim> ', dt, '[sec]'
+        write(iulog, '(2A)') trim(subname),'WARNING: multiple of <dt_qsim> [sec] better to be delt_coupling [sec]'
+      end if
+    end if
+
+    nsub = delt_coupling/dt
+    if (nsub*dt < delt_coupling) then
+      nsub = nsub + 1
+    end if
+
+    if (masterproc) then
+      write(iulog,'(2a,g20.12,1a,I3,1a)') trim(subname),' mizuRoute run at', dt, '[sec] step ', nsub, ' per a coupling'
+    end if
+
+    !-------------------------------------------------------
     ! 1. Initialize time
     !-------------------------------------------------------
-    ! If routing time step dt [sec] and coupling time step coupling_period [day] is different, match dt to coupling_period.
-    if (dt/=coupling_period) then
-      if (masterproc) then
-        write(iulog,*) 'WARNING: Adjust mizuRoute dt to coupling_period'
-      endif
-      dt = coupling_period*secprday ! day->sec
-    endif
-
     ! mizuRoute time initialize based on time from coupler
     call init_time(ierr, cmessage)
     if(ierr/=0) then; cmessage = trim(subname)//trim(cmessage); call shr_sys_flush(iulog); call shr_sys_abort( subname//cmessage ); endif
@@ -393,15 +408,9 @@ CONTAINS
     integer                      :: iens=1                 ! ensemble index (1 for now)
     integer                      :: ix, nr, ns, nt         ! loop indices
     integer                      :: lwr,upr                ! lower and upper bounds for array slicing
-    integer                      :: nsub                   ! subcyling for cfl
-    integer , save               :: nsub_save              ! previous nsub
-    real(r8), save               :: delt_save              ! previous delt
-    logical,  save               :: first_call = .true.    ! first time flag (for backwards compatibility)
     real(r8)                     :: qgwl_depth             ! depth of qgwl runoff during time step [mm]
     real(r8)                     :: irrig_depth            ! depth of irrigation demand during time step [mm]
     real(r8)                     :: river_depth            ! depth of river water during time step [mm]
-    real(r8)                     :: delt                   ! delt associated with subcycling
-    real(r8)                     :: delt_coupling          ! real value of coupling_period [sec]
     real(r8), allocatable        :: qSend(:)               ! array holding negative lateral flow to be sent to outlet
     real(r8), allocatable        :: qvolSend(:)            ! array holding negative lateral flow to be sent to outlet
     real(r8), allocatable        :: qvolRecv(:)            ! array holding negative lateral flow to be recieved
@@ -412,13 +421,6 @@ CONTAINS
 
     call t_startf('mizuRoute_tot')
     call shr_sys_flush(iulog)
-
-    delt_coupling = coupling_period*secprday   ! day -> sec
-    if (first_call) then
-      nsub_save = 1
-      delt_save = dt
-      if (masterproc) write(iulog,'(2a,g20.12,a)') trim(subname),' mizuRoute coupling period ',delt_coupling, '[sec]'
-    end if
 
     !-------------------------------------------------------
     ! Initialize mizuRoute history handler and fields
@@ -613,31 +615,43 @@ CONTAINS
     endif
 
     !-----------------------------------
-    ! mizuRoute Subcycling
+    ! run mizuRoute
     !-----------------------------------
     ! subcycling needed when coupling frequency is greater than routing time steps
-    call t_startf('mizuRoute_subcycling')
-
-    nsub = delt_coupling/dt
-    if (nsub*dt < delt_coupling) then
-      nsub = nsub + 1
-    end if
-    delt = delt_coupling/float(nsub)
-    if (delt /= delt_save) then
-      if (masterproc) then
-        write(iulog,'(a,2(a,i12,g20.12))') trim(subname),' mizuRoute sub-timestep, dt update from', nsub_save, delt_save, ' to ', nsub, delt
-      end if
-    endif
-
-    nsub_save = nsub
-    delt_save = delt
-
     do ns = 1,nsub
+      call t_startf('mizuRoute_subcycling')
+
       call mpi_route(iam, npes, mpicom_rof, iens, ierr, cmessage, scatter_ro=.false.)
       if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-    enddo
 
-    call t_stopf('mizuRoute_subcycling')
+      call t_stopf('mizuRoute_subcycling')
+
+      !-----------------------------------
+      ! Write out mizuRoute history file
+      !-----------------------------------
+      call t_startf('mizuRoute_htapes')
+
+      call output(ierr, cmessage)
+      if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+
+      call t_stopf('mizuRoute_htapes')
+
+      !-----------------------------------
+      ! Write out mizuRoute restart file
+      !-----------------------------------
+      if (rstwr) then
+        call t_startf('mizuRoute_rest')
+
+        call restart_output(ierr, cmessage)
+        if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+
+        call t_stopf('mizuRoute_rest')
+      end if
+
+      ! increment mizuRoute time step
+      call update_time(finished, ierr, cmessage)
+      if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
+    end do
 
     !-----------------------------------
     ! getting ready for exporting
@@ -663,43 +677,9 @@ CONTAINS
     call t_stopf('mizuRoute_prep_export')
 
     !-----------------------------------
-    ! water balance check
-    !-----------------------------------
-    ! to be implemented
-
-    !-----------------------------------
-    ! Write out mizuRoute history file
-    !-----------------------------------
-    call t_startf('mizuRoute_htapes')
-
-    call output(ierr, cmessage)
-    if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-
-    call t_stopf('mizuRoute_htapes')
-
-    !-----------------------------------
-    ! Write out mizuRoute restart file
-    !-----------------------------------
-    if (rstwr) then
-      call t_startf('mizuRoute_rest')
-
-      call restart_output(ierr, cmessage)
-      if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-
-      call t_stopf('mizuRoute_rest')
-    end if
-
-    ! increment mizuRoute time step
-    call update_time(finished, ierr, cmessage)
-    if(ierr/=0)then; call shr_sys_flush(iulog); call shr_sys_abort(trim(subname)//trim(cmessage)); endif
-
-    !-----------------------------------
     ! Done
     !-----------------------------------
-    first_call = .false.
-
     call shr_sys_flush(iulog)
-
     call t_stopf('mizuRoute_tot')
 
   END SUBROUTINE route_run
