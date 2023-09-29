@@ -18,11 +18,14 @@ USE io_rpointfile,  ONLY: io_rpfile
 USE ascii_utils,    ONLY: lower
 USE pio_utils
 
+USE globalData,     ONLY: ioDesc_hru_float
+USE globalData,     ONLY: ioDesc_rch_float
+USE globalData,     ONLY: ioDesc_gauge_float
+
 implicit none
 type(histVars), save            :: hVars                 !
 type(histFile), save            :: hist_all_network      !
 type(histFile), save            :: hist_gage             !
-integer(i4b), allocatable, save :: index_write_gage(:)   !
 
 private
 public::hVars
@@ -30,7 +33,6 @@ public::main_new_file
 public::output
 public::close_all
 public::init_histFile
-public::get_compdof_all_network ! used in write_restart_pio
 
 CONTAINS
 
@@ -49,14 +51,12 @@ CONTAINS
     USE globalData, ONLY: gage_data         !
     USE globalData, ONLY: pioSystem
 
+
     implicit none
     ! Argument variables
     integer(i4b),   intent(out)     :: ierr             ! error code
     character(*),   intent(out)     :: message          ! error message
     ! local variables
-    integer(i4b), allocatable       :: compdof_rch(:)      !
-    integer(i4b), allocatable       :: compdof_rch_gage(:) !
-    integer(i4b), allocatable       :: compdof_hru(:)      !
     logical(lgt)                    :: createNewFile       ! logical to make alarm for restart writing
     character(len=strLen)           :: cmessage            ! error message of downwind routine
 
@@ -74,9 +74,7 @@ CONTAINS
       ! initialize and create history netcdfs
       hist_all_network = histFile(hfileout, pioSys=pioSystem)
 
-      call get_compdof_all_network(compdof_rch, compdof_hru)
-
-      call hist_all_network%set_compdof(compdof_rch, compdof_hru, nRch, nHRU)
+      call hist_all_network%set_compdof(ioDesc_rch_float, ioDesc_hru_float)
 
       call hist_all_network%createNC(ierr, cmessage, nRch_in=nRch, nHRU_in=nHRU)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -91,9 +89,7 @@ CONTAINS
 
         hist_gage = histFile(hfileout_gage, pioSys=pioSystem, gageOutput=.true.)
 
-        call get_compdof_gage(compdof_rch_gage, ierr, cmessage)
-
-        call hist_gage%set_compdof(compdof_rch_gage, gage_data%nGage)
+        call hist_gage%set_compdof(ioDesc_gauge_float)
 
         call hist_gage%createNC(ierr, cmessage, nRch_in=gage_data%nGage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -154,6 +150,7 @@ CONTAINS
    USE globalData, ONLY: rch_per_proc      ! number of reaches assigned to each proc (size = num of procs+1)
    USE globalData, ONLY: nRch_mainstem     ! number of mainstem reach
    USE globalData, ONLY: nTribOutlet       ! number of
+   USE globalData, ONLY: index_write_gage  ! reach index (w.r.t. global domain) corresponding gauge location
    USE nr_utils,   ONLY: arth
 
    implicit none
@@ -300,110 +297,6 @@ CONTAINS
  END SUBROUTINE get_proc_flux
 
  ! *********************************************************************
- ! private subroutine: get pio local-global mapping data
- ! *********************************************************************
- SUBROUTINE get_compdof_all_network(compdof_rch, compdof_hru)
-
-   USE globalData,        ONLY: hru_per_proc      ! number of hrus assigned to each proc (size = num of procs+1)
-   USE globalData,        ONLY: rch_per_proc      ! number of reaches assigned to each proc (size = num of procs+1)
-   USE nr_utils,          ONLY: arth
-
-   implicit none
-   ! Argument variables
-   integer(i4b), allocatable, intent(out) :: compdof_rch(:) !
-   integer(i4b), allocatable, intent(out) :: compdof_hru(:) !
-   ! Local variables
-   integer(i4b)                :: ix1, ix2               ! frst and last indices of global array for local array chunk
-
-   if (masterproc) then
-     allocate(compdof_rch(sum(rch_per_proc(-1:pid))))
-     allocate(compdof_hru(sum(hru_per_proc(-1:pid))))
-   else
-     allocate(compdof_rch(rch_per_proc(pid)))
-     allocate(compdof_hru(hru_per_proc(pid)))
-   end if
-
-   ! For reach flux/volume
-   if (masterproc) then
-     ix1 = 1
-   else
-     ix1 = sum(rch_per_proc(-1:pid-1))+1
-   endif
-   ix2 = sum(rch_per_proc(-1:pid))
-   compdof_rch = arth(ix1, 1, ix2-ix1+1)
-
-   ! For HRU flux/volume
-   if (masterproc) then
-     ix1 = 1
-   else
-     ix1 = sum(hru_per_proc(-1:pid-1))+1
-   endif
-   ix2 = sum(hru_per_proc(-1:pid))
-   compdof_hru = arth(ix1, 1, ix2-ix1+1)
-
- END SUBROUTINE get_compdof_all_network
-
-
- ! *********************************************************************
- ! private subroutine: get pio local-global mapping data
- ! *********************************************************************
- SUBROUTINE get_compdof_gage(compdof_rch, ierr, message)
-
-   USE globalData, ONLY: rch_per_proc        ! number of reaches assigned to each proc (size = num of procs+1)
-   USE globalData, ONLY: nRch_mainstem       ! number of mainstem reaches
-   USE globalData, ONLY: nTribOutlet         ! number of tributary outlets flowing to the mainstem
-   USE globalData, ONLY: NETOPO_main         ! mainstem Reach neteork
-   USE globalData, ONLY: NETOPO_trib         ! tributary Reach network
-   USE globalData, ONLY: gage_data
-   USE process_gage_meta, ONLY: reach_subset
-
-   implicit none
-   ! Argument variables
-   integer(i4b), allocatable, intent(out) :: compdof_rch(:)   !
-   integer(i4b), intent(out)              :: ierr             ! error code
-   character(*), intent(out)              :: message          ! error message
-   ! Local variables
-   integer(i4b)                           :: ix
-   integer(i4b)                           :: nRch_local
-   integer(i4b),allocatable               :: reachID_local(:) !
-   character(len=strLen)                  :: cmessage         ! error message of downwind routine
-
-   ierr=0; message='get_compdof_gage/'
-
-   ! Only For reach flux/volume
-   if (masterproc) then
-     nRch_local = nRch_mainstem+rch_per_proc(0)
-     allocate(reachID_local(nRch_local), stat=ierr, errmsg=cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [reachID_local]'; return; endif
-
-     if (nRch_mainstem>0)   reachID_local(1:nRch_mainstem) = NETOPO_main(1:nRch_mainstem)%REACHID
-     if (rch_per_proc(0)>0) reachID_local(nRch_mainstem+1:nRch_local) = NETOPO_trib(:)%REACHID
-   else
-     nRch_local = rch_per_proc(pid)
-     allocate(reachID_local(nRch_local), stat=ierr, errmsg=cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [reachID_local]'; return; endif
-     reachID_local = NETOPO_trib(:)%REACHID
-   endif
-
-   call reach_subset(reachID_local, gage_data, ierr, cmessage, compdof=compdof_rch, index2=index_write_gage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   ! Need to adjust tributary indices in root processor
-   ! This is because RCHFLX has three components in the order: mainstem, halo, tributary
-   ! mainstem (1,2,..,nRch_mainstem),
-   ! halo(nRch_mainstem+1,..,nRch_mainstem+nTribOutlet), and
-   ! tributary(nRch_mainstem+nTribOutlet+1,...,nRch_total)
-   ! index_write_gage is computed based on reachID consisting of mainstem and tributary
-   if (masterproc) then
-     do ix=1,size(index_write_gage)
-       if (index_write_gage(ix)<=nRch_mainstem) cycle
-       index_write_gage(ix) = index_write_gage(ix) + nTribOutlet
-     end do
-   end if
-
- END SUBROUTINE get_compdof_gage
-
- ! *********************************************************************
  ! private subroutine: define history NetCDF file name
  ! *********************************************************************
  SUBROUTINE get_hfilename(inDatetime, ierr, message)
@@ -477,11 +370,9 @@ CONTAINS
    implicit none
    if (hist_all_network%fileOpen()) then
      call hist_all_network%closeNC()
-     call hist_all_network%cleanup()
    end if
    if (hist_gage%fileOpen()) then
      call hist_gage%closeNC()
-     call hist_gage%cleanup()
    end if
  END SUBROUTINE
 
@@ -490,7 +381,6 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE init_histFile(ierr, message)
 
-   USE globalData,  ONLY: nHRU, nRch        ! number of HRUs and river reaches
    USE globalData,  ONLY: gage_data
    USE public_var,  ONLY: outputAtGage      ! ascii containing last restart and history files
    USE globalData,  ONLY: pioSystem
@@ -500,9 +390,6 @@ CONTAINS
    integer(i4b),   intent(out)     :: ierr                ! error code
    character(*),   intent(out)     :: message             ! error message
    ! local variables
-   integer(i4b), allocatable       :: compdof_rch(:)      !
-   integer(i4b), allocatable       :: compdof_rch_gage(:) !
-   integer(i4b), allocatable       :: compdof_hru(:)      !
    character(len=strLen)           :: cmessage            ! error message of downwind routine
 
    ierr=0; message='init_histFile/'
@@ -517,9 +404,7 @@ CONTAINS
    call hist_all_network%openNc(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   call get_compdof_all_network(compdof_rch, compdof_hru)
-
-   call hist_all_network%set_compdof(compdof_rch, compdof_hru, nRch, nHRU)
+   call hist_all_network%set_compdof(ioDesc_rch_float, ioDesc_hru_float)
 
    if (outputAtGage) then
      hist_gage = histFile(hfileout_gage, pioSys=pioSystem, gageOutput=.true.)
@@ -527,10 +412,7 @@ CONTAINS
      call hist_gage%openNC(ierr, message)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-     call get_compdof_gage(compdof_rch_gage, ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-     call hist_gage%set_compdof(compdof_rch_gage, gage_data%nGage)
+     call hist_gage%set_compdof(ioDesc_gauge_float)
    end if
 
  END SUBROUTINE init_histFile

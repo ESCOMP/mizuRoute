@@ -51,22 +51,23 @@ USE globalData,        ONLY: idxSUM,idxIRF,idxKWT, &
 USE nr_utils,          ONLY: arth
 USE pio_utils
 
+USE globalData,        ONLY: ioDesc_rch_double
+USE globalData,        ONLY: ioDesc_hist_rch_double
+USE globalData,        ONLY: ioDesc_hru_double
+USE globalData,        ONLY: ioDesc_rch_int
+USE globalData,        ONLY: ioDesc_wave_int
+USE globalData,        ONLY: ioDesc_wave_double
+USE globalData,        ONLY: ioDesc_mesh_kw_double
+USE globalData,        ONLY: ioDesc_mesh_mc_double
+USE globalData,        ONLY: ioDesc_mesh_dw_double
+USE globalData,        ONLY: ioDesc_irf_double
+USE globalData,        ONLY: ioDesc_vol_double
+USE globalData,        ONLY: ioDesc_irf_bas_double
+
 implicit none
 
 ! The following variables used only in this module
 type(file_desc_t)    :: pioFileDescState     ! contains data identifying the file
-type(io_desc_t)      :: iodesc_rch_int
-type(io_desc_t)      :: iodesc_rch_double
-type(io_desc_t)      :: iodesc_hist_rch_double
-type(io_desc_t)      :: iodesc_hist_hru_double
-type(io_desc_t)      :: iodesc_wave_int
-type(io_desc_t)      :: iodesc_wave_double
-type(io_desc_t)      :: iodesc_mesh_kw_double
-type(io_desc_t)      :: iodesc_mesh_mc_double
-type(io_desc_t)      :: iodesc_mesh_dw_double
-type(io_desc_t)      :: iodesc_irf_double
-type(io_desc_t)      :: iodesc_vol_double
-type(io_desc_t)      :: iodesc_irf_bas_double
 
 integer(i4b),    parameter :: currTimeStep = 1
 integer(i4b),    parameter :: nextTimeStep = 2
@@ -263,7 +264,6 @@ CONTAINS
  USE public_var, ONLY: muskingumCunge
  USE public_var, ONLY: diffusiveWave
  USE globalData, ONLY: onRoute                  ! logical to indicate which routing method(s) is on
- USE write_simoutput_pio, ONLY:get_compdof_all_network
 
  implicit none
  ! argument variables
@@ -299,10 +299,6 @@ CONTAINS
  ! ----------------------------------
  do jDim = 1,size(ixDim_common)
   associate(ixDim => ixDim_common(jDim))
-  if (meta_stateDims(ixDim)%dimLength == integerMissing) then
-   call set_dim_len(ixDim, ierr, cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage)//' for '//trim(meta_stateDims(ixDim)%dimName); return; endif
-  endif
   call def_dim(pioFileDescState, trim(meta_stateDims(ixDim)%dimName), meta_stateDims(ixDim)%dimLength, meta_stateDims(ixDim)%dimId)
   end associate
  end do
@@ -373,166 +369,11 @@ CONTAINS
  call define_history_state(ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! ----------------------------------
- ! pio initialization of decomposition
- ! ----------------------------------
- associate(nSeg     => meta_stateDims(ixStateDims%seg)%dimLength,     &
-           nHru     => meta_stateDims(ixStateDims%hru)%dimLength,     &
-           nEns     => meta_stateDims(ixStateDims%ens)%dimLength,     &
-           ntdh     => meta_stateDims(ixStateDims%tdh)%dimLength,     & ! maximum future q time steps among basins
-           ntdh_irf => meta_stateDims(ixStateDims%tdh_irf)%dimLength, & ! maximum future q time steps among reaches
-           nTbound  => meta_stateDims(ixStateDims%tbound)%dimLength,  & ! time bound
-           nMesh_kw => meta_stateDims(ixStateDims%mol_kw)%dimLength,  & ! kw_finite difference mesh points
-           nMesh_mc => meta_stateDims(ixStateDims%mol_mc)%dimLength,  & ! mc_finite difference mesh points
-           nMesh_dw => meta_stateDims(ixStateDims%mol_dw)%dimLength,  & ! dw_finite difference mesh points
-           nWave    => meta_stateDims(ixStateDims%wave)%dimLength)      ! maximum waves allowed in a reach
-
- call get_compdof_all_network(compdof_rch, compdof_hru)
-
- ! type: float  dim: [dim_seg, dim_ens]  -- channel runoff coming from hru
- call pio_decomp(pioSystem,              & ! input: pio system descriptor
-                 ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                 [nSeg,nEns],            & ! input: dimension length == global array size
-                 compdof_rch,            & ! input:
-                 iodesc_rch_double)
-
- ! type: int  dim: [dim_seg, dim_ens]  -- number of wave or uh future time steps
- call pio_decomp(pioSystem,              & ! input: pio system descriptor
-                 ncd_int,                & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                 [nSeg,nEns],            & ! input: dimension length == global array size
-                 compdof_rch,            & ! input:
-                 iodesc_rch_int)
-
- ! type: single precision float  dim: [dim_seg]  --
- call pio_decomp(pioSystem,              & ! input: pio system descriptor
-                 ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                 [nSeg],                 & ! input: dimension length == global array size
-                 compdof_rch,            & ! input:
-                 iodesc_hist_rch_double)
-
- if (meta_hflx(ixHFLX%basRunoff)%varFile) then
-   ! type: single precision float  dim: [dim_hru]  --
-   call pio_decomp(pioSystem,              & ! input: pio system descriptor
-                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                   [nHru],                 & ! input: dimension length == global array size
-                   compdof_hru,            & ! input:
-                   iodesc_hist_hru_double)
- end if
-
- if (doesBasinRoute==1) then
-   ! type: float dim: [dim_seg, dim_tdh_irf]
-   call pio_decomp(pioSystem,              & ! input: pio system descriptor
-                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                   [nSeg,ntdh,nEns],       & ! input: dimension length == global array size
-                   compdof_rch,            & ! input:
-                   iodesc_irf_bas_double)
- end if
-
- if (onRoute(impulseResponseFunc))then
-   ! type: float dim: [dim_seg, dim_tdh_irf, dim_ens]
-   call pio_decomp(pioSystem,              & ! input: pio system descriptor
-                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                   [nSeg,ntdh_irf,nEns],   & ! input: dimension length == global array size
-                   compdof_rch,            & ! input:
-                   iodesc_irf_double)
-
-   ! type: float dim: [dim_seg, dim_ens]
-   call pio_decomp(pioSystem,              & ! input: pio system descriptor
-                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                   [nSeg,nTbound,nEns],    & ! input: dimension length == global array size
-                   compdof_rch,            & ! input:
-                   iodesc_vol_double)
- end if
-
- if (onRoute(kinematicWaveTracking)) then
-   ! type: int, dim: [dim_seg, dim_wave, dim_ens]
-   call pio_decomp(pioSystem,              & ! input: pio system descriptor
-                   ncd_int,                & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                   [nSeg,nWave,nEns],      & ! input: dimension length == global array size
-                   compdof_rch,            & ! input:
-                   iodesc_wave_int)
-
-   ! type: float, dim: [dim_seg, dim_wave, dim_ens]
-   call pio_decomp(pioSystem,              & ! input: pio system descriptor
-                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                   [nSeg,nWave,nEns],      & ! input: dimension length == global array size
-                   compdof_rch,            & ! input:
-                   iodesc_wave_double)
- end if
-
- if (onRoute(kinematicWave)) then
-   ! type: float, dim: [dim_seg, dim_mesh, dim_ens]
-   call pio_decomp(pioSystem,              & ! input: pio system descriptor
-                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                   [nSeg,nMesh_kw,nEns],   & ! input: dimension length == global array size
-                   compdof_rch,            & ! input:
-                   iodesc_mesh_kw_double)
- end if
-
- if (onRoute(muskingumCunge)) then
-   ! type: float, dim: [dim_seg, dim_mesh, dim_ens]
-   call pio_decomp(pioSystem,              & ! input: pio system descriptor
-                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                   [nSeg,nMesh_mc,nEns],   & ! input: dimension length == global array size
-                   compdof_rch,            & ! input:
-                   iodesc_mesh_mc_double)
- end if
-
- if (onRoute(diffusiveWave)) then
-   ! type: float, dim: [dim_seg, dim_mesh, dim_ens]
-   call pio_decomp(pioSystem,              & ! input: pio system descriptor
-                   ncd_double,             & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                   [nSeg,nMesh_dw,nEns],   & ! input: dimension length == global array size
-                   compdof_rch,            & ! input:
-                   iodesc_mesh_dw_double)
- end if
-
- end associate
-
  ! Finishing up definition -------
  call end_def(pioFileDescState, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  CONTAINS
-
-  SUBROUTINE set_dim_len(ixDim, ierr, message1)
-   ! populate state netCDF dimension size
-   USE public_var, ONLY: MAXQPAR, outputAtGage
-   USE globalData, ONLY: nMolecule
-   USE globalData, ONLY: maxtdh           ! maximum unit-hydrogrph future time
-   USE globalData, ONLY: FRAC_FUTURE      ! To get size of q future for basin IRF
-   USE globalData, ONLY: nEns, nRch, nHru ! number of ensembles and river reaches
-   implicit none
-   ! input
-   integer(i4b), intent(in)   :: ixDim    ! ixDim
-   ! output
-   integer(i4b), intent(out)  :: ierr     ! error code
-   character(*), intent(out)  :: message1 ! error message
-
-   ierr=0; message1='set_dim_len/'
-
-   select case(ixDim)
-    case(ixStateDims%seg);     meta_stateDims(ixStateDims%seg)%dimLength     = nRch
-    case(ixStateDims%hru);     meta_stateDims(ixStateDims%hru)%dimLength     = nHru
-    case(ixStateDims%ens);     meta_stateDims(ixStateDims%ens)%dimLength     = nEns
-    case(ixStateDims%tbound);  meta_stateDims(ixStateDims%tbound)%dimLength  = 2
-    case(ixStateDims%tdh);     meta_stateDims(ixStateDims%tdh)%dimLength     = size(FRAC_FUTURE)
-    case(ixStateDims%tdh_irf); meta_stateDims(ixStateDims%tdh_irf)%dimLength = maxtdh
-    case(ixStateDims%mol_kw);  meta_stateDims(ixStateDims%mol_kw)%dimLength  = nMolecule%KW_ROUTE
-    case(ixStateDims%mol_mc);  meta_stateDims(ixStateDims%mol_mc)%dimLength  = nMolecule%MC_ROUTE
-    case(ixStateDims%mol_dw);  meta_stateDims(ixStateDims%mol_dw)%dimLength  = nMolecule%DW_ROUTE
-    case(ixStateDims%wave);    meta_stateDims(ixStateDims%wave)%dimLength    = MAXQPAR
-    case(ixStateDims%hist_fil)
-      if (outputAtGage) then
-        meta_stateDims(ixStateDims%hist_fil)%dimLength = 2
-      else
-        meta_stateDims(ixStateDims%hist_fil)%dimLength = 1
-      end if
-    case default; ierr=20; message1=trim(message1)//'unable to identify dimension variable index'; return
-   end select
-
-  END SUBROUTINE set_dim_len
-
 
   SUBROUTINE define_basinQ_state(ierr, message1)
    implicit none
@@ -578,12 +419,6 @@ CONTAINS
 
    ierr=0; message1='define_IRFbas_state/'
 
-   ! Check dimension length is populated
-   if (meta_stateDims(ixStateDims%tdh)%dimLength == integerMissing) then
-     call set_dim_len(ixStateDims%tdh, ierr, cmessage)
-     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%tdh)%dimName); return; endif
-   end if
-
    call def_dim(pioFileDescState, meta_stateDims(ixStateDims%tdh)%dimName, meta_stateDims(ixStateDims%tdh)%dimLength, meta_stateDims(ixStateDims%tdh)%dimId)
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
@@ -617,12 +452,6 @@ CONTAINS
    integer(i4b),allocatable          :: dim_set(:)  ! dimensions combination case 4
 
    ierr=0; message1='define_IRF_state/'
-
-   ! Define dimension needed for this routing specific state variables
-   if (meta_stateDims(ixStateDims%tdh_irf)%dimLength == integerMissing) then
-     call set_dim_len(ixStateDims%tdh_irf, ierr, cmessage)
-     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%tdh_irf)%dimName); return; endif
-   endif
 
    call def_dim(pioFileDescState, meta_stateDims(ixStateDims%tdh_irf)%dimName, meta_stateDims(ixStateDims%tdh_irf)%dimLength, meta_stateDims(ixStateDims%tdh_irf)%dimId)
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
@@ -662,12 +491,6 @@ CONTAINS
    integer(i4b),allocatable          :: dim_set(:)  ! dimensions ID array
 
    ierr=0; message1='define_KWT_state/'
-
-   ! Check dimension length is populated
-   if (meta_stateDims(ixStateDims%wave)%dimLength == integerMissing) then
-     call set_dim_len(ixStateDims%wave, ierr, cmessage)
-     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%wave)%dimName); return; endif
-   end if
 
    ! Define dimension needed for this routing specific state variables
    call def_dim(pioFileDescState, meta_stateDims(ixStateDims%wave)%dimName, meta_stateDims(ixStateDims%wave)%dimLength, meta_stateDims(ixStateDims%wave)%dimId)
@@ -709,12 +532,6 @@ CONTAINS
 
    ierr=0; message1='define_KW_state/'
 
-   ! Check dimension length is populated
-   if (meta_stateDims(ixStateDims%mol_kw)%dimLength == integerMissing) then
-     call set_dim_len(ixStateDims%mol_kw, ierr, cmessage)
-     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%mol_kw)%dimName); return; endif
-   end if
-
    call def_dim(pioFileDescState, meta_stateDims(ixStateDims%mol_kw)%dimName, meta_stateDims(ixStateDims%mol_kw)%dimLength, meta_stateDims(ixStateDims%mol_kw)%dimId)
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
@@ -746,12 +563,6 @@ CONTAINS
 
    ierr=0; message1='define_MC_state/'
 
-   ! Check dimension length is populated
-   if (meta_stateDims(ixStateDims%mol_mc)%dimLength == integerMissing) then
-     call set_dim_len(ixStateDims%mol_mc, ierr, cmessage)
-     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%mol_mc)%dimName); return; endif
-   end if
-
    call def_dim(pioFileDescState, meta_stateDims(ixStateDims%mol_mc)%dimName, meta_stateDims(ixStateDims%mol_mc)%dimLength, meta_stateDims(ixStateDims%mol_mc)%dimId)
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
 
@@ -782,12 +593,6 @@ CONTAINS
    integer(i4b),allocatable          :: dim_set(:)    ! dimension Id array
 
    ierr=0; message1='define_DW_state/'
-
-   ! Check dimension length is populated
-   if (meta_stateDims(ixStateDims%mol_dw)%dimLength == integerMissing) then
-     call set_dim_len(ixStateDims%mol_dw, ierr, cmessage)
-     if(ierr/=0)then; message1=trim(message1)//trim(cmessage)//' for '//trim(meta_stateDims(ixStateDims%mol_dw)%dimName); return; endif
-   end if
 
    call def_dim(pioFileDescState, meta_stateDims(ixStateDims%mol_dw)%dimName, meta_stateDims(ixStateDims%mol_dw)%dimLength, meta_stateDims(ixStateDims%mol_dw)%dimId)
    if(ierr/=0)then; ierr=20; message1=trim(message1)//'cannot define dimension'; return; endif
@@ -985,34 +790,6 @@ CONTAINS
  ! close netCDF
  call closeFile(pioFileDescState, restartOpen)
 
- ! clean decomposition data
- call freeDecomp(pioSystem, iodesc_rch_double)
- call freeDecomp(pioSystem, iodesc_rch_int)
- call freeDecomp(pioSystem, iodesc_hist_rch_double)
- if (meta_hflx(ixHFLX%basRunoff)%varFile) then
-   call freeDecomp(pioSystem, iodesc_hist_hru_double)
- end if
- if (doesBasinRoute==1) then
-   call freeDecomp(pioSystem, iodesc_irf_bas_double)
- end if
- if (onRoute(impulseResponseFunc))then
-   call freeDecomp(pioSystem, iodesc_irf_double)
-   call freeDecomp(pioSystem, iodesc_vol_double)
- end if
- if (onRoute(kinematicWaveTracking)) then
-   call freeDecomp(pioSystem, iodesc_wave_int)
-   call freeDecomp(pioSystem, iodesc_wave_double)
- end if
- if (onRoute(kinematicWave)) then
-   call freeDecomp(pioSystem, iodesc_mesh_kw_double)
- end if
- if (onRoute(muskingumCunge)) then
-   call freeDecomp(pioSystem, iodesc_mesh_mc_double)
- end if
- if (onRoute(diffusiveWave)) then
-   call freeDecomp(pioSystem, iodesc_mesh_dw_double)
- end if
-
  CONTAINS
 
   SUBROUTINE write_basinQ_state(ierr, message1)
@@ -1040,7 +817,7 @@ CONTAINS
               array_2d_dp(iSeg,iens) = RCHFLX_local(iSeg)%BASIN_QR(1)
             enddo
           enddo
-          call write_pnetcdf(pioFileDescState, meta_basinQ(iVar)%varName, array_2d_dp, iodesc_rch_double, ierr, cmessage)
+          call write_pnetcdf(pioFileDescState, meta_basinQ(iVar)%varName, array_2d_dp, ioDesc_rch_double, ierr, cmessage)
           deallocate(array_2d_dp)
         case default; ierr=20; message1=trim(message1)//'unable to identify basin runoff variable index'; return
       end select
@@ -1075,7 +852,7 @@ CONTAINS
                array_3d_dp(iSeg,:,iens) = RCHFLX_local(iSeg)%QFUTURE
             end do
           end do
-          call write_pnetcdf(pioFileDescState, meta_irf_bas(iVar)%varName, array_3d_dp, iodesc_irf_bas_double, ierr, cmessage)
+          call write_pnetcdf(pioFileDescState, meta_irf_bas(iVar)%varName, array_3d_dp, ioDesc_irf_bas_double, ierr, cmessage)
           deallocate(array_3d_dp)
         case default; ierr=20; message1=trim(message1)//'unable to identify basin IRF state variable index'; return
       end select
@@ -1113,7 +890,7 @@ CONTAINS
       end do
     end do
 
-    call write_pnetcdf(pioFileDescState, 'numQF', numQF, iodesc_rch_int, ierr, cmessage)
+    call write_pnetcdf(pioFileDescState, 'numQF', numQF, ioDesc_rch_int, ierr, cmessage)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
     do iVar=1,nVarsIRF
@@ -1127,7 +904,7 @@ CONTAINS
               array_3d_dp(iSeg,numQF(iens,iSeg)+1:ntdh_irf,iens) = realMissing
             end do
           end do
-          call write_pnetcdf(pioFileDescState, meta_irf(iVar)%varName, array_3d_dp, iodesc_irf_double, ierr, cmessage)
+          call write_pnetcdf(pioFileDescState, meta_irf(iVar)%varName, array_3d_dp, ioDesc_irf_double, ierr, cmessage)
           deallocate(array_3d_dp)
         case(ixIRF%vol)
           allocate(array_3d_dp(nSeg,nTbound,nEns), stat=ierr, errmsg=cmessage)
@@ -1137,7 +914,7 @@ CONTAINS
               array_3d_dp(iSeg,1:nTbound,iens) = RCHFLX_local(iSeg)%ROUTE(idxIRF)%REACH_VOL(0:1)
             end do
           end do
-          call write_pnetcdf(pioFileDescState, meta_irf(iVar)%varName, array_3d_dp, iodesc_vol_double, ierr, cmessage)
+          call write_pnetcdf(pioFileDescState, meta_irf(iVar)%varName, array_3d_dp, ioDesc_vol_double, ierr, cmessage)
           deallocate(array_3d_dp)
         case default; ierr=20; message1=trim(message1)//'unable to identify IRF variable index for nc writing'; return
       end select
@@ -1177,7 +954,7 @@ CONTAINS
       end do
     end do
 
-    call write_pnetcdf(pioFileDescState,'numWaves', numWaves, iodesc_rch_int, ierr, cmessage)
+    call write_pnetcdf(pioFileDescState,'numWaves', numWaves, ioDesc_rch_int, ierr, cmessage)
     if(ierr/=0)then; message1=trim(message1)//trim(cmessage); return; endif
 
     do iVar=1,nVarsKWT
@@ -1194,7 +971,7 @@ CONTAINS
               array_3d_int(iSeg,numWaves(iens,iSeg)+1:,iens) = integerMissing
             end do
           end do
-          call write_pnetcdf(pioFileDescState, meta_kwt(iVar)%varName, array_3d_int, iodesc_wave_int, ierr, cmessage)
+          call write_pnetcdf(pioFileDescState, meta_kwt(iVar)%varName, array_3d_int, ioDesc_wave_int, ierr, cmessage)
           deallocate(array_3d_int)
         case(ixKWT%tentry)
           allocate(array_3d_dp(nSeg, nWave, nEns), stat=ierr, errmsg=cmessage)
@@ -1205,7 +982,7 @@ CONTAINS
               array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
             end do
           end do
-          call write_pnetcdf(pioFileDescState, meta_kwt(iVar)%varName, array_3d_dp, iodesc_wave_double, ierr, cmessage)
+          call write_pnetcdf(pioFileDescState, meta_kwt(iVar)%varName, array_3d_dp, ioDesc_wave_double, ierr, cmessage)
           deallocate(array_3d_dp)
         case(ixKWT%texit)
           allocate(array_3d_dp(nSeg, nWave, nEns), stat=ierr, errmsg=cmessage)
@@ -1216,7 +993,7 @@ CONTAINS
               array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
             end do
           end do
-          call write_pnetcdf(pioFileDescState, meta_kwt(iVar)%varName, array_3d_dp, iodesc_wave_double, ierr, cmessage)
+          call write_pnetcdf(pioFileDescState, meta_kwt(iVar)%varName, array_3d_dp, ioDesc_wave_double, ierr, cmessage)
           deallocate(array_3d_dp)
         case(ixKWT%qwave)
           allocate(array_3d_dp(nSeg, nWave, nEns), stat=ierr, errmsg=cmessage)
@@ -1227,7 +1004,7 @@ CONTAINS
               array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
             end do
           end do
-          call write_pnetcdf(pioFileDescState, meta_kwt(iVar)%varName, array_3d_dp, iodesc_wave_double, ierr, cmessage)
+          call write_pnetcdf(pioFileDescState, meta_kwt(iVar)%varName, array_3d_dp, ioDesc_wave_double, ierr, cmessage)
           deallocate(array_3d_dp)
         case(ixKWT%qwave_mod)
           allocate(array_3d_dp(nSeg, nWave, nEns), stat=ierr, errmsg=cmessage)
@@ -1238,7 +1015,7 @@ CONTAINS
               array_3d_dp(iSeg,numWaves(iens,iSeg)+1:,iens) = realMissing
             end do
           end do
-          call write_pnetcdf(pioFileDescState, meta_kwt(iVar)%varName, array_3d_dp, iodesc_wave_double, ierr, cmessage)
+          call write_pnetcdf(pioFileDescState, meta_kwt(iVar)%varName, array_3d_dp, ioDesc_wave_double, ierr, cmessage)
           deallocate(array_3d_dp)
         case(ixKWT%vol)
           allocate(array_2d_dp(nSeg, nEns), stat=ierr, errmsg=cmessage)
@@ -1248,7 +1025,7 @@ CONTAINS
               array_2d_dp(iSeg,iens) = RCHFLX_local(iSeg)%ROUTE(idxKWT)%REACH_VOL(1)
             end do
           end do
-          call write_pnetcdf(pioFileDescState, meta_kwt(iVar)%varName, array_2d_dp, iodesc_rch_double, ierr, cmessage)
+          call write_pnetcdf(pioFileDescState, meta_kwt(iVar)%varName, array_2d_dp, ioDesc_rch_double, ierr, cmessage)
           deallocate(array_2d_dp)
         case default; ierr=20; message1=trim(message1)//'unable to identify KWT routing state variable index'; return
       end select
@@ -1286,7 +1063,7 @@ CONTAINS
               array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA_local(iSeg)%KW_ROUTE%molecule%Q(1:nMesh)
             end do
           end do
-          call write_pnetcdf(pioFileDescState, meta_kw(iVar)%varName, array_3d_dp, iodesc_mesh_kw_double, ierr, cmessage)
+          call write_pnetcdf(pioFileDescState, meta_kw(iVar)%varName, array_3d_dp, ioDesc_mesh_kw_double, ierr, cmessage)
           deallocate(array_3d_dp)
         case(ixKW%vol)
           allocate(array_2d_dp(nSeg, nEns), stat=ierr, errmsg=cmessage)
@@ -1296,7 +1073,7 @@ CONTAINS
               array_2d_dp(iSeg,iens) = RCHFLX_local(iSeg)%ROUTE(idxKW)%REACH_VOL(1)
             end do
           end do
-          call write_pnetcdf(pioFileDescState, meta_kw(iVar)%varName, array_2d_dp, iodesc_rch_double, ierr, cmessage)
+          call write_pnetcdf(pioFileDescState, meta_kw(iVar)%varName, array_2d_dp, ioDesc_rch_double, ierr, cmessage)
           deallocate(array_2d_dp)
         case default; ierr=20; message1=trim(message1)//'unable to identify KW routing state variable index'; return
       end select
@@ -1333,7 +1110,7 @@ CONTAINS
               array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA_local(iSeg)%MC_ROUTE%molecule%Q(1:nMesh)
             end do
           end do
-          call write_pnetcdf(pioFileDescState, meta_mc(iVar)%varName, array_3d_dp, iodesc_mesh_mc_double, ierr, cmessage)
+          call write_pnetcdf(pioFileDescState, meta_mc(iVar)%varName, array_3d_dp, ioDesc_mesh_mc_double, ierr, cmessage)
           deallocate(array_3d_dp)
         case(ixMC%vol)
           allocate(array_2d_dp(nSeg, nEns),stat=ierr,errmsg=cmessage)
@@ -1343,7 +1120,7 @@ CONTAINS
               array_2d_dp(iSeg,iens) = RCHFLX_local(iSeg)%ROUTE(idxMC)%REACH_VOL(1)
             end do
           end do
-          call write_pnetcdf(pioFileDescState, meta_mc(iVar)%varName, array_2d_dp, iodesc_rch_double, ierr, cmessage)
+          call write_pnetcdf(pioFileDescState, meta_mc(iVar)%varName, array_2d_dp, ioDesc_rch_double, ierr, cmessage)
           deallocate(array_2d_dp, stat=ierr)
         case default; ierr=20; message1=trim(message1)//'unable to identify MC routing state variable index'; return
       end select
@@ -1380,7 +1157,7 @@ CONTAINS
               array_3d_dp(iSeg,1:nMesh,iens) = RCHSTA_local(iSeg)%DW_ROUTE%molecule%Q(1:nMesh)
             end do
           end do
-          call write_pnetcdf(pioFileDescState, meta_dw(iVar)%varName, array_3d_dp, iodesc_mesh_dw_double, ierr, cmessage)
+          call write_pnetcdf(pioFileDescState, meta_dw(iVar)%varName, array_3d_dp, ioDesc_mesh_dw_double, ierr, cmessage)
           deallocate(array_3d_dp)
         case(ixDW%vol)
           allocate(array_2d_dp(nSeg, nEns),stat=ierr,errmsg=cmessage)
@@ -1390,7 +1167,7 @@ CONTAINS
               array_2d_dp(iSeg,iens) = RCHFLX_local(iSeg)%ROUTE(idxDW)%REACH_VOL(1)
             end do
           end do
-          call write_pnetcdf(pioFileDescState, meta_dw(iVar)%varName, array_2d_dp, iodesc_rch_double, ierr, cmessage)
+          call write_pnetcdf(pioFileDescState, meta_dw(iVar)%varName, array_2d_dp, ioDesc_rch_double, ierr, cmessage)
           deallocate(array_2d_dp)
         case default; ierr=20; message1=trim(message1)//'unable to identify DW routing state variable index'; return
       end select
@@ -1435,61 +1212,79 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     if (meta_hflx(ixHFLX%basRunoff)%varFile) then
-      call write_pnetcdf(pioFileDescState, 'basRunoff', hVars%basRunoff, iodesc_hist_hru_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDescState, 'basRunoff', hVars%basRunoff, ioDesc_hru_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     end if
 
     if (meta_rflx(ixRFLX%instRunoff)%varFile) then
       array_dp(1:nRch_local) = hVars%instRunoff(index_write)
-      call write_pnetcdf(pioFileDescState, 'instRunoff', array_dp, iodesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDescState, 'instRunoff', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%dlayRunoff)%varFile) then
       array_dp(1:nRch_local) = hVars%dlayRunoff(index_write)
-      call write_pnetcdf(pioFileDescState, 'dlayRunoff', array_dp, iodesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDescState, 'dlayRunoff', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile) then
       array_dp = hVars%discharge(index_write, idxSUM)
-      call write_pnetcdf(pioFileDescState, 'sumUpstreamRunoff', array_dp, iodesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDescState, 'sumUpstreamRunoff', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%KWTroutedRunoff)%varFile) then
       array_dp = hVars%discharge(index_write, idxKWT)
-      call write_pnetcdf(pioFileDescState, 'KWTroutedRunoff', array_dp, iodesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDescState, 'KWTroutedRunoff', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%IRFroutedRunoff)%varFile) then
       array_dp = hVars%discharge(index_write, idxIRF)
-      call write_pnetcdf(pioFileDescState, 'IRFroutedRunoff', array_dp, iodesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDescState, 'IRFroutedRunoff', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%KWroutedRunoff)%varFile) then
       array_dp = hVars%discharge(index_write, idxKW)
-      call write_pnetcdf(pioFileDescState, 'KWroutedRunoff', array_dp, iodesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDescState, 'KWroutedRunoff', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%MCroutedRunoff)%varFile) then
       array_dp = hVars%discharge(index_write, idxMC)
-      call write_pnetcdf(pioFileDescState, 'MCroutedRunoff', array_dp, iodesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDescState, 'MCroutedRunoff', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%DWroutedRunoff)%varFile) then
       array_dp = hVars%discharge(index_write, idxDW)
-      call write_pnetcdf(pioFileDescState, 'DWroutedRunoff', array_dp, iodesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDescState, 'DWroutedRunoff', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     if (meta_rflx(ixRFLX%IRFvolume)%varFile) then
       array_dp = hVars%volume(index_write, idxIRF)
-      call write_pnetcdf(pioFileDescState, 'IRFvolume', array_dp, iodesc_hist_rch_double, ierr, cmessage)
+      call write_pnetcdf(pioFileDescState, 'IRFvolume', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+    if (meta_rflx(ixRFLX%KWvolume)%varFile) then
+      array_dp = hVars%volume(index_write, idxKW)
+      call write_pnetcdf(pioFileDescState, 'KWvolume', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+    if (meta_rflx(ixRFLX%MCvolume)%varFile) then
+      array_dp = hVars%volume(index_write, idxMC)
+      call write_pnetcdf(pioFileDescState, 'MCvolume', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+    if (meta_rflx(ixRFLX%DWvolume)%varFile) then
+      array_dp = hVars%volume(index_write, idxDW)
+      call write_pnetcdf(pioFileDescState, 'DWvolume', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 

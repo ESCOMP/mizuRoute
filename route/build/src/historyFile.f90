@@ -12,10 +12,7 @@ MODULE historyFile
   USE globalData,        ONLY: mpicom_route
   USE globalData,        ONLY: pio_netcdf_format
   USE globalData,        ONLY: pio_typename
-  USE globalData,        ONLY: pio_numiotasks
-  USE globalData,        ONLY: pio_rearranger
   USE globalData,        ONLY: pio_root
-  USE globalData,        ONLY: pio_stride
   USE globalData,        ONLY: version
   USE globalData,        ONLY: gitBranch
   USE globalData,        ONLY: gitHash
@@ -30,14 +27,14 @@ MODULE historyFile
 
   type :: histFile
     private
-    character(FileStrLen) :: fname               ! netCDF name
-    integer(i4b)          :: iTime=0             ! time step in output netCDF
-    logical(lgt)          :: fileStatus=.false.  ! flag to indicate history output netcdf is open
-    logical(lgt)          :: gageOutput=.false.  ! flag to indicate this is at-gage-only output (== output subset of reaches)
-    type(iosystem_desc_t) :: pioSys              ! PIO system (this does not have to be initialize for each history file?)
-    type(file_desc_t)     :: pioFileDesc         ! PIO data identifying the file
-    type(io_desc_t)       :: ioDescRchFlux       ! PIO domain decomposition data for reach flux [nRch]
-    type(io_desc_t)       :: ioDescHruFlux       ! PIO domain decomposition data for hru runoff [nHRU]
+    character(FileStrLen)          :: fname               ! netCDF name
+    integer(i4b)                   :: iTime=0             ! time step in output netCDF
+    logical(lgt)                   :: fileStatus=.false.  ! flag to indicate history output netcdf is open
+    logical(lgt)                   :: gageOutput=.false.  ! flag to indicate this is at-gage-only output (== output subset of reaches)
+    type(iosystem_desc_t),pointer  :: pioSys              ! PIO system (this does not have to be initialize for each history file?)
+    type(file_desc_t)              :: pioFileDesc         ! PIO data identifying the file
+    type(io_desc_t),      pointer  :: ioDescRchFlux       ! PIO domain decomposition data for reach flux [nRch]
+    type(io_desc_t),      pointer  :: ioDescHruFlux       ! PIO domain decomposition data for hru runoff [nHRU]
 
     CONTAINS
 
@@ -48,9 +45,6 @@ MODULE historyFile
       generic,    public :: write_loc => write_loc_rch, write_loc_rch_hru
       procedure,  public :: write_flux
       procedure,  public :: closeNC
-      procedure,  public :: cleanup
-      procedure, private :: cleanup_rch
-      procedure, private :: cleanup_hru
       procedure, private :: write_flux_hru
       procedure, private :: write_flux_rch
       procedure, private :: set_compdof_rch
@@ -73,8 +67,8 @@ MODULE historyFile
       implicit none
       type(histFile)                              :: instHistFile
       character(*),                    intent(in) :: fname
+      type(iosystem_desc_t), target,   intent(in) :: pioSys
       logical(lgt),          optional, intent(in) :: gageOutput
-      type(iosystem_desc_t), optional, intent(in) :: pioSys
 
       instHistFile%fname = fname
       instHistFile%fileStatus = .false.
@@ -84,61 +78,36 @@ MODULE historyFile
       end if
 
       ! pio initialization - pioSystem
-      if (present(pioSys)) then
-          instHistFile%pioSys=pioSys
-      else
-        pio_numiotasks = nNodes/pio_stride
-        call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
-                          pio_stride, pio_numiotasks, & ! input: PIO related parameters
-                          pio_rearranger, pio_root,   & ! input: PIO related parameters
-                          instHistFile%pioSys)       ! output: PIO system descriptors
-      end if
+      instHistFile%pioSys => pioSys
 
     END FUNCTION constructor
 
     ! -----------------------------------------------------
     ! set pio local-global mapping index for reach
     ! -----------------------------------------------------
-    SUBROUTINE set_compdof_rch(this, compdof_rch, nRch_in)
+    SUBROUTINE set_compdof_rch(this, ioDescRchFlux)
       implicit none
       ! Argument variables
       class(histFile),          intent(inout)  :: this
-      integer(i4b),allocatable, intent(in)     :: compdof_rch(:)   ! Mapping of the storage order for the computational decomposition
-      integer(i4b),             intent(in)     :: nRch_in          ! total number of reaches
+      type(io_desc_t), target,  intent(in)     :: ioDescRchFlux
 
-      ! initialze iodescRchFlux
-      call pio_decomp(this%pioSys,       & ! input: pio system descriptor
-                      ncd_float,         & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                      [nRch_in],         & ! input: dimension length == global array size
-                      compdof_rch,       & ! input: local->global mapping
-                      this%ioDescRchFlux)
+      this%ioDescRchFlux => ioDescRchFlux
 
     END SUBROUTINE
 
     ! -----------------------------------------------------
     ! set pio local-global mapping index for reach and hru
     ! -----------------------------------------------------
-    SUBROUTINE set_compdof_rch_hru(this, compdof_rch, compdof_hru, nRch_in, nHRU_in)
+    SUBROUTINE set_compdof_rch_hru(this, ioDescRchFlux, ioDescHruFlux)
       implicit none
       ! Argument variables
       class(histFile),          intent(inout)  :: this
-      integer(i4b),allocatable, intent(in)     :: compdof_rch(:)   ! Mapping of the storage order for the computational decomposition
-      integer(i4b),allocatable, intent(in)     :: compdof_hru(:)   ! Mapping of the storage order for the computational decomposition
-      integer(i4b),             intent(in)     :: nHRU_in          ! total number of HRUs
-      integer(i4b),             intent(in)     :: nRch_in          ! total number of reaches
+      type(io_desc_t), target,  intent(in)     :: ioDescRchFlux
+      type(io_desc_t), target,  intent(in)     :: ioDescHruFlux
 
-      ! initialze iodescRchFlux and ioDescHruFlux
-      call pio_decomp(this%pioSys,       & ! input: pio system descriptor
-                      ncd_float,         & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                      [nRch_in],         & ! input: dimension length == global array size
-                      compdof_rch,       & ! input: local->global mapping
-                      this%ioDescRchFlux)
+      this%ioDescRchFlux => ioDescRchFlux
+      this%ioDescHruFlux => ioDescHruFlux
 
-      call pio_decomp(this%pioSys,       & ! input: pio system descriptor
-                      ncd_float,         & ! input: data type (pio_int, pio_real, pio_double, pio_char)
-                      [nHRU_in],         & ! input: dimension length == global array size
-                      compdof_hru,       & ! input: local->global mapping
-                      this%ioDescHruFlux)
     END SUBROUTINE
 
     ! ---------------------------------------------------------------
@@ -328,45 +297,6 @@ MODULE historyFile
     END SUBROUTINE closeNC
 
     ! ---------------------------------
-    ! clean up decomposition
-    ! ---------------------------------
-    SUBROUTINE cleanup(this)
-      implicit none
-      class(histFile),           intent(inout) :: this
-
-      if (.not.this%gageOutput) then
-        if (meta_hflx(ixHFLX%basRunoff)%varFile) then
-          call this%cleanup_hru()
-        endif
-      end if
-
-      call this%cleanup_rch()
-
-    END SUBROUTINE cleanup
-
-    ! ---------------------------------
-    ! Cleanup rch resources
-    ! ---------------------------------
-    SUBROUTINE cleanup_hru(this)
-      implicit none
-      class(histFile), intent(inout) :: this
-
-      call freeDecomp(this%pioSys, this%ioDescHruFlux)
-
-    END SUBROUTINE cleanup_hru
-
-    ! ---------------------------------
-    ! Cleanup hru resources
-    ! ---------------------------------
-    SUBROUTINE cleanup_rch(this)
-      implicit none
-      class(histFile), intent(inout) :: this
-
-      call freeDecomp(this%pioSys, this%ioDescRchFlux)
-
-    END SUBROUTINE cleanup_rch
-
-    ! ---------------------------------
     ! writing location (hru and/or rch)
     ! ---------------------------------
     SUBROUTINE write_loc_rch_hru(this, reach_id, basin_id, ierr, message)
@@ -496,6 +426,7 @@ MODULE historyFile
       integer(i4b),              intent(out)   :: ierr             ! error code
       character(*),              intent(out)   :: message          ! error message
       ! local variables
+      integer(i4b)                             :: iVar             ! variable index
       real(sp),    allocatable                 :: array_temp(:)
       integer(i4b)                             :: nRch_write
       character(len=strLen)                    :: cmessage         ! error message of downwind routine
@@ -515,105 +446,48 @@ MODULE historyFile
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [array_temp]'; return; endif
       end if
 
-      ! write instataneous local runoff in each stream segment (m3/s)
-      if (meta_rflx(ixRFLX%instRunoff)%varFile) then
-        if (nRch_write>0) then
-          array_temp(1:nRch_write) = hVars_local%instRunoff(index_write)
-        end if
-        call write_pnetcdf_recdim(this%pioFileDesc, 'instRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      endif
+      do iVar=1,nVarsRFLX
 
-      ! write routed local runoff in each stream segment (m3/s)
-      if (meta_rflx(ixRFLX%dlayRunoff)%varFile) then
-        if (nRch_write>0) then
-          array_temp(1:nRch_write) = hVars_local%dlayRunoff(index_write)
-        end if
-        call write_pnetcdf_recdim(this%pioFileDesc, 'dlayRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      endif
+        if (.not.meta_rflx(iVar)%varFile) cycle
 
-      if (meta_rflx(ixRFLX%sumUpstreamRunoff)%varFile) then
         if (nRch_write>0) then
-          array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxSUM)
+          select case(iVar)
+            case(ixRFLX%instRunoff)
+              array_temp(1:nRch_write) = hVars_local%instRunoff(index_write)
+            case(ixRFLX%dlayRunoff)
+              array_temp(1:nRch_write) = hVars_local%dlayRunoff(index_write)
+            case(ixRFLX%sumUpstreamRunoff)
+              array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxSUM)
+            case(ixRFLX%KWTroutedRunoff)
+              array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxKWT)
+            case(ixRFLX%IRFroutedRunoff)
+              array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxIRF)
+            case(ixRFLX%KWroutedRunoff)
+              array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxKW)
+            case(ixRFLX%MCroutedRunoff)
+              array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxMC)
+            case(ixRFLX%DWroutedRunoff)
+              array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxDW)
+            case(ixRFLX%KWTvolume)
+              array_temp(1:nRch_write) = hVars_local%volume(index_write, idxKWT)
+            case(ixRFLX%IRFvolume)
+              array_temp(1:nRch_write) = hVars_local%volume(index_write, idxIRF)
+            case(ixRFLX%KWvolume)
+              array_temp(1:nRch_write) = hVars_local%volume(index_write, idxKW)
+            case(ixRFLX%MCvolume)
+              array_temp(1:nRch_write) = hVars_local%volume(index_write, idxMC)
+            case(ixRFLX%DWvolume)
+              array_temp(1:nRch_write) = hVars_local%volume(index_write, idxDW)
+            case default
+              write(message,'(2A,1X,G0,1X,1A)') trim(message), 'Invalid RFLX variable index:',iVar,'. Check ixRFLX in var_lookup.f90'
+              ierr=81; return
+          end select
         end if
-        call write_pnetcdf_recdim(this%pioFileDesc, 'sumUpstreamRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      endif
 
-      if (meta_rflx(ixRFLX%KWTroutedRunoff)%varFile) then
-        if (nRch_write>0) then
-          array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxKWT)
-        end if
-        call write_pnetcdf_recdim(this%pioFileDesc, 'KWTroutedRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
+        call write_pnetcdf_recdim(this%pioFileDesc, meta_rflx(iVar)%varName, array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      endif
 
-      call t_startf ('output/write_flux/irf')
-      if (meta_rflx(ixRFLX%IRFroutedRunoff)%varFile) then
-        if (nRch_write>0) then
-          array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxIRF)
-        end if
-        call write_pnetcdf_recdim(this%pioFileDesc, 'IRFroutedRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      endif
-      call t_stopf ('output/write_flux/irf')
-
-      if (meta_rflx(ixRFLX%KWroutedRunoff)%varFile) then
-        if (nRch_write>0) then
-          array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxKW)
-        end if
-        call write_pnetcdf_recdim(this%pioFileDesc, 'KWroutedRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      endif
-
-      if (meta_rflx(ixRFLX%MCroutedRunoff)%varFile) then
-        if (nRch_write>0) then
-          array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxMC)
-        end if
-        call write_pnetcdf_recdim(this%pioFileDesc, 'MCroutedRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      endif
-
-      if (meta_rflx(ixRFLX%DWroutedRunoff)%varFile) then
-        if (nRch_write>0) then
-          array_temp(1:nRch_write) = hVars_local%discharge(index_write, idxDW)
-        end if
-        call write_pnetcdf_recdim(this%pioFileDesc, 'DWroutedRunoff', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      endif
-
-      if (meta_rflx(ixRFLX%IRFvolume)%varFile) then
-        if (nRch_write>0) then
-          array_temp(1:nRch_write) = hVars_local%volume(index_write, idxIRF)
-        end if
-        call write_pnetcdf_recdim(this%pioFileDesc, 'IRFvolume', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      endif
-
-      if (meta_rflx(ixRFLX%KWvolume)%varFile) then
-        if (nRch_write>0) then
-          array_temp(1:nRch_write) = hVars_local%volume(index_write, idxKW)
-        end if
-        call write_pnetcdf_recdim(this%pioFileDesc, 'KWvolume', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      endif
-
-      if (meta_rflx(ixRFLX%MCvolume)%varFile) then
-        if (nRch_write>0) then
-          array_temp(1:nRch_write) = hVars_local%volume(index_write, idxMC)
-        end if
-        call write_pnetcdf_recdim(this%pioFileDesc, 'MCvolume', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      endif
-
-      if (meta_rflx(ixRFLX%DWvolume)%varFile) then
-        if (nRch_write>0) then
-          array_temp(1:nRch_write) = hVars_local%volume(index_write, idxDW)
-        end if
-        call write_pnetcdf_recdim(this%pioFileDesc, 'DWvolume', array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-      endif
+      end do
 
     END SUBROUTINE write_flux_rch
 

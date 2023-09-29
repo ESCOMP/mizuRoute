@@ -139,8 +139,25 @@ MODULE globalData
   integer(i4b),                    public :: pio_rearranger    = 2              ! 0=>PIO_rearr_none 1=> PIO_rearr_box 2=> PIO_rearr_subset
   integer(i4b),                    public :: pio_root          = 1              !
   integer(i4b),                    public :: pio_stride        = 1              !
-  type(iosystem_desc_t),           public :: pioSystem                          ! PIO I/O system data
-
+  type(iosystem_desc_t), target,   public :: pioSystem                          ! PIO I/O system data
+  ! pio decomposition used for history file variables
+  type(io_desc_t),                 public :: ioDesc_hru_float
+  type(io_desc_t),                 public :: ioDesc_rch_float
+  type(io_desc_t),                 public :: ioDesc_gauge_float
+   ! decomposition used for restart variables
+  type(io_desc_t),                 public :: ioDesc_rch_int
+  type(io_desc_t),                 public :: ioDesc_rch_double
+  type(io_desc_t),                 public :: ioDesc_hist_rch_double
+  type(io_desc_t),                 public :: ioDesc_hru_double
+  type(io_desc_t),                 public :: ioDesc_wave_int
+  type(io_desc_t),                 public :: ioDesc_wave_double
+  type(io_desc_t),                 public :: ioDesc_mesh_kw_double
+  type(io_desc_t),                 public :: ioDesc_mesh_mc_double
+  type(io_desc_t),                 public :: ioDesc_mesh_dw_double
+  type(io_desc_t),                 public :: ioDesc_irf_double
+  type(io_desc_t),                 public :: ioDesc_vol_double
+  type(io_desc_t),                 public :: ioDesc_irf_bas_double
+  integer(i4b),   allocatable,     public :: index_write_gage(:)                !
   ! ---------- conversion factors -------------------------------------------------------------------
 
   real(dp),                        public :: time_conv                  ! time conversion factor -- used to convert to mm/s
