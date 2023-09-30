@@ -57,10 +57,10 @@ CONTAINS
  character(*),  intent(out)               :: message         ! error message
  ! Local variables
  logical(lgt)                             :: verbose        ! check details of variables
- real(dp)                                 :: q_upstream     ! total discharge at top of the reach being processed
- real(dp)                                 :: q_upstream_mod ! total discharge at top of the reach being processed
- real(dp)                                 :: Qlat           ! total discharge at top of the reach being processed
- real(dp)                                 :: Qabs           ! maximum allowable water abstraction rate [m3/s]
+ real(dp)                                 :: q_upstream     ! total discharge at top of the reach [m3/s]
+ real(dp)                                 :: q_upstream_mod ! total discharge at top of the reach after water abstraction [m3/s]
+ real(dp)                                 :: Qlat           ! lateral flow into channel [m3/s]
+ real(dp)                                 :: Qabs           ! residual water abstraction [m3/s]
  integer(i4b)                             :: nUps           ! number of upstream segment
  integer(i4b)                             :: iUps           ! upstream reach index
  integer(i4b)                             :: iRch_ups       ! index of upstream reach in NETOPO
@@ -111,7 +111,7 @@ CONTAINS
         RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) - Qabs*dt
       else ! if inital abstraction is greater than volume
         Qabs = Qabs - RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1)/dt ! get residual Qabs after extracting from strorage
-        RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = 0._dp ! voluem gets 0
+        RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_VOL(1) = 0._dp ! volume gets 0
         if (q_upstream > Qabs) then ! then take out all residual abstraction from upstream inflow
           q_upstream_mod = q_upstream - Qabs
         else ! if residual abstraction is still greater than lateral flow
