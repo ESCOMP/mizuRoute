@@ -21,7 +21,6 @@ MODULE RtmMod
   USE public_var,   ONLY: secprday                   ! second per day
   USE public_var,   ONLY: dt                         ! routing time step
   USE public_var,   ONLY: iulog
-  USE public_var,   ONLY: verySmall                  ! minimum values >0.0
   USE public_var,   ONLY: qgwl_runoff_option
   USE public_var,   ONLY: bypass_routing_option
   USE globalData,   ONLY: iam        => pid
@@ -123,7 +122,7 @@ CONTAINS
     !-------------------------------------------------------
     delt_coupling = coupling_period*secprday   ! day -> sec
 
-    if (abs(mod(delt_coupling, dt)-0._r8)>verySmall) then
+    if (abs(mod(delt_coupling, dt)-0._r8)>0._r8) then
       if (masterproc) then
         write(iulog,'(2a,g20.12,a)') trim(subname),' mizuRoute coupling period ', delt_coupling, '[sec]'
         write(iulog,'(2a,g20.12,a)') trim(subname),' mizuRoute simulation step <dt_qstim> ', dt, '[sec]'
