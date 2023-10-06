@@ -42,7 +42,7 @@ For use for high resolution or large domain, use cesm-coupling branch (require M
 We value community efforts on scientific work. This includes model development. We welcome any contributions to help mizuRoute to improve further. Please contact xxx.
 
 
-## Publications(#publication)
+## Publications <a id='publication'></a>
 
 Gharari, S., Vanderkelen, I., Tefs, A., Mizukami, N., Lawrence, D., and Clark, M. P.: A Flexible Multi-Scale Framework to Simulate Lakes 1 and Reservoirs in Earth System Models, Water Resour. Res., in review, https://doi.org/10.1002/essoar.10510902.1, 2022.
 
