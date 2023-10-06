@@ -25,14 +25,15 @@ This enhancement has empowered us to produce an ensemble of projected flows at n
 
 ## Documentations
 
-https://mizuroute.readthedocs.io/en/latest/
+Documentation is available [online](https://mizuroute.readthedocs.io/en/latest/). More scientific information should be referred to [Publications](#publication)
 
 
 ## Code
 
-https://github.com/ESCOMP/mizuRoute
+Code is available at [github](https://github.com/ESCOMP/mizuRoute)
 
 For use for smaller domain, use main branch (only use OpenMP for parallel run)
+
 For use for high resolution or large domain, use cesm-coupling branch (require MPI library)
 
 
@@ -41,7 +42,7 @@ For use for high resolution or large domain, use cesm-coupling branch (require M
 We value community efforts on scientific work. This includes model development. We welcome any contributions to help mizuRoute to improve further. Please contact xxx.
 
 
-## Publication
+## Publications(#publication)
 
 Gharari, S., Vanderkelen, I., Tefs, A., Mizukami, N., Lawrence, D., and Clark, M. P.: A Flexible Multi-Scale Framework to Simulate Lakes 1 and Reservoirs in Earth System Models, Water Resour. Res., in review, https://doi.org/10.1002/essoar.10510902.1, 2022.
 
