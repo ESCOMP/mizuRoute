@@ -10,9 +10,9 @@ MODULE historyFile
   USE globalData,        ONLY: pid, nNodes
   USE globalData,        ONLY: masterproc
   USE globalData,        ONLY: mpicom_route
+  USE globalData,        ONLY: pioSystem
   USE globalData,        ONLY: pio_netcdf_format
   USE globalData,        ONLY: pio_typename
-  USE globalData,        ONLY: pio_root
   USE globalData,        ONLY: version
   USE globalData,        ONLY: gitBranch
   USE globalData,        ONLY: gitHash
@@ -31,7 +31,6 @@ MODULE historyFile
     integer(i4b)                   :: iTime=0             ! time step in output netCDF
     logical(lgt)                   :: fileStatus=.false.  ! flag to indicate history output netcdf is open
     logical(lgt)                   :: gageOutput=.false.  ! flag to indicate this is at-gage-only output (== output subset of reaches)
-    type(iosystem_desc_t),pointer  :: pioSys              ! PIO system (this does not have to be initialize for each history file?)
     type(file_desc_t)              :: pioFileDesc         ! PIO data identifying the file
     type(io_desc_t),      pointer  :: ioDescRchFlux       ! PIO domain decomposition data for reach flux [nRch]
     type(io_desc_t),      pointer  :: ioDescHruFlux       ! PIO domain decomposition data for hru runoff [nHRU]
@@ -63,11 +62,10 @@ MODULE historyFile
     ! -----------------------------------------------------
     ! set pio local-global mapping index for reach
     ! -----------------------------------------------------
-    FUNCTION constructor(fname, pioSys, gageOutput) RESULT(instHistFile)
+    FUNCTION constructor(fname, gageOutput) RESULT(instHistFile)
       implicit none
       type(histFile)                              :: instHistFile
       character(*),                    intent(in) :: fname
-      type(iosystem_desc_t), target,   intent(in) :: pioSys
       logical(lgt),          optional, intent(in) :: gageOutput
 
       instHistFile%fname = fname
@@ -76,9 +74,6 @@ MODULE historyFile
       if (present(gageOutput)) then
         instHistFile%gageOutput = gageOutput
       end if
-
-      ! pio initialization - pioSystem
-      instHistFile%pioSys => pioSys
 
     END FUNCTION constructor
 
@@ -153,7 +148,7 @@ MODULE historyFile
       end if
 
       ! 1. Create new netCDF
-      call createFile(this%pioSys, this%fname, pio_typename, pio_netcdf_format, this%pioFileDesc, ierr, cmessage)
+      call createFile(pioSystem, this%fname, pio_typename, pio_netcdf_format, this%pioFileDesc, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! 2. Define dimension
@@ -267,7 +262,7 @@ MODULE historyFile
 
       ierr=0; message='openNC/'
 
-      call openFile(this%pioSys, this%pioFileDesc, trim(this%fname), pio_typename, ncd_write, this%FileStatus, ierr, cmessage)
+      call openFile(pioSystem, this%pioFileDesc, trim(this%fname), pio_typename, ncd_write, this%FileStatus, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       call inq_dim_len(this%pioFileDesc, 'time', this%iTime)

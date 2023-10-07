@@ -49,8 +49,6 @@ CONTAINS
     USE globalData, ONLY: nRch              !
     USE globalData, ONLY: nHRU              !
     USE globalData, ONLY: gage_data         !
-    USE globalData, ONLY: pioSystem
-
 
     implicit none
     ! Argument variables
@@ -72,7 +70,7 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! initialize and create history netcdfs
-      hist_all_network = histFile(hfileout, pioSys=pioSystem)
+      hist_all_network = histFile(hfileout)
 
       call hist_all_network%set_compdof(ioDesc_rch_float, ioDesc_hru_float)
 
@@ -87,7 +85,7 @@ CONTAINS
 
       if (outputAtGage) then
 
-        hist_gage = histFile(hfileout_gage, pioSys=pioSystem, gageOutput=.true.)
+        hist_gage = histFile(hfileout_gage, gageOutput=.true.)
 
         call hist_gage%set_compdof(ioDesc_gauge_float)
 
@@ -383,7 +381,6 @@ CONTAINS
 
    USE globalData,  ONLY: gage_data
    USE public_var,  ONLY: outputAtGage      ! ascii containing last restart and history files
-   USE globalData,  ONLY: pioSystem
 
    implicit none
    ! argument variables
@@ -399,7 +396,7 @@ CONTAINS
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! initialize and create history netcdfs
-   hist_all_network = histFile(hfileout, pioSys=pioSystem)
+   hist_all_network = histFile(hfileout)
 
    call hist_all_network%openNc(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -407,7 +404,7 @@ CONTAINS
    call hist_all_network%set_compdof(ioDesc_rch_float, ioDesc_hru_float)
 
    if (outputAtGage) then
-     hist_gage = histFile(hfileout_gage, pioSys=pioSystem, gageOutput=.true.)
+     hist_gage = histFile(hfileout_gage, gageOutput=.true.)
 
      call hist_gage%openNC(ierr, message)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
