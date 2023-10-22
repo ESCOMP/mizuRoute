@@ -1,6 +1,6 @@
-# Welcome to mizuRoute webpages
-
-xxxxx
+---
+layout: default
+---
 
 ## History
 
