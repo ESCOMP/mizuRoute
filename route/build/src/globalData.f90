@@ -139,7 +139,7 @@ MODULE globalData
   integer(i4b),                    public :: pio_rearranger    = 2              ! 0=>PIO_rearr_none 1=> PIO_rearr_box 2=> PIO_rearr_subset
   integer(i4b),                    public :: pio_root          = 1              ! PIO root
   integer(i4b),                    public :: pio_stride        = 1              ! PIO stride - see PIO documentation for more information
-  type(iosystem_desc_t),           public :: pioSystem                          ! PIO I/O system data
+  type(iosystem_desc_t), pointer,  public :: pioSystem                          ! PIO I/O system data
   ! pio decomposition used for history file variables
   type(io_desc_t),                 public :: ioDesc_hru_float                   ! [hru] (float)
   type(io_desc_t),                 public :: ioDesc_rch_float                   ! [reach] (float)

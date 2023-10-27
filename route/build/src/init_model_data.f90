@@ -58,6 +58,10 @@ CONTAINS
 
   ! pio system initialization
   if (trim(runMode)=='standalone') then
+
+    allocate(pioSystem, stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage)//': pioSystem'; return; endif
+
     pio_numiotasks = nNodes/pio_stride
     call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
                       pio_stride, pio_numiotasks, & ! input: PIO related parameters

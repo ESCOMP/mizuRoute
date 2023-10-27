@@ -170,7 +170,7 @@ CONTAINS
     end select
 
     !pio_numiotasks    = shr_pio_(inst_name)    ! there is no function to extract pio_numiotasks in cime/src/drivers/nuops/nems/util/shr_pio_mod.F90
-    pioSystem         = shr_pio_getiosys(inst_name)
+    pioSystem         => shr_pio_getiosys(inst_name)
     pio_rearranger    = shr_pio_getrearranger(inst_name)
     pio_root          = shr_pio_getioroot(inst_name)
 
