@@ -18,10 +18,6 @@ USE io_rpointfile,  ONLY: io_rpfile
 USE ascii_utils,    ONLY: lower
 USE pio_utils
 
-USE globalData,     ONLY: ioDesc_hru_float
-USE globalData,     ONLY: ioDesc_rch_float
-USE globalData,     ONLY: ioDesc_gauge_float
-
 implicit none
 type(histVars), save            :: hVars                 !
 type(histFile), save            :: hist_all_network      !
@@ -72,8 +68,6 @@ CONTAINS
       ! initialize and create history netcdfs
       hist_all_network = histFile(hfileout)
 
-      call hist_all_network%set_compdof(ioDesc_rch_float, ioDesc_hru_float)
-
       call hist_all_network%createNC(ierr, cmessage, nRch_in=nRch, nHRU_in=nHRU)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -86,8 +80,6 @@ CONTAINS
       if (outputAtGage) then
 
         hist_gage = histFile(hfileout_gage, gageOutput=.true.)
-
-        call hist_gage%set_compdof(ioDesc_gauge_float)
 
         call hist_gage%createNC(ierr, cmessage, nRch_in=gage_data%nGage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -149,6 +141,9 @@ CONTAINS
    USE globalData, ONLY: nRch_mainstem     ! number of mainstem reach
    USE globalData, ONLY: nTribOutlet       ! number of
    USE globalData, ONLY: index_write_gage  ! reach index (w.r.t. global domain) corresponding gauge location
+   USE globalData, ONLY: ioDesc_hru_float   ! pio decomposition descriptor for hru
+   USE globalData, ONLY: ioDesc_rch_float   ! pio decomposition descriptor for reaches
+   USE globalData, ONLY: ioDesc_gauge_float ! pio decomposition descriptor for gauges
    USE nr_utils,   ONLY: arth
 
    implicit none
@@ -206,12 +201,25 @@ CONTAINS
        index_write_all = arth(1,1,nRch_local)
      end if
 
+     ! write time variables (time and time bounds)
+     call hist_all_network%write_time(hVars, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
      ! write out output variables in history files
-     call hist_all_network%write_flux(hVars, index_write_all, ierr, cmessage)
+     ! fluxes in HRUs (catchments)
+     call hist_all_network%write_flux_hru(hVars, ioDesc_hru_float, ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     ! fluxes in RCHs (river reaches)
+     call hist_all_network%write_flux_rch(hVars, ioDesc_rch_float, index_write_all, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      if (outputAtGage) then
-       call hist_gage%write_flux(hVars, index_write_gage, ierr, cmessage)
+       ! write time variables (time and time bounds)
+       call hist_gage%write_time(hVars, ierr, cmessage)
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+       call hist_gage%write_flux_rch(hVars, ioDesc_gauge_float, index_write_gage, ierr, cmessage)
        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
      end if
 
@@ -391,7 +399,7 @@ CONTAINS
 
    ierr=0; message='init_histFile/'
 
-   ! get history file names to append
+   ! get history file names to append and assign it to hfileout
    call io_rpfile('r', ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -401,15 +409,11 @@ CONTAINS
    call hist_all_network%openNc(ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   call hist_all_network%set_compdof(ioDesc_rch_float, ioDesc_hru_float)
-
    if (outputAtGage) then
      hist_gage = histFile(hfileout_gage, gageOutput=.true.)
 
      call hist_gage%openNC(ierr, message)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-     call hist_gage%set_compdof(ioDesc_gauge_float)
    end if
 
  END SUBROUTINE init_histFile

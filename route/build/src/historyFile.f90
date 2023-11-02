@@ -32,22 +32,18 @@ MODULE historyFile
     logical(lgt)                   :: fileStatus=.false.  ! flag to indicate history output netcdf is open
     logical(lgt)                   :: gageOutput=.false.  ! flag to indicate this is at-gage-only output (== output subset of reaches)
     type(file_desc_t)              :: pioFileDesc         ! PIO data identifying the file
-    type(io_desc_t),      pointer  :: ioDescRchFlux       ! PIO domain decomposition data for reach flux [nRch]
-    type(io_desc_t),      pointer  :: ioDescHruFlux       ! PIO domain decomposition data for hru runoff [nHRU]
 
     CONTAINS
 
-      generic,    public :: set_compdof => set_compdof_rch, set_compdof_rch_hru
       procedure,  public :: createNC
       procedure,  public :: openNC
       procedure,  public :: fileOpen
       generic,    public :: write_loc => write_loc_rch, write_loc_rch_hru
-      procedure,  public :: write_flux
+      procedure,  public :: write_time
+      procedure,  public :: sync
       procedure,  public :: closeNC
-      procedure, private :: write_flux_hru
-      procedure, private :: write_flux_rch
-      procedure, private :: set_compdof_rch
-      procedure, private :: set_compdof_rch_hru
+      procedure,  public :: write_flux_hru
+      procedure,  public :: write_flux_rch
       procedure, private :: write_loc_rch
       procedure, private :: write_loc_rch_hru
 
@@ -60,7 +56,7 @@ MODULE historyFile
   CONTAINS
 
     ! -----------------------------------------------------
-    ! set pio local-global mapping index for reach
+    ! initialize histFile object - just assign file name...
     ! -----------------------------------------------------
     FUNCTION constructor(fname, gageOutput) RESULT(instHistFile)
       implicit none
@@ -69,41 +65,12 @@ MODULE historyFile
       logical(lgt),          optional, intent(in) :: gageOutput
 
       instHistFile%fname = fname
-      instHistFile%fileStatus = .false.
 
       if (present(gageOutput)) then
         instHistFile%gageOutput = gageOutput
       end if
 
     END FUNCTION constructor
-
-    ! -----------------------------------------------------
-    ! set pio local-global mapping index for reach
-    ! -----------------------------------------------------
-    SUBROUTINE set_compdof_rch(this, ioDescRchFlux)
-      implicit none
-      ! Argument variables
-      class(histFile),          intent(inout)  :: this
-      type(io_desc_t), target,  intent(in)     :: ioDescRchFlux
-
-      this%ioDescRchFlux => ioDescRchFlux
-
-    END SUBROUTINE
-
-    ! -----------------------------------------------------
-    ! set pio local-global mapping index for reach and hru
-    ! -----------------------------------------------------
-    SUBROUTINE set_compdof_rch_hru(this, ioDescRchFlux, ioDescHruFlux)
-      implicit none
-      ! Argument variables
-      class(histFile),          intent(inout)  :: this
-      type(io_desc_t), target,  intent(in)     :: ioDescRchFlux
-      type(io_desc_t), target,  intent(in)     :: ioDescHruFlux
-
-      this%ioDescRchFlux => ioDescRchFlux
-      this%ioDescHruFlux => ioDescHruFlux
-
-    END SUBROUTINE
 
     ! ---------------------------------------------------------------
     ! Create history netCDF and define dimension and variables
@@ -342,21 +309,20 @@ MODULE historyFile
     END SUBROUTINE
 
     ! ---------------------------------
-    ! writing flux (hru and/or rch)
+    ! writing time variables
     ! ---------------------------------
-    SUBROUTINE write_flux(this, hVars_local, index_write, ierr, message)
+    SUBROUTINE write_time(this, hvars_local, ierr, message)
 
       implicit none
       ! Argument variables
       class(histFile),           intent(inout) :: this
       type(histVars),            intent(in)    :: hVars_local
-      integer(i4b), allocatable, intent(in)    :: index_write(:)
       integer(i4b),              intent(out)   :: ierr             ! error code
       character(*),              intent(out)   :: message          ! error message
       ! local variables
       character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
-      ierr=0; message='write_flux/'
+      ierr=0; message='write_time/'
 
       this%iTime = this%iTime + 1 ! this is only line to increment time step index
 
@@ -367,23 +333,34 @@ MODULE historyFile
       call write_netcdf(this%pioFileDesc, 'time_bounds', hVars_local%timeVar, [1,this%iTime], [2,1], ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-      if (.not.this%gageOutput) then
-        if (meta_hflx(ixHFLX%basRunoff)%varFile) then
-          call this%write_flux_hru(hVars_local, ierr, cmessage)
-          if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-        endif
-      end if
+    END SUBROUTINE write_time
 
-      call this%write_flux_rch(hVars_local, index_write, ierr, cmessage)
-      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! ---------------------------------
+    ! PIO sync - flush files
+    ! ---------------------------------
+    SUBROUTINE sync(this, ierr, message)
+
+      implicit none
+      ! Argument variables
+      class(histFile),           intent(inout) :: this
+      integer(i4b),              intent(out)   :: ierr             ! error code
+      character(*),              intent(out)   :: message          ! error message
+      ! local variables
+      character(len=strLen)                    :: cmessage         ! error message of downwind routine
+
+      ierr=0; message='sync/'
 
       call sync_file(this%pioFileDesc, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    END SUBROUTINE write_flux
+    END SUBROUTINE sync
 
 
-    SUBROUTINE write_flux_hru(this, hVars_local, ierr, message)
+    ! ---------------------------------
+    ! PIO write hru flux variables
+    ! ---------------------------------
+    SUBROUTINE write_flux_hru(this, hVars_local, ioDescHruFlux, ierr, message)
 
       ! Write HRU flux variables
       ! currently only basin hru Runoff [m/s]
@@ -391,7 +368,8 @@ MODULE historyFile
       implicit none
       ! Argument variables
       class(histFile),           intent(inout) :: this
-      type(histVars),            intent(in)    :: hVars_local
+      type(histVars),            intent(in)    :: hVars_local      ! history variable array to be written
+      type(io_desc_t),           intent(inout) :: ioDescHruFlux    ! PIO domain decomposition data for hru runoff [nHRU]
       integer(i4b),              intent(out)   :: ierr             ! error code
       character(*),              intent(out)   :: message          ! error message
       ! local variables
@@ -404,20 +382,24 @@ MODULE historyFile
         allocate(array_temp(hVars_local%nHru), stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [array_temp]'; return; endif
         array_temp = hVars_local%basRunoff
-        call write_pnetcdf_recdim(this%pioFileDesc, 'basRunoff', array_temp, this%ioDescHruFlux, this%iTime, ierr, cmessage)
+        call write_pnetcdf_recdim(this%pioFileDesc, 'basRunoff', array_temp, ioDescHruFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       endif
 
     END SUBROUTINE write_flux_hru
 
 
-    SUBROUTINE write_flux_rch(this, hVars_local, index_write, ierr, message)
+    ! ---------------------------------
+    ! PIO write reach flux variables
+    ! ---------------------------------
+    SUBROUTINE write_flux_rch(this, hVars_local, ioDescRchFlux, index_write, ierr, message)
 
       implicit none
       ! Argument variables
       class(histFile),           intent(inout) :: this
-      type(histVars),            intent(in)    :: hVars_local
-      integer(i4b), allocatable, intent(in)    :: index_write(:)
+      type(histVars),            intent(in)    :: hVars_local      ! history variable array to be written
+      type(io_desc_t),           intent(inout) :: ioDescRchFlux    ! PIO domain decomposition data for reach flux [nRch]
+      integer(i4b), allocatable, intent(in)    :: index_write(:)   ! index in hVars_local to be written (size(index_write) needs to be matched with dimension of ioDescRchFlux)
       integer(i4b),              intent(out)   :: ierr             ! error code
       character(*),              intent(out)   :: message          ! error message
       ! local variables
@@ -479,7 +461,7 @@ MODULE historyFile
           end select
         end if
 
-        call write_pnetcdf_recdim(this%pioFileDesc, meta_rflx(iVar)%varName, array_temp, this%ioDescRchFlux, this%iTime, ierr, cmessage)
+        call write_pnetcdf_recdim(this%pioFileDesc, meta_rflx(iVar)%varName, array_temp, ioDescRchFlux, this%iTime, ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       end do
