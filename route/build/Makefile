@@ -185,6 +185,7 @@ IO = \
     standalone/read_remap.f90 \
     io_rpointfile.f90 \
     read_restart.f90 \
+    pio_decomp_data.f90 \
     write_simoutput_pio.f90 \
     write_restart_pio.f90
 # CORE

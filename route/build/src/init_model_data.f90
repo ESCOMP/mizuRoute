@@ -28,8 +28,52 @@ public :: init_model
 public :: init_ntopo_data
 public :: init_state_data
 public :: update_time
+public :: init_pio
 
 CONTAINS
+
+ ! *********************************************************************
+ ! public subroutine: initialize pio system and decomposition
+ ! *********************************************************************
+ SUBROUTINE init_pio(pid, nNodes, ierr, message)
+
+  USE pio_utils,       ONLY: pio_sys_init
+  USE globalData,      ONLY: pioSystem
+  USE globalData,      ONLY: mpicom_route
+  USE globalData,      ONLY: pio_numiotasks
+  USE globalData,      ONLY: pio_rearranger
+  USE globalData,      ONLY: pio_root
+  USE globalData,      ONLY: pio_stride
+  USE globalData,      ONLY: runMode
+  USE pio_decomp_data, ONLY: set_pio_decomp
+
+  implicit none
+  ! Argument variables
+  integer(i4b), intent(in)    :: pid              ! proc id
+  integer(i4b), intent(in)    :: nNodes           ! number of procs
+  integer(i4b), intent(out)   :: ierr             ! error code
+  character(*), intent(out)   :: message          ! error message
+  ! local variables
+  character(len=strLen)       :: cmessage         ! error message from subroutine
+
+  ! pio system initialization
+  if (trim(runMode)=='standalone') then
+
+    allocate(pioSystem, stat=ierr, errmsg=cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage)//': pioSystem'; return; endif
+
+    pio_numiotasks = nNodes/pio_stride
+    call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
+                      pio_stride, pio_numiotasks, & ! input: PIO related parameters
+                      pio_rearranger, pio_root,   & ! input: PIO related parameters
+                      pioSystem)                    ! output: PIO system descriptors
+  end if
+
+  ! pio domain decomposition
+  call set_pio_decomp(ierr, cmessage)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ END SUBROUTINE init_pio
 
  ! *********************************************************************
  ! public subroutine: get mpi and omp info
@@ -354,6 +398,9 @@ CONTAINS
       nMolecule%DW_ROUTE = 20
     end if
   end do
+
+  call init_pio(pid, nNodes, ierr, message)
+  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   if (isColdStart) then
     if (masterproc) then

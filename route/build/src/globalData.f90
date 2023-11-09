@@ -133,13 +133,31 @@ MODULE globalData
   integer(i4b),                    public :: nThreads                           ! number of threads
   logical(lgt),                    public :: masterproc                         ! root logical. root processor => true, other => false
   logical(lgt),                    public :: multiProcs                         ! MPI multi-processors logical. => number of processors>1 true, other => false
-  character(len=strLen),           public :: pio_netcdf_format = "64bit_offset" !
-  character(len=strLen),           public :: pio_typename      = "pnetcdf"      !
-  integer(i4b),                    public :: pio_numiotasks    = -99            !
+  character(len=strLen),           public :: pio_netcdf_format = "64bit_offset" ! netCDF format - use '64bit_offset' for PIO use or 'netCDF-4'
+  character(len=strLen),           public :: pio_typename      = "pnetcdf"      ! netcdf, pnetcdf, netcdf4c, or netcdf4p
+  integer(i4b),                    public :: pio_numiotasks    = -99            ! Number of iotasks (ntasks/stride) - see PIO documentation for more information
   integer(i4b),                    public :: pio_rearranger    = 2              ! 0=>PIO_rearr_none 1=> PIO_rearr_box 2=> PIO_rearr_subset
-  integer(i4b),                    public :: pio_root          = 1              !
-  integer(i4b),                    public :: pio_stride        = 1              !
-  type(iosystem_desc_t),           public :: pioSystem                          ! PIO I/O system data
+  integer(i4b),                    public :: pio_root          = 1              ! PIO root
+  integer(i4b),                    public :: pio_stride        = 1              ! PIO stride - see PIO documentation for more information
+  type(iosystem_desc_t), pointer,  public :: pioSystem                          ! PIO I/O system data
+  ! pio decomposition used for history file variables
+  type(io_desc_t),                 public :: ioDesc_hru_float                   ! [hru] (float)
+  type(io_desc_t),                 public :: ioDesc_rch_float                   ! [reach] (float)
+  type(io_desc_t),                 public :: ioDesc_gauge_float                 ! [gauge points] (float)
+  ! decomposition used for restart variables
+  type(io_desc_t),                 public :: ioDesc_rch_int                     ! [reach x ensemble] (integer)
+  type(io_desc_t),                 public :: ioDesc_rch_double                  ! [reach x ensemble] (double precision)
+  type(io_desc_t),                 public :: ioDesc_hist_rch_double             ! [reach] (double precision)
+  type(io_desc_t),                 public :: ioDesc_hru_double                  ! [hru] (double precision)
+  type(io_desc_t),                 public :: ioDesc_wave_int                    ! [reach x max. number of waves x ensemble] (integer)
+  type(io_desc_t),                 public :: ioDesc_wave_double                 ! [reach x max. number of waves x ensemble] (double precision)
+  type(io_desc_t),                 public :: ioDesc_mesh_kw_double              ! [reach x Euler kinematic wave computational meshes x ensemble] (double precision)
+  type(io_desc_t),                 public :: ioDesc_mesh_mc_double              ! [reach x Muskingum-Cunge computational meshes x ensemble] (double precision)
+  type(io_desc_t),                 public :: ioDesc_mesh_dw_double              ! [reach x Duffusive wave computational meshes x ensemble] (double precision)
+  type(io_desc_t),                 public :: ioDesc_irf_double                  ! [reach x IRF future timer-steps x ensemble] (double precision)
+  type(io_desc_t),                 public :: ioDesc_vol_double                  ! [reach x time-bounds x ensemble] (double precision)
+  type(io_desc_t),                 public :: ioDesc_irf_bas_double              ! [reach x basin UH future time-steps x ensemble] (double precision)
+  integer(i4b),   allocatable,     public :: index_write_gage(:)                ! reach indices to gauge points w.r.t. distributed domains
 
   ! ---------- conversion factors -------------------------------------------------------------------
 

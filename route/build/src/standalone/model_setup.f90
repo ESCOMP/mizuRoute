@@ -1,5 +1,4 @@
 MODULE model_setup
-
 USE nrtype
 USE public_var,        ONLY: iulog
 USE public_var,        ONLY: debug
@@ -10,7 +9,6 @@ USE nr_utils,          ONLY: match_index
 USE nr_utils,          ONLY: arth
 USE nr_utils,          ONLY: unique         ! get unique element array
 USE nr_utils,          ONLY: indexx         ! get rank of data value
-USE pio_utils
 
 implicit none
 
@@ -55,12 +53,6 @@ CONTAINS
 
    USE public_var,          ONLY: continue_run        ! T-> append output in existing history files. F-> write output in new history file
    USE globalData,          ONLY: mpicom_route
-   USE globalData,          ONLY: pio_numiotasks
-   USE globalData,          ONLY: pio_rearranger
-   USE globalData,          ONLY: pio_root
-   USE globalData,          ONLY: pio_stride
-   USE globalData,          ONLY: pioSystem
-   USE globalData,          ONLY: runMode
    USE globalData,          ONLY: version             ! mizuRoute version
    USE globalData,          ONLY: gitBranch           ! git branch
    USE globalData,          ONLY: gitHash             ! git commit hash
@@ -91,15 +83,6 @@ CONTAINS
 #if defined(BRANCH)
   gitBranch=BRANCH
 #endif
-
-   ! pio initialization
-   if (trim(runMode)=='standalone') then
-     pio_numiotasks = nNodes/pio_stride
-     call pio_sys_init(pid, mpicom_route,          & ! input: MPI related parameters
-                       pio_stride, pio_numiotasks, & ! input: PIO related parameters
-                       pio_rearranger, pio_root,   & ! input: PIO related parameters
-                       pioSystem)                    ! output: PIO system descriptors
-   end if
 
    ! runoff input files initialization
    call init_inFile_pop(ierr, cmessage)
