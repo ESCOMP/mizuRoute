@@ -43,10 +43,15 @@ class SvnRepository(Repository):
         """
         Repository.__init__(self, component_name, repo)
         self._ignore_ancestry = ignore_ancestry
+        if self._url.endswith('/'):
+            # there is already a '/' separator in the URL; no need to add another
+            url_sep = ''
+        else:
+            url_sep = '/'
         if self._branch:
-            self._url = os.path.join(self._url, self._branch)
+            self._url = self._url + url_sep + self._branch
         elif self._tag:
-            self._url = os.path.join(self._url, self._tag)
+            self._url = self._url + url_sep + self._tag
         else:
             msg = "DEV_ERROR in svn repository. Shouldn't be here!"
             fatal_error(msg)
@@ -56,7 +61,7 @@ class SvnRepository(Repository):
     # Public API, defined by Repository
     #
     # ----------------------------------------------------------------
-    def checkout(self, base_dir_path, repo_dir_name, verbosity):
+    def checkout(self, base_dir_path, repo_dir_name, verbosity, recursive):  # pylint: disable=unused-argument
         """Checkout or update the working copy
 
         If the repo destination directory exists, switch the sandbox to
@@ -64,6 +69,8 @@ class SvnRepository(Repository):
 
         If the repo destination directory does not exist, checkout the
         correct branch or tag.
+        NB: <recursive> is include as an argument for compatibility with
+            git functionality (repository_git.py)
 
         """
         repo_dir_path = os.path.join(base_dir_path, repo_dir_name)
@@ -138,9 +145,7 @@ in the new revision.
 
 To recover: Clean up the above directory (resolving conflicts, etc.),
 then rerun checkout_externals.
-""".format(cwd=repo_dir_path,
-                message=message,
-                status=status)
+""".format(cwd=repo_dir_path, message=message, status=status)
 
             fatal_error(errmsg)
 
@@ -220,9 +225,8 @@ then rerun checkout_externals.
                 continue
             if item == SVN_UNVERSIONED:
                 continue
-            else:
-                is_dirty = True
-                break
+            is_dirty = True
+            break
         return is_dirty
 
     # ----------------------------------------------------------------
