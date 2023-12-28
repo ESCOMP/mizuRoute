@@ -76,7 +76,11 @@
 <MCroutedRunoff>        T                          ! kinematic wave routed discharge at reach [L3/T]
 <KWroutedRunoff>        T                          ! muskingum-cunge routed discharge at reach [L3/T]
 <DWroutedRunoff>        T                          ! diffusive wave routed discharge at reach [L3/T]
-<IRFvolume>             F                          ! volume at the end of time step at reach [L3]
+<KWTvolume>             F                          ! kinematic wave tracking volume at the end of time step at reach [L3]
+<IRFvolume>             F                          ! impulse response function volume at the end of time step at reach [L3]
+<KWvolume>              F                          ! Euler kinematic wave volume at the end of time step at reach [L3]
+<MCvolume>              F                          ! muskingum-cunge volume at the end of time step at reach [L3]
+<DWvolume>              F                          ! diffusive wave volume at the end of time step at reach [L3]
 ! ****************************************************************************************************************************
 ! cesm-coupler: negative flow (qgwl and excess irrigation demand) handling option
 ! ---------------------------
