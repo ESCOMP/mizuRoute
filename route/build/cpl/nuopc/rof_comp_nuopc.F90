@@ -27,6 +27,7 @@ module rof_comp_nuopc
   use globalData            , only : nHRU
   use globalData            , only : runMode                     ! "ctsm-coupling" or "standalone" to differentiate some behaviours in mizuRoute
   use globalData            , only : hfile_dayStamp              ! daily history file time stamp - "period-end" or "period-start:
+  use globalData            , only : nRoutes                     ! number of active routing methods - for cesm-coupling, limit to one
   use init_model_data       , only : get_mpi_omp, init_model
   use RunoffMod             , only : rtmCTL
   use RtmMod                , only : route_ini, route_run
@@ -422,6 +423,11 @@ contains
     ! 3. (optional) gauge information
     call init_model(cfile_name, ierr, cmessage)
     if(ierr/=0) then; cmessage = trim(subname)//trim(cmessage); call shr_sys_flush(iulog); call shr_sys_abort(cmessage); endif
+
+    if (nRoutes>1) then
+       call shr_sys_flush(iulog)
+       call shr_sys_abort(subname//' ERROR: more than 1 routing method activated. Check <route_opt> in a control file')
+    end if
 
     !----------------------
     ! Initialize time managers in mizuRoute
