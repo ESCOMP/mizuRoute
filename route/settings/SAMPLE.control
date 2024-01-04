@@ -8,6 +8,8 @@
 !       Do not inclue empty line without !
 !
 !       Followings are example of control options.  if valid variables are inserted, they are default values.
+!       
+!       Please see route/build/src/read_control.f90 for complete options 
 !
 ! ****************************************************************************************************************************
 ! RUN CONTROL 
@@ -21,7 +23,7 @@
 <restart_date>            yyyy-mm-dd hh:mm:ss        ! restart date.  activated only if <restart_write> is "specified"
 <fname_state_in>          INPUT_RESTART_NC           ! input restart netCDF name. remove or 'coldstart' for run without any particular restart file
 <newFileFrequency>        monthly                    ! output netcdf frequency: single, daily, monthly, yearly
-<dt_qsim>                 86400                      ! time interval of the forcing [sec] e.g., 86400 sec for daily step
+<dt_qsim>                 86400                      ! simulation time interval [sec] e.g., 86400 sec for daily step
 ! lake and water management (wm) mode
 <is_lake_sim>             T                          ! switch on (T) or off (F) lake simulation
 <is_flux_wm>              T                          ! switch on (T) or off (F) abstraction from or injection to seg/lakes
@@ -84,7 +86,7 @@
 ! ****************************************************************************************************************************
 ! Namelist file name
 ! ---------------------------
-<param_nml>               PARAMETER_NML              ! Namelist name containing routing parameter values
+<param_nml>            PARAMETER_NML                 ! Namelist name containing spatially constant parameter values 
 ! ****************************************************************************************************************************
 ! Dictionary to map variable names
 ! ---------------------------

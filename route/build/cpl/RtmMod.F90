@@ -32,6 +32,7 @@ MODULE RtmMod
 
   implicit none
   logical, parameter :: verbose=.false.
+  integer, parameter :: iRoute=1        ! index of routing method chosen. cesm-coupled run allows only one option (5 options available), this is always 1.
 
   private
   public route_ini          ! Initialize mizuRoute
@@ -738,10 +739,10 @@ CONTAINS
         if (present(offset)) ix=ix+offset
         ! stream volume is split into HRUs based on HRU's areal weight for contributory area
         if (update_vol) then
-          rtmCTL%volr(ix) = RCHFLX_in(iens,iRch)%ROUTE(1)%REACH_VOL(1)*NETOPO_in(iRch)%HRUWGT(iHru)/rtmCTL%area(ix)
+          rtmCTL%volr(ix) = RCHFLX_in(iens,iRch)%ROUTE(iRoute)%REACH_VOL(1)*NETOPO_in(iRch)%HRUWGT(iHru)/rtmCTL%area(ix)
         end if
         if (update_q) then
-          rtmCTL%discharge(ix,1) = RCHFLX_in(iens,iRch)%ROUTE(1)%REACH_Q* NETOPO_in(iRch)%HRUWGT(iHru)
+          rtmCTL%discharge(ix,1) = RCHFLX_in(iens,iRch)%ROUTE(iRoute)%REACH_Q* NETOPO_in(iRch)%HRUWGT(iHru)
         end if
         if (update_fld) then
           rtmCTL%flood(ix)       = 0._r8  ! placeholder
