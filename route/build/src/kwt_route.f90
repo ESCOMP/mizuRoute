@@ -481,8 +481,6 @@ CONTAINS
  !  T_EXIT(:): Vector of times flow particles are expected to exit reach JRCH
  !
  ! ----------------------------------------------------------------------------------------
- USE globalData, ONLY: LKTOPO           ! Lake topology
- USE globalData, ONLY: LAKFLX           ! Lake fluxes
 
  implicit none
  ! Argument variables

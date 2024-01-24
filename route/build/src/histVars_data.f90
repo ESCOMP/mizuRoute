@@ -298,7 +298,7 @@ MODULE histVars_data
       ! local variable
       character(len=strLen)              :: cmessage              ! error message from subroutines
       real(dp), allocatable              :: array_tmp(:)          ! temp array
-      integer(i4b)                       :: ixRoute, ix1, ix2     ! loop index
+      integer(i4b)                       :: ixRoute               ! loop index
       integer(i4b)                       :: ixFlow, ixVol         ! temporal method index
       logical(lgt)                       :: FileStatus            ! file open or close
       type(file_desc_t)                  :: pioFileDesc           ! pio file handle

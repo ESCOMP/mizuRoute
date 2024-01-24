@@ -52,7 +52,6 @@ CONTAINS
                       ierr, message)   ! output: error control
 
    USE public_var,          ONLY: continue_run        ! T-> append output in existing history files. F-> write output in new history file
-   USE globalData,          ONLY: mpicom_route
    USE globalData,          ONLY: version             ! mizuRoute version
    USE globalData,          ONLY: gitBranch           ! git branch
    USE globalData,          ONLY: gitHash             ! git commit hash
@@ -213,7 +212,6 @@ CONTAINS
   integer(i4b)                                      :: nFile            ! number of nc files identified in the text file
   integer(i4b)                                      :: nTime            ! hard coded for now
   logical(lgt)                                      :: existAttr        ! attribute exist or not
-  type(datetime)                                    :: refDatetime      ! reference datetime for each file
   real(dp)                                          :: convTime2sec     ! time conversion to second
   character(len=strLen)                             :: infilename       ! input filename
   character(len=strLen),allocatable                 :: dataLines(:)     ! vector of lines of information (non-comment lines)
