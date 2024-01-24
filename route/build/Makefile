@@ -98,6 +98,10 @@ ifeq "$(FC)" "gnu"
   ifeq "$(MODE)" "profile"
     FLAGS = -p -g -Wall -fmax-errors=0 -fbacktrace -fbounds-check -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
+  GNUVER = $(shell gcc -dumpversion | cut -f1 -d.)
+  ifeq ($(shell test $(GNUVER) -ge 10; echo $$?),0)
+    FLAGS += -fallow-argument-mismatch
+  endif
 endif
 
 ifeq "$(FC)" "intel"
