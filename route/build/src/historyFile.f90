@@ -11,8 +11,8 @@ MODULE historyFile
   USE globalData,        ONLY: masterproc
   USE globalData,        ONLY: mpicom_route
   USE globalData,        ONLY: pioSystem
-  USE globalData,        ONLY: pio_netcdf_format
-  USE globalData,        ONLY: pio_typename
+  USE public_var,        ONLY: pio_netcdf_format
+  USE public_var,        ONLY: pio_typename
   USE globalData,        ONLY: version
   USE globalData,        ONLY: gitBranch
   USE globalData,        ONLY: gitHash

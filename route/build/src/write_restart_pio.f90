@@ -39,9 +39,9 @@ USE globalData,        ONLY: meta_hflx
 USE globalData,        ONLY: pid, nNodes
 USE globalData,        ONLY: masterproc
 USE globalData,        ONLY: mpicom_route
-USE globalData,        ONLY: pio_netcdf_format
-USE globalData,        ONLY: pio_typename
 USE globalData,        ONLY: pioSystem
+USE public_var,        ONLY: pio_netcdf_format
+USE public_var,        ONLY: pio_typename
 
 USE globalData,        ONLY: runMode
 USE globalData,        ONLY: rfileout

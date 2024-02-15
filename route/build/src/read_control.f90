@@ -201,6 +201,9 @@ CONTAINS
    case('<dname_gageSite>');       dname_gageSite  = trim(cData)                       ! dimension name for gauge site
    case('<dname_gageTime>');       dname_gageTime  = trim(cData)                       ! dimension name for time
    case('<strlen_gageSite>');      read(cData,*,iostat=io_error) strlen_gageSite       ! site name max character length
+   ! IO
+   case('<pio_netcdf_format>');    read(cData,*,iostat=io_error) pio_netcdf_format     ! netCDF format: 64bit_offset (default) for PIO use or netCDF-4
+   case('<pio_netcdf_type>');      read(cData,*,iostat=io_error) pio_typename          ! netCDF type: pnetcdf (default), netcdf, netcdf4c, or netcdf4p
    ! MISCELLANEOUS
    case('<debug>');                read(cData,*,iostat=io_error) debug                 ! print out detailed information throught the probram
    case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut              ! desired outlet reach id (if -9999 --> route over the entire network)

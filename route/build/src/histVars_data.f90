@@ -26,10 +26,10 @@ MODULE histVars_data
   USE globalData,        ONLY: pid, nNodes
   USE globalData,        ONLY: masterproc
   USE globalData,        ONLY: mpicom_route
-  USE globalData,        ONLY: pio_typename
   USE globalData,        ONLY: pioSystem
   USE globalData,        ONLY: ioDesc_hru_double
   USE globalData,        ONLY: ioDesc_hist_rch_double
+  USE public_var,        ONLY: pio_typename
   USE nr_utils,          ONLY: arth
   USE ncio_utils,        ONLY: get_nc
   USE pio_utils,         ONLY: file_desc_t
