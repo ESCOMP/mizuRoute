@@ -387,22 +387,15 @@ CONTAINS
    ! argument variables
    integer(i4b),   intent(out)     :: ierr                ! error code
    character(*),   intent(out)     :: message             ! error message
-   ! local variables
-   character(len=strLen)           :: cmessage            ! error message of downwind routine
 
    ierr=0; message='close_all/'
 
    if (hist_all_network%fileOpen()) then
-     call hist_all_network%sync(ierr, cmessage)
-     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
      call hist_all_network%closeNC()
    end if
 
    if (outputAtGage) then
      if (hist_gage%fileOpen()) then
-       call hist_gage%sync(ierr, cmessage)
-       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
        call hist_gage%closeNC()
      end if
    end if
