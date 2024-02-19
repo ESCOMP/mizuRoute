@@ -614,7 +614,7 @@ CONTAINS
   integer(i4b),      allocatable              :: ixHRU_desired(:)         ! indices of desired hrus
   integer(i4b),      allocatable              :: ixSeg_desired(:)         ! indices of desired reaches
   integer(i4b)                                :: dummy(2)                 ! dummy variable to hold dimension length for 2D variables in netCDF
-  integer(i4b)   , parameter                  :: maxUpstreamFile=10000000 ! 10 million: maximum number of upstream reaches to enable writing
+  integer(i4b)   , parameter                  :: maxUpstreamFile=90000000 ! 90 million: maximum number of upstream reaches to enable writing
   character(len=strLen)                       :: cmessage                 ! error message of downwind routine
 
   ierr=0; message='init_ntopo/'
