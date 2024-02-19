@@ -125,6 +125,7 @@ CONTAINS
    case('<route_opt>');            routOpt     = trim(cData)                           ! routing scheme options  0-> accumRunoff, 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW
    case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute        ! basin routing options   0-> no, 1->IRF, otherwise error
    case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                    ! time interval of the simulation [sec] (To-do: change dt to dt_sim)
+   case('<floodplain>');           read(cData,*,iostat=io_error) floodplain            ! logical: floodwater is computed, otherwise, channel is unlimited bank depth
    case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim           ! logical; lakes are simulated
    case('<is_flux_wm>');           read(cData,*,iostat=io_error) is_flux_wm            ! logical; provided fluxes to or from seg/lakes should be considered
    case('<is_vol_wm>');            read(cData,*,iostat=io_error) is_vol_wm             ! logical; provided target volume for managed lakes are considered
@@ -243,6 +244,7 @@ CONTAINS
    case('<varname_length>'         ); meta_SEG    (ixSEG%length          )%varName =trim(cData)   ! length of segment  (m)
    case('<varname_slope>'          ); meta_SEG    (ixSEG%slope           )%varName =trim(cData)   ! slope of segment   (-)
    case('<varname_width>'          ); meta_SEG    (ixSEG%width           )%varName =trim(cData)   ! width of segment   (m)
+   case('<varname_depth>'          ); meta_SEG    (ixSEG%depth           )%varName =trim(cData)   ! bankful depth of segment   (m)
    case('<varname_man_n>'          ); meta_SEG    (ixSEG%man_n           )%varName =trim(cData)   ! Manning's n        (weird units)
    case('<varname_hruArea>'        ); meta_SEG    (ixSEG%hruArea         )%varName =trim(cData)   ! local basin area (m2)
    case('<varname_weight>'         ); meta_SEG    (ixSEG%weight          )%varName =trim(cData)   ! HRU weight

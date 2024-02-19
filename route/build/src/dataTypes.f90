@@ -192,7 +192,9 @@ implicit none
   real(dp)                                   :: R_WIDTH        ! channel width [m]
   real(dp)                                   :: R_DEPTH        ! channel bankfull depth [m]
   real(dp)                                   :: RLENGTH        ! channel length [m]
-  real(dp)                                   :: FLDP_SLOPE     ! floodplain slope [-]
+  real(dp)                                   :: R_STORAGE      ! channel bankful volume [m3]
+  real(dp)                                   :: SIDE_SLOPE     ! channel side slope [-]. horizontal:vertical=SIDE_SLOPE:1
+  real(dp)                                   :: FLDP_SLOPE     ! floodplain slope [-]. horizontal:vertical=FLDP_SLOPE:1
   real(dp)                                   :: UPSAREA        ! upstream area (zero if headwater basin)
   real(dp)                                   :: BASAREA        ! local basin area
   real(dp)                                   :: TOTAREA        ! UPSAREA + BASAREA
@@ -351,6 +353,7 @@ implicit none
  ! ---------- reach fluxes --------------------------------------------------------------------
  type, public :: hydraulic
    real(dp)        :: REACH_ELE              ! water height at current time step [m]
+   real(dp)        :: FLOOD_VOL(0:1)         ! water volume in floodplain [m3]
    real(dp)        :: REACH_Q                ! discharge at current time step [m3/s]
    real(dp)        :: REACH_VOL(0:1)         ! water volume at previous and current time steps [m3]
    real(dp)        :: REACH_WM_FLUX_actual   ! water management fluxes to and from each reach [m3/s]

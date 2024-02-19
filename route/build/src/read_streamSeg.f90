@@ -324,6 +324,7 @@ SUBROUTINE mod_meta_varFile(ierr, message)
   if(hydGeometryOption==readFromFile)then
     meta_SEG(ixSEG%width)%varFile = .true.
     meta_SEG(ixSEG%man_n)%varFile = .true.
+    meta_SEG(ixSEG%depth)%varFile = .true.
   endif
 
   ! set flags if we simulate lake and need lake parameters; was set to false in pop_metadata.f90

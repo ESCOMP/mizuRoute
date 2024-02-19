@@ -68,11 +68,12 @@ CONTAINS
  ! Routing parameter estimation routine
  USE process_param,ONLY: make_uh               ! construct reach unit hydrograph
  ! routing spatial constant parameters
- USE globalData,   ONLY: mann_n, wscale        ! spatial constant channel parameters
- USE globalData,   ONLY: channelDepth          ! spatial constant channel bankfull depth [m]
+ USE globalData,   ONLY: mann_n                ! spatial constant channel parameters - manning coefficient
+ USE globalData,   ONLY: wscale, dscale        ! spatial constant channel parameters for width and bankful depth
  USE globalData,   ONLY: floodplainSlope       ! spatial constant floodplain slope
  USE globalData,   ONLY: velo, diff            ! IRF routing parameters (Transfer function parameters)
  USE public_var,   ONLY: dt                    ! simulation time step [sec]
+ USE hydraulic,    ONLY: storage               ! compute channel storage
 
  ! This subroutine populate river network topology data strucutres
  implicit none
@@ -103,7 +104,6 @@ CONTAINS
  integer(i4b)                                      :: iSeg                 ! indices for stream segment
  real(dp)     , allocatable                        :: seg_length(:)        ! temporal array for segment length
  type(dlength), allocatable                        :: temp_dat(:)          ! temporal storage for dlength data structure
- integer(i4b), parameter                           :: maxUpstreamFile=10000000 ! 10 million: maximum number of upstream reaches to enable writing
  integer*8                                         :: time0,time1,cr       ! for timing
 
  ierr=0; message='augment_ntopo/'
@@ -213,7 +213,7 @@ CONTAINS
 
  ! ---------- Compute routing parameters  --------------------------------------------------------------------
 
- ! compute channel parameters (width, depth, Manning's n, and floodplain slope)
+ ! compute channel geometry parameters (width, depth, Manning's n, and floodplain slope)
  if(hydGeometryOption==compute)then
 
   ! (hydraulic geometry needed for all the routing methods except impulse response function)
@@ -221,8 +221,9 @@ CONTAINS
       onRoute(diffusiveWave) .or. onRoute(muskingumCunge)) then
     do iSeg=1,nSeg
       structSEG(iSeg)%var(ixSEG%width)%dat(1) = wscale * sqrt(structSEG(iSeg)%var(ixSEG%totalArea)%dat(1))  ! channel width (m)
-      structSEG(iSeg)%var(ixSEG%depth)%dat(1) = channelDepth                                                ! channel bankfull depth (m)
+      structSEG(iSeg)%var(ixSEG%depth)%dat(1) = dscale * sqrt(structSEG(iSeg)%var(ixSEG%totalArea)%dat(1))  ! channel bankfull depth (m)
       structSEG(iSeg)%var(ixSEG%man_n)%dat(1) = mann_n                                                      ! Manning's "n" paramater (unitless)
+      structSEG(iSeg)%var(ixSEG%sideSlope)%dat(1) = 0._dp                                                   ! channel side slope h:v=slope:v [-]. now 0->rectangular channel
       structSEG(iSeg)%var(ixSEG%floodplainSlope)%dat(1) = floodplainSlope                                   ! floodplain slope
     end do
   end if
@@ -232,6 +233,13 @@ CONTAINS
   !write(*,'(a,1x,1PG15.7,A)') 'after river geometry: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
 
  endif  ! computing hydraulic geometry
+
+ do iSeg=1,nSeg
+   structSEG(iSeg)%var(ixSEG%storage)%dat(1) = storage(structSEG(iSeg)%var(ixSEG%depth)%dat(1)+2000*structSEG(iSeg)%var(ixSEG%floodplainSlope)%dat(1), &
+                                                       structSEG(iSeg)%var(ixSEG%length)%dat(1),                    &
+                                                       structSEG(iSeg)%var(ixSEG%width)%dat(1), structSEG(iSeg)%var(ixSEG%sideSlope)%dat(1), &
+                                                       zf=structSEG(iSeg)%var(ixSEG%floodplainSlope)%dat(1), bankDepth=structSEG(iSeg)%var(ixSEG%depth)%dat(1))
+ end do
 
  ! get the channel unit hydrograph
  if(topoNetworkOption==compute)then
@@ -399,9 +407,11 @@ END SUBROUTINE augment_ntopo
    ! copy data into the reach parameter structure
    RPARAM_in(iSeg)%RLENGTH         =     structSEG(iSeg)%var(ixSEG%length)%dat(1)
    RPARAM_in(iSeg)%R_SLOPE         = max(structSEG(iSeg)%var(ixSEG%slope)%dat(1), min_slope)
-   RPARAM_in(iSeg)%R_MAN_N         =     structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
    RPARAM_in(iSeg)%R_WIDTH         =     structSEG(iSeg)%var(ixSEG%width)%dat(1)
    RPARAM_in(iSeg)%R_DEPTH         =     structSEG(iSeg)%var(ixSEG%depth)%dat(1)
+   RPARAM_in(iSeg)%SIDE_SLOPE      =     structSEG(iSeg)%var(ixSEG%sideSlope)%dat(1)
+   RPARAM_in(iSeg)%R_STORAGE       =     structSEG(iSeg)%var(ixSEG%storage)%dat(1)
+   RPARAM_in(iSeg)%R_MAN_N         =     structSEG(iSeg)%var(ixSEG%man_n)%dat(1)
    RPARAM_in(iSeg)%FLDP_SLOPE      =     structSEG(iSeg)%var(ixSEG%floodplainSlope)%dat(1)
 
    if (is_lake_sim) then
