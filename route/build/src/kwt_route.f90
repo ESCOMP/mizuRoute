@@ -110,9 +110,12 @@ CONTAINS
    ! local variables
    ! (1) extract flow from upstream reaches and append to the non-routed flow in JRCH
    integer(i4b)                                :: NUPS          ! number of upstream reaches
+   integer(i4b)                                :: iUps          ! upstream loop index
+   integer(i4b)                                :: iRch_ups      ! upstream reach index
    real(dp),dimension(:),allocatable           :: Q_JRCH        ! flow in downstream reach JRCH
    real(dp),dimension(:),allocatable           :: TENTRY        ! entry time to JRCH (exit time u/s)
    integer(i4b)                                :: NQ1           ! # flow particles
+   real(dp)                                    :: q_upstream    ! total discharge at top of the reach [m3/s]
    ! (2) route flow within the current [JRCH] river segment
    integer(i4b)                                :: ROFFSET       ! retrospective offset due to rstep
    real(dp)                                    :: T_START       ! start of time step
@@ -162,12 +165,21 @@ CONTAINS
         ierr=20; message=trim(message)//'negative flow extracted from upstream reach'; return
       endif
 
+      q_upstream = 0._dp
+      do iUps = 1,nUps
+        if (.not. NETOPO_in(segIndex)%goodBas(iUps)) cycle ! skip upstream reach which does not any flow due to zero total contributory areas
+        iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
+        q_upstream = q_upstream + RCHFLX_out(iens,iRch_ups)%ROUTE(idxKWT)%REACH_Q
+      end do
+      RCHFLX_out(iens,segIndex)%ROUTE(idxKWT)%REACH_INFLOW = q_upstream ! total inflow from the upstream reaches
+
       if(segIndex==ixDesire)then
         write(fmt1,'(A,I5,A)') '(A, 1X',size(Q_JRCH),'(1X,G15.4))'
         write(iulog,'(a)') ' * Wave discharge from upstream reaches (Q_JRCH) [m2/s]:'
         write(iulog,fmt1)  ' Q_JRCH=',(Q_JRCH(IWV), IWV=0,size(Q_JRCH)-1)
       endif
     else
+      RCHFLX_out(IENS,segIndex)%ROUTE(idxKWT)%REACH_INFLOW = 0._dp
       ! set flow in headwater reaches to modelled streamflow from time delay histogram
       RCHFLX_out(IENS,segIndex)%ROUTE(idxKWT)%REACH_Q = RCHFLX_out(IENS,segIndex)%BASIN_QR(1)
       if (allocated(RCHSTA_out(IENS,segIndex)%LKW_ROUTE%KWAVE)) then
