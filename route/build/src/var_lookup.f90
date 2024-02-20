@@ -216,6 +216,11 @@ MODULE var_lookup
   integer(i4b)     :: KWvolume          = integerMissing  ! 11. KW water volume in reach/lake (m3)
   integer(i4b)     :: MCvolume          = integerMissing  ! 12. MC water volume in reach/lake (m3)
   integer(i4b)     :: DWvolume          = integerMissing  ! 13. DW water volume in reach/lake (m3)
+  integer(i4b)     :: IRFinflow         = integerMissing  ! 14. IRF inflow from upstreams into reach/lake (m3/s)
+  integer(i4b)     :: KWTinflow         = integerMissing  ! 15. KWT inflow flow upstreams into reach/lake (m3/s)
+  integer(i4b)     :: KWinflow          = integerMissing  ! 16. KW inflow from upstreams into reach/lake (m3/s)
+  integer(i4b)     :: MCinflow          = integerMissing  ! 17. MC inflow from upstreams into reach/lake (m3/s)
+  integer(i4b)     :: DWinflow          = integerMissing  ! 18. DW inflow from upstreams into reach/lake (m3/s)
  endtype iLook_RFLX
  ! HRU fluxes
  type, public  ::  iLook_HFLX
@@ -283,7 +288,7 @@ MODULE var_lookup
                                                                          21,22)
  type(iLook_PFAF)     ,public,parameter :: ixPFAF      = iLook_PFAF     ( 1)
  type(iLook_RFLX)     ,public,parameter :: ixRFLX      = iLook_RFLX     ( 1, 2, 3, 4, 5, 6, 7, 8, 9,10, &
-                                                                         11,12,13)
+                                                                         11,12,13,14,15,16,17,18)
  type(iLook_HFLX)     ,public,parameter :: ixHFLX      = iLook_HFLX     ( 1)
  type(iLook_basinQ)   ,public,parameter :: ixBasinQ    = iLook_basinQ   ( 1)
  type(iLook_IRFbas)   ,public,parameter :: ixIRFbas    = iLook_IRFbas   ( 1)
