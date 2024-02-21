@@ -1299,13 +1299,13 @@ CONTAINS
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
-    if (meta_rflx(ixRFLX%KWvolume)%varFile) then
+    if (meta_rflx(ixRFLX%KWinflow)%varFile) then
       array_dp = hVars%inflow(index_write, idxKW)
       call write_pnetcdf(pioFileDesc, 'KWinflow', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
-    if (meta_rflx(ixRFLX%MCvolume)%varFile) then
+    if (meta_rflx(ixRFLX%MCinflow)%varFile) then
       array_dp = hVars%inflow(index_write, idxMC)
       call write_pnetcdf(pioFileDesc, 'MCinflow', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
