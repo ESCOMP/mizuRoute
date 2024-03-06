@@ -61,8 +61,10 @@ ifeq "$(isMPISERIAL)" "yes"
   CMAKE_OPTS += -DCMAKE_Fortran_COMPILER=$(FC)
 else
   # Change colon delimited list to space with a -I in front of each
-  MPIINC   = $(subst :, -I,$(MPIINC_PATHLIST))
-  INCLDIR += -I$(MPIINC)
+  ifdef MPIINC_PATHLIST
+    MPIINC   = $(subst :, -I,$(MPIINC_PATHLIST))
+    INCLDIR += -I$(MPIINC)
+  endif
   CPPDEFS += -DHAVE_MPI
   MPISERIAL =
   CMAKE_OPTS += -DCMAKE_Fortran_COMPILER=mpif90
@@ -84,8 +86,6 @@ CMAKE_OPTS += -Wno-dev -D CMAKE_Fortran_FLAGS:STRING="$(FLAGS) $(CPPDEFS) $(INCL
               -D PIO_ENABLE_TIMING:BOOL=$(PIO_ENABLE_TIMING) \
               -D USER_CMAKE_MODULE_PATH:LIST="$(CIMEROOT)/src/CMake;$(PIO2DIR)/cmake"
 CMAKE_OPTS += -D NetCDF_PATH:PATH=$(NCDF_PATH)
-
-
 
 ifdef PNETCDF_PATH
         CMAKE_OPTS += -D PnetCDF_PATH:STRING="$(PNETCDF_PATH)"
