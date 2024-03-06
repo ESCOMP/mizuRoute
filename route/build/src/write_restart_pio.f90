@@ -732,7 +732,7 @@ CONTAINS
  call write_scalar_netcdf(pioFileDesc, 'nNodes', nNodes, ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- call write_netcdf(pioFileDesc, 'reachID', reachID, [1], [nRch], ierr, cmessage)
+ call write_netcdf(pioFileDesc, 'reachID', int(reachID,kind(i4b)), [1], [nRch], ierr, cmessage)
  if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  call write_scalar_netcdf(pioFileDesc, 'restart_time', timeVar_local, ierr, cmessage)

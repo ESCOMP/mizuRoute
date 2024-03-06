@@ -266,8 +266,8 @@ MODULE historyFile
       implicit none
       ! Argument variables
       class(histFile),           intent(inout) :: this
-      integer(i4b), allocatable, intent(in)    :: reach_id(:)   !
-      integer(i4b), allocatable, intent(in)    :: basin_id(:)   !
+      integer(i8b), allocatable, intent(in)    :: reach_id(:)   !
+      integer(i8b), allocatable, intent(in)    :: basin_id(:)   !
       integer(i4b),              intent(out)   :: ierr          ! error code
       character(*),              intent(out)   :: message       ! error message
       ! local variables
@@ -278,12 +278,12 @@ MODULE historyFile
 
       if (meta_hflx(ixHFLX%basRunoff)%varFile) then
         nElem = size(basin_id)
-        call write_netcdf(this%pioFileDesc, 'basinID', basin_id, [1], [nElem], ierr, cmessage)
+        call write_netcdf(this%pioFileDesc, 'basinID', int(basin_id,kind(i4b)), [1], [nElem], ierr, cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
       end if
 
       nElem = size(reach_id)
-      call write_netcdf(this%pioFileDesc, 'reachID', reach_id, [1], [nElem], ierr, cmessage)
+      call write_netcdf(this%pioFileDesc, 'reachID', int(reach_id,kind(i4b)), [1], [nElem], ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     END SUBROUTINE write_loc_rch_hru
@@ -293,7 +293,7 @@ MODULE historyFile
       implicit none
       ! Argument variables
       class(histFile),           intent(inout) :: this
-      integer(i4b), allocatable, intent(in)    :: reach_id(:)   !
+      integer(i8b), allocatable, intent(in)    :: reach_id(:)   !
       integer(i4b),              intent(out)   :: ierr          ! error code
       character(*),              intent(out)   :: message       ! error message
       ! local variables
@@ -303,7 +303,7 @@ MODULE historyFile
       ierr=0; message='write_loc_rch/'
 
       nElem = size(reach_id)
-      call write_netcdf(this%pioFileDesc, 'reachID', reach_id, [1], [nElem], ierr, cmessage)
+      call write_netcdf(this%pioFileDesc, 'reachID', int(reach_id,kind(i4b)), [1], [nElem], ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     END SUBROUTINE

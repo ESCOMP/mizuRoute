@@ -293,7 +293,7 @@ CONTAINS
     ! Local variables
     integer(i4b)                           :: ix
     integer(i4b)                           :: nRch_local
-    integer(i4b),allocatable               :: reachID_local(:) !
+    integer(i8b),allocatable               :: reachID_local(:) !
     character(len=strLen)                  :: cmessage         ! error message of downwind routine
 
     ierr=0; message='get_compdof_gage/'

@@ -50,7 +50,7 @@ MODULE process_gage_meta
 
       implicit none
       ! Argument variables
-      integer(i4b), allocatable,           intent(in)  :: reachID_in(:)
+      integer(i8b), allocatable,           intent(in)  :: reachID_in(:)
       type(gage),                          intent(in)  :: gage_data_in
       integer(i4b),                        intent(out) :: ierr
       character(len=strLen),               intent(out) :: message

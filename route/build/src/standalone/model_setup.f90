@@ -646,7 +646,7 @@ CONTAINS
    character(*), intent(out)          :: message          ! error message
    ! local variables
    character(len=strLen)              :: fname            ! input file name
-   integer(i4b), allocatable          :: unq_qhru_id(:)
+   integer(i8b), allocatable          :: unq_qhru_id(:)
    integer(i4b), allocatable          :: unq_idx(:)
    character(len=strLen)              :: cmessage         ! error message from subroutine
 

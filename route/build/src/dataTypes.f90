@@ -47,7 +47,7 @@ implicit none
  type, public :: gage
    integer(i4b)                   :: nGage
    character(len=30), allocatable :: gageID(:)
-   integer(i4b),      allocatable :: reachID(:)
+   integer(i8b),      allocatable :: reachID(:)
  end type gage
 
  ! ---------- basin data structures ----------------------------------------------------------------------
@@ -138,8 +138,8 @@ implicit none
  ! data to remap runoff hru to river network hrus
  type, public :: remap
    ! information in the mapping file
-   integer(i4b)             , allocatable  :: hru_id(:)    ! Id of hrus associated with river network (="hru")
-   integer(i4b)             , allocatable  :: qhru_id(:)   ! Id of hrus associated with runoff simulation (="qhru")
+   integer(i8b)             , allocatable  :: hru_id(:)    ! Id of hrus associated with river network (="hru")
+   integer(i8b)             , allocatable  :: qhru_id(:)   ! Id of hrus associated with runoff simulation (="qhru")
    integer(i4b)             , allocatable  :: num_qhru(:)  ! number of "qhru" within "hru"
    integer(i4b)             , allocatable  :: i_index(:)   ! Index in the y dimension of the runoff grid (starting with 1,1 in LL corner)
    integer(i4b)             , allocatable  :: j_index(:)   ! Index in the x dimension of the runoff grid (starting with 1,1 in LL corner)
@@ -169,7 +169,7 @@ implicit none
  end type inputData
 
  type, public, extends(inputData) :: runoff  ! runoff data
-   integer(i4b)             , allocatable  :: hru_id(:)       ! id of HM_HRUs or RN_HRUs at which runoff is stored (size: nSpace(1))
+   integer(i8b)             , allocatable  :: hru_id(:)       ! id of HM_HRUs or RN_HRUs at which runoff is stored (size: nSpace(1))
    integer(i4b)             , allocatable  :: hru_ix(:)       ! Index of RN_HRUs associated with river network (used only if HM_HRUs = RN_HRUs)
    real(dp)                 , allocatable  :: basinRunoff(:)  ! remapped river network catchment runoff [depth/time] (size: number of nHRU)
    real(dp)                 , allocatable  :: basinEvapo(:)   ! remapped river network catchment evaporation [depth/time] (size: number of nHRU)
@@ -177,7 +177,7 @@ implicit none
  end type runoff
 
  type, public, extends(inputData) :: wm  ! water-management
-   integer(i4b)             , allocatable  :: seg_id(:)       ! id of reach in data (size: nSpace)
+   integer(i8b)             , allocatable  :: seg_id(:)       ! id of reach in data (size: nSpace)
    integer(i4b)             , allocatable  :: seg_ix(:)       ! Index of river network reach IDs corresponding reach ID in data
    real(dp)                 , allocatable  :: flux_wm(:)      ! allocated flux to existing river network using sort_flux [m3/s] (size: number of nRCH)
    real(dp)                 , allocatable  :: vol_wm(:)       ! allocated target vol to existing river network using sort_flux [m3/s] (size: number of nRCH)
@@ -260,10 +260,6 @@ implicit none
  type, public :: RCHTOPO
   integer(i4b)                               :: REACHIX      ! Reach index (1,2,...,nrch)
   integer(i4b)                               :: REACHID      ! Reach ID (REC code)
-  real(dp)                                   :: RCHLAT1      ! Start latitude
-  real(dp)                                   :: RCHLAT2      ! End latitude
-  real(dp)                                   :: RCHLON1      ! Start longitude
-  real(dp)                                   :: RCHLON2      ! End longitude
   integer(i4b)                               :: DREACHI      ! Immediate Downstream reach index
   integer(i4b)                               :: DREACHK      ! Immediate Downstream reach ID
   integer(i4b),dimension(:),allocatable      :: UREACHI      ! Immediate Upstream reach indices
