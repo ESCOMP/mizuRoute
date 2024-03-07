@@ -24,7 +24,7 @@ MPISERLIB    = $(MPISERLIBDIR)/libmpi-serial.a
 MPISERCONF   = $(MPISERLIBDIR)/Makefile.conf
 MPIINC_PATHLIST  = $(CPATH)
 INCLDIR      = -I.
-CMAKE_OPTS   = 
+CMAKE_OPTS   =
 
 all: $(CIMEROOT) $(MCTDIR) $(MPISERIALDIR) $(PIO2DIR)
 
@@ -61,10 +61,12 @@ ifeq "$(isMPISERIAL)" "yes"
   CMAKE_OPTS += -DCMAKE_Fortran_COMPILER=$(FC)
 else
   # Change colon delimited list to space with a -I in front of each
-  MPIINC   = $(subst :, -I,$(MPIINC_PATHLIST))
-  INCLDIR += -I$(MPIINC)
+  ifdef MPIINC_PATHLIST
+    MPIINC   = $(subst :, -I,$(MPIINC_PATHLIST))
+    INCLDIR += -I$(MPIINC)
+  endif
   CPPDEFS += -DHAVE_MPI
-  MPISERIAL = 
+  MPISERIAL =
   CMAKE_OPTS += -DCMAKE_Fortran_COMPILER=mpif90
 endif
 
@@ -85,9 +87,6 @@ CMAKE_OPTS += -Wno-dev -D CMAKE_Fortran_FLAGS:STRING="$(FLAGS) $(CPPDEFS) $(INCL
               -D USER_CMAKE_MODULE_PATH:LIST="$(CIMEROOT)/src/CMake;$(PIO2DIR)/cmake"
 CMAKE_OPTS += -D NetCDF_PATH:PATH=$(NCDF_PATH)
 
-
-
-
 ifdef PNETCDF_PATH
         CMAKE_OPTS += -D PnetCDF_PATH:STRING="$(PNETCDF_PATH)"
         CPPDEFS    += -D_PNETCDF
@@ -100,10 +99,10 @@ ifdef PIO_FILESYSTEM_HINTS
 endif
 CMAKE_OPTS += -D GENF90_PATH=$(PIO2DIR)/scripts
 
+MODEARGS :=
+
 ifeq "$(MODE)" "debug"
-   MODEARGS := --enable-debug
-else
-   MODEARGS :=
+   CMAKE_OPTS += -DCMAKE_BUILD_TYPE=Debug
 endif
 
 $(MPISERCONF):

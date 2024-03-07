@@ -66,11 +66,11 @@ CONTAINS
     USE globalData,          ONLY: NETOPO_main                 ! data structure: River Network topology (main proc, mainstem)
     USE globalData,          ONLY: RPARAM_trib                 ! data structure: River parameters (other procs, tributary)
     USE globalData,          ONLY: RPARAM_main                 ! data structure: River parameters (main proc, mainstem)
-    USE globalData,          ONLY: pio_netcdf_format
-    USE globalData,          ONLY: pio_typename
     USE globalData,          ONLY: pio_rearranger
     USE globalData,          ONLY: pio_root, pio_stride
     USE globalData,          ONLY: pioSystem
+    USE public_var,          ONLY: pio_netcdf_format
+    USE public_var,          ONLY: pio_typename
     USE init_model_data,     ONLY: init_ntopo_data             !
     USE init_model_data,     ONLY: init_state_data
     USE RtmTimeManager,      ONLY: init_time

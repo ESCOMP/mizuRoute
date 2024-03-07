@@ -26,10 +26,10 @@ MODULE histVars_data
   USE globalData,        ONLY: pid, nNodes
   USE globalData,        ONLY: masterproc
   USE globalData,        ONLY: mpicom_route
-  USE globalData,        ONLY: pio_typename
   USE globalData,        ONLY: pioSystem
   USE globalData,        ONLY: ioDesc_hru_double
   USE globalData,        ONLY: ioDesc_hist_rch_double
+  USE public_var,        ONLY: pio_typename
   USE nr_utils,          ONLY: arth
   USE ncio_utils,        ONLY: get_nc
   USE pio_utils,         ONLY: file_desc_t
@@ -298,7 +298,7 @@ MODULE histVars_data
       ! local variable
       character(len=strLen)              :: cmessage              ! error message from subroutines
       real(dp), allocatable              :: array_tmp(:)          ! temp array
-      integer(i4b)                       :: ixRoute, ix1, ix2     ! loop index
+      integer(i4b)                       :: ixRoute               ! loop index
       integer(i4b)                       :: ixFlow, ixVol         ! temporal method index
       logical(lgt)                       :: FileStatus            ! file open or close
       type(file_desc_t)                  :: pioFileDesc           ! pio file handle

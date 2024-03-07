@@ -60,7 +60,8 @@ CONTAINS
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     if (createNewFile) then
-      call close_all()
+      call close_all(ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       call get_hfilename(simDatetime(1), ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -214,12 +215,18 @@ CONTAINS
      call hist_all_network%write_flux_rch(hVars, ioDesc_rch_float, index_write_all, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+     call hist_all_network%sync(ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
      if (outputAtGage) then
        ! write time variables (time and time bounds)
        call hist_gage%write_time(hVars, ierr, cmessage)
        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
        call hist_gage%write_flux_rch(hVars, ioDesc_gauge_float, index_write_gage, ierr, cmessage)
+       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+       call hist_gage%sync(ierr, cmessage)
        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
      end if
 
@@ -372,13 +379,25 @@ CONTAINS
  ! *********************************************************************
  ! private subroutine: close all history files
  ! *********************************************************************
- SUBROUTINE close_all()
+ SUBROUTINE close_all(ierr, message)
+
+   USE public_var, ONLY: outputAtGage        ! ascii containing last restart and history files
+
    implicit none
+   ! argument variables
+   integer(i4b),   intent(out)     :: ierr                ! error code
+   character(*),   intent(out)     :: message             ! error message
+
+   ierr=0; message='close_all/'
+
    if (hist_all_network%fileOpen()) then
      call hist_all_network%closeNC()
    end if
-   if (hist_gage%fileOpen()) then
-     call hist_gage%closeNC()
+
+   if (outputAtGage) then
+     if (hist_gage%fileOpen()) then
+       call hist_gage%closeNC()
+     end if
    end if
  END SUBROUTINE
 
@@ -387,7 +406,6 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE init_histFile(ierr, message)
 
-   USE globalData,  ONLY: gage_data
    USE public_var,  ONLY: outputAtGage      ! ascii containing last restart and history files
 
    implicit none

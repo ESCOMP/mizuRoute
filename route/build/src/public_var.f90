@@ -1,7 +1,10 @@
 MODULE public_var
 
-  ! This module include variables that can be accessed from any other modules and values not altered
-  ! except that variables read from control file are populated.
+  ! General rules
+  ! This module include variables that can be accessed from any other modules
+  ! User can set values of the variables through control file (read_control.f90).
+  ! Values should not be altered during the runtime.
+  ! See globalData.f90 for difference
 
   USE nrtype
 
@@ -48,8 +51,10 @@ MODULE public_var
   integer(i4b),parameter,public   :: root=0                 ! root node id
 
   ! I/O related parameters
-  integer(i4b),          public   :: iulog=6                ! logical unit identifier
-  character(len=strLen), public   :: rpntfil='rpointer.rof' ! file name for local restart pointer file
+  integer(i4b),          public   :: iulog=6                            ! logical unit identifier
+  character(len=strLen), public   :: rpntfil='rpointer.rof'             ! file name for local restart pointer file
+  character(len=strLen), public   :: pio_netcdf_format="64bit_offset"   ! netCDF format - use '64bit_offset' for PIO use or 'netCDF-4'
+  character(len=strLen), public   :: pio_typename="pnetcdf"             ! netcdf, pnetcdf, netcdf4c, or netcdf4p
 
   ! ---------- named variables ----------------------------------------------------------------------
 

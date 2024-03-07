@@ -1,0 +1,105 @@
+#Building on NCAR HPC:
+
+# NOTE: Optional external libraries are invoked with the Makefile flags: isMPISERIAL and isPIO
+#       Setting one or both to yes, will then invoke building them and linking them into the mizuRoute build.
+#
+# NOTE: Use of the external libraries REQUIRES running the "checkout_externals" as documented in the top
+#       level directory (cd ../../; less README_EXTERNALS.rst)
+#
+# NOTE: 11/10/2023. use netcdf not netcdf-mpi which causes the compilation to fail (possibly on pio)
+#                   Currently these are for cheyenne only. Will need to update for Derecho HPC.
+#
+
+# NOTE: 02/19/2024. gcc with cray-mpich may cause the output error for unkonw reasons.  
+#                   gcc with openmpi/5.0.0 is stable 
+#
+
+# For gfortran with MPISERIAL  
+# NM 02/19/2024 this is currently failing to build
+module purge
+module load gcc
+module load netcdf
+module load ncarcompilers
+
+* tcsh or csh user:
+setenv BLDDIR `pwd`/../
+* bash user:
+export BLDDIR=`pwd`/../
+gmake FC=gnu FC_EXE=gfortran F_MASTER=$BLDDIR NCDF_PATH=$NETCDF isMPISERIAL=yes isPIO=yes MODE=fast EXE=route_runoff 
+
+# For gfortran with MPI and PIO2 libraries
+module purge
+module load cmake
+module load gcc
+module load cray-mpich (or openmpi/5.0.0)
+module load craype (if openmpi/5.0.0 is loaded)
+module load netcdf
+module load ncarcompilers
+
+* tcsh or csh user:
+setenv BLDDIR `pwd`/../
+* bash user:
+export BLDDIR=`pwd`/../
+gmake FC=gnu FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF MODE=fast EXE=route_runoff
+
+# For gfortran with MPI, PNETCDF, GPTL (timing) and PIO2 libraries
+module purge
+module load cmake
+module load gcc
+module load cray-mpich (or openmpi/5.0.0)
+module load craype (if openmpi/5.0.0 is loaded)
+module load netcdf
+module load parallel-netcdf
+module load ncarcompilers
+
+* tcsh or csh user:
+setenv BLDDIR `pwd`/../
+* bash user:
+export BLDDIR=`pwd`/../
+gmake FC=gnu FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF PNETCDF_PATH=$PNETCDF MODE=fast EXE=route_runoff
+
+# For intel with MPI and PIO2 libraries
+module purge
+module load cmake
+module load intel
+module load cray-mpich 
+module load netcdf
+module load ncarcompilers
+
+* tcsh or csh user:
+setenv BLDDIR `pwd`/../
+* bash user:
+export BLDDIR=`pwd`/../
+gmake FC=intel FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF MODE=fast EXE=route_runoff
+
+# For intel with MPI, PNETCDF, GPTL (timing) and PIO2 libraries
+module purge
+module load cmake
+module load intel
+module load cray-mpich 
+module load netcdf
+module load parallel-netcdf
+module load ncarcompilers
+
+* tcsh or csh user:
+setenv BLDDIR `pwd`/../
+* bash user:
+export BLDDIR=`pwd`/../
+gmake FC=intel FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF PNETCDF_PATH=$PNETCDF MODE=fast EXE=route_runoff
+
+# For intel with MPI, PNETCDF and installed PIO2 libraries
+# EBK 9/30/2021 this is currently failing to build
+module purge
+module load cmake
+module load intel
+module load cray-mpich 
+module load netcdf-mpi
+module load parallel-netcdf
+module load parallelio
+module load ncarcompilers
+
+* tcsh or csh user:
+setenv BLDDIR `pwd`/../
+gmake FC=intel FC_EXE=mpif90 F_MASTER=$BLDDIR NCDF_PATH=$NETCDF EXE=route_runoff PNETCDF_PATH=$PNETCDF \
+      PIOLIBDIR=$PIO_LIBDIR PIOINCDIR=$PIO_INCDIR
+
