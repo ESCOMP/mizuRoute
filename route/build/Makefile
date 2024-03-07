@@ -166,6 +166,7 @@ DATATYPES = \
     allocation.f90
 # define utilities
 UTILS = \
+    hydraulic.f90 \
     mpi_utils.f90 \
     model_utils.f90 \
     gamma_func.f90

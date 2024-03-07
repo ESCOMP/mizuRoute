@@ -14,8 +14,6 @@ sys.path.append( "../../../../cime/scripts/lib" );
 from CIME.XML.standard_module_setup import *
 from CIME.utils import expect, convert_to_string, convert_to_type, run_cmd_no_fail
 
-import six
-
 logger = logging.getLogger(__name__)
 
 class mizuRoute_control(object):
