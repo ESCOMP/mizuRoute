@@ -529,8 +529,8 @@ CONTAINS
   FUNCTION match_index_i4b(array1, array2, ierr, message) RESULT(index1)
     implicit none
     ! Argument variables:
-    integer(i4b), allocatable, intent(in)  :: array1(:)
-    integer(i4b), allocatable, intent(in)  :: array2(:)
+    integer(i4b),              intent(in)  :: array1(:)
+    integer(i4b),              intent(in)  :: array2(:)
     integer(i4b),              intent(out) :: ierr         ! error code
     character(*),              intent(out) :: message      ! error message
     ! Local variables:
@@ -577,8 +577,8 @@ CONTAINS
   FUNCTION match_index_i8b(array1, array2, ierr, message) RESULT(index1)
     implicit none
     ! Argument variables:
-    integer(i8b), allocatable, intent(in)  :: array1(:)
-    integer(i8b), allocatable, intent(in)  :: array2(:)
+    integer(i8b),              intent(in)  :: array1(:)
+    integer(i8b),              intent(in)  :: array2(:)
     integer(i4b),              intent(out) :: ierr         ! error code
     character(*),              intent(out) :: message      ! error message
     ! Local variables:

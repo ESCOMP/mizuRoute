@@ -80,9 +80,9 @@ MODULE public_var
 
   ! Control file variables
   ! DIRECTORIES
-  character(len=strLen),public    :: ancil_dir            = ''              ! directory containing ancillary data (network, mapping, namelist)
-  character(len=strLen),public    :: input_dir            = ''              ! directory containing input forcing data
-  character(len=strLen),public    :: output_dir           = ''              ! directory for routed flow output (netCDF)
+  character(len=strLen),public    :: ancil_dir            = charMissing     ! directory containing ancillary data (network, mapping, namelist)
+  character(len=strLen),public    :: input_dir            = charMissing     ! directory containing input forcing data
+  character(len=strLen),public    :: output_dir           = charMissing     ! directory for routed flow output (netCDF)
   character(len=strLen),public    :: restart_dir          = charMissing     ! directory for restart output (netCDF)
   ! RUN CONTROL
   character(len=strLen),public    :: case_name            = ''              ! name of simulation
@@ -117,17 +117,17 @@ MODULE public_var
   character(len=strLen),public    :: dname_sseg           = ''              ! dimension name of segment in river network data
   character(len=strLen),public    :: dname_nhru           = ''              ! dimension name of hru in river network data
   ! RUNOFF, EVAPORATION AND PRECIPITATION FILE
-  character(len=strLen),public    :: fname_qsim           = ''              ! runoff netCDF name
-  character(len=strLen),public    :: vname_qsim           = ''              ! variable name for runoff
-  character(len=strLen),public    :: vname_evapo          = ''              ! variable name for actual evapoartion
-  character(len=strLen),public    :: vname_precip         = ''              ! variable name for precipitation
-  character(len=strLen),public    :: vname_time           = ''              ! variable name for time
-  character(len=strLen),public    :: vname_hruid          = ''              ! variable name for runoff hru id
-  character(len=strLen),public    :: dname_time           = ''              ! dimension name for time
-  character(len=strLen),public    :: dname_hruid          = ''              ! dimension name for hru in runoff data
-  character(len=strLen),public    :: dname_xlon           = ''              ! dimension name for x (j, longitude) dimension
-  character(len=strLen),public    :: dname_ylat           = ''              ! dimension name for y (i, latitude) dimension
-  character(len=strLen),public    :: units_qsim           = ''              ! units of runoff data
+  character(len=strLen),public    :: fname_qsim           = charMissing     ! runoff netCDF name
+  character(len=strLen),public    :: vname_qsim           = charMissing     ! variable name for runoff
+  character(len=strLen),public    :: vname_evapo          = charMissing     ! variable name for actual evapoartion
+  character(len=strLen),public    :: vname_precip         = charMissing     ! variable name for precipitation
+  character(len=strLen),public    :: vname_time           = charMissing     ! variable name for time
+  character(len=strLen),public    :: vname_hruid          = charMissing     ! variable name for runoff hru id
+  character(len=strLen),public    :: dname_time           = charMissing     ! dimension name for time
+  character(len=strLen),public    :: dname_hruid          = charMissing     ! dimension name for hru in runoff data
+  character(len=strLen),public    :: dname_xlon           = charMissing     ! dimension name for x (j, longitude) dimension
+  character(len=strLen),public    :: dname_ylat           = charMissing     ! dimension name for y (i, latitude) dimension
+  character(len=strLen),public    :: units_qsim           = charMissing     ! units of runoff data
   real(dp)             ,public    :: dt_ro                = realMissing     ! runoff time step (seconds)
   real(dp)             ,public    :: input_fillvalue      = realMissing     ! fillvalue used for input variables (runoff, precipitation, evaporation)
   character(len=strLen),public    :: ro_time_units        = charMissing     ! time units used in ro netcdf. format should be <unit> since yyyy-mm-dd (hh:mm:ss). () can be omitted
@@ -143,15 +143,15 @@ MODULE public_var
   real(dp)             ,public    :: dt_wm                = realMissing     ! water-management time step (seconds)
   ! RUNOFF REMAPPING
   logical(lgt),         public    :: is_remap             = .false.         ! logical whether or not runnoff needs to be mapped to river network HRU
-  character(len=strLen),public    :: fname_remap          = ''              ! runoff mapping netCDF name
-  character(len=strLen),public    :: vname_hruid_in_remap = ''              ! variable name for river network hru id
-  character(len=strLen),public    :: vname_weight         = ''              ! variable name for areal weights of runoff HRUs within each river network
-  character(len=strLen),public    :: vname_qhruid         = ''              ! variable name for runoff HRU ID
-  character(len=strLen),public    :: vname_num_qhru       = ''              ! variable for numbers of runoff HRUs within each river network HRU
-  character(len=strLen),public    :: vname_i_index        = ''              ! variable for numbers of y (latitude) index if runoff file is grid
-  character(len=strLen),public    :: vname_j_index        = ''              ! variable for numbers of x (longitude) index if runoff file is grid
-  character(len=strLen),public    :: dname_hru_remap      = ''              ! dimension name for river network HRU
-  character(len=strLen),public    :: dname_data_remap     = ''              ! dimension name for runoff HRU ID
+  character(len=strLen),public    :: fname_remap          = charMissing     ! runoff mapping netCDF name
+  character(len=strLen),public    :: vname_hruid_in_remap = charMissing     ! variable name for river network hru id
+  character(len=strLen),public    :: vname_weight         = charMissing     ! variable name for areal weights of runoff HRUs within each river network
+  character(len=strLen),public    :: vname_qhruid         = charMissing     ! variable name for runoff HRU ID
+  character(len=strLen),public    :: vname_num_qhru       = charMissing     ! variable for numbers of runoff HRUs within each river network HRU
+  character(len=strLen),public    :: vname_i_index        = charMissing     ! variable for numbers of y (latitude) index if runoff file is grid
+  character(len=strLen),public    :: vname_j_index        = charMissing     ! variable for numbers of x (longitude) index if runoff file is grid
+  character(len=strLen),public    :: dname_hru_remap      = charMissing     ! dimension name for river network HRU
+  character(len=strLen),public    :: dname_data_remap     = charMissing     ! dimension name for runoff HRU ID
   ! RESTART OPTION
   character(len=strLen),public    :: restart_write        = 'never'         ! restart write option (case-insensitive): never, last, specified, yearly, monthly, daily
   character(len=strLen),public    :: restart_date         = charMissing     ! specifed restart date

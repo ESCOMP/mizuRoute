@@ -47,7 +47,7 @@ implicit none
  type, public :: gage
    integer(i4b)                   :: nGage
    character(len=30), allocatable :: gageID(:)
-   integer(i8b),      allocatable :: reachID(:)
+   integer(i4b),      allocatable :: reachID(:)
  end type gage
 
  ! ---------- basin data structures ----------------------------------------------------------------------
@@ -138,7 +138,7 @@ implicit none
  ! data to remap runoff hru to river network hrus
  type, public :: remap
    ! information in the mapping file
-   integer(i8b)             , allocatable  :: hru_id(:)    ! Id of hrus associated with river network (="hru")
+   integer(i4b)             , allocatable  :: hru_id(:)    ! Id of hrus associated with river network (="hru")
    integer(i8b)             , allocatable  :: qhru_id(:)   ! Id of hrus associated with runoff simulation (="qhru")
    integer(i4b)             , allocatable  :: num_qhru(:)  ! number of "qhru" within "hru"
    integer(i4b)             , allocatable  :: i_index(:)   ! Index in the y dimension of the runoff grid (starting with 1,1 in LL corner)
@@ -162,10 +162,10 @@ implicit none
  ! ---------- input forcing data  ----------------------------------------------------------------------
 
  type, public :: inputData
-   integer(i4b)                            :: nSpace(1:2)     ! number of spatial dimension
-   real(dp)                 , allocatable  :: sim(:)          ! flux simulation (HM_HRU) at one time step (size: nSpace(1))
-   real(dp)                 , allocatable  :: sim2d(:,:)      ! flux simulation (x,y) at one time step (size: /nSpace(1),nSpace(2)/)
-   real(dp)                                :: fillvalue       ! fillvalue
+   integer(i4b)                            :: nSpace(1:2)=integerMissing  ! number of spatial dimension
+   real(dp)                 , allocatable  :: sim(:)                      ! flux simulation (HM_HRU) at one time step (size: nSpace(1))
+   real(dp)                 , allocatable  :: sim2d(:,:)                  ! flux simulation (x,y) at one time step (size: /nSpace(1),nSpace(2)/)
+   real(dp)                                :: fillvalue                   ! fillvalue
  end type inputData
 
  type, public, extends(inputData) :: runoff  ! runoff data
@@ -177,7 +177,7 @@ implicit none
  end type runoff
 
  type, public, extends(inputData) :: wm  ! water-management
-   integer(i8b)             , allocatable  :: seg_id(:)       ! id of reach in data (size: nSpace)
+   integer(i4b)             , allocatable  :: seg_id(:)       ! id of reach in data (size: nSpace)
    integer(i4b)             , allocatable  :: seg_ix(:)       ! Index of river network reach IDs corresponding reach ID in data
    real(dp)                 , allocatable  :: flux_wm(:)      ! allocated flux to existing river network using sort_flux [m3/s] (size: number of nRCH)
    real(dp)                 , allocatable  :: vol_wm(:)       ! allocated target vol to existing river network using sort_flux [m3/s] (size: number of nRCH)

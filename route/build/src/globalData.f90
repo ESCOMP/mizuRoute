@@ -78,8 +78,8 @@ MODULE globalData
   integer(i4b),                    public :: nHRU_mainstem        ! number of HRUs in mainstems
   integer(i4b),                    public :: nRch_trib            ! number of reaches in tributaries
   integer(i4b),                    public :: nHRU_trib            ! number of HRUs in tributaries
-  integer(i8b),     allocatable,   public :: basinID(:)           ! HRU id in the whole river network
-  integer(i8b),     allocatable,   public :: reachID(:)           ! reach id in the whole river network
+  integer(i4b),     allocatable,   public :: basinID(:)           ! HRU id in the whole river network
+  integer(i4b),     allocatable,   public :: reachID(:)           ! reach id in the whole river network
 
   ! ---------- routing methods  -------------------------------------------------------------------------
   type(routeContainer), allocatable , public :: rch_routes(:)           ! a collection of routing method objects

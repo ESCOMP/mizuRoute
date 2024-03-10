@@ -166,7 +166,7 @@ CONTAINS
   integer(i4b)                                :: ixDestSeg                !
   integer(i4b)                                :: ixLocalSeg               !
   integer(i4b)                                :: nComm                    !
-  integer(i8b),     allocatable               :: destSegId(:)             !
+  integer(i4b),     allocatable               :: destSegId(:)             !
   integer(i4b),     allocatable               :: destSegIndex(:)          !
   integer(i4b),     allocatable               :: srcTask(:)               !
   integer(i4b),     allocatable               :: destTask(:)              !
