@@ -18,7 +18,6 @@ MODULE historyFile
   USE globalData,        ONLY: gitHash
   USE histVars_data,     ONLY: histVars
   USE pio_utils
-  USE perf_mod,          ONLY: t_startf,t_stopf ! timing start/stop (GPTL library)
 
   implicit none
   integer(i4b),parameter     :: recordDim=-999       ! record dimension Indicator

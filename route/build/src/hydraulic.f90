@@ -208,7 +208,6 @@ CONTAINS
    real(dp)                          :: Abf          ! flow area at bankful depth [m2]
    real(dp)                          :: Pbf          ! wetted perimeter at bankful depth [m2]
    real(dp)                          :: Bbf          ! top width of at bankful depth [m2]
-   real(dp)                          :: Qbf          ! uniform flow at bankful depth [m3/s]
    real(dp)                          :: A            ! flow area [m2]
    real(dp)                          :: P            ! wetted perimeter [m]
    real(dp)                          :: A_channel    ! flow area within a channel [m2]
@@ -288,12 +287,7 @@ CONTAINS
    real(dp)                         :: Bt           ! estimated top width [m2]
    real(dp)                         :: y_excess     ! flow depth above bankfull depth [m]
    real(dp)                         :: h            !
-   real(dp)                         :: f            !
-   real(dp)                         :: g            !
-   real(dp)                         :: g2           !
    real(dp)                         :: dhdy         !
-   real(dp)                         :: dgdy         !
-   real(dp)                         :: dfdy         !
    real(dp)                         :: zf1          ! floodplain slope: horizontal:vertcal=zf:1 [-]
    real(dp)                         :: bankDepth1   ! bankfull depth [m]
 
