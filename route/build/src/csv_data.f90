@@ -67,6 +67,7 @@ CONTAINS
                                     get_real_sp_column,  &
                                     get_real_dp_column,  &
                                     get_integer_column,  &
+                                    get_long_column,     &
                                     get_logical_column,  &
                                     get_character_column,  &
                                     get_string_column
@@ -76,6 +77,7 @@ CONTAINS
   procedure, private :: get_real_sp_column
   procedure, private :: get_real_dp_column
   procedure, private :: get_integer_column
+  procedure, private :: get_long_column
   procedure, private :: get_logical_column
   procedure, private :: get_character_column
   procedure, private :: get_string_column
@@ -661,6 +663,34 @@ CONTAINS
     end if
 
   END SUBROUTINE get_integer_column
+
+  SUBROUTINE get_long_column(this, col, col_data, istat)
+    ! Return a column from a CSV file as a `integer(ip)` vector.
+    implicit none
+    class(csv),               intent(in)    :: this
+    class(*),                 intent(in)    :: col         ! name:character or index:integer
+    integer(i8b),allocatable, intent(out)   :: col_data(:)
+    integer(i4b),             intent(out)   :: istat
+    integer(i4b)                            :: icol        ! column number
+
+    istat=0
+
+    select type (col)
+      type is (integer(i4b))
+       icol=col
+      type is (character(len=*))
+        call this%get_icol_by_name(col, icol, istat)
+    end select
+
+    if (allocated(this%csv_data)) then
+      allocate(col_data(this%nrows))  ! size the output vector
+      call this%get_column(icol, col_data, istat)
+    else
+      write(*,'(A,1X,I5)') 'Error: class has not been initialized'
+      istat = 1
+    end if
+
+  END SUBROUTINE get_long_column
 
   SUBROUTINE get_logical_column(this, col, col_data, istat)
     ! Convert a column from a `string_array` matrix to a `logical` vector.

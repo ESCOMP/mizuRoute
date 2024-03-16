@@ -635,7 +635,7 @@ CONTAINS
    USE globalData,  ONLY: remap_data           ! runoff mapping data structure
    USE globalData,  ONLY: runoff_data          ! runoff data structure
    USE globalData,  ONLY: wm_data              ! abstraction injection data structure
-   USE read_runoff, ONLY: read_runoff_metadata ! read meta data from runoff data
+   USE read_runoff, ONLY: read_forcing_metadata ! read meta data from runoff data
    USE read_remap,  ONLY: get_remap_data       ! read remap data
 
    implicit none
@@ -644,7 +644,7 @@ CONTAINS
    character(*), intent(out)          :: message          ! error message
    ! local variables
    character(len=strLen)              :: fname            ! input file name
-   integer(i4b), allocatable          :: unq_qhru_id(:)
+   integer(i8b), allocatable          :: unq_qhru_id(:)
    integer(i4b), allocatable          :: unq_idx(:)
    character(len=strLen)              :: cmessage         ! error message from subroutine
 
@@ -653,20 +653,35 @@ CONTAINS
    ! passing the first nc file as global file name to read
    fname = trim(input_dir)//trim(inFileInfo_ro(1)%infilename)
 
-   ! get runoff metadata for simulated runoff, evaporation and precipitation
-   call read_runoff_metadata(fname,                           & ! input: filename
-                             vname_qsim,                      & ! input: varibale name for simulated runoff
-                             vname_hruid,                     & ! input: varibale hruid
-                             dname_hruid,                     & ! input: dimension of varibale hru
-                             dname_ylat,                      & ! input: dimension of lat
-                             dname_xlon,                      & ! input: dimension of lon
-                             runoff_data%nSpace,              & ! nSpace of the input in runoff or wm strcuture
-                             runoff_data%sim,                 & ! 1D simulation
-                             runoff_data%sim2D,               & ! 2D simulation
-                             runoff_data%hru_id,              & ! ID of seg or hru in data
-                             runoff_data%fillvalue,           & ! fillvalue for data
-                             ierr, cmessage)                    ! output: error control
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if (trim(vname_hruid)==charMissing) then
+     ! get runoff metadata for simulated runoff, evaporation and precipitation
+     call read_forcing_metadata(fname,                           & ! input: filename
+                                vname_qsim,                      & ! input: varibale name for simulated runoff
+                                vname_hruid,                     & ! input: varibale hruid
+                                dname_hruid,                     & ! input: dimension of varibale hru
+                                dname_ylat,                      & ! input: dimension of lat
+                                dname_xlon,                      & ! input: dimension of lon
+                                runoff_data%nSpace,              & ! nSpace of the input in runoff or wm strcuture
+                                runoff_data%sim2D,               & ! 2D simulation
+                                runoff_data%hru_id,              & ! ID of seg or hru in data
+                                runoff_data%fillvalue,           & ! fillvalue for data
+                                ierr, cmessage)                    ! output: error control
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   else if (trim(dname_ylat)==charMissing .and. trim(dname_xlon)==charMissing) then
+     ! get runoff metadata for simulated runoff, evaporation and precipitation
+     call read_forcing_metadata(fname,                           & ! input: filename
+                                vname_qsim,                      & ! input: varibale name for simulated runoff
+                                vname_hruid,                     & ! input: varibale hruid
+                                dname_hruid,                     & ! input: dimension of varibale hru
+                                dname_ylat,                      & ! input: dimension of lat
+                                dname_xlon,                      & ! input: dimension of lon
+                                runoff_data%nSpace,              & ! nSpace of the input in runoff or wm strcuture
+                                runoff_data%sim,                 & ! 1D simulation
+                                runoff_data%hru_id,              & ! ID of seg or hru in data
+                                runoff_data%fillvalue,           & ! fillvalue for data
+                                ierr, cmessage)                    ! output: error control
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
 
    ! initialize routing catchment array (runoff_data%basinRunoff)
    allocate(runoff_data%basinRunoff(nHRU), stat=ierr, errmsg=cmessage)
@@ -728,7 +743,7 @@ CONTAINS
      if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data%hru_ix'; return; endif
 
      ! get indices of the HRU ids in the runoff file in the routing layer
-     runoff_data%hru_ix = match_index(basinID, runoff_data%hru_id, ierr, cmessage)
+     runoff_data%hru_ix = match_index(int(basinID,kind=i8b), runoff_data%hru_id, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      if (debug) then
@@ -750,7 +765,7 @@ CONTAINS
      ! passing the first netCDF as global file meta to read
      fname = trim(input_dir)//trim(inFileInfo_wm(1)%infilename)
 
-     call read_runoff_metadata(fname,                         & ! input: filename
+     call read_forcing_metadata(fname,                         & ! input: filename
                                vname_flux_wm,                 & ! input: varibale name for simulated runoff
                                vname_segid_wm,                & ! input: varibale hruid
                                dname_segid_wm,                & ! input: dimension of varibale hru
@@ -758,7 +773,6 @@ CONTAINS
                                dname_xlon,                    & ! input: dimension of lon
                                wm_data%nSpace,                & ! nSpace of the input in runoff or wm strcuture
                                wm_data%sim,                   & ! 1D simulation
-                               wm_data%sim2D,                 & ! 2D simulation
                                wm_data%seg_id,                & ! ID of seg in data
                                wm_data%fillvalue,             & ! fillvalue for data
                                ierr, cmessage)                  ! output: error control

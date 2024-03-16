@@ -36,6 +36,7 @@ MODULE mpi_utils
     shr_mpi_bcastInt_scalar,  &
     shr_mpi_bcastChar_scalar, &
     shr_mpi_bcastInt,         &
+    shr_mpi_bcastLong,        &
     shr_mpi_bcastReal,        &
     shr_mpi_bcastLogical
   END INTERFACE
@@ -190,6 +191,53 @@ CONTAINS
     endif
 
   END SUBROUTINE shr_mpi_bcastInt
+
+  ! ----------------------------------
+  ! BROADCAST - integer allocatable array
+  ! ----------------------------------
+  SUBROUTINE shr_mpi_bcastLong(allocArray,   & ! inout:  array to be broadcasted to each proc
+                              ierr, message)  ! output: error handling
+    implicit none
+    ! Argument variables:
+    integer(i8b), allocatable, intent(inout) :: allocArray(:) ! inout:  array to be sent to proc
+    integer(i4b),              intent(out)   :: ierr
+    character(strLen),         intent(out)   :: message       ! error message
+    ! local variable
+    integer(i4b)                             :: myid
+    integer(i4b)                             :: array_size
+    integer(i4b)                             :: bound(2)
+
+    ierr=0; message='shr_mpi_bcastLong/'
+
+    if (masterproc) then
+
+      bound = (/lbound(allocArray), ubound(allocArray)/)
+
+      array_size = bound(2)-bound(1)+1
+
+      do myid = 1, nNodes-1
+       call MPI_SEND(bound(1),             2,          MPI_INTEGER, myid, send_data_tag, mpicom_route, ierr)
+       call MPI_SEND(allocArray(bound(1)), array_size, MPI_INTEGER8, myid, send_data_tag, mpicom_route, ierr)
+      end do
+
+    else
+
+       call MPI_RECV(bound, 2, MPI_INTEGER, root, send_data_tag, mpicom_route, status, ierr)
+
+       array_size = bound(2)-bound(1)+1
+
+       if (allocated(allocArray)) then
+         deallocate(allocArray, stat=ierr)
+         if(ierr/=0)then; message=trim(message)//'probleml de-allocating array for [allocArray]'; return; endif
+       endif
+       allocate(allocArray(bound(1):bound(2)), stat=ierr)
+       if(ierr/=0)then; message=trim(message)//'problem allocating array for [allocArray]'; return; endif
+
+       call MPI_RECV(allocArray, array_size, MPI_INTEGER8, root, send_data_tag, mpicom_route, status, ierr)
+
+    endif
+
+  END SUBROUTINE shr_mpi_bcastLong
 
   ! ----------------------------------
   ! BROADCAST - real allocatable array
