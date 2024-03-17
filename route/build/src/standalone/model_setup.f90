@@ -6,9 +6,7 @@ USE public_var,        ONLY: integerMissing
 USE public_var,        ONLY: realMissing
 USE public_var,        ONLY: charMissing
 USE nr_utils,          ONLY: match_index
-USE nr_utils,          ONLY: arth
 USE nr_utils,          ONLY: unique         ! get unique element array
-USE nr_utils,          ONLY: indexx         ! get rank of data value
 
 implicit none
 

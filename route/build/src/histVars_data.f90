@@ -30,7 +30,6 @@ MODULE histVars_data
   USE globalData,        ONLY: ioDesc_hru_double
   USE globalData,        ONLY: ioDesc_hist_rch_double
   USE public_var,        ONLY: pio_typename
-  USE nr_utils,          ONLY: arth
   USE ncio_utils,        ONLY: get_nc
   USE pio_utils,         ONLY: file_desc_t
   USE pio_utils,         ONLY: ncd_nowrite
