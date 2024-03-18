@@ -520,14 +520,12 @@ CONTAINS
     integer(i4b),              intent(out) :: ierr         ! error code
     character(*),              intent(out) :: message      ! error message
     ! Local variables:
-    integer(i4b), allocatable              :: index1(:)
-    integer(i4b), allocatable              :: rnkArray1(:)
-    integer(i4b), allocatable              :: rnkArray2(:)
+    integer(i4b)                           :: index1(size(array2))
+    integer(i4b)                           :: rnkArray1(size(array1))
+    integer(i4b)                           :: rnkArray2(size(array2))
     integer(i4b)                           :: ix, jx, begIx
 
     ierr=0; message='match_index/'
-
-    allocate(index1(size(array2)), rnkArray1(size(array1)), rnkArray2(size(array2)) )
 
     index1 = integerMissing
 
@@ -552,7 +550,7 @@ CONTAINS
     do ix=1,size(array2)
       if(index1(ix) == integerMissing) cycle
       if(array2(ix) /= array1( index1(ix) ) )then
-        write(iulog,'(a,2(1x,I10,1x,I15))') 'ERROR Mapping: ix, ID(ix), index(ix), masterID(index(ix))=', ix, array2(ix), index1(ix), array1(index1(ix))
+        write(iulog,'(a,2(1x,I12,1x,I15))') 'ERROR Mapping: ix, ID(ix), index(ix), masterID(index(ix))=', ix, array2(ix), index1(ix), array1(index1(ix))
         message=trim(message)//'unable to find the match'
         ierr=20; return
       endif
@@ -568,14 +566,12 @@ CONTAINS
     integer(i4b),              intent(out) :: ierr         ! error code
     character(*),              intent(out) :: message      ! error message
     ! Local variables:
-    integer(i4b), allocatable              :: index1(:)
-    integer(i4b), allocatable              :: rnkArray1(:)
-    integer(i4b), allocatable              :: rnkArray2(:)
+    integer(i4b)                           :: index1(size(array2))
+    integer(i4b)                           :: rnkArray1(size(array1))
+    integer(i4b)                           :: rnkArray2(size(array2))
     integer(i4b)                           :: ix, jx, begIx
 
     ierr=0; message='match_index/'
-
-    allocate(index1(size(array2)), rnkArray1(size(array1)), rnkArray2(size(array2)) )
 
     index1 = integerMissing
 
@@ -600,7 +596,7 @@ CONTAINS
     do ix=1,size(array2)
       if(index1(ix) == integerMissing) cycle
       if(array2(ix) /= array1( index1(ix) ) )then
-        write(iulog,'(a,2(1x,I10,1x,I15))') 'ERROR Mapping: ix, ID(ix), index(ix), masterID(index(ix))=', ix, array2(ix), index1(ix), array1(index1(ix))
+        write(iulog,'(a,2(1x,I12,1x,I15))') 'ERROR Mapping: ix, ID(ix), index(ix), masterID(index(ix))=', ix, array2(ix), index1(ix), array1(index1(ix))
         message=trim(message)//'unable to find the match'
         ierr=20; return
       endif
