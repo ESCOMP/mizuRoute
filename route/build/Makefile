@@ -9,7 +9,7 @@
 #========================================================================
 # User configure part
 #========================================================================
-# Define fortran compiler - gnu, intel or pgi
+# Define fortran compiler - gnu, intel, nvidia, cray
 FC  =
 
 # Define the compiler exe
@@ -51,12 +51,19 @@ F_MASTER =
 ifeq "$(FC)" "gnu"
  NCDF_PATH =
  PNETCDF_PATH =
+ PIO_PATH=        # NCAR HPC-> $(PIO)
 else ifeq "$(FC)" "intel"
  NCDF_PATH =
  PNETCDF_PATH =
-else ifeq "$(FC)" "pgi"
+ PIO_PATH=        # NCAR HPC-> $(PIO)
+else ifeq "$(FC)" "nvidia"
  NCDF_PATH =
  PNETCDF_PATH =
+ PIO_PATH=        # NCAR HPC-> $(PIO)
+else ifeq "$(FC)" "cray"
+ NCDF_PATH =
+ PNETCDF_PATH =
+ PIO_PATH=        # NCAR HPC-> $(PIO)
 else
  $(error FC is not set correctly)
 endif
@@ -67,7 +74,7 @@ INCNETCDF = -I$(NCDF_PATH)/include
 
 FLAGS_OMP =
 ifeq "$(isOpenMP)" "yes"
- ifeq "$(FC)" "pgi"
+ ifeq "$(FC)" "nvidia"
   FLAGS_OMP = -mp
  endif
  ifeq "$(FC)" "gnu"
@@ -75,6 +82,9 @@ ifeq "$(isOpenMP)" "yes"
  endif
  ifeq "$(FC)" "intel"
   FLAGS_OMP = -qopenmp
+ endif
+ ifeq "$(FC)" "cray"
+  FLAGS_OMP = -fopenmp
  endif
 endif
 
@@ -116,12 +126,21 @@ ifeq "$(FC)" "intel"
   endif
 endif
 
-ifeq "$(FC)" "pgi"
+ifeq "$(FC)" "nvidia"
   ifeq "$(MODE)" "fast"
-    FLAGS = -fast -O3 -Mdclchk $(FLAGS_OMP)
+    FLAGS = -fast -O3 -Mdclchk $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -traceback -Mbounds -Mlist -Minfo -Mdclchk $(FLAGS_OMP)
+    FLAGS = -g -traceback -Mbounds -Mlist -Minfo -Mdclchk $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
+  endif
+endif
+
+ifeq "$(FC)" "cray"
+  ifeq "$(MODE)" "fast"
+    FLAGS = -O3 -eP $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
+  endif
+  ifeq "$(MODE)" "debug"
+    FLAGS = -g -O0 -h bounds -eP $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
 endif
 
@@ -228,9 +247,16 @@ all: compile install clean
 # External libaries that might need to be built
 #========================================================================
 LIBDIR       = $(F_MASTER)build/lib
-PIOLIBDIR    = $(LIBDIR)/piolib/lib
-PIOINCDIR    = $(LIBDIR)/piolib/include
-PIOLIB       = $(PIOLIBDIR)/libpiof.a $(PIOLIBDIR)/libpioc.a
+ifdef PIO_PATH
+  PIOLIBDIR= $(PIO_PATH)/lib
+  PIOINCDIR= $(PIO_PATH)/include
+  PIOLIB   = $(PIOLIBDIR)/libpiof.so $(PIOLIBDIR)/libpioc.so
+else
+  PIOLIBDIR    = $(LIBDIR)/piolib/lib
+  PIOINCDIR    = $(LIBDIR)/piolib/include
+  PIOLIB       = $(PIOLIBDIR)/libpiof.a $(PIOLIBDIR)/libpioc.a
+endif
+
 MPISERLIBDIR = $(LIBDIR)/mpi-seriallib
 MPISERLIB    = $(MPISERLIBDIR)/libmpi-serial.a
 
