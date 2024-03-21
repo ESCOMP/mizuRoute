@@ -32,10 +32,6 @@ USE var_lookup, ONLY: ixPFAF,   nVarsPFAF    ! index of variables for the pfafst
 USE netcdf
 USE ncio_utils, ONLY: write_nc
 
-! external utilities
-USE nr_utils, ONLY: indexx  !
-USE nr_utils, ONLY: arth    !
-
 implicit none
 
 ! privacy
