@@ -9,6 +9,7 @@ INTERFACE arth
   module procedure arth_r
   module procedure arth_d
   module procedure arth_i4b
+  module procedure arth_i8b
 END INTERFACE
 
 INTERFACE indexx
@@ -92,6 +93,20 @@ CONTAINS
   end do
  end if
  END FUNCTION arth_i4b
+ ! ------------------------------------------------------------------------------------------------
+ pure FUNCTION arth_i8b(first,increment,n)
+ implicit none
+ integer(i8b), intent(in) :: first,increment
+ integer(i4b), intent(in) :: n
+ integer(i8b), dimension(n) :: arth_i8b
+ integer(i4b) :: k
+ arth_i8b(1)=first
+ if(n>1)then
+  do k=2,n
+   arth_i8b(k) = arth_i8b(k-1) + increment
+  end do
+ end if
+ END FUNCTION arth_i8b
 
  ! *************************************************************************************************
  ! * sort function, used to sort numbers in ascending order
