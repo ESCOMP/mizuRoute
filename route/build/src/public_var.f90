@@ -176,6 +176,8 @@ MODULE public_var
   character(len=strLen),public    :: dname_gageSite       = ''              ! dimension name for gauge site
   character(len=strLen),public    :: dname_gageTime       = ''              ! dimension name for time
   integer(i4b)         ,public    :: strlen_gageSite      = 30              ! maximum character length for site name
+  ! OUTPUT OPTIONS
+  logical(lgt)         ,public    :: outputInflow         = .false.         ! logical; T-> write upstream inflow in history file output
   ! USER OPTIONS
   integer(i4b)         ,public    :: qmodOption           = 0               ! option for streamflow modification
   integer(i4b)         ,public    :: hydGeometryOption    = compute         ! option for hydraulic geometry calculations (0=read from file, 1=compute)

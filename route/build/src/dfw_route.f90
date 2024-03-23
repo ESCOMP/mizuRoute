@@ -91,6 +91,8 @@ CONTAINS
    end do
  endif
 
+ RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_INFLOW = q_upstream ! total inflow from the upstream reaches
+
  q_upstream_mod  = q_upstream
  Qlat = RCHFLX_out(iens,segIndex)%BASIN_QR(1)
  Qabs = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initial water abstraction (positive) or injection (negative)
