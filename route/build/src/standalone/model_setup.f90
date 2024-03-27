@@ -319,13 +319,18 @@ CONTAINS
  ! private subroutine: initialize time data
  ! *********************************************************************
  SUBROUTINE init_time(ierr, message)
+
   ! purpose: Save the following time related global variables
-  ! - time_units
-  ! - calendar
-  ! - timeVar
-  ! - iTime
-  ! - begDatetime, endDatetime:   simulationg start and end datetime
-  ! - restDatetime, dropDatetime
+  ! - dt_ro: forcing time step [sec]
+  ! - dt_wm: water-management data time step [sec]
+  ! - time_units: time units used for simulation datetime. format="<units> since yyyy-mm-dd hh:mm:ss"
+  ! - calendar: calendar used for simulation datetime
+  ! - timeVar: time variable [sec] for simulation (since referece datetime
+  ! - iTime: time index of simulation time step
+  ! - begDatetime: datetime at front of 1st simulation time step period
+  ! - endDatetime: datetime at front of last simulation time step period
+  ! - restDatetime: datetime at front of restart simulation time step period
+  ! - dropDatetime: datetime at front of simulation time step period when restart file is written
 
   USE ascii_utils,   ONLY: lower                    ! convert string to lower case
   USE datetime_data, ONLY: datetime                 ! datetime data
@@ -346,15 +351,16 @@ CONTAINS
   USE public_var,    ONLY: restart_day              ! periodic restart day
   USE public_var,    ONLY: restart_hour             ! periodic restart hr
   USE public_var,    ONLY: maxTimeDiff              ! time difference tolerance for input checks
+  USE public_var,    ONLY: ro_time_stamp            ! time stamp for runoff input: front, end or middle of time step
   USE globalData,    ONLY: timeVar                  ! time variables at time step endpoints (unit given by runoff data)
   USE globalData,    ONLY: iTime                    ! time index at simulation time step
   USE globalData,    ONLY: sec2tunit                ! seconds per time unit
   USE globalData,    ONLY: simDatetime              ! model time data (yyyy:mm:dd:hh:mm:ss)
-  USE globalData,    ONLY: begDatetime              ! simulation begin datetime data (yyyy:mm:dd:hh:mm:sec)
-  USE globalData,    ONLY: endDatetime              ! simulation end datetime data (yyyy:mm:dd:hh:mm:sec)
-  USE globalData,    ONLY: restDatetime             ! restart time data (yyyy:mm:dd:hh:mm:sec)
-  USE globalData,    ONLY: dropDatetime             ! restart dropoff calendar date/time
-  USE globalData,    ONLY: roBegDatetime            ! forcing data start datetime data (yyyy:mm:dd:hh:mm:sec)
+  USE globalData,    ONLY: begDatetime              ! simulation begin datetime data (yyyy:mm:dd:hh:mm:sec). front of time step
+  USE globalData,    ONLY: endDatetime              ! simulation end datetime data (yyyy:mm:dd:hh:mm:sec). front of time step
+  USE globalData,    ONLY: restDatetime             ! restart time data (yyyy:mm:dd:hh:mm:sec). front of time step
+  USE globalData,    ONLY: dropDatetime             ! restart dropoff calendar date/time. front of time step
+  USE globalData,    ONLY: roBegDatetime            ! forcing data start datetime data (yyyy:mm:dd:hh:mm:sec) front of time step
   USE globalData,    ONLY: wmBegDatetime            ! water-managment data start datetime data (yyyy:mm:dd:hh:mm:sec)
   USE globalData,    ONLY: infileinfo_ro            ! the information of the input files
   USE globalData,    ONLY: infileinfo_wm            ! the information of the input files
@@ -433,14 +439,22 @@ CONTAINS
     end if
   endif
 
-  ! runoff data time step [sec]
+  ! runoff data time step [sec]- dt_ro is saved
   dt_ro = roTimeVar_diff(1)
 
-  ! datetime at end of last runoff data time step
-  roDatetime_end = roCal(nTime)%add_sec(dt_ro, ierr, cmessage)
-
-  ! datetime at start of first runoff data time step
-  roBegDatetime = roCal(1)
+  ! datetime of runoff time at front of the 1st time step:  roBegDatetime (global data)
+  ! datetime of runoff time at end of last time step: roDatetime_end (local data)
+  select case(trim(ro_time_stamp))
+    case('front')
+      roBegDatetime  = roCal(1)
+      roDatetime_end = roCal(nTime)%add_sec(dt_ro, ierr, cmessage)
+    case('end')
+      roBegDatetime  = roCal(1)%add_sec(-dt_ro, ierr, cmessage)
+      roDatetime_end = roCal(nTime)
+    case('middle')
+      roBegDatetime  = roCal(1)%add_sec(-dt_ro/2.0, ierr, cmessage)
+      roDatetime_end = roCal(nTime)%add_sec(dt_ro/2.0, ierr, cmessage)
+  end select
 
   call begDatetime%str2datetime(simStart, calendar, ierr, cmessage)
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [begDatetime]'; return; endif
@@ -463,7 +477,7 @@ CONTAINS
   endif
 
   ! Compare sim_start vs. time at first time step in runoff data
-  if (begDatetime < roCal(1)) then
+  if (begDatetime < roBegDatetime) then
     write(iulog,'(2a)') new_line('a'),'WARNING: <sim_start> is before the first time step in input runoff'
     write(iulog,fmt1)  ' runoff_start: ', roCal(1)%year(),'-',roCal(1)%month(),'-',roCal(1)%day(), roCal(1)%hour(),':', roCal(1)%minute(),':',roCal(1)%sec()
     write(iulog,fmt1)  ' <sim_start> : ', begDatetime%year(),'-',begDatetime%month(),'-',begDatetime%day(), begDatetime%hour(),':', begDatetime%minute(),':',begDatetime%sec()

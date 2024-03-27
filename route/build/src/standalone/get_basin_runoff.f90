@@ -70,7 +70,7 @@ CONTAINS
     runoff_data%basinRunoff = 0._dp ! replacing with zeros
   else
     ! time step mapping from runoff time step to simulation time step
-    call timeMap_sim_forc(tmap_sim_ro, begDatetime, robegDatetime, dt_ro, iTime, inFileInfo_ro, ierr, cmessage)
+    call timeMap_sim_forc(tmap_sim_ro, begDatetime, roBegDatetime, dt_ro, iTime, inFileInfo_ro, ierr, cmessage)
     if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
 
     ! get the simulated runoff for the current time step - runoff_data%sim(:) or %sim2D(:,:)

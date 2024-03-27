@@ -124,6 +124,7 @@ CONTAINS
    case('<continue_run>');         read(cData,*,iostat=io_error) continue_run          ! logical; T-> append output in existing history files. F-> write output in new history file
    case('<route_opt>');            routOpt     = trim(cData)                           ! routing scheme options  0-> accumRunoff, 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW
    case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute        ! basin routing options   0-> no, 1->IRF, otherwise error
+   case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                    ! time interval of the simulation [sec] (To-do: change dt to dt_sim)
    case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim           ! logical; lakes are simulated
    case('<is_flux_wm>');           read(cData,*,iostat=io_error) is_flux_wm            ! logical; provided fluxes to or from seg/lakes should be considered
    case('<is_vol_wm>');            read(cData,*,iostat=io_error) is_vol_wm             ! logical; provided target volume for managed lakes are considered
@@ -135,7 +136,6 @@ CONTAINS
    case('<is_Ep_upward_negative>'); read(cData,*,iostat=io_error) is_Ep_upward_negative ! logical; flip evaporation in case upward direction is negative in input values convention
    case('<scale_factor_prec>');    read(cData,*,iostat=io_error) scale_factor_prec     ! float; factor to scale the precipitation values
    case('<offset_value_prec>');    read(cData,*,iostat=io_error) offset_value_prec     ! float; offset for precipitation values
-   case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                    ! time interval of the simulation [sec] (To-do: change dt to dt_sim)
    ! RIVER NETWORK TOPOLOGY
    case('<fname_ntopOld>');        fname_ntopOld = trim(cData)                         ! name of file containing stream network topology information
    case('<ntopAugmentMode>');      read(cData,*,iostat=io_error) ntopAugmentMode       ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
@@ -158,6 +158,7 @@ CONTAINS
    case('<input_fillvalue>');      read(cData,*,iostat=io_error) input_fillvalue       ! fillvalue used for input variable
    case('<ro_calendar>');          ro_calendar  = trim(cData)                          ! name of calendar used in runoff input netcdfs
    case('<ro_time_units>');        ro_time_units = trim(cData)                         ! time units used in runoff input netcdfs
+   case('<ro_time_stamp>');        ro_time_stamp = trim(cData)                         ! time stamp used input - front, middle, or end, otherwise error
    ! Water-management input netCDF - water abstraction/infjection or lake target volume
    case('<fname_wm>');             fname_wm        = trim(cData)                       ! name of text file containing ordered nc file names
    case('<vname_flux_wm>');        vname_flux_wm   = trim(cData)                       ! name of varibale for fluxes to and from seg (reachs/lakes)
@@ -433,6 +434,18 @@ CONTAINS
      message=trim(message)//'expect the time units of runoff to be "day"("d"), "hour"("h") or "second"("s") [time units = '//trim(cTime)//']'
      err=81; return
  end select
+
+ ! ---------- I/O time stamp -------
+ if (masterproc) then
+   write(iulog,'(2a)') new_line('a'), '---- input time stamp --- '
+   write(iulog,'(2A)')      '  Input time stamp <ro_time_stamp>:  ', trim(ro_time_stamp)
+   if (trim(ro_time_stamp)=='front' .or. trim(ro_time_stamp)=='end' .or. trim(ro_time_stamp)=='middle') then
+     write(iulog,'(2A)')      '  The same time stamp is used for history output'
+   else
+     write(message, '(2A)') trim(message), 'ERROR: Input time stamp <ro_time_stamp> must be front, end, or middle'
+     err=81; return
+   end if
+ end if
 
  ! ---------- simulation time step, output frequency, file frequency -------
  if (masterproc) then
