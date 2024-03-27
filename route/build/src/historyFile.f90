@@ -13,6 +13,7 @@ MODULE historyFile
   USE globalData,        ONLY: pioSystem
   USE public_var,        ONLY: pio_netcdf_format
   USE public_var,        ONLY: pio_typename
+  USE public_var,        ONLY: time_stamp => ro_time_stamp
   USE globalData,        ONLY: version
   USE globalData,        ONLY: gitBranch
   USE globalData,        ONLY: gitHash
@@ -319,6 +320,7 @@ MODULE historyFile
       integer(i4b),              intent(out)   :: ierr             ! error code
       character(*),              intent(out)   :: message          ! error message
       ! local variables
+      real(dp)                                 :: timeVar_write    ! time variable [time_unit]
       character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
       ierr=0; message='write_time/'
@@ -326,7 +328,13 @@ MODULE historyFile
       this%iTime = this%iTime + 1 ! this is only line to increment time step index
 
       ! write time -- note time is just carried across from the input
-      call write_netcdf(this%pioFileDesc, 'time', [hVars_local%timeVar(1)], [this%iTime], [1], ierr, cmessage)
+      select case(trim(time_stamp))
+        case('front');  timeVar_write = hVars_local%timeVar(1)
+        case('end');    timeVar_write = hVars_local%timeVar(2)
+        case('middle'); timeVar_write = (hVars_local%timeVar(1)+hVars_local%timeVar(2))/2.0
+      end select
+
+      call write_netcdf(this%pioFileDesc, 'time', [timeVar_write], [this%iTime], [1], ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       call write_netcdf(this%pioFileDesc, 'time_bounds', hVars_local%timeVar, [1,this%iTime], [2,1], ierr, cmessage)
