@@ -131,20 +131,21 @@ CONTAINS
  ! *********************************************************************
  SUBROUTINE output(ierr, message)
 
-   USE public_var, ONLY: outputAtGage      ! ascii containing last restart and history files
-   USE public_var, ONLY: nOutFreq          !
-   USE public_var, ONLY: outputFrequency   !
-   USE globalData, ONLY: simDatetime       ! previous,current and next model datetime
-   USE globalData, ONLY: timeVar           ! current simulation time variable
-   USE globalData, ONLY: sec2tunit         ! seconds per time unit
-   USE globalData, ONLY: RCHFLX_trib       ! reach flux data structure containing current flux variables
-   USE globalData, ONLY: rch_per_proc      ! number of reaches assigned to each proc (size = num of procs+1)
-   USE globalData, ONLY: nRch_mainstem     ! number of mainstem reach
-   USE globalData, ONLY: nTribOutlet       ! number of
-   USE globalData, ONLY: index_write_gage  ! reach index (w.r.t. global domain) corresponding gauge location
-   USE globalData, ONLY: ioDesc_hru_float   ! pio decomposition descriptor for hru
-   USE globalData, ONLY: ioDesc_rch_float   ! pio decomposition descriptor for reaches
-   USE globalData, ONLY: ioDesc_gauge_float ! pio decomposition descriptor for gauges
+   USE public_var, ONLY: outputAtGage                 ! ascii containing last restart and history files
+   USE public_var, ONLY: nOutFreq                     ! integer output frequency, i.e, written at every "nOutFreq" of simulation step
+   USE public_var, ONLY: outputFrequency              ! writing frequency
+   USE public_var, ONLY: time_stamp => ro_time_stamp  !
+   USE globalData, ONLY: simDatetime                  ! previous,current and next model datetime
+   USE globalData, ONLY: timeVar                      ! current simulation time variable
+   USE globalData, ONLY: sec2tunit                    ! seconds per time unit
+   USE globalData, ONLY: RCHFLX_trib                  ! reach flux data structure containing current flux variables
+   USE globalData, ONLY: rch_per_proc                 ! number of reaches assigned to each proc (size = num of procs+1)
+   USE globalData, ONLY: nRch_mainstem                ! number of mainstem reach
+   USE globalData, ONLY: nTribOutlet                  ! number of
+   USE globalData, ONLY: index_write_gage             ! reach index (w.r.t. global domain) corresponding gauge location
+   USE globalData, ONLY: ioDesc_hru_float             ! pio decomposition descriptor for hru
+   USE globalData, ONLY: ioDesc_rch_float             ! pio decomposition descriptor for reaches
+   USE globalData, ONLY: ioDesc_gauge_float           ! pio decomposition descriptor for gauges
    USE nr_utils,   ONLY: arth
 
    implicit none
@@ -203,7 +204,7 @@ CONTAINS
      end if
 
      ! write time variables (time and time bounds)
-     call hist_all_network%write_time(hVars, ierr, cmessage)
+     call hist_all_network%write_time(hVars, time_stamp, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      ! write out output variables in history files
@@ -220,7 +221,7 @@ CONTAINS
 
      if (outputAtGage) then
        ! write time variables (time and time bounds)
-       call hist_gage%write_time(hVars, ierr, cmessage)
+       call hist_gage%write_time(hVars, time_stamp, ierr, cmessage)
        if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
        call hist_gage%write_flux_rch(hVars, ioDesc_gauge_float, index_write_gage, ierr, cmessage)

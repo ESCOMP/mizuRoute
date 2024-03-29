@@ -13,7 +13,6 @@ MODULE historyFile
   USE globalData,        ONLY: pioSystem
   USE public_var,        ONLY: pio_netcdf_format
   USE public_var,        ONLY: pio_typename
-  USE public_var,        ONLY: time_stamp => ro_time_stamp
   USE globalData,        ONLY: version
   USE globalData,        ONLY: gitBranch
   USE globalData,        ONLY: gitHash
@@ -311,12 +310,13 @@ MODULE historyFile
     ! ---------------------------------
     ! writing time variables
     ! ---------------------------------
-    SUBROUTINE write_time(this, hvars_local, ierr, message)
+    SUBROUTINE write_time(this, hVars_local, time_stamp_Local, ierr, message)
 
       implicit none
       ! Argument variables
       class(histFile),           intent(inout) :: this
-      type(histVars),            intent(in)    :: hVars_local
+      type(histVars),            intent(in)    :: hVars_local      ! history variable structure
+      character(len=strLen),     intent(in)    :: time_stamp_local ! time stamp for time variable: front, end, or middle
       integer(i4b),              intent(out)   :: ierr             ! error code
       character(*),              intent(out)   :: message          ! error message
       ! local variables
@@ -328,7 +328,7 @@ MODULE historyFile
       this%iTime = this%iTime + 1 ! this is only line to increment time step index
 
       ! write time -- note time is just carried across from the input
-      select case(trim(time_stamp))
+      select case(trim(time_stamp_local))
         case('front');  timeVar_write = hVars_local%timeVar(1)
         case('end');    timeVar_write = hVars_local%timeVar(2)
         case('middle'); timeVar_write = (hVars_local%timeVar(1)+hVars_local%timeVar(2))/2.0
