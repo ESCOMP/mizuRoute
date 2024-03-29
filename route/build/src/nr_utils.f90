@@ -365,7 +365,7 @@ CONTAINS
    integer(i4b),allocatable,intent(out) :: idx(:)               ! integer array including unique element index
    ! local
    integer(i4b)                         :: ranked(size(array))  !
-   integer(i4b)                         :: unq_tmp(size(array)) !
+   integer(i8b)                         :: unq_tmp(size(array)) !
    logical(lgt)                         :: flg_tmp(size(array)) !
    integer(i4b)                         :: ix                   ! loop index, counter
    integer(i8b)                         :: last_unique          ! last unique element

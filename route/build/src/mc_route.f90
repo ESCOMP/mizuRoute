@@ -302,7 +302,7 @@ CONTAINS
      C2 = (1-X-Cn*Y)/(1-X+Cn*(1-Y))
 
      QoutLocal(ix) = C0* QinLocal(ix)+ C1* QinLocal(ix-1)+ C2* QoutLocal(ix-1)
-     QoutLocal(ix) = max(0.0, QoutLocal(ix))
+     QoutLocal(ix) = max(0.0_dp, QoutLocal(ix))
 
      ! -- EBK 06/26/2023 -- comment out isnan check, doesn't seem to be needed.
      !if (isnan(QoutLocal(ix))) then
