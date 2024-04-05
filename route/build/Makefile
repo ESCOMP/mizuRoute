@@ -32,7 +32,6 @@ LIBOPENMP =
 # define if should use external librarys (yes if used)
 # external librarys are: mpi-serial, Parallel-I/O, and GPTL timing library
 # define path to PNETCDF if you want to use it
-isMPISERIAL =
 isPIO = yes
 isGPTL = yes
 
@@ -246,7 +245,7 @@ all: compile install clean
 #========================================================================
 # External libaries that might need to be built
 #========================================================================
-LIBDIR       = $(F_MASTER)build/lib
+LIBDIR = $(F_MASTER)build/lib
 ifdef PIO_PATH
   PIOLIBDIR= $(PIO_PATH)/lib
   PIOINCDIR= $(PIO_PATH)/include
@@ -256,9 +255,6 @@ else
   PIOINCDIR    = $(LIBDIR)/piolib/include
   PIOLIB       = $(PIOLIBDIR)/libpiof.a $(PIOLIBDIR)/libpioc.a
 endif
-
-MPISERLIBDIR = $(LIBDIR)/mpi-seriallib
-MPISERLIB    = $(MPISERLIBDIR)/libmpi-serial.a
 
 ifeq "$(isPIO)" "yes"
   EXTINCLUDES += -I$(PIOINCDIR)
@@ -270,35 +266,18 @@ ifeq "$(isPIO)" "yes"
   endif
 endif
 
-ifeq "$(isMPISERIAL)" "yes"
-  EXTINCLUDES += -I$(MPISERLIBDIR)
-  EXTLIBS += $(MPISERLIB)
-  LDFLAGS += -L$(MPISERLIBDIR) -lmpi-serial
-  ifdef PNETCDF_PATH
-    undefine PNETCDF_PATH
-  endif
-  MPISERIAL = $(MPISERLIB)
-else
-  MPISERIAL =
-endif
-
 ifdef PNETCDF_PATH
         LDFLAGS    += -L$(PNETCDF_PATH)/lib -lpnetcdf
 endif
 
-$(PIOLIB): $(MPISERIAL)
+$(PIOLIB):
 	cd $(LIBDIR); \
 	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) FC=$(FC_EXE) FC_EXE=$(FC_EXE) FLAGS="$(FLAGS)" \
 	PIO_FILESYSTEM_HINTS=$(PIO_FILESYSTEM_HINTS) PNETCDF_PATH=$(PNETCDF_PATH) isPIO=yes isGPTL=$(isGPTL) \
 	MPIINC_PATHLIST=$(CPATH) NCDF_PATH=$(NCDF_PATH) MODE=$(MODE) $(PIOLIB)
 
-$(MPISERLIB):
-	cd $(LIBDIR); \
-	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) FC=$(FC_EXE) FC_EXE=$(FC_EXE) FLAGS="$(FLAGS)" isMPISERIAL=yes \
-	MODE=$(MODE) $(MPISERLIB)
-
 # Clean external libs
-cleanlibs: cleanpiolib cleanmpiseriallib
+cleanlibs: cleanpiolib
 	@echo "Clean the pio and mpi-serial external libraries"
 .PHONY : cleanlibs
 
@@ -306,11 +285,6 @@ cleanpiolib:
 	cd $(LIBDIR); \
 	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) cleanpiolib
 .PHONY : cleanpiolib
-
-cleanmpiseriallib:
-	cd $(LIBDIR); \
-	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) cleanmpiseriallib
-.PHONY : cleanmpiseriallib
 
 #========================================================================
 # Compile the puppy
