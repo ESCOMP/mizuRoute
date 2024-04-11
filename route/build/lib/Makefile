@@ -53,7 +53,16 @@ CMAKE_OPTS += -Wno-dev -D CMAKE_Fortran_FLAGS:STRING="$(FLAGS) $(CPPDEFS) $(INCL
               -D CMAKE_INSTALL_PREFIX:PATH=$(PIOLIBDIR) \
               -D PIO_ENABLE_TIMING:BOOL=$(PIO_ENABLE_TIMING) \
               -D USER_CMAKE_MODULE_PATH:LIST="$(PIO2DIR)/cmake"
-CMAKE_OPTS += -D NetCDF_PATH:PATH=$(NCDF_PATH)
+
+# Allow for separate installations of the NetCDF C and Fortran libraries
+ifdef NCDF_PATH
+  CMAKE_OPTS += -D NetCDF_PATH:PATH=$(NCDF_PATH)
+else
+# NETCDF_Fortran_DIR points to the separate
+# installation of Fortran NetCDF for PIO
+  CMAKE_OPTS += -D NetCDF_C_PATH:PATH=$(NCDF_C_PATH) \
+                -D NetCDF_Fortran_PATH:PATH=$(NCDF_FORTRAN_PATH)
+endif
 
 ifdef PNETCDF_PATH
         CMAKE_OPTS += -D PnetCDF_PATH:STRING="$(PNETCDF_PATH)"

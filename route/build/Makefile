@@ -49,18 +49,26 @@ F_MASTER =
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gnu"
  NCDF_PATH =
+ NCDF_C_PATH =
+ NCDF_FORTRAN_PATH =
  PNETCDF_PATH =
  PIO_PATH=        # NCAR HPC-> $(PIO)
 else ifeq "$(FC)" "intel"
  NCDF_PATH =
+ NCDF_C_PATH =
+ NCDF_FORTRAN_PATH =
  PNETCDF_PATH =
  PIO_PATH=        # NCAR HPC-> $(PIO)
 else ifeq "$(FC)" "nvidia"
  NCDF_PATH =
+ NCDF_C_PATH =
+ NCDF_FORTRAN_PATH =
  PNETCDF_PATH =
  PIO_PATH=        # NCAR HPC-> $(PIO)
 else ifeq "$(FC)" "cray"
  NCDF_PATH =
+ NCDF_C_PATH =
+ NCDF_FORTRAN_PATH =
  PNETCDF_PATH =
  PIO_PATH=        # NCAR HPC-> $(PIO)
 else
