@@ -12,8 +12,6 @@ MODULE public_var
 
   save
 
-  ! ---------- common constants ---------------------------------------------------------------------
-
   ! physical constants
   real(dp),    parameter,public   :: pi=3.14159265359_dp    ! pi
 
@@ -180,7 +178,7 @@ MODULE public_var
   integer(i4b)         ,public    :: strlen_gageSite      = 30              ! maximum character length for site name
   ! USER OPTIONS
   integer(i4b)         ,public    :: qmodOption           = 0               ! option for streamflow modification
-  integer(i4b)         ,public    :: hydGeometryOption    = compute         ! option for hydraulic geometry calculations (0=read from file, 1=compute)
+  integer(i4b)         ,public    :: hydGeometryOption    = readFromFile    ! option for hydraulic geometry calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: topoNetworkOption    = compute         ! option for network topology calculations (0=read from file, 1=compute)
   integer(i4b)         ,public    :: computeReachList     = compute         ! option to compute list of upstream reaches (0=do not compute, 1=compute)
   ! TIME

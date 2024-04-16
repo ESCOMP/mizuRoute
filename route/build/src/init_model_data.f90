@@ -513,6 +513,7 @@ CONTAINS
         end if
         if (onRoute(kinematicWave)) then
           do ix = 1, size(RCHSTA_trib(iens,:))
+            RCHFLX_trib(iens,ix)%ROUTE(idxKW)%FLOOD_VOL(0:1) = 0._dp
             RCHFLX_trib(iens,ix)%ROUTE(idxKW)%REACH_VOL(0:1) = 0._dp
             RCHFLX_trib(iens,ix)%ROUTE(idxKW)%REACH_Q        = 0._dp
             allocate(RCHSTA_trib(iens,ix)%KW_ROUTE%molecule%Q(nMolecule%KW_ROUTE), stat=ierr, errmsg=cmessage)
@@ -522,6 +523,7 @@ CONTAINS
         end if
         if (onRoute(muskingumCunge)) then
           do ix = 1, size(RCHSTA_trib(iens,:))
+            RCHFLX_trib(iens,ix)%ROUTE(idxMC)%FLOOD_VOL(0:1) = 0._dp
             RCHFLX_trib(iens,ix)%ROUTE(idxMC)%REACH_VOL(0:1) = 0._dp
             RCHFLX_trib(iens,ix)%ROUTE(idxMC)%REACH_Q        = 0._dp
             allocate(RCHSTA_trib(iens,ix)%MC_ROUTE%molecule%Q(nMolecule%MC_ROUTE), stat=ierr, errmsg=cmessage)
@@ -531,6 +533,7 @@ CONTAINS
         end if
         if (onRoute(diffusiveWave)) then
           do ix = 1, size(RCHSTA_trib(iens,:))
+            RCHFLX_trib(iens,ix)%ROUTE(idxDW)%FLOOD_VOL(0:1) = 0._dp
             RCHFLX_trib(iens,ix)%ROUTE(idxDW)%REACH_VOL(0:1) = 0._dp
             RCHFLX_trib(iens,ix)%ROUTE(idxDW)%REACH_Q        = 0._dp
             allocate(RCHSTA_trib(iens,ix)%DW_ROUTE%molecule%Q(nMolecule%DW_ROUTE), stat=ierr, errmsg=cmessage)

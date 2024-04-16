@@ -28,6 +28,7 @@ USE var_lookup, ONLY: ixPFAF,   nVarsPFAF    ! index of variables for the pfafst
 
 ! netcdf modules
 USE netcdf
+USE ncio_utils, ONLY: check_variable
 
 ! external utilities
 USE nr_utils,   ONLY: arth
@@ -317,14 +318,31 @@ SUBROUTINE mod_meta_varFile(ierr, message)
   integer(i4b), allocatable          :: LakeTargVol_local(:)    ! local array to save LakeTargetVol flag
   integer(i4b), allocatable          :: LakeModelType_local(:)  ! local array to save LakeModelType flag
   integer(i4b)                       :: i                       ! counter
+  logical(lgt)                       :: varExist                ! logical to see if variable exist in netcdf
 
   ierr=0; message='mod_meta_varFile/'
 
-  ! set flags if we want to read hdraulic geometry from file
+  ! open file for reading
+  ierr = nf90_open(trim(ancil_dir)//trim(fname_ntopOld), nf90_nowrite, ncid)
+  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; file='//trim(fname_ntopOld); return; endif
+
+  ! hydGeometryOption:
+  ! Compute ->  compute internally
+  ! FromFile -> attempt to read from ntopo file (This is default)
+  !             and check channel parameters exist in ntopo file.
+  !             yes -> use user provided values
+  !             no  -> compute internally
   if(hydGeometryOption==readFromFile)then
-    meta_SEG(ixSEG%width)%varFile = .true.
-    meta_SEG(ixSEG%man_n)%varFile = .true.
-    meta_SEG(ixSEG%depth)%varFile = .true.
+    varExist = check_variable(ncid, trim(meta_SEG(ixSEG%width)%varName))
+    if (varExist) meta_SEG(ixSEG%width)%varFile = .true.
+    varExist = check_variable(ncid, trim(meta_SEG(ixSEG%man_n)%varName))
+    if (varExist) meta_SEG(ixSEG%man_n)%varFile = .true.
+    varExist = check_variable(ncid, trim(meta_SEG(ixSEG%depth)%varName))
+    if (varExist) meta_SEG(ixSEG%depth)%varFile = .true.
+    varExist = check_variable(ncid, trim(meta_SEG(ixSEG%sideSlope)%varName))
+    if (varExist) meta_SEG(ixSEG%sideSlope)%varFile = .true.
+    varExist = check_variable(ncid, trim(meta_SEG(ixSEG%floodplainSlope)%varName))
+    if (varExist) meta_SEG(ixSEG%floodplainSlope)%varFile = .true.
   endif
 
   ! set flags if we simulate lake and need lake parameters; was set to false in pop_metadata.f90
@@ -332,10 +350,6 @@ SUBROUTINE mod_meta_varFile(ierr, message)
 
     meta_NTOPO(ixNTOPO%islake)%varFile          = .true.       ! if the object is lake should be provided
     meta_NTOPO(ixNTOPO%lakeModelType)%varFile   = .true.       ! if the object is lake, lake type should be provided
-
-    ! open file for reading
-    ierr = nf90_open(trim(ancil_dir)//trim(fname_ntopOld), nf90_nowrite, ncid)
-    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; file='//trim(fname_ntopOld); return; endif
 
     ! get the ID of the stream segment dimension
     ierr = nf90_inq_dimid(ncid, dname_sseg, idimID_sseg)
@@ -375,10 +389,6 @@ SUBROUTINE mod_meta_varFile(ierr, message)
       ierr = nf90_get_var(ncid, ivarID, LakeTargVol_local)       ! read the variable
       if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr))//'; varname='//trim(varName); return; endif
     endif
-
-    ! close the NetCDF file
-    ierr = nf90_close(ncid)
-    if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
     ! Check numbers of lakes and modeling types
     number_lakes      =  0
@@ -522,6 +532,10 @@ SUBROUTINE mod_meta_varFile(ierr, message)
     endif
 
   endif
+
+  ! close the NetCDF file
+  ierr = nf90_close(ncid)
+  if(ierr/=0)then; message=trim(message)//trim(nf90_strerror(ierr)); return; endif
 
 END SUBROUTINE mod_meta_varFile
 

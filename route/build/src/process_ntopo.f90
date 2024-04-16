@@ -8,12 +8,12 @@ USE dataTypes, ONLY: var_clength         ! integer type:          var(:)%dat
 USE dataTypes, ONLY: var_dlength,dlength ! double precision type: var(:)%dat, or dat
 ! global vars
 USE globalData, ONLY: onRoute               ! logical to indicate which routing method(s) is on
+USE globalData, ONLY: meta_SEG              ! meta data for segment parameters
 USE public_var, ONLY: iulog                 ! i/o logical unit number
 USE public_var, ONLY: idSegOut              ! ID for stream segment at the bottom of the subset
 ! options
 USE public_var, ONLY: topoNetworkOption     ! option to compute network topology
 USE public_var, ONLY: computeReachList      ! option to compute reach list
-USE public_var, ONLY: hydGeometryOption     ! option to obtain routing parameters
 USE public_var, ONLY: impulseResponseFunc   ! option for routing methods - IRF
 USE public_var, ONLY: kinematicWaveTracking ! option for routing methods - Lagrangian kinematic wave
 USE public_var, ONLY: kinematicWave         ! option for routing methods - kinematic wave
@@ -72,6 +72,7 @@ CONTAINS
  USE globalData,   ONLY: wscale, dscale        ! spatial constant channel parameters for width and bankful depth
  USE globalData,   ONLY: floodplainSlope       ! spatial constant floodplain slope
  USE globalData,   ONLY: velo, diff            ! IRF routing parameters (Transfer function parameters)
+ USE public_var,   ONLY: floodplain            ! floodplain mode. F->only channel T-> channel with bankful depth and floodplain
  USE public_var,   ONLY: dt                    ! simulation time step [sec]
  USE hydraulic,    ONLY: storage               ! compute channel storage
 
@@ -212,34 +213,40 @@ CONTAINS
  !write(*,'(a,1x,1PG15.7,A)') 'after reach_list: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
 
  ! ---------- Compute routing parameters  --------------------------------------------------------------------
-
  ! compute channel geometry parameters (width, depth, Manning's n, and floodplain slope)
- if(hydGeometryOption==compute)then
+ ! (hydraulic geometry needed for all the routing methods except impulse response function)
+ do iSeg=1,nSeg
+   if (.not.meta_SEG(ixSEG%width)%varFile) &
+     structSEG(iSeg)%var(ixSEG%width)%dat(1) = wscale* sqrt(structSEG(iSeg)%var(ixSEG%totalArea)%dat(1)) ! channel width (m)
+   if (.not.meta_SEG(ixSEG%depth)%varFile) &
+     structSEG(iSeg)%var(ixSEG%depth)%dat(1) = dscale* sqrt(structSEG(iSeg)%var(ixSEG%totalArea)%dat(1)) ! channel bankfull depth (m)
+   if (.not.meta_SEG(ixSEG%man_n)%varFile) &
+     structSEG(iSeg)%var(ixSEG%man_n)%dat(1) = mann_n                                                    ! Manning's "n" paramater (unitless)
+   if (.not.meta_SEG(ixSEG%sideSlope)%varFile) &
+     structSEG(iSeg)%var(ixSEG%sideSlope)%dat(1) = 0._dp                                                 ! channel side slope h:v=slope:v [-]. now 0->rectangular channel
+   if (.not.meta_SEG(ixSEG%floodplainSlope)%varFile) &
+     structSEG(iSeg)%var(ixSEG%floodplainSlope)%dat(1) = floodplainSlope                                 ! floodplain slope
+ end do
 
-  ! (hydraulic geometry needed for all the routing methods except impulse response function)
-  if (onRoute(kinematicWaveTracking) .or. onRoute(kinematicWave) .or. &
-      onRoute(diffusiveWave) .or. onRoute(muskingumCunge)) then
-    do iSeg=1,nSeg
-      structSEG(iSeg)%var(ixSEG%width)%dat(1) = wscale * sqrt(structSEG(iSeg)%var(ixSEG%totalArea)%dat(1))  ! channel width (m)
-      structSEG(iSeg)%var(ixSEG%depth)%dat(1) = dscale * sqrt(structSEG(iSeg)%var(ixSEG%totalArea)%dat(1))  ! channel bankfull depth (m)
-      structSEG(iSeg)%var(ixSEG%man_n)%dat(1) = mann_n                                                      ! Manning's "n" paramater (unitless)
-      structSEG(iSeg)%var(ixSEG%sideSlope)%dat(1) = 0._dp                                                   ! channel side slope h:v=slope:v [-]. now 0->rectangular channel
-      structSEG(iSeg)%var(ixSEG%floodplainSlope)%dat(1) = floodplainSlope                                   ! floodplain slope
-    end do
-  end if
-
-  ! get timing
-  call system_clock(time1)
-  !write(*,'(a,1x,1PG15.7,A)') 'after river geometry: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
-
- endif  ! computing hydraulic geometry
+ ! replace depth with large values e.g., 10,000 [m] if floodplain mode is off
+ if (.not.floodplain) then
+   do iSeg=1,nSeg
+     structSEG(iSeg)%var(ixSEG%depth)%dat(1) = 10000._dp ! [meter]
+   end do
+ end if
 
  do iSeg=1,nSeg
-   structSEG(iSeg)%var(ixSEG%storage)%dat(1) = storage(structSEG(iSeg)%var(ixSEG%depth)%dat(1)+2000*structSEG(iSeg)%var(ixSEG%floodplainSlope)%dat(1), &
-                                                       structSEG(iSeg)%var(ixSEG%length)%dat(1),                    &
-                                                       structSEG(iSeg)%var(ixSEG%width)%dat(1), structSEG(iSeg)%var(ixSEG%sideSlope)%dat(1), &
-                                                       zf=structSEG(iSeg)%var(ixSEG%floodplainSlope)%dat(1), bankDepth=structSEG(iSeg)%var(ixSEG%depth)%dat(1))
+   structSEG(iSeg)%var(ixSEG%storage)%dat(1) = storage(structSEG(iSeg)%var(ixSEG%depth)%dat(1),     &
+                                                       structSEG(iSeg)%var(ixSEG%length)%dat(1),    &
+                                                       structSEG(iSeg)%var(ixSEG%width)%dat(1),     &
+                                                       structSEG(iSeg)%var(ixSEG%sideSlope)%dat(1), &
+                                                       zf=structSEG(iSeg)%var(ixSEG%floodplainSlope)%dat(1), &
+                                                       bankDepth=structSEG(iSeg)%var(ixSEG%depth)%dat(1))
  end do
+
+ ! get timing
+ call system_clock(time1)
+ !write(*,'(a,1x,1PG15.7,A)') 'after river geometry: time = ', real(time1-time0,kind(dp))/real(cr), ' s'
 
  ! get the channel unit hydrograph
  if(topoNetworkOption==compute)then

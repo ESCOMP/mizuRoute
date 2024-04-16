@@ -102,7 +102,7 @@ CONTAINS
 
  ! update volume at previous time step
  RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_VOL(1)
- !RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%FLOOD_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%FLOOD_VOL(1)
+ RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%FLOOD_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%FLOOD_VOL(1)
 
  ! Water management - water injection or abstraction (irrigation or industrial/domestic water usage)
  ! For water abstraction, water is extracted from the following priorities:
@@ -318,7 +318,7 @@ CONTAINS
    do it = 1, nTsub
 
      Qbar = (Qlocal(1,1)+Qlocal(1,0)+Qlocal(nMolecule%DW_ROUTE-1,0))/3.0 ! 3 point average discharge [m3/s]
-     depth = flow_depth(abs(Qbar), bt, zc, S, n, zf=zf, bankDepth=bankDepth)
+     depth = flow_depth(abs(Qbar), bt, zc, S, n, zf=zf, bankDepth=bankDepth) ! compute flow depth as normal depth (a function of flow)
 
      ck    = celerity(abs(Qbar), depth, bt, zc, S, n, zf=zf, bankDepth=bankDepth)
      dk    = diffusivity(abs(Qbar), depth, bt, zc, S, n, zf=zf, bankDepth=bankDepth)
@@ -384,12 +384,12 @@ CONTAINS
    rflux%ROUTE(idxDW)%REACH_VOL(1) = rflux%ROUTE(idxDW)%REACH_VOL(1) + (q_upstream - Qlocal(nMolecule%DW_ROUTE-1,1))*dt
 
    ! if reach volume exceeds flood threshold volume, excess water is flooded volume.
-!   if (rflux%ROUTE(idxDW)%REACH_VOL(1) > bankVol) then
-!     overFlowVol = rflux%ROUTE(idxDW)%REACH_VOL(1) - bankVol ! overflow volume
-!     rflux%ROUTE(idxDW)%FLOOD_VOL(1) = rflux%ROUTE(idxDW)%FLOOD_VOL(1) + overFlowVol  ! new flooded volume
-!     rflux%ROUTE(idxDW)%REACH_VOL(1) = rflux%ROUTE(idxDW)%REACH_VOL(1) - overFlowVol
-!     Qlocal(1:nMolecule%DW_ROUTE,1) = Qlocal(1:nMolecule%DW_ROUTE,1) - overFlowVol/dt/nMolecule%DW_ROUTE
-!   end if
+   if (rflux%ROUTE(idxDW)%REACH_VOL(1) > bankVol) then
+     overFlowVol = rflux%ROUTE(idxDW)%REACH_VOL(1) - bankVol ! overflow volume
+     rflux%ROUTE(idxDW)%FLOOD_VOL(1) = rflux%ROUTE(idxDW)%FLOOD_VOL(1) + overFlowVol  ! new flooded volume
+   else
+     rflux%ROUTE(idxDW)%FLOOD_VOL(1) = 0._dp
+   end if
 
    ! store final outflow in data structure
    rflux%ROUTE(idxDW)%REACH_Q = Qlocal(nMolecule%DW_ROUTE-1,1) + q_lat
@@ -401,7 +401,6 @@ CONTAINS
      write(fmt1,'(A,I5,A)') '(A,1X',nMolecule%DW_ROUTE,'(1X,G15.4))'
      write(iulog,'(A,1X,G12.5)') ' rflux%REACH_Q= ', rflux%ROUTE(idxDW)%REACH_Q
      write(iulog,fmt1) ' Qprev(1:nMolecule)= ', Qprev(1:nMolecule%DW_ROUTE)
-     !write(iulog,'(A,5(1X,G12.5))') ' Qbar, Abar, Vbar, ck, dk= ',Qbar, Abar, Vbar, ck, dk
      write(iulog,'(A,3(1X,G12.5))') ' Qbar, ck, dk= ',Qbar, ck, dk
      write(iulog,'(A,2(1X,G12.5))') ' Cd, Ca= ', Cd, Ca
      write(iulog,fmt1) ' diagonal(:,1)= ', diagonal(:,1)
