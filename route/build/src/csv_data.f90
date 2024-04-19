@@ -316,8 +316,8 @@ CONTAINS
       ! size the output array:
       allocate(csv_data(this%nrows,this%ncols))
       ! convert each element to a string:
-      do concurrent (j=1:this%ncols)
-        do concurrent (i=1:this%nrows)
+      do j=1, this%ncols
+        do i=1, this%nrows
           csv_data(i,j) = this%csv_data(i,j)%str
         end do
       end do
