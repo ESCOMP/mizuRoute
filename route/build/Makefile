@@ -47,37 +47,28 @@ PIO_FILESYSTEM_HINTS = gpfs
 F_MASTER =
 
 # Define the NetCDF libraries and path to include files
-ifeq "$(FC)" "gnu"
- NCDF_PATH =
- NCDF_C_PATH =
- NCDF_FORTRAN_PATH =
- PNETCDF_PATH =
- PIO_PATH=        # NCAR HPC-> $(PIO)
-else ifeq "$(FC)" "intel"
- NCDF_PATH =
- NCDF_C_PATH =
- NCDF_FORTRAN_PATH =
- PNETCDF_PATH =
- PIO_PATH=        # NCAR HPC-> $(PIO)
-else ifeq "$(FC)" "nvidia"
- NCDF_PATH =
- NCDF_C_PATH =
- NCDF_FORTRAN_PATH =
- PNETCDF_PATH =
- PIO_PATH=        # NCAR HPC-> $(PIO)
-else ifeq "$(FC)" "cray"
- NCDF_PATH =
- NCDF_C_PATH =
- NCDF_FORTRAN_PATH =
- PNETCDF_PATH =
- PIO_PATH=        # NCAR HPC-> $(PIO)
-else
- $(error FC is not set correctly)
-endif
+NCDF_PATH =
+NCDF_C_PATH =
+NCDF_FORTRAN_PATH =
+PNETCDF_PATH =
+PIO_PATH=        # NCAR HPC-> $(PIO)
 
 LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
             -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
 INCNETCDF = -I$(NCDF_PATH)/include
+
+# Error check
+ifndef FC
+ $(error FC is not set. Please set FC to either intel,gnu,nvidia,cray)
+endif
+
+ifndef FC_EXE
+ $(error FC_EXE is not set, Please set FC_EXE to compiler executable name corresponding to FC)
+endif
+
+ifndef F_MASTER
+ $(error F_MASTER is not set. Please set F_MASTER to parent directory of build directory)
+endif
 
 FLAGS_OMP =
 ifeq "$(isOpenMP)" "yes"
@@ -126,7 +117,7 @@ ifeq "$(FC)" "intel"
     FLAGS = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -debug all -warn all -check all -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
+    FLAGS = -g -debug all -warn all -check all,nouninit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
   ifeq "$(MODE)" "profile"
     FLAGS = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
