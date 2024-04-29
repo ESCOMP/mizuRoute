@@ -17,6 +17,9 @@ USE public_var,    ONLY: is_flux_wm      ! logical water management components f
 USE globalData,    ONLY: idxMC           ! routing method index for muskingum method
 USE water_balance, ONLY: comp_reach_wb   ! compute water balance error
 USE base_route,    ONLY: base_route_rch  ! base (abstract) reach routing method class
+USE hydraulic,     ONLY: flow_depth
+USE hydraulic,     ONLY: celerity
+USE hydraulic,     ONLY: Btop
 
 implicit none
 
@@ -98,6 +101,7 @@ CONTAINS
 
  ! update volume at previous time step
  RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_VOL(1)
+ RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%FLOOD_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%FLOOD_VOL(1)
 
  ! Water management - water injection or abstraction (irrigation or industrial/domestic water usage)
  ! For water abstraction, water is extracted from the following priorities:
@@ -210,17 +214,13 @@ CONTAINS
  integer(i4b), intent(out)                :: ierr         ! error code
  character(*), intent(out)                :: message      ! error message
  ! Local variables
- real(dp)                                 :: alpha        ! sqrt(slope)(/mannings N* width)
- real(dp)                                 :: beta         ! constant, 5/3
- real(dp)                                 :: theta        ! dT/dX
+ real(dp)                                 :: theta        ! dT/L
  real(dp)                                 :: X            ! X-factor in descreterized kinematic wave
- real(dp)                                 :: dx           ! length of segment [m]
  real(dp)                                 :: Q(0:1,0:1)   ! discharge at computational molecule
  real(dp)                                 :: Qbar         ! 3-point average discharge [m3/s]
- real(dp)                                 :: Abar         ! 3-point average flow area [m2]
- real(dp)                                 :: Vbar         ! 3-point average velocity [m/s]
- real(dp)                                 :: Ybar         ! 3-point average flow depth [m]
- real(dp)                                 :: B            ! flow top width [m]
+ real(dp)                                 :: depth        ! flow depth [m]
+ real(dp)                                 :: overFlowVol  ! overflow volume [m]
+ real(dp)                                 :: topWidth     ! flow top width [m]
  real(dp)                                 :: ck           ! kinematic wave celerity [m/s]
  real(dp)                                 :: Cn           ! Courant number [-]
  real(dp)                                 :: dTsub        ! time inteval for sut time-step [sec]
@@ -238,15 +238,18 @@ CONTAINS
  Q(0,1) = rstate%molecule%Q(2) ! outflow at previous time step (t-1)
  Q(1,1) = realMissing
 
+ associate(S         => rch_param%R_SLOPE,    & ! channel slope
+           n         => rch_param%R_MAN_N,    & ! manning n
+           bt        => rch_param%R_WIDTH,    & ! channel bottom width
+           bankDepth => rch_param%R_DEPTH,    & ! bankfull depth
+           zc        => rch_param%SIDE_SLOPE, & ! channel side slope
+           zf        => rch_param%FLDP_SLOPE, & ! floodplain slope
+           bankVol   => rch_param%R_STORAGE,  & ! bankful volume
+           L         => rch_param%RLENGTH)      ! channel length
+
  if (.not. isHW) then
 
-   ! Get the reach parameters
-   ! A = (Q/alpha)**(1/beta)
-   ! Q = alpha*A**beta
-   alpha = sqrt(rch_param%R_SLOPE)/(rch_param%R_MAN_N*rch_param%R_WIDTH**(2._dp/3._dp))
-   beta  = 5._dp/3._dp
-   dx = rch_param%RLENGTH
-   theta = dt/dx     ! [s/m]
+   theta = dt/L    ! [s/m]
 
    ! compute total flow rate and flow area at upstream end at current time step
    Q(1,0) = q_upstream
@@ -262,16 +265,15 @@ CONTAINS
 
    ! first, using 3-point average in computational molecule, check Cournat number is less than 1, otherwise subcycle within one time step
    Qbar = (Q(0,0)+Q(1,0)+Q(0,1))/3.0  ! average discharge [m3/s]
-   Abar = (Qbar/alpha)**(1/beta)      ! average flow area [m2] (from manning equation)
-   Vbar = Qbar/Abar                   ! average velocity [m/s]
-   ck   = beta*Vbar                   ! kinematic wave celerity [m/s]
+   depth = flow_depth(abs(Qbar), bt, zc, S, n, zf=zf, bankDepth=bankDepth) ! compute flow depth as normal depth (a function of flow)
+   ck   = celerity(abs(Qbar), depth, bt, zc, S, n, zf=zf, bankDepth=bankDepth)
    Cn   = ck*theta                    ! Courant number [-]
 
    ! time-step adjustment so Courant number is less than 1
    ntSub = 1
    dTsub = dt
    if (Cn>1.0_dp) then
-     ntSub = ceiling(dt/dx*cK)
+     ntSub = ceiling(dt/L*ck)
      dTsub = dt/ntSub
    end if
    if (verbose) then
@@ -288,14 +290,13 @@ CONTAINS
    ! solve outflow at each sub time step
    do ix = 1, nTsub
 
-     Qbar = (QinLocal(ix)+QinLocal(ix-1)+QoutLocal(ix-1))/3.0 ! 3 point average discharge [m3/s]
-     Abar = (Qbar/alpha)**(1/beta)                            ! flow area [m2] (manning equation)
-     Ybar = Abar/rch_param%R_WIDTH                            ! flow depth [m] (rectangular channel)
-     B = rch_param%R_WIDTH                                    ! top width at water level [m] (rectangular channel)
-     ck = beta*(Qbar/Abar)                                    ! kinematic wave celerity [m/s]
+     Qbar     = (QinLocal(ix)+QinLocal(ix-1)+QoutLocal(ix-1))/3.0  ! 3 point average discharge [m3/s]
+     depth    = flow_depth(abs(Qbar), bt, zc, S, n, zf=zf, bankDepth=bankDepth) ! compute flow depth as normal depth (a function of flow)
+     topWidth = Btop(depth, bt, zc, zf=zf, bankDepth=bankDepth) ! top width at water level [m] (rectangular channel)
+     ck       = celerity(abs(Qbar), depth, bt, zc, S, n, zf=zf, bankDepth=bankDepth)
 
-     X = 0.5*(1.0 - Qbar/(B*rch_param%R_SLOPE*ck*dX))         ! X factor for descreterized kinematic wave equation
-     Cn = ck*dTsub/dx                                         ! Courant number [-]
+     X = 0.5*(1.0 - Qbar/(topWidth*S*ck*L))         ! X factor for descreterized kinematic wave equation
+     Cn = ck*dTsub/L                                         ! Courant number [-]
 
      C0 = (-X+Cn*(1-Y))/(1-X+Cn*(1-Y))
      C1 = (X+Cn*Y)/(1-X+Cn*(1-Y))
@@ -331,6 +332,14 @@ CONTAINS
  Q(1,1) = min(rflux%ROUTE(idxMC)%REACH_VOL(1)/dt + Q(1,0)*0.999, Q(1,1))
  rflux%ROUTE(idxMC)%REACH_VOL(1) = rflux%ROUTE(idxMC)%REACH_VOL(1) + (Q(1,0)-Q(1,1))*dt
 
+ ! if reach volume exceeds flood threshold volume, excess water is flooded volume.
+ if (rflux%ROUTE(idxMC)%REACH_VOL(1) > bankVol) then
+   overFlowVol = rflux%ROUTE(idxMC)%REACH_VOL(1) - bankVol ! overflow volume
+   rflux%ROUTE(idxMC)%FLOOD_VOL(1) = rflux%ROUTE(idxMC)%FLOOD_VOL(1) + overFlowVol  ! new flooded volume
+ else
+   rflux%ROUTE(idxMC)%FLOOD_VOL(1) = 0._dp
+ end if
+
  ! add catchment flow
  rflux%ROUTE(idxMC)%REACH_Q = Q(1,1)+ q_lat
 
@@ -341,6 +350,8 @@ CONTAINS
  ! save inflow (index 1) and outflow (index 2) at current time step
  rstate%molecule%Q(1) = Q(1,0)
  rstate%molecule%Q(2) = Q(1,1)
+
+ end associate
 
  END SUBROUTINE muskingum_cunge
 
