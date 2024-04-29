@@ -230,7 +230,6 @@ CONTAINS
  real(dp)                        :: dx             ! length of segment [m]
  real(dp)                        :: Qbar           ! 3-point average discharge [m3/s]
  real(dp)                        :: depth          ! flow depth [m]
- real(dp)                        :: flowArea       ! flow area [m2]
  real(dp)                        :: overFlowVol    ! overflow volume [m]
  real(dp)                        :: ck             ! kinematic wave celerity [m/s]
  real(dp)                        :: dk             ! diffusivity [m2/s]
