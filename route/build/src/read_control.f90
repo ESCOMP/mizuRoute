@@ -526,7 +526,7 @@ CONTAINS
  if (outputInflow) then
    meta_rflx(ixRFLX%KWTinflow)%varFile=.true.
    meta_rflx(ixRFLX%IRFinflow)%varFile=.true.
-   meta_rflx(ixRFLX%MCvolume)%varFile=.true.
+   meta_rflx(ixRFLX%MCinflow)%varFile=.true.
    meta_rflx(ixRFLX%KWinflow)%varFile=.true.
    meta_rflx(ixRFLX%DWinflow)%varFile=.true.
  end if
