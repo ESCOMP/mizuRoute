@@ -116,6 +116,8 @@ CONTAINS
    end if
  end if
 
+ RCHFLX_out(iens,segIndex)%ROUTE(idxDW)%REACH_INFLOW = q_upstream ! total inflow from the upstream reaches
+
  ! Water management - water injection or abstraction (irrigation or industrial/domestic water usage)
  ! For water abstraction, water is extracted from the following priorities:
  ! 1. existing storage(REACH_VOL(0), 2. upstream inflow , 3 lateral flow (BASIN_QR)

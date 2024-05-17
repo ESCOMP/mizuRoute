@@ -89,7 +89,7 @@ CONTAINS
   end if
 
   ! get discharge coming from upstream
-  nUps = size(NETOPO_in(segIndex)%UREACHI)
+  nUps = count(NETOPO_in(segIndex)%goodBas) ! reminder: goodBas is reach with >0 total contributory area
   q_upstream = 0.0_dp
 
   Qabs = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initial water abstraction (positive) or injection (negative)
@@ -100,6 +100,7 @@ CONTAINS
 
   if (nUps>0) then ! this hru is not headwater
     do iUps = 1,nUps
+      if (.not. NETOPO_in(segIndex)%goodBas(iUps)) cycle ! skip upstream reach which does not any flow due to zero total contributory areas
       iRch_ups = NETOPO_in(segIndex)%UREACHI(iUps)      !  index of upstream of segIndex-th reach
       q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxIRF)%REACH_Q
     end do
@@ -118,6 +119,8 @@ CONTAINS
       Qlat = RCHFLX_out(iens,segIndex)%BASIN_QR(1)
     end if
   endif
+
+  RCHFLX_out(iens,segIndex)%ROUTE(idxIRF)%REACH_INFLOW = q_upstream ! total inflow from the upstream reaches
 
   ! Water management - water injection or abstraction (irrigation or industrial/domestic water usage)
   ! For water abstraction, water is extracted from the following priorities:
