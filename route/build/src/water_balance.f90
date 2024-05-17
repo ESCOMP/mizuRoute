@@ -22,6 +22,7 @@ CONTAINS
   SUBROUTINE comp_reach_wb(seg_id,     &     ! input: reach/lake id
                            ixRoute,    &     ! input: index of routing method
                            Qupstream,  &     ! input: inflow from upstream
+                           Qlat,       &     ! input: lateral flow into reach
                            RCHFLX_in,  &     ! inout: reach flux data structure
                            verbose,    &     !
                            lakeFlag,   &     !
@@ -41,6 +42,7 @@ CONTAINS
   integer(i4b), intent(in)                 :: seg_id         ! input: routing method index
   integer(i4b), intent(in)                 :: ixRoute        ! input: routing method index
   real(dp),     intent(in)                 :: Qupstream      ! input: total inflow from upstream reaches
+  real(dp),     intent(in)                 :: Qlat           ! input: lateral flow into reach
   type(STRFLX), intent(inout)              :: RCHFLX_in      ! inout: Reach fluxes data structure
   logical(lgt), intent(in)                 :: lakeFlag       ! input: reach index to be examined
   logical(lgt), intent(in)                 :: verbose        ! input: reach index to be examined
@@ -66,7 +68,7 @@ CONTAINS
   dVol     = RCHFLX_in%ROUTE(ixRoute)%REACH_VOL(1)-RCHFLX_in%ROUTE(ixRoute)%REACH_VOL(0)
   ! in flux
   Qin      = Qupstream *dt
-  Qlateral = RCHFLX_in%BASIN_QR(1) *dt
+  Qlateral = Qlat *dt
   if (lakeFlag) then
     precip   = RCHFLX_in%basinprecip *dt
   else

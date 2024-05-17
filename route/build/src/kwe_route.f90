@@ -14,6 +14,7 @@ USE public_var,    ONLY: integerMissing  ! missing value for integer number
 USE public_var,    ONLY: dt              ! simulation time step [sec]
 USE public_var,    ONLY: is_flux_wm      ! logical water management components fluxes should be read
 USE public_var,    ONLY: qmodOption      ! qmod option (use 1==direct insertion)
+USE public_var,    ONLY: hw_drain_point  ! headwater catchment pour point (top_reach==1 or bottom_reach==2)
 USE globalData,    ONLY: idxKW           ! routing method index for kinematic wwave
 USE water_balance, ONLY: comp_reach_wb   ! compute water balance error
 USE base_route,    ONLY: base_route_rch  ! base (abstract) reach routing method class
@@ -24,6 +25,8 @@ private
 public::kwe_route_rch
 
 real(dp), parameter  :: critFactor=0.01
+integer(i4b), parameter :: top_reach=1
+integer(i4b), parameter :: bottom_reach=2
 
 type, extends(base_route_rch) :: kwe_route_rch
  CONTAINS
@@ -80,6 +83,13 @@ CONTAINS
  nUps = count(NETOPO_in(segIndex)%goodBas) ! reminder: goodBas is reach with >0 total contributory area
  isHW = .true.
  q_upstream = 0.0_dp
+
+ Qabs = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initial water abstraction (positive) or injection (negative)
+ RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initialize actual water abstraction
+
+ ! update volume at previous time step
+ RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_VOL(1)
+
  if (nUps>0) then
    isHW = .false.
    do iUps = 1,nUps
@@ -90,15 +100,21 @@ CONTAINS
      end if
      q_upstream = q_upstream + RCHFLX_out(iens, iRch_ups)%ROUTE(idxKW)%REACH_Q
    end do
+   q_upstream_mod  = q_upstream
+   Qlat = RCHFLX_out(iens,segIndex)%BASIN_QR(1)
+ else ! headwater
+   if (verbose) then
+     write(iulog,'(A)')            ' This is headwater '
+   endif
+   if (hw_drain_point==top_reach) then ! lateral flow is poured in a reach at the top
+     q_upstream = q_upstream + RCHFLX_out(iens,segIndex)%BASIN_QR(1)
+     q_upstream_mod = q_upstream
+     Qlat = 0._dp
+   else if (hw_drain_point==bottom_reach) then ! lateral flow is poured in a reach at the top
+     q_upstream_mod = q_upstream
+     Qlat = RCHFLX_out(iens,segIndex)%BASIN_QR(1)
+   end if
  endif
-
- q_upstream_mod  = q_upstream
- Qlat = RCHFLX_out(iens,segIndex)%BASIN_QR(1)
- Qabs = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initial water abstraction (positive) or injection (negative)
- RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_WM_FLUX_actual = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initialize actual water abstraction
-
- ! update volume at previous time step
- RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_VOL(0) = RCHFLX_out(iens,segIndex)%ROUTE(idxKW)%REACH_VOL(1)
 
  ! Water management - water injection or abstraction (irrigation or industrial/domestic water usage)
  ! For water abstraction, water is extracted from the following priorities:
@@ -145,6 +161,7 @@ CONTAINS
  call kinematic_wave(RPARAM_in(segIndex),                     & ! input: parameter at segIndex reach
                      T0,T1,                                   & ! input: start and end of the time step
                      q_upstream_mod,                          & ! input: total discharge at top of the reach being processed
+                     Qlat,                                    & ! input: lateral flow [m3/s]
                      isHW,                                    & ! input: is this headwater basin?
                      RCHSTA_out(iens,segIndex)%KW_ROUTE,      & ! inout:
                      RCHFLX_out(iens,segIndex),               & ! inout: updated fluxes at reach
@@ -163,7 +180,7 @@ CONTAINS
          'at ', NETOPO_in(segIndex)%REACHID
  end if
 
- call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxKW, q_upstream, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
+ call comp_reach_wb(NETOPO_in(segIndex)%REACHID, idxKW, q_upstream, Qlat, RCHFLX_out(iens,segIndex), verbose, lakeFlag=.false.)
 
  END SUBROUTINE kw_rch
 
@@ -174,6 +191,7 @@ CONTAINS
  SUBROUTINE kinematic_wave(rch_param,     & ! input: river parameter data structure
                            T0,T1,         & ! input: start and end of the time step
                            q_upstream,    & ! input: discharge from upstream
+                           Qlat,          & ! input: lateral discharge into chaneel [m3/s]
                            isHW,          & ! input: is this headwater basin?
                            rstate,        & ! inout: reach state at a reach
                            rflux,         & ! inout: reach flux at a reach
@@ -198,6 +216,7 @@ CONTAINS
  type(RCHPRP), intent(in)                 :: rch_param    ! River reach parameter
  real(dp),     intent(in)                 :: T0,T1        ! start and end of the time step (seconds)
  real(dp),     intent(in)                 :: q_upstream   ! total discharge at top of the reach being processed
+ real(dp),     intent(in)                 :: Qlat         ! lateral discharge into chaneel [m3/s]
  logical(lgt), intent(in)                 :: isHW         ! is this headwater basin?
  type(kwRCH),  intent(inout)              :: rstate       ! curent reach states
  type(STRFLX), intent(inout)              :: rflux        ! current Reach fluxes
@@ -226,7 +245,7 @@ CONTAINS
  Q(0,0) = rstate%molecule%Q(1) ! previous time and inlet  1 (0,0)
  Q(0,1) = rstate%molecule%Q(2) ! previous time and outlet 2 (0,1)
 
- if (.not. isHW) then
+ if (.not. isHW .or. hw_drain_point==top_reach) then
 
    Q(1,1) = realMissing ! current time and outlet 4 (1,1)
 
@@ -289,7 +308,7 @@ CONTAINS
      end do
    endif
 
- else ! if head-water
+ else ! if head-water and pour runnof to the bottom of reach
 
    Q(1,0) = 0._dp
    Q(1,1) = 0._dp
@@ -305,7 +324,7 @@ CONTAINS
  rflux%ROUTE(idxKW)%REACH_VOL(1) = rflux%ROUTE(idxKW)%REACH_VOL(1) + (Q(1,0)-Q(1,1))*dt
 
  ! add catchment flow
- rflux%ROUTE(idxKW)%REACH_Q = Q(1,1)+rflux%BASIN_QR(1)
+ rflux%ROUTE(idxKW)%REACH_Q = Q(1,1)+Qlat
 
  if (verbose) then
    write(iulog,'(1(A,1X,G15.4))') ' Q(1,1)=',Q(1,1)
