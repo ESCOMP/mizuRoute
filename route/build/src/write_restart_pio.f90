@@ -39,9 +39,9 @@ USE globalData,        ONLY: meta_hflx
 USE globalData,        ONLY: pid, nNodes
 USE globalData,        ONLY: masterproc
 USE globalData,        ONLY: mpicom_route
-USE globalData,        ONLY: pio_netcdf_format
-USE globalData,        ONLY: pio_typename
 USE globalData,        ONLY: pioSystem
+USE public_var,        ONLY: pio_netcdf_format
+USE public_var,        ONLY: pio_typename
 
 USE globalData,        ONLY: runMode
 USE globalData,        ONLY: rfileout
@@ -1286,6 +1286,37 @@ CONTAINS
       call write_pnetcdf(pioFileDesc, 'DWvolume', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
+
+    if (meta_rflx(ixRFLX%KWTinflow)%varFile) then
+      array_dp = hVars%inflow(index_write, idxKWT)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+      call write_pnetcdf(pioFileDesc, 'KWTinflow', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+    endif
+
+    if (meta_rflx(ixRFLX%IRFinflow)%varFile) then
+      array_dp = hVars%inflow(index_write, idxIRF)
+      call write_pnetcdf(pioFileDesc, 'IRFinflow', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+    if (meta_rflx(ixRFLX%KWinflow)%varFile) then
+      array_dp = hVars%inflow(index_write, idxKW)
+      call write_pnetcdf(pioFileDesc, 'KWinflow', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+    if (meta_rflx(ixRFLX%MCinflow)%varFile) then
+      array_dp = hVars%inflow(index_write, idxMC)
+      call write_pnetcdf(pioFileDesc, 'MCinflow', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+    if (meta_rflx(ixRFLX%DWinflow)%varFile) then
+      array_dp = hVars%inflow(index_write, idxDW)
+      call write_pnetcdf(pioFileDesc, 'DWinflow', array_dp, ioDesc_hist_rch_double, ierr, cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
 
   END SUBROUTINE write_history_state
 

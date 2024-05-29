@@ -275,7 +275,7 @@ MODULE process_remap_module
                          ierr, message)
   implicit none
   ! Argument variables
-  integer(i4b)         , intent(in)    :: ID_in(:)            ! input: the array of ids for HRU/seg
+  class(*)             , intent(in)    :: ID_in(:)            ! input: the array of ids for HRU/seg
   integer(i4b)         , intent(in)    :: IX_in(:)            ! input: the array of location of ids for HRU/seg in network topology
   real(dp)             , intent(in)    :: flux_in(:)          ! input: the array of input fluxes, should be the same size as ID_in
   logical(lgt)         , intent(in)    :: remove_negatives    ! flag to replace negative values to zeros

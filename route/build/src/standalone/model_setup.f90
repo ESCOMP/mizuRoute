@@ -6,9 +6,7 @@ USE public_var,        ONLY: integerMissing
 USE public_var,        ONLY: realMissing
 USE public_var,        ONLY: charMissing
 USE nr_utils,          ONLY: match_index
-USE nr_utils,          ONLY: arth
 USE nr_utils,          ONLY: unique         ! get unique element array
-USE nr_utils,          ONLY: indexx         ! get rank of data value
 
 implicit none
 
@@ -52,7 +50,6 @@ CONTAINS
                       ierr, message)   ! output: error control
 
    USE public_var,          ONLY: continue_run        ! T-> append output in existing history files. F-> write output in new history file
-   USE globalData,          ONLY: mpicom_route
    USE globalData,          ONLY: version             ! mizuRoute version
    USE globalData,          ONLY: gitBranch           ! git branch
    USE globalData,          ONLY: gitHash             ! git commit hash
@@ -213,7 +210,6 @@ CONTAINS
   integer(i4b)                                      :: nFile            ! number of nc files identified in the text file
   integer(i4b)                                      :: nTime            ! hard coded for now
   logical(lgt)                                      :: existAttr        ! attribute exist or not
-  type(datetime)                                    :: refDatetime      ! reference datetime for each file
   real(dp)                                          :: convTime2sec     ! time conversion to second
   character(len=strLen)                             :: infilename       ! input filename
   character(len=strLen),allocatable                 :: dataLines(:)     ! vector of lines of information (non-comment lines)
@@ -323,13 +319,18 @@ CONTAINS
  ! private subroutine: initialize time data
  ! *********************************************************************
  SUBROUTINE init_time(ierr, message)
+
   ! purpose: Save the following time related global variables
-  ! - time_units
-  ! - calendar
-  ! - timeVar
-  ! - iTime
-  ! - begDatetime, endDatetime:   simulationg start and end datetime
-  ! - restDatetime, dropDatetime
+  ! - dt_ro: forcing time step [sec]
+  ! - dt_wm: water-management data time step [sec]
+  ! - time_units: time units used for simulation datetime. format="<units> since yyyy-mm-dd hh:mm:ss"
+  ! - calendar: calendar used for simulation datetime
+  ! - timeVar: time variable [sec] for simulation (since referece datetime
+  ! - iTime: time index of simulation time step
+  ! - begDatetime: datetime at front of 1st simulation time step period
+  ! - endDatetime: datetime at front of last simulation time step period
+  ! - restDatetime: datetime at front of restart simulation time step period
+  ! - dropDatetime: datetime at front of simulation time step period when restart file is written
 
   USE ascii_utils,   ONLY: lower                    ! convert string to lower case
   USE datetime_data, ONLY: datetime                 ! datetime data
@@ -350,15 +351,16 @@ CONTAINS
   USE public_var,    ONLY: restart_day              ! periodic restart day
   USE public_var,    ONLY: restart_hour             ! periodic restart hr
   USE public_var,    ONLY: maxTimeDiff              ! time difference tolerance for input checks
+  USE public_var,    ONLY: ro_time_stamp            ! time stamp for runoff input: front, end or middle of time step
   USE globalData,    ONLY: timeVar                  ! time variables at time step endpoints (unit given by runoff data)
   USE globalData,    ONLY: iTime                    ! time index at simulation time step
   USE globalData,    ONLY: sec2tunit                ! seconds per time unit
   USE globalData,    ONLY: simDatetime              ! model time data (yyyy:mm:dd:hh:mm:ss)
-  USE globalData,    ONLY: begDatetime              ! simulation begin datetime data (yyyy:mm:dd:hh:mm:sec)
-  USE globalData,    ONLY: endDatetime              ! simulation end datetime data (yyyy:mm:dd:hh:mm:sec)
-  USE globalData,    ONLY: restDatetime             ! restart time data (yyyy:mm:dd:hh:mm:sec)
-  USE globalData,    ONLY: dropDatetime             ! restart dropoff calendar date/time
-  USE globalData,    ONLY: roBegDatetime            ! forcing data start datetime data (yyyy:mm:dd:hh:mm:sec)
+  USE globalData,    ONLY: begDatetime              ! simulation begin datetime data (yyyy:mm:dd:hh:mm:sec). front of time step
+  USE globalData,    ONLY: endDatetime              ! simulation end datetime data (yyyy:mm:dd:hh:mm:sec). front of time step
+  USE globalData,    ONLY: restDatetime             ! restart time data (yyyy:mm:dd:hh:mm:sec). front of time step
+  USE globalData,    ONLY: dropDatetime             ! restart dropoff calendar date/time. front of time step
+  USE globalData,    ONLY: roBegDatetime            ! forcing data start datetime data (yyyy:mm:dd:hh:mm:sec) front of time step
   USE globalData,    ONLY: wmBegDatetime            ! water-managment data start datetime data (yyyy:mm:dd:hh:mm:sec)
   USE globalData,    ONLY: infileinfo_ro            ! the information of the input files
   USE globalData,    ONLY: infileinfo_wm            ! the information of the input files
@@ -437,14 +439,22 @@ CONTAINS
     end if
   endif
 
-  ! runoff data time step [sec]
+  ! runoff data time step [sec]- dt_ro is saved
   dt_ro = roTimeVar_diff(1)
 
-  ! datetime at end of last runoff data time step
-  roDatetime_end = roCal(nTime)%add_sec(dt_ro, ierr, cmessage)
-
-  ! datetime at start of first runoff data time step
-  roBegDatetime = roCal(1)
+  ! datetime of runoff time at front of the 1st time step:  roBegDatetime (global data)
+  ! datetime of runoff time at end of last time step: roDatetime_end (local data)
+  select case(trim(ro_time_stamp))
+    case('front')
+      roBegDatetime  = roCal(1)
+      roDatetime_end = roCal(nTime)%add_sec(dt_ro, ierr, cmessage)
+    case('end')
+      roBegDatetime  = roCal(1)%add_sec(-dt_ro, ierr, cmessage)
+      roDatetime_end = roCal(nTime)
+    case('middle')
+      roBegDatetime  = roCal(1)%add_sec(-dt_ro/2.0, ierr, cmessage)
+      roDatetime_end = roCal(nTime)%add_sec(dt_ro/2.0, ierr, cmessage)
+  end select
 
   call begDatetime%str2datetime(simStart, calendar, ierr, cmessage)
   if(ierr/=0) then; message=trim(message)//trim(cmessage)//' [begDatetime]'; return; endif
@@ -467,7 +477,7 @@ CONTAINS
   endif
 
   ! Compare sim_start vs. time at first time step in runoff data
-  if (begDatetime < roCal(1)) then
+  if (begDatetime < roBegDatetime) then
     write(iulog,'(2a)') new_line('a'),'WARNING: <sim_start> is before the first time step in input runoff'
     write(iulog,fmt1)  ' runoff_start: ', roCal(1)%year(),'-',roCal(1)%month(),'-',roCal(1)%day(), roCal(1)%hour(),':', roCal(1)%minute(),':',roCal(1)%sec()
     write(iulog,fmt1)  ' <sim_start> : ', begDatetime%year(),'-',begDatetime%month(),'-',begDatetime%day(), begDatetime%hour(),':', begDatetime%minute(),':',begDatetime%sec()
@@ -637,7 +647,7 @@ CONTAINS
    USE globalData,  ONLY: remap_data           ! runoff mapping data structure
    USE globalData,  ONLY: runoff_data          ! runoff data structure
    USE globalData,  ONLY: wm_data              ! abstraction injection data structure
-   USE read_runoff, ONLY: read_runoff_metadata ! read meta data from runoff data
+   USE read_runoff, ONLY: read_forcing_metadata ! read meta data from runoff data
    USE read_remap,  ONLY: get_remap_data       ! read remap data
 
    implicit none
@@ -646,7 +656,7 @@ CONTAINS
    character(*), intent(out)          :: message          ! error message
    ! local variables
    character(len=strLen)              :: fname            ! input file name
-   integer(i4b), allocatable          :: unq_qhru_id(:)
+   integer(i8b), allocatable          :: unq_qhru_id(:)
    integer(i4b), allocatable          :: unq_idx(:)
    character(len=strLen)              :: cmessage         ! error message from subroutine
 
@@ -655,20 +665,35 @@ CONTAINS
    ! passing the first nc file as global file name to read
    fname = trim(input_dir)//trim(inFileInfo_ro(1)%infilename)
 
-   ! get runoff metadata for simulated runoff, evaporation and precipitation
-   call read_runoff_metadata(fname,                           & ! input: filename
-                             vname_qsim,                      & ! input: varibale name for simulated runoff
-                             vname_hruid,                     & ! input: varibale hruid
-                             dname_hruid,                     & ! input: dimension of varibale hru
-                             dname_ylat,                      & ! input: dimension of lat
-                             dname_xlon,                      & ! input: dimension of lon
-                             runoff_data%nSpace,              & ! nSpace of the input in runoff or wm strcuture
-                             runoff_data%sim,                 & ! 1D simulation
-                             runoff_data%sim2D,               & ! 2D simulation
-                             runoff_data%hru_id,              & ! ID of seg or hru in data
-                             runoff_data%fillvalue,           & ! fillvalue for data
-                             ierr, cmessage)                    ! output: error control
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if (trim(vname_hruid)==charMissing) then
+     ! get runoff metadata for simulated runoff, evaporation and precipitation
+     call read_forcing_metadata(fname,                           & ! input: filename
+                                vname_qsim,                      & ! input: varibale name for simulated runoff
+                                vname_hruid,                     & ! input: varibale hruid
+                                dname_hruid,                     & ! input: dimension of varibale hru
+                                dname_ylat,                      & ! input: dimension of lat
+                                dname_xlon,                      & ! input: dimension of lon
+                                runoff_data%nSpace,              & ! nSpace of the input in runoff or wm strcuture
+                                runoff_data%sim2D,               & ! 2D simulation
+                                runoff_data%hru_id,              & ! ID of seg or hru in data
+                                runoff_data%fillvalue,           & ! fillvalue for data
+                                ierr, cmessage)                    ! output: error control
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   else if (trim(dname_ylat)==charMissing .and. trim(dname_xlon)==charMissing) then
+     ! get runoff metadata for simulated runoff, evaporation and precipitation
+     call read_forcing_metadata(fname,                           & ! input: filename
+                                vname_qsim,                      & ! input: varibale name for simulated runoff
+                                vname_hruid,                     & ! input: varibale hruid
+                                dname_hruid,                     & ! input: dimension of varibale hru
+                                dname_ylat,                      & ! input: dimension of lat
+                                dname_xlon,                      & ! input: dimension of lon
+                                runoff_data%nSpace,              & ! nSpace of the input in runoff or wm strcuture
+                                runoff_data%sim,                 & ! 1D simulation
+                                runoff_data%hru_id,              & ! ID of seg or hru in data
+                                runoff_data%fillvalue,           & ! fillvalue for data
+                                ierr, cmessage)                    ! output: error control
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   end if
 
    ! initialize routing catchment array (runoff_data%basinRunoff)
    allocate(runoff_data%basinRunoff(nHRU), stat=ierr, errmsg=cmessage)
@@ -730,7 +755,7 @@ CONTAINS
      if(ierr/=0)then; message=trim(message)//'problem allocating runoff_data%hru_ix'; return; endif
 
      ! get indices of the HRU ids in the runoff file in the routing layer
-     runoff_data%hru_ix = match_index(basinID, runoff_data%hru_id, ierr, cmessage)
+     runoff_data%hru_ix = match_index(int(basinID,kind=i8b), runoff_data%hru_id, ierr, cmessage)
      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      if (debug) then
@@ -752,7 +777,7 @@ CONTAINS
      ! passing the first netCDF as global file meta to read
      fname = trim(input_dir)//trim(inFileInfo_wm(1)%infilename)
 
-     call read_runoff_metadata(fname,                         & ! input: filename
+     call read_forcing_metadata(fname,                         & ! input: filename
                                vname_flux_wm,                 & ! input: varibale name for simulated runoff
                                vname_segid_wm,                & ! input: varibale hruid
                                dname_segid_wm,                & ! input: dimension of varibale hru
@@ -760,7 +785,6 @@ CONTAINS
                                dname_xlon,                    & ! input: dimension of lon
                                wm_data%nSpace,                & ! nSpace of the input in runoff or wm strcuture
                                wm_data%sim,                   & ! 1D simulation
-                               wm_data%sim2D,                 & ! 2D simulation
                                wm_data%seg_id,                & ! ID of seg in data
                                wm_data%fillvalue,             & ! fillvalue for data
                                ierr, cmessage)                  ! output: error control

@@ -527,12 +527,6 @@ END SUBROUTINE augment_ntopo
      NETOPO_in(iSeg)%USRTAKE = .false.         ! .TRUE. if user takes from reach, .FALSE. otherwise
    end if
 
-   ! NOT USED: Location (available in the input files)
-   NETOPO_in(iSeg)%RCHLAT1 = realMissing     ! Start latitude
-   NETOPO_in(iSeg)%RCHLAT2 = realMissing     ! End latitude
-   NETOPO_in(iSeg)%RCHLON1 = realMissing     ! Start longitude
-   NETOPO_in(iSeg)%RCHLON2 = realMissing     ! End longitude
-
    ! reach unit hydrograph
    if (onRoute(impulseResponseFunc)) then
      allocate(NETOPO_in(iSeg)%UH(size(structSEG(iSeg)%var(ixSEG%timeDelayHist)%dat)), stat=ierr, errmsg=cmessage)

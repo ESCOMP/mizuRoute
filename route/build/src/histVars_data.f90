@@ -12,6 +12,7 @@ MODULE histVars_data
   USE public_var,        ONLY: kinematicWave              ! KW routing ID = 3
   USE public_var,        ONLY: muskingumCunge             ! MC routing ID = 4
   USE public_var,        ONLY: diffusiveWave              ! DW routing ID = 5
+  USE public_var,        ONLY: outputInflow               ! logical for outputting upstream inflow in history file
   USE globalData,        ONLY: nRoutes
   USE globalData,        ONLY: routeMethods
   USE globalData,        ONLY: meta_rflx, meta_hflx
@@ -26,11 +27,10 @@ MODULE histVars_data
   USE globalData,        ONLY: pid, nNodes
   USE globalData,        ONLY: masterproc
   USE globalData,        ONLY: mpicom_route
-  USE globalData,        ONLY: pio_typename
   USE globalData,        ONLY: pioSystem
   USE globalData,        ONLY: ioDesc_hru_double
   USE globalData,        ONLY: ioDesc_hist_rch_double
-  USE nr_utils,          ONLY: arth
+  USE public_var,        ONLY: pio_typename
   USE ncio_utils,        ONLY: get_nc
   USE pio_utils,         ONLY: file_desc_t
   USE pio_utils,         ONLY: ncd_nowrite
@@ -55,6 +55,7 @@ MODULE histVars_data
     real(dp), allocatable    :: instRunoff(:)      ! instantaneous lateral inflow into each river/lake [m3/s]  [nRch]
     real(dp), allocatable    :: dlayRunoff(:)      ! lateral inflow into river or lake [m3/s] for each reach [nRch]
     real(dp), allocatable    :: discharge(:,:)     ! river/lake discharge [m3/s] for each reach/lake and routing method [nRch,nMethod]
+    real(dp), allocatable    :: inflow(:,:)        ! inflow from upstream rivers/lakes [m3/s] for each reach/lake and routing method [nRch,nMethod]
     real(dp), allocatable    :: elev(:,:)          ! river/lake surface water elevation [m] for each reach/lake and routing method [nRch,nMethod]
     real(dp), allocatable    :: volume(:,:)        ! river/lake volume [m3] for each reach/lake and routing method [nRch,nMethod]
 
@@ -96,31 +97,31 @@ MODULE histVars_data
       instHistVar%nRch = nRch_local
 
       if (meta_hflx(ixHFLX%basRunoff)%varFile) then
-        allocate(instHistVar%basRunoff(nHRU_local), stat=ierr, errmsg=cmessage)
+        allocate(instHistVar%basRunoff(nHRU_local), source=0._dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%basRunoff]'; return; endif
-        instHistVar%basRunoff(1:nHRU_local) = 0._dp
       end if
 
       if (meta_rflx(ixRFLX%instRunoff)%varFile) then
-        allocate(instHistVar%instRunoff(nRch_local), stat=ierr, errmsg=cmessage)
+        allocate(instHistVar%instRunoff(nRch_local), source=0._dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%instRunoff]'; return; endif
-        instHistVar%instRunoff(1:nRch_local) = 0._dp
       end if
 
       if (meta_rflx(ixRFLX%dlayRunoff)%varFile) then
-        allocate(instHistVar%dlayRunoff(nRch_local), stat=ierr, errmsg=cmessage)
+        allocate(instHistVar%dlayRunoff(nRch_local), source=0._dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%instRunoff]'; return; endif
-        instHistVar%dlayRunoff(1:nRch_local) = 0._dp
       end if
 
       if (nRoutes>0) then ! this should be number of methods that ouput
-        allocate(instHistVar%discharge(nRch_local, nRoutes), stat=ierr, errmsg=cmessage)
+        allocate(instHistVar%discharge(nRch_local, nRoutes), source=0._dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%discharge]'; return; endif
-        instHistVar%discharge(1:nRch_local, 1:nRoutes) = 0._dp
 
-        allocate(instHistVar%volume(nRch_local, nRoutes), stat=ierr, errmsg=cmessage)
+        allocate(instHistVar%volume(nRch_local, nRoutes), source=0._dp, stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%volume]'; return; endif
-        instHistVar%volume(1:nRch_local, 1:nRoutes) = 0._dp
+
+        if (outputInflow) then
+          allocate(instHistVar%inflow(nRch_local, nRoutes), source=0._dp, stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [instHistVar%inflow]'; return; endif
+        end if
       end if
 
     END FUNCTION constructor
@@ -206,6 +207,9 @@ MODULE histVars_data
         do ix=1,this%nRch
           this%discharge(ix,iRoute) = this%discharge(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%REACH_Q
           this%volume(ix,iRoute)    = this%volume(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%REACH_VOL(1)
+          if (outputInflow) then
+            this%inflow(ix,iRoute)  = this%inflow(ix,iRoute) + RCHFLX_local(1,ix)%ROUTE(idxMethod)%REACH_INFLOW
+          end if
         end do
       end do
 
@@ -246,6 +250,11 @@ MODULE histVars_data
         this%volume    = this%volume/real(this%nt, kind=dp)
       end if
 
+      ! 6. inflow
+      if (allocated(this%inflow)) then
+        this%inflow    = this%inflow/real(this%nt, kind=dp)
+      end if
+
     END SUBROUTINE finalize
 
     ! ---------------------------------------------------------------
@@ -264,6 +273,7 @@ MODULE histVars_data
       if (allocated(this%dlayRunoff)) this%dlayRunoff = 0._dp
       if (allocated(this%discharge))  this%discharge = 0._dp
       if (allocated(this%volume))     this%volume = 0._dp
+      if (allocated(this%inflow))     this%inflow = 0._dp
 
     END SUBROUTINE refresh
 
@@ -281,6 +291,7 @@ MODULE histVars_data
       if (allocated(this%dlayRunoff)) deallocate(this%dlayRunoff)
       if (allocated(this%discharge))  deallocate(this%discharge)
       if (allocated(this%volume))     deallocate(this%volume)
+      if (allocated(this%inflow))     deallocate(this%inflow)
 
     END SUBROUTINE clean
 
@@ -298,8 +309,9 @@ MODULE histVars_data
       ! local variable
       character(len=strLen)              :: cmessage              ! error message from subroutines
       real(dp), allocatable              :: array_tmp(:)          ! temp array
-      integer(i4b)                       :: ixRoute, ix1, ix2     ! loop index
+      integer(i4b)                       :: ixRoute               ! loop index
       integer(i4b)                       :: ixFlow, ixVol         ! temporal method index
+      integer(i4b)                       :: ixInflow              ! temporal method index
       logical(lgt)                       :: FileStatus            ! file open or close
       type(file_desc_t)                  :: pioFileDesc           ! pio file handle
 
@@ -370,10 +382,15 @@ MODULE histVars_data
         allocate(this%discharge(this%nRch, nRoutes), stat=ierr, errmsg=cmessage)
         if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%discharge]'; return; endif
         allocate(this%volume(this%nRch, nRoutes), stat=ierr, errmsg=cmessage)
-        if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%discharge]'; return; endif
+        if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%volume]'; return; endif
 
         this%discharge = 0._dp
         this%volume    = 0._dp
+
+        if (outputInflow) then
+          allocate(this%inflow(this%nRch, nRoutes), source=0.0_dp, stat=ierr, errmsg=cmessage)
+          if(ierr/=0)then; message=trim(message)//trim(cmessage)//' [hVars%volume]'; return; endif
+        end if
 
         do ixRoute=1,nRoutes
           select case(routeMethods(ixRoute))
@@ -382,18 +399,23 @@ MODULE histVars_data
             case(impulseResponseFunc)
               ixFlow=ixRFLX%IRFroutedRunoff
               ixVol=ixRFLX%IRFvolume
+              ixInflow=ixRFLX%IRFinflow
             case(kinematicWaveTracking)
               ixFlow=ixRFLX%KWTroutedRunoff
               ixVol=ixRFLX%KWTvolume
+              ixInflow=ixRFLX%KWTinflow
             case(kinematicWave)
               ixFlow=ixRFLX%KWroutedRunoff
               ixVol=ixRFLX%KWvolume
+              ixInflow=ixRFLX%KWinflow
             case(muskingumCunge)
               ixFlow=ixRFLX%MCroutedRunoff
               ixVol=ixRFLX%MCvolume
+              ixInflow=ixRFLX%MCinflow
             case(diffusiveWave)
               ixFlow=ixRFLX%DWroutedRunoff
               ixVol=ixRFLX%DWvolume
+              ixInflow=ixRFLX%DWinflow
             case default
               write(message,'(2A,1X,G0,1X,A)') trim(message), 'routing method index:',routeMethods(ixRoute), 'must be 0-5'
               ierr=81; return
@@ -419,13 +441,25 @@ MODULE histVars_data
             ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
             if (masterproc) then
               this%volume(1:nRch_mainstem, ixRoute) = array_tmp(1:nRch_mainstem)
-              this%volume(nRch_mainstem+nTribOutlet+1:this%nRch,ixRoute) = this%volume(nRch_mainstem+1:nRch_mainstem+nRch_trib,ixRoute)
+              this%volume(nRch_mainstem+nTribOutlet+1:this%nRch, ixRoute) = array_tmp(nRch_mainstem+1:nRch_mainstem+nRch_trib)
             else
               this%volume(:,ixRoute) = array_tmp
             end if
           end if
-        end do
-      end if
+
+          if (meta_rflx(ixInflow)%varFile) then
+            call read_dist_array(pioFileDesc, meta_rflx(ixInflow)%varName, array_tmp, ioDesc_hist_rch_double, ierr, cmessage)
+            if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+            ! need to shift tributary part in main core to after halo reaches (nTribOutlet)
+            if (masterproc) then
+              this%inflow(1:nRch_mainstem, ixRoute) = array_tmp(1:nRch_mainstem)
+              this%inflow(nRch_mainstem+nTribOutlet+1:this%nRch, ixRoute) = array_tmp(nRch_mainstem+1:nRch_mainstem+nRch_trib)
+            else
+              this%inflow(:,ixRoute) = array_tmp
+            end if
+          end if
+        end do ! end of ixRoute loop
+      end if ! end of nRoute>0 if-statement
 
       call closeFile(pioFileDesc, FileStatus)
 

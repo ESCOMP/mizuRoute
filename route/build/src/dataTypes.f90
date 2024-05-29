@@ -139,7 +139,7 @@ implicit none
  type, public :: remap
    ! information in the mapping file
    integer(i4b)             , allocatable  :: hru_id(:)    ! Id of hrus associated with river network (="hru")
-   integer(i4b)             , allocatable  :: qhru_id(:)   ! Id of hrus associated with runoff simulation (="qhru")
+   integer(i8b)             , allocatable  :: qhru_id(:)   ! Id of hrus associated with runoff simulation (="qhru")
    integer(i4b)             , allocatable  :: num_qhru(:)  ! number of "qhru" within "hru"
    integer(i4b)             , allocatable  :: i_index(:)   ! Index in the y dimension of the runoff grid (starting with 1,1 in LL corner)
    integer(i4b)             , allocatable  :: j_index(:)   ! Index in the x dimension of the runoff grid (starting with 1,1 in LL corner)
@@ -162,14 +162,14 @@ implicit none
  ! ---------- input forcing data  ----------------------------------------------------------------------
 
  type, public :: inputData
-   integer(i4b)                            :: nSpace(1:2)     ! number of spatial dimension
-   real(dp)                 , allocatable  :: sim(:)          ! flux simulation (HM_HRU) at one time step (size: nSpace(1))
-   real(dp)                 , allocatable  :: sim2d(:,:)      ! flux simulation (x,y) at one time step (size: /nSpace(1),nSpace(2)/)
-   real(dp)                                :: fillvalue       ! fillvalue
+   integer(i4b)                            :: nSpace(1:2)=integerMissing  ! number of spatial dimension
+   real(dp)                 , allocatable  :: sim(:)                      ! flux simulation (HM_HRU) at one time step (size: nSpace(1))
+   real(dp)                 , allocatable  :: sim2d(:,:)                  ! flux simulation (x,y) at one time step (size: /nSpace(1),nSpace(2)/)
+   real(dp)                                :: fillvalue                   ! fillvalue
  end type inputData
 
  type, public, extends(inputData) :: runoff  ! runoff data
-   integer(i4b)             , allocatable  :: hru_id(:)       ! id of HM_HRUs or RN_HRUs at which runoff is stored (size: nSpace(1))
+   integer(i8b)             , allocatable  :: hru_id(:)       ! id of HM_HRUs or RN_HRUs at which runoff is stored (size: nSpace(1))
    integer(i4b)             , allocatable  :: hru_ix(:)       ! Index of RN_HRUs associated with river network (used only if HM_HRUs = RN_HRUs)
    real(dp)                 , allocatable  :: basinRunoff(:)  ! remapped river network catchment runoff [depth/time] (size: number of nHRU)
    real(dp)                 , allocatable  :: basinEvapo(:)   ! remapped river network catchment evaporation [depth/time] (size: number of nHRU)
@@ -260,10 +260,6 @@ implicit none
  type, public :: RCHTOPO
   integer(i4b)                               :: REACHIX      ! Reach index (1,2,...,nrch)
   integer(i4b)                               :: REACHID      ! Reach ID (REC code)
-  real(dp)                                   :: RCHLAT1      ! Start latitude
-  real(dp)                                   :: RCHLAT2      ! End latitude
-  real(dp)                                   :: RCHLON1      ! Start longitude
-  real(dp)                                   :: RCHLON2      ! End longitude
   integer(i4b)                               :: DREACHI      ! Immediate Downstream reach index
   integer(i4b)                               :: DREACHK      ! Immediate Downstream reach ID
   integer(i4b),dimension(:),allocatable      :: UREACHI      ! Immediate Upstream reach indices
@@ -355,6 +351,7 @@ implicit none
  ! ---------- reach fluxes --------------------------------------------------------------------
  type, public :: hydraulic
    real(dp)        :: REACH_ELE              ! water height at current time step [m]
+   real(dp)        :: REACH_INFLOW           ! total upstream discharge at current time step [m3/s]
    real(dp)        :: REACH_Q                ! discharge at current time step [m3/s]
    real(dp)        :: REACH_VOL(0:1)         ! water volume at previous and current time steps [m3]
    real(dp)        :: REACH_WM_FLUX_actual   ! water management fluxes to and from each reach [m3/s]

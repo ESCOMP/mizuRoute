@@ -308,7 +308,8 @@ CONTAINS
    ierr=0; message='update_time/'
 
    if (simDatetime(1)>=endDatetime) then
-     call close_all()
+     call close_all(ierr, cmessage)
+     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
      finished=.true.;return
    endif
 
@@ -344,13 +345,14 @@ CONTAINS
   USE public_var, ONLY: dt                     ! simulation time step (seconds)
   USE public_var, ONLY: restart_dir            ! directory containing output data
   USE public_var, ONLY: fname_state_in         ! name of state input file
+  USE public_var, ONLY: accumRunoff            ! routing method ID
   USE public_var, ONLY: impulseResponseFunc    ! IRF routing ID = 1
   USE public_var, ONLY: kinematicWaveTracking  ! KWT routing ID = 2
   USE public_var, ONLY: kinematicWave          ! KW routing ID = 3
   USE public_var, ONLY: muskingumCunge         ! MC routing ID = 4
   USE public_var, ONLY: diffusiveWave          ! DW routing ID = 5
   USE public_var, ONLY: is_lake_sim            ! logical if lakes are activated in simulation
-  USE globalData, ONLY: idxIRF, idxKWT, &
+  USE globalData, ONLY: idxSUM, idxIRF, idxKWT, &
                         idxKW, idxMC, idxDW
   USE globalData, ONLY: nRoutes                ! number of available routing methods
   USE globalData, ONLY: routeMethods           ! ID of active routing method
@@ -408,6 +410,12 @@ CONTAINS
       RCHFLX_trib(:,:)%BASIN_QR(0)  = 0._dp
       RCHFLX_trib(:,:)%BASIN_QR(1)  = 0._dp
       nRch_root=nRch_mainstem+nTribOutlet+rch_per_proc(0)
+      if (onRoute(accumRunoff)) then
+        do ix = 1,nRch_root
+          RCHFLX_trib(iens,ix)%ROUTE(idxSUM)%REACH_VOL(0:1) = 0._dp
+          RCHFLX_trib(iens,ix)%ROUTE(idxSUM)%REACH_Q        = 0._dp
+        end do
+      end if
       if (onRoute(impulseResponseFunc)) then
         do ix = 1,nRch_root
           RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%REACH_VOL(0:1) = 0._dp
@@ -474,6 +482,12 @@ CONTAINS
         RCHFLX_trib(:,:)%BASIN_QI     = 0._dp
         RCHFLX_trib(:,:)%BASIN_QR(0)  = 0._dp
         RCHFLX_trib(:,:)%BASIN_QR(1)  = 0._dp
+        if (onRoute(accumRunoff)) then
+          do ix = 1, size(RCHFLX_trib(1,:))
+            RCHFLX_trib(iens,ix)%ROUTE(idxSUM)%REACH_VOL(0:1) = 0._dp
+            RCHFLX_trib(iens,ix)%ROUTE(idxSUM)%REACH_Q        = 0._dp
+          end do
+        end if
         if (onRoute(impulseResponseFunc)) then
           do ix = 1, size(RCHFLX_trib(1,:))
             RCHFLX_trib(iens,ix)%ROUTE(idxIRF)%REACH_VOL(0:1) = 0._dp

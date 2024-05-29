@@ -91,6 +91,8 @@ CONTAINS
    end do
  endif
 
+ RCHFLX_out(iens,segIndex)%ROUTE(idxMC)%REACH_INFLOW = q_upstream ! total inflow from the upstream reaches
+
  q_upstream_mod  = q_upstream
  Qlat = RCHFLX_out(iens,segIndex)%BASIN_QR(1)
  Qabs = RCHFLX_out(iens,segIndex)%REACH_WM_FLUX ! initial water abstraction (positive) or injection (negative)
@@ -302,7 +304,7 @@ CONTAINS
      C2 = (1-X-Cn*Y)/(1-X+Cn*(1-Y))
 
      QoutLocal(ix) = C0* QinLocal(ix)+ C1* QinLocal(ix-1)+ C2* QoutLocal(ix-1)
-     QoutLocal(ix) = max(0.0, QoutLocal(ix))
+     QoutLocal(ix) = max(0.0_dp, QoutLocal(ix))
 
      ! -- EBK 06/26/2023 -- comment out isnan check, doesn't seem to be needed.
      !if (isnan(QoutLocal(ix))) then

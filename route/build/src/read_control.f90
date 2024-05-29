@@ -124,6 +124,7 @@ CONTAINS
    case('<continue_run>');         read(cData,*,iostat=io_error) continue_run          ! logical; T-> append output in existing history files. F-> write output in new history file
    case('<route_opt>');            routOpt     = trim(cData)                           ! routing scheme options  0-> accumRunoff, 1->IRF, 2->KWT, 3-> KW, 4->MC, 5->DW
    case('<doesBasinRoute>');       read(cData,*,iostat=io_error) doesBasinRoute        ! basin routing options   0-> no, 1->IRF, otherwise error
+   case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                    ! time interval of the simulation [sec] (To-do: change dt to dt_sim)
    case('<is_lake_sim>');          read(cData,*,iostat=io_error) is_lake_sim           ! logical; lakes are simulated
    case('<is_flux_wm>');           read(cData,*,iostat=io_error) is_flux_wm            ! logical; provided fluxes to or from seg/lakes should be considered
    case('<is_vol_wm>');            read(cData,*,iostat=io_error) is_vol_wm             ! logical; provided target volume for managed lakes are considered
@@ -135,7 +136,6 @@ CONTAINS
    case('<is_Ep_upward_negative>'); read(cData,*,iostat=io_error) is_Ep_upward_negative ! logical; flip evaporation in case upward direction is negative in input values convention
    case('<scale_factor_prec>');    read(cData,*,iostat=io_error) scale_factor_prec     ! float; factor to scale the precipitation values
    case('<offset_value_prec>');    read(cData,*,iostat=io_error) offset_value_prec     ! float; offset for precipitation values
-   case('<dt_qsim>');              read(cData,*,iostat=io_error) dt                    ! time interval of the simulation [sec] (To-do: change dt to dt_sim)
    ! RIVER NETWORK TOPOLOGY
    case('<fname_ntopOld>');        fname_ntopOld = trim(cData)                         ! name of file containing stream network topology information
    case('<ntopAugmentMode>');      read(cData,*,iostat=io_error) ntopAugmentMode       ! option for river network augmentation mode. terminate the program after writing augmented ntopo.
@@ -158,6 +158,7 @@ CONTAINS
    case('<input_fillvalue>');      read(cData,*,iostat=io_error) input_fillvalue       ! fillvalue used for input variable
    case('<ro_calendar>');          ro_calendar  = trim(cData)                          ! name of calendar used in runoff input netcdfs
    case('<ro_time_units>');        ro_time_units = trim(cData)                         ! time units used in runoff input netcdfs
+   case('<ro_time_stamp>');        ro_time_stamp = trim(cData)                         ! time stamp used input - front, middle, or end, otherwise error
    ! Water-management input netCDF - water abstraction/infjection or lake target volume
    case('<fname_wm>');             fname_wm        = trim(cData)                       ! name of text file containing ordered nc file names
    case('<vname_flux_wm>');        vname_flux_wm   = trim(cData)                       ! name of varibale for fluxes to and from seg (reachs/lakes)
@@ -201,6 +202,9 @@ CONTAINS
    case('<dname_gageSite>');       dname_gageSite  = trim(cData)                       ! dimension name for gauge site
    case('<dname_gageTime>');       dname_gageTime  = trim(cData)                       ! dimension name for time
    case('<strlen_gageSite>');      read(cData,*,iostat=io_error) strlen_gageSite       ! site name max character length
+   ! IO
+   case('<pio_netcdf_format>');    read(cData,*,iostat=io_error) pio_netcdf_format     ! netCDF format: 64bit_offset (default) for PIO use or netCDF-4
+   case('<pio_netcdf_type>');      read(cData,*,iostat=io_error) pio_typename          ! netCDF type: pnetcdf (default), netcdf, netcdf4c, or netcdf4p
    ! MISCELLANEOUS
    case('<debug>');                read(cData,*,iostat=io_error) debug                 ! print out detailed information throught the probram
    case('<seg_outlet>'   );        read(cData,*,iostat=io_error) idSegOut              ! desired outlet reach id (if -9999 --> route over the entire network)
@@ -226,6 +230,7 @@ CONTAINS
    case('<KWvolume>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%KWvolume         )%varFile  ! default: true (turned off if inactive)
    case('<MCvolume>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%MCvolume         )%varFile  ! default: true (turned off if inactive)
    case('<DWvolume>');             read(cData,*,iostat=io_error) meta_rflx(ixRFLX%DWvolume         )%varFile  ! default: true (turned off if inactive)
+   case('<outputInflow>');         read(cData,*,iostat=io_error) outputInflow
 
    ! VARIABLE NAMES for data (overwrite default name in popMeta.f90)
    ! HRU structure
@@ -431,6 +436,18 @@ CONTAINS
      err=81; return
  end select
 
+ ! ---------- I/O time stamp -------
+ if (masterproc) then
+   write(iulog,'(2a)') new_line('a'), '---- input time stamp --- '
+   write(iulog,'(2A)')      '  Input time stamp <ro_time_stamp>:  ', trim(ro_time_stamp)
+   if (trim(ro_time_stamp)=='front' .or. trim(ro_time_stamp)=='end' .or. trim(ro_time_stamp)=='middle') then
+     write(iulog,'(2A)')      '  The same time stamp is used for history output'
+   else
+     write(message, '(2A)') trim(message), 'ERROR: Input time stamp <ro_time_stamp> must be front, end, or middle'
+     err=81; return
+   end if
+ end if
+
  ! ---------- simulation time step, output frequency, file frequency -------
  if (masterproc) then
    write(iulog,'(2a)') new_line('a'), '---- output/simulation time steps --- '
@@ -506,6 +523,14 @@ CONTAINS
  end do
 
  ! ---- history Output variables
+ if (outputInflow) then
+   meta_rflx(ixRFLX%KWTinflow)%varFile=.true.
+   meta_rflx(ixRFLX%IRFinflow)%varFile=.true.
+   meta_rflx(ixRFLX%MCinflow)%varFile=.true.
+   meta_rflx(ixRFLX%KWinflow)%varFile=.true.
+   meta_rflx(ixRFLX%DWinflow)%varFile=.true.
+ end if
+ ! Make sure turned off if the corresponding routing is not running
  do iRoute = 0, nRouteMethods-1
    select case(iRoute)
      case(accumRunoff)
@@ -516,26 +541,31 @@ CONTAINS
        if (.not. onRoute(iRoute)) then
          meta_rflx(ixRFLX%KWTroutedRunoff)%varFile=.false.
          meta_rflx(ixRFLX%KWTvolume)%varFile=.false.
+         meta_rflx(ixRFLX%KWTinflow)%varFile=.false.
        end if
      case(impulseResponseFunc)
         if (.not. onRoute(iRoute)) then
           meta_rflx(ixRFLX%IRFroutedRunoff)%varFile=.false.
           meta_rflx(ixRFLX%IRFvolume)%varFile=.false.
+          meta_rflx(ixRFLX%IRFinflow)%varFile=.false.
        end if
      case(muskingumCunge)
        if (.not. onRoute(iRoute)) then
          meta_rflx(ixRFLX%MCroutedRunoff)%varFile=.false.
          meta_rflx(ixRFLX%MCvolume)%varFile=.false.
+         meta_rflx(ixRFLX%MCinflow)%varFile=.false.
        end if
      case(kinematicWave)
        if (.not. onRoute(iRoute)) then
          meta_rflx(ixRFLX%KWroutedRunoff)%varFile=.false.
          meta_rflx(ixRFLX%KWvolume)%varFile=.false.
+         meta_rflx(ixRFLX%KWinflow)%varFile=.false.
        end if
      case(diffusiveWave)
        if (.not. onRoute(iRoute)) then
          meta_rflx(ixRFLX%DWroutedRunoff)%varFile=.false.
          meta_rflx(ixRFLX%DWvolume)%varFile=.false.
+         meta_rflx(ixRFLX%DWinflow)%varFile=.false.
        end if
      case default; message=trim(message)//'expect digits from 0 and 5'; err=81; return
    end select

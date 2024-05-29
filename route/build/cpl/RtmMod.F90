@@ -32,6 +32,7 @@ MODULE RtmMod
 
   implicit none
   logical, parameter :: verbose=.false.
+  integer, parameter :: iRoute=1        ! index of routing method chosen. cesm-coupled run allows only one option (5 options available), this is always 1.
 
   private
   public route_ini          ! Initialize mizuRoute
@@ -65,12 +66,12 @@ CONTAINS
     USE globalData,          ONLY: NETOPO_main                 ! data structure: River Network topology (main proc, mainstem)
     USE globalData,          ONLY: RPARAM_trib                 ! data structure: River parameters (other procs, tributary)
     USE globalData,          ONLY: RPARAM_main                 ! data structure: River parameters (main proc, mainstem)
-    USE globalData,          ONLY: pio_netcdf_format
-    USE globalData,          ONLY: pio_typename
     USE globalData,          ONLY: pio_rearranger
     USE globalData,          ONLY: pio_root, pio_stride
     USE globalData,          ONLY: pioSystem
-    USE init_model_data,     ONLY: init_ntopo_data, init_model !
+    USE public_var,          ONLY: pio_netcdf_format
+    USE public_var,          ONLY: pio_typename
+    USE init_model_data,     ONLY: init_ntopo_data             !
     USE init_model_data,     ONLY: init_state_data
     USE RtmTimeManager,      ONLY: init_time
     USE mpi_process,         ONLY: pass_global_data
@@ -697,7 +698,6 @@ CONTAINS
     !       (combining mainstem and tributary hru in the order). Therefore, hru index based NETOPO for tributary in main processor
     !       need to be added by number of nHRU_mainstem. offset can be used for this.
 
-    USE globalData, ONLY: idxIRF   ! routing method index
     USE dataTypes, ONLY: RCHTOPO   ! data structure - Network topology
     USE dataTypes, ONLY: STRFLX    ! data structure - fluxes in each reach
 
@@ -739,10 +739,10 @@ CONTAINS
         if (present(offset)) ix=ix+offset
         ! stream volume is split into HRUs based on HRU's areal weight for contributory area
         if (update_vol) then
-          rtmCTL%volr(ix) = RCHFLX_in(iens,iRch)%ROUTE(idxIRF)%REACH_VOL(1)*NETOPO_in(iRch)%HRUWGT(iHru)/rtmCTL%area(ix)
+          rtmCTL%volr(ix) = RCHFLX_in(iens,iRch)%ROUTE(iRoute)%REACH_VOL(1)*NETOPO_in(iRch)%HRUWGT(iHru)/rtmCTL%area(ix)
         end if
         if (update_q) then
-          rtmCTL%discharge(ix,1) = RCHFLX_in(iens,iRch)%ROUTE(idxIRF)%REACH_Q* NETOPO_in(iRch)%HRUWGT(iHru)
+          rtmCTL%discharge(ix,1) = RCHFLX_in(iens,iRch)%ROUTE(iRoute)%REACH_Q* NETOPO_in(iRch)%HRUWGT(iHru)
         end if
         if (update_fld) then
           rtmCTL%flood(ix)       = 0._r8  ! placeholder

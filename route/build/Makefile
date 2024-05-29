@@ -9,7 +9,7 @@
 #========================================================================
 # User configure part
 #========================================================================
-# Define fortran compiler - gnu, intel or pgi
+# Define fortran compiler - gnu, intel, nvidia, cray
 FC  =
 
 # Define the compiler exe
@@ -32,7 +32,6 @@ LIBOPENMP =
 # define if should use external librarys (yes if used)
 # external librarys are: mpi-serial, Parallel-I/O, and GPTL timing library
 # define path to PNETCDF if you want to use it
-isMPISERIAL =
 isPIO = yes
 isGPTL = yes
 
@@ -48,26 +47,32 @@ PIO_FILESYSTEM_HINTS = gpfs
 F_MASTER =
 
 # Define the NetCDF libraries and path to include files
-ifeq "$(FC)" "gnu"
- NCDF_PATH =
- PNETCDF_PATH =
-else ifeq "$(FC)" "intel"
- NCDF_PATH =
- PNETCDF_PATH =
-else ifeq "$(FC)" "pgi"
- NCDF_PATH =
- PNETCDF_PATH =
-else
- $(error FC is not set correctly)
-endif
+NCDF_PATH =
+NCDF_C_PATH =
+NCDF_FORTRAN_PATH =
+PNETCDF_PATH =
+PIO_PATH=        # NCAR HPC-> $(PIO)
 
 LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib \
             -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
 INCNETCDF = -I$(NCDF_PATH)/include
 
+# Error check
+ifndef FC
+ $(error FC is not set. Please set FC to either intel,gnu,nvidia,cray)
+endif
+
+ifndef FC_EXE
+ $(error FC_EXE is not set, Please set FC_EXE to compiler executable name corresponding to FC)
+endif
+
+ifndef F_MASTER
+ $(error F_MASTER is not set. Please set F_MASTER to parent directory of build directory)
+endif
+
 FLAGS_OMP =
 ifeq "$(isOpenMP)" "yes"
- ifeq "$(FC)" "pgi"
+ ifeq "$(FC)" "nvidia"
   FLAGS_OMP = -mp
  endif
  ifeq "$(FC)" "gnu"
@@ -75,6 +80,9 @@ ifeq "$(isOpenMP)" "yes"
  endif
  ifeq "$(FC)" "intel"
   FLAGS_OMP = -qopenmp
+ endif
+ ifeq "$(FC)" "cray"
+  FLAGS_OMP = -fopenmp
  endif
 endif
 
@@ -98,6 +106,10 @@ ifeq "$(FC)" "gnu"
   ifeq "$(MODE)" "profile"
     FLAGS = -p -g -Wall -fmax-errors=0 -fbacktrace -fbounds-check -ffpe-trap=zero -ffree-line-length-none $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
+  GNUVER = $(shell gcc -dumpversion | cut -f1 -d.)
+  ifeq ($(shell test $(GNUVER) -ge 10; echo $$?),0)
+    FLAGS += -fallow-argument-mismatch
+  endif
 endif
 
 ifeq "$(FC)" "intel"
@@ -105,19 +117,28 @@ ifeq "$(FC)" "intel"
     FLAGS = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -debug all -warn all -check all -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
+    FLAGS = -g -debug all -warn all -check all,nouninit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
   ifeq "$(MODE)" "profile"
     FLAGS = -p -g -debug -warn all -check all -noerror_limit -FR -O0 -auto -WB -fpe0 -traceback -fltconsistency $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
 endif
 
-ifeq "$(FC)" "pgi"
+ifeq "$(FC)" "nvidia"
   ifeq "$(MODE)" "fast"
-    FLAGS = -fast -O3 -Mdclchk $(FLAGS_OMP)
+    FLAGS = -fast -O3 -Mdclchk $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -traceback -Mbounds -Mlist -Minfo -Mdclchk $(FLAGS_OMP)
+    FLAGS = -g -traceback -Mbounds -Mlist -Minfo -Mdclchk $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
+  endif
+endif
+
+ifeq "$(FC)" "cray"
+  ifeq "$(MODE)" "fast"
+    FLAGS = -O3 -eP $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
+  endif
+  ifeq "$(MODE)" "debug"
+    FLAGS = -g -O0 -h bounds -eP $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
 endif
 
@@ -162,6 +183,7 @@ DATATYPES = \
     allocation.f90
 # define utilities
 UTILS = \
+    hydraulic.f90 \
     mpi_utils.f90 \
     model_utils.f90 \
     gamma_func.f90
@@ -222,12 +244,16 @@ all: compile install clean
 #========================================================================
 # External libaries that might need to be built
 #========================================================================
-LIBDIR       = $(F_MASTER)build/lib
-PIOLIBDIR    = $(LIBDIR)/piolib/lib
-PIOINCDIR    = $(LIBDIR)/piolib/include
-PIOLIB       = $(PIOLIBDIR)/libpiof.a $(PIOLIBDIR)/libpioc.a
-MPISERLIBDIR = $(LIBDIR)/mpi-seriallib
-MPISERLIB    = $(MPISERLIBDIR)/libmpi-serial.a
+LIBDIR = $(F_MASTER)build/lib
+ifdef PIO_PATH
+  PIOLIBDIR= $(PIO_PATH)/lib
+  PIOINCDIR= $(PIO_PATH)/include
+  PIOLIB   = $(PIOLIBDIR)/libpiof.so $(PIOLIBDIR)/libpioc.so
+else
+  PIOLIBDIR    = $(LIBDIR)/piolib/lib
+  PIOINCDIR    = $(LIBDIR)/piolib/include
+  PIOLIB       = $(PIOLIBDIR)/libpiof.a $(PIOLIBDIR)/libpioc.a
+endif
 
 ifeq "$(isPIO)" "yes"
   EXTINCLUDES += -I$(PIOINCDIR)
@@ -239,35 +265,18 @@ ifeq "$(isPIO)" "yes"
   endif
 endif
 
-ifeq "$(isMPISERIAL)" "yes"
-  EXTINCLUDES += -I$(MPISERLIBDIR)
-  EXTLIBS += $(MPISERLIB)
-  LDFLAGS += -L$(MPISERLIBDIR) -lmpi-serial
-  ifdef PNETCDF_PATH
-    undefine PNETCDF_PATH
-  endif
-  MPISERIAL = $(MPISERLIB)
-else
-  MPISERIAL =
-endif
-
 ifdef PNETCDF_PATH
         LDFLAGS    += -L$(PNETCDF_PATH)/lib -lpnetcdf
 endif
 
-$(PIOLIB): $(MPISERIAL)
+$(PIOLIB):
 	cd $(LIBDIR); \
 	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) FC=$(FC_EXE) FC_EXE=$(FC_EXE) FLAGS="$(FLAGS)" \
 	PIO_FILESYSTEM_HINTS=$(PIO_FILESYSTEM_HINTS) PNETCDF_PATH=$(PNETCDF_PATH) isPIO=yes isGPTL=$(isGPTL) \
 	MPIINC_PATHLIST=$(CPATH) NCDF_PATH=$(NCDF_PATH) MODE=$(MODE) $(PIOLIB)
 
-$(MPISERLIB):
-	cd $(LIBDIR); \
-	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) FC=$(FC_EXE) FC_EXE=$(FC_EXE) FLAGS="$(FLAGS)" isMPISERIAL=yes \
-	MODE=$(MODE) $(MPISERLIB)
-
 # Clean external libs
-cleanlibs: cleanpiolib cleanmpiseriallib
+cleanlibs: cleanpiolib
 	@echo "Clean the pio and mpi-serial external libraries"
 .PHONY : cleanlibs
 
@@ -275,11 +284,6 @@ cleanpiolib:
 	cd $(LIBDIR); \
 	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) cleanpiolib
 .PHONY : cleanpiolib
-
-cleanmpiseriallib:
-	cd $(LIBDIR); \
-	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) cleanmpiseriallib
-.PHONY : cleanmpiseriallib
 
 #========================================================================
 # Compile the puppy

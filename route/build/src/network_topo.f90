@@ -1002,7 +1002,7 @@ CONTAINS
    character(*)      , intent(out)               :: message           ! error message
    ! Local variables
    integer(i4b)                                  :: downIndex
-   integer(i4b)                                  :: iRch,jRch         ! loop index
+   integer(i4b)                                  :: iRch              ! loop index
 
    ierr=0; message='lakeInlet/'
 

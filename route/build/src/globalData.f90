@@ -1,5 +1,11 @@
 MODULE globalData
 
+  ! General rules
+  ! This module include data/variables that can be accessed from any other modules
+  ! User do not directly interface the data/variables
+  ! Data/values can be altered throughout the runtime
+  ! See public_var.f90 for difference
+
   USE pio
 
   USE public_var
@@ -133,8 +139,6 @@ MODULE globalData
   integer(i4b),                    public :: nThreads                           ! number of threads
   logical(lgt),                    public :: masterproc                         ! root logical. root processor => true, other => false
   logical(lgt),                    public :: multiProcs                         ! MPI multi-processors logical. => number of processors>1 true, other => false
-  character(len=strLen),           public :: pio_netcdf_format = "64bit_offset" ! netCDF format - use '64bit_offset' for PIO use or 'netCDF-4'
-  character(len=strLen),           public :: pio_typename      = "pnetcdf"      ! netcdf, pnetcdf, netcdf4c, or netcdf4p
   integer(i4b),                    public :: pio_numiotasks    = -99            ! Number of iotasks (ntasks/stride) - see PIO documentation for more information
   integer(i4b),                    public :: pio_rearranger    = 2              ! 0=>PIO_rearr_none 1=> PIO_rearr_box 2=> PIO_rearr_subset
   integer(i4b),                    public :: pio_root          = 1              ! PIO root

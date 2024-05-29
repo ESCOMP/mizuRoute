@@ -11,14 +11,13 @@ MODULE historyFile
   USE globalData,        ONLY: masterproc
   USE globalData,        ONLY: mpicom_route
   USE globalData,        ONLY: pioSystem
-  USE globalData,        ONLY: pio_netcdf_format
-  USE globalData,        ONLY: pio_typename
+  USE public_var,        ONLY: pio_netcdf_format
+  USE public_var,        ONLY: pio_typename
   USE globalData,        ONLY: version
   USE globalData,        ONLY: gitBranch
   USE globalData,        ONLY: gitHash
   USE histVars_data,     ONLY: histVars
   USE pio_utils
-  USE perf_mod,          ONLY: t_startf,t_stopf ! timing start/stop (GPTL library)
 
   implicit none
   integer(i4b),parameter     :: recordDim=-999       ! record dimension Indicator
@@ -311,15 +310,17 @@ MODULE historyFile
     ! ---------------------------------
     ! writing time variables
     ! ---------------------------------
-    SUBROUTINE write_time(this, hvars_local, ierr, message)
+    SUBROUTINE write_time(this, hVars_local, time_stamp_Local, ierr, message)
 
       implicit none
       ! Argument variables
       class(histFile),           intent(inout) :: this
-      type(histVars),            intent(in)    :: hVars_local
+      type(histVars),            intent(in)    :: hVars_local      ! history variable structure
+      character(len=strLen),     intent(in)    :: time_stamp_local ! time stamp for time variable: front, end, or middle
       integer(i4b),              intent(out)   :: ierr             ! error code
       character(*),              intent(out)   :: message          ! error message
       ! local variables
+      real(dp)                                 :: timeVar_write    ! time variable [time_unit]
       character(len=strLen)                    :: cmessage         ! error message of downwind routine
 
       ierr=0; message='write_time/'
@@ -327,7 +328,13 @@ MODULE historyFile
       this%iTime = this%iTime + 1 ! this is only line to increment time step index
 
       ! write time -- note time is just carried across from the input
-      call write_netcdf(this%pioFileDesc, 'time', [hVars_local%timeVar(1)], [this%iTime], [1], ierr, cmessage)
+      select case(trim(time_stamp_local))
+        case('front');  timeVar_write = hVars_local%timeVar(1)
+        case('end');    timeVar_write = hVars_local%timeVar(2)
+        case('middle'); timeVar_write = (hVars_local%timeVar(1)+hVars_local%timeVar(2))/2.0
+      end select
+
+      call write_netcdf(this%pioFileDesc, 'time', [timeVar_write], [this%iTime], [1], ierr, cmessage)
       if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       call write_netcdf(this%pioFileDesc, 'time_bounds', hVars_local%timeVar, [1,this%iTime], [2,1], ierr, cmessage)
@@ -455,6 +462,16 @@ MODULE historyFile
               array_temp(1:nRch_write) = hVars_local%volume(index_write, idxMC)
             case(ixRFLX%DWvolume)
               array_temp(1:nRch_write) = hVars_local%volume(index_write, idxDW)
+            case(ixRFLX%KWTinflow)
+              array_temp(1:nRch_write) = hVars_local%inflow(index_write, idxKWT)
+            case(ixRFLX%IRFinflow)
+              array_temp(1:nRch_write) = hVars_local%inflow(index_write, idxIRF)
+            case(ixRFLX%KWinflow)
+              array_temp(1:nRch_write) = hVars_local%inflow(index_write, idxKW)
+            case(ixRFLX%MCinflow)
+              array_temp(1:nRch_write) = hVars_local%inflow(index_write, idxMC)
+            case(ixRFLX%DWinflow)
+              array_temp(1:nRch_write) = hVars_local%inflow(index_write, idxDW)
             case default
               write(message,'(2A,1X,G0,1X,1A)') trim(message), 'Invalid RFLX variable index:',iVar,'. Check ixRFLX in var_lookup.f90'
               ierr=81; return
